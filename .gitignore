@@ -1,0 +1,25 @@
+# Dependencias y artefactos de build
+node_modules/
+build/
+target/
+dist/
+*.zip
+
+# Backups y temporales
+*.bak
+*.bak-*
+*.before-*
+*.tmp
+*.swp
+*~
+
+# Logs y datos locales
+*.log
+/var/
+.DS_Store
+
+# Credenciales (nunca subir)
+.env
+*.pem
+*.key
+secrets*

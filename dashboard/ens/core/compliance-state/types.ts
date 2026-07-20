@@ -1,0 +1,48 @@
+import { ENSComplianceResult, ENSComplianceStatus } from '../evaluation/types';
+
+export interface ENSComplianceSummary {
+  totalControls: number;
+  cumple: number;
+  noCumple: number;
+  parcial: number;
+  noEvaluable: number;
+  noAplica: number;
+  scoreAverage: number;
+}
+
+export interface ENSAgentSummary {
+  totalAgents: number;
+  agentsWithResults: number;
+  agentsWithoutResults: number;
+}
+
+export interface ENSEvidenceSummary {
+  totalEvidences: number;
+  cumple: number;
+  noCumple: number;
+  parcial: number;
+  noEvaluable: number;
+  noAplica: number;
+}
+
+export interface ENSAgentComplianceState {
+  agentId: string;
+  agentName?: string;
+  results: ENSComplianceResult[];
+  summary: ENSComplianceSummary;
+}
+
+export interface ENSComplianceState {
+  evaluatedAt: string;
+  results: ENSComplianceResult[];
+
+  controlSummary: ENSComplianceSummary;
+  requirementSummary: ENSComplianceSummary;
+  agentSummary: ENSAgentSummary;
+  evidenceSummary: ENSEvidenceSummary;
+
+  summary: ENSComplianceSummary;
+  agents: ENSAgentComplianceState[];
+}
+
+export type ENSComplianceStatusFilter = ENSComplianceStatus | 'ALL';

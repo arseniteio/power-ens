@@ -1,0 +1,35 @@
+<group name="ensfacil,mp_info_6,score,">
+
+  <rule id="106660" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">verify_ok</field>
+    <description>mp.info.6 · mp.info.6.2.b · CUMPLE (EV-03) · Verificación de integridad PBS correcta</description>
+    <group>ENS_mp.info.6,mp_info_6_2_b,EV_03,nivel_bajo,nivel_medio,cumple,verify,</group>
+    <info type="text">requisito=mp.info.6.2.b evidencia=EV-03 nivel=MEDIO estado=CUMPLE ev_id=OK-03 formato=json_line</info>
+  </rule>
+
+  <rule id="106661" level="12">
+    <if_sid>106600</if_sid>
+    <field name="event">verify_error</field>
+    <description>mp.info.6 · mp.info.6.2.b · NO_CUMPLE (EV-03) · Verificación de integridad PBS fallida</description>
+    <group>ENS_mp.info.6,mp_info_6_2_b,EV_03,nivel_bajo,nivel_medio,no_cumple,non_conformity,verify,</group>
+    <info type="text">requisito=mp.info.6.2.b evidencia=EV-03 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-10 formato=json_line</info>
+  </rule>
+
+  <rule id="106662" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">offsite_ok</field>
+    <description>mp.info.6 · mp.info.6.r2.1 · CUMPLE (EV-06) · Copia offsite (sync) correcta</description>
+    <group>ENS_mp.info.6,mp_info_6_r2_1,EV_06,nivel_alto,cumple,offsite,</group>
+    <info type="text">requisito=mp.info.6.r2.1 evidencia=EV-06 nivel=ALTO estado=CUMPLE ev_id=OK-04 formato=json_line</info>
+  </rule>
+
+  <rule id="106663" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">offsite_error</field>
+    <description>mp.info.6 · mp.info.6.r2.1 · NO_CUMPLE (EV-06) · Copia offsite (sync) fallida o ausente</description>
+    <group>ENS_mp.info.6,mp_info_6_r2_1,EV_06,nivel_alto,no_cumple,non_conformity,offsite,</group>
+    <info type="text">requisito=mp.info.6.r2.1 evidencia=EV-06 nivel=ALTO estado=NO_CUMPLE ev_id=NC-11 formato=json_line</info>
+  </rule>
+
+</group>

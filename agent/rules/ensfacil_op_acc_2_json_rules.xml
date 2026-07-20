@@ -1,0 +1,289 @@
+<group name="ensfacil,op_acc_2,score,">
+
+  <!-- ================================================================
+       op.acc.2 · Requisitos de acceso
+       Rango reservado: 106900-106999
+       Base 106900 · eventos 106901-106949 · evidence_state 106950-106953
+       control_state 106960-106963 · score_snapshot 106970-106972
+       ================================================================ -->
+
+  <rule id="106900" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.acc.2</field>
+    <description>op.acc.2 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.acc.2.1 · Protección de los recursos (EV-01, EV-03, EV-07) ===== -->
+
+  <rule id="106901" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">sca_check</field>
+    <description>op.acc.2 · op.acc.2.1 · CUMPLE (EV-01) · Comprobación SCA de permisos recibida</description>
+    <group>ENS_op.acc.2,op_acc_2_1,EV_01,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
+    <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-01 formato=json_line</info>
+  </rule>
+
+  <rule id="106902" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">world_writable</field>
+    <description>op.acc.2 · op.acc.2.1 · NO_CUMPLE (EV-01) · Recurso world-writable no autorizado</description>
+    <group>ENS_op.acc.2,op_acc_2_1,EV_01,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=NO_CUMPLE ev_id=NC-01 formato=json_line</info>
+  </rule>
+
+  <rule id="106903" level="7">
+    <if_sid>106900</if_sid>
+    <field name="event">umask_check</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · op.acc.2.1 · NO_CUMPLE (EV-01) · umask más permisivo que el mínimo exigido</description>
+    <group>ENS_op.acc.2,op_acc_2_1,EV_01,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=NO_CUMPLE ev_id=NC-02 formato=json_line</info>
+  </rule>
+
+  <rule id="106904" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">umask_check</field>
+    <description>op.acc.2 · op.acc.2.1 · CUMPLE (EV-01) · umask conforme al mínimo exigido</description>
+    <group>ENS_op.acc.2,op_acc_2_1,EV_01,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
+    <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-02 formato=json_line</info>
+  </rule>
+
+  <!-- ===== op.acc.2.2 · Derechos según responsable (EV-03, EV-04) ===== -->
+
+  <rule id="106910" level="7">
+    <if_sid>106900</if_sid>
+    <field name="event">access_denied</field>
+    <description>op.acc.2 · op.acc.2.2 · Acceso denegado a recurso del sistema</description>
+    <group>ENS_op.acc.2,op_acc_2_2,EV_03,nivel_bajo,nivel_medio,nivel_alto,</group>
+    <info type="text">requisito=op.acc.2.2 evidencia=EV-03 nivel=BAJO estado=CUMPLE ev_id=OK-03 formato=json_line</info>
+  </rule>
+
+  <rule id="106911" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">privilege_escalation</field>
+    <description>op.acc.2 · op.acc.2.2 · NO_CUMPLE (EV-03) · Escalada de privilegios detectada</description>
+    <group>ENS_op.acc.2,op_acc_2_2,EV_03,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.2 evidencia=EV-03 nivel=BAJO estado=NO_CUMPLE ev_id=NC-03 formato=json_line</info>
+  </rule>
+
+  <rule id="106912" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">sudo_usage</field>
+    <description>op.acc.2 · op.acc.2.2 · Uso de sudo/su registrado</description>
+    <group>ENS_op.acc.2,op_acc_2_2,EV_03,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
+    <info type="text">requisito=op.acc.2.2 evidencia=EV-03 nivel=BAJO estado=CUMPLE ev_id=OK-04 formato=json_line</info>
+  </rule>
+
+  <rule id="106913" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">acl_check</field>
+    <description>op.acc.2 · op.acc.2.2 · CUMPLE (EV-04) · ACLs verificadas contra la política</description>
+    <group>ENS_op.acc.2,op_acc_2_2,EV_04,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
+    <info type="text">requisito=op.acc.2.2 evidencia=EV-04 nivel=BAJO estado=CUMPLE ev_id=OK-05 formato=json_line</info>
+  </rule>
+
+  <rule id="106914" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">acl_deviation</field>
+    <description>op.acc.2 · op.acc.2.2 · NO_CUMPLE (EV-04) · ACL del recurso difiere de la política declarada</description>
+    <group>ENS_op.acc.2,op_acc_2_2,EV_04,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.2 evidencia=EV-04 nivel=BAJO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
+  </rule>
+
+  <!-- ===== op.acc.2.3 · Acceso a componentes del SO (EV-02, EV-07) ===== -->
+
+  <rule id="106920" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">fim_modified</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-02) · Modificación en fichero crítico del sistema operativo</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,fim,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-05 formato=json_line</info>
+  </rule>
+
+  <rule id="106921" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">fim_added</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-02) · Alta de fichero en ruta crítica del sistema operativo</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,fim,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-06 formato=json_line</info>
+  </rule>
+
+  <rule id="106922" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">fim_deleted</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-02) · Borrado de fichero crítico del sistema operativo</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,fim,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-07 formato=json_line</info>
+  </rule>
+
+  <!-- FIM nativo de Wazuh sobre las rutas críticas declaradas en P-02.
+       Ajusta el pcre2 a las rutas reales del cliente. -->
+  <rule id="106923" level="10">
+    <if_group>syscheck</if_group>
+    <field name="file" type="pcre2">/etc/passwd|/etc/shadow|/etc/sudoers|/etc/ssh/sshd_config|/etc/crontab</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-02) · Cambio FIM en componente del sistema operativo</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,fim,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-08 formato=fim</info>
+  </rule>
+
+  <rule id="106925" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">rootcheck</field>
+    <description>op.acc.2 · op.acc.2.3 · CUMPLE (EV-07) · Rootcheck ejecutado sobre el sistema</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_07,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-07 nivel=BAJO estado=CUMPLE ev_id=OK-06 formato=json_line</info>
+  </rule>
+
+  <rule id="106926" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">suid_sgid</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-07) · Binario SUID/SGID no autorizado detectado</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_07,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-07 nivel=BAJO estado=NO_CUMPLE ev_id=NC-09 formato=json_line</info>
+  </rule>
+
+  <rule id="106927" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">no_owner_file</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-07) · Fichero sin propietario detectado</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_07,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-07 nivel=BAJO estado=NO_CUMPLE ev_id=NC-10 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Refuerzo R1 · solo nivel ALTO (EV-05, EV-06) ===== -->
+
+  <rule id="106930" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">privilege_check</field>
+    <description>op.acc.2 · op.acc.2.r1.1 · CUMPLE (EV-05) · Privilegios individuales verificados</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_1,EV_05,nivel_alto,cumple,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.1 evidencia=EV-05 nivel=ALTO estado=CUMPLE ev_id=OK-07 formato=json_line</info>
+  </rule>
+
+  <rule id="106931" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">excessive_privilege</field>
+    <description>op.acc.2 · op.acc.2.r1.1 · NO_CUMPLE (EV-05) · Usuario con privilegios excesivos o no individualizados</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_1,EV_05,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.1 evidencia=EV-05 nivel=ALTO estado=NO_CUMPLE ev_id=NC-11 formato=json_line</info>
+  </rule>
+
+  <rule id="106932" level="5">
+    <if_sid>106900</if_sid>
+    <field name="event">group_membership</field>
+    <description>op.acc.2 · op.acc.2.r1.1 · Pertenencia a grupo privilegiado registrada</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_1,EV_05,nivel_alto,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.1 evidencia=EV-05 nivel=ALTO estado=CUMPLE ev_id=OK-08 formato=json_line</info>
+  </rule>
+
+  <rule id="106935" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">access_type_violation</field>
+    <description>op.acc.2 · op.acc.2.r1.2 · NO_CUMPLE (EV-06) · Acceso de tipo superior al autorizado para el usuario</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_2,EV_06,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.2 evidencia=EV-06 nivel=ALTO estado=NO_CUMPLE ev_id=NC-12 formato=json_line</info>
+  </rule>
+
+  <rule id="106936" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">object_access</field>
+    <description>op.acc.2 · op.acc.2.r1.2 · Acceso a objeto registrado con su tipo</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_2,EV_06,nivel_alto,cumple,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.2 evidencia=EV-06 nivel=ALTO estado=CUMPLE ev_id=OK-09 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Estados de evidencia (genéricos) ===== -->
+
+  <rule id="106950" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">CUMPLE</field>
+    <description>op.acc.2 · Evidencia CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_op.acc.2,evidence_state,cumple,</group>
+  </rule>
+
+  <rule id="106951" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · Evidencia NO_CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_op.acc.2,evidence_state,no_cumple,non_conformity,</group>
+  </rule>
+
+  <rule id="106952" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.2 · Evidencia NO_EVALUABLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_op.acc.2,evidence_state,no_evaluable,</group>
+  </rule>
+
+  <rule id="106953" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_APLICA</field>
+    <description>op.acc.2 · Evidencia NO_APLICA · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_op.acc.2,evidence_state,no_aplica,</group>
+  </rule>
+
+  <!-- ===== Estado del control ===== -->
+
+  <rule id="106960" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">CUMPLE</field>
+    <description>op.acc.2 · Control CUMPLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.2,control_state,cumple,</group>
+  </rule>
+
+  <rule id="106961" level="7">
+    <if_sid>106900</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">PARCIAL</field>
+    <description>op.acc.2 · Control PARCIAL · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.2,control_state,parcial,</group>
+  </rule>
+
+  <rule id="106962" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · Control NO_CUMPLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.2,control_state,no_cumple,non_conformity,</group>
+  </rule>
+
+  <rule id="106963" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_APLICA</field>
+    <description>op.acc.2 · Control NO_APLICA · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.2,control_state,no_aplica,</group>
+  </rule>
+
+  <!-- ===== Snapshot de puntuación ===== -->
+
+  <rule id="106970" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">CUMPLE</field>
+    <description>op.acc.2 · SCORE $(nivel) CUMPLE · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_op.acc.2,score_snapshot,cumple,</group>
+  </rule>
+
+  <rule id="106971" level="7">
+    <if_sid>106900</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">PARCIAL</field>
+    <description>op.acc.2 · SCORE $(nivel) PARCIAL · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_op.acc.2,score_snapshot,parcial,</group>
+  </rule>
+
+  <rule id="106972" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_op.acc.2,score_snapshot,no_cumple,non_conformity,</group>
+  </rule>
+
+</group>

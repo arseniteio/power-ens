@@ -1,0 +1,196 @@
+<group name="ensfacil,mp_info_6,score,">
+
+<rule id="106600" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">mp.info.6</field>
+    <description>mp.info.6 · evento ENSFácil base</description>
+  </rule>
+
+  <rule id="106601" level="12">
+    <if_sid>106600</if_sid>
+    <field name="event">backup_missing</field>
+    <description>mp.info.6 · mp.info.6.1 · NO_CUMPLE (EV-01,EV-02) · Sin backup correcto en ventana temporal</description>
+    <group>ENS_mp.info.6,mp_info_6_1,EV_01,EV_02,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
+    <info type="text">requisito=mp.info.6.1 evidencia=EV-01,EV-02 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-01 formato=json_line</info>
+  </rule>
+
+  <rule id="106690" level="7">
+    <if_sid>106600</if_sid>
+    <field name="event">backup_error</field>
+    <description>mp.info.6 · mp.info.6.1 · Evento backup_error detectado</description>
+    <group>ENS_mp.info.6,mp_info_6_1,EV_07,backup_error,</group>
+  </rule>
+
+  <rule id="106602" level="12" frequency="3" timeframe="86400">
+    <if_matched_sid>106690</if_matched_sid>
+    <description>mp.info.6 · mp.info.6.1 · NO_CUMPLE (EV-07) · Errores repetidos del agente de backup</description>
+    <group>ENS_mp.info.6,mp_info_6_1,EV_07,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
+    <info type="text">requisito=mp.info.6.1 evidencia=EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-02 formato=json_line</info>
+  </rule>
+
+  <rule id="106603" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">freq_deviation</field>
+    <description>mp.info.6 · mp.info.6.2.a · NO_CUMPLE (EV-02) · Frecuencia real distinta a la esperada</description>
+    <group>ENS_mp.info.6,mp_info_6_2_a,EV_02,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
+    <info type="text">requisito=mp.info.6.2.a evidencia=EV-02 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-03 formato=json_line</info>
+  </rule>
+
+  <rule id="106604" level="12">
+    <if_sid>106600</if_sid>
+    <field name="event">access</field>
+    <field name="authorized">false</field>
+    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03,EV-04) · Acceso no autorizado a copias</description>
+    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,EV_04,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
+    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03,EV-04 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
+  </rule>
+
+  <rule id="106605" level="12">
+    <if_group>syscheck</if_group>
+    <field name="file" type="pcre2">/opt/zimbra/backup/sessions|/var/lib/pxbackup|/var/lib/proxmox-backup</field>
+    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03) · Cambio FIM en zona de backup</description>
+    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,nivel_bajo,nivel_medio,no_cumple,non_conformity,fim,</group>
+    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-05 formato=fim</info>
+  </rule>
+
+  <rule id="106606" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">restore_missing</field>
+    <description>mp.info.6 · mp.info.6.r1.1 · NO_EVALUABLE (EV-05) · Sin prueba de restauración R1 con md5sum</description>
+    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_evaluable,restore,</group>
+    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_EVALUABLE ev_id=NC-06 formato=json_line</info>
+  </rule>
+
+  <rule id="106607" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">restore_error</field>
+    <description>mp.info.6 · mp.info.6.r1.1 · NO_CUMPLE (EV-05) · Restauración fallida</description>
+    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_cumple,restore,</group>
+    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-07 formato=json_line</info>
+  </rule>
+
+  <rule id="106609" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">encfp_changed</field>
+    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03,EV-07) · Cambio de fingerprint de cifrado</description>
+    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,EV_07,nivel_bajo,nivel_medio,no_cumple,non_conformity,encryption,fingerprint,</group>
+    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03,EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-09 formato=json_line</info>
+  </rule>
+
+  <rule id="106650" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">backup_ok</field>
+    <description>mp.info.6 · mp.info.6.1 · CUMPLE (EV-01) · Backup exitoso registrado</description>
+    <group>ENS_mp.info.6,mp_info_6_1,EV_01,nivel_bajo,nivel_medio,cumple,</group>
+    <info type="text">requisito=mp.info.6.1 evidencia=EV-01 nivel=MEDIO estado=CUMPLE ev_id=OK-01 formato=json_line</info>
+  </rule>
+
+  <rule id="106651" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">restore_ok</field>
+    <field name="job_id" type="pcre2">^.+$</field>
+    <field name="restored_path" type="pcre2">^.+$</field>
+    <status type="pcre2">(?i)^(success|ok|completed|complete|cumple)$</status>
+    <field name="md5" type="pcre2">^[a-fA-F0-9]{32}$</field>
+    <description>mp.info.6 · mp.info.6.r1.1 · CUMPLE (EV-05) · Restore correcto con md5sum</description>
+    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,cumple,restore,md5,</group>
+    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=CUMPLE ev_id=OK-02 formato=json_line contrato=restore_validado</info>
+  </rule>
+
+  <rule id="106652" level="0">
+    <if_sid>106651</if_sid>
+    <field name="synthetic" type="pcre2">(?i)^(true|1|yes)$</field>
+    <description>mp.info.6 · EV-05 · Evento de restauración sintético descartado</description>
+    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,no_evaluable,synthetic,suppressed,</group>
+    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 estado=NO_EVALUABLE motivo=synthetic formato=json_line</info>
+  </rule>
+
+<rule id="106700" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">CUMPLE</field>
+    <description>mp.info.6 · Evidencia CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_mp.info.6,evidence_state,cumple,</group>
+  </rule>
+
+  <rule id="106701" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>mp.info.6 · Evidencia NO_CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_mp.info.6,evidence_state,no_cumple,non_conformity,</group>
+  </rule>
+
+  <rule id="106702" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>mp.info.6 · Evidencia NO_EVALUABLE · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_mp.info.6,evidence_state,no_evaluable,</group>
+  </rule>
+
+  <rule id="106703" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_APLICA</field>
+    <description>mp.info.6 · Evidencia NO_APLICA · $(evidence_id) · requisito=$(requisito)</description>
+    <group>ENS_mp.info.6,evidence_state,no_aplica,</group>
+  </rule>
+
+  <rule id="106710" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">CUMPLE</field>
+    <description>mp.info.6 · Control CUMPLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_mp.info.6,control_state,cumple,</group>
+  </rule>
+
+  <rule id="106711" level="7">
+    <if_sid>106600</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">PARCIAL</field>
+    <description>mp.info.6 · Control PARCIAL · $(control) · nivel=$(nivel)</description>
+    <group>ENS_mp.info.6,control_state,parcial,</group>
+  </rule>
+
+  <rule id="106712" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>mp.info.6 · Control NO_CUMPLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_mp.info.6,control_state,no_cumple,non_conformity,</group>
+  </rule>
+
+  <rule id="106713" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_APLICA</field>
+    <description>mp.info.6 · Control NO_APLICA · $(control) · nivel=$(nivel)</description>
+    <group>ENS_mp.info.6,control_state,no_aplica,</group>
+  </rule>
+
+  <rule id="106720" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">CUMPLE</field>
+    <description>mp.info.6 · SCORE $(nivel) CUMPLE · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_mp.info.6,score_snapshot,cumple,</group>
+  </rule>
+
+  <rule id="106721" level="7">
+    <if_sid>106600</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">PARCIAL</field>
+    <description>mp.info.6 · SCORE $(nivel) PARCIAL · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_mp.info.6,score_snapshot,parcial,</group>
+  </rule>
+
+  <rule id="106722" level="10">
+    <if_sid>106600</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>mp.info.6 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
+    <group>ENS_mp.info.6,score_snapshot,no_cumple,non_conformity,</group>
+  </rule>
+
+</group>
