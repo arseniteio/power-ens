@@ -137,13 +137,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     title: 'Inventario de cuentas activas',
     description:
       'Existe un inventario de las cuentas de usuario activas en los sistemas monitorizados que permite verificar la unicidad del identificador.',
-    requirements: [
-      'op.acc.1.3',
-      'op.acc.1.4',
-      'op.acc.1.5',
-      'op.acc.1.r1.1',
-      'op.acc.1.r1.2',
-    ],
+    requirements: ['op.acc.1.3', 'op.acc.1.4', 'op.acc.1.r1.2', 'op.acc.1.r1.3'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',

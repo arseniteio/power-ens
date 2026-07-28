@@ -4,6 +4,9 @@ import {
   ENSPolicyRuntimeResult,
   ENSRuntimeVariable,
 } from './types';
+import {
+  getPolicyDefinition,
+} from './policies';
 
 const getParameterValue = (
   context: ENSPolicyContext,
@@ -1953,7 +1956,45 @@ const buildPolicyDecisions = (
 export const runPolicyRuntime = (
   context: ENSPolicyContext
 ): ENSPolicyRuntimeResult => {
-  const runtimeVariables = buildRuntimeVariables(context);
+  const policyDefinition =
+    getPolicyDefinition(
+      context.control.id
+    );
+
+  const evaluator =
+    policyDefinition?.evaluator;
+
+  if (evaluator) {
+    const evaluated =
+      evaluator(context);
+
+    return {
+      controlId:
+        context.control.id,
+      policyId:
+        policyDefinition.id,
+      evaluatedAt:
+        new Date().toISOString(),
+      decisions:
+        evaluated.decisions,
+      appliedParameters:
+        context.configuration
+          ?.parameters.map(
+            parameter => ({
+              id: parameter.id,
+              name: parameter.name,
+              value: parameter.value,
+              required:
+                parameter.required,
+            })
+          ) || [],
+      runtimeVariables:
+        evaluated.runtimeVariables,
+    };
+  }
+
+  const runtimeVariables =
+    buildRuntimeVariables(context);
 
   return {
     controlId: context.control.id,

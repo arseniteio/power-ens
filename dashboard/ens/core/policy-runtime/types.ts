@@ -30,6 +30,15 @@ export interface ENSPolicyContext {
   evidences: ENSEvidenceResolved[];
 }
 
+export interface ENSPolicyEvaluatorResult {
+  decisions: ENSPolicyDecision[];
+  runtimeVariables: ENSRuntimeVariable[];
+}
+
+export type ENSPolicyEvaluator = (
+  context: ENSPolicyContext
+) => ENSPolicyEvaluatorResult;
+
 export interface ENSAppliedParameter {
   id: string;
   name: string;
@@ -89,4 +98,5 @@ export interface ENSPolicyDefinition {
   controlId: string;
   version: string;
   requirements: ENSPolicyRequirementDefinition[];
+  evaluator?: ENSPolicyEvaluator;
 }

@@ -1,257 +1,373 @@
-<group name="ensfacil,op_acc_1,score,">
-
-  <!-- ================================================================
-       op.acc.1 · Identificación
-       Rango reservado: 106800-106899
-       Base 106800 · eventos 106801-106849 · evidence_state 106850-106853
-       control_state 106860-106863 · score_snapshot 106870-106872
-       ================================================================ -->
-
+<group name="ensfacil,op_acc_1,technical_fact,">
   <rule id="106800" level="0">
     <decoded_as>json</decoded_as>
     <field name="ensfacil">op.acc.1</field>
-    <description>op.acc.1 · evento ENSFácil base</description>
+    <field name="event_class">^technical_fact$</field>
+    <field name="synthetic">^false$</field>
+    <field name="event_id">.+</field>
+    <field name="execution_id">.+</field>
+    <field name="schema_version">.+</field>
+    <field name="collector">.+</field>
+    <field name="collector_version">.+</field>
+    <description>op.acc.1 · evento técnico raw</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">control=op.acc.1 contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== op.acc.1.1 · Identificador único válido (EV-03) ===== -->
-
-  <rule id="106801" level="12">
+  <rule id="106801" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">generic_account_login</field>
-    <description>op.acc.1 · op.acc.1.1 · NO_CUMPLE (EV-03) · Autenticación con cuenta genérica o compartida</description>
-    <group>ENS_op.acc.1,op_acc_1_1,EV_03,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
-    <info type="text">requisito=op.acc.1.1 evidencia=EV-03 nivel=BAJO estado=NO_CUMPLE ev_id=NC-01 formato=json_line</info>
+    <field name="event">^generic_account_login$</field>
+    <description>op.acc.1 · hecho técnico · generic_account_login</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=generic_account_login contrato=technical_fact formato=json_line</info>
   </rule>
-
   <rule id="106802" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">auth_success</field>
-    <description>op.acc.1 · op.acc.1.1 · Autenticación correcta con identificador único</description>
-    <group>ENS_op.acc.1,op_acc_1_1,EV_03,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.1 evidencia=EV-03 nivel=BAJO estado=CUMPLE ev_id=OK-01 formato=json_line</info>
+    <field name="event">^auth_success$</field>
+    <description>op.acc.1 · hecho técnico · auth_success</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=auth_success contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== op.acc.1.2 · Identificadores por rol (EV-05, EV-06) ===== -->
-
-  <rule id="106805" level="12">
+  <rule id="106803" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">service_account_interactive</field>
-    <description>op.acc.1 · op.acc.1.2 · NO_CUMPLE (EV-05) · Cuenta de servicio usada para acceso interactivo</description>
-    <group>ENS_op.acc.1,op_acc_1_2,EV_05,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
-    <info type="text">requisito=op.acc.1.2 evidencia=EV-05 nivel=BAJO estado=NO_CUMPLE ev_id=NC-02 formato=json_line</info>
+    <field name="event">^account_deletion_record_invalid$</field>
+    <description>op.acc.1 · hecho técnico · account_deletion_record_invalid</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=account_deletion_record_invalid contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106806" level="3">
+  <rule id="106804" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">interactive_login</field>
-    <description>op.acc.1 · op.acc.1.2 · Acceso interactivo registrado</description>
-    <group>ENS_op.acc.1,op_acc_1_2,EV_05,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.2 evidencia=EV-05 nivel=BAJO estado=CUMPLE ev_id=OK-02 formato=json_line</info>
+    <field name="event">^account_deletion_unconfirmed$</field>
+    <description>op.acc.1 · hecho técnico · account_deletion_unconfirmed</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=account_deletion_unconfirmed contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106807" level="10">
+  <rule id="106805" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">multi_role_usage</field>
-    <description>op.acc.1 · op.acc.1.2 · NO_CUMPLE (EV-06) · Identificador con varios roles sin diferenciación</description>
-    <group>ENS_op.acc.1,op_acc_1_2,EV_06,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
-    <info type="text">requisito=op.acc.1.2 evidencia=EV-06 nivel=BAJO estado=NO_CUMPLE ev_id=NC-03 formato=json_line</info>
+    <field name="event">^service_account_interactive$</field>
+    <description>op.acc.1 · hecho técnico · service_account_interactive</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_interactive contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106808" level="3">
+  <rule id="106809" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">privilege_use</field>
-    <description>op.acc.1 · op.acc.1.2 · Uso de privilegios registrado</description>
-    <group>ENS_op.acc.1,op_acc_1_2,EV_06,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.2 evidencia=EV-06 nivel=BAJO estado=CUMPLE ev_id=OK-03 formato=json_line</info>
+    <field name="event">^account_locked$</field>
+    <description>op.acc.1 · hecho técnico · account_locked</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-01 requisito=op.acc.1.4 hecho=account_locked contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== op.acc.1.3 · Identificador singular por entidad (EV-01, EV-02) ===== -->
-
   <rule id="106810" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_inventory</field>
-    <description>op.acc.1 · op.acc.1.3 · CUMPLE (EV-01) · Inventario de cuentas activas recibido</description>
-    <group>ENS_op.acc.1,op_acc_1_3,EV_01,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.3 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-04 formato=json_line</info>
+    <field name="event">^account_inventory$</field>
+    <description>op.acc.1 · hecho técnico · account_inventory</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-01 requisito=op.acc.1.3 hecho=account_inventory contrato=technical_fact formato=json_line</info>
   </rule>
-
   <rule id="106811" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_active</field>
-    <description>op.acc.1 · op.acc.1.3 · Cuenta activa inventariada</description>
-    <group>ENS_op.acc.1,op_acc_1_3,EV_01,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.3 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-05 formato=json_line</info>
+    <field name="event">^account_active$</field>
+    <description>op.acc.1 · hecho técnico · account_active</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-01 requisito=op.acc.1.3 hecho=account_active contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106812" level="5">
+  <rule id="106812" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_created</field>
-    <description>op.acc.1 · op.acc.1.3 · Alta de cuenta detectada</description>
-    <group>ENS_op.acc.1,op_acc_1_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,</group>
-    <info type="text">requisito=op.acc.1.3 evidencia=EV-02 nivel=BAJO estado=CUMPLE ev_id=OK-06 formato=json_line</info>
+    <field name="event">^account_created$</field>
+    <description>op.acc.1 · hecho técnico · account_created</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-02 requisito=op.acc.1.3 hecho=account_created contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106813" level="5">
+  <rule id="106813" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_modified</field>
-    <description>op.acc.1 · op.acc.1.3 · Modificación de cuenta detectada</description>
-    <group>ENS_op.acc.1,op_acc_1_3,EV_02,nivel_bajo,nivel_medio,nivel_alto,</group>
-    <info type="text">requisito=op.acc.1.3 evidencia=EV-02 nivel=BAJO estado=CUMPLE ev_id=OK-07 formato=json_line</info>
+    <field name="event">^account_modified$</field>
+    <description>op.acc.1 · hecho técnico · account_modified</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-02 requisito=op.acc.1.3 hecho=account_modified contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== op.acc.1.4 · Ciclo de vida de las cuentas (EV-04, EV-08) ===== -->
-
-  <rule id="106815" level="3">
+  <rule id="106814" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_disabled</field>
-    <description>op.acc.1 · op.acc.1.4 · CUMPLE (EV-04) · Cuenta deshabilitada dentro de plazo</description>
-    <group>ENS_op.acc.1,op_acc_1_4,EV_04,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.4 evidencia=EV-04 nivel=BAJO estado=CUMPLE ev_id=OK-08 formato=json_line</info>
+    <field name="event">^account_missing_from_inventory$</field>
+    <description>op.acc.1 · hecho técnico · account_missing_from_inventory</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-02 requisito=op.acc.1.4 hecho=account_missing_from_inventory contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106816" level="12">
+  <rule id="106818" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_offboarding</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>op.acc.1 · op.acc.1.4 · NO_CUMPLE (EV-04) · Cuenta de usuario dado de baja sigue habilitada fuera de plazo</description>
-    <group>ENS_op.acc.1,op_acc_1_4,EV_04,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
-    <info type="text">requisito=op.acc.1.4 evidencia=EV-04 nivel=BAJO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
+    <field name="event">^account_deleted$</field>
+    <description>op.acc.1 · hecho técnico · account_deleted</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=account_deleted contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106817" level="5">
+  <rule id="106820" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_offboarding</field>
-    <description>op.acc.1 · op.acc.1.4 · Baja de usuario registrada</description>
-    <group>ENS_op.acc.1,op_acc_1_4,EV_04,nivel_bajo,nivel_medio,nivel_alto,</group>
-    <info type="text">requisito=op.acc.1.4 evidencia=EV-04 nivel=BAJO estado=CUMPLE ev_id=OK-09 formato=json_line</info>
+    <field name="event">^account_offboarding_overdue$</field>
+    <description>op.acc.1 · hecho técnico · account_offboarding_overdue</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=account_offboarding_overdue contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106818" level="5">
+  <rule id="106821" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">account_deleted</field>
-    <description>op.acc.1 · op.acc.1.4 · Eliminación de cuenta detectada</description>
-    <group>ENS_op.acc.1,op_acc_1_4,EV_02,EV_08,nivel_bajo,nivel_medio,nivel_alto,</group>
-    <info type="text">requisito=op.acc.1.4 evidencia=EV-02,EV-08 nivel=BAJO estado=CUMPLE ev_id=OK-10 formato=json_line</info>
+    <field name="event">^account_retention_registry_checked$</field>
+    <description>op.acc.1 · hecho técnico · account_retention_registry_checked</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=account_retention_registry_checked contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106819" level="12">
+  <rule id="106822" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">retention_violation</field>
-    <description>op.acc.1 · op.acc.1.4 · NO_CUMPLE (EV-08) · Cuenta eliminada antes del periodo de retención</description>
-    <group>ENS_op.acc.1,op_acc_1_4,EV_08,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
-    <info type="text">requisito=op.acc.1.4 evidencia=EV-08 nivel=BAJO estado=NO_CUMPLE ev_id=NC-05 formato=json_line</info>
+    <field name="event">^account_state_unknown$</field>
+    <description>op.acc.1 · hecho técnico · account_state_unknown</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-01 requisito=op.acc.1.3 hecho=account_state_unknown contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== op.acc.1.r1.3 · Lista de usuarios autorizados (EV-07) ===== -->
-
-  <rule id="106825" level="3">
+  <rule id="106823" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">authorized_list_check</field>
-    <description>op.acc.1 · op.acc.1.r1.3 · CUMPLE (EV-07) · Cuentas activas contrastadas con la lista autorizada</description>
-    <group>ENS_op.acc.1,op_acc_1_r1_3,EV_07,nivel_medio,nivel_alto,cumple,refuerzo_r1,</group>
-    <info type="text">requisito=op.acc.1.r1.3 evidencia=EV-07 nivel=MEDIO estado=CUMPLE ev_id=OK-11 formato=json_line</info>
+    <field name="event">^administrative_identifier_observed$</field>
+    <description>op.acc.1 · hecho técnico · administrative_identifier_observed</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-06 requisito=op.acc.1.r1.2 hecho=administrative_identifier_observed contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106826" level="12">
+  <rule id="106824" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">unauthorized_user</field>
-    <description>op.acc.1 · op.acc.1.r1.3 · NO_CUMPLE (EV-07) · Cuenta activa fuera de la lista de usuarios autorizados</description>
-    <group>ENS_op.acc.1,op_acc_1_r1_3,EV_07,nivel_medio,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
-    <info type="text">requisito=op.acc.1.r1.3 evidencia=EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-06 formato=json_line</info>
+    <field name="event">^authentication_cursor_initialized$</field>
+    <description>op.acc.1 · hecho técnico · authentication_cursor_initialized</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=authentication_cursor_initialized contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== Estados de evidencia (genéricos) ===== -->
-
-  <rule id="106850" level="3">
+  <rule id="106827" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">CUMPLE</field>
-    <description>op.acc.1 · Evidencia CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_op.acc.1,evidence_state,cumple,</group>
+    <field name="event">^authentication_log_batch$</field>
+    <description>op.acc.1 · hecho técnico · authentication_log_batch</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=authentication_log_batch contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106851" level="10">
+  <rule id="106828" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>op.acc.1 · Evidencia NO_CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_op.acc.1,evidence_state,no_cumple,non_conformity,</group>
+    <field name="event">^authentication_source_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · authentication_source_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=authentication_source_unavailable contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106852" level="3">
+  <rule id="106829" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_EVALUABLE</field>
-    <description>op.acc.1 · Evidencia NO_EVALUABLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_op.acc.1,evidence_state,no_evaluable,</group>
+    <field name="event">^authorized_identity_not_observed$</field>
+    <description>op.acc.1 · hecho técnico · authorized_identity_not_observed</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=authorized_identity_not_observed contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106853" level="3">
+  <rule id="106830" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_APLICA</field>
-    <description>op.acc.1 · Evidencia NO_APLICA · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_op.acc.1,evidence_state,no_aplica,</group>
+    <field name="event">^authorized_identity_outside_declared_scope$</field>
+    <description>op.acc.1 · hecho técnico · authorized_identity_outside_declared_scope</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=authorized_identity_outside_declared_scope contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== Estado del control ===== -->
-
-  <rule id="106860" level="3">
+  <rule id="106831" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">CUMPLE</field>
-    <description>op.acc.1 · Control CUMPLE · $(control) · nivel=$(nivel)</description>
-    <group>ENS_op.acc.1,control_state,cumple,</group>
+    <field name="event">^authorized_identity_password_locked$</field>
+    <description>op.acc.1 · hecho técnico · authorized_identity_password_locked</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=authorized_identity_password_locked contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106861" level="7">
+  <rule id="106832" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">PARCIAL</field>
-    <description>op.acc.1 · Control PARCIAL · $(control) · nivel=$(nivel)</description>
-    <group>ENS_op.acc.1,control_state,parcial,</group>
+    <field name="event">^authorized_identity_registry_compared$</field>
+    <description>op.acc.1 · hecho técnico · authorized_identity_registry_compared</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=authorized_identity_registry_compared contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106862" level="10">
+  <rule id="106833" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>op.acc.1 · Control NO_CUMPLE · $(control) · nivel=$(nivel)</description>
-    <group>ENS_op.acc.1,control_state,no_cumple,non_conformity,</group>
+    <field name="event">^authorized_identity_registry_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · authorized_identity_registry_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=authorized_identity_registry_unavailable contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106863" level="3">
+  <rule id="106834" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">NO_APLICA</field>
-    <description>op.acc.1 · Control NO_APLICA · $(control) · nivel=$(nivel)</description>
-    <group>ENS_op.acc.1,control_state,no_aplica,</group>
+    <field name="event">^confirmed_deletion_registry_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · confirmed_deletion_registry_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=confirmed_deletion_registry_unavailable contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <!-- ===== Snapshot de puntuación ===== -->
-
-  <rule id="106870" level="3">
+  <rule id="106835" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">CUMPLE</field>
-    <description>op.acc.1 · SCORE $(nivel) CUMPLE · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_op.acc.1,score_snapshot,cumple,</group>
+    <field name="event">^duplicate_identifier$</field>
+    <description>op.acc.1 · hecho técnico · duplicate_identifier</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-01 requisito=op.acc.1.4 hecho=duplicate_identifier contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106871" level="7">
+  <rule id="106836" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">PARCIAL</field>
-    <description>op.acc.1 · SCORE $(nivel) PARCIAL · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_op.acc.1,score_snapshot,parcial,</group>
+    <field name="event">^identity_authorization_state_unknown$</field>
+    <description>op.acc.1 · hecho técnico · identity_authorization_state_unknown</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=identity_authorization_state_unknown contrato=technical_fact formato=json_line</info>
   </rule>
-
-  <rule id="106872" level="10">
+  <rule id="106837" level="3">
     <if_sid>106800</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>op.acc.1 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_op.acc.1,score_snapshot,no_cumple,non_conformity,</group>
+    <field name="event">^identity_baseline_compared$</field>
+    <description>op.acc.1 · hecho técnico · identity_baseline_compared</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-02 requisito=op.acc.1.3 hecho=identity_baseline_compared contrato=technical_fact formato=json_line</info>
   </rule>
-
+  <rule id="106838" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^identity_baseline_initialized$</field>
+    <description>op.acc.1 · hecho técnico · identity_baseline_initialized</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-02 requisito=op.acc.1.3 hecho=identity_baseline_initialized contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106839" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^identity_missing_from_authorized_registry$</field>
+    <description>op.acc.1 · hecho técnico · identity_missing_from_authorized_registry</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=identity_missing_from_authorized_registry contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106840" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^identity_present_in_authorized_registry$</field>
+    <description>op.acc.1 · hecho técnico · identity_present_in_authorized_registry</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-07 requisito=op.acc.1.r1.3 hecho=identity_present_in_authorized_registry contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106841" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_account_locked$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_account_locked</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_account_locked contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106842" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_account_missing$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_account_missing</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_account_missing contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106843" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_account_state_unknown$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_account_state_unknown</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_account_state_unknown contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106844" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_pending$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_pending</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_pending contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106845" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_record_invalid$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_record_invalid</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_record_invalid contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106846" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_registry_checked$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_registry_checked</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_registry_checked contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106847" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^offboarding_registry_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · offboarding_registry_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-04 requisito=op.acc.1.4 hecho=offboarding_registry_unavailable contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106848" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^privileged_group_missing$</field>
+    <description>op.acc.1 · hecho técnico · privileged_group_missing</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-06 requisito=op.acc.1.2 hecho=privileged_group_missing contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106849" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^privileged_group_policy_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · privileged_group_policy_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-06 requisito=op.acc.1.2 hecho=privileged_group_policy_unavailable contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106854" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^privileged_membership_inventory$</field>
+    <description>op.acc.1 · hecho técnico · privileged_membership_inventory</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-06 requisito=op.acc.1.2 hecho=privileged_membership_inventory contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106855" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^privileged_membership_observed$</field>
+    <description>op.acc.1 · hecho técnico · privileged_membership_observed</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-06 requisito=op.acc.1.2 hecho=privileged_membership_observed contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106856" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^retention_period_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · retention_period_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-08 requisito=op.acc.1.4 hecho=retention_period_unavailable contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106857" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_account_inventory$</field>
+    <description>op.acc.1 · hecho técnico · service_account_inventory</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_inventory contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106858" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_account_missing$</field>
+    <description>op.acc.1 · hecho técnico · service_account_missing</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_missing contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106859" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_account_observed$</field>
+    <description>op.acc.1 · hecho técnico · service_account_observed</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_observed contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106864" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_account_registry_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · service_account_registry_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_registry_unavailable contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106865" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_account_state_unknown$</field>
+    <description>op.acc.1 · hecho técnico · service_account_state_unknown</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_account_state_unknown contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106866" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_authentication_cursor_initialized$</field>
+    <description>op.acc.1 · hecho técnico · service_authentication_cursor_initialized</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_authentication_cursor_initialized contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106867" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_authentication_log_batch$</field>
+    <description>op.acc.1 · hecho técnico · service_authentication_log_batch</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_authentication_log_batch contrato=technical_fact formato=json_line</info>
+  </rule>
+  <rule id="106868" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^service_authentication_source_unavailable$</field>
+    <description>op.acc.1 · hecho técnico · service_authentication_source_unavailable</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_authentication_source_unavailable contrato=technical_fact formato=json_line</info>
+  </rule>
 </group>

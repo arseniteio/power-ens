@@ -45,8 +45,8 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01', 'EV-02'],
-      parameterIds: ['P-01', 'P-02', 'P-03'],
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-05'],
+      parameterIds: ['P-01', 'P-02', 'P-03', 'P-04'],
     },
     {
       id: 'op.acc.1.4',
@@ -58,7 +58,7 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-08'],
-      parameterIds: ['P-05', 'P-06', 'P-08'],
+      parameterIds: ['P-01', 'P-02', 'P-05', 'P-06', 'P-08'],
     },
     {
       id: 'op.acc.1.5',
@@ -69,8 +69,8 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01'],
-      parameterIds: ['P-01'],
+      evidenceIds: [],
+      parameterIds: [],
     },
     {
       id: 'op.acc.1.r1.1',
@@ -81,8 +81,8 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01'],
-      parameterIds: ['P-02'],
+      evidenceIds: [],
+      parameterIds: [],
     },
     {
       id: 'op.acc.1.r1.2',
@@ -94,7 +94,7 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
         levels: ['MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-06'],
-      parameterIds: ['P-07'],
+      parameterIds: [],
     },
     {
       id: 'op.acc.1.r1.3',
@@ -107,7 +107,7 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
         reason:
           'Refuerzo R1 exigible en nivel MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
       },
-      evidenceIds: ['EV-07'],
+      evidenceIds: ['EV-01', 'EV-07'],
       parameterIds: ['P-07'],
     },
   ],
