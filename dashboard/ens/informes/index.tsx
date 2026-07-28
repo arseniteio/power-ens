@@ -18,9 +18,7 @@ import {
 } from '../core/scope';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
-import { buildMpInfo6ReportModel } from './report-model';
-import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
-import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
+import { buildReportModelFor } from './report-registry';
 import { ENSControls } from '../data';
 import { EuiFilterGroup, EuiFilterButton } from '@elastic/eui';
 
@@ -55,14 +53,6 @@ const CONTROL_META: Record<string, { name: string; subtitle: string }> = {
     subtitle: 'Control de acceso',
   },
 };
-
-// Selecciona el builder de modelo de informe según el control.
-const buildReportModelFor = (controlId: string, result: any) =>
-  controlId === 'op.acc.2'
-    ? buildOpAcc2ReportModel(result)
-    : controlId === 'op.acc.1'
-    ? buildOpAcc1ReportModel(result)
-    : buildMpInfo6ReportModel(result);
 
 // Subcomponente: informe completo de UN control. Los hooks viven aquí
 // (no pueden ir en bucle), así que General renderiza uno por control.
