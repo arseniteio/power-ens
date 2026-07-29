@@ -698,3 +698,53 @@ Ninguna de estas infracciones está en un fichero de control, y todas son preexi
     6 de op.acc.2); las infracciones están en el
     motor (`evaluation-engine.ts:4` arrastra `kibana-services` vía el barrel de servicios) y no deben
     copiarse en `op-acc-1.runtime.ts` / `op-acc-2.runtime.ts`.
+
+---
+
+## Adenda (2026-07-30) — hallazgos posteriores a la auditoría
+
+Encontrados durante la implementación de la fase 1 y del simulador de op.acc.2.
+Todos son del plugin y ninguno se ha corregido aquí; van a la fase 3.
+
+### A1. `op-acc-2.evidence.ts` no concuerda con la policy ni con el catálogo
+
+`EV-01` se declara de `op.acc.2.3` y `EV-04` de `op.acc.2.r1.2`, pero esos
+requisitos no las listan entre sus evidencias. Es una discrepancia en el mismo
+control y en la misma dirección que el doble catálogo ya anotado.
+
+Criterio aplicado mientras tanto, al construir el simulador de op.acc.2: **la
+policy manda**, porque es lo que ejecuta el motor. El `requisito` de cada evento
+se toma del `<info>` de su regla Wazuh.
+
+### A2. Dos reglas describían CUMPLE para eventos que también llegan NO_CUMPLE
+
+`106810` (`account_inventory`) y `106825` (`authorized_list_check`) eran regla
+única de nivel 3 con descripción de CUMPLE, pero los recolectores emiten esos
+mismos eventos con `estado=NO_CUMPLE` —UIDs duplicados y cuentas activas que no
+figuran en la lista autorizada—. Un incumplimiento real aparecía en la vista de
+alertas de Wazuh como nivel 3 diciendo CUMPLE y sin el grupo `non_conformity`.
+
+**Corregido** (commits `48f5653` y `2bb831b`): añadidas `106809` y `106824` con
+el patrón de `106903`/`106904` de op.acc.2, y severidades alineadas con la
+convención de op.acc.1 (12 para el hecho incumplidor, 10 para el agregado).
+
+Conviene barrer op.acc.2 y mp.info.6 buscando el mismo patrón cuando tengan
+recolectores reales que emitan ambos estados.
+
+### A3. `data.uid` tenía dos tipos entre controles
+
+op.acc.1 lo emite numérico y la muestra de op.acc.2 lo traía como cadena. Como
+ambos controles escriben en `wazuh-alerts-*`, es un solo campo con un solo tipo:
+el primero en llegar fija el mapping y el otro falla al indexar en silencio.
+Unificado a numérico en el simulador de op.acc.2.
+
+**Regla general para controles nuevos**: antes de dar por bueno un evento,
+cruzar el **tipo** de cada campo contra los que ya emiten los demás controles,
+no solo su nombre.
+
+### A4. `muestra_op_acc_2.ndjson` no es autoritativa
+
+Sus `ts` están congelados en julio y emite `control_state` con el id del control
+(`op.acc.2`) en vez del requisito, que es lo que producen `score.py` y el script
+de mp.info.6 y lo que consume el motor. Sirve como referencia de campos, no de
+contrato. Conviene regenerarla desde el simulador.
