@@ -67,6 +67,23 @@
 
   <!-- ===== op.acc.1.3 · Identificador singular por entidad (EV-01, EV-02) ===== -->
 
+  <!-- Mismo patrón que 106903/106904 de op.acc.2 (umask_check): la variante
+       NO_CUMPLE lleva el id inmediatamente inferior, precede en el fichero
+       a la variante general y sube de nivel para ganarle la alerta. Sin
+       esto, ev01_inventario (opacc1-lib.sh) emitía account_inventory con
+       estado=NO_CUMPLE y uids_duplicados poblado -UIDs repetidos que
+       rompen la unicidad exigida por op.acc.1.3- y esa alerta cruda salía
+       en Wazuh como "CUMPLE (EV-01)", justo lo contrario de lo que decía
+       el propio evento. -->
+  <rule id="106809" level="7">
+    <if_sid>106800</if_sid>
+    <field name="event">account_inventory</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.1 · op.acc.1.3 · NO_CUMPLE (EV-01) · Inventario de cuentas activas con UIDs duplicados</description>
+    <group>ENS_op.acc.1,op_acc_1_3,EV_01,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.1.3 evidencia=EV-01 nivel=BAJO estado=NO_CUMPLE ev_id=NC-07 formato=json_line</info>
+  </rule>
+
   <rule id="106810" level="3">
     <if_sid>106800</if_sid>
     <field name="event">account_inventory</field>
@@ -144,6 +161,25 @@
 
   <!-- ===== op.acc.1.r1.3 · Lista de usuarios autorizados (EV-07) ===== -->
 
+  <!-- Mismo patrón que 106903/106904 de op.acc.2 (umask_check) y que
+       106809/106810 más arriba: la variante NO_CUMPLE lleva el id
+       inmediatamente inferior, precede en el fichero a la variante general
+       y sube de nivel para ganarle la alerta. Sin esto,
+       ev07_lista_autorizados (opacc1-lib.sh) emitía authorized_list_check
+       con estado=NO_CUMPLE cuando el recuento de cuentas activas no
+       coincidía con el de autorizadas, y esa alerta cruda salía en Wazuh
+       como "CUMPLE (EV-07)". El caso puntual de cuenta activa fuera de la
+       lista ya tenía su propia regla (106826, unauthorized_user); esta
+       variante cubre el agregado (los recuentos no cuadran). -->
+  <rule id="106824" level="7">
+    <if_sid>106800</if_sid>
+    <field name="event">authorized_list_check</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.1 · op.acc.1.r1.3 · NO_CUMPLE (EV-07) · Cuentas activas no coinciden con la lista autorizada</description>
+    <group>ENS_op.acc.1,op_acc_1_r1_3,EV_07,nivel_medio,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.1.r1.3 evidencia=EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-08 formato=json_line</info>
+  </rule>
+
   <rule id="106825" level="3">
     <if_sid>106800</if_sid>
     <field name="event">authorized_list_check</field>
@@ -158,6 +194,57 @@
     <description>op.acc.1 · op.acc.1.r1.3 · NO_CUMPLE (EV-07) · Cuenta activa fuera de la lista de usuarios autorizados</description>
     <group>ENS_op.acc.1,op_acc_1_r1_3,EV_07,nivel_medio,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
     <info type="text">requisito=op.acc.1.r1.3 evidencia=EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-06 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Diagnóstico operativo del recolector (collector_run, collector_warning,
+       collector_missing) — decisión deliberada, no un olvido ==========================
+
+       El orquestador (ens_opacc1_collect.sh) y el watchdog (ens_opacc1_watchdog.py)
+       emiten tres eventos que hasta ahora solo casaban con la regla base 106800
+       (nivel 0): no generaban alerta ni llegaban al índice. score.py y el watchdog
+       leen el latido del NDJSON local, no del índice, así que el veredicto de
+       cumplimiento NUNCA dependió de esto — era un accidente de cobertura, no una
+       decisión. Se revisan aquí los tres, uno a uno:
+
+       · collector_run (late cada hora, en cada agente): NO se le da regla. Ya existe
+         score_snapshot (106870-106872), que también corre cada hora, SÍ tiene reglas
+         y SÍ llega al índice — y solo puede afirmar CUMPLE/PARCIAL si hubo latido
+         reciente (ver score.py). Una alerta de collector_run sería una segunda señal
+         de "el recolector sigue vivo" con la misma cadencia que score_snapshot y sin
+         aportar nada que este último no exprese ya: puro ruido en la vista de
+         alertas, sin ganar detección de ningún fallo nuevo.
+
+       · collector_warning (parámetro de opacc1.env mal escrito, candado no abrible):
+         SÍ se le da regla (106830, más abajo). Hoy un operador que teclea mal un
+         parámetro no se entera por ningún canal visible: la librería aplica su valor
+         por defecto en silencio y el propio dato del error solo vivía en el NDJSON
+         local. No es una evidencia de op.acc.1 (no lleva requisito/evidencia ENS) ni
+         un juicio de cumplimiento — es higiene operativa del propio pipeline —, así
+         que no lleva groups cumple/no_cumple/non_conformity.
+
+       · collector_missing (el watchdog no ve latido en la ventana): SÍ se le da
+         regla (106831). Viene siempre acompañado de ocho evidence_state
+         NO_EVALUABLE (regla 106852, nivel 3, uno por evidencia) que ya hacen visible
+         la ausencia de datos evidencia a evidencia. Pero esos ocho eventos son
+         indistinguibles en la vista de alertas de un NO_EVALUABLE ordinario y
+         aislado (p.ej. un /etc/passwd puntualmente ilegible en una sola pasada):
+         nada en ellos dice "esto es un colector entero en silencio durante N horas".
+         106831 es esa señal de cabecera, con nivel más alto que 106852 para que
+         destaque como el hecho raíz sobre el bloque de ocho NO_EVALUABLE que lo
+         acompaña. -->
+
+  <rule id="106830" level="5">
+    <if_sid>106800</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.acc.1 · Aviso operativo del recolector · parametro=$(parametro) · $(motivo)</description>
+    <group>ENS_op.acc.1,collector_diagnostico,operativo,</group>
+  </rule>
+
+  <rule id="106831" level="7">
+    <if_sid>106800</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.acc.1 · Latido del recolector ausente en la ventana · $(detalle)</description>
+    <group>ENS_op.acc.1,collector_diagnostico,operativo,no_evaluable,disponibilidad,</group>
   </rule>
 
   <!-- ===== Estados de evidencia (genéricos) ===== -->
