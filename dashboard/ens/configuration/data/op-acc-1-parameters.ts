@@ -147,7 +147,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       description:
         'Lista maestra de usuarios autorizados a acceder a los sistemas en scope, mantenida por el administrador de seguridad. Exigida por R1.',
       levels: ['MEDIO', 'ALTO'],
-      requirements: ['op.acc.1.r1.3'],
+      requirements: ['op.acc.1.r1.2', 'op.acc.1.r1.3'],
       type: 'list',
       example: 'jgomez | srv01 | ops',
       required: true,

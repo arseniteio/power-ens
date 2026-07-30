@@ -51,7 +51,7 @@
       "requirements": [
         "op.acc.2.3"
       ],
-      "type": "path",
+      "type": "list",
       "example": "/etc/passwd | /etc/sudoers | /etc/ssh/sshd_config",
       "required": true,
       "wazuhUsage": "Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.",

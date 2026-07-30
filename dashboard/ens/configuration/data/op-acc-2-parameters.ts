@@ -39,7 +39,9 @@ export const opAcc2Configuration: ENSControlConfiguration = {
         'Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.3'],
-      type: 'path',
+      // La ficha define una lista de rutas criticas (el ejemplo trae tres y la
+      // regla 106923 cubre cinco): `list`, no `path`, que designa una ruta unica.
+      type: 'list',
       example: '/etc/passwd | /etc/sudoers | /etc/ssh/sshd_config',
       required: true,
       wazuhUsage:

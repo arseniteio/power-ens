@@ -752,6 +752,21 @@ const evaluateRequirement1 = (
     )
   );
 
+  // DESAJUSTE DE TIPO (pendiente, 2026-07-30).
+  //
+  // P-04 (`cuentas_genericas_prohibidas`) es `type: 'list'` en la ficha del
+  // auditor, en configuration/data/op-acc-1-parameters.ts y en
+  // config/op-acc-1-control-block.json: es la lista de nombres de cuenta
+  // prohibidos (admin, guest, test...), no un interruptor.
+  //
+  // Aqui se lee con `toBoolean`, que acepta 'si'/'true'/'1'. En el despliegue
+  // real hubo que escribir "si" en P-04 para desbloquear la evaluacion, y con
+  // ello se perdio la lista: el motor dejo de saber que cuentas estaban
+  // prohibidas y solo supo que "hay prohibidas".
+  //
+  // La ficha manda: cuando se retome este evaluador, P-04 debe leerse como
+  // lista (nombres contra los que contrastar `generic_account_login`) y P-04
+  // debe volver a contener la lista real en la configuracion desplegada.
   const genericProhibited = toBoolean(
     parameterValue(context, 'P-04')
   );
@@ -1235,6 +1250,21 @@ const evaluateRequirement3 = (
       parameterIds
     );
 
+  // DESAJUSTE DE TIPO (pendiente, 2026-07-30).
+  //
+  // P-04 (`cuentas_genericas_prohibidas`) es `type: 'list'` en la ficha del
+  // auditor, en configuration/data/op-acc-1-parameters.ts y en
+  // config/op-acc-1-control-block.json: es la lista de nombres de cuenta
+  // prohibidos (admin, guest, test...), no un interruptor.
+  //
+  // Aqui se lee con `toBoolean`, que acepta 'si'/'true'/'1'. En el despliegue
+  // real hubo que escribir "si" en P-04 para desbloquear la evaluacion, y con
+  // ello se perdio la lista: el motor dejo de saber que cuentas estaban
+  // prohibidas y solo supo que "hay prohibidas".
+  //
+  // La ficha manda: cuando se retome este evaluador, P-04 debe leerse como
+  // lista (nombres contra los que contrastar `generic_account_login`) y P-04
+  // debe volver a contener la lista real en la configuracion desplegada.
   const genericProhibited = toBoolean(
     parameterValue(context, 'P-04')
   );
