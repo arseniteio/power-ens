@@ -97,8 +97,18 @@ diferencia entre `NO_EVALUABLE` y `CUMPLE`.
 - ~~`data-source-engine.ts` traduce a mano `offsite_ok → offsite_success`~~
   **CERRADO 30/07**: la regla 106662 emite `offsite_success` en origen y la
   traducción cableada se ha retirado del fichero compartido.
-- `*_missing` no tiene estado consistente entre reglas: 106601 lo declara
-  `NO_CUMPLE`, 106606 `NO_EVALUABLE`. **Sigue abierto.**
+- ~~`*_missing` no tiene estado consistente entre reglas: 106601 lo declara
+  `NO_CUMPLE`, 106606 `NO_EVALUABLE`.~~ **CERRADO 30/07, y la asimetría se
+  queda**: no era una incoherencia, eran dos hechos distintos. Una ausencia
+  solo se declara `NO_CUMPLE` cuando el despliegue garantiza que, de haber
+  ocurrido el hecho, se habría observado. De la copia el runbook es el
+  **ejecutor** (`pxbackup.sh` la hace y emite la evidencia), así que la
+  ausencia está medida; de la restauración es una **sonda opcional** dormida de
+  fábrica, así que lo que falta es la medida. El razonamiento está escrito
+  junto a las dos reglas en `agent/rules/ensfacil_mp_info_6_json_rules.xml`, y
+  lo fija una prueba (`test_vocabulario.sh` §7 del runbook) que contrasta el
+  `estado` que emite el agente con el `estado=` que declara la regla: el
+  contraste que nadie hacía y por el que el desajuste sobrevivió.
 - ~~mp.info.6 declara 14 tipos de evento que ninguna regla emite, y 5 eventos
   reales que ninguna evidencia escucha~~ **CERRADO 30/07**: los 14 retirados del
   catálogo y los 5 adoptados; `authorized_access`/`unauthorized_access` pasan a
@@ -211,7 +221,11 @@ piloto.
 
 4. Reglas para `control_state` y `score_snapshot` con `NO_EVALUABLE`.
 5. Regla de "sistema del alcance que deja de reportar", con su ventana.
-6. Unificar el estado de `*_missing` entre 106601 y 106606.
+6. ~~Unificar el estado de `*_missing` entre 106601 y 106606.~~ **HECHO
+   (30/07), y la respuesta fue NO unificar.** Unificar en `NO_CUMPLE`
+   reintroduce el falso incumplimiento contra toda máquina de fábrica;
+   unificar en `NO_EVALUABLE` convierte "esta máquina no tiene copias" en un
+   hueco de cobertura. Ver el §5 de arriba y el comentario de 106601.
 7. ~~Retirar el caso especial `offsite_ok → offsite_success` del fichero
    compartido, renombrando en origen.~~ **HECHO (30/07).**
 8. ~~mp.info.6: reconciliar los 14 tipos declarados sin regla y los 5 eventos sin

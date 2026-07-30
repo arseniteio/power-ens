@@ -16,12 +16,24 @@ import { ENSNormalizedEvent } from './types';
 //   missing         el artefacto que la evidencia exige no está
 //   unauthorized    acceso o identidad fuera de lo autorizado; no conformidad
 //
-// Salvedad conocida de `missing`: las reglas del propio producto no le dan
-// siempre el mismo estado (106601 `backup_missing` declara NO_CUMPLE, pero
-// 106606 `restore_missing` declara NO_EVALUABLE). Como ambos eventos vienen del
-// emisor con su `estado`, la inferencia no llega a aplicarse sobre ellos y la
-// discrepancia no se manifiesta. Si algún día un evento `*_missing` llegara sin
-// `estado`, este patrón lo pondría en rojo: revisar entonces si procede sacarlo.
+// Salvedad conocida de `missing`, y ya resuelta en el origen: las reglas del
+// producto no le dan el mismo estado a los dos `*_missing` de mp.info.6 (106601
+// `backup_missing` declara NO_CUMPLE, 106606 `restore_missing` NO_EVALUABLE), y
+// esa asimetría es DELIBERADA, no un descuido pendiente de unificar. El
+// criterio, escrito junto a las dos reglas en
+// `agent/rules/ensfacil_mp_info_6_json_rules.xml`: una ausencia solo acusa
+// cuando el despliegue garantiza que, de haber ocurrido el hecho, se habría
+// observado. La copia la EJECUTA el propio runbook, así que su ausencia está
+// medida; la prueba de restauración es una sonda opcional dormida de fábrica,
+// así que lo que falta es la medida.
+//
+// Lo que eso implica AQUÍ: el patrón `missing` es correcto para el primer caso y
+// equivocado para el segundo, y por tanto el nombre del evento NO basta para
+// decidir un `*_missing`. Hoy no se manifiesta porque los dos llegan del emisor
+// con su `estado` y la inferencia no se alcanza. Si algún día un `*_missing`
+// llegara sin `estado`, este patrón lo pondría en rojo sin haberlo medido: lo
+// que procede entonces es que el emisor declare su `estado`, no que se infiera
+// aquí. Este fichero lo comparten los tres controles.
 const ADVERSE_EVENT_PATTERNS = [
   'error',
   'failed',

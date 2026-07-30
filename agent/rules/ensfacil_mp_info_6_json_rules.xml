@@ -6,6 +6,68 @@
     <description>mp.info.6 · evento ENSFácil base</description>
   </rule>
 
+  <!-- POR QUE `backup_missing` ACUSA Y `restore_missing` NO. Decidido, no descuido.
+
+       Las dos reglas nombran una AUSENCIA del mismo control y declaran
+       veredictos opuestos: 106601 NO_CUMPLE, 106606 NO_EVALUABLE. La asimetria
+       es deliberada. El criterio que la sostiene, en una frase:
+
+         una ausencia solo puede declararse NO_CUMPLE cuando el propio
+         despliegue garantiza que, de haber ocurrido el hecho, se habria
+         observado.
+
+       Es la diferencia entre EJECUTOR y SONDA OPCIONAL, y este runbook es cada
+       una de las dos cosas para uno de los dos hechos:
+
+       106601 `backup_missing` cumple el criterio. El runbook no observa la
+       copia: la HACE. install-real.sh instala pxbackup.sh y su cron, y la capa
+       de evidencia va DENTRO del mismo script, asi que toda copia que ocurra
+       por el camino declarado deja `backup_ok` o `backup_error`. Su unico
+       emisor, ens_mpinfo6_watchdog.py, ademas no acusa hasta que la marca de
+       primera pasada tiene al menos la edad de la ventana, con lo que queda
+       excluido el "todavia no le ha tocado" de una maquina recien instalada.
+       Lo que queda es una ausencia MEDIDA, y mp.info.6.1 exige justamente que
+       la copia exista: aqui la ausencia ES la no conformidad, y un auditor
+       puede afirmarla.
+
+       106606 `restore_missing` NO cumple el criterio. La prueba de
+       restauracion R1 esta dormida de fabrica: ENS_RESTORE_ARCHIVE y
+       ENS_RESTORE_CANARY llegan VACIOS en mpinfo6.env porque restaurar toca
+       disco y hay que decidirlo. Sin esos dos valores la prueba no la lanza
+       nadie, de modo que la ausencia de `restore_ok` es la ausencia de la
+       MEDIDA, no un hecho sobre la maquina; y el cliente puede estar haciendo
+       sus pruebas de restauracion por fuera, documentadas en su ENS. Lo que un
+       auditor puede afirmar con este dato es "no lo hemos medido", que se dice
+       NO_EVALUABLE. Declararlo NO_CUMPLE acusaba de incumplimiento a TODA
+       maquina en estado de fabrica: fue un NO_CUMPLE falso real, corregido en
+       el watchdog el 30/07.
+
+       La no conformidad de r1.1 tiene su propio evento y su propia regla:
+       106607 `restore_error`, la restauracion que se intento y fallo. Esa si
+       esta demostrada. Por eso el watchdog no emite `restore_missing` cuando
+       hay un `restore_error` en la ventana: habria prueba, y la habria fallado.
+
+       NO_EVALUABLE no es un aprobado por silencio. La regla de auditoria R1 de
+       ens_mpinfo6_score.py impide que el nivel MEDIO salga CUMPLE mientras
+       EV-05 no este en CUMPLE (degrada a PARCIAL con tope 85). Al cliente se le
+       sigue empujando a configurar la prueba; lo que no se hace es acusarle de
+       algo que nadie ha medido.
+
+       Antes de "unificarlas", las dos direcciones empeoran el informe:
+       unificar en NO_CUMPLE reintroduce el falso incumplimiento de fabrica;
+       unificar en NO_EVALUABLE convierte "esta maquina no tiene copias" en un
+       hueco de cobertura y deja al control sin su unica no conformidad tecnica
+       propia.
+
+       Nota de mecanica, para no confundir lo que manda: la clave "estado" de
+       estas lineas de info NO la lee el plugin. El semaforo lo fija el campo
+       `estado` de la linea NDJSON que escribe el emisor (lo normaliza
+       data-source-engine.ts); lo de aqui es el contrato declarado, y si emisor
+       y regla discrepan gana el emisor y nada avisa. Eso es exactamente lo que
+       paso con 106606. Por eso tests/test_vocabulario.sh (seccion 7, en el
+       runbook) contrasta ahora los dos: lo que emite el watchdog contra lo que
+       declara su regla aqui.
+  -->
   <rule id="106601" level="12">
     <if_sid>106600</if_sid>
     <field name="event">backup_missing</field>
@@ -65,7 +127,22 @@
     <info type="text">requisito=mp.info.6.2.d evidencia=EV-03 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-05 formato=fim</info>
   </rule>
 
-  <rule id="106606" level="10">
+  <!-- NO_EVALUABLE, y no es un descuido frente al NO_CUMPLE de 106601: el
+       criterio entero esta en el comentario de esa regla, mas arriba. En corto:
+       la prueba de restauracion R1 esta dormida de fabrica, asi que su ausencia
+       es ausencia de MEDIDA. La no conformidad de r1.1 la declara 106607
+       (`restore_error`): restaurar se intento y fallo.
+
+       El nivel baja de 10 a 3, y es parte del mismo arreglo. En este control el
+       10 es la severidad de una no conformidad (la llevan 106603, 106607,
+       106609 y 106663, todas NO_CUMPLE) y aqui quedo del tiempo en que el
+       emisor tambien acusaba. Un NO_EVALUABLE vale 3, como 106702. Con 10, esta
+       regla levantaba cada noche una alerta de severidad alta en el SOC contra
+       cualquier maquina que sencillamente no ha activado la prueba, que es el
+       estado de fabrica. El nivel no toca el semaforo del plugin (no lo lee
+       nadie del motor) pero si lo que ve el SOC, y decirle "grave" a un "no
+       medido" es la misma acusacion falsa por otra via. -->
+  <rule id="106606" level="3">
     <if_sid>106600</if_sid>
     <field name="event">restore_missing</field>
     <description>mp.info.6 · mp.info.6.r1.1 · NO_EVALUABLE (EV-05) · Sin prueba de restauración R1 con md5sum</description>
