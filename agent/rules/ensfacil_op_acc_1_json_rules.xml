@@ -370,4 +370,34 @@
     <group>ensfacil,op_acc_1,technical_fact,</group>
     <info type="text">evidencia=EV-05 requisito=op.acc.1.2 hecho=service_authentication_source_unavailable contrato=technical_fact formato=json_line</info>
   </rule>
+
+  <!-- ===== 106873-106889 · hechos crudos del modelo nuevo (el agente
+       observa, el motor juzga) ==================================================
+
+       AVISO DE DIVERGENCIA, que este fichero no llevaba escrito y hace falta:
+       este XML y su supuesta copia en
+       op.acc.1-control-access-1-runbook/manager/ NO son el mismo juego de
+       reglas ni lo han sido nunca. Numeran el mismo rango 106800-106899 para
+       DOS recolectores distintos: este cubre los hechos técnicos del
+       recolector Python (agent/collectors/ens_op_acc1_audit.py, con su
+       106800 exigiendo event_class/execution_id/collector...), y el del
+       runbook cubre el recolector bash, que es EL DESPLEGADO. Por eso no se
+       pueden fusionar: el 106800 de aquí no casaría con ni un solo evento del
+       agente desplegado.
+
+       Lo que SÍ tiene que estar sincronizado -y es lo que se sincroniza aquí-
+       es la numeración: un mismo id no puede significar dos evidencias
+       distintas según qué fichero mire quien audita. 106873 significa
+       `account_authenticated` de EV-03 en los dos.
+
+       La banda arranca en 106873 porque 106801-106849 está agotada entre los
+       dos ficheros (106803/106804 ya son de EV-08 aquí). Quien migre EV-05 o
+       EV-06 coge de esta banda, y comprueba los DOS ficheros antes. -->
+  <rule id="106873" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">^account_authenticated$</field>
+    <description>op.acc.1 · hecho técnico · account_authenticated</description>
+    <group>ensfacil,op_acc_1,technical_fact,</group>
+    <info type="text">evidencia=EV-03 requisito=op.acc.1.1 hecho=account_authenticated juicio=motor parametro=P-04 contrato=technical_fact formato=json_line</info>
+  </rule>
 </group>

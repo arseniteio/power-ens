@@ -26,38 +26,243 @@ import {
 // produce una afirmación. Sin hecho observado o sin parámetro, NO_EVALUABLE con
 // motivo. Nunca un CUMPLE falso, y tampoco un NO_CUMPLE falso.
 
-// --- Cobertura del recolector: hueco previsto para T1.3 ---------------------
+// --- Cobertura del recolector (T1.3) ---------------------------------------
 //
 // «El recolector corrió y no encontró nada» y «el recolector no corrió» son dos
-// situaciones distintas que hoy el motor no sabe separar, y de esa distinción
-// depende si la ausencia de hechos puede llegar a significar CUMPLE:
+// situaciones distintas, y de esa distinción depende si la ausencia de hechos
+// puede llegar a significar CUMPLE:
 //
 //   - NINGUNO_EN_LISTA con cobertura CONFIRMADA y cero hechos → sí es CUMPLE
 //     (se ha mirado y no hay ninguna cuenta prohibida autenticándose).
-//   - Con cobertura DESCONOCIDA, ese mismo caso es el falso verde que el
-//     producto prohíbe, así que se queda en NO_EVALUABLE.
+//   - Con cobertura DESCONOCIDA o AUSENTE, ese mismo caso es el falso verde que
+//     el producto prohíbe, así que se queda en NO_EVALUABLE.
 //
-// T1.3 lo resuelve con el evento `collector_run`. Lo que tiene que hacer:
-//   1. Añadir a `ENSEvidenceJudgment` el tipo de evento del recolector
-//      (p.ej. `collectorRunEventTypes?: string[]`).
-//   2. Implementar aquí la búsqueda: un `collector_run` del mismo control y
-//      agente, con ejecución correcta y cubriendo la ventana evaluada →
-//      'CONFIRMADA'; uno que declare fallo → 'AUSENTE'; ninguno → 'DESCONOCIDA'.
-//   3. Añadir en `judgeEvidence`, en el caso «parámetro sí, hechos no», la rama
-//      que convierte 'CONFIRMADA' en el veredicto que corresponda a la
-//      primitiva.
-//
-// Mientras devuelva siempre 'DESCONOCIDA', ese caso termina siempre en
-// NO_EVALUABLE, que es la respuesta correcta hoy.
+// Aquí es donde se decide si el producto miente: con la cobertura sin resolver,
+// «cero hechos» es indistinguible de «agente apagado».
 export type ENSCollectorCoverage =
   | 'CONFIRMADA'
   | 'AUSENTE'
   | 'DESCONOCIDA';
 
+export interface ENSCollectorCoverageResult {
+  coverage: ENSCollectorCoverage;
+
+  // El motivo va SIEMPRE, también cuando la cobertura está confirmada: es lo
+  // que el auditor lee para saber sobre qué latido concreto se sostiene un
+  // CUMPLE que nadie ha observado directamente.
+  reason: string;
+
+  // Latido en el que se apoya la respuesta, para la traza.
+  event?: ENSNormalizedEvent;
+}
+
+const DEFAULT_COLLECTOR_RUN_EVENT_TYPES = [
+  'collector_run',
+];
+
+const DEFAULT_COLLECTOR_RUN_MAX_AGE_HOURS = 24;
+
+// Cota SUPERIOR de la ventana. Un latido no puede venir del futuro: si lo hace,
+// o el reloj está desviado o el dato está manipulado, y en ninguno de los dos
+// casos demuestra que el recolector haya mirado nada. Sin esta cota, un
+// `collector_run` fechado en 2099 valdría como latido perpetuo y volvería verde
+// para siempre a cualquier evidencia de aserción negativa, aunque el agente
+// llevara meses apagado. Es un fallo real, ya visto en revisión de este
+// producto, y el mismo margen y el mismo criterio que aplica el agente en
+// `ens_opacc1_score.py` (MARGEN_FUTURO) — los dos lados tienen que tratar igual
+// un ts adelantado o vuelve a haber dos interpretaciones del mismo evento.
+const COLLECTOR_RUN_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+
+// Campos del latido. No se declaran por evidencia en el catálogo a propósito:
+// son el contrato agente↔motor, idéntico para los tres controles, y ponerlos en
+// el catálogo invitaría a que cada evidencia lo declarara distinto.
+const COLLECTOR_RUN_RESULT_FIELD = 'resultado';
+
+const COLLECTOR_RUN_SUCCESS_VALUES = [
+  'completada',
+];
+
+// Lista blanca de evidencias que ESA pasada llegó a mirar. No es lo mismo que
+// «sobre las que emitió algo»: una evidencia de aserción negativa calla
+// legítimamente cuando no hay nada que reportar, y ese silencio es justo el
+// caso que puede significar CUMPLE. Lo que hace falta saber es si la fuente se
+// pudo leer.
+const COLLECTOR_RUN_COVERAGE_FIELD = 'evidencias_cubiertas';
+
+const parseTimestamp = (
+  value: string | undefined
+): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = new Date(value).getTime();
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : undefined;
+};
+
+// Un latido del mismo control y agente (ya filtrados por
+// `resolveEvidenceForControl`), con ejecución correcta, cubriendo la ventana
+// evaluada y declarando esta evidencia → CONFIRMADA; uno que declare fallo o
+// que declare NO haber cubierto esta evidencia → AUSENTE; ninguno del que se
+// pueda decir nada → DESCONOCIDA.
+//
+// Regla de fondo, y la razón de que falten datos se resuelva siempre hacia
+// DESCONOCIDA: CONFIRMADA hay que GANÁRSELA. Un latido que no declara su
+// resultado, o que no declara qué llegó a mirar, no demuestra cobertura —
+// demuestra que el recolector es más viejo que este contrato. Y lo que no
+// consta no puede convertir un silencio en un CUMPLE.
 export const resolveCollectorCoverage = (
-  _definition: ENSEvidenceDefinition,
-  _events: ENSNormalizedEvent[]
-): ENSCollectorCoverage => 'DESCONOCIDA';
+  definition: ENSEvidenceDefinition,
+  judgment: ENSEvidenceJudgment,
+  events: ENSNormalizedEvent[],
+  now: Date = new Date()
+): ENSCollectorCoverageResult => {
+  const eventTypes =
+    judgment.collectorRunEventTypes?.length
+      ? judgment.collectorRunEventTypes
+      : DEFAULT_COLLECTOR_RUN_EVENT_TYPES;
+
+  const maxAgeHours =
+    judgment.collectorRunMaxAgeHours !==
+      undefined &&
+    Number.isFinite(
+      judgment.collectorRunMaxAgeHours
+    ) &&
+    judgment.collectorRunMaxAgeHours > 0
+      ? judgment.collectorRunMaxAgeHours
+      : DEFAULT_COLLECTOR_RUN_MAX_AGE_HOURS;
+
+  const candidates = sortByTimestampDesc(
+    events.filter(
+      event =>
+        eventTypes.includes(event.eventType) &&
+        definition.sourceTypes.includes(
+          event.sourceType
+        ) &&
+        // El latido no es de ninguna evidencia en particular; si alguno viene
+        // marcado, solo cuenta para la suya.
+        (!event.evidenceId ||
+          event.evidenceId === definition.id)
+    )
+  );
+
+  if (!candidates.length) {
+    return {
+      coverage: 'DESCONOCIDA',
+      reason: `No consta ningún evento de recolector (${eventTypes.join(', ')}) para ${definition.id}: no hay forma de saber si el recolector llegó a ejecutarse.`,
+    };
+  }
+
+  const nowMs = now.getTime();
+
+  const lowerBound =
+    nowMs - maxAgeHours * 60 * 60 * 1000;
+
+  const upperBound =
+    nowMs + COLLECTOR_RUN_FUTURE_TOLERANCE_MS;
+
+  let futureCandidate:
+    | ENSNormalizedEvent
+    | undefined;
+
+  const inWindow = candidates.filter(event => {
+    const timestamp = parseTimestamp(
+      event.timestamp
+    );
+
+    if (timestamp === undefined) {
+      return false;
+    }
+
+    if (timestamp > upperBound) {
+      futureCandidate =
+        futureCandidate || event;
+
+      return false;
+    }
+
+    return timestamp >= lowerBound;
+  });
+
+  if (!inWindow.length) {
+    return futureCandidate
+      ? {
+          coverage: 'DESCONOCIDA',
+          reason: `El único evento de recolector para ${definition.id} está fechado en el futuro (${futureCandidate.timestamp}): un reloj desviado o un dato manipulado no demuestra que se haya mirado nada, así que no cuenta como latido.`,
+          event: futureCandidate,
+        }
+      : {
+          coverage: 'DESCONOCIDA',
+          reason: `No consta ningún evento de recolector para ${definition.id} dentro de las últimas ${maxAgeHours} horas (el más reciente es de ${candidates[0].timestamp}).`,
+          event: candidates[0],
+        };
+  }
+
+  const latest = inWindow[0];
+
+  const declaredResult = getEventFieldValue(
+    latest,
+    COLLECTOR_RUN_RESULT_FIELD
+  );
+
+  if (!hasMeaningfulValue(declaredResult)) {
+    return {
+      coverage: 'DESCONOCIDA',
+      reason: `El latido del recolector ${latest.id} (${latest.timestamp}) no declara el campo '${COLLECTOR_RUN_RESULT_FIELD}', así que no consta que la pasada terminara bien.`,
+      event: latest,
+    };
+  }
+
+  if (
+    !COLLECTOR_RUN_SUCCESS_VALUES.includes(
+      normalizeForComparison(declaredResult)
+    )
+  ) {
+    return {
+      coverage: 'AUSENTE',
+      reason: `El recolector ejecutó, pero su latido ${latest.id} (${latest.timestamp}) declara ${COLLECTOR_RUN_RESULT_FIELD}='${String(declaredResult)}': la pasada no terminó correctamente.`,
+      event: latest,
+    };
+  }
+
+  const declaredCoverage = getEventFieldValue(
+    latest,
+    COLLECTOR_RUN_COVERAGE_FIELD
+  );
+
+  if (!hasMeaningfulValue(declaredCoverage)) {
+    return {
+      coverage: 'DESCONOCIDA',
+      reason: `El latido del recolector ${latest.id} (${latest.timestamp}) no declara '${COLLECTOR_RUN_COVERAGE_FIELD}', así que no consta que la pasada llegara a observar ${definition.id}.`,
+      event: latest,
+    };
+  }
+
+  const coveredEvidences = parseReferenceList(
+    declaredCoverage
+  ).map(normalizeForComparison);
+
+  if (
+    !coveredEvidences.includes(
+      normalizeForComparison(definition.id)
+    )
+  ) {
+    return {
+      coverage: 'AUSENTE',
+      reason: `El recolector ejecutó correctamente, pero su latido ${latest.id} (${latest.timestamp}) declara haber cubierto ${coveredEvidences.length ? `'${parseReferenceList(declaredCoverage).join("', '")}'` : 'ninguna evidencia'} y ${definition.id} no está: esa pasada no llegó a observar esta evidencia.`,
+      event: latest,
+    };
+  }
+
+  return {
+    coverage: 'CONFIRMADA',
+    reason: `El recolector ejecutó correctamente y declara haber cubierto ${definition.id} (latido ${latest.id} de ${latest.timestamp}, dentro de las últimas ${maxAgeHours} horas).`,
+    event: latest,
+  };
+};
 
 // --- Lectura del parámetro -------------------------------------------------
 
@@ -225,12 +430,17 @@ const describeFacts = (
 
 // --- Juicio ----------------------------------------------------------------
 
+// `now` es un parámetro y no una llamada suelta a `new Date()` porque la
+// cobertura del recolector se mide contra una ventana con dos cotas: sin poder
+// congelar el reloj, la prueba de que un latido del futuro NO vale sería
+// imposible de escribir de forma determinista.
 export const judgeEvidence = (
   definition: ENSEvidenceDefinition,
   judgment: ENSEvidenceJudgment,
   baseEvidence: ENSEvidenceBaseFields,
   events: ENSNormalizedEvent[],
-  configuration?: ENSControlConfiguration
+  configuration?: ENSControlConfiguration,
+  now: Date = new Date()
 ): ENSEvidenceResolved => {
   const parameter =
     configuration?.parameters.find(
@@ -391,20 +601,67 @@ export const judgeEvidence = (
   }
 
   // Caso 3: hay parámetro, pero no se ha observado ningún hecho. Es donde vive
-  // la tentación del falso verde: «no se ha visto nada malo, luego cumple». No.
-  // Mientras no conste que el recolector ejecutó y cubrió la ventana, la
-  // ausencia de hechos no distingue «no hay nada» de «no se ha mirado».
+  // la tentación del falso verde: «no se ha visto nada malo, luego cumple». Solo
+  // deja de serlo cuando consta que el recolector ejecutó y cubrió la ventana.
   if (!observedFacts.length) {
     const coverage = resolveCollectorCoverage(
       definition,
-      events
+      judgment,
+      events,
+      now
     );
+
+    const coverageMotive = `Cobertura del recolector: ${coverage.coverage}. ${coverage.reason}`;
+
+    // Solo la aserción NEGATIVA puede cumplirse por ausencia. «Ninguno de los
+    // hechos observados está en la lista» sigue siendo cierto con cero hechos
+    // observados, siempre que conste que se ha mirado — es literalmente lo que
+    // acredita EV-03: nadie se autenticó con una cuenta prohibida.
+    //
+    // Las otras dos no: «todos los hechos observados están en la lista» y
+    // «ningún valor observado supera el umbral» son afirmaciones POSITIVAS
+    // sobre un sistema del que no se ha observado nada. Que sean vacuamente
+    // ciertas en lógica no las hace ciertas en una auditoría: cero copias de
+    // seguridad observadas no acredita que las copias se hagan a tiempo. Se
+    // quedan en NO_EVALUABLE aunque la cobertura esté confirmada.
+    const admiteCumplimientoPorAusencia =
+      judgment.primitive === 'NINGUNO_EN_LISTA';
+
+    // Ni siquiera con cobertura confirmada: si llegaron eventos de hecho que no
+    // se han podido leer, no se ha observado «nada», se ha observado algo
+    // ilegible. Afirmar cumplimiento sería afirmar sobre lo que falta.
+    if (
+      coverage.coverage === 'CONFIRMADA' &&
+      admiteCumplimientoPorAusencia &&
+      !unusableFactEvents.length
+    ) {
+      return buildResult(
+        'CUMPLE',
+        [
+          coverageMotive,
+          `No se ha observado ningún hecho de tipo ${judgment.factEventTypes.join(', ')} en la ventana evaluada, y consta que el recolector miró: ningún valor de la lista del parámetro ${parameterLabel} se ha producido.`,
+        ],
+        coverage.event
+      );
+    }
 
     return buildResult(
       'NO_EVALUABLE',
       [
         missingFactsMotive,
-        `Cobertura del recolector: ${coverage}. Sin constancia de que el recolector haya ejecutado y cubierto la ventana evaluada, la ausencia de hechos no permite afirmar cumplimiento.`,
+        coverageMotive,
+        ...(coverage.coverage === 'CONFIRMADA' &&
+        !admiteCumplimientoPorAusencia
+          ? [
+              `La primitiva ${judgment.primitive} afirma algo sobre los hechos observados, así que no puede acreditarse sin observar ninguno, ni siquiera con la cobertura confirmada.`,
+            ]
+          : []),
+        ...(coverage.coverage === 'CONFIRMADA' &&
+        unusableFactEvents.length
+          ? [
+              `La cobertura está confirmada, pero ${unusableFactEvents.length} evento(s) de hecho no se han podido interpretar, así que lo observado no está vacío: está incompleto.`,
+            ]
+          : []),
         ...unusableFactEvents
           .slice(0, 1)
           .map(
@@ -412,7 +669,7 @@ export const judgeEvidence = (
               `Último evento descartado ${unusable.event.id}: ${unusable.reason}.`
           ),
       ],
-      factEvents[0]
+      factEvents[0] || coverage.event
     );
   }
 

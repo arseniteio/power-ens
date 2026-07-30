@@ -19,8 +19,10 @@ import {
   ENSControlParameter,
 } from '../dashboard/ens/configuration/types';
 import { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+import { consolidateAgentComplianceResults } from '../dashboard/ens/core/compliance-state/consolidation';
 import { ENSEvidenceCatalog } from '../dashboard/ens/core/evidence/catalog';
 import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
+import { buildOpAcc1ReportModel } from '../dashboard/ens/informes/op-acc-1-report-model';
 import {
   judgeEvidence,
   parseReferenceList,
@@ -173,7 +175,8 @@ const juzga = (
   judgment: ENSEvidenceJudgment,
   eventos: ENSNormalizedEvent[],
   config?: ENSControlConfiguration,
-  extra: Partial<ENSEvidenceDefinition> = {}
+  extra: Partial<ENSEvidenceDefinition> = {},
+  ahora?: Date
 ): ENSEvidenceResolved => {
   const definition = definicion(judgment, extra);
 
@@ -182,7 +185,8 @@ const juzga = (
     judgment,
     base(definition),
     eventos,
-    config
+    config,
+    ahora
   );
 };
 
@@ -574,31 +578,299 @@ bloque('Hechos ilegibles');
   );
 }
 
-// --- hueco para collector_run (T1.3) ---------------------------------------
+// --- cobertura del recolector (T1.3) ---------------------------------------
+//
+// Aquí se decide si el producto miente: sin resolver la cobertura, «cero
+// hechos» es indistinguible de «agente apagado».
 
-bloque('Hueco previsto para collector_run (T1.3)');
+bloque('Cobertura del recolector (T1.3)');
 
 {
-  comprueba(
-    'resolveCollectorCoverage está enchufado y hoy devuelve DESCONOCIDA',
-    resolveCollectorCoverage(
-      definicion(JUICIO_NINGUNO),
-      []
-    ) === 'DESCONOCIDA'
+  const AHORA = new Date(
+    '2026-07-30T12:00:00Z'
   );
 
-  const sinHecho = juzga(
+  // Latido tal como lo emite ens_opacc1_collect.sh: `resultado` y la lista
+  // blanca `evidencias_cubiertas`.
+  const latido = (
+    attributes: Record<string, unknown>,
+    timestamp: string = '2026-07-30T11:30:00Z'
+  ): ENSNormalizedEvent =>
+    evento(
+      'collector_run',
+      attributes,
+      { timestamp }
+    );
+
+  const latidoSano = () =>
+    latido({
+      resultado: 'completada',
+      evidencias_cubiertas:
+        'EV-XX,EV-05,EV-06',
+    });
+
+  const cobertura = (
+    eventos: ENSNormalizedEvent[]
+  ) =>
+    resolveCollectorCoverage(
+      definicion(JUICIO_NINGUNO),
+      JUICIO_NINGUNO,
+      eventos,
+      AHORA
+    );
+
+  comprueba(
+    'sin ningún collector_run · DESCONOCIDA',
+    cobertura([]).coverage === 'DESCONOCIDA',
+    cobertura([]).coverage
+  );
+
+  comprueba(
+    'latido correcto que declara la evidencia · CONFIRMADA',
+    cobertura([latidoSano()]).coverage ===
+      'CONFIRMADA',
+    cobertura([latidoSano()]).reason
+  );
+
+  const conFallo = cobertura([
+    latido({
+      resultado: 'sin_evidencias',
+      evidencias_cubiertas: 'EV-XX',
+    }),
+  ]);
+
+  comprueba(
+    'latido que declara fallo · AUSENTE',
+    conFallo.coverage === 'AUSENTE',
+    conFallo.reason
+  );
+
+  const noCubierta = cobertura([
+    latido({
+      resultado: 'completada',
+      evidencias_cubiertas: 'EV-05,EV-06',
+    }),
+  ]);
+
+  comprueba(
+    'latido correcto que NO declara esta evidencia · AUSENTE',
+    noCubierta.coverage === 'AUSENTE',
+    noCubierta.reason
+  );
+
+  comprueba(
+    'latido correcto que no declara esta evidencia · el motivo lo explica',
+    noCubierta.reason.includes('EV-XX'),
+    noCubierta.reason
+  );
+
+  const sinCampoCobertura = cobertura([
+    latido({ resultado: 'completada' }),
+  ]);
+
+  comprueba(
+    'latido de un agente anterior al contrato (sin evidencias_cubiertas) · DESCONOCIDA',
+    sinCampoCobertura.coverage ===
+      'DESCONOCIDA',
+    sinCampoCobertura.reason
+  );
+
+  const sinResultado = cobertura([
+    latido({
+      evidencias_cubiertas: 'EV-XX',
+    }),
+  ]);
+
+  comprueba(
+    'latido que no declara resultado · DESCONOCIDA, CONFIRMADA hay que ganársela',
+    sinResultado.coverage === 'DESCONOCIDA',
+    sinResultado.reason
+  );
+
+  // --- las dos cotas de la ventana ---
+  const demasiadoViejo = cobertura([
+    latido(
+      {
+        resultado: 'completada',
+        evidencias_cubiertas: 'EV-XX',
+      },
+      '2026-07-28T11:30:00Z'
+    ),
+  ]);
+
+  comprueba(
+    'cota inferior · un latido de hace dos días no cubre la ventana',
+    demasiadoViejo.coverage ===
+      'DESCONOCIDA',
+    demasiadoViejo.reason
+  );
+
+  // El fallo real que ya apareció en revisión de este producto: sin cota
+  // superior, un ts absurdo en el futuro valdría como latido perpetuo y
+  // dejaría en verde para siempre cualquier aserción negativa aunque el
+  // agente llevara meses apagado.
+  const enElFuturo = cobertura([
+    latido(
+      {
+        resultado: 'completada',
+        evidencias_cubiertas: 'EV-XX',
+      },
+      '2099-01-01T00:00:00Z'
+    ),
+  ]);
+
+  comprueba(
+    'cota superior · un latido fechado en 2099 NO vale como latido perpetuo',
+    enElFuturo.coverage === 'DESCONOCIDA',
+    `${enElFuturo.coverage} — ${enElFuturo.reason}`
+  );
+
+  comprueba(
+    'cota superior · el motivo nombra la fecha futura, no calla el descarte',
+    enElFuturo.reason.includes('2099'),
+    enElFuturo.reason
+  );
+
+  // Tolerancia de reloj: unos minutos de desfase entre máquinas son normales
+  // y no pueden tumbar la cobertura.
+  const desfaseLeve = cobertura([
+    latido(
+      {
+        resultado: 'completada',
+        evidencias_cubiertas: 'EV-XX',
+      },
+      '2026-07-30T12:02:00Z'
+    ),
+  ]);
+
+  comprueba(
+    'cota superior · dos minutos de desfase de reloj siguen siendo cobertura',
+    desfaseLeve.coverage === 'CONFIRMADA',
+    desfaseLeve.reason
+  );
+
+  // --- el efecto sobre el veredicto ---
+  const verde = juzga(
+    JUICIO_NINGUNO,
+    [latidoSano()],
+    configuracion('P-04', ['admin']),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'NINGUNO_EN_LISTA · cobertura CONFIRMADA y cero hechos · CUMPLE',
+    verde.status === 'CUMPLE',
+    `${verde.status} — ${motivos(verde)}`
+  );
+
+  comprueba(
+    'CUMPLE por ausencia · el motivo dice sobre qué latido se sostiene',
+    motivos(verde).includes(
+      'Cobertura del recolector: CONFIRMADA'
+    ),
+    motivos(verde)
+  );
+
+  const gris = juzga(
     JUICIO_NINGUNO,
     [],
-    configuracion('P-04', ['admin'])
+    configuracion('P-04', ['admin']),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'NINGUNO_EN_LISTA · sin latido y cero hechos · sigue NO_EVALUABLE',
+    gris.status === 'NO_EVALUABLE',
+    gris.status
   );
 
   comprueba(
     'el motivo de «parámetro sin hechos» declara la cobertura del recolector',
-    motivos(sinHecho).includes(
+    motivos(gris).includes(
       'Cobertura del recolector: DESCONOCIDA'
     ),
-    motivos(sinHecho)
+    motivos(gris)
+  );
+
+  const grisFuturo = juzga(
+    JUICIO_NINGUNO,
+    [
+      latido(
+        {
+          resultado: 'completada',
+          evidencias_cubiertas: 'EV-XX',
+        },
+        '2099-01-01T00:00:00Z'
+      ),
+    ],
+    configuracion('P-04', ['admin']),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'un latido del futuro NO convierte la ausencia de hechos en CUMPLE',
+    grisFuturo.status === 'NO_EVALUABLE',
+    `${grisFuturo.status} — ${motivos(grisFuturo)}`
+  );
+
+  // Solo la aserción negativa se cumple por ausencia. Una afirmación positiva
+  // sobre un sistema del que no se ha observado nada no se acredita ni con la
+  // cobertura confirmada: cero copias observadas no es «las copias se hacen».
+  const todosSinHechos = juzga(
+    JUICIO_TODOS,
+    [latidoSano()],
+    configuracion('P-04', ['jgomez']),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'TODOS_EN_LISTA · cobertura CONFIRMADA y cero hechos · NO_EVALUABLE, no CUMPLE',
+    todosSinHechos.status === 'NO_EVALUABLE',
+    `${todosSinHechos.status} — ${motivos(todosSinHechos)}`
+  );
+
+  const umbralSinHechos = juzga(
+    JUICIO_UMBRAL,
+    [latidoSano()],
+    configuracion(
+      'P-05',
+      7,
+      'plazo_max_deshabilitar_dias'
+    ),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'UMBRAL_MAXIMO · cobertura CONFIRMADA y cero hechos · NO_EVALUABLE, no CUMPLE',
+    umbralSinHechos.status === 'NO_EVALUABLE',
+    `${umbralSinHechos.status} — ${motivos(umbralSinHechos)}`
+  );
+
+  // Con cobertura confirmada pero eventos de hecho ilegibles, lo observado no
+  // está vacío: está incompleto. No cabe CUMPLE.
+  const cubiertaConIlegible = juzga(
+    JUICIO_NINGUNO,
+    [
+      latidoSano(),
+      evento('generic_account_login', {
+        otro_campo: 'x',
+      }),
+    ],
+    configuracion('P-04', ['admin']),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'cobertura CONFIRMADA + hechos ilegibles · NO_EVALUABLE, lo observado está incompleto',
+    cubiertaConIlegible.status ===
+      'NO_EVALUABLE',
+    `${cubiertaConIlegible.status} — ${motivos(cubiertaConIlegible)}`
   );
 }
 
@@ -616,6 +888,27 @@ bloque('Integración con el motor');
   if (!ev03) {
     comprueba('EV-03 de op.acc.1 existe en el catálogo', false);
   } else {
+    comprueba(
+      'EV-03 de op.acc.1 declara judgment en el catálogo (T1.3)',
+      ev03.judgment?.primitive ===
+        'NINGUNO_EN_LISTA' &&
+        ev03.judgment?.parameterId === 'P-04',
+      JSON.stringify(ev03.judgment)
+    );
+
+    comprueba(
+      'EV-03 apunta al hecho crudo que emite el agente',
+      Boolean(
+        ev03.judgment?.factEventTypes.includes(
+          'account_authenticated'
+        ) &&
+          ev03.judgment?.factField === 'usuario'
+      ),
+      JSON.stringify(ev03.judgment)
+    );
+
+    // El evidence_state del agente sigue llegando desde despliegues a medias:
+    // tiene que quedar claro que ya no manda.
     const eventos: ENSNormalizedEvent[] = [
       evento(
         'evidence_state',
@@ -626,12 +919,39 @@ bloque('Integración con el motor');
           timestamp: '2026-07-30T11:00:00Z',
         }
       ),
-      evento('generic_account_login', {
+      evento('account_authenticated', {
         usuario: 'admin',
       }),
     ];
 
-    const clasico = resolveEvidenceForControl(
+    const juzgado = resolveEvidenceForControl(
+      'op.acc.1',
+      eventos,
+      undefined,
+      'ALTO',
+      configuracion('P-04', ['admin', 'guest'])
+    ).find(evidencia => evidencia.id === 'EV-03');
+
+    comprueba(
+      'el evidence_state CUMPLE del agente ya no manda sobre EV-03',
+      juzgado?.status === 'NO_CUMPLE',
+      String(juzgado?.status)
+    );
+
+    comprueba(
+      'el motivo nombra la cuenta concreta del hecho crudo',
+      Boolean(juzgado && motivos(juzgado).includes("'admin'")),
+      juzgado ? motivos(juzgado) : ''
+    );
+
+    comprueba(
+      'la trazabilidad apunta al evento del hecho crudo, no al evidence_state',
+      juzgado?.resolvedEventType ===
+        'account_authenticated',
+      String(juzgado?.resolvedEventType)
+    );
+
+    const sinConfiguracion = resolveEvidenceForControl(
       'op.acc.1',
       eventos,
       undefined,
@@ -639,81 +959,338 @@ bloque('Integración con el motor');
     ).find(evidencia => evidencia.id === 'EV-03');
 
     comprueba(
-      'sin judgment · manda el evidence_state del agente (camino de hoy)',
-      clasico?.status === 'CUMPLE',
-      String(clasico?.status)
+      'sin configuración · NO_EVALUABLE, ni siquiera con el evidence_state CUMPLE delante',
+      sinConfiguracion?.status === 'NO_EVALUABLE',
+      String(sinConfiguracion?.status)
     );
 
-    ev03.judgment = {
-      primitive: 'NINGUNO_EN_LISTA',
-      parameterId: 'P-04',
-      factEventTypes: ['generic_account_login'],
-      factField: 'usuario',
-    };
-
-    try {
-      const juzgado = resolveEvidenceForControl(
-        'op.acc.1',
-        eventos,
-        undefined,
-        'ALTO',
-        configuracion('P-04', ['admin', 'guest'])
-      ).find(evidencia => evidencia.id === 'EV-03');
-
-      comprueba(
-        'con judgment · el evidence_state deja de mandar y decide la primitiva',
-        juzgado?.status === 'NO_CUMPLE',
-        String(juzgado?.status)
-      );
-
-      comprueba(
-        'con judgment · el motivo nombra la cuenta del hecho crudo',
-        Boolean(juzgado && motivos(juzgado).includes("'admin'")),
-        juzgado ? motivos(juzgado) : ''
-      );
-
-      const sinConfiguracion = resolveEvidenceForControl(
-        'op.acc.1',
-        eventos,
-        undefined,
-        'ALTO'
-      ).find(evidencia => evidencia.id === 'EV-03');
-
-      comprueba(
-        'con judgment y sin configuración · NO_EVALUABLE (la config llega por parámetro)',
-        sinConfiguracion?.status === 'NO_EVALUABLE',
-        String(sinConfiguracion?.status)
-      );
-    } finally {
-      delete ev03.judgment;
-    }
+    // Migración: un agente sin actualizar sigue emitiendo los nombres viejos, y
+    // su `usuario` sigue siendo un hecho utilizable. Lo que se descarta es su
+    // `estado`, no el dato.
+    const legado = resolveEvidenceForControl(
+      'op.acc.1',
+      [
+        evento(
+          'auth_success',
+          { usuario: 'guest' },
+          { status: 'CUMPLE' }
+        ),
+      ],
+      undefined,
+      'ALTO',
+      configuracion('P-04', ['admin', 'guest'])
+    ).find(evidencia => evidencia.id === 'EV-03');
 
     comprueba(
-      'restaurado · EV-03 vuelve al camino clásico',
-      resolveEvidenceForControl(
-        'op.acc.1',
-        eventos,
-        undefined,
-        'ALTO'
-      ).find(evidencia => evidencia.id === 'EV-03')
-        ?.status === 'CUMPLE'
+      "un 'auth_success' de agente viejo se re-juzga con el P-04 de hoy (decía CUMPLE)",
+      legado?.status === 'NO_CUMPLE',
+      String(legado?.status)
     );
   }
 }
 
-// --- restricción de T1.2 ---------------------------------------------------
+// --- prueba de aceptación de la fase ---------------------------------------
+//
+// «Cambiar P-04 en la pantalla de Configuración cambia el veredicto de EV-03
+// SIN TOCAR EL AGENTE.» Los eventos son literalmente el mismo objeto en las dos
+// evaluaciones: lo único distinto es el valor del parámetro.
 
-bloque('Restricción de T1.2');
+bloque('Aceptación · P-04 manda sobre EV-03 sin tocar el agente');
+
+{
+  // Lo que emite hoy fake/ens_opacc1_fake.sh en los escenarios cumple, mixto y
+  // no_evaluable, tal cual.
+  const HECHO_DEL_AGENTE: ENSNormalizedEvent[] = [
+    evento('account_authenticated', {
+      usuario: 'jgomez',
+      origen: '10.0.0.12',
+    }),
+  ];
+
+  const veredicto = (
+    p04: string[]
+  ): ENSEvidenceResolved | undefined =>
+    resolveEvidenceForControl(
+      'op.acc.1',
+      HECHO_DEL_AGENTE,
+      undefined,
+      'ALTO',
+      configuracion('P-04', p04)
+    ).find(
+      evidencia => evidencia.id === 'EV-03'
+    );
+
+  const conPorDefecto = veredicto([
+    'admin',
+    'administrador',
+    'guest',
+    'test',
+    'temp',
+    'usuario1',
+  ]);
+
+  const conJgomezProhibido = veredicto([
+    'admin',
+    'jgomez',
+  ]);
+
+  comprueba(
+    'P-04 por defecto · jgomez no está en la lista · CUMPLE',
+    conPorDefecto?.status === 'CUMPLE',
+    `${conPorDefecto?.status} — ${conPorDefecto ? motivos(conPorDefecto) : ''}`
+  );
+
+  comprueba(
+    'se añade jgomez a P-04 · MISMO evento del agente · pasa a NO_CUMPLE',
+    conJgomezProhibido?.status === 'NO_CUMPLE',
+    `${conJgomezProhibido?.status} — ${conJgomezProhibido ? motivos(conJgomezProhibido) : ''}`
+  );
+
+  comprueba(
+    'el motivo del NO_CUMPLE nombra la cuenta, no dice «algo falló»',
+    Boolean(
+      conJgomezProhibido &&
+        motivos(
+          conJgomezProhibido
+        ).includes("'jgomez'")
+    ),
+    conJgomezProhibido
+      ? motivos(conJgomezProhibido)
+      : ''
+  );
+
+  // Y se quita otra vez: el veredicto vuelve. Verificación por reversión sobre
+  // el propio parámetro.
+  comprueba(
+    'se quita jgomez de P-04 · el veredicto vuelve a CUMPLE',
+    veredicto(['admin', 'guest'])?.status ===
+      'CUMPLE',
+    String(veredicto(['admin', 'guest'])?.status)
+  );
+
+  // El escenario `incumple` del simulador, con el mismo P-04 por defecto.
+  const escenarioIncumple = resolveEvidenceForControl(
+    'op.acc.1',
+    [
+      evento('account_authenticated', {
+        usuario: 'admin',
+        origen: '10.0.0.55',
+      }),
+    ],
+    undefined,
+    'ALTO',
+    configuracion('P-04', [
+      'admin',
+      'administrador',
+      'guest',
+      'test',
+      'temp',
+      'usuario1',
+    ])
+  ).find(evidencia => evidencia.id === 'EV-03');
+
+  comprueba(
+    'escenario `incumple` del simulador · NO_CUMPLE con el P-04 por defecto',
+    escenarioIncumple?.status === 'NO_CUMPLE',
+    String(escenarioIncumple?.status)
+  );
+}
+
+// --- estado de la migración ------------------------------------------------
+
+bloque('Estado de la migración');
 
 {
   const declaradas = ENSEvidenceCatalog.filter(
     definition => definition.judgment !== undefined
-  ).map(definition => `${definition.controlId}/${definition.id}`);
+  ).map(
+    definition =>
+      `${definition.controlId}/${definition.id}`
+  );
+
+  // La migración es evidencia a evidencia. Esta prueba es el marcador: cuando
+  // se migre la siguiente, hay que actualizarla a conciencia, no de pasada.
+  comprueba(
+    'solo op.acc.1/EV-03 declara judgment (la migración va evidencia a evidencia)',
+    declaradas.length === 1 &&
+      declaradas[0] === 'op.acc.1/EV-03',
+    declaradas.join(', ') || '(ninguna)'
+  );
+}
+
+// --- el motivo llega al auditor (T1.5) -------------------------------------
+//
+// `ENSEvidenceResult` no tenía campo `observations`, así que el motivo de la
+// evidencia se descartaba al pasar de la resolución a la evaluación, y los dos
+// modelos de informe (que ya lo leían) recibían siempre `[]`. Es preexistente y
+// afecta a los tres controles.
+//
+// La construcción del resultado en `evaluation-engine.ts` no se puede ejercitar
+// desde aquí (arrastra `kibana-services`, que vive en el árbol del plugin
+// `main`); esa mitad la sostiene el comprobador de tipos: `observations` es
+// OBLIGATORIO en `ENSEvidenceResult`, así que cualquier sitio que construya uno
+// sin él no compila. Lo que sí se ejercita aquí son los dos tramos siguientes:
+// la consolidación entre agentes y el modelo de informe.
+
+bloque('El motivo llega al auditor (T1.5)');
+
+{
+  const MOTIVO =
+    "Se ha observado 'admin', que figura en la lista del parámetro P-04 (cuentas_genericas_prohibidas).";
+
+  const evidenciaDeResultado = (
+    id: string,
+    observations: string[]
+  ) => ({
+    id,
+    controlId: 'op.acc.1',
+    status: 'NO_CUMPLE' as const,
+    description: 'Evidencia de prueba',
+    observations,
+    requirements: ['op.acc.1.1'],
+    levels: ['BAJO' as const],
+    category: 'ACCESS_CONTROL' as const,
+    criticality: 'HIGH' as const,
+    sourceTypes: ['WAZUH_ALERT' as const],
+    expectedEventTypes: [
+      'account_authenticated',
+    ],
+    relatedRules: ['106873'],
+    auditQuestion: '¿Pregunta?',
+  });
+
+  const resultado = (
+    observations: string[]
+  ) =>
+    ({
+      control: {
+        id: 'op.acc.1',
+        name: 'Identificación',
+        family: 'op',
+        category: 'acc',
+        description: '',
+      },
+      level: 'BAJO',
+      status: 'NO_CUMPLE',
+      score: 0,
+      coverage: 0,
+      evaluatedAt: '2026-07-30T12:00:00Z',
+      requirements: [],
+      parameters: [],
+      evidences: [
+        evidenciaDeResultado(
+          'EV-03',
+          observations
+        ),
+      ],
+      missingParameters: [],
+      missingEvidences: [],
+      relatedRules: [],
+      nonConformities: [],
+      observations: [],
+      traceability: [],
+    }) as any;
+
+  // --- tramo 1: informe
+  const informe = buildOpAcc1ReportModel(
+    resultado([MOTIVO])
+  );
+
+  const campoEv03 = informe.fields.find(
+    campo =>
+      campo.evidenceIds.length === 1 &&
+      campo.evidenceIds[0] === 'EV-03'
+  );
 
   comprueba(
-    'ninguna evidencia del catálogo declara judgment todavía (lo hace T1.3)',
-    declaradas.length === 0,
-    declaradas.join(', ')
+    'el informe de op.acc.1 tiene un campo alimentado por EV-03',
+    Boolean(campoEv03),
+    informe.fields
+      .map(campo => campo.id)
+      .join(', ')
+  );
+
+  comprueba(
+    'el motivo de EV-03 llega al informe y nombra la cuenta concreta',
+    Boolean(
+      campoEv03?.details.some(detalle =>
+        detalle.includes("'admin'")
+      )
+    ),
+    JSON.stringify(campoEv03?.details)
+  );
+
+  // Verificación por reversión sobre el propio dato: sin motivo en la
+  // evidencia, ese detalle NO aparece. El texto buscado es exclusivo del
+  // motivo — una prueba que buscara «EV-03» pasaría con y sin la propagación,
+  // porque «EV-03» sale igual en el resto del campo.
+  const informeSinMotivo = buildOpAcc1ReportModel(
+    resultado([])
+  );
+
+  const campoSinMotivo =
+    informeSinMotivo.fields.find(
+      campo => campo.id === campoEv03?.id
+    );
+
+  comprueba(
+    'sin motivo en la evidencia, el informe no se inventa ninguno',
+    !campoSinMotivo?.details.some(detalle =>
+      detalle.includes("'admin'")
+    ),
+    JSON.stringify(campoSinMotivo?.details)
+  );
+
+  // --- tramo 2: consolidación entre agentes
+  const consolidado =
+    consolidateAgentComplianceResults([
+      {
+        agentId: '001',
+        agentName: 'srv-dc01',
+        results: [resultado([MOTIVO])],
+        summary: [],
+      },
+      {
+        agentId: '002',
+        agentName: 'srv-web01',
+        results: [
+          resultado([
+            "Se ha observado 'guest', que figura en la lista del parámetro P-04 (cuentas_genericas_prohibidas).",
+          ]),
+        ],
+        summary: [],
+      },
+    ] as any);
+
+  const ev03Consolidada = consolidado[0]?.evidences.find(
+    evidencia => evidencia.id === 'EV-03'
+  );
+
+  comprueba(
+    'consolidando dos agentes, el motivo de LOS DOS sobrevive',
+    Boolean(
+      ev03Consolidada?.observations.some(o =>
+        o.includes("'admin'")
+      ) &&
+        ev03Consolidada?.observations.some(o =>
+          o.includes("'guest'")
+        )
+    ),
+    JSON.stringify(
+      ev03Consolidada?.observations
+    )
+  );
+
+  comprueba(
+    'cada motivo consolidado dice de qué máquina viene',
+    Boolean(
+      ev03Consolidada?.observations.every(o =>
+        o.startsWith('[srv-')
+      )
+    ),
+    JSON.stringify(
+      ev03Consolidada?.observations
+    )
   );
 }
 

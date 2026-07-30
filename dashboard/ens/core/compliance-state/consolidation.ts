@@ -170,6 +170,19 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
       relatedRules: uniqueValues(evidenceEntries.flatMap(({ evidence }) => evidence.relatedRules)),
       lastSeen: getLatestIsoDate(evidenceEntries.map(({ evidence }) => evidence.lastSeen)),
 
+      // Con el mismo prefijo de agente que los requisitos: consolidando varios
+      // agentes, «se ha observado 'admin'» sin decir en qué máquina no sirve de
+      // nada para ir a corregirlo. Y sin esto, el motivo del agente que
+      // determina el estado consolidado se perdería en cuanto hubiera más de
+      // uno (`...template` solo conserva el del primero).
+      observations: uniqueValues(
+        evidenceEntries.flatMap(({ entry, evidence }) =>
+          (evidence.observations || []).map(
+            (observation) => `[${getAgentLabel(entry)}] ${observation}`
+          )
+        )
+      ),
+
       // El resultado raíz representa varios agentes.
       // El detalle individual se conserva en state.agents
       // y en traceability.

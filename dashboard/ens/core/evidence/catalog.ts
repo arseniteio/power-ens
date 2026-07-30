@@ -203,10 +203,44 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'generic_account_login', 'auth_success'],
-    relatedRules: ['106801', '106802', '106824', '106827', '106828'],
+    expectedEventTypes: [
+      'evidence_state',
+      'account_authenticated',
+      'generic_account_login',
+      'auth_success',
+    ],
+    relatedRules: ['106873', '106801', '106802', '106824', '106827', '106828'],
     auditQuestion:
       '¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?',
+
+    // PRIMERA EVIDENCIA QUE DECIDE EL MOTOR. Hasta aquí, el veredicto de EV-03
+    // lo traía hecho el agente: leía su propia lista de cuentas genéricas de
+    // /etc/ensfacil/opacc1.env y emitía `generic_account_login` (NO_CUMPLE) o
+    // `auth_success` (CUMPLE). El nombre del evento YA ERA el juicio, y P-04 en
+    // la pantalla de Configuración solo servía para comprobar que estaba
+    // relleno: cambiar el valor no cambiaba ningún veredicto.
+    //
+    // Ahora el agente emite `account_authenticated` —qué cuenta se autenticó y
+    // desde dónde, sin calificarla— y esta declaración es todo lo que hace
+    // falta para que el motor la juzgue contra P-04. No hay código por control:
+    // `NINGUNO_EN_LISTA` es la misma primitiva que usarán las demás.
+    //
+    // `factEventTypes` incluye los dos nombres viejos a propósito. Un agente
+    // sin actualizar sigue emitiéndolos, y su campo `usuario` sigue siendo un
+    // hecho perfectamente utilizable: lo que se descarta del modelo viejo es el
+    // `estado`, que este camino no lee en ningún punto. Así la migración no
+    // deja ciega a EV-03 ni sobre los datos ya indexados, y esos datos pasan a
+    // juzgarse con el P-04 de HOY en vez de con el .env de aquel día.
+    judgment: {
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-04',
+      factEventTypes: [
+        'account_authenticated',
+        'generic_account_login',
+        'auth_success',
+      ],
+      factField: 'usuario',
+    },
   },
   {
     id: 'EV-04',

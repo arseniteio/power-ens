@@ -182,12 +182,16 @@ const resolveEvidenceEventStatus = (
 // `configuration` es la configuración activa del control. Solo la necesitan las
 // evidencias que declaran `judgment` (el motor juzga contra un parámetro); las
 // demás se resuelven igual con ella y sin ella.
+// `now` solo lo usan las evidencias con `judgment`, para medir la ventana del
+// latido del recolector. Se pasa como parámetro para poder congelarlo en las
+// pruebas; en producción nadie lo pasa.
 export const resolveEvidenceForControl = (
   controlId: string,
   events: ENSNormalizedEvent[],
   agentId?: string,
   level?: ENSLevel,
-  configuration?: ENSControlConfiguration
+  configuration?: ENSControlConfiguration,
+  now?: Date
 ): ENSEvidenceResolved[] => {
   const definitions = getEvidenceDefinitions(controlId);
 
@@ -229,7 +233,8 @@ export const resolveEvidenceForControl = (
         judgment,
         baseEvidence,
         filteredEvents,
-        configuration
+        configuration,
+        now
       );
     }
 
