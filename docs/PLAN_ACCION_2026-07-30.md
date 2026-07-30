@@ -20,6 +20,26 @@ pero desconectado (`3e92f5c`).
 Demo con evidencia simulada funcionando de punta a punta en el servidor fake.
 Despliegue real: pendiente en los tres.
 
+### Los repositorios, ya consistentes
+
+Cuatro repos. Los tres runbooks tienen **la misma estructura y los mismos
+nombres de script**, que es lo que permite desplegarlos igual:
+
+```
+Wazuh-ENS/                     el plugin (dashboard, reglas canónicas, config, docs)
+<control>-runbook/
+  install-manager.sh           reglas + agent.conf en el manager
+  install-fake.sh              simulador (aborta ante el pipeline real)
+  install-real.sh              pipeline real (retira el simulador)
+  lib/  scripts/  fake/  etc/  manager/  tests/  docs/
+```
+
+Procedimiento único de despliegue: `docs/DESPLIEGUE_FAKES.md`.
+
+Salvedad: `install-real.sh` de op.acc.2 falla a propósito —sus recolectores
+reales no existen todavía (fase 3)— y el de mp.info.6 está anotado y pendiente
+por decisión, porque lo despliega un compañero.
+
 ## Lo que se arregló hoy
 
 | | |
@@ -86,35 +106,101 @@ diferencia entre `NO_EVALUABLE` y `CUMPLE`.
 
 ## Fases
 
-### Fase 1 — Coherencia de parámetros *(bloqueante)*
+### Fase 1 — El plugin manda sobre los parámetros *(bloqueante, en curso)*
 
 Sin esto, la pantalla de Configuración le miente al auditor: le deja creer que
 ajusta el control cuando no ajusta nada.
 
-1. **`inject-control.py` deja de pisar valores.** Fusiona: conserva los valores
-   existentes y solo añade parámetros nuevos. `--sustituir` explícito para el
-   comportamiento actual.
-2. **Manda el plugin. Decidido (30/07).** Los agentes solo emiten datos; el
-   manager los interpreta al completo.
+**Decidido (30/07): manda el plugin.** Los agentes solo emiten datos; el manager
+los interpreta al completo. Esa frase es literalmente el modelo de la fase 6, y
+eso descarta la implementación obvia —generar el `.env` de cada agente desde el
+índice y repartirlo— porque funciona hoy y la fase 6 la tira entera: cuando el
+motor juzgue, ningún agente necesitará parámetros.
 
-   Esa frase es literalmente el modelo de la fase 6, así que la implementación
-   de esta fase hay que elegirla sabiendo eso:
+La vía elegida es **subir el juicio al motor evidencia a evidencia**, en los tres
+controles a la vez, empezando por las que dependen de parámetros. Cada evidencia
+migrada deja de depender del `.env` del agente. Es la fase 6 hecha por partes.
 
-   - *Distribuir el `.env` desde el índice*: el manager genera el fichero de
-     parámetros de cada agente y lo reparte por grupo. Funciona con el modelo
-     actual y es rápido, pero **es trabajo que la fase 6 tira entero**: cuando
-     el motor juzgue, ningún agente necesitará parámetros.
-   - *Adelantar el juicio de las evidencias que dependen de parámetros*: el
-     agente emite el hecho crudo (`cuenta_generica_detectada: operador`) además
-     de su `evidence_state`, y el motor decide esa evidencia contrastando con
-     el parámetro del índice. **Evidencia a evidencia, sin reescribir los tres
-     agentes de golpe**, y cada una que se migra deja de depender del `.env`.
+**Invariante que ninguna tarea puede romper:** si el motor no recibe el hecho
+crudo, la evidencia sale `NO_EVALUABLE`. Nunca CUMPLE por ausencia, y nunca
+NO_CUMPLE por ausencia. Un agente viejo que aún no emita el hecho nuevo dejará
+su evidencia en gris — visible y honesto — jamás en verde.
 
-   Recomendación: la segunda. Es la fase 6 hecha por partes, empezando por
-   donde más duele hoy —la pantalla que promete ajustar y no ajusta— y sin
-   construir un repartidor de ficheros que luego hay que retirar.
-3. **Que "configurado" signifique algo.** Hoy basta con que el campo no esté
-   vacío. Un `umask_minimo` de `abc` cuenta como configurado.
+---
+
+**T1.1 · `inject-control.py` fusiona en vez de sustituir**
+
+`config/inject-control.py:106-107` reemplaza la lista de controles entera, así
+que los valores puestos desde la UI se pierden. Pasó el 30/07: op.acc.2 cayó de
+83 % a 17 %.
+
+Conservar el `value` de cada parámetro que ya existiera, añadir los nuevos, y
+avisar de los que desaparecen del bloque. `--sustituir` explícito para el
+comportamiento destructivo actual. Informe por pantalla de qué se conserva, qué
+se añade y qué se retira.
+
+*Acceptance:* ejecutarlo dos veces seguidas sobre un control con valores puestos
+no cambia ni un valor. Con `--sustituir`, sí.
+
+---
+
+**T1.2 · Primitivas de juicio declarativas en el motor**
+
+Hoy no hay dónde poner "el motor decide esta evidencia". El sitio que había era
+el evaluador por control, y tener uno solo en op.acc.1 es lo que rompió la
+coherencia el 30/07. **No se reintroduce un evaluador por control.**
+
+Un conjunto pequeño de primitivas declarativas, iguales para los tres controles,
+declaradas en el catálogo de evidencias junto al parámetro del que dependen:
+
+| Primitiva | Juicio |
+|---|---|
+| `NINGUNO_EN_LISTA` | CUMPLE si ningún hecho observado está en la lista del parámetro |
+| `TODOS_EN_LISTA` | CUMPLE si todo hecho observado está en la lista |
+| `UMBRAL_MAXIMO` | CUMPLE si el valor observado no supera el del parámetro |
+
+Sin hecho observado → `NO_EVALUABLE`. Sin parámetro configurado →
+`NO_EVALUABLE` con motivo, nunca un veredicto.
+
+*Acceptance:* las tres primitivas con pruebas de los cuatro casos (hecho y
+parámetro; hecho sin parámetro; parámetro sin hecho; ninguno de los dos).
+
+---
+
+**T1.3 · Piloto: EV-03 de op.acc.1 juzgada por el motor con P-04**
+
+`cuentas_genericas_prohibidas` es el parámetro del incidente, el que más
+claramente debe mandar desde la pantalla, y su evidencia es de las más simples.
+
+- El agente emite el **hecho crudo**: qué cuentas se han autenticado en la
+  ventana, sin juzgar. Mantiene su `collector_run`, que es lo que distingue
+  "he mirado y no hay nada" de "no he podido mirar".
+- El agente **deja de emitir `evidence_state` para EV-03**. Corte limpio: dos
+  caminos sobre la misma evidencia es justo lo que se arregló hoy.
+- El motor juzga EV-03 con `NINGUNO_EN_LISTA` contra P-04.
+
+*Acceptance:* cambiar P-04 en la UI cambia el veredicto de EV-03 sin tocar el
+agente. Es la prueba de que la pantalla ha dejado de mentir.
+
+---
+
+**T1.4 · "Configurado" pasa a significar "válido"**
+
+Hoy basta con que el campo no esté vacío: un `umask_minimo` de `abc` cuenta como
+configurado y el control se declara evaluable. Validar por tipo (`duration_days`
+entero no negativo, `umask` tres octales, `path` absoluta, `list` no vacía) en el
+guardado y en la evaluación.
+
+*Acceptance:* un valor inválido deja la evidencia en `NO_EVALUABLE` con el
+motivo, no en un veredicto.
+
+---
+
+**T1.5 · Contrato documentado y receta para la siguiente evidencia**
+
+Qué emite el agente, qué juzga el motor, cómo se declara una primitiva y cómo se
+migra la siguiente evidencia. Sin esto, la migración por partes se queda en el
+piloto.
 
 ### Fase 2 — Huecos de reglas *(los tres a la vez)*
 
