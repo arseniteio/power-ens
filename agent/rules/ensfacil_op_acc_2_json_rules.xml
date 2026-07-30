@@ -5,6 +5,34 @@
        Rango reservado: 106900-106999
        Base 106900 · eventos 106901-106949 · evidence_state 106950-106953
        control_state 106960-106963 · score_snapshot 106970-106972
+
+       Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
+       dashboard/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
+       nunca genera alerta) y 106923 (inerte para el plugin):
+
+         EV-01   106901 106902 106903 106904 106905
+         EV-02   106920 106921 106922
+         EV-03   106910 106911 106912
+         EV-04   106913 106914
+         EV-05   106930 106931 106932 106933
+         EV-06   106935 106936
+         EV-07   106924 106925 106926 106927
+
+       Los pares NO_CUMPLE/CUMPLE del mismo evento son cuatro:
+       106903/106904 (umask_check), 106905/106901 (sca_check),
+       106924/106925 (rootcheck) y 106933/106930 (privilege_check). En los
+       cuatro, la variante con &lt;field name="estado"&gt; va ANTES que la
+       genérica: Wazuh evalúa las reglas hermanas del mismo if_sid en el
+       orden en que se cargan y se queda con la primera que matchea.
+
+       Al añadir o mover una regla hay que tocar TRES sitios a la vez: este
+       fichero, la fuente canónica
+       Wazuh-ENS/agent/rules/ensfacil_op_acc_2_json_rules.xml y el catálogo
+       del plugin. Una regla que el catálogo acredita y el manager no tiene
+       rompe la cadena CUMPLE → evidencia → rule ID → evento crudo en su
+       último escalón y nada avisa, porque el identificador es numérico y la
+       regla existe en algún XML del repo. Lo comprueba
+       Wazuh-ENS/tests/check-coherencia.py.
        ================================================================ -->
 
   <rule id="106900" level="0">
@@ -14,6 +42,24 @@
   </rule>
 
   <!-- ===== op.acc.2.1 · Protección de los recursos (EV-01, EV-03, EV-07) ===== -->
+
+  <!-- El par NO_CUMPLE/CUMPLE de sca_check, con el patrón de 106903/106904.
+       Red de seguridad de la regla R-B del recolector ("los eventos de
+       recuento solo se emiten cuando la evidencia no encontró
+       incumplimientos"): si esa disciplina se rompe, sin esta regla un
+       sca_check con estado=NO_CUMPLE matchearía 106901 y aparecería en Wazuh
+       como nivel 3 diciendo CUMPLE y sin el grupo non_conformity. Es el fallo
+       que la adenda A2 de la auditoría documentó en 106810 y 106825 de
+       op.acc.1. VA ANTES QUE 106901 a propósito: el orden del fichero decide
+       cuál matchea. -->
+  <rule id="106905" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">sca_check</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · op.acc.2.1 · NO_CUMPLE (EV-01) · Comprobación SCA de permisos con fallos</description>
+    <group>ENS_op.acc.2,op_acc_2_1,EV_01,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=NO_CUMPLE ev_id=NC-13 formato=json_line</info>
+  </rule>
 
   <rule id="106901" level="3">
     <if_sid>106900</if_sid>
@@ -137,6 +183,20 @@
     <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-08 formato=fim</info>
   </rule>
 
+  <!-- El par NO_CUMPLE/CUMPLE de rootcheck. Mismo motivo que 106905, y aquí
+       muerde más: EV-07 es una evidencia de aserción negativa, cumple cuando
+       no produce hechos. Un rootcheck NO_CUMPLE etiquetado como CUMPLE es un
+       barrido que SÍ encontró algo presentado como barrido limpio.
+       VA ANTES QUE 106925. -->
+  <rule id="106924" level="10">
+    <if_sid>106900</if_sid>
+    <field name="event">rootcheck</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · op.acc.2.3 · NO_CUMPLE (EV-07) · Rootcheck con hallazgos de control de acceso</description>
+    <group>ENS_op.acc.2,op_acc_2_3,EV_07,nivel_bajo,nivel_medio,nivel_alto,no_cumple,non_conformity,</group>
+    <info type="text">requisito=op.acc.2.3 evidencia=EV-07 nivel=BAJO estado=NO_CUMPLE ev_id=NC-14 formato=json_line</info>
+  </rule>
+
   <rule id="106925" level="3">
     <if_sid>106900</if_sid>
     <field name="event">rootcheck</field>
@@ -162,6 +222,18 @@
   </rule>
 
   <!-- ===== Refuerzo R1 · solo nivel ALTO (EV-05, EV-06) ===== -->
+
+  <!-- El par NO_CUMPLE/CUMPLE de privilege_check. Nivel 12 como 106931
+       (excessive_privilege): los dos dicen lo mismo, que hay privilegios por
+       encima de lo que el modelo de P-05 autoriza. VA ANTES QUE 106930. -->
+  <rule id="106933" level="12">
+    <if_sid>106900</if_sid>
+    <field name="event">privilege_check</field>
+    <field name="estado">NO_CUMPLE</field>
+    <description>op.acc.2 · op.acc.2.r1.1 · NO_CUMPLE (EV-05) · Verificación de privilegios individuales con desviaciones</description>
+    <group>ENS_op.acc.2,op_acc_2_r1_1,EV_05,nivel_alto,no_cumple,non_conformity,refuerzo_r1,</group>
+    <info type="text">requisito=op.acc.2.r1.1 evidencia=EV-05 nivel=ALTO estado=NO_CUMPLE ev_id=NC-15 formato=json_line</info>
+  </rule>
 
   <rule id="106930" level="3">
     <if_sid>106900</if_sid>

@@ -436,7 +436,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'world_writable',
       'umask_check',
     ],
-    relatedRules: ['106901', '106902', '106903', '106904'],
+    // 106905 es el par NO_CUMPLE de `sca_check` (106901 es el CUMPLE genérico,
+    // que no mira `estado`). Sin él, un SCA con fallos salía en Wazuh como
+    // nivel 3 diciendo CUMPLE: la trazabilidad llevaba al auditor a un evento
+    // que decía lo contrario de lo que había pasado.
+    relatedRules: ['106901', '106902', '106903', '106904', '106905'],
     auditQuestion:
       '¿Los recursos del sistema tienen controles de acceso que impiden su uso no autorizado?',
   },
@@ -515,7 +519,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'excessive_privilege',
       'group_membership',
     ],
-    relatedRules: ['106930', '106931', '106932'],
+    // 106933 es el par NO_CUMPLE de `privilege_check` (106930 es el CUMPLE
+    // genérico). Mismo motivo que 106905 en EV-01.
+    relatedRules: ['106930', '106931', '106932', '106933'],
     auditQuestion:
       '¿Cada usuario autorizado tiene privilegios mantenidos individualmente que restringen el tipo de acceso?',
   },
@@ -556,7 +562,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'suid_sgid',
       'no_owner_file',
     ],
-    relatedRules: ['106925', '106926', '106927'],
+    // 106924 es el par NO_CUMPLE de `rootcheck` (106925 es el CUMPLE
+    // genérico). Aquí muerde más que en EV-01: EV-07 es una evidencia de
+    // aserción negativa —cumple cuando no produce hechos—, así que un barrido
+    // que SÍ encontró algo presentado como barrido limpio es indistinguible
+    // del cumplimiento.
+    relatedRules: ['106924', '106925', '106926', '106927'],
     auditQuestion:
       '¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?',
   },
