@@ -1,5 +1,12 @@
 # Plan revisado — 30 de julio de 2026
 
+> **SUPERADO por [`PLAN_ACCION_2026-07-30.md`](PLAN_ACCION_2026-07-30.md)
+> (misma fecha, más tarde).** Este documento planteaba la decisión de
+> arquitectura como una elección abierta entre tres opciones. La decisión ya
+> está tomada e implementada —opción C, un solo modelo clásico para los tres
+> controles, `3e92f5c`— y las fases que propone abajo ya no son las que quedan.
+> Se conserva porque documenta cómo se descubrió el problema y por qué.
+
 Sustituye la planificación por fases anterior. Se escribe después de desplegar
 por primera vez en un servidor real y descubrir que el punto de partida era
 incorrecto.

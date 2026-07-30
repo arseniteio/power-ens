@@ -64,7 +64,13 @@ python3 inject-control.py op.acc.1 --apply
 python3 inject-control.py op.acc.2 --apply
 ```
 
-Idempotente y conserva el resto del documento `active`.
+Conserva el resto del documento `active`.
+
+> **Solo la primera vez, por control.** `--apply` **sustituye el bloque entero**
+> por la plantilla vacía: si el control ya estaba configurado, borra los valores
+> que el auditor puso desde la UI y su porcentaje se desploma. Pasó el 30/07 —
+> op.acc.2 cayó de 83 % a 17 %. Antes de aplicar, lanza el dry-run y mira si
+> dice "ya estaba".
 
 ## 3. En el MANAGER · verificar que las reglas disparan
 
@@ -72,21 +78,23 @@ Un evento por control. Si no hay match, las reglas no están cargadas — vuelve
 al aviso de §1.
 
 ```bash
-# mp.info.6
-echo '{"control":"mp.info.6","ensfacil":true,"event":"backup_ok","estado":"CUMPLE"}' \
+echo '{"ensfacil":"mp.info.6","event":"backup_ok","host":"wazuh-fake","estado":"CUMPLE"}' \
   | sudo /var/ossec/bin/wazuh-logtest
 
-# op.acc.1
-echo '{"control":"op.acc.1","ensfacil":true,"event":"generic_account_login","estado":"NO_CUMPLE"}' \
+echo '{"ensfacil":"op.acc.1","event":"generic_account_login","host":"wazuh-fake","estado":"NO_CUMPLE"}' \
   | sudo /var/ossec/bin/wazuh-logtest
 
-# op.acc.2
-echo '{"control":"op.acc.2","ensfacil":true,"event":"world_writable","estado":"NO_CUMPLE"}' \
+echo '{"ensfacil":"op.acc.2","event":"world_writable","host":"wazuh-fake","estado":"NO_CUMPLE"}' \
   | sudo /var/ossec/bin/wazuh-logtest
 ```
 
-Buscar en la salida `Phase 3: Completed filtering (rules)` con un `id` del rango
-del control (mp.info.6 `1066xx`, op.acc.1 `1068xx`, op.acc.2 `1069xx`).
+Deben dar `Phase 3` con id **106650**, **106801** y **106902**.
+
+> El campo `ensfacil` lleva **el id del control**, no `true`: es lo que exige la
+> regla base de cada control (106600 / 106800 / 106900). Un evento de prueba
+> inventado con `ensfacil: true` decodifica bien y no dispara ninguna regla, y
+> parece que las reglas no están cargadas cuando sí lo están. Si dudas, copia
+> una línea real de `/var/log/ensfacil/<control>.json`.
 
 ## 4. En el SERVIDOR FAKE · instalar los tres simuladores
 
