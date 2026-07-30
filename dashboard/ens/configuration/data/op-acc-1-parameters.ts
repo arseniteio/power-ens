@@ -17,7 +17,14 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.3', 'op.acc.1.4'],
       type: 'select',
-      example: 'Active Directory / LDAP / local / Azure AD / otro',
+      example: 'Active Directory',
+      options: [
+        'Active Directory',
+        'LDAP',
+        'Local',
+        'Azure AD',
+        'Otro',
+      ],
       required: true,
       wazuhUsage:
         'Determina qué integración de Wazuh se activa: módulo AD, colector de eventos Windows, auditd en Linux o conector cloud.',
@@ -80,11 +87,11 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'cuentas_genericas_prohibidas',
       label: 'Cuentas genéricas prohibidas',
       description:
-        'Nombres de cuenta prohibidos que, si existen activas, rompen la unicidad del identificador (admin, guest, test, etc.).',
+        'Nombres de cuenta prohibidos que, si existen activas, rompen la unicidad del identificador. Un nombre por entrada: admin, guest, test, temp.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.1', 'op.acc.1.3'],
       type: 'list',
-      example: 'admin, guest, test, temp',
+      example: 'admin',
       required: true,
       wazuhUsage:
         'Se carga como CDB list. Cualquier autenticación exitosa con estas cuentas genera alerta crítica.',
@@ -166,11 +173,11 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'integracion_rrhh',
       label: 'Integración con RRHH',
       description:
-        'Indica si ENSFácil tiene acceso a un sistema de RRHH o directorio que notifique altas y bajas de empleados.',
+        'Indica si ENSFácil tiene acceso a un sistema de RRHH o directorio que notifique altas y bajas de empleados. Valores admitidos: sí o no.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.4'],
       type: 'boolean',
-      example: 'sí / no',
+      example: 'sí',
       required: false,
       wazuhUsage:
         'Si está activa, correlaciona eventos de baja de RRHH con la deshabilitación de la cuenta.',

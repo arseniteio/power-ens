@@ -4,14 +4,26 @@ import { ENSFormFieldProps } from '../types';
 import {
   ListParameterRenderer,
   NumberParameterRenderer,
+  SelectParameterRenderer,
   TextParameterRenderer,
 } from '../renderers';
-import { isPlainNumericParameter } from '../../services/parameter-value-validator';
+import {
+  hasParameterOptions,
+  isPlainNumericParameter,
+} from '../../services/parameter-value-validator';
 
-// `boolean`, `select`, `path` y `url` siguen cayendo en el renderer de texto:
-// se editan como cadena, que es lo que declaran. Solo `list` necesitaba
-// tratamiento propio porque su valor declarado es `string[]` y el campo de texto
-// lo guardaba como cadena, perdiendo la lista.
+// `boolean`, `path` y `url` siguen cayendo en el renderer de texto: se editan
+// como cadena, que es lo que declaran. `list` y `select` necesitan tratamiento
+// propio porque el campo de texto no sabe representar su valor: la lista se
+// guardaba como cadena y se perdía, y el select admitía cualquier cosa.
+//
+// Un `select` SIN opciones declaradas se queda en el renderer de texto, y es
+// deliberado: en `wazuh-ens-configuration` puede haber todavía un bloque sembrado
+// antes de que existieran las `options`, y un desplegable vacío no dejaría editar
+// nada. Su validación sigue siendo "no está vacío" (ver `validarSeleccion`), así
+// que formulario y motor siguen de acuerdo. La regla es la misma en los dos
+// sentidos: nunca ofrecer un campo que acepte lo que el motor rechaza, ni
+// rechazar lo que el campo deja escribir.
 //
 // El campo numérico se reserva a los parámetros cuyo valor legítimo es SOLO un
 // número. mp.info.6 P-05 está declarado `duration_days` pero admite el contrato
@@ -26,6 +38,16 @@ export const ParameterRendererFactory = ({
   if (isPlainNumericParameter(parameter)) {
     return (
       <NumberParameterRenderer
+        parameter={parameter}
+        value={value}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (hasParameterOptions(parameter)) {
+    return (
+      <SelectParameterRenderer
         parameter={parameter}
         value={value}
         onChange={onChange}

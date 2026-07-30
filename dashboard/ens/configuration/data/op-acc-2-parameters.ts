@@ -36,13 +36,15 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'rutas_criticas_so',
       label: 'Rutas críticas del sistema operativo',
       description:
-        'Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM.',
+        'Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM. Una ruta por entrada: /etc/passwd, /etc/shadow, /etc/sudoers, /etc/ssh/sshd_config.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.3'],
-      // La ficha define una lista de rutas criticas (el ejemplo trae tres y la
-      // regla 106923 cubre cinco): `list`, no `path`, que designa una ruta unica.
+      // La ficha define una lista de rutas criticas (la regla 106923 cubre
+      // cinco): `list`, no `path`, que designa una ruta unica. El ejemplo es UNA
+      // ruta porque el formulario guarda un elemento por entrada; las demas van
+      // en la descripcion.
       type: 'list',
-      example: '/etc/passwd | /etc/sudoers | /etc/ssh/sshd_config',
+      example: '/etc/passwd',
       required: true,
       wazuhUsage:
         'Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.',
@@ -59,11 +61,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'permisos_world_writable_permitidos',
       label: 'World-writable permitidos',
       description:
-        'Indica si se permiten ficheros o directorios con permisos de escritura para todos (world-writable). Si no, cualquier world-writable es incumplimiento.',
+        'Indica si se permiten ficheros o directorios con permisos de escritura para todos (world-writable). Si no, cualquier world-writable es incumplimiento. Valores admitidos: sí o no; las excepciones concretas (/tmp, /var/tmp) se cargan como whitelist en Wazuh, no en este campo.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1'],
       type: 'boolean',
-      example: 'no (ninguno) / sí - /tmp, /var/tmp',
+      example: 'no',
       required: true,
       wazuhUsage:
         'SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta. Las excepciones se cargan como whitelist.',
@@ -102,11 +104,17 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'modelo_privilegios',
       label: 'Modelo de privilegios',
       description:
-        'Modelo de privilegios utilizado en el sistema (mínimo privilegio, RBAC, ABAC, ACLs granulares, etc.). Exigido por R1.',
+        'Modelo de privilegios utilizado en el sistema. Exigido por R1. Si el modelo implantado no es ninguno de los de la lista (ABAC, por ejemplo), seleccione Otro y detállelo en la política referenciada en P-04.',
       levels: ['ALTO'],
       requirements: ['op.acc.2.r1.1', 'op.acc.2.r1.2'],
       type: 'select',
-      example: 'RBAC sobre AD / ACL granular por recurso / Mínimo privilegio + sudo',
+      example: 'RBAC sobre AD',
+      options: [
+        'RBAC sobre AD',
+        'ACL granular por recurso',
+        'Mínimo privilegio + sudo',
+        'Otro',
+      ],
       required: false,
       wazuhUsage:
         'ENSFácil verifica en logs y SCA que el modelo declarado se implementa. Detecta usuarios con privilegios de admin no justificados.',
@@ -123,11 +131,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'tipos_acceso_permitidos_por_perfil',
       label: 'Tipos de acceso permitidos por perfil',
       description:
-        'Mapa de tipos de acceso permitidos (lectura, escritura, modificación, borrado, ejecución) por perfil o rol sobre los recursos. Base para R1.',
+        'Mapa de tipos de acceso permitidos (lectura, escritura, modificación, borrado, ejecución) por perfil o rol sobre los recursos. Base para R1. Un perfil por entrada: ops -> lectura+escritura, dev -> lectura, admin -> todos.',
       levels: ['ALTO'],
       requirements: ['op.acc.2.r1.2'],
       type: 'list',
-      example: 'ops -> lectura+escritura | dev -> lectura | admin -> todos',
+      example: 'ops -> lectura+escritura',
       required: false,
       wazuhUsage:
         'ENSFácil cruza los permisos de SCA (EV-01) y las ACLs reales contra esta tabla. Diferencias generan alerta.',
@@ -144,11 +152,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'umask_minimo',
       label: 'umask mínimo exigido',
       description:
-        'Valor mínimo de umask exigido para la creación de ficheros. Garantiza que los nuevos ficheros no se crean con permisos abiertos por defecto.',
+        'Valor mínimo de umask exigido para la creación de ficheros. Garantiza que los nuevos ficheros no se crean con permisos abiertos por defecto. Tres o cuatro dígitos octales: 022 deja permisos 755/644 y 027 deja 750/640.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1'],
       type: 'string',
-      example: '022 (permisos 755/644) / 027 (permisos 750/640)',
+      example: '027',
       required: true,
       wazuhUsage:
         'SCA verifica el umask en perfiles de usuario y /etc/profile. Si el umask real es más permisivo que P-07, genera alerta.',

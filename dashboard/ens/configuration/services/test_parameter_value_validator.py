@@ -287,12 +287,34 @@ CASOS_VALOR = [
     ("boolean · texto libre", valor("mp.info.6", "P-08", "quizá"), False),
 
     # --- select
-    ("select · sin opciones declaradas admite cualquier cosa (papel mojado)",
-     valor("op.acc.1", "P-01", "lo que sea"), True),
+    #
+    # Un bloque sembrado en el índice ANTES de que existieran las `options` sigue
+    # admitiendo cualquier texto: el formulario lo edita como texto libre, así
+    # que rechazarlo aquí sería rechazar lo que el propio campo deja escribir.
+    ("select · sin opciones declaradas admite cualquier cosa (bloque sin resembrar)",
+     sintetico(sint("select"), "lo que sea"), True),
     ("select · con opciones, valor de la lista",
      sintetico(sint("select", options=["Veeam", "Bacula"]), "Bacula"), True),
     ("select · con opciones, valor fuera de la lista",
      sintetico(sint("select", options=["Veeam", "Bacula"]), "Acronis"), False),
+    # Los tres selects REALES del producto, con las opciones que declaran hoy.
+    ("select · op.acc.1 P-01 rechaza el texto libre",
+     valor("op.acc.1", "P-01", "lo que sea"), False),
+    ("select · op.acc.1 P-01 admite una opción declarada",
+     valor("op.acc.1", "P-01", "Active Directory"), True),
+    ("select · op.acc.1 P-01 tolera mayúsculas y espacios del valor heredado",
+     valor("op.acc.1", "P-01", "  local "), True),
+    ("select · op.acc.2 P-05 rechaza el texto libre",
+     valor("op.acc.2", "P-05", "lo que se nos ocurra"), False),
+    ("select · op.acc.2 P-05 admite una opción declarada",
+     valor("op.acc.2", "P-05", "Mínimo privilegio + sudo"), True),
+    ("select · mp.info.6 P-10 rechaza 'cualquier cosa'",
+     valor("mp.info.6", "P-10", "cualquier cosa"), False),
+    ("select · mp.info.6 P-10 admite una opción declarada",
+     valor("mp.info.6", "P-10", "Veeam"), True),
+    ("select · el menú del ejemplo pegado tal cual ya no cuela",
+     valor("mp.info.6", "P-10",
+           "Veeam / Bacula / Amanda / rsync / Windows Backup / Otro"), False),
 
     # --- url
     ("url · con esquema", sintetico(sint("url"), "https://siem.cliente.es"), True),

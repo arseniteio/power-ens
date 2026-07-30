@@ -103,7 +103,7 @@
       "controlId": "mp.info.6",
       "name": "sistemas_monitorizados",
       "label": "Sistemas incluidos en el alcance",
-      "description": "Lista de sistemas que deben generar evidencias de backup.",
+      "description": "Lista de sistemas que deben generar evidencias de backup. Un sistema por entrada, con su criticidad separada por barra vertical: ALTA, MEDIA o BAJA. Sin criticidad, el sistema se evalúa como SIN_DEFINIR.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -158,7 +158,7 @@
       "controlId": "mp.info.6",
       "name": "directorio_backup_local",
       "label": "Directorio local de copias",
-      "description": "Ruta donde se almacenan las copias en el entorno principal.",
+      "description": "Ruta donde se almacenan las copias en el entorno principal. Una sola ruta absoluta; en Windows, con unidad (C:\\Backups).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -169,7 +169,7 @@
         "mp.info.6.2.d"
       ],
       "type": "path",
-      "example": "/backup | C:\\Backups",
+      "example": "/backup",
       "required": true,
       "wazuhUsage": "Se utiliza para configurar FIM sobre el repositorio de backup.",
       "ensfacilUsage": "Permite evidenciar integridad y protección del repositorio local.",
@@ -185,7 +185,7 @@
       "controlId": "mp.info.6",
       "name": "usuarios_procesos_autorizados",
       "label": "Usuarios y procesos autorizados",
-      "description": "Lista blanca de usuarios y procesos con acceso legítimo al repositorio de backup.",
+      "description": "Lista blanca de usuarios y procesos con acceso legítimo al repositorio de backup. Un usuario o proceso por entrada: root, veeamagt.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -195,7 +195,7 @@
         "mp.info.6.2.d"
       ],
       "type": "list",
-      "example": "root | veeamagt",
+      "example": "root",
       "required": true,
       "wazuhUsage": "Se puede cargar como CDB list para detectar accesos no autorizados.",
       "ensfacilUsage": "Permite justificar quién puede acceder a las copias.",
@@ -212,7 +212,7 @@
       "controlId": "mp.info.6",
       "name": "repositorio_offsite_activo",
       "label": "Copia en ubicación alternativa",
-      "description": "Indica si existe copia en ubicación alternativa.",
+      "description": "Indica si existe copia en ubicación alternativa. Valores admitidos: sí o no.",
       "levels": [
         "ALTO"
       ],
@@ -220,7 +220,7 @@
         "mp.info.6.r2.1"
       ],
       "type": "boolean",
-      "example": "sí / no",
+      "example": "sí",
       "required": false,
       "wazuhUsage": "Activa o desactiva verificaciones offsite.",
       "ensfacilUsage": "Evalúa el refuerzo R2 solo cuando aplica nivel ALTO.",
@@ -238,7 +238,7 @@
       "controlId": "mp.info.6",
       "name": "directorio_backup_offsite",
       "label": "Directorio o repositorio offsite",
-      "description": "Ruta, URL o punto de montaje del repositorio remoto.",
+      "description": "Ruta, URL o punto de montaje del repositorio remoto. Un solo destino absoluto: /mnt/s3-backup, \\\\nas-dr\\backup o s3://bucket/copias.",
       "levels": [
         "ALTO"
       ],
@@ -246,7 +246,7 @@
         "mp.info.6.r2.1"
       ],
       "type": "path",
-      "example": "/mnt/s3-backup | \\\\nas-dr\\backup",
+      "example": "/mnt/s3-backup",
       "required": false,
       "wazuhUsage": "Permite monitorizar replicación o evidencias offsite.",
       "ensfacilUsage": "Documenta y evalúa ubicación alternativa de copias.",
@@ -261,7 +261,7 @@
       "controlId": "mp.info.6",
       "name": "herramienta_backup",
       "label": "Herramienta de backup",
-      "description": "Herramienta o agente utilizado para generar las copias.",
+      "description": "Herramienta o agente utilizado para generar las copias. Si la herramienta no está en la lista, seleccione Otro: el decoder se tratará como no identificado.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -272,7 +272,15 @@
         "mp.info.6.r1.1"
       ],
       "type": "select",
-      "example": "Veeam / Bacula / Amanda / rsync / Windows Backup / Otro",
+      "example": "Veeam",
+      "options": [
+        "Veeam",
+        "Bacula",
+        "Amanda",
+        "rsync",
+        "Windows Backup",
+        "Otro"
+      ],
       "required": true,
       "wazuhUsage": "Determina decoder, parser o normalización esperada de eventos.",
       "ensfacilUsage": "Permite adaptar la lectura de evidencias a la tecnología usada.",

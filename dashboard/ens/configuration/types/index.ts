@@ -47,10 +47,16 @@ export interface ENSControlParameter {
   requirements: string[];
   type: ENSParameterType;
   example?: string;
-  // Opciones admitidas para `type: 'select'`. Mientras un bloque no las declare,
-  // la validación de ese select se queda en "no está vacío" (ver
-  // `parameter-value-validator.ts`). Opcional para no romper los bloques ya
-  // sembrados en `wazuh-ens-configuration`.
+  // Opciones admitidas para `type: 'select'`. Declararlas hace dos cosas a la
+  // vez, y las dos tienen que ir juntas: el formulario pinta un desplegable
+  // (`SelectParameterRenderer`) y la validación exige que el valor sea una de
+  // ellas (`parameter-value-validator.ts`).
+  //
+  // Sigue siendo opcional porque en `wazuh-ens-configuration` puede haber un
+  // bloque sembrado antes de que existieran: sin `options`, ese select se edita
+  // como texto libre y su validación se queda en "no está vacío", igual que
+  // antes. Se cierra volviendo a sembrar el bloque con `inject-control.py`, que
+  // conserva los valores ya configurados.
   options?: string[];
   required: boolean;
   minValue?: number;

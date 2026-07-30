@@ -343,33 +343,80 @@ const validarLista = (
   );
 };
 
-// `select`: si la ficha declara opciones, el valor tiene que ser una de ellas.
+// --- `select`: opciones declaradas ------------------------------------------
 //
-// PAPEL MOJADO A DÍA DE HOY: ningún bloque `config/*-control-block.json` declara
-// `options`, así que para los tres selects reales del producto (op.acc.1 P-01,
-// op.acc.2 P-05, mp.info.6 P-10) esto degenera en "no está vacío" y no valida
-// nada. El campo `options` existe en el tipo para que declararlo sea lo único
-// que haga falta el día que se quiera cerrar; mientras no se declare, un select
-// admite cualquier texto.
+// El criterio de qué opciones hay y cuándo un valor es una de ellas vive aquí y
+// no en el renderer, por el mismo motivo que `toParameterListItems`: el
+// formulario y el validador tienen que entender las opciones EXACTAMENTE igual,
+// o habría valores que el desplegable deja elegir y el motor rechaza.
+//
+// Los tres selects del producto (op.acc.1 P-01 `fuente_identidad`, op.acc.2 P-05
+// `modelo_privilegios` y mp.info.6 P-10 `herramienta_backup`) ya declaran
+// `options` en su bloque. Un select SIN opciones sigue admitiendo cualquier
+// texto a propósito: en el índice `wazuh-ens-configuration` puede haber todavía
+// un bloque sembrado antes de que existieran, y el formulario lo edita como
+// texto libre (ver `ParameterRendererFactory`). Declarar opciones y no
+// ofrecerlas en el formulario sería peor que no declararlas.
+
+export const getParameterOptions = (
+  parameter: ENSControlParameter
+): string[] =>
+  (parameter.options || [])
+    .map(opcion => String(opcion).trim())
+    .filter(Boolean);
+
+/**
+ * ¿Este parámetro se puede editar como desplegable?
+ *
+ * Lo consume el form-engine para elegir renderer.
+ */
+export const hasParameterOptions = (
+  parameter: ENSControlParameter
+): boolean =>
+  parameter.type === 'select' &&
+  getParameterOptions(parameter).length > 0;
+
+// Comparación tolerante con mayúsculas y espacios sobrantes: 'local' y 'Local'
+// designan la misma fuente de identidad, y rechazar la diferencia convertiría en
+// no conformidad un valor que el auditor escribió bien.
+const normalizarOpcion = (
+  texto: string
+): string => texto.trim().toLowerCase();
+
+/**
+ * Opción declarada que corresponde al valor recibido, en su forma canónica, o
+ * `undefined` si el valor no es ninguna de ellas.
+ */
+export const matchParameterOption = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): string | undefined => {
+  const texto = normalizarOpcion(
+    asTrimmedString(value)
+  );
+
+  if (!texto) {
+    return undefined;
+  }
+
+  return getParameterOptions(parameter).find(
+    opcion =>
+      normalizarOpcion(opcion) === texto
+  );
+};
+
 const validarSeleccion = (
   parameter: ENSControlParameter,
   value: ENSControlParameter['value']
 ): ENSParameterValueVerdict => {
-  const opciones = parameter.options || [];
+  const opciones =
+    getParameterOptions(parameter);
 
   if (opciones.length === 0) {
     return VALIDO;
   }
 
-  const texto = asTrimmedString(value);
-
-  const coincide = opciones.some(
-    opcion =>
-      opcion.trim().toLowerCase() ===
-      texto.toLowerCase()
-  );
-
-  if (coincide) {
+  if (matchParameterOption(parameter, value)) {
     return VALIDO;
   }
 
@@ -579,6 +626,104 @@ export const isPlainNumericParameter = (
     parameter.type === 'duration_hours' ||
     parameter.type === 'duration_days') &&
   !buscarRefinamiento(parameter);
+
+// Texto con el que se ENSEÑA un valor heredado que no es una cadena. Es solo
+// para pintarlo: no se publica al formulario mientras el auditor no toque el
+// campo, así que ver un array como texto no reescribe nada en el índice.
+const asDisplayText = (
+  value: ENSControlParameter['value']
+): string => {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => String(item).trim())
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  return asTrimmedString(value);
+};
+
+export interface ENSSelectOption {
+  value: string;
+  label: string;
+  // Valor que ya estaba en el índice y no es ninguna de las opciones
+  // declaradas. Se ofrece igualmente, marcado, para no hacerlo desaparecer.
+  legacy: boolean;
+}
+
+export interface ENSSelectFieldModel {
+  options: ENSSelectOption[];
+  selected: string;
+  legacyValue?: string;
+}
+
+/**
+ * Opciones y selección con las que el formulario pinta un `select`.
+ *
+ * QUÉ PASA CON EL VALOR HEREDADO. En `wazuh-ens-configuration` puede haber ya un
+ * valor escrito a mano —'Veeam Backup & Replication 12', 'local_linux'— que no
+ * es ninguna de las opciones declaradas. Aquí NO se borra ni se sustituye por la
+ * opción más parecida:
+ *
+ *   - se ofrece como una opción más, marcada como valor actual fuera de lista, y
+ *     sale seleccionada, de modo que el auditor VE lo que había;
+ *   - el campo sale en rojo con el motivo del validador, y el guardado lo
+ *     rechaza mientras siga puesto (`validateControlParameterValues`), así que
+ *     no puede persistirse otra vez;
+ *   - hasta que el auditor elija, el valor sigue en el índice tal cual.
+ *
+ * Adivinar la opción "que quiso decir" sería inventar un dato de cumplimiento, y
+ * blanquear el campo perdería la única pista de qué había configurado. La única
+ * salida es que alguien decida, que es justo lo que se pide.
+ *
+ * La coincidencia sí tolera mayúsculas y espacios ('local' -> 'Local'): eso no
+ * cambia lo que el valor significa y lo acepta también el validador.
+ */
+export const resolveSelectFieldModel = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): ENSSelectFieldModel => {
+  const options: ENSSelectOption[] =
+    getParameterOptions(parameter).map(
+      opcion => ({
+        value: opcion,
+        label: opcion,
+        legacy: false,
+      })
+    );
+
+  if (isEmptyParameterValue(value)) {
+    return { options, selected: '' };
+  }
+
+  const canonica = matchParameterOption(
+    parameter,
+    value
+  );
+
+  if (canonica) {
+    return { options, selected: canonica };
+  }
+
+  const heredado = asDisplayText(value);
+
+  if (!heredado) {
+    return { options, selected: '' };
+  }
+
+  return {
+    options: [
+      ...options,
+      {
+        value: heredado,
+        label: `${heredado} (valor actual, fuera de la lista)`,
+        legacy: true,
+      },
+    ],
+    selected: heredado,
+    legacyValue: heredado,
+  };
+};
 
 /**
  * Juzga si un valor concreto es válido para su parámetro.

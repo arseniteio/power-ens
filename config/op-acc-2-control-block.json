@@ -42,7 +42,7 @@
       "controlId": "op.acc.2",
       "name": "rutas_criticas_so",
       "label": "Rutas críticas del sistema operativo",
-      "description": "Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM.",
+      "description": "Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM. Una ruta por entrada: /etc/passwd, /etc/shadow, /etc/sudoers, /etc/ssh/sshd_config.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -52,7 +52,7 @@
         "op.acc.2.3"
       ],
       "type": "list",
-      "example": "/etc/passwd | /etc/sudoers | /etc/ssh/sshd_config",
+      "example": "/etc/passwd",
       "required": true,
       "wazuhUsage": "Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.",
       "ensfacilUsage": "Permite evidenciar la integridad de los componentes del sistema operativo.",
@@ -71,7 +71,7 @@
       "controlId": "op.acc.2",
       "name": "permisos_world_writable_permitidos",
       "label": "World-writable permitidos",
-      "description": "Indica si se permiten ficheros o directorios con permisos de escritura para todos (world-writable). Si no, cualquier world-writable es incumplimiento.",
+      "description": "Indica si se permiten ficheros o directorios con permisos de escritura para todos (world-writable). Si no, cualquier world-writable es incumplimiento. Valores admitidos: sí o no; las excepciones concretas (/tmp, /var/tmp) se cargan como whitelist en Wazuh, no en este campo.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -81,7 +81,7 @@
         "op.acc.2.1"
       ],
       "type": "boolean",
-      "example": "no (ninguno) / sí - /tmp, /var/tmp",
+      "example": "no",
       "required": true,
       "wazuhUsage": "SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta. Las excepciones se cargan como whitelist.",
       "ensfacilUsage": "Permite distinguir world-writable de incumplimiento frente a los legítimos.",
@@ -123,7 +123,7 @@
       "controlId": "op.acc.2",
       "name": "modelo_privilegios",
       "label": "Modelo de privilegios",
-      "description": "Modelo de privilegios utilizado en el sistema (mínimo privilegio, RBAC, ABAC, ACLs granulares, etc.). Exigido por R1.",
+      "description": "Modelo de privilegios utilizado en el sistema. Exigido por R1. Si el modelo implantado no es ninguno de los de la lista (ABAC, por ejemplo), seleccione Otro y detállelo en la política referenciada en P-04.",
       "levels": [
         "ALTO"
       ],
@@ -132,7 +132,13 @@
         "op.acc.2.r1.2"
       ],
       "type": "select",
-      "example": "RBAC sobre AD / ACL granular por recurso / Mínimo privilegio + sudo",
+      "example": "RBAC sobre AD",
+      "options": [
+        "RBAC sobre AD",
+        "ACL granular por recurso",
+        "Mínimo privilegio + sudo",
+        "Otro"
+      ],
       "required": false,
       "wazuhUsage": "ENSFácil verifica en logs y SCA que el modelo declarado se implementa. Detecta usuarios con privilegios de admin no justificados.",
       "ensfacilUsage": "Permite verificar el refuerzo R1 (op.acc.2.r1.1) sobre el modelo de privilegios.",
@@ -150,7 +156,7 @@
       "controlId": "op.acc.2",
       "name": "tipos_acceso_permitidos_por_perfil",
       "label": "Tipos de acceso permitidos por perfil",
-      "description": "Mapa de tipos de acceso permitidos (lectura, escritura, modificación, borrado, ejecución) por perfil o rol sobre los recursos. Base para R1.",
+      "description": "Mapa de tipos de acceso permitidos (lectura, escritura, modificación, borrado, ejecución) por perfil o rol sobre los recursos. Base para R1. Un perfil por entrada: ops -> lectura+escritura, dev -> lectura, admin -> todos.",
       "levels": [
         "ALTO"
       ],
@@ -158,7 +164,7 @@
         "op.acc.2.r1.2"
       ],
       "type": "list",
-      "example": "ops -> lectura+escritura | dev -> lectura | admin -> todos",
+      "example": "ops -> lectura+escritura",
       "required": false,
       "wazuhUsage": "ENSFácil cruza los permisos de SCA (EV-01) y las ACLs reales contra esta tabla. Diferencias generan alerta.",
       "ensfacilUsage": "Permite verificar si los privilegios detectados se corresponden con los autorizados (op.acc.2.r1.2).",
@@ -177,7 +183,7 @@
       "controlId": "op.acc.2",
       "name": "umask_minimo",
       "label": "umask mínimo exigido",
-      "description": "Valor mínimo de umask exigido para la creación de ficheros. Garantiza que los nuevos ficheros no se crean con permisos abiertos por defecto.",
+      "description": "Valor mínimo de umask exigido para la creación de ficheros. Garantiza que los nuevos ficheros no se crean con permisos abiertos por defecto. Tres o cuatro dígitos octales: 022 deja permisos 755/644 y 027 deja 750/640.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -187,7 +193,7 @@
         "op.acc.2.1"
       ],
       "type": "string",
-      "example": "022 (permisos 755/644) / 027 (permisos 750/640)",
+      "example": "027",
       "required": true,
       "wazuhUsage": "SCA verifica el umask en perfiles de usuario y /etc/profile. Si el umask real es más permisivo que P-07, genera alerta.",
       "ensfacilUsage": "Permite verificar si la configuración de permisos por defecto es suficientemente restrictiva.",
