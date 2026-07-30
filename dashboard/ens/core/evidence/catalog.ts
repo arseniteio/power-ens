@@ -29,7 +29,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'EXECUTION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    expectedEventTypes: ['backup_success', 'backup_ok', 'backup_error'],
+    expectedEventTypes: [
+      'evidence_state',
+      'backup_success',
+      'backup_ok',
+      'backup_error',
+    ],
     relatedRules: ['106650', '106601'],
     auditQuestion: '¿Existe evidencia reciente de que la copia de seguridad se ha realizado correctamente?',
     qualityRequirements: {
@@ -97,6 +102,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: [
+      'evidence_state',
       'restore_ok',
       'restore_success',
       'restore_missing',
