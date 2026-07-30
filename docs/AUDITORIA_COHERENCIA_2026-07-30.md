@@ -12,35 +12,39 @@ nada: este repo no es compilable por sí solo.
 
 ## 0. Lo más grave, primero
 
-1. **op.acc.1 no puede acreditar nada desde que se desconectó el evaluador, y
-   una de sus ocho evidencias puede salir en verde sin respaldo.** Su agente
-   emite únicamente hechos técnicos neutros (`event_class=technical_fact`, con
-   `estado` y `nivel` **rechazados activamente** por el emisor), y su fichero de
-   reglas no tiene ninguna regla de `evidence_state` / `control_state` /
-   `score_snapshot`. El motor consolida desde `evidence_state`: esos eventos no
-   existen para op.acc.1 y no pueden existir sin cambiar el contrato del agente.
-   Detalle y consecuencias exactas en §5.
+1. **El motor fabricaba cumplimiento a partir del nombre del evento.
+   CORREGIDO.** En dos sitios independientes, un evento sin `estado` declarado
+   acababa en `CUMPLE`: `evidence/engine.ts` terminaba su inferencia en
+   `: 'CUMPLE'`, y `data-source-engine.ts` elevaba a `CUMPLE` cualquier nombre
+   que contuviera `success`, `ok` o `configured`. La ausencia de un dato
+   producía una afirmación de conformidad, que es la violación más directa del
+   principio rector. Detalle, arreglo y efecto verificado en §5.1.
 
-2. **La trazabilidad estaba rota en los tres controles**: 32 de los 46
-   identificadores de regla declarados en TypeScript eran simbólicos
+2. **La trazabilidad estaba rota en los tres controles. CORREGIDO.** 32 de los
+   46 identificadores de regla declarados en TypeScript eran simbólicos
    (`ENS-OPACC1-INVENTORY`) y no correspondían a ninguna regla real, y de los 14
    numéricos varios apuntaban a reglas genéricas de estado en vez de a la que
-   acredita la evidencia. Corregido (§1).
+   acredita la evidencia (§1).
 
-3. **Dos reglas son inertes para el plugin**: 106605 y 106923 re-etiquetan
+3. **mp.info.6 declara 14 tipos de evento que ninguna regla emite, y 5 eventos
+   reales no los declara ninguna evidencia.** El vocabulario del catálogo y el
+   del runbook se han separado. Mapa completo, evidencia por evidencia, en §4
+   — está puesto ahí para que se corrija en el runbook, que es el sitio
+   correcto; este informe no lo toca.
+
+4. **Dos reglas son inertes para el plugin.** 106605 y 106923 re-etiquetan
    alertas `syscheck` que no llevan campo `ensfacil`, y el proveedor de datos
    filtra por `data.control` o `data.ensfacil`. Documentadas en el XML (§2).
 
-4. **mp.info.6 declara en su catálogo 15 tipos de evento que ninguna regla
-   emite**, y no declara 7 que sí se emiten — entre ellos `offsite_ok`, el
-   evento del CUMPLE de R2 (nivel ALTO), que el catálogo llama
-   `offsite_success` (§4).
+5. **El formulario no sabía editar listas. CORREGIDO.** No era un desajuste de
+   tipo puntual en P-04 de op.acc.1: el form-engine no tenía renderer de `list`,
+   así que los nueve parámetros de tipo lista del producto se escribían como
+   texto libre y se guardaban como cadena. Por eso se pudo escribir `"si"` en
+   una lista de nombres de cuenta (§3.2).
 
-5. **No existía `config/mp-info-6-control-block.json`.** Sin bloque sembrado, la
-   tarjeta de configuración del control no aparece en la UI y sus parámetros
-   obligatorios cuentan como ausentes (§3).
-
----
+6. **No existía `config/mp-info-6-control-block.json`. CORREGIDO.** Sin bloque
+   sembrado, la tarjeta de configuración del control no aparece en la UI y sus
+   parámetros obligatorios cuentan como ausentes (§3.6).
 
 ## 1. Mapa evidencia → rule ID (TAREA 1)
 
@@ -210,18 +214,37 @@ puntos del evaluador, que hoy está desconectado pero es el punto de partida de
 la migración. **Acción pendiente en el despliegue: devolver a P-04 la lista
 real.** Hoy nadie la lee como booleano, así que restaurarla no rompe nada.
 
-### 3.2 El formulario no sabe editar listas
+### 3.2 El formulario no sabía editar listas — CORREGIDO
 
-`form-engine/factory/parameter-renderer-factory.tsx` solo tiene dos renderers:
+Esta es la causa real del incidente de 3.1, y merece enunciarse con precisión:
+**no fue un desajuste de tipo puntual entre la ficha y el evaluador, fue que no
+había forma de introducir una lista en el formulario.**
+
+`form-engine/factory/parameter-renderer-factory.tsx` solo tenía dos renderers:
 `NumberParameterRenderer` para `number`, `duration_hours` y `duration_days`, y
 `TextParameterRenderer` **para todo lo demás**. Es decir, `list`, `boolean`,
-`select`, `path` y `url` se editan como texto libre y se guardan como cadena.
+`select`, `path` y `url` se editaban como texto libre y se guardaban como
+cadena, aunque `ENSControlParameter['value']` declare `string | number |
+boolean | string[]` y el validador de estructura acepte explícitamente arrays
+de cadenas. Nada impedía escribir `"si"` en un parámetro declarado como lista.
 
-Esta es la causa de fondo de 3.1: el tipo `list` no está implementado en la UI,
-así que nada impedía escribir `"si"` en un parámetro declarado como lista.
-Mientras no haya renderer de lista, cualquier parámetro `list` es en la práctica
-una cadena, y el desajuste se puede repetir en los otros ocho parámetros de
-tipo lista del producto (nueve en total tras 3.3).
+Afecta a los nueve parámetros `type: 'list'` del producto: mp.info.6 P-04 y
+P-07; op.acc.1 P-02, P-03, P-04 y P-07; op.acc.2 P-01, P-02 y P-06. Entre ellos
+están las tres listas que alimentan CDB lists en Wazuh (cuentas de servicio,
+cuentas genéricas prohibidas y usuarios autorizados).
+
+**Añadido `renderers/list-parameter-renderer.tsx`**, un combo de pastillas
+(`EuiComboBox`) que guarda siempre `string[]`. Con él, escribir `"si"` produce
+`['si']` —una lista de un elemento, revisable— en vez de un escalar que el motor
+pueda confundir con un booleano. Tolera el valor legacy en forma de cadena para
+poder editar sin perder lo que ya hay en el índice: parte por saltos de línea y
+por comas, nunca por `|`, que en este producto separa los campos de un mismo
+elemento (`srv-dc01 | Windows`).
+
+`boolean`, `select`, `path` y `url` siguen en el renderer de texto: se editan
+como cadena, que es lo que declaran, así que su valor y su tipo no se
+contradicen. Un `select` sin lista de opciones y un `boolean` sin interruptor
+siguen siendo mejorables, pero no producen un valor de tipo equivocado.
 
 ### 3.3 op.acc.2 P-02 `rutas_criticas_so` — `path` para una lista de rutas
 
@@ -280,37 +303,70 @@ Cruce de `expectedEventTypes` del catálogo de evidencias contra el
 Las siete evidencias declaran exactamente los eventos que emiten sus reglas. Es
 el único control sin desviaciones. Sirve de referencia para los otros dos.
 
-### mp.info.6 — 15 eventos declarados que ninguna regla emite
+### mp.info.6 — el catálogo y el runbook hablan vocabularios distintos
 
-| Evidencia | Declarados sin regla | Reglas cuyo evento no se declara |
-|---|---|---|
-| EV-01 | `backup_success` | `backup_missing` |
-| EV-02 | `backup_success` | `freq_deviation` |
-| EV-03 | `retention_configured`, `backup_modified`, `backup_deleted`, `backup_ransomware` | `access`, `encfp_changed`, `verify_ok`, `verify_error` |
-| EV-04 | `authorized_access`, `unauthorized_access` | `access` |
-| EV-05 | `restore_success` | — |
-| EV-06 | `offsite_success`, `offsite_missing` | `offsite_ok` |
-| EV-07 | `decoder_ok`, `backup_warning`, `backup_timeout`, `backup_disk_full`, `backup_network_error` | `encfp_changed` |
+Hay un agente reestructurando este runbook, así que va el mapa completo. **La
+corrección va en el runbook y en el catálogo, no en el motor.**
 
-Lo más serio de la lista:
+Antes de leer las tablas, una precisión importante: `data-source-engine.ts`
+traduce a mano un nombre, y solo uno:
 
-- **EV-06 espera `offsite_success` y la regla 106662 emite `offsite_ok`.** El
-  CUMPLE de R2 (nivel ALTO) no puede llegar por su propio evento; solo por
-  `evidence_state`.
-- **EV-03 no declara ninguno de los cuatro eventos que sus reglas emiten.** Sus
-  cuatro nombres declarados no existen en el pipeline.
-- EV-04 espera `authorized_access` / `unauthorized_access`; la regla 106604 emite
-  `access` con `authorized:false`.
-- EV-01 y EV-05 son las dos únicas evidencias del producto que **no** declaran
-  `evidence_state`, así que dependen enteramente de su evento propio.
-- `control_state` aparece en `expectedEventTypes` de EV-03, EV-04 y EV-06 pero
-  es inerte ahí: `evidence/engine.ts` exige `evidenceId` coincidente para los
-  eventos genéricos, y `control_state` no lleva `evidence_id`.
+```ts
+const eventType =
+  String(rawEventType).toLowerCase() === 'offsite_ok'
+    ? 'offsite_success'
+    : rawEventType;
+```
 
-**No se han corregido.** Cambiar estos nombres altera el resultado de un control
-en despliegue y varios de los eventos reales (`access`, `offsite_ok`) resolverían
-su estado por heurística de nombre. Es una decisión de producto, no de
-coherencia: ver §6.
+O sea, la regla 106662 emite `offsite_ok`, el catálogo espera `offsite_success`,
+y el desajuste está parcheado con un caso especial cableado en un fichero
+compartido del motor. **EV-06 sí resuelve hoy**, pero a costa de esa traducción.
+Cuando el runbook y el catálogo usen el mismo nombre, esa línea debe
+desaparecer: es deuda escondida en el sitio donde nadie la busca.
+
+#### A · Declarados en el catálogo y que ninguna regla emite (14)
+
+| Evento declarado | Evidencia que lo declara |
+|---|---|
+| `backup_success` | EV-01, EV-02 |
+| `backup_modified` | EV-03 |
+| `backup_deleted` | EV-03 |
+| `backup_ransomware` | EV-03 |
+| `retention_configured` | EV-03 |
+| `authorized_access` | EV-04 |
+| `unauthorized_access` | EV-04 |
+| `restore_success` | EV-05 |
+| `offsite_missing` | EV-06 |
+| `decoder_ok` | EV-07 |
+| `backup_warning` | EV-07 |
+| `backup_timeout` | EV-07 |
+| `backup_disk_full` | EV-07 |
+| `backup_network_error` | EV-07 |
+
+#### B · Emitidos por las reglas y que ninguna evidencia declara (5)
+
+| Evento emitido | Regla | La regla lo asigna a | Estado que declara |
+|---|---|---|---|
+| `freq_deviation` | 106603 | EV-02 | NO_CUMPLE |
+| `access` | 106604 | EV-03, EV-04 | NO_CUMPLE |
+| `encfp_changed` | 106609 | EV-03, EV-07 | NO_CUMPLE |
+| `verify_ok` | 106660 | EV-03 | CUMPLE |
+| `verify_error` | 106661 | EV-03 | NO_CUMPLE |
+
+Los cinco son eventos reales, con regla, con `evidencia=` declarada en su
+`<info>` y con estado explícito, que el catálogo no escucha. **EV-03 es el caso
+extremo: declara cuatro nombres que no existen y no declara ninguno de los
+cuatro que sus propias reglas emiten**, así que solo puede resolverse por
+`evidence_state`. Lo mismo EV-04 con `access`.
+
+#### C · Otras dos observaciones sobre estas evidencias
+
+- **EV-01 y EV-05 son las dos únicas evidencias del producto que no declaran
+  `evidence_state`.** Dependen enteramente de su evento propio, así que un
+  `evidence_state` de mp.info.6 para EV-01 o EV-05 se descarta.
+- **`control_state` está declarado en EV-03, EV-04 y EV-06 pero es inerte ahí.**
+  `evidence/engine.ts` exige `evidenceId` coincidente para los eventos genéricos
+  y `control_state` no lleva `evidence_id`, así que nunca casa.
 
 ### op.acc.1 — vocabulario legacy completo
 
@@ -320,95 +376,139 @@ El catálogo del plugin habla el vocabulario antiguo (`account_disabled`,
 ocho nombres que **ninguna regla emite**), mientras el colector y las reglas
 hablan el vocabulario de hechos técnicos. De los dieciséis nombres declarados
 solo ocho existen como evento real, y uno de esos ocho (`account_deleted`, bajo
-EV-02) tampoco resuelve porque su `evidence_id` es EV-08. Ver §5.
+EV-02) tampoco resuelve porque su `evidence_id` es EV-08. Ver §5.2.
 
 ---
 
-## 5. op.acc.1 tras la desconexión del evaluador
+## 5. La inferencia de estado y el caso op.acc.1
 
-Este es el hallazgo que condiciona todo lo demás.
+### 5.1 El motor fabricaba cumplimiento — CORREGIDO
 
-### La cadena, eslabón a eslabón
+`evidence/engine.ts` resolvía el estado de un evento así:
 
-1. `agent/collectors/ens_op_acc1_audit.py` emite 51 tipos de hecho técnico.
-2. `agent/emit/ensfacil-emit-opacc.sh` valida cada línea y **rechaza cualquier
-   evento que contenga `estado` o `nivel`** (`"Línea N: estado o nivel no
-   permitidos"`), y bloquea la ruta legacy para op.acc.1. El agente no puede
-   emitir un juicio, por diseño.
-3. `ensfacil_op_acc_1_json_rules.xml` tiene 52 reglas, todas de `technical_fact`.
-   **No hay ninguna regla de `evidence_state`, `control_state` ni
-   `score_snapshot`**, a diferencia de mp.info.6 (106700-106722) y op.acc.2
-   (106950-106972).
-4. `core/data-source/data-source-engine.ts` normaliza el estado: sin `estado` en
-   el evento, mira el nombre del tipo de evento y **por defecto devuelve
-   `NO_EVALUABLE`**.
-5. `core/evidence/engine.ts` resuelve cada evidencia con el evento más reciente
-   que coincida en `evidence_id` y en `expectedEventTypes`.
+```ts
+const inferredStatus = event.status || (
+  event.eventType.includes('missing') || event.eventType.includes('error') ||
+  event.eventType.includes('unauthorized') ? 'NO_CUMPLE' : 'CUMPLE'
+);
+```
 
-### Resultado real, evidencia por evidencia
+Y `resolveEvidenceEventStatus` terminaba igual, en `: 'CUMPLE'`. Un evento sin
+`estado` cuyo nombre no contuviera esas tres palabras **se convertía en
+CUMPLE**: cualquier hecho técnico desconocido contaba como conforme.
 
-| Evidencia | Evento que llega | Regla | Estado que produce |
+El mismo defecto, en sentido más amplio, estaba aguas arriba en
+`data-source/data-source-engine.ts`, que elevaba a `CUMPLE` cualquier nombre que
+contuviera `success`, `ok` o `configured`, más `authorized_access` literal. Ése
+es el que actúa sobre los datos reales, porque toda alerta pasa por
+`normalizeWazuhAlerts` antes de llegar a las evidencias.
+
+El efecto combinado, sobre los mismos datos: `auth_success` sube a verde por
+contener "success", mientras `generic_account_login` —que *es* la no
+conformidad— cae a `NO_EVALUABLE` y no puede poner nada en rojo. Verde sin
+respaldo y rojo imposible.
+
+**Arreglado en los dos sitios, con la misma lista de patrones** para que el
+motor no dé dos respuestas distintas sobre el mismo evento:
+
+1. si el evento **declara** estado, se usa tal cual;
+2. si no, solo se infiere **hacia NO_CUMPLE**, con cuatro patrones justificados
+   uno a uno en el comentario del código: `error` y `failed` (la operación que
+   la evidencia debía acreditar no se completó), `missing` (falta el artefacto
+   que la evidencia exige) y `unauthorized` (acceso o identidad fuera de lo
+   autorizado);
+3. en cualquier otro caso, **`NO_EVALUABLE`**. Ante la duda el motor no afirma.
+
+Queda anotada una salvedad de `missing`: las reglas del propio producto no le
+dan siempre el mismo estado (106601 `backup_missing` declara NO_CUMPLE, pero
+106606 `restore_missing` declara NO_EVALUABLE). Como ambos eventos llegan con su
+`estado`, la inferencia no se aplica sobre ellos y la discrepancia no se
+manifiesta; si algún día un `*_missing` llegara sin `estado`, este patrón lo
+pondría en rojo.
+
+#### Efecto sobre los tres controles: ninguno
+
+Verificado evento a evento antes de confirmar el cambio:
+
+| Comprobación | Eventos | Cambian |
+|---|---|---|
+| Muestras reales de los agentes (`agent/samples/*.ndjson`, op.acc.1 y op.acc.2) | 42 | **0** |
+| Tipos de evento de las reglas de mp.info.6, con el `estado=` de su `<info>` | 24 | **0** |
+
+Todos los agentes desplegados emiten `estado` en cada evento, así que la rama de
+inferencia no se alcanza y ni un solo estado cambia. Lo único que cambia es
+exactamente el caso que el arreglo persigue: un evento **sin** `estado` deja de
+salir verde.
+
+Barriendo los 109 nombres de evento del vocabulario del producto (reglas,
+`expectedEventTypes` y `events` de `data/`), **once** se elevaban solos a
+`CUMPLE` por su nombre y ahora salen `NO_EVALUABLE` si llegan sin `estado`:
+`auth_success`, `authorized_access`, `backup_ok`, `backup_success`,
+`decoder_ok`, `offsite_ok`, `offsite_success`, `restore_ok`, `restore_success`,
+`retention_configured` y `verify_ok`. De esos once, cinco no los emite ninguna
+regla (§4-A) y los seis restantes llegan siempre con su `estado`.
+
+La fixture de test (`ens-engine.test-fixture.ts`) declara ahora `status`
+explícito en sus tres eventos, como hace cualquier alerta real; sin él simularía
+un evento que ningún agente emite y el resultado de la fixture habría cambiado.
+
+### 5.2 op.acc.1: el recolector de `main` frente al desplegado
+
+Hay que distinguir dos recolectores, porque no se comportan igual:
+
+- **El desplegado hoy** (los runbooks de los tres controles) emite `estado` en
+  cada evento. Por eso op.acc.1 mostraba 6 CUMPLE y 2 NO_CUMPLE en el plugin, y
+  por eso la desconexión del evaluador no lo bloquea: el motor consolida desde
+  el estado declarado, no desde la heurística.
+- **`agent/collectors/ens_op_acc1_audit.py`, el que está en `main`**, emite
+  únicamente hechos técnicos neutros: `event_class=technical_fact`, y su emisor
+  `ensfacil-emit-opacc.sh` **rechaza activamente** cualquier línea con `estado` o
+  `nivel` (`"Línea N: estado o nivel no permitidos"`). El agente no puede emitir
+  un juicio, por diseño.
+
+El análisis que sigue describe qué pasaría con **el segundo**, que es hacia
+donde apunta la arquitectura de `main`. No describe el servidor de hoy.
+
+Su fichero de reglas tiene 52 reglas, todas de `technical_fact`, y **ninguna de
+`evidence_state`, `control_state` ni `score_snapshot`**, a diferencia de
+mp.info.6 (106700-106722) y op.acc.2 (106950-106972). El colector y las reglas
+están perfectamente alineados entre sí —51 eventos, 51 reglas, 1:1 sin sobrantes
+ni faltantes—, pero el catálogo del plugin habla el vocabulario antiguo:
+`account_disabled`, `account_offboarding`, `interactive_login`,
+`multi_role_usage`, `privilege_use`, `authorized_list_check`,
+`unauthorized_user` y `retention_violation` son ocho nombres que ninguna regla
+emite. De los dieciséis nombres declarados solo ocho existen como evento real, y
+uno de esos ocho (`account_deleted`, bajo EV-02) tampoco resuelve porque su
+`evidence_id` es EV-08.
+
+Resultado con ese recolector, ya con la heurística corregida:
+
+| Evidencia | Evento que llega | Regla | Estado |
 |---|---|---|---|
 | EV-01 | `account_inventory`, `account_active` | 106810, 106811 | NO_EVALUABLE |
 | EV-02 | `account_created`, `account_modified` | 106812, 106813 | NO_EVALUABLE |
-| EV-03 | `auth_success` | 106802 | **CUMPLE** |
-| EV-03 | `generic_account_login` | 106801 | NO_EVALUABLE |
+| EV-03 | `auth_success`, `generic_account_login` | 106802, 106801 | NO_EVALUABLE |
 | EV-04 | ninguno coincide | — | NO_EVALUABLE |
 | EV-05 | `service_account_interactive` | 106805 | NO_EVALUABLE |
 | EV-06 | ninguno coincide | — | NO_EVALUABLE |
 | EV-07 | ninguno coincide | — | NO_EVALUABLE |
 | EV-08 | `account_deleted` | 106818 | NO_EVALUABLE |
 
-Dos consecuencias, y la segunda es la mala:
+Antes del arreglo, EV-03 salía **CUMPLE** por el `auth_success`. Ahora las ocho
+quedan en gris, que es el comportamiento correcto —sin datos evaluables,
+`NO_EVALUABLE`— pero significa que con ese recolector op.acc.1 no acredita nada
+mientras el motor no vuelva a juzgar los hechos técnicos.
 
-- **Siete de las ocho evidencias quedan en gris permanente.** Es el
-  comportamiento correcto según el principio rector —sin datos evaluables,
-  `NO_EVALUABLE`— pero significa que op.acc.1 no acredita nada.
-
-- **EV-03 puede salir en verde sin respaldo.** `auth_success` contiene la
-  subcadena `success`, así que la normalización lo eleva a `CUMPLE`. Una
-  autenticación correcta no demuestra que no se usen cuentas genéricas, que es
-  lo que pregunta EV-03. Y peor: `generic_account_login` —la regla 106801, que
-  *es* la no conformidad— se normaliza a `NO_EVALUABLE`, no a `NO_CUMPLE`, así
-  que **no puede poner EV-03 en rojo**. Si el evento más reciente de EV-03 es un
-  `auth_success`, la evidencia sale CUMPLE aunque en la misma ventana haya
-  habido inicios de sesión con cuenta genérica.
-
-Esto vulnera las dos caras del principio rector a la vez: un CUMPLE que los
-datos no sostienen, y un NO_CUMPLE real que no se puede expresar.
-
-### Por qué no se ha "arreglado" aquí
-
-Las tres salidas posibles son decisiones de producto, no de coherencia:
+Las tres salidas posibles, todas decisiones de producto:
 
 1. **Reconectar el evaluador** de op.acc.1. Es lo que traducía hechos técnicos a
-   juicio ENS. Vuelve a dejar dos caminos de evaluación distintos, que es
-   justamente lo que la desconexión quería evitar.
+   juicio ENS. Vuelve a dejar dos caminos de evaluación distintos.
 2. **Migrar el emisor y las reglas de op.acc.1 al contrato `evidence_state`**,
-   como mp.info.6 y op.acc.2. Exige tocar el colector, el emisor (que hoy
-   rechaza `estado` a propósito) y añadir las reglas 1068xx equivalentes a
-   106700-106703. Es el camino coherente con "los tres iguales", pero contradice
-   el diseño explícito del emisor, que separa hecho de juicio.
+   como los otros dos. Exige tocar colector, emisor (que hoy rechaza `estado` a
+   propósito) y añadir reglas equivalentes a 106700-106703.
 3. **Migrar los tres controles al modelo de hechos técnicos** y que el motor
    juzgue siempre, que es hacia donde apunta el comentario de
    `op-acc-1.policy.ts`.
-
-Mientras no se elija una, **op.acc.1 no debería presentarse como CUMPLE en
-ningún informe**. Y hay una mitigación de una línea que no depende de esa
-decisión: quitar `auth_success` de los `expectedEventTypes` de EV-03. Con ella,
-EV-03 pasa a NO_EVALUABLE como sus siete hermanas y desaparece el verde sin
-respaldo. No se ha aplicado porque cambia el resultado visible del control y
-corresponde decidirlo a quien lleva el despliegue.
-
-Una alternativa más de fondo, en `evidence/engine.ts`:
-`resolveEvidenceEventStatus` devuelve `CUMPLE` por defecto para cualquier evento
-que no contenga `missing`, `error` o `unauthorized` en el nombre. Invertir ese
-defecto a `NO_EVALUABLE` (respetando `event.status === 'CUMPLE'` cuando venga
-explícito) alinearía el motor con el principio rector para los tres controles, a
-costa de que mp.info.6 y op.acc.2 dejaran de dar por buenos los eventos que
-lleguen sin `estado`.
-
----
 
 ## 6. Coherencia estructural entre los tres controles (TAREA 4)
 
@@ -497,16 +597,24 @@ cambiar `data/` cambia lo que ve el auditor. Ambos son decisiones de producto.
 | `docs(reglas)` | 106605 y 106923 marcadas como inertes en el propio XML |
 | `fix(config)` | op.acc.2 P-02 `path`→`list`; op.acc.1 P-07 alineado con la ficha; desajuste de `toBoolean` en P-04 documentado en el evaluador; `config/mp-info-6-control-block.json` creado |
 | `fix(coherencia)` | `family`/`category` de mp.info.6 unificados y miga de pan corregida; barrel de `configuration/data` simétrico; especializaciones de mp.info.6 documentadas en `policy-runtime.ts` e `informes/index.tsx` |
+| `fix(motor)` | La ausencia de `estado` ya no produce `CUMPLE`: inferencia solo hacia NO_CUMPLE, con patrones justificados, y `NO_EVALUABLE` por defecto, en `evidence/engine.ts` y en `data-source-engine.ts` |
+| `feat(config)` | Renderer de listas en el form-engine: los nueve parámetros `type: 'list'` dejan de guardarse como cadena |
 
 ## 8. Pendiente de decisión
 
-1. Elegir camino para op.acc.1 (§5). Hasta entonces, no presentarlo como CUMPLE.
-2. Quitar `auth_success` de EV-03 de op.acc.1, o invertir el defecto de
-   `resolveEvidenceEventStatus` (§5).
-3. Corregir los `expectedEventTypes` de mp.info.6, empezando por
-   `offsite_success` → `offsite_ok` (§4).
-4. Devolver la lista real a P-04 de op.acc.1 en la configuración desplegada
-   (§3.1).
-5. Implementar un renderer de lista en el form-engine (§3.2).
+1. **Corregir el vocabulario de mp.info.6** (§4): 14 nombres declarados que
+   nadie emite y 5 eventos reales que ninguna evidencia escucha. Al hacerlo,
+   eliminar la traducción cableada de `offsite_ok` → `offsite_success` de
+   `data-source-engine.ts`, que hoy tapa uno de los desajustes.
+2. **Elegir camino para op.acc.1** (§5.2) si se adopta el recolector de hechos
+   técnicos de `main`. Con el recolector desplegado hoy el control funciona.
+3. Devolver la lista real a P-04 de op.acc.1 en la configuración desplegada
+   (§3.1). Ya hay renderer de listas para poder introducirla.
+4. Separar la whitelist de excepciones de op.acc.2 P-03, o reescribir su
+   ejemplo, para que un `boolean` no invite a escribir una lista (§3.4).
+5. Registro de modelos de informe por `controlId` en vez de la cadena de
+   ternarios que cae por defecto en mp.info.6 (§6).
 6. Decidir sobre la deriva `catalog/` vs `data/`, en particular el nivel ALTO
    ausente en `data/mp-info-6.ts` (§6).
+7. Ninguno de los tres controles detecta el silencio: los parámetros de alcance
+   no tienen regla que avise de un sistema declarado que deja de reportar (§1).
