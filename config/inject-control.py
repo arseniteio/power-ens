@@ -8,14 +8,24 @@ obligatorios cuentan como ausentes y el score cae a 0 aunque las evidencias
 digan lo contrario. Y la UI no deja dar de alta un control que no esté ya ahí
 (huevo/gallina), así que la primera siembra va por aquí.
 
-Idempotente: sustituye el bloque del control si ya estaba, no duplica.
+Idempotente: si el control ya estaba, FUSIONA. Conserva el valor de cada
+parámetro que ya tuviera uno y añade los que falten. Los valores que el auditor
+puso desde la UI no se tocan.
+
+Por qué fusiona y no sustituye: sustituía, y el 30/07 una segunda ejecución
+borró la configuración de op.acc.2 en producción de pruebas y su cumplimiento
+cayó de 83 % a 17 %. El script lo avisaba por pantalla. Un aviso no basta cuando
+la operación destruye datos del cliente: el comportamiento por defecto tiene que
+ser el seguro, y el destructivo tiene que pedirse (--sustituir).
+
 Dry-run por defecto; --apply para escribir.
 
 Uso:
     export OS_USER=admin
     export OS_PASS='...'
-    python3 inject-control.py op.acc.1            # dry-run
-    python3 inject-control.py op.acc.1 --apply    # escribe
+    python3 inject-control.py op.acc.1               # dry-run
+    python3 inject-control.py op.acc.1 --apply       # fusiona y escribe
+    python3 inject-control.py op.acc.1 --sustituir   # descarta los valores puestos
 
 El fichero de bloque se deduce del id del control (op.acc.1 ->
 op-acc-1-control-block.json) salvo que se pase --block <fichero>.
@@ -38,6 +48,8 @@ p = argparse.ArgumentParser(description="Siembra un control ENS en la configurac
 p.add_argument("control", help="id del control, p.ej. op.acc.1")
 p.add_argument("--block", help="fichero del bloque (por defecto, deducido del id)")
 p.add_argument("--apply", action="store_true", help="escribe; sin esto solo muestra el plan")
+p.add_argument("--sustituir", action="store_true",
+               help="DESTRUCTIVO: descarta los valores ya configurados en vez de conservarlos")
 args = p.parse_args()
 
 control_id = args.control
@@ -98,19 +110,75 @@ presentes = [c["controlId"] for c in controls]
 print("Controles ya configurados:", presentes or "(ninguno)")
 
 ya_estaba = control_id in presentes
-if ya_estaba:
-    print("AVISO: {} ya estaba; su bloque se sustituye por el de este fichero.".format(control_id))
-    print("       Si habías ajustado sus valores desde la UI, se perderán.")
+anterior = next((c for c in controls if c["controlId"] == control_id), None)
 
-# --- sustituir sin tocar los demás
+
+def tiene_valor(v):
+    # "" y [] son campos vacíos, no valores configurados: un parámetro así sigue
+    # contando como no configurado y su evidencia sigue en NO_EVALUABLE.
+    if v is None:
+        return False
+    if isinstance(v, str):
+        return v.strip() != ""
+    if isinstance(v, (list, dict)):
+        return len(v) > 0
+    return True
+
+
+# --- fusionar con lo que ya hubiera
+conservados = []
+nuevos = []
+retirados = []
+
+if anterior and not args.sustituir:
+    valores_previos = {
+        x.get("id"): x.get("value")
+        for x in anterior.get("parameters", [])
+        if tiene_valor(x.get("value"))
+    }
+    ids_previos = {x.get("id") for x in anterior.get("parameters", [])}
+
+    for parametro in parametros:
+        pid = parametro.get("id")
+        if pid in valores_previos:
+            parametro["value"] = valores_previos[pid]
+            conservados.append(pid)
+        elif pid not in ids_previos:
+            nuevos.append(pid)
+
+    ids_nuevos = {x.get("id") for x in parametros}
+    retirados = [
+        "{} (con valor)".format(x.get("id")) if tiene_valor(x.get("value")) else x.get("id")
+        for x in anterior.get("parameters", [])
+        if x.get("id") not in ids_nuevos
+    ]
+
+    print("Fusión con lo ya configurado:")
+    print("  conserva su valor: {}".format(", ".join(conservados) or "ninguno"))
+    print("  parámetros nuevos: {}".format(", ".join(nuevos) or "ninguno"))
+    if retirados:
+        print("  YA NO EXISTEN en el bloque y se pierden: {}".format(", ".join(retirados)))
+elif anterior and args.sustituir:
+    con_valor = [
+        x.get("id") for x in anterior.get("parameters", []) if tiene_valor(x.get("value"))
+    ]
+    print("--sustituir: se DESCARTAN los valores ya configurados.")
+    print("  se pierden: {}".format(", ".join(con_valor) or "ninguno (no había valores puestos)"))
+
+# --- reemplazar el bloque del control sin tocar los demás
 controls = [c for c in controls if c["controlId"] != control_id]
 controls.append(block)
 cfg["controls"] = controls
 
 ahora = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 cfg["updatedAt"] = ahora
-cfg["changeReason"] = "{} del control {} en la configuración activa.".format(
-    "Actualización" if ya_estaba else "Alta", control_id)
+if not ya_estaba:
+    motivo = "Alta"
+elif args.sustituir:
+    motivo = "Sustitución (valores descartados)"
+else:
+    motivo = "Actualización (valores conservados)"
+cfg["changeReason"] = "{} del control {} en la configuración activa.".format(motivo, control_id)
 source["updatedAt"] = ahora
 
 print("Tras la operación:", sorted(c["controlId"] for c in cfg["controls"]))

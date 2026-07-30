@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Pruebas de inject-control.py contra un OpenSearch de mentira.
+
+Lo que se prueba es una sola cosa, la que falló el 30/07: sembrar dos veces un
+control ya configurado NO puede borrar los valores que el auditor puso desde la
+UI. El comportamiento destructivo existe, pero hay que pedirlo.
+
+    python3 test_inject_control.py
+
+Sin dependencias: http.server de la stdlib hace de índice.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+SCRIPT = os.path.join(AQUI, "inject-control.py")
+
+# El documento 'active' que sirve el índice de mentira. Cada prueba lo reinicia.
+estado = {"doc": None, "version": 0}
+
+BLOQUE = {
+    "controlId": "op.acc.1",
+    "parameters": [
+        {"id": "P-01", "name": "fuente_identidad", "type": "select", "required": True, "value": None},
+        {"id": "P-04", "name": "cuentas_genericas_prohibidas", "type": "list", "required": True, "value": None},
+        {"id": "P-09", "name": "parametro_nuevo", "type": "string", "required": False, "value": None},
+    ],
+}
+
+# Lo que "ya había configurado el auditor": P-01 y P-04 con valor, y un P-99 que
+# el bloque nuevo ya no contempla.
+CONFIGURADO = {
+    "controlId": "op.acc.1",
+    "parameters": [
+        {"id": "P-01", "value": "active_directory"},
+        {"id": "P-04", "value": ["admin", "operador"]},
+        {"id": "P-99", "value": "parametro_retirado"},
+    ],
+}
+
+
+class Indice(BaseHTTPRequestHandler):
+    def _responde(self, cuerpo, codigo=200):
+        datos = json.dumps(cuerpo).encode()
+        self.send_response(codigo)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(datos)))
+        self.end_headers()
+        self.wfile.write(datos)
+
+    def do_GET(self):
+        if estado["doc"] is None:
+            self._responde({"error": "not found"}, 404)
+            return
+        self._responde({"_source": estado["doc"]})
+
+    def do_PUT(self):
+        largo = int(self.headers.get("Content-Length", 0))
+        estado["doc"] = json.loads(self.rfile.read(largo).decode())
+        estado["version"] += 1
+        self._responde({"result": "updated", "_version": estado["version"]})
+
+    def log_message(self, *_):
+        pass  # sin ruido en la salida de las pruebas
+
+
+def arranca_indice():
+    servidor = HTTPServer(("127.0.0.1", 0), Indice)
+    threading.Thread(target=servidor.serve_forever, daemon=True).start()
+    return servidor
+
+
+def siembra(url, bloque_path, *extra):
+    entorno = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
+    return subprocess.run(
+        [sys.executable, SCRIPT, "op.acc.1", "--block", bloque_path, *extra],
+        capture_output=True, text=True, env=entorno,
+    )
+
+
+def valores():
+    control = next(
+        c for c in estado["doc"]["configuration"]["controls"] if c["controlId"] == "op.acc.1"
+    )
+    return {p["id"]: p.get("value") for p in control["parameters"]}
+
+
+fallos = []
+
+
+def comprueba(nombre, condicion, detalle=""):
+    print("{}  {}{}".format("OK    " if condicion else "FALLA ", nombre,
+                            "" if condicion else "  -> " + detalle))
+    if not condicion:
+        fallos.append(nombre)
+
+
+def main():
+    servidor = arranca_indice()
+    url = "http://127.0.0.1:{}".format(servidor.server_port)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        bloque_path = os.path.join(tmp, "op-acc-1-control-block.json")
+        with open(bloque_path, "w", encoding="utf-8") as f:
+            json.dump(BLOQUE, f)
+
+        # --- alta: el control no estaba
+        estado["doc"] = {"configuration": {"controls": []}, "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply")
+        comprueba("alta · siembra un control nuevo", r.returncode == 0, r.stderr)
+        comprueba("alta · sin valores, que es lo correcto",
+                  valores() == {"P-01": None, "P-04": None, "P-09": None}, str(valores()))
+
+        # --- el caso del 30/07: sembrar sobre un control ya configurado
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+                         "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply")
+        v = valores()
+        comprueba("fusión · conserva el valor de P-01", v.get("P-01") == "active_directory", str(v))
+        comprueba("fusión · conserva la lista de P-04",
+                  v.get("P-04") == ["admin", "operador"], str(v))
+        comprueba("fusión · añade el parámetro nuevo sin valor", v.get("P-09") is None, str(v))
+        comprueba("fusión · avisa del parámetro retirado con valor",
+                  "P-99 (con valor)" in r.stdout, r.stdout)
+
+        # --- idempotencia: una segunda pasada sigue conservando los valores.
+        # Se comprueba contra los valores REALES esperados, no contra "lo que
+        # hubiera antes": comparar el resultado consigo mismo pasa también
+        # cuando las dos pasadas borran, que es justo el fallo a detectar.
+        siembra(url, bloque_path, "--apply")
+        comprueba("idempotencia · dos pasadas conservan los valores del auditor",
+                  valores() == {"P-01": "active_directory",
+                                "P-04": ["admin", "operador"],
+                                "P-09": None}, str(valores()))
+
+        # --- dry-run: no escribe
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+                         "updatedAt": ""}
+        version_antes = estado["version"]
+        r = siembra(url, bloque_path)
+        comprueba("dry-run · no escribe nada", estado["version"] == version_antes, r.stdout)
+
+        # --- destructivo, pero solo si se pide
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+                         "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply", "--sustituir")
+        v = valores()
+        comprueba("--sustituir · descarta los valores puestos",
+                  v == {"P-01": None, "P-04": None, "P-09": None}, str(v))
+        comprueba("--sustituir · dice cuáles se pierden",
+                  "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
+
+        # --- no toca los demás controles
+        otro = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intacto"}]}
+        estado["doc"] = {"configuration": {"controls": [otro]}, "updatedAt": ""}
+        siembra(url, bloque_path, "--apply")
+        vecino = next(c for c in estado["doc"]["configuration"]["controls"]
+                      if c["controlId"] == "op.acc.2")
+        comprueba("aislamiento · no toca la configuración de otro control",
+                  vecino["parameters"][0]["value"] == "intacto", str(vecino))
+
+    print()
+    if fallos:
+        print("{} prueba(s) fallidas: {}".format(len(fallos), ", ".join(fallos)))
+        return 1
+    print("todas las pruebas pasan")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

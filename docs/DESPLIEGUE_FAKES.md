@@ -64,13 +64,14 @@ python3 inject-control.py op.acc.1 --apply
 python3 inject-control.py op.acc.2 --apply
 ```
 
-Conserva el resto del documento `active`.
+Conserva el resto del documento `active` y, si el control ya estaba,
+**conserva los valores que el auditor haya puesto desde la UI**: solo añade los
+parámetros que falten. Se puede repetir sin miedo.
 
-> **Solo la primera vez, por control.** `--apply` **sustituye el bloque entero**
-> por la plantilla vacía: si el control ya estaba configurado, borra los valores
-> que el auditor puso desde la UI y su porcentaje se desploma. Pasó el 30/07 —
-> op.acc.2 cayó de 83 % a 17 %. Antes de aplicar, lanza el dry-run y mira si
-> dice "ya estaba".
+> Hasta el 30/07 sustituía el bloque entero, y una segunda siembra tumbó
+> op.acc.2 de 83 % a 17 %. Si alguna vez hace falta el comportamiento antiguo
+> —descartar lo configurado y volver a la plantilla— es `--sustituir`, y dice
+> por pantalla qué valores se pierden.
 
 ## 3. En el MANAGER · verificar que las reglas disparan
 
