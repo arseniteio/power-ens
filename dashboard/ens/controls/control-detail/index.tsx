@@ -463,7 +463,9 @@ export const ControlDetailENS = ({
         <EuiSpacer size='s' />
 
         <EuiText size='s' color='subdued'>
-          ENS / {control.category} / {control.family} / {control.id}
+          {/* De lo general a lo concreto: marco (`family`) y luego grupo
+              (`category`), segun la convencion de catalog/. */}
+          ENS / {control.family} / {control.category} / {control.id}
         </EuiText>
 
         <EuiTitle size='m'>

@@ -57,6 +57,14 @@ const CONTROL_META: Record<string, { name: string; subtitle: string }> = {
 };
 
 // Selecciona el builder de modelo de informe según el control.
+//
+// ASIMETRÍA CONOCIDA: op.acc.1 y op.acc.2 tienen fichero propio
+// (`op-acc-<n>-report-model.ts`), pero mp.info.6 vive en `report-model.ts`, de
+// nombre genérico, y además es la RAMA POR DEFECTO de esta cadena. Un control
+// nuevo que no se añada aquí no fallará: se le generará en silencio el informe
+// de mp.info.6, con sus requisitos y sus evidencias. Al añadir un control hay
+// que tocar esta función; lo correcto sería un registro por controlId que
+// devuelva undefined para los no registrados.
 const buildReportModelFor = (controlId: string, result: any) =>
   controlId === 'op.acc.2'
     ? buildOpAcc2ReportModel(result)

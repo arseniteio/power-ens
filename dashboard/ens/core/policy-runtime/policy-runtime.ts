@@ -310,6 +310,14 @@ const getLatestRetentionEvent = (
       );
     })[0];
 
+// ASIMETRÍA CONOCIDA: este fichero es compartido por los tres controles, pero
+// todo su runtime imperativo (umbrales de periodicidad, retención, whitelist de
+// acceso, edad del restore, offsite) está escrito a medida para mp.info.6.
+// op.acc.1 y op.acc.2 salen por este `return []` y no reciben ninguna variable
+// ni ninguna decisión de runtime: se evalúan solo por consolidación de
+// evidencias. No es un fallo silencioso —ambos controles están diseñados así—,
+// pero significa que "los tres siguen el mismo camino" es cierto solo aguas
+// abajo de aquí. Ver docs/AUDITORIA_COHERENCIA_2026-07-30.md.
 const buildRuntimeVariables = (
   context: ENSPolicyContext
 ): ENSRuntimeVariable[] => {

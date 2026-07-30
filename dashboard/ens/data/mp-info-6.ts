@@ -4,8 +4,11 @@ export const mpInfo6Control: ENSControl = {
   id: 'mp.info.6',
   title: 'Copias de seguridad',
   framework: 'ENS',
-  category: 'Medidas de protección',
-  family: 'Protección de la información',
+  // Convención unificada (catalog/): `family` es el marco ENS y `category` el
+  // grupo. mp.info.6 los tenía intercambiados respecto a catalog/mp-info-6.ts y
+  // a configuration/data/mp-info-6-parameters.ts, que ya usaban esta.
+  family: 'Medidas de protección',
+  category: 'Protección de la información',
   dimension: 'Disponibilidad',
   scope: {
     activeLevels: ['BAJO', 'MEDIO', 'ALTO'],
