@@ -1,5 +1,46 @@
 import { ENSNormalizedEvent } from './types';
 
+// Patrones de nombre de evento que permiten inferir un estado cuando el evento
+// NO declara `estado`. Solo apuntan a NO_CUMPLE: la inferencia por nombre puede
+// empujar hacia el incumplimiento, nunca hacia el cumplimiento.
+//
+// Por qué solo en esa dirección: el nombre de un evento describe un hecho
+// observado, no un veredicto. Que un hecho se llame `auth_success` significa que
+// una autenticación funcionó, no que el control ENS se cumpla. Afirmar
+// cumplimiento a partir del nombre convierte cualquier hecho técnico
+// desconocido en un CUMPLE, que es exactamente el falso verde que el producto
+// no puede permitirse.
+//
+// Cada patrón, justificado:
+//   error / failed  la operación que la evidencia debía acreditar no se completó
+//   missing         el artefacto que la evidencia exige no está
+//   unauthorized    acceso o identidad fuera de lo autorizado; no conformidad
+//
+// Salvedad conocida de `missing`: las reglas del propio producto no le dan
+// siempre el mismo estado (106601 `backup_missing` declara NO_CUMPLE, pero
+// 106606 `restore_missing` declara NO_EVALUABLE). Como ambos eventos vienen del
+// emisor con su `estado`, la inferencia no llega a aplicarse sobre ellos y la
+// discrepancia no se manifiesta. Si algún día un evento `*_missing` llegara sin
+// `estado`, este patrón lo pondría en rojo: revisar entonces si procede sacarlo.
+const ADVERSE_EVENT_PATTERNS = [
+  'error',
+  'failed',
+  'missing',
+  'unauthorized',
+];
+
+const inferAdverseStatusFromEventType = (
+  eventType?: string
+): 'NO_CUMPLE' | undefined => {
+  const event = String(eventType || '').toLowerCase();
+
+  return ADVERSE_EVENT_PATTERNS.some(pattern =>
+    event.includes(pattern)
+  )
+    ? 'NO_CUMPLE'
+    : undefined;
+};
+
 const normalizeENSStatus = (status?: string, eventType?: string): string => {
   const value = String(status || '').toUpperCase();
 
@@ -9,27 +50,14 @@ const normalizeENSStatus = (status?: string, eventType?: string): string => {
   if (['NO_EVALUABLE', 'UNKNOWN', 'SIN_DATOS'].includes(value)) return 'NO_EVALUABLE';
   if (['NO_APLICA', 'NOT_APPLICABLE', 'N/A'].includes(value)) return 'NO_APLICA';
 
-  const event = String(eventType || '').toLowerCase();
-
-  if (
-    event.includes('error') ||
-    event.includes('missing') ||
-    event.includes('unauthorized') ||
-    event.includes('failed')
-  ) {
-    return 'NO_CUMPLE';
-  }
-
-  if (
-    event === 'authorized_access' ||
-    event.includes('success') ||
-    event.includes('ok') ||
-    event.includes('configured')
-  ) {
-    return 'CUMPLE';
-  }
-
-  return 'NO_EVALUABLE';
+  // Sin `estado` declarado el motor no afirma cumplimiento. Antes, cualquier
+  // nombre que contuviera `success`, `ok` o `configured` —y `authorized_access`
+  // literal— salia CUMPLE: la ausencia de dato producia una afirmacion de
+  // conformidad. Ahora la ausencia de dato produce NO_EVALUABLE.
+  return (
+    inferAdverseStatusFromEventType(eventType) ||
+    'NO_EVALUABLE'
+  );
 };
 
 const normalizeBoolean = (value: unknown): boolean => {

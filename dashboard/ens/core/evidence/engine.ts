@@ -5,6 +5,55 @@ import { ENSEvidenceDefinition, ENSEvidenceResolved } from './types';
 
 const GENERIC_EVENT_TYPES = ['evidence_state', 'control_state', 'score_snapshot'];
 
+const DECLARED_STATUSES: ENSEvidenceResolved['status'][] = [
+  'CUMPLE',
+  'NO_CUMPLE',
+  'PARCIAL',
+  'NO_EVALUABLE',
+  'NO_APLICA',
+];
+
+// Ver la explicación extensa en data-source/data-source-engine.ts. Resumen: el
+// nombre de un evento describe un hecho observado, no un veredicto, así que solo
+// puede empujar hacia NO_CUMPLE. La misma lista en los dos sitios para que el
+// motor no dé dos respuestas distintas sobre el mismo evento.
+const ADVERSE_EVENT_PATTERNS = [
+  'error',
+  'failed',
+  'missing',
+  'unauthorized',
+];
+
+// Estado de un evento concreto: primero lo que el evento DECLARA, y solo si no
+// declara nada se infiere, y nunca hacia CUMPLE.
+//
+// Antes esta función terminaba en `: 'CUMPLE'`: un evento sin `estado` cuyo
+// nombre no contuviera 'missing', 'error' ni 'unauthorized' se daba por
+// conforme. Era un generador de cumplimiento falso —cualquier hecho técnico
+// desconocido contaba como conforme— y rompía el principio rector del producto:
+// la ausencia de un dato no puede producir una afirmación de cumplimiento.
+const resolveEventComplianceStatus = (
+  event: ENSNormalizedEvent
+): ENSEvidenceResolved['status'] => {
+  const declared = String(
+    event.status || ''
+  ).toUpperCase() as ENSEvidenceResolved['status'];
+
+  if (DECLARED_STATUSES.includes(declared)) {
+    return declared;
+  }
+
+  const eventType = String(
+    event.eventType || ''
+  ).toLowerCase();
+
+  return ADVERSE_EVENT_PATTERNS.some(pattern =>
+    eventType.includes(pattern)
+  )
+    ? 'NO_CUMPLE'
+    : 'NO_EVALUABLE';
+};
+
 const sortByTimestampDesc = (events: ENSNormalizedEvent[]) =>
   [...events].sort(
     (a, b) =>
@@ -66,15 +115,10 @@ const getEvidenceQualityIssues = (
   const requiredFieldsWhenStatus =
     requirements.requiredFieldsWhenStatus || [];
 
+  // El contrato de calidad (`requiredFieldsWhenStatus`) solo se exige cuando el
+  // evento afirma un estado; si no afirma nada, no hay nada que respaldar.
   const inferredStatus =
-    event.status ||
-    (
-      event.eventType.includes('missing') ||
-      event.eventType.includes('error') ||
-      event.eventType.includes('unauthorized')
-        ? 'NO_CUMPLE'
-        : 'CUMPLE'
-    );
+    resolveEventComplianceStatus(event);
 
   const validateRequiredFields =
     !requiredFieldsWhenStatus.length ||
@@ -163,35 +207,8 @@ const buildBaseEvidence = (
 
 const resolveEvidenceEventStatus = (
   event: ENSNormalizedEvent
-): ENSEvidenceResolved['status'] => {
-  if (
-    event.status === 'NO_CUMPLE'
-    ||
-    event.status === 'PARCIAL'
-    ||
-    event.status === 'NO_EVALUABLE'
-    ||
-    event.status === 'NO_APLICA'
-  ) {
-    return event.status;
-  }
-
-  return (
-    event.eventType.includes(
-      'missing'
-    )
-    ||
-    event.eventType.includes(
-      'error'
-    )
-    ||
-    event.eventType.includes(
-      'unauthorized'
-    )
-  )
-    ? 'NO_CUMPLE'
-    : 'CUMPLE';
-};
+): ENSEvidenceResolved['status'] =>
+  resolveEventComplianceStatus(event);
 
 export const resolveEvidenceForControl = (
   controlId: string,
