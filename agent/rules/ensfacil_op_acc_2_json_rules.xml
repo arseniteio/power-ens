@@ -117,7 +117,18 @@
   </rule>
 
   <!-- FIM nativo de Wazuh sobre las rutas críticas declaradas en P-02.
-       Ajusta el pcre2 a las rutas reales del cliente. -->
+       Ajusta el pcre2 a las rutas reales del cliente.
+
+       INERTE PARA EL PLUGIN (no borrar).
+       Re-etiqueta alertas syscheck nativas, que NO llevan el campo `ensfacil`
+       ni `control`. El proveedor de datos del plugin
+       (core/data-source/opensearch-provider.ts) filtra el indice por
+       `data.control` O `data.ensfacil`, asi que esta alerta nunca llega al
+       motor: no acredita EV-02 ni aparece en la trazabilidad del informe.
+       La cobertura real de EV-02 la dan 106920/106921/106922, que si vienen del
+       emisor ENSFácil con `ensfacil=op.acc.2`.
+       Se conserva porque para el SOC si tiene valor: un cambio en /etc/passwd o
+       /etc/sudoers sigue generando alerta de nivel 10 en Wazuh. -->
   <rule id="106923" level="10">
     <if_group>syscheck</if_group>
     <field name="file" type="pcre2">/etc/passwd|/etc/shadow|/etc/sudoers|/etc/ssh/sshd_config|/etc/crontab</field>

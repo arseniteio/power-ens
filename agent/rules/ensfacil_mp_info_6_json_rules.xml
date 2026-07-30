@@ -45,6 +45,18 @@
     <info type="text">requisito=mp.info.6.2.d evidencia=EV-03,EV-04 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
   </rule>
 
+  <!-- INERTE PARA EL PLUGIN (no borrar).
+       Esta regla re-etiqueta alertas syscheck nativas de Wazuh. Esas alertas
+       NO llevan el campo `ensfacil` ni `control`, y el proveedor de datos del
+       plugin (core/data-source/opensearch-provider.ts) filtra el indice por
+       `data.control` O `data.ensfacil`: la alerta existe en wazuh-alerts-* pero
+       el plugin nunca la ve, asi que no puede acreditar EV-03 ni aparecer en la
+       trazabilidad del informe.
+       Se conserva porque para el SOC si tiene valor: un cambio FIM en la zona
+       de backup sigue generando alerta de nivel 12 en Wazuh.
+       Para que contara como evidencia ENS haria falta que el emisor publicara
+       un json_line con `ensfacil` (como el resto de reglas del fichero) o que
+       el proveedor aceptase alertas por grupo ENS_mp.info.6. -->
   <rule id="106605" level="12">
     <if_group>syscheck</if_group>
     <field name="file" type="pcre2">/opt/zimbra/backup/sessions|/var/lib/pxbackup|/var/lib/proxmox-backup</field>
