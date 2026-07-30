@@ -8,7 +8,7 @@ CONTENIDO
 ---------
  ensfacil_op_acc_1_json_rules.xml   29 reglas, rango 106800-106872
  ensfacil_op_acc_2_json_rules.xml   33 reglas, rango 106900-106972
- muestra_op_acc_1.ndjson            19 eventos de ejemplo (uno por tipo)
+ muestra_op_acc_1.ndjson            20 eventos de ejemplo (uno por tipo)
  muestra_op_acc_2.ndjson            23 eventos de ejemplo (uno por tipo)
  ensfacil-emit-opacc.sh             emisor con bloqueo y rotación
  agent.conf.fragmento.xml           bloques localfile a añadir
@@ -17,6 +17,7 @@ RANGOS (sin colisión con mp.info.6, que ocupa 106600-106722)
 ------------------------------------------------------------
  op.acc.1 -> 106800 base · 106801-106826 eventos · 106850-53 evidence_state
              106860-63 control_state · 106870-72 score_snapshot
+             106873-889 hechos crudos del modelo nuevo (EV-03 -> 106873)
  op.acc.2 -> 106900 base · 106901-106936 eventos · 106950-53 evidence_state
              106960-63 control_state · 106970-72 score_snapshot
 
@@ -60,8 +61,8 @@ Comprobar en el manager (ajusta credenciales):
           "sort":[{"@timestamp":"desc"}]}' | python3 -m json.tool | head -40
 
 Probar una regla concreta con logtest:
-   echo '{"ensfacil":"op.acc.1","event":"generic_account_login","ts":"2026-07-19T10:00:00Z","host":"test","evidence_id":"EV-03","requisito":"op.acc.1.1","estado":"NO_CUMPLE","nivel":"BAJO","usuario":"admin"}' | /var/ossec/bin/wazuh-logtest
-   (debe matchear la regla 106801)
+   echo '{"ensfacil":"op.acc.1","event":"account_authenticated","ts":"2026-07-19T10:00:00Z","host":"test","evidence_id":"EV-03","requisito":"op.acc.1.1","usuario":"admin","origen":"10.0.0.55"}' | /var/ossec/bin/wazuh-logtest
+   (debe matchear la regla 106873)
 
 CONTRATO DEL EVENTO
 -------------------
@@ -77,7 +78,8 @@ EVENTOS POR EVIDENCIA
 op.acc.1
   EV-01 account_inventory, account_active
   EV-02 account_created, account_modified, account_deleted
-  EV-03 generic_account_login, auth_success
+  EV-03 account_authenticated (hecho crudo; la juzga el motor contra P-04)
+        generic_account_login, auth_success (legado, agentes sin actualizar)
   EV-04 account_disabled, account_offboarding
   EV-05 service_account_interactive, interactive_login
   EV-06 multi_role_usage, privilege_use

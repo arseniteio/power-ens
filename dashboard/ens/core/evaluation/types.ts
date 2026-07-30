@@ -38,6 +38,19 @@ export interface ENSEvidenceResult {
   controlId: string;
   status: ENSComplianceStatus;
   description: string;
+
+  // Por qué la evidencia está como está: qué cuenta concreta incumple, qué
+  // parámetro falta, por qué un gris es un gris justificado.
+  //
+  // Este campo NO existía, y su ausencia vaciaba en silencio todo el trabajo de
+  // escribir buenos motivos: `ENSEvidenceResolved` los trae desde el motor, y
+  // aquí se perdían. Los dos modelos de informe los leían igual
+  // (`evidences.get(id)?.observations`) y recibían siempre `[]`, así que el
+  // motivo de una evidencia en gris o en rojo no llegaba nunca al auditor.
+  // Afecta a los tres controles, no solo al que estrenó las primitivas de
+  // juicio: también al gris justificado de EV-06 de mp.info.6.
+  observations: string[];
+
   requirements: string[];
   levels: ENSLevel[];
   category: ENSEvidenceCategory;

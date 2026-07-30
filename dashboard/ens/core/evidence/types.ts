@@ -65,6 +65,19 @@ export interface ENSEvidenceJudgment {
   // luego en la raíz del evento normalizado. Si el campo trae una lista, cada
   // elemento cuenta como un hecho observado independiente.
   factField: string;
+
+  // Tipos de evento del latido del recolector. Es lo que permite distinguir
+  // «he mirado y no había nada» de «no he podido mirar», y de esa distinción
+  // depende si la ausencia de hechos puede llegar a significar CUMPLE (ver
+  // `resolveCollectorCoverage` en judgment.ts). Por defecto, `collector_run`.
+  collectorRunEventTypes?: string[];
+
+  // Antigüedad máxima, en horas, de un latido para que cuente como cobertura
+  // de la ventana evaluada. Por defecto 24 (los tres recolectores laten cada
+  // hora, así que 24 tolera un día entero de fallos de red sin dejar de
+  // reconocer un recolector vivo). La ventana tiene también cota SUPERIOR, que
+  // no se configura aquí porque es tolerancia de reloj, no de política.
+  collectorRunMaxAgeHours?: number;
 }
 
 export interface ENSEvidenceDefinition {

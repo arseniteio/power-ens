@@ -211,6 +211,11 @@ export const ControlDetailENS = ({
     level: evidence.levels.join(', '),
     status: evidence.status,
     ruleId: evidence.relatedRules.join(', '),
+    // El motivo que resolvió el motor: qué cuenta concreta incumple, qué
+    // parámetro falta, por qué la cobertura del recolector no basta. Es lo
+    // primero que pregunta quien ve una evidencia en gris o en rojo, y hasta
+    // ahora no estaba en ninguna pantalla.
+    motivo: (evidence.observations || []).join(' · '),
     impact:
       evidence.status === 'NO_EVALUABLE'
         ? 'Evidencia pendiente o no evaluable por el motor ENS'
@@ -774,6 +779,18 @@ export const ControlDetailENS = ({
               render: (impact: string) => (
                 <EuiText size='xs' color='subdued'>{impact}</EuiText>
               ),
+            },
+            {
+              field: 'motivo',
+              name: 'Motivo',
+              render: (motivo: string) =>
+                motivo ? (
+                  <EuiText size='xs'>{motivo}</EuiText>
+                ) : (
+                  <EuiText size='xs' color='subdued'>
+                    Sin motivo registrado
+                  </EuiText>
+                ),
             },
           ]}
         />

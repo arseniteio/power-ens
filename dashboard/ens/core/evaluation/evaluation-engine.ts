@@ -452,6 +452,9 @@ export const evaluateENSControl = (
       controlId: evidence.controlId,
       status: evidence.status,
       description: evidence.description,
+      // El motivo viaja con la evidencia hasta el informe y la pantalla de
+      // detalle. Antes se quedaba aquí.
+      observations: evidence.observations,
       requirements: evidence.requirements,
       levels: evidence.levels,
       category: evidence.category,
