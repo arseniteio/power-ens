@@ -7,6 +7,10 @@ import {
 import {
   getPolicyDefinition,
 } from './policies';
+// Del fichero, no del barrel `configuration/services`: ese re-exporta el
+// cliente HTTP, que arrastra `kibana-services` al grafo del motor sin que haga
+// falta. El barrel de alto nivel es también por donde vuelve el ciclo del TDZ.
+import { toParameterListItems } from '../../configuration/services/parameter-value-validator';
 
 const getParameterValue = (
   context: ENSPolicyContext,
@@ -27,23 +31,31 @@ const toBoolean = (value: unknown): boolean =>
   String(value).toLowerCase() === 'si' ||
   String(value).toLowerCase() === 'yes';
 
+// Partición + deduplicación. La partición NO se implementa aquí: la hace
+// `toParameterListItems`, que es la misma que usa el formulario. Hasta el 30/07
+// había dos particiones distintas —el formulario partía por coma y esto por
+// `;`— y un valor heredado 'admin, guest' eran dos elementos en la pantalla y
+// uno en el veredicto. El criterio del desempate está escrito en
+// `toParameterListItems`; lo que se añade aquí es el `Set`, porque una lista
+// blanca con el mismo sujeto repetido tiene que comportarse igual que con uno.
 const normalizeStringList = (
   value: unknown
 ): string[] => {
-  const sourceValues: unknown[] =
-    Array.isArray(value)
-      ? value
-      : typeof value === 'string'
-      ? value.split(/[;\n]+/)
-      : [];
+  // El guardia se queda: `toParameterListItems` convierte un número o un
+  // booleano sueltos en una lista de un elemento (lo necesita el formulario,
+  // que tiene que poder pintar un valor heredado de cualquier tipo), y aquí eso
+  // significaría inventar un sistema llamado `5` o un usuario autorizado
+  // llamado `true`. Lo que se unifica es el SEPARADOR, no el resto del
+  // contrato: un valor que no sea cadena ni array sigue siendo lista vacía.
+  if (!Array.isArray(value) && typeof value !== 'string') {
+    return [];
+  }
 
   return Array.from(
     new Set(
-      sourceValues
-        .map(item =>
-          String(item).trim()
-        )
-        .filter(Boolean)
+      toParameterListItems(
+        value as Parameters<typeof toParameterListItems>[0]
+      )
     )
   );
 };
@@ -270,6 +282,27 @@ const normalizeRepositoryValue = (
     : trimmed;
 };
 
+// `retention_configured` NO LO EMITE NADIE, y eso no es un descuido de este
+// fichero: no hay regla en ningún manager ni emisor en ningún runbook que
+// publique la retención observada de un repositorio. El catálogo lo declaraba
+// en EV-03 y se ha retirado de ahí (30/07) por el mismo motivo.
+//
+// El nombre se mantiene AQUÍ, y a propósito. MIN_RETENTION necesita un evento
+// que traiga `retention_days` y `backup_path`, y ninguno de los cuatro eventos
+// que sí emiten las reglas de EV-03 (`access`, `encfp_changed`, `verify_ok`,
+// `verify_error`) los trae: renombrar el filtro a cualquiera de ellos sería
+// inventarle una semántica que no tienen y devolver un veredicto sobre un dato
+// que nadie ha observado. Mientras no exista productor, esta decisión sale
+// NO_EVALUABLE, que es lo correcto: sin dato no se afirma nada.
+//
+// El filtro es independiente de `expectedEventTypes`: `context.events` trae
+// todos los eventos del control sin filtrar por catálogo. Por eso retirar el
+// nombre del catálogo no cambia esta decisión —medido: 4.536 evaluaciones antes
+// y después, MIN_RETENTION idéntico en todas—.
+//
+// Si algún día se conecta un productor (la API del PBS, un SCA), lo que hay que
+// hacer es lo mismo que se hizo con `access`: dar de alta la regla en el
+// manager, y añadir el nombre a `expectedEventTypes` de EV-03 a la vez.
 const getLatestRetentionEvent = (
   context: ENSPolicyContext
 ) =>
@@ -1412,12 +1445,20 @@ const getLatestAccessEvent = (
           event.evidenceId ===
             'EV-04'
         ) &&
-        [
-          'authorized_access',
-          'unauthorized_access',
-        ].includes(
-          event.eventType
-        ) &&
+        // `access` es el nombre REAL del evento: lo emite la regla 106604 con
+        // `evidencia=EV-03,EV-04`. Antes aquí se filtraba por
+        // `authorized_access` / `unauthorized_access`, dos nombres que no emite
+        // ninguna regla ni ningún emisor: eran el mismo evento `access` con su
+        // campo `authorized`, escrito como si el nombre fuera el veredicto.
+        // Mientras estuvieron aquí, esta decisión no podía dispararse con nada
+        // que saliera de una máquina real.
+        //
+        // El juicio pasa a leer el campo (ver `accesoAutorizado` más abajo), que
+        // es donde vive el dato. Va a la vez que la retirada de los dos nombres
+        // de `expectedEventTypes` de EV-04 en el catálogo: si se separan, el
+        // runtime consume un nombre que el catálogo ya no reconoce y las dos
+        // mitades del motor opinan distinto sobre el mismo evento.
+        event.eventType === 'access' &&
         [
           'WAZUH_ALERT',
           'FIM',
@@ -1509,6 +1550,32 @@ const buildAccessControlDecision = (
         ?.['backup_path']
     );
 
+  // Tres estados, no dos: autorizado, no autorizado y SIN DECLARAR. La regla
+  // 106604 solo empareja `authorized=false`, así que todo `access` que llegue
+  // por alerta trae el campo; pero EV-04 también admite LOCAL_JSON y FIM, y por
+  // ahí puede llegar un `access` sin declararlo. Ese caso no puede salir ni
+  // verde ni rojo: sin el dato no se afirma nada.
+  const accesoAutorizado = ((): boolean | undefined => {
+    const declarado =
+      accessEvent?.attributes?.['authorized'];
+
+    if (declarado === undefined || declarado === null) {
+      return undefined;
+    }
+
+    const texto = String(declarado).trim().toLowerCase();
+
+    if (!texto) {
+      return undefined;
+    }
+
+    if (['false', '0', 'no'].includes(texto)) {
+      return false;
+    }
+
+    return toBoolean(declarado);
+  })();
+
   const actorUser =
     normalizeAccessSubject(
       accessEvent
@@ -1591,6 +1658,10 @@ const buildAccessControlDecision = (
           `evento=${
             accessEvent?.eventType
               || 'SIN_DATOS'
+          }; autorizado=${
+            accesoAutorizado === undefined
+              ? 'SIN_DECLARAR'
+              : String(accesoAutorizado)
           }; repositorio=${
             observedBackupRepository
               || 'SIN_DATOS'
@@ -1644,7 +1715,7 @@ const buildAccessControlDecision = (
   if (!accessEvent) {
     return buildDecision(
       'NO_EVALUABLE',
-      'No existe un evento real authorized_access o unauthorized_access compatible con EV-04.',
+      'No existe un evento real access compatible con EV-04.',
       false
     );
   }
@@ -1670,13 +1741,18 @@ const buildAccessControlDecision = (
     );
   }
 
-  if (
-    accessEvent.eventType ===
-      'unauthorized_access'
-  ) {
+  if (accesoAutorizado === undefined) {
+    return buildDecision(
+      'NO_EVALUABLE',
+      'El evento access de EV-04 no declara el campo authorized, así que no se puede concluir si el acceso estaba autorizado.',
+      false
+    );
+  }
+
+  if (accesoAutorizado === false) {
     return buildDecision(
       'NO_CUMPLE',
-      'Se ha observado un evento real de acceso no autorizado al repositorio de copias.',
+      'Se ha observado un evento real de acceso no autorizado al repositorio de copias (access con authorized=false).',
       false
     );
   }

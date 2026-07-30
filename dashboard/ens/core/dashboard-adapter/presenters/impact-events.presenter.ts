@@ -10,11 +10,12 @@ type ImpactMetadata = {
   severity: ImpactEventSeverity;
 };
 
-const aliases: Record<string, string> = {
-  backup_success: 'backup_ok',
-  restore_success: 'restore_ok',
-};
-
+// Aquí había un mapa de alias (`backup_success` → `backup_ok`,
+// `restore_success` → `restore_ok`) que traducía a mano nombres que ninguna
+// regla emite. Se retira junto con esos nombres del catálogo: eran sinónimos
+// inventados de `backup_ok` y `restore_ok`, que sí tienen regla, emisor, cron y
+// NDJSON en producción. Un alias en el presentador tapa el desajuste en la
+// pantalla y lo deja intacto en el motor, que es donde se decide el semáforo.
 const metadata: Record<string, ImpactMetadata> = {
   backup_ok: {
     label: 'Copias realizadas correctamente',
@@ -146,11 +147,8 @@ const operationalEventType = (
     .trim()
     .toLowerCase();
 
-  const resolved =
-    aliases[eventType] || eventType;
-
-  return metadata[resolved]
-    ? resolved
+  return metadata[eventType]
+    ? eventType
     : undefined;
 };
 

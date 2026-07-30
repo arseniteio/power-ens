@@ -21,6 +21,14 @@ Este componente solamente observa hechos técnicos. No calcula:
     - score_snapshot.
 
 La evaluación corresponde al motor común de ENSFácil.
+
+Reglas del manager que emparejan estos hechos:
+    agent/rules/ensfacil_op_acc_1_technical_fact_rules.xml
+
+HOY NO SE DESPLIEGA. Lo que instala `install-manager.sh` del runbook es el otro
+juego de reglas de op.acc.1 (`ensfacil_op_acc_1_json_rules.xml`), que empareja
+los eventos del recolector bash. Este recolector y sus reglas son el punto de
+partida del modelo nuevo, del que ya ha migrado op.acc.1/EV-03.
 """
 
 from __future__ import annotations

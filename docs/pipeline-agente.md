@@ -6,8 +6,11 @@ Calcado del pipeline real de mp.info.6:
 
 CONTENIDO
 ---------
- ensfacil_op_acc_1_json_rules.xml   29 reglas, rango 106800-106872
- ensfacil_op_acc_2_json_rules.xml   33 reglas, rango 106900-106972
+ ensfacil_op_acc_1_json_rules.xml   34 reglas, rango 106800-106873  (DESPLEGADA)
+ ensfacil_op_acc_2_json_rules.xml   33 reglas, rango 106900-106972  (DESPLEGADA)
+ ensfacil_op_acc_1_technical_fact_rules.xml
+                                    52 reglas del recolector Python
+                                    NO SE DESPLIEGA (ver más abajo)
  muestra_op_acc_1.ndjson            20 eventos de ejemplo (uno por tipo)
  muestra_op_acc_2.ndjson            23 eventos de ejemplo (uno por tipo)
  ensfacil-emit-opacc.sh             emisor con bloqueo y rotación
@@ -23,10 +26,18 @@ RANGOS (sin colisión con mp.info.6, que ocupa 106600-106722)
 
 INSTALACIÓN (MANAGER)
 ---------------------
-1) Copiar las reglas:
-   cp ensfacil_op_acc_*.xml /var/ossec/etc/rules/
-   chown wazuh:wazuh /var/ossec/etc/rules/ensfacil_op_acc_*.xml
-   chmod 640 /var/ossec/etc/rules/ensfacil_op_acc_*.xml
+1) Copiar las reglas. UNA A UNA, NO con comodín: en agent/rules/ hay un
+   segundo juego para op.acc.1 (ensfacil_op_acc_1_technical_fact_rules.xml)
+   que NO se despliega hoy, y `ensfacil_op_acc_*.xml` se lo llevaría por
+   delante. Los dos numeran el mismo rango 106800-106899 con un 106800
+   distinto: desplegar los dos deja el manager con dos reglas del mismo id.
+
+   cp ensfacil_op_acc_1_json_rules.xml /var/ossec/etc/rules/
+   cp ensfacil_op_acc_2_json_rules.xml /var/ossec/etc/rules/
+   chown wazuh:wazuh /var/ossec/etc/rules/ensfacil_op_acc_1_json_rules.xml \
+                     /var/ossec/etc/rules/ensfacil_op_acc_2_json_rules.xml
+   chmod 640 /var/ossec/etc/rules/ensfacil_op_acc_1_json_rules.xml \
+             /var/ossec/etc/rules/ensfacil_op_acc_2_json_rules.xml
 
 2) Añadir los localfile al agent.conf del grupo ens:
    nano /var/ossec/etc/shared/ens/agent.conf

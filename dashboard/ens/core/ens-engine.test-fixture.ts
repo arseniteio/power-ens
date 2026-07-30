@@ -23,7 +23,10 @@ const events: ENSNormalizedEvent[] = [
     agentId: '010',
     agentName: 'agent-010',
     controlId: 'mp.info.6',
-    eventType: 'restore_success',
+    // `restore_ok`, que es el nombre que emite la regla 106651. Antes decía
+    // `restore_success`, un sinónimo que el catálogo declaraba y que no emite
+    // ninguna regla: la fixture simulaba un evento que ninguna máquina produce.
+    eventType: 'restore_ok',
     sourceType: 'WAZUH_ALERT',
     status: 'CUMPLE',
     timestamp: new Date().toISOString(),

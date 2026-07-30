@@ -13,11 +13,47 @@ import { ENSEvidenceDefinition } from './types';
 //     nunca producen alerta y por tanto no llevan a ningún evento crudo;
 //   - se excluyen las reglas inertes para el plugin (106605 y 106923), que
 //     re-etiquetan alertas syscheck sin campo `ensfacil` y nunca llegan aquí
-//     (ver el comentario en el propio XML).
+//     (ver el comentario en el propio XML);
+//   - se excluyen las reglas de diagnóstico operativo del recolector
+//     (106830 `collector_warning` y 106831 `collector_missing` de op.acc.1),
+//     que no llevan `requisito=` ni `evidencia=` porque no acreditan ninguna:
+//     son higiene del propio pipeline.
 //
 // Las reglas genéricas de `evidence_state` (106700-106703 / 106950-106953) no
 // se listan: engine.ts añade el ruleId del evento que resuelve la evidencia,
 // así que aparecen solas cuando son el origen real del estado.
+//
+// **DE QUÉ FICHERO SE SACAN, que es donde estuvo el fallo.** Del que está
+// DESPLEGADO: la copia `manager/` del runbook, que es lo que instala su
+// `install-manager.sh`. Acreditar una regla que el manager no tiene rompe la
+// cadena en el último escalón sin que nada avise, porque el identificador es
+// numérico, la regla existe en algún XML del repo y todo parece correcto.
+//
+// Pasó el 30/07 con op.acc.1: sus 52 reglas acreditadas se habían reconstruido
+// contra `agent/rules/ensfacil_op_acc_1_json_rules.xml`, que entonces contenía
+// los hechos crudos del recolector Python —hoy renombrado a
+// `ensfacil_op_acc_1_technical_fact_rules.xml` y NO desplegado—. 39 de las 52
+// eran inalcanzables. Y las 13 restantes tampoco eran de fiar: los dos juegos
+// numeran el mismo rango 106800-106899, así que 106824 (que allí es
+// `authentication_cursor_initialized`, EV-03) coincidía por número con el
+// 106824 desplegado, que es `authorized_list_check` NO_CUMPLE de EV-07. Existir
+// no basta: el id tiene que significar la misma evidencia en el manager.
+//
+// `tests/check-coherencia.py` comprueba lo primero en cada ejecución.
+//
+// Tras reconstruir op.acc.1 contra lo desplegado, sus ocho evidencias conservan
+// al menos una regla que las acredita: no hizo falta dejar ninguna vacía. Si
+// alguna se hubiera quedado sin regla, iría vacía y documentada —como los diez
+// huecos que ya llevan `ruleIds: []` en `configuration/data/`—, porque un hueco
+// honesto vale más que un identificador que no lleva a ninguna parte.
+//
+// `expectedEventTypes` es el otro contrato con el agente: el motor solo resuelve
+// una evidencia con eventos cuyo `eventType` esté en esta lista. Se llena con
+// los nombres que emiten las reglas DESPLEGADAS del control, ni uno más. Un
+// nombre que no emite nadie no acredita nada, y uno que se emite y no está aquí
+// deja la evidencia sorda al hecho crudo. La comprobación 4 del script vigila
+// el primer caso; el segundo lo vigila `tests/test_vocabulario.sh` en el
+// runbook de mp.info.6.
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-01',
@@ -29,9 +65,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'EXECUTION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
+    // `backup_success` se retira: no lo emite ninguna regla ni ningún emisor.
+    // Era sinónimo de `backup_ok`, que sí tiene regla (106650), cron y NDJSON en
+    // producción, así que manda `backup_ok`.
     expectedEventTypes: [
       'evidence_state',
-      'backup_success',
       'backup_ok',
       'backup_error',
     ],
@@ -59,7 +97,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state','backup_success', 'backup_ok', 'backup_missing'],
+    // Se retira `backup_success` (sin regla ni emisor) y se adopta
+    // `freq_deviation`, que emite la regla 106603 con `evidencia=EV-02` y
+    // `estado=NO_CUMPLE` y que hasta ahora esta evidencia no escuchaba: la
+    // desviación de frecuencia es exactamente lo que EV-02 mide.
+    expectedEventTypes: ['evidence_state', 'backup_ok', 'backup_missing', 'freq_deviation'],
     relatedRules: ['106601', '106603'],
     auditQuestion: '¿La última copia se encuentra dentro del intervalo máximo definido por la organización?',
   },
@@ -73,7 +115,28 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
-    expectedEventTypes: ['evidence_state','control_state','retention_configured','backup_modified','backup_deleted','backup_ransomware'],
+    // EL CASO EXTREMO de la reconciliación del vocabulario: declaraba cuatro
+    // nombres que no emite nadie (`retention_configured`, `backup_modified`,
+    // `backup_deleted`, `backup_ransomware`) y ninguno de los cuatro que sus
+    // propias reglas emiten. Resultado: solo podía resolverse por
+    // `evidence_state`, y el auditor que bajaba del estado al evento se quedaba
+    // sin el último escalón. Los cuatro que se adoptan son los de
+    // `relatedRules`, uno a uno: 106604 `access`, 106609 `encfp_changed`,
+    // 106660 `verify_ok` y 106661 `verify_error`.
+    //
+    // `retention_configured` no se sustituye por nada: ninguna regla ni ningún
+    // emisor produce un evento con la retención observada, y fabricar uno para
+    // que el catálogo cuadre sería fabricar evidencia. Por eso la decisión
+    // MIN_RETENTION del runtime sigue saliendo NO_EVALUABLE con todo desplegado
+    // (ver el comentario de `getLatestRetentionEvent` en policy-runtime.ts).
+    expectedEventTypes: [
+      'evidence_state',
+      'control_state',
+      'access',
+      'encfp_changed',
+      'verify_ok',
+      'verify_error',
+    ],
     relatedRules: ['106604', '106609', '106660', '106661'],
     auditQuestion: '¿Existe una política de retención configurada y verificable para las copias de seguridad?',
   },
@@ -87,7 +150,13 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state','control_state','authorized_access','unauthorized_access'],
+    // `authorized_access` y `unauthorized_access` no existen como eventos: son
+    // el evento `access` de la regla 106604 con su campo `authorized`. Se
+    // sustituyen por el nombre real, y el runtime de mp.info.6.2.d lee ese
+    // campo en vez del nombre (ver `getLatestAccessEvent` en policy-runtime.ts).
+    // Los dos cambios van juntos: separarlos deja al runtime consumiendo un
+    // nombre que el catálogo ya no reconoce.
+    expectedEventTypes: ['evidence_state', 'control_state', 'access'],
     relatedRules: ['106604'],
     auditQuestion: '¿El acceso al repositorio de copias está limitado a usuarios y procesos autorizados?',
   },
@@ -101,10 +170,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'RECOVERY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
+    // `restore_success` se retira por el mismo motivo que `backup_success`:
+    // sinónimo sin regla ni emisor de `restore_ok`, que sí los tiene (106651).
     expectedEventTypes: [
       'evidence_state',
       'restore_ok',
-      'restore_success',
       'restore_missing',
       'restore_error',
     ],
@@ -134,7 +204,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'OFFSITE',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    expectedEventTypes: ['evidence_state','control_state','offsite_success','offsite_missing','offsite_error'],
+    // `offsite_missing` se retira: no tiene regla ni emisor. La ausencia de
+    // copia offsite la publica hoy `score.py` como `evidence_state`
+    // NO_EVALUABLE con su motivo, que es la forma honesta de decir "esto rige y
+    // no lo medimos". `offsite_success` y `offsite_error` sí tienen regla
+    // (106662 y 106663).
+    expectedEventTypes: ['evidence_state', 'control_state', 'offsite_success', 'offsite_error'],
     relatedRules: ['106662', '106663'],
     auditQuestion: '¿Existe una copia en ubicación alternativa operativa cuando el nivel ENS lo exige?',
     qualityRequirements: {
@@ -151,7 +226,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'TRACEABILITY',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state','decoder_ok','backup_warning','backup_error','backup_timeout','backup_disk_full','backup_network_error',],
+    // De los siete declarados solo `backup_error` (106690) tenía regla.
+    // `decoder_ok`, `backup_warning`, `backup_timeout`, `backup_disk_full` y
+    // `backup_network_error` no los emite nadie y se retiran; se adopta
+    // `encfp_changed`, que emite 106609 con `evidencia=EV-03,EV-07` y además
+    // tiene emisor real (`px_emit_fp_changed` en el runbook).
+    expectedEventTypes: ['evidence_state', 'backup_error', 'encfp_changed'],
     relatedRules: ['106690', '106602', '106609'],
     auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
   },
@@ -167,7 +247,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
     expectedEventTypes: ['evidence_state', 'account_inventory', 'account_active'],
-    relatedRules: ['106810', '106811', '106809', '106822', '106835'],
+    relatedRules: ['106809', '106810', '106811'],
     auditQuestion:
       '¿Existe un inventario actualizado de cuentas activas con identificador único por entidad?',
   },
@@ -188,7 +268,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_modified',
       'account_deleted',
     ],
-    relatedRules: ['106812', '106813', '106814', '106837', '106838'],
+    relatedRules: ['106812', '106813', '106818'],
     auditQuestion:
       '¿Se detectan y controlan las modificaciones no autorizadas sobre las cuentas del sistema?',
   },
@@ -209,7 +289,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'generic_account_login',
       'auth_success',
     ],
-    relatedRules: ['106873', '106801', '106802', '106824', '106827', '106828'],
+    relatedRules: ['106801', '106802', '106873'],
     auditQuestion:
       '¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?',
 
@@ -258,7 +338,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_disabled',
       'account_offboarding',
     ],
-    relatedRules: ['106820', '106841', '106842', '106843', '106844', '106845', '106846', '106847'],
+    relatedRules: ['106815', '106816', '106817'],
     auditQuestion:
       '¿Las cuentas de usuarios que causan baja se deshabilitan dentro del plazo definido?',
   },
@@ -278,17 +358,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'service_account_interactive',
       'interactive_login',
     ],
-    relatedRules: [
-      '106805',
-      '106857',
-      '106858',
-      '106859',
-      '106864',
-      '106865',
-      '106866',
-      '106867',
-      '106868',
-    ],
+    relatedRules: ['106805', '106806'],
     auditQuestion:
       '¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?',
   },
@@ -304,7 +374,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'multi_role_usage', 'privilege_use'],
-    relatedRules: ['106823', '106848', '106849', '106854', '106855'],
+    relatedRules: ['106807', '106808'],
     auditQuestion:
       '¿Cada rol de un usuario dispone de un identificador diferenciado con sus privilegios delimitados?',
   },
@@ -324,7 +394,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'authorized_list_check',
       'unauthorized_user',
     ],
-    relatedRules: ['106829', '106830', '106831', '106832', '106833', '106836', '106839', '106840'],
+    relatedRules: ['106824', '106825', '106826'],
     auditQuestion:
       '¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?',
   },
@@ -344,7 +414,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_deleted',
       'retention_violation',
     ],
-    relatedRules: ['106803', '106804', '106818', '106821', '106834', '106856'],
+    relatedRules: ['106818', '106819'],
     auditQuestion:
       '¿Se conservan las cuentas deshabilitadas durante el periodo de retención antes de eliminarlas?',
   },

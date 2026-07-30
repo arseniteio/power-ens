@@ -94,12 +94,17 @@ diferencia entre `NO_EVALUABLE` y `CUMPLE`.
 
 ### 5. Deuda menor pero anotada
 
-- `data-source-engine.ts` traduce a mano `offsite_ok → offsite_success`: un caso
-  especial de un control cableado en un fichero compartido.
+- ~~`data-source-engine.ts` traduce a mano `offsite_ok → offsite_success`~~
+  **CERRADO 30/07**: la regla 106662 emite `offsite_success` en origen y la
+  traducción cableada se ha retirado del fichero compartido.
 - `*_missing` no tiene estado consistente entre reglas: 106601 lo declara
-  `NO_CUMPLE`, 106606 `NO_EVALUABLE`.
-- mp.info.6 declara 14 tipos de evento que ninguna regla emite, y 5 eventos
-  reales que ninguna evidencia escucha.
+  `NO_CUMPLE`, 106606 `NO_EVALUABLE`. **Sigue abierto.**
+- ~~mp.info.6 declara 14 tipos de evento que ninguna regla emite, y 5 eventos
+  reales que ninguna evidencia escucha~~ **CERRADO 30/07**: los 14 retirados del
+  catálogo y los 5 adoptados; `authorized_access`/`unauthorized_access` pasan a
+  ser el evento `access` con su campo `authorized`, también en el runtime.
+  `retention_configured` se retira sin sustituto porque no tiene productor: la
+  decisión MIN_RETENTION sale NO_EVALUABLE hasta que lo tenga.
 - Ninguno de los tres repos tiene desinstalador.
 - Conviven dos recolectores para op.acc.1: el de `main` (hechos crudos) y el del
   runbook (modelo clásico). El desplegado es el del runbook.
@@ -207,10 +212,12 @@ piloto.
 4. Reglas para `control_state` y `score_snapshot` con `NO_EVALUABLE`.
 5. Regla de "sistema del alcance que deja de reportar", con su ventana.
 6. Unificar el estado de `*_missing` entre 106601 y 106606.
-7. Retirar el caso especial `offsite_ok → offsite_success` del fichero
-   compartido, renombrando en origen.
-8. mp.info.6: reconciliar los 14 tipos declarados sin regla y los 5 eventos sin
-   evidencia.
+7. ~~Retirar el caso especial `offsite_ok → offsite_success` del fichero
+   compartido, renombrando en origen.~~ **HECHO (30/07).**
+8. ~~mp.info.6: reconciliar los 14 tipos declarados sin regla y los 5 eventos sin
+   evidencia.~~ **HECHO (30/07).** Verificado midiendo: sobre 4.536 evaluaciones
+   del motor, ninguna cambia de veredicto cuando los eventos son de los que el
+   pipeline desplegado puede emitir.
 
 ### Fase 3 — Recolectores reales de op.acc.2
 

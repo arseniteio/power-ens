@@ -81,11 +81,35 @@ export const isEmptyParameterValue = (
   return false;
 };
 
-// Partición del valor heredado en forma de cadena para los parámetros `list`.
-// Es la misma que usa `list-parameter-renderer.tsx` y por el mismo motivo: se
-// parte por saltos de línea y por comas, NUNCA por `|`, que en este producto
-// separa los campos de un mismo elemento ('srv-dc01 | Windows'). Partir por `|`
-// convertiría un elemento bien escrito en dos elementos rotos.
+// PARTICIÓN ÚNICA de un valor de lista en elementos. **Es la única del
+// producto**: la usan el formulario (`list-parameter-renderer.tsx`), la
+// validación de "configurado" y el runtime imperativo del motor
+// (`normalizeStringList` en `core/policy-runtime/policy-runtime.ts` delega
+// aquí). Que fuera una sola no era así hasta el 30/07 y el desajuste era éste:
+//
+//   el formulario partía por salto de línea y COMA
+//   el runtime partía por salto de línea y PUNTO Y COMA
+//
+// Un valor heredado 'admin, guest' eran DOS elementos para el formulario y UNO
+// para el runtime. La pantalla enseñaba dos usuarios autorizados y la lista
+// blanca de P-07 contenía un único sujeto literal 'admin, guest' que no casaba
+// con ningún actor: una no conformidad falsa, que le cuesta al auditor lo mismo
+// que un CUMPLE falso.
+//
+// GANA LA UNIÓN, y no por comodidad, sino porque el riesgo es asimétrico:
+//   · un separador que el runtime NO reconoce y el formulario sí solo puede
+//     FUNDIR elementos que el operador escribió separados, y un elemento fundido
+//     no casa con nada: rojo donde no lo hay;
+//   · un separador que el formulario NO reconoce y el runtime sí solo puede
+//     enseñar de menos, sin cambiar el veredicto.
+// Además los dos separadores ya son legítimos en el producto: la coma es la que
+// el formulario lleva enseñando desde siempre, y el `;` es el del contrato por
+// criticidad de P-05 ('ALTA=30; MEDIA=90'), que `validarUmbralRestauracion`
+// parte igual unas líneas más abajo.
+//
+// NUNCA por `|`: en este producto separa los campos de UN MISMO elemento
+// ('srv-dc01 | Windows'). Partir por `|` convertiría un elemento bien escrito
+// en dos elementos rotos.
 export const toParameterListItems = (
   value: ENSControlParameter['value']
 ): string[] => {
@@ -97,7 +121,7 @@ export const toParameterListItems = (
 
   if (typeof value === 'string') {
     return value
-      .split(/[\n,]/)
+      .split(/[\n,;]/)
       .map(item => item.trim())
       .filter(Boolean);
   }
@@ -495,15 +519,14 @@ const validarUmbralRestauracion = (
     return validarDuracion(parameter, value);
   }
 
-  // Forma contrato: entradas separadas por `;` o salto de línea, igual que las
-  // parte `normalizeStringList` en el policy-runtime.
-  const entradas = (
-    Array.isArray(value)
-      ? value.map(item => String(item))
-      : texto.split(/[;\n]+/)
-  )
-    .map(entrada => entrada.trim())
-    .filter(Boolean);
+  // Forma contrato: entradas separadas igual que en cualquier otra lista del
+  // producto, con la misma función que usan el formulario y el runtime. Antes
+  // partía aquí mismo por `[;\n]+`: al unificar la partición, un
+  // 'ALTA=30, MEDIA=90' habría sido válido para el motor e inválido para esta
+  // validación, que es la incoherencia que se está cerrando, no otra nueva.
+  const entradas = toParameterListItems(
+    Array.isArray(value) ? value : texto
+  );
 
   if (entradas.length === 0) {
     return invalido(

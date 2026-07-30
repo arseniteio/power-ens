@@ -214,15 +214,16 @@ export const normalizeWazuhAlert = (hit: any): ENSNormalizedEvent => {
   const rule = source.rule || {};
   const agent = source.agent || {};
 
-  const rawEventType =
+  // Sin traducciones por control. Aquí vivía un caso especial que convertía
+  // `offsite_ok` en `offsite_success` para que EV-06 de mp.info.6 resolviera:
+  // un control cableado en un fichero que comparten los tres. Se ha retirado
+  // porque la regla 106662 ya emite `offsite_success` en origen. Si vuelve a
+  // hacer falta una traducción aquí, lo que hay que arreglar es el nombre en
+  // la regla, no taparlo en el normalizador.
+  const eventType =
     data.event ||
     rule.groups?.join(',') ||
     'unknown';
-
-  const eventType =
-    String(rawEventType).toLowerCase() === 'offsite_ok'
-      ? 'offsite_success'
-      : rawEventType;
 
   const status = normalizeENSStatus(
     data.estado || data.status,

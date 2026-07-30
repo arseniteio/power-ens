@@ -190,7 +190,14 @@ export const opAcc2Control: ENSControl = {
       description: 'Rutas críticas del SO a monitorizar por FIM.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.3'],
-      type: 'path',
+      // `list`, no `path`: es una lista de rutas (la regla 106923 cubre cinco),
+      // no una ruta única. Un arreglo anterior lo corrigió en el bloque de
+      // configuración y en `configuration/data/op-acc-2-parameters.ts` y se
+      // dejó este lado sin tocar, así que el detalle del control enseñaba un
+      // tipo y el formulario otro. Este catálogo `data/` es el legacy que
+      // consume la UI; solo se muestra, no valida, pero mostrar un tipo que no
+      // es le hace perder el tiempo a quien va a rellenarlo.
+      type: 'list',
       usage: 'Se configuran en el módulo FIM de Wazuh.',
       missingBehavior: 'EV-02 desactivado. op.acc.2.3 NO_EVALUABLE.',
     },
