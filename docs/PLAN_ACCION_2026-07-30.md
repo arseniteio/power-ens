@@ -94,14 +94,25 @@ ajusta el control cuando no ajusta nada.
 1. **`inject-control.py` deja de pisar valores.** Fusiona: conserva los valores
    existentes y solo añade parámetros nuevos. `--sustituir` explícito para el
    comportamiento actual.
-2. **Decidir quién manda en los parámetros.** Dos opciones limpias, y hay que
-   elegir una para los tres controles:
-   - *La UI manda*: el manager genera el `.env` de cada agente desde el índice y
-     lo distribuye por grupo. El auditor edita en un sitio y el agente obedece.
-   - *El agente manda*: la UI muestra los parámetros en solo lectura, leídos de
-     lo que el agente reporta. Más simple, menos vendible.
-   Recomendación: la UI manda. Es lo que el producto promete al enseñar la
-   pantalla.
+2. **Manda el plugin. Decidido (30/07).** Los agentes solo emiten datos; el
+   manager los interpreta al completo.
+
+   Esa frase es literalmente el modelo de la fase 6, así que la implementación
+   de esta fase hay que elegirla sabiendo eso:
+
+   - *Distribuir el `.env` desde el índice*: el manager genera el fichero de
+     parámetros de cada agente y lo reparte por grupo. Funciona con el modelo
+     actual y es rápido, pero **es trabajo que la fase 6 tira entero**: cuando
+     el motor juzgue, ningún agente necesitará parámetros.
+   - *Adelantar el juicio de las evidencias que dependen de parámetros*: el
+     agente emite el hecho crudo (`cuenta_generica_detectada: operador`) además
+     de su `evidence_state`, y el motor decide esa evidencia contrastando con
+     el parámetro del índice. **Evidencia a evidencia, sin reescribir los tres
+     agentes de golpe**, y cada una que se migra deja de depender del `.env`.
+
+   Recomendación: la segunda. Es la fase 6 hecha por partes, empezando por
+   donde más duele hoy —la pantalla que promete ajustar y no ajusta— y sin
+   construir un repartidor de ficheros que luego hay que retirar.
 3. **Que "configurado" signifique algo.** Hoy basta con que el campo no esté
    vacío. Un `umask_minimo` de `abc` cuenta como configurado.
 
@@ -133,11 +144,20 @@ continuar: se construía sobre un supuesto de arquitectura que hoy está resuelt
 Lo despliega un compañero tirando del repo. Falta su `install-real.sh` (anotado
 y pendiente, por decisión) y la nota de migración de nombres de campo.
 
-### Fase 6 — Migración al modelo nuevo *(proyecto propio)*
+### Fase 6 — Migración al modelo nuevo *(la dirección, decidida)*
 
 El agente observa, el motor juzga. `op-acc-1.evaluator.ts` son 2.491 líneas que
-ya lo implementan y es el punto de partida. **Los tres controles a la vez o
-ninguno**: migrar uno de tres es lo que causó el problema de hoy.
+ya lo implementan y es el punto de partida.
+
+Deja de ser opcional: el 30/07 se decidió que los agentes solo emiten datos y el
+manager los interpreta al completo. Hoy no es así —`score.py` calcula el
+`estado` dentro de cada agente— y esa es la brecha que cierra esta fase.
+
+**Los tres controles a la vez, o evidencia a evidencia en los tres a la vez.**
+Lo que no se puede repetir es migrar un control de tres, que es lo que causó el
+problema del 30/07. La vía incremental de la fase 1 (punto 2) es la entrada
+natural: cada evidencia cuyo juicio sube al motor es una menos que depende del
+`.env` del agente.
 
 ## Método — lo que no volver a hacer
 
