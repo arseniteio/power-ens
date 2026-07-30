@@ -24,7 +24,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Define de dónde obtiene ENSFácil los eventos de alta, modificación y baja de cuentas.',
       evidenceIds: ['EV-01', 'EV-02'],
-      ruleIds: ['ENS-OPACC1-IDENTITY-SOURCE'],
+      // Hueco de trazabilidad: ninguna regla comprueba la fuente de identidad
+      // declarada; el recolector la usa, pero no la acredita ninguna alerta.
+      ruleIds: [],
       ifNotConfigured:
         'Wazuh no sabe de dónde vienen las identidades. Todos los checks de cuentas quedan NO EVALUABLE.',
     },
@@ -45,7 +47,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Delimita el alcance real auditado del control de identificación.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['ENS-OPACC1-SYSTEM-MISSING'],
+      // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
+      // deja de enviar eventos.
+      ruleIds: [],
       ifNotConfigured:
         'ENSFácil no sabe qué sistemas entran en scope. No se puede emitir un semáforo fiable.',
     },
@@ -66,7 +70,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite detectar cuentas de servicio usadas para acceso interactivo.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['ENS-OPACC1-SERVICE-INTERACTIVE'],
+      ruleIds: ['106805', '106857', '106858'],
       ifNotConfigured:
         'No se puede detectar si una cuenta de servicio se usa para acceso interactivo.',
     },
@@ -87,7 +91,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite verificar la unicidad del identificador y detectar cuentas compartidas.',
       evidenceIds: ['EV-03'],
-      ruleIds: ['ENS-OPACC1-GENERIC-ACCOUNT'],
+      ruleIds: ['106801'],
       ifNotConfigured:
         'No se detectan cuentas genéricas activas. EV-03 queda parcialmente desactivado.',
     },
@@ -109,7 +113,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Evalúa si las cuentas se deshabilitan dentro del plazo definido tras la baja.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['ENS-OPACC1-DISABLE-DELAY'],
+      ruleIds: ['106820', '106844'],
       ifNotConfigured:
         'No se puede verificar si las cuentas se deshabilitan en plazo. op.acc.1.4 b) NO EVALUABLE.',
     },
@@ -131,7 +135,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Evalúa el cumplimiento de la retención de cuentas para trazabilidad.',
       evidenceIds: ['EV-08'],
-      ruleIds: ['ENS-OPACC1-RETENTION'],
+      ruleIds: ['106821', '106856'],
       ifNotConfigured:
         'No se puede verificar si la retención de cuentas cumple la normativa interna.',
     },
@@ -152,7 +156,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite verificar el refuerzo R1 (op.acc.1.r1.3) contrastando cuentas activas.',
       evidenceIds: ['EV-07'],
-      ruleIds: ['ENS-OPACC1-UNAUTHORIZED-USER'],
+      ruleIds: ['106832', '106833', '106839', '106840'],
       ifNotConfigured:
         'El refuerzo R1 queda NO EVALUABLE. No se puede verificar op.acc.1.r1.3.',
     },
@@ -173,7 +177,8 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Determina si la detección de cuentas de bajas puede automatizarse o requiere declaración manual.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['ENS-OPACC1-HR-CORRELATION'],
+      // Hueco de trazabilidad: no existe regla de correlación con RRHH.
+      ruleIds: [],
       ifNotConfigured:
         'La detección de cuentas activas de usuarios dados de baja no puede automatizarse.',
     },

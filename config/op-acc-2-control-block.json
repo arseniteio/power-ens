@@ -34,9 +34,7 @@
         "EV-02",
         "EV-03"
       ],
-      "ruleIds": [
-        "ENS-OPACC2-SYSTEM-MISSING"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Control marcado como NO EVALUABLE. Sin scope definido no se puede emitir semáforo."
     },
     {
@@ -62,7 +60,9 @@
         "EV-02"
       ],
       "ruleIds": [
-        "ENS-OPACC2-FIM-SO"
+        "106920",
+        "106921",
+        "106922"
       ],
       "ifNotConfigured": "EV-02 (FIM sobre SO) desactivado. op.acc.2.3 NO EVALUABLE automáticamente."
     },
@@ -89,7 +89,7 @@
         "EV-01"
       ],
       "ruleIds": [
-        "ENS-OPACC2-WORLD-WRITABLE"
+        "106902"
       ],
       "ifNotConfigured": "No se puede distinguir qué world-writable files son incumplimiento y cuáles legítimos."
     },
@@ -115,9 +115,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "ENS-OPACC2-POLICY-REF"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El informe no puede acreditar el cumplimiento de op.acc.2.2. Campo del informe vacío."
     },
     {
@@ -142,7 +140,8 @@
         "EV-05"
       ],
       "ruleIds": [
-        "ENS-OPACC2-PRIV-MODEL"
+        "106930",
+        "106931"
       ],
       "ifNotConfigured": "R1 marcado como NO EVALUABLE. No se puede verificar op.acc.2.r1.1 ni op.acc.2.r1.2."
     },
@@ -168,7 +167,8 @@
         "EV-06"
       ],
       "ruleIds": [
-        "ENS-OPACC2-ACCESS-TYPE"
+        "106935",
+        "106936"
       ],
       "ifNotConfigured": "No se puede verificar si los privilegios detectados se corresponden con los autorizados."
     },
@@ -195,7 +195,8 @@
         "EV-01"
       ],
       "ruleIds": [
-        "ENS-OPACC2-UMASK"
+        "106903",
+        "106904"
       ],
       "ifNotConfigured": "No se puede verificar si la configuración de permisos por defecto es suficientemente restrictiva."
     }

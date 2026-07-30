@@ -11,7 +11,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     timestamp: new Date().toISOString(),
     tool: 'ENSFácil test',
-    ruleId: 'ENS-MPINFO6-BACKUP-SUCCESS',
+    ruleId: '106650',
   },
   {
     id: 'test-ev-05',
@@ -22,7 +22,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     timestamp: new Date().toISOString(),
     tool: 'ENSFácil test',
-    ruleId: 'ENS-MPINFO6-RESTORE-MISSING',
+    ruleId: '106651',
   },
   {
     id: 'test-ev-06',
@@ -33,7 +33,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     timestamp: new Date().toISOString(),
     tool: 'ENSFácil test',
-    ruleId: 'ENS-MPINFO6-OFFSITE',
+    ruleId: '106662',
   },
 ];
 

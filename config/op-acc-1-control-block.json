@@ -33,9 +33,7 @@
         "EV-01",
         "EV-02"
       ],
-      "ruleIds": [
-        "ENS-OPACC1-IDENTITY-SOURCE"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Wazuh no sabe de dónde vienen las identidades. Todos los checks de cuentas quedan NO EVALUABLE."
     },
     {
@@ -61,9 +59,7 @@
       "evidenceIds": [
         "EV-01"
       ],
-      "ruleIds": [
-        "ENS-OPACC1-SYSTEM-MISSING"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "ENSFácil no sabe qué sistemas entran en scope. No se puede emitir un semáforo fiable."
     },
     {
@@ -90,7 +86,9 @@
         "EV-05"
       ],
       "ruleIds": [
-        "ENS-OPACC1-SERVICE-INTERACTIVE"
+        "106805",
+        "106857",
+        "106858"
       ],
       "ifNotConfigured": "No se puede detectar si una cuenta de servicio se usa para acceso interactivo."
     },
@@ -118,7 +116,7 @@
         "EV-03"
       ],
       "ruleIds": [
-        "ENS-OPACC1-GENERIC-ACCOUNT"
+        "106801"
       ],
       "ifNotConfigured": "No se detectan cuentas genéricas activas. EV-03 queda parcialmente desactivado."
     },
@@ -146,7 +144,8 @@
         "EV-04"
       ],
       "ruleIds": [
-        "ENS-OPACC1-DISABLE-DELAY"
+        "106820",
+        "106844"
       ],
       "ifNotConfigured": "No se puede verificar si las cuentas se deshabilitan en plazo. op.acc.1.4 b) NO EVALUABLE."
     },
@@ -174,7 +173,8 @@
         "EV-08"
       ],
       "ruleIds": [
-        "ENS-OPACC1-RETENTION"
+        "106821",
+        "106856"
       ],
       "ifNotConfigured": "No se puede verificar si la retención de cuentas cumple la normativa interna."
     },
@@ -201,7 +201,10 @@
         "EV-07"
       ],
       "ruleIds": [
-        "ENS-OPACC1-UNAUTHORIZED-USER"
+        "106832",
+        "106833",
+        "106839",
+        "106840"
       ],
       "ifNotConfigured": "El refuerzo R1 queda NO EVALUABLE. No se puede verificar op.acc.1.r1.3."
     },
@@ -227,9 +230,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "ENS-OPACC1-HR-CORRELATION"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "La detección de cuentas activas de usuarios dados de baja no puede automatizarse."
     }
   ]

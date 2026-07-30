@@ -86,7 +86,7 @@ export const opAcc2Control: ENSControl = {
         'Comprobación SCA de que los recursos del sistema tienen controles de acceso suficientes (world-writable, umask, permisos).',
       format: 'sca_or_json_line',
       events: ['evidence_state', 'sca_check', 'world_writable', 'umask_check'],
-      wazuhRuleIds: ['ENS-OPACC2-WORLD-WRITABLE', 'ENS-OPACC2-UMASK'],
+      wazuhRuleIds: ['106901', '106902', '106903', '106904'],
     },
     {
       id: 'EV-02',
@@ -98,7 +98,7 @@ export const opAcc2Control: ENSControl = {
         'Vigilancia FIM de cambios en los componentes del SO y sus ficheros de configuración declarados en P-02.',
       format: 'fim_or_json_line',
       events: ['evidence_state', 'fim_modified', 'fim_added', 'fim_deleted'],
-      wazuhRuleIds: ['ENS-OPACC2-FIM-SO'],
+      wazuhRuleIds: ['106920', '106921', '106922'],
     },
     {
       id: 'EV-03',
@@ -115,7 +115,7 @@ export const opAcc2Control: ENSControl = {
         'privilege_escalation',
         'sudo_usage',
       ],
-      wazuhRuleIds: ['ENS-OPACC2-ACCESS-DENIED'],
+      wazuhRuleIds: ['106910', '106911', '106912'],
     },
     {
       id: 'EV-04',
@@ -127,7 +127,7 @@ export const opAcc2Control: ENSControl = {
         'Auditoría de que las ACLs de cada recurso siguen la política interna (P-04) y la tabla de perfiles (P-06).',
       format: 'sca_or_json_line',
       events: ['evidence_state', 'acl_check', 'acl_deviation'],
-      wazuhRuleIds: ['ENS-OPACC2-ACL-DEVIATION'],
+      wazuhRuleIds: ['106913', '106914'],
     },
     {
       id: 'EV-05',
@@ -144,7 +144,7 @@ export const opAcc2Control: ENSControl = {
         'excessive_privilege',
         'group_membership',
       ],
-      wazuhRuleIds: ['ENS-OPACC2-PRIV-INDIVIDUAL'],
+      wazuhRuleIds: ['106930', '106931', '106932'],
       active: false,
     },
     {
@@ -157,7 +157,7 @@ export const opAcc2Control: ENSControl = {
         'Identificación de accesos que superan el tipo autorizado por usuario según P-06. Solo aplica a ALTO.',
       format: 'json_line',
       events: ['evidence_state', 'access_type_violation', 'object_access'],
-      wazuhRuleIds: ['ENS-OPACC2-ACCESS-TYPE'],
+      wazuhRuleIds: ['106935', '106936'],
       active: false,
     },
     {
@@ -170,7 +170,7 @@ export const opAcc2Control: ENSControl = {
         'Rootcheck detecta SUID/SGID no esperados, permisos excesivos, servicios con root innecesario y ficheros sin propietario.',
       format: 'sca_or_json_line',
       events: ['evidence_state', 'rootcheck', 'suid_sgid', 'no_owner_file'],
-      wazuhRuleIds: ['ENS-OPACC2-ROOTCHECK'],
+      wazuhRuleIds: ['106925', '106926', '106927'],
     },
   ],
   parameters: [

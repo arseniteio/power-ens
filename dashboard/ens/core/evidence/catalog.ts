@@ -1,5 +1,23 @@
 import { ENSEvidenceDefinition } from './types';
 
+// `relatedRules` es el eslabón «evidencia → rule ID» de la cadena de
+// trazabilidad. Contiene los identificadores numéricos REALES declarados en
+// agent/rules/ensfacil_<control>_*.xml, derivados del `evidencia=` de cada
+// `<info type="text">`. Antes había identificadores simbólicos
+// (`ENS-OPACC1-INVENTORY`) que no correspondían a ninguna regla: la UI los
+// mostraba al auditor como si fueran trazables y la cadena moría ahí.
+//
+// Criterio de inclusión:
+//   - se incluyen las reglas que acreditan la evidencia y generan alerta;
+//   - se excluyen las reglas `level="0"` (106600/106800/106900 y 106652), que
+//     nunca producen alerta y por tanto no llevan a ningún evento crudo;
+//   - se excluyen las reglas inertes para el plugin (106605 y 106923), que
+//     re-etiquetan alertas syscheck sin campo `ensfacil` y nunca llegan aquí
+//     (ver el comentario en el propio XML).
+//
+// Las reglas genéricas de `evidence_state` (106700-106703 / 106950-106953) no
+// se listan: engine.ts añade el ruleId del evento que resuelve la evidencia,
+// así que aparecen solas cuando son el origen real del estado.
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-01',
@@ -12,7 +30,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: ['backup_success', 'backup_ok', 'backup_error'],
-    relatedRules: ['ENS-MPINFO6-BACKUP-SUCCESS'],
+    relatedRules: ['106650', '106601'],
     auditQuestion: '¿Existe evidencia reciente de que la copia de seguridad se ha realizado correctamente?',
     qualityRequirements: {
       requiredFields: [
@@ -37,7 +55,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state','backup_success', 'backup_ok', 'backup_missing'],
-    relatedRules: ['ENS-MPINFO6-BACKUP-MISSING'],
+    relatedRules: ['106601', '106603'],
     auditQuestion: '¿La última copia se encuentra dentro del intervalo máximo definido por la organización?',
   },
   {
@@ -51,7 +69,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
     expectedEventTypes: ['evidence_state','control_state','retention_configured','backup_modified','backup_deleted','backup_ransomware'],
-    relatedRules: ['ENS-MPINFO6-RETENTION'],
+    relatedRules: ['106604', '106609', '106660', '106661'],
     auditQuestion: '¿Existe una política de retención configurada y verificable para las copias de seguridad?',
   },
   {
@@ -65,7 +83,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state','control_state','authorized_access','unauthorized_access'],
-    relatedRules: ['ENS-MPINFO6-UNAUTHORIZED-ACCESS'],
+    relatedRules: ['106604'],
     auditQuestion: '¿El acceso al repositorio de copias está limitado a usuarios y procesos autorizados?',
   },
   {
@@ -84,7 +102,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'restore_missing',
       'restore_error',
     ],
-    relatedRules: ['ENS-MPINFO6-RESTORE-MISSING'],
+    relatedRules: ['106651', '106606', '106607'],
     auditQuestion: '¿Existe evidencia de una prueba de restauración correcta dentro del periodo definido?',
     qualityRequirements: {
       requiredFields: [
@@ -111,7 +129,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: ['evidence_state','control_state','offsite_success','offsite_missing','offsite_error'],
-    relatedRules: ['ENS-MPINFO6-OFFSITE'],
+    relatedRules: ['106662', '106663'],
     auditQuestion: '¿Existe una copia en ubicación alternativa operativa cuando el nivel ENS lo exige?',
     qualityRequirements: {
       rejectSynthetic: true,
@@ -128,7 +146,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state','decoder_ok','backup_warning','backup_error','backup_timeout','backup_disk_full','backup_network_error',],
-    relatedRules: ['ENS-MPINFO6-DECODER'],
+    relatedRules: ['106690', '106602', '106609'],
     auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
   },
   {
@@ -143,7 +161,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
     expectedEventTypes: ['evidence_state', 'account_inventory', 'account_active'],
-    relatedRules: ['ENS-OPACC1-INVENTORY'],
+    relatedRules: ['106810', '106811', '106809', '106822', '106835'],
     auditQuestion:
       '¿Existe un inventario actualizado de cuentas activas con identificador único por entidad?',
   },
@@ -164,7 +182,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_modified',
       'account_deleted',
     ],
-    relatedRules: ['ENS-OPACC1-IDENTITY-FIM'],
+    relatedRules: ['106812', '106813', '106814', '106837', '106838'],
     auditQuestion:
       '¿Se detectan y controlan las modificaciones no autorizadas sobre las cuentas del sistema?',
   },
@@ -180,7 +198,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'generic_account_login', 'auth_success'],
-    relatedRules: ['ENS-OPACC1-GENERIC-ACCOUNT'],
+    relatedRules: ['106801', '106802', '106824', '106827', '106828'],
     auditQuestion:
       '¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?',
   },
@@ -200,7 +218,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_disabled',
       'account_offboarding',
     ],
-    relatedRules: ['ENS-OPACC1-DISABLE-DELAY'],
+    relatedRules: ['106820', '106841', '106842', '106843', '106844', '106845', '106846', '106847'],
     auditQuestion:
       '¿Las cuentas de usuarios que causan baja se deshabilitan dentro del plazo definido?',
   },
@@ -220,7 +238,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'service_account_interactive',
       'interactive_login',
     ],
-    relatedRules: ['ENS-OPACC1-SERVICE-INTERACTIVE'],
+    relatedRules: [
+      '106805',
+      '106857',
+      '106858',
+      '106859',
+      '106864',
+      '106865',
+      '106866',
+      '106867',
+      '106868',
+    ],
     auditQuestion:
       '¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?',
   },
@@ -236,7 +264,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'multi_role_usage', 'privilege_use'],
-    relatedRules: ['ENS-OPACC1-MULTI-ROLE'],
+    relatedRules: ['106823', '106848', '106849', '106854', '106855'],
     auditQuestion:
       '¿Cada rol de un usuario dispone de un identificador diferenciado con sus privilegios delimitados?',
   },
@@ -256,7 +284,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'authorized_list_check',
       'unauthorized_user',
     ],
-    relatedRules: ['ENS-OPACC1-UNAUTHORIZED-USER'],
+    relatedRules: ['106829', '106830', '106831', '106832', '106833', '106836', '106839', '106840'],
     auditQuestion:
       '¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?',
   },
@@ -276,7 +304,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_deleted',
       'retention_violation',
     ],
-    relatedRules: ['ENS-OPACC1-RETENTION'],
+    relatedRules: ['106803', '106804', '106818', '106821', '106834', '106856'],
     auditQuestion:
       '¿Se conservan las cuentas deshabilitadas durante el periodo de retención antes de eliminarlas?',
   },
@@ -298,7 +326,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'world_writable',
       'umask_check',
     ],
-    relatedRules: ['ENS-OPACC2-WORLD-WRITABLE', 'ENS-OPACC2-UMASK'],
+    relatedRules: ['106901', '106902', '106903', '106904'],
     auditQuestion:
       '¿Los recursos del sistema tienen controles de acceso que impiden su uso no autorizado?',
   },
@@ -319,7 +347,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'fim_added',
       'fim_deleted',
     ],
-    relatedRules: ['ENS-OPACC2-FIM-SO'],
+    relatedRules: ['106920', '106921', '106922'],
     auditQuestion:
       '¿Se detectan y controlan los cambios no autorizados en los componentes del sistema operativo?',
   },
@@ -340,7 +368,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'privilege_escalation',
       'sudo_usage',
     ],
-    relatedRules: ['ENS-OPACC2-ACCESS-DENIED'],
+    relatedRules: ['106910', '106911', '106912'],
     auditQuestion:
       '¿Se registran los intentos de acceso a recursos sin los derechos suficientes?',
   },
@@ -356,7 +384,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'acl_check', 'acl_deviation'],
-    relatedRules: ['ENS-OPACC2-ACL-DEVIATION'],
+    relatedRules: ['106913', '106914'],
     auditQuestion:
       '¿Los derechos de acceso a cada recurso siguen la política interna y las decisiones del responsable?',
   },
@@ -377,7 +405,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'excessive_privilege',
       'group_membership',
     ],
-    relatedRules: ['ENS-OPACC2-PRIV-INDIVIDUAL'],
+    relatedRules: ['106930', '106931', '106932'],
     auditQuestion:
       '¿Cada usuario autorizado tiene privilegios mantenidos individualmente que restringen el tipo de acceso?',
   },
@@ -397,7 +425,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'access_type_violation',
       'object_access',
     ],
-    relatedRules: ['ENS-OPACC2-ACCESS-TYPE'],
+    relatedRules: ['106935', '106936'],
     auditQuestion:
       '¿Se detectan accesos que superan el tipo de acceso autorizado para el usuario?',
   },
@@ -418,7 +446,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'suid_sgid',
       'no_owner_file',
     ],
-    relatedRules: ['ENS-OPACC2-ROOTCHECK'],
+    relatedRules: ['106925', '106926', '106927'],
     auditQuestion:
       '¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?',
   },

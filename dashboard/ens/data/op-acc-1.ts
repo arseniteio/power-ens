@@ -115,7 +115,7 @@ export const opAcc1Control: ENSControl = {
         'Inventario de las cuentas de usuario activas en los sistemas monitorizados.',
       format: 'json_line',
       events: ['evidence_state', 'account_inventory', 'account_active'],
-      wazuhRuleIds: ['ENS-OPACC1-INVENTORY'],
+      wazuhRuleIds: ['106810', '106811', '106809', '106822', '106835'],
     },
     {
       id: 'EV-02',
@@ -132,7 +132,7 @@ export const opAcc1Control: ENSControl = {
         'account_modified',
         'account_deleted',
       ],
-      wazuhRuleIds: ['ENS-OPACC1-IDENTITY-FIM'],
+      wazuhRuleIds: ['106812', '106813', '106814', '106837', '106838'],
     },
     {
       id: 'EV-03',
@@ -144,7 +144,7 @@ export const opAcc1Control: ENSControl = {
         'Ausencia de autenticación exitosa con cuentas genéricas o compartidas prohibidas.',
       format: 'json_line',
       events: ['evidence_state', 'generic_account_login', 'auth_success'],
-      wazuhRuleIds: ['ENS-OPACC1-GENERIC-ACCOUNT'],
+      wazuhRuleIds: ['106801', '106802', '106824', '106827', '106828'],
     },
     {
       id: 'EV-04',
@@ -156,7 +156,7 @@ export const opAcc1Control: ENSControl = {
         'Ausencia de cuentas habilitadas más tiempo del permitido tras la baja del usuario.',
       format: 'json_line',
       events: ['evidence_state', 'account_disabled', 'account_offboarding'],
-      wazuhRuleIds: ['ENS-OPACC1-DISABLE-DELAY'],
+      wazuhRuleIds: ['106820', '106841', '106842', '106843', '106844', '106845', '106846', '106847'],
     },
     {
       id: 'EV-05',
@@ -172,7 +172,17 @@ export const opAcc1Control: ENSControl = {
         'service_account_interactive',
         'interactive_login',
       ],
-      wazuhRuleIds: ['ENS-OPACC1-SERVICE-INTERACTIVE'],
+      wazuhRuleIds: [
+        '106805',
+        '106857',
+        '106858',
+        '106859',
+        '106864',
+        '106865',
+        '106866',
+        '106867',
+        '106868',
+      ],
     },
     {
       id: 'EV-06',
@@ -184,7 +194,7 @@ export const opAcc1Control: ENSControl = {
         'Ausencia de un mismo identificador usado con privilegios administrativos y de usuario normal.',
       format: 'json_line',
       events: ['evidence_state', 'multi_role_usage', 'privilege_use'],
-      wazuhRuleIds: ['ENS-OPACC1-MULTI-ROLE'],
+      wazuhRuleIds: ['106823', '106848', '106849', '106854', '106855'],
     },
     {
       id: 'EV-07',
@@ -196,7 +206,7 @@ export const opAcc1Control: ENSControl = {
         'Existe y se mantiene actualizada la lista de usuarios autorizados (Refuerzo R1).',
       format: 'json_line',
       events: ['evidence_state', 'authorized_list_check', 'unauthorized_user'],
-      wazuhRuleIds: ['ENS-OPACC1-UNAUTHORIZED-USER'],
+      wazuhRuleIds: ['106829', '106830', '106831', '106832', '106833', '106836', '106839', '106840'],
     },
     {
       id: 'EV-08',
@@ -208,7 +218,7 @@ export const opAcc1Control: ENSControl = {
         'Ausencia de eliminación de cuentas deshabilitadas antes de cumplir el periodo de retención.',
       format: 'json_line',
       events: ['evidence_state', 'account_deleted', 'retention_violation'],
-      wazuhRuleIds: ['ENS-OPACC1-RETENTION'],
+      wazuhRuleIds: ['106803', '106804', '106818', '106821', '106834', '106856'],
     },
   ],
   parameters: [

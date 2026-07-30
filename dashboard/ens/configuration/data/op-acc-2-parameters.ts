@@ -24,7 +24,9 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Delimita el alcance real auditado del control de acceso.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03'],
-      ruleIds: ['ENS-OPACC2-SYSTEM-MISSING'],
+      // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
+      // deja de enviar eventos.
+      ruleIds: [],
       ifNotConfigured:
         'Control marcado como NO EVALUABLE. Sin scope definido no se puede emitir semáforo.',
     },
@@ -45,7 +47,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite evidenciar la integridad de los componentes del sistema operativo.',
       evidenceIds: ['EV-02'],
-      ruleIds: ['ENS-OPACC2-FIM-SO'],
+      ruleIds: ['106920', '106921', '106922'],
       ifNotConfigured:
         'EV-02 (FIM sobre SO) desactivado. op.acc.2.3 NO EVALUABLE automáticamente.',
     },
@@ -66,7 +68,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite distinguir world-writable de incumplimiento frente a los legítimos.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['ENS-OPACC2-WORLD-WRITABLE'],
+      ruleIds: ['106902'],
       ifNotConfigured:
         'No se puede distinguir qué world-writable files son incumplimiento y cuáles legítimos.',
     },
@@ -87,7 +89,8 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite acreditar que los derechos de acceso siguen la decisión del responsable del recurso.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['ENS-OPACC2-POLICY-REF'],
+      // Hueco de trazabilidad: parámetro documental; ninguna alerta lo acredita.
+      ruleIds: [],
       ifNotConfigured:
         'El informe no puede acreditar el cumplimiento de op.acc.2.2. Campo del informe vacío.',
     },
@@ -108,7 +111,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite verificar el refuerzo R1 (op.acc.2.r1.1) sobre el modelo de privilegios.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['ENS-OPACC2-PRIV-MODEL'],
+      ruleIds: ['106930', '106931'],
       ifNotConfigured:
         'R1 marcado como NO EVALUABLE. No se puede verificar op.acc.2.r1.1 ni op.acc.2.r1.2.',
     },
@@ -129,7 +132,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite verificar si los privilegios detectados se corresponden con los autorizados (op.acc.2.r1.2).',
       evidenceIds: ['EV-04', 'EV-06'],
-      ruleIds: ['ENS-OPACC2-ACCESS-TYPE'],
+      ruleIds: ['106935', '106936'],
       ifNotConfigured:
         'No se puede verificar si los privilegios detectados se corresponden con los autorizados.',
     },
@@ -150,7 +153,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite verificar si la configuración de permisos por defecto es suficientemente restrictiva.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['ENS-OPACC2-UMASK'],
+      ruleIds: ['106903', '106904'],
       ifNotConfigured:
         'No se puede verificar si la configuración de permisos por defecto es suficientemente restrictiva.',
     },

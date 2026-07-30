@@ -102,7 +102,7 @@ export const mpInfo6Control: ENSControl = {
         'Demuestra que existe una copia correcta dentro de la ventana temporal definida.',
       format: 'json_line',
       events: ['backup_ok', 'backup_missing'],
-      wazuhRuleIds: ['106650'],
+      wazuhRuleIds: ['106650', '106601'],
     },
     {
       id: 'EV-02',
@@ -114,7 +114,7 @@ export const mpInfo6Control: ENSControl = {
         'Demuestra que existe una planificación de backup acorde a la frecuencia definida.',
       format: 'sca_or_json_line',
       events: ['score_snapshot', 'backup_missing'],
-      wazuhRuleIds: ['106700', '106720', '106721'],
+      wazuhRuleIds: ['106601', '106603'],
     },
     {
       id: 'EV-03',
@@ -126,7 +126,7 @@ export const mpInfo6Control: ENSControl = {
         'Demuestra existencia e integridad técnica de rutas, cache, keyfile o repositorio local.',
       format: 'fim_or_json_line',
       events: ['evidence_state', 'encfp_changed'],
-      wazuhRuleIds: ['106609', '106700', '106701'],
+      wazuhRuleIds: ['106604', '106609', '106660', '106661'],
     },
     {
       id: 'EV-04',
@@ -138,7 +138,7 @@ export const mpInfo6Control: ENSControl = {
         'Demuestra permisos correctos y acceso autorizado sobre keyfile y copias.',
       format: 'sca_or_json_line',
       events: ['evidence_state'],
-      wazuhRuleIds: ['106700', '106701'],
+      wazuhRuleIds: ['106604'],
     },
     {
       id: 'EV-05',
@@ -150,7 +150,7 @@ export const mpInfo6Control: ENSControl = {
         'Demuestra prueba real de restauración y validación md5sum. Sin esta evidencia MEDIO queda PARCIAL.',
       format: 'json_line',
       events: ['restore_ok', 'restore_error', 'restore_missing'],
-      wazuhRuleIds: ['106651', '106607', '106606', '106702'],
+      wazuhRuleIds: ['106651', '106606', '106607'],
     },
     {
       id: 'EV-06',
@@ -162,7 +162,7 @@ export const mpInfo6Control: ENSControl = {
         'Evidencia de copia separada para ALTO/R2. Fuera del alcance actual BAJO/MEDIO.',
       format: 'external_or_json_line',
       events: ['evidence_state'],
-      wazuhRuleIds: ['106703', '106713'],
+      wazuhRuleIds: ['106662', '106663'],
       active: false,
     },
     {

@@ -22,7 +22,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Alimenta la correlación temporal. Si no llega evento de backup exitoso dentro del umbral, se genera incumplimiento.',
       ensfacilUsage: 'Calcula si la periodicidad de copias cumple la política definida por el cliente.',
       evidenceIds: ['EV-01', 'EV-02'],
-      ruleIds: ['ENS-MPINFO6-BACKUP-SUCCESS', 'ENS-MPINFO6-BACKUP-MISSING'],
+      ruleIds: ['106650', '106601', '106603'],
       ifNotConfigured: 'El control mp.info.6 queda NO EVALUABLE para periodicidad de copias.',
     },
     {
@@ -41,7 +41,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Se suma a P-01 para calcular el umbral efectivo.',
       ensfacilUsage: 'Evita falsos positivos por retrasos operativos menores.',
       evidenceIds: ['EV-02'],
-      ruleIds: ['ENS-MPINFO6-BACKUP-MISSING'],
+      ruleIds: ['106601'],
       ifNotConfigured: 'Se aplica sin margen de tolerancia.',
     },
     {
@@ -59,7 +59,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Puede alimentar reglas FIM para detectar borrados antes del plazo definido.',
       ensfacilUsage: 'Documenta y evalúa la política de retención en el informe ENS.',
       evidenceIds: ['EV-03'],
-      ruleIds: ['ENS-MPINFO6-RETENTION'],
+      // Hueco de trazabilidad: ninguna regla de Wazuh comprueba la retención;
+      // el umbral lo calcula el motor (mp.info.6.2.b.min_retention).
+      ruleIds: [],
       ifNotConfigured: 'No se puede verificar cumplimiento de retención.',
     },
     {
@@ -76,7 +78,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Permite detectar sistemas esperados que no envían eventos de backup.',
       ensfacilUsage: 'Define el alcance real auditado del control.',
       evidenceIds: ['EV-01', 'EV-05'],
-      ruleIds: ['ENS-MPINFO6-SYSTEM-MISSING'],
+      // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
+      // deja de enviar eventos de copia.
+      ruleIds: [],
       ifNotConfigured: 'No se puede saber qué sistemas deben evaluarse.',
     },
     {
@@ -94,7 +98,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Compara la fecha de último restore exitoso contra el umbral configurado.',
       ensfacilUsage: 'Evalúa el refuerzo R1 para nivel MEDIO y ALTO.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['ENS-MPINFO6-RESTORE-MISSING'],
+      ruleIds: ['106651', '106606'],
       ifNotConfigured: 'R1 queda NO EVALUABLE en MEDIO/ALTO.',
     },
     {
@@ -111,7 +115,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Se utiliza para configurar FIM sobre el repositorio de backup.',
       ensfacilUsage: 'Permite evidenciar integridad y protección del repositorio local.',
       evidenceIds: ['EV-03', 'EV-04'],
-      ruleIds: ['ENS-MPINFO6-FIM-LOCAL'],
+      // Hueco de trazabilidad: la única regla que vigila el repositorio local es
+      // la 106605, inerte para el plugin (alerta syscheck sin campo ensfacil).
+      ruleIds: [],
       ifNotConfigured: 'FIM no monitoriza el repositorio local de backup.',
     },
     {
@@ -128,7 +134,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Se puede cargar como CDB list para detectar accesos no autorizados.',
       ensfacilUsage: 'Permite justificar quién puede acceder a las copias.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['ENS-MPINFO6-UNAUTHORIZED-ACCESS'],
+      ruleIds: ['106604'],
       ifNotConfigured: 'No se pueden detectar accesos no autorizados.',
     },
     {
@@ -145,7 +151,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Activa o desactiva verificaciones offsite.',
       ensfacilUsage: 'Evalúa el refuerzo R2 solo cuando aplica nivel ALTO.',
       evidenceIds: ['EV-06'],
-      ruleIds: ['ENS-MPINFO6-OFFSITE'],
+      ruleIds: ['106662', '106663'],
       ifNotConfigured: 'Para BAJO/MEDIO queda NO APLICA. Para ALTO queda NO EVALUABLE.',
     },
     {
@@ -162,7 +168,8 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Permite monitorizar replicación o evidencias offsite.',
       ensfacilUsage: 'Documenta y evalúa ubicación alternativa de copias.',
       evidenceIds: ['EV-06'],
-      ruleIds: ['ENS-MPINFO6-OFFSITE-FIM'],
+      // Hueco de trazabilidad: no existe regla que vigile el repositorio offsite.
+      ruleIds: [],
       ifNotConfigured: 'Para BAJO/MEDIO queda NO APLICA. Para ALTO no se evalúa offsite.',
     },
     {
@@ -179,7 +186,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Determina decoder, parser o normalización esperada de eventos.',
       ensfacilUsage: 'Permite adaptar la lectura de evidencias a la tecnología usada.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-07'],
-      ruleIds: ['ENS-MPINFO6-DECODER'],
+      // Hueco de trazabilidad: no existe regla que acredite el decoder de la
+      // herramienta declarada.
+      ruleIds: [],
       ifNotConfigured: 'Wazuh puede no interpretar correctamente los logs de backup.',
     },
   ],
