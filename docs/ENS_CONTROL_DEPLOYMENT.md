@@ -62,11 +62,12 @@ produce casi todo:
    rango de rule IDs libre (ver tabla de rangos abajo), y añadir el `localfile`
    correspondiente en `agent/agent.conf`.
 5. **Sembrar la configuración** en el índice `wazuh-ens-configuration` (EN EL
-   SERVIDOR). El ejemplo en este repo es `config/inject-opacc2.py`: dry-run por
-   defecto, `--apply` para escribir, lee `OS_USER`/`OS_PASS` del entorno,
-   preserva el resto del doc `active` y es idempotente. Necesario porque el
-   guardado desde la UI rechaza un control que no esté ya en el índice
-   (huevo/gallina).
+   SERVIDOR), con `config/inject-control.py <control>`: dry-run por defecto,
+   `--apply` para escribir, lee `OS_USER`/`OS_PASS` del entorno, preserva el
+   resto del doc `active` y es idempotente. Deduce el bloque del id del control
+   (`op.acc.2` → `op-acc-2-control-block.json`), así que sirve para los tres sin
+   tocarlo. Necesario porque el guardado desde la UI rechaza un control que no
+   esté ya en el índice (huevo/gallina).
 6. **Build y deploy** en el árbol de Wazuh (ver abajo).
 
 ### Qué genera el script y qué rellena por IA
