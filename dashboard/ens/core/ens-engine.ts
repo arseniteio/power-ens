@@ -63,13 +63,18 @@ export const getENSComplianceResults = (
   );
 
   return ENSCatalog.map(catalogControl => {
+    // La configuración se carga ANTES de resolver las evidencias: las que
+    // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
+    // la pantalla, así que el motor no puede resolverlas sin ella.
+    const configuration = getActiveControlConfiguration(catalogControl.id);
+
     const evidences = resolveEvidenceForControl(
       catalogControl.id,
       scopedEvents,
       agentId,
-      level
+      level,
+      configuration
     );
-    const configuration = getActiveControlConfiguration(catalogControl.id);
 
     const policyContext = buildPolicyContext(
       catalogControl,
@@ -296,17 +301,20 @@ const evaluateENSComplianceResultByControl = (
     scopeAgents
   );
 
-  const evidences = resolveEvidenceForControl(
-    controlId,
-    scopedEvents,
-    agentId,
-    level
-  );
-
+  // Mismo orden que en `getENSComplianceResults`: primero la configuración,
+  // porque las evidencias con `judgment` la necesitan para resolverse.
   const configuration =
     getActiveControlConfiguration(
       controlId
     );
+
+  const evidences = resolveEvidenceForControl(
+    controlId,
+    scopedEvents,
+    agentId,
+    level,
+    configuration
+  );
 
   const policyContext = buildPolicyContext(
     catalogControl,

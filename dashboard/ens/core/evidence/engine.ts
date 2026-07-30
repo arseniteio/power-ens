@@ -1,7 +1,20 @@
-import { ENSLevel } from '../../configuration/types';
+import {
+  ENSControlConfiguration,
+  ENSLevel,
+} from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
+import { judgeEvidence } from './judgment';
+import {
+  getEventFieldValue,
+  hasMeaningfulValue,
+  sortByTimestampDesc,
+} from './normalized-events';
 import { getEvidenceDefinitions } from './registry';
-import { ENSEvidenceDefinition, ENSEvidenceResolved } from './types';
+import {
+  ENSEvidenceBaseFields,
+  ENSEvidenceDefinition,
+  ENSEvidenceResolved,
+} from './types';
 
 const GENERIC_EVENT_TYPES = ['evidence_state', 'control_state', 'score_snapshot'];
 
@@ -52,50 +65,6 @@ const resolveEventComplianceStatus = (
   )
     ? 'NO_CUMPLE'
     : 'NO_EVALUABLE';
-};
-
-const sortByTimestampDesc = (events: ENSNormalizedEvent[]) =>
-  [...events].sort(
-    (a, b) =>
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-
-const hasMeaningfulValue = (value: unknown): boolean => {
-  if (value === undefined || value === null) {
-    return false;
-  }
-
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
-  }
-
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-
-  return true;
-};
-
-const getEventFieldValue = (
-  event: ENSNormalizedEvent,
-  field: string
-): unknown => {
-  if (
-    event.attributes &&
-    Object.prototype.hasOwnProperty.call(
-      event.attributes,
-      field
-    )
-  ) {
-    return event.attributes[field];
-  }
-
-  const directEvent = event as unknown as Record<
-    string,
-    unknown
-  >;
-
-  return directEvent[field];
 };
 
 const getEvidenceQualityIssues = (
@@ -189,7 +158,7 @@ const getEvidenceQualityIssues = (
 
 const buildBaseEvidence = (
   definition: ENSEvidenceDefinition
-): Omit<ENSEvidenceResolved, 'status' | 'observations' | 'lastSeen' | 'agentId' | 'agentName' | 'resolvedEventId' | 'resolvedEventType' | 'resolvedSourceType' | 'resolvedSource' | 'resolvedRuleId' | 'resolvedRuleDescription'> => ({
+): ENSEvidenceBaseFields => ({
   id: definition.id,
   controlId: definition.controlId,
   title: definition.title,
@@ -210,11 +179,15 @@ const resolveEvidenceEventStatus = (
 ): ENSEvidenceResolved['status'] =>
   resolveEventComplianceStatus(event);
 
+// `configuration` es la configuración activa del control. Solo la necesitan las
+// evidencias que declaran `judgment` (el motor juzga contra un parámetro); las
+// demás se resuelven igual con ella y sin ella.
 export const resolveEvidenceForControl = (
   controlId: string,
   events: ENSNormalizedEvent[],
   agentId?: string,
-  level?: ENSLevel
+  level?: ENSLevel,
+  configuration?: ENSControlConfiguration
 ): ENSEvidenceResolved[] => {
   const definitions = getEvidenceDefinitions(controlId);
 
@@ -243,6 +216,21 @@ export const resolveEvidenceForControl = (
           `Pregunta de auditoría: ${definition.auditQuestion}`,
         ],
       };
+    }
+
+    // Bifurcación única del motor: o la decide una primitiva declarada en el
+    // catálogo, o la decide el `evidence_state` del agente como hasta ahora.
+    // Nunca las dos cosas sobre la misma evidencia.
+    const judgment = definition.judgment;
+
+    if (judgment) {
+      return judgeEvidence(
+        definition,
+        judgment,
+        baseEvidence,
+        filteredEvents,
+        configuration
+      );
     }
 
     const matchingEventsByEvidenceId = sortByTimestampDesc(
