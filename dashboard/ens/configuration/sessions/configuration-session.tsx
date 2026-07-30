@@ -12,6 +12,7 @@ import { ENSControlForm } from '../form-engine';
 import { applyENSControlParameterValues } from '../engine';
 import {
   updateActiveControlConfiguration,
+  validateControlParameterValues,
 } from '../services';
 import {
   ENSControlConfiguration,
@@ -76,6 +77,12 @@ export const ConfigurationSession = ({
   const [saveError, setSaveError] =
     useState<string | undefined>();
 
+  // Motivos por los que el guardado se ha rechazado sin llegar a salir de la
+  // pantalla. Van aparte de `saveError` (errores del servidor) porque el arreglo
+  // es distinto: aquí el auditor corrige un campo, allí reintenta.
+  const [valueIssues, setValueIssues] =
+    useState<string[]>([]);
+
   const handleParameterChange = (
     parameterName: string,
     value:
@@ -94,6 +101,28 @@ export const ConfigurationSession = ({
       return;
     }
 
+    // Un valor inválido se rechaza aquí, con el motivo. Guardarlo y dejar que el
+    // fallo reaparezca luego como un control degradado sin explicación es lo que
+    // había que dejar de hacer: la ausencia se arregla rellenando, esto se
+    // arregla corrigiendo, y el auditor tiene que poder distinguirlo.
+    const issues = validateControlParameterValues(
+      control,
+      values
+    );
+
+    if (issues.length > 0) {
+      setValueIssues(
+        issues.map(
+          issue =>
+            `${issue.parameterId} · ${issue.label}: ${issue.reason}.`
+        )
+      );
+      setSaveError(undefined);
+
+      return;
+    }
+
+    setValueIssues([]);
     setIsSaving(true);
     setSaveError(undefined);
 
@@ -147,6 +176,7 @@ export const ConfigurationSession = ({
   const handleEdit = () => {
     setSavedValues(undefined);
     setSaveError(undefined);
+    setValueIssues([]);
   };
 
   if (savedValues) {
@@ -202,6 +232,24 @@ export const ConfigurationSession = ({
       />
 
       <EuiSpacer size='m' />
+
+      {valueIssues.length > 0 && (
+        <>
+          <EuiCallOut
+            title='Hay valores que no se pueden guardar'
+            color='danger'
+            iconType='alert'
+          >
+            <ul>
+              {valueIssues.map(issue => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </EuiCallOut>
+
+          <EuiSpacer size='m' />
+        </>
+      )}
 
       {saveError && (
         <>

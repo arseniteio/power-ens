@@ -2,6 +2,10 @@ import React from 'react';
 import { EuiComboBox, EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
+import {
+  toParameterListItems,
+  validateParameterValue,
+} from '../../services/parameter-value-validator';
 
 // Renderer de parámetros `type: 'list'`.
 //
@@ -17,44 +21,25 @@ import { ENSFormFieldProps } from '../types';
 // escribir "si" produce `['si']` —una lista de un elemento, revisable— en vez de
 // un escalar que el motor pueda confundir con un booleano.
 
-// Convierte el valor almacenado en la lista de elementos a mostrar.
-// Tolera el valor legacy en forma de cadena: lo que hay hoy en el índice para
-// estos parámetros son cadenas escritas a mano, y hay que poder editarlas sin
-// perderlas. Se parte por saltos de línea y por comas (los ejemplos de la ficha
-// usan ambos), pero NUNCA por `|`, que en este producto separa los campos de un
-// mismo elemento ('srv-dc01 | Windows').
-const toItems = (
-  value: ENSFormFieldProps['value']
-): string[] => {
-  if (Array.isArray(value)) {
-    return value
-      .map(item => String(item).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof value === 'string') {
-    return value
-      .split(/[\n,]/)
-      .map(item => item.trim())
-      .filter(Boolean);
-  }
-
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
-    return [String(value)];
-  }
-
-  return [];
-};
+// La conversión del valor almacenado a la lista de elementos vive en
+// `toParameterListItems` (services/parameter-value-validator), no aquí: el
+// validador tiene que contar los elementos EXACTAMENTE igual que los cuenta el
+// formulario, o habría valores que el formulario acepta y el motor rechaza.
+// Tolera el valor legacy en forma de cadena partiendo por saltos de línea y por
+// comas, pero NUNCA por `|`, que en este producto separa los campos de un mismo
+// elemento ('srv-dc01 | Windows').
 
 export const ListParameterRenderer = ({
   parameter,
   value,
   onChange,
 }: ENSFormFieldProps) => {
-  const items = toItems(value);
+  const items = toParameterListItems(value);
+
+  const verdict = validateParameterValue(
+    parameter,
+    value
+  );
 
   const publish = (nextItems: string[]) =>
     onChange(
@@ -70,11 +55,18 @@ export const ListParameterRenderer = ({
           ? `${parameter.description} Un elemento por entrada. Ejemplo: ${parameter.example}`
           : `${parameter.description} Un elemento por entrada.`
       }
+      isInvalid={!verdict.valid}
+      error={
+        verdict.reason
+          ? [verdict.reason]
+          : undefined
+      }
       fullWidth
     >
       <EuiComboBox
         fullWidth
         noSuggestions
+        isInvalid={!verdict.valid}
         placeholder={parameter.example}
         selectedOptions={items.map(label => ({ label }))}
         onCreateOption={searchValue => {

@@ -34,6 +34,12 @@ const getConfigurationStateLabel = (
     return 'Configurado';
   }
 
+  // `INVALID` no puede seguir cayendo en "Sin configurar": el campo está lleno,
+  // y mandar al auditor a buscar un hueco vacío le hace perder el tiempo.
+  if (status === 'INVALID') {
+    return 'Configuración inválida';
+  }
+
   if (status === 'INCOMPLETE') {
     return 'Configuración incompleta';
   }
@@ -49,7 +55,10 @@ const getConfigurationStateColor = (
     return 'success';
   }
 
-  if (status === 'INCOMPLETE') {
+  if (
+    status === 'INVALID' ||
+    status === 'INCOMPLETE'
+  ) {
     return 'danger';
   }
 

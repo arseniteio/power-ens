@@ -147,6 +147,17 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
+  // `options` solo describe la forma del documento. Que el valor sea una de
+  // ellas lo decide `parameter-value-validator.ts`: aquí no, porque este
+  // validador LANZA en la hidratación y un valor mal escrito por el auditor
+  // tiene que degradar un control, no tumbar la pantalla de Configuración.
+  if (
+    value.options !== undefined &&
+    !isStringArray(value.options)
+  ) {
+    errors.push(`${path}.options must be a string array.`);
+  }
+
   if (
     !Array.isArray(value.levels) ||
     !value.levels.every(level =>

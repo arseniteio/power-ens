@@ -47,6 +47,11 @@ export interface ENSControlParameter {
   requirements: string[];
   type: ENSParameterType;
   example?: string;
+  // Opciones admitidas para `type: 'select'`. Mientras un bloque no las declare,
+  // la validación de ese select se queda en "no está vacío" (ver
+  // `parameter-value-validator.ts`). Opcional para no romper los bloques ya
+  // sembrados en `wazuh-ens-configuration`.
+  options?: string[];
   required: boolean;
   minValue?: number;
   maxValue?: number;
@@ -69,6 +74,23 @@ export interface ENSControlConfiguration {
   parameters: ENSControlParameter[];
 }
 
+// Veredicto sobre UN valor concreto. `reason` está redactado para que el
+// auditor pueda corregir sin adivinar: dice qué se esperaba y qué llegó.
+export interface ENSParameterValueVerdict {
+  valid: boolean;
+  reason?: string;
+}
+
+// Motivo de invalidez con la identidad del parámetro, para poder listarlos en la
+// no conformidad NC-CFG y en el formulario sin volver a validar.
+export interface ENSParameterValueIssue {
+  parameterId: string;
+  parameterName: string;
+  label: string;
+  required: boolean;
+  reason: string;
+}
+
 export interface ENSControlConfigurationValidation {
   controlId: string;
   controlName: string;
@@ -80,6 +102,11 @@ export interface ENSControlConfigurationValidation {
   invalid: number;
   missingRequired: ENSControlParameter[];
   invalidParameters: ENSControlParameter[];
+  // Obligatorios del nivel activo que SÍ tienen valor, pero un valor que no
+  // significa nada para su tipo. Bloquean la evaluación igual que los que
+  // faltan, pero el arreglo es distinto: corregir, no rellenar.
+  invalidRequired: ENSControlParameter[];
+  issues: ENSParameterValueIssue[];
   status: 'CONFIGURED' | 'INCOMPLETE' | 'INVALID';
   parameters: ENSControlParameter[];
 }

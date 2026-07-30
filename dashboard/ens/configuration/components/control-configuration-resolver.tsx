@@ -74,15 +74,26 @@ const getConfigurationStateDescription = (
     );
   }
 
+  // El motivo, no solo el recuento: "P-07 tiene un valor inválido: 'abc' no es
+  // un umask octal" se arregla corrigiendo; "faltan P-01, P-03" se arregla
+  // rellenando. Decirlo mal manda al auditor a buscar un campo vacío que está
+  // lleno.
   if (state.status === 'INVALID') {
     return (
-      `Hay ${state.validation.invalid} parámetros con valores inválidos para el nivel ${activeLevel}.`
+      `Valores inválidos para el nivel ${activeLevel}: ${state.validation.issues
+        .map(
+          issue =>
+            `${issue.parameterId} (${issue.label}) ${issue.reason}`
+        )
+        .join('; ')}.`
     );
   }
 
   if (state.status === 'INCOMPLETE') {
     return (
-      `Faltan ${state.validation.missingRequired.length} parámetros obligatorios para el nivel ${activeLevel}.`
+      `Faltan ${state.validation.missingRequired.length} parámetros obligatorios para el nivel ${activeLevel}: ${state.validation.missingRequired
+        .map(parameter => parameter.id)
+        .join(', ')}.`
     );
   }
 

@@ -83,7 +83,37 @@ export const evaluateENSControl = (
     : undefined;
 
   const missingRequired = validation?.missingRequired || [];
-  const hasMissingRequired = missingRequired.length > 0;
+
+  // Un obligatorio PRESENTE pero con un valor que no significa nada para su tipo
+  // cuenta como no configurado: si no contara, el control se declararía
+  // evaluable sobre un dato inexistente y podría salir en verde. Bloquea igual
+  // que el que falta, pero se le cuenta al auditor aparte, porque el arreglo es
+  // otro: corregir el valor, no rellenar un campo vacío.
+  const invalidRequired = validation?.invalidRequired || [];
+  const configurationIssues = validation?.issues || [];
+
+  const blockingParameters = [
+    ...missingRequired,
+    ...invalidRequired,
+  ];
+
+  const hasMissingRequired = blockingParameters.length > 0;
+
+  // Motivo redactado de por qué el valor no vale. Sin motivo el auditor busca a
+  // ciegas: "P-07 tiene un valor inválido" no le dice si sobra un espacio o si
+  // escribió letras donde iban dígitos octales.
+  const getInvalidReason = (
+    parameterId: string
+  ): string =>
+    configurationIssues.find(
+      issue => issue.parameterId === parameterId
+    )?.reason ||
+    'el valor no es válido para su tipo';
+
+  const describeInvalidParameter = (
+    parameter: { id: string; label: string }
+  ): string =>
+    `${parameter.id} (${parameter.label}): ${getInvalidReason(parameter.id)}`;
 
     const requirements = evaluateRequirements(
       catalogControl.requirements,
@@ -115,10 +145,18 @@ export const evaluateENSControl = (
 
   const observations = [
     ...(hasMissingRequired
-      ? missingRequired.map(
-          parameter =>
-            `Falta configurar ${parameter.id} - ${parameter.label}. ${parameter.ifNotConfigured}`
-        )
+      ? [
+          ...missingRequired.map(
+            parameter =>
+              `Falta configurar ${parameter.id} - ${parameter.label}. ${parameter.ifNotConfigured}`
+          ),
+          ...invalidRequired.map(
+            parameter =>
+              `${parameter.id} - ${parameter.label} tiene un valor inválido: ${getInvalidReason(
+                parameter.id
+              )}. ${parameter.ifNotConfigured}`
+          ),
+        ]
       : ['Configuración mínima disponible para evaluar el control.']),
     ...evidences.flatMap(evidence => evidence.observations),
   ];
@@ -295,20 +333,52 @@ export const evaluateENSControl = (
   );
 
   const nonConformities: ENSNonConformity[] = [
+    // NC-CFG distingue los dos casos a proposito. "Faltan P-01, P-03" se
+    // arregla rellenando; "P-07 tiene un valor invalido" se arregla
+    // corrigiendo. Decirselo mal manda al auditor a buscar un campo vacio que
+    // esta lleno.
     ...(hasMissingRequired
       ? [
           {
             id: 'NC-CFG',
             evidenceId: 'CONFIG',
             requirementId: catalogControl.id,
-            finding: `Configuracion incompleta: faltan ${missingRequired
-              .map(parameter => parameter.id)
-              .join(', ')}.`,
+            finding: `Configuracion incompleta: ${[
+              missingRequired.length
+                ? `faltan ${missingRequired
+                    .map(parameter => parameter.id)
+                    .join(', ')}`
+                : '',
+              invalidRequired.length
+                ? `${
+                    missingRequired.length ? 'Valor' : 'valor'
+                  } invalido en ${invalidRequired
+                    .map(describeInvalidParameter)
+                    .join('; ')}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('. ')}.`,
             impact:
-              'El control no puede evaluarse con garantias mientras falten parametros obligatorios.',
-            requiredAction: `Configurar los parametros ${missingRequired
-              .map(parameter => parameter.id)
-              .join(', ')} en la pestana Configuracion.`,
+              invalidRequired.length > 0 &&
+              missingRequired.length === 0
+                ? 'El control no puede evaluarse con garantias: hay parametros obligatorios rellenos con un valor que no significa nada para su tipo.'
+                : 'El control no puede evaluarse con garantias mientras falten parametros obligatorios o tengan un valor invalido.',
+            requiredAction: [
+              missingRequired.length
+                ? `Rellenar ${missingRequired
+                    .map(parameter => parameter.id)
+                    .join(', ')}`
+                : '',
+              invalidRequired.length
+                ? `Corregir el valor de ${invalidRequired
+                    .map(parameter => parameter.id)
+                    .join(', ')}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('. ') +
+              ' en la pestana Configuracion.',
           },
         ]
       : []),
@@ -406,7 +476,11 @@ export const evaluateENSControl = (
         evidence.latestSuccessfulAttributes,
     })),
 
-    missingParameters: missingRequired.map(parameter => parameter.id),
+    // Incluye los invalidos: para el consumidor de este resultado (tarjeta,
+    // informe) son igual de bloqueantes que los que faltan.
+    missingParameters: blockingParameters.map(
+      parameter => parameter.id
+    ),
     missingEvidences: evidences
       .filter(evidence => evidence.status === 'NO_EVALUABLE')
       .map(evidence => evidence.id),

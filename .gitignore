@@ -5,6 +5,9 @@ target/
 dist/
 *.zip
 
+__pycache__/
+*.pyc
+
 # Backups y temporales
 *.bak
 *.bak-*

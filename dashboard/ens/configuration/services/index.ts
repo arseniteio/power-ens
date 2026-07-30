@@ -1,3 +1,4 @@
+export * from './parameter-value-validator';
 export * from './validation-engine';
 export * from './configuration-state-service';
 
