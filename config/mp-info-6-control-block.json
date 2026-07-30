@@ -178,7 +178,7 @@
         "EV-04"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "FIM no monitoriza el repositorio local de backup."
+      "ifNotConfigured": "FIM no monitoriza el repositorio local de backup, y EV-03 se publica NO_EVALUABLE con motivo: sin ruta no se ha mirado en ningún sitio, que no es lo mismo que no haber copias. No apuntes esta ruta al directorio de estado del agente (ENS_STATE_DIR): ahí escribe él, y entonces la evidencia se acreditaría con sus propios ficheros."
     },
     {
       "id": "P-07",
