@@ -34,8 +34,12 @@
        op.acc.1 · Identificación
        Rango reservado: 106800-106899
        Base 106800 · eventos 106801-106849 · evidence_state 106850-106853
-       control_state 106860-106863 · score_snapshot 106870-106872
-       hechos crudos del modelo nuevo 106873-106889
+       control_state 106860-106863 y 106869 · score_snapshot 106870-106872
+       y 106890 · hechos crudos del modelo nuevo 106873-106889
+
+       Las dos bandas de agregados quedaron partidas al anadir su NO_EVALUABLE,
+       porque los ids contiguos (106864-106868 y 106873-106889) ya estaban
+       cogidos: el porque, en el comentario de 106869.
 
        La banda 106873-106889 es nueva (migración de EV-03) y está reservada
        para los hechos crudos que emiten las evidencias que juzga el motor.
@@ -397,6 +401,67 @@
     <group>ENS_op.acc.1,control_state,no_aplica,</group>
   </rule>
 
+  <!-- EL NO_EVALUABLE DE LOS AGREGADOS (106869 y 106890). Por que faltaba, que
+       arregla, que NO arregla, y por que estos dos ids raros.
+
+       Hasta hoy `control_state` y `score_snapshot` solo tenian regla para
+       CUMPLE, PARCIAL, NO_CUMPLE y NO_APLICA. Un agregado con
+       estado=NO_EVALUABLE no casaba con ninguna: caia en la base 106800, que es
+       level="0", no genera alerta y por tanto NO LLEGA AL INDICE. El estado
+       solo se colaba por `evidence_state`, que si tiene el suyo (106852).
+
+       Era deuda tolerable mientras NO_EVALUABLE fuese un residuo. Ya no lo es:
+       desde 63ac3bc, `score_de` en scripts/ens_opacc1_score.py publica el nivel
+       como NO_EVALUABLE cuando no hay latido del recolector, o cuando no hay
+       ninguna no conformidad demostrada y quedan requisitos sin medir. Y
+       `estado_requisito` devuelve NO_EVALUABLE para el requisito cuyas
+       evidencias estan todas sin medir, que en este control es el caso
+       PERMANENTE de op.acc.1.1: su unica acreditante es EV-03, que esta migrada
+       al modelo nuevo y la juzga el motor. Es decir: en toda maquina sana hay
+       hoy un `control_state` NO_EVALUABLE por hora que no llegaba a ningun
+       sitio, con su `delegadas` y su `motivo` explicando precisamente que el
+       veredicto vive en el plugin. Ese motivo es lo que un operador necesita
+       para no leerlo como "el recolector no recoge autenticaciones".
+
+       QUE NO ARREGLA, para no venderlo de mas: el semaforo del plugin no
+       depende de esto. El motor resuelve cada evidencia por su `evidence_state`
+       (core/evidence/engine.ts) o por su `judgment`, y ninguna evidencia de
+       op.acc.1 declara `control_state` ni `score_snapshot` en
+       `expectedEventTypes`. `score_snapshot` esta ademas en GENERIC_EVENT_TYPES
+       y su unico consumidor, el grafico de tendencia, exige `score` o
+       `compliance` numerico: un NO_EVALUABLE no trae ninguno de los dos y lo
+       descarta igual que antes. Lo que se gana es la linea de alerta y la traza
+       del auditor, no un color distinto.
+
+       NIVEL 3, NI 7 NI 10, y sin `non_conformity` en el <group>. Un
+       NO_EVALUABLE no es una no conformidad: mismo valor que el NO_EVALUABLE de
+       evidencia (106852) y que el de 106606 en mp.info.6, que se bajo de 10 a 3
+       por este mismo motivo. 3 es ademas el minimo que sigue generando alerta,
+       que es todo lo que este arreglo necesita. No se sube a 7 imitando a
+       106831 `collector_missing`: aquel es una cabecera puntual sobre un bloque
+       de ocho NO_EVALUABLE, y estos dos late cada hora en cada agente.
+
+       POR QUE 106869 Y NO 106864, que seria el sitio natural detras de la banda
+       de `control_state` (106860-106863): 106864-106868 ya estan cogidos en
+       ensfacil_op_acc_1_technical_fact_rules.xml, que numera el MISMO rango
+       106800-106899 para el otro recolector de op.acc.1. Un id no puede
+       significar dos cosas segun que fichero mire quien audita, asi que se coge
+       el primero libre en LOS DOS. Mismo motivo por el que 106890 no es 106874:
+       106873-106889 esta reservada para los hechos crudos de las evidencias que
+       se vayan migrando.
+
+       NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
+       agregado no significa una evidencia concreta, y meterlo ahi seria el
+       fallo de 106824 al reves. Ver la cabecera de
+       dashboard/ens/core/evidence/catalog.ts. -->
+  <rule id="106869" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.1 · Control NO_EVALUABLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.1,control_state,no_evaluable,</group>
+  </rule>
+
   <!-- ===== Snapshot de puntuación ===== -->
 
   <rule id="106870" level="3">
@@ -421,6 +486,38 @@
     <field name="estado">NO_CUMPLE</field>
     <description>op.acc.1 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
     <group>ENS_op.acc.1,score_snapshot,no_cumple,non_conformity,</group>
+  </rule>
+
+  <!-- El criterio entero (por que faltaba, que arregla, por que nivel 3, por
+       que este id) esta en el comentario de 106869, arriba. Dos notas propias:
+
+       LA DESCRIPCION NO LLEVA `score=` NI `compliance=`, a diferencia de sus
+       tres hermanas. No es un descuido: un snapshot NO_EVALUABLE se publica
+       DELIBERADAMENTE sin numero (ver el bloque `if score is None` de
+       scripts/ens_opacc1_score.py), asi que `$(score)` se renderizaria literal
+       y un porcentaje al lado de un "no medido" se lee como cumplimiento
+       parcial, que es justo lo que la decision de producto quita. En su lugar
+       van los dos campos que ese evento SI trae siempre: que requisitos faltan
+       por medir, y por que.
+
+       NO SE ANADE AQUI LA REGLA DE `score_snapshot` NO_APLICA, y el hueco esta
+       medido, no olvidado. Este control SI puede emitir ese estado: cuando un
+       nivel se queda sin requisitos aplicables, `score_de` devuelve
+       (0, "NO_APLICA"), o sea CON score=0, y el emisor lo publica. Darle regla
+       hoy meteria ese cero en el indice, y el grafico de tendencia
+       (evolution.presenter.ts) lo pinta: `event.score ?? event.compliance` con
+       0 es finito y esta en [0,100], asi que un nivel que NO APLICA se
+       dibujaria como "0 % de cumplimiento". Eso es una afirmacion falsa en
+       rojo, del mismo genero que el NO_CUMPLE falso que 63ac3bc quito. El orden
+       correcto es al reves: que `score_de` devuelva None para NO_APLICA (como
+       ya hace ens_opacc2_score.py) y entonces darle su regla. Queda anotado.
+       op.acc.2 si la lleva (106974) porque alli el emisor ya devuelve None. -->
+  <rule id="106890" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.1 · SCORE $(nivel) NO_EVALUABLE · sin_medir=$(requisitos_sin_medir) · $(motivo)</description>
+    <group>ENS_op.acc.1,score_snapshot,no_evaluable,</group>
   </rule>
 
 </group>

@@ -19,9 +19,45 @@ import { ENSEvidenceDefinition } from './types';
 //     que no llevan `requisito=` ni `evidencia=` porque no acreditan ninguna:
 //     son higiene del propio pipeline.
 //
-// Las reglas genéricas de `evidence_state` (106700-106703 / 106950-106953) no
-// se listan: engine.ts añade el ruleId del evento que resuelve la evidencia,
-// así que aparecen solas cuando son el origen real del estado.
+// Las reglas genéricas de `evidence_state` (106700-106703 / 106850-106853 /
+// 106950-106953) no se listan: engine.ts añade el ruleId del evento que
+// resuelve la evidencia, así que aparecen solas cuando son el origen real del
+// estado.
+//
+// Tampoco se listan —y este es el caso que hay que argumentar, porque invita a
+// lo contrario— las reglas de los AGREGADOS, `control_state` y
+// `score_snapshot`:
+//
+//   mp.info.6  control_state 106710-106714  score_snapshot 106720-106723
+//   op.acc.1   control_state 106860-106863 y 106869
+//              score_snapshot 106870-106872 y 106890
+//   op.acc.2   control_state 106960-106964  score_snapshot 106970-106974
+//
+// Un agregado afirma algo sobre un REQUISITO o sobre un NIVEL entero, no sobre
+// una evidencia. Acreditarlo en el `relatedRules` de una evidencia concreta
+// sería el fallo de 106824 en su versión simétrica: un identificador que existe,
+// está desplegado y lleva al auditor a un evento que habla de otra cosa. El
+// criterio de esta lista es el de arriba —reglas que acreditan ESTA evidencia—,
+// y ninguna de estas lo cumple.
+//
+// El 31/07 se completaron esas dos familias con su NO_EVALUABLE (106714,
+// 106723, 106869, 106890, 106964, 106973) y con el NO_APLICA de
+// `score_snapshot` de op.acc.2 (106974). Antes, un agregado con esos estados
+// solo casaba con la regla base del control, que es `level="0"`: no generaba
+// alerta y nunca llegaba al índice. Importa desde que un nivel sin ninguna no
+// conformidad demostrada y con huecos de medida se publica NO_EVALUABLE, que lo
+// convierte en un veredicto de primera clase.
+//
+// Lo que ese arreglo NO cambia, dicho aquí para que nadie lo busque en el
+// motor: `score_snapshot` está en GENERIC_EVENT_TYPES de engine.ts y jamás
+// resuelve una evidencia; su único consumidor es el gráfico de tendencia
+// (dashboard-adapter/presenters/evolution.presenter.ts), que descarta todo
+// snapshot sin `score` ni `compliance` numérico, y un NO_EVALUABLE no trae
+// ninguno de los dos. `control_state` sí puede resolver EV-03, EV-04 y EV-06 de
+// mp.info.6, que lo declaran en `expectedEventTypes`, pero no les cambia el
+// color: un requisito solo sale NO_EVALUABLE cuando TODAS sus evidencias lo
+// están, así que esas evidencias ya venían en gris por su `evidence_state`. El
+// arreglo compra la línea de alerta y la traza del auditor, nada más.
 //
 // **DE QUÉ FICHERO SE SACAN, que es donde estuvo el fallo.** Del que está
 // DESPLEGADO: la copia `manager/` del runbook, que es lo que instala su

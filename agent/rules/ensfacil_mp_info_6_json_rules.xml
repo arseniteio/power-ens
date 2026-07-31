@@ -258,6 +258,61 @@
     <group>ENS_mp.info.6,control_state,no_aplica,</group>
   </rule>
 
+  <!-- EL NO_EVALUABLE DE LOS AGREGADOS (106714 y 106723). Por que faltaba, que
+       arregla y que NO arregla.
+
+       Hasta hoy `control_state` y `score_snapshot` solo tenian regla para
+       CUMPLE, PARCIAL, NO_CUMPLE y NO_APLICA. Un agregado con
+       estado=NO_EVALUABLE no casaba con ninguna: caia en la base 106600, que es
+       level="0", no genera alerta y por tanto NO LLEGA AL INDICE. El estado
+       solo se colaba por `evidence_state`, que si tiene el suyo (106702).
+
+       Era deuda tolerable mientras NO_EVALUABLE fuese un residuo. Ya no lo es:
+       `score_de` en scripts/ens_mpinfo6_score.py publica NO_EVALUABLE cuando un
+       nivel no tiene ninguna no conformidad demostrada y le quedan requisitos
+       sin medir, y `estado_requisito` hace lo propio con el requisito cuyas
+       evidencias estan todas sin medir. Es un veredicto de primera clase, y un
+       veredicto que no llega al indice es un veredicto que el auditor no puede
+       recorrer.
+
+       QUE ARREGLA, EXACTAMENTE: que el evento exista en wazuh-alerts. Con el
+       llegan `requisitos_sin_medir` y `motivo`, que es lo unico que dice QUE
+       falta por medir; hoy esa frase se escribe en el ndjson local y muere ahi.
+
+       QUE NO ARREGLA, para no venderlo de mas: el semaforo del plugin no
+       depende de esto. El motor resuelve cada evidencia por su `evidence_state`
+       (core/evidence/engine.ts), y `score_snapshot` esta ademas en
+       GENERIC_EVENT_TYPES, asi que jamas resuelve una evidencia. Su unico
+       consumidor es el grafico de tendencia
+       (core/dashboard-adapter/presenters/evolution.presenter.ts), que exige
+       `score` o `compliance` numerico y un NO_EVALUABLE no trae ninguno de los
+       dos: lo descarta igual que antes. `control_state` si puede resolver
+       EV-03, EV-04 y EV-06 (lo declaran en expectedEventTypes) pero no cambia
+       su color: un requisito solo sale NO_EVALUABLE cuando TODAS sus evidencias
+       lo estan, asi que la evidencia ya venia en gris por su `evidence_state`.
+
+       NIVEL 3, NI 7 NI 10, y sin `non_conformity` en el <group>. Un
+       NO_EVALUABLE no es una no conformidad: es el mismo valor que el
+       NO_EVALUABLE de evidencia (106702) y el que se le puso a 106606 al
+       bajarla de 10 a 3 por este mismo motivo. 3 es ademas el minimo que sigue
+       generando alerta, que es todo lo que este arreglo necesita. Estos dos
+       eventos los emite score.py en CADA pasada horaria de CADA agente: con
+       nivel 7 o 10, una maquina en estado de fabrica llenaria el SOC de
+       severidad alta por no haber configurado nada, que es la acusacion falsa
+       de 106606 por otra via.
+
+       NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
+       agregado no significa una evidencia concreta, y meterlo ahi seria el
+       fallo de 106824 al reves. Ver la cabecera de
+       dashboard/ens/core/evidence/catalog.ts. -->
+  <rule id="106714" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>mp.info.6 · Control NO_EVALUABLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_mp.info.6,control_state,no_evaluable,</group>
+  </rule>
+
   <rule id="106720" level="3">
     <if_sid>106600</if_sid>
     <field name="event">score_snapshot</field>
@@ -280,6 +335,37 @@
     <field name="estado">NO_CUMPLE</field>
     <description>mp.info.6 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
     <group>ENS_mp.info.6,score_snapshot,no_cumple,non_conformity,</group>
+  </rule>
+
+  <!-- El criterio entero (por que faltaba, que arregla, por que nivel 3) esta
+       en el comentario de 106714, arriba. Dos notas propias de esta regla:
+
+       LA DESCRIPCION NO LLEVA `score=` NI `compliance=`, a diferencia de sus
+       tres hermanas. No es un descuido: un snapshot NO_EVALUABLE se publica
+       DELIBERADAMENTE sin numero (ver `emitir_snapshot` en
+       scripts/ens_mpinfo6_score.py), asi que `$(score)` se renderizaria literal
+       y un porcentaje al lado de un "no medido" se lee como cumplimiento
+       parcial, que es justo lo que la decision de producto quita. En su lugar
+       van los dos campos que ese evento SI trae siempre y que son lo accionable:
+       que requisitos faltan por medir, y por que.
+
+       NO HAY 106724 PARA `score_snapshot` NO_APLICA, y no es un hueco: en este
+       control `score_de` no puede devolver NO_APLICA (no filtra los requisitos
+       NO_APLICA del denominador, a diferencia de op.acc.1 y op.acc.2). Una
+       regla para un estado que ningun emisor produce es una regla muerta.
+
+       EL ID SE SALE DE 106600-106722, que es lo que registra la tabla de
+       CLAUDE.md. No colisiona con nada: el rango de mp.info.6 llega hasta
+       106799 y op.acc.1 empieza en 106800. Se prefiere continuar la banda de
+       `score_snapshot` (106720-106722) a meterla en 106714-106719, que es el
+       vecindario de `control_state`: la tabla se actualiza, un id fuera de su
+       familia confunde para siempre. -->
+  <rule id="106723" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>mp.info.6 · SCORE $(nivel) NO_EVALUABLE · sin_medir=$(requisitos_sin_medir) · $(motivo)</description>
+    <group>ENS_mp.info.6,score_snapshot,no_evaluable,</group>
   </rule>
 
 </group>

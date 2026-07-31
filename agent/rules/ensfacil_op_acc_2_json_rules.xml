@@ -4,7 +4,7 @@
        op.acc.2 · Requisitos de acceso
        Rango reservado: 106900-106999
        Base 106900 · eventos 106901-106949 · evidence_state 106950-106953
-       control_state 106960-106963 · score_snapshot 106970-106972
+       control_state 106960-106964 · score_snapshot 106970-106974
 
        Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
        dashboard/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
@@ -343,6 +343,63 @@
     <group>ENS_op.acc.2,control_state,no_aplica,</group>
   </rule>
 
+  <!-- EL NO_EVALUABLE DE LOS AGREGADOS (106964, 106973 y 106974). Por que
+       faltaba, que arregla y que NO arregla.
+
+       Hasta hoy `control_state` y `score_snapshot` solo tenian regla para
+       CUMPLE, PARCIAL, NO_CUMPLE y NO_APLICA, y `score_snapshot` ni siquiera
+       para NO_APLICA. Un agregado con esos estados no casaba con ninguna regla:
+       caia en la base 106900, que es level="0", no genera alerta y por tanto NO
+       LLEGA AL INDICE. El estado solo se colaba por `evidence_state`, que si
+       tiene el suyo (106952).
+
+       Era deuda tolerable mientras NO_EVALUABLE fuese un residuo. Ya no lo es:
+       la rama 3 de `score_de` en scripts/ens_opacc2_score.py publica el nivel
+       como NO_EVALUABLE cuando no hay ninguna no conformidad demostrada y
+       quedan requisitos sin medir, y tambien cuando no hubo latido del
+       recolector en la ventana. `estado_requisito` hace lo propio con el
+       requisito cuyas evidencias estan todas sin medir. Es un veredicto de
+       primera clase, y un veredicto que no llega al indice es un veredicto que
+       el auditor no puede recorrer: con el viajan `requisitos_sin_medir`,
+       `requisitos_aplicables`, `requisitos_medidos` y `motivo`, que es lo unico
+       que dice QUE falta por medir y sobre cuanto se ha pronunciado el nivel.
+
+       QUE NO ARREGLA, para no venderlo de mas: el semaforo del plugin no
+       depende de esto. El motor resuelve cada evidencia por su `evidence_state`
+       (core/evidence/engine.ts), y ninguna evidencia de op.acc.2 declara
+       `control_state` ni `score_snapshot` en `expectedEventTypes` (a
+       proposito: ver el comentario de los `control_state` en score.py sobre el
+       NO_APLICA de r1.2 que se expandiria a EV-05 y EV-06). `score_snapshot`
+       esta ademas en GENERIC_EVENT_TYPES y su unico consumidor, el grafico de
+       tendencia, exige `score` o `compliance` numerico: ni el NO_EVALUABLE ni
+       el NO_APLICA traen numero, asi que los descarta igual que antes. Lo que
+       se gana es la linea de alerta y la traza del auditor, no un color
+       distinto.
+
+       NIVEL 3 EN LAS TRES, NI 7 NI 10, y sin `non_conformity` en el <group>. Un
+       NO_EVALUABLE no es una no conformidad, y un NO_APLICA menos: mismo valor
+       que el NO_EVALUABLE de evidencia (106952) y que el de 106606 en
+       mp.info.6, que se bajo de 10 a 3 por este mismo motivo. 3 es ademas el
+       minimo que sigue generando alerta, que es todo lo que este arreglo
+       necesita. Estos eventos late score.py en CADA pasada de CADA agente: con
+       nivel 7 o 10, una maquina en estado de fabrica llenaria el SOC de
+       severidad alta por no haber configurado nada.
+
+       NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
+       agregado no significa una evidencia concreta, y meterlo ahi seria el
+       fallo de 106824 al reves. Ver la cabecera de
+       dashboard/ens/core/evidence/catalog.ts.
+
+       NO CONFUNDIR CON 106915, que sigue reservada y libre: aquella es para el
+       NO_CUMPLE por denegados repetidos de la fase 3 (decision D-8). -->
+  <rule id="106964" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">control_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.2 · Control NO_EVALUABLE · $(control) · nivel=$(nivel)</description>
+    <group>ENS_op.acc.2,control_state,no_evaluable,</group>
+  </rule>
+
   <!-- ===== Snapshot de puntuación ===== -->
 
   <rule id="106970" level="3">
@@ -367,6 +424,42 @@
     <field name="estado">NO_CUMPLE</field>
     <description>op.acc.2 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
     <group>ENS_op.acc.2,score_snapshot,no_cumple,non_conformity,</group>
+  </rule>
+
+  <!-- El criterio entero (por que faltaban, que arreglan, por que nivel 3) esta
+       en el comentario de 106964, arriba. Una nota propia de las dos:
+
+       NINGUNA DESCRIPCION LLEVA `score=` NI `compliance=`, a diferencia de sus
+       tres hermanas. No es un descuido: los dos estados se publican
+       DELIBERADAMENTE sin numero (`if score is not None` en
+       scripts/ens_opacc2_score.py), asi que `$(score)` se renderizaria literal
+       y un porcentaje al lado de un "no medido" o de un "no aplica" se lee como
+       cumplimiento parcial. En su lugar van los campos que esos eventos SI
+       traen: `requisitos_sin_medir` y `motivo` en el NO_EVALUABLE, `motivo` a
+       secas en el NO_APLICA, que no tiene nada sin medir porque no tiene nada
+       aplicable.
+
+       QUE ESTA REGLA DE NO_APLICA (106974) EXISTA AQUI Y NO EN op.acc.1 NO ES
+       UNA ASIMETRIA GRATUITA: los dos controles pueden emitir ese estado, pero
+       el `score_de` de op.acc.1 lo emite con score=0 y el de aqui sin numero.
+       Un 0 en el indice lo pinta el grafico de tendencia como "0 % de
+       cumplimiento" para un nivel que sencillamente no aplica, o sea una
+       afirmacion falsa en rojo. Alli la regla espera a que el emisor devuelva
+       None; aqui ya lo hace. -->
+  <rule id="106973" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.2 · SCORE $(nivel) NO_EVALUABLE · sin_medir=$(requisitos_sin_medir) · $(motivo)</description>
+    <group>ENS_op.acc.2,score_snapshot,no_evaluable,</group>
+  </rule>
+
+  <rule id="106974" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">score_snapshot</field>
+    <field name="estado">NO_APLICA</field>
+    <description>op.acc.2 · SCORE $(nivel) NO_APLICA · $(motivo)</description>
+    <group>ENS_op.acc.2,score_snapshot,no_aplica,</group>
   </rule>
 
 </group>
