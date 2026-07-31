@@ -36,10 +36,13 @@
        Base 106800 · eventos 106801-106849 · evidence_state 106850-106853
        control_state 106860-106863 y 106869 · score_snapshot 106870-106872
        y 106890 · hechos crudos del modelo nuevo 106873-106889
+       diagnóstico del recolector 106830-106831 y 106891
 
        Las dos bandas de agregados quedaron partidas al anadir su NO_EVALUABLE,
        porque los ids contiguos (106864-106868 y 106873-106889) ya estaban
-       cogidos: el porque, en el comentario de 106869.
+       cogidos: el porque, en el comentario de 106869. La del diagnóstico del
+       recolector quedó partida por lo mismo al anadir el latido: el porque, en
+       el comentario de 106891.
 
        La banda 106873-106889 es nueva (migración de EV-03) y está reservada
        para los hechos crudos que emiten las evidencias que juzga el motor.
@@ -288,17 +291,51 @@
        El orquestador (ens_opacc1_collect.sh) y el watchdog (ens_opacc1_watchdog.py)
        emiten tres eventos que hasta ahora solo casaban con la regla base 106800
        (nivel 0): no generaban alerta ni llegaban al índice. score.py y el watchdog
-       leen el latido del NDJSON local, no del índice, así que el veredicto de
-       cumplimiento NUNCA dependió de esto — era un accidente de cobertura, no una
-       decisión. Se revisan aquí los tres, uno a uno:
+       leen el latido del NDJSON local, no del índice, así que el veredicto del
+       MODELO CLÁSICO nunca dependió de esto. Se revisan aquí los tres, uno a uno:
 
-       · collector_run (late cada hora, en cada agente): NO se le da regla. Ya existe
-         score_snapshot (106870-106872), que también corre cada hora, SÍ tiene reglas
-         y SÍ llega al índice — y solo puede afirmar CUMPLE/PARCIAL si hubo latido
-         reciente (ver score.py). Una alerta de collector_run sería una segunda señal
-         de "el recolector sigue vivo" con la misma cadencia que score_snapshot y sin
-         aportar nada que este último no exprese ya: puro ruido en la vista de
-         alertas, sin ganar detección de ningún fallo nuevo.
+       · collector_run (late cada hora, en cada agente): SÍ se le da regla, 106891,
+         al final de este bloque. NO la tenía, y la decisión de no dársela era
+         CORRECTA cuando se tomó. Se conserva entera y entrecomillada, porque el
+         criterio sigue siendo el bueno para cualquier evento que solo sea
+         diagnóstico, y porque quien lea esto dentro de seis meses tiene derecho a
+         saber que no fue un descuido:
+
+           «NO se le da regla. Ya existe score_snapshot (106870-106872), que
+           también corre cada hora, SÍ tiene reglas y SÍ llega al índice, y solo
+           puede afirmar CUMPLE/PARCIAL si hubo latido reciente (ver score.py). Una
+           alerta de collector_run sería una segunda señal de "el recolector sigue
+           vivo" con la misma cadencia que score_snapshot y sin aportar nada que
+           este último no exprese ya: puro ruido en la vista de alertas, sin ganar
+           detección de ningún fallo nuevo.»
+
+         QUÉ CAMBIÓ. Desde 6822436, `collector_run` dejó de ser diagnóstico y pasó
+         a ser un dato PORTANTE de un veredicto. Al migrar EV-03 al modelo nuevo,
+         el motor del plugin lee este evento DESDE EL ÍNDICE para decidir si la
+         ausencia de hechos puede llegar a significar CUMPLE
+         (`resolveCollectorCoverage`, en dashboard/ens/core/evidence/judgment.ts):
+         ya no lo consume solo la máquina que lo escribe.
+
+         Y score_snapshot NO puede sustituirlo, aunque late con la misma cadencia:
+         no trae `evidencias_cubiertas`, que es justo el dato que el motor
+         necesita, ni podría traerlo (lo deriva score.py del NDJSON, no de haber
+         leído la fuente). La equivalencia que sostenía la decisión anterior era
+         cierta para "¿sigue vivo el recolector?" y es falsa para "¿llegó a mirar
+         ESTA evidencia?", que es la pregunta que decide si un silencio puede valer
+         como CUMPLE.
+
+         LO QUE COSTÓ NO TENERLA, para que no se lea como un retoque cosmético: en
+         el primer despliegue real (31/07/2026) EV-03 salía NO_EVALUABLE PERMANENTE
+         en una máquina sana, con el motivo "Cobertura del recolector: DESCONOCIDA",
+         mientras el agente escribía el latido correcto en su NDJSON local
+         (resultado=completada, evidencias_cubiertas=EV-03,EV-05,EV-06). Dos
+         decisiones correctas por separado produciendo un gris falso y perpetuo.
+         Ninguna prueba unitaria podía cazarlo, porque cada mitad estaba bien.
+
+         LECCIÓN, que vale para el próximo evento igual que para éste: cuando un
+         evento pasa de diagnóstico a portante, hay que revisar TODAS las
+         decisiones tomadas sobre él con el rol anterior, empezando por si llega al
+         índice.
 
        · collector_warning (parámetro de opacc1.env mal escrito, candado no abrible):
          SÍ se le da regla (106830, más abajo). Hoy un operador que teclea mal un
@@ -331,6 +368,62 @@
     <field name="event">collector_missing</field>
     <description>op.acc.1 · Latido del recolector ausente en la ventana · $(detalle)</description>
     <group>ENS_op.acc.1,collector_diagnostico,operativo,no_evaluable,disponibilidad,</group>
+  </rule>
+
+  <!-- EL LATIDO. Nivel 3, con el volumen medido ANTES de elegir el nivel.
+
+       Este evento late en CADA agente y en CADA pasada del recolector: el cron
+       real (etc/ensfacil-opacc1.cron) lo lanza a y 7 de cada hora, o sea 24 veces
+       al día por agente. Equivocar el nivel aquí no rompe el plugin: llena la
+       vista de alertas del SOC, y un arreglo que crea otro problema no es un
+       arreglo.
+
+       LO MEDIDO, en una pasada completa sobre el fixture de tests/: el recolector
+       escribe 9 líneas NDJSON y score.py otras 18. De esas 27, veintiséis YA
+       tienen regla de nivel 3 o superior y ya llegan al índice; la única que no
+       era este latido. Darle regla añade UNA alerta por hora y por agente sobre
+       las 26 que este control ya publica: un 4 %. No es un caudal nuevo, es una
+       línea más en un lote horario que ya existía.
+
+       POR QUÉ 3 Y NO MENOS: 3 es el mínimo que sigue generando alerta con la
+       configuración por defecto del manager (alerts / log_alert_level). Por
+       debajo, la regla existiría y el evento seguiría sin llegar al índice, que es
+       exactamente el fallo que se está corrigiendo. Una regla de nivel 1 aquí
+       sería la ilusión del arreglo.
+
+       POR QUÉ 3 Y NO MÁS: un latido no es una no conformidad ni una afirmación de
+       cumplimiento; es un hecho sobre el recolector. Mismo valor que el
+       NO_EVALUABLE de los agregados (106869, 106890) y que score_snapshot CUMPLE
+       (106870), que ya late en la misma pasada horaria. No se imita a 106830
+       (nivel 5) ni a 106831 (nivel 7): aquellos son sucesos PUNTUALES y raros (un
+       parámetro mal escrito, un colector muerto) y su valor está en destacar;
+       éste es el pulso normal de una máquina sana, y si destacara dejaría de
+       destacar lo que sí importa.
+
+       SIN `non_conformity` NI NINGÚN GRUPO DE VEREDICTO en su grupo, por lo
+       mismo: el SOC filtra por ese grupo, y ahí solo puede haber incumplimientos
+       demostrados. Lleva `collector_diagnostico` y `operativo` como sus dos
+       hermanas, más `latido` para poder aislarlo de ellas.
+
+       POR QUÉ EL ID ES 106891 Y NO 106832, que sería el sitio natural detrás de
+       106831: 106832-106849 están cogidos en
+       ensfacil_op_acc_1_technical_fact_rules.xml, que numera el MISMO rango
+       106800-106899 para el otro recolector de op.acc.1, y 106874-106889 está
+       reservada para los hechos crudos de las evidencias que se vayan migrando.
+       106891 es el primer id libre en los cuatro ficheros de reglas del producto.
+       Mismo criterio, y misma razón, que 106869 y 106890.
+
+       NO SE ACREDITA EN `relatedRules` DEL CATÁLOGO, y es deliberado: el latido no
+       acredita ninguna evidencia, la HABILITA. Meterlo ahí sería decirle al
+       auditor que EV-03 se demuestra con este evento, cuando lo que hace es
+       permitir que un silencio se lea como CUMPLE. La traza del latido concreto en
+       el que se apoyó la cobertura ya viaja en el resultado de la evidencia
+       (`coverage.event` en judgment.ts) y en el motivo que el motor escribe. -->
+  <rule id="106891" level="3">
+    <if_sid>106800</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.acc.1 · Latido del recolector · resultado=$(resultado) · cubiertas=$(evidencias_cubiertas)</description>
+    <group>ENS_op.acc.1,collector_diagnostico,operativo,latido,</group>
   </rule>
 
   <!-- ===== Estados de evidencia (genéricos) ===== -->

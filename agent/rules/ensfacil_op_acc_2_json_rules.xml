@@ -8,7 +8,8 @@
 
        Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
        dashboard/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
-       nunca genera alerta) y 106923 (inerte para el plugin):
+       nunca genera alerta), 106923 (inerte para el plugin) y 106906-106908
+       (diagnóstico del recolector: no acreditan ninguna evidencia):
 
          EV-01   106901 106902 106903 106904 106905
          EV-02   106920 106921 106922
@@ -273,6 +274,95 @@
     <description>op.acc.2 · op.acc.2.r1.2 · Acceso a objeto registrado con su tipo</description>
     <group>ENS_op.acc.2,op_acc_2_r1_2,EV_06,nivel_alto,cumple,refuerzo_r1,</group>
     <info type="text">requisito=op.acc.2.r1.2 evidencia=EV-06 nivel=ALTO estado=CUMPLE ev_id=OK-09 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Diagnóstico operativo del recolector (collector_run, collector_warning,
+       collector_missing) ==============================================================
+
+       Los tres eventos existían desde el primer día y NINGUNO tenía regla: solo
+       casaban con la base 106900, que es nivel 0, no genera alerta y por tanto no
+       llega al índice. op.acc.1 ya les había dado regla a dos de ellos (106830 y
+       106831); aquí faltaban los tres. El aviso estaba escrito y fechado en la
+       cabecera de scripts/ens_opacc2_watchdog.py, esperando a la tarea que tocara
+       este XML. Es ésta.
+
+       LOS TRES SON HIGIENE OPERATIVA DEL PIPELINE, no evidencias de op.acc.2: no
+       llevan `requisito` ni `evidencia` ENS, no llevan bloque `info` y no llevan
+       `cumple`, `no_cumple` ni `non_conformity` en su grupo. El SOC filtra por
+       `non_conformity`, y ahí solo puede haber incumplimientos demostrados.
+
+       NADA DE ETIQUETAS LITERALES EN ESTE COMENTARIO, y no es manía: las suites
+       del runbook derivan el contrato del XML con awk y grep de una línea (ver
+       tests/test_fake.sh y tests/test_contrato.sh), y un `info type` escrito con
+       sus angulos dentro de un comentario se cuenta como si fuera una regla de
+       verdad. Se detectó escribiendo justo este bloque.
+
+       · collector_run (ens_opacc2_collect.sh, al cerrar cada pasada) es el que
+         importa de verdad, y por qué importa está explicado por extenso junto a su
+         gemelo 106891 en ensfacil_op_acc_1_json_rules.xml. En corto: el motor del
+         plugin lee ESTE evento desde el índice para saber si la ausencia de hechos
+         de una evidencia puede llegar a significar CUMPLE
+         (`resolveCollectorCoverage` en dashboard/ens/core/evidence/judgment.ts).
+         Sin él en el índice, la cobertura es siempre DESCONOCIDA y la evidencia se
+         queda en gris permanente aunque la máquina esté sana. Es el fallo que se
+         vio en el primer despliegue real de op.acc.1 el 31/07/2026.
+
+         HOY NINGUNA EVIDENCIA DE op.acc.2 ESTÁ MIGRADA, así que hoy este latido no
+         decide ningún veredicto aquí. Se le da regla igualmente y a propósito: el
+         recolector ya declara `resultado` y `evidencias_cubiertas` con el contrato
+         que el motor exige (ver el bloque "Latido" de ens_opacc2_collect.sh), y la
+         alternativa es que la primera evidencia que se migre repita exactamente el
+         fallo de op.acc.1, con un gris permanente en producción y nadie sabiendo
+         por qué. Además vale ya, sin migrar nada: es la única señal indexada de que
+         una pasada terminó, y con qué cobertura.
+
+       · collector_warning (parámetro de opacc2.env mal escrito, umask no octal,
+         candado no abrible, librería que no carga). Hoy un operador que teclea mal
+         un parámetro no se entera por ningún canal visible: la librería aplica su
+         valor por defecto en silencio, el cron entierra stdout y stderr, y el dato
+         del error solo vive en el NDJSON local de la máquina.
+
+       · collector_missing (ens_opacc2_watchdog.py, cuando no ve latido en la
+         ventana). Viene siempre acompañado de siete evidence_state NO_EVALUABLE
+         (regla 106952, nivel 3, uno por evidencia) que ya hacen visible la ausencia
+         de datos evidencia a evidencia. Pero esos siete son indistinguibles de un
+         NO_EVALUABLE ordinario y aislado: nada en ellos dice "esto es un colector
+         entero callado N horas". 106908 es esa señal de cabecera.
+
+       NIVELES: 3 para el latido, 5 para el aviso, 7 para el colector muerto. Los
+       mismos que op.acc.1 (106891, 106830, 106831) y por las mismas razones, que
+       están escritas allí. El resumen del criterio: 3 es el mínimo que sigue
+       generando alerta con la configuración por defecto del manager, y es lo que le
+       toca a un latido que se repite cada hora en cada agente y que en una máquina
+       sana es el pulso normal; 5 y 7 son para sucesos puntuales y raros, cuyo valor
+       está justamente en destacar sobre ese pulso.
+
+       POR QUÉ 106906-106908: son los tres primeros ids libres de la banda de
+       eventos del control (106901-106949, ver el mapa de la cabecera), comprobados
+       libres en los cuatro ficheros de reglas del producto. 106915 no se toca: está
+       reservada para la fase 3 de op.acc.2. No se acreditan en `relatedRules` del
+       catálogo, igual que sus gemelas de op.acc.1: un latido no acredita una
+       evidencia, la habilita. -->
+
+  <rule id="106906" level="3">
+    <if_sid>106900</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.acc.2 · Latido del recolector · resultado=$(resultado) · cubiertas=$(evidencias_cubiertas)</description>
+    <group>ENS_op.acc.2,collector_diagnostico,operativo,latido,</group>
+  </rule>
+
+  <rule id="106907" level="5">
+    <if_sid>106900</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.acc.2 · Aviso operativo del recolector · parametro=$(parametro) · $(motivo)</description>
+    <group>ENS_op.acc.2,collector_diagnostico,operativo,</group>
+  </rule>
+
+  <rule id="106908" level="7">
+    <if_sid>106900</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.acc.2 · Latido del recolector ausente en la ventana · $(detalle)</description>
+    <group>ENS_op.acc.2,collector_diagnostico,operativo,no_evaluable,disponibilidad,</group>
   </rule>
 
   <!-- ===== Estados de evidencia (genéricos) ===== -->

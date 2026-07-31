@@ -194,6 +194,50 @@
     <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 estado=NO_EVALUABLE motivo=synthetic formato=json_line</info>
   </rule>
 
+  <!-- ===== Latido del recolector (collector_run) ==================================
+
+       REGLA SIN PRODUCTOR HOY, Y ESO ES EXACTAMENTE LO QUE HAY QUE SABER DE ELLA.
+       Ningún script de este runbook emite `collector_run`: mp.info.6 no tiene un
+       orquestador que cierre la pasada con un latido, a diferencia de op.acc.1
+       (ens_opacc1_collect.sh) y op.acc.2 (ens_opacc2_collect.sh), que sí lo emiten
+       y que ya lo declaran con `resultado` y `evidencias_cubiertas`. Mientras eso
+       siga así, esta regla no se dispara nunca. Se documenta como lo que es en
+       docs/07-mapa-evidencias.md, §7.4, junto a las otras reglas sin productor.
+
+       POR QUÉ EXISTE IGUALMENTE. `collector_run` es el evento que el motor del
+       plugin lee DESDE EL ÍNDICE para decidir si la ausencia de hechos de una
+       evidencia puede llegar a significar CUMPLE (`resolveCollectorCoverage`, en
+       dashboard/ens/core/evidence/judgment.ts). En op.acc.1 el evento se emitía y
+       no tenía regla, así que no llegaba al índice, y EV-03 salió NO_EVALUABLE
+       permanente en una máquina sana en el primer despliegue real (31/07/2026).
+       Aquí el hueco es el otro: la regla estaba pensada como innecesaria porque
+       nadie emitía el evento, lo cual deja de ser cierto el día que mp.info.6
+       migre su primera evidencia al modelo nuevo.
+
+       LO QUE ESTA REGLA NO ARREGLA, para no venderla de más: poner la regla no
+       hace que el latido exista. Falta la mitad del agente, y esa mitad NO se
+       improvisa: `evidencias_cubiertas` es una lista blanca de lo que esa pasada
+       llegó a MIRAR, y declarar ahí una evidencia cuya fuente no se ha comprobado
+       es fabricar cobertura, que es el falso verde que el producto prohíbe (ver el
+       bloque `evidencias_cubiertas` de ens_opacc1_collect.sh, que lo explica con
+       la lista de las cinco evidencias que deliberadamente NO declara). Quien
+       añada el latido a este control decide evidencia por evidencia, comprobando
+       la fuente, y no de oficio.
+
+       NIVEL 3 Y SIN GRUPOS DE VEREDICTO, el mismo criterio que 106891 de op.acc.1
+       y 106906 de op.acc.2, razonado por extenso en el primero: 3 es el mínimo que
+       sigue generando alerta con la configuración por defecto del manager, y un
+       latido no es una no conformidad ni una afirmación de cumplimiento.
+
+       ID 106608: primer hueco libre de la banda 106600-106799 del control,
+       comprobado libre en los cuatro ficheros de reglas del producto. -->
+  <rule id="106608" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">collector_run</field>
+    <description>mp.info.6 · Latido del recolector · resultado=$(resultado) · cubiertas=$(evidencias_cubiertas)</description>
+    <group>ENS_mp.info.6,collector_diagnostico,operativo,latido,</group>
+  </rule>
+
 <rule id="106700" level="3">
     <if_sid>106600</if_sid>
     <field name="event">evidence_state</field>

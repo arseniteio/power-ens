@@ -22,6 +22,14 @@ instala `install-manager.sh`. Antes de eso había pasado la versión burda del
 mismo fallo: 65 de 83 identificadores eran simbólicos e inventados.
 
 Esta comprobación es la que habría cazado los dos casos sola.
+
+Y el 31/07, en el primer despliegue real, apareció la tercera variante del
+mismo hueco, por el otro extremo: un evento que el MOTOR lee del índice
+(`collector_run`) y al que nadie le había dado regla, porque cuando se decidió
+no dársela solo era diagnóstico. El agente lo emitía, la regla base es
+`level="0"`, no generaba alerta, no llegaba al índice, y EV-03 de op.acc.1 salía
+NO_EVALUABLE permanente sobre una máquina sana. Las dos decisiones eran
+correctas por separado. La comprobación 7 vigila ese contrato.
 """
 import json
 import os
@@ -232,6 +240,80 @@ for control in RUNBOOKS:
                 control, len(bloque.get("parameters", []))
             )
         )
+
+print("\n=== 7. Lo que el MOTOR lee del índice tiene regla en el manager ===\n")
+
+# La comprobación 4 mira el contrato del catálogo: qué tipos de evento declara
+# una evidencia para resolverse. Ésta mira el otro contrato, el que no está en
+# el catálogo y por eso no lo vigilaba nadie: los eventos que `judgment.ts` lee
+# DIRECTAMENTE del índice para decidir la cobertura del recolector.
+#
+# Es la comprobación que habría cazado el fallo del primer despliegue real
+# (31/07/2026). `collector_run` no tenía regla en op.acc.1: eso era correcto
+# mientras el evento fuese solo diagnóstico, y dejó de serlo cuando el motor
+# pasó a leerlo para decidir si la ausencia de hechos puede significar CUMPLE.
+# El agente lo emitía, la regla base es level="0", no generaba alerta, no
+# llegaba al índice, y EV-03 salía NO_EVALUABLE permanente en una máquina sana.
+# Cada mitad estaba bien, así que ninguna prueba unitaria podía verlo: solo se
+# ve cruzando el motor con lo desplegado, que es lo que hace este script.
+#
+# La lista de tipos se DERIVA del fuente, no se escribe aquí: si alguien añade
+# un tipo a `DEFAULT_COLLECTOR_RUN_EVENT_TYPES` o lo declara por evidencia en
+# `collectorRunEventTypes`, esta comprobación lo exige sin tocar nada.
+judgment_ts = lee(
+    os.path.join(PLUGIN, "dashboard/ens/core/evidence/judgment.ts")
+)
+
+m = re.search(
+    r"DEFAULT_COLLECTOR_RUN_EVENT_TYPES\s*=\s*\[(.*?)\]", judgment_ts, re.S
+)
+tipos_motor = set(re.findall(r"'([^']+)'", m.group(1))) if m else set()
+
+for _, cuerpo in re.findall(
+    r"id: '(EV-\d+)',(.*?)(?=\n  \{|\n\];)", catalogo, re.S
+):
+    declarados_por_evidencia = re.search(
+        r"collectorRunEventTypes: \[([^\]]*)\]", cuerpo, re.S
+    )
+    if declarados_por_evidencia:
+        tipos_motor |= set(
+            re.findall(r"'([^']+)'", declarados_por_evidencia.group(1))
+        )
+
+if not tipos_motor:
+    # Ancla del propio extractor: sin ella, un cambio de formato en judgment.ts
+    # dejaría la lista vacía y los bucles de abajo aprobarían en vacío.
+    falla(
+        "no se ha podido leer del fuente qué eventos lee el motor",
+        "revisar DEFAULT_COLLECTOR_RUN_EVENT_TYPES en"
+        " dashboard/ens/core/evidence/judgment.ts",
+    )
+else:
+    for control, (repo, xmls) in RUNBOOKS.items():
+        emitidos = set()
+        for x in xmls:
+            ruta = os.path.join(BASE, repo, "manager", x)
+            if os.path.exists(ruta):
+                emitidos |= set(
+                    re.findall(
+                        r'<field name="event">([a-z0-9_]+)</field>', lee(ruta)
+                    )
+                )
+        mudos = sorted(tipos_motor - emitidos)
+        if mudos:
+            falla(
+                "{}: el motor lee eventos que el manager no indexa".format(control),
+                "{} — sin regla caen en la base (level 0), no generan alerta y"
+                " nunca llegan al índice: la cobertura del recolector sale"
+                " siempre DESCONOCIDA y toda evidencia migrada se queda en gris"
+                " permanente aunque la máquina esté sana".format(", ".join(mudos)),
+            )
+        else:
+            ok(
+                "{}: los {} evento(s) que lee el motor ({}) tienen regla".format(
+                    control, len(tipos_motor), ", ".join(sorted(tipos_motor))
+                )
+            )
 
 print()
 if fallos:
