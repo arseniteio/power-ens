@@ -123,7 +123,12 @@ export const ControlsENS = () => {
     requirements: control.requirements.length,
     evidences: control.evidences.length,
     status: complianceResultByControl[control.id]?.status || 'NO_EVALUABLE',
+    // Solo incumplimientos demostrados. Los huecos de medida se cuentan aparte
+    // y no pintan el borde en rojo: un parámetro sin configurar no es una
+    // alerta de seguridad.
     alerts: complianceResultByControl[control.id]?.nonConformities.length || 0,
+    pending:
+      complianceResultByControl[control.id]?.measurementGaps.length || 0,
     hasData: !!complianceResultByControl[control.id],
   }));
 
@@ -135,8 +140,10 @@ export const ControlsENS = () => {
         </EuiTitle>
         <EuiText>
           <p>
-            Catálogo de controles ENS. Cada control muestra el número de alertas
-            (no-cumplimientos). Pulsa un control para ver su detalle completo.
+            Catálogo de controles ENS. El número en rojo son incumplimientos
+            demostrados; «sin medir» son requisitos que el motor todavía no ha
+            podido evaluar, que no es lo mismo. Pulsa un control para ver su
+            detalle completo.
           </p>
         </EuiText>
         <EuiSpacer size='l' />
@@ -157,6 +164,11 @@ export const ControlsENS = () => {
               <EuiBadge color={item.alerts > 0 ? 'danger' : (item.hasData ? 'success' : 'default')} style={{ marginLeft: 6 }}>
                 {item.status}
               </EuiBadge>
+              {item.pending > 0 && (
+                <EuiBadge color='default' iconType='clock' style={{ marginLeft: 6 }}>
+                  {item.pending} sin medir
+                </EuiBadge>
+              )}
             </EuiFacetButton>
           ))}
         </EuiFacetGroup>

@@ -1174,6 +1174,13 @@ bloque('El motivo llega al auditor (T1.5)');
       status: 'NO_CUMPLE',
       score: 0,
       coverage: 0,
+      // Un incumplimiento demostrado: un requisito aplicable, medido, que no
+      // conforma. Los tres campos son parte del contrato de
+      // `ENSComplianceResult` desde que el motor separa lo medido de lo que no
+      // se ha podido medir, y la consolidación los suma entre agentes.
+      applicableRequirements: 1,
+      measuredRequirements: 1,
+      unmeasuredRequirements: [],
       evaluatedAt: '2026-07-30T12:00:00Z',
       requirements: [],
       parameters: [],
@@ -1187,6 +1194,7 @@ bloque('El motivo llega al auditor (T1.5)');
       missingEvidences: [],
       relatedRules: [],
       nonConformities: [],
+      measurementGaps: [],
       observations: [],
       traceability: [],
     }) as any;

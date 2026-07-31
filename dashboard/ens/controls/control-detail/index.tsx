@@ -201,7 +201,25 @@ export const ControlDetailENS = ({
   }));
 
   const motorStatus = complianceResult?.status || 'NO_EVALUABLE';
-  const motorScore = complianceResult?.score ?? 0;
+
+  // Un control sin medir se publica SIN número. Antes esto era `?? 0` y pintaba
+  // un "0 %" en rojo sobre algo que nadie ha medido: la misma afirmación falsa
+  // que el motor ya no fabrica, colada por la puerta de la pantalla.
+  const motorScore =
+    typeof complianceResult?.score === 'number'
+      ? complianceResult.score
+      : undefined;
+
+  const motorScoreTexto =
+    motorScore === undefined ? 'sin medir' : `${motorScore}%`;
+
+  const requisitosAplicables = complianceResult?.applicableRequirements ?? 0;
+  const requisitosMedidos = complianceResult?.measuredRequirements ?? 0;
+
+  // Qué mide el porcentaje, sin tener que cruzarlo con nada: mismos dos números
+  // que publican los agentes en `requisitos_aplicables` / `requisitos_medidos`.
+  const baseDelScore = `${requisitosMedidos} de ${requisitosAplicables} requisitos medidos`;
+
   const nivelesTexto = String(ensLevel);
 
   const evidenceStatusItems = (complianceResult?.evidences || []).map(evidence => ({
@@ -245,6 +263,26 @@ export const ControlDetailENS = ({
   const openNonConformitiesCount = nonConformityItems.filter(
     item => item.status === 'ABIERTA',
   ).length;
+
+  // Lista APARTE de las no conformidades, nunca sumada a ellas. Es lo que
+  // permite al auditor distinguir de un vistazo "esto está mal" de "esto no lo
+  // sabemos": las cuatro tarjetas rojas que veía op.acc.1 en el servidor real
+  // eran todas de esta segunda clase.
+  const measurementGapItems = (complianceResult?.measurementGaps || []).map(
+    gap => ({
+      id: gap.id,
+      evidence: gap.evidenceId,
+      evidences: gap.evidenceIds.join(', '),
+      requirement: gap.requirementId,
+      finding: gap.finding,
+      impact: gap.impact,
+      requiredAction: gap.requiredAction,
+      parameters: gap.parameterIds.join(', '),
+      status: 'PENDIENTE DE MEDICIÓN',
+    }),
+  );
+
+  const measurementGapsCount = measurementGapItems.length;
 
   const traceabilityItems = (complianceResult?.traceability || []).map(
     (item, index) => ({
@@ -442,18 +480,26 @@ export const ControlDetailENS = ({
   const noEvaluablePercent = Math.round((evidenceSummary.noEvaluable / totalEvidences) * 100);
   const noAplicaPercent = Math.round((evidenceSummary.noAplica / totalEvidences) * 100);
 
-  const globalScore = motorScore;
   const globalStatus = motorStatus;
 
+  // Sin número no hay rosco que pintar: el anillo entero en gris dice "no se ha
+  // medido", y no un 0 % en rojo.
+  const donutBackground =
+    motorScore === undefined
+      ? 'conic-gradient(#d3dae6 0 100%)'
+      : `conic-gradient(#00a69b 0 ${Math.max(
+          0,
+          motorScore - 15,
+        )}%, #f5a700 ${Math.max(0, motorScore - 15)}% ${motorScore}%, #d3dae6 ${motorScore}% 100%)`;
 
-
-  const donutWarningStart = Math.max(0, globalScore - 15);
-  const donutBackground = `conic-gradient(#00a69b 0 ${donutWarningStart}%, #f5a700 ${donutWarningStart}% ${globalScore}%, #d3dae6 ${globalScore}% 100%)`;
-
+  // Dos acciones distintas para dos cosas distintas. Un hueco de medida no se
+  // "revisa": se configura el parámetro que falta o se arregla el recolector.
   const auditorAction =
-    openNonConformitiesCount === 0
-      ? 'Sin acciones pendientes'
-      : 'Revisar las no conformidades generadas por el motor ENS.';
+    openNonConformitiesCount > 0
+      ? 'Revisar las no conformidades generadas por el motor ENS.'
+      : measurementGapsCount > 0
+      ? 'Sin incumplimientos. Falta completar la medición: ver "Pendientes de medición".'
+      : 'Sin acciones pendientes';
 
 
   // Sin agente seleccionado no se mezclan datos de varios agentes:
@@ -548,7 +594,7 @@ export const ControlDetailENS = ({
                       }}
                     >
                       <EuiText>
-                        <strong style={{ fontSize: 30 }}>{globalScore}%</strong>
+                        <strong style={{ fontSize: 30 }}>{motorScoreTexto}</strong>
                         <br />
                         {globalStatus}
                       </EuiText>
@@ -558,7 +604,7 @@ export const ControlDetailENS = ({
                   <EuiFlexGroup gutterSize='s' justifyContent='center'>
                     <EuiFlexItem grow={false}>
                       <EuiBadge color={getBadgeColor(motorStatus)}>
-                        {nivelesTexto} · {motorScore}% · {motorStatus}
+                        {nivelesTexto} · {motorScoreTexto} · {motorStatus}
                       </EuiBadge>
                     </EuiFlexItem>
                   </EuiFlexGroup>
@@ -627,7 +673,7 @@ export const ControlDetailENS = ({
                   <EuiSpacer size='m' />
 
                   <EuiStat
-                    title={`${motorScore}%`}
+                    title={motorScoreTexto}
                     description={`Nivel ENS activo: ${nivelesTexto}`}
                     titleColor={getBadgeColor(motorStatus)}
                   />
@@ -658,13 +704,15 @@ export const ControlDetailENS = ({
                   <EuiSpacer size='s' />
 
                   <EuiBadge color={getBadgeColor(motorStatus)}>
-                    {nivelesTexto} · {motorScore}% · {motorStatus}
+                    {nivelesTexto} · {motorScoreTexto} · {motorStatus}
                   </EuiBadge>
 
                   <EuiSpacer size='s' />
 
                   <EuiText size='s'>
                     <p><strong>No conformidades abiertas:</strong> {openNonConformitiesCount}</p>
+                    <p><strong>Pendientes de medición:</strong> {measurementGapsCount}</p>
+                    <p><strong>Base del score:</strong> {baseDelScore}</p>
                     <p><strong>Acción:</strong> {auditorAction}</p>
                   </EuiText>
                 </EuiPanel>
@@ -686,8 +734,8 @@ export const ControlDetailENS = ({
               <EuiFlexItem>
                 <EuiPanel>
                   <EuiStat
-                    title={`${motorScore}%`}
-                    description='Score del control'
+                    title={motorScoreTexto}
+                    description={`Score del control · ${baseDelScore}`}
                     titleColor={getBadgeColor(motorStatus)}
                   />
                 </EuiPanel>
@@ -709,6 +757,19 @@ export const ControlDetailENS = ({
                     title={String(openNonConformitiesCount)}
                     description='No conformidades abiertas'
                     titleColor={openNonConformitiesCount > 0 ? 'danger' : 'success'}
+                  />
+                </EuiPanel>
+              </EuiFlexItem>
+
+              {/* Contador propio y en gris. Sumarlo al de no conformidades es
+                  exactamente lo que hacia que "4 no conformidades abiertas"
+                  significara "cuatro parametros sin configurar". */}
+              <EuiFlexItem>
+                <EuiPanel>
+                  <EuiStat
+                    title={String(measurementGapsCount)}
+                    description='Pendientes de medición'
+                    titleColor='subdued'
                   />
                 </EuiPanel>
               </EuiFlexItem>
@@ -810,7 +871,7 @@ export const ControlDetailENS = ({
                 color='success'
                 iconType='check'
               >
-                El motor ENS no ha generado acciones de remediación pendientes.
+                El motor ENS no ha detectado ningún incumplimiento.
               </EuiCallOut>
             ) : (
               <EuiCallOut
@@ -820,6 +881,24 @@ export const ControlDetailENS = ({
               >
                 {auditorAction}
               </EuiCallOut>
+            )}
+
+            {/* Aviso propio, en gris (`color='primary'` informativo, nunca
+                `warning`): "no lo sabemos" no se pinta igual que "esto esta
+                mal". */}
+            {measurementGapsCount > 0 && (
+              <>
+                <EuiSpacer size='s' />
+
+                <EuiCallOut
+                  title={`${measurementGapsCount} requisito(s) pendiente(s) de medición`}
+                  color='primary'
+                  iconType='clock'
+                >
+                  No son incumplimientos: son medidas que faltan. Ver
+                  «Pendientes de medición» para saber qué configurar.
+                </EuiCallOut>
+              </>
             )}
           </EuiPanel>
 
@@ -888,13 +967,21 @@ export const ControlDetailENS = ({
         </EuiTitle>
         <EuiText>
           <p>
-            Hallazgos que impiden cerrar el cumplimiento completo del control.
-            Cada tarjeta muestra evidencia afectada, requisito ENS, impacto y
-            acción correctiva.
+            Incumplimientos <strong>demostrados</strong>: el motor ha medido y el
+            resultado no conforma. Cada tarjeta muestra la evidencia que sostiene
+            el hallazgo, el requisito ENS, el impacto y la acción correctiva. Lo
+            que no se ha podido medir NO aparece aquí: está más abajo, en
+            «Pendientes de medición».
           </p>
         </EuiText>
 
         <EuiSpacer size='s' />
+
+        {nonConformityItems.length === 0 && (
+          <EuiText size='s' color='subdued'>
+            <p>Sin incumplimientos demostrados en este control.</p>
+          </EuiText>
+        )}
 
         <EuiFlexGroup>
           {nonConformityItems.map(nonConformity => (
@@ -988,6 +1075,77 @@ export const ControlDetailENS = ({
             </EuiFlexItem>
           ))}
         </EuiFlexGroup>
+
+        <EuiSpacer size='l' />
+
+        {/* Seccion propia, titulo propio, texto propio. Un hueco de medida no
+            es un hallazgo: es una pregunta que el sistema todavia no puede
+            responder, y la accion no es "revisar" sino configurar el parametro
+            que la desbloquea. */}
+        <EuiTitle size='s'>
+          <h3>Pendientes de medición</h3>
+        </EuiTitle>
+        <EuiText>
+          <p>
+            Requisitos que el motor <strong>no ha podido medir</strong>. No
+            constan como incumplimiento: el sistema no ha fallado, falta el dato.
+            Cada tarjeta dice qué evidencia falta y qué hay que configurar para
+            desbloquearla.
+          </p>
+        </EuiText>
+
+        <EuiSpacer size='s' />
+
+        {measurementGapItems.length === 0 ? (
+          <EuiText size='s' color='subdued'>
+            <p>Todo lo aplicable en este control se ha podido medir.</p>
+          </EuiText>
+        ) : (
+          <EuiFlexGroup wrap>
+            {measurementGapItems.map(gap => (
+              <EuiFlexItem key={gap.id}>
+                <EuiPanel color='subdued'>
+                  <EuiFlexGroup
+                    justifyContent='spaceBetween'
+                    alignItems='center'
+                  >
+                    <EuiFlexItem grow={false}>
+                      <EuiTitle size='xs'>
+                        <h4>{gap.id}</h4>
+                      </EuiTitle>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge color='default' iconType='clock'>
+                        {gap.status}
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
+
+                  <EuiSpacer size='s' />
+
+                  <EuiText size='s'>
+                    <p>
+                      <strong>{gap.evidences || gap.evidence}</strong> ·{' '}
+                      {gap.requirement}
+                    </p>
+                    <p>{gap.finding}</p>
+                    <p>
+                      <strong>Impacto ENS:</strong> {gap.impact}
+                    </p>
+                    <p>
+                      <strong>Para poder medirlo:</strong> {gap.requiredAction}
+                    </p>
+                    {gap.parameters && (
+                      <p>
+                        <strong>Parámetros implicados:</strong> {gap.parameters}
+                      </p>
+                    )}
+                  </EuiText>
+                </EuiPanel>
+              </EuiFlexItem>
+            ))}
+          </EuiFlexGroup>
+        )}
 
       </EuiPanel>
     </EuiPage>

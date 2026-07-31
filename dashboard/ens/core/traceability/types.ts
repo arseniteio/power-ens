@@ -22,7 +22,10 @@ export interface ENSControlTrace {
   controlId: string;
   controlName: string;
   status: ENSComplianceStatus;
-  score: number;
+
+  // Ausente cuando el control no se puede puntuar. Ver `score` en
+  // `../evaluation/types`.
+  score?: number;
   requirements: ENSRequirementTrace[];
   generatedAt: string;
   policyDecisions?: ENSPolicyDecisionTrace[];

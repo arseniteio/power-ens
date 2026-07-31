@@ -2,6 +2,7 @@ import type {
   ENSComplianceResult,
   ENSComplianceStatus,
   ENSEvidenceResult,
+  ENSMeasurementGap,
   ENSNonConformity,
   ENSRequirementResult,
   ENSTraceabilityResult,
@@ -66,14 +67,15 @@ export const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComp
     return 'PARCIAL';
   }
 
-  const hasCompliant = applicableStatuses.some((status) => status === 'CUMPLE');
-
-  const hasNotEvaluable = applicableStatuses.some((status) => status === 'NO_EVALUABLE');
-
-  if (hasCompliant && hasNotEvaluable) {
-    return 'PARCIAL';
-  }
-
+  // Aquí había un `hasCompliant && hasNotEvaluable -> PARCIAL`: un agente que
+  // cumple y otro del que no se ha podido medir nada daban "PARCIAL" para el
+  // conjunto. Eso es el mismo hueco de medida fabricando una afirmación, una
+  // capa más arriba: nadie ha demostrado que el conjunto conforme a medias, lo
+  // que hay es una parte sin medir. Sin esa regla, el caso cae solo en el
+  // NO_EVALUABLE del final, que es lo correcto.
+  //
+  // Las dos ramas de arriba (NO_CUMPLE y PARCIAL) van antes a propósito: un
+  // incumplimiento demostrado en CUALQUIER agente sigue mandando sobre el hueco.
   if (applicableStatuses.every((status) => status === 'NO_EVALUABLE')) {
     return 'NO_EVALUABLE';
   }
@@ -100,6 +102,43 @@ const averageApplicableResultValue = (
       applicableEntries.length
   );
 };
+
+// El porcentaje consolidado se promedia SOLO sobre los agentes que traen
+// número. Un agente sin medir no aporta un 0 al promedio: eso volvería a
+// convertir la falta de dato en un porcentaje bajo, que es exactamente el error
+// que se corrige una capa más abajo. Si ningún agente trae número, no hay
+// número consolidado.
+const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
+  const scored = entries.filter(
+    (entry) => typeof entry.result.score === 'number'
+  );
+
+  if (scored.length === 0) {
+    return undefined;
+  }
+
+  return Math.round(
+    scored.reduce((sum, entry) => sum + (entry.result.score as number), 0) / scored.length
+  );
+};
+
+const consolidateMeasurementGaps = (entries: ENSAgentResultEntry[]): ENSMeasurementGap[] =>
+  uniqueByKey(
+    entries.flatMap((entry) =>
+      entry.result.measurementGaps.map((gap) => {
+        const agentLabel = getAgentLabel(entry);
+
+        return {
+          ...gap,
+          id: `${entry.agentId}:` + gap.id,
+          finding: `[${agentLabel}] ` + gap.finding,
+          impact: `[${agentLabel}] ` + gap.impact,
+          requiredAction: `[${agentLabel}] ` + gap.requiredAction,
+        };
+      })
+    ),
+    (gap) => gap.id
+  );
 
 export const agentHasEvaluatedResults = (agent: ENSAgentComplianceState): boolean =>
   agent.results.some((result) => result.status !== 'NO_EVALUABLE' && result.status !== 'NO_APLICA');
@@ -400,8 +439,25 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
     policyRuntime: consolidatePolicyRuntime(entries),
 
     status: consolidateENSStatuses(entries.map((entry) => entry.result.status)),
-    score: averageApplicableResultValue(entries, (result) => result.score),
+    score: averageScore(entries),
     coverage: averageApplicableResultValue(entries, (result) => result.coverage),
+
+    // Se SUMAN, no se promedian: el conjunto tiene tantos requisitos aplicables
+    // como la suma de los de cada agente, y la lista de los que faltan por medir
+    // se nombra con el agente delante para que se pueda ir a corregir.
+    applicableRequirements: entries.reduce(
+      (sum, entry) => sum + entry.result.applicableRequirements,
+      0
+    ),
+    measuredRequirements: entries.reduce(
+      (sum, entry) => sum + entry.result.measuredRequirements,
+      0
+    ),
+    unmeasuredRequirements: entries.flatMap((entry) =>
+      entry.result.unmeasuredRequirements.map(
+        (requirementId) => `${entry.agentId}:${requirementId}`
+      )
+    ),
 
     evaluatedAt:
       getLatestIsoDate(entries.map((entry) => entry.result.evaluatedAt)) || template.evaluatedAt,
@@ -421,6 +477,7 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
     relatedRules: uniqueValues(entries.flatMap((entry) => entry.result.relatedRules)),
 
     nonConformities: consolidateNonConformities(entries),
+    measurementGaps: consolidateMeasurementGaps(entries),
 
     observations: consolidateObservations(entries),
 

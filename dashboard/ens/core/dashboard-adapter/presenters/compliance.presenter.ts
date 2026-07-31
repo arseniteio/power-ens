@@ -7,6 +7,7 @@ export const buildComplianceCardModel = (
   return {
     title: 'ÍNDICE GLOBAL DE CUMPLIMIENTO ENS',
     score: complianceState.controlSummary.scoreAverage || 0,
+    measured: complianceState.controlSummary.measured || 0,
     total: complianceState.controlSummary.totalControls || 0,
     cumple: complianceState.controlSummary.cumple || 0,
     parcial: complianceState.controlSummary.parcial || 0,

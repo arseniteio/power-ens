@@ -111,7 +111,9 @@ export const TraceabilityENS = () => {
         <p>
           Estado del control:{' '}
           <EuiBadge color='hollow'>{trace.status}</EuiBadge> · Score:{' '}
-          <strong>{trace.score}%</strong>
+          <strong>
+            {typeof trace.score === 'number' ? `${trace.score}%` : 'sin medir'}
+          </strong>
         </p>
       </EuiText>
 

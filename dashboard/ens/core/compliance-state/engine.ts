@@ -23,14 +23,22 @@ const createSummaryFromItems = (
   const parcial = items.filter(item => item.status === 'PARCIAL').length;
   const noEvaluable = items.filter(item => item.status === 'NO_EVALUABLE').length;
   const noAplica = items.filter(item => item.status === 'NO_APLICA').length;
-  const evaluableItems = items.filter(item => item.status !== 'NO_APLICA');
+  // El índice global se promedia SOLO sobre lo medido. Un control NO_EVALUABLE
+  // aportaba antes un 0 al promedio (por `score` a 0 o por el `getStatusScore`
+  // de respaldo), así que tres controles sanos y uno sin medir daban 75 % y el
+  // índice bajaba por algo que nadie ha demostrado. Es el mismo error que se
+  // corrige en `evaluation/control`, una capa más arriba y por la puerta del
+  // número.
+  const measuredItems = items.filter(
+    item => item.status !== 'NO_APLICA' && item.status !== 'NO_EVALUABLE'
+  );
 
-  const scoreAverage = evaluableItems.length
+  const scoreAverage = measuredItems.length
     ? Math.round(
-        evaluableItems.reduce(
+        measuredItems.reduce(
           (sum, item) => sum + (item.score ?? getStatusScore(item.status)),
           0
-        ) / evaluableItems.length
+        ) / measuredItems.length
       )
     : 0;
 
@@ -42,6 +50,7 @@ const createSummaryFromItems = (
     noEvaluable,
     noAplica,
     scoreAverage,
+    measured: measuredItems.length,
   };
 };
 

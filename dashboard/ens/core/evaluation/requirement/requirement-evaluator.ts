@@ -64,17 +64,25 @@ const resolveFunctionalStatus = (
     return 'NO_EVALUABLE';
   }
 
-  if (
-    applicableEvidences.some(evidence => evidence.status === 'CUMPLE') ||
-    applicableEvidences.some(evidence => evidence.status === 'PARCIAL')
-  ) {
+  // Una evidencia en PARCIAL es una MEDIDA: el agente ha mirado y ha declarado
+  // que conforma a medias. Eso sí degrada el requisito.
+  if (hasPartialEvidence) {
     return 'PARCIAL';
   }
 
-  if (applicableEvidences.every(evidence => evidence.status === 'NO_EVALUABLE')) {
-    return 'NO_EVALUABLE';
-  }
-
+  // Llegados aquí no hay ninguna evidencia que incumpla ni que conforme a
+  // medias, y no todas conforman: lo que queda son evidencias que NO SE HAN
+  // PODIDO MEDIR. Antes esta rama devolvía PARCIAL en cuanto hubiera una sola
+  // evidencia en CUMPLE, y ese PARCIAL era una afirmación fabricada con la
+  // ausencia de un dato: nadie ha demostrado que el requisito conforme a
+  // medias, sencillamente falta mirar una parte. De ahí salían las cuatro «no
+  // conformidades» de op.acc.1 sobre evidencias en gris.
+  //
+  // Un hueco de medida no puede fabricar un incumplimiento igual que no puede
+  // fabricar un cumplimiento: sin la medida completa, el requisito es
+  // NO_EVALUABLE. La rama de arriba (`hasNonCompliantEvidence`) se comprueba
+  // ANTES a propósito: un incumplimiento demostrado siempre manda sobre un
+  // hueco, nunca al revés.
   return 'NO_EVALUABLE';
 };
 

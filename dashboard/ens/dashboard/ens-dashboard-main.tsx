@@ -222,25 +222,35 @@ export const EnsDashboardMain = () => {
         <div style={card}>
           <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>
 
+            {/* Sin un solo control medido no hay indice que enseñar. Un 0 % en
+                rojo sobre controles que nadie ha podido medir es la misma
+                afirmacion falsa que el motor ya no fabrica: aqui se dice que no
+                se sabe, y cuando SI hay numero se dice sobre cuantos se ha
+                calculado. */}
             <div
               style={{
                 fontSize: 58,
                 lineHeight: '60px',
                 fontWeight: 700,
                 color:
-                  
-                  dashboardModel.compliance.score >= 80
+                  dashboardModel.compliance.measured === 0
+                    ? '#69707D'
+                    : dashboardModel.compliance.score >= 80
                     ? '#00A65A'
                     : dashboardModel.compliance.score >= 50
                     ? '#F5B700'
                     : '#BD271E',
               }}
             >
-              {dashboardModel.compliance.score}%
+              {dashboardModel.compliance.measured === 0
+                ? '—'
+                : `${dashboardModel.compliance.score}%`}
             </div>
 
             <div style={{ fontSize: 16, color: '#69707D', marginTop: 4 }}>
-             Estado actual del cumplimiento ENS
+             {dashboardModel.compliance.measured === 0
+               ? 'Ningún control se ha podido medir todavía'
+               : `Sobre ${dashboardModel.compliance.measured} de ${dashboardModel.compliance.total} controles medidos`}
             </div>
 
             <div

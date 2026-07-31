@@ -165,9 +165,12 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
   // El score y la cobertura proceden exclusivamente del motor ENS.
   // Se conserva el valor 0 como resultado válido y no se confunde
   // con ausencia de evaluación.
+  // `?? null` y no solo el ternario: desde que un control sin medir se publica
+  // SIN número, `score` puede venir `undefined`, y `undefined !== null` es
+  // cierto — el informe imprimiría "undefined%" donde debe poner N/A.
   const motorScore =
     complianceResult
-      ? complianceResult.score
+      ? complianceResult.score ?? null
       : null;
 
   const motorCoverage =

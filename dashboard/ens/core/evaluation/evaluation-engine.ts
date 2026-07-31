@@ -1,9 +1,18 @@
 import { ENSPolicyRuntimeResult } from '../policy-runtime';
 import { ENSControlDefinition } from '../../catalog';
 import { ENSControlConfiguration, ENSLevel } from '../../configuration/types';
-import { validateControlConfiguration } from '../../configuration/services';
+// Del fichero, no del barrel `configuration/services`: ese re-exporta el cliente
+// HTTP, que arrastra `kibana-services` al grafo del motor sin que haga falta —y
+// es también por donde vuelve el ciclo del TDZ de `Settings`—. Mismo criterio
+// que ya aplica `policy-runtime.ts`. Sin esto el motor no se puede ejercitar
+// fuera del árbol de Wazuh, que es justo lo que necesita `tests/`.
+import { validateControlConfiguration } from '../../configuration/services/validation-engine';
 import { ENSEvidenceResolved } from '../evidence/types';
-import { ENSComplianceResult, ENSNonConformity } from './types';
+import {
+  ENSComplianceResult,
+  ENSMeasurementGap,
+  ENSNonConformity,
+} from './types';
 import { evaluateRequirements } from './requirement';
 import { evaluateControlStatus } from './control';
 import { ENSNormalizedEvent } from '../data-source/types';
@@ -326,11 +335,36 @@ export const evaluateENSControl = (
       ];
     });
 
+  // Solo el incumplimiento DEMOSTRADO abre no conformidad. Un requisito en
+  // NO_EVALUABLE no está aquí: no se ha podido medir, así que no hay nada que
+  // acusar. Ver `unmeasuredRequirements` justo debajo.
   const failingRequirements = requirements.filter(
     requirement =>
       requirement.applicable &&
       (requirement.status === 'NO_CUMPLE' || requirement.status === 'PARCIAL')
   );
+
+  const unmeasuredRequirements = requirements.filter(
+    requirement =>
+      requirement.applicable && requirement.status === 'NO_EVALUABLE'
+  );
+
+  // Parámetros de la pantalla de Configuración que acreditan un requisito y no
+  // están utilizables. Son la acción concreta de un hueco de medida: sin esto,
+  // el auditor lee "falta medir" y no sabe qué tocar.
+  const unusableParametersFor = (
+    requirementId: string,
+    evidenceIds: string[]
+  ): { id: string; label: string }[] =>
+    (validation?.parameters || []).filter(
+      parameter =>
+        (parameter.status === 'NOT_CONFIGURED' ||
+          parameter.status === 'INVALID') &&
+        (parameter.requirements.includes(requirementId) ||
+          parameter.evidenceIds.some(evidenceId =>
+            evidenceIds.includes(evidenceId)
+          ))
+    );
 
   const nonConformities: ENSNonConformity[] = [
     // NC-CFG distingue los dos casos a proposito. "Faltan P-01, P-03" se
@@ -387,12 +421,15 @@ export const evaluateENSControl = (
         item => item.requirementId === requirement.id
       );
 
+      // Las evidencias que SOSTIENEN la acusación, no todas las que no están en
+      // verde: una evidencia NO_EVALUABLE se colaba aquí y acababa siendo la
+      // `evidenceId` de la tarjeta, señalando como culpable justo a la que no
+      // se ha podido medir.
       const badEvidences = evidences
         .filter(
           evidence =>
             requirement.evidenceIds.includes(evidence.id) &&
-            evidence.status !== 'CUMPLE' &&
-            evidence.status !== 'NO_APLICA'
+            (evidence.status === 'NO_CUMPLE' || evidence.status === 'PARCIAL')
         )
         .map(evidence => evidence.id);
 
@@ -422,6 +459,103 @@ export const evaluateENSControl = (
     }),
   ];
 
+  // Huecos de medida: PM = "pendiente de medición". Prefijo distinto de NC a
+  // propósito, para que ni el ojo ni el código los confundan.
+  const measurementGaps: ENSMeasurementGap[] = unmeasuredRequirements.map(
+    (requirement, index) => {
+      const requirementEvidences = evidences.filter(evidence =>
+        requirement.evidenceIds.includes(evidence.id)
+      );
+
+      const pendingEvidences = requirementEvidences.filter(
+        evidence => evidence.status === 'NO_EVALUABLE'
+      );
+
+      const pendingEvidenceIds = pendingEvidences.map(
+        evidence => evidence.id
+      );
+
+      // El `motivo` que el agente puso en su `evidence_state` ("P-07 no
+      // configurado", "sin datos del recolector en la ventana"...). Es la
+      // respuesta a "¿y por qué no se ha podido medir?", y ya viaja en los
+      // atributos del evento: no llevarlo a la tarjeta obligaba a cruzarla a
+      // mano con la tabla de evidencias.
+      const pendingReasons = pendingEvidences
+        .map(evidence => {
+          const reason = evidence.resolvedAttributes?.motivo;
+
+          return reason && String(reason).trim()
+            ? `${evidence.id}: ${String(reason).trim()}`
+            : '';
+        })
+        .filter(Boolean);
+
+      const parameters = unusableParametersFor(
+        requirement.id,
+        pendingEvidenceIds
+      );
+
+      const listaParametros = parameters
+        .map(parameter => `${parameter.id} (${parameter.label})`)
+        .join(', ');
+
+      // Tres causas distintas, tres textos distintos y tres acciones distintas.
+      // Un solo texto genérico ("falta medir, revisar") es lo que convierte una
+      // pantalla en algo que nadie usa: la acción tiene que decir a quién le
+      // toca y dónde.
+      //
+      //   1. El catálogo no declara qué acreditaría el requisito. El arreglo no
+      //      lo tiene el cliente, lo tiene el producto.
+      //   2. Las evidencias están bien pero faltan parámetros obligatorios del
+      //      control: se mide en cuanto se rellenen.
+      //   3. Falta el dato del agente para evidencias concretas.
+      const cause: 'CATALOG' | 'CONFIGURATION' | 'EVIDENCE' =
+        requirement.evidenceIds.length === 0 || requirementEvidences.length === 0
+          ? 'CATALOG'
+          : pendingEvidenceIds.length === 0
+          ? 'CONFIGURATION'
+          : 'EVIDENCE';
+
+      const finding =
+        cause === 'CATALOG'
+          ? `El requisito ${requirement.id} no tiene ninguna evidencia declarada en el catálogo, así que no hay nada que medir.`
+          : cause === 'CONFIGURATION'
+          ? `El requisito ${requirement.id} no se ha podido medir: sus evidencias han llegado, pero faltan parámetros obligatorios del control. No consta ningún incumplimiento.`
+          : `El requisito ${requirement.id} no se ha podido medir: ${pendingEvidenceIds.join(
+              ', '
+            )} sin datos suficientes. No consta ningún incumplimiento.${
+              pendingReasons.length
+                ? ` Motivo — ${pendingReasons.join('; ')}.`
+                : ''
+            }`;
+
+      const requiredAction =
+        cause === 'CATALOG'
+          ? `Declarar en el catálogo qué evidencias acreditan ${requirement.id}.`
+          : listaParametros
+          ? `Configurar ${listaParametros} en la pestaña Configuración.`
+          : `Comprobar que el agente emite las evidencias ${pendingEvidenceIds.join(
+              ', '
+            )} del requisito ${requirement.id}.`;
+
+      return {
+        id: `PM-${String(index + 1).padStart(3, '0')}`,
+        // Nunca una evidencia que SÍ se ha medido: si la culpa es de la
+        // configuración, el ancla es CONFIG, no la primera evidencia de la
+        // lista, que puede estar perfectamente en verde.
+        evidenceId:
+          pendingEvidenceIds[0] ||
+          (cause === 'CONFIGURATION' ? 'CONFIG' : 'ENS'),
+        requirementId: requirement.id,
+        finding,
+        impact: `El control ${catalogControl.id} no puede declararse conforme en nivel ${level} mientras falte esta medida. No es un incumplimiento.`,
+        requiredAction,
+        evidenceIds: pendingEvidenceIds,
+        parameterIds: parameters.map(parameter => parameter.id),
+      };
+    }
+  );
+
   return {
     control: {
       id: catalogControl.id,
@@ -437,6 +571,9 @@ export const evaluateENSControl = (
     status: controlEvaluation.status,
     score: controlEvaluation.score,
     coverage: controlEvaluation.coverage,
+    applicableRequirements: controlEvaluation.applicableRequirements,
+    measuredRequirements: controlEvaluation.measuredRequirements,
+    unmeasuredRequirements: controlEvaluation.unmeasuredRequirements,
     evaluatedAt: new Date().toISOString(),
     lastEvidenceAt: evidences
       .map(evidence => evidence.lastSeen)
@@ -490,6 +627,7 @@ export const evaluateENSControl = (
     relatedRules,
 
     nonConformities,
+    measurementGaps,
     observations,
 
     traceability: [

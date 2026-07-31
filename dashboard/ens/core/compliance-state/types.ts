@@ -7,7 +7,12 @@ export interface ENSComplianceSummary {
   parcial: number;
   noEvaluable: number;
   noAplica: number;
+
+  // Promedio SOBRE LO MEDIDO. `measured` dice sobre cuántos elementos se ha
+  // calculado: con `measured` a 0 el promedio no significa nada y la pantalla
+  // tiene que decir "sin medir", no "0 %".
   scoreAverage: number;
+  measured: number;
 }
 
 export interface ENSAgentSummary {
