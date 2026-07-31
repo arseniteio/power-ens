@@ -196,38 +196,56 @@
 
   <!-- ===== Latido del recolector (collector_run) ==================================
 
-       REGLA SIN PRODUCTOR HOY, Y ESO ES EXACTAMENTE LO QUE HAY QUE SABER DE ELLA.
-       Ningún script de este runbook emite `collector_run`: mp.info.6 no tiene un
-       orquestador que cierre la pasada con un latido, a diferencia de op.acc.1
-       (ens_opacc1_collect.sh) y op.acc.2 (ens_opacc2_collect.sh), que sí lo emiten
-       y que ya lo declaran con `resultado` y `evidencias_cubiertas`. Mientras eso
-       siga así, esta regla no se dispara nunca. Se documenta como lo que es en
-       docs/07-mapa-evidencias.md, §7.4, junto a las otras reglas sin productor.
+       QUIÉN LO EMITE, que es lo primero que hay que saber de esta regla:
+       scripts/ens_mpinfo6_score.py, al cerrar cada pasada horaria. Y NO
+       pxbackup.sh, que sería lo intuitivo por ser el que hace la copia. La razón
+       está escrita por extenso en la cabecera de ese script y en corto es esta:
+       el latido declara sobre QUÉ FUENTES ha llegado a mirar la pasada, y la
+       única pieza de este runbook que las visita todas es el score, que lee el
+       ndjson (EV-01, EV-05, EV-07) y mira la máquina (EV-02 el cron, EV-03 las
+       rutas de copia, EV-04 los permisos del keyfile). pxbackup.sh solo toca dos
+       de las siete, y solo cuando hay copia: un latido suyo declararía cobertura
+       sobre cinco evidencias que no mira, y una máquina con el cron de la copia
+       roto dejaría de latir aunque el score siguiera observándola entera.
 
-       POR QUÉ EXISTE IGUALMENTE. `collector_run` es el evento que el motor del
+       Este control no tiene el orquestador que sí tienen op.acc.1
+       (ens_opacc1_collect.sh) y op.acc.2 (ens_opacc2_collect.sh), y por eso el
+       latido tardó en existir: entre el 31/07/2026 y su implementación esta regla
+       estuvo desplegada SIN PRODUCTOR, a propósito. Poner la regla no crea el
+       latido, y esa mitad no se improvisa.
+
+       POR QUÉ EXISTE LA REGLA. `collector_run` es el evento que el motor del
        plugin lee DESDE EL ÍNDICE para decidir si la ausencia de hechos de una
        evidencia puede llegar a significar CUMPLE (`resolveCollectorCoverage`, en
        dashboard/ens/core/evidence/judgment.ts). En op.acc.1 el evento se emitía y
        no tenía regla, así que no llegaba al índice, y EV-03 salió NO_EVALUABLE
        permanente en una máquina sana en el primer despliegue real (31/07/2026).
-       Aquí el hueco es el otro: la regla estaba pensada como innecesaria porque
-       nadie emitía el evento, lo cual deja de ser cierto el día que mp.info.6
-       migre su primera evidencia al modelo nuevo.
+       Sin regla, un latido correcto no sirve de nada: cae en la base 106600, que
+       es de nivel 0, no genera alerta y el motor no lo ve.
 
-       LO QUE ESTA REGLA NO ARREGLA, para no venderla de más: poner la regla no
-       hace que el latido exista. Falta la mitad del agente, y esa mitad NO se
-       improvisa: `evidencias_cubiertas` es una lista blanca de lo que esa pasada
-       llegó a MIRAR, y declarar ahí una evidencia cuya fuente no se ha comprobado
-       es fabricar cobertura, que es el falso verde que el producto prohíbe (ver el
-       bloque `evidencias_cubiertas` de ens_opacc1_collect.sh, que lo explica con
-       la lista de las cinco evidencias que deliberadamente NO declara). Quien
-       añada el latido a este control decide evidencia por evidencia, comprobando
-       la fuente, y no de oficio.
+       LO QUE EL LATIDO DECLARA, Y LO QUE NO. `resultado=completada` dice que la
+       pasada llegó al final. `evidencias_cubiertas` es una LISTA BLANCA de lo que
+       esa pasada llegó a MIRAR, no de lo que emitió: una evidencia puede callar
+       legítimamente y ese silencio es justo el caso que puede acabar en CUMPLE.
+       Por eso la lista no se rellena de oficio con las siete, sale de que cada
+       evidencia declare si pudo consultar su fuente, y hay dos que no entran
+       nunca o casi nunca: EV-06, porque la copia externa la produce el propio
+       servidor PBS y este runbook no la recoge, y EV-05 mientras la sonda de
+       restauración R1 siga dormida. Declarar cobertura sobre una fuente que no se
+       ha podido consultar es fabricar el falso verde que el producto prohíbe.
 
        NIVEL 3 Y SIN GRUPOS DE VEREDICTO, el mismo criterio que 106891 de op.acc.1
        y 106906 de op.acc.2, razonado por extenso en el primero: 3 es el mínimo que
        sigue generando alerta con la configuración por defecto del manager, y un
-       latido no es una no conformidad ni una afirmación de cumplimiento.
+       latido no es una no conformidad ni una afirmación de cumplimiento. El
+       volumen es una alerta por hora y agente, la misma cadencia que ya tienen
+       los tres agregados del score.
+
+       LOS DOS CAMPOS DE LA DESCRIPCIÓN son los dos que lee el motor, y no es
+       cosmética: tests/test_vocabulario.sh (sección 8) los saca de aquí y
+       comprueba que el ndjson que escribe el score.py real los trae. Si alguien
+       renombra uno de los dos lados, Wazuh pintaría el literal en la alerta y el
+       motor dejaría de resolver la cobertura, las dos cosas en silencio.
 
        ID 106608: primer hueco libre de la banda 106600-106799 del control,
        comprobado libre en los cuatro ficheros de reglas del producto. -->
