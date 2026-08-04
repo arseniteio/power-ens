@@ -1,3 +1,25 @@
+// Una máquina, nombrada como la nombra el auditor. Sale de la consolidación
+// entre agentes: el resultado de UN agente no la lleva, porque ahí la máquina ya
+// es el contexto entero de la pantalla.
+export interface ENSAgentRef {
+  agentId: string;
+  agentName?: string;
+}
+
+// Un motivo y las máquinas en las que ocurre. El mismo motivo repetido en siete
+// agentes es UN motivo observado siete veces, no siete motivos: agrupar por
+// texto es lo que hace que la vista general siga leyéndose cuando el parque
+// crece. La estructura viaja cruda —sin recortar ni redactar— para que cada
+// consumidor decida cuántos grupos enseña y cómo; el motor no recorta nada.
+export interface ENSObservationGroup {
+  // El motivo tal cual lo escribió el motor, SIN prefijo de agente.
+  text: string;
+
+  // En qué máquinas se ha observado, en orden estable de aparición. Vacío
+  // solo si el motivo no procede de ninguna máquina en concreto.
+  agents: ENSAgentRef[];
+}
+
 // Un hallazgo de incumplimiento DEMOSTRADO: se ha medido y el resultado no
 // conforma. Es lo único que puede abrir una no conformidad.
 export interface ENSNonConformity {
@@ -9,6 +31,12 @@ export interface ENSNonConformity {
   requiredAction: string;
   expected?: string;
   actual?: string;
+
+  // Máquinas en las que se ha demostrado ESTE hallazgo, con este mismo texto.
+  // Solo lo rellena la consolidación: una tarjeta idéntica en seis máquinas es
+  // una tarjeta con seis máquinas, no seis tarjetas. Si el hallazgo difiere
+  // (otra cuenta, otro valor), el texto difiere y son tarjetas distintas.
+  agents?: ENSAgentRef[];
 }
 
 // Un HUECO DE MEDIDA no es una no conformidad y por eso viaja aparte, con otro
@@ -27,6 +55,26 @@ export interface ENSMeasurementGap {
   finding: string;
   impact: string;
   requiredAction: string;
+
+  // De QUIÉN es el hueco, que es lo que decide a quién le toca arreglarlo:
+  //
+  //   CATALOG       el producto no declara qué acreditaría el requisito. Es
+  //                 cierto para todas las máquinas por igual y no cambia por
+  //                 mirar otra: NO es un hallazgo por máquina y consolidando
+  //                 nunca se multiplica ni se atribuye a un agente.
+  //   CONFIGURATION faltan parámetros obligatorios del control. Es del
+  //                 despliegue del cliente, no de una máquina en concreto,
+  //                 pero afecta a las que se nombran.
+  //   EVIDENCE      falta el dato de una máquina concreta.
+  //
+  // El motor ya distinguía las tres para redactar el texto y la acción; sin
+  // publicarlo, el consumidor tenía que adivinarlo del texto.
+  cause: 'CATALOG' | 'CONFIGURATION' | 'EVIDENCE';
+
+  // Máquinas en las que falta ESTA medida, con este mismo texto. Igual que en
+  // `ENSNonConformity`, solo lo rellena la consolidación. Vacío en los huecos
+  // de causa CATALOG: no hay máquina a la que atribuirlos.
+  agents?: ENSAgentRef[];
 
   // Todas las evidencias del requisito que no se han podido medir, no solo la
   // primera: `evidenceId` existe para que la tarjeta tenga un ancla, pero el
@@ -59,6 +107,11 @@ export interface ENSRequirementResult {
   status: ENSComplianceStatus;
   level: ENSLevel[];
   observations: string[];
+
+  // Los mismos motivos sin aplanar. Como en `ENSEvidenceResult`, solo lo
+  // rellena la consolidación entre agentes.
+  observationGroups?: ENSObservationGroup[];
+
   evidenceIds?: string[];
 }
 
@@ -78,7 +131,17 @@ export interface ENSEvidenceResult {
   // motivo de una evidencia en gris o en rojo no llegaba nunca al auditor.
   // Afecta a los tres controles, no solo al que estrenó las primitivas de
   // juicio: también al gris justificado de EV-06 de mp.info.6.
+  //
+  // Consolidando varios agentes cada motivo llega prefijado con la máquina (o
+  // con las máquinas) en las que se observó, para el consumidor que solo sabe
+  // leer texto plano —los dos modelos de informe—. El que quiera enseñarlo bien
+  // tiene la misma información sin aplanar en `observationGroups`.
   observations: string[];
+
+  // Los mismos motivos, agrupados por texto y con las máquinas de cada uno.
+  // Solo lo rellena la consolidación entre agentes: con un agente seleccionado
+  // el motivo no necesita decir de qué máquina viene.
+  observationGroups?: ENSObservationGroup[];
 
   requirements: string[];
   levels: ENSLevel[];
@@ -143,7 +206,12 @@ export interface ENSComplianceResult {
     description: string;
   };
 
-  policyRuntime?: ENSPolicyRuntimeResult;  
+  policyRuntime?: ENSPolicyRuntimeResult;
+
+  // Las máquinas que ha resumido este resultado. Solo lo rellena la
+  // consolidación: sin él, la vista general dice «todos los agentes» sin decir
+  // cuántos son, y «afecta a 6» no se distingue de «afecta a todas».
+  consolidatedAgents?: ENSAgentRef[];
 
   level: ENSLevel;
   status: ENSComplianceStatus;

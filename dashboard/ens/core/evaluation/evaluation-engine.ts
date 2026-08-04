@@ -550,6 +550,12 @@ export const evaluateENSControl = (
         finding,
         impact: `El control ${catalogControl.id} no puede declararse conforme en nivel ${level} mientras falte esta medida. No es un incumplimiento.`,
         requiredAction,
+
+        // La causa deja de ser un detalle interno del texto y se publica: es lo
+        // que permite a la consolidación no multiplicar por máquina un hueco
+        // que es del catálogo, y a la pantalla decir de quién es el arreglo.
+        cause,
+
         evidenceIds: pendingEvidenceIds,
         parameterIds: parameters.map(parameter => parameter.id),
       };

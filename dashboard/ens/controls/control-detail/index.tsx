@@ -19,6 +19,17 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControl } from '../../types';
+// Del fichero de tipos, nunca del barrel `../../core`: `import type` se borra
+// entero al compilar, así que esto no añade ninguna arista al grafo de módulos
+// (el ciclo transitivo del TDZ de `Settings` vive justo ahí).
+import type { ENSObservationGroup } from '../../core/evaluation/types';
+// Cuánto se enseña de la vista general y cómo se nombran las máquinas. Es
+// lógica pura y vive aparte para poder comprobarla sin `react` ni `@elastic/eui`.
+import {
+  describirAlcance,
+  etiquetaDeMaquinas,
+  resumirMotivos,
+} from './general-view';
 import { getActiveENSConfiguration } from '../../configuration/services';
 
 interface ControlDetailENSProps {
@@ -164,10 +175,21 @@ export const ControlDetailENS = ({
     ? new Date(getHitTimestamp(ensHits[0])).toLocaleDateString('es-ES')
     : 'Sin datos';
 
+  // Sobre cuántas máquinas se ha resumido la vista general. Solo existe
+  // consolidando: con un agente seleccionado, la máquina es el contexto entero
+  // de la pantalla y no hay nada que contar.
+  const totalMaquinas = (complianceResult?.consolidatedAgents || []).length;
+
   const agenteNombre = agentId
     ? ((ensHits.find(h => h?.agent?.name)?.agent?.name) ||
        (ensHits.find(h => h?.data?.host)?.data?.host) ||
        ('Agente ' + agentId))
+    // Decir cuántas máquinas hay detrás es lo que convierte «6 de ellas fallan»
+    // en un dato: sin el total, un recuento no se puede leer.
+    : totalMaquinas > 0
+    ? `Todos los agentes (vista general · ${totalMaquinas} máquina${
+        totalMaquinas === 1 ? '' : 's'
+      })`
     : 'Todos los agentes (vista general)';
 
 
@@ -233,7 +255,12 @@ export const ControlDetailENS = ({
     // parámetro falta, por qué la cobertura del recolector no basta. Es lo
     // primero que pregunta quien ve una evidencia en gris o en rojo, y hasta
     // ahora no estaba en ninguna pantalla.
+    //
+    // Con un agente seleccionado se lee tal cual. En la vista general se lee de
+    // `motivos`: ahí, concatenar el de las siete máquinas llenaba la celda de
+    // quince líneas que decían casi lo mismo.
     motivo: (evidence.observations || []).join(' · '),
+    motivos: evidence.observationGroups || [],
     impact:
       evidence.status === 'NO_EVALUABLE'
         ? 'Evidencia pendiente o no evaluable por el motor ENS'
@@ -256,6 +283,10 @@ export const ControlDetailENS = ({
       requiredAction: nonConformity.requiredAction,
       expected: nonConformity.expected,
       actual: nonConformity.actual,
+      // Las máquinas en las que se ha demostrado ESTE hallazgo. Una tarjeta
+      // idéntica en seis máquinas es una tarjeta con seis máquinas; si el
+      // hallazgo difiere (otra cuenta, otro valor), el motor ya las separa.
+      agents: nonConformity.agents || [],
       status: 'ABIERTA',
     }),
   );
@@ -263,6 +294,14 @@ export const ControlDetailENS = ({
   const openNonConformitiesCount = nonConformityItems.filter(
     item => item.status === 'ABIERTA',
   ).length;
+
+  // Dos números que no miden lo mismo y los dos hacen falta: cuántos problemas
+  // DISTINTOS hay (el recuento de tarjetas) y cuánto parque tocan.
+  const maquinasConNoConformidad = new Set(
+    nonConformityItems.flatMap(item =>
+      item.agents.map(agent => agent.agentId),
+    ),
+  ).size;
 
   // Lista APARTE de las no conformidades, nunca sumada a ellas. Es lo que
   // permite al auditor distinguir de un vistazo "esto está mal" de "esto no lo
@@ -278,11 +317,26 @@ export const ControlDetailENS = ({
       impact: gap.impact,
       requiredAction: gap.requiredAction,
       parameters: gap.parameterIds.join(', '),
+      cause: gap.cause,
+      agents: gap.agents || [],
       status: 'PENDIENTE DE MEDICIÓN',
     }),
   );
 
   const measurementGapsCount = measurementGapItems.length;
+
+  // Lo que es del catálogo se cuenta aparte porque el arreglo no lo tiene el
+  // cliente: «op.acc.1.5 no tiene evidencia declarada» es cierto en todas las
+  // máquinas por igual y no se desbloquea configurando ni tocando un agente.
+  const catalogGapsCount = measurementGapItems.filter(
+    item => item.cause === 'CATALOG',
+  ).length;
+
+  const maquinasPendientesDeMedir = new Set(
+    measurementGapItems.flatMap(item =>
+      item.agents.map(agent => agent.agentId),
+    ),
+  ).size;
 
   const traceabilityItems = (complianceResult?.traceability || []).map(
     (item, index) => ({
@@ -494,9 +548,14 @@ export const ControlDetailENS = ({
 
   // Dos acciones distintas para dos cosas distintas. Un hueco de medida no se
   // "revisa": se configura el parámetro que falta o se arregla el recolector.
+  //
+  // Y si todo lo que falta por medir es del catálogo, la acción tampoco es del
+  // cliente: no hay nada que configurar ni ningún agente que arreglar.
   const auditorAction =
     openNonConformitiesCount > 0
       ? 'Revisar las no conformidades generadas por el motor ENS.'
+      : measurementGapsCount > 0 && catalogGapsCount === measurementGapsCount
+      ? 'Sin incumplimientos. Lo que falta por medir es del catálogo del producto, no de la configuración ni de los agentes.'
       : measurementGapsCount > 0
       ? 'Sin incumplimientos. Falta completar la medición: ver "Pendientes de medición".'
       : 'Sin acciones pendientes';
@@ -709,9 +768,29 @@ export const ControlDetailENS = ({
 
                   <EuiSpacer size='s' />
 
+                  {/* Los recuentos cuentan HALLAZGOS DISTINTOS, no
+                      hallazgo × máquina: el mismo problema en siete servidores
+                      es un problema. Cuánto parque toca se dice al lado, que es
+                      la otra mitad del dato. */}
                   <EuiText size='s'>
-                    <p><strong>No conformidades abiertas:</strong> {openNonConformitiesCount}</p>
-                    <p><strong>Pendientes de medición:</strong> {measurementGapsCount}</p>
+                    <p>
+                      <strong>No conformidades abiertas:</strong>{' '}
+                      {openNonConformitiesCount}
+                      {maquinasConNoConformidad > 0 &&
+                        ` · en ${maquinasConNoConformidad} máquina${
+                          maquinasConNoConformidad === 1 ? '' : 's'
+                        }`}
+                    </p>
+                    <p>
+                      <strong>Pendientes de medición:</strong>{' '}
+                      {measurementGapsCount}
+                      {maquinasPendientesDeMedir > 0 &&
+                        ` · en ${maquinasPendientesDeMedir} máquina${
+                          maquinasPendientesDeMedir === 1 ? '' : 's'
+                        }`}
+                      {catalogGapsCount > 0 &&
+                        ` · ${catalogGapsCount} del catálogo`}
+                    </p>
                     <p><strong>Base del score:</strong> {baseDelScore}</p>
                     <p><strong>Acción:</strong> {auditorAction}</p>
                   </EuiText>
@@ -786,6 +865,15 @@ export const ControlDetailENS = ({
               el estado resuelto por el motor, el requisito ENS, el nivel y
               su impacto sobre el cumplimiento {nivelesTexto}.
           </p>
+
+          {!agentId && totalMaquinas > 1 && (
+            <p>
+              Vista general de {totalMaquinas} máquinas: el mismo motivo
+              observado en varias se escribe <strong>una vez</strong>, diciendo
+              en cuántas ocurre. Los motivos que difieren entre máquinas salen
+              por separado.
+            </p>
+          )}
         </EuiText>
 
         <EuiSpacer size='s' />
@@ -842,16 +930,51 @@ export const ControlDetailENS = ({
               ),
             },
             {
-              field: 'motivo',
+              field: 'motivos',
               name: 'Motivo',
-              render: (motivo: string) =>
-                motivo ? (
-                  <EuiText size='xs'>{motivo}</EuiText>
-                ) : (
-                  <EuiText size='xs' color='subdued'>
-                    Sin motivo registrado
+              render: (
+                motivos: ENSObservationGroup[],
+                item: (typeof evidenceStatusItems)[number],
+              ) => {
+                // Vista de un agente: no hay nada que agrupar, la máquina es la
+                // pantalla entera.
+                if (motivos.length === 0) {
+                  return item.motivo ? (
+                    <EuiText size='xs'>{item.motivo}</EuiText>
+                  ) : (
+                    <EuiText size='xs' color='subdued'>
+                      Sin motivo registrado
+                    </EuiText>
+                  );
+                }
+
+                const { visibles, ocultos } = resumirMotivos(motivos);
+
+                return (
+                  <EuiText size='xs'>
+                    {visibles.map(grupo => (
+                      <p key={grupo.text} style={{ marginBottom: 6 }}>
+                        {/* En cuántas máquinas ocurre, delante del texto: es lo
+                            que distingue «pasa en toda la flota» de «pasa en
+                            una». Con una sola, se la nombra. */}
+                        <EuiBadge color='hollow'>
+                          {etiquetaDeMaquinas(grupo.agents, totalMaquinas)}
+                        </EuiBadge>{' '}
+                        {grupo.text}
+                      </p>
+                    ))}
+
+                    {/* Lo que no cabe se anuncia, nunca se calla: agregar no es
+                        esconder. El detalle entero está seleccionando el agente. */}
+                    {ocultos > 0 && (
+                      <p style={{ color: '#69707D' }}>
+                        y {ocultos} motivo{ocultos === 1 ? '' : 's'} más ·
+                        seleccione un agente para verlos todos
+                      </p>
+                    )}
                   </EuiText>
-                ),
+                );
+              },
             },
           ]}
         />
@@ -973,6 +1096,14 @@ export const ControlDetailENS = ({
             que no se ha podido medir NO aparece aquí: está más abajo, en
             «Pendientes de medición».
           </p>
+
+          {!agentId && totalMaquinas > 1 && (
+            <p>
+              Una tarjeta por <strong>hallazgo</strong>, no por máquina: el mismo
+              incumplimiento demostrado en varias se agrupa y las nombra. Si el
+              hallazgo difiere (otra cuenta, otro valor), son tarjetas distintas.
+            </p>
+          )}
         </EuiText>
 
         <EuiSpacer size='s' />
@@ -1063,6 +1194,17 @@ export const ControlDetailENS = ({
                     </EuiPopover>
                   </p>
                   <p>{nonConformity.finding}</p>
+
+                  {/* Dónde se ha demostrado. Antes esto iba pegado al texto
+                      («[srv (025)] El requisito...») y obligaba a repetir la
+                      tarjeta entera una vez por máquina. */}
+                  {describirAlcance(nonConformity.agents, totalMaquinas) && (
+                    <p>
+                      <strong>Demostrado en:</strong>{' '}
+                      {describirAlcance(nonConformity.agents, totalMaquinas)}
+                    </p>
+                  )}
+
                   <p>
                     <strong>Impacto ENS:</strong> {nonConformity.impact}
                   </p>
@@ -1092,6 +1234,14 @@ export const ControlDetailENS = ({
             Cada tarjeta dice qué evidencia falta y qué hay que configurar para
             desbloquearla.
           </p>
+
+          {!agentId && totalMaquinas > 1 && (
+            <p>
+              Una tarjeta por <strong>medida que falta</strong>, no por máquina:
+              si la misma falta en varias, se nombran todas dentro de la tarjeta.
+              Las marcadas «Del catálogo» no dependen de ninguna máquina.
+            </p>
+          )}
         </EuiText>
 
         <EuiSpacer size='s' />
@@ -1115,9 +1265,23 @@ export const ControlDetailENS = ({
                       </EuiTitle>
                     </EuiFlexItem>
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color='default' iconType='clock'>
-                        {gap.status}
-                      </EuiBadge>
+                      <EuiFlexGroup gutterSize='xs' alignItems='center'>
+                        {/* Lo del catálogo se marca en la propia tarjeta: es un
+                            hecho del producto, no un hallazgo de una máquina, y
+                            el que lo lee no tiene nada que hacer en su parque. */}
+                        {gap.cause === 'CATALOG' && (
+                          <EuiFlexItem grow={false}>
+                            <EuiBadge color='hollow' iconType='package'>
+                              Del catálogo
+                            </EuiBadge>
+                          </EuiFlexItem>
+                        )}
+                        <EuiFlexItem grow={false}>
+                          <EuiBadge color='default' iconType='clock'>
+                            {gap.status}
+                          </EuiBadge>
+                        </EuiFlexItem>
+                      </EuiFlexGroup>
                     </EuiFlexItem>
                   </EuiFlexGroup>
 
@@ -1129,6 +1293,21 @@ export const ControlDetailENS = ({
                       {gap.requirement}
                     </p>
                     <p>{gap.finding}</p>
+
+                    {gap.cause === 'CATALOG' ? (
+                      <p style={{ color: '#69707D' }}>
+                        Igual en todas las máquinas: no depende de ninguna, y
+                        seleccionar un agente no dará otra respuesta.
+                      </p>
+                    ) : (
+                      describirAlcance(gap.agents, totalMaquinas) && (
+                        <p>
+                          <strong>Falta medir en:</strong>{' '}
+                          {describirAlcance(gap.agents, totalMaquinas)}
+                        </p>
+                      )
+                    )}
+
                     <p>
                       <strong>Impacto ENS:</strong> {gap.impact}
                     </p>

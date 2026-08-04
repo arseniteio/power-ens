@@ -1,9 +1,11 @@
 import type {
+  ENSAgentRef,
   ENSComplianceResult,
   ENSComplianceStatus,
   ENSEvidenceResult,
   ENSMeasurementGap,
   ENSNonConformity,
+  ENSObservationGroup,
   ENSRequirementResult,
   ENSTraceabilityResult,
 } from '../evaluation/types';
@@ -39,6 +41,135 @@ const uniqueByKey = <T>(items: T[], keyOf: (item: T) => string): T[] => {
 
 const getAgentLabel = (entry: Pick<ENSAgentResultEntry, 'agentId' | 'agentName'>): string =>
   entry.agentName ? `${entry.agentName} (${entry.agentId})` : entry.agentId;
+
+// --- agregación entre agentes ----------------------------------------------
+//
+// La vista general responde a «qué pasa con el control», no a «qué pasa en cada
+// máquina»: para eso está la vista de un agente. Con siete agentes reales, la
+// consolidación anterior repetía el mismo motivo siete veces en una celda y
+// multiplicaba por siete cada tarjeta —45 tarjetas para 8 requisitos—, y con
+// cincuenta máquinas la pantalla no se puede leer.
+//
+// El criterio, en las tres funciones de abajo: agrupar por CONTENIDO y anotar
+// EN CUÁNTAS MÁQUINAS ocurre. Lo que difiere entre máquinas sigue saliendo
+// aparte —agregar no es esconder: si seis fallan por una razón y una por otra,
+// se ven las dos—. Aquí no se recorta nada: el motor publica todos los grupos y
+// cada pantalla decide cuántos enseña.
+
+const toAgentRef = (entry: ENSAgentResultEntry): ENSAgentRef => ({
+  agentId: entry.agentId,
+  agentName: entry.agentName,
+});
+
+// Cuántas máquinas se nombran en el texto plano antes de contarlas. Es solo
+// para el consumidor que no sabe leer `agents` (los modelos de informe); el que
+// sí sabe recibe la lista entera.
+const MAX_AGENTES_NOMBRADOS = 4;
+
+const describeAgents = (agents: ENSAgentRef[]): string => {
+  const labels = agents.map(getAgentLabel);
+
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  const named = labels.slice(0, MAX_AGENTES_NOMBRADOS);
+  const rest = labels.length - named.length;
+
+  return (
+    `${labels.length} máquinas: ${named.join(', ')}` +
+    (rest > 0 ? ` y ${rest} más` : '')
+  );
+};
+
+// Agrupa textos idénticos y anota dónde se han visto. El orden es el de primera
+// aparición: dos consolidaciones de los mismos datos tienen que salir iguales.
+const groupObservations = (
+  items: Array<{ entry: ENSAgentResultEntry; text: string }>
+): ENSObservationGroup[] => {
+  const groups = new Map<string, ENSObservationGroup>();
+
+  items.forEach(({ entry, text }) => {
+    const group = groups.get(text);
+
+    if (!group) {
+      groups.set(text, { text, agents: [toAgentRef(entry)] });
+
+      return;
+    }
+
+    if (!group.agents.some((agent) => agent.agentId === entry.agentId)) {
+      group.agents.push(toAgentRef(entry));
+    }
+  });
+
+  return Array.from(groups.values());
+};
+
+// El mismo grupo, aplanado. Con una sola máquina el prefijo es exactamente el
+// de siempre, `[nombre (id)]`, para no romper a quien ya lo leía así.
+const formatObservationGroup = (group: ENSObservationGroup): string =>
+  group.agents.length === 0
+    ? group.text
+    : `[${describeAgents(group.agents)}] ${group.text}`;
+
+interface ENSCardGroup<T> {
+  template: T;
+  agents: ENSAgentRef[];
+}
+
+// Mismo criterio para las tarjetas (NC y PM): dos tarjetas con el mismo
+// contenido son una tarjeta vista en dos máquinas. En cuanto el contenido
+// difiere —otra cuenta, otro motivo del recolector— vuelven a ser dos.
+const groupCards = <T>(
+  items: Array<{ entry: ENSAgentResultEntry; card: T }>,
+  keyOf: (card: T) => string
+): Array<ENSCardGroup<T>> => {
+  const groups = new Map<string, ENSCardGroup<T>>();
+
+  items.forEach(({ entry, card }) => {
+    const key = keyOf(card);
+    const group = groups.get(key);
+
+    if (!group) {
+      groups.set(key, { template: card, agents: [toAgentRef(entry)] });
+
+      return;
+    }
+
+    if (!group.agents.some((agent) => agent.agentId === entry.agentId)) {
+      group.agents.push(toAgentRef(entry));
+    }
+  });
+
+  return Array.from(groups.values());
+};
+
+// El identificador de una tarjeta consolidada:
+//
+//   - se RENUMERA, porque el número de `PM-001` es el índice dentro de UN
+//     agente: el `PM-001` de una máquina y el de otra no son el mismo
+//     requisito, y conservarlos hacía que `025:PM-001` y `024:PM-001`
+//     parecieran hermanos sin serlo;
+//   - conserva el prefijo `<agente>:` SOLO cuando la tarjeta es de una sola
+//     máquina, que es cuando nombrarla es cierto. Una tarjeta compartida por
+//     seis no puede llevar el nombre de una;
+//   - respeta los identificadores simbólicos como `NC-CFG`, donde el nombre
+//     significa algo y el número no aportaría nada. No pueden chocar entre sí:
+//     la configuración es la misma para todos los agentes del control, así que
+//     `NC-CFG` produce un solo grupo.
+const consolidatedCardId = (
+  localId: string,
+  prefix: 'NC' | 'PM',
+  index: number,
+  agents: ENSAgentRef[]
+): string => {
+  const id = /^(NC|PM)-\d+$/.test(localId)
+    ? `${prefix}-${String(index + 1).padStart(3, '0')}`
+    : localId;
+
+  return agents.length === 1 ? `${agents[0].agentId}:${id}` : id;
+};
 
 const getLatestIsoDate = (values: Array<string | undefined>): string | undefined => {
   const definedValues = values.filter((value): value is string => Boolean(value));
@@ -122,23 +253,42 @@ const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
   );
 };
 
-const consolidateMeasurementGaps = (entries: ENSAgentResultEntry[]): ENSMeasurementGap[] =>
-  uniqueByKey(
-    entries.flatMap((entry) =>
-      entry.result.measurementGaps.map((gap) => {
-        const agentLabel = getAgentLabel(entry);
+// Dos huecos son el mismo hueco si dicen exactamente lo mismo: mismo requisito,
+// misma causa, mismo motivo, misma acción y mismas evidencias y parámetros
+// implicados. El motivo del recolector viaja dentro de `finding`, así que dos
+// máquinas que no miden por razones distintas siguen dando dos tarjetas.
+const measurementGapKey = (gap: ENSMeasurementGap): string =>
+  [
+    gap.cause,
+    gap.requirementId,
+    gap.evidenceId,
+    gap.finding,
+    gap.impact,
+    gap.requiredAction,
+    gap.evidenceIds.join(','),
+    gap.parameterIds.join(','),
+  ].join('|');
 
-        return {
-          ...gap,
-          id: `${entry.agentId}:` + gap.id,
-          finding: `[${agentLabel}] ` + gap.finding,
-          impact: `[${agentLabel}] ` + gap.impact,
-          requiredAction: `[${agentLabel}] ` + gap.requiredAction,
-        };
-      })
+const consolidateMeasurementGaps = (entries: ENSAgentResultEntry[]): ENSMeasurementGap[] =>
+  groupCards(
+    entries.flatMap((entry) =>
+      entry.result.measurementGaps.map((card) => ({ entry, card }))
     ),
-    (gap) => gap.id
-  );
+    measurementGapKey
+  ).map(({ template, agents }, index) => {
+    // Un hueco de causa CATALOG no es de ninguna máquina: «op.acc.1.5 no tiene
+    // evidencia declarada en el catálogo» es cierto para las siete por igual y
+    // no cambia por mirar otra. Atribuirlo a los agentes lo convertía en cinco
+    // hallazgos idénticos y, encima, señalaba al sitio equivocado: no hay nada
+    // que arreglar en la máquina, el arreglo lo tiene el producto.
+    const cardAgents = template.cause === 'CATALOG' ? [] : agents;
+
+    return {
+      ...template,
+      id: consolidatedCardId(template.id, 'PM', index, cardAgents),
+      agents: cardAgents,
+    };
+  });
 
 export const agentHasEvaluatedResults = (agent: ENSAgentComplianceState): boolean =>
   agent.results.some((result) => result.status !== 'NO_EVALUABLE' && result.status !== 'NO_APLICA');
@@ -164,6 +314,14 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       requirementEntries.flatMap(({ requirement }) => requirement.evidenceIds || [])
     );
 
+    // Mismo criterio que en las evidencias: el motivo que sale igual en las
+    // siete máquinas se escribe una vez, diciendo que son siete.
+    const observationGroups = groupObservations(
+      requirementEntries.flatMap(({ entry, requirement }) =>
+        requirement.observations.map((text) => ({ entry, text }))
+      )
+    );
+
     return {
       ...template,
       status: consolidateENSStatuses(
@@ -171,11 +329,8 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       ),
       level: uniqueValues(requirementEntries.flatMap(({ requirement }) => requirement.level)),
       evidenceIds: evidenceIds.length > 0 ? evidenceIds : undefined,
-      observations: uniqueValues(
-        requirementEntries.flatMap(({ entry, requirement }) =>
-          requirement.observations.map((observation) => `[${getAgentLabel(entry)}] ${observation}`)
-        )
-      ),
+      observations: observationGroups.map(formatObservationGroup),
+      observationGroups,
     };
   });
 };
@@ -197,6 +352,15 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
 
     const template = evidenceEntries[0].evidence;
 
+    // El motivo de la evidencia, agrupado por texto. Con siete agentes, «sin
+    // datos del recolector en la ventana» pasa de ocupar siete líneas casi
+    // iguales a una sola que dice en cuántas máquinas ocurre.
+    const observationGroups = groupObservations(
+      evidenceEntries.flatMap(({ entry, evidence }) =>
+        (evidence.observations || []).map((text) => ({ entry, text }))
+      )
+    );
+
     return {
       ...template,
       status: consolidateENSStatuses(evidenceEntries.map(({ evidence }) => evidence.status)),
@@ -214,13 +378,12 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
       // nada para ir a corregirlo. Y sin esto, el motivo del agente que
       // determina el estado consolidado se perdería en cuanto hubiera más de
       // uno (`...template` solo conserva el del primero).
-      observations: uniqueValues(
-        evidenceEntries.flatMap(({ entry, evidence }) =>
-          (evidence.observations || []).map(
-            (observation) => `[${getAgentLabel(entry)}] ${observation}`
-          )
-        )
-      ),
+      //
+      // Un motivo visto en una sola máquina se sigue escribiendo igual que
+      // siempre; el que se repite en varias las nombra a todas en un prefijo,
+      // en vez de repetir el texto entero una vez por máquina.
+      observations: observationGroups.map(formatObservationGroup),
+      observationGroups,
 
       // El resultado raíz representa varios agentes.
       // El detalle individual se conserva en state.agents
@@ -382,23 +545,32 @@ const consolidatePolicyRuntime = (
   };
 };
 
-const consolidateNonConformities = (entries: ENSAgentResultEntry[]): ENSNonConformity[] =>
-  uniqueByKey(
-    entries.flatMap((entry) =>
-      entry.result.nonConformities.map((nonConformity) => {
-        const agentLabel = getAgentLabel(entry);
+// Igual que los huecos, y con la misma cautela: `finding` incluye el motivo que
+// resolvió la policy («se ha observado 'admin'»), así que dos máquinas que
+// incumplen por cuentas distintas siguen dando dos no conformidades. Solo se
+// funden las que dicen literalmente lo mismo.
+const nonConformityKey = (nonConformity: ENSNonConformity): string =>
+  [
+    nonConformity.requirementId,
+    nonConformity.evidenceId,
+    nonConformity.finding,
+    nonConformity.impact,
+    nonConformity.requiredAction,
+    nonConformity.expected || '',
+    nonConformity.actual || '',
+  ].join('|');
 
-        return {
-          ...nonConformity,
-          id: `${entry.agentId}:` + nonConformity.id,
-          finding: `[${agentLabel}] ` + nonConformity.finding,
-          impact: `[${agentLabel}] ` + nonConformity.impact,
-          requiredAction: `[${agentLabel}] ` + nonConformity.requiredAction,
-        };
-      })
+const consolidateNonConformities = (entries: ENSAgentResultEntry[]): ENSNonConformity[] =>
+  groupCards(
+    entries.flatMap((entry) =>
+      entry.result.nonConformities.map((card) => ({ entry, card }))
     ),
-    (nonConformity) => nonConformity.id
-  );
+    nonConformityKey
+  ).map(({ template, agents }, index) => ({
+    ...template,
+    id: consolidatedCardId(template.id, 'NC', index, agents),
+    agents,
+  }));
 
 const consolidateTraceability = (entries: ENSAgentResultEntry[]): ENSTraceabilityResult[] =>
   uniqueByKey(
@@ -421,12 +593,16 @@ const consolidateTraceability = (entries: ENSAgentResultEntry[]): ENSTraceabilit
       ].join('|')
   );
 
+// Las observaciones del control entero. La mayoría («Configuración mínima
+// disponible para evaluar el control.») son idénticas en todas las máquinas
+// porque salen de la misma configuración: repetirlas una vez por agente era
+// ruido puro.
 const consolidateObservations = (entries: ENSAgentResultEntry[]): string[] =>
-  uniqueValues(
+  groupObservations(
     entries.flatMap((entry) =>
-      entry.result.observations.map((observation) => `[${getAgentLabel(entry)}] ${observation}`)
+      entry.result.observations.map((text) => ({ entry, text }))
     )
-  );
+  ).map(formatObservationGroup);
 
 const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSComplianceResult => {
   const template = entries[0].result;
@@ -437,6 +613,10 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
       ...template.control,
     },
     policyRuntime: consolidatePolicyRuntime(entries),
+
+    // Sobre cuántas máquinas se ha resumido esto. Sin este dato, la pantalla no
+    // puede distinguir «falta en 6» de «falta en todas».
+    consolidatedAgents: uniqueByKey(entries.map(toAgentRef), (agent) => agent.agentId),
 
     status: consolidateENSStatuses(entries.map((entry) => entry.result.status)),
     score: averageScore(entries),
