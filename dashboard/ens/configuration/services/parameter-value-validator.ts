@@ -1357,7 +1357,15 @@ export const setTableCell = (
     getParameterColumns(parameter);
   const filas = toParameterTableRows(value);
 
-  if (!filas[rowIndex]) {
+  // La guarda es sobre el ÍNDICE, no sobre el contenido de la fila. Una fila en
+  // blanco se guarda como cadena vacía, que es FALSA: con un `if (!filas[i])`
+  // aquí, la primera celda que se teclea en una fila recién añadida no se
+  // publicaba nunca y la rejilla se quedaba muda. Lo caza
+  // `config/test_control_blocks.py`, caso «escribir en una celda».
+  if (
+    rowIndex < 0 ||
+    rowIndex >= filas.length
+  ) {
     return filasComoValor(filas);
   }
 

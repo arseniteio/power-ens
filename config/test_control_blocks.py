@@ -159,6 +159,119 @@ const salida = casos.map((caso) => {
     };
   }
 
+  // La rejilla de `table`. A diferencia de los otros renderers, este no es un
+  // campo suelto dentro de un EuiFormRow: es un arbol (cabeceras, una fila por
+  // entrada, el boton de anadir). Se aplana llamando a cada componente, y asi lo
+  // que se comprueba es lo que el auditor tendria delante.
+  if (caso.tipo === 'render_tabla') {
+    const publicados = [];
+
+    const elemento = ParameterRendererFactory({
+      parameter: caso.parametro,
+      value: caso.valor,
+      onChange: (nombre, valor) =>
+        publicados.push([nombre, valor === undefined ? null : valor]),
+    });
+
+    const renderer = elemento.type.name;
+
+    const nodos = [];
+    const textos = [];
+
+    const aplanar = nodo => {
+      if (nodo === null || nodo === undefined || nodo === false || nodo === true) {
+        return;
+      }
+
+      if (Array.isArray(nodo)) {
+        nodo.forEach(aplanar);
+        return;
+      }
+
+      if (typeof nodo === 'string' || typeof nodo === 'number') {
+        textos.push(String(nodo));
+        return;
+      }
+
+      if (typeof nodo !== 'object') {
+        return;
+      }
+
+      const tipo = nodo.type;
+      const props = nodo.props || {};
+
+      if (typeof tipo === 'function') {
+        const resultado = tipo(props);
+
+        if (resultado && resultado.euiComponent) {
+          nodos.push({ eui: resultado.euiComponent, props: resultado.props || {} });
+          aplanar((resultado.props || {}).children);
+          return;
+        }
+
+        aplanar(resultado);
+        return;
+      }
+
+      aplanar(props.children);
+    };
+
+    aplanar(elemento);
+
+    const raiz = nodos.find(n => n.eui === 'EuiFormRow') || { props: {} };
+
+    const CAMPOS = ['EuiFieldText', 'EuiSelect', 'EuiComboBox'];
+    const campos = nodos.filter(n => CAMPOS.indexOf(n.eui) >= 0);
+    const anadir = nodos.find(n => n.eui === 'EuiButtonEmpty');
+    const papeleras = nodos.filter(n => n.eui === 'EuiButtonIcon');
+
+    // Acciones del auditor, sobre el arbol recien pintado.
+    if (caso.pulsaAnadir && anadir && anadir.props.onClick) {
+      anadir.props.onClick();
+    }
+
+    if (caso.quitaFila !== undefined && papeleras[caso.quitaFila]) {
+      papeleras[caso.quitaFila].props.onClick();
+    }
+
+    if (caso.escribe && campos[caso.escribe.campo]) {
+      const campo = campos[caso.escribe.campo];
+
+      if (campo.eui === 'EuiComboBox') {
+        campo.props.onChange(
+          caso.escribe.texto.split(',').map(label => ({ label }))
+        );
+      } else {
+        campo.props.onChange({ target: { value: caso.escribe.texto } });
+      }
+    }
+
+    return {
+      renderer,
+      invalido: raiz.props.isInvalid === true,
+      error: raiz.props.error || [],
+      ayuda: raiz.props.helpText || '',
+      etiqueta: raiz.props.label || '',
+      textos,
+      campos: campos.map(campo => ({
+        eui: campo.eui,
+        etiqueta: campo.props['aria-label'] || '',
+        valor: campo.props.value === undefined ? null : campo.props.value,
+        placeholder: campo.props.placeholder || '',
+        invalido: campo.props.isInvalid === true,
+        opciones: (campo.props.options || []).map(
+          option => option.value || option.label || option.text
+        ),
+        seleccionadas: (campo.props.selectedOptions || []).map(
+          option => option.label
+        ),
+      })),
+      papeleras: papeleras.length,
+      tieneAnadir: !!anadir,
+      publicados,
+    };
+  }
+
   if (caso.tipo === 'registro') {
     return {
       controles: ENSConfigurationRegistry.map((control) => ({
@@ -752,6 +865,140 @@ def main():
                     control_id, parametro_id),
                 obtenido["valid"] is False,
                 "{!r} se aceptó".format(menu))
+
+        print()
+
+        # --- 4bis. la rejilla de las tablas ---------------------------------
+        #
+        # Lo que se prueba aquí es el FORMULARIO, no el criterio: que la política
+        # que hasta ahora había que escribir por SSH en un .tsv se pueda declarar
+        # entera desde la pantalla —añadir filas, escribir celdas, quitarlas— y
+        # que una tabla sin configurar se vea VACÍA Y PENDIENTE, no con una fila
+        # de ejemplo que alguien pueda tomar por configurada.
+
+        print("== la rejilla de las tablas ==\n")
+
+        acl = parametro_de(bloques["op.acc.2"], "P-08")
+        accesos = parametro_de(bloques["op.acc.2"], "P-06")
+        autorizados = parametro_de(bloques["op.acc.1"], "P-07")
+
+        FILA_ACL = "/srv/datos | 750 | root:ops | u:auditor:r-x"
+
+        rejilla = ejecuta(runtime, arnes, tmp, [
+            {"tipo": "render_tabla", "parametro": acl, "valor": None},
+            {"tipo": "render_tabla", "parametro": acl, "valor": None,
+             "pulsaAnadir": True},
+            {"tipo": "render_tabla", "parametro": acl, "valor": [""]},
+            {"tipo": "render_tabla", "parametro": acl, "valor": [""],
+             "escribe": {"campo": 0, "texto": "/srv/datos"}},
+            {"tipo": "render_tabla", "parametro": acl, "valor": [FILA_ACL]},
+            {"tipo": "render_tabla", "parametro": acl, "valor": [FILA_ACL],
+             "quitaFila": 0},
+            {"tipo": "render_tabla", "parametro": acl, "valor": ["/srv/datos"]},
+            {"tipo": "render_tabla", "parametro": accesos,
+             "valor": ["ops | /srv/datos | lectura,escritura"]},
+            {"tipo": "render_tabla", "parametro": autorizados,
+             "valor": ["jgomez"]},
+        ])
+
+        (sin_valor, tras_anadir, fila_blanco, tras_escribir, fila_llena,
+         tras_quitar, fila_corta, con_multiselect, heredada) = rejilla
+
+        comprueba("factory · una tabla con columnas se pinta como rejilla",
+                  sin_valor["renderer"] == "TableParameterRenderer",
+                  sin_valor["renderer"])
+
+        # El incidente de los `example`: un valor sugerido que se lee como una
+        # decisión tomada. Una tabla sin configurar NO siembra una fila.
+        comprueba("tabla sin configurar · CERO filas, ninguna celda que rellenar",
+                  sin_valor["campos"] == [] and sin_valor["papeleras"] == 0,
+                  str(sin_valor["campos"]))
+        comprueba("tabla sin configurar · dice que está pendiente, no en blanco",
+                  any("Sin filas" in t for t in sin_valor["textos"]),
+                  str(sin_valor["textos"]))
+        comprueba("tabla sin configurar · no se pinta en rojo (ausencia no es error)",
+                  sin_valor["invalido"] is False and sin_valor["error"] == [],
+                  str(sin_valor["error"]))
+        comprueba("tabla sin configurar · se puede añadir la primera fila",
+                  sin_valor["tieneAnadir"] is True, str(sin_valor))
+
+        # Añadir una fila publica una fila EN BLANCO, que `isEmptyParameterValue`
+        # sigue viendo como ausencia: el parámetro no pasa a INVÁLIDO por haber
+        # pulsado un botón.
+        comprueba("añadir fila · publica una fila en blanco",
+                  tras_anadir["publicados"] == [["acl_declarada", [""]]],
+                  str(tras_anadir["publicados"]))
+        comprueba("fila en blanco · una celda por columna declarada",
+                  len(fila_blanco["campos"]) == len(acl["columns"]),
+                  str([c["etiqueta"] for c in fila_blanco["campos"]]))
+        comprueba("fila en blanco · el parámetro NO sale inválido",
+                  fila_blanco["invalido"] is False, str(fila_blanco["error"]))
+        comprueba("fila en blanco · las celdas obligatorias se marcan, las opcionales no",
+                  [c["invalido"] for c in fila_blanco["campos"]]
+                  == [c["required"] for c in acl["columns"]],
+                  str([c["invalido"] for c in fila_blanco["campos"]]))
+
+        # El placeholder de cada celda sale del `example` del parámetro, celda a
+        # celda. Es la única forma de que la sugerencia caiga en su columna.
+        comprueba("fila en blanco · el ejemplo sugiere columna a columna",
+                  [c["placeholder"] for c in fila_blanco["campos"]]
+                  == [c.strip() for c in acl["example"].split("|")],
+                  str([c["placeholder"] for c in fila_blanco["campos"]]))
+
+        # La fila se publica con TODAS sus celdas, aunque estén vacías: las
+        # posiciones son las columnas, y recortar las de la derecha movería de
+        # columna lo que se escriba después.
+        comprueba("escribir en una celda · publica la fila con esa celda puesta",
+                  tras_escribir["publicados"]
+                  == [["acl_declarada",
+                       [" | ".join(["/srv/datos", "", "", ""])]]],
+                  str(tras_escribir["publicados"]))
+
+        comprueba("fila completa · cada celda enseña su campo",
+                  [c["valor"] for c in fila_llena["campos"]]
+                  == [c.strip() for c in FILA_ACL.split("|")],
+                  str([c["valor"] for c in fila_llena["campos"]]))
+        comprueba("fila completa · ninguna celda en rojo",
+                  not any(c["invalido"] for c in fila_llena["campos"]),
+                  str(fila_llena["campos"]))
+        comprueba("fila completa · el parámetro sale válido",
+                  fila_llena["invalido"] is False, str(fila_llena["error"]))
+
+        # Quitar la última fila deja el parámetro SIN CONFIGURAR, no con una
+        # tabla de cero filas guardada: son cosas distintas para la fusión de
+        # `inject-control.py`, que conserva lo que tiene valor.
+        comprueba("quitar la última fila · deja el parámetro sin configurar",
+                  tras_quitar["publicados"] == [["acl_declarada", None]],
+                  str(tras_quitar["publicados"]))
+
+        comprueba("fila incompleta · la celda que falta sale en rojo",
+                  fila_corta["campos"][1]["invalido"] is True
+                  and fila_corta["campos"][0]["invalido"] is False,
+                  str([c["invalido"] for c in fila_corta["campos"]]))
+        comprueba("fila incompleta · el motivo nombra la fila y la columna",
+                  any("fila 1" in e and "Modo" in e for e in fila_corta["error"]),
+                  str(fila_corta["error"]))
+
+        # Una columna de vocabulario cerrado ofrece SOLO ese vocabulario. Es lo
+        # mismo que se arregló en los `select`: declarar las opciones y no
+        # ofrecerlas sería peor que no declararlas.
+        combo = [c for c in con_multiselect["campos"] if c["eui"] == "EuiComboBox"]
+        comprueba("multiselect · la celda ofrece solo el vocabulario declarado",
+                  len(combo) == 1
+                  and combo[0]["opciones"] == accesos["columns"][2]["options"],
+                  str(combo))
+        comprueba("multiselect · enseña los valores que ya tenía la celda",
+                  len(combo) == 1
+                  and combo[0]["seleccionadas"] == ["lectura", "escritura"],
+                  str(combo))
+
+        # El valor heredado del fichero de autorizados era un nombre suelto. Se
+        # ve en su columna y no se pierde.
+        comprueba("valor heredado · el nombre suelto se ve en su columna",
+                  [c["valor"] for c in heredada["campos"]] == ["jgomez", "", ""],
+                  str([c["valor"] for c in heredada["campos"]]))
+        comprueba("valor heredado · sigue siendo válido (solo Usuario es obligatorio)",
+                  heredada["invalido"] is False, str(heredada["error"]))
 
         print()
 
