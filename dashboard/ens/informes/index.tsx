@@ -24,6 +24,14 @@ import {
   listENSControlsWithoutReportModel,
 } from './registry';
 import type { ENSReportModelDefinition } from './registry';
+import {
+  buildENSReportEvidencePdfCell,
+  buildENSReportRows,
+  ensReportStatusBadgeColor,
+  ensReportStatusPdfColor,
+  ENS_REPORT_EVIDENCE_FIELD,
+} from './report-rows';
+import type { ENSReportRow } from './report-rows';
 import { ENSControls } from '../data';
 import {
   compareENSIds,
@@ -220,37 +228,10 @@ const ControlReport = ({
       )
     : 'Todos los agentes (vista general)';
 
-  const evidenceBadgeColor = (status) =>
-    status === 'CUMPLE'
-      ? 'success'
-      : status === 'PARCIAL'
-      ? 'warning'
-      : status === 'NO_CUMPLE'
-      ? 'danger'
-      : status === 'NO_APLICA'
-      ? 'hollow'
-      : 'default';
-
-  const rows = reportModel.fields.map((field) => ({
-    campo: `${field.id} · ${field.title}`,
-    valor: [
-      field.status,
-      field.value,
-      ...field.details,
-    ]
-      .filter(Boolean)
-      .join(' · '),
-    evidencia: [
-      field.evidenceIds.length
-        ? field.evidenceIds.join(', ')
-        : 'SIN_DATOS',
-      field.producerGaps.length
-        ? `Datos pendientes: ${field.producerGaps.join(', ')}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join(' · '),
-  }));
+  // Las filas y los colores viven en `./report-rows`, fuera del componente: es
+  // lo único de esta pantalla que se puede probar sin React ni EUI, y era justo
+  // donde estaba el fallo de la columna «Evidencia».
+  const rows: ENSReportRow[] = buildENSReportRows(reportModel);
 
   const requirementResults =
     complianceResult?.requirements || [];
@@ -362,7 +343,7 @@ const ControlReport = ({
       width: '150px',
       render: status => (
         <EuiBadge
-          color={evidenceBadgeColor(status)}
+          color={ensReportStatusBadgeColor(status)}
         >
           {status}
         </EuiBadge>
@@ -476,15 +457,30 @@ const ControlReport = ({
       name: 'Valor',
     },
     {
-      field: 'ev',
+      // El nombre del campo sale de `./report-rows`, donde se construye la
+      // fila. Aquí decía `'ev'`, una clave que la fila no tuvo nunca, y la
+      // insignia salía vacía en los informes de los tres controles.
+      field: ENS_REPORT_EVIDENCE_FIELD,
       name: 'Evidencia',
-      width: '170px',
-      render: (ev, item) => (
-        <EuiBadge
-          color={evidenceBadgeColor(item.status)}
-        >
-          {ev} · {item.status}
-        </EuiBadge>
+      width: '190px',
+      // El veredicto y, debajo, qué lo sostiene: los identificadores de
+      // evidencia por los que el auditor sigue la cadena hasta el rule ID y el
+      // evento crudo. Si el campo no declara ninguna, se dice; el hueco mudo
+      // era peor.
+      render: (evidencia: string, item: ENSReportRow) => (
+        <>
+          <EuiBadge
+            color={ensReportStatusBadgeColor(item.estado)}
+          >
+            {item.estado}
+          </EuiBadge>
+          <EuiText size='xs'>{evidencia}</EuiText>
+          {item.datosPendientes ? (
+            <EuiText size='xs' color='subdued'>
+              {item.datosPendientes}
+            </EuiText>
+          ) : null}
+        </>
       ),
     },
   ];
@@ -495,15 +491,6 @@ const ControlReport = ({
       : c === 'warning'
       ? '#f5a700'
       : c === 'danger'
-      ? '#e53935'
-      : '#69707d';
-
-  const evidencePdfColor = (status) =>
-    status === 'CUMPLE'
-      ? '#4caf50'
-      : status === 'PARCIAL'
-      ? '#f5a700'
-      : status === 'NO_CUMPLE'
       ? '#e53935'
       : '#69707d';
 
@@ -592,7 +579,11 @@ const ControlReport = ({
         {
           table: {
             headerRows: 1,
-            widths: ['38%', '*', 'auto'],
+            // Ancho fijo para «Evidencia» y no `'auto'`: la celda ya no es el
+            // «undefined · undefined» de antes sino la lista de evidencias, y
+            // con `'auto'` pdfMake le daba a la columna el ancho del renglón
+            // sin partir —hasta ocho identificadores— y estrangulaba «Valor».
+            widths: ['38%', '*', '18%'],
             body: [
               [
                 { text: 'Campo del informe', style: 'th' },
@@ -608,12 +599,7 @@ const ControlReport = ({
                   text: r.valor,
                   style: 'td',
                 },
-                {
-                  text: `${r.ev} · ${r.status}`,
-                  style: 'td',
-                  color: evidencePdfColor(r.status),
-                  bold: true,
-                },
+                buildENSReportEvidencePdfCell(r),
               ]),
             ],
           },
@@ -682,7 +668,7 @@ const ControlReport = ({
                     text: requirement.status,
                     style: 'td',
                     color:
-                      evidencePdfColor(
+                      ensReportStatusPdfColor(
                         requirement.status,
                       ),
                     bold: true,
