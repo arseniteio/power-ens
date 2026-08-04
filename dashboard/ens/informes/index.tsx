@@ -19,9 +19,11 @@ import {
 } from '../core/scope';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
-import { buildMpInfo6ReportModel } from './report-model';
-import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
-import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
+import {
+  getENSReportModelDefinition,
+  listENSControlsWithoutReportModel,
+} from './registry';
+import type { ENSReportModelDefinition } from './registry';
 import { ENSControls } from '../data';
 import {
   compareENSIds,
@@ -46,41 +48,26 @@ const fmt = (iso) => {
 // queda accesible al expandir la fila y en el PDF exportado.
 const OBSERVATION_PREVIEW_LENGTH = 90;
 
-// Metadatos de presentación por control (título e info del informe).
-const CONTROL_META: Record<string, { name: string; subtitle: string }> = {
-  'mp.info.6': {
-    name: 'mp.info.6 - Copias de seguridad',
-    subtitle: 'Protección de la información',
-  },
-  'op.acc.1': {
-    name: 'op.acc.1 - Identificación',
-    subtitle: 'Control de acceso',
-  },
-  'op.acc.2': {
-    name: 'op.acc.2 - Requisitos de acceso',
-    subtitle: 'Control de acceso',
-  },
-};
-
-// Selecciona el builder de modelo de informe según el control.
-//
-// ASIMETRÍA CONOCIDA: op.acc.1 y op.acc.2 tienen fichero propio
-// (`op-acc-<n>-report-model.ts`), pero mp.info.6 vive en `report-model.ts`, de
-// nombre genérico, y además es la RAMA POR DEFECTO de esta cadena. Un control
-// nuevo que no se añada aquí no fallará: se le generará en silencio el informe
-// de mp.info.6, con sus requisitos y sus evidencias. Al añadir un control hay
-// que tocar esta función; lo correcto sería un registro por controlId que
-// devuelva undefined para los no registrados.
-const buildReportModelFor = (controlId: string, result: any) =>
-  controlId === 'op.acc.2'
-    ? buildOpAcc2ReportModel(result)
-    : controlId === 'op.acc.1'
-    ? buildOpAcc1ReportModel(result)
-    : buildMpInfo6ReportModel(result);
+// El título del informe y el selector de modelo vivían aquí, en un
+// `CONTROL_META` y una cadena de ternarios cuya rama por defecto era mp.info.6.
+// Los dos se han ido a `./registry`, que devuelve `undefined` para un control
+// sin modelo en vez de fabricarle el de otro. Ver la cabecera de ese fichero.
 
 // Subcomponente: informe completo de UN control. Los hooks viven aquí
 // (no pueden ir en bucle), así que General renderiza uno por control.
-const ControlReport = ({ controlId }: { controlId: string }) => {
+//
+// Recibe la definición de informe YA RESUELTA, y por eso solo se monta para
+// controles que tienen modelo: quien decide es el componente de la lista. Así
+// no hay ninguna rama condicional por encima de los hooks —el fallo clásico al
+// meter aquí un «si no hay modelo, no rendericemos»— y, de paso, un control sin
+// modelo no lanza la consulta a OpenSearch que no va a poder usar.
+const ControlReport = ({
+  controlId,
+  definition,
+}: {
+  controlId: string;
+  definition: ENSReportModelDefinition;
+}) => {
   const { agentId } = useRouterSearch();
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
@@ -166,12 +153,11 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
 
   const reportModel = useMemo(
     () =>
-      buildReportModelFor(
-        controlId,
+      definition.build(
         complianceResult,
       ),
     [
-      controlId,
+      definition,
       complianceResult,
     ],
   );
@@ -540,7 +526,7 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
       }),
       content: [
         { text: 'INFORME DE CUMPLIMIENTO ENS', style: 'h1' },
-        { text: (CONTROL_META[controlId]?.name || controlId), style: 'h2' },
+        { text: definition.name, style: 'h2' },
         { text: 'RD 311/2022 - Esquema Nacional de Seguridad', style: 'sub' },
         { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#cccccc' }], margin: [0, 4, 0, 12] },
 
@@ -809,7 +795,7 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
     <>
       <EuiFlexGroup justifyContent='spaceBetween' alignItems='flexStart'>
         <EuiFlexItem>
-          <EuiTitle size='m'><h2>{CONTROL_META[controlId]?.name || controlId}</h2></EuiTitle>
+          <EuiTitle size='m'><h2>{definition.name}</h2></EuiTitle>
           <EuiText size='s' color='subdued'>
             <p>
               Informe de cumplimiento ENS · RD 311/2022
@@ -939,6 +925,12 @@ interface ControlReportEntry {
   // Identificadores por los que responde al filtro: el del control y los de sus
   // requisitos, del mismo espacio jerárquico (`op.acc.1`, `op.acc.1.2`).
   filterableIds: string[];
+
+  // El modelo de informe del control, o `undefined` si todavía no tiene. Se
+  // resuelve AQUÍ, en la lista, y no dentro de `<ControlReport>`: así el
+  // componente que sí genera informe solo se monta cuando hay modelo, y la
+  // ausencia se puede enseñar sin haber consultado nada.
+  reportModelDefinition?: ENSReportModelDefinition;
 }
 
 // Cabecera plegable de un control. NO lleva semáforo a propósito: el estado sale
@@ -946,6 +938,10 @@ interface ControlReportEntry {
 // abre. Poner aquí un color exigiría lanzar las N consultas que este cambio
 // evita, y un color obtenido a medias sería peor que no ponerlo. El estado
 // consolidado de un vistazo está en la pestaña Controles.
+//
+// Sí lleva el aviso de «sin modelo de informe», que no cuesta ninguna consulta:
+// sale del registro estático. Es la diferencia entre un olvido que se ve desde
+// la lista y uno que hay que desplegar para descubrir.
 const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
   <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
     <EuiFlexItem grow={false}>
@@ -964,7 +960,49 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
         evidencia(s)
       </EuiBadge>
     </EuiFlexItem>
+
+    {!entry.reportModelDefinition && (
+      <EuiFlexItem grow={false}>
+        <EuiBadge color='warning' iconType='alert'>
+          Sin modelo de informe
+        </EuiBadge>
+      </EuiFlexItem>
+    )}
   </EuiFlexGroup>
+);
+
+// Lo que se enseña al abrir un control que todavía no tiene modelo de informe.
+//
+// Antes esta rama NO EXISTÍA: el selector caía por defecto en mp.info.6 y el
+// control estrenaba el informe de las copias de seguridad —sus requisitos, sus
+// evidencias, sus campos— bajo su propia cabecera, listo para exportar a PDF y
+// firmar ante un auditor. Un documento plausible y equivocado es peor que la
+// ausencia de documento, así que aquí no se genera nada y se dice por qué.
+const ControlSinModeloDeInforme = ({
+  entry,
+}: {
+  entry: ControlReportEntry;
+}) => (
+  <EuiCallOut
+    size='s'
+    color='warning'
+    iconType='documentEdit'
+    title='Este control todavía no tiene modelo de informe'
+  >
+    <EuiText size='s'>
+      <p>
+        {entry.controlId} — {entry.title} está en el catálogo y se evalúa con
+        normalidad en la pestaña Controles, pero nadie ha escrito todavía qué
+        campos lleva su informe. No se emite ninguno: el informe de otro control
+        con esta cabecera sería un documento plausible y equivocado.
+      </p>
+      <p>
+        Para habilitarlo, añadir su entrada en{' '}
+        <code>dashboard/ens/informes/registry.ts</code> junto al fichero de
+        modelo del control.
+      </p>
+    </EuiText>
+  </EuiCallOut>
 );
 
 // Componente público: filtro por prefijo + un informe plegable por control.
@@ -993,8 +1031,20 @@ export const InformesENS = () => {
           control.id,
           ...control.requirements.map(requirement => requirement.id),
         ],
+        reportModelDefinition: getENSReportModelDefinition(control.id),
       })).sort((a, b) => compareENSIds(a.controlId, b.controlId)),
     [],
+  );
+
+  // Los controles del catálogo a los que les falta el modelo de informe. Se
+  // nombran arriba del todo y SIN filtrar: el olvido tiene que verse al entrar
+  // en la pantalla, no solo si a alguien se le ocurre desplegar ese control.
+  const sinModeloDeInforme = React.useMemo(
+    () =>
+      listENSControlsWithoutReportModel(
+        entries.map(entry => entry.controlId),
+      ),
+    [entries],
   );
 
   const families = React.useMemo(
@@ -1122,6 +1172,31 @@ export const InformesENS = () => {
             </EuiText>
           </>
         )}
+
+        {/* Al margen del filtro y sin desplegar nada: qué controles del
+            catálogo no tienen todavía modelo de informe. Es el aviso que hace
+            que añadir un control y olvidarse del informe sea VISIBLE. Antes
+            este olvido no tenía síntoma: el control abría el informe de
+            mp.info.6 y parecía completo. */}
+        {sinModeloDeInforme.length > 0 && (
+          <>
+            <EuiSpacer size='s' />
+            <EuiCallOut
+              size='s'
+              color='warning'
+              iconType='alert'
+              title={`${sinModeloDeInforme.length} control(es) del catálogo sin modelo de informe: ${sinModeloDeInforme.join(', ')}`}
+            >
+              <EuiText size='s'>
+                <p>
+                  Se listan y se evalúan, pero no emiten informe hasta que se
+                  registre su modelo en{' '}
+                  <code>dashboard/ens/informes/registry.ts</code>.
+                </p>
+              </EuiText>
+            </EuiCallOut>
+          </>
+        )}
       </EuiPanel>
 
       <EuiSpacer size='m' />
@@ -1135,9 +1210,11 @@ export const InformesENS = () => {
             title={`Ningún control coincide con «${filtered.query}»`}
           >
             <EuiText size='s'>
+              {/* «con informe disponible» ya no sería cierto: desde que un
+                  control puede estar en el catálogo sin modelo de informe, esta
+                  cuenta son controles listados, no informes emitibles. */}
               <p>
-                Sin filtro hay {entries.length} control(es) con informe
-                disponible.
+                Sin filtro hay {entries.length} control(es) en la lista.
               </p>
             </EuiText>
             <EuiSpacer size='s' />
@@ -1167,9 +1244,19 @@ export const InformesENS = () => {
                     `<ControlReport>` lanza su propia consulta a OpenSearch y la
                     repite cada 15 s: con los tres controles de hoy eran tres
                     consultas en marcha a la vez sin haber pedido nada, y con
-                    treinta serían treinta. Cerrado no consulta. */}
+                    treinta serían treinta. Cerrado no consulta.
+
+                    Y solo si el control TIENE modelo de informe. Sin modelo no
+                    hay informe de repuesto: se dice que falta. */}
                 {isOpen(entry.controlId) ? (
-                  <ControlReport controlId={entry.controlId} />
+                  entry.reportModelDefinition ? (
+                    <ControlReport
+                      controlId={entry.controlId}
+                      definition={entry.reportModelDefinition}
+                    />
+                  ) : (
+                    <ControlSinModeloDeInforme entry={entry} />
+                  )
                 ) : null}
               </EuiAccordion>
             </EuiPanel>

@@ -30,6 +30,15 @@ no dársela solo era diagnóstico. El agente lo emitía, la regla base es
 `level="0"`, no generaba alerta, no llegaba al índice, y EV-03 de op.acc.1 salía
 NO_EVALUABLE permanente sobre una máquina sana. Las dos decisiones eran
 correctas por separado. La comprobación 7 vigila ese contrato.
+
+La cuarta variante vivía en el otro extremo de la cadena, el del documento que
+se firma: la pantalla de Informes elegía el modelo con una cadena de ternarios
+cuya rama POR DEFECTO era mp.info.6. Un control nuevo se registraba bien en
+`catalog/` y en `data/`, salía en la lista con su nombre y su nivel correctos, y
+al abrir su informe generaba el de las copias de seguridad —los requisitos y las
+evidencias de mp.info.6— bajo su propia cabecera. Nada fallaba: salía un
+documento plausible y equivocado, firmado ante un auditor. La comprobación 8
+exige que todo control declarado tenga modelo de informe propio.
 """
 import json
 import os
@@ -314,6 +323,97 @@ else:
                     control, len(tipos_motor), ", ".join(sorted(tipos_motor))
                 )
             )
+
+print("\n=== 8. Todo control declarado tiene su modelo de informe ===\n")
+
+# El hueco que vigila esta comprobación NO está entre repos: está entre dos
+# carpetas del plugin que nadie cruzaba. Un control se declara en `catalog/` y
+# en `data/`, y su informe se registra aparte, en `informes/registry.ts`.
+# Mientras el selector de modelo tuvo rama por defecto, olvidarse del segundo
+# paso no tenía NINGÚN síntoma: el control salía en la lista de Informes con su
+# nombre correcto y generaba el informe de mp.info.6.
+#
+# Las dos listas se DERIVAN del fuente, no se escriben aquí: el día que entren
+# `op.acc.3` y `op.acc.4` esta comprobación los exige sin tocar este fichero.
+# Y por eso mismo lleva ancla propia: si un cambio de formato dejase cualquiera
+# de las dos extracciones vacía, el bucle aprobaría en vacío y el defecto
+# volvería justo por donde salió.
+
+
+def controles_declarados(carpeta):
+    """IDs de control de los ficheros por control de `dashboard/ens/<carpeta>`.
+
+    El `id` del propio control es el único a dos espacios de sangría: los de
+    requisitos y evidencias van más adentro.
+    """
+    ids = {}
+    ruta = os.path.join(PLUGIN, "dashboard/ens", carpeta)
+    for fichero in sorted(os.listdir(ruta)):
+        if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
+            continue
+        encontrados = re.findall(
+            r"^  id: '([^']+)',$", lee(os.path.join(ruta, fichero)), re.M
+        )
+        for control in encontrados:
+            ids.setdefault(control, "{}/{}".format(carpeta, fichero))
+    return ids
+
+
+declarados = {}
+for carpeta in ("catalog", "data"):
+    # `setdefault` y no `update`: si el control está en las dos carpetas —lo
+    # normal, son el doble catálogo—, el mensaje cita la primera, que es
+    # siempre la misma. Un aviso que cambia de fichero según el orden del
+    # bucle es un aviso que cuesta seguir.
+    for control, fichero in controles_declarados(carpeta).items():
+        declarados.setdefault(control, fichero)
+
+registry_ts = lee(os.path.join(PLUGIN, "dashboard/ens/informes/registry.ts"))
+m = re.search(
+    r"reportModelDefinitions:\s*ENSReportModelDefinition\[\]\s*=\s*\[(.*?)\n\];",
+    registry_ts,
+    re.S,
+)
+con_modelo = set(re.findall(r"controlId: '([^']+)'", m.group(1))) if m else set()
+
+if not declarados:
+    falla(
+        "no se ha podido leer del fuente qué controles declara el producto",
+        "revisar los ficheros por control de dashboard/ens/catalog y"
+        " dashboard/ens/data",
+    )
+elif not con_modelo:
+    falla(
+        "no se ha podido leer del fuente qué controles tienen modelo de informe",
+        "revisar `reportModelDefinitions` en"
+        " dashboard/ens/informes/registry.ts",
+    )
+else:
+    sin_modelo = sorted(set(declarados) - con_modelo)
+    if sin_modelo:
+        falla(
+            "controles declarados SIN modelo de informe",
+            "{}: salen en la pestaña Informes y no pueden emitir informe."
+            " Registrar su modelo en dashboard/ens/informes/registry.ts"
+            " (declarados en {})".format(
+                ", ".join(sin_modelo),
+                ", ".join(declarados[c] for c in sin_modelo),
+            ),
+        )
+    else:
+        ok(
+            "los {} control(es) declarados tienen modelo de informe".format(
+                len(declarados)
+            ),
+            ", ".join(sorted(declarados)),
+        )
+
+    huerfanos = sorted(con_modelo - set(declarados))
+    if huerfanos:
+        avisa(
+            "modelos de informe de controles que ya no se declaran",
+            ", ".join(huerfanos),
+        )
 
 print()
 if fallos:
