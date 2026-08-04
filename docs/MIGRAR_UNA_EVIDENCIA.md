@@ -32,8 +32,8 @@ evidencia por verde sin contrastar nada.
 NO_CUMPLE por ausencia. Un agente viejo que aún no emita el hecho nuevo deja su
 evidencia en gris —visible y honesto—, jamás en verde.
 
-**3. Solo `NINGUNO_EN_LISTA` puede convertir la ausencia de hechos en CUMPLE**,
-y solo con cobertura `CONFIRMADA`. Las otras dos primitivas afirman algo
+**3. Solo las dos primitivas de aserción NEGATIVA pueden convertir la ausencia
+de hechos en CUMPLE**, y solo con cobertura `CONFIRMADA`. Las demás afirman algo
 positivo sobre lo observado: sobre un conjunto vacío son ciertas en lógica y
 falsas en una auditoría.
 
@@ -41,11 +41,34 @@ falsas en una auditoría.
 
 | Primitiva | CUMPLE si | Ausencia de hechos |
 |---|---|---|
-| `NINGUNO_EN_LISTA` | ningún hecho observado está en la lista del parámetro | CUMPLE **solo** si la cobertura está confirmada |
-| `TODOS_EN_LISTA` | todo hecho observado está en la lista | `NO_EVALUABLE` siempre |
-| `UMBRAL_MAXIMO` | el valor observado no supera el del parámetro | `NO_EVALUABLE` siempre |
+| `NINGUNO_EN_LISTA` | ningún hecho observado está en la lista **prohibida** | CUMPLE **solo** si la cobertura está confirmada |
+| `TODOS_EN_LISTA` | todo hecho observado está en la lista **autorizada** | `NO_EVALUABLE` siempre |
+| `NINGUNO_FUERA_DE_LISTA` | ningún **hallazgo** de un barrido queda fuera de la lista autorizada | CUMPLE **solo** si la cobertura está confirmada |
+| `UMBRAL_MAXIMO` | ningún valor observado supera el del parámetro | `NO_EVALUABLE` siempre |
+| `UMBRAL_MINIMO` | ningún valor observado queda por debajo | `NO_EVALUABLE` siempre |
+| `ANTIGUEDAD_MAXIMA` | el hecho más reciente no es más viejo que el plazo | `NO_EVALUABLE` siempre |
+| `CONFORME_A_TABLA` | cada hecho casa con **su fila** de la tabla, columna a columna | `NO_EVALUABLE` siempre |
 
 Implementación en `dashboard/ens/core/evidence/judgment.ts`.
+
+**Qué primitiva le toca a tu evidencia, qué hecho crudo tiene que emitir y contra
+qué parámetro se juzga: [`PRIMITIVAS_DE_JUICIO.md`](PRIMITIVAS_DE_JUICIO.md)**,
+que lo dice para las 22 y explica cuáles no se pueden migrar y por qué. **No
+elijas primitiva sin mirarlo**: dos de las siete comparan exactamente igual y se
+diferencian solo en si el silencio puede ser CUMPLE, que es la decisión que
+distingue una evidencia honesta de un falso verde.
+
+### Si tu evidencia apunta a un parámetro de tipo `table`
+
+Declara también **`parameterColumn`** con la columna que se compara (P-07 de
+op.acc.1 es `usuario | sistema | rol`, y lo que se contrasta con una cuenta
+activa es `usuario`). Sin ella el juicio sale `NO_EVALUABLE` con motivo: comparar
+la fila entera contra un valor suelto no encuentra nunca nada.
+
+En `CONFORME_A_TABLA` se declara en su lugar `tableKeyColumn`, `factKeyField` y
+`tableChecks` (una entrada por eje contrastado, con la columna de la política y
+el campo del hecho, que se llaman distinto a propósito: uno dice lo que se
+**decidió** y el otro lo que se **observó**).
 
 ## La receta
 
@@ -172,7 +195,13 @@ Y comprueba que `python3 tests/check-coherencia.py` sigue en `coherencia OK`.
 | Control | Evidencia | Estado |
 |---|---|---|
 | `op.acc.1` | EV-03 | **migrada** — hecho `account_authenticated`, regla 106873, parámetro P-04 |
-| resto | 23 evidencias | modelo clásico |
+| resto | 21 evidencias | modelo clásico |
 
-Cuando estén las 24, `op-acc-1.evaluator.ts` deja de tener sentido como punto de
-partida y se puede retirar.
+**Son 22, no 24.** El catálogo (`core/evidence/catalog.ts`) tiene 7 de
+mp.info.6, 8 de op.acc.1 y 7 de op.acc.2; este documento decía 23 restantes y
+`CLAUDE.md` lo repite. De las 21 que quedan, **14 se pueden migrar** con las
+siete primitivas y 7 no: el porqué de cada una está en
+[`PRIMITIVAS_DE_JUICIO.md`](PRIMITIVAS_DE_JUICIO.md).
+
+Cuando estén las migrables, `op-acc-1.evaluator.ts` deja de tener sentido como
+punto de partida y se puede retirar.
