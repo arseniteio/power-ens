@@ -49,8 +49,14 @@
        Existe porque 106801-106849 está agotada entre este fichero y
        ensfacil_op_acc_1_technical_fact_rules.xml (en Wazuh-ENS/agent/rules/),
        que numera el mismo rango para el OTRO recolector de op.acc.1, el
-       Python del modelo nuevo, que hoy no se despliega. Quien migre EV-05 o
-       EV-06 coge de aquí, y comprueba los DOS ficheros antes.
+       Python del modelo nuevo, que hoy no se despliega. Quien migre una
+       evidencia coge de aquí, y comprueba los DOS ficheros antes.
+
+       De momento la banda tiene UNA sola regla (106873) para TRES evidencias
+       migradas, y no es un descuido: EV-05 comparte hecho con EV-03 (106873) y
+       EV-07 lo comparte con EV-01 (106811). Un id nuevo solo hace falta cuando
+       la evidencia necesita observar algo que hoy nadie observa; migrar sin
+       inventar eventos es lo barato y lo deseable.
        ================================================================ -->
 
   <rule id="106800" level="0">
@@ -90,12 +96,31 @@
        CORRECCIÓN DEL 30/07: hasta hoy la trazabilidad del catálogo del plugin
        salía de ESE otro fichero, y por eso acreditaba 39 reglas que ningún
        manager tiene. Ahora sale de este. -->
+  <!-- DOS EVIDENCIAS SOBRE EL MISMO HECHO (04/08/2026). Al migrar EV-05
+       (cuentas de servicio con acceso interactivo) resultó que no hacía falta
+       ningún hecho nuevo: `_opacc1_logins` extrae las `Accepted …` de sshd, que
+       son exactamente los accesos interactivos por los que EV-05 pregunta, y ya
+       las emite este evento. Lo único que cambia entre las dos evidencias es
+       contra qué lista las contrasta el motor:
+
+         EV-03 · op.acc.1.1 · NINGUNO_EN_LISTA contra P-04 (genéricas prohibidas)
+         EV-05 · op.acc.1.2 · NINGUNO_EN_LISTA contra P-03 (cuentas de servicio)
+
+       Por eso el evento sale con `evidence_id=EV-03,EV-05` y el normalizador del
+       plugin lo reparte en uno por evidencia (`normalizeWazuhAlerts`). No es un
+       patrón nuevo en el producto: 106609 de mp.info.6 lleva
+       `evidencia=EV-03,EV-07` desde antes de que existiera este modelo.
+
+       Que un hecho crudo sirva a dos evidencias es, de hecho, la ventaja del
+       modelo: en el clásico había que emitirlo dos veces —una por evidencia,
+       cada una con su veredicto ya calculado— y las dos copias podían discrepar
+       sobre la misma línea de auth.log. -->
   <rule id="106873" level="3">
     <if_sid>106800</if_sid>
     <field name="event">account_authenticated</field>
-    <description>op.acc.1 · op.acc.1.1 · HECHO (EV-03) · Autenticación observada de $(usuario) desde $(origen)</description>
-    <group>ENS_op.acc.1,op_acc_1_1,EV_03,nivel_bajo,nivel_medio,nivel_alto,hecho_crudo,</group>
-    <info type="text">requisito=op.acc.1.1 evidencia=EV-03 juicio=motor parametro=P-04 formato=json_line</info>
+    <description>op.acc.1 · op.acc.1.1/op.acc.1.2 · HECHO (EV-03, EV-05) · Autenticación observada de $(usuario) desde $(origen)</description>
+    <group>ENS_op.acc.1,op_acc_1_1,op_acc_1_2,EV_03,EV_05,nivel_bajo,nivel_medio,nivel_alto,hecho_crudo,</group>
+    <info type="text">requisito=op.acc.1.1,op.acc.1.2 evidencia=EV-03,EV-05 juicio=motor parametro=P-04,P-03 formato=json_line</info>
   </rule>
 
   <!-- 106801 y 106802 son LEGADO desde la migración de EV-03. Ningún agente
@@ -122,6 +147,20 @@
 
   <!-- ===== op.acc.1.2 · Identificadores por rol (EV-05, EV-06) ===== -->
 
+  <!-- 106805 y 106806 son LEGADO desde la migración de EV-05 (04/08/2026).
+       Ningún agente actualizado los emite: el hecho de EV-05 es el
+       `account_authenticated` de 106873, y el veredicto lo pone el motor
+       contrastando con P-03. Se conservan por lo mismo que 106801 y 106802: el
+       índice guarda meses de alertas anteriores y borrar la regla no borra los
+       eventos, solo los deja sin descripción ni grupos para el auditor que baje
+       por la traza de un informe antiguo. No añadir eventos nuevos aquí.
+
+       El catálogo del plugin SÍ sigue leyendo estos dos nombres como hechos de
+       EV-05, y no es una contradicción: lo que se descarta del modelo viejo es
+       el `estado`, no el campo `usuario`. Se pueden readmitir porque entre los
+       dos cubren la MISMA población que el hecho nuevo (los infractores y el
+       resto), así que lo ya indexado se vuelve a juzgar con el P-03 de hoy sin
+       sesgar la muestra. -->
   <rule id="106805" level="12">
     <if_sid>106800</if_sid>
     <field name="event">service_account_interactive</field>
@@ -181,12 +220,31 @@
     <info type="text">requisito=op.acc.1.3 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-04 formato=json_line</info>
   </rule>
 
+  <!-- HECHO CRUDO DE EV-07 desde el 04/08/2026, además de evento de EV-01.
+       `account_active` («esta cuenta está activa, con este uid») es una
+       observación, no un veredicto, y por eso puede servir a dos evidencias que
+       preguntan cosas distintas sobre ella:
+
+         EV-01 · op.acc.1.3 · modelo CLÁSICO. La unicidad del UID la decide el
+                 `account_inventory` de la misma pasada (106809/106810); este
+                 evento es el detalle por cuenta. Su `estado=CUMPLE` es
+                 convención del modelo clásico: significa «este hecho no
+                 contradice a EV-01», no un cumplimiento del control.
+         EV-07 · op.acc.1.r1.3 · modelo NUEVO. El motor toma su `usuario` y
+                 comprueba con TODOS_EN_LISTA que figure en la columna 'usuario'
+                 de P-07 (lista de usuarios autorizados). El `estado` de este
+                 evento NO se lee en ese camino.
+
+       De ahí que el evento salga con `evidence_id=EV-01,EV-07` y que el grupo
+       conserve `cumple`: esa etiqueta es de EV-01, la única de las dos que
+       todavía la usa. Cuando EV-01 migre —hoy no puede: su juicio no contrasta
+       ningún parámetro— desaparece con ella. -->
   <rule id="106811" level="3">
     <if_sid>106800</if_sid>
     <field name="event">account_active</field>
-    <description>op.acc.1 · op.acc.1.3 · Cuenta activa inventariada</description>
-    <group>ENS_op.acc.1,op_acc_1_3,EV_01,nivel_bajo,nivel_medio,nivel_alto,cumple,</group>
-    <info type="text">requisito=op.acc.1.3 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-05 formato=json_line</info>
+    <description>op.acc.1 · op.acc.1.3/op.acc.1.r1.3 · Cuenta activa inventariada · $(usuario) (uid $(uid))</description>
+    <group>ENS_op.acc.1,op_acc_1_3,op_acc_1_r1_3,EV_01,EV_07,nivel_bajo,nivel_medio,nivel_alto,cumple,hecho_crudo,</group>
+    <info type="text">requisito=op.acc.1.3,op.acc.1.r1.3 evidencia=EV-01,EV-07 nivel=BAJO estado=CUMPLE ev_id=OK-05 juicio=motor parametro=P-07 formato=json_line</info>
   </rule>
 
   <rule id="106812" level="5">
@@ -259,7 +317,22 @@
        coincidía con el de autorizadas, y esa alerta cruda salía en Wazuh
        como "CUMPLE (EV-07)". El caso puntual de cuenta activa fuera de la
        lista ya tenía su propia regla (106826, unauthorized_user); esta
-       variante cubre el agregado (los recuentos no cuadran). -->
+       variante cubre el agregado (los recuentos no cuadran).
+
+       LEGADO desde la migración de EV-07 (04/08/2026): las tres reglas de este
+       bloque (106824, 106825 y 106826) ya no las emite ningún agente
+       actualizado. El hecho de EV-07 es el `account_active` de 106811 y el
+       veredicto lo pone el motor contrastando con la columna 'usuario' de P-07.
+       Se conservan por el índice histórico, como 106801/106802 y 106805/106806.
+
+       Y, a diferencia de aquellas, el catálogo NO readmite estos nombres como
+       hechos de EV-07. La razón está escrita en el catálogo y merece repetirse
+       aquí porque es la trampa de esta migración: `unauthorized_user` solo se
+       emitía para las cuentas que FALLABAN. Juzgar «todas las cuentas
+       observadas están autorizadas» sobre esa muestra daría CUMPLE en cuanto la
+       única cuenta observada resultara estar hoy en P-07, con el resto de la
+       máquina sin mirar. Y `authorized_list_check` es un recuento sin campo
+       `usuario`. -->
   <rule id="106824" level="10">
     <if_sid>106800</if_sid>
     <field name="event">authorized_list_check</field>

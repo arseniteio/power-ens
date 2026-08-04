@@ -20,6 +20,7 @@ import {
   ENSLevel,
 } from '../dashboard/ens/configuration/types';
 import { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
 import { consolidateAgentComplianceResults } from '../dashboard/ens/core/compliance-state/consolidation';
 import { ENSEvidenceCatalog } from '../dashboard/ens/core/evidence/catalog';
 import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
@@ -2591,6 +2592,375 @@ bloque('CONFORME_A_TABLA');
   );
 }
 
+// --- op.acc.1 / EV-05: dos evidencias sobre el MISMO hecho -------------------
+//
+// EV-05 se migró sin inventar ningún hecho: comparte el `account_authenticated`
+// de EV-03 y solo cambia la lista contra la que se contrasta (P-03 en vez de
+// P-04). Lo que hay que demostrar no es que la primitiva funcione —eso ya está
+// probado arriba— sino que UNA sola alerta produce DOS veredictos
+// independientes, que es lo que el modelo clásico no podía hacer sin emitir el
+// hecho dos veces.
+//
+// La prueba entra por la ALERTA CRUDA, no por eventos normalizados a mano: el
+// reparto de un `evidence_id` con varias evidencias lo hace
+// `normalizeWazuhAlerts`, y si ese reparto se rompiera, una prueba escrita
+// sobre eventos ya normalizados seguiría en verde mientras en producción EV-05
+// no vería un solo hecho.
+
+bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
+
+{
+  const definiciones = getEvidenceDefinitions('op.acc.1');
+
+  const ev05 = definiciones.find(
+    candidato => candidato.id === 'EV-05'
+  );
+
+  comprueba(
+    'EV-05 declara NINGUNO_EN_LISTA contra P-03',
+    ev05?.judgment?.primitive ===
+      'NINGUNO_EN_LISTA' &&
+      ev05?.judgment?.parameterId === 'P-03',
+    JSON.stringify(ev05?.judgment)
+  );
+
+  comprueba(
+    'EV-05 lee el mismo hecho crudo que EV-03',
+    Boolean(
+      ev05?.judgment?.factEventTypes.includes(
+        'account_authenticated'
+      ) && ev05?.judgment?.factField === 'usuario'
+    ),
+    JSON.stringify(ev05?.judgment)
+  );
+
+  // La alerta tal como la deja Wazuh a partir de la línea que emite
+  // ev03_autenticaciones (lib/opacc1-lib.sh) desde el 04/08.
+  const alertaCruda = (
+    usuario: string
+  ): unknown => ({
+    _id: 'alerta-compartida',
+    _source: {
+      '@timestamp': '2026-07-30T10:00:00Z',
+      rule: {
+        id: '106873',
+        description:
+          'op.acc.1 · HECHO (EV-03, EV-05) · Autenticación observada',
+      },
+      agent: { id: '001', name: 'srv01' },
+      data: {
+        ensfacil: 'op.acc.1',
+        event: 'account_authenticated',
+        evidence_id: 'EV-03,EV-05',
+        requisito: 'op.acc.1.1,op.acc.1.2',
+        usuario,
+        origen: '10.0.0.12',
+      },
+    },
+  });
+
+  const repartida = normalizeWazuhAlerts([
+    alertaCruda('svc_backup'),
+  ]);
+
+  comprueba(
+    'la alerta con dos evidencias se reparte en dos eventos normalizados',
+    repartida.length === 2 &&
+      repartida.some(
+        item => item.evidenceId === 'EV-03'
+      ) &&
+      repartida.some(
+        item => item.evidenceId === 'EV-05'
+      ),
+    repartida
+      .map(item => String(item.evidenceId))
+      .join(', ')
+  );
+
+  // svc_backup NO está en P-04 (genéricas prohibidas) y SÍ en P-03 (cuentas de
+  // servicio): el mismo hecho tiene que salir verde en una evidencia y rojo en
+  // la otra. Si el motor confundiera los parámetros, o si las dos evidencias
+  // compartieran veredicto, este caso lo cazaría; con un usuario que estuviera
+  // en las dos listas, o en ninguna, la prueba pasaría sin demostrar nada.
+  const dosListas = config(
+    parametro({
+      id: 'P-03',
+      name: 'cuentas_servicio_definidas',
+      type: 'list',
+      value: ['svc_backup', 'svc_web'],
+    }),
+    parametro({
+      id: 'P-04',
+      name: 'cuentas_genericas_prohibidas',
+      type: 'list',
+      value: ['admin', 'guest'],
+    })
+  );
+
+  const resueltas = resolveEvidenceForControl(
+    'op.acc.1',
+    repartida,
+    undefined,
+    'ALTO',
+    dosListas
+  );
+
+  const ev03Resuelta = resueltas.find(
+    evidencia => evidencia.id === 'EV-03'
+  );
+
+  const ev05Resuelta = resueltas.find(
+    evidencia => evidencia.id === 'EV-05'
+  );
+
+  comprueba(
+    'svc_backup no está en P-04 · EV-03 CUMPLE',
+    ev03Resuelta?.status === 'CUMPLE',
+    `${ev03Resuelta?.status} — ${ev03Resuelta ? motivos(ev03Resuelta) : ''}`
+  );
+
+  comprueba(
+    'el MISMO hecho está en P-03 · EV-05 NO_CUMPLE',
+    ev05Resuelta?.status === 'NO_CUMPLE',
+    `${ev05Resuelta?.status} — ${ev05Resuelta ? motivos(ev05Resuelta) : ''}`
+  );
+
+  comprueba(
+    'el motivo de EV-05 nombra la cuenta de servicio, no dice «algo falló»',
+    Boolean(
+      ev05Resuelta &&
+        motivos(ev05Resuelta).includes(
+          "'svc_backup'"
+        )
+    ),
+    ev05Resuelta ? motivos(ev05Resuelta) : ''
+  );
+
+  // Reversión sobre el parámetro: se saca svc_backup de P-03 y EV-05 vuelve,
+  // con el mismo evento. Es la prueba de aceptación de la migración aplicada a
+  // esta evidencia.
+  const sinSvcEnP03 = resolveEvidenceForControl(
+    'op.acc.1',
+    repartida,
+    undefined,
+    'ALTO',
+    config(
+      parametro({
+        id: 'P-03',
+        name: 'cuentas_servicio_definidas',
+        type: 'list',
+        value: ['svc_web'],
+      }),
+      parametro({
+        id: 'P-04',
+        name: 'cuentas_genericas_prohibidas',
+        type: 'list',
+        value: ['admin', 'guest'],
+      })
+    )
+  ).find(evidencia => evidencia.id === 'EV-05');
+
+  comprueba(
+    'se quita svc_backup de P-03 · MISMO evento · EV-05 vuelve a CUMPLE',
+    sinSvcEnP03?.status === 'CUMPLE',
+    `${sinSvcEnP03?.status} — ${sinSvcEnP03 ? motivos(sinSvcEnP03) : ''}`
+  );
+
+  // El nombre viejo se readmite porque `service_account_interactive` e
+  // `interactive_login` cubrían entre los dos TODOS los logins. Lo que se
+  // descarta del evento viejo es su `estado`, no su `usuario`.
+  const legadoEv05 = resolveEvidenceForControl(
+    'op.acc.1',
+    [
+      evento(
+        'interactive_login',
+        { usuario: 'svc_backup' },
+        {
+          evidenceId: 'EV-05',
+          status: 'CUMPLE',
+        }
+      ),
+    ],
+    undefined,
+    'ALTO',
+    dosListas
+  ).find(evidencia => evidencia.id === 'EV-05');
+
+  comprueba(
+    "un 'interactive_login' de agente viejo se re-juzga con el P-03 de hoy (decía CUMPLE)",
+    legadoEv05?.status === 'NO_CUMPLE',
+    String(legadoEv05?.status)
+  );
+}
+
+// --- op.acc.1 / EV-07: la primera evidencia contra una TABLA -----------------
+//
+// La lista de usuarios autorizados era un fichero en cada máquina. Ahora es la
+// columna 'usuario' de P-07, y el hecho es el `account_active` que EV-01 ya
+// emitía por cada cuenta de /etc/passwd.
+
+bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
+
+{
+  const definiciones = getEvidenceDefinitions('op.acc.1');
+
+  const ev07 = definiciones.find(
+    candidato => candidato.id === 'EV-07'
+  );
+
+  comprueba(
+    'EV-07 declara TODOS_EN_LISTA contra la columna usuario de P-07',
+    ev07?.judgment?.primitive ===
+      'TODOS_EN_LISTA' &&
+      ev07?.judgment?.parameterId === 'P-07' &&
+      ev07?.judgment?.parameterColumn === 'usuario',
+    JSON.stringify(ev07?.judgment)
+  );
+
+  const listaAutorizados = (
+    filas: string[]
+  ): ENSControlConfiguration =>
+    config(
+      parametro({
+        id: 'P-07',
+        name: 'lista_usuarios_autorizados',
+        type: 'table',
+        columns: [
+          { name: 'usuario', type: 'text' },
+          { name: 'sistema', type: 'text' },
+          { name: 'rol', type: 'text' },
+        ],
+        value: filas,
+      })
+    );
+
+  const cuentasActivas = (
+    ...usuarios: string[]
+  ): ENSNormalizedEvent[] =>
+    usuarios.map(usuario =>
+      evento(
+        'account_active',
+        { usuario, uid: 1001, tipo: 'persona' },
+        { evidenceId: 'EV-07', status: 'CUMPLE' }
+      )
+    );
+
+  const conforme = resolveEvidenceForControl(
+    'op.acc.1',
+    cuentasActivas('jgomez', 'mlopez'),
+    undefined,
+    'ALTO',
+    listaAutorizados([
+      'jgomez | srv01 | ops',
+      'mlopez | srv01 | dev',
+    ])
+  ).find(evidencia => evidencia.id === 'EV-07');
+
+  comprueba(
+    'las dos cuentas activas figuran en la columna usuario · CUMPLE',
+    conforme?.status === 'CUMPLE',
+    `${conforme?.status} — ${conforme ? motivos(conforme) : ''}`
+  );
+
+  const intrusa = resolveEvidenceForControl(
+    'op.acc.1',
+    cuentasActivas('jgomez', 'exempleado'),
+    undefined,
+    'ALTO',
+    listaAutorizados([
+      'jgomez | srv01 | ops',
+      'mlopez | srv01 | dev',
+    ])
+  ).find(evidencia => evidencia.id === 'EV-07');
+
+  comprueba(
+    'una cuenta activa que no figura en la tabla · NO_CUMPLE',
+    intrusa?.status === 'NO_CUMPLE',
+    `${intrusa?.status} — ${intrusa ? motivos(intrusa) : ''}`
+  );
+
+  comprueba(
+    'el motivo nombra la cuenta no autorizada',
+    Boolean(
+      intrusa &&
+        motivos(intrusa).includes("'exempleado'")
+    ),
+    intrusa ? motivos(intrusa) : ''
+  );
+
+  // Con `parameterColumn` mal declarada la fila entera se compararía contra
+  // 'jgomez' y no casaría jamás: TODA la plantilla saldría no autorizada. Es el
+  // fallo que `parameterColumn` existe para impedir, y esta prueba comprueba que
+  // la proyección de la columna se aplica de verdad — sin ella, el caso
+  // «conforme» de arriba habría salido NO_CUMPLE.
+  comprueba(
+    'la comparación proyecta la columna, no la fila entera',
+    Boolean(
+      conforme?.status === 'CUMPLE' &&
+        motivos(conforme).includes(
+          "la columna 'usuario'"
+        )
+    ),
+    conforme ? motivos(conforme) : ''
+  );
+
+  // TODOS_EN_LISTA nunca cumple por ausencia, ni con la cobertura confirmada:
+  // «todas las cuentas activas están autorizadas» sobre cero cuentas
+  // observadas es cierto en lógica y falso en una auditoría. /etc/passwd
+  // siempre rinde cuentas: cero hechos aquí significa que no se leyó.
+  const sinCuentas = resolveEvidenceForControl(
+    'op.acc.1',
+    [
+      evento(
+        'collector_run',
+        {
+          resultado: 'completada',
+          evidencias_cubiertas:
+            'EV-03,EV-05,EV-06,EV-07',
+        },
+        { timestamp: '2026-07-30T09:59:00Z' }
+      ),
+    ],
+    undefined,
+    'ALTO',
+    listaAutorizados(['jgomez | srv01 | ops']),
+    new Date('2026-07-30T10:00:00Z')
+  ).find(evidencia => evidencia.id === 'EV-07');
+
+  comprueba(
+    'cero cuentas observadas con cobertura confirmada · NO_EVALUABLE, no CUMPLE',
+    sinCuentas?.status === 'NO_EVALUABLE',
+    `${sinCuentas?.status} — ${sinCuentas ? motivos(sinCuentas) : ''}`
+  );
+
+  // La trampa de esta migración: `unauthorized_user` solo se emitía para las
+  // cuentas que FALLABAN. Si el catálogo lo readmitiera como hecho, una máquina
+  // con cuarenta cuentas sin mirar saldría CUMPLE en cuanto su única infractora
+  // histórica estuviera hoy en P-07.
+  const soloInfractorLegado = resolveEvidenceForControl(
+    'op.acc.1',
+    [
+      evento(
+        'unauthorized_user',
+        { usuario: 'jgomez' },
+        {
+          evidenceId: 'EV-07',
+          status: 'NO_CUMPLE',
+        }
+      ),
+    ],
+    undefined,
+    'ALTO',
+    listaAutorizados(['jgomez | srv01 | ops'])
+  ).find(evidencia => evidencia.id === 'EV-07');
+
+  comprueba(
+    "un 'unauthorized_user' suelto NO acredita a EV-07 (muestra sesgada)",
+    soloInfractorLegado?.status !== 'CUMPLE',
+    String(soloInfractorLegado?.status)
+  );
+}
+
 // --- estado de la migración ------------------------------------------------
 
 bloque('Estado de la migración');
@@ -2605,11 +2975,59 @@ bloque('Estado de la migración');
 
   // La migración es evidencia a evidencia. Esta prueba es el marcador: cuando
   // se migre la siguiente, hay que actualizarla a conciencia, no de pasada.
+  const MIGRADAS = [
+    'op.acc.1/EV-03',
+    'op.acc.1/EV-05',
+    'op.acc.1/EV-07',
+  ];
+
   comprueba(
-    'solo op.acc.1/EV-03 declara judgment (la migración va evidencia a evidencia)',
-    declaradas.length === 1 &&
-      declaradas[0] === 'op.acc.1/EV-03',
+    `las migradas son exactamente ${MIGRADAS.join(', ')}`,
+    declaradas.length === MIGRADAS.length &&
+      MIGRADAS.every(esperada =>
+        declaradas.includes(esperada)
+      ),
     declaradas.join(', ') || '(ninguna)'
+  );
+
+  // Una evidencia migrada no puede seguir escuchando su propio `evidence_state`
+  // como hecho: sería el segundo camino de evaluación sobre los mismos datos.
+  const conEstadoEntreLosHechos = ENSEvidenceCatalog.filter(
+    definition =>
+      definition.judgment?.factEventTypes.includes(
+        'evidence_state'
+      )
+  ).map(
+    definition =>
+      `${definition.controlId}/${definition.id}`
+  );
+
+  comprueba(
+    'ninguna evidencia migrada lee `evidence_state` como hecho',
+    conEstadoEntreLosHechos.length === 0,
+    conEstadoEntreLosHechos.join(', ')
+  );
+
+  // Toda evidencia que apunte a un parámetro de varias columnas tiene que
+  // declarar cuál compara. Sin esto el motor devuelve NO_EVALUABLE con motivo,
+  // pero el fallo se descubre en producción en vez de aquí.
+  const tablasSinColumna = ENSEvidenceCatalog.filter(
+    definition =>
+      definition.judgment &&
+      definition.judgment.primitive !==
+        'CONFORME_A_TABLA' &&
+      definition.judgment.parameterId ===
+        'P-07' &&
+      !definition.judgment.parameterColumn
+  ).map(
+    definition =>
+      `${definition.controlId}/${definition.id}`
+  );
+
+  comprueba(
+    'ninguna evidencia compara P-07 sin declarar su columna',
+    tablasSinColumna.length === 0,
+    tablasSinColumna.join(', ')
   );
 }
 

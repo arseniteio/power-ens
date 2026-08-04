@@ -391,12 +391,46 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: [
       'evidence_state',
+      'account_authenticated',
       'service_account_interactive',
       'interactive_login',
     ],
-    relatedRules: ['106805', '106806'],
+    relatedRules: ['106805', '106806', '106873'],
     auditQuestion:
       '¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?',
+
+    // MIGRADA. Comparte el hecho crudo de EV-03 —`account_authenticated`, regla
+    // 106873— y no hace falta ninguno nuevo: `_opacc1_logins` extrae las
+    // `Accepted …` de sshd, que son exactamente los accesos INTERACTIVOS que
+    // esta evidencia pregunta por. Lo único que cambia respecto a EV-03 es
+    // contra qué lista se contrasta: P-03 (cuentas de servicio declaradas) en
+    // vez de P-04 (cuentas genéricas prohibidas). Dos preguntas de auditoría
+    // distintas sobre la misma observación, que es justo lo que este modelo
+    // permite y el clásico no.
+    //
+    // El hecho llega etiquetado `evidence_id=EV-03,EV-05`: el normalizador lo
+    // reparte en un evento por evidencia (`normalizeWazuhAlerts`), igual que
+    // 106609 de mp.info.6 lleva `evidencia=EV-03,EV-07` desde antes de que
+    // existiera este modelo.
+    //
+    // `factEventTypes` incluye los DOS nombres viejos, y aquí hay una regla que
+    // no es evidente: los nombres viejos solo se pueden readmitir cuando entre
+    // todos cubren la MISMA población que el hecho nuevo. Aquí sí —
+    // `service_account_interactive` eran los infractores e `interactive_login`
+    // el resto, así que su unión es el total de logins— y por eso los datos ya
+    // indexados se pueden volver a juzgar con el P-03 de hoy. Cuando el nombre
+    // viejo cubría solo a los infractores (es el caso de `unauthorized_user` en
+    // EV-07), readmitirlo fabricaría un CUMPLE sobre una muestra sesgada.
+    judgment: {
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-03',
+      factEventTypes: [
+        'account_authenticated',
+        'service_account_interactive',
+        'interactive_login',
+      ],
+      factField: 'usuario',
+    },
   },
   {
     id: 'EV-06',
@@ -427,12 +461,47 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: [
       'evidence_state',
+      'account_active',
       'authorized_list_check',
       'unauthorized_user',
     ],
-    relatedRules: ['106824', '106825', '106826'],
+    relatedRules: ['106824', '106825', '106826', '106811'],
     auditQuestion:
       '¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?',
+
+    // MIGRADA, y es la que más devuelve al cliente: hasta hoy la «lista de
+    // usuarios autorizados» era un FICHERO en cada máquina
+    // (OPACC1_LISTA_AUTORIZADOS), y P-07 en la pantalla solo servía para
+    // comprobar que estaba relleno. Un cliente de nivel MEDIO o ALTO tenía que
+    // mantener a mano ese fichero en cada servidor, sincronizado con lo que el
+    // auditor ve en Wazuh. Ahora la lista vive SOLO en P-07 y el agente no
+    // lee ningún fichero de autorizados.
+    //
+    // Primera evidencia que apunta a un parámetro de tipo `table`, y por eso
+    // declara `parameterColumn`: P-07 es 'usuario | sistema | rol' y lo que se
+    // contrasta con una cuenta activa es el usuario. Sin esa declaración el
+    // motor no compara nada y lo dice (ver `resolveReferenceValues`).
+    //
+    // El hecho ya existía: `account_active` (regla 106811), que ev01_inventario
+    // emite por cada cuenta activa de /etc/passwd con el MISMO filtro que usaba
+    // ev07_lista_autorizados (uid ≥ P-10, shell distinto de nologin/false).
+    // Ahora sale etiquetado `evidence_id=EV-01,EV-07`.
+    //
+    // `factEventTypes` NO readmite los nombres viejos, y la razón es la que
+    // EV-05 explica en positivo: `unauthorized_user` solo se emitía para las
+    // cuentas que FALLABAN. Juzgar `TODOS_EN_LISTA` sobre esa muestra diría
+    // «todas las cuentas observadas están autorizadas» en cuanto la única
+    // observada resultara estar hoy en P-07 — un CUMPLE sobre una máquina con
+    // cuarenta cuentas que nadie miró. Y `authorized_list_check` es un recuento
+    // sin campo `usuario`: readmitirlo dejaría la evidencia en NO_EVALUABLE
+    // permanente por hechos ilegibles.
+    judgment: {
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-07',
+      parameterColumn: 'usuario',
+      factEventTypes: ['account_active'],
+      factField: 'usuario',
+    },
   },
   {
     id: 'EV-08',
