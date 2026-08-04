@@ -539,6 +539,39 @@ bloque('3 · estado y denominador del control');
     `${denominador.applicableRequirements}/${denominador.measuredRequirements}`
   );
 
+  // `evidenced` manda sobre la ETIQUETA que traiga el requisito. En producción
+  // `evaluateRequirement` ya convierte el estado, así que esta guarda no se
+  // ejercita sola: sin este caso, se puede borrar entera y no falla nada — lo
+  // dijo la verificación por reversión. Y no es teórica: es lo que hace que el
+  // evaluador de control dé la misma respuesta si alguien le pasa la MEDIDA en
+  // crudo en vez del veredicto, que es justo el error que se cometería al
+  // añadir un camino de evaluación nuevo.
+  const etiquetaMentirosa = evaluateControlStatus([
+    {
+      id: 'req-0',
+      title: 'req-0',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      // Dice CUMPLE, pero declara que no se ha demostrado. Manda lo segundo.
+      status: 'CUMPLE',
+      applicable: true,
+      evidenced: false,
+      score: 0,
+      observations: [],
+      evidenceIds: [],
+    },
+    ...requisitos('CUMPLE'),
+  ]);
+
+  comprueba(
+    'un «CUMPLE» que declara no estar demostrado NO cuenta como conforme',
+    etiquetaMentirosa.status === 'PARCIAL' &&
+      etiquetaMentirosa.score === 50 &&
+      etiquetaMentirosa.measuredRequirements === 1,
+    `${etiquetaMentirosa.status}/${String(etiquetaMentirosa.score)}/${
+      etiquetaMentirosa.measuredRequirements
+    }`
+  );
+
   const noAplica = evaluateControlStatus(requisitos('NO_APLICA', 'NO_APLICA'));
 
   comprueba(
@@ -747,6 +780,40 @@ bloque('5 · índice global de la pantalla principal');
     conNoAplica.controlSummary.scoreAverage === 100 &&
       conNoAplica.controlSummary.measured === 1,
     `${conNoAplica.controlSummary.scoreAverage}/${conNoAplica.controlSummary.measured}`
+  );
+
+  // El contador de máquinas que NO han reportado. Es el único sitio de la
+  // pantalla principal donde el agente caído sigue teniendo nombre propio: el
+  // veredicto ya no lo delata —ahora todas las máquinas tienen veredicto,
+  // incluida la que no ha mandado nada en su vida— así que este contador tiene
+  // que mirar si se ha llegado a MEDIR algo, no el estado.
+  //
+  // Sin esta comprobación se puede revertir a la versión que mira el estado y
+  // no falla nada; lo dijo la verificación por reversión.
+  const estadoConAgentes = buildComplianceState(
+    [controlConforme, sinNada],
+    [
+      {
+        agentId: '001',
+        agentName: 'CLIENTE-01',
+        results: [conforme],
+        summary: undefined as never,
+      },
+      {
+        agentId: '002',
+        agentName: 'CLIENTE-02',
+        results: [sinNada],
+        summary: undefined as never,
+      },
+    ]
+  );
+
+  comprueba(
+    'agentes · la máquina que no ha demostrado nada cuenta como «sin resultados»',
+    estadoConAgentes.agentSummary.totalAgents === 2 &&
+      estadoConAgentes.agentSummary.agentsWithResults === 1 &&
+      estadoConAgentes.agentSummary.agentsWithoutResults === 1,
+    JSON.stringify(estadoConAgentes.agentSummary)
   );
 }
 
