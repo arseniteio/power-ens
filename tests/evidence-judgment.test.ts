@@ -17,6 +17,7 @@
 import {
   ENSControlConfiguration,
   ENSControlParameter,
+  ENSLevel,
 } from '../dashboard/ens/configuration/types';
 import { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
 import { consolidateAgentComplianceResults } from '../dashboard/ens/core/compliance-state/consolidation';
@@ -26,7 +27,9 @@ import { buildOpAcc1ReportModel } from '../dashboard/ens/informes/op-acc-1-repor
 import {
   judgeEvidence,
   parseReferenceList,
+  parseReferenceRows,
   resolveCollectorCoverage,
+  splitRowCells,
 } from '../dashboard/ens/core/evidence/judgment';
 import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
 import {
@@ -169,6 +172,48 @@ const configuracion = (
       value,
     },
   ],
+});
+
+// Constructor libre de parámetros, para las primitivas nuevas: hacen falta
+// tablas con columnas, duraciones en horas y en días, y dos parámetros en la
+// misma configuración (umbral y margen).
+const parametro = (
+  overrides: Partial<ENSControlParameter> & {
+    id: string;
+  }
+): ENSControlParameter => {
+  const fusionado = {
+    controlId: 'op.acc.1',
+    label: '',
+    description: '',
+    levels: ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[],
+    requirements: ['op.acc.1.1'],
+    type: 'list' as ENSControlParameter['type'],
+    required: true,
+    wazuhUsage: '',
+    ensfacilUsage: '',
+    evidenceIds: ['EV-XX'],
+    ruleIds: ['106801'],
+    ifNotConfigured: '',
+    name: overrides.id,
+    ...overrides,
+  };
+
+  return {
+    ...fusionado,
+    name: fusionado.name || fusionado.id,
+  };
+};
+
+const config = (
+  ...parametros: ENSControlParameter[]
+): ENSControlConfiguration => ({
+  controlId: 'op.acc.1',
+  controlName: 'Identificación',
+  family: 'op',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: parametros,
 });
 
 const juzga = (
@@ -1093,6 +1138,1456 @@ bloque('Aceptación · P-04 manda sobre EV-03 sin tocar el agente');
     'escenario `incumple` del simulador · NO_CUMPLE con el P-04 por defecto',
     escenarioIncumple?.status === 'NO_CUMPLE',
     String(escenarioIncumple?.status)
+  );
+}
+
+// --- NINGUNO_FUERA_DE_LISTA ------------------------------------------------
+//
+// Comparte la comparación EXACTA con TODOS_EN_LISTA. Lo único que cambia es qué
+// pasa con el conjunto vacío, y eso es lo que hay que demostrar: si las dos se
+// comportaran igual también sin hechos, una de las dos sobraría.
+
+bloque('NINGUNO_FUERA_DE_LISTA');
+
+{
+  const AHORA = new Date('2026-08-05T12:00:00Z');
+
+  const JUICIO_BARRIDO: ENSEvidenceJudgment = {
+    primitive: 'NINGUNO_FUERA_DE_LISTA',
+    parameterId: 'P-10',
+    factEventTypes: ['suid_sgid'],
+    factField: 'ruta',
+  };
+
+  // La misma lista y los mismos hechos para las dos primitivas: lo único que se
+  // mueve entre las dos columnas de esta comparación es el nombre de la
+  // primitiva.
+  const JUICIO_ACREDITA: ENSEvidenceJudgment = {
+    ...JUICIO_BARRIDO,
+    primitive: 'TODOS_EN_LISTA',
+  };
+
+  const BASE_SUID = config(
+    parametro({
+      id: 'P-10',
+      name: 'suid_autorizados',
+      value: ['/usr/bin/sudo', '/usr/bin/passwd'],
+    })
+  );
+
+  const hallazgo = (ruta: string) => [
+    evento('suid_sgid', { ruta }),
+  ];
+
+  const latidoBarrido = evento(
+    'collector_run',
+    {
+      resultado: 'completada',
+      evidencias_cubiertas: 'EV-XX',
+    },
+    { timestamp: '2026-08-05T11:30:00Z' }
+  );
+
+  const dentro = juzga(
+    JUICIO_BARRIDO,
+    hallazgo('/usr/bin/sudo'),
+    BASE_SUID
+  );
+
+  comprueba(
+    'hallazgo en la línea base · CUMPLE',
+    dentro.status === 'CUMPLE',
+    `${dentro.status} — ${motivos(dentro)}`
+  );
+
+  const fuera = juzga(
+    JUICIO_BARRIDO,
+    hallazgo('/tmp/puerta-trasera'),
+    BASE_SUID
+  );
+
+  comprueba(
+    'hallazgo fuera de la línea base · NO_CUMPLE',
+    fuera.status === 'NO_CUMPLE',
+    fuera.status
+  );
+
+  comprueba(
+    'el motivo nombra el binario concreto, no dice «hay hallazgos»',
+    motivos(fuera).includes(
+      "'/tmp/puerta-trasera'"
+    ),
+    motivos(fuera)
+  );
+
+  // --- el eje que separa las dos primitivas ---
+  //
+  // Con hechos, las dos tienen que coincidir SIEMPRE; sin hechos, tienen que
+  // discrepar. Cualquier otra cosa significa que una de las dos no hace lo que
+  // dice su nombre.
+  comprueba(
+    'con hechos · NINGUNO_FUERA_DE_LISTA y TODOS_EN_LISTA coinciden (cumpliendo)',
+    juzga(
+      JUICIO_ACREDITA,
+      hallazgo('/usr/bin/sudo'),
+      BASE_SUID
+    ).status === dentro.status,
+    dentro.status
+  );
+
+  comprueba(
+    'con hechos · NINGUNO_FUERA_DE_LISTA y TODOS_EN_LISTA coinciden (incumpliendo)',
+    juzga(
+      JUICIO_ACREDITA,
+      hallazgo('/tmp/puerta-trasera'),
+      BASE_SUID
+    ).status === fuera.status,
+    fuera.status
+  );
+
+  const barridoLimpio = juzga(
+    JUICIO_BARRIDO,
+    [latidoBarrido],
+    BASE_SUID,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'barrido sin hallazgos y cobertura CONFIRMADA · CUMPLE',
+    barridoLimpio.status === 'CUMPLE',
+    `${barridoLimpio.status} — ${motivos(barridoLimpio)}`
+  );
+
+  comprueba(
+    'el motivo del barrido limpio dice que se barrió, no que se «miró la lista»',
+    motivos(barridoLimpio).includes(
+      'el recolector barrió'
+    ),
+    motivos(barridoLimpio)
+  );
+
+  const acreditaSinHechos = juzga(
+    JUICIO_ACREDITA,
+    [latidoBarrido],
+    BASE_SUID,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'MISMO caso con TODOS_EN_LISTA · NO_EVALUABLE (ahí sí discrepan)',
+    acreditaSinHechos.status === 'NO_EVALUABLE',
+    `${acreditaSinHechos.status} — ${motivos(acreditaSinHechos)}`
+  );
+
+  // Sin latido, ni siquiera el barrido cumple: cero hallazgos y agente apagado
+  // son indistinguibles.
+  const barridoSinLatido = juzga(
+    JUICIO_BARRIDO,
+    [],
+    BASE_SUID,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'barrido sin hallazgos y SIN latido · NO_EVALUABLE, no el falso verde',
+    barridoSinLatido.status === 'NO_EVALUABLE',
+    barridoSinLatido.status
+  );
+
+  const barridoSinParametro = juzga(
+    JUICIO_BARRIDO,
+    hallazgo('/usr/bin/sudo'),
+    undefined
+  );
+
+  comprueba(
+    'hallazgo sin parámetro · NO_EVALUABLE',
+    barridoSinParametro.status ===
+      'NO_EVALUABLE',
+    barridoSinParametro.status
+  );
+
+  const barridoNiNi = juzga(
+    JUICIO_BARRIDO,
+    [],
+    undefined
+  );
+
+  comprueba(
+    'ni hallazgo ni parámetro · NO_EVALUABLE',
+    barridoNiNi.status === 'NO_EVALUABLE',
+    barridoNiNi.status
+  );
+}
+
+// --- mayúsculas: en qué dirección se equivoca el motor ----------------------
+
+bloque(
+  'Mayúsculas · lista prohibida frente a lista autorizada'
+);
+
+{
+  const JUICIO_AUTORIZADOS: ENSEvidenceJudgment = {
+    primitive: 'TODOS_EN_LISTA',
+    parameterId: 'P-07',
+    factEventTypes: ['account_active'],
+    factField: 'usuario',
+  };
+
+  const LISTA = config(
+    parametro({
+      id: 'P-07',
+      name: 'lista_usuarios_autorizados',
+      value: ['jgomez'],
+    })
+  );
+
+  const exacto = juzga(
+    JUICIO_AUTORIZADOS,
+    [evento('account_active', { usuario: 'jgomez' })],
+    LISTA
+  );
+
+  comprueba(
+    'lista autorizada · el nombre exacto CUMPLE',
+    exacto.status === 'CUMPLE',
+    exacto.status
+  );
+
+  // Control negativo por reversión sobre UN solo eje: la misma lista, el mismo
+  // parámetro, el mismo tipo de evento; solo cambia la caja del nombre.
+  const otraCaja = juzga(
+    JUICIO_AUTORIZADOS,
+    [evento('account_active', { usuario: 'Jgomez' })],
+    LISTA
+  );
+
+  comprueba(
+    "lista autorizada · 'Jgomez' NO pasa por el 'jgomez' autorizado",
+    otraCaja.status === 'NO_CUMPLE',
+    `${otraCaja.status} — ${motivos(otraCaja)}`
+  );
+
+  // Y en la dirección contraria la regla es la opuesta, a propósito: en una
+  // lista PROHIBIDA equivocarse produce un NO_CUMPLE de más, nunca un verde.
+  const prohibidaOtraCaja = juzga(
+    JUICIO_NINGUNO,
+    [
+      evento('generic_account_login', {
+        usuario: 'Admin',
+      }),
+    ],
+    configuracion('P-04', ['admin'])
+  );
+
+  comprueba(
+    "lista prohibida · 'Admin' SÍ cuenta como la cuenta prohibida 'admin'",
+    prohibidaOtraCaja.status === 'NO_CUMPLE',
+    prohibidaOtraCaja.status
+  );
+}
+
+// --- UMBRAL_MINIMO ---------------------------------------------------------
+
+bloque('UMBRAL_MINIMO');
+
+{
+  const JUICIO_MINIMO: ENSEvidenceJudgment = {
+    primitive: 'UMBRAL_MINIMO',
+    parameterId: 'P-06',
+    factEventTypes: ['account_deleted'],
+    factField: 'dias_retenida',
+  };
+
+  const RETENCION = config(
+    parametro({
+      id: 'P-06',
+      name: 'periodo_retencion_cuentas_dias',
+      type: 'duration_days',
+      value: 365,
+    })
+  );
+
+  const pronto = juzga(
+    JUICIO_MINIMO,
+    [
+      evento('account_deleted', {
+        dias_retenida: 200,
+      }),
+    ],
+    RETENCION
+  );
+
+  comprueba(
+    'valor por debajo del mínimo · NO_CUMPLE',
+    pronto.status === 'NO_CUMPLE',
+    pronto.status
+  );
+
+  comprueba(
+    'el motivo nombra el valor concreto y dice que no llega al mínimo',
+    motivos(pronto).includes("'200'") &&
+      motivos(pronto).includes('no llega al mínimo'),
+    motivos(pronto)
+  );
+
+  comprueba(
+    'valor igual al mínimo · CUMPLE (no queda por debajo)',
+    juzga(
+      JUICIO_MINIMO,
+      [
+        evento('account_deleted', {
+          dias_retenida: 365,
+        }),
+      ],
+      RETENCION
+    ).status === 'CUMPLE',
+    ''
+  );
+
+  comprueba(
+    'valor por encima del mínimo · CUMPLE',
+    juzga(
+      JUICIO_MINIMO,
+      [
+        evento('account_deleted', {
+          dias_retenida: 400,
+        }),
+      ],
+      RETENCION
+    ).status === 'CUMPLE',
+    ''
+  );
+
+  // Control negativo de un solo eje: MISMO hecho, MISMO parámetro; lo único que
+  // cambia es la primitiva, y el veredicto tiene que invertirse. Si no lo
+  // hiciera, UMBRAL_MINIMO sería UMBRAL_MAXIMO con otro nombre.
+  const mismoHechoComoMaximo = juzga(
+    {
+      ...JUICIO_MINIMO,
+      primitive: 'UMBRAL_MAXIMO',
+    },
+    [
+      evento('account_deleted', {
+        dias_retenida: 200,
+      }),
+    ],
+    RETENCION
+  );
+
+  comprueba(
+    'el MISMO 200 contra el MISMO 365 · UMBRAL_MAXIMO dice CUMPLE y UMBRAL_MINIMO NO_CUMPLE',
+    mismoHechoComoMaximo.status === 'CUMPLE' &&
+      pronto.status === 'NO_CUMPLE',
+    `${mismoHechoComoMaximo.status} / ${pronto.status}`
+  );
+
+  comprueba(
+    'hecho sin parámetro · NO_EVALUABLE',
+    juzga(
+      JUICIO_MINIMO,
+      [
+        evento('account_deleted', {
+          dias_retenida: 1,
+        }),
+      ],
+      undefined
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'parámetro sin hecho · NO_EVALUABLE, no CUMPLE',
+    juzga(JUICIO_MINIMO, [], RETENCION).status ===
+      'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'ni hecho ni parámetro · NO_EVALUABLE',
+    juzga(JUICIO_MINIMO, [], undefined).status ===
+      'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'valor observado no numérico · NO_EVALUABLE, no CUMPLE',
+    juzga(
+      JUICIO_MINIMO,
+      [
+        evento('account_deleted', {
+          dias_retenida: 'muchos',
+        }),
+      ],
+      RETENCION
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+}
+
+// --- ANTIGUEDAD_MAXIMA -----------------------------------------------------
+
+bloque('ANTIGUEDAD_MAXIMA');
+
+{
+  const AHORA = new Date('2026-08-05T12:00:00Z');
+
+  const JUICIO_EDAD: ENSEvidenceJudgment = {
+    primitive: 'ANTIGUEDAD_MAXIMA',
+    parameterId: 'P-01',
+    factEventTypes: ['backup_ok'],
+    factField: 'fin_copia',
+  };
+
+  const FRECUENCIA = config(
+    parametro({
+      id: 'P-01',
+      name: 'frecuencia_backup_horas',
+      type: 'duration_hours',
+      value: 24,
+    })
+  );
+
+  const copia = (fin: string) => [
+    evento('backup_ok', { fin_copia: fin }),
+  ];
+
+  const reciente = juzga(
+    JUICIO_EDAD,
+    copia('2026-08-05T04:00:00Z'),
+    FRECUENCIA,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'copia de hace 8 h con plazo de 24 h · CUMPLE',
+    reciente.status === 'CUMPLE',
+    `${reciente.status} — ${motivos(reciente)}`
+  );
+
+  const vieja = juzga(
+    JUICIO_EDAD,
+    copia('2026-08-03T04:00:00Z'),
+    FRECUENCIA,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'copia de hace 56 h con plazo de 24 h · NO_CUMPLE',
+    vieja.status === 'NO_CUMPLE',
+    `${vieja.status} — ${motivos(vieja)}`
+  );
+
+  comprueba(
+    'el motivo dice la antigüedad medida y el plazo',
+    motivos(vieja).includes('56.0 h') &&
+      motivos(vieja).includes('24 h'),
+    motivos(vieja)
+  );
+
+  // ÉSTE es el motivo de que la primitiva exista en vez de un UMBRAL_MAXIMO
+  // sobre un `horas_desde_la_copia` que traiga el agente: se mide contra el
+  // reloj. El hecho no se toca; se adelanta el reloj tres días y el veredicto
+  // se cae solo. Un delta precalculado seguiría diciendo lo mismo para siempre.
+  const mismaCopiaTresDiasDespues = juzga(
+    JUICIO_EDAD,
+    copia('2026-08-05T04:00:00Z'),
+    FRECUENCIA,
+    {},
+    new Date('2026-08-08T12:00:00Z')
+  );
+
+  comprueba(
+    'el MISMO hecho, tres días después · pasa de CUMPLE a NO_CUMPLE sin tocar el agente',
+    reciente.status === 'CUMPLE' &&
+      mismaCopiaTresDiasDespues.status ===
+        'NO_CUMPLE',
+    `${reciente.status} -> ${mismaCopiaTresDiasDespues.status}`
+  );
+
+  // Existencial: le basta UN hecho reciente. A una primitiva universal la copia
+  // vieja le habría producido un incumplimiento.
+  const viejaYReciente = juzga(
+    JUICIO_EDAD,
+    [
+      ...copia('2026-08-03T04:00:00Z'),
+      ...copia('2026-08-05T04:00:00Z'),
+    ],
+    FRECUENCIA,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'una copia vieja Y una reciente · CUMPLE (es existencial: le basta una)',
+    viejaYReciente.status === 'CUMPLE',
+    `${viejaYReciente.status} — ${motivos(viejaYReciente)}`
+  );
+
+  comprueba(
+    'el veredicto se sostiene sobre la reciente, no sobre la vieja',
+    motivos(viejaYReciente).includes(
+      '2026-08-05T04:00:00Z'
+    ) &&
+      !motivos(viejaYReciente).includes(
+        '2026-08-03T04:00:00Z'
+      ),
+    motivos(viejaYReciente)
+  );
+
+  // La unidad sale del TIPO del parámetro. El mismo número, con el mismo hecho:
+  // 24 días admiten lo que 24 horas no.
+  const enDias = juzga(
+    JUICIO_EDAD,
+    copia('2026-08-03T04:00:00Z'),
+    config(
+      parametro({
+        id: 'P-01',
+        name: 'frecuencia_backup_horas',
+        type: 'duration_days',
+        value: 24,
+      })
+    ),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'el MISMO 24 como duration_days admite lo que como duration_hours no',
+    enDias.status === 'CUMPLE' &&
+      vieja.status === 'NO_CUMPLE',
+    `${enDias.status} / ${vieja.status}`
+  );
+
+  // Guarda: un parámetro que no expresa duración no se interpreta a ojo.
+  const sinUnidad = juzga(
+    JUICIO_EDAD,
+    copia('2026-08-05T04:00:00Z'),
+    config(
+      parametro({
+        id: 'P-01',
+        name: 'frecuencia_backup_horas',
+        type: 'number',
+        value: 24,
+      })
+    ),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'parámetro sin unidad de tiempo · NO_EVALUABLE con motivo, no se adivinan las horas',
+    sinUnidad.status === 'NO_EVALUABLE' &&
+      motivos(sinUnidad).includes('plazo'),
+    `${sinUnidad.status} — ${motivos(sinUnidad)}`
+  );
+
+  // Guarda de la cota superior, la misma que la del latido: sin ella un hecho
+  // fechado en 2099 dejaría la evidencia en verde para siempre.
+  const delFuturo = juzga(
+    JUICIO_EDAD,
+    copia('2099-01-01T00:00:00Z'),
+    FRECUENCIA,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'copia fechada en 2099 · NO_EVALUABLE, jamás CUMPLE',
+    delFuturo.status === 'NO_EVALUABLE',
+    `${delFuturo.status} — ${motivos(delFuturo)}`
+  );
+
+  comprueba(
+    'marca de tiempo ilegible · NO_EVALUABLE, no CUMPLE',
+    juzga(
+      JUICIO_EDAD,
+      copia('anteayer por la tarde'),
+      FRECUENCIA,
+      {},
+      AHORA
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'hecho sin parámetro · NO_EVALUABLE',
+    juzga(
+      JUICIO_EDAD,
+      copia('2026-08-05T04:00:00Z'),
+      undefined,
+      {},
+      AHORA
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'parámetro sin hecho · NO_EVALUABLE aunque la cobertura esté confirmada',
+    juzga(
+      JUICIO_EDAD,
+      [
+        evento(
+          'collector_run',
+          {
+            resultado: 'completada',
+            evidencias_cubiertas: 'EV-XX',
+          },
+          { timestamp: '2026-08-05T11:30:00Z' }
+        ),
+      ],
+      FRECUENCIA,
+      {},
+      AHORA
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'ni hecho ni parámetro · NO_EVALUABLE',
+    juzga(
+      JUICIO_EDAD,
+      [],
+      undefined,
+      {},
+      AHORA
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  // --- el margen de tolerancia (P-02 sobre P-01) ---
+  const JUICIO_CON_MARGEN: ENSEvidenceJudgment = {
+    ...JUICIO_EDAD,
+    toleranceParameterId: 'P-02',
+  };
+
+  const COPIA_DE_26H = copia(
+    '2026-08-04T10:00:00Z'
+  );
+
+  const sinMargen = juzga(
+    JUICIO_CON_MARGEN,
+    COPIA_DE_26H,
+    FRECUENCIA,
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'margen declarado pero no configurado · se aplica SIN margen (extremo estricto)',
+    sinMargen.status === 'NO_CUMPLE',
+    `${sinMargen.status} — ${motivos(sinMargen)}`
+  );
+
+  const conMargen = juzga(
+    JUICIO_CON_MARGEN,
+    COPIA_DE_26H,
+    config(
+      parametro({
+        id: 'P-01',
+        name: 'frecuencia_backup_horas',
+        type: 'duration_hours',
+        value: 24,
+      }),
+      parametro({
+        id: 'P-02',
+        name: 'margen_tolerancia_horas',
+        type: 'duration_hours',
+        required: false,
+        value: 4,
+      })
+    ),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'el MISMO hecho con P-02 = 4 h · pasa a CUMPLE (el margen se suma)',
+    conMargen.status === 'CUMPLE',
+    `${conMargen.status} — ${motivos(conMargen)}`
+  );
+
+  comprueba(
+    'el motivo nombra el margen que se ha aplicado',
+    motivos(conMargen).includes('P-02'),
+    motivos(conMargen)
+  );
+
+  const margenIlegible = juzga(
+    JUICIO_CON_MARGEN,
+    COPIA_DE_26H,
+    config(
+      parametro({
+        id: 'P-01',
+        name: 'frecuencia_backup_horas',
+        type: 'duration_hours',
+        value: 24,
+      }),
+      parametro({
+        id: 'P-02',
+        name: 'margen_tolerancia_horas',
+        type: 'duration_hours',
+        required: false,
+        value: 'un poco',
+      })
+    ),
+    {},
+    AHORA
+  );
+
+  comprueba(
+    'margen configurado pero ilegible · NO_EVALUABLE, no se da por ausente',
+    margenIlegible.status === 'NO_EVALUABLE',
+    `${margenIlegible.status} — ${motivos(margenIlegible)}`
+  );
+
+  // Guarda de catálogo: un margen sobre una primitiva que no compara números no
+  // se ignora en silencio.
+  const margenDondeNoPinta = juzga(
+    {
+      ...JUICIO_NINGUNO,
+      toleranceParameterId: 'P-02',
+    },
+    [
+      evento('generic_account_login', {
+        usuario: 'jgomez',
+      }),
+    ],
+    configuracion('P-04', ['admin'])
+  );
+
+  comprueba(
+    'margen declarado sobre una primitiva de lista · NO_EVALUABLE con motivo',
+    margenDondeNoPinta.status ===
+      'NO_EVALUABLE' &&
+      motivos(margenDondeNoPinta).includes(
+        'margen'
+      ),
+    `${margenDondeNoPinta.status} — ${motivos(margenDondeNoPinta)}`
+  );
+}
+
+// --- La columna del parámetro (el aviso de `parseReferenceList`) ------------
+//
+// P-07 de op.acc.1 es una TABLA `usuario | sistema | rol`. Hasta ahora
+// `parseReferenceList` devolvía la fila entera, y no chocaba solo porque la
+// única evidencia migrada apunta a un `list`.
+
+bloque(
+  'La columna del parámetro · tablas comparadas contra un valor suelto'
+);
+
+{
+  const P07 = (valor: string[]) =>
+    config(
+      parametro({
+        id: 'P-07',
+        name: 'lista_usuarios_autorizados',
+        type: 'table',
+        value: valor,
+        columns: [
+          {
+            name: 'usuario',
+            label: 'Usuario',
+            type: 'identifier',
+            required: true,
+          },
+          {
+            name: 'sistema',
+            label: 'Sistema',
+            type: 'string',
+            required: false,
+          },
+          {
+            name: 'rol',
+            label: 'Rol',
+            type: 'string',
+            required: false,
+          },
+        ],
+      })
+    );
+
+  const FILAS = [
+    'jgomez | srv01 | ops',
+    'mlopez | srv02 | auditor',
+  ];
+
+  const CUENTA_ACTIVA = [
+    evento('account_active', {
+      usuario: 'jgomez',
+    }),
+  ];
+
+  const JUICIO_P07: ENSEvidenceJudgment = {
+    primitive: 'TODOS_EN_LISTA',
+    parameterId: 'P-07',
+    factEventTypes: ['account_active'],
+    factField: 'usuario',
+    parameterColumn: 'usuario',
+  };
+
+  // La trampa, demostrada sobre la función misma: lo que devolvía antes NO es
+  // el nombre de la cuenta.
+  comprueba(
+    'la trampa · parseReferenceList sobre una fila devuelve la fila entera',
+    parseReferenceList(FILAS)[0] ===
+      'jgomez | srv01 | ops',
+    JSON.stringify(parseReferenceList(FILAS))
+  );
+
+  const proyectada = juzga(
+    JUICIO_P07,
+    CUENTA_ACTIVA,
+    P07(FILAS)
+  );
+
+  comprueba(
+    "declarando la columna 'usuario' · la cuenta autorizada CUMPLE",
+    proyectada.status === 'CUMPLE',
+    `${proyectada.status} — ${motivos(proyectada)}`
+  );
+
+  // Control negativo por reversión, sobre UN solo eje: los mismos hechos, la
+  // misma tabla, la misma primitiva; solo se quita `parameterColumn`. El texto
+  // buscado ('parameterColumn') no aparece en ningún motivo del camino normal.
+  const sinDeclararColumna = juzga(
+    { ...JUICIO_P07, parameterColumn: undefined },
+    CUENTA_ACTIVA,
+    P07(FILAS)
+  );
+
+  comprueba(
+    'sin declarar la columna · NO_EVALUABLE, y NUNCA un veredicto sobre la fila entera',
+    sinDeclararColumna.status ===
+      'NO_EVALUABLE',
+    `${sinDeclararColumna.status} — ${motivos(sinDeclararColumna)}`
+  );
+
+  comprueba(
+    'sin declarar la columna · el motivo dice exactamente qué falta',
+    motivos(sinDeclararColumna).includes(
+      'parameterColumn'
+    ),
+    motivos(sinDeclararColumna)
+  );
+
+  comprueba(
+    'y ese texto NO sale por el camino normal (control negativo del propio motivo)',
+    !motivos(proyectada).includes(
+      'parameterColumn'
+    ),
+    motivos(proyectada)
+  );
+
+  // La mutación se aplica donde creo: si se proyectara «cualquier celda» en vez
+  // de la declarada, esto también casaría. Declarando la columna 'rol', el
+  // usuario 'jgomez' no está en ella y el veredicto se invierte.
+  const columnaEquivocada = juzga(
+    { ...JUICIO_P07, parameterColumn: 'rol' },
+    CUENTA_ACTIVA,
+    P07(FILAS)
+  );
+
+  comprueba(
+    "proyectando la columna 'rol' · 'jgomez' no figura en ella · NO_CUMPLE",
+    columnaEquivocada.status === 'NO_CUMPLE',
+    `${columnaEquivocada.status} — ${motivos(columnaEquivocada)}`
+  );
+
+  const columnaInexistente = juzga(
+    { ...JUICIO_P07, parameterColumn: 'usuarios' },
+    CUENTA_ACTIVA,
+    P07(FILAS)
+  );
+
+  comprueba(
+    'columna declarada que la tabla no tiene · NO_EVALUABLE con motivo',
+    columnaInexistente.status ===
+      'NO_EVALUABLE' &&
+      motivos(columnaInexistente).includes(
+        "'usuarios'"
+      ),
+    `${columnaInexistente.status} — ${motivos(columnaInexistente)}`
+  );
+
+  const tablaSinColumnas = juzga(
+    JUICIO_P07,
+    CUENTA_ACTIVA,
+    config(
+      parametro({
+        id: 'P-07',
+        name: 'lista_usuarios_autorizados',
+        type: 'table',
+        value: FILAS,
+      })
+    )
+  );
+
+  comprueba(
+    'bloque sembrado antes de que existieran las columnas · NO_EVALUABLE, no se adivina la posición',
+    tablaSinColumnas.status === 'NO_EVALUABLE',
+    `${tablaSinColumnas.status} — ${motivos(tablaSinColumnas)}`
+  );
+
+  // Una lista de UNA columna sigue leyéndose plana: es la tolerancia de los
+  // valores heredados, y es por donde entra P-04 de la evidencia ya migrada.
+  const listaDeUnaColumna = juzga(
+    {
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-10',
+      factEventTypes: ['suid_sgid'],
+      factField: 'ruta',
+    },
+    [evento('suid_sgid', { ruta: '/usr/bin/sudo' })],
+    config(
+      parametro({
+        id: 'P-10',
+        name: 'suid_autorizados',
+        value: ['/usr/bin/sudo'],
+        columns: [
+          {
+            name: 'ruta',
+            label: 'Binario autorizado',
+            type: 'path',
+            required: true,
+          },
+        ],
+      })
+    )
+  );
+
+  comprueba(
+    'lista de UNA columna · se sigue leyendo plana, sin declarar nada',
+    listaDeUnaColumna.status === 'CUMPLE',
+    `${listaDeUnaColumna.status} — ${motivos(listaDeUnaColumna)}`
+  );
+
+  // Filas guardadas como cadena (bloque sembrado a mano): se parten por saltos
+  // de línea y NUNCA por comas, que dentro de una celda multiselect significan
+  // otra cosa.
+  comprueba(
+    'parseReferenceRows · parte por saltos de línea y no por comas',
+    parseReferenceRows(
+      'ops | /srv/datos | lectura,escritura\nauditor | /srv/datos | lectura'
+    ).length === 2,
+    JSON.stringify(
+      parseReferenceRows(
+        'ops | /srv/datos | lectura,escritura\nauditor | /srv/datos | lectura'
+      )
+    )
+  );
+
+  comprueba(
+    'splitRowCells · reparte la fila entre las columnas declaradas',
+    splitRowCells('jgomez | srv01 | ops', [
+      {
+        name: 'usuario',
+        label: '',
+        type: 'identifier',
+        required: true,
+      },
+      {
+        name: 'sistema',
+        label: '',
+        type: 'string',
+        required: false,
+      },
+      {
+        name: 'rol',
+        label: '',
+        type: 'string',
+        required: false,
+      },
+    ]).rol === 'ops',
+    ''
+  );
+
+  comprueba(
+    'splitRowCells · una fila corta deja vacías las columnas que no trae',
+    splitRowCells('jgomez', [
+      {
+        name: 'usuario',
+        label: '',
+        type: 'identifier',
+        required: true,
+      },
+      {
+        name: 'sistema',
+        label: '',
+        type: 'string',
+        required: false,
+      },
+    ]).sistema === '',
+    ''
+  );
+}
+
+// --- CONFORME_A_TABLA ------------------------------------------------------
+//
+// La ACL declarada de op.acc.2 (P-08): `recurso | modo | propietario:grupo |
+// ACL`. Es la primitiva de op.acc.2.2 — «los derechos de acceso siguen la
+// decisión del responsable del recurso».
+
+bloque('CONFORME_A_TABLA');
+
+{
+  const AHORA = new Date('2026-08-05T12:00:00Z');
+
+  const COLUMNAS_P08 = [
+    {
+      name: 'recurso',
+      label: 'Recurso',
+      type: 'path' as const,
+      required: true,
+    },
+    {
+      name: 'modo',
+      label: 'Modo',
+      type: 'octal' as const,
+      required: true,
+    },
+    {
+      name: 'propietario_grupo',
+      label: 'Propietario:grupo',
+      type: 'string' as const,
+      required: false,
+    },
+    {
+      name: 'acl_esperada',
+      label: 'ACL esperada',
+      type: 'string' as const,
+      required: false,
+    },
+  ];
+
+  const P08 = (filas: string[]) =>
+    config(
+      parametro({
+        id: 'P-08',
+        name: 'acl_declarada',
+        type: 'table',
+        value: filas,
+        columns: COLUMNAS_P08,
+      })
+    );
+
+  const JUICIO_ACL: ENSEvidenceJudgment = {
+    primitive: 'CONFORME_A_TABLA',
+    parameterId: 'P-08',
+    factEventTypes: ['resource_permissions'],
+    factField: '',
+    tableKeyColumn: 'recurso',
+    factKeyField: 'recurso',
+    tableChecks: [
+      { column: 'modo', factField: 'modo' },
+      {
+        column: 'propietario_grupo',
+        factField: 'propietario_grupo',
+      },
+      { column: 'acl_esperada', factField: 'acl' },
+    ],
+  };
+
+  const medida = (
+    attrs: Record<string, unknown>
+  ) => [evento('resource_permissions', attrs)];
+
+  const FILA_COMPLETA = [
+    '/srv/datos | 750 | root:ops | user:auditor:r-x',
+  ];
+
+  const conforme = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/datos',
+      modo: '750',
+      propietario_grupo: 'root:ops',
+      acl: 'user:auditor:r-x',
+    }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'los tres ejes casan con su fila · CUMPLE',
+    conforme.status === 'CUMPLE',
+    `${conforme.status} — ${motivos(conforme)}`
+  );
+
+  const masPermisivo = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/datos',
+      modo: '777',
+      propietario_grupo: 'root:ops',
+      acl: 'user:auditor:r-x',
+    }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'modo más permisivo que el declarado · NO_CUMPLE',
+    masPermisivo.status === 'NO_CUMPLE',
+    masPermisivo.status
+  );
+
+  comprueba(
+    'el motivo nombra el recurso, el eje y los dos valores',
+    motivos(masPermisivo).includes('/srv/datos') &&
+      motivos(masPermisivo).includes("modo='777'") &&
+      motivos(masPermisivo).includes("'750'"),
+    motivos(masPermisivo)
+  );
+
+  comprueba(
+    'modo MÁS restrictivo que el declarado · CUMPLE (no crea riesgo)',
+    juzga(
+      JUICIO_ACL,
+      medida({
+        recurso: '/srv/datos',
+        modo: '700',
+        propietario_grupo: 'root:ops',
+        acl: 'user:auditor:r-x',
+      }),
+      P08(FILA_COMPLETA)
+    ).status === 'CUMPLE',
+    ''
+  );
+
+  comprueba(
+    "el cero inicial no cambia el modo · '0750' casa con '750'",
+    juzga(
+      JUICIO_ACL,
+      medida({
+        recurso: '/srv/datos',
+        modo: '0750',
+        propietario_grupo: 'root:ops',
+        acl: 'user:auditor:r-x',
+      }),
+      P08(FILA_COMPLETA)
+    ).status === 'CUMPLE',
+    ''
+  );
+
+  comprueba(
+    'propietario distinto del declarado · NO_CUMPLE',
+    juzga(
+      JUICIO_ACL,
+      medida({
+        recurso: '/srv/datos',
+        modo: '750',
+        propietario_grupo: 'root:root',
+        acl: 'user:auditor:r-x',
+      }),
+      P08(FILA_COMPLETA)
+    ).status === 'NO_CUMPLE',
+    ''
+  );
+
+  // Control negativo por reversión sobre UN eje: el MISMO hecho que acaba de
+  // dar NO_CUMPLE por el propietario, contra la MISMA fila con esa celda
+  // vacía. La política no declara ese eje, así que no se juzga.
+  const conCeldaVacia = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/datos',
+      modo: '750',
+      propietario_grupo: 'root:root',
+      acl: 'user:auditor:r-x',
+    }),
+    P08([
+      '/srv/datos | 750 |  | user:auditor:r-x',
+    ])
+  );
+
+  comprueba(
+    'celda vacía · ese eje NO se juzga, y el mismo hecho pasa a CUMPLE',
+    conCeldaVacia.status === 'CUMPLE',
+    `${conCeldaVacia.status} — ${motivos(conCeldaVacia)}`
+  );
+
+  // Guarda: una fila que no declara NINGUNO de los ejes contrastados no
+  // acredita nada. El recurso está en la política y la política no dice nada
+  // de él.
+  const filaMuda = juzga(
+    { ...JUICIO_ACL, tableChecks: [
+      {
+        column: 'propietario_grupo',
+        factField: 'propietario_grupo',
+      },
+    ] },
+    medida({
+      recurso: '/srv/datos',
+      propietario_grupo: 'root:ops',
+    }),
+    P08(['/srv/datos | 750 |  | '])
+  );
+
+  comprueba(
+    'fila sin ningún eje contrastado declarado · NO_EVALUABLE, no CUMPLE',
+    filaMuda.status === 'NO_EVALUABLE',
+    `${filaMuda.status} — ${motivos(filaMuda)}`
+  );
+
+  // Guarda: recurso observado que la política no declara. NUNCA NO_CUMPLE: el
+  // motor no puede afirmar que un modo esté mal si nadie dijo cuál debía ser.
+  const sinFila = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/secreto',
+      modo: '777',
+      propietario_grupo: 'root:root',
+      acl: '-',
+    }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'recurso sin fila en la política · NO_EVALUABLE, jamás NO_CUMPLE medido',
+    sinFila.status === 'NO_EVALUABLE',
+    `${sinFila.status} — ${motivos(sinFila)}`
+  );
+
+  comprueba(
+    'recurso sin fila · la causa es CONFIGURATION (falta la decisión, no la medida)',
+    sinFila.gapCause === 'CONFIGURATION',
+    String(sinFila.gapCause)
+  );
+
+  // Guarda: la política declara un eje y el hecho no lo trae.
+  const ejeNoObservado = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/datos',
+      modo: '750',
+      propietario_grupo: 'root:ops',
+    }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'la política declara la ACL y el hecho no la trae · NO_EVALUABLE, no CUMPLE',
+    ejeNoObservado.status === 'NO_EVALUABLE',
+    `${ejeNoObservado.status} — ${motivos(ejeNoObservado)}`
+  );
+
+  // Una desviación demostrada manda sobre un recurso sin fila: el hallazgo es
+  // un hecho, la fila que falta es un hueco.
+  const mezcla = juzga(
+    JUICIO_ACL,
+    [
+      ...medida({
+        recurso: '/srv/datos',
+        modo: '777',
+        propietario_grupo: 'root:ops',
+        acl: 'user:auditor:r-x',
+      }),
+      ...medida({
+        recurso: '/srv/secreto',
+        modo: '700',
+        propietario_grupo: 'root:root',
+        acl: '-',
+      }),
+    ],
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'desviación demostrada + recurso sin fila · NO_CUMPLE (el hallazgo manda)',
+    mezcla.status === 'NO_CUMPLE',
+    `${mezcla.status} — ${motivos(mezcla)}`
+  );
+
+  const modoIlegible = juzga(
+    JUICIO_ACL,
+    medida({
+      recurso: '/srv/datos',
+      modo: 'rwxr-x---',
+      propietario_grupo: 'root:ops',
+      acl: 'user:auditor:r-x',
+    }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'modo observado que no es octal · NO_EVALUABLE, no CUMPLE ni NO_CUMPLE',
+    modoIlegible.status === 'NO_EVALUABLE',
+    `${modoIlegible.status} — ${motivos(modoIlegible)}`
+  );
+
+  // Control negativo de la causa: MISMA primitiva y MISMA tabla que el recurso
+  // sin fila, y la causa tiene que ser la otra. Aquí la política está completa y
+  // lo que no se puede leer es el dato, así que la acción es sobre el agente.
+  comprueba(
+    'modo ilegible · la causa es EVIDENCE, no CONFIGURATION (la política sí está)',
+    modoIlegible.gapCause === 'EVIDENCE',
+    String(modoIlegible.gapCause)
+  );
+
+  const sinClave = juzga(
+    JUICIO_ACL,
+    medida({ modo: '750' }),
+    P08(FILA_COMPLETA)
+  );
+
+  comprueba(
+    'hecho sin el campo que identifica su fila · NO_EVALUABLE',
+    sinClave.status === 'NO_EVALUABLE',
+    `${sinClave.status} — ${motivos(sinClave)}`
+  );
+
+  comprueba(
+    'hecho sin parámetro · NO_EVALUABLE',
+    juzga(
+      JUICIO_ACL,
+      medida({
+        recurso: '/srv/datos',
+        modo: '777',
+      }),
+      undefined
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'tabla sin columnas declaradas · NO_EVALUABLE con motivo',
+    juzga(
+      JUICIO_ACL,
+      medida({
+        recurso: '/srv/datos',
+        modo: '750',
+      }),
+      config(
+        parametro({
+          id: 'P-08',
+          name: 'acl_declarada',
+          type: 'table',
+          value: FILA_COMPLETA,
+        })
+      )
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'parámetro sin hecho · NO_EVALUABLE aunque la cobertura esté confirmada',
+    juzga(
+      JUICIO_ACL,
+      [
+        evento(
+          'collector_run',
+          {
+            resultado: 'completada',
+            evidencias_cubiertas: 'EV-XX',
+          },
+          { timestamp: '2026-08-05T11:30:00Z' }
+        ),
+      ],
+      P08(FILA_COMPLETA),
+      {},
+      AHORA
+    ).status === 'NO_EVALUABLE',
+    ''
+  );
+
+  comprueba(
+    'ni hecho ni parámetro · NO_EVALUABLE',
+    juzga(JUICIO_ACL, [], undefined).status ===
+      'NO_EVALUABLE',
+    ''
+  );
+
+  // --- celda multiselect (P-06 de op.acc.2) ---
+  //
+  // La celda lleva comas dentro. Si las filas se partieran por comas —que es lo
+  // que hace `parseReferenceList`—, esta tabla se rompería en pedazos.
+  const P06 = config(
+    parametro({
+      id: 'P-06',
+      name: 'tipos_acceso_permitidos_por_perfil',
+      type: 'table',
+      value: [
+        'ops | /srv/datos | lectura,escritura',
+      ],
+      columns: [
+        {
+          name: 'perfil',
+          label: 'Perfil',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'recurso',
+          label: 'Recurso',
+          type: 'path',
+          required: true,
+        },
+        {
+          name: 'tipos_permitidos',
+          label: 'Tipos de acceso',
+          type: 'multiselect',
+          required: true,
+          options: [
+            'lectura',
+            'escritura',
+            'ejecucion',
+            'modificacion',
+          ],
+        },
+      ],
+    })
+  );
+
+  const JUICIO_TIPOS: ENSEvidenceJudgment = {
+    primitive: 'CONFORME_A_TABLA',
+    parameterId: 'P-06',
+    factEventTypes: ['object_access'],
+    factField: '',
+    tableKeyColumn: 'perfil',
+    factKeyField: 'perfil',
+    tableChecks: [
+      {
+        column: 'tipos_permitidos',
+        factField: 'acceso',
+      },
+    ],
+  };
+
+  comprueba(
+    "multiselect · 'escritura' está entre los permitidos · CUMPLE",
+    juzga(
+      JUICIO_TIPOS,
+      [
+        evento('object_access', {
+          perfil: 'ops',
+          acceso: 'escritura',
+        }),
+      ],
+      P06
+    ).status === 'CUMPLE',
+    ''
+  );
+
+  const tipoNoPermitido = juzga(
+    JUICIO_TIPOS,
+    [
+      evento('object_access', {
+        perfil: 'ops',
+        acceso: 'ejecucion',
+      }),
+    ],
+    P06
+  );
+
+  comprueba(
+    "multiselect · 'ejecucion' no está entre los permitidos · NO_CUMPLE",
+    tipoNoPermitido.status === 'NO_CUMPLE',
+    `${tipoNoPermitido.status} — ${motivos(tipoNoPermitido)}`
   );
 }
 

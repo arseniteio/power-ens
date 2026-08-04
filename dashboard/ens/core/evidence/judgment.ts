@@ -1286,9 +1286,17 @@ export const judgeEvidence = (
               `Se han descartado ${fromTheFuture.length} hecho(s) fechado(s) por delante del reloj (${describeFacts(fromTheFuture)}): un reloj desviado no acredita nada.`,
             ]
           : []),
-        ...(unreadable.length
+        ...(unreadable.length ||
+        unusableFactEvents.length
           ? [
-              `Se han descartado ${unreadable.length} hecho(s) sin marca de tiempo legible (${describeFacts(unreadable)}); el veredicto se sostiene sobre el que sí la trae.`,
+              // A diferencia de las primitivas universales, aquí un hecho
+              // ilegible NO tumba el cumplimiento: la afirmación es existencial
+              // y el testigo que la sostiene ya está identificado. Exigir que
+              // TODOS los eventos fueran legibles convertiría en gris a
+              // cualquier máquina con una copia antigua mal formada, teniendo
+              // delante una copia reciente y correcta. Se dice cuántos se han
+              // descartado para que el auditor lo vea.
+              `Se han descartado ${unreadable.length + unusableFactEvents.length} hecho(s) sin marca de tiempo legible; el veredicto se sostiene sobre el que sí la trae.`,
             ]
           : []),
       ],
@@ -1300,6 +1308,14 @@ export const judgeEvidence = (
   let breachMotive = '';
   let complianceMotive = '';
   let undecidableMotive: string | undefined;
+
+  // Qué desbloquea lo que no se ha podido decidir. Por defecto es del productor
+  // del hecho (EVIDENCE): un valor que no se puede leer lo arregla el agente.
+  // `CONFORME_A_TABLA` lo sube a CONFIGURATION cuando lo que falta es una FILA,
+  // por el mismo criterio que el caso «sin parámetro»: sin la decisión escrita
+  // no hay veredicto ni aunque el hecho llegue perfecto, así que la acción es
+  // declararla en la pantalla y no tocar la máquina.
+  let undecidableCause: ENSGapCause = 'EVIDENCE';
 
   if (reference.kind === 'UMBRAL') {
     const threshold = reference.threshold;
@@ -1368,6 +1384,10 @@ export const judgeEvidence = (
     const breaches: string[] = [];
     const undecidables: string[] = [];
 
+    // Lo que no se ha podido decidir porque falta POLÍTICA, no porque falte
+    // dato. Se cuenta aparte porque decide la acción de la no conformidad.
+    let policyGaps = 0;
+
     observedFacts.forEach(fact => {
       const row = rowsByKey.get(
         normalizeStrict(fact.key ?? '')
@@ -1381,6 +1401,8 @@ export const judgeEvidence = (
       // «nunca hubo contra qué medir», que es justo lo que el responsable pidió
       // conservar.
       if (!row) {
+        policyGaps += 1;
+
         undecidables.push(
           `'${fact.text}' no figura en ${reference.description}: no hay decisión declarada contra la que contrastarlo`
         );
@@ -1454,11 +1476,17 @@ export const judgeEvidence = (
       // Una fila que no declara ni un eje de los contrastados no acredita nada:
       // el recurso está en la política, pero la política no dice nada de él.
       if (!judgedAxes) {
+        policyGaps += 1;
+
         undecidables.push(
           `de '${fact.text}' la política no declara ninguno de los ejes contrastados (${checks.map(check => check.column).join(', ')})`
         );
       }
     });
+
+    if (policyGaps) {
+      undecidableCause = 'CONFIGURATION';
+    }
 
     breachMotive = `Se ha observado que ${breaches.slice(0, 5).join('; ')}${breaches.length > 5 ? ` y ${breaches.length - 5} desviación(es) más` : ''}.`;
 
@@ -1517,7 +1545,7 @@ export const judgeEvidence = (
       'NO_EVALUABLE',
       [undecidableMotive],
       observedFacts[0].event,
-      'EVIDENCE'
+      undecidableCause
     );
   }
 
