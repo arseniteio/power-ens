@@ -5,17 +5,28 @@ import {
   ListParameterRenderer,
   NumberParameterRenderer,
   SelectParameterRenderer,
+  TableParameterRenderer,
   TextParameterRenderer,
 } from '../renderers';
 import {
+  hasParameterColumns,
   hasParameterOptions,
   isPlainNumericParameter,
 } from '../../services/parameter-value-validator';
 
 // `boolean`, `path` y `url` siguen cayendo en el renderer de texto: se editan
-// como cadena, que es lo que declaran. `list` y `select` necesitan tratamiento
-// propio porque el campo de texto no sabe representar su valor: la lista se
-// guardaba como cadena y se perdía, y el select admitía cualquier cosa.
+// como cadena, que es lo que declaran. `list`, `select` y `table` necesitan
+// tratamiento propio porque el campo de texto no sabe representar su valor: la
+// lista se guardaba como cadena y se perdía, el select admitía cualquier cosa, y
+// una tabla escrita a mano en un campo de texto no tiene columnas que validar.
+//
+// Un `table` SIN columnas declaradas cae en el renderer de lista, por el mismo
+// motivo que un `select` sin `options` cae en el de texto: en
+// `wazuh-ens-configuration` puede quedar un bloque sembrado antes de que
+// existieran, y una rejilla sin columnas no dejaría editar nada. Su validación
+// se degrada a la de lista (ver `validarTabla`), así que formulario y motor
+// siguen de acuerdo. Se cierra volviendo a sembrar el bloque con
+// `inject-control.py`, que conserva los valores ya configurados.
 //
 // Un `select` SIN opciones declaradas se queda en el renderer de texto, y es
 // deliberado: en `wazuh-ens-configuration` puede haber todavía un bloque sembrado
@@ -55,7 +66,20 @@ export const ParameterRendererFactory = ({
     );
   }
 
-  if (parameter.type === 'list') {
+  if (hasParameterColumns(parameter)) {
+    return (
+      <TableParameterRenderer
+        parameter={parameter}
+        value={value}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (
+    parameter.type === 'list' ||
+    parameter.type === 'table'
+  ) {
     return (
       <ListParameterRenderer
         parameter={parameter}

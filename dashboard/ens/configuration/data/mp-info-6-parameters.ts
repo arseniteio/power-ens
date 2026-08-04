@@ -199,5 +199,87 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       ruleIds: [],
       ifNotConfigured: 'Wazuh puede no interpretar correctamente los logs de backup.',
     },
+    // --- Política que vivía en el .env del agente ----------------------------
+    //
+    // P-11 a P-14 salen de /etc/ensfacil/mpinfo6.env. Se traen las que DECIDEN
+    // un veredicto: la clave que se mide (EV-04) y la sonda de restauración
+    // (EV-05). La conexión al repositorio (PBS_HOST, PBS_REPO) y las rutas
+    // internas del recolector no entran, y la CREDENCIAL no puede entrar nunca:
+    // `wazuh-ens-configuration` lo lee cualquiera con acceso al dashboard y su
+    // contenido acaba citado en el informe.
+    {
+      id: 'P-11',
+      controlId: 'mp.info.6',
+      name: 'ruta_clave_cifrado',
+      label: 'Ruta de la clave de cifrado de las copias',
+      description: 'Fichero de clave con el que se cifran las copias. Sus permisos son la evidencia: tienen que ser 600, ni grupo ni otros. Una sola ruta absoluta. Si la clave se mueve y este valor no se cambia, la evidencia mide los permisos de un fichero que ya no cifra nada, y si allí queda el fichero viejo con 600 se publica CUMPLE sobre una clave muerta.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
+      type: 'path',
+      example: '/var/lib/proxmox-backup/proxmox-backup.key',
+      required: false,
+      wazuhUsage: 'Es el fichero cuyos permisos se comprueban para acreditar la protección de las copias.',
+      ensfacilUsage: 'Declara qué clave cifra de verdad las copias, para que la evidencia mida ese fichero y no otro.',
+      evidenceIds: ['EV-04'],
+      // Hueco de trazabilidad: la regla acredita el permiso medido, no la ruta
+      // desde la que se midió.
+      ruleIds: [],
+      ifNotConfigured: 'El agente mide la clave de su ruta de fábrica. Si la instalación la movió, la evidencia acredita un fichero que ya no cifra nada.',
+    },
+    {
+      id: 'P-12',
+      controlId: 'mp.info.6',
+      name: 'prueba_restauracion_fichero',
+      label: 'Fichero que se restaura en la prueba',
+      description: 'Nombre del archivo del repositorio que la prueba de restauración recupera. Mientras esté vacío la prueba NO se ejecuta y EV-05 se queda en NO_EVALUABLE: es deliberado, restaurar toca disco y hay que decidirlo.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.info.6.r1.1'],
+      type: 'string',
+      example: 'prueba.pxar',
+      required: false,
+      wazuhUsage: 'Determina qué se recupera en cada prueba automática de restauración.',
+      ensfacilUsage: 'Sin fichero declarado no hay prueba de restauración, y el refuerzo R1 no se puede medir en MEDIO ni en ALTO.',
+      evidenceIds: ['EV-05'],
+      ruleIds: ['106651'],
+      ifNotConfigured: 'La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE, nunca NO_CUMPLE: no haber probado no demuestra que restaurar falle.',
+    },
+    {
+      id: 'P-13',
+      controlId: 'mp.info.6',
+      name: 'prueba_restauracion_canario',
+      label: 'Fichero canario de la prueba',
+      description: 'Ruta absoluta del fichero cuyo md5sum se compara tras restaurar. Es lo que convierte la prueba en una comprobación: sin canario, restaurar solo demuestra que el mandato no dio error.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.info.6.r1.1'],
+      type: 'path',
+      example: '/var/lib/pxbackup/canario.txt',
+      required: false,
+      wazuhUsage: 'Su md5sum antes y después de la restauración es lo que acredita que la copia se recupera íntegra.',
+      ensfacilUsage: 'Distingue una restauración validada de una que solo terminó sin error.',
+      evidenceIds: ['EV-05'],
+      // Hueco de trazabilidad: la regla acredita el resultado de la prueba, no
+      // qué fichero se usó como canario.
+      ruleIds: [],
+      ifNotConfigured: 'La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE.',
+    },
+    {
+      id: 'P-14',
+      controlId: 'mp.info.6',
+      name: 'prueba_restauracion_cada_dias',
+      label: 'Cadencia de la prueba de restauración',
+      description: 'Cada cuántos días se lanza la prueba automática de restauración. Es la cadencia de la sonda, no el plazo máximo admitido: ese es P-05, y quien decide si el control cumple es P-05.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.info.6.r1.1'],
+      type: 'duration_days',
+      example: '7',
+      required: false,
+      minValue: 1,
+      wazuhUsage: 'Marca cada cuánto se ejecuta la restauración de prueba dentro del ciclo de copia.',
+      ensfacilUsage: 'Una cadencia mayor que el plazo de P-05 garantiza que el control se degrade antes de la siguiente prueba; declararla aquí lo hace visible.',
+      evidenceIds: ['EV-05'],
+      // Hueco de trazabilidad: ninguna regla acredita la cadencia declarada.
+      ruleIds: [],
+      ifNotConfigured: 'El agente aplica su cadencia de fábrica (7 días) y el informe no puede citar una decisión del cliente.',
+    },
   ],
 };

@@ -142,7 +142,19 @@ const valorValido = (
     case 'boolean':
       return true;
     case 'list':
-      return ['valor-uno', 'valor-dos'];
+      // Una lista que declara la forma de su elemento (`columns[0]`) no admite
+      // cualquier cosa: 'valor-uno' no es una ruta absoluta. El ejemplo de la
+      // ficha sí vale, y `config/test_control_blocks.py` ya obliga a que sea un
+      // elemento válido.
+      return parametro.columns && parametro.columns.length
+        ? [parametro.example || '']
+        : ['valor-uno', 'valor-dos'];
+    case 'table':
+      // Una fila entera. Con el `default: 'valor'` de antes, toda tabla
+      // obligatoria salía INVALID y el eje «configuración» dejaba de estar
+      // quieto: esta prueba mediría el hueco de configuración creyendo que mide
+      // el de evidencias.
+      return [parametro.example || ''];
     case 'path':
       return '/var/lib/ensfacil';
     case 'url':

@@ -170,6 +170,7 @@ const salida = casos.map((caso) => {
           required: parameter.required,
           example: parameter.example === undefined ? null : parameter.example,
           options: parameter.options === undefined ? null : parameter.options,
+          columns: parameter.columns === undefined ? null : parameter.columns,
         })),
       })),
     };
@@ -209,6 +210,11 @@ module.exports = { jsx, jsxs: jsx, jsxDEV: jsx, Fragment: 'Fragment' };
 EUI_STUB = r"""
 const nombres = [
   'EuiFormRow', 'EuiSelect', 'EuiFieldText', 'EuiFieldNumber', 'EuiComboBox',
+  // Los que compone la rejilla de `table`. El stub tiene que exportarlos aunque
+  // la prueba no mire cómo se ven: `import { EuiFlexGroup } from '@elastic/eui'`
+  // es un error de enlazado si el módulo no lo exporta, y el arnés no arrancaría.
+  'EuiFlexGroup', 'EuiFlexItem', 'EuiButtonIcon', 'EuiButtonEmpty',
+  'EuiText', 'EuiSpacer',
 ];
 
 const modulo = {};
@@ -320,22 +326,30 @@ OPCIONES_ESPERADAS = {
     ],
 }
 
-# Listas cuyo elemento es ATÓMICO: una ruta, un nombre de cuenta, un actor, un
-# mapeo. Un `|` en su ejemplo sería un menú de varias entradas disfrazado de
-# valor, y el formulario lo guardaría como UN elemento que no casa con nada.
+# Listas cuyo elemento es ATÓMICO: una ruta, un nombre de cuenta, un actor. Un
+# `|` en su ejemplo sería un menú de varias entradas disfrazado de valor, y el
+# formulario lo guardaría como UN elemento que no casa con nada.
 LISTAS_DE_ELEMENTO_ATOMICO = {
     ("op.acc.1", "P-04"),   # un nombre de cuenta prohibido
+    ("op.acc.1", "P-11"),   # un grupo privilegiado
     ("op.acc.2", "P-02"),   # una ruta crítica
-    ("op.acc.2", "P-06"),   # un mapeo perfil -> accesos
+    ("op.acc.2", "P-10"),   # un binario SUID autorizado
+    ("op.acc.2", "P-11"),   # una ruta world-writable exceptuada
+    ("op.acc.2", "P-12"),   # un grupo privilegiado
     ("mp.info.6", "P-07"),  # un usuario o proceso autorizado
 }
 
 # Listas cuyo elemento SÍ tiene campos separados por `|` ('srv-bd01 | ALTA', que
 # el policy-runtime parte en sistema y criticidad).
+#
+# Un elemento con campos que además los tiene DECLARADOS es un `table`, y no
+# hace falta apuntarlo aquí: sus columnas dicen cuántos campos lleva su ejemplo y
+# la comprobación lo verifica contra ellas. Esta tabla se queda solo para las
+# listas cuyo elemento tiene campos que nadie ha declarado todavía: es deuda
+# reconocida, no una segunda forma de declarar lo mismo.
 LISTAS_CON_CAMPOS = {
     ("op.acc.1", "P-02"),
     ("op.acc.1", "P-03"),
-    ("op.acc.1", "P-07"),
     ("op.acc.2", "P-01"),
     ("mp.info.6", "P-04"),
 }
@@ -612,13 +626,50 @@ def main():
                 # un valor: el placeholder invita a pegarlo y sale un dato que no
                 # significa nada.
                 clave = (control_id, parametro["id"])
-                admite_barra = clave in LISTAS_CON_CAMPOS
+                columnas = parametro.get("columns") or []
+                es_tabla = parametro["type"] == "table"
+                admite_barra = clave in LISTAS_CON_CAMPOS or es_tabla
 
                 comprueba(
                     "{} {} no documenta un menú en el ejemplo".format(
                         control_id, parametro["id"]),
                     " / " not in ejemplo and (admite_barra or " | " not in ejemplo),
                     repr(ejemplo))
+
+                # En una tabla el `|` del ejemplo no es un menú: separa columnas
+                # DECLARADAS. Que separe exactamente tantas como columnas hay es
+                # lo que distingue un ejemplo de un menú, y además es el
+                # placeholder de cada celda del formulario: si sobran o faltan
+                # campos, las sugerencias se pintan corridas de columna.
+                if es_tabla:
+                    campos = [c.strip() for c in ejemplo.split("|")]
+                    comprueba(
+                        "{} {} · el ejemplo trae una celda por columna".format(
+                            control_id, parametro["id"]),
+                        len(campos) == len(columnas) and all(campos),
+                        "{} campos para {} columnas: {!r}".format(
+                            len(campos), len(columnas), ejemplo))
+
+                # Una tabla sin columnas no se puede validar por columna ni
+                # pintar como rejilla: se degrada a lista en los dos sitios, que
+                # es la tolerancia con los bloques viejos del índice, no algo que
+                # deba salir del repo.
+                comprueba(
+                    "{} {} · si es tabla, declara columnas".format(
+                        control_id, parametro["id"]),
+                    not es_tabla or len(columnas) > 0,
+                    "type=table sin columns")
+
+                # Una columna `select` o `multiselect` sin opciones admite
+                # cualquier cosa: declarar el tipo y no la lista es exactamente
+                # la validación de mentira que se quitó de los `select`.
+                for columna in columnas:
+                    if columna["type"] in ("select", "multiselect"):
+                        comprueba(
+                            "{} {} · la columna «{}» declara opciones".format(
+                                control_id, parametro["id"], columna["label"]),
+                            len(columna.get("options") or []) > 0,
+                            repr(columna))
 
                 casos.append({"tipo": "valor", "parametro": parametro, "valor": ejemplo})
                 etiquetas.append((control_id, parametro["id"], ejemplo))
@@ -732,6 +783,11 @@ def main():
                     "required": p["required"],
                     "example": p.get("example"),
                     "options": p.get("options"),
+                    # `columns` entra en la comparación por lo mismo que
+                    # `options`: declara qué valores son válidos. Si el bloque y
+                    # el TypeScript divergieran en una columna, la pantalla
+                    # pediría una cosa y el motor juzgaría otra.
+                    "columns": p.get("columns"),
                 }
                 for p in bloque["parameters"]
             ]

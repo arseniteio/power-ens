@@ -333,6 +333,78 @@ CASOS_VALOR = [
     ("umask · el ejemplo de la ficha pegado tal cual",
      valor("op.acc.2", "P-07", "022 (permisos 755/644)"), False),
 
+    # --- table: filas con columnas declaradas
+    #
+    # Lo que se prueba es que "tiene filas" haya dejado de significar
+    # "configurado". La política que hasta ahora vivía en un .tsv de la máquina
+    # se declara aquí, y media fila no es política: 'jgomez' sin perfil no dice
+    # qué se le autoriza, y compararlo contra la máquina daría un resultado
+    # inventado.
+    ("table · fila completa",
+     valor("op.acc.2", "P-08", ["/srv/datos | 750 | root:ops | u:auditor:r-x"]), True),
+    ("table · varias filas",
+     valor("op.acc.2", "P-08",
+           ["/srv/datos | 750 | root:ops | u:auditor:r-x",
+            "/srv/informes | 2770 | root:ops | -"]), True),
+    ("table · columna opcional vacía es legítima",
+     valor("op.acc.2", "P-08", ["/srv/datos | 750 |  | "]), True),
+    ("table · falta una columna obligatoria",
+     valor("op.acc.2", "P-08", ["/srv/datos"]), False),
+    ("table · el modo no es octal",
+     valor("op.acc.2", "P-08", ["/srv/datos | 8888 | root:ops | -"]), False),
+    ("table · el recurso no es una ruta absoluta",
+     valor("op.acc.2", "P-08", ["srv/datos | 750 | root:ops | -"]), False),
+    ("table · la fila trae más campos que columnas",
+     valor("op.acc.2", "P-08", ["/srv/datos | 750 | root:ops | - | sobra"]), False),
+    # Una fila recién añadida en el formulario está en blanco hasta que se
+    # teclea: ponerla en rojo antes de escribir la primera letra sería ruido.
+    ("table · una fila en blanco junto a otra completa no se juzga",
+     valor("op.acc.2", "P-08", ["/srv/datos | 750 |  | ", ""]), True),
+    ("table · solo filas en blanco cuenta como ausencia, no como error",
+     valor("op.acc.2", "P-08", ["", ""]), True),
+    ("table · sin ninguna fila cuenta como ausencia",
+     valor("op.acc.2", "P-08", []), True),
+    ("table · identificador con espacios",
+     valor("op.acc.2", "P-09", ["j gomez | admin | sudo:total"]), False),
+    ("table · multiselect dentro del vocabulario ENS",
+     valor("op.acc.2", "P-06", ["ops | /srv/datos | lectura,escritura,ejecucion"]), True),
+    ("table · multiselect fuera del vocabulario ENS",
+     valor("op.acc.2", "P-06", ["ops | /srv/datos | borrado"]), False),
+    # La coma separa valores DENTRO de una celda: si la partición en filas
+    # partiera por coma, esta fila serían dos filas rotas.
+    ("table · la coma no parte filas",
+     valor("op.acc.2", "P-06", ["ops | /srv/datos | lectura,escritura"]), True),
+    ("table · el formato viejo de P-06 ya no se da por bueno",
+     valor("op.acc.2", "P-06", ["ops -> lectura+escritura"]), False),
+    ("table · fecha de baja correcta",
+     valor("op.acc.1", "P-09", ["mlopez | 2026-03-31"]), True),
+    ("table · fecha de baja que no existe en el calendario",
+     valor("op.acc.1", "P-09", ["mlopez | 2026-02-31"]), False),
+    ("table · fecha de baja en otro formato",
+     valor("op.acc.1", "P-09", ["mlopez | 31/03/2026"]), False),
+    # Lo que había en el fichero de autorizados eran nombres sueltos. Solo
+    # Usuario es obligatorio, así que siguen valiendo y no se pierden.
+    ("table · P-07 con el valor heredado de una sola columna",
+     valor("op.acc.1", "P-07", ["jgomez", "mlopez"]), True),
+    ("table · P-07 con la fila entera",
+     valor("op.acc.1", "P-07", ["jgomez | srv01 | ops"]), True),
+    ("table · P-07 con un usuario que lleva espacios",
+     valor("op.acc.1", "P-07", ["j gomez | srv01 | ops"]), False),
+
+    # --- list con la forma de su elemento declarada
+    ("list con columna · SUID con ruta absoluta",
+     valor("op.acc.2", "P-10", ["/usr/bin/sudo", "/usr/bin/su"]), True),
+    ("list con columna · SUID sin ruta (el NO_CUMPLE falso masivo)",
+     valor("op.acc.2", "P-10", ["sudo", "passwd"]), False),
+    ("list con columna · ruta crítica relativa",
+     valor("op.acc.2", "P-02", ["passwd"]), False),
+    ("list con columna · rutas críticas heredadas separadas por comas",
+     valor("op.acc.2", "P-02", "/etc/passwd,/etc/shadow"), True),
+    ("list con columna · grupo privilegiado con espacios",
+     valor("op.acc.2", "P-12", ["grupo con espacios"]), False),
+    ("list SIN columna declarada sigue admitiendo cualquier elemento",
+     valor("op.acc.1", "P-04", ["admin", "guest"]), True),
+
     # --- mp.info.6 P-05: duration_days que admite contrato por criticidad
     ("P-05 · entero suelto", valor("mp.info.6", "P-05", 30), True),
     ("P-05 · contrato por criticidad, el ejemplo de la ficha",
@@ -344,12 +416,19 @@ CASOS_VALOR = [
 
 
 # op.acc.2 con todos los obligatorios de nivel BAJO rellenos y correctos.
+#
+# P-08 y P-10 son la política que hasta ahora vivía en ficheros de la máquina
+# (opacc2-acl.tsv y opacc2-suid.allow). Entran como obligatorias porque su
+# ausencia YA dejaba hoy su evidencia en NO_EVALUABLE en el agente: lo que
+# cambia es que ahora se ve en la pantalla en vez de solo en el .tsv.
 OPACC2_OK = {
     "P-01": ["srv01 | Linux"],
     "P-02": ["/etc/passwd", "/etc/sudoers"],
     "P-03": "no",
     "P-04": "Política de Control de Acceso v2.1",
     "P-07": "022",
+    "P-08": ["/srv/datos | 750 | root:ops | u:auditor:r-x"],
+    "P-10": ["/usr/bin/sudo"],
 }
 
 

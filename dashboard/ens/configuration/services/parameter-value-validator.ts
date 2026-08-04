@@ -1,5 +1,6 @@
 import {
   ENSControlParameter,
+  ENSParameterColumn,
   ENSParameterValueVerdict,
 } from '../types';
 
@@ -354,17 +355,443 @@ const validarUrl = (
   );
 };
 
-// `list`: al menos un elemento no vacío.
-const validarLista = (
+// --- `table`: filas con columnas declaradas ---------------------------------
+//
+// QUÉ SE GUARDA. Una tabla se guarda como `string[]`: UNA FILA POR ELEMENTO, y
+// dentro de cada fila los campos separados por `|`. No es un formato nuevo: es
+// EXACTAMENTE el que el producto ya usaba para los elementos con campos
+// ('srv-dc01 | Windows', 'jgomez | srv01 | ops'), y por eso `toParameterListItems`
+// lleva desde siempre prohibido partir por `|`. Consecuencias, todas buscadas:
+//
+//   · `ENSControlParameter['value']` no cambia de forma, así que no cambia el
+//     validador de estructura, ni el repositorio, ni el mapeo del índice.
+//   · Un parámetro que hoy es `list` con elementos de varios campos pasa a
+//     `table` SIN migrar un solo dato: los mismos bytes, ahora con columnas
+//     declaradas y validación por columna. Es el caso de op.acc.1 P-07.
+//   · Lo que el auditor ve y lo que se exporta al `.tsv` de la máquina son la
+//     misma tabla, campo a campo.
+//
+// La celda no puede contener `|` ni saltos de línea (son la estructura). El
+// formulario los quita al escribir, y esta validación avisa si una fila trae más
+// campos de los que la tabla declara —que es lo que pasa con un valor heredado
+// mal separado, y perderlo en silencio sería peor que enseñarlo mal—.
+
+export const TABLE_FIELD_SEPARATOR = ' | ';
+
+export const getParameterColumns = (
+  parameter: ENSControlParameter
+): ENSParameterColumn[] =>
+  (parameter.columns || []).filter(
+    columna =>
+      !!columna &&
+      String(columna.name || '').trim().length >
+        0
+  );
+
+/**
+ * ¿Este parámetro se puede editar como rejilla de filas?
+ *
+ * Lo consume el form-engine para elegir renderer. Un `table` SIN columnas
+ * declaradas se queda en el renderer de lista a propósito: en
+ * `wazuh-ens-configuration` puede haber un bloque sembrado antes de que
+ * existieran, y una rejilla sin columnas no dejaría editar nada.
+ */
+export const hasParameterColumns = (
+  parameter: ENSControlParameter
+): boolean =>
+  parameter.type === 'table' &&
+  getParameterColumns(parameter).length > 0;
+
+/**
+ * PARTICIÓN EN FILAS. Deliberadamente NO es `toParameterListItems`, y la
+ * diferencia importa: aquella parte también por COMA y por PUNTO Y COMA, y en
+ * una tabla la coma es un carácter legítimo DENTRO de una celda
+ * ('lectura,escritura,ejecucion' en los tipos de acceso permitidos). Partir por
+ * coma convertiría una fila bien escrita en dos filas rotas.
+ *
+ * Tampoco descarta las filas en blanco: una fila recién añadida en el formulario
+ * está en blanco hasta que se teclea, y filtrarla la haría desaparecer según se
+ * pulsa «Añadir fila». Quien las descarta es la validación, que no juzga lo que
+ * todavía no se ha escrito.
+ */
+export const toParameterTableRows = (
   value: ENSControlParameter['value']
+): string[] => {
+  if (Array.isArray(value)) {
+    return value.map(fila => String(fila));
+  }
+
+  if (typeof value === 'string') {
+    return value.split('\n');
+  }
+
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return [String(value)];
+  }
+
+  return [];
+};
+
+export const toTableRowCells = (
+  fila: string
+): string[] =>
+  String(fila)
+    .split('|')
+    .map(celda => celda.trim());
+
+const esFilaEnBlanco = (fila: string): boolean =>
+  toTableRowCells(fila).every(
+    celda => celda.length === 0
+  );
+
+/**
+ * Serializa una fila. Una fila con TODAS las celdas vacías se guarda como cadena
+ * vacía y no como ' | | ': así `isEmptyParameterValue` la sigue viendo como
+ * ausencia, el parámetro sale NO_CONFIGURADO en vez de INVÁLIDO, y una tabla en
+ * la que solo se ha pulsado «Añadir fila» no se presenta como un error.
+ */
+export const tableRowFromCells = (
+  celdas: string[]
+): string => {
+  const limpias = celdas.map(celda =>
+    String(celda)
+      .replace(/[|\n\r]/g, ' ')
+      .trim()
+  );
+
+  return limpias.every(celda => !celda)
+    ? ''
+    : limpias.join(TABLE_FIELD_SEPARATOR);
+};
+
+// Comparación tolerante con mayúsculas y espacios sobrantes. Vale igual para las
+// opciones de un `select` y para las de una columna.
+const normalizarOpcion = (
+  texto: string
+): string => texto.trim().toLowerCase();
+
+const matchOption = (
+  opciones: string[],
+  texto: string
+): string | undefined => {
+  const buscado = normalizarOpcion(texto);
+
+  if (!buscado) {
+    return undefined;
+  }
+
+  return opciones.find(
+    opcion =>
+      normalizarOpcion(opcion) === buscado
+  );
+};
+
+const IDENTIFICADOR = /^[^\s|,]+$/;
+const FECHA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// Una fecha que existe de verdad. El regex solo dice que hay ocho dígitos con
+// guiones: un 2026-02-31 lo pasa, y una baja declarada en un día que no existe
+// no se puede restar de la fecha de deshabilitación.
+const esFechaReal = (texto: string): boolean => {
+  const partes = texto.match(FECHA_ISO);
+
+  if (!partes) {
+    return false;
+  }
+
+  const anio = Number(partes[1]);
+  const mes = Number(partes[2]);
+  const dia = Number(partes[3]);
+
+  if (mes < 1 || mes > 12 || dia < 1) {
+    return false;
+  }
+
+  const fecha = new Date(
+    Date.UTC(anio, mes - 1, dia)
+  );
+
+  return (
+    fecha.getUTCFullYear() === anio &&
+    fecha.getUTCMonth() === mes - 1 &&
+    fecha.getUTCDate() === dia
+  );
+};
+
+/**
+ * Criterio de validez de UNA celda para SU columna.
+ *
+ * Recibe el parámetro además de la columna porque el rango (`minValue` /
+ * `maxValue`) sigue declarándose en la ficha: una columna numérica hereda el
+ * rango del parámetro en vez de declarar el suyo, que sería un segundo sitio
+ * donde decir lo mismo.
+ *
+ * Contrato igual que el del valor: aquí se juzga una celda PRESENTE. La celda
+ * vacía la decide `validarTabla` mirando si su columna es obligatoria.
+ */
+const validarCelda = (
+  columna: ENSParameterColumn,
+  parameter: ENSControlParameter,
+  celda: string
 ): ENSParameterValueVerdict => {
-  if (toParameterListItems(value).length > 0) {
+  const opciones = (columna.options || [])
+    .map(opcion => String(opcion).trim())
+    .filter(Boolean);
+
+  switch (columna.type) {
+    case 'identifier':
+      return IDENTIFICADOR.test(celda)
+        ? VALIDO
+        : invalido(
+            `se esperaba un identificador sin espacios ni comas; se recibió ${describeValue(
+              celda
+            )}`
+          );
+
+    case 'path':
+      return validarRuta(celda);
+
+    case 'octal':
+      return UMASK_OCTAL.test(celda)
+        ? VALIDO
+        : invalido(
+            `se esperaban tres o cuatro dígitos octales (750, 0750, 2770); se recibió ${describeValue(
+              celda
+            )}`
+          );
+
+    case 'number':
+      return validarNumero(parameter, celda);
+
+    case 'date':
+      return esFechaReal(celda)
+        ? VALIDO
+        : invalido(
+            `se esperaba una fecha AAAA-MM-DD que exista (2026-03-31); se recibió ${describeValue(
+              celda
+            )}`
+          );
+
+    case 'select':
+      if (opciones.length === 0) {
+        return VALIDO;
+      }
+
+      return matchOption(opciones, celda)
+        ? VALIDO
+        : invalido(
+            `se esperaba una de las opciones declaradas (${opciones.join(
+              ', '
+            )}); se recibió ${describeValue(celda)}`
+          );
+
+    case 'multiselect': {
+      // La coma separa los valores DENTRO de la celda. Es el único sitio del
+      // producto donde la coma es separador de una tabla, y por eso la partición
+      // en filas no la usa.
+      const elementos = celda
+        .split(',')
+        .map(elemento => elemento.trim())
+        .filter(Boolean);
+
+      if (elementos.length === 0) {
+        return invalido(
+          `se esperaba al menos un valor; se recibió ${describeValue(celda)}`
+        );
+      }
+
+      if (opciones.length === 0) {
+        return VALIDO;
+      }
+
+      const fuera = elementos.filter(
+        elemento =>
+          !matchOption(opciones, elemento)
+      );
+
+      return fuera.length === 0
+        ? VALIDO
+        : invalido(
+            `se esperaban valores de la lista (${opciones.join(
+              ', '
+            )}); no lo son: ${fuera
+              .map(elemento => `'${elemento}'`)
+              .join(', ')}`
+          );
+    }
+
+    case 'string':
+    default:
+      return celda.length > 0
+        ? VALIDO
+        : invalido(
+            `se esperaba un texto; se recibió ${describeValue(celda)}`
+          );
+  }
+};
+
+// Un veredicto lleva UN motivo, y una tabla puede tener muchos problemas a la
+// vez. Se enumeran los tres primeros y se cuenta el resto: la lista completa
+// pegada en una tarjeta o en una no conformidad no se lee, y el auditor arregla
+// de arriba abajo de todos modos.
+const MAX_PROBLEMAS_ENUMERADOS = 3;
+
+const resumirProblemas = (
+  problemas: string[]
+): ENSParameterValueVerdict => {
+  if (problemas.length === 0) {
     return VALIDO;
   }
 
+  const enumerados = problemas
+    .slice(0, MAX_PROBLEMAS_ENUMERADOS)
+    .join('; ');
+
   return invalido(
-    `se esperaba al menos un elemento; se recibió ${describeValue(value)}`
+    problemas.length > MAX_PROBLEMAS_ENUMERADOS
+      ? `${enumerados}; y ${problemas.length -
+          MAX_PROBLEMAS_ENUMERADOS} problema(s) más`
+      : enumerados
   );
+};
+
+// `list`: al menos un elemento no vacío. Si el parámetro declara la forma de su
+// elemento (`columns[0]`), además cada elemento tiene que significar algo para
+// ella: la línea base de SUID es una lista de RUTAS ABSOLUTAS, y un 'sudo' a
+// secas no casa con nada —los ~25 SUID legítimos de un Ubuntu limpio saldrían
+// entonces como no autorizados, que es un NO_CUMPLE falso masivo—.
+const validarLista = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): ENSParameterValueVerdict => {
+  const elementos = toParameterListItems(value);
+
+  if (elementos.length === 0) {
+    return invalido(
+      `se esperaba al menos un elemento; se recibió ${describeValue(value)}`
+    );
+  }
+
+  const columna =
+    getParameterColumns(parameter)[0];
+
+  if (!columna) {
+    return VALIDO;
+  }
+
+  const problemas: string[] = [];
+
+  elementos.forEach(elemento => {
+    const veredicto = validarCelda(
+      columna,
+      parameter,
+      elemento
+    );
+
+    if (!veredicto.valid) {
+      problemas.push(
+        `'${elemento}': ${veredicto.reason}`
+      );
+    }
+  });
+
+  return resumirProblemas(problemas);
+};
+
+/**
+ * `table`: al menos una fila, y toda fila empezada tiene que estar completa.
+ *
+ * QUÉ SE JUZGA Y QUÉ NO:
+ *
+ *   - Una fila del todo en blanco NO se juzga. Es una fila recién añadida en el
+ *     formulario, no una fila mal rellena, y ponerla en rojo antes de que el
+ *     auditor teclee la primera letra sería ruido. Si TODAS las filas están en
+ *     blanco, el valor entero es vacío y ni siquiera se llega aquí:
+ *     `isEmptyParameterValue` lo declara ausencia y el parámetro sale
+ *     NO_CONFIGURADO, que es un arreglo distinto (rellenar, no corregir).
+ *   - Una fila con algo escrito tiene que traer TODAS sus columnas obligatorias.
+ *     Media fila no es política: 'jgomez' sin perfil no dice qué se le autoriza,
+ *     y compararlo contra la máquina daría un resultado inventado.
+ *   - Una fila con MÁS campos de los declarados se rechaza sin mirar sus celdas:
+ *     no se sabe qué campo es cuál, y adivinarlo sería inventar la política. Es
+ *     lo que le pasa a un valor heredado escrito con otra separación, y por eso
+ *     el motivo dice cuántos campos trae y cuántos declara la tabla.
+ */
+const validarTabla = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): ENSParameterValueVerdict => {
+  const columnas =
+    getParameterColumns(parameter);
+
+  // Tabla sin columnas declaradas: no se sabe juzgar la forma de una fila, así
+  // que no se inventa un criterio. Se degrada al de lista —al menos un
+  // elemento—, que es lo mismo que hace un `select` sin `options`, y por el
+  // mismo motivo: el formulario también la edita como lista, y nunca se rechaza
+  // lo que el campo deja escribir.
+  if (columnas.length === 0) {
+    return validarLista(parameter, value);
+  }
+
+  const filas = toParameterTableRows(
+    value
+  ).filter(fila => !esFilaEnBlanco(fila));
+
+  if (filas.length === 0) {
+    return invalido(
+      `se esperaba al menos una fila con ${columnas
+        .map(columna => columna.label)
+        .join(', ')}; se recibió ${describeValue(value)}`
+    );
+  }
+
+  const problemas: string[] = [];
+
+  filas.forEach((fila, indice) => {
+    const numero = indice + 1;
+    const celdas = toTableRowCells(fila);
+
+    if (celdas.length > columnas.length) {
+      problemas.push(
+        `la fila ${numero} trae ${celdas.length} campos y la tabla declara ${columnas.length} (${columnas
+          .map(columna => columna.label)
+          .join(', ')})`
+      );
+      return;
+    }
+
+    columnas.forEach((columna, posicion) => {
+      const celda = (
+        celdas[posicion] || ''
+      ).trim();
+
+      if (!celda) {
+        if (columna.required) {
+          problemas.push(
+            `falta «${columna.label}» en la fila ${numero}`
+          );
+        }
+        return;
+      }
+
+      const veredicto = validarCelda(
+        columna,
+        parameter,
+        celda
+      );
+
+      if (!veredicto.valid) {
+        problemas.push(
+          `«${columna.label}» de la fila ${numero}: ${veredicto.reason}`
+        );
+      }
+    });
+  });
+
+  return resumirProblemas(problemas);
 };
 
 // --- `select`: opciones declaradas ------------------------------------------
@@ -400,34 +827,24 @@ export const hasParameterOptions = (
   parameter.type === 'select' &&
   getParameterOptions(parameter).length > 0;
 
-// Comparación tolerante con mayúsculas y espacios sobrantes: 'local' y 'Local'
-// designan la misma fuente de identidad, y rechazar la diferencia convertiría en
-// no conformidad un valor que el auditor escribió bien.
-const normalizarOpcion = (
-  texto: string
-): string => texto.trim().toLowerCase();
-
 /**
  * Opción declarada que corresponde al valor recibido, en su forma canónica, o
  * `undefined` si el valor no es ninguna de ellas.
+ *
+ * La coincidencia es tolerante con mayúsculas y espacios sobrantes ('local' y
+ * 'Local' designan la misma fuente de identidad): rechazar esa diferencia
+ * convertiría en no conformidad un valor que el auditor escribió bien. La misma
+ * tolerancia se aplica a las opciones de una columna, y por eso el criterio vive
+ * en `matchOption`, una sola vez para los dos.
  */
 export const matchParameterOption = (
   parameter: ENSControlParameter,
   value: ENSControlParameter['value']
-): string | undefined => {
-  const texto = normalizarOpcion(
+): string | undefined =>
+  matchOption(
+    getParameterOptions(parameter),
     asTrimmedString(value)
   );
-
-  if (!texto) {
-    return undefined;
-  }
-
-  return getParameterOptions(parameter).find(
-    opcion =>
-      normalizarOpcion(opcion) === texto
-  );
-};
 
 const validarSeleccion = (
   parameter: ENSControlParameter,
@@ -616,7 +1033,10 @@ const validarPorTipo = (
       return validarUrl(value);
 
     case 'list':
-      return validarLista(value);
+      return validarLista(parameter, value);
+
+    case 'table':
+      return validarTabla(parameter, value);
 
     case 'select':
       return validarSeleccion(parameter, value);
@@ -747,6 +1167,244 @@ export const resolveSelectFieldModel = (
     legacyValue: heredado,
   };
 };
+
+// --- modelo del formulario para `table` -------------------------------------
+//
+// Igual que `resolveSelectFieldModel`, esto vive aquí y no en el renderer: el
+// formulario tiene que entender las filas EXACTAMENTE igual que el validador
+// —dónde acaba una celda, qué cuenta como fila vacía, qué se hace con una fila
+// heredada que trae campos de más—, o habría tablas que la pantalla acepta y el
+// motor rechaza. El renderer es una carcasa de EUI sobre estas funciones.
+
+export interface ENSTableCellModel {
+  column: ENSParameterColumn;
+  value: string;
+  // Motivo por el que ESTA celda no vale, para pintarla en rojo sin repetir el
+  // criterio en el renderer. Vacío si la celda vale o si está sin rellenar.
+  reason?: string;
+  // Solo para columnas `select` / `multiselect`.
+  options: ENSSelectOption[];
+  // Solo para `multiselect`: la celda partida en sus valores.
+  items: string[];
+  // Sugerencia de qué va en esta celda, sacada del `example` del parámetro. Es
+  // placeholder, nunca valor: no se guarda si el auditor no lo teclea.
+  placeholder?: string;
+}
+
+export interface ENSTableRowModel {
+  cells: ENSTableCellModel[];
+  // Campos que la fila trae de más y la tabla no declara. Se conservan y se
+  // enseñan pegados a la última celda: perderlos en silencio al abrir la
+  // pantalla borraría política que alguien escribió.
+  overflow: number;
+}
+
+export interface ENSTableFieldModel {
+  columns: ENSParameterColumn[];
+  rows: ENSTableRowModel[];
+}
+
+// Placeholder por columna: la celda correspondiente del `example` del parámetro,
+// que el bloque ya obliga a que sea UNA fila válida entera.
+const placeholdersDeEjemplo = (
+  parameter: ENSControlParameter,
+  columnas: ENSParameterColumn[]
+): string[] => {
+  const celdas = parameter.example
+    ? toTableRowCells(parameter.example)
+    : [];
+
+  return columnas.map(
+    (_columna, posicion) =>
+      celdas[posicion] || ''
+  );
+};
+
+const opcionesDeCelda = (
+  columna: ENSParameterColumn,
+  celda: string
+): ENSSelectOption[] => {
+  const declaradas = (columna.options || [])
+    .map(opcion => String(opcion).trim())
+    .filter(Boolean);
+
+  const options: ENSSelectOption[] =
+    declaradas.map(opcion => ({
+      value: opcion,
+      label: opcion,
+      legacy: false,
+    }));
+
+  // Mismo trato que en `resolveSelectFieldModel`: un valor que ya estaba y no es
+  // ninguna de las opciones NO se borra ni se sustituye por el más parecido. Se
+  // ofrece marcado, sale elegido, y el campo queda en rojo hasta que alguien
+  // decida. Adivinar sería inventar un dato de cumplimiento.
+  if (
+    columna.type === 'select' &&
+    declaradas.length > 0 &&
+    celda &&
+    !matchOption(declaradas, celda)
+  ) {
+    options.push({
+      value: celda,
+      label: `${celda} (valor actual, fuera de la lista)`,
+      legacy: true,
+    });
+  }
+
+  return options;
+};
+
+/**
+ * Filas y celdas con las que el formulario pinta un `table`.
+ *
+ * Una fila con MENOS campos de los declarados se rellena con celdas vacías: así
+ * el valor heredado de op.acc.1 P-07 ('jgomez' a secas, que era lo que había en
+ * el fichero de autorizados) se sigue viendo en su columna, y solo hay que
+ * completar lo que falte.
+ */
+export const resolveTableFieldModel = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): ENSTableFieldModel => {
+  const columns =
+    getParameterColumns(parameter);
+
+  if (columns.length === 0) {
+    return { columns, rows: [] };
+  }
+
+  const placeholders = placeholdersDeEjemplo(
+    parameter,
+    columns
+  );
+
+  const rows = toParameterTableRows(value).map(
+    fila => {
+      const celdas = toTableRowCells(fila);
+      const sobran = Math.max(
+        0,
+        celdas.length - columns.length
+      );
+
+      const cells = columns.map(
+        (column, posicion) => {
+          // Los campos de más se pegan a la última celda: se ven, se pueden
+          // corregir a mano, y no desaparecen al guardar.
+          const bruto =
+            sobran > 0 &&
+            posicion === columns.length - 1
+              ? celdas
+                  .slice(posicion)
+                  .join(TABLE_FIELD_SEPARATOR)
+              : celdas[posicion] || '';
+
+          const celda = bruto.trim();
+
+          const veredicto = celda
+            ? validarCelda(
+                column,
+                parameter,
+                celda
+              )
+            : VALIDO;
+
+          return {
+            column,
+            value: celda,
+            reason: veredicto.valid
+              ? undefined
+              : veredicto.reason,
+            options: opcionesDeCelda(
+              column,
+              celda
+            ),
+            items: celda
+              .split(',')
+              .map(item => item.trim())
+              .filter(Boolean),
+            placeholder:
+              placeholders[posicion] ||
+              undefined,
+          };
+        }
+      );
+
+      return { cells, overflow: sobran };
+    }
+  );
+
+  return { columns, rows };
+};
+
+// Las tres operaciones del formulario, puras: reciben el valor guardado y
+// devuelven el siguiente. `undefined` significa "sin configurar", que es lo que
+// tiene que quedar cuando se borra la última fila: una tabla vacía no es una
+// tabla con una fila en blanco.
+const filasComoValor = (
+  filas: string[]
+): string[] | undefined =>
+  filas.length === 0 ? undefined : filas;
+
+export const setTableCell = (
+  value: ENSControlParameter['value'],
+  parameter: ENSControlParameter,
+  rowIndex: number,
+  cellIndex: number,
+  cellValue: string
+): string[] | undefined => {
+  const columns =
+    getParameterColumns(parameter);
+  const filas = toParameterTableRows(value);
+
+  if (!filas[rowIndex]) {
+    return filasComoValor(filas);
+  }
+
+  const celdas = toTableRowCells(filas[rowIndex]);
+
+  const proximas = columns.map(
+    (_columna, posicion) =>
+      posicion === cellIndex
+        ? cellValue
+        : celdas[posicion] || ''
+  );
+
+  // Los campos de más de una fila heredada viven pegados a la última celda (ver
+  // `resolveTableFieldModel`). Si se edita otra celda hay que conservarlos, o
+  // corregir la primera columna borraría lo que sobraba en la última.
+  if (
+    celdas.length > columns.length &&
+    cellIndex !== columns.length - 1
+  ) {
+    proximas[columns.length - 1] = celdas
+      .slice(columns.length - 1)
+      .join(TABLE_FIELD_SEPARATOR);
+  }
+
+  const siguientes = [...filas];
+  siguientes[rowIndex] =
+    tableRowFromCells(proximas);
+
+  return filasComoValor(siguientes);
+};
+
+export const addTableRow = (
+  value: ENSControlParameter['value']
+): string[] => [
+  ...toParameterTableRows(value),
+  '',
+];
+
+export const removeTableRow = (
+  value: ENSControlParameter['value'],
+  rowIndex: number
+): string[] | undefined =>
+  filasComoValor(
+    toParameterTableRows(value).filter(
+      (_fila, indice) => indice !== rowIndex
+    )
+  );
 
 /**
  * Juzga si un valor concreto es válido para su parámetro.

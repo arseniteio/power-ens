@@ -9,7 +9,59 @@ export type ENSParameterType =
   | 'path'
   | 'url'
   | 'duration_hours'
-  | 'duration_days';
+  | 'duration_days'
+  // Política que no cabe en un escalar ni en una lista de valores sueltos: una
+  // rejilla de filas con columnas declaradas. Es lo que hoy vive en los ficheros
+  // que el operador escribe a mano en la máquina (`opacc2-acl.tsv`,
+  // `opacc2-privilegios.tsv`, `opacc2-accesos.tsv`, el fichero de autorizados de
+  // op.acc.1). Ver `columns` y `ENSParameterColumn` más abajo.
+  | 'table';
+
+// Tipos de celda. Son un vocabulario CORTO a propósito: cada uno tiene que
+// significar lo mismo en todas las tablas del producto, o la validación por
+// columna se convierte en una colección de casos particulares que el siguiente
+// control no puede reutilizar. Si una tabla necesita una comprobación que solo
+// vale para ella, va como refinamiento por nombre de parámetro
+// (`PARAMETER_REFINEMENTS`), no como tipo de columna nuevo.
+export type ENSParameterColumnType =
+  // Texto libre en una celda: 'root:ops', 'sudo:total', 'u:auditor:r-x'.
+  | 'string'
+  // Nombre de cuenta, perfil o grupo. Sin espacios, sin comas y sin `|`: se
+  // compara literalmente contra lo que hay en la máquina, y un espacio de más
+  // convierte una autorización válida en una cuenta que no existe.
+  | 'identifier'
+  // Ruta absoluta. Mismo criterio que el tipo `path` de un parámetro.
+  | 'path'
+  // Modo de fichero en octal, tres o cuatro dígitos ('750', '2770').
+  | 'octal'
+  // Número entero o decimal, con el rango que declare el parámetro.
+  | 'number'
+  // Fecha AAAA-MM-DD, y que exista de verdad (un 2026-02-31 no es una fecha).
+  | 'date'
+  // Una de las opciones declaradas en la columna.
+  | 'select'
+  // Varias de las opciones declaradas, separadas por comas dentro de la celda.
+  | 'multiselect';
+
+/**
+ * Una columna de un parámetro `table` (o la forma del elemento de un `list`).
+ *
+ * `name` es el identificador estable de la columna, el que usará quien exporte
+ * esta política a la máquina; `label` es lo que ve el auditor. Se separan por lo
+ * mismo que `name`/`label` en el parámetro: renombrar la cabecera de una columna
+ * no puede cambiar el contrato con el agente.
+ */
+export interface ENSParameterColumn {
+  name: string;
+  label: string;
+  type: ENSParameterColumnType;
+  // Una columna obligatoria vacía deja la fila INCOMPLETA, y una tabla con
+  // filas incompletas no es una tabla válida. Una fila del todo en blanco no
+  // cuenta: eso es una fila recién añadida, no una fila mal rellena.
+  required: boolean;
+  // Obligatorias para `select` y `multiselect`; ignoradas en el resto.
+  options?: string[];
+}
 
 export type ENSParameterStatus =
   | 'CONFIGURED'
@@ -58,6 +110,24 @@ export interface ENSControlParameter {
   // antes. Se cierra volviendo a sembrar el bloque con `inject-control.py`, que
   // conserva los valores ya configurados.
   options?: string[];
+  // Forma del ELEMENTO del parámetro. Declararla hace las mismas dos cosas que
+  // `options` en un `select`, y también van juntas: el formulario pinta una
+  // rejilla editable (`TableParameterRenderer`) y la validación exige que cada
+  // celda signifique algo para su columna (`parameter-value-validator.ts`).
+  //
+  //   - `type: 'table'` -> una columna por campo de la fila.
+  //   - `type: 'list'`  -> UNA sola columna, que describe cada elemento suelto
+  //     (la línea base de SUID es una lista de RUTAS, no de nombres de binario:
+  //     un 'sudo' sin ruta no casa con nada y saca ~25 SUID legítimos de un
+  //     Ubuntu limpio como no autorizados). Si se declara más de una columna en
+  //     un `list`, solo se aplica la primera: lo que tiene campos es una tabla.
+  //
+  // Sigue siendo opcional porque en `wazuh-ens-configuration` puede haber un
+  // bloque sembrado antes de que existieran. Sin `columns`, un `table` se edita
+  // y se valida como una lista corriente —tolerancia deliberada, la misma que
+  // con un `select` sin `options`—: nunca se ofrece un campo que acepte lo que
+  // el motor rechaza, ni se rechaza lo que el campo deja escribir.
+  columns?: ENSParameterColumn[];
   required: boolean;
   minValue?: number;
   maxValue?: number;

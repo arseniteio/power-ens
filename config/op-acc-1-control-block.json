@@ -190,7 +190,7 @@
       "controlId": "op.acc.1",
       "name": "lista_usuarios_autorizados",
       "label": "Lista de usuarios autorizados",
-      "description": "Lista maestra de usuarios autorizados a acceder a los sistemas en scope, mantenida por el administrador de seguridad. Exigida por R1.",
+      "description": "Lista maestra de usuarios autorizados a acceder a los sistemas en scope, mantenida por el administrador de seguridad. Exigida por R1. Una fila por persona. Solo la columna Usuario se contrasta con las cuentas activas de la máquina, y la comparación es literal y distingue mayúsculas; sistema y rol acompañan a la decisión en el informe.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -199,8 +199,28 @@
         "op.acc.1.r1.2",
         "op.acc.1.r1.3"
       ],
-      "type": "list",
+      "type": "table",
       "example": "jgomez | srv01 | ops",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        }
+      ],
       "required": true,
       "wazuhUsage": "Se compara el inventario de cuentas activas contra esta lista. Cuenta activa no incluida genera alerta.",
       "ensfacilUsage": "Permite verificar el refuerzo R1 (op.acc.1.r1.3) contrastando cuentas activas.",
@@ -239,6 +259,137 @@
       ],
       "ruleIds": [],
       "ifNotConfigured": "La detección de cuentas activas de usuarios dados de baja no puede automatizarse."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.acc.1",
+      "name": "bajas_declaradas",
+      "label": "Bajas declaradas manualmente",
+      "description": "Ceses que se declaran a mano cuando no hay integración con RRHH (P-08 = no). Una fila por persona, con la fecha en formato AAAA-MM-DD. Es la fecha que se resta de la de deshabilitación de la cuenta para medir el plazo de P-05, así que una fecha que no existe deja la medida sin base.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "type": "table",
+      "example": "mlopez | 2026-03-31",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "fecha_baja",
+          "label": "Fecha de baja",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "required": false,
+      "wazuhUsage": "Cada baja declarada se compara con la fecha de deshabilitación de esa cuenta. Fuera de plazo genera account_offboarding.",
+      "ensfacilUsage": "Permite medir op.acc.1.4 b) en una organización sin integración de RRHH, en vez de dejarlo NO EVALUABLE.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [
+        "106816",
+        "106817"
+      ],
+      "ifNotConfigured": "Si además P-08 es no, no hay ninguna fuente de bajas y EV-04 se queda sin nada que medir."
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.acc.1",
+      "name": "uid_minimo_persona",
+      "label": "UID mínimo de cuenta de persona",
+      "description": "UID a partir del cual una cuenta se considera de una persona física. Por debajo se trata como cuenta del sistema y no entra en el inventario de identidades ni en el contraste con la lista de autorizados.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.1",
+        "op.acc.1.3"
+      ],
+      "type": "number",
+      "example": "1000",
+      "required": false,
+      "minValue": 0,
+      "wazuhUsage": "Delimita qué cuentas de /etc/passwd entran en el inventario que se publica como account_inventory.",
+      "ensfacilUsage": "Un umbral mal puesto mete las cuentas de sistema en el contraste con la lista de autorizados y produce incumplimientos que no lo son.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "El agente aplica su valor de fábrica (1000) y el informe no puede citar una decisión del cliente."
+    },
+    {
+      "id": "P-11",
+      "controlId": "op.acc.1",
+      "name": "grupos_privilegiados",
+      "label": "Grupos que otorgan privilegio administrativo",
+      "description": "Grupos del sistema cuya pertenencia concede privilegios de administración. Define qué cuenta como uso de privilegio en esta máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2"
+      ],
+      "type": "list",
+      "example": "sudo",
+      "columns": [
+        {
+          "name": "grupo",
+          "label": "Grupo privilegiado",
+          "type": "identifier",
+          "required": true
+        }
+      ],
+      "required": false,
+      "wazuhUsage": "Define qué pertenencias se registran como uso de privilegios.",
+      "ensfacilUsage": "Es la mitad de la comprobación de identificador diferenciado: sin saber qué grupo es privilegiado no se puede detectar quién acumula roles.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [
+        "106808"
+      ],
+      "ifNotConfigured": "El agente aplica su lista de fábrica (sudo, wheel, admin) y el informe no puede citar una decisión del cliente."
+    },
+    {
+      "id": "P-12",
+      "controlId": "op.acc.1",
+      "name": "sufijo_admin",
+      "label": "Sufijo del identificador administrativo",
+      "description": "Sufijo que distingue la cuenta administrativa de la cuenta ordinaria de la misma persona, como jgomez y jgomez.adm. Sin él no se puede distinguir a quien tiene dos identidades por diseño de quien acumula roles en una sola cuenta, y todos los privilegiados pasan a ser candidatos a multi-rol.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2"
+      ],
+      "type": "string",
+      "example": ".adm",
+      "required": false,
+      "wazuhUsage": "Excluye del multi-rol a las cuentas administrativas diferenciadas por este sufijo.",
+      "ensfacilUsage": "Permite acreditar op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [
+        "106807"
+      ],
+      "ifNotConfigured": "No se excluye a nadie: todos los usuarios privilegiados pasan a ser candidatos a identificador con varios roles."
     }
   ]
 }

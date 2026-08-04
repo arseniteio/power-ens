@@ -3,6 +3,7 @@ import {
   ENSConfigurationScopeMode,
   ENSConfigurationVersion,
   ENSLevel,
+  ENSParameterColumnType,
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
@@ -45,6 +46,18 @@ const PARAMETER_TYPES: ENSParameterType[] = [
   'url',
   'duration_hours',
   'duration_days',
+  'table',
+];
+
+const PARAMETER_COLUMN_TYPES: ENSParameterColumnType[] = [
+  'string',
+  'identifier',
+  'path',
+  'octal',
+  'number',
+  'date',
+  'select',
+  'multiselect',
 ];
 
 const PARAMETER_STATUSES: ENSParameterStatus[] = [
@@ -114,6 +127,62 @@ const validateRequiredStrings = (
   });
 };
 
+// `columns` solo se comprueba por su FORMA, igual que `options`. Que una celda
+// concreta signifique algo para su columna lo decide `parameter-value-validator`
+// y no aquí: este validador LANZA en la hidratación, y una tabla mal rellenada
+// por el auditor tiene que degradar su control, no tumbar la pantalla entera de
+// Configuración.
+const validateParameterColumns = (
+  value: unknown,
+  path: string,
+  errors: string[]
+): void => {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    errors.push(`${path}.columns must be an array.`);
+    return;
+  }
+
+  value.forEach((column, index) => {
+    const columnPath = `${path}.columns[${index}]`;
+
+    if (!isRecord(column)) {
+      errors.push(`${columnPath} must be an object.`);
+      return;
+    }
+
+    validateRequiredStrings(
+      column,
+      ['name', 'label'],
+      columnPath,
+      errors
+    );
+
+    if (
+      !isAllowedString(
+        column.type,
+        PARAMETER_COLUMN_TYPES
+      )
+    ) {
+      errors.push(`${columnPath}.type is invalid.`);
+    }
+
+    if (typeof column.required !== 'boolean') {
+      errors.push(`${columnPath}.required must be a boolean.`);
+    }
+
+    if (
+      column.options !== undefined &&
+      !isStringArray(column.options)
+    ) {
+      errors.push(`${columnPath}.options must be a string array.`);
+    }
+  });
+};
+
 const validateParameter = (
   value: unknown,
   path: string,
@@ -157,6 +226,12 @@ const validateParameter = (
   ) {
     errors.push(`${path}.options must be a string array.`);
   }
+
+  validateParameterColumns(
+    value.columns,
+    path,
+    errors
+  );
 
   if (
     !Array.isArray(value.levels) ||
