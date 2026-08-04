@@ -3,7 +3,6 @@ import type {
   ENSComplianceResult,
   ENSComplianceStatus,
   ENSEvidenceResult,
-  ENSMeasurementGap,
   ENSNonConformity,
   ENSObservationGroup,
   ENSRequirementResult,
@@ -147,9 +146,9 @@ const groupCards = <T>(
 
 // El identificador de una tarjeta consolidada:
 //
-//   - se RENUMERA, porque el número de `PM-001` es el índice dentro de UN
-//     agente: el `PM-001` de una máquina y el de otra no son el mismo
-//     requisito, y conservarlos hacía que `025:PM-001` y `024:PM-001`
+//   - se RENUMERA, porque el número de `NC-001` es el índice dentro de UN
+//     agente: el `NC-001` de una máquina y el de otra no son el mismo
+//     requisito, y conservarlos hacía que `025:NC-001` y `024:NC-001`
 //     parecieran hermanos sin serlo;
 //   - conserva el prefijo `<agente>:` SOLO cuando la tarjeta es de una sola
 //     máquina, que es cuando nombrarla es cierto. Una tarjeta compartida por
@@ -160,12 +159,11 @@ const groupCards = <T>(
 //     `NC-CFG` produce un solo grupo.
 const consolidatedCardId = (
   localId: string,
-  prefix: 'NC' | 'PM',
   index: number,
   agents: ENSAgentRef[]
 ): string => {
-  const id = /^(NC|PM)-\d+$/.test(localId)
-    ? `${prefix}-${String(index + 1).padStart(3, '0')}`
+  const id = /^NC-\d+$/.test(localId)
+    ? `NC-${String(index + 1).padStart(3, '0')}`
     : localId;
 
   return agents.length === 1 ? `${agents[0].agentId}:${id}` : id;
@@ -183,6 +181,12 @@ const getEarliestIsoDate = (values: Array<string | undefined>): string | undefin
   return definedValues.sort((left, right) => left.localeCompare(right))[0];
 };
 
+// Consolida VEREDICTOS entre agentes. Desde el 04/08, los estados de control y
+// de requisito que le llegan ya no incluyen NO_EVALUABLE —lo no demostrado sale
+// NO_CUMPLE—, así que sus ramas de NO_EVALUABLE solo las ejercitan las
+// EVIDENCIAS, que conservan ese estado como observación en crudo: ahí «una
+// máquina lo demostró y de otra no sabemos nada» sigue siendo, correctamente,
+// «no lo sabemos», y el veredicto ya lo ha aplicado el requisito.
 export const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComplianceStatus => {
   const applicableStatuses = statuses.filter((status) => status !== 'NO_APLICA');
 
@@ -234,11 +238,12 @@ const averageApplicableResultValue = (
   );
 };
 
-// El porcentaje consolidado se promedia SOLO sobre los agentes que traen
-// número. Un agente sin medir no aporta un 0 al promedio: eso volvería a
-// convertir la falta de dato en un porcentaje bajo, que es exactamente el error
-// que se corrige una capa más abajo. Si ningún agente trae número, no hay
-// número consolidado.
+// El porcentaje consolidado se promedia sobre los agentes que traen número.
+// Desde el 04/08 eso son TODOS los que tienen algún requisito aplicable —el que
+// no ha reportado nada trae un 0, y ese 0 es ahora una afirmación deliberada:
+// «de esta máquina no se ha demostrado nada»—. La guarda se queda porque el
+// caso NO_APLICA sigue existiendo: un control entero fuera del nivel activo no
+// tiene número y no puede arrastrar el promedio a la baja.
 const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
   const scored = entries.filter(
     (entry) => typeof entry.result.score === 'number'
@@ -253,45 +258,12 @@ const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
   );
 };
 
-// Dos huecos son el mismo hueco si dicen exactamente lo mismo: mismo requisito,
-// misma causa, mismo motivo, misma acción y mismas evidencias y parámetros
-// implicados. El motivo del recolector viaja dentro de `finding`, así que dos
-// máquinas que no miden por razones distintas siguen dando dos tarjetas.
-const measurementGapKey = (gap: ENSMeasurementGap): string =>
-  [
-    gap.cause,
-    gap.requirementId,
-    gap.evidenceId,
-    gap.finding,
-    gap.impact,
-    gap.requiredAction,
-    gap.evidenceIds.join(','),
-    gap.parameterIds.join(','),
-  ].join('|');
-
-const consolidateMeasurementGaps = (entries: ENSAgentResultEntry[]): ENSMeasurementGap[] =>
-  groupCards(
-    entries.flatMap((entry) =>
-      entry.result.measurementGaps.map((card) => ({ entry, card }))
-    ),
-    measurementGapKey
-  ).map(({ template, agents }, index) => {
-    // Un hueco de causa CATALOG no es de ninguna máquina: «op.acc.1.5 no tiene
-    // evidencia declarada en el catálogo» es cierto para las siete por igual y
-    // no cambia por mirar otra. Atribuirlo a los agentes lo convertía en cinco
-    // hallazgos idénticos y, encima, señalaba al sitio equivocado: no hay nada
-    // que arreglar en la máquina, el arreglo lo tiene el producto.
-    const cardAgents = template.cause === 'CATALOG' ? [] : agents;
-
-    return {
-      ...template,
-      id: consolidatedCardId(template.id, 'PM', index, cardAgents),
-      agents: cardAgents,
-    };
-  });
-
+// Una máquina «tiene resultados» si el motor ha llegado a MEDIR algo en ella, no
+// si tiene veredicto: desde el 04/08 todas tienen veredicto, incluida la que no
+// ha reportado nada en su vida. Sin este cambio, `agentsWithoutResults` sería
+// siempre 0 y la pantalla perdería justo el contador que delata al agente caído.
 export const agentHasEvaluatedResults = (agent: ENSAgentComplianceState): boolean =>
-  agent.results.some((result) => result.status !== 'NO_EVALUABLE' && result.status !== 'NO_APLICA');
+  agent.results.some((result) => result.measuredRequirements > 0);
 
 const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirementResult[] => {
   const requirementIds = uniqueValues(
@@ -326,6 +298,12 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       ...template,
       status: consolidateENSStatuses(
         requirementEntries.map(({ requirement }) => requirement.status)
+      ),
+      // Demostrado solo si lo está en TODAS: basta una máquina sin prueba para
+      // que el requisito del conjunto no esté demostrado. Es lo que impide que
+      // una máquina sana tape a la que no reporta.
+      evidenced: requirementEntries.every(
+        ({ requirement }) => requirement.evidenced !== false
       ),
       level: uniqueValues(requirementEntries.flatMap(({ requirement }) => requirement.level)),
       evidenceIds: evidenceIds.length > 0 ? evidenceIds : undefined,
@@ -545,12 +523,15 @@ const consolidatePolicyRuntime = (
   };
 };
 
-// Igual que los huecos, y con la misma cautela: `finding` incluye el motivo que
-// resolvió la policy («se ha observado 'admin'»), así que dos máquinas que
-// incumplen por cuentas distintas siguen dando dos no conformidades. Solo se
-// funden las que dicen literalmente lo mismo.
+// Dos tarjetas son la misma si dicen exactamente lo mismo: mismo requisito,
+// mismo origen y causa, mismo motivo, misma acción y mismas evidencias y
+// parámetros implicados. `finding` incluye el motivo que resolvió la policy («se
+// ha observado 'admin'») y el que declaró el recolector, así que dos máquinas
+// que fallan por razones distintas siguen dando dos tarjetas.
 const nonConformityKey = (nonConformity: ENSNonConformity): string =>
   [
+    nonConformity.origin,
+    nonConformity.cause || '',
     nonConformity.requirementId,
     nonConformity.evidenceId,
     nonConformity.finding,
@@ -558,6 +539,8 @@ const nonConformityKey = (nonConformity: ENSNonConformity): string =>
     nonConformity.requiredAction,
     nonConformity.expected || '',
     nonConformity.actual || '',
+    (nonConformity.evidenceIds || []).join(','),
+    (nonConformity.parameterIds || []).join(','),
   ].join('|');
 
 const consolidateNonConformities = (entries: ENSAgentResultEntry[]): ENSNonConformity[] =>
@@ -566,11 +549,20 @@ const consolidateNonConformities = (entries: ENSAgentResultEntry[]): ENSNonConfo
       entry.result.nonConformities.map((card) => ({ entry, card }))
     ),
     nonConformityKey
-  ).map(({ template, agents }, index) => ({
-    ...template,
-    id: consolidatedCardId(template.id, 'NC', index, agents),
-    agents,
-  }));
+  ).map(({ template, agents }, index) => {
+    // Una tarjeta de causa CATALOG no es de ninguna máquina: «op.acc.1.5 no
+    // declara evidencia en el catálogo» es cierto para las siete por igual y no
+    // cambia por mirar otra. Atribuirla a los agentes la convertía en cinco
+    // hallazgos idénticos y, encima, señalaba al sitio equivocado: no hay nada
+    // que arreglar en la máquina, el arreglo lo tiene el producto.
+    const cardAgents = template.cause === 'CATALOG' ? [] : agents;
+
+    return {
+      ...template,
+      id: consolidatedCardId(template.id, index, cardAgents),
+      agents: cardAgents,
+    };
+  });
 
 const consolidateTraceability = (entries: ENSAgentResultEntry[]): ENSTraceabilityResult[] =>
   uniqueByKey(
@@ -657,7 +649,6 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
     relatedRules: uniqueValues(entries.flatMap((entry) => entry.result.relatedRules)),
 
     nonConformities: consolidateNonConformities(entries),
-    measurementGaps: consolidateMeasurementGaps(entries),
 
     observations: consolidateObservations(entries),
 

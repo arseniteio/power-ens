@@ -1,12 +1,12 @@
 import { ENSComplianceStatus } from '../types';
 import { ENSRequirementEvaluationResult } from '../requirement';
-import { scoreByStatus } from '../utils/score';
+import { requirementVerdict, scoreByStatus } from '../utils';
 
 export interface ENSControlEvaluationResult {
   status: ENSComplianceStatus;
 
-  // Ausente cuando el control no se puede puntuar (NO_EVALUABLE, NO_APLICA).
-  // Ver el comentario de `score` en `../types`.
+  // Ausente SOLO cuando no hay ningún requisito aplicable (NO_APLICA). Todo lo
+  // que aplica trae número, porque todo lo que aplica tiene veredicto.
   score?: number;
 
   coverage: number;
@@ -19,28 +19,41 @@ export interface ENSControlEvaluationResult {
 /**
  * Estado y porcentaje del control a partir de sus requisitos.
  *
- * El criterio es el mismo que aplican los tres agentes desde el 30/07 (63ac3bc
- * en op.acc.1, 706f04c en mp.info.6, 26b4dd5 en op.acc.2):
+ * Criterio vigente desde el 04/08 (decisión del responsable). Lo que no se
+ * puede demostrar cuenta en contra:
  *
- *   hay >=1 requisito NO_CUMPLE o PARCIAL demostrado -> NO_CUMPLE o PARCIAL
- *   ninguno, y todo lo evaluable en CUMPLE           -> CUMPLE
- *   ninguno, pero quedan requisitos sin medir        -> NO_EVALUABLE, sin número
+ *   todo lo aplicable en CUMPLE                  -> CUMPLE, 100
+ *   todo lo aplicable en NO_CUMPLE               -> NO_CUMPLE
+ *   mezcla                                        -> PARCIAL
+ *   nada aplicable                                -> NO_APLICA, sin número
  *
- * Y el denominador del porcentaje son los requisitos MEDIDOS, no todos los
- * aplicables. Con el denominador completo, un requisito sin medir restaría
- * EXACTAMENTE IGUAL que uno incumplido, y el error que la regla de arriba evita
- * volvería por la puerta del número.
+ * y el requisito que no se ha podido demostrar entra en la cuenta como
+ * NO_CUMPLE, se etiquete como se etiquete (`requirementVerdict`).
+ *
+ * **El denominador vuelve a ser `applicableRequirements`.** Entre el 30/07 y el
+ * 04/08 fue `measuredRequirements`, y era lo correcto MIENTRAS un requisito sin
+ * medir no fuera un incumplimiento: dejarlo en el denominador lo hacía restar
+ * exactamente igual que uno incumplido, y ese era el error. Con el criterio
+ * nuevo eso deja de ser un error y pasa a ser la definición. Además, el
+ * denominador de lo medido tiene un efecto perverso que ahora sería inaceptable:
+ * cuanto menos se mide, más sube el porcentaje —una máquina con siete requisitos
+ * en gris y uno conforme publicaba un 100 %—.
+ *
+ * `measuredRequirements` se sigue calculando y publicando, pero ya no divide
+ * nada: es el diagnóstico que acompaña al número.
  */
 export const evaluateControlStatus = (
   requirements: ENSRequirementEvaluationResult[]
 ): ENSControlEvaluationResult => {
   const applicable = requirements.filter(
-    requirement => requirement.status !== 'NO_APLICA'
+    requirement => requirementVerdict(requirement) !== 'NO_APLICA'
   );
 
   if (!applicable.length) {
     // SIN número, no un 0. Un control que no aplica no es un control que se
-    // incumple, y el 0 se pinta en rojo igual que un incumplimiento real.
+    // incumple, y el 0 se pinta en rojo igual que un incumplimiento real. Es lo
+    // que permite que un cliente de nivel BAJO llegue al 100 % sin arrastrar los
+    // refuerzos de MEDIO y ALTO.
     return {
       status: 'NO_APLICA',
       score: undefined,
@@ -51,14 +64,15 @@ export const evaluateControlStatus = (
     };
   }
 
-  // Medido = el motor ha podido pronunciarse: CUMPLE, NO_CUMPLE o PARCIAL.
-  // NO_EVALUABLE es exactamente lo contrario, y es lo que sale del denominador.
+  // Medido = el motor ha podido pronunciarse mirando algo. Ya NO se deduce del
+  // estado: un NO_CUMPLE medido y uno no evidenciado son el mismo estado, y
+  // `evidenced` es lo único que los separa.
   const unmeasured = applicable.filter(
-    requirement => requirement.status === 'NO_EVALUABLE'
+    requirement => requirement.evidenced === false
   );
 
   const measured = applicable.filter(
-    requirement => requirement.status !== 'NO_EVALUABLE'
+    requirement => requirement.evidenced !== false
   );
 
   const coverage = Math.round((measured.length / applicable.length) * 100);
@@ -69,57 +83,34 @@ export const evaluateControlStatus = (
     unmeasuredRequirements: unmeasured.map(requirement => requirement.id),
   };
 
-  // Un incumplimiento demostrado SIEMPRE manda sobre un hueco de medida: esta
-  // rama va la primera y conserva el criterio de siempre, para que un NO_CUMPLE
-  // real siga saliendo igual de rojo aunque falten datos en otra parte.
-  const hasDemonstratedFailure = measured.some(
-    requirement =>
-      requirement.status === 'NO_CUMPLE' || requirement.status === 'PARCIAL'
+  const some = (value: ENSComplianceStatus) =>
+    applicable.some(requirement => requirementVerdict(requirement) === value);
+
+  // Sin nada que incumpla ni que conforme a medias, todo lo aplicable está en
+  // CUMPLE: el 100 es exacto y no hay redondeo que pueda enmascarar nada. Es la
+  // única línea de la que sale un CUMPLE.
+  if (!some('NO_CUMPLE') && !some('PARCIAL')) {
+    return {
+      status: 'CUMPLE',
+      score: 100,
+      coverage,
+      ...counters,
+    };
+  }
+
+  const score = Math.round(
+    applicable.reduce(
+      (sum, requirement) => sum + scoreByStatus(requirementVerdict(requirement)),
+      0
+    ) / applicable.length
   );
 
-  if (hasDemonstratedFailure) {
-    const score = Math.round(
-      measured.reduce(
-        (sum, requirement) => sum + scoreByStatus(requirement.status),
-        0
-      ) / measured.length
-    );
-
-    const some = (value: ENSComplianceStatus) =>
-      measured.some(requirement => requirement.status === value);
-
-    return {
-      status:
-        some('NO_CUMPLE') && !some('CUMPLE') && !some('PARCIAL')
-          ? 'NO_CUMPLE'
-          : 'PARCIAL',
-      score,
-      coverage,
-      ...counters,
-    };
-  }
-
-  if (unmeasured.length) {
-    // Sin número, igual que el `score_snapshot` del agente: un porcentaje
-    // calculado sobre requisitos que no se han medido se lee como cumplimiento
-    // parcial, que es justo lo que no se puede afirmar. Y publicar en su lugar
-    // el 100 de lo medido sería peor: un CUMPLE del 100 % sobre media máquina.
-    // `unmeasuredRequirements` dice CUÁLES faltan, que es lo accionable.
-    return {
-      status: 'NO_EVALUABLE',
-      score: undefined,
-      coverage,
-      ...counters,
-    };
-  }
-
-  // Sin incumplidores y sin huecos, todo lo aplicable está medido y en CUMPLE:
-  // el 100 es exacto, no hay redondeo que pueda enmascarar nada. Es la única
-  // línea de la que sale un CUMPLE, y solo se llega a ella con `unmeasured`
-  // vacío; hacerlo imposible por estructura es más fuerte que comprobarlo.
   return {
-    status: 'CUMPLE',
-    score: 100,
+    status:
+      some('NO_CUMPLE') && !some('CUMPLE') && !some('PARCIAL')
+        ? 'NO_CUMPLE'
+        : 'PARCIAL',
+    score,
     coverage,
     ...counters,
   };

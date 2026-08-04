@@ -8,6 +8,7 @@ import {
   hasMeaningfulValue,
   sortByTimestampDesc,
 } from './normalized-events';
+import { ENSGapCause } from '../evaluation/types';
 import {
   ENSEvidenceBaseFields,
   ENSEvidenceDefinition,
@@ -24,7 +25,15 @@ import {
 //
 // Invariante, por encima de cualquier primitiva: la ausencia de un dato no
 // produce una afirmación. Sin hecho observado o sin parámetro, NO_EVALUABLE con
-// motivo. Nunca un CUMPLE falso, y tampoco un NO_CUMPLE falso.
+// motivo. Nunca un CUMPLE falso, y tampoco un NO_CUMPLE MEDIDO falso.
+//
+// El criterio del 04/08 no cambia nada de esto. Lo que decide este fichero es la
+// OBSERVACIÓN —qué se ha podido mirar y qué no—, no el veredicto: una evidencia
+// sin dato sigue saliendo NO_EVALUABLE, con su `gapCause` diciendo por qué. Que
+// eso cuente como incumplimiento del requisito lo decide `applyAuditVerdict`, en
+// `evaluation/utils/verdict.ts`. Fundir las dos capas sería perder justo la
+// distinción que el responsable pidió conservar: mirando la tabla de evidencias
+// se tiene que poder ver si la máquina se midió y falló, o si nunca se midió.
 
 // --- Cobertura del recolector (T1.3) ---------------------------------------
 //
@@ -524,13 +533,19 @@ export const judgeEvidence = (
     });
   });
 
+  // `gapCause` solo se rellena cuando el estado es NO_EVALUABLE: es el POR QUÉ
+  // de la falta de medida, y de él sale la acción de la no conformidad no
+  // evidenciada. Sin parámetro es CONFIGURATION; sin latido, COLLECTION; con el
+  // dato llegado pero ilegible, EVIDENCE.
   const buildResult = (
     status: ENSEvidenceResolved['status'],
     motives: string[],
-    decisiveEvent?: ENSNormalizedEvent
+    decisiveEvent?: ENSNormalizedEvent,
+    gapCause?: ENSGapCause
   ): ENSEvidenceResolved => ({
     ...baseEvidence,
     status,
+    gapCause: status === 'NO_EVALUABLE' ? gapCause : undefined,
     relatedRules: Array.from(
       new Set([
         ...definition.relatedRules,
@@ -583,7 +598,10 @@ export const judgeEvidence = (
         reference.reason,
         'Sin hecho observado y sin parámetro de referencia no se puede afirmar ni negar el cumplimiento.',
       ],
-      factEvents[0]
+      factEvents[0],
+      // Faltan las dos cosas, pero solo una desbloquea: sin el parámetro no hay
+      // veredicto ni aunque llegue el hecho, así que la acción es configurarlo.
+      'CONFIGURATION'
     );
   }
 
@@ -596,7 +614,8 @@ export const judgeEvidence = (
         reference.reason,
         `Se han observado ${observedFacts.length} hecho(s) (${describeFacts(observedFacts)}), pero sin el valor de referencia no se puede afirmar ni negar el cumplimiento.`,
       ],
-      observedFacts[0]?.event
+      observedFacts[0]?.event,
+      'CONFIGURATION'
     );
   }
 
@@ -669,7 +688,12 @@ export const judgeEvidence = (
               `Último evento descartado ${unusable.event.id}: ${unusable.reason}.`
           ),
       ],
-      factEvents[0] || coverage.event
+      factEvents[0] || coverage.event,
+      // ÉSTE es el caso del agente caído: no hay hechos y el latido no consta.
+      // La causa es de RECOGIDA y no un hallazgo sobre la máquina. Si llegaron
+      // eventos de hecho ilegibles, entonces sí llegó algo y la culpa es del
+      // productor de la evidencia, no de la recogida.
+      unusableFactEvents.length ? 'EVIDENCE' : 'COLLECTION'
     );
   }
 
@@ -741,7 +765,8 @@ export const judgeEvidence = (
     return buildResult(
       'NO_EVALUABLE',
       [undecidableMotive],
-      observedFacts[0].event
+      observedFacts[0].event,
+      'EVIDENCE'
     );
   }
 
@@ -754,7 +779,8 @@ export const judgeEvidence = (
       [
         `${unusableFactEvents.length} evento(s) de hecho no se han podido interpretar (último, ${unusableFactEvents[0].event.id}: ${unusableFactEvents[0].reason}), así que lo observado está incompleto y no cabe afirmar cumplimiento.`,
       ],
-      observedFacts[0].event
+      observedFacts[0].event,
+      'EVIDENCE'
     );
   }
 

@@ -10,7 +10,7 @@ import { validateControlConfiguration } from '../../configuration/services/valid
 import { ENSEvidenceResolved } from '../evidence/types';
 import {
   ENSComplianceResult,
-  ENSMeasurementGap,
+  ENSGapCause,
   ENSNonConformity,
 } from './types';
 import { evaluateRequirements } from './requirement';
@@ -335,23 +335,20 @@ export const evaluateENSControl = (
       ];
     });
 
-  // Solo el incumplimiento DEMOSTRADO abre no conformidad. Un requisito en
-  // NO_EVALUABLE no está aquí: no se ha podido medir, así que no hay nada que
-  // acusar. Ver `unmeasuredRequirements` justo debajo.
+  // TODO incumplimiento abre no conformidad, se haya demostrado o no. Desde el
+  // 04/08 el requisito que no se ha podido demostrar sale NO_CUMPLE, así que cae
+  // aquí igual que el que se midió y falló; lo que los separa es `evidenced`, y
+  // de ahí salen `origin` y `cause` de la tarjeta.
   const failingRequirements = requirements.filter(
     requirement =>
       requirement.applicable &&
       (requirement.status === 'NO_CUMPLE' || requirement.status === 'PARCIAL')
   );
 
-  const unmeasuredRequirements = requirements.filter(
-    requirement =>
-      requirement.applicable && requirement.status === 'NO_EVALUABLE'
-  );
-
   // Parámetros de la pantalla de Configuración que acreditan un requisito y no
-  // están utilizables. Son la acción concreta de un hueco de medida: sin esto,
-  // el auditor lee "falta medir" y no sabe qué tocar.
+  // están utilizables. Son la acción concreta de un incumplimiento no
+  // evidenciado: sin esto, el auditor lee "no se ha podido demostrar" y no sabe
+  // qué tocar.
   const unusableParametersFor = (
     requirementId: string,
     evidenceIds: string[]
@@ -365,6 +362,56 @@ export const evaluateENSControl = (
             evidenceIds.includes(evidenceId)
           ))
     );
+
+  // De quién es el hueco. El orden importa y es el de "qué hecho es más fuerte":
+  //
+  //   1. CATALOG     el requisito no declara con qué demostrarse. Ninguna
+  //                  máquina puede arreglarlo, y ninguna configuración tampoco.
+  //   2. COLLECTION  no ha llegado NADA de esta máquina para ninguna de las
+  //                  evidencias pendientes. Va antes que la configuración a
+  //                  propósito: con el agente caído, rellenar un parámetro no
+  //                  produce ninguna medida, y quien tiene que actuar es otro.
+  //                  Se exige que lo digan TODAS las pendientes: si una llegó y
+  //                  otra no, lo que hay no es silencio.
+  //   3. CONFIGURATION  falta el parámetro, o está vacío, o la evidencia lo dice
+  //                  ella misma (política declarada vacía). También cuando las
+  //                  evidencias llegaron bien y lo único que bloquea es la
+  //                  configuración obligatoria del control.
+  //   4. EVIDENCE    llegó el dato y no basta.
+  const resolveGapCause = (
+    requirement: { id: string; evidenceIds: string[] },
+    requirementEvidences: ENSEvidenceResolved[],
+    pendingEvidences: ENSEvidenceResolved[],
+    unusableParameters: { id: string; label: string }[]
+  ): ENSGapCause => {
+    if (
+      requirement.evidenceIds.length === 0 ||
+      requirementEvidences.length === 0
+    ) {
+      return 'CATALOG';
+    }
+
+    if (
+      pendingEvidences.length > 0 &&
+      pendingEvidences.every(
+        evidence => evidence.gapCause === 'COLLECTION'
+      )
+    ) {
+      return 'COLLECTION';
+    }
+
+    if (
+      pendingEvidences.length === 0 ||
+      unusableParameters.length > 0 ||
+      pendingEvidences.some(
+        evidence => evidence.gapCause === 'CONFIGURATION'
+      )
+    ) {
+      return 'CONFIGURATION';
+    }
+
+    return 'EVIDENCE';
+  };
 
   const nonConformities: ENSNonConformity[] = [
     // NC-CFG distingue los dos casos a proposito. "Faltan P-01, P-03" se
@@ -393,11 +440,15 @@ export const evaluateENSControl = (
             ]
               .filter(Boolean)
               .join('. ')}.`,
+            // Mismo cierre que el resto de las no evidenciadas: la carga de la
+            // prueba es del auditado. Antes decia "no puede evaluarse", que era
+            // una descripcion del motor; ahora tiene que decir la consecuencia,
+            // porque la tarjeta cuenta como incumplimiento.
             impact:
-              invalidRequired.length > 0 &&
-              missingRequired.length === 0
-                ? 'El control no puede evaluarse con garantias: hay parametros obligatorios rellenos con un valor que no significa nada para su tipo.'
-                : 'El control no puede evaluarse con garantias mientras falten parametros obligatorios o tengan un valor invalido.',
+              (invalidRequired.length > 0 && missingRequired.length === 0
+                ? 'Hay parametros obligatorios rellenos con un valor que no significa nada para su tipo. '
+                : 'Faltan parametros obligatorios, o tienen un valor invalido. ') +
+              `Cuenta como incumplimiento del control ${catalogControl.id} en nivel ${level}: la carga de la prueba es del auditado y con la configuracion incompleta no hay contra que contrastar.`,
             requiredAction: [
               missingRequired.length
                 ? `Rellenar ${missingRequired
@@ -413,28 +464,136 @@ export const evaluateENSControl = (
               .filter(Boolean)
               .join('. ') +
               ' en la pestana Configuracion.',
+            origin: 'NO_EVIDENCIADA' as const,
+            cause: 'CONFIGURATION' as const,
+            evidenceIds: [],
+            parameterIds: blockingParameters.map(parameter => parameter.id),
           },
         ]
       : []),
-    ...failingRequirements.map((requirement, index) => {
+    ...failingRequirements.map((requirement, index): ENSNonConformity => {
       const decision = (policyRuntime?.decisions || []).find(
         item => item.requirementId === requirement.id
       );
 
+      const id = `NC-${String(index + 1).padStart(3, '0')}`;
+
+      const requirementEvidences = evidences.filter(evidence =>
+        requirement.evidenceIds.includes(evidence.id)
+      );
+
+      // --- incumplimiento NO EVIDENCIADO -----------------------------------
+      //
+      // Mismo veredicto que el medido y el mismo contador, pero otro texto y
+      // otra acción: es la parte de `346e56b` que se conserva entera. Lo que era
+      // una tarjeta `PM-` con su propia lista vive ahora aquí dentro, marcada.
+      if (requirement.evidenced === false) {
+        const pendingEvidences = requirementEvidences.filter(
+          evidence => evidence.status === 'NO_EVALUABLE'
+        );
+
+        const pendingEvidenceIds = pendingEvidences.map(
+          evidence => evidence.id
+        );
+
+        // El `motivo` que el agente puso en su `evidence_state` ("P-07 no
+        // configurado", "sin datos del recolector en la ventana"...). Es la
+        // respuesta a "¿y por qué no se ha podido demostrar?", y ya viaja en los
+        // atributos del evento.
+        const pendingReasons = pendingEvidences
+          .map(evidence => {
+            const reason = evidence.resolvedAttributes?.motivo;
+
+            return reason && String(reason).trim()
+              ? `${evidence.id}: ${String(reason).trim()}`
+              : '';
+          })
+          .filter(Boolean);
+
+        const parameters = unusableParametersFor(
+          requirement.id,
+          pendingEvidenceIds
+        );
+
+        const listaParametros = parameters
+          .map(parameter => `${parameter.id} (${parameter.label})`)
+          .join(', ');
+
+        const cause = resolveGapCause(
+          requirement,
+          requirementEvidences,
+          pendingEvidences,
+          parameters
+        );
+
+        const motivos = pendingReasons.length
+          ? ` Motivo — ${pendingReasons.join('; ')}.`
+          : '';
+
+        const finding =
+          cause === 'CATALOG'
+            ? `El requisito ${requirement.id} no declara ninguna evidencia en el catálogo: no hay nada con lo que demostrarlo, y lo que no se demuestra no cumple.`
+            : cause === 'CONFIGURATION'
+            ? `El requisito ${requirement.id} no se ha podido demostrar: falta configurar lo que el responsable tiene que decidir${
+                listaParametros ? ` (${listaParametros})` : ''
+              }. Sin esa decisión escrita no hay contra qué contrastar, y lo que no se demuestra no cumple.${motivos}`
+            : cause === 'COLLECTION'
+            ? `El requisito ${requirement.id} no se ha podido demostrar: no ha llegado ningún dato para ${pendingEvidenceIds.join(
+                ', '
+              )}. Es un fallo de RECOGIDA —agente sin reportar, recolector sin ejecutar o sin latido—, NO un hallazgo sobre la máquina, pero sin la prueba el requisito no se puede dar por cumplido.${motivos}`
+            : `El requisito ${requirement.id} no se ha podido demostrar: ${pendingEvidenceIds.join(
+                ', '
+              )} ha llegado sin datos suficientes, y lo que no se demuestra no cumple.${motivos}`;
+
+        const requiredAction =
+          cause === 'CATALOG'
+            ? `Declarar en el catálogo qué evidencias acreditan ${requirement.id}.`
+            : cause === 'COLLECTION'
+            ? `Restablecer la RECOGIDA: comprobar que el agente está activo y que su recolector emite ${pendingEvidenceIds.join(
+                ', '
+              )}. Es una acción sobre el despliegue de Wazuh, no una corrección en el sistema auditado.`
+            : listaParametros
+            ? `Configurar ${listaParametros} en la pestaña Configuración.`
+            : pendingEvidenceIds.length
+            ? `Corregir lo que el productor de ${pendingEvidenceIds.join(
+                ', '
+              )} declara: la evidencia llega, pero no con los datos que exige su contrato.`
+            : `Completar la configuración obligatoria del control ${catalogControl.id} en la pestaña Configuración.`;
+
+        return {
+          id,
+          // Nunca una evidencia que SÍ se ha medido: si lo que bloquea es la
+          // configuración, el ancla es CONFIG, no la primera evidencia de la
+          // lista, que puede estar perfectamente en verde.
+          evidenceId:
+            pendingEvidenceIds[0] ||
+            (cause === 'CONFIGURATION' ? 'CONFIG' : 'ENS'),
+          requirementId: requirement.id,
+          finding,
+          impact: `Cuenta como incumplimiento del control ${catalogControl.id} en nivel ${level}: la carga de la prueba es del auditado y esto no se ha podido demostrar.`,
+          requiredAction,
+          origin: 'NO_EVIDENCIADA',
+          cause,
+          evidenceIds: pendingEvidenceIds,
+          parameterIds: parameters.map(parameter => parameter.id),
+        };
+      }
+
+      // --- incumplimiento MEDIDO -------------------------------------------
+      //
       // Las evidencias que SOSTIENEN la acusación, no todas las que no están en
       // verde: una evidencia NO_EVALUABLE se colaba aquí y acababa siendo la
       // `evidenceId` de la tarjeta, señalando como culpable justo a la que no
       // se ha podido medir.
-      const badEvidences = evidences
+      const badEvidences = requirementEvidences
         .filter(
           evidence =>
-            requirement.evidenceIds.includes(evidence.id) &&
-            (evidence.status === 'NO_CUMPLE' || evidence.status === 'PARCIAL')
+            evidence.status === 'NO_CUMPLE' || evidence.status === 'PARCIAL'
         )
         .map(evidence => evidence.id);
 
       return {
-        id: `NC-${String(index + 1).padStart(3, '0')}`,
+        id,
         evidenceId:
           badEvidences[0] ||
           decision?.evidenceIds?.[0] ||
@@ -443,7 +602,9 @@ export const evaluateENSControl = (
         requirementId: requirement.id,
         finding:
           decision?.reason ||
-          `El requisito ${requirement.id} esta en estado ${requirement.status}.`,
+          (requirement.status === 'NO_CUMPLE'
+            ? `El requisito ${requirement.id} se ha medido y no conforma.`
+            : `El requisito ${requirement.id} se ha medido y conforma solo en parte.`),
         impact:
           requirement.status === 'NO_CUMPLE'
             ? `Impide el cumplimiento del control ${catalogControl.id} en nivel ${level}.`
@@ -455,112 +616,12 @@ export const evaluateENSControl = (
           : `Revisar el requisito ${requirement.id}.`,
         expected: decision?.trace?.expected,
         actual: decision?.trace?.actual,
+        origin: 'MEDIDA',
+        evidenceIds: badEvidences,
+        parameterIds: [],
       };
     }),
   ];
-
-  // Huecos de medida: PM = "pendiente de medición". Prefijo distinto de NC a
-  // propósito, para que ni el ojo ni el código los confundan.
-  const measurementGaps: ENSMeasurementGap[] = unmeasuredRequirements.map(
-    (requirement, index) => {
-      const requirementEvidences = evidences.filter(evidence =>
-        requirement.evidenceIds.includes(evidence.id)
-      );
-
-      const pendingEvidences = requirementEvidences.filter(
-        evidence => evidence.status === 'NO_EVALUABLE'
-      );
-
-      const pendingEvidenceIds = pendingEvidences.map(
-        evidence => evidence.id
-      );
-
-      // El `motivo` que el agente puso en su `evidence_state` ("P-07 no
-      // configurado", "sin datos del recolector en la ventana"...). Es la
-      // respuesta a "¿y por qué no se ha podido medir?", y ya viaja en los
-      // atributos del evento: no llevarlo a la tarjeta obligaba a cruzarla a
-      // mano con la tabla de evidencias.
-      const pendingReasons = pendingEvidences
-        .map(evidence => {
-          const reason = evidence.resolvedAttributes?.motivo;
-
-          return reason && String(reason).trim()
-            ? `${evidence.id}: ${String(reason).trim()}`
-            : '';
-        })
-        .filter(Boolean);
-
-      const parameters = unusableParametersFor(
-        requirement.id,
-        pendingEvidenceIds
-      );
-
-      const listaParametros = parameters
-        .map(parameter => `${parameter.id} (${parameter.label})`)
-        .join(', ');
-
-      // Tres causas distintas, tres textos distintos y tres acciones distintas.
-      // Un solo texto genérico ("falta medir, revisar") es lo que convierte una
-      // pantalla en algo que nadie usa: la acción tiene que decir a quién le
-      // toca y dónde.
-      //
-      //   1. El catálogo no declara qué acreditaría el requisito. El arreglo no
-      //      lo tiene el cliente, lo tiene el producto.
-      //   2. Las evidencias están bien pero faltan parámetros obligatorios del
-      //      control: se mide en cuanto se rellenen.
-      //   3. Falta el dato del agente para evidencias concretas.
-      const cause: 'CATALOG' | 'CONFIGURATION' | 'EVIDENCE' =
-        requirement.evidenceIds.length === 0 || requirementEvidences.length === 0
-          ? 'CATALOG'
-          : pendingEvidenceIds.length === 0
-          ? 'CONFIGURATION'
-          : 'EVIDENCE';
-
-      const finding =
-        cause === 'CATALOG'
-          ? `El requisito ${requirement.id} no tiene ninguna evidencia declarada en el catálogo, así que no hay nada que medir.`
-          : cause === 'CONFIGURATION'
-          ? `El requisito ${requirement.id} no se ha podido medir: sus evidencias han llegado, pero faltan parámetros obligatorios del control. No consta ningún incumplimiento.`
-          : `El requisito ${requirement.id} no se ha podido medir: ${pendingEvidenceIds.join(
-              ', '
-            )} sin datos suficientes. No consta ningún incumplimiento.${
-              pendingReasons.length
-                ? ` Motivo — ${pendingReasons.join('; ')}.`
-                : ''
-            }`;
-
-      const requiredAction =
-        cause === 'CATALOG'
-          ? `Declarar en el catálogo qué evidencias acreditan ${requirement.id}.`
-          : listaParametros
-          ? `Configurar ${listaParametros} en la pestaña Configuración.`
-          : `Comprobar que el agente emite las evidencias ${pendingEvidenceIds.join(
-              ', '
-            )} del requisito ${requirement.id}.`;
-
-      return {
-        id: `PM-${String(index + 1).padStart(3, '0')}`,
-        // Nunca una evidencia que SÍ se ha medido: si la culpa es de la
-        // configuración, el ancla es CONFIG, no la primera evidencia de la
-        // lista, que puede estar perfectamente en verde.
-        evidenceId:
-          pendingEvidenceIds[0] ||
-          (cause === 'CONFIGURATION' ? 'CONFIG' : 'ENS'),
-        requirementId: requirement.id,
-        finding,
-        impact: `El control ${catalogControl.id} no puede declararse conforme en nivel ${level} mientras falte esta medida. No es un incumplimiento.`,
-        requiredAction,
-
-        // La causa deja de ser un detalle interno del texto y se publica: es lo
-        // que permite a la consolidación no multiplicar por máquina un hueco
-        // que es del catálogo, y a la pantalla decir de quién es el arreglo.
-        cause,
-
-        evidenceIds: pendingEvidenceIds,
-        parameterIds: parameters.map(parameter => parameter.id),
-      };
-    }
-  );
 
   return {
     control: {
@@ -633,7 +694,6 @@ export const evaluateENSControl = (
     relatedRules,
 
     nonConformities,
-    measurementGaps,
     observations,
 
     traceability: [

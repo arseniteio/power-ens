@@ -122,13 +122,19 @@ export const ControlsENS = () => {
     levels: control.scope.activeLevels.join(', '),
     requirements: control.requirements.length,
     evidences: control.evidences.length,
+    // Sin resultado no es que el control incumpla: es que no está en el
+    // catálogo del motor. Ése es el único gris que queda en esta pantalla.
     status: complianceResultByControl[control.id]?.status || 'NO_EVALUABLE',
-    // Solo incumplimientos demostrados. Los huecos de medida se cuentan aparte
-    // y no pintan el borde en rojo: un parámetro sin configurar no es una
-    // alerta de seguridad.
+    // TODAS las no conformidades, un solo número. Desde el 04/08 lo que no se
+    // ha podido demostrar cuenta igual que lo demostrado: partir el contador
+    // era lo que permitía leer una mitad como «esto no cuenta».
     alerts: complianceResultByControl[control.id]?.nonConformities.length || 0,
+    // Cuántas de ésas lo son por falta de prueba. No es otro contador de
+    // hallazgos: es el desglose del mismo, y sirve para saber qué acción toca.
     pending:
-      complianceResultByControl[control.id]?.measurementGaps.length || 0,
+      complianceResultByControl[control.id]?.nonConformities.filter(
+        nonConformity => nonConformity.origin === 'NO_EVIDENCIADA',
+      ).length || 0,
     hasData: !!complianceResultByControl[control.id],
   }));
 
@@ -140,10 +146,12 @@ export const ControlsENS = () => {
         </EuiTitle>
         <EuiText>
           <p>
-            Catálogo de controles ENS. El número en rojo son incumplimientos
-            demostrados; «sin medir» son requisitos que el motor todavía no ha
-            podido evaluar, que no es lo mismo. Pulsa un control para ver su
-            detalle completo.
+            Catálogo de controles ENS. El número en rojo son las no
+            conformidades abiertas del control: la carga de la prueba es del
+            auditado, así que lo que no se ha podido demostrar cuenta igual que
+            lo demostrado. «No evidenciadas» dice cuántas de ellas lo son por
+            falta de prueba —otra acción y otra persona—, no otro hallazgo.
+            Pulsa un control para ver su detalle completo.
           </p>
         </EuiText>
         <EuiSpacer size='l' />
@@ -165,8 +173,8 @@ export const ControlsENS = () => {
                 {item.status}
               </EuiBadge>
               {item.pending > 0 && (
-                <EuiBadge color='default' iconType='clock' style={{ marginLeft: 6 }}>
-                  {item.pending} sin medir
+                <EuiBadge color='default' iconType='questionInCircle' style={{ marginLeft: 6 }}>
+                  {item.pending} no evidenciada{item.pending === 1 ? '' : 's'}
                 </EuiBadge>
               )}
             </EuiFacetButton>

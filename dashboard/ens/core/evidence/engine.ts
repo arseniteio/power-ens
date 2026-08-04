@@ -294,6 +294,12 @@ export const resolveEvidenceForControl = (
       return {
         ...baseEvidence,
         status: 'NO_EVALUABLE',
+        // Sin ningún evento compatible no ha llegado NADA de esta máquina para
+        // esta evidencia: agente caído, recolector sin desplegar o regla que no
+        // dispara. Es un fallo de RECOGIDA, y quien lo arregla no es quien
+        // arregla la máquina. Con eventos compatibles rechazados sí llegó el
+        // dato, pero no sirve: eso es del productor de la evidencia.
+        gapCause: compatibleEvents.length ? 'EVIDENCE' : 'COLLECTION',
         observations: compatibleEvents.length
           ? [
               `Se encontraron ${compatibleEvents.length} eventos compatibles para ${definition.id}, pero ninguno cumple el contrato de calidad.`,
@@ -329,6 +335,11 @@ export const resolveEvidenceForControl = (
     return {
       ...baseEvidence,
       status: resolvedStatus,
+      // El agente ha reportado y él mismo declara que no ha podido medir; su
+      // `motivo` dice por qué y viaja en los atributos hasta la tarjeta. No es
+      // un fallo de recogida —el dato llegó— sino del productor de la evidencia.
+      gapCause:
+        resolvedStatus === 'NO_EVALUABLE' ? 'EVIDENCE' : undefined,
       relatedRules: Array.from(
         new Set([
           ...definition.relatedRules,

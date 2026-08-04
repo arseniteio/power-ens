@@ -1,4 +1,4 @@
-import { ENSComplianceStatus } from '../evaluation/types';
+import { ENSComplianceStatus, ENSGapCause } from '../evaluation/types';
 import { ENSLevel } from '../../configuration/types';
 import { ENSDataSourceType } from '../data-source/types';
 
@@ -128,6 +128,20 @@ export interface ENSEvidenceResolved {
   latestSuccessfulEventId?: string;
   latestSuccessfulAttributes?: Record<string, unknown>;
   observations: string[];
+
+  // POR QUÉ no hay medida, cuando no la hay. Solo viaja con `status`
+  // NO_EVALUABLE, y es lo que evita que la causa del incumplimiento se tenga que
+  // adivinar leyendo el texto del motivo:
+  //
+  //   COLLECTION     no ha llegado nada: agente caído, recolector sin ejecutar,
+  //                  sin latido. Problema de RECOGIDA, no de la máquina.
+  //   EVIDENCE       llegó el dato pero no basta: contrato de calidad, campo
+  //                  ilegible, o el agente declara que no ha podido medir.
+  //   CONFIGURATION  falta el parámetro contra el que juzgar, o está vacío.
+  //
+  // Nunca CATALOG: esa causa es del requisito, no de la evidencia — es la de un
+  // requisito que no declara ninguna.
+  gapCause?: ENSGapCause;
 }
 
 // La parte de la evidencia resuelta que se copia tal cual desde el catálogo,
@@ -137,6 +151,7 @@ export type ENSEvidenceBaseFields = Omit<
   ENSEvidenceResolved,
   | 'status'
   | 'observations'
+  | 'gapCause'
   | 'lastSeen'
   | 'agentId'
   | 'agentName'

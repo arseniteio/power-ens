@@ -20,8 +20,54 @@ export interface ENSObservationGroup {
   agents: ENSAgentRef[];
 }
 
-// Un hallazgo de incumplimiento DEMOSTRADO: se ha medido y el resultado no
-// conforma. Es lo único que puede abrir una no conformidad.
+// Cómo se ha llegado al incumplimiento. El VEREDICTO es el mismo en los dos
+// casos —NO_CUMPLE—, pero ni la acción ni quién la ejecuta lo son, y esa es
+// justo la información que no se puede perder:
+//
+//   MEDIDA          se ha mirado y el resultado no conforma. Es un hallazgo
+//                   sobre el sistema: hay algo que corregir en la máquina.
+//   NO_EVIDENCIADA  no se ha podido demostrar. La carga de la prueba es del
+//                   auditado, así que cuenta en contra igual — pero lo que hay
+//                   que hacer es habilitar la prueba, no corregir la máquina.
+//
+// Decisión del responsable del 04/08. Revierte la parte de `346e56b` que
+// publicaba `NO_EVALUABLE` sin número: un auditor no escribe «no evaluable»,
+// escribe «no evidenciado» y lo cuenta en contra. Lo que `346e56b` sí acertó
+// —y aquí se conserva entero— es que las dos cosas no se explican igual.
+export type ENSNonConformityOrigin = 'MEDIDA' | 'NO_EVIDENCIADA';
+
+// De quién es el hueco cuando el incumplimiento es NO_EVIDENCIADA. Es lo que
+// decide a quién le toca arreglarlo, y por eso se publica en vez de quedarse
+// dentro del texto:
+//
+//   CATALOG       el producto no declara qué acreditaría el requisito. Es
+//                 cierto para todas las máquinas por igual y no cambia por
+//                 mirar otra: NO es un hallazgo por máquina y consolidando
+//                 nunca se multiplica ni se atribuye a un agente.
+//   CONFIGURATION falta un parámetro obligatorio, o la política declarada está
+//                 vacía. Es del despliegue del cliente, no de una máquina en
+//                 concreto, pero afecta a las que se nombran. Lo arregla quien
+//                 configura ENSFácil.
+//   COLLECTION    no ha llegado NADA de esa máquina: agente caído, recolector
+//                 sin ejecutar, sin latido. **No es un hallazgo sobre la
+//                 máquina, es un fallo de RECOGIDA**, y lo arregla quien opera
+//                 Wazuh y los agentes — otra persona y otra acción.
+//   EVIDENCE      el dato llegó pero no basta para pronunciarse: contrato de
+//                 calidad incumplido, campo ilegible, o el propio agente
+//                 declara que no ha podido medir y dice por qué. Lo arregla
+//                 quien mantiene el productor de la evidencia.
+export type ENSGapCause =
+  | 'CATALOG'
+  | 'CONFIGURATION'
+  | 'COLLECTION'
+  | 'EVIDENCE';
+
+// Un hallazgo de incumplimiento. UNA SOLA lista: hasta el 04/08 los huecos de
+// medida viajaban aparte, en `measurementGaps`, con su propio contador y su
+// propio color. Con el criterio nuevo eso ya no se sostiene —el veredicto es el
+// mismo— y mantener dos contadores invitaba a leer uno de ellos como «esto no
+// cuenta», que es exactamente lo que la decisión revierte. El diagnóstico no se
+// pierde: baja de ser una categoría de veredicto a ser `origin` + `cause`.
 export interface ENSNonConformity {
   id: string;
   evidenceId: string;
@@ -32,57 +78,26 @@ export interface ENSNonConformity {
   expected?: string;
   actual?: string;
 
+  // Medido y no conforme, o no evidenciado. Ver `ENSNonConformityOrigin`.
+  origin: ENSNonConformityOrigin;
+
+  // Solo en las `NO_EVIDENCIADA`. En las medidas no hay hueco del que hablar.
+  cause?: ENSGapCause;
+
   // Máquinas en las que se ha demostrado ESTE hallazgo, con este mismo texto.
   // Solo lo rellena la consolidación: una tarjeta idéntica en seis máquinas es
   // una tarjeta con seis máquinas, no seis tarjetas. Si el hallazgo difiere
   // (otra cuenta, otro valor), el texto difiere y son tarjetas distintas.
-  agents?: ENSAgentRef[];
-}
-
-// Un HUECO DE MEDIDA no es una no conformidad y por eso viaja aparte, con otro
-// identificador (PM-xxx), otro texto y otra acción.
-//
-// La máquina no ha incumplido nada: sencillamente no se ha podido medir. Antes
-// esto abría una NC ("El requisito op.acc.1.2 esta en estado PARCIAL", acción
-// "revisar las evidencias") indistinguible de un incumplimiento real, y el
-// auditor no tenía forma de saber si el sistema estaba mal o si faltaba un dato.
-// La acción de un hueco nunca es "revisar": es configurar el parámetro concreto
-// o arreglar el recolector que no está emitiendo.
-export interface ENSMeasurementGap {
-  id: string;
-  evidenceId: string;
-  requirementId: string;
-  finding: string;
-  impact: string;
-  requiredAction: string;
-
-  // De QUIÉN es el hueco, que es lo que decide a quién le toca arreglarlo:
-  //
-  //   CATALOG       el producto no declara qué acreditaría el requisito. Es
-  //                 cierto para todas las máquinas por igual y no cambia por
-  //                 mirar otra: NO es un hallazgo por máquina y consolidando
-  //                 nunca se multiplica ni se atribuye a un agente.
-  //   CONFIGURATION faltan parámetros obligatorios del control. Es del
-  //                 despliegue del cliente, no de una máquina en concreto,
-  //                 pero afecta a las que se nombran.
-  //   EVIDENCE      falta el dato de una máquina concreta.
-  //
-  // El motor ya distinguía las tres para redactar el texto y la acción; sin
-  // publicarlo, el consumidor tenía que adivinarlo del texto.
-  cause: 'CATALOG' | 'CONFIGURATION' | 'EVIDENCE';
-
-  // Máquinas en las que falta ESTA medida, con este mismo texto. Igual que en
-  // `ENSNonConformity`, solo lo rellena la consolidación. Vacío en los huecos
-  // de causa CATALOG: no hay máquina a la que atribuirlos.
+  // Vacío en las de causa CATALOG: no hay máquina a la que atribuirlas.
   agents?: ENSAgentRef[];
 
-  // Todas las evidencias del requisito que no se han podido medir, no solo la
-  // primera: `evidenceId` existe para que la tarjeta tenga un ancla, pero el
-  // que va a configurar necesita la lista entera.
+  // Todas las evidencias implicadas, no solo la primera: `evidenceId` existe
+  // para que la tarjeta tenga un ancla, pero el que va a arreglarlo necesita la
+  // lista entera.
   evidenceIds: string[];
 
-  // Parámetros de la pantalla de Configuración que acreditan esas evidencias.
-  // Es lo que convierte "falta medir" en una acción ejecutable.
+  // Parámetros de la pantalla de Configuración que desbloquearían la medida. Es
+  // lo que convierte «no se ha podido demostrar» en una acción ejecutable.
   parameterIds: string[];
 }
 
@@ -106,6 +121,16 @@ export interface ENSRequirementResult {
   title: string;
   status: ENSComplianceStatus;
   level: ENSLevel[];
+
+  // ¿Se ha llegado a medir? Con `status` a NO_CUMPLE, esto es lo que distingue
+  // «hemos mirado y está mal» de «no lo has podido demostrar». El veredicto no
+  // lo dice porque el veredicto es el mismo a propósito.
+  //
+  // `false` en un requisito NO_APLICA no significa nada: ahí no hay nada que
+  // medir. Consolidando entre agentes es `true` solo si TODAS las máquinas lo
+  // midieron: basta una sin demostrar para que el conjunto no esté demostrado.
+  evidenced?: boolean;
+
   observations: string[];
 
   // Los mismos motivos sin aplanar. Como en `ENSEvidenceResult`, solo lo
@@ -216,21 +241,26 @@ export interface ENSComplianceResult {
   level: ENSLevel;
   status: ENSComplianceStatus;
 
-  // OPCIONAL a propósito. Un control NO_EVALUABLE o NO_APLICA se publica SIN
-  // número, nunca con un cero: el cero es una afirmación en rojo ("0 % de
-  // cumplimiento") sobre algo que no se ha medido, del mismo género que el
-  // CUMPLE falso que el principio rector prohíbe. Mismo contrato que el
-  // `score_snapshot` de los tres agentes, que ya omite el campo.
+  // OPCIONAL, y desde el 04/08 solo falta en un caso: NO_APLICA. Un control que
+  // no aplica no se puntúa —el 0 se pinta en rojo igual que un incumplimiento
+  // real—, pero todo lo que aplica SIEMPRE trae número, porque todo lo que
+  // aplica tiene veredicto. Antes también se omitía en NO_EVALUABLE, y ese
+  // hueco sin número es el que dejaba fuera del porcentaje lo no demostrado.
   score?: number;
 
   coverage: number;
 
-  // Qué mide el porcentaje, sin tener que cruzarlo con nada: `score` es el
-  // porcentaje de `measuredRequirements` que conforma, y `applicableRequirements`
-  // dice sobre cuántos debería haberse podido pronunciar el control. Sin este
-  // par, un 50 no se distingue de otro: "la mitad de todo incumple" y "de los
-  // dos requisitos que se pudieron medir, uno conforma" son fotos muy distintas
-  // de la misma máquina. Mismos campos que `requisitos_aplicables` /
+  // El DENOMINADOR del porcentaje es `applicableRequirements`, no
+  // `measuredRequirements`. Entre el 30/07 y el 04/08 fue al revés, y tenía
+  // sentido mientras un requisito sin medir no era un incumplimiento: dejarlo
+  // en el denominador lo hacía restar igual que uno incumplido, que era
+  // precisamente el error. Con el criterio nuevo eso deja de ser un error y
+  // pasa a ser la definición: lo no demostrado NO CUMPLE, luego resta.
+  //
+  // `measuredRequirements` sigue publicándose, pero ya no divide nada: ahora es
+  // el DIAGNÓSTICO. «60 %, 5 de 8 requisitos demostrados» y «60 %, 8 de 8
+  // demostrados» son dos máquinas muy distintas con el mismo número, y el par
+  // es lo que las separa. Mismos campos que `requisitos_aplicables` /
   // `requisitos_medidos` de los agentes.
   applicableRequirements: number;
   measuredRequirements: number;
@@ -248,11 +278,13 @@ export interface ENSComplianceResult {
   missingEvidences: string[];
   relatedRules: string[];
 
+  // TODAS las no conformidades, medidas y no evidenciadas, en una sola lista y
+  // con un solo contador. Quien quiera separarlas filtra por `origin`, que es
+  // lo que hace la pantalla para presentarlas en dos bloques bajo un único
+  // total. La lista `measurementGaps` que vivía aquí ya no existe: dos listas
+  // con dos contadores es lo que permitía leer una de ellas como «esto no
+  // cuenta».
   nonConformities: ENSNonConformity[];
-
-  // Lista aparte, nunca fusionada con la anterior. El recuento de "no
-  // conformidades abiertas" que ve el auditor sale solo de `nonConformities`.
-  measurementGaps: ENSMeasurementGap[];
 
   observations: string[];
   traceability: ENSTraceabilityResult[];
