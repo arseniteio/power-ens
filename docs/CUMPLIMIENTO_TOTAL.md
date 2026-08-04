@@ -978,7 +978,7 @@ en BAJO, MEDIO y ALTO (5 requisitos). `mp.info.6.r1.1` añade MEDIO (6).
 | **EV-01** | Hay una copia correcta dentro de la ventana | `PBS_HOST`, `PBS_REPO`, `PBS_PASSWORD`, `PBS_BACKUP_DIR`, `PBS_BACKUP_ID`, `MPINFO6_FRECUENCIA_HORAS`, `MPINFO6_TOLERANCIA_HORAS` | `NO_EVALUABLE` en rodaje; **`NO_CUMPLE`** en régimen sin copia | **Sí**: cada cuánto se copia y qué margen se tolera |
 | **EV-02** | La copia está planificada | `MPINFO6_CRON_FICHERO` + `MPINFO6_CRON_PATRON` (el cron ya lo instala `install-real.sh`) | **`NO_CUMPLE`** si no encuentra el patrón | No |
 | **EV-03** | Hay rutas locales de copia **con contenido** | `MPINFO6_RUTAS_BACKUP` | `NO_EVALUABLE` con motivo si está vacío | **Sí**: si hay copia local, y dónde |
-| **EV-04** | El keyfile no da permisos a grupo ni a otros | **`MPINFO6_KEYFILE`** (ojo: **no** `PBS_KEYFILE`, ver abajo) | `NO_EVALUABLE` si no existe; **`NO_CUMPLE`** si los da | No |
+| **EV-04** | El keyfile no da permisos a grupo ni a otros | **`PBS_KEYFILE`**, la misma que cifra (ver §8.2 si el `.env` trae `MPINFO6_KEYFILE`) | `NO_EVALUABLE` si no existe; **`NO_CUMPLE`** si los da | No |
 | **EV-05** | Hay una restauración validada con md5 dentro del plazo | `ENS_RESTORE_ARCHIVE` + `ENS_RESTORE_CANARY` + `MPINFO6_RESTORE_MAX_DIAS` | `NO_EVALUABLE` (nunca `NO_CUMPLE`). `NO_APLICA` en BAJO | **Sí**: cada cuánto se prueba a restaurar, y sobre qué |
 | **EV-06** | La copia se replica a ubicación alternativa | **nada que configurar: no se recoge** | `NO_APLICA` en BAJO/MEDIO, **`NO_EVALUABLE` en ALTO** | — (hueco estructural) |
 | **EV-07** | Sin errores del agente de backup ni cambio de clave de cifrado | Nada | `NO_EVALUABLE` en rodaje; **`NO_CUMPLE`** con errores | No |
@@ -1009,36 +1009,67 @@ PBS_BACKUP_ID="srv-app-01"
 > (defecto `2`) el margen antes de declarar el incumplimiento. La ventana de
 > EV-01 es la suma. Subirlos hace el control más laxo y **queda declarado**.
 
-### 8.2 EV-04 · El keyfile lo nombran DOS variables distintas
+### 8.2 EV-04 · El keyfile tiene UN solo nombre: `PBS_KEYFILE`
 
-**Este es un fallo real del producto, verificado en el código, y hay que
-saberlo.**
+**Esta sección describía un falso verde real del producto. Ya está cerrado en el
+código; se mantiene porque hay que saber migrar los `.env` que vienen de antes.**
 
-- `PBS_KEYFILE` es la que usan `pxbackup.sh`, `lib/pxbackup-lib.sh` y
-  `ens_mpinfo6_restore_test.sh` para **cifrar y restaurar**.
-- El **veredicto de EV-04** lo calcula `scripts/ens_mpinfo6_score.py`, que lee
-  **`MPINFO6_KEYFILE`** (línea 137: `os.environ.get("MPINFO6_KEYFILE", …)`).
-
-Las dos tienen el **mismo valor de fábrica**
-(`/var/lib/proxmox-backup/proxmox-backup.key`), así que en una instalación
-estándar coinciden y la diferencia no se nota. Se nota en cuanto se **mueve el
-keyfile**: declarando solo `PBS_KEYFILE`, la copia se cifra con la clave nueva
-mientras EV-04 sigue midiendo los permisos de la ruta de fábrica. Si allí ya no
-hay nada, `NO_EVALUABLE`; y si quedó el fichero viejo con permisos correctos,
-**un `CUMPLE` sobre una clave que ya no está en uso** — un falso verde.
-
-**Si mueves el keyfile, declara las dos con el mismo valor:**
+`PBS_KEYFILE` es la variable que `pxbackup.sh`, `lib/pxbackup-lib.sh` y
+`ens_mpinfo6_restore_test.sh` pasan a `proxmox-backup-client --keyfile` —el
+fichero que **de verdad cifra** las copias— y es de la que
+`scripts/ens_mpinfo6_score.py` resuelve el veredicto de EV-04. **Si mueves el
+keyfile, cambias esa línea y ya está.**
 
 ```bash
 PBS_KEYFILE="/ruta/nueva/proxmox-backup.key"
-MPINFO6_KEYFILE="/ruta/nueva/proxmox-backup.key"
 ```
 
-**No dejes `MPINFO6_KEYFILE` definida y vacía**: `score.py` cae a su valor por
-defecto solo cuando la variable **no existe**, así que una cadena vacía apunta a
-la ruta vacía y EV-04 sale `NO_EVALUABLE`. O la pones con ruta, o no la pones.
+#### El fallo que había, y por qué importa
 
-**Arreglar la máquina (vía 1) y comprobar:**
+`score.py` leía **`MPINFO6_KEYFILE`**, un nombre que no usaba ningún otro script
+y que ni el `.env.example` ni esta guía enseñaban a poner. Los dos valores de
+fábrica son la misma ruta (`/var/lib/proxmox-backup/proxmox-backup.key`), así
+que **una instalación estándar funcionaba por casualidad**. Al mover la clave:
+
+1. El cliente cambiaba `PBS_KEYFILE` — lo único documentado.
+2. La copia pasaba a cifrarse con la clave nueva.
+3. EV-04 seguía midiendo los permisos de la **ruta de fábrica**.
+4. Si allí quedaba el fichero antiguo con 600: **`CUMPLE` sobre una clave que ya
+   no se usa.**
+
+Cumplimiento afirmado sobre el artefacto equivocado, que es justo lo que el
+principio rector de este producto prohíbe.
+
+#### Qué hace hoy, caso por caso
+
+`MPINFO6_KEYFILE` **se sigue aceptando** como alias obsoleto: borrarla habría
+dejado sin configurar, en silencio, a toda máquina que ya la tuviera en su
+`.env` — el mismo fallo por el otro lado.
+
+| Qué hay en el `.env` | Qué mide EV-04 |
+|---|---|
+| solo `PBS_KEYFILE` | ese fichero. **Es lo correcto** |
+| solo `MPINFO6_KEYFILE` | ese fichero, y deja un **`collector_warning` en cada pasada** pidiendo que la renombres |
+| las dos, misma ruta | ese fichero, con el mismo aviso. Se comparan por `realpath` |
+| las dos, **rutas distintas** | nada: **`NO_EVALUABLE`** con motivo, y EV-04 sale de `evidencias_cubiertas`. Esa máquina declara dos keyfiles; acreditar los permisos de uno afirmaría el control de acceso sobre el otro |
+| ninguna, o vacías | el valor de fábrica. Una variable vacía cuenta como **no declarada** |
+
+#### Migrar un `.env` antiguo
+
+```bash
+sudo sed -i 's/^MPINFO6_KEYFILE=/PBS_KEYFILE=/' /etc/ensfacil/mpinfo6.env
+sudo grep -c '^PBS_KEYFILE=' /etc/ensfacil/mpinfo6.env   # esperado: 1, no 2
+```
+
+Si sale `2`, borra la línea duplicada dejando la que apunta a la clave en uso.
+Comprobar que ya no queda aviso:
+
+```bash
+sudo jq -c 'select(.event=="collector_warning")|.detalle' \
+  /var/log/ensfacil/mp_info_6.json | grep KEYFILE     # esperado: sin salida
+```
+
+**Arreglar los permisos de la máquina y comprobar:**
 
 ```bash
 sudo chmod 600 /var/lib/proxmox-backup/proxmox-backup.key
@@ -1281,15 +1312,21 @@ Los requisitos salen `CUMPLE` con esa medida más estrecha. Es una limitación d
 alcance declarada, no un falso verde, pero un auditor exigente puede pedir
 evidencia documental adicional de la retención.
 
-### 11.3 mp.info.6 · el keyfile con dos nombres
+### 11.3 mp.info.6 · el keyfile con dos nombres · CERRADO
 
-Descrito en §8.2. **Mientras no se unifique en el código, mover el keyfile sin
-declarar `MPINFO6_KEYFILE` puede producir un `CUMPLE` sobre una clave que ya no
-se usa.** Con las dos variables declaradas al mismo valor, el problema
-desaparece; sin tocarlas, la instalación de fábrica es correcta.
+Descrito en §8.2. Era el único **falso verde posible** que esta guía había
+encontrado en los tres controles: mover el keyfile sin declarar
+`MPINFO6_KEYFILE` producía un `CUMPLE` sobre una clave que ya no se usa.
 
-Es el único **falso verde posible** que esta guía ha encontrado en los tres
-controles, y por eso está señalado tres veces.
+**Ya no es un límite del producto.** EV-04 se resuelve desde `PBS_KEYFILE`, la
+misma variable que cifra, así que la evidencia mide por construcción el fichero
+que protege las copias. `MPINFO6_KEYFILE` sobrevive solo como alias obsoleto que
+avisa, y dos rutas distintas declaradas a la vez dan `NO_EVALUABLE` en vez de
+elegir una.
+
+**Lo único que queda es operativo:** un `.env` heredado puede seguir trayendo el
+nombre viejo. No produce un falso verde —mide lo que nombra, y lo avisa en cada
+pasada— pero conviene migrarlo con el `sed` del §8.2.
 
 ### 11.4 op.acc.1 · el 100 % del agente no es el 100 % del control
 
