@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
   EuiBadge, EuiHealth, EuiBasicTable, EuiButton, EuiHorizontalRule,
-  EuiButtonIcon,
+  EuiButtonIcon, EuiAccordion, EuiButtonEmpty, EuiCallOut, EuiFieldSearch,
+  EuiFilterGroup, EuiFilterButton,
 } from '@elastic/eui';
 import { useRouterSearch } from '../../../common/hooks';
 import { useEsSearch } from '../../../common/hooks/use-es-search';
@@ -22,7 +23,12 @@ import { buildMpInfo6ReportModel } from './report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
 import { ENSControls } from '../data';
-import { EuiFilterGroup, EuiFilterButton } from '@elastic/eui';
+import {
+  compareENSIds,
+  filterByENSPrefix,
+  listENSFamilies,
+  resolveENSSectionOpenState,
+} from '../control-filter/prefix';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -143,6 +149,14 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
         scopeAgents,
       ),
     [
+      // `controlId` en las dependencias, y no solo en las de `reportModel`:
+      // faltaba, y hasta ahora el selector de control renderizaba SIEMPRE el
+      // mismo `<ControlReport>` sin `key`, así que React reutilizaba la
+      // instancia al cambiar de control y el resultado del motor se quedaba
+      // congelado en el anterior mientras el modelo de informe sí cambiaba —
+      // un informe de op.acc.2 con los datos de op.acc.1. Cada sección lleva
+      // ahora su `key`, pero la dependencia que faltaba se arregla igual.
+      controlId,
       ensLevel,
       normalizedEvents,
       agentId,
@@ -788,8 +802,11 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
     (pdfMake as any).createPdf(docDefinition).download(nombre);
   };
 
+  // Sin panel propio: el informe se renderiza ya dentro de la sección plegable
+  // de su control, que es la que pone el marco. Anidar dos paneles solo añadía
+  // un borde dentro de otro.
   return (
-    <EuiPanel paddingSize='l'>
+    <>
       <EuiFlexGroup justifyContent='spaceBetween' alignItems='flexStart'>
         <EuiFlexItem>
           <EuiTitle size='m'><h2>{CONTROL_META[controlId]?.name || controlId}</h2></EuiTitle>
@@ -905,19 +922,103 @@ const ControlReport = ({ controlId }: { controlId: string }) => {
       >
         Exportar PDF
       </EuiButton>
-    </EuiPanel>
+    </>
   );
 };
 
-const GENERAL = '__ALL__';
+// Un control en la lista de informes. Todo sale del catálogo estático, sin
+// consultar a OpenSearch: es lo que permite listar los controles sin evaluar
+// ninguno.
+interface ControlReportEntry {
+  controlId: string;
+  title: string;
+  levels: string;
+  requirementCount: number;
+  evidenceCount: number;
 
-// Componente público: selector de control (General / cada control) + render.
+  // Identificadores por los que responde al filtro: el del control y los de sus
+  // requisitos, del mismo espacio jerárquico (`op.acc.1`, `op.acc.1.2`).
+  filterableIds: string[];
+}
+
+// Cabecera plegable de un control. NO lleva semáforo a propósito: el estado sale
+// de evaluar, y evaluar es justamente lo que se aplaza hasta que la sección se
+// abre. Poner aquí un color exigiría lanzar las N consultas que este cambio
+// evita, y un color obtenido a medias sería peor que no ponerlo. El estado
+// consolidado de un vistazo está en la pestaña Controles.
+const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
+  <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
+    <EuiFlexItem grow={false}>
+      <EuiText size='s'>
+        <strong>{entry.controlId}</strong> — {entry.title}
+      </EuiText>
+    </EuiFlexItem>
+
+    <EuiFlexItem grow={false}>
+      <EuiBadge color='hollow'>{entry.levels}</EuiBadge>
+    </EuiFlexItem>
+
+    <EuiFlexItem grow={false}>
+      <EuiBadge color='default'>
+        {entry.requirementCount} requisito(s) · {entry.evidenceCount}{' '}
+        evidencia(s)
+      </EuiBadge>
+    </EuiFlexItem>
+  </EuiFlexGroup>
+);
+
+// Componente público: filtro por prefijo + un informe plegable por control.
 export const InformesENS = () => {
-  const [selectedControlId, setSelectedControlId] = React.useState<string>(
-    GENERAL,
+  const [prefix, setPrefix] = React.useState<string>('');
+
+  const [openControlIds, setOpenControlIds] = React.useState<
+    Record<string, boolean | undefined>
+  >({});
+
+  // Cambiar el filtro devuelve las secciones a su estado por defecto.
+  const applyPrefix = (value: string) => {
+    setPrefix(value);
+    setOpenControlIds({});
+  };
+
+  const entries: ControlReportEntry[] = React.useMemo(
+    () =>
+      ENSControls.map(control => ({
+        controlId: control.id,
+        title: control.title,
+        levels: control.scope.activeLevels.join(', '),
+        requirementCount: control.requirements.length,
+        evidenceCount: control.evidences.length,
+        filterableIds: [
+          control.id,
+          ...control.requirements.map(requirement => requirement.id),
+        ],
+      })).sort((a, b) => compareENSIds(a.controlId, b.controlId)),
+    [],
   );
 
-  const isGeneral = selectedControlId === GENERAL;
+  const families = React.useMemo(
+    () => listENSFamilies(entries.map(entry => entry.controlId)),
+    [entries],
+  );
+
+  const filtered = React.useMemo(
+    () => filterByENSPrefix(entries, prefix, entry => entry.filterableIds),
+    [entries, prefix],
+  );
+
+  const isOpen = (controlId: string): boolean =>
+    resolveENSSectionOpenState(
+      openControlIds,
+      controlId,
+      filtered.matched.length,
+    );
+
+  const toggleControl = (controlId: string, nextIsOpen: boolean) =>
+    setOpenControlIds(current => ({
+      ...current,
+      [controlId]: nextIsOpen,
+    }));
 
   return (
     <>
@@ -927,41 +1028,154 @@ export const InformesENS = () => {
         </EuiTitle>
         <EuiText size='s' color='subdued'>
           <p>
-            Selecciona un control para ver su informe, o General para revisar
-            todos los controles evaluados.
+            Filtra por prefijo del identificador ENS y despliega el control cuyo
+            informe quieras ver. Cada informe se evalúa al abrirlo.
           </p>
         </EuiText>
+
         <EuiSpacer size='s' />
-        <EuiFilterGroup>
-          <EuiFilterButton
-            hasActiveFilters={isGeneral}
-            onClick={() => setSelectedControlId(GENERAL)}
-          >
-            General
-          </EuiFilterButton>
-          {ENSControls.map(control => (
-            <EuiFilterButton
-              key={control.id}
-              hasActiveFilters={selectedControlId === control.id}
-              onClick={() => setSelectedControlId(control.id)}
-            >
-              {control.id}
-            </EuiFilterButton>
-          ))}
-        </EuiFilterGroup>
+
+        <EuiFlexGroup gutterSize='m' alignItems='center' wrap>
+          <EuiFlexItem grow={false}>
+            <EuiFilterGroup>
+              <EuiFilterButton
+                hasActiveFilters={!filtered.isActive}
+                onClick={() => applyPrefix('')}
+              >
+                Todos
+              </EuiFilterButton>
+              {families.map(family => (
+                <EuiFilterButton
+                  key={family}
+                  hasActiveFilters={filtered.query === family}
+                  onClick={() => applyPrefix(family)}
+                >
+                  {family}
+                </EuiFilterButton>
+              ))}
+            </EuiFilterGroup>
+          </EuiFlexItem>
+
+          <EuiFlexItem>
+            <EuiFieldSearch
+              fullWidth
+              incremental
+              isClearable
+              placeholder='Filtrar por prefijo: op.acc, op.acc.1, op.acc.1.2…'
+              aria-label='Filtrar controles por prefijo del identificador ENS'
+              value={prefix}
+              onChange={(event: { target: { value: string } }) =>
+                applyPrefix(event.target.value)
+              }
+            />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+
+        <EuiSpacer size='s' />
+
+        <EuiFlexGroup
+          gutterSize='s'
+          alignItems='center'
+          wrap
+          responsive={false}
+        >
+          <EuiFlexItem grow={false}>
+            <EuiText size='xs' color='subdued'>
+              <p>
+                {filtered.isActive
+                  ? `Mostrando ${filtered.matched.length} de ${entries.length} control(es); ${filtered.hidden.length} fuera del filtro.`
+                  : `${entries.length} control(es). Sin filtro.`}
+              </p>
+            </EuiText>
+          </EuiFlexItem>
+
+          {filtered.isActive && (
+            <EuiFlexItem grow={false}>
+              <EuiBadge color='accent'>Filtro: {filtered.query}</EuiBadge>
+            </EuiFlexItem>
+          )}
+
+          {filtered.isActive && (
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                size='xs'
+                iconType='cross'
+                onClick={() => applyPrefix('')}
+              >
+                Quitar filtro
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          )}
+        </EuiFlexGroup>
+
+        {/* Los informes que el filtro deja fuera se nombran uno a uno: son
+            pocos por definición y decir cuáles evita que un control con
+            hallazgos desaparezca sin más de la pantalla. */}
+        {filtered.isActive && filtered.hidden.length > 0 && (
+          <>
+            <EuiSpacer size='s' />
+            <EuiText size='xs' color='subdued'>
+              <p>
+                Sin informe en pantalla por el filtro:{' '}
+                {filtered.hidden.map(entry => entry.controlId).join(', ')}.
+              </p>
+            </EuiText>
+          </>
+        )}
       </EuiPanel>
 
       <EuiSpacer size='m' />
 
-      {isGeneral ? (
-        ENSControls.map(control => (
-          <React.Fragment key={control.id}>
-            <ControlReport controlId={control.id} />
-            <EuiSpacer size='l' />
+      {filtered.matched.length === 0 ? (
+        <EuiPanel paddingSize='m'>
+          <EuiCallOut
+            size='s'
+            color='warning'
+            iconType='search'
+            title={`Ningún control coincide con «${filtered.query}»`}
+          >
+            <EuiText size='s'>
+              <p>
+                Sin filtro hay {entries.length} control(es) con informe
+                disponible.
+              </p>
+            </EuiText>
+            <EuiSpacer size='s' />
+            <EuiButtonEmpty
+              size='s'
+              iconType='cross'
+              onClick={() => applyPrefix('')}
+            >
+              Quitar filtro
+            </EuiButtonEmpty>
+          </EuiCallOut>
+        </EuiPanel>
+      ) : (
+        filtered.matched.map(entry => (
+          <React.Fragment key={entry.controlId}>
+            <EuiPanel paddingSize='m'>
+              <EuiAccordion
+                id={`ens-informe-${entry.controlId.replace(/\./g, '-')}`}
+                buttonContent={<ControlReportHeader entry={entry} />}
+                forceState={isOpen(entry.controlId) ? 'open' : 'closed'}
+                onToggle={(nextIsOpen: boolean) =>
+                  toggleControl(entry.controlId, nextIsOpen)
+                }
+                paddingSize='m'
+              >
+                {/* Montado SOLO cuando la sección está abierta. Cada
+                    `<ControlReport>` lanza su propia consulta a OpenSearch y la
+                    repite cada 15 s: con los tres controles de hoy eran tres
+                    consultas en marcha a la vez sin haber pedido nada, y con
+                    treinta serían treinta. Cerrado no consulta. */}
+                {isOpen(entry.controlId) ? (
+                  <ControlReport controlId={entry.controlId} />
+                ) : null}
+              </EuiAccordion>
+            </EuiPanel>
+            <EuiSpacer size='m' />
           </React.Fragment>
         ))
-      ) : (
-        <ControlReport controlId={selectedControlId} />
       )}
     </>
   );
