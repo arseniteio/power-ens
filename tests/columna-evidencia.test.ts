@@ -320,76 +320,95 @@ bloque('2 · la evidencia que aparece es la que el modelo declara');
 }
 
 // ---------------------------------------------------------------------------
-bloque('3 · un hueco de medida no se pinta como un incumplimiento');
+bloque('3 · lo no demostrado cuenta, y el informe lo sigue distinguiendo');
 //
 // EJE ÚNICO: la misma evaluación, la misma configuración, el mismo nivel y las
-// mismas ocho evidencias; solo EV-05 cambia de NO_CUMPLE a NO_EVALUABLE. El
-// motor mantiene las dos cosas separadas (`nonConformities` / `measurementGaps`)
-// y el documento firmado no las puede fundir.
+// mismas ocho evidencias; solo EV-05 cambia de NO_CUMPLE a NO_EVALUABLE.
+//
+// Este bloque probaba lo contrario hasta el 04/08: que un hueco de medida NO
+// abría no conformidad. Con el criterio del responsable la abre —la carga de la
+// prueba es del auditado—, pero el documento firmado tiene que seguir diciendo
+// CUÁL de las dos cosas es, porque las acciones son distintas y las ejecutan
+// personas distintas. Eso es exactamente lo que se comprueba aquí.
 
 {
   const conIncumplimiento = evaluaOpAcc1({ 'EV-05': 'NO_CUMPLE' });
   const conHueco = evaluaOpAcc1({ 'EV-05': 'NO_EVALUABLE' });
 
-  // Primero, que el eje sea el que se dice: el motor los separa.
+  const tarjetaDe = (
+    resultado: ENSComplianceResult,
+    requisitoId: string,
+  ) =>
+    resultado.nonConformities.find(
+      item => item.requirementId === requisitoId,
+    );
+
+  // Primero, que el eje sea el que se dice: los dos abren tarjeta, y el motor
+  // las marca distinto.
   comprueba(
-    'motor · EV-05 en NO_CUMPLE abre no conformidad',
-    conIncumplimiento.nonConformities.length > 0 &&
-      conIncumplimiento.measurementGaps.every(
-        hueco => hueco.evidenceIds.indexOf('EV-05') === -1
-      ),
-    `${conIncumplimiento.nonConformities.length} NC / ${conIncumplimiento.measurementGaps.length} PM`
+    'motor · EV-05 en NO_CUMPLE abre una no conformidad MEDIDA',
+    tarjetaDe(conIncumplimiento, 'op.acc.1.2')?.origin === 'MEDIDA',
+    String(tarjetaDe(conIncumplimiento, 'op.acc.1.2')?.origin),
   );
 
   comprueba(
-    'motor · EV-05 sin medir NO abre no conformidad, abre hueco de medida',
-    conHueco.nonConformities.length === 0 &&
-      conHueco.measurementGaps.some(
-        hueco => hueco.evidenceIds.indexOf('EV-05') >= 0
-      ),
-    `${conHueco.nonConformities.length} NC / ${conHueco.measurementGaps.length} PM`
+    'motor · EV-05 sin demostrar TAMBIÉN abre no conformidad, pero NO_EVIDENCIADA',
+    tarjetaDe(conHueco, 'op.acc.1.2')?.origin === 'NO_EVIDENCIADA',
+    String(tarjetaDe(conHueco, 'op.acc.1.2')?.origin),
+  );
+
+  comprueba(
+    'motor · las dos cuentan: ninguna de las dos evaluaciones sale sin tarjeta',
+    conIncumplimiento.nonConformities.length > 0 &&
+      conHueco.nonConformities.length > 0,
+    `${conIncumplimiento.nonConformities.length} / ${conHueco.nonConformities.length}`,
   );
 
   const filaIncumple = filaDe(
     buildENSReportRows(buildOpAcc1ReportModel(conIncumplimiento)),
-    'op.acc.1.servicio'
+    'op.acc.1.servicio',
   );
 
   const filaHueco = filaDe(
     buildENSReportRows(buildOpAcc1ReportModel(conHueco)),
-    'op.acc.1.servicio'
+    'op.acc.1.servicio',
   );
 
   comprueba(
     'informe · el incumplimiento demostrado sale NO_CUMPLE',
     filaIncumple.estado === 'NO_CUMPLE',
-    filaIncumple.estado
+    filaIncumple.estado,
   );
 
+  // La fila de una EVIDENCIA describe la PRUEBA, no el veredicto del requisito:
+  // «no ha llegado» y «ha llegado y falla» no se pueden imprimir igual, o el
+  // auditor pierde la única pista de a quién le toca actuar. El veredicto —que
+  // sí es el mismo— lo lleva la fila de puntuación, dos comprobaciones más
+  // abajo.
   comprueba(
-    'informe · el hueco de medida NO sale como NO_CUMPLE',
+    'informe · lo no demostrado se sigue distinguiendo de lo medido',
     filaHueco.estado === 'NO_EVALUABLE',
-    filaHueco.estado
+    filaHueco.estado,
   );
 
   // Y en el PDF, que es el documento que se firma: colores distintos, y el del
-  // hueco no es el rojo del incumplimiento.
+  // hueco no es el rojo del incumplimiento medido.
   comprueba(
-    'PDF · el hueco de medida no se imprime del color del incumplimiento',
+    'PDF · lo no demostrado no se imprime del color del incumplimiento medido',
     ensReportStatusPdfColor(filaHueco.estado) !==
       ensReportStatusPdfColor(filaIncumple.estado),
     `${ensReportStatusPdfColor(filaHueco.estado)} / ${ensReportStatusPdfColor(
-      filaIncumple.estado
-    )}`
+      filaIncumple.estado,
+    )}`,
   );
 
   comprueba(
-    'pantalla · la insignia del hueco no lleva el color de peligro',
+    'pantalla · la insignia de lo no demostrado no lleva el color de peligro',
     ensReportStatusBadgeColor(filaHueco.estado) !== 'danger' &&
       ensReportStatusBadgeColor(filaIncumple.estado) === 'danger',
     `${ensReportStatusBadgeColor(
-      filaHueco.estado
-    )} / ${ensReportStatusBadgeColor(filaIncumple.estado)}`
+      filaHueco.estado,
+    )} / ${ensReportStatusBadgeColor(filaIncumple.estado)}`,
   );
 
   // Control negativo del comparador de colores: si devolviera cualquier cosa
@@ -397,7 +416,41 @@ bloque('3 · un hueco de medida no se pinta como un incumplimiento');
   comprueba(
     'PDF · dos filas del mismo estado sí comparten color',
     ensReportStatusPdfColor(filaHueco.estado) ===
-      ensReportStatusPdfColor('NO_EVALUABLE')
+      ensReportStatusPdfColor('NO_EVALUABLE'),
+  );
+
+  // La OTRA mitad, y la que cambia con el criterio nuevo: la fila que lleva el
+  // veredicto del control. Hasta el 04/08 el hueco la dejaba en «N/A» —un
+  // informe firmado sin porcentaje—; ahora trae número, porque lo no demostrado
+  // ya no se cae de la cuenta.
+  const puntuacionHueco = filaDe(
+    buildENSReportRows(buildOpAcc1ReportModel(conHueco)),
+    'op.acc.1.puntuacion',
+  );
+
+  const puntuacionIncumple = filaDe(
+    buildENSReportRows(buildOpAcc1ReportModel(conIncumplimiento)),
+    'op.acc.1.puntuacion',
+  );
+
+  comprueba(
+    'informe · el veredicto del control ya no sale sin número por un hueco',
+    puntuacionHueco.valor.indexOf('N/A') === -1 &&
+      puntuacionHueco.valor.indexOf('%') >= 0,
+    puntuacionHueco.valor,
+  );
+
+  comprueba(
+    'informe · y su estado ya no es NO_EVALUABLE',
+    puntuacionHueco.estado !== 'NO_EVALUABLE',
+    puntuacionHueco.estado,
+  );
+
+  comprueba(
+    'informe · el incumplimiento medido sigue trayendo su número',
+    puntuacionIncumple.valor.indexOf('N/A') === -1 &&
+      puntuacionIncumple.valor.indexOf('%') >= 0,
+    puntuacionIncumple.valor,
   );
 
   // La otra mitad del eje: en el informe entero solo se mueven las filas que

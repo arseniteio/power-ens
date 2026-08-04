@@ -252,6 +252,17 @@ const sumaPorAgente = (
 ): number =>
   agentes.reduce((total, agente) => total + selector(agente.results[0]), 0);
 
+// Hasta el 04/08 esto vivía en una lista propia, `measurementGaps`. Desde la
+// decisión del responsable el veredicto de un hueco es el mismo que el de un
+// incumplimiento medido, así que viven en la MISMA lista y lo que las separa es
+// `origin`. La agregación que se comprueba en este fichero —una tarjeta por
+// hallazgo, no por máquina— es la misma; sólo ha cambiado dónde están.
+const huecos = (resultado: ENSComplianceResult) =>
+  resultado.nonConformities.filter(item => item.origin === 'NO_EVIDENCIADA');
+
+const medidas = (resultado: ENSComplianceResult) =>
+  resultado.nonConformities.filter(item => item.origin === 'MEDIDA');
+
 const MOTIVO_SIN_DATOS =
   'Sin eventos del recolector en la ventana de evaluación.';
 
@@ -363,16 +374,16 @@ bloque('2 · las tarjetas no se multiplican por máquina');
     evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }))
   );
 
-  const antes = sumaPorAgente(agentes, resultado => resultado.measurementGaps.length);
+  const antes = sumaPorAgente(agentes, resultado => huecos(resultado).length);
   const consolidado = consolida(agentes);
-  const despues = consolidado.measurementGaps.length;
+  const despues = huecos(consolidado).length;
 
   // Baseline explícita: si cada agente no trajera huecos por su cuenta, la
   // reducción de abajo no probaría nada (la mutación tiene que aplicarse donde
   // se cree que se aplica).
   comprueba(
     'cada agente trae sus huecos por su cuenta (el «antes» no es cero)',
-    antes === agentes.length * agentes[0].results[0].measurementGaps.length &&
+    antes === agentes.length * huecos(agentes[0].results[0]).length &&
       antes > 0,
     String(antes)
   );
@@ -381,7 +392,7 @@ bloque('2 · las tarjetas no se multiplican por máquina');
   // fuera de la consolidación.
   const distintos = new Set(
     agentes.flatMap(agente =>
-      agente.results[0].measurementGaps.map(
+      huecos(agente.results[0]).map(
         hueco => `${hueco.requirementId}|${hueco.finding}|${hueco.requiredAction}`
       )
     )
@@ -401,14 +412,14 @@ bloque('2 · las tarjetas no se multiplican por máquina');
 
   comprueba(
     'ninguna tarjeta consolidada repite identificador',
-    new Set(consolidado.measurementGaps.map(hueco => hueco.id)).size === despues,
-    JSON.stringify(consolidado.measurementGaps.map(hueco => hueco.id))
+    new Set(huecos(consolidado).map(hueco => hueco.id)).size === despues,
+    JSON.stringify(huecos(consolidado).map(hueco => hueco.id))
   );
 
   // El «antes» y el «después» de arriba salen de siete máquinas que no miden
   // por la MISMA razón. Que la tarjeta sea una es correcto justo porque el
   // motivo es el mismo:
-  const huecosDeEv04 = consolidado.measurementGaps.filter(hueco =>
+  const huecosDeEv04 = huecos(consolidado).filter(hueco =>
     hueco.evidenceIds.includes('EV-04')
   );
 
@@ -432,8 +443,8 @@ bloque('2 · las tarjetas no se multiplican por máquina');
     )
   );
 
-  const huecosVariados = consolida(conMotivosDistintos).measurementGaps.filter(
-    hueco => hueco.evidenceIds.includes('EV-04')
+  const huecosVariados = huecos(consolida(conMotivosDistintos)).filter(hueco =>
+    hueco.evidenceIds.includes('EV-04')
   );
 
   comprueba(
@@ -446,7 +457,7 @@ bloque('2 · las tarjetas no se multiplican por máquina');
   comprueba(
     'reversión · y cada una lleva el nombre de su máquina en el id',
     huecosVariados.every(hueco =>
-      hueco.id.startsWith(`${(hueco.agents || [])[0]?.agentId}:PM-`)
+      hueco.id.startsWith(`${(hueco.agents || [])[0]?.agentId}:NC-`)
     ),
     JSON.stringify(huecosVariados.map(hueco => hueco.id))
   );
@@ -465,11 +476,11 @@ bloque('3 · lo del catálogo no es un hallazgo por máquina');
     )
   );
 
-  const delCatalogo = consolidado.measurementGaps.filter(
+  const delCatalogo = huecos(consolidado).filter(
     hueco => hueco.cause === 'CATALOG'
   );
 
-  const deLaMaquina = consolidado.measurementGaps.filter(
+  const deLaMaquina = huecos(consolidado).filter(
     hueco => hueco.cause === 'EVIDENCE'
   );
 
@@ -482,11 +493,11 @@ bloque('3 · lo del catálogo no es un hallazgo por máquina');
 
   comprueba(
     'op.acc.1.5 aparece exactamente una vez',
-    consolidado.measurementGaps.filter(
+    huecos(consolidado).filter(
       hueco => hueco.requirementId === 'op.acc.1.5'
     ).length === 1,
     JSON.stringify(
-      consolidado.measurementGaps
+      huecos(consolidado)
         .filter(hueco => hueco.requirementId === 'op.acc.1.5')
         .map(hueco => hueco.id)
     )
@@ -508,7 +519,7 @@ bloque('3 · lo del catálogo no es un hallazgo por máquina');
   );
 
   // El identificador tampoco puede nombrar una máquina si la tarjeta es de
-  // varias (o de ninguna): `025:PM-001` y `024:PM-001` parecían hermanos y no
+  // varias (o de ninguna): `025:NC-001` y `024:NC-001` parecían hermanos y no
   // lo eran, porque el número es el índice DENTRO de cada agente.
   comprueba(
     'una tarjeta compartida no lleva el nombre de una máquina en el id',
@@ -526,19 +537,19 @@ bloque('3 · lo del catálogo no es un hallazgo por máquina');
 
   comprueba(
     'reversión · con una sola máquina, su hueco sí lleva su etiqueta',
-    unaSola.measurementGaps.some(
-      hueco => hueco.cause === 'EVIDENCE' && hueco.id.startsWith('021:PM-')
+    huecos(unaSola).some(
+      hueco => hueco.cause === 'EVIDENCE' && hueco.id.startsWith('021:NC-')
     ),
-    JSON.stringify(unaSola.measurementGaps.map(hueco => hueco.id))
+    JSON.stringify(huecos(unaSola).map(hueco => hueco.id))
   );
 
   comprueba(
     'reversión · pero el del catálogo sigue sin llevarla ni con una máquina',
-    unaSola.measurementGaps
+    huecos(unaSola)
       .filter(hueco => hueco.cause === 'CATALOG')
       .every(hueco => !hueco.id.includes(':')),
     JSON.stringify(
-      unaSola.measurementGaps
+      huecos(unaSola)
         .filter(hueco => hueco.cause === 'CATALOG')
         .map(hueco => hueco.id)
     )
@@ -546,14 +557,18 @@ bloque('3 · lo del catálogo no es un hallazgo por máquina');
 }
 
 // ---------------------------------------------------------------------------
-bloque('4 · agregar no diluye la distinción NC / PM');
+bloque('4 · agregar no diluye la distinción medido / no evidenciado');
 
 {
   // op.acc.1.1 se acredita SOLO con EV-03, así que el estado del requisito lo
   // decide una única evidencia: el eje se mueve limpio.
   //
-  //   máquina 021 -> EV-03 NO_CUMPLE     -> incumplimiento demostrado (NC)
-  //   máquinas 022..027 -> EV-03 NO_EVALUABLE -> pendiente de medición (PM)
+  //   máquina 021       -> EV-03 NO_CUMPLE     -> incumplimiento MEDIDO
+  //   máquinas 022..027 -> EV-03 NO_EVALUABLE  -> incumplimiento NO EVIDENCIADO
+  //
+  // Desde el 04/08 las dos cosas son no conformidades y cuentan igual, así que
+  // están en la MISMA lista. Lo que no puede pasar es que se fundan en una sola
+  // tarjeta: la acción de cada una es distinta y la ejecuta otra persona.
   const agentes = parque(7, indice =>
     indice === 0
       ? evalua(evidencias({ 'EV-03': 'NO_CUMPLE' }))
@@ -564,18 +579,22 @@ bloque('4 · agregar no diluye la distinción NC / PM');
 
   const consolidado = consolida(agentes);
 
-  const ncDeOpAcc11 = consolidado.nonConformities.filter(
+  const deOpAcc11 = consolidado.nonConformities.filter(
     item => item.requirementId === 'op.acc.1.1'
   );
 
-  const pmDeOpAcc11 = consolidado.measurementGaps.filter(
-    item => item.requirementId === 'op.acc.1.1'
+  const ncDeOpAcc11 = deOpAcc11.filter(item => item.origin === 'MEDIDA');
+
+  const pmDeOpAcc11 = deOpAcc11.filter(
+    item => item.origin === 'NO_EVIDENCIADA'
   );
 
   comprueba(
-    'el mismo requisito está en las DOS listas, no fundido en una',
-    ncDeOpAcc11.length === 1 && pmDeOpAcc11.length === 1,
-    `${ncDeOpAcc11.length} NC / ${pmDeOpAcc11.length} PM`
+    'el mismo requisito abre DOS tarjetas en la misma lista, no una fundida',
+    deOpAcc11.length === 2 &&
+      ncDeOpAcc11.length === 1 &&
+      pmDeOpAcc11.length === 1,
+    `${deOpAcc11.length} tarjetas: ${ncDeOpAcc11.length} medidas / ${pmDeOpAcc11.length} no evidenciadas`
   );
 
   comprueba(
@@ -586,29 +605,48 @@ bloque('4 · agregar no diluye la distinción NC / PM');
   );
 
   comprueba(
-    'el hueco señala a las otras seis, y NO a la que incumple',
+    'la no evidenciada señala a las otras seis, y NO a la que incumple',
     (pmDeOpAcc11[0]?.agents || []).length === 6 &&
       !(pmDeOpAcc11[0]?.agents || []).some(agente => agente.agentId === '021'),
     JSON.stringify((pmDeOpAcc11[0]?.agents || []).map(agente => agente.agentId))
   );
 
   comprueba(
-    'ningún identificador aparece en las dos listas',
+    'ningún identificador se repite dentro de la lista',
+    new Set(consolidado.nonConformities.map(item => item.id)).size ===
+      consolidado.nonConformities.length,
+    JSON.stringify(consolidado.nonConformities.map(item => item.id))
+  );
+
+  // Lo que ya NO puede decir ninguna tarjeta: que no es un incumplimiento. Lo
+  // es. Lo que sí tiene que decir es por qué cuenta.
+  comprueba(
+    'ninguna tarjeta se presenta ya como «no es un incumplimiento»',
     consolidado.nonConformities.every(
-      item => !consolidado.measurementGaps.some(hueco => hueco.id === item.id)
+      item => !item.impact.includes('No es un incumplimiento')
     ),
-    JSON.stringify([
-      consolidado.nonConformities.map(item => item.id),
-      consolidado.measurementGaps.map(item => item.id),
-    ])
+    JSON.stringify(consolidado.nonConformities.map(item => item.impact))
   );
 
   comprueba(
-    'ningún hueco se presenta como incumplimiento',
-    consolidado.measurementGaps.every(hueco =>
-      hueco.impact.includes('No es un incumplimiento')
-    ),
-    ''
+    'las no evidenciadas invocan la carga de la prueba; las medidas, no',
+    huecos(consolidado).every(item =>
+      item.impact.includes('carga de la prueba')
+    ) &&
+      medidas(consolidado).every(
+        item => !item.impact.includes('carga de la prueba')
+      ),
+    JSON.stringify(consolidado.nonConformities.map(item => item.origin))
+  );
+
+  // El corazón de lo que se conserva de 346e56b: mismo requisito, mismo
+  // veredicto, y aun así dos acciones distintas.
+  comprueba(
+    'el mismo requisito da dos acciones distintas según cómo se llegó a él',
+    ncDeOpAcc11[0]?.requiredAction !== pmDeOpAcc11[0]?.requiredAction,
+    `${String(ncDeOpAcc11[0]?.requiredAction)} vs ${String(
+      pmDeOpAcc11[0]?.requiredAction
+    )}`
   );
 }
 
@@ -711,14 +749,13 @@ bloque('6 · las cifras de la pantalla con los 7 agentes del despliegue real');
   const agentes = parque(7, sinMedirNada);
   const consolidado = consolida(agentes);
 
+  // Una sola lista desde el 04/08: el total es directamente el de tarjetas.
   const tarjetasAntes = sumaPorAgente(
     agentes,
-    resultado =>
-      resultado.measurementGaps.length + resultado.nonConformities.length
+    resultado => resultado.nonConformities.length
   );
 
-  const tarjetasDespues =
-    consolidado.measurementGaps.length + consolidado.nonConformities.length;
+  const tarjetasDespues = consolidado.nonConformities.length;
 
   const lineasAntes = sumaPorAgente(agentes, resultado =>
     resultado.evidences.reduce(

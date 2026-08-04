@@ -536,32 +536,48 @@ def main():
         # control del verde. Es la prueba del principio rector: sin un dato que
         # signifique algo, no hay afirmación de cumplimiento.
         comprueba("evaluación · con todo en CUMPLE salvo el umask, el control NO sale en verde",
-                  con_invalido["status"] == "NO_EVALUABLE", str(con_invalido["status"]))
+                  con_invalido["status"] == "NO_CUMPLE", str(con_invalido["status"]))
         comprueba("evaluación · con el umask corregido sí sale en verde",
                   con_valido["status"] == "CUMPLE", str(con_valido["status"]))
         # El porcentaje, en los dos lados del mismo eje.
         #
-        # Esta prueba esperaba `score == 0` para el caso inválido y llevaba rota
-        # desde el 30/07 con `KeyError: 'score'`. No es un fallo del motor: es
-        # que 346e56b cambió el contrato y la prueba se quedó atrás. Un nivel
-        # sin ninguna no conformidad DEMOSTRADA pero con huecos de medida se
-        # publica NO_EVALUABLE y SIN número, porque un 0 se pinta en rojo y se
-        # lee como «0 % de cumplimiento» sobre algo que no se ha medido —del
-        # mismo género que el CUMPLE falso que el principio rector prohíbe—.
-        # Ver `core/evaluation/control/control-evaluator.ts` y el comentario de
-        # `score` en `core/evaluation/types.ts`: el campo es opcional y se omite.
+        # HISTORIA DE ESTAS TRES LÍNEAS, porque han cambiado dos veces:
         #
-        # La afirmación es sobre la AUSENCIA de la clave, no sobre su valor:
-        # `score == 0` y `score` ausente son exactamente lo que hay que
-        # distinguir, y un `.get("score") == 0` no los distinguiría.
+        #   hasta 30/07  se esperaba `score == 0` y la prueba estaba rota
+        #                (`KeyError: 'score'`) desde que 346e56b cambió el
+        #                contrato;
+        #   31/07        346e56b publicaba NO_EVALUABLE y SIN número: un 0 se
+        #                pinta en rojo y se leía como «0 % de cumplimiento»
+        #                sobre algo que no se había medido;
+        #   04/08        decisión del responsable: **lo que no se puede
+        #                demostrar NO CUMPLE**. La carga de la prueba es del
+        #                auditado, así que un parámetro sin un valor utilizable
+        #                no deja el control en gris: lo deja en rojo, con su
+        #                número, y ese número es 0 porque no hay ni un requisito
+        #                demostrado conforme.
+        #
+        # El 0 vuelve, pero ya no significa lo que significaba antes del 30/07:
+        # entonces era un artefacto del promedio, ahora es una afirmación
+        # deliberada. Lo que dice de verdad «cuánto se ha llegado a mirar» es
+        # `measuredRequirements`, que viaja aparte y aquí sale a 0.
+        #
+        # La afirmación es sobre el VALOR y sobre la presencia de la clave: con
+        # el criterio nuevo la ausencia de `score` queda reservada a NO_APLICA,
+        # y confundir «0» con «sin número» es exactamente lo que hay que evitar.
         comprueba("evaluación · con el umask válido el control mide, y mide 100",
                   con_valido.get("score") == 100, str(con_valido))
-        comprueba("evaluación · sin poder medir el umask, el informe sale SIN número",
-                  "score" not in con_invalido,
+        comprueba("evaluación · sin poder demostrar el umask, el informe sale con un 0",
+                  con_invalido.get("score") == 0 and "score" in con_invalido,
                   "publica score={}".format(con_invalido.get("score")))
         comprueba("evaluación · lo mismo cuando además falta un obligatorio",
-                  "score" not in mezcla,
+                  mezcla.get("score") == 0 and "score" in mezcla,
                   "publica score={}".format(mezcla.get("score")))
+        # Control negativo de las dos anteriores: si el arnés no publicara nunca
+        # la clave, «score == 0» pasaría por casualidad en un `.get()`. No pasa:
+        # el caso válido trae 100, así que la clave existe y lleva el número.
+        comprueba("evaluación · el 0 no es una clave ausente disfrazada",
+                  "score" in con_valido and con_valido["score"] != 0,
+                  str(con_valido.get("score")))
         comprueba("evaluación · el parámetro inválido aparece como bloqueante",
                   "P-07" in con_invalido["missingParameters"],
                   str(con_invalido["missingParameters"]))
