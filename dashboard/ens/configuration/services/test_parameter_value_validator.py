@@ -458,11 +458,31 @@ def main():
         # signifique algo, no hay afirmación de cumplimiento.
         comprueba("evaluación · con todo en CUMPLE salvo el umask, el control NO sale en verde",
                   con_invalido["status"] == "NO_EVALUABLE", str(con_invalido["status"]))
-        comprueba("evaluación · y el porcentaje cae de 100 a 0",
-                  con_valido["score"] == 100 and con_invalido["score"] == 0,
-                  "valido={} invalido={}".format(con_valido["score"], con_invalido["score"]))
         comprueba("evaluación · con el umask corregido sí sale en verde",
                   con_valido["status"] == "CUMPLE", str(con_valido["status"]))
+        # El porcentaje, en los dos lados del mismo eje.
+        #
+        # Esta prueba esperaba `score == 0` para el caso inválido y llevaba rota
+        # desde el 30/07 con `KeyError: 'score'`. No es un fallo del motor: es
+        # que 346e56b cambió el contrato y la prueba se quedó atrás. Un nivel
+        # sin ninguna no conformidad DEMOSTRADA pero con huecos de medida se
+        # publica NO_EVALUABLE y SIN número, porque un 0 se pinta en rojo y se
+        # lee como «0 % de cumplimiento» sobre algo que no se ha medido —del
+        # mismo género que el CUMPLE falso que el principio rector prohíbe—.
+        # Ver `core/evaluation/control/control-evaluator.ts` y el comentario de
+        # `score` en `core/evaluation/types.ts`: el campo es opcional y se omite.
+        #
+        # La afirmación es sobre la AUSENCIA de la clave, no sobre su valor:
+        # `score == 0` y `score` ausente son exactamente lo que hay que
+        # distinguir, y un `.get("score") == 0` no los distinguiría.
+        comprueba("evaluación · con el umask válido el control mide, y mide 100",
+                  con_valido.get("score") == 100, str(con_valido))
+        comprueba("evaluación · sin poder medir el umask, el informe sale SIN número",
+                  "score" not in con_invalido,
+                  "publica score={}".format(con_invalido.get("score")))
+        comprueba("evaluación · lo mismo cuando además falta un obligatorio",
+                  "score" not in mezcla,
+                  "publica score={}".format(mezcla.get("score")))
         comprueba("evaluación · el parámetro inválido aparece como bloqueante",
                   "P-07" in con_invalido["missingParameters"],
                   str(con_invalido["missingParameters"]))
