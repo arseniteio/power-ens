@@ -1,6 +1,7 @@
 import {
   ENSControlConfiguration,
   ENSControlParameter,
+  ENSParameterColumn,
 } from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
 import {
@@ -308,14 +309,170 @@ export const parseReferenceList = (
   return [];
 };
 
-// Comparación de listas: sin distinguir mayúsculas y con los espacios de los
-// extremos recortados.
+// --- Lectura de un parámetro de tipo TABLA ---------------------------------
+//
+// `parseReferenceList` no sirve para una tabla, y no es un descuido suyo: parte
+// por comas, y una celda `multiselect` ('lectura,escritura' en P-06 de op.acc.2)
+// lleva comas dentro. Aplicada a una tabla rompería una fila en pedazos que no
+// significan nada.
+//
+// Una tabla se lee en dos pasos: filas y celdas. Las FILAS son los elementos del
+// array (o las líneas, si el valor llegó como cadena de un bloque sembrado a
+// mano); NUNCA se parten por comas. Las CELDAS sí se parten por `|`, que es el
+// separador de campos del producto ('/srv/datos | 750 | root:ops').
+export const parseReferenceRows = (
+  value: unknown
+): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => String(item).trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split('\n')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+// Una fila cruda ('jgomez | srv01 | ops') repartida entre las columnas
+// declaradas. Las celdas que la fila no trae quedan vacías, que es lo mismo que
+// una celda en blanco: ese eje no se declara. Las que sobran se descartan.
+export const splitRowCells = (
+  row: string,
+  columns: ENSParameterColumn[]
+): Record<string, string> => {
+  const cells = row.split('|').map(cell => cell.trim());
+
+  const parsed: Record<string, string> = {};
+
+  columns.forEach((column, index) => {
+    parsed[column.name] = cells[index] ?? '';
+  });
+
+  return parsed;
+};
+
+// --- Comparación de valores ------------------------------------------------
+//
+// DOS reglas de mayúsculas, y la diferencia no es cosmética: decide en qué
+// dirección se equivoca el motor cuando la política y la máquina escriben el
+// mismo nombre distinto.
+//
+//   - Contra una lista PROHIBIDA (`NINGUNO_EN_LISTA`), sin distinguir
+//     mayúsculas: 'ADMIN' y 'admin' cuentan los dos como la cuenta prohibida.
+//     Equivocarse aquí produce un NO_CUMPLE de más, nunca un CUMPLE falso.
+//   - Contra una lista AUTORIZADA o una celda de la tabla, DISTINGUIENDO
+//     mayúsculas. En Linux 'Admin' y 'admin' son dos cuentas distintas, así que
+//     tratarlas como la misma autorizaría a una cuenta que nadie autorizó: un
+//     CUMPLE falso, que es lo único que este producto no puede hacer. Es además
+//     lo que P-07 y P-09 llevan escrito en su propia descripción («la
+//     comparación es literal y distingue mayúsculas»).
 const normalizeForComparison = (
   value: unknown
 ): string =>
   String(value)
     .trim()
     .toLowerCase();
+
+const normalizeStrict = (
+  value: unknown
+): string => String(value).trim();
+
+// Modo octal como número. Tolera el cero inicial ('0750' y '750' son el mismo
+// modo) y rechaza cualquier cosa que no sean dígitos octales.
+const toOctalMode = (
+  value: unknown
+): number | undefined => {
+  const text = String(value).trim();
+
+  if (!/^[0-7]{3,4}$/.test(text)) {
+    return undefined;
+  }
+
+  return parseInt(text, 8);
+};
+
+// «El modo observado no concede ni un permiso que el declarado no conceda.»
+// Igualdad NO: un recurso más restrictivo que lo declarado no crea riesgo y
+// declararlo desviación produciría no conformidades que ningún auditor firma.
+// Lo que no puede pasar nunca es lo contrario, y es justo lo que esto mide.
+const grantsNothingExtra = (
+  observed: number,
+  declared: number
+): boolean => (observed & ~declared) === 0;
+
+// Celda `multiselect`: dentro de la celda sí manda la coma, que es como la
+// declara el formulario ('lectura,escritura').
+const splitCellOptions = (
+  cell: string
+): string[] =>
+  cell
+    .split(',')
+    .map(option => option.trim())
+    .filter(Boolean);
+
+// ¿Lo observado casa con lo que la política declara en ESA celda?
+//
+// `undefined` significa «no se puede comparar», que no es lo mismo que «no
+// casa»: un modo que no es octal o un número que no es un número dejan el eje
+// sin decidir, y de ahí sale NO_EVALUABLE, nunca NO_CUMPLE.
+//
+// La comparación la elige el TIPO DE COLUMNA que el parámetro ya declara. Es lo
+// que evita el catálogo de casos particulares: la ACL declarada y el umask
+// mínimo se comparan igual porque los dos son `octal`, sin que ninguna evidencia
+// tenga que decir cómo.
+const cellMatches = (
+  observed: string,
+  cell: string,
+  column: ENSParameterColumn | undefined
+): boolean | undefined => {
+  if (column?.type === 'octal') {
+    const observedMode = toOctalMode(observed);
+    const declaredMode = toOctalMode(cell);
+
+    if (
+      observedMode === undefined ||
+      declaredMode === undefined
+    ) {
+      return undefined;
+    }
+
+    return grantsNothingExtra(
+      observedMode,
+      declaredMode
+    );
+  }
+
+  if (column?.type === 'multiselect') {
+    return splitCellOptions(cell).includes(
+      normalizeStrict(observed)
+    );
+  }
+
+  if (column?.type === 'number') {
+    const observedNumber = toFiniteNumber(observed);
+    const declaredNumber = toFiniteNumber(cell);
+
+    if (
+      observedNumber === undefined ||
+      declaredNumber === undefined
+    ) {
+      return undefined;
+    }
+
+    return observedNumber === declaredNumber;
+  }
+
+  return (
+    normalizeStrict(observed) ===
+    normalizeStrict(cell)
+  );
+};
 
 const toFiniteNumber = (
   value: unknown
@@ -340,16 +497,137 @@ const toFiniteNumber = (
 };
 
 type ENSParameterReference =
-  | { kind: 'LISTA'; values: string[] }
-  | { kind: 'UMBRAL'; threshold: number }
+  | {
+      kind: 'LISTA';
+      values: string[];
+      // Qué se compara realmente: la lista entera o una columna suya. Va en la
+      // referencia para que el motivo que lee el auditor lo diga.
+      description: string;
+    }
+  | { kind: 'UMBRAL'; threshold: number; description: string }
+  | { kind: 'VENTANA'; hours: number; description: string }
+  | {
+      kind: 'TABLA';
+      rows: Record<string, string>[];
+      columns: ENSParameterColumn[];
+      description: string;
+    }
   | { kind: 'SIN_PARAMETRO'; reason: string };
+
+const LIST_PRIMITIVES: ENSEvidenceJudgment['primitive'][] = [
+  'NINGUNO_EN_LISTA',
+  'TODOS_EN_LISTA',
+  'NINGUNO_FUERA_DE_LISTA',
+];
+
+const THRESHOLD_PRIMITIVES: ENSEvidenceJudgment['primitive'][] = [
+  'UMBRAL_MAXIMO',
+  'UMBRAL_MINIMO',
+];
+
+// Cuánto dura una hora de cada tipo de parámetro. La unidad del plazo la dice el
+// TIPO del parámetro y no una declaración aparte en el catálogo: si estuvieran
+// los dos, podrían discrepar, y un plazo de 30 leído como horas donde son días
+// convierte un CUMPLE en un NO_CUMPLE sin que nada avise.
+const DURATION_HOURS_BY_TYPE: Record<string, number> = {
+  duration_hours: 1,
+  duration_days: 24,
+};
+
+const resolveDurationHours = (
+  parameter: ENSControlParameter
+): number | undefined => {
+  const factor =
+    DURATION_HOURS_BY_TYPE[parameter.type];
+
+  if (factor === undefined) {
+    return undefined;
+  }
+
+  const amount = toFiniteNumber(parameter.value);
+
+  return amount === undefined || amount < 0
+    ? undefined
+    : amount * factor;
+};
+
+// La lista contra la que se compara. Es AQUÍ donde se resuelve el aviso que dejó
+// el agente de configuración: hoy `parseReferenceList` devuelve filas enteras, y
+// la primera evidencia que apunte a un parámetro `table` compararía
+// 'jgomez | srv01 | ops' contra 'jgomez' y no casaría jamás.
+//
+// Tres casos, y el del medio es el que no existía:
+//
+//   - Parámetro sin `columns` (o con una sola): lista plana, exactamente como
+//     hasta hoy. P-04 de op.acc.1 —la única evidencia migrada— entra por aquí y
+//     no cambia de comportamiento.
+//   - Parámetro con dos o más columnas y `parameterColumn` declarada: se proyecta
+//     ESA columna de cada fila.
+//   - Parámetro con dos o más columnas y sin `parameterColumn`: NO se compara
+//     nada. Comparar la fila entera sería el fallo silencioso; elegir la primera
+//     columna por defecto sería el mismo fallo aplazado a la primera tabla cuya
+//     clave no fuera la columna 1.
+const resolveReferenceValues = (
+  judgment: ENSEvidenceJudgment,
+  parameter: ENSControlParameter,
+  parameterLabel: string
+):
+  | { values: string[]; description: string }
+  | { reason: string } => {
+  const columns = parameter.columns ?? [];
+
+  const declared = judgment.parameterColumn;
+
+  if (declared) {
+    if (!columns.length) {
+      return {
+        reason: `El juicio compara la columna '${declared}' del parámetro ${parameterLabel}, pero el parámetro no declara ninguna columna: no hay forma de saber qué posición ocupa dentro de cada fila. Vuelve a sembrar el bloque del control con config/inject-control.py.`,
+      };
+    }
+
+    if (
+      !columns.some(
+        column => column.name === declared
+      )
+    ) {
+      return {
+        reason: `El juicio compara la columna '${declared}' del parámetro ${parameterLabel}, que declara las columnas ${columns.map(column => `'${column.name}'`).join(', ')} y ninguna se llama así.`,
+      };
+    }
+
+    const values = parseReferenceRows(
+      parameter.value
+    )
+      .map(
+        row => splitRowCells(row, columns)[declared]
+      )
+      .filter(Boolean);
+
+    return {
+      values,
+      description: `la columna '${declared}' de ${parameterLabel}`,
+    };
+  }
+
+  if (columns.length > 1) {
+    return {
+      reason: `El parámetro ${parameterLabel} es una tabla de ${columns.length} columnas (${columns.map(column => `'${column.name}'`).join(', ')}) y el juicio no declara cuál se compara. Comparar la fila entera contra un valor suelto no encuentra nunca nada, así que no se compara: declara 'parameterColumn' en el catálogo.`,
+    };
+  }
+
+  return {
+    values: parseReferenceList(parameter.value),
+    description: `la lista del parámetro ${parameterLabel}`,
+  };
+};
 
 // Nunca se recurre a `defaultValue`: juzgar contra un valor que el auditor no ha
 // puesto es exactamente la pantalla que miente. Solo cuenta lo configurado.
 const resolveParameterReference = (
   judgment: ENSEvidenceJudgment,
   parameter: ENSControlParameter | undefined,
-  parameterLabel: string
+  parameterLabel: string,
+  tolerance: ENSControlParameter | undefined
 ): ENSParameterReference => {
   if (!parameter) {
     return {
@@ -365,7 +643,91 @@ const resolveParameterReference = (
     };
   }
 
-  if (judgment.primitive === 'UMBRAL_MAXIMO') {
+  // El margen solo significa algo sumado a un número o a un plazo. Declararlo en
+  // una primitiva de lista es un error del catálogo, y se dice en vez de
+  // ignorarse: un margen que no hace nada es la misma mentira que un parámetro
+  // editable sin efecto.
+  const wantsTolerance = Boolean(
+    judgment.toleranceParameterId
+  );
+
+  const numericPrimitive =
+    THRESHOLD_PRIMITIVES.includes(
+      judgment.primitive
+    ) ||
+    judgment.primitive === 'ANTIGUEDAD_MAXIMA';
+
+  if (wantsTolerance && !numericPrimitive) {
+    return {
+      kind: 'SIN_PARAMETRO',
+      reason: `El juicio declara el margen ${judgment.toleranceParameterId} sobre la primitiva ${judgment.primitive}, que no compara ningún número: un margen que no se suma a nada no se puede aplicar.`,
+    };
+  }
+
+  // Margen ausente o vacío -> se aplica sin margen. Es el extremo ESTRICTO: una
+  // ventana más corta nunca produce un CUMPLE que la ventana con margen no
+  // produjera, así que su ausencia no puede fabricar un verde. Un margen que
+  // está pero no se puede leer es otra cosa y no se adivina.
+  let toleranceHours = 0;
+  let toleranceAmount = 0;
+  let toleranceMotive = '';
+
+  if (
+    wantsTolerance &&
+    tolerance &&
+    hasMeaningfulValue(tolerance.value)
+  ) {
+    const hours = resolveDurationHours(tolerance);
+
+    const amount = toFiniteNumber(tolerance.value);
+
+    if (
+      judgment.primitive === 'ANTIGUEDAD_MAXIMA'
+    ) {
+      if (hours === undefined) {
+        return {
+          kind: 'SIN_PARAMETRO',
+          reason: `El margen ${judgment.toleranceParameterId} está configurado con '${String(tolerance.value)}' y su tipo '${tolerance.type}' no expresa un plazo utilizable.`,
+        };
+      }
+
+      toleranceHours = hours;
+    } else {
+      if (amount === undefined) {
+        return {
+          kind: 'SIN_PARAMETRO',
+          reason: `El margen ${judgment.toleranceParameterId} no contiene un número utilizable (valor: '${String(tolerance.value)}').`,
+        };
+      }
+
+      toleranceAmount = amount;
+    }
+
+    toleranceMotive = ` más el margen ${judgment.toleranceParameterId}`;
+  }
+
+  if (judgment.primitive === 'ANTIGUEDAD_MAXIMA') {
+    const hours = resolveDurationHours(parameter);
+
+    if (hours === undefined) {
+      return {
+        kind: 'SIN_PARAMETRO',
+        reason: `El parámetro ${parameterLabel} es de tipo '${parameter.type}' con valor '${String(parameter.value)}', y de ahí no sale un plazo: ANTIGUEDAD_MAXIMA necesita un parámetro de duración (horas o días) para saber contra qué mide.`,
+      };
+    }
+
+    return {
+      kind: 'VENTANA',
+      hours: hours + toleranceHours,
+      description: `el plazo de ${parameterLabel}${toleranceMotive}`,
+    };
+  }
+
+  if (
+    THRESHOLD_PRIMITIVES.includes(
+      judgment.primitive
+    )
+  ) {
     const threshold = toFiniteNumber(
       parameter.value
     );
@@ -377,21 +739,67 @@ const resolveParameterReference = (
       };
     }
 
-    return { kind: 'UMBRAL', threshold };
-  }
-
-  const values = parseReferenceList(
-    parameter.value
-  );
-
-  if (!values.length) {
     return {
-      kind: 'SIN_PARAMETRO',
-      reason: `El parámetro ${parameterLabel} no contiene ningún elemento utilizable como lista de referencia.`,
+      kind: 'UMBRAL',
+      threshold: threshold + toleranceAmount,
+      description: `${parameterLabel}${toleranceMotive}`,
     };
   }
 
-  return { kind: 'LISTA', values };
+  if (judgment.primitive === 'CONFORME_A_TABLA') {
+    const columns = parameter.columns ?? [];
+
+    if (!columns.length) {
+      return {
+        kind: 'SIN_PARAMETRO',
+        reason: `El parámetro ${parameterLabel} no declara sus columnas, así que sus filas no se pueden repartir en campos y no hay contra qué contrastar el hecho. Vuelve a sembrar el bloque del control con config/inject-control.py.`,
+      };
+    }
+
+    const rows = parseReferenceRows(
+      parameter.value
+    ).map(row => splitRowCells(row, columns));
+
+    if (!rows.length) {
+      return {
+        kind: 'SIN_PARAMETRO',
+        reason: `El parámetro ${parameterLabel} no contiene ninguna fila utilizable como política de referencia.`,
+      };
+    }
+
+    return {
+      kind: 'TABLA',
+      rows,
+      columns,
+      description: `la tabla del parámetro ${parameterLabel}`,
+    };
+  }
+
+  const resolved = resolveReferenceValues(
+    judgment,
+    parameter,
+    parameterLabel
+  );
+
+  if ('reason' in resolved) {
+    return {
+      kind: 'SIN_PARAMETRO',
+      reason: resolved.reason,
+    };
+  }
+
+  if (!resolved.values.length) {
+    return {
+      kind: 'SIN_PARAMETRO',
+      reason: `El parámetro ${parameterLabel} no contiene ningún elemento utilizable como lista de referencia (se compara ${resolved.description}).`,
+    };
+  }
+
+  return {
+    kind: 'LISTA',
+    values: resolved.values,
+    description: resolved.description,
+  };
 };
 
 // --- Lectura de los hechos crudos ------------------------------------------
@@ -399,6 +807,11 @@ const resolveParameterReference = (
 interface ENSObservedFact {
   event: ENSNormalizedEvent;
   text: string;
+
+  // Solo en `CONFORME_A_TABLA`: la clave que busca su fila y lo que el agente
+  // observó de cada eje contrastado.
+  key?: string;
+  values?: Record<string, string>;
 }
 
 interface ENSUnusableFactEvent {
@@ -461,10 +874,20 @@ export const judgeEvidence = (
     ? `${judgment.parameterId} (${parameter.name})`
     : judgment.parameterId;
 
+  const toleranceParameter =
+    judgment.toleranceParameterId
+      ? configuration?.parameters.find(
+          candidate =>
+            candidate.id ===
+            judgment.toleranceParameterId
+        )
+      : undefined;
+
   const reference = resolveParameterReference(
     judgment,
     parameter,
-    parameterLabel
+    parameterLabel,
+    toleranceParameter
   );
 
   // Los eventos de hecho son SOLO los tipos declarados en `factEventTypes`. El
@@ -498,6 +921,58 @@ export const judgeEvidence = (
         event,
         reason:
           'está marcado como sintético o de demostración',
+      });
+
+      return;
+    }
+
+    // `CONFORME_A_TABLA` lee VARIOS campos del mismo evento: la clave que busca
+    // su fila y lo observado de cada eje. Un evento sin clave no se puede
+    // contrastar con ninguna fila, así que es ilegible; los ejes que falten se
+    // resuelven abajo, contra la fila, porque un eje que la política no declara
+    // tampoco hace falta que el agente lo observe.
+    if (judgment.primitive === 'CONFORME_A_TABLA') {
+      const keyField =
+        judgment.factKeyField ||
+        judgment.tableKeyColumn ||
+        '';
+
+      const keyValue = getEventFieldValue(
+        event,
+        keyField
+      );
+
+      if (!hasMeaningfulValue(keyValue)) {
+        unusableFactEvents.push({
+          event,
+          reason: `no trae valor en el campo '${keyField}', que es el que identifica su fila en la tabla de política`,
+        });
+
+        return;
+      }
+
+      const values: Record<string, string> = {};
+
+      (judgment.tableChecks ?? []).forEach(
+        check => {
+          const observed = getEventFieldValue(
+            event,
+            check.factField
+          );
+
+          if (hasMeaningfulValue(observed)) {
+            values[check.column] = String(
+              observed
+            ).trim();
+          }
+        }
+      );
+
+      observedFacts.push({
+        event,
+        text: String(keyValue).trim(),
+        key: String(keyValue).trim(),
+        values,
       });
 
       return;
@@ -582,8 +1057,15 @@ export const judgeEvidence = (
     ],
   });
 
+  const readFieldName =
+    judgment.primitive === 'CONFORME_A_TABLA'
+      ? judgment.factKeyField ||
+        judgment.tableKeyColumn ||
+        ''
+      : judgment.factField;
+
   const missingFactsMotive = factEvents.length
-    ? `No hay ningún hecho observado utilizable para ${definition.id}: llegaron ${factEvents.length} evento(s) de tipo ${judgment.factEventTypes.join(', ')}, pero ninguno aporta valor en el campo '${judgment.factField}'.`
+    ? `No hay ningún hecho observado utilizable para ${definition.id}: llegaron ${factEvents.length} evento(s) de tipo ${judgment.factEventTypes.join(', ')}, pero ninguno aporta valor en el campo '${readFieldName}'.`
     : `No hay ningún hecho observado para ${definition.id}: no ha llegado ningún evento de tipo ${judgment.factEventTypes.join(', ')}.`;
 
   // Caso 1: ni hecho ni parámetro.
@@ -637,14 +1119,30 @@ export const judgeEvidence = (
     // observados, siempre que conste que se ha mirado — es literalmente lo que
     // acredita EV-03: nadie se autenticó con una cuenta prohibida.
     //
-    // Las otras dos no: «todos los hechos observados están en la lista» y
-    // «ningún valor observado supera el umbral» son afirmaciones POSITIVAS
-    // sobre un sistema del que no se ha observado nada. Que sean vacuamente
-    // ciertas en lógica no las hace ciertas en una auditoría: cero copias de
-    // seguridad observadas no acredita que las copias se hagan a tiempo. Se
-    // quedan en NO_EVALUABLE aunque la cobertura esté confirmada.
+    // Las demás no: «todos los hechos observados están en la lista», «ningún
+    // valor observado supera el umbral», «hay un hecho reciente» y «cada hecho
+    // casa con su fila» son afirmaciones POSITIVAS sobre un sistema del que no
+    // se ha observado nada. Que sean vacuamente ciertas en lógica no las hace
+    // ciertas en una auditoría: cero copias de seguridad observadas no acredita
+    // que las copias se hagan a tiempo. Se quedan en NO_EVALUABLE aunque la
+    // cobertura esté confirmada.
+    //
+    // La segunda que sí cumple por ausencia es `NINGUNO_FUERA_DE_LISTA`, y por
+    // qué merece la pena distinguirla de `TODOS_EN_LISTA` —con la que comparte
+    // la comparación exacta— es la decisión de diseño de todo este fichero: no
+    // es la comparación lo que cambia, es QUÉ ES EL HECHO. Los hechos de
+    // `TODOS_EN_LISTA` ACREDITAN algo que existe en la máquina (una cuenta
+    // activa, un acceso al repositorio), y no observar ninguno es no haber
+    // mirado. Los de `NINGUNO_FUERA_DE_LISTA` son HALLAZGOS de un barrido (un
+    // binario SUID, un recurso world-writable, una elevación de privilegio), y
+    // no encontrar ninguno es el resultado normal de una máquina sana. Obligar
+    // a las cuatro evidencias de barrido a un NO_EVALUABLE permanente para no
+    // duplicar una comparación de tres líneas convertiría el gris en el color
+    // de una máquina correcta, y el gris cuenta en contra desde el 04/08.
     const admiteCumplimientoPorAusencia =
-      judgment.primitive === 'NINGUNO_EN_LISTA';
+      judgment.primitive === 'NINGUNO_EN_LISTA' ||
+      judgment.primitive ===
+        'NINGUNO_FUERA_DE_LISTA';
 
     // Ni siquiera con cobertura confirmada: si llegaron eventos de hecho que no
     // se han podido leer, no se ha observado «nada», se ha observado algo
@@ -658,7 +1156,10 @@ export const judgeEvidence = (
         'CUMPLE',
         [
           coverageMotive,
-          `No se ha observado ningún hecho de tipo ${judgment.factEventTypes.join(', ')} en la ventana evaluada, y consta que el recolector miró: ningún valor de la lista del parámetro ${parameterLabel} se ha producido.`,
+          judgment.primitive ===
+          'NINGUNO_FUERA_DE_LISTA'
+            ? `No se ha observado ningún hecho de tipo ${judgment.factEventTypes.join(', ')} en la ventana evaluada, y consta que el recolector barrió: no hay ningún hallazgo que contrastar con ${parameterLabel}.`
+            : `No se ha observado ningún hecho de tipo ${judgment.factEventTypes.join(', ')} en la ventana evaluada, y consta que el recolector miró: ningún valor de la lista del parámetro ${parameterLabel} se ha producido.`,
         ],
         coverage.event
       );
@@ -698,6 +1199,103 @@ export const judgeEvidence = (
   }
 
   // Caso 4: hecho observado y parámetro válido. Aquí sí hay veredicto.
+
+  // ANTIGUEDAD_MAXIMA sale por su propio camino porque es la única primitiva
+  // EXISTENCIAL: a las demás les incumple UN hecho, a ésta le CUMPLE uno. «La
+  // última copia no puede ser más vieja que 24 h» se satisface con una copia
+  // reciente, aunque haya otras cien antiguas — que las haya es lo normal.
+  //
+  // Y por eso mide contra el reloj y no contra un número que traiga el agente
+  // ya restado: un evento que dijera `horas_desde_la_copia: 2` seguiría diciendo
+  // 2 dentro de un mes, y afirmaría cumplimiento con el agente apagado. Aquí el
+  // hecho es el INSTANTE de la copia, y su antigüedad crece sola hasta que el
+  // veredicto se cae, que es lo que un auditor espera.
+  if (reference.kind === 'VENTANA') {
+    const windowMs =
+      reference.hours * 60 * 60 * 1000;
+
+    const nowMs = now.getTime();
+
+    const readable: {
+      fact: ENSObservedFact;
+      timestamp: number;
+    }[] = [];
+
+    const unreadable: ENSObservedFact[] = [];
+    const fromTheFuture: ENSObservedFact[] = [];
+
+    observedFacts.forEach(fact => {
+      const timestamp = parseTimestamp(fact.text);
+
+      if (timestamp === undefined) {
+        unreadable.push(fact);
+
+        return;
+      }
+
+      // Misma cota superior y mismo motivo que el latido del recolector: un
+      // hecho fechado por delante del reloj no demuestra nada, y sin esta cota
+      // un `2099` dejaría la evidencia en verde para siempre.
+      if (
+        timestamp >
+        nowMs + COLLECTOR_RUN_FUTURE_TOLERANCE_MS
+      ) {
+        fromTheFuture.push(fact);
+
+        return;
+      }
+
+      readable.push({ fact, timestamp });
+    });
+
+    const mostRecent = readable.sort(
+      (a, b) => b.timestamp - a.timestamp
+    )[0];
+
+    if (!mostRecent) {
+      return buildResult(
+        'NO_EVALUABLE',
+        [
+          `Ninguno de los ${observedFacts.length} hecho(s) observado(s) trae una marca de tiempo utilizable en '${judgment.factField}'${fromTheFuture.length ? ` (${fromTheFuture.length} viene(n) fechado(s) por delante del reloj: ${describeFacts(fromTheFuture)})` : ''}, así que no se puede medir su antigüedad contra ${reference.description}.`,
+        ],
+        observedFacts[0].event,
+        'EVIDENCE'
+      );
+    }
+
+    const ageHours =
+      (nowMs - mostRecent.timestamp) /
+      (60 * 60 * 1000);
+
+    if (nowMs - mostRecent.timestamp > windowMs) {
+      return buildResult(
+        'NO_CUMPLE',
+        [
+          `El hecho más reciente es de ${mostRecent.fact.text} (${ageHours.toFixed(1)} h), y ${reference.description} admite como mucho ${reference.hours} h.`,
+        ],
+        mostRecent.fact.event
+      );
+    }
+
+    return buildResult(
+      'CUMPLE',
+      [
+        `El hecho más reciente es de ${mostRecent.fact.text} (${ageHours.toFixed(1)} h), dentro de ${reference.description} (${reference.hours} h).`,
+        ...(fromTheFuture.length
+          ? [
+              `Se han descartado ${fromTheFuture.length} hecho(s) fechado(s) por delante del reloj (${describeFacts(fromTheFuture)}): un reloj desviado no acredita nada.`,
+            ]
+          : []),
+        ...(unreadable.length
+          ? [
+              `Se han descartado ${unreadable.length} hecho(s) sin marca de tiempo legible (${describeFacts(unreadable)}); el veredicto se sostiene sobre el que sí la trae.`,
+            ]
+          : []),
+      ],
+      mostRecent.fact.event
+    );
+  }
+
   let offenders: ENSObservedFact[] = [];
   let breachMotive = '';
   let complianceMotive = '';
@@ -706,13 +1304,19 @@ export const judgeEvidence = (
   if (reference.kind === 'UMBRAL') {
     const threshold = reference.threshold;
 
+    const isMaximum =
+      judgment.primitive === 'UMBRAL_MAXIMO';
+
     offenders = observedFacts.filter(fact => {
       const observed = toFiniteNumber(fact.text);
 
-      return (
-        observed !== undefined &&
-        observed > threshold
-      );
+      if (observed === undefined) {
+        return false;
+      }
+
+      return isMaximum
+        ? observed > threshold
+        : observed < threshold;
     });
 
     const unreadable = observedFacts.filter(
@@ -720,37 +1324,184 @@ export const judgeEvidence = (
         toFiniteNumber(fact.text) === undefined
     );
 
-    breachMotive = `Se ha observado ${describeFacts(offenders)}, que supera el máximo ${threshold} definido en el parámetro ${parameterLabel}.`;
+    breachMotive = isMaximum
+      ? `Se ha observado ${describeFacts(offenders)}, que supera el máximo ${threshold} definido en el parámetro ${reference.description}.`
+      : `Se ha observado ${describeFacts(offenders)}, que no llega al mínimo ${threshold} definido en el parámetro ${reference.description}.`;
 
-    complianceMotive = `Ninguno de los ${observedFacts.length} valor(es) observado(s) supera el máximo ${threshold} definido en el parámetro ${parameterLabel}.`;
+    complianceMotive = isMaximum
+      ? `Ninguno de los ${observedFacts.length} valor(es) observado(s) supera el máximo ${threshold} definido en el parámetro ${reference.description}.`
+      : `Ninguno de los ${observedFacts.length} valor(es) observado(s) queda por debajo del mínimo ${threshold} definido en el parámetro ${reference.description}.`;
 
     if (unreadable.length) {
       undecidableMotive = `No se puede interpretar como número ${describeFacts(unreadable)}, así que no cabe afirmar que el umbral se respeta.`;
     }
+  } else if (reference.kind === 'TABLA') {
+    const keyColumn =
+      judgment.tableKeyColumn || '';
+
+    const checks = judgment.tableChecks ?? [];
+
+    // Índice por la clave declarada. Si la política repite la misma clave, manda
+    // la ÚLTIMA fila: es lo que ve el auditor al final de la rejilla.
+    const rowsByKey = new Map<
+      string,
+      Record<string, string>
+    >();
+
+    reference.rows.forEach(row => {
+      const key = normalizeStrict(
+        row[keyColumn] ?? ''
+      );
+
+      if (key) {
+        rowsByKey.set(key, row);
+      }
+    });
+
+    const columnsByName = new Map(
+      reference.columns.map(column => [
+        column.name,
+        column,
+      ])
+    );
+
+    const breaches: string[] = [];
+    const undecidables: string[] = [];
+
+    observedFacts.forEach(fact => {
+      const row = rowsByKey.get(
+        normalizeStrict(fact.key ?? '')
+      );
+
+      // Sin fila NO hay incumplimiento demostrado: hay una decisión que nadie ha
+      // escrito. El motor no puede afirmar que un modo 777 esté mal si la
+      // política no dice cuál debía ser. Sale NO_EVALUABLE con causa
+      // CONFIGURATION —que bajo el criterio del 04/08 cuenta igual en contra—,
+      // y así la tabla de evidencias sigue distinguiendo «se midió y falló» de
+      // «nunca hubo contra qué medir», que es justo lo que el responsable pidió
+      // conservar.
+      if (!row) {
+        undecidables.push(
+          `'${fact.text}' no figura en ${reference.description}: no hay decisión declarada contra la que contrastarlo`
+        );
+
+        return;
+      }
+
+      let judgedAxes = 0;
+      let failed = false;
+
+      checks.forEach(check => {
+        const cell = normalizeStrict(
+          row[check.column] ?? ''
+        );
+
+        // Celda vacía = ese eje no se declara. Es el contrato escrito de P-08:
+        // «propietario y ACL se pueden dejar vacíos cuando ese eje no se
+        // declara». No se juzga y se dice.
+        if (!cell) {
+          return;
+        }
+
+        const observed =
+          fact.values?.[check.column];
+
+        if (observed === undefined) {
+          undecidables.push(
+            `de '${fact.text}' la política declara ${check.column}='${cell}' y el hecho no trae el campo '${check.factField}'`
+          );
+
+          return;
+        }
+
+        judgedAxes += 1;
+
+        const column = columnsByName.get(
+          check.column
+        );
+
+        const verdict = cellMatches(
+          observed,
+          cell,
+          column
+        );
+
+        if (verdict === undefined) {
+          undecidables.push(
+            `de '${fact.text}', ${check.column}='${observed}' no se puede comparar con la política '${cell}'`
+          );
+
+          judgedAxes -= 1;
+
+          return;
+        }
+
+        if (!verdict) {
+          failed = true;
+
+          breaches.push(
+            `'${fact.text}' tiene ${check.column}='${observed}' y ${reference.description} declara '${cell}'`
+          );
+        }
+      });
+
+      if (failed) {
+        offenders.push(fact);
+
+        return;
+      }
+
+      // Una fila que no declara ni un eje de los contrastados no acredita nada:
+      // el recurso está en la política, pero la política no dice nada de él.
+      if (!judgedAxes) {
+        undecidables.push(
+          `de '${fact.text}' la política no declara ninguno de los ejes contrastados (${checks.map(check => check.column).join(', ')})`
+        );
+      }
+    });
+
+    breachMotive = `Se ha observado que ${breaches.slice(0, 5).join('; ')}${breaches.length > 5 ? ` y ${breaches.length - 5} desviación(es) más` : ''}.`;
+
+    complianceMotive = `Los ${observedFacts.length} recurso(s) observado(s) casan con su fila de ${reference.description} en todos los ejes declarados (${checks.map(check => check.column).join(', ')}).`;
+
+    if (undecidables.length) {
+      undecidableMotive = `No se ha podido contrastar: ${undecidables.slice(0, 5).join('; ')}${undecidables.length > 5 ? ` y ${undecidables.length - 5} caso(s) más` : ''}.`;
+    }
   } else {
-    // NINGUNO_EN_LISTA incumple con lo que SÍ está en la lista;
-    // TODOS_EN_LISTA, con lo que NO está.
+    // NINGUNO_EN_LISTA incumple con lo que SÍ está en la lista; TODOS_EN_LISTA y
+    // NINGUNO_FUERA_DE_LISTA, con lo que NO está.
     const mustBeInList =
-      judgment.primitive === 'TODOS_EN_LISTA';
+      judgment.primitive !== 'NINGUNO_EN_LISTA';
+
+    // Ver la nota de las dos reglas de mayúsculas, arriba: contra una lista
+    // autorizada se compara literal, o 'Admin' pasaría por el 'admin' que el
+    // responsable autorizó.
+    const compare = mustBeInList
+      ? normalizeStrict
+      : normalizeForComparison;
 
     const normalizedReference = reference.values.map(
-      normalizeForComparison
+      compare
     );
 
     offenders = observedFacts.filter(
       fact =>
         normalizedReference.includes(
-          normalizeForComparison(fact.text)
+          compare(fact.text)
         ) !== mustBeInList
     );
 
     breachMotive = mustBeInList
-      ? `Se ha observado ${describeFacts(offenders)}, que no figura en la lista del parámetro ${parameterLabel}.`
-      : `Se ha observado ${describeFacts(offenders)}, que figura en la lista del parámetro ${parameterLabel}.`;
+      ? `Se ha observado ${describeFacts(offenders)}, que no figura en ${reference.description}.`
+      : `Se ha observado ${describeFacts(offenders)}, que figura en ${reference.description}.`;
 
-    complianceMotive = mustBeInList
-      ? `Los ${observedFacts.length} hecho(s) observado(s) figuran todos en la lista del parámetro ${parameterLabel}.`
-      : `Ninguno de los ${observedFacts.length} hecho(s) observado(s) figura en la lista del parámetro ${parameterLabel}.`;
+    complianceMotive =
+      judgment.primitive ===
+      'NINGUNO_FUERA_DE_LISTA'
+        ? `Ninguno de los ${observedFacts.length} hallazgo(s) del barrido queda fuera de ${reference.description}.`
+        : mustBeInList
+          ? `Los ${observedFacts.length} hecho(s) observado(s) figuran todos en ${reference.description}.`
+          : `Ninguno de los ${observedFacts.length} hecho(s) observado(s) figura en ${reference.description}.`;
   }
 
   if (offenders.length) {

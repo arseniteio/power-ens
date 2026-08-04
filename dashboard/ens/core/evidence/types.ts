@@ -29,13 +29,63 @@ export interface ENSEvidenceQualityRequirements {
 // dio dos caminos de evaluación sobre los mismos datos y se desconectó en
 // `3e92f5c`. Aquí no hay código por control, solo una declaración en el catálogo.
 //
-//   NINGUNO_EN_LISTA  CUMPLE si ningún hecho observado está en la lista.
-//   TODOS_EN_LISTA    CUMPLE si todo hecho observado está en la lista.
-//   UMBRAL_MAXIMO     CUMPLE si ningún valor observado supera el del parámetro.
+// Se nombran por lo que significan para un AUDITOR, no por cómo se implementan.
+// Hay siete y no una por evidencia porque cada una responde a una pregunta de
+// auditoría distinta; dos que respondieran a la misma pregunta serían el
+// evaluador por control con otro nombre. El razonamiento completo, evidencia a
+// evidencia, está en `docs/PRIMITIVAS_DE_JUICIO.md`.
+//
+// Contra una LISTA de referencia:
+//
+//   NINGUNO_EN_LISTA        Ningún hecho observado figura en la lista PROHIBIDA.
+//                           Aserción negativa: cero hechos con cobertura
+//                           confirmada es CUMPLE.
+//   TODOS_EN_LISTA          Todo hecho observado figura en la lista AUTORIZADA.
+//                           Los hechos ACREDITAN algo (cuentas activas, accesos
+//                           al repositorio): cero hechos es no haber medido.
+//   NINGUNO_FUERA_DE_LISTA  Ningún HALLAZGO de un barrido queda fuera de la
+//                           lista autorizada. Misma comparación que
+//                           TODOS_EN_LISTA y regla de ausencia opuesta: aquí
+//                           cero hechos con cobertura confirmada significa «se
+//                           barrió y no se encontró nada», que sí es CUMPLE.
+//
+// Contra un UMBRAL numérico:
+//
+//   UMBRAL_MAXIMO     Ningún valor observado supera el del parámetro.
+//   UMBRAL_MINIMO     Ningún valor observado queda por debajo del parámetro.
+//
+// Contra un PLAZO:
+//
+//   ANTIGUEDAD_MAXIMA El hecho más reciente no es más viejo que el plazo. Es la
+//                     única primitiva EXISTENCIAL —le basta UN hecho lo bastante
+//                     reciente—, y por eso nunca cumple por ausencia.
+//
+// Contra una TABLA de política:
+//
+//   CONFORME_A_TABLA  Cada hecho observado casa con LA FILA que le corresponde
+//                     en la tabla, columna a columna. Es la primitiva de
+//                     `op.acc.2.2`: los derechos de cada recurso siguen la
+//                     decisión escrita del responsable.
 export type ENSEvidenceJudgmentPrimitive =
   | 'NINGUNO_EN_LISTA'
   | 'TODOS_EN_LISTA'
-  | 'UMBRAL_MAXIMO';
+  | 'NINGUNO_FUERA_DE_LISTA'
+  | 'UMBRAL_MAXIMO'
+  | 'UMBRAL_MINIMO'
+  | 'ANTIGUEDAD_MAXIMA'
+  | 'CONFORME_A_TABLA';
+
+// Una columna de la tabla de política contrastada contra un campo del hecho.
+//
+// El nombre de la columna y el del campo se declaran por separado a propósito:
+// la columna dice lo que el responsable DECIDIÓ ('acl_esperada') y el campo, lo
+// que el agente OBSERVÓ ('acl'). Llamarlos igual por convención invitaría a
+// nombrar el hecho crudo con el vocabulario de la política, que es justo la
+// confusión que la migración deshace.
+export interface ENSEvidenceTableCheck {
+  column: string;
+  factField: string;
+}
 
 // Declara que de esta evidencia decide el motor, no el agente.
 //
@@ -64,7 +114,50 @@ export interface ENSEvidenceJudgment {
   // Campo del evento cuyo valor se contrasta. Se busca primero en `attributes` y
   // luego en la raíz del evento normalizado. Si el campo trae una lista, cada
   // elemento cuenta como un hecho observado independiente.
+  //
+  // En `CONFORME_A_TABLA` no se usa: allí los campos los declaran `factKeyField`
+  // y `tableChecks`.
   factField: string;
+
+  // Columna del parámetro que hace de lista de referencia, cuando el parámetro
+  // NO es una lista plana.
+  //
+  // ES OBLIGATORIA EN CUANTO EL PARÁMETRO DECLARA DOS O MÁS COLUMNAS, y sin ella
+  // el juicio se queda en NO_EVALUABLE con motivo. Es deliberado: la lista de
+  // usuarios autorizados (P-07 de op.acc.1) es una tabla `usuario | sistema |
+  // rol`, y comparar la FILA ENTERA contra el nombre de una cuenta no encuentra
+  // nunca a nadie — un `TODOS_EN_LISTA` que declara no autorizada a toda la
+  // plantilla, o un `NINGUNO_EN_LISTA` que da por buena a cualquiera. Adivinar
+  // la columna (la primera, por ejemplo) sería peor: acertaría en P-07 y
+  // fallaría en silencio en la siguiente tabla cuya clave no fuera la columna 1.
+  parameterColumn?: string;
+
+  // --- solo `CONFORME_A_TABLA` ---------------------------------------------
+
+  // Columna que identifica la fila de la tabla ('recurso' en la ACL declarada).
+  tableKeyColumn?: string;
+
+  // Campo del hecho que trae esa clave. Por defecto, el mismo nombre que
+  // `tableKeyColumn`.
+  factKeyField?: string;
+
+  // Columnas contrastadas y campo del hecho de cada una. Una columna que no
+  // figure aquí NO se compara aunque la fila la traiga rellena: lo que se juzga
+  // se declara, no se deduce.
+  tableChecks?: ENSEvidenceTableCheck[];
+
+  // --- primitivas numéricas y de plazo --------------------------------------
+
+  // Segundo parámetro que se SUMA al umbral o al plazo. Es el margen de
+  // tolerancia de mp.info.6 (P-02 sobre P-01): política de pleno derecho, vive
+  // en la pantalla y tiene que poder sumarse desde el catálogo sin escribir
+  // código para esa evidencia.
+  //
+  // Si no existe o está vacío se aplica SIN margen, que es el extremo estricto:
+  // una ventana más corta nunca produce un CUMPLE que la ventana con margen no
+  // produjera. Si existe pero no se puede leer, NO_EVALUABLE: eso no es un
+  // margen ausente, es un margen ilegible.
+  toleranceParameterId?: string;
 
   // Tipos de evento del latido del recolector. Es lo que permite distinguir
   // «he mirado y no había nada» de «no he podido mirar», y de esa distinción
