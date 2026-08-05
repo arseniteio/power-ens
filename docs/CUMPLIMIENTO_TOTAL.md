@@ -120,18 +120,31 @@ sudo jq -c 'select(.event=="score_snapshot")|{nivel,estado,score,requisitos_apli
 ## 3. Orden de trabajo
 
 De lo que más desbloquea con menos esfuerzo a lo que exige una decisión del
-cliente. Si vas con prisa, los pasos 1-3 ya dan el nivel BAJO de los tres
-controles en la mayoría de máquinas.
+cliente. Si vas con prisa, los pasos 1-3 ya dan el nivel BAJO de `op.acc.2` y
+`mp.info.6`, y llevan `op.acc.1` a su techo.
+
+> **Sabe antes de empezar cuál es el máximo real**, o perderás la tarde buscando
+> el 25 % que falta:
+>
+> | Control | BAJO | MEDIO | ALTO |
+> |---|---|---|---|
+> | `op.acc.1` | **80 %** · techo, §11.9 | **75 %** · techo, §11.9 | 75 % |
+> | `op.acc.2` | 100 % | 100 % | 100 %, con los cuatro ficheros de política |
+> | `mp.info.6` | 100 % | 100 % | **no alcanzable** · §11.1 |
+>
+> Los dos topes son reales y están explicados: `op.acc.1` tiene dos requisitos
+> que **ninguna evidencia técnica** puede demostrar (atestación documental), y
+> `mp.info.6` no recoge la copia externa. No son fallos del despliegue y no se
+> arreglan en la máquina.
 
 | # | Paso | Desbloquea | Coste |
 |---|---|---|---|
 | 1 | [Manager, agente y cron](#4-paso-0--lo-común-a-los-tres-controles) | **todo**: sin esto no hay ni un dato | 20 min, una vez por manager |
 | 2 | [Arreglar el `umask` de la máquina](#61-ev-01--world-writable-y-umask) | op.acc.2 EV-01 | 5 min |
-| 3 | [`.env` de op.acc.1: P-03 y P-07](#7-opacc1--identificación) | op.acc.1 EV-05 y EV-07 (y con él, MEDIO/ALTO) | 15 min |
+| 3 | [**P-03, P-04 y P-07 en la pantalla** de Configuración](#71-los-tres-parámetros-que-viven-en-la-pantalla-no-en-el-env) | op.acc.1 EV-03, EV-05 y EV-07 · **es lo que más desbloquea del control** | 15 min + decisión del responsable |
 | 4 | [Promover la línea base de SUID](#67-ev-07--suidsgid-y-ficheros-sin-dueño) | op.acc.2 EV-07 | 30 min de **revisión humana** |
 | 5 | [Escribir `opacc2-acl.tsv`](#64-ev-04--acls-frente-a-la-política-declarada) | op.acc.2 EV-04 → **BAJO y MEDIO al 100 %** | decisión del responsable |
 | 6 | [`.env` de mp.info.6 + primera copia](#8-mpinfo6--copias-de-seguridad) | mp.info.6 BAJO | 30 min |
-| 7 | [P-04 en la pantalla de Configuración](#73-ev-03--la-que-juzga-el-plugin-no-el-agente) | op.acc.1 EV-03 (`op.acc.1.1`) | decisión del responsable |
 | 8 | [Prueba de restauración](#85-ev-05--prueba-de-restauración-r1) | mp.info.6 MEDIO | decisión operativa |
 | 9 | [Cargar auditd + `privilegios.tsv` + `accesos.tsv`](#65-ev-05-y-ev-06--el-refuerzo-r1-solo-alto) | op.acc.2 **ALTO** | decisión del responsable |
 | 10 | [Procedimiento de bajas](#74-ev-04--plazo-de-deshabilitación-tras-la-baja) | op.acc.1 EV-04 en régimen | decisión operativa |
@@ -706,18 +719,25 @@ sudo jq -c 'select(.evidence_id=="EV-07")|{event,estado,motivo}' \
 ALTO. `op.acc.1.r1.1`, `r1.2` y `r1.3` (refuerzo R1) rigen en **MEDIO y ALTO**
 —no solo en ALTO, al contrario que op.acc.2—.
 
-> **Lo primero que hay que entender de este control: `op.acc.1.1` no lo puntúa
-> el agente.** Su única evidencia acreditante es EV-03, que está **migrada al
-> modelo nuevo**: el agente solo emite el hecho crudo y **el motor del plugin
-> emite el veredicto**. Por eso `op.acc.1.1` sale del denominador del score del
-> agente (cada `score_snapshot` lo declara en `requisitos_delegados`) y su
-> `control_state` sale siempre `NO_EVALUABLE` con `delegadas=EV-03` y su
-> motivo. **No es un fallo de recogida.**
+> **ESTE CONTROL NO LLEGA AL 100 % HOY, y no es un fallo del despliegue.**
+> `op.acc.1.5` (identificación conforme a eIDAS) y `op.acc.1.r1.1`
+> (singularizar a la persona) **no tienen ninguna evidencia técnica** que los
+> demuestre: la policy del plugin los declara con `evidenceIds: []`. Son
+> atestación documental, y desde el criterio del 04/08 lo no demostrado cuenta
+> en contra. **Techo real: 80 % en BAJO (4 de 5) y 75 % en MEDIO/ALTO (6 de
+> 8).** Ver §11.9.
 >
-> Consecuencia para el 100 %: **un `score_snapshot` de 100 en el agente no es
-> el 100 % del control.** Hace falta además que EV-03 salga `CUMPLE` en el
-> plugin, y eso depende de P-04 en la pantalla de Configuración (§7.3). El
-> denominador del agente es de 4 requisitos en BAJO y 7 en MEDIO/ALTO.
+> **Y el `score_snapshot` del agente no es el score del control.** El agente
+> solo puntúa lo que juzga él, y deja fuera dos familias que declara aparte:
+>
+> | | Requisitos | Por qué |
+> |---|---|---|
+> | `requisitos_delegados` | `op.acc.1.1`, `op.acc.1.r1.3` | los juzga el MOTOR sobre los hechos crudos de EV-03 y EV-07 |
+> | `sin_evidencia` en su `control_state` | `op.acc.1.5`, `op.acc.1.r1.1` | no los juzga NADIE |
+>
+> Así que el agente puntúa sobre **3 requisitos en BAJO y 4 en MEDIO/ALTO**, y
+> puede salir `CUMPLE` con el control al 75 %. El número que vale ante un
+> auditor es el del plugin.
 
 ### Tabla resumen
 
@@ -725,126 +745,86 @@ ALTO. `op.acc.1.r1.1`, `r1.2` y `r1.3` (refuerzo R1) rigen en **MEDIO y ALTO**
 |---|---|---|---|---|
 | **EV-01** | Sin UIDs duplicados entre las cuentas de persona | Nada: `/etc/passwd` legible con entrada UID 0. `OPACC1_UID_MIN` acota qué es «persona» | `NO_EVALUABLE` si `passwd` no es legible o plausible. **`NO_CUMPLE`** si hay UIDs duplicados | No |
 | **EV-02** | Los cambios de identidad quedan registrados | Nada. La 1.ª pasada fija el snapshot | `NO_EVALUABLE` sin `passwd`/`shadow` legibles | No |
-| **EV-03** | Ninguna autenticación con cuenta genérica prohibida | **P-04 en la pantalla de Configuración del plugin**, no en el `.env` | `NO_EVALUABLE` si P-04 está vacío | **Sí**: qué cuentas se declaran genéricas prohibidas |
+| **EV-03** | Ninguna autenticación con cuenta genérica prohibida | **P-04 en la pantalla**, no en el `.env` (§7.1) | No acredita si P-04 está vacío → `op.acc.1.1` no cumple | **Sí**: qué cuentas se declaran genéricas prohibidas |
 | **EV-04** | Las bajas se deshabilitan dentro del plazo | `OPACC1_PLAZO_DESHABILITAR_DIAS` (P-05) + una **fuente de fechas de baja**: `OPACC1_BAJAS` o el campo *expira* de `/etc/shadow` | `NO_EVALUABLE`: `sin fuente de fechas de baja: ni bajas.tsv (P-08) ni campo expira en shadow` | **Sí**: el plazo máximo y de dónde salen las bajas |
-| **EV-05** | Ninguna cuenta de servicio inicia sesión interactiva | `OPACC1_CUENTAS_SERVICIO` (P-03), **LISTA separada por comas** | `NO_EVALUABLE`: `P-03 cuentas_servicio_definidas no configurado` | **Sí**: qué cuentas son de servicio |
+| **EV-05** | Ninguna cuenta de servicio inicia sesión interactiva | **P-03 en la pantalla**, no en el `.env` (§7.1) | No acredita si P-03 está vacío → `op.acc.1.2` no cumple | **Sí**: qué cuentas son de servicio |
 | **EV-06** | Los privilegiados usan identificador administrativo diferenciado | `OPACC1_GRUPOS_PRIVILEGIADOS` y `OPACC1_SUFIJO_ADMIN` | `NO_EVALUABLE` si `/etc/group` no es legible | **Sí**: el sufijo y qué grupos son privilegiados |
-| **EV-07** | Toda cuenta activa está en la lista de autorizados | `OPACC1_LISTA_AUTORIZADOS` (P-07), **RUTA a un fichero** | `NO_EVALUABLE`, y **MEDIO/ALTO no pueden salir CUMPLE** (regla R1) | **Sí**: quién está autorizado |
+| **EV-07** | Toda cuenta activa está en la lista de autorizados | **P-07 en la pantalla**: una TABLA, ya no un fichero de la máquina (§7.1) | No acredita si P-07 está vacío → `op.acc.1.r1.3` no cumple en MEDIO/ALTO | **Sí**: quién está autorizado |
 | **EV-08** | Las cuentas se eliminan respetando la retención | `OPACC1_RETENCION_DIAS` (P-06) + el registro que mantiene EV-04 | `NO_EVALUABLE` por cuenta sin fecha de baja conocida | **Sí**: el periodo de retención |
 
-### 7.1 El `.env`, y el error de tipos que cuesta media hora
+### 7.1 Los tres parámetros que viven en la pantalla, no en el `.env`
 
-`/etc/ensfacil/opacc1.env`. **Aquí conviven LISTAS y RUTAS, y no se distinguen
-por el nombre de la variable.** Este es el caso concreto que ha costado tiempo
-de verdad:
+**El `.env` de op.acc.1 ya no lleva política.** Solo ajustes de observación
+—dónde mirar, qué UID es una persona— con valores que funcionan en cualquier
+Linux. No hace falta abrirlo.
 
-| Variable | Tipo | Qué es |
-|---|---|---|
-| `OPACC1_CUENTAS_SERVICIO` (P-03) | **LISTA** separada por comas, en línea | Los usuarios van **aquí mismo** |
-| `OPACC1_LISTA_AUTORIZADOS` (P-07) | **RUTA** a un fichero | Los usuarios van **dentro del fichero** |
-| `OPACC1_BAJAS` (P-08) | **RUTA** a un fichero TSV | |
-| `OPACC1_GRUPOS_PRIVILEGIADOS` | **LISTA** separada por comas | |
-| `OPACC1_UID_MIN`, `OPACC1_PLAZO_DESHABILITAR_DIAS`, `OPACC1_RETENCION_DIAS` | **ENTERO** | |
+Las tres decisiones del control se declaran en **Configuración → op.acc.1** del
+plugin, que es lo que mira el auditor, y **son las tres que desbloquean
+cumplimiento**:
 
-Los dos primeros nombres suenan igual de «lista» y son cosas distintas. En el
-código:
+| Param | Qué declara | Evidencia | Si falta |
+|---|---|---|---|
+| **P-03** cuentas_servicio_definidas | qué cuentas técnicas **no deben** usarse para acceso interactivo | EV-05 | `op.acc.1.2` no cumple |
+| **P-04** cuentas_genericas_prohibidas | qué nombres de cuenta rompen la unicidad del identificador | EV-03 | `op.acc.1.1` no cumple |
+| **P-07** lista_usuarios_autorizados | **tabla** `usuario \| sistema \| rol`: quién está autorizado | EV-07 | `op.acc.1.r1.3` no cumple en MEDIO y ALTO |
 
-- `OPACC1_CUENTAS_SERVICIO` se consume con
-  `_opacc1_en_lista "$usuario" "$OPACC1_CUENTAS_SERVICIO"`, que parte por comas.
-- `OPACC1_LISTA_AUTORIZADOS` se consume con `[ ! -r "$OPACC1_LISTA_AUTORIZADOS" ]`
-  y `sed … "$OPACC1_LISTA_AUTORIZADOS"`: se **abre como fichero**.
+#### Qué poner en cada uno
 
-**Escribir los usuarios directamente en `OPACC1_LISTA_AUTORIZADOS` no da
-error.** La librería intenta leer ese valor como fichero, no lo encuentra, y
-EV-07 sale `NO_EVALUABLE` con el motivo `P-07 lista_usuarios_autorizados no
-configurado o ilegible` — que suena a «no lo has puesto» cuando sí lo has
-puesto. De ahí la media hora.
+**P-04** — los nombres genéricos que no deben existir activos. Un punto de
+partida razonable:
 
-> El `etc/opacc1.env.example` del runbook lleva ahora el tipo escrito en el
-> comentario de cada parámetro y una tabla de tipos en la cabecera, para que no
-> vuelva a pasar.
-
-### 7.2 P-03 · Cuentas de servicio (EV-05)
-
-```bash
-sudo -e /etc/ensfacil/opacc1.env
+```
+admin, administrador, guest, test, temp, usuario1
 ```
 
-```bash
-OPACC1_CUENTAS_SERVICIO="svc_backup,svc_tomcat,postgres"
-```
+> **DECISIÓN DE POLÍTICA.** Una cuenta que se deja fuera puede autenticarse sin
+> que nadie lo señale; una que se mete de más genera un `NO_CUMPLE` cada vez que
+> alguien la use legítimamente.
 
-Sin este valor **no se emite ningún hecho de EV-05**, solo un `evidence_state`
-`NO_EVALUABLE`. Es deliberado: afirmar que «ninguna cuenta de servicio hizo
-login interactivo» sin saber cuáles son las cuentas de servicio sería un
-cumplimiento fabricado.
-
-> **DECISIÓN DE POLÍTICA (P-03).** El responsable declara qué cuentas **no
-> deben** usarse para acceso interactivo. Una cuenta que se deja fuera de la
-> lista puede iniciar sesión sin que nadie lo señale; una que se mete de más
-> genera un `NO_CUMPLE` cada vez que alguien la use legítimamente.
-
-Para ver candidatos:
+**P-03** — las cuentas técnicas reales de la máquina. Para ver candidatas:
 
 ```bash
 awk -F: '$3 >= 100 && $3 < 1000 {print $1}' /etc/passwd
 ```
 
-### 7.3 P-07 · Lista de usuarios autorizados (EV-07, y la regla R1)
+> **DECISIÓN DE POLÍTICA.** El responsable declara qué cuentas son de proceso.
+> Sin la lista no se puede distinguir una cuenta de servicio de una de persona,
+> y afirmar que «ninguna hizo login interactivo» sería un cumplimiento
+> fabricado.
 
-**El único parámetro que puede tumbar un nivel entero por sí solo.**
-
-Es una **RUTA**. El repo **no trae plantilla**: hay que crear el fichero.
-
-```bash
-sudo install -m 640 -o root -g root /dev/null /etc/ensfacil/autorizados.txt
-sudo -e /etc/ensfacil/autorizados.txt
-```
-
-Contenido — una entrada por línea, `usuario` o `usuario|sistema|rol`, con `#`
-para comentarios:
-
-```
-# usuarios autorizados en srv-app-01 — mantenido por Sistemas
-jgomez
-mlopez|srv-app-01|operador
-```
-
-Y en el `.env`:
+**P-07** — una fila por persona. Las cuentas que hay que declarar son
+**exactamente las que el agente está emitiendo**, no las que tú creas que hay:
 
 ```bash
-OPACC1_LISTA_AUTORIZADOS="/etc/ensfacil/autorizados.txt"
+jq -r 'select(.event=="account_active")|.usuario' \
+  /var/log/ensfacil/op_acc_1.json | sort -u
 ```
 
-Solo se usa el primer campo. La comparación con `/etc/passwd` es **literal y
-sensible a mayúsculas**: `jgomez` no casa con `JGOMEZ` ni `ana.perez` con
-`ana-perez`. En `/etc/passwd` el nombre de usuario *es* el identificador del
-sistema; normalizar mayúsculas convertiría un error de tecleo del administrador
-en una autorización válida.
+Solo la columna *usuario* se contrasta; *sistema* y *rol* acompañan a la
+decisión en el informe. La comparación es **literal y sensible a mayúsculas**:
+`jgomez` no casa con `JGOMEZ` ni `ana.perez` con `ana-perez`. En `/etc/passwd`
+el nombre de usuario *es* el identificador del sistema, así que normalizar
+mayúsculas convertiría un error de tecleo en una autorización válida.
 
-Para ver quién hay que declarar (`1000` es el defecto de `OPACC1_UID_MIN`; si
-lo has cambiado en el `.env`, usa tu valor):
-
-```bash
-awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd
-```
-
-**Una lista vacía NO significa «nadie está autorizado»**, significa «todavía no
-se ha entregado la lista»: un truncado por disco lleno no puede convertir en no
-conformidad todas las cuentas de una máquina sana. Por eso el fichero vacío,
-truncado o reducido a comentarios da `NO_EVALUABLE`
-(`P-07 sin entradas: lista vacia, truncada o sin usuarios validos`), no
-`NO_CUMPLE`.
-
-> **La regla de auditoría R1.** Desde nivel MEDIO, mientras EV-07 no esté en
-> `CUMPLE` (o `NO_APLICA` declarado por el recolector), `score.py` impide que
-> MEDIO y ALTO salgan `CUMPLE` —bajan a `PARCIAL`— y topa su score en **85**. Si
-> ves un 85 clavado en MEDIO, es esto.
-
-> **DECISIÓN DE POLÍTICA (P-07).** La lista **es** la declaración de quién está
+> **DECISIÓN DE POLÍTICA.** La tabla **es** la declaración de quién está
 > autorizado a acceder al sistema. Mantenerla al día es un procedimiento, no un
-> fichero: cada alta y cada baja tiene que reflejarse aquí, y el auditor
-> preguntará quién la mantiene y con qué periodicidad.
+> fichero: cada alta y cada baja se refleja aquí, y el auditor preguntará quién
+> la mantiene y con qué periodicidad.
+
+#### La prueba de que la migración funciona
+
+Es la comprobación que más rápido te dice si todo el circuito está vivo:
+
+```
+P-04 sin la cuenta          →  EV-03 CUMPLE
+se añade una cuenta que se autenticó, sin tocar el servidor
+                            →  EV-03 NO_CUMPLE, y el motivo la NOMBRA
+se quita                    →  vuelve a CUMPLE
+```
+
+Si el veredicto no se mueve, el plugin no está desplegado o el agente no está
+emitiendo el hecho. Ver §7.5.
+
 
 ### 7.4 EV-04 · Plazo de deshabilitación tras la baja
 
@@ -891,46 +871,47 @@ se respetó la retención ni que se violó.
 > cuenta deshabilitada antes de eliminarla. Los dos son compromisos que el
 > auditor puede contrastar con la política interna del cliente.
 
-### 7.5 EV-03 · La que juzga el plugin, no el agente
+### 7.5 Las tres evidencias que juzga el plugin, no el agente
 
-**P-04 (`cuentas_genericas_prohibidas`) ya no está en el `.env`**, y es
-deliberado. `OPACC1_CUENTAS_GENERICAS` se retiró: el agente emite el hecho
-crudo `account_authenticated` (usuario y origen, **sin** `estado`) y el motor
-del plugin lo contrasta con P-04 **tal como esté en la pantalla de
-Configuración**.
+EV-03, EV-05 y EV-07 están **migradas al modelo nuevo**: el agente emite el
+hecho crudo —qué cuenta se autenticó, qué cuenta está activa— **sin `estado` ni
+`nivel`**, y el veredicto lo pone el motor contrastándolo con el parámetro de la
+pantalla.
 
-Qué cambia en la práctica:
+Qué cambia en la práctica, y es el motivo de toda la migración:
 
-- **Cambiar P-04 cambia el veredicto sin tocar el agente** y sin esperar a la
-  siguiente pasada: se re-juzgan los hechos ya indexados.
-- **Si P-04 está vacío en la pantalla, EV-03 sale `NO_EVALUABLE`**, no `CUMPLE`.
-- Si en una máquina actualizada sigue existiendo la línea
-  `OPACC1_CUENTAS_GENERICAS=…` en el `.env`, el recolector emite un
-  `collector_warning` (regla 106830) en **cada** pasada avisando de que ya no
-  tiene efecto. **Borrar la línea lo silencia.**
+- **Cambiar el parámetro cambia el veredicto sin tocar el agente**, y sin
+  esperar a la siguiente pasada: se re-juzgan los hechos ya indexados.
+- **Con el parámetro vacío, la evidencia no acredita.** No sale `CUMPLE` por
+  silencio, que es lo que pasaba cuando el agente leía su propia copia.
+- Si en una máquina actualizada siguen las líneas viejas en el `.env`, el
+  recolector emite un `collector_warning` (regla 106830) en **cada** pasada.
+  Borrarlas lo silencia.
 
 ```bash
-sudo grep -n OPACC1_CUENTAS_GENERICAS /etc/ensfacil/opacc1.env   # no debe haber nada
+sudo grep -nE 'OPACC1_(CUENTAS_GENERICAS|CUENTAS_SERVICIO|LISTA_AUTORIZADOS)' \
+  /etc/ensfacil/opacc1.env      # no debe devolver ninguna ASIGNACIÓN
 ```
 
-Para rellenar P-04: pestaña **Configuración** del plugin → `op.acc.1` → P-04.
-Requiere que el bloque esté sembrado (§4.3).
+**Un mismo hecho sirve a dos evidencias.** No es un truco: un hecho crudo
+describe una observación, no un veredicto, así que puede responder a dos
+preguntas de auditoría distintas. El evento sale con las dos etiquetas y el
+plugin lo reparte.
 
-> **DECISIÓN DE POLÍTICA (P-04).** Qué cuentas se declaran genéricas y
-> prohibidas (`admin`, `root` compartido, `operador`…). Es la lista contra la
-> que se juzga cada autenticación observada.
+| Hecho | Regla | Evidencias | Se contrasta con |
+|---|---|---|---|
+| `account_authenticated` | 106873 | EV-03 y EV-05 | P-04 / P-03 |
+| `account_active` | 106811 | EV-01 y EV-07 | — / columna *usuario* de P-07 |
 
-> **Para que EV-03 pueda salir verde hace falta además que `collector_run`
-> llegue al índice**, porque el motor lo lee de ahí para decidir si el silencio
-> puede significar `CUMPLE`. Tiene regla desde el 31/07/2026 (**106891**, nivel
-> 3). Si el manager es anterior, esa regla no está y EV-03 se queda en gris
-> permanente sobre una máquina sana: es exactamente lo que pasó en el primer
-> despliegue real. Comprobar:
->
-> ```bash
-> echo '{"ensfacil":"op.acc.1","event":"collector_run","host":"H","resultado":"completada"}' \
->   | sudo /var/ossec/bin/wazuh-logtest        # esperado: id 106891
-> ```
+Comprobar que el agente los emite bien:
+
+```bash
+jq -c 'select(.event=="account_active" or .event=="account_authenticated")
+       |{event,evidence_id}' /var/log/ensfacil/op_acc_1.json | sort -u
+```
+
+Con un solo `evidence_id` por evento, el agente corre código anterior al 05/08.
+
 
 ### 7.6 EV-01, EV-02, EV-06 · Sin configuración
 
@@ -1330,14 +1311,21 @@ pasada— pero conviene migrarlo con el `sed` del §8.2.
 
 ### 11.4 op.acc.1 · el 100 % del agente no es el 100 % del control
 
-`op.acc.1.1` está **delegado al motor del plugin** y sale del denominador del
-score del agente. Un `score_snapshot` de 100 en el agente cubre 4 de 5
-requisitos en BAJO y 7 de 8 en MEDIO/ALTO.
+El `score_snapshot` del agente puntúa **solo lo que ese script juzga**, y deja
+fuera cuatro requisitos de ocho por dos razones distintas:
 
-**No es un hueco de medida** —el veredicto existe, lo emite otro componente—
-pero sí una lectura que hay que hacer bien: para afirmar el 100 % del control
-hay que mirar **las dos** puntas, el `score_snapshot` del agente y el estado de
-EV-03 en el plugin.
+| Fuera del denominador | Requisitos | Quién los juzga |
+|---|---|---|
+| `requisitos_delegados` | `op.acc.1.1`, `op.acc.1.r1.3` | el MOTOR, sobre los hechos crudos de EV-03 y EV-07 |
+| `sin_evidencia=true` en su `control_state` | `op.acc.1.5`, `op.acc.1.r1.1` | nadie · §11.9 |
+
+Así que el agente puntúa sobre **3 requisitos en BAJO y 4 en MEDIO/ALTO**, y
+**puede publicar `CUMPLE` al 100 % con el control real al 75 %**.
+
+**No es un hueco de medida** y no hay que perseguirlo en la máquina; es una
+lectura que hay que hacer bien. **El número que vale ante un auditor es el del
+plugin**, que sí cuenta los ocho. El del agente sirve para otra cosa: saber si
+lo que ESA máquina puede demostrar por sí sola está en orden.
 
 ### 11.5 op.acc.1 · EV-04 y EV-08 necesitan historia real
 
@@ -1394,13 +1382,54 @@ al leer un panel: **el gris de un requisito se ve por sus evidencias, no por su
 
 ---
 
+### 11.9 op.acc.1 · dos requisitos que ninguna evidencia técnica demuestra
+
+**Es el tope de este control, y el más importante de conocer**: `op.acc.1` no
+llega al 100 % en ningún nivel por mucho que la máquina esté impecable.
+
+| Requisito | Qué exige | Por qué no hay evidencia técnica |
+|---|---|---|
+| `op.acc.1.5` | identificación conforme a **eIDAS** en las comunicaciones electrónicas | ningún dato de `/etc/passwd`, del log de autenticación ni de ningún recolector demuestra conformidad con el Reglamento (UE) 910/2014 |
+| `op.acc.1.r1.1` | **singularizar a la persona** detrás del identificador y sus responsabilidades | un UID único es condición necesaria y no suficiente: falta el vínculo entre el identificador y una persona real, que no vive en el sistema |
+
+La policy del plugin lo declara donde manda —`evidenceIds: []` en
+`core/policy-runtime/policies/op-acc-1.policy.ts`— y desde el criterio del 04/08
+lo no demostrado cuenta en contra. De ahí el techo: **80 % en BAJO (4 de 5) y
+75 % en MEDIO/ALTO (6 de 8)**.
+
+En el plugin salen como no conformidades **«del catálogo»**, con la acción
+correcta: *«no hay nada que configurar en el cliente ni ningún agente que
+arreglar»*. No las persigas en la máquina.
+
+> **Esto NO era así hasta el 05/08, y el cambio importa.** El `score.py` del
+> agente mapeaba EV-01 a los dos y los daba por `CUMPLE` en cuanto el inventario
+> conformaba, mientras el motor los publicaba en rojo: dos números distintos
+> sobre la misma máquina, y el del agente afirmando un cumplimiento que nadie
+> había demostrado. Ahora el agente ni los acredita ni los puntúa, y lo declara
+> con `sin_evidencia=true` en su `control_state`. Lo vigila la comprobación 9 de
+> `tests/check-coherencia.py`.
+
+**Qué haría falta para cerrarlo.** Una *atestación documental*: que el auditor
+pueda declarar en la pantalla —con fecha, responsable y referencia al
+documento— que el requisito se satisface por procedimiento, y que eso cuente
+como evidencia con su propia trazabilidad. No existe hoy; es trabajo de
+producto, no de despliegue.
+
+---
+
 ## 12. Resumen: qué nivel es alcanzable hoy
 
 | Control | BAJO | MEDIO | ALTO |
 |---|---|---|---|
-| `op.acc.1` | **100 % alcanzable** (con P-04 en el plugin) | **100 % alcanzable** (exige P-07 y la lista de autorizados) | igual que MEDIO |
+| `op.acc.1` | **80 % · techo** · §11.9 | **75 % · techo** · §11.9 | igual que MEDIO |
 | `op.acc.2` | **100 % alcanzable** | **100 % alcanzable** | **100 % alcanzable**, pero exige los tres ficheros de política, auditd cargado y la línea base SUID revisada |
 | `mp.info.6` | **100 % alcanzable** | **100 % alcanzable** (exige prueba de restauración) | **NO alcanzable hoy** · §11.1 |
+
+**`op.acc.1` no llega al 100 % en ningún nivel**, y no por el despliegue: dos
+de sus requisitos son atestación documental y ninguna evidencia técnica los
+demuestra (§11.9). Con todo lo demás en verde y los tres parámetros de la
+pantalla rellenos, el máximo es **80 % en BAJO y 75 % en MEDIO/ALTO**. Es la
+respuesta honesta y hay que darla antes de que la dé el auditor.
 
 En los tres controles, el 100 % exige que la máquina **cumpla de verdad**: sin
 UIDs duplicados, sin *world-writable* no autorizados, con el `umask` correcto,

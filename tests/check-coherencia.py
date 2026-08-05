@@ -40,6 +40,7 @@ evidencias de mp.info.6— bajo su propia cabecera. Nada fallaba: salía un
 documento plausible y equivocado, firmado ante un auditor. La comprobación 8
 exige que todo control declarado tenga modelo de informe propio.
 """
+import glob
 import json
 import os
 import re
@@ -414,6 +415,176 @@ else:
             "modelos de informe de controles que ya no se declaran",
             ", ".join(huerfanos),
         )
+
+
+print("\n=== 9. El agente y el motor acreditan los MISMOS requisitos ===\n")
+
+# El hueco que cierra: `score.py` de cada runbook lleva su propio mapa
+# evidencia -> requisitos, y el motor tiene el suyo en la policy del plugin. Si
+# divergen, los dos publican un numero distinto sobre la misma maquina y nadie
+# se entera, porque cada uno es coherente consigo mismo.
+#
+# Encontrado el 05/08 desplegando: score.py de op.acc.1 mapeaba EV-01 a
+# `op.acc.1.5` y `op.acc.1.r1.1`, que en la policy no tienen NINGUNA evidencia
+# (`evidenceIds: []`, son atestacion documental). El agente los daba por CUMPLE
+# y el plugin por NO_CUMPLE. El agente inflaba, que es la direccion peligrosa.
+#
+# Se compara en UNA sola direccion a proposito: que el agente no acredite un
+# requisito que la policy deja sin evidencia. Al reves NO es un fallo -la policy
+# puede declarar evidencias que ese agente no emite, p.ej. las migradas al
+# motor, que salen de EVIDENCIAS y pasan a EVIDENCIAS_DELEGADAS-.
+
+def mapa_del_agente(carpeta, script):
+    """evidencia -> requisitos, leido del dict EVIDENCIAS de score.py."""
+    ruta = os.path.join(BASE, carpeta, "scripts", script)
+    if not os.path.exists(ruta):
+        return None
+    texto = lee(ruta)
+    mapa = {}
+
+    # Forma A (op.acc.1, op.acc.2): dict evidencia -> [requisitos].
+    m = re.search(r"^EVIDENCIAS = \{(.*?)^\}", texto, re.S | re.M)
+    if m:
+        for ev, reqs in re.findall(r'"(EV-\d+)":\s*\[([^\]]*)\]', m.group(1)):
+            mapa[ev] = re.findall(r'"([\w.]+)"', reqs)
+        return mapa
+
+    # Forma B (mp.info.6): tuplas (requisito, [evidencias], nivel). Se invierte
+    # para dejar el mismo mapa que la forma A. Se admiten las dos en vez de
+    # unificarlas porque el objetivo de esta comprobacion es cazar divergencias,
+    # no imponer un estilo: obligar a reescribir un score.py que funciona para
+    # poder comprobarlo seria la cola meneando al perro.
+    for req, evs in re.findall(r'\("([\w.]+)",\s*\[([^\]]*)\],\s*"', texto):
+        for ev in re.findall(r'"(EV-\d+)"', evs):
+            mapa.setdefault(ev, []).append(req)
+
+    return mapa or None
+
+
+def requisitos_sin_evidencia(control):
+    """Requisitos que la policy del plugin declara SIN ninguna evidencia."""
+    fn = control.replace(".", "-")
+    ruta = os.path.join(
+        PLUGIN, "dashboard/ens/core/policy-runtime/policies", fn + ".policy.ts"
+    )
+    if not os.path.exists(ruta):
+        return None
+    texto = lee(ruta)
+    sin = set()
+    for bloque in re.findall(r"requirementId: '([\w.]+)',(.*?)ruleType", texto, re.S):
+        req, cuerpo = bloque
+        m = re.search(r"evidenceIds: \[([^\]]*)\]", cuerpo)
+        if m and not m.group(1).strip():
+            sin.add(req)
+    return sin
+
+
+SCORE = {
+    "mp.info.6": "ens_mpinfo6_score.py",
+    "op.acc.1": "ens_opacc1_score.py",
+    "op.acc.2": "ens_opacc2_score.py",
+}
+
+for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
+    mapa = mapa_del_agente(carpeta, SCORE[control])
+    sin_evidencia = requisitos_sin_evidencia(control)
+
+    if mapa is None or sin_evidencia is None:
+        avisa(
+            "{}: no se pudo leer el mapa del agente o la policy".format(control),
+            "se salta la comprobacion en vez de darla por buena",
+        )
+        continue
+
+    inflados = sorted(
+        {req for reqs in mapa.values() for req in reqs} & sin_evidencia
+    )
+    if inflados:
+        quien = {
+            req: sorted(ev for ev, reqs in mapa.items() if req in reqs)
+            for req in inflados
+        }
+        falla(
+            "{}: el agente acredita requisitos que la policy deja sin evidencia".format(control),
+            "; ".join(
+                "{} <- {}".format(req, ", ".join(evs)) for req, evs in quien.items()
+            )
+            + " (la policy los declara con evidenceIds: [], asi que el motor los"
+            " publica NO_CUMPLE y el agente CUMPLE)",
+        )
+    else:
+        ok(
+            "{}: ningun requisito sin evidencia en la policy sale acreditado por el agente".format(control),
+            "{} evidencia(s) mapeadas".format(len(mapa)),
+        )
+
+
+print("\n=== 10. Nadie manda a rellenar una variable que el agente ya no lee ===\n")
+
+# Cada evidencia que se migra al motor se lleva su parametro del `.env` a la
+# pantalla de Configuracion. Lo que se queda atras es lo que HABLA de ese
+# parametro: el mensaje del instalador, la plantilla del `.env`, la guia.
+#
+# Encontrado el 05/08, dos veces el mismo dia: `install-real.sh` de op.acc.1
+# seguia diciendo "REVISAR P-03 y P-07" y CUMPLIMIENTO_TOTAL.md seguia dando el
+# ejemplo `OPACC1_CUENTAS_SERVICIO="svc_backup,..."`. El operador los rellena, no
+# cambia nada, y no se entera hasta que lo pregunta un auditor. Es peor que no
+# documentarlo.
+#
+# La marca de "retirada" es el aviso que el propio orquestador emite al
+# encontrarla en un `.env` viejo (`_opacc2_avisar_retirado` / el bloque de
+# avisos de op.acc.1): si una variable esta ahi, es que ya nadie la lee.
+
+for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
+    orquestador = sorted(
+        glob.glob(os.path.join(BASE, carpeta, "scripts", "*_collect.sh"))
+        + glob.glob(os.path.join(BASE, carpeta, "scripts", "*_evidence.sh"))
+    )
+    if not orquestador:
+        continue
+
+    texto = lee(orquestador[0])
+    retiradas = set(re.findall(r"_avisar_retirado (\w+)", texto))
+    retiradas |= set(
+        re.findall(r'parametro="(\w+)"[^\n]*ya no se usa en el agente', texto)
+    )
+    if not retiradas:
+        ok("{}: no declara ninguna variable retirada".format(control))
+        continue
+
+    # La librería NO puede leerlas, y nadie puede mandar a rellenarlas.
+    culpables = []
+    for fichero in sorted(
+        glob.glob(os.path.join(BASE, carpeta, "*.sh"))
+        + glob.glob(os.path.join(BASE, carpeta, "etc", "*.example"))
+        + glob.glob(os.path.join(BASE, carpeta, "docs", "*.md"))
+        + glob.glob(os.path.join(PLUGIN, "docs", "*.md"))
+    ):
+        cuerpo = lee(fichero)
+        for var in retiradas:
+            # Solo cuenta como "mandar a rellenarla" una ASIGNACION o un
+            # `REVISAR`: nombrarla para decir que ya no se usa es justo lo que
+            # hay que hacer, y no puede fallar esta comprobacion.
+            if re.search(r'^\s*(#\s*)?{}="'.format(var), cuerpo, re.M) or re.search(
+                r"REVISAR[^\n]*{}".format(var), cuerpo
+            ):
+                culpables.append(
+                    "{} -> {}".format(os.path.basename(fichero), var)
+                )
+
+    if culpables:
+        falla(
+            "{}: se manda a rellenar una variable retirada".format(control),
+            "; ".join(sorted(set(culpables))),
+        )
+    else:
+        ok(
+            "{}: nadie manda a rellenar sus {} variable(s) retirada(s)".format(
+                control, len(retiradas)
+            ),
+            ", ".join(sorted(retiradas)),
+        )
+
 
 print()
 if fallos:
