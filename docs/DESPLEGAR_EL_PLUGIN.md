@@ -86,8 +86,15 @@ ls -d "$DEST/ens" 2>/dev/null && echo "ERROR: se ha anidado. PARA AQUI."
 grep -c "unmeasuredRequirements" "$DEST/core/evaluation/evaluation-engine.ts"
 ```
 
-Elige tú la marca: un identificador o una cadena que solo exista en lo nuevo.
-Si da 0, la copia no trajo lo que crees y **no tiene sentido compilar**.
+Elige tú la marca. Sobre la FUENTE vale cualquier cosa que solo exista en lo
+nuevo, incluido un comentario. Si da 0, la copia no trajo lo que crees y **no
+tiene sentido compilar**.
+
+> **Pero para el paso 4 tiene que ser un IDENTIFICADOR o una CADENA, nunca un
+> comentario.** El bundler los elimina al compilar, así que un comentario da 0
+> en el zip con el build perfectamente bien — y el 0 se lee como «el build no
+> trajo el cambio». Pasó el 05/08 y costó una compilación de cuatro minutos.
+> Elige la marca pensando ya en el zip y úsala en los dos sitios.
 
 ## 4. Compilar
 
@@ -100,14 +107,23 @@ YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
 Tarda unos cuatro minutos y parece colgado un buen rato: es normal. Los avisos de
 `caniuse-lite` y el de `[BABEL] … deoptimised` son ruido conocido.
 
-**Comprobación del paso** — la misma marca, ahora dentro del zip:
+**Comprobación del paso** — la misma marca, ahora dentro del zip, y **en par**:
 
 ```bash
+echo -n "control positivo (> 0): "
 unzip -p build/wazuh-2.19.5.zip | grep -c "unmeasuredRequirements"
+echo -n "lo que el cambio QUITA (0): "
+unzip -p build/wazuh-2.19.5.zip | grep -c "<cadena que ya no debe existir>"
 ```
 
-Mayor que 0. Si compila y el zip no la trae, el problema es del build y no sirve
-de nada instalar.
+El primero mayor que 0: si compila y el zip no lo trae, el problema es del build
+y no sirve de nada instalar.
+
+El segundo en 0 es lo que de verdad demuestra que el zip es el NUEVO, porque un
+identificador que existe en las dos versiones da mayor que 0 en las dos. Cuando
+el cambio retira un texto —una redacción de una tarjeta, una rama que
+desaparece— ése es el mejor discriminante. Y el par es lo que impide leer un 0
+como buena noticia cuando en realidad el `grep` estaba mal escrito.
 
 ## 5. Instalar
 
