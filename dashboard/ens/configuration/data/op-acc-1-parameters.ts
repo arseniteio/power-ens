@@ -73,13 +73,20 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       example: 'svc_backup | srv01',
       required: true,
       wazuhUsage:
-        'Se puede cargar como CDB list para distinguir cuentas de usuario de cuentas de servicio.',
+        'El agente ya no lee esta lista: emite la autenticación observada (regla 106873) y el juicio lo hace el motor de ENSFácil con el valor de esta pantalla.',
       ensfacilUsage:
-        'Permite detectar cuentas de servicio usadas para acceso interactivo.',
+        'El motor contrasta con esta lista el usuario de cada autenticación observada (NINGUNO_EN_LISTA). Cambiar el valor aquí cambia el veredicto de EV-05 sin tocar ningún servidor.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['106805', '106857', '106858'],
+      // 106873 es el hecho crudo que el motor juzga contra este parámetro
+      // desde la migración de EV-05; 106805 y 106806 son las reglas del
+      // modelo viejo, que se conservan por el índice histórico. 106857 y
+      // 106858, que estaban aquí, NO EXISTEN en ningún manager: un id
+      // numérico inventado engaña más que no poner ninguno, porque el
+      // auditor que lo sigue no encuentra la regla y no sabe si el fallo es
+      // suyo o del producto.
+      ruleIds: ['106873', '106805', '106806'],
       ifNotConfigured:
-        'No se puede detectar si una cuenta de servicio se usa para acceso interactivo.',
+        'Sin declarar qué cuentas son de servicio no hay contra qué comparar: EV-05 no se puede demostrar y op.acc.1.2 cuenta como incumplimiento (criterio del 04/08).',
     },
     {
       id: 'P-04',
@@ -120,7 +127,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Evalúa si las cuentas se deshabilitan dentro del plazo definido tras la baja.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['106820', '106844'],
+      // 106815 account_disabled, 106816/106817 account_offboarding. Los dos
+      // ids que había aquí (106820, 106844) no existen en ningún manager.
+      ruleIds: ['106815', '106816', '106817'],
       ifNotConfigured:
         'No se puede verificar si las cuentas se deshabilitan en plazo. op.acc.1.4 b) NO EVALUABLE.',
     },
@@ -142,7 +151,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Evalúa el cumplimiento de la retención de cuentas para trazabilidad.',
       evidenceIds: ['EV-08'],
-      ruleIds: ['106821', '106856'],
+      // 106818 account_deleted, 106819 retention_violation. Los dos ids que
+      // había aquí (106821, 106856) no existen en ningún manager.
+      ruleIds: ['106818', '106819'],
       ifNotConfigured:
         'No se puede verificar si la retención de cuentas cumple la normativa interna.',
     },
@@ -187,13 +198,18 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Se compara el inventario de cuentas activas contra esta lista. Cuenta activa no incluida genera alerta.',
+        'El agente ya no mantiene ningún fichero de autorizados: emite una cuenta activa por cada cuenta de /etc/passwd (regla 106811) y el juicio lo hace el motor de ENSFácil con esta tabla.',
       ensfacilUsage:
-        'Permite verificar el refuerzo R1 (op.acc.1.r1.3) contrastando cuentas activas.',
+        'El motor comprueba que toda cuenta activa figure en la columna Usuario (TODOS_EN_LISTA). Es el refuerzo R1 (op.acc.1.r1.3), y editar la tabla aquí cambia el veredicto sin tocar ningún servidor.',
       evidenceIds: ['EV-07'],
-      ruleIds: ['106832', '106833', '106839', '106840'],
+      // 106811 (account_active) es el hecho crudo que el motor contrasta con
+      // la columna 'usuario' de esta tabla desde la migración de EV-07; las
+      // otras tres son las reglas del modelo viejo, conservadas por el
+      // índice histórico. Los cuatro ids que había aquí (106832, 106833,
+      // 106839, 106840) no existen en ningún manager.
+      ruleIds: ['106811', '106824', '106825', '106826'],
       ifNotConfigured:
-        'El refuerzo R1 queda NO EVALUABLE. No se puede verificar op.acc.1.r1.3.',
+        'Sin la lista no hay contra qué contrastar las cuentas activas: op.acc.1.r1.3 cuenta como incumplimiento en MEDIO y ALTO (criterio del 04/08). En BAJO el refuerzo no aplica y no resta.',
     },
     {
       id: 'P-08',

@@ -1037,6 +1037,10 @@ bloque('8 · pipeline completo desde los eventos del agente');
       estadoEvidencia('EV-01', 'CUMPLE'),
       estadoEvidencia('EV-02', 'CUMPLE'),
       estadoEvidencia('EV-04', 'NO_EVALUABLE', 'P-05 no configurado'),
+      // EV-05 y EV-07 se emiten a propósito aunque estén MIGRADAS: un agente
+      // a medio actualizar sigue mandando su `evidence_state`, y el pipeline
+      // tiene que ignorarlo. Es el corte del modelo, comprobado de punta a
+      // punta y no solo en el juicio.
       estadoEvidencia('EV-05', 'NO_EVALUABLE', 'P-03 no configurado'),
       estadoEvidencia('EV-06', 'CUMPLE'),
       estadoEvidencia('EV-07', 'NO_EVALUABLE', 'P-07 no configurado'),
@@ -1063,25 +1067,37 @@ bloque('8 · pipeline completo desde los eventos del agente');
   );
 
   comprueba(
-    'pipeline · las tres evidencias del agente llegan en NO_EVALUABLE',
+    'pipeline · las tres evidencias sin medir llegan en NO_EVALUABLE',
     ['EV-04', 'EV-05', 'EV-07'].every(
       id => resueltas.find(item => item.id === id)?.status === 'NO_EVALUABLE'
     ),
     JSON.stringify(resueltas.map(item => `${item.id}:${item.status}`))
   );
 
+  // LA CAUSA SEPARA LAS DOS FAMILIAS, y desde la migración de EV-05 y EV-07
+  // pasan a familias distintas aunque el agente diga lo mismo de las tres:
+  //
+  //   EV-04  clásica. El agente reportó y declaró que no pudo medir, así que
+  //          el dato LLEGÓ y la causa es del productor: EVIDENCE.
+  //   EV-05  migradas. Su `evidence_state` ya no manda —el motor no lo lee en
+  //   EV-07  ningún punto— y de hechos no ha llegado ninguno, así que la
+  //          causa es de RECOGIDA, igual que la de EV-03, que nadie emitió.
+  //
+  // Que el `motivo` del agente («P-03 no configurado») NO aparezca es parte
+  // del corte: si apareciera, el auditor estaría leyendo el veredicto viejo
+  // sobre una evidencia que hoy decide otro.
   comprueba(
-    'pipeline · el agente reportó: la causa es del productor, no de la recogida',
-    ['EV-04', 'EV-05', 'EV-07'].every(
-      id => resueltas.find(item => item.id === id)?.gapCause === 'EVIDENCE'
-    ),
+    'pipeline · la evidencia clásica reportó: la causa es del productor',
+    resueltas.find(item => item.id === 'EV-04')?.gapCause === 'EVIDENCE',
     JSON.stringify(resueltas.map(item => `${item.id}:${String(item.gapCause)}`))
   );
 
   comprueba(
-    'pipeline · EV-03, que nadie emitió, sí es un fallo de recogida',
-    resueltas.find(item => item.id === 'EV-03')?.gapCause === 'COLLECTION',
-    String(resueltas.find(item => item.id === 'EV-03')?.gapCause)
+    'pipeline · las migradas ignoran el evidence_state del agente: la causa es la RECOGIDA',
+    ['EV-03', 'EV-05', 'EV-07'].every(
+      id => resueltas.find(item => item.id === id)?.gapCause === 'COLLECTION'
+    ),
+    JSON.stringify(resueltas.map(item => `${item.id}:${String(item.gapCause)}`))
   );
 
   comprueba(
@@ -1098,10 +1114,27 @@ bloque('8 · pipeline completo desde los eventos del agente');
     )
   );
 
+  // El motivo del agente llega a la tarjeta CUANDO ES SUYO. EV-04 sigue en el
+  // modelo clásico, así que su «P-05 no configurado» viaja hasta el informe: es
+  // lo accionable, y perderlo convierte el rojo en una acusación muda.
   comprueba(
-    'pipeline · el motivo del agente («P-07 no configurado») llega a la tarjeta',
+    'pipeline · el motivo de la evidencia clásica («P-05 no configurado») llega a la tarjeta',
     resultado.nonConformities.some(nc =>
-      nc.finding.includes('P-07 no configurado')
+      nc.finding.includes('P-05 no configurado')
+    ),
+    JSON.stringify(resultado.nonConformities.map(nc => nc.finding))
+  );
+
+  // Y el de una evidencia MIGRADA no, que es la otra mitad del corte: ese
+  // «P-07 no configurado» lo escribió un agente que ya no juzga EV-07, y
+  // enseñárselo al auditor sería presentarle el veredicto viejo como si fuera
+  // el de hoy. Sin él la tarjeta dice lo que de verdad pasa: no ha llegado
+  // ningún hecho.
+  comprueba(
+    'pipeline · el motivo viejo de una evidencia migrada NO se cuela en la tarjeta',
+    !resultado.nonConformities.some(nc =>
+      nc.finding.includes('P-07 no configurado') ||
+      nc.finding.includes('P-03 no configurado')
     ),
     JSON.stringify(resultado.nonConformities.map(nc => nc.finding))
   );
