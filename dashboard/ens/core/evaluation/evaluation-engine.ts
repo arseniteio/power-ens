@@ -339,10 +339,15 @@ export const evaluateENSControl = (
   // 04/08 el requisito que no se ha podido demostrar sale NO_CUMPLE, así que cae
   // aquí igual que el que se midió y falló; lo que los separa es `evidenced`, y
   // de ahí salen `origin` y `cause` de la tarjeta.
+  //
+  // `PARCIAL` salió de este filtro el 05/08 porque un REQUISITO ya no puede
+  // estar en ese estado: un incumplimiento medido lo tumba entero (ver
+  // `resolveMeasurement`). PARCIAL sigue existiendo, pero solo donde significa
+  // algo: en el CONTROL —parte de sus requisitos conforman y parte no— y en
+  // una EVIDENCIA que el agente declare medida a medias.
   const failingRequirements = requirements.filter(
     requirement =>
-      requirement.applicable &&
-      (requirement.status === 'NO_CUMPLE' || requirement.status === 'PARCIAL')
+      requirement.applicable && requirement.status === 'NO_CUMPLE'
   );
 
   // Parámetros de la pantalla de Configuración que acreditan un requisito y no
@@ -600,15 +605,15 @@ export const evaluateENSControl = (
           requirement.evidenceIds[0] ||
           'ENS',
         requirementId: requirement.id,
+        // Ya no hay rama de «conforma solo en parte»: un requisito con un
+        // incumplimiento medido no conforma, y punto. Esa redacción era la
+        // cara visible del crédito parcial —la tarjeta decía «solo en parte»
+        // sobre un requisito que un auditor marca no conforme— y desaparece
+        // con él.
         finding:
           decision?.reason ||
-          (requirement.status === 'NO_CUMPLE'
-            ? `El requisito ${requirement.id} se ha medido y no conforma.`
-            : `El requisito ${requirement.id} se ha medido y conforma solo en parte.`),
-        impact:
-          requirement.status === 'NO_CUMPLE'
-            ? `Impide el cumplimiento del control ${catalogControl.id} en nivel ${level}.`
-            : `Degrada el cumplimiento del control ${catalogControl.id} en nivel ${level}.`,
+          `El requisito ${requirement.id} se ha medido y no conforma.`,
+        impact: `Impide el cumplimiento del control ${catalogControl.id} en nivel ${level}.`,
         requiredAction: decision?.trace
           ? `Corregir para alcanzar: ${decision.trace.expected}. Valor actual: ${decision.trace.actual}.`
           : badEvidences.length

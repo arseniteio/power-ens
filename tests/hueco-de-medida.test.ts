@@ -256,12 +256,68 @@ bloque('1 · requisito: lo no demostrado NO CUMPLE, y se sabe que no se midió')
 {
   // Eje único frente al anterior: EV-05 pasa de NO_EVALUABLE a NO_CUMPLE. El
   // veredicto del requisito es EL MISMO; lo que cambia es el diagnóstico.
+  //
+  // Y desde el 05/08 eso es literalmente cierto. Hasta entonces este caso salía
+  // PARCIAL —EV-06 conforma, EV-05 no— y el de arriba NO_CUMPLE, así que el
+  // comentario de esta sección prometía algo que el código no hacía: los dos
+  // veredictos NO eran el mismo.
   const conIncumplimiento = evalua(evidencias({ 'EV-05': 'NO_CUMPLE' }));
 
   comprueba(
-    'EV-05 incumple · op.acc.1.2 PARCIAL (EV-06 conforma, EV-05 no)',
-    estadoDe(conIncumplimiento, 'op.acc.1.2') === 'PARCIAL',
+    'EV-05 incumple · op.acc.1.2 NO_CUMPLE, sin crédito parcial por EV-06',
+    estadoDe(conIncumplimiento, 'op.acc.1.2') === 'NO_CUMPLE',
     String(estadoDe(conIncumplimiento, 'op.acc.1.2'))
+  );
+
+  // EL NÚMERO, que es donde se veía el defecto y donde una reversión pasaría
+  // desapercibida si solo se mirara el estado. Un requisito con un
+  // incumplimiento medido puntúa 0, no 50. En una máquina real de op.acc.2 esos
+  // 50 puntos por requisito publicaban un 50 % de control con sus TRES
+  // requisitos aplicables en la lista de no conformidades medidas.
+  comprueba(
+    'EV-05 incumple · el requisito puntúa 0, no 50',
+    conIncumplimiento.requirements.find(
+      item => item.id === 'op.acc.1.2'
+    )?.score === 0,
+    String(
+      conIncumplimiento.requirements.find(
+        item => item.id === 'op.acc.1.2'
+      )?.score
+    )
+  );
+
+  // Contraparte obligatoria, y sobre EL MISMO requisito moviendo UN solo eje: con
+  // EV-05 en CUMPLE, op.acc.1.2 vuelve a 100. Sin ella, un `scoreByStatus` que
+  // devolviera 0 siempre pasaría esta sección entera.
+  //
+  // Se compara op.acc.1.2 consigo mismo y no con otro requisito: op.acc.1.3
+  // también lo acredita EV-05, así que un «requisito sano» elegido a ojo caía
+  // por la misma causa y la contraparte no probaba nada.
+  const todoConforme = evalua(evidencias());
+
+  comprueba(
+    'el MISMO requisito con EV-05 en verde vuelve a puntuar 100',
+    todoConforme.requirements.find(item => item.id === 'op.acc.1.2')
+      ?.score === 100,
+    String(
+      todoConforme.requirements.find(item => item.id === 'op.acc.1.2')?.score
+    )
+  );
+
+  // Una evidencia que el agente declara PARCIAL es una MEDIDA, y tiene que
+  // seguir contando como tal: si cayera al NO_EVALUABLE, su tarjeta diría «no
+  // evidenciado, fallo de recogida» y mandaría al operador a revisar el agente
+  // en vez de la máquina. Es el modo de fallo silencioso de este cambio.
+  const conParcial = evalua(evidencias({ 'EV-05': 'PARCIAL' }));
+
+  comprueba(
+    'una evidencia PARCIAL tumba el requisito y sigue siendo una MEDIDA',
+    estadoDe(conParcial, 'op.acc.1.2') === 'NO_CUMPLE' &&
+      demostrado(conParcial, 'op.acc.1.2') === true &&
+      tarjeta(conParcial, 'op.acc.1.2')?.origin === 'MEDIDA',
+    `${String(estadoDe(conParcial, 'op.acc.1.2'))}/${String(
+      demostrado(conParcial, 'op.acc.1.2')
+    )}/${String(tarjeta(conParcial, 'op.acc.1.2')?.origin)}`
   );
 
   comprueba(

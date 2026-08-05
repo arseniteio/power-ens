@@ -50,10 +50,6 @@ const resolveMeasurement = (
     return 'NO_EVALUABLE';
   }
 
-  const hasCompliantEvidence = applicableEvidences.some(
-    evidence => evidence.status === 'CUMPLE'
-  );
-
   const hasPartialEvidence = applicableEvidences.some(
     evidence => evidence.status === 'PARCIAL'
   );
@@ -62,11 +58,33 @@ const resolveMeasurement = (
     evidence => evidence.status === 'NO_CUMPLE'
   );
 
-  if (hasNonCompliantEvidence && (hasCompliantEvidence || hasPartialEvidence)) {
-    return 'PARCIAL';
-  }
-
-  if (hasNonCompliantEvidence) {
+  // UN INCUMPLIMIENTO MEDIDO TUMBA EL REQUISITO ENTERO. No hay crédito parcial,
+  // y esto cambió el 05/08/2026.
+  //
+  // Antes, un requisito con una evidencia en rojo y otra en verde salía PARCIAL,
+  // que `scoreByStatus` puntúa con 50. En una máquina real de op.acc.2 eso
+  // publicaba **50 %** con sus TRES requisitos aplicables en la lista de no
+  // conformidades medidas: el número decía la mitad de lo que decía su propia
+  // lista, y decía de más.
+  //
+  // Dos razones, y la segunda es la que obliga:
+  //
+  //   · Un requisito del ENS es una afirmación normativa, no una media. Si un
+  //     recurso es world-writable, `op.acc.2.1` NO se cumple; no se cumple a
+  //     medias porque otra evidencia del mismo requisito esté bien. Un auditor
+  //     escribe «no conforme», no «conforme al 50 %».
+  //   · Los tres agentes ya lo hacían así —`medida_requisito` devuelve
+  //     NO_CUMPLE en cuanto UNA evidencia acreditante falla— así que el motor y
+  //     el agente publicaban números distintos sobre los mismos datos, y el que
+  //     lee el auditor era el más generoso de los dos.
+  //
+  // Una evidencia en PARCIAL entra por aquí y NO por el NO_EVALUABLE de abajo, y
+  // la diferencia no es cosmética: PARCIAL es una MEDIDA —el agente miró y
+  // declaró que conforma a medias— así que `evidenced` tiene que salir cierto.
+  // Cayendo al NO_EVALUABLE, la tarjeta etiquetaría como «no evidenciado, fallo
+  // de recogida» un hallazgo real y mandaría al operador a revisar el agente en
+  // vez de la máquina.
+  if (hasNonCompliantEvidence || hasPartialEvidence) {
     return 'NO_CUMPLE';
   }
 
@@ -79,12 +97,6 @@ const resolveMeasurement = (
 
   if (hasMissingRequiredParameters) {
     return 'NO_EVALUABLE';
-  }
-
-  // Una evidencia en PARCIAL es una MEDIDA: el agente ha mirado y ha declarado
-  // que conforma a medias. Eso sí degrada el requisito.
-  if (hasPartialEvidence) {
-    return 'PARCIAL';
   }
 
   // Llegados aquí no hay ninguna evidencia que incumpla ni que conforme a
