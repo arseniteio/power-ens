@@ -142,7 +142,7 @@ cliente. Si vas con prisa, los pasos 1-3 ya dan el nivel BAJO de `op.acc.2` y
 | 1 | [Manager, agente y cron](#4-paso-0--lo-común-a-los-tres-controles) | **todo**: sin esto no hay ni un dato | 20 min, una vez por manager |
 | 2 | [Arreglar el `umask` de la máquina](#61-ev-01--world-writable-y-umask) | op.acc.2 EV-01 | 5 min |
 | 3 | [**P-03, P-04 y P-07 en la pantalla** de Configuración](#71-los-tres-parámetros-que-viven-en-la-pantalla-no-en-el-env) | op.acc.1 EV-03, EV-05 y EV-07 · **es lo que más desbloquea del control** | 15 min + decisión del responsable |
-| 4 | [Promover la línea base de SUID](#67-ev-07--suidsgid-y-ficheros-sin-dueño) | op.acc.2 EV-07 | 30 min de **revisión humana** |
+| 4 | [Promover la línea base de SUID](#66-ev-07--suidsgid-y-ficheros-sin-dueño) | op.acc.2 EV-07 | 30 min de **revisión humana** |
 | 5 | [Escribir `opacc2-acl.tsv`](#64-ev-04--acls-frente-a-la-política-declarada) | op.acc.2 EV-04 → **BAJO y MEDIO al 100 %** | decisión del responsable |
 | 6 | [`.env` de mp.info.6 + primera copia](#8-mpinfo6--copias-de-seguridad) | mp.info.6 BAJO | 30 min |
 | 8 | [Prueba de restauración](#85-ev-05--prueba-de-restauración-r1) | mp.info.6 MEDIO | decisión operativa |
