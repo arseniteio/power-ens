@@ -121,11 +121,61 @@ judgment: {
 },
 ```
 
-**Incluye los nombres de evento viejos.** Lo que se descarta del modelo viejo es
-el `estado`, que este camino no lee en ningún punto; el hecho sigue siendo
-utilizable. Así la migración no deja ciega a la evidencia sobre los datos ya
-indexados, y esos datos pasan a juzgarse con el parámetro de **hoy** en vez de
-con el `.env` de aquel día.
+**Incluye los nombres de evento viejos, PERO solo si entre todos cubren la misma
+población que el hecho nuevo.** Lo que se descarta del modelo viejo es el
+`estado`, que este camino no lee en ningún punto; el hecho sigue siendo
+utilizable, y así la migración no deja ciega a la evidencia sobre los datos ya
+indexados —que pasan a juzgarse con el parámetro de **hoy** en vez de con el
+`.env` de aquel día—.
+
+La condición no es un detalle. El modelo viejo solía emitir DOS nombres, uno por
+veredicto, y entre los dos cubrían todo lo observado: EV-03 emitía
+`generic_account_login` y `auth_success`, EV-05 `service_account_interactive` e
+`interactive_login`. Readmitir los dos es seguro. Pero cuando el nombre viejo
+solo se emitía para los INFRACTORES —`unauthorized_user` en EV-07— readmitirlo
+juzga la evidencia sobre una muestra sesgada: `TODOS_EN_LISTA` diría «todas las
+cuentas observadas están autorizadas» en cuanto la única observada resultara
+estar hoy en la lista, con las otras cuarenta sin mirar. **Es la forma de falso
+verde que esta migración estuvo más cerca de producir.**
+
+Y un agregado sin el campo que se lee (`authorized_list_check` no trae
+`usuario`) tampoco entra: dejaría la evidencia en `NO_EVALUABLE` permanente por
+hechos ilegibles.
+
+### 4 bis. ¿Ya lo emite otra evidencia? Entonces no inventes un hecho
+
+**El caso más barato de todos, y hasta hoy el más frecuente: el hecho ya existe,
+lo emite otra evidencia, y basta con etiquetarlo también con la tuya.** Dos
+evidencias pueden preguntar cosas distintas sobre la misma observación:
+
+| Hecho | Regla | Evidencias | Cada una lo contrasta con |
+|---|---|---|---|
+| `account_authenticated` | 106873 | op.acc.1 EV-03 y EV-05 | P-04 (genéricas) / P-03 (servicio) |
+| `account_active` | 106811 | op.acc.1 EV-01 y EV-07 | — (EV-01 es clásica) / columna *usuario* de P-07 |
+
+El agente emite **un solo evento** con `evidence_id=EV-03,EV-05`, y
+`normalizeWazuhAlerts` lo reparte en uno por evidencia. No es un patrón nuevo:
+106609 de mp.info.6 lleva `evidencia=EV-03,EV-07` desde antes de este modelo.
+
+Emitirlo dos veces —una por evidencia, como hacía el clásico— es lo que
+permitía que las dos copias de la misma línea de log acabaran discrepando.
+
+**Qué hay que revisar al hacerlo**, y son cuatro cosas concretas:
+
+1. **Todo lo que lea `evidence_id` tiene que partir por comas.** El plugin ya lo
+   hace (`getEvidenceIds`); en el agente hay que mirar `score.py`, el recuento
+   `evidencias_emitidas` del orquestador y el del simulador. Sin eso, el par
+   cuenta como UNA evidencia con un nombre que no existe.
+2. **La regla declara las dos evidencias** en su `<group>` y su `<info>`.
+3. **La población tiene que ser la misma para las dos.** Si tu evidencia solo
+   necesita un subconjunto de lo que la otra observa, el hecho compartido no
+   vale: estarías juzgando sobre una muestra que no es la tuya. Es la misma
+   condición del paso 4 sobre los nombres viejos, por otra vía.
+4. **El `estado` del hecho es de la otra evidencia, no tuya.** `account_active`
+   lleva `estado=CUMPLE` porque EV-01 sigue en el modelo clásico; el camino de
+   `judgeEvidence` no lo lee, y por eso conviven sin estorbarse. Escríbelo en el
+   comentario de la regla, o el siguiente que la lea pensará que el veredicto
+   sigue en el agente.
 
 ### 5. Cortar el `evidence_state` en los cuatro sitios
 
@@ -172,6 +222,13 @@ evidencia puede callar legítimamente —no hubo autenticaciones— y ese silenc
 justo el caso que puede ser CUMPLE. Lo que decide es si la fuente **se pudo
 leer**.
 
+**Y no toda evidencia migrada entra en la lista.** Se lista la que cumple las
+DOS condiciones: esta pasada comprobó su fuente, y su primitiva puede convertir
+el silencio en CUMPLE (solo las dos de aserción negativa). EV-07 está migrada y
+NO se lista, porque `TODOS_EN_LISTA` no cumple por ausencia nunca: declarar su
+cobertura sería afirmar algo cierto y sin efecto, y el día que alguien cambiara
+la primitiva pasaría a tener efecto sin que nadie lo revisara.
+
 ### 9. Verificar
 
 La prueba de aceptación de toda la migración:
@@ -194,12 +251,19 @@ Y comprueba que `python3 tests/check-coherencia.py` sigue en `coherencia OK`.
 
 | Control | Evidencia | Estado |
 |---|---|---|
-| `op.acc.1` | EV-03 | **migrada** — hecho `account_authenticated`, regla 106873, parámetro P-04 |
-| resto | 21 evidencias | modelo clásico |
+| `op.acc.1` | EV-03 | **migrada** — `account_authenticated`, regla 106873, P-04 |
+| `op.acc.1` | EV-05 | **migrada** — el MISMO hecho de EV-03, P-03 |
+| `op.acc.1` | EV-07 | **migrada** — `account_active` de EV-01, regla 106811, columna *usuario* de P-07 |
+| resto | 19 evidencias | modelo clásico |
 
-**Son 22, no 24.** El catálogo (`core/evidence/catalog.ts`) tiene 7 de
-mp.info.6, 8 de op.acc.1 y 7 de op.acc.2; este documento decía 23 restantes y
-`CLAUDE.md` lo repite. De las 21 que quedan, **14 se pueden migrar** con las
+Las tres migradas hasta hoy **no han necesitado ni un hecho nuevo**: dos
+comparten el de EV-03 y una el de EV-01. Es lo esperable y lo deseable —el
+agente ya observa casi todo lo que hace falta; lo que sobraba era el veredicto—
+y explica por qué la banda de reglas reservada a hechos crudos (106873-106889)
+sigue teniendo una sola regla.
+
+**Son 22.** El catálogo (`core/evidence/catalog.ts`) tiene 7 de mp.info.6, 8 de
+op.acc.1 y 7 de op.acc.2. De las 19 que quedan, **12 se pueden migrar** con las
 siete primitivas y 7 no: el porqué de cada una está en
 [`PRIMITIVAS_DE_JUICIO.md`](PRIMITIVAS_DE_JUICIO.md).
 

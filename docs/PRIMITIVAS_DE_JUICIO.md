@@ -11,9 +11,9 @@ La receta paso a paso de UNA evidencia sigue estando en
 Implementación: `dashboard/ens/core/evidence/judgment.ts`.
 Pruebas: `tests/evidence-judgment.test.ts`.
 
-> **Son 22 evidencias, no 24.** `CLAUDE.md` y `MIGRAR_UNA_EVIDENCIA.md` hablan de
-> «las otras 23»; el catálogo (`core/evidence/catalog.ts`) tiene 7 de mp.info.6,
-> 8 de op.acc.1 y 7 de op.acc.2. Una está migrada, así que quedan **21**.
+> **Son 22 evidencias.** El catálogo (`core/evidence/catalog.ts`) tiene 7 de
+> mp.info.6, 8 de op.acc.1 y 7 de op.acc.2. Van **tres migradas** (op.acc.1
+> EV-03, EV-05 y EV-07), así que quedan **19**: 12 migrables y 7 que no.
 
 ## Por qué siete y no tres, ni veintidós
 
@@ -151,9 +151,9 @@ Notas:
 | EV-02 | **no migrable** | `account_created` / `account_modified` / `account_deleted` | — | — |
 | EV-03 | `NINGUNO_EN_LISTA` — **migrada** | `account_authenticated` | `usuario` | P-04 |
 | EV-04 | `UMBRAL_MAXIMO` | `account_offboarding` para **toda** cuenta con fecha de baja conocida, esté deshabilitada o no | `dias_hasta_deshabilitacion` | P-05 |
-| EV-05 | `NINGUNO_EN_LISTA` | `account_authenticated` — **el mismo hecho de EV-03** | `usuario` | P-03 |
+| EV-05 | `NINGUNO_EN_LISTA` — **migrada** | `account_authenticated` — **el mismo hecho de EV-03** | `usuario` | P-03 |
 | EV-06 | **no migrable** | `account_privilege_use` con `usuario` y `grupo` | — | P-11, P-12 |
-| EV-07 | `TODOS_EN_LISTA` con `parameterColumn: 'usuario'` | `account_active` (ya existe) | `usuario` | **P-07, tabla** |
+| EV-07 | `TODOS_EN_LISTA` con `parameterColumn: 'usuario'` — **migrada** | `account_active` (el mismo hecho de EV-01) | `usuario` | **P-07, tabla** |
 | EV-08 | `UMBRAL_MINIMO` | `account_deleted` (ya lleva el campo) | `dias_retenida` | P-06 |
 
 Notas:
@@ -278,11 +278,11 @@ diferencia decide **en qué dirección se equivoca el motor**:
 
 ## Orden sugerido de la migración
 
-1. **op.acc.1 / EV-05** — ni hecho nuevo ni primitiva nueva. Solo mover P-03 del
-   `.env` a la pantalla. Es la que enseña la receta con el coste mínimo.
-2. **op.acc.1 / EV-07** — el hecho ya existe; estrena `parameterColumn` sobre una
-   tabla real y retira de la máquina el fichero de autorizados, que es el
-   parámetro que tumba MEDIO y ALTO por sí solo.
+1. ~~**op.acc.1 / EV-05**~~ — **HECHA el 05/08.** Ni hecho nuevo ni primitiva
+   nueva: comparte `account_authenticated` con EV-03 y solo cambia la lista.
+2. ~~**op.acc.1 / EV-07**~~ — **HECHA el 05/08.** Estrenó `parameterColumn`
+   sobre una tabla real y retiró de cada máquina el fichero de autorizados, que
+   era el parámetro que tumbaba MEDIO y ALTO por sí solo.
 3. **op.acc.2 / EV-07 y EV-01** — barridos, hechos ya existentes, estrenan
    `NINGUNO_FUERA_DE_LISTA`.
 4. **op.acc.1 / EV-08 y EV-04** — umbrales, campos ya existentes.
@@ -290,3 +290,18 @@ diferencia decide **en qué dirección se equivoca el motor**:
    lado del agente y conviene llegar con las anteriores hechas.
 6. **mp.info.6** — la que más hechos nuevos exige (EV-03 entero, EV-04 entero) y
    la que arrastra la divergencia del doble catálogo entre EV-01 y EV-02.
+
+### Lo que enseñaron las dos primeras
+
+**Ninguna necesitó un hecho nuevo**, y eso no fue suerte: el agente ya observa
+casi todo lo que hace falta, y lo que sobraba era el veredicto. Antes de diseñar
+un hecho, mira si otra evidencia ya lo emite y etiquétalo con las dos
+(`evidence_id=EV-03,EV-05`). Ver el paso **4 bis** de
+[`MIGRAR_UNA_EVIDENCIA.md`](MIGRAR_UNA_EVIDENCIA.md).
+
+**Y apareció una regla que no estaba escrita**: los nombres de evento viejos
+solo se readmiten cuando entre todos cubren la MISMA población que el hecho
+nuevo. EV-05 sí (los infractores y el resto); EV-07 no, porque
+`unauthorized_user` solo se emitía para las cuentas que fallaban y
+`TODOS_EN_LISTA` sobre esa muestra habría dado CUMPLE con cuarenta cuentas sin
+mirar. Es el falso verde que esta tanda estuvo más cerca de producir.
