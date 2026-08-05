@@ -127,27 +127,38 @@
     <info type="text">requisito=mp.info.6.2.d evidencia=EV-03 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-05 formato=fim</info>
   </rule>
 
-  <!-- NO_EVALUABLE, y no es un descuido frente al NO_CUMPLE de 106601: el
-       criterio entero esta en el comentario de esa regla, mas arriba. En corto:
-       la prueba de restauracion R1 esta dormida de fabrica, asi que su ausencia
-       es ausencia de MEDIDA. La no conformidad de r1.1 la declara 106607
-       (`restore_error`): restaurar se intento y fallo.
+  <!-- NO_CUMPLE desde el 04/08/2026. Hasta esa fecha era NO_EVALUABLE, y la
+       asimetria frente al NO_CUMPLE de 106601 estaba razonada: la prueba de
+       restauracion R1 esta dormida de fabrica, asi que su ausencia era ausencia
+       de MEDIDA y no un hecho sobre la maquina.
 
-       El nivel baja de 10 a 3, y es parte del mismo arreglo. En este control el
-       10 es la severidad de una no conformidad (la llevan 106603, 106607,
-       106609 y 106663, todas NO_CUMPLE) y aqui quedo del tiempo en que el
-       emisor tambien acusaba. Un NO_EVALUABLE vale 3, como 106702. Con 10, esta
-       regla levantaba cada noche una alerta de severidad alta en el SOC contra
-       cualquier maquina que sencillamente no ha activado la prueba, que es el
-       estado de fabrica. El nivel no toca el semaforo del plugin (no lo lee
-       nadie del motor) pero si lo que ve el SOC, y decirle "grave" a un "no
-       medido" es la misma acusacion falsa por otra via. -->
+       El responsable ha decidido que esa distincion no llegue al veredicto. La
+       convencion de auditoria es que la carga de la prueba es del auditado:
+       mp.info.6.r1.1 EXIGE una prueba de restauracion, y una maquina que no la
+       tiene no puede enseñar ninguna. Un auditor no escribe "no evaluable",
+       escribe "no evidenciado" y cuenta en contra.
+
+       Lo que NO se unifica es el evento ni el motivo. 106607 (`restore_error`)
+       sigue diciendo "restaurar se intento y fallo" y esta, "no se ha
+       intentado": el operador tiene que hacer cosas distintas en cada caso, y
+       eso viaja en el `detalle`, que nombra las dos variables que arman la
+       sonda (ENS_RESTORE_ARCHIVE y ENS_RESTORE_CANARY).
+
+       El nivel se queda en 3 y NO sube a 10 con el cambio de estado, que es la
+       parte que hay que justificar. En este control el 10 es la severidad de
+       una no conformidad demostrada por un hecho observado (106603, 106607,
+       106609, 106663: algo fallo y lo vimos fallar). Esta regla dispara cada
+       noche contra cualquier maquina que sencillamente no ha activado la
+       prueba, que es el estado de fabrica: subirla a 10 llenaria el SOC de
+       alertas graves sobre una configuracion pendiente. El nivel no toca el
+       semaforo del plugin -no lo lee nadie del motor-, solo lo que ve el SOC,
+       asi que el veredicto de cumplimiento no depende de este numero. -->
   <rule id="106606" level="3">
     <if_sid>106600</if_sid>
     <field name="event">restore_missing</field>
-    <description>mp.info.6 · mp.info.6.r1.1 · NO_EVALUABLE (EV-05) · Sin prueba de restauración R1 con md5sum</description>
-    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_evaluable,restore,</group>
-    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_EVALUABLE ev_id=NC-06 formato=json_line</info>
+    <description>mp.info.6 · mp.info.6.r1.1 · NO_CUMPLE (EV-05) · Sin prueba de restauración R1 con md5sum</description>
+    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_cumple,non_conformity,restore,</group>
+    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-06 formato=json_line</info>
   </rule>
 
   <rule id="106607" level="10">
