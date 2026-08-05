@@ -250,17 +250,27 @@ const parseRestoreThresholdContract = (
   return result;
 };
 
-const hoursSince = (timestamp?: string): number | undefined => {
+// `reference` es el instante contra el que se mide, y lo pone el contexto. La
+// serie diaria evalúa este mismo motor a fechas pasadas: si la antigüedad se
+// midiera contra `Date.now()`, todos los puntos del histórico compararían con
+// hoy y una copia correcta en su día saldría vencida.
+const hoursSince = (
+  timestamp: string | undefined,
+  reference: Date
+): number | undefined => {
   if (!timestamp) return undefined;
 
   const time = new Date(timestamp).getTime();
   if (!Number.isFinite(time)) return undefined;
 
-  return Math.round((Date.now() - time) / 36000) / 100;
+  return Math.round((reference.getTime() - time) / 36000) / 100;
 };
 
-const daysSince = (timestamp?: string): number | undefined => {
-  const hours = hoursSince(timestamp);
+const daysSince = (
+  timestamp: string | undefined,
+  reference: Date
+): number | undefined => {
+  const hours = hoursSince(timestamp, reference);
   return hours === undefined ? undefined : Math.round((hours / 24) * 100) / 100;
 };
 
@@ -357,6 +367,8 @@ const buildRuntimeVariables = (
   if (context.control.id !== 'mp.info.6') {
     return [];
   }
+
+  const evaluationInstant = context.now || new Date();
 
   const backupFrequencyHours = toNumber(getParameterValue(context, 'P-01'));
   const toleranceHours = toNumber(getParameterValue(context, 'P-02'), 0);
@@ -599,7 +611,10 @@ const buildRuntimeVariables = (
     ['EV-01', 'EV-02'].includes(evidence.id)
   );
 
-  const lastBackupAgeHours = hoursSince(backupEvidence?.lastSeen);
+  const lastBackupAgeHours = hoursSince(
+    backupEvidence?.lastSeen,
+    evaluationInstant
+  );
 
   if (lastBackupAgeHours !== undefined) {
     variables.push({
@@ -617,7 +632,10 @@ const buildRuntimeVariables = (
     evidence => evidence.id === 'EV-05'
   );
 
-  const lastRestoreAgeDays = daysSince(restoreEvidence?.lastSeen);
+  const lastRestoreAgeDays = daysSince(
+    restoreEvidence?.lastSeen,
+    evaluationInstant
+  );
 
   if (lastRestoreAgeDays !== undefined) {
     variables.push({

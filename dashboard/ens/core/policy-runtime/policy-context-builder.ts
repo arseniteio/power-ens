@@ -10,11 +10,13 @@ export const buildPolicyContext = (
   configuration: ENSControlConfiguration | undefined,
   level: ENSLevel,
   events: ENSNormalizedEvent[],
-  evidences: ENSEvidenceResolved[]
+  evidences: ENSEvidenceResolved[],
+  now?: Date
 ): ENSPolicyContext => ({
   control,
   configuration,
   level,
   events,
   evidences,
+  now,
 });

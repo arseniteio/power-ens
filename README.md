@@ -158,6 +158,13 @@ Y en la pantalla del control, la prueba de que todo el circuito está vivo:
 una cuenta que se haya autenticado y EV-03 pasa a rojo nombrándola; quítala y
 vuelve. Se rejuzgan los eventos ya indexados.
 
+En la vista general, la comprobación equivalente es el **gráfico de evolución**:
+un punto por día, calculado por el mismo motor que el panel, y el último —el
+marcado como «ahora»— tiene que dar **el mismo número que el índice global de
+arriba**. Si discrepan, hay un defecto. Un día que baja sin que la máquina haya
+cambiado suele significar que ese día el agente dejó de reportar y venció la
+ventana del recolector.
+
 ---
 
 # Cuando algo no cuadra

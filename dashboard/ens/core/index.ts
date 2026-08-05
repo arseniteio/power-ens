@@ -5,5 +5,6 @@ export * from './evaluation';
 export * from './compliance-result';
 export * from './compliance-state';
 export * from './ens-engine';
+export * from './timeline';
 export * from './dashboard-adapter';
 export * from './traceability';

@@ -50,11 +50,16 @@ const getScopedEvents = (
   });
 };
 
+// `now` es el instante al que se evalúa. Por defecto es ahora —el caso del
+// panel— y existe como parámetro porque la serie diaria evalúa este mismo
+// motor a fechas pasadas: la ventana del latido y la antigüedad de la copia
+// tienen que medirse contra el día del punto, no contra hoy.
 export const getENSComplianceResults = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
   agentId?: string,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
 ) => {
   const scopedEvents = getScopedEvents(
     events,
@@ -73,7 +78,8 @@ export const getENSComplianceResults = (
       scopedEvents,
       agentId,
       level,
-      configuration
+      configuration,
+      now
     );
 
     const policyContext = buildPolicyContext(
@@ -81,7 +87,8 @@ export const getENSComplianceResults = (
       configuration,
       level,
       scopedEvents,
-      evidences
+      evidences,
+      now
     );
 
     const policyRuntime = runPolicyRuntime(policyContext);
@@ -183,7 +190,8 @@ const buildAgentComplianceStates = (
   level: ENSLevel,
   events: ENSNormalizedEvent[],
   requestedAgentId?: string,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
 ) =>
   getAgentIdentities(
     events,
@@ -201,7 +209,8 @@ const buildAgentComplianceStates = (
         level,
         agentEvents,
         agent.agentId,
-        scopeAgents
+        scopeAgents,
+        now
       );
 
     const state =
@@ -219,13 +228,15 @@ export const getENSComplianceState = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
   agentId?: string,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
 ) => {
   const agents = buildAgentComplianceStates(
     level,
     events,
     agentId,
-    scopeAgents
+    scopeAgents,
+    now
   );
 
   const selectedAgentResults = agentId
@@ -241,7 +252,8 @@ export const getENSComplianceState = (
         level,
         events,
         agentId,
-        scopeAgents
+        scopeAgents,
+        now
       )
     : agents.length > 0
     ? consolidateAgentComplianceResults(
@@ -251,7 +263,8 @@ export const getENSComplianceState = (
         level,
         events,
         agentId,
-        scopeAgents
+        scopeAgents,
+        now
       );
 
   return buildComplianceState(

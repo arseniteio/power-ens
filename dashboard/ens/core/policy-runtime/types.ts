@@ -28,6 +28,12 @@ export interface ENSPolicyContext {
   level: ENSLevel;
   events: ENSNormalizedEvent[];
   evidences: ENSEvidenceResolved[];
+  // El instante contra el que se mide la antigüedad de una evidencia. Por
+  // defecto es ahora, que es el caso del panel. Existe como parámetro porque
+  // la serie diaria evalúa el mismo motor A UNA FECHA PASADA: con un
+  // `Date.now()` suelto, la copia de hace tres días saldría vencida en el
+  // punto de hace tres días, y la línea contaría una historia falsa.
+  now?: Date;
 }
 
 export interface ENSPolicyEvaluatorResult {

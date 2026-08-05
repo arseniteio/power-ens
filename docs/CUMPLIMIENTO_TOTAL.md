@@ -738,6 +738,12 @@ ALTO. `op.acc.1.r1.1`, `r1.2` y `r1.3` (refuerzo R1) rigen en **MEDIO y ALTO**
 > Así que el agente puntúa sobre **3 requisitos en BAJO y 4 en MEDIO/ALTO**, y
 > puede salir `CUMPLE` con el control al 75 %. El número que vale ante un
 > auditor es el del plugin.
+>
+> **El gráfico de evolución dibujaba el número del agente** —promediando por
+> semana sus `score_snapshot`— mientras el panel de arriba enseñaba el del
+> motor, sin que nada avisara de que no eran lo mismo. Desde el 05/08 la serie
+> la calcula el motor, un punto por día, y **el último punto es literalmente el
+> número del panel**: si los dos discrepan, hay un defecto.
 
 ### Tabla resumen
 

@@ -5,6 +5,7 @@ import { ENSControls } from '../data';
 import {
   buildENSDashboardModel,
   buildENSEvaluationTimeRangeFilter,
+  buildENSComplianceTimeline,
   getENSComplianceState,
   normalizeWazuhAlerts,
 } from '../core';
@@ -70,8 +71,19 @@ export const EnsDashboardMain = () => {
     activeConfiguration.global.evaluationPeriod,
   );
 
-  const scopeAgents =
-    getActiveENSScopeAgents();
+  // `getActiveENSScopeAgents()` CLONA: devuelve un array nuevo en cada llamada,
+  // así que usarlo directo como dependencia deja sin efecto todos los `useMemo`
+  // que cuelgan de él —el motor volvía a evaluarlo todo en cada render, no solo
+  // cuando cambiaba algo—. Se ancla a la identidad del alcance, que es lo que
+  // de verdad cambia.
+  const scopeAgentsKey = getActiveENSScopeAgents()
+    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
+    .join(',');
+
+  const scopeAgents = useMemo(
+    () => getActiveENSScopeAgents(),
+    [scopeAgentsKey],
+  );
 
   const scopeAgentQueryFilter =
     buildENSScopeAgentQueryFilter(
@@ -130,17 +142,39 @@ export const EnsDashboardMain = () => {
       scopeAgents,
     ],
   );
+  // La serie diaria son SIETE pasadas completas del motor, así que se memoriza
+  // aparte del modelo del panel: el intervalo de refresco reconstruye el
+  // modelo cada 15 s y sin este `useMemo` reevaluaría los siete días cada vez.
+  const complianceTimeline = useMemo(
+    () =>
+      buildENSComplianceTimeline(
+        ensLevel,
+        normalizedEvents,
+        {
+          agentId,
+          scopeAgents,
+          days: 7,
+        },
+      ),
+    [
+      normalizedEvents,
+      agentId,
+      ensLevel,
+      scopeAgents,
+    ],
+  );
+
   const dashboardModel = useMemo(
     () =>
       buildENSDashboardModel(
         complianceState,
         normalizedEvents,
-        ensLevel
+        complianceTimeline
       ),
     [
       complianceState,
       normalizedEvents,
-      ensLevel,
+      complianceTimeline,
     ],
   );
 
@@ -691,17 +725,20 @@ export const EnsDashboardMain = () => {
 
                  return (
                    <g key={`${row.label}-${index}`}>
+                   {/* El punto del presente va marcado: es el único que el
+                       auditor puede contrastar con el panel de arriba, y
+                       verlo señalado es lo que hace la línea comprobable. */}
                    <circle
                       cx={x}
                       cy={y}
-                      r='6'
-                      fill='#006BB4'
-                      stroke='#FFFFFF'
-                      strokeWidth='2'
+                      r={row.isCurrent ? '9' : '6'}
+                      fill={row.isCurrent ? '#FFFFFF' : '#006BB4'}
+                      stroke='#006BB4'
+                      strokeWidth={row.isCurrent ? '4' : '2'}
                     />
                     <text
                       x={x}
-                      y={y - 12}
+                      y={y - 16}
                       textAnchor='middle'
                       fontSize='16'
                       fontWeight='700'
@@ -719,6 +756,18 @@ export const EnsDashboardMain = () => {
                     >
                       {row.label}
                     </text>
+                    {row.isCurrent && (
+                      <text
+                        x={x}
+                        y='252'
+                        textAnchor='middle'
+                        fontSize='12'
+                        fontWeight='700'
+                        fill='#006BB4'
+                      >
+                        ahora
+                      </text>
+                    )}
                    </g>
                 );
        
