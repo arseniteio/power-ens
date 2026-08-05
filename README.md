@@ -137,6 +137,13 @@ cero técnico, es una decisión que nadie ha escrito — y eso no acredita.
 Qué rellenar en cada control, con la evidencia y el requisito que desbloquea:
 **[docs/CUMPLIMIENTO_TOTAL.md](docs/CUMPLIMIENTO_TOTAL.md)**.
 
+Y si lo que quieres es comprobar **si cada evidencia funciona** —qué mira, qué
+emite y el comando que te lo dice— evidencia a evidencia y para los tres
+controles:
+**[docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md)**.
+Son dos preguntas distintas: una evidencia puede funcionar perfectamente y salir
+en rojo.
+
 ## 4 · Comprobar
 
 ```bash
