@@ -754,7 +754,25 @@ const validarTabla = (
     const numero = indice + 1;
     const celdas = toTableRowCells(fila);
 
-    if (celdas.length > columnas.length) {
+    // UNA ÚLTIMA COLUMNA `variadic` ABSORBE LAS CELDAS DE MÁS.
+    //
+    // No todo parámetro tabular tiene aridad fija. P-03 de op.acc.3 declara
+    // `función | indicador | indicador | …` y su evaluador la lee así de
+    // literal: `const [fn, ...indicators] = cells`. Obligarla a dos celdas
+    // rompería filas legítimas como
+    // `configuracion | /usr/bin/nano | /usr/bin/vim | /usr/bin/tee`, que es
+    // exactamente lo que pasó el 06/08/2026 al declararle columnas: la
+    // configuración entera del control quedó inválida y el control cayó a
+    // «configuración incompleta».
+    //
+    // La alternativa era dejar el parámetro SIN columnas, y es peor: sin
+    // columnas el motor no puede repartir las celdas y las primitivas que
+    // nombran una columna se quedan sin nada contra qué contrastar. Se declara
+    // lo que hay —una columna fija y una repetible— en vez de no declarar nada.
+    const ultima = columnas[columnas.length - 1];
+    const admiteDeMas = Boolean(ultima && ultima.variadic);
+
+    if (celdas.length > columnas.length && !admiteDeMas) {
       problemas.push(
         `la fila ${numero} trae ${celdas.length} campos y la tabla declara ${columnas.length} (${columnas
           .map(columna => columna.label)

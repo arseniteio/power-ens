@@ -86,6 +86,8 @@ export const opAcc3Configuration: ENSControlConfiguration = {
           label: 'Indicadores',
           type: 'string',
           required: false,
+          // La fila trae N indicadores: `funcion | ind | ind | ...`.
+          variadic: true,
         },
       ],
       required: true,

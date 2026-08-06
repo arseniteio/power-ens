@@ -61,6 +61,13 @@ export interface ENSParameterColumn {
   required: boolean;
   // Obligatorias para `select` y `multiselect`; ignoradas en el resto.
   options?: string[];
+  // Solo tiene sentido en la ÚLTIMA columna: la fila puede traer más celdas de
+  // las declaradas y todas pertenecen a esta. No todo parámetro tabular tiene
+  // aridad fija — P-03 de op.acc.3 es `función | indicador | indicador | …` y su
+  // evaluador la lee literalmente así (`const [fn, ...indicators] = cells`).
+  // Sin esto habría que dejar el parámetro sin columnas, y eso es peor: sin
+  // columnas el motor no puede repartir las celdas.
+  variadic?: boolean;
 }
 
 export type ENSParameterStatus =

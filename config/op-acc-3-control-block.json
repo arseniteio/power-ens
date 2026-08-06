@@ -127,7 +127,8 @@
           "name": "indicadores",
           "label": "Indicadores",
           "type": "string",
-          "required": false
+          "required": false,
+          "variadic": true
         }
       ]
     },
