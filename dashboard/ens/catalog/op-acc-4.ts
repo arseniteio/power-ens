@@ -9,7 +9,7 @@ export const opAcc4CatalogDefinition: ENSControlDefinition = {
   description:
     'op.acc.4 establece los principios que rigen la asignación de derechos: denegación por defecto, mínimo privilegio, necesidad de conocer, capacidad de autorizar y política de acceso remoto.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {

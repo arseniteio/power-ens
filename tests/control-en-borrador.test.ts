@@ -83,32 +83,52 @@ const evalua = (
 
 const NIVELES: ENSLevel[] = ['BAJO', 'MEDIO', 'ALTO'];
 
-// --- 1. los dos controles nuevos están en borrador -------------------------
+// --- 1. el estado de cada control dice la verdad sobre su agente ----------
+//
+// ESTA SECCIÓN YA NO FIJA QUIÉN ESTÁ EN BORRADOR, y el cambio es a propósito.
+//
+// Antes decía «op.acc.3 y op.acc.4 nacen en DRAFT», que era cierto el día que
+// se escribió y dejó de serlo el 06/08/2026, cuando sus reglas se desplegaron
+// en el manager y su agente empezó a emitir. Una prueba que fija el estado de
+// hoy obliga a editarla cada vez que el estado avanza legítimamente, y en esa
+// edición es donde se cuela el error: se cambia el número y no se comprueba la
+// regla.
+//
+// La regla es esta y no cambia: DRAFT significa «ninguna máquina emite sus
+// hechos todavía», y existe para no acusar a un cliente de incumplir aquello
+// para lo que aún no hay instrumento. Así que lo que se comprueba es la
+// COHERENCIA: un control ACTIVE tiene que acreditar reglas, y uno en DRAFT no
+// puede acreditar ninguna, porque si las acredita es que ya hay con qué medir.
 
-bloque('1. op.acc.3 y op.acc.4 están en el catálogo, y en borrador');
+bloque('1. El estado de cada control es coherente con lo que puede medir');
 
 {
-  for (const controlId of ['op.acc.3', 'op.acc.4']) {
-    comprueba(
-      `${controlId} · está declarado en el catálogo`,
-      control(controlId).id === controlId
-    );
+  for (const c of ENSCatalog) {
+    const controlId = c.id;
 
     comprueba(
-      `${controlId} · nace en DRAFT, porque no tiene agente`,
-      control(controlId).status === 'DRAFT',
-      control(controlId).status
+      `${controlId} · declara un estado válido`,
+      c.status === 'ACTIVE' || c.status === 'DRAFT',
+      c.status
     );
-  }
 
-  // La reversión que da sentido a lo anterior: los tres controles con agente
-  // desplegado SÍ están activos. Sin esto, un DRAFT global pasaría igual.
-  for (const controlId of ['mp.info.6', 'op.acc.1', 'op.acc.2']) {
-    comprueba(
-      `${controlId} · sigue ACTIVE (tiene agente desplegado)`,
-      control(controlId).status === 'ACTIVE',
-      control(controlId).status
+    const acreditaReglas = c.requirements.some(
+      requisito => requisito.evidenceIds.length > 0
     );
+
+    if (c.status === 'DRAFT') {
+      comprueba(
+        `${controlId} · en DRAFT no acredita evidencias todavía`,
+        !acreditaReglas,
+        'está en DRAFT y sus requisitos ya declaran evidencias'
+      );
+    } else {
+      comprueba(
+        `${controlId} · ACTIVE y con evidencias con las que demostrarse`,
+        acreditaReglas,
+        'está ACTIVE y ningún requisito declara evidencia'
+      );
+    }
   }
 }
 

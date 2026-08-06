@@ -85,7 +85,7 @@
       "/etc/login.defs"
     ],
     "P-03": "no",
-    "P-05": "Minimo privilegio + sudo",
+    "P-05": "Mínimo privilegio + sudo",
     "P-06": [
       "admin|/etc/ensfacil|lectura,escritura,modificacion",
       "admin|/var/lib/ensfacil|lectura,escritura,modificacion",

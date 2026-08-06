@@ -9,7 +9,7 @@ export const opAcc3CatalogDefinition: ENSControlDefinition = {
   description:
     'op.acc.3 es una medida fundamentalmente organizativa: exige que ciertas funciones no recaigan en la misma persona.',
   levels: ['MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
