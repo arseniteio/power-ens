@@ -25,7 +25,7 @@
         "op.acc.4.2",
         "op.acc.4.3"
       ],
-      "type": "list",
+      "type": "table",
       "example": "ops | /srv/app | rw / dev | /srv/app | r",
       "required": true,
       "wazuhUsage": "Núcleo del control. Cualquier privilegio no contemplado → alerta de acceso sin autorización expresa.",
@@ -56,7 +56,7 @@
       "requirements": [
         "op.acc.4.4"
       ],
-      "type": "list",
+      "type": "table",
       "example": "rsec | global / admin_bd | bases de datos",
       "required": true,
       "wazuhUsage": "CDB list en Wazuh. Cualquier evento de cambio de permisos o membresía de grupo ejecutado por una cuenta fuera de esta lista → alerta de autorización no competente.",
@@ -197,7 +197,7 @@
       "requirements": [
         "op.acc.4.3"
       ],
-      "type": "list",
+      "type": "table",
       "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh+dir",
       "required": true,
       "wazuhUsage": "ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.",

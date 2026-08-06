@@ -2975,10 +2975,24 @@ bloque('Estado de la migración');
 
   // La migración es evidencia a evidencia. Esta prueba es el marcador: cuando
   // se migre la siguiente, hay que actualizarla a conciencia, no de pasada.
+  //
+  // op.acc.4 no aparece aquí por migración sino por NACIMIENTO: entró el 06/08
+  // con sus ocho evidencias ya en el modelo nuevo, sin pasar nunca por el
+  // clásico. Es la diferencia entre migrar un control y empezarlo bien, y por
+  // eso su agente no tiene ni score.py ni watchdog: no hay veredicto que
+  // calcular en la máquina.
   const MIGRADAS = [
     'op.acc.1/EV-03',
     'op.acc.1/EV-05',
     'op.acc.1/EV-07',
+    'op.acc.4/EV-01',
+    'op.acc.4/EV-02',
+    'op.acc.4/EV-03',
+    'op.acc.4/EV-04',
+    'op.acc.4/EV-05',
+    'op.acc.4/EV-06',
+    'op.acc.4/EV-07',
+    'op.acc.4/EV-08',
   ];
 
   comprueba(

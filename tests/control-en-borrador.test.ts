@@ -299,14 +299,35 @@ bloque('6. Sin agente, sin reglas: la trazabilidad no se inventa');
     String(nuevas.length)
   );
 
-  const conRegla = nuevas.filter(
-    evidencia => evidencia.relatedRules.length > 0
+  // op.acc.3 sigue sin agente: ninguna de sus evidencias acredita regla, y eso
+  // es lo honesto mientras no exista su recolector.
+  const tres = nuevas.filter(
+    evidencia => evidencia.controlId === 'op.acc.3'
   );
 
   comprueba(
-    'y NINGUNA acredita una regla: no hay manager que las tenga',
-    conRegla.length === 0,
-    conRegla.map(e => `${e.controlId}/${e.id}=${e.relatedRules.join('|')}`).join(' ')
+    'op.acc.3 · ninguna evidencia acredita regla (no tiene agente)',
+    tres.length === 7 &&
+      tres.every(evidencia => evidencia.relatedRules.length === 0),
+    tres.map(e => `${e.id}=${e.relatedRules.length}`).join(' ')
+  );
+
+  // op.acc.4 SÍ tiene recolector desde el 06/08, así que sus ocho evidencias
+  // acreditan la regla que las recoge. La comprobación de que esas reglas
+  // existen de verdad en un manager la hace `check-coherencia.py` (1).
+  const cuatro = nuevas.filter(
+    evidencia => evidencia.controlId === 'op.acc.4'
+  );
+
+  comprueba(
+    'op.acc.4 · las ocho acreditan exactamente una regla de su banda',
+    cuatro.length === 8 &&
+      cuatro.every(
+        evidencia =>
+          evidencia.relatedRules.length === 1 &&
+          /^1071\d\d$/.test(evidencia.relatedRules[0])
+      ),
+    cuatro.map(e => `${e.id}=${e.relatedRules.join('|')}`).join(' ')
   );
 
   // La reversión, sin la cual un `relatedRules` vacío en TODO el catálogo

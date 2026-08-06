@@ -66,6 +66,10 @@ RUNBOOKS = {
         "op.acc.2-requisitos-acceso-runbook",
         ["ensfacil_op_acc_2_json_rules.xml"],
     ),
+    "op.acc.4": (
+        "op.acc.4-gestion-derechos-runbook",
+        ["ensfacil_op_acc_4_json_rules.xml"],
+    ),
 }
 
 fallos = []
@@ -128,11 +132,38 @@ catalogo = lee(os.path.join(PLUGIN, "dashboard/ens/core/evidence/catalog.ts"))
 
 print("=== 1. Toda regla acreditada tiene que poder dispararse ===\n")
 
-for control in RUNBOOKS:
-    desplegadas = reglas_desplegadas(control)
+# Se recorren LOS CONTROLES DEL CATÁLOGO, no las claves de RUNBOOKS.
+#
+# Recorriendo RUNBOOKS, un control que el catálogo acredita pero que todavía no
+# tiene runbook registrado aquí era INVISIBLE para esta comprobación: sus reglas
+# no se miraban y el script decía «coherencia OK» sobre una cadena rota. Es
+# justo el agujero por el que op.acc.1 llegó a acreditar 39 reglas que no
+# existían en ningún manager, y es la comprobación que existe para evitarlo.
+#
+# Un control sin `relatedRules` en ninguna evidencia NO falla: es lo que se
+# espera de uno recién generado, que va en `status: 'DRAFT'` y todavía no tiene
+# agente. Lo que falla es acreditar una regla sin manager que la tenga.
+controles_del_catalogo = sorted(set(re.findall(r"controlId: '([^']+)'", catalogo)))
+
+for control in controles_del_catalogo:
     acreditadas = set()
     for _, cuerpo in bloques_evidencia(catalogo, control):
         acreditadas |= set(campo_lista(cuerpo, "relatedRules"))
+
+    if not acreditadas:
+        ok("{}: no acredita ninguna regla todavía (sin agente)".format(control))
+        continue
+
+    if control not in RUNBOOKS:
+        falla(
+            "{}: acredita reglas y no tiene runbook registrado".format(control),
+            "{}: {} — añádelo a RUNBOOKS o esta comprobación no lo mira".format(
+                len(acreditadas), ", ".join(sorted(acreditadas))
+            ),
+        )
+        continue
+
+    desplegadas = reglas_desplegadas(control)
 
     inalcanzables = sorted(acreditadas - desplegadas)
     if inalcanzables:
@@ -479,6 +510,17 @@ def requisitos_sin_evidencia(control):
     return sin
 
 
+# El script con el que el AGENTE se puntúa a sí mismo.
+#
+# op.acc.4 no está, y no es un olvido: nació entero en el modelo nuevo, así que
+# su agente no calcula ningún veredicto —emite hechos crudos y juzga el motor—.
+# Un control sin score no puede inflar un requisito que la policy deja sin
+# evidencia, que es exactamente lo que esta comprobación vigila: la
+# incoherencia que persigue no existe por construcción.
+#
+# Lo que SÍ hay que vigilar en un control así es que el agente no emita
+# `estado` de cumplimiento por la puerta de atrás. Eso lo comprueba la
+# comprobación 11.
 SCORE = {
     "mp.info.6": "ens_mpinfo6_score.py",
     "op.acc.1": "ens_opacc1_score.py",
@@ -486,6 +528,12 @@ SCORE = {
 }
 
 for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
+    if control not in SCORE:
+        ok(
+            "{}: el agente no se puntua a si mismo (modelo nuevo)".format(control)
+        )
+        continue
+
     mapa = mapa_del_agente(carpeta, SCORE[control])
     sin_evidencia = requisitos_sin_evidencia(control)
 
@@ -583,6 +631,66 @@ for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
                 control, len(retiradas)
             ),
             ", ".join(sorted(retiradas)),
+        )
+
+
+print("\n=== 11. Un control del modelo nuevo no juzga en la maquina ===\n")
+
+# En el modelo nuevo el agente OBSERVA y el motor JUZGA. Un recolector que
+# emitiera `estado=CUMPLE` o `estado=NO_CUMPLE` por su cuenta reintroduciria
+# los dos caminos de evaluacion sobre los mismos datos, que es exactamente lo
+# que se arreglo al desconectar `op-acc-1.evaluator.ts`: dos veredictos sobre
+# el mismo hecho hacen imposible auditar de forma consistente, y gana el que
+# llegue antes.
+#
+# Lo unico que el agente si puede decir es que NO PUDO MIRAR
+# (`estado=NO_EVALUABLE` con su causa). Esa distincion es la que separa «la
+# fuente esta rota» de «se leyo y no habia nada», y se arreglan en sitios
+# distintos.
+#
+# Se mira el control ENTERO —todas sus evidencias declaran `judgment`— y no
+# evidencia a evidencia: durante una migracion conviven las dos cosas en el
+# mismo runbook y aqui no habria forma de saber cual es cual.
+for control, (repo, _reglas) in sorted(RUNBOOKS.items()):
+    bloques = bloques_evidencia(catalogo, control)
+
+    if not bloques:
+        continue
+
+    todas_juzgadas = all("judgment: {" in cuerpo for _, cuerpo in bloques)
+
+    if not todas_juzgadas:
+        ok(
+            "{}: modelo clasico o migracion en curso, no aplica".format(control)
+        )
+        continue
+
+    carpeta = os.path.join(BASE, repo)
+    culpables = []
+
+    for raiz, _dirs, ficheros in os.walk(carpeta):
+        if os.sep + ".git" in raiz or os.sep + "tests" in raiz:
+            continue
+        for fichero in ficheros:
+            if not fichero.endswith((".sh", ".py")):
+                continue
+            ruta = os.path.join(raiz, fichero)
+            texto = lee(ruta) or ""
+            for veredicto in ("estado=CUMPLE", "estado=NO_CUMPLE",
+                              '"estado": "CUMPLE"', '"estado": "NO_CUMPLE"'):
+                if veredicto in texto:
+                    culpables.append(
+                        "{}: {}".format(os.path.relpath(ruta, carpeta), veredicto)
+                    )
+
+    if culpables:
+        falla(
+            "{}: el agente emite veredicto y no deberia".format(control),
+            "; ".join(sorted(set(culpables))),
+        )
+    else:
+        ok(
+            "{}: el agente solo emite hechos y NO_EVALUABLE".format(control)
         )
 
 

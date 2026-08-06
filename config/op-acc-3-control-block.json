@@ -24,7 +24,7 @@
         "op.acc.3.r1.1",
         "op.acc.3.r1.2"
       ],
-      "type": "list",
+      "type": "table",
       "example": "jgomez | desarrollo / mlopez | operación+config",
       "required": true,
       "wazuhUsage": "Es la pieza central del control.",
@@ -88,7 +88,7 @@
         "op.acc.3.1",
         "op.acc.3.2"
       ],
-      "type": "list",
+      "type": "table",
       "example": "desarrollo → git push, / acceso a /srv/repos / operación → systemctl, / reinicio de servicios",
       "required": true,
       "wazuhUsage": "Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.",

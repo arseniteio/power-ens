@@ -16,8 +16,28 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         'Matriz que define, para cada perfil o rol, qué recursos puede acceder y con qué tipo de acceso. Es la referencia contra la que se contrasta la configuración real del sistema.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.1', 'op.acc.4.2', 'op.acc.4.3'],
-      type: 'list',
+      type: 'table',
       example: 'ops | /srv/app | rw / dev | /srv/app | r',
+      columns: [
+        {
+          name: 'rol',
+          label: 'Rol',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'recurso',
+          label: 'Recurso',
+          type: 'path',
+          required: false,
+        },
+        {
+          name: 'acceso',
+          label: 'Acceso',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
         'Núcleo del control. Cualquier privilegio no contemplado → alerta de acceso sin autorización expresa.',
@@ -37,8 +57,22 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         'Lista de cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, y sobre qué ámbito de recursos.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.4'],
-      type: 'list',
+      type: 'table',
       example: 'rsec | global / admin_bd | bases de datos',
+      columns: [
+        {
+          name: 'cuenta',
+          label: 'Cuenta',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: '_mbito',
+          label: 'Ámbito',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
         'CDB list en Wazuh. Cualquier evento de cambio de permisos o membresía de grupo ejecutado por una cuenta fuera de esta lista → alerta de autorización no competente.',
@@ -142,8 +176,22 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         'Recursos que contienen información sujeta al principio de necesidad de conocer, con indicación de qué perfiles tienen justificación de acceso (op.acc.4.3).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.3'],
-      type: 'list',
+      type: 'table',
       example: '/datos/rrhh | rrhh / /datos/nominas | rrhh+dir',
+      columns: [
+        {
+          name: 'recurso',
+          label: 'Recurso',
+          type: 'path',
+          required: true,
+        },
+        {
+          name: 'perfiles',
+          label: 'Perfiles',
+          type: 'identifier',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
         'ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.',

@@ -799,8 +799,20 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'default_deny_violation'],
+    relatedRules: ['107101'],
+    judgment: {
+      // Cada desviación observada de la denegación por defecto se contrasta
+      // con las excepciones que el responsable haya declarado. Sin excepciones
+      // declaradas la lista está vacía y cualquier desviación incumple, que es
+      // lo que dice op.acc.4.1: todo acceso prohibido SALVO autorización
+      // expresa. La carga de declarar la excepción es del auditado.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-01',
+      parameterColumn: 'recurso',
+      factEventTypes: ['default_deny_violation'],
+      factField: 'recurso',
+    },
     auditQuestion:
       '¿Se acredita: verificación de denegación por defecto?',
   },
@@ -815,8 +827,25 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'privilege_grant'],
+    relatedRules: ['107102'],
+    judgment: {
+      // La primitiva del control: cada privilegio EFECTIVO observado tiene que
+      // casar, celda a celda, con la fila que le corresponde en la matriz que
+      // el responsable declaró. No basta con que el sujeto aparezca: el
+      // recurso y el tipo de acceso también tienen que coincidir, porque un
+      // 'rw' donde la matriz dice 'r' es exactamente el privilegio por encima
+      // del mínimo que op.acc.4.2 prohíbe.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-01',
+      factEventTypes: ['privilege_grant'],
+      factField: 'sujeto',
+      factKeyField: 'sujeto',
+      tableChecks: [
+        { column: 'recurso', factField: 'recurso' },
+        { column: 'acceso', factField: 'acceso' },
+      ],
+    },
     auditQuestion:
       '¿Se acredita: contraste de privilegios reales contra matriz autorizada?',
   },
@@ -831,8 +860,18 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'privileged_group_member'],
+    relatedRules: ['107103'],
+    judgment: {
+      // Todo miembro observado de un grupo privilegiado tiene que constar en
+      // la matriz. La columna es `rol` y no `usuario` porque la matriz declara
+      // PERFILES, no personas: es el nivel al que el responsable decide.
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-01',
+      parameterColumn: 'rol',
+      factEventTypes: ['privileged_group_member'],
+      factField: 'usuario',
+    },
     auditQuestion:
       '¿Se acredita: cambios en grupos privilegiados?',
   },
@@ -847,8 +886,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'permission_change'],
+    relatedRules: ['107104'],
+    judgment: {
+      // Se contrasta el ACTOR —quien ejecuta el cambio—, no el sujeto sobre el
+      // que recae. Confundirlos daría por buena una escalada en la que la
+      // víctima está autorizada y quien la provoca no.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-02',
+      factEventTypes: ['permission_change'],
+      factField: 'actor',
+    },
     auditQuestion:
       '¿Se acredita: cambios de permisos por cuenta no competente?',
   },
@@ -863,8 +911,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'permission_review'],
+    relatedRules: ['107105'],
+    judgment: {
+      // La única evidencia EXISTENCIAL del control: le basta una revisión lo
+      // bastante reciente. Y por eso mismo nunca cumple por ausencia — si no
+      // consta ninguna, no se acredita. Es lo correcto: op.acc.4.4 exige que
+      // los permisos se revisen periódicamente, y no haber revisado nunca no
+      // puede salir en verde por falta de datos.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-03',
+      factEventTypes: ['permission_review'],
+      factField: 'fecha',
+    },
     auditQuestion:
       '¿Se acredita: control de la revisión periódica de permisos?',
   },
@@ -879,8 +938,18 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'remote_access'],
+    relatedRules: ['107106'],
+    judgment: {
+      // Ninguna cuenta puede acceder remotamente sin figurar entre las que
+      // tienen autorización expresa. `NINGUNO_FUERA_DE_LISTA` es la primitiva
+      // correcta y no `TODOS_EN_LISTA`: lo que se exige no es que todos los
+      // autorizados entren, sino que nadie más lo haga.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-05',
+      factEventTypes: ['remote_access'],
+      factField: 'usuario',
+    },
     auditQuestion:
       '¿Se acredita: accesos remotos por canal, origen y usuario?',
   },
@@ -895,8 +964,22 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'sensitive_access'],
+    relatedRules: ['107107'],
+    judgment: {
+      // Lo que se juzga NO es si el permiso técnico existe —existe, por eso se
+      // pudo acceder— sino si el perfil de quien accede tiene justificación
+      // declarada para ese recurso. Es la diferencia entre poder y deber, que
+      // es literalmente lo que pide op.acc.4.3.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-07',
+      factEventTypes: ['sensitive_access'],
+      factField: 'recurso',
+      factKeyField: 'recurso',
+      tableChecks: [
+        { column: 'perfiles', factField: 'perfil' },
+      ],
+    },
     auditQuestion:
       '¿Se acredita: accesos a recursos sujetos a necesidad de conocer?',
   },
@@ -911,8 +994,18 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'excessive_privilege'],
+    relatedRules: ['107108'],
+    judgment: {
+      // Un privilegio por encima del mínimo es un HECHO, no un veredicto: el
+      // responsable puede haberlo autorizado. Solo incumple si el sujeto no
+      // consta en la matriz.
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-01',
+      parameterColumn: 'rol',
+      factEventTypes: ['excessive_privilege'],
+      factField: 'sujeto',
+    },
     auditQuestion:
       '¿Se acredita: cuentas con privilegios excesivos o innecesarios?',
   },

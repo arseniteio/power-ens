@@ -180,7 +180,7 @@ export const opAcc4Control: ENSControl = {
         'Matriz que define, para cada perfil o rol, qué recursos puede acceder y con qué tipo de acceso. Es la referencia contra la que se contrasta la configuración real del sistema.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.1', 'op.acc.4.2', 'op.acc.4.3'],
-      type: 'list',
+      type: 'table',
       usage:
         'Núcleo del control. Cualquier privilegio no contemplado → alerta de acceso sin autorización expresa.',
       missingBehavior:
@@ -193,7 +193,7 @@ export const opAcc4Control: ENSControl = {
         'Lista de cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, y sobre qué ámbito de recursos.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.4'],
-      type: 'list',
+      type: 'table',
       usage:
         'CDB list en Wazuh. Cualquier evento de cambio de permisos o membresía de grupo ejecutado por una cuenta fuera de esta lista → alerta de autorización no competente.',
       missingBehavior:
@@ -258,7 +258,7 @@ export const opAcc4Control: ENSControl = {
         'Recursos que contienen información sujeta al principio de necesidad de conocer, con indicación de qué perfiles tienen justificación de acceso (op.acc.4.3).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.3'],
-      type: 'list',
+      type: 'table',
       usage:
         'ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.',
       missingBehavior:

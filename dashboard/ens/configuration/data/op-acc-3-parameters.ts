@@ -16,8 +16,22 @@ export const opAcc3Configuration: ENSControlConfiguration = {
         'Mapa que asocia cada persona/cuenta con las funciones que desempeña en el sistema: desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría, supervisión.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'],
-      type: 'list',
+      type: 'table',
       example: 'jgomez | desarrollo / mlopez | operación+config',
+      columns: [
+        {
+          name: 'cuenta',
+          label: 'Cuenta',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'funciones',
+          label: 'Funciones',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
         'Es la pieza central del control.',
@@ -58,8 +72,22 @@ export const opAcc3Configuration: ENSControlConfiguration = {
         'Mapa que traduce cada función organizativa en acciones técnicas observables en logs: qué comandos, procesos, rutas o EventIDs identifican una acción de desarrollo, de operación, de configuración, de auditoría, etc.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2'],
-      type: 'list',
+      type: 'table',
       example: 'desarrollo → git push, / acceso a /srv/repos / operación → systemctl, / reinicio de servicios',
+      columns: [
+        {
+          name: 'funci_n',
+          label: 'Función',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'indicadores',
+          label: 'Indicadores',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
         'Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.',
