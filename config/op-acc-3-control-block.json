@@ -39,7 +39,20 @@
       "ruleIds": [
         "ENS-OPACC3-MATRIZ-FUNCIONES-PERSONA"
       ],
-      "ifNotConfigured": "El control es NO EVALUABLE automáticamente. Solo puede acreditarse por revisión documental."
+      "ifNotConfigured": "El control es NO EVALUABLE automáticamente. Solo puede acreditarse por revisión documental.",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "funciones",
+          "label": "Funciones",
+          "type": "string"
+        }
+      ]
     },
     {
       "id": "P-02",
@@ -101,7 +114,20 @@
       "ruleIds": [
         "ENS-OPACC3-ACCIONES-POR-FUNCION"
       ],
-      "ifNotConfigured": "Las reglas de correlación no pueden clasificar las acciones. Detección automática inviable."
+      "ifNotConfigured": "Las reglas de correlación no pueden clasificar las acciones. Detección automática inviable.",
+      "columns": [
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "indicadores",
+          "label": "Indicadores",
+          "type": "string"
+        }
+      ]
     },
     {
       "id": "P-04",

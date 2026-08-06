@@ -44,6 +44,7 @@ import glob
 import json
 import os
 import re
+import pathlib
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -699,10 +700,92 @@ for control, (repo, _reglas) in sorted(RUNBOOKS.items()):
 
 
 print()
+
+# =============================================================================
+# 12. Un parametro `table` sin columnas no se puede juzgar
+# =============================================================================
+#
+# NACE DE UN FALLO QUE COSTO CINCO EVIDENCIAS DE OCHO.
+#
+# P-01, P-02 y P-07 de op.acc.4 son `table` y declaraban sus columnas en
+# `dashboard/ens/configuration/data/<control>-parameters.ts`, pero el BLOQUE
+# SEMILLA de `config/` no las llevaba. Como el motor lee la configuracion del
+# indice, y el indice se siembra del bloque, las columnas no existian donde se
+# juzga: EV-01, EV-02, EV-03, EV-07 y EV-08 salian NO_EVALUABLE con
+# "el parametro no declara ninguna columna".
+#
+# Nada avisaba. La pantalla pintaba las filas, el operador las rellenaba, el
+# agente emitia los hechos, y el motor no tenia con que repartir las celdas.
+# Cinco evidencias en gris por un campo ausente en un JSON.
+#
+# Las dos fuentes tienen que decir lo mismo: si el TS declara columnas, el
+# bloque tambien; y ningun `table` puede quedarse sin ninguna.
+
+print()
+print("=== 12. Un parametro `table` sin columnas no se puede juzgar ===")
+print()
+
+import re as _re
+
+for _control in sorted(RUNBOOKS):
+    _slug = _control.replace(".", "-")
+    _bloque = pathlib.Path(PLUGIN) / "config" / ("%s-control-block.json" % _slug)
+    _fuente = pathlib.Path(PLUGIN) / "dashboard/ens/configuration/data" / ("%s-parameters.ts" % _slug)
+
+    if not _bloque.exists():
+        continue
+
+    _d = json.loads(_bloque.read_text(encoding="utf-8"))
+    _ps = _d.get("parameters") or _d.get("control", {}).get("parameters") or []
+    _ts = _fuente.read_text(encoding="utf-8") if _fuente.exists() else ""
+
+    _sin = [x["id"] for x in _ps if x.get("type") == "table" and not x.get("columns")]
+
+    if _sin:
+        falla("%s: parametros `table` sin columnas en el bloque semilla" % _control,
+              "%s. El motor no puede repartir las celdas y sus evidencias salen "
+              "NO_EVALUABLE." % ", ".join(_sin))
+        continue
+
+    # Y que no diverjan del TS, que es donde las mantiene el desarrollador.
+    _mal = []
+    for _p in _ps:
+        if _p.get("type") != "table":
+            continue
+        _i = _ts.find("id: '%s'" % _p["id"])
+        if _i < 0:
+            continue
+        _j = _ts.find("columns: [", _i)
+        _n = _ts.find("      id: 'P-", _i + 10)
+        if _j < 0 or (_n > 0 and _j > _n):
+            continue
+        _k = _ts.index("[", _j)
+        _prof, _fin = 0, _k
+        for _c in range(_k, len(_ts)):
+            if _ts[_c] == "[":
+                _prof += 1
+            elif _ts[_c] == "]":
+                _prof -= 1
+                if _prof == 0:
+                    _fin = _c + 1
+                    break
+        _en_ts = _re.findall(r"name: '([^']+)'", _ts[_k:_fin])
+        _en_bloque = [c.get("name") for c in _p.get("columns") or []]
+        if _en_ts and _en_ts != _en_bloque:
+            _mal.append("%s (TS: %s / bloque: %s)"
+                        % (_p["id"], ",".join(_en_ts), ",".join(_en_bloque)))
+
+    if _mal:
+        falla("%s: las columnas del bloque semilla divergen del TS" % _control,
+              "; ".join(_mal))
+    else:
+        ok("%s: todo `table` declara sus columnas y coinciden con el TS" % _control)
+
 if fallos:
     print("{} comprobación(es) FALLAN: {}".format(len(fallos), "; ".join(fallos)))
 if avisos:
     print("{} aviso(s), no bloquean.".format(len(avisos)))
 if not fallos:
     print("coherencia OK")
+
 sys.exit(1 if fallos else 0)

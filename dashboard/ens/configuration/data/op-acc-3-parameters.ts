@@ -76,7 +76,7 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       example: 'desarrollo → git push, / acceso a /srv/repos / operación → systemctl, / reinicio de servicios',
       columns: [
         {
-          name: 'funci_n',
+          name: 'funcion',
           label: 'Función',
           type: 'string',
           required: true,

@@ -40,7 +40,25 @@
       "ruleIds": [
         "ENS-OPACC4-MATRIZ-PRIVILEGIOS-AUTORIZADOS"
       ],
-      "ifNotConfigured": "op.acc.4.1, .2 y .3 NO EVALUABLES. Sin referencia autorizada no se puede juzgar si un privilegio es excesivo."
+      "ifNotConfigured": "op.acc.4.1, .2 y .3 NO EVALUABLES. Sin referencia autorizada no se puede juzgar si un privilegio es excesivo.",
+      "columns": [
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "string"
+        },
+        {
+          "name": "acceso",
+          "label": "Acceso",
+          "type": "string"
+        }
+      ]
     },
     {
       "id": "P-02",
@@ -69,7 +87,20 @@
       "ruleIds": [
         "ENS-OPACC4-PERSONAL-CON-CAPACIDAD-AUTORIZAR"
       ],
-      "ifNotConfigured": "No se puede verificar op.acc.4.4. Cualquier cambio de permisos se registra sin poder juzgar su legitimidad."
+      "ifNotConfigured": "No se puede verificar op.acc.4.4. Cualquier cambio de permisos se registra sin poder juzgar su legitimidad.",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string"
+        }
+      ]
     },
     {
       "id": "P-03",
@@ -208,7 +239,20 @@
       "ruleIds": [
         "ENS-OPACC4-RECURSOS-SENSIBLES-NECESIDAD-CONOCER"
       ],
-      "ifNotConfigured": "op.acc.4.3 NO EVALUABLE. No se puede distinguir acceso técnicamente posible de acceso justificado."
+      "ifNotConfigured": "op.acc.4.3 NO EVALUABLE. No se puede distinguir acceso técnicamente posible de acceso justificado.",
+      "columns": [
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "perfiles",
+          "label": "Perfiles",
+          "type": "identifier"
+        }
+      ]
     }
   ]
 }
