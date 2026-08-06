@@ -123,6 +123,18 @@
     "P-11": [
       "/tmp",
       "/var/tmp"
+    ],
+    "P-08": [
+      "/etc/passwd | 644 | root:root",
+      "/etc/shadow | 640 | root:shadow",
+      "/etc/group | 644 | root:root",
+      "/etc/gshadow | 640 | root:shadow",
+      "/etc/sudoers | 440 | root:root",
+      "/etc/sudoers.d | 750 | root:root",
+      "/etc/ssh/sshd_config | 644 | root:root",
+      "/etc/crontab | 644 | root:root",
+      "/etc/cron.d | 755 | root:root",
+      "/etc/login.defs | 644 | root:root"
     ]
   },
   "op.acc.3": {
@@ -162,7 +174,9 @@
     "P-01": [
       "root | sudo | ALL=(ALL:ALL) ALL",
       "dioni | sudo | ALL=(ALL:ALL) ALL",
-      "%admin | sudo | ALL=(ALL) ALL"
+      "%admin | sudo | ALL=(ALL) ALL",
+      "%sudo | sudo | ALL=(ALL:ALL) ALL",
+      "syslog | adm | lectura de los logs del sistema"
     ],
     "P-02": [
       "dioni | global",
