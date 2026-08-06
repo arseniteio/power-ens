@@ -24,8 +24,8 @@ import {
 
 const policyDefinitions:
   ENSPolicyDefinition[] = [
-    opAcc4PolicyDefinition,
     opAcc3PolicyDefinition,
+    opAcc4PolicyDefinition,
     mpInfo6PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,

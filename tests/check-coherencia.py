@@ -66,6 +66,10 @@ RUNBOOKS = {
         "op.acc.2-requisitos-acceso-runbook",
         ["ensfacil_op_acc_2_json_rules.xml"],
     ),
+    "op.acc.3": (
+        "op.acc.3-segregacion-funciones-runbook",
+        ["ensfacil_op_acc_3_json_rules.xml"],
+    ),
     "op.acc.4": (
         "op.acc.4-gestion-derechos-runbook",
         ["ensfacil_op_acc_4_json_rules.xml"],

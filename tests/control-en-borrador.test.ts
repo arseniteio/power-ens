@@ -281,7 +281,7 @@ bloque('5. R2 y R3 de op.acc.3 no entran en el denominador');
 
 // --- 6. ninguna evidencia acredita una regla que no existe -----------------
 
-bloque('6. Sin agente, sin reglas: la trazabilidad no se inventa');
+bloque('6. La trazabilidad no se inventa: cada regla existe en un manager');
 
 {
   // `relatedRules` es la cadena que un auditor recorre —CUMPLE → evidencia →
@@ -299,17 +299,31 @@ bloque('6. Sin agente, sin reglas: la trazabilidad no se inventa');
     String(nuevas.length)
   );
 
-  // op.acc.3 sigue sin agente: ninguna de sus evidencias acredita regla, y eso
-  // es lo honesto mientras no exista su recolector.
+  // op.acc.3 tiene recolector desde el 06/08. Sus siete evidencias acreditan
+  // regla, y CINCO comparten la misma (107001): comparten el hecho, y lo que
+  // las distingue es la pregunta que el motor le hace. Un hecho crudo describe
+  // una observación, no un veredicto.
   const tres = nuevas.filter(
     evidencia => evidencia.controlId === 'op.acc.3'
   );
 
   comprueba(
-    'op.acc.3 · ninguna evidencia acredita regla (no tiene agente)',
+    'op.acc.3 · las siete acreditan una regla de su banda',
     tres.length === 7 &&
-      tres.every(evidencia => evidencia.relatedRules.length === 0),
-    tres.map(e => `${e.id}=${e.relatedRules.length}`).join(' ')
+      tres.every(
+        evidencia =>
+          evidencia.relatedRules.length === 1 &&
+          /^1070\d\d$/.test(evidencia.relatedRules[0])
+      ),
+    tres.map(e => `${e.id}=${e.relatedRules.join('|')}`).join(' ')
+  );
+
+  comprueba(
+    'y cinco de ellas comparten la misma regla: comparten el hecho',
+    tres.filter(
+      evidencia => evidencia.relatedRules[0] === '107001'
+    ).length === 5,
+    tres.map(e => `${e.id}=${e.relatedRules[0]}`).join(' ')
   );
 
   // op.acc.4 SÍ tiene recolector desde el 06/08, así que sus ocho evidencias
