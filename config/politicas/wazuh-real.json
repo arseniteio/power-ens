@@ -66,7 +66,11 @@
       "wheel",
       "admin"
     ],
-    "P-12": ".adm"
+    "P-12": ".adm",
+    "P-ATT": [
+      "op.acc.1.5 | PENDIENTE DE SUSTITUIR — Politica de identificacion en comunicaciones (eIDAS) | https://intranet.quersystem.com/ens/op-acc-1-5-identificacion-eidas.pdf | 2026-08-06 | Responsable de Seguridad",
+      "op.acc.1.r1.1 | PENDIENTE DE SUSTITUIR — Procedimiento de singularizacion de identidades | https://intranet.quersystem.com/ens/op-acc-1-r1-1-singularizacion.pdf | 2026-08-06 | Responsable de Seguridad"
+    ]
   },
   "op.acc.2": {
     "P-01": [
@@ -91,7 +95,35 @@
       "admin|/var/lib/ensfacil|lectura,escritura,modificacion",
       "admin|/var/log/ensfacil|lectura,escritura,modificacion"
     ],
-    "P-07": "027"
+    "P-07": "027",
+    "P-04": "PENDIENTE DE SUSTITUIR — Politica de Control de Acceso (https://intranet.quersystem.com/ens/op-acc-2-politica-acceso.pdf)",
+    "P-10": [
+      "/usr/bin/at",
+      "/usr/bin/chage",
+      "/usr/bin/chfn",
+      "/usr/bin/chsh",
+      "/usr/bin/crontab",
+      "/usr/bin/expiry",
+      "/usr/bin/fusermount3",
+      "/usr/bin/gpasswd",
+      "/usr/bin/mount",
+      "/usr/bin/newgrp",
+      "/usr/bin/passwd",
+      "/usr/bin/ssh-agent",
+      "/usr/bin/su",
+      "/usr/bin/sudo",
+      "/usr/bin/umount",
+      "/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
+      "/usr/lib/openssh/ssh-keysign",
+      "/usr/lib/polkit-1/polkit-agent-helper-1",
+      "/usr/lib/x86_64-linux-gnu/utempter/utempter",
+      "/usr/sbin/pam_extrausers_chkpwd",
+      "/usr/sbin/unix_chkpwd"
+    ],
+    "P-11": [
+      "/tmp",
+      "/var/tmp"
+    ]
   },
   "op.acc.3": {
     "P-01": [
