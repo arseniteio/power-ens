@@ -50,7 +50,8 @@
         {
           "name": "funciones",
           "label": "Funciones",
-          "type": "string"
+          "type": "string",
+          "required": false
         }
       ]
     },
@@ -125,7 +126,8 @@
         {
           "name": "indicadores",
           "label": "Indicadores",
-          "type": "string"
+          "type": "string",
+          "required": false
         }
       ]
     },

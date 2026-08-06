@@ -51,12 +51,14 @@
         {
           "name": "recurso",
           "label": "Recurso",
-          "type": "string"
+          "type": "string",
+          "required": false
         },
         {
           "name": "acceso",
           "label": "Acceso",
-          "type": "string"
+          "type": "string",
+          "required": false
         }
       ]
     },
@@ -98,7 +100,8 @@
         {
           "name": "ambito",
           "label": "Ámbito",
-          "type": "string"
+          "type": "string",
+          "required": false
         }
       ]
     },
@@ -250,7 +253,8 @@
         {
           "name": "perfiles",
           "label": "Perfiles",
-          "type": "identifier"
+          "type": "identifier",
+          "required": false
         }
       ]
     }
