@@ -151,6 +151,40 @@ controles:
 Son dos preguntas distintas: una evidencia puede funcionar perfectamente y salir
 en rojo.
 
+### Borrar lo declarado
+
+Al final de la pantalla de cada control hay **Borrar la configuración de
+`<control>`**. Pide escribir el id a mano, y es deliberado: un «¿seguro?» se
+acepta sin leerlo. Borra **los valores**, no el control — la tarjeta sigue ahí y
+se puede volver a configurar.
+
+Mientras esté sin configurar, sus evidencias salen no evaluables y sus
+requisitos no cumplen. Es lo correcto, pero el índice lo nota.
+
+### ¿Y el `.env` del agente? No se toca desde aquí
+
+**Son dos almacenes que no se hablan**, y conviene saberlo antes de buscar un
+botón que no existe:
+
+```
+PANTALLA ──▶ índice wazuh-ens-configuration ──▶ MOTOR (juzga en el navegador)
+
+AGENTE ──▶ /etc/ensfacil/<control>.env ──▶ recolector ──▶ hechos ──▶ Wazuh
+```
+
+El plugin **nunca escribe en una máquina auditada**, y el agente **nunca lee el
+índice**. Lo que hace que un parámetro cambie el veredicto depende del modelo:
+
+| | Quién decide | Qué pasa al cambiar el parámetro |
+|---|---|---|
+| **Modelo nuevo** (`op.acc.3`, `op.acc.4`, y EV-03/05/07 de `op.acc.1`) | el motor, contra la pantalla | el color cambia **al instante**: se rejuzgan los eventos ya indexados. El `.env` solo dice dónde mirar |
+| **Modelo clásico** (`mp.info.6`, casi todo `op.acc.1` y `op.acc.2`) | el agente, con su `.env` | en op.acc.1 y op.acc.2 **no cambia nada**: la pantalla solo comprueba que está relleno. En mp.info.6 sí lo consume el motor |
+
+Esa segunda fila es la incoherencia mayor abierta del producto. El camino para
+cerrarla no es empujar el `.env` desde Wazuh —sería construir el segundo
+almacén en vez de eliminarlo— sino migrar cada evidencia al modelo nuevo, que es
+lo que ya se está haciendo.
+
 ## 4 · Comprobar
 
 ```bash

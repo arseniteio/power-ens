@@ -14,6 +14,9 @@ import {
 import {
   ControlConfigurationResolver,
 } from './control-configuration-resolver';
+import {
+  ControlConfigurationReset,
+} from './control-configuration-reset';
 
 interface ControlConfigurationPageProps {
   control: ENSControlConfiguration;
@@ -54,6 +57,18 @@ export const ControlConfigurationPage = ({
     <ControlConfigurationResolver
       control={control}
       activeLevel={activeLevel}
+      onConfigurationSaved={
+        onConfigurationSaved
+      }
+    />
+
+    <EuiSpacer size='l' />
+
+    {/* Abajo del todo y como enlace, no como botón principal: borrar la
+        política declarada es lo último que alguien quiere hacer en esta
+        pantalla, y ponerlo al lado de «Configurar» invitaría al error. */}
+    <ControlConfigurationReset
+      control={control}
       onConfigurationSaved={
         onConfigurationSaved
       }
