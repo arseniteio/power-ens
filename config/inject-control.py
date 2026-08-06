@@ -23,6 +23,9 @@ Dry-run por defecto; --apply para escribir.
 Uso:
     export OS_USER=admin
     export OS_PASS='...'
+    # o, en el propio manager, sin necesidad de la contraseña:
+    export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
+    export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
     python3 inject-control.py op.acc.1               # dry-run
     python3 inject-control.py op.acc.1 --apply       # fusiona y escribe
     python3 inject-control.py op.acc.1 --sustituir   # descarta los valores puestos
@@ -55,14 +58,38 @@ args = p.parse_args()
 control_id = args.control
 bloque_fichero = args.block or control_id.replace(".", "-") + "-control-block.json"
 
+# DOS FORMAS DE AUTENTICARSE, y la del certificado existe por una razón
+# práctica: en un manager de Wazuh la contraseña de `admin` vive en el keystore
+# del dashboard y no se puede leer en claro, mientras que el certificado de
+# administrador del indexer SIEMPRE está en /etc/wazuh-indexer/certs. Exigir la
+# contraseña obligaba a ir a buscarla fuera de la máquina para una operación que
+# se hace EN la máquina, y eso acaba en contraseñas pegadas en un chat.
+#
+#   OS_PASS               contraseña de OS_USER (por defecto, admin)
+#   OS_CERT + OS_KEY      certificado de cliente. Tiene prioridad si está.
+OS_CERT = os.environ.get("OS_CERT")
+OS_KEY = os.environ.get("OS_KEY")
+
 user = os.environ.get("OS_USER", "admin")
 pw = os.environ.get("OS_PASS")
-if not pw:
-    sys.exit("ERROR: exporta OS_PASS con la contraseña de OpenSearch.")
+
+if not pw and not OS_CERT:
+    sys.exit(
+        "ERROR: exporta OS_PASS con la contraseña de OpenSearch, o bien\n"
+        "       OS_CERT y OS_KEY con el certificado de administrador, p.ej.\n"
+        "       export OS_CERT=/etc/wazuh-indexer/certs/admin.pem\n"
+        "       export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
+    )
+
+if OS_CERT and not OS_KEY:
+    sys.exit("ERROR: OS_CERT sin OS_KEY: hacen falta los dos.")
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
+
+if OS_CERT:
+    ctx.load_cert_chain(certfile=OS_CERT, keyfile=OS_KEY)
 
 
 def req(method, path, body=None):
@@ -71,7 +98,14 @@ def req(method, path, body=None):
         data=json.dumps(body).encode() if body is not None else None,
         method=method,
     )
-    r.add_header("Authorization", "Basic " + base64.b64encode((user + ":" + pw).encode()).decode())
+    # Con certificado NO se manda cabecera de autorización: el propio TLS
+    # identifica al cliente, y mandar las dos cosas hace que OpenSearch se
+    # quede con la básica y rechace por contraseña vacía.
+    if not OS_CERT:
+        r.add_header(
+            "Authorization",
+            "Basic " + base64.b64encode((user + ":" + pw).encode()).decode(),
+        )
     r.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(r, context=ctx) as resp:
         return json.loads(resp.read().decode())
