@@ -1,0 +1,157 @@
+{
+  "op.acc.1": {
+    "P-01": "Local",
+    "P-02": [
+      "wazuh-real | Ubuntu 24.04.4 LTS"
+    ],
+    "P-03": [
+      "_apt",
+      "backup",
+      "bin",
+      "daemon",
+      "dhcpcd",
+      "fwupd-refresh",
+      "games",
+      "irc",
+      "landscape",
+      "list",
+      "lp",
+      "mail",
+      "man",
+      "messagebus",
+      "news",
+      "nobody",
+      "polkitd",
+      "pollinate",
+      "proxy",
+      "sshd",
+      "sync",
+      "sys",
+      "syslog",
+      "systemd-network",
+      "systemd-resolve",
+      "systemd-timesync",
+      "tcpdump",
+      "tss",
+      "uucp",
+      "uuidd",
+      "wazuh",
+      "www-data"
+    ],
+    "P-04": [
+      "admin",
+      "administrador",
+      "administrator",
+      "guest",
+      "invitado",
+      "test",
+      "temp",
+      "usuario",
+      "usuario1",
+      "user",
+      "operador",
+      "soporte",
+      "ubuntu",
+      "oracle"
+    ],
+    "P-05": 1,
+    "P-06": 365,
+    "P-07": [
+      "dioni | wazuh-real | Administrador de sistema"
+    ],
+    "P-08": "no",
+    "P-10": 1000,
+    "P-11": [
+      "sudo",
+      "wheel",
+      "admin"
+    ],
+    "P-12": ".adm"
+  },
+  "op.acc.2": {
+    "P-01": [
+      "wazuh-real"
+    ],
+    "P-02": [
+      "/etc/passwd",
+      "/etc/shadow",
+      "/etc/group",
+      "/etc/gshadow",
+      "/etc/sudoers",
+      "/etc/sudoers.d",
+      "/etc/ssh/sshd_config",
+      "/etc/crontab",
+      "/etc/cron.d",
+      "/etc/login.defs"
+    ],
+    "P-03": "no",
+    "P-05": "Minimo privilegio + sudo",
+    "P-06": [
+      "admin|/etc/ensfacil|lectura,escritura,modificacion",
+      "admin|/var/lib/ensfacil|lectura,escritura,modificacion",
+      "admin|/var/log/ensfacil|lectura,escritura,modificacion"
+    ],
+    "P-07": "027"
+  },
+  "op.acc.3": {
+    "P-01": [
+      "dioni | desarrollo + operacion + autorizacion + control + configuracion + mantenimiento + auditoria",
+      "root | desarrollo + operacion + autorizacion + control + configuracion + mantenimiento + auditoria"
+    ],
+    "P-02": [
+      "desarrollo | operacion",
+      "autorizacion | control",
+      "configuracion | mantenimiento",
+      "auditoria | *"
+    ],
+    "P-03": [
+      "desarrollo | /usr/bin/git",
+      "operacion | /usr/bin/systemctl",
+      "operacion | /usr/bin/crontab",
+      "autorizacion | /usr/sbin/visudo",
+      "autorizacion | /usr/sbin/usermod",
+      "autorizacion | /usr/sbin/useradd",
+      "configuracion | /usr/bin/nano | /usr/bin/vim | /usr/bin/tee",
+      "mantenimiento | /usr/bin/apt | /usr/bin/dpkg | /usr/bin/apt-get",
+      "auditoria | /usr/sbin/ausearch | /usr/sbin/auditctl | /var/log/audit"
+    ],
+    "P-04": [
+      "cambio de cortafuegos | 2",
+      "modificacion de privilegios | 2",
+      "cambio de reglas de auditoria | 2",
+      "instalacion de software en produccion | 2"
+    ],
+    "P-05": [
+      "dioni | administrador del sistema con privilegios de auditoria (NO es una cuenta de auditoria segregada)"
+    ],
+    "P-06": 30
+  },
+  "op.acc.4": {
+    "P-01": [
+      "root | sudo | ALL=(ALL:ALL) ALL",
+      "dioni | sudo | ALL=(ALL:ALL) ALL",
+      "%admin | sudo | ALL=(ALL) ALL"
+    ],
+    "P-02": [
+      "dioni | global",
+      "root | global"
+    ],
+    "P-03": 90,
+    "P-04": [
+      "SSH publickey | 22121 | cualquier origen"
+    ],
+    "P-05": [
+      "dioni"
+    ],
+    "P-06": [
+      "root",
+      "sudo",
+      "adm"
+    ],
+    "P-07": [
+      "/etc/shadow | root",
+      "/etc/gshadow | root",
+      "/root/.ssh/authorized_keys | root"
+    ]
+  }
+}
