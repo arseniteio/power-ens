@@ -451,6 +451,83 @@ bloque('8. El catálogo que el gráfico ya no consulta');
   );
 }
 
+// --- 9. el presupuesto: la serie no puede colgar la pestaña ---------------
+//
+// NACE DE UN FALLO QUE DEJÓ EL DASHBOARD SIN CARGAR EN PRODUCCIÓN.
+//
+// Cada punto es una pasada completa del motor sobre el prefijo de ese día. Con
+// 97.905 eventos y 30 días —wazuh-real, 06/08/2026— son metro y medio de millón
+// de evaluaciones en el hilo del navegador: la pestaña se queda en «Cargando
+// configuración y alcance ENS…» y no vuelve.
+//
+// Lo que se recorta es el NÚMERO DE PUNTOS, nunca los eventos de un punto: un
+// punto calculado sobre la mitad de los hechos seria un numero falso, y el
+// valor de esta serie es que cada punto se calcula igual que el panel.
+
+bloque('9. Con mucho volumen, menos puntos — pero nunca menos eventos');
+
+{
+  // 40.000 eventos repartidos por una ventana de 30 dias.
+  const muchos: ENSNormalizedEvent[] = [];
+  for (let dia = 29; dia >= 0; dia -= 1) {
+    const cuando = new Date(AHORA);
+    cuando.setDate(cuando.getDate() - dia);
+    cuando.setHours(9, 0, 0, 0);
+    for (let i = 0; i < 1333; i += 1) {
+      muchos.push(evento(cuando.toISOString()));
+    }
+  }
+
+  const serie = buildENSTimelineCuts(muchos, { now: AHORA, days: 30 });
+
+  const evaluados = serie.reduce(
+    (total, corte) => total + corte.events.length,
+    0
+  );
+
+  comprueba(
+    'la serie se mantiene dentro del presupuesto de evaluaciones',
+    evaluados <= 500000,
+    `${evaluados} eventos evaluados en total`
+  );
+
+  comprueba(
+    'y por tanto tiene menos de 30 puntos',
+    serie.length < 30 && serie.length >= 2,
+    `${serie.length} puntos`
+  );
+
+  // Lo que NO puede pasar nunca, y es la mitad importante de esta prueba.
+  comprueba(
+    'el punto del presente sigue estando, con el paso que sea',
+    serie.filter(corte => corte.isCurrent).length === 1,
+    `${serie.filter(corte => corte.isCurrent).length} puntos marcados como presente`
+  );
+
+  comprueba(
+    'y es el ÚLTIMO, con TODOS los eventos: es el número del panel',
+    serie[serie.length - 1].isCurrent &&
+      serie[serie.length - 1].events.length === muchos.length,
+    `${serie[serie.length - 1].events.length} de ${muchos.length}`
+  );
+
+  // La reversión: con poco volumen el paso sigue siendo diario. Sin esto, un
+  // presupuesto demasiado agresivo degradaría todas las gráficas y la prueba
+  // de arriba pasaría igual.
+  const pocos = [
+    evento(new Date(2026, 7, 1, 9).toISOString()),
+    evento(new Date(2026, 7, 3, 9).toISOString()),
+  ];
+
+  const serieCorta = buildENSTimelineCuts(pocos, { now: AHORA, days: 30 });
+
+  comprueba(
+    'con poco volumen el paso sigue siendo DIARIO',
+    serieCorta.length >= 5,
+    `${serieCorta.length} puntos`
+  );
+}
+
 // --- salida ----------------------------------------------------------------
 
 console.log('');

@@ -77,6 +77,50 @@ const labelOf = (date: Date): string => {
   return `${day}/${month}`;
 };
 
+// EL PRESUPUESTO DE LA SERIE, y por qué existe.
+//
+// Cada punto es una pasada COMPLETA del motor sobre el prefijo de eventos de
+// ese día. Con la ventana de 30 días de un cliente real —97.905 eventos ENS en
+// wazuh-real el 06/08/2026— eso son unos treinta prefijos que promedian 50.000
+// eventos: metro y medio de millón de evaluaciones en el hilo del navegador.
+// La pestaña se queda en «Cargando configuración y alcance ENS…» y no vuelve.
+//
+// El día que op.acc.3 y op.acc.4 pasaron a ACTIVE fue lo que lo tiró: con los
+// dos en DRAFT el motor abandonaba sus requisitos pronto, y al activarlos pasó
+// a evaluar cinco controles por punto, uno de ellos con evaluador propio que
+// recorre todos los eventos.
+//
+// La salida NO es recortar eventos. Un punto calculado sobre la mitad de los
+// hechos es un número falso, y el valor de esta serie es justamente que cada
+// punto se calcula igual que el panel. Lo que se recorta es CUÁNTOS PUNTOS: con
+// el paso a 4 días la línea tiene ocho puntos en vez de treinta, y los ocho
+// siguen siendo exactos. Una gráfica con menos resolución dice la verdad; una
+// gráfica que no carga no dice nada.
+//
+// El presupuesto está en eventos-evaluados sumados a lo largo de toda la serie.
+const MAX_EVENTOS_EVALUADOS = 400000;
+
+// El paso en días que mantiene la serie dentro del presupuesto. Nunca menos de
+// 1 (diario) y el punto de hoy entra siempre, sea cual sea el paso.
+const pasoQueCabe = (dias: number, eventos: number): number => {
+  if (dias <= 1 || eventos <= 0) {
+    return 1;
+  }
+
+  // Los prefijos crecen de forma aproximadamente lineal, así que el coste de
+  // una serie de N puntos es del orden de N * eventos / 2.
+  const costeDiario = (dias * eventos) / 2;
+
+  if (costeDiario <= MAX_EVENTOS_EVALUADOS) {
+    return 1;
+  }
+
+  return Math.min(
+    dias,
+    Math.ceil(costeDiario / MAX_EVENTOS_EVALUADOS)
+  );
+};
+
 export const buildENSTimelineCuts = (
   events: ENSNormalizedEvent[] = [],
   options: ENSTimelineCutsOptions = {}
@@ -129,24 +173,21 @@ export const buildENSTimelineCuts = (
   // solo crece: este índice avanza una vez en toda la serie.
   let cursor = 0;
 
+  const paso = pasoQueCabe(days, past.length);
+
   for (
     let day = new Date(windowStart);
     day.getTime() <= today.getTime();
-    day = addDays(day, 1)
+    day = addDays(day, paso)
   ) {
-    const isCurrent =
-      day.getTime() === today.getTime();
-
-    if (isCurrent) {
-      cuts.push({
-        day,
-        label: labelOf(day),
-        cutoff: now,
-        isCurrent: true,
-        events,
-      });
-
-      continue;
+    // El punto de hoy se añade FUERA del bucle, siempre. Con paso > 1 el bucle
+    // avanza de `paso` en `paso` desde el inicio de la ventana y no tiene por
+    // qué aterrizar en hoy: si el punto del presente dependiera de esa
+    // coincidencia, la serie se quedaría sin el único punto que TIENE que ser
+    // igual al del panel, y justo con las ventanas grandes, que es cuando el
+    // paso crece.
+    if (day.getTime() >= today.getTime()) {
+      break;
     }
 
     const cutoff = endOfDay(day);
@@ -178,6 +219,17 @@ export const buildENSTimelineCuts = (
         .map(item => item.event),
     });
   }
+
+  // El presente: mismo instante y MISMOS eventos que el panel —todos, incluidos
+  // los de fecha futura por un reloj desviado—, porque los dos números tienen
+  // que ser el mismo número.
+  cuts.push({
+    day: today,
+    label: labelOf(today),
+    cutoff: now,
+    isCurrent: true,
+    events,
+  });
 
   return cuts;
 };
