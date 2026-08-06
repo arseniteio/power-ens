@@ -1,6 +1,6 @@
 <!-- FUENTE CANÓNICA de las reglas DESPLEGADAS de op.acc.1.
      Copia desplegable en:
-       ../op.acc.1-control-access-1-runbook/manager/ensfacil_op_acc_1_json_rules.xml
+       ../op.acc.1-identificacion/manager/ensfacil_op_acc_1_json_rules.xml
      Es la que instala `install-manager.sh` del runbook, y la que empareja los
      eventos del recolector bash (`lib/opacc1-lib.sh`). Si se modifica una, hay
      que sincronizar la otra: `tests/check-coherencia.py` (comprobación 2) lo

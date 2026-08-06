@@ -1,6 +1,6 @@
 <!-- FUENTE CANÓNICA de las reglas de op.acc.3.
      La copia desplegable vive en
-     op.acc.3-segregacion-funciones-runbook/manager/ensfacil_op_acc_3_json_rules.xml
+     op.acc.3-segregacion-de-funciones-y-tareas/manager/ensfacil_op_acc_3_json_rules.xml
      Si se modifica una, hay que sincronizar la otra: lo comprueba
      Wazuh-ENS/tests/check-coherencia.py. -->
 <group name="ensfacil,op_acc_3,score,">

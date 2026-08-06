@@ -23,8 +23,8 @@ Los tres repos:
 
 ```
 git@gitlab.com:quersystem2/ens-controls-runbook/mp.info.6-proxmox-backup-runbook.git
-git@gitlab.com:quersystem2/ens-controls-runbook/op.acc.1-control-access-1-runbook.git
-git@gitlab.com:quersystem2/ens-controls-runbook/op.acc.2-requisitos-acceso-runbook.git
+git@gitlab.com:quersystem2/ens-controls-runbook/op.acc.1-identificacion.git
+git@gitlab.com:quersystem2/ens-controls-runbook/op.acc.2-requisitos-de-acceso.git
 ```
 
 ## 1. En el MANAGER · reglas (una vez por control)

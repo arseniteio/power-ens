@@ -162,8 +162,8 @@ al `agent.conf` del grupo `ens`.
 
 ```bash
 cd mp.info.6-proxmox-backup-runbook   && sudo ./install-manager.sh
-cd ../op.acc.1-control-access-1-runbook && sudo ./install-manager.sh
-cd ../op.acc.2-requisitos-acceso-runbook && sudo ./install-manager.sh
+cd ../op.acc.1-identificacion && sudo ./install-manager.sh
+cd ../op.acc.2-requisitos-de-acceso && sudo ./install-manager.sh
 ```
 
 **Comprobar que ha surtido efecto** — que una línea real decodifica y dispara
@@ -182,8 +182,8 @@ echo '{"ensfacil":"op.acc.2","event":"world_writable","host":"H","estado":"NO_CU
 
 ```bash
 cd mp.info.6-proxmox-backup-runbook   && sudo ./install-real.sh
-cd ../op.acc.1-control-access-1-runbook && sudo ./install-real.sh
-cd ../op.acc.2-requisitos-acceso-runbook && sudo ./install-real.sh
+cd ../op.acc.1-identificacion && sudo ./install-real.sh
+cd ../op.acc.2-requisitos-de-acceso && sudo ./install-real.sh
 ```
 
 Los tres corren con `set -e`: si algo falla, abortan y **no** imprimen
@@ -1484,8 +1484,8 @@ cada runbook; esta guía enlaza, no copia:
 | Control | Parámetros | Mapa de evidencias | Verificación |
 |---|---|---|---|
 | `mp.info.6` | [04-parametros](../../mp.info.6-proxmox-backup-runbook/docs/04-parametros.md) | [07-mapa-evidencias](../../mp.info.6-proxmox-backup-runbook/docs/07-mapa-evidencias.md) | [05-verificacion](../../mp.info.6-proxmox-backup-runbook/docs/05-verificacion.md) |
-| `op.acc.1` | [04-parametros](../../op.acc.1-control-access-1-runbook/docs/04-parametros.md) | [07-mapa-evidencias](../../op.acc.1-control-access-1-runbook/docs/07-mapa-evidencias.md) | [05-verificacion](../../op.acc.1-control-access-1-runbook/docs/05-verificacion.md) |
-| `op.acc.2` | [04-parametros](../../op.acc.2-requisitos-acceso-runbook/docs/04-parametros.md) | [07-mapa-evidencias](../../op.acc.2-requisitos-acceso-runbook/docs/07-mapa-evidencias.md) | [05-verificacion](../../op.acc.2-requisitos-acceso-runbook/docs/05-verificacion.md) |
+| `op.acc.1` | [04-parametros](../../op.acc.1-identificacion/docs/04-parametros.md) | [07-mapa-evidencias](../../op.acc.1-identificacion/docs/07-mapa-evidencias.md) | [05-verificacion](../../op.acc.1-identificacion/docs/05-verificacion.md) |
+| `op.acc.2` | [04-parametros](../../op.acc.2-requisitos-de-acceso/docs/04-parametros.md) | [07-mapa-evidencias](../../op.acc.2-requisitos-de-acceso/docs/07-mapa-evidencias.md) | [05-verificacion](../../op.acc.2-requisitos-de-acceso/docs/05-verificacion.md) |
 
 Y en este repo: [`MIGRAR_UNA_EVIDENCIA.md`](MIGRAR_UNA_EVIDENCIA.md) para el
 modelo nuevo (el agente observa, el motor juzga), y

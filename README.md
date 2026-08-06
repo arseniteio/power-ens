@@ -62,16 +62,16 @@ git clone git@gitlab.com:quersystem2/Wazuh-ENS.git /opt/ensfacil/repo
 
 cd ~
 BASE=git@gitlab.com:quersystem2/ens-controls-runbook
-git clone $BASE/op.acc.1-control-access-1-runbook.git
-git clone $BASE/op.acc.2-requisitos-acceso-runbook.git
+git clone $BASE/op.acc.1-identificacion.git
+git clone $BASE/op.acc.2-requisitos-de-acceso.git
 git clone $BASE/mp.info.6-proxmox-backup-runbook.git
 ```
 
 ### 1.1 · Reglas
 
 ```bash
-sudo bash ~/op.acc.1-control-access-1-runbook/install-manager.sh
-sudo bash ~/op.acc.2-requisitos-acceso-runbook/install-manager.sh
+sudo bash ~/op.acc.1-identificacion/install-manager.sh
+sudo bash ~/op.acc.2-requisitos-de-acceso/install-manager.sh
 sudo bash ~/mp.info.6-proxmox-backup-runbook/install-manager.sh
 ```
 
@@ -123,8 +123,8 @@ Fusiona: conserva los valores que ya hubiera puesto el auditor. Se puede repetir
 Clona los runbooks de los controles que apliquen a esa máquina y:
 
 ```bash
-sudo bash ~/op.acc.1-control-access-1-runbook/install-real.sh
-sudo bash ~/op.acc.2-requisitos-acceso-runbook/install-real.sh
+sudo bash ~/op.acc.1-identificacion/install-real.sh
+sudo bash ~/op.acc.2-requisitos-de-acceso/install-real.sh
 ```
 
 **Usa rutas absolutas.** `sudo -i` abre una sesión nueva y se come el `cd` que
