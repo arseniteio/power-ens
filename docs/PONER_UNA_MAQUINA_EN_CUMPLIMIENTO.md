@@ -240,6 +240,29 @@ fabricado sobre la misma máquina, no.
 
 ---
 
+## Dos trampas del despliegue que cuestan una tarde
+
+**El plugin se compila con node 18, no con el que tengas por defecto.** Con node
+22 el bundle compila bien —`succ 1 bundles compiled successfully`— y acto
+seguido el proceso muere por un `DeprecationWarning` de `fs.Stats`, sin decir
+"error" en ninguna parte. Si además canalizas la salida por `tail`, el código de
+salida es el del `tail` y parece que fue bien. No hay zip y nadie lo dice:
+
+    nvm use 18.19.0
+    cd <arbol>/plugins/main
+    YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
+      --allow-root --opensearch-dashboards-version=2.19.5
+    ls -la build/*.zip        # si no hay zip, NO se ha construido
+
+**`wazuh.chunk.2.js` no lleva hash en el nombre.** El navegador sirve el que
+tiene cacheado aunque acabes de desplegar otro, así que una recarga normal
+enseña el plugin viejo y parece que el despliegue no ha hecho nada. Hay que
+recargar forzando (Cmd/Ctrl + Shift + R) o abrir en una ventana privada. Para
+comprobar desde el servidor qué se está sirviendo de verdad:
+
+    sudo stat -c '%n %y' $(sudo find /usr/share/wazuh-dashboard/plugins/wazuh \
+      -name 'wazuh.chunk.2.js')
+
 ## Los errores que cuestan una tarde
 
 Ordenados por las veces que han pasado de verdad.
