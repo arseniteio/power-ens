@@ -41,16 +41,35 @@ cat ~/.ssh/gitlab-qs.pub
 ```
 
 Pega esa clave en GitLab **con la cuenta `@devqs` (quersystem2)**, que es donde
-viven los repos. Y átala a cada repo:
+viven los repos. Y déjala configurada en `~/.ssh/config`:
 
 ```bash
-git config --global core.sshCommand 'ssh -o IdentitiesOnly=yes -i ~/.ssh/gitlab-qs'
+cat >> ~/.ssh/config <<'EOF'
+
+Host gitlab.com
+  User git
+  IdentityFile ~/.ssh/gitlab-qs
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+
 ssh -T git@gitlab.com          # → Welcome to GitLab, @devqs!
 ```
 
-`IdentitiesOnly=yes` no es adorno: sin él, el agente ssh puede ofrecer otra
-clave tuya, GitLab responde con esa identidad y el error que ves es *«el
-proyecto no existe»* — que despista, porque el proyecto sí existe.
+**En `~/.ssh/config` y no en `git config core.sshCommand`**, aunque las dos
+funcionen para clonar. `core.sshCommand` es un ajuste **de git**: `ssh -T` no lo
+lee, así que la comprobación de arriba pasaría por alto justo lo que acabas de
+configurar y te diría «Permission denied» con la clave bien puesta. Una
+verificación que no ejercita lo verificado es peor que no tener ninguna.
+
+`IdentitiesOnly` no es adorno: sin él, el agente ssh puede ofrecer otra clave
+tuya, GitLab responde con esa identidad y el error que ves es *«el proyecto no
+existe»* — que despista, porque el proyecto sí existe.
+
+Si prefieres no tocar `~/.ssh/config`, la alternativa es
+`git config --global core.sshCommand 'ssh -o IdentitiesOnly=yes -i ~/.ssh/gitlab-qs'`,
+pero entonces la comprobación tiene que llevar la clave delante:
+`ssh -o IdentitiesOnly=yes -i ~/.ssh/gitlab-qs -T git@gitlab.com`.
 
 ## 1 · Manager
 
