@@ -222,6 +222,87 @@ const evaluate = (
       'Cuentas con al menos una acción observada y clasificada en el periodo.',
   });
 
+  // --- la concurrencia en tareas críticas, ANTES del cruce ---
+  //
+  // Se calcula aquí y no donde se decide porque su veredicto NO es una decisión
+  // aparte: se FUNDE con el del cruce en op.acc.3.2. La razón es del motor —
+  // `requirement-evaluator` resuelve la decisión de un requisito con
+  // `policyDecisions.find(d => d.requirementId === requirement.id)`, y `find`
+  // devuelve la PRIMERA. Empujar dos decisiones para el mismo requisito no
+  // suma: la segunda no la lee nadie, en silencio.
+  //
+  // Y va a op.acc.3.2 —«las personas que autorizan y controlan el uso serán
+  // distintas»— porque eso es exactamente lo que mide P-04: control dual, dos
+  // personas para una tarea. op.acc.3.1 (desarrollo frente a operación) ya lo
+  // cubre el cruce de pares.
+  //
+  // Hasta el 06/08/2026 estas decisiones se emitían contra `'op.acc.3'`, que es
+  // el id del CONTROL y no el de ningún requisito. Ninguna casaba, así que el
+  // control existía para comprobar la segregación y la comprobación no llegaba
+  // a ninguna parte: P-04 y EV-03 no movían el resultado ni un punto. Un fallo
+  // así no da error —todo compila, todo despliega— y por eso hay una prueba
+  // que exige que todo `requirementId` que emita esta policy exista en el
+  // catálogo.
+  const taskEvents = context.events.filter(
+    event => event.eventType === 'critical_task_run'
+  );
+
+  const concurrencyBreaches: string[] = [];
+  const concurrencyMeasurable = criticalTasks.length > 0;
+  let tasksObserved = 0;
+
+  if (concurrencyMeasurable) {
+    const peopleByTask = new Map<string, Set<string>>();
+
+    taskEvents.forEach(event => {
+      const task = String(event.attributes?.tarea ?? '').trim().toLowerCase();
+      const account = String(event.attributes?.usuario ?? '').trim();
+
+      if (!task || !account) {
+        return;
+      }
+
+      const current = peopleByTask.get(task) || new Set<string>();
+      current.add(account);
+      peopleByTask.set(task, current);
+    });
+
+    tasksObserved = peopleByTask.size;
+
+    criticalTasks.forEach(row => {
+      const cells = cellsOf(row);
+
+      if (cells.length < 2) {
+        return;
+      }
+
+      const task = cells[0].toLowerCase();
+      const required = Number(cells[1]);
+
+      if (!Number.isFinite(required) || required < 2) {
+        return;
+      }
+
+      const observed = peopleByTask.get(task);
+
+      // UNA TAREA QUE NO SE HA EJECUTADO NO INCUMPLE. Exigir concurrencia a
+      // algo que nadie hizo sería acusar por una ausencia, y la ausencia aquí
+      // no es un hallazgo: es que no hubo despliegue esta semana.
+      if (!observed) {
+        return;
+      }
+
+      if (observed.size < required) {
+        // CON NOMBRES. Un auditor que lee «1 de 2 personas» tiene que volver a
+        // los eventos crudos para saber a quién preguntar; con el nombre
+        // delante, la traza empieza donde se lee el hallazgo.
+        concurrencyBreaches.push(
+          `${cells[0]} (${observed.size} de ${required} personas: ${Array.from(observed).join(', ')})`
+        );
+      }
+    });
+  }
+
   // --- op.acc.3.1 y op.acc.3.2 y el R1 ---
   //
   // Los cuatro requisitos se deciden con el mismo cruce; lo que cambia es qué
@@ -241,10 +322,19 @@ const evaluate = (
     ].filter(Boolean).join(' y ');
 
     cruceRequirements.forEach(requirementId => {
+      // op.acc.3.2 mide DOS cosas —el cruce y la concurrencia de P-04—, así que
+      // si además falta P-04 hay que nombrarlo: un «no evaluable» que solo cita
+      // la mitad de lo que falta manda al operador a rellenar un parámetro y a
+      // volver a encontrarse el mismo gris.
+      const alsoMissing =
+        requirementId === 'op.acc.3.2' && !concurrencyMeasurable
+          ? `${missing} y P-04 (tareas críticas y personas exigidas)`
+          : missing;
+
       decisions.push(
         NO_MEDIDO(
           requirementId,
-          `Falta declarar ${missing}. Sin esa traducción, una acción observada no se puede clasificar en una función y la segregación no se puede medir.`
+          `Falta declarar ${alsoMissing}. Sin esa traducción, una acción observada no se puede clasificar en una función y la segregación no se puede medir.`
         )
       );
     });
@@ -273,124 +363,79 @@ const evaluate = (
     });
 
     cruceRequirements.forEach(requirementId => {
+      // Solo op.acc.3.2 arrastra la concurrencia. Para los otros tres el cruce
+      // es toda la medida.
+      const carriesConcurrency = requirementId === 'op.acc.3.2';
+
+      // «Lo no demostrado no cumple» opera sobre el REQUISITO ENTERO. Si el
+      // cruce sale limpio pero P-04 está sin declarar, op.acc.3.2 NO puede
+      // salir verde: la mitad de lo que afirma —que quien autoriza y quien
+      // controla son personas distintas— no se ha llegado a mirar. Decir CUMPLE
+      // ahí sería el CUMPLE falso que este producto existe para no dar.
+      if (carriesConcurrency && !concurrencyMeasurable) {
+        decisions.push(
+          NO_MEDIDO(
+            requirementId,
+            'Falta declarar P-04 (tareas críticas y personas exigidas). El cruce de funciones incompatibles sí se ha podido hacer, pero sin P-04 no se sabe cuántas personas exige cada tarea crítica y la mitad del requisito se queda sin medir.'
+          )
+        );
+        return;
+      }
+
+      const breaches = [
+        ...offenders.map(entry => `funciones incompatibles: ${entry}`),
+        ...(carriesConcurrency
+          ? concurrencyBreaches.map(entry => `sin la concurrencia exigida: ${entry}`)
+          : []),
+      ];
+
+      const parameterIds = carriesConcurrency
+        ? ['P-02', 'P-03', 'P-04']
+        : ['P-02', 'P-03'];
+
+      const expected = carriesConcurrency
+        ? 'ninguna cuenta con dos funciones incompatibles y concurrencia de dos o más personas en cada tarea crítica'
+        : 'ninguna cuenta con dos funciones incompatibles';
+
       decisions.push(
-        offenders.length
+        breaches.length
           ? decide(
               requirementId,
               'NO_CUMPLE',
-              `Cuentas que aúnan funciones incompatibles: ${offenders.join('; ')}.`,
+              `Segregación incumplida — ${breaches.join('; ')}.`,
               {
-                parameterIds: ['P-02', 'P-03'],
-                expected: 'ninguna cuenta con dos funciones incompatibles',
-                actual: `${offenders.length} cuenta(s)`,
+                parameterIds,
+                ...(carriesConcurrency ? { evidenceIds: ['EV-03', 'EV-06'] } : {}),
+                expected,
+                actual: `${breaches.length} hallazgo(s)`,
               }
             )
           : decide(
               requirementId,
               'CUMPLE',
-              byAccount.size > 0
-                ? `Ninguna de las ${byAccount.size} cuentas observadas aúna funciones incompatibles.`
-                : 'No se ha observado ninguna acción en el periodo: no hay ninguna cuenta que aúne funciones.',
+              [
+                byAccount.size > 0
+                  ? `Ninguna de las ${byAccount.size} cuentas observadas aúna funciones incompatibles.`
+                  : 'No se ha observado ninguna acción en el periodo: no hay ninguna cuenta que aúne funciones.',
+                carriesConcurrency
+                  ? tasksObserved > 0
+                    ? `Las ${tasksObserved} tarea(s) críticas ejecutadas cumplen la concurrencia exigida.`
+                    : 'No se ha ejecutado ninguna tarea crítica en el periodo.'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' '),
               {
-                parameterIds: ['P-02', 'P-03'],
-                expected: 'ninguna cuenta con dos funciones incompatibles',
-                actual: `${byAccount.size} cuenta(s) observadas, 0 con incompatibilidad`,
+                parameterIds,
+                ...(carriesConcurrency ? { evidenceIds: ['EV-03', 'EV-06'] } : {}),
+                expected,
+                actual: carriesConcurrency
+                  ? `${byAccount.size} cuenta(s) observadas y ${tasksObserved} tarea(s) ejecutadas, 0 hallazgos`
+                  : `${byAccount.size} cuenta(s) observadas, 0 con incompatibilidad`,
               }
             )
       );
     });
-  }
-
-  // --- el enunciado general: concurrencia en tareas críticas ---
-  //
-  // P-04 declara `tarea | nº personas`. Se cuentan las cuentas DISTINTAS que
-  // ejecutaron cada tarea observada.
-  const taskEvents = context.events.filter(
-    event => event.eventType === 'critical_task_run'
-  );
-
-  if (!criticalTasks.length) {
-    decisions.push(
-      NO_MEDIDO(
-        'op.acc.3',
-        'Falta declarar P-04 (tareas críticas y personas exigidas). Sin él no se puede saber cuántas personas exige cada tarea.'
-      )
-    );
-  } else {
-    const peopleByTask = new Map<string, Set<string>>();
-
-    taskEvents.forEach(event => {
-      const task = String(event.attributes?.tarea ?? '').trim().toLowerCase();
-      const account = String(event.attributes?.usuario ?? '').trim();
-
-      if (!task || !account) {
-        return;
-      }
-
-      const current = peopleByTask.get(task) || new Set<string>();
-      current.add(account);
-      peopleByTask.set(task, current);
-    });
-
-    const breaches: string[] = [];
-
-    criticalTasks.forEach(row => {
-      const cells = cellsOf(row);
-
-      if (cells.length < 2) {
-        return;
-      }
-
-      const task = cells[0].toLowerCase();
-      const required = Number(cells[1]);
-
-      if (!Number.isFinite(required) || required < 2) {
-        return;
-      }
-
-      const observed = peopleByTask.get(task);
-
-      // UNA TAREA QUE NO SE HA EJECUTADO NO INCUMPLE. Exigir concurrencia a
-      // algo que nadie hizo sería acusar por una ausencia, y la ausencia aquí
-      // no es un hallazgo: es que no hubo despliegue esta semana.
-      if (!observed) {
-        return;
-      }
-
-      if (observed.size < required) {
-        breaches.push(
-          `${cells[0]}: ${observed.size} persona(s) (${Array.from(observed).join(', ')}), exigidas ${required}`
-        );
-      }
-    });
-
-    decisions.push(
-      breaches.length
-        ? decide(
-            'op.acc.3',
-            'NO_CUMPLE',
-            `Tareas críticas ejecutadas sin la concurrencia exigida: ${breaches.join('; ')}.`,
-            {
-              parameterIds: ['P-04'],
-              evidenceIds: ['EV-03'],
-              expected: 'concurrencia de dos o más personas',
-              actual: `${breaches.length} tarea(s) sin ella`,
-            }
-          )
-        : decide(
-            'op.acc.3',
-            'CUMPLE',
-            peopleByTask.size
-              ? `Las ${peopleByTask.size} tarea(s) críticas ejecutadas en el periodo cumplen la concurrencia exigida.`
-              : 'No se ha ejecutado ninguna tarea crítica en el periodo.',
-            {
-              parameterIds: ['P-04'],
-              evidenceIds: ['EV-03'],
-              expected: 'concurrencia de dos o más personas',
-              actual: `${peopleByTask.size} tarea(s) ejecutadas, 0 sin concurrencia`,
-            }
-          )
-    );
   }
 
   return { decisions, runtimeVariables: variables };

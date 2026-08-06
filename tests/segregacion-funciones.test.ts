@@ -311,7 +311,7 @@ bloque('4. Tareas críticas: dos personas o no cuenta');
     [P02, P03, P04]
   );
 
-  const d = veredicto(unaSola, 'op.acc.3');
+  const d = veredicto(unaSola, 'op.acc.3.2');
 
   comprueba(
     'una tarea crítica con UNA persona incumple',
@@ -337,8 +337,8 @@ bloque('4. Tareas críticas: dos personas o no cuenta');
 
   comprueba(
     'la misma tarea con DOS personas cumple',
-    veredicto(dos, 'op.acc.3')?.status === 'CUMPLE',
-    veredicto(dos, 'op.acc.3')?.status
+    veredicto(dos, 'op.acc.3.2')?.status === 'CUMPLE',
+    veredicto(dos, 'op.acc.3.2')?.status
   );
 
   // Y la misma persona dos veces NO son dos personas.
@@ -352,8 +352,8 @@ bloque('4. Tareas críticas: dos personas o no cuenta');
 
   comprueba(
     'la misma persona dos veces NO son dos personas',
-    veredicto(repetida, 'op.acc.3')?.status === 'NO_CUMPLE',
-    veredicto(repetida, 'op.acc.3')?.status
+    veredicto(repetida, 'op.acc.3.2')?.status === 'NO_CUMPLE',
+    veredicto(repetida, 'op.acc.3.2')?.status
   );
 }
 
@@ -369,8 +369,8 @@ bloque('5. Una tarea que no se ejecutó no incumple');
 
   comprueba(
     'sin ninguna ejecución, el enunciado general cumple',
-    veredicto(sinEjecucion, 'op.acc.3')?.status === 'CUMPLE',
-    veredicto(sinEjecucion, 'op.acc.3')?.status
+    veredicto(sinEjecucion, 'op.acc.3.2')?.status === 'CUMPLE',
+    veredicto(sinEjecucion, 'op.acc.3.2')?.status
   );
 
   // La reversión: en cuanto se ejecuta mal, sí acusa.
@@ -381,8 +381,8 @@ bloque('5. Una tarea que no se ejecutó no incumple');
 
   comprueba(
     'pero en cuanto se ejecuta con una sola persona, acusa',
-    veredicto(ejecutadaMal, 'op.acc.3')?.status === 'NO_CUMPLE',
-    veredicto(ejecutadaMal, 'op.acc.3')?.status
+    veredicto(ejecutadaMal, 'op.acc.3.2')?.status === 'NO_CUMPLE',
+    veredicto(ejecutadaMal, 'op.acc.3.2')?.status
   );
 
   // Sin P-04 no se puede medir, y lo dice.
@@ -390,9 +390,9 @@ bloque('5. Una tarea que no se ejecutó no incumple');
 
   comprueba(
     'sin P-04 el enunciado general sale NO_EVALUABLE nombrándolo',
-    veredicto(sinP04, 'op.acc.3')?.status === 'NO_EVALUABLE' &&
-      (veredicto(sinP04, 'op.acc.3')?.reason || '').includes('P-04'),
-    veredicto(sinP04, 'op.acc.3')?.reason
+    veredicto(sinP04, 'op.acc.3.2')?.status === 'NO_EVALUABLE' &&
+      (veredicto(sinP04, 'op.acc.3.2')?.reason || '').includes('P-04'),
+    veredicto(sinP04, 'op.acc.3.2')?.reason
   );
 }
 
@@ -403,16 +403,40 @@ bloque('6. Sin acciones observadas, nadie aúna funciones');
 {
   // Es distinto de «no se pudo medir»: aquí P-02 y P-03 están declarados y el
   // recolector miró. Que no haya habido actividad es un hecho.
+  //
+  // op.acc.3.2 va aparte a propósito: mide DOS cosas, el cruce y la
+  // concurrencia de P-04, y esta fixture no declara P-04. Silencio con la
+  // política a medias no es cumplimiento, es media medida — y media medida no
+  // acredita nada. El caso de abajo prueba que con P-04 sí cumple.
   const silencio = juzga([], [P02, P03]);
 
   comprueba(
-    'sin acciones, los cuatro requisitos del cruce cumplen',
-    ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'].every(
+    'sin acciones, los tres requisitos que solo miden el cruce cumplen',
+    ['op.acc.3.1', 'op.acc.3.r1.1', 'op.acc.3.r1.2'].every(
       requisito => veredicto(silencio, requisito)?.status === 'CUMPLE'
     ),
-    ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2']
+    ['op.acc.3.1', 'op.acc.3.r1.1', 'op.acc.3.r1.2']
       .map(r => `${r}=${veredicto(silencio, r)?.status}`)
       .join(' ')
+  );
+
+  comprueba(
+    'y op.acc.3.2 NO cumple por silencio si le falta P-04',
+    veredicto(silencio, 'op.acc.3.2')?.status === 'NO_EVALUABLE' &&
+      (veredicto(silencio, 'op.acc.3.2')?.reason || '').includes('P-04'),
+    veredicto(silencio, 'op.acc.3.2')?.reason
+  );
+
+  // La reversión: con P-04 declarado, el mismo silencio sí cumple.
+  const silencioCompleto = juzga(
+    [],
+    [P02, P03, parametro('P-04', ['despliegue en produccion | 2'])]
+  );
+
+  comprueba(
+    'con P-04 declarado, el mismo silencio sí cumple',
+    veredicto(silencioCompleto, 'op.acc.3.2')?.status === 'CUMPLE',
+    veredicto(silencioCompleto, 'op.acc.3.2')?.status
   );
 
   comprueba(
@@ -453,6 +477,92 @@ bloque('7. Toda decisión sale con su traza completa');
     Boolean(veredicto(resultado, 'op.acc.3.1')?.trace?.expected) &&
       Boolean(veredicto(resultado, 'op.acc.3.1')?.trace?.actual),
     JSON.stringify(veredicto(resultado, 'op.acc.3.1')?.trace)
+  );
+}
+
+// --- 8. ninguna decisión puede caer en un requisito que no existe ----------
+//
+// ESTA COMPROBACIÓN NACE DE UN FALLO REAL, y de uno que las pruebas de arriba
+// no solo dejaron pasar: reprodujeron.
+//
+// Hasta el 06/08/2026 la concurrencia se decidía contra `'op.acc.3'` — el id
+// del CONTROL, no el de ningún requisito. `requirement-evaluator` casa con
+// `decision.requirementId === requirement.id`, exacto, así que la decisión no
+// la leía nadie: P-04 y EV-03 no movían el resultado ni un punto. El control
+// existe para comprobar que dos personas distintas hacen una tarea crítica, y
+// esa comprobación no llegaba a ninguna parte.
+//
+// Los casos 4 y 5 pasaban en verde porque preguntaban por `'op.acc.3'`, o sea
+// por la misma cadena equivocada. Una prueba que copia el identificador del
+// código que prueba no comprueba nada: comprueba que el código es igual a sí
+// mismo. La única defensa es contrastar contra el CATÁLOGO, que es de donde
+// sale la verdad.
+
+bloque('8. Toda decisión aterriza en un requisito del catálogo');
+
+{
+  const requisitosDelCatalogo = new Set(
+    opAcc3CatalogDefinition.requirements.map(r => r.id)
+  );
+
+  const completa = juzga(
+    [
+      accion('jgomez', 'git push', '/srv/app'),
+      tarea('despliegue en produccion', 'pgarcia'),
+    ],
+    [
+      P02,
+      P03,
+      parametro('P-04', ['despliegue en produccion | 2']),
+      parametro('P-05', ['auditoria']),
+    ]
+  );
+
+  // Y una vacía, que recorre las ramas de «no se puede medir».
+  const vacia = juzga([], []);
+
+  [completa, vacia].forEach((resultado, i) => {
+    const huerfanas = resultado.decisions
+      .map(d => d.requirementId)
+      .filter(id => !requisitosDelCatalogo.has(id));
+
+    comprueba(
+      `todas las decisiones existen en el catálogo (${i === 0 ? 'config completa' : 'sin configurar'})`,
+      huerfanas.length === 0,
+      huerfanas.join(', ')
+    );
+  });
+
+  // Y al revés: EV-03 tiene que estar reclamada por algún requisito, porque una
+  // evidencia que nadie reclama tampoco llega al informe.
+  const evidenciasReclamadas = new Set(
+    opAcc3CatalogDefinition.requirements.flatMap(r => r.evidenceIds)
+  );
+
+  comprueba(
+    'EV-03 (concurrencia) la reclama algún requisito',
+    evidenciasReclamadas.has('EV-03'),
+    Array.from(evidenciasReclamadas).join(', ')
+  );
+
+  // La concurrencia decide de verdad: una tarea con una sola persona tiene que
+  // teñir op.acc.3.2 aunque el cruce de funciones salga limpio.
+  const soloConcurrencia = juzga(
+    [tarea('despliegue en produccion', 'pgarcia')],
+    [P02, P03, parametro('P-04', ['despliegue en produccion | 2'])]
+  );
+
+  comprueba(
+    'la concurrencia tiñe op.acc.3.2 aunque el cruce esté limpio',
+    veredicto(soloConcurrencia, 'op.acc.3.2')?.status === 'NO_CUMPLE',
+    veredicto(soloConcurrencia, 'op.acc.3.2')?.status
+  );
+
+  // Y NO tiñe los otros tres: son el cruce y nada más.
+  comprueba(
+    'y no arrastra a op.acc.3.1, que solo mide el cruce',
+    veredicto(soloConcurrencia, 'op.acc.3.1')?.status === 'CUMPLE',
+    veredicto(soloConcurrencia, 'op.acc.3.1')?.status
   );
 }
 
