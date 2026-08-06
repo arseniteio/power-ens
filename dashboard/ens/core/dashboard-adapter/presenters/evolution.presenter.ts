@@ -9,7 +9,9 @@
 // Ahora la serie la calcula el motor, día a día, y este fichero solo la pinta.
 // Quién la produce y con qué criterio: `core/timeline/compliance-timeline.ts`.
 import { ENSComplianceState } from '../../compliance-state/types';
-import { ENSComplianceTimelinePoint } from '../../timeline/compliance-timeline';
+// `import type`: solo es un tipo, y como valor arrastraría el motor entero a
+// este presentador. Ver la cabecera de `dashboard-adapter.ts`.
+import type { ENSComplianceTimelinePoint } from '../../timeline/compliance-timeline';
 import {
   EvolutionModel,
   EvolutionRowModel,

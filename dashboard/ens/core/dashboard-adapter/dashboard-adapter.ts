@@ -1,6 +1,13 @@
 import { ENSComplianceState } from '../compliance-state/types';
 import { ENSNormalizedEvent } from '../data-source/types';
-import { ENSComplianceTimelinePoint } from '../timeline/compliance-timeline';
+// `import type`, NO un import normal. `ENSComplianceTimelinePoint` es SOLO un
+// tipo, pero importarlo como valor obliga a cargar `compliance-timeline` en
+// tiempo de ejecución, y ese módulo importa el MOTOR entero. Resultado: este
+// adaptador arrastraba `ens-engine` a su grafo por una anotación de tipo, y
+// por ahí vuelve el ciclo del TDZ que deja el dashboard en blanco.
+//
+// Con `import type` la línea desaparece al compilar y no queda dependencia.
+import type { ENSComplianceTimelinePoint } from '../timeline/compliance-timeline';
 import {
   buildComplianceCardModel,
   buildCoverageCardModel,
