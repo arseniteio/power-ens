@@ -1388,6 +1388,43 @@ al leer un panel: **el gris de un requisito se ve por sus evidencias, no por su
 
 ---
 
+### 11.9 bis · Los requisitos documentales YA se pueden acreditar
+
+**Desde el 06/08 el techo del 75 % de op.acc.1 no es un techo del producto.**
+
+`op.acc.1.5` (eIDAS) y `op.acc.1.r1.1` (singularizar a la persona) no son
+requisitos técnicos y no lo van a ser: un agente no puede observar ninguno de
+los dos. Su prueba es un documento aprobado, que es exactamente como los audita
+un auditor humano.
+
+Se declaran en **`P-ATT` · Atestaciones documentales**, una fila por requisito:
+
+```
+op.acc.1.5 | Política de identificación v3 | https://intranet/pol-id-v3.pdf | 2026-05-12 | RSI
+```
+
+`requisito | documento | enlace(s) | fecha | declarado por`. Los enlaces
+adicionales van separados por espacios en su celda.
+
+**Los dos límites, que son lo que impide un CUMPLE falso:**
+
+| | |
+|---|---|
+| Una atestación **no puede tapar una medida** | solo se admite en requisitos que el catálogo declara con `evidenceIds: []`. Si la máquina midió y falló, ningún documento lo cambia |
+| Una atestación **incompleta no acredita** | sin documento o sin un enlace utilizable, no cuenta. Una casilla marcada no es una prueba |
+
+Y lo acreditado **va marcado**: el requisito cumple, pero el resultado lleva
+`attested` y el motivo dice *«Acreditado documentalmente: …»* con su enlace. Un
+auditor tiene que poder separar de un vistazo lo que se midió de lo que se
+declaró.
+
+> **El ejemplo que trae el parámetro NO acredita.** Su enlace apunta a
+> `EJEMPLO.invalido`, que se rechaza a propósito: copiar la fila tal cual
+> dejaría un requisito en verde apuntando a un documento que no existe. Misma
+> disciplina que las plantillas `.example` de op.acc.2.
+
+Prueba: `tests/atestacion-documental.test.ts`.
+
 ### 11.9 op.acc.1 · dos requisitos que ninguna evidencia técnica demuestra
 
 **Es el tope de este control, y el más importante de conocer**: `op.acc.1` no

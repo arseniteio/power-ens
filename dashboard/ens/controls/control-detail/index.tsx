@@ -240,6 +240,14 @@ export const ControlDetailENS = ({
       : 'sin datos';
 
   const requisitosAplicables = complianceResult?.applicableRequirements ?? 0;
+
+  // Requisitos que CUMPLEN, que es de donde sale el porcentaje. No se deduce
+  // del `score`: un requisito PARCIAL ya no existe, pero uno NO_APLICA sí, y
+  // dividir mal aquí produciría justo la contradicción que esta pantalla
+  // acaba de dejar de tener.
+  const requisitosCumplen = (complianceResult?.requirements || []).filter(
+    (requisito: any) => requisito.status === 'CUMPLE'
+  ).length;
   const requisitosMedidos = complianceResult?.measuredRequirements ?? 0;
 
   // Qué mide el porcentaje. El denominador son los APLICABLES: lo que no se ha
@@ -691,18 +699,43 @@ export const ControlDetailENS = ({
                     </EuiFlexItem>
                   </EuiFlexGroup>
                 <EuiSpacer size='s' />
+
+                {/* CADA NÚMERO DICE DE QUÉ ES, y no es un detalle de estilo.
+                    Aquí se pintaba «38 %» —que es de REQUISITOS— y justo
+                    debajo «Cumplen 6» —que es de EVIDENCIAS—, sin decir ni
+                    una cosa ni la otra. Dos denominadores distintos bajo el
+                    mismo título es una contradicción aparente que hace
+                    desconfiar del número entero, y el número es lo único que
+                    el auditor se lleva.
+
+                    Que 6 evidencias en verde convivan con un 38 % es correcto:
+                    un requisito con tres evidencias buenas y una mala NO
+                    cumple. Lo que faltaba era decirlo. */}
                 <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
                   <EuiFlexItem grow={false}>
-                    <EuiHealth color='success'>Cumplen {evidenceSummary.cumple}</EuiHealth>
+                    <EuiText size='xs' color='subdued'>
+                      <strong>Requisitos</strong>{' '}
+                      {requisitosCumplen} de {requisitosAplicables} cumplen
+                      {' · '}el {motorScoreTexto} sale de aquí
+                    </EuiText>
                   </EuiFlexItem>
+                </EuiFlexGroup>
+
+                <EuiSpacer size='xs' />
+
+                <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
                   <EuiFlexItem grow={false}>
-                    <EuiHealth color='subdued'>No aplica {evidenceSummary.noAplica}</EuiHealth>
+                    <EuiText size='xs' color='subdued'>
+                      <strong>Evidencias</strong>{' '}
+                      {evidenceSummary.cumple} de {totalEvidences} cumplen
+                      {evidenceSummary.noCumple > 0
+                        ? ` · ${evidenceSummary.noCumple} no`
+                        : ''}
+                      {evidenceSummary.noEvaluable > 0
+                        ? ` · ${evidenceSummary.noEvaluable} sin prueba`
+                        : ''}
+                    </EuiText>
                   </EuiFlexItem>
-                  {evidenceSummary.noCumple > 0 && (
-                    <EuiFlexItem grow={false}>
-                      <EuiHealth color='danger'>No cumplen {evidenceSummary.noCumple}</EuiHealth>
-                    </EuiFlexItem>
-                  )}
                 </EuiFlexGroup>
               </EuiPanel>
             </EuiFlexItem>

@@ -15,6 +15,9 @@ import {
 } from './types';
 import { evaluateRequirements } from './requirement';
 import { evaluateControlStatus } from './control';
+// Del fichero, no del barrel `configuration/services`: ese re-exporta el cliente
+// HTTP y arrastra `kibana-services` al grafo del motor.
+import { parseRequirementAttestations } from '../../configuration/services/attestation-service';
 import { ENSNormalizedEvent } from '../data-source/types';
 
 const asTraceabilityStatus = (
@@ -130,7 +133,8 @@ export const evaluateENSControl = (
       evidences,
       hasMissingRequired,
       policyRuntime?.decisions || [],
-      catalogControl.status
+      catalogControl.status,
+      parseRequirementAttestations(configuration)
     );
 
   const controlEvaluation = evaluateControlStatus(requirements);

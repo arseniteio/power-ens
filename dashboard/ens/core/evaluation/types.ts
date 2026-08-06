@@ -131,6 +131,13 @@ export interface ENSRequirementResult {
   // midieron: basta una sin demostrar para que el conjunto no esté demostrado.
   evidenced?: boolean;
 
+  // Acreditado por DOCUMENTO, no por telemetría. Viaja hasta la pantalla y el
+  // informe para que un auditor pueda separar de un vistazo lo que se midió de
+  // lo que se declaró. Un CUMPLE atestado es tan válido como uno medido —para
+  // los requisitos organizativos, el documento ES la prueba que el ENS pide—
+  // pero presentarlos igual sería esconder de qué tipo es cada uno.
+  attested?: boolean;
+
   observations: string[];
 
   // Los mismos motivos sin aplanar. Como en `ENSEvidenceResult`, solo lo

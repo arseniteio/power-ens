@@ -4,6 +4,11 @@ import {
   ENSControlStatus,
   ENSRequirementDefinition,
 } from '../../../catalog/types';
+import {
+  describeAttestation,
+  isAttestationSufficient,
+} from '../../../configuration/services/attestation-service';
+import type { ENSRequirementAttestation } from '../../../configuration/services/attestation-service';
 import { ENSLevel } from '../../../catalog/types';
 import { ENSEvidenceResolved } from '../../evidence/types';
 import { ENSComplianceStatus } from '../types';
@@ -24,6 +29,13 @@ export interface ENSRequirementEvaluationResult {
   // ¿Se ha llegado a MEDIR? Es lo único que separa aguas abajo un NO_CUMPLE
   // demostrado de uno no evidenciado, porque el veredicto ya no los distingue.
   evidenced: boolean;
+
+  // Acreditado por DOCUMENTO, no por telemetría. Viaja aparte de `status` a
+  // propósito: el requisito cumple, pero la pantalla y el informe tienen que
+  // poder decir «acreditado documentalmente» y nunca confundirlo con medido.
+  // Solo puede ser true en requisitos que el catálogo declara SIN NINGUNA
+  // evidencia técnica.
+  attested?: boolean;
 
   score: number;
   observations: string[];
@@ -129,7 +141,9 @@ export const evaluateRequirement = (
   // refuerzo por encima del nivel activo, y por la misma razón: acusar de
   // incumplimiento a quien nadie ha ido a medir no es exigencia, es ruido.
   // Fuera del denominador hasta que haya recolector.
-  controlStatus: ENSControlStatus = 'ACTIVE'
+  controlStatus: ENSControlStatus = 'ACTIVE',
+  // La atestación documental de ESTE requisito, si el auditor la declaró.
+  attestation?: ENSRequirementAttestation
 ): ENSRequirementEvaluationResult => {
   const controlIsActive = controlStatus === 'ACTIVE';
 
@@ -155,6 +169,41 @@ export const evaluateRequirement = (
             `El requisito ${requirement.id} no aplica para el nivel ENS ${level}.`,
       ],
       evidenceIds: requirement.evidenceIds,
+    };
+  }
+
+  // --- ATESTACIÓN DOCUMENTAL ------------------------------------------------
+  //
+  // Solo para requisitos que el catálogo declara SIN NINGUNA evidencia técnica.
+  // Ese es el límite y es duro: si la máquina midió y falló, ningún documento
+  // lo tapa. Se comprueba contra `evidenceIds`, no contra la atestación.
+  //
+  // El ENS acredita así `op.acc.1.5` (eIDAS) y `op.acc.1.r1.1` (singularizar a
+  // la persona): un agente no puede observar ninguno de los dos, y su prueba es
+  // un documento aprobado. Rechazarlos por no tener telemetría dejaba el
+  // control con un techo permanente del 75 % sobre algo que el cliente puede
+  // tener cumplido.
+  //
+  // `attested` viaja aparte de `status` para que la pantalla y el informe
+  // puedan decir «acreditado documentalmente» y nunca confundirlo con medido.
+  if (
+    !requirement.evidenceIds.length &&
+    isAttestationSufficient(attestation) &&
+    attestation
+  ) {
+    return {
+      id: requirement.id,
+      title: requirement.title,
+      level: requirement.applicability.levels,
+      status: 'CUMPLE',
+      applicable: true,
+      // SÍ está demostrado: con un documento, que para este requisito es la
+      // prueba que el ENS pide.
+      evidenced: true,
+      attested: true,
+      score: scoreByStatus('CUMPLE'),
+      observations: [describeAttestation(attestation)],
+      evidenceIds: [],
     };
   }
 
@@ -205,7 +254,8 @@ export const evaluateRequirements = (
   evidences: ENSEvidenceResolved[],
   hasMissingRequiredParameters: boolean,
   policyDecisions: ENSPolicyDecision[] = [],
-  controlStatus: ENSControlStatus = 'ACTIVE'
+  controlStatus: ENSControlStatus = 'ACTIVE',
+  attestations: Map<string, ENSRequirementAttestation> = new Map()
 ): ENSRequirementEvaluationResult[] =>
   requirements.map(requirement =>
     evaluateRequirement(
@@ -214,6 +264,7 @@ export const evaluateRequirements = (
       evidences,
       hasMissingRequiredParameters,
       policyDecisions,
-      controlStatus
+      controlStatus,
+      attestations.get(requirement.id)
     )
   );
