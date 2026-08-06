@@ -42,4 +42,26 @@ export const ensRequirementsFile = {
     'Privilegios individuales - Cada usuario autorizado tiene un conjunto de privilegios mantenido individualmente (R1/ALTO).',
   'op.acc.2.r1.2':
     'Privilegios que restringen acceso - Los privilegios restringen el tipo de acceso: lectura, escritura, modificación, borrado (R1/ALTO).',
+  'op.acc.3.1':
+    'Siempre que sea posible, las capacidades de desarrollo y operación no recaerán en la misma persona.',
+  'op.acc.3.2':
+    'Siempre que sea posible, las personas que autorizan y controlan el uso serán distintas.',
+  'op.acc.3.r1.1':
+    'Siempre que sea posible, la misma persona no aunará funciones de configuración y mantenimiento del sistema.',
+  'op.acc.3.r1.2':
+    'La misma persona no puede aunar funciones de auditoría o supervisión con cualquier otra función.',
+  'op.acc.3.r2.1':
+    'Refuerzo R2 – Privilegios de auditoría: Existirán cuentas con privilegios de auditoría estrictamente controladas y personalizadas.',
+  'op.acc.3.r3.1':
+    'Refuerzo R3 – Acceso a la información de seguridad: El acceso a la información de seguridad del sistema estará permitido únicamente a los administradores de seguridad/sistema autorizados, utilizando los mecanismos de acceso imprescindibles (consola, interfaz web, acceso remoto, etc.).',
+  'op.acc.4.1':
+    'Todo acceso estará prohibido, salvo autorización expresa.',
+  'op.acc.4.2':
+    'Mínimo privilegio: los privilegios de cada entidad, usuario o proceso se reducirán al mínimo imprescindible para cumplir sus obligaciones o funciones.',
+  'op.acc.4.3':
+    'Necesidad de conocer y responsabilidad de compartir: los privilegios se asignarán de forma que las entidades, usuarios o procesos sólo accederán al conocimiento de aquella información requerida para cumplir sus obligaciones o funciones. La información es patrimonio del organismo y toda aquella que resulte necesaria para el usuario estará a su disposición.',
+  'op.acc.4.4':
+    'Capacidad de autorizar: Exclusivamente el personal con competencia para ello podrá conceder, alterar o anular la autorización de acceso a los recursos, conforme a los criterios establecidos por su responsable. Los permisos de acceso se revisarán de forma periódica.',
+  'op.acc.4.5':
+    'Se establecerá una política específica de acceso remoto, requiriéndose autorización expresa.',
 };

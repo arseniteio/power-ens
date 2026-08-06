@@ -1423,6 +1423,37 @@ producto, no de despliegue.
 
 ---
 
+### 11.10 op.acc.3 y op.acc.4 · definidos, sin instrumento de medida
+
+Entraron el **06/08** generados del Excel del auditor, con sus requisitos, sus
+13 parámetros y sus 15 evidencias. Lo que **no** tienen es agente: ni runbook,
+ni recolector, ni una sola regla en ningún manager.
+
+Los dos van en **`status: 'DRAFT'`**, y eso los deja `NO_APLICA` — fuera del
+denominador, sin restar. No es una excepción al principio rector: «lo que no se
+puede demostrar no cumple» hace responsable al auditado de probar **lo que se le
+ha pedido medir**, no de probar aquello para lo que todavía no existe el
+instrumento. Un 0 % ahí no diría nada de la máquina; diría que ENSFácil aún no
+sabe mirar eso.
+
+| | op.acc.3 | op.acc.4 |
+|---|---|---|
+| Rige desde | MEDIO (en BAJO es `n.a.` en el Anexo II) | BAJO |
+| Requisitos exigidos | 2 en MEDIO · 4 en ALTO | 5 en los tres niveles |
+| Fuera del denominador | `r2.1` y `r3.1`: el ENS los define pero no los exige | — |
+| Qué hace falta | mapa de funciones por persona (P-01/P-02/P-03) y correlación | matriz de privilegios (P-01) y accesos remotos (P-04/P-05) |
+
+**op.acc.4 es el que más cerca está**, porque buena parte de sus hechos ya los
+emite otro agente: `account_authenticated` de op.acc.1 lleva `usuario` y
+`origen` —que es literalmente el acceso remoto de su EV-06—, y `group_membership`
+y `privilege_check` de op.acc.2 cubren EV-03 y EV-08. Es el mismo patrón de
+hecho compartido que ya usan EV-03/EV-05 de op.acc.1.
+
+**op.acc.3 es el más lejano**, y no por falta de trabajo: es la medida con mayor
+componente organizativo del bloque. Sin el mapa de qué función ejerce cada
+persona, Wazuh no puede saber que dos acciones legítimas por separado son
+incompatibles juntas.
+
 ## 12. Resumen: qué nivel es alcanzable hoy
 
 | Control | BAJO | MEDIO | ALTO |

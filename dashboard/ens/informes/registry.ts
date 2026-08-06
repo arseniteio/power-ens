@@ -36,6 +36,8 @@ import type { ENSComplianceResult } from '../core/evaluation/types';
 import { buildMpInfo6ReportModel } from './report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
+import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
+import { buildOpAcc4ReportModel } from './op-acc-4-report-model';
 
 export type ENSReportFieldStatus =
   | 'CUMPLE'
@@ -81,6 +83,16 @@ export interface ENSReportModelDefinition {
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
+  {
+    controlId: 'op.acc.4',
+    name: 'op.acc.4 - Proceso de gestión de derechos de acceso',
+    build: buildOpAcc4ReportModel,
+  },
+  {
+    controlId: 'op.acc.3',
+    name: 'op.acc.3 - Segregación de funciones y tareas',
+    build: buildOpAcc3ReportModel,
+  },
   {
     controlId: 'mp.info.6',
     name: 'mp.info.6 - Copias de seguridad',

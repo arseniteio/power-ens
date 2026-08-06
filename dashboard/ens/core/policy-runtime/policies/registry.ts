@@ -14,8 +14,18 @@ import {
   opAcc2PolicyDefinition,
 } from './op-acc-2.policy';
 
+import {
+  opAcc3PolicyDefinition,
+} from './op-acc-3.policy';
+
+import {
+  opAcc4PolicyDefinition,
+} from './op-acc-4.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
+    opAcc4PolicyDefinition,
+    opAcc3PolicyDefinition,
     mpInfo6PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,

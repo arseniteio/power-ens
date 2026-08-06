@@ -8,11 +8,18 @@ tú declaras en pantalla, y genera informes que un auditor puede recorrer:
 CUMPLE  →  evidencia  →  rule ID  →  evento crudo
 ```
 
-| Control | Nombre | Refuerzos |
-|---|---|---|
-| `mp.info.6` | Copias de seguridad | R1 (MEDIO+), R2 (ALTO) |
-| `op.acc.1` | Identificación | R1 (MEDIO+) |
-| `op.acc.2` | Requisitos de acceso | R1 (solo ALTO) |
+| Control | Nombre | Niveles | Refuerzos |
+|---|---|---|---|
+| `mp.info.6` | Copias de seguridad | BAJO+ | R1 (MEDIO+), R2 (ALTO) |
+| `op.acc.1` | Identificación | BAJO+ | R1 (MEDIO+) |
+| `op.acc.2` | Requisitos de acceso | BAJO+ | R1 (solo ALTO) |
+| `op.acc.3` | Segregación de funciones | MEDIO+ | R1 (solo ALTO) · **en borrador** |
+| `op.acc.4` | Gestión de derechos de acceso | BAJO+ | sin refuerzos · **en borrador** |
+
+Los dos **en borrador** están definidos y se configuran, pero todavía no tienen
+agente que emita sus evidencias, así que **no entran en el índice**: salen
+`NO_APLICA` y no restan. Es deliberado — un control sin instrumento de medida no
+puede acusar de incumplimiento.
 
 ---
 

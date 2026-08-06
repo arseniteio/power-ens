@@ -1,4 +1,9 @@
-import { ENSRequirementDefinition } from '../../../catalog';
+// Del fichero de tipos, no del barrel `../../../catalog`: el barrel de alto
+// nivel es por donde vuelve el ciclo transitivo del TDZ de `Settings`.
+import {
+  ENSControlStatus,
+  ENSRequirementDefinition,
+} from '../../../catalog/types';
 import { ENSLevel } from '../../../catalog/types';
 import { ENSEvidenceResolved } from '../../evidence/types';
 import { ENSComplianceStatus } from '../types';
@@ -117,9 +122,20 @@ export const evaluateRequirement = (
   level: ENSLevel,
   evidences: ENSEvidenceResolved[],
   hasMissingRequiredParameters: boolean,
-  policyDecisions: ENSPolicyDecision[] = []
+  policyDecisions: ENSPolicyDecision[] = [],
+  // El estado del control en el catálogo. Un control que NO está `ACTIVE` es
+  // uno cuyo lado agente todavía no existe: está definido y se puede ver, pero
+  // ninguna máquina emite sus hechos. Sus requisitos no aplican, igual que un
+  // refuerzo por encima del nivel activo, y por la misma razón: acusar de
+  // incumplimiento a quien nadie ha ido a medir no es exigencia, es ruido.
+  // Fuera del denominador hasta que haya recolector.
+  controlStatus: ENSControlStatus = 'ACTIVE'
 ): ENSRequirementEvaluationResult => {
-  const appliesToLevel = requirement.applicability.levels.includes(level);
+  const controlIsActive = controlStatus === 'ACTIVE';
+
+  const appliesToLevel =
+    controlIsActive &&
+    requirement.applicability.levels.includes(level);
 
   if (!appliesToLevel) {
     return {
@@ -133,8 +149,10 @@ export const evaluateRequirement = (
       evidenced: false,
       score: 0,
       observations: [
-        requirement.applicability.reason ||
-          `El requisito ${requirement.id} no aplica para el nivel ENS ${level}.`,
+        !controlIsActive
+          ? `El control todavía no está activo (${controlStatus}): está definido pero ningún agente emite sus evidencias, así que no entra en el índice.`
+          : requirement.applicability.reason ||
+            `El requisito ${requirement.id} no aplica para el nivel ENS ${level}.`,
       ],
       evidenceIds: requirement.evidenceIds,
     };
@@ -186,7 +204,8 @@ export const evaluateRequirements = (
   level: ENSLevel,
   evidences: ENSEvidenceResolved[],
   hasMissingRequiredParameters: boolean,
-  policyDecisions: ENSPolicyDecision[] = []
+  policyDecisions: ENSPolicyDecision[] = [],
+  controlStatus: ENSControlStatus = 'ACTIVE'
 ): ENSRequirementEvaluationResult[] =>
   requirements.map(requirement =>
     evaluateRequirement(
@@ -194,6 +213,7 @@ export const evaluateRequirements = (
       level,
       evidences,
       hasMissingRequiredParameters,
-      policyDecisions
+      policyDecisions,
+      controlStatus
     )
   );

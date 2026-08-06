@@ -129,7 +129,8 @@ export const evaluateENSControl = (
       level,
       evidences,
       hasMissingRequired,
-      policyRuntime?.decisions || []
+      policyRuntime?.decisions || [],
+      catalogControl.status
     );
 
   const controlEvaluation = evaluateControlStatus(requirements);

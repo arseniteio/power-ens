@@ -77,10 +77,18 @@ const lanza = (accion: () => unknown): boolean => {
 
 // --- fixtures --------------------------------------------------------------
 
-// Un control que NO existe en el producto. Es el papel exacto que van a
-// representar `op.acc.3` y `op.acc.4` el día que se generen del Excel y antes
-// de que nadie les escriba el informe.
-const CONTROL_SIN_MODELO = 'op.acc.3';
+// Un control que NO existe en el producto, y que NUNCA va a existir.
+//
+// Aquí ponía `op.acc.3`, elegido porque era el siguiente control que iba a
+// llegar. Llegó —el 06/08, generado del Excel y con su modelo de informe— y
+// estas cuatro comprobaciones se pusieron rojas sin que nada estuviera mal:
+// el papel de «control sin modelo» se lo había dado a un control real que
+// acabó teniéndolo. Una prueba que caduca cuando el producto avanza no
+// protege nada, molesta.
+//
+// El identificador es sintético a propósito: ningún control del ENS se llama
+// así, así que el papel no se lo puede quitar nadie.
+const CONTROL_SIN_MODELO = 'ens.control.sin.modelo';
 
 // Resultado del motor con la forma que devuelve `getENSComplianceResultByControl`
 // cuando todavía no ha llegado ninguna evidencia: es el estado REAL de un
@@ -108,9 +116,15 @@ const definicionRegistrada = (
 
   const registrados = getRegisteredENSReportControls();
 
+  // op.acc.3 y op.acc.4 entraron el 06/08 en `status: 'DRAFT'`: no emiten
+  // evidencia todavía y quedan fuera del índice, pero SÍ tienen que tener
+  // modelo de informe. Un control que se ve en la pantalla y al abrir su
+  // informe recibe el de otro es el defecto que este fichero vigila, y no
+  // depende de que el control esté activo.
   comprueba(
-    'registro · están los tres controles desplegados, y solo esos',
-    registrados.join(',') === 'mp.info.6,op.acc.1,op.acc.2',
+    'registro · están los cinco controles del catálogo, y solo esos',
+    registrados.join(',') ===
+      'mp.info.6,op.acc.1,op.acc.2,op.acc.3,op.acc.4',
     registrados.join(',')
   );
 
@@ -238,7 +252,8 @@ const definicionRegistrada = (
 //
 // `ENSControls` es literalmente la lista que la pestaña Informes recorre para
 // pintar una sección por control. Cruzarla con el registro es la comprobación
-// que se dispara sola el día que entre `op.acc.3` sin su modelo.
+// que se dispara sola el día que entre un control sin su modelo. El 06/08
+// entraron dos —op.acc.3 y op.acc.4— y no saltó: el generador los registra.
 
 {
   bloque('4. Todo control listado en Informes tiene modelo');
@@ -268,13 +283,14 @@ const definicionRegistrada = (
   // se contamina con el resultado de la de arriba.
   const conLosQueVienen = listENSControlsWithoutReportModel([
     ...getRegisteredENSReportControls(),
-    'op.acc.3',
-    'op.acc.4',
+    CONTROL_SIN_MODELO,
+    `${CONTROL_SIN_MODELO}.2`,
   ]);
 
   comprueba(
     'catálogo · el ayudante sí nombra a los controles que no tienen modelo',
-    conLosQueVienen.join(',') === 'op.acc.3,op.acc.4',
+    conLosQueVienen.join(',') ===
+      `${CONTROL_SIN_MODELO},${CONTROL_SIN_MODELO}.2`,
     conLosQueVienen.join(',')
   );
 }
@@ -303,7 +319,7 @@ const definicionRegistrada = (
     'guarda · una lista sana no lanza',
     !lanza(() =>
       buildENSReportModelRegistry([
-        definicion('op.acc.3'),
+        definicion(CONTROL_SIN_MODELO),
         definicion('op.acc.4'),
       ])
     )
@@ -313,8 +329,8 @@ const definicionRegistrada = (
     'guarda · dos modelos para el mismo control lanzan',
     lanza(() =>
       buildENSReportModelRegistry([
-        definicion('op.acc.3'),
-        definicion('op.acc.3'),
+        definicion(CONTROL_SIN_MODELO),
+        definicion(CONTROL_SIN_MODELO),
       ])
     )
   );

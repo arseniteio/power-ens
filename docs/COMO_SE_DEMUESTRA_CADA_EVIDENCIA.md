@@ -1,8 +1,17 @@
 # Cómo se demuestra técnicamente cada evidencia
 
-Las **22 evidencias** de los tres controles, con lo que cada una mira de verdad
-en la máquina, el evento que emite, la regla que lo recoge y —lo que hace útil
-este documento— **el comando que te dice si esa evidencia está funcionando**.
+Las **22 evidencias** de los tres controles desplegados, con lo que cada una
+mira de verdad en la máquina, el evento que emite, la regla que lo recoge y —lo
+que hace útil este documento— **el comando que te dice si esa evidencia está
+funcionando**.
+
+> **op.acc.3 y op.acc.4 no están aquí, y es correcto.** Entraron el 06/08 con
+> sus 15 evidencias declaradas, pero **ninguna tiene todavía cómo demostrarse**:
+> no hay runbook, ni recolector, ni una sola regla en ningún manager. Por eso
+> los dos controles están en `status: 'DRAFT'` y no entran en el índice. Este
+> documento se amplía cuando exista su agente, no antes: una fila que dijera
+> «ejecuta esto para comprobarlo» sobre un recolector que no existe sería
+> exactamente el tipo de trazabilidad falsa que el producto no comete.
 
 Sirve para recorrerlas una a una y marcar cuáles van. Si buscas qué *configurar*
 para que salgan en verde, eso es

@@ -91,7 +91,7 @@ import { ENSEvidenceDefinition } from './types';
 // el primer caso; el segundo lo vigila `tests/test_vocabulario.sh` en el
 // runbook de mp.info.6.
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
-  {
+{
     id: 'EV-01',
     controlId: 'mp.info.6',
     title: 'Última copia realizada correctamente',
@@ -676,5 +676,244 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?',
   },
-
+  {
+    id: 'EV-01',
+    controlId: 'op.acc.3',
+    title: 'Detección de desarrollo y operación en la misma cuenta',
+    description:
+      'Identificación de cuentas que, dentro de la ventana P-06, han ejecutado tanto acciones clasificadas como desarrollo (según P-03) como acciones de operación. Vulnera directamente op.acc.3.1.',
+    requirements: ['op.acc.3.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de desarrollo y operación en la misma cuenta?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.acc.3',
+    title: 'Detección de autorización y control en la misma cuenta',
+    description:
+      'Identificación de cuentas que autorizan un acceso o cambio y a la vez ejercen la función de control o verificación sobre ese mismo ámbito. Vulnera op.acc.3.2.',
+    requirements: ['op.acc.3.2'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de autorización y control en la misma cuenta?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.acc.3',
+    title: 'Verificación de concurrencia en tareas críticas',
+    description:
+      'Comprobación de que las tareas declaradas como críticas en P-04 han sido ejecutadas o aprobadas por al menos el número de personas distintas exigido. Detecta tareas críticas realizadas unilateralmente.',
+    requirements: ['op.acc.3'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación de concurrencia en tareas críticas?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.acc.3',
+    title: 'Detección de configuración y mantenimiento en la misma cuenta (R1)',
+    description:
+      'Identificación de cuentas que aúnan funciones de configuración del sistema y de mantenimiento dentro de la ventana P-06. Aplicable solo en nivel ALTO.',
+    requirements: ['op.acc.3.r1.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de configuración y mantenimiento en la misma cuenta (r1)?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.acc.3',
+    title: 'Cuentas de auditoría ejerciendo otras funciones (R1)',
+    description:
+      'Detección de cuentas incluidas en P-05 (auditoría/supervisión) que ejecutan acciones ajenas a su función: escritura, cambios de configuración, despliegues, gestión de usuarios. Vulnera op.acc.3.r1.2, que es taxativo (no admite el matiz «siempre que sea posible»).',
+    requirements: ['op.acc.3.r1.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cuentas de auditoría ejerciendo otras funciones (r1)?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.acc.3',
+    title: 'Inventario de acciones por cuenta y función',
+    description:
+      'Registro agregado de qué acciones ha ejecutado cada cuenta en el período, clasificadas por función según P-03. Es la evidencia documental de soporte para acreditar la segregación ante un auditor, incluso cuando no hay alertas.',
+    requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: inventario de acciones por cuenta y función?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.acc.3',
+    title: 'Acceso a la información de seguridad del sistema',
+    description:
+      'Monitorización de accesos a la configuración de seguridad, logs de auditoría y consolas de gestión, para verificar que solo los administradores de seguridad/sistema autorizados acceden. Corresponde al Refuerzo R3, no obligatorio pero recomendable.',
+    requirements: ['op.acc.3.r3.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: acceso a la información de seguridad del sistema?',
+  },
+  {
+    id: 'EV-01',
+    controlId: 'op.acc.4',
+    title: 'Verificación de denegación por defecto',
+    description:
+      'Comprobación de que la configuración de los sistemas aplica denegación por defecto: políticas de firewall con DROP por defecto, servicios sin acceso anónimo, recursos compartidos sin permisos para «Todos» o «Everyone».',
+    requirements: ['op.acc.4.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación de denegación por defecto?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.acc.4',
+    title: 'Contraste de privilegios reales contra matriz autorizada',
+    description:
+      'Extracción de los privilegios efectivamente configurados en los sistemas (ACLs, membresías de grupo, permisos sudo) y comparación con la matriz P-01. Detecta privilegios asignados sin autorización expresa y privilegios superiores al mínimo imprescindible.',
+    requirements: ['op.acc.4.1', 'op.acc.4.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: contraste de privilegios reales contra matriz autorizada?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.acc.4',
+    title: 'Cambios en grupos privilegiados',
+    description:
+      'Detección de altas y bajas en los grupos declarados en P-06. Toda incorporación a un grupo privilegiado supone una concesión de derechos que debe estar contemplada en P-01 y realizada por personal competente (P-02).',
+    requirements: ['op.acc.4.2', 'op.acc.4.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cambios en grupos privilegiados?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.acc.4',
+    title: 'Cambios de permisos por cuenta no competente',
+    description:
+      'Identificación de eventos de concesión, alteración o anulación de permisos ejecutados por cuentas que no figuran en P-02 como personal con capacidad de autorizar.',
+    requirements: ['op.acc.4.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cambios de permisos por cuenta no competente?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.acc.4',
+    title: 'Control de la revisión periódica de permisos',
+    description:
+      'Registro de la fecha de la última revisión de permisos realizada y verificación de que no se ha superado el plazo P-03. La revisión puede detectarse por evidencias en el sistema o declararse en ENSFácil.',
+    requirements: ['op.acc.4.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: control de la revisión periódica de permisos?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.acc.4',
+    title: 'Accesos remotos por canal, origen y usuario',
+    description:
+      'Registro de todas las conexiones remotas al sistema con identificación de canal, puerto, IP de origen y cuenta. Contraste contra los canales permitidos (P-04) y los usuarios autorizados (P-05).',
+    requirements: ['op.acc.4.5'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: accesos remotos por canal, origen y usuario?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.acc.4',
+    title: 'Accesos a recursos sujetos a necesidad de conocer',
+    description:
+      'Monitorización de accesos a los recursos declarados en P-07, con identificación del perfil de la cuenta que accede. Detecta accesos por perfiles sin justificación declarada, aunque el permiso técnico exista.',
+    requirements: ['op.acc.4.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: accesos a recursos sujetos a necesidad de conocer?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.acc.4',
+    title: 'Cuentas con privilegios excesivos o innecesarios',
+    description:
+      'Identificación de cuentas cuyos privilegios exceden lo necesario: usuarios con shell innecesaria, cuentas de servicio con permisos de administrador, usuarios con sudo sin restricción de comandos (ALL=(ALL) ALL).',
+    requirements: ['op.acc.4.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cuentas con privilegios excesivos o innecesarios?',
+  },
 ];

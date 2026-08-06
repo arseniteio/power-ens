@@ -1,0 +1,137 @@
+import { ENSControlConfiguration } from '../types';
+
+export const opAcc3Configuration: ENSControlConfiguration = {
+  controlId: 'op.acc.3',
+  controlName: 'Segregación de funciones y tareas',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.acc.3',
+      name: 'matriz_funciones_persona',
+      label: 'Matriz funciones persona',
+      description:
+        'Mapa que asocia cada persona/cuenta con las funciones que desempeña en el sistema: desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría, supervisión.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'],
+      type: 'list',
+      example: 'jgomez | desarrollo / mlopez | operación+config',
+      required: true,
+      wazuhUsage:
+        'Es la pieza central del control.',
+      ensfacilUsage:
+        'ENSFácil la carga como CDB list en Wazuh y construye reglas de correlación: si una cuenta ejecuta acciones de dos funciones incompatibles → alerta.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'El control es NO EVALUABLE automáticamente. Solo puede acreditarse por revisión documental.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.acc.3',
+      name: 'pares_funciones_incompatibles',
+      label: 'Pares funciones incompatibles',
+      description:
+        'Definición de qué pares de funciones son incompatibles según el nivel del sistema. En MEDIO: desarrollo↔operación, autorización↔control. En ALTO se añade: configuración↔mantenimiento y auditoría↔cualquier otra.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'],
+      type: 'list',
+      example: 'desarrollo|operación / autorización|control / auditoría|*',
+      required: true,
+      wazuhUsage:
+        'Define la lógica de las reglas de correlación.',
+      ensfacilUsage:
+        'ENSFácil genera una regla Wazuh por cada par incompatible declarado, ajustada al nivel del sistema.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se pueden generar reglas de incompatibilidad. Detección automática desactivada.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.acc.3',
+      name: 'acciones_por_funcion',
+      label: 'Acciones por funcion',
+      description:
+        'Mapa que traduce cada función organizativa en acciones técnicas observables en logs: qué comandos, procesos, rutas o EventIDs identifican una acción de desarrollo, de operación, de configuración, de auditoría, etc.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.3.1', 'op.acc.3.2'],
+      type: 'list',
+      example: 'desarrollo → git push, / acceso a /srv/repos / operación → systemctl, / reinicio de servicios',
+      required: true,
+      wazuhUsage:
+        'Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.',
+      ensfacilUsage:
+        'Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Las reglas de correlación no pueden clasificar las acciones. Detección automática inviable.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.acc.3',
+      name: 'tareas_criticas_doble_persona',
+      label: 'Tareas criticas doble persona',
+      description:
+        'Lista de tareas consideradas críticas que exigen la concurrencia de dos o más personas (enunciado general de op.acc.3): despliegues en producción, cambios en firewall, restauración de copias, modificación de privilegios, etc.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.3'],
+      type: 'list',
+      example: 'despliegue prod | 2 / cambio firewall | 2',
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica en los logs que estas tareas hayan sido ejecutadas o aprobadas por más de una cuenta distinta. Ejecución por una sola persona → alerta.',
+      ensfacilUsage:
+        'ENSFácil verifica en los logs que estas tareas hayan sido ejecutadas o aprobadas por más de una cuenta distinta. Ejecución por una sola persona → alerta.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede verificar el requisito de concurrencia de dos personas en tareas críticas.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.acc.3',
+      name: 'cuentas_auditoria',
+      label: 'Cuentas auditoria',
+      description:
+        'Cuentas con privilegios de auditoría o supervisión del sistema. En nivel ALTO estas cuentas no pueden aunar ninguna otra función (op.acc.3.r1.2).',
+      levels: ['ALTO'],
+      requirements: ['op.acc.3.r1.2'],
+      type: 'list',
+      example: 'auditor1 | global / supervisor_ops | sistemas',
+      required: false,
+      wazuhUsage:
+        'CDB list en Wazuh. Cualquier acción de estas cuentas que no sea de lectura/consulta (escritura, configuración, despliegue) genera alerta de segregación vulnerada.',
+      ensfacilUsage:
+        'CDB list en Wazuh. Cualquier acción de estas cuentas que no sea de lectura/consulta (escritura, configuración, despliegue) genera alerta de segregación vulnerada.',
+      evidenceIds: ['EV-05'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 parcialmente NO EVALUABLE. No se puede verificar op.acc.3.r1.2.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.acc.3',
+      name: 'ventana_correlacion_dias',
+      label: 'Ventana correlacion dias',
+      description:
+        'Ventana temporal en la que ENSFácil evalúa si una misma cuenta ha ejercido funciones incompatibles. Define el período de agregación de las reglas de correlación.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.3.1', 'op.acc.3.2'],
+      type: 'duration_days',
+      example: '30 (mes natural) / o 90 (trimestre)',
+      required: true,
+      wazuhUsage:
+        'Configura el timeframe de las reglas de correlación de Wazuh y el período de análisis agregado que ejecuta ENSFácil sobre el histórico de alertas.',
+      ensfacilUsage:
+        'Configura el timeframe de las reglas de correlación de Wazuh y el período de análisis agregado que ejecuta ENSFácil sobre el histórico de alertas.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Se aplica un valor por defecto de 30 días, que puede no ajustarse al ciclo real de la organización.',
+    },
+  ],
+};
