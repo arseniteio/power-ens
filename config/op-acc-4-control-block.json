@@ -132,7 +132,7 @@
       "controlId": "op.acc.4",
       "name": "usuarios_autorizados_acceso_remoto",
       "label": "Usuarios autorizados acceso remoto",
-      "description": "Cuentas que tienen autorización expresa para acceder remotamente al sistema. El ENS exige autorización expresa para el acceso remoto (op.acc.4.5).",
+      "description": "Cuentas que tienen autorización expresa para acceder remotamente al sistema. El ENS exige autorización expresa para el acceso remoto (op.acc.4.5). Un nombre por línea. NO uses «|»: EV-06 contrasta esta lista contra el campo `usuario` del hecho, y el motor la parte por saltos de línea y comas, nunca por barra — «jgomez | VPN» no casaría con «jgomez» y el silencio resultante se leería como cumplimiento",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -142,7 +142,7 @@
         "op.acc.4.5"
       ],
       "type": "list",
-      "example": "jgomez | VPN | indefinida / ext_sop | SSH | hasta 31/12",
+      "example": "jgomez",
       "required": true,
       "wazuhUsage": "CDB list en Wazuh. Cualquier acceso remoto de una cuenta no incluida genera alerta de acceso remoto sin autorización expresa.",
       "ensfacilUsage": "CDB list en Wazuh. Cualquier acceso remoto de una cuenta no incluida genera alerta de acceso remoto sin autorización expresa.",

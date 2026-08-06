@@ -28,7 +28,10 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         {
           name: 'recurso',
           label: 'Recurso',
-          type: 'path',
+          // NO es una ruta: el agente emite `sudo` como recurso —el subsistema
+          // que concede el privilegio—, y `path` exige ruta absoluta. Con `path`
+          // las filas salían INVÁLIDAS y el control entero con ellas.
+          type: 'string',
           required: false,
         },
         {
@@ -67,7 +70,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
-          name: '_mbito',
+          name: 'ambito',
           label: 'Ámbito',
           type: 'string',
           required: false,
@@ -131,11 +134,11 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'usuarios_autorizados_acceso_remoto',
       label: 'Usuarios autorizados acceso remoto',
       description:
-        'Cuentas que tienen autorización expresa para acceder remotamente al sistema. El ENS exige autorización expresa para el acceso remoto (op.acc.4.5).',
+        'Cuentas que tienen autorización expresa para acceder remotamente al sistema. El ENS exige autorización expresa para el acceso remoto (op.acc.4.5). Un nombre por línea. NO uses «|»: EV-06 contrasta esta lista contra el campo `usuario` del hecho, y el motor la parte por saltos de línea y comas, nunca por barra — «jgomez | VPN» no casaría con «jgomez» y el silencio resultante se leería como cumplimiento',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.5'],
       type: 'list',
-      example: 'jgomez | VPN | indefinida / ext_sop | SSH | hasta 31/12',
+      example: 'jgomez',
       required: true,
       wazuhUsage:
         'CDB list en Wazuh. Cualquier acceso remoto de una cuenta no incluida genera alerta de acceso remoto sin autorización expresa.',

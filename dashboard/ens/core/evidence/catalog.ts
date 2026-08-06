@@ -840,7 +840,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       parameterId: 'P-01',
       factEventTypes: ['privilege_grant'],
       factField: 'sujeto',
+      // `factKeyField` dice qué campo del HECHO identifica la fila;
+      // `tableKeyColumn`, qué columna de la TABLA. Hacen falta las dos y se
+      // llaman distinto a propósito: el hecho trae `sujeto` (lo que hay en la
+      // máquina) y la política declara `rol` (lo que decidió el responsable).
+      // Sin `tableKeyColumn` el índice de filas sale vacío y CONFORME_A_TABLA
+      // no casa NUNCA: la evidencia se quedaba en NO_EVALUABLE para siempre.
       factKeyField: 'sujeto',
+      tableKeyColumn: 'rol',
       tableChecks: [
         { column: 'recurso', factField: 'recurso' },
         { column: 'acceso', factField: 'acceso' },
@@ -894,6 +901,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       // víctima está autorizada y quien la provoca no.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-02',
+      // P-02 es una tabla `cuenta | ambito`. Sin nombrar la columna se
+      // compararía la FILA ENTERA contra un nombre de cuenta y no encontraría
+      // a nadie: todo actor saldría fuera de la lista.
+      parameterColumn: 'cuenta',
       factEventTypes: ['permission_change'],
       factField: 'actor',
     },
@@ -976,6 +987,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       factEventTypes: ['sensitive_access'],
       factField: 'recurso',
       factKeyField: 'recurso',
+      tableKeyColumn: 'recurso',
       tableChecks: [
         { column: 'perfiles', factField: 'perfil' },
       ],

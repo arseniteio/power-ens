@@ -66,11 +66,11 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'cuentas_servicio_definidas',
       label: 'Cuentas de servicio legítimas',
       description:
-        'Lista de cuentas técnicas o de proceso legítimas que no corresponden a personas físicas.',
+        'Lista de cuentas técnicas o de proceso legítimas que no corresponden a personas físicas. Un nombre por línea. NO uses «|»: el motor parte esta lista por saltos de línea y comas, nunca por barra, así que «cuenta | sistema» se compararía entero contra el nombre de la cuenta y no casaría nunca — un silencio que el motor leería como cumplimiento.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.2', 'op.acc.1.3'],
       type: 'list',
-      example: 'svc_backup | srv01',
+      example: 'svc_backup',
       required: true,
       wazuhUsage:
         'El agente ya no lee esta lista: emite la autenticación observada (regla 106873) y el juicio lo hace el motor de ENSFácil con el valor de esta pantalla.',
