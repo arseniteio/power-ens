@@ -390,6 +390,59 @@
         "106807"
       ],
       "ifNotConfigured": "No se excluye a nadie: todos los usuarios privilegiados pasan a ser candidatos a identificador con varios roles."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.acc.1",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos con los que se acredita un requisito que ninguna telemetría puede demostrar. Una fila por requisito, con el documento y su enlace.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.acc.1.5 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "wazuhUsage": "No lo lee ningún agente: es la prueba documental de lo que la telemetría no alcanza. El motor lo aplica SOLO a requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que falla.",
+      "ensfacilUsage": "El requisito pasa a CUMPLE marcado como acreditado documentalmente, con su documento y su enlace en el informe. Nunca se presenta como medido.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Los requisitos sin evidencia técnica siguen contando como no conformes, que es el criterio por defecto: la carga de la prueba es del auditado."
     }
   ]
 }
