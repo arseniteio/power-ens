@@ -28,6 +28,48 @@ import {
   getActiveENSScopeAgents,
 } from '../core/scope';
 
+// El color de un control es su ESTADO, y son tres cosas distintas:
+//
+//   CUMPLE        verde   · no hay nada que hacer
+//   PARCIAL       ámbar   · parte conforma y parte no
+//   NO_CUMPLE     rojo    · nada de lo aplicable conforma
+//   NO_APLICA     gris    · fuera del nivel ENS activo
+//
+// Pintarlas del mismo color porque todas tienen alguna no conformidad convierte
+// la lista en un semáforo de una sola luz: el auditor no puede priorizar y deja
+// de mirarla.
+const colorDelEstado = (estado: string): string => {
+  if (estado === 'CUMPLE') {
+    return '#00A65A';
+  }
+
+  if (estado === 'PARCIAL') {
+    return '#F5A700';
+  }
+
+  if (estado === 'NO_CUMPLE') {
+    return '#BD271E';
+  }
+
+  return '#98A2B3';
+};
+
+const badgeDelEstado = (estado: string): string => {
+  if (estado === 'CUMPLE') {
+    return 'success';
+  }
+
+  if (estado === 'PARCIAL') {
+    return 'warning';
+  }
+
+  if (estado === 'NO_CUMPLE') {
+    return 'danger';
+  }
+
+  return 'default';
+};
+
 export const ControlsENS = () => {
   const [selectedControl, setSelectedControl] = useState<ENSControl | null>(
     null,
@@ -166,13 +208,19 @@ export const ControlsENS = () => {
               isSelected={false}
               onClick={() => setSelectedControl(item.control)}
               style={{
-                borderLeft: item.alerts > 0 ? '4px solid #BD271E' : (item.hasData ? '4px solid #00A65A' : '4px solid #98A2B3'),
+                // EL COLOR SIGUE AL ESTADO, no al recuento de alertas. Antes lo
+                // decidía `item.alerts > 0`, así que un PARCIAL con una no
+                // conformidad y un NO_CUMPLE con cinco se pintaban IGUAL: la
+                // lista entera salía del mismo color y no comunicaba nada más
+                // que «todo mal». El estado ya está calculado y dice tres cosas
+                // distintas; el color tiene que decir las tres.
+                borderLeft: `4px solid ${colorDelEstado(item.status)}`,
                 marginBottom: 8,
               }}
             >
               <strong>{item.id}</strong> — {item.title}
               <EuiBadge color='hollow' style={{ marginLeft: 8 }}>{item.levels}</EuiBadge>
-              <EuiBadge color={item.alerts > 0 ? 'danger' : (item.hasData ? 'success' : 'default')} style={{ marginLeft: 6 }}>
+              <EuiBadge color={badgeDelEstado(item.status)} style={{ marginLeft: 6 }}>
                 {item.status}
               </EuiBadge>
               {item.pending > 0 && (
