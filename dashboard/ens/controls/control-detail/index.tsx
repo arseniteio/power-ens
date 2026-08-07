@@ -276,6 +276,26 @@ export const ControlDetailENS = ({
   ).length;
   const requisitosMedidos = complianceResult?.measuredRequirements ?? 0;
 
+  // EL DENOMINADOR TIENE QUE SER EL MISMO CONJUNTO QUE EL NUMERADOR.
+  //
+  // `applicableRequirements` viene sumado POR MÁQUINA cuando se consolidan
+  // varias: con dos máquinas y ocho requisitos aplicables vale 16. Pero
+  // `requisitosCumplen` cuenta sobre la lista CONSOLIDADA, que tiene ocho
+  // entradas —una por requisito, con el peor estado—. «4 de 16» no era una
+  // fracción: eran dos conjuntos distintos puestos uno al lado del otro.
+  //
+  // Se cuenta sobre la lista consolidada, igual que el numerador. Cuántas
+  // máquinas hay detrás se dice en la cabecera, que es donde toca.
+  const requisitosConsolidados = (complianceResult?.requirements || []).filter(
+    (requisito: any) => requisito.status !== 'NO_APLICA'
+  ).length;
+
+  const esVistaAgregada = !agentId && totalMaquinas > 1;
+
+  const requisitosDelDenominador = esVistaAgregada
+    ? requisitosConsolidados
+    : requisitosAplicables;
+
   // Qué mide el porcentaje. El denominador son los APLICABLES: lo que no se ha
   // podido demostrar resta, porque la carga de la prueba es del auditado. Los
   // demostrados se dicen al lado, que es el diagnóstico: «60 %, 5 de 8
@@ -741,8 +761,21 @@ export const ControlDetailENS = ({
                   <EuiFlexItem grow={false}>
                     <EuiText size='xs' color='subdued'>
                       <strong>Requisitos</strong>{' '}
-                      {requisitosCumplen} de {requisitosAplicables} cumplen
-                      {' · '}el {motorScoreTexto} sale de aquí
+                      {requisitosCumplen} de {requisitosDelDenominador} cumplen
+                      {' · '}
+                      {/* CON UNA MÁQUINA la fracción ES el porcentaje y se
+                          puede decir. AGREGANDO VARIAS no: el numerador cuenta
+                          requisitos deduplicados —uno por requisito, con el
+                          peor estado— y el denominador los sumaba por máquina,
+                          así que «4 de 16» ni siquiera era una fracción del
+                          mismo conjunto y el 57 % de al lado salía de otra
+                          cuenta. Se decía «el 57 % sale de aquí» y era mentira.
+                          Ahora el denominador es el mismo conjunto que el
+                          numerador, y de dónde sale el porcentaje se dice
+                          aparte, que es lo que de verdad ocurre. */}
+                      {esVistaAgregada
+                        ? `el ${motorScoreTexto} es la media de las ${totalMaquinas} máquinas`
+                        : `el ${motorScoreTexto} sale de aquí`}
                     </EuiText>
                   </EuiFlexItem>
                 </EuiFlexGroup>
