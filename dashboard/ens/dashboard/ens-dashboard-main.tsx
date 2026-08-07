@@ -119,7 +119,11 @@ export const EnsDashboardMain = () => {
         },
       },
     ],
-    size: 6000,
+    // MISMO TOPE QUE EL DETALLE. Con 6000 aqui y 1000 alli, las dos
+    // pantallas juzgaban conjuntos distintos del mismo control y podian dar
+    // numeros distintos sin que nada lo dijera. 10.000 es el
+    // `index.max_result_window` por defecto de OpenSearch.
+    size: 10000,
     refreshKey,
   });
 

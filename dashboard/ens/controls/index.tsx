@@ -80,7 +80,10 @@ export const ControlsENS = () => {
          },
        },
      ],
-     size: 1000,
+     // Mismo tope que el detalle y que el panel: si el listado juzga sobre
+     // menos hechos que la ficha del control, el semaforo de la lista y el
+     // porcentaje de dentro pueden contradecirse.
+     size: 10000,
   });
   const hits = esResults?.hits?.hits || [];
 

@@ -125,7 +125,21 @@ export const ControlDetailENS = ({
         },
       },
     ],
-    size: 1000,
+    // EL TOPE DECIDE EL VEREDICTO, así que no puede ser un número puesto de
+    // cualquier manera. Con `size: 1000` y 17.444 alertas de op.acc.3 en la
+    // ventana, el motor juzgaba el 6 % de los hechos —los más recientes— y lo
+    // presentaba como «cumplimiento de los últimos 30 días». Una acción de hace
+    // unas horas que quedaba fuera del corte hacía desaparecer una
+    // incompatibilidad real, y el control pasaba a 100 % él solo.
+    //
+    // Peor todavía: el Panel pedía 6000 y esta pantalla 1000, así que las dos
+    // juzgaban conjuntos distintos y podían dar números distintos del mismo
+    // control sin que nada lo dijera.
+    //
+    // 10.000 es el `index.max_result_window` por defecto de OpenSearch: pedir
+    // más exige `search_after`, que es otra conversación. Lo que NO puede pasar
+    // es que se recorte EN SILENCIO, y de eso se encarga `hechosRecortados`.
+    size: 10000,
     sorting: [{ timestamp: { order: 'desc' } }],
     refreshKey,
   });
@@ -149,6 +163,23 @@ export const ControlDetailENS = ({
     });
 
     const hits = esResults?.hits?.hits || [];
+
+  // ¿Se ha quedado fuera algo? `hits.total` es lo que HAY; `hits.length` lo que
+  // se ha traído. Si no coinciden, el motor ha juzgado sobre una parte y el
+  // número de arriba no cubre la ventana entera. Callarlo sería presentar una
+  // medida parcial como completa, que es la misma mentira que un CUMPLE sin
+  // medir.
+  const totalEnIndice = (() => {
+    const total = (esResults?.hits as any)?.total;
+
+    if (typeof total === 'number') {
+      return total;
+    }
+
+    return typeof total?.value === 'number' ? total.value : hits.length;
+  })();
+
+  const hechosRecortados = Math.max(0, totalEnIndice - hits.length);
 
   const normalizedEvents = useMemo(
     () => normalizeWazuhAlerts(hits),
@@ -980,6 +1011,39 @@ export const ControlDetailENS = ({
             </EuiFlexGroup>
           </EuiPanel>
         <EuiSpacer size='l' />
+
+        {/* EL AVISO VA ANTES QUE EL NÚMERO, no en una nota al pie. Si el motor
+            no ha visto todos los hechos, el porcentaje de arriba no cubre la
+            ventana que dice cubrir, y eso hay que leerlo ANTES de creerse el
+            número — no después. */}
+        {hechosRecortados > 0 && (
+          <>
+            <EuiCallOut
+              title={`El veredicto se ha calculado sobre ${hits.length.toLocaleString('es-ES')} hechos de ${totalEnIndice.toLocaleString('es-ES')}`}
+              color='warning'
+              iconType='alert'
+            >
+              <p>
+                El motor solo puede traer del índice los{' '}
+                {hits.length.toLocaleString('es-ES')} más recientes, y en la
+                ventana evaluada hay {totalEnIndice.toLocaleString('es-ES')}.
+                <strong>
+                  {' '}Un hallazgo más antiguo que el corte no está contado
+                </strong>
+                , así que el porcentaje puede ser mejor que la realidad. No es
+                una medida completa de los últimos 30 días.
+              </p>
+              <p>
+                Se arregla reduciendo lo que emite el agente —un hecho por
+                observación distinta, no uno por repetición— o acortando el
+                periodo de evaluación en Configuración. Mientras esto salga, el
+                número de arriba es un mínimo, no un resultado.
+              </p>
+            </EuiCallOut>
+
+            <EuiSpacer size='l' />
+          </>
+        )}
 
         <EuiPanel>
           <EuiTitle size='s'>
