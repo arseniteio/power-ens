@@ -216,6 +216,80 @@ bloque('4. Una evidencia que la policy no mide se queda como estaba');
   );
 }
 
+// --- 5. una decisión que no nombra evidencias hereda las del requisito ----
+//
+// LA PIEZA QUE FALTABA, y sin ella el puente solo arreglaba medio problema.
+//
+// En op.acc.3 solo la decisión de op.acc.3.2 declaraba `evidenceIds`. Las otras
+// tres iban con la lista vacía, así que EV-01 y EV-02 seguían en «sin prueba»
+// mientras los requisitos que se apoyan en ellas salían decididos. En la misma
+// pantalla: «EV-02 · sin prueba» arriba y «op.acc.3.2 · CUMPLE» abajo.
+//
+// Que una policy decida un requisito significa, POR DEFINICIÓN, que ha medido
+// aquello con lo que ese requisito se demuestra. Si no dice cuáles, son las
+// suyas. Depender de que el autor de la policy se acuerde de rellenar un campo
+// es depender de que nadie olvide nada nunca.
+
+bloque('5. Sin `evidenceIds`, la decisión hereda las del requisito');
+
+{
+  const REQUISITOS = [
+    { id: 'op.acc.3.1', evidenceIds: ['EV-01', 'EV-06'] },
+    { id: 'op.acc.3.2', evidenceIds: ['EV-02', 'EV-03', 'EV-06'] },
+  ];
+
+  // La decisión NO nombra evidencias, como hacía el cruce de op.acc.3.
+  const sinNombrar = {
+    ...decision('op.acc.3.1', 'NO_CUMPLE', []),
+  } as ENSPolicyDecision;
+
+  const resuelto = applyPolicyDecisionsToEvidences(
+    [evidencia('EV-01', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')],
+    [sinNombrar],
+    REQUISITOS
+  );
+
+  comprueba(
+    'EV-01 toma el veredicto porque op.acc.3.1 se demuestra con ella',
+    estadoDe(resuelto, 'EV-01') === 'NO_CUMPLE',
+    estadoDe(resuelto, 'EV-01')
+  );
+
+  comprueba(
+    'y EV-06 también, que es la otra del mismo requisito',
+    estadoDe(resuelto, 'EV-06') === 'NO_CUMPLE',
+    estadoDe(resuelto, 'EV-06')
+  );
+
+  // Y si la decisión SÍ las nombra, manda ella: una policy puede medir un
+  // subconjunto y decirlo.
+  const nombrando = applyPolicyDecisionsToEvidences(
+    [evidencia('EV-01', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')],
+    [decision('op.acc.3.1', 'CUMPLE', ['EV-01'])],
+    REQUISITOS
+  );
+
+  comprueba(
+    'si la decisión nombra solo EV-01, EV-06 no se toca',
+    estadoDe(nombrando, 'EV-01') === 'CUMPLE' &&
+      estadoDe(nombrando, 'EV-06') === 'NO_EVALUABLE',
+    `${estadoDe(nombrando, 'EV-01')} / ${estadoDe(nombrando, 'EV-06')}`
+  );
+
+  // Sin catálogo y sin nombres, no se toca nada: no se inventa a quién le toca.
+  const aCiegas = applyPolicyDecisionsToEvidences(
+    [evidencia('EV-01', 'NO_EVALUABLE')],
+    [decision('op.acc.3.1', 'CUMPLE', [])],
+    []
+  );
+
+  comprueba(
+    'sin catálogo ni nombres, no se toca ninguna evidencia',
+    estadoDe(aCiegas, 'EV-01') === 'NO_EVALUABLE',
+    estadoDe(aCiegas, 'EV-01')
+  );
+}
+
 // --- salida ---------------------------------------------------------------
 
 console.log('');

@@ -40,11 +40,36 @@ const SE_PUEDE_RELLENAR = ['NO_EVALUABLE'];
 
 export const applyPolicyDecisionsToEvidences = (
   evidences: ENSEvidenceResolved[],
-  decisions: ENSPolicyDecision[] = []
+  decisions: ENSPolicyDecision[] = [],
+  // Los requisitos del catálogo, para saber qué evidencias demuestran cada uno.
+  requirements: { id: string; evidenceIds: string[] }[] = []
 ): ENSEvidenceResolved[] => {
   if (!decisions.length) {
     return evidences;
   }
+
+  // UNA DECISIÓN QUE NO NOMBRA SUS EVIDENCIAS HEREDA LAS DEL REQUISITO, y esto
+  // no es una comodidad: es lo único que hace que las dos capas digan lo mismo
+  // siempre y no solo cuando el autor de la policy se acordó de rellenar el
+  // campo.
+  //
+  // En op.acc.3 solo la decisión de op.acc.3.2 declaraba `evidenceIds`. Las
+  // otras tres iban con la lista vacía, así que EV-01 y EV-02 se quedaban en
+  // «sin prueba» mientras los requisitos que se apoyan en ellas salían
+  // decididos. En la misma pantalla: «EV-02 · sin prueba» arriba y
+  // «op.acc.3.2 · CUMPLE» abajo.
+  //
+  // Que una policy decida un requisito significa, por definición, que ha medido
+  // aquello con lo que ese requisito se demuestra. Si no dice cuáles, son las
+  // suyas.
+  const evidenciasDelRequisito = new Map(
+    requirements.map(requisito => [requisito.id, requisito.evidenceIds || []])
+  );
+
+  const evidenciasDe = (decision: ENSPolicyDecision): string[] =>
+    decision.evidenceIds?.length
+      ? decision.evidenceIds
+      : evidenciasDelRequisito.get(decision.requirementId) || [];
 
   // Una evidencia puede aparecer en varias decisiones. Gana la PEOR, por la
   // misma razón que en la consolidación entre máquinas: si un requisito que se
@@ -55,7 +80,7 @@ export const applyPolicyDecisionsToEvidences = (
     estado === 'NO_CUMPLE' ? 3 : estado === 'PARCIAL' ? 2 : estado === 'NO_EVALUABLE' ? 1 : 0;
 
   decisions.forEach(decision => {
-    (decision.evidenceIds || []).forEach(evidenceId => {
+    evidenciasDe(decision).forEach(evidenceId => {
       const actual = peorPorEvidencia.get(evidenceId);
 
       if (!actual || gravedad(decision.status) > gravedad(actual.status)) {

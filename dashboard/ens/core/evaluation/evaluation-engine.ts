@@ -135,7 +135,8 @@ export const evaluateENSControl = (
     // Ver `policy-evidence-bridge.ts`.
     const evidencesConPolicy = applyPolicyDecisionsToEvidences(
       evidences,
-      policyRuntime?.decisions || []
+      policyRuntime?.decisions || [],
+      catalogControl.requirements
     );
 
     const requirements = evaluateRequirements(

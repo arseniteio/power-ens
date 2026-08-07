@@ -889,14 +889,31 @@ export const ControlDetailENS = ({
 
                 <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
                   <EuiFlexItem grow={false}>
+                    {/* LAS EVIDENCIAS NO SON UN SEGUNDO MARCADOR.
+                        «5 de 8 cumplen» al lado de «20 %» invita a cuadrar dos
+                        cifras que nunca van a cuadrar: el porcentaje sale de los
+                        REQUISITOS, y ese 8 metía además los NO_APLICA en el
+                        denominador. Quien lo lee hace la división, no le sale, y
+                        deja de fiarse del número entero.
+
+                        Se enumera el desglose sin fracción: cuántas conforman,
+                        cuántas traen hallazgo y cuántas no se han podido medir.
+                        Son tres cosas con tres acciones distintas, y ninguna
+                        pretende explicar el porcentaje — eso lo hace la línea de
+                        arriba, que dice qué evidencia arrastra a qué requisito. */}
                     <EuiText size='xs' color='subdued'>
                       <strong>Evidencias</strong>{' '}
-                      {evidenceSummary.cumple} de {totalEvidences} cumplen
+                      {evidenceSummary.cumple > 0
+                        ? `${evidenceSummary.cumple} conforman`
+                        : 'ninguna conforma'}
                       {evidenceSummary.noCumple > 0
-                        ? ` · ${evidenceSummary.noCumple} no`
+                        ? ` · ${evidenceSummary.noCumple} con hallazgo`
                         : ''}
                       {evidenceSummary.noEvaluable > 0
-                        ? ` · ${evidenceSummary.noEvaluable} sin prueba`
+                        ? ` · ${evidenceSummary.noEvaluable} sin poder medir`
+                        : ''}
+                      {evidenceSummary.noAplica > 0
+                        ? ` · ${evidenceSummary.noAplica} fuera del nivel ${nivelesTexto}`
                         : ''}
                     </EuiText>
                   </EuiFlexItem>
