@@ -19,6 +19,7 @@ import { evaluateControlStatus } from './control';
 // HTTP y arrastra `kibana-services` al grafo del motor.
 import { parseRequirementAttestations } from '../../configuration/services/attestation-service';
 import { ENSNormalizedEvent } from '../data-source/types';
+import { applyPolicyDecisionsToEvidences } from './policy-evidence-bridge';
 
 const asTraceabilityStatus = (
   status: string | undefined
@@ -127,10 +128,20 @@ export const evaluateENSControl = (
   ): string =>
     `${parameter.id} (${parameter.label}): ${getInvalidReason(parameter.id)}`;
 
+    // LAS EVIDENCIAS QUE LA POLICY MIDIÓ, resueltas por ella. Sin esto,
+    // op.acc.3 publicaba «100 % CUMPLE» junto a «0 de 7 evidencias cumplen»: la
+    // policy decidía los requisitos leyendo los hechos crudos y las evidencias
+    // se quedaban esperando un `evidence_state` que su agente no emite nunca.
+    // Ver `policy-evidence-bridge.ts`.
+    const evidencesConPolicy = applyPolicyDecisionsToEvidences(
+      evidences,
+      policyRuntime?.decisions || []
+    );
+
     const requirements = evaluateRequirements(
       catalogControl.requirements,
       level,
-      evidences,
+      evidencesConPolicy,
       hasMissingRequired,
       policyRuntime?.decisions || [],
       catalogControl.status,
@@ -153,7 +164,7 @@ export const evaluateENSControl = (
   const relatedRules = Array.from(
     new Set([
       ...(configuration?.parameters.flatMap(parameter => parameter.ruleIds) || []),
-      ...evidences.flatMap(evidence => evidence.relatedRules),
+      ...evidencesConPolicy.flatMap(evidence => evidence.relatedRules),
     ])
   );
 
@@ -172,7 +183,7 @@ export const evaluateENSControl = (
           ),
         ]
       : ['Configuración mínima disponible para evaluar el control.']),
-    ...evidences.flatMap(evidence => evidence.observations),
+    ...evidencesConPolicy.flatMap(evidence => evidence.observations),
   ];
 
 
@@ -184,7 +195,7 @@ export const evaluateENSControl = (
   );
 
   const resolvedEventIds = new Set(
-    evidences
+    evidencesConPolicy
       .map(
         evidence =>
           evidence.resolvedEventId
@@ -248,7 +259,7 @@ export const evaluateENSControl = (
         return [];
       }
 
-      const relatedEvidence = evidences.find(
+      const relatedEvidence = evidencesConPolicy.find(
         evidence => {
           const evidenceMatches =
             event.evidenceId
@@ -488,7 +499,7 @@ export const evaluateENSControl = (
 
       const id = `NC-${String(index + 1).padStart(3, '0')}`;
 
-      const requirementEvidences = evidences.filter(evidence =>
+      const requirementEvidences = evidencesConPolicy.filter(evidence =>
         requirement.evidenceIds.includes(evidence.id)
       );
 
@@ -652,7 +663,7 @@ export const evaluateENSControl = (
     measuredRequirements: controlEvaluation.measuredRequirements,
     unmeasuredRequirements: controlEvaluation.unmeasuredRequirements,
     evaluatedAt: new Date().toISOString(),
-    lastEvidenceAt: evidences
+    lastEvidenceAt: evidencesConPolicy
       .map(evidence => evidence.lastSeen)
       .filter(Boolean)
       .sort()
@@ -661,7 +672,7 @@ export const evaluateENSControl = (
     requirements,
 
     parameters,
-    evidences: evidences.map(evidence => ({
+    evidences: evidencesConPolicy.map(evidence => ({
       id: evidence.id,
       controlId: evidence.controlId,
       status: evidence.status,
@@ -698,7 +709,7 @@ export const evaluateENSControl = (
     missingParameters: blockingParameters.map(
       parameter => parameter.id
     ),
-    missingEvidences: evidences
+    missingEvidences: evidencesConPolicy
       .filter(evidence => evidence.status === 'NO_EVALUABLE')
       .map(evidence => evidence.id),
     relatedRules,
@@ -721,7 +732,7 @@ export const evaluateENSControl = (
           : 'No existe configuración cliente para este control.',
         controlId: catalogControl.id,
       },
-      ...evidences.flatMap(evidence => [
+      ...evidencesConPolicy.flatMap(evidence => [
         {
           source: 'EVIDENCE' as const,
           reference: evidence.id,
