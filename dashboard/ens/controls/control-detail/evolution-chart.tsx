@@ -47,6 +47,111 @@ const colorDe = (status: string): string => {
   return '#98A2B3';
 };
 
+// La leyenda y el pie, compartidos por las dos formas del gráfico —barras
+// cuando hay pocos días, línea cuando hay bastantes—. Va aparte para que no se
+// dupliquen: dos copias del mismo texto acaban divergiendo, y el que se queda
+// viejo es el que lee el auditor.
+const EtiquetaDeLectura = ({
+  puntos,
+  sinNumero,
+  serieCorta,
+}: {
+  puntos: { events: number; isCurrent: boolean }[];
+  sinNumero: number;
+  serieCorta: boolean;
+}) => {
+  const ultimo = puntos[puntos.length - 1];
+
+  return (
+    <>
+      {/* La leyenda existe porque el color de un punto es el estado DE ESE DÍA,
+          no el de hoy. Sin ella, un naranja en el histórico de un control que
+          hoy está en verde se lee como una contradicción. */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 14,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          fontSize: 12,
+          color: '#69707D',
+          marginBottom: 6,
+        }}
+      >
+        {[
+          { estado: 'CUMPLE', texto: 'cumple' },
+          { estado: 'PARCIAL', texto: 'parcial' },
+          { estado: 'NO_CUMPLE', texto: 'no cumple' },
+        ].map(item => (
+          <span
+            key={item.estado}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+          >
+            <span
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: '50%',
+                background: colorDe(item.estado),
+                display: 'inline-block',
+              }}
+            />
+            {item.texto}
+          </span>
+        ))}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: '50%',
+              border: '2px solid #1A1C21',
+              display: 'inline-block',
+            }}
+          />
+          hoy
+        </span>
+        <span>· el color es el estado de ESE día, no el de hoy</span>
+      </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: '#69707D',
+          lineHeight: 1.5,
+        }}
+      >
+        {serieCorta ? (
+          <>
+            <strong>
+              Solo hay {puntos.length} día(s) medido(s): todavía no hay
+              tendencia que leer.
+            </strong>{' '}
+            La línea se irá llenando conforme el recolector siga reportando.{' '}
+          </>
+        ) : null}
+        Cada punto es una evaluación completa del motor sobre los hechos
+        conocidos ese día, con los parámetros que hay declarados hoy. El último
+        —el marcado en blanco— es el mismo número que el porcentaje de arriba:
+        si no coinciden, uno de los dos está mal.
+        {ultimo && ultimo.events > 0 ? (
+          <>
+            {' '}
+            Hoy se han evaluado {ultimo.events} evento(s).
+          </>
+        ) : null}
+        {sinNumero > 0 ? (
+          <>
+            {' '}
+            {sinNumero} día(s) no se dibujan porque el control no aplicaba al
+            nivel ENS activo: no son un cero.
+          </>
+        ) : null}
+      </div>
+    </>
+  );
+};
+
 export const ControlEvolutionChart = ({
   points,
   controlId,
@@ -105,6 +210,87 @@ export const ControlEvolutionChart = ({
         `${puntos[0].x},${ALTO}`,
       ].join(' ')
     : '';
+
+  // CON POCOS DÍAS, BARRAS. Una línea necesita al menos tres o cuatro puntos
+  // para decir algo; con dos es una raya diagonal sobre una rejilla vacía, y con
+  // uno ni eso. Es lo normal la primera semana de cualquier despliegue, así que
+  // no es un caso raro que se pueda ignorar: es lo que ve todo cliente nuevo.
+  //
+  // Las barras no fingen una tendencia que no existe. Cada una es un día y se
+  // lee sola.
+  if (puntos.length <= 3) {
+    return (
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: 18,
+            height: 190,
+            padding: '10px 0 0 10px',
+            borderLeft: '1px solid #D3DAE6',
+            borderBottom: '1px solid #D3DAE6',
+          }}
+        >
+          {puntos.map((punto, indice) => (
+            <div
+              key={`${punto.label}-${indice}`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                height: '100%',
+                width: 86,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: colorDe(punto.status),
+                  marginBottom: 6,
+                }}
+              >
+                {punto.score}%
+              </div>
+
+              <div
+                style={{
+                  width: '100%',
+                  height: `${Math.max(2, (punto.score as number) * 1.35)}px`,
+                  background: colorDe(punto.status),
+                  borderRadius: '4px 4px 0 0',
+                  opacity: punto.isCurrent ? 1 : 0.55,
+                  border: punto.isCurrent
+                    ? '2px solid #1A1C21'
+                    : '2px solid transparent',
+                }}
+              />
+
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#69707D',
+                  marginTop: 6,
+                }}
+              >
+                {punto.label}
+                {punto.isCurrent ? ' · hoy' : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <EtiquetaDeLectura
+          puntos={puntos}
+          sinNumero={sinNumero}
+          serieCorta
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -241,90 +427,11 @@ export const ControlEvolutionChart = ({
         </svg>
       </div>
 
-      {/* La leyenda existe porque el color de un punto es el estado DE ESE DÍA,
-          no el de hoy. Sin ella, un naranja en el histórico de un control que
-          hoy está en verde se lee como una contradicción. */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 14,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          fontSize: 12,
-          color: '#69707D',
-          marginBottom: 6,
-        }}
-      >
-        {[
-          { estado: 'CUMPLE', texto: 'cumple' },
-          { estado: 'PARCIAL', texto: 'parcial' },
-          { estado: 'NO_CUMPLE', texto: 'no cumple' },
-        ].map(item => (
-          <span
-            key={item.estado}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          >
-            <span
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: '50%',
-                background: colorDe(item.estado),
-                display: 'inline-block',
-              }}
-            />
-            {item.texto}
-          </span>
-        ))}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <span
-            style={{
-              width: 11,
-              height: 11,
-              borderRadius: '50%',
-              border: '2px solid #1A1C21',
-              display: 'inline-block',
-            }}
-          />
-          hoy
-        </span>
-        <span>· el color es el estado de ESE día, no el de hoy</span>
-      </div>
-
-      <div
-        style={{
-          fontSize: 12,
-          color: '#69707D',
-          lineHeight: 1.5,
-        }}
-      >
-        {serieCorta ? (
-          <>
-            <strong>
-              Solo hay {puntos.length} día(s) medido(s): todavía no hay
-              tendencia que leer.
-            </strong>{' '}
-            La línea se irá llenando conforme el recolector siga reportando.{' '}
-          </>
-        ) : null}
-        Cada punto es una evaluación completa del motor sobre los hechos
-        conocidos ese día, con los parámetros que hay declarados hoy. El último
-        —el marcado en blanco— es el mismo número que el porcentaje de arriba:
-        si no coinciden, uno de los dos está mal.
-        {ultimo && ultimo.events > 0 ? (
-          <>
-            {' '}
-            Hoy se han evaluado {ultimo.events} evento(s).
-          </>
-        ) : null}
-        {sinNumero > 0 ? (
-          <>
-            {' '}
-            {sinNumero} día(s) no se dibujan porque el control no aplicaba al
-            nivel ENS activo: no son un cero.
-          </>
-        ) : null}
-      </div>
+      <EtiquetaDeLectura
+        puntos={puntos}
+        sinNumero={sinNumero}
+        serieCorta={serieCorta}
+      />
     </div>
   );
 };

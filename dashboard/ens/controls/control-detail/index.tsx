@@ -321,6 +321,53 @@ export const ControlDetailENS = ({
     (requisito: any) => requisito.status !== 'NO_APLICA'
   ).length;
 
+  // POR QUÉ «5 de 8 evidencias» SE CONVIERTE EN «1 de 5 requisitos».
+  //
+  // Es la pregunta que rompe la confianza en el número, y hasta el 07/08/2026
+  // la pantalla ponía las dos cifras una debajo de otra sin nada en medio. El
+  // salto tiene una explicación exacta —UNA evidencia mala tumba TODOS los
+  // requisitos que se apoyan en ella— pero había que deducirla cruzando dos
+  // tablas a mano.
+  //
+  // En op.acc.4: EV-02 tumba op.acc.4.1 y op.acc.4.2, EV-05 tumba op.acc.4.4 y
+  // EV-07 tumba op.acc.4.3. Tres evidencias se llevan cuatro requisitos por
+  // delante, y por eso 5 de 8 en verde dan 1 de 5. Dicho así se entiende; sin
+  // decirlo parece un error de cuentas.
+  const evidenciasQueTumban = (() => {
+    const porEvidencia = new Map<string, string[]>();
+
+    (complianceResult?.requirements || []).forEach((requisito: any) => {
+      if (requisito.status === 'CUMPLE' || requisito.status === 'NO_APLICA') {
+        return;
+      }
+
+      (requisito.evidenceIds || []).forEach((evidenceId: string) => {
+        const evidencia = (complianceResult?.evidences || []).find(
+          (item: any) => item.id === evidenceId
+        );
+
+        // Solo cuenta la evidencia que EFECTIVAMENTE arrastra: una que cumple
+        // no es la culpable de que su requisito falle.
+        if (
+          !evidencia ||
+          evidencia.status === 'CUMPLE' ||
+          evidencia.status === 'NO_APLICA'
+        ) {
+          return;
+        }
+
+        porEvidencia.set(evidenceId, [
+          ...(porEvidencia.get(evidenceId) || []),
+          requisito.id,
+        ]);
+      });
+    });
+
+    return Array.from(porEvidencia.entries())
+      .map(([evidenceId, requisitos]) => ({ evidenceId, requisitos }))
+      .sort((a, b) => b.requisitos.length - a.requisitos.length);
+  })();
+
   const esVistaAgregada = !agentId && totalMaquinas > 1;
 
   const requisitosDelDenominador = esVistaAgregada
@@ -812,6 +859,33 @@ export const ControlDetailENS = ({
                 </EuiFlexGroup>
 
                 <EuiSpacer size='xs' />
+
+                {/* EL PUENTE ENTRE LAS DOS CIFRAS. Sin esto se leen «5 de 8
+                    evidencias cumplen» y «1 de 5 requisitos» pegadas, y parece
+                    un error de cuentas. No lo es: UNA evidencia mala tumba
+                    TODOS los requisitos que se apoyan en ella, y eso es lo que
+                    hay que ver sin cruzar dos tablas a mano. */}
+                {evidenciasQueTumban.length > 0 && (
+                  <>
+                    <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
+                      <EuiFlexItem grow={false}>
+                        <EuiText size='xs' color='subdued'>
+                          <span style={{ opacity: 0.75 }}>
+                            Lo que separa las dos cifras:{' '}
+                          </span>
+                          {evidenciasQueTumban
+                            .map(
+                              item =>
+                                `${item.evidenceId} arrastra ${item.requisitos.join(', ')}`
+                            )
+                            .join(' · ')}
+                        </EuiText>
+                      </EuiFlexItem>
+                    </EuiFlexGroup>
+
+                    <EuiSpacer size='xs' />
+                  </>
+                )}
 
                 <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
                   <EuiFlexItem grow={false}>
