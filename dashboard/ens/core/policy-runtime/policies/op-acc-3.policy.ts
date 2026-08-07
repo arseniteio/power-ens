@@ -152,6 +152,66 @@ const pairsOf = (rows: string[]): IncompatiblePair[] =>
     return [{ left, right, wildcard: right === '*' }];
   });
 
+// QUÉ PAR GOBIERNA CADA REQUISITO.
+//
+// Hasta el 07/08/2026 esto no existía y era un defecto con consecuencias: se
+// calculaba UNA lista de infractores contra TODOS los pares de P-02 y se
+// aplicaba a los cuatro requisitos. Una cuenta que aunaba desarrollo y
+// operación —que incumple op.acc.3.1— teñía también op.acc.3.2, que habla de
+// quién autoriza y quién controla y no tiene nada que ver. Tres de cada cuatro
+// eran NO CONFORMIDADES FALSAS, y una no conformidad falsa miente igual que un
+// CUMPLE falso: manda a corregir algo que no está mal.
+//
+// El mapa sale del TEXTO del ENS, no de una decisión de producto:
+//
+//   op.acc.3.1     «las capacidades de desarrollo y operación no recaerán en la
+//                   misma persona»
+//   op.acc.3.2     «las personas que autorizan y controlan el uso serán
+//                   distintas»
+//   op.acc.3.r1.1  «la misma persona no aunará configuración y mantenimiento»
+//   op.acc.3.r1.2  «auditoría o supervisión con cualquier otra función»
+//
+// Y encaja con lo que la propia pantalla dice de P-02: «En MEDIO:
+// desarrollo↔operación, autorización↔control. En ALTO se añade:
+// configuración↔mantenimiento y auditoría↔cualquier otra».
+const PAR_DEL_REQUISITO: Record<string, [string, string]> = {
+  'op.acc.3.1': ['desarrollo', 'operacion'],
+  'op.acc.3.2': ['autorizacion', 'control'],
+  'op.acc.3.r1.1': ['configuracion', 'mantenimiento'],
+  'op.acc.3.r1.2': ['auditoria', '*'],
+};
+
+// Los pares que el responsable declaró en P-02 y que gobiernan ESTE requisito.
+// La comparación es por conjunto: da igual el orden en que los escriba, y se
+// normalizan los acentos porque «operación» y «operacion» son la misma función
+// y nadie debería perder cumplimiento por una tilde.
+const sinTildes = (valor: string): string =>
+  valor
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const paresDelRequisito = (
+  requirementId: string,
+  declarados: IncompatiblePair[]
+): IncompatiblePair[] => {
+  const esperado = PAR_DEL_REQUISITO[requirementId];
+
+  if (!esperado) {
+    return [];
+  }
+
+  const [a, b] = esperado.map(sinTildes);
+
+  return declarados.filter(pair => {
+    const left = sinTildes(pair.left);
+    const right = sinTildes(pair.right);
+
+    return (left === a && right === b) || (left === b && right === a);
+  });
+};
+
 const violatesPair = (
   functions: string[],
   pair: IncompatiblePair
@@ -388,30 +448,67 @@ const evaluate = (
       );
     });
   } else {
-    const offenders: string[] = [];
+    // LOS INFRACTORES DE **ESTE** REQUISITO, no los de todos.
+    //
+    // Cada requisito se juzga contra el par que su propio texto nombra. Una
+    // cuenta que aúna desarrollo y operación incumple op.acc.3.1 y NO dice nada
+    // de op.acc.3.2, que habla de quién autoriza y quién controla.
+    const infractoresDe = (requirementId: string): string[] => {
+      const pares = paresDelRequisito(requirementId, incompatible);
+      const esAuditoria = requirementId === 'op.acc.3.r1.2';
+      const salida: string[] = [];
 
-    byAccount.forEach((functions, account) => {
-      const broken = incompatible.filter(pair =>
-        violatesPair(Array.from(functions), pair)
-      );
+      byAccount.forEach((functions, account) => {
+        const lista = Array.from(functions);
 
-      // Una cuenta de auditoría con CUALQUIER otra función incumple
-      // op.acc.3.r1.2, que es taxativo. Se comprueba aparte del comodín
-      // porque no depende de que el auditor haya declarado `auditoría | *`.
-      const isAuditAccount = auditAccounts.includes(account.toLowerCase());
-      const auditBreach =
-        isAuditAccount && Array.from(functions).some(
-          fn => fn !== 'auditoria' && fn !== 'auditoría' && fn !== 'supervision'
-        );
+        const rompePar = pares.some(pair => violatesPair(lista, pair));
 
-      if (broken.length || auditBreach) {
-        offenders.push(
-          `${account} (${Array.from(functions).join(' + ')})`
-        );
-      }
-    });
+        // Una cuenta de auditoría con CUALQUIER otra función incumple
+        // op.acc.3.r1.2, que es taxativo. Se comprueba aparte del comodín
+        // porque no depende de que el auditor haya declarado `auditoría | *`,
+        // y SOLO cuenta para ese requisito: es lo que dice su enunciado.
+        const rompeAuditoria =
+          esAuditoria &&
+          auditAccounts.includes(account.toLowerCase()) &&
+          lista.some(
+            fn =>
+              fn !== 'auditoria' &&
+              fn !== 'auditoría' &&
+              fn !== 'supervision'
+          );
+
+        if (rompePar || rompeAuditoria) {
+          salida.push(`${account} (${lista.join(' + ')})`);
+        }
+      });
+
+      return salida;
+    };
 
     cruceRequirements.forEach(requirementId => {
+      const offenders = infractoresDe(requirementId);
+
+      // SI EL RESPONSABLE NO HA DECLARADO ESTE PAR, no hay contra qué medir. No
+      // es lo mismo que «no hay infractores»: es que nadie ha dicho que esas dos
+      // funciones sean incompatibles aquí, y el silencio no acredita.
+      // op.acc.3.r1.2 va aparte porque su comprobación taxativa no depende de
+      // P-02: le basta con P-05.
+      if (
+        requirementId !== 'op.acc.3.r1.2' &&
+        !paresDelRequisito(requirementId, incompatible).length
+      ) {
+        const [a, b] = PAR_DEL_REQUISITO[requirementId] || ['', ''];
+
+        decisions.push(
+          NO_MEDIDO(
+            requirementId,
+            `P-02 no declara el par «${a} | ${b}», que es el que este requisito exige. Sin esa decisión no hay contra qué contrastar las funciones observadas.`
+          )
+        );
+
+        return;
+      }
+
       // Solo op.acc.3.2 arrastra la concurrencia. Para los otros tres el cruce
       // es toda la medida.
       const carriesConcurrency = requirementId === 'op.acc.3.2';

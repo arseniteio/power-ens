@@ -138,8 +138,15 @@ const LATIDO: ENSNormalizedEvent = {
   timestamp: new Date().toISOString(),
 };
 
+// Los cuatro pares que declara un despliegue real. Cada requisito se juzga
+// contra EL SUYO: op.acc.3.1 contra desarrollo|operacion, op.acc.3.2 contra
+// autorizacion|control, y los dos R1 contra los suyos. Antes del 07/08/2026 la
+// policy cruzaba todos contra todos y una cuenta que aunaba desarrollo y
+// operación teñía también op.acc.3.2, que no habla de eso.
 const P02 = parametro('P-02', [
   'desarrollo | operacion',
+  'autorizacion | control',
+  'configuracion | mantenimiento',
   'auditoria | *',
 ]);
 
