@@ -683,9 +683,11 @@ export const ControlDetailENS = ({
   );
 
   const totalEvidences = evidenceStatusItems.length || 1;
-  const cumplePercent = Math.round((evidenceSummary.cumple / totalEvidences) * 100);
-  const noEvaluablePercent = Math.round((evidenceSummary.noEvaluable / totalEvidences) * 100);
-  const noAplicaPercent = Math.round((evidenceSummary.noAplica / totalEvidences) * 100);
+  // Los porcentajes de EVIDENCIAS se han retirado con las barras que los
+  // pintaban. Eran tres cifras con el mismo aspecto que el porcentaje del
+  // control y otro denominador: quien las veía juntas intentaba cuadrarlas y no
+  // salía. El único porcentaje de esta pantalla es el del control, y sale de los
+  // requisitos.
 
   const globalStatus = motorStatus;
 
@@ -922,45 +924,98 @@ export const ControlDetailENS = ({
             </EuiFlexItem>
 
             <EuiFlexItem grow={1}>
+              {/* AQUÍ VAN LOS REQUISITOS, NO LAS EVIDENCIAS.
+                  Este panel enseñaba tres barras de evidencias —«Cumplen 5 / 8»—
+                  a diez centímetros de un porcentaje que sale de los REQUISITOS.
+                  El usuario lo dijo tres veces: «cumple 5/8 y solo 20 %, no lo
+                  entiendo». Y tenía razón: la única forma de entenderlo era
+                  saber que las dos cifras no hablan de lo mismo, cosa que no
+                  ponía en ninguna parte.
+
+                  Ahora se lista requisito por requisito con lo que le pasa. La
+                  cuenta se ve sola: cinco líneas, una en verde, 20 %. No hay
+                  nada que deducir. */}
               <EuiPanel>
                 <EuiTitle size='xs'>
-                  <h4>Evidencias por estado</h4>
+                  <h4>De dónde sale el {motorScoreTexto}</h4>
                 </EuiTitle>
-                <EuiSpacer size='m' />
 
-                <EuiText size='s'>
-                  <p><strong>Cumplen</strong> {evidenceSummary.cumple} / {totalEvidences}</p>
+                <EuiSpacer size='s' />
+
+                <EuiText size='xs' color='subdued'>
+                  <p style={{ marginBottom: 8 }}>
+                    Un requisito cumple solo si TODAS sus evidencias conforman.
+                    Basta una que falle o que no se pueda medir.
+                  </p>
                 </EuiText>
-                <div style={{ background: '#eef2f7', height: 12, borderRadius: 8 }}>
-                  <div style={{ width: `${cumplePercent}%`, background: '#00a69b', height: 12, borderRadius: 8 }} />
-                </div>
 
-                <EuiSpacer size='m' />
+                {(complianceResult?.requirements || [])
+                  .filter((requisito: any) => requisito.status !== 'NO_APLICA')
+                  .map((requisito: any) => {
+                    const culpables = (requisito.evidenceIds || []).filter(
+                      (evidenceId: string) => {
+                        const evidencia = (complianceResult?.evidences || []).find(
+                          (item: any) => item.id === evidenceId
+                        );
 
-                <EuiText size='s'>
-                  {/* «No evaluable» era el nombre de un veredicto que ya no
-                      existe. La evidencia sigue saliendo en gris porque el gris
-                      describe la PRUEBA —no ha llegado—, pero el requisito que
-                      depende de ella no cumple, y el rótulo tiene que decirlo. */}
-                  <p><strong>Sin evidencia (cuenta como incumplimiento)</strong> {evidenceSummary.noEvaluable} / {totalEvidences}</p>
+                        return (
+                          evidencia &&
+                          evidencia.status !== 'CUMPLE' &&
+                          evidencia.status !== 'NO_APLICA'
+                        );
+                      }
+                    );
+
+                    const cumple = requisito.status === 'CUMPLE';
+
+                    return (
+                      <div
+                        key={requisito.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'baseline',
+                          gap: 8,
+                          padding: '5px 0',
+                          borderBottom: '1px solid #F1F4FA',
+                          fontSize: 12,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: cumple ? '#00A69B' : '#BD271E',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <strong style={{ minWidth: 96 }}>{requisito.id}</strong>
+                        <span style={{ color: '#69707D' }}>
+                          {cumple
+                            ? 'cumple'
+                            : culpables.length
+                            ? `no cumple · ${culpables.join(', ')}`
+                            : 'no cumple'}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                <EuiSpacer size='s' />
+
+                <EuiText size='xs' color='subdued'>
+                  <p>
+                    <strong>
+                      {requisitosCumplen} de {requisitosDelDenominador} cumplen ={' '}
+                      {motorScoreTexto}
+                    </strong>
+                  </p>
                 </EuiText>
-                <div style={{ background: '#eef2f7', height: 12, borderRadius: 8 }}>
-                  <div style={{ width: `${noEvaluablePercent}%`, background: '#d3dae6', height: 12, borderRadius: 8 }} />
-                </div>
 
-                <EuiSpacer size='m' />
-
-                <EuiText size='s'>
-                  <p><strong>No aplica</strong> {evidenceSummary.noAplica} / {totalEvidences}</p>
-                </EuiText>
-                <div style={{ background: '#eef2f7', height: 12, borderRadius: 8 }}>
-                  <div style={{ width: `${noAplicaPercent}%`, background: '#69707d', height: 12, borderRadius: 8 }} />
-                </div>
-
-                  <EuiSpacer size='m' />
-                  <EuiBadge color={getBadgeColor(motorStatus)}>
-                    Estado del control: {motorStatus}
-                  </EuiBadge>
+                <EuiSpacer size='s' />
+                <EuiBadge color={getBadgeColor(motorStatus)}>
+                  Estado del control: {motorStatus}
+                </EuiBadge>
               </EuiPanel>
             </EuiFlexItem>
 
