@@ -297,7 +297,12 @@ const evaluateENSComplianceResultByControl = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
   agentId?: string,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  // El instante al que se evalúa, igual que en la ruta de todos los controles.
+  // Lo necesita la serie diaria del detalle: sin él, cada punto del histórico se
+  // juzgaría contra el reloj de hoy y la línea bajaría hacia el pasado por el
+  // mero hecho de que el pasado es viejo.
+  now?: Date
 ) => {
   const catalogControl = ENSCatalog.find(
     control =>
@@ -326,7 +331,8 @@ const evaluateENSComplianceResultByControl = (
     scopedEvents,
     agentId,
     level,
-    configuration
+    configuration,
+    now
   );
 
   const policyContext = buildPolicyContext(
@@ -334,7 +340,8 @@ const evaluateENSComplianceResultByControl = (
     configuration,
     level,
     scopedEvents,
-    evidences
+    evidences,
+    now
   );
 
   const policyRuntime =
@@ -354,7 +361,8 @@ const buildAgentComplianceStatesByControl = (
   controlId: string,
   level: ENSLevel,
   events: ENSNormalizedEvent[],
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
 ) =>
   getAgentIdentities(
     events,
@@ -373,7 +381,8 @@ const buildAgentComplianceStatesByControl = (
         level,
         agentEvents,
         agent.agentId,
-        scopeAgents
+        scopeAgents,
+        now
       );
 
     const results = result
@@ -396,7 +405,8 @@ export const getENSComplianceResultByControl = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
   agentId?: string,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
 ) => {
   if (agentId) {
     return evaluateENSComplianceResultByControl(
@@ -404,7 +414,8 @@ export const getENSComplianceResultByControl = (
       level,
       events,
       agentId,
-      scopeAgents
+      scopeAgents,
+      now
     );
   }
 
@@ -413,7 +424,8 @@ export const getENSComplianceResultByControl = (
       controlId,
       level,
       events,
-      scopeAgents
+      scopeAgents,
+      now
     );
 
   if (agents.length === 0) {
@@ -422,7 +434,8 @@ export const getENSComplianceResultByControl = (
       level,
       events,
       undefined,
-      scopeAgents
+      scopeAgents,
+      now
     );
   }
 
@@ -436,7 +449,8 @@ export const getENSComplianceResultByControl = (
       level,
       events,
       undefined,
-      scopeAgents
+      scopeAgents,
+      now
     )
   );
 };

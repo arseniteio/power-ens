@@ -31,6 +31,8 @@ import {
   resumirMotivos,
 } from './general-view';
 import { getActiveENSConfiguration } from '../../configuration/services';
+import { ControlEvolutionChart } from './evolution-chart';
+import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -161,6 +163,30 @@ export const ControlDetailENS = ({
         normalizedEvents,
         agentId,
         scopeAgents,
+      ),
+    [
+      control.id,
+      ensLevel,
+      normalizedEvents,
+      agentId,
+      scopeAgents,
+    ],
+  );
+
+  // La serie diaria DE ESTE CONTROL. Se calcula con los mismos eventos y el
+  // mismo alcance que el resultado de arriba, así que su último punto es el
+  // mismo número: es lo que la hace comprobable de un vistazo.
+  const controlTimeline = useMemo(
+    () =>
+      buildENSControlComplianceTimeline(
+        control.id,
+        ensLevel,
+        normalizedEvents,
+        {
+          agentId,
+          scopeAgents,
+          days: 30,
+        }
       ),
     [
       control.id,
@@ -920,6 +946,29 @@ export const ControlDetailENS = ({
               </EuiFlexItem>
             </EuiFlexGroup>
           </EuiPanel>
+        <EuiSpacer size='l' />
+
+        <EuiPanel>
+          <EuiTitle size='s'>
+            <h3>Evolución del cumplimiento · {control.id}</h3>
+          </EuiTitle>
+
+          <EuiSpacer size='xs' />
+
+          <EuiText size='s' color='subdued'>
+            <p>
+              Cumplimiento diario de este control en los últimos 30 días.
+            </p>
+          </EuiText>
+
+          <EuiSpacer size='s' />
+
+          <ControlEvolutionChart
+            points={controlTimeline}
+            controlId={control.id}
+          />
+        </EuiPanel>
+
         <EuiSpacer size='l' />
 
         <EuiTitle size='s'>
