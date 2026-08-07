@@ -78,6 +78,9 @@ export const ControlEvolutionChart = ({
     );
   }
 
+  // Los puntos se reparten por su POSICIÓN EN LA SERIE, no por su orden entre
+  // los que tienen número: así la distancia entre dos puntos sigue siendo el
+  // tiempo que pasó, y un hueco de tres días se ve como un hueco.
   const puntos = conNumero.map(({ point, indice }) => ({
     ...point,
     x: coordenadaX(indice, points.length),
@@ -85,6 +88,23 @@ export const ControlEvolutionChart = ({
   }));
 
   const ultimo = puntos[puntos.length - 1];
+
+  // CON DOS PUNTOS UNA LÍNEA NO DICE NADA, y con uno menos. Es lo que hay al
+  // día siguiente de desplegar, y va a ser lo normal durante la primera semana
+  // de cualquier cliente. Se dibuja igual —el histórico empieza el día que
+  // empieza— pero se avisa, para que nadie lea una tendencia donde solo hay
+  // dos medidas.
+  const serieCorta = puntos.length < 4;
+
+  // El relleno bajo la línea. Da volumen a lo que si no son dos puntos sueltos
+  // sobre una rejilla vacía.
+  const areaPoints = puntos.length > 1
+    ? [
+        ...puntos.map(punto => `${punto.x},${punto.y}`),
+        `${puntos[puntos.length - 1].x},${ALTO}`,
+        `${puntos[0].x},${ALTO}`,
+      ].join(' ')
+    : '';
 
   return (
     <div>
@@ -142,6 +162,13 @@ export const ControlEvolutionChart = ({
             />
           ))}
 
+          {areaPoints && (
+            <polygon
+              points={areaPoints}
+              fill='rgba(0, 107, 180, 0.12)'
+            />
+          )}
+
           <polyline
             fill='none'
             stroke='#006BB4'
@@ -155,22 +182,36 @@ export const ControlEvolutionChart = ({
 
           {puntos.map((punto, indice) => (
             <g key={`${punto.label}-${indice}`}>
+              {/* EL PUNTO DE HOY LLEVA SU COLOR, no blanco. Antes se pintaba
+                  hueco para distinguirlo, y en un control al 100 % el único
+                  color que se veía era el naranja de un día pasado: parecía que
+                  el control estaba en amarillo cuando estaba en verde. Se
+                  distingue por el anillo blanco y el tamaño, no por perder el
+                  color, que es el dato. */}
+              {punto.isCurrent && (
+                <circle
+                  cx={punto.x}
+                  cy={punto.y}
+                  r='9'
+                  fill='#FFFFFF'
+                  stroke='#FFFFFF'
+                  strokeWidth='3'
+                />
+              )}
+
               <circle
                 cx={punto.x}
                 cy={punto.y}
-                r={punto.isCurrent ? '7' : '5'}
-                fill={
-                  punto.isCurrent
-                    ? '#FFFFFF'
-                    : colorDe(punto.status)
-                }
-                stroke={colorDe(punto.status)}
-                strokeWidth={punto.isCurrent ? '3.5' : '2'}
+                r={punto.isCurrent ? '6.5' : '5'}
+                fill={colorDe(punto.status)}
+                stroke={punto.isCurrent ? '#1A1C21' : colorDe(punto.status)}
+                strokeWidth={punto.isCurrent ? '2' : '2'}
               />
 
-              {/* Solo se etiqueta el primero, el último y los extremos: con
-                  treinta días, un número sobre cada punto es ilegible. */}
-              {(indice === 0 ||
+              {/* Con pocos puntos se etiquetan todos; con treinta, un número
+                  sobre cada uno es ilegible y solo se marcan los extremos. */}
+              {(puntos.length <= 8 ||
+                indice === 0 ||
                 indice === puntos.length - 1 ||
                 punto.isCurrent) && (
                 <text
@@ -200,6 +241,56 @@ export const ControlEvolutionChart = ({
         </svg>
       </div>
 
+      {/* La leyenda existe porque el color de un punto es el estado DE ESE DÍA,
+          no el de hoy. Sin ella, un naranja en el histórico de un control que
+          hoy está en verde se lee como una contradicción. */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 14,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          fontSize: 12,
+          color: '#69707D',
+          marginBottom: 6,
+        }}
+      >
+        {[
+          { estado: 'CUMPLE', texto: 'cumple' },
+          { estado: 'PARCIAL', texto: 'parcial' },
+          { estado: 'NO_CUMPLE', texto: 'no cumple' },
+        ].map(item => (
+          <span
+            key={item.estado}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+          >
+            <span
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: '50%',
+                background: colorDe(item.estado),
+                display: 'inline-block',
+              }}
+            />
+            {item.texto}
+          </span>
+        ))}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: '50%',
+              border: '2px solid #1A1C21',
+              display: 'inline-block',
+            }}
+          />
+          hoy
+        </span>
+        <span>· el color es el estado de ESE día, no el de hoy</span>
+      </div>
+
       <div
         style={{
           fontSize: 12,
@@ -207,6 +298,15 @@ export const ControlEvolutionChart = ({
           lineHeight: 1.5,
         }}
       >
+        {serieCorta ? (
+          <>
+            <strong>
+              Solo hay {puntos.length} día(s) medido(s): todavía no hay
+              tendencia que leer.
+            </strong>{' '}
+            La línea se irá llenando conforme el recolector siga reportando.{' '}
+          </>
+        ) : null}
         Cada punto es una evaluación completa del motor sobre los hechos
         conocidos ese día, con los parámetros que hay declarados hoy. El último
         —el marcado en blanco— es el mismo número que el porcentaje de arriba:

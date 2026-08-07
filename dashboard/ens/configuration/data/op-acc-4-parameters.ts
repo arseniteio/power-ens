@@ -180,7 +180,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.3'],
       type: 'table',
-      example: '/datos/rrhh | rrhh / /datos/nominas | rrhh+dir',
+      example: '/datos/rrhh | rrhh / /datos/nominas | rrhh,direccion',
       columns: [
         {
           name: 'recurso',
@@ -189,9 +189,21 @@ export const opAcc4Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
+          // VARIOS perfiles por recurso, separados por coma. La columna se llama
+          // `perfiles` en plural desde el principio y su ejemplo ya enseñaba
+          // `rrhh+dir`, pero el tipo era `identifier` —que prohíbe espacios Y
+          // comas— así que un recurso al que acceden dos perfiles legítimos no
+          // se podía declarar: había que elegir uno y el otro salía como
+          // desviación. Es lo que le pasó a /etc/shadow, donde el administrador
+          // y root tienen los dos necesidad de conocer.
+          //
+          // `multiselect` sin `options` acepta cualquier valor y parte la celda
+          // por comas, que es justo lo que el motor hace al contrastar
+          // (`splitCellOptions`): lo observado tiene que estar ENTRE los
+          // declarados, no ser igual a la celda entera.
           name: 'perfiles',
           label: 'Perfiles',
-          type: 'identifier',
+          type: 'multiselect',
           required: false,
         },
       ],

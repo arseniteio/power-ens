@@ -195,8 +195,8 @@
       "adm"
     ],
     "P-07": [
-      "/etc/shadow | root dioni",
-      "/etc/gshadow | root dioni",
+      "/etc/shadow | root,dioni",
+      "/etc/gshadow | root,dioni",
       "/root/.ssh/authorized_keys | root"
     ]
   }

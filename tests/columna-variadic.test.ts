@@ -151,6 +151,92 @@ bloque('2. Una tabla normal sigue rechazando las celdas de más');
   );
 }
 
+// --- 3. una celda con VARIOS valores --------------------------------------
+//
+// NACE DE UNA NO CONFORMIDAD FALSA QUE PROVOQUÉ YO el 07/08/2026.
+//
+// P-07 de op.acc.4 declara qué perfiles tienen necesidad de conocer sobre cada
+// recurso. La columna se llama `perfiles` EN PLURAL y su ejemplo ya enseñaba
+// `rrhh+dir`, pero el tipo era `identifier`, cuyo patrón es `^[^\s|,]+$`: ni
+// espacios ni comas. Un recurso al que acceden dos perfiles legítimos no se
+// podía declarar.
+//
+// Le pasa a /etc/shadow, donde root y el administrador tienen los dos
+// justificación. Al declarar `root dioni` el parámetro quedó INVÁLIDO y el
+// control entero cayó de 20 % a 0 %: peor que antes de tocarlo.
+//
+// `multiselect` sin `options` acepta cualquier valor y parte por comas, que es
+// exactamente lo que hace el motor al contrastar (`splitCellOptions`): lo
+// observado tiene que estar ENTRE los declarados, no ser igual a la celda.
+
+bloque('3. Una celda puede declarar varios valores separados por coma');
+
+{
+  const conTipo = (
+    tipo: string,
+    value: string[]
+  ): ENSControlParameter =>
+    ({
+      id: 'P-07',
+      controlId: 'op.acc.4',
+      name: 'recursos_sensibles',
+      label: 'Recursos sensibles',
+      description: 'd',
+      type: 'table',
+      required: true,
+      levels: ['MEDIO'],
+      requirements: [],
+      ruleIds: [],
+      evidenceIds: [],
+      wazuhUsage: '-',
+      ensfacilUsage: '-',
+      ifNotConfigured: '-',
+      value,
+      columns: [
+        { name: 'recurso', label: 'Recurso', type: 'path', required: true },
+        { name: 'perfiles', label: 'Perfiles', type: tipo, required: false },
+      ],
+    } as unknown as ENSControlParameter);
+
+  const DOS_PERFILES = ['/etc/shadow | root,dioni'];
+
+  comprueba(
+    'con `multiselect`, dos perfiles en una celda son válidos',
+    validateParameterValue(conTipo('multiselect', DOS_PERFILES), DOS_PERFILES)
+      .valid === true,
+    validateParameterValue(conTipo('multiselect', DOS_PERFILES), DOS_PERFILES).reason
+  );
+
+  // LA REVERSIÓN QUE EXPLICA EL FALLO: con `identifier` la misma fila se
+  // rechaza. Sin esta comprobación no quedaría constancia de por qué se cambió
+  // el tipo, y alguien lo revertiría por «coherencia» con las demás columnas.
+  comprueba(
+    'con `identifier`, la misma fila se rechaza (es lo que rompió op.acc.4)',
+    validateParameterValue(conTipo('identifier', DOS_PERFILES), DOS_PERFILES)
+      .valid === false,
+    'el validador la dio por buena'
+  );
+
+  // Y un solo perfil sigue valiendo: `multiselect` es «uno o más».
+  const UNO = ['/root/.ssh/authorized_keys | root'];
+
+  comprueba(
+    'un solo perfil sigue siendo válido',
+    validateParameterValue(conTipo('multiselect', UNO), UNO).valid === true,
+    validateParameterValue(conTipo('multiselect', UNO), UNO).reason
+  );
+
+  // Y la celda vacía también: la columna no es obligatoria.
+  const SIN_PERFIL = ['/datos/publico | '];
+
+  comprueba(
+    'y una celda vacía no rompe, porque la columna no es obligatoria',
+    validateParameterValue(conTipo('multiselect', SIN_PERFIL), SIN_PERFIL)
+      .valid === true,
+    validateParameterValue(conTipo('multiselect', SIN_PERFIL), SIN_PERFIL).reason
+  );
+}
+
 // --- salida ---------------------------------------------------------------
 
 console.log('');

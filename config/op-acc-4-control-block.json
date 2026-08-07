@@ -232,7 +232,7 @@
         "op.acc.4.3"
       ],
       "type": "table",
-      "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh+dir",
+      "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh,direccion",
       "required": true,
       "wazuhUsage": "ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.",
       "ensfacilUsage": "ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.",
@@ -253,7 +253,7 @@
         {
           "name": "perfiles",
           "label": "Perfiles",
-          "type": "identifier",
+          "type": "multiselect",
           "required": false
         }
       ]
