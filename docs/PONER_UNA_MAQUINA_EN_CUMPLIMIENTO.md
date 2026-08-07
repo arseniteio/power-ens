@@ -315,6 +315,17 @@ Ordenados por las veces que han pasado de verdad.
 
 ---
 
+## El caso resuelto, con sus números
+
+**[`CASO_REAL_WAZUH_REAL.md`](CASO_REAL_WAZUH_REAL.md)** es este mismo
+procedimiento aplicado a una máquina de verdad el 06-07/08/2026: qué se declaró,
+qué se tocó en el sistema, en qué orden, y **dónde se paró y por qué**. Lleva los
+comandos exactos y los números antes y después (op.acc.2 de 0 % a 100 %,
+op.acc.1 de 38 % a 75 %).
+
+Si vas a hacer esto por primera vez, léelo antes que nada de lo de arriba: la
+guía dice el método, el caso enseña a qué se parece.
+
 ## Enlaces
 
 | | |
