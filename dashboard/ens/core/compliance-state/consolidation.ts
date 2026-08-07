@@ -15,6 +15,7 @@ import type {
   ENSRuntimeVariable,
 } from '../policy-runtime/types';
 import type { ENSAgentComplianceState } from './types';
+import { scoreByStatus } from '../evaluation/utils/score';
 
 interface ENSAgentResultEntry {
   agentId: string;
@@ -294,11 +295,25 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       )
     );
 
+    const statusConsolidado = consolidateENSStatuses(
+      requirementEntries.map(({ requirement }) => requirement.status)
+    );
+
     return {
       ...template,
-      status: consolidateENSStatuses(
-        requirementEntries.map(({ requirement }) => requirement.status)
-      ),
+      status: statusConsolidado,
+      // EL SCORE TIENE QUE SEGUIR AL ESTADO CONSOLIDADO, y hasta el 07/08/2026
+      // no lo hacía: `template` es el requisito de la PRIMERA máquina y arrastra
+      // su `score`. Un requisito que sale NO_CUMPLE porque falla en la segunda
+      // seguía aportando los 100 de la primera al índice de requisitos.
+      //
+      // Hoy ese índice no se pinta en ninguna pantalla —el número grande sale de
+      // `controlSummary`, que recalcula desde los veredictos— así que no ha
+      // mentido a ningún auditor. Es una bomba armada, no un incendio: el día
+      // que alguien pinte ese campo, miente. Se desarma donde toca, que es aquí,
+      // y no quitando el campo del tipo: `tests/hueco-de-medida.test.ts` lo
+      // comprueba a propósito por agente, y ahí el score SÍ es correcto.
+      score: scoreByStatus(statusConsolidado),
       // Demostrado solo si lo está en TODAS: basta una máquina sin prueba para
       // que el requisito del conjunto no esté demostrado. Es lo que impide que
       // una máquina sana tape a la que no reporta.

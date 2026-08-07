@@ -799,6 +799,90 @@ bloque('6 · las cifras de la pantalla con los 7 agentes del despliegue real');
   );
 }
 
+// --- 7 · el score del requisito consolidado sigue al veredicto ------------
+//
+// UNA BOMBA ARMADA, desactivada el 07/08/2026.
+//
+// `consolidateRequirements` construye el requisito consolidado con
+// `{...template, status: peorGana}`, y `template` es el requisito de la PRIMERA
+// máquina: arrastraba su `score`. Un requisito que sale NO_CUMPLE porque falla
+// en la segunda seguía llevando los 100 de la primera, y `createSummaryFromItems`
+// prefiere `item.score` sobre el estado.
+//
+// Hoy ese índice no se pinta en ninguna pantalla —el número grande sale de
+// `controlSummary`, que recalcula desde los veredictos— así que no ha mentido a
+// ningún auditor. Pero un campo que contradice al estado de al lado es una
+// mentira esperando a que alguien la pinte.
+//
+// La comprobación que importa es la de ORDEN: un arreglo a medias da el número
+// bueno cuando la máquina mala va primera y el malo cuando va segunda.
+
+bloque('7 · el score consolidado no se queda con el de la primera máquina');
+
+{
+  // Una máquina sana y una que no reporta EV-04. Son resultados de la
+  // evaluación real, no objetos a mano: lo que se prueba es la consolidación.
+  const sana = () => evalua(evidencias({}));
+  const rota = () =>
+    evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }));
+
+  const conOrden = (sanaPrimero: boolean) =>
+    consolida(
+      parque(2, indice =>
+        (sanaPrimero ? indice === 0 : indice === 1) ? sana() : rota()
+      )
+    );
+
+  const sanaDelante = conOrden(true);
+  const sanaDetras = conOrden(false);
+
+  const scoreDe = (r: ENSComplianceResult, id: string) =>
+    (r.requirements.find(x => x.id === id) as { score?: number } | undefined)?.score;
+
+  const estadoDe = (r: ENSComplianceResult, id: string) =>
+    r.requirements.find(x => x.id === id)?.status;
+
+  // El requisito que EV-04 acredita y que por tanto difiere entre las dos.
+  const REQ = 'op.acc.1.4';
+
+  comprueba(
+    'baseline: el requisito sale distinto en la máquina sana y en la rota',
+    estadoDe(sana(), REQ) !== estadoDe(rota(), REQ),
+    `${estadoDe(sana(), REQ)} / ${estadoDe(rota(), REQ)}`
+  );
+
+  comprueba(
+    'el estado consolidado es el mismo en los dos órdenes',
+    estadoDe(sanaDelante, REQ) === estadoDe(sanaDetras, REQ),
+    `${estadoDe(sanaDelante, REQ)} / ${estadoDe(sanaDetras, REQ)}`
+  );
+
+  // LA COMPROBACIÓN QUE IMPORTA: con la máquina sana delante, el score se
+  // quedaba con el 100 de esa primera.
+  comprueba(
+    'y el score también, da igual qué máquina vaya primera',
+    scoreDe(sanaDelante, REQ) === scoreDe(sanaDetras, REQ),
+    `${scoreDe(sanaDelante, REQ)} / ${scoreDe(sanaDetras, REQ)}`
+  );
+
+  comprueba(
+    'y el score no contradice al estado consolidado',
+    (estadoDe(sanaDelante, REQ) === 'CUMPLE') ===
+      (scoreDe(sanaDelante, REQ) === 100),
+    `${estadoDe(sanaDelante, REQ)} con score ${scoreDe(sanaDelante, REQ)}`
+  );
+
+  // La reversión: con las dos máquinas sanas, el consolidado sí puntúa 100. Sin
+  // esto, poner el score a 0 siempre pasaría las comprobaciones de arriba.
+  const lasDosSanas = consolida(parque(2, () => sana()));
+
+  comprueba(
+    'con las dos máquinas conformes, el consolidado puntúa 100',
+    scoreDe(lasDosSanas, REQ) === 100,
+    `${estadoDe(lasDosSanas, REQ)} con score ${scoreDe(lasDosSanas, REQ)}`
+  );
+}
+
 // --- salida ----------------------------------------------------------------
 
 console.log('');
