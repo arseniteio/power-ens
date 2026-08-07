@@ -222,6 +222,55 @@ const evaluate = (
       'Cuentas con al menos una acción observada y clasificada en el periodo.',
   });
 
+  // ¿HA MIRADO ALGUIEN? El silencio solo acredita si consta que se barrió.
+  //
+  // ESTO CORRIGE UN CUMPLE FALSO. Hasta el 07/08/2026, cuando no se observaba
+  // ninguna acción esta policy respondía «no hay ninguna cuenta que aúne
+  // funciones» y daba CUMPLE — 100 puntos. Pero «no he visto a nadie aunar
+  // funciones» y «no he mirado» producen exactamente el mismo conjunto vacío, y
+  // la policy no los distinguía: una máquina SIN AGENTE puntuaba 100.
+  //
+  // Se vio en wazuh-fake, que está en el índice y no tiene recolector: op.acc.3
+  // le daba el 100 y ese 100 subía la media del control.
+  //
+  // El producto ya tiene el mecanismo —el latido `collector_run` con
+  // `evidencias_cubiertas`, que es lo que sostiene «silencio = cumplimiento»—
+  // pero vivía solo en el camino de las primitivas (`resolveCollectorCoverage`
+  // en evidence/judgment.ts) y esta policy no pasa por ahí. Se aplica aquí la
+  // misma regla: sin latido, NO_EVALUABLE.
+  const TIPOS_DE_HECHO = [
+    'account_action',
+    'critical_task_run',
+    'security_info_access',
+  ];
+
+  const hayHechos = context.events.some(event =>
+    TIPOS_DE_HECHO.includes(event.eventType)
+  );
+
+  const HORAS_DE_LATIDO = 24;
+
+  const hayLatido = context.events.some(event => {
+    if (event.eventType !== 'collector_run') {
+      return false;
+    }
+
+    const cuando = new Date(event.timestamp).getTime();
+
+    if (!Number.isFinite(cuando)) {
+      return false;
+    }
+
+    // Un latido con fecha futura —reloj desviado— no acredita: valdría como
+    // latido perpetuo y volvería verde para siempre una máquina muerta.
+    const ahora = context.now ? context.now.getTime() : Date.now();
+
+    return (
+      cuando <= ahora &&
+      ahora - cuando <= HORAS_DE_LATIDO * 3600 * 1000
+    );
+  });
+
   // --- la concurrencia en tareas críticas, ANTES del cruce ---
   //
   // Se calcula aquí y no donde se decide porque su veredicto NO es una decisión
@@ -372,6 +421,25 @@ const evaluate = (
       // salir verde: la mitad de lo que afirma —que quien autoriza y quien
       // controla son personas distintas— no se ha llegado a mirar. Decir CUMPLE
       // ahí sería el CUMPLE falso que este producto existe para no dar.
+      // SIN NINGÚN HECHO Y SIN LATIDO, no se puede decir que la máquina
+      // conforme: no consta que nadie haya mirado.
+      //
+      // «Ningún hecho» es ningún hecho DE NINGÚN TIPO, no solo ninguna acción
+      // clasificada: si llegó una tarea crítica o un acceso a la información de
+      // seguridad, el recolector corrió y su silencio sobre las acciones sí es
+      // una observación. Acotarlo a `byAccount` dejaba en gris a máquinas que
+      // sí habían reportado.
+      if (!hayHechos && !hayLatido) {
+        decisions.push(
+          NO_MEDIDO(
+            requirementId,
+            'No se ha observado ninguna acción y no consta ningún latido del recolector en las últimas 24 horas: no se puede distinguir «no hay nadie que aúne funciones» de «no se ha mirado», y el silencio sin barrido no acredita.'
+          )
+        );
+
+        return;
+      }
+
       if (carriesConcurrency && !concurrencyMeasurable) {
         decisions.push(
           NO_MEDIDO(

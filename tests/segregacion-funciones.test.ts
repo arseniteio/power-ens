@@ -126,6 +126,18 @@ const P03 = parametro('P-03', [
   'auditoria | /var/log/audit | ausearch',
 ]);
 
+// El latido del recolector. Una máquina TRANQUILA no es una máquina MUDA: la
+// tranquila ejecuta su recolector, no encuentra nada y lo dice; la muda no
+// reporta. Las fixtures de silencio llevan latido porque representan la
+// primera, que es la que puede acreditar. Ver el caso 9.
+const LATIDO: ENSNormalizedEvent = {
+  id: 'latido-fixture',
+  controlId: 'op.acc.3',
+  eventType: 'collector_run',
+  sourceType: 'WAZUH_ALERT',
+  timestamp: new Date().toISOString(),
+};
+
 const P02 = parametro('P-02', [
   'desarrollo | operacion',
   'auditoria | *',
@@ -365,7 +377,7 @@ bloque('5. Una tarea que no se ejecutó no incumple');
   // Ninguna ejecución de esa tarea en el periodo. Exigirle concurrencia sería
   // acusar por una ausencia, y aquí la ausencia no es un hallazgo: es que no
   // hubo restauración esta semana.
-  const sinEjecucion = juzga([], [P02, P03, P04]);
+  const sinEjecucion = juzga([LATIDO], [P02, P03, P04]);
 
   comprueba(
     'sin ninguna ejecución, el enunciado general cumple',
@@ -408,7 +420,7 @@ bloque('6. Sin acciones observadas, nadie aúna funciones');
   // concurrencia de P-04, y esta fixture no declara P-04. Silencio con la
   // política a medias no es cumplimiento, es media medida — y media medida no
   // acredita nada. El caso de abajo prueba que con P-04 sí cumple.
-  const silencio = juzga([], [P02, P03]);
+  const silencio = juzga([LATIDO], [P02, P03]);
 
   comprueba(
     'sin acciones, los tres requisitos que solo miden el cruce cumplen',
@@ -429,7 +441,7 @@ bloque('6. Sin acciones observadas, nadie aúna funciones');
 
   // La reversión: con P-04 declarado, el mismo silencio sí cumple.
   const silencioCompleto = juzga(
-    [],
+    [LATIDO],
     [P02, P03, parametro('P-04', ['despliegue en produccion | 2'])]
   );
 
@@ -519,7 +531,7 @@ bloque('8. Toda decisión aterriza en un requisito del catálogo');
   );
 
   // Y una vacía, que recorre las ramas de «no se puede medir».
-  const vacia = juzga([], []);
+  const vacia = juzga([LATIDO], []);
 
   [completa, vacia].forEach((resultado, i) => {
     const huerfanas = resultado.decisions
@@ -563,6 +575,117 @@ bloque('8. Toda decisión aterriza en un requisito del catálogo');
     'y no arrastra a op.acc.3.1, que solo mide el cruce',
     veredicto(soloConcurrencia, 'op.acc.3.1')?.status === 'CUMPLE',
     veredicto(soloConcurrencia, 'op.acc.3.1')?.status
+  );
+}
+
+// --- 9. el silencio sin latido NO acredita --------------------------------
+//
+// UN CUMPLE FALSO ENCONTRADO EN PRODUCCIÓN el 07/08/2026.
+//
+// Cuando no se observaba ninguna acción, la policy respondía «no hay ninguna
+// cuenta que aúne funciones» y daba CUMPLE: 100 puntos. Pero «no he visto a
+// nadie aunar funciones» y «no he mirado» producen el MISMO conjunto vacío, y la
+// policy no los distinguía. Una máquina sin recolector puntuaba 100 y subía la
+// media del control.
+//
+// Se vio en wazuh-fake, que está en el índice del cliente y no tiene agente ENS.
+//
+// Lo que separa los dos casos es el latido `collector_run`, que es exactamente
+// el mecanismo con el que este producto sostiene «silencio = cumplimiento».
+
+bloque('9. Sin acciones y sin latido: NO_EVALUABLE, no CUMPLE');
+
+{
+  const latido = (cuando: Date): ENSNormalizedEvent => ({
+    id: `latido-${cuando.getTime()}`,
+    controlId: 'op.acc.3',
+    eventType: 'collector_run',
+    sourceType: 'WAZUH_ALERT',
+    timestamp: cuando.toISOString(),
+  });
+
+  const AHORA = new Date(2026, 7, 7, 12, 0, 0);
+
+  const juzgaEn = (
+    eventos: ENSNormalizedEvent[]
+  ) => {
+    const evaluator = opAcc3PolicyDefinition.evaluator;
+
+    if (!evaluator) {
+      throw new Error('fixture rota');
+    }
+
+    return evaluator({
+      ...buildPolicyContext(
+        opAcc3CatalogDefinition,
+        configuracion([P02, P03]),
+        'ALTO',
+        eventos,
+        []
+      ),
+      now: AHORA,
+    });
+  };
+
+  // EL CASO DE PRODUCCIÓN: ni acciones ni latido.
+  const mudo = juzgaEn([]);
+
+  comprueba(
+    'sin acciones y sin latido, op.acc.3.1 NO cumple',
+    veredicto(mudo, 'op.acc.3.1')?.status === 'NO_EVALUABLE',
+    veredicto(mudo, 'op.acc.3.1')?.status
+  );
+
+  comprueba(
+    'y el motivo dice que no consta que nadie haya mirado',
+    (veredicto(mudo, 'op.acc.3.1')?.reason || '').includes('latido'),
+    veredicto(mudo, 'op.acc.3.1')?.reason
+  );
+
+  // LA REVERSIÓN, que es la mitad importante: con latido reciente, el mismo
+  // silencio SÍ acredita. Sin esto, una guarda demasiado dura dejaría en gris
+  // a toda máquina tranquila y la prueba de arriba pasaría igual.
+  const reciente = new Date(AHORA);
+  reciente.setHours(reciente.getHours() - 2);
+
+  const barrida = juzgaEn([latido(reciente)]);
+
+  comprueba(
+    'con latido reciente, el mismo silencio SÍ cumple',
+    veredicto(barrida, 'op.acc.3.1')?.status === 'CUMPLE',
+    veredicto(barrida, 'op.acc.3.1')?.status
+  );
+
+  // Un latido rancio tampoco vale: acredita el barrido de hace tres días, no el
+  // silencio de hoy.
+  const rancio = new Date(AHORA);
+  rancio.setDate(rancio.getDate() - 3);
+
+  comprueba(
+    'un latido de hace tres días NO acredita',
+    veredicto(juzgaEn([latido(rancio)]), 'op.acc.3.1')?.status === 'NO_EVALUABLE',
+    veredicto(juzgaEn([latido(rancio)]), 'op.acc.3.1')?.status
+  );
+
+  // Y uno con fecha FUTURA menos: un reloj desviado valdría como latido
+  // perpetuo y volvería verde para siempre una máquina muerta.
+  const futuro = new Date(AHORA);
+  futuro.setDate(futuro.getDate() + 5);
+
+  comprueba(
+    'un latido con fecha futura NO acredita',
+    veredicto(juzgaEn([latido(futuro)]), 'op.acc.3.1')?.status === 'NO_EVALUABLE',
+    veredicto(juzgaEn([latido(futuro)]), 'op.acc.3.1')?.status
+  );
+
+  // Y con acciones observadas no hace falta latido: el hecho es la prueba de
+  // que se miró.
+  const conAccion = juzgaEn([accion('jgomez', 'git push', '/srv/app')]);
+
+  comprueba(
+    'con acciones observadas, el latido no hace falta',
+    veredicto(conAccion, 'op.acc.3.1')?.status === 'CUMPLE',
+    veredicto(conAccion, 'op.acc.3.1')?.status
   );
 }
 
