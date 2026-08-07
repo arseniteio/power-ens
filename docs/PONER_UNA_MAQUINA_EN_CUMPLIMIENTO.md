@@ -263,6 +263,40 @@ comprobar desde el servidor qué se está sirviendo de verdad:
     sudo stat -c '%n %y' $(sudo find /usr/share/wazuh-dashboard/plugins/wazuh \
       -name 'wazuh.chunk.2.js')
 
+## Endurecer la máquina cambia ficheros que el propio control vigila
+
+Es la secuencia que más desconcierta la primera vez, y es correcta:
+
+1. El panel dice que `op.acc.2` EV-01 no conforma: `umask 022` frente al `027`
+   que exige P-07.
+2. Se corrige en `/etc/login.defs`. EV-01 pasa a CUMPLE.
+3. **Y EV-02 pasa a NO_CUMPLE**, porque `/etc/login.defs` es una de las rutas
+   críticas de P-02 y el control de integridad acaba de ver que ha cambiado.
+
+No es un fallo: es el control haciendo su trabajo. Un cambio en un fichero
+vigilado se reporta SIEMPRE, lo haga un atacante o el administrador. Lo que
+distingue a uno de otro no es la herramienta, es que el segundo esté autorizado
+y quede constancia.
+
+El hallazgo se emite UNA vez y la línea base se sustituye por la foto nueva, así
+que la siguiente pasada del recolector lo cierra:
+
+    sudo /usr/local/bin/ens_opacc2_collect.sh
+    sudo bash -c 'set -a; . /etc/ensfacil/opacc2.env; exec /usr/local/bin/ens_opacc2_score.py'
+
+Antes de volver a pasarlo, comprueba que el cambio es el que querías. Volver a
+sellar la línea base sobre un cambio que no reconoces es exactamente cómo se
+pierde una intrusión.
+
+Y guarda la copia previa (`cp /etc/login.defs /etc/login.defs.antes-ens-AAAAMMDD`
+antes de editar): es lo que enseña un auditor cuando pregunta qué había antes.
+
+**Sobre el `umask` en concreto**: `022` crea ficheros 644, legibles por cualquier
+usuario del sistema; `027` los crea 640. Solo afecta a los ficheros NUEVOS, no a
+los que ya existen, y solo a los procesos que arranquen después. Si algún
+servicio esperaba ficheros legibles por todos, se entera al reiniciarlo, no
+antes.
+
 ## Los errores que cuestan una tarde
 
 Ordenados por las veces que han pasado de verdad.
