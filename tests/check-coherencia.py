@@ -781,6 +781,45 @@ for _control in sorted(RUNBOOKS):
     else:
         ok("%s: todo `table` declara sus columnas y coinciden con el TS" % _control)
 
+# =============================================================================
+# 13. Ninguna evidencia acredita el id de un CONTROL en vez de un requisito
+# =============================================================================
+#
+# `requirements: ['op.acc.3']` es el id del CONTROL, no el de ningun requisito.
+# EV-03 de op.acc.3 lo llevaba, y producia una incoherencia visible en la misma
+# pantalla: la tabla de evidencias enseñaba "op.acc.3" en la columna Requisito
+# ENS y la no conformidad de dos bloques mas abajo decia "op.acc.3.2". Un
+# auditor que ve dos identificadores distintos para lo mismo deja de fiarse del
+# informe entero.
+#
+# Es el mismo error que tenia la policy de op.acc.3 —decidir contra el id del
+# control, corregido el 06/08/2026— colado tambien en el catalogo de evidencias,
+# que es otro fichero. Por eso se vigila en los dos sitios.
+
+print()
+print("=== 13. Ninguna evidencia acredita el id de un CONTROL ===")
+print()
+
+_cat = (pathlib.Path(PLUGIN) / "dashboard/ens/core/evidence/catalog.ts").read_text(encoding="utf-8")
+
+_huerfanos = []
+
+for _m in _re.finditer(r"requirements: \[([^\]]*)\]", _cat):
+    for _r in _re.findall(r"'([^']+)'", _m.group(1)):
+        # Un requisito SIEMPRE lleva algo detras del id de su control:
+        # `op.acc.3.1`, `op.acc.3.r1.2`. Si acaba en el numero del control, es
+        # el control.
+        if _re.fullmatch(r"[a-z]+\.[a-z]+\.\d+", _r):
+            _huerfanos.append(_r)
+
+if _huerfanos:
+    falla("hay evidencias que acreditan el id de un CONTROL, no un requisito",
+          "%s. El motor casa por identificador exacto, asi que ese requisito no "
+          "existe y la pantalla ensena un id distinto del que sale en la no "
+          "conformidad." % ", ".join(sorted(set(_huerfanos))))
+else:
+    ok("toda evidencia acredita requisitos, no controles")
+
 if fallos:
     print("{} comprobación(es) FALLAN: {}".format(len(fallos), "; ".join(fallos)))
 if avisos:

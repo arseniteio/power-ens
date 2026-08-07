@@ -714,7 +714,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     title: 'Verificación de concurrencia en tareas críticas',
     description:
       'Comprobación de que las tareas declaradas como críticas en P-04 han sido ejecutadas o aprobadas por al menos el número de personas distintas exigido. Detecta tareas críticas realizadas unilateralmente.',
-    requirements: ['op.acc.3'],
+    // `op.acc.3` A SECAS ES EL ID DEL CONTROL, no el de ningún requisito, y
+    // aquí producía una incoherencia que se veía en la misma pantalla: la tabla
+    // de evidencias enseñaba «op.acc.3» en la columna Requisito ENS y la no
+    // conformidad de dos bloques más abajo decía «op.acc.3.2». Un auditor que
+    // ve dos identificadores distintos para lo mismo deja de fiarse del informe
+    // entero, y con razón.
+    //
+    // Es el mismo error que tenía la policy —decidir contra el id del control—
+    // corregido el 06/08/2026. Aquí quedó sin corregir porque este catálogo es
+    // otro fichero. La concurrencia de tareas críticas la mide op.acc.3.2,
+    // «las personas que autorizan y controlan el uso serán distintas», que es
+    // literalmente el control dual que declara P-04.
+    requirements: ['op.acc.3.2'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
