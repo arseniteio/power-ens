@@ -254,14 +254,36 @@ salida es el del `tail` y parece que fue bien. No hay zip y nadie lo dice:
       --allow-root --opensearch-dashboards-version=2.19.5
     ls -la build/*.zip        # si no hay zip, NO se ha construido
 
-**`wazuh.chunk.2.js` no lleva hash en el nombre.** El navegador sirve el que
-tiene cacheado aunque acabes de desplegar otro, así que una recarga normal
-enseña el plugin viejo y parece que el despliegue no ha hecho nada. Hay que
-recargar forzando (Cmd/Ctrl + Shift + R) o abrir en una ventana privada. Para
-comprobar desde el servidor qué se está sirviendo de verdad:
+**Instalar el plugin NO basta para que nadie vea el cambio, y recargar forzando
+tampoco.** Esto costó tres rondas enteras dando el despliegue por bueno mientras
+el usuario seguía viendo lo de antes.
+
+OpenSearch Dashboards sirve los bundles en
+
+    /{buildHash}/bundles/plugin/wazuh/wazuh.chunk.N.js
+
+y ese `buildHash` sale del `build.number` del `package.json` **del dashboard**,
+no del plugin — está en `src/optimize/optimize_mixin.js`:
+`buildHash: env.packageInfo.buildNum.toString()`. Reinstalar el plugin cambia el
+fichero en disco y **no cambia la URL**. Esos bundles se sirven pensados para ser
+inmutables por `buildHash`, así que el navegador tiene el viejo y no lo vuelve a
+pedir: tampoco con Ctrl+Shift+R, porque para él esa URL ya está resuelta y no ha
+caducado. El problema no es la recarga, es la URL.
+
+Usa **[`config/desplegar-plugin.sh`](../config/desplegar-plugin.sh)**, que hace
+las cinco cosas en orden e incluye la que falta:
+
+    sudo bash config/desplegar-plugin.sh /ruta/al/wazuh-2.19.5.zip
+
+Lo que hace de más es subir el `build.number` del dashboard. Cambia la URL de
+todos los bundles y el navegador los pide de nuevo solo. Cuesta una primera
+carga más lenta, una vez.
+
+Para comprobar desde el servidor qué hay instalado:
 
     sudo stat -c '%n %y' $(sudo find /usr/share/wazuh-dashboard/plugins/wazuh \
       -name 'wazuh.chunk.2.js')
+    grep -o '"number": *"[0-9]*"' /usr/share/wazuh-dashboard/package.json
 
 ## Endurecer la máquina cambia ficheros que el propio control vigila
 
