@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ControlRow } from './control-row';
 import { useRouterSearch } from '../../../common/hooks';
 import { useEsSearch } from '../../../common/hooks/use-es-search';
 import {
@@ -106,49 +107,8 @@ export const ControlsENS = () => {
        agentId,
      );
 
-   const ensControlIds = ENSControls.map(control => control.id);
-
-   const { esResults } = useEsSearch({
-     preAppliedFilters: [
-       evaluationTimeFilter,
-       scopeAgentQueryFilter,
-       {
-         bool: {
-           should: ensControlIds.flatMap(controlId => [
-             { match_phrase: { 'data.ensfacil': controlId } },
-             { match_phrase: { 'data.control': controlId } },
-           ]),
-           minimum_should_match: 1,
-         },
-       },
-     ],
-     // Mismo tope que el detalle y que el panel: si el listado juzga sobre
-     // menos hechos que la ficha del control, el semaforo de la lista y el
-     // porcentaje de dentro pueden contradecirse.
-     size: 10000,
-  });
-  const hits = esResults?.hits?.hits || [];
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const complianceResultByControl = ENSControls.reduce((acc, ensControl) => {
-    const result = getENSComplianceResultByControl(
-      ensControl.id,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    );
-
-    if (result) {
-      acc[ensControl.id] = result;
-    }
-
-    return acc;
-  }, {} as Record<string, ReturnType<typeof getENSComplianceResultByControl>>);
+   // La consulta compartida se ha retirado: la hacía cada fila por su cuenta
+   // desde el 10/08/2026. Ver `control-row.tsx`.
 
   if (selectedControl) {
     return (
@@ -200,35 +160,26 @@ export const ControlsENS = () => {
           </p>
         </EuiText>
         <EuiSpacer size='l' />
+        {/* CADA FILA CONSULTA LO SUYO. Ver la cabecera de `control-row.tsx`:
+            una sola búsqueda compartida hacía que el control con más volumen
+            se quedara con los 10.000 hechos y dejara a los demás sin datos, y
+            la lista contradecía a la ficha del mismo control. */}
         <EuiFacetGroup>
-          {items.map(item => (
-            <EuiFacetButton
-              key={item.id}
-              quantity={item.alerts}
-              isSelected={false}
-              onClick={() => setSelectedControl(item.control)}
-              style={{
-                // EL COLOR SIGUE AL ESTADO, no al recuento de alertas. Antes lo
-                // decidía `item.alerts > 0`, así que un PARCIAL con una no
-                // conformidad y un NO_CUMPLE con cinco se pintaban IGUAL: la
-                // lista entera salía del mismo color y no comunicaba nada más
-                // que «todo mal». El estado ya está calculado y dice tres cosas
-                // distintas; el color tiene que decir las tres.
-                borderLeft: `4px solid ${colorDelEstado(item.status)}`,
-                marginBottom: 8,
-              }}
-            >
-              <strong>{item.id}</strong> — {item.title}
-              <EuiBadge color='hollow' style={{ marginLeft: 8 }}>{item.levels}</EuiBadge>
-              <EuiBadge color={badgeDelEstado(item.status)} style={{ marginLeft: 6 }}>
-                {item.status}
-              </EuiBadge>
-              {item.pending > 0 && (
-                <EuiBadge color='default' iconType='questionInCircle' style={{ marginLeft: 6 }}>
-                  {item.pending} no evidenciada{item.pending === 1 ? '' : 's'}
-                </EuiBadge>
-              )}
-            </EuiFacetButton>
+          {ENSControls.map(ensControl => (
+            <ControlRow
+              key={ensControl.id}
+              controlId={ensControl.id}
+              title={ensControl.title}
+              levels={ensControl.levels.join(', ')}
+              ensLevel={ensLevel}
+              evaluationPeriod={activeConfiguration.global.evaluationPeriod}
+              agentId={agentId}
+              scopeAgents={scopeAgents}
+              scopeFilter={scopeAgentQueryFilter}
+              colorDelEstado={colorDelEstado}
+              badgeDelEstado={badgeDelEstado}
+              onSelect={() => setSelectedControl(ensControl)}
+            />
           ))}
         </EuiFacetGroup>
       </EuiPanel>
