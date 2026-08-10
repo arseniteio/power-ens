@@ -314,27 +314,20 @@ export const ControlEvolutionChart = ({
 
   return (
     <div>
-      <div
-        style={{
-          position: 'relative',
-          height: 250,
-          padding: '8px 14px 46px 60px',
-        }}
-      >
+      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+        {/* El eje, fuera del área de dibujo: así el área mide exactamente lo
+            que ocupa la curva y un punto al 50 % cae en el 50 % de verdad. */}
         <div
           style={{
-            position: 'absolute',
-            left: 8,
-            top: 8,
-            bottom: 32,
-            width: 40,
+            height: 190,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
             alignItems: 'flex-end',
-            color: '#69707D',
-            fontSize: 12,
+            color: '#98A2B3',
+            fontSize: 11,
             fontWeight: 600,
+            paddingTop: 1,
           }}
         >
           <span>100%</span>
@@ -344,17 +337,45 @@ export const ControlEvolutionChart = ({
           <span>0%</span>
         </div>
 
-        <svg
-          width='100%'
-          height='215'
-          viewBox='0 0 600 215'
-          preserveAspectRatio='none'
+        {/* ESTE div ES el área del gráfico: 100 % de ancho y 190 px de alto. Los
+            puntos se posicionan dentro con `left`/`top` en porcentaje puro, que
+            es lo único que cuadra sin hacer cuentas con el padding. */}
+        <div
           style={{
-            overflow: 'visible',
-            borderLeft: '1px solid #B9C3D0',
-            borderBottom: '1px solid #B9C3D0',
+            position: 'relative',
+            flex: 1,
+            height: 190,
+            marginBottom: 34,
           }}
         >
+
+        {/* EL SVG SOLO DIBUJA LA CURVA Y LA REJILLA.
+            
+            Con `preserveAspectRatio='none'` el viewBox de 600 se estira hasta
+            los ~1900 px del contenedor, y con él se estira TODO lo que haya
+            dentro: el texto salía deformado 3x a lo ancho y los puntos eran
+            elipses en vez de círculos. Un trazo y un relleno aguantan esa
+            deformación —de hecho la necesitan para llenar el ancho—; el texto y
+            los círculos no.
+            
+            Así que los puntos y las etiquetas se dibujan FUERA, en HTML
+            posicionado por porcentaje. Se ven nítidos, redondos y del tamaño
+            que se les pide, y siguen cuadrando con la curva porque usan la
+            misma coordenada. */}
+        <svg
+          width='100%'
+          height='190'
+          viewBox={`0 0 ${ANCHO} ${ALTO}`}
+          preserveAspectRatio='none'
+          style={{ display: 'block', overflow: 'visible' }}
+        >
+          <defs>
+            <linearGradient id='ens-evolucion' x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='0%' stopColor='#006BB4' stopOpacity='0.22' />
+              <stop offset='100%' stopColor='#006BB4' stopOpacity='0.01' />
+            </linearGradient>
+          </defs>
+
           {[0, 25, 50, 75, 100].map(valor => (
             <line
               key={valor}
@@ -362,18 +383,12 @@ export const ControlEvolutionChart = ({
               y1={coordenadaY(valor)}
               x2={ANCHO}
               y2={coordenadaY(valor)}
-              stroke='#D3DAE6'
-              strokeDasharray={valor === 0 ? '0' : '6 6'}
+              stroke='#E3E8F0'
+              strokeDasharray={valor === 0 ? '0' : '4 6'}
               strokeWidth='1'
+              vectorEffect='non-scaling-stroke'
             />
           ))}
-
-          <defs>
-            <linearGradient id='ens-evolucion' x1='0' y1='0' x2='0' y2='1'>
-              <stop offset='0%' stopColor='#006BB4' stopOpacity='0.28' />
-              <stop offset='100%' stopColor='#006BB4' stopOpacity='0.02' />
-            </linearGradient>
-          </defs>
 
           {relleno && <path d={relleno} fill='url(#ens-evolucion)' />}
 
@@ -381,70 +396,95 @@ export const ControlEvolutionChart = ({
             d={trazo}
             fill='none'
             stroke='#006BB4'
-            strokeWidth='2.5'
+            strokeWidth='2'
             strokeLinecap='round'
             strokeLinejoin='round'
+            // Sin esto el trazo también se estiraría y saldría más grueso en
+            // horizontal que en vertical.
+            vectorEffect='non-scaling-stroke'
           />
+        </svg>
 
-          {puntos.map((punto, indice) => (
-            <g key={`${punto.label}-${indice}`}>
-              {/* EL PUNTO DE HOY LLEVA SU COLOR, no blanco. Antes se pintaba
-                  hueco para distinguirlo, y en un control al 100 % el único
-                  color que se veía era el naranja de un día pasado: parecía que
-                  el control estaba en amarillo cuando estaba en verde. Se
-                  distingue por el anillo blanco y el tamaño, no por perder el
-                  color, que es el dato. */}
-              {punto.isCurrent && (
-                <circle
-                  cx={punto.x}
-                  cy={punto.y}
-                  r='9'
-                  fill='#FFFFFF'
-                  stroke='#FFFFFF'
-                  strokeWidth='3'
-                />
-              )}
+        {/* Los puntos y sus etiquetas, en HTML: nítidos y sin deformar. */}
+        {puntos.map((punto, indice) => {
+          const izquierda = (punto.x / ANCHO) * 100;
+          const arriba = (punto.y / ALTO) * 100;
 
-              <circle
-                cx={punto.x}
-                cy={punto.y}
-                r={punto.isCurrent ? '6.5' : '5'}
-                fill={colorDe(punto.status)}
-                stroke={punto.isCurrent ? '#1A1C21' : colorDe(punto.status)}
-                strokeWidth={punto.isCurrent ? '2' : '2'}
+          // Las etiquetas de los extremos se anclan hacia dentro para que no se
+          // salgan del panel, que es lo que pasaba con el 75 % del primer y del
+          // último día.
+          const anclaje =
+            izquierda < 6
+              ? 'translate(0, -50%)'
+              : izquierda > 94
+              ? 'translate(-100%, -50%)'
+              : 'translate(-50%, -50%)';
+
+          return (
+            <div key={`${punto.label}-${indice}`}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${izquierda}%`,
+                  top: `${arriba}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: punto.isCurrent ? 13 : 9,
+                  height: punto.isCurrent ? 13 : 9,
+                  borderRadius: '50%',
+                  background: colorDe(punto.status),
+                  border: punto.isCurrent
+                    ? '2.5px solid #1A1C21'
+                    : '2px solid #FFFFFF',
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.06)',
+                  zIndex: 2,
+                }}
               />
 
-              {/* Con pocos puntos se etiquetan todos; con treinta, un número
-                  sobre cada uno es ilegible y solo se marcan los extremos. */}
-              {(puntos.length <= 8 ||
+              {(puntos.length <= 10 ||
                 indice === 0 ||
                 indice === puntos.length - 1 ||
                 punto.isCurrent) && (
-                <text
-                  x={punto.x}
-                  y={punto.y - 12}
-                  textAnchor='middle'
-                  fontSize='13'
-                  fontWeight='700'
-                  fill={colorDe(punto.status)}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${izquierda}%`,
+                    top: `${arriba}%`,
+                    marginTop: -19,
+                    transform: anclaje,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: colorDe(punto.status),
+                    whiteSpace: 'nowrap',
+                    zIndex: 2,
+                  }}
                 >
                   {punto.score}%
-                </text>
+                </div>
               )}
 
-              <text
-                x={punto.x}
-                y='212'
-                textAnchor='middle'
-                fontSize='11'
-                fontWeight='600'
-                fill='#69707D'
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${izquierda}%`,
+                  bottom: -20,
+                  transform:
+                    izquierda < 6
+                      ? 'translateX(0)'
+                      : izquierda > 94
+                      ? 'translateX(-100%)'
+                      : 'translateX(-50%)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#98A2B3',
+                  whiteSpace: 'nowrap',
+                }}
               >
                 {punto.label}
-              </text>
-            </g>
-          ))}
-        </svg>
+              </div>
+            </div>
+          );
+        })}
+        </div>
       </div>
 
       <EtiquetaDeLectura
