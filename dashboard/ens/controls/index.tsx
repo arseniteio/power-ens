@@ -120,28 +120,9 @@ export const ControlsENS = () => {
     );
   }
 
-  const items = ENSControls.map(control => ({
-    control,
-    id: control.id,
-    title: control.title,
-    levels: control.scope.activeLevels.join(', '),
-    requirements: control.requirements.length,
-    evidences: control.evidences.length,
-    // Sin resultado no es que el control incumpla: es que no está en el
-    // catálogo del motor. Ése es el único gris que queda en esta pantalla.
-    status: complianceResultByControl[control.id]?.status || 'NO_EVALUABLE',
-    // TODAS las no conformidades, un solo número. Desde el 04/08 lo que no se
-    // ha podido demostrar cuenta igual que lo demostrado: partir el contador
-    // era lo que permitía leer una mitad como «esto no cuenta».
-    alerts: complianceResultByControl[control.id]?.nonConformities.length || 0,
-    // Cuántas de ésas lo son por falta de prueba. No es otro contador de
-    // hallazgos: es el desglose del mismo, y sirve para saber qué acción toca.
-    pending:
-      complianceResultByControl[control.id]?.nonConformities.filter(
-        nonConformity => nonConformity.origin === 'NO_EVIDENCIADA',
-      ).length || 0,
-    hasData: !!complianceResultByControl[control.id],
-  }));
+  // El bloque `items` se ha retirado: cada fila calcula lo suyo desde el
+  // 10/08/2026, porque una consulta compartida hacía que el control con más
+  // volumen dejara a los demás sin datos. Ver `control-row.tsx`.
 
   return (
     <EuiPage paddingSize='m'>
@@ -170,7 +151,7 @@ export const ControlsENS = () => {
               key={ensControl.id}
               controlId={ensControl.id}
               title={ensControl.title}
-              levels={ensControl.levels.join(', ')}
+              levels={ensControl.scope.activeLevels.join(', ')}
               ensLevel={ensLevel}
               evaluationPeriod={activeConfiguration.global.evaluationPeriod}
               agentId={agentId}
