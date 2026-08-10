@@ -201,15 +201,35 @@ export const ControlEvolutionChart = ({
   // dos medidas.
   const serieCorta = puntos.length < 4;
 
-  // El relleno bajo la línea. Da volumen a lo que si no son dos puntos sueltos
-  // sobre una rejilla vacía.
-  const areaPoints = puntos.length > 1
-    ? [
-        ...puntos.map(punto => `${punto.x},${punto.y}`),
-        `${puntos[puntos.length - 1].x},${ALTO}`,
-        `${puntos[0].x},${ALTO}`,
-      ].join(' ')
+  // UNA CURVA, NO UNA POLILÍNEA QUEBRADA.
+  //
+  // Se traza con curvas de Bézier cuyos puntos de control están a media
+  // distancia horizontal entre dos días, lo que da una curva suave que NUNCA se
+  // sale del rango de los valores que une: un tramo entre 50 % y 75 % no puede
+  // dibujar un pico en 80 % que nadie midió. Con `curveMonotone` o similares
+  // habría que vigilarlo; con puntos de control horizontales es imposible por
+  // construcción, y en un gráfico de cumplimiento eso importa más que la
+  // elegancia de la curva.
+  const trazo = puntos.length
+    ? puntos
+        .map((punto, indice) => {
+          if (indice === 0) {
+            return `M ${punto.x},${punto.y}`;
+          }
+
+          const previo = puntos[indice - 1];
+          const medio = (previo.x + punto.x) / 2;
+
+          return `C ${medio},${previo.y} ${medio},${punto.y} ${punto.x},${punto.y}`;
+        })
+        .join(' ')
     : '';
+
+  // El relleno bajo la curva: el mismo trazo, cerrado contra el eje.
+  const relleno =
+    puntos.length > 1
+      ? `${trazo} L ${puntos[puntos.length - 1].x},${ALTO} L ${puntos[0].x},${ALTO} Z`
+      : '';
 
   // CON POCOS DÍAS, BARRAS. Una línea necesita al menos tres o cuatro puntos
   // para decir algo; con dos es una raya diagonal sobre una rejilla vacía, y con
@@ -348,22 +368,22 @@ export const ControlEvolutionChart = ({
             />
           ))}
 
-          {areaPoints && (
-            <polygon
-              points={areaPoints}
-              fill='rgba(0, 107, 180, 0.12)'
-            />
-          )}
+          <defs>
+            <linearGradient id='ens-evolucion' x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='0%' stopColor='#006BB4' stopOpacity='0.28' />
+              <stop offset='100%' stopColor='#006BB4' stopOpacity='0.02' />
+            </linearGradient>
+          </defs>
 
-          <polyline
+          {relleno && <path d={relleno} fill='url(#ens-evolucion)' />}
+
+          <path
+            d={trazo}
             fill='none'
             stroke='#006BB4'
             strokeWidth='2.5'
             strokeLinecap='round'
             strokeLinejoin='round'
-            points={puntos
-              .map(punto => `${punto.x},${punto.y}`)
-              .join(' ')}
           />
 
           {puntos.map((punto, indice) => (

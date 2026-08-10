@@ -32,6 +32,7 @@ import {
 } from './general-view';
 import { getActiveENSConfiguration } from '../../configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
+import { MotiveCell } from './motive-cell';
 import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
 
 interface ControlDetailENSProps {
@@ -693,13 +694,27 @@ export const ControlDetailENS = ({
 
   // Sin número no hay rosco que pintar: el anillo entero en gris dice "no se ha
   // medido", y no un 0 % en rojo.
+  // EL ARCO ES EL NÚMERO, y su color es el ESTADO. Nada más.
+  //
+  // Antes pintaba una franja ámbar de quince puntos justo antes del final,
+  // siempre, dijera lo que dijera el control: un 100 % CUMPLE salía con un
+  // trozo naranja y un 20 % también. Era decoración que parecía significar algo
+  // —«esta parte está a medias»— sin corresponder a ninguna medida. En un
+  // gráfico de cumplimiento eso no es un adorno inocente: es una franja que un
+  // auditor puede leer como un dato.
+  const colorDelArco =
+    motorStatus === 'CUMPLE'
+      ? '#00A69B'
+      : motorStatus === 'PARCIAL'
+      ? '#F5A700'
+      : motorStatus === 'NO_CUMPLE'
+      ? '#BD271E'
+      : '#98A2B3';
+
   const donutBackground =
     motorScore === undefined
-      ? 'conic-gradient(#d3dae6 0 100%)'
-      : `conic-gradient(#00a69b 0 ${Math.max(
-          0,
-          motorScore - 15,
-        )}%, #f5a700 ${Math.max(0, motorScore - 15)}% ${motorScore}%, #d3dae6 ${motorScore}% 100%)`;
+      ? 'conic-gradient(#D3DAE6 0 100%)'
+      : `conic-gradient(${colorDelArco} 0 ${motorScore}%, #EEF2F7 ${motorScore}% 100%)`;
 
   // Acciones distintas para cosas distintas, aunque el veredicto sea el mismo.
   // Un incumplimiento no evidenciado no se "revisa": se configura el parámetro
@@ -787,10 +802,11 @@ export const ControlDetailENS = ({
                 <div style={{ textAlign: 'center', padding: '14px 0' }}>
                   <div
                     style={{
-                      width: 170,
-                      height: 170,
+                      width: 176,
+                      height: 176,
                       borderRadius: '50%',
                       background: donutBackground,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                       margin: '0 auto',
                       display: 'flex',
                       alignItems: 'center',
@@ -799,21 +815,40 @@ export const ControlDetailENS = ({
                   >
                     <div
                       style={{
-                        width: 108,
-                        height: 108,
+                        width: 122,
+                        height: 122,
                         borderRadius: '50%',
                         background: '#fff',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         textAlign: 'center',
+                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.04)',
                       }}
                     >
-                      <EuiText>
-                        <strong style={{ fontSize: 30 }}>{motorScoreTexto}</strong>
-                        <br />
+                      <span
+                        style={{
+                          fontSize: 34,
+                          fontWeight: 700,
+                          lineHeight: 1.1,
+                          color: colorDelArco,
+                          letterSpacing: '-0.02em',
+                        }}
+                      >
+                        {motorScoreTexto}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: '0.04em',
+                          color: '#69707D',
+                          marginTop: 2,
+                        }}
+                      >
                         {globalStatus}
-                      </EuiText>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1295,42 +1330,38 @@ export const ControlDetailENS = ({
                 item: (typeof evidenceStatusItems)[number],
               ) => {
                 // Vista de un agente: no hay nada que agrupar, la máquina es la
-                // pantalla entera.
+                // pantalla entera. El motivo llega como una sola cadena con los
+                // tramos separados por ' · ', y se parte para poder plegarla:
+                // la primera frase es la que decide y el resto suele ser la
+                // enumeración de desviaciones.
                 if (motivos.length === 0) {
-                  return item.motivo ? (
-                    <EuiText size='xs'>{item.motivo}</EuiText>
-                  ) : (
-                    <EuiText size='xs' color='subdued'>
-                      Sin motivo registrado
-                    </EuiText>
+                  return (
+                    <MotiveCell
+                      lineas={(item.motivo || '')
+                        .split(' · ')
+                        .map(texto => texto.trim())
+                        .filter(Boolean)
+                        .map(texto => ({ texto }))}
+                    />
                   );
                 }
 
                 const { visibles, ocultos } = resumirMotivos(motivos);
 
                 return (
-                  <EuiText size='xs'>
-                    {visibles.map(grupo => (
-                      <p key={grupo.text} style={{ marginBottom: 6 }}>
-                        {/* En cuántas máquinas ocurre, delante del texto: es lo
-                            que distingue «pasa en toda la flota» de «pasa en
-                            una». Con una sola, se la nombra. */}
-                        <EuiBadge color='hollow'>
-                          {etiquetaDeMaquinas(grupo.agents, totalMaquinas)}
-                        </EuiBadge>{' '}
-                        {grupo.text}
-                      </p>
-                    ))}
-
-                    {/* Lo que no cabe se anuncia, nunca se calla: agregar no es
-                        esconder. El detalle entero está seleccionando el agente. */}
-                    {ocultos > 0 && (
-                      <p style={{ color: '#69707D' }}>
-                        y {ocultos} motivo{ocultos === 1 ? '' : 's'} más ·
-                        seleccione un agente para verlos todos
-                      </p>
-                    )}
-                  </EuiText>
+                  <MotiveCell
+                    // En cuántas máquinas ocurre, delante del texto: es lo que
+                    // distingue «pasa en toda la flota» de «pasa en una». Con
+                    // una sola, se la nombra.
+                    lineas={visibles.map(grupo => ({
+                      texto: grupo.text,
+                      etiqueta: etiquetaDeMaquinas(
+                        grupo.agents,
+                        totalMaquinas
+                      ),
+                    }))}
+                    ocultos={ocultos}
+                  />
                 );
               },
             },
