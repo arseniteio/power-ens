@@ -14,48 +14,49 @@ adelante se abrevia `<RAIZ>`.
 
 ## 0. Cuánto hay y dónde
 
-Medido el 12/08/2026 con:
+Lo que se cuenta aquí es la **documentación de origen**: los repos del producto
+y de los controles. Se excluyen a propósito las bases de conocimiento
+(`*base-conocimiento*`, `*base-de-conocimiento*`), porque este documento vive
+dentro de una de ellas y contarse a sí mismo da un número que cambia cada vez
+que alguien escribe. Medido el 12/08/2026 a las 13:30 con:
 
 ```bash
 cd <RAIZ>
-# todo
-find . -name '*.md' -not -path '*/.git/*' -not -path '*/venv/*' \
-       -not -path '*/Automatización-Controles/Wazuh-ENS/*' | wc -l
-find . -name '*.md' -not -path '*/.git/*' -not -path '*/venv/*' \
-       -not -path '*/Automatización-Controles/Wazuh-ENS/*' -exec cat {} + | wc -l
-# sin los informes de agente
+BASE="-not -path */.git/* -not -path */venv/*"
+# todo (informes de agente incluidos)
 find . -name '*.md' -not -path '*/.git/*' -not -path '*/venv/*' \
        -not -path '*/Automatización-Controles/Wazuh-ENS/*' \
-       -not -path '*superpowers*' | wc -l
+       -not -path '*base-conocimiento*' -not -path '*base-de-conocimiento*' | wc -l
 find . -name '*.md' -not -path '*/.git/*' -not -path '*/venv/*' \
        -not -path '*/Automatización-Controles/Wazuh-ENS/*' \
-       -not -path '*superpowers*' -exec cat {} + | wc -l
+       -not -path '*base-conocimiento*' -not -path '*base-de-conocimiento*' \
+       -exec cat {} + | wc -l
+# sin los informes de agente: añadir  -not -path '*superpowers*'  a los dos
 ```
 
 | | Ficheros `.md` | Líneas |
 |---|---|---|
-| Todo | 146 | 53.914 |
-| Sin los informes de agente (`.superpowers/`, `docs/superpowers/`) | 104 | 27.796 |
-
-> **Estas dos cifras se cuentan a sí mismas y por tanto se mueven.** Esta base
-> de conocimiento vive en `Wazuh-ENS/base-conocimiento/` y entra en el `find`.
-> Los números de arriba son los de la ejecución del 12/08/2026 a las 13:30; una
-> ejecución posterior dará más. No los cites de memoria: vuelve a ejecutar el
-> comando.
+| Todo | 140 | 52.309 |
+| Sin los informes de agente (`.superpowers/`, `docs/superpowers/`) | 98 | 26.191 |
 
 La cifra útil —lo que alguien va a leer— es la segunda. La diferencia son los
 `task-N-report.md` y `progress.md` que dejaron las sesiones de desarrollo,
 sobre todo en `op.acc.1-identificacion/.superpowers/sdd/` (27 ficheros).
 
+> **Cualquier recuento de este documento es una foto, y el árbol se mueve.**
+> Mientras se verificaba esto (12/08, 13:00-13:30) aparecieron 98 `.md` nuevos
+> en `<RAIZ>` que antes no estaban. Si un número no cuadra, **vuelve a ejecutar
+> el comando** en vez de discutir con la tabla.
+
 ### Los repositorios
 
 Doce directorios con `.git` propio, más uno que no es repo. La columna de
-líneas **excluye** `superpowers/` (los informes de agente) e incluye todo lo
-demás:
+líneas **excluye** `superpowers/` (los informes de agente) y las bases de
+conocimiento, e incluye todo lo demás:
 
 | Directorio | Qué es | `.md` (líneas) |
 |---|---|---|
-| `Wazuh-ENS/` | **El plugin.** Motor, UI, reglas canónicas, config, `docs/`, esta `base-conocimiento/` | 9.471 (7.866 sin `base-conocimiento/`) |
+| `Wazuh-ENS/` | **El plugin.** Motor, UI, reglas canónicas, config, `docs/`, y esta `base-conocimiento/` (no contada) | 7.866 |
 | `mp.info.6-proxmox-backup-runbook/` | Runbook Linux · copias de seguridad (Proxmox Backup Server) | 2.406 |
 | `op.acc.1-identificacion/` | Runbook Linux · identificación | 1.968 |
 | `op.acc.2-requisitos-de-acceso/` | Runbook Linux · requisitos de acceso | 2.487 |
