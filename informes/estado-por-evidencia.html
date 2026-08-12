@@ -1,0 +1,450 @@
+<title>ENSFácil · evidencia por evidencia: por qué no cumple y qué necesita</title>
+<style>
+  :root {
+    --ground:#FBFCFD; --surface:#F2F5F7; --surface-2:#E9EEF1; --hairline:#D8E0E5;
+    --ink:#16212B; --ink-muted:#566874; --accent:#0B6A6A; --accent-soft:#E2EFEF;
+    --ok:#1B6F45; --bad:#A93318; --none:#866214; --na:#6B7A85;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --serif: "Iowan Old Style", Charter, "Charis SIL", Georgia, Cambria, serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1418; --surface:#161F25; --surface-2:#1D272E; --hairline:#27343C;
+      --ink:#E4EBEF; --ink-muted:#97A7B2; --accent:#4FBDB6; --accent-soft:#122C2C;
+      --ok:#5DC08A; --bad:#E8836A; --none:#D6B45C; --na:#7C8C97;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1418; --surface:#161F25; --surface-2:#1D272E; --hairline:#27343C;
+    --ink:#E4EBEF; --ink-muted:#97A7B2; --accent:#4FBDB6; --accent-soft:#122C2C;
+    --ok:#5DC08A; --bad:#E8836A; --none:#D6B45C; --na:#7C8C97;
+  }
+
+  body{background:var(--ground);color:var(--ink);font-family:var(--serif);
+       font-size:16.5px;line-height:1.6;margin:0;padding:0 1.4rem 5rem;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:56rem;margin:0 auto;display:flex;flex-direction:column;gap:2.4rem}
+
+  header{padding-top:3.5rem;display:flex;flex-direction:column;gap:.8rem}
+  .eyebrow{font-family:var(--sans);font-size:.72rem;font-weight:650;letter-spacing:.13em;
+           text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--sans);font-size:clamp(1.7rem,4vw,2.35rem);line-height:1.14;
+     font-weight:680;letter-spacing:-.02em;margin:0;text-wrap:balance}
+  .standfirst{font-size:1.06rem;color:var(--ink-muted);margin:0;text-wrap:pretty}
+  .meta{font-family:var(--mono);font-size:.75rem;color:var(--ink-muted);
+        border-top:1px solid var(--hairline);padding-top:.75rem}
+
+  h2{font-family:var(--sans);font-size:1.28rem;font-weight:650;letter-spacing:-.014em;margin:0;
+     padding-bottom:.45rem;border-bottom:2px solid var(--accent);align-self:flex-start;text-wrap:balance}
+  h3{font-family:var(--sans);font-size:1.05rem;font-weight:650;margin:1.5rem 0 .1rem;
+     letter-spacing:-.008em;display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+  h3 .score{font-family:var(--mono);font-size:.86rem;font-weight:600;font-variant-numeric:tabular-nums}
+  section{display:flex;flex-direction:column;gap:.9rem}
+  p{margin:0;text-wrap:pretty}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface);padding:.1em .34em;border-radius:3px}
+
+  .ev{border:1px solid var(--hairline);border-radius:7px;background:var(--surface);
+      padding:.85rem 1rem;display:flex;flex-direction:column;gap:.4rem}
+  .ev.ok{opacity:.72}
+  .ev .top{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+  .ev .id{font-family:var(--mono);font-weight:700;font-size:.92rem}
+  .ev .name{font-family:var(--sans);font-size:.88rem;color:var(--ink-muted)}
+  .ev .body{font-size:.97rem}
+  .ev .need{font-size:.94rem;border-top:1px dashed var(--hairline);padding-top:.45rem;margin-top:.1rem}
+  .ev .need b{font-family:var(--sans);font-size:.74rem;letter-spacing:.07em;text-transform:uppercase;
+              color:var(--accent);display:block;margin-bottom:.15rem;font-weight:650}
+  .tag{font-family:var(--mono);font-size:.71rem;font-weight:700;padding:.13em .45em;
+       border-radius:3px;white-space:nowrap;border:1px solid currentColor}
+  .t-ok{color:var(--ok)} .t-bad{color:var(--bad)} .t-none{color:var(--none)} .t-na{color:var(--na)}
+
+  .arith{background:var(--surface-2);border:1px solid var(--hairline);border-radius:7px;
+         padding:.9rem 1.1rem;font-family:var(--mono);font-size:.85rem;line-height:1.85;
+         overflow-x:auto;white-space:pre}
+  .callout{border-left:3px solid var(--accent);background:var(--accent-soft);
+           padding:.9rem 1.1rem;border-radius:0 5px 5px 0;display:flex;flex-direction:column;gap:.5rem}
+  .callout p{font-size:.96rem}
+  .machine{background:var(--surface-2);border:1px solid var(--hairline);border-radius:8px;
+           padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.3rem}
+  .machine .name{font-family:var(--sans);font-weight:680;font-size:1.08rem}
+  .machine .host{font-family:var(--mono);font-size:.76rem;color:var(--ink-muted)}
+  ul.plain{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.4rem;font-size:.97rem}
+  footer{border-top:1px solid var(--hairline);padding-top:1rem;font-family:var(--sans);
+         font-size:.82rem;color:var(--ink-muted)}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Quersystem · ENSFácil · informe operativo</div>
+  <h1>Evidencia por evidencia: por qué no cumple y qué necesita</h1>
+  <p class="standfirst">Una entrada por cada evidencia de cada control en las dos máquinas, con la
+  razón concreta y la acción concreta. Las que ya conforman van atenuadas: están para que se vea el
+  cuadro completo, no para leerlas.</p>
+  <div class="meta">medido el 12/08/2026 · nivel ENS MEDIO · ventana de evaluación 30 días · manager wazuh4</div>
+</header>
+
+<section>
+  <h2>Antes de nada: por qué un control con evidencias en verde puede marcar 0 %</h2>
+  <p>Es la pregunta que más se repite, y la respuesta es aritmética. <strong>Un requisito cumple
+  solo si todas sus evidencias conforman.</strong> El porcentaje del control es
+  <em>requisitos que cumplen ÷ requisitos aplicables</em> — las evidencias no puntúan por su cuenta.</p>
+
+  <p>Caso real, <code>op.acc.2</code> del servidor LDAP, que tiene <strong>tres evidencias
+  conformes</strong> y marca cero:</p>
+
+  <div class="arith">op.acc.2.1  =  EV-01 ✗ NO_CUMPLE      +  EV-03 ✗ NO_EVALUABLE   →  NO CUMPLE
+op.acc.2.2  =  EV-03 ✗ NO_EVALUABLE   +  EV-04 ✓ CUMPLE         →  NO CUMPLE
+op.acc.2.3  =  EV-03 ✗ NO_EVALUABLE   +  EV-07 ✓ CUMPLE         →  NO CUMPLE
+                                                                    ─────────
+                                                        0 de 3 requisitos  =  0 %</div>
+
+  <p>EV-02, EV-04 y EV-07 conforman, pero <strong>los tres requisitos pasan por EV-03</strong>. No
+  existe ni un requisito hecho solo de evidencias conformes, así que no hay nada que sumar. La
+  lectura útil: <strong>arreglar EV-03 sola hace cumplir dos de los tres</strong> — y con EV-01,
+  el control entero.</p>
+
+  <div class="callout">
+    <p><strong>Cómo saber dónde invertir el esfuerzo:</strong> mira a cuántos requisitos afecta cada
+    evidencia, no cuántas evidencias fallan. Una evidencia presente en tres requisitos vale tres
+    veces más que una que solo toca a uno. El panel lo dice en la línea «Lo que separa las dos
+    cifras».</p>
+  </div>
+</section>
+
+<section>
+  <h2>Y por qué op.acc.3 marca 100 % con dos evidencias sin medir</h2>
+  <p>Parece lo contrario del caso anterior, y también tiene explicación. <strong>op.acc.3 es el
+  único control con evaluador de política propio</strong> (<code>policy.op.acc.3</code>): sus
+  requisitos no se resuelven encadenando evidencias, sino midiendo directamente si alguna cuenta
+  acumula funciones incompatibles.</p>
+  <p>La razón es que su hecho no significa nada por sí solo: «jgomez ejecutó <code>git push</code>»
+  no incumple nada; incumple si <em>esa misma cuenta</em> ejerce además una función incompatible en
+  la ventana. Eso exige clasificar, agrupar por cuenta y cruzar — tres cosas a la vez que ninguna
+  primitiva de evidencia hace.</p>
+  <p>Por eso EV-02 y EV-07 pueden estar en <code>NO_EVALUABLE</code> y los dos requisitos cumplir:
+  la política ya ha medido las 10 cuentas observadas y ninguna aúna funciones incompatibles.</p>
+</section>
+
+<!-- ══════════════════════ LDAP ══════════════════════ -->
+<section>
+  <h2>zimbraHldap · servidor de directorio LDAP</h2>
+  <div class="machine">
+    <div class="name">ldapserver.qsprueba.com · Ubuntu 22.04 · Zimbra · agente 028</div>
+    <div class="host">op.acc.1 75 % · op.acc.2 0 % · op.acc.3 100 % · op.acc.4 20 %</div>
+  </div>
+
+  <h3>op.acc.1 · Identificación <span class="score">75 % · 6 de 8 requisitos</span></h3>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-06</span><span class="tag t-none">NO_EVALUABLE · CONFIGURATION</span>
+      <span class="name">identificador diferenciado por rol</span></div>
+    <div class="body"><strong>Es no evaluable porque el plano directorio no se puede leer.</strong>
+    El plano sistema sí conforma —se creó <code>ldap-zimbra.adm</code> como identidad administrativa
+    y se retiró <code>sudo</code> a <code>ldapcopy</code> y <code>user</code>—, pero para saber qué
+    cuentas del <em>directorio</em> son administradoras hace falta el atributo
+    <code>zimbraIsAdminAccount</code>, y la ACL de slapd lo reserva. El veredicto consolidado se
+    queda con el peor de los dos planos: <code>sistema:CUMPLE, directorio:NO_EVALUABLE</code>.</div>
+    <div class="need"><b>Qué necesita</b>Una cuenta LDAP de <strong>solo lectura</strong> declarada
+    en <code>OPACC1LDAP_BIND_DN</code> de <code>/etc/ensfacil/opacc1-ldap.env</code>. Crearla exige
+    la credencial de administración de Zimbra <em>una vez</em>; usarla a diario, no. Arrastra
+    <code>op.acc.1.2</code> y <code>op.acc.1.r1.2</code> — es todo el 25 % que falta.</div>
+  </div>
+
+  <div class="ev ok"><div class="top"><span class="id">EV-01</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">inventario · 5 cuentas de sistema + 5 del directorio, sin uid duplicado ni colisiones entre planos</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-02</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna de las fuentes de identidad ha cambiado desde la pasada anterior</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-03</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna autenticación observada usó una cuenta genérica de las prohibidas en P-04</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-04</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">registro de bajas declarado y sin bajas: no hay plazo que se haya podido incumplir</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-05</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna cuenta de servicio de P-03 se usó para acceso interactivo</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-07</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">las 12 cuentas activas figuran en la lista autorizada P-07</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-08</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna cuenta eliminada antes del periodo de retención</span></div></div>
+
+  <h3>op.acc.2 · Requisitos de acceso <span class="score">0 % · 0 de 3 requisitos</span></h3>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-03</span><span class="tag t-none">NO_EVALUABLE · CONFIGURATION</span>
+      <span class="name">registro de intentos de acceso · <strong>bloquea los tres requisitos</strong></span></div>
+    <div class="body"><strong>Es no evaluable porque slapd no registra ni un intento de acceso al
+    directorio.</strong> <code>olcLogLevel</code> vale <code>Sync None</code> y no incluye
+    <code>stats</code>, así que no hay ningún bind fallido ni acceso denegado que leer. El plano
+    sistema sí conforma (<em>todas las elevaciones del lote las hicieron cuentas autorizadas</em>),
+    pero el consolidado manda el peor.</div>
+    <div class="need"><b>Qué necesita</b><code>olcLogLevel: stats</code> en <code>cn=config</code>.
+    Verificado que el socket local <strong>no basta</strong> —<code>ldap_modify</code> devuelve
+    <code>Insufficient access (50)</code>— y que <code>zmlocalconfig -e ldap_log_level=256</code>
+    guarda el valor pero no lo propaga a <code>olcLogLevel</code>. Requiere la credencial de
+    administración de Zimbra. <strong>Es la acción con más retorno de todo el informe:</strong> hace
+    cumplir <code>op.acc.2.2</code> y <code>op.acc.2.3</code>, y desbloquea también EV-07 de op.acc.4.</div>
+  </div>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-01</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">protección de los recursos</span></div>
+    <div class="body"><strong>No cumple porque slapd no tiene cifrado en tránsito.</strong> Cero
+    directivas <code>olcTLS*</code> en toda la configuración y <code>olcSecurity='ssf=0'</code>: no
+    se exige ningún cifrado mínimo, así que <strong>las credenciales de bind viajan en claro</strong>
+    por la red interna. Esto es un incumplimiento medido, no un hueco de prueba. El plano sistema
+    conforma desde que se subió el <code>umask</code> de <code>022</code> a <code>027</code>.</div>
+    <div class="need"><b>Qué necesita</b>Certificados, <code>ldaps://636</code> y solo entonces
+    exigir SSF mínimo. <strong>En ese orden:</strong> poner <code>olcSecurity: ssf=128</code> antes
+    de configurar TLS deja fuera a los propios servicios de Zimbra, que conectan por
+    <code>ldap://</code>. Arrastra <code>op.acc.2.1</code>.</div>
+  </div>
+
+  <div class="ev ok"><div class="top"><span class="id">EV-02</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguno de los 21 ficheros del sistema ni de los 17 del directorio ha cambiado</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-04</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna cláusula de acceso concede más de lo declarado en la política revisada</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-07</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ningún fichero sin dueño y los 23 binarios SUID/SGID están en la línea base</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-05</span><span class="tag t-na">NO_APLICA</span>
+    <span class="name">solo nivel ALTO · el nivel activo es MEDIO</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-06</span><span class="tag t-na">NO_APLICA</span>
+    <span class="name">solo nivel ALTO · el nivel activo es MEDIO</span></div></div>
+
+  <h3>op.acc.3 · Segregación de funciones <span class="score">100 % · 2 de 2 requisitos</span></h3>
+  <div class="ev">
+    <div class="top"><span class="id">EV-02 y EV-07</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">no impiden el 100 %</span></div>
+    <div class="body">EV-02 no encuentra acciones de autorización y control que cruzar, y EV-07
+    (refuerzo R3) no recibe eventos de acceso a la información de seguridad. <strong>Ninguna de las
+    dos bloquea</strong>, porque los requisitos de este control los resuelve su evaluador de política
+    directamente: ha medido las 10 cuentas observadas y ninguna aúna funciones incompatibles.</div>
+    <div class="need"><b>Qué necesita</b>Nada para el nivel MEDIO. EV-07 solo aportaría acreditación
+    adicional del refuerzo R3, que no es obligatorio.</div>
+  </div>
+
+  <h3>op.acc.4 · Gestión de derechos de acceso <span class="score">20 % · 1 de 5 requisitos</span></h3>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-03</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">cambios en grupos privilegiados</span></div>
+    <div class="body"><strong>No cumple por dos eventos del 11/08 a las 11:25 UTC</strong>, cuando
+    <code>ldapcopy</code> y <code>user</code> todavía estaban en <code>sudo</code> sin figurar en la
+    matriz P-01. Son exactamente dos eventos, de la última pasada antes de retirarles el privilegio;
+    desde entonces el recolector no las ha vuelto a emitir. <strong>El hallazgo es cierto para el
+    periodo medido</strong> y ya está remediado en la máquina.</div>
+    <div class="need"><b>Qué necesita</b><strong>Nada, y no hay que tocarlo.</strong> Cuando esos dos
+    eventos salgan de la ventana de 30 días —el <strong>10 de septiembre</strong>— pasa a conformar
+    solo, y hace cumplir <code>op.acc.4.4</code>. Declararlas autorizadas hoy en P-01 subiría el
+    número maquillando justo lo que se acaba de corregir.</div>
+  </div>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-02</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">privilegios reales contra la matriz autorizada</span></div>
+    <div class="body"><strong>No cumplía porque los sujetos del directorio llevaban comas y la
+    columna que los casa no las admite.</strong> El agente emitía
+    <code>dn.children=cn=admins,cn=zimbra</code> y la columna <em>Rol</em> de P-01 es de tipo
+    <code>identifier</code>, que valida contra <code>/^[^\s|,]+$/</code>: esos sujetos no se podían
+    declarar, así que la evidencia no podía conformar nunca. Corregido el 12/08 — el agente ahora
+    normaliza a <code>cn=admins</code> y conserva el DN completo aparte, y las cinco combinaciones
+    ya están declaradas.</div>
+    <div class="need"><b>Qué necesita</b>Ya está aplicado; queda confirmar en el panel tras la
+    siguiente pasada. Arrastra <code>op.acc.4.1</code> y <code>op.acc.4.2</code>.</div>
+  </div>
+
+  <div class="ev">
+    <div class="top"><span class="id">EV-07</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">accesos a recursos de necesidad de conocer</span></div>
+    <div class="body"><strong>Es no evaluable por la misma razón que EV-03 de op.acc.2:</strong>
+    slapd no registra las búsquedas, así que no hay traza de quién consulta los atributos reservados
+    del directorio. El plano sistema sí se mide, con las ocho reglas de auditoría
+    <code>ensfacil_opacc4_kn</code> desplegadas sobre los recursos de P-07.</div>
+    <div class="need"><b>Qué necesita</b>El mismo <code>olcLogLevel: stats</code>. Una sola
+    operación cierra esta evidencia y op.acc.2 entero.</div>
+  </div>
+
+  <div class="ev ok"><div class="top"><span class="id">EV-01</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">denegación por defecto · ningún recurso fuera de la matriz</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-04</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ningún cambio de permisos hecho por cuenta sin capacidad de autorizar</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-05</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">revisión de permisos anotada el 12/08, dentro de los 90 días de P-03</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-06</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">todos los accesos remotos los hicieron cuentas autorizadas en P-05</span></div></div>
+  <div class="ev ok"><div class="top"><span class="id">EV-08</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">todo privilegio excesivo observado está declarado en P-01</span></div></div>
+</section>
+
+<!-- ══════════════════════ wazuh-real ══════════════════════ -->
+<section>
+  <h2>wazuh-real · servidor Linux</h2>
+  <div class="machine">
+    <div class="name">Ubuntu 24.04 · agente 024</div>
+    <div class="host">op.acc.1 75 % · op.acc.2 100 % · op.acc.3 50 % · op.acc.4 20 %</div>
+  </div>
+
+  <div class="callout">
+    <p><strong>Aviso que afecta a op.acc.3 y op.acc.4 de esta máquina, y solo de esta:</strong> el
+    motor avisa de que ha calculado el veredicto sobre <strong>10.000 hechos de 20.052</strong> (y
+    de 12.371 en op.acc.4). Solo puede traer del índice los 10.000 más recientes, así que
+    <strong>un hallazgo más antiguo que el corte no está contado</strong>.</p>
+    <p>Consecuencia directa: <strong>esos dos porcentajes son un mínimo, no un resultado.</strong>
+    La realidad puede ser peor, nunca mejor. Se arregla reduciendo lo que emite el agente —un hecho
+    por observación distinta, no uno por repetición— o acortando el periodo de evaluación. Mientras
+    el aviso salga, no se puede dar por auditados los 30 días completos.</p>
+  </div>
+
+  <h3>op.acc.1 · Identificación <span class="score">75 % · 6 de 8 requisitos</span></h3>
+  <div class="ev">
+    <div class="top"><span class="id">EV-06</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">identificador diferenciado por rol</span></div>
+    <div class="body"><strong>No cumple porque hay cuentas con privilegio administrativo que no usan
+    un identificador diferenciado.</strong> Y aquí la diferencia con el LDAP importa: el motor
+    <em>ha medido</em> y el resultado no conforma. No es un hueco de prueba —de hecho el panel dice
+    «8 requisitos aplicables · 8 demostrados»— es un incumplimiento real de la máquina.</div>
+    <div class="need"><b>Qué necesita</b>Una identidad <code>&lt;nombre&gt;.adm</code> por
+    administrador, moverle el privilegio y retirar <code>sudo</code> de la cuenta nominal: del grupo
+    <strong>y</strong> de las concesiones por nombre en <code>/etc/sudoers.d/</code>. Sacar del
+    grupo dejando la línea nominal no cambia nada, la cuenta sigue siendo root.
+    <br>Es exactamente lo que se hizo en el LDAP el 11/08, y allí cerró esta evidencia. La receta
+    con el orden que evita perder el acceso remoto está en <code>CUMPLIMIENTO_TOTAL.md</code>,
+    paso 3. Arrastra <code>op.acc.1.2</code> y <code>op.acc.1.r1.2</code>.</div>
+  </div>
+  <div class="ev ok"><div class="top"><span class="id">EV-01 a EV-05, EV-07, EV-08</span>
+    <span class="tag t-ok">CUMPLE</span><span class="name">siete evidencias · inventario, cambios de identidad, cuentas genéricas, bajas, cuentas de servicio, lista autorizada y retención</span></div></div>
+
+  <h3>op.acc.2 · Requisitos de acceso <span class="score">100 % · 3 de 3 requisitos</span></h3>
+  <div class="ev ok">
+    <div class="top"><span class="id">EV-01 a EV-04, EV-07</span><span class="tag t-ok">CUMPLE</span>
+      <span class="name">cinco evidencias · sin no conformidades abiertas</span></div>
+    <div class="body">Es el único control al 100 % de las dos máquinas. Sirve de referencia de lo
+    que se puede alcanzar cuando el servicio auditado registra sus accesos y no hay una capa de
+    permisos ilegible: exactamente las dos cosas que le faltan al directorio.</div>
+  </div>
+  <div class="ev ok"><div class="top"><span class="id">EV-05 y EV-06</span><span class="tag t-na">NO_APLICA</span>
+    <span class="name">solo nivel ALTO · salen del denominador en MEDIO</span></div>
+    <div class="body">EV-06 tiene además un problema latente que hoy no resta: 31 accesos
+    registrados por auditd llegan sin el recurso en sus líneas <code>type=PATH</code>, así que no se
+    puede clasificar el tipo de acceso. <strong>Conviene resolverlo antes de subir a nivel ALTO</strong>,
+    porque ese día pasaría a contar.</div>
+  </div>
+
+  <h3>op.acc.3 · Segregación de funciones <span class="score">50 % · 1 de 2 requisitos</span></h3>
+  <div class="ev">
+    <div class="top"><span class="id">EV-01 y EV-06</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">una sola cuenta acumula cinco funciones</span></div>
+    <div class="body"><strong>No cumplen porque la cuenta <code>dioni</code> ejerce a la vez
+    mantenimiento, operación, desarrollo, auditoría y configuración.</strong> El evaluador de
+    política del control lo dice literalmente. Con dos cuentas observadas en la ventana, una de
+    ellas concentra las cinco funciones que el control existe para separar — incluida
+    <strong>auditoría</strong>, que es la más grave: quien audita no puede ser quien opera.</div>
+    <div class="need"><b>Qué necesita</b>Separar funciones entre personas o entre identidades
+    distintas. No es un problema técnico: es organizativo, y en una máquina administrada por una
+    sola persona <strong>no tiene solución técnica</strong>. Lo honesto es documentarlo como riesgo
+    aceptado y compensarlo con revisión externa de los registros, no forzar el número.
+    <br>Contraste útil: el servidor LDAP marca 100 % en este control porque sus diez cuentas
+    observadas reparten funciones; wazuh-real marca 50 % porque una sola las acumula todas.</div>
+  </div>
+  <div class="ev">
+    <div class="top"><span class="id">EV-02</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">autorización y control en la misma cuenta</span></div>
+    <div class="body"><strong>Es no evaluable porque no se han observado acciones que cruzar.</strong>
+    No bloquea: <code>op.acc.3.2</code> cumple igualmente, porque sus requisitos los resuelve el
+    evaluador de política directamente, no encadenando evidencias.</div>
+    <div class="need"><b>Qué necesita</b>Nada para el nivel MEDIO.</div>
+  </div>
+  <div class="ev">
+    <div class="top"><span class="id">EV-07</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">acceso a la información de seguridad · refuerzo R3</span></div>
+    <div class="body"><strong>Es no evaluable porque no llegan eventos
+    <code>security_info_access</code></strong>: no hay vigilancia sobre quién accede a la
+    configuración de seguridad y a los logs de auditoría.</div>
+    <div class="need"><b>Qué necesita</b>Reglas de auditoría sobre <code>/etc/audit</code>,
+    <code>/var/log/audit</code> y <code>/var/ossec/etc</code>. <strong>R3 no es obligatorio</strong>,
+    así que esto es acreditación adicional, no un bloqueo.</div>
+  </div>
+  <div class="ev ok"><div class="top"><span class="id">EV-03</span><span class="tag t-ok">CUMPLE</span>
+    <span class="name">ninguna tarea crítica ejecutada unilateralmente</span></div></div>
+
+  <h3>op.acc.4 · Gestión de derechos de acceso <span class="score">20 % · 1 de 5 requisitos</span></h3>
+  <div class="ev">
+    <div class="top"><span class="id">EV-02</span><span class="tag t-bad">NO_CUMPLE</span>
+      <span class="name">privilegios reales contra la matriz autorizada</span></div>
+    <div class="body"><strong>No cumple porque hay privilegios configurados en la máquina que no se
+    corresponden con lo declarado en P-01.</strong> Es la misma clase de hallazgo que tenía el LDAP,
+    donde se cerró declarando las combinaciones <code>Rol | Recurso | Acceso</code> realmente
+    observadas. Arrastra <code>op.acc.4.1</code> y <code>op.acc.4.2</code>: es el que más pesa de
+    este control.</div>
+    <div class="need"><b>Qué necesita</b>Enumerar los <code>privilege_grant</code> que emite el
+    recolector <strong>sobre la ventana entera, no sobre la última pasada</strong>, y declarar en
+    P-01 las combinaciones legítimas. Lo que quede fuera después de eso es un privilegio que
+    sobra en la máquina y hay que retirar.</div>
+  </div>
+  <div class="ev">
+    <div class="top"><span class="id">EV-05</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">revisión periódica de permisos</span></div>
+    <div class="body"><strong>Es no evaluable porque
+    <code>/etc/ensfacil/opacc4-revisiones.tsv</code> existe pero no tiene ninguna revisión
+    anotada.</strong> El fichero está desde que se instaló el runbook y nadie ha escrito en él, así
+    que no llega ningún hecho <code>permission_review</code> que contrastar contra los 90 días de
+    P-03. No es un fallo técnico: falta el acto de la organización.</div>
+    <div class="need"><b>Qué necesita</b>Una línea <code>fecha⇥alcance⇥responsable</code> cada vez
+    que se revisen los derechos. <strong>Es lo más barato de todo este informe</strong> y cierra
+    <code>op.acc.4.4</code>. Conviene anotar en los comentarios qué se revisó exactamente, para que
+    un auditor pueda contrastarlo con el ndjson.
+    <br><strong>Anotar una revisión que no se ha hecho sería fabricar evidencia:</strong> la línea
+    va después de revisar, no antes. En el LDAP se anotó el 12/08 y allí EV-05 pasó a conformar.</div>
+  </div>
+  <div class="ev">
+    <div class="top"><span class="id">EV-07</span><span class="tag t-none">NO_EVALUABLE</span>
+      <span class="name">accesos a recursos de necesidad de conocer</span></div>
+    <div class="body"><strong>Es no evaluable porque falta declarar qué perfiles pueden acceder a
+    cada recurso sensible</strong> (P-07). Sin esa decisión escrita no hay contra qué contrastar los
+    accesos observados.</div>
+    <div class="need"><b>Qué necesita</b>Rellenar P-07 <em>recursos_sensibles_necesidad_conocer</em>
+    con las rutas críticas de la máquina y los perfiles que legítimamente las leen, y desplegar las
+    reglas de auditoría con la clave <code>ensfacil_opacc4_kn</code> sobre esas mismas rutas. Las
+    dos mitades: lo que se vigila y lo que se declara. Arrastra <code>op.acc.4.3</code>.</div>
+  </div>
+  <div class="ev ok"><div class="top"><span class="id">EV-01, EV-03, EV-04, EV-06, EV-08</span>
+    <span class="tag t-ok">CUMPLE</span><span class="name">cinco evidencias · denegación por defecto, grupos privilegiados, cambios por personal competente, accesos remotos y privilegios excesivos</span></div></div>
+</section>
+
+<section>
+  <h2>Por dónde empezar</h2>
+  <p>Ordenado por retorno, no por control. Los dos primeros no cuestan casi nada:</p>
+  <ul class="plain">
+    <li><strong>Anotar una revisión de permisos en wazuh-real.</strong> Una línea en
+    <code>/etc/ensfacil/opacc4-revisiones.tsv</code>. Cierra <code>op.acc.4.4</code>.</li>
+    <li><strong><code>olcLogLevel: stats</code> en el directorio.</strong> Una sola operación cierra
+    <code>op.acc.2.2</code>, <code>op.acc.2.3</code> y EV-07 de op.acc.4. La de más retorno de todo
+    el informe.</li>
+    <li><strong>Declarar P-01 y P-07 de op.acc.4 en wazuh-real.</strong> Enumerando lo que el
+    recolector emite sobre la ventana entera. Cierra <code>op.acc.4.1</code>,
+    <code>op.acc.4.2</code> y <code>op.acc.4.3</code> — tres de sus cinco requisitos.</li>
+    <li><strong>Separar identidades administrativas en wazuh-real.</strong> Cierra el único
+    incumplimiento medido de su op.acc.1.</li>
+    <li><strong>Cuenta LDAP de solo lectura.</strong> Lleva op.acc.1 del directorio al 100 %.</li>
+    <li><strong>Reducir el volumen que emite el agente en wazuh-real.</strong> Mientras el motor
+    trunque a 10.000 hechos, op.acc.3 y op.acc.4 de esa máquina <strong>no están midiendo los 30
+    días completos</strong>. Un hecho por observación distinta, no uno por repetición.</li>
+    <li><strong>TLS en slapd.</strong> Cierra el último requisito de op.acc.2 del directorio.
+    Certificados primero, SSF mínimo después: al revés deja fuera a los servicios de Zimbra.</li>
+    <li><strong>Esperar al 10 de septiembre.</strong> op.acc.4 EV-03 del LDAP se cierra sola cuando
+    caduquen los dos eventos del 11/08.</li>
+  </ul>
+  <div class="callout">
+    <p><strong>Lo que no tiene solución técnica, y conviene decirlo así:</strong> op.acc.3 de
+    wazuh-real está al 50 % porque una sola cuenta ejerce mantenimiento, operación, desarrollo,
+    <em>auditoría</em> y configuración. En una máquina administrada por una persona eso no se
+    arregla con configuración. Lo honesto es documentarlo como riesgo aceptado y compensarlo con
+    revisión externa de los registros — no forzar el número.</p>
+  </div>
+</section>
+
+<footer>
+  Generado a partir del índice <code>wazuh-alerts-*</code> del manager wazuh4 y de la configuración
+  activa de <code>wazuh-ens-configuration</code>. Cada afirmación es contrastable siguiendo la
+  cadena <code>CUMPLE → evidencia → rule ID → evento crudo</code> desde la pestaña de Trazabilidad
+  del control.
+</footer>
+
+</div>
