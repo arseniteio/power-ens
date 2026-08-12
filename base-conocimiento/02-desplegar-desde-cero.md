@@ -12,7 +12,7 @@ Sirve para las **dos clases de máquina** que hoy tienen recolector:
 | Recolector se instala en | `/usr/local/bin/ens_opaccN_collect.sh` | `/opt/ensfacil/ens_opaccNldap_collect.sh` |
 | `score.py` / `watchdog.py` | **sí** en op.acc.1 y op.acc.2 | **no**, en ninguno |
 | Reglas del manager | las instala `install-manager.sh` | **ninguna nueva**: son las mismas |
-| Poblaciones auditadas | una (`plano=sistema`) | dos (`plano=sistema` + `plano=directorio`, más `consolidado`) |
+| Poblaciones auditadas | una (`plano=sistema`) | dos: `plano=sistema` + `plano=directorio`. El tercer plano `consolidado` **solo existe en op.acc.1 y op.acc.2** (§7, salto 2) |
 
 Donde no se diga nada, el paso es idéntico en las dos. Los pasos que difieren
 llevan el rótulo **`LINUX`** o **`LDAP`**.
@@ -136,7 +136,7 @@ el atributo `os="^Linux"`).
 | `jq` | El emisor construye cada línea NDJSON con `jq`. Sin él `ens_emit` devuelve 3 y **no se persiste ni un evento** | Sí. En op.acc.1 y op.acc.2 de Linux, si falla **aborta** |
 | `flock` (`util-linux`) | Candado del emisor y candado anti-solape del recolector | No: viene de serie |
 | `python3` ≥ 3.8 | `score.py` y `watchdog.py` de op.acc.1/op.acc.2 **LINUX**. Solo stdlib | No: viene de serie en Ubuntu |
-| `ldap-utils` (`ldapsearch`) | **LDAP**: sin él no hay plano directorio | Sí, lo ponen los cuatro `install-real.sh` de LDAP |
+| `ldap-utils` (`ldapsearch`) | **LDAP**: sin él no hay plano directorio | **Solo tres de los cuatro**: lo ponen op.acc.1/2/3-ldap. **`op.acc.4-ldap/install.sh` solo instala `jq`** (verificado leyendo su bloque `1/6 · dependencias`). Si op.acc.4-ldap es el primero que corres en una máquina limpia, instala `ldap-utils` a mano |
 | `acl` (`getfacl`) | Tercer eje de EV-04 de op.acc.2 | Sí; si falla **avisa y sigue** |
 | `auditd` | `auditctl`/`ausearch`. Ver §5 | **op.acc.2 LINUX sí**; los demás **no** (deliberado) |
 
@@ -226,23 +226,31 @@ Una vez por manager. Los cuatro instaladores son idempotentes.
 ```bash
 cd ~
 BASE=git@gitlab.com:quersystem2/ens-controls-runbook
-for r in op.acc.1-identificacion op.acc.2-requisitos-de-acceso \
-         op.acc.3-segregacion-de-funciones-y-tareas \
-         op.acc.4-proceso-de-gestion-de-derechos-de-acceso; do
-  [ -d "$r" ] && (cd "$r" && git pull -q) || git clone -q "$BASE/$r.git"
+REPOS="op.acc.1-identificacion op.acc.2-requisitos-de-acceso
+       op.acc.3-segregacion-de-funciones-y-tareas
+       op.acc.4-proceso-de-gestion-de-derechos-de-acceso"
+
+for r in $REPOS; do
+  if [ -d "$HOME/$r" ]; then (cd "$HOME/$r" && git pull -q); else git clone -q "$BASE/$r.git"; fi
 done
 
-for r in ~/op.acc.1-* ~/op.acc.2-* ~/op.acc.3-* ~/op.acc.4-*; do
-  sudo bash "$r/install-manager.sh"
+for r in $REPOS; do
+  sudo bash "$HOME/$r/install-manager.sh"
 done
 ```
 
-Qué hace cada uno, en este orden: comprueba root y `python3` → copia su XML a
+> **Los nombres van enteros, no con comodín.** Un `~/op.acc.1-*` engancharía
+> también `~/op.acc.1-ldap` si estuviera clonado en esa máquina, y los repos LDAP
+> **no traen `install-manager.sh`** (§2.3): el bucle se caería con un
+> `No such file or directory` a mitad de la instalación.
+
+Qué hace cada uno, en este orden (leído de `install-manager.sh` de op.acc.1, y
+los otros tres son iguales): comprueba root y `python3` → copia su XML a
 `/var/ossec/etc/rules/` con `640 wazuh:wazuh` → analiza el `agent.conf` del grupo
 → inserta su `<localfile>` justo antes de `</agent_config>` (con copia previa en
 `/var/ossec/backup/`) → **si no cambió nada, termina sin verificar ni reiniciar**
-→ recarga el manager → verifica con `wazuh-logtest` → si no matchea, restaura el
-`agent.conf` y aborta.
+→ **verifica con `wazuh-logtest`** → si no matchea, restaura el `agent.conf` y
+aborta → y solo entonces `systemctl restart wazuh-manager`.
 
 Salida esperada la primera vez (op.acc.1):
 
@@ -254,10 +262,23 @@ Salida esperada la primera vez (op.acc.1):
 >>> wazuh-manager reiniciado
 ```
 
-**El orden recarga→verifica no es casual.** `wazuh-logtest` no compila el ruleset
-del disco: habla con el `analysisd` **en marcha**. Verificar antes de recargar
-pregunta por un ruleset que el demonio no ha leído todavía y da un falso negativo
-sobre un despliegue perfecto.
+**La verificación es BLOQUEANTE y va ANTES del reinicio, no después.** Lo dice la
+cabecera del script: «sin match de 106873 no se reinicia nada». Si falla, el
+script restaura el `agent.conf` desde la copia y sale con rc≠0, sin haber tocado
+el servicio: una instalación a medias no puede reportarse como buena.
+
+> **Consecuencia en un manager nuevo, y no está resuelta en el script.**
+> `wazuh-logtest` no compila el ruleset del disco: habla con el `analysisd` **en
+> marcha**. En un manager que nunca tuvo estas reglas, el XML acaba de copiarse y
+> el demonio todavía no lo ha leído, así que la comprobación puede fallar sobre
+> un despliegue correcto. **No lo he reproducido**, pero es lo que se deduce de
+> leer el script (una sola llamada a `systemctl restart`, en la última línea).
+> Si te pasa: reinicia el manager a mano, comprueba §2.4, y vuelve a lanzar el
+> instalador —es idempotente—.
+>
+> ```bash
+> sudo systemctl restart wazuh-manager && sleep 20
+> ```
 
 La regla que verifica cada instalador:
 
@@ -358,11 +379,17 @@ En los tres casos **no se modificó nada**. Se arregla pegando a mano el conteni
 de `manager/agent.conf.fragmento.xml` dentro del `<agent_config>` que corresponda:
 
 ```bash
-sudo nano /var/ossec/etc/shared/ens/agent.conf
-sudo chown wazuh:wazuh /var/ossec/etc/shared/ens/agent.conf
-sudo chmod 660 /var/ossec/etc/shared/ens/agent.conf
+# apunta antes cómo está, y déjalo igual al terminar
+sudo ls -l /var/ossec/etc/shared/ens/agent.conf
+sudo nano  /var/ossec/etc/shared/ens/agent.conf
 sudo systemctl restart wazuh-manager
 ```
+
+> **No inventes el propietario.** En wazuh4, medido el 12/08/2026, el fichero es
+> `root:wazuh` con modo `640` —no `wazuh:wazuh 660`—, y con eso funciona. El
+> `install-manager.sh` **no lo toca**: solo aplica `ENSFACIL_DUENO`
+> (`wazuh:wazuh`) a los XML de `/var/ossec/etc/rules/`. Si editas a mano, deja el
+> `agent.conf` con el dueño y el modo que tenía.
 
 Dos cosas al editar a mano: el bloque tiene que quedar **dentro** de
 `<agent_config>` (fuera, Wazuh lo ignora sin avisar) y **no vale dentro de un
@@ -469,8 +496,13 @@ op.acc.4 están en DRAFT: eso ya no es cierto en el código.
 La tarjeta de un control no aparece hasta sembrar su bloque en el índice: el
 guardado desde la UI rechaza un control que no esté ya ahí (huevo y gallina).
 
+Se corre **desde el manager**, en el directorio `config/` del repo `Wazuh-ENS`.
+En wazuh4 ese repo está clonado en `/opt/ensfacil/repo` (verificado el
+12/08/2026), así que la ruta es `/opt/ensfacil/repo/config`; en otra máquina será
+donde lo hayas clonado.
+
 ```bash
-cd /opt/ensfacil/repo/config
+cd /opt/ensfacil/repo/config      # = <clon de Wazuh-ENS>/config
 export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
 export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
 for c in op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
@@ -480,6 +512,11 @@ for c in op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
   sudo -E python3 inject-control.py "$c" --apply    # escribe
 done
 ```
+
+Ahí tienen que estar `inject-control.py`, `set-parameters.py` y los cinco
+`<control>-control-block.json` (`mp-info-6`, `op-acc-1` … `op-acc-4`). El
+`sudo -E` es necesario: sin `-E` se pierden `OS_CERT` y `OS_KEY` y el script
+aborta pidiéndolos.
 
 **Fusiona: conserva los valores que el auditor haya puesto.** Se puede repetir sin
 miedo. `--sustituir` es el destructivo: hasta el 30/07 era el comportamiento por
@@ -492,10 +529,10 @@ defecto y una segunda siembra tumbó op.acc.2 de 83 % a 17 %.
 ### 4.1 `LINUX`
 
 ```bash
-sudo bash ~/op.acc.1-identificacion/install-real.sh
-sudo bash ~/op.acc.2-requisitos-de-acceso/install-real.sh
-sudo bash ~/op.acc.3-segregacion-de-funciones-y-tareas/install-real.sh
-sudo bash ~/op.acc.4-proceso-de-gestion-de-derechos-de-acceso/install-real.sh
+sudo bash ~/op.acc.1-identificacion/install.sh
+sudo bash ~/op.acc.2-requisitos-de-acceso/install.sh
+sudo bash ~/op.acc.3-segregacion-de-funciones-y-tareas/install.sh
+sudo bash ~/op.acc.4-proceso-de-gestion-de-derechos-de-acceso/install.sh
 ```
 
 **Usa rutas absolutas.** `sudo -i` abre una sesión nueva y se come el `cd` que
@@ -506,22 +543,35 @@ Los cuatro son idempotentes y **nunca pisan un `.env` ni un `.tsv` existentes**,
 así que se pueden reejecutar para actualizar el código sin perder la
 configuración del cliente.
 
-`install-real.sh` de op.acc.1 y op.acc.2 corre con `set -e`: si algo falla, aborta
-y **no imprime `instalación completada`**. Si no ves esa línea, la máquina no está
-desplegada por muchos ficheros sueltos que haya.
+Los cuatro corren con `set -e` (op.acc.1 y op.acc.2 con `set -eu`; op.acc.3 y
+op.acc.4 con `set -euo pipefail`): si algo falla, abortan. **Solo op.acc.1 y
+op.acc.2 imprimen `>>> instalación completada`** al terminar; si no ves esa línea
+en esos dos, la máquina no está desplegada por muchos ficheros sueltos que haya.
+op.acc.3 y op.acc.4 no imprimen ninguna línea equivalente: su señal de fin es el
+bloque `QUEDA UNA COSA, Y NO SE HACE EN ESTA MÁQUINA` y `rc=0`.
 
 **No existe un flag `--fake`.** Son dos scripts con nombre explícito,
-`install-real.sh` e `install-fake.sh`, y **son deliberadamente asimétricos**:
+`install.sh` e `install-fake.sh`, y **son deliberadamente asimétricos**:
 
-- `install-real.sh` **retira** el simulador y su cron si los encuentra (dirección
-  segura: la máquina pasa a decir la verdad).
-- `install-fake.sh` **se niega** a instalar el simulador si encuentra el cron del
-  pipeline real, salvo `--reemplaza-real`.
+- `install.sh` de **op.acc.1 y op.acc.2** **retira** el simulador y su cron
+  si los encuentra (dirección segura: la máquina pasa a decir la verdad). Los de
+  op.acc.3 y op.acc.4 **no lo hacen** —no tienen ese bloque—, así que ahí la
+  retirada del simulador es cosa de `uninstall.sh --solo-fake` (§10).
+- `install-fake.sh` **se niega** a instalar el simulador si encuentra el pipeline
+  real, salvo `--reemplaza-real`. Esta mitad sí está en los cuatro.
 
 Convertir en fake una máquina que emitía evidencia real es el peor fallo posible
 del producto: esa evidencia inventada entra en el índice, la recoge el plugin y
 puede acabar en un informe ENS firmado como un CUMPLE por datos fabricados.
-Cualquier argumento hace que el instalador aborte.
+
+> **Aviso de alcance.** `install.sh` rechaza cualquier argumento **solo en
+> op.acc.1 y op.acc.2** (`if [ $# -gt 0 ]`, verificado). Los de op.acc.3 y
+> op.acc.4 no comprueban los argumentos: un `--algo` mal escrito se **ignora en
+> silencio** y la instalación sigue. Los cuatro repos LDAP tampoco los
+> comprueban. No pases argumentos.
+>
+> **El simulador de op.acc.3 no existe todavía**: su `install-fake.sh` aborta
+> diciéndolo, y el guardia contra reconvertir una máquina real sí es funcional.
 
 Qué deja op.acc.1 (el más completo del modelo clásico):
 
@@ -555,15 +605,15 @@ nacieron en el modelo nuevo. Su agente no emite ningún veredicto de cumplimient
 ### 4.2 `LDAP`
 
 ```bash
-sudo bash ~/op.acc.1-ldap/install-real.sh
-sudo bash ~/op.acc.2-ldap/install-real.sh
-sudo bash ~/op.acc.3-ldap/install-real.sh
-sudo bash ~/op.acc.4-ldap/install-real.sh
+sudo bash ~/op.acc.1-ldap/install.sh
+sudo bash ~/op.acc.2-ldap/install.sh
+sudo bash ~/op.acc.3-ldap/install.sh
+sudo bash ~/op.acc.4-ldap/install.sh
 ```
 
-**`sudo bash`, no `sudo ./`**: en el repo, los `install-real.sh` de op.acc.1,
+**`sudo bash`, no `sudo ./`**: en el repo, los `install.sh` de op.acc.1,
 op.acc.2 y op.acc.4 de LDAP **no tienen bit de ejecución** (`-rw-r--r--`). Solo el
-de op.acc.3 lo tiene. Sus propias cabeceras documentan `sudo bash install-real.sh`.
+de op.acc.3 lo tiene. Sus propias cabeceras documentan `sudo bash install.sh`.
 
 Diferencias respecto de Linux, todas verificadas en `ldap-adm`:
 
@@ -571,12 +621,17 @@ Diferencias respecto de Linux, todas verificadas en `ldap-adm`:
   `/usr/local/bin`.
 - **La primera pasada la ejecuta el propio instalador** (paso 6/6 ó 7/7) y
   después imprime cuántos eventos hay en el NDJSON. En Linux la lanzas tú (§6).
-- **Instalan `ldap-utils`** además de `jq`; op.acc.2-ldap añade `acl`.
+- **op.acc.1-ldap, op.acc.2-ldap y op.acc.3-ldap instalan `ldap-utils`** además
+  de `jq`; op.acc.2-ldap añade `acl`. **`op.acc.4-ldap` NO**: su bloque de
+  dependencias solo comprueba `jq`. En `ldap-adm` no se notó porque otro
+  instalador ya había puesto `ldapsearch` (`/usr/bin/ldapsearch`, verificado).
+  En una máquina limpia, si empiezas por op.acc.4-ldap, ponlo tú.
 - **op.acc.3-ldap y op.acc.4-ldap escriben reglas de auditd**; op.acc.1-ldap y
   op.acc.2-ldap no.
-- **`ensfacil-emit.sh` es el mismo fichero byte a byte** en los cuatro repos. Se
+- **`ensfacil-emit.sh` es el mismo fichero byte a byte** en los ocho repos, los
+  cuatro de LDAP y los cuatro de Linux (mismo md5 en los ocho, comprobado). Se
   reinstala en cada uno porque cualquiera puede ser el primero en llegar;
-  modificarlo desde uno rompería los otros tres.
+  modificarlo desde uno rompería los demás.
 
 Estado real de `ldap-adm` el 12/08/2026:
 
@@ -635,14 +690,17 @@ la puerta trasera del atacante. **La revisión ES el control.**
 **op.acc.2 `LINUX`** — instala cuatro `.example` en `/etc/ensfacil/`:
 
 ```
-opacc2-acl.tsv.example           → EV-04
-opacc2-privilegios.tsv.example   → EV-05
-opacc2-accesos.tsv.example       → EV-06
-opacc2-suid.allow.example        → EV-07
+opacc2-acl.tsv.example           → EV-04         (P-08)
+opacc2-privilegios.tsv.example   → EV-05 y EV-06 (P-09)
+opacc2-accesos.tsv.example       → EV-06         (P-06)
+opacc2-suid.allow.example        → EV-07         (P-10)
 ```
 
-Hasta que existan sin el sufijo, el control sale PARCIAL en BAJO/MEDIO y
-NO_CUMPLE en ALTO. La línea base SUID/SGID no se siembra sola: el recolector deja
+Hasta que existan sin el sufijo, «el control sale PARCIAL en BAJO/MEDIO y
+NO_CUMPLE en ALTO» —eso lo imprime el propio `install.sh` de op.acc.2, y lo
+cito de ahí; el `CUMPLIMIENTO.md` no usa la palabra PARCIAL—. Lo que sí es firme
+y es el principio del producto: **lo no demostrado no acredita**, y a nivel de
+requisito cuenta en contra. La línea base SUID/SGID no se siembra sola: el recolector deja
 lo que hay ahora en `/var/lib/ensfacil/opacc2/suid.candidato`; se revisa, se quita
 lo que no deba estar y **entonces** se promueve a
 `/etc/ensfacil/opacc2-suid.allow`.
@@ -791,10 +849,19 @@ collector_warning · parametro=auditd
 ```
 
 auditd registra un `CONFIG_CHANGE op=add_rule` **por cada regla** que carga, con
-la clave de la regla afectada, así que `ausearch -k` los devuelve. La cuenta
-cuadra: tantos registros como reglas. No son accesos, no se emiten como evidencia
-y **no hay nada que revisar**. Solo preocupa si sale en *todas* las pasadas y no
-solo tras instalar: entonces sí hay algo recargando las reglas en bucle.
+la clave de la regla afectada, así que `ausearch -k` los devuelve. No son accesos,
+no se emiten como evidencia y **no hay nada que revisar**.
+
+**El número NO tiene por qué coincidir con el de reglas: es un registro por regla
+y por carga.** Medido en `wazuh-real` el 12/08/2026: `auditctl -l` da 40 reglas
+con `key=ensfacil_opacc2` y el aviso habla de **80** registros (y 6 para
+`ensfacil_opacc2_obj`, que tiene 3 reglas) — dos cargas. Cada `augenrules --load`
+o reinicio de `auditd` añade otra tanda dentro de la ventana que mira el
+recolector. Solo preocupa si sale en *todas* las pasadas y no solo tras instalar
+o recargar: entonces sí hay algo recargando las reglas en bucle.
+
+El texto exacto está en `auditd_generar_reglas` /
+`lib/ensfacil-auditd.sh` del repo de op.acc.2; el bloque de arriba está recortado.
 
 ### 5.6 El coste, que hay que dimensionar antes
 
@@ -804,8 +871,13 @@ qué funciones ejerce alguien sin ver lo que hace— pero en un servidor con
 actividad son muchos eventos:
 
 ```bash
-grep -E 'max_log_file|num_logs' /etc/audit/auditd.conf
+sudo grep -E 'max_log_file|num_logs' /etc/audit/auditd.conf
 ```
+
+El `sudo` no es opcional: `/etc/audit/auditd.conf` no es legible por un usuario
+normal y sin él sale `Permission denied` (comprobado en `wazuh-real`). Ahí hoy:
+`max_log_file = 8` (MB), `num_logs = 5`, `max_log_file_action = ROTATE` — 40 MB
+de techo para **todo** auditd, no solo lo nuestro.
 
 ### 5.7 Sin auditd, no todas las evidencias quedan igual
 
@@ -822,6 +894,19 @@ Si op.acc.2 EV-03 está gris, **el problema no es auditd**: mira la fuente de
 autenticación (`/var/log/auth.log` o `journalctl`) con el `motivo` del
 `evidence_state`.
 
+```bash
+sudo test -r /var/log/auth.log && echo ok || journalctl -n 1 _COMM=sudo
+```
+
+> **Contradicción documental detectada, y cuál manda.** La cabecera de
+> `op.acc.2-requisitos-de-acceso/install.sh` (y el aviso que imprime al no
+> poder instalar auditd) todavía dice *«EV-03 y EV-06 quedarán NO_EVALUABLE»*.
+> Eso ya no es cierto para EV-03: su `CUMPLIMIENTO.md` lo dice literal —«EV-03 NO
+> depende de auditd»— porque su `NO_CUMPLE` sale del log de autenticación, y lo
+> que auditd aporta ahí (`access_denied`) es evidencia de CUMPLE: perderla reduce
+> el volumen, no fabrica cumplimiento, así que **no degrada**. **Manda
+> `CUMPLIMIENTO.md`.** No he tocado el script.
+
 ---
 
 ## 6 · La primera pasada, y por qué no llega al manager
@@ -836,6 +921,14 @@ sudo mv /var/log/ensfacil/op_acc_1.json /var/log/ensfacil/op_acc_1.json.antes
 sudo /usr/local/bin/ens_opacc1_collect.sh; echo "rc=$?"
 sudo tail -5 /var/log/ensfacil/op_acc_1.json
 ```
+
+> **Esto es para un despliegue nuevo o un diagnóstico, no para una máquina en
+> producción.** El `<localfile>` del grupo `ens` apunta a la ruta **exacta**
+> `/var/log/ensfacil/op_acc_1.json`, sin comodines (§1.2): `op_acc_1.json.antes`
+> **ya no lo lee nadie**, así que todo lo que quedara en él sin reenviar se queda
+> ahí para siempre. No borra evidencia —el fichero sigue en disco— pero sí corta
+> su camino al índice. Si no necesitas aislar, filtra por el `ts` del latido
+> anterior (§7, salto 2) y no muevas nada.
 
 **`LDAP`** — ya la ejecutó el instalador. Para repetirla:
 
@@ -877,8 +970,14 @@ sudo grep -a "Analyzing file" /var/ossec/logs/ossec.log | grep ensfacil | tail -
 2026/08/12 11:02:47 wazuh-logcollector: INFO: (1950): Analyzing file: '/var/log/ensfacil/op_acc_4.json'.
 ```
 
-Si sale 0, el `<localfile>` no ha llegado al agente. Comprueba el grupo y fuerza
-la sincronización:
+Si ese `grep` no devuelve ninguna línea —cuéntalas para no dudar—, el
+`<localfile>` no ha llegado al agente:
+
+```bash
+sudo grep -a "Analyzing file" /var/ossec/logs/ossec.log | grep -c ensfacil
+```
+
+Comprueba el grupo (§1.1) y fuerza la sincronización:
 
 ```bash
 sudo systemctl restart wazuh-agent
@@ -898,7 +997,12 @@ sudo systemctl restart wazuh-agent
 - **Mucho gris es lo esperado.** Las evidencias que dependen de un fichero de
   política del cliente o de un parámetro de la pantalla salen `NO_EVALUABLE`
   hasta que se rellenen. El motivo dice cuál falta.
-- **La última línea debe ser el latido `collector_run`.**
+- **La última línea *de la pasada del recolector* debe ser el latido
+  `collector_run`.** Ojo: no tiene por qué ser la última línea del fichero. En
+  op.acc.1 y op.acc.2 de **LINUX**, `score.py` corre 5 minutos después y añade sus
+  `evidence_state` / `control_state` / `score_snapshot` detrás. Medido en
+  `wazuh-real` el 12/08/2026: la última línea de `op_acc_1.json` es un
+  `score_snapshot`, y está bien. Para ver el latido, búscalo (§6.4).
 
 ### 6.4 El latido: por qué existe
 
@@ -983,16 +1087,39 @@ sudo jq -c 'select(.event=="evidence_state")|{evidence_id,estado,causa,motivo}' 
   /var/log/ensfacil/op_acc_1.json
 ```
 
-**`LDAP`** — el veredicto útil es el consolidado, no el de cada plano:
+**`LDAP`** — en **op.acc.1 y op.acc.2** el veredicto útil es el consolidado, no el
+de cada plano:
 
 ```bash
-for n in 1 2 3 4; do
+for n in 1 2; do
   echo "── op.acc.$n"
   sudo jq -r 'select(.event=="evidence_state" and .plano=="consolidado")
               | [.evidence_id,.estado,(.causa//"-")] | @tsv' \
     /var/log/ensfacil/op_acc_$n.json | sort -u
 done
 ```
+
+> **En op.acc.3 y op.acc.4 este filtro NO devuelve nada, y es lo correcto.**
+> Medido en `ldap-adm` el 12/08/2026: sus `evidence_state` salen con
+> `plano=directorio`, `plano=sistema` o sin `plano`, **nunca `consolidado`**, y
+> siempre con `estado=NO_EVALUABLE` y su causa. Nacieron en el modelo nuevo: su
+> agente **no emite ningún veredicto de cumplimiento**, solo hechos y huecos de
+> medida, y quien juzga es el motor. Un bloque vacío aquí no es un recolector
+> roto. Para verlos, quita el filtro de plano:
+>
+> ```bash
+> for n in 3 4; do
+>   echo "── op.acc.$n"
+>   sudo jq -r 'select(.event=="evidence_state")
+>               | [(.plano//"(sin plano)"),.evidence_id,.estado,(.causa//"-")] | @tsv' \
+>     /var/log/ensfacil/op_acc_$n.json | sort -u
+> done
+> ```
+>
+> Y lo que sí hay que mirar en esos dos son los **hechos** y el latido (§6.4):
+> `account_action` / `critical_task_run` en op.acc.3; `remote_access`,
+> `privilege_grant`, `privileged_group_member`, `excessive_privilege`,
+> `default_deny_violation`, `permission_review` en op.acc.4.
 
 Salida real de `ldap-adm` (op.acc.1) el 12/08/2026 — y es un buen ejemplo de la
 trampa del histórico, porque `sort -u` sobre el fichero entero mezcla pasadas:
@@ -1035,12 +1162,22 @@ comprobación manual es la única.
 
 ### Salto 4 · El agente está leyendo el fichero
 
+Los dos comandos son **en el agente**:
+
 ```bash
 sudo grep -ac 'op_acc_1.json' /var/ossec/logs/ossec.log
-sudo grep -A3 'op_acc_1.json' /var/ossec/etc/shared/ens/agent.conf
+sudo grep -A3 'op_acc_1.json' /var/ossec/etc/shared/agent.conf
 ```
 
-Esperado: un número mayor que 0. Si es 0, vuelve a §6.2.
+Esperado: un número mayor que 0 (en `wazuh-real`, hoy, 3) y el bloque
+`<localfile>` con la ruta. Si el contador es 0, vuelve a §6.2.
+
+> **En el agente la ruta NO lleva el nombre del grupo.** El manager tiene
+> `/var/ossec/etc/shared/<grupo>/agent.conf`; el agente recibe la configuración
+> ya fusionada y la deja en `/var/ossec/etc/shared/agent.conf`, sin subdirectorio
+> (junto a `merged.mg`). Buscar `…/shared/ens/agent.conf` en el agente da
+> `No such file or directory` —comprobado en `wazuh-real`— y parece que el
+> `localfile` no llegó cuando sí está.
 
 ### Salto 5 · Las alertas llegan al manager
 
@@ -1211,9 +1348,11 @@ sudo find / -xdev -type f \( -perm -4000 -o -perm -2000 \) | sort
    con menos columnas de las declaradas falla igual. **Un parámetro inválido no
    degrada: deja el control a 0 %.**
 3. **La ventana de evaluación es de 30 días** (`defaultEvaluationPeriodFrom =
-   'now-30d'`). Arreglar la máquina no limpia el pasado: un privilegio retirado el
-   11/08 sigue contando hasta el 10/09. Declarar contra lo que emite **hoy** el
-   recolector deja fuera valores que el motor sigue viendo.
+   'now-30d'`, en `core/data-source/evaluation-time-range.ts`), y hoy en wazuh4
+   está en ese valor: `configuration.global.evaluationPeriod = "Últimos 30 días"`
+   (leído el 12/08/2026). Arreglar la máquina no limpia el pasado: un privilegio
+   retirado el 11/08 sigue contando hasta el 10/09. Declarar contra lo que emite
+   **hoy** el recolector deja fuera valores que el motor sigue viendo.
 
 Comprobación obligatoria antes de guardar, que replica la regla real del validador
 sobre TODO el documento (ya ha fallado dos veces «con buen criterio»):
@@ -1283,6 +1422,11 @@ El detalle evidencia a evidencia está en el `CUMPLIMIENTO.md` de cada runbook y
 | El control entero a 0 % de golpe | parámetro inválido (`null`, coma en `identifier`) | §8, trampas 1 y 2 |
 | «He desplegado el plugin y se ve lo viejo» | caché del navegador | `docs/DESPLEGAR_EL_PLUGIN.md` §6 |
 | El panel no coincide con el fichero | el panel lee **OpenSearch**, no el fichero | borrar el ndjson no limpia el panel |
+| `grep` del `agent.conf` en el agente da `No such file or directory` | buscaste la ruta del **manager** | §7 salto 4: en el agente es `/var/ossec/etc/shared/agent.conf`, sin el grupo |
+| **LDAP**: op.acc.3 / op.acc.4 sin ningún `evidence_state` consolidado | **no es un fallo**: esos dos no consolidan planos ni emiten veredicto | §7 salto 2 |
+| `install-manager.sh` aborta con «NO matcheó 1068xx» en un manager nuevo | el `analysisd` en marcha aún no leyó el XML recién copiado | §2.2: reinicia el manager y reejecuta |
+| `ens_emit` devuelve 3 y no se persiste ni un evento | falta `jq` | §1.3 |
+| **LDAP**: op.acc.4 sin plano directorio y el resto bien | falta `ldapsearch`: su instalador no lo pone | §1.3, §4.2 |
 
 ### 9.1 Que el agente corre la versión del repo
 
@@ -1313,10 +1457,22 @@ cd /opt/ensfacil/repo && python3 tests/check-coherencia.py   # rc=0 si todo cuad
 
 ## 10 · Retirar un control de una máquina
 
+**Los `uninstall.sh` de LINUX y de LDAP no son el mismo script y no aceptan los
+mismos flags.** Comprobado en los ocho repos.
+
+### 10.1 `LINUX`
+
 ```bash
 sudo bash ~/op.acc.1-identificacion/uninstall.sh                  # real + simulador
 sudo bash ~/op.acc.1-identificacion/uninstall.sh --solo-real
 sudo bash ~/op.acc.1-identificacion/uninstall.sh --solo-fake
+```
+
+Uso completo, leído de la cabecera del script:
+
+```
+uninstall.sh [--solo-fake|--solo-real] [--deja-el-simulador]
+             [--borra-evidencias] [--borra-config] [--todo]
 ```
 
 Es idempotente; la segunda pasada termina con `NADA QUE RETIRAR`. **Nunca borra
@@ -1334,8 +1490,35 @@ Lo que **no** borra, y por qué:
 **solo evidencia inventada**: aborta con código distinto de 0 sin tocar nada, y la
 única vía de escape es `--deja-el-simulador`.
 
-**No toca el manager**: las reglas y el `localfile` los retira
-`install-manager.sh` por su cuenta.
+### 10.2 `LDAP`
+
+Otro script, mucho más corto, y **solo tiene `--todo`**:
+
+```bash
+sudo bash ~/op.acc.1-ldap/uninstall.sh          # retira cron y scripts; CONSERVA datos
+sudo bash ~/op.acc.1-ldap/uninstall.sh --todo   # además: .env, estado y ndjson
+```
+
+> **No hay `--solo-real`, `--solo-fake`, `--borra-evidencias` ni `--borra-config`
+> en los repos LDAP, y el script NO valida los argumentos**: escribir
+> `--solo-real` no da error, se ignora y se ejecuta la retirada por defecto. Los
+> repos LDAP tampoco traen simulador (`install-fake.sh` no existe en ninguno de
+> los cuatro), así que la distinción real/fake no aplica ahí.
+
+Igual que en Linux, `ensfacil-emit.sh` **no se borra**: lo comparten todos los
+controles de la máquina.
+
+### 10.3 El manager hay que limpiarlo a mano
+
+**Ningún `uninstall.sh` toca el manager**, y **`install-manager.sh` tampoco retira
+nada**: solo instala. Si quieres dejar de recibir un control, el XML de
+`/var/ossec/etc/rules/` y el `<localfile>` del `agent.conf` del grupo `ens` se
+quitan tú mismo, con copia previa y un `systemctl restart wazuh-manager` después.
+**No lo he ejecutado**, así que aquí no doy los comandos como verificados.
+
+Cuidado con el orden: quitar el `<localfile>` deja de recoger, pero las alertas
+ya indexadas siguen en `wazuh-alerts-*` y el motor las sigue viendo durante la
+ventana de evaluación (§8, trampa 3).
 
 ---
 
@@ -1345,10 +1528,16 @@ Lo digo con estas palabras porque no se puede escribir lo que no se ha
 comprobado.
 
 - **No he ejecutado ningún instalador.** Ni `install-manager.sh` ni
-  `install-real.sh`. Las dos máquinas ya los tenían aplicados; lo que verifiqué es
+  `install.sh`. Las dos máquinas ya los tenían aplicados; lo que verifiqué es
   el **resultado** (ficheros, permisos, cron, reglas de auditd, reglas del
   manager), no el proceso. Las salidas de pantalla que cito están **leídas del
   código de los scripts y de los `docs/`**, no capturadas de una ejecución mía.
+- **El orden interno de `install-manager.sh` está leído del código, no
+  ejecutado.** Lo que sí está verificado línea a línea es que la comprobación con
+  `wazuh-logtest` es **bloqueante y previa** al único `systemctl restart` del
+  script, en los cuatro repos de Linux. Lo que **no** he reproducido es el falso
+  negativo que eso puede provocar en un manager que nunca cargó las reglas
+  (§2.2): está deducido, y así está escrito.
 - **No he cambiado el alcance ENS ni ningún parámetro.** El comando de lectura de
   §3.1 sí está ejecutado y verificado; **el de escritura no existe en este
   documento a propósito**.
@@ -1369,10 +1558,25 @@ comprobado.
 - **Los `docs/01..07` de los repos LDAP no existen.** `op.acc.1-ldap/docs/` está
   vacío y los otros tres repos LDAP no tienen `docs/`. Todo lo de LDAP sale de
   `CUMPLIMIENTO_TOTAL.md`, `DIFERENCIAS_CON_EL_CONTROL_NORMAL.md`, `README.md` y
-  los propios `install-real.sh`.
+  los propios `install.sh`.
 - **El recuento de `auditctl -l | grep -c ensfacil` no es un criterio estable.**
   `CUMPLIMIENTO_TOTAL.md` dice ~22 para el LDAP y hoy da 37, y wazuh-real da 67.
   No he investigado la diferencia más allá de constatar que las reglas cambiaron.
+- **No he retirado ningún control de ninguna máquina.** Los flags de §10 salen de
+  la cabecera y del parseo de argumentos de cada `uninstall.sh`, leídos; no he
+  ejecutado ninguno. La limpieza del manager (§10.3) no la he hecho ni la doy
+  como verificada.
+- **No he probado que `op.acc.4-ldap/install.sh` falle sin `ldap-utils`.** Lo
+  que sí está verificado es que su bloque de dependencias solo comprueba `jq`, y
+  que en `ldap-adm` `ldapsearch` ya estaba puesto por otro instalador. La
+  consecuencia en una máquina limpia está deducida de ahí.
+- **Contradicciones entre fuentes que he dejado anotadas y no he «arreglado»**,
+  porque no me toca tocar los repos: la cabecera de `install.sh` de op.acc.2
+  sobre EV-03 (§5.7), los `docs/02-manager.md` y `03-agente.md` de op.acc.1 con la
+  URL vieja del remoto (§1.4), y `CLAUDE.md` de `Wazuh-ENS`, cuya tabla de
+  "Controles implementados" todavía marca op.acc.3 y op.acc.4 como **DRAFT**
+  cuando `catalog/op-acc-3.ts` y `catalog/op-acc-4.ts` dicen `status: 'ACTIVE'`
+  (§3.4, comprobado en el código el 12/08/2026).
 
 ---
 

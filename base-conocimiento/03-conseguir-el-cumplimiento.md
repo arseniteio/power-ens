@@ -87,7 +87,7 @@ Cada pasada cierra con un `collector_run`:
 
 | Campo | Qué dice |
 |---|---|
-| `resultado` | `completada`, o `sin_evidencias`. Con cualquier otro valor **ninguna** evidencia convierte su silencio en `CUMPLE` |
+| `resultado` | el recolector escribe `completada`, o `sin_evidencias` si ni una función llegó al final. **Para el motor solo vale `completada`**: `COLLECTOR_RUN_SUCCESS_VALUES` de `core/evidence/judgment.ts` tiene un único elemento, así que con `sin_evidencias` —o con cualquier otro valor— **ninguna** evidencia convierte su silencio en `CUMPLE` |
 | `evidencias_ok` | las que llegaron al final, **incluidas las que degradaron** |
 | `evidencias_cubiertas` | las que además **pudieron mirar** su fuente · es la lista blanca del motor |
 
@@ -104,12 +104,24 @@ convertiría su propio `NO_EVALUABLE` en cumplimiento.
 - **No se declara autorizado lo que se acaba de retirar** para que el número
   suba hoy. El hallazgo es cierto para el periodo medido.
 
-**7 · Un parámetro inválido no degrada su control: impide cargar el entorno
-entero.** `isParameterValue` acepta `undefined | string | number | boolean |
-string[]`; `null` **no**. Un parámetro nunca configurado **no tiene la clave
-`value`**. Lo mismo con una tabla con menos columnas de las declaradas, o con
-comas o espacios en una columna `identifier` (valida contra `/^[^\s|,]+$/`).
-Copia previa y validación **antes** de guardar — el comando está en §1.4.
+**7 · Hay dos clases de «parámetro inválido», y solo una tumba la pantalla.**
+Confundirlas manda a buscar donde no hay nada. Verificado leyendo
+`configuration/services/configuration-structure-validator.ts` y
+`configuration/services/parameter-value-validator.ts`.
+
+| Qué está mal | Quién lo detecta | Consecuencia |
+|---|---|---|
+| el **documento** no tiene la forma esperada: un `value` o `defaultValue` que no sea `undefined \| string \| number \| boolean \| string[]` (un `null`, un objeto), una columna sin `required` **booleano**, un `type` de columna que no existe | `configuration-structure-validator` · **lanza en la hidratación** | *«No se pudo cargar el entorno ENS»*. **Toda** la pantalla, todos los controles |
+| el **contenido de una celda** no vale para su columna: espacios o comas en una `identifier` (valida contra `/^[^\s|,]+$/`), un modo no octal en una `octal`, una fila con **más** campos que columnas declaradas, o una celda vacía en una columna obligatoria | `parameter-value-validator` (`validarTabla`) | **el parámetro entero queda inválido** y su control cae a «configuración incompleta». La pantalla carga |
+
+`isParameterValue` acepta `undefined | string | number | boolean | string[]`;
+`null` **no**. Un parámetro nunca configurado **no tiene la clave `value`** —
+comprobado el 12/08/2026 contra el índice real: P-09 de `op.acc.1` y P-09 de
+`op.acc.2` no la traen y el entorno carga—. El incidente de producción del
+06/08/2026 fue del primer tipo: columnas sin `required` booleano, y el mensaje
+que lo resolvía —`controls[3].parameters[0].columns[1].required`— no llegaba a
+pintarse. Copia previa y validación **antes** de guardar — el comando está en
+§1.4.
 
 ---
 
@@ -122,6 +134,29 @@ la semilla que `config/inject-control.py <control> --apply` siembra en el
 índice. **La tarjeta de Configuración no aparece hasta sembrar el bloque**, y
 sin ella P-04 de `op.acc.1` no se puede rellenar y EV-03 se queda gris para
 siempre.
+
+> **«Obligatorio» y «lo mira una primitiva» son dos cosas distintas, y la
+> primera es la que tumba el control.** Un parámetro `required` del bloque que
+> esté **vacío** —aunque ninguna evidencia lo lea— pone
+> `hasMissingRequiredParameters` a cierto, y entonces
+> `requirement-evaluator.ts` devuelve `NO_EVALUABLE` para **todos** los
+> requisitos del control que no resuelva un evaluador de policy; `applyAuditVerdict`
+> los publica `NO_CUMPLE`. Es decir: **el control entero a 0 %**, más una tarjeta
+> «Configuración incompleta» que los nombra. Verificado en
+> `configuration/services/validation-engine.ts` (`requiredForLevel` →
+> `missingRequired`) y en `core/evaluation/evaluation-engine.ts` líneas 98-146.
+> Obligatorios **por nivel activo**, leídos de los bloques:
+>
+> | Control | Obligatorios | No obligatorios |
+> |---|---|---|
+> | `op.acc.1` | P-01…P-06 · **P-07 solo en MEDIO/ALTO** | P-08…P-12, P-ATT |
+> | `op.acc.2` | P-01, P-02, P-03, P-04, P-07, P-08, P-10 | P-05, P-06, P-09 (solo ALTO), P-11, P-12 |
+> | `op.acc.3` | P-01, P-02, P-03, P-04, P-06 | P-05 (solo ALTO), P-ATT |
+> | `op.acc.4` | **los siete** (P-01…P-07) | — |
+>
+> `op.acc.3` es la excepción parcial: sus cuatro requisitos los decide su
+> evaluador, así que un P-01 o un P-06 vacío deja la tarjeta de configuración
+> incompleta pero **no** cambia el veredicto. En los otros tres controles sí.
 
 #### op.acc.1 · niveles BAJO, MEDIO, ALTO
 
@@ -174,13 +209,16 @@ siempre.
 | **P-03** | `acciones_por_funcion` | table `Función` · `Indicadores` | **sí** |
 | **P-04** | `tareas_criticas_doble_persona` | list `tarea \| nº personas` | **sí** |
 | P-05 | `cuentas_auditoria` | list `cuenta \| ámbito` | **sí** (solo la 1.ª celda) |
-| P-01 | `matriz_funciones_persona` | table | **no** · soporte documental |
-| P-06 | `ventana_correlacion_dias` | duration_days | **no** · la ventana real la fija el motor |
-| P-ATT | `atestaciones_documentales` | table | para `r2.1` y `r3.1` |
+| P-01 | `matriz_funciones_persona` | table | **no** · soporte documental · **obligatorio** |
+| P-06 | `ventana_correlacion_dias` | duration_days | **no** · la ventana real la fija el motor · **obligatorio** |
+| P-ATT | `atestaciones_documentales` | table | no · `r2.1` y `r3.1` salen `NO_APLICA` en todos los niveles (`levels: []`), así que hoy no acredita nada aquí |
 
 Verificado en `core/policy-runtime/policies/op-acc-3.policy.ts`: las únicas
 llamadas a `getParameter` son a P-03, P-02, P-05 y P-04. P-01 y P-06 solo
-aparecen como `parameterIds` de la traza. Ponlos igual: el informe los cita.
+aparecen como `parameterIds` de la traza. **Rellénalos igual**: los dos son
+`required` en el bloque, y un obligatorio vacío deja el control marcado como
+«configuración incompleta» (aquí no cambia el veredicto porque lo decide el
+evaluador, pero sale en la tarjeta y en el informe).
 
 Cómo lee el motor esas filas, que es donde se pierde la gente:
 
@@ -231,18 +269,19 @@ evidencia no se puede juzgar** por muchos hechos que emita la máquina; y
 | **P-03** | `periodicidad_revision_permisos_dias` | duration_days | EV-05 | `ANTIGUEDAD_MAXIMA` |
 | **P-05** | `usuarios_autorizados_acceso_remoto` | list | EV-06 | `NINGUNO_FUERA_DE_LISTA` |
 | **P-07** | `recursos_sensibles_necesidad_conocer` | table `Recurso(path)` · `Perfiles(multiselect)` | EV-07 | `CONFORME_A_TABLA` |
-| P-04 | `canales_acceso_remoto_permitidos` | list | — | **ninguna primitiva lo mira hoy** |
-| P-06 | `grupos_privilegiados` | list | — | **ninguna primitiva lo mira hoy** |
+| P-04 | `canales_acceso_remoto_permitidos` | list | — | ninguna primitiva lo mira hoy · **pero es obligatorio: vacío tumba el control a 0 %** |
+| P-06 | `grupos_privilegiados` | list | — | ninguna primitiva lo mira hoy · **pero es obligatorio: vacío tumba el control a 0 %** |
 
 > **P-05 no admite el separador `|`.** El motor parte su valor por saltos de
-> línea **y por comas**, nunca por barra. `jgomez | VPN` no casaría con
-> `jgomez`, y ese silencio se leería como cumplimiento. Una cuenta por línea.
+> línea, **comas y punto y coma** (`toParameterListItems`: `split(/[\n,;]/)`),
+> nunca por barra. `jgomez | VPN` no casaría con `jgomez`, y ese silencio se
+> leería como cumplimiento. Una cuenta por línea.
 
 ### 1.2 Lo que se declara EN LA MÁQUINA
 
-Ningún instalador crea estos ficheros con contenido activo, y es deliberado:
-**un fichero de política vacío y activo sería una laguna disfrazada de
-configuración** —el agente diría «comparé contra la política y no encontré
+Casi ningún instalador crea estos ficheros con contenido activo, y es
+deliberado: **un fichero de política vacío y activo sería una laguna disfrazada
+de configuración** —el agente diría «comparé contra la política y no encontré
 desviaciones» sin haber comparado contra nada— y **uno sembrado por el
 instalador declararía autorizada la puerta trasera de una máquina ya
 comprometida**.
@@ -256,10 +295,48 @@ comprometida**.
 | `/etc/ensfacil/opacc2-suid.allow` | op.acc.2 · EV-07 | una **ruta absoluta** por línea | `OPACC2_SUID_BASELINE` |
 | `/etc/ensfacil/opacc3-tareas.tsv` | op.acc.3 · EV-03 | `nombre<TAB>patrón` | `OPACC3_TAREAS_CRITICAS` |
 | `/etc/ensfacil/opacc4-revisiones.tsv` | op.acc.4 · EV-05 | `fecha<TAB>alcance<TAB>responsable` | `OPACC4_REGISTRO_REVISIONES` |
+| `/etc/ensfacil/opacc1-ldap-bajas.tsv` | op.acc.1 LDAP · EV-04, EV-08 | `usuario<TAB>AAAA-MM-DD` | `OPACC1LDAP_BAJAS` |
 | `/etc/ensfacil/opacc2-ldap-acl.tsv` | op.acc.2 LDAP · EV-04, **dos planos** | ver §3 | `OPACC2LDAP_ACL_POLITICA` |
 | `/etc/ensfacil/opacc2-ldap-suid.allow` | op.acc.2 LDAP · EV-07 | una ruta absoluta por línea | `OPACC2LDAP_SUID_BASELINE` |
 | `/etc/ensfacil/opacc3-ldap-tareas.tsv` | op.acc.3 LDAP · EV-03 | `nombre<TAB>patrón` | `OPACC3LDAP_TAREAS_CRITICAS` |
 | `/etc/ensfacil/opacc4-ldap-revisiones.tsv` | op.acc.4 LDAP · EV-05 | `fecha<TAB>alcance<TAB>responsable` | `OPACC4LDAP_REGISTRO_REVISIONES` |
+
+> **LA EXCEPCIÓN, Y HAY QUE CONOCERLA: `opacc3-tareas.tsv`.** Verificado en
+> `op.acc.3-segregacion-de-funciones-y-tareas/install.sh` (líneas 51-53) y
+> en `op.acc.3-ldap/install.sh` (líneas 81-88): si el fichero **no existe**,
+> los dos instaladores lo crean **copiando su `.example`, que trae cuatro filas
+> ACTIVAS**. **No son las mismas cuatro en los dos** (comprobado fichero a
+> fichero el 12/08/2026):
+>
+> | Runbook | Filas activas del `.example` |
+> |---|---|
+> | Linux | `despliegue en produccion` → `/usr/local/bin/deploy-prod` · `cambio de cortafuegos` → `/usr/sbin/nft` · `restauracion de copia` → `/usr/bin/proxmox-backup-client` · `modificacion de privilegios` → `/usr/sbin/visudo` |
+> | LDAP | `modificacion del directorio` → `/usr/bin/ldapmodify` · `cambio de contrasena en el directorio` → `/usr/bin/ldappasswd` · `volcado completo del directorio` → `/opt/zimbra/common/sbin/slapcat` · `parada o arranque del servicio` → `/opt/zimbra/bin/zmcontrol` |
+>
+> Avisan por pantalla («REVÍSALO: son ejemplos» en Linux, «revísalo: los nombres
+> tienen que coincidir con P-04» en LDAP) y nada más.
+>
+> **Consecuencia exacta:** en una máquina donde `/usr/local/bin/deploy-prod` no
+> existe, esa tarea **nunca se ejecuta**, y «una tarea que nadie ejecutó no
+> incumple». EV-03 sale `CUMPLE` **sin haber medido nada** — el `CUMPLE` vacío.
+> Es la única laguna de este documento que un instalador puede sembrar solo.
+> Sustituye las cuatro filas por los binarios reales de la máquina **antes** de
+> creerte un EV-03 en verde, y comprueba que existen:
+>
+> ```bash
+> sudo grep -vE '^\s*#|^\s*$' /etc/ensfacil/opacc3-tareas.tsv \
+>   | cut -f2 | while read -r p; do
+>       [ -e "$p" ] && echo "EXISTE   $p" || echo "NO EXISTE $p  <-- tarea que nunca disparará"
+>     done
+> ```
+>
+> Los otros diez ficheros sí siguen la regla: `op.acc.2` (Linux y LDAP) instala
+> solo `.example` sin activar, y `op.acc.4` (Linux y LDAP) **no crea el registro
+> de revisiones**. En el instalador Linux no aparece ni mencionado; el de LDAP lo
+> nombra dos veces, y las dos para decir lo contrario de crearlo: *«NUNCA toca
+> /etc/ensfacil/opacc4-ldap-revisiones.tsv: ese fichero lo escribe la
+> organización cuando hace una revisión de permisos de verdad»* (cabecera) y la
+> línea de ejemplo del cierre. Comprobado el 12/08/2026 en los dos ficheros.
 
 **Todas las columnas van separadas por TABULADOR.** Una fila escrita con
 espacios deja la fila entera en la primera columna. El recolector lo detecta y
@@ -278,14 +355,25 @@ printf '2026-08-12\ttodo el sistema\trsec\n' \
 sudo chmod 640 /etc/ensfacil/opacc4-revisiones.tsv
 
 # Tareas críticas · op.acc.3 EV-03
-printf 'despliegue en produccion\t/usr/local/bin/deploy-prod\n' \
-  | sudo tee -a /etc/ensfacil/opacc3-tareas.tsv
+# OJO: este fichero YA existe con las cuatro filas de ejemplo (ver el aviso de
+# arriba). SUSTITÚYELAS —no añadas encima, o dejas activas las de ejemplo— y usa
+# binarios que existan aquí y nombres que estén en P-04.
+sudo -e /etc/ensfacil/opacc3-tareas.tsv
+# así quedó en wazuh-real (12/08/2026), y sus cuatro nombres son los de P-04:
+#   cambio de cortafuegos<TAB>/usr/sbin/nft
+#   modificacion de privilegios<TAB>/usr/sbin/visudo
+#   cambio de reglas de auditoria<TAB>augenrules
+#   instalacion de software en produccion<TAB>/usr/bin/dpkg
 ```
 
-Para los cuatro de `op.acc.2`, las plantillas `.example` **llevan todas sus filas
-comentadas**: copiarlas deja la evidencia exactamente igual de gris, con el
-motivo `… sin ninguna fila utilizable` —distinto a propósito del de «no
-existe»—.
+Para los **cuatro de `op.acc.2` en Linux**, las plantillas `.example` **llevan
+todas sus filas comentadas** —verificado: 0 filas activas en las cuatro—, así
+que copiarlas deja la evidencia exactamente igual de gris, con el motivo
+`… sin ninguna fila utilizable` —distinto a propósito del de «no existe»—.
+**Las dos de `op.acc.2` LDAP no**: `opacc2-ldap-acl.tsv.example` trae 41 filas
+activas y `opacc2-ldap-suid.allow.example` 23, medidas contra esa máquina. Ahí
+copiar la plantilla **sí** activa una política, y por eso su instalador se
+detiene y te obliga a copiarla a mano.
 
 ```bash
 sudo cp /etc/ensfacil/opacc2-acl.tsv.example /etc/ensfacil/opacc2-acl.tsv
@@ -305,7 +393,9 @@ while read -r f; do
     || printf '%s\tSIN PAQUETE  <-- REVISAR\n' "$f"
 done < /var/lib/ensfacil/opacc2/suid.candidato
 
-cp /var/lib/ensfacil/opacc2/suid.candidato /etc/ensfacil/opacc2-suid.allow
+# `sudo` no es opcional: /etc/ensfacil es de root y sus ficheros van en 640.
+sudo cp /var/lib/ensfacil/opacc2/suid.candidato /etc/ensfacil/opacc2-suid.allow
+sudo chmod 640 /etc/ensfacil/opacc2-suid.allow
 sudo -e /etc/ensfacil/opacc2-suid.allow      # quitar lo que no deba estar
 ```
 
@@ -335,14 +425,29 @@ sudo auditctl -s | head -3          # pid distinto de 0 = el demonio corre
 |---|---|---|
 | `ensfacil_opacc2` | op.acc.2 · EV-03 (solo `access_denied`) | denegaciones sobre las rutas de P-02 |
 | `ensfacil_opacc2_obj` | op.acc.2 · EV-06 | `-w <ruta> -p rwxa` por recurso de `opacc2-accesos.tsv` |
-| `ensfacil_opacc3_act` | op.acc.3 · EV-01, 02, 03, 04, 05, 06 | **todo `execve` con `auid>=1000`** |
-| `ensfacil_opacc3_sec` | op.acc.3 · EV-07 | `/var/ossec/etc`, `/etc/audit`, `/var/log/audit` |
-| `ensfacil_opacc4_perms` | op.acc.4 · EV-04 | cambios de permisos, con su actor |
-| `ensfacil_opacc4_kn` | op.acc.4 · EV-07 | lecturas de los recursos de P-07 |
+| `ensfacil_opacc3_act` | op.acc.3 · EV-01, 02, 03, 04, 05, 06 | **una `-w <binario> -p x` por binario de una LISTA CERRADA** (12 en la plantilla Linux, 17 en la LDAP) |
+| `ensfacil_opacc3_sec` | op.acc.3 · EV-07 | `/var/ossec/etc`, `/etc/audit`, `/var/log/audit` (+ `cn=config` y `localconfig.xml` en LDAP) |
+| `ensfacil_opacc4_perms` | op.acc.4 · EV-04 | `chmod/chown/setxattr` con `auid>=1000`, más `-w` sobre `/etc/group`, `/etc/sudoers` y `/etc/sudoers.d` |
+| `ensfacil_opacc4_kn` | op.acc.4 · EV-07 | lecturas de los recursos de P-07 · **la plantilla Linux no trae NI UNA: las escribes tú** |
 
-> **AVISO DE VOLUMEN.** `ensfacil_opacc3_act` observa **todas** las ejecuciones
-> de usuarios reales. Dimensiona el disco antes de cargarla en producción:
-> `grep -E 'max_log_file|num_logs' /etc/audit/auditd.conf`.
+> **`ensfacil_opacc3_act` NO observa todas las ejecuciones de la máquina, y
+> creerlo lleva al error contrario.** La plantilla
+> `etc/ensfacil-opacc3.audit.rules.plantilla` es una lista de doce
+> `-w <binario> -p x -k ensfacil_opacc3_act` (`git`, `systemctl`, `crontab`,
+> `visudo`, `usermod`, `useradd`, `userdel`, `nano`, `vim.basic`, `apt`,
+> `apt-get`, `dpkg`); no hay ninguna regla `-S execve`. Comprobado el 12/08/2026
+> en `wazuh-real`: `auditctl -l` lista exactamente 12 con esa clave.
+>
+> Las dos consecuencias, y las dos importan:
+>
+> - **El volumen es acotado**, no masivo. Aun así conviene mirar
+>   `grep -E 'max_log_file|num_logs' /etc/audit/auditd.conf` antes de producción,
+>   porque `dpkg` y `apt` sí generan ráfagas.
+> - **Una función de P-03 cuyo indicador no esté en esa lista NUNCA se observa.**
+>   Si declaras `desarrollo | /usr/bin/docker` y nadie vigila `docker`, el motor
+>   no verá esa función y la cuenta saldrá limpia. **Añadir un indicador a P-03
+>   obliga a añadir su `-w` a `/etc/audit/rules.d/ensfacil-opacc3.rules` y a
+>   recargar.** Es la pareja que más se olvida de todo el control.
 
 Las reglas viven en el kernel, así que `auditctl -l` **las sigue listando con el
 demonio parado**: hay que mirar también `auditctl -s`. Y justo después de cargar
@@ -357,13 +462,28 @@ Para `op.acc.4`, una línea por recurso de P-07:
 -w /datos/rrhh -p r -k ensfacil_opacc4_kn
 ```
 
-Y comprobar que el kernel tiene lo que el fichero declara —el 12/08/2026 el
-fichero declaraba ocho vigilancias y el kernel tenía dos—:
+Y comprobar que el kernel tiene lo que el fichero declara. En el servidor LDAP
+llegó a haber ocho vigilancias declaradas y dos cargadas; **hoy, 12/08/2026, las
+ocho están cargadas** (verificado con `auditctl -l` en `ldap-adm`). El `diff`
+tiene que salir vacío:
 
 ```bash
-diff <(grep -h '^-w ' /etc/audit/rules.d/ensfacil-opacc4-ldap.rules | awk '{print $2}' | sort) \
-     <(sudo auditctl -l | grep -E 'ensfacil_opacc4_(perms|kn)' | grep '^-w ' | awk '{print $2}' | sort -u)
+# servidor LDAP
+sudo bash -c 'diff \
+  <(grep -h "^-w " /etc/audit/rules.d/ensfacil-opacc4-ldap.rules | awk "{print \$2}" | sort -u) \
+  <(auditctl -l | grep -E "ensfacil_opacc4_(perms|kn)" | grep "^-w " | awk "{print \$2}" | sort -u)'
+
+# servidor Linux: el mismo, cambiando el nombre del fichero
+sudo bash -c 'diff \
+  <(grep -h "^-w " /etc/audit/rules.d/ensfacil-opacc4.rules | awk "{print \$2}" | sort -u) \
+  <(auditctl -l | grep -E "ensfacil_opacc4_(perms|kn)" | grep "^-w " | awk "{print \$2}" | sort -u)'
 ```
+
+El `sudo bash -c` no es adorno: la sustitución de proceso `<(...)` la ejecuta tu
+shell **sin** privilegio, y `/etc/audit/rules.d` es `drwxr-x--- root:root`, así
+que la versión sin `sudo` delante del `grep` devuelve una lista vacía y el `diff`
+acusa un desajuste que no existe. Probado el 12/08/2026 en `wazuh-real`: con la
+forma de arriba sale vacío (rc 0).
 
 ### 1.4 Antes de guardar la configuración: copia y validación
 
@@ -373,12 +493,16 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem \
      --key /etc/wazuh-indexer/certs/admin-key.pem \
      https://localhost:9200/wazuh-ens-configuration/_doc/active > copia-config.json
 
-# réplica de la regla real del validador sobre TODO el documento
+# Las DOS reglas estructurales que tumban el entorno entero, sobre TODO el
+# documento: `isParameterValue` y la forma de cada `columns[]`.
+# NO cubre el contenido de las celdas: eso lo juzga `parameter-value-validator`
+# y solo degrada el control (§0, regla 7).
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem \
      --key /etc/wazuh-indexer/certs/admin-key.pem \
      https://localhost:9200/wazuh-ens-configuration/_doc/active \
  | python3 -c '
 import json,sys
+TIPOS_COL={"string","identifier","path","octal","number","date","select","multiselect"}
 def ok(p,k):
     if k not in p: return True
     v=p[k]
@@ -393,12 +517,23 @@ for ci,c in enumerate(d["_source"]["configuration"]["controls"]):
             if not ok(p,k):
                 malos+=1
                 print("INVALIDO controls[%d].parameters[%d].%s (%s/%s)"%(ci,pi,k,c["controlId"],p["id"]))
+        for xi,col in enumerate(p.get("columns") or []):
+            ruta="controls[%d].parameters[%d].columns[%d]"%(ci,pi,xi)
+            if not isinstance(col.get("name"),str) or not isinstance(col.get("label"),str):
+                malos+=1; print("INVALIDO %s.name/label (%s/%s)"%(ruta,c["controlId"],p["id"]))
+            if col.get("type") not in TIPOS_COL:
+                malos+=1; print("INVALIDO %s.type (%s/%s)"%(ruta,c["controlId"],p["id"]))
+            if not isinstance(col.get("required"),bool):
+                malos+=1; print("INVALIDO %s.required no es booleano (%s/%s)"%(ruta,c["controlId"],p["id"]))
 print("invalidos:",malos)'
 ```
 
+Ejecutado contra `wazuh4` el 12/08/2026: **`invalidos: 0`**.
+
 Para **vaciar** un parámetro hay que **borrar la clave `value`**, no asignarle
 `null`. Un solo `null` deja el dashboard con *«No se pudo cargar el entorno
-ENS»*.
+ENS»*. La comprobación de `columns[].required` está aquí porque es exactamente
+lo que rompió producción el 06/08/2026, y la parte de `value` sola no lo veía.
 
 Y comprobar las columnas reales antes de escribir una tabla:
 
@@ -431,6 +566,41 @@ sudo /var/ossec/bin/agent_groups -a -i <ID> -g ens -q
 > `mode: "global"` evalúa todos los agentes, incluidos los que no tienen
 > ENSFácil instalado, y hunde la media con máquinas que nadie instrumentó.
 
+Leído en `wazuh4` el 12/08/2026:
+`{"mode": "agent", "agentIds": ["024", "028"], "groupIds": []}` y
+`global.ensLevel = "MEDIO"`, que es lo que hace que todo lo marcado «solo ALTO»
+en este documento salga `NO_APLICA` hoy.
+
+### 1.6 Dónde vive cada recolector, que no es el mismo sitio en las dos máquinas
+
+**Los runbooks de Linux instalan en `/usr/local/bin`; los de LDAP en
+`/opt/ensfacil`.** Buscar el script donde no está es media hora perdida.
+Verificado el 12/08/2026 en las dos máquinas.
+
+| Máquina | Recolectores | Minuto de cron |
+|---|---|---|
+| `wazuh-real` | `/usr/local/bin/ens_opacc{1,2,3,4}_collect.sh` (+ `_score.py` y `_watchdog.py` de 1 y 2) | `:07`, `:12`, `:41`, `:17` |
+| `ldap-adm` | `/opt/ensfacil/ens_opacc{1,2,3,4}ldap_collect.sh` (+ sus `opacc{N}ldap-lib.sh`) | `:17`, `:27`, `:33`, `:37` |
+
+Pasada completa a mano en el servidor LDAP —**ninguno de los cuatro tiene
+`score.py` ni watchdog**, así que el script es toda la pasada—:
+
+```bash
+sudo mv /var/log/ensfacil/op_acc_1.json /var/log/ensfacil/op_acc_1.json.antes
+sudo /opt/ensfacil/ens_opacc1ldap_collect.sh      # y 2, 3, 4 igual
+```
+
+Y para saber si lo desplegado es lo del repositorio, que es la primera pregunta
+cuando el panel no refleja un arreglo:
+
+```bash
+md5sum /opt/ensfacil/opacc4ldap-lib.sh            # en ldap-adm
+md5sum ~/op.acc.4-ldap/lib/opacc4ldap-lib.sh      # en el portátil
+```
+
+El 12/08/2026 los cuatro `opacc{1,2,3,4}ldap-lib.sh` de `ldap-adm` coinciden
+byte a byte con los del repositorio.
+
 Y la cadena entera se cierra en el manager:
 
 ```bash
@@ -446,8 +616,11 @@ otra pasada).
 
 ## 2. op.acc.1 · Identificación
 
-Ocho requisitos. Cuánto pesa cada evidencia (de
-`core/policy-runtime/policies/op-acc-1.policy.ts`):
+Ocho requisitos. Cuánto pesa cada evidencia. **La tabla que puntúa es
+`requirement.evidenceIds` del catálogo del control** —`catalog/op-acc-1.ts`, que
+es lo que lee `evaluateRequirement`—; la de
+`core/policy-runtime/policies/op-acc-1.policy.ts` dice exactamente lo mismo, y
+las dos se han comparado línea a línea:
 
 | Requisito | Nivel | Evidencias que lo acreditan |
 |---|---|---|
@@ -545,6 +718,16 @@ El `set -a` no es opcional: `score.py` no carga el `.env` por sí mismo. Cron:
 ### EV-03 · Cuentas genéricas o compartidas — **MIGRADA**
 `op.acc.1.1` y `op.acc.1.3` · los tres niveles · **regla 106873**
 
+> **Aviso de trazabilidad, comprobado.** El `relatedRules` del catálogo declara
+> para EV-03 las reglas `106801`, `106802` y `106873`; para EV-05, `106805`,
+> `106806` y `106873`; para EV-07, `106824`, `106825`, `106826` y `106811`. **Las
+> antiguas ya no las dispara nadie**: `grep -c 'event=<tipo>'` sobre
+> `lib/opacc1-lib.sh` da 0 para `generic_account_login`, `auth_success`,
+> `service_account_interactive`, `interactive_login`, `authorized_list_check` y
+> `unauthorized_user`. La única regla viva de EV-03 y EV-05 es **106873**, y la de
+> EV-07, **106811**. Si un auditor pide el evento crudo de una de las otras, no
+> existe.
+
 - **Mira.** Las líneas `Accepted …` de sshd en `/var/log/auth.log` o journald.
   Emite `account_authenticated` con `usuario` y `origen`, etiquetado
   `evidence_id=EV-03,EV-05`, y **sin `estado`**: el hecho crudo no lleva
@@ -596,8 +779,11 @@ El `set -a` no es opcional: `score.py` no carga el `.env` por sí mismo. Cron:
   `bajas_declaradas` es documental: ningún script lo lee**, y **P-08
   `integracion_rrhh` tampoco** —poner «sí» no desactiva el fichero, lo que decide
   es que exista o no—. Lo que EV-04 consulta es el TSV de la máquina.
-- **Si falta.** `NO_EVALUABLE`: *«sin fuente de fechas de baja: ni bajas.tsv
-  (P-08) ni campo expira en shadow»*, y `op.acc.1.4` no cumple. Es correcto: no
+- **Si falta.** `NO_EVALUABLE` con el motivo literal —copiado de
+  `lib/opacc1-lib.sh:1421`—: *«sin fuente de fechas de baja: no existe
+  /var/lib/ensfacil/opacc1/bajas.tsv (P-09) ni hay campo expira poblado en
+  shadow»*, y `op.acc.1.4` no cumple. **El motivo cita P-09, no P-08**: nombra la
+  tabla `bajas_declaradas`, que es la documental. Es correcto: no
   se puede medir un plazo sin fecha de partida. **Y no se arregla en la
   pantalla.**
 - **Vía recomendada: el procedimiento, no el fichero.** Que toda baja pase por
@@ -661,13 +847,26 @@ El `set -a` no es opcional: `score.py` no carga el `.env` por sí mismo. Cron:
 
 - **Mira.** Pertenencia a los grupos de `OPACC1_GRUPOS_PRIVILEGIADOS` (P-11,
   defecto `sudo,wheel,admin`) en `/etc/group`, y el sufijo `OPACC1_SUFIJO_ADMIN`
-  (P-12, defecto `.adm`) en el identificador. Emite `multi_role_usage`,
-  `privilege_use`.
+  (P-12, defecto `.adm`) en el identificador. Emite **`multi_role_inventory`**
+  (el recuento, siempre), `multi_role_usage` y `privilege_use`.
 - **CUMPLE si.** Toda cuenta con privilegio administrativo usa un identificador
   diferenciado. **Se mide la ESTRUCTURA, no los inicios de sesión** —corregido el
-  07/08/2026: medir logins hacía que una máquina llegara al 100 % con el
-  administrador todavía en `sudo` solo porque nadie se había conectado en la
-  ventana—.
+  **10/08/2026**, verificado en `scripts/ens_opacc1_score.py` líneas 490-511 y en
+  `lib/opacc1-lib.sh` línea 1161: medir logins hacía que una máquina llegara al
+  100 % con el administrador todavía en `sudo` solo porque nadie se había
+  conectado en la ventana—.
+- **Recuento obligatorio, igual que EV-01.** `RECUENTO_OBLIGATORIO` de
+  `score.py` tiene hoy **dos** entradas: `EV-01 → account_inventory` y
+  **`EV-06 → multi_role_inventory`**. Sin ese hecho en la ventana la evidencia
+  sale `NO_EVALUABLE` («sin hecho recuento (multi_role_inventory) en la
+  ventana»), no `CUMPLE` por silencio. **`multi_role_inventory` no tiene regla en
+  el manager** —`ensfacil_op_acc_1_json_rules.xml` solo trae 106807 y 106808 para
+  EV-06—, así que ese recuento vive únicamente en el ndjson de la máquina: se
+  comprueba ahí, no en el panel.
+
+  ```bash
+  jq -c 'select(.event=="multi_role_inventory")' /var/log/ensfacil/op_acc_1.json | tail -1
+  ```
 - **Parámetro que la juzga.** Ninguno de la pantalla: lo decide el agente con su
   `.env`. **No es migrable con las siete primitivas**: contrastar la *forma* del
   identificador contra un sufijo es un patrón que ninguna otra evidencia usa.
@@ -786,6 +985,16 @@ El `set -a` no es opcional: `score.py` no carga el `.env` por sí mismo. Cron:
 | `op.acc.2.r1.1` | **solo ALTO** | EV-05 |
 | `op.acc.2.r1.2` | **solo ALTO** | EV-05, EV-06 |
 
+> **Tres listas y solo una puntúa.** `catalog/op-acc-2.ts` y
+> `policies/op-acc-2.policy.ts` dicen lo mismo —es la tabla de arriba— pero
+> `core/evidence/catalog.ts` declara en la propia evidencia una lista más
+> generosa: EV-01 dice acreditar también `op.acc.2.3` y EV-04 también
+> `op.acc.2.r1.2`. **Lo que se evalúa es `requirement.evidenceIds` del catálogo
+> del control** (`evaluateRequirement` filtra las evidencias con esa lista), así
+> que esas dos líneas de más no suman ni restan: por eso los títulos de EV-01 y
+> EV-04 de abajo citan un solo requisito. Es la misma deuda de «doble catálogo»
+> que avisa `CLAUDE.md`, aquí con nombre y apellidos.
+
 **EV-03 acredita los tres requisitos base.** Una EV-03 en gris tumba el nivel
 BAJO entero. Es la que primero hay que mirar — y es exactamente lo que le pasa
 hoy a `op.acc.2` del LDAP: EV-02, EV-04 y EV-07 conforman y el control marca 0 %.
@@ -818,15 +1027,37 @@ jq -c 'select(.event=="collector_warning")|{parametro,motivo}' \
   /var/log/ensfacil/op_acc_2.json | tail -10
 ```
 
-> **No filtres por `causa` en este control.** Las 51 llamadas a
-> `_opacc2_degradar` salen con `COLLECTION` por defecto, **también las de
-> configuración pura**. El diagnóstico bueno está en el **`motivo`**, que nombra
-> el parámetro o el fichero exacto. Un `causa=COLLECTION` aquí **no** significa
-> que haya algo roto. (En el runbook LDAP sí se puede filtrar: allí la causa es
-> argumento obligatorio de la función de degradación.)
+> **La `causa` de este control es fiable a medias, y hay que saber en qué mitad
+> estás.** `_opacc2_degradar` toma la causa como quinto argumento y **su valor
+> por defecto es `COLLECTION`**. Contadas una a una en
+> `lib/opacc2-lib.sh` el 12/08/2026: **51 llamadas, de las cuales 18 pasan
+> `CONFIGURATION` explícita y 33 se quedan con el defecto.**
+>
+> - Las **18 con `CONFIGURATION`** son las que de verdad son de configuración, y
+>   se reparten así (contadas con su número de línea el 12/08/2026): **3 de
+>   EV-01** (P-02 sin rutas utilizables · P-07 ausente o no octal, dos veces),
+>   **3 de EV-02** (P-02 sin rutas · ninguna ruta con un solo fichero · más
+>   ficheros que `OPACC2_FIM_MAX_FICHEROS`), **3 de EV-04** (el fichero de
+>   política de acceso ausente, sin filas utilizables o sin tabulador), **4 de
+>   EV-05** (`P-05 modelo_privilegios no configurado` y las tres del TSV de
+>   privilegios) y **5 de EV-06** (P-06 sin configurar, su tabla sin filas
+>   utilizables ×3, y el TSV de privilegios inservible). Ahí filtrar por `causa`
+>   **sí** funciona.
+> - Las **33 restantes** salen con `COLLECTION` aunque algunas no sean una
+>   avería. Un `causa=COLLECTION` en este control **no** demuestra que haya algo
+>   roto.
+>
+> **Regla práctica: diagnostica siempre por el `motivo`**, que nombra el
+> parámetro o el fichero exacto, y usa la `causa` solo para ordenar. Es lo que
+> hace el runbook LDAP bien desde el principio: allí la causa es argumento
+> posicional de `_opacc2ldap_degradar` y no tiene defecto.
+>
+> El `CUMPLIMIENTO.md` del runbook de `op.acc.2` sigue diciendo que **ninguna**
+> de las 51 pasa una causa propia (líneas 599-602 y 676-682). **Eso está
+> obsoleto**: el código ya lo hace en 18.
 
 ### EV-01 · Permisos en los recursos del sistema
-`op.acc.2.1` y `op.acc.2.3` · BAJO · reglas 106901-106905
+`op.acc.2.1` · BAJO · reglas 106901-106905
 
 - **Mira.** Dos ejes. (1) `find <ruta> -xdev -perm -0002` sobre cada ruta de
   `OPACC2_RUTAS_CRITICAS` que exista, clasificando fichero / directorio con
@@ -881,7 +1112,22 @@ jq -c 'select(.event=="collector_warning")|{parametro,motivo}' \
 
   **Tener TLS disponible no es exigirlo**: StartTLS funciona en esa máquina, pero
   un cliente que no lo pida hace un bind simple sin cifrar y el servidor lo
-  atiende igual. Por eso este runbook **no comprueba si hay `olcTLS*`
+  atiende igual.
+
+  > **Corrección al informe del 12/08, comprobada en la máquina.** El informe
+  > dice «cero directivas `olcTLS*` en toda la configuración» y de ahí concluye
+  > que *«slapd no tiene cifrado en tránsito»*. **Es falso**: el
+  > `CUMPLIMIENTO.md` de `op.acc.2-ldap` cuenta siete `olcTLS*` (certificado,
+  > clave, CA, `olcTLSProtocolMin: 3.1`, `olcTLSCipherSuite`, `olcTLSCRLCheck`,
+  > `olcTLSVerifyClient`) y **StartTLS negocia**: ejecutado hoy desde `ldap-adm`,
+  > sin credenciales,
+  > `LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldapserver.qsprueba.com:389 -b "" -s base`
+  > devuelve el RootDSE (rc 0). **El veredicto no cambia** —`NO_CUMPLE` sigue
+  > siendo correcto porque `olcSecurity: ssf=0` no exige nada— pero el trabajo
+  > pendiente no es «montar TLS desde cero»: es revisar los certificados,
+  > publicar `ldaps://636` y **entonces** exigir SSF.
+
+ Por eso este runbook **no comprueba si hay `olcTLS*`
   declarado** —eso habría dado `CUMPLE`, que es el CUMPLE falso que el producto
   no comete—: comprueba `olcSecurity`, `olcLocalSSF` y por dónde escucha el
   proceso. Se cierra con certificados → `ldaps://636` → **y solo entonces**
@@ -923,7 +1169,10 @@ jq -c 'select(.event=="collector_warning")|{parametro,motivo}' \
   `fim_deleted` fantasma —severidad 12— por cada fichero que quedara fuera.
 - **LDAP.** Vigila además los **17 ficheros de `cn=config`**: la configuración de
   slapd *es* el control de acceso al directorio, y un cambio ahí no deja rastro
-  en `/etc`. Hoy `CUMPLE` en los dos planos (18 + 17 ficheros, 0 cambios). Y la
+  en `/etc`. Hoy `CUMPLE` en los dos planos (18 + 17 ficheros según el
+  `CUMPLIMIENTO.md` del runbook, 21 + 17 según el informe del 12/08 — **no se ha
+  comprobado en la máquina cuál de los dos recuentos del plano sistema es el
+  vigente**; el veredicto es el mismo, 0 cambios). Y la
   primera pasada sale `NO_EVALUABLE` / `COLLECTION`, no `CUMPLE`: EV-02 pregunta
   si han cambiado los componentes **desde la observación anterior**, y en la
   primera no hay observación anterior.
@@ -1007,7 +1256,7 @@ jq -c 'select(.event=="collector_warning")|{parametro,motivo}' \
   elevaciones.
 
 ### EV-04 · ACLs frente a la política declarada
-`op.acc.2.2` y `op.acc.2.r1.2` · BAJO · reglas 106913, 106914
+`op.acc.2.2` · BAJO · reglas 106913, 106914
 
 - **Mira.** Cada fila de `/etc/ensfacil/opacc2-acl.tsv`, en tres ejes:
   `stat -c '%a'` (modo, comparado como octal: `750` y `0750` son el mismo),
@@ -1149,11 +1398,21 @@ jq -c 'select(.event=="collector_warning")|{parametro,motivo}' \
   el fichero de reglas, y **solo para rutas que existen de verdad**) →
   `augenrules --load`. `augenrules --load` es **la causa número uno** de que
   EV-06 salga gris tras un despliegue.
-- **LDAP.** Plano sistema `NO_EVALUABLE` / **`COLLECTION`**: `auditd` **no está
-  instalado**. La causa no es `CONFIGURATION` a propósito: **no falta una
-  decisión, falta un componente**; y se cierra desplegando además el runbook
+- **LDAP.** Plano sistema `NO_EVALUABLE` / **`COLLECTION`**, y **el motivo ha
+  cambiado desde que se escribió el `CUMPLIMIENTO.md` de `op.acc.2-ldap`**. Ese
+  documento dice que `auditd` no está instalado (medido el 10/08/2026);
+  **comprobado en `ldap-adm` el 12/08/2026, sí lo está**: `auditd 1:3.0.7-1build1`,
+  demonio vivo (`auditctl -s` → `pid 382`) y 37 reglas `ensfacil_*` cargadas. El
+  recolector ya distingue los dos casos (`lib/opacc2ldap-lib.sh:3041-3052`), así
+  que hoy sale la **segunda** rama: *«auditd esta instalado pero este runbook
+  todavia no genera ni consume sus reglas; el plano sistema de EV-06 lo cubre el
+  runbook op.acc.2-requisitos-de-acceso»*. Sigue siendo `COLLECTION` y sigue
+  siendo correcto —**no falta una decisión, falta que alguien genere las reglas
+  `ensfacil_opacc2_obj`**—, y se cierra desplegando además el runbook
   `op.acc.2-requisitos-de-acceso`, que es quien genera y consume esas reglas —
-  duplicar la maquinaria solo conseguiría que las dos se estorben. Plano
+  duplicar la maquinaria solo conseguiría que las dos se estorben.
+  `auditctl -l` de `ldap-adm` a 12/08 no lista ni una clave `ensfacil_opacc2` ni
+  `ensfacil_opacc2_obj`, que es exactamente lo que falta. Plano
   directorio: emite 37 `object_access`, uno por cláusula, traduciendo el
   vocabulario de OpenLDAP (`none`, `disclose`, `auth`, `compare`, `search`,
   `read`, `write`, `manage`, `=wrscxd`, `+0`) al del ENS **conservando el token
@@ -1212,6 +1471,28 @@ el ENS los define pero no los exige en la tabla de aplicabilidad de ningún nive
 > está obsoleto**, y el informe del 12/08 mide los dos controles en las dos
 > máquinas.
 
+Cuánto pesa cada evidencia, de `catalog/op-acc-3.ts` (`levels: []` significa que
+el requisito sale `NO_APLICA` en los tres niveles y **no entra en el
+denominador**):
+
+| Requisito | Nivel | Evidencias del catálogo | Quién decide el veredicto |
+|---|---|---|---|
+| `op.acc.3.1` | MEDIO y ALTO | EV-01, EV-06 | **el evaluador** · par `desarrollo \| operacion` |
+| `op.acc.3.2` | MEDIO y ALTO | EV-02, EV-03, EV-06 | **el evaluador** · par `autorizacion \| control` **+** la concurrencia de P-04 |
+| `op.acc.3.r1.1` | **solo ALTO** | EV-04, EV-06 | **el evaluador** · par `configuracion \| mantenimiento` |
+| `op.acc.3.r1.2` | **solo ALTO** | EV-05 | **el evaluador** · `auditoria \| *` y P-05 |
+| `op.acc.3.r2.1` | ninguno | ninguna | `NO_APLICA` |
+| `op.acc.3.r3.1` | ninguno | EV-07 | `NO_APLICA` |
+
+**Y aquí esta tabla NO es la palanca que es en los otros controles.** Cuando hay
+decisión de la policy para un requisito, `evaluateRequirement` usa **esa**
+decisión y no consolida sus evidencias (`measurement = policyDecision.status`).
+Por eso una evidencia gris no arrastra al requisito —y por eso `op.acc.3` marca
+100 % con EV-02 y EV-07 sin medir—. La tabla sirve para leer la traza y para
+saber qué mirar, no para predecir el número. (La lista de la policy para
+`op.acc.3.2` es `EV-02, EV-06`; la del catálogo añade EV-03. Ninguna de las dos
+cambia el veredicto, que lo pone el evaluador.)
+
 **Es el único control con evaluador de policy propio**
 (`core/policy-runtime/policies/op-acc-3.policy.ts`), y la razón es estructural:
 su hecho no significa nada por sí solo. «jgomez ejecutó git push» no incumple;
@@ -1237,18 +1518,32 @@ binario de `exe=`), `ruta` (el primer `name=`), `veces` y `origen_dato`.
 motor. **Se emite un hecho por combinación distinta, no por ejecución** — una
 pasada real produjo 3304 ejecuciones para 48 combinaciones.
 
-**Las cinco evidencias del cruce degradan a la vez y por los mismos tres
-motivos:**
+> **Qué cuentas entran, exactamente.** El recolector se queda con el `auid` de
+> cada registro y descarta **solo** `unset` y `4294967295`
+> (`lib/opacc3-lib.sh:198`). **No hay ningún corte en 1000**: `root` con
+> `auid=0` —alguien que inició sesión como root— **sí se observa y sí se
+> clasifica**. Lo que queda fuera son los procesos de demonio, que no tienen
+> `auid` porque nadie inició sesión para lanzarlos, y ahí el descarte es
+> correcto: no hay persona a la que atribuir la acción.
+>
+> Y **qué acciones entran** lo decide la lista cerrada de `-w <binario> -p x` de
+> `ensfacil_opacc3_act` (§1.3), no un barrido de todo `execve`.
+
+**Las cinco evidencias del cruce degradan a la vez y por los mismos cuatro
+motivos** (`lib/opacc3-lib.sh`, `ev_acciones_por_cuenta`, líneas 140-178):
 
 | Situación | Estado | Causa |
 |---|---|---|
-| `ausearch` no está instalado | `NO_EVALUABLE` | `COLLECTION` |
-| las reglas no están cargadas en el kernel | `NO_EVALUABLE` | `CONFIGURATION` |
-| `ausearch` no devuelve **ni un registro** del log | `NO_EVALUABLE` | `COLLECTION` |
+| `ausearch` no está instalado | `NO_EVALUABLE` | `COLLECTION` (por defecto) |
+| las reglas no están cargadas en el kernel (`auditctl -l` no lista `ensfacil_opacc3_act`) | `NO_EVALUABLE` | **`CONFIGURATION`** · el motivo dice *ejecuta `augenrules --load`* |
+| `ausearch` falla con un rc distinto de 0 y de 1 | `NO_EVALUABLE` | `COLLECTION` |
+| `ausearch` no devuelve **ni un registro** del log, ni siquiera sin filtrar por clave | `NO_EVALUABLE` | `COLLECTION` |
 
-Ese tercer caso es un control positivo y cierra una trampa real: **`ausearch` sin
-`--input-logs` lee de stdin cuando no hay terminal**. Desde consola funciona;
-desde cron devuelve «no matches» exactamente igual que si no hubiera pasado nada.
+`rc=1` con salida vacía **no** degrada: es «no hay eventos», que es un hecho
+legítimo. El cuarto caso es un control positivo y cierra una trampa real:
+**`ausearch` sin `--input-logs` lee de stdin cuando no hay terminal**. Desde
+consola funciona; desde cron devuelve «no matches» exactamente igual que si no
+hubiera pasado nada.
 
 Cron: `41 * * * *`, un solo script. **No tiene `score.py` ni watchdog.**
 
@@ -1265,8 +1560,9 @@ Con auditd cargado y legible tienen que salir las siete.
 ### EV-01 · Desarrollo y operación en la misma cuenta
 `op.acc.3.1` · MEDIO y ALTO · regla 107001
 
-- **Mira.** Cada `execve` de una cuenta con `auid>=1000` bajo la clave
-  `ensfacil_opacc3_act`.
+- **Mira.** Cada ejecución, **por una cuenta con `auid` asignado**, de uno de los
+  binarios vigilados con la clave `ensfacil_opacc3_act` — la lista cerrada de
+  `-w … -p x` de §1.3, no todo `execve`.
 - **CUMPLE si.** Ninguna cuenta cuyo conjunto de acciones case a la vez con
   `desarrollo` y con `operacion` según P-03, siendo ese par incompatible en P-02.
 - **Parámetros que la juzgan.** **P-03** (clasificar) y **P-02** (el par).
@@ -1314,6 +1610,17 @@ Con auditd cargado y legible tienen que salir las siete.
   la máquina dice **qué comando es** esa tarea aquí. El motor las une **por el
   nombre, en minúsculas**. Si los nombres no coinciden, la tarea se observa y no
   se juzga.
+- **Y P-04 es UNO para todas las máquinas: la pantalla no tiene un valor por
+  agente.** Medido el 12/08/2026: P-04 en el índice trae `cambio de
+  cortafuegos`, `modificacion de privilegios`, `cambio de reglas de auditoria` e
+  `instalacion de software en produccion`, que son **los nombres del fichero de
+  `wazuh-real`** —allí casan los cuatro—; el `opacc3-ldap-tareas.tsv` de
+  `ldap-adm` sigue con los cuatro del `.example` (`modificacion del directorio`,
+  `cambio de contrasena en el directorio`, `volcado completo del directorio`,
+  `parada o arranque del servicio`) y **ninguno figura en P-04**. Consecuencia
+  exacta en esa máquina: sus tareas críticas se observan y **no se juzgan**. Se
+  cierra añadiendo esas cuatro filas a P-04 con su número de personas, o
+  renombrando las tareas del fichero a nombres que P-04 ya declare.
 - **Si falta.** `NO_CUMPLE` listando la tarea, las personas observadas y las
   exigidas. Sin fichero de tareas: `NO_EVALUABLE` / `CONFIGURATION` («no hay
   ninguna tarea crítica declarada»). Sin P-04: `NO_EVALUABLE`.
@@ -1337,7 +1644,11 @@ Con auditd cargado y legible tienen que salir las siete.
     /var/log/ensfacil/op_acc_3.json
   ```
 - **LDAP.** `NO_EVALUABLE` en los dos planos y **por motivos distintos**: sistema
-  `COLLECTION` (auditd no instalado); directorio `CONFIGURATION`, porque
+  `COLLECTION` —el `CUMPLIMIENTO.md` de `op.acc.3-ldap` lo atribuye a que auditd
+  no está instalado, y **eso ya no es cierto**: el 12/08/2026 `ldap-adm` tiene
+  auditd corriendo con 17 reglas `ensfacil_opacc3_act` y 5 `ensfacil_opacc3_sec`
+  cargadas, así que hay que volver a mirar el `motivo` de la última pasada antes
+  de dar esta línea por buena—; directorio `CONFIGURATION`, porque
   `modifiersName` **solo conserva al último** que modificó cada entrada y lo
   sobrescribe el siguiente — es una **foto, no un rastro**.
 
@@ -1384,12 +1695,24 @@ Con auditd cargado y legible tienen que salir las siete.
 - **Un `cuentasObservadas` a 0 no es un incumplimiento, pero convierte un CUMPLE
   en un CUMPLE vacío** — el motor lo dice literalmente en la razón: «No se ha
   observado ninguna acción en el periodo».
-- **Si sale 0 en una máquina con actividad**, el problema es el filtro
-  `auid>=1000`: las acciones de `root` directo no se ven, y **es correcto**
-  (`root` no identifica a una persona), pero significa que tu operación real pasa
-  por una cuenta que `op.acc.3` no puede atribuir a nadie.
+- **Si sale 0 en una máquina con actividad**, el orden en que hay que mirar,
+  porque **no** es un corte por UID —el recolector solo descarta `auid` sin
+  asignar, ver el aviso de arriba—:
+  1. **¿Están cargadas las reglas?** `sudo auditctl -l | grep -c ensfacil_opacc3_act`
+     (en `wazuh-real`, 12 el 12/08/2026). Con 0, la evidencia debería estar
+     degradando con `CONFIGURATION`, no dando 0 cuentas.
+  2. **¿Se han ejecutado esos binarios concretos?** La clave vigila una lista
+     cerrada. Una máquina que se opera solo con `docker`, `ansible` o
+     `kubectl` no produce ni un `account_action` aunque tenga tráfico todo el día.
+     Se arregla añadiendo el `-w` **y** el indicador en P-03.
+  3. **¿La operación pasa por procesos de demonio?** Un cambio hecho por un
+     servicio no tiene `auid` y no se atribuye a nadie — correctamente.
 - **LDAP.** Aquí no puede salir 0: las capacidades se leen de ficheros que
-  siempre están. Hoy 9 identidades (5 sistema + 4 directorio).
+  siempre están. El `CUMPLIMIENTO.md` de `op.acc.3-ldap` cuenta **9 identidades**
+  (5 sistema + 4 directorio); el informe del 12/08 dice **10 cuentas
+  observadas**. Son dos recuentos distintos —el del recolector y el
+  `cuentasObservadas` de la policy— y **no se ha comprobado cuál corresponde a
+  qué**; el veredicto no depende del número.
 
 ### EV-07 · Acceso a la información de seguridad (R3)
 `op.acc.3.r3.1` · regla 107003, evento `security_info_access`
@@ -1410,7 +1733,8 @@ Con auditd cargado y legible tienen que salir las siete.
 
 ## 5. op.acc.4 · Proceso de gestión de derechos de acceso
 
-Cinco requisitos, **los cinco rigen desde BAJO**, sin refuerzos.
+Cinco requisitos, **los cinco rigen desde BAJO**, sin refuerzos. La tabla sale de
+`catalog/op-acc-4.ts` —que es lo que puntúa— y `op-acc-4.policy.ts` coincide:
 
 | Requisito | Evidencias que lo acreditan |
 |---|---|
@@ -1652,9 +1976,16 @@ EV-03 y EV-08 no cumplen.
 - **Es la única evidencia existencial del control**: le basta un hecho lo bastante
   reciente y por eso mismo **nunca cumple por ausencia**. No haber revisado nunca
   no puede salir en verde por falta de datos.
-- **Hoy `NO_EVALUABLE` en `wazuh-real`**: el fichero existe desde que se instaló
-  el runbook y nadie ha escrito en él. **No es un fallo técnico: falta el acto de
-  la organización.** Es lo más barato de cerrar de todo el informe.
+- **Hoy `NO_EVALUABLE` en `wazuh-real`**, y con el matiz que corrige al informe:
+  **el instalador NO crea este fichero** —`install.sh` de
+  `op.acc.4-proceso-de-gestion-de-derechos-de-acceso` no lo menciona ni una vez—.
+  El que hay en `wazuh-real` (832 bytes, 06/08/2026) lo creó alguien a mano
+  durante el despliegue, y contiene **solo cabecera de comentarios, cero filas de
+  datos**, con una nota explícita: *«SIN NINGUNA FILA A PROPÓSITO»*. Comprobado en
+  la máquina el 12/08/2026. Así que el motivo real es *«existe pero no tiene
+  ninguna revisión anotada»*, no *«no consta ningún registro»* — son dos motivos
+  distintos a propósito y este es el segundo. **No es un fallo técnico: falta el
+  acto de la organización.** Es lo más barato de cerrar de todo el informe.
 
 ### EV-06 · Accesos remotos
 `op.acc.4.5` · regla 107106
@@ -1807,12 +2138,46 @@ retorno:
 |---|---|---|---|
 | 1 | **Anotar una revisión de permisos** en `/etc/ensfacil/opacc4-revisiones.tsv` de `wazuh-real` | `op.acc.4.4` | una línea, **después** de revisar |
 | 2 | **`olcLogLevel: stats`** en `cn=config` del directorio | `op.acc.2.2`, `op.acc.2.3` y EV-07 de `op.acc.4` | una operación · **la de más retorno de todo el informe** |
-| 3 | **Declarar P-01 y P-07 de `op.acc.4`** en `wazuh-real`, sobre la ventana entera | `op.acc.4.1`, `.2` y `.3` — tres de cinco | decisión del responsable |
+| 3 | **Completar P-01 de `op.acc.4`** en `wazuh-real` sobre la ventana entera — **no está vacío: el 12/08 tenía 22 filas**, y EV-02 sigue en `NO_CUMPLE`, así que lo que falta es alguna combinación observada que no está declarada (o un privilegio que sobra en la máquina) | `op.acc.4.1` y `.2` | decisión del responsable |
 | 4 | **Separar identidades administrativas** en `wazuh-real` | el único incumplimiento medido de su `op.acc.1` | §2, EV-06 |
 | 5 | **Cuenta LDAP de solo lectura** | `op.acc.1` del directorio al 100 % · EV-04 y EV-06 | crear la cuenta, dos líneas en el `.env` |
 | 6 | **TLS en slapd** + `olcSecurity: ssf=128` | el último requisito de `op.acc.2` del directorio | ventana de servicio · **certificados primero** |
-| 7 | **Instalar auditd** en el servidor LDAP | `op.acc.2` EV-06, `op.acc.3` entero, `op.acc.4` EV-04/EV-07 | `apt-get install auditd` + `augenrules --load` |
+| 7 | **Generar y cargar las reglas `ensfacil_opacc2`/`_obj`** en el servidor LDAP, desplegando allí el runbook `op.acc.2-requisitos-de-acceso` | `op.acc.2` EV-06 (solo cuenta en ALTO) | **auditd ya está instalado y corriendo, ver abajo** |
 | 8 | **Portar el mecanismo de política local** a EV-05 y EV-06 de `op.acc.2-ldap` | dos evidencias clavadas | **trabajo de producto**, luego del responsable |
+
+> **Corrección del punto 7 respecto al informe del 12/08.** El informe y los
+> `CUMPLIMIENTO.md` de `op.acc.2-ldap` y `op.acc.3-ldap` dicen que hay que
+> *instalar auditd* en el servidor LDAP. **Ya está instalado**: comprobado en
+> `ldap-adm` el 12/08/2026 —`auditd 1:3.0.7-1build1`, `auditctl -s` con
+> `pid 382`, y 37 reglas `ensfacil_*` cargadas (17 `opacc3_act`, 5 `opacc3_sec`,
+> 8 `opacc4_kn`, 7 `opacc4_perms`)—. Lo que falta es **solo** la maquinaria de
+> `op.acc.2`: no hay ni una regla con las claves `ensfacil_opacc2` ni
+> `ensfacil_opacc2_obj`.
+
+> **Aviso sobre el punto 3.** El informe dice que EV-07 de `op.acc.4` está gris
+> en `wazuh-real` «porque falta declarar P-07». **P-07 no está vacío**: leído del
+> índice el 12/08/2026 trae **ocho filas** —`/etc/shadow | root,dioni`,
+> `/etc/gshadow | root,dioni`, `/root/.ssh/authorized_keys | root`,
+> `/etc/sudoers.d | root`, `/etc/audit | root` y tres del servidor Zimbra
+> (`/opt/zimbra/conf/localconfig.xml`, `/opt/zimbra/data/ldap/config`,
+> `/opt/zimbra/data/ldap/mdb/db`)—. Dos cosas, medidas las dos:
+>
+> - De las **cinco rutas Linux declaradas, solo tres están vigiladas** con la
+>   clave que EV-07 lee: `auditctl -l` en `wazuh-real` lista tres
+>   `ensfacil_opacc4_kn` (`/etc/shadow`, `/etc/gshadow`,
+>   `/root/.ssh/authorized_keys`). `/etc/sudoers.d` y `/etc/audit` están en P-07
+>   y **no** bajo esa clave —`/etc/sudoers.d` se vigila con
+>   `ensfacil_opacc4_perms`, que es de EV-04, y `/etc/audit` con
+>   `ensfacil_opacc3_sec`—, así que son el hueco silencioso que describe §5: se
+>   declaran y no se miran. Se cierra añadiendo su `-w … -p r -k
+>   ensfacil_opacc4_kn` y recargando.
+> - La otra explicación, compatible con el código, es la estructural de §5:
+>   `CONFORME_A_TABLA` **no cumple por silencio**, y si nadie ha leído esos
+>   ficheros en la ventana no hay hechos que contrastar.
+>
+> **No se ha confirmado en el panel cuál de las dos manda hoy**, así que declarar
+> más filas en P-07 puede no mover nada. Mira primero el `motivo` de la
+> evidencia.
 
 Dos precisiones sobre el orden, las dos verificadas:
 
@@ -1885,11 +2250,13 @@ incumplimiento por repetición y fabricarlo sería inventar un `NO_CUMPLE` que
 ninguna regla etiqueta. Un umbral de repetición es además una decisión de la
 organización, no una constante.
 
-**4 · La `causa` de `op.acc.2` (Linux) no distingue configuración de avería.** El
-vocabulario existe y es correcto, pero **las 51 llamadas a `_opacc2_degradar`
-salen con `COLLECTION`**, incluidas las de configuración pura. El diagnóstico
-bueno está en el `motivo`. Se arregla en el recolector, pasando la causa en cada
-llamada — el runbook LDAP ya lo hace así.
+**4 · La `causa` de `op.acc.2` (Linux) distingue configuración de avería solo a
+medias.** El vocabulario existe y es correcto, y **18 de las 51 llamadas a
+`_opacc2_degradar` ya pasan `CONFIGURATION`** (contadas una a una el 12/08/2026,
+desglose en §3); **las otras 33 se quedan con el defecto `COLLECTION`**, incluidas
+algunas que no son ninguna avería. El diagnóstico bueno sigue estando en el
+`motivo`. Se termina de arreglar en el recolector, pasando la causa en las 33
+restantes — el runbook LDAP ya lo hace así en todas.
 
 **5 · Evidencias con dos ejes de las que solo uno se puede juzgar.** `op.acc.2`
 EV-01 tiene tres ejes y solo uno tiene política de lista; el `umask` necesitaría
@@ -1920,14 +2287,37 @@ que no ha producido *otra*. El hueco es real y su sitio está en la consolidaci�
 Se dice con estas palabras porque la regla del producto es no afirmar lo no
 comprobado:
 
-- **No se ha ejecutado ningún comando contra `wazuh4`, `wazuh-real` ni
-  `ldap-adm`.** Todo lo de aquí sale de leer los ficheros del repositorio:
-  los ocho `CUMPLIMIENTO.md`, `CUMPLIMIENTO_TOTAL.md`,
+- **De dónde sale cada cosa.** El cuerpo del documento sale de leer el
+  repositorio: los ocho `CUMPLIMIENTO.md`, `CUMPLIMIENTO_TOTAL.md`,
   `docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md`, `docs/PRIMITIVAS_DE_JUICIO.md`, los
-  cinco `config/*-control-block.json`, `core/evidence/catalog.ts`, las
-  `core/policy-runtime/policies/*.ts`, los `etc/*.example`, los `etc/*.cron` y el
-  informe `informes/estado-por-evidencia.html`. Los estados por evidencia son los
-  de ese informe, con fecha **12/08/2026**.
+  cinco `config/*-control-block.json`, `core/evidence/catalog.ts`,
+  `catalog/op-acc-*.ts`, las `core/policy-runtime/policies/*.ts`, los validadores
+  de `configuration/services/`, `core/evaluation/`, los `etc/*.example`, los
+  `etc/*.cron` y el informe `informes/estado-por-evidencia.html`. **Los estados
+  por evidencia y los porcentajes son los de ese informe, con fecha
+  12/08/2026: no se ha vuelto a abrir el panel.**
+- **Lo que sí se ejecutó contra las máquinas, y por eso lleva fecha.** En una
+  pasada de verificación del **12/08/2026** se ejecutaron **solo comandos de
+  lectura** —ninguna modificación— y esas afirmaciones del cuerpo están
+  comprobadas de primera mano:
+  - `wazuh4`: el documento activo de `wazuh-ens-configuration` (scope
+    `{"mode":"agent","agentIds":["024","028"]}`, `ensLevel = MEDIO`, valores de
+    todos los parámetros, P-09 de `op.acc.1` y de `op.acc.2` sin clave `value`),
+    el validador de estructura de §1.4 (**`invalidos: 0`**), `agent_groups -h` y
+    el `grep` de `alerts.json`.
+  - `wazuh-real`: `auditctl -l` y `-s` (12 `ensfacil_opacc3_act`, 3
+    `ensfacil_opacc3_sec`, 3 `ensfacil_opacc4_kn`, 6 `ensfacil_opacc4_perms`, 43
+    `ensfacil_opacc2`), el `diff` declarado↔cargado de §1.3 (vacío, rc 0),
+    `/etc/cron.d/ensfacil-opacc*`, `/usr/local/bin/ens_opacc*`, el contenido de
+    `/etc/ensfacil/` (incluido `opacc4-revisiones.tsv`: 832 bytes, 06/08, cero
+    filas de datos) y `opacc3-tareas.tsv`.
+  - `ldap-adm`: versión y estado de auditd (`1:3.0.7-1build1`, `pid 382`), las 37
+    reglas `ensfacil_*` (17 + 5 + 8 + 7) y la ausencia de `ensfacil_opacc2*`, el
+    `diff` de `ensfacil-opacc4-ldap.rules` (vacío), `md5sum` de los cuatro
+    `opacc{1,2,3,4}ldap-lib.sh`, cron y `/etc/ensfacil/`, el recuento de bytes
+    NUL de `auth.log` y un `ldapsearch -x -ZZ` anónimo contra el 389.
+  - **No se usó ninguna credencial de administración de Zimbra**, y no se tocó
+    `wazuh-fake`, `wazuh5` ni `insigna-wazuh`.
 - **Las cifras concretas de `ldapserver.qsprueba.com` que cita el runbook de
   `op.acc.1-ldap` para EV-03/EV-05 llevan un aviso de «PENDIENTE DE RECONFIRMAR
   EN LA MÁQUINA»** —24 transiciones `su → zimbra`, 0 logins ssh de `zimbra`, 517
@@ -1935,13 +2325,23 @@ comprobado:
   BIND, el arranque de las 08:55:29—. Vienen de una sesión anterior. **No
   condicionan el código; sí el diagnóstico que lee el auditor.**
 - **Los recuentos de bytes NUL de `auth.log` discrepan entre runbooks** (517 en
-  `op.acc.1-ldap`, 840 medidos el 10/08 en `op.acc.2-ldap`). El fichero no ha
-  rotado desde el 30/06, así que ese número solo crece; lo que no se ha
-  verificado es cuál es el vigente.
-- **La normalización del sujeto a RDN de `op.acc.4-ldap` no estaba desplegada** a
-  12/08: la `/opt/ensfacil/opacc4ldap-lib.sh` instalada era la anterior. Lo
-  medido en su `CUMPLIMIENTO.md` es la librería del repositorio ejecutada contra
-  la máquina real. **Hay que confirmar en el panel tras la siguiente pasada.**
+  `op.acc.1-ldap`, 840 medidos el 10/08 en `op.acc.2-ldap`). **Medido en
+  `ldap-adm` el 12/08/2026: 840**, sobre un `auth.log` de 15.781 líneas que no ha
+  rotado desde el 30/06 —así que el 517 es una foto vieja—. El comando tiene
+  trampa y hay que escribirlo así, porque la redirección la hace **tu** shell y
+  el fichero es `syslog:adm`:
+
+  ```bash
+  sudo bash -c 'tr -dc "\000" < /var/log/auth.log | wc -c'   # 840
+  # sin el `bash -c`, `sudo tr … < /var/log/auth.log` da «Permission denied» y 0
+  ```
+- **La normalización del sujeto a RDN de `op.acc.4-ldap` SÍ está desplegada.** El
+  `CUMPLIMIENTO.md` decía que la `/opt/ensfacil/opacc4ldap-lib.sh` instalada era
+  la anterior; comprobado el 12/08/2026, la instalada (fechada 12/08 12:01)
+  coincide **byte a byte** con la del repositorio —`md5sum` idéntico en los
+  cuatro `opacc{N}ldap-lib.sh`— y contiene la normalización (`sujeto_dn`,
+  `sujetos_ambiguos`). **Lo que sigue sin confirmar es el panel tras la siguiente
+  pasada**, que es donde se vería EV-02 salir de `NO_CUMPLE`.
 - **`CLAUDE.md` y los `CUMPLIMIENTO.md` de `op.acc.3` y `op.acc.4` dicen que los
   controles están en `DRAFT`. Está obsoleto**: `catalog/op-acc-3.ts` y
   `catalog/op-acc-4.ts` declaran `status: 'ACTIVE'` en su línea 12, y el informe
@@ -1951,13 +2351,20 @@ comprobado:
   `permisos_world_writable_permitidos` frente a `world_writable_permitidos`, P-04
   `politica_acceso_so_referencia` frente a `politica_acceso_referencia`, P-06
   `tipos_acceso_permitidos_por_perfil` frente a `tipos_acceso_por_perfil`). Aquí
-  se han usado **los del bloque de configuración**, que es lo que se siembra en
-  el índice. **No se ha comprobado cuál lee la UI.**
+  se han usado **los del bloque de configuración**, y **ya está comprobado que
+  son los buenos**: `configuration/data/op-acc-2-parameters.ts` —la definición
+  que pinta la pantalla— trae esos mismos nombres, y el documento activo del
+  índice de `wazuh4` también (leído el 12/08/2026). Los cortos son de la
+  documentación del runbook, y ahí es donde hay que corregirlos.
 - **La tabla de requisitos de `op.acc.2` del `CUMPLIMIENTO.md` del runbook y la
-  del catálogo no coinciden** en si EV-01 acredita `op.acc.2.3`. Aquí se ha usado
-  **la policy** (`policies/op-acc-2.policy.ts`), que es lo que puntúa. La
-  divergencia entre `catalog/` y `data/` es deuda técnica conocida.
-- **No se ha verificado ninguna regla del manager `wazuh4`.** Los rule IDs de
-  este documento salen de `relatedRules` del catálogo y de los `CUMPLIMIENTO.md`.
-  La comprobación de que existen y disparan es
+  de la evidencia no coinciden** en si EV-01 acredita `op.acc.2.3` y en si EV-04
+  acredita `op.acc.2.r1.2`. Lo que puntúa es **`requirement.evidenceIds` del
+  catálogo del control** (`catalog/op-acc-2.ts`), que aquí coincide con
+  `policies/op-acc-2.policy.ts` y **no** con `core/evidence/catalog.ts`; es lo
+  que se ha usado. Ver el aviso de §3.
+- **No se ha verificado ninguna regla del manager `wazuh4`** ejecutándola. Los
+  rule IDs de este documento salen de `relatedRules` del catálogo, de los
+  `agent/rules/*.xml` y de los `CUMPLIMIENTO.md`; lo único que se ha hecho contra
+  el manager es contar apariciones en `alerts.json`, que confirma que
+  **106873 dispara**. La comprobación completa es
   `python3 tests/check-coherencia.py` y `wazuh-logtest`, que no se han ejecutado.

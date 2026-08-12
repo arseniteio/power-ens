@@ -75,6 +75,13 @@ conocimiento, e incluye todo lo demás:
 > nueva: son copias. Su propio README lo dice —«El plugin es un repositorio
 > APARTE. Se clona aquí dentro»—.
 
+> **Hay un decimotercer repo, y también son copias.** El 12/08 a las 13:25
+> apareció `<RAIZ>/base-de-conocimiento-wazuh-ens/` (con `.git` propio): empaqueta
+> esta base de conocimiento —`00`…`08`— junto a copias de los documentos de
+> origen en `producto/`, `controles/` e `informes/`. Son 98 `.md`. **Lo que se
+> mapea en este documento son los originales**, no esas copias; si editas ahí,
+> editas una copia. No se ha verificado en qué se diferencian de sus originales.
+
 ---
 
 ## 1. El índice por pregunta
@@ -170,7 +177,7 @@ conocimiento, e incluye todo lo demás:
 |---|---|
 | **¿Cómo dejo un servidor emitiendo evidencia simulada?** | `Wazuh-ENS/docs/DESPLIEGUE_FAKES.md` |
 | ¿Qué escenarios hay? | `DESPLIEGUE_FAKES.md` §6 (`cumple`, `mixto`, `incumple`, `no_evaluable`) |
-| ¿Por qué `install-fake.sh` aborta y `install-real.sh` no? | `DESPLIEGUE_FAKES.md` §5 (la asimetría es deliberada) |
+| ¿Por qué `install-fake.sh` aborta y `install.sh` no? | `DESPLIEGUE_FAKES.md` §5 (la asimetría es deliberada) |
 | ¿Cómo distingo un evento simulado de uno real? | `DESPLIEGUE_FAKES.md` (campo `emisor: "simulado"`) |
 | ¿Cómo lo deshago? | `DESPLIEGUE_FAKES.md` §9 |
 | Lo mismo, por control | `<control>/docs/06-servidor-fake.md` en cada runbook |
@@ -364,7 +371,7 @@ nunca hubo.)
 | Fichero | Contesta en una línea |
 |---|---|
 | `Automatización-Controles/README.md` | Cómo convertir la plantilla Excel del auditor en los artefactos del plugin, con `venv` y Ollama opcional. |
-| `Automatización-Controles/docs/superpowers/plans|specs/2026-07-24-ens-generator-refactor*.md` | El plan y el diseño del refactor del generador. |
+| `Automatización-Controles/docs/superpowers/plans/2026-07-24-ens-generator-refactor.md` y `.../specs/2026-07-24-ens-generator-refactor-design.md` | El plan y el diseño del refactor del generador. |
 | `Deploy-Plugin-Playbook/README.md` | 12 líneas: crear `inventory.ini` y ejecutar `status`/`pull`/`compile`/`deploy.yaml`. |
 
 ---
@@ -678,9 +685,14 @@ Se dice con estas palabras, como manda el producto.
 - **No he comprobado nada contra las máquinas reales.** Todo lo de este
   documento sale de los ficheros del portátil. No se ha abierto sesión en
   `wazuh4`, `wazuh-real` ni `ldap-adm`.
-- **La cifra de «~37.000 líneas» del encargo no cuadra con lo medido**: salen
-  27.796 sin los informes de agente y 53.914 con ellos. No he podido
-  reconstruir qué conjunto da 37.000.
+- **La cifra de «~37.000 líneas» del encargo no cuadra con lo medido**: la
+  documentación de origen da 26.191 sin los informes de agente y 52.309 con
+  ellos. No he podido reconstruir qué conjunto da 37.000.
+- **El árbol se movió mientras se verificaba.** Entre las 13:00 y las 13:30 del
+  12/08 aparecieron 98 `.md` nuevos (el repo `base-de-conocimiento-wazuh-ens/`)
+  y crecieron los hermanos de este fichero en `base-conocimiento/`. Los
+  recuentos de §0 son de las 13:30 y con el alcance que dice §0; no se ha
+  revisado el contenido de nada de lo que apareció después.
 - **El estado de sincronía de los repos con su remoto no está comprobado.** Se
   ha usado `git` en `Wazuh-ENS/` para comprobar commits y ramas (`af82dfc`,
   `3e92f5c`, `5a60647`, `e862cac`, `f9f489c`, todos existen), pero **no se ha

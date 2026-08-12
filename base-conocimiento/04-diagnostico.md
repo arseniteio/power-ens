@@ -192,7 +192,7 @@ sudo grep -E "^OPACC" /etc/ensfacil/opacc1-ldap.env
 grep -E "^OPACC1LDAP_[A-Z_]+=" lib/opacc1ldap-lib.sh    # y compara
 ```
 
-> `install-real.sh` **nunca pisa** un `.env` que ya exista, así que actualizar el
+> `install.sh` **nunca pisa** un `.env` que ya exista, así que actualizar el
 > repo no actualiza la máquina.
 
 ---

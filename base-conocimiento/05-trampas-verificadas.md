@@ -12,6 +12,17 @@ verificar, lo dice con esas palabras.
 corresponda a la capa donde estás (configuración, plugin, manager, agente,
 motor, máquina auditada). Las trampas están numeradas `T-NN` para poder citarlas.
 
+> **Verificación adversarial del 12/08/2026.** Cada ruta, comando, número de
+> línea, hash de commit y cifra de este documento se ha vuelto a comprobar
+> contra el repo y contra las máquinas. Lo que se corrigió está marcado dentro
+> de su entrada: **T-02** (la limitación de los DN se cerró el 12/08), **T-04**
+> (cita de líneas caducada), **T-25** (anunciaba tres fallos y listaba dos),
+> **T-48** (fecha y repo de tres commits), **T-52** (citaba un fichero que no
+> existe en `main`), **T-53** (op.acc.3 y op.acc.4 ya NO están en DRAFT),
+> **T-63** (la afirmación «cero líneas `olcTLS*`» es falsa) y **T-67** (la cifra
+> del censo se mueve). Se añadió **T-69**. Lo que sigue sin poder comprobarse
+> está al final, con nombre y motivo.
+
 ---
 
 ## Índice por síntoma
@@ -107,12 +118,13 @@ motor, máquina auditada). Las trampas están numeradas `T-NN` para poder citarl
 | [T-60](#t-60) | `zmprov` falla con `Connection refused` |
 | [T-61](#t-61) | `cn=config` devuelve «No such object» siendo root |
 | [T-62](#t-62) | Se concluye que no hay overlay `accesslog` y sí lo hay |
-| [T-63](#t-63) | Se exige TLS en slapd y Zimbra deja de funcionar |
+| [T-63](#t-63) | `olcTLS*` declarado y las credenciales viajan en claro igual |
 | [T-64](#t-64) | La política declarada bendice lo que había que corregir |
 | [T-65](#t-65) | Una evidencia se queda en gris para siempre porque nunca pasó nada |
 | [T-66](#t-66) | Un fichero vacío no acredita, y aquí sí acreditaba |
 | [T-67](#t-67) | En LDAP, P-07 da hallazgo con la lista aparentemente completa |
 | [T-68](#t-68) | El recolector «no emitió nada» en esta pasada |
+| [T-69](#t-69) | Un control marca 100 % con dos evidencias en gris |
 
 ---
 
@@ -224,12 +236,30 @@ for c in json.load(sys.stdin)["_source"]["configuration"]["controls"]:
             print(c["controlId"], p["id"], col["label"], col["type"], col.get("required"))'
 ```
 
-**Consecuencia abierta y no resuelta.** Los sujetos del plano directorio que
-observa el recolector LDAP —`dn.children=cn=admins,cn=zimbra`,
-`dn.base=uid=zmpostfix,...`— **no se pueden declarar hoy** en una columna
-`identifier`. Es una limitación real del par recolector/parámetro. Lo correcto es
-que el agente emita un sujeto expresable (el RDN) o que la columna deje de ser
-`identifier`.
+**La consecuencia que tuvo en LDAP, y cómo se cerró (12/08/2026).** Los sujetos
+del plano directorio que observa el recolector LDAP son DN y van llenos de comas
+—`dn.children=cn=admins,cn=zimbra`, `dn.base=uid=zmpostfix,cn=appaccts,cn=zimbra`—,
+así que **no se podían escribir** en la columna *Rol* de P-01, que es
+`identifier`. Sin fila que casar, EV-02 de op.acc.4 salía `NO_CUMPLE`
+permanente y arrastraba `op.acc.4.1` y `op.acc.4.2`. **No era un fallo del
+auditor ni de la máquina: el agente emitía un nombre que el parámetro no puede
+expresar.**
+
+Se cerró por el lado del agente (commit `15f6d77` de `op.acc.4-ldap`,
+12/08/2026): el sujeto se reduce a su **RDN** (`dn.children=cn=admins,cn=zimbra`
+→ `cn=admins`), se sanean espacio, tabulador, coma, `|` y `/`, y **el DN
+completo no se pierde**: viaja en el campo `sujeto_dn` del MISMO evento, que es
+lo que mantiene la cadena hasta la cláusula exacta de slapd. Se aplica a EV-01,
+EV-02 y EV-08 —los tres eventos del plano directorio que llevan `sujeto`—, no
+solo al que dio el fallo. El plano sistema no se toca: `root`, `%sudo`,
+`ldap-zimbra.adm` ya eran expresables.
+
+La regla general que deja: **cuando un hecho no se puede declarar en su
+parámetro, el que cede es el emisor, no el validador** — y lo que se recorta
+del nombre tiene que seguir viajando en el evento, o se rompe la trazabilidad.
+
+*(Verificado el 12/08/2026 en la cabecera de
+`op.acc.4-ldap/lib/opacc4ldap-lib.sh:440-500` y en `git log` del repo.)*
 
 *Pasó dos veces: con op.acc.4 y el 11/08/2026 con P-09 de op.acc.2. Fuente:
 `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §«las columnas identifier no admiten
@@ -263,9 +293,15 @@ admiten comas».*
 **Síntoma.** op.acc.2 pasó de **83 % a 17 %** el 30/07/2026 sin que nadie tocara
 la máquina.
 
-**Causa.** `config/inject-control.py` sustituía la lista de controles entera
-(`inject-control.py:106-107`), así que los valores puestos desde la UI se
-perdían. Avisaba por pantalla y el aviso no evitó la pérdida.
+**Causa.** `config/inject-control.py` sustituía la lista de controles entera, así
+que los valores puestos desde la UI se perdían. Avisaba por pantalla y el aviso
+no evitó la pérdida.
+
+> **Ojo con la cita de líneas.** `PLAN_ACCION_2026-07-30.md:148` señala
+> `inject-control.py:106-107`. Esas son las líneas **del fichero de entonces**:
+> hoy 106-107 son la cabecera `Authorization` de la petición HTTP y no tienen
+> nada que ver. Comprobado el 12/08/2026. No busques ahí el defecto: ya no
+> existe.
 
 **Arreglo.** Ya está corregido: **`inject-control.py` fusiona**, conserva los
 `value` existentes y solo añade lo que falte. Se puede repetir sin miedo. El
@@ -920,8 +956,9 @@ pregunta a auditd».*
 
 **`ausearch --start/--end`: dos argumentos, formato del locale, y hora LOCAL.**
 
-**Síntoma.** Tres fallos distintos, verificados sobre `audit 2.8.5` (Ubuntu 20.04)
-y `audit 3.1.2` (Ubuntu 24.04):
+**Síntoma.** Dos de los tres fallos que la cabecera de `ensfacil-auditd.sh`
+enumera como «medidos, no supuestos» sobre `audit 2.8.5` (Ubuntu 20.04) y
+`audit 3.1.2` (Ubuntu 24.04) —el tercero es T-26—:
 
 - `--start "07/30/2026 09:00:00"` se rechaza con rc=1 en las dos versiones.
 - En un servidor español, la ventana se desplaza **dos horas hacia atrás**: los
@@ -1093,7 +1130,7 @@ sudo auditctl -l | grep -c ensfacil          # en el LDAP debe dar ~22
 **Síntoma.** Se corrige un defecto en la librería, se despliega, y **el hallazgo
 no se mueve**: parece que hacer lo correcto no lo arregla nunca.
 
-**Causa.** `install-real.sh` instala la **plantilla `.env`**, y el recolector la
+**Causa.** `install.sh` instala la **plantilla `.env`**, y el recolector la
 sourcea, así que el valor del `.env` pisa el defecto de la librería. Si se cambia
 uno y no el otro, el arreglo no surte efecto.
 
@@ -1110,7 +1147,7 @@ en el propio `.env.example`:
 
 ```
 # TIENE QUE COINCIDIR con el defecto de opacc1ldap-lib.sh. Este fichero MANDA
-# sobre la libreria (install-real.sh lo instala y el recolector lo sourcea),
+# sobre la libreria (install.sh lo instala y el recolector lo sourcea),
 # asi que una lista mas corta aqui deja sin efecto el arreglo de alla.
 ```
 
@@ -1373,8 +1410,9 @@ El veredicto se ha calculado sobre 10.000 hechos de 20.052
 ```
 
 **Causa.** El motor solo trae del índice los **10.000** hechos más recientes de la
-ventana (`size: 10000` en `controls/control-detail/index.tsx:143` y en
-`dashboard/ens-dashboard-main.tsx:126`; es el `index.max_result_window` por
+ventana (`size: 10000` en `dashboard/ens/controls/control-detail/index.tsx:143` y
+en `dashboard/ens/dashboard/ens-dashboard-main.tsx:126`; es el
+`index.max_result_window` por
 defecto de OpenSearch). Si el agente emite más, **los más antiguos no se
 cuentan**: un hallazgo anterior al corte no existe para el motor.
 
@@ -1599,9 +1637,19 @@ abiertas**. Las cuatro evidencias citadas estaban en `NO_EVALUABLE`, no en
 configurar.
 
 **Causa.** El principio *«un hueco de medida no puede fabricar un
-incumplimiento»* se implementó el 30/07 en los tres agentes (`63ac3bc`,
-`706f04c`, `26b4dd5`) y **no en el motor del plugin**, que recalcula por su cuenta
-desde las evidencias e ignora el `score_snapshot` del agente.
+incumplimiento»* se implementó en los tres agentes y **no en el motor del
+plugin**, que recalcula por su cuenta desde las evidencias e ignora el
+`score_snapshot` del agente.
+
+Los tres commits, **cada uno en el repo de su runbook** —en `Wazuh-ENS` no
+están y `git show` responde `unknown revision`— y fechados el **31/07**, no el
+30/07 como dice el documento de hallazgos (comprobado el 12/08/2026):
+
+| Commit | Repo | Fecha |
+|---|---|---|
+| `63ac3bc` | `op.acc.1-identificacion` | 2026-07-31 |
+| `706f04c` | `mp.info.6-proxmox-backup-runbook` | 2026-07-31 |
+| `26b4dd5` | `op.acc.2-requisitos-de-acceso` | 2026-07-31 |
 
 **Arreglo / regla.** **Un criterio de producto se aplica en TODAS las capas que lo
 evalúan, y en este producto son dos: el agente y el motor.** Arreglar una sola las
@@ -1713,20 +1761,47 @@ es **más viejo que el contrato**.
 
 **Causa.** Un modelo coder tiende a poner `COVERAGE_REQUIRED` genérico. Los
 `ruleType` con semántica imperativa (`MAX_AGE`, `MIN_RETENTION`, `WHITELIST`,
-`CONDITIONAL_REQUIRED`…) requieren además un módulo de runtime en
-`core/policy-runtime/runtime/`; sin él, el requisito cae al rollup de evidencias.
+`CONDITIONAL_REQUIRED`…) necesitan además código que los ejecute; sin él, el
+requisito cae al rollup de evidencias.
 
 **Arreglo.** Para controles a producción, fijarlo en la hoja `Motor` del Excel
 (columnas `requisito | ruleType`), que el generador ya busca.
 
-**Riesgo hermano, anotado.** Al implementar un módulo de runtime hay que devolver
-`[]` cuando falte el dato (patrón de `mp-info-6.runtime.ts:965-973`): en
-`requirement-evaluator.ts:114-120` la decisión del runtime **sustituye al rollup y
-también a la protección de parámetros ausentes**, así que un módulo mal
-construido produce un `CUMPLE` falso en vez de degradar.
+> **Dónde vive eso HOY, que no es donde lo dice la documentación vieja.**
+> `CLAUDE.md` y `ENS_CONTROL_DEPLOYMENT.md` hablan de «un módulo de runtime en
+> `core/policy-runtime/runtime/`», y `AUDITORIA_FASE_0.md:554` cita
+> `mp-info-6.runtime.ts:965-973`. **Ese directorio y ese fichero NO EXISTEN en
+> `main`** (comprobado el 12/08/2026: `find` no devuelve ninguno). Son de la
+> rama `coherencia-estructura-controles`, y la propia cabecera de
+> `AUDITORIA_FASE_0.md:8-11` avisa de que `policy-runtime/runtime/` «no aplica a
+> lo desplegado». En `main` la semántica de los `ruleType` vive en
+> `core/policy-runtime/policy-runtime.ts` (2.115 líneas) y en
+> `core/policy-runtime/policies/<control>.policy.ts`.
+
+**Riesgo hermano, y sí está vivo en `main`.** En
+`core/evaluation/requirement/requirement-evaluator.ts:214-224` la decisión de la
+policy **sustituye al rollup de evidencias Y a la protección de parámetros
+ausentes**:
+
+```ts
+const measurement = policyDecision
+  ? policyDecision.status
+  : resolveMeasurement(
+      requirement.evidenceIds,
+      requirementEvidences,
+      hasMissingRequiredParameters   // <- este argumento se pierde si hay decisión
+    );
+```
+
+Por eso un constructor de decisiones tiene que devolver `[]` —no una decisión
+`NO_EVALUABLE`, y desde luego no `CUMPLE`— cuando le falte el parámetro o la
+variable. Devolver `[]` cede el requisito al rollup, que ya sabe caer a
+`NO_EVALUABLE`. Un módulo mal construido produce un `CUMPLE` falso en vez de
+degradar. **El caso observable de esto es T-69.**
 
 *Fuente: `Wazuh-ENS/CLAUDE.md`, `Wazuh-ENS/docs/ENS_CONTROL_DEPLOYMENT.md` §Aviso
-crítico, `Wazuh-ENS/docs/AUDITORIA_FASE_0.md`.*
+crítico, `Wazuh-ENS/docs/AUDITORIA_FASE_0.md` §3.2 (con su aviso de vigencia);
+el código de `requirement-evaluator.ts` comprobado el 12/08/2026.*
 
 ---
 
@@ -1746,10 +1821,37 @@ aquello para lo que todavía no existe el instrumento.
 **el día que su agente emita y sus reglas estén desplegadas**. Prueba:
 `tests/control-en-borrador.test.ts`.
 
-**Cómo detectarla antes.** op.acc.3 y op.acc.4 tienen agente y reglas
-desplegables desde el 06/08, y **siguen en DRAFT** por esto mismo.
+**Estado real hoy, y contradice a `CLAUDE.md`.** Comprobado el 12/08/2026:
+**los cinco controles están en `ACTIVE`.**
 
-*Fuente: `Wazuh-ENS/CLAUDE.md` §Controles implementados.*
+```bash
+grep -n "status:" dashboard/ens/catalog/*.ts
+# catalog/op-acc-3.ts:12:  status: 'ACTIVE',
+# catalog/op-acc-4.ts:12:  status: 'ACTIVE',
+```
+
+op.acc.3 y op.acc.4 pasaron a `ACTIVE` el **06/08/2026**, commit `43854db`
+(«op.acc.3 y op.acc.4 pasan a ACTIVE, y la prueba deja de fijar el estado del
+día»), el mismo día que entraron. La tabla «Controles implementados» de
+`Wazuh-ENS/CLAUDE.md` sigue marcándolos **DRAFT**: está desactualizada, no te
+fíes de ella. El informe medido del 12/08 lo confirma por el otro lado —los dos
+controles puntúan en las dos máquinas: op.acc.3 100 % y op.acc.4 20 % en
+`zimbraHldap`—, y un control en DRAFT no puntúa, sale `NO_APLICA`.
+
+**Cómo detectarla antes.** Antes de cambiar esa línea, la pregunta es
+verificable y no opinable: ¿hay alertas de la banda del control en el manager de
+ese cliente?
+
+```bash
+sudo grep -oE '"id":"1071[0-9]{2}"' /var/ossec/logs/alerts/alerts.json | wc -l
+```
+
+Cero alertas y `ACTIVE` a la vez es el modo exacto de hundir el índice del
+cliente con un control que nadie ha ido a medir.
+
+*Fuente: `Wazuh-ENS/CLAUDE.md` §Controles implementados (para el mecanismo; su
+tabla de estados está caducada), `tests/control-en-borrador.test.ts`, y el propio
+catálogo comprobado el 12/08/2026.*
 
 ---
 
@@ -2034,21 +2136,82 @@ mintiendo».*
 
 ### T-63
 
-**Exigir SSF mínimo sin haber configurado TLS deja fuera a Zimbra.**
+**Tener TLS declarado no es exigirlo — y exigirlo de golpe deja fuera a Zimbra.**
 
-**Síntoma.** Potencial, anotado antes de provocarlo: los servicios de Zimbra
-conectan por `ldap://` y dejarían de funcionar.
+**Síntoma.** Dos, y son opuestos:
 
-**Causa.** Hoy: `olcSecurity='ssf=0'`, `olcLocalSSF='128'`, escuchas
-`ldap://ldapserver:389 ldapi:///`, y **cero líneas `olcTLS*`** en toda la
-configuración. Las credenciales de bind viajan en claro por la red interna — es un
-incumplimiento **real** de op.acc.2 EV-01 (plano directorio), no un hueco de
-medida.
+- Se hace `grep olcTLS` sobre la configuración de slapd, salen siete líneas, y se
+  concluye que el canal está protegido. **No lo está.**
+- Y al revés: se pone `olcSecurity: ssf=128` para arreglarlo y los servicios de
+  Zimbra, que conectan por `ldap://`, dejan de funcionar.
 
-**Arreglo, en este orden:** certificados → `ldaps://636` → comprobar que Zimbra
-sigue funcionando → **entonces** exigir SSF mínimo.
+**Causa.** `olcSecurity='ssf=0'` y una escucha en claro. El servidor **no exige**
+ningún cifrado mínimo, así que un cliente que no pida StartTLS hace un bind
+simple en claro y slapd lo acepta: las credenciales viajan en claro por la red
+interna. Es un incumplimiento **real** de op.acc.2 EV-01 (plano directorio), no
+un hueco de medida.
 
-*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §6.3.*
+> **CORRECCIÓN DE UNA AFIRMACIÓN QUE ESTÁ EN DOS DOCUMENTOS DEL REPO.**
+> `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §6.3 y el informe
+> `Wazuh-ENS/informes/estado-por-evidencia.html` dicen **«cero líneas `olcTLS*`
+> en toda la configuración»**. **Es falso**, y esta versión del documento lo
+> corrige. Medido en `ldap-adm` el 12/08/2026:
+>
+> ```
+> /opt/zimbra/data/ldap/config/cn=config.ldif
+>   18: olcLocalSSF: 128
+>   21: olcSecurity: ssf=0
+>   28: olcTLSCertificateFile: /opt/zimbra/conf/slapd.crt
+>   29: olcTLSCertificateKeyFile: /opt/zimbra/conf/slapd.key
+>   30: olcTLSCACertificatePath: /opt/zimbra/conf/ca
+>   31: olcTLSProtocolMin: 3.1
+>   32: olcTLSCipherSuite: MEDIUM:HIGH
+>   33: olcTLSCRLCheck: none
+>   34: olcTLSVerifyClient: never
+> ```
+>
+> Hay **siete** directivas `olcTLS*`, y el certificado y la clave existen
+> (`-rw-r----- zimbra:zimbra`). El propio recolector lo dice y es quien tiene
+> razón — cabecera de `op.acc.2-ldap/lib/opacc2ldap-lib.sh:1330-1333`:
+> *«Mirar solo si hay `olcTLS*` declarado es el error que hay que evitar: en
+> esta máquina HAY certificado, clave y CA declarados y StartTLS funciona
+> (comprobado con `LDAPTLS_REQCERT=never` el 10/08/2026), y aun así las
+> credenciales viajan en claro, porque **tener TLS disponible no es
+> exigirlo**.»*
+
+**La trampa de verdad, entonces, es la contraria.** Quien haga `grep olcTLS` y
+vea siete líneas concluirá que el canal está protegido. No lo está. El
+recolector mira **tres cosas y hacen falta las tres**, porque cada una por su
+cuenta miente:
+
+| Qué | Valor medido el 12/08/2026 | Qué significa |
+|---|---|---|
+| `olcSecurity` | `ssf=0` | el servidor **no exige** ninguna fuerza de cifrado |
+| `olcLocalSSF` | `128` | fuerza acreditada al socket local, que **no viaja por red**: no cuenta como escucha en claro |
+| escuchas `-h` | `ldap://ldapserver.qsprueba.com:389 ldapi:///` | **no hay `ldaps://636`**; `ss -lntp` confirma que slapd solo escucha en `192.168.10.10:389` |
+
+El veredicto sale `NO_CUMPLE` cuando hay al menos una escucha `ldap://` **y**
+`ssf < OPACC2LDAP_SSF_MINIMO` (por defecto `128`). Las dos condiciones se
+cumplen hoy.
+
+**Arreglo, en este orden.** El primer paso **ya está hecho** —los certificados
+existen—, así que la acción real empieza en el segundo:
+
+1. ~~Certificados~~ · ya declarados (`slapd.crt`, `slapd.key`, CA en
+   `/opt/zimbra/conf/ca`).
+2. Habilitar la escucha `ldaps://636` (o exigir StartTLS) y comprobar que los
+   servicios de Zimbra siguen conectando.
+3. **Entonces**, y no antes, `olcSecurity: ssf=128`. Ponerlo primero deja fuera
+   a los propios servicios de Zimbra, que conectan por `ldap://`.
+
+Los pasos 2 y 3 escriben en `cn=config`, así que exigen la credencial de
+administración de Zimbra, **que el cliente prohíbe usar**: hoy esto está
+bloqueado por permiso, no por técnica. Decirlo así es lo correcto; declararlo
+resuelto no lo sería.
+
+*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §6.3 (con la corrección de arriba),
+cabecera de `op.acc.2-ldap/lib/opacc2ldap-lib.sh` §«el acceso por red exige canal
+protegido»; medido en `ldap-adm` el 12/08/2026.*
 
 ---
 
@@ -2177,14 +2340,34 @@ falso que este producto existe para no dar.*
 
 **Causa.** P-07 se contrasta con primitiva `TODOS_EN_LISTA` contra los
 `account_active` que emite el recolector, y **el recolector emite las dos
-poblaciones**: las identidades del sistema y las del directorio. En
-`ldapserver.qsprueba.com` son **diez**: 5 del sistema y 5 del directorio.
+poblaciones**: las identidades del sistema y las del directorio. Declarar solo
+una deja la otra fuera de la lista y EV-07 da hallazgo.
 
-**Arreglo.** Declarar las diez. Y ojo con T-02: la columna *Usuario* es
-`identifier`, un solo token sin espacios ni comas — **un espacio ahí invalida el
-parámetro entero y tumba el control a 0 %**.
+**Arreglo.** Declararlas todas. **No copies un número de ningún documento:
+cuéntalas en la máquina**, porque se mueve. `CUMPLIMIENTO_TOTAL.md` §Paso 5 dice
+«las diez identidades, 5 del sistema y 5 del directorio»; el informe medido del
+12/08/2026 dice «las **12** cuentas activas figuran en la lista autorizada
+P-07», porque en medio se creó `ldap-zimbra.adm` (T-56) y cambió el censo. Las
+dos cifras fueron ciertas el día que se escribieron.
 
-*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §Paso 5.*
+```sh
+# la población real de ESTA pasada, que es contra la que se juzga
+sudo jq -r 'select(.event=="account_active") | [.plano, .usuario] | @tsv' \
+  /var/log/ensfacil/op_acc_1.json | sort -u
+```
+
+Y ojo con T-02: la columna *Usuario* es `identifier`, un solo token sin espacios
+ni comas — **un espacio ahí invalida el parámetro entero y tumba el control a
+0 %**.
+
+**La regla.** Cualquier control cuya evidencia sea «todos los observados están
+en la lista» tiene un censo que cambia cada vez que alguien crea o borra una
+cuenta. Recuéntalo después de cada cambio de identidades, y **especialmente
+después de aplicar T-56**, que crea una cuenta nueva a propósito.
+
+*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §Paso 5;
+`Wazuh-ENS/informes/estado-por-evidencia.html` (medido 12/08/2026), que da otra
+cifra por el motivo dicho arriba.*
 
 ---
 
@@ -2217,7 +2400,61 @@ días**, no solo la última pasada.
 
 ---
 
-## Las cinco reglas de método que salen de todo lo anterior
+### T-69
+
+**Un control con evaluador de policy puede marcar 100 % con evidencias en gris.**
+
+**Síntoma.** El espejo exacto de T-45, y desconcierta igual por el otro lado.
+Medido en `zimbraHldap` el 12/08/2026:
+
+```
+op.acc.3 · Segregación de funciones     100 % · 2 de 2 requisitos
+   EV-02  NO_EVALUABLE
+   EV-07  NO_EVALUABLE
+```
+
+Dos evidencias sin medir y el control entero en verde. En cualquier otro control
+eso sería un `CUMPLE` falso.
+
+**Causa.** Aquí **no lo es**, y la razón es la del T-52: cuando un requisito
+tiene decisión de policy, esa decisión **sustituye al rollup de evidencias**
+(`requirement-evaluator.ts:214-224`). op.acc.3 es el **único** control con
+evaluador propio (`core/policy-runtime/policies/op-acc-3.policy.ts`) porque su
+hecho no significa nada suelto: «jgomez ejecutó `git push`» no incumple; incumple
+si esa misma cuenta ejerce además una función incompatible en la ventana. La
+policy sí midió —las 10 cuentas observadas, ninguna aunando funciones
+incompatibles—, así que el 100 % está respaldado por una medida, solo que no por
+la que se lee en la lista de evidencias.
+
+**Por qué está aquí de todos modos.** Porque es **el único sitio del producto
+donde el semáforo verde no se puede auditar leyendo las evidencias**, y por tanto
+el único donde un módulo de policy mal construido daría un `CUMPLE` falso sin que
+nada en pantalla lo delate. La comprobación no es mirar las evidencias, es leer
+el motivo de la decisión:
+
+```sh
+# ¿sobre cuántas cuentas dice haber decidido la policy?
+sudo jq -r 'select(.event=="account_action") | .usuario' \
+  /var/log/ensfacil/op_acc_3.json | sort -u | wc -l
+```
+
+Si ese recuento es **cero**, el 100 % no está respaldado por nada y hay que
+sospechar: es exactamente el caso que T-07 cerró exigiendo un latido
+`collector_run` de las últimas 24 horas antes de dejar que el silencio acredite.
+
+**La regla.** *Un requisito resuelto por policy hay que auditarlo por su
+población observada, no por el color de sus evidencias.* Y al escribir una
+policy, devolver `[]` cuando falte el dato (T-52): ceder al rollup es degradar;
+decidir sin datos es fabricar.
+
+*Fuente: `Wazuh-ENS/informes/estado-por-evidencia.html` §«por qué op.acc.3 marca
+100 % con dos evidencias sin medir» (medido 12/08/2026),
+`Wazuh-ENS/CLAUDE.md` §Controles implementados,
+`dashboard/ens/core/evaluation/requirement/requirement-evaluator.ts:214-224`.*
+
+---
+
+## Las ocho reglas de método que salen de todo lo anterior
 
 Están dispersas por las entradas; juntas son el resumen operativo.
 
@@ -2246,7 +2483,29 @@ Y las tres del propio despliegue:
 
 ---
 
-## Qué NO se ha podido verificar al escribir este documento
+## Qué SÍ se ha ejecutado, y contra qué
+
+Para que el lector sepa qué peso tiene cada afirmación:
+
+- **`python3 tests/check-coherencia.py`** corre y devuelve `coherencia OK`
+  (rc=0), con sus 13 comprobaciones. Los comandos de T-19 y T-20 funcionan.
+- **Los dos guiones Python de T-01 y T-02** se han ejecutado contra un documento
+  de configuración de prueba: detectan el `value: null` y enumeran las columnas.
+- **El bloque `jq` de T-68** se ha ejecutado contra un ndjson de prueba y
+  devuelve los valores de la pasada, no vacío.
+- **En `ldap-adm` (solo lectura):** línea de arranque de slapd, `stat` del socket
+  `ldapi`, `getent passwd zimbra` (uid 999, `/bin/bash`), permisos de
+  `cn=config/` y de sus LDIF, `cn=module{0}.ldif` con `accesslog.la` cargado,
+  las siete directivas `olcTLS*`, `olcSecurity`/`olcLocalSSF`, y `ss -lntp`
+  (slapd solo en `192.168.10.10:389`). Confirman T-57, T-59, T-60, T-61, T-62 y
+  **desmienten la causa que T-63 traía**.
+- **En el repo:** los números de línea de T-01, T-02, T-41, T-42, T-43, T-44 y
+  T-52; el contenido literal de la regla `106824` en los dos ficheros (T-19); la
+  regla `106902` (T-17); el `status` de los cinco controles (T-53); y los
+  commits `5a60647`, `43854db`, `6822436`, `fa0beae`, `15f6d77`, `63ac3bc`,
+  `706f04c`, `26b4dd5`.
+
+## Qué NO se ha podido verificar
 
 Dicho con estas palabras, como manda la regla del proyecto:
 
@@ -2259,14 +2518,21 @@ Dicho con estas palabras, como manda la regla del proyecto:
 - **Los rc concretos de `ausearch`, `journalctl` y `auditctl`** (T-23, T-25, T-26,
   T-29, T-30) se toman de las cabeceras de las librerías, que declaran haberlos
   medido en contenedor sobre `audit 2.8.5` / `3.1.2` y `systemd 245` / `255`. No se
-  han vuelto a ejecutar aquí.
+  han vuelto a ejecutar aquí. **El recuento «~22» de T-30 tampoco**: no se ha
+  corrido `auditctl -l` en la máquina.
 - **El estado del árbol del plugin `main` de Wazuh** (`optimize_mixin.js`,
   `package.json` del dashboard) vive fuera de este repo y no se ha leído: la
   referencia sale de la cabecera de `desplegar-plugin.sh`.
 - **La cifra «65 de 83 rule IDs»** (T-20) es de la auditoría de fase 0 del
   29/07/2026 y está **parcialmente corregida** desde entonces (32 identificadores
   reparados el 30/07). No se ha vuelto a contar hoy: para saber el estado actual,
-  `python3 tests/check-coherencia.py`.
+  `python3 tests/check-coherencia.py`, que hoy pasa.
 - **El aviso de truncamiento a 10.000 hechos** (T-41) se ha verificado en el
   código; los números concretos (20.052 en `wazuh-real`, 17.444 de op.acc.3) salen
   de los documentos citados, no de una consulta al índice hecha hoy.
+- **Los pasos 2 y 3 del arreglo de T-63** (escucha `ldaps://636` y
+  `olcSecurity: ssf=128`) no se han probado: escriben en `cn=config` y exigen la
+  credencial de administración de Zimbra, **que el cliente prohíbe usar**.
+- **Las cifras de censo de T-67** (10 frente a 12 identidades) no se han
+  recontado hoy contra el ndjson de la máquina; se citan las dos fuentes y su
+  fecha, y el documento manda contarlas en la máquina en vez de copiarlas.

@@ -186,15 +186,8 @@ op.acc.2.3  =  EV-03 ✗ NO_EVALUABLE   +  EV-07 ✓ CUMPLE         →  NO CUMP
   <div class="ev">
     <div class="top"><span class="id">EV-01</span><span class="tag t-bad">NO_CUMPLE</span>
       <span class="name">protección de los recursos</span></div>
-    <div class="body"><strong>No cumple porque slapd no tiene cifrado en tránsito.</strong> Cero
-    directivas <code>olcTLS*</code> en toda la configuración y <code>olcSecurity='ssf=0'</code>: no
-    se exige ningún cifrado mínimo, así que <strong>las credenciales de bind viajan en claro</strong>
-    por la red interna. Esto es un incumplimiento medido, no un hueco de prueba. El plano sistema
-    conforma desde que se subió el <code>umask</code> de <code>022</code> a <code>027</code>.</div>
-    <div class="need"><b>Qué necesita</b>Certificados, <code>ldaps://636</code> y solo entonces
-    exigir SSF mínimo. <strong>En ese orden:</strong> poner <code>olcSecurity: ssf=128</code> antes
-    de configurar TLS deja fuera a los propios servicios de Zimbra, que conectan por
-    <code>ldap://</code>. Arrastra <code>op.acc.2.1</code>.</div>
+    <div class="body"><strong>No cumple porque slapd no EXIGE cifrado, aunque lo tenga disponible.</strong> slapd <strong>tiene TLS disponible</strong> —certificado, clave y CA declarados, y StartTLS funciona— pero <strong>no lo exige</strong>: <code>olcSecurity='ssf=0'</code> y sigue escuchando en <code>ldap://</code> sin cifrado mínimo. Las credenciales de bind <strong>viajan en claro</strong> por la red interna. Tener TLS disponible no es exigirlo. Es un incumplimiento medido, no un hueco de prueba. El plano sistema conforma desde que se subió el <code>umask</code> de <code>022</code> a <code>027</code>.</div>
+    <div class="need"><b>Qué necesita</b><strong>Los certificados ya están</strong>: lo que falta es exigir el cifrado, con <code>olcSecurity: ssf=128</code>, y migrar a <code>ldaps://636</code> los clientes que aún conecten en claro. <strong>En ese orden:</strong> exigir SSF antes de migrar a los clientes deja fuera a los propios servicios de Zimbra. Y <code>olcSecurity</code> vive en <code>cn=config</code>, que el socket local no puede escribir. Arrastra <code>op.acc.2.1</code>.</div>
   </div>
 
   <div class="ev ok"><div class="top"><span class="id">EV-02</span><span class="tag t-ok">CUMPLE</span>
