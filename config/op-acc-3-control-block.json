@@ -12,8 +12,8 @@
       "id": "P-01",
       "controlId": "op.acc.3",
       "name": "matriz_funciones_persona",
-      "label": "Matriz funciones persona",
-      "description": "Mapa que asocia cada persona/cuenta con las funciones que desempeña en el sistema: desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría, supervisión.",
+      "label": "Matriz de funciones por persona",
+      "description": "Relación entre cada cuenta y las funciones que tiene atribuidas en el sistema según el organigrama: desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría o supervisión. Es una declaración organizativa del responsable y no se deduce de la máquina. Se escribe una fila por cuenta, con las funciones que ejerce.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -25,10 +25,10 @@
         "op.acc.3.r1.2"
       ],
       "type": "table",
-      "example": "jgomez | desarrollo / mlopez | operación+config",
+      "example": "jgomez | desarrollo",
       "required": true,
-      "wazuhUsage": "Es la pieza central del control.",
-      "ensfacilUsage": "ENSFácil la carga como CDB list en Wazuh y construye reglas de correlación: si una cuenta ejecuta acciones de dos funciones incompatibles → alerta.",
+      "wazuhUsage": "Ningún agente lee esta tabla. Lo que el agente recoge de la máquina son las acciones de cada cuenta sin clasificar, y esta matriz es la referencia organizativa contra la que se contrastan.",
+      "ensfacilUsage": "ENSFácil la incorpora al informe como soporte documental: permite comparar las funciones que una cuenta ejerce de hecho, deducidas de lo que hace, con las que tiene atribuidas sobre el papel. El veredicto de incompatibilidad no sale de aquí, sino del cruce de P-03 con P-02.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -39,7 +39,7 @@
       "ruleIds": [
         "ENS-OPACC3-MATRIZ-FUNCIONES-PERSONA"
       ],
-      "ifNotConfigured": "El control es NO EVALUABLE automáticamente. Solo puede acreditarse por revisión documental.",
+      "ifNotConfigured": "El informe pierde la referencia organizativa y la comparación entre lo observado y lo atribuido pasa a hacerse a mano en la revisión documental. Al estar declarado obligatorio, además, la configuración del control queda incompleta hasta que se rellene.",
       "columns": [
         {
           "name": "cuenta",
@@ -59,8 +59,8 @@
       "id": "P-02",
       "controlId": "op.acc.3",
       "name": "pares_funciones_incompatibles",
-      "label": "Pares funciones incompatibles",
-      "description": "Definición de qué pares de funciones son incompatibles según el nivel del sistema. En MEDIO: desarrollo↔operación, autorización↔control. En ALTO se añade: configuración↔mantenimiento y auditoría↔cualquier otra.",
+      "label": "Pares de funciones incompatibles",
+      "description": "Qué parejas de funciones no puede acumular una misma persona. En nivel MEDIO el ENS exige separar desarrollo de operación y autorización de control; en ALTO se añaden configuración frente a mantenimiento y auditoría frente a cualquier otra función, que se escribe con el comodín asterisco en la segunda celda. Se declara una pareja por línea, con las dos funciones separadas por una barra vertical, y los nombres tienen que escribirse exactamente igual que en P-03.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -72,10 +72,10 @@
         "op.acc.3.r1.2"
       ],
       "type": "list",
-      "example": "desarrollo|operación / autorización|control / auditoría|*",
+      "example": "desarrollo | operacion",
       "required": true,
-      "wazuhUsage": "Define la lógica de las reglas de correlación.",
-      "ensfacilUsage": "ENSFácil genera una regla Wazuh por cada par incompatible declarado, ajustada al nivel del sistema.",
+      "wazuhUsage": "Ningún agente lo lee: qué combinación de funciones está prohibida es una decisión de política y vive solo en esta pantalla. La máquina se limita a decir qué hizo cada cuenta.",
+      "ensfacilUsage": "Es la mitad del juicio de este control. El motor agrupa las acciones observadas por cuenta, las traduce a funciones con P-03 y comprueba si alguna cuenta reúne los dos términos de alguna de estas parejas. Cuando ocurre, el requisito correspondiente sale como no conforme nombrando la cuenta y las funciones que aúna, y cambiar una línea de aquí cambia el veredicto sin volver a ejecutar nada en el servidor.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -86,14 +86,14 @@
       "ruleIds": [
         "ENS-OPACC3-PARES-FUNCIONES-INCOMPATIBLES"
       ],
-      "ifNotConfigured": "No se pueden generar reglas de incompatibilidad. Detección automática desactivada."
+      "ifNotConfigured": "Los cuatro requisitos que dependen del cruce salen NO EVALUABLE y el motivo nombra este parámetro. No salen como incumplidos: sin saber qué combinaciones están prohibidas no se ha llegado a medir, y afirmar un incumplimiento sobre algo que no se ha comprobado sería falso."
     },
     {
       "id": "P-03",
       "controlId": "op.acc.3",
       "name": "acciones_por_funcion",
-      "label": "Acciones por funcion",
-      "description": "Mapa que traduce cada función organizativa en acciones técnicas observables en logs: qué comandos, procesos, rutas o EventIDs identifican una acción de desarrollo, de operación, de configuración, de auditoría, etc.",
+      "label": "Acciones por función",
+      "description": "Traducción de cada función organizativa a lo que se puede observar en la máquina: qué comandos, binarios o rutas identifican una acción de desarrollo, de operación, de configuración o de auditoría. Cada fila lleva el nombre de la función y uno o varios indicadores. Cada indicador casa por subcadena contra el binario ejecutado y la ruta tocada, así que una misma acción puede pertenecer a varias funciones sin que eso sea un error.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -103,10 +103,10 @@
         "op.acc.3.2"
       ],
       "type": "table",
-      "example": "desarrollo → git push, / acceso a /srv/repos / operación → systemctl, / reinicio de servicios",
+      "example": "desarrollo | git",
       "required": true,
-      "wazuhUsage": "Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.",
-      "ensfacilUsage": "Es la traducción indispensable entre el plano organizativo y el técnico. Sin ella Wazuh no puede saber qué función está ejerciendo un usuario cuando ejecuta una acción.",
+      "wazuhUsage": "El agente emite las acciones sin clasificar, con la cuenta, el binario y la ruta. Esta tabla es la que convierte esa observación en una función, y también la que decide qué vigila el sistema: la plantilla de reglas de auditoría del agente solo observa los binarios que aquí se declaran, así que al añadir una función hay que añadir su binario en la máquina y recargar las reglas.",
+      "ensfacilUsage": "Es la traducción indispensable entre el plano organizativo y el técnico, y sin ella el motor no puede saber qué función está ejerciendo una cuenta cuando ejecuta una acción. Con ella construye, para cada cuenta, el conjunto de funciones que ha ejercido en el periodo, que es lo que después se cruza con P-02.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -115,7 +115,7 @@
       "ruleIds": [
         "ENS-OPACC3-ACCIONES-POR-FUNCION"
       ],
-      "ifNotConfigured": "Las reglas de correlación no pueden clasificar las acciones. Detección automática inviable.",
+      "ifNotConfigured": "Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro: sin la traducción de acción a función no hay ninguna incompatibilidad que ver, por buena que sea la telemetría recogida.",
       "columns": [
         {
           "name": "funcion",
@@ -136,8 +136,8 @@
       "id": "P-04",
       "controlId": "op.acc.3",
       "name": "tareas_criticas_doble_persona",
-      "label": "Tareas criticas doble persona",
-      "description": "Lista de tareas consideradas críticas que exigen la concurrencia de dos o más personas (enunciado general de op.acc.3): despliegues en producción, cambios en firewall, restauración de copias, modificación de privilegios, etc.",
+      "label": "Tareas críticas con doble persona",
+      "description": "Qué tareas se consideran críticas y cuántas personas distintas exige cada una, que es lo que pide el enunciado general de op.acc.3: despliegues en producción, cambios en el cortafuegos, restauración de copias o modificación de privilegios. Se declara una tarea por línea, con su nombre y el número de personas. Es la mitad de la declaración: qué comando es cada tarea en cada máquina se escribe en el fichero de tareas críticas del agente, y las dos mitades se unen por el nombre, en minúsculas.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -146,22 +146,22 @@
         "op.acc.3"
       ],
       "type": "list",
-      "example": "despliegue prod | 2 / cambio firewall | 2",
+      "example": "despliegue en produccion | 2",
       "required": true,
-      "wazuhUsage": "ENSFácil verifica en los logs que estas tareas hayan sido ejecutadas o aprobadas por más de una cuenta distinta. Ejecución por una sola persona → alerta.",
-      "ensfacilUsage": "ENSFácil verifica en los logs que estas tareas hayan sido ejecutadas o aprobadas por más de una cuenta distinta. Ejecución por una sola persona → alerta.",
+      "wazuhUsage": "El agente observa qué cuentas distintas ejecutaron cada tarea declarada en el fichero de tareas críticas de su máquina y emite una por persona, no una por ejecución. Contar cuántas hubo y compararlas con lo exigido no es cosa suya.",
+      "ensfacilUsage": "El motor cuenta cuántas cuentas distintas intervinieron en cada tarea que se haya ejecutado en el periodo y lo compara con el número declarado aquí. Una tarea que nadie ejecutó no incumple, porque exigir concurrencia a algo que no ocurrió sería acusar por una ausencia. Una fila con menos de dos personas, o con algo que no sea un número, se ignora.",
       "evidenceIds": [],
       "ruleIds": [
         "ENS-OPACC3-TAREAS-CRITICAS-DOBLE-PERSONA"
       ],
-      "ifNotConfigured": "No se puede verificar el requisito de concurrencia de dos personas en tareas críticas."
+      "ifNotConfigured": "La concurrencia no se mide: la tarea se sigue observando pero no se juzga. Los hechos se recogen igualmente, así que al declararlo más tarde el veredicto se calcula sobre lo ya recogido sin volver a tocar el servidor."
     },
     {
       "id": "P-05",
       "controlId": "op.acc.3",
       "name": "cuentas_auditoria",
-      "label": "Cuentas auditoria",
-      "description": "Cuentas con privilegios de auditoría o supervisión del sistema. En nivel ALTO estas cuentas no pueden aunar ninguna otra función (op.acc.3.r1.2).",
+      "label": "Cuentas de auditoría",
+      "description": "Qué cuentas ejercen funciones de auditoría o supervisión del sistema, con su ámbito. Solo se exige en nivel ALTO, y ahí el ENS es taxativo: esas cuentas no pueden aunar ninguna otra función. Se declara una cuenta por línea; del ámbito el motor solo lee la primera celda, que es la cuenta.",
       "levels": [
         "ALTO"
       ],
@@ -169,24 +169,24 @@
         "op.acc.3.r1.2"
       ],
       "type": "list",
-      "example": "auditor1 | global / supervisor_ops | sistemas",
+      "example": "auditor1 | global",
       "required": false,
-      "wazuhUsage": "CDB list en Wazuh. Cualquier acción de estas cuentas que no sea de lectura/consulta (escritura, configuración, despliegue) genera alerta de segregación vulnerada.",
-      "ensfacilUsage": "CDB list en Wazuh. Cualquier acción de estas cuentas que no sea de lectura/consulta (escritura, configuración, despliegue) genera alerta de segregación vulnerada.",
+      "wazuhUsage": "Ningún agente lo lee: quién audita es una decisión organizativa. El agente se limita a emitir todas las acciones de todas las cuentas, incluidas las de auditoría.",
+      "ensfacilUsage": "El motor comprueba que ninguna cuenta declarada aquí tenga, en el conjunto de acciones observadas, ninguna función distinta de auditoría o supervisión. Reconoce esa función por su nombre literal, así que si en P-03 se le llama de otra forma la propia actividad de auditar contará como otra función y el requisito saldrá incumplido sin motivo.",
       "evidenceIds": [
         "EV-05"
       ],
       "ruleIds": [
         "ENS-OPACC3-CUENTAS-AUDITORIA"
       ],
-      "ifNotConfigured": "R1 parcialmente NO EVALUABLE. No se puede verificar op.acc.3.r1.2."
+      "ifNotConfigured": "El requisito op.acc.3.r1.2 pierde su comprobación directa y solo puede verificarse por la otra vía, el comodín de auditoría en P-02. En niveles BAJO y MEDIO no es exigible y sale como no aplicable."
     },
     {
       "id": "P-06",
       "controlId": "op.acc.3",
       "name": "ventana_correlacion_dias",
-      "label": "Ventana correlacion dias",
-      "description": "Ventana temporal en la que ENSFácil evalúa si una misma cuenta ha ejercido funciones incompatibles. Define el período de agregación de las reglas de correlación.",
+      "label": "Ventana de correlación en días",
+      "description": "Periodo, en días, dentro del cual dos acciones de una misma cuenta se consideran concurrentes a efectos de segregación. Es el horizonte que la organización declara ante el auditor y que el informe cita, y suele coincidir con su ciclo de revisión: un mes natural o un trimestre.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -196,10 +196,10 @@
         "op.acc.3.2"
       ],
       "type": "duration_days",
-      "example": "30 (mes natural) / o 90 (trimestre)",
+      "example": "30",
       "required": true,
-      "wazuhUsage": "Configura el timeframe de las reglas de correlación de Wazuh y el período de análisis agregado que ejecuta ENSFácil sobre el histórico de alertas.",
-      "ensfacilUsage": "Configura el timeframe de las reglas de correlación de Wazuh y el período de análisis agregado que ejecuta ENSFácil sobre el histórico de alertas.",
+      "wazuhUsage": "Ningún agente lo lee. Cada recolector decide por su cuenta qué tramo del registro de auditoría relee en cada pasada, que es otra cosa: eso solo evita repetir hechos ya emitidos.",
+      "ensfacilUsage": "Hoy el evaluador de op.acc.3 no consulta este parámetro: la correlación se calcula sobre la ventana de evaluación del motor, que es de treinta días. Se declara igualmente porque es lo que documenta el criterio ante el auditor y lo que el informe recoge.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -208,14 +208,14 @@
       "ruleIds": [
         "ENS-OPACC3-VENTANA-CORRELACION-DIAS"
       ],
-      "ifNotConfigured": "Se aplica un valor por defecto de 30 días, que puede no ajustarse al ciclo real de la organización."
+      "ifNotConfigured": "Rige la ventana de evaluación del motor, de treinta días, que puede no ajustarse al ciclo real de la organización. Al estar declarado obligatorio, además, la configuración del control queda incompleta hasta que se rellene."
     },
     {
       "id": "P-ATT",
       "controlId": "op.acc.3",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos con los que se acredita un requisito que ninguna telemetría puede demostrar. Una fila por requisito, con el documento y su enlace.",
+      "description": "Documentos con los que se acredita un requisito que ninguna telemetría puede demostrar. Se declara una fila por requisito, con el documento aprobado, su enlace, la fecha y quién lo declara. En op.acc.3 el caso es el refuerzo R2 sobre privilegios de auditoría, que exige que existan cuentas de auditoría estrictamente controladas y personalizadas: eso se acredita con un procedimiento escrito, no con un evento.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -257,8 +257,8 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "No lo lee ningún agente: es la prueba documental de lo que la telemetría no alcanza. El motor lo aplica SOLO a requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que falla.",
-      "ensfacilUsage": "El requisito pasa a CUMPLE marcado como acreditado documentalmente, con su documento y su enlace en el informe. Nunca se presenta como medido.",
+      "wazuhUsage": "No lo lee ningún agente: es la prueba documental de lo que la telemetría no alcanza. El motor lo aplica solo a requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que falla.",
+      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y su enlace en el informe, y nunca se presenta como medido. Lo que no es legítimo es apuntar a un documento que todavía no se ha escrito.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Los requisitos sin evidencia técnica siguen contando como no conformes, que es el criterio por defecto: la carga de la prueba es del auditado."

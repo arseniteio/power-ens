@@ -13,7 +13,12 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'fuente_identidad',
       label: 'Fuente de identidad',
       description:
-        'Sistema o directorio de identidades que gestiona las cuentas de usuario en la organización.',
+        'Sistema o directorio que gestiona las cuentas de usuario de la ' +
+        'organización, y del que nacen las identidades que este control ' +
+        'audita. Es lo primero que pregunta un auditor antes de mirar ninguna ' +
+        'cuenta, porque determina dónde se dan de alta y de baja las personas ' +
+        'y, por tanto, dónde hay que ir a comprobar que el ciclo de vida se ' +
+        'cumple.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.3', 'op.acc.1.4'],
       type: 'select',
@@ -27,15 +32,23 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Determina qué integración de Wazuh se activa: módulo AD, colector de eventos Windows, auditd en Linux o conector cloud.',
+        'Determina qué integración de Wazuh aporta los eventos de cuenta: el ' +
+        'módulo de Active Directory, el colector de eventos de Windows, ' +
+        'auditd en Linux o un conector cloud.',
       ensfacilUsage:
-        'Define de dónde obtiene ENSFácil los eventos de alta, modificación y baja de cuentas.',
+        'Deja constancia en el informe del origen de las identidades ' +
+        'auditadas. El agente no lee este valor: recoge siempre las cuentas ' +
+        'de la máquina en la que está instalado, así que declararlo no cambia ' +
+        'lo que se mide, sino lo que el informe puede afirmar sobre el ' +
+        'alcance.',
       evidenceIds: ['EV-01', 'EV-02'],
       // Hueco de trazabilidad: ninguna regla comprueba la fuente de identidad
       // declarada; el recolector la usa, pero no la acredita ninguna alerta.
       ruleIds: [],
       ifNotConfigured:
-        'Wazuh no sabe de dónde vienen las identidades. Todos los checks de cuentas quedan NO EVALUABLE.',
+        'Sin declararlo, el informe no puede decir de dónde vienen las ' +
+        'cuentas que se están auditando y el alcance del control queda sin ' +
+        'justificar ante el auditor.',
     },
     {
       id: 'P-02',
@@ -43,22 +56,30 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'sistemas_monitorizados',
       label: 'Sistemas incluidos en el alcance',
       description:
-        'Lista de sistemas en los que ENSFácil debe verificar el cumplimiento de la política de identificación.',
+        'Relación de sistemas en los que la organización declara que debe ' +
+        'verificarse la política de identificación. Es la declaración de ' +
+        'alcance del control: lo que quede fuera de esta lista no se está ' +
+        'auditando, aunque exista y tenga cuentas.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.3', 'op.acc.1.4'],
       type: 'list',
       example: 'srv-dc01 | Windows',
       required: true,
       wazuhUsage:
-        'Define el alcance de la monitorización. Wazuh solo detecta anomalías en los sistemas incluidos.',
+        'Delimita la monitorización: Wazuh solo detecta anomalías de cuentas ' +
+        'en los sistemas incluidos.',
       ensfacilUsage:
-        'Delimita el alcance real auditado del control de identificación.',
+        'Permite contrastar el alcance declarado con las máquinas de las que ' +
+        'están llegando evidencias, que es como se detecta un servidor que ' +
+        'debería auditarse y no reporta.',
       evidenceIds: ['EV-01'],
       // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
       // deja de enviar eventos.
       ruleIds: [],
       ifNotConfigured:
-        'ENSFácil no sabe qué sistemas entran en scope. No se puede emitir un semáforo fiable.',
+        'Sin declararlo no hay alcance con el que contrastar lo recibido, así ' +
+        'que no se puede distinguir un sistema que cumple de uno que ' +
+        'sencillamente no está enviando nada.',
     },
     {
       id: 'P-03',
@@ -66,16 +87,25 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'cuentas_servicio_definidas',
       label: 'Cuentas de servicio legítimas',
       description:
-        'Lista de cuentas técnicas o de proceso legítimas que no corresponden a personas físicas. Un nombre por línea. NO uses «|»: el motor parte esta lista por saltos de línea y comas, nunca por barra, así que «cuenta | sistema» se compararía entero contra el nombre de la cuenta y no casaría nunca — un silencio que el motor leería como cumplimiento.',
+        'Cuentas técnicas o de proceso que no corresponden a una persona ' +
+        'física y que, por tanto, no deben usarse nunca para iniciar sesión ' +
+        'de forma interactiva. Se escribe un nombre de cuenta por línea, sin ' +
+        'más columnas: el motor separa esta lista por saltos de línea y por ' +
+        'comas, nunca por barra vertical, así que una entrada del tipo cuenta ' +
+        'más sistema se compararía entera contra el nombre de la cuenta, no ' +
+        'coincidiría jamás, y ese silencio se leería como cumplimiento.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.2', 'op.acc.1.3'],
       type: 'list',
       example: 'svc_backup',
       required: true,
       wazuhUsage:
-        'El agente ya no lee esta lista: emite la autenticación observada (regla 106873) y el juicio lo hace el motor de ENSFácil con el valor de esta pantalla.',
+        'Se puede cargar como lista CDB para distinguir en las alertas las ' +
+        'cuentas de servicio de las de persona.',
       ensfacilUsage:
-        'El motor contrasta con esta lista el usuario de cada autenticación observada (NINGUNO_EN_LISTA). Cambiar el valor aquí cambia el veredicto de EV-05 sin tocar ningún servidor.',
+        'Es la lista contra la que el motor juzga EV-05: cada autenticación ' +
+        'observada por el agente se contrasta con ella para detectar una ' +
+        'cuenta de servicio usada como si fuera de una persona.',
       evidenceIds: ['EV-05'],
       // 106873 es el hecho crudo que el motor juzga contra este parámetro
       // desde la migración de EV-05; 106805 y 106806 son las reglas del
@@ -86,7 +116,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       // suyo o del producto.
       ruleIds: ['106873', '106805', '106806'],
       ifNotConfigured:
-        'Sin declarar qué cuentas son de servicio no hay contra qué comparar: EV-05 no se puede demostrar y op.acc.1.2 cuenta como incumplimiento (criterio del 04/08).',
+        'Sin ella no se puede comprobar si una cuenta de servicio se está ' +
+        'usando para acceso interactivo, así que EV-05 no acredita y el ' +
+        'requisito op.acc.1.2 cuenta como incumplimiento.',
     },
     {
       id: 'P-04',
@@ -94,20 +126,30 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'cuentas_genericas_prohibidas',
       label: 'Cuentas genéricas prohibidas',
       description:
-        'Nombres de cuenta prohibidos que, si existen activas, rompen la unicidad del identificador. Un nombre por entrada: admin, guest, test, temp.',
+        'Nombres de cuenta que la organización prohíbe porque no identifican ' +
+        'a nadie en particular, como admin, guest, test o temp. Una cuenta ' +
+        'así, si existe y se usa, rompe la unicidad del identificador: la ' +
+        'actividad registrada con ella no se puede atribuir a una persona. Se ' +
+        'escribe un nombre por entrada.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.1', 'op.acc.1.3'],
       type: 'list',
       example: 'admin',
       required: true,
       wazuhUsage:
-        'Se carga como CDB list. Cualquier autenticación exitosa con estas cuentas genera alerta crítica.',
+        'Se carga como lista CDB, de forma que cualquier autenticación ' +
+        'correcta con una de estas cuentas genere alerta.',
       ensfacilUsage:
-        'Permite verificar la unicidad del identificador y detectar cuentas compartidas.',
+        'Es la lista contra la que el motor juzga EV-03: cada autenticación ' +
+        'que observa el agente se contrasta con ella, así que basta con ' +
+        'editarla en esta pantalla para que el veredicto cambie, sin volver a ' +
+        'ejecutar nada en la máquina.',
       evidenceIds: ['EV-03'],
       ruleIds: ['106801'],
       ifNotConfigured:
-        'No se detectan cuentas genéricas activas. EV-03 queda parcialmente desactivado.',
+        'Sin ella no hay nada contra lo que contrastar las autenticaciones ' +
+        'observadas: EV-03 no acredita y el requisito op.acc.1.1 cuenta como ' +
+        'incumplimiento.',
     },
     {
       id: 'P-05',
@@ -115,7 +157,10 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'plazo_max_deshabilitar_dias',
       label: 'Plazo máximo para deshabilitar',
       description:
-        'Plazo máximo desde que un usuario cesa o deja la organización hasta que su cuenta debe estar deshabilitada.',
+        'Plazo máximo, en días, desde que una persona cesa o deja la ' +
+        'organización hasta que su cuenta tiene que estar deshabilitada. Es ' +
+        'el compromiso que la organización se fija a sí misma, y es contra ' +
+        'ese número contra el que se mide cada baja.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.4'],
       type: 'duration_days',
@@ -123,15 +168,21 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       required: true,
       minValue: 0,
       wazuhUsage:
-        'Compara la fecha del evento de baja/cese contra la fecha de deshabilitación de la cuenta.',
+        'Compara la fecha de baja de la persona con la fecha en que su cuenta ' +
+        'quedó deshabilitada.',
       ensfacilUsage:
-        'Evalúa si las cuentas se deshabilitan dentro del plazo definido tras la baja.',
+        'Fija el umbral con el que EV-04 decide si una baja se resolvió a ' +
+        'tiempo. Cada hecho que emite el agente viaja con el plazo aplicado y ' +
+        'con los días medidos, de modo que el informe puede mostrar las dos ' +
+        'cifras juntas.',
       evidenceIds: ['EV-04'],
       // 106815 account_disabled, 106816/106817 account_offboarding. Los dos
       // ids que había aquí (106820, 106844) no existen en ningún manager.
       ruleIds: ['106815', '106816', '106817'],
       ifNotConfigured:
-        'No se puede verificar si las cuentas se deshabilitan en plazo. op.acc.1.4 b) NO EVALUABLE.',
+        'Sin plazo declarado no hay contra qué medir el retraso de una ' +
+        'deshabilitación, así que la letra b del requisito op.acc.1.4 no se ' +
+        'puede acreditar.',
     },
     {
       id: 'P-06',
@@ -139,7 +190,11 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'periodo_retencion_cuentas_dias',
       label: 'Retención de cuentas deshabilitadas',
       description:
-        'Periodo durante el que se conservan las cuentas deshabilitadas para garantizar la trazabilidad de la actividad asociada.',
+        'Periodo, en días, durante el que se conservan las cuentas ya ' +
+        'deshabilitadas antes de eliminarlas. Existe para que la actividad ' +
+        'registrada con esa identidad siga siendo atribuible: si la cuenta ' +
+        'desaparece antes de tiempo, el día que haya que responder a quién ' +
+        'hizo algo el identificador ya no existe.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.4'],
       type: 'duration_days',
@@ -147,15 +202,20 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       required: true,
       minValue: 1,
       wazuhUsage:
-        'Verifica que las cuentas deshabilitadas no se eliminen antes de cumplir el periodo.',
+        'Verifica que una cuenta deshabilitada no se elimine antes de haber ' +
+        'cumplido el periodo.',
       ensfacilUsage:
-        'Evalúa el cumplimiento de la retención de cuentas para trazabilidad.',
+        'Fija el umbral con el que EV-08 juzga las cuentas que desaparecen ' +
+        'del sistema. Cada hecho viaja con el umbral aplicado y con los días ' +
+        'realmente retenidos.',
       evidenceIds: ['EV-08'],
       // 106818 account_deleted, 106819 retention_violation. Los dos ids que
       // había aquí (106821, 106856) no existen en ningún manager.
       ruleIds: ['106818', '106819'],
       ifNotConfigured:
-        'No se puede verificar si la retención de cuentas cumple la normativa interna.',
+        'Sin periodo declarado no se puede afirmar si una cuenta eliminada se ' +
+        'retuvo lo suficiente, y la letra c del requisito op.acc.1.4 queda ' +
+        'sin acreditar.',
     },
     {
       id: 'P-07',
@@ -163,7 +223,14 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'lista_usuarios_autorizados',
       label: 'Lista de usuarios autorizados',
       description:
-        'Lista maestra de usuarios autorizados a acceder a los sistemas en scope, mantenida por el administrador de seguridad. Exigida por R1. Una fila por persona. Solo la columna Usuario se contrasta con las cuentas activas de la máquina, y la comparación es literal y distingue mayúsculas; sistema y rol acompañan a la decisión en el informe.',
+        'Relación maestra de las personas autorizadas a acceder a los ' +
+        'sistemas incluidos en el alcance, mantenida por el responsable de ' +
+        'seguridad. La exige el refuerzo R1, o sea las categorías MEDIA y ' +
+        'ALTA. Se rellena una fila por persona. Solo la columna de usuario se ' +
+        'contrasta con las cuentas activas de la máquina, y la comparación es ' +
+        'literal y distingue mayúsculas de minúsculas; el sistema y el rol ' +
+        'acompañan a la decisión en el informe, para que se vea por qué esa ' +
+        'persona está autorizada.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.1.r1.2', 'op.acc.1.r1.3'],
       // Esto era una RUTA en el .env del agente (OPACC1_LISTA_AUTORIZADOS
@@ -198,9 +265,13 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'El agente ya no mantiene ningún fichero de autorizados: emite una cuenta activa por cada cuenta de /etc/passwd (regla 106811) y el juicio lo hace el motor de ENSFácil con esta tabla.',
+        'El inventario de cuentas activas se compara con esta lista, y una ' +
+        'cuenta activa que no figure en ella genera alerta.',
       ensfacilUsage:
-        'El motor comprueba que toda cuenta activa figure en la columna Usuario (TODOS_EN_LISTA). Es el refuerzo R1 (op.acc.1.r1.3), y editar la tabla aquí cambia el veredicto sin tocar ningún servidor.',
+        'Es la lista contra la que el motor juzga EV-07. Las cuentas que hay ' +
+        'que declarar son exactamente las que el agente está emitiendo como ' +
+        'activas, así que la lista se puede construir a partir de lo que ya ' +
+        'reporta la máquina.',
       evidenceIds: ['EV-07'],
       // 106811 (account_active) es el hecho crudo que el motor contrasta con
       // la columna 'usuario' de esta tabla desde la migración de EV-07; las
@@ -209,7 +280,9 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       // 106839, 106840) no existen en ningún manager.
       ruleIds: ['106811', '106824', '106825', '106826'],
       ifNotConfigured:
-        'Sin la lista no hay contra qué contrastar las cuentas activas: op.acc.1.r1.3 cuenta como incumplimiento en MEDIO y ALTO (criterio del 04/08). En BAJO el refuerzo no aplica y no resta.',
+        'Sin ella no se puede comprobar que toda cuenta activa esté ' +
+        'autorizada: EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta ' +
+        'como incumplimiento en las categorías MEDIA y ALTA.',
     },
     {
       id: 'P-08',
@@ -217,21 +290,30 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'integracion_rrhh',
       label: 'Integración con RRHH',
       description:
-        'Indica si ENSFácil tiene acceso a un sistema de RRHH o directorio que notifique altas y bajas de empleados. Valores admitidos: sí o no.',
+        'Indica si ENSFácil recibe de un sistema de recursos humanos o de un ' +
+        'directorio las altas y bajas de empleados. Es la respuesta a de ' +
+        'dónde sale la fecha de baja de una persona: de un sistema que la ' +
+        'notifica, o de una declaración manual. Se admite sí o no.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.4'],
       type: 'boolean',
       example: 'sí',
       required: false,
       wazuhUsage:
-        'Si está activa, correlaciona eventos de baja de RRHH con la deshabilitación de la cuenta.',
+        'Si hay integración, los eventos de baja de recursos humanos se ' +
+        'correlacionan con la deshabilitación de la cuenta.',
       ensfacilUsage:
-        'Determina si la detección de cuentas de bajas puede automatizarse o requiere declaración manual.',
+        'Documenta en el informe cómo llegan las bajas. No cambia por sí solo ' +
+        'el comportamiento del agente: lo que el agente consulta es el ' +
+        'registro de bajas de la propia máquina, cuya ruta y formato se ' +
+        'explican en la documentación del runbook.',
       evidenceIds: ['EV-04'],
       // Hueco de trazabilidad: no existe regla de correlación con RRHH.
       ruleIds: [],
       ifNotConfigured:
-        'La detección de cuentas activas de usuarios dados de baja no puede automatizarse.',
+        'Sin declararlo, el informe no puede decir si la detección de bajas ' +
+        'está automatizada o depende de que alguien las anote a mano, que es ' +
+        'la diferencia entre un control sostenible y uno que se olvida.',
     },
     // --- Política que vivía en el .env o en un fichero de la máquina ---------
     //
@@ -246,7 +328,11 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'bajas_declaradas',
       label: 'Bajas declaradas manualmente',
       description:
-        'Ceses que se declaran a mano cuando no hay integración con RRHH (P-08 = no). Una fila por persona, con la fecha en formato AAAA-MM-DD. Es la fecha que se resta de la de deshabilitación de la cuenta para medir el plazo de P-05, así que una fecha que no existe deja la medida sin base.',
+        'Ceses que se declaran a mano cuando no hay integración con recursos ' +
+        'humanos. Se rellena una fila por persona, con la fecha en formato de ' +
+        'año, mes y día. Es la fecha de la que se resta la deshabilitación de ' +
+        'la cuenta para medir el plazo de P-05, así que una fecha que no ' +
+        'existe deja la medida sin base.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.4'],
       type: 'table',
@@ -267,13 +353,18 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Cada baja declarada se compara con la fecha de deshabilitación de esa cuenta. Fuera de plazo genera account_offboarding.',
+        'Cada baja declarada se compara con la fecha de deshabilitación de ' +
+        'esa cuenta, y una fuera de plazo genera el hecho correspondiente.',
       ensfacilUsage:
-        'Permite medir op.acc.1.4 b) en una organización sin integración de RRHH, en vez de dejarlo NO EVALUABLE.',
+        'Documenta las bajas ante el auditor. El agente no lee esta tabla: ' +
+        'consulta el registro de bajas de su propia máquina, así que una baja ' +
+        'declarada solo aquí queda documentada pero no se mide. La ruta y el ' +
+        'formato de ese registro están en la documentación del runbook.',
       evidenceIds: ['EV-04'],
       ruleIds: ['106816', '106817'],
       ifNotConfigured:
-        'Si además P-08 es no, no hay ninguna fuente de bajas y EV-04 se queda sin nada que medir.',
+        'Si además no hay integración con recursos humanos, no queda ninguna ' +
+        'fuente de fechas de baja y EV-04 se queda sin nada que medir.',
     },
     {
       id: 'P-10',
@@ -281,7 +372,12 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'uid_minimo_persona',
       label: 'UID mínimo de cuenta de persona',
       description:
-        'UID a partir del cual una cuenta se considera de una persona física. Por debajo se trata como cuenta del sistema y no entra en el inventario de identidades ni en el contraste con la lista de autorizados.',
+        'Identificador numérico a partir del cual una cuenta de un sistema ' +
+        'Linux se considera de una persona física. Por debajo se trata como ' +
+        'cuenta del sistema y no entra ni en el inventario de identidades ni ' +
+        'en el contraste con la lista de autorizados. Es la frontera entre lo ' +
+        'que se audita como persona y lo que es maquinaria del sistema ' +
+        'operativo.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.1', 'op.acc.1.3'],
       type: 'number',
@@ -289,15 +385,21 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       required: false,
       minValue: 0,
       wazuhUsage:
-        'Delimita qué cuentas de /etc/passwd entran en el inventario que se publica como account_inventory.',
+        'Delimita qué cuentas del fichero de usuarios entran en el inventario ' +
+        'que se publica como evidencia.',
       ensfacilUsage:
-        'Un umbral mal puesto mete las cuentas de sistema en el contraste con la lista de autorizados y produce incumplimientos que no lo son.',
+        'Deja constancia de la frontera que la organización aplica. Un umbral ' +
+        'demasiado bajo mete cuentas del sistema en el contraste con la lista ' +
+        'de autorizados y produce incumplimientos que no lo son; uno ' +
+        'demasiado alto esconde cuentas de persona.',
       evidenceIds: ['EV-01'],
       // Hueco de trazabilidad: ninguna regla acredita el umbral en sí; se ve su
       // efecto en el inventario, no el valor.
       ruleIds: [],
       ifNotConfigured:
-        'El agente aplica su valor de fábrica (1000) y el informe no puede citar una decisión del cliente.',
+        'El agente aplica su valor de fábrica, mil, y el informe no puede ' +
+        'citar una decisión del cliente sino un valor por defecto del ' +
+        'producto.',
     },
     {
       id: 'P-11',
@@ -305,7 +407,12 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'grupos_privilegiados',
       label: 'Grupos que otorgan privilegio administrativo',
       description:
-        'Grupos del sistema cuya pertenencia concede privilegios de administración. Define qué cuenta como uso de privilegio en esta máquina.',
+        'Grupos del sistema cuya pertenencia concede privilegios de ' +
+        'administración. Define qué cuenta como uso de privilegio en estas ' +
+        'máquinas, que es la mitad de la comprobación de identificador ' +
+        'diferenciado: sin saber qué grupo es privilegiado no se puede ' +
+        'detectar quién acumula el papel de usuario y el de administrador en ' +
+        'una sola cuenta.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.2'],
       type: 'list',
@@ -322,11 +429,16 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Define qué pertenencias se registran como uso de privilegios.',
       ensfacilUsage:
-        'Es la mitad de la comprobación de identificador diferenciado: sin saber qué grupo es privilegiado no se puede detectar quién acumula roles.',
+        'Deja constancia de qué considera privilegio administrativo esta ' +
+        'organización. Conviene revisarlo: un grupo que solo da lectura de ' +
+        'registros no permite administrar nada, e incluirlo marcaría como ' +
+        'acumulación de roles a cuentas que no pueden cambiar el sistema.',
       evidenceIds: ['EV-06'],
       ruleIds: ['106808'],
       ifNotConfigured:
-        'El agente aplica su lista de fábrica (sudo, wheel, admin) y el informe no puede citar una decisión del cliente.',
+        'El agente aplica su lista de fábrica, sudo, wheel y admin, y el ' +
+        'informe no puede citar una decisión del cliente sino un valor por ' +
+        'defecto del producto.',
     },
     {
       id: 'P-12',
@@ -334,20 +446,29 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'sufijo_admin',
       label: 'Sufijo del identificador administrativo',
       description:
-        'Sufijo que distingue la cuenta administrativa de la cuenta ordinaria de la misma persona, como jgomez y jgomez.adm. Sin él no se puede distinguir a quien tiene dos identidades por diseño de quien acumula roles en una sola cuenta, y todos los privilegiados pasan a ser candidatos a multi-rol.',
+        'Sufijo que distingue la cuenta administrativa de la cuenta ordinaria ' +
+        'de la misma persona, como jgomez y jgomez.adm. Es lo que permite ' +
+        'reconocer a quien tiene dos identidades por diseño, que es ' +
+        'justamente lo que el control pide, y separarlo de quien acumula los ' +
+        'dos papeles en una sola cuenta.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.2'],
       type: 'string',
       example: '.adm',
       required: false,
       wazuhUsage:
-        'Excluye del multi-rol a las cuentas administrativas diferenciadas por este sufijo.',
+        'Excluye del hallazgo de acumulación de roles a las cuentas ' +
+        'administrativas diferenciadas por este sufijo.',
       ensfacilUsage:
-        'Permite acreditar op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria.',
+        'Permite acreditar el requisito op.acc.1.2 cuando la organización ' +
+        'separa la identidad administrativa de la ordinaria, y hace que el ' +
+        'hallazgo señale solo a quien de verdad no la ha separado.',
       evidenceIds: ['EV-06'],
       ruleIds: ['106807'],
       ifNotConfigured:
-        'No se excluye a nadie: todos los usuarios privilegiados pasan a ser candidatos a identificador con varios roles.',
+        'Sin sufijo declarado no se excluye a nadie, así que todas las ' +
+        'cuentas con privilegio administrativo pasan a ser candidatas a ' +
+        'acumular roles y el hallazgo pierde precisión.',
     },
     {
       id: 'P-ATT',
@@ -355,7 +476,13 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna telemetría puede demostrar. Una fila por requisito, con el documento y su enlace.',
+        'Documentos con los que se acredita un requisito que ninguna medida ' +
+        'técnica puede demostrar, como una política aprobada o un ' +
+        'procedimiento firmado. Se rellena una fila por requisito, con el ' +
+        'nombre del documento y un enlace que permita consultarlo. En este ' +
+        'control es la vía para acreditar la identificación conforme a eIDAS ' +
+        'y la singularización de la persona detrás de cada identificador, que ' +
+        'ningún dato de una máquina puede demostrar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -394,13 +521,22 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No lo lee ningún agente: es la prueba documental de lo que la telemetría no alcanza. El motor lo aplica SOLO a requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que falla.',
+        'No lo lee ningún agente: es la prueba documental de lo que la ' +
+        'telemetría no alcanza. El motor lo aplica solo a los requisitos que ' +
+        'el catálogo declara sin ninguna evidencia técnica, de modo que una ' +
+        'atestación nunca puede tapar una medida que ha fallado.',
       ensfacilUsage:
-        'El requisito pasa a CUMPLE marcado como acreditado documentalmente, con su documento y su enlace en el informe. Nunca se presenta como medido.',
+        'El requisito pasa a cumplir marcado como acreditado documentalmente, ' +
+        'con su documento y su enlace en el informe, y nunca se presenta como ' +
+        'medido. Una atestación que apunte a un documento que todavía no se ' +
+        'ha escrito acredita sobre el papel algo que no existe, así que ' +
+        'conviene declararla solo cuando el documento está aprobado.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos sin evidencia técnica siguen contando como no conformes, que es el criterio por defecto: la carga de la prueba es del auditado.',
+        'Los requisitos que ninguna evidencia técnica puede demostrar siguen ' +
+        'contando como no conformes, que es el criterio por defecto: la carga ' +
+        'de la prueba es del auditado.',
     },
   ],
 };

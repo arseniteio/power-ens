@@ -10,7 +10,6 @@ import {
   EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiHealth,
   EuiPage,
   EuiPanel,
   EuiSpacer,
@@ -33,6 +32,7 @@ import {
 import { getActiveENSConfiguration } from '../../configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
+import type { MotivoLinea } from './motive-cell';
 import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
 
 interface ControlDetailENSProps {
@@ -63,6 +63,19 @@ const getBadgeColor = (status: string) => {
   }
   return 'default';
 };
+
+// Icono por estado de evidencia. La distinción que no se puede perder —medido y
+// no conforme (`cross`) frente a no demostrado (`clock`)— se lee del icono sin
+// leer el texto, y es la misma en la tabla de evidencias, en la lista de
+// requisitos y en las tarjetas.
+const getStatusIcon = (status: string) =>
+  status === 'CUMPLE'
+    ? 'check'
+    : status === 'NO_CUMPLE'
+    ? 'cross'
+    : status === 'NO_EVALUABLE'
+    ? 'clock'
+    : 'minus';
 
 const formatTraceabilityTimestamp = (timestamp?: string) => {
   if (!timestamp) {
@@ -250,36 +263,6 @@ export const ControlDetailENS = ({
       })`
     : 'Todos los agentes (vista general)';
 
-
-
-  const requirementItems = control.requirements.map(requirement => ({
-    id: requirement.id,
-    title: requirement.title,
-    level: requirement.level.join(', '),
-    evidences: requirement.evidences.join(', '),
-    active: requirement.active === false ? 'NO_APLICA' : 'ACTIVO',
-    description: requirement.description,
-  }));
-
-  const evidenceItems = control.evidences.map(evidence => ({
-    id: evidence.id,
-    title: evidence.title,
-    requirement: evidence.requirement.join(', '),
-    level: evidence.level.join(', '),
-    expectedStatus: evidence.expectedStatus,
-    ruleIds: evidence.wazuhRuleIds.join(', '),
-    format: evidence.format,
-  }));
-
-  const parameterItems = control.parameters.map(parameter => ({
-    id: parameter.id,
-    name: parameter.name,
-    level: parameter.level.join(', '),
-    requirements: parameter.requirements.join(', '),
-    type: parameter.type,
-    usage: parameter.usage,
-  }));
-
   const motorStatus = complianceResult?.status || 'NO_EVALUABLE';
 
   // Desde el 04/08 todo lo que aplica trae número. El único caso sin número es
@@ -322,68 +305,11 @@ export const ControlDetailENS = ({
     (requisito: any) => requisito.status !== 'NO_APLICA'
   ).length;
 
-  // POR QUÉ «5 de 8 evidencias» SE CONVIERTE EN «1 de 5 requisitos».
-  //
-  // Es la pregunta que rompe la confianza en el número, y hasta el 07/08/2026
-  // la pantalla ponía las dos cifras una debajo de otra sin nada en medio. El
-  // salto tiene una explicación exacta —UNA evidencia mala tumba TODOS los
-  // requisitos que se apoyan en ella— pero había que deducirla cruzando dos
-  // tablas a mano.
-  //
-  // En op.acc.4: EV-02 tumba op.acc.4.1 y op.acc.4.2, EV-05 tumba op.acc.4.4 y
-  // EV-07 tumba op.acc.4.3. Tres evidencias se llevan cuatro requisitos por
-  // delante, y por eso 5 de 8 en verde dan 1 de 5. Dicho así se entiende; sin
-  // decirlo parece un error de cuentas.
-  const evidenciasQueTumban = (() => {
-    const porEvidencia = new Map<string, string[]>();
-
-    (complianceResult?.requirements || []).forEach((requisito: any) => {
-      if (requisito.status === 'CUMPLE' || requisito.status === 'NO_APLICA') {
-        return;
-      }
-
-      (requisito.evidenceIds || []).forEach((evidenceId: string) => {
-        const evidencia = (complianceResult?.evidences || []).find(
-          (item: any) => item.id === evidenceId
-        );
-
-        // Solo cuenta la evidencia que EFECTIVAMENTE arrastra: una que cumple
-        // no es la culpable de que su requisito falle.
-        if (
-          !evidencia ||
-          evidencia.status === 'CUMPLE' ||
-          evidencia.status === 'NO_APLICA'
-        ) {
-          return;
-        }
-
-        porEvidencia.set(evidenceId, [
-          ...(porEvidencia.get(evidenceId) || []),
-          requisito.id,
-        ]);
-      });
-    });
-
-    return Array.from(porEvidencia.entries())
-      .map(([evidenceId, requisitos]) => ({ evidenceId, requisitos }))
-      .sort((a, b) => b.requisitos.length - a.requisitos.length);
-  })();
-
   const esVistaAgregada = !agentId && totalMaquinas > 1;
 
   const requisitosDelDenominador = esVistaAgregada
     ? requisitosConsolidados
     : requisitosAplicables;
-
-  // Qué mide el porcentaje. El denominador son los APLICABLES: lo que no se ha
-  // podido demostrar resta, porque la carga de la prueba es del auditado. Los
-  // demostrados se dicen al lado, que es el diagnóstico: «60 %, 5 de 8
-  // demostrados» y «60 %, 8 de 8 demostrados» son dos máquinas muy distintas.
-  const baseDelScore =
-    `${requisitosAplicables} requisito${
-      requisitosAplicables === 1 ? '' : 's'
-    } aplicable${requisitosAplicables === 1 ? '' : 's'}` +
-    ` · ${requisitosMedidos} demostrado${requisitosMedidos === 1 ? '' : 's'}`;
 
   const nivelesTexto = String(ensLevel);
 
@@ -396,42 +322,51 @@ export const ControlDetailENS = ({
     ruleId: evidence.relatedRules.join(', '),
     // El motivo que resolvió el motor: qué cuenta concreta incumple, qué
     // parámetro falta, por qué la cobertura del recolector no basta. Es lo
-    // primero que pregunta quien ve una evidencia en gris o en rojo, y hasta
-    // ahora no estaba en ninguna pantalla.
+    // primero que pregunta quien ve una evidencia en gris o en rojo.
     //
     // Con un agente seleccionado se lee tal cual. En la vista general se lee de
     // `motivos`: ahí, concatenar el de las siete máquinas llenaba la celda de
     // quince líneas que decían casi lo mismo.
     motivo: (evidence.observations || []).join(' · '),
     motivos: evidence.observationGroups || [],
-    impact:
-      evidence.status === 'NO_EVALUABLE'
-        ? 'Sin evidencia: no se ha podido demostrar, y lo no demostrado cuenta como incumplimiento del control'
-        : evidence.status === 'NO_APLICA'
-        ? 'Fuera de alcance para el nivel ENS actual'
-        : evidence.status === 'NO_CUMPLE'
-        ? 'Genera incumplimiento del control ENS'
-        : evidence.status === 'CUMPLE'
-        ? 'Soporta cumplimiento del control ENS'
-        : 'Estado evaluado por el motor ENS',
+    // AQUÍ HABÍA UN CAMPO `impact` Y ERA UNA TABLA DE CONVERSIÓN.
+    //
+    // Se calculaba SOLO a partir de `status`, así que las ocho filas en gris
+    // repetían palabra por palabra «Sin evidencia: no se ha podido demostrar, y
+    // lo no demostrado cuenta como incumplimiento del control» en una columna
+    // ancha, al lado de la insignia que ya pone NO_EVALUABLE con su reloj. Es
+    // el caso de libro de explicar en prosa lo que la etiqueta ya dice, y se
+    // comía el ancho de «Motivo», que es la única columna con dato por fila.
+    //
+    // La regla que enunciaba no se pierde: sigue en la línea de «No
+    // conformidades ENS», en el pie del bloque de no evidenciadas y, literal
+    // del motor, en el «Impacto ENS» de la ficha de cada tarjeta.
   }));
 
   // UNA sola lista y UN solo contador. Lo que hasta el 04/08 eran tarjetas `PM-`
   // en una lista propia son ahora no conformidades con `origin` a
   // NO_EVIDENCIADA: el veredicto es el mismo, así que el número también, y lo
   // que las distingue —el motivo y la acción— vive dentro de la tarjeta.
+  //
+  // `evidenceIds` y `parameterIds` viajan como LISTA, no concatenados: la
+  // tarjeta los pinta uno a uno y necesita poder buscar cada evidencia en
+  // `complianceResult.evidences` para sacar su motivo y su criticidad.
   const nonConformityItems = (complianceResult?.nonConformities || []).map(
     nonConformity => ({
       id: nonConformity.id,
       evidence: nonConformity.evidenceId,
-      evidences: (nonConformity.evidenceIds || []).join(', '),
+      evidenceIds: nonConformity.evidenceIds || [],
       requirement: nonConformity.requirementId,
       finding: nonConformity.finding,
       impact: nonConformity.impact,
       requiredAction: nonConformity.requiredAction,
+      // Los dos lados de la medida. Existen en `ENSNonConformity` desde que el
+      // motor publica la traza de la decisión de policy, y hasta ahora no se
+      // pintaban en ninguna parte: es el dato que convierte «no conforma» en
+      // «se pedía X y hay Y».
       expected: nonConformity.expected,
       actual: nonConformity.actual,
-      parameters: (nonConformity.parameterIds || []).join(', '),
+      parameterIds: nonConformity.parameterIds || [],
       origin: nonConformity.origin,
       cause: nonConformity.cause,
       // Las máquinas en las que se ha observado ESTE hallazgo. Una tarjeta
@@ -479,18 +414,242 @@ export const ControlDetailENS = ({
     noEvidenciadas.flatMap(item => item.agents.map(agent => agent.agentId)),
   ).size;
 
-  // Etiqueta de la insignia de cada tarjeta. Dice en una línea qué clase de
-  // incumplimiento es y, si no está demostrado, de quién es el arreglo.
-  const etiquetaDeOrigen = (item: (typeof nonConformityItems)[number]): string =>
-    item.origin === 'MEDIDA'
-      ? 'Medido'
-      : item.cause === 'CATALOG'
-      ? 'No evidenciado · del catálogo'
-      : item.cause === 'CONFIGURATION'
-      ? 'No evidenciado · sin configurar'
-      : item.cause === 'COLLECTION'
-      ? 'No evidenciado · fallo de recogida'
-      : 'No evidenciado · evidencia insuficiente';
+  // QUÉ CLASE DE INCUMPLIMIENTO ES, DE QUIÉN ES EL ARREGLO Y DE QUÉ COLOR VA.
+  //
+  // Un solo sitio para las tres cosas, porque las tres tienen que decir lo
+  // mismo: la franja de la tarjeta, la insignia y la acción salen de aquí. La
+  // distinción medido / no evidenciado no se explica en prosa —restan igual—,
+  // se ve en el color y en la etiqueta, y la causa del no evidenciado va como
+  // etiqueta, no como frase.
+  const clasificar = (item: (typeof nonConformityItems)[number]) => {
+    if (item.origin === 'MEDIDA') {
+      return {
+        etiqueta: 'Medido',
+        icono: 'inspect',
+        color: '#BD271E',
+        badgeColor: 'danger' as const,
+        accion: 'Corregir la máquina',
+        responsable: 'Sistema auditado',
+      };
+    }
+
+    if (item.cause === 'CATALOG') {
+      return {
+        etiqueta: 'No evidenciado · catálogo',
+        icono: 'package',
+        color: '#98A2B3',
+        badgeColor: 'default' as const,
+        accion: 'Declarar la evidencia',
+        responsable: 'Producto ENSFácil',
+      };
+    }
+
+    if (item.cause === 'CONFIGURATION') {
+      return {
+        etiqueta: 'No evidenciado · sin configurar',
+        icono: 'gear',
+        color: '#F5A700',
+        badgeColor: 'warning' as const,
+        accion: 'Declarar la decisión',
+        responsable: 'Responsable ENS',
+      };
+    }
+
+    if (item.cause === 'COLLECTION') {
+      return {
+        etiqueta: 'No evidenciado · sin recogida',
+        icono: 'offline',
+        color: '#0077CC',
+        badgeColor: 'primary' as const,
+        accion: 'Restablecer la recogida',
+        responsable: 'Operación Wazuh',
+      };
+    }
+
+    return {
+      etiqueta: 'No evidenciado · evidencia insuficiente',
+      icono: 'alert',
+      color: '#F5A700',
+      badgeColor: 'warning' as const,
+      accion: 'Habilitar la prueba',
+      responsable: 'Productor de la evidencia',
+    };
+  };
+
+  const buscarEvidencia = (evidenceId: string) =>
+    (complianceResult?.evidences || []).find(
+      (item: any) => item.id === evidenceId,
+    );
+
+  // EL MOTIVO REAL, EL QUE ESCRIBIÓ EL AGENTE O EL MOTOR.
+  //
+  // No es un campo de la no conformidad: vive en las evidencias que la
+  // sostienen (`observations` / `observationGroups`) y hasta ahora solo se veía
+  // en la tabla de evidencias. En la tarjeta era donde más falta hacía, porque
+  // sin él todas decían lo mismo —«el requisito X se ha medido y no conforma»—
+  // y ninguna decía QUÉ pasa en la máquina.
+  const motivosDeEvidencias = (evidenceIds: string[]): MotivoLinea[] => {
+    const lineas: MotivoLinea[] = [];
+
+    evidenceIds.forEach(evidenceId => {
+      const evidencia = buscarEvidencia(evidenceId);
+
+      if (!evidencia) {
+        return;
+      }
+
+      const grupos = evidencia.observationGroups || [];
+
+      if (grupos.length > 0) {
+        // Vista general: un motivo por texto distinto, con las máquinas
+        // delante. El corte lo decide `resumirMotivos`, igual que en la tabla.
+        resumirMotivos(grupos).visibles.forEach(grupo => {
+          lineas.push({
+            texto: grupo.text,
+            etiqueta: grupo.agents.length
+              ? `${evidenceId} · ${etiquetaDeMaquinas(
+                  grupo.agents,
+                  totalMaquinas,
+                )}`
+              : evidenceId,
+          });
+        });
+
+        return;
+      }
+
+      (evidencia.observations || []).forEach(texto => {
+        if (texto && texto.trim()) {
+          lineas.push({ texto: texto.trim(), etiqueta: evidenceId });
+        }
+      });
+    });
+
+    return lineas;
+  };
+
+  // La criticidad la declara el catálogo por evidencia, y de un hallazgo con
+  // varias manda la mayor. Es la única severidad MEDIDA que existe en los
+  // datos: el resto sería inventarla.
+  const criticidadDe = (evidenceIds: string[]): string | undefined => {
+    const orden: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+    const etiquetas: Record<string, string> = {
+      LOW: 'baja',
+      MEDIUM: 'media',
+      HIGH: 'alta',
+    };
+
+    let mayor: string | undefined;
+
+    evidenceIds.forEach(evidenceId => {
+      const nivel = buscarEvidencia(evidenceId)?.criticality;
+
+      if (!nivel || !orden[nivel]) {
+        return;
+      }
+
+      if (!mayor || orden[nivel] > orden[mayor]) {
+        mayor = nivel;
+      }
+    });
+
+    return mayor ? etiquetas[mayor] : undefined;
+  };
+
+  // Acciones distintas para cosas distintas, aunque el veredicto sea el mismo.
+  // Sin prosa: la etiqueta y la cifra.
+  const accionResumen =
+    openNonConformitiesCount === 0
+      ? 'Sin acciones pendientes'
+      : [
+          medidas.length > 0 ? `Corregir ${medidas.length}` : '',
+          noEvidenciadas.length > 0
+            ? `Habilitar prueba ${noEvidenciadas.length}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+  // La ficha del auditor: pares etiqueta / valor, y las cifras en fracción.
+  // Antes era el mismo dato en párrafos («Dos frentes: corregir 4
+  // incumplimiento(s) medido(s)…»), que ocupaba cuatro veces más y se leía
+  // peor.
+  //
+  // Activo, fuente, nivel y última evaluación NO se repiten aquí: son el
+  // contexto de la pantalla y ya están en la barra de arriba. Esta ficha es lo
+  // que el auditor se lleva apuntado.
+  const fichaAuditor: { etiqueta: string; valor: string }[] = [
+    { etiqueta: 'Score', valor: `${motorScoreTexto} · ${motorStatus}` },
+    {
+      // EN VISTA AGREGADA ESTA FRACCIÓN NO ES LA DE AL LADO. El motor suma
+      // `applicableRequirements` POR MÁQUINA: con 8 requisitos y 4 máquinas
+      // vale 32, mientras el panel de Requisitos cuenta los 8 deduplicados.
+      // Dos fracciones de «requisitos» con denominadores distintos a diez
+      // centímetros es justo la contradicción aparente que esta pantalla lleva
+      // meses quitándose de encima, así que la unidad va en la etiqueta.
+      etiqueta: esVistaAgregada
+        ? 'Demostrados · requisito × máquina'
+        : 'Requisitos demostrados',
+      valor: `${requisitosMedidos}/${requisitosAplicables}`,
+    },
+    {
+      etiqueta: 'No conformidades',
+      valor: `${openNonConformitiesCount}${
+        maquinasConNoConformidad > 0
+          ? ` · ${maquinasConNoConformidad} máquina${
+              maquinasConNoConformidad === 1 ? '' : 's'
+            }`
+          : ''
+      }`,
+    },
+    { etiqueta: 'Medidas', valor: String(medidas.length) },
+    {
+      etiqueta: 'No evidenciadas',
+      valor: `${noEvidenciadas.length}${
+        maquinasSinDemostrar > 0
+          ? ` · ${maquinasSinDemostrar} máquina${
+              maquinasSinDemostrar === 1 ? '' : 's'
+            }`
+          : ''
+      }`,
+    },
+    ...(catalogGapsCount > 0
+      ? [{ etiqueta: 'Del catálogo', valor: String(catalogGapsCount) }]
+      : []),
+    ...(collectionGapsCount > 0
+      ? [{ etiqueta: 'Fallo de recogida', valor: String(collectionGapsCount) }]
+      : []),
+    { etiqueta: 'Acción', valor: accionResumen },
+  ];
+
+  // El encabezado de Remediación: cifras con etiqueta. Las dos primeras suman
+  // el total; las dos siguientes son un desglose DE LAS NO EVIDENCIADAS y por
+  // eso van en otra línea, dicho con esas palabras.
+  const remediacionTotales = [
+    {
+      etiqueta: 'medidas · corregir el sistema',
+      valor: medidas.length,
+      color: 'danger' as const,
+    },
+    {
+      etiqueta: 'no evidenciadas · habilitar la prueba',
+      valor: noEvidenciadas.length,
+      color: 'warning' as const,
+    },
+  ].filter(item => item.valor > 0);
+
+  const remediacionDesglose = [
+    {
+      etiqueta: 'del catálogo · producto ENSFácil',
+      valor: catalogGapsCount,
+      color: 'default' as const,
+    },
+    {
+      etiqueta: 'fallo de recogida · operación Wazuh',
+      valor: collectionGapsCount,
+      color: 'primary' as const,
+    },
+  ].filter(item => item.valor > 0);
 
   const traceabilityItems = (complianceResult?.traceability || []).map(
     (item, index) => ({
@@ -683,12 +842,20 @@ export const ControlDetailENS = ({
     { cumple: 0, noEvaluable: 0, noAplica: 0, noCumple: 0 },
   );
 
-  const totalEvidences = evidenceStatusItems.length || 1;
-  // Los porcentajes de EVIDENCIAS se han retirado con las barras que los
-  // pintaban. Eran tres cifras con el mismo aspecto que el porcentaje del
-  // control y otro denominador: quien las veía juntas intentaba cuadrarlas y no
-  // salía. El único porcentaje de esta pantalla es el del control, y sale de los
-  // requisitos.
+  // PORCENTAJE DE EVIDENCIAS CONFORMES, sobre las EVALUABLES.
+  //
+  // Los `NO_APLICA` salen del denominador por la misma razón que salen del
+  // denominador del control: un refuerzo por encima del nivel activo no es un
+  // hueco. Y se dice de qué es —«evidencias»— pegado a la cifra, porque el
+  // riesgo de esta pantalla siempre ha sido tener dos porcentajes de dos
+  // denominadores distintos sin etiquetar cuál es cuál.
+  const evidenciasEvaluables =
+    evidenceSummary.cumple + evidenceSummary.noCumple + evidenceSummary.noEvaluable;
+
+  const evidenciasConformesTexto =
+    evidenciasEvaluables > 0
+      ? `${Math.round((evidenceSummary.cumple / evidenciasEvaluables) * 100)}%`
+      : 'sin datos';
 
   const globalStatus = motorStatus;
 
@@ -716,22 +883,30 @@ export const ControlDetailENS = ({
       ? 'conic-gradient(#D3DAE6 0 100%)'
       : `conic-gradient(${colorDelArco} 0 ${motorScore}%, #EEF2F7 ${motorScore}% 100%)`;
 
-  // Acciones distintas para cosas distintas, aunque el veredicto sea el mismo.
-  // Un incumplimiento no evidenciado no se "revisa": se configura el parámetro
-  // que falta, se restablece la recogida o lo arregla el producto.
-  const auditorAction =
-    openNonConformitiesCount === 0
-      ? 'Sin acciones pendientes'
-      : medidas.length > 0 && noEvidenciadas.length > 0
-      ? `Dos frentes: corregir ${medidas.length} incumplimiento(s) medido(s) en el sistema y habilitar la prueba de ${noEvidenciadas.length} que no se han podido demostrar.`
-      : medidas.length > 0
-      ? 'Corregir en el sistema los incumplimientos medidos por el motor ENS.'
-      : catalogGapsCount === noEvidenciadas.length
-      ? 'Ningún incumplimiento medido. Lo que falta por demostrar es del catálogo del producto, no de la configuración ni de los agentes.'
-      : collectionGapsCount === noEvidenciadas.length
-      ? 'Ningún incumplimiento medido: no llega el dato. Es un fallo de RECOGIDA (agente o recolector), no una corrección en el sistema auditado.'
-      : 'Ningún incumplimiento medido: falta habilitar la prueba. Ver el detalle de cada no conformidad no evidenciada.';
-
+  // El desglose de evidencias, en insignias. Cuatro cifras con su etiqueta se
+  // leen de un vistazo; la misma información en una frase corrida, no.
+  const resumenEvidencias = [
+    {
+      etiqueta: 'conforman',
+      valor: evidenceSummary.cumple,
+      color: 'success' as const,
+    },
+    {
+      etiqueta: 'con hallazgo',
+      valor: evidenceSummary.noCumple,
+      color: 'danger' as const,
+    },
+    {
+      etiqueta: 'sin medir',
+      valor: evidenceSummary.noEvaluable,
+      color: 'default' as const,
+    },
+    {
+      etiqueta: `fuera del nivel ${nivelesTexto}`,
+      valor: evidenceSummary.noAplica,
+      color: 'hollow' as const,
+    },
+  ].filter(item => item.valor > 0);
 
   // Sin agente seleccionado no se mezclan datos de varios agentes:
   // un cumplimiento combinado no es válido para auditoría.
@@ -758,9 +933,8 @@ export const ControlDetailENS = ({
 
         <EuiText>
           <p>
-            Control ENS orientado a auditoría, evidencias, scoring y trazabilidad
-            Wazuh. El objetivo es evaluar el cumplimiento {nivelesTexto} sin mostrar
-            eventos técnicos como controles.
+            Control ENS orientado a auditoría, evidencias, scoring y
+            trazabilidad Wazuh.
           </p>
         </EuiText>
 
@@ -783,13 +957,6 @@ export const ControlDetailENS = ({
           <EuiTitle size='s'>
             <h3>Panel ejecutivo {control.id.toUpperCase()}</h3>
           </EuiTitle>
-          <EuiText size='s' color='subdued'>
-            <p>
-                Vista de cumplimiento ENS para el control {control.id}. Muestra
-                el nivel configurado, el resultado del motor, las evidencias,
-                las no conformidades y la trazabilidad del control.
-            </p>
-          </EuiText>
 
           <EuiSpacer size='m' />
 
@@ -852,108 +1019,36 @@ export const ControlDetailENS = ({
                     </div>
                   </div>
                 </div>
-                  <EuiFlexGroup gutterSize='s' justifyContent='center'>
-                    <EuiFlexItem grow={false}>
-                      <EuiBadge color={getBadgeColor(motorStatus)}>
-                        {nivelesTexto} · {motorScoreTexto} · {motorStatus}
-                      </EuiBadge>
-                    </EuiFlexItem>
-                  </EuiFlexGroup>
-                <EuiSpacer size='s' />
 
-                {/* CADA NÚMERO DICE DE QUÉ ES, y no es un detalle de estilo.
-                    Aquí se pintaba «38 %» —que es de REQUISITOS— y justo
-                    debajo «Cumplen 6» —que es de EVIDENCIAS—, sin decir ni
-                    una cosa ni la otra. Dos denominadores distintos bajo el
-                    mismo título es una contradicción aparente que hace
-                    desconfiar del número entero, y el número es lo único que
-                    el auditor se lleva.
-
-                    Que 6 evidencias en verde convivan con un 38 % es correcto:
-                    un requisito con tres evidencias buenas y una mala NO
-                    cumple. Lo que faltaba era decirlo. */}
-                <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
+                <EuiFlexGroup gutterSize='s' justifyContent='center'>
                   <EuiFlexItem grow={false}>
-                    <EuiText size='xs' color='subdued'>
-                      <strong>Requisitos</strong>{' '}
-                      {requisitosCumplen} de {requisitosDelDenominador} cumplen
-                      {' · '}
-                      {/* CON UNA MÁQUINA la fracción ES el porcentaje y se
-                          puede decir. AGREGANDO VARIAS no: el numerador cuenta
-                          requisitos deduplicados —uno por requisito, con el
-                          peor estado— y el denominador los sumaba por máquina,
-                          así que «4 de 16» ni siquiera era una fracción del
-                          mismo conjunto y el 57 % de al lado salía de otra
-                          cuenta. Se decía «el 57 % sale de aquí» y era mentira.
-                          Ahora el denominador es el mismo conjunto que el
-                          numerador, y de dónde sale el porcentaje se dice
-                          aparte, que es lo que de verdad ocurre. */}
-                      {esVistaAgregada
-                        ? `el ${motorScoreTexto} es la media de las ${totalMaquinas} máquinas`
-                        : `el ${motorScoreTexto} sale de aquí`}
-                    </EuiText>
+                    <EuiBadge color={getBadgeColor(motorStatus)}>
+                      {nivelesTexto} · {motorScoreTexto} · {motorStatus}
+                    </EuiBadge>
                   </EuiFlexItem>
                 </EuiFlexGroup>
 
-                <EuiSpacer size='xs' />
+                <EuiSpacer size='s' />
 
-                {/* EL PUENTE ENTRE LAS DOS CIFRAS. Sin esto se leen «5 de 8
-                    evidencias cumplen» y «1 de 5 requisitos» pegadas, y parece
-                    un error de cuentas. No lo es: UNA evidencia mala tumba
-                    TODOS los requisitos que se apoyan en ella, y eso es lo que
-                    hay que ver sin cruzar dos tablas a mano. */}
-                {evidenciasQueTumban.length > 0 && (
-                  <>
-                    <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
-                      <EuiFlexItem grow={false}>
-                        <EuiText size='xs' color='subdued'>
-                          <span style={{ opacity: 0.75 }}>
-                            Lo que separa las dos cifras:{' '}
-                          </span>
-                          {evidenciasQueTumban
-                            .map(
-                              item =>
-                                `${item.evidenceId} arrastra ${item.requisitos.join(', ')}`
-                            )
-                            .join(' · ')}
-                        </EuiText>
-                      </EuiFlexItem>
-                    </EuiFlexGroup>
-
-                    <EuiSpacer size='xs' />
-                  </>
-                )}
-
-                <EuiFlexGroup gutterSize='s' justifyContent='center' wrap>
-                  <EuiFlexItem grow={false}>
-                    {/* LAS EVIDENCIAS NO SON UN SEGUNDO MARCADOR.
-                        «5 de 8 cumplen» al lado de «20 %» invita a cuadrar dos
-                        cifras que nunca van a cuadrar: el porcentaje sale de los
-                        REQUISITOS, y ese 8 metía además los NO_APLICA en el
-                        denominador. Quien lo lee hace la división, no le sale, y
-                        deja de fiarse del número entero.
-
-                        Se enumera el desglose sin fracción: cuántas conforman,
-                        cuántas traen hallazgo y cuántas no se han podido medir.
-                        Son tres cosas con tres acciones distintas, y ninguna
-                        pretende explicar el porcentaje — eso lo hace la línea de
-                        arriba, que dice qué evidencia arrastra a qué requisito. */}
-                    <EuiText size='xs' color='subdued'>
-                      <strong>Evidencias</strong>{' '}
-                      {evidenceSummary.cumple > 0
-                        ? `${evidenceSummary.cumple} conforman`
-                        : 'ninguna conforma'}
-                      {evidenceSummary.noCumple > 0
-                        ? ` · ${evidenceSummary.noCumple} con hallazgo`
-                        : ''}
-                      {evidenceSummary.noEvaluable > 0
-                        ? ` · ${evidenceSummary.noEvaluable} sin poder medir`
-                        : ''}
-                      {evidenceSummary.noAplica > 0
-                        ? ` · ${evidenceSummary.noAplica} fuera del nivel ${nivelesTexto}`
-                        : ''}
-                    </EuiText>
-                  </EuiFlexItem>
+                {/* CADA NÚMERO DICE DE QUÉ ES. Estas cifras son de EVIDENCIAS y
+                    el rosco es de REQUISITOS: que seis evidencias en verde
+                    convivan con un 38 % es correcto —un requisito con tres
+                    evidencias buenas y una mala NO cumple— y lo único que hacía
+                    falta era decir de qué es cada cifra. En insignias se ve; en
+                    un párrafo había que leerlo. */}
+                <EuiFlexGroup
+                  gutterSize='xs'
+                  justifyContent='center'
+                  wrap
+                  responsive={false}
+                >
+                  {resumenEvidencias.map(item => (
+                    <EuiFlexItem grow={false} key={item.etiqueta}>
+                      <EuiBadge color={item.color}>
+                        {item.valor} {item.etiqueta}
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  ))}
                 </EuiFlexGroup>
               </EuiPanel>
             </EuiFlexItem>
@@ -964,115 +1059,174 @@ export const ControlDetailENS = ({
                   a diez centímetros de un porcentaje que sale de los REQUISITOS.
                   El usuario lo dijo tres veces: «cumple 5/8 y solo 20 %, no lo
                   entiendo». Y tenía razón: la única forma de entenderlo era
-                  saber que las dos cifras no hablan de lo mismo, cosa que no
-                  ponía en ninguna parte.
+                  saber que las dos cifras no hablan de lo mismo.
 
-                  Ahora se lista requisito por requisito con lo que le pasa. La
-                  cuenta se ve sola: cinco líneas, una en verde, 20 %. No hay
-                  nada que deducir. */}
+                  Cada fila dice qué evidencias la bloquean, con el icono de su
+                  estado: `cross` es medida y no conforme, `clock` es no
+                  demostrada. Ahí se ve, sin ninguna frase, que una evidencia
+                  mala tumba todos los requisitos que se apoyan en ella. */}
               <EuiPanel>
                 <EuiTitle size='xs'>
-                  <h4>De dónde sale el {motorScoreTexto}</h4>
+                  <h4>Requisitos</h4>
                 </EuiTitle>
 
                 <EuiSpacer size='s' />
 
-                <EuiText size='xs' color='subdued'>
-                  <p style={{ marginBottom: 8 }}>
-                    Un requisito cumple solo si TODAS sus evidencias conforman.
-                    Basta una que falle o que no se pueda medir.
-                  </p>
-                </EuiText>
-
                 {(complianceResult?.requirements || [])
                   .filter((requisito: any) => requisito.status !== 'NO_APLICA')
                   .map((requisito: any) => {
-                    const culpables = (requisito.evidenceIds || []).filter(
-                      (evidenceId: string) => {
-                        const evidencia = (complianceResult?.evidences || []).find(
-                          (item: any) => item.id === evidenceId
-                        );
+                    const culpables = (requisito.evidenceIds || [])
+                      .map((evidenceId: string) => {
+                        const evidencia = buscarEvidencia(evidenceId);
 
-                        return (
-                          evidencia &&
+                        return evidencia &&
                           evidencia.status !== 'CUMPLE' &&
                           evidencia.status !== 'NO_APLICA'
-                        );
-                      }
-                    );
+                          ? { id: evidenceId, status: evidencia.status }
+                          : undefined;
+                      })
+                      .filter(Boolean) as {
+                      id: string;
+                      status: string;
+                    }[];
 
                     const cumple = requisito.status === 'CUMPLE';
 
                     return (
-                      <div
+                      <EuiFlexGroup
                         key={requisito.id}
+                        gutterSize='s'
+                        alignItems='center'
+                        responsive={false}
                         style={{
-                          display: 'flex',
-                          alignItems: 'baseline',
-                          gap: 8,
-                          padding: '5px 0',
+                          padding: '4px 0',
                           borderBottom: '1px solid #F1F4FA',
-                          fontSize: 12,
                         }}
                       >
-                        <span
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            background: cumple ? '#00A69B' : '#BD271E',
-                            flexShrink: 0,
-                          }}
-                        />
-                        <strong style={{ minWidth: 96 }}>{requisito.id}</strong>
-                        <span style={{ color: '#69707D' }}>
-                          {cumple
-                            ? 'cumple'
-                            : culpables.length
-                            ? `no cumple · ${culpables.join(', ')}`
-                            : 'no cumple'}
-                        </span>
-                      </div>
+                        <EuiFlexItem grow={false}>
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: cumple ? '#00A69B' : '#BD271E',
+                              display: 'block',
+                            }}
+                          />
+                        </EuiFlexItem>
+
+                        <EuiFlexItem grow={false} style={{ minWidth: 96 }}>
+                          <EuiText size='xs'>
+                            <strong>{requisito.id}</strong>
+                          </EuiText>
+                        </EuiFlexItem>
+
+                        <EuiFlexItem>
+                          {cumple ? (
+                            <EuiText size='xs' color='subdued'>
+                              cumple
+                            </EuiText>
+                          ) : culpables.length ? (
+                            <EuiFlexGroup
+                              gutterSize='xs'
+                              wrap
+                              responsive={false}
+                            >
+                              {culpables.map(culpable => (
+                                <EuiFlexItem grow={false} key={culpable.id}>
+                                  <EuiBadge
+                                    color={getBadgeColor(culpable.status)}
+                                    iconType={getStatusIcon(culpable.status)}
+                                  >
+                                    {culpable.id}
+                                  </EuiBadge>
+                                </EuiFlexItem>
+                              ))}
+                            </EuiFlexGroup>
+                          ) : (requisito.evidenceIds || []).length === 0 ? (
+                            <EuiText size='xs' color='subdued'>
+                              sin evidencia declarada
+                            </EuiText>
+                          ) : (
+                            // NO ES LO MISMO «el catálogo no declara con qué
+                            // demostrarlo» que «lo declara y ninguna de esas
+                            // evidencias es la culpable». Lo segundo pasa de
+                            // verdad: lo tumba la policy, o un parámetro
+                            // obligatorio sin configurar, o una evidencia
+                            // declarada que no llegó a resolverse y por eso no
+                            // tiene insignia. Decir ahí «sin evidencia
+                            // declarada» era acusar al catálogo de un hueco que
+                            // no tiene.
+                            <EuiText size='xs' color='subdued'>
+                              {requisito.evidenced === false
+                                ? 'no demostrado'
+                                : 'no cumple'}
+                            </EuiText>
+                          )}
+                        </EuiFlexItem>
+                      </EuiFlexGroup>
                     );
                   })}
 
                 <EuiSpacer size='s' />
 
                 <EuiText size='xs' color='subdued'>
-                  <p>
-                    <strong>
-                      {requisitosCumplen} de {requisitosDelDenominador} cumplen ={' '}
-                      {motorScoreTexto}
-                    </strong>
-                  </p>
+                  {/* Con una máquina la fracción ES el porcentaje. Agregando
+                      varias no: el numerador cuenta requisitos deduplicados y
+                      el porcentaje es la media de las máquinas, así que se dice
+                      con esas palabras en vez de poner un «=» que sería falso. */}
+                  <strong>
+                    {requisitosCumplen}/{requisitosDelDenominador} cumplen
+                  </strong>{' '}
+                  ·{' '}
+                  {esVistaAgregada
+                    ? `${motorScoreTexto} media de ${totalMaquinas} máquinas`
+                    : motorScoreTexto}
                 </EuiText>
-
-                <EuiSpacer size='s' />
-                <EuiBadge color={getBadgeColor(motorStatus)}>
-                  Estado del control: {motorStatus}
-                </EuiBadge>
               </EuiPanel>
             </EuiFlexItem>
 
               <EuiFlexItem grow={1}>
                 <EuiPanel>
                   <EuiTitle size='xs'>
-                    <h4>Resultado actual del motor ENS</h4>
+                    <h4>Resultado del motor ENS</h4>
                   </EuiTitle>
+
+                  <EuiSpacer size='s' />
+
+                  {/* DOS CIFRAS, NO UNA CON HUECO DEBAJO. El panel tenía un solo
+                      `EuiStat` y media columna en blanco. El hueco lo llena el
+                      otro número que esta pantalla ya tenía calculado y no
+                      publicaba: qué porcentaje de las evidencias desplegadas
+                      conforma. Cada una dice de qué es —requisitos / evidencias—
+                      porque son denominadores distintos. */}
+                  <EuiStat
+                    title={motorScoreTexto}
+                    titleSize='m'
+                    description='Score del control · requisitos'
+                    titleColor={getBadgeColor(motorStatus)}
+                  />
 
                   <EuiSpacer size='m' />
 
                   <EuiStat
-                    title={motorScoreTexto}
-                    description={`Nivel ENS activo: ${nivelesTexto}`}
-                    titleColor={getBadgeColor(motorStatus)}
+                    title={evidenciasConformesTexto}
+                    titleSize='m'
+                    description={`Evidencias conformes · ${evidenceSummary.cumple}/${evidenciasEvaluables}`}
                   />
 
-                  <EuiSpacer size='s' />
+                  <EuiSpacer size='m' />
 
-                  <EuiBadge color={getBadgeColor(motorStatus)}>
-                    {motorStatus}
-                  </EuiBadge>
+                  <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge color={getBadgeColor(motorStatus)}>
+                        {motorStatus}
+                      </EuiBadge>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge color='hollow'>Nivel {nivelesTexto}</EuiBadge>
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
                 </EuiPanel>
               </EuiFlexItem>
 
@@ -1084,113 +1238,47 @@ export const ControlDetailENS = ({
 
                   <EuiSpacer size='s' />
 
-                  <EuiText size='s'>
-                    <p><strong>Activo:</strong> {agenteNombre}</p>
-                    <p><strong>Fuente:</strong> Wazuh / OpenSearch</p>
-                    <p><strong>Nivel ENS activo:</strong> {nivelesTexto}</p>
-                    <p><strong>Última evaluación:</strong> {latestEvaluationDate}</p>
-                  </EuiText>
-
-                  <EuiSpacer size='s' />
-
-                  <EuiBadge color={getBadgeColor(motorStatus)}>
-                    {nivelesTexto} · {motorScoreTexto} · {motorStatus}
-                  </EuiBadge>
-
-                  <EuiSpacer size='s' />
-
                   {/* Los recuentos cuentan HALLAZGOS DISTINTOS, no
                       hallazgo × máquina: el mismo problema en siete servidores
-                      es un problema. Cuánto parque toca se dice al lado, que es
-                      la otra mitad del dato. */}
-                  <EuiText size='s'>
-                    <p>
-                      <strong>No conformidades abiertas:</strong>{' '}
-                      {openNonConformitiesCount}
-                      {maquinasConNoConformidad > 0 &&
-                        ` · en ${maquinasConNoConformidad} máquina${
-                          maquinasConNoConformidad === 1 ? '' : 's'
-                        }`}
-                    </p>
-                    {/* El desglose del MISMO número, sangrado para que se lea
-                        como tal y no como un segundo contador. */}
-                    <p style={{ paddingLeft: 12 }}>
-                      <strong>· medidas:</strong> {medidas.length}
-                      <br />
-                      <strong>· no evidenciadas:</strong>{' '}
-                      {noEvidenciadas.length}
-                      {maquinasSinDemostrar > 0 &&
-                        ` · en ${maquinasSinDemostrar} máquina${
-                          maquinasSinDemostrar === 1 ? '' : 's'
-                        }`}
-                      {catalogGapsCount > 0 &&
-                        ` · ${catalogGapsCount} del catálogo`}
-                      {collectionGapsCount > 0 &&
-                        ` · ${collectionGapsCount} por fallo de recogida`}
-                    </p>
-                    <p><strong>Base del score:</strong> {baseDelScore}</p>
-                    <p><strong>Acción:</strong> {auditorAction}</p>
-                  </EuiText>
+                      es un problema. Cuánto parque toca va al lado de la cifra,
+                      que es la otra mitad del dato. */}
+                  {fichaAuditor.map(par => (
+                    <EuiFlexGroup
+                      key={par.etiqueta}
+                      gutterSize='s'
+                      responsive={false}
+                      style={{ padding: '2px 0' }}
+                    >
+                      <EuiFlexItem grow={false} style={{ minWidth: 128 }}>
+                        <EuiText size='xs' color='subdued'>
+                          {par.etiqueta}
+                        </EuiText>
+                      </EuiFlexItem>
+                      <EuiFlexItem>
+                        <EuiText size='xs'>
+                          <strong>{par.valor}</strong>
+                        </EuiText>
+                      </EuiFlexItem>
+                    </EuiFlexGroup>
+                  ))}
                 </EuiPanel>
               </EuiFlexItem>
           </EuiFlexGroup>
 
-          <EuiSpacer size='m' />
+          {/* AQUÍ HABÍA UNA SEGUNDA FILA DE SEIS `EuiStat` Y NO DECÍA NADA
+              NUEVO. Nivel, score, estado, requisitos demostrados, no
+              conformidades y no evidenciadas: las seis cifras estaban ya en los
+              cuatro paneles de justo encima. Con esta fila, el score salía SEIS
+              veces en la misma pantalla —rosco, insignia del rosco, `EuiStat`
+              del motor, pie de Requisitos, ficha del auditor y aquí— y el nivel
+              ENS, cinco.
 
-            <EuiFlexGroup>
-              <EuiFlexItem>
-                <EuiPanel>
-                  <EuiStat
-                    title={nivelesTexto}
-                    description='Nivel ENS activo'
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
+              Repetir un número no lo refuerza: obliga a comprobar que los dos
+              dicen lo mismo. Se borra la fila entera; no se pierde ni un dato,
+              y el que se llevaba —«Requisitos demostrados»— se queda en la
+              ficha del auditor, que es donde tiene su etiqueta. */}
+        </EuiPanel>
 
-              <EuiFlexItem>
-                <EuiPanel>
-                  <EuiStat
-                    title={motorScoreTexto}
-                    description={`Score del control · ${baseDelScore}`}
-                    titleColor={getBadgeColor(motorStatus)}
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-
-              <EuiFlexItem>
-                <EuiPanel>
-                  <EuiStat
-                    title={motorStatus}
-                    description='Estado del control'
-                    titleColor={getBadgeColor(motorStatus)}
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-
-              <EuiFlexItem>
-                <EuiPanel>
-                  <EuiStat
-                    title={String(openNonConformitiesCount)}
-                    description='No conformidades abiertas'
-                    titleColor={openNonConformitiesCount > 0 ? 'danger' : 'success'}
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-
-              {/* Desglose, no un segundo total: la suma de las dos cifras es
-                  exactamente el contador de arriba. Se enseña porque la acción
-                  y quien la ejecuta son distintas, no porque una cuente menos. */}
-              <EuiFlexItem>
-                <EuiPanel>
-                  <EuiStat
-                    title={String(noEvidenciadas.length)}
-                    description={`No evidenciadas (de ${openNonConformitiesCount})`}
-                    titleColor={noEvidenciadas.length > 0 ? 'danger' : 'success'}
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </EuiPanel>
         <EuiSpacer size='l' />
 
         {/* EL AVISO VA ANTES QUE EL NÚMERO, no en una nota al pie. Si el motor
@@ -1217,8 +1305,7 @@ export const ControlDetailENS = ({
               <p>
                 Se arregla reduciendo lo que emite el agente —un hecho por
                 observación distinta, no uno por repetición— o acortando el
-                periodo de evaluación en Configuración. Mientras esto salga, el
-                número de arriba es un mínimo, no un resultado.
+                periodo de evaluación en Configuración.
               </p>
             </EuiCallOut>
 
@@ -1252,22 +1339,17 @@ export const ControlDetailENS = ({
         <EuiTitle size='s'>
           <h3>Evidencias ENS del control</h3>
         </EuiTitle>
-        <EuiText>
-          <p>
-              Evidencias asociadas al control {control.id}. Cada evidencia muestra
-              el estado resuelto por el motor, el requisito ENS, el nivel y
-              su impacto sobre el cumplimiento {nivelesTexto}.
-          </p>
 
-          {!agentId && totalMaquinas > 1 && (
-            <p>
+        {!agentId && totalMaquinas > 1 && (
+          <>
+            <EuiSpacer size='xs' />
+
+            <EuiText size='xs' color='subdued'>
               Vista general de {totalMaquinas} máquinas: el mismo motivo
-              observado en varias se escribe <strong>una vez</strong>, diciendo
-              en cuántas ocurre. Los motivos que difieren entre máquinas salen
-              por separado.
-            </p>
-          )}
-        </EuiText>
+              observado en varias se escribe una vez, con el recuento delante.
+            </EuiText>
+          </>
+        )}
 
         <EuiSpacer size='s' />
 
@@ -1288,18 +1370,14 @@ export const ControlDetailENS = ({
               field: 'status',
               name: 'Estado',
               width: '150px',
-              render: (status: string) => {
-                const icon =
-                  status === 'CUMPLE' ? 'check'
-                  : status === 'NO_CUMPLE' ? 'cross'
-                  : status === 'NO_EVALUABLE' ? 'clock'
-                  : 'minus';
-                return (
-                  <EuiBadge color={getBadgeColor(status)} iconType={icon}>
-                    {status}
-                  </EuiBadge>
-                );
-              },
+              render: (status: string) => (
+                <EuiBadge
+                  color={getBadgeColor(status)}
+                  iconType={getStatusIcon(status)}
+                >
+                  {status}
+                </EuiBadge>
+              ),
             },
             {
               field: 'requirement',
@@ -1314,13 +1392,6 @@ export const ControlDetailENS = ({
               name: 'Nivel',
               width: '110px',
               render: (level: string) => <EuiBadge color='hollow'>{level}</EuiBadge>,
-            },
-            {
-              field: 'impact',
-              name: 'Impacto',
-              render: (impact: string) => (
-                <EuiText size='xs' color='subdued'>{impact}</EuiText>
-              ),
             },
             {
               field: 'motivos',
@@ -1375,60 +1446,62 @@ export const ControlDetailENS = ({
               <h3>Remediación del control</h3>
             </EuiTitle>
 
-            <EuiSpacer size='m' />
+            <EuiSpacer size='s' />
 
             {openNonConformitiesCount === 0 ? (
               <EuiCallOut
-                title='No existen no conformidades abiertas'
+                title='Sin no conformidades abiertas'
                 color='success'
                 iconType='check'
-              >
-                Todo lo aplicable en este control se ha demostrado conforme.
-              </EuiCallOut>
+              />
             ) : (
-              <EuiCallOut
-                title={`${openNonConformitiesCount} no conformidad(es) abierta(s)`}
-                color='warning'
-                iconType='alert'
-              >
-                {auditorAction}
-              </EuiCallOut>
-            )}
-
-            {/* Aviso informativo (`color='primary'`, nunca `warning`): no
-                rebaja el veredicto —la tarjeta ya está contada arriba— sino que
-                dice a QUIÉN le toca. El fallo de recogida se avisa aparte
-                porque no lo arregla quien corrige el sistema auditado. */}
-            {collectionGapsCount > 0 && (
               <>
+                {/* Un encabezado con las cifras, no dos párrafos. La distinción
+                    medido / no evidenciado sigue a la vista —son dos insignias
+                    de dos colores— y de quién es el arreglo se dice en la propia
+                    etiqueta. */}
+                <EuiTitle size='xxs'>
+                  <h4>{openNonConformitiesCount} no conformidades abiertas</h4>
+                </EuiTitle>
+
                 <EuiSpacer size='s' />
 
-                <EuiCallOut
-                  title={`${collectionGapsCount} de ellas no llegan por un fallo de RECOGIDA`}
-                  color='primary'
-                  iconType='offline'
-                >
-                  Cuentan como incumplimiento —sin prueba no hay cumplimiento—
-                  pero no son hallazgos sobre la máquina: el agente no reporta,
-                  el recolector no ha ejecutado o no hay latido. Lo arregla quien
-                  opera Wazuh y los agentes.
-                </EuiCallOut>
-              </>
-            )}
+                <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
+                  {remediacionTotales.map(item => (
+                    <EuiFlexItem grow={false} key={item.etiqueta}>
+                      <EuiBadge color={item.color}>
+                        {item.valor} {item.etiqueta}
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  ))}
+                </EuiFlexGroup>
 
-            {catalogGapsCount > 0 && (
-              <>
-                <EuiSpacer size='s' />
+                {remediacionDesglose.length > 0 && (
+                  <>
+                    <EuiSpacer size='s' />
 
-                <EuiCallOut
-                  title={`${catalogGapsCount} de ellas dependen del catálogo del producto`}
-                  color='primary'
-                  iconType='package'
-                >
-                  El requisito no declara ninguna evidencia con la que
-                  demostrarse. No hay nada que configurar en el cliente ni
-                  ningún agente que arreglar.
-                </EuiCallOut>
+                    <EuiFlexGroup
+                      gutterSize='xs'
+                      alignItems='center'
+                      wrap
+                      responsive={false}
+                    >
+                      <EuiFlexItem grow={false}>
+                        <EuiText size='xs' color='subdued'>
+                          De las no evidenciadas:
+                        </EuiText>
+                      </EuiFlexItem>
+
+                      {remediacionDesglose.map(item => (
+                        <EuiFlexItem grow={false} key={item.etiqueta}>
+                          <EuiBadge color={item.color}>
+                            {item.valor} {item.etiqueta}
+                          </EuiBadge>
+                        </EuiFlexItem>
+                      ))}
+                    </EuiFlexGroup>
+                  </>
+                )}
               </>
             )}
           </EuiPanel>
@@ -1487,32 +1560,19 @@ export const ControlDetailENS = ({
           )}
         </EuiPanel>
 
-
-        <EuiSpacer size='l' />
-
-
         <EuiSpacer size='l' />
 
         <EuiTitle size='s'>
           <h3>No conformidades ENS</h3>
         </EuiTitle>
-        <EuiText>
-          <p>
-            Todo lo que el control no cumple, en una sola lista y con un solo
-            número. Desde el 04/08 la carga de la prueba es del auditado: lo que
-            se ha medido y falla y lo que no se ha podido demostrar cuentan
-            igual. Lo que <strong>no</strong> es igual es qué hacer con cada
-            cosa, y eso lo dice cada tarjeta.
-          </p>
 
-          {!agentId && totalMaquinas > 1 && (
-            <p>
-              Una tarjeta por <strong>hallazgo</strong>, no por máquina: el mismo
-              hallazgo en varias se agrupa y las nombra. Si difiere (otra cuenta,
-              otro motivo), son tarjetas distintas. Las marcadas «del catálogo»
-              no dependen de ninguna máquina.
-            </p>
-          )}
+        <EuiSpacer size='xs' />
+
+        <EuiText size='xs' color='subdued'>
+          {/* La regla del producto, dicha en una línea: los dos orígenes restan
+              igual y se arreglan al revés. Lo demás lo dicen las tarjetas. */}
+          Una tarjeta por hallazgo, no por máquina. Medido y no evidenciado
+          cuentan igual; la acción es distinta.
         </EuiText>
 
         <EuiSpacer size='s' />
@@ -1530,15 +1590,13 @@ export const ControlDetailENS = ({
           {
             clave: 'medidas',
             titulo: `Medidas · ${medidas.length}`,
-            explicacion:
-              'El motor ha mirado y el resultado no conforma. Hay algo que corregir en el sistema auditado.',
+            pie: 'Corregir el sistema auditado.',
             items: medidas,
           },
           {
             clave: 'no-evidenciadas',
             titulo: `No evidenciadas · ${noEvidenciadas.length}`,
-            explicacion:
-              'No se ha podido demostrar. Cuentan igual —sin prueba no hay cumplimiento— pero la acción no es corregir la máquina: es habilitar la prueba, y cada tarjeta dice quién y dónde.',
+            pie: 'Cuentan igual. La acción es habilitar la prueba.',
             items: noEvidenciadas,
           },
         ]
@@ -1552,171 +1610,378 @@ export const ControlDetailENS = ({
               </EuiTitle>
 
               <EuiText size='xs' color='subdued'>
-                <p>{bloque.explicacion}</p>
+                {bloque.pie}
               </EuiText>
 
               <EuiSpacer size='s' />
 
               <EuiFlexGroup wrap>
-                {bloque.items.map(nonConformity => (
-                  <EuiFlexItem key={nonConformity.id}>
-                    <EuiPanel
-                      color={
-                        nonConformity.origin === 'MEDIDA' ? 'plain' : 'subdued'
-                      }
+                {bloque.items.map(nonConformity => {
+                  const clase = clasificar(nonConformity);
+
+                  // El ancla (`evidence`) solo se usa si no hay lista: en las de
+                  // configuración vale 'CONFIG' y en las de catálogo 'ENS', que
+                  // es información, no una evidencia inventada.
+                  const evidenciasImplicadas =
+                    nonConformity.evidenceIds.length > 0
+                      ? nonConformity.evidenceIds
+                      : nonConformity.evidence
+                      ? [nonConformity.evidence]
+                      : [];
+
+                  // Primero el motivo de las evidencias —lo que de verdad pasa
+                  // en la máquina— y el veredicto del motor detrás: `MotiveCell`
+                  // enseña la primera línea y pliega el resto, así que la que se
+                  // ve es la que informa.
+                  const lineasMotivo: MotivoLinea[] = [
+                    ...motivosDeEvidencias(nonConformity.evidenceIds),
+                    ...(nonConformity.finding
+                      ? [
+                          {
+                            texto: nonConformity.finding,
+                            etiqueta: 'Motor',
+                          },
+                        ]
+                      : []),
+                  ];
+
+                  const criticidad = criticidadDe(nonConformity.evidenceIds);
+
+                  const alcance = describirAlcance(
+                    nonConformity.agents,
+                    totalMaquinas,
+                  );
+
+                  const etiquetaAlcance =
+                    nonConformity.cause === 'CATALOG'
+                      ? 'Ámbito'
+                      : nonConformity.origin === 'MEDIDA'
+                      ? 'Observado en'
+                      : 'Sin demostrar en';
+
+                  const textoAlcance =
+                    nonConformity.cause === 'CATALOG'
+                      ? 'Todas las máquinas · no depende de ninguna'
+                      : alcance;
+
+                  return (
+                    <EuiFlexItem
+                      key={nonConformity.id}
+                      style={{ minWidth: 380 }}
                     >
-                      <EuiFlexGroup
-                        justifyContent='spaceBetween'
-                        alignItems='center'
+                      {/* LA FRANJA ES LA SEVERIDAD. Veinte tarjetas idénticas
+                          obligaban a leerlas todas para saber cuál era un
+                          hallazgo sobre la máquina y cuál un hueco de prueba.
+                          El color lo dice sin leer nada, y coincide con el de
+                          la insignia y el de la acción. */}
+                      <EuiPanel
+                        paddingSize='m'
+                        color={
+                          nonConformity.origin === 'MEDIDA' ? 'plain' : 'subdued'
+                        }
+                        style={{ borderLeft: `4px solid ${clase.color}` }}
                       >
-                        <EuiFlexItem grow={false}>
-                          <EuiTitle size='xs'>
-                            <h4>{nonConformity.id}</h4>
-                          </EuiTitle>
-                        </EuiFlexItem>
-                        <EuiFlexItem grow={false}>
-                          <EuiFlexGroup gutterSize='xs' alignItems='center'>
-                            {/* Qué clase de incumplimiento es. Es lo que
-                                sustituye al prefijo `PM-`: la distinción sigue
-                                a la vista, pero ya no en un contador aparte. */}
+                        <EuiFlexGroup
+                          gutterSize='xs'
+                          alignItems='center'
+                          wrap
+                          responsive={false}
+                        >
+                          <EuiFlexItem grow={false}>
+                            <EuiTitle size='xxs'>
+                              <h4>{nonConformity.id}</h4>
+                            </EuiTitle>
+                          </EuiFlexItem>
+
+                          <EuiFlexItem grow={false}>
+                            <EuiBadge
+                              color={clase.badgeColor}
+                              iconType={clase.icono}
+                            >
+                              {clase.etiqueta}
+                            </EuiBadge>
+                          </EuiFlexItem>
+
+                          {criticidad && (
                             <EuiFlexItem grow={false}>
-                              <EuiBadge
-                                color='hollow'
-                                iconType={
-                                  nonConformity.origin === 'MEDIDA'
-                                    ? 'inspect'
-                                    : nonConformity.cause === 'CATALOG'
-                                    ? 'package'
-                                    : nonConformity.cause === 'COLLECTION'
-                                    ? 'offline'
-                                    : 'gear'
-                                }
-                              >
-                                {etiquetaDeOrigen(nonConformity)}
+                              <EuiBadge color='hollow'>
+                                Criticidad {criticidad}
                               </EuiBadge>
                             </EuiFlexItem>
-                            <EuiFlexItem grow={false}>
-                              <EuiBadge color='warning'>
-                                {nonConformity.status}
-                              </EuiBadge>
-                            </EuiFlexItem>
-                          </EuiFlexGroup>
-                        </EuiFlexItem>
-                      </EuiFlexGroup>
+                          )}
 
-                      <EuiSpacer size='s' />
+                          <EuiFlexItem grow={false}>
+                            <EuiBadge color='hollow'>
+                              {nonConformity.status}
+                            </EuiBadge>
+                          </EuiFlexItem>
 
-                      <EuiText size='s'>
-                        <p>
-                          <strong>
-                            {nonConformity.evidences || nonConformity.evidence}
-                          </strong>{' '}
-                          · {nonConformity.requirement}
-                          <EuiPopover
-                            button={
-                              <EuiButtonIcon
-                                iconType='iInCircle'
-                                aria-label='Info del control'
-                                onClick={() =>
-                                  setOpenInfoId(
-                                    openInfoId === nonConformity.id
-                                      ? null
-                                      : nonConformity.id,
-                                  )
-                                }
-                              />
-                            }
-                            isOpen={openInfoId === nonConformity.id}
-                            closePopover={() => setOpenInfoId(null)}
-                            anchorPosition='upCenter'
-                          >
-                            <div style={{ maxWidth: 320 }}>
-                              <EuiText size='s'>
-                                <p>
-                                  <strong>Control ENS:</strong> {control.id}
-                                </p>
-                                <p>
-                                  <strong>Requisito:</strong>{' '}
+                          <EuiFlexItem grow={false}>
+                            <EuiPopover
+                              button={
+                                <EuiButtonIcon
+                                  iconType='iInCircle'
+                                  aria-label='Ficha ENS de la no conformidad'
+                                  onClick={() =>
+                                    setOpenInfoId(
+                                      openInfoId === nonConformity.id
+                                        ? null
+                                        : nonConformity.id,
+                                    )
+                                  }
+                                />
+                              }
+                              isOpen={openInfoId === nonConformity.id}
+                              closePopover={() => setOpenInfoId(null)}
+                              anchorPosition='upCenter'
+                            >
+                              <div style={{ maxWidth: 320 }}>
+                                <EuiText size='s'>
+                                  <p>
+                                    <strong>Control ENS:</strong> {control.id}
+                                  </p>
+                                  <p>
+                                    <strong>Requisito:</strong>{' '}
+                                    {nonConformity.requirement}
+                                  </p>
+                                  <p>
+                                    <strong>Evidencias:</strong>{' '}
+                                    {evidenciasImplicadas.join(', ') || '—'}
+                                  </p>
+                                  <p>
+                                    <strong>Clase:</strong> {clase.etiqueta}
+                                  </p>
+                                  <p>
+                                    <strong>Impacto ENS:</strong>{' '}
+                                    {nonConformity.impact}
+                                  </p>
+                                  <p>
+                                    <strong>Acción requerida:</strong>{' '}
+                                    {nonConformity.requiredAction}
+                                  </p>
+                                  <EuiLink
+                                    href='https://gobernanza.ccn-cert.cni.es/ens-navegable'
+                                    target='_blank'
+                                    external
+                                  >
+                                    Ver control en ENS navegable (CCN-CERT)
+                                  </EuiLink>
+                                </EuiText>
+                              </div>
+                            </EuiPopover>
+                          </EuiFlexItem>
+                        </EuiFlexGroup>
+
+                        <EuiSpacer size='s' />
+
+                        {/* Requisito y evidencias, separados. Antes iban en la
+                            misma frase («EV-02, EV-05 · op.acc.4.2») y había que
+                            saber cuál era cuál. */}
+                        <EuiFlexGroup gutterSize='l' wrap responsive={false}>
+                          <EuiFlexItem grow={false}>
+                            <EuiText size='xs' color='subdued'>
+                              Requisito
+                            </EuiText>
+                            <EuiSpacer size='xs' />
+                            <EuiFlexGroup gutterSize='xs' responsive={false}>
+                              <EuiFlexItem grow={false}>
+                                <EuiBadge color='hollow'>
                                   {nonConformity.requirement}
-                                </p>
-                                <p>
-                                  <strong>Evidencia:</strong>{' '}
-                                  {nonConformity.evidences ||
-                                    nonConformity.evidence}
-                                </p>
-                                <p>
-                                  <strong>Clase:</strong>{' '}
-                                  {etiquetaDeOrigen(nonConformity)}
-                                </p>
-                                <p>
-                                  <strong>Impacto ENS:</strong>{' '}
-                                  {nonConformity.impact}
-                                </p>
-                                <p>
-                                  <strong>Acción requerida:</strong>{' '}
-                                  {nonConformity.requiredAction}
-                                </p>
-                                <EuiLink
-                                  href='https://gobernanza.ccn-cert.cni.es/ens-navegable'
-                                  target='_blank'
-                                  external
-                                >
-                                  Ver control en ENS navegable (CCN-CERT)
-                                </EuiLink>
-                              </EuiText>
-                            </div>
-                          </EuiPopover>
-                        </p>
-                        <p>{nonConformity.finding}</p>
+                                </EuiBadge>
+                              </EuiFlexItem>
+                            </EuiFlexGroup>
+                          </EuiFlexItem>
 
-                        {/* Dónde. Antes esto iba pegado al texto («[srv (025)]
-                            El requisito...») y obligaba a repetir la tarjeta
-                            entera una vez por máquina. */}
-                        {nonConformity.cause === 'CATALOG' ? (
-                          <p style={{ color: '#69707D' }}>
-                            Igual en todas las máquinas: no depende de ninguna, y
-                            seleccionar un agente no dará otra respuesta.
-                          </p>
-                        ) : (
-                          describirAlcance(
-                            nonConformity.agents,
-                            totalMaquinas,
-                          ) && (
-                            <p>
-                              <strong>
-                                {nonConformity.origin === 'MEDIDA'
-                                  ? 'Demostrado en:'
-                                  : 'Sin demostrar en:'}
-                              </strong>{' '}
-                              {describirAlcance(
-                                nonConformity.agents,
-                                totalMaquinas,
+                          <EuiFlexItem grow={false}>
+                            <EuiText size='xs' color='subdued'>
+                              Evidencias
+                            </EuiText>
+                            <EuiSpacer size='xs' />
+                            <EuiFlexGroup
+                              gutterSize='xs'
+                              wrap
+                              responsive={false}
+                            >
+                              {evidenciasImplicadas.length > 0 ? (
+                                evidenciasImplicadas.map(evidenceId => (
+                                  <EuiFlexItem grow={false} key={evidenceId}>
+                                    <EuiBadge color='default'>
+                                      {evidenceId}
+                                    </EuiBadge>
+                                  </EuiFlexItem>
+                                ))
+                              ) : (
+                                <EuiFlexItem grow={false}>
+                                  <EuiText size='xs' color='subdued'>
+                                    —
+                                  </EuiText>
+                                </EuiFlexItem>
                               )}
-                            </p>
-                          )
+                            </EuiFlexGroup>
+                          </EuiFlexItem>
+                        </EuiFlexGroup>
+
+                        <EuiSpacer size='s' />
+
+                        <EuiText size='xs' color='subdued'>
+                          Motivo
+                        </EuiText>
+
+                        <MotiveCell lineas={lineasMotivo} />
+
+                        {/* Los dos lados de la medida, cuando el motor los
+                            publica. «Se pedía X, hay Y» es la frase que un
+                            técnico necesita y la que no estaba. */}
+                        {(nonConformity.expected || nonConformity.actual) && (
+                          <>
+                            <EuiSpacer size='s' />
+
+                            <EuiFlexGroup
+                              gutterSize='l'
+                              wrap
+                              responsive={false}
+                            >
+                              {nonConformity.expected && (
+                                <EuiFlexItem grow={false}>
+                                  <EuiText size='xs' color='subdued'>
+                                    Esperado
+                                  </EuiText>
+                                  <EuiText size='xs'>
+                                    <strong>{nonConformity.expected}</strong>
+                                  </EuiText>
+                                </EuiFlexItem>
+                              )}
+
+                              {nonConformity.actual && (
+                                <EuiFlexItem grow={false}>
+                                  <EuiText size='xs' color='subdued'>
+                                    Observado
+                                  </EuiText>
+                                  <EuiText size='xs'>
+                                    <strong>{nonConformity.actual}</strong>
+                                  </EuiText>
+                                </EuiFlexItem>
+                              )}
+                            </EuiFlexGroup>
+                          </>
                         )}
 
-                        <p>
-                          <strong>Impacto ENS:</strong> {nonConformity.impact}
-                        </p>
-                        <p>
-                          <strong>
-                            {nonConformity.origin === 'MEDIDA'
-                              ? 'Acción requerida:'
-                              : 'Para poder demostrarlo:'}
-                          </strong>{' '}
-                          {nonConformity.requiredAction}
-                        </p>
-                        {nonConformity.parameters && (
-                          <p>
-                            <strong>Parámetros implicados:</strong>{' '}
-                            {nonConformity.parameters}
-                          </p>
+                        {textoAlcance && (
+                          <>
+                            <EuiSpacer size='s' />
+
+                            <EuiFlexGroup gutterSize='s' responsive={false}>
+                              <EuiFlexItem
+                                grow={false}
+                                style={{ minWidth: 104 }}
+                              >
+                                <EuiText size='xs' color='subdued'>
+                                  {etiquetaAlcance}
+                                </EuiText>
+                              </EuiFlexItem>
+                              <EuiFlexItem>
+                                <EuiText size='xs'>{textoAlcance}</EuiText>
+                              </EuiFlexItem>
+                            </EuiFlexGroup>
+                          </>
                         )}
-                      </EuiText>
-                    </EuiPanel>
-                  </EuiFlexItem>
-                ))}
+
+                        <EuiSpacer size='s' />
+
+                        {/* DE QUIÉN ES LA ACCIÓN, en etiqueta. Corregir la
+                            máquina, declarar la decisión o habilitar la prueba
+                            no las hace la misma persona, y eso era justo lo que
+                            se perdía cuando todas las tarjetas decían «revisar
+                            las evidencias del requisito». */}
+                        <EuiFlexGroup gutterSize='s' responsive={false}>
+                          <EuiFlexItem grow={false} style={{ minWidth: 104 }}>
+                            <EuiText size='xs' color='subdued'>
+                              Acción
+                            </EuiText>
+                          </EuiFlexItem>
+                          <EuiFlexItem>
+                            <EuiFlexGroup
+                              gutterSize='xs'
+                              wrap
+                              responsive={false}
+                            >
+                              <EuiFlexItem grow={false}>
+                                <EuiBadge color={clase.badgeColor}>
+                                  {clase.accion}
+                                </EuiBadge>
+                              </EuiFlexItem>
+                              <EuiFlexItem grow={false}>
+                                <EuiBadge color='hollow'>
+                                  {clase.responsable}
+                                </EuiBadge>
+                              </EuiFlexItem>
+                            </EuiFlexGroup>
+
+                            {/* LA PROSA DEL MOTOR, SOLO SI AÑADE ALGO.
+                                Cuando la decisión trae traza,
+                                `requiredAction` es literalmente «Corregir
+                                para alcanzar: {expected}. Valor actual:
+                                {actual}.» — los dos valores que acaban de
+                                salir tres líneas más arriba, con su
+                                etiqueta y en negrita. Decirlo otra vez en
+                                una frase es exactamente lo que sobra.
+                                Sin traza sí informa (qué parámetro
+                                configurar, qué recolector arrancar), y ahí
+                                se pinta. Completo, en cualquier caso, sigue
+                                en la ficha del icono. */}
+                            {!nonConformity.expected &&
+                              !nonConformity.actual && (
+                                <>
+                                  <EuiSpacer size='xs' />
+
+                                  <EuiText size='xs'>
+                                    {nonConformity.requiredAction}
+                                  </EuiText>
+                                </>
+                              )}
+                          </EuiFlexItem>
+                        </EuiFlexGroup>
+
+                        {nonConformity.parameterIds.length > 0 && (
+                          <>
+                            <EuiSpacer size='s' />
+
+                            <EuiFlexGroup gutterSize='s' responsive={false}>
+                              <EuiFlexItem
+                                grow={false}
+                                style={{ minWidth: 104 }}
+                              >
+                                <EuiText size='xs' color='subdued'>
+                                  Parámetros
+                                </EuiText>
+                              </EuiFlexItem>
+                              <EuiFlexItem>
+                                <EuiFlexGroup
+                                  gutterSize='xs'
+                                  wrap
+                                  responsive={false}
+                                >
+                                  {nonConformity.parameterIds.map(
+                                    parameterId => (
+                                      <EuiFlexItem
+                                        grow={false}
+                                        key={parameterId}
+                                      >
+                                        <EuiBadge color='hollow'>
+                                          {parameterId}
+                                        </EuiBadge>
+                                      </EuiFlexItem>
+                                    ),
+                                  )}
+                                </EuiFlexGroup>
+                              </EuiFlexItem>
+                            </EuiFlexGroup>
+                          </>
+                        )}
+                      </EuiPanel>
+                    </EuiFlexItem>
+                  );
+                })}
               </EuiFlexGroup>
             </div>
           ))}
