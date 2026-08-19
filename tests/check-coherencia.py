@@ -253,10 +253,25 @@ for control, (repo, xmls) in RUNBOOKS.items():
 
 print("\n=== 5. Los tres runbooks se despliegan igual ===\n")
 
-ESPERADOS = ["install-manager.sh", "install-fake.sh", "install-real.sh", "uninstall.sh"]
+# Tres instaladores, no cuatro. `install-fake.sh` se retiró —simulaba datos en
+# una máquina de cliente— e `install-real.sh` pasó a llamarse `install.sh`: el
+# runbook ya no tiene dos caminos entre los que elegir.
+#
+# mp.info.6 se quedó con la estructura antigua A PROPÓSITO: lo mantiene otra
+# persona y lo despliega haciendo pull de su repo. Renombrarle los scripts le
+# rompería el procedimiento sin avisarle. Se comprueba contra lo que ese
+# runbook declara, no contra lo que declaran los de op.acc.
+ESPERADOS = ["install.sh", "install-manager.sh", "uninstall.sh"]
+ESPERADOS_ANTIGUOS = [
+    "install-real.sh",
+    "install-fake.sh",
+    "install-manager.sh",
+    "uninstall.sh",
+]
 for control, (repo, _) in RUNBOOKS.items():
+    esperados = ESPERADOS_ANTIGUOS if control == "mp.info.6" else ESPERADOS
     faltan = [
-        s for s in ESPERADOS if not os.path.exists(os.path.join(BASE, repo, s))
+        s for s in esperados if not os.path.exists(os.path.join(BASE, repo, s))
     ]
     if faltan:
         falla(
@@ -264,7 +279,7 @@ for control, (repo, _) in RUNBOOKS.items():
             ", ".join(faltan),
         )
     else:
-        ok("{}: tiene los cuatro scripts del procedimiento".format(control))
+        ok("{}: tiene los scripts de su procedimiento".format(control))
 
 print("\n=== 6. Cada control tiene su bloque de configuración ===\n")
 
