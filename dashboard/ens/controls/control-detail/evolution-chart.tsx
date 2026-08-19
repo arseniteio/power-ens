@@ -60,8 +60,6 @@ const EtiquetaDeLectura = ({
   sinNumero: number;
   serieCorta: boolean;
 }) => {
-  const ultimo = puntos[puntos.length - 1];
-
   return (
     <>
       {/* La leyenda existe porque el color de un punto es el estado DE ESE DÍA,
@@ -114,40 +112,29 @@ const EtiquetaDeLectura = ({
         <span>· el color es el estado de ESE día, no el de hoy</span>
       </div>
 
-      <div
-        style={{
-          fontSize: 12,
-          color: '#69707D',
-          lineHeight: 1.5,
-        }}
-      >
-        {serieCorta ? (
-          <>
-            <strong>
-              Solo hay {puntos.length} día(s) medido(s): todavía no hay
-              tendencia que leer.
-            </strong>{' '}
-            La línea se irá llenando conforme el recolector siga reportando.{' '}
-          </>
-        ) : null}
-        Cada punto es una evaluación completa del motor sobre los hechos
-        conocidos ese día, con los parámetros que hay declarados hoy. El último
-        —el marcado en blanco— es el mismo número que el porcentaje de arriba:
-        si no coinciden, uno de los dos está mal.
-        {ultimo && ultimo.events > 0 ? (
-          <>
-            {' '}
-            Hoy se han evaluado {ultimo.events} evento(s).
-          </>
-        ) : null}
-        {sinNumero > 0 ? (
-          <>
-            {' '}
-            {sinNumero} día(s) no se dibujan porque el control no aplicaba al
-            nivel ENS activo: no son un cero.
-          </>
-        ) : null}
-      </div>
+      {/* Solo se escribe lo que el gráfico no puede decir por sí mismo: que la
+          serie es demasiado corta, y que un hueco no es un cero. Explicar aquí
+          cómo funciona el motor sobraba. */}
+      {(serieCorta || sinNumero > 0) && (
+        <div
+          style={{
+            fontSize: 12,
+            color: '#69707D',
+            lineHeight: 1.5,
+          }}
+        >
+          {serieCorta ? (
+            <strong>{puntos.length} día(s) medido(s): aún no hay tendencia.</strong>
+          ) : null}
+          {serieCorta && sinNumero > 0 ? ' ' : null}
+          {sinNumero > 0 ? (
+            <>
+              {sinNumero} día(s) sin dibujar: el control no aplicaba al nivel ENS
+              de esa fecha. No son un cero.
+            </>
+          ) : null}
+        </div>
+      )}
     </>
   );
 };
@@ -191,8 +178,6 @@ export const ControlEvolutionChart = ({
     x: coordenadaX(indice, points.length),
     y: coordenadaY(point.score as number),
   }));
-
-  const ultimo = puntos[puntos.length - 1];
 
   // CON DOS PUNTOS UNA LÍNEA NO DICE NADA, y con uno menos. Es lo que hay al
   // día siguiente de desplegar, y va a ser lo normal durante la primera semana
