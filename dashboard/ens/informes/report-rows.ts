@@ -45,9 +45,15 @@ import type {
 export interface ENSReportRow {
   campo: string;
 
-  // El valor medido y el detalle del campo. Ya NO encabezado por el estado:
-  // el estado tiene su columna.
+  // EL HALLAZGO: qué se observó en la máquina. Ya NO encabezado por el
+  // estado, que tiene su columna, y ya no mezclado con la configuración.
   valor: string;
+
+  // Contra qué se comparó: el eco de los parámetros declarados. Iba pegado al
+  // hallazgo en la misma cadena, separado por ' · ', así que la columna
+  // «Valor» empezaba por la configuración y enterraba el resultado. Va debajo,
+  // en gris, porque es contexto y no veredicto. Cadena vacía si no aporta.
+  contexto: string;
 
   // Qué evidencia sostiene la fila. Nunca vacío: si el campo no declara
   // ninguna, lo dice con todas las letras.
@@ -107,6 +113,10 @@ const asEstado = (value: unknown): ENSReportFieldStatus =>
     ? (value as ENSReportFieldStatus)
     : 'SIN_DATOS';
 
+// Lo observado en la máquina, sin la configuración con la que se contrastó.
+const hallazgoDe = (field: ENSReportField): string =>
+  (field.details || []).filter(Boolean).join(' · ');
+
 const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
   campo: `${field.id} · ${field.title}`,
 
@@ -115,7 +125,17 @@ const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
   // de al lado, la que tenía que decir en qué evidencia se apoya ese
   // NO_CUMPLE, estaba en blanco. Ahora el estado sale una vez, al lado de su
   // evidencia.
-  valor: [field.value, ...(field.details || [])].filter(Boolean).join(' · '),
+  //
+  // Y manda el HALLAZGO. `details` es lo observado —el motivo que trae el
+  // motor, la cuenta concreta que incumple—; `value` es contra qué se comparó.
+  // Unidos por ' · ' en una sola cadena, la celda abría con «Fuente de
+  // identidad: … · Sistemas en scope: …» y el resultado quedaba al final,
+  // detrás de la configuración que ya tiene su propia tabla. Cuando no hay
+  // hallazgo que contar —un campo que conforma sin desviaciones— el contraste
+  // pasa a ser el valor, porque entonces sí es lo único que hay que decir.
+  valor: hallazgoDe(field) || field.value || '—',
+
+  contexto: hallazgoDe(field) ? field.value || '' : '',
 
   evidencia:
     (field.evidenceIds || []).length > 0

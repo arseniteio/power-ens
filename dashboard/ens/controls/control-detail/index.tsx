@@ -4,8 +4,6 @@ import {
   EuiBadge,
   EuiBasicTable,
   EuiButtonIcon,
-  EuiLink,
-  EuiPopover,
   EuiButtonEmpty,
   EuiCallOut,
   EuiFlexGroup,
@@ -32,6 +30,7 @@ import {
 import { getActiveENSConfiguration } from '../../configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
+import { NonConformityCard } from './nonconformity-card';
 import type { MotivoLinea } from './motive-cell';
 import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
 
@@ -95,7 +94,6 @@ export const ControlDetailENS = ({
    onBack,
  }: ControlDetailENSProps) => {
   const [refreshKey, setRefreshKey] = useState(0);
-  const [openInfoId, setOpenInfoId] = useState<string | null>(null);
   const [tracePageIndex, setTracePageIndex] = useState(0);
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
@@ -1413,6 +1411,7 @@ export const ControlDetailENS = ({
                         .map(texto => texto.trim())
                         .filter(Boolean)
                         .map(texto => ({ texto }))}
+                      titulo={`Motivo · ${item.id}`}
                     />
                   );
                 }
@@ -1432,6 +1431,7 @@ export const ControlDetailENS = ({
                       ),
                     }))}
                     ocultos={ocultos}
+                    titulo={`Motivo · ${item.id}`}
                   />
                 );
               },
@@ -1669,316 +1669,16 @@ export const ControlDetailENS = ({
                       key={nonConformity.id}
                       style={{ minWidth: 380 }}
                     >
-                      {/* LA FRANJA ES LA SEVERIDAD. Veinte tarjetas idénticas
-                          obligaban a leerlas todas para saber cuál era un
-                          hallazgo sobre la máquina y cuál un hueco de prueba.
-                          El color lo dice sin leer nada, y coincide con el de
-                          la insignia y el de la acción. */}
-                      <EuiPanel
-                        paddingSize='m'
-                        color={
-                          nonConformity.origin === 'MEDIDA' ? 'plain' : 'subdued'
-                        }
-                        style={{ borderLeft: `4px solid ${clase.color}` }}
-                      >
-                        <EuiFlexGroup
-                          gutterSize='xs'
-                          alignItems='center'
-                          wrap
-                          responsive={false}
-                        >
-                          <EuiFlexItem grow={false}>
-                            <EuiTitle size='xxs'>
-                              <h4>{nonConformity.id}</h4>
-                            </EuiTitle>
-                          </EuiFlexItem>
-
-                          <EuiFlexItem grow={false}>
-                            <EuiBadge
-                              color={clase.badgeColor}
-                              iconType={clase.icono}
-                            >
-                              {clase.etiqueta}
-                            </EuiBadge>
-                          </EuiFlexItem>
-
-                          {criticidad && (
-                            <EuiFlexItem grow={false}>
-                              <EuiBadge color='hollow'>
-                                Criticidad {criticidad}
-                              </EuiBadge>
-                            </EuiFlexItem>
-                          )}
-
-                          <EuiFlexItem grow={false}>
-                            <EuiBadge color='hollow'>
-                              {nonConformity.status}
-                            </EuiBadge>
-                          </EuiFlexItem>
-
-                          <EuiFlexItem grow={false}>
-                            <EuiPopover
-                              button={
-                                <EuiButtonIcon
-                                  iconType='iInCircle'
-                                  aria-label='Ficha ENS de la no conformidad'
-                                  onClick={() =>
-                                    setOpenInfoId(
-                                      openInfoId === nonConformity.id
-                                        ? null
-                                        : nonConformity.id,
-                                    )
-                                  }
-                                />
-                              }
-                              isOpen={openInfoId === nonConformity.id}
-                              closePopover={() => setOpenInfoId(null)}
-                              anchorPosition='upCenter'
-                            >
-                              <div style={{ maxWidth: 320 }}>
-                                <EuiText size='s'>
-                                  <p>
-                                    <strong>Control ENS:</strong> {control.id}
-                                  </p>
-                                  <p>
-                                    <strong>Requisito:</strong>{' '}
-                                    {nonConformity.requirement}
-                                  </p>
-                                  <p>
-                                    <strong>Evidencias:</strong>{' '}
-                                    {evidenciasImplicadas.join(', ') || '—'}
-                                  </p>
-                                  <p>
-                                    <strong>Clase:</strong> {clase.etiqueta}
-                                  </p>
-                                  <p>
-                                    <strong>Impacto ENS:</strong>{' '}
-                                    {nonConformity.impact}
-                                  </p>
-                                  <p>
-                                    <strong>Acción requerida:</strong>{' '}
-                                    {nonConformity.requiredAction}
-                                  </p>
-                                  <EuiLink
-                                    href='https://gobernanza.ccn-cert.cni.es/ens-navegable'
-                                    target='_blank'
-                                    external
-                                  >
-                                    Ver control en ENS navegable (CCN-CERT)
-                                  </EuiLink>
-                                </EuiText>
-                              </div>
-                            </EuiPopover>
-                          </EuiFlexItem>
-                        </EuiFlexGroup>
-
-                        <EuiSpacer size='s' />
-
-                        {/* Requisito y evidencias, separados. Antes iban en la
-                            misma frase («EV-02, EV-05 · op.acc.4.2») y había que
-                            saber cuál era cuál. */}
-                        <EuiFlexGroup gutterSize='l' wrap responsive={false}>
-                          <EuiFlexItem grow={false}>
-                            <EuiText size='xs' color='subdued'>
-                              Requisito
-                            </EuiText>
-                            <EuiSpacer size='xs' />
-                            <EuiFlexGroup gutterSize='xs' responsive={false}>
-                              <EuiFlexItem grow={false}>
-                                <EuiBadge color='hollow'>
-                                  {nonConformity.requirement}
-                                </EuiBadge>
-                              </EuiFlexItem>
-                            </EuiFlexGroup>
-                          </EuiFlexItem>
-
-                          <EuiFlexItem grow={false}>
-                            <EuiText size='xs' color='subdued'>
-                              Evidencias
-                            </EuiText>
-                            <EuiSpacer size='xs' />
-                            <EuiFlexGroup
-                              gutterSize='xs'
-                              wrap
-                              responsive={false}
-                            >
-                              {evidenciasImplicadas.length > 0 ? (
-                                evidenciasImplicadas.map(evidenceId => (
-                                  <EuiFlexItem grow={false} key={evidenceId}>
-                                    <EuiBadge color='default'>
-                                      {evidenceId}
-                                    </EuiBadge>
-                                  </EuiFlexItem>
-                                ))
-                              ) : (
-                                <EuiFlexItem grow={false}>
-                                  <EuiText size='xs' color='subdued'>
-                                    —
-                                  </EuiText>
-                                </EuiFlexItem>
-                              )}
-                            </EuiFlexGroup>
-                          </EuiFlexItem>
-                        </EuiFlexGroup>
-
-                        <EuiSpacer size='s' />
-
-                        <EuiText size='xs' color='subdued'>
-                          Motivo
-                        </EuiText>
-
-                        <MotiveCell lineas={lineasMotivo} />
-
-                        {/* Los dos lados de la medida, cuando el motor los
-                            publica. «Se pedía X, hay Y» es la frase que un
-                            técnico necesita y la que no estaba. */}
-                        {(nonConformity.expected || nonConformity.actual) && (
-                          <>
-                            <EuiSpacer size='s' />
-
-                            <EuiFlexGroup
-                              gutterSize='l'
-                              wrap
-                              responsive={false}
-                            >
-                              {nonConformity.expected && (
-                                <EuiFlexItem grow={false}>
-                                  <EuiText size='xs' color='subdued'>
-                                    Esperado
-                                  </EuiText>
-                                  <EuiText size='xs'>
-                                    <strong>{nonConformity.expected}</strong>
-                                  </EuiText>
-                                </EuiFlexItem>
-                              )}
-
-                              {nonConformity.actual && (
-                                <EuiFlexItem grow={false}>
-                                  <EuiText size='xs' color='subdued'>
-                                    Observado
-                                  </EuiText>
-                                  <EuiText size='xs'>
-                                    <strong>{nonConformity.actual}</strong>
-                                  </EuiText>
-                                </EuiFlexItem>
-                              )}
-                            </EuiFlexGroup>
-                          </>
-                        )}
-
-                        {textoAlcance && (
-                          <>
-                            <EuiSpacer size='s' />
-
-                            <EuiFlexGroup gutterSize='s' responsive={false}>
-                              <EuiFlexItem
-                                grow={false}
-                                style={{ minWidth: 104 }}
-                              >
-                                <EuiText size='xs' color='subdued'>
-                                  {etiquetaAlcance}
-                                </EuiText>
-                              </EuiFlexItem>
-                              <EuiFlexItem>
-                                <EuiText size='xs'>{textoAlcance}</EuiText>
-                              </EuiFlexItem>
-                            </EuiFlexGroup>
-                          </>
-                        )}
-
-                        <EuiSpacer size='s' />
-
-                        {/* DE QUIÉN ES LA ACCIÓN, en etiqueta. Corregir la
-                            máquina, declarar la decisión o habilitar la prueba
-                            no las hace la misma persona, y eso era justo lo que
-                            se perdía cuando todas las tarjetas decían «revisar
-                            las evidencias del requisito». */}
-                        <EuiFlexGroup gutterSize='s' responsive={false}>
-                          <EuiFlexItem grow={false} style={{ minWidth: 104 }}>
-                            <EuiText size='xs' color='subdued'>
-                              Acción
-                            </EuiText>
-                          </EuiFlexItem>
-                          <EuiFlexItem>
-                            <EuiFlexGroup
-                              gutterSize='xs'
-                              wrap
-                              responsive={false}
-                            >
-                              <EuiFlexItem grow={false}>
-                                <EuiBadge color={clase.badgeColor}>
-                                  {clase.accion}
-                                </EuiBadge>
-                              </EuiFlexItem>
-                              <EuiFlexItem grow={false}>
-                                <EuiBadge color='hollow'>
-                                  {clase.responsable}
-                                </EuiBadge>
-                              </EuiFlexItem>
-                            </EuiFlexGroup>
-
-                            {/* LA PROSA DEL MOTOR, SOLO SI AÑADE ALGO.
-                                Cuando la decisión trae traza,
-                                `requiredAction` es literalmente «Corregir
-                                para alcanzar: {expected}. Valor actual:
-                                {actual}.» — los dos valores que acaban de
-                                salir tres líneas más arriba, con su
-                                etiqueta y en negrita. Decirlo otra vez en
-                                una frase es exactamente lo que sobra.
-                                Sin traza sí informa (qué parámetro
-                                configurar, qué recolector arrancar), y ahí
-                                se pinta. Completo, en cualquier caso, sigue
-                                en la ficha del icono. */}
-                            {!nonConformity.expected &&
-                              !nonConformity.actual && (
-                                <>
-                                  <EuiSpacer size='xs' />
-
-                                  <EuiText size='xs'>
-                                    {nonConformity.requiredAction}
-                                  </EuiText>
-                                </>
-                              )}
-                          </EuiFlexItem>
-                        </EuiFlexGroup>
-
-                        {nonConformity.parameterIds.length > 0 && (
-                          <>
-                            <EuiSpacer size='s' />
-
-                            <EuiFlexGroup gutterSize='s' responsive={false}>
-                              <EuiFlexItem
-                                grow={false}
-                                style={{ minWidth: 104 }}
-                              >
-                                <EuiText size='xs' color='subdued'>
-                                  Parámetros
-                                </EuiText>
-                              </EuiFlexItem>
-                              <EuiFlexItem>
-                                <EuiFlexGroup
-                                  gutterSize='xs'
-                                  wrap
-                                  responsive={false}
-                                >
-                                  {nonConformity.parameterIds.map(
-                                    parameterId => (
-                                      <EuiFlexItem
-                                        grow={false}
-                                        key={parameterId}
-                                      >
-                                        <EuiBadge color='hollow'>
-                                          {parameterId}
-                                        </EuiBadge>
-                                      </EuiFlexItem>
-                                    ),
-                                  )}
-                                </EuiFlexGroup>
-                              </EuiFlexItem>
-                            </EuiFlexGroup>
-                          </>
-                        )}
-                      </EuiPanel>
+                      <NonConformityCard
+                        item={nonConformity}
+                        clase={clase}
+                        criticidad={criticidad}
+                        etiquetaAlcance={etiquetaAlcance}
+                        textoAlcance={textoAlcance}
+                        lineasMotivo={lineasMotivo}
+                        evidenciasImplicadas={evidenciasImplicadas}
+                        controlId={control.id}
+                      />
                     </EuiFlexItem>
                   );
                 })}

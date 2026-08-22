@@ -433,7 +433,13 @@ const buildColumns = (totalMaquinas: number) => [
     render: (_value: string[], item: EvidenceRow) => {
       const { visibles, ocultos } = lineasDeMotivo(item, totalMaquinas);
 
-      return <MotiveCell lineas={visibles} ocultos={ocultos} />;
+      return (
+          <MotiveCell
+            lineas={visibles}
+            ocultos={ocultos}
+            titulo={`Motivo · ${item.evidenceId}`}
+          />
+        );
     },
   },
 ];

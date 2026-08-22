@@ -508,6 +508,18 @@ const ControlReport = ({
     {
       field: 'valor',
       name: 'Valor',
+      // El hallazgo arriba y, debajo y en gris, contra qué se comparó. Antes
+      // iban en la misma cadena y la celda abría por la configuración.
+      render: (valor: string, item: ENSReportRow) => (
+        <>
+          <EuiText size='xs'>{valor}</EuiText>
+          {item.contexto ? (
+            <EuiText size='xs' color='subdued'>
+              {item.contexto}
+            </EuiText>
+          ) : null}
+        </>
+      ),
     },
     {
       // El nombre del campo sale de `./report-rows`, donde se construye la
@@ -627,7 +639,19 @@ const ControlReport = ({
               ],
               ...rows.map((r) => [
                 { text: r.campo, style: 'td' },
-                { text: r.valor, style: 'td' },
+                {
+                  text: r.contexto
+                    ? [
+                        r.valor,
+                        {
+                          text: `\n${r.contexto}`,
+                          fontSize: 7,
+                          color: '#69707D',
+                        },
+                      ]
+                    : r.valor,
+                  style: 'td',
+                },
                 buildENSReportEvidencePdfCell(r),
               ]),
             ],
