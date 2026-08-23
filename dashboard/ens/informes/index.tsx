@@ -36,6 +36,7 @@ import {
   ENS_REPORT_EVIDENCE_FIELD,
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
+import { MotiveCell } from '../controls/control-detail/motive-cell';
 import { ENSControls } from '../data';
 import {
   compareENSIds,
@@ -467,6 +468,20 @@ const ControlReport = ({
     {
       field: 'parametro',
       name: 'Parámetro',
+      // «Si falta» vivía dentro de la columna «Estado», que mide 210 px: el
+      // texto se partía en tiras de dos palabras y estiraba la fila hasta
+      // media pantalla. Aquí tiene ancho, y además se lee pegado al parámetro
+      // que le falta, que es de lo que habla.
+      render: (parametro: string, item: { ifNotConfigured: string }) => (
+        <>
+          <EuiText size='xs'>{parametro}</EuiText>
+          {item.ifNotConfigured ? (
+            <EuiText size='xs' color='subdued'>
+              Si falta: {item.ifNotConfigured}
+            </EuiText>
+          ) : null}
+        </>
+      ),
     },
     {
       field: 'value',
@@ -486,15 +501,8 @@ const ControlReport = ({
       field: 'status',
       name: 'Estado',
       width: '210px',
-      render: (status: string, item: { ifNotConfigured: string }) => (
-        <>
-          <EuiBadge color={parameterBadgeColor(status)}>{status}</EuiBadge>
-          {item.ifNotConfigured ? (
-            <EuiText size='xs' color='subdued'>
-              Si falta: {item.ifNotConfigured}
-            </EuiText>
-          ) : null}
-        </>
+      render: (status: string) => (
+        <EuiBadge color={parameterBadgeColor(status)}>{status}</EuiBadge>
       ),
     },
   ];
@@ -503,16 +511,31 @@ const ControlReport = ({
     {
       field: 'campo',
       name: 'Campo',
-      width: '38%',
+      width: '28%',
     },
     {
       field: 'valor',
       name: 'Valor',
-      // El hallazgo arriba y, debajo y en gris, contra qué se comparó. Antes
-      // iban en la misma cadena y la celda abría por la configuración.
+      // El hallazgo arriba y, debajo y en gris, contra qué se comparó.
+      //
+      // Y PLEGADO, con el mismo panel que el motivo. Un valor de mp.info.6
+      // llega a ser «Retención configurada: SIN_DATOS · Consolidación por
+      // agente: wazuh-real (024)=NO_EVALUABLE, … · 2026-08-02T23:30:02.722+0000
+      // · control_state · …» repetido seis veces. Escrito entero en la celda no
+      // solo era ilegible: sus marcas de tiempo son introzables, así que el
+      // navegador le robaba el ancho a la columna «Evidencia» hasta dejarla
+      // escribiendo «E V - 0 1» en vertical. Plegarlo devuelve el ancho a la
+      // tabla y el texto completo sigue a un clic.
       render: (valor: string, item: ENSReportRow) => (
         <>
-          <EuiText size='xs'>{valor}</EuiText>
+          <MotiveCell
+            lineas={valor
+              .split(' · ')
+              .map(texto => texto.trim())
+              .filter(Boolean)
+              .map(texto => ({ texto }))}
+            titulo={item.campo}
+          />
           {item.contexto ? (
             <EuiText size='xs' color='subdued'>
               {item.contexto}
@@ -836,7 +859,11 @@ const ControlReport = ({
 
       <EuiSpacer size='s' />
 
-      <EuiBasicTable items={rows} columns={columns} />
+      {/* ANCHO FIJO. Con el reparto automático del navegador, la celda de
+          «Valor» —que puede traer marcas de tiempo sin punto de corte— se
+          quedaba el ancho de la fila y estrangulaba «Evidencia» hasta
+          escribirla letra a letra en vertical. */}
+      <EuiBasicTable items={rows} columns={columns} tableLayout='fixed' />
 
       <EuiSpacer size='l' />
 

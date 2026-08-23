@@ -386,35 +386,37 @@ const buildColumns = (totalMaquinas: number) => [
       </EuiFlexGroup>
     ),
   },
+  // DIEZ COLUMNAS NO CABÍAN. Con Nivel, Categoría, Última validación y Agente
+  // como columnas propias, la tabla se salía de la pantalla y la última —el
+  // Motivo, que es la que dice POR QUÉ la evidencia está como está— quedaba
+  // recortada a media palabra. Eran cuatro datos de ficha, no de comparación:
+  // nadie recorre la tabla en vertical buscando la categoría.
+  //
+  // Ahora acompañan a la descripción en una línea gris debajo, y «Agente»
+  // desaparece: en la vista consolidada valía «—» en todas las filas.
   {
     field: 'description',
     name: 'Descripción',
+    render: (value: string, item: EvidenceRow) => (
+      <>
+        <EuiText size='xs'>{value}</EuiText>
+        <EuiText size='xs' color='subdued'>
+          {[
+            item.category,
+            item.levels.join(' · '),
+            item.agent && item.agent !== '—' ? item.agent : '',
+            fechaCorta(item.lastValidation),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </EuiText>
+      </>
+    ),
   },
   {
     field: 'requirements',
     name: 'Requisitos ENS',
     render: (value: string[]) => <ListaBadges valores={value} />,
-  },
-  {
-    field: 'levels',
-    name: 'Nivel',
-    render: (value: string[]) => <ListaBadges valores={value} />,
-  },
-  {
-    field: 'category',
-    name: 'Categoría',
-    render: (value: string) => <EuiBadge color='hollow'>{value}</EuiBadge>,
-  },
-  {
-    field: 'lastValidation',
-    name: 'Última validación',
-    render: (value: string) => (
-      <EuiText size='xs'>{fechaCorta(value)}</EuiText>
-    ),
-  },
-  {
-    field: 'agent',
-    name: 'Agente',
   },
   // Trazabilidad: de aquí sale el salto al evento crudo. Como badges siguen
   // siendo los mismos ids, y se distinguen cuando son varios.
@@ -716,14 +718,27 @@ export const EvidencesENS = () => {
           acordeones y las columnas Rule ID y Última validación. */}
       <EuiSpacer size='s' />
 
-      <LeyendaEstados />
+      {/* EL VOCABULARIO, PLEGADO. Ocupaba dos renglones de insignias encima de
+          todo, se leía una vez y estorbaba siempre. Sigue estando —un auditor
+          que no conoce el producto lo necesita— pero a un clic. */}
+      <EuiAccordion
+        id='leyenda-evidencias'
+        buttonContent={
+          <EuiText size='xs' color='subdued'>
+            Qué significa cada estado
+          </EuiText>
+        }
+        paddingSize='s'
+      >
+        <LeyendaEstados />
 
-      {hayNoEvaluables && (
-        <>
-          <EuiSpacer size='xs' />
-          <LeyendaCausas />
-        </>
-      )}
+        {hayNoEvaluables && (
+          <>
+            <EuiSpacer size='xs' />
+            <LeyendaCausas />
+          </>
+        )}
+      </EuiAccordion>
 
       <EuiSpacer size='m' />
 
