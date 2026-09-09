@@ -182,8 +182,8 @@ echo '{"ensfacil":"op.acc.2","event":"world_writable","host":"H","estado":"NO_CU
 
 ```bash
 cd mp.info.6-proxmox-backup-runbook   && sudo ./install-real.sh
-cd ../op.acc.1-identificacion && sudo ./install-real.sh
-cd ../op.acc.2-requisitos-de-acceso && sudo ./install-real.sh
+cd ../op.acc.1-identificacion && sudo ./install.sh
+cd ../op.acc.2-requisitos-de-acceso && sudo ./install.sh
 ```
 
 Los tres corren con `set -e`: si algo falla, abortan y **no** imprimen

@@ -100,10 +100,10 @@ fuera de la máquina.
 ### 2 · Agente: instalar y abrir las fuentes
 
 ```bash
-sudo bash ~/op.acc.1-identificacion/install-real.sh
-sudo bash ~/op.acc.2-requisitos-de-acceso/install-real.sh
-sudo bash ~/op.acc.4-proceso-de-gestion-de-derechos-de-acceso/install-real.sh
-sudo bash ~/op.acc.3-segregacion-de-funciones-y-tareas/install-real.sh
+sudo bash ~/op.acc.1-identificacion/install.sh
+sudo bash ~/op.acc.2-requisitos-de-acceso/install.sh
+sudo bash ~/op.acc.4-proceso-de-gestion-de-derechos-de-acceso/install.sh
+sudo bash ~/op.acc.3-segregacion-de-funciones-y-tareas/install.sh
 
 sudo augenrules --load                     # ← el paso que se olvida
 sudo auditctl -l | grep ensfacil           # tiene que devolver algo
@@ -332,7 +332,7 @@ Ordenados por las veces que han pasado de verdad.
 | «Una evidencia sale en gris tras el despliegue» | `augenrules --load` sin ejecutar |
 | «Rellené el parámetro y no cambia nada» | ese parámetro lo lee el agente desde su `.env`, no el motor. Ver el `CUMPLIMIENTO.md` del control |
 | «La lista no casa con nada» | la escribiste con `\|` y el motor parte por líneas y comas. Un valor por línea |
-| «Permission denied» al clonar | la clave no está en la cuenta `@devqs`, o falta `IdentitiesOnly` |
+| «Permission denied» al clonar | la clave no está registrada en la cuenta correcta, o falta `IdentitiesOnly` |
 | El panel no coincide con el fichero | el panel lee **OpenSearch**, no el fichero. Borrar el ndjson no limpia el panel |
 
 ---
