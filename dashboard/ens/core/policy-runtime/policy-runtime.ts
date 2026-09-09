@@ -360,7 +360,7 @@ const getLatestRetentionEvent = (
 // ni ninguna decisión de runtime: se evalúan solo por consolidación de
 // evidencias. No es un fallo silencioso —ambos controles están diseñados así—,
 // pero significa que "los tres siguen el mismo camino" es cierto solo aguas
-// abajo de aquí. Ver docs/AUDITORIA_COHERENCIA_2026-07-30.md.
+// abajo de aquí.
 const buildRuntimeVariables = (
   context: ENSPolicyContext
 ): ENSRuntimeVariable[] => {

@@ -118,9 +118,7 @@ conocimiento, e incluye todo lo demás:
 | Pregunta | Dónde |
 |---|---|
 | ¿Cómo está pensado el módulo de Configuración? | `Wazuh-ENS/docs/ENS_CONFIGURATION_ARCHITECTURE.md` ⚠ ver §3 |
-| ¿Por qué no aparece la tarjeta de un control? | `Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md` §8 · `docs/DESPLIEGUE_FAKES.md` §2 |
 | ¿Cómo siembro el bloque de configuración de un control? | `DESPLEGAR_EL_PLUGIN.md` §8 (`config/inject-control.py <control> --apply`) |
-| ¿Qué hace `--sustituir` y por qué es peligroso? | `Wazuh-ENS/CLAUDE.md` → «Trampas conocidas» · `DESPLIEGUE_FAKES.md` §2 |
 | ¿Dónde vive cada parámetro: pantalla, `.env` o fichero de política? | `Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md` §«Los tres sitios» |
 | ¿Por qué editar la pantalla a veces no cambia el veredicto? | `Wazuh-ENS/CLAUDE.md` → «Dos almacenes de parámetros» · `MIGRAR_UNA_EVIDENCIA.md` §«Qué modelo hay» |
 
@@ -175,11 +173,6 @@ conocimiento, e incluye todo lo demás:
 
 | Pregunta | Dónde |
 |---|---|
-| **¿Cómo dejo un servidor emitiendo evidencia simulada?** | `Wazuh-ENS/docs/DESPLIEGUE_FAKES.md` |
-| ¿Qué escenarios hay? | `DESPLIEGUE_FAKES.md` §6 (`cumple`, `mixto`, `incumple`, `no_evaluable`) |
-| ¿Por qué `install-fake.sh` aborta y `install.sh` no? | `DESPLIEGUE_FAKES.md` §5 (la asimetría es deliberada) |
-| ¿Cómo distingo un evento simulado de uno real? | `DESPLIEGUE_FAKES.md` (campo `emisor: "simulado"`) |
-| ¿Cómo lo deshago? | `DESPLIEGUE_FAKES.md` §9 |
 | Lo mismo, por control | `<control>/docs/06-servidor-fake.md` en cada runbook |
 
 ### I · Llevar una máquina al cumplimiento
@@ -188,10 +181,7 @@ conocimiento, e incluye todo lo demás:
 |---|---|
 | **¿Cuál es el procedimiento completo, en orden?** | `Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md` |
 | ¿Qué hay que hacer evidencia a evidencia para los tres controles clásicos? | `Wazuh-ENS/docs/CUMPLIMIENTO_TOTAL.md` (1.529 líneas; §6 op.acc.2, §7 op.acc.1, §8 mp.info.6) |
-| ¿Qué se hizo en una máquina real, con números? | `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` |
-| ¿Qué **no** se puede llevar al 100 % hoy? | `CUMPLIMIENTO_TOTAL.md` §11 · `CASO_REAL_WAZUH_REAL.md` §«El techo honesto» |
 | ¿Dónde están todas las decisiones de política juntas? | `CUMPLIMIENTO_TOTAL.md` §10 |
-| ¿Cómo acoto el alcance a las máquinas que de verdad audito? | `CASO_REAL_WAZUH_REAL.md` §Paso 1 (`configuration.scope`, **no** `configuration.global.scope`) |
 | Lo propio de un control concreto | `<runbook>/CUMPLIMIENTO.md` |
 
 ### J · Servidor de directorio (Zimbra / LDAP)
@@ -221,20 +211,13 @@ conocimiento, e incluye todo lo demás:
 | ¿Por qué mi `tail` del NDJSON me engaña? | `DESPLEGAR_EL_PLUGIN.md` §9 · `COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md` (es un **histórico**: aislar la pasada con `mv`) |
 | ¿Por qué `wazuh-logtest` no da `Phase 3`? | `DESPLEGAR_EL_PLUGIN.md` §9 (`ensfacil` lleva el **id del control**, no `true`; y las reglas nuevas necesitan reinicio) |
 | ¿Cómo compruebo la coherencia entre los repos? | `python3 Wazuh-ENS/tests/check-coherencia.py` — documentado en `CLAUDE.md` y `DESPLEGAR_EL_PLUGIN.md` §9 |
-| ¿Qué salió mal la primera vez en máquina real? | `Wazuh-ENS/docs/HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` |
 | Verificación de la cadena, por control | `<runbook>/docs/05-verificacion.md` |
 
 ### L · Historia y decisiones: «¿por qué esto es así?»
 
 | Pregunta | Dónde |
 |---|---|
-| ¿Por qué se desconectó el evaluador de op.acc.1? | `Wazuh-ENS/docs/PLAN_ACCION_2026-07-30.md` · `PLAN_REVISADO_2026-07-30.md` (las tres opciones y por qué ganó la C) |
-| ¿Por qué el motor ya no infiere CUMPLE del nombre del evento? | `Wazuh-ENS/docs/AUDITORIA_COHERENCIA_2026-07-30.md` §0.1 y §5.1 |
-| ¿Por qué los `relatedRules` son numéricos y no simbólicos? | `AUDITORIA_COHERENCIA_2026-07-30.md` §1 · cabecera de `dashboard/ens/core/evidence/catalog.ts` |
 | ¿Por qué la carga de la prueba es del auditado desde el 04/08? | `Wazuh-ENS/CLAUDE.md` → «Principio rector» (commit `5a60647`) |
-| ¿Qué se auditó en la fase 0 y qué riesgos quedaron? | `Wazuh-ENS/docs/AUDITORIA_FASE_0.md` ⚠ ver §3 |
-| ¿Qué fases quedan? | `PLAN_ACCION_2026-07-30.md` §«Fases» y §«Lo que sigue roto» |
-| ¿Qué error de método no repetir? | `PLAN_ACCION_2026-07-30.md` §«Método — lo que no volver a hacer» |
 
 ### M · Estado medido hoy
 
@@ -243,7 +226,6 @@ conocimiento, e incluye todo lo demás:
 | ¿En qué estado está cada evidencia de las dos máquinas reales? | `Wazuh-ENS/informes/estado-por-evidencia.html` (abrir en navegador) |
 | ¿Por qué un control con evidencias en verde marca 0 %? | `estado-por-evidencia.html`, primer apartado |
 | ¿Por qué op.acc.3 marca 100 % con dos evidencias sin medir? | `estado-por-evidencia.html`, segundo apartado |
-| ¿Cómo se llegó a los números de `wazuh-real`? | `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` |
 | ¿Cómo se llegó a los de `zimbraHldap`? | `op.acc.<N>-ldap/CUMPLIMIENTO_TOTAL.md` §«Estado alcanzado» |
 
 ---
@@ -279,40 +261,9 @@ Ordenados por para qué sirven, no alfabéticamente.
 | `ENS_CONTROL_DEPLOYMENT.md` | 141 | Los siete ficheros y ocho registros que hay que tocar para dar de alta un control nuevo. ⚠ |
 | `MIGRAR_UNA_EVIDENCIA.md` | 271 | La receta de nueve pasos para pasar una evidencia del agente-que-juzga al motor-que-juzga. |
 | `PRIMITIVAS_DE_JUICIO.md` | 307 | Las siete primitivas del motor y, evidencia a evidencia, cuál le toca, qué hecho crudo necesita y contra qué parámetro se juzga. |
-| `DESPLIEGUE_FAKES.md` | 193 | Dejar un servidor de demostración emitiendo evidencia simulada de los tres controles clásicos. |
 | `PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md` | 359 | El procedimiento general —los tres sitios donde vive la configuración, el orden de trabajo y las trampas que cuestan una tarde—. |
 | `CUMPLIMIENTO_TOTAL.md` | 1.529 | Qué hay que hacer y declarar, evidencia a evidencia, para el máximo cumplimiento medible de mp.info.6, op.acc.1 y op.acc.2 — con un §11 de lo que hoy no llega. |
 | `COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md` | 231 | Qué mira, qué emite y qué regla recoge cada una de las 22 evidencias **de los tres controles desplegados**, con el comando que dice si funciona. Las 15 de op.acc.3/4 no están, y el fichero explica por qué: no hay recolector ni regla con que demostrarlas. |
-
-**Registro de lo que pasó**
-
-| Fichero | Líneas | Contesta en una línea |
-|---|---|---|
-| `CASO_REAL_WAZUH_REAL.md` | 301 | Cómo se llevó `wazuh-real` de 0 % a los números de hoy los días 06-07/08/2026, incluido lo que no subió y por qué. |
-| `HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` | 140 | Los cinco fallos que solo aparecieron al salir del contenedor, empezando por `collector_run` sin regla. |
-| `AUDITORIA_COHERENCIA_2026-07-30.md` | 620 | La auditoría de los tres controles contra `main`: el CUMPLE fabricado por el nombre del evento, la trazabilidad rota y el form-engine sin renderer de listas. |
-| `AUDITORIA_FASE_0.md` | 762 | La auditoría estructural previa: matriz de los 7 ficheros por control, mapa EV→rule ID y riesgos para la fase 3. ⚠ |
-| `PLAN_ACCION_2026-07-30.md` | 280 | Qué se arregló el 30/07, qué siguió roto y las fases que quedaban. |
-| `PLAN_REVISADO_2026-07-30.md` | 148 | Las tres opciones de arquitectura que se plantearon y cómo se descubrió que había una migración a medias. ⚠ **SUPERADO**. |
-
-**`Wazuh-ENS/docs/superpowers/`** — 3 ficheros de proceso de desarrollo:
-`plans/2026-07-28-coherencia-estructura-controles.md`,
-`specs/2026-07-28-coherencia-estructura-controles-design.md`,
-`specs/2026-07-29-runbooks-op-acc-1-2-design.md`. Son el plan y el diseño de la
-rama `coherencia-estructura-controles`.
-
-> **Cuidado con cómo se cuenta esto** (verificado con `git`). La rama **sí está
-> fusionada en `main`**: `git merge-base --is-ancestor coherencia-estructura-controles main`
-> dice que sí y `git log coherencia-estructura-controles ^main` da 0 commits.
-> Lo que no entró fue **el código**. El merge es `af82dfc`, «unifica
-> coherencia-estructura-controles en main sin tocar el plugin desplegado», y su
-> propio mensaje lo explica: *«Esta fusion aporta SOLO documentacion y el script
-> de siembra de configuracion. Todo `dashboard/`, `agent/` y `config/` queda
-> identico a main»*. Por eso los ficheros del refactor
-> (`<control>.evidence.ts`, `policy-runtime/runtime/`, `report-registry.ts`)
-> existen en el árbol de la rama y **no** en el de `main`. No hace falta —ni
-> sirve— volver a fusionarla: reconciliar las dos arquitecturas es trabajo
-> aparte.
 
 **`Wazuh-ENS/informes/estado-por-evidencia.html`** — 32 KB, no es markdown:
 estado real evidencia a evidencia de `wazuh-real` y `zimbraHldap`, con por qué
@@ -387,14 +338,10 @@ ven cruzando dos ficheros leídos. Se distingue lo uno de lo otro.
 |---|---|
 | `Wazuh-ENS/CLAUDE.md` | «AVISO DE VIGENCIA (2026-07-30). Partes de este documento se escribieron contra la rama `coherencia-estructura-controles`… **`main` NO tiene ese refactor**: lo que describa `core/evidence/<control>.evidence.ts`, `policy-runtime/runtime/` o `informes/report-registry.ts` no aplica a lo desplegado.» |
 | `docs/ENS_CONTROL_DEPLOYMENT.md` | El mismo aviso **en sustancia, pero más largo** que el de `CLAUDE.md` (no es la misma redacción). Su tabla de siete ficheros nombra rutas que no existen en `main` (ver §4). |
-| `docs/AUDITORIA_FASE_0.md` | Lleva ese aviso largo **palabra por palabra igual que `ENS_CONTROL_DEPLOYMENT.md`** (comprobado). Se escribió contra la rama `coherencia-estructura-controles`, commit base `f9f489c`, fecha 2026-07-29. |
-| `docs/PLAN_REVISADO_2026-07-30.md` | «**SUPERADO por `PLAN_ACCION_2026-07-30.md`** (misma fecha, más tarde)… Se conserva porque documenta cómo se descubrió el problema y por qué.» |
 
-`docs/PLAN_ACCION_2026-07-30.md` no lleva aviso, pero se declara sustituto del
 anterior en su primera línea.
 
 > **El aviso de vigencia largo está él mismo medio obsoleto, y en la mitad
-> peligrosa.** `ENS_CONTROL_DEPLOYMENT.md` y `AUDITORIA_FASE_0.md` dicen en
 > cabecera que en `main` *«el juicio lo hace
 > `dashboard/ens/core/policy-runtime/policies/op-acc-1.evaluator.ts`»*. Eso ya
 > no es verdad: `CLAUDE.md` dice que ese evaluador **está desconectado** desde
@@ -411,7 +358,6 @@ contra otro documento o contra el árbol de directorios.
    su apartado del Repository dice *«Implementación actual: Memory Repository»*
    (línea 176-180) y su apartado «Estado actual» lista *«Pendiente: persistencia
    real»* (línea 255-257). Pero `docs/DESPLEGAR_EL_PLUGIN.md`
-   §8 y `docs/DESPLIEGUE_FAKES.md` §2 operan sobre un índice real
    `wazuh-ens-configuration`, y el código tiene
    `configuration/services/configuration-http-client.ts` y
    `configuration/repository/`. La persistencia existe.
@@ -678,7 +624,6 @@ Se dice con estas palabras, como manda el producto.
   contado, pero su contenido no está resumido aquí. No he podido verificar si
   alguno documenta una decisión que no esté ya en `docs/`.
 - **No he leído íntegros los cuatro documentos largos**: `CUMPLIMIENTO_TOTAL.md`
-  (1.529), `AUDITORIA_FASE_0.md` (762), `AUDITORIA_COHERENCIA_2026-07-30.md`
   (620) y `mp.info.6-.../docs/07-mapa-evidencias.md` (852). De ellos he leído la
   cabecera y el índice completo de apartados; los resúmenes de una línea salen
   de ahí, no de una lectura línea a línea.

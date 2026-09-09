@@ -1586,7 +1586,6 @@ comprobado.
 |---|---|
 | Compilar e instalar el plugin | `Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md` |
 | Llevar una máquina Linux al cumplimiento | `Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md` |
-| El caso real, con números antes y después | `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` |
 | Llevar un servidor LDAP al cumplimiento | `op.acc.*-ldap/CUMPLIMIENTO_TOTAL.md` |
 | Por qué el LDAP necesita runbook propio | `op.acc.*-ldap/DIFERENCIAS_CON_EL_CONTROL_NORMAL.md` |
 | Qué configurar, evidencia a evidencia | el `CUMPLIMIENTO.md` de cada runbook |

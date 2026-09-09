@@ -26,3 +26,6 @@ __pycache__/
 *.pem
 *.key
 secrets*
+
+# Planes y especificaciones de desarrollo: no son documentacion del producto.
+docs/superpowers/

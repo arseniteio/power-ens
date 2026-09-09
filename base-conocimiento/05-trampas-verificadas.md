@@ -297,7 +297,6 @@ la máquina.
 que los valores puestos desde la UI se perdían. Avisaba por pantalla y el aviso
 no evitó la pérdida.
 
-> **Ojo con la cita de líneas.** `PLAN_ACCION_2026-07-30.md:148` señala
 > `inject-control.py:106-107`. Esas son las líneas **del fichero de entonces**:
 > hoy 106-107 son la cabecera `Authorization` de la petición HTTP y no tienen
 > nada que ver. Comprobado el 12/08/2026. No busques ahí el defecto: ya no
@@ -319,8 +318,7 @@ Pruebas sin dependencias en `config/test_inject_control.py`; la aceptación es
 que ejecutarlo dos veces seguidas sobre un control con valores puestos no cambia
 ni un valor.
 
-*Fuente: `Wazuh-ENS/docs/PLAN_ACCION_2026-07-30.md` T1.1 y §«Método — lo que no
-volver a hacer», `Wazuh-ENS/CLAUDE.md` §Trampas conocidas.*
+*Fuente: `Wazuh-ENS/CLAUDE.md`.*
 
 ---
 
@@ -371,7 +369,6 @@ pantalla. Se escribió el objeto en el campo de texto por error.
 **Cómo detectarla antes.** Copia previa del documento (T-01) y comprobar el tipo
 del campo antes de escribir.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 1.*
 
 ---
 
@@ -400,8 +397,7 @@ tocado la máquina, sospecha.** El silencio solo acredita si consta que se barri
 Y sacar una máquina del alcance es legítimo **solo si de verdad no está
 auditada**: si lo está y no reporta, eso es un hallazgo y tiene que contar.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 1 y §Paso 6;
-`op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §Paso 0.*
+*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md`.*
 
 ---
 
@@ -507,8 +503,7 @@ tiene cuatro tramos —traer, copiar, compilar, instalar— y si solo miras el
 resultado, un fallo en el segundo se manifiesta como «no ha cambiado nada» sin
 decirte cuál falló.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §«el cumplimiento no se arregla
-en el sitio donde se mira» y `Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md`.*
+*Fuente: `Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md`.*
 
 ---
 
@@ -719,8 +714,7 @@ echo '{"ensfacil":"op.acc.2","event":"world_writable","host":"H","estado":"NO_CU
 **Cómo detectarla antes.** La regla de método: **no inventar el dato de prueba**.
 Media hora buscando un fallo que no existía.
 
-*Fuente: `Wazuh-ENS/docs/PLAN_ACCION_2026-07-30.md` §Método,
-`Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md` §9.*
+*Fuente: `Wazuh-ENS/docs/DESPLEGAR_EL_PLUGIN.md`.*
 
 ---
 
@@ -820,8 +814,6 @@ todo tipo declarado lo emita alguna regla, que los runbooks tengan sus scripts y
 que cada control tenga su bloque de config.
 
 *Fuente: cabecera de `dashboard/ens/core/evidence/catalog.ts`,
-`Wazuh-ENS/docs/AUDITORIA_COHERENCIA_2026-07-30.md`,
-`Wazuh-ENS/docs/AUDITORIA_FASE_0.md`.*
 
 ---
 
@@ -852,7 +844,6 @@ Ninguna prueba unitaria puede cazarlo, porque cada mitad está bien.
 load-bearing para una decisión del motor, hay que revisar todas las decisiones
 tomadas sobre él con el rol anterior — empezando por si llega al índice.**
 
-*Fuente: `Wazuh-ENS/docs/HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` §1.*
 
 ---
 
@@ -1032,7 +1023,6 @@ repite en cada instalación o recarga.
 **Cómo detectarla antes.** Si el aviso aparece justo después de un `augenrules
 --load`, cuenta las reglas cargadas: si el número coincide, es esto.
 
-*Fuente: `Wazuh-ENS/docs/HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` §3.*
 
 ---
 
@@ -1393,7 +1383,6 @@ mensaje pide y el mensaje no cambia.
 **Arreglo / regla.** **Un mensaje al operador describe el estado de ESTA pasada.**
 Reemitir un motivo cacheado engaña cuando la configuración ha cambiado en medio.
 
-*Fuente: `Wazuh-ENS/docs/HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` §4.*
 
 ---
 
@@ -1581,7 +1570,6 @@ pantalla**, junto con el 100 % de op.acc.3 sobre una máquina sin agente (T-07).
 ninguno se veía en el panel. La regla: **cuando un control pase a verde sin que
 nadie haya tocado la máquina, sospecha.**
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 6.*
 
 ---
 
@@ -1662,9 +1650,8 @@ conserva es **poder distinguirlos** — la evidencia mantiene `NO_EVALUABLE` con
 `causa` (`CATALOG`, `CONFIGURATION`, `COLLECTION`, `EVIDENCE`) y la no conformidad
 lleva `origin: MEDIDA` o `NO_EVIDENCIADA`.
 
-*Fuente: `Wazuh-ENS/docs/HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md` §2,
 `Wazuh-ENS/CLAUDE.md` §Principio rector, cabecera de
-`op.acc.1-identificacion/lib/opacc1-lib.sh`.*
+*Fuente: `op.acc.1-identificacion/lib/opacc1-lib.sh`.*
 
 ---
 
@@ -1769,11 +1756,9 @@ requisito cae al rollup de evidencias.
 
 > **Dónde vive eso HOY, que no es donde lo dice la documentación vieja.**
 > `CLAUDE.md` y `ENS_CONTROL_DEPLOYMENT.md` hablan de «un módulo de runtime en
-> `core/policy-runtime/runtime/`», y `AUDITORIA_FASE_0.md:554` cita
 > `mp-info-6.runtime.ts:965-973`. **Ese directorio y ese fichero NO EXISTEN en
 > `main`** (comprobado el 12/08/2026: `find` no devuelve ninguno). Son de la
 > rama `coherencia-estructura-controles`, y la propia cabecera de
-> `AUDITORIA_FASE_0.md:8-11` avisa de que `policy-runtime/runtime/` «no aplica a
 > lo desplegado». En `main` la semántica de los `ruleType` vive en
 > `core/policy-runtime/policy-runtime.ts` (2.115 líneas) y en
 > `core/policy-runtime/policies/<control>.policy.ts`.
@@ -1800,7 +1785,6 @@ variable. Devolver `[]` cede el requisito al rollup, que ya sabe caer a
 degradar. **El caso observable de esto es T-69.**
 
 *Fuente: `Wazuh-ENS/CLAUDE.md`, `Wazuh-ENS/docs/ENS_CONTROL_DEPLOYMENT.md` §Aviso
-crítico, `Wazuh-ENS/docs/AUDITORIA_FASE_0.md` §3.2 (con su aviso de vigencia);
 el código de `requirement-evaluator.ts` comprobado el 12/08/2026.*
 
 ---
@@ -2013,9 +1997,8 @@ previa: es lo que enseña un auditor cuando pregunta qué había antes.
 `027` los crea 640. Solo afecta a ficheros NUEVOS y a procesos que arranquen
 después, así que los demonios ya arrancados —Zimbra— no se enteran.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 4,
 `Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md`,
-`op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §Paso 4.*
+*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md`.*
 
 ---
 
@@ -2254,8 +2237,7 @@ falso.** La política tiene que describir la máquina, no una máquina ideal: si
 declaras un ACL «correcto» que el sistema no tiene, no has mejorado nada, has
 fabricado una desviación que nadie puede cerrar.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 2,
-`Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md`.*
+*Fuente: `Wazuh-ENS/docs/PONER_UNA_MAQUINA_EN_CUMPLIMIENTO.md`.*
 
 ---
 
@@ -2295,8 +2277,6 @@ comprobar. El atributo solo hace falta cuando **sí** hay bajas.
 **Por eso el instalador NO crea el fichero**: crearlo es la declaración, y esa la
 hace la organización.
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 5, commit `fa0beae` de
-`op.acc.1-ldap`.*
 
 ---
 
@@ -2327,8 +2307,7 @@ se revisó y qué se cambió, para que un auditor lo contraste con el ndjson.
 **La regla.** *Inventarse una fila con una fecha falsa es exactamente el CUMPLE
 falso que este producto existe para no dar.*
 
-*Fuente: `Wazuh-ENS/docs/CASO_REAL_WAZUH_REAL.md` §Paso 5 y §«Lo que no subió»,
-`op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md` §EV-05.*
+*Fuente: `op.acc.1-ldap/CUMPLIMIENTO_TOTAL.md`.*
 
 ---
 

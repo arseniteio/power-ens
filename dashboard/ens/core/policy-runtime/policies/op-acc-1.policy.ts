@@ -17,8 +17,6 @@ import { ENSPolicyDefinition } from '../types';
 // `policy-runtime.ts` usa el evaluador solo si la policy lo declara; sin esta
 // línea, op.acc.1 recorre el mismo camino que los otros dos. Migrar es
 // deseable; migrar un control de tres no lo es.
-//
-// Ver docs/PLAN_REVISADO_2026-07-30.md.
 export const opAcc1PolicyDefinition: ENSPolicyDefinition = {
   id: 'policy.op.acc.1',
   controlId: 'op.acc.1',

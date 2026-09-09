@@ -278,7 +278,5 @@ parámetro configurado**, porque la librería vieja lo descartaba.
 
 ## Enlaces
 
-- [`DESPLIEGUE_FAKES.md`](DESPLIEGUE_FAKES.md) — servidor de demostración
 - [`ENS_CONTROL_DEPLOYMENT.md`](ENS_CONTROL_DEPLOYMENT.md) — añadir un control nuevo
 - [`MIGRAR_UNA_EVIDENCIA.md`](MIGRAR_UNA_EVIDENCIA.md) — pasar una evidencia al modelo nuevo
-- [`HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md`](HALLAZGOS_DESPLIEGUE_REAL_2026-07-31.md) — qué salió mal la primera vez en máquina real
