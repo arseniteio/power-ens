@@ -7,9 +7,12 @@ Los agentes observan cada máquina y emiten hechos técnicos. El plugin los
 contrasta con la política que la organización declara en pantalla y genera
 informes que un auditor puede recorrer de principio a fin:
 
+```mermaid
+flowchart LR
+  A["CUMPLE"] --> B["evidencia"] --> C["rule ID"] --> D["evento crudo"]
 ```
-CUMPLE  →  evidencia  →  rule ID  →  evento crudo
-```
+
+[[_TOC_]]
 
 ## Controles
 
@@ -26,40 +29,39 @@ tipo de máquina: Linux, servidor de directorio LDAP y Windows.
 
 ---
 
-# Instalación y despliegue
+## Instalación y despliegue
 
 Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que corresponda a tu entorno.
 
-## ¿Qué necesitas hacer?
+### ¿Qué necesitas hacer?
 
-### 1. Instalar desde cero
-[Instalación completa desde cero](docs/despliegue/01-INSTALACION-DESDE-CERO.md)
+| | Necesidad | Guía |
+|---|---|---|
+| 1 | Instalar desde cero | [Instalación completa desde cero](docs/despliegue/01-INSTALACION-DESDE-CERO.md) |
+| 2 | Actualizar un entorno existente | [Actualización de un entorno existente](docs/despliegue/02-ACTUALIZACION-ENTORNO-EXISTENTE.md) |
+| 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md) |
+| 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/despliegue/04-DIAGNOSTICO-Y-ROLLBACK.md) |
 
-### 2. Actualizar un entorno existente
-[Actualización de un entorno existente](docs/despliegue/02-ACTUALIZACION-ENTORNO-EXISTENTE.md)
-
-### 3. Comprobar compatibilidad con otra versión de Wazuh
-[Compatibilidad de versiones](docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md)
-
-### 4. Diagnosticar un problema o volver atrás
-[Diagnóstico y rollback](docs/despliegue/04-DIAGNOSTICO-Y-ROLLBACK.md)
-
-El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
+> [!note]
+> El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
 
 ---
 
-# Operación después del despliegue
+## Operación después del despliegue
 
 Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
 
 Cada repositorio de control incluye sus instrucciones específicas de instalación y validación.
 
-La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
+> [!important]
+> La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
 
 Documentación operativa:
 
-- [Configuración y cumplimiento de los controles](docs/CUMPLIMIENTO_TOTAL.md)
-- [Cómo se demuestra cada evidencia](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md)
+| Documento |
+|---|
+| [Configuración y cumplimiento de los controles](docs/CUMPLIMIENTO_TOTAL.md) |
+| [Cómo se demuestra cada evidencia](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md) |
 
 Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
@@ -70,7 +72,7 @@ python3 tests/check-coherencia.py
 
 ---
 
-# Cuando algo no cuadra
+## Cuando algo no cuadra
 
 | Síntoma | Causa habitual |
 |---|---|
@@ -93,10 +95,11 @@ eventos que los agentes emiten.
 
 ---
 
-# Cómo decide el motor
+## Cómo decide el motor
 
-Lo que no se puede demostrar, no cumple. La carga de la prueba corresponde al
-auditado.
+> [!important]
+> Lo que no se puede demostrar, no cumple. La carga de la prueba corresponde al
+> auditado.
 
 Medida y veredicto son capas distintas: la evidencia indica si se pudo observar
 —y con qué causa, si no— y el requisito indica si eso acredita cumplimiento.
@@ -117,7 +120,7 @@ Detalle en [docs/PRIMITIVAS_DE_JUICIO.md](docs/PRIMITIVAS_DE_JUICIO.md).
 
 ---
 
-# Desarrollo
+## Desarrollo
 
 Este repositorio contiene el código de ENSFácil y el paquete de integración necesario para incorporarlo a un árbol compatible del plugin oficial de Wazuh Dashboard. El procedimiento reproducible de construcción está documentado en las guías de despliegue anteriores.
 

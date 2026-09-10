@@ -1,23 +1,38 @@
 # Diagnóstico y rollback de ENSFácil
 
+[[_TOC_]]
+
 ## 1. Objetivo
 
 Esta guía describe las comprobaciones que deben realizarse cuando una instalación o actualización de ENSFácil falla y los procedimientos para volver al estado anterior de forma controlada.
 
-No debe continuarse con un despliegue si una validación previa ha fallado.
+> [!warning]
+> No debe continuarse con un despliegue si una validación previa ha fallado.
+
+```mermaid
+flowchart LR
+  A["2. Cuándo detener<br/>el despliegue"] --> B["3. Diagnóstico<br/>básico"]
+  B --> C["4. Rollback del árbol<br/>de integración"]
+  C --> D["5. Restaurar el<br/>módulo ENS anterior"]
+  D --> E["6. Restaurar el<br/>plugin desplegado"]
+  E --> F["7. Validar<br/>el rollback"]
+```
 
 ## 2. Cuándo detener el despliegue
 
 Detener el procedimiento si ocurre cualquiera de estas situaciones:
 
-- `check-integration.sh` devuelve `RESULTADO=NO_COMPATIBLE`.
-- se informa de una versión de Wazuh no validada.
-- aparecen conflictos o ficheros `.rej` al aplicar la integración.
-- la compilación no genera `wazuh-2.19.5.zip`.
-- `unzip -t` informa de errores.
-- Wazuh Dashboard no vuelve a estado `active` después de instalar el plugin.
+| Situación |
+|---|
+| `check-integration.sh` devuelve `RESULTADO=NO_COMPATIBLE`. |
+| se informa de una versión de Wazuh no validada. |
+| aparecen conflictos o ficheros `.rej` al aplicar la integración. |
+| la compilación no genera `wazuh-2.19.5.zip`. |
+| `unzip -t` informa de errores. |
+| Wazuh Dashboard no vuelve a estado `active` después de instalar el plugin. |
 
-Antes de modificar nada más, conservar la salida del comando que ha fallado y localizar los backups creados durante el procedimiento.
+> [!important]
+> Antes de modificar nada más, conservar la salida del comando que ha fallado y localizar los backups creados durante el procedimiento.
 
 ## 3. Diagnóstico básico
 
@@ -39,7 +54,8 @@ Si el problema apareció durante la aplicación de la integración, comprobar ta
 find "$TARGET" -name "*.rej" -print
 ```
 
-No intentar corregir manualmente los parches sobre el entorno desplegado sin identificar primero la causa.
+> [!warning]
+> No intentar corregir manualmente los parches sobre el entorno desplegado sin identificar primero la causa.
 
 ## 4. Rollback del árbol de integración
 
@@ -68,11 +84,13 @@ El rollback debe terminar con:
 RESULTADO=ROLLBACK_OK
 ```
 
-Si devuelve `RESULTADO=ROLLBACK_ERROR`, detener el procedimiento y revisar la salida antes de continuar.
+> [!warning]
+> Si devuelve `RESULTADO=ROLLBACK_ERROR`, detener el procedimiento y revisar la salida antes de continuar.
 
 ## 5. Restaurar el módulo ENS anterior
 
-El rollback del paquete de integración no restaura por sí solo el módulo `public/components/overview/ens`, ya que este se actualiza de forma independiente.
+> [!note]
+> El rollback del paquete de integración no restaura por sí solo el módulo `public/components/overview/ens`, ya que este se actualiza de forma independiente.
 
 Utilizar el backup creado antes de la actualización:
 
@@ -107,7 +125,8 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 sudo systemctl start wazuh-dashboard
 ```
 
-No utilizar comodines como `wazuh*` durante la retirada del plugin.
+> [!warning]
+> No utilizar comodines como `wazuh*` durante la retirada del plugin.
 
 ## 7. Validar el rollback
 
@@ -132,4 +151,5 @@ Wazuh Dashboard debe quedar `active`, el plugin `wazuh` debe aparecer instalado 
 
 Acceder finalmente a Wazuh Dashboard y confirmar que ENSFácil vuelve a mostrarse en el estado anterior esperado.
 
-Este procedimiento restaura el código y el plugin desplegado. No revierte automáticamente datos o decisiones de configuración almacenados fuera del árbol del plugin.
+> [!note]
+> Este procedimiento restaura el código y el plugin desplegado. No revierte automáticamente datos o decisiones de configuración almacenados fuera del árbol del plugin.

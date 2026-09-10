@@ -1,5 +1,7 @@
 # Instalación completa de ENSFácil desde cero
 
+[[_TOC_]]
+
 ## 1. Objetivo
 
 Esta guía describe el procedimiento para desplegar ENSFácil partiendo de una
@@ -43,19 +45,30 @@ ENSFácil debe desplegarse únicamente sobre combinaciones de versiones que haya
 
 La combinación utilizada durante la validación inicial de esta guía es:
 
-- Wazuh: `4.14.7`
-- OpenSearch Dashboards: `2.19.5`
-- Node.js para compilación: `18.19.0`
+| Componente | Versión |
+|---|---|
+| Wazuh | `4.14.7` |
+| OpenSearch Dashboards | `2.19.5` |
+| Node.js para compilación | `18.19.0` |
 
 La matriz de compatibilidad se mantiene en:
 
-`docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md`
+[`docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md`](03-COMPATIBILIDAD-DE-VERSIONES.md)
 
-Una nueva versión de Wazuh no debe considerarse compatible automáticamente. Antes de utilizarla deben comprobarse los puntos de integración de ENSFácil, recompilar el plugin y ejecutar las validaciones definidas para el despliegue.
+> [!note]
+> Una nueva versión de Wazuh no debe considerarse compatible automáticamente. Antes de utilizarla deben comprobarse los puntos de integración de ENSFácil, recompilar el plugin y ejecutar las validaciones definidas para el despliegue.
 
 ## 6. Flujo completo de instalación
 
 La instalación de ENSFácil se organiza en cinco bloques principales:
+
+```mermaid
+flowchart LR
+  A["1. Instalar y validar<br/>Wazuh 4.14.7"] --> B["2. Descargar ENSFácil<br/>y los runbooks desde GitLab"]
+  B --> C["3. Preparar Wazuh Manager<br/>para los controles ENS"]
+  C --> D["4. Construir e instalar<br/>el plugin ENSFácil<br/>en Wazuh Dashboard"]
+  D --> E["5. Validar que ENSFácil<br/>queda instalado y operativo"]
+```
 
 1. Instalar y validar Wazuh 4.14.7.
 2. Descargar ENSFácil y los runbooks desde GitLab.
@@ -71,7 +84,8 @@ Un paso no se considera terminado únicamente porque el comando haya finalizado 
 
 Cada fase debe incluir una comprobación objetiva que confirme que el resultado esperado existe y funciona.
 
-Si una validación falla, el despliegue debe detenerse en ese punto. No se continuará con las fases posteriores hasta identificar y resolver la causa.
+> [!important]
+> Si una validación falla, el despliegue debe detenerse en ese punto. No se continuará con las fases posteriores hasta identificar y resolver la causa.
 
 Siempre que corresponda, cada fase documentará:
 
@@ -88,15 +102,18 @@ Siempre que corresponda, cada fase documentará:
 
 La instalación inicial de esta guía se ha validado sobre el siguiente entorno de laboratorio:
 
-- Ubuntu Server `24.04.4 LTS`;
-- arquitectura `x86_64`;
-- 4 CPU lógicas;
-- 7,8 GiB de RAM;
-- 80 GB de disco virtual;
-- conectividad a Internet;
-- acceso administrativo mediante `sudo`.
+| Recurso | Valor |
+|---|---|
+| Sistema operativo | Ubuntu Server `24.04.4 LTS` |
+| Arquitectura | `x86_64` |
+| CPU | 4 CPU lógicas |
+| Memoria | 7,8 GiB de RAM |
+| Disco | 80 GB de disco virtual |
+| Red | conectividad a Internet |
+| Acceso | acceso administrativo mediante `sudo` |
 
-Estos valores describen el entorno de validación y no deben interpretarse como requisitos mínimos de ENSFácil.
+> [!note]
+> Estos valores describen el entorno de validación y no deben interpretarse como requisitos mínimos de ENSFácil.
 
 La topología de red del laboratorio tampoco es un requisito del producto. La máquina utilizada durante la validación dispone de una interfaz NAT y una interfaz de red de laboratorio.
 
@@ -117,7 +134,8 @@ curl -Is --max-time 10 https://gitlab.com | head -1
 command -v sudo apt git curl wget python3
 ```
 
-La instalación no debe continuar si no existe acceso administrativo o si la máquina no dispone de la conectividad necesaria para obtener los repositorios y paquetes del despliegue.
+> [!warning]
+> La instalación no debe continuar si no existe acceso administrativo o si la máquina no dispone de la conectividad necesaria para obtener los repositorios y paquetes del despliegue.
 
 ## 9. Instalar y validar Wazuh 4.14.7
 
@@ -145,7 +163,8 @@ Los cuatro servicios deben devolver `active` antes de continuar.
 
 Para la combinación validada en esta guía, `wazuh-manager`, `wazuh-indexer` y `wazuh-dashboard` deben corresponder a Wazuh `4.14.7` (paquetes `4.14.7-1`). Además, los cuatro servicios anteriores deben estar en estado `active` y el acceso al Dashboard debe haber sido validado según el paso 4 de la guía de instalación de Wazuh.
 
-Si alguna de estas comprobaciones falla, no continuar con la instalación de ENSFácil hasta resolver la causa.
+> [!warning]
+> Si alguna de estas comprobaciones falla, no continuar con la instalación de ENSFácil hasta resolver la causa.
 
 ## 10. Configurar el acceso autorizado a GitLab
 
@@ -222,7 +241,8 @@ sudo test -d /var/ossec/etc/shared/ens && echo "GRUPO_ENS=OK"
 sudo test -f /var/ossec/etc/shared/ens/agent.conf && echo "AGENT_CONF_ENS=OK"
 ```
 
-La instalación de las reglas ENS no debe continuar si el grupo `ens` o su `agent.conf` no existen.
+> [!warning]
+> La instalación de las reglas ENS no debe continuar si el grupo `ens` o su `agent.conf` no existen.
 
 ## 12. Instalar y validar las reglas ENS en el Manager
 
@@ -240,11 +260,13 @@ done
 
 Cada `install-manager.sh` realiza una comprobación bloqueante con `wazuh-logtest`. La instalación se considera correcta cuando se validan las siguientes reglas:
 
-- `op.acc.1`: `106873`
-- `op.acc.2`: `106902`
-- `op.acc.3`: `107001`
-- `op.acc.4`: `107106`
-- `mp.info.6`: `106650`
+| Control | Regla |
+|---|---|
+| `op.acc.1` | `106873` |
+| `op.acc.2` | `106902` |
+| `op.acc.3` | `107001` |
+| `op.acc.4` | `107106` |
+| `mp.info.6` | `106650` |
 
 Después de ejecutar los cinco instaladores, comprobar también que Wazuh Manager permanece activo:
 
@@ -252,7 +274,8 @@ Después de ejecutar los cinco instaladores, comprobar también que Wazuh Manage
 sudo systemctl is-active wazuh-manager
 ```
 
-El resultado debe ser `active`. Si cualquiera de los instaladores falla, no confirma su regla esperada o el Manager no queda activo, detener el despliegue antes de continuar.
+> [!warning]
+> El resultado debe ser `active`. Si cualquiera de los instaladores falla, no confirma su regla esperada o el Manager no queda activo, detener el despliegue antes de continuar.
 
 ## 13. Construir e instalar el plugin ENSFácil
 
@@ -412,7 +435,8 @@ sha256sum build/wazuh-2.19.5.zip
 
 El resultado de `unzip -t` debe indicar que no se han detectado errores. El hash SHA-256 puede conservarse como referencia de integridad del artefacto generado.
 
-Si el ZIP no existe o la comprobación de integridad falla, no continuar con la instalación en Wazuh Dashboard.
+> [!warning]
+> Si el ZIP no existe o la comprobación de integridad falla, no continuar con la instalación en Wazuh Dashboard.
 
 ### 13.6 Instalar el plugin en Wazuh Dashboard
 
@@ -438,7 +462,8 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 sudo systemctl start wazuh-dashboard
 ```
 
-No utilizar comodines como `wazuh*` al retirar el plugin, ya que podrían eliminar también `wazuhCore` y `wazuhCheckUpdates`.
+> [!warning]
+> No utilizar comodines como `wazuh*` al retirar el plugin, ya que podrían eliminar también `wazuhCore` y `wazuhCheckUpdates`.
 
 Comprobar que el servicio vuelve a quedar activo y consultar el inventario de plugins:
 

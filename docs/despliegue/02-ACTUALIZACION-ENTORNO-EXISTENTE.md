@@ -1,21 +1,36 @@
 # Actualización de ENSFácil en un entorno existente
 
+[[_TOC_]]
+
 ## 1. Objetivo
 
 Esta guía describe cómo actualizar ENSFácil cuando Wazuh y una versión anterior del plugin ya están instalados y funcionando.
 
 El procedimiento conserva el entorno existente, aplica únicamente los cambios pendientes de la integración y genera un nuevo artefacto del plugin antes de desplegarlo.
 
+```mermaid
+flowchart LR
+  A["2. Requisitos<br/>previos"] --> B["3. Actualizar el<br/>repositorio ENSFácil"]
+  B --> C["4. Comprobar la<br/>integración existente"]
+  C --> D["5. Crear un<br/>respaldo previo"]
+  D --> E["6. Actualizar la<br/>integración ENSFácil"]
+  E --> F["7. Recompilar<br/>el plugin"]
+  F --> G["8. Instalar la<br/>versión actualizada"]
+  G --> H["9. Sincronizar la configuración<br/>y validar la actualización"]
+```
+
 ## 2. Requisitos previos
 
 Antes de comenzar deben cumplirse estas condiciones:
 
-- Wazuh Dashboard 4.14.7 instalado.
-- Árbol de compilación disponible en `/opt/ensfacil/build`.
-- Plugin Wazuh disponible en `/opt/ensfacil/build/plugins/main`.
-- Repositorio ENSFácil disponible en `/opt/ensfacil/repo`.
-- Node.js 18.19.0 y Yarn Classic 1.22.22.
-- El Dashboard debe estar operativo antes de iniciar la actualización.
+| Requisito |
+|---|
+| Wazuh Dashboard 4.14.7 instalado. |
+| Árbol de compilación disponible en `/opt/ensfacil/build`. |
+| Plugin Wazuh disponible en `/opt/ensfacil/build/plugins/main`. |
+| Repositorio ENSFácil disponible en `/opt/ensfacil/repo`. |
+| Node.js 18.19.0 y Yarn Classic 1.22.22. |
+| El Dashboard debe estar operativo antes de iniciar la actualización. |
 
 Comprobar el estado inicial:
 
@@ -25,7 +40,8 @@ git -C /opt/ensfacil/repo status --short
 git -C /opt/ensfacil/repo branch --show-current
 ```
 
-No continuar si Wazuh Dashboard no está activo o si existen cambios locales no identificados en el repositorio.
+> [!warning]
+> No continuar si Wazuh Dashboard no está activo o si existen cambios locales no identificados en el repositorio.
 
 ## 3. Actualizar el repositorio ENSFácil
 
@@ -36,7 +52,8 @@ git -C /opt/ensfacil/repo pull --ff-only
 git -C /opt/ensfacil/repo log -1 --oneline
 ```
 
-Conservar el hash mostrado como referencia de la versión que se va a desplegar.
+> [!note]
+> Conservar el hash mostrado como referencia de la versión que se va a desplegar.
 
 ## 4. Comprobar la integración existente
 
@@ -53,7 +70,8 @@ PKG=$REPO/integration/wazuh-dashboard
 
 El resultado debe indicar `RESULTADO=COMPATIBLE`. El informe puede mostrar parches ya aplicados y otros pendientes; esto es normal durante una actualización.
 
-Si aparecen conflictos o el resultado no es compatible, no aplicar ningún cambio y consultar la guía de compatibilidad y diagnóstico.
+> [!warning]
+> Si aparecen conflictos o el resultado no es compatible, no aplicar ningún cambio y consultar la guía de compatibilidad y diagnóstico.
 
 ## 5. Crear un respaldo previo
 
@@ -72,7 +90,8 @@ test -f "$TARGET/build/wazuh-2.19.5.zip" && \
 echo "BACKUP=$BACKUP"
 ```
 
-El ZIP anterior debe conservarse hasta completar todas las validaciones de la nueva versión.
+> [!important]
+> El ZIP anterior debe conservarse hasta completar todas las validaciones de la nueva versión.
 
 ## 6. Actualizar la integración ENSFácil
 
@@ -120,7 +139,8 @@ test -f build/wazuh-2.19.5.zip && echo "ZIP_GENERADO=OK"
 unzip -t build/wazuh-2.19.5.zip | tail -1
 ```
 
-No continuar si el ZIP no existe o la comprobación de integridad informa de errores.
+> [!warning]
+> No continuar si el ZIP no existe o la comprobación de integridad informa de errores.
 
 ## 8. Instalar la versión actualizada
 
@@ -146,7 +166,8 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 sudo systemctl start wazuh-dashboard
 ```
 
-No utilizar comodines como `wazuh*`. Deben conservarse los plugins `wazuhCore` y `wazuhCheckUpdates`.
+> [!warning]
+> No utilizar comodines como `wazuh*`. Deben conservarse los plugins `wazuhCore` y `wazuhCheckUpdates`.
 
 ## 9. Sincronizar la configuración y validar la actualización
 
