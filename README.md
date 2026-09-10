@@ -1,5 +1,7 @@
 # ENSFácil
 
+[English](README.en.md)
+
 Cumplimiento del Esquema Nacional de Seguridad (RD 311/2022) dentro del
 dashboard de Wazuh.
 
@@ -51,17 +53,10 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 
 Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
 
-Cada repositorio de control incluye sus instrucciones específicas de instalación y validación.
+Cada repositorio de control incluye sus instrucciones específicas de instalación y validación en `docs/install.md`, y en `docs/compliance.md` qué hay que declarar en el control y cómo se comprueba cada evidencia.
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
-
-Documentación operativa:
-
-| Documento |
-|---|
-| [Configuración y cumplimiento de los controles](docs/CUMPLIMIENTO_TOTAL.md) |
-| [Cómo se demuestra cada evidencia](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md) |
 
 Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
@@ -116,8 +111,6 @@ una primitiva de juicio y el parámetro contra el que se contrastan; el agente
 solo emite el hecho. Por eso un cambio en la pantalla modifica el veredicto sin
 necesidad de volver a ejecutar nada en el servidor.
 
-Detalle en [docs/PRIMITIVAS_DE_JUICIO.md](docs/PRIMITIVAS_DE_JUICIO.md).
-
 ---
 
 ## Desarrollo
@@ -129,17 +122,12 @@ dashboard/ens/     módulo ENS (React + TypeScript)
   catalog/         definición de controles y requisitos
   configuration/   parámetros configurables
   core/            motor: evidencias, evaluación, consolidación
-  controls/ informes/ evidences/    las tres pestañas
+  controls/ reports/ evidences/    las tres pestañas
+integration/       paquete de integración con Wazuh Dashboard
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración e inject-control.py
-tests/             suites del motor
+tests/             suites del motor y comprobación de coherencia
 ```
-
-| Tarea | Documento |
-|---|---|
-| Añadir un control nuevo | [docs/ENS_CONTROL_DEPLOYMENT.md](docs/ENS_CONTROL_DEPLOYMENT.md) |
-| Migrar una evidencia al motor | [docs/MIGRAR_UNA_EVIDENCIA.md](docs/MIGRAR_UNA_EVIDENCIA.md) |
-| Arquitectura del motor | [docs/ENS_ENGINE_ARCHITECTURE.md](docs/ENS_ENGINE_ARCHITECTURE.md) |
 
 Rangos de rule ID en uso:
 
@@ -150,3 +138,9 @@ Rangos de rule ID en uso:
 | `op.acc.2` | 106900–106999 | 106900–106974 |
 | `op.acc.3` | 107000–107099 | 107000–107050 |
 | `op.acc.4` | 107100–107199 | 107100–107150 |
+
+---
+
+## Licencia
+
+Software propietario de Quersystem. Consulta [LICENSE](LICENSE).
