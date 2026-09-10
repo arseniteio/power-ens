@@ -594,7 +594,7 @@ print("\n=== 10. Nadie manda a rellenar una variable que el agente ya no lee ===
 # parametro: el mensaje del instalador, la plantilla del `.env`, la guia.
 #
 # Encontrado el 05/08, dos veces el mismo dia: `install-real.sh` de op.acc.1
-# seguia diciendo "REVISAR P-03 y P-07" y CUMPLIMIENTO_TOTAL.md seguia dando el
+# seguia diciendo "REVISAR P-03 y P-07" y la guia de cumplimiento seguia dando el
 # ejemplo `OPACC1_CUENTAS_SERVICIO="svc_backup,..."`. El operador los rellena, no
 # cambia nada, y no se entera hasta que lo pregunta un auditor. Es peor que no
 # documentarlo.
