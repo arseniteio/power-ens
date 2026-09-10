@@ -65,7 +65,7 @@ ssh -T git@gitlab.com
 otra clave y el error resultante indica que el proyecto no existe, cuando el
 problema es la identidad.
 
-## 2 · Manager
+## 2 · Wazuh Manager
 
 ```bash
 sudo mkdir -p /opt/ensfacil && sudo chown "$USER" /opt/ensfacil
