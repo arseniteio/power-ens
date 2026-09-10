@@ -60,19 +60,19 @@ RUNBOOKS = {
         ["ensfacil_mp_info_6_json_rules.xml", "ensfacil_mp_info_6_pbs_rules.xml"],
     ),
     "op.acc.1": (
-        "op.acc.1-identificacion",
+        "op.acc.1-identification",
         ["ensfacil_op_acc_1_json_rules.xml"],
     ),
     "op.acc.2": (
-        "op.acc.2-requisitos-de-acceso",
+        "op.acc.2-access-requirements",
         ["ensfacil_op_acc_2_json_rules.xml"],
     ),
     "op.acc.3": (
-        "op.acc.3-segregacion-de-funciones-y-tareas",
+        "op.acc.3-segregation-of-duties-and-tasks",
         ["ensfacil_op_acc_3_json_rules.xml"],
     ),
     "op.acc.4": (
-        "op.acc.4-proceso-de-gestion-de-derechos-de-acceso",
+        "op.acc.4-access-rights-management-process",
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
 }

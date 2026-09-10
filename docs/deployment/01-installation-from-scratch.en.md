@@ -152,7 +152,7 @@ command -v sudo apt git curl wget python3
 ENSFácil requires a functional, validated installation of Wazuh before
 continuing with the plugin integration.
 
-If Wazuh 4.14.7 is not yet installed, first follow the [Wazuh 4.14.7 installation guide](https://gitlab.com/quersystem2/wazuh4-installation-capacity-guide), completing steps 1 through 4.
+If Wazuh 4.14.7 is not yet installed, first follow the [Wazuh 4.14.7 installation guide](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), completing steps 1 through 4.
 
 After completing steps 1 through 4 of the Wazuh guide, return to this
 procedure and check that the core platform is installed and operational
@@ -193,7 +193,7 @@ authorized access to the project's repositories on GitLab.
 Check that Git can access ENSFácil's main repository over SSH:
 
 ```bash
-git ls-remote git@gitlab.com:quersystem2/Wazuh-ENS.git HEAD
+git ls-remote git@gitlab.com:quersystem/plugin-wazuh-ens.git HEAD
 ```
 
 The check must return a hash followed by `HEAD`. If Git prompts for
@@ -209,7 +209,7 @@ who will perform the deployment:
 sudo mkdir -p /opt/ensfacil
 sudo chown "$USER":root /opt/ensfacil
 sudo chmod 755 /opt/ensfacil
-git clone git@gitlab.com:quersystem2/Wazuh-ENS.git /opt/ensfacil/repo
+git clone git@gitlab.com:quersystem/plugin-wazuh-ens.git /opt/ensfacil/repo
 ```
 
 After cloning, check the repository and its remote:
@@ -227,11 +227,11 @@ the administrative user's home directory:
 
 ```bash
 cd ~
-BASE=git@gitlab.com:quersystem2/ens-controls-runbook/linux
-git clone $BASE/op.acc.1-identificacion.git
-git clone $BASE/op.acc.2-requisitos-de-acceso.git
-git clone $BASE/op.acc.3-segregacion-de-funciones-y-tareas.git
-git clone $BASE/op.acc.4-proceso-de-gestion-de-derechos-de-acceso.git
+BASE=git@gitlab.com:quersystem/ens-controls-runbook/linux
+git clone $BASE/op.acc.1-identification.git
+git clone $BASE/op.acc.2-access-requirements.git
+git clone $BASE/op.acc.3-segregation-of-duties-and-tasks.git
+git clone $BASE/op.acc.4-access-rights-management-process.git
 git clone $BASE/mp.info.6-proxmox-backup-runbook.git
 ```
 
@@ -240,14 +240,14 @@ git clone $BASE/mp.info.6-proxmox-backup-runbook.git
 Check that the five repositories exist and point to the expected remote:
 
 ```bash
-for r in op.acc.1-identificacion op.acc.2-requisitos-de-acceso op.acc.3-segregacion-de-funciones-y-tareas op.acc.4-proceso-de-gestion-de-derechos-de-acceso mp.info.6-proxmox-backup-runbook; do
+for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
   echo "=== $r ==="
   git -C "$HOME/$r" remote get-url origin
 done
 ```
 
 All five repositories must return a URL under
-`git@gitlab.com:quersystem2/ens-controls-runbook/linux/` before continuing.
+`git@gitlab.com:quersystem/ens-controls-runbook/linux/` before continuing.
 
 ## 11. Create and validate the ENS group
 
@@ -275,7 +275,7 @@ Manager installers. The process must stop if any of them fails:
 
 ```bash
 (
-for r in op.acc.1-identificacion op.acc.2-requisitos-de-acceso op.acc.3-segregacion-de-funciones-y-tareas op.acc.4-proceso-de-gestion-de-derechos-de-acceso mp.info.6-proxmox-backup-runbook; do
+for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
   sudo bash "$HOME/$r/install-manager.sh" || { echo "ERROR: $r"; exit 1; }
 done
 )

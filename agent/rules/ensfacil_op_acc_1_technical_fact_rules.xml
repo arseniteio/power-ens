@@ -12,7 +12,7 @@
      QUÉ NO ES. **No es lo desplegado.** Lo que instala `install-manager.sh` del
      runbook es el otro juego, `ensfacil_op_acc_1_json_rules.xml` (en este mismo
      directorio, y su copia en
-     ../op.acc.1-identificacion/manager/), que empareja los eventos
+     ../op.acc.1-identification/manager/), que empareja los eventos
      del recolector bash. De ahí sale el `relatedRules` del catálogo: la
      trazabilidad solo puede acreditar reglas que estén en un manager.
 
