@@ -6,9 +6,17 @@ OpenSearch Dashboards: 2.19.5
 Objetivo de validación actual: Wazuh 4.14.7
 
 Integración versionada:
-- 8 parches sobre archivos existentes del plugin oficial.
-- 6 archivos adicionales.
+- 9 parches sobre archivos existentes del plugin oficial.
+- 7 archivos adicionales.
 - Núcleo ENSFácil ubicado en dashboard/ens.
+
+Frontend ENS incluido:
+- Registro del módulo ENS y sus pestañas.
+- Datasource ENS.
+- Integración de filtros ENS.
+- Integración de ComplianceTable para section=ens.
+- Catálogo de requisitos ENS mediante common/compliance-requirements/ens-requirements.ts.
+- Logotipo ENS.
 
 Backend ENS incluido:
 - GET /ens/configuration
@@ -17,15 +25,22 @@ Backend ENS incluido:
 - Persistencia mediante el índice wazuh-ens-configuration.
 
 Validaciones realizadas:
-- server/routes/index.ts es idéntico entre Wazuh 4.14.5 y 4.14.7.
-- server/controllers/index.ts es idéntico entre Wazuh 4.14.5 y 4.14.7.
-- Los 8 parches son aplicables sobre la base Wazuh 4.14.7 sin conflictos.
-- Los 6 archivos adicionales se copian correctamente.
-- El ciclo apply -> verificación -> rollback fue validado sobre una copia de Wazuh 4.14.7.
-- El rollback restauró exactamente el estado inicial de la copia de prueba.
+- Los 9 parches son aplicables sobre una base limpia Wazuh 4.14.7.
+- Los 7 archivos adicionales se copian correctamente.
+- Ciclo limpio 9+7 validado sobre copia desechable de Wazuh 4.14.7.
+- Ciclo mixto 8+6 -> 9+7 validado.
+- El precheck distingue patches aplicables, ya aplicados y conflictivos.
+- El apply omite patches y archivos ya presentes.
+- El rollback restaura exactamente el estado previo.
+- 0 archivos .rej en las pruebas.
+- El backend ENS fue compilado e instalado en el laboratorio Wazuh4.
+- /ens/configuration está registrado y responde 401 sin autenticación en lugar de 404.
 
 Validación funcional pendiente:
-La integración backend completa debe compilarse, instalarse y validarse en el laboratorio Wazuh4 antes de considerar cerrado el despliegue funcional sobre Wazuh 4.14.7.
+- Validar en Wazuh4 la corrección de la pestaña Controles con la integración 9+7.
+- Diagnosticar y corregir la pestaña Eventos.
+- Completar validación de persistencia e histórico de configuración.
 
 Compatibilidad futura:
-La compatibilidad con nuevas versiones de Wazuh no debe asumirse automáticamente. Debe ejecutarse el precheck y realizarse una validación específica para cada versión.
+La compatibilidad con nuevas versiones de Wazuh no debe asumirse automáticamente.
+Debe ejecutarse el precheck y realizarse una validación específica para cada versión.

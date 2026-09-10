@@ -20,6 +20,7 @@ BASE_FILES=(
   "public/components/common/data-source/pattern/alerts/index.ts"
   "public/components/common/modules/modules-defaults.tsx"
   "public/components/common/welcome/components/requirement_vis/lib/get_requirement_alerts.ts"
+  "public/components/overview/compliance-table/compliance-table.tsx"
   "public/components/overview/index.ts"
   "public/utils/applications.ts"
   "server/routes/index.ts"
@@ -27,16 +28,20 @@ BASE_FILES=(
 )
 
 echo "===== RESTAURAR ARCHIVOS BASE ====="
+
 for REL in "${BASE_FILES[@]}"; do
     if [ ! -f "$BACKUP/$REL" ]; then
         echo "ERROR: falta en backup $REL"
         exit 4
     fi
+
+    mkdir -p "$TARGET/$(dirname "$REL")"
     cp -a "$BACKUP/$REL" "$TARGET/$REL"
     echo "RESTAURADO $REL"
 done
 
 echo "===== RESTAURAR FICHEROS ENS EXTERNOS ====="
+
 while IFS= read -r REL; do
     if [ -f "$BACKUP/$REL" ]; then
         mkdir -p "$TARGET/$(dirname "$REL")"
@@ -46,10 +51,15 @@ while IFS= read -r REL; do
         rm -f "$TARGET/$REL"
         echo "ELIMINADO $REL"
     fi
-done < <(cd "$ROOT/files" && find . -type f -printf "%P\n" | sort)
+done < <(
+    cd "$ROOT/files" &&
+    find . -type f -printf "%P\n" | sort
+)
 
 echo "===== VERIFICACION ====="
+
 ERROR=0
+
 for REL in "${BASE_FILES[@]}"; do
     if cmp -s "$BACKUP/$REL" "$TARGET/$REL"; then
         echo "BASE_OK $REL"
@@ -58,6 +68,27 @@ for REL in "${BASE_FILES[@]}"; do
         ERROR=$((ERROR + 1))
     fi
 done
+
+while IFS= read -r REL; do
+    if [ -f "$BACKUP/$REL" ]; then
+        if cmp -s "$BACKUP/$REL" "$TARGET/$REL"; then
+            echo "EXTERNO_RESTAURADO_OK $REL"
+        else
+            echo "EXTERNO_RESTAURADO_ERROR $REL"
+            ERROR=$((ERROR + 1))
+        fi
+    else
+        if [ ! -e "$TARGET/$REL" ]; then
+            echo "EXTERNO_ELIMINADO_OK $REL"
+        else
+            echo "EXTERNO_ELIMINADO_ERROR $REL"
+            ERROR=$((ERROR + 1))
+        fi
+    fi
+done < <(
+    cd "$ROOT/files" &&
+    find . -type f -printf "%P\n" | sort
+)
 
 if [ "$ERROR" -ne 0 ]; then
     echo "RESULTADO=ROLLBACK_ERROR"

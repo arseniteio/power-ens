@@ -8,11 +8,12 @@ El núcleo funcional de ENSFácil se encuentra en `dashboard/ens`.
 
 La integración adicional está formada por:
 
-- 8 parches sobre archivos existentes del plugin oficial de Wazuh.
-- 6 archivos adicionales necesarios para completar la integración frontend y backend.
+- 9 parches sobre archivos existentes del plugin oficial de Wazuh.
+- 7 archivos adicionales necesarios para completar la integración frontend y backend.
 
-Los 6 archivos adicionales corresponden a:
+Los 7 archivos adicionales corresponden a:
 
+- 1 catálogo de requisitos ENS para la vista de cumplimiento.
 - 2 archivos TypeScript del datasource ENS.
 - 1 recurso gráfico con el logotipo ENS.
 - 1 ruta backend para la configuración ENS.
@@ -38,13 +39,13 @@ La compatibilidad con otras versiones no debe asumirse. Debe ejecutarse el prech
 
 Sobre una copia limpia de Wazuh 4.14.7 se validó el ciclo completo de integración:
 
-- 8 parches aplicados correctamente.
-- 6 archivos adicionales copiados correctamente.
+- 9 parches aplicados correctamente.
+- 7 archivos adicionales copiados correctamente.
 - 0 archivos `.rej`.
 - rollback completado correctamente.
 - estado final idéntico a la copia inicial.
 
-La validación funcional completa en el laboratorio Wazuh4 sigue pendiente hasta comprobar el backend `/ens/configuration`.
+El backend `/ens/configuration` ya fue compilado, instalado y registrado en Wazuh4. Queda pendiente validar funcionalmente la corrección de Controles con la integración 9+7, diagnosticar Eventos y completar las pruebas de persistencia e histórico.
 
 ## Scripts
 
