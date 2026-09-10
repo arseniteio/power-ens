@@ -1,4 +1,5 @@
 # Instalación completa de ENSFácil desde cero
+[English](01-installation-from-scratch.en.md)
 
 [[_TOC_]]
 

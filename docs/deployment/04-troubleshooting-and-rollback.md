@@ -1,4 +1,5 @@
 # Diagnóstico y rollback de ENSFácil
+[English](04-troubleshooting-and-rollback.en.md)
 
 [[_TOC_]]
 
