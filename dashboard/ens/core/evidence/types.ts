@@ -33,7 +33,7 @@ export interface ENSEvidenceQualityRequirements {
 // Hay siete y no una por evidencia porque cada una responde a una pregunta de
 // auditoría distinta; dos que respondieran a la misma pregunta serían el
 // evaluador por control con otro nombre. El razonamiento completo, evidencia a
-// evidencia, está en `docs/PRIMITIVAS_DE_JUICIO.md`.
+// evidencia, está en la documentación interna de desarrollo.
 //
 // Contra una LISTA de referencia:
 //

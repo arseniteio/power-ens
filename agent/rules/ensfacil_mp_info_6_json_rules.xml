@@ -428,7 +428,7 @@
        regla para un estado que ningun emisor produce es una regla muerta.
 
        EL ID SE SALE DE 106600-106722, que es lo que registra la tabla de
-       CLAUDE.md. No colisiona con nada: el rango de mp.info.6 llega hasta
+       rangos del README. No colisiona con nada: el rango de mp.info.6 llega hasta
        106799 y op.acc.1 empieza en 106800. Se prefiere continuar la banda de
        `score_snapshot` (106720-106722) a meterla en 106714-106719, que es el
        vecindario de `control_state`: la tabla se actualiza, un id fuera de su

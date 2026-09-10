@@ -11,7 +11,7 @@
 // Y ES DESTRUCTIVO SOBRE DATOS DEL CLIENTE. Esta casa ya se quemó con esto: el
 // 30/07 una segunda siembra de `inject-control.py` sustituyó el bloque entero y
 // borró la configuración de op.acc.2 —de 83 % a 17 %—. Avisaba por pantalla y
-// no bastó. La lección quedó escrita en CLAUDE.md: «cuando una operación
+// no bastó. La lección: «cuando una operación
 // destruye datos del cliente, el defecto tiene que ser el seguro». Aquí eso
 // significa dos cosas:
 //

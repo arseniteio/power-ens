@@ -6,8 +6,8 @@
  * POR QUÉ EXISTE ESTE FICHERO. Un borrado destruye datos del cliente, y esta
  * casa ya se quemó con eso: el 30/07 una segunda siembra de
  * `inject-control.py` sustituyó el bloque entero y borró la configuración de
- * op.acc.2 —de 83 % a 17 %—. Avisaba por pantalla y no bastó. La lección quedó
- * en CLAUDE.md: «cuando una operación destruye datos del cliente, el defecto
+ * op.acc.2 —de 83 % a 17 %—. Avisaba por pantalla y no bastó. La lección:
+ * «cuando una operación destruye datos del cliente, el defecto
  * tiene que ser el seguro».
  *
  * Así que aquí se prueban las dos mitades:
