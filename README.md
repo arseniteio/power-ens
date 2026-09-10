@@ -53,7 +53,7 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 
 Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
 
-Cada repositorio de control incluye sus instrucciones específicas de instalación y validación en `docs/install.md`, y en `docs/compliance.md` qué hay que declarar en el control y cómo se comprueba cada evidencia.
+Cada repositorio de control incluye sus guías en `docs/deployment/`: la instalación en `01-installation.md`, lo que hay que declarar en el control y cómo se comprueba cada evidencia en `02-compliance.md`, y la desinstalación y resolución de problemas en `03-uninstall-and-troubleshooting.md`.
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.

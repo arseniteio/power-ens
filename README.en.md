@@ -53,7 +53,7 @@ This `README.md` is the entry point of ENSFácil. Choose the path that matches y
 
 Once ENSFácil is installed following the guides above, agents must deploy the runbooks of the controls that apply to each system.
 
-Each control repository includes its own installation and validation instructions in `docs/install.md`, and in `docs/compliance.md` what must be declared for the control and how each piece of evidence is checked.
+Each control repository includes its guides in `docs/deployment/`: installation in `01-installation.md`, what must be declared for the control and how each piece of evidence is checked in `02-compliance.md`, and uninstallation and troubleshooting in `03-uninstall-and-troubleshooting.md`.
 
 > [!important]
 > The compliance policy is declared on the ENSFácil Configuration screen. Empty parameters are decisions not yet declared and must not be read as default values.
