@@ -18,6 +18,7 @@ fi
 BASE_FILES=(
   "common/constants.ts"
   "public/components/common/data-source/pattern/alerts/index.ts"
+  "public/components/common/data-grid/use-data-grid-columns.ts"
   "public/components/common/modules/modules-defaults.tsx"
   "public/components/common/welcome/components/requirement_vis/lib/get_requirement_alerts.ts"
   "public/components/overview/compliance-table/compliance-table.tsx"
@@ -56,9 +57,36 @@ done < <(
     find . -type f -printf "%P\n" | sort
 )
 
-echo "===== VERIFICACION ====="
+echo "===== ELIMINAR DIRECTORIOS CREADOS POR APPLY ====="
 
 ERROR=0
+CREATED_DIRS="$BACKUP/.ensfacil-created-dirs"
+
+if [ -f "$CREATED_DIRS" ]; then
+    while IFS= read -r REL; do
+        [ -n "$REL" ] || continue
+
+        if [ ! -d "$TARGET/$REL" ]; then
+            echo "DIRECTORIO_AUSENTE_OK $REL"
+            continue
+        fi
+
+        if rmdir "$TARGET/$REL" 2>/dev/null; then
+            echo "DIRECTORIO_ELIMINADO $REL"
+        else
+            echo "DIRECTORIO_NO_VACIO $REL"
+            ERROR=$((ERROR + 1))
+        fi
+    done < <(
+        awk -F/ '{print NF "\t" $0}' "$CREATED_DIRS" |
+        sort -rn -k1,1 |
+        cut -f2-
+    )
+else
+    echo "DIRECTORIOS_CREADOS_MANIFEST=NO_PRESENTE"
+fi
+
+echo "===== VERIFICACION ====="
 
 for REL in "${BASE_FILES[@]}"; do
     if cmp -s "$BACKUP/$REL" "$TARGET/$REL"; then

@@ -6,7 +6,7 @@ OpenSearch Dashboards: 2.19.5
 Objetivo de validación actual: Wazuh 4.14.7
 
 Integración versionada:
-- 9 parches sobre archivos existentes del plugin oficial.
+- 10 parches sobre archivos existentes del plugin oficial.
 - 7 archivos adicionales.
 - Núcleo ENSFácil ubicado en dashboard/ens.
 
@@ -36,10 +36,15 @@ Validaciones realizadas:
 - El backend ENS fue compilado e instalado en el laboratorio Wazuh4.
 - /ens/configuration está registrado y responde 401 sin autenticación en lugar de 404.
 
-Validación funcional pendiente:
-- Validar en Wazuh4 la corrección de la pestaña Controles con la integración 9+7.
-- Diagnosticar y corregir la pestaña Eventos.
-- Completar validación de persistencia e histórico de configuración.
+Validación funcional:
+- Pestaña Controles validada correctamente en Wazuh4.
+- Pestaña Eventos validada correctamente en una instalación sin alertas ENS.
+- Regresión validada en Threat Hunting > Events con carga normal de resultados.
+- El décimo parche evita renderizar columnas visibles ausentes del index pattern.
+- Ciclo completo 10+7 validado sobre una copia limpia de Wazuh 4.14.7: precheck, apply, verificación, rollback y comparación exacta contra baseline.
+- Actualización 9+7 a 10+7 validada sobre una copia desechable: se aplica únicamente la diferencia necesaria y el rollback restaura exactamente el estado 9+7.
+- Los ciclos limpio y de actualización finalizaron sin rejects ni conflictos.
+- Pendiente completar la validación de persistencia e histórico de configuración.
 
 Compatibilidad futura:
 La compatibilidad con nuevas versiones de Wazuh no debe asumirse automáticamente.

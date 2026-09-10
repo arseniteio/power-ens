@@ -25,6 +25,7 @@ mkdir -p "$BACKUP"
 BASE_FILES=(
   "common/constants.ts"
   "public/components/common/data-source/pattern/alerts/index.ts"
+  "public/components/common/data-grid/use-data-grid-columns.ts"
   "public/components/common/modules/modules-defaults.tsx"
   "public/components/common/welcome/components/requirement_vis/lib/get_requirement_alerts.ts"
   "public/components/overview/compliance-table/compliance-table.tsx"
@@ -57,6 +58,9 @@ done < <(
     cd "$ROOT/files" &&
     find . -type f -printf "%P\n" | sort
 )
+
+CREATED_DIRS="$BACKUP/.ensfacil-created-dirs"
+: > "$CREATED_DIRS"
 
 echo "BACKUP=$BACKUP"
 
@@ -103,6 +107,22 @@ while IFS= read -r REL; do
         exit 7
     fi
 
+    PARENT_REL="$(dirname "$REL")"
+
+    while [ "$PARENT_REL" != "." ] && [ "$PARENT_REL" != "/" ]; do
+        if [ ! -d "$TARGET/$PARENT_REL" ]; then
+            printf '%s\n' "$PARENT_REL" >> "$CREATED_DIRS"
+        fi
+
+        NEXT_PARENT="$(dirname "$PARENT_REL")"
+
+        if [ "$NEXT_PARENT" = "$PARENT_REL" ]; then
+            break
+        fi
+
+        PARENT_REL="$NEXT_PARENT"
+    done
+
     mkdir -p "$TARGET/$(dirname "$REL")"
     cp -a "$ROOT/files/$REL" "$TARGET/$REL"
     echo "COPIA_OK $REL"
@@ -111,6 +131,12 @@ done < <(
     cd "$ROOT/files" &&
     find . -type f -printf "%P\n" | sort
 )
+
+sort -u -o "$CREATED_DIRS" "$CREATED_DIRS"
+
+echo "===== DIRECTORIOS CREADOS ====="
+cat "$CREATED_DIRS"
+echo "DIRECTORIOS_CREADOS=$(wc -l < "$CREATED_DIRS")"
 
 echo "===== VERIFICACION ====="
 

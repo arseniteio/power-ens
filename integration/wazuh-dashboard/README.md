@@ -8,7 +8,7 @@ El núcleo funcional de ENSFácil se encuentra en `dashboard/ens`.
 
 La integración adicional está formada por:
 
-- 9 parches sobre archivos existentes del plugin oficial de Wazuh.
+- 10 parches sobre archivos existentes del plugin oficial de Wazuh.
 - 7 archivos adicionales necesarios para completar la integración frontend y backend.
 
 Los 7 archivos adicionales corresponden a:
@@ -45,7 +45,7 @@ Sobre una copia limpia de Wazuh 4.14.7 se validó el ciclo completo de integraci
 - rollback completado correctamente.
 - estado final idéntico a la copia inicial.
 
-El backend `/ens/configuration` ya fue compilado, instalado y registrado en Wazuh4. Queda pendiente validar funcionalmente la corrección de Controles con la integración 9+7, diagnosticar Eventos y completar las pruebas de persistencia e histórico.
+El backend `/ens/configuration` fue compilado, instalado y registrado en Wazuh4. Las pestañas Controles y Eventos fueron validadas funcionalmente. El décimo parche evita que el Data Grid intente renderizar columnas ENS todavía ausentes del index pattern en una instalación nueva. También se validó Threat Hunting > Events como prueba de regresión. El ciclo completo 10+7 ya fue validado sobre una copia limpia de Wazuh 4.14.7, incluyendo precheck, aplicación, verificación, rollback y comparación exacta contra el baseline. También se validó la actualización desde el estado 9+7 al 10+7 y su rollback exacto al estado anterior. Ambos ciclos finalizaron sin rejects ni conflictos. Queda pendiente completar las pruebas de persistencia e histórico de configuración.
 
 ## Scripts
 
