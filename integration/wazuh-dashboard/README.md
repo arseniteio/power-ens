@@ -46,17 +46,7 @@ La persistencia utiliza el índice `wazuh-ens-configuration` y el documento acti
 
 ## Validación de la integración
 
-Sobre una copia limpia de Wazuh 4.14.7 se validó el ciclo completo de integración:
-
-| Resultado |
-|---|
-| 9 parches aplicados correctamente. |
-| 7 archivos adicionales copiados correctamente. |
-| 0 archivos `.rej`. |
-| rollback completado correctamente. |
-| estado final idéntico a la copia inicial. |
-
-El backend `/ens/configuration` fue compilado, instalado y registrado en Wazuh4. Las pestañas Controles y Eventos fueron validadas funcionalmente. El décimo parche evita que el Data Grid intente renderizar columnas ENS todavía ausentes del index pattern en una instalación nueva. También se validó Threat Hunting > Events como prueba de regresión. El ciclo completo 10+7 ya fue validado sobre una copia limpia de Wazuh 4.14.7, incluyendo precheck, aplicación, verificación, rollback y comparación exacta contra el baseline. También se validó la actualización desde el estado 9+7 al 10+7 y su rollback exacto al estado anterior. Ambos ciclos finalizaron sin rejects ni conflictos. Queda pendiente completar las pruebas de persistencia e histórico de configuración.
+Sobre una copia limpia de Wazuh 4.14.7 se valida el ciclo completo de integración: precheck, aplicación, verificación, rollback y comparación exacta con el estado inicial, sin ficheros `.rej` ni conflictos. También se valida la actualización desde una integración anterior y su rollback exacto.
 
 ## Scripts
 
@@ -74,7 +64,3 @@ Los scripts actúan sobre la ruta `plugins/main` indicada expresamente como argu
 > No modifican por sí mismos Wazuh Manager, Wazuh Indexer, reglas ENS ni configuración de agentes.
 
 La instalación y reinicio de Wazuh Dashboard se realizan posteriormente como una fase independiente.
-
-## Núcleo ENS
-
-La comparación con el servidor funcional mostró que las únicas diferencias dentro de `dashboard/ens` corresponden a dos comentarios de documentación y un archivo `.pyc` generado automáticamente. No se detectaron diferencias funcionales de código que deban incorporarse.
