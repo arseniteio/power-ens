@@ -117,6 +117,9 @@ const asEstado = (value: unknown): ENSReportFieldStatus =>
 const hallazgoDe = (field: ENSReportField): string =>
   (field.details || []).filter(Boolean).join(' · ');
 
+const esPuntuacion = (field: ENSReportField): boolean =>
+  field.id.endsWith('.puntuacion');
+
 const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
   campo: `${field.id} · ${field.title}`,
 
@@ -133,9 +136,15 @@ const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
   // detrás de la configuración que ya tiene su propia tabla. Cuando no hay
   // hallazgo que contar —un campo que conforma sin desviaciones— el contraste
   // pasa a ser el valor, porque entonces sí es lo único que hay que decir.
-  valor: hallazgoDe(field) || field.value || '—',
+  // La puntuación es la excepción: su número es el resultado y sus detalles
+  // (nivel evaluado, parámetros) son el contexto.
+  valor: esPuntuacion(field)
+    ? field.value || '—'
+    : hallazgoDe(field) || field.value || '—',
 
-  contexto: hallazgoDe(field) ? field.value || '' : '',
+  contexto: esPuntuacion(field)
+    ? hallazgoDe(field)
+    : hallazgoDe(field) ? field.value || '' : '',
 
   evidencia:
     (field.evidenceIds || []).length > 0
