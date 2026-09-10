@@ -26,181 +26,47 @@ tipo de máquina: Linux, servidor de directorio LDAP y Windows.
 
 ---
 
-# Desplegar
+# Instalación y despliegue
 
-Intervienen dos tipos de máquina: el manager, donde están Wazuh y el dashboard,
-y cada agente auditado.
+Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que corresponda a tu entorno.
 
-Dos recomendaciones de método. Clona y actualiza los repositorios con tu
-usuario, no con `sudo`: si root se queda con el `.git`, las actualizaciones
-posteriores fallan. Y comprueba el resultado de cada paso antes de seguir, para
-que un fallo se detecte donde ocurre.
+## ¿Qué necesitas hacer?
 
-## 1 · Acceso a los repositorios
+### 1. Instalar desde cero
+[Instalación completa desde cero](docs/despliegue/01-INSTALACION-DESDE-CERO.md)
 
-Una vez por máquina:
+### 2. Actualizar un entorno existente
+[Actualización de un entorno existente](docs/despliegue/02-ACTUALIZACION-ENTORNO-EXISTENTE.md)
 
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/gitlab-qs -N "" -C "$(whoami)@$(hostname)"
-cat ~/.ssh/gitlab-qs.pub
-```
+### 3. Comprobar compatibilidad con otra versión de Wazuh
+[Compatibilidad de versiones](docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md)
 
-Registra esa clave pública en la cuenta de GitLab que tenga acceso a los
-repositorios, y declárala en `~/.ssh/config`:
+### 4. Diagnosticar un problema o volver atrás
+[Diagnóstico y rollback](docs/despliegue/04-DIAGNOSTICO-Y-ROLLBACK.md)
 
-```bash
-cat >> ~/.ssh/config <<'EOF'
+El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
 
-Host gitlab.com
-  User git
-  IdentityFile ~/.ssh/gitlab-qs
-  IdentitiesOnly yes
-EOF
-chmod 600 ~/.ssh/config
+---
 
-ssh -T git@gitlab.com
-```
+# Operación después del despliegue
 
-`IdentitiesOnly yes` es necesario: sin esa opción el agente SSH puede ofrecer
-otra clave y el error resultante indica que el proyecto no existe, cuando el
-problema es la identidad.
+Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
 
-## 2 · Wazuh Manager
+Cada repositorio de control incluye sus instrucciones específicas de instalación y validación.
+
+La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
+
+Documentación operativa:
+
+- [Configuración y cumplimiento de los controles](docs/CUMPLIMIENTO_TOTAL.md)
+- [Cómo se demuestra cada evidencia](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md)
+
+Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
 ```bash
-sudo mkdir -p /opt/ensfacil && sudo chown "$USER" /opt/ensfacil
-git clone git@gitlab.com:quersystem2/Wazuh-ENS.git /opt/ensfacil/repo
-
-cd ~
-BASE=git@gitlab.com:quersystem2/ens-controls-runbook
-git clone $BASE/op.acc.1-identificacion.git
-git clone $BASE/op.acc.2-requisitos-de-acceso.git
-git clone $BASE/op.acc.3-segregacion-de-funciones-y-tareas.git
-git clone $BASE/op.acc.4-proceso-de-gestion-de-derechos-de-acceso.git
-git clone $BASE/mp.info.6-proxmox-backup-runbook.git
+cd /opt/ensfacil/repo
+python3 tests/check-coherencia.py
 ```
-
-### 2.1 · Reglas
-
-```bash
-for r in op.acc.1-identificacion op.acc.2-requisitos-de-acceso \
-         op.acc.3-segregacion-de-funciones-y-tareas \
-         op.acc.4-proceso-de-gestion-de-derechos-de-acceso \
-         mp.info.6-proxmox-backup-runbook; do
-  sudo bash ~/$r/install-manager.sh
-done
-```
-
-Cada instalador verifica con `wazuh-logtest` que sus reglas disparan antes de
-reiniciar el servicio. Si no hay coincidencia, se detiene y lo indica.
-
-Las reglas son las mismas para Linux, LDAP y Windows, así que basta con
-instalarlas una vez por manager.
-
-### 2.2 · Plugin
-
-Procedimiento completo, con comprobaciones y vuelta atrás, en
-[docs/DESPLEGAR_EL_PLUGIN.md](docs/DESPLEGAR_EL_PLUGIN.md). Resumido:
-
-```bash
-sudo -i                        # sesión de root: node está en su PATH
-DEST=/opt/ensfacil/build/plugins/main/public/components/overview/ens
-rm -rf "$DEST" && cp -r /opt/ensfacil/repo/dashboard/ens "$DEST"
-cp /opt/ensfacil/repo/dashboard/app-router.tsx \
-   /opt/ensfacil/build/plugins/main/public/app-router.tsx
-
-cd /opt/ensfacil/build/plugins/main
-YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
-  --allow-root --opensearch-dashboards-version=2.19.5
-
-systemctl stop wazuh-dashboard
-sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh
-rm -rf /usr/share/wazuh-dashboard/plugins/wazuh /usr/share/wazuh-dashboard/plugins/.plugin.installing
-sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
-  install file:///opt/ensfacil/build/plugins/main/build/wazuh-2.19.5.zip
-systemctl start wazuh-dashboard
-```
-
-Las rutas de borrado son exactas. No uses el comodín `wazuh*`: elimina también
-`wazuhCore` y el dashboard deja de arrancar.
-
-### 2.3 · Sembrar la configuración
-
-Sin este paso, la tarjeta del control no aparece en la pantalla de
-Configuración.
-
-```bash
-cd /opt/ensfacil/repo/config
-export OS_USER=admin
-read -rsp "clave: " OS_PASS && export OS_PASS && echo
-for c in mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
-  python3 inject-control.py "$c" --apply
-done
-```
-
-La operación fusiona: conserva los valores que ya estuvieran declarados, y se
-puede repetir sin riesgo.
-
-## 3 · Agentes
-
-Clona en cada máquina los runbooks de los controles que le apliquen, en la
-variante que corresponda a su sistema.
-
-En Linux y en servidores de directorio:
-
-```bash
-sudo bash ~/op.acc.1-identificacion/install.sh
-```
-
-En Windows, desde PowerShell como Administrador:
-
-```powershell
-.\install.ps1
-```
-
-Los ficheros `.env` que crea el instalador contienen ajustes de observación
-—dónde mirar, qué rango de UID corresponde a personas— con valores válidos para
-cualquier sistema. No es necesario editarlos.
-
-Cada repositorio incluye su propia guía en `docs/Instalar.md`.
-
-## 4 · Declarar la política
-
-Este es el paso que hace que una máquina pase a cumplir. El agente no emite
-veredictos: contrasta lo que observa con lo que la organización declara en la
-pantalla de Configuración. Un parámetro vacío no es un valor por defecto, es una
-decisión sin tomar, y no acredita cumplimiento.
-
-Qué rellenar en cada control, con la evidencia y el requisito que desbloquea:
-[docs/CUMPLIMIENTO_TOTAL.md](docs/CUMPLIMIENTO_TOTAL.md).
-
-Para comprobar qué mira y qué emite cada evidencia:
-[docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md](docs/COMO_SE_DEMUESTRA_CADA_EVIDENCIA.md).
-
-Al final de la pantalla de cada control está la opción de borrar su
-configuración. Pide escribir el identificador del control a mano. Borra los
-valores declarados, no el control: la tarjeta permanece y se puede volver a
-configurar.
-
-## 5 · Comprobar
-
-Una pasada aislada en el agente. El fichero de eventos es un histórico
-acumulado, así que conviene apartarlo antes para leer solo la ejecución nueva:
-
-```bash
-mv /var/log/ensfacil/op_acc_1.json /var/log/ensfacil/op_acc_1.json.antes
-/opt/ensfacil/ens_opacc1_collect.sh
-jq -c 'select(.event=="collector_run")' /var/log/ensfacil/op_acc_1.json
-```
-
-En la pantalla, la comprobación de que el circuito completo funciona es que un
-cambio de parámetro modifique el veredicto sin tocar el servidor: al añadir a
-P-04 una cuenta que se haya autenticado, EV-03 pasa a incumplimiento nombrándola;
-al quitarla, vuelve.
-
-En la vista general, el gráfico de evolución dibuja un punto por día calculado
-por el mismo motor que el panel. El último punto debe coincidir con el índice
-global que aparece arriba.
 
 ---
 
@@ -213,7 +79,7 @@ global que aparece arriba.
 | El instalador se ejecuta pero nada cambia | la actualización del repositorio no llegó; comprobar el hash antes de instalar |
 | Se despliega y sigue viéndose la versión anterior | caché del navegador; abrir una ventana de incógnito |
 | Un parámetro configurado aparece como no configurado | el agente ejecuta una versión anterior; comparar con `md5sum` la librería instalada y la del repositorio |
-| La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración (paso 2.3) |
+| La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración; revisar la guía de instalación o actualización |
 
 Comprobación de coherencia entre el plugin y los runbooks:
 
@@ -253,8 +119,7 @@ Detalle en [docs/PRIMITIVAS_DE_JUICIO.md](docs/PRIMITIVAS_DE_JUICIO.md).
 
 # Desarrollo
 
-Este repositorio no compila por sí solo: contiene los artefactos fuente que se
-copian dentro del árbol del plugin de Wazuh (paso 2.2).
+Este repositorio contiene el código de ENSFácil y el paquete de integración necesario para incorporarlo a un árbol compatible del plugin oficial de Wazuh Dashboard. El procedimiento reproducible de construcción está documentado en las guías de despliegue anteriores.
 
 ```
 dashboard/ens/     módulo ENS (React + TypeScript)

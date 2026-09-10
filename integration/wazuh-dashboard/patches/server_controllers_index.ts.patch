@@ -1,0 +1,8 @@
+--- a/server/controllers/index.ts
++++ b/server/controllers/index.ts
+@@ -14,3 +14,5 @@
+ export { WazuhReportingCtrl } from './wazuh-reporting';
+ export { WazuhHostsCtrl } from './wazuh-hosts';
+ export * from './wazuh-utils';
++
++export { ENSConfigurationCtrl } from './ens-configuration';
