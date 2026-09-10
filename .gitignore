@@ -27,5 +27,6 @@ __pycache__/
 *.key
 secrets*
 
-# Planes y especificaciones de desarrollo: no son documentacion del producto.
-docs/superpowers/
+# Ficheros locales
+CLAUDE.md
+.claude/
