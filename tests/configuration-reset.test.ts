@@ -1,7 +1,7 @@
 /**
  * Borrar la configuración declarada de un control.
  *
- *     ~/.bun/bin/bun run tests/borrar-configuracion.test.ts
+ *     ~/.bun/bin/bun run tests/configuration-reset.test.ts
  *
  * POR QUÉ EXISTE ESTE FICHERO. Un borrado destruye datos del cliente, y esta
  * casa ya se quemó con eso: el 30/07 una segunda siembra de

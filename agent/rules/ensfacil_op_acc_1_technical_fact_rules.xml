@@ -26,7 +26,7 @@
      contra este: 39 de las 52 reglas que acreditaba para op.acc.1 no existían
      en ningún manager, y nada avisaba —el identificador era numérico, la regla
      existía en el repo y todo parecía correcto—. El nombre nuevo dice lo que
-     hay dentro; `tests/check-coherencia.py` impide que vuelva a pasar.
+     hay dentro; `tests/check-consistency.py` impide que vuelva a pasar.
 
      NUMERACIÓN. Comparte el rango reservado 106800-106899 con el fichero
      desplegado y **no se pueden fusionar**: el 106800 de aquí exige

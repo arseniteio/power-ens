@@ -75,7 +75,7 @@ import { ENSEvidenceDefinition } from './types';
 // 106824 desplegado, que es `authorized_list_check` NO_CUMPLE de EV-07. Existir
 // no basta: el id tiene que significar la misma evidencia en el manager.
 //
-// `tests/check-coherencia.py` comprueba lo primero en cada ejecución.
+// `tests/check-consistency.py` comprueba lo primero en cada ejecución.
 //
 // Tras reconstruir op.acc.1 contra lo desplegado, sus ocho evidencias conservan
 // al menos una regla que las acredita: no hizo falta dejar ninguna vacía. Si

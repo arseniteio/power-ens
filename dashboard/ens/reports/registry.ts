@@ -25,8 +25,8 @@
  * AL AÑADIR UN CONTROL: una entrada aquí, con su `name` (es el título del
  * informe en pantalla y el encabezado del PDF) y su `build`. Si se olvida, no
  * se genera el informe de otro: sale un aviso nombrando al control, y
- * `tests/check-coherencia.py` (comprobación 8) y
- * `tests/informe-por-control.test.ts` fallan.
+ * `tests/check-consistency.py` (comprobación 8) y
+ * `tests/report-by-control.test.ts` fallan.
  *
  * Tipos desde el fichero, nunca desde el barrel `../core`: por ahí vuelve el
  * ciclo transitivo del TDZ de Settings.

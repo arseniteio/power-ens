@@ -199,7 +199,7 @@ PKG=$REPO/integration/wazuh-dashboard
 
 "$PKG/check-integration.sh" "$TARGET"
 cd "$REPO"
-python3 tests/check-coherencia.py
+python3 tests/check-consistency.py
 ```
 
 Wazuh Dashboard debe permanecer `active`, el plugin `wazuh` debe aparecer instalado y `check-integration.sh` debe finalizar con `RESULTADO=COMPATIBLE`.

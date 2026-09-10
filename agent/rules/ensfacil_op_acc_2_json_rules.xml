@@ -33,7 +33,7 @@
        rompe la cadena CUMPLE → evidencia → rule ID → evento crudo en su
        último escalón y nada avisa, porque el identificador es numérico y la
        regla existe en algún XML del repo. Lo comprueba
-       Wazuh-ENS/tests/check-coherencia.py.
+       Wazuh-ENS/tests/check-consistency.py.
        ================================================================ -->
 
   <rule id="106900" level="0">

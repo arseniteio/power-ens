@@ -1,7 +1,7 @@
 /**
  * La correlación de op.acc.3: funciones incompatibles en la misma cuenta.
  *
- *     ~/.bun/bin/bun run tests/segregacion-funciones.test.ts
+ *     ~/.bun/bin/bun run tests/segregation-of-duties.test.ts
  *
  * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
  * Hace falta `bun` (probado con 1.3.14).

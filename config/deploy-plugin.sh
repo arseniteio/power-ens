@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 ###############################################################################
-# desplegar-plugin.sh · instala el plugin Y hace que el navegador lo vea
+# deploy-plugin.sh · instala el plugin Y hace que el navegador lo vea
 #
-#   sudo bash desplegar-plugin.sh /ruta/al/wazuh-2.19.5.zip
+#   sudo bash deploy-plugin.sh /ruta/al/wazuh-2.19.5.zip
 #
 # POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
 #
@@ -32,7 +32,7 @@ ZIP="${1:-}"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
 if [ -z "$ZIP" ] || [ ! -f "$ZIP" ]; then
-  echo "uso: sudo bash desplegar-plugin.sh /ruta/al/wazuh-2.19.5.zip" >&2
+  echo "uso: sudo bash deploy-plugin.sh /ruta/al/wazuh-2.19.5.zip" >&2
   exit 1
 fi
 

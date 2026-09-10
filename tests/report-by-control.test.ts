@@ -1,9 +1,9 @@
 /**
  * El registro de modelos de informe por control.
  *
- *     ~/.bun/bin/bun run tests/informe-por-control.test.ts
+ *     ~/.bun/bin/bun run tests/report-by-control.test.ts
  *
- * Mismo montaje que `filtro-prefijo.test.ts`: TypeScript suelto con su propio
+ * Mismo montaje que `prefix-filter.test.ts`: TypeScript suelto con su propio
  * comprobador, sin `package.json` ni `tsconfig`. Hace falta un runtime que
  * ejecute TypeScript resolviendo imports sin extensión (`bun`, probado con
  * 1.3.14).
@@ -37,8 +37,8 @@ import {
   getENSReportModelDefinition,
   getRegisteredENSReportControls,
   listENSControlsWithoutReportModel,
-} from '../dashboard/ens/informes/registry';
-import type { ENSReportModelDefinition } from '../dashboard/ens/informes/registry';
+} from '../dashboard/ens/reports/registry';
+import type { ENSReportModelDefinition } from '../dashboard/ens/reports/registry';
 import { ENSControls } from '../dashboard/ens/data';
 
 // El repo no tiene @types/node y no va a tenerlos.

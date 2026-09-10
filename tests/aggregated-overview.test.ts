@@ -1,9 +1,9 @@
 /**
  * La vista general escala a decenas de agentes sin dejar de leerse.
  *
- *     ~/.bun/bin/bun run tests/vista-general-agregada.test.ts
+ *     ~/.bun/bin/bun run tests/aggregated-overview.test.ts
  *
- * Mismo montaje que `hueco-de-medida.test.ts` y `evidence-judgment.test.ts`:
+ * Mismo montaje que `measurement-gap.test.ts` y `evidence-judgment.test.ts`:
  * TypeScript suelto con su propio comprobador, sin `package.json` ni `tsconfig`.
  * Hace falta un runtime que ejecute TypeScript resolviendo imports sin extensión
  * (`bun`, probado con 1.3.14).

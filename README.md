@@ -37,10 +37,10 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 
 | | Necesidad | Guía |
 |---|---|---|
-| 1 | Instalar desde cero | [Instalación completa desde cero](docs/despliegue/01-INSTALACION-DESDE-CERO.md) |
-| 2 | Actualizar un entorno existente | [Actualización de un entorno existente](docs/despliegue/02-ACTUALIZACION-ENTORNO-EXISTENTE.md) |
-| 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md) |
-| 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/despliegue/04-DIAGNOSTICO-Y-ROLLBACK.md) |
+| 1 | Instalar desde cero | [Instalación completa desde cero](docs/deployment/01-installation-from-scratch.md) |
+| 2 | Actualizar un entorno existente | [Actualización de un entorno existente](docs/deployment/02-updating-an-existing-environment.md) |
+| 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/deployment/03-version-compatibility.md) |
+| 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
@@ -67,7 +67,7 @@ Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
 ```bash
 cd /opt/ensfacil/repo
-python3 tests/check-coherencia.py
+python3 tests/check-consistency.py
 ```
 
 ---
@@ -86,7 +86,7 @@ python3 tests/check-coherencia.py
 Comprobación de coherencia entre el plugin y los runbooks:
 
 ```bash
-cd /opt/ensfacil/repo && python3 tests/check-coherencia.py
+cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
 
 Verifica que toda regla acreditada por el plugin está desplegada en el manager,

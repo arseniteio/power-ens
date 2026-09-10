@@ -2,7 +2,7 @@
  * Atestación documental: acreditar por documento lo que ninguna telemetría
  * puede demostrar.
  *
- *     ~/.bun/bin/bun run tests/atestacion-documental.test.ts
+ *     ~/.bun/bin/bun run tests/documentary-attestation.test.ts
  *
  * POR QUÉ EXISTE ESTE FICHERO. `op.acc.1.5` (eIDAS) y `op.acc.1.r1.1`
  * (singularizar a la persona) no son requisitos técnicos y no lo van a ser: un
@@ -357,7 +357,7 @@ bloque('5. Con los dos documentales acreditados, op.acc.1 llega al 100 %');
 bloque('6. El ejemplo que se entrega no acredita nada');
 
 {
-  // Lo destaparon `hueco-de-medida` y `vista-general-agregada`, que rellenan
+  // Lo destaparon `measurement-gap` y `aggregated-overview`, que rellenan
   // cada parámetro con su propio `example`: con un ejemplo utilizable,
   // op.acc.1.5 salía acreditado en una configuración de prueba, y en
   // producción bastaría con copiar la fila tal cual para tener un requisito en

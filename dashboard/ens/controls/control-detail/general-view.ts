@@ -9,7 +9,7 @@
 // esconder.
 //
 // Vive fuera del `.tsx` a propósito: es lógica pura, sin JSX, y así se puede
-// comprobar de verdad (`tests/vista-general-agregada.test.ts`) sin arrastrar
+// comprobar de verdad (`tests/aggregated-overview.test.ts`) sin arrastrar
 // `react` ni `@elastic/eui`, que solo existen en el árbol del plugin `main`.
 //
 // Tipos desde el fichero, nunca desde el barrel `../../core`: ahí vive el ciclo

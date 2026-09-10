@@ -974,7 +974,7 @@ const ControlSinModeloDeInforme = ({
     <EuiText size='xs'>
       <p>
         Se evalúa en Controles. Alta en{' '}
-        <code>dashboard/ens/informes/registry.ts</code>.
+        <code>dashboard/ens/reports/registry.ts</code>.
       </p>
     </EuiText>
   </EuiCallOut>

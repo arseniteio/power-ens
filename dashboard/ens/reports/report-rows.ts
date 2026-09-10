@@ -27,7 +27,7 @@
  * POR QUÉ VIVE APARTE DE `index.tsx`. Porque así se puede probar. `index.tsx`
  * arrastra React, EUI, pdfMake y los hooks de Wazuh —ninguno existe en este
  * repo—, así que nada de lo que hubiera dentro podía ejercitarse. Aquí no hay
- * nada de eso: entran datos y salen datos, y `tests/columna-evidencia.test.ts`
+ * nada de eso: entran datos y salen datos, y `tests/evidence-column.test.ts`
  * lo recorre con los tres controles.
  *
  * Tipos desde `./registry`, que es un fichero del propio módulo. Nunca desde el

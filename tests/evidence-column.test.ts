@@ -1,9 +1,9 @@
 /**
  * La columna «Evidencia» del informe dice qué sostiene cada fila.
  *
- *     ~/.bun/bin/bun run tests/columna-evidencia.test.ts
+ *     ~/.bun/bin/bun run tests/evidence-column.test.ts
  *
- * Mismo montaje que `informe-por-control.test.ts`: TypeScript suelto con su
+ * Mismo montaje que `report-by-control.test.ts`: TypeScript suelto con su
  * propio comprobador, sin `package.json` ni `tsconfig`. Hace falta un runtime
  * que ejecute TypeScript resolviendo imports sin extensión (`bun`, probado con
  * 1.3.14).
@@ -31,11 +31,11 @@ import {
   ensReportStatusPdfColor,
   ENS_REPORT_EVIDENCE_FIELD,
   ENS_REPORT_SIN_EVIDENCIA,
-} from '../dashboard/ens/informes/report-rows';
-import type { ENSReportRow } from '../dashboard/ens/informes/report-rows';
-import type { ENSReportModel } from '../dashboard/ens/informes/registry';
-import { buildENSReportModel } from '../dashboard/ens/informes/registry';
-import { buildOpAcc1ReportModel } from '../dashboard/ens/informes/op-acc-1-report-model';
+} from '../dashboard/ens/reports/report-rows';
+import type { ENSReportRow } from '../dashboard/ens/reports/report-rows';
+import type { ENSReportModel } from '../dashboard/ens/reports/registry';
+import { buildENSReportModel } from '../dashboard/ens/reports/registry';
+import { buildOpAcc1ReportModel } from '../dashboard/ens/reports/op-acc-1-report-model';
 
 import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
 import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';

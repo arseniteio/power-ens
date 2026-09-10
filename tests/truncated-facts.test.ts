@@ -1,7 +1,7 @@
 /**
  * Cuando el motor no ha visto todos los hechos, hay que decirlo.
  *
- *     npx tsx tests/hechos-recortados.test.ts
+ *     npx tsx tests/truncated-facts.test.ts
  *
  * POR QUÉ EXISTE. El 07/08/2026 el usuario dijo «no lo entiendo, no parece
  * real, tocas algo y en unos sitios funciona y en otros no». Tenía razón y la

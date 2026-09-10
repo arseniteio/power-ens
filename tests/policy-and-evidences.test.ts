@@ -1,7 +1,7 @@
 /**
  * La policy y las evidencias tienen que decir lo mismo.
  *
- *     npx tsx tests/policy-y-evidencias.test.ts
+ *     npx tsx tests/policy-and-evidences.test.ts
  *
  * POR QUÉ EXISTE. op.acc.3 se veía así en producción el 07/08/2026:
  *

@@ -2,7 +2,7 @@
      La copia desplegable vive en
      op.acc.4-proceso-de-gestion-de-derechos-de-acceso/manager/ensfacil_op_acc_4_json_rules.xml
      Si se modifica una, hay que sincronizar la otra: lo comprueba
-     Wazuh-ENS/tests/check-coherencia.py. -->
+     Wazuh-ENS/tests/check-consistency.py. -->
 <group name="ensfacil,op_acc_4,score,">
 
   <!-- ================================================================

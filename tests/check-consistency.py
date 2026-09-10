@@ -5,7 +5,7 @@ Verifica lo que ninguna prueba unitaria puede ver, porque vive en el hueco entre
 cuatro repositorios: que lo que el plugin le promete al auditor exista de verdad
 en lo que se despliega en el manager.
 
-    python3 tests/check-coherencia.py
+    python3 tests/check-consistency.py
 
 Devuelve 0 si todo cuadra, 1 si hay algún fallo. Sin dependencias.
 
@@ -420,7 +420,7 @@ for carpeta in ("catalog", "data"):
     for control, fichero in controles_declarados(carpeta).items():
         declarados.setdefault(control, fichero)
 
-registry_ts = lee(os.path.join(PLUGIN, "dashboard/ens/informes/registry.ts"))
+registry_ts = lee(os.path.join(PLUGIN, "dashboard/ens/reports/registry.ts"))
 m = re.search(
     r"reportModelDefinitions:\s*ENSReportModelDefinition\[\]\s*=\s*\[(.*?)\n\];",
     registry_ts,
@@ -438,7 +438,7 @@ elif not con_modelo:
     falla(
         "no se ha podido leer del fuente qué controles tienen modelo de informe",
         "revisar `reportModelDefinitions` en"
-        " dashboard/ens/informes/registry.ts",
+        " dashboard/ens/reports/registry.ts",
     )
 else:
     sin_modelo = sorted(set(declarados) - con_modelo)
@@ -446,7 +446,7 @@ else:
         falla(
             "controles declarados SIN modelo de informe",
             "{}: salen en la pestaña Informes y no pueden emitir informe."
-            " Registrar su modelo en dashboard/ens/informes/registry.ts"
+            " Registrar su modelo en dashboard/ens/reports/registry.ts"
             " (declarados en {})".format(
                 ", ".join(sin_modelo),
                 ", ".join(declarados[c] for c in sin_modelo),

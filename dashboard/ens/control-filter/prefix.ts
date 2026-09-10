@@ -23,7 +23,7 @@
 // la lista entera y no hay una función `casa(id, consulta)` pública.
 //
 // Este módulo no importa nada: es lógica pura, comprobable fuera del árbol de
-// Wazuh (`tests/filtro-prefijo.test.ts`).
+// Wazuh (`tests/prefix-filter.test.ts`).
 
 import { ENSPrefixFilterResult } from './types';
 

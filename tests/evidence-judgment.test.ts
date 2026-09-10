@@ -24,7 +24,7 @@ import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-sou
 import { consolidateAgentComplianceResults } from '../dashboard/ens/core/compliance-state/consolidation';
 import { ENSEvidenceCatalog } from '../dashboard/ens/core/evidence/catalog';
 import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { buildOpAcc1ReportModel } from '../dashboard/ens/informes/op-acc-1-report-model';
+import { buildOpAcc1ReportModel } from '../dashboard/ens/reports/op-acc-1-report-model';
 import {
   judgeEvidence,
   parseReferenceList,

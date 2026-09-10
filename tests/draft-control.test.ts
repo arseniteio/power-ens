@@ -1,7 +1,7 @@
 /**
  * Un control en `status: 'DRAFT'` no entra en el índice.
  *
- *     ~/.bun/bin/bun run tests/control-en-borrador.test.ts
+ *     ~/.bun/bin/bun run tests/draft-control.test.ts
  *
  * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador,
  * sin `package.json` ni `tsconfig`. Hace falta `bun` (probado con 1.3.14).
@@ -348,7 +348,7 @@ bloque('6. La trazabilidad no se inventa: cada regla existe en un manager');
 
   // op.acc.4 SÍ tiene recolector desde el 06/08, así que sus ocho evidencias
   // acreditan la regla que las recoge. La comprobación de que esas reglas
-  // existen de verdad en un manager la hace `check-coherencia.py` (1).
+  // existen de verdad en un manager la hace `check-consistency.py` (1).
   const cuatro = nuevas.filter(
     evidencia => evidencia.controlId === 'op.acc.4'
   );

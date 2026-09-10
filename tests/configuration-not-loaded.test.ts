@@ -1,7 +1,7 @@
 /**
  * Un fallo de configuración tiene que VERSE, no quedarse cargando.
  *
- *     npx tsx tests/configuracion-no-carga.test.ts
+ *     npx tsx tests/configuration-not-loaded.test.ts
  *
  * POR QUÉ EXISTE ESTE FICHERO. El 06/08/2026 la pantalla de ENS se quedó en
  * «Cargando configuración y alcance ENS…» para siempre, en producción. La causa

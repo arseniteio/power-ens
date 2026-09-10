@@ -311,7 +311,7 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       // `controlSummary`, que recalcula desde los veredictos— así que no ha
       // mentido a ningún auditor. Es una bomba armada, no un incendio: el día
       // que alguien pinte ese campo, miente. Se desarma donde toca, que es aquí,
-      // y no quitando el campo del tipo: `tests/hueco-de-medida.test.ts` lo
+      // y no quitando el campo del tipo: `tests/measurement-gap.test.ts` lo
       // comprueba a propósito por agente, y ahí el score SÍ es correcto.
       score: scoreByStatus(statusConsolidado),
       // Demostrado solo si lo está en TODAS: basta una máquina sin prueba para

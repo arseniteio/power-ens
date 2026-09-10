@@ -3,7 +3,7 @@
        ../op.acc.1-identificacion/manager/ensfacil_op_acc_1_json_rules.xml
      Es la que instala `install-manager.sh` del runbook, y la que empareja los
      eventos del recolector bash (`lib/opacc1-lib.sh`). Si se modifica una, hay
-     que sincronizar la otra: `tests/check-coherencia.py` (comprobación 2) lo
+     que sincronizar la otra: `tests/check-consistency.py` (comprobación 2) lo
      verifica comparando los rule IDs de las dos.
 
      ESTE fichero es del que sale el `relatedRules` de op.acc.1 en

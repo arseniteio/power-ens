@@ -2,7 +2,7 @@
  * Lo que no se puede demostrar NO CUMPLE — y se sigue distinguiendo de lo que se
  * ha medido y falla.
  *
- *     ~/.bun/bin/bun run tests/hueco-de-medida.test.ts
+ *     ~/.bun/bin/bun run tests/measurement-gap.test.ts
  *
  * Mismo montaje que `evidence-judgment.test.ts`: TypeScript suelto con su propio
  * comprobador, sin `package.json` ni `tsconfig`. Hace falta un runtime que

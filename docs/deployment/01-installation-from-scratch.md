@@ -53,7 +53,7 @@ La combinación utilizada durante la validación inicial de esta guía es:
 
 La matriz de compatibilidad se mantiene en:
 
-[`docs/despliegue/03-COMPATIBILIDAD-DE-VERSIONES.md`](03-COMPATIBILIDAD-DE-VERSIONES.md)
+[`docs/deployment/03-version-compatibility.md`](03-version-compatibility.md)
 
 > [!note]
 > Una nueva versión de Wazuh no debe considerarse compatible automáticamente. Antes de utilizarla deben comprobarse los puntos de integración de ENSFácil, recompilar el plugin y ejecutar las validaciones definidas para el despliegue.

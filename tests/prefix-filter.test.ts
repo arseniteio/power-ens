@@ -1,9 +1,9 @@
 /**
  * El filtro por prefijo de las pestañas Evidencias e Informes.
  *
- *     ~/.bun/bin/bun run tests/filtro-prefijo.test.ts
+ *     ~/.bun/bin/bun run tests/prefix-filter.test.ts
  *
- * Mismo montaje que `evidence-judgment.test.ts` y `hueco-de-medida.test.ts`:
+ * Mismo montaje que `evidence-judgment.test.ts` y `measurement-gap.test.ts`:
  * TypeScript suelto con su propio comprobador, sin `package.json` ni `tsconfig`.
  * Hace falta un runtime que ejecute TypeScript resolviendo imports sin extensión
  * (`bun`, probado con 1.3.14).

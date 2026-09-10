@@ -1,7 +1,7 @@
 /**
  * Una tabla cuya última columna se repite.
  *
- *     npx tsx tests/columna-variadic.test.ts
+ *     npx tsx tests/variadic-column.test.ts
  *
  * POR QUÉ EXISTE ESTE FICHERO. El 06/08/2026 se le declararon columnas a P-03 de
  * op.acc.3 —«Acciones por función»— y el control entero cayó a «configuración

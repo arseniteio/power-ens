@@ -1,7 +1,7 @@
 /**
  * La línea diaria de UN control, la del detalle.
  *
- *     npx tsx tests/evolucion-por-control.test.ts
+ *     npx tsx tests/evolution-by-control.test.ts
  *
  * POR QUÉ EXISTE, y por qué no reutiliza la del panel. La serie del panel
  * promedia TODOS los controles del alcance: en la pantalla de detalle no dice

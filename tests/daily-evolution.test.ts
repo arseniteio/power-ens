@@ -1,10 +1,10 @@
 /**
  * La serie diaria del gráfico de evolución.
  *
- *     ~/.bun/bin/bun run tests/evolucion-diaria.test.ts
+ *     ~/.bun/bin/bun run tests/daily-evolution.test.ts
  *
- * Mismo montaje que sus hermanas (`evidence-judgment`, `hueco-de-medida`,
- * `vista-general-agregada`): TypeScript suelto con su propio comprobador, sin
+ * Mismo montaje que sus hermanas (`evidence-judgment`, `measurement-gap`,
+ * `aggregated-overview`): TypeScript suelto con su propio comprobador, sin
  * `package.json` ni `tsconfig`. Hace falta un runtime que ejecute TypeScript
  * resolviendo imports sin extensión (`bun`, probado con 1.3.14).
  *
