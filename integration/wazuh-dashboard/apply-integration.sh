@@ -29,6 +29,8 @@ BASE_FILES=(
   "public/components/common/welcome/components/requirement_vis/lib/get_requirement_alerts.ts"
   "public/components/overview/index.ts"
   "public/utils/applications.ts"
+  "server/routes/index.ts"
+  "server/controllers/index.ts"
 )
 
 echo "===== BACKUP ====="

@@ -1,7 +1,31 @@
-Componente: ENSFacil - integracion Wazuh Dashboard
-Origen funcional: Wazuh 4.14.5
-Base de los parches: wazuh-dashboard-plugins v4.14.5
+Componente: ENSFácil - integración Wazuh Dashboard
+
+Origen funcional analizado: Wazuh 4.14.5
+Base oficial de referencia: wazuh-dashboard-plugins v4.14.5
 OpenSearch Dashboards: 2.19.5
-Objetivo de validacion actual: Wazuh 4.14.7
-Estado 4.14.7: pendiente de validacion en laboratorio
-Nota: este manifiesto no implica compatibilidad automatica con versiones futuras.
+Objetivo de validación actual: Wazuh 4.14.7
+
+Integración versionada:
+- 8 parches sobre archivos existentes del plugin oficial.
+- 6 archivos adicionales.
+- Núcleo ENSFácil ubicado en dashboard/ens.
+
+Backend ENS incluido:
+- GET /ens/configuration
+- PUT /ens/configuration
+- GET /ens/configuration/history
+- Persistencia mediante el índice wazuh-ens-configuration.
+
+Validaciones realizadas:
+- server/routes/index.ts es idéntico entre Wazuh 4.14.5 y 4.14.7.
+- server/controllers/index.ts es idéntico entre Wazuh 4.14.5 y 4.14.7.
+- Los 8 parches son aplicables sobre la base Wazuh 4.14.7 sin conflictos.
+- Los 6 archivos adicionales se copian correctamente.
+- El ciclo apply -> verificación -> rollback fue validado sobre una copia de Wazuh 4.14.7.
+- El rollback restauró exactamente el estado inicial de la copia de prueba.
+
+Validación funcional pendiente:
+La integración backend completa debe compilarse, instalarse y validarse en el laboratorio Wazuh4 antes de considerar cerrado el despliegue funcional sobre Wazuh 4.14.7.
+
+Compatibilidad futura:
+La compatibilidad con nuevas versiones de Wazuh no debe asumirse automáticamente. Debe ejecutarse el precheck y realizarse una validación específica para cada versión.

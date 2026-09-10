@@ -1,0 +1,17 @@
+--- a/server/routes/index.ts
++++ b/server/routes/index.ts
+@@ -4,6 +4,7 @@
+ import { WazuhHostsRoutes } from './wazuh-hosts';
+ import { WazuhUtilsRoutes, UiLogsRoutes } from './wazuh-utils';
+ import { WazuhReportingRoutes } from './wazuh-reporting';
++import { ENSConfigurationRoutes } from './ens-configuration';
+ 
+ export const setupRoutes = (router: IRouter, services) => {
+   WazuhApiRoutes(router, services);
+@@ -11,5 +12,6 @@
+   WazuhHostsRoutes(router, services);
+   WazuhUtilsRoutes(router, services);
+   WazuhReportingRoutes(router, services);
++  ENSConfigurationRoutes(router);
+   UiLogsRoutes(router, services);
+ };
