@@ -1,0 +1,8 @@
+--- a/public/components/overview/index.ts
++++ b/public/components/overview/index.ts
+@@ -14,3 +14,5 @@
+ export { DashboardTSC } from './tsc/dashboards';
+ export { DashboardVuls, InventoryVuls } from './vulnerabilities';
+ export { DashboardAzure } from './azure/dashboards';
++export { DashboardENS, ConfigurationENS, ControlsENS, EventsENS, EvidencesENS, InformesENS } from './ens';
++

@@ -1,0 +1,7 @@
+Componente: ENSFacil - integracion Wazuh Dashboard
+Origen funcional: Wazuh 4.14.5
+Base de los parches: wazuh-dashboard-plugins v4.14.5
+OpenSearch Dashboards: 2.19.5
+Objetivo de validacion actual: Wazuh 4.14.7
+Estado 4.14.7: pendiente de validacion en laboratorio
+Nota: este manifiesto no implica compatibilidad automatica con versiones futuras.
