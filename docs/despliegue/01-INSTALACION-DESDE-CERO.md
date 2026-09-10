@@ -449,7 +449,7 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 
 Wazuh Dashboard debe devolver `active` y el plugin `wazuh` debe aparecer instalado antes de continuar.
 
-## 14. Sembrar la configuración inicial y validar ENSFácil
+## 14. Sembrar la configuración inicial
 
 ### 14.1 Sembrar los controles ENS
 
@@ -466,27 +466,3 @@ done
 ```
 
 La operación fusiona la configuración existente y añade los bloques necesarios para los controles ENS.
-
-### 14.2 Validación final
-
-Comprobar que Wazuh Dashboard está activo y que el plugin `wazuh` permanece instalado:
-
-```bash
-sudo systemctl is-active wazuh-dashboard
-sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
-```
-
-El servicio debe devolver `active` y el plugin `wazuh` debe aparecer en el inventario.
-
-Comprobar también la coherencia entre ENSFácil, las reglas y los runbooks desplegados:
-
-```bash
-cd /opt/ensfacil/repo
-python3 tests/check-coherencia.py
-```
-
-La comprobación debe finalizar correctamente antes de considerar terminado el despliegue.
-
-Finalmente, acceder a Wazuh Dashboard y verificar que ENSFácil está disponible y que los controles `mp.info.6`, `op.acc.1`, `op.acc.2`, `op.acc.3` y `op.acc.4` aparecen en la pantalla de Configuración.
-
-Si el servicio está activo, el plugin está instalado, la comprobación de coherencia finaliza correctamente y los controles aparecen en ENSFácil, la instalación desde cero se considera completada.
