@@ -202,10 +202,10 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clonar los runbooks ENS
 
-En el servidor Wazuh Manager, clonar en el directorio personal del usuario administrativo los cinco runbooks utilizados por ENSFácil:
+En el servidor Wazuh Manager, clonar los cinco runbooks utilizados por ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal y coincide con la estructura utilizada por las comprobaciones de consistencia del proyecto:
 
 ```bash
-cd ~
+cd /opt/ensfacil
 BASE=git@gitlab.com:quersystem/ens-controls-runbook/linux
 git clone $BASE/op.acc.1-identification.git
 git clone $BASE/op.acc.2-access-requirements.git
@@ -221,7 +221,7 @@ Comprobar que los cinco repositorios existen y apuntan al remoto esperado:
 ```bash
 for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
   echo "=== $r ==="
-  git -C "$HOME/$r" remote get-url origin
+  git -C "/opt/ensfacil/$r" remote get-url origin
 done
 ```
 
@@ -252,7 +252,7 @@ Con el grupo `ens` creado y los cinco runbooks clonados, ejecutar sus instalador
 ```bash
 (
 for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
-  sudo bash "$HOME/$r/install-manager.sh" || { echo "ERROR: $r"; exit 1; }
+  sudo bash "/opt/ensfacil/$r/install-manager.sh" || { echo "ERROR: $r"; exit 1; }
 done
 )
 ```
