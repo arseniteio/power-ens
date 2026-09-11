@@ -28,12 +28,12 @@
 
        Al añadir o mover una regla hay que tocar TRES sitios a la vez: este
        fichero, la fuente canónica
-       Wazuh-ENS/agent/rules/ensfacil_op_acc_2_json_rules.xml y el catálogo
+       plugin-wazuh-ens/agent/rules/ensfacil_op_acc_2_json_rules.xml y el catálogo
        del plugin. Una regla que el catálogo acredita y el manager no tiene
        rompe la cadena CUMPLE → evidencia → rule ID → evento crudo en su
        último escalón y nada avisa, porque el identificador es numérico y la
        regla existe en algún XML del repo. Lo comprueba
-       Wazuh-ENS/tests/check-consistency.py.
+       plugin-wazuh-ens/tests/check-consistency.py.
        ================================================================ -->
 
   <rule id="106900" level="0">

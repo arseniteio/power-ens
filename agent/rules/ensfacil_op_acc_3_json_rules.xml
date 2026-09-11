@@ -2,7 +2,7 @@
      La copia desplegable vive en
      op.acc.3-segregation-of-duties-and-tasks/manager/ensfacil_op_acc_3_json_rules.xml
      Si se modifica una, hay que sincronizar la otra: lo comprueba
-     Wazuh-ENS/tests/check-consistency.py. -->
+     plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_acc_3,score,">
 
   <!-- ================================================================

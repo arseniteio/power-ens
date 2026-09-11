@@ -47,7 +47,7 @@
        La banda 106873-106889 es nueva (migración de EV-03) y está reservada
        para los hechos crudos que emiten las evidencias que juzga el motor.
        Existe porque 106801-106849 está agotada entre este fichero y
-       ensfacil_op_acc_1_technical_fact_rules.xml (en Wazuh-ENS/agent/rules/),
+       ensfacil_op_acc_1_technical_fact_rules.xml (en plugin-wazuh-ens/agent/rules/),
        que numera el mismo rango para el OTRO recolector de op.acc.1, el
        Python del modelo nuevo, que hoy no se despliega. Quien migre una
        evidencia coge de aquí, y comprueba los DOS ficheros antes.
@@ -86,7 +86,7 @@
        huecos- sino porque el rango 106800-106899 lo comparten DOS juegos de
        reglas para dos recolectores distintos (ver docs/07-mapa-evidencias.md):
        este, desplegado, y el de
-       Wazuh-ENS/agent/rules/ensfacil_op_acc_1_technical_fact_rules.xml, que
+       plugin-wazuh-ens/agent/rules/ensfacil_op_acc_1_technical_fact_rules.xml, que
        numera los hechos técnicos del recolector Python y hoy NO se despliega.
        106803 y 106804 ya son de EV-08 allí. Coger un hueco libre solo aquí
        habría creado una colisión entre evidencias distintas, que es justo lo
