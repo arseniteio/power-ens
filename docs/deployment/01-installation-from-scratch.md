@@ -475,20 +475,44 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 
 Wazuh Dashboard debe devolver `active` y el plugin `wazuh` debe aparecer instalado antes de continuar.
 
-## 14. Sembrar la configuración inicial
+## 14. Inicializar y sembrar la configuración ENS
 
-### 14.1 Sembrar los controles ENS
+### 14.1 Crear la configuración activa
 
-La configuración inicial debe sembrarse para que los controles aparezcan en la pantalla de Configuración de ENSFácil.
+En una instalación limpia, el índice `wazuh-ens-configuration` puede existir todavía sin el documento `active`.
+
+Acceder desde Wazuh Dashboard a **ENSFácil > Configuración** y realizar un primer guardado de la configuración. Abrir únicamente la pantalla no es suficiente: el primer guardado crea el documento `active` que utilizarán el motor y las herramientas de configuración.
+
+Después del guardado, comprobar desde el servidor que el documento existe:
 
 ```bash
 cd /opt/ensfacil/repo/config
 export OS_USER=admin
 read -rsp "Clave del indexer: " OS_PASS && export OS_PASS && echo
 
+curl -sk -u "$OS_USER:$OS_PASS" \
+  "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active?filter_path=found,_source.documentType&pretty"
+```
+
+Antes de continuar, la respuesta debe confirmar que `found` es `true` y que `documentType` es `ACTIVE_CONFIGURATION`.
+
+Si el documento todavía no existe, no ejecutar la siembra de controles hasta completar correctamente el primer guardado desde la pantalla de Configuración.
+
+### 14.2 Sembrar los controles ENS
+
+Con la configuración activa ya creada, sembrar los cinco controles:
+
+```bash
+cd /opt/ensfacil/repo/config
+
 for c in mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
-  python3 inject-control.py "$c" --apply || exit 1
+  echo "===== $c ====="
+  python3 inject-control.py "$c" --apply || break
 done
 ```
 
-La operación fusiona la configuración existente y añade los bloques necesarios para los controles ENS.
+Cada ejecución debe finalizar mostrando `== APLICADO ==`.
+
+La operación fusiona la configuración existente y añade los bloques necesarios sin eliminar los valores previamente configurados.
+
+Los parámetros obligatorios que todavía no tengan valor permanecerán en estado `NO_EVALUABLE`; la ausencia de información no debe interpretarse como cumplimiento.
