@@ -133,8 +133,8 @@ try:
 except urllib.error.HTTPError as e:
     if e.code == 404:
         sys.exit("ERROR: no existe el documento '{}' en el índice '{}'.\n"
-                 "El plugin lo crea al abrir su pantalla de configuración por primera vez;\n"
-                 "ábrela y vuelve a ejecutar.".format(DOC, INDEX))
+                 "El plugin lo crea con el primer guardado desde su pantalla de Configuración;\n"
+                 "guarda la configuración una vez y vuelve a ejecutar.".format(DOC, INDEX))
     raise
 
 source = doc["_source"]
