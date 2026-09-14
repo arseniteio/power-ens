@@ -103,11 +103,13 @@ Use the backup created before the update:
 TARGET=/opt/ensfacil/build/plugins/main
 UPDATE_BACKUP=/opt/ensfacil/artifacts/update-AAAAMMDD-HHMMSS
 
-test -d "$UPDATE_BACKUP/ens" || { echo "ERROR: backup ENS no encontrado"; exit 1; }
-
-sudo rm -rf "$TARGET/public/components/overview/ens"
-sudo cp -a "$UPDATE_BACKUP/ens" "$TARGET/public/components/overview/ens"
-sudo chown -R "$USER":"$USER" "$TARGET/public/components/overview/ens"
+if test -d "$UPDATE_BACKUP/ens"; then
+  sudo rm -rf "$TARGET/public/components/overview/ens"
+  sudo cp -a "$UPDATE_BACKUP/ens" "$TARGET/public/components/overview/ens"
+  sudo chown -R "$USER":"$USER" "$TARGET/public/components/overview/ens"
+else
+  echo "ERROR: backup ENS no encontrado"
+fi
 ```
 
 ## 6. Restore the deployed plugin
@@ -117,18 +119,20 @@ previous ZIP kept in the update backup.
 
 ```bash
 ZIP_ANTERIOR="$UPDATE_BACKUP/wazuh-2.19.5.zip"
-sudo -u wazuh-dashboard test -r "$ZIP_ANTERIOR" || { echo "ERROR: ZIP anterior no accesible"; exit 1; }
+if sudo -u wazuh-dashboard test -r "$ZIP_ANTERIOR"; then
+  sudo systemctl stop wazuh-dashboard
 
-sudo systemctl stop wazuh-dashboard
+  sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh || true
+  sudo rm -rf /usr/share/wazuh-dashboard/plugins/wazuh
+  sudo rm -rf /usr/share/wazuh-dashboard/plugins/.plugin.installing
 
-sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh || true
-sudo rm -rf /usr/share/wazuh-dashboard/plugins/wazuh
-sudo rm -rf /usr/share/wazuh-dashboard/plugins/.plugin.installing
+  sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
+    install "file://$ZIP_ANTERIOR"
 
-sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
-  install "file://$ZIP_ANTERIOR"
-
-sudo systemctl start wazuh-dashboard
+  sudo systemctl start wazuh-dashboard
+else
+  echo "ERROR: ZIP anterior no accesible"
+fi
 ```
 
 > [!warning]

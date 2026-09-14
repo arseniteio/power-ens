@@ -180,7 +180,8 @@ export OS_USER=admin
 read -rsp "Clave del indexer: " OS_PASS && export OS_PASS && echo
 
 for c in mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
-  python3 inject-control.py "$c" --apply || exit 1
+  echo "===== $c ====="
+  python3 inject-control.py "$c" --apply || break
 done
 ```
 
