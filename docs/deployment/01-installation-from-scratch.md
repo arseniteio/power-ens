@@ -481,7 +481,10 @@ Wazuh Dashboard debe devolver `active` y el plugin `wazuh` debe aparecer instala
 
 En una instalación limpia, el índice `wazuh-ens-configuration` puede existir todavía sin el documento `active`.
 
-Acceder desde Wazuh Dashboard a **ENSFácil > Configuración** y realizar un primer guardado de la configuración. Abrir únicamente la pantalla no es suficiente: el primer guardado crea el documento `active` que utilizarán el motor y las herramientas de configuración.
+Acceder desde Wazuh Dashboard a ENSFácil > Configuración y realizar un primer guardado de la configuración.
+
+> [!important]
+> Abrir únicamente la pantalla no es suficiente: el primer guardado crea el documento `active` que utilizarán el motor y las herramientas de configuración.
 
 Después del guardado, comprobar desde el servidor que el documento existe:
 
@@ -494,13 +497,17 @@ curl -sk -u "$OS_USER:$OS_PASS" \
   "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active?filter_path=found,_source.documentType&pretty"
 ```
 
-Antes de continuar, la respuesta debe confirmar que `found` es `true` y que `documentType` es `ACTIVE_CONFIGURATION`.
+| Comprobación | Resultado esperado |
+|---|---|
+| `found` | `true` |
+| `_source.documentType` | `ACTIVE_CONFIGURATION` |
 
-Si el documento todavía no existe, no ejecutar la siembra de controles hasta completar correctamente el primer guardado desde la pantalla de Configuración.
+> [!warning]
+> Si el documento todavía no existe, no ejecutar la siembra de controles hasta completar correctamente el primer guardado desde la pantalla de Configuración.
 
 ### 14.2 Sembrar los controles ENS
 
-Con la configuración activa ya creada, sembrar los cinco controles:
+Con la configuración activa ya creada, sembrar los cinco controles desde la misma sesión, que conserva `OS_USER` y `OS_PASS`:
 
 ```bash
 cd /opt/ensfacil/repo/config
@@ -511,8 +518,11 @@ for c in mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
 done
 ```
 
-Cada ejecución debe finalizar mostrando `== APLICADO ==`.
+| Comprobación | Resultado esperado |
+|---|---|
+| Salida de cada control | `== APLICADO ==` |
 
 La operación fusiona la configuración existente y añade los bloques necesarios sin eliminar los valores previamente configurados.
 
-Los parámetros obligatorios que todavía no tengan valor permanecerán en estado `NO_EVALUABLE`; la ausencia de información no debe interpretarse como cumplimiento.
+> [!note]
+> Las evidencias que dependen de parámetros obligatorios todavía sin valor quedan en `NO_EVALUABLE`, con causa `CONFIGURATION`, y los requisitos que sostienen no se acreditan hasta declarar esos parámetros. La ausencia de información no debe interpretarse como cumplimiento.
