@@ -77,6 +77,7 @@ python3 tests/check-consistency.py
 | Se despliega y sigue viéndose la versión anterior | caché del navegador; abrir una ventana de incógnito |
 | Un parámetro configurado aparece como no configurado | el agente ejecuta una versión anterior; comparar con `md5sum` la librería instalada y la del repositorio |
 | La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración; revisar la guía de instalación o actualización |
+| `inject-control.py` indica que no existe el documento `active` | la configuración no se ha guardado nunca; hacer un primer guardado en ENSFácil > Configuración y repetir la siembra |
 
 Comprobación de coherencia entre el plugin y los runbooks:
 

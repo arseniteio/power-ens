@@ -77,6 +77,7 @@ python3 tests/check-consistency.py
 | After deploying, the previous version is still shown | browser cache; open a private window |
 | A configured parameter shows as not configured | the agent runs an older version; compare the installed library and the repository one with `md5sum` |
 | The control card does not appear in Configuration | its configuration block has not been seeded; see the installation or update guide |
+| `inject-control.py` reports that the `active` document does not exist | the configuration has never been saved; save it once in ENSFácil > Configuration and seed again |
 
 Consistency check between the plugin and the runbooks:
 
