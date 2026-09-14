@@ -222,11 +222,10 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clone the ENS runbooks
 
-On the Wazuh Manager server, clone the five runbooks used by ENSFácil into
-the administrative user's home directory:
+On the Wazuh Manager server, clone the five runbooks used by ENSFácil under `/opt/ensfacil`. This location keeps the control repositories next to the main repository and matches the layout used by the project's consistency checks:
 
 ```bash
-cd ~
+cd /opt/ensfacil
 BASE=git@gitlab.com:quersystem/ens-controls-runbook/linux
 git clone $BASE/op.acc.1-identification.git
 git clone $BASE/op.acc.2-access-requirements.git
@@ -242,7 +241,7 @@ Check that the five repositories exist and point to the expected remote:
 ```bash
 for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
   echo "=== $r ==="
-  git -C "$HOME/$r" remote get-url origin
+  git -C "/opt/ensfacil/$r" remote get-url origin
 done
 ```
 
@@ -276,7 +275,7 @@ Manager installers. The process must stop if any of them fails:
 ```bash
 (
 for r in op.acc.1-identification op.acc.2-access-requirements op.acc.3-segregation-of-duties-and-tasks op.acc.4-access-rights-management-process mp.info.6-proxmox-backup-runbook; do
-  sudo bash "$HOME/$r/install-manager.sh" || { echo "ERROR: $r"; exit 1; }
+  sudo bash "/opt/ensfacil/$r/install-manager.sh" || { echo "ERROR: $r"; exit 1; }
 done
 )
 ```
@@ -511,22 +510,54 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 Wazuh Dashboard must return `active` and the `wazuh` plugin must appear
 installed before continuing.
 
-## 14. Seed the initial configuration
+## 14. Initialize and seed the ENS configuration
 
-### 14.1 Seed the ENS controls
+### 14.1 Create the active configuration
 
-The initial configuration must be seeded so that the controls appear on
-ENSFácil's Configuration screen.
+On a clean installation, the `wazuh-ens-configuration` index may already exist without the `active` document.
+
+In Wazuh Dashboard, open ENSFácil > Configuration and save the configuration once.
+
+> [!important]
+> Opening the screen is not enough: the first save creates the `active` document used by the engine and the configuration tools.
+
+After saving, check from the server that the document exists:
 
 ```bash
 cd /opt/ensfacil/repo/config
 export OS_USER=admin
 read -rsp "Clave del indexer: " OS_PASS && export OS_PASS && echo
 
+curl -sk -u "$OS_USER:$OS_PASS" \
+  "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active?filter_path=found,_source.documentType&pretty"
+```
+
+| Check | Expected result |
+|---|---|
+| `found` | `true` |
+| `_source.documentType` | `ACTIVE_CONFIGURATION` |
+
+> [!warning]
+> If the document does not exist yet, do not seed the controls until the first save from the Configuration screen has completed successfully.
+
+### 14.2 Seed the ENS controls
+
+With the active configuration created, seed the five controls from the same session, which keeps `OS_USER` and `OS_PASS`:
+
+```bash
+cd /opt/ensfacil/repo/config
+
 for c in mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4; do
-  python3 inject-control.py "$c" --apply || exit 1
+  echo "===== $c ====="
+  python3 inject-control.py "$c" --apply || break
 done
 ```
 
-The operation merges the existing configuration and adds the blocks needed
-for the ENS controls.
+| Check | Expected result |
+|---|---|
+| Output for each control | `== APLICADO ==` |
+
+The operation merges the existing configuration and adds the required blocks without removing previously configured values.
+
+> [!note]
+> Evidence that depends on required parameters without a value stays `NO_EVALUABLE`, with cause `CONFIGURATION`, and the requirements it supports are not accredited until those parameters are declared. Missing information must not be read as compliance.
