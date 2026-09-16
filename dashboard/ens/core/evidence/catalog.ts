@@ -1753,6 +1753,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: regresiones del estado de seguridad de la configuración?',
   },
+  // --- op.exp.4 · Mantenimiento y actualizaciones de seguridad -------------
+  //
+  // Tres evidencias las juzga una primitiva (EV-04, EV-06, EV-11): un hecho
+  // contra un parámetro. Las demás las mide la policy del control
+  // (`policies/op-exp-4.policy.ts`), porque su juicio no cabe en ninguna de las
+  // siete: EV-02 encadena P-08 (CVSS → criticidad) con P-01 (criticidad →
+  // días) y mide contra el reloj; EV-05 compara fechas de fin de soporte con
+  // hoy; EV-07 sitúa cada cambio en ventanas horarias; EV-09 exige que el punto
+  // de reversión sea ANTERIOR al cambio. Sin `judgment`, la policy las resuelve
+  // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
+  //
+  // Reglas: todas de la banda 110500-110599, desplegadas por el runbook
+  // `op.exp.4-security-maintenance-and-updates` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.4',
@@ -1764,10 +1777,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    // La cabecera de la instantánea del estado del Vulnerability Detector que el
+    // puente del manager entrega al agente. Continuo = una instantánea reciente.
+    expectedEventTypes: ['evidence_state', 'vulnerability_inventory'],
+    relatedRules: ['110501'],
     auditQuestion:
-      '¿Se acredita: inventario continuo de vulnerabilidades por activo?',
+      '¿Consta un inventario reciente de las vulnerabilidades de este activo?',
   },
   {
     id: 'EV-02',
@@ -1780,10 +1795,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'vulnerability_detected', 'vulnerability_resolved'],
-    relatedRules: [],
+    // `vulnerability_open` es la abierta MÁS ANTIGUA de cada puntuación CVSS,
+    // con el instante de su detección: la misma puntuación da la misma
+    // criticidad y el mismo plazo, así que juzgar la más antigua basta. El
+    // agente no resta fechas.
+    expectedEventTypes: ['evidence_state', 'vulnerability_open', 'vulnerability_resolved'],
+    relatedRules: ['110502', '110503'],
     auditQuestion:
-      '¿Se acredita: tiempo de remediación frente a los plazos del procedimiento?',
+      '¿Se resuelven las vulnerabilidades dentro del plazo que el procedimiento fija para su criticidad?',
   },
   {
     id: 'EV-03',
@@ -1795,11 +1814,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'package_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'patch_status'],
+    relatedRules: ['110504'],
     auditQuestion:
-      '¿Se acredita: estado de parcheado del parque?',
+      '¿Está la máquina al día de sus actualizaciones de seguridad, parches activos incluidos?',
   },
   {
     id: 'EV-04',
@@ -1811,11 +1830,24 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'package_changed'],
-    relatedRules: [],
+    relatedRules: ['110505'],
+    judgment: {
+      // Se contrasta el ACTOR de cada transacción de software. Es un barrido de
+      // los logs de apt y dpkg: no encontrar ningún cambio en la ventana, con
+      // el latido declarando que los logs se leyeron, es el resultado normal
+      // de una máquina sin mantenimiento no autorizado.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-02',
+      // P-02 es `cuenta | ambito | tipo`: sin nombrar la columna se compararía
+      // la fila entera con un nombre de cuenta y todo actor saldría fuera.
+      parameterColumn: 'cuenta',
+      factEventTypes: ['package_changed'],
+      factField: 'actor',
+    },
     auditQuestion:
-      '¿Se acredita: instalaciones y actualizaciones por personal no autorizado?',
+      '¿Todo cambio de software lo ha hecho una cuenta autorizada para el mantenimiento?',
   },
   {
     id: 'EV-05',
@@ -1827,11 +1859,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'product_support'],
+    relatedRules: ['110506'],
     auditQuestion:
-      '¿Se acredita: software fuera de soporte del fabricante?',
+      '¿Todo producto instalado sigue dentro del soporte de su fabricante?',
   },
   {
     id: 'EV-06',
@@ -1843,11 +1875,20 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'vendor_observed'],
+    relatedRules: ['110507'],
+    judgment: {
+      // Cada fabricante presente en el inventario ACREDITA algo que existe en la
+      // máquina, así que no observar ninguno no es cumplir: es no haber mirado.
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-03',
+      parameterColumn: 'fabricante',
+      factEventTypes: ['vendor_observed'],
+      factField: 'fabricante',
+    },
     auditQuestion:
-      '¿Se acredita: cobertura del seguimiento de anuncios de defectos?',
+      '¿Se siguen los anuncios de defectos de todos los fabricantes del software instalado?',
   },
   {
     id: 'EV-07',
@@ -1859,11 +1900,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // El MISMO hecho de EV-04: la transacción trae su instante en hora local.
+    expectedEventTypes: ['evidence_state', 'package_changed'],
+    relatedRules: ['110505'],
     auditQuestion:
-      '¿Se acredita: actualizaciones aplicadas fuera de ventana de mantenimiento?',
+      '¿Se aplican los cambios de software dentro de las ventanas de mantenimiento declaradas?',
   },
   {
     id: 'EV-08',
@@ -1872,14 +1914,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     description:
       'Verificación de que cada versión desplegada en producción estuvo previamente instalada en el entorno de preproducción emparejado en P-06. Es la evidencia técnica del Refuerzo R1, obligatorio desde categoría MEDIA.',
     requirements: ['op.exp.4.r1.1'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'preprod_deployment'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // Los cambios de software de producción y de su preproducción. La
+    // precedencia exige cruzar DOS máquinas y el motor evalúa cada una por
+    // separado: hoy la policy la declara sin demostrar, siempre.
+    expectedEventTypes: ['evidence_state', 'package_changed'],
+    relatedRules: ['110505'],
     auditQuestion:
-      '¿Se acredita: trazabilidad del paso por preproducción (r1)?',
+      '¿Pasó cada versión desplegada en producción antes por su preproducción?',
   },
   {
     id: 'EV-09',
@@ -1888,14 +1933,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     description:
       'Verificación de que antes de cada aplicación de parches o cambios de configuración se generó el mecanismo de reversión declarado en P-07: snapshot, backup o imagen. R2 es obligatorio en categoría ALTA.',
     requirements: ['op.exp.4.r2.1'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    levels: ['ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'reversion_point_created'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'reversion_point_created', 'package_changed'],
+    relatedRules: ['110505', '110508'],
     auditQuestion:
-      '¿Se acredita: existencia de punto de reversión previo (r2)?',
+      '¿Existía un punto de reversión antes de cada cambio de software?',
   },
   {
     id: 'EV-10',
@@ -1908,10 +1953,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'vulnerability_inventory', 'vulnerability_resolved'],
+    relatedRules: ['110501', '110503'],
     auditQuestion:
-      '¿Se acredita: evolución de la deuda de vulnerabilidades?',
+      '¿Se mantiene o reduce la deuda de vulnerabilidades en lugar de crecer semana tras semana?',
   },
   {
     id: 'EV-11',
@@ -1922,11 +1967,25 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     requirements: ['op.exp.4.r3.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    criticality: 'LOW',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'firmware_version'],
-    relatedRules: [],
+    relatedRules: ['110509'],
+    judgment: {
+      // La versión observada tiene que ser la que la fila de su dispositivo
+      // declara. Registra VERSIÓN, no integridad: eso exige herramientas del
+      // fabricante.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-09',
+      factEventTypes: ['firmware_version'],
+      factField: 'dispositivo',
+      factKeyField: 'dispositivo',
+      tableKeyColumn: 'dispositivo',
+      tableChecks: [
+        { column: 'firmware_actual', factField: 'version' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: versiones de firmware de dispositivos hardware (r3)?',
+      '¿Coincide el firmware observado con la versión declarada para el dispositivo?',
   },
 ];
