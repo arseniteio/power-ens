@@ -2993,6 +2993,15 @@ bloque('Estado de la migración');
     'op.acc.4/EV-06',
     'op.acc.4/EV-07',
     'op.acc.4/EV-08',
+    // op.exp.1 también nace entero en el modelo nuevo: sus siete evidencias
+    // juzgan hechos crudos de su recolector contra P-01, P-02, P-04 y P-07.
+    'op.exp.1/EV-01',
+    'op.exp.1/EV-02',
+    'op.exp.1/EV-03',
+    'op.exp.1/EV-04',
+    'op.exp.1/EV-05',
+    'op.exp.1/EV-06',
+    'op.exp.1/EV-07',
   ];
 
   comprueba(

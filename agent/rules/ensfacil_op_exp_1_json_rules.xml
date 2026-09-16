@@ -1,0 +1,189 @@
+<!-- op.exp.1 · Inventario de activos · reglas del manager.
+     Fuente canónica: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_1_json_rules.xml.
+     El mismo fichero, byte a byte, vive en manager/ de los runbooks
+     op.exp.1-asset-inventory y op.exp.1-ldap. Si se modifica uno hay que copiar
+     los tres: lo comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_1,">
+
+  <!-- ================================================================
+       op.exp.1 · Inventario de activos
+       Rango reservado: 110200-110299
+       Base 110200 · hechos 110201-110249 · diagnósticos 110295-110299
+
+       ESTE CONTROL NACE EN EL MODELO NUEVO. El agente no emite veredicto:
+       emite el HECHO CRUDO —qué hardware, qué software y qué servicios tiene
+       la máquina, con qué vecinos de red habla, cuándo se revisó el
+       inventario— y el motor lo contrasta con lo que el responsable declaró
+       en la pantalla de Configuración. Ninguna regla lleva `estado` de
+       cumplimiento.
+
+       POR QUÉ HAY HECHOS PROPIOS Y NO SE LEE SYSCOLLECTOR. El inventario
+       nativo de Wazuh no genera alertas (regla 221, nivel 0) y vive en
+       wazuh-db y en los índices wazuh-states-inventory-*, sin rule.id. El
+       plugin solo lee wazuh-alerts-*: una evidencia apoyada en Syscollector no
+       tendría rule ID al que apuntar y la cadena
+       CUMPLE → evidencia → rule ID → evento crudo moriría en el segundo
+       escalón.
+
+       Mapa evidencia → rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-01   110201
+         EV-02   110202
+         EV-03   110203
+         EV-04   110204
+         EV-05   110205
+         EV-06   110210 (revisión) · 110206-110209 (cambios observados)
+         EV-07   110201 (el mismo hecho de EV-01)
+
+       Fuera del mapa: 110200 (nivel 0, nunca genera alerta) y los
+       diagnósticos 110295-110299, que no acreditan ninguna evidencia.
+
+       Los runbooks de Linux y de LDAP emiten al mismo fichero
+       (/var/log/ensfacil/op_exp_1.json) y con los mismos rule ID. Lo que
+       distingue una máquina de directorio es el campo `plano` y los campos
+       `directorio_*` de sus hechos, que se indexan solos.
+       ================================================================ -->
+
+  <rule id="110200" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.1</field>
+    <description>op.exp.1 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== Inventario técnico del activo ===== -->
+
+  <!-- EV-01 y EV-07. Foto del hardware y del sistema operativo. Un solo hecho
+       sirve a dos preguntas: EV-01 mide su antigüedad contra P-07 (¿el
+       inventario está al día?) y EV-07 contrasta su `activo` contra la tabla
+       de responsables P-01 (¿alguien responde de esta máquina?). Por eso lleva
+       evidence_id=EV-01,EV-07 y el normalizador lo reparte. -->
+  <rule id="110201" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">asset_system</field>
+    <description>op.exp.1 · EV-01/EV-07 · activo $(activo): $(sistema_operativo) $(version_so) sobre $(fabricante) $(modelo)</description>
+  </rule>
+
+  <!-- EV-02. Resumen del software instalado: gestor, número de paquetes y
+       huella de la lista. La lista entera no se emite en cada pasada: el motor
+       trae como mucho 10.000 hechos por ventana y miles de paquetes por hora
+       dejarían sin sitio a los demás controles. Los cambios sí se emiten uno a
+       uno (110206). -->
+  <rule id="110202" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">software_inventory</field>
+    <description>op.exp.1 · EV-02 · software de $(activo): $(paquetes) paquetes ($(gestor))</description>
+  </rule>
+
+  <!-- EV-03. Inventario de red: interfaces, direcciones, servicios en escucha
+       con su proceso y número de procesos. Es lo que dice QUÉ ES la máquina
+       más allá de su hardware, y en un servidor de directorio lleva además el
+       servicio LDAP observado. -->
+  <rule id="110203" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">network_inventory</field>
+    <description>op.exp.1 · EV-03 · red de $(activo): $(puertos_escucha) servicios en escucha</description>
+  </rule>
+
+  <!-- EV-04. Estado de la conexión del agente de Wazuh con el manager, leído
+       del propio agente: estado y último keepalive. El motor mide la
+       antigüedad del keepalive contra P-07; un activo que deja de reportar se
+       queda sin hechos nuevos y su evidencia se cae sola. -->
+  <rule id="110204" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">agent_status</field>
+    <description>op.exp.1 · EV-04 · agente de $(activo): $(estado_agente), último keepalive $(ultimo_keepalive)</description>
+  </rule>
+
+  <!-- EV-05. Un host vecino observado en la tabla de vecinos de red de esta
+       máquina (ARP / NDP), sin sondear la red. El nombre del evento no dice
+       «no reconocido» a propósito: si está declarado o no lo decide el motor
+       contra la columna `ip` de P-02, no el agente. -->
+  <rule id="110205" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">network_host_observed</field>
+    <description>op.exp.1 · EV-05 · host vecino observado desde $(activo): $(ip) ($(mac))</description>
+  </rule>
+
+  <!-- ===== Cambios en la composición del activo (EV-06) =====
+
+       Salen de comparar la foto de esta pasada con la anterior, que el
+       recolector guarda en /var/lib/ensfacil/opexp1. No se juzgan uno a uno:
+       ningún parámetro declara qué cambio está autorizado. Son la traza que el
+       responsable revisa, y lo que se juzga es que esa revisión se haga dentro
+       del plazo P-04 (110210). -->
+
+  <rule id="110206" level="5">
+    <if_sid>110200</if_sid>
+    <field name="event">asset_software_change</field>
+    <description>op.exp.1 · EV-06 · $(activo): $(cambio) de $(paquete) ($(version_anterior) → $(version_nueva))</description>
+  </rule>
+
+  <rule id="110207" level="5">
+    <if_sid>110200</if_sid>
+    <field name="event">asset_hardware_change</field>
+    <description>op.exp.1 · EV-06 · $(activo): cambia $(atributo) ($(valor_anterior) → $(valor_nuevo))</description>
+  </rule>
+
+  <rule id="110208" level="5">
+    <if_sid>110200</if_sid>
+    <field name="event">asset_port_opened</field>
+    <description>op.exp.1 · EV-06 · $(activo): nuevo servicio en escucha $(protocolo) $(direccion):$(puerto) ($(proceso))</description>
+  </rule>
+
+  <rule id="110209" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">asset_port_closed</field>
+    <description>op.exp.1 · EV-06 · $(activo): deja de escuchar $(protocolo) $(direccion):$(puerto) ($(proceso))</description>
+  </rule>
+
+  <!-- EV-06. La última revisión formal del inventario anotada por la
+       organización. Es la evidencia EXISTENCIAL del control: le basta una
+       revisión lo bastante reciente (ANTIGUEDAD_MAXIMA contra P-04) y nunca
+       cumple por ausencia. -->
+  <rule id="110210" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">inventory_review</field>
+    <description>op.exp.1 · EV-06 · revisión del inventario registrada el $(fecha) ($(alcance))</description>
+  </rule>
+
+  <!-- ===== Diagnósticos del recolector =====
+
+       No acreditan ninguna evidencia. El agente no emite veredictos, pero sí
+       tiene que poder decir que no pudo mirar: `causa` distingue «la fuente no
+       se pudo leer» de «se leyó y no había nada», y las dos se arreglan en
+       sitios distintos. No hay regla para estado=CUMPLE ni NO_CUMPLE: si
+       alguna vez llegara uno, casaría con 110200 (nivel 0) y no generaría
+       alerta, que es lo que debe pasar. -->
+
+  <rule id="110295" level="7">
+    <if_sid>110200</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.1 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <rule id="110297" level="5">
+    <if_sid>110200</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.1 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- El propio recolector detecta, al arrancar, que la pasada anterior es
+       más vieja de lo que su cron permite: hubo pasadas perdidas. -->
+  <rule id="110298" level="7">
+    <if_sid>110200</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.1 · pasadas del recolector perdidas: la anterior terminó hace $(horas_desde_anterior) h</description>
+  </rule>
+
+  <!-- El latido. No acredita evidencia: la HABILITA. EV-05 es la única
+       aserción negativa del control, y sin latido con resultado=completada y
+       EV-05 en `evidencias_cubiertas` su silencio no puede valer CUMPLE. -->
+  <rule id="110299" level="3">
+    <if_sid>110200</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.1 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+</group>

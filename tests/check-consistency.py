@@ -75,6 +75,10 @@ RUNBOOKS = {
         "op.acc.4-access-rights-management-process",
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
+    "op.exp.1": (
+        "op.exp.1-asset-inventory",
+        ["ensfacil_op_exp_1_json_rules.xml"],
+    ),
 }
 
 fallos = []
