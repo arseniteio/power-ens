@@ -9,7 +9,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
   description:
     'op.acc.6 exige un mecanismo de autenticación para el personal de la organización: UNO de cuatro refuerzos (contraseña solo desde zona controlada, contraseña con segundo factor, certificado o certificado en soporte físico), doble factor desde zona no controlada y acceso remoto autorizado, cifrado y auditado desde nivel BAJO, registro de accesos desde MEDIO, y reautenticación y suspensión por no uso en ALTO.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {

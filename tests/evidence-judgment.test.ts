@@ -2993,6 +2993,16 @@ bloque('Estado de la migración');
     'op.acc.4/EV-06',
     'op.acc.4/EV-07',
     'op.acc.4/EV-08',
+    // op.acc.6 nace también en el modelo nuevo. EV-02, EV-03, EV-04 y EV-11 no
+    // llevan `judgment` porque las decide su evaluador de policy.
+    'op.acc.6/EV-01',
+    'op.acc.6/EV-05',
+    'op.acc.6/EV-06',
+    'op.acc.6/EV-07',
+    'op.acc.6/EV-08',
+    'op.acc.6/EV-09',
+    'op.acc.6/EV-10',
+    'op.acc.6/EV-12',
   ];
 
   comprueba(
