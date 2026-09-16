@@ -1384,16 +1384,16 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     relatedRules: ['110201'],
     judgment: {
       // «Inventario ACTUALIZADO» dicho con una primitiva: la foto más reciente
-      // del activo no puede ser más vieja que P-07. Se mide contra el reloj y
+      // del activo no puede ser más vieja que P-08. Se mide contra el reloj y
       // sobre el instante de emisión del hecho (`ts`), así que un agente que
       // deja de reportar ve caer esta evidencia sola, sin que nadie emita nada.
       primitive: 'ANTIGUEDAD_MAXIMA',
-      parameterId: 'P-07',
+      parameterId: 'P-08',
       factEventTypes: ['asset_system'],
       factField: 'ts',
     },
     auditQuestion:
-      '¿Consta una foto del hardware y del sistema operativo de este activo tomada dentro del plazo declarado en P-07?',
+      '¿Consta una foto del hardware y del sistema operativo de este activo tomada dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-02',
@@ -1413,12 +1413,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       // deja de poder leerse, el resumen deja de emitirse y esta evidencia
       // envejece aunque la foto del hardware siga al día.
       primitive: 'ANTIGUEDAD_MAXIMA',
-      parameterId: 'P-07',
+      parameterId: 'P-08',
       factEventTypes: ['software_inventory'],
       factField: 'ts',
     },
     auditQuestion:
-      '¿Consta un inventario del software instalado en este activo tomado dentro del plazo declarado en P-07?',
+      '¿Consta un inventario del software instalado en este activo tomado dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-03',
@@ -1435,12 +1435,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     relatedRules: ['110203'],
     judgment: {
       primitive: 'ANTIGUEDAD_MAXIMA',
-      parameterId: 'P-07',
+      parameterId: 'P-08',
       factEventTypes: ['network_inventory'],
       factField: 'ts',
     },
     auditQuestion:
-      '¿Consta un inventario de las interfaces y los servicios en escucha de este activo tomado dentro del plazo declarado en P-07?',
+      '¿Consta un inventario de las interfaces y los servicios en escucha de este activo tomado dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-04',
@@ -1461,12 +1461,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       // estado no puede pasar por conectado. Un agente que nunca conectó no
       // trae keepalive y la evidencia queda NO_EVALUABLE, nunca en verde.
       primitive: 'ANTIGUEDAD_MAXIMA',
-      parameterId: 'P-07',
+      parameterId: 'P-08',
       factEventTypes: ['agent_status'],
       factField: 'ultimo_keepalive',
     },
     auditQuestion:
-      '¿El agente de este activo ha mantenido contacto con el manager dentro del plazo declarado en P-07?',
+      '¿El agente de este activo ha mantenido contacto con el manager dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-05',

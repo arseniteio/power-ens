@@ -75,9 +75,12 @@ const field = (
 
 /**
  * Modelo de informe de op.exp.1 (Inventario de activos).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
+ *
+ * Sigue la hoja "Informe ENSFácil" de la plantilla del auditor. Cada campo
+ * enseña lo que el motor ha OBSERVADO —los atributos del hecho que decidió su
+ * evidencia— y lo que la organización ha DECLARADO en la pantalla, por
+ * separado: el informe tiene que distinguir la parte automatizada de la que
+ * depende del cliente, que es donde suelen aparecer los hallazgos.
  */
 export const buildOpExp1ReportModel = (
   result: ENSComplianceResult | undefined,
@@ -99,86 +102,159 @@ export const buildOpExp1ReportModel = (
   const evidenceObservations = (evidenceId: string): string[] =>
     evidences.get(evidenceId)?.observations || [];
 
-  const level = (result?.level || '').toUpperCase();
+  // Atributos del hecho que decidió la evidencia, en el orden pedido. Lo que el
+  // hecho no trae no se inventa: se omite.
+  const observed = (evidenceId: string, fields: string[]): string => {
+    const attributes = evidences.get(evidenceId)?.resolvedAttributes || {};
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
+    const parts = fields
+      .filter(name => {
+        const value = attributes[name];
+
+        return value !== undefined && value !== null && value !== '';
+      })
+      .map(name => `${name}: ${formatValue(attributes[name])}`);
+
+    return parts.length ? parts.join(' · ') : 'Sin hecho observado';
+  };
+
+  const declared = (parameterId: string): string =>
+    `${parameterId}: ${formatValue(parameterValue(parameterId))}`;
+
+  const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+
   const campo1 = field(
     'op.exp.1.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'],
-    evidenceObservations('EV-01'),
+    TODAS,
+    TODAS.flatMap(evidenceObservations),
   );
 
-  // Inventario consolidado de activos  ·  fuente: Syscollector (EV-01, EV-02, EV-03)
   const campo2 = field(
     'op.exp.1.campo2',
     'Inventario consolidado de activos',
     evidenceStatus('EV-01'),
-    'Listado completo de los elementos del sistema con: identificador, naturaleza según P-03, responsable según P-0',
+    observed('EV-01', [
+      'activo',
+      'fqdn',
+      'sistema_operativo',
+      'version_so',
+      'kernel',
+      'fabricante',
+      'modelo',
+      'num_serie',
+      'virtualizacion',
+      'cpus',
+      'memoria_mb',
+    ]),
     ['EV-01', 'EV-02', 'EV-03'],
-    evidenceObservations('EV-01'),
+    [
+      `Red: ${observed('EV-03', ['direcciones', 'servicios'])}`,
+      `Responsable y naturaleza declarados: ${declared('P-01')}`,
+      ...evidenceObservations('EV-01'),
+    ],
   );
 
-  // Cobertura del inventario  ·  fuente: ENSFácil (EV-07)
   const campo3 = field(
     'op.exp.1.campo3',
     'Cobertura del inventario',
     evidenceStatus('EV-07'),
-    'Porcentaje de activos con responsable asignado, con naturaleza clasificada y con agente desplegado. Relación e',
+    declared('P-01'),
     ['EV-07'],
-    evidenceObservations('EV-07'),
+    [`Taxonomía: ${declared('P-03')}`, ...evidenceObservations('EV-07')],
   );
 
-  // Relación de componentes software  ·  fuente: Syscollector (EV-02)
   const campo4 = field(
     'op.exp.1.campo4',
     'Relación de componentes software',
     evidenceStatus('EV-02'),
-    'Inventario de software y paquetes por activo, con versión. Agregado de componentes de terceros y librerías pre',
+    observed('EV-02', [
+      'gestor',
+      'paquetes',
+      'snaps',
+      'huella',
+      'directorio_paquete',
+      'directorio_version',
+      'ficheros_fuera_de_gestor',
+    ]),
     ['EV-02'],
-    evidenceObservations('EV-02'),
+    [
+      'Refuerzo R4 cubierto de hecho aunque no es exigible en ninguna categoría.',
+      ...evidenceObservations('EV-02'),
+    ],
   );
 
-  // Estado de monitorización de los equipos  ·  fuente: Estado de agentes (EV-04)
   const campo5 = field(
     'op.exp.1.campo5',
     'Estado de monitorización de los equipos',
     evidenceStatus('EV-04'),
-    'Estado en tiempo real de cada activo monitorizado: activo, desconectado, nunca conectado, con fecha de último',
+    observed('EV-04', ['estado_agente', 'ultimo_keepalive', 'version_agente']),
     ['EV-04'],
-    evidenceObservations('EV-04'),
+    [
+      `Antigüedad máxima admitida: ${declared('P-08')} h`,
+      'Refuerzo R2 cubierto de hecho aunque no es exigible en ninguna categoría.',
+      ...evidenceObservations('EV-04'),
+    ],
   );
 
-  // Activos no inventariados detectados  ·  fuente: Syscollector + ENSFácil (EV-05)
   const campo6 = field(
     'op.exp.1.campo6',
     'Activos no inventariados detectados',
     evidenceStatus('EV-05'),
-    'Activos detectados en el período que no figuraban en el inventario: identificador, dirección, fecha de detecci',
+    observed('EV-05', ['ip', 'mac', 'es_pasarela', 'primera_observacion']),
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
 
-  // Cambios en el inventario durante el período  ·  fuente: Syscollector (EV-06)
   const campo7 = field(
     'op.exp.1.campo7',
     'Cambios en el inventario durante el período',
     evidenceStatus('EV-06'),
-    'Altas y bajas de activos, y variaciones en la composición de los existentes: software instalado o eliminado, c',
+    observed('EV-02', ['altas', 'bajas', 'actualizaciones', 'linea_base']),
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
 
-  // Puntuación de cumplimiento op.exp.1  ·  fuente: Motor ENSFácil
   const campo8 = field(
     'op.exp.1.campo8',
+    'Activos sin agente — inventario declarado',
+    parameterValue('P-02') === undefined ? 'SIN_DATOS' : evidenceStatus('EV-05'),
+    declared('P-02'),
+    [],
+    [
+      'Inventario declarado. Solo se verifica contra la red la parte que se observa desde las máquinas con agente (EV-05).',
+    ],
+  );
+
+  const campo9 = field(
+    'op.exp.1.campo9',
+    'Activos críticos',
+    'NO_APLICA',
+    declared('P-06'),
+    [],
+    ['Refuerzo R3: no exigible en ninguna categoría.'],
+  );
+
+  const campo10 = field(
+    'op.exp.1.campo10',
+    'Estado de la revisión periódica del inventario',
+    evidenceStatus('EV-06'),
+    observed('EV-06', ['fecha', 'alcance', 'responsable']),
+    ['EV-06'],
+    [`Plazo: ${declared('P-04')} días`, ...evidenceObservations('EV-06')],
+  );
+
+  const campo11 = field(
+    'op.exp.1.campo11',
     'Puntuación de cumplimiento op.exp.1',
     asStatus(result?.status),
-    formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'],
-    evidenceObservations('EV-01'),
+    formatValue(result?.score),
+    TODAS,
+    [
+      'Solo puntúa op.exp.1.1. Los refuerzos R1 a R4 no son exigibles en ninguna categoría.',
+    ],
   );
 
   return {
@@ -203,6 +279,9 @@ export const buildOpExp1ReportModel = (
       campo6,
       campo7,
       campo8,
+      campo9,
+      campo10,
+      campo11,
     ],
   };
 };

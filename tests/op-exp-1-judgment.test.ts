@@ -29,6 +29,7 @@ import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine
 import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
 import { evaluateRequirements } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
+import { buildOpExp1ReportModel } from '../dashboard/ens/reports/op-exp-1-report-model';
 
 declare const process: { exit(code: number): void };
 
@@ -126,7 +127,7 @@ const VALORES_CORRECTOS: Valores = {
   'P-02': ['gw-proveedor | router | 172.31.1.1 | Proveedor de hosting'],
   'P-03': ['HW servidor', 'HW red', 'SW base', 'servicio'],
   'P-04': 90,
-  'P-07': 24,
+  'P-08': 24,
 };
 
 // Un parámetro sin configurar no lleva la clave `value`, nunca `null`: es como
@@ -413,32 +414,32 @@ bloque('4. EV-05 · un host vecino sin declarar en P-02 no cumple');
 
 // --- 5. EV-01 a EV-04: inventario al día -----------------------------------
 
-bloque('5. EV-01 a EV-04 · el inventario técnico caduca contra P-07');
+bloque('5. EV-01 a EV-04 · el inventario técnico caduca contra P-08');
 
 {
   const dentro = resuelve(WAZUH_REAL, VALORES_CORRECTOS, new Date('2026-09-17T15:00:00Z'));
   const fuera = resuelve(WAZUH_REAL, VALORES_CORRECTOS, new Date('2026-09-17T18:00:00Z'));
   const plazoMayor = resuelve(
     WAZUH_REAL,
-    con({ 'P-07': 48 }),
+    con({ 'P-08': 48 }),
     new Date('2026-09-17T18:00:00Z')
   );
 
   for (const id of ['EV-01', 'EV-02', 'EV-03', 'EV-04']) {
     comprueba(
-      `${id} · a las 23 h de la foto, con P-07 = 24 · CUMPLE`,
+      `${id} · a las 23 h de la foto, con P-08 = 24 · CUMPLE`,
       dentro.get(id)?.status === 'CUMPLE',
       texto(dentro.get(id))
     );
 
     comprueba(
-      `${id} · a las 26 h, con P-07 = 24 · NO_CUMPLE (el agente dejó de reportar)`,
+      `${id} · a las 26 h, con P-08 = 24 · NO_CUMPLE (el agente dejó de reportar)`,
       fuera.get(id)?.status === 'NO_CUMPLE',
       texto(fuera.get(id))
     );
 
     comprueba(
-      `${id} · reversión · el mismo reloj con P-07 = 48 · CUMPLE`,
+      `${id} · reversión · el mismo reloj con P-08 = 48 · CUMPLE`,
       plazoMayor.get(id)?.status === 'CUMPLE'
     );
   }
@@ -466,10 +467,10 @@ bloque('5. EV-01 a EV-04 · el inventario técnico caduca contra P-07');
     `${ev04?.status} ${ev04?.gapCause}`
   );
 
-  const sinP07 = resuelve(WAZUH_REAL, con({ 'P-07': undefined })).get('EV-01');
+  const sinP07 = resuelve(WAZUH_REAL, con({ 'P-08': undefined })).get('EV-01');
 
   comprueba(
-    'P-07 sin configurar · EV-01 NO_EVALUABLE (CONFIGURATION)',
+    'P-08 sin configurar · EV-01 NO_EVALUABLE (CONFIGURATION)',
     sinP07?.status === 'NO_EVALUABLE' && sinP07?.gapCause === 'CONFIGURATION'
   );
 }
@@ -549,9 +550,9 @@ bloque('7. op.exp.1.1 sin declarar nada: NO CUMPLE, y no por falta de agente');
   );
 
   comprueba(
-    'los obligatorios que faltan son P-01, P-02, P-03, P-04 y P-07 (P-05, P-06 y P-ATT no bloquean)',
+    'los obligatorios que faltan son P-01, P-02, P-03, P-04 y P-08 (P-05, P-06 y P-ATT no bloquean)',
     validacion.missingRequired.map(parametro => parametro.id).sort().join(',') ===
-      'P-01,P-02,P-03,P-04,P-07',
+      'P-01,P-02,P-03,P-04,P-08',
     validacion.missingRequired.map(parametro => parametro.id).join(',')
   );
 
@@ -559,6 +560,69 @@ bloque('7. op.exp.1.1 sin declarar nada: NO CUMPLE, y no por falta de agente');
     'ninguna evidencia sale en verde sin parámetro',
     evidencias.every(evidencia => evidencia.status !== 'CUMPLE'),
     evidencias.map(evidencia => `${evidencia.id}=${evidencia.status}`).join(' ')
+  );
+}
+
+// --- 8. el informe enseña lo observado y lo declarado ----------------------
+
+bloque('8. El informe distingue lo observado de lo declarado');
+
+{
+  const evidencias = Array.from(resuelve(WAZUH_REAL, VALORES_CORRECTOS).values());
+
+  // Solo lo que el modelo lee: el resultado real lo construye
+  // evaluation-engine.ts, que arrastra kibana-services.
+  const resultado = {
+    control: { id: 'op.exp.1' },
+    status: 'CUMPLE',
+    score: 100,
+    level: 'MEDIO',
+    parameters: configuracion(VALORES_CORRECTOS).parameters.map(parametro => ({
+      id: parametro.id,
+      value: parametro.value,
+    })),
+    evidences: evidencias.map(evidencia => ({
+      id: evidencia.id,
+      status: evidencia.status,
+      observations: evidencia.observations,
+      resolvedAttributes: evidencia.resolvedAttributes,
+    })),
+  } as unknown as Parameters<typeof buildOpExp1ReportModel>[0];
+
+  const modelo = buildOpExp1ReportModel(resultado);
+  const campo = (id: string) =>
+    modelo.fields.find(item => item.id === `op.exp.1.${id}`);
+
+  comprueba(
+    'once campos, los de la hoja «Informe ENSFácil»',
+    modelo.fields.length === 11,
+    String(modelo.fields.length)
+  );
+
+  comprueba(
+    'el inventario consolidado enseña el activo y su hardware observados',
+    Boolean(
+      campo('campo2')?.value.includes('activo: wazuh-real') &&
+        campo('campo2')?.value.includes('fabricante: Hetzner')
+    ),
+    campo('campo2')?.value
+  );
+
+  comprueba(
+    'la cobertura enseña la fila declarada en P-01',
+    Boolean(campo('campo3')?.value.includes('Responsable de Sistemas')),
+    campo('campo3')?.value
+  );
+
+  comprueba(
+    'la revisión periódica enseña la fecha observada',
+    Boolean(campo('campo10')?.value.includes('fecha: 2026-09-10')),
+    campo('campo10')?.value
+  );
+
+  comprueba(
+    'los activos críticos (R3) salen NO_APLICA',
+    campo('campo9')?.status === 'NO_APLICA'
   );
 }
 

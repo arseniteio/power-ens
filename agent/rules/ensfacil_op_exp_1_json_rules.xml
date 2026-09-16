@@ -54,7 +54,7 @@
   <!-- ===== Inventario técnico del activo ===== -->
 
   <!-- EV-01 y EV-07. Foto del hardware y del sistema operativo. Un solo hecho
-       sirve a dos preguntas: EV-01 mide su antigüedad contra P-07 (¿el
+       sirve a dos preguntas: EV-01 mide su antigüedad contra P-08 (¿el
        inventario está al día?) y EV-07 contrasta su `activo` contra la tabla
        de responsables P-01 (¿alguien responde de esta máquina?). Por eso lleva
        evidence_id=EV-01,EV-07 y el normalizador lo reparte. -->
@@ -87,7 +87,7 @@
 
   <!-- EV-04. Estado de la conexión del agente de Wazuh con el manager, leído
        del propio agente: estado y último keepalive. El motor mide la
-       antigüedad del keepalive contra P-07; un activo que deja de reportar se
+       antigüedad del keepalive contra P-08; un activo que deja de reportar se
        queda sin hechos nuevos y su evidencia se cae sola. -->
   <rule id="110204" level="3">
     <if_sid>110200</if_sid>

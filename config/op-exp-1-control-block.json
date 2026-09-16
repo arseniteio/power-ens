@@ -237,7 +237,7 @@
       "ifNotConfigured": "No se puede priorizar por criticidad. No afecta al cumplimiento: R3 no es exigible."
     },
     {
-      "id": "P-07",
+      "id": "P-08",
       "controlId": "op.exp.1",
       "name": "antiguedad_maxima_inventario_horas",
       "label": "Antigüedad máxima del inventario técnico (horas)",

@@ -6,7 +6,7 @@ import { ENSControlConfiguration } from '../types';
 // el producto selecciona con el mismo nivel global BAJO / MEDIO / ALTO. Solo
 // puntúa op.exp.1.1, igual en las tres; ningún refuerzo es obligatorio.
 //
-// La mitad técnica del requisito la observa el agente (P-07 dice cuánto puede
+// La mitad técnica del requisito la observa el agente (P-08 dice cuánto puede
 // envejecer esa foto). La mitad organizativa —quién responde de cada activo, de
 // qué naturaleza es, qué activos no admiten agente, cuándo se revisó— solo la
 // puede declarar el cliente, y se declara AQUÍ: el agente no la lee jamás.
@@ -218,7 +218,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
         'No se puede priorizar por criticidad. No afecta al cumplimiento: R3 no es exigible.',
     },
     {
-      id: 'P-07',
+      id: 'P-08',
       controlId: 'op.exp.1',
       name: 'antiguedad_maxima_inventario_horas',
       label: 'Antigüedad máxima del inventario técnico (horas)',
