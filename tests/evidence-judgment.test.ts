@@ -2993,6 +2993,15 @@ bloque('Estado de la migración');
     'op.acc.4/EV-06',
     'op.acc.4/EV-07',
     'op.acc.4/EV-08',
+    // op.exp.3 también nace en el modelo nuevo: sus seis evidencias con hecho
+    // en la máquina declaran `judgment`. Las otras cinco no tienen fuente en el
+    // agente y no se juzgan (ver tests/op-exp-3-judgment.test.ts).
+    'op.exp.3/EV-02',
+    'op.exp.3/EV-03',
+    'op.exp.3/EV-04',
+    'op.exp.3/EV-08',
+    'op.exp.3/EV-09',
+    'op.exp.3/EV-11',
   ];
 
   comprueba(

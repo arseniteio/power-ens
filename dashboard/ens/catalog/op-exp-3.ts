@@ -23,7 +23,7 @@ export const opExp3CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.3 añade a op.exp.2 la dimensión temporal: no basta con bastionar bien al desplegar, hay que mantener esa configuración «en todo momento» y demostrarlo.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
