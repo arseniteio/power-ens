@@ -75,6 +75,10 @@ RUNBOOKS = {
         "op.acc.4-access-rights-management-process",
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
+    "op.acc.6": (
+        "op.acc.6-organization-users-authentication",
+        ["ensfacil_op_acc_6_json_rules.xml"],
+    ),
 }
 
 fallos = []

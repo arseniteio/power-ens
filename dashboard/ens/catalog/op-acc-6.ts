@@ -7,7 +7,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
   description:
-    'op.acc.6 es el control de autenticación del personal propio, y frente a op.acc.5 tiene una ventaja operativa enorme: las credenciales viven en el directorio corporativo (Active Directory, LDAP, Azure AD), que es una fuente de eventos rica y estandarizada que Wazuh consume de forma nativa.',
+    'op.acc.6 exige un mecanismo de autenticación para el personal de la organización: UNO de cuatro refuerzos (contraseña solo desde zona controlada, contraseña con segundo factor, certificado o certificado en soporte físico), doble factor desde zona no controlada y acceso remoto autorizado, cifrado y auditado desde nivel BAJO, registro de accesos desde MEDIO, y reautenticación y suspensión por no uso en ALTO.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   status: 'DRAFT',
   version: '1.0.0',
@@ -94,7 +94,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-12'],
-      parameterIds: [],
+      parameterIds: ['P-11'],
     },
     {
       id: 'op.acc.6.8',
@@ -106,7 +106,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-03', 'EV-04'],
-      parameterIds: ['P-03', 'P-05'],
+      parameterIds: ['P-05'],
     },
     {
       id: 'op.acc.6.9',
@@ -128,9 +128,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R1. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
       evidenceIds: ['EV-02'],
-      parameterIds: ['P-02'],
+      parameterIds: ['P-01', 'P-02'],
     },
     {
       id: 'op.acc.6.r1.2',
@@ -140,9 +142,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R1 o R2. Con R3 o R4 se muestra NO_APLICA.',
       },
       evidenceIds: ['EV-11'],
-      parameterIds: ['P-10'],
+      parameterIds: ['P-01', 'P-10'],
     },
     {
       id: 'op.acc.6.r2.1',
@@ -152,9 +156,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R2. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
-      evidenceIds: [],
-      parameterIds: [],
+      evidenceIds: ['EV-02'],
+      parameterIds: ['P-01', 'P-02'],
     },
     {
       id: 'op.acc.6.r3.1',
@@ -164,9 +170,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R3. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
       evidenceIds: [],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.6.r3.2',
@@ -176,9 +184,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R3. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
       evidenceIds: [],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.6.r4.1',
@@ -188,9 +198,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R4. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
       evidenceIds: [],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.6.r4.2',
@@ -200,9 +212,11 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Rige solo si P-01 declara R4. Con otro refuerzo elegido se muestra NO_APLICA.',
       },
       evidenceIds: [],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.6.r5.1',
@@ -279,9 +293,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         'Será de aplicación la ITS de Interconexión de sistemas de información.',
       kind: 'REFUERZO',
       applicability: {
-        levels: ['ALTO'],
-        reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+        levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: [],
       parameterIds: [],
@@ -293,9 +305,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         'El acceso remoto deberá considerar los siguientes aspectos: a) Ser autorizado por la autoridad correspondiente. b) El tráfico deberá ser cifrado. c) Si la utilización no se produce de manera constante, el acceso remoto deberá encontrarse inhabilitado y habilitarse únicamente cuando sea necesario. d) Deberán recogerse registros de auditoría de este tipo de conexiones.',
       kind: 'REFUERZO',
       applicability: {
-        levels: ['ALTO'],
-        reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+        levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-07', 'EV-08'],
       parameterIds: ['P-07'],

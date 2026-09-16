@@ -1182,192 +1182,278 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.acc.6',
     title: 'Registro de accesos con éxito y fallidos',
     description:
-      'Ingesta de todos los eventos de autenticación del personal de la organización desde el directorio corporativo declarado en P-03. Es la evidencia central del Refuerzo R5 (obligatorio desde MEDIO) y la base de casi todas las demás detecciones del control.',
+      'Barrido de las fuentes de autenticación declaradas en P-03 buscando huecos de registro: una fuente que no existe, que nunca ha registrado nada o cuya configuración no registra los accesos con éxito o los fallidos (LogLevel de sshd, olcLogLevel de slapd, journald sin almacenamiento). Los propios accesos (110101, 110102) son el registro que se acredita. Es la evidencia central del Refuerzo R5, obligatorio desde MEDIO.',
     requirements: ['op.acc.6.r5.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'authentication_success', 'authentication_failure'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'auth_logging_gap', 'authentication_success', 'authentication_failure'],
+    relatedRules: ['110101', '110102', '110105'],
+    judgment: {
+      // Un hueco de registro es un hallazgo de barrido. Solo incumple si la
+      // fuente que no registra está entre las que la organización declara
+      // monitorizar: un hueco en una fuente que no usa no le quita nada. Sin
+      // huecos y con la fuente mirada (latido), el silencio vale.
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-03',
+      factEventTypes: ['auth_logging_gap'],
+      factField: 'fuente',
+    },
     auditQuestion:
-      '¿Se acredita: registro de accesos con éxito y fallidos?',
+      '¿Registran las fuentes de autenticación declaradas los accesos con éxito y los fallidos, sin huecos?',
   },
   {
     id: 'EV-02',
     controlId: 'op.acc.6',
     title: 'Verificación del doble factor en accesos desde zona no controlada',
     description:
-      'Clasificación de cada autenticación según la IP de origen contra los rangos de zona controlada (P-02), y verificación de que las procedentes de zona no controlada llevan segundo factor. Es la evidencia del Refuerzo R8, obligatorio desde nivel BAJO.',
-    requirements: ['op.acc.6.r1.1', 'op.acc.6.r8.1'],
+      'Cada acceso con éxito con su origen y los factores que el servidor verificó, y cada canal de autenticación en escucha con las direcciones en que escucha y el mínimo de factores que exige. El motor clasifica origen y direcciones contra las zonas controladas de P-02. Es la evidencia del Refuerzo R8, obligatorio desde nivel BAJO, y la de R1 (contraseña solo desde zona controlada) y R2 (segundo factor).',
+    requirements: ['op.acc.6.r1.1', 'op.acc.6.r2.1', 'op.acc.6.r8.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'mfa_used'],
-    relatedRules: [],
+    // SIN `judgment`, a propósito: la decide la policy de op.acc.6. Clasificar
+    // una dirección contra rangos CIDR y exigir factores según la zona no es
+    // ninguna de las siete primitivas (ver op-acc-6.policy.ts).
+    expectedEventTypes: ['evidence_state', 'authentication_success', 'remote_channel_listening'],
+    relatedRules: ['110101', '110108'],
     auditQuestion:
-      '¿Se acredita: verificación del doble factor en accesos desde zona no controlada?',
+      '¿Todo acceso desde o a través de zona no controlada ha verificado dos factores, y ningún canal expuesto fuera de zona controlada admite uno solo?',
   },
   {
     id: 'EV-03',
     controlId: 'op.acc.6',
     title: 'Límite de intentos y bloqueo efectivo de cuenta',
     description:
-      'Detección de cuentas que acumulan más de P-05 intentos fallidos sin que se registre el bloqueo, evidenciando que el límite exigido por op.acc.6.8 está declarado pero no es operativo.',
+      'Configuración del límite de intentos de cada camino de autenticación con contraseña en uso (pam_faillock, pam_tally2 o la política del directorio): si hay bloqueo, tras cuántos fallos y si la cuenta se desbloquea sola. Se contrasta con P-05 y con la exigencia de que reactivar la cuenta requiera una intervención específica.',
     requirements: ['op.acc.6.8'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'account_locked'],
-    relatedRules: [],
+    // SIN `judgment`: op.acc.6.8 son tres condiciones a la vez (hay bloqueo,
+    // umbral dentro de P-05, sin desbloqueo automático) y las decide la policy.
+    expectedEventTypes: ['evidence_state', 'lockout_policy_checked', 'account_locked'],
+    relatedRules: ['110103', '110104'],
     auditQuestion:
-      '¿Se acredita: límite de intentos y bloqueo efectivo de cuenta?',
+      '¿Cada camino de autenticación con contraseña bloquea la cuenta tras P-05 fallos y exige una intervención para reactivarla?',
   },
   {
     id: 'EV-04',
     controlId: 'op.acc.6',
-    title: 'Ataques de fuerza bruta, password spraying y Kerberoasting',
+    title: 'Fallos acumulados sin bloqueo (fuerza bruta y password spraying)',
     description:
-      'Identificación de patrones de ataque contra las credenciales corporativas: fallos masivos contra una cuenta, un mismo intento contra muchas cuentas (password spraying), o solicitudes anómalas de tickets de servicio Kerberos. Es el riesgo que op.acc.6.8 pretende mitigar.',
+      'Fallos de autenticación agregados por cuenta, origen y canal en cada pasada, y bloqueos registrados. Una cuenta existente con más de P-05 fallos en una pasada sin bloqueo registrado evidencia que el límite no es operativo. Los fallos contra cuentas inexistentes se muestran como patrón de ataque pero no se pueden bloquear. Kerberoasting no aplica: no hay KDC.',
     requirements: ['op.acc.6.8'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'authentication_attack_pattern'],
-    relatedRules: [],
+    // SIN `judgment`: correlaciona fallos y bloqueos por cuenta; la decide la
+    // policy junto con EV-03.
+    expectedEventTypes: ['evidence_state', 'authentication_failure', 'account_locked'],
+    relatedRules: ['110102', '110103'],
     auditQuestion:
-      '¿Se acredita: ataques de fuerza bruta, password spraying y kerberoasting?',
+      '¿Alguna cuenta acumula más fallos de los admitidos sin que se registre su bloqueo?',
   },
   {
     id: 'EV-05',
     controlId: 'op.acc.6',
     title: 'Antigüedad de credenciales y política de cambio',
     description:
-      'Cálculo de la antigüedad de la credencial de cada usuario activo frente a la periodicidad P-04, y verificación de que la política del dominio impone efectivamente ese máximo.',
+      'Por cada credencial de una cuenta que puede autenticarse: su antigüedad en días (contraseña, desde /etc/shadow o pwdChangedTime; clave ssh, desde la fecha de su fichero, que es una cota inferior) y la caducidad que el sistema impone (99999 si no impone ninguna). Las dos medidas se contrastan con la periodicidad P-04.',
     requirements: ['op.acc.6.4'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_age_checked'],
-    relatedRules: [],
+    relatedRules: ['110106'],
+    judgment: {
+      // Ningún valor puede superar P-04: ni la antigüedad de una credencial ni
+      // la caducidad que el sistema permite. Una política que no impone
+      // caducidad (99999) no garantiza el cambio periódico aunque hoy todas
+      // las credenciales sean recientes, y eso es lo que pide op.acc.6.4.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-04',
+      factEventTypes: ['credential_age_checked'],
+      factField: 'dias',
+    },
     auditQuestion:
-      '¿Se acredita: antigüedad de credenciales y política de cambio?',
+      '¿Ninguna credencial supera la periodicidad de cambio P-04, y el sistema impone esa caducidad?',
   },
   {
     id: 'EV-06',
     controlId: 'op.acc.6',
     title: 'Reacción ante compromiso y baja de personal',
     description:
-      'Medición del intervalo entre el evento de notificación de compromiso de credencial, o de baja del usuario, y la inhabilitación efectiva de su cuenta. Contraste con el plazo máximo P-06.',
+      'Horas entre cada notificación de compromiso o de baja anotada por la organización y la inhabilitación de la cuenta observada por el agente, o las que lleva habilitada si no se ha inhabilitado. Contraste con el plazo máximo P-06.',
     requirements: ['op.acc.6.5', 'op.acc.6.6'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'credential_disabled', 'compromise_reported', 'offboarding_reported'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'credential_disable_checked'],
+    relatedRules: ['110107'],
+    judgment: {
+      // Existencial no: TODA notificación tiene que haberse atendido en plazo.
+      // Sin notificaciones no hay nada que medir y queda NO_EVALUABLE, igual
+      // que las bajas de op.acc.1 EV-04.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-06',
+      factEventTypes: ['credential_disable_checked'],
+      factField: 'horas',
+    },
     auditQuestion:
-      '¿Se acredita: reacción ante compromiso y baja de personal?',
+      '¿Toda credencial comprometida o de una persona que causó baja se inhabilitó dentro del plazo P-06?',
   },
   {
     id: 'EV-07',
     controlId: 'op.acc.6',
-    title: 'Acceso remoto: canal, cifrado y autorización',
+    title: 'Acceso remoto: canal y registro de auditoría',
     description:
-      'Registro de todas las conexiones remotas del personal con identificación del canal empleado, si el tráfico va cifrado, la IP de origen y el usuario. Contraste contra los canales autorizados de P-07. Cubre los apartados a), b) y d) de op.acc.6.r9.2.',
+      'Cada acceso remoto con éxito queda registrado con su canal, origen, usuario y métodos (el mismo hecho 110101 de EV-01 y EV-02). Se contrasta el canal con los autorizados en P-07. Cubre los apartados a) y d) de op.acc.6.r9.2; el cifrado y el uso constante de cada canal los cubre EV-08.',
     requirements: ['op.acc.6.r9.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'remote_access_connection'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'authentication_success'],
+    relatedRules: ['110101'],
+    judgment: {
+      // Lo que se exige no es que se usen todos los canales autorizados, sino
+      // que nadie entre por otro. Con el log mirado y sin accesos, el silencio
+      // vale (latido). Solo llegan aquí los accesos REMOTOS: la consola no se
+      // etiqueta EV-07.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-07',
+      parameterColumn: 'canal',
+      factEventTypes: ['authentication_success'],
+      factField: 'canal',
+    },
     auditQuestion:
-      '¿Se acredita: acceso remoto: canal, cifrado y autorización?',
+      '¿Todo acceso remoto registrado entró por un canal autorizado en P-07?',
   },
   {
     id: 'EV-08',
     controlId: 'op.acc.6',
-    title: 'Canales de acceso remoto habilitados sin uso constante',
+    title: 'Canales de acceso remoto: cifrado y habilitación',
     description:
-      'Detección de canales de acceso remoto declarados en P-07 como de uso no constante que permanecen permanentemente habilitados. El apartado c) de op.acc.6.r9.2 exige que estén inhabilitados y se habiliten únicamente cuando sea necesario.',
+      'Cada canal de acceso remoto en escucha fuera de loopback, con el cifrado que exige (ssh sí; ldap sin TLS obligatorio, no) y si arranca siempre. Se casa con su fila de P-07: el cifrado tiene que coincidir, y un canal que arranca siempre tiene que estar declarado de uso constante. Cubre los apartados b) y c) de op.acc.6.r9.2.',
     requirements: ['op.acc.6.r9.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'remote_channel_listening'],
-    relatedRules: [],
+    relatedRules: ['110108'],
+    judgment: {
+      // Un canal sin fila no es un incumplimiento demostrado: es una decisión
+      // que nadie ha escrito, y sale sin demostrar. La columna `uso_constante`
+      // se contrasta con `habilitado_permanente`: un canal que arranca siempre
+      // solo casa con una fila de uso constante.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-07',
+      factEventTypes: ['remote_channel_listening'],
+      factField: 'canal',
+      factKeyField: 'canal',
+      tableKeyColumn: 'canal',
+      tableChecks: [
+        { column: 'cifrado', factField: 'cifrado' },
+        { column: 'uso_constante', factField: 'habilitado_permanente' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: canales de acceso remoto habilitados sin uso constante?',
+      '¿Cada canal remoto en escucha está autorizado en P-07, cifra como declara y solo está habilitado siempre si su uso es constante?',
   },
   {
     id: 'EV-09',
     controlId: 'op.acc.6',
     title: 'Renovación de autenticación en puntos críticos (R6)',
     description:
-      'Verificación de que las operaciones declaradas en P-08 van precedidas de un evento de reautenticación singular y no se amparan únicamente en la sesión ya establecida. Obligatorio en nivel ALTO.',
+      'Barrido de las configuraciones que permiten ejecutar un punto crítico sin volver a autenticarse: sudo con NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust. Se contrasta con los puntos declarados en P-08. Obligatorio en nivel ALTO.',
     requirements: ['op.acc.6.r6.1'],
     levels: ['ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'critical_operation_executed', 'reauthentication_performed'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'reauthentication_not_required'],
+    relatedRules: ['110109'],
+    judgment: {
+      // P-08 es la lista de puntos donde la sesión NO basta. Un hallazgo sobre
+      // un punto declarado incumple; sobre uno no declarado, no. Barrido: sin
+      // hallazgos y con la configuración leída, el silencio vale.
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-08',
+      factEventTypes: ['reauthentication_not_required'],
+      factField: 'punto',
+    },
     auditQuestion:
-      '¿Se acredita: renovación de autenticación en puntos críticos (r6)?',
+      '¿Ningún punto declarado en P-08 se puede ejecutar amparándose solo en la sesión establecida?',
   },
   {
     id: 'EV-10',
     controlId: 'op.acc.6',
     title: 'Credenciales activas sin utilización prolongada (R7)',
     description:
-      'Identificación de cuentas que permanecen habilitadas pese a no haberse utilizado durante más días de los definidos en P-09. Obligatorio en nivel ALTO y, en la práctica, una de las comprobaciones que más hallazgos produce en cualquier organización.',
+      'Por cada cuenta habilitada (shell que permite sesión, no caducada, con contraseña usable o claves autorizadas), los días desde su último acceso: lo más reciente entre lastlog, wtmp y los accesos que el agente anota del log de autenticación. Una cuenta que nunca ha accedido cuenta desde la fecha de su credencial. Obligatorio en nivel ALTO.',
     requirements: ['op.acc.6.r7.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_inactivity_checked'],
-    relatedRules: [],
+    relatedRules: ['110110'],
+    judgment: {
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-09',
+      factEventTypes: ['account_inactivity_checked'],
+      factField: 'dias',
+    },
     auditQuestion:
-      '¿Se acredita: credenciales activas sin utilización prolongada (r7)?',
+      '¿Ninguna cuenta habilitada lleva más de P-09 días sin utilizarse?',
   },
   {
     id: 'EV-11',
     controlId: 'op.acc.6',
     title: 'Complejidad y robustez de las contraseñas (R1)',
     description:
-      'Verificación de que la política de contraseñas configurada en el dominio o en los sistemas cumple los requisitos de complejidad mínima y robustez frente a adivinación declarados en P-10, conforme a las guías CCN-STIC que el propio ENS señala como referencia.',
+      'Lo que el sistema impone al fijar una contraseña: longitud mínima, clases de caracteres exigidas, historial y si se consulta una lista de bloqueo (pila password de PAM; en un directorio, su política de contraseñas). Se contrasta con los mínimos de P-10. Rige con R1 y con R2.',
     requirements: ['op.acc.6.r1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    // SIN `judgment`: P-10 son varios mínimos a la vez y solo rige con R1 o
+    // R2 (P-01). La decide la policy.
     expectedEventTypes: ['evidence_state', 'password_policy_checked'],
-    relatedRules: [],
+    relatedRules: ['110111'],
     auditQuestion:
-      '¿Se acredita: complejidad y robustez de las contraseñas (r1)?',
+      '¿La política de contraseñas impuesta alcanza cada mínimo de P-10?',
   },
   {
     id: 'EV-12',
     controlId: 'op.acc.6',
-    title: 'Información revelada en el proceso de autenticación',
+    title: 'Información expuesta antes de autenticar',
     description:
-      'Detección de respuestas del sistema que revelan información en los rechazos de autenticación: mensajes que distinguen usuario inexistente de credencial incorrecta, o banners que exponen tecnología y versión. Vulnera op.acc.6.7.',
+      'Barrido de lo que cada servicio de autenticación muestra a quien todavía no se ha identificado: versión del software y de la distribución en la identificación de SSH, banner previo, rootDSE o bind anónimos del directorio. Se contrasta con lo que la organización admite en P-11. OpenSSH y slapd no distinguen usuario inexistente de credencial incorrecta hacia el cliente, así que ese caso no produce hallazgo.',
     requirements: ['op.acc.6.7'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
-    criticality: 'HIGH',
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'auth_rejection_message'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'auth_disclosure_observed'],
+    relatedRules: ['110112'],
+    judgment: {
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-11',
+      factEventTypes: ['auth_disclosure_observed'],
+      factField: 'exposicion',
+    },
     auditQuestion:
-      '¿Se acredita: información revelada en el proceso de autenticación?',
+      '¿Los servicios de autenticación solo exponen, antes de autenticar, lo que la organización admite en P-11?',
   },
   {
     id: 'EV-01',
