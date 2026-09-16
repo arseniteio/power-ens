@@ -210,11 +210,11 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'inventario_virtualizacion',
       label: 'Inventario de virtualización',
       description:
-        'Máquinas virtuales y anfitriones de virtualización del sistema. Una fila por máquina: el hipervisor que la aloja, la máquina (nombre del agente de Wazuh; para un anfitrión, el suyo propio) y si ese anfitrión tiene agente. Si no hay virtualización, se declara una fila «- | ninguna | -».',
+        'Máquinas virtuales y anfitriones de virtualización cuyo anfitrión se gestiona con el mismo rigor que una máquina física. Una fila por máquina: el hipervisor que la aloja, la máquina (nombre de su agente de Wazuh; para un anfitrión, el suyo propio) y cómo se gestiona ese anfitrión (el nombre de su agente de Wazuh o, en un proveedor cloud, la referencia de su acreditación). Declarar una fila ES afirmar que el anfitrión está gestionado: una VM cuyo anfitrión no lo está no se declara, y EV-05 incumple, que es lo que pide op.exp.2.4.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.4'],
       type: 'table',
-      example: 'hetzner-cloud | wazuh-real | no (proveedor)',
+      example: 'pve01 | srv-web01 | agente pve01',
       columns: [
         {
           name: 'hipervisor',
@@ -229,21 +229,27 @@ export const opExp2Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
+          // No se contrasta con ningún hecho: la VM no ve a su anfitrión. Es la
+          // prueba DECLARADA de que el anfitrión se gestiona, y viaja al informe
+          // para que el auditor la pueda comprobar.
           name: 'agente',
-          label: 'Anfitrión con agente',
+          label: 'Gestión del anfitrión',
           type: 'string',
-          required: false,
+          required: true,
         },
       ],
-      required: true,
+      // No obligatorio: su ausencia solo afecta a op.exp.2.4 (EV-05 sale
+      // NO_EVALUABLE y el requisito no evidenciado). Marcarlo obligatorio
+      // bloquearía también op.exp.2.1, .2 y .3, que no dependen de él.
+      required: false,
       wazuhUsage:
         'El recolector emite `virtualization_role` (regla 110306) si la máquina es virtual o si aloja máquinas virtuales.',
       ensfacilUsage:
-        'EV-05 comprueba que toda VM o anfitrión observado consta en la columna Máquina (NINGUNO_FUERA_DE_LISTA). Si el anfitrión de cada VM tiene agente es una pregunta entre máquinas: se declara aquí y la responde el agente del propio anfitrión, no el de la VM.',
+        'EV-05 comprueba que toda VM o anfitrión observado consta en la columna Máquina (NINGUNO_FUERA_DE_LISTA). Si el anfitrión está gestionado lo afirma quien declara la fila; lo mide el agente del propio anfitrión, no el de la VM.',
       evidenceIds: ['EV-05'],
       ruleIds: ['110306'],
       ifNotConfigured:
-        'op.exp.2.4 NO EVALUABLE. No se puede verificar que las máquinas virtuales y sus anfitriones están inventariados.',
+        'op.exp.2.4 NO EVALUABLE. No se puede verificar que las máquinas virtuales y sus anfitriones están gestionados.',
     },
     {
       id: 'P-07',

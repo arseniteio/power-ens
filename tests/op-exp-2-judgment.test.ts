@@ -127,7 +127,7 @@ const VALORES: Record<string, Valor> = {
   ],
   'P-04': ['ninguno | ninguna | Sin excepciones autorizadas'],
   'P-05': 90,
-  'P-06': ['hetzner-cloud | wazuh-real | no'],
+  'P-06': ['hetzner-cloud | wazuh-real | acreditación del proveedor (referencia)'],
 };
 
 const configuracion = (
@@ -509,14 +509,39 @@ bloque('8. P-06: inventario de virtualización');
 {
   comprueba(
     'la VM fuera del inventario → EV-05 NO_CUMPLE',
-    estado(evidencias(REALES, { 'P-06': ['pve01 | otra-vm | si'] }), 'EV-05') ===
+    estado(evidencias(REALES, { 'P-06': ['pve01 | otra-vm | agente pve01'] }), 'EV-05') ===
       'NO_CUMPLE'
   );
+
+  const sinP06 = evidencias(REALES, { 'P-06': undefined });
   comprueba(
-    'una máquina física (sin hecho) con latido y «ninguna» → CUMPLE',
+    'sin P-06 → EV-05 NO_EVALUABLE por CONFIGURATION',
+    estado(sinP06, 'EV-05') === 'NO_EVALUABLE' &&
+      sinP06.get('EV-05')?.gapCause === 'CONFIGURATION'
+  );
+
+  // P-06 no es obligatorio: su ausencia deja op.exp.2.4 sin evidenciar y NO
+  // arrastra a op.exp.2.1, que no depende de él.
+  const eventos = alertas(REALES);
+  const sinInventario = evaluateENSControl(
+    opExp2CatalogDefinition,
+    configuracion({ 'P-06': undefined }),
+    'BAJO',
+    resolveEvidenceForControl('op.exp.2', eventos, '024', 'BAJO', configuracion({ 'P-06': undefined }), AHORA),
+    undefined,
+    eventos
+  );
+  comprueba(
+    'sin P-06, op.exp.2.4 NO_CUMPLE no evidenciado y op.exp.2.1 sigue CUMPLE',
+    sinInventario.requirements.find(r => r.id === 'op.exp.2.4')?.evidenced === false &&
+      sinInventario.requirements.find(r => r.id === 'op.exp.2.1')?.status === 'CUMPLE',
+    sinInventario.requirements.map(r => `${r.id}=${r.status}`).join(' ')
+  );
+  comprueba(
+    'una máquina física (sin hecho) con latido e inventario declarado → CUMPLE',
     estado(
       evidencias(sinEvento('virtualization_role'), {
-        'P-06': ['- | ninguna | -'],
+        'P-06': ['pve01 | srv-bd01 | agente pve01'],
       }),
       'EV-05'
     ) === 'CUMPLE'
