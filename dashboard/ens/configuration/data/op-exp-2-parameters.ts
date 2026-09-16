@@ -1,0 +1,285 @@
+import { ENSControlConfiguration } from '../types';
+
+export const opExp2Configuration: ENSControlConfiguration = {
+  controlId: 'op.exp.2',
+  controlName: 'Configuración de seguridad',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.exp.2',
+      name: 'politicas_sca_por_perfil',
+      label: 'Politicas sca por perfil',
+      description:
+        'Línea base de configuración segura asignada a cada tipo o perfil de activo: servidor web, servidor de base de datos, controlador de dominio, estación de trabajo, hipervisor. Determina qué política SCA evalúa Wazuh en cada máquina.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.1', 'op.exp.2.2', 'op.exp.2.3'],
+      type: 'table',
+      example: 'srv-web | CIS Apache / DC | CIS Windows DC / hipervisor | CIS VMware',
+      columns: [
+        {
+          name: 'perfil',
+          label: 'Perfil',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'pol_tica_sca',
+          label: 'Política SCA',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil despliega la política SCA correspondiente a cada agente según su perfil. Sin esta asignación, SCA evalúa con la política genérica del SO y pierde precisión en los servicios concretos del activo.',
+      ensfacilUsage:
+        'ENSFácil despliega la política SCA correspondiente a cada agente según su perfil. Sin esta asignación, SCA evalúa con la política genérica del SO y pierde precisión en los servicios concretos del activo.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'SCA evalúa solo con la política base del sistema operativo. La cobertura de op.exp.2 queda parcial.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.exp.2',
+      name: 'servicios_justificados_por_perfil',
+      label: 'Servicios justificados por perfil',
+      description:
+        'Relación de servicios, puertos, roles y funciones justificados para cada perfil de activo. Es la traducción operativa de la regla de mínima funcionalidad: sin saber para qué sirve un equipo, no se puede juzgar si un servicio en ejecución es innecesario.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.2'],
+      type: 'table',
+      example: 'srv-web | nginx, sshd | / 80, 443, 22',
+      columns: [
+        {
+          name: 'perfil',
+          label: 'Perfil',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'servicios',
+          label: 'Servicios',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'puertos',
+          label: 'Puertos',
+          type: 'number',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil cruza los servicios y puertos detectados por Syscollector contra esta tabla. Todo servicio en ejecución o puerto en escucha no justificado genera hallazgo de funcionalidad excesiva.',
+      ensfacilUsage:
+        'ENSFácil cruza los servicios y puertos detectados por Syscollector contra esta tabla. Todo servicio en ejecución o puerto en escucha no justificado genera hallazgo de funcionalidad excesiva.',
+      evidenceIds: ['EV-01', 'EV-03', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.2.2 NO EVALUABLE. Wazuh ve los servicios activos pero no puede juzgar si están justificados.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.exp.2',
+      name: 'cuentas_contrasenas_estandar',
+      label: 'Cuentas contrasenas estandar',
+      description:
+        'Listado de cuentas y credenciales por defecto propias de los productos desplegados que deben haberse retirado: admin/admin, root sin contraseña, sa en SQL Server, cuentas de demostración, usuarios de ejemplo de aplicaciones.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.1'],
+      type: 'list',
+      example: 'sa | SQL Server / admin | router / tomcat | Apache Tomcat',
+      required: true,
+      wazuhUsage:
+        'Se carga como CDB list. SCA verifica la existencia de estas cuentas en cada activo y las reglas de log alertan ante cualquier autenticación exitosa con ellas.',
+      ensfacilUsage:
+        'Se carga como CDB list. SCA verifica la existencia de estas cuentas en cada activo y las reglas de log alertan ante cualquier autenticación exitosa con ellas.',
+      evidenceIds: ['EV-01', 'EV-02'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se detecta la pervivencia de cuentas por defecto. op.exp.2.1 queda sin verificación específica.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.exp.2',
+      name: 'excepciones_autorizadas',
+      label: 'Excepciones autorizadas',
+      description:
+        'Desviaciones respecto a la línea base que han sido autorizadas formalmente, con su justificación y el responsable que las aprobó. Toda excepción debe ser consciente y documentada, no un descuido.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.2', 'op.exp.2.3'],
+      type: 'table',
+      example: 'srv01 | CIS 5.2.4 | / requisito app legacy',
+      columns: [
+        {
+          name: 'activo',
+          label: 'Activo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'check_sca',
+          label: 'Check SCA',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'motivo',
+          label: 'Motivo',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil excluye estos checks del cómputo de incumplimiento en los activos afectados, pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+      ensfacilUsage:
+        'ENSFácil excluye estos checks del cómputo de incumplimiento en los activos afectados, pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+      evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Las desviaciones justificadas se contabilizan como incumplimiento, distorsionando el semáforo del control.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.exp.2',
+      name: 'umbral_cumplimiento_sca',
+      label: 'Umbral cumplimiento sca',
+      description:
+        'Porcentaje mínimo de checks SCA superados por debajo del cual el activo se considera no conforme con la línea base. Permite graduar el semáforo en lugar de exigir el 100 % absoluto.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.2', 'op.exp.2.3'],
+      type: 'number',
+      example: '90 (verde ≥ 90 %, / ámbar 75–89 %, / rojo < 75 %)',
+      required: true,
+      wazuhUsage:
+        'Define los cortes del semáforo por activo y el cómputo agregado del control. Los checks marcados como críticos pueden ponderarse por encima del resto.',
+      ensfacilUsage:
+        'Define los cortes del semáforo por activo y el cómputo agregado del control. Los checks marcados como críticos pueden ponderarse por encima del resto.',
+      evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Se aplica un umbral por defecto del 90 %, que puede no reflejar el apetito de riesgo de la organización.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.exp.2',
+      name: 'inventario_virtualizacion',
+      label: 'Inventario virtualizacion',
+      description:
+        'Relación de hipervisores y máquinas virtuales del sistema, con indicación de si el anfitrión está monitorizado. op.exp.2.4 exige expresamente incluir la máquina anfitriona en la gestión de seguridad.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2.4'],
+      type: 'table',
+      example: 'esx01 | vm-web, vm-bd | / sí (agente instalado)',
+      columns: [
+        {
+          name: 'hipervisor',
+          label: 'Hipervisor',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'vms',
+          label: 'VMs',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'agente',
+          label: 'Agente',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica que los anfitriones tienen agente y política SCA propia de hipervisor, y que las VM reciben el mismo tratamiento de parcheado, cuentas y antivirus que las máquinas físicas.',
+      ensfacilUsage:
+        'ENSFácil verifica que los anfitriones tienen agente y política SCA propia de hipervisor, y que las VM reciben el mismo tratamiento de parcheado, cuentas y antivirus que las máquinas físicas.',
+      evidenceIds: ['EV-05'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.2.4 NO EVALUABLE. No se puede verificar que los anfitriones reciben el mismo tratamiento.',
+    },
+    {
+      id: 'P-07',
+      controlId: 'op.exp.2',
+      name: 'momento_verificacion_pre_produccion',
+      label: 'Momento verificacion pre produccion',
+      description:
+        'Define si existe un punto de control formal antes de la entrada en operación de un activo, y cómo se registra. op.exp.2 exige que la configuración segura sea PREVIA a la operación, no posterior.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.2'],
+      type: 'select',
+      example: 'sí – «PR-12 Puesta / en producción v2»',
+      required: true,
+      wazuhUsage:
+        'ENSFácil correlaciona la fecha de alta del agente con la fecha del primer scan SCA conforme. Si un activo entra en producción antes de superar la línea base, genera hallazgo.',
+      ensfacilUsage:
+        'ENSFácil correlaciona la fecha de alta del agente con la fecha del primer scan SCA conforme. Si un activo entra en producción antes de superar la línea base, genera hallazgo.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede verificar la exigencia de configuración PREVIA a la entrada en operación.',
+    },
+    {
+      id: 'P-ATT',
+      controlId: 'op.exp.2',
+      name: 'atestaciones_documentales',
+      label: 'Atestaciones documentales',
+      description:
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la verificación de la configuración ANTES de la entrada en operación, que ningún log posterior puede demostrar por sí solo.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: [],
+      type: 'table',
+      example: 'op.exp.2.1 | Procedimiento de bastionado previo a producción | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'requisito',
+          label: 'Requisito',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'enlace',
+          label: 'Enlace',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      ensfacilUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+    },
+  ],
+};

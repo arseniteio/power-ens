@@ -1,0 +1,335 @@
+import { ENSControlConfiguration } from '../types';
+
+export const opExp4Configuration: ENSControlConfiguration = {
+  controlId: 'op.exp.4',
+  controlName: 'Mantenimiento y actualizaciones de seguridad',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.exp.4',
+      name: 'plazos_aplicacion_parches',
+      label: 'Plazos aplicacion parches',
+      description:
+        'Plazos máximos de aplicación de actualizaciones de seguridad según la criticidad de la vulnerabilidad. El ENS exige un procedimiento de priorización que tenga en cuenta la variación del riesgo (op.exp.4.2), pero no fija plazos: los define la organización.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.2'],
+      type: 'duration_days',
+      example: 'Crítica: 7 días / Alta: 30 días / Media: 90 días / Baja: siguiente ventana',
+      required: true,
+      wazuhUsage:
+        'Es el parámetro central del control. Superarlo → hallazgo.',
+      ensfacilUsage:
+        'ENSFácil mide el tiempo desde que el Vulnerability Detector reporta una vulnerabilidad hasta que desaparece del inventario, y lo contrasta con el plazo de su criticidad.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-07', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.4.2 NO EVALUABLE. Se detectan las vulnerabilidades pero no se puede juzgar si la reacción es tardía.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.exp.4',
+      name: 'personal_autorizado_mantenimiento',
+      label: 'Personal autorizado mantenimiento',
+      description:
+        'Cuentas y personas autorizadas para realizar tareas de mantenimiento y aplicar actualizaciones. op.exp.4.3 es taxativo: el mantenimiento solo podrá realizarse por personal debidamente autorizado.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.3'],
+      type: 'list',
+      example: 'adm_sist | servidores | / parcheado SO / prov_ext | app XYZ | vendor',
+      required: true,
+      wazuhUsage:
+        'CDB list en Wazuh. Toda instalación, actualización o desinstalación de software detectada cuyo actor no figure en esta lista genera alerta de mantenimiento no autorizado.',
+      ensfacilUsage:
+        'CDB list en Wazuh. Toda instalación, actualización o desinstalación de software detectada cuyo actor no figure en esta lista genera alerta de mantenimiento no autorizado.',
+      evidenceIds: ['EV-04'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.4.3 NO EVALUABLE. No se puede distinguir un parcheado legítimo de una instalación no autorizada.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.exp.4',
+      name: 'fuentes_anuncios_defectos',
+      label: 'Fuentes anuncios defectos',
+      description:
+        'Fuentes de seguimiento de anuncios de defectos y boletines de seguridad de los fabricantes del equipamiento desplegado, exigidas por op.exp.4.1 («seguimiento continuo de los anuncios de defectos»).',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.1'],
+      type: 'list',
+      example: 'Microsoft | MSRC | RSS / Red Hat | RHSA | correo / CCN-CERT | avisos | portal',
+      required: true,
+      wazuhUsage:
+        'ENSFácil documenta la cobertura del seguimiento y verifica que los feeds del Vulnerability Detector incluyen los fabricantes del inventario real. Fabricante presente en el inventario sin feed configurado → punto ciego declarado.',
+      ensfacilUsage:
+        'ENSFácil documenta la cobertura del seguimiento y verifica que los feeds del Vulnerability Detector incluyen los fabricantes del inventario real. Fabricante presente en el inventario sin feed configurado → punto ciego declarado.',
+      evidenceIds: ['EV-01', 'EV-03', 'EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede acreditar el seguimiento continuo de anuncios de defectos exigido por op.exp.4.1.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.exp.4',
+      name: 'ventanas_mantenimiento',
+      label: 'Ventanas mantenimiento',
+      description:
+        'Franjas horarias autorizadas para la aplicación de actualizaciones y tareas de mantenimiento. Permite distinguir un parcheado planificado de una instalación fuera de procedimiento.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.2', 'op.exp.4.3'],
+      type: 'table',
+      example: 'producción | sáb 22:00-02:00 / preproducción | cualquier día',
+      columns: [
+        {
+          name: 'sistema',
+          label: 'Sistema',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'ventana',
+          label: 'Ventana',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil contrasta la marca temporal de cada cambio de software detectado con las ventanas declaradas. Actualización aplicada fuera de ventana sin declaración de urgencia → hallazgo de procedimiento.',
+      ensfacilUsage:
+        'ENSFácil contrasta la marca temporal de cada cambio de software detectado con las ventanas declaradas. Actualización aplicada fuera de ventana sin declaración de urgencia → hallazgo de procedimiento.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-07', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede distinguir mantenimiento planificado de intervención improvisada. Se pierde una señal útil.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.exp.4',
+      name: 'software_fin_de_soporte',
+      label: 'Software fin de soporte',
+      description:
+        'Relación de productos desplegados con su fecha de fin de soporte del fabricante. Un producto fuera de soporte no recibe actualizaciones de seguridad, lo que hace imposible cumplir op.exp.4.1 y op.exp.4.2 sobre ese componente.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.1'],
+      type: 'table',
+      example: 'Windows Server 2012 R2 | / 10/10/2023 (fuera de soporte)',
+      columns: [
+        {
+          name: 'producto',
+          label: 'Producto',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'versi_n',
+          label: 'Versión',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'eol',
+          label: 'EOL',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil cruza el inventario de Syscollector contra esta tabla y alerta de productos fuera de soporte o próximos a estarlo. Es un hallazgo de auditoría muy habitual y de difícil defensa.',
+      ensfacilUsage:
+        'ENSFácil cruza el inventario de Syscollector contra esta tabla y alerta de productos fuera de soporte o próximos a estarlo. Es un hallazgo de auditoría muy habitual y de difícil defensa.',
+      evidenceIds: ['EV-01', 'EV-03', 'EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se detectan productos fuera de soporte. Riesgo de hallazgo sorpresa en la auditoría de certificación.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.exp.4',
+      name: 'entorno_preproduccion',
+      label: 'Entorno preproduccion',
+      description:
+        'Identificación del entorno de pruebas y acreditación de que es consistente en configuración con producción, como exige R1. Debe permitir correlacionar cada despliegue en producción con su paso previo por preproducción.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.r1.1'],
+      type: 'table',
+      example: 'srv-app01 → pre-app01',
+      columns: [
+        {
+          name: 'sistema_prod',
+          label: 'Sistema prod',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'sistema_preprod',
+          label: 'Sistema preprod',
+          type: 'identifier',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil correlaciona la instalación de una versión en producción con su instalación previa en el sistema de preproducción emparejado. Versión que aparece en producción sin haber pasado por preproducción → hallazgo de R1.',
+      ensfacilUsage:
+        'ENSFácil correlaciona la instalación de una versión en producción con su instalación previa en el sistema de preproducción emparejado. Versión que aparece en producción sin haber pasado por preproducción → hallazgo de R1.',
+      evidenceIds: ['EV-08'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 NO EVALUABLE. En categoría MEDIA y ALTA queda un refuerzo obligatorio sin acreditar automáticamente.',
+    },
+    {
+      id: 'P-07',
+      controlId: 'op.exp.4',
+      name: 'mecanismo_reversion',
+      label: 'Mecanismo reversion',
+      description:
+        'Mecanismo previsto para revertir configuraciones, parches y actualizaciones en caso de efectos adversos: snapshots de máquina virtual, puntos de restauración, imágenes previas, repositorio de versiones anteriores. R2 es obligatorio en categoría ALTA.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.r2.1'],
+      type: 'table',
+      example: 'srv-app01 | snapshot VM / pre-parcheo | log hipervisor',
+      columns: [
+        {
+          name: 'sistema',
+          label: 'Sistema',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'mecanismo',
+          label: 'Mecanismo',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'evidencia',
+          label: 'Evidencia',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica que existe evidencia del punto de reversión ANTES de cada actualización: snapshot creado, backup ejecutado o imagen registrada en la ventana previa al cambio. Actualización sin punto de reversión previo → hallazgo de R2.',
+      ensfacilUsage:
+        'ENSFácil verifica que existe evidencia del punto de reversión ANTES de cada actualización: snapshot creado, backup ejecutado o imagen registrada en la ventana previa al cambio. Actualización sin punto de reversión previo → hallazgo de R2.',
+      evidenceIds: ['EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R2 NO EVALUABLE. En categoría ALTA queda un refuerzo obligatorio sin acreditar.',
+    },
+    {
+      id: 'P-08',
+      controlId: 'op.exp.4',
+      name: 'criticidad_cvss_umbral',
+      label: 'Criticidad cvss umbral',
+      description:
+        'Correspondencia entre la puntuación CVSS que reporta el Vulnerability Detector y las categorías de criticidad con las que la organización prioriza en P-01. Permite automatizar la priorización.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.2'],
+      type: 'table',
+      example: '≥ 9,0 → Crítica / 7,0–8,9 → Alta / 4,0–6,9 → Media / < 4,0 → Baja',
+      required: true,
+      wazuhUsage:
+        'ENSFácil clasifica automáticamente cada vulnerabilidad detectada y le aplica el plazo de P-01 correspondiente. Puede ponderarse además por la criticidad del activo afectado (op.exp.1 P-06).',
+      ensfacilUsage:
+        'ENSFácil clasifica automáticamente cada vulnerabilidad detectada y le aplica el plazo de P-01 correspondiente. Puede ponderarse además por la criticidad del activo afectado (op.exp.1 P-06).',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-07', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Se aplica la correspondencia CVSS estándar por defecto, que puede no reflejar la valoración de riesgo propia.',
+    },
+    {
+      id: 'P-09',
+      controlId: 'op.exp.4',
+      name: 'dispositivos_firmware',
+      label: 'Dispositivos firmware',
+      description:
+        'Dispositivos hardware cuyo firmware debe verificarse periódicamente: electrónica de red, BIOS/UEFI de servidores, controladoras. Corresponde al Refuerzo R3, no obligatorio en ninguna categoría.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.4.r3.1'],
+      type: 'table',
+      example: 'sw-core01 | IOS 15.2 | / trimestral',
+      columns: [
+        {
+          name: 'dispositivo',
+          label: 'Dispositivo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'firmware_actual',
+          label: 'Firmware actual',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil registra la versión de firmware declarada y la contrasta con los boletines del fabricante. Permite acreditar R3 aunque no sea exigible. La verificación de integridad en sí suele requerir herramientas del propio fabricante.',
+      ensfacilUsage:
+        'ENSFácil registra la versión de firmware declarada y la contrasta con los boletines del fabricante. Permite acreditar R3 aunque no sea exigible. La verificación de integridad en sí suele requerir herramientas del propio fabricante.',
+      evidenceIds: ['EV-11'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R3 sin acreditar. No supone incumplimiento al no ser exigible, pero es un punto ciego de seguridad real.',
+    },
+    {
+      id: 'P-ATT',
+      controlId: 'op.exp.4',
+      name: 'atestaciones_documentales',
+      label: 'Atestaciones documentales',
+      description:
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la verificación criptográfica de integridad del firmware y la estrategia de monitorización continua, que ningún agente puede observar.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: [],
+      type: 'table',
+      example: 'op.exp.4.r4.1 | Estrategia de monitorización de vulnerabilidades | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'requisito',
+          label: 'Requisito',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'enlace',
+          label: 'Enlace',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      ensfacilUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+    },
+  ],
+};
