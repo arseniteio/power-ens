@@ -59,7 +59,7 @@ export const opExp4Control: ENSControl = {
     },
     {
       id: 'op.exp.4.r1.1',
-      level: ['ALTO'],
+      level: ['MEDIO', 'ALTO'],
       title: 'Prueba previa en preproducción (R1)',
       description:
         'Antes de poner en producción una nueva versión o una versión parcheada, se comprobará en un entorno de prueba controlado y consistente en configuración al entorno de producción, que la nueva instalación funciona correctamente y no disminuye la eficacia de las funciones necesarias para el trabajo diario.',
@@ -234,7 +234,7 @@ export const opExp4Control: ENSControl = {
         'Plazos máximos de aplicación de actualizaciones de seguridad según la criticidad de la vulnerabilidad. El ENS exige un procedimiento de priorización que tenga en cuenta la variación del riesgo (op.exp.4.2), pero no fija plazos: los define la organización.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.4.2'],
-      type: 'duration_days',
+      type: 'table',
       usage:
         'Es el parámetro central del control. Superarlo → hallazgo.',
       missingBehavior:
@@ -247,7 +247,7 @@ export const opExp4Control: ENSControl = {
         'Cuentas y personas autorizadas para realizar tareas de mantenimiento y aplicar actualizaciones. op.exp.4.3 es taxativo: el mantenimiento solo podrá realizarse por personal debidamente autorizado.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.4.3'],
-      type: 'list',
+      type: 'table',
       usage:
         'CDB list en Wazuh. Toda instalación, actualización o desinstalación de software detectada cuyo actor no figure en esta lista genera alerta de mantenimiento no autorizado.',
       missingBehavior:
@@ -260,7 +260,7 @@ export const opExp4Control: ENSControl = {
         'Fuentes de seguimiento de anuncios de defectos y boletines de seguridad de los fabricantes del equipamiento desplegado, exigidas por op.exp.4.1 («seguimiento continuo de los anuncios de defectos»).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.4.1'],
-      type: 'list',
+      type: 'table',
       usage:
         'ENSFácil documenta la cobertura del seguimiento y verifica que los feeds del Vulnerability Detector incluyen los fabricantes del inventario real. Fabricante presente en el inventario sin feed configurado → punto ciego declarado.',
       missingBehavior:
@@ -297,7 +297,7 @@ export const opExp4Control: ENSControl = {
       name: 'entorno_preproduccion',
       description:
         'Identificación del entorno de pruebas y acreditación de que es consistente en configuración con producción, como exige R1. Debe permitir correlacionar cada despliegue en producción con su paso previo por preproducción.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.4.r1.1'],
       type: 'table',
       usage:
@@ -310,7 +310,7 @@ export const opExp4Control: ENSControl = {
       name: 'mecanismo_reversion',
       description:
         'Mecanismo previsto para revertir configuraciones, parches y actualizaciones en caso de efectos adversos: snapshots de máquina virtual, puntos de restauración, imágenes previas, repositorio de versiones anteriores. R2 es obligatorio en categoría ALTA.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: ['ALTO'],
       requirements: ['op.exp.4.r2.1'],
       type: 'table',
       usage:
@@ -336,7 +336,7 @@ export const opExp4Control: ENSControl = {
       name: 'dispositivos_firmware',
       description:
         'Dispositivos hardware cuyo firmware debe verificarse periódicamente: electrónica de red, BIOS/UEFI de servidores, controladoras. Corresponde al Refuerzo R3, no obligatorio en ninguna categoría.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: [],
       requirements: ['op.exp.4.r3.1'],
       type: 'table',
       usage:
