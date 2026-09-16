@@ -7,9 +7,9 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
   description:
-    'op.acc.5 regula la autenticación de usuarios que NO pertenecen a la organización: ciudadanos, empresas, terceros autorizados.',
+    'op.acc.5 regula la autenticación de usuarios que NO pertenecen a la organización: ciudadanos, empresas, terceros autorizados. Los refuerzos R1 a R4 son una elección declarada en P-01, no una acumulación: solo cuenta el elegido, y R1 no es admisible desde nivel MEDIO.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -94,7 +94,7 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-06'],
-      parameterIds: [],
+      parameterIds: ['P-02'],
     },
     {
       id: 'op.acc.5.8',
@@ -126,13 +126,19 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       description:
         'Se empleará una contraseña como mecanismo de autenticación.',
       kind: 'REFUERZO',
+      // En los TRES niveles a propósito, aunque R1 solo sea admisible en BAJO.
+      // Si se limitara a BAJO, un sistema MEDIO que declara R1 en P-01 vería
+      // este requisito NO_APLICA por nivel y el incumplimiento directo que exige
+      // el ENS no tendría dónde caer. Qué refuerzo cuenta lo decide la policy
+      // del control con P-01: fuera del elegido, NO_APLICA; elegido en MEDIO o
+      // ALTO, NO_CUMPLE.
       applicability: {
-        levels: ['BAJO'],
+        levels: ['BAJO', 'MEDIO', 'ALTO'],
         reason:
-          'Exigible en BAJO. Para MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo R1: solo cuenta si P-01 lo declara, y solo es admisible en nivel BAJO.',
       },
-      evidenceIds: [],
-      parameterIds: [],
+      evidenceIds: ['EV-07'],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r1.2',
@@ -141,12 +147,12 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
         'Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).',
       kind: 'REFUERZO',
       applicability: {
-        levels: ['BAJO'],
+        levels: ['BAJO', 'MEDIO', 'ALTO'],
         reason:
-          'Exigible en BAJO. Para MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo R1: solo cuenta si P-01 lo declara, y solo es admisible en nivel BAJO.',
       },
-      evidenceIds: [],
-      parameterIds: [],
+      evidenceIds: ['EV-02'],
+      parameterIds: ['P-01', 'P-03'],
     },
     {
       id: 'op.acc.5.r2.1',
@@ -156,9 +162,10 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason: 'Refuerzo R2: solo cuenta si P-01 lo declara.',
       },
       evidenceIds: ['EV-07'],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r3.1',
@@ -168,9 +175,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R3: solo cuenta si P-01 lo declara.',
       },
       evidenceIds: ['EV-08'],
-      parameterIds: ['P-07'],
+      parameterIds: ['P-01', 'P-07'],
     },
     {
       id: 'op.acc.5.r3.2',
@@ -180,9 +189,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R3: solo cuenta si P-01 lo declara.',
       },
       evidenceIds: ['EV-07'],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r3.3',
@@ -192,9 +203,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R3: solo cuenta si P-01 lo declara. Documental: se acredita en P-ATT.',
       },
-      evidenceIds: ['EV-08'],
-      parameterIds: [],
+      evidenceIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r4.1',
@@ -204,9 +217,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R4: solo cuenta si P-01 lo declara.',
       },
       evidenceIds: ['EV-08'],
-      parameterIds: ['P-07'],
+      parameterIds: ['P-01', 'P-07'],
     },
     {
       id: 'op.acc.5.r4.2',
@@ -216,9 +231,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R4: solo cuenta si P-01 lo declara.',
       },
       evidenceIds: ['EV-07'],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r4.3',
@@ -228,9 +245,11 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       kind: 'REFUERZO',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
+        reason:
+          'Refuerzo R4: solo cuenta si P-01 lo declara. Documental: se acredita en P-ATT.',
       },
       evidenceIds: [],
-      parameterIds: [],
+      parameterIds: ['P-01'],
     },
     {
       id: 'op.acc.5.r5.1',
@@ -255,7 +274,7 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'Exigible en MEDIO y ALTO. Documental: P-09 declara la funcionalidad y P-ATT la acredita.',
       },
       evidenceIds: [],
       parameterIds: ['P-09'],
@@ -269,7 +288,7 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'R6 no es obligatorio en ningún nivel de op.acc.5 (sí en op.acc.6 ALTO): fuera del denominador.',
       },
       evidenceIds: [],
       parameterIds: [],
@@ -283,7 +302,7 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'R7 no es obligatorio en ningún nivel de op.acc.5 (sí en op.acc.6 ALTO): fuera del denominador.',
       },
       evidenceIds: [],
       parameterIds: [],
