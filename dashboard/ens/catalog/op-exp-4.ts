@@ -9,7 +9,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.4 es el control de gestión de vulnerabilidades y parcheado, y Wazuh lo cubre muy bien a través del Vulnerability Detector, que cruza el inventario de Syscollector con los feeds de CVE de los fabricantes y bases públicas.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
