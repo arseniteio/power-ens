@@ -635,6 +635,14 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
 
     judged += 1;
 
+    // `desconocido`: el agente no pudo leer la política de ese camino (la del
+    // directorio sin permiso de lectura). No es un camino sin bloqueo, es uno
+    // sin medir, y tapa el CUMPLE sin acusar.
+    if (lock === 'desconocido' || !lock) {
+      undecidable.push(`${route}: no se ha podido leer su política de bloqueo${text(event, 'detalle') ? ` (${text(event, 'detalle')})` : ''}`);
+      return;
+    }
+
     if (lock !== 'si') {
       offenders.push(`${route} no bloquea la cuenta tras ningún número de fallos`);
       eventIds.push(event.id);

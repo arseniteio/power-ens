@@ -401,6 +401,52 @@ bloque('4. op.acc.6.8: hay bloqueo, dentro de P-05 y sin desbloqueo automático'
   );
 }
 
+// --- 4 bis. un plano que no se pudo mirar no deja salir el verde ---------------------
+
+bloque('4 bis. El plano directorio sin medir impide el CUMPLE del sistema');
+
+{
+  const faillockOk = hechos([
+    { event: 'lockout_policy_checked', evidence_id: 'EV-03', plano: 'sistema', ruta: 'pam:login', en_uso: 'si', mecanismo: 'pam_faillock', bloqueo: 'si', max_intentos: 5, desbloqueo_automatico: 'no', desbloqueo_segundos: 0 },
+  ]);
+  const directorioIlegible = hechos([
+    { event: 'lockout_policy_checked', evidence_id: 'EV-03', plano: 'directorio', ruta: 'slapd:bind', en_uso: 'si', mecanismo: 'ppolicy', bloqueo: 'desconocido' },
+  ]);
+
+  const soloSistema = evalua({ 'P-05': 5 }, faillockOk);
+  const conDirectorio = evalua({ 'P-05': 5 }, [...faillockOk, ...directorioIlegible]);
+  comprueba(
+    'la reversión: solo el sistema, bien configurado · 6.8 CUMPLE',
+    soloSistema.requisito('op.acc.6.8')?.status === 'CUMPLE'
+  );
+  comprueba(
+    'con la política del directorio ilegible · 6.8 sin demostrar, no medido NO_CUMPLE',
+    conDirectorio.requisito('op.acc.6.8')?.status === 'NO_CUMPLE' &&
+      conDirectorio.requisito('op.acc.6.8')?.evidenced === false,
+    conDirectorio.decision('op.acc.6.8')?.reason
+  );
+
+  const edadSistema = hechos([
+    { event: 'credential_age_checked', evidence_id: 'EV-05', plano: 'sistema', usuario: 'user', credencial: 'contrasena', medida: 'antiguedad', dias: 30 },
+    { event: 'credential_age_checked', evidence_id: 'EV-05', plano: 'sistema', usuario: 'user', credencial: 'contrasena', medida: 'caducidad_configurada', dias: 180 },
+  ]);
+  const edadDirectorio = hechos([
+    { event: 'credential_age_checked', evidence_id: 'EV-05', plano: 'directorio', usuario: 'directorio', observacion: 'no_disponible', motivo: 'la ACL no deja ver zimbraPasswordModifiedTime' },
+  ]);
+  comprueba(
+    'la reversión: EV-05 solo con el sistema dentro de P-04 · CUMPLE',
+    evalua({ 'P-04': 180 }, edadSistema).evidencia('EV-05')?.status === 'CUMPLE'
+  );
+  comprueba(
+    'con el directorio no observado · EV-05 NO_EVALUABLE, nunca CUMPLE',
+    evalua({ 'P-04': 180 }, [...edadSistema, ...edadDirectorio]).evidencia('EV-05')?.status === 'NO_EVALUABLE'
+  );
+  comprueba(
+    'pero un incumplimiento medido del sistema sigue mandando',
+    evalua({ 'P-04': 90 }, [...edadSistema, ...edadDirectorio]).evidencia('EV-05')?.status === 'NO_CUMPLE'
+  );
+}
+
 // --- 5. calidad de contraseña -------------------------------------------------------
 
 bloque('5. op.acc.6.r1.2: cada mínimo de P-10, solo con R1 o R2');
