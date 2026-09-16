@@ -247,7 +247,7 @@
       ],
       "type": "table",
       "example": "srv-app01 | pre-app01 | informe de consistencia 2026-05",
-      "required": true,
+      "required": false,
       "wazuhUsage": "Versión que aparece en producción sin haber pasado antes por su preproducción → hallazgo de R1.",
       "ensfacilUsage": "EV-08 necesita los cambios de software de los DOS sistemas de la pareja. El motor evalúa cada máquina por separado, así que hoy la precedencia no se puede demostrar y R1 queda sin acreditar aunque la tabla esté rellena.",
       "evidenceIds": [
@@ -291,7 +291,7 @@
       "type": "table",
       "example": "* | lvm | snapshot previo al parcheo | 24",
       "minValue": 0,
-      "required": true,
+      "required": false,
       "wazuhUsage": "Cambio de software sin punto de reversión en la ventana previa → hallazgo de R2.",
       "ensfacilUsage": "EV-09 busca, para cada transacción de software, un punto de reversión del mecanismo declarado creado en las horas previas a su inicio.",
       "evidenceIds": [

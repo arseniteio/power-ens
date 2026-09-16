@@ -244,7 +244,11 @@ export const opExp4Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: true,
+      // No obligatorio A PROPÓSITO. Sin P-06, R1 ya sale sin demostrar por la
+      // policy; marcarlo obligatorio solo añadía un «configuración incompleta»
+      // que arrastraba también op.exp.4.3, que no tiene nada que ver. Y la
+      // única forma de «rellenarlo» sin preproducción sería inventarla.
+      required: false,
       wazuhUsage:
         'Versión que aparece en producción sin haber pasado antes por su preproducción → hallazgo de R1.',
       ensfacilUsage:
@@ -293,7 +297,9 @@ export const opExp4Configuration: ENSControlConfiguration = {
         },
       ],
       minValue: 0,
-      required: true,
+      // No obligatorio por lo mismo que P-06: sin P-07, R2 ya sale sin
+      // demostrar por la policy, y no debe arrastrar a los requisitos base.
+      required: false,
       wazuhUsage:
         'Cambio de software sin punto de reversión en la ventana previa → hallazgo de R2.',
       ensfacilUsage:
