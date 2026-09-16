@@ -15,7 +15,7 @@ export const opExp2PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'op.exp.2.2',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-01', 'P-02', 'P-04', 'P-05'],
+      parameterIds: ['P-01', 'P-02', 'P-05'],
       evidenceIds: ['EV-01', 'EV-03', 'EV-06'],
       ruleType: 'WHITELIST',
     },

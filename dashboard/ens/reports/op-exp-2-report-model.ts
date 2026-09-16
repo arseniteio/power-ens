@@ -111,14 +111,18 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cumplimiento de la línea base por activo  ·  fuente: SCA (EV-01)
+  // Cumplimiento de la línea base por activo  ·  fuente: SCA (EV-01, EV-06)
+  //
+  // EV-01 dice QUÉ política se evalúa (contra P-01) y EV-06 su PUNTUACIÓN
+  // (contra P-05). El detalle por check no lo recoge el agente: vive en el
+  // módulo SCA del manager.
   const campo2 = field(
     'op.exp.2.campo2',
     'Cumplimiento de la línea base por activo',
     evidenceStatus('EV-01'),
-    'Para cada activo: política SCA aplicada, número de checks evaluados, superados y fallidos, porcentaje de cumpl',
-    ['EV-01'],
-    evidenceObservations('EV-01'),
+    'Política SCA evaluada en el activo frente a la asignada en P-01, y puntuación SCA frente al umbral P-05 (EV-06).',
+    ['EV-01', 'EV-06'],
+    [...evidenceObservations('EV-01'), ...evidenceObservations('EV-06')],
   );
 
   // Checks fallidos agregados  ·  fuente: SCA (EV-01)
@@ -129,6 +133,7 @@ export const buildOpExp2ReportModel = (
     'Relación de los checks incumplidos ordenados por número de activos afectados y por criticidad. Permite prioriz',
     ['EV-01'],
     evidenceObservations('EV-01'),
+    ['detalle por check SCA: lo guarda el manager y ningún agente lo emite'],
   );
 
   // Cuentas y contraseñas estándar detectadas  ·  fuente: SCA + Log (EV-02)
@@ -166,9 +171,10 @@ export const buildOpExp2ReportModel = (
     'op.exp.2.campo7',
     'Cobertura de virtualización',
     evidenceStatus('EV-05'),
-    'Inventario de hipervisores y VM de P-06 con su estado de monitorización, política SCA aplicada y nivel de cump',
+    'Máquinas virtuales y anfitriones observados frente al inventario P-06.',
     ['EV-05'],
     evidenceObservations('EV-05'),
+    ['cobertura del anfitrión de cada VM: es una pregunta entre máquinas que el agente de la VM no puede contestar'],
   );
 
   // Evolución del bastionado  ·  fuente: SCA + ENSFácil (EV-06)
@@ -176,7 +182,7 @@ export const buildOpExp2ReportModel = (
     'op.exp.2.campo8',
     'Evolución del bastionado',
     evidenceStatus('EV-06'),
-    'Serie temporal del cumplimiento agregado y por activo. Identificación de equipos con tendencia descendente, qu',
+    'Serie de puntuaciones SCA del periodo frente al umbral P-05: ninguna puede quedar por debajo.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -189,6 +195,7 @@ export const buildOpExp2ReportModel = (
     'Activos incorporados en el período con la fecha de puesta en producción y la del primer resultado SCA conforme',
     ['EV-07'],
     evidenceObservations('EV-07'),
+    ['fecha de puesta en producción por activo: ningún agente la observa; se acredita con el procedimiento de P-07'],
   );
 
   // Puntuación de cumplimiento op.exp.2  ·  fuente: Motor ENSFácil

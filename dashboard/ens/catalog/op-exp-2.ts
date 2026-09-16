@@ -9,7 +9,7 @@ export const opExp2CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.2 es el control de bastionado: exige que los equipos entren en operación ya configurados de forma segura.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -34,7 +34,7 @@ export const opExp2CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-03', 'EV-06'],
-      parameterIds: ['P-01', 'P-02', 'P-04', 'P-05'],
+      parameterIds: ['P-01', 'P-02', 'P-05'],
     },
     {
       id: 'op.exp.2.3',
