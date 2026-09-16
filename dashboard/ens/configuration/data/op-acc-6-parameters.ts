@@ -354,7 +354,10 @@ export const opAcc6Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: true,
+      // No bloquea el control: sin atestaciones, SOLO los requisitos documentales
+      // quedan sin demostrar. Obligatorio, tumbaría también los técnicos, como
+      // en mp.info.6, op.acc.1 y op.acc.3, que lo declaran igual.
+      required: false,
       wazuhUsage:
         'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       ensfacilUsage:
