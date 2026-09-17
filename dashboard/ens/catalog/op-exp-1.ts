@@ -7,9 +7,9 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
   category: 'Explotación',
   dimension: 'Todas',
   description:
-    'op.exp.1 es, con diferencia, el control del ENS que Wazuh cubre de forma más natural: Syscollector mantiene un inventario continuo de hardware, sistema operativo, paquetes instalados, puertos abiertos, procesos e interfaces de red de cada agente.',
+    'op.exp.1 exige un inventario actualizado de todos los elementos del sistema, con su naturaleza y su responsable. El agente toma la foto técnica de cada activo (hardware, software, servicios, vecinos de red, conexión con el manager) y el motor la contrasta con lo que la organización declara: responsables, activos sin agente, plazos. Aplica por CATEGORÍA del sistema (BÁSICA, MEDIA y ALTA, que el producto selecciona con el nivel BAJO, MEDIO y ALTO) y solo puntúa el requisito base: ningún refuerzo es obligatorio.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -22,7 +22,7 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'],
-      parameterIds: ['P-01', 'P-02', 'P-03', 'P-04', 'P-05'],
+      parameterIds: ['P-01', 'P-02', 'P-03', 'P-04', 'P-05', 'P-08'],
     },
     {
       id: 'op.exp.1.r1.1',
@@ -33,7 +33,7 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo no exigible en ninguna categoría del sistema (BÁSICA, MEDIA ni ALTA): el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el denominador.',
       },
       evidenceIds: [],
       parameterIds: [],
@@ -47,7 +47,7 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo no exigible en ninguna categoría del sistema (BÁSICA, MEDIA ni ALTA): el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el denominador.',
       },
       evidenceIds: ['EV-04'],
       parameterIds: [],
@@ -61,7 +61,7 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo no exigible en ninguna categoría del sistema (BÁSICA, MEDIA ni ALTA): el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el denominador.',
       },
       evidenceIds: [],
       parameterIds: ['P-06'],
@@ -75,7 +75,7 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'Refuerzo no exigible en ninguna categoría del sistema (BÁSICA, MEDIA ni ALTA): el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el denominador.',
       },
       evidenceIds: ['EV-02'],
       parameterIds: [],

@@ -17,19 +17,19 @@ export const opExp1Control: ENSControl = {
       status: 'CUMPLE',
       score: 100,
       condition:
-        'Pendiente de definir.',
+        'op.exp.1.1 cumple: las siete evidencias cumplen (inventario técnico no más viejo que P-08, hosts vecinos declarados en P-02, revisión dentro de P-04, activo con fila en P-01) y P-01, P-02, P-03, P-04 y P-08 están bien configurados. Los refuerzos no son exigibles.',
     },
     medio: {
       status: 'CUMPLE',
       score: 100,
       condition:
-        'Pendiente de definir.',
+        'op.exp.1.1 cumple: las siete evidencias cumplen (inventario técnico no más viejo que P-08, hosts vecinos declarados en P-02, revisión dentro de P-04, activo con fila en P-01) y P-01, P-02, P-03, P-04 y P-08 están bien configurados. Los refuerzos no son exigibles.',
     },
     alto: {
       status: 'CUMPLE',
       score: 100,
       condition:
-        'Pendiente de definir.',
+        'op.exp.1.1 cumple: las siete evidencias cumplen (inventario técnico no más viejo que P-08, hosts vecinos declarados en P-02, revisión dentro de P-04, activo con fila en P-01) y P-01, P-02, P-03, P-04 y P-08 están bien configurados. Los refuerzos no son exigibles.',
     },
   },
   requirements: [
@@ -84,8 +84,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Recogida automática y continua del inventario de hardware de cada agente: fabricante, modelo, CPU, memoria, número de serie, y datos del sistema operativo (nombre, versión, arquitectura, kernel). Es la base del inventario técnico exigido por op.exp.1.1.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'asset_system'],
+      wazuhRuleIds: ['110201'],
     },
     {
       id: 'EV-02',
@@ -96,8 +96,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Relación completa de paquetes y aplicaciones instaladas en cada activo, con versión y origen. Cubre el inventario de elementos software del sistema y, de forma natural, el contenido que el Refuerzo R4 pide para la lista de componentes software de terceros.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'software_inventory'],
+      wazuhRuleIds: ['110202'],
     },
     {
       id: 'EV-03',
@@ -108,8 +108,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Interfaces de red con sus direcciones, puertos abiertos en escucha con el proceso asociado, y procesos en ejecución. Permite completar la naturaleza del activo (qué servicios presta) y detectar servicios no inventariados.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'network_inventory'],
+      wazuhRuleIds: ['110203'],
     },
     {
       id: 'EV-04',
@@ -120,8 +120,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Estado en tiempo real de cada agente: activo, desconectado, nunca conectado, con fecha de último contacto. Cubre de forma natural lo que pide el Refuerzo R2 (visualizar de forma continua el estado de todos los equipos en la red).',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'agent_status'],
+      wazuhRuleIds: ['110204'],
     },
     {
       id: 'EV-05',
@@ -132,8 +132,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Identificación de agentes que se registran por primera vez o de hosts detectados en la red que no figuran en el inventario declarado. Un activo no inventariado incumple directamente op.exp.1.1, que exige inventario «de todos los elementos del sistema».',
       format: 'json_line',
-      events: ['evidence_state', 'unrecognized_host_detected', 'undeclared_agent_detected'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'network_host_observed'],
+      wazuhRuleIds: ['110205'],
     },
     {
       id: 'EV-06',
@@ -144,8 +144,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Detección de variaciones en el inventario de un activo existente: instalación o eliminación de software, cambio de hardware, apertura de puertos nuevos. Un inventario «actualizado» implica reflejar estos cambios, no solo el alta inicial del activo.',
       format: 'json_line',
-      events: ['evidence_state', 'asset_software_change', 'asset_hardware_change', 'asset_port_opened'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'inventory_review', 'asset_software_change', 'asset_hardware_change', 'asset_port_opened', 'asset_port_closed'],
+      wazuhRuleIds: ['110210', '110206', '110207', '110208', '110209'],
     },
     {
       id: 'EV-07',
@@ -156,8 +156,8 @@ export const opExp1Control: ENSControl = {
       description:
         'Contraste entre los activos que Wazuh inventaría automáticamente y el conjunto declarado por el cliente (P-01 + P-02). Detecta tanto activos monitorizados sin responsable asignado como activos declarados que han dejado de reportar.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'asset_system'],
+      wazuhRuleIds: ['110201'],
     },
   ],
   parameters: [
@@ -240,6 +240,19 @@ export const opExp1Control: ENSControl = {
         'No se puede priorizar por criticidad. Todas las alertas tienen el mismo peso relativo en el informe.',
     },
     {
+      id: 'P-08',
+      name: 'antiguedad_maxima_inventario_horas',
+      description:
+        'Horas que puede pasar un activo sin renovar su inventario técnico ni su contacto con el manager. Por encima, su inventario ya no se puede dar por actualizado.',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'duration_hours',
+      usage:
+        'EV-01, EV-02, EV-03 y EV-04 miden contra este plazo la antigüedad de su hecho más reciente.',
+      missingBehavior:
+        'EV-01 a EV-04 quedan NO_EVALUABLE por configuración y op.exp.1.1 no cumple.',
+    },
+    {
       id: 'P-ATT',
       name: 'atestaciones_documentales',
       description:
@@ -253,7 +266,7 @@ export const opExp1Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'unrecognized_host_detected', 'undeclared_agent_detected', 'asset_software_change', 'asset_hardware_change', 'asset_port_opened'],
+  events: ['evidence_state', 'asset_system', 'software_inventory', 'network_inventory', 'agent_status', 'network_host_observed', 'inventory_review', 'asset_software_change', 'asset_hardware_change', 'asset_port_opened', 'asset_port_closed', 'collector_warning', 'collector_missing', 'collector_run'],
   presentationRules: {
     auditorSees: [
       'control ENS',

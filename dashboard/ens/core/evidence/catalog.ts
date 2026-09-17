@@ -1374,112 +1374,196 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.1',
     title: 'Inventario de hardware y sistema operativo',
     description:
-      'Recogida automática y continua del inventario de hardware de cada agente: fabricante, modelo, CPU, memoria, número de serie, y datos del sistema operativo (nombre, versión, arquitectura, kernel). Es la base del inventario técnico exigido por op.exp.1.1.',
+      'Foto del hardware y del sistema operativo de cada activo que toma el recolector de op.exp.1 en cada pasada: fabricante, modelo, número de serie, virtualización, CPU, memoria, sistema operativo, versión, kernel y arquitectura. Es la base del inventario técnico exigido por op.exp.1.1. No se lee de Syscollector: el inventario nativo no genera alertas (regla 221, nivel 0) y el motor solo lee wazuh-alerts-*.',
     requirements: ['op.exp.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'asset_system'],
+    relatedRules: ['110201'],
+    judgment: {
+      // «Inventario ACTUALIZADO» dicho con una primitiva: la foto más reciente
+      // del activo no puede ser más vieja que P-08. Se mide contra el reloj y
+      // sobre el instante de emisión del hecho (`ts`), así que un agente que
+      // deja de reportar ve caer esta evidencia sola, sin que nadie emita nada.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-08',
+      factEventTypes: ['asset_system'],
+      factField: 'ts',
+    },
     auditQuestion:
-      '¿Se acredita: inventario de hardware y sistema operativo?',
+      '¿Consta una foto del hardware y del sistema operativo de este activo tomada dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-02',
     controlId: 'op.exp.1',
     title: 'Inventario de software y paquetes instalados',
     description:
-      'Relación completa de paquetes y aplicaciones instaladas en cada activo, con versión y origen. Cubre el inventario de elementos software del sistema y, de forma natural, el contenido que el Refuerzo R4 pide para la lista de componentes software de terceros.',
+      'Resumen del software instalado en cada activo en cada pasada: gestor de paquetes, número de paquetes y snaps, y huella de la lista completa, más las altas, bajas y actualizaciones respecto de la pasada anterior. Cubre de forma natural el contenido del Refuerzo R4 (relación de componentes software). En un servidor de directorio lleva además el paquete que instala el servicio LDAP y los ficheros del producto que no controla el gestor de paquetes.',
     requirements: ['op.exp.1.1', 'op.exp.1.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'software_inventory'],
+    relatedRules: ['110202'],
+    judgment: {
+      // Misma pregunta que EV-01 sobre otra fuente: si el gestor de paquetes
+      // deja de poder leerse, el resumen deja de emitirse y esta evidencia
+      // envejece aunque la foto del hardware siga al día.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-08',
+      factEventTypes: ['software_inventory'],
+      factField: 'ts',
+    },
     auditQuestion:
-      '¿Se acredita: inventario de software y paquetes instalados?',
+      '¿Consta un inventario del software instalado en este activo tomado dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-03',
     controlId: 'op.exp.1',
     title: 'Inventario de red: interfaces, puertos y procesos',
     description:
-      'Interfaces de red con sus direcciones, puertos abiertos en escucha con el proceso asociado, y procesos en ejecución. Permite completar la naturaleza del activo (qué servicios presta) y detectar servicios no inventariados.',
+      'Interfaces de red con sus direcciones, servicios en escucha con su proceso y número de procesos en ejecución, en cada pasada. Es lo que dice qué servicios presta el activo, es decir, su naturaleza técnica. En un servidor de directorio el hecho solo se emite si además se ha podido observar el servicio LDAP (binario, escucha, sufijo del directorio): sin eso el inventario de esa máquina no dice lo que es.',
     requirements: ['op.exp.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'network_inventory'],
+    relatedRules: ['110203'],
+    judgment: {
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-08',
+      factEventTypes: ['network_inventory'],
+      factField: 'ts',
+    },
     auditQuestion:
-      '¿Se acredita: inventario de red: interfaces, puertos y procesos?',
+      '¿Consta un inventario de las interfaces y los servicios en escucha de este activo tomado dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-04',
     controlId: 'op.exp.1',
     title: 'Visualización continua del estado de los equipos',
     description:
-      'Estado en tiempo real de cada agente: activo, desconectado, nunca conectado, con fecha de último contacto. Cubre de forma natural lo que pide el Refuerzo R2 (visualizar de forma continua el estado de todos los equipos en la red).',
+      'Estado de la conexión del agente de Wazuh con el manager, leído del propio agente: estado (conectado, pendiente, desconectado) y último keepalive. Detecta el activo declarado que ha dejado de reportar de forma sostenida. Cubre de forma natural lo que pide el Refuerzo R2.',
     requirements: ['op.exp.1.1', 'op.exp.1.r2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'agent_status'],
+    relatedRules: ['110204'],
+    judgment: {
+      // Se mide el keepalive que el agente registró con el manager, no el
+      // instante del hecho: un agente desconectado que sigue escribiendo su
+      // estado no puede pasar por conectado. Un agente que nunca conectó no
+      // trae keepalive y la evidencia queda NO_EVALUABLE, nunca en verde.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-08',
+      factEventTypes: ['agent_status'],
+      factField: 'ultimo_keepalive',
+    },
     auditQuestion:
-      '¿Se acredita: visualización continua del estado de los equipos?',
+      '¿El agente de este activo ha mantenido contacto con el manager dentro del plazo declarado en P-08?',
   },
   {
     id: 'EV-05',
     controlId: 'op.exp.1',
     title: 'Detección de activos nuevos no inventariados',
     description:
-      'Identificación de agentes que se registran por primera vez o de hosts detectados en la red que no figuran en el inventario declarado. Un activo no inventariado incumple directamente op.exp.1.1, que exige inventario «de todos los elementos del sistema».',
+      'Hosts vecinos que esta máquina ve en su tabla de vecinos de red (ARP / NDP), con su IP, MAC y si es la pasarela, sin sondear la red. Se contrastan con los activos sin agente declarados (P-02): un host que habla con el sistema y no figura en el inventario incumple directamente op.exp.1.1. No detecta hosts que no hablen con esta máquina.',
     requirements: ['op.exp.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'unrecognized_host_detected', 'undeclared_agent_detected'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'network_host_observed'],
+    relatedRules: ['110205'],
+    judgment: {
+      // Un barrido: no ver ningún vecino sin declarar es lo normal en una red
+      // bien inventariada, así que puede cumplir por silencio, pero solo con el
+      // latido confirmando que la tabla de vecinos se leyó (EV-05 en
+      // `evidencias_cubiertas`). El nombre del hecho no dice «no reconocido»:
+      // eso lo decide este juicio.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-02',
+      parameterColumn: 'ip',
+      factEventTypes: ['network_host_observed'],
+      factField: 'ip',
+    },
     auditQuestion:
-      '¿Se acredita: detección de activos nuevos no inventariados?',
+      '¿Todo host de red que se observa desde este activo figura, por su IP, en el inventario de activos sin agente (P-02)?',
   },
   {
     id: 'EV-06',
     controlId: 'op.exp.1',
     title: 'Cambios en la composición de los activos',
     description:
-      'Detección de variaciones en el inventario de un activo existente: instalación o eliminación de software, cambio de hardware, apertura de puertos nuevos. Un inventario «actualizado» implica reflejar estos cambios, no solo el alta inicial del activo.',
+      'Variaciones en el inventario de un activo existente —software instalado, eliminado o actualizado, cambios de hardware, servicios que empiezan o dejan de escuchar—, detectadas comparando cada foto con la anterior, y la revisión formal del inventario en la que esos cambios pasan al inventario declarado. Un inventario «actualizado» implica reflejar los cambios, no solo el alta inicial.',
     requirements: ['op.exp.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'asset_software_change', 'asset_hardware_change', 'asset_port_opened'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    // Los cuatro tipos de cambio se escuchan para la traza, pero no se juzgan:
+    // ningún parámetro declara qué cambio está autorizado, y juzgarlos uno a
+    // uno sería inventar la política. Lo que se juzga es que la organización
+    // REVISE el inventario dentro de P-04, que es el acto en el que esos
+    // cambios quedan reflejados.
+    expectedEventTypes: [
+      'evidence_state',
+      'inventory_review',
+      'asset_software_change',
+      'asset_hardware_change',
+      'asset_port_opened',
+      'asset_port_closed',
+    ],
+    relatedRules: ['110210', '110206', '110207', '110208', '110209'],
+    judgment: {
+      // Existencial: basta una revisión lo bastante reciente, y por eso nunca
+      // cumple por ausencia. Sin revisión anotada no se acredita.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-04',
+      factEventTypes: ['inventory_review'],
+      factField: 'fecha',
+    },
     auditQuestion:
-      '¿Se acredita: cambios en la composición de los activos?',
+      '¿Consta una revisión formal del inventario de este activo, que recoja sus cambios de composición, dentro del plazo declarado en P-04?',
   },
   {
     id: 'EV-07',
     controlId: 'op.exp.1',
     title: 'Cobertura del inventario frente a activos declarados',
     description:
-      'Contraste entre los activos que Wazuh inventaría automáticamente y el conjunto declarado por el cliente (P-01 + P-02). Detecta tanto activos monitorizados sin responsable asignado como activos declarados que han dejado de reportar.',
+      'Contraste entre el activo que Wazuh observa (el nombre de máquina de la foto de EV-01) y la tabla de responsables declarada por el cliente (P-01). Un activo monitorizado sin fila en P-01 no tiene responsable ni naturaleza declarados, y eso es la mitad organizativa de op.exp.1.1 que Wazuh no puede ver por sí solo.',
     requirements: ['op.exp.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'asset_system'],
+    relatedRules: ['110201'],
+    judgment: {
+      // El MISMO hecho de EV-01 (evidence_id=EV-01,EV-07): una observación, dos
+      // preguntas. La población es la misma —el activo—, así que compartirlo
+      // no juzga sobre una muestra sesgada.
+      //
+      // TODOS_EN_LISTA y no NINGUNO_FUERA_DE_LISTA: el hecho ACREDITA que el
+      // activo existe; sin foto no se ha mirado nada y no puede cumplir.
+      //
+      // El responsable y la naturaleza no se comparan aquí porque no se
+      // observan: son columnas OBLIGATORIAS de P-01, y una fila sin ellas deja
+      // el parámetro inválido y el control sin poder cumplir.
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-01',
+      parameterColumn: 'activo',
+      factEventTypes: ['asset_system'],
+      factField: 'activo',
+    },
     auditQuestion:
-      '¿Se acredita: cobertura del inventario frente a activos declarados?',
+      '¿El activo observado por Wazuh figura en la tabla de responsables (P-01), con responsable y naturaleza declarados?',
   },
   {
     id: 'EV-01',
