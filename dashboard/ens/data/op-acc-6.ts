@@ -127,7 +127,7 @@ export const opAcc6Control: ENSControl = {
       title: 'Segundo factor junto a la contraseña (R2)',
       description:
         'Se requerirá un segundo factor tal como «algo que se tiene», es decir, un dispositivo, una contraseña de un solo uso (OTP, en inglés) como complemento a la contraseña de usuario, o «algo que se es».',
-      evidences: [],
+      evidences: ['EV-02'],
     },
     {
       id: 'op.acc.6.r3.1',
@@ -205,21 +205,19 @@ export const opAcc6Control: ENSControl = {
     },
     {
       id: 'op.acc.6.r9.1',
-      level: ['ALTO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Aplicación de la ITS de interconexión (R9)',
       description:
         'Será de aplicación la ITS de Interconexión de sistemas de información.',
       evidences: [],
-      active: false,
     },
     {
       id: 'op.acc.6.r9.2',
-      level: ['ALTO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Acceso remoto autorizado, cifrado y auditado (R9)',
       description:
         'El acceso remoto deberá considerar los siguientes aspectos: a) Ser autorizado por la autoridad correspondiente. b) El tráfico deberá ser cifrado. c) Si la utilización no se produce de manera constante, el acceso remoto deberá encontrarse inhabilitado y habilitarse únicamente cuando sea necesario. d) Deberán recogerse registros de auditoría de este tipo de conexiones.',
       evidences: ['EV-07', 'EV-08'],
-      active: false,
     },
   ],
   evidences: [
@@ -232,19 +230,19 @@ export const opAcc6Control: ENSControl = {
       description:
         'Ingesta de todos los eventos de autenticación del personal de la organización desde el directorio corporativo declarado en P-03. Es la evidencia central del Refuerzo R5 (obligatorio desde MEDIO) y la base de casi todas las demás detecciones del control.',
       format: 'json_line',
-      events: ['evidence_state', 'authentication_success', 'authentication_failure'],
+      events: ['evidence_state', 'auth_logging_gap', 'authentication_success', 'authentication_failure'],
       wazuhRuleIds: [],
     },
     {
       id: 'EV-02',
-      requirement: ['op.acc.6.r1.1', 'op.acc.6.r8.1'],
+      requirement: ['op.acc.6.r1.1', 'op.acc.6.r2.1', 'op.acc.6.r8.1'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Verificación del doble factor en accesos desde zona no controlada',
       description:
         'Clasificación de cada autenticación según la IP de origen contra los rangos de zona controlada (P-02), y verificación de que las procedentes de zona no controlada llevan segundo factor. Es la evidencia del Refuerzo R8, obligatorio desde nivel BAJO.',
       format: 'json_line',
-      events: ['evidence_state', 'mfa_used'],
+      events: ['evidence_state', 'authentication_success', 'remote_channel_listening'],
       wazuhRuleIds: [],
     },
     {
@@ -256,7 +254,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Detección de cuentas que acumulan más de P-05 intentos fallidos sin que se registre el bloqueo, evidenciando que el límite exigido por op.acc.6.8 está declarado pero no es operativo.',
       format: 'json_line',
-      events: ['evidence_state', 'account_locked'],
+      events: ['evidence_state', 'lockout_policy_checked', 'account_locked'],
       wazuhRuleIds: [],
     },
     {
@@ -268,7 +266,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Identificación de patrones de ataque contra las credenciales corporativas: fallos masivos contra una cuenta, un mismo intento contra muchas cuentas (password spraying), o solicitudes anómalas de tickets de servicio Kerberos. Es el riesgo que op.acc.6.8 pretende mitigar.',
       format: 'json_line',
-      events: ['evidence_state', 'authentication_attack_pattern'],
+      events: ['evidence_state', 'authentication_failure', 'account_locked'],
       wazuhRuleIds: [],
     },
     {
@@ -292,7 +290,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Medición del intervalo entre el evento de notificación de compromiso de credencial, o de baja del usuario, y la inhabilitación efectiva de su cuenta. Contraste con el plazo máximo P-06.',
       format: 'json_line',
-      events: ['evidence_state', 'credential_disabled', 'compromise_reported', 'offboarding_reported'],
+      events: ['evidence_state', 'credential_disable_checked'],
       wazuhRuleIds: [],
     },
     {
@@ -304,7 +302,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Registro de todas las conexiones remotas del personal con identificación del canal empleado, si el tráfico va cifrado, la IP de origen y el usuario. Contraste contra los canales autorizados de P-07. Cubre los apartados a), b) y d) de op.acc.6.r9.2.',
       format: 'json_line',
-      events: ['evidence_state', 'remote_access_connection'],
+      events: ['evidence_state', 'authentication_success'],
       wazuhRuleIds: [],
     },
     {
@@ -328,7 +326,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Verificación de que las operaciones declaradas en P-08 van precedidas de un evento de reautenticación singular y no se amparan únicamente en la sesión ya establecida. Obligatorio en nivel ALTO.',
       format: 'json_line',
-      events: ['evidence_state', 'critical_operation_executed', 'reauthentication_performed'],
+      events: ['evidence_state', 'reauthentication_not_required'],
       wazuhRuleIds: [],
       active: false,
     },
@@ -366,7 +364,7 @@ export const opAcc6Control: ENSControl = {
       description:
         'Detección de respuestas del sistema que revelan información en los rechazos de autenticación: mensajes que distinguen usuario inexistente de credencial incorrecta, o banners que exponen tecnología y versión. Vulnera op.acc.6.7.',
       format: 'json_line',
-      events: ['evidence_state', 'auth_rejection_message'],
+      events: ['evidence_state', 'auth_disclosure_observed'],
       wazuhRuleIds: [],
     },
   ],
@@ -375,66 +373,66 @@ export const opAcc6Control: ENSControl = {
       id: 'P-01',
       name: 'refuerzo_autenticacion_elegido',
       description:
-        'Mecanismo de autenticación implementado para el personal de la organización. A diferencia de op.acc.5, R1 (contraseña) es admisible en los tres niveles, pero solo para accesos desde zona controlada.',
+        'Mecanismo de autenticación implementado para el personal de la organización: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige UNO de los cuatro en todos los niveles, así que solo rigen los requisitos del refuerzo elegido; los otros tres no cuentan. La complejidad de contraseña (op.acc.6.r1.2) rige con R1 y con R2.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r1 a', 'op.acc.6.r4'],
+      requirements: ['op.acc.6.r1.1', 'op.acc.6.r1.2', 'op.acc.6.r2.1', 'op.acc.6.r3.1', 'op.acc.6.r3.2', 'op.acc.6.r4.1', 'op.acc.6.r4.2'],
       type: 'select',
       usage:
-        'Activa el conjunto de reglas correspondiente.',
+        'Los requisitos de los refuerzos no elegidos salen del denominador como NO_APLICA. Con R1, el acceso con contraseña desde una red fuera de P-02 incumple op.acc.6.r1.1; con R2, todo acceso tiene que haber verificado dos factores.',
       missingBehavior:
-        'El control es NO EVALUABLE. Sin saber qué mecanismo se usa no se puede verificar ninguna condición.',
+        'Ningún refuerzo de mecanismo se puede evaluar: sus siete requisitos quedan sin demostrar y cuentan en contra.',
     },
     {
       id: 'P-02',
       name: 'definicion_zonas_controladas',
       description:
-        'Delimitación de qué redes, ubicaciones y rangos de direcciones se consideran zona controlada según la definición del ENS: no de acceso público y con autenticación física previa del usuario ante el equipo. Todo lo demás es zona no controlada y activa la exigencia de R8.',
+        'Redes que son zona controlada según el ENS: no de acceso público y con autenticación física previa del usuario ante el equipo. Un elemento por línea: un rango CIDR (10.0.0.0/8, 192.168.10.0/24, fd00::/8), una dirección suelta, o la palabra local para la consola física de la máquina. Se puede añadir un comentario detrás del rango, separado por un espacio. Todo lo que no figure aquí es zona no controlada y exige doble factor (R8).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r8.1', 'op.acc.6.r1.1'],
+      requirements: ['op.acc.6.r8.1', 'op.acc.6.r1.1', 'op.acc.6.r2.1'],
       type: 'list',
       usage:
-        'Es el parámetro más crítico del control. Sin P-02, R8 no es verificable.',
+        'Es el parámetro más crítico del control. ENSFácil clasifica cada acceso por su origen y cada canal por las direcciones en que escucha: un acceso desde fuera de estos rangos con un solo factor, o un canal expuesto fuera de ellos que admite un solo factor, incumple R8.',
       missingBehavior:
-        'R8 NO EVALUABLE, y R8 es obligatorio desde nivel BAJO. El control queda en GRIS aunque todo lo demás esté bien.',
+        'R8 no se puede evaluar, y R8 es obligatorio desde nivel BAJO: queda sin demostrar y cuenta en contra.',
     },
     {
       id: 'P-03',
       name: 'fuente_directorio_corporativo',
       description:
-        'Directorio de identidades del personal de la organización y su fuente de eventos de autenticación. Debe ser coherente con el parámetro equivalente de op.acc.1.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r5.1', 'op.acc.6.8'],
-      type: 'select',
+        'Fuentes de identidad cuyos accesos tienen que quedar registrados: local (cuentas del sistema, log de autenticación), ldap (binds del directorio), active_directory o azure_ad. Una por línea. Debe ser coherente con el parámetro equivalente de op.acc.1.',
+      level: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.6.r5.1'],
+      type: 'list',
       usage:
-        'Determina qué integración activa Wazuh: colector de eventos de Windows en los controladores de dominio, auditd en Linux, o conector de Azure AD. Es la fuente de EV-01 y de casi todas las demás evidencias.',
+        'Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.',
       missingBehavior:
-        'No hay ingesta de eventos de autenticación corporativa. Todas las evidencias quedan sin fuente.',
+        'No se sabe qué fuentes tienen que registrar los accesos: op.acc.6.r5.1 queda sin demostrar.',
     },
     {
       id: 'P-04',
       name: 'periodicidad_cambio_credenciales_dias',
       description:
-        'Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite expresamente a la política de seguridad de la organización (op.acc.6.4), no fija plazo.',
+        'Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite a la política de seguridad de la organización (op.acc.6.4) y no fija plazo.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.4'],
       type: 'duration_days',
       usage:
-        'ENSFácil consulta el atributo pwdLastSet en AD (o equivalente) y calcula la antigüedad de cada credencial. Superar P-04 → alerta. SCA verifica además que la política de dominio fija ese máximo.',
+        'Una credencial más antigua que este plazo, o una caducidad configurada mayor, incumple op.acc.6.4.',
       missingBehavior:
-        'No se puede verificar op.acc.6.4 ni que la política de dominio esté alineada con la normativa interna.',
+        'op.acc.6.4 queda sin demostrar.',
     },
     {
       id: 'P-05',
       name: 'max_intentos_fallidos',
       description:
-        'Número máximo de intentos fallidos consecutivos antes del bloqueo de cuenta. El ENS exige que el número sea limitado (op.acc.6.8) pero deja la cifra a la organización.',
+        'Número máximo de intentos fallidos antes del bloqueo de la cuenta. El ENS exige que el número sea limitado y que reactivar la cuenta requiera una intervención específica (op.acc.6.8).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.8'],
       type: 'number',
       usage:
-        'SCA verifica que la política de bloqueo de cuentas del dominio está configurada con este umbral. Las reglas de correlación alertan si se superan P-05 intentos sin que se registre el bloqueo (EventID 4740).',
+        'Incumple op.acc.6.8 un camino en uso sin bloqueo, con un umbral mayor que este valor o con desbloqueo automático, y una cuenta existente con más fallos que este valor en una pasada sin bloqueo registrado.',
       missingBehavior:
-        'No se puede verificar op.acc.6.8. No se distingue un ataque de un bloqueo funcionando correctamente.',
+        'op.acc.6.8 queda sin demostrar.',
     },
     {
       id: 'P-06',
@@ -445,67 +443,80 @@ export const opAcc6Control: ENSControl = {
       requirements: ['op.acc.6.5', 'op.acc.6.6'],
       type: 'duration_hours',
       usage:
-        'Correlación entre el evento de notificación de compromiso o de baja de RRHH y el EventID 4725 (cuenta deshabilitada). Intervalo superior a P-06 → alerta. Coherente con op.acc.1 P-05.',
+        'Una inhabilitación que tarda más que este plazo, o una cuenta que lo supera sin inhabilitar, incumple op.acc.6.5 y op.acc.6.6.',
       missingBehavior:
-        'No se puede medir la reacción ante compromiso ni ante baja de personal.',
+        'op.acc.6.5 y op.acc.6.6 quedan sin demostrar.',
     },
     {
       id: 'P-07',
       name: 'canales_acceso_remoto',
       description:
-        'Canales autorizados de acceso remoto, con indicación de si el tráfico va cifrado, quién autoriza cada acceso y si el canal debe permanecer deshabilitado cuando no se usa. R9 es obligatorio en los tres niveles.',
+        'Canales de acceso remoto autorizados, uno por fila: canal (ssh, ldap, ldaps, rdp, vnc, tailscale, openvpn…, como lo nombra el agente), si su tráfico va cifrado (si/no), quién lo autoriza y si su uso es constante (si: puede estar habilitado siempre; no: debe estar inhabilitado y habilitarse solo cuando haga falta). R9 es obligatorio en los tres niveles.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.r9.2'],
       type: 'table',
       usage:
-        'ENSFácil verifica: que el tráfico va cifrado (EV-07), que existe autorización para cada usuario, que los canales de uso no constante no están permanentemente habilitados (EV-08), y que hay registro de auditoría.',
+        'Incumple op.acc.6.r9.2 un acceso por un canal que no figura aquí, un canal en escucha cuyo cifrado no coincide con su fila, o uno que arranca siempre y su fila dice uso no constante. Un canal en escucha sin fila no está decidido y tampoco se da por bueno.',
       missingBehavior:
-        'R9 NO EVALUABLE, y es obligatorio desde nivel BAJO. Los cuatro apartados de op.acc.6.r9.2 quedan sin verificar.',
+        'R9 no se puede evaluar, y es obligatorio desde nivel BAJO: op.acc.6.r9.2 queda sin demostrar.',
     },
     {
       id: 'P-08',
       name: 'puntos_renovacion_autenticacion',
       description:
-        'Puntos del sistema en los que debe exigirse una nueva autenticación singular sin que baste la sesión establecida: acceso a datos especialmente protegidos, operaciones administrativas, firma de actos administrativos. Obligatorio en nivel ALTO.',
+        'Puntos del sistema en los que se exige renovar la autenticación sin que baste la sesión establecida, uno por línea, con el nombre que usa el agente: sudo (elevación general, sudo ALL), su, o sudo:/ruta/del/comando para un comando concreto que la organización considere crítico. Un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.',
       level: ['ALTO'],
       requirements: ['op.acc.6.r6.1'],
       type: 'list',
       usage:
-        'ENSFácil verifica en los logs que las operaciones declaradas van precedidas de un evento de reautenticación propio, y no solo de la sesión inicial. Operación sin reautenticación → alerta.',
+        'Un punto declarado aquí que se puede ejecutar sin reautenticación incumple op.acc.6.r6.1.',
       missingBehavior:
-        'R6 NO EVALUABLE. En nivel ALTO esto deja un refuerzo obligatorio sin acreditar.',
+        'R6 queda sin demostrar, y en nivel ALTO es obligatorio.',
     },
     {
       id: 'P-09',
       name: 'periodo_no_utilizacion_dias',
       description:
-        'Días de inactividad tras los cuales una credencial debe suspenderse automáticamente. El ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.',
+        'Días de inactividad tras los cuales una credencial debe estar suspendida. El ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.',
       level: ['ALTO'],
       requirements: ['op.acc.6.r7.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil consulta lastLogonTimestamp en AD (o equivalente) y detecta cuentas activas cuyo último acceso supera P-09 sin haber sido suspendidas. Es una de las comprobaciones más productivas del control.',
+        'Una cuenta habilitada con más días de inactividad que este valor incumple op.acc.6.r7.1.',
       missingBehavior:
-        'R7 NO EVALUABLE. Las cuentas dormidas permanecen activas sin detección, con el riesgo que ello supone.',
+        'R7 queda sin demostrar, y en nivel ALTO es obligatorio.',
     },
     {
       id: 'P-10',
       name: 'politica_complejidad_contrasenas',
       description:
-        'Requisitos de complejidad y robustez exigidos a las contraseñas cuando P-01 = R1 o R2: longitud mínima, conjuntos de caracteres, historial, y protección frente a contraseñas comprometidas conocidas.',
+        'Mínimos de robustez de las contraseñas cuando P-01 es R1 o R2, uno por fila: criterio y valor mínimo. Criterios: longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores que no se pueden repetir) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.r1.2'],
-      type: 'string',
+      type: 'table',
       usage:
-        'SCA verifica la política de contraseñas del dominio o del sistema contra estos valores. Las guías CCN-STIC son la referencia que el propio ENS señala para fijarlos.',
+        'Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.',
       missingBehavior:
-        'No se puede verificar op.acc.6.r1.2. La robustez de las contraseñas queda sin acreditar.',
+        'Con R1 o R2, op.acc.6.r1.2 queda sin demostrar.',
+    },
+    {
+      id: 'P-11',
+      name: 'exposiciones_autenticacion_admitidas',
+      description:
+        'Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea, con el nombre que usa el agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.acc.6.7'],
+      type: 'list',
+      usage:
+        'Una exposición observada que no figura aquí incumple op.acc.6.7.',
+      missingBehavior:
+        'op.acc.6.7 queda sin demostrar.',
     },
     {
       id: 'P-ATT',
       name: 'atestaciones_documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la aceptación previa de la política, el acuse de recibo de las credenciales, la entrega bajo control exclusivo, el aviso del último acceso y la aplicación de la ITS de interconexión: nada de eso deja rastro en un log.',
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la aceptación previa de la política (op.acc.6.1), el acuse de recibo de las credenciales (op.acc.6.2), la entrega bajo control exclusivo (op.acc.6.3), la información de derechos tras el acceso (op.acc.6.9), el aviso del último acceso (op.acc.6.r5.2), la aplicación de la ITS de interconexión (op.acc.6.r9.1) y los certificados de R3 y R4: nada de eso deja rastro en un log.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -515,7 +526,7 @@ export const opAcc6Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'authentication_success', 'authentication_failure', 'mfa_used', 'account_locked', 'authentication_attack_pattern', 'credential_age_checked', 'credential_disabled', 'compromise_reported', 'offboarding_reported', 'remote_access_connection', 'remote_channel_listening', 'critical_operation_executed', 'reauthentication_performed', 'account_inactivity_checked', 'password_policy_checked', 'auth_rejection_message'],
+  events: ['evidence_state', 'control_state', 'score_snapshot', 'authentication_success', 'authentication_failure', 'account_locked', 'lockout_policy_checked', 'auth_logging_gap', 'credential_age_checked', 'credential_disable_checked', 'remote_channel_listening', 'reauthentication_not_required', 'account_inactivity_checked', 'password_policy_checked', 'auth_disclosure_observed', 'collector_run'],
   presentationRules: {
     auditorSees: [
       'control ENS',

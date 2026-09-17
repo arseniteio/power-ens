@@ -13,20 +13,29 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'refuerzo_autenticacion_elegido',
       label: 'Refuerzo autenticacion elegido',
       description:
-        'Mecanismo de autenticación implementado para el personal de la organización. A diferencia de op.acc.5, R1 (contraseña) es admisible en los tres niveles, pero solo para accesos desde zona controlada.',
+        'Mecanismo de autenticación implementado para el personal de la organización: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige UNO de los cuatro en todos los niveles, así que solo rigen los requisitos del refuerzo elegido; los otros tres no cuentan. La complejidad de contraseña (op.acc.6.r1.2) rige con R1 y con R2.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r1 a', 'op.acc.6.r4'],
+      requirements: [
+        'op.acc.6.r1.1',
+        'op.acc.6.r1.2',
+        'op.acc.6.r2.1',
+        'op.acc.6.r3.1',
+        'op.acc.6.r3.2',
+        'op.acc.6.r4.1',
+        'op.acc.6.r4.2',
+      ],
       type: 'select',
-      example: 'R1 (contraseña) — solo zona / controlada / R2 (contraseña + 2º factor) / R3 / R4 (certificado)',
+      example: 'R2',
+      options: ['R1', 'R2', 'R3', 'R4'],
       required: true,
       wazuhUsage:
-        'Activa el conjunto de reglas correspondiente.',
+        'No cambia lo que observa el agente: decide qué requisitos de refuerzo se evalúan.',
       ensfacilUsage:
-        'ENSFácil verifica además la coherencia con R8: si P-01 = R1 y se detectan accesos desde zonas no controladas, hay incumplimiento de R8 con independencia del nivel.',
-      evidenceIds: [],
+        'Los requisitos de los refuerzos no elegidos salen del denominador como NO_APLICA. Con R1, el acceso con contraseña desde una red fuera de P-02 incumple op.acc.6.r1.1; con R2, todo acceso tiene que haber verificado dos factores.',
+      evidenceIds: ['EV-02', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
-        'El control es NO EVALUABLE. Sin saber qué mecanismo se usa no se puede verificar ninguna condición.',
+        'Ningún refuerzo de mecanismo se puede evaluar: sus siete requisitos quedan sin demostrar y cuentan en contra.',
     },
     {
       id: 'P-02',
@@ -34,20 +43,20 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'definicion_zonas_controladas',
       label: 'Definicion zonas controladas',
       description:
-        'Delimitación de qué redes, ubicaciones y rangos de direcciones se consideran zona controlada según la definición del ENS: no de acceso público y con autenticación física previa del usuario ante el equipo. Todo lo demás es zona no controlada y activa la exigencia de R8.',
+        'Redes que son zona controlada según el ENS: no de acceso público y con autenticación física previa del usuario ante el equipo. Un elemento por línea: un rango CIDR (10.0.0.0/8, 192.168.10.0/24, fd00::/8), una dirección suelta, o la palabra local para la consola física de la máquina. Se puede añadir un comentario detrás del rango, separado por un espacio. Todo lo que no figure aquí es zona no controlada y exige doble factor (R8).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r8.1', 'op.acc.6.r1.1'],
+      requirements: ['op.acc.6.r8.1', 'op.acc.6.r1.1', 'op.acc.6.r2.1'],
       type: 'list',
-      example: '10.0.0.0/8 (sede central) / 192.168.10.0/24 (delegación) / Todo lo demás: no controlada',
+      example: '192.168.10.0/24 red de la sede',
       required: true,
       wazuhUsage:
-        'Es el parámetro más crítico del control. Sin P-02, R8 no es verificable.',
+        'El agente emite la dirección de origen de cada acceso y las direcciones en las que escucha cada canal de autenticación, sin clasificarlas.',
       ensfacilUsage:
-        'ENSFácil clasifica cada autenticación según la IP de origen y exige doble factor a toda la que provenga de fuera de estos rangos.',
+        'Es el parámetro más crítico del control. ENSFácil clasifica cada acceso por su origen y cada canal por las direcciones en que escucha: un acceso desde fuera de estos rangos con un solo factor, o un canal expuesto fuera de ellos que admite un solo factor, incumple R8.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
       ifNotConfigured:
-        'R8 NO EVALUABLE, y R8 es obligatorio desde nivel BAJO. El control queda en GRIS aunque todo lo demás esté bien.',
+        'R8 no se puede evaluar, y R8 es obligatorio desde nivel BAJO: queda sin demostrar y cuenta en contra.',
     },
     {
       id: 'P-03',
@@ -55,20 +64,29 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'fuente_directorio_corporativo',
       label: 'Fuente directorio corporativo',
       description:
-        'Directorio de identidades del personal de la organización y su fuente de eventos de autenticación. Debe ser coherente con el parámetro equivalente de op.acc.1.',
-      levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.6.r5.1', 'op.acc.6.8'],
-      type: 'select',
-      example: 'Active Directory / LDAP / / Azure AD / local / + DC y logs a monitorizar',
+        'Fuentes de identidad cuyos accesos tienen que quedar registrados: local (cuentas del sistema, log de autenticación), ldap (binds del directorio), active_directory o azure_ad. Una por línea. Debe ser coherente con el parámetro equivalente de op.acc.1.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.acc.6.r5.1'],
+      type: 'list',
+      example: 'local',
+      columns: [
+        {
+          name: 'fuente',
+          label: 'Fuente',
+          type: 'select',
+          required: true,
+          options: ['local', 'ldap', 'active_directory', 'azure_ad'],
+        },
+      ],
       required: true,
       wazuhUsage:
-        'Determina qué integración activa Wazuh: colector de eventos de Windows en los controladores de dominio, auditd en Linux, o conector de Azure AD. Es la fuente de EV-01 y de casi todas las demás evidencias.',
+        'El agente emite un hueco de registro cuando una fuente no existe, no ha registrado nunca nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).',
       ensfacilUsage:
-        'Determina qué integración activa Wazuh: colector de eventos de Windows en los controladores de dominio, auditd en Linux, o conector de Azure AD. Es la fuente de EV-01 y de casi todas las demás evidencias.',
-      evidenceIds: ['EV-01', 'EV-03', 'EV-04'],
+        'Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.',
+      evidenceIds: ['EV-01'],
       ruleIds: [],
       ifNotConfigured:
-        'No hay ingesta de eventos de autenticación corporativa. Todas las evidencias quedan sin fuente.',
+        'No se sabe qué fuentes tienen que registrar los accesos: op.acc.6.r5.1 queda sin demostrar.',
     },
     {
       id: 'P-04',
@@ -76,20 +94,21 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'periodicidad_cambio_credenciales_dias',
       label: 'Periodicidad cambio credenciales dias',
       description:
-        'Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite expresamente a la política de seguridad de la organización (op.acc.6.4), no fija plazo.',
+        'Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite a la política de seguridad de la organización (op.acc.6.4) y no fija plazo.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.4'],
       type: 'duration_days',
-      example: '90, 180 o 365 / o «n.a.» si el mecanismo / es certificado',
+      example: '180',
+      minValue: 1,
       required: true,
       wazuhUsage:
-        'ENSFácil consulta el atributo pwdLastSet en AD (o equivalente) y calcula la antigüedad de cada credencial. Superar P-04 → alerta. SCA verifica además que la política de dominio fija ese máximo.',
+        'El agente emite, por credencial, su antigüedad en días (contraseña desde /etc/shadow; clave ssh desde la fecha de su fichero) y la caducidad que el sistema impone (99999 si ninguna).',
       ensfacilUsage:
-        'ENSFácil consulta el atributo pwdLastSet en AD (o equivalente) y calcula la antigüedad de cada credencial. Superar P-04 → alerta. SCA verifica además que la política de dominio fija ese máximo.',
+        'Una credencial más antigua que este plazo, o una caducidad configurada mayor, incumple op.acc.6.4.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar op.acc.6.4 ni que la política de dominio esté alineada con la normativa interna.',
+        'op.acc.6.4 queda sin demostrar.',
     },
     {
       id: 'P-05',
@@ -97,20 +116,21 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'max_intentos_fallidos',
       label: 'Max intentos fallidos',
       description:
-        'Número máximo de intentos fallidos consecutivos antes del bloqueo de cuenta. El ENS exige que el número sea limitado (op.acc.6.8) pero deja la cifra a la organización.',
+        'Número máximo de intentos fallidos antes del bloqueo de la cuenta. El ENS exige que el número sea limitado y que reactivar la cuenta requiera una intervención específica (op.acc.6.8).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.8'],
       type: 'number',
-      example: '3, 5 o 10',
+      example: '5',
+      minValue: 1,
       required: true,
       wazuhUsage:
-        'SCA verifica que la política de bloqueo de cuentas del dominio está configurada con este umbral. Las reglas de correlación alertan si se superan P-05 intentos sin que se registre el bloqueo (EventID 4740).',
+        'El agente emite la configuración de bloqueo de cada camino de autenticación con contraseña (pam_faillock, pam_tally2, ppolicy) y los fallos y bloqueos que registra el log.',
       ensfacilUsage:
-        'SCA verifica que la política de bloqueo de cuentas del dominio está configurada con este umbral. Las reglas de correlación alertan si se superan P-05 intentos sin que se registre el bloqueo (EventID 4740).',
+        'Incumple op.acc.6.8 un camino en uso sin bloqueo, con un umbral mayor que este valor o con desbloqueo automático, y una cuenta existente con más fallos que este valor en una pasada sin bloqueo registrado.',
       evidenceIds: ['EV-03', 'EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar op.acc.6.8. No se distingue un ataque de un bloqueo funcionando correctamente.',
+        'op.acc.6.8 queda sin demostrar.',
     },
     {
       id: 'P-06',
@@ -122,16 +142,17 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.5', 'op.acc.6.6'],
       type: 'duration_hours',
-      example: '4, 24 o 72',
+      example: '24',
+      minValue: 1,
       required: true,
       wazuhUsage:
-        'Correlación entre el evento de notificación de compromiso o de baja de RRHH y el EventID 4725 (cuenta deshabilitada). Intervalo superior a P-06 → alerta. Coherente con op.acc.1 P-05.',
+        'La organización anota cada notificación de compromiso o baja en el registro del agente; el agente emite las horas hasta que observa la cuenta inhabilitada, o las que lleva habilitada.',
       ensfacilUsage:
-        'Correlación entre el evento de notificación de compromiso o de baja de RRHH y el EventID 4725 (cuenta deshabilitada). Intervalo superior a P-06 → alerta. Coherente con op.acc.1 P-05.',
+        'Una inhabilitación que tarda más que este plazo, o una cuenta que lo supera sin inhabilitar, incumple op.acc.6.5 y op.acc.6.6.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede medir la reacción ante compromiso ni ante baja de personal.',
+        'op.acc.6.5 y op.acc.6.6 quedan sin demostrar.',
     },
     {
       id: 'P-07',
@@ -139,11 +160,11 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'canales_acceso_remoto',
       label: 'Canales acceso remoto',
       description:
-        'Canales autorizados de acceso remoto, con indicación de si el tráfico va cifrado, quién autoriza cada acceso y si el canal debe permanecer deshabilitado cuando no se usa. R9 es obligatorio en los tres niveles.',
+        'Canales de acceso remoto autorizados, uno por fila: canal (ssh, ldap, ldaps, rdp, vnc, tailscale, openvpn…, como lo nombra el agente), si su tráfico va cifrado (si/no), quién lo autoriza y si su uso es constante (si: puede estar habilitado siempre; no: debe estar inhabilitado y habilitarse solo cuando haga falta). R9 es obligatorio en los tres niveles.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.r9.2'],
       type: 'table',
-      example: 'VPN IPsec | sí | RSI | sí / RDP bastión | sí | RSI | no',
+      example: 'ssh | si | Responsable de Seguridad | si',
       columns: [
         {
           name: 'canal',
@@ -154,25 +175,33 @@ export const opAcc6Configuration: ENSControlConfiguration = {
         {
           name: 'cifrado',
           label: 'Cifrado',
-          type: 'string',
-          required: false,
+          type: 'select',
+          required: true,
+          options: ['si', 'no'],
         },
         {
           name: 'autoriza',
           label: 'Autoriza',
           type: 'string',
-          required: false,
+          required: true,
+        },
+        {
+          name: 'uso_constante',
+          label: 'Uso constante',
+          type: 'select',
+          required: true,
+          options: ['si', 'no'],
         },
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica: que el tráfico va cifrado (EV-07), que existe autorización para cada usuario, que los canales de uso no constante no están permanentemente habilitados (EV-08), y que hay registro de auditoría.',
+        'El agente emite cada canal en escucha (con su cifrado observado y si arranca siempre) y cada acceso con su canal.',
       ensfacilUsage:
-        'ENSFácil verifica: que el tráfico va cifrado (EV-07), que existe autorización para cada usuario, que los canales de uso no constante no están permanentemente habilitados (EV-08), y que hay registro de auditoría.',
+        'Incumple op.acc.6.r9.2 un acceso por un canal que no figura aquí, un canal en escucha cuyo cifrado no coincide con su fila, o uno que arranca siempre y su fila dice uso no constante. Un canal en escucha sin fila no está decidido y tampoco se da por bueno.',
       evidenceIds: ['EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'R9 NO EVALUABLE, y es obligatorio desde nivel BAJO. Los cuatro apartados de op.acc.6.r9.2 quedan sin verificar.',
+        'R9 no se puede evaluar, y es obligatorio desde nivel BAJO: op.acc.6.r9.2 queda sin demostrar.',
     },
     {
       id: 'P-08',
@@ -180,20 +209,20 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'puntos_renovacion_autenticacion',
       label: 'Puntos renovacion autenticacion',
       description:
-        'Puntos del sistema en los que debe exigirse una nueva autenticación singular sin que baste la sesión establecida: acceso a datos especialmente protegidos, operaciones administrativas, firma de actos administrativos. Obligatorio en nivel ALTO.',
+        'Puntos del sistema en los que se exige renovar la autenticación sin que baste la sesión establecida, uno por línea, con el nombre que usa el agente: sudo (elevación general, sudo ALL), su, o sudo:/ruta/del/comando para un comando concreto que la organización considere crítico. Un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.',
       levels: ['ALTO'],
       requirements: ['op.acc.6.r6.1'],
       type: 'list',
-      example: 'consola admin AD | / elevación de privilegios / firma expediente | firma',
-      required: false,
+      example: 'sudo',
+      required: true,
       wazuhUsage:
-        'ENSFácil verifica en los logs que las operaciones declaradas van precedidas de un evento de reautenticación propio, y no solo de la sesión inicial. Operación sin reautenticación → alerta.',
+        'El agente emite cada configuración que permite ejecutar un punto sin volver a autenticarse (sudo NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust).',
       ensfacilUsage:
-        'ENSFácil verifica en los logs que las operaciones declaradas van precedidas de un evento de reautenticación propio, y no solo de la sesión inicial. Operación sin reautenticación → alerta.',
+        'Un punto declarado aquí que se puede ejecutar sin reautenticación incumple op.acc.6.r6.1.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
-        'R6 NO EVALUABLE. En nivel ALTO esto deja un refuerzo obligatorio sin acreditar.',
+        'R6 queda sin demostrar, y en nivel ALTO es obligatorio.',
     },
     {
       id: 'P-09',
@@ -201,20 +230,21 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'periodo_no_utilizacion_dias',
       label: 'Periodo no utilizacion dias',
       description:
-        'Días de inactividad tras los cuales una credencial debe suspenderse automáticamente. El ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.',
+        'Días de inactividad tras los cuales una credencial debe estar suspendida. El ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.',
       levels: ['ALTO'],
       requirements: ['op.acc.6.r7.1'],
       type: 'duration_days',
-      example: '30, 45 o 90',
-      required: false,
+      example: '45',
+      minValue: 1,
+      required: true,
       wazuhUsage:
-        'ENSFácil consulta lastLogonTimestamp en AD (o equivalente) y detecta cuentas activas cuyo último acceso supera P-09 sin haber sido suspendidas. Es una de las comprobaciones más productivas del control.',
+        'El agente emite, por cada cuenta habilitada, los días desde su último acceso (lastlog, wtmp y los accesos que él mismo anota del log de autenticación).',
       ensfacilUsage:
-        'ENSFácil consulta lastLogonTimestamp en AD (o equivalente) y detecta cuentas activas cuyo último acceso supera P-09 sin haber sido suspendidas. Es una de las comprobaciones más productivas del control.',
+        'Una cuenta habilitada con más días de inactividad que este valor incumple op.acc.6.r7.1.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
       ifNotConfigured:
-        'R7 NO EVALUABLE. Las cuentas dormidas permanecen activas sin detección, con el riesgo que ello supone.',
+        'R7 queda sin demostrar, y en nivel ALTO es obligatorio.',
     },
     {
       id: 'P-10',
@@ -222,20 +252,64 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'politica_complejidad_contrasenas',
       label: 'Politica complejidad contrasenas',
       description:
-        'Requisitos de complejidad y robustez exigidos a las contraseñas cuando P-01 = R1 o R2: longitud mínima, conjuntos de caracteres, historial, y protección frente a contraseñas comprometidas conocidas.',
+        'Mínimos de robustez de las contraseñas cuando P-01 es R1 o R2, uno por fila: criterio y valor mínimo. Criterios: longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores que no se pueden repetir) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.6.r1.2'],
-      type: 'string',
-      example: 'longitud mín., historial, / complejidad (sí/no), / lista de bloqueo',
-      required: true,
+      type: 'table',
+      example: 'longitud_minima | 12',
+      columns: [
+        {
+          name: 'criterio',
+          label: 'Criterio',
+          type: 'select',
+          required: true,
+          options: [
+            'longitud_minima',
+            'clases_de_caracteres',
+            'historial',
+            'lista_de_bloqueo',
+          ],
+        },
+        {
+          name: 'minimo',
+          label: 'Mínimo',
+          type: 'number',
+          required: true,
+        },
+      ],
+      // No es obligatorio para el CONTROL: solo rige con R1 o R2, y exigirlo
+      // con R3 bloquearía la evaluación entera por un requisito que no aplica.
+      // Con R1 o R2 y sin declarar, op.acc.6.r1.2 queda sin demostrar.
+      required: false,
       wazuhUsage:
-        'SCA verifica la política de contraseñas del dominio o del sistema contra estos valores. Las guías CCN-STIC son la referencia que el propio ENS señala para fijarlos.',
+        'El agente emite lo que la pila password de PAM impone (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.',
       ensfacilUsage:
-        'SCA verifica la política de contraseñas del dominio o del sistema contra estos valores. Las guías CCN-STIC son la referencia que el propio ENS señala para fijarlos.',
+        'Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar op.acc.6.r1.2. La robustez de las contraseñas queda sin acreditar.',
+        'Con R1 o R2, op.acc.6.r1.2 queda sin demostrar.',
+    },
+    {
+      id: 'P-11',
+      controlId: 'op.acc.6',
+      name: 'exposiciones_autenticacion_admitidas',
+      label: 'Exposiciones autenticacion admitidas',
+      description:
+        'Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea, con el nombre que usa el agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.acc.6.7'],
+      type: 'list',
+      example: 'sshd:version_software',
+      required: true,
+      wazuhUsage:
+        'El agente emite cada dato que un servicio de autenticación expone antes de autenticar, leído de su configuración efectiva.',
+      ensfacilUsage:
+        'Una exposición observada que no figura aquí incumple op.acc.6.7.',
+      evidenceIds: ['EV-12'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.acc.6.7 queda sin demostrar.',
     },
     {
       id: 'P-ATT',
@@ -243,7 +317,7 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la aceptación previa de la política, el acuse de recibo de las credenciales, la entrega bajo control exclusivo, el aviso del último acceso y la aplicación de la ITS de interconexión: nada de eso deja rastro en un log.',
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la aceptación previa de la política (op.acc.6.1), el acuse de recibo de las credenciales (op.acc.6.2), la entrega bajo control exclusivo (op.acc.6.3), la información de derechos tras el acceso (op.acc.6.9), el aviso del último acceso (op.acc.6.r5.2), la aplicación de la ITS de interconexión (op.acc.6.r9.1) y los certificados de R3 y R4: nada de eso deja rastro en un log.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -280,7 +354,10 @@ export const opAcc6Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: true,
+      // No bloquea el control: sin atestaciones, SOLO los requisitos documentales
+      // quedan sin demostrar. Obligatorio, tumbaría también los técnicos, como
+      // en mp.info.6, op.acc.1 y op.acc.3, que lo declaran igual.
+      required: false,
       wazuhUsage:
         'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       ensfacilUsage:

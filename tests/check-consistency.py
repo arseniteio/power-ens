@@ -83,6 +83,10 @@ RUNBOOKS = {
         "op.exp.2-security-configuration",
         ["ensfacil_op_exp_2_json_rules.xml"],
     ),
+    "op.acc.6": (
+        "op.acc.6-organization-users-authentication",
+        ["ensfacil_op_acc_6_json_rules.xml"],
+    ),
 }
 
 fallos = []

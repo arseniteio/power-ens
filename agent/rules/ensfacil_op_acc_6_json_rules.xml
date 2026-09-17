@@ -1,0 +1,227 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_6_json_rules.xml
+     Esta es una copia desplegable para que el procedimiento funcione en un
+     servidor sin acceso al repo del plugin. El mismo fichero, byte a byte, va
+     en manager/ del runbook Linux y del runbook LDAP: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_acc_6,score,">
+
+  <!-- ================================================================
+       op.acc.6 · Mecanismo de autenticación (usuarios de la organización)
+       Rango reservado: 110100-110199
+       Base 110100 · hechos crudos 110101-110149 · diagnóstico 110195-110199
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-01 110101 110102 110105   EV-02 110101 110108
+         EV-03 110103 110104          EV-04 110102 110103
+         EV-05 110106                 EV-06 110107
+         EV-07 110101                 EV-08 110108
+         EV-09 110109                 EV-10 110110
+         EV-11 110111                 EV-12 110112
+
+       Un mismo hecho sirve a varias evidencias cuando describe la misma
+       observación (`evidence_id=EV-01,EV-02,EV-07`): el normalizador del
+       plugin lo reparte. Emitirlo dos veces permitiría que las copias de la
+       misma línea de log acabaran discrepando.
+
+       Fuera del mapa: 110100 (base, nivel 0), 110195 (degradación: el agente
+       no pudo mirar), 110197 (aviso operativo), 110198 (falta una fuente o
+       una herramienta) y 110199 (el latido, que no acredita evidencia: las
+       habilita).
+
+       NINGUNA regla lleva `estado` de cumplimiento ni `cumple`/`no_cumple` en
+       su <group>: el agente observa y el motor juzga contra la pantalla de
+       Configuración. Los dos runbooks (Linux y LDAP) emiten con estos mismos
+       ID; lo que distingue la superficie es el campo `plano`.
+       ================================================================ -->
+
+  <rule id="110100" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.acc.6</field>
+    <description>op.acc.6 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== Accesos (R5, R8, R9) ===== -->
+
+  <!-- 110101 · Autenticación CON ÉXITO en un camino de acceso (sshd, consola,
+       bind LDAP). Lleva el origen, el canal, los métodos encadenados y los
+       factores que el servidor llegó a verificar. EV-01 lo usa como registro
+       (op.acc.6.r5.1), EV-02 clasifica el origen contra P-02 (r1.1, r2.1,
+       r8.1) y EV-07 contrasta el canal contra P-07 (r9.2 a y d). -->
+  <rule id="110101" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">authentication_success</field>
+    <description>op.acc.6 · HECHO (EV-01, EV-02, EV-07) · acceso de $(usuario) por $(canal) desde $(origen) con $(factores) factor(es)</description>
+    <group>ENS_op.acc.6,op_acc_6_r5_1,op_acc_6_r8_1,op_acc_6_r9_2,EV_01,EV_02,EV_07,hecho_crudo,authentication_success,</group>
+    <info type="text">requisito=op.acc.6.r5.1,op.acc.6.r1.1,op.acc.6.r2.1,op.acc.6.r8.1,op.acc.6.r9.2 evidencia=EV-01,EV-02,EV-07 juicio=motor parametro=P-02,P-07 formato=json_line</info>
+  </rule>
+
+  <!-- 110102 · Autenticación FALLIDA, agregada por pasada (usuario, origen,
+       canal). `usuario_existe` distingue la cuenta que se puede bloquear de
+       la que no existe. EV-01 (registro) y EV-04 (patrón de ataque contra
+       P-05, correlacionado con 110103). -->
+  <rule id="110102" level="5">
+    <if_sid>110100</if_sid>
+    <field name="event">authentication_failure</field>
+    <description>op.acc.6 · HECHO (EV-01, EV-04) · $(fallos) fallo(s) de autenticación de $(usuario) por $(canal) desde $(origen)</description>
+    <group>ENS_op.acc.6,op_acc_6_8,op_acc_6_r5_1,EV_01,EV_04,hecho_crudo,authentication_failure,</group>
+    <info type="text">requisito=op.acc.6.8,op.acc.6.r5.1 evidencia=EV-01,EV-04 juicio=motor parametro=P-05 formato=json_line</info>
+  </rule>
+
+  <!-- 110103 · Bloqueo de cuenta observado (pam_faillock o directorio). -->
+  <rule id="110103" level="7">
+    <if_sid>110100</if_sid>
+    <field name="event">account_locked</field>
+    <description>op.acc.6 · HECHO (EV-03, EV-04) · cuenta $(usuario) bloqueada por $(mecanismo)</description>
+    <group>ENS_op.acc.6,op_acc_6_8,EV_03,EV_04,hecho_crudo,account_locked,</group>
+    <info type="text">requisito=op.acc.6.8 evidencia=EV-03,EV-04 juicio=motor parametro=P-05 formato=json_line</info>
+  </rule>
+
+  <!-- 110104 · Configuración del límite de intentos de un camino de
+       autenticación: si hay bloqueo, tras cuántos intentos y si se desbloquea
+       solo. El motor lo contrasta con P-05. -->
+  <rule id="110104" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">lockout_policy_checked</field>
+    <description>op.acc.6 · HECHO (EV-03) · límite de intentos en $(ruta): bloqueo=$(bloqueo)</description>
+    <group>ENS_op.acc.6,op_acc_6_8,EV_03,hecho_crudo,lockout_policy_checked,</group>
+    <info type="text">requisito=op.acc.6.8 evidencia=EV-03 juicio=motor parametro=P-05 formato=json_line</info>
+  </rule>
+
+  <!-- 110105 · Hueco de REGISTRO en una fuente de autenticación: la fuente no
+       existe, no ha rendido nunca, o su configuración no registra éxitos o
+       fallos. Es un hallazgo de barrido, contrastado con P-03 (las fuentes que
+       la organización declara monitorizar). -->
+  <rule id="110105" level="7">
+    <if_sid>110100</if_sid>
+    <field name="event">auth_logging_gap</field>
+    <description>op.acc.6 · HECHO (EV-01) · la fuente $(fuente) no registra: $(detalle)</description>
+    <group>ENS_op.acc.6,op_acc_6_r5_1,EV_01,hecho_crudo,auth_logging_gap,</group>
+    <info type="text">requisito=op.acc.6.r5.1 evidencia=EV-01 juicio=motor parametro=P-03 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Ciclo de vida de la credencial (base) ===== -->
+
+  <!-- 110106 · Antigüedad de una credencial (`medida=antiguedad`) o caducidad
+       que el sistema impone (`medida=caducidad_configurada`), en días. -->
+  <rule id="110106" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">credential_age_checked</field>
+    <description>op.acc.6 · HECHO (EV-05) · $(usuario) · $(credencial) · $(medida)=$(dias) días</description>
+    <group>ENS_op.acc.6,op_acc_6_4,EV_05,hecho_crudo,credential_age_checked,</group>
+    <info type="text">requisito=op.acc.6.4 evidencia=EV-05 juicio=motor parametro=P-04 formato=json_line</info>
+  </rule>
+
+  <!-- 110107 · Horas entre la notificación de un compromiso o de una baja y la
+       inhabilitación observada de la credencial (o las transcurridas si sigue
+       habilitada). -->
+  <rule id="110107" level="5">
+    <if_sid>110100</if_sid>
+    <field name="event">credential_disable_checked</field>
+    <description>op.acc.6 · HECHO (EV-06) · $(usuario) · $(motivo) · inhabilitada=$(inhabilitada) tras $(horas) h</description>
+    <group>ENS_op.acc.6,op_acc_6_5,op_acc_6_6,EV_06,hecho_crudo,credential_disable_checked,</group>
+    <info type="text">requisito=op.acc.6.5,op.acc.6.6 evidencia=EV-06 juicio=motor parametro=P-06 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Canales (R8 y R9) ===== -->
+
+  <!-- 110108 · Canal de acceso remoto en escucha: canal, direcciones, si
+       exige cifrado, si arranca siempre y cuántos factores exige como
+       mínimo. EV-08 lo casa con su fila de P-07 (r9.2 b y c) y EV-02 mira si
+       un canal de autenticación expuesto fuera de P-02 exige doble factor. -->
+  <rule id="110108" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">remote_channel_listening</field>
+    <description>op.acc.6 · HECHO (EV-02, EV-08) · canal $(canal) en escucha en $(direcciones) · cifrado=$(cifrado)</description>
+    <group>ENS_op.acc.6,op_acc_6_r8_1,op_acc_6_r9_2,EV_02,EV_08,hecho_crudo,remote_channel_listening,</group>
+    <info type="text">requisito=op.acc.6.r8.1,op.acc.6.r9.2 evidencia=EV-02,EV-08 juicio=motor parametro=P-02,P-07 formato=json_line</info>
+  </rule>
+
+  <!-- ===== R6 y R7 ===== -->
+
+  <!-- 110109 · Punto de operación crítica donde el sistema NO exige renovar
+       la autenticación (sudo NOPASSWD, !authenticate, timestamp sin
+       caducidad). Hallazgo de barrido contra P-08. -->
+  <rule id="110109" level="5">
+    <if_sid>110100</if_sid>
+    <field name="event">reauthentication_not_required</field>
+    <description>op.acc.6 · HECHO (EV-09) · $(punto) sin reautenticación para $(sujeto) ($(motivo_tecnico))</description>
+    <group>ENS_op.acc.6,op_acc_6_r6_1,EV_09,hecho_crudo,reauthentication_not_required,</group>
+    <info type="text">requisito=op.acc.6.r6.1 evidencia=EV-09 juicio=motor parametro=P-08 formato=json_line</info>
+  </rule>
+
+  <!-- 110110 · Inactividad de una cuenta habilitada (`medida=inactividad`) o
+       suspensión automática configurada (`medida=suspension_configurada`),
+       en días. -->
+  <rule id="110110" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">account_inactivity_checked</field>
+    <description>op.acc.6 · HECHO (EV-10) · $(usuario) · $(medida)=$(dias) días</description>
+    <group>ENS_op.acc.6,op_acc_6_r7_1,EV_10,hecho_crudo,account_inactivity_checked,</group>
+    <info type="text">requisito=op.acc.6.r7.1 evidencia=EV-10 juicio=motor parametro=P-09 formato=json_line</info>
+  </rule>
+
+  <!-- ===== R1 ===== -->
+
+  <!-- 110111 · Política de calidad de contraseña que el sistema impone:
+       longitud mínima, clases de caracteres, historial y lista de bloqueo. -->
+  <rule id="110111" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">password_policy_checked</field>
+    <description>op.acc.6 · HECHO (EV-11) · política de contraseña en $(mecanismo): longitud mínima $(longitud_minima)</description>
+    <group>ENS_op.acc.6,op_acc_6_r1_2,EV_11,hecho_crudo,password_policy_checked,</group>
+    <info type="text">requisito=op.acc.6.r1.2 evidencia=EV-11 juicio=motor parametro=P-10 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Información antes de autenticar ===== -->
+
+  <!-- 110112 · Información que un servicio de autenticación expone antes de
+       validar credenciales (versión en la identificación del protocolo,
+       banner previo). Hallazgo de barrido contra P-11. -->
+  <rule id="110112" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">auth_disclosure_observed</field>
+    <description>op.acc.6 · HECHO (EV-12) · $(servicio) expone $(exposicion)</description>
+    <group>ENS_op.acc.6,op_acc_6_7,EV_12,hecho_crudo,auth_disclosure_observed,</group>
+    <info type="text">requisito=op.acc.6.7 evidencia=EV-12 juicio=motor parametro=P-11 formato=json_line</info>
+  </rule>
+
+  <!-- ===== Diagnóstico del recolector ===== -->
+
+  <!-- 110195 · El agente no emite veredictos, pero sí tiene que poder decir
+       que NO PUDO MIRAR: la `causa` distingue «la fuente no se pudo leer» de
+       «se leyó y no había nada», y se arreglan en sitios distintos. -->
+  <rule id="110195" level="7">
+    <if_sid>110100</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.6 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+    <group>ENS_op.acc.6,diagnostico,</group>
+  </rule>
+
+  <rule id="110197" level="4">
+    <if_sid>110100</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.acc.6 · aviso del recolector ($(parametro)): $(motivo)</description>
+    <group>ENS_op.acc.6,diagnostico,</group>
+  </rule>
+
+  <rule id="110198" level="7">
+    <if_sid>110100</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.acc.6 · falta $(recurso) para $(evidencias_afectadas): $(motivo)</description>
+    <group>ENS_op.acc.6,diagnostico,</group>
+  </rule>
+
+  <!-- 110199 · El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       el silencio de las aserciones negativas no puede valer como
+       cumplimiento. Nivel 3 para que llegue al índice sin ruido. -->
+  <rule id="110199" level="3">
+    <if_sid>110100</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.acc.6 · pasada del recolector: $(resultado)</description>
+    <group>ENS_op.acc.6,diagnostico,</group>
+  </rule>
+
+</group>
