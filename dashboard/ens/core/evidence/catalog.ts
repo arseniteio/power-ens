@@ -1033,6 +1033,18 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: cuentas con privilegios excesivos o innecesarios?',
   },
+  // op.acc.5 · Mecanismo de autenticación (usuarios externos).
+  //
+  // Nacido en el modelo nuevo, como op.acc.4: el agente emite hechos y cada
+  // evidencia se juzga aquí contra la pantalla. Lo que ninguna primitiva expresa
+  // —qué refuerzo cuenta según P-01, el incumplimiento directo de R1 en MEDIO y
+  // ALTO, la parte documental de .8 y la declaración P-09— lo decide la policy
+  // del control (`op-acc-5.policy.ts`), leyendo estos mismos veredictos.
+  //
+  // Dos evidencias usan P-02 como lista PROHIBIDA a propósito (EV-06 y EV-09):
+  // el hallazgo es un rechazo revelador o una laguna en un servicio, y lo que se
+  // afirma es «ningún servicio de acceso externo declarado lo presenta». Un
+  // servicio fuera de P-02 no está en el alcance, y sin P-02 no se juzga nada.
   {
     id: 'EV-01',
     controlId: 'op.acc.5',
@@ -1044,42 +1056,73 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'external_auth_success', 'external_auth_failure'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'access_log_source', 'external_auth_success', 'external_auth_failure'],
+    relatedRules: ['110002', '110011'],
+    judgment: {
+      // Cada pasada declara cuántos días conserva en origen el registro de
+      // autenticación de cada servicio. Todos tienen que alcanzar P-08. Los
+      // éxitos y fallos (110001, 110002) son el registro mismo y viajan en la
+      // traza; lo que se juzga es su conservación.
+      primitive: 'UMBRAL_MINIMO',
+      parameterId: 'P-08',
+      factEventTypes: ['access_log_source'],
+      factField: 'dias_conservados',
+    },
     auditQuestion:
-      '¿Se acredita: registro de accesos con éxito y fallidos?',
+      '¿Se registran los accesos con éxito y fallidos de los servicios de P-02 y se conservan el periodo de P-08?',
   },
   {
     id: 'EV-02',
     controlId: 'op.acc.5',
     title: 'Superación del límite de intentos sin bloqueo efectivo',
     description:
-      'Detección de cuentas externas que acumulan más de P-03 intentos fallidos consecutivos sin que se produzca el bloqueo de la cuenta. Evidencia que el límite exigido por op.acc.5.8 no está operativo, aunque esté declarado en la configuración.',
-    requirements: ['op.acc.5.8'],
+      'Límite de intentos que el servicio aplica (su política de bloqueo) y rachas de fallos consecutivos por cuenta. Cualquiera de los dos por encima de P-03 demuestra que el límite exigido por op.acc.5.8 no es el declarado o no es operativo. La política de complejidad viaja en la misma evidencia para op.acc.5.r1.2.',
+    requirements: ['op.acc.5.8', 'op.acc.5.r1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'lockout_not_applied'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'lockout_policy', 'failed_attempt_streak', 'password_policy'],
+    relatedRules: ['110004', '110005', '110006'],
+    judgment: {
+      // Un solo campo para dos hechos: el límite CONFIGURADO (`lockout_policy`)
+      // y la racha OBSERVADA (`failed_attempt_streak`). Ninguno puede superar
+      // P-03. Sin política declarada no hay hecho que acredite el límite, y las
+      // rachas solas no bastan: cero fallos no demuestran que haya límite. Un
+      // bloqueo desactivado llega SIN `intentos` —un 0 pasaría el umbral— y lo
+      // convierte en incumplimiento la policy.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-03',
+      factEventTypes: ['lockout_policy', 'failed_attempt_streak'],
+      factField: 'intentos',
+    },
     auditQuestion:
-      '¿Se acredita: superación del límite de intentos sin bloqueo efectivo?',
+      '¿El servicio limita los intentos a lo declarado en P-03 y el bloqueo es efectivo?',
   },
   {
     id: 'EV-03',
     controlId: 'op.acc.5',
     title: 'Ataques de fuerza bruta y credential stuffing contra el servicio externo',
     description:
-      'Identificación de patrones de ataque sobre los servicios de P-02: múltiples fallos desde una IP contra varias cuentas, o contra una cuenta desde múltiples IP. Es el riesgo que op.acc.5.8 pretende mitigar.',
+      'Fallos de autenticación agregados por origen: cuántos intentos y contra cuántas cuentas llegan desde una misma dirección. Un origen por encima de P-03 es un ataque que el mecanismo de bloqueo no ha contenido. Es el riesgo que op.acc.5.8 pretende mitigar.',
     requirements: ['op.acc.5.8'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'brute_force_pattern', 'credential_stuffing_pattern'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'auth_failures_by_origin'],
+    relatedRules: ['110003'],
+    judgment: {
+      // Sin fallos no hay hechos y el umbral no cumple por ausencia. La policy
+      // de .8 sí acepta ese silencio, pero solo con el latido declarando EV-03
+      // cubierta: es la única lectura que hace de la cobertura.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-03',
+      factEventTypes: ['auth_failures_by_origin'],
+      factField: 'fallos',
+    },
     auditQuestion:
-      '¿Se acredita: ataques de fuerza bruta y credential stuffing contra el servicio externo?',
+      '¿Algún origen acumula más fallos de los que P-03 admite sin que se le contenga?',
   },
   {
     id: 'EV-04',
@@ -1093,9 +1136,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_age'],
-    relatedRules: [],
+    relatedRules: ['110007'],
+    judgment: {
+      // Una cuenta cuyo último cambio no consta llega sin `dias_desde_cambio` y
+      // deja la evidencia sin afirmar: no se sabe si su credencial está en plazo.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-05',
+      factEventTypes: ['credential_age'],
+      factField: 'dias_desde_cambio',
+    },
     auditQuestion:
-      '¿Se acredita: antigüedad de las credenciales frente a la periodicidad exigida?',
+      '¿Ninguna credencial activa de usuario externo supera la periodicidad de cambio de P-05?',
   },
   {
     id: 'EV-05',
@@ -1109,73 +1160,121 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_disable_delay'],
-    relatedRules: [],
+    relatedRules: ['110008'],
+    judgment: {
+      // Las pendientes se reemiten en cada pasada con las horas que llevan: una
+      // notificación sin inhabilitar incumple sola en cuanto pasa P-06, sin
+      // esperar a que alguien la cierre.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-06',
+      factEventTypes: ['credential_disable_delay'],
+      factField: 'horas',
+    },
     auditQuestion:
-      '¿Se acredita: reacción ante compromiso o fin de relación?',
+      '¿Las credenciales comprometidas o de relaciones terminadas se inhabilitan dentro de P-06?',
   },
   {
     id: 'EV-06',
     controlId: 'op.acc.5',
     title: 'Verificación de mensajes de error no informativos',
     description:
-      'Detección de respuestas del servicio que revelan información sobre el sistema o la cuenta en los rechazos de autenticación: mensajes que distinguen «usuario inexistente» de «contraseña incorrecta», trazas de error, versiones del software. Vulnera op.acc.5.7.',
+      'Detección de respuestas del servicio que revelan información sobre el sistema o la cuenta en los rechazos de autenticación: mensajes que distinguen «usuario inexistente» de «contraseña incorrecta», estado de la cuenta, trazas de error, versiones del software. Vulnera op.acc.5.7.',
     requirements: ['op.acc.5.7'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_error_verbose'],
-    relatedRules: [],
+    relatedRules: ['110009'],
+    judgment: {
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-02',
+      parameterColumn: 'servicio',
+      factEventTypes: ['auth_error_verbose'],
+      factField: 'servicio',
+    },
     auditQuestion:
-      '¿Se acredita: verificación de mensajes de error no informativos?',
+      '¿Algún servicio de acceso externo revela información sobre la cuenta o el sistema al rechazar una autenticación?',
   },
   {
     id: 'EV-07',
     controlId: 'op.acc.5',
-    title: 'Autenticación con segundo factor efectivamente aplicado (R2, R3, R4)',
+    title: 'Mecanismo de autenticación efectivamente aplicado (R1 a R4)',
     description:
-      'Verificación de que las autenticaciones registradas incluyen efectivamente el segundo factor exigido por el refuerzo elegido: OTP en R2, PIN o biometría sobre el certificado en R3 y R4. Detecta autenticaciones completadas sin el factor adicional.',
-    requirements: ['op.acc.5.r2.1', 'op.acc.5.r3.2', 'op.acc.5.r4.2'],
+      'Verificación de que las autenticaciones con éxito usan efectivamente el mecanismo del refuerzo declarado en P-01: contraseña en R1, contraseña más OTP en R2, certificado con PIN o biometría en R3, certificado en soporte físico con PIN en R4. Detecta sesiones completadas sin el factor adicional.',
+    requirements: ['op.acc.5.r1.1', 'op.acc.5.r2.1', 'op.acc.5.r3.2', 'op.acc.5.r4.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'second_factor_missing'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'external_auth_success'],
+    relatedRules: ['110001'],
+    judgment: {
+      // El agente CLASIFICA los factores observados en la clase ENS (R1..R4 o
+      // `ninguno`); qué clase se exige lo dice P-01. Toda autenticación con
+      // éxito tiene que ser de la clase declarada: una de clase inferior es un
+      // segundo factor que no se aplicó, y una superior es una P-01 que no
+      // describe lo que el servicio hace, que el auditor también tiene que ver.
+      primitive: 'TODOS_EN_LISTA',
+      parameterId: 'P-01',
+      factEventTypes: ['external_auth_success'],
+      factField: 'refuerzo',
+    },
     auditQuestion:
-      '¿Se acredita: autenticación con segundo factor efectivamente aplicado (r2, r3, r4)?',
+      '¿Todas las autenticaciones con éxito usan el mecanismo del refuerzo declarado en P-01?',
   },
   {
     id: 'EV-08',
     controlId: 'op.acc.5',
     title: 'Validación de certificados y estado de revocación (R3, R4)',
     description:
-      'Comprobación de que los certificados presentados provienen de las autoridades admitidas en P-07 y de que se ejecuta la consulta de revocación (OCSP o CRL) en cada autenticación. Detecta aceptación de certificados de AC no admitidas o sin validar revocación.',
-    requirements: ['op.acc.5.r3.1', 'op.acc.5.r3.3', 'op.acc.5.r4.1'],
+      'Comprobación de que los certificados presentados provienen de las autoridades admitidas en P-07 y de que se ejecuta la consulta de revocación (OCSP o CRL) que P-07 declara para cada una. Detecta aceptación de certificados sin validar revocación.',
+    requirements: ['op.acc.5.r3.1', 'op.acc.5.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'certificate_validation'],
-    relatedRules: [],
+    relatedRules: ['110010'],
+    judgment: {
+      // Una AC sin fila en P-07 sale NO_EVALUABLE / CONFIGURATION, no
+      // NO_CUMPLE: el motor no distingue «no admitida» de «no declarada». El
+      // requisito queda igualmente sin cumplir.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-07',
+      factEventTypes: ['certificate_validation'],
+      factField: 'emisor',
+      factKeyField: 'emisor',
+      tableKeyColumn: 'ac',
+      tableChecks: [
+        { column: 'validacion', factField: 'revocacion' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: validación de certificados y estado de revocación (r3, r4)?',
+      '¿Los certificados aceptados son de las AC de P-07 y se comprueba su revocación como P-07 declara?',
   },
   {
     id: 'EV-09',
     controlId: 'op.acc.5',
     title: 'Continuidad e integridad del registro de accesos',
     description:
-      'Verificación de que el registro exigido por R5 no presenta lagunas: períodos sin eventos en servicios que deberían tener actividad, o pérdida de eventos por fallo del agente o del colector. Una laguna en el registro compromete la acreditación de R5.',
+      'Verificación de que el registro exigido por R5 no presenta lagunas: el registro de un servicio declarado que desaparece, o que encoge sin haber rotado. Una laguna en el registro compromete la acreditación de R5.',
     requirements: ['op.acc.5.r5.1'],
     levels: ['MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'INTEGRITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'access_log_gap'],
-    relatedRules: [],
+    relatedRules: ['110012'],
+    judgment: {
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-02',
+      parameterColumn: 'servicio',
+      factEventTypes: ['access_log_gap'],
+      factField: 'servicio',
+    },
     auditQuestion:
-      '¿Se acredita: continuidad e integridad del registro de accesos?',
+      '¿El registro de accesos de los servicios de P-02 se conserva sin lagunas?',
   },
   {
     id: 'EV-01',

@@ -111,6 +111,42 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
+  // Mecanismo de autenticación implementado  ·  fuente: Configuración (P-01)
+  //
+  // No estaba en el generado y es el campo que la plantilla pide destacar: el
+  // refuerzo declarado y si es admisible para el nivel. El estado sale de los
+  // requisitos de refuerzo que cuentan (los demás son NO_APLICA), así que un
+  // R1 en MEDIO o ALTO se ve aquí en rojo con su motivo.
+  const requisitosDeRefuerzo = (result?.requirements || []).filter(
+    requirement =>
+      /^op\.acc\.5\.r[1-4]\./.test(requirement.id) &&
+      requirement.status !== 'NO_APLICA'
+  );
+
+  const estadoMecanismo: OpAcc5ReportFieldStatus = !requisitosDeRefuerzo.length
+    ? 'SIN_DATOS'
+    : requisitosDeRefuerzo.some(requirement => requirement.status === 'NO_CUMPLE')
+    ? 'NO_CUMPLE'
+    : requisitosDeRefuerzo.every(requirement => requirement.status === 'CUMPLE')
+    ? 'CUMPLE'
+    : 'PARCIAL';
+
+  const campoMecanismo = field(
+    'op.acc.5.mecanismo',
+    'Mecanismo de autenticación implementado',
+    estadoMecanismo,
+    `P-01 = ${formatValue(parameterValue('P-01'))}${
+      (level === 'MEDIO' || level === 'ALTO') &&
+      String(parameterValue('P-01') || '').trim().toUpperCase().startsWith('R1')
+        ? ' · R1 (contraseña sola) NO es admisible en nivel ' + level
+        : ''
+    }`,
+    ['EV-07', 'EV-08'],
+    requisitosDeRefuerzo.flatMap(requirement =>
+      requirement.observations.slice(-1).map(texto => `${requirement.id}: ${texto}`)
+    ),
+  );
+
   // Volumen de accesos externos en el período  ·  fuente: Log Collection (EV-01)
   const campo2 = field(
     'op.acc.5.campo2',
@@ -191,6 +227,36 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-06'),
   );
 
+  // Requisitos procedimentales — acreditación documental  ·  fuente: P-ATT
+  const documentales = (result?.requirements || []).filter(requirement =>
+    [
+      'op.acc.5.1',
+      'op.acc.5.2',
+      'op.acc.5.3',
+      'op.acc.5.9',
+      'op.acc.5.r3.3',
+      'op.acc.5.r4.3',
+      'op.acc.5.r5.2',
+    ].includes(requirement.id) && requirement.status !== 'NO_APLICA'
+  );
+
+  const campoDocumental = field(
+    'op.acc.5.documental',
+    'Requisitos procedimentales — acreditación documental',
+    !documentales.length
+      ? 'SIN_DATOS'
+      : documentales.every(requirement => requirement.status === 'CUMPLE')
+      ? 'CUMPLE'
+      : documentales.some(requirement => requirement.status === 'CUMPLE')
+      ? 'PARCIAL'
+      : 'NO_CUMPLE',
+    `${documentales.filter(requirement => requirement.status === 'CUMPLE').length} de ${documentales.length} acreditados documentalmente · procedimiento de reactivación (P-04): ${formatValue(parameterValue('P-04'))}`,
+    [],
+    documentales.map(
+      requirement => `${requirement.id}: ${requirement.observations[0] || 'sin atestación'}`
+    ),
+  );
+
   // Puntuación de cumplimiento op.acc.5  ·  fuente: Motor ENSFácil
   const campo10 = field(
     'op.acc.5.campo10',
@@ -216,6 +282,7 @@ export const buildOpAcc5ReportModel = (
 
     fields: [
       campo1,
+      campoMecanismo,
       campo2,
       campo3,
       campo4,
@@ -224,6 +291,7 @@ export const buildOpAcc5ReportModel = (
       campo7,
       campo8,
       campo9,
+      campoDocumental,
       campo10,
     ],
   };

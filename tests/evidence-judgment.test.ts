@@ -3020,6 +3020,17 @@ bloque('Estado de la migración');
     'op.acc.6/EV-09',
     'op.acc.6/EV-10',
     'op.acc.6/EV-12',
+    // op.acc.5 nace igual que op.acc.4: sus nueve evidencias ya en el modelo
+    // nuevo desde el primer día.
+    'op.acc.5/EV-01',
+    'op.acc.5/EV-02',
+    'op.acc.5/EV-03',
+    'op.acc.5/EV-04',
+    'op.acc.5/EV-05',
+    'op.acc.5/EV-06',
+    'op.acc.5/EV-07',
+    'op.acc.5/EV-08',
+    'op.acc.5/EV-09',
   ];
 
   comprueba(

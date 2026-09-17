@@ -17,19 +17,19 @@ export const opAcc5Control: ENSControl = {
       status: 'PARCIAL',
       score: 61,
       condition:
-        'op.acc.5 + [R1 o R2 o R3 o R4] → Base completa + UNO de los cuatro mecanismos de autenticación. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9, op.acc.5.r1.1, op.acc.5.r1.2, op.acc.5.r4.3, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.acc.5 + [R1 o R2 o R3 o R4] → Base completa + UNO de los cuatro mecanismos de autenticación. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9 y el registro previo de R3/R4 (r3.3, r4.3), que se acreditan en P-ATT; por lo que el nivel no puede pasar de PARCIAL.',
     },
     medio: {
       status: 'PARCIAL',
       score: 67,
       condition:
-        'op.acc.5 + [R2 o R3 o R4] + R5 → Base completa + UNO de los tres mecanismos reforzados (R1 excluido) + registro obligatorio. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9, op.acc.5.r4.3, op.acc.5.r5.2, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.acc.5 + [R2 o R3 o R4] + R5 → Base completa + UNO de los tres mecanismos reforzados (R1 excluido) + registro obligatorio. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9, r3.3, r4.3 y r5.2, que se acreditan en P-ATT; por lo que el nivel no puede pasar de PARCIAL.',
     },
     alto: {
       status: 'PARCIAL',
       score: 67,
       condition:
-        'op.acc.5 + [R2 o R3 o R4] + R5 → Ídem Nivel MEDIO. No hay exigencia adicional en ALTO. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9, op.acc.5.r4.3, op.acc.5.r5.2, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.acc.5 + [R2 o R3 o R4] + R5 → Ídem Nivel MEDIO. No hay exigencia adicional en ALTO. Sin evidencia tecnica en: op.acc.5.1, op.acc.5.2, op.acc.5.3, op.acc.5.9, r3.3, r4.3 y r5.2, que se acreditan en P-ATT; por lo que el nivel no puede pasar de PARCIAL.',
     },
   },
   requirements: [
@@ -107,19 +107,19 @@ export const opAcc5Control: ENSControl = {
     },
     {
       id: 'op.acc.5.r1.1',
-      level: ['BAJO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Contraseña como mecanismo (R1)',
       description:
         'Se empleará una contraseña como mecanismo de autenticación.',
-      evidences: [],
+      evidences: ['EV-07'],
     },
     {
       id: 'op.acc.5.r1.2',
-      level: ['BAJO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Complejidad mínima de la contraseña (R1)',
       description:
         'Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).',
-      evidences: [],
+      evidences: ['EV-02'],
     },
     {
       id: 'op.acc.5.r2.1',
@@ -151,7 +151,7 @@ export const opAcc5Control: ENSControl = {
       title: 'Registro previo cualificado (R3)',
       description:
         'Las credenciales utilizadas deberán haber sido obtenidas tras un registro previo presencial, o bien telemático, usando un certificado electrónico cualificado.',
-      evidences: ['EV-08'],
+      evidences: [],
     },
     {
       id: 'op.acc.5.r4.1',
@@ -220,20 +220,20 @@ export const opAcc5Control: ENSControl = {
       description:
         'Ingesta y conservación de todos los eventos de autenticación de los servicios de P-02, tanto exitosos como fallidos. Es la evidencia central del Refuerzo R5, obligatorio en MEDIO y ALTO, y la base sobre la que se construyen el resto de detecciones del control.',
       format: 'json_line',
-      events: ['evidence_state', 'external_auth_success', 'external_auth_failure'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'access_log_source', 'external_auth_success', 'external_auth_failure'],
+      wazuhRuleIds: ['110002', '110011'],
     },
     {
       id: 'EV-02',
-      requirement: ['op.acc.5.8'],
+      requirement: ['op.acc.5.8', 'op.acc.5.r1.2'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Superación del límite de intentos sin bloqueo efectivo',
       description:
         'Detección de cuentas externas que acumulan más de P-03 intentos fallidos consecutivos sin que se produzca el bloqueo de la cuenta. Evidencia que el límite exigido por op.acc.5.8 no está operativo, aunque esté declarado en la configuración.',
       format: 'json_line',
-      events: ['evidence_state', 'lockout_not_applied'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'lockout_policy', 'failed_attempt_streak', 'password_policy'],
+      wazuhRuleIds: ['110004', '110005', '110006'],
     },
     {
       id: 'EV-03',
@@ -244,8 +244,8 @@ export const opAcc5Control: ENSControl = {
       description:
         'Identificación de patrones de ataque sobre los servicios de P-02: múltiples fallos desde una IP contra varias cuentas, o contra una cuenta desde múltiples IP. Es el riesgo que op.acc.5.8 pretende mitigar.',
       format: 'json_line',
-      events: ['evidence_state', 'brute_force_pattern', 'credential_stuffing_pattern'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'auth_failures_by_origin'],
+      wazuhRuleIds: ['110003'],
     },
     {
       id: 'EV-04',
@@ -257,7 +257,7 @@ export const opAcc5Control: ENSControl = {
         'Cálculo del tiempo transcurrido desde el último cambio de credencial de cada usuario externo activo, y contraste con la periodicidad P-05 fijada por la política de la organización.',
       format: 'json_line',
       events: ['evidence_state', 'credential_age'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['110007'],
     },
     {
       id: 'EV-05',
@@ -269,7 +269,7 @@ export const opAcc5Control: ENSControl = {
         'Medición del intervalo entre el evento de notificación de pérdida, compromiso o revelación de una credencial (o de fin de relación del usuario con el sistema) y el evento de inhabilitación efectiva de esa credencial. Contraste con el plazo máximo P-06.',
       format: 'json_line',
       events: ['evidence_state', 'credential_disable_delay'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['110008'],
     },
     {
       id: 'EV-06',
@@ -281,23 +281,23 @@ export const opAcc5Control: ENSControl = {
         'Detección de respuestas del servicio que revelan información sobre el sistema o la cuenta en los rechazos de autenticación: mensajes que distinguen «usuario inexistente» de «contraseña incorrecta», trazas de error, versiones del software. Vulnera op.acc.5.7.',
       format: 'json_line',
       events: ['evidence_state', 'auth_error_verbose'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['110009'],
     },
     {
       id: 'EV-07',
-      requirement: ['op.acc.5.r2.1', 'op.acc.5.r3.2', 'op.acc.5.r4.2'],
+      requirement: ['op.acc.5.r1.1', 'op.acc.5.r2.1', 'op.acc.5.r3.2', 'op.acc.5.r4.2'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Autenticación con segundo factor efectivamente aplicado (R2, R3, R4)',
+      title: 'Mecanismo de autenticación efectivamente aplicado (R1 a R4)',
       description:
         'Verificación de que las autenticaciones registradas incluyen efectivamente el segundo factor exigido por el refuerzo elegido: OTP en R2, PIN o biometría sobre el certificado en R3 y R4. Detecta autenticaciones completadas sin el factor adicional.',
       format: 'json_line',
-      events: ['evidence_state', 'second_factor_missing'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'external_auth_success'],
+      wazuhRuleIds: ['110001'],
     },
     {
       id: 'EV-08',
-      requirement: ['op.acc.5.r3.1', 'op.acc.5.r3.3', 'op.acc.5.r4.1'],
+      requirement: ['op.acc.5.r3.1', 'op.acc.5.r4.1'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Validación de certificados y estado de revocación (R3, R4)',
@@ -305,7 +305,7 @@ export const opAcc5Control: ENSControl = {
         'Comprobación de que los certificados presentados provienen de las autoridades admitidas en P-07 y de que se ejecuta la consulta de revocación (OCSP o CRL) en cada autenticación. Detecta aceptación de certificados de AC no admitidas o sin validar revocación.',
       format: 'json_line',
       events: ['evidence_state', 'certificate_validation'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['110010'],
     },
     {
       id: 'EV-09',
@@ -317,7 +317,7 @@ export const opAcc5Control: ENSControl = {
         'Verificación de que el registro exigido por R5 no presenta lagunas: períodos sin eventos en servicios que deberían tener actividad, o pérdida de eventos por fallo del agente o del colector. Una laguna en el registro compromete la acreditación de R5.',
       format: 'json_line',
       events: ['evidence_state', 'access_log_gap'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['110012'],
     },
   ],
   parameters: [
@@ -327,7 +327,7 @@ export const opAcc5Control: ENSControl = {
       description:
         'Refuerzo de autenticación implementado para usuarios externos. Es una elección entre opciones, no un acumulativo. Determina qué comprobaciones ejecuta ENSFácil.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.5.r1 a', 'op.acc.5.r4'],
+      requirements: ['op.acc.5.r1.1', 'op.acc.5.r1.2', 'op.acc.5.r2.1', 'op.acc.5.r3.1', 'op.acc.5.r3.2', 'op.acc.5.r3.3', 'op.acc.5.r4.1', 'op.acc.5.r4.2', 'op.acc.5.r4.3'],
       type: 'select',
       usage:
         'Activa el conjunto de reglas correspondiente.',

@@ -13,18 +13,31 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       name: 'refuerzo_autenticacion_elegido',
       label: 'Refuerzo autenticacion elegido',
       description:
-        'Refuerzo de autenticación implementado para usuarios externos. Es una elección entre opciones, no un acumulativo. Determina qué comprobaciones ejecuta ENSFácil.',
+        'Refuerzo de autenticación implementado para usuarios externos. Es una elección entre opciones, no un acumulativo: R1 contraseña (solo admisible en nivel BAJO), R2 contraseña más OTP, R3 certificado cualificado con PIN o biometría, R4 certificado en soporte físico con PIN. Solo cuentan los requisitos del refuerzo elegido; los de los demás salen NO_APLICA.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.5.r1 a', 'op.acc.5.r4'],
+      requirements: [
+        'op.acc.5.r1.1',
+        'op.acc.5.r1.2',
+        'op.acc.5.r2.1',
+        'op.acc.5.r3.1',
+        'op.acc.5.r3.2',
+        'op.acc.5.r3.3',
+        'op.acc.5.r4.1',
+        'op.acc.5.r4.2',
+        'op.acc.5.r4.3',
+      ],
       type: 'select',
-      example: 'R1 (contraseña) —solo BAJO / R2 (contraseña+OTP) / R3 (certificado cualificado) / R4 (certificado en tarjeta)',
+      // Los valores son las claves que emite el agente en `refuerzo` y contra
+      // las que EV-07 compara literalmente. Cambiarlas rompe esa comparación.
+      options: ['R1', 'R2', 'R3', 'R4'],
+      example: 'R2',
       required: true,
       wazuhUsage:
-        'Activa el conjunto de reglas correspondiente.',
+        'EV-07 contrasta la clase de cada autenticación con éxito (la que el agente deduce de los factores registrados) con este valor.',
       ensfacilUsage:
-        'Si el sistema es de nivel MEDIO o ALTO y P-01 = R1, ENSFácil marca incumplimiento directo: la contraseña sola no es opción admisible por encima de BAJO.',
-      evidenceIds: [],
-      ruleIds: [],
+        'Decide qué refuerzo cuenta en el denominador. Si el sistema es de nivel MEDIO o ALTO y P-01 = R1, ENSFácil marca incumplimiento directo: la contraseña sola no es opción admisible por encima de BAJO.',
+      evidenceIds: ['EV-07'],
+      ruleIds: ['110001'],
       ifNotConfigured:
         'El control es NO EVALUABLE. Sin saber qué mecanismo se usa no se puede verificar ninguna de sus condiciones.',
     },
@@ -34,18 +47,38 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       name: 'servicios_acceso_externo',
       label: 'Servicios acceso externo',
       description:
-        'Portales, aplicaciones o endpoints a través de los cuales se autentican los usuarios externos: sede electrónica, portal del ciudadano, API pública con credenciales, extranet de proveedores.',
+        'Portales, aplicaciones o endpoints a través de los cuales se autentican los usuarios externos: sede electrónica, portal del ciudadano, API pública con credenciales, extranet de proveedores. Una fila por servicio. La columna `servicio` tiene que ser EXACTAMENTE el nombre con que el agente lo declara en OPACC5_SERVICIOS: es la que contrastan EV-06 y EV-09. Si ninguna máquina publica un servicio para usuarios externos, no hay nada que declarar y el control queda sin demostrar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.acc.5.1', 'op.acc.5.8', 'op.acc.5.r5.1'],
-      type: 'list',
-      example: 'sede | sede.org.es | / /var/log/nginx/sede.log',
+      requirements: ['op.acc.5.1', 'op.acc.5.7', 'op.acc.5.8', 'op.acc.5.r5.1'],
+      type: 'table',
+      example: 'sede | sede.organismo.es | /var/log/sede/autenticacion.json',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'host',
+          label: 'Host o URL',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'log',
+          label: 'Registro de autenticación',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
-        'Define de qué fuentes debe recoger Wazuh los eventos de autenticación externa y qué decodificador aplicar. Sin esta lista, los accesos externos no llegan al SIEM.',
+        'Define qué servicios están en el alcance. El agente de cada máquina lee el registro que se le declara en OPACC5_SERVICIOS y emite sus hechos con el mismo nombre de servicio.',
       ensfacilUsage:
-        'Define de qué fuentes debe recoger Wazuh los eventos de autenticación externa y qué decodificador aplicar. Sin esta lista, los accesos externos no llegan al SIEM.',
-      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-09'],
-      ruleIds: [],
+        'EV-06 y EV-09 solo cuentan hallazgos de los servicios de esta tabla: un rechazo revelador o una laguna en un servicio declarado incumple.',
+      evidenceIds: ['EV-01', 'EV-06', 'EV-09'],
+      ruleIds: ['110009', '110011', '110012'],
       ifNotConfigured:
         'No hay ingesta de eventos de autenticación externa. Todas las evidencias quedan sin fuente.',
     },
@@ -59,14 +92,15 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.5.8'],
       type: 'number',
-      example: '3, 5 o 10',
+      example: '5',
+      minValue: 1,
       required: true,
       wazuhUsage:
         'ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin que se produzca el bloqueo efectivo de la cuenta.',
       ensfacilUsage:
         'ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin que se produzca el bloqueo efectivo de la cuenta.',
       evidenceIds: ['EV-02', 'EV-03'],
-      ruleIds: [],
+      ruleIds: ['110003', '110004', '110005'],
       ifNotConfigured:
         'No se puede verificar op.acc.5.8. No se distingue un ataque de fuerza bruta de un bloqueo funcionando bien.',
     },
@@ -80,7 +114,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.5.8'],
       type: 'string',
-      example: '«PR-07 Reactivación de credenciales v1.2»',
+      example: 'PR-07 Reactivación de credenciales v1.2',
       required: true,
       wazuhUsage:
         'Referencia documental en el informe.',
@@ -101,14 +135,15 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.5.4'],
       type: 'duration_days',
-      example: '90, 180 o 365 / o «n.a.» si el mecanismo / es certificado',
+      example: '90',
+      minValue: 1,
       required: true,
       wazuhUsage:
         'ENSFácil calcula la antigüedad de cada credencial y alerta cuando supera P-05. Si P-01 = R3 o R4, este parámetro se sustituye por la vigencia del certificado.',
       ensfacilUsage:
         'ENSFácil calcula la antigüedad de cada credencial y alerta cuando supera P-05. Si P-01 = R3 o R4, este parámetro se sustituye por la vigencia del certificado.',
       evidenceIds: ['EV-04'],
-      ruleIds: [],
+      ruleIds: ['110007'],
       ifNotConfigured:
         'No se puede verificar op.acc.5.4. La caducidad de credenciales queda sin control automático.',
     },
@@ -122,14 +157,15 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.5.5', 'op.acc.5.6'],
       type: 'duration_hours',
-      example: '4, 24 o 72',
+      example: '24',
+      minValue: 1,
       required: true,
       wazuhUsage:
         'ENSFácil correlaciona el evento de notificación de compromiso o de fin de relación con el evento de inhabilitación de la credencial. Si el intervalo supera P-06 → alerta.',
       ensfacilUsage:
         'ENSFácil correlaciona el evento de notificación de compromiso o de fin de relación con el evento de inhabilitación de la credencial. Si el intervalo supera P-06 → alerta.',
       evidenceIds: ['EV-05'],
-      ruleIds: [],
+      ruleIds: ['110008'],
       ifNotConfigured:
         'No se puede medir la reacción ante compromiso. op.acc.5.5 y .5.6 quedan NO EVALUABLES.',
     },
@@ -139,18 +175,36 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       name: 'vigencia_certificados_admitidos',
       label: 'Vigencia certificados admitidos',
       description:
-        'Autoridades de certificación admitidas y política de validación (OCSP, CRL) cuando el mecanismo elegido es R3 o R4. Necesario para verificar que los certificados son efectivamente cualificados.',
+        'Autoridades de certificación admitidas y comprobación de revocación que se exige a cada una (ocsp, crl o las dos), cuando el mecanismo elegido es R3 o R4. La columna `ac` tiene que ser el emisor tal como lo registra el servicio. Solo se exige si P-01 es R3 o R4.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.5.r3.1', 'op.acc.5.r4.1'],
-      type: 'list',
-      example: 'FNMT-RCM | OCSP / DNIe | CRL',
-      required: true,
+      type: 'table',
+      example: 'FNMT-RCM | ocsp',
+      columns: [
+        {
+          name: 'ac',
+          label: 'Autoridad de certificación',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'validacion',
+          label: 'Comprobación de revocación',
+          type: 'multiselect',
+          options: ['ocsp', 'crl'],
+          required: true,
+        },
+      ],
+      // No es obligatorio para el control entero: con R2 no hay certificados y
+      // exigirlo bloquearía todos los requisitos. Con R3 o R4 su ausencia deja
+      // EV-08 sin juzgar y r3.1 / r4.1 sin demostrar.
+      required: false,
       wazuhUsage:
-        'ENSFácil verifica en los logs del servicio que los certificados presentados provienen de las AC declaradas y que se ejecuta la comprobación de revocación en cada autenticación.',
+        'EV-08 busca la fila del emisor de cada certificado aceptado y comprueba que la revocación consultada está entre las declaradas.',
       ensfacilUsage:
-        'ENSFácil verifica en los logs del servicio que los certificados presentados provienen de las AC declaradas y que se ejecuta la comprobación de revocación en cada autenticación.',
+        'Un emisor sin fila no se da por bueno: sale sin demostrar hasta que se declare o se deje de aceptar.',
       evidenceIds: ['EV-08'],
-      ruleIds: [],
+      ruleIds: ['110010'],
       ifNotConfigured:
         'No se puede verificar que los certificados sean cualificados ni que se valide su estado de revocación.',
     },
@@ -164,14 +218,15 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.5.r5.1'],
       type: 'duration_days',
-      example: '365 / (coherente con op.acc.1)',
+      example: '365',
+      minValue: 1,
       required: true,
       wazuhUsage:
         'Configura la política de retención de índices en Wazuh Indexer.',
       ensfacilUsage:
-        'ENSFácil verifica que el registro cubre efectivamente el período declarado y alerta si hay lagunas.',
+        'EV-01 exige que el registro de cada servicio conserve en origen al menos estos días; EV-09 que no presente lagunas.',
       evidenceIds: ['EV-01', 'EV-09'],
-      ruleIds: [],
+      ruleIds: ['110011', '110012'],
       ifNotConfigured:
         'No se puede acreditar la conservación del registro exigido por R5. Riesgo de pérdida de trazabilidad.',
     },
@@ -185,12 +240,12 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.5.r5.2'],
       type: 'boolean',
-      example: '(sí / no + captura o / referencia técnica)',
+      example: 'sí',
       required: true,
       wazuhUsage:
         'Declaración de configuración que ENSFácil recoge en el informe. No es verificable automáticamente por Wazuh: se acredita documentalmente con la evidencia aportada.',
       ensfacilUsage:
-        'Declaración de configuración que ENSFácil recoge en el informe. No es verificable automáticamente por Wazuh: se acredita documentalmente con la evidencia aportada.',
+        'No = incumplimiento de op.acc.5.r5.2. Sí = se acredita con la fila de op.acc.5.r5.2 en P-ATT (captura o referencia técnica); sin ella, sin demostrar.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
@@ -202,7 +257,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar, como un procedimiento aprobado o un contrato firmado. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar el registro fidedigno previo, el acuse de recibo de las credenciales, la entrega bajo control exclusivo del usuario y la información de derechos y obligaciones: nada de eso deja rastro en un log.',
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar, como un procedimiento aprobado o un contrato firmado. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar el registro fidedigno previo (.1), el acuse de recibo de las credenciales (.2), la entrega bajo control exclusivo del usuario (.3), la información de derechos y obligaciones (.9), el registro previo cualificado de R3 y R4 (r3.3, r4.3) y el aviso del último acceso (r5.2): nada de eso deja rastro en un log.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -239,7 +294,11 @@ export const opAcc5Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: true,
+      // No obligatorio, como en op.acc.1, op.acc.3 y mp.info.6: si lo fuera, un
+      // control sin ninguna atestación declarada tendría TODOS sus requisitos
+      // bloqueados por configuración incompleta, también los técnicos. Lo que
+      // no se atesta ya cuenta en contra requisito a requisito.
+      required: false,
       wazuhUsage:
         'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       ensfacilUsage:
