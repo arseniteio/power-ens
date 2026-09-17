@@ -172,6 +172,38 @@ export const evaluateRequirement = (
     };
   }
 
+  const policyDecision = policyDecisions.find(
+    decision => decision.requirementId === requirement.id
+  );
+
+  // --- LA POLICY SACA EL REQUISITO DEL JUEGO ------------------------------
+  //
+  // Va ANTES que la atestación, y el orden no es cosmético. Hay requisitos que
+  // solo aplican según lo que declara la organización —el refuerzo elegido en
+  // una elección R1/R2/R3/R4—, y eso lo decide la policy, no el nivel. Con la
+  // atestación delante, un documento declarado para un refuerzo NO elegido
+  // devolvía CUMPLE, entraba en el denominador y subía el porcentaje por algo
+  // que el control no exige: un CUMPLE falso con enlace y todo.
+  if (policyDecision?.status === 'NO_APLICA') {
+    return {
+      id: requirement.id,
+      title: requirement.title,
+      level: requirement.applicability.levels,
+      status: 'NO_APLICA',
+      applicable: false,
+      evidenced: false,
+      score: 0,
+      observations: [policyDecision.reason],
+      evidenceIds: requirement.evidenceIds,
+    };
+  }
+
+  // Una decisión de la policy que SÍ se ha pronunciado es una medida —sale de
+  // la configuración declarada—, y ningún documento tapa una medida. La
+  // atestación solo puede sustituir lo que nadie ha podido demostrar.
+  const policyMeasured =
+    policyDecision !== undefined && policyDecision.status !== 'NO_EVALUABLE';
+
   // --- ATESTACIÓN DOCUMENTAL ------------------------------------------------
   //
   // Solo para requisitos que el catálogo declara SIN NINGUNA evidencia técnica.
@@ -188,6 +220,7 @@ export const evaluateRequirement = (
   // puedan decir «acreditado documentalmente» y nunca confundirlo con medido.
   if (
     !requirement.evidenceIds.length &&
+    !policyMeasured &&
     isAttestationSufficient(attestation) &&
     attestation
   ) {
@@ -209,10 +242,6 @@ export const evaluateRequirement = (
 
   const requirementEvidences = evidences.filter(evidence =>
     requirement.evidenceIds.includes(evidence.id)
-  );
-
-  const policyDecision = policyDecisions.find(
-    decision => decision.requirementId === requirement.id
   );
 
   // La medida primero —la decide la policy si hay una, y si no las evidencias—
