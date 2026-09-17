@@ -1,0 +1,204 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_5_json_rules.xml
+     Esta es una copia desplegable para que el procedimiento funcione en un
+     servidor sin acceso al repo del plugin. El mismo fichero, byte a byte, vive
+     en manager/ del runbook de Linux y en manager/ del runbook LDAP: lo
+     comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_acc_5,score,">
+
+  <!-- ================================================================
+       op.acc.5 · Mecanismo de autenticación (usuarios externos)
+       Rango reservado: 110000-110099
+       Base 110000 · hechos crudos 110001-110019 · inventario 110020
+       Degradación 110050 · diagnóstico del recolector 110097-110099
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-01 110002 110011 · EV-02 110004 110005 110006 · EV-03 110003
+         EV-04 110007 · EV-05 110008 · EV-06 110009 · EV-07 110001
+         EV-08 110010 · EV-09 110012
+
+       110001 lleva `evidence_id=EV-07,EV-01`: es UN hecho que sirve a dos
+       evidencias y el plugin lo reparte. Solo EV-07 lo juzga; en EV-01 es el
+       registro que se conserva.
+
+       Fuera del mapa: 110000 (base, nivel 0), 110020 (inventario de
+       servicios en escucha: no acredita nada, deja ver qué superficie tiene la
+       máquina), 110050 (la degradación) y 110097-110099 (higiene del
+       recolector; 110099 es el latido, que el motor LEE para decidir si un
+       silencio puede valer como cumplimiento).
+
+       Ninguna regla lleva `estado` de cumplimiento: el agente emite hechos y
+       el veredicto lo pone el motor contra la pantalla de Configuración. El
+       único `estado` que llega es NO_EVALUABLE, para decir que no pudo mirar.
+       El campo `plano` (sistema | directorio) solo lo emite el runbook LDAP.
+       ================================================================ -->
+
+  <rule id="110000" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.acc.5</field>
+    <description>op.acc.5 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.acc.5.r1.1 · r2.1 · r3.2 · r4.2 · el mecanismo aplicado ===== -->
+
+  <!-- EV-07 (y registro de EV-01). Autenticaciones con éxito de un usuario
+       externo, agregadas por servicio, usuario, origen y método. `refuerzo`
+       es la clase ENS de los factores observados (R1 contraseña, R2
+       contraseña+OTP, R3 certificado+PIN, R4 tarjeta+PIN, `ninguno`): el motor
+       la contrasta con el refuerzo declarado en P-01. -->
+  <rule id="110001" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">external_auth_success</field>
+    <description>op.acc.5 · EV-07 · $(servicio): $(usuario) autenticado con $(metodo) ($(refuerzo)) desde $(origen)</description>
+  </rule>
+
+  <!-- ===== op.acc.5.r5.1 · registro de accesos ===== -->
+
+  <!-- EV-01. Autenticaciones fallidas, agregadas por servicio, usuario y
+       origen. Es el registro que exige R5; no se juzga sola. -->
+  <rule id="110002" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">external_auth_failure</field>
+    <description>op.acc.5 · EV-01 · $(servicio): autenticación fallida de $(usuario) desde $(origen)</description>
+  </rule>
+
+  <!-- EV-01. La fuente del registro: qué log se lee y cuántos días conserva
+       en origen. Se contrasta contra P-08. -->
+  <rule id="110011" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">access_log_source</field>
+    <description>op.acc.5 · EV-01 · $(servicio): registro de accesos en $(log)</description>
+  </rule>
+
+  <!-- EV-09. Una laguna en el registro: el log de un servicio declarado ha
+       desaparecido o ha encogido sin rotación. Es un hallazgo, no un
+       veredicto: el motor lo contrasta con los servicios de P-02. -->
+  <rule id="110012" level="7">
+    <if_sid>110000</if_sid>
+    <field name="event">access_log_gap</field>
+    <description>op.acc.5 · EV-09 · $(servicio): laguna en el registro de accesos ($(tipo))</description>
+  </rule>
+
+  <!-- ===== op.acc.5.8 · límite de intentos (y r1.2) ===== -->
+
+  <!-- EV-03. Fallos por origen: cuántos intentos fallidos y contra cuántas
+       cuentas llegan desde una misma dirección. Se contrasta contra P-03. -->
+  <rule id="110003" level="5">
+    <if_sid>110000</if_sid>
+    <field name="event">auth_failures_by_origin</field>
+    <description>op.acc.5 · EV-03 · $(servicio): fallos de autenticación desde $(origen)</description>
+  </rule>
+
+  <!-- EV-02. La racha más larga de fallos consecutivos de una cuenta sin
+       éxito ni bloqueo en medio. Se contrasta contra P-03. -->
+  <rule id="110004" level="5">
+    <if_sid>110000</if_sid>
+    <field name="event">failed_attempt_streak</field>
+    <description>op.acc.5 · EV-02 · $(servicio): fallos consecutivos de $(usuario)</description>
+  </rule>
+
+  <!-- EV-02. La política de bloqueo que el servicio declara o aplica. -->
+  <rule id="110005" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">lockout_policy</field>
+    <description>op.acc.5 · EV-02 · $(servicio): política de bloqueo $(bloqueo), reactivación $(reactivacion)</description>
+  </rule>
+
+  <!-- EV-02. Las normas de complejidad de contraseña del servicio (r1.2). -->
+  <rule id="110006" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">password_policy</field>
+    <description>op.acc.5 · EV-02 · $(servicio): normas de complejidad $(complejidad)</description>
+  </rule>
+
+  <!-- ===== op.acc.5.4 · cambio periódico ===== -->
+
+  <!-- EV-04. Cuándo cambió por última vez la credencial de una cuenta
+       externa. Se contrasta contra P-05. -->
+  <rule id="110007" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">credential_age</field>
+    <description>op.acc.5 · EV-04 · $(servicio): credencial de $(usuario) cambiada por última vez $(ultimo_cambio)</description>
+  </rule>
+
+  <!-- ===== op.acc.5.5 · op.acc.5.6 · inhabilitación ===== -->
+
+  <!-- EV-05. Tiempo entre la notificación de compromiso o fin de relación y
+       la inhabilitación, o el que lleva pendiente. Se contrasta contra P-06. -->
+  <rule id="110008" level="5">
+    <if_sid>110000</if_sid>
+    <field name="event">credential_disable_delay</field>
+    <description>op.acc.5 · EV-05 · $(servicio): $(usuario) ($(motivo)) inhabilitado $(inhabilitado)</description>
+  </rule>
+
+  <!-- ===== op.acc.5.7 · la autenticación no revela información ===== -->
+
+  <!-- EV-06. Un mensaje de rechazo que revela información sobre la cuenta o
+       el sistema. -->
+  <rule id="110009" level="7">
+    <if_sid>110000</if_sid>
+    <field name="event">auth_error_verbose</field>
+    <description>op.acc.5 · EV-06 · $(servicio): el rechazo revela información ($(patron))</description>
+  </rule>
+
+  <!-- ===== op.acc.5.r3.1 · op.acc.5.r4.1 · certificados ===== -->
+
+  <!-- EV-08. Emisor del certificado y comprobación de revocación aplicada.
+       Se contrasta, fila a fila, contra P-07. -->
+  <rule id="110010" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">certificate_validation</field>
+    <description>op.acc.5 · EV-08 · $(servicio): certificado de $(emisor), revocación $(revocacion)</description>
+  </rule>
+
+  <!-- ===== Inventario ===== -->
+
+  <!-- 110020. Un servicio en escucha fuera de loopback. No acredita ninguna
+       evidencia: enseña al auditor qué puntos de acceso tiene la máquina, que
+       es con lo que se contrasta que P-02 no se ha dejado ninguno. -->
+  <rule id="110020" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">listening_service</field>
+    <description>op.acc.5 · servicio en escucha: $(proceso) en $(direccion):$(puerto)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
+       mirar: la `causa` distingue «no hay nada declarado que observar» de «la
+       fuente no se pudo leer», y se arreglan en sitios distintos. -->
+  <rule id="110050" level="7">
+    <if_sid>110000</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.acc.5 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== Diagnóstico del recolector ===== -->
+
+  <rule id="110097" level="5">
+    <if_sid>110000</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.acc.5 · aviso del recolector · $(parametro) · $(motivo)</description>
+  </rule>
+
+  <!-- 110098. Una fuente DECLARADA que no está: el log de un servicio de
+       OPACC5_SERVICIOS o el socket del directorio. Es la señal raíz de las
+       degradaciones COLLECTION que la acompañan. -->
+  <rule id="110098" level="7">
+    <if_sid>110000</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.acc.5 · fuente declarada ausente · $(fuente) · $(motivo)</description>
+  </rule>
+
+  <!-- 110099. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       el silencio de las aserciones negativas no puede valer como
+       cumplimiento. Nivel 3 para que quede en el índice sin ruido. -->
+  <rule id="110099" level="3">
+    <if_sid>110000</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.acc.5 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+</group>

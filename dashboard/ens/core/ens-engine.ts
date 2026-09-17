@@ -10,6 +10,7 @@ import {
   getENSNormalizedEventsFromProvider,
 } from './data-source';
 import { resolveEvidenceForControl } from './evidence';
+import { keepLatestRunStateFacts } from './evidence/state-facts';
 import { evaluateENSControl } from './evaluation';
 import {
   buildComplianceState,
@@ -73,9 +74,17 @@ export const getENSComplianceResults = (
     // la pantalla, así que el motor no puede resolverlas sin ella.
     const configuration = getActiveControlConfiguration(catalogControl.id);
 
-    const evidences = resolveEvidenceForControl(
+    // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
+    // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
+    const controlEvents = keepLatestRunStateFacts(
       catalogControl.id,
       scopedEvents,
+      now
+    );
+
+    const evidences = resolveEvidenceForControl(
+      catalogControl.id,
+      controlEvents,
       agentId,
       level,
       configuration,
@@ -86,7 +95,7 @@ export const getENSComplianceResults = (
       catalogControl,
       configuration,
       level,
-      scopedEvents,
+      controlEvents,
       evidences,
       now
     );
@@ -99,7 +108,7 @@ export const getENSComplianceResults = (
       level,
       evidences,
       policyRuntime,
-      scopedEvents
+      controlEvents
     );
   });
 };
@@ -326,9 +335,17 @@ const evaluateENSComplianceResultByControl = (
       controlId
     );
 
-  const evidences = resolveEvidenceForControl(
+  // Mismo filtro que en `getENSComplianceResults`: el estado, por su última
+  // pasada; las acciones, por la ventana.
+  const controlEvents = keepLatestRunStateFacts(
     controlId,
     scopedEvents,
+    now
+  );
+
+  const evidences = resolveEvidenceForControl(
+    controlId,
+    controlEvents,
     agentId,
     level,
     configuration,
@@ -339,7 +356,7 @@ const evaluateENSComplianceResultByControl = (
     catalogControl,
     configuration,
     level,
-    scopedEvents,
+    controlEvents,
     evidences,
     now
   );
@@ -353,7 +370,7 @@ const evaluateENSComplianceResultByControl = (
     level,
     evidences,
     policyRuntime,
-    scopedEvents
+    controlEvents
   );
 };
 

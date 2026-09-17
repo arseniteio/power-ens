@@ -2993,6 +2993,59 @@ bloque('Estado de la migración');
     'op.acc.4/EV-06',
     'op.acc.4/EV-07',
     'op.acc.4/EV-08',
+    // op.exp.1 también nace entero en el modelo nuevo: sus siete evidencias
+    // juzgan hechos crudos de su recolector contra P-01, P-02, P-04 y P-07.
+    'op.exp.1/EV-01',
+    'op.exp.1/EV-02',
+    'op.exp.1/EV-03',
+    'op.exp.1/EV-04',
+    'op.exp.1/EV-05',
+    'op.exp.1/EV-06',
+    'op.exp.1/EV-07',
+    // op.exp.2 también nace en el modelo nuevo. EV-07 no está: no tiene hecho
+    // que observar (ver su entrada en el catálogo).
+    'op.exp.2/EV-01',
+    'op.exp.2/EV-02',
+    'op.exp.2/EV-03',
+    'op.exp.2/EV-04',
+    'op.exp.2/EV-05',
+    'op.exp.2/EV-06',
+    // op.acc.6 nace también en el modelo nuevo. EV-02, EV-03, EV-04 y EV-11 no
+    // llevan `judgment` porque las decide su evaluador de policy.
+    'op.acc.6/EV-01',
+    'op.acc.6/EV-05',
+    'op.acc.6/EV-06',
+    'op.acc.6/EV-07',
+    'op.acc.6/EV-08',
+    'op.acc.6/EV-09',
+    'op.acc.6/EV-10',
+    'op.acc.6/EV-12',
+    // op.acc.5 nace igual que op.acc.4: sus nueve evidencias ya en el modelo
+    // nuevo desde el primer día.
+    'op.acc.5/EV-01',
+    'op.acc.5/EV-02',
+    'op.acc.5/EV-03',
+    'op.acc.5/EV-04',
+    'op.acc.5/EV-05',
+    'op.acc.5/EV-06',
+    'op.acc.5/EV-07',
+    'op.acc.5/EV-08',
+    'op.acc.5/EV-09',
+    // op.exp.3 también nace en el modelo nuevo: sus seis evidencias con hecho
+    // en la máquina declaran `judgment`. Las otras cinco no tienen fuente en el
+    // agente y no se juzgan (ver tests/op-exp-3-judgment.test.ts).
+    'op.exp.3/EV-02',
+    'op.exp.3/EV-03',
+    'op.exp.3/EV-04',
+    'op.exp.3/EV-08',
+    'op.exp.3/EV-09',
+    'op.exp.3/EV-11',
+    // op.exp.4 también nace en el modelo nuevo. Solo tres de sus evidencias
+    // declaran primitiva; las demás las mide su policy, que no cabe en
+    // ninguna de las siete (ver `policies/op-exp-4.policy.ts`).
+    'op.exp.4/EV-04',
+    'op.exp.4/EV-06',
+    'op.exp.4/EV-11',
   ];
 
   comprueba(

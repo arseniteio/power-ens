@@ -1,0 +1,299 @@
+import { ENSControlConfiguration } from '../types';
+
+// op.exp.1 · Inventario de activos.
+//
+// El eje de aplicación es la CATEGORÍA del sistema (BÁSICA / MEDIA / ALTA), que
+// el producto selecciona con el mismo nivel global BAJO / MEDIO / ALTO. Solo
+// puntúa op.exp.1.1, igual en las tres; ningún refuerzo es obligatorio.
+//
+// La mitad técnica del requisito la observa el agente (P-08 dice cuánto puede
+// envejecer esa foto). La mitad organizativa —quién responde de cada activo, de
+// qué naturaleza es, qué activos no admiten agente, cuándo se revisó— solo la
+// puede declarar el cliente, y se declara AQUÍ: el agente no la lee jamás.
+export const opExp1Configuration: ENSControlConfiguration = {
+  controlId: 'op.exp.1',
+  controlName: 'Inventario de activos',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.exp.1',
+      name: 'responsables_por_activo',
+      label: 'Responsables por activo',
+      description:
+        'Inventario declarado de los activos con agente: una fila por activo con su responsable —«la persona que toma las decisiones relativas al mismo»— y su naturaleza según la taxonomía de P-03. El activo se escribe exactamente como lo emite el agente en el campo `activo` (el nombre corto de la máquina); la comparación es literal y distingue mayúsculas. Responsable y naturaleza son obligatorios: una fila sin ellos no identifica a nadie ni detalla nada, y deja el parámetro inválido.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'table',
+      example: 'srv-web01 | J. Gómez | Resp. Sistemas | HW servidor',
+      columns: [
+        {
+          name: 'activo',
+          label: 'Activo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'rol',
+          label: 'Rol',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'naturaleza',
+          label: 'Naturaleza (P-03)',
+          type: 'string',
+          required: true,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'EV-07 contrasta el `activo` que observa el agente (regla 110201) con la columna `activo` de esta tabla (TODOS_EN_LISTA). Un activo monitorizado sin fila sale NO_CUMPLE nombrándolo.',
+      ensfacilUsage:
+        'Es la mitad del requisito que Wazuh no puede observar: sin responsable identificado op.exp.1.1 no se cumple, por impecable que sea el inventario técnico.',
+      evidenceIds: ['EV-07'],
+      ruleIds: ['110201'],
+      ifNotConfigured:
+        'EV-07 queda NO_EVALUABLE por configuración y op.exp.1.1 NO CUMPLE: el inventario técnico puede estar completo, pero el requisito exige identificar al responsable de cada activo.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.exp.1',
+      name: 'activos_sin_agente',
+      label: 'Activos sin agente',
+      description:
+        'Relación de elementos del sistema que no admiten agente Wazuh: switches, routers, pasarelas, firewalls, impresoras, SAI, dispositivos OT/IoT, equipamiento de terceros. Una fila por elemento con su tipo (su naturaleza), su IP si la tiene y su responsable. La IP se escribe exactamente como la ve el agente en `network_host_observed`; un elemento sin IP se declara igualmente con la celda vacía.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'table',
+      example: 'sw-core01 | switch | 10.0.0.1 | M. López',
+      columns: [
+        {
+          name: 'activo',
+          label: 'Activo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'tipo',
+          label: 'Tipo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'ip',
+          label: 'IP',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: true,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'EV-05 contrasta cada host vecino que observa el agente (regla 110205) con la columna `ip` de esta tabla (NINGUNO_FUERA_DE_LISTA). Un host que habla con el sistema y no figura aquí sale NO_CUMPLE nombrando su IP.',
+      ensfacilUsage:
+        'Se incorporan al inventario consolidado. Los que no tienen IP o no hablan con ninguna máquina con agente no se pueden observar: su inventario es puramente declarativo, con verificación periódica manual.',
+      evidenceIds: ['EV-05'],
+      ruleIds: ['110205'],
+      ifNotConfigured:
+        'EV-05 queda NO_EVALUABLE por configuración y op.exp.1.1 NO CUMPLE: los elementos del sistema sin agente no aparecen en ningún inventario.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.exp.1',
+      name: 'naturaleza_activos_taxonomia',
+      label: 'Taxonomía de naturaleza de los activos',
+      description:
+        'Taxonomía con la que se clasifica la naturaleza de cada elemento del sistema, tal como exige el requisito («detallando su naturaleza»): servidor, estación de trabajo, electrónica de red, servicio, aplicación, soporte de información, instalación. Los valores de la columna `naturaleza` de P-01 y `tipo` de P-02 deben salir de esta lista.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'list',
+      example: 'HW servidor, HW red, SW aplicación, SW base, servicio, soporte, instalación',
+      required: true,
+      wazuhUsage:
+        'Ninguna primitiva la contrasta hoy contra un hecho: la naturaleza no se observa, se declara. Se exige configurada y sale en el informe.',
+      ensfacilUsage:
+        'Estructura el inventario declarado por naturaleza de activo. La pertenencia de cada `naturaleza` de P-01 a esta lista no la comprueba el motor.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'El control no se puede evaluar: el inventario no acredita el detalle de naturaleza que exige op.exp.1.1.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.exp.1',
+      name: 'periodicidad_revision_inventario_dias',
+      label: 'Periodicidad de revisión del inventario (días)',
+      description:
+        'Cada cuánto debe revisarse y validarse formalmente el inventario, que es el acto en el que sus cambios de composición pasan al inventario declarado. El ENS exige que esté «actualizado» pero no fija periodicidad: corresponde a la normativa interna de la organización.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'duration_days',
+      example: '90',
+      required: true,
+      minValue: 1,
+      wazuhUsage:
+        'EV-06 mide la antigüedad de la última revisión anotada en la máquina (regla 110210) contra este plazo (ANTIGUEDAD_MAXIMA).',
+      ensfacilUsage:
+        'Una revisión más vieja que el plazo, o ninguna revisión anotada, deja op.exp.1.1 sin cumplir.',
+      evidenceIds: ['EV-06'],
+      ruleIds: ['110210'],
+      ifNotConfigured:
+        'EV-06 queda NO_EVALUABLE por configuración: no se puede acreditar que el inventario se mantiene actualizado mediante revisión formal.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.exp.1',
+      name: 'umbral_alerta_activo_nuevo',
+      label: 'Alerta ante un activo nuevo',
+      description:
+        'Determina si la aparición de un activo no inventariado debe generar alerta inmediata o solo figurar en el informe periódico. Un equipo nuevo en la red que no consta en el inventario puede ser un despliegue legítimo no registrado o un elemento no autorizado.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'select',
+      options: ['inmediata', 'periódica'],
+      example: 'periódica',
+      required: false,
+      wazuhUsage:
+        'No lo juzga ninguna primitiva hoy: el veredicto de EV-05 es el mismo en los dos modos. La regla 110205 genera alerta de nivel 3 con cada observación.',
+      ensfacilUsage:
+        'Documenta la decisión de la organización sobre cómo se atiende un activo nuevo. Sale en el informe.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Se entiende el modo periódico: los activos no inventariados figuran en el informe del periodo.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.exp.1',
+      name: 'activos_criticos',
+      label: 'Activos críticos',
+      description:
+        'Categorización de los activos críticos por contexto de la organización y riesgo de seguridad. Corresponde al Refuerzo R3, no obligatorio en ninguna categoría, pero útil para priorizar alertas y esfuerzo de remediación.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.r3.1'],
+      type: 'table',
+      example: 'srv-bd01 | alta | contiene datos personales',
+      columns: [
+        {
+          name: 'activo',
+          label: 'Activo',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'criticidad',
+          label: 'Criticidad',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'motivo',
+          label: 'Motivo',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'No lo juzga ninguna primitiva: R3 no es exigible en ninguna categoría y sale NO_APLICA.',
+      ensfacilUsage:
+        'Permite presentar el inventario priorizando los activos críticos en el informe.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede priorizar por criticidad. No afecta al cumplimiento: R3 no es exigible.',
+    },
+    {
+      id: 'P-08',
+      controlId: 'op.exp.1',
+      name: 'antiguedad_maxima_inventario_horas',
+      label: 'Antigüedad máxima del inventario técnico (horas)',
+      description:
+        'Horas que puede pasar un activo sin renovar su inventario técnico (hardware, software, red) ni su contacto con el manager. Por encima, el inventario de ese activo ya no se puede dar por «actualizado» y el activo cuenta como uno que ha dejado de reportar. El recolector toma una foto cada 6 horas: 24 tolera tres pasadas perdidas.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.1.1'],
+      type: 'duration_hours',
+      example: '24',
+      required: true,
+      minValue: 1,
+      wazuhUsage:
+        'EV-01, EV-02, EV-03 y EV-04 miden contra este plazo la antigüedad de su hecho más reciente (reglas 110201-110204, ANTIGUEDAD_MAXIMA).',
+      ensfacilUsage:
+        'Es lo que convierte un agente apagado o un recolector roto en un incumplimiento visible sin que nadie tenga que emitir nada.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04'],
+      ruleIds: ['110201', '110202', '110203', '110204'],
+      ifNotConfigured:
+        'EV-01 a EV-04 quedan NO_EVALUABLE por configuración y op.exp.1.1 NO CUMPLE: no hay plazo contra el que decidir si el inventario está al día.',
+    },
+    {
+      id: 'P-ATT',
+      controlId: 'op.exp.1',
+      name: 'atestaciones_documentales',
+      label: 'Atestaciones documentales',
+      description:
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar el etiquetado físico del equipamiento y del cableado (R1), que ningún dato de una máquina puede observar.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: [],
+      type: 'table',
+      example: 'op.exp.1.r1.1 | Procedimiento de etiquetado de activos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'requisito',
+          label: 'Requisito',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'enlace',
+          label: 'Enlace',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: false,
+        },
+      ],
+      // No obligatorio: el único requisito documental de op.exp.1 es R1, que no
+      // es exigible en ninguna categoría. Exigirlo bloquearía op.exp.1.1 por un
+      // documento que el ENS no pide.
+      required: false,
+      wazuhUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      ensfacilUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 queda sin acreditar. No afecta al cumplimiento: no es exigible en ninguna categoría.',
+    },
+  ],
+};

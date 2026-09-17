@@ -75,6 +75,30 @@ RUNBOOKS = {
         "op.acc.4-access-rights-management-process",
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
+    "op.exp.1": (
+        "op.exp.1-asset-inventory",
+        ["ensfacil_op_exp_1_json_rules.xml"],
+    ),
+    "op.exp.2": (
+        "op.exp.2-security-configuration",
+        ["ensfacil_op_exp_2_json_rules.xml"],
+    ),
+    "op.acc.6": (
+        "op.acc.6-organization-users-authentication",
+        ["ensfacil_op_acc_6_json_rules.xml"],
+    ),
+    "op.acc.5": (
+        "op.acc.5-external-users-authentication",
+        ["ensfacil_op_acc_5_json_rules.xml"],
+    ),
+    "op.exp.3": (
+        "op.exp.3-security-configuration-management",
+        ["ensfacil_op_exp_3_json_rules.xml"],
+    ),
+    "op.exp.4": (
+        "op.exp.4-security-maintenance-and-updates",
+        ["ensfacil_op_exp_4_json_rules.xml"],
+    ),
 }
 
 fallos = []

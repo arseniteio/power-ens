@@ -29,6 +29,8 @@ import {
   parseRequirementAttestations,
 } from '../dashboard/ens/configuration/services/attestation-service';
 import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
+import type { ENSPolicyDecision } from '../dashboard/ens/core/policy-runtime/types';
 import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
 import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
 import type {
@@ -396,6 +398,82 @@ bloque('6. El ejemplo que se entrega no acredita nada');
     'y con un enlace real, la misma fila sí acredita',
     conEnlaceReal.status === 'CUMPLE' && conEnlaceReal.attested === true,
     `${conEnlaceReal.status} attested=${conEnlaceReal.attested}`
+  );
+}
+
+// --- 7. la policy manda sobre la atestación ---------------------------------
+//
+// Un requisito que solo aplica según lo que declara la organización (el
+// refuerzo elegido en P-01) lo saca del juego la policy. Si la atestación se
+// evaluaba antes, un documento declarado para un refuerzo NO elegido salía
+// CUMPLE y entraba en el denominador: un CUMPLE falso con enlace y todo.
+
+bloque('7. Ninguna atestación gana a una decisión de la policy');
+
+{
+  const decision = (
+    requisitoId: string,
+    status: ENSPolicyDecision['status']
+  ): ENSPolicyDecision => ({
+    policyId: 'prueba',
+    requirementId: requisitoId,
+    status,
+    parameterIds: [],
+    evidenceIds: [],
+    eventIds: [],
+    runtimeVariables: [],
+    trace: {
+      ruleId: 'prueba',
+      ruleType: 'CONDITIONAL_REQUIRED',
+      expression: 'prueba',
+      expected: 'prueba',
+      actual: 'prueba',
+      result: status === 'CUMPLE',
+    },
+    reason: `la policy decide ${status}`,
+  });
+
+  const conPolicy = (status: ENSPolicyDecision['status']) =>
+    evaluateRequirement(
+      requisito('op.acc.1.5'),
+      'MEDIO',
+      [],
+      false,
+      [decision('op.acc.1.5', status)],
+      'ACTIVE',
+      parseRequirementAttestations(configuracion([ATESTACION_BUENA])).get(
+        'op.acc.1.5'
+      )
+    );
+
+  const noAplica = conPolicy('NO_APLICA');
+
+  comprueba(
+    'policy NO_APLICA + atestación completa → NO_APLICA, no CUMPLE',
+    noAplica.status === 'NO_APLICA' && noAplica.attested !== true,
+    `${noAplica.status} attested=${noAplica.attested}`
+  );
+
+  comprueba(
+    'y sale del denominador',
+    evaluateControlStatus([noAplica]).applicableRequirements === 0,
+    String(evaluateControlStatus([noAplica]).applicableRequirements)
+  );
+
+  const noCumple = conPolicy('NO_CUMPLE');
+
+  comprueba(
+    'policy NO_CUMPLE + atestación completa → NO_CUMPLE: el documento no tapa la medida',
+    noCumple.status === 'NO_CUMPLE' && noCumple.attested !== true,
+    `${noCumple.status} attested=${noCumple.attested}`
+  );
+
+  const noEvaluable = conPolicy('NO_EVALUABLE');
+
+  comprueba(
+    'policy NO_EVALUABLE + atestación completa → acredita, porque nadie lo había demostrado',
+    noEvaluable.status === 'CUMPLE' && noEvaluable.attested === true,
+    `${noEvaluable.status} attested=${noEvaluable.attested}`
   );
 }
 

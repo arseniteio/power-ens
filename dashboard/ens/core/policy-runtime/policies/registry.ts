@@ -22,8 +22,38 @@ import {
   opAcc4PolicyDefinition,
 } from './op-acc-4.policy';
 
+import {
+  opAcc5PolicyDefinition,
+} from './op-acc-5.policy';
+
+import {
+  opAcc6PolicyDefinition,
+} from './op-acc-6.policy';
+
+import {
+  opExp1PolicyDefinition,
+} from './op-exp-1.policy';
+
+import {
+  opExp2PolicyDefinition,
+} from './op-exp-2.policy';
+
+import {
+  opExp3PolicyDefinition,
+} from './op-exp-3.policy';
+
+import {
+  opExp4PolicyDefinition,
+} from './op-exp-4.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
+    opExp4PolicyDefinition,
+    opExp3PolicyDefinition,
+    opExp2PolicyDefinition,
+    opExp1PolicyDefinition,
+    opAcc6PolicyDefinition,
+    opAcc5PolicyDefinition,
     opAcc3PolicyDefinition,
     opAcc4PolicyDefinition,
     mpInfo6PolicyDefinition,
