@@ -3040,6 +3040,12 @@ bloque('Estado de la migración');
     'op.exp.3/EV-08',
     'op.exp.3/EV-09',
     'op.exp.3/EV-11',
+    // op.exp.4 también nace en el modelo nuevo. Solo tres de sus evidencias
+    // declaran primitiva; las demás las mide su policy, que no cabe en
+    // ninguna de las siete (ver `policies/op-exp-4.policy.ts`).
+    'op.exp.4/EV-04',
+    'op.exp.4/EV-06',
+    'op.exp.4/EV-11',
   ];
 
   comprueba(

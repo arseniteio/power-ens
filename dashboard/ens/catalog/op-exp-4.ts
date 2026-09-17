@@ -9,7 +9,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.4 es el control de gestión de vulnerabilidades y parcheado, y Wazuh lo cubre muy bien a través del Vulnerability Detector, que cruza el inventario de Syscollector con los feeds de CVE de los fabricantes y bases públicas.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -22,7 +22,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-03', 'EV-05', 'EV-06'],
-      parameterIds: ['P-03', 'P-05'],
+      parameterIds: ['P-01', 'P-03', 'P-05'],
     },
     {
       id: 'op.exp.4.2',
@@ -46,7 +46,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-04'],
-      parameterIds: ['P-02', 'P-04'],
+      parameterIds: ['P-02'],
     },
     {
       id: 'op.exp.4.r1.1',
@@ -54,10 +54,12 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
       description:
         'Antes de poner en producción una nueva versión o una versión parcheada, se comprobará en un entorno de prueba controlado y consistente en configuración al entorno de producción, que la nueva instalación funciona correctamente y no disminuye la eficacia de las funciones necesarias para el trabajo diario.',
       kind: 'REFUERZO',
+      // Refuerzo ACUMULATIVO: la ficha lo exige en MEDIA «+ R1» y en ALTA
+      // «+ R1 + R2». El generador lo había dejado solo en ALTO.
       applicability: {
-        levels: ['ALTO'],
+        levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'R1 es exigible en MEDIO y ALTO. En BAJO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-08'],
       parameterIds: ['P-06'],
@@ -71,7 +73,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'R2 es exigible solo en ALTO. En BAJO y MEDIO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-09'],
       parameterIds: ['P-07'],
@@ -85,7 +87,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: ['EV-11'],
       parameterIds: ['P-09'],
@@ -99,7 +101,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: ['EV-01', 'EV-10'],
       parameterIds: [],
