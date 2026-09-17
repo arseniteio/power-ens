@@ -75,10 +75,32 @@ const field = (
 
 /**
  * Modelo de informe de op.exp.3 (Gestión de la configuración de seguridad).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
+ *
+ * Los campos salen de la hoja "Informe ENSFácil" de la plantilla. Lo que se
+ * acredita aquí no es un estado sino una CONTINUIDAD, y el control remite a
+ * otros cuatro (op.exp.2, op.acc.4, op.exp.4, op.exp.7): los campos cuya fuente
+ * no está en la máquina lo dicen en `producerGaps` en vez de rellenarse.
  */
+
+// Evidencias sin hecho en la máquina y qué falta para que lo tengan.
+const SIN_FUENTE: Record<string, string> = {
+  'EV-01':
+    'La serie de resultados SCA vive en el manager: falta una integración que la emita por agente.',
+  'EV-05':
+    'Falta la integración con el sistema de gestión de cambios declarado en P-06.',
+  'EV-06':
+    'La reacción a vulnerabilidades la mide op.exp.4 con el detector de vulnerabilidades del manager.',
+  'EV-07':
+    'Falta el registro de incidentes de op.exp.7 con el que correlacionar los cambios.',
+  'EV-10':
+    'Las regresiones se calculan sobre la serie de resultados SCA del manager, que el agente no tiene.',
+};
+
+const TODAS = [
+  'EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06',
+  'EV-07', 'EV-08', 'EV-09', 'EV-10', 'EV-11',
+];
+
 export const buildOpExp3ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp3ReportModel => {
@@ -99,7 +121,10 @@ export const buildOpExp3ReportModel = (
   const evidenceObservations = (evidenceId: string): string[] =>
     evidences.get(evidenceId)?.observations || [];
 
-  const level = (result?.level || '').toUpperCase();
+  const gaps = (...evidenceIds: string[]): string[] =>
+    evidenceIds
+      .filter(evidenceId => SIN_FUENTE[evidenceId])
+      .map(evidenceId => `${evidenceId}: ${SIN_FUENTE[evidenceId]}`);
 
   // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
   const campo1 = field(
@@ -107,8 +132,9 @@ export const buildOpExp3ReportModel = (
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09', 'EV-10'],
-    evidenceObservations('EV-01'),
+    TODAS,
+    [],
+    gaps(...TODAS),
   );
 
   // Continuidad del cumplimiento de la línea base  ·  fuente: SCA (EV-01)
@@ -116,107 +142,112 @@ export const buildOpExp3ReportModel = (
     'op.exp.3.campo2',
     'Continuidad del cumplimiento de la línea base',
     evidenceStatus('EV-01'),
-    'Serie temporal del porcentaje de cumplimiento SCA por activo y agregado del sistema durante el período. Es la',
+    'Serie temporal del cumplimiento SCA por activo durante el período: demuestra que la funcionalidad mínima y el mínimo privilegio se mantienen «en todo momento» (remite a op.exp.2).',
     ['EV-01'],
     evidenceObservations('EV-01'),
+    gaps('EV-01'),
   );
 
-  // Regresiones de configuración detectadas  ·  fuente: SCA + ENSFácil (EV-10)
+  // Regresiones de configuración detectadas  ·  fuente: SCA (EV-10)
   const campo3 = field(
     'op.exp.3.campo3',
     'Regresiones de configuración detectadas',
     evidenceStatus('EV-10'),
-    'Checks que pasaron de conforme a no conforme en el período: activo, check afectado, fecha de la regresión, si',
+    'Checks que pasaron de conforme a no conforme en el período, por activo y con la fecha de la regresión.',
     ['EV-10'],
     evidenceObservations('EV-10'),
+    gaps('EV-10'),
   );
 
-  // Ediciones de la configuración de seguridad  ·  fuente: FIM whodata (EV-02)
+  // Ediciones de la configuración de seguridad  ·  fuente: auditd (EV-02)
   const campo4 = field(
     'op.exp.3.campo4',
     'Ediciones de la configuración de seguridad',
     evidenceStatus('EV-02'),
-    'Registro completo de modificaciones en las rutas de P-04: fichero, tipo de cambio, diff cuando procede, usuari',
+    `Ediciones de las rutas de P-04 con su actor, operación, proceso e intervalo, contrastadas con las cuentas autorizadas (P-03: ${formatValue(parameterValue('P-03'))}).`,
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
 
-  // Trazabilidad de cambios frente a autorización  ·  fuente: FIM + ITSM (EV-05)
+  // Trazabilidad de cambios frente a autorización  ·  fuente: ITSM (EV-05)
   const campo5 = field(
     'op.exp.3.campo5',
     'Trazabilidad de cambios frente a autorización',
     evidenceStatus('EV-05'),
-    'Para cada cambio de configuración detectado: ticket o solicitud de autorización asociada, quién la aprobó y fe',
+    `Para cada edición detectada, el cambio aprobado que la autoriza en el sistema de gestión de cambios (P-06: ${formatValue(parameterValue('P-06'))}). Remite a op.acc.4.`,
     ['EV-05'],
     evidenceObservations('EV-05'),
+    gaps('EV-05'),
   );
 
-  // Reacción ante vulnerabilidades  ·  fuente: Vuln. Detector + SCA (EV-06)
+  // Reacción ante vulnerabilidades  ·  fuente: op.exp.4 (EV-06)
   const campo6 = field(
     'op.exp.3.campo6',
     'Reacción ante vulnerabilidades',
     evidenceStatus('EV-06'),
-    'Vulnerabilidades notificadas sobre los activos durante el período, con el tiempo hasta la reacción (cambio de',
+    'Vulnerabilidades notificadas en el período y tiempo hasta la reacción. Se mide en op.exp.4.',
     ['EV-06'],
     evidenceObservations('EV-06'),
+    gaps('EV-06'),
   );
 
-  // Reacción ante incidentes  ·  fuente: Correlación (EV-07)
+  // Reacción ante incidentes  ·  fuente: op.exp.7 (EV-07)
   const campo7 = field(
     'op.exp.3.campo7',
     'Reacción ante incidentes',
     evidenceStatus('EV-07'),
-    'Incidentes de seguridad del período con indicación de si generaron cambios de configuración en los activos afe',
+    'Incidentes del período y si produjeron cambios de configuración en los activos afectados. Remite a op.exp.7.',
     ['EV-07'],
     evidenceObservations('EV-07'),
+    gaps('EV-07'),
   );
 
-  // Elementos no autorizados en el sistema  ·  fuente: Syscollector + ENSFácil (EV-03)
+  // Elementos no autorizados en el sistema  ·  fuente: dpkg / apt (EV-03)
   const campo8 = field(
     'op.exp.3.campo8',
     'Elementos no autorizados en el sistema',
     evidenceStatus('EV-03'),
-    'Hardware o software detectado que no figura en la línea base P-01: activo afectado, elemento, fecha de aparici',
+    'Software instalado de nuevo en el período, con quién lo pidió, contrastado con el software autorizado sobre la línea base (P-01). Tolerancia cero.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
 
-  // Servicios fuera de la lista autorizada  ·  fuente: Syscollector + ENSFácil (EV-04)
+  // Servicios fuera de la lista autorizada  ·  fuente: systemd / ss (EV-04)
   const campo9 = field(
     'op.exp.3.campo9',
     'Servicios fuera de la lista autorizada',
     evidenceStatus('EV-04'),
-    'Servicios en ejecución sin correspondencia en P-02, por activo y perfil, con el proceso asociado y si el servi',
+    'Servicios en ejecución por activo y perfil, con sus puertos, contrastados con la fila de su perfil en P-02.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
 
-  // Verificaciones periódicas de la configuración  ·  fuente: Registro ENSFácil (EV-03)
+  // Verificaciones periódicas de la configuración  ·  fuente: registro (EV-11)
   const campo10 = field(
     'op.exp.3.campo10',
     'Verificaciones periódicas de la configuración',
-    evidenceStatus('EV-03'),
-    'Histórico de verificaciones formales de la configuración frente a la línea base: fecha, alcance, resultado y d',
-    ['EV-03'],
-    evidenceObservations('EV-03'),
+    evidenceStatus('EV-11'),
+    `Fecha de la última verificación formal frente a la línea base y contraste con la periodicidad declarada (P-05: ${formatValue(parameterValue('P-05'))} días).`,
+    ['EV-11'],
+    evidenceObservations('EV-11'),
   );
 
-  // Concentración de la administración (R2)  ·  fuente: FIM + ENSFácil (EV-08)
+  // Concentración de la administración (R2)  ·  fuente: auditd (EV-08)
   const campo11 = field(
     'op.exp.3.campo11',
     'Concentración de la administración (R2)',
     evidenceStatus('EV-08'),
-    'Número de cuentas que efectivamente han editado la configuración de seguridad en el período, con el detalle de',
+    `Cuentas distintas que han editado la configuración en la ventana de observación, contra el máximo declarado (P-09: ${formatValue(parameterValue('P-09'))}).`,
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
 
-  // Copias de seguridad de la configuración (R3)  ·  fuente: FIM + Log (EV-09)
+  // Copias de seguridad de la configuración (R3)  ·  fuente: disco (EV-09)
   const campo12 = field(
     'op.exp.3.campo12',
     'Copias de seguridad de la configuración (R3)',
     evidenceStatus('EV-09'),
-    'Para cada alcance declarado en P-07: fecha de la última copia, antigüedad, frecuencia declarada y marca de cum',
+    `Fecha de la copia más reciente del alcance que peor está, contra la antigüedad máxima declarada (P-10: ${formatValue(parameterValue('P-10'))} h).`,
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -227,8 +258,12 @@ export const buildOpExp3ReportModel = (
     'Puntuación de cumplimiento op.exp.3',
     asStatus(result?.status),
     formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09', 'EV-10'],
-    evidenceObservations('EV-01'),
+    TODAS,
+    [
+      'Bloques: base (BAJO, MEDIO, ALTO), R1 (MEDIO y ALTO), R2 y R3 (solo ALTO). R4 y R5 no son exigibles en ninguna categoría.',
+      'Remisiones: op.exp.3.1 y .2 → op.exp.2; op.exp.3.3 → op.acc.4; op.exp.3.4 → op.exp.4; op.exp.3.5 → op.exp.7.',
+    ],
+    gaps(...TODAS),
   );
 
   return {

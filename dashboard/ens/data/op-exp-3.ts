@@ -1,5 +1,8 @@
 import { ENSControl } from '../types';
 
+// Catálogo heredado de op.exp.3. La fuente de verdad es `catalog/op-exp-3.ts`
+// y `core/evidence/catalog.ts`; este fichero repite lo mismo en la forma antigua
+// y tiene que decir lo mismo.
 export const opExp3Control: ENSControl = {
   id: 'op.exp.3',
   title: 'Gestión de la configuración de seguridad',
@@ -14,22 +17,19 @@ export const opExp3Control: ENSControl = {
   },
   expectedResult: {
     bajo: {
-      status: 'CUMPLE',
-      score: 100,
+      status: 'NO_CUMPLE',
       condition:
-        'Pendiente de definir.',
+        'op.exp.3 → requisitos base op.exp.3.1 a op.exp.3.6. Sin integración con los resultados SCA del manager, con el sistema de gestión de cambios, con op.exp.4 y con op.exp.7, los requisitos .1 a .5 no se pueden evidenciar: el techo técnico hoy es op.exp.3.6.',
     },
     medio: {
-      status: 'CUMPLE',
-      score: 100,
+      status: 'NO_CUMPLE',
       condition:
-        'Pendiente de definir.',
+        'op.exp.3 + R1 → base + op.exp.3.r1.1 (documental, P-ATT) + op.exp.3.r1.2 (EV-03 y EV-11) + op.exp.3.r1.3 (EV-04).',
     },
     alto: {
-      status: 'PARCIAL',
-      score: 91,
+      status: 'NO_CUMPLE',
       condition:
-        'Pendiente de definir. Sin evidencia tecnica en: op.exp.3.r1.1, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.exp.3 + R1 + R2 + R3 → base + R1 + op.exp.3.r2.1 (EV-08) + op.exp.3.r3.1 (EV-09). R4 y R5 no son exigibles en ninguna categoría.',
     },
   },
   requirements: [
@@ -83,7 +83,7 @@ export const opExp3Control: ENSControl = {
     },
     {
       id: 'op.exp.3.r1.1',
-      level: ['ALTO'],
+      level: ['MEDIO', 'ALTO'],
       title: 'Línea base de configuración autorizada (R1)',
       description:
         'Existirán configuraciones hardware/software, autorizadas y mantenidas regularmente, para los servidores, elementos de red y estaciones de trabajo.',
@@ -92,16 +92,16 @@ export const opExp3Control: ENSControl = {
     },
     {
       id: 'op.exp.3.r1.2',
-      level: ['ALTO'],
+      level: ['MEDIO', 'ALTO'],
       title: 'Verificación periódica frente a la línea base (R1)',
       description:
         'Se verificará periódicamente la configuración hardware/software del sistema para asegurar que no se han introducido ni instalado elementos no autorizados.',
-      evidences: ['EV-03'],
+      evidences: ['EV-03', 'EV-11'],
       active: false,
     },
     {
       id: 'op.exp.3.r1.3',
-      level: ['ALTO'],
+      level: ['MEDIO', 'ALTO'],
       title: 'Lista de servicios autorizados (R1)',
       description:
         'Se mantendrá una lista de servicios autorizados para servidores y estaciones de trabajo.',
@@ -140,7 +140,7 @@ export const opExp3Control: ENSControl = {
       title: 'Herramientas de estado de dispositivos de red (R5)',
       description:
         'Refuerzo R5 – Control del estado de seguridad de la configuración: Se dispondrá de herramientas que permitan conocer de forma periódica el estado de seguridad de la configuración de los dispositivos de red y, en el caso de que resulte deficiente, permitir su corrección.',
-      evidences: ['EV-10'],
+      evidences: [],
     },
   ],
   evidences: [
@@ -152,7 +152,7 @@ export const opExp3Control: ENSControl = {
       title: 'Mantenimiento en el tiempo de la línea base',
       description:
         'Ejecución periódica y sostenida de las políticas SCA, con seguimiento de la evolución del cumplimiento por activo. A diferencia de op.exp.2, aquí lo relevante no es el resultado puntual sino la SERIE: demuestra que la funcionalidad mínima y el mínimo privilegio se mantienen «en todo momento».',
-      format: 'sca_or_json_line',
+      format: 'json_line',
       events: ['evidence_state'],
       wazuhRuleIds: [],
     },
@@ -163,45 +163,45 @@ export const opExp3Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Ediciones de la configuración de seguridad y su autor',
       description:
-        'Detección de toda modificación en los ficheros y rutas de P-04, capturando qué usuario realizó el cambio, con qué proceso y en qué momento. Es la evidencia directa de op.exp.3.6, que exige que solo edite la configuración personal debidamente autorizado.',
-      format: 'fim_or_json_line',
-      events: ['evidence_state', 'config_file_modified', 'config_file_modified_unauthorized'],
-      wazuhRuleIds: [],
+        'Toda escritura sobre las rutas de configuración de seguridad (P-04) registrada por auditd, con la cuenta de la sesión que la hizo, la operación, el proceso y el intervalo en que ocurrió. En un servidor LDAP incluye los cambios de cn=config con la identidad del directorio que los hizo. Es la evidencia directa de op.exp.3.6.',
+      format: 'json_line',
+      events: ['evidence_state', 'config_file_modified'],
+      wazuhRuleIds: ['110401'],
     },
     {
       id: 'EV-03',
       requirement: ['op.exp.3.r1.2'],
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: ['MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Elementos no autorizados introducidos en el sistema',
       description:
-        'Comparación periódica del inventario hardware/software de cada activo contra la línea base autorizada P-01. Detecta software instalado, hardware conectado o servicios añadidos que no estaban previstos. Es la verificación que exige op.exp.3.r1.2.',
+        'Software instalado de nuevo en el activo (no actualizado) y pedido de forma explícita, leído de dpkg.log y del historial de apt, con quién lo pidió y cuántas dependencias trajo. Se contrasta contra el software autorizado sobre la línea base (P-01). Es la verificación de elementos introducidos que exige op.exp.3.r1.2.',
       format: 'json_line',
-      events: ['evidence_state', 'baseline_deviation_detected', 'baseline_verification_performed'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'software_installed'],
+      wazuhRuleIds: ['110402'],
     },
     {
       id: 'EV-04',
       requirement: ['op.exp.3.1', 'op.exp.3.r1.3'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Servicios en ejecución fuera de la lista autorizada',
+      title: 'Servicios en ejecución frente a la lista autorizada',
       description:
-        'Contraste continuo entre los servicios y procesos detectados en cada activo y la lista de servicios autorizados P-02. Cubre op.exp.3.r1.3 y, por remisión a op.exp.2, también op.exp.3.1 (mantenimiento de la funcionalidad mínima).',
+        'Servicios en ejecución en cada activo (unidades de systemd y procesos que escuchan en red fuera de ellas; en un servidor LDAP, además, los módulos, backends, overlays y puntos de escucha de slapd), con el perfil que identifica a la máquina en P-02. Cubre op.exp.3.r1.3 y, por remisión a op.exp.2, la parte de funcionalidad mínima de op.exp.3.1.',
       format: 'json_line',
-      events: ['evidence_state', 'unauthorized_service_running'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'service_running'],
+      wazuhRuleIds: ['110403'],
     },
     {
       id: 'EV-05',
       requirement: ['op.exp.3.3'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Cambios de configuración sin autorización previa',
+      title: 'Cambios de configuración frente a su autorización previa',
       description:
-        'Correlación entre los cambios de configuración detectados por FIM y su correspondiente autorización en el sistema de gestión de cambios (P-06). Un cambio sin ticket o solicitud asociada incumple op.exp.3.3, que exige que las nuevas necesidades estén «previamente autorizadas».',
-      format: 'fim_or_json_line',
-      events: ['evidence_state', 'change_authorization_missing'],
+        'Correlación entre cada edición de la configuración registrada por EV-02 y el cambio aprobado que la autoriza en el sistema de gestión de cambios declarado en P-06. Un cambio sin autorización asociada incumple op.exp.3.3. Requiere integración con el ITSM del cliente.',
+      format: 'json_line',
+      events: ['evidence_state'],
       wazuhRuleIds: [],
     },
     {
@@ -211,9 +211,9 @@ export const opExp3Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Reacción de la configuración ante vulnerabilidades notificadas',
       description:
-        'Seguimiento de las vulnerabilidades detectadas en los activos y de si la configuración se ha ajustado para mitigarlas o si se ha aplicado la actualización correspondiente. op.exp.3.4 exige que el sistema «reaccione a vulnerabilidades notificadas», con remisión a op.exp.4.',
-      format: 'sca_or_json_line',
-      events: ['evidence_state', 'vulnerability_remediated', 'vulnerability_unremediated'],
+        'Seguimiento de las vulnerabilidades detectadas en los activos y de si la configuración se ha ajustado o se ha aplicado la actualización correspondiente. op.exp.3.4 remite a op.exp.4, que es quien mide la remediación con el detector de vulnerabilidades del manager.',
+      format: 'json_line',
+      events: ['evidence_state'],
       wazuhRuleIds: [],
     },
     {
@@ -223,46 +223,58 @@ export const opExp3Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Reacción de la configuración ante incidentes',
       description:
-        'Verificación de que, tras un incidente de seguridad registrado, se produjeron los cambios de configuración correspondientes para evitar su repetición. op.exp.3.5 exige que el sistema «reaccione a incidentes», con remisión a op.exp.7.',
+        'Verificación de que, tras un incidente de seguridad registrado, se produjeron los cambios de configuración correspondientes en los activos afectados, o consta por qué no procedían. op.exp.3.5 remite a op.exp.7. Requiere el registro de incidentes.',
       format: 'json_line',
-      events: ['evidence_state', 'incident_config_reaction', 'incident_without_reaction'],
+      events: ['evidence_state'],
       wazuhRuleIds: [],
     },
     {
       id: 'EV-08',
       requirement: ['op.exp.3.r2.1'],
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: ['ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Concentración de la administración de la configuración (R2)',
       description:
-        'Identificación de todas las cuentas que han editado efectivamente la configuración de seguridad en el período. En categoría ALTA, R2 exige que la responsabilidad recaiga en «un número muy limitado» de administradores: esta evidencia mide cuántos son en la práctica, no cuántos están autorizados.',
-      format: 'fim_or_json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+        'Número de cuentas distintas que han editado de verdad la configuración de seguridad en la ventana de observación, contado sobre lo que registra EV-02. Mide cuántos administradores hay en la práctica, no cuántos están autorizados. Solo se emite cuando la ventana entera se ha observado sin huecos.',
+      format: 'json_line',
+      events: ['evidence_state', 'config_admins_observed'],
+      wazuhRuleIds: ['110404'],
     },
     {
       id: 'EV-09',
       requirement: ['op.exp.3.r3.1'],
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+      level: ['ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Existencia y frescura de las copias de configuración (R3)',
       description:
-        'Verificación de que se realizan copias de seguridad de la configuración del sistema con la periodicidad declarada en P-07 y de que están disponibles para una eventual reconstrucción. R3 es obligatorio en categoría ALTA.',
-      format: 'fim_or_json_line',
-      events: ['evidence_state', 'config_backup_created', 'config_backup_stale'],
-      wazuhRuleIds: [],
+        'Instante de la copia más reciente de la configuración, del alcance que peor está (el sistema; en un servidor LDAP, además, cn=config). Se mide su antigüedad contra el reloj y el plazo de P-10. Sin ninguna copia no hay hecho y no se acredita la capacidad de reconstrucción que exige op.exp.3.r3.1.',
+      format: 'json_line',
+      events: ['evidence_state', 'config_backup_observed'],
+      wazuhRuleIds: ['110405'],
     },
     {
       id: 'EV-10',
-      requirement: ['op.exp.3.1', 'op.exp.3.2', 'op.exp.3.r5.1'],
+      requirement: ['op.exp.3.1', 'op.exp.3.2'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Regresiones del estado de seguridad de la configuración',
       description:
-        'Identificación específica de checks que pasaron de conforme a no conforme entre dos evaluaciones sucesivas. Es el indicador más directo de que la gestión continua de la configuración está fallando, y cubre de facto el Refuerzo R5 aunque no sea exigible.',
-      format: 'sca_or_json_line',
-      events: ['evidence_state', 'sca_regression_detected'],
+        'Checks SCA que pasaron de conforme a no conforme entre dos evaluaciones sucesivas, por activo. Es el indicador más directo de que la gestión continua de la configuración falla. Requiere la serie de resultados SCA del manager.',
+      format: 'json_line',
+      events: ['evidence_state'],
       wazuhRuleIds: [],
+    },
+    {
+      id: 'EV-11',
+      requirement: ['op.exp.3.r1.2'],
+      level: ['MEDIO', 'ALTO'],
+      expectedStatus: 'CUMPLE',
+      title: 'Verificación periódica de la configuración frente a la línea base',
+      description:
+        'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2.',
+      format: 'json_line',
+      events: ['evidence_state', 'baseline_verification_performed'],
+      wazuhRuleIds: ['110406'],
     },
   ],
   parameters: [
@@ -270,121 +282,147 @@ export const opExp3Control: ENSControl = {
       id: 'P-01',
       name: 'baseline_configuracion_autorizada',
       description:
-        'Configuración hardware/software autorizada y documentada para cada tipo de activo: servidores, elementos de red y estaciones de trabajo. Es la referencia frente a la que se detecta cualquier desviación.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.exp.3.r1.1'],
-      type: 'string',
+        'Software cuya instalación está autorizada sobre la línea base aprobada: un paquete por línea, con el nombre exacto que usa el gestor de paquetes (nmap, postgresql-16). El agente emite cada paquete instalado de nuevo, y todo el que no figure aquí es un elemento no autorizado introducido en el sistema. Las dependencias automáticas no hace falta declararlas: llegan con el paquete que las trae. La línea base aprobada en sí (el documento) se acredita en P-ATT para op.exp.3.r1.1.',
+      level: ['MEDIO', 'ALTO'],
+      requirements: ['op.exp.3.r1.1', 'op.exp.3.r1.2'],
+      type: 'list',
       usage:
-        'ENSFácil compara de forma continua el inventario de Syscollector y el resultado SCA contra esta línea base. Toda desviación no autorizada genera hallazgo. Es la pieza central de R1.',
+        'EV-03 con NINGUNO_FUERA_DE_LISTA: todo paquete introducido tiene que figurar en esta lista. Sin instalaciones en la ventana y con el recolector confirmando que leyó el registro, cumple.',
       missingBehavior:
-        'R1 NO EVALUABLE. Sin línea base autorizada no hay referencia con la que detectar elementos no autorizados.',
+        'EV-03 NO_EVALUABLE (causa CONFIGURATION): sin la lista de software autorizado no se puede decidir si lo instalado estaba autorizado, y op.exp.3.r1.2 no acredita.',
     },
     {
       id: 'P-02',
       name: 'lista_servicios_autorizados',
       description:
-        'Relación de servicios permitidos en servidores y estaciones de trabajo, exigida expresamente por op.exp.3.r1.3. Puede coincidir con el P-02 de op.exp.2, pero aquí el énfasis está en su mantenimiento y verificación periódica, no en la configuración inicial.',
+        'Una fila por perfil de máquina con los servicios que tiene autorizados, separados por comas y escritos como los emite el agente: unidades de systemd (ssh.service, cron.service; las instancias como getty@.service) y procesos que escuchan en red fuera de systemd (proceso:nombre). El perfil es, por defecto, el nombre corto del host; varias máquinas pueden compartir perfil fijando OPEXP3_PERFIL en su .env. Puede coincidir con la lista de op.exp.2; aquí se usa para demostrar que se MANTIENE.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.exp.3.r1.3', 'op.exp.3.1'],
+      requirements: ['op.exp.3.1', 'op.exp.3.r1.3'],
       type: 'table',
       usage:
-        'CDB list en Wazuh. Todo servicio no autorizado en ejecución es un hallazgo de R1 y también de op.exp.3.1.',
+        'EV-04 con CONFORME_A_TABLA: cada servicio observado tiene que estar en la celda de su perfil. Un perfil sin fila no es un incumplimiento, es una decisión sin escribir: NO_EVALUABLE con causa CONFIGURATION.',
       missingBehavior:
-        'op.exp.3.r1.3 NO EVALUABLE y op.exp.3.1 queda sin verificación de continuidad.',
+        'EV-04 NO_EVALUABLE: op.exp.3.1 y op.exp.3.r1.3 no acreditan. Además bloquea el control: es obligatorio.',
     },
     {
       id: 'P-03',
       name: 'administradores_configuracion',
       description:
-        'Personal autorizado para editar la configuración de seguridad. En categoría BÁSICA y MEDIA basta con identificarlos (op.exp.3.6). En categoría ALTA, R2 exige además que sean «un número muy limitado», por lo que debe fijarse el número máximo admitido.',
+        'Cuentas autorizadas a editar la configuración de seguridad, una por línea y tal como las emite el agente: la cuenta de la sesión que hizo el cambio aunque pasara por sudo (dioni, no root). Los cambios sin sesión (un paquete que se actualiza, un servicio) llegan con la cuenta del proceso, normalmente root: declararla aquí acepta esos cambios, y no declararla los deja como hallazgo para que se revisen. En un servidor LDAP, las identidades del directorio que cambian cn=config van con su DN entero y las comas cambiadas por guiones bajos (cn=config; gidNumber=0+uidNumber=0_cn=peercred_cn=external_cn=auth para root por el socket local). La comparación es literal y distingue mayúsculas.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.6', 'op.exp.3.r2.1'],
       type: 'list',
       usage:
-        'CDB list en Wazuh. Cualquier cambio en ficheros de configuración de seguridad ejecutado por una cuenta fuera de la lista genera alerta.',
+        'EV-02 con NINGUNO_FUERA_DE_LISTA: ningún actor observado puede quedar fuera de esta lista. Sin ediciones y con el recolector confirmando que todas las rutas estaban vigiladas, cumple.',
       missingBehavior:
-        'op.exp.3.6 NO EVALUABLE. No se puede distinguir un cambio legítimo de uno no autorizado.',
+        'op.exp.3.6 NO EVALUABLE: no se puede distinguir un cambio legítimo de uno no autorizado. Además bloquea el control: es obligatorio.',
     },
     {
       id: 'P-04',
       name: 'rutas_configuracion_seguridad',
       description:
-        'Ficheros y rutas que contienen la configuración de seguridad del sistema y de las aplicaciones, que deben vigilarse con FIM para detectar toda edición.',
+        'Ficheros y directorios que contienen la configuración de seguridad y se vigilan con auditd, una ruta absoluta por línea. Tienen que ser las mismas que declara el fichero de reglas de auditd del runbook (/etc/audit/rules.d/ensfacil-opexp3.rules): lo que se declara aquí y lo que se vigila allí son las dos mitades de EV-02. El agente comprueba ruta a ruta que el kernel la vigila en escritura; el motor no puede comprobar que coincidan con esta lista, así que mantenerlas iguales es responsabilidad de quien las declara.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.6', 'op.exp.3.1', 'op.exp.3.2'],
-      type: 'path',
+      type: 'list',
       usage:
-        'Configuración del módulo FIM con whodata activado para capturar qué usuario realizó cada cambio. Es la evidencia directa de op.exp.3.6 y la base para detectar degradación de la configuración.',
+        'Documental: dice al auditor qué configuración se considera de seguridad. El juicio de EV-02 se hace contra P-03.',
       missingBehavior:
-        'No se detectan ediciones de la configuración de seguridad. op.exp.3.6 sin verificación automática.',
+        'No queda escrito qué se considera configuración de seguridad. Bloquea el control: es obligatorio.',
     },
     {
       id: 'P-05',
       name: 'periodicidad_verificacion_config_dias',
       description:
-        'Cada cuánto debe verificarse la configuración hardware/software para asegurar que no se han introducido elementos no autorizados (op.exp.3.r1.2). El ENS exige verificación «periódica» sin fijar plazo.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+        'Cada cuántos días debe hacerse, como mucho, una verificación formal de la configuración hardware/software frente a la línea base aprobada (op.exp.3.r1.2). El ENS exige verificación «periódica» sin fijar plazo. La verificación la anota la organización en el registro del runbook (opexp3-verificaciones.tsv).',
+      level: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.3.r1.2'],
       type: 'duration_days',
       usage:
-        'Define el intervalo de la comparación formal contra la línea base P-01 que ENSFácil registra como verificación acreditada. Independientemente, SCA y Syscollector operan de forma continua.',
+        'EV-11 con ANTIGUEDAD_MAXIMA: la verificación más reciente no puede ser más antigua que este plazo. Sin ninguna verificación anotada no cumple nunca.',
       missingBehavior:
-        'No se puede acreditar la periodicidad de la verificación exigida por R1. Se aplica 30 días por defecto.',
+        'EV-11 NO_EVALUABLE (causa CONFIGURATION) y op.exp.3.r1.2 no acredita. No se aplica ningún plazo por defecto: el motor no juzga contra un valor que nadie ha declarado.',
     },
     {
       id: 'P-06',
       name: 'procedimiento_autorizacion_cambios',
       description:
-        'Referencia al procedimiento de autorización previa de cambios de configuración, exigido por op.exp.3.3 con remisión expresa a op.acc.4. Debe permitir correlacionar un cambio detectado con su autorización.',
+        'Referencia al procedimiento de autorización previa de cambios de configuración y al sistema de gestión de cambios donde se aprueban (Jira, GLPI, ServiceNow). op.exp.3.3 exige que cada cambio esté previamente autorizado, y eso solo se puede medir correlacionando cada edición que registra EV-02 con su cambio aprobado. Esa integración no existe todavía en ENSFácil: mientras tanto este parámetro deja escrita la referencia, pero no desbloquea ninguna medida.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.3'],
       type: 'string',
       usage:
-        'Si hay integración con el sistema de tickets, ENSFácil correlaciona cada cambio detectado por FIM con su ticket de autorización. Cambio sin ticket asociado → hallazgo de cambio no autorizado.',
+        'Documental hasta que exista la integración con el ITSM. No se juzga contra nada.',
       missingBehavior:
-        'Todo cambio detectado queda sin poder contrastarse contra su autorización. op.exp.3.3 solo documental.',
+        'No queda escrita la referencia al procedimiento. op.exp.3.3 sigue sin evidenciar mientras no haya integración, esté o no configurado.',
     },
     {
       id: 'P-07',
       name: 'config_backup_destino',
       description:
-        'Destino, periodicidad y alcance de las copias de seguridad de la configuración del sistema, exigidas por R3 en categoría ALTA para permitir la reconstrucción tras un incidente.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
+        'Qué configuración se copia y adónde, una fila por alcance, para permitir la reconstrucción tras un incidente (R3). Es la declaración que lee el auditor; el plazo medible es P-10, y dónde busca el agente las copias en cada máquina se ajusta en su .env (OPEXP3_COPIAS_CONFIG).',
+      level: ['ALTO'],
       requirements: ['op.exp.3.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica la existencia y frescura de las copias mediante FIM sobre el destino o ingesta de los logs del proceso de respaldo. Ausencia o antigüedad excesiva → hallazgo de R3.',
+        'Documental: ninguna primitiva lo contrasta contra un hecho.',
       missingBehavior:
-        'R3 NO EVALUABLE. No se puede acreditar la capacidad de reconstrucción tras incidente.',
+        'No queda escrito dónde se copian las configuraciones. No bloquea el juicio de EV-09, que se hace contra P-10.',
     },
     {
       id: 'P-08',
       name: 'umbral_desviacion_baseline',
       description:
-        'Grado de desviación respecto a la línea base P-01 que se considera aceptable antes de marcar el activo como no conforme. Permite absorber variaciones menores sin disparar hallazgos continuos.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.exp.3.r1.1', 'op.exp.3.r1.2'],
+        'Grado de desviación respecto a la línea base que se considera aceptable. Se declara porque es la política escrita, pero hoy ninguna primitiva lo aplica: EV-03 juzga con tolerancia cero (todo paquete introducido tiene que estar autorizado en P-01), que es el extremo estricto. Un porcentaje exigiría conocer la línea base completa paquete a paquete, y eso no es lo que se declara.',
+      level: ['MEDIO', 'ALTO'],
+      requirements: ['op.exp.3.r1.2'],
       type: 'number',
       usage:
-        'Configura los cortes del semáforo por activo. Los elementos marcados como críticos en la línea base generan hallazgo con independencia del porcentaje global.',
+        'Documental. El juicio de EV-03 es de tolerancia cero.',
       missingBehavior:
-        'Se aplica tolerancia cero por defecto, lo que puede producir ruido excesivo en el informe.',
+        'Sin efecto sobre el juicio: se aplica tolerancia cero en cualquier caso.',
+    },
+    {
+      id: 'P-09',
+      name: 'max_administradores_configuracion',
+      description:
+        'Número máximo de cuentas distintas que pueden editar de verdad la configuración de seguridad en la ventana de observación (30 días por defecto). Es el «número muy limitado» que exige R2 en categoría ALTA. Se cuenta lo que ocurre, no lo que está autorizado: una cuenta autorizada en P-03 que no edita nada no suma.',
+      level: ['ALTO'],
+      requirements: ['op.exp.3.r2.1'],
+      type: 'number',
+      usage:
+        'EV-08 con UMBRAL_MAXIMO: el recuento observado no puede superar este número.',
+      missingBehavior:
+        'EV-08 NO_EVALUABLE (causa CONFIGURATION) y op.exp.3.r2.1 no acredita.',
+    },
+    {
+      id: 'P-10',
+      name: 'antiguedad_maxima_copia_configuracion_horas',
+      description:
+        'Horas que puede tener, como mucho, la copia más reciente de la configuración para que el sistema se considere reconstruible (R3). Con varios alcances cuenta el que peor está. Es la frecuencia de P-07 expresada como plazo: 24 para una copia diaria, 168 para una semanal.',
+      level: ['ALTO'],
+      requirements: ['op.exp.3.r3.1'],
+      type: 'duration_hours',
+      usage:
+        'EV-09 con ANTIGUEDAD_MAXIMA: mide contra el reloj, así que la antigüedad crece sola si las copias se paran.',
+      missingBehavior:
+        'EV-09 NO_EVALUABLE (causa CONFIGURATION) y op.exp.3.r3.1 no acredita.',
     },
     {
       id: 'P-ATT',
       name: 'atestaciones_documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la línea base de configuración aprobada y la capacidad real de reconstruir el sistema a partir de sus copias, que ningún evento puede demostrar.',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: [],
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control solo hay uno: op.exp.3.r1.1, que la configuración hardware/software de servidores, elementos de red y estaciones está AUTORIZADA y se mantiene. Eso lo dice un documento aprobado, no una máquina.',
+      level: ['MEDIO', 'ALTO'],
+      requirements: ['op.exp.3.r1.1'],
       type: 'table',
       usage:
         'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+        'op.exp.3.r1.1 queda sin acreditar y cuenta en contra en MEDIO y ALTO: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'config_file_modified', 'config_file_modified_unauthorized', 'baseline_deviation_detected', 'baseline_verification_performed', 'unauthorized_service_running', 'change_authorization_missing', 'vulnerability_remediated', 'vulnerability_unremediated', 'incident_config_reaction', 'incident_without_reaction', 'config_backup_created', 'config_backup_stale', 'sca_regression_detected'],
+  events: ['evidence_state', 'config_file_modified', 'software_installed', 'service_running', 'config_admins_observed', 'config_backup_observed', 'baseline_verification_performed', 'collector_run', 'collector_warning', 'collector_missing'],
   presentationRules: {
     auditorSees: [
       'control ENS',

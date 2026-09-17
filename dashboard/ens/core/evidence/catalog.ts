@@ -1952,6 +1952,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se acredita: conformidad previa a la entrada en operación?',
   },
   {
+    // Sin hecho en la máquina. La serie de resultados SCA vive en la base de
+    // datos del manager y en el índice de estados SCA, no en el agente: el
+    // recolector lo declara con un evidence_state NO_EVALUABLE (regla 110450) y
+    // la evidencia se queda sin evidenciar hasta que exista una integración del
+    // lado del manager que emita la serie por agente. No se acredita con otra
+    // cosa: op.exp.3.1 y .2 remiten a op.exp.2 y lo que añaden es la CONTINUIDAD.
     id: 'EV-01',
     controlId: 'op.exp.3',
     title: 'Mantenimiento en el tiempo de la línea base',
@@ -1965,151 +1971,248 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: mantenimiento en el tiempo de la línea base?',
+      '¿Se acredita que el cumplimiento de la línea base SCA se mantiene en el tiempo, como serie y no como foto?',
   },
   {
     id: 'EV-02',
     controlId: 'op.exp.3',
     title: 'Ediciones de la configuración de seguridad y su autor',
     description:
-      'Detección de toda modificación en los ficheros y rutas de P-04, capturando qué usuario realizó el cambio, con qué proceso y en qué momento. Es la evidencia directa de op.exp.3.6, que exige que solo edite la configuración personal debidamente autorizado.',
+      'Toda escritura sobre las rutas de configuración de seguridad (P-04) registrada por auditd, con la cuenta de la sesión que la hizo, la operación, el proceso y el intervalo en que ocurrió. En un servidor LDAP incluye los cambios de cn=config con la identidad del directorio que los hizo. Es la evidencia directa de op.exp.3.6.',
     requirements: ['op.exp.3.6'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'config_file_modified', 'config_file_modified_unauthorized'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'config_file_modified'],
+    relatedRules: ['110401'],
+    judgment: {
+      // Se contrasta el ACTOR —la cuenta de la sesión, que sigue siendo la
+      // persona aunque haya pasado por sudo— contra quien está autorizado a
+      // editar. Es un barrido: no ver ninguna edición en una ventana es lo
+      // normal en una máquina sana, y cumple SOLO si el latido confirma que
+      // todas las rutas estaban vigiladas en el kernel. Por eso
+      // NINGUNO_FUERA_DE_LISTA y no TODOS_EN_LISTA.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-03',
+      parameterColumn: 'cuenta',
+      factEventTypes: ['config_file_modified'],
+      factField: 'actor',
+    },
     auditQuestion:
-      '¿Se acredita: ediciones de la configuración de seguridad y su autor?',
+      '¿Solo el personal autorizado en P-03 ha editado la configuración de seguridad?',
   },
   {
     id: 'EV-03',
     controlId: 'op.exp.3',
     title: 'Elementos no autorizados introducidos en el sistema',
     description:
-      'Comparación periódica del inventario hardware/software de cada activo contra la línea base autorizada P-01. Detecta software instalado, hardware conectado o servicios añadidos que no estaban previstos. Es la verificación que exige op.exp.3.r1.2.',
+      'Software instalado de nuevo en el activo (no actualizado) y pedido de forma explícita, leído de dpkg.log y del historial de apt, con quién lo pidió y cuántas dependencias trajo. Se contrasta contra el software autorizado sobre la línea base (P-01). Es la verificación de elementos introducidos que exige op.exp.3.r1.2.',
     requirements: ['op.exp.3.r1.2'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'baseline_deviation_detected', 'baseline_verification_performed'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'software_installed'],
+    relatedRules: ['110402'],
+    judgment: {
+      // Cada instalación es un HALLAZGO de un barrido del registro de paquetes:
+      // no ver ninguna es lo normal, y cumple si el recolector confirma que leyó
+      // el registro. Tolerancia cero: P-08 se declara pero no rebaja esto.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-01',
+      parameterColumn: 'paquete',
+      factEventTypes: ['software_installed'],
+      factField: 'paquete',
+    },
     auditQuestion:
-      '¿Se acredita: elementos no autorizados introducidos en el sistema?',
+      '¿Todo el software introducido en el periodo figura como autorizado sobre la línea base?',
   },
   {
     id: 'EV-04',
     controlId: 'op.exp.3',
-    title: 'Servicios en ejecución fuera de la lista autorizada',
+    title: 'Servicios en ejecución frente a la lista autorizada',
     description:
-      'Contraste continuo entre los servicios y procesos detectados en cada activo y la lista de servicios autorizados P-02. Cubre op.exp.3.r1.3 y, por remisión a op.exp.2, también op.exp.3.1 (mantenimiento de la funcionalidad mínima).',
+      'Servicios en ejecución en cada activo (unidades de systemd y procesos que escuchan en red fuera de ellas; en un servidor LDAP, además, los módulos, backends, overlays y puntos de escucha de slapd), con el perfil que identifica a la máquina en P-02. Cubre op.exp.3.r1.3 y, por remisión a op.exp.2, la parte de funcionalidad mínima de op.exp.3.1.',
     requirements: ['op.exp.3.1', 'op.exp.3.r1.3'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'unauthorized_service_running'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'service_running'],
+    relatedRules: ['110403'],
+    judgment: {
+      // Los hechos ACREDITAN lo que corre en la máquina: sin ninguno no se ha
+      // mirado, así que la primitiva es de tabla y nunca cumple por ausencia.
+      // `factKeyField` dice qué campo del HECHO busca la fila y `tableKeyColumn`
+      // qué columna de la TABLA; hacen falta los dos.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-02',
+      factEventTypes: ['service_running'],
+      factField: 'perfil',
+      factKeyField: 'perfil',
+      tableKeyColumn: 'perfil',
+      tableChecks: [
+        { column: 'servicios_autorizados', factField: 'servicio' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: servicios en ejecución fuera de la lista autorizada?',
+      '¿Todos los servicios en ejecución figuran en la lista de servicios autorizados del perfil de la máquina?',
   },
   {
+    // Sin hecho en la máquina: exige integración con el sistema de gestión de
+    // cambios (P-06). El contrato previsto para cuando exista: el hecho
+    // `config_file_modified` de EV-02 enriquecido con el cambio aprobado que lo
+    // cubre, juzgado contra los cambios aprobados. Hasta entonces el recolector
+    // lo declara NO_EVALUABLE y no se simula ninguna correlación.
     id: 'EV-05',
     controlId: 'op.exp.3',
-    title: 'Cambios de configuración sin autorización previa',
+    title: 'Cambios de configuración frente a su autorización previa',
     description:
-      'Correlación entre los cambios de configuración detectados por FIM y su correspondiente autorización en el sistema de gestión de cambios (P-06). Un cambio sin ticket o solicitud asociada incumple op.exp.3.3, que exige que las nuevas necesidades estén «previamente autorizadas».',
+      'Correlación entre cada edición de la configuración registrada por EV-02 y el cambio aprobado que la autoriza en el sistema de gestión de cambios declarado en P-06. Un cambio sin autorización asociada incumple op.exp.3.3. Requiere integración con el ITSM del cliente.',
     requirements: ['op.exp.3.3'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'change_authorization_missing'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: cambios de configuración sin autorización previa?',
+      '¿Cada cambio de configuración detectado tiene una autorización previa aprobada?',
   },
   {
+    // Sin hecho en la máquina: la reacción a vulnerabilidades se mide sobre el
+    // detector de vulnerabilidades del manager, que es la evidencia de op.exp.4
+    // (tiempo de remediación). El motor resuelve las evidencias por control y no
+    // puede leer las de op.exp.4; duplicar aquí su medida daría dos números
+    // sobre el mismo hecho. Se declara la dependencia y queda sin evidenciar.
     id: 'EV-06',
     controlId: 'op.exp.3',
     title: 'Reacción de la configuración ante vulnerabilidades notificadas',
     description:
-      'Seguimiento de las vulnerabilidades detectadas en los activos y de si la configuración se ha ajustado para mitigarlas o si se ha aplicado la actualización correspondiente. op.exp.3.4 exige que el sistema «reaccione a vulnerabilidades notificadas», con remisión a op.exp.4.',
+      'Seguimiento de las vulnerabilidades detectadas en los activos y de si la configuración se ha ajustado o se ha aplicado la actualización correspondiente. op.exp.3.4 remite a op.exp.4, que es quien mide la remediación con el detector de vulnerabilidades del manager.',
     requirements: ['op.exp.3.4'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'CONFIGURATION',
+    category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'vulnerability_remediated', 'vulnerability_unremediated'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: reacción de la configuración ante vulnerabilidades notificadas?',
+      '¿El sistema reacciona a las vulnerabilidades notificadas (medido por op.exp.4)?',
   },
   {
+    // Sin hecho en la máquina: exige un registro de incidentes (op.exp.7) con
+    // el que correlacionar las ediciones de EV-02. No existe todavía.
     id: 'EV-07',
     controlId: 'op.exp.3',
     title: 'Reacción de la configuración ante incidentes',
     description:
-      'Verificación de que, tras un incidente de seguridad registrado, se produjeron los cambios de configuración correspondientes para evitar su repetición. op.exp.3.5 exige que el sistema «reaccione a incidentes», con remisión a op.exp.7.',
+      'Verificación de que, tras un incidente de seguridad registrado, se produjeron los cambios de configuración correspondientes en los activos afectados, o consta por qué no procedían. op.exp.3.5 remite a op.exp.7. Requiere el registro de incidentes.',
     requirements: ['op.exp.3.5'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'incident_config_reaction', 'incident_without_reaction'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: reacción de la configuración ante incidentes?',
+      '¿Los incidentes cerrados produjeron una reacción en la configuración de los activos afectados?',
   },
   {
     id: 'EV-08',
     controlId: 'op.exp.3',
     title: 'Concentración de la administración de la configuración (R2)',
     description:
-      'Identificación de todas las cuentas que han editado efectivamente la configuración de seguridad en el período. En categoría ALTA, R2 exige que la responsabilidad recaiga en «un número muy limitado» de administradores: esta evidencia mide cuántos son en la práctica, no cuántos están autorizados.',
+      'Número de cuentas distintas que han editado de verdad la configuración de seguridad en la ventana de observación, contado sobre lo que registra EV-02. Mide cuántos administradores hay en la práctica, no cuántos están autorizados. Solo se emite cuando la ventana entera se ha observado sin huecos.',
     requirements: ['op.exp.3.r2.1'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    levels: ['ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'config_admins_observed'],
+    relatedRules: ['110404'],
+    judgment: {
+      // Un recuento de una ventana PARCIAL saldría por debajo del real, y un
+      // número bajo contra un máximo es un CUMPLE falso: por eso el agente no
+      // emite el hecho hasta tener la ventana completa. Sin hecho, NO_EVALUABLE.
+      primitive: 'UMBRAL_MAXIMO',
+      parameterId: 'P-09',
+      factEventTypes: ['config_admins_observed'],
+      factField: 'administradores',
+    },
     auditQuestion:
-      '¿Se acredita: concentración de la administración de la configuración (r2)?',
+      '¿La configuración de seguridad la administra en la práctica un número de cuentas no superior al máximo declarado?',
   },
   {
     id: 'EV-09',
     controlId: 'op.exp.3',
     title: 'Existencia y frescura de las copias de configuración (R3)',
     description:
-      'Verificación de que se realizan copias de seguridad de la configuración del sistema con la periodicidad declarada en P-07 y de que están disponibles para una eventual reconstrucción. R3 es obligatorio en categoría ALTA.',
+      'Instante de la copia más reciente de la configuración, del alcance que peor está (el sistema; en un servidor LDAP, además, cn=config). Se mide su antigüedad contra el reloj y el plazo de P-10. Sin ninguna copia no hay hecho y no se acredita la capacidad de reconstrucción que exige op.exp.3.r3.1.',
     requirements: ['op.exp.3.r3.1'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'INTEGRITY',
+    levels: ['ALTO'],
+    category: 'RECOVERY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'config_backup_created', 'config_backup_stale'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'config_backup_observed'],
+    relatedRules: ['110405'],
+    judgment: {
+      // Existencial: le basta una copia lo bastante reciente, y por eso nunca
+      // cumple por ausencia. El hecho es el INSTANTE de la copia, no las horas
+      // que lleva: así la antigüedad crece sola si las copias se paran.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-10',
+      factEventTypes: ['config_backup_observed'],
+      factField: 'fecha',
+    },
     auditQuestion:
-      '¿Se acredita: existencia y frescura de las copias de configuración (r3)?',
+      '¿Existe una copia de la configuración lo bastante reciente como para reconstruir el sistema?',
   },
   {
+    // Sin hecho en la máquina, por lo mismo que EV-01: las regresiones se
+    // calculan sobre la serie de resultados SCA del manager.
     id: 'EV-10',
     controlId: 'op.exp.3',
     title: 'Regresiones del estado de seguridad de la configuración',
     description:
-      'Identificación específica de checks que pasaron de conforme a no conforme entre dos evaluaciones sucesivas. Es el indicador más directo de que la gestión continua de la configuración está fallando, y cubre de facto el Refuerzo R5 aunque no sea exigible.',
-    requirements: ['op.exp.3.1', 'op.exp.3.2', 'op.exp.3.r5.1'],
+      'Checks SCA que pasaron de conforme a no conforme entre dos evaluaciones sucesivas, por activo. Es el indicador más directo de que la gestión continua de la configuración falla. Requiere la serie de resultados SCA del manager.',
+    requirements: ['op.exp.3.1', 'op.exp.3.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'sca_regression_detected'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: regresiones del estado de seguridad de la configuración?',
+      '¿Se han detectado regresiones de checks SCA de conforme a no conforme en el periodo?',
+  },
+  {
+    // Partida de EV-03: la plantilla trata la periodicidad de la verificación
+    // como una condición de incumplimiento propia (A11), y una evidencia tiene
+    // un solo juicio. EV-03 juzga lo introducido contra P-01; EV-11, el plazo.
+    id: 'EV-11',
+    controlId: 'op.exp.3',
+    title: 'Verificación periódica de la configuración frente a la línea base',
+    description:
+      'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2.',
+    requirements: ['op.exp.3.r1.2'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'baseline_verification_performed'],
+    relatedRules: ['110406'],
+    judgment: {
+      // Un acto de la organización: nunca cumple por ausencia. No haber
+      // verificado nunca no puede salir en verde por falta de datos.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-05',
+      factEventTypes: ['baseline_verification_performed'],
+      factField: 'fecha',
+    },
+    auditQuestion:
+      '¿La última verificación formal de la configuración es más reciente que la periodicidad declarada?',
   },
   {
     id: 'EV-01',

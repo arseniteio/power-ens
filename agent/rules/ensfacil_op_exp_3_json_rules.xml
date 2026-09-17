@@ -1,0 +1,141 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_3_json_rules.xml
+     Este fichero es idéntico, byte a byte, en tres sitios: la fuente canónica
+     del plugin y la carpeta manager/ de los runbooks op.exp.3 de Linux y de
+     LDAP. Si se modifica uno, hay que copiar los otros dos: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_3,">
+
+  <!-- ================================================================
+       op.exp.3 · Gestión de la configuración de seguridad
+       Rango reservado: 110400-110499
+       Base 110400 · hechos crudos 110401-110449 · evidence_state 110450
+       · diagnóstico del recolector 110497-110499
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-02 110401 · EV-03 110402 · EV-04 110403 · EV-08 110404
+         EV-09 110405 · EV-11 110406
+
+       EV-01, EV-05, EV-06, EV-07 y EV-10 no tienen hecho: su fuente no está en
+       la máquina auditada (resultados SCA del manager, sistema de gestión de
+       cambios, detector de vulnerabilidades, registro de incidentes). El
+       recolector lo dice con un evidence_state NO_EVALUABLE que recoge la
+       110450; no se les inventa un evento.
+
+       Fuera del mapa quedan la 110400 (base, nivel 0), la 110450 (la
+       degradación) y las 110497-110499 (el recolector: habilitan, no acreditan).
+
+       Ninguna regla lleva `estado` de cumplimiento, y añadir o mover una obliga
+       a tocar los tres ficheros y el catálogo a la vez.
+       ================================================================ -->
+
+  <rule id="110400" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.3</field>
+    <description>op.exp.3 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.exp.3.6 · Solo personal autorizado edita la configuración ===== -->
+
+  <!-- EV-02. Una edición de la configuración de seguridad con su ACTOR: quién,
+       sobre qué fichero, con qué operación y proceso, y entre qué instantes.
+       Se contrasta el actor contra P-03. En un servidor LDAP el campo `plano`
+       distingue el sistema UNIX de cn=config. -->
+  <rule id="110401" level="5">
+    <if_sid>110400</if_sid>
+    <field name="event">config_file_modified</field>
+    <description>op.exp.3 · EV-02 · $(actor) modificó la configuración de seguridad: $(recurso)</description>
+  </rule>
+
+  <!-- ===== op.exp.3.r1 · Mantenimiento regular de la configuración ===== -->
+
+  <!-- EV-03. Software instalado de nuevo (no una actualización) desde la
+       pasada anterior. Se contrasta el paquete contra P-01. -->
+  <rule id="110402" level="5">
+    <if_sid>110400</if_sid>
+    <field name="event">software_installed</field>
+    <description>op.exp.3 · EV-03 · software introducido: $(paquete) $(version)</description>
+  </rule>
+
+  <!-- EV-04. Un servicio en ejecución observado en la máquina, con el perfil
+       que la identifica en P-02. Es un hecho, no un hallazgo: si está
+       autorizado lo decide la fila de ese perfil. -->
+  <rule id="110403" level="3">
+    <if_sid>110400</if_sid>
+    <field name="event">service_running</field>
+    <description>op.exp.3 · EV-04 · en ejecución en $(perfil): $(servicio)</description>
+  </rule>
+
+  <!-- EV-11. La verificación formal más reciente de la configuración frente a
+       la línea base, anotada por la organización. Se mide su antigüedad contra
+       P-05. -->
+  <rule id="110406" level="3">
+    <if_sid>110400</if_sid>
+    <field name="event">baseline_verification_performed</field>
+    <description>op.exp.3 · EV-11 · verificación de la configuración registrada ($(alcance))</description>
+  </rule>
+
+  <!-- ===== op.exp.3.r2.1 · Número muy limitado de administradores ===== -->
+
+  <!-- EV-08. Cuántas cuentas han editado de verdad la configuración de
+       seguridad en la ventana de observación. Solo se emite con la ventana
+       entera observada; se contrasta contra el máximo de P-09. -->
+  <rule id="110404" level="3">
+    <if_sid>110400</if_sid>
+    <field name="event">config_admins_observed</field>
+    <description>op.exp.3 · EV-08 · administradores efectivos de la configuración: $(administradores)</description>
+  </rule>
+
+  <!-- ===== op.exp.3.r3.1 · Copias de la configuración ===== -->
+
+  <!-- EV-09. El instante hasta el que la configuración es reconstruible: la
+       copia más reciente del alcance que peor está. Se mide su antigüedad
+       contra P-10. -->
+  <rule id="110405" level="3">
+    <if_sid>110400</if_sid>
+    <field name="event">config_backup_observed</field>
+    <description>op.exp.3 · EV-09 · copia de la configuración reconstruible desde $(fecha)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
+       mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó y no
+       había nada», y las dos se arreglan en sitios distintos. -->
+  <rule id="110450" level="5">
+    <if_sid>110400</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.3 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 110497. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       el silencio de EV-02 y EV-03 no puede valer como cumplimiento. -->
+  <rule id="110497" level="3">
+    <if_sid>110400</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.3 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+  <!-- 110498. Aviso operativo: .env ilegible, recolector sin root, candado.
+       No es una evidencia ni un juicio: es higiene del propio pipeline. -->
+  <rule id="110498" level="5">
+    <if_sid>110400</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.3 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 110499. El recolector ha estado parado más tiempo del que admite su cron.
+       Lo emite la pasada siguiente, al ver el hueco: es la señal de cabecera de
+       que durante ese tramo pudo haber cambios que el log de auditoría ya no
+       conserva. -->
+  <rule id="110499" level="7">
+    <if_sid>110400</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.3 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>
