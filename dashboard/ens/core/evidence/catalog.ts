@@ -1288,6 +1288,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_logging_gap', 'authentication_success', 'authentication_failure'],
+    stateFactEventTypes: ['auth_logging_gap'],
     relatedRules: ['110101', '110102', '110105'],
     judgment: {
       // Un hueco de registro es un hallazgo de barrido. Solo incumple si la
@@ -1317,6 +1318,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // una dirección contra rangos CIDR y exigir factores según la zona no es
     // ninguna de las siete primitivas (ver op-acc-6.policy.ts).
     expectedEventTypes: ['evidence_state', 'authentication_success', 'remote_channel_listening'],
+    stateFactEventTypes: ['remote_channel_listening'],
     relatedRules: ['110101', '110108'],
     auditQuestion:
       '¿Todo acceso desde o a través de zona no controlada ha verificado dos factores, y ningún canal expuesto fuera de zona controlada admite uno solo?',
@@ -1335,6 +1337,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // SIN `judgment`: op.acc.6.8 son tres condiciones a la vez (hay bloqueo,
     // umbral dentro de P-05, sin desbloqueo automático) y las decide la policy.
     expectedEventTypes: ['evidence_state', 'lockout_policy_checked', 'account_locked'],
+    stateFactEventTypes: ['lockout_policy_checked'],
     relatedRules: ['110103', '110104'],
     auditQuestion:
       '¿Cada camino de autenticación con contraseña bloquea la cuenta tras P-05 fallos y exige una intervención para reactivarla?',
@@ -1369,6 +1372,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_age_checked'],
+    stateFactEventTypes: ['credential_age_checked'],
     relatedRules: ['110106'],
     judgment: {
       // Ningún valor puede superar P-04: ni la antigüedad de una credencial ni
@@ -1447,6 +1451,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'remote_channel_listening'],
+    stateFactEventTypes: ['remote_channel_listening'],
     relatedRules: ['110108'],
     judgment: {
       // Un canal sin fila no es un incumplimiento demostrado: es una decisión
@@ -1479,6 +1484,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'reauthentication_not_required'],
+    stateFactEventTypes: ['reauthentication_not_required'],
     relatedRules: ['110109'],
     judgment: {
       // P-08 es la lista de puntos donde la sesión NO basta. Un hallazgo sobre
@@ -1504,6 +1510,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_inactivity_checked'],
+    stateFactEventTypes: ['account_inactivity_checked'],
     relatedRules: ['110110'],
     judgment: {
       primitive: 'UMBRAL_MAXIMO',
@@ -1528,6 +1535,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // SIN `judgment`: P-10 son varios mínimos a la vez y solo rige con R1 o
     // R2 (P-01). La decide la policy.
     expectedEventTypes: ['evidence_state', 'password_policy_checked'],
+    stateFactEventTypes: ['password_policy_checked'],
     relatedRules: ['110111'],
     auditQuestion:
       '¿La política de contraseñas impuesta alcanza cada mínimo de P-10?',
@@ -1544,6 +1552,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_disclosure_observed'],
+    stateFactEventTypes: ['auth_disclosure_observed'],
     relatedRules: ['110112'],
     judgment: {
       primitive: 'NINGUNO_FUERA_DE_LISTA',
@@ -1566,6 +1575,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'asset_system'],
+    stateFactEventTypes: ['asset_system'],
     relatedRules: ['110201'],
     judgment: {
       // «Inventario ACTUALIZADO» dicho con una primitiva: la foto más reciente
@@ -1592,6 +1602,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'software_inventory'],
+    stateFactEventTypes: ['software_inventory'],
     relatedRules: ['110202'],
     judgment: {
       // Misma pregunta que EV-01 sobre otra fuente: si el gestor de paquetes
@@ -1617,6 +1628,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'network_inventory'],
+    stateFactEventTypes: ['network_inventory'],
     relatedRules: ['110203'],
     judgment: {
       primitive: 'ANTIGUEDAD_MAXIMA',
@@ -1639,6 +1651,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'agent_status'],
+    stateFactEventTypes: ['agent_status'],
     relatedRules: ['110204'],
     judgment: {
       // Se mide el keepalive que el agente registró con el manager, no el
@@ -1665,6 +1678,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'network_host_observed'],
+    stateFactEventTypes: ['network_host_observed'],
     relatedRules: ['110205'],
     judgment: {
       // Un barrido: no ver ningún vecino sin declarar es lo normal en una red
@@ -1729,6 +1743,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'asset_system'],
+    stateFactEventTypes: ['asset_system'],
     relatedRules: ['110201'],
     judgment: {
       // El MISMO hecho de EV-01 (evidence_id=EV-01,EV-07): una observación, dos
@@ -1762,6 +1777,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'sca_evaluation'],
+    stateFactEventTypes: ['sca_evaluation'],
     relatedRules: ['110301'],
     judgment: {
       // Lo que se juzga es QUÉ línea base se evalúa en la máquina, no su
@@ -1799,6 +1815,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'login_account',
       'account_authenticated',
     ],
+    stateFactEventTypes: ['login_account'],
     relatedRules: ['110302', '110303'],
     judgment: {
       // Dos poblaciones con el mismo campo: las cuentas que no están retiradas
@@ -1827,6 +1844,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'service_exposed'],
+    stateFactEventTypes: ['service_exposed'],
     relatedRules: ['110304'],
     judgment: {
       // Cada función expuesta se casa con la fila de SU perfil en P-02: el
@@ -1859,6 +1877,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'insecure_default'],
+    stateFactEventTypes: ['insecure_default'],
     relatedRules: ['110305'],
     judgment: {
       // Barrido: cada valor por defecto inseguro es un hallazgo, y solo deja de
@@ -1886,6 +1905,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'virtualization_role'],
+    stateFactEventTypes: ['virtualization_role'],
     relatedRules: ['110306'],
     judgment: {
       // Toda VM o anfitrión observado tiene que constar en el inventario P-06.
@@ -2040,6 +2060,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'service_running'],
+    stateFactEventTypes: ['service_running'],
     relatedRules: ['110403'],
     judgment: {
       // Los hechos ACREDITAN lo que corre en la máquina: sin ninguno no se ha

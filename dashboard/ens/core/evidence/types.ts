@@ -191,6 +191,18 @@ export interface ENSEvidenceDefinition {
   // Opcional. Sin `judgment`, la evidencia se resuelve como siempre: manda el
   // `evidence_state` que emite el agente.
   judgment?: ENSEvidenceJudgment;
+
+  // Tipos de hecho que describen un ESTADO de la máquina (una política, un
+  // servicio en ejecución, un banner) y que el recolector reemite ENTEROS en
+  // cada pasada. Se juzgan con la última pasada, no con la ventana: una
+  // configuración ya corregida no puede seguir incumpliendo un mes por la foto
+  // de ayer. Ver `state-facts.ts`.
+  //
+  // Solo se declara lo que se ha COMPROBADO que se reemite en todas las
+  // pasadas. Un tipo que el recolector emite solo cuando cambia (una firma) o
+  // que es una acción (un acceso, una edición) NO va aquí: descartarlo haría
+  // desaparecer el único hecho que lo demuestra.
+  stateFactEventTypes?: string[];
 }
 
 export interface ENSEvidenceResolved {
