@@ -239,6 +239,30 @@ bloque('4. EV-03 · pendiente de seguridad y reinicio contra el plazo más largo
   comprueba('índice de apt más viejo que el plazo → NO_EVALUABLE, «0 pendientes» no vale', r3.deEvidencia('EV-03')?.status === 'NO_EVALUABLE', r3.deEvidencia('EV-03')?.reason);
 }
 
+bloque('4 bis. EV-03 · un servidor de directorio manda dos fotos y se juzgan las dos');
+
+{
+  const sistema = alerta({
+    event: 'patch_status', evidence_id: 'EV-03', plano: 'sistema',
+    actualizaciones_pendientes: 0, seguridad_pendientes: 0, indice_paquetes: hace(3),
+    linea_base: hace(24 * 60), desde_linea_base: 'no', reinicio_pendiente: 'no',
+  }, hace(1));
+  const directorio = (desdeHoras: number) => alerta({
+    event: 'patch_status', evidence_id: 'EV-03', plano: 'directorio', ambito_pendientes: 'parches_zimbra',
+    actualizaciones_pendientes: 3, seguridad_pendientes: 3, seguridad_pendiente_desde: hace(desdeHoras),
+    indice_paquetes: hace(3), linea_base: hace(24 * 60), desde_linea_base: 'no', reinicio_pendiente: 'no',
+  }, hace(2));
+
+  // La foto del directorio es MÁS VIEJA que la del sistema: si ganara la más
+  // reciente, el parche de Zimbra atrasado desaparecería del veredicto.
+  const r1 = evalua(eventos(directorio(24 * 45), sistema), { 'P-01': ['Alta | 30'] });
+  comprueba('parches de Zimbra pendientes 45 días con plazo 30 → NO_CUMPLE aunque el sistema esté al día', r1.deEvidencia('EV-03')?.status === 'NO_CUMPLE' && /Zimbra/.test(r1.deEvidencia('EV-03')?.reason || ''), r1.deEvidencia('EV-03')?.reason);
+  const r1b = evalua(eventos(directorio(24 * 10), sistema), { 'P-01': ['Alta | 30'] });
+  comprueba('REVERSIÓN: pendientes solo 10 días → CUMPLE', r1b.deEvidencia('EV-03')?.status === 'CUMPLE', r1b.deEvidencia('EV-03')?.reason);
+  const r1c = evalua(eventos(directorio(24 * 10)), { 'P-01': ['Alta | 30'] });
+  comprueba('sin la foto del plano sistema → NO_EVALUABLE', r1c.deEvidencia('EV-03')?.status === 'NO_EVALUABLE', r1c.deEvidencia('EV-03')?.reason);
+}
+
 // --- 5. EV-04 (primitiva) ---------------------------------------------------
 
 bloque('5. EV-04 · actor contra P-02 (primitiva NINGUNO_FUERA_DE_LISTA)');

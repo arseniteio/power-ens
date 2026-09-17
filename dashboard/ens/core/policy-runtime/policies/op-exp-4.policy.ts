@@ -498,8 +498,16 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   );
 };
 
-const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const fotos = hechos(context, 'patch_status')
+// Una foto de parcheado de UN plano. En un servidor corriente solo hay el plano
+// `sistema`; en un servidor de directorio llega además la del `directorio`
+// (los parches de Zimbra, que no pasan por el bolsillo de seguridad de Ubuntu).
+const ev03Plano = (
+  context: ENSPolicyContext,
+  ahora: number,
+  delPlano: ENSNormalizedEvent[],
+  plano: string
+): Medida => {
+  const fotos = delPlano
     .map(e => ({ e, t: instante(e.timestamp) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } => x.t !== undefined && x.t <= ahora + TOLERANCIA_FUTURO)
     .sort((a, b) => b.t - a.t);
@@ -507,7 +515,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (!fotos.length || ahora - fotos[0].t > FRESCURA_HORAS * HORA) {
     return sinMedir(
       fotos.length
-        ? `El último estado de parcheado es de ${fotos[0].e.timestamp}, más de ${FRESCURA_HORAS} h: el recolector no está informando.`
+        ? `El último estado de parcheado del plano ${plano} es de ${fotos[0].e.timestamp}, más de ${FRESCURA_HORAS} h: el recolector no está informando.`
         : 'No consta ningún estado de parcheado de esta máquina: el recolector de op.exp.4 no está desplegado o no informa.'
     );
   }
@@ -534,6 +542,10 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   const pendientes = numero(campo(foto, 'seguridad_pendientes')) || 0;
+  const que =
+    campo(foto, 'ambito_pendientes') === 'parches_zimbra'
+      ? 'parche(s) de Zimbra'
+      : 'actualización(es) de seguridad';
 
   if (pendientes > 0) {
     const desde = instante(campo(foto, 'seguridad_pendiente_desde'));
@@ -541,7 +553,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
 
     if (desde !== undefined && ahora - desde > plazo) {
       hallazgos.push(
-        `${pendientes} actualización(es) de seguridad pendiente(s) desde ${campo(foto, 'seguridad_pendiente_desde')} (${dias(ahora - desde)} días), más que el plazo más largo de P-01 (${p01.masLargo} días)`
+        `${pendientes} ${que} pendiente(s) desde ${campo(foto, 'seguridad_pendiente_desde')} (${dias(ahora - desde)} días), más que el plazo más largo de P-01 (${p01.masLargo} días)`
       );
     } else if (
       campo(foto, 'desde_linea_base') === 'si' &&
@@ -549,7 +561,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
       ahora - base <= plazo
     ) {
       cotas.push(
-        `${pendientes} actualización(es) de seguridad ya estaban pendientes cuando el recolector empezó a observar (${campo(foto, 'linea_base')}): su antigüedad real no se conoce hasta que la observación cubra ${p01.masLargo} días`
+        `${pendientes} ${que} ya estaban pendientes cuando el recolector empezó a observar (${campo(foto, 'linea_base')}): su antigüedad real no se conoce hasta que la observación cubra ${p01.masLargo} días`
       );
     }
   }
@@ -568,7 +580,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
     }
   }
 
-  const resumen = `${campo(foto, 'actualizaciones_pendientes') || '0'} actualizaciones pendientes, ${pendientes} de seguridad; actualizaciones automáticas ${campo(foto, 'actualizaciones_automaticas') || 'sin dato'}; última actualización aplicada ${campo(foto, 'ultima_actualizacion') || 'sin dato'}`;
+  const resumen = `plano ${plano}: ${campo(foto, 'actualizaciones_pendientes') || '0'} actualizaciones pendientes, ${pendientes} de seguridad; actualizaciones automáticas ${campo(foto, 'actualizaciones_automaticas') || 'sin dato'}; última actualización aplicada ${campo(foto, 'ultima_actualizacion') || 'sin dato'}`;
 
   if (hallazgos.length) {
     return noCumple(`Mantenimiento atrasado: ${lista(hallazgos)}. (${resumen}.)`);
@@ -579,6 +591,32 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   return cumple(`Nada pendiente más allá del plazo más largo de P-01 (${p01.masLargo} días): ${resumen}.`);
+};
+
+const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const porPlano = new Map<string, ENSNormalizedEvent[]>();
+
+  hechos(context, 'patch_status').forEach(e => {
+    const plano = campo(e, 'plano') || 'sistema';
+    porPlano.set(plano, [...(porPlano.get(plano) || []), e]);
+  });
+
+  // El plano `sistema` se exige siempre: una foto del directorio sola no dice
+  // nada del Ubuntu que lo sirve.
+  if (!porPlano.has('sistema')) {
+    porPlano.set('sistema', []);
+  }
+
+  const medidas = Array.from(porPlano.entries()).map(([plano, fotos]) =>
+    ev03Plano(context, ahora, fotos, plano)
+  );
+
+  const estado = peor(medidas);
+
+  return {
+    estado,
+    motivo: medidas.map(m => m.motivo).join(' | '),
+  };
 };
 
 const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
