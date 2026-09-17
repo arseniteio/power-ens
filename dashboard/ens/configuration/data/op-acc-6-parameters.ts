@@ -209,7 +209,7 @@ export const opAcc6Configuration: ENSControlConfiguration = {
       name: 'puntos_renovacion_autenticacion',
       label: 'Puntos renovacion autenticacion',
       description:
-        'Puntos del sistema en los que se exige renovar la autenticación sin que baste la sesión establecida, uno por línea, con el nombre que usa el agente: sudo (elevación de privilegios), su. Obligatorio en nivel ALTO.',
+        'Puntos del sistema en los que se exige renovar la autenticación sin que baste la sesión establecida, uno por línea, con el nombre que usa el agente: sudo (elevación general, sudo ALL), su, o sudo:/ruta/del/comando para un comando concreto que la organización considere crítico. Un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.',
       levels: ['ALTO'],
       requirements: ['op.acc.6.r6.1'],
       type: 'list',
