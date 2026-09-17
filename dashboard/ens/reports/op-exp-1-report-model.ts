@@ -152,6 +152,15 @@ export const buildOpExp1ReportModel = (
     ['EV-01', 'EV-02', 'EV-03'],
     [
       `Red: ${observed('EV-03', ['direcciones', 'servicios'])}`,
+      // Solo en un servidor de directorio: lo que acredita su naturaleza.
+      `Directorio: ${observed('EV-03', [
+        'directorio_paquete',
+        'directorio_version',
+        'directorio_escucha',
+        'directorio_sufijo',
+        'directorio_dominios',
+        'directorio_responde',
+      ])}`,
       `Responsable y naturaleza declarados: ${declared('P-01')}`,
       ...evidenceObservations('EV-01'),
     ],
