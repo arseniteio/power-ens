@@ -76,8 +76,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Ejecución periódica de la política SCA asignada a cada activo según P-01, con el detalle de checks superados y fallidos. Es la evidencia central del control: acredita de forma objetiva y repetible el estado de bastionado de cada equipo.',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'sca_evaluation'],
+      wazuhRuleIds: ['110301'],
     },
     {
       id: 'EV-02',
@@ -88,8 +88,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Detección de cuentas por defecto de P-03 que siguen existiendo o, peor, que registran autenticaciones exitosas. op.exp.2.1 exige su retirada antes de la entrada en operación.',
       format: 'sca_or_json_line',
-      events: ['evidence_state', 'standard_account_authenticated'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'login_account', 'account_authenticated'],
+      wazuhRuleIds: ['110302', '110303'],
     },
     {
       id: 'EV-03',
@@ -100,8 +100,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Contraste entre los servicios en ejecución y puertos en escucha detectados por Syscollector y la relación de servicios justificados por perfil (P-02). Todo lo que sobra es superficie de exposición innecesaria y vulnera la regla de mínima funcionalidad.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'service_exposed'],
+      wazuhRuleIds: ['110304'],
     },
     {
       id: 'EV-04',
@@ -112,8 +112,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Comprobación de que los valores de configuración por defecto de los servicios son los seguros: cifrado activado, protocolos obsoletos deshabilitados, autenticación exigida, permisos restrictivos en la instalación inicial. Es la traducción práctica de op.exp.2.3.',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'insecure_default'],
+      wazuhRuleIds: ['110305'],
     },
     {
       id: 'EV-05',
@@ -124,8 +124,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Verificación de que los anfitriones de virtualización declarados en P-06 están monitorizados, tienen política SCA propia y reciben el mismo tratamiento que las máquinas físicas en parcheado, gestión de cuentas y protección antimalware, como exige expresamente op.exp.2.4.',
       format: 'sca_or_json_line',
-      events: ['evidence_state', 'vm_host_uncovered'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'virtualization_role'],
+      wazuhRuleIds: ['110306'],
     },
     {
       id: 'EV-06',
@@ -136,8 +136,8 @@ export const opExp2Control: ENSControl = {
       description:
         'Serie temporal del porcentaje de checks SCA superados por activo y agregado del sistema. Permite distinguir un bastionado sólido y estable de una configuración que se degrada con el tiempo, y sirve de enlace natural con op.exp.3.',
       format: 'sca_or_json_line',
-      events: ['evidence_state', 'baseline_trend_degraded'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'sca_score'],
+      wazuhRuleIds: ['110307'],
     },
     {
       id: 'EV-07',
@@ -148,7 +148,7 @@ export const opExp2Control: ENSControl = {
       description:
         'Verificación de que cada activo superó la línea base ANTES de entrar en producción. Se contrasta la fecha de alta del agente y de puesta en servicio con la fecha del primer scan SCA conforme. Un equipo que entra en operación y luego se bastiona no cumple el enunciado de op.exp.2.',
       format: 'sca_or_json_line',
-      events: ['evidence_state', 'production_before_baseline'],
+      events: ['evidence_state'],
       wazuhRuleIds: [],
     },
   ],
@@ -186,7 +186,7 @@ export const opExp2Control: ENSControl = {
         'Listado de cuentas y credenciales por defecto propias de los productos desplegados que deben haberse retirado: admin/admin, root sin contraseña, sa en SQL Server, cuentas de demostración, usuarios de ejemplo de aplicaciones.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.1'],
-      type: 'list',
+      type: 'table',
       usage:
         'Se carga como CDB list. SCA verifica la existencia de estas cuentas en cada activo y las reglas de log alertan ante cualquier autenticación exitosa con ellas.',
       missingBehavior:
@@ -198,7 +198,7 @@ export const opExp2Control: ENSControl = {
       description:
         'Desviaciones respecto a la línea base que han sido autorizadas formalmente, con su justificación y el responsable que las aprobó. Toda excepción debe ser consciente y documentada, no un descuido.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.exp.2.2', 'op.exp.2.3'],
+      requirements: ['op.exp.2.3'],
       type: 'table',
       usage:
         'ENSFácil excluye estos checks del cómputo de incumplimiento en los activos afectados, pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
@@ -237,7 +237,7 @@ export const opExp2Control: ENSControl = {
       description:
         'Define si existe un punto de control formal antes de la entrada en operación de un activo, y cómo se registra. op.exp.2 exige que la configuración segura sea PREVIA a la operación, no posterior.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.exp.2'],
+      requirements: [],
       type: 'select',
       usage:
         'ENSFácil correlaciona la fecha de alta del agente con la fecha del primer scan SCA conforme. Si un activo entra en producción antes de superar la línea base, genera hallazgo.',
@@ -258,7 +258,7 @@ export const opExp2Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'standard_account_authenticated', 'vm_host_uncovered', 'baseline_trend_degraded', 'production_before_baseline'],
+  events: ['evidence_state', 'collector_run', 'sca_evaluation', 'login_account', 'account_authenticated', 'service_exposed', 'insecure_default', 'virtualization_role', 'sca_score'],
   presentationRules: {
     auditorSees: [
       'control ENS',

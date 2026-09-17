@@ -3002,6 +3002,14 @@ bloque('Estado de la migración');
     'op.exp.1/EV-05',
     'op.exp.1/EV-06',
     'op.exp.1/EV-07',
+    // op.exp.2 también nace en el modelo nuevo. EV-07 no está: no tiene hecho
+    // que observar (ver su entrada en el catálogo).
+    'op.exp.2/EV-01',
+    'op.exp.2/EV-02',
+    'op.exp.2/EV-03',
+    'op.exp.2/EV-04',
+    'op.exp.2/EV-05',
+    'op.exp.2/EV-06',
   ];
 
   comprueba(

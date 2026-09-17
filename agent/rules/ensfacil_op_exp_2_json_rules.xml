@@ -1,0 +1,138 @@
+<!-- Reglas de op.exp.2 · Configuración de seguridad.
+     El mismo fichero, byte a byte, vive en tres sitios: agent/rules/ del plugin
+     (fuente canónica) y manager/ de los runbooks op.exp.2-security-configuration
+     y op.exp.2-ldap. Si se modifica uno hay que copiarlo a los otros dos: lo
+     comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_2,">
+
+  <!-- ================================================================
+       op.exp.2 · Configuración de seguridad
+       Rango reservado: 110300-110399
+       Base 110300 · hechos crudos 110301-110349
+       degradación 110350 · diagnóstico del recolector 110390-110391
+
+       Control nacido en el modelo nuevo: el agente emite HECHOS y el motor los
+       contrasta con los parámetros de la pantalla de Configuración. Ninguna
+       regla lleva `estado` de cumplimiento.
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-01 110301 · EV-02 110302 y 110303 · EV-03 110304
+         EV-04 110305 · EV-05 110306 · EV-06 110307
+
+       EV-07 no tiene regla: la conformidad PREVIA a la entrada en operación no
+       deja ningún hecho que un agente pueda observar después.
+
+       Fuera del mapa quedan 110300 (base, nivel 0), 110350 (la degradación:
+       dice que no se pudo medir), 110390 (el latido: no acredita evidencia, la
+       habilita) y 110391 (avisos operativos del recolector).
+       ================================================================ -->
+
+  <rule id="110300" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.2</field>
+    <description>op.exp.2 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.exp.2.1, .2 y .3 · Línea base ===== -->
+
+  <!-- EV-01. Qué políticas SCA ha evaluado de verdad el agente de Wazuh en esta
+       máquina (según su ossec.log) y cuándo. El motor contrasta el conjunto con
+       la política que P-01 asigna al perfil. -->
+  <rule id="110301" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">sca_evaluation</field>
+    <description>op.exp.2 · EV-01 · perfil $(perfil): políticas SCA evaluadas $(politicas)</description>
+  </rule>
+
+  <!-- ===== op.exp.2.1 · Cuentas y contraseñas estándar ===== -->
+
+  <!-- EV-02. Una cuenta que no está retirada: shell interactiva o credencial
+       utilizable. El motor la contrasta con la lista de cuentas estándar P-03. -->
+  <rule id="110302" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">login_account</field>
+    <description>op.exp.2 · EV-02 · cuenta no retirada: $(usuario) ($(plano))</description>
+  </rule>
+
+  <!-- EV-02. Una autenticación con éxito. Mismo campo `usuario` y misma lista
+       P-03: una cuenta estándar que además se usa. -->
+  <rule id="110303" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">account_authenticated</field>
+    <description>op.exp.2 · EV-02 · autenticación con éxito: $(usuario) por $(canal)</description>
+  </rule>
+
+  <!-- ===== op.exp.2.2 · Mínima funcionalidad ===== -->
+
+  <!-- EV-03. Una función expuesta: un socket en escucha o un backend del
+       directorio. El motor la casa con la fila de su perfil en P-02. -->
+  <rule id="110304" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">service_exposed</field>
+    <description>op.exp.2 · EV-03 · función expuesta: $(servicio) en $(protocolo)/$(puerto) ($(exposicion))</description>
+  </rule>
+
+  <!-- ===== op.exp.2.3 · Seguridad por defecto ===== -->
+
+  <!-- EV-04. Un valor por defecto inseguro. Es un hallazgo, no un veredicto:
+       el responsable puede haberlo autorizado como excepción en P-04. -->
+  <rule id="110305" level="7">
+    <if_sid>110300</if_sid>
+    <field name="event">insecure_default</field>
+    <description>op.exp.2 · EV-04 · valor por defecto inseguro: $(desviacion)</description>
+  </rule>
+
+  <!-- ===== op.exp.2.4 · Máquinas virtuales ===== -->
+
+  <!-- EV-05. La máquina es virtual o aloja máquinas virtuales. El motor exige
+       que conste en el inventario de virtualización P-06. -->
+  <rule id="110306" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">virtualization_role</field>
+    <description>op.exp.2 · EV-05 · $(maquina) es $(rol) ($(plataforma))</description>
+  </rule>
+
+  <!-- ===== op.exp.2.2 y .3 · Evolución de la línea base ===== -->
+
+  <!-- EV-06. Puntuación SCA de una política, leída de la API de Wazuh. La serie
+       en la ventana se contrasta con el umbral P-05. -->
+  <rule id="110307" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">sca_score</field>
+    <description>op.exp.2 · EV-06 · puntuación SCA $(politica): $(puntuacion)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí dice que no pudo mirar: la
+       `causa` distingue «la fuente no se pudo leer» de «se leyó y no había
+       nada». No hay regla para estado=CUMPLE ni NO_CUMPLE a propósito: si
+       apareciera uno, casaría con 110300 (nivel 0) y no llegaría al índice. -->
+  <rule id="110350" level="7">
+    <if_sid>110300</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.2 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== Diagnóstico del recolector ===== -->
+
+  <!-- 110390. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       el silencio de las aserciones negativas no puede valer como cumplimiento. -->
+  <rule id="110390" level="3">
+    <if_sid>110300</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.2 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+  <!-- 110391. Aviso operativo: el recolector sigue, pero algo de su entorno no
+       es como debería (sin root, .env ilegible). -->
+  <rule id="110391" level="5">
+    <if_sid>110300</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.2 · aviso del recolector: $(parametro) · $(motivo)</description>
+  </rule>
+
+</group>

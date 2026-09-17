@@ -79,6 +79,10 @@ RUNBOOKS = {
         "op.exp.1-asset-inventory",
         ["ensfacil_op_exp_1_json_rules.xml"],
     ),
+    "op.exp.2": (
+        "op.exp.2-security-configuration",
+        ["ensfacil_op_exp_2_json_rules.xml"],
+    ),
 }
 
 fallos = []

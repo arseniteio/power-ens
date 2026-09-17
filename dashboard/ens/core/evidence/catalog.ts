@@ -1576,8 +1576,25 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'sca_evaluation'],
+    relatedRules: ['110301'],
+    judgment: {
+      // Lo que se juzga es QUÉ línea base se evalúa en la máquina, no su
+      // resultado: el resultado no está en el agente (vive en wazuh-db del
+      // manager y el motor no lo lee del índice) y es EV-06. El hecho trae el
+      // CONJUNTO de políticas que el agente ha evaluado de verdad según su
+      // ossec.log, y se compara literal con la celda de su perfil en P-01: una
+      // máquina que evalúa menos políticas de las asignadas no casa.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-01',
+      factEventTypes: ['sca_evaluation'],
+      factField: 'perfil',
+      factKeyField: 'perfil',
+      tableKeyColumn: 'perfil',
+      tableChecks: [
+        { column: 'politica_sca', factField: 'politicas' },
+      ],
+    },
     auditQuestion:
       '¿Se acredita: evaluación contra la línea base de configuración segura?',
   },
@@ -1592,8 +1609,24 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'standard_account_authenticated'],
-    relatedRules: [],
+    expectedEventTypes: [
+      'evidence_state',
+      'login_account',
+      'account_authenticated',
+    ],
+    relatedRules: ['110302', '110303'],
+    judgment: {
+      // Dos poblaciones con el mismo campo: las cuentas que no están retiradas
+      // (shell, contraseña utilizable o claves) y las que se autentican. Qué
+      // nombres son «estándar» lo dice P-03, no el agente, y por eso el hecho
+      // no se llama `standard_account_*`: el nombre no puede traer el veredicto.
+      // Aserción negativa: sin ninguna cuenta y con el latido confirmado, cumple.
+      primitive: 'NINGUNO_EN_LISTA',
+      parameterId: 'P-03',
+      parameterColumn: 'cuenta',
+      factEventTypes: ['login_account', 'account_authenticated'],
+      factField: 'usuario',
+    },
     auditQuestion:
       '¿Se acredita: pervivencia de cuentas y contraseñas estándar?',
   },
@@ -1608,8 +1641,24 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'service_exposed'],
+    relatedRules: ['110304'],
+    judgment: {
+      // Cada función expuesta se casa con la fila de SU perfil en P-02: el
+      // servicio y el puerto tienen que estar entre los justificados. Un perfil
+      // sin fila es mínima funcionalidad sin definir, y sale NO_EVALUABLE: es
+      // la nota A12 del auditor, sin P-02 op.exp.2.2 no es evaluable.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-02',
+      factEventTypes: ['service_exposed'],
+      factField: 'perfil',
+      factKeyField: 'perfil',
+      tableKeyColumn: 'perfil',
+      tableChecks: [
+        { column: 'servicios', factField: 'servicio' },
+        { column: 'puertos', factField: 'puerto' },
+      ],
+    },
     auditQuestion:
       '¿Se acredita: servicios y puertos no justificados en ejecución?',
   },
@@ -1624,8 +1673,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'insecure_default'],
+    relatedRules: ['110305'],
+    judgment: {
+      // Barrido: cada valor por defecto inseguro es un hallazgo, y solo deja de
+      // incumplir si el responsable lo autorizó en P-04. Se compara
+      // `desviacion` (<máquina>:<comprobación>) y no la comprobación sola, para
+      // que una excepción de un activo no excuse la misma desviación en otro.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-04',
+      parameterColumn: 'comprobacion',
+      factEventTypes: ['insecure_default'],
+      factField: 'desviacion',
+    },
     auditQuestion:
       '¿Se acredita: verificación de la regla de seguridad por defecto?',
   },
@@ -1640,8 +1700,20 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'vm_host_uncovered'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'virtualization_role'],
+    relatedRules: ['110306'],
+    judgment: {
+      // Toda VM o anfitrión observado tiene que constar en el inventario P-06.
+      // Una máquina física que no aloja nada no emite ningún hecho: con el
+      // latido confirmado es un barrido sin hallazgos. Si el anfitrión de una VM
+      // tiene agente es una pregunta ENTRE máquinas que un juicio por agente no
+      // puede contestar; la responde el agente del propio anfitrión.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-06',
+      parameterColumn: 'maquina',
+      factEventTypes: ['virtualization_role'],
+      factField: 'maquina',
+    },
     auditQuestion:
       '¿Se acredita: configuración segura de hipervisores y máquinas virtuales?',
   },
@@ -1656,8 +1728,20 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'baseline_trend_degraded'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'sca_score'],
+    relatedRules: ['110307'],
+    judgment: {
+      // La serie de puntuaciones SCA de la ventana contra el umbral P-05:
+      // ninguna puede quedar por debajo. La pendiente de la serie no se juzga
+      // (no hay primitiva de tendencia); una degradación que cruza el umbral sí
+      // se ve, y una que no lo cruza no incumple. El hecho lo trae el agente de
+      // la API de Wazuh; sin acceso declarado no llega ninguno y sale
+      // NO_EVALUABLE, nunca CUMPLE.
+      primitive: 'UMBRAL_MINIMO',
+      parameterId: 'P-05',
+      factEventTypes: ['sca_score'],
+      factField: 'puntuacion',
+    },
     auditQuestion:
       '¿Se acredita: evolución del nivel de cumplimiento de la línea base?',
   },
@@ -1672,7 +1756,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'production_before_baseline'],
+    // Sin juicio y sin regla a propósito. «Configurado ANTES de entrar en
+    // operación» es un orden entre la fecha de puesta en producción y la
+    // primera evaluación conforme, y ninguna de las dos la observa un agente
+    // después del hecho. No acredita ningún requisito (el enunciado del control
+    // no es un requisito del catálogo): se documenta en P-07 y en el informe.
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
       '¿Se acredita: conformidad previa a la entrada en operación?',
