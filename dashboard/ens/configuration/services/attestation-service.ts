@@ -51,7 +51,7 @@ export interface ENSRequirementAttestation {
   responsible?: string;
 }
 
-const cells = (row: string): string[] =>
+export const cells = (row: string): string[] =>
   row.split('|').map(cell => cell.trim());
 
 // Un enlace utilizable. Se admite `http(s)://`, `file://` y una ruta de red
@@ -70,7 +70,7 @@ const cells = (row: string): string[] =>
 // accidente.
 const PLACEHOLDER_HOSTS = ['ejemplo.invalido', 'example.invalid'];
 
-const isUsableLink = (value: string): boolean => {
+export const isUsableLink = (value: string): boolean => {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -91,7 +91,7 @@ const isUsableLink = (value: string): boolean => {
   );
 };
 
-const parameterRows = (
+export const parameterRows = (
   parameter?: ENSControlParameter
 ): string[] => {
   const value = parameter?.value;

@@ -367,6 +367,59 @@
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple."
+    },
+    {
+      "id": "P-DA",
+      "controlId": "op.acc.5",
+      "name": "declaracion_aplicabilidad",
+      "label": "Declaración de Aplicabilidad",
+      "description": "Documento que excluye este control del sistema porque el sistema no tiene aquello que el control regula: op.acc.5 solo aplica donde se autentican usuarios AJENOS a la organización (ciudadanos, empresas, terceros). Se rellena una única fila con el motivo, la referencia del documento aprobado y un enlace para consultarlo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "El sistema no ofrece acceso a usuarios externos | Declaración de Aplicabilidad aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-09-01 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "wazuhUsage": "Si la declaración está completa (motivo, referencia y un enlace real) y en la máquina no se ha medido ni acreditado nada del control, todos sus requisitos salen NO_APLICA con la referencia y el motivo a la vista, y el control queda fuera del índice sin número. Si algo se ha medido, la exclusión queda contradicha y no se aplica: una declaración nunca tapa una medida.",
+      "ensfacilUsage": "Si la declaración está completa (motivo, referencia y un enlace real) y en la máquina no se ha medido ni acreditado nada del control, todos sus requisitos salen NO_APLICA con la referencia y el motivo a la vista, y el control queda fuera del índice sin número. Si algo se ha medido, la exclusión queda contradicha y no se aplica: una declaración nunca tapa una medida.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "El control se evalúa normalmente. Donde no hay servicios de acceso para usuarios externos, sus requisitos quedan sin demostrar y cuentan en contra."
     }
   ]
 }

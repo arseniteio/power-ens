@@ -18,6 +18,8 @@ import { evaluateControlStatus } from './control';
 // Del fichero, no del barrel `configuration/services`: ese re-exporta el cliente
 // HTTP y arrastra `kibana-services` al grafo del motor.
 import { parseRequirementAttestations } from '../../configuration/services/attestation-service';
+import { parseApplicabilityDeclaration } from '../../configuration/services/applicability-service';
+import { applyApplicabilityDeclaration } from './requirement/applicability';
 import { ENSNormalizedEvent } from '../data-source/types';
 import { applyPolicyDecisionsToEvidences } from './policy-evidence-bridge';
 
@@ -139,14 +141,19 @@ export const evaluateENSControl = (
       catalogControl.requirements
     );
 
-    const requirements = evaluateRequirements(
-      catalogControl.requirements,
-      level,
-      evidencesConPolicy,
-      hasMissingRequired,
-      policyRuntime?.decisions || [],
-      catalogControl.status,
-      parseRequirementAttestations(configuration)
+    // La Declaración de Aplicabilidad se aplica sobre lo ya evaluado: su límite
+    // —nunca tapa lo medido— se comprueba contra lo que la máquina demostró.
+    const requirements = applyApplicabilityDeclaration(
+      evaluateRequirements(
+        catalogControl.requirements,
+        level,
+        evidencesConPolicy,
+        hasMissingRequired,
+        policyRuntime?.decisions || [],
+        catalogControl.status,
+        parseRequirementAttestations(configuration)
+      ),
+      parseApplicabilityDeclaration(configuration)
     );
 
   const controlEvaluation = evaluateControlStatus(requirements);
