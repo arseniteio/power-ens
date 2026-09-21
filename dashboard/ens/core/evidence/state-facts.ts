@@ -12,9 +12,15 @@
 // servicios una vez al día y op.exp.2 solo puede leer el SCA cuando hay un
 // escaneo reciente. Tomar «la última pasada» a secas dejaba esas evidencias sin
 // un solo hecho y las hundía a NO_EVALUABLE, que es tan falso como la foto
-// vieja. El corte se toma POR EVIDENCIA: la última pasada cuyo latido declara
-// haberla cubierto (`evidencias_cubiertas`), que es lo que el propio recolector
-// dice haber mirado.
+// vieja.
+//
+// El corte se toma POR EVIDENCIA y con las DOS señales que deja el recolector,
+// la más reciente de ellas: el latido que declara haberla cubierto
+// (`evidencias_cubiertas`) y la emisión de un hecho suyo. Hacen falta las dos
+// porque ningún recolector declara hoy la cobertura de TODAS sus evidencias
+// —op.acc.6 declara seis de doce—, y con solo la primera señal seguían
+// contando fotos de hace días: una contraseña con caducidad 99999 corregida el
+// día 17 seguía suspendiendo el 21.
 //
 // EL CORTE SE MIDE A FECHA DE `now`. La serie diaria evalúa este mismo motor en
 // días pasados; juzgar el 10 con una pasada del 17 sería inventarse el pasado.
@@ -86,10 +92,12 @@ const collectorRunsByAgent = (
 };
 
 // Instante a partir del cual cuenta la última observación de una evidencia: el
-// latido anterior a la última pasada que declaró haberla cubierto.
+// latido anterior a la última pasada que la miró. «Mirarla» es declararla en
+// `evidencias_cubiertas` o emitir un hecho suyo, lo que ocurra más tarde.
 const boundaryFor = (
   runs: CollectorRun[] | undefined,
-  evidenceId: string
+  evidenceId: string,
+  lastFactTime: number | undefined
 ): number | undefined => {
   if (!runs) {
     return undefined;
@@ -99,13 +107,18 @@ const boundaryFor = (
     .reverse()
     .find(run => run.covered.includes(evidenceId));
 
-  if (!covering) {
+  const observed = Math.max(
+    covering?.time ?? 0,
+    lastFactTime ?? 0
+  );
+
+  if (!observed) {
     return undefined;
   }
 
   const previous = [...runs]
     .reverse()
-    .find(run => run.time < covering.time - SAME_RUN_TOLERANCE_MS);
+    .find(run => run.time < observed - SAME_RUN_TOLERANCE_MS);
 
   return previous?.time;
 };
@@ -129,13 +142,44 @@ export const keepLatestRunStateFacts = (
     return events;
   }
 
+  // Última emisión de un hecho de estado de cada evidencia, por agente.
+  const lastFact = new Map<string, number>();
+
+  events.forEach(event => {
+    if (event.controlId !== controlId) {
+      return;
+    }
+
+    const time = Date.parse(event.timestamp);
+
+    if (Number.isNaN(time) || time > now.getTime()) {
+      return;
+    }
+
+    definitions.forEach(definition => {
+      if (
+        !(definition.stateFactEventTypes || []).includes(event.eventType) ||
+        (event.evidenceId && event.evidenceId !== definition.id)
+      ) {
+        return;
+      }
+
+      const key = `${event.agentId || ''}|${definition.id}`;
+
+      lastFact.set(key, Math.max(lastFact.get(key) ?? 0, time));
+    });
+  });
+
   const boundaries = new Map<string, number | undefined>();
 
   const boundaryOf = (agent: string, evidenceId: string) => {
     const key = `${agent}|${evidenceId}`;
 
     if (!boundaries.has(key)) {
-      boundaries.set(key, boundaryFor(runs.get(agent), evidenceId));
+      boundaries.set(
+        key,
+        boundaryFor(runs.get(agent), evidenceId, lastFact.get(key))
+      );
     }
 
     return boundaries.get(key);

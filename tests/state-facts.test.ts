@@ -13,8 +13,10 @@
  * hundió dos controles: op.exp.3 emite el inventario de servicios una vez al
  * día y op.exp.2 solo lee el SCA cuando hay un escaneo reciente, así que su
  * última pasada no traía ni un hecho y las evidencias cayeron a NO_EVALUABLE.
- * El corte se toma POR EVIDENCIA, con lo que el propio latido declara haber
- * mirado (`evidencias_cubiertas`).
+ * El corte se toma POR EVIDENCIA y con las dos señales que deja el recolector,
+ * la más reciente: el latido que declara haberla mirado
+ * (`evidencias_cubiertas`) y la emisión de un hecho suyo. Con solo la primera
+ * no bastaba: ningún recolector declara hoy todas sus evidencias.
  *
  * Los límites que se prueban aquí:
  *
@@ -23,7 +25,7 @@
  *   2. una evidencia observada de tarde en tarde conserva su última foto;
  *   3. el corte es POR AGENTE y A FECHA DE `now`: la serie diaria evalúa el
  *      pasado y no puede juzgarlo con una pasada posterior;
- *   4. sin cobertura declarada no se descarta nada;
+ *   4. sin latidos no hay con qué delimitar y se conserva todo;
  *   5. lo declarado como estado es coherente con el catálogo;
  *   6. con el motor entero, una remediación real cambia el veredicto.
  */
@@ -231,21 +233,39 @@ bloque('3. El corte es por agente y a fecha de la evaluación');
 
 // --- 4. sin cobertura declarada no se descarta nada -----------------------------
 
-bloque('4. Sin cobertura declarada, se conserva todo');
+bloque('4. Sin cobertura declarada manda la emisión; sin nada, no se corta');
 
 {
   const politica = (v: string, ts: string) =>
     evento('op.acc.6', 'password_policy_checked', ts, { v }, '024', 'EV-11');
 
+  // Ningún recolector declara hoy la cobertura de todas sus evidencias, así que
+  // la emisión es la segunda señal: sin ella, op.acc.6 seguía juzgando la
+  // caducidad 99999 corregida cuatro días antes.
+  const sinCobertura = keepLatestRunStateFacts(
+    'op.acc.6',
+    [
+      politica('vieja', '2026-09-21T11:47:03Z'),
+      latido('op.acc.6', '2026-09-21T11:47:05Z', ''),
+      politica('nueva', '2026-09-21T12:07:29Z'),
+      latido('op.acc.6', '2026-09-21T12:07:31Z', ''),
+    ],
+    AHORA
+  ).filter(e => e.eventType === 'password_policy_checked');
+
   comprueba(
-    'latidos que no declaran qué miraron: no hay corte',
+    'latidos sin cobertura: corta igual por la última emisión',
+    sinCobertura.length === 1 && sinCobertura[0].attributes?.v === 'nueva',
+    sinCobertura.map(e => String(e.attributes?.v)).join(',')
+  );
+
+  comprueba(
+    'sin ningún latido no hay con qué delimitar: se conserva todo',
     keepLatestRunStateFacts(
       'op.acc.6',
       [
         politica('vieja', '2026-09-21T11:47:03Z'),
-        latido('op.acc.6', '2026-09-21T11:47:05Z', ''),
         politica('nueva', '2026-09-21T12:07:29Z'),
-        latido('op.acc.6', '2026-09-21T12:07:31Z', ''),
       ],
       AHORA
     ).filter(e => e.eventType === 'password_policy_checked').length === 2
