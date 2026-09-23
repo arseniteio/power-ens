@@ -860,6 +860,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       // no casa NUNCA: la evidencia se quedaba en NO_EVALUABLE para siempre.
       factKeyField: 'sujeto',
       tableKeyColumn: 'rol',
+      // La fila la identifican sujeto Y recurso: `root` tiene una fila para
+      // `sudo` y otra para el cortafuegos, y con clave simple el motor juzgaba
+      // su sudo contra la fila del cortafuegos.
+      factKeyFields: ['sujeto', 'recurso'],
+      tableKeyColumns: ['rol', 'recurso'],
       tableChecks: [
         { column: 'recurso', factField: 'recurso' },
         { column: 'acceso', factField: 'acceso' },

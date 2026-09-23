@@ -141,6 +141,14 @@ export interface ENSEvidenceJudgment {
   // `tableKeyColumn`.
   factKeyField?: string;
 
+  // Cuando una sola columna NO identifica la fila. Un sujeto tiene privilegios
+  // sobre varios recursos (`root` sobre `sudo` y sobre el cortafuegos), así que
+  // con clave simple el índice se queda con la última fila y juzga el sudo de
+  // root contra su fila de cortafuegos: un incumplimiento inventado. Si se
+  // declaran, mandan sobre `tableKeyColumn` / `factKeyField`.
+  tableKeyColumns?: string[];
+  factKeyFields?: string[];
+
   // Columnas contrastadas y campo del hecho de cada una. Una columna que no
   // figure aquí NO se compara aunque la fila la traiga rellena: lo que se juzga
   // se declara, no se deduce.

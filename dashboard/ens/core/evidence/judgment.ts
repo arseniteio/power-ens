@@ -932,24 +932,35 @@ export const judgeEvidence = (
     // resuelven abajo, contra la fila, porque un eje que la política no declara
     // tampoco hace falta que el agente lo observe.
     if (judgment.primitive === 'CONFORME_A_TABLA') {
-      const keyField =
-        judgment.factKeyField ||
-        judgment.tableKeyColumn ||
-        '';
+      const keyFields = judgment.factKeyFields?.length
+        ? judgment.factKeyFields
+        : [
+            judgment.factKeyField ||
+              judgment.tableKeyColumn ||
+              '',
+          ];
 
-      const keyValue = getEventFieldValue(
-        event,
-        keyField
+      const keyParts = keyFields.map(field =>
+        getEventFieldValue(event, field)
       );
 
-      if (!hasMeaningfulValue(keyValue)) {
+      const missing = keyFields.filter(
+        (field, index) =>
+          !hasMeaningfulValue(keyParts[index])
+      );
+
+      if (missing.length) {
         unusableFactEvents.push({
           event,
-          reason: `no trae valor en el campo '${keyField}', que es el que identifica su fila en la tabla de política`,
+          reason: `no trae valor en el campo '${missing.join("', '")}', que es el que identifica su fila en la tabla de política`,
         });
 
         return;
       }
+
+      const keyValue = keyParts
+        .map(part => String(part).trim())
+        .join(' | ');
 
       const values: Record<string, string> = {};
 
@@ -1352,25 +1363,28 @@ export const judgeEvidence = (
       undecidableMotive = `No se puede interpretar como número ${describeFacts(unreadable)}, así que no cabe afirmar que el umbral se respeta.`;
     }
   } else if (reference.kind === 'TABLA') {
-    const keyColumn =
-      judgment.tableKeyColumn || '';
+    const keyColumns = judgment.tableKeyColumns?.length
+      ? judgment.tableKeyColumns
+      : [judgment.tableKeyColumn || ''];
 
     const checks = judgment.tableChecks ?? [];
 
-    // Índice por la clave declarada. Si la política repite la misma clave, manda
-    // la ÚLTIMA fila: es lo que ve el auditor al final de la rejilla.
+    // Índice por la clave declarada, que puede ser de varias columnas: un mismo
+    // sujeto tiene filas para recursos distintos. Si la política repite la
+    // MISMA clave entera, manda la última fila: es lo que ve el auditor al
+    // final de la rejilla.
     const rowsByKey = new Map<
       string,
       Record<string, string>
     >();
 
     reference.rows.forEach(row => {
-      const key = normalizeStrict(
-        row[keyColumn] ?? ''
+      const parts = keyColumns.map(column =>
+        normalizeStrict(row[column] ?? '')
       );
 
-      if (key) {
-        rowsByKey.set(key, row);
+      if (parts.every(part => part)) {
+        rowsByKey.set(parts.join(' | '), row);
       }
     });
 
