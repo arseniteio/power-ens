@@ -57,7 +57,7 @@
         {
           "name": "acceso",
           "label": "Acceso",
-          "type": "string",
+          "type": "multiselect",
           "required": false
         }
       ]

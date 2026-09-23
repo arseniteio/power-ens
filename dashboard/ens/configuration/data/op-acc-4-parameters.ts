@@ -37,7 +37,13 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         {
           name: 'acceso',
           label: 'Acceso',
-          type: 'string',
+          // Varios privilegios por sujeto, separados por coma. Un mismo rol los
+          // recibe de sitios distintos —`/etc/sudoers` y un drop-in de
+          // `sudoers.d`— y con comparación exacta solo podía declararse uno:
+          // el otro salía como privilegio no autorizado sin serlo. `multiselect`
+          // compara por pertenencia, así que la celda enumera lo AUTORIZADO y
+          // cualquier privilegio que no esté en ella sigue siendo un hallazgo.
+          type: 'multiselect',
           required: false,
         },
       ],
