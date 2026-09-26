@@ -3355,132 +3355,189 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: trazabilidad completa del expediente de incidente?',
   },
+  // --- op.exp.10 · Protección de claves criptográficas --------------------
+  //
+  // Dos evidencias las juzga una primitiva (EV-02 y EV-08): un hecho contra un
+  // parámetro. Las demás las mide la policy del control
+  // (`policies/op-exp-10.policy.ts`), porque su juicio no cabe en ninguna de las
+  // siete: EV-01 exige además que el latido confirme que TODOS los almacenes se
+  // vigilaban (un acceso autorizado observado no dice nada de los no
+  // vigilados); EV-03, EV-04 y EV-07 contrastan cada algoritmo con SU fila de uso
+  // en P-03 y su longitud mínima; EV-05 busca la fila de la máquina en P-05;
+  // EV-06 filtra P-01 por `estado` antes de contrastar, y EV-07 mide la
+  // caducidad contra el reloj.
+  //
+  // EV-02, EV-06 y EV-08 comparten UN hecho, `key_material_found` (regla
+  // 111102): la misma clave en disco, contrastada con tres políticas.
+  //
+  // Reglas: todas de la banda 111100-111199, desplegadas por el runbook
+  // `op.exp.10-cryptographic-key-protection` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.10',
-    title: 'Accesos y modificaciones del material criptográfico',
+    title: 'Accesos al material criptográfico',
     description:
-      'Detección de todo acceso, lectura, copia, modificación o eliminación de los ficheros de claves declarados en P-02, con identificación de la cuenta y el proceso responsables. Es la aportación más directa de Wazuh a la custodia de claves durante la explotación.',
+      'Todo acceso (lectura, escritura, cambio de permisos, borrado) a los almacenes de claves vigilados por auditd, con la cuenta de la sesión que lo hizo —la persona aunque haya pasado por sudo— o, sin sesión, la cuenta del proceso, el proceso y el intervalo. Se contrasta la cuenta contra el personal autorizado de P-08. Es la aportación más directa a la custodia de las claves durante la explotación.',
     requirements: ['op.exp.10.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'INTEGRITY',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // Sin `judgment` a propósito: la decide la policy. Un acceso autorizado
+    // observado solo acredita lo que se vigilaba, y la primitiva no mira la
+    // cobertura cuando hay hechos.
     expectedEventTypes: ['evidence_state', 'key_material_accessed'],
-    relatedRules: [],
+    relatedRules: ['111101'],
     auditQuestion:
-      '¿Se acredita: accesos y modificaciones del material criptográfico?',
+      '¿Solo el personal autorizado en P-08 accede al material criptográfico, y consta que todos los almacenes estaban vigilados?',
   },
   {
     id: 'EV-02',
     controlId: 'op.exp.10',
-    title: 'Copia o exfiltración de claves privadas',
+    title: 'Claves privadas fuera de los almacenes declarados',
     description:
-      'Detección de operaciones que sugieren copia de material criptográfico fuera de su ubicación autorizada: aparición de ficheros de clave en rutas no previstas, lectura por procesos anómalos, o transferencia posterior a la lectura.',
+      'Barrido de las claves privadas presentes en disco (identificadas por su cabecera, no por la extensión) con el directorio en que están. Una clave cuyo directorio no es un almacén declarado en P-02 es un indicio de copia o exfiltración de material criptográfico.',
     requirements: ['op.exp.10.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'key_material_found'],
-    relatedRules: [],
+    // El barrido se reemite ENTERO en cada pasada: una clave borrada deja de
+    // contar en cuanto la pasada siguiente no la ve.
+    stateFactEventTypes: ['key_material_found'],
+    relatedRules: ['111102'],
+    judgment: {
+      // Cada clave encontrada es un HALLAZGO de un barrido: no encontrar
+      // ninguna fuera de los almacenes, con el latido confirmando que el
+      // barrido terminó, es el resultado normal de una máquina sana.
+      primitive: 'NINGUNO_FUERA_DE_LISTA',
+      parameterId: 'P-02',
+      // P-02 es `ruta | modo_maximo | propietario`: sin la columna se compararía
+      // la fila entera con un directorio y toda clave saldría fuera.
+      parameterColumn: 'ruta',
+      factEventTypes: ['key_material_found'],
+      factField: 'directorio',
+    },
     auditQuestion:
-      '¿Se acredita: copia o exfiltración de claves privadas?',
+      '¿Toda clave privada presente en disco está en un almacén declarado en P-02?',
   },
   {
     id: 'EV-03',
     controlId: 'op.exp.10',
     title: 'Algoritmos y parámetros criptográficos configurados (R1)',
     description:
-      'Verificación de que los algoritmos, longitudes de clave y parámetros configurados en cada servicio de P-04 figuran entre los autorizados por el CCN según P-03. Es la evidencia que cubre R1 con más solidez y la que produce hallazgos con más frecuencia.',
+      'Algoritmos que acepta cada servicio criptográfico según su configuración EFECTIVA (en sshd, `sshd -T`: cifrados, MAC, intercambio de claves, algoritmos de firma, claves de host y claves autorizadas; en slapd, versión mínima de TLS, suites y hash de contraseñas), con su familia y longitud, contrastados con los autorizados por el CCN en P-03 y con el alcance de P-04.',
     requirements: ['op.exp.10.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'crypto_config_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['crypto_config_observed'],
+    relatedRules: ['111103'],
     auditQuestion:
-      '¿Se acredita: algoritmos y parámetros criptográficos configurados (r1)?',
+      '¿Todos los algoritmos y longitudes que aceptan los servicios criptográficos figuran entre los autorizados en P-03?',
   },
   {
     id: 'EV-04',
     controlId: 'op.exp.10',
-    title: 'Uso efectivo de protocolos y cifradores obsoletos',
+    title: 'Uso efectivo de protocolos y algoritmos (R1)',
     description:
-      'Detección del uso real —no solo la configuración— de protocolos o cifradores no autorizados en las conexiones establecidas: TLS 1.0 o 1.1 negociado, suites de cifrado débiles, claves de longitud insuficiente en los certificados presentados.',
+      'Algoritmos NEGOCIADOS de verdad en las conexiones del periodo, leídos del log del servicio: en sshd, el tipo de clave con que se autentica cada cliente (y, con LogLevel DEBUG1, el intercambio de claves, el cifrado y el MAC); en slapd, la versión de TLS y la suite de cada conexión. Detecta el servicio que declara mínimos correctos y sigue aceptando conexiones inferiores.',
     requirements: ['op.exp.10.r1.1'],
     levels: ['MEDIO', 'ALTO'],
-    category: 'CONFIGURATION',
+    category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'crypto_protocol_negotiated'],
-    relatedRules: [],
+    relatedRules: ['111104'],
     auditQuestion:
-      '¿Se acredita: uso efectivo de protocolos y cifradores obsoletos?',
+      '¿Todo lo negociado en las conexiones del periodo figura entre lo autorizado en P-03, y consta que el log registra la negociación completa?',
   },
   {
     id: 'EV-05',
     controlId: 'op.exp.10',
-    title: 'Aislamiento entre medios de generación y de explotación',
+    title: 'Generación de claves en medios de explotación',
     description:
-      'Verificación de que en los sistemas declarados como de explotación en P-05 no se realizan operaciones de generación de claves, y de que el aislamiento de red entre ambos medios es efectivo. op.exp.10.2 lo exige de forma taxativa.',
+      'Ejecuciones de herramientas de generación de claves (ssh-keygen generando, openssl genpkey, genrsa, req -newkey…) registradas por auditd en la máquina, con la cuenta que las lanzó. Se contrasta con la función de la máquina en P-05: en un medio de explotación, cualquier generación incumple op.exp.10.2.',
     requirements: ['op.exp.10.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'CONFIGURATION',
+    category: 'EXECUTION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'key_generation_tool_executed'],
-    relatedRules: [],
+    relatedRules: ['111105'],
     auditQuestion:
-      '¿Se acredita: aislamiento entre medios de generación y de explotación?',
+      '¿Se generan claves en máquinas declaradas como medios de explotación en P-05?',
   },
   {
     id: 'EV-06',
     controlId: 'op.exp.10',
     title: 'Claves retiradas presentes en medios de explotación',
     description:
-      'Detección de material criptográfico correspondiente a claves declaradas como retiradas en P-01 que permanece presente y accesible en los sistemas de explotación, en lugar de estar archivado en medios aislados como exige op.exp.10.3.',
+      'Contraste entre las claves declaradas como retiradas en P-01 (columna `estado`) y las claves privadas que el barrido encuentra en disco, por huella de la parte pública o por ubicación. Una clave retirada que sigue presente no está archivada en un medio aislado como exige op.exp.10.3.',
     requirements: ['op.exp.10.3'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'retired_key_present'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // El MISMO hecho de EV-02: la población es la misma, todas las claves
+    // privadas presentes en disco.
+    expectedEventTypes: ['evidence_state', 'key_material_found'],
+    stateFactEventTypes: ['key_material_found'],
+    relatedRules: ['111102'],
     auditQuestion:
-      '¿Se acredita: claves retiradas presentes en medios de explotación?',
+      '¿Alguna clave declarada como retirada en P-01 sigue presente en esta máquina?',
   },
   {
     id: 'EV-07',
     controlId: 'op.exp.10',
-    title: 'Vigencia de certificados y material criptográfico',
+    title: 'Vigencia y algoritmos de los certificados',
     description:
-      'Inventario de los certificados instalados en los sistemas con su fecha de caducidad, algoritmo y longitud de clave, permitiendo anticipar la retirada de explotación que op.exp.10.1 contempla como cuarta fase del ciclo de vida.',
+      'Inventario de los certificados X.509 en disco (sin el almacén de CA públicas del sistema) con su caducidad, su clave pública y su firma. Un certificado caducado que sigue instalado incumple op.exp.10.1 (la retirada no se gestiona); una clave o una firma no autorizadas en P-03 incumplen op.exp.10.r1.1. Los que caducan dentro de la antelación de P-10 se señalan.',
     requirements: ['op.exp.10.1', 'op.exp.10.r1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'certificate_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['certificate_observed'],
+    relatedRules: ['111107'],
     auditQuestion:
-      '¿Se acredita: vigencia de certificados y material criptográfico?',
+      '¿Hay certificados caducados instalados, o con clave o firma no autorizadas en P-03?',
   },
   {
     id: 'EV-08',
     controlId: 'op.exp.10',
-    title: 'Integridad y protección del almacén de claves',
+    title: 'Protección de los ficheros de clave',
     description:
-      'Vigilancia de los permisos de los ficheros de clave y de los directorios que los contienen, verificando que son restrictivos y que no se han relajado. Una clave privada con permisos de lectura para todos está materialmente desprotegida aunque nadie la haya leído todavía.',
+      'Modo y propietario de cada clave privada presente en disco, contrastados con la protección que P-02 declara para su almacén. Una clave privada legible por quien no es su propietario está materialmente desprotegida aunque nadie la haya leído todavía.',
     requirements: ['op.exp.10.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'INTEGRITY',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'key_file_permissions'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // El MISMO hecho de EV-02 y EV-06.
+    expectedEventTypes: ['evidence_state', 'key_material_found'],
+    stateFactEventTypes: ['key_material_found'],
+    relatedRules: ['111102'],
+    judgment: {
+      // La fila la busca el DIRECTORIO de la clave. La columna `octal` compara
+      // «no más permisivo»: una clave en 400 donde se admite 600 cumple. Una
+      // clave cuyo directorio no tiene fila no se puede juzgar: la dice EV-02.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-02',
+      factEventTypes: ['key_material_found'],
+      factField: 'directorio',
+      factKeyField: 'directorio',
+      tableKeyColumn: 'ruta',
+      tableChecks: [
+        { column: 'modo_maximo', factField: 'modo' },
+        { column: 'propietario', factField: 'propietario' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: integridad y protección del almacén de claves?',
+      '¿Toda clave privada tiene un modo no más permisivo y el propietario que P-02 declara para su almacén?',
   },
 ];
