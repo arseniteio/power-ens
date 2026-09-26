@@ -68,8 +68,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Conservación del conjunto de eventos que dieron lugar a la detección del incidente, con su marca temporal y sistemas implicados. Es la materia prima del reporte inicial que exige op.exp.9.1 y el punto de partida de cualquier análisis posterior.',
       format: 'json_line',
-      events: ['evidence_state', 'incident_source_events_available'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'incident_source_events_available', 'register_read'],
+      wazuhRuleIds: ['111002', '111010'],
     },
     {
       id: 'EV-02',
@@ -80,8 +80,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Verificación de que cada incidente cuenta con los tres tipos de reporte que op.exp.9.1 distingue, cumplimentados según las plantillas de P-02. Un incidente con solo registro de cierre no satisface el requisito, que menciona expresamente los tres momentos.',
       format: 'json_line',
-      events: ['evidence_state', 'incident_report_registered'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed'],
+      wazuhRuleIds: ['111001', '111010', '111011'],
     },
     {
       id: 'EV-03',
@@ -92,8 +92,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Constancia de las medidas urgentes ejecutadas durante el incidente: aislamiento, detención de servicios, bloqueos. op.exp.9.1 exige registrar expresamente «las actuaciones de emergencia», y Active Response produce ese registro de forma automática y fiable.',
       format: 'json_line',
-      events: ['evidence_state', 'emergency_action_linked'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'emergency_action_observed', 'incident_action_registered'],
+      wazuhRuleIds: ['111003', '111005'],
     },
     {
       id: 'EV-04',
@@ -104,8 +104,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Constancia de los cambios realizados en los sistemas como consecuencia del incidente: cambios de configuración, parches aplicados, reglas modificadas, cuentas deshabilitadas. op.exp.9.1 los exige registrar de forma expresa.',
       format: 'fim_or_json_line',
-      events: ['evidence_state', 'derived_change_linked'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'system_change_observed', 'incident_action_registered'],
+      wazuhRuleIds: ['111004', '111005'],
     },
     {
       id: 'EV-05',
@@ -117,7 +117,7 @@ export const opExp9Control: ENSControl = {
         'Generación automática, al marcarse un incidente como de relevancia jurídica según P-04, del conjunto de evidencias declarado en P-03: registros del período y sistemas afectados, exportados con cálculo de hash y sellado de tiempo.',
       format: 'json_line',
       events: ['evidence_state', 'evidence_export_sealed'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['111006'],
     },
     {
       id: 'EV-06',
@@ -128,8 +128,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Registro de todos los accesos a las evidencias custodiadas: quién, cuándo y con qué finalidad, junto con la verificación periódica de que el hash de la evidencia sigue coincidiendo. Sin cadena de custodia acreditable, la evidencia pierde valor probatorio con independencia de su contenido.',
       format: 'json_line',
-      events: ['evidence_state', 'custody_access_recorded', 'custody_integrity_checked'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded'],
+      wazuhRuleIds: ['111006', '111007', '111008'],
     },
     {
       id: 'EV-07',
@@ -140,8 +140,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Bloqueo de la eliminación automática por política de retención de los índices correspondientes al período y sistemas de un incidente abierto o con relevancia jurídica, evitando que la rotación normal destruya evidencia necesaria.',
       format: 'json_line',
-      events: ['evidence_state', 'incident_logs_retained'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'incident_source_events_available'],
+      wazuhRuleIds: ['111002'],
     },
     {
       id: 'EV-08',
@@ -152,8 +152,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Verificación de que el análisis de cada incidente relevante se traduce en revisión de la lista de eventos auditables y, en su caso, en nuevas reglas de detección. op.exp.9.3 lo exige expresamente y es el bucle que conecta este control con op.exp.8.',
       format: 'json_line',
-      events: ['evidence_state', 'auditable_events_revised'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'auditable_events_revised', 'incident_action_registered'],
+      wazuhRuleIds: ['111009', '111005'],
     },
     {
       id: 'EV-09',
@@ -164,8 +164,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Consolidación en un único expediente consultable de todo lo relacionado con el incidente: alertas originarias, reportes, actuaciones de emergencia, modificaciones derivadas, evidencias custodiadas y revisión de eventos auditables. Es el entregable que un auditor querrá ver en su conjunto.',
       format: 'json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: [],
+      events: ['evidence_state', 'incident_report_registered'],
+      wazuhRuleIds: ['111001'],
     },
   ],
   parameters: [
@@ -189,7 +189,7 @@ export const opExp9Control: ENSControl = {
         'Contenido mínimo exigido a los reportes inicial, intermedio y final. op.exp.9.1 los menciona como tres momentos distintos, de modo que un único registro de cierre no satisface el requisito.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.1'],
-      type: 'string',
+      type: 'table',
       usage:
         'ENSFácil verifica la presencia de los tres reportes por incidente y su cumplimentación. Incidente con solo reporte de cierre → hallazgo, porque el requisito distingue expresamente tres momentos.',
       missingBehavior:
@@ -202,7 +202,7 @@ export const opExp9Control: ENSControl = {
         'Composición y detalle de las evidencias que deben recogerse para que puedan dirimirse en ámbito jurisdiccional, determinada con el asesoramiento legal especializado que op.exp.9.2 exige expresamente.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.2'],
-      type: 'list',
+      type: 'table',
       usage:
         'Define qué exporta y sella ENSFácil automáticamente al abrirse un incidente con potencial relevancia jurídica. La determinación de la lista NO es técnica: el ENS remite a asesoramiento legal especializado.',
       missingBehavior:
@@ -228,7 +228,7 @@ export const opExp9Control: ENSControl = {
         'Repositorio de custodia de las evidencias, con su control de acceso, mecanismo de sellado de integridad y registro de cadena de custodia. Condiciona directamente el valor probatorio de lo recogido.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.2'],
-      type: 'string',
+      type: 'table',
       usage:
         'ENSFácil deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son los dos elementos que más refuerzan la admisibilidad.',
       missingBehavior:
@@ -241,7 +241,7 @@ export const opExp9Control: ENSControl = {
         'Tiempo de conservación de las evidencias de incidentes. Debe atender a los plazos de prescripción aplicables según el tipo de responsabilidad —disciplinaria, contractual o penal—, no solo a la retención general de registros de op.exp.8.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.2'],
-      type: 'duration_days',
+      type: 'table',
       usage:
         'ENSFácil aplica la política de retención al repositorio de custodia. Es un parámetro que debe fijarse con el mismo asesoramiento legal de P-03: la retención general de op.exp.8 suele ser insuficiente aquí.',
       missingBehavior:
@@ -254,11 +254,24 @@ export const opExp9Control: ENSControl = {
         'Proceso por el que el análisis de los incidentes lleva a revisar la determinación de los eventos auditables, exigido por op.exp.9.3. Es el bucle de realimentación con op.exp.8.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.3', 'op.exp.8.r3.1'],
-      type: 'string',
+      type: 'table',
       usage:
         'ENSFácil correlaciona el cierre de incidentes con modificaciones posteriores en la lista de eventos auditables (P-01 de op.exp.8) y en las reglas de detección. Permite demostrar que el sistema aprende.',
       missingBehavior:
         'op.exp.9.3 NO EVALUABLE. El registro de eventos auditables queda estático y no se realimenta.',
+    },
+    {
+      id: 'P-08',
+      name: 'nivel_alerta_sin_expediente',
+      description:
+        'Nivel mínimo de regla de Wazuh a partir del cual una alerta ajena a ENSFácil no puede quedar sin ningún expediente. Solo se usa cuando el registro de incidentes está vacío.',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.1'],
+      type: 'number',
+      usage:
+        'Contraste del registro vacío con el volumen de alertas del manager en los últimos 30 días.',
+      missingBehavior:
+        'Un registro vacío no se puede juzgar: no hay contra qué contrastar la ausencia de incidentes.',
     },
     {
       id: 'P-ATT',
@@ -274,7 +287,7 @@ export const opExp9Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'incident_source_events_available', 'incident_report_registered', 'emergency_action_linked', 'derived_change_linked', 'evidence_export_sealed', 'custody_access_recorded', 'custody_integrity_checked', 'incident_logs_retained', 'auditable_events_revised'],
+  events: ['evidence_state', 'register_read', 'incident_report_registered', 'incident_source_events_available', 'emergency_action_observed', 'system_change_observed', 'incident_action_registered', 'evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded', 'auditable_events_revised', 'alert_volume_observed', 'collector_run', 'collector_warning', 'collector_missing'],
   presentationRules: {
     auditorSees: [
       'control ENS',

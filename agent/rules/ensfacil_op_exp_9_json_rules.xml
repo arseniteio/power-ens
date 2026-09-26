@@ -1,0 +1,196 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_9_json_rules.xml
+     Esta es una copia desplegable para que el procedimiento funcione en un
+     servidor sin acceso al repo del plugin. Es el MISMO fichero, byte a byte,
+     en el runbook de Linux, en el de LDAP y en el plugin: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_9,score,">
+
+  <!-- ================================================================
+       op.exp.9 · Registro de la gestión de incidentes
+       Rango reservado: 111000-111099
+       Base 111000 · hechos crudos 111001-111049 · diagnóstico 111095-111099
+
+       El sujeto del control es el MANAGER: todos estos hechos los escribe el
+       recolector del manager (ens_opexp9_manager_collect.sh) y llegan con
+       agent.id=000. Lee solo ficheros locales, sin ninguna credencial: los
+       registros que mantiene la organización en /etc/ensfacil/, las alertas
+       de /var/ossec/logs/alerts/ y la configuración de /var/ossec/etc/.
+
+       Mapa hecho -> rule ID -> evidencia, que es lo que acredita
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+
+         111001 incident_report_registered        EV-02, EV-09
+         111002 incident_source_events_available  EV-01, EV-07
+         111003 emergency_action_observed         EV-03
+         111004 system_change_observed            EV-04
+         111005 incident_action_registered        EV-03, EV-04, EV-08
+         111006 evidence_export_sealed            EV-05, EV-06
+         111007 custody_integrity_checked         EV-06
+         111008 custody_access_recorded           EV-06
+         111009 auditable_events_revised          EV-08
+         111010 register_read                     todas
+         111011 alert_volume_observed             EV-02 (registro vacío)
+
+       Fuera del mapa: 111000 (base, nivel 0), 111095 (la degradación: el
+       recolector dice que NO pudo mirar), 111097 (el latido: no acredita
+       evidencia, la habilita), 111098 (aviso operativo) y 111099 (una fuente
+       que el recolector necesita no existe).
+
+       Ninguna regla lleva `estado` de cumplimiento ni `cumple`/`no_cumple` en
+       su grupo: son hechos, y el veredicto lo pone la policy del plugin
+       correlacionándolos por `incidente_id` y contrastándolos con la pantalla
+       de Configuración.
+       ================================================================ -->
+
+  <rule id="111000" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.9</field>
+    <description>op.exp.9 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== Lo que la organización registra (TSV de /etc/ensfacil) ===== -->
+
+  <!-- EV-02 y EV-09. Una fila del registro de incidentes
+       (/etc/ensfacil/incident-register.tsv), una por fase de cada incidente.
+       El mismo registro lo lee op.exp.7 y emite su propio hecho en su banda:
+       el motor filtra por `ensfacil`, así que cada control necesita el suyo. -->
+  <rule id="111001" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">incident_report_registered</field>
+    <description>op.exp.9 · EV-02 · $(incidente_id) reporte $(fase) del $(fecha) (severidad $(severidad))</description>
+  </rule>
+
+  <!-- EV-03, EV-04 y EV-08. Una actuación que la organización vincula a un
+       incidente (/etc/ensfacil/incident-actions.tsv): una actuación de
+       emergencia, una modificación derivada o una revisión de los eventos
+       auditables. -->
+  <rule id="111005" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">incident_action_registered</field>
+    <description>op.exp.9 · EV-03 · $(incidente_id) $(tipo) registrada en $(sistema): $(objeto)</description>
+  </rule>
+
+  <!-- EV-05 y EV-06. Una evidencia exportada y sellada que la organización
+       declara depositada en custodia (/etc/ensfacil/evidence-custody.tsv),
+       con su SHA-256 en el momento de la recogida. -->
+  <rule id="111006" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">evidence_export_sealed</field>
+    <description>op.exp.9 · EV-05 · $(incidente_id) evidencia $(tipo_evidencia) sellada en $(destino)</description>
+  </rule>
+
+  <!-- EV-06. Un acceso a una evidencia custodiada, anotado en el registro de
+       cadena de custodia (/etc/ensfacil/evidence-custody-log.tsv). -->
+  <rule id="111008" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">custody_access_recorded</field>
+    <description>op.exp.9 · EV-06 · $(usuario) accedió a $(fichero) ($(finalidad))</description>
+  </rule>
+
+  <!-- Todas. Cómo se encontró cada registro en esta pasada: si existe, si se
+       pudo leer, si la cabecera es la documentada y cuántas filas válidas y
+       no válidas trae. Es lo que distingue un registro VACÍO (se juzga) de
+       uno AUSENTE (no hay contra qué juzgar). -->
+  <rule id="111010" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">register_read</field>
+    <description>op.exp.9 · registro $(registro): presente=$(presente), $(filas_validas) filas válidas</description>
+  </rule>
+
+  <!-- ===== Lo que el manager observa (alertas y configuración) ===== -->
+
+  <!-- EV-01 y EV-07. Por incidente y sistema afectado: cuántas alertas de ese
+       agente conserva el manager en la ventana del incidente, y si los
+       archivos diarios de alertas de esa ventana siguen en disco con su
+       suma encadenada de Wazuh verificada. -->
+  <rule id="111002" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">incident_source_events_available</field>
+    <description>op.exp.9 · EV-01 · $(incidente_id) en $(sistema): $(alertas) alertas conservadas entre $(desde) y $(hasta)</description>
+  </rule>
+
+  <!-- EV-03. Una respuesta activa de Wazuh (grupo active_response) sobre un
+       sistema afectado dentro de la ventana de un incidente. Es lo que Wazuh
+       registró que se hizo; si consta en el expediente lo decide el motor. -->
+  <rule id="111003" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">emergency_action_observed</field>
+    <description>op.exp.9 · EV-03 · $(incidente_id) respuesta activa $(programa) en $(sistema) ($(veces) veces)</description>
+  </rule>
+
+  <!-- EV-04. Un objeto modificado en un sistema afectado durante un incidente:
+       fichero (FIM), paquete (dpkg/yum), configuración (op.exp.3) o cuenta
+       (op.acc.1), tal como lo recogen las alertas del manager. -->
+  <rule id="111004" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">system_change_observed</field>
+    <description>op.exp.9 · EV-04 · $(incidente_id) cambio de $(origen) en $(sistema): $(objeto)</description>
+  </rule>
+
+  <!-- EV-06. La verificación del SHA-256 de una evidencia custodiada que el
+       manager puede leer, contra el declarado al sellarla. -->
+  <rule id="111007" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">custody_integrity_checked</field>
+    <description>op.exp.9 · EV-06 · $(fichero): verificable=$(verificable), coincide=$(coincide)</description>
+  </rule>
+
+  <!-- EV-08. Una modificación de la determinación de eventos auditables del
+       manager: reglas, decodificadores, ossec.conf o agent.conf de un grupo,
+       con el instante en que ocurrió. -->
+  <rule id="111009" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">auditable_events_revised</field>
+    <description>op.exp.9 · EV-08 · $(fichero) modificado el $(modificado) ($(origen))</description>
+  </rule>
+
+  <!-- EV-02, solo cuando el registro de incidentes está vacío. Cuántas
+       alertas ajenas a ENSFácil generó el manager en los últimos 30 días, por
+       nivel: es el contraste de «cero incidentes registrados». -->
+  <rule id="111011" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">alert_volume_observed</field>
+    <description>op.exp.9 · alertas por nivel en $(dias) días: $(por_nivel)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó
+       y no había nada», y las dos se arreglan en sitios distintos. -->
+  <rule id="111095" level="7">
+    <if_sid>111000</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.9 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El latido y los diagnósticos ===== -->
+
+  <!-- 111097. No acredita ninguna evidencia: las HABILITA. Sin un latido
+       reciente la policy no juzga nada, porque el estado de los registros
+       podría ser de hace días. -->
+  <rule id="111097" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.9 · pasada del recolector del manager: $(resultado)</description>
+  </rule>
+
+  <!-- 111098. Aviso operativo: una fila de un registro que no se puede
+       interpretar, un ajuste local mal escrito. No lleva requisito ni
+       evidencia: es higiene del propio pipeline. -->
+  <rule id="111098" level="4">
+    <if_sid>111000</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.9 · aviso del recolector: $(motivo)</description>
+  </rule>
+
+  <!-- 111099. Una fuente que el recolector necesita no existe o no se puede
+       leer (el directorio de alertas, python3, jq). -->
+  <rule id="111099" level="7">
+    <if_sid>111000</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.9 · falta una fuente del recolector: $(fuente) ($(motivo))</description>
+  </rule>
+
+</group>
