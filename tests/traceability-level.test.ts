@@ -23,6 +23,7 @@ import { resolveControlLevel } from '../dashboard/ens/core/control-level';
 import { ensConfigurationRepository } from '../dashboard/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../dashboard/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure } from '../dashboard/ens/configuration/services/configuration-structure-validator';
+import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
 import type {
   ENSConfigurationVersion,
   ENSLevel,
@@ -77,10 +78,10 @@ const configuracion = (
   } as ENSConfigurationVersion['global'],
 });
 
-const evalua = (global: Record<string, unknown>, nivel: ENSLevel) => {
+const evalua = (global: Record<string, unknown>, nivel: ENSLevel, eventos: ENSNormalizedEvent[] = []) => {
   ensConfigurationRepository.replaceActive(configuracion(global));
 
-  return getENSComplianceResults(nivel, [], undefined, undefined, AHORA);
+  return getENSComplianceResults(nivel, eventos, undefined, undefined, AHORA);
 };
 
 // El resultado entero, sin el instante de cálculo (`evaluatedAt`), que es lo
@@ -164,8 +165,7 @@ for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
 
 // Lo que el cambio de nivel mueve de verdad: lo exigible. Con global ALTO y T
 // BAJO, las evidencias de R5 no aplican; con global BAJO y T ALTO, sí. Se mira
-// la evidencia y no el requisito porque un control en DRAFT deja todos sus
-// requisitos fuera del denominador, sea cual sea el nivel.
+// la evidencia y, si el control está activo, también el requisito.
 const evidencia = (
   resultados: ReturnType<typeof evalua>,
   id: string
@@ -174,9 +174,25 @@ const evidencia = (
     .get('op.exp.8')
     ?.evidences.find(e => e.id === id)?.status;
 
-const altoConTBajo = evalua({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO');
-const bajoConTAlto = evalua({ ensLevel: 'BAJO', traceabilityLevel: 'ALTO' }, 'BAJO');
-const bajoSinT = evalua({ ensLevel: 'BAJO' }, 'BAJO');
+// El latido del recolector del MANAGER: sin él, la policy de op.exp.8 trata la
+// fila como la de un servidor corriente y R5 (que es del plano central) no
+// aplicaría en ningún nivel.
+const LATIDO_MANAGER: ENSNormalizedEvent[] = [
+  {
+    id: 'latido-000',
+    agentId: '000',
+    agentName: 'Wazuh-4',
+    controlId: 'op.exp.8',
+    eventType: 'collector_run',
+    sourceType: 'WAZUH_ALERT',
+    timestamp: '2026-09-26T11:47:00Z',
+    attributes: { resultado: 'completada', tipo_servidor: 'manager', evidencias_cubiertas: '' },
+  },
+];
+
+const altoConTBajo = evalua({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO', LATIDO_MANAGER);
+const bajoConTAlto = evalua({ ensLevel: 'BAJO', traceabilityLevel: 'ALTO' }, 'BAJO', LATIDO_MANAGER);
+const bajoSinT = evalua({ ensLevel: 'BAJO' }, 'BAJO', LATIDO_MANAGER);
 
 comprueba(
   'categoría ALTA con T BAJA · EV-11 (R5) NO_APLICA',
