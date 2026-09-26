@@ -3054,6 +3054,10 @@ bloque('Estado de la migración');
     // demás las mide su policy, que separa el plano del servidor del central
     // (ver `policies/op-exp-8.policy.ts`).
     'op.exp.8/EV-02',
+    // op.exp.10: dos de sus ocho evidencias caben en una primitiva; las demás
+    // las mide su policy (ver `policies/op-exp-10.policy.ts`).
+    'op.exp.10/EV-02',
+    'op.exp.10/EV-08',
   ];
 
   comprueba(

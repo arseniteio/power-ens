@@ -191,6 +191,39 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-06'),
   );
 
+  // Fases del ciclo de vida — acreditación documental  ·  fuente: Configuración ENSFácil (P-07)
+  //
+  // Generación y custodia son en parte verificables (EV-05, EV-01, EV-02,
+  // EV-08); transporte y destrucción no dejan rastro en ninguna máquina y solo
+  // se acreditan con el procedimiento declarado.
+  const procedimiento = parameterValue('P-07');
+  const campo11 = field(
+    'op.exp.10.campo11',
+    'Fases del ciclo de vida — acreditación documental',
+    procedimiento === undefined || procedimiento === null || String(procedimiento).trim() === ''
+      ? 'NO_EVALUABLE'
+      : 'CUMPLE',
+    formatValue(procedimiento),
+    [],
+    [
+      'Generación: verificable en parte (EV-05, sin generación en explotación).',
+      'Transporte al punto de explotación: solo documental (P-07).',
+      'Custodia durante la explotación: verificable (EV-01, EV-02, EV-08).',
+      'Archivo tras la retirada: verificable en parte (EV-06, EV-07).',
+      'Destrucción final: solo documental (P-07).',
+    ],
+  );
+
+  // Conformidad de cifradores con guía CCN-STIC (R2)  ·  fuente: Configuración ENSFácil (P-09)
+  const campo12 = field(
+    'op.exp.10.campo12',
+    'Conformidad de cifradores con guía CCN-STIC (R2)',
+    'NO_APLICA',
+    formatValue(parameterValue('P-09')),
+    [],
+    ['R2 no es exigible en ninguna categoría: se recoge la declaración si existe, sin efecto en el cumplimiento.'],
+  );
+
   // Puntuación de cumplimiento op.exp.10  ·  fuente: Motor ENSFácil
   const campo10 = field(
     'op.exp.10.campo10',
@@ -224,6 +257,8 @@ export const buildOpExp10ReportModel = (
       campo7,
       campo8,
       campo9,
+      campo11,
+      campo12,
       campo10,
     ],
   };

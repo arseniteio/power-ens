@@ -119,6 +119,10 @@ RUNBOOKS = {
         "op.exp.9-incident-management-records",
         ["ensfacil_op_exp_9_json_rules.xml"],
     ),
+    "op.exp.10": (
+        "op.exp.10-cryptographic-key-protection",
+        ["ensfacil_op_exp_10_json_rules.xml"],
+    ),
 }
 
 fallos = []

@@ -1,0 +1,145 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_10_json_rules.xml
+     Este fichero es idéntico, byte a byte, en tres sitios: la fuente canónica
+     del plugin y la carpeta manager/ de los runbooks op.exp.10 de Linux y de
+     LDAP. Si se modifica uno, hay que copiar los otros dos: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_10,">
+
+  <!-- ================================================================
+       op.exp.10 · Protección de claves criptográficas
+       Rango reservado: 111100-111199
+       Base 111100 · hechos crudos 111101-111149 · evidence_state 111150
+       · diagnóstico del recolector 111197-111199
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       dashboard/ens/core/evidence/catalog.ts:
+
+         EV-01 111101 · EV-02 111102 · EV-03 111103 · EV-04 111104
+         EV-05 111105 · EV-06 111102 · EV-07 111107 · EV-08 111102
+
+       EV-02, EV-06 y EV-08 comparten UN hecho, `key_material_found`: la misma
+       clave privada encontrada en disco, contrastada con los almacenes de P-02
+       (EV-02), con las claves retiradas de P-01 (EV-06) y con la protección
+       declarada en P-02 (EV-08). Por eso 111106 y 111108 no existen.
+
+       Fuera del mapa quedan la 111100 (base, nivel 0), la 111150 (la
+       degradación) y las 111197-111199 (el recolector: habilitan, no acreditan).
+
+       Ningún hecho lleva material de clave: solo metadatos (ruta, formato,
+       algoritmo, longitud, huella de la parte pública, modo, propietario,
+       fechas). Ninguna regla lleva `estado` de cumplimiento, y añadir o mover
+       una obliga a tocar los tres ficheros y el catálogo a la vez.
+
+       La regla base se ANCLA (^…$) a propósito. `<field>` es una expresión
+       regular sin anclar: `op.exp.1` casa también con «op.exp.10», y la base de
+       op.exp.1 se quedaría los eventos de este control con sus propios rule
+       IDs. Anclada, la de op.exp.10 no le roba nada a nadie.
+       ================================================================ -->
+
+  <rule id="111100" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">^op.exp.10$</field>
+    <description>op.exp.10 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.exp.10.1 · Custodia de las claves durante la explotación ===== -->
+
+  <!-- EV-01. Un acceso (lectura, escritura o cambio de permisos) a un almacén de
+       claves vigilado por auditd, con su ACTOR: la cuenta de la sesión, o la
+       del proceso si no hay sesión. Agregado por pasada. Se contrasta el actor
+       contra P-08. -->
+  <rule id="111101" level="5">
+    <if_sid>111100</if_sid>
+    <field name="event">key_material_accessed</field>
+    <description>op.exp.10 · EV-01 · $(actor) accedió ($(acceso)) a material criptográfico: $(recurso)</description>
+  </rule>
+
+  <!-- EV-02, EV-06 y EV-08. Una clave privada presente en disco, con su
+       directorio, formato, algoritmo, longitud, huella pública, modo y
+       propietario. Es un hecho, no un hallazgo: si está donde debe, si está
+       retirada o si está desprotegida lo deciden P-02 y P-01. -->
+  <rule id="111102" level="3">
+    <if_sid>111100</if_sid>
+    <field name="event">key_material_found</field>
+    <description>op.exp.10 · EV-02/EV-06/EV-08 · clave privada en $(ruta) ($(algoritmo), modo $(modo))</description>
+  </rule>
+
+  <!-- EV-07. Un certificado X.509 en disco: vigencia, clave pública y firma.
+       La caducidad se mide contra el reloj en el motor; algoritmo y longitud,
+       contra P-03. -->
+  <rule id="111107" level="3">
+    <if_sid>111100</if_sid>
+    <field name="event">certificate_observed</field>
+    <description>op.exp.10 · EV-07 · certificado $(sujeto) en $(ruta), caduca $(caduca)</description>
+  </rule>
+
+  <!-- ===== op.exp.10.2 · Generación aislada de la explotación ===== -->
+
+  <!-- EV-05. Una herramienta de generación de claves (ssh-keygen, openssl
+       genpkey/genrsa/req -newkey…) ejecutada en esta máquina. Solo herramienta,
+       subcomando y tipo de clave: nunca la línea de órdenes. Si esta máquina es
+       de explotación lo dice P-05. -->
+  <rule id="111105" level="5">
+    <if_sid>111100</if_sid>
+    <field name="event">key_generation_tool_executed</field>
+    <description>op.exp.10 · EV-05 · $(actor) generó material criptográfico con $(herramienta) $(operacion)</description>
+  </rule>
+
+  <!-- ===== op.exp.10.r1.1 · Algoritmos y parámetros autorizados ===== -->
+
+  <!-- EV-03. Los algoritmos que un servicio ACEPTA, por uso (cifrado, MAC,
+       intercambio de claves, firma, protocolo, hash), con su familia y
+       longitud. Se contrastan contra P-03. -->
+  <rule id="111103" level="3">
+    <if_sid>111100</if_sid>
+    <field name="event">crypto_config_observed</field>
+    <description>op.exp.10 · EV-03 · $(servicio) $(elemento): $(algoritmos)</description>
+  </rule>
+
+  <!-- EV-04. Lo NEGOCIADO de verdad en las conexiones del periodo, agregado por
+       algoritmo. Se contrasta contra P-03. -->
+  <rule id="111104" level="3">
+    <if_sid>111100</if_sid>
+    <field name="event">crypto_protocol_negotiated</field>
+    <description>op.exp.10 · EV-04 · $(servicio) negoció $(algoritmo) ($(uso)) $(veces) vez/veces</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
+       mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó y no
+       había nada», y las dos se arreglan en sitios distintos. -->
+  <rule id="111150" level="5">
+    <if_sid>111100</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.10 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 111197. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       el silencio de un barrido no puede valer como cumplimiento. -->
+  <rule id="111197" level="3">
+    <if_sid>111100</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.10 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+  <!-- 111198. Aviso operativo: .env ilegible, recolector sin root, candado. -->
+  <rule id="111198" level="5">
+    <if_sid>111100</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.10 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 111199. El recolector ha estado parado más tiempo del que admite su cron:
+       durante ese tramo pudo haber accesos que el log de auditoría ya no
+       conserva. -->
+  <rule id="111199" level="7">
+    <if_sid>111100</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.10 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>

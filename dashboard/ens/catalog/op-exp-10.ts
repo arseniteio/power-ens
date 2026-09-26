@@ -7,9 +7,9 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
   category: 'Explotación',
   dimension: 'Todas',
   description:
-    'Este es el control del bloque de explotación con menor cobertura automática, y conviene plantearlo así desde el principio.',
+    'op.exp.10 regula el ciclo de vida de las claves criptográficas, y buena parte de él ocurre donde un SIEM no llega (generación en un HSM, custodia física, destrucción). ENSFácil mide lo que sí vive en las máquinas: quién accede a las claves en disco, dónde están y cómo están protegidas, si se generan claves en explotación, si siguen presentes claves retiradas, la vigencia de los certificados y los algoritmos que aceptan y negocian los servicios frente a los autorizados por el CCN.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -21,8 +21,11 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
+      // Transporte y destrucción (fases 2 y 5) no dejan rastro en ninguna
+      // máquina: se documentan en P-07. El requisito tiene evidencia técnica
+      // (la custodia), así que una atestación no puede sustituirla.
       evidenceIds: ['EV-01', 'EV-02', 'EV-07', 'EV-08'],
-      parameterIds: ['P-01', 'P-02', 'P-07', 'P-08'],
+      parameterIds: ['P-01', 'P-02', 'P-07', 'P-08', 'P-10'],
     },
     {
       id: 'op.exp.10.2',
@@ -46,7 +49,7 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-06'],
-      parameterIds: ['P-06'],
+      parameterIds: ['P-01', 'P-05', 'P-06'],
     },
     {
       id: 'op.exp.10.r1.1',
@@ -57,7 +60,7 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'R1 es exigible en MEDIO y ALTO (MEDIA y ALTA exigen exactamente lo mismo). En BAJO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-03', 'EV-04', 'EV-07'],
       parameterIds: ['P-03', 'P-04'],
@@ -71,7 +74,7 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: [],
       parameterIds: ['P-09'],
