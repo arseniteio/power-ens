@@ -889,7 +889,15 @@ const ev12 = (context: ENSPolicyContext, ahora: number): Medida => {
   vias.forEach(via => {
     if (via === 'correo') {
       if (correo.length) {
-        medidas.push(cumple(`La pasarela de correo de este equipo ha analizado ${correo.length} mensaje(s) en la ventana.`));
+        // El agente cuenta los mensajes por pasada (`analizados`): un hecho por
+        // mensaje sería ruido en un servidor de correo.
+        const mensajes = correo.reduce((total, e) => {
+          const n = Number(campo(e, 'analizados'));
+
+          return total + (Number.isFinite(n) && n > 0 ? n : 1);
+        }, 0);
+
+        medidas.push(cumple(`La pasarela de correo de este equipo ha analizado ${mensajes} mensaje(s) en la ventana (${correo.length} pasada(s) del recolector).`));
       } else {
         pendientes.push('correo (este equipo no analiza correo, o no en la ventana)');
       }
