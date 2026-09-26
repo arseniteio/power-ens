@@ -14,7 +14,7 @@
       "controlId": "op.exp.6",
       "name": "producto_antimalware",
       "label": "Producto antimalware",
-      "description": "Solución de protección frente a código dañino desplegada, por tipo de equipo, con la ubicación de sus logs o su método de integración. Determina qué decodificador aplica Wazuh para interpretar su actividad.",
+      "description": "Solución de protección frente a código dañino desplegada, por tipo de equipo, con la ubicación de sus logs. Es la declaración de qué producto usa la organización; lo que se espera en CADA equipo, y contra lo que se juzga, es P-02. El nombre del producto se escribe como lo emite el agente (clamav, mdatp, falcon-sensor, sophos-spl, eset, sentinelone, trendmicro-ds).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -25,27 +25,47 @@
         "op.exp.6.2"
       ],
       "type": "table",
-      "example": "puestos | Defender | / EventLog Windows Defender / servidores | ClamAV | /var/log",
-      "required": true,
-      "wazuhUsage": "Es el parámetro que habilita todo el control. Wazuh ingiere y decodifica los eventos del producto declarado para verificar instalación, estado, firmas y detecciones. Cada fabricante requiere su propio decodificador.",
-      "ensfacilUsage": "Es el parámetro que habilita todo el control. Wazuh ingiere y decodifica los eventos del producto declarado para verificar instalación, estado, firmas y detecciones. Cada fabricante requiere su propio decodificador.",
+      "example": "servidor | clamav | /var/log/clamav/clamav.log",
+      "required": false,
+      "wazuhUsage": "Declara el producto y dónde registra su actividad. El agente de op.exp.6 lee los logs de ClamAV; de otros productos detecta si están instalados y en ejecución.",
+      "ensfacilUsage": "Documental: no se juzga por sí mismo. Lo que decide op.exp.6.2 es la fila de cada equipo en P-02.",
       "evidenceIds": [
-        "EV-01",
-        "EV-04",
-        "EV-10",
-        "EV-11"
+        "EV-01"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-PRODUCTO-ANTIMALWARE"
-      ],
-      "ifNotConfigured": "Todo el control queda NO EVALUABLE. Wazuh no puede verificar un antimalware cuya existencia y logs desconoce."
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto: la cobertura se juzga contra P-02. Queda sin declarar qué producto ha elegido la organización.",
+      "columns": [
+        {
+          "name": "tipo_equipo",
+          "label": "Tipo de equipo",
+          "type": "select",
+          "options": [
+            "puesto",
+            "servidor",
+            "perimetral"
+          ],
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "log",
+          "label": "Log o integración",
+          "type": "string",
+          "required": false
+        }
+      ]
     },
     {
       "id": "P-02",
       "controlId": "op.exp.6",
       "name": "cobertura_esperada_antimalware",
-      "label": "Cobertura esperada antimalware",
-      "description": "Relación de equipos que deben tener antimalware instalado, incluidos servidores y elementos perimetrales. op.exp.6.2 es taxativo: «en todos los equipos: puestos de usuario, servidores y elementos perimetrales».",
+      "label": "Cobertura esperada de antimalware",
+      "description": "Una fila por equipo y plano con el antimalware que tiene que estar EN EJECUCIÓN. El plano «sistema» es el antimalware de la máquina; el plano «correo» es el del servicio de correo que la máquina presta (amavis y clamd de Zimbra, por ejemplo), y solo existe en los servidores que lo prestan. El equipo es el nombre corto del host (o el que fije OPEXP6_EQUIPO en su .env). op.exp.6.2 es taxativo: todos los equipos, sin excepción por tipo, así que un equipo sin fila no se da por bueno: queda sin juzgar.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -54,25 +74,58 @@
       "requirements": [
         "op.exp.6.2"
       ],
-      "type": "list",
-      "example": "equipo | tipo | producto esperado / + excepciones justificadas",
+      "type": "table",
+      "example": "wazuh-real | sistema | servidor | clamav",
       "required": true,
-      "wazuhUsage": "ENSFácil contrasta esta lista contra la presencia real del producto detectada por Syscollector y por los eventos del propio antimalware. Equipo sin protección → hallazgo. Los elementos perimetrales suelen ser el hueco.",
-      "ensfacilUsage": "ENSFácil contrasta esta lista contra la presencia real del producto detectada por Syscollector y por los eventos del propio antimalware. Equipo sin protección → hallazgo. Los elementos perimetrales suelen ser el hueco.",
+      "wazuhUsage": "Equipo y plano cuyo antimalware en ejecución no es el declarado (o no hay ninguno) → incumplimiento de op.exp.6.2.",
+      "ensfacilUsage": "EV-01 busca la fila por equipo y plano y compara la columna «producto_esperado» con el producto que el agente ve EN EJECUCIÓN: instalado y parado no protege, y cuenta como «ninguno».",
       "evidenceIds": [
         "EV-01"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-COBERTURA-ESPERADA-ANTIMALWARE"
-      ],
-      "ifNotConfigured": "No se puede verificar la cobertura completa. op.exp.6.2 solo acreditable parcialmente."
+      "ruleIds": [],
+      "ifNotConfigured": "op.exp.6.2 no se puede demostrar: se ve qué antimalware corre en cada equipo, pero no contra qué cobertura juzgarlo.",
+      "columns": [
+        {
+          "name": "equipo",
+          "label": "Equipo",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "plano",
+          "label": "Plano",
+          "type": "select",
+          "options": [
+            "sistema",
+            "correo"
+          ],
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo de equipo",
+          "type": "select",
+          "options": [
+            "puesto",
+            "servidor",
+            "perimetral"
+          ],
+          "required": false
+        },
+        {
+          "name": "producto_esperado",
+          "label": "Producto en ejecución",
+          "type": "identifier",
+          "required": true
+        }
+      ]
     },
     {
       "id": "P-03",
       "controlId": "op.exp.6",
       "name": "max_antiguedad_firmas_horas",
-      "label": "Max antiguedad firmas horas",
-      "description": "Antigüedad máxima admitida de las bases de datos de detección. op.exp.6.4 exige que permanezcan «permanentemente actualizadas», lo que en la práctica se traduce en un umbral que fija la organización.",
+      "label": "Antigüedad máxima de las firmas (horas)",
+      "description": "Antigüedad máxima admitida de las bases de datos de detección, contada desde que el fabricante las publicó. op.exp.6.4 exige que permanezcan «permanentemente actualizadas»; ClamAV publica firmas a diario, así que 24 o 48 horas es lo habitual.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -82,24 +135,23 @@
         "op.exp.6.4"
       ],
       "type": "duration_hours",
-      "example": "24, 48 o 72",
+      "example": "48",
+      "minValue": 1,
       "required": true,
-      "wazuhUsage": "ENSFácil extrae de los eventos del antimalware la fecha de la última actualización de firmas por equipo y alerta cuando supera P-03. Es una de las comprobaciones más productivas y de hallazgo más frecuente.",
-      "ensfacilUsage": "ENSFácil extrae de los eventos del antimalware la fecha de la última actualización de firmas por equipo y alerta cuando supera P-03. Es una de las comprobaciones más productivas y de hallazgo más frecuente.",
+      "wazuhUsage": "Firmas publicadas hace más de P-03 horas en algún plano con antimalware → incumplimiento de op.exp.6.4.",
+      "ensfacilUsage": "EV-02 mide contra el reloj la antigüedad de las firmas de CADA plano con antimalware en ejecución; manda el plano que peor está.",
       "evidenceIds": [
         "EV-02"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-MAX-ANTIGUEDAD-FIRMAS-HORAS"
-      ],
-      "ifNotConfigured": "op.exp.6.4 NO EVALUABLE. Equipos con firmas obsoletas pasan desapercibidos."
+      "ruleIds": [],
+      "ifNotConfigured": "op.exp.6.4 no se puede demostrar: se ven las firmas, pero no qué antigüedad se tolera."
     },
     {
       "id": "P-04",
       "controlId": "op.exp.6",
       "name": "config_proteccion_tiempo_real",
-      "label": "Config proteccion tiempo real",
-      "description": "Valores de configuración que deben estar activos en el antimalware según las recomendaciones del fabricante: protección en tiempo real, análisis de correo, análisis de descargas, protección contra manipulación. op.exp.6.5 los exige en puestos de usuario.",
+      "label": "Ajustes esperados del antimalware",
+      "description": "Una fila por plano y ajuste con el valor que tiene que tener. Ajustes que observa el agente: proteccion_tiempo_real (ClamAV: clamonacc en marcha; en el plano correo, amavis y clamd analizando el correo al recibirlo), actualizacion_automatica_firmas (freshclam en marcha), analisis_comprimidos (ScanArchive de clamd) y bloqueo_en_acceso (OnAccessPrevention de clamd). Los ajustes de Windows Defender de la ficha (TamperProtection…) no existen en ClamAV: se declaran solo si hay equipos con ese producto.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -109,25 +161,51 @@
         "op.exp.6.5",
         "op.exp.6.r5.2"
       ],
-      "type": "list",
-      "example": "RealTimeProtection=on / TamperProtection=on / ScanEmail=on",
+      "type": "table",
+      "example": "sistema | proteccion_tiempo_real | si",
       "required": true,
-      "wazuhUsage": "SCA verifica estos ajustes en cada equipo. Protección en tiempo real desactivada es un hallazgo crítico: el antimalware está instalado pero no protege. Extender a servidores cubre además R5 aunque no sea exigible.",
-      "ensfacilUsage": "SCA verifica estos ajustes en cada equipo. Protección en tiempo real desactivada es un hallazgo crítico: el antimalware está instalado pero no protege. Extender a servidores cubre además R5 aunque no sea exigible.",
+      "wazuhUsage": "Ajuste observado distinto del declarado (por ejemplo, protección en tiempo real desactivada) → incumplimiento de op.exp.6.5.",
+      "ensfacilUsage": "EV-03 busca la fila por plano y ajuste y compara «valor_esperado» con el valor observado. Un ajuste observado sin fila queda sin juzgar.",
       "evidenceIds": [
         "EV-03"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-CONFIG-PROTECCION-TIEMPO-REAL"
-      ],
-      "ifNotConfigured": "No se puede verificar la configuración adecuada ni la protección en tiempo real. op.exp.6.5 sin acreditar."
+      "ruleIds": [],
+      "ifNotConfigured": "op.exp.6.5 no se puede demostrar: se ven los ajustes, pero no cuáles se exigen.",
+      "columns": [
+        {
+          "name": "plano",
+          "label": "Plano",
+          "type": "select",
+          "options": [
+            "sistema",
+            "correo"
+          ],
+          "required": true
+        },
+        {
+          "name": "ajuste",
+          "label": "Ajuste",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "valor_esperado",
+          "label": "Valor esperado",
+          "type": "select",
+          "options": [
+            "si",
+            "no"
+          ],
+          "required": true
+        }
+      ]
     },
     {
       "id": "P-05",
       "controlId": "op.exp.6",
       "name": "puntos_entrada_ficheros_externos",
-      "label": "Puntos entrada ficheros externos",
-      "description": "Vías por las que entran ficheros de fuentes externas y que deben someterlos a análisis antes de trabajar con ellos: correo electrónico, descargas web, dispositivos extraíbles, transferencias SFTP, carpetas compartidas con terceros.",
+      "label": "Vías de entrada de ficheros externos",
+      "description": "Vías por las que entran ficheros de fuentes externas y que deben analizarlos antes de trabajar con ellos, con el mecanismo que lo hace. El agente acredita la vía «correo» en un servidor que lo analiza (amavis) y la vía «dispositivos_extraibles» con las conexiones que registra el kernel; las demás vías se analizan en la pasarela o el proxy que las atiende, fuera de la máquina.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -137,25 +215,44 @@
         "op.exp.6.3"
       ],
       "type": "table",
-      "example": "correo | pasarela antispam / USB | análisis al montar / descargas | proxy con AV",
-      "required": true,
-      "wazuhUsage": "ENSFácil verifica que cada vía declarada cuenta con análisis efectivo, contrastando con los logs de la pasarela de correo, del proxy y con eventos de montaje de dispositivos extraíbles seguidos de análisis.",
-      "ensfacilUsage": "ENSFácil verifica que cada vía declarada cuenta con análisis efectivo, contrastando con los logs de la pasarela de correo, del proxy y con eventos de montaje de dispositivos extraíbles seguidos de análisis.",
+      "example": "correo | amavis + clamd de Zimbra",
+      "required": false,
+      "wazuhUsage": "Vía declarada sin análisis observable en la máquina → op.exp.6.3 no demostrado.",
+      "ensfacilUsage": "EV-12 comprueba cada vía declarada con lo que la máquina observa: análisis del correo, dispositivos extraíbles contra P-10.",
       "evidenceIds": [
         "EV-08",
         "EV-12"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-PUNTOS-ENTRADA-FICHEROS-EXTERNOS"
-      ],
-      "ifNotConfigured": "op.exp.6.3 NO EVALUABLE. No se puede acreditar que los ficheros externos se analizan antes de su uso."
+      "ruleIds": [],
+      "ifNotConfigured": "op.exp.6.3 no se puede demostrar: no se sabe por qué vías entran ficheros externos.",
+      "columns": [
+        {
+          "name": "via",
+          "label": "Vía",
+          "type": "select",
+          "options": [
+            "correo",
+            "dispositivos_extraibles",
+            "descargas_web",
+            "transferencias",
+            "carpetas_compartidas"
+          ],
+          "required": true
+        },
+        {
+          "name": "mecanismo_analisis",
+          "label": "Mecanismo de análisis",
+          "type": "string",
+          "required": false
+        }
+      ]
     },
     {
       "id": "P-06",
       "controlId": "op.exp.6",
       "name": "periodicidad_escaneo_completo_dias",
-      "label": "Periodicidad escaneo completo dias",
-      "description": "Cada cuántos días debe ejecutarse un escaneo completo del sistema. R1 exige escaneo «regularmente» sin fijar periodicidad: la determina la organización. Obligatorio desde categoría MEDIA.",
+      "label": "Periodicidad del escaneo completo (días)",
+      "description": "Cada cuántos días debe completarse un escaneo de todo el sistema. R1 exige escaneo «regularmente» sin fijar periodicidad: la determina la organización. Se mide desde el FIN del último escaneo completo registrado.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -164,24 +261,23 @@
         "op.exp.6.r1.1"
       ],
       "type": "duration_days",
-      "example": "7 (semanal) / o 30 (mensual)",
-      "required": true,
-      "wazuhUsage": "ENSFácil registra la fecha del último escaneo completo por equipo a partir de los eventos del antimalware y alerta cuando se supera P-06. Distinguir escaneo completo de escaneo rápido en la decodificación.",
-      "ensfacilUsage": "ENSFácil registra la fecha del último escaneo completo por equipo a partir de los eventos del antimalware y alerta cuando se supera P-06. Distinguir escaneo completo de escaneo rápido en la decodificación.",
+      "example": "7",
+      "minValue": 1,
+      "required": false,
+      "wazuhUsage": "Último escaneo completo más viejo que P-06 días, o ninguno registrado → incumplimiento de R1.",
+      "ensfacilUsage": "EV-05 mide contra el reloj el instante de fin del escaneo completo más reciente.",
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-PERIODICIDAD-ESCANEO-COMPLETO-DIAS"
-      ],
-      "ifNotConfigured": "R1 NO EVALUABLE. No se puede acreditar la regularidad del escaneo exigida desde categoría MEDIA."
+      "ruleIds": [],
+      "ifNotConfigured": "R1 no se puede demostrar: se ven los escaneos, pero no qué periodicidad se exige."
     },
     {
       "id": "P-07",
       "controlId": "op.exp.6",
       "name": "funciones_criticas_arranque",
-      "label": "Funciones criticas arranque",
-      "description": "Funciones, ficheros y componentes críticos que deben analizarse al arrancar el sistema en prevención de modificaciones no autorizadas, como exige R2. Típicamente: binarios del sistema, cargador de arranque, módulos del kernel, servicios de seguridad.",
+      "label": "Funciones críticas analizadas al arranque",
+      "description": "Rutas críticas que el agente tiene que analizar al arrancar (FIM con scan_on_start): binarios del sistema, cargador de arranque, módulos del kernel (/lib/modules), servicios de seguridad. Una fila por equipo y ruta; «*» en la columna equipo aplica la ruta a todos. Una ruta está cubierta si el agente vigila esa ruta o un directorio que la contiene.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -189,25 +285,37 @@
       "requirements": [
         "op.exp.6.r2.1"
       ],
-      "type": "path",
-      "example": "/boot, /sbin/init, / módulos kernel, / C:\\Windows\\System32\\drivers",
-      "required": true,
-      "wazuhUsage": "FIM de Wazuh con verificación de hash al arranque del agente cubre esta exigencia de forma natural. Cualquier modificación no autorizada en estas rutas genera alerta. Complementar con rootcheck.",
-      "ensfacilUsage": "FIM de Wazuh con verificación de hash al arranque del agente cubre esta exigencia de forma natural. Cualquier modificación no autorizada en estas rutas genera alerta. Complementar con rootcheck.",
+      "type": "table",
+      "example": "* | /boot",
+      "required": false,
+      "wazuhUsage": "Ruta crítica que el agente no analizó en su último arranque, o análisis del arranque sin terminar → incumplimiento de R2.",
+      "ensfacilUsage": "EV-06 contrasta las rutas de este equipo (las suyas y las de «*») con las que el agente vigilaba en su último arranque, y exige que el análisis de arranque terminara.",
       "evidenceIds": [
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-FUNCIONES-CRITICAS-ARRANQUE"
-      ],
-      "ifNotConfigured": "R2 NO EVALUABLE. Las modificaciones no autorizadas en funciones críticas no se detectan al arranque."
+      "ruleIds": [],
+      "ifNotConfigured": "R2 no se puede demostrar: se ve qué analizó el agente al arrancar, pero no qué es crítico.",
+      "columns": [
+        {
+          "name": "equipo",
+          "label": "Equipo («*» = todos)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "path",
+          "required": true
+        }
+      ]
     },
     {
       "id": "P-08",
       "controlId": "op.exp.6",
       "name": "lista_blanca_aplicaciones",
-      "label": "Lista blanca aplicaciones",
-      "description": "Relación de aplicaciones cuya ejecución está autorizada. R3 exige implementar lista blanca para impedir la ejecución de aplicaciones no autorizadas. Obligatorio en categoría ALTA.",
+      "label": "Lista blanca de aplicaciones",
+      "description": "Aplicaciones cuya ejecución está autorizada. La ruta es lo que se contrasta con las ejecuciones que registra el mecanismo de lista blanca (fapolicyd en Linux); el hash SHA-256 documenta la versión aprobada. Wazuh no aplica la lista: la verifica.",
       "levels": [
         "ALTO"
       ],
@@ -215,52 +323,104 @@
         "op.exp.6.r3.1"
       ],
       "type": "table",
-      "example": "chrome.exe | SHA256… | / puestos",
+      "example": "python3 | /usr/bin/python3.12 | - | servidores",
       "required": false,
-      "wazuhUsage": "Wazuh no es la herramienta de aplicación de lista blanca (eso corresponde a AppLocker, WDAC o equivalente), pero sí la VERIFICA: detecta ejecuciones de binarios fuera de P-08 y comprueba que el mecanismo de bloqueo está activo y en modo aplicación, no solo en auditoría.",
-      "ensfacilUsage": "Wazuh no es la herramienta de aplicación de lista blanca (eso corresponde a AppLocker, WDAC o equivalente), pero sí la VERIFICA: detecta ejecuciones de binarios fuera de P-08 y comprueba que el mecanismo de bloqueo está activo y en modo aplicación, no solo en auditoría.",
+      "wazuhUsage": "Sin mecanismo de lista blanca en modo aplicación, o ejecución no bloqueada de una ruta que no figura aquí → incumplimiento de R3.",
+      "ensfacilUsage": "EV-07 exige el mecanismo activo y en modo aplicación, y contrasta la ruta de cada ejecución que el mecanismo dejó pasar con la columna «ruta».",
       "evidenceIds": [
         "EV-07"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-LISTA-BLANCA-APLICACIONES"
-      ],
-      "ifNotConfigured": "R3 NO EVALUABLE. No se puede verificar ni la existencia ni la efectividad de la lista blanca."
+      "ruleIds": [],
+      "ifNotConfigured": "La parte de R3 que contrasta ejecuciones no se puede demostrar; la ausencia del mecanismo se juzga igual.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "sha256",
+          "label": "SHA-256",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil de equipo",
+          "type": "string",
+          "required": false
+        }
+      ]
     },
     {
       "id": "P-09",
       "controlId": "op.exp.6",
       "name": "integracion_edr",
-      "label": "Integracion edr",
-      "description": "Capacidades EDR desplegadas y su configuración: integración con VirusTotal, reglas YARA, Active Response, y alcance en puestos y servidores. R4 es obligatorio en categoría ALTA y Wazuh lo cubre de forma nativa.",
+      "label": "Capacidades EDR desplegadas",
+      "description": "Una fila por capacidad EDR con si la organización la tiene desplegada y su alcance: virustotal (reputación de ficheros de FIM), yara (reglas de contenido), rootcheck (actividad sospechosa: rootkits, procesos y puertos ocultos) y active_response (contención automática). R4 pide detectar, investigar y resolver: las cuatro cuentan.",
       "levels": [
         "ALTO"
       ],
       "requirements": [
         "op.exp.6.r4.1"
       ],
-      "type": "select",
-      "example": "VirusTotal sí (FIM), / YARA sí, Active Response / solo aislamiento",
+      "type": "table",
+      "example": "active_response | si | firewall-drop en servidores",
       "required": false,
-      "wazuhUsage": "Determina qué módulos activa ENSFácil: integración VirusTotal sobre eventos FIM, escaneo YARA sobre ficheros nuevos, Active Response para contención. Es el refuerzo que Wazuh cubre con más ventaja competitiva.",
-      "ensfacilUsage": "Determina qué módulos activa ENSFácil: integración VirusTotal sobre eventos FIM, escaneo YARA sobre ficheros nuevos, Active Response para contención. Es el refuerzo que Wazuh cubre con más ventaja competitiva.",
+      "wazuhUsage": "Capacidad declarada como no activada, o declarada y no desplegada en el equipo → incumplimiento de R4.",
+      "ensfacilUsage": "EV-08 a EV-11 contrastan la fila de su capacidad con lo que el agente observa: respuesta activa y YARA configuradas por el manager y presentes en la máquina, rootcheck ejecutándose con sus bases.",
       "evidenceIds": [
         "EV-08",
         "EV-09",
         "EV-10",
         "EV-11"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-INTEGRACION-EDR"
-      ],
-      "ifNotConfigured": "R4 NO EVALUABLE y es obligatorio en categoría ALTA. Se pierde la mayor aportación de Wazuh a este control."
+      "ruleIds": [],
+      "ifNotConfigured": "R4 no se puede demostrar: se ve la capa EDR de cada equipo, pero no qué ha decidido desplegar la organización.",
+      "columns": [
+        {
+          "name": "capacidad",
+          "label": "Capacidad",
+          "type": "select",
+          "options": [
+            "virustotal",
+            "yara",
+            "rootcheck",
+            "active_response"
+          ],
+          "required": true
+        },
+        {
+          "name": "activada",
+          "label": "Activada",
+          "type": "select",
+          "options": [
+            "si",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ]
     },
     {
       "id": "P-10",
       "controlId": "op.exp.6",
       "name": "politica_dispositivos_extraibles",
-      "label": "Politica dispositivos extraibles",
-      "description": "Tratamiento de los dispositivos extraíbles: si están permitidos, y si lo están, exigencia de análisis al conectarlos. Corresponde a op.exp.6.3 y también a R5 (no obligatorio) en su exigencia de revisión al conectar dispositivo extraíble.",
+      "label": "Política de dispositivos extraíbles",
+      "description": "Tratamiento de los dispositivos de almacenamiento extraíbles: bloqueados, permitidos con análisis obligatorio al conectarlos, o permitidos solo en lectura.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -271,25 +431,27 @@
         "op.exp.6.r5.1"
       ],
       "type": "select",
-      "example": "bloqueados / permitidos con / análisis obligatorio / / permitidos solo lectura",
-      "required": true,
-      "wazuhUsage": "Wazuh detecta eventos de conexión de dispositivos extraíbles (EventID 6416 en Windows, udev en Linux) y verifica que va seguido de análisis, o que el bloqueo está efectivamente aplicado.",
-      "ensfacilUsage": "Wazuh detecta eventos de conexión de dispositivos extraíbles (EventID 6416 en Windows, udev en Linux) y verifica que va seguido de análisis, o que el bloqueo está efectivamente aplicado.",
+      "options": [
+        "bloqueados",
+        "permitidos_con_analisis",
+        "permitidos_solo_lectura"
+      ],
+      "example": "bloqueados",
+      "required": false,
+      "wazuhUsage": "Dispositivo extraíble conectado en un equipo donde están bloqueados, o conectado sin antimalware que lo analice → incumplimiento de op.exp.6.3.",
+      "ensfacilUsage": "EV-12 contrasta cada conexión de un disco extraíble que registra el kernel con esta política.",
       "evidenceIds": [
-        "EV-08",
         "EV-12"
       ],
-      "ruleIds": [
-        "ENS-OPEXP6-POLITICA-DISPOSITIVOS-EXTRAIBLES"
-      ],
-      "ifNotConfigured": "No se puede verificar el tratamiento de dispositivos extraíbles, que es una vía habitual de entrada de malware."
+      "ruleIds": [],
+      "ifNotConfigured": "No se puede juzgar una conexión de un dispositivo extraíble: no hay política contra la que contrastarla."
     },
     {
       "id": "P-ATT",
       "controlId": "op.exp.6",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar los requisitos que ninguna medida técnica del equipo puede demostrar.",
+      "description": "Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. En op.exp.6 todos los requisitos tienen evidencia técnica, así que hoy no se aplica a ninguno: queda disponible por coherencia con el resto de controles. El mantenimiento del antimalware «de acuerdo a las recomendaciones del fabricante» de op.exp.6.1 se demuestra con sus firmas y su ejecución, no con un documento.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -299,13 +461,43 @@
       "type": "table",
       "example": "op.exp.6.3 | Procedimiento de análisis de ficheros externos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "required": false,
-      "wazuhUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
-      "ensfacilUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
+      "wazuhUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado.",
+      "ensfacilUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
       "evidenceIds": [],
-      "ruleIds": [
-        "ENS-OPEXP6-ATESTACIONES-DOCUMENTALES"
-      ],
-      "ifNotConfigured": "Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple."
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en este control: ningún requisito de op.exp.6 es puramente documental.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ]
     }
   ]
 }
