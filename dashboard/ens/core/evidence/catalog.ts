@@ -2619,197 +2619,252 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: existencia de punto de reversión previo al cambio (r1)?',
   },
+  // --- op.exp.6 · Protección frente a código dañino ------------------------
+  //
+  // Dos evidencias las juzga una primitiva (EV-01 y EV-03): un hecho de estado
+  // contra la fila de su tabla. Las demás las mide la policy del control
+  // (`policies/op-exp-6.policy.ts`), porque su juicio no cabe en ninguna de las
+  // siete: EV-02 exige firmas frescas en CADA plano con antimalware (la
+  // primitiva de plazo es existencial y un plano al día taparía al otro);
+  // EV-02, EV-04 y EV-05 leen además EV-01, porque sin antimalware no hay
+  // firmas, ni detecciones, ni escaneos, y eso es un incumplimiento medido, no
+  // un hueco; EV-06 comprueba que cada ruta de P-07 esté cubierta; EV-07
+  // combina el estado del mecanismo con las ejecuciones que dejó pasar; EV-08 a
+  // EV-11 contrastan cada capacidad EDR con su fila de P-09; EV-12 cruza las
+  // vías de P-05 y la política de P-10. Sin `judgment`, la policy las resuelve
+  // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
+  //
+  // Reglas: todas de la banda 110700-110799, desplegadas por el runbook
+  // `op.exp.6-malware-protection` (y su copia LDAP). Ninguna regla nativa de
+  // Wazuh (syscheck, rootcheck, VirusTotal, YARA): el motor solo lee alertas
+  // ENSFácil, así que lo que se acredita es el hecho que el recolector emite.
   {
     id: 'EV-01',
     controlId: 'op.exp.6',
     title: 'Presencia y estado del antimalware en todos los equipos',
     description:
-      'Verificación de que el producto declarado en P-01 está instalado y en ejecución en cada equipo de P-02, incluidos servidores y elementos perimetrales. op.exp.6.2 es taxativo en la exigencia de cobertura total, y los elementos perimetrales son el hueco más frecuente.',
+      'Antimalware de cada plano de la máquina (el sistema; en un servidor que presta correo, además, el del servicio de correo): qué producto está instalado y si su servicio está en ejecución. Se contrasta el producto EN EJECUCIÓN con la fila del equipo y el plano en P-02: instalado y parado no protege. op.exp.6.2 es taxativo en la exigencia de cobertura total.',
     requirements: ['op.exp.6.1', 'op.exp.6.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'antimalware_installed'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'antimalware_status'],
+    stateFactEventTypes: ['antimalware_status'],
+    relatedRules: ['110701'],
+    judgment: {
+      // Los hechos ACREDITAN lo que corre en cada plano: sin ninguno no se ha
+      // mirado, así que la primitiva es de tabla y nunca cumple por ausencia.
+      // Una máquina sin antimalware SÍ emite hecho (`producto_activo=ninguno`):
+      // la ausencia del producto es una observación, no un dato que falte.
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-02',
+      factEventTypes: ['antimalware_status'],
+      factField: 'equipo',
+      factKeyFields: ['equipo', 'plano'],
+      tableKeyColumns: ['equipo', 'plano'],
+      tableChecks: [
+        { column: 'producto_esperado', factField: 'producto_activo' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: presencia y estado del antimalware en todos los equipos?',
+      '¿Corre en cada equipo y plano el antimalware que declara la cobertura esperada?',
   },
   {
     id: 'EV-02',
     controlId: 'op.exp.6',
     title: 'Antigüedad de las bases de datos de detección',
     description:
-      'Fecha de la última actualización de firmas en cada equipo, contrastada con el umbral P-03. op.exp.6.4 exige que permanezcan «permanentemente actualizadas», y esta es la comprobación que más hallazgos produce en la práctica.',
+      'Instante en que el fabricante publicó las firmas del antimalware de cada plano (cabecera de la base diaria de ClamAV), medido contra el reloj y el umbral de P-03. Un plano con antimalware en ejecución y sin bases, o una máquina sin antimalware, no tiene bases que mantener al día: es un incumplimiento medido de op.exp.6.4.',
     requirements: ['op.exp.6.4'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'antimalware_signatures_updated'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'antimalware_signatures_updated', 'antimalware_status'],
+    stateFactEventTypes: ['antimalware_signatures_updated'],
+    relatedRules: ['110702', '110701'],
     auditQuestion:
-      '¿Se acredita: antigüedad de las bases de datos de detección?',
+      '¿Son las firmas de cada antimalware en ejecución más recientes que el umbral declarado?',
   },
   {
     id: 'EV-03',
     controlId: 'op.exp.6',
     title: 'Configuración adecuada y protección en tiempo real',
     description:
-      'Verificación de que los ajustes de P-04 están activos en cada equipo: protección en tiempo real, protección contra manipulación, análisis de correo y descargas. Un antimalware con tiempo real desactivado está instalado pero no protege.',
+      'Ajustes observados del antimalware de cada plano —protección en tiempo real, actualización automática de firmas, análisis de comprimidos, bloqueo en el acceso—, contrastados con la fila de su plano y ajuste en P-04. Una máquina sin antimalware no tiene protección en tiempo real: se observa y se emite así.',
     requirements: ['op.exp.6.5', 'op.exp.6.r5.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'antimalware_setting'],
-    relatedRules: [],
+    stateFactEventTypes: ['antimalware_setting'],
+    relatedRules: ['110703'],
+    judgment: {
+      primitive: 'CONFORME_A_TABLA',
+      parameterId: 'P-04',
+      factEventTypes: ['antimalware_setting'],
+      factField: 'ajuste',
+      factKeyFields: ['plano', 'ajuste'],
+      tableKeyColumns: ['plano', 'ajuste'],
+      tableChecks: [
+        { column: 'valor_esperado', factField: 'valor' },
+      ],
+    },
     auditQuestion:
-      '¿Se acredita: configuración adecuada y protección en tiempo real?',
+      '¿Tiene el antimalware de cada plano activos los ajustes que exige la organización, empezando por la protección en tiempo real?',
   },
   {
     id: 'EV-04',
     controlId: 'op.exp.6',
     title: 'Detecciones de código dañino y su resolución',
     description:
-      'Registro de todas las detecciones del antimalware con el equipo afectado, el fichero o proceso, la amenaza identificada y la acción aplicada (limpiado, bloqueado, en cuarentena, fallido). Las detecciones con acción fallida son las que exigen intervención inmediata.',
+      'Cada detección que anota el antimalware, con el fichero, la amenaza y la acción que se tomó (cuarentena, eliminado, bloqueado, sin acción o fallida). Una detección sin remediar o que se repite sobre el mismo fichero indica una infección no resuelta. Sin antimalware no hay mecanismo de detección ni de reacción.',
     requirements: ['op.exp.6.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'malware_detected'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'malware_detected', 'antimalware_status'],
+    relatedRules: ['110704', '110701'],
     auditQuestion:
-      '¿Se acredita: detecciones de código dañino y su resolución?',
+      '¿Se resuelven todas las detecciones de código dañino, sin infecciones que persistan?',
   },
   {
     id: 'EV-05',
     controlId: 'op.exp.6',
     title: 'Ejecución del escaneo periódico completo (R1)',
     description:
-      'Fecha del último escaneo completo por equipo, contrastada con la periodicidad P-06. R1 exige escaneo regular de todo el sistema y es obligatorio desde categoría MEDIA.',
+      'Instante de fin del escaneo completo del sistema más reciente registrado por el antimalware, medido contra el reloj y la periodicidad de P-06. Un equipo que nunca ha completado un escaneo, o que no tiene antimalware, no lo cumple.',
     requirements: ['op.exp.6.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'full_scan_completed'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'full_scan_completed', 'antimalware_status'],
+    relatedRules: ['110705', '110701'],
     auditQuestion:
-      '¿Se acredita: ejecución del escaneo periódico completo (r1)?',
+      '¿Se ha completado un escaneo de todo el sistema dentro de la periodicidad declarada?',
   },
   {
     id: 'EV-06',
     controlId: 'op.exp.6',
     title: 'Integridad de funciones críticas al arranque (R2)',
     description:
-      'Verificación de que los componentes críticos declarados en P-07 no han sido modificados sin autorización, comprobada al arrancar el sistema. Cubre R2, obligatorio desde categoría MEDIA.',
+      'Lo que el agente de Wazuh analizó en su último arranque, leído de su propio log: las rutas que vigila su FIM, si lanzó el análisis nada más arrancar (scan_on_start) y si lo terminó, y la pasada de rootcheck. Cada ruta crítica de P-07 tiene que estar cubierta por una ruta vigilada. Las modificaciones que ese análisis encuentre las alerta el manager; lo que se acredita aquí es que el análisis al arranque existe y cubre lo crítico.',
     requirements: ['op.exp.6.r2.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'boot_integrity_check'],
-    relatedRules: [],
+    relatedRules: ['110706'],
     auditQuestion:
-      '¿Se acredita: integridad de funciones críticas al arranque (r2)?',
+      '¿Analizó el agente al arrancar todas las rutas críticas declaradas, y terminó el análisis?',
   },
   {
     id: 'EV-07',
     controlId: 'op.exp.6',
     title: 'Efectividad de la lista blanca de aplicaciones (R3)',
     description:
-      'Comprobación de que el mecanismo de lista blanca está activo y en modo aplicación —no solo auditoría—, y detección de ejecuciones de binarios no incluidos en P-08. R3 es obligatorio en categoría ALTA.',
+      'Dos hechos que se juzgan juntos: el estado del mecanismo de lista blanca de ejecución (fapolicyd en Linux; el confinamiento de AppArmor no es una lista blanca) y las ejecuciones que el mecanismo registró con la decisión que tomó. Incumple sin mecanismo, con el mecanismo parado o en modo auditoría, y con una ejecución no bloqueada de una ruta que no figura en P-08.',
     requirements: ['op.exp.6.r3.1'],
     levels: ['ALTO'],
     category: 'CONFIGURATION',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'execution_control_status', 'execution_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['execution_control_status'],
+    relatedRules: ['110707', '110708'],
     auditQuestion:
-      '¿Se acredita: efectividad de la lista blanca de aplicaciones (r3)?',
+      '¿Impide un mecanismo en modo aplicación la ejecución de lo que no está en la lista blanca?',
   },
   {
+    // Sin hecho en la máquina: la consulta a VirusTotal la hace el manager
+    // (integratord) y su resultado no vuelve al agente. El recolector lo dice
+    // con un evidence_state NO_EVALUABLE; la policy juzga solo la fila de P-09.
     id: 'EV-08',
     controlId: 'op.exp.6',
     title: 'Análisis reputacional de ficheros nuevos y modificados (R4)',
     description:
-      'Consulta automática a VirusTotal del hash de cada fichero nuevo o modificado en rutas monitorizadas, aportando una segunda opinión independiente del antimalware local. Es una capacidad EDR que cubre R4.',
+      'Consulta automática a VirusTotal del hash de cada fichero nuevo o modificado en rutas monitorizadas. La hace el manager sobre las alertas de FIM, y su resultado no se observa desde el equipo: la evidencia solo puede juzgar lo que la organización declara en P-09.',
     requirements: ['op.exp.6.3', 'op.exp.6.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'file_reputation_checked'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: análisis reputacional de ficheros nuevos y modificados (r4)?',
+      '¿Se consulta la reputación de los ficheros nuevos o modificados, y consta en el equipo?',
   },
   {
     id: 'EV-09',
     controlId: 'op.exp.6',
     title: 'Detección por reglas de contenido en ficheros (R4)',
     description:
-      'Escaneo del contenido de ficheros nuevos o modificados con reglas YARA, que detecta familias de malware, webshells y artefactos conocidos por patrones internos y no solo por hash. Complementa al antimalware y refuerza la capacidad EDR de R4.',
+      'Si la respuesta activa de YARA que configura el manager está desplegada en el equipo (script y binario presentes), y las coincidencias que ha registrado. Se contrasta con la fila «yara» de P-09.',
     requirements: ['op.exp.6.r4.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'content_rule_match'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'edr_capability_observed', 'content_rule_match'],
+    stateFactEventTypes: ['edr_capability_observed'],
+    relatedRules: ['110710', '110709'],
     auditQuestion:
-      '¿Se acredita: detección por reglas de contenido en ficheros (r4)?',
+      '¿Está desplegado en el equipo el análisis de contenido con reglas YARA que declara la organización?',
   },
   {
     id: 'EV-10',
     controlId: 'op.exp.6',
     title: 'Detección de actividad sospechosa en puestos y servidores (R4)',
     description:
-      'Identificación de comportamientos asociados a código dañino aunque no haya fichero detectado: procesos ocultos, conexiones a dominios de mando y control, persistencia anómala, ejecución de scripts codificados, escalada de privilegios. Es el núcleo de lo que R4 pide a un EDR.',
+      'Si rootcheck se ejecuta en el equipo y con sus bases de rootkits y troyanos, leído del log del agente. Sus hallazgos (procesos y puertos ocultos, binarios troyanizados) los recibe el manager y no quedan en el equipo, así que la ausencia de actividad sospechosa no se puede afirmar desde aquí: con rootcheck completo la evidencia queda sin demostrar, y con rootcheck roto o incompleto, incumple.',
     requirements: ['op.exp.6.1', 'op.exp.6.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'CONFIGURATION',
+    category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'suspicious_activity_detected'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'edr_capability_observed'],
+    stateFactEventTypes: ['edr_capability_observed'],
+    relatedRules: ['110710'],
     auditQuestion:
-      '¿Se acredita: detección de actividad sospechosa en puestos y servidores (r4)?',
+      '¿Busca el equipo actividad compatible con código dañino que el antimalware no ve, con la herramienta completa?',
   },
   {
     id: 'EV-11',
     controlId: 'op.exp.6',
     title: 'Contención automática ante detección (R4)',
     description:
-      'Ejecución de acciones de contención al detectar código dañino: aislamiento del equipo de la red, bloqueo de la IP de origen, detención del proceso, eliminación del fichero. Cubre la parte de «resolver» que R4 exige junto a detectar e investigar.',
+      'Respuestas activas de contención que el manager configura para el equipo (etc/shared/ar.conf) y cuyo script está presente en él, y las que se han ejecutado. Se contrasta con la fila «active_response» de P-09.',
     requirements: ['op.exp.6.1', 'op.exp.6.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'active_response_executed'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'edr_capability_observed', 'active_response_executed'],
+    stateFactEventTypes: ['edr_capability_observed'],
+    relatedRules: ['110710', '110711'],
     auditQuestion:
-      '¿Se acredita: contención automática ante detección (r4)?',
+      '¿Puede el equipo contener automáticamente una detección con una respuesta activa desplegada?',
   },
   {
     id: 'EV-12',
     controlId: 'op.exp.6',
     title: 'Análisis de ficheros de fuentes externas y dispositivos extraíbles',
     description:
-      'Verificación de que los ficheros que entran por las vías declaradas en P-05 se analizan antes de su uso, y de que la conexión de dispositivos extraíbles va seguida de análisis o queda bloqueada según P-10.',
+      'Por cada vía de entrada de P-05, lo que la máquina puede demostrar: el análisis del correo que hace su pasarela (amavis) y las conexiones de discos extraíbles que registra el kernel, contrastadas con la política de P-10. Las vías que se analizan fuera de la máquina (proxy, pasarela ajena) no se pueden demostrar desde ella.',
     requirements: ['op.exp.6.3', 'op.exp.6.r5.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'external_file_scanned', 'removable_device_connected'],
-    relatedRules: [],
+    relatedRules: ['110712', '110713'],
     auditQuestion:
-      '¿Se acredita: análisis de ficheros de fuentes externas y dispositivos extraíbles?',
+      '¿Se analiza lo que entra por cada vía declarada, y se respeta la política de dispositivos extraíbles?',
   },
   {
     id: 'EV-01',
