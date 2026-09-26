@@ -12,7 +12,7 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
   // BAJO aquí, en ese nivel todos sus requisitos salen NO_APLICA y el control
   // queda fuera del denominador (tests/op-exp-5-judgment.test.ts, bloque 1).
   levels: ['MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
