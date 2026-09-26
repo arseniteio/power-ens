@@ -620,14 +620,22 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
     );
   }
 
+  // El recolector solo ve desde su nivel de observación. Lo que tiene que ver
+  // sin falta es el umbral de «relevante» (Alta o Crítica): por debajo de él,
+  // una severidad declarada pero no observada se dice, no se inventa.
   const desde = numero(campo(latido.evento, 'nivel_observado_desde'));
   const minimoDeclarado = Math.min(...c.umbrales.map(([n]) => n));
 
-  if (desde !== undefined && desde > minimoDeclarado) {
+  if (desde !== undefined && c.relevanteDesde !== undefined && desde > c.relevanteDesde) {
     return sinMedir(
-      `El recolector observa alertas desde nivel ${desde} y P-01 clasifica desde nivel ${minimoDeclarado}: las alertas entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`
+      `El recolector observa alertas desde nivel ${desde} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`
     );
   }
+
+  const noVistas =
+    desde !== undefined && desde > minimoDeclarado
+      ? ` Las severidades de P-01 por debajo de nivel ${desde} no se observan (OPEXP7_NIVEL_OBSERVADO).`
+      : '';
 
   // ¿Escribe alertas el manager? Lo leído en las pasadas del último día.
   const leidas = latidos(context, ahora)
@@ -661,7 +669,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
     });
 
   return cumple(
-    `El SIEM detecta y clasifica: ${leidas} alertas leídas en el manager el último día; en los últimos ${VENTANA_DIAS} días, por severidad de P-01: ${resumen.length ? resumen.join('; ') : `ninguna de nivel ${desde ?? minimoDeclarado} o superior`}.`
+    `El SIEM detecta y clasifica: las pasadas del recolector del último día leyeron ${leidas} alertas del manager; en los últimos ${VENTANA_DIAS} días, por severidad de P-01: ${resumen.length ? resumen.join('; ') : `ninguna de nivel ${desde ?? minimoDeclarado} o superior`}.${noVistas}`
   );
 };
 
