@@ -3046,6 +3046,10 @@ bloque('Estado de la migración');
     'op.exp.4/EV-04',
     'op.exp.4/EV-06',
     'op.exp.4/EV-11',
+    // op.exp.6 también nace en el modelo nuevo. Solo EV-01 y EV-03 declaran
+    // primitiva; las demás las mide su policy (ver `policies/op-exp-6.policy.ts`).
+    'op.exp.6/EV-01',
+    'op.exp.6/EV-03',
   ];
 
   comprueba(
