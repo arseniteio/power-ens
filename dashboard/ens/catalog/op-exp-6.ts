@@ -9,7 +9,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
   description:
     'Wazuh no es el antimalware: es quien acredita que el antimalware existe, funciona y está bien configurado, y quien aporta la capa EDR que exige R4 en categoría ALTA.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -22,7 +22,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-04', 'EV-10', 'EV-11'],
-      parameterIds: ['P-01'],
+      parameterIds: ['P-01', 'P-02', 'P-09'],
     },
     {
       id: 'op.exp.6.2',
@@ -45,7 +45,12 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-08', 'EV-12'],
+      // La ficha pone EV-08 (VirusTotal) también en op.exp.6.3, pero su hoja de
+      // condiciones de incumplimiento solo juzga op.exp.6.3 con EV-12. VirusTotal
+      // es una capacidad EDR (R4): dentro de op.exp.6.3 solo podría hundirlo,
+      // porque no se observa desde el equipo, y una decisión de no usarlo en
+      // ALTA dejaría en rojo un requisito BASE.
+      evidenceIds: ['EV-12'],
       parameterIds: ['P-05', 'P-10'],
     },
     {
@@ -81,7 +86,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'Refuerzo acumulativo: la ficha lo exige en MEDIA «+ R1 + R2» y en ALTA. En BAJO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-05'],
       parameterIds: ['P-06'],
@@ -95,7 +100,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'Refuerzo acumulativo: la ficha lo exige en MEDIA «+ R1 + R2» y en ALTA. En BAJO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-06'],
       parameterIds: ['P-07'],
@@ -109,7 +114,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'Refuerzo exigible solo en ALTA («+ R1 + R2 + R3 + R4»). En BAJO y MEDIO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-07'],
       parameterIds: ['P-08'],
@@ -123,7 +128,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'Refuerzo exigible solo en ALTA («+ R1 + R2 + R3 + R4»). En BAJO y MEDIO se muestra como NO_APLICA.',
       },
       evidenceIds: ['EV-08', 'EV-09', 'EV-10', 'EV-11'],
       parameterIds: ['P-09'],
@@ -137,7 +142,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: ['EV-12'],
       parameterIds: ['P-10'],
@@ -151,7 +156,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: ['EV-03'],
       parameterIds: ['P-04'],
