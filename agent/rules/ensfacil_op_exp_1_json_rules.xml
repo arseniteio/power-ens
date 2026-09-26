@@ -47,7 +47,7 @@
 
   <rule id="110200" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.1</field>
+    <field name="ensfacil">^op.exp.1$</field>
     <description>op.exp.1 · evento ENSFácil base</description>
   </rule>
 
