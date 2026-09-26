@@ -2789,8 +2789,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     title: 'Análisis reputacional de ficheros nuevos y modificados (R4)',
     description:
       'Consulta automática a VirusTotal del hash de cada fichero nuevo o modificado en rutas monitorizadas. La hace el manager sobre las alertas de FIM, y su resultado no se observa desde el equipo: la evidencia solo puede juzgar lo que la organización declara en P-09.',
-    requirements: ['op.exp.6.3', 'op.exp.6.r4.1'],
-    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    requirements: ['op.exp.6.r4.1'],
+    levels: ['ALTO'],
     category: 'INTEGRITY',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],

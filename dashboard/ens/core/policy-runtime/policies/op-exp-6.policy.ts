@@ -951,7 +951,7 @@ const PRIMITIVAS = ['EV-01', 'EV-03'];
 const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
   'op.exp.6.1': { evidencias: ['EV-01', 'EV-04', 'EV-10', 'EV-11'], parametros: ['P-01', 'P-02', 'P-09'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.6.2': { evidencias: ['EV-01'], parametros: ['P-01', 'P-02'], tipo: 'COVERAGE_REQUIRED' },
-  'op.exp.6.3': { evidencias: ['EV-08', 'EV-12'], parametros: ['P-05', 'P-09', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
+  'op.exp.6.3': { evidencias: ['EV-12'], parametros: ['P-05', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.6.4': { evidencias: ['EV-02'], parametros: ['P-03'], tipo: 'MAX_AGE' },
   'op.exp.6.5': { evidencias: ['EV-03'], parametros: ['P-04'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.6.r1.1': { evidencias: ['EV-05'], parametros: ['P-06'], tipo: 'MAX_AGE' },
@@ -1087,8 +1087,8 @@ export const opExp6PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'op.exp.6.3',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-05', 'P-09', 'P-10'],
-      evidenceIds: ['EV-08', 'EV-12'],
+      parameterIds: ['P-05', 'P-10'],
+      evidenceIds: ['EV-12'],
       ruleType: 'COVERAGE_REQUIRED',
     },
     {

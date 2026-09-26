@@ -212,7 +212,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
         'Vía declarada sin análisis observable en la máquina → op.exp.6.3 no demostrado.',
       ensfacilUsage:
         'EV-12 comprueba cada vía declarada con lo que la máquina observa: análisis del correo, dispositivos extraíbles contra P-10.',
-      evidenceIds: ['EV-08', 'EV-12'],
+      evidenceIds: ['EV-12'],
       ruleIds: [],
       ifNotConfigured:
         'op.exp.6.3 no se puede demostrar: no se sabe por qué vías entran ficheros externos.',
