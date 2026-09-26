@@ -426,6 +426,26 @@ bloque('10. Requisitos y tabla de evidencias');
   comprueba('EV-07, sana, no hereda el rojo de EV-08', tabla2.find(e => e.id === 'EV-07')?.status === 'CUMPLE', tabla2.find(e => e.id === 'EV-07')?.status);
 }
 
+// --- 11. servidor LDAP: el plano directorio --------------------------------
+
+bloque('11. Servidor LDAP: los hechos de slapd se juzgan con la misma política');
+
+{
+  const slapd = (uso: string, algoritmos: string) =>
+    alerta({ event: 'crypto_config_observed', evidence_id: 'EV-03', plano: 'directorio', servicio: 'slapd', uso, elemento: 'olcTLS', algoritmos, identificadores: 'x' }, hace(0.45), 'ldapserver');
+  const P03L = [...P03, 'protocolo | TLS1.2 |', 'protocolo | TLS1.3 |', 'intercambio | ECDH |', 'hash_contrasenas | SSHA-512 |'];
+  const valores = { ...BASE, 'P-03': P03L, 'P-04': ['slapd | ldapserver | 636'], 'P-05': ['ldapserver | explotacion | DMZ'] };
+
+  let r = evalua(eventos(latido(TODAS, 'ldapserver'), slapd('protocolo', 'TLS1.0,TLS1.1,TLS1.2,TLS1.3'), slapd('hash_contrasenas', 'SSHA-512')), valores);
+  comprueba('olcTLSProtocolMin 3.1 (acepta TLS1.0) → EV-03 NO_CUMPLE', r.deEvidencia('EV-03')?.status === 'NO_CUMPLE', r.deEvidencia('EV-03')?.reason);
+  r = evalua(eventos(latido(TODAS, 'ldapserver'), slapd('protocolo', 'TLS1.2,TLS1.3'), slapd('intercambio', 'ECDH'), slapd('hash_contrasenas', 'SSHA-512')), valores);
+  comprueba('con mínimo TLS1.2, ECDH y SSHA-512 autorizados → CUMPLE', r.deEvidencia('EV-03')?.status === 'CUMPLE', r.deEvidencia('EV-03')?.reason);
+  r = evalua(eventos(latido(TODAS, 'ldapserver'), slapd('protocolo', 'SIN_TLS')), valores);
+  comprueba('slapd en la red sin TLS → NO_CUMPLE', r.deEvidencia('EV-03')?.status === 'NO_CUMPLE');
+  r = evalua(eventos(latido(TODAS, 'ldapserver'), slapd('hash_contrasenas', 'SSHA')), valores);
+  comprueba('hash de contraseñas {SSHA} sin fila → NO_CUMPLE', r.deEvidencia('EV-03')?.status === 'NO_CUMPLE');
+}
+
 // --- salida ----------------------------------------------------------------
 
 console.log('');
