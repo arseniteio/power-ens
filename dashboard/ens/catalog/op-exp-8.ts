@@ -13,7 +13,7 @@ export const opExp8CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.8 es el control que Wazuh cubre de forma más completa y, a la vez, el que exige más rigor en la propia configuración de Wazuh, porque aquí la herramienta no observa el control: la herramienta ES el control.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -38,7 +38,7 @@ export const opExp8CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-02', 'EV-04'],
-      parameterIds: ['P-02'],
+      parameterIds: ['P-02', 'P-12'],
     },
     {
       id: 'op.exp.8.r1.1',

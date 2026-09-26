@@ -99,6 +99,10 @@ RUNBOOKS = {
         "op.exp.4-security-maintenance-and-updates",
         ["ensfacil_op_exp_4_json_rules.xml"],
     ),
+    "op.exp.8": (
+        "op.exp.8-activity-logging",
+        ["ensfacil_op_exp_8_json_rules.xml"],
+    ),
 }
 
 fallos = []
