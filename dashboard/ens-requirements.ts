@@ -164,6 +164,16 @@ export const ensRequirementsFile = {
     'Categorización de activos críticos (R3) - Refuerzo R3 – Identificación de activos críticos: Se dispondrá de herramientas que permitan categorizar los activos críticos por contexto de la organización y riesgos de seguridad.',
   'op.exp.1.r4.1':
     'Relación de componentes software de terceros (R4) - Refuerzo R4 – Lista de componentes software: Se mantendrá actualizada una relación formal de los componentes software de terceros empleados en el despliegue del sistema. Esta lista incluirá librerías software y los servicios requeridos para su despliegue (plataforma o entorno operacional). El contenido de la lista de componentes será equivalente a lo requerido en [mp.sw.1.r5].',
+  'op.exp.10.1':
+    'Claves protegidas durante todo su ciclo de vida - Las claves criptográficas se protegerán durante todo su ciclo de vida: (1) generación, (2) transporte al punto de explotación, (3) custodia durante la explotación, (4) archivo posterior a su retirada de explotación activa y (5) destrucción final.',
+  'op.exp.10.2':
+    'Generación aislada de la explotación - Los medios de generación estarán aislados de los medios de explotación.',
+  'op.exp.10.3':
+    'Claves retiradas archivadas fuera de explotación - Las claves retiradas de operación que deban ser archivadas, lo serán en medios aislados de los de explotación.',
+  'op.exp.10.r1.1':
+    'Algoritmos y parámetros autorizados por el CCN (R1) - Se emplearán algoritmos y parámetros autorizados por el CCN.',
+  'op.exp.10.r2.1':
+    'Cifradores conformes a la guía CCN-STIC (R2) - Refuerzo R2 – Protección avanzada de claves criptográficas: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.',
   'op.exp.2.1':
     'Retirada de cuentas y contraseñas estándar - Se retiren cuentas y contraseñas estándar.',
   'op.exp.2.2':
@@ -212,4 +222,84 @@ export const ensRequirementsFile = {
     'Integridad periódica del firmware (R3) - Refuerzo R3 – Actualizaciones y pruebas periódicas: Se deberá comprobar de forma periódica la integridad del firmware utilizado en los dispositivos hardware del sistema (infraestructura de red, BIOS, etc.). La periodicidad de estas comprobaciones seguirá las recomendaciones de la Guía CCN-STIC que sea de aplicación.',
   'op.exp.4.r4.1':
     'Monitorización continua de amenazas (R4) - Refuerzo R4 – Monitorización continua: Se desplegará a nivel de sistema una estrategia de monitorización continua de amenazas y vulnerabilidades. Esta estrategia detallará: 1. Los indicadores críticos de seguridad a emplear. 2. La política de aplicación de parches de seguridad de los componentes software relacionados en las listas de [op.exp.1.r4], [op.ext.3.r3] y [mp.sw.1.r5]. 3. Los criterios de revisión regular y excepcional de las amenazas sobre el sistema.',
+  'op.exp.5.1':
+    'Peticiones de cambio registradas y numeradas - Los cambios se planificarán para reducir el impacto sobre la prestación de los servicios afectados. Para ello, todas las peticiones de cambio se registrarán asignando un número de referencia que permita su seguimiento, de forma equivalente al registro de los incidentes.',
+  'op.exp.5.2':
+    'Información suficiente para autorizar el cambio - La información a registrar para cada petición de cambio será suficiente para que quien deba autorizarlos no tenga dudas al respecto y permita gestionarlo hasta su desestimación o implementación.',
+  'op.exp.5.3':
+    'Pruebas en preproducción equivalente - Las pruebas de preproducción, siempre que sea posible realizarlas, se efectuarán en equipos equivalentes a los de producción, al menos en los aspectos específicos del cambio.',
+  'op.exp.5.4':
+    'Aprobación previa de los cambios de riesgo alto - Mediante un análisis de riesgos se determinará si los cambios son relevantes para la seguridad del sistema. Aquellos cambios que impliquen un riesgo de nivel ALTO deberán ser aprobados, explícitamente, de forma previa a su implantación, por el Responsable de la Seguridad.',
+  'op.exp.5.5':
+    'Pruebas de aceptación y documentación actualizada - Una vez implementado el cambio, se realizarán las pruebas de aceptación convenientes. Si son positivas, se actualizará la documentación de configuración (diagramas de red, manuales, el inventario, etc.), siempre que proceda.',
+  'op.exp.5.r1.1':
+    'Posibilidad de reversión prevista (R1) - Antes de la aplicación de los cambios, se deberá tener en cuenta la posibilidad de revertirlos en caso de la aparición de efectos adversos.',
+  'op.exp.5.r1.2':
+    'Fallos comunicados al responsable de seguridad (R1) - Todos los fallos en el software y hardware deberán ser comunicados al responsable designado en la organización de la seguridad.',
+  'op.exp.5.r1.3':
+    'Cambios documentados con impacto en seguridad (R1) - Todos los cambios en el sistema deberán documentarse, incluyendo una valoración del impacto que dicho cambio supone en la seguridad del sistema.',
+  'op.exp.6.1':
+    'Prevención y reacción frente a código dañino - Se dispondrá de mecanismos de prevención y reacción frente a código dañino, incluyendo el correspondiente mantenimiento de acuerdo a las recomendaciones del fabricante.',
+  'op.exp.6.2':
+    'Antimalware instalado en todos los equipos - Se instalará software de protección frente a código dañino en todos los equipos: puestos de usuario, servidores y elementos perimetrales.',
+  'op.exp.6.3':
+    'Ficheros externos analizados antes de usarlos - Todo fichero procedente de fuentes externas será analizado antes de trabajar con él.',
+  'op.exp.6.4':
+    'Bases de detección actualizadas - Las bases de datos de detección de código dañino permanecerán permanentemente actualizadas.',
+  'op.exp.6.5':
+    'Configuración adecuada y protección en tiempo real - El software de detección de código dañino instalado en los puestos de usuario deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.',
+  'op.exp.6.r1.1':
+    'Escaneo periódico de todo el sistema (R1) - Todo el sistema se escaneará regularmente para detectar código dañino.',
+  'op.exp.6.r2.1':
+    'Funciones críticas analizadas al arranque (R2) - Las funciones críticas se analizarán al arrancar el sistema en prevención de modificaciones no autorizadas.',
+  'op.exp.6.r3.1':
+    'Lista blanca de aplicaciones (R3) - Solamente se podrán ejecutar aquellas aplicaciones previamente autorizadas. Se implementará una lista blanca para impedir la ejecución de aplicaciones no autorizadas.',
+  'op.exp.6.r4.1':
+    'Detección y respuesta en equipos, EDR (R4) - Se emplearán herramientas de seguridad orientadas a detectar, investigar y resolver actividades sospechosas en puestos de usuario y servidores (EDR – Endpoint Detection and Response).',
+  'op.exp.6.r5.1':
+    'Configuración avanzada del antimalware (R5) - Refuerzo R5 – Configuración de la herramienta de detección de código dañino: El software de detección de código dañino permitirá realizar configuraciones avanzadas y revisar el sistema en el arranque y cada vez que se conecte un dispositivo extraíble.',
+  'op.exp.6.r5.2':
+    'Protección en tiempo real en servidores (R5) - El software de detección de código dañino instalado en servidores y elementos perimetrales deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.',
+  'op.exp.7.1':
+    'Proceso integral de gestión de incidentes - Se dispondrá de un proceso integral para hacer frente a los incidentes que puedan tener un impacto en la seguridad del sistema, que incluya el informe de eventos de seguridad y debilidades, detallando los criterios de clasificación y el escalado de la notificación.',
+  'op.exp.7.2':
+    'Incidentes con datos personales según el RGPD - La gestión de incidentes que afecten a datos personales tendrá en cuenta lo dispuesto en el Reglamento General de Protección de Datos; la Ley Orgánica 3/2018, de 5 de diciembre, en especial su disposición adicional primera, así como el resto de normativa de aplicación, sin perjuicio de los requisitos establecidos en este real decreto.',
+  'op.exp.7.r1.1':
+    'Notificación al CCN-CERT por ventanilla única (R1) - Se dispondrá de soluciones de ventanilla única para la notificación de incidentes al CCN-CERT, que permita la distribución de notificaciones a las diferentes entidades de manera federada, utilizando para ello dependencias administrativas jerárquicas.',
+  'op.exp.7.r2.1':
+    'Medidas urgentes y protección de evidencias (R2) - Implantación de medidas urgentes, incluyendo la detención de servicios, el aislamiento del sistema afectado, la recogida de evidencias y protección de los registros, según convenga al caso.',
+  'op.exp.7.r2.2':
+    'Recursos para investigar y resolver (R2) - Asignación de recursos para investigar las causas, analizar las consecuencias y resolver el incidente.',
+  'op.exp.7.r2.3':
+    'Información a los responsables afectados (R2) - Informar del incidente a los responsables de la información y servicios afectados y de las actuaciones llevadas a cabo para su resolución.',
+  'op.exp.7.r2.4':
+    'Medidas para que no se repita (R2) - Medidas para: a) Prevenir que se repita el incidente. b) Incluir en los procedimientos de usuario la identificación y forma de tratar el incidente. c) Actualizar, extender, mejorar u optimizar los procedimientos de resolución de incidentes.',
+  'op.exp.7.r3.1':
+    'Reconfiguración dinámica ante ataques (R3) - La reconfiguración dinámica incluye, por ejemplo, cambios en las reglas de los enrutadores (routers), listas de control de acceso, parámetros del sistema de detección / prevención de intrusiones y reglas en los cortafuegos y puertas de enlace, aislamiento de elementos críticos y aislamiento de las copias de seguridad.',
+  'op.exp.7.r3.2':
+    'Adaptación a los avisos del CCN-CERT (R3) - El organismo adaptará los procedimientos de reconfiguración dinámica reaccionando a los anuncios recibidos del CCN-CERT relativos a ciberamenazas sofisticadas y campañas de ataques.',
+  'op.exp.7.r4.1':
+    'Prevención y respuesta automática (R4) - Refuerzo R4 – Prevención y Respuesta Automática: Se dispondrá de herramientas que automaticen el proceso de prevención y respuesta mediante la detección e identificación de anomalías, la segmentación dinámica de la red para reducir la superficie de ataque, el aislamiento de dispositivos críticos, etc.',
+  'op.exp.8.1':
+    'Registro de auditoría con los campos mínimos - Se generará un registro de auditoría, que incluirá, al menos, el identificador del usuario o entidad asociado al evento, fecha y hora, sobre qué información se realiza el evento, tipo de evento y el resultado del evento (fallo o éxito), según la política de seguridad y los procedimientos asociados a la misma.',
+  'op.exp.8.2':
+    'Registros de actividad activos en los servidores - Se activarán los registros de actividad en los servidores.',
+  'op.exp.8.r1.1':
+    'Revisión periódica de los registros (R1) - Se revisarán informalmente, de forma periódica, los registros de actividad, buscando patrones anormales.',
+  'op.exp.8.r2.1':
+    'Referencia de tiempo sincronizada y protegida (R2) - El sistema deberá disponer de una referencia de tiempo (timestamp) para facilitar las funciones de registro de eventos y auditoría. La modificación de la referencia de tiempo del sistema será una función de administración y, en caso de realizarse su sincronización con otros dispositivos, deberán utilizarse mecanismos de autenticación e integridad.',
+  'op.exp.8.r3.1':
+    'Eventos auditados y retención documentados (R3) - En la documentación de seguridad del sistema se deberán indicar los eventos de seguridad que serán auditados y el tiempo de retención de los registros antes de ser eliminados.',
+  'op.exp.8.r4.1':
+    'Acceso a los registros solo para personal autorizado (R4) - Los registros de actividad y, en su caso, las copias de seguridad de los mismos, solamente podrán ser accedidos o eliminarse por personal debidamente autorizado.',
+  'op.exp.8.r5.1':
+    'Análisis de la actividad en busca de compromisos (R5) - El sistema deberá implementar herramientas para analizar y revisar la actividad del sistema y la información de auditoría, en búsqueda de comprometimientos de la seguridad posibles o reales.',
+  'op.exp.8.r5.2':
+    'Recolección, correlación y respuesta automáticas (R5) - Se dispondrá de un sistema automático de recolección de registros, correlación de eventos y respuesta automática ante los mismos.',
+  'op.exp.9.1':
+    'Reportes, actuaciones y cambios del incidente registrados - Se registrarán los reportes iniciales, intermedios y finales de los incidentes, las actuaciones de emergencia y las modificaciones del sistema derivadas del incidente.',
+  'op.exp.9.2':
+    'Evidencias con valor jurisdiccional registradas - Se registrará aquella evidencia que pueda dirimirse en un ámbito jurisdiccional, especialmente cuando el incidente pueda comportar acciones disciplinarias sobre el personal interno, sobre proveedores externos o en la persecución de delitos. En la determinación de la composición y detalle de estas evidencias, se recurrirá a asesoramiento legal especializado.',
+  'op.exp.9.3':
+    'Eventos auditables revisados tras los incidentes - Como consecuencia del análisis de los incidentes, se revisará la determinación de los eventos auditables.',
 };

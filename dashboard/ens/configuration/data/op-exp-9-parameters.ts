@@ -1,0 +1,211 @@
+import { ENSControlConfiguration } from '../types';
+
+export const opExp9Configuration: ENSControlConfiguration = {
+  controlId: 'op.exp.9',
+  controlName: 'Registro de la gestión de incidentes',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.exp.9',
+      name: 'sistema_registro_incidentes',
+      label: 'Sistema registro incidentes',
+      description:
+        'Herramienta donde se registran los reportes iniciales, intermedios y finales de cada incidente. Normalmente coincide con el sistema de gestión de incidentes de op.exp.7, y conviene que sea el mismo para no duplicar registros.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.1'],
+      type: 'select',
+      example: 'Jira Service Management / / TheHive / GLPI / (compartido con op.exp.7 P-03)',
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica que cada incidente cuenta con los tres tipos de reporte que exige op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
+      ensfacilUsage:
+        'ENSFácil verifica que cada incidente cuenta con los tres tipos de reporte que exige op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.9.1 NO EVALUABLE. No se puede verificar la completitud del registro de la gestión.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.exp.9',
+      name: 'estructura_reportes_incidente',
+      label: 'Estructura reportes incidente',
+      description:
+        'Contenido mínimo exigido a los reportes inicial, intermedio y final. op.exp.9.1 los menciona como tres momentos distintos, de modo que un único registro de cierre no satisface el requisito.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.1'],
+      type: 'string',
+      example: 'inicial: detección, alcance / intermedio: evolución, medidas / final: causa, impacto, cierre',
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica la presencia de los tres reportes por incidente y su cumplimentación. Incidente con solo reporte de cierre → hallazgo, porque el requisito distingue expresamente tres momentos.',
+      ensfacilUsage:
+        'ENSFácil verifica la presencia de los tres reportes por incidente y su cumplimentación. Incidente con solo reporte de cierre → hallazgo, porque el requisito distingue expresamente tres momentos.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se puede verificar que existan los tres reportes exigidos ni su suficiencia.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.exp.9',
+      name: 'composicion_evidencia_jurisdiccional',
+      label: 'Composicion evidencia jurisdiccional',
+      description:
+        'Composición y detalle de las evidencias que deben recogerse para que puedan dirimirse en ámbito jurisdiccional, determinada con el asesoramiento legal especializado que op.exp.9.2 exige expresamente.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.2'],
+      type: 'list',
+      example: 'logs sellados del período, / imagen forense, volcado memoria, / acta de recogida',
+      required: true,
+      wazuhUsage:
+        'Define qué exporta y sella ENSFácil automáticamente al abrirse un incidente con potencial relevancia jurídica. La determinación de la lista NO es técnica: el ENS remite a asesoramiento legal especializado.',
+      ensfacilUsage:
+        'Define qué exporta y sella ENSFácil automáticamente al abrirse un incidente con potencial relevancia jurídica. La determinación de la lista NO es técnica: el ENS remite a asesoramiento legal especializado.',
+      evidenceIds: ['EV-05', 'EV-06', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.9.2 NO EVALUABLE. Riesgo real de que la evidencia recogida no sea admisible cuando haga falta.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.exp.9',
+      name: 'criterios_relevancia_juridica',
+      label: 'Criterios relevancia juridica',
+      description:
+        'Criterios que determinan cuándo un incidente puede comportar acciones disciplinarias sobre personal interno, sobre proveedores externos o persecución de delitos, activando el régimen probatorio reforzado de op.exp.9.2.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.2'],
+      type: 'list',
+      example: 'acceso no autorizado por / empleado, exfiltración, sabotaje, / incumplimiento de proveedor',
+      required: true,
+      wazuhUsage:
+        'ENSFácil marca automáticamente los incidentes que cumplen estos criterios y activa la recogida sellada de las evidencias de P-03, además de alertar de que el caso requiere tratamiento probatorio reforzado.',
+      ensfacilUsage:
+        'ENSFácil marca automáticamente los incidentes que cumplen estos criterios y activa la recogida sellada de las evidencias de P-03, además de alertar de que el caso requiere tratamiento probatorio reforzado.',
+      evidenceIds: ['EV-05', 'EV-06', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'No se activa el régimen probatorio reforzado. La evidencia puede perderse antes de saber que se necesitaba.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.exp.9',
+      name: 'custodia_evidencias',
+      label: 'Custodia evidencias',
+      description:
+        'Repositorio de custodia de las evidencias, con su control de acceso, mecanismo de sellado de integridad y registro de cadena de custodia. Condiciona directamente el valor probatorio de lo recogido.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.2'],
+      type: 'string',
+      example: 'repositorio WORM cifrado, / hash SHA-256 + sellado de tiempo, / registro de accesos',
+      required: true,
+      wazuhUsage:
+        'ENSFácil deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son los dos elementos que más refuerzan la admisibilidad.',
+      ensfacilUsage:
+        'ENSFácil deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son los dos elementos que más refuerzan la admisibilidad.',
+      evidenceIds: ['EV-05', 'EV-06', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'La evidencia queda sin cadena de custodia acreditable, lo que puede hacerla inservible en sede judicial.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.exp.9',
+      name: 'retencion_evidencias_dias',
+      label: 'Retencion evidencias dias',
+      description:
+        'Tiempo de conservación de las evidencias de incidentes. Debe atender a los plazos de prescripción aplicables según el tipo de responsabilidad —disciplinaria, contractual o penal—, no solo a la retención general de registros de op.exp.8.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.2'],
+      type: 'duration_days',
+      example: 'disciplinario: 1.095 / contractual: 1.825 / penal: según delito',
+      required: true,
+      wazuhUsage:
+        'ENSFácil aplica la política de retención al repositorio de custodia. Es un parámetro que debe fijarse con el mismo asesoramiento legal de P-03: la retención general de op.exp.8 suele ser insuficiente aquí.',
+      ensfacilUsage:
+        'ENSFácil aplica la política de retención al repositorio de custodia. Es un parámetro que debe fijarse con el mismo asesoramiento legal de P-03: la retención general de op.exp.8 suele ser insuficiente aquí.',
+      evidenceIds: ['EV-05', 'EV-06', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Riesgo de destruir evidencia antes de que prescriba la responsabilidad que podría acreditar.',
+    },
+    {
+      id: 'P-07',
+      controlId: 'op.exp.9',
+      name: 'procedimiento_revision_eventos_auditables',
+      label: 'Procedimiento revision eventos auditables',
+      description:
+        'Proceso por el que el análisis de los incidentes lleva a revisar la determinación de los eventos auditables, exigido por op.exp.9.3. Es el bucle de realimentación con op.exp.8.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.3', 'op.exp.8.r3.1'],
+      type: 'string',
+      example: 'revisión tras cada incidente / de severidad alta + revisión / semestral consolidada',
+      required: true,
+      wazuhUsage:
+        'ENSFácil correlaciona el cierre de incidentes con modificaciones posteriores en la lista de eventos auditables (P-01 de op.exp.8) y en las reglas de detección. Permite demostrar que el sistema aprende.',
+      ensfacilUsage:
+        'ENSFácil correlaciona el cierre de incidentes con modificaciones posteriores en la lista de eventos auditables (P-01 de op.exp.8) y en las reglas de detección. Permite demostrar que el sistema aprende.',
+      evidenceIds: ['EV-08', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.exp.9.3 NO EVALUABLE. El registro de eventos auditables queda estático y no se realimenta.',
+    },
+    {
+      id: 'P-ATT',
+      controlId: 'op.exp.9',
+      name: 'atestaciones_documentales',
+      label: 'Atestaciones documentales',
+      description:
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar los requisitos que ningún registro técnico puede demostrar.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: [],
+      type: 'table',
+      example: 'op.exp.9.3 | Procedimiento de revisión de eventos auditables | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'requisito',
+          label: 'Requisito',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'enlace',
+          label: 'Enlace',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      ensfacilUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+    },
+  ],
+};

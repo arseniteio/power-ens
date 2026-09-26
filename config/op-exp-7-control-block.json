@@ -1,0 +1,337 @@
+{
+  "controlId": "op.exp.7",
+  "controlName": "Gestión de incidentes",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.7",
+      "name": "criterios_clasificacion_incidentes",
+      "label": "Criterios clasificacion incidentes",
+      "description": "Criterios que determinan la categoría y severidad de un incidente, exigidos expresamente por op.exp.7.1. Conviene alinearlos con la taxonomía del CCN-CERT para que la notificación de R1 sea directa.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1"
+      ],
+      "type": "table",
+      "example": "código dañino | alta | / afecta a servidor de producción",
+      "required": true,
+      "wazuhUsage": "ENSFácil clasifica automáticamente las alertas de Wazuh según estos criterios y las presenta ya categorizadas, lo que reduce el trabajo manual de triaje y hace medible el cumplimiento del proceso.",
+      "ensfacilUsage": "ENSFácil clasifica automáticamente las alertas de Wazuh según estos criterios y las presenta ya categorizadas, lo que reduce el trabajo manual de triaje y hace medible el cumplimiento del proceso.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-CRITERIOS-CLASIFICACION-INCIDENTES"
+      ],
+      "ifNotConfigured": "op.exp.7.1 NO EVALUABLE en su parte de clasificación. Las alertas llegan sin categoría ENS asignada."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.7",
+      "name": "matriz_escalado",
+      "label": "Matriz escalado",
+      "description": "A quién se escala cada tipo y severidad de incidente, en qué plazo y por qué canal. op.exp.7.1 exige detallar «el escalado de la notificación».",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1",
+        "op.exp.7.r2.3"
+      ],
+      "type": "table",
+      "example": "crítica | RSI + CISO | / 1 h | teléfono + correo",
+      "required": true,
+      "wazuhUsage": "ENSFácil verifica que cada incidente detectado fue escalado al destinatario correcto dentro del plazo. Requiere que el escalado deje registro en el sistema de P-03 o en el canal declarado.",
+      "ensfacilUsage": "ENSFácil verifica que cada incidente detectado fue escalado al destinatario correcto dentro del plazo. Requiere que el escalado deje registro en el sistema de P-03 o en el canal declarado.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-MATRIZ-ESCALADO"
+      ],
+      "ifNotConfigured": "No se puede verificar el escalado. op.exp.7.1 y op.exp.7.r2.3 quedan sin acreditación automática."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.7",
+      "name": "sistema_gestion_incidentes",
+      "label": "Sistema gestion incidentes",
+      "description": "Herramienta donde se registran y gestionan los incidentes con su ciclo de vida completo. Es la contraparte necesaria de Wazuh: sin ella no hay forma de saber si una alerta se convirtió en incidente gestionado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1",
+        "op.exp.9.1"
+      ],
+      "type": "select",
+      "example": "Jira Service Management / (API) / GLPI / TheHive / / ServiceNow",
+      "required": true,
+      "wazuhUsage": "ENSFácil correlaciona cada alerta de severidad relevante con su ticket de incidente. Alerta crítica sin ticket asociado → hallazgo de alerta huérfana, que es el hallazgo estrella de este control.",
+      "ensfacilUsage": "ENSFácil correlaciona cada alerta de severidad relevante con su ticket de incidente. Alerta crítica sin ticket asociado → hallazgo de alerta huérfana, que es el hallazgo estrella de este control.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-SISTEMA-GESTION-INCIDENTES"
+      ],
+      "ifNotConfigured": "No se puede medir la conexión entre detección y gestión. La aportación diferencial de ENSFácil se pierde."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.7",
+      "name": "responsables_informacion_servicios",
+      "label": "Responsables informacion servicios",
+      "description": "Responsables de la información y de los servicios a quienes hay que informar del incidente y de las actuaciones de resolución, según op.exp.7.r2.3. Debe asociarse cada sistema del alcance a su responsable.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.3"
+      ],
+      "type": "table",
+      "example": "srv-exp | J. Ruiz | M. Sanz",
+      "required": true,
+      "wazuhUsage": "ENSFácil identifica automáticamente a quién debía informarse según los sistemas afectados por cada incidente y verifica que consta esa comunicación. Puede compartirse con el P-01 de op.exp.1.",
+      "ensfacilUsage": "ENSFácil identifica automáticamente a quién debía informarse según los sistemas afectados por cada incidente y verifica que consta esa comunicación. Puede compartirse con el P-01 de op.exp.1.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-RESPONSABLES-INFORMACION-SERVICIOS"
+      ],
+      "ifNotConfigured": "op.exp.7.r2.3 NO EVALUABLE. No se puede verificar que se informó a los responsables correctos."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.7",
+      "name": "plazos_respuesta_por_severidad",
+      "label": "Plazos respuesta por severidad",
+      "description": "Tiempos máximos de detección, contención y resolución comprometidos para cada severidad. El ENS no los fija, pero exige asignación de recursos para resolver (op.exp.7.r2.2), lo que solo es medible con plazos.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.2"
+      ],
+      "type": "table",
+      "example": "crítica | 1 h | 24 h / alta | 4 h | 72 h",
+      "required": true,
+      "wazuhUsage": "ENSFácil mide el tiempo desde la alerta de Wazuh hasta el registro de contención y de cierre en P-03, y lo contrasta con estos plazos. Es la métrica que un auditor pedirá para valorar la eficacia del proceso.",
+      "ensfacilUsage": "ENSFácil mide el tiempo desde la alerta de Wazuh hasta el registro de contención y de cierre en P-03, y lo contrasta con estos plazos. Es la métrica que un auditor pedirá para valorar la eficacia del proceso.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-PLAZOS-RESPUESTA-POR-SEVERIDAD"
+      ],
+      "ifNotConfigured": "No se puede valorar si la respuesta fue diligente. op.exp.7.r2.2 solo acreditable de forma cualitativa."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.7",
+      "name": "ventanilla_unica_ccn_cert",
+      "label": "Ventanilla unica ccn cert",
+      "description": "Solución de notificación de incidentes al CCN-CERT y datos de la dependencia administrativa jerárquica a través de la cual se federan las notificaciones. R1 es obligatorio desde categoría MEDIA.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r1.1"
+      ],
+      "type": "select",
+      "example": "LUCIA / plataforma / de notificación del CCN-CERT / + organismo superior",
+      "required": true,
+      "wazuhUsage": "ENSFácil registra qué incidentes debían notificarse al CCN-CERT según su clasificación y verifica que consta la notificación. La integración técnica con la plataforma del CCN-CERT es lo ideal; si no, se registra la referencia de la notificación manualmente.",
+      "ensfacilUsage": "ENSFácil registra qué incidentes debían notificarse al CCN-CERT según su clasificación y verifica que consta la notificación. La integración técnica con la plataforma del CCN-CERT es lo ideal; si no, se registra la referencia de la notificación manualmente.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-VENTANILLA-UNICA-CCN-CERT"
+      ],
+      "ifNotConfigured": "R1 NO EVALUABLE y es obligatorio desde categoría MEDIA. La notificación al CCN-CERT queda sin acreditar."
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.7",
+      "name": "criterios_incidente_datos_personales",
+      "label": "Criterios incidente datos personales",
+      "description": "Criterios que determinan cuándo un incidente afecta a datos personales y activa las obligaciones del RGPD y de la LO 3/2018, incluido el plazo de 72 horas de notificación a la AEPD. op.exp.7.2 remite expresamente a esa normativa.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.2"
+      ],
+      "type": "string",
+      "example": "sistemas con datos / personales: srv-rrhh, srv-exp / + criterio de brecha",
+      "required": true,
+      "wazuhUsage": "ENSFácil marca los incidentes que afectan a sistemas con datos personales, activa el contador de 72 horas y verifica que consta la valoración de brecha y, en su caso, la notificación a la AEPD y a los interesados.",
+      "ensfacilUsage": "ENSFácil marca los incidentes que afectan a sistemas con datos personales, activa el contador de 72 horas y verifica que consta la valoración de brecha y, en su caso, la notificación a la AEPD y a los interesados.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-CRITERIOS-INCIDENTE-DATOS-PERSONALES"
+      ],
+      "ifNotConfigured": "op.exp.7.2 NO EVALUABLE. Riesgo doble: incumplimiento del ENS y de la normativa de protección de datos."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.7",
+      "name": "evidencias_a_preservar",
+      "label": "Evidencias a preservar",
+      "description": "Qué evidencias deben recogerse y protegerse ante un incidente, y dónde se custodian. op.exp.7.r2.1 exige expresamente «la recogida de evidencias y protección de los registros». Enlaza con op.exp.9.2, que añade la perspectiva de validez jurisdiccional.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.1",
+        "op.exp.9.2"
+      ],
+      "type": "list",
+      "example": "logs del sistema afectado, / volcado de memoria, imagen disco / → repositorio con hash",
+      "required": true,
+      "wazuhUsage": "ENSFácil verifica que ante cada incidente se exportaron y preservaron los registros del período y sistemas afectados, con sellado de integridad. La protección de los registros frente a alteración es requisito expreso.",
+      "ensfacilUsage": "ENSFácil verifica que ante cada incidente se exportaron y preservaron los registros del período y sistemas afectados, con sellado de integridad. La protección de los registros frente a alteración es requisito expreso.",
+      "evidenceIds": [
+        "EV-05",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-EVIDENCIAS-A-PRESERVAR"
+      ],
+      "ifNotConfigured": "op.exp.7.r2.1 parcialmente NO EVALUABLE. Riesgo de perder evidencia utilizable en sede jurisdiccional."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.7",
+      "name": "acciones_respuesta_automatica",
+      "label": "Acciones respuesta automatica",
+      "description": "Acciones de contención automática autorizadas y su alcance: aislamiento de equipo, bloqueo de IP, detención de servicio, bloqueo de cuenta. Da soporte a op.exp.7.r2.1 y a la reconfiguración dinámica de R3.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.1",
+        "op.exp.7.r3.1"
+      ],
+      "type": "table",
+      "example": "bloqueo IP | fuerza bruta | / perímetro | auto 30 min",
+      "required": true,
+      "wazuhUsage": "Configura Active Response de Wazuh. Cada acción debe tener condición de disparo, alcance limitado y mecanismo de reversión. Una respuesta automática mal calibrada causa más indisponibilidad que el incidente.",
+      "ensfacilUsage": "Configura Active Response de Wazuh. Cada acción debe tener condición de disparo, alcance limitado y mecanismo de reversión. Una respuesta automática mal calibrada causa más indisponibilidad que el incidente.",
+      "evidenceIds": [
+        "EV-05",
+        "EV-06",
+        "EV-09"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-ACCIONES-RESPUESTA-AUTOMATICA"
+      ],
+      "ifNotConfigured": "No hay contención automática. La respuesta depende íntegramente de intervención manual, alargando el impacto."
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.7",
+      "name": "elementos_reconfiguracion_dinamica",
+      "label": "Elementos reconfiguracion dinamica",
+      "description": "Elementos del sistema sobre los que puede aplicarse reconfiguración dinámica —cortafuegos, enrutadores, listas de control de acceso, IDS/IPS, puertas de enlace— y quién está autorizado a modificarlos en respuesta a incidente. R3 es obligatorio en categoría ALTA.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r3.1"
+      ],
+      "type": "table",
+      "example": "fw-perimetral | reglas | / vía Active Response + RSI",
+      "required": false,
+      "wazuhUsage": "ENSFácil verifica que existen los mecanismos y que se han ejercitado: cambios de configuración en estos elementos correlacionados con incidentes activos. Enlaza con op.exp.3 y op.exp.5 para su trazabilidad.",
+      "ensfacilUsage": "ENSFácil verifica que existen los mecanismos y que se han ejercitado: cambios de configuración en estos elementos correlacionados con incidentes activos. Enlaza con op.exp.3 y op.exp.5 para su trazabilidad.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-ELEMENTOS-RECONFIGURACION-DINAMICA"
+      ],
+      "ifNotConfigured": "R3 NO EVALUABLE y es obligatorio en categoría ALTA. Sin capacidad de reconfiguración los daños no se acotan."
+    },
+    {
+      "id": "P-11",
+      "controlId": "op.exp.7",
+      "name": "canal_avisos_ccn_cert",
+      "label": "Canal avisos ccn cert",
+      "description": "Vía por la que se reciben y procesan los avisos del CCN-CERT sobre ciberamenazas sofisticadas y campañas de ataques, que el organismo debe usar para adaptar sus procedimientos de reconfiguración dinámica (op.exp.7.r3.2).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r3.2"
+      ],
+      "type": "select",
+      "example": "boletines CCN-CERT / por correo → RSI → / actualización de reglas",
+      "required": false,
+      "wazuhUsage": "ENSFácil registra la recepción de avisos y verifica que van seguidos de adaptación de reglas de detección o de configuración. Los IoC de los avisos pueden cargarse como CDB lists en Wazuh para detección directa.",
+      "ensfacilUsage": "ENSFácil registra la recepción de avisos y verifica que van seguidos de adaptación de reglas de detección o de configuración. Los IoC de los avisos pueden cargarse como CDB lists en Wazuh para detección directa.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [
+        "ENS-OPEXP7-CANAL-AVISOS-CCN-CERT"
+      ],
+      "ifNotConfigured": "R3 parcialmente NO EVALUABLE. Los avisos del CCN-CERT no se traducen en capacidad de detección efectiva."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.7",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar el procedimiento de gestión de incidentes y los requisitos que ninguna telemetría puede demostrar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.7.1 | Procedimiento de gestión de incidentes | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
+      "ensfacilUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
+      "evidenceIds": [],
+      "ruleIds": [
+        "ENS-OPEXP7-ATESTACIONES-DOCUMENTALES"
+      ],
+      "ifNotConfigured": "Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple."
+    }
+  ]
+}

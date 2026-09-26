@@ -46,8 +46,38 @@ import {
   opExp4PolicyDefinition,
 } from './op-exp-4.policy';
 
+import {
+  opExp5PolicyDefinition,
+} from './op-exp-5.policy';
+
+import {
+  opExp6PolicyDefinition,
+} from './op-exp-6.policy';
+
+import {
+  opExp7PolicyDefinition,
+} from './op-exp-7.policy';
+
+import {
+  opExp8PolicyDefinition,
+} from './op-exp-8.policy';
+
+import {
+  opExp9PolicyDefinition,
+} from './op-exp-9.policy';
+
+import {
+  opExp10PolicyDefinition,
+} from './op-exp-10.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
+    opExp10PolicyDefinition,
+    opExp9PolicyDefinition,
+    opExp8PolicyDefinition,
+    opExp7PolicyDefinition,
+    opExp6PolicyDefinition,
+    opExp5PolicyDefinition,
     opExp4PolicyDefinition,
     opExp3PolicyDefinition,
     opExp2PolicyDefinition,

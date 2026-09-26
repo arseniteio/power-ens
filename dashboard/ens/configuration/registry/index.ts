@@ -10,6 +10,12 @@ import { opExp1Configuration } from '../data/op-exp-1-parameters';
 import { opExp2Configuration } from '../data/op-exp-2-parameters';
 import { opExp3Configuration } from '../data/op-exp-3-parameters';
 import { opExp4Configuration } from '../data/op-exp-4-parameters';
+import { opExp5Configuration } from '../data/op-exp-5-parameters';
+import { opExp6Configuration } from '../data/op-exp-6-parameters';
+import { opExp7Configuration } from '../data/op-exp-7-parameters';
+import { opExp8Configuration } from '../data/op-exp-8-parameters';
+import { opExp9Configuration } from '../data/op-exp-9-parameters';
+import { opExp10Configuration } from '../data/op-exp-10-parameters';
 
 export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   mpInfo6Configuration,
@@ -23,6 +29,12 @@ export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   opExp2Configuration,
   opExp3Configuration,
   opExp4Configuration,
+  opExp5Configuration,
+  opExp6Configuration,
+  opExp7Configuration,
+  opExp8Configuration,
+  opExp9Configuration,
+  opExp10Configuration,
 ];
 
 export const getENSControlConfiguration = (

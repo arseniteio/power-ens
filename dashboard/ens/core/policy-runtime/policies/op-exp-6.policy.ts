@@ -1,0 +1,86 @@
+import { ENSPolicyDefinition } from '../types';
+
+export const opExp6PolicyDefinition: ENSPolicyDefinition = {
+  id: 'policy.op.exp.6',
+  controlId: 'op.exp.6',
+  version: '1.0.0',
+  requirements: [
+    {
+      requirementId: 'op.exp.6.1',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-01'],
+      evidenceIds: ['EV-01', 'EV-04', 'EV-10', 'EV-11'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.2',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-01', 'P-02'],
+      evidenceIds: ['EV-01'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.3',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-05', 'P-10'],
+      evidenceIds: ['EV-08', 'EV-12'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.4',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-03'],
+      evidenceIds: ['EV-02'],
+      ruleType: 'MAX_AGE',
+    },
+    {
+      requirementId: 'op.exp.6.5',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-04'],
+      evidenceIds: ['EV-03'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.r1.1',
+      levels: ['MEDIO', 'ALTO'],
+      parameterIds: ['P-06'],
+      evidenceIds: ['EV-05'],
+      ruleType: 'MAX_AGE',
+    },
+    {
+      requirementId: 'op.exp.6.r2.1',
+      levels: ['MEDIO', 'ALTO'],
+      parameterIds: ['P-07'],
+      evidenceIds: ['EV-06'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.r3.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-08'],
+      evidenceIds: ['EV-07'],
+      ruleType: 'WHITELIST',
+    },
+    {
+      requirementId: 'op.exp.6.r4.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-09'],
+      evidenceIds: ['EV-08', 'EV-09', 'EV-10', 'EV-11'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.r5.1',
+      levels: [],
+      parameterIds: ['P-10'],
+      evidenceIds: ['EV-12'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.exp.6.r5.2',
+      levels: [],
+      parameterIds: ['P-04'],
+      evidenceIds: ['EV-03'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+  ],
+};

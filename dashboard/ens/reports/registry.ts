@@ -31,6 +31,7 @@
  * Tipos desde el fichero, nunca desde el barrel `../core`: por ahí vuelve el
  * ciclo transitivo del TDZ de Settings.
  */
+import { compareENSIds } from '../control-filter/prefix';
 import type { ENSComplianceResult } from '../core/evaluation/types';
 
 import { buildMpInfo6ReportModel } from './report-model';
@@ -44,6 +45,12 @@ import { buildOpExp1ReportModel } from './op-exp-1-report-model';
 import { buildOpExp2ReportModel } from './op-exp-2-report-model';
 import { buildOpExp3ReportModel } from './op-exp-3-report-model';
 import { buildOpExp4ReportModel } from './op-exp-4-report-model';
+import { buildOpExp5ReportModel } from './op-exp-5-report-model';
+import { buildOpExp6ReportModel } from './op-exp-6-report-model';
+import { buildOpExp7ReportModel } from './op-exp-7-report-model';
+import { buildOpExp8ReportModel } from './op-exp-8-report-model';
+import { buildOpExp9ReportModel } from './op-exp-9-report-model';
+import { buildOpExp10ReportModel } from './op-exp-10-report-model';
 
 export type ENSReportFieldStatus =
   | 'CUMPLE'
@@ -89,6 +96,36 @@ export interface ENSReportModelDefinition {
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
+  {
+    controlId: 'op.exp.10',
+    name: 'op.exp.10 - Protección de claves criptográficas',
+    build: buildOpExp10ReportModel,
+  },
+  {
+    controlId: 'op.exp.9',
+    name: 'op.exp.9 - Registro de la gestión de incidentes',
+    build: buildOpExp9ReportModel,
+  },
+  {
+    controlId: 'op.exp.8',
+    name: 'op.exp.8 - Registro de la actividad',
+    build: buildOpExp8ReportModel,
+  },
+  {
+    controlId: 'op.exp.7',
+    name: 'op.exp.7 - Gestión de incidentes',
+    build: buildOpExp7ReportModel,
+  },
+  {
+    controlId: 'op.exp.6',
+    name: 'op.exp.6 - Protección frente a código dañino',
+    build: buildOpExp6ReportModel,
+  },
+  {
+    controlId: 'op.exp.5',
+    name: 'op.exp.5 - Gestión de cambios',
+    build: buildOpExp5ReportModel,
+  },
   {
     controlId: 'op.exp.4',
     name: 'op.exp.4 - Mantenimiento y actualizaciones de seguridad',
@@ -187,7 +224,7 @@ export const getENSReportModelDefinition = (
   reportModelRegistry.get((controlId || '').trim());
 
 export const getRegisteredENSReportControls = (): string[] =>
-  Array.from(reportModelRegistry.keys()).sort();
+  Array.from(reportModelRegistry.keys()).sort(compareENSIds);
 
 // El modelo ya construido, o `undefined` si el control no tiene modelo. Quien
 // llame tiene que tratar el `undefined`; no hay forma de recibir por descuido
