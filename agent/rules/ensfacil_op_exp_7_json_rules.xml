@@ -1,0 +1,176 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_7_json_rules.xml
+     Esta es una copia desplegable para que el procedimiento funcione en un
+     servidor sin acceso al repo del plugin. Es el MISMO fichero, byte a byte,
+     en el runbook de Linux, en el de LDAP y en el plugin: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_7,score,">
+
+  <!-- ================================================================
+       op.exp.7 · Gestión de incidentes
+       Rango reservado: 110800-110899
+       Base 110800 · hechos crudos 110801-110849 · diagnóstico 110895-110899
+
+       El sujeto de este control es el MANAGER. Todos los hechos los escribe el
+       recolector del propio manager (ens_opexp7_collect.sh) leyendo ficheros
+       locales, sin ninguna credencial, así que llegan con agent.id=000. Cuando
+       un hecho habla de otra máquina lo dice en su campo `sistema`.
+
+       Mapa hecho -> rule ID -> evidencia, que es lo que acredita
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+
+         110801 security_alert_observed        EV-01, EV-02, EV-03
+         110802 incident_registered            EV-02 a EV-08, EV-12
+         110803 incident_notification_recorded EV-04, EV-07
+         110804 ccn_cert_notification_recorded EV-08
+         110805 improvement_action_recorded    EV-12
+         110806 alert_log_seal_checked         EV-05
+         110807 active_response_executed       EV-06, EV-09, EV-11
+         110808 active_response_configured     EV-06, EV-09, EV-11
+         110809 threat_list_observed           EV-10
+
+       Fuera del mapa: 110800 (base, nivel 0), 110895 (la degradación: el
+       recolector dice que NO pudo mirar), 110897 (el latido: no acredita
+       evidencia, la habilita), 110898 (aviso operativo) y 110899 (falta una
+       dependencia y el recolector no puede correr).
+
+       Ninguna regla lleva `estado` de cumplimiento ni `cumple`/`no_cumple` en
+       su grupo: son hechos, y el veredicto lo pone el motor del plugin
+       contrastándolos con la pantalla de Configuración.
+       ================================================================ -->
+
+  <rule id="110800" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.7</field>
+    <description>op.exp.7 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== Detección (alerts.json del manager) ===== -->
+
+  <!-- EV-01, EV-02 y EV-03. Cuántas alertas de UNA regla y UN nivel produjo
+       UN sistema en UNA hora, con la primera y la última. Se agrega porque son
+       miles al día; el nivel lo trae crudo y la severidad ENS la pone el motor
+       con P-01. Quedan fuera las alertas del propio ENSFácil (`data.ensfacil`
+       o grupo `ensfacil`): son medidas, no eventos de seguridad. -->
+  <rule id="110801" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">security_alert_observed</field>
+    <description>op.exp.7 · EV-01 · $(alertas) alerta(s) de nivel $(nivel) regla $(regla) en $(sistema) ($(primera))</description>
+  </rule>
+
+  <!-- ===== Registro de incidentes (/etc/ensfacil/incident-register.tsv) =====
+
+       Lo mantiene la organización: el recolector lo LEE, nunca lo escribe. Se
+       reemite ENTERO en cada pasada (hecho de estado): una fila corregida en el
+       registro corrige el hecho en la pasada siguiente. -->
+
+  <!-- Una fila (una fase) de un incidente, con su fecha, severidad, sistemas
+       afectados, clasificación y valoración de datos personales. -->
+  <rule id="110802" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">incident_registered</field>
+    <description>op.exp.7 · EV-02 · incidente $(incidente_id) fase $(fase) ($(severidad)) en $(sistemas)</description>
+  </rule>
+
+  <!-- EV-04 y EV-07. A quién se escaló y a quién se notificó en esa fase. -->
+  <rule id="110803" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">incident_notification_recorded</field>
+    <description>op.exp.7 · EV-04 · incidente $(incidente_id): escalado a $(escalado_a), notificado a $(notificado_a)</description>
+  </rule>
+
+  <!-- EV-08. La notificación al CCN-CERT que consta en el registro. -->
+  <rule id="110804" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">ccn_cert_notification_recorded</field>
+    <description>op.exp.7 · EV-08 · incidente $(incidente_id) notificado al CCN-CERT el $(notificacion_ccn_cert)</description>
+  </rule>
+
+  <!-- EV-12. Las medidas de mejora que constan en el registro. -->
+  <rule id="110805" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">improvement_action_recorded</field>
+    <description>op.exp.7 · EV-12 · incidente $(incidente_id): medidas de mejora registradas</description>
+  </rule>
+
+  <!-- ===== Protección de los registros ===== -->
+
+  <!-- EV-05. El registro de alertas de un día que abarca un incidente: si se
+       conserva, el SHA-256 que selló monitord al rotarlo, el que se calcula
+       hoy sobre el contenido y si la cadena de sellos con el día anterior
+       cuadra. Que coincidan o no lo decide el motor. -->
+  <rule id="110806" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">alert_log_seal_checked</field>
+    <description>op.exp.7 · EV-05 · registro de alertas del $(dia): conservado $(conservado), sellado $(sellado)</description>
+  </rule>
+
+  <!-- ===== Respuesta activa ===== -->
+
+  <!-- EV-06, EV-09 y EV-11. Una ejecución de respuesta activa en un sistema,
+       leída de las alertas del grupo `active_response` que produce el propio
+       log de cada agente, con el comando, la acción y la regla que la
+       disparó. -->
+  <rule id="110807" level="5">
+    <if_sid>110800</if_sid>
+    <field name="event">active_response_executed</field>
+    <description>op.exp.7 · EV-06 · respuesta activa $(comando) ($(accion)) en $(sistema) por la regla $(regla_disparadora)</description>
+  </rule>
+
+  <!-- EV-06, EV-09 y EV-11. Un bloque <active-response> del ossec.conf del
+       manager: comando, reglas que lo disparan, dónde actúa y si expira. -->
+  <rule id="110808" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">active_response_configured</field>
+    <description>op.exp.7 · EV-06 · respuesta activa configurada: $(comando) sobre $(reglas)</description>
+  </rule>
+
+  <!-- ===== Listas de amenazas ===== -->
+
+  <!-- EV-10. Una lista CDB declarada en el ossec.conf del manager: si existe,
+       cuándo se modificó, cuántas entradas tiene y cuántas reglas la usan. -->
+  <rule id="110809" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">threat_list_observed</field>
+    <description>op.exp.7 · EV-10 · lista $(lista): $(entradas) entradas, modificada $(modificada)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó
+       y no había nada», y las dos se arreglan en sitios distintos. -->
+  <rule id="110895" level="7">
+    <if_sid>110800</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.7 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El latido y los diagnósticos ===== -->
+
+  <!-- 110897. No acredita ninguna evidencia: las HABILITA. Declara qué fuentes
+       leyó la pasada y si el registro de incidentes existe; sin él, el silencio
+       no puede valer como cumplimiento. -->
+  <rule id="110897" level="3">
+    <if_sid>110800</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.7 · pasada del recolector del manager: $(resultado)</description>
+  </rule>
+
+  <!-- 110898. Aviso operativo: una fila del registro mal formada, un ajuste
+       local ilegible. No lleva requisito ni evidencia. -->
+  <rule id="110898" level="4">
+    <if_sid>110800</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.7 · aviso del recolector: $(motivo)</description>
+  </rule>
+
+  <!-- 110899. Falta una dependencia (jq, python3) y la pasada no puede
+       correr: ninguna evidencia se mide. -->
+  <rule id="110899" level="7">
+    <if_sid>110800</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.7 · el recolector no puede correr: falta $(dependencia)</description>
+  </rule>
+
+</group>

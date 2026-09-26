@@ -2811,6 +2811,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: análisis de ficheros de fuentes externas y dispositivos extraíbles?',
   },
+  // op.exp.7 · Gestión de incidentes. El sujeto es el MANAGER: todos los hechos
+  // los emite su recolector (agent.id 000) leyendo ficheros locales sin
+  // credenciales, y el campo `sistema`/`sistemas` dice de qué máquina hablan.
+  // Ninguna evidencia lleva `judgment`: todas cruzan dos flujos de hechos o
+  // restan instantes, y las decide `policies/op-exp-7.policy.ts`.
+  //
+  // Reglas: banda 110800-110899, desplegadas por el runbook
+  // `op.exp.7-incident-management` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.7',
@@ -2822,10 +2830,13 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    // Las alertas del manager de nivel >= el de observación, agregadas por
+    // sistema, regla, nivel y hora. La severidad ENS la pone la policy con
+    // P-01; el recolector solo decide desde qué nivel mira.
     expectedEventTypes: ['evidence_state', 'security_alert_observed'],
-    relatedRules: [],
+    relatedRules: ['110801'],
     auditQuestion:
-      '¿Se acredita: detección de eventos de seguridad e incidentes?',
+      '¿Detecta el SIEM los eventos de seguridad de los sistemas del alcance y los clasifica por severidad?',
   },
   {
     id: 'EV-02',
@@ -2838,10 +2849,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'incident_registered'],
-    relatedRules: [],
+    // Cruce de dos flujos de hechos: cada alerta Alta o Crítica (P-01) de un
+    // sistema tiene que caer dentro de un incidente registrado de ese sistema,
+    // con el plazo de escalado de P-02. Lo juzga la policy.
+    expectedEventTypes: ['evidence_state', 'security_alert_observed', 'incident_registered'],
+    relatedRules: ['110801', '110802'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered'],
     auditQuestion:
-      '¿Se acredita: conciliación entre alertas y expedientes de incidente?',
+      '¿Se convierte en incidente registrado toda alerta de severidad alta o crítica?',
   },
   {
     id: 'EV-03',
@@ -2854,10 +2870,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    // MTTD y MTTR: restas entre fases del registro (y con la primera alerta)
+    // comparadas con la fila de su severidad en P-05. Lo juzga la policy.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'security_alert_observed'],
+    relatedRules: ['110801', '110802'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered'],
     auditQuestion:
-      '¿Se acredita: tiempos de detección, contención y resolución?',
+      '¿Se contienen y resuelven los incidentes dentro de los plazos comprometidos para su severidad?',
   },
   {
     id: 'EV-04',
@@ -2870,10 +2890,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'incident_notification_recorded'],
-    relatedRules: [],
+    // Escalado contra P-02 (destinatario y plazo) y, desde MEDIA, comunicación
+    // a los responsables de P-04 de cada sistema afectado.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'incident_notification_recorded'],
+    relatedRules: ['110802', '110803'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'incident_notification_recorded'],
     auditQuestion:
-      '¿Se acredita: verificación del escalado y de la notificación a responsables?',
+      '¿Se escaló cada incidente a quien correspondía, en plazo, y se informó a los responsables de los sistemas afectados?',
   },
   {
     id: 'EV-05',
@@ -2886,10 +2910,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'evidence_export_sealed'],
-    relatedRules: [],
+    // El registro de alertas de cada día que abarca un incidente: conservado,
+    // con su sello SHA-256 de rotación intacto y la cadena de sellos entera.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'alert_log_seal_checked'],
+    relatedRules: ['110802', '110806'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'alert_log_seal_checked'],
     auditQuestion:
-      '¿Se acredita: preservación de evidencias y protección de los registros?',
+      '¿Se conservan íntegros los registros de alertas del periodo de cada incidente?',
   },
   {
     id: 'EV-06',
@@ -2902,10 +2930,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'active_response_executed'],
-    relatedRules: [],
+    // Contención de cada incidente Alto o Crítico: una respuesta activa de P-09
+    // sobre un sistema afectado durante el incidente, o la fase «intermedio»
+    // (contención registrada a mano).
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'active_response_executed', 'active_response_configured'],
+    relatedRules: ['110802', '110807', '110808'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'active_response_configured'],
     auditQuestion:
-      '¿Se acredita: medidas urgentes de contención aplicadas?',
+      '¿Consta una medida urgente de contención en cada incidente de severidad alta o crítica?',
   },
   {
     id: 'EV-07',
@@ -2918,10 +2951,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    // Incidentes que tocan un sistema de P-07: valoración de datos personales
+    // y notificación a la AEPD en 72 horas cuando los afecta.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'incident_notification_recorded'],
+    relatedRules: ['110802', '110803'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'incident_notification_recorded'],
     auditQuestion:
-      '¿Se acredita: incidentes que afectan a datos personales?',
+      '¿Se valoró cada incidente en sistemas con datos personales y se notificó a la AEPD en 72 horas cuando procedía?',
   },
   {
     id: 'EV-08',
@@ -2934,10 +2971,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'ccn_cert_notification_recorded'],
-    relatedRules: [],
+    // Incidentes de severidad notificable según P-01: notificación al CCN-CERT
+    // registrada, dentro del plazo de P-02, por la ventanilla de P-06.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'ccn_cert_notification_recorded'],
+    relatedRules: ['110802', '110804'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'ccn_cert_notification_recorded'],
     auditQuestion:
-      '¿Se acredita: notificación de incidentes al ccn-cert (r1)?',
+      '¿Consta notificado al CCN-CERT cada incidente que debía notificarse?',
   },
   {
     id: 'EV-09',
@@ -2950,10 +2991,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'INTEGRITY',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'dynamic_reconfiguration_executed'],
-    relatedRules: [],
+    // Reconfiguración dinámica = respuesta activa de P-09 ejecutada sobre un
+    // elemento de P-10. Un elemento sin agente no deja nada que observar.
+    expectedEventTypes: ['evidence_state', 'active_response_executed', 'active_response_configured'],
+    relatedRules: ['110807', '110808'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['active_response_configured'],
     auditQuestion:
-      '¿Se acredita: reconfiguración dinámica ejecutada ante incidente (r3)?',
+      '¿Se ha ejercitado la reconfiguración dinámica sobre los elementos declarados?',
   },
   {
     id: 'EV-10',
@@ -2966,10 +3011,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'threat_list_updated'],
-    relatedRules: [],
+    // Cada lista CDB de P-11: existe, está cargada, la usa alguna regla y no
+    // lleva más días sin actualizarse que el plazo declarado.
+    expectedEventTypes: ['evidence_state', 'threat_list_observed'],
+    relatedRules: ['110809'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['threat_list_observed'],
     auditQuestion:
-      '¿Se acredita: adaptación a los avisos del ccn-cert (r3)?',
+      '¿Se incorporan los indicadores de los avisos del CCN-CERT a la capacidad de detección?',
   },
   {
     id: 'EV-11',
@@ -2982,10 +3031,13 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    // R4 no es exigible: respuesta automática configurada y ejercitada.
+    expectedEventTypes: ['evidence_state', 'active_response_executed', 'active_response_configured'],
+    relatedRules: ['110807', '110808'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['active_response_configured'],
     auditQuestion:
-      '¿Se acredita: detección de anomalías y respuesta automatizada (r4)?',
+      '¿Hay respuesta automática configurada y se ha ejercitado?',
   },
   {
     id: 'EV-12',
@@ -2998,10 +3050,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'improvement_action_recorded'],
-    relatedRules: [],
+    // Todo incidente cerrado (fase final) tiene que tener medidas de mejora
+    // registradas.
+    expectedEventTypes: ['evidence_state', 'incident_registered', 'improvement_action_recorded'],
+    relatedRules: ['110802', '110805'],
+    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    stateFactEventTypes: ['incident_registered', 'improvement_action_recorded'],
     auditQuestion:
-      '¿Se acredita: medidas de mejora derivadas del incidente?',
+      '¿Consta alguna medida de mejora en cada incidente cerrado?',
   },
   {
     id: 'EV-01',
