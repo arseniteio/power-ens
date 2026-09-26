@@ -1,5 +1,29 @@
 import { ENSControlConfiguration } from '../types';
 
+// op.exp.5 · la política que decide el control. El agente emite los cambios
+// reales y el registro de peticiones tal cual; el veredicto sale de
+// contrastarlos con lo que aquí se decide (`policies/op-exp-5.policy.ts`).
+//
+// Cambios frente a la plantilla del auditor, todos porque el tipo que traía no
+// podía alimentar ningún juicio:
+//
+//   P-01  «Selección + acceso» → tabla herramienta | ubicacion |
+//         prefijo_referencia. Sin ITSM, las peticiones viven en el registro TSV
+//         de cada máquina (`/etc/ensfacil/change-register.tsv`) y P-01 declara
+//         que ESE es el registro de verdad. Si declara otro sistema, el
+//         contraste queda sin demostrar en vez de juzgar una copia.
+//   P-04  «Nombre + cuenta ITSM» → tabla nombre | cuenta: se compara la cuenta.
+//   P-06  «Lista documento | ubicación» → tabla documento | ubicacion |
+//         plazo_dias. Dos campos por fila no caben en una lista, y «en la
+//         ventana posterior al cambio» necesita un plazo.
+//   P-07  «Selección + destino» → tabla canal | destino.
+//   P-08  «tipo de cambio | mecanismo» → el esquema de P-07 de op.exp.4
+//         (sistema | mecanismo | evidencia | ventana_horas). Sin sistema ni
+//         ventana, «ANTES del cambio» no se puede medir y un snapshot de la
+//         semana pasada valdría como uno de ayer.
+//   P-09  NUEVO. «Efectos adversos en la ventana posterior al cambio» (EV-07)
+//         necesita esa ventana, y la plantilla no la declaraba. No se le da
+//         valor por defecto: sería política escrita en el código.
 export const opExp5Configuration: ENSControlConfiguration = {
   controlId: 'op.exp.5',
   controlName: 'Gestión de cambios',
@@ -11,197 +35,313 @@ export const opExp5Configuration: ENSControlConfiguration = {
       id: 'P-01',
       controlId: 'op.exp.5',
       name: 'sistema_gestion_cambios',
-      label: 'Sistema gestion cambios',
+      label: 'Sistema de gestión de cambios',
       description:
-        'Sistema donde se registran las peticiones de cambio con su número de referencia, y forma de acceso a ese registro. op.exp.5.1 exige numeración y seguimiento equivalentes a los del registro de incidentes.',
+        'Dónde se registran las peticiones de cambio y con qué numeración. Sin integración con un ITSM, el registro que ENSFácil sabe leer es el TSV que la organización mantiene en cada máquina (/etc/ensfacil/change-register.tsv): herramienta «registro_tsv». Si las peticiones viven en otro sistema (Jira, GLPI, ServiceNow), decláralo: el contraste quedará sin demostrar en vez de juzgar un registro que nadie mantiene. «prefijo_referencia», si se declara, es el comienzo obligatorio del número de cada petición (por ejemplo «RFC-»).',
       levels: ['MEDIO', 'ALTO'],
-      requirements: ['op.exp.5.1', 'op.exp.5.2'],
-      type: 'select',
-      example: 'Jira Service Management / (API) / GLPI / ServiceNow / / registro en hoja de cálculo',
+      requirements: ['op.exp.5.1', 'op.exp.5.2', 'op.exp.5.4', 'op.exp.5.r1.3'],
+      type: 'table',
+      example: 'registro_tsv | /etc/ensfacil/change-register.tsv (mantenido por el RSI) | RFC-',
+      columns: [
+        {
+          name: 'herramienta',
+          label: 'Herramienta',
+          type: 'select',
+          options: ['registro_tsv', 'jira', 'glpi', 'servicenow', 'otro'],
+          required: true,
+        },
+        {
+          name: 'ubicacion',
+          label: 'Ubicación y acceso',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'prefijo_referencia',
+          label: 'Prefijo del número de referencia',
+          type: 'string',
+          required: false,
+        },
+      ],
       required: true,
       wazuhUsage:
-        'Es la pieza que hace posible el contraste. Cambio detectado sin petición asociada → hallazgo.',
+        'Es la pieza que hace posible el contraste. Cambio real sin petición aprobada que lo cubra → hallazgo.',
       ensfacilUsage:
-        'ENSFácil consulta las peticiones aprobadas y las correlaciona con los cambios que FIM y Syscollector detectan en los sistemas.',
-      evidenceIds: ['EV-01', 'EV-02', 'EV-03'],
+        'EV-02 busca, para cada cambio real que observa el agente, una petición aprobada del registro cuya ventana lo cubra. La fuente es el registro TSV mantenido a mano, y el informe lo dice así.',
+      evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede contrastar cambio real contra cambio autorizado. La aportación principal de ENSFácil a este control se pierde.',
+        'No se puede contrastar cambio real contra cambio autorizado: EV-02, EV-03, EV-04 y EV-06 quedan NO_EVALUABLE por configuración.',
     },
     {
       id: 'P-02',
       controlId: 'op.exp.5',
       name: 'campos_minimos_peticion_cambio',
-      label: 'Campos minimos peticion cambio',
+      label: 'Campos mínimos de una petición de cambio',
       description:
-        'Información mínima que debe contener cada petición de cambio para que el autorizador «no tenga dudas al respecto» (op.exp.5.2): descripción, sistemas afectados, solicitante, ventana prevista, impacto, plan de reversión, resultado del análisis de riesgos.',
+        'Columnas del registro de peticiones que una petición autorizada tiene que traer rellenas para que quien la autoriza «no tenga dudas al respecto» (op.exp.5.2). Un valor por fila, con el nombre de la columna: peticion_id, fecha_registro, sistema, descripcion, riesgo, aprobado_por, fecha_aprobacion, ventana_inicio, ventana_fin, preproduccion, estado, documentacion, impacto_seguridad, referencia. En categoría ALTA se exige además impacto_seguridad aunque no se declare aquí (op.exp.5.r1.3).',
       levels: ['MEDIO', 'ALTO'],
-      requirements: ['op.exp.5.2'],
+      requirements: ['op.exp.5.2', 'op.exp.5.r1.3'],
       type: 'list',
-      example: 'descripción, sistemas, / solicitante, riesgo, reversión, / aprobador, fecha',
+      example: 'descripcion',
       required: true,
       wazuhUsage:
-        'ENSFácil verifica la completitud de cada petición consultada en P-01. Petición implementada con campos obligatorios vacíos → hallazgo de información insuficiente para autorizar.',
+        'Petición autorizada con alguno de estos campos vacíos o «-» → hallazgo de información insuficiente para autorizar.',
       ensfacilUsage:
-        'ENSFácil verifica la completitud de cada petición consultada en P-01. Petición implementada con campos obligatorios vacíos → hallazgo de información insuficiente para autorizar.',
+        'EV-03 revisa, fila a fila, las peticiones aprobadas, implantadas o revertidas del registro de la máquina.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la suficiencia de la información. op.exp.5.2 solo acreditable por muestreo manual.',
+        'No se puede verificar la suficiencia de la información: op.exp.5.2 queda NO_EVALUABLE.',
     },
     {
       id: 'P-03',
       controlId: 'op.exp.5',
       name: 'criterios_cambio_riesgo_alto',
-      label: 'Criterios cambio riesgo alto',
+      label: 'Criterios de cambio de riesgo alto',
       description:
-        'Criterios que determinan cuándo un cambio implica riesgo de nivel ALTO y por tanto exige aprobación explícita y previa del Responsable de la Seguridad (op.exp.5.4). Es el umbral que dispara el requisito más exigente del control.',
+        'Criterios del análisis de riesgos que determinan cuándo un cambio es de riesgo ALTO y exige aprobación expresa y previa del Responsable de la Seguridad (op.exp.5.4). La clasificación de cada cambio la escribe quien gestiona la petición en la columna «riesgo» del registro; estos criterios son lo que esa clasificación aplica, y lo que el informe enseña al auditor.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.4'],
       type: 'list',
-      example: 'cambio en perímetro, / en mecanismo de autenticación, / en cifrado, en ACL de datos / especialmente protegidos',
+      example: 'cambio en el perímetro o en el cortafuegos',
       required: true,
       wazuhUsage:
-        'ENSFácil clasifica los cambios detectados según estos criterios y verifica que los de riesgo ALTO cuentan con aprobación explícita del RSI en P-01, y que esa aprobación es ANTERIOR a la implantación.',
+        'Documental: ninguna primitiva compara un cambio con estos criterios. Sin ellos, la columna «riesgo» no se apoya en ningún análisis declarado.',
       ensfacilUsage:
-        'ENSFácil clasifica los cambios detectados según estos criterios y verifica que los de riesgo ALTO cuentan con aprobación explícita del RSI en P-01, y que esa aprobación es ANTERIOR a la implantación.',
+        'EV-04 exige que estén declarados antes de juzgar la aprobación de los cambios de riesgo alto.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede identificar qué cambios exigían aprobación del RSI. op.exp.5.4 NO EVALUABLE.',
+        'No se puede identificar qué cambios exigían aprobación del RSI: op.exp.5.4 queda NO_EVALUABLE.',
     },
     {
       id: 'P-04',
       controlId: 'op.exp.5',
       name: 'responsable_seguridad',
-      label: 'Responsable seguridad',
+      label: 'Responsable de la Seguridad',
       description:
-        'Identificación del Responsable de la Seguridad y de su cuenta o identificador en el sistema de gestión de cambios, para poder verificar que la aprobación de los cambios de riesgo ALTO proviene efectivamente de él.',
+        'Responsable de la Seguridad y la cuenta con la que aprueba las peticiones. La columna «cuenta» se compara literalmente con la columna «aprobado_por» del registro de peticiones.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.4'],
-      type: 'string',
-      example: 'A. Martínez | / amartinez@org.es',
+      type: 'table',
+      example: 'A. Martínez | amartinez',
+      columns: [
+        {
+          name: 'nombre',
+          label: 'Nombre',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'cuenta',
+          label: 'Cuenta con la que aprueba',
+          type: 'identifier',
+          required: true,
+        },
+      ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica la identidad del aprobador en las peticiones clasificadas como riesgo ALTO. Aprobación firmada por otra persona → hallazgo, porque el ENS atribuye esa competencia al RSI de forma expresa.',
+        'Cambio de riesgo alto aprobado por otra cuenta, o aprobado después de implantarse → hallazgo.',
       ensfacilUsage:
-        'ENSFácil verifica la identidad del aprobador en las peticiones clasificadas como riesgo ALTO. Aprobación firmada por otra persona → hallazgo, porque el ENS atribuye esa competencia al RSI de forma expresa.',
+        'EV-04 compara «aprobado_por» con esta columna y la fecha de aprobación con el primer cambio real que la petición cubre.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar que la aprobación de cambios de riesgo ALTO proviene del Responsable de la Seguridad.',
+        'No se puede verificar que la aprobación de los cambios de riesgo alto venga del RSI: op.exp.5.4 queda NO_EVALUABLE.',
     },
     {
       id: 'P-05',
       controlId: 'op.exp.5',
       name: 'entorno_preproduccion',
-      label: 'Entorno preproduccion',
+      label: 'Entorno de preproducción',
       description:
-        'Emparejamiento entre sistemas de producción y sus equivalentes de preproducción, y acreditación de que son equivalentes «al menos en los aspectos específicos del cambio» (op.exp.5.3). Puede compartirse con el parámetro homólogo de op.exp.4.',
+        'Parejas de sistema de producción y sistema de preproducción, con la referencia que acredita que son equivalentes en los aspectos del cambio. Mismo esquema que P-06 de op.exp.4, a propósito: es la misma declaración.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.3'],
       type: 'table',
-      example: 'srv-app01 → pre-app01',
+      example: 'srv-app01 | pre-app01 | informe de consistencia 2026-05',
       columns: [
         {
           name: 'sistema_prod',
-          label: 'Sistema prod',
+          label: 'Sistema de producción',
           type: 'identifier',
           required: true,
         },
         {
           name: 'sistema_preprod',
-          label: 'Sistema preprod',
+          label: 'Sistema de preproducción',
           type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'consistencia',
+          label: 'Evidencia de equivalencia',
+          type: 'string',
           required: false,
         },
       ],
-      required: true,
+      // No obligatorio A PROPÓSITO, como P-06 de op.exp.4: sin preproducción,
+      // op.exp.5.3 ya sale sin demostrar por la policy, y la única forma de
+      // «rellenarlo» sin tenerla sería inventarla.
+      required: false,
       wazuhUsage:
-        'ENSFácil correlaciona cada cambio en producción con actividad previa en su par de preproducción. Requiere agente Wazuh también en preproducción. Nótese el matiz «siempre que sea posible realizarlas», que admite justificación de imposibilidad.',
+        'Cambio en producción sin actividad previa equivalente en su preproducción → hallazgo.',
       ensfacilUsage:
-        'ENSFácil correlaciona cada cambio en producción con actividad previa en su par de preproducción. Requiere agente Wazuh también en preproducción. Nótese el matiz «siempre que sea posible realizarlas», que admite justificación de imposibilidad.',
+        'EV-05 necesita los cambios de las DOS máquinas de la pareja. El motor evalúa cada máquina por separado, así que hoy la precedencia no se puede demostrar y op.exp.5.3 queda sin acreditar aunque la tabla esté rellena.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede acreditar el paso por preproducción. op.exp.5.3 queda como acreditación documental.',
+        'op.exp.5.3 no se puede demostrar.',
     },
     {
       id: 'P-06',
       controlId: 'op.exp.5',
       name: 'documentacion_configuracion',
-      label: 'Documentacion configuracion',
+      label: 'Documentación de configuración',
       description:
-        'Documentos de configuración que deben actualizarse tras un cambio aceptado (op.exp.5.5): diagramas de red, manuales de operación, inventario de activos. Debe indicarse dónde residen para poder verificar su actualización.',
+        'Documentos de configuración que se actualizan tras un cambio aceptado (diagramas de red, manuales, inventario), dónde viven y en cuántos días desde el fin de la ventana del cambio tienen que estar actualizados. «documento» es el nombre que la columna «documentacion» del registro de peticiones usa para pedir su actualización. Solo se puede comprobar un documento que sea un fichero de la máquina y que su recolector vigile (OPEXP5_DOCUMENTOS); uno en una CMDB o en un recurso de red se declara igual y sale sin demostrar.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.5'],
-      type: 'list',
-      example: 'diagrama red | / \\\\srv\\doc\\red.vsdx / inventario | CMDB',
+      type: 'table',
+      example: 'inventario | /srv/doc/inventario-activos.ods | 7',
+      columns: [
+        {
+          name: 'documento',
+          label: 'Documento',
+          type: 'identifier',
+          required: true,
+        },
+        {
+          name: 'ubicacion',
+          label: 'Ubicación',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'plazo_dias',
+          label: 'Plazo (días)',
+          type: 'number',
+          required: true,
+        },
+      ],
+      minValue: 0,
       required: true,
       wazuhUsage:
-        'FIM sobre las rutas declaradas permite detectar si el documento se actualizó en la ventana posterior al cambio. Cambio aceptado sin actualización documental posterior → hallazgo de op.exp.5.5.',
+        'Cambio implantado cuya documentación no se modifica dentro del plazo → hallazgo de op.exp.5.5.',
       ensfacilUsage:
-        'FIM sobre las rutas declaradas permite detectar si el documento se actualizó en la ventana posterior al cambio. Cambio aceptado sin actualización documental posterior → hallazgo de op.exp.5.5.',
-      evidenceIds: ['EV-06', 'EV-07'],
+        'EV-06 busca, para cada petición implantada que declare documentación, una modificación del fichero entre el inicio de su ventana y el fin de su ventana más el plazo.',
+      evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la actualización de la documentación tras el cambio.',
+        'No se puede verificar la actualización de la documentación tras el cambio: EV-06 queda NO_EVALUABLE.',
     },
     {
       id: 'P-07',
       controlId: 'op.exp.5',
       name: 'canal_comunicacion_fallos',
-      label: 'Canal comunicacion fallos',
+      label: 'Canal de comunicación de fallos',
       description:
-        'Vía por la que se comunican al responsable de seguridad los fallos de software y hardware, exigida por op.exp.5.r1.2 en categoría ALTA. Debe ser un canal cuyo uso deje registro.',
+        'Vía por la que se comunican al responsable de seguridad los fallos de software y hardware (op.exp.5.r1.2) y a quién. Un canal que no deja huella observable en la máquina (un buzón, una cola atendida por personas) se declara igual, y la comunicación queda sin demostrar.',
       levels: ['ALTO'],
       requirements: ['op.exp.5.r1.2'],
-      type: 'select',
-      example: 'cola ITSM «Seguridad» / / buzón rsi@org.es / / integración Wazuh → ITSM',
+      type: 'table',
+      example: 'buzon | rsi@organizacion.es',
+      columns: [
+        {
+          name: 'canal',
+          label: 'Canal',
+          type: 'select',
+          options: ['cola_itsm', 'buzon', 'integracion_wazuh'],
+          required: true,
+        },
+        {
+          name: 'destino',
+          label: 'Destino',
+          type: 'string',
+          required: true,
+        },
+      ],
       required: false,
       wazuhUsage:
-        'ENSFácil puede correlacionar las alertas de fallo que Wazuh detecta (servicios caídos, errores hardware en logs del sistema) con su comunicación efectiva por el canal declarado. Fallo detectado sin comunicación → hallazgo.',
+        'Fallo detectado sin comunicación registrada por el canal → hallazgo.',
       ensfacilUsage:
-        'ENSFácil puede correlacionar las alertas de fallo que Wazuh detecta (servicios caídos, errores hardware en logs del sistema) con su comunicación efectiva por el canal declarado. Fallo detectado sin comunicación → hallazgo.',
+        'EV-08 detecta los fallos (servicios caídos en la máquina); la comunicación no tiene hoy ningún hecho que la observe y queda sin demostrar.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la comunicación de fallos al responsable de seguridad. op.exp.5.r1.2 NO EVALUABLE.',
+        'op.exp.5.r1.2 no se puede demostrar en ALTO.',
     },
     {
       id: 'P-08',
       controlId: 'op.exp.5',
       name: 'mecanismo_reversion',
-      label: 'Mecanismo reversion',
+      label: 'Mecanismo de reversión',
       description:
-        'Mecanismo previsto para revertir cada tipo de cambio en caso de efectos adversos: snapshot, punto de restauración, backup de configuración, versión anterior en repositorio. Coincide en sustancia con el parámetro homólogo de op.exp.4 (R2) y conviene gestionarlos de forma unificada.',
+        'Mecanismo previsto para revertir un cambio y ventana, en horas, en la que tiene que existir el punto de reversión ANTES del cambio. «sistema» es el nombre del agente o «*». Los mecanismos lvm, zfs y btrfs los observa el agente en la máquina; hipervisor y backup no dejan huella en ella y no se pueden demostrar con este control. Mismo esquema que P-07 de op.exp.4.',
       levels: ['ALTO'],
       requirements: ['op.exp.5.r1.1'],
       type: 'table',
-      example: 'cambio config → backup / despliegue app → snapshot VM',
+      example: '* | lvm | snapshot previo al cambio | 24',
       columns: [
         {
-          name: 'tipo_de_cambio',
-          label: 'Tipo de cambio',
-          type: 'string',
+          name: 'sistema',
+          label: 'Sistema',
+          type: 'identifier',
           required: true,
         },
         {
           name: 'mecanismo',
           label: 'Mecanismo',
+          type: 'select',
+          options: ['lvm', 'zfs', 'btrfs', 'hipervisor', 'backup'],
+          required: true,
+        },
+        {
+          name: 'evidencia',
+          label: 'Evidencia',
           type: 'string',
           required: false,
         },
+        {
+          name: 'ventana_horas',
+          label: 'Ventana previa (horas)',
+          type: 'number',
+          required: true,
+        },
       ],
+      minValue: 0,
       required: false,
       wazuhUsage:
-        'ENSFácil verifica que existe evidencia del punto de reversión en la ventana anterior a cada cambio implantado. Reutiliza la lógica de op.exp.4 EV-09.',
+        'Cambio sin punto de reversión en la ventana previa → hallazgo de R1.',
       ensfacilUsage:
-        'ENSFácil verifica que existe evidencia del punto de reversión en la ventana anterior a cada cambio implantado. Reutiliza la lógica de op.exp.4 EV-09.',
-      evidenceIds: ['EV-07', 'EV-09'],
+        'EV-09 busca, para cada cambio real de configuración o de software, un punto de reversión del mecanismo declarado creado en las horas previas a su inicio. Es la lógica de EV-09 de op.exp.4.',
+      evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
-        'R1 parcialmente NO EVALUABLE. No se acredita la previsión de reversión exigida por op.exp.5.r1.1.',
+        'R1 no se puede demostrar en ALTO: no se acredita la previsión de reversión de op.exp.5.r1.1.',
+    },
+    {
+      id: 'P-09',
+      controlId: 'op.exp.5',
+      name: 'ventana_estabilidad_horas',
+      label: 'Ventana de estabilidad tras un cambio (horas)',
+      description:
+        'Horas siguientes a un cambio real en las que un servicio que cae se atribuye a ese cambio. Si sigue caído en la última pasada del recolector y no consta la reversión del cambio en el registro (estado «revertida»), es un efecto adverso sostenido. No está en la plantilla del auditor: EV-07 la necesita para decidir qué es «la ventana posterior al cambio».',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.exp.5.5', 'op.exp.5.r1.1'],
+      type: 'duration_hours',
+      example: '24',
+      minValue: 1,
+      required: false,
+      wazuhUsage:
+        'Servicio caído dentro de esta ventana tras un cambio, sin reversión registrada → hallazgo.',
+      ensfacilUsage:
+        'EV-07 sitúa el instante de caída de cada servicio que sigue caído respecto de los cambios reales observados.',
+      evidenceIds: ['EV-07'],
+      ruleIds: [],
+      ifNotConfigured:
+        'EV-07 queda NO_EVALUABLE: sin ventana no se puede atribuir un fallo a un cambio.',
     },
     {
       id: 'P-ATT',
@@ -209,7 +349,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar el procedimiento de gestión de cambios y los requisitos que ningún evento del sistema puede demostrar.',
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. En op.exp.5 todos los requisitos tienen evidencia técnica, así que hoy no se aplica a ninguno: queda disponible por coherencia con el resto de controles.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -218,20 +358,20 @@ export const opExp5Configuration: ENSControlConfiguration = {
         {
           name: 'requisito',
           label: 'Requisito',
-          type: 'string',
+          type: 'identifier',
           required: true,
         },
         {
           name: 'referencia',
-          label: 'Referencia',
+          label: 'Documento',
           type: 'string',
-          required: false,
+          required: true,
         },
         {
           name: 'enlace',
-          label: 'Enlace',
+          label: 'Enlace(s)',
           type: 'string',
-          required: false,
+          required: true,
         },
         {
           name: 'fecha',
@@ -241,20 +381,21 @@ export const opExp5Configuration: ENSControlConfiguration = {
         },
         {
           name: 'responsable',
-          label: 'Responsable',
+          label: 'Declarado por',
           type: 'string',
           required: false,
         },
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+        'Sin efecto en este control: ningún requisito de op.exp.5 es puramente documental.',
     },
   ],
 };
+

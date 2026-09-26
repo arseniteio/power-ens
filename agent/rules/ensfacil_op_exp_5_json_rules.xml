@@ -1,0 +1,172 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_5_json_rules.xml
+     Esta es una copia desplegable para que el procedimiento funcione en un
+     servidor sin acceso al repo del plugin. Es el MISMO fichero, byte a byte,
+     en el runbook de Linux, en el de LDAP y en el plugin: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_exp_5,score,">
+
+  <!-- ================================================================
+       op.exp.5 · Gestión de cambios
+       Rango reservado: 110600-110699
+       Base 110600 · hechos crudos 110601-110649 · degradación 110650 ·
+       recolector 110697-110699
+
+       Mapa hecho -> rule ID -> evidencia, que es lo que acredita
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+
+         110601 config_file_modified       EV-01, EV-02, EV-04, EV-07, EV-09
+         110602 package_changed            EV-01, EV-02, EV-04, EV-07, EV-09
+         110603 listening_port_changed     EV-01, EV-02, EV-04, EV-07
+         110604 hardware_changed           EV-01, EV-02, EV-04, EV-07
+         110605 change_register_read       EV-02, EV-03, EV-04, EV-06
+         110606 change_request_registered  EV-02, EV-03, EV-04, EV-06
+         110607 config_doc_modified        EV-06
+         110608 service_failed             EV-07, EV-08
+         110609 reversion_point_created    EV-09
+
+       Los cuatro primeros son los CAMBIOS REALES de la máquina. Los dos
+       siguientes son el registro de peticiones que mantiene la organización
+       (/etc/ensfacil/change-register.tsv), leído tal cual: el agente no
+       correlaciona un cambio con su petición, eso lo hace el motor.
+
+       EV-05 no tiene regla a propósito: demostrar el paso por preproducción
+       exige cruzar dos máquinas y el motor evalúa cada una por separado.
+
+       Fuera del mapa: 110600 (base, nivel 0), 110650 (la degradación: el
+       agente dice que NO pudo mirar), 110697 (el latido: no acredita
+       evidencia, la habilita), 110698 (aviso operativo) y 110699 (hueco entre
+       pasadas del recolector).
+
+       Ninguna regla lleva `estado` de cumplimiento ni `cumple`/`no_cumple` en
+       su grupo: son hechos, y el veredicto lo pone el motor del plugin
+       contrastándolos con la pantalla de Configuración.
+       ================================================================ -->
+
+  <rule id="110600" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.exp.5</field>
+    <description>op.exp.5 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== Cambios reales ===== -->
+
+  <!-- Una escritura sobre una ruta de configuración vigilada por auditd, con la
+       cuenta de la sesión que la hizo, el proceso y el intervalo (primera y
+       última escritura de la pasada). Se lee por RUTA, no por clave: si otro
+       control vigila ya la ruta, el kernel etiqueta el evento con su clave. -->
+  <rule id="110601" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">config_file_modified</field>
+    <description>op.exp.5 · EV-01 · $(actor) modificó $(recurso) ($(operacion), $(primera))</description>
+  </rule>
+
+  <!-- Una transacción de instalación, actualización o desinstalación de
+       software, con su actor y su intervalo (el mismo código que op.exp.4). -->
+  <rule id="110602" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">package_changed</field>
+    <description>op.exp.5 · EV-01 · $(actor) cambió software ($(mecanismo), $(inicio))</description>
+  </rule>
+
+  <!-- Un puerto en escucha que aparece o desaparece entre dos pasadas. Solo
+       se sabe que ocurrió entre `desde` y `detectado`, y así viaja. -->
+  <rule id="110603" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">listening_port_changed</field>
+    <description>op.exp.5 · EV-01 · puerto $(protocolo)/$(puerto) $(cambio) ($(proceso), detectado $(detectado))</description>
+  </rule>
+
+  <!-- Un componente de hardware (CPU, memoria, disco, interfaz de red,
+       dispositivo PCI) que aparece o desaparece entre dos pasadas. -->
+  <rule id="110604" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">hardware_changed</field>
+    <description>op.exp.5 · EV-01 · $(componente) $(cambio): $(elemento)</description>
+  </rule>
+
+  <!-- ===== El registro de peticiones de cambio ===== -->
+
+  <!-- La cabecera de una lectura del registro: cuántas peticiones tiene,
+       cuántas filas no se pudieron leer y su huella. Sin ella el motor no sabe
+       si las filas que le han llegado son todas. -->
+  <rule id="110605" level="3">
+    <if_sid>110600</if_sid>
+    <field name="event">change_register_read</field>
+    <description>op.exp.5 · EV-02 · registro de peticiones leído: $(filas) peticiones ($(registro))</description>
+  </rule>
+
+  <!-- Una petición del registro, con sus catorce columnas tal como las
+       escribió la organización. -->
+  <rule id="110606" level="3">
+    <if_sid>110600</if_sid>
+    <field name="event">change_request_registered</field>
+    <description>op.exp.5 · EV-02 · petición $(peticion_id) ($(estado), riesgo $(riesgo)) para $(sistema)</description>
+  </rule>
+
+  <!-- ===== Documentación, estabilidad y reversión ===== -->
+
+  <!-- Un documento de configuración (P-06) vigilado en la máquina y el
+       instante de su última modificación. -->
+  <rule id="110607" level="3">
+    <if_sid>110600</if_sid>
+    <field name="event">config_doc_modified</field>
+    <description>op.exp.5 · EV-06 · $(ruta) modificado $(modificado)</description>
+  </rule>
+
+  <!-- Un servicio que está caído en esta pasada, con el instante en que cayó.
+       Hecho de ESTADO: se reemite entero en cada pasada. Lo leen EV-07
+       (¿cayó por un cambio?) y EV-08 (fallo que hay que comunicar). -->
+  <rule id="110608" level="7">
+    <if_sid>110600</if_sid>
+    <field name="event">service_failed</field>
+    <description>op.exp.5 · EV-07 · $(unidad) caído desde $(desde)</description>
+  </rule>
+
+  <!-- Un punto de reversión local observado (snapshot LVM, ZFS o Btrfs) con
+       su instante de creación (el mismo código que op.exp.4). -->
+  <rule id="110609" level="3">
+    <if_sid>110600</if_sid>
+    <field name="event">reversion_point_created</field>
+    <description>op.exp.5 · EV-09 · punto de reversión $(mecanismo) $(identificador) ($(creado))</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
+       mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó y no
+       había nada», y las dos se arreglan en sitios distintos. -->
+  <rule id="110650" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.exp.5 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 110697. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
+       un periodo sin cambios no puede valer como cumplimiento. -->
+  <rule id="110697" level="3">
+    <if_sid>110600</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.exp.5 · pasada del recolector: $(resultado)</description>
+  </rule>
+
+  <!-- 110698. Aviso operativo: .env ilegible, recolector sin root, documento
+       declarado que no existe. Es higiene del propio pipeline. -->
+  <rule id="110698" level="5">
+    <if_sid>110600</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.exp.5 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 110699. El recolector ha estado parado más tiempo del que admite su
+       cron: durante ese tramo pudo haber cambios que el log de auditoría ya no
+       conserva. -->
+  <rule id="110699" level="7">
+    <if_sid>110600</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.exp.5 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>

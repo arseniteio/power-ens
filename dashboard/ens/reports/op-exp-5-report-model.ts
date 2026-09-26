@@ -111,77 +111,77 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cambios detectados en el período  ·  fuente: FIM + Syscollector (EV-01)
+  // Cambios detectados en el período  ·  fuente: auditd, apt/dpkg, puertos y hardware (EV-01)
   const campo2 = field(
     'op.exp.5.campo2',
     'Cambios detectados en el período',
     evidenceStatus('EV-01'),
-    'Inventario de todos los cambios efectivamente producidos en los sistemas del alcance: sistema afectado, tipo d',
+    'Cambios reales de la máquina: escrituras en la configuración vigilada (auditd, con autor), transacciones de software (apt/dpkg, con actor), puertos en escucha y hardware.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
 
-  // Conciliación cambio real frente a cambio autorizado  ·  fuente: ENSFácil + ITSM (EV-02)
+  // Conciliación cambio real frente a cambio autorizado  ·  fuente: registro TSV de peticiones (EV-02)
   const campo3 = field(
     'op.exp.5.campo3',
     'Conciliación cambio real frente a cambio autorizado',
     evidenceStatus('EV-02'),
-    'Para cada cambio de EV-01: número de referencia de la petición asociada, o marca de «sin petición». Porcentaje',
+    'Para cada cambio de EV-01, la petición aprobada cuya ventana lo cubre, o «sin petición». Fuente de las peticiones: registro TSV de la máquina, mantenido a mano (no hay integración con un ITSM).',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
 
-  // Calidad de las peticiones de cambio  ·  fuente: ENSFácil + ITSM (EV-03)
+  // Calidad de las peticiones de cambio  ·  fuente: registro TSV de peticiones (EV-03)
   const campo4 = field(
     'op.exp.5.campo4',
     'Calidad de las peticiones de cambio',
     evidenceStatus('EV-03'),
-    'Grado de cumplimentación de los campos obligatorios de P-02 en las peticiones implementadas. Relación de petic',
+    'Peticiones autorizadas del registro con algún campo obligatorio de P-02 vacío, o fuera del formato de referencia de P-01.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
 
-  // Cambios de riesgo ALTO y aprobación del RSI  ·  fuente: ENSFácil + ITSM (EV-04)
+  // Cambios de riesgo ALTO y aprobación del RSI  ·  fuente: registro TSV + cambios reales (EV-04)
   const campo5 = field(
     'op.exp.5.campo5',
     'Cambios de riesgo ALTO y aprobación del RSI',
     evidenceStatus('EV-04'),
-    'Cambios clasificados como de riesgo ALTO según P-03, con el aprobador, la fecha de aprobación y la de implanta',
+    'Peticiones de riesgo alto implantadas: aprobador frente al RSI de P-04 y fecha de aprobación frente al primer cambio real que cubren.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
 
-  // Paso por preproducción  ·  fuente: Syscollector (EV-05)
+  // Paso por preproducción  ·  sin fuente: exige cruzar dos máquinas (EV-05)
   const campo6 = field(
     'op.exp.5.campo6',
     'Paso por preproducción',
     evidenceStatus('EV-05'),
-    'Cambios implantados en producción con indicación de si tuvieron actividad equivalente previa en preproducción.',
+    'No demostrable hoy: el motor evalúa cada máquina por separado y no puede cruzar producción con su preproducción.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
 
-  // Actualización documental tras el cambio  ·  fuente: FIM (EV-06)
+  // Actualización documental tras el cambio  ·  fuente: fechas de modificación de los documentos (EV-06)
   const campo7 = field(
     'op.exp.5.campo7',
     'Actualización documental tras el cambio',
     evidenceStatus('EV-06'),
-    'Por cada cambio aceptado: documentos de P-06 que debían actualizarse y si consta su modificación posterior. Re',
+    'Por cada petición implantada que declara documentación: si el documento de P-06 se modificó dentro de su plazo.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
 
-  // Estabilidad del servicio tras los cambios  ·  fuente: Correlación (EV-07)
+  // Estabilidad del servicio tras los cambios  ·  fuente: systemctl --failed (EV-07)
   const campo8 = field(
     'op.exp.5.campo8',
     'Estabilidad del servicio tras los cambios',
     evidenceStatus('EV-07'),
-    'Comparación de la tasa de errores y disponibilidad en la ventana posterior a cada cambio frente a la línea bas',
+    'Servicios que siguen caídos y cayeron en las horas de P-09 posteriores a un cambio, sin reversión registrada.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
 
-  // Fallos detectados y su comunicación (R1)  ·  fuente: Log Collection (EV-08)
+  // Fallos detectados y su comunicación (R1)  ·  fuente: systemctl --failed; la comunicación no es observable (EV-08)
   const campo9 = field(
     'op.exp.5.campo9',
     'Fallos detectados y su comunicación (R1)',
@@ -193,7 +193,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Puntos de reversión previos a cada cambio (R1)  ·  fuente: FIM + Log (EV-09)
+  // Puntos de reversión previos a cada cambio (R1)  ·  fuente: snapshots LVM/ZFS/Btrfs (EV-09)
   const campo10 = field(
     'op.exp.5.campo10',
     'Puntos de reversión previos a cada cambio (R1)',
@@ -205,7 +205,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Valoración de impacto en seguridad de los cambios (R1)  ·  fuente: ENSFácil + ITSM (EV-03)
+  // Valoración de impacto en seguridad de los cambios (R1)  ·  fuente: registro TSV de peticiones (EV-03)
   const campo11 = field(
     'op.exp.5.campo11',
     'Valoración de impacto en seguridad de los cambios (R1)',
