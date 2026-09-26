@@ -12,7 +12,9 @@ import { ControlCard } from './control-card';
 
 interface ConfigurationCatalogProps {
   controls: ENSControlConfiguration[];
-  activeLevel: ENSLevel;
+  // Nivel de cada control: el global o el de su dimensión (ver
+  // `core/control-level.ts`), el mismo con el que lo evalúa el motor.
+  getActiveLevel: (controlId: string) => ENSLevel;
   selectedControlId?: string;
   onOpenControl: (
     controlId: string
@@ -21,7 +23,7 @@ interface ConfigurationCatalogProps {
 
 export const ConfigurationCatalog = ({
   controls,
-  activeLevel,
+  getActiveLevel,
   selectedControlId,
   onOpenControl,
 }: ConfigurationCatalogProps) => (
@@ -35,7 +37,9 @@ export const ConfigurationCatalog = ({
       >
         <ControlCard
           control={control}
-          activeLevel={activeLevel}
+          activeLevel={getActiveLevel(
+            control.controlId
+          )}
           isSelected={
             control.controlId ===
             selectedControlId

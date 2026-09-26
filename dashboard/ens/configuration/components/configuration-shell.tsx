@@ -18,6 +18,9 @@ import {
   getConfiguredControlById,
   getConfiguredControls,
 } from '../services';
+import { ENSLevel } from '../types';
+import { getENSCatalogControl } from '../../catalog';
+import { resolveControlLevel } from '../../core/control-level';
 
 import {
   ConfigurationCatalog,
@@ -60,6 +63,21 @@ export const ConfigurationShell = () => {
       () =>
         getConfiguredControls(),
       [configurationRevision]
+    );
+
+  // El nivel contra el que se validan los parámetros de UN control es el mismo
+  // con el que lo evalúa el motor: el global, salvo que el control se rija por
+  // el nivel de una dimensión (op.exp.8 y la Trazabilidad). Validar op.exp.8
+  // contra el global pedía como obligatorio lo que el motor no exige, o al revés.
+  const getControlActiveLevel =
+    useCallback(
+      (controlId: string): ENSLevel =>
+        resolveControlLevel(
+          getENSCatalogControl(controlId) || {},
+          activeConfiguration.global.ensLevel,
+          activeConfiguration.global
+        ),
+      [activeConfiguration]
     );
 
   const selectedControl =
@@ -121,7 +139,7 @@ export const ConfigurationShell = () => {
 
             <ConfigurationCatalog
               controls={controls}
-              activeLevel={activeConfiguration.global.ensLevel}
+              getActiveLevel={getControlActiveLevel}
               selectedControlId={
                 selectedControlId
               }
@@ -133,7 +151,9 @@ export const ConfigurationShell = () => {
         ) : (
           <ControlConfigurationPage
             control={selectedControl}
-            activeLevel={activeConfiguration.global.ensLevel}
+            activeLevel={getControlActiveLevel(
+              selectedControl.controlId
+            )}
             onBack={() =>
               setSelectedControlId(
                 undefined
