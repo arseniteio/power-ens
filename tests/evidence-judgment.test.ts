@@ -3050,6 +3050,10 @@ bloque('Estado de la migración');
     // primitiva; las demás las mide su policy (ver `policies/op-exp-6.policy.ts`).
     'op.exp.6/EV-01',
     'op.exp.6/EV-03',
+    // op.exp.8 nace en el modelo nuevo. Solo EV-02 declara primitiva; las
+    // demás las mide su policy, que separa el plano del servidor del central
+    // (ver `policies/op-exp-8.policy.ts`).
+    'op.exp.8/EV-02',
   ];
 
   comprueba(

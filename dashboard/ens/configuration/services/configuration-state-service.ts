@@ -190,6 +190,12 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
+  // El nivel de Trazabilidad es opcional: si el formulario lo quita, la mezcla
+  // de arriba lo resucitaría desde la configuración activa.
+  if (!globalConfiguration.traceabilityLevel) {
+    delete candidateConfiguration.global.traceabilityLevel;
+  }
+
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,

@@ -1,7 +1,10 @@
 import { buildPolicyContext, runPolicyRuntime } from './policy-runtime';
 import { ENSCatalog } from '../catalog';
 import { ENSConfigurationRegistry } from '../configuration/registry';
-import { getActiveControlConfiguration } from '../configuration/services';
+import {
+  getActiveControlConfiguration,
+  getActiveENSConfiguration,
+} from '../configuration/services';
 import { ENSLevel } from '../configuration/types';
 import {
   ENSDataSourceProvider,
@@ -18,6 +21,20 @@ import {
   consolidateAgentComplianceResults,
 } from './compliance-state';
 import { ENSAgentScope } from './scope';
+import { resolveControlLevel } from './control-level';
+
+// Nivel efectivo de un control: el global, salvo que el control se rija por el
+// nivel de una dimensión declarado en la configuración global (op.exp.8 y la
+// Trazabilidad). Ver `control-level.ts`.
+const getControlLevel = (
+  catalogControl: Parameters<typeof resolveControlLevel>[0],
+  level: ENSLevel
+): ENSLevel =>
+  resolveControlLevel(
+    catalogControl,
+    level,
+    getActiveENSConfiguration()?.global
+  );
 
 const getScopedEvents = (
   events: ENSNormalizedEvent[],
@@ -82,11 +99,13 @@ export const getENSComplianceResults = (
       now
     );
 
+    const controlLevel = getControlLevel(catalogControl, level);
+
     const evidences = resolveEvidenceForControl(
       catalogControl.id,
       controlEvents,
       agentId,
-      level,
+      controlLevel,
       configuration,
       now
     );
@@ -94,7 +113,7 @@ export const getENSComplianceResults = (
     const policyContext = buildPolicyContext(
       catalogControl,
       configuration,
-      level,
+      controlLevel,
       controlEvents,
       evidences,
       now
@@ -105,7 +124,7 @@ export const getENSComplianceResults = (
     return evaluateENSControl(
       catalogControl,
       configuration,
-      level,
+      controlLevel,
       evidences,
       policyRuntime,
       controlEvents
@@ -343,11 +362,13 @@ const evaluateENSComplianceResultByControl = (
     now
   );
 
+  const controlLevel = getControlLevel(catalogControl, level);
+
   const evidences = resolveEvidenceForControl(
     controlId,
     controlEvents,
     agentId,
-    level,
+    controlLevel,
     configuration,
     now
   );
@@ -355,7 +376,7 @@ const evaluateENSComplianceResultByControl = (
   const policyContext = buildPolicyContext(
     catalogControl,
     configuration,
-    level,
+    controlLevel,
     controlEvents,
     evidences,
     now
@@ -367,7 +388,7 @@ const evaluateENSComplianceResultByControl = (
   return evaluateENSControl(
     catalogControl,
     configuration,
-    level,
+    controlLevel,
     evidences,
     policyRuntime,
     controlEvents

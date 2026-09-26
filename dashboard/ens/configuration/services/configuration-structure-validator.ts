@@ -378,6 +378,15 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
+  // Opcional: la clave ausente es válida (se usa `ensLevel`). Presente, tiene
+  // que ser un nivel; `null` no lo es.
+  if (
+    'traceabilityLevel' in value &&
+    !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
+  ) {
+    errors.push('configuration.global.traceabilityLevel is invalid.');
+  }
+
   if (
     value.reportLanguage !== 'es' &&
     value.reportLanguage !== 'en'

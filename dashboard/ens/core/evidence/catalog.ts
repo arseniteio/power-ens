@@ -3144,213 +3144,269 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Consta alguna medida de mejora en cada incidente cerrado?',
   },
+  // --- op.exp.8 · Registro de la actividad ----------------------------------
+  //
+  // Dos planos, separados por el latido (`tipo_servidor`): el del SERVIDOR
+  // (EV-01, EV-02, EV-03, EV-06, EV-08: cada agente Linux o LDAP y el propio
+  // manager) y el CENTRAL (EV-04, EV-05, EV-07, EV-09..EV-13: solo el manager,
+  // agent.id=000). Solo EV-02 se juzga con una primitiva; el resto lo mide la
+  // policy del control (`policies/op-exp-8.policy.ts`), que es quien sabe en
+  // qué fila se mide cada requisito, y el puente lo lleva a la tabla.
+  //
+  // Reglas: banda 110900-110999, desplegadas por el runbook
+  // `op.exp.8-activity-logging` (y su copia LDAP).
   {
+    // Plano del servidor. Lo juzga la policy del control: auditd activo con
+    // reglas y registro del sistema persistente; en el directorio, slapd con
+    // `stats`.
     id: 'EV-01',
     controlId: 'op.exp.8',
     title: 'Generación y conservación del registro de auditoría',
     description:
-      'Ingesta centralizada de los eventos de todas las categorías declaradas en P-01, conservados de forma consultable y con los cinco campos mínimos que exige op.exp.8.1. Es el registro de auditoría del sistema en sentido propio: no una evidencia sobre el control, sino el control mismo materializado.',
+      'Fuentes de registro de cada servidor y su estado: auditd (activo, habilitado en el kernel y con cuántas reglas cargadas), el registro del sistema (journald persistente o rsyslog) y, en un servidor LDAP, el registro de operaciones de slapd (olcLogLevel). Es el registro de auditoría en sentido propio, en el sitio donde se genera.',
     requirements: ['op.exp.8.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'audit_log_status'],
-    relatedRules: [],
+    stateFactEventTypes: ['audit_log_status'],
+    relatedRules: ['110901'],
     auditQuestion:
-      '¿Se acredita: generación y conservación del registro de auditoría?',
+      '¿Está activo en el servidor un registro de auditoría con reglas cargadas, y se conserva el registro del sistema? En un servidor LDAP, ¿registra slapd sus operaciones?',
   },
   {
+    // Plano del servidor. Único juicio por primitiva de op.exp.8.
     id: 'EV-02',
     controlId: 'op.exp.8',
     title: 'Cobertura de registro en los servidores',
     description:
-      'Verificación de que todos los servidores de P-02 tienen los registros de actividad activados y reportando efectivamente al Manager. op.exp.8.2 es un requisito base, taxativo y específico para servidores.',
+      'Estado del agente de Wazuh de cada servidor y el instante de su último keepalive con el manager, en UTC. Acredita que el servidor entrega su registro de actividad: un agente que deja de comunicar deja de registrar a efectos del sistema, y su último contacto envejece contra el plazo de P-12.',
     requirements: ['op.exp.8.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'agent_status'],
-    relatedRules: [],
+    stateFactEventTypes: ['agent_status'],
+    relatedRules: ['110902'],
+    judgment: {
+      // Existencial y contra el reloj: el hecho es el INSTANTE del último
+      // keepalive (en UTC, convertido en el agente desde su hora local), así
+      // que la antigüedad crece sola si el agente deja de entregar. Sin hecho,
+      // NO_EVALUABLE: nunca cumple por ausencia.
+      primitive: 'ANTIGUEDAD_MAXIMA',
+      parameterId: 'P-12',
+      factEventTypes: ['agent_status'],
+      factField: 'ultimo_keepalive',
+    },
     auditQuestion:
-      '¿Se acredita: cobertura de registro en los servidores?',
+      '¿El agente del servidor ha entregado su registro al manager dentro del plazo de P-12?',
   },
   {
+    // Plano del servidor. La policy: un campo ausente en TODA la muestra de una
+    // fuente es un hallazgo.
     id: 'EV-03',
     controlId: 'op.exp.8',
     title: 'Suficiencia de los campos del registro de auditoría',
     description:
-      'Auditoría de una muestra de eventos por cada fuente ingerida para verificar que contienen los cinco campos mínimos de op.exp.8.1: identificador de usuario o entidad, fecha y hora, información afectada, tipo de evento y resultado.',
+      'Muestra de los registros de auditoría más recientes de cada fuente (auditd; en LDAP, slapd), con cuántos traen cada uno de los cinco campos mínimos de op.exp.8.1: usuario o entidad, fecha y hora, objeto, tipo de evento y resultado.',
     requirements: ['op.exp.8.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'audit_record_fields'],
-    relatedRules: [],
+    stateFactEventTypes: ['audit_record_fields'],
+    relatedRules: ['110903'],
     auditQuestion:
-      '¿Se acredita: suficiencia de los campos del registro de auditoría?',
+      '¿Los registros de auditoría del servidor traen los cinco campos de op.exp.8.1 (usuario, fecha y hora, objeto, tipo y resultado)?',
   },
   {
+    // Plano central (agent.id=000). La policy cruza P-02 con la ingesta por
+    // agente.
     id: 'EV-04',
     controlId: 'op.exp.8',
     title: 'Continuidad de la ingesta y detección de lagunas',
     description:
-      'Vigilancia de la continuidad del registro por fuente y por agente, detectando períodos sin eventos donde debería haberlos. Una laguna en el registro es el defecto más grave posible en este control: el período afectado queda sin trazabilidad y sin posibilidad de reconstruirla.',
+      'Continuidad de la ingesta medida por el manager sobre las alertas que recibe: por agente, último evento, eventos en 24 h y laguna más larga en horas. Se cruza con los servidores declarados en P-02: un servidor sin ingesta o con una laguna mayor que P-12 queda sin trazabilidad en ese periodo.',
     requirements: ['op.exp.8.1', 'op.exp.8.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'log_ingestion_status'],
-    relatedRules: [],
+    stateFactEventTypes: ['log_ingestion_status'],
+    relatedRules: ['110904'],
     auditQuestion:
-      '¿Se acredita: continuidad de la ingesta y detección de lagunas?',
+      '¿Todos los servidores declarados en P-02 entregan eventos al manager sin lagunas mayores que P-12?',
   },
   {
+    // Plano central. Registro TSV de la organización en el manager.
     id: 'EV-05',
     controlId: 'op.exp.8',
     title: 'Registro de las revisiones periódicas de los registros (R1)',
     description:
-      'Constancia de cada revisión de los registros de actividad realizada: quién la hizo, cuándo, con qué alcance y qué patrones anormales encontró. R1 habla de revisión «informal», pero sin constancia documentada no es acreditable ante un auditor.',
+      'Revisiones periódicas de los registros anotadas por la organización en el registro del manager (/etc/ensfacil/log-review-register.tsv): cuántas hay y la más reciente, con revisor, alcance, hallazgos y referencia. R1 habla de revisión «informal», pero sin constancia no es acreditable.',
     requirements: ['op.exp.8.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'log_review_recorded'],
-    relatedRules: [],
+    stateFactEventTypes: ['log_review_recorded'],
+    relatedRules: ['110905'],
     auditQuestion:
-      '¿Se acredita: registro de las revisiones periódicas de los registros (r1)?',
+      '¿La revisión más reciente de los registros anotada por la organización es más reciente que la periodicidad de P-04?',
   },
   {
+    // Plano del servidor. Tres ejes (sincronización y fuente, desfase,
+    // autenticación) más la traza de los cambios de hora; los juzga la policy.
+    // clock_change_observed es una acción: no es hecho de estado.
     id: 'EV-06',
     controlId: 'op.exp.8',
     title: 'Sincronización del reloj y protección de la referencia de tiempo (R2)',
     description:
-      'Verificación de que cada sistema está sincronizado con las fuentes de tiempo de P-05, que la desviación no supera P-06, que la sincronización emplea mecanismos de autenticación e integridad, y que los cambios manuales de hora quedan registrados como función de administración.',
+      'Referencia de tiempo de cada servidor: servicio de sincronización, si está sincronizado, fuentes en uso, si la sincronización se autentica (NTS o clave), desfase medido y si auditd registra los cambios de la hora del sistema; y cada cambio de hora registrado, con la cuenta que lo hizo.',
     requirements: ['op.exp.8.r2.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'time_sync_status', 'clock_change_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['time_sync_status'],
+    relatedRules: ['110906', '110907'],
     auditQuestion:
-      '¿Se acredita: sincronización del reloj y protección de la referencia de tiempo (r2)?',
+      '¿El reloj está sincronizado con una fuente declarada, con autenticación, dentro de la desviación de P-06, y quedan registrados los cambios de hora?',
   },
   {
+    // Plano central. La retención del indexer (ISM) no se ve sin credenciales:
+    // queda sin demostrar con causa CONFIGURATION.
     id: 'EV-07',
     controlId: 'op.exp.8',
     title: 'Retención efectiva de los registros frente a la declarada (R3)',
     description:
-      'Comprobación de que la retención real de los índices coincide con el tiempo declarado en P-07, sin eliminación prematura ni conservación indefinida sin criterio. R3 exige que ese tiempo conste en la documentación de seguridad del sistema.',
+      'Retención de los registros: lo que el manager conserva en disco (alertas diarias y archives) y la retención de los índices del Wazuh Indexer frente a P-07. La segunda solo se ve consultando el indexer, y sin credenciales queda sin demostrar.',
     requirements: ['op.exp.8.r3.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'log_retention_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['log_retention_observed'],
+    relatedRules: ['110908'],
     auditQuestion:
-      '¿Se acredita: retención efectiva de los registros frente a la declarada (r3)?',
+      '¿La retención efectiva de los registros respeta la declarada en P-07?',
   },
   {
+    // Los dos planos: en cada servidor, quién puede leer sus registros; en el
+    // manager, además, los accesos al indexer, que sin credenciales quedan sin
+    // demostrar.
     id: 'EV-08',
     controlId: 'op.exp.8',
     title: 'Control de acceso a los registros de actividad (R4)',
     description:
-      'Auditoría de los accesos a los índices y a la API de Wazuh, verificando que provienen únicamente de las cuentas autorizadas en P-08, y detección de intentos de eliminación o modificación de índices. R4 es taxativo sobre quién puede acceder o eliminar.',
+      'Quién puede leer los registros de actividad de cada servidor (propietario, grupo, ACL y lectura por cualquiera, fichero a fichero dentro de cada directorio de registro) frente a las cuentas autorizadas de P-08. En el manager, los accesos efectivos a los índices (audit log del indexer) quedan sin demostrar sin credenciales.',
     requirements: ['op.exp.8.r4.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'log_access_permissions'],
-    relatedRules: [],
+    stateFactEventTypes: ['log_access_permissions'],
+    relatedRules: ['110909'],
     auditQuestion:
-      '¿Se acredita: control de acceso a los registros de actividad (r4)?',
+      '¿Solo las cuentas autorizadas en P-08 pueden leer los registros de actividad?',
   },
   {
+    // Sin hecho: los snapshots del indexer solo se ven con una credencial del
+    // indexer, que el recolector del manager no usa (decisión del 26/09). Lo
+    // dice un evidence_state NO_EVALUABLE (110950).
     id: 'EV-09',
     controlId: 'op.exp.8',
     title: 'Protección de las copias de seguridad de los registros (R4)',
     description:
-      'Verificación de que existen copias de los registros conforme a P-09, que están al día y que su destino tiene el acceso restringido al mismo personal autorizado de P-08. R4 extiende expresamente su protección a las copias de seguridad.',
+      'Existencia, frescura y protección de las copias de los registros (snapshots del Wazuh Indexer). Solo se ven consultando el indexer; sin credenciales quedan sin demostrar.',
     requirements: ['op.exp.8.r4.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'log_backup_status'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: protección de las copias de seguridad de los registros (r4)?',
+      '¿Existen copias de los registros al día y con el acceso restringido al personal de P-08?',
   },
   {
+    // Plano central.
     id: 'EV-10',
     controlId: 'op.exp.8',
     title: 'Análisis automático en busca de comprometimientos (R5)',
     description:
-      'Conjunto de reglas de correlación activas que analizan de forma continua la actividad del sistema y la información de auditoría buscando comprometimientos de la seguridad posibles o reales, con su mapeo a técnicas conocidas. Es la acreditación directa de op.exp.8.r5.1.',
+      'Conjuntos de reglas de análisis cargados por el manager (ruleset oficial y reglas propias), con cuántas reglas y cuántas mapean técnicas MITRE ATT&CK, frente a los conjuntos declarados en P-10.',
     requirements: ['op.exp.8.r5.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'correlation_rules_inventory'],
-    relatedRules: [],
+    stateFactEventTypes: ['correlation_rules_inventory'],
+    relatedRules: ['110910'],
     auditQuestion:
-      '¿Se acredita: análisis automático en busca de comprometimientos (r5)?',
+      '¿Están desplegados en el manager los conjuntos de reglas de análisis declarados en P-10?',
   },
   {
+    // Plano central.
     id: 'EV-11',
     controlId: 'op.exp.8',
     title: 'Sistema automático de recolección, correlación y respuesta (R5)',
     description:
-      'Acreditación de que existe un sistema automático que recolecta los registros, correlaciona los eventos y responde automáticamente ante ellos. El propio despliegue de Wazuh con Active Response operativo materializa literalmente lo que op.exp.8.r5.2 exige.',
+      'Respuestas activas configuradas en el manager: comando, ubicación, reglas o grupos que las disparan, tiempo de reversión y si están habilitadas, frente a las acciones previstas en P-11.',
     requirements: ['op.exp.8.r5.2'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'active_response_configured'],
-    relatedRules: [],
+    stateFactEventTypes: ['active_response_configured'],
+    relatedRules: ['110911'],
     auditQuestion:
-      '¿Se acredita: sistema automático de recolección, correlación y respuesta (r5)?',
+      '¿Hay respuestas automáticas configuradas y habilitadas en el manager, incluidas las de P-11?',
   },
   {
+    // Plano central. Acción, no estado.
     id: 'EV-12',
     controlId: 'op.exp.8',
     title: 'Respuestas automáticas ejecutadas (R5)',
     description:
-      'Registro de las acciones de respuesta automática efectivamente disparadas en el período, con la regla de origen, el objetivo, el resultado y la reversión si la hubo. Es la evidencia de que la respuesta automática de R5 no es solo una capacidad declarada sino una capacidad operativa.',
+      'Respuestas automáticas ejecutadas en la ventana, en cualquier agente o en el manager, con la regla que las disparó, el objetivo y el número de ejecuciones. Una ejecución sin alerta que la dispare (un reinicio pedido a mano) no acredita respuesta automática.',
     requirements: ['op.exp.8.r5.2'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'active_response_executed'],
-    relatedRules: [],
+    relatedRules: ['110912'],
     auditQuestion:
-      '¿Se acredita: respuestas automáticas ejecutadas (r5)?',
+      '¿Consta en la ventana alguna respuesta automática ejecutada a raíz de una alerta?',
   },
   {
+    // Plano central.
     id: 'EV-13',
     controlId: 'op.exp.8',
     title: 'Integridad del propio sistema de registro',
     description:
-      'Vigilancia de la integridad y disponibilidad del componente que sostiene el control: configuración del Manager, reglas y decodificadores, estado de los servicios y de los nodos del Indexer. Si el sistema de registro es el control, su integridad es requisito del control.',
+      'Estado de los servicios del sistema de registro (wazuh-manager, wazuh-indexer, wazuh-dashboard), desde cuándo están activos, sus reinicios y la huella de la configuración del manager y de sus reglas propias.',
     requirements: ['op.exp.8.1', 'op.exp.8.r4.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'logging_service_status'],
-    relatedRules: [],
+    stateFactEventTypes: ['logging_service_status'],
+    relatedRules: ['110913'],
     auditQuestion:
-      '¿Se acredita: integridad del propio sistema de registro?',
+      '¿Están activos todos los servicios del sistema de registro (manager, indexer, dashboard)?',
   },
   {
     id: 'EV-01',
