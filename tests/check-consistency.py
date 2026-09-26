@@ -115,6 +115,10 @@ RUNBOOKS = {
         "op.exp.8-activity-logging",
         ["ensfacil_op_exp_8_json_rules.xml"],
     ),
+    "op.exp.9": (
+        "op.exp.9-incident-management-records",
+        ["ensfacil_op_exp_9_json_rules.xml"],
+    ),
 }
 
 fallos = []

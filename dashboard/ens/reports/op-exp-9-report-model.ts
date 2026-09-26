@@ -116,7 +116,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo2',
     'Expedientes de incidente del período',
     evidenceStatus('EV-09'),
-    'Relación de incidentes con su expediente consolidado: identificador, alertas originarias, reportes registrados',
+    'Relación de incidentes con su expediente consolidado: identificador, alertas originarias, reportes registrados, actuaciones de emergencia, modificaciones derivadas y evidencias custodiadas. Cada entrada debe permitir abrir el dossier completo, que es lo que el auditor pedirá.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -126,7 +126,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo3',
     'Completitud de los reportes',
     evidenceStatus('EV-02'),
-    'Por cada incidente: presencia y cumplimentación de los reportes inicial, intermedio y final según P-02. Relaci',
+    'Por cada incidente: presencia y cumplimentación de los reportes inicial, intermedio y final según P-02. Relación de incidentes con reportes ausentes o incompletos, distinguiendo los casos en que la brevedad del incidente justifica la ausencia de reporte intermedio.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo4',
     'Actuaciones de emergencia registradas',
     evidenceStatus('EV-03'),
-    'Medidas urgentes ejecutadas en el período: acción, incidente asociado, hora, objetivo y resultado. Contraste e',
+    'Medidas urgentes ejecutadas en el período: acción, incidente asociado, hora, objetivo y resultado. Contraste entre las acciones que Wazuh registra automáticamente y las que constan en el expediente, para detectar actuaciones no documentadas.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -146,7 +146,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo5',
     'Modificaciones del sistema derivadas de incidentes',
     evidenceStatus('EV-04'),
-    'Cambios detectados en los sistemas afectados en la ventana posterior a cada incidente, con indicación de si co',
+    'Cambios detectados en los sistemas afectados en la ventana posterior a cada incidente, con indicación de si constan registrados en el expediente como modificación derivada. Enlaza con op.exp.3 y op.exp.5.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -156,7 +156,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo6',
     'Incidentes con relevancia jurídica',
     evidenceStatus('EV-05'),
-    'Incidentes marcados según los criterios de P-04, con el detalle de las evidencias recogidas conforme a P-03, s',
+    'Incidentes marcados según los criterios de P-04, con el detalle de las evidencias recogidas conforme a P-03, su hash de sellado, la fecha de recogida y la ubicación de custodia. Apartado destacado por sus consecuencias fuera del ámbito del ENS.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -166,7 +166,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo7',
     'Cadena de custodia de las evidencias',
     evidenceStatus('EV-06'),
-    'Por cada evidencia custodiada: registro completo de accesos posteriores con cuenta y finalidad, y resultado de',
+    'Por cada evidencia custodiada: registro completo de accesos posteriores con cuenta y finalidad, y resultado de la última verificación de integridad por recálculo de hash. Cualquier discrepancia se presenta como incidencia crítica.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -176,7 +176,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo8',
     'Protección de registros de períodos en investigación',
     evidenceStatus('EV-07'),
-    'Índices marcados como exentos de rotación por corresponder a incidentes abiertos o en plazo de conservación, c',
+    'Índices marcados como exentos de rotación por corresponder a incidentes abiertos o en plazo de conservación, con el incidente asociado y la fecha prevista de liberación. Relación de pérdidas detectadas si las hubiera.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -186,7 +186,7 @@ export const buildOpExp9ReportModel = (
     'op.exp.9.campo9',
     'Realimentación de eventos auditables',
     evidenceStatus('EV-08'),
-    'Revisiones de la lista de eventos auditables realizadas en el período con el incidente que las motivó, y nueva',
+    'Revisiones de la lista de eventos auditables realizadas en el período con el incidente que las motivó, y nuevas reglas de detección incorporadas como consecuencia. Acredita op.exp.9.3 y demuestra que el sistema de registro de op.exp.8 se mantiene vivo.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );

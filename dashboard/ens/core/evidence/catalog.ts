@@ -3418,11 +3418,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'incident_source_events_available'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // Por incidente y sistema afectado: alertas del agente en la ventana del
+    // incidente y archivos diarios de alertas presentes y con su suma encadenada
+    // de Wazuh verificada. Lo juzga la policy de op.exp.9 (correlación por
+    // `incidente_id`, que ninguna primitiva expresa).
+    expectedEventTypes: ['evidence_state', 'incident_source_events_available', 'incident_report_registered', 'register_read'],
+    relatedRules: ['111002', '111001', '111010'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['incident_source_events_available', 'register_read'],
     auditQuestion:
-      '¿Se acredita: registro de eventos que originan cada incidente?',
+      '¿Conserva el manager, íntegros, los eventos de cada sistema afectado en la ventana de cada incidente?',
   },
   {
     id: 'EV-02',
@@ -3435,10 +3443,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'incident_report_registered'],
-    relatedRules: [],
+    // Una fila del registro de incidentes por fase. Con el registro vacío, el
+    // contraste es el volumen de alertas del manager por regla y nivel (P-08,
+    // sin los grupos de P-09).
+    expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
+    relatedRules: ['111001', '111010', '111011', '111012'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
     auditQuestion:
-      '¿Se acredita: completitud de los reportes inicial, intermedio y final?',
+      '¿Tiene cada incidente registrados los reportes inicial, intermedio y final que exige P-02?',
   },
   {
     id: 'EV-03',
@@ -3450,11 +3465,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'emergency_action_linked'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // Lo que Wazuh registró (alertas active_response en la ventana del
+    // incidente) contra lo que la organización vinculó al expediente.
+    expectedEventTypes: ['evidence_state', 'emergency_action_observed', 'incident_action_registered', 'incident_source_events_available', 'register_read'],
+    relatedRules: ['111003', '111005', '111002'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['emergency_action_observed', 'incident_action_registered', 'register_read'],
     auditQuestion:
-      '¿Se acredita: registro de las actuaciones de emergencia?',
+      '¿Consta en el expediente cada respuesta activa ejecutada en un sistema afectado durante el incidente?',
   },
   {
     id: 'EV-04',
@@ -3466,11 +3487,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'derived_change_linked'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    // FIM, paquetes, configuración (op.exp.3) y cuentas (op.acc.1) observados
+    // en las alertas del manager, contra las modificaciones derivadas registradas.
+    expectedEventTypes: ['evidence_state', 'system_change_observed', 'incident_action_registered', 'incident_source_events_available', 'register_read'],
+    relatedRules: ['111004', '111005', '111002'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['system_change_observed', 'incident_action_registered', 'register_read'],
     auditQuestion:
-      '¿Se acredita: registro de las modificaciones del sistema derivadas del incidente?',
+      '¿Consta en el expediente cada modificación observada en un sistema afectado durante el incidente?',
   },
   {
     id: 'EV-05',
@@ -3483,10 +3510,16 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'evidence_export_sealed'],
-    relatedRules: [],
+    // Condicionada por la marca de relevancia jurídica del registro: sin
+    // incidentes marcados no hay exportación que exigir.
+    expectedEventTypes: ['evidence_state', 'evidence_export_sealed', 'incident_report_registered', 'register_read'],
+    relatedRules: ['111006', '111001'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['evidence_export_sealed', 'register_read'],
     auditQuestion:
-      '¿Se acredita: exportación sellada de evidencias con valor probatorio?',
+      '¿Tiene cada incidente con relevancia jurídica sellada la evidencia que determina P-03?',
   },
   {
     id: 'EV-06',
@@ -3496,13 +3529,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'Registro de todos los accesos a las evidencias custodiadas: quién, cuándo y con qué finalidad, junto con la verificación periódica de que el hash de la evidencia sigue coincidiendo. Sin cadena de custodia acreditable, la evidencia pierde valor probatorio con independencia de su contenido.',
     requirements: ['op.exp.9.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'INTEGRITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'custody_access_recorded', 'custody_integrity_checked'],
-    relatedRules: [],
+    // El SHA-256 se recalcula en el manager cuando la evidencia está en él;
+    // los accesos al repositorio los anota la organización.
+    expectedEventTypes: ['evidence_state', 'custody_access_recorded', 'custody_integrity_checked', 'evidence_export_sealed', 'register_read'],
+    relatedRules: ['111006', '111007', '111008'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded', 'register_read'],
     auditQuestion:
-      '¿Se acredita: cadena de custodia de las evidencias?',
+      '¿Está cada evidencia custodiada en un repositorio de P-05, con cadena de custodia y su SHA-256 intacto?',
   },
   {
     id: 'EV-07',
@@ -3515,10 +3554,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'incident_logs_retained'],
-    relatedRules: [],
+    // La parte del disco del manager se mide (archivos diarios y su suma); la
+    // exención de la política ISM del indexer NO se ve sin credenciales y queda
+    // sin demostrar con causa CONFIGURATION.
+    expectedEventTypes: ['evidence_state', 'incident_source_events_available', 'incident_report_registered', 'register_read'],
+    relatedRules: ['111002', '111001'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['incident_source_events_available', 'register_read'],
     auditQuestion:
-      '¿Se acredita: protección de los registros del período del incidente?',
+      '¿Se conservan, protegidos de la rotación, los registros del periodo de los incidentes abiertos o con relevancia jurídica?',
   },
   {
     id: 'EV-08',
@@ -3531,10 +3577,17 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'auditable_events_revised'],
-    relatedRules: [],
+    // Cambios de reglas, decodificadores, ossec.conf y agent.conf del manager con
+    // su instante, y revisiones registradas por incidente. El plazo empieza en el
+    // cierre, cosa que ninguna primitiva expresa.
+    expectedEventTypes: ['evidence_state', 'auditable_events_revised', 'incident_action_registered', 'incident_report_registered', 'register_read'],
+    relatedRules: ['111009', '111005', '111001'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['auditable_events_revised', 'incident_action_registered', 'register_read'],
     auditQuestion:
-      '¿Se acredita: realimentación de los eventos auditables tras el incidente?',
+      '¿Se revisaron los eventos auditables tras cada incidente cerrado que lo exige P-07, dentro de su plazo?',
   },
   {
     id: 'EV-09',
@@ -3544,13 +3597,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'Consolidación en un único expediente consultable de todo lo relacionado con el incidente: alertas originarias, reportes, actuaciones de emergencia, modificaciones derivadas, evidencias custodiadas y revisión de eventos auditables. Es el entregable que un auditor querrá ver en su conjunto.',
     requirements: ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'TRACEABILITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    // Vista consolidada por incidente; lo que se mide es que el expediente se
+    // pueda reconstruir desde el registro.
+    expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read'],
+    relatedRules: ['111001'],
+    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
+    // manager en cada pasada (el estado de los registros y de las ventanas de
+    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    stateFactEventTypes: ['incident_report_registered', 'register_read'],
     auditQuestion:
-      '¿Se acredita: trazabilidad completa del expediente de incidente?',
+      '¿Enlaza cada fila del registro con su expediente, de modo que el expediente se pueda presentar entero?',
   },
   {
     id: 'EV-01',
