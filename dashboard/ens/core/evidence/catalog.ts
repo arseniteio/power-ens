@@ -3247,13 +3247,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     // Una fila del registro de incidentes por fase. Con el registro vacío, el
-    // contraste es el volumen de alertas del manager por nivel (P-08).
-    expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed'],
-    relatedRules: ['111001', '111010', '111011'],
+    // contraste es el volumen de alertas del manager por regla y nivel (P-08,
+    // sin los grupos de P-09).
+    expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
+    relatedRules: ['111001', '111010', '111011', '111012'],
     // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
     // manager en cada pasada (el estado de los registros y de las ventanas de
     // incidente): se juzga con la última pasada, no con la ventana de 30 días.
-    stateFactEventTypes: ['incident_report_registered', 'register_read', 'alert_volume_observed'],
+    stateFactEventTypes: ['incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
     auditQuestion:
       '¿Tiene cada incidente registrados los reportes inicial, intermedio y final que exige P-02?',
   },

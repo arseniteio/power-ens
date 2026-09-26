@@ -283,17 +283,43 @@ bloque('2. Sin latido no se juzga; un registro AUSENTE no es un registro VACÍO'
     ausente.de('EV-02').reason
   );
 
-  const volumen = (porNivel: string) =>
-    alerta({ event: 'alert_volume_observed', evidence_id: 'EV-02', desde: '2026-08-27T12:00:00Z', hasta: '2026-09-26T11:00:00Z', dias: 30, por_nivel: porNivel, dias_sin_archivo: '-' }, hace(0.6));
+  const volumen = (porNivel: string, reglas: number) =>
+    alerta({ event: 'alert_volume_observed', evidence_id: 'EV-02', desde: '2026-08-27T12:00:00Z', hasta: '2026-09-26T11:00:00Z', dias: 30, por_nivel: porNivel, nivel_detalle: 7, reglas, dias_sin_archivo: '-' }, hace(0.6));
 
-  const vacio = eventos(latido(), ...registros({ incidentes: { filas_validas: 0 } }), volumen('7=40,10=12,12=3,13=0'));
+  const regla = (id: string, nivel: number, alertas: number, grupos: string) =>
+    alerta({ event: 'alert_rule_volume_observed', evidence_id: 'EV-02', regla: id, nivel, alertas, grupos, descripcion: `regla ${id}`, agentes: 'wazuh-real' }, hace(0.6));
+
+  const vacio = eventos(
+    latido(),
+    ...registros({ incidentes: { filas_validas: 0 } }),
+    volumen('7=40,10=12,12=3,13=1760', 4),
+    regla('5712', 7, 40, 'syslog,sshd'),
+    regla('23505', 10, 12, 'vulnerability-detector'),
+    regla('108130', 12, 3, 'yara,malware'),
+    regla('23506', 13, 1760, 'vulnerability-detector')
+  );
 
   const con12 = evalua(vacio);
 
   comprueba(
-    'registro vacío y 3 alertas de nivel 12 con P-08=12: EV-02 NO_CUMPLE (hecho medido)',
-    con12.de('EV-02').status === 'NO_CUMPLE' && /3 alertas/.test(con12.de('EV-02').reason),
+    'registro vacío con P-08=12 y sin P-09: cuentan también las 1760 CVE → NO_CUMPLE por 1763',
+    con12.de('EV-02').status === 'NO_CUMPLE' && /1763 alertas/.test(con12.de('EV-02').reason),
     con12.de('EV-02').reason
+  );
+
+  const sinCve = evalua(vacio, { ...BASICOS, 'P-09': ['vulnerability-detector'] });
+
+  comprueba(
+    'excluido vulnerability-detector en P-09: quedan las 3 de YARA → sigue NO_CUMPLE, y el motivo dice qué se excluyó',
+    sinCve.de('EV-02').status === 'NO_CUMPLE' && /3 alertas/.test(sinCve.de('EV-02').reason) && /Excluidas por P-09/.test(sinCve.de('EV-02').reason),
+    sinCve.de('EV-02').reason
+  );
+
+  const incompleto = evalua(eventos(latido(), ...registros({ incidentes: { filas_validas: 0 } }), volumen('12=3', 2), regla('108130', 12, 3, 'yara')));
+
+  comprueba(
+    'el recolector declara 2 reglas y llega 1: el contraste no se hace sobre una parte',
+    incompleto.de('EV-02').status === 'NO_EVALUABLE'
   );
 
   comprueba(
@@ -301,10 +327,10 @@ bloque('2. Sin latido no se juzga; un registro AUSENTE no es un registro VACÍO'
     con12.de('EV-01').status === 'NO_EVALUABLE'
   );
 
-  const con13 = evalua(vacio, { ...BASICOS, 'P-08': '13' });
+  const con13 = evalua(vacio, { ...BASICOS, 'P-08': '13', 'P-09': ['vulnerability-detector'] });
 
   comprueba(
-    'REVERSIÓN: el MISMO registro vacío con P-08=13 → EV-02 CUMPLE y op.exp.9.1 CUMPLE',
+    'REVERSIÓN: el MISMO registro vacío con P-08=13 y las CVE excluidas → EV-02 CUMPLE y op.exp.9.1 CUMPLE',
     con13.de('EV-02').status === 'CUMPLE' && con13.principal('op.exp.9.1').status === 'CUMPLE',
     `${con13.de('EV-02').reason} | ${con13.principal('op.exp.9.1').reason}`
   );

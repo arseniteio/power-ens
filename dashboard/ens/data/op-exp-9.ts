@@ -80,8 +80,8 @@ export const opExp9Control: ENSControl = {
       description:
         'Verificación de que cada incidente cuenta con los tres tipos de reporte que op.exp.9.1 distingue, cumplimentados según las plantillas de P-02. Un incidente con solo registro de cierre no satisface el requisito, que menciona expresamente los tres momentos.',
       format: 'json_line',
-      events: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed'],
-      wazuhRuleIds: ['111001', '111010', '111011'],
+      events: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
+      wazuhRuleIds: ['111001', '111010', '111011', '111012'],
     },
     {
       id: 'EV-03',
@@ -274,6 +274,19 @@ export const opExp9Control: ENSControl = {
         'Un registro vacío no se puede juzgar: no hay contra qué contrastar la ausencia de incidentes.',
     },
     {
+      id: 'P-09',
+      name: 'grupos_alerta_sin_expediente',
+      description:
+        'Grupos de reglas de Wazuh cuyas alertas no son incidentes por sí mismas y no cuentan en el contraste de P-08 (por ejemplo, vulnerability-detector).',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.exp.9.1'],
+      type: 'list',
+      usage:
+        'EV-02 descuenta del contraste de P-08 las reglas que llevan alguno de estos grupos.',
+      missingBehavior:
+        'Cuentan todas las alertas del nivel de P-08 o superior.',
+    },
+    {
       id: 'P-ATT',
       name: 'atestaciones_documentales',
       description:
@@ -287,7 +300,7 @@ export const opExp9Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'register_read', 'incident_report_registered', 'incident_source_events_available', 'emergency_action_observed', 'system_change_observed', 'incident_action_registered', 'evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded', 'auditable_events_revised', 'alert_volume_observed', 'collector_run', 'collector_warning', 'collector_missing'],
+  events: ['evidence_state', 'register_read', 'incident_report_registered', 'incident_source_events_available', 'emergency_action_observed', 'system_change_observed', 'incident_action_registered', 'evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded', 'auditable_events_revised', 'alert_volume_observed', 'alert_rule_volume_observed', 'collector_run', 'collector_warning', 'collector_missing'],
   presentationRules: {
     auditorSees: [
       'control ENS',

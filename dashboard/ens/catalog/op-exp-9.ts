@@ -22,7 +22,7 @@ export const opExp9CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'],
-      parameterIds: ['P-01', 'P-02', 'P-08'],
+      parameterIds: ['P-01', 'P-02', 'P-08', 'P-09'],
     },
     {
       id: 'op.exp.9.2',

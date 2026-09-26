@@ -304,7 +304,7 @@
       "controlId": "op.exp.9",
       "name": "nivel_alerta_sin_expediente",
       "label": "Nivel de alerta que exige expediente",
-      "description": "Nivel mínimo de regla de Wazuh (1-15) a partir del cual una alerta ajena a ENSFácil no puede quedar sin ningún expediente. Solo se usa cuando el registro de incidentes está VACÍO: cero incidentes registrados con alertas de este nivel en los últimos 30 días es un incumplimiento medido, y sin ninguna es la constatación de que no había nada que registrar. Con incidentes registrados no se usa: decidir qué alerta es un incidente es op.exp.7.",
+      "description": "Nivel mínimo de regla de Wazuh (7-15) a partir del cual una alerta ajena a ENSFácil no puede quedar sin ningún expediente. Solo se usa cuando el registro de incidentes está VACÍO: cero incidentes registrados con alertas de este nivel en los últimos 30 días es un incumplimiento medido, y sin ninguna es la constatación de que no había nada que registrar. Con incidentes registrados no se usa: decidir qué alerta es un incidente es op.exp.7.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -315,7 +315,7 @@
       ],
       "type": "number",
       "example": "12",
-      "minValue": 1,
+      "minValue": 7,
       "maxValue": 15,
       "required": false,
       "wazuhUsage": "Contraste del registro vacío con el volumen de alertas del manager.",
@@ -325,6 +325,31 @@
       ],
       "ruleIds": [],
       "ifNotConfigured": "Un registro vacío no se puede juzgar: sin un nivel declarado no hay contra qué contrastar la ausencia de incidentes."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.9",
+      "name": "grupos_alerta_sin_expediente",
+      "label": "Grupos de alerta que no exigen expediente",
+      "description": "Grupos de reglas de Wazuh cuyas alertas no son incidentes por sí mismas y no cuentan en el contraste de P-08, aunque su nivel lo supere. El caso típico es «vulnerability-detector»: una CVE publicada es trabajo de op.exp.4, no un incidente. Se compara literalmente con los grupos de cada regla; basta con que la regla tenga uno de ellos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "list",
+      "example": "vulnerability-detector",
+      "required": false,
+      "wazuhUsage": "Contraste del registro vacío con el volumen de alertas del manager.",
+      "ensfacilUsage": "EV-02 descuenta del contraste de P-08 las reglas que llevan alguno de estos grupos. Todo grupo excluido se enseña en el motivo, para que el auditor vea qué se ha dejado fuera.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cuentan todas las alertas del nivel de P-08 o superior, incluidas las que no son incidentes."
     },
     {
       "id": "P-ATT",

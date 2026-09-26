@@ -30,6 +30,7 @@
          111009 auditable_events_revised          EV-08
          111010 register_read                     todas
          111011 alert_volume_observed             EV-02 (registro vacío)
+         111012 alert_rule_volume_observed        EV-02 (registro vacío)
 
        Fuera del mapa: 111000 (base, nivel 0), 111095 (la degradación: el
        recolector dice que NO pudo mirar), 111097 (el latido: no acredita
@@ -151,6 +152,16 @@
     <if_sid>111000</if_sid>
     <field name="event">alert_volume_observed</field>
     <description>op.exp.9 · alertas por nivel en $(dias) días: $(por_nivel)</description>
+  </rule>
+
+  <!-- EV-02, solo cuando el registro de incidentes está vacío. El mismo
+       recuento, por regla, desde el nivel 7: con sus grupos, para que la
+       pantalla pueda excluir familias que no son incidentes (el Vulnerability
+       Detector, por ejemplo) sin que el recolector decida nada. -->
+  <rule id="111012" level="3">
+    <if_sid>111000</if_sid>
+    <field name="event">alert_rule_volume_observed</field>
+    <description>op.exp.9 · regla $(regla) (nivel $(nivel)): $(alertas) alertas en 30 días</description>
   </rule>
 
   <!-- ===== Degradación =====

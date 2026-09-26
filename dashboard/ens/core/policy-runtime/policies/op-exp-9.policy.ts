@@ -25,7 +25,7 @@
 //
 // Un registro VACÍO no es un registro AUSENTE. Ausente, no hay contra qué
 // juzgar. Vacío se juzga: cero incidentes frente a las alertas que el manager
-// vio (P-08). Y lo que no exige nada —ningún incidente con relevancia jurídica,
+// vio (P-08, sin los grupos de P-09). Y lo que no exige nada —ningún incidente con relevancia jurídica,
 // ninguna revisión vencida— se dice con el registro leído como prueba, no se
 // da por bueno sin leerlo.
 //
@@ -511,30 +511,63 @@ const contrasteRegistroVacio = (
     );
   }
 
-  const sinArchivo = listaDe(campo(volumen, 'dias_sin_archivo'));
+  const detalle = numero(campo(volumen, 'nivel_detalle'));
 
-  const porNivel = new Map<number, number>();
+  if (detalle === undefined || nivel < detalle) {
+    return sinMedir(
+      `${etiqueta(context, 'P-08')} declara el nivel ${nivel}, y el recolector solo detalla por regla desde el nivel ${detalle ?? '?'}: no se puede contrastar por debajo.`
+    );
+  }
 
-  listaDe(campo(volumen, 'por_nivel')).forEach(par => {
-    const [n, c] = par.split('=');
-    const nv = numero((n || '').trim());
-    const cv = numero((c || '').trim());
+  const reglas = hechos(context, 'alert_rule_volume_observed');
+  const declaradas = numero(campo(volumen, 'reglas'));
 
-    if (nv !== undefined && cv !== undefined) {
-      porNivel.set(nv, cv);
+  if (declaradas === undefined || reglas.length < declaradas) {
+    return sinMedir(
+      `El recolector declara ${campo(volumen, 'reglas') || '?'} reglas con alertas de nivel ${detalle} o superior y solo han llegado ${reglas.length}: el contraste no se hace sobre una parte.`
+    );
+  }
+
+  const excluidos = elementos(context, 'P-09');
+  const excluidas: string[] = [];
+  const encima: { regla: string; nivel: number; alertas: number; texto: string }[] = [];
+
+  reglas.forEach(r => {
+    const n = numero(campo(r, 'nivel'));
+    const alertas = numero(campo(r, 'alertas')) || 0;
+
+    if (n === undefined || n < nivel || !alertas) {
+      return;
     }
+
+    const grupos = listaDe(campo(r, 'grupos'));
+    const excluida = grupos.find(g => excluidos.includes(g));
+
+    if (excluida) {
+      excluidas.push(`${alertas} de la regla ${campo(r, 'regla')} (${excluida})`);
+
+      return;
+    }
+
+    encima.push({
+      regla: campo(r, 'regla'),
+      nivel: n,
+      alertas,
+      texto: `${alertas} × regla ${campo(r, 'regla')} nivel ${n} «${campo(r, 'descripcion')}» en ${campo(r, 'agentes')}`,
+    });
   });
 
-  const encima = Array.from(porNivel.entries()).filter(([n, c]) => n >= nivel && c > 0);
-  const total = encima.reduce((t, [, c]) => t + c, 0);
+  const total = encima.reduce((t, e) => t + e.alertas, 0);
   const ventana = `${campo(volumen, 'desde')} → ${campo(volumen, 'hasta')}`;
+  const fuera = excluidas.length ? ` Excluidas por P-09: ${lista(excluidas)}.` : '';
+  const sinArchivo = listaDe(campo(volumen, 'dias_sin_archivo'));
 
   if (total > 0) {
-    const detalle = encima.map(([n, c]) => `${c} de nivel ${n}`).join(', ');
+    encima.sort((a, b) => b.nivel - a.nivel || b.alertas - a.alertas);
 
     return paraEv02
       ? noCumple(
-          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}: ${detalle}. Ninguna tiene expediente. Si no eran incidentes, lo decide y lo documenta op.exp.7; si lo eran, su gestión no está registrada.`
+          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}, sin ningún expediente: ${lista(encima.map(e => e.texto))}.${fuera} Si no eran incidentes, lo decide y lo documenta op.exp.7 (o se excluye su grupo en P-09); si lo eran, su gestión no está registrada.`
         )
       : sinMedir(
           `El registro de incidentes está vacío y hay ${total} alertas de nivel ${nivel} o superior sin expediente (lo señala EV-02): no hay ningún expediente que examinar.`
@@ -543,12 +576,12 @@ const contrasteRegistroVacio = (
 
   if (sinArchivo.length) {
     return sinMedir(
-      `El registro de incidentes está vacío, pero faltan los archivos de alertas de ${lista(sinArchivo)}: no se puede afirmar que en esos días no hubiera alertas de nivel ${nivel} o superior.`
+      `El registro de incidentes está vacío, pero faltan los archivos de alertas de ${lista(sinArchivo)}: no se puede afirmar que en esos días no hubiera alertas de nivel ${nivel} o superior.${fuera}`
     );
   }
 
   return cumple(
-    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}: no consta nada que debiera tener expediente.`
+    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}: no consta nada que debiera tener expediente.${fuera}`
   );
 };
 
@@ -645,8 +678,10 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
         return;
       }
 
+      // Los archivos diarios son del manager, no del sistema: un día perdido
+      // se dice una vez por incidente aunque afecte a todos sus sistemas.
       if (v.sinArchivo.length) {
-        hallazgos.push(`${inc.id} en ${sistema}: faltan los archivos de alertas del manager de ${lista(v.sinArchivo)} (ventana ${v.desde} → ${v.hasta})`);
+        hallazgos.push(`${inc.id}: faltan los archivos de alertas del manager de ${lista(v.sinArchivo)} (ventana ${v.desde} → ${v.hasta})`);
       }
 
       if (v.alterados.length) {
@@ -680,7 +715,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
   });
 
   if (hallazgos.length) {
-    return noCumple(`No se conservan los eventos que originaron los incidentes: ${lista(hallazgos)}.`);
+    return noCumple(`No se conservan los eventos que originaron los incidentes: ${lista(Array.from(new Set(hallazgos)))}.`);
   }
 
   if (sinMedida.length) {
@@ -1198,7 +1233,7 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   });
 
   if (hallazgos.length) {
-    return noCumple(`Se han perdido o alterado registros del periodo de incidentes que había que proteger: ${lista(hallazgos)}.`);
+    return noCumple(`Se han perdido o alterado registros del periodo de incidentes que había que proteger: ${lista(Array.from(new Set(hallazgos)))}.`);
   }
 
   return sinMedir(
@@ -1343,7 +1378,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
 // --- decisiones ------------------------------------------------------------
 
 const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
-  'op.exp.9.1': { evidencias: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'], parametros: ['P-01', 'P-02', 'P-08'], tipo: 'COVERAGE_REQUIRED' },
+  'op.exp.9.1': { evidencias: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'], parametros: ['P-01', 'P-02', 'P-08', 'P-09'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.9.2': { evidencias: ['EV-05', 'EV-06', 'EV-07', 'EV-09'], parametros: ['P-03', 'P-04', 'P-05', 'P-06'], tipo: 'CONDITIONAL_REQUIRED' },
   'op.exp.9.3': { evidencias: ['EV-08', 'EV-09'], parametros: ['P-07'], tipo: 'CONDITIONAL_REQUIRED' },
 };
@@ -1458,7 +1493,7 @@ export const opExp9PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'op.exp.9.1',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-01', 'P-02', 'P-08'],
+      parameterIds: ['P-01', 'P-02', 'P-08', 'P-09'],
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'],
       ruleType: 'COVERAGE_REQUIRED',
     },
