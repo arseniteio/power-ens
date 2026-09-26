@@ -42,6 +42,17 @@ const ensLevelOptions = [
   },
 ];
 
+// Nivel de la dimensión de Trazabilidad. La primera opción deja la clave
+// AUSENTE (nunca vacía ni `null`): el control que se rige por T usa entonces el
+// nivel ENS global.
+const traceabilityLevelOptions = [
+  {
+    value: '',
+    text: 'El mismo que el nivel ENS',
+  },
+  ...ensLevelOptions,
+];
+
 const evaluationPeriodOptions = [
   {
     value: 'Últimas 24 horas',
@@ -127,10 +138,20 @@ export const GlobalConfigurationPanel = ({
     value: string
   ) => {
     setDraftConfiguration(
-      currentConfiguration => ({
-        ...currentConfiguration,
-        [field]: value,
-      } as ENSGlobalConfiguration)
+      currentConfiguration => {
+        const nextConfiguration = {
+          ...currentConfiguration,
+          [field]: value,
+        } as ENSGlobalConfiguration;
+
+        // Un campo opcional sin valor se QUITA: la clave ausente es lo que el
+        // validador acepta como «no declarado».
+        if (field === 'traceabilityLevel' && !value) {
+          delete nextConfiguration.traceabilityLevel;
+        }
+
+        return nextConfiguration;
+      }
     );
 
     setSaveError(undefined);
@@ -267,6 +288,26 @@ export const GlobalConfigurationPanel = ({
           onChange={event =>
             updateField(
               'ensLevel',
+              event.target.value
+            )
+          }
+          fullWidth
+        />
+      </EuiFormRow>
+
+      <EuiFormRow
+        label='Nivel de Trazabilidad (T)'
+        helpText='Solo para los controles que el ENS aplica por el nivel de la dimensión de Trazabilidad (op.exp.8). Si no se declara, se usa el nivel ENS.'
+        fullWidth
+      >
+        <EuiSelect
+          options={traceabilityLevelOptions}
+          value={
+            draftConfiguration.traceabilityLevel || ''
+          }
+          onChange={event =>
+            updateField(
+              'traceabilityLevel',
               event.target.value
             )
           }

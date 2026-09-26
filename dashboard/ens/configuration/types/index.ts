@@ -88,6 +88,10 @@ export interface ENSGlobalConfiguration {
   clientName: string;
   organization: string;
   ensLevel: ENSLevel;
+  // Nivel de la dimensión de Trazabilidad (T). Opcional: la clave AUSENTE
+  // significa «el mismo que `ensLevel`», y nunca se escribe `null`. Solo lo leen
+  // los controles que declaran `levelDimension: 'T'` en su catálogo.
+  traceabilityLevel?: ENSLevel;
   ensVersion: string;
   scope: string;
   evaluationPeriod: string;
