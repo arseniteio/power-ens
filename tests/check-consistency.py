@@ -99,6 +99,10 @@ RUNBOOKS = {
         "op.exp.4-security-maintenance-and-updates",
         ["ensfacil_op_exp_4_json_rules.xml"],
     ),
+    "op.exp.10": (
+        "op.exp.10-cryptographic-key-protection",
+        ["ensfacil_op_exp_10_json_rules.xml"],
+    ),
 }
 
 fallos = []

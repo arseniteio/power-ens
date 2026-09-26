@@ -3046,6 +3046,10 @@ bloque('Estado de la migración');
     'op.exp.4/EV-04',
     'op.exp.4/EV-06',
     'op.exp.4/EV-11',
+    // op.exp.10: dos de sus ocho evidencias caben en una primitiva; las demás
+    // las mide su policy (ver `policies/op-exp-10.policy.ts`).
+    'op.exp.10/EV-02',
+    'op.exp.10/EV-08',
   ];
 
   comprueba(
