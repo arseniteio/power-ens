@@ -12,6 +12,11 @@
 //
 // El reparto por días, el acumulado y el origen de la serie están en
 // `timeline-cuts.ts`, que no importa el motor y por eso se puede probar.
+//
+// La regla de planos de medida (el manager en el alcance, cada fila con los
+// controles de su plano, los de solo manager con su resultado en la vista de
+// una máquina) la aplica el motor: cada punto pasa `scopeAgents` y `agentId`
+// tal cual, así que la serie no puede contradecir al panel en eso tampoco.
 import { ENSLevel } from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
 import { getENSComplianceState } from '../ens-engine';

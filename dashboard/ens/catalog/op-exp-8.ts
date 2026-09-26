@@ -10,6 +10,10 @@ export const opExp8CatalogDefinition: ENSControlDefinition = {
   // categoría del sistema: se evalúa con `traceabilityLevel` de la configuración
   // global y, si no está declarado, con el nivel ENS.
   levelDimension: 'T',
+  // Se mide en los dos planos: cada servidor registra su actividad y el manager
+  // la conserva, revisa y correlaciona. La policy distingue las dos filas por el
+  // `tipo_servidor` del latido.
+  measurementPlanes: ['agent', 'manager'],
   description:
     'op.exp.8 es el control que Wazuh cubre de forma más completa y, a la vez, el que exige más rigor en la propia configuración de Wazuh, porque aquí la herramienta no observa el control: la herramienta ES el control.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

@@ -20,8 +20,16 @@ import {
   consolidateAgentComplianceResultByControl,
   consolidateAgentComplianceResults,
 } from './compliance-state';
-import { ENSAgentScope } from './scope';
+import { ENSAgentScope } from './scope/types';
+import {
+  ENS_MANAGER_AGENT_ID,
+  isControlMeasuredOnAgent,
+  isManagerAgentId,
+  isManagerOnlyControl,
+} from './scope/measurement-planes';
 import { resolveControlLevel } from './control-level';
+import type { ENSControlDefinition } from '../catalog/types';
+import type { ENSComplianceResult } from './evaluation/types';
 
 // Nivel efectivo de un control: el global, salvo que el control se rija por el
 // nivel de una dimensión declarado en la configuración global (op.exp.8 y la
@@ -68,13 +76,10 @@ const getScopedEvents = (
   });
 };
 
-// `now` es el instante al que se evalúa. Por defecto es ahora —el caso del
-// panel— y existe como parámetro porque la serie diaria evalúa este mismo
-// motor a fechas pasadas: la ventana del latido y la antigüedad de la copia
-// tienen que medirse contra el día del punto, no contra hoy.
-export const getENSComplianceResults = (
+const evaluateCatalogControls = (
+  catalogControls: ENSControlDefinition[],
   level: ENSLevel,
-  events: ENSNormalizedEvent[] = [],
+  events: ENSNormalizedEvent[],
   agentId?: string,
   scopeAgents?: ENSAgentScope[],
   now?: Date
@@ -85,7 +90,7 @@ export const getENSComplianceResults = (
     scopeAgents
   );
 
-  return ENSCatalog.map(catalogControl => {
+  return catalogControls.map(catalogControl => {
     // La configuración se carga ANTES de resolver las evidencias: las que
     // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
     // la pantalla, así que el motor no puede resolverlas sin ella.
@@ -130,6 +135,126 @@ export const getENSComplianceResults = (
       controlEvents
     );
   });
+};
+
+// Los controles que se evalúan en la fila de una máquina: los de su plano de
+// medida (ver `scope/measurement-planes.ts`). Sin máquina, todos: es la
+// evaluación del conjunto de eventos, sin filas.
+const getCatalogControlsForAgent = (
+  agentId?: string
+): ENSControlDefinition[] =>
+  agentId === undefined
+    ? ENSCatalog
+    : ENSCatalog.filter(control =>
+        isControlMeasuredOnAgent(control, agentId)
+      );
+
+// `now` es el instante al que se evalúa. Por defecto es ahora —el caso del
+// panel— y existe como parámetro porque la serie diaria evalúa este mismo
+// motor a fechas pasadas: la ventana del latido y la antigüedad de la copia
+// tienen que medirse contra el día del punto, no contra hoy.
+//
+// Con `agentId`, es la fila de ESA máquina: solo produce resultado para los
+// controles de su plano. Un control que no se mide en ella no sale, ni como
+// NO_APLICA: no se ha decidido que no aplique, es que no se mide ahí.
+export const getENSComplianceResults = (
+  level: ENSLevel,
+  events: ENSNormalizedEvent[] = [],
+  agentId?: string,
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
+) =>
+  evaluateCatalogControls(
+    getCatalogControlsForAgent(agentId),
+    level,
+    events,
+    agentId,
+    scopeAgents,
+    now
+  );
+
+// Los resultados en el orden del catálogo. La fila del manager (000) es la
+// primera al ordenar por id y solo trae sus controles, así que la consolidación
+// los pondría delante de los demás.
+const sortByCatalog = (
+  results: ENSComplianceResult[]
+): ENSComplianceResult[] => {
+  const catalogOrder = new Map(
+    ENSCatalog.map((control, index) => [control.id, index])
+  );
+
+  return [...results].sort(
+    (left, right) =>
+      (catalogOrder.get(left.control.id) ?? Number.MAX_SAFE_INTEGER) -
+      (catalogOrder.get(right.control.id) ?? Number.MAX_SAFE_INTEGER)
+  );
+};
+
+// Vista de UNA máquina. Los controles que se miden solo en el manager son de la
+// organización, no de la máquina: se muestran con el resultado de la fila del
+// manager. Los de doble plano (op.exp.8) siguen con la fila de la máquina.
+// Seleccionado el propio manager, su fila ya los trae y no hay nada que añadir.
+const withOrganizationControls = (
+  agentResults: ENSComplianceResult[],
+  level: ENSLevel,
+  events: ENSNormalizedEvent[],
+  agentId: string,
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
+): ENSComplianceResult[] => {
+  if (isManagerAgentId(agentId)) {
+    return agentResults;
+  }
+
+  const organizationControls = ENSCatalog.filter(isManagerOnlyControl);
+
+  if (organizationControls.length === 0) {
+    return agentResults;
+  }
+
+  return sortByCatalog([
+    ...agentResults,
+    ...evaluateCatalogControls(
+      organizationControls,
+      level,
+      events,
+      ENS_MANAGER_AGENT_ID,
+      scopeAgents,
+      now
+    ),
+  ]);
+};
+
+// Vista del conjunto. Cada control sale de consolidar las filas que lo miden. Si
+// ninguna lo mide —un control de manager sin el manager en el alcance, que es lo
+// que pasa si no está ACTIVE—, se evalúa sobre todos los eventos, igual que se
+// hace cuando no hay ninguna fila: el panel tiene siempre el catálogo entero.
+const withUnmeasuredControls = (
+  consolidatedResults: ENSComplianceResult[],
+  level: ENSLevel,
+  events: ENSNormalizedEvent[],
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
+): ENSComplianceResult[] => {
+  const consolidatedIds = new Set(
+    consolidatedResults.map(result => result.control.id)
+  );
+
+  const unmeasuredControls = ENSCatalog.filter(
+    control => !consolidatedIds.has(control.id)
+  );
+
+  return sortByCatalog([
+    ...consolidatedResults,
+    ...evaluateCatalogControls(
+      unmeasuredControls,
+      level,
+      events,
+      undefined,
+      scopeAgents,
+      now
+    ),
+  ]);
 };
 
 interface ENSAgentIdentity {
@@ -275,8 +400,15 @@ export const getENSComplianceState = (
     : undefined;
 
   const results = agentId
-    ? selectedAgentResults ||
-      getENSComplianceResults(
+    ? withOrganizationControls(
+        selectedAgentResults ||
+          getENSComplianceResults(
+            level,
+            events,
+            agentId,
+            scopeAgents,
+            now
+          ),
         level,
         events,
         agentId,
@@ -284,8 +416,14 @@ export const getENSComplianceState = (
         now
       )
     : agents.length > 0
-    ? consolidateAgentComplianceResults(
-        agents
+    ? withUnmeasuredControls(
+        consolidateAgentComplianceResults(
+          agents
+        ),
+        level,
+        events,
+        scopeAgents,
+        now
       )
     : getENSComplianceResults(
         level,
@@ -406,37 +544,53 @@ const buildAgentComplianceStatesByControl = (
     events,
     undefined,
     scopeAgents
-  ).map(agent => {
-    const agentEvents = getScopedEvents(
-      events,
-      agent.agentId,
-      scopeAgents
-    );
-
-    const result =
-      evaluateENSComplianceResultByControl(
-        controlId,
-        level,
-        agentEvents,
-        agent.agentId,
-        scopeAgents,
-        now
+  )
+    // Solo las filas que miden el control: en las demás no produce resultado,
+    // y una fila sin resultado no entra en la consolidación.
+    .filter(agent => {
+      const catalogControl = ENSCatalog.find(
+        control => control.id === controlId
       );
 
-    const results = result
-      ? [result]
-      : [];
+      return (
+        !catalogControl ||
+        isControlMeasuredOnAgent(
+          catalogControl,
+          agent.agentId
+        )
+      );
+    })
+    .map(agent => {
+      const agentEvents = getScopedEvents(
+        events,
+        agent.agentId,
+        scopeAgents
+      );
 
-    const state =
-      buildComplianceState(results);
+      const result =
+        evaluateENSComplianceResultByControl(
+          controlId,
+          level,
+          agentEvents,
+          agent.agentId,
+          scopeAgents,
+          now
+        );
 
-    return {
-      agentId: agent.agentId,
-      agentName: agent.agentName,
-      results,
-      summary: state.controlSummary,
-    };
-  });
+      const results = result
+        ? [result]
+        : [];
+
+      const state =
+        buildComplianceState(results);
+
+      return {
+        agentId: agent.agentId,
+        agentName: agent.agentName,
+        results,
+        summary: state.controlSummary,
+      };
+    });
 
 export const getENSComplianceResultByControl = (
   controlId: string,
@@ -447,6 +601,30 @@ export const getENSComplianceResultByControl = (
   now?: Date
 ) => {
   if (agentId) {
+    const catalogControl = ENSCatalog.find(
+      control => control.id === controlId
+    );
+
+    // Misma regla de planos que en `getENSComplianceState`: en la vista de una
+    // máquina, un control solo de manager sale con la fila del manager; en la
+    // del manager, un control que no se mide en él no tiene resultado.
+    if (
+      catalogControl &&
+      !isControlMeasuredOnAgent(catalogControl, agentId)
+    ) {
+      return isManagerOnlyControl(catalogControl) &&
+        !isManagerAgentId(agentId)
+        ? evaluateENSComplianceResultByControl(
+            controlId,
+            level,
+            events,
+            ENS_MANAGER_AGENT_ID,
+            scopeAgents,
+            now
+          )
+        : undefined;
+    }
+
     return evaluateENSComplianceResultByControl(
       controlId,
       level,

@@ -10,6 +10,10 @@
 // distintos en la misma pantalla, con denominadores distintos y sin que nada
 // avisara de que no hablaban de lo mismo.
 //
+// La regla de planos de medida la aplica el motor: en la vista de una máquina,
+// un control de solo manager (op.exp.7, op.exp.9) sale en cada punto con el
+// resultado del manager, igual que arriba en el detalle.
+//
 // Este fichero es solo la cáscara: importa el motor y por eso queda fuera de
 // las pruebas. Todo lo que puede romperse vive en `control-timeline-points.ts`,
 // que no lo importa y sí se prueba.

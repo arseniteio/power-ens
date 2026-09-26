@@ -44,6 +44,11 @@ export interface ENSRequirementDefinition {
 // única medida de op.exp que el Anexo II aplica por el nivel de una dimensión.
 export type ENSLevelDimension = 'T';
 
+// Plano en el que se mide un control: en cada máquina del alcance (`agent`) o
+// en el manager de Wazuh (`manager`, agente 000), que no pertenece a ningún
+// grupo. Ver `core/scope/measurement-planes.ts`.
+export type ENSMeasurementPlane = 'agent' | 'manager';
+
 export interface ENSControlDefinition {
   id: string;
   name: string;
@@ -55,6 +60,11 @@ export interface ENSControlDefinition {
   // declarado allí, con el nivel ENS global, como todos los demás. `dimension`
   // sigue siendo texto descriptivo: esto es lo único que el motor lee.
   levelDimension?: ENSLevelDimension;
+  // Opcional. Planos en los que se mide el control; si falta, `['agent']`, que
+  // es lo que eran todos antes de existir. Con `manager`, el manager entra en el
+  // alcance y el control se evalúa en su fila; sin `agent`, NO se evalúa en la
+  // fila de ninguna otra máquina.
+  measurementPlanes?: ENSMeasurementPlane[];
   description: string;
   levels: ENSLevel[];
   requirements: ENSRequirementDefinition[];

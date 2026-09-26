@@ -28,6 +28,11 @@ import {
   buildENSScopeAgentQueryFilter,
   getActiveENSScopeAgents,
 } from '../core/scope';
+import {
+  isControlMeasuredOnAgent,
+  isManagerAgentId,
+} from '../core/scope/measurement-planes';
+import { getENSCatalogControl } from '../catalog';
 
 // El color de un control es su ESTADO, y son tres cosas distintas:
 //
@@ -110,6 +115,21 @@ export const ControlsENS = () => {
    // La consulta compartida se ha retirado: la hacía cada fila por su cuenta
    // desde el 10/08/2026. Ver `control-row.tsx`.
 
+   // Seleccionado el manager (000), solo se listan los controles que se miden
+   // en él: los demás no tienen resultado en su fila, y pintarlos en gris los
+   // confundiría con un control fuera del catálogo. En la vista de cualquier
+   // otra máquina salen todos: los de solo manager, con el resultado del manager.
+   const controlesListados = isManagerAgentId(agentId)
+     ? ENSControls.filter(ensControl => {
+         const catalogControl = getENSCatalogControl(ensControl.id);
+
+         return (
+           !catalogControl ||
+           isControlMeasuredOnAgent(catalogControl, agentId as string)
+         );
+       })
+     : ENSControls;
+
   if (selectedControl) {
     return (
       <ControlDetailENS
@@ -146,7 +166,7 @@ export const ControlsENS = () => {
             se quedara con los 10.000 hechos y dejara a los demás sin datos, y
             la lista contradecía a la ficha del mismo control. */}
         <EuiFacetGroup>
-          {ENSControls.map(ensControl => (
+          {controlesListados.map(ensControl => (
             <ControlRow
               key={ensControl.id}
               controlId={ensControl.id}

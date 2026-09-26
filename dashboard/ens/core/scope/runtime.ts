@@ -1,5 +1,10 @@
 import type { ENSConfigurationScope } from '../../configuration/types';
+import { ENSCatalog } from '../../catalog';
 import { resolveAgentsByConfigurationScope } from './engine';
+import {
+  applyManagerPlaneToScope,
+  isManagerPlaneActive,
+} from './measurement-planes';
 import { ENSAgentScope } from './types';
 
 export type ENSScopeHydrationStatus = 'NOT_STARTED' | 'LOADING' | 'READY' | 'ERROR';
@@ -31,6 +36,21 @@ const cloneAgent = (agent: ENSAgentScope): ENSAgentScope => ({
   ...agent,
   groups: [...agent.groups],
 });
+
+// Los agentes del alcance: los que resuelve el modo configurado (global, grupo
+// o agente) y, si algún control ACTIVE se mide en el manager, el manager, que
+// no está en ningún grupo y ningún modo trae por sí solo. El catálogo es un
+// parámetro para poder probarlo con controles en otro estado.
+export const resolveENSScopeAgents = (
+  inventory: ENSAgentScope[],
+  scope: ENSConfigurationScope,
+  catalog: Parameters<typeof isManagerPlaneActive>[0] = ENSCatalog
+): ENSAgentScope[] =>
+  applyManagerPlaneToScope(
+    resolveAgentsByConfigurationScope(inventory, scope),
+    inventory,
+    isManagerPlaneActive(catalog)
+  );
 
 const cloneAgents = (agents: ENSAgentScope[]): ENSAgentScope[] => agents.map(cloneAgent);
 
@@ -118,7 +138,7 @@ export const hydrateENSScope = (
 
       const inventory = normalizeInventory(loadedInventory);
 
-      const resolvedAgents = resolveAgentsByConfigurationScope(inventory, scope);
+      const resolvedAgents = resolveENSScopeAgents(inventory, scope);
 
       activeScopeAgents = cloneAgents(resolvedAgents);
 

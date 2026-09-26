@@ -1,4 +1,8 @@
 import type { ENSConfigurationScope } from '../../configuration/types';
+import {
+  ENS_MANAGER_AGENT_ID,
+  isManagerAgentId,
+} from './measurement-planes';
 import { ENSAgentScope, ENSScopeResult } from './types';
 
 export const ENS_SCOPE_GROUP = 'ens';
@@ -43,6 +47,28 @@ export const buildENSScopeAgentQueryFilter = (
   if (requestedAgentId !== undefined) {
     const normalizedRequestedAgentId =
       normalizeAgentId(requestedAgentId);
+
+    // En la vista de una máquina, si el manager está en el alcance, sus hechos
+    // también se traen: los controles que se miden solo en el manager son de la
+    // organización y se muestran con el resultado de su fila. El motor decide
+    // qué fila juzga cada control; aquí solo se evita que falten los datos.
+    if (
+      normalizedRequestedAgentId &&
+      !isManagerAgentId(normalizedRequestedAgentId) &&
+      agentIds.includes(
+        normalizedRequestedAgentId
+      ) &&
+      agentIds.includes(ENS_MANAGER_AGENT_ID)
+    ) {
+      return {
+        terms: {
+          'agent.id': [
+            normalizedRequestedAgentId,
+            ENS_MANAGER_AGENT_ID,
+          ],
+        },
+      };
+    }
 
     if (
       normalizedRequestedAgentId &&
