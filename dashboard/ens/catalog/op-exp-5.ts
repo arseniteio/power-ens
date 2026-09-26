@@ -7,9 +7,12 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
   category: 'Explotación',
   dimension: 'Todas',
   description:
-    'op.exp.5 no es un control que Wazuh pueda cubrir por sí solo: su objeto es el proceso de gestión de cambios, que vive en el ITSM del cliente.',
+    'op.exp.5 contrasta los cambios que REALMENTE se producen en cada máquina (configuración, software, puertos en escucha y hardware) con el registro de peticiones de cambio que mantiene la organización. Sin ITSM, ese registro es un fichero TSV en cada máquina, mantenido a mano, y así se declara.',
+  // El Anexo II lo declara «n.a.» en BÁSICA: ni siquiera la base aplica. Sin
+  // BAJO aquí, en ese nivel todos sus requisitos salen NO_APLICA y el control
+  // queda fuera del denominador (tests/op-exp-5-judgment.test.ts, bloque 1).
   levels: ['MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -58,7 +61,7 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
         levels: ['MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-04'],
-      parameterIds: ['P-03', 'P-04'],
+      parameterIds: ['P-01', 'P-03', 'P-04'],
     },
     {
       id: 'op.exp.5.5',
@@ -70,7 +73,7 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
         levels: ['MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-06', 'EV-07'],
-      parameterIds: ['P-06'],
+      parameterIds: ['P-06', 'P-09'],
     },
     {
       id: 'op.exp.5.r1.1',
@@ -81,10 +84,10 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para MEDIO debe mostrarse como NO_APLICA.',
+          'R1 es exigible solo en ALTO. En MEDIO se muestra como NO_APLICA; en BAJO no aplica el control entero.',
       },
       evidenceIds: ['EV-07', 'EV-09'],
-      parameterIds: ['P-08'],
+      parameterIds: ['P-08', 'P-09'],
     },
     {
       id: 'op.exp.5.r1.2',
@@ -95,7 +98,7 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para MEDIO debe mostrarse como NO_APLICA.',
+          'R1 es exigible solo en ALTO. En MEDIO se muestra como NO_APLICA; en BAJO no aplica el control entero.',
       },
       evidenceIds: ['EV-08'],
       parameterIds: ['P-07'],
@@ -109,10 +112,10 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para MEDIO debe mostrarse como NO_APLICA.',
+          'R1 es exigible solo en ALTO. En MEDIO se muestra como NO_APLICA; en BAJO no aplica el control entero.',
       },
       evidenceIds: ['EV-03'],
-      parameterIds: [],
+      parameterIds: ['P-01', 'P-02'],
     },
   ],
 };

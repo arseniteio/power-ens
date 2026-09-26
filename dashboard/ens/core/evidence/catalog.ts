@@ -2475,61 +2475,100 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Coincide el firmware observado con la versión declarada para el dispositivo?',
   },
+  // --- op.exp.5 · Gestión de cambios ---------------------------------------
+  //
+  // Ninguna evidencia declara primitiva: todas las mide la policy del control
+  // (`policies/op-exp-5.policy.ts`), porque su pregunta cruza dos poblaciones
+  // de hechos —los cambios REALES de la máquina y las peticiones del registro
+  // que mantiene la organización— por sistema y por intervalo de tiempo, y
+  // ninguna de las siete compara así. Sin `judgment`, la policy las resuelve y
+  // el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
+  //
+  // Sin ITSM, el registro de peticiones es `/etc/ensfacil/change-register.tsv`
+  // en cada máquina: el recolector lo lee y lo emite tal cual (110605 cabecera
+  // y 110606 una fila por petición). Los cambios reales reutilizan el CÓDIGO de
+  // op.exp.3 (auditd por ruta) y de op.exp.4 (apt y dpkg con actor, puntos de
+  // reversión), reetiquetado op.exp.5: el motor filtra por control y no puede
+  // leer los hechos de otro.
+  //
+  // Reglas: todas de la banda 110600-110699, desplegadas por el runbook
+  // `op.exp.5-change-management` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.5',
     title: 'Cambios reales detectados en los sistemas',
     description:
-      'Registro de todos los cambios efectivamente producidos en los sistemas del alcance: modificaciones de configuración, instalación o retirada de software, cambios de hardware, apertura o cierre de puertos. Es la base objetiva contra la que se contrasta el registro de peticiones de cambio del cliente.',
+      'Registro de todos los cambios efectivamente producidos en la máquina: escrituras en las rutas de configuración vigiladas por auditd (con su autor), transacciones de software de apt y dpkg (con su actor), puertos en escucha que aparecen o desaparecen y componentes de hardware que cambian. Es la base objetiva contra la que se contrasta el registro de peticiones. Se acredita cuando el latido del recolector declara leídas las cuatro fuentes.',
     requirements: ['op.exp.5.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'config_file_modified', 'package_changed', 'listening_port_changed', 'hardware_changed'],
-    relatedRules: [],
+    relatedRules: ['110601', '110602', '110603', '110604'],
     auditQuestion:
-      '¿Se acredita: cambios reales detectados en los sistemas?',
+      '¿Se detectan todos los cambios reales de la máquina, con su autor cuando se puede saber?',
   },
   {
     id: 'EV-02',
     controlId: 'op.exp.5',
     title: 'Cambios implantados sin petición registrada',
     description:
-      'Correlación entre los cambios detectados (EV-01) y las peticiones de cambio registradas en P-01. Un cambio en producción sin número de referencia asociado evidencia que el control continuo de cambios que exige el enunciado del control no está operando.',
+      'Correlación entre cada cambio real de EV-01 y las peticiones del registro de la máquina: tiene que haber una petición aprobada ANTES del cambio, del mismo sistema, cuya ventana contenga el cambio (o, para un cambio que solo se sabe entre dos pasadas, que solape con él). Un cambio sin petición es el hallazgo principal del control. La fuente de las peticiones es un registro mantenido a mano, no un ITSM, y el motivo lo dice.',
     requirements: ['op.exp.5.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'change_request_registered'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'change_register_read', 'change_request_registered', 'config_file_modified', 'package_changed', 'listening_port_changed', 'hardware_changed'],
+    relatedRules: ['110601', '110602', '110603', '110604', '110605', '110606'],
     auditQuestion:
-      '¿Se acredita: cambios implantados sin petición registrada?',
+      '¿Cada cambio real de la máquina tiene una petición aprobada cuya ventana lo cubre?',
   },
   {
     id: 'EV-03',
     controlId: 'op.exp.5',
     title: 'Completitud de la información de la petición de cambio',
     description:
-      'Verificación de que cada petición implementada contiene los campos mínimos declarados en P-02, de modo que quien la autorizó dispuso de información suficiente, como exige op.exp.5.2.',
+      'Verificación de que cada petición autorizada (aprobada, implantada o revertida) del registro trae rellenos los campos mínimos declarados en P-02 y, si P-01 lo declara, un número con el prefijo de referencia. En categoría ALTA se exige además la valoración del impacto en la seguridad (op.exp.5.r1.3). Una fila que no tiene las catorce columnas es una petición que no se puede leer.',
     requirements: ['op.exp.5.2', 'op.exp.5.r1.3'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'change_register_read', 'change_request_registered'],
+    relatedRules: ['110605', '110606'],
     auditQuestion:
-      '¿Se acredita: completitud de la información de la petición de cambio?',
+      '¿Traen las peticiones autorizadas la información suficiente para decidir sobre ellas?',
   },
   {
     id: 'EV-04',
     controlId: 'op.exp.5',
     title: 'Aprobación previa del RSI en cambios de riesgo ALTO',
     description:
-      'Verificación de que los cambios clasificados como de riesgo ALTO según P-03 cuentan con aprobación explícita del Responsable de la Seguridad (P-04) y que la fecha de esa aprobación es ANTERIOR a la implantación detectada en EV-01. El ENS es expreso en ambos extremos.',
+      'Para cada petición de riesgo alto implantada (o que cubre algún cambio real), que la aprobó la cuenta del Responsable de la Seguridad de P-04 y que la fecha de aprobación es ANTERIOR a la implantación: el primer cambio real que la petición cubre o, si no se ha observado ninguno, el inicio de su ventana. Exige que los criterios de riesgo alto (P-03) estén declarados.',
     requirements: ['op.exp.5.4'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'change_register_read', 'change_request_registered', 'config_file_modified', 'package_changed', 'listening_port_changed', 'hardware_changed'],
+    relatedRules: ['110601', '110602', '110603', '110604', '110605', '110606'],
+    auditQuestion:
+      '¿Los cambios de riesgo alto los aprobó el RSI antes de implantarlos?',
+  },
+  {
+    // Sin regla a propósito. Demostrar que un cambio pasó ANTES por la
+    // preproducción exige cruzar los cambios de dos máquinas, y el motor evalúa
+    // cada una por separado (el mismo límite que EV-08 de op.exp.4). La columna
+    // «preproduccion» del registro es una declaración, no una observación: no
+    // la sustituye. La policy la deja NO_EVALUABLE con su motivo.
+    id: 'EV-05',
+    controlId: 'op.exp.5',
+    title: 'Trazabilidad del paso por preproducción',
+    description:
+      'Comprobación de que los cambios aplicados en producción tuvieron actividad equivalente previa en el sistema de preproducción emparejado en P-05. Hoy no se puede demostrar: exige cruzar las dos máquinas y el motor evalúa cada una por separado.',
+    requirements: ['op.exp.5.3'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
@@ -2537,87 +2576,78 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
-      '¿Se acredita: aprobación previa del rsi en cambios de riesgo alto?',
-  },
-  {
-    id: 'EV-05',
-    controlId: 'op.exp.5',
-    title: 'Trazabilidad del paso por preproducción',
-    description:
-      'Comprobación de que los cambios aplicados en producción tuvieron actividad equivalente previa en el sistema de preproducción emparejado en P-05, al menos en los aspectos específicos del cambio.',
-    requirements: ['op.exp.5.3'],
-    levels: ['MEDIO', 'ALTO'],
-    category: 'MONITORING',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'preproduction_test_recorded'],
-    relatedRules: [],
-    auditQuestion:
-      '¿Se acredita: trazabilidad del paso por preproducción?',
+      '¿Pasó cada cambio de producción antes por su preproducción equivalente?',
   },
   {
     id: 'EV-06',
     controlId: 'op.exp.5',
     title: 'Actualización de la documentación de configuración tras el cambio',
     description:
-      'Verificación de que, tras un cambio aceptado, se modificaron los documentos de configuración declarados en P-06: diagramas de red, manuales, inventario. op.exp.5.5 lo exige expresamente cuando las pruebas de aceptación son positivas.',
+      'Para cada petición implantada que declara en su columna «documentacion» documentos de P-06, que el fichero del documento se modificó entre el inicio de la ventana del cambio y el fin de su ventana más el plazo de P-06. Solo se puede comprobar un documento que sea un fichero de la máquina vigilado por su recolector.',
     requirements: ['op.exp.5.5'],
     levels: ['MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'config_doc_modified'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'change_register_read', 'change_request_registered', 'config_doc_modified'],
+    relatedRules: ['110605', '110606', '110607'],
     auditQuestion:
-      '¿Se acredita: actualización de la documentación de configuración tras el cambio?',
+      '¿Se actualizó en plazo la documentación de configuración que cada cambio implantado exigía?',
   },
   {
     id: 'EV-07',
     controlId: 'op.exp.5',
     title: 'Estabilidad del servicio tras el cambio',
     description:
-      'Detección de efectos adversos aparecidos en la ventana posterior a cada cambio: caídas de servicio, errores en volumen anómalo, degradación de rendimiento. Da soporte objetivo a las pruebas de aceptación de op.exp.5.5 y justifica la activación del mecanismo de reversión de R1.',
+      'Servicios que siguen caídos en la última pasada del recolector y cuya caída empezó en las horas de P-09 siguientes a un cambio real, sin que el registro declare revertido ese cambio. Da soporte objetivo a las pruebas de aceptación de op.exp.5.5 y a la reversión de R1.',
     requirements: ['op.exp.5.5', 'op.exp.5.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'service_failed'],
-    relatedRules: [],
+    expectedEventTypes: ['evidence_state', 'service_failed', 'config_file_modified', 'package_changed', 'listening_port_changed', 'hardware_changed'],
+    // Hecho de ESTADO: el recolector reemite en cada pasada TODOS los servicios
+    // caídos, y ninguno si no hay. Se juzga la última pasada (ver
+    // `state-facts.ts`): un servicio que se recuperó deja de contar en cuanto
+    // la pasada siguiente lo ve en pie.
+    stateFactEventTypes: ['service_failed'],
+    relatedRules: ['110608', '110601', '110602', '110603', '110604'],
     auditQuestion:
-      '¿Se acredita: estabilidad del servicio tras el cambio?',
+      '¿Algún cambio ha dejado un servicio caído sin revertirse?',
   },
   {
     id: 'EV-08',
     controlId: 'op.exp.5',
     title: 'Comunicación de fallos al responsable de seguridad (R1)',
     description:
-      'Verificación de que los fallos de software y hardware detectados se comunican efectivamente al responsable designado en la organización de la seguridad, por el canal declarado en P-07. R1 es obligatorio en categoría ALTA.',
+      'Los fallos de software detectados en la máquina (servicios caídos, el mismo hecho de EV-07) y su comunicación al responsable de seguridad por el canal de P-07. La detección es real; la comunicación no deja hoy ningún hecho observable, así que la evidencia no se puede demostrar.',
     requirements: ['op.exp.5.r1.2'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'fault_notification_recorded'],
-    relatedRules: [],
+    // El hecho llega etiquetado EV-07, que es quien lo declara de estado; la
+    // policy lo lee para las dos.
+    expectedEventTypes: ['evidence_state', 'service_failed'],
+    relatedRules: ['110608'],
     auditQuestion:
-      '¿Se acredita: comunicación de fallos al responsable de seguridad (r1)?',
+      '¿Se comunican al responsable de seguridad los fallos de software y hardware?',
   },
   {
     id: 'EV-09',
     controlId: 'op.exp.5',
     title: 'Existencia de punto de reversión previo al cambio (R1)',
     description:
-      'Comprobación de que antes de aplicar cada cambio se generó el mecanismo de reversión declarado en P-08: snapshot, backup de configuración o imagen previa. Comparte lógica con op.exp.4 EV-09.',
+      'Para cada cambio real de configuración o de software, un punto de reversión del mecanismo declarado en P-08 creado en las horas previas a su inicio. Es la lógica de EV-09 de op.exp.4 aplicada a todos los cambios. Solo lvm, zfs y btrfs dejan huella en la máquina.',
     requirements: ['op.exp.5.r1.1'],
     levels: ['ALTO'],
     category: 'INTEGRITY',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state', 'reversion_point_created'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'reversion_point_created', 'config_file_modified', 'package_changed'],
+    relatedRules: ['110609', '110601', '110602'],
     auditQuestion:
-      '¿Se acredita: existencia de punto de reversión previo al cambio (r1)?',
+      '¿Existía un punto de reversión antes de cada cambio?',
   },
   {
     id: 'EV-01',
