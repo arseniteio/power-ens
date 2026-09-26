@@ -505,6 +505,15 @@ const cubre = (p: Peticion, c: Cambio, nombres: string[]): boolean => {
     return false;
   }
 
+  // Un cambio PLANIFICADO se aprueba antes de hacerse. Una petición aprobada
+  // después del cambio es una ratificación a posteriori y no lo cubre: sin
+  // esto, anotar hoy una fila con la ventana de ayer taparía cualquier cambio.
+  const aprobada = instante(p.fecha_aprobacion);
+
+  if (aprobada === undefined || aprobada > c.hasta) {
+    return false;
+  }
+
   return c.exacto ? c.desde >= vi && c.hasta <= vf : c.desde <= vf && c.hasta >= vi;
 };
 

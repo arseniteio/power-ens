@@ -2514,7 +2514,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.5',
     title: 'Cambios implantados sin petición registrada',
     description:
-      'Correlación entre cada cambio real de EV-01 y las peticiones del registro de la máquina: tiene que haber una petición aprobada, del mismo sistema, cuya ventana contenga el cambio (o, para un cambio que solo se sabe entre dos pasadas, que solape con él). Un cambio sin petición es el hallazgo principal del control. La fuente de las peticiones es un registro mantenido a mano, no un ITSM, y el motivo lo dice.',
+      'Correlación entre cada cambio real de EV-01 y las peticiones del registro de la máquina: tiene que haber una petición aprobada ANTES del cambio, del mismo sistema, cuya ventana contenga el cambio (o, para un cambio que solo se sabe entre dos pasadas, que solape con él). Un cambio sin petición es el hallazgo principal del control. La fuente de las peticiones es un registro mantenido a mano, no un ITSM, y el motivo lo dice.',
     requirements: ['op.exp.5.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',

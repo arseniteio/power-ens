@@ -280,6 +280,9 @@ bloque('2. EV-02 · cada cambio real necesita una petición aprobada cuya ventan
   const noAprobada = evalua([latido(), cambio, ...registro([peticion({ estado: 'registrada' })])]);
   comprueba('una petición solo registrada no autoriza → NO_CUMPLE', noAprobada.estado('EV-02') === 'NO_CUMPLE', noAprobada.motivo('EV-02'));
 
+  const aPosteriori = evalua([latido(), cambio, ...registro([peticion({ fecha_aprobacion: hace(2) })])]);
+  comprueba('una petición aprobada DESPUÉS del cambio no lo cubre (ratificación a posteriori) → NO_CUMPLE', aPosteriori.estado('EV-02') === 'NO_CUMPLE', aPosteriori.motivo('EV-02'));
+
   const otraMaquina = evalua([latido(), cambio, ...registro([peticion({ sistema: 'zimbraHldap' })])]);
   comprueba('una petición de OTRA máquina no cubre → NO_CUMPLE', otraMaquina.estado('EV-02') === 'NO_CUMPLE', otraMaquina.motivo('EV-02'));
 
