@@ -107,6 +107,10 @@ RUNBOOKS = {
         "op.exp.6-malware-protection",
         ["ensfacil_op_exp_6_json_rules.xml"],
     ),
+    "op.exp.7": (
+        "op.exp.7-incident-management",
+        ["ensfacil_op_exp_7_json_rules.xml"],
+    ),
 }
 
 fallos = []

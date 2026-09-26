@@ -7,9 +7,9 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
   category: 'Explotación',
   dimension: 'Todas',
   description:
-    'op.exp.7 es el control donde Wazuh y el proceso del cliente tienen que encajar.',
+    'op.exp.7 es el control donde Wazuh y el proceso del cliente tienen que encajar: Wazuh detecta y el proceso clasifica, escala, resuelve y notifica. Se mide en el manager, cruzando sus alertas con el registro de incidentes que mantiene la organización.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
     {
@@ -22,7 +22,7 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-01', 'EV-02', 'EV-04'],
-      parameterIds: ['P-01', 'P-02', 'P-03'],
+      parameterIds: ['P-01', 'P-02', 'P-03', 'P-12'],
     },
     {
       id: 'op.exp.7.2',
@@ -48,7 +48,7 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
           'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
       },
       evidenceIds: ['EV-08'],
-      parameterIds: ['P-06'],
+      parameterIds: ['P-06', 'P-01', 'P-02'],
     },
     {
       id: 'op.exp.7.r2.1',
@@ -76,7 +76,7 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
           'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
       },
       evidenceIds: ['EV-03'],
-      parameterIds: ['P-05'],
+      parameterIds: ['P-05', 'P-01'],
     },
     {
       id: 'op.exp.7.r2.3',
@@ -143,10 +143,10 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: [],
         reason:
-          'Exigible en . Para BAJO y MEDIO y ALTO debe mostrarse como NO_APLICA.',
+          'El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.',
       },
       evidenceIds: ['EV-11'],
-      parameterIds: [],
+      parameterIds: ['P-09'],
     },
   ],
 };
