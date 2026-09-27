@@ -69,6 +69,28 @@ const REAL_WAZUH_REAL: Record<string, unknown>[] = [
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:49Z", "host": "wazuh-real", "event": "collector_run", "resultado": "completada", "evidencias_cubiertas": "EV-01,EV-02,EV-03,EV-06,EV-08", "tipo_servidor": "linux", "emisor": "recolector"},
 ];
 
+// wazuh-real, recolector AMPLIADO (26/09, 23:56 UTC, --prueba): lo que las
+// reglas de auditd CARGADAS registran por categoría. Se le pone la hora de la
+// pasada de las 19:11 para que forme parte de la misma pasada. Es el hecho
+// que faltaba: con él, EV-01 ya no puede cumplir por la mera presencia de
+// auditd con 80 reglas.
+const REAL_COBERTURA_WAZUH_REAL: Record<string, unknown>[] = [
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:47Z", "host": "wazuh-real", "event": "audit_coverage", "evidence_id": "EV-01", "requisito": "op.exp.8.1", "plano": "sistema", "categoria": "configuracion", "objeto": "rutas", "auditd": "si", "vigiladas": "/etc/ssh,/etc/pam.d,/etc/security,/etc/login.defs,/etc/sudoers,/etc/sudoers.d,/etc/audit,/var/ossec/etc/ossec.conf,/etc/sysctl.conf,/etc/sysctl.d,/etc/apparmor.d,/etc/ufw,/etc/nftables.conf", "sin_vigilar": "/etc/netplan,/etc/hosts,/etc/fstab,/etc/systemd/system,/etc/crontab,/etc/cron.d,/etc/apt/sources.list,/etc/apt/sources.list.d"},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:47Z", "host": "wazuh-real", "event": "audit_coverage", "evidence_id": "EV-01", "requisito": "op.exp.8.1", "plano": "sistema", "categoria": "cuentas", "objeto": "rutas", "auditd": "si", "vigiladas": "/etc/group", "sin_vigilar": "/etc/passwd,/etc/shadow,/etc/gshadow"},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:47Z", "host": "wazuh-real", "event": "audit_coverage", "evidence_id": "EV-01", "requisito": "op.exp.8.1", "plano": "sistema", "categoria": "privilegios", "objeto": "rutas", "auditd": "si", "vigiladas": "/etc/sudoers,/etc/sudoers.d", "sin_vigilar": "-"},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:47Z", "host": "wazuh-real", "event": "audit_coverage", "evidence_id": "EV-01", "requisito": "op.exp.8.1", "plano": "sistema", "categoria": "claves", "objeto": "rutas", "auditd": "si", "vigiladas": "/etc/ssh/ssh_host_rsa_key,/etc/ssh/ssh_host_ecdsa_key,/etc/ssh/ssh_host_ed25519_key,/var/ossec/etc/client.keys", "sin_vigilar": "/etc/ssl/private"},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:47Z", "host": "wazuh-real", "event": "audit_coverage", "evidence_id": "EV-01", "requisito": "op.exp.8.1", "plano": "sistema", "categoria": "hora", "objeto": "syscalls", "auditd": "si", "vigiladas": "-", "sin_vigilar": "adjtimex,settimeofday,clock_settime"},
+];
+
+// La misma cobertura, completa: lo que saldría con las reglas de op.exp.5,
+// op.exp.8 y op.exp.10 cargadas. Solo sirve para los casos que prueban OTRO
+// eje de EV-01 y necesitan que este no lo tumbe.
+const COBERTURA_COMPLETA = REAL_COBERTURA_WAZUH_REAL.map(l => {
+  const todas = [l.vigiladas, l.sin_vigilar].filter(v => v !== '-').join(',');
+
+  return { ...l, vigiladas: todas, sin_vigilar: '-' };
+});
+
 // wazuh4 (el manager, agente 000), recolector del manager. El registro de
 // revisiones es el de ejemplo de la prueba (el real no existe en el manager).
 const REAL_WAZUH4: Record<string, unknown>[] = [
@@ -122,7 +144,7 @@ const REGLA: Record<string, string> = {
   clock_change_observed: '110907', log_retention_observed: '110908',
   log_access_permissions: '110909', correlation_rules_inventory: '110910',
   active_response_configured: '110911', active_response_executed: '110912',
-  logging_service_status: '110913', evidence_state: '110950', collector_run: '110997',
+  logging_service_status: '110913', audit_coverage: '110914', evidence_state: '110950', collector_run: '110997',
 };
 
 // Una línea del NDJSON del recolector tal como la deja el manager en el índice.
@@ -207,8 +229,14 @@ const evalua = (
   return { evidencias, decisions, requisito, evidencia, motivo };
 };
 
+// El servidor con las demás categorías bien cubiertas, para probar cada eje.
 const host = (cambia?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
-  eventos(REAL_WAZUH_REAL, AGENTE, cambia);
+  eventos([...REAL_WAZUH_REAL, ...COBERTURA_COMPLETA], AGENTE, cambia);
+// El servidor tal como está hoy: lo que de verdad audita.
+const hostReal = (cambia?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
+  eventos([...REAL_WAZUH_REAL, ...REAL_COBERTURA_WAZUH_REAL], AGENTE, cambia);
+// El servidor con el recolector anterior, que no emitía la cobertura.
+const hostSinCobertura = () => eventos(REAL_WAZUH_REAL, AGENTE);
 const central = (cambia?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
   eventos(REAL_WAZUH4, MANAGER, cambia);
 
@@ -238,7 +266,7 @@ bloque('2. Fila de un servidor (wazuh-real): se mide lo suyo; lo central no apli
 {
   const r = evalua(host());
 
-  comprueba('op.exp.8.1 CUMPLE: auditd con 80 reglas y journald persistente, cinco campos', r.requisito('op.exp.8.1').status === 'CUMPLE', r.motivo('op.exp.8.1'));
+  comprueba('op.exp.8.1 CUMPLE: auditd cubre las categorías de P-01, journald persistente, cinco campos', r.requisito('op.exp.8.1').status === 'CUMPLE', r.motivo('op.exp.8.1'));
   comprueba('op.exp.8.2 CUMPLE: keepalive de hace 18 min con plazo de 3 h', r.requisito('op.exp.8.2').status === 'CUMPLE', r.motivo('op.exp.8.2'));
   comprueba('op.exp.8.r2.1 NO_CUMPLE: systemd-timesyncd sin autenticación', r.requisito('op.exp.8.r2.1').status === 'NO_CUMPLE' && /autenticación/.test(r.motivo('op.exp.8.r2.1')), r.motivo('op.exp.8.r2.1'));
   comprueba('op.exp.8.r4.1 CUMPLE con P-08 completo', r.requisito('op.exp.8.r4.1').status === 'CUMPLE', r.motivo('op.exp.8.r4.1'));
@@ -291,18 +319,21 @@ bloque('4. EV-01 y EV-03 · el registro de auditoría y sus campos');
 
   const directorio = evalua(eventos([
     ...REAL_WAZUH_REAL,
+    ...COBERTURA_COMPLETA,
     { ts: '2026-09-26T19:11:48Z', event: 'audit_log_status', evidence_id: 'EV-01', requisito: 'op.exp.8.1', plano: 'directorio', fuente: 'slapd', activo: 'si', niveles_log: 'none' },
   ], AGENTE));
   comprueba('LDAP: slapd con olcLogLevel sin stats → NO_CUMPLE', directorio.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /stats/.test(directorio.motivo('op.exp.8.1')), directorio.motivo('op.exp.8.1'));
 
   const conStats = evalua(eventos([
     ...REAL_WAZUH_REAL,
+    ...COBERTURA_COMPLETA,
     { ts: '2026-09-26T19:11:48Z', event: 'audit_log_status', evidence_id: 'EV-01', requisito: 'op.exp.8.1', plano: 'directorio', fuente: 'slapd', activo: 'si', niveles_log: 'stats sync' },
   ], AGENTE));
   comprueba('REVERSIÓN: el mismo slapd con stats → CUMPLE', conStats.requisito('op.exp.8.1').status === 'CUMPLE', conStats.motivo('op.exp.8.1'));
 
   const numerico = evalua(eventos([
     ...REAL_WAZUH_REAL,
+    ...COBERTURA_COMPLETA,
     { ts: '2026-09-26T19:11:48Z', event: 'audit_log_status', evidence_id: 'EV-01', requisito: 'op.exp.8.1', plano: 'directorio', fuente: 'slapd', activo: 'si', niveles_log: '256' },
   ], AGENTE));
   comprueba('olcLogLevel numérico 256 es stats → CUMPLE', numerico.requisito('op.exp.8.1').status === 'CUMPLE', numerico.motivo('op.exp.8.1'));
@@ -424,6 +455,108 @@ bloque('7. Fila del manager (wazuh4): servidor + sistema central');
 
   const caido = evalua(central(l => (l.event === 'logging_service_status' && l.servicio === 'wazuh-indexer' ? { ...l, activo: 'no' } : l)), BASE, AHORA, 'ALTO', '000');
   comprueba('wazuh-indexer parado → EV-13 NO_CUMPLE', caido.evidencia('EV-13')?.status === 'NO_CUMPLE', caido.evidencia('EV-13')?.status);
+}
+
+// --- 9. EV-01: lo que P-01 declara auditable, contra lo que se audita ------
+
+bloque('9. EV-01 · las categorías de P-01 contra lo que el servidor audita de verdad');
+
+{
+  // El defecto: wazuh-real salía CUMPLE por tener auditd activo con 80 reglas,
+  // mientras op.exp.5, op.exp.10 y EV-06 demostraban que no se auditaban los
+  // cambios de configuración, de hora ni de los almacenes de claves.
+  const hoy = evalua(hostReal());
+  comprueba(
+    'wazuh-real tal como está: «cambios de configuración» declarada y /etc/netplan, /etc/hosts… sin vigilar → op.exp.8.1 NO_CUMPLE medido',
+    hoy.requisito('op.exp.8.1').status === 'NO_CUMPLE' && hoy.requisito('op.exp.8.1').evidenced === true && /\/etc\/netplan/.test(hoy.motivo('op.exp.8.1')) && /\/etc\/crontab/.test(hoy.motivo('op.exp.8.1')),
+    hoy.motivo('op.exp.8.1')
+  );
+  comprueba('y EV-01 sale NO_CUMPLE en la tabla', hoy.evidencia('EV-01')?.status === 'NO_CUMPLE', hoy.evidencia('EV-01')?.status);
+
+  const antiguo = evalua(hostSinCobertura());
+  comprueba(
+    'con el recolector anterior (sin audit_coverage) NUNCA CUMPLE: no demostrado',
+    antiguo.requisito('op.exp.8.1').status === 'NO_CUMPLE' && antiguo.requisito('op.exp.8.1').evidenced === false,
+    `${antiguo.requisito('op.exp.8.1').status} ${antiguo.motivo('op.exp.8.1')}`
+  );
+  comprueba('y la causa es de RECOGIDA (el recolector no informa)', antiguo.evidencia('EV-01')?.gapCause === 'COLLECTION', antiguo.evidencia('EV-01')?.gapCause);
+
+  const completo = evalua(host());
+  comprueba('REVERSIÓN: las mismas categorías con todas sus rutas vigiladas → CUMPLE', completo.requisito('op.exp.8.1').status === 'CUMPLE', completo.motivo('op.exp.8.1'));
+
+  const conHora = { ...BASE, 'P-01': ['autenticación | sshd | 3', 'cambios de hora | auditd | 5'] };
+  const horaReal = evalua(hostReal(), conHora);
+  comprueba(
+    '«cambios de hora» declarada y ninguna regla cargada registra adjtimex/settimeofday/clock_settime → NO_CUMPLE',
+    horaReal.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /clock_settime/.test(horaReal.motivo('op.exp.8.1')),
+    horaReal.motivo('op.exp.8.1')
+  );
+  const horaAntigua = evalua(hostSinCobertura(), conHora);
+  comprueba(
+    'sin audit_coverage, la hora se decide con el time_sync_status de EV-06 (vigilancia_cambio_hora=no) → NO_CUMPLE',
+    horaAntigua.requisito('op.exp.8.1').status === 'NO_CUMPLE' && horaAntigua.requisito('op.exp.8.1').evidenced === true,
+    horaAntigua.motivo('op.exp.8.1')
+  );
+
+  const claves = evalua(hostReal(), { ...BASE, 'P-01': ['almacenes de claves | auditd | 7'] });
+  comprueba(
+    '«almacenes de claves» declarada con /etc/ssl/private sin vigilar → NO_CUMPLE nombrándola',
+    claves.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /\/etc\/ssl\/private/.test(claves.motivo('op.exp.8.1')),
+    claves.motivo('op.exp.8.1')
+  );
+
+  const privilegios = evalua(hostReal(), { ...BASE, 'P-01': ['autenticación | sshd | 3', 'uso de privilegios (sudo) | auditd | 5'] });
+  comprueba('REVERSIÓN: una categoría que SÍ se audita entera (privilegios) → CUMPLE', privilegios.requisito('op.exp.8.1').status === 'CUMPLE', privilegios.motivo('op.exp.8.1'));
+
+  const rara = evalua(host(), { ...BASE, 'P-01': ['autenticación | sshd | 3', 'eventos de la aplicación de nóminas | app | 3'] });
+  comprueba(
+    'una categoría que ENSFácil no sabe observar → no demostrada, causa CONFIGURATION (nunca CUMPLE)',
+    rara.requisito('op.exp.8.1').evidenced === false && rara.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /nóminas/.test(rara.motivo('op.exp.8.1')),
+    `${rara.requisito('op.exp.8.1').status} ${rara.evidencia('EV-01')?.gapCause} ${rara.motivo('op.exp.8.1')}`
+  );
+
+  const ldapEnLinux = evalua(host(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'directorio LDAP | slapd | 3'] });
+  comprueba('«directorio LDAP» no aplica en un servidor sin slapd: no lo tumba', ldapEnLinux.requisito('op.exp.8.1').status === 'CUMPLE' && /no aplica a este servidor/.test(ldapEnLinux.motivo('op.exp.8.1')), ldapEnLinux.motivo('op.exp.8.1'));
+
+  const sinAuditd = evalua(host(l =>
+    l.event === 'audit_coverage' ? { ...l, auditd: 'no_instalado', sin_vigilar: [l.vigiladas, l.sin_vigilar].filter(v => v !== '-').join(','), vigiladas: '-' }
+      : l.event === 'audit_log_status' && l.fuente === 'auditd' ? { ...l, activo: 'no_instalado', reglas_cargadas: 0 } : l));
+  comprueba('sin auditd, la categoría declarada lo dice: «auditd no está instalado»', sinAuditd.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /auditd no está instalado, así que nada registra/.test(sinAuditd.motivo('op.exp.8.1')), sinAuditd.motivo('op.exp.8.1'));
+}
+
+// --- 10. la causa llega intacta ---------------------------------------------
+
+bloque('10. La causa que declara el recolector llega a la evidencia');
+
+{
+  const r = evalua(central(), BASE, AHORA, 'ALTO', '000');
+  comprueba('EV-07 (retención ISM, el recolector dice CONFIGURATION) → gapCause CONFIGURATION', r.evidencia('EV-07')?.gapCause === 'CONFIGURATION', r.evidencia('EV-07')?.gapCause);
+  comprueba('EV-09 (snapshots, el recolector dice CONFIGURATION) → gapCause CONFIGURATION', r.evidencia('EV-09')?.gapCause === 'CONFIGURATION', r.evidencia('EV-09')?.gapCause);
+
+  const ausente = evalua(central(l => (l.event === 'log_review_recorded' ? undefined : l)).concat(
+    eventos([{ ts: '2026-09-26T19:11:44Z', event: 'evidence_state', evidence_id: 'EV-05', requisito: 'op.exp.8.r1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de revisiones de los registros /etc/ensfacil/log-review-register.tsv' }], MANAGER)
+  ), BASE, AHORA, 'ALTO', '000');
+  comprueba('registro de revisiones ausente (CONFIGURATION del recolector) → gapCause CONFIGURATION, no EVIDENCE', ausente.evidencia('EV-05')?.gapCause === 'CONFIGURATION', ausente.evidencia('EV-05')?.gapCause);
+
+  const nts = host(l => (l.event === 'time_sync_status' ? { ...l, servicio: 'chrony', autenticacion: 'nts_o_clave', vigilancia_cambio_hora: 'si' } : l));
+  const sinP06 = evalua(nts, { ...BASE, 'P-06': undefined as unknown as string });
+  comprueba('sin P-06 (desfase admitido) → EV-06 sin medir con causa CONFIGURATION, no COLLECTION', sinP06.evidencia('EV-06')?.status === 'NO_EVALUABLE' && sinP06.evidencia('EV-06')?.gapCause === 'CONFIGURATION', `${sinP06.evidencia('EV-06')?.status} ${sinP06.evidencia('EV-06')?.gapCause}`);
+}
+
+// --- 11. EV-06 en el manager sin auditd ------------------------------------
+
+bloque('11. EV-06 en un servidor sin auditd: el motivo lo dice');
+
+{
+  const r = evalua(central(), BASE, AHORA, 'ALTO', '000');
+  comprueba(
+    'wazuh4 sin auditd instalado → el motivo dice que auditd no está instalado, no que cargue reglas',
+    /auditd no está instalado/.test(r.motivo('op.exp.8.r2.1')) && !/augenrules --load/.test(r.motivo('op.exp.8.r2.1')),
+    r.motivo('op.exp.8.r2.1')
+  );
+
+  const instalado = evalua(host(l => (l.event === 'time_sync_status' ? { ...l, vigilancia_cambio_hora: 'no' } : l)));
+  comprueba('REVERSIÓN: con auditd activo, lo que falta es cargar las reglas (augenrules --load)', /augenrules --load/.test(instalado.motivo('op.exp.8.r2.1')), instalado.motivo('op.exp.8.r2.1'));
 }
 
 // --- 8. solo cuentan los hechos de op.exp.8 --------------------------------

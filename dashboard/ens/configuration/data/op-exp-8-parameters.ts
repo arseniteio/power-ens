@@ -66,9 +66,9 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Define la configuración de log collection y los niveles de alerta. Las reglas 110901 (audit_log_status) y 110903 (audit_record_fields) informan de las fuentes de registro de cada servidor.',
+        'Define la configuración de log collection y los niveles de alerta. Las reglas 110901 (audit_log_status) y 110903 (audit_record_fields) informan de las fuentes de registro de cada servidor, y la 110914 (audit_coverage) de lo que las reglas de auditd cargadas registran por categoría.',
       ensfacilUsage:
-        'Sin P-01, op.exp.8.1 queda sin evaluar (causa CONFIGURATION): no consta qué se audita. Es además la mitad documental de op.exp.8.r3.1.',
+        'EV-01 contrasta cada categoría declarada con lo que el servidor audita de verdad: autenticación con las fuentes de registro activas; cambios de configuración, cuentas y grupos, privilegios y almacenes de claves con las rutas que auditd vigila en escritura; cambios de hora con las llamadas al sistema auditadas; directorio LDAP con el nivel de log de slapd. Una categoría declarada que no se audita es un incumplimiento de op.exp.8.1; una que ENSFácil no reconoce queda sin evaluar (causa CONFIGURATION). Sin P-01, op.exp.8.1 queda sin evaluar (causa CONFIGURATION): no consta qué se audita. Es además la mitad documental de op.exp.8.r3.1.',
       evidenceIds: ['EV-01', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:

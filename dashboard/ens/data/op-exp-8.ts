@@ -110,7 +110,7 @@ export const opExp8Control: ENSControl = {
       description:
         'Ingesta centralizada de los eventos de todas las categorías declaradas en P-01, conservados de forma consultable y con los cinco campos mínimos que exige op.exp.8.1. Es el registro de auditoría del sistema en sentido propio: no una evidencia sobre el control, sino el control mismo materializado.',
       format: 'json_line',
-      events: ['evidence_state', 'audit_log_status'],
+      events: ['evidence_state', 'audit_log_status', 'audit_coverage'],
       wazuhRuleIds: [],
     },
     {
@@ -419,7 +419,7 @@ export const opExp8Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'audit_log_status', 'agent_status', 'audit_record_fields', 'log_ingestion_status', 'log_review_recorded', 'time_sync_status', 'clock_change_observed', 'log_retention_observed', 'log_access_permissions', 'log_backup_status', 'correlation_rules_inventory', 'active_response_configured', 'active_response_executed', 'logging_service_status'],
+  events: ['evidence_state', 'control_state', 'score_snapshot', 'audit_log_status', 'audit_coverage', 'agent_status', 'audit_record_fields', 'log_ingestion_status', 'log_review_recorded', 'time_sync_status', 'clock_change_observed', 'log_retention_observed', 'log_access_permissions', 'log_backup_status', 'correlation_rules_inventory', 'active_response_configured', 'active_response_executed', 'logging_service_status'],
   presentationRules: {
     auditorSees: [
       'control ENS',

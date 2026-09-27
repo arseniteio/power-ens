@@ -3158,22 +3158,23 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     // Plano del servidor. Lo juzga la policy del control: auditd activo con
     // reglas y registro del sistema persistente; en el directorio, slapd con
-    // `stats`.
+    // `stats`; y cada categoría que P-01 declara auditable, contra lo que las
+    // reglas cargadas en el kernel registran de verdad (`audit_coverage`).
     id: 'EV-01',
     controlId: 'op.exp.8',
     title: 'Generación y conservación del registro de auditoría',
     description:
-      'Fuentes de registro de cada servidor y su estado: auditd (activo, habilitado en el kernel y con cuántas reglas cargadas), el registro del sistema (journald persistente o rsyslog) y, en un servidor LDAP, el registro de operaciones de slapd (olcLogLevel). Es el registro de auditoría en sentido propio, en el sitio donde se genera.',
+      'Fuentes de registro de cada servidor y su estado: auditd (activo, habilitado en el kernel y con cuántas reglas cargadas), el registro del sistema (journald persistente o rsyslog) y, en un servidor LDAP, el registro de operaciones de slapd (olcLogLevel). Y, por cada categoría de evento que P-01 declara auditable, lo que las reglas cargadas en el kernel registran de verdad: qué rutas vigilan en escritura o qué llamadas al sistema. Es el registro de auditoría en sentido propio, en el sitio donde se genera.',
     requirements: ['op.exp.8.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'audit_log_status'],
-    stateFactEventTypes: ['audit_log_status'],
-    relatedRules: ['110901'],
+    expectedEventTypes: ['evidence_state', 'audit_log_status', 'audit_coverage'],
+    stateFactEventTypes: ['audit_log_status', 'audit_coverage'],
+    relatedRules: ['110901', '110914'],
     auditQuestion:
-      '¿Está activo en el servidor un registro de auditoría con reglas cargadas, y se conserva el registro del sistema? En un servidor LDAP, ¿registra slapd sus operaciones?',
+      '¿Está activo en el servidor un registro de auditoría, se conserva el registro del sistema y se registran de verdad todas las categorías de eventos que P-01 declara auditables? En un servidor LDAP, ¿registra slapd sus operaciones?',
   },
   {
     // Plano del servidor. Único juicio por primitiva de op.exp.8.

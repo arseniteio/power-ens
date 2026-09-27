@@ -15,7 +15,7 @@
        dashboard/ens/core/evidence/catalog.ts:
 
          plano del servidor (agentes Linux y LDAP, y el propio manager)
-           EV-01 110901 · EV-02 110902 · EV-03 110903
+           EV-01 110901 y 110914 · EV-02 110902 · EV-03 110903
            EV-06 110906 y 110907 · EV-08 110909
          plano central (solo el manager, agent.id=000)
            EV-04 110904 · EV-05 110905 · EV-07 110908 · EV-10 110910
@@ -44,6 +44,17 @@
     <if_sid>110900</if_sid>
     <field name="event">audit_log_status</field>
     <description>op.exp.8 · EV-01 · registro $(fuente) ($(plano)): activo=$(activo)</description>
+  </rule>
+
+  <!-- EV-01. Por categoría de evento (configuración, cuentas, privilegios,
+       almacenes de claves, hora), lo que las reglas de auditd CARGADAS en el
+       kernel registran de verdad: qué rutas de la categoría vigilan en
+       escritura, o qué llamadas al sistema, y cuáles no. Es lo que se
+       contrasta con las categorías que P-01 declara auditables. -->
+  <rule id="110914" level="3">
+    <if_sid>110900</if_sid>
+    <field name="event">audit_coverage</field>
+    <description>op.exp.8 · EV-01 · auditd y la categoría $(categoria): sin vigilar $(sin_vigilar)</description>
   </rule>
 
   <!-- EV-03. Una muestra de los registros de auditoría de una fuente, con
