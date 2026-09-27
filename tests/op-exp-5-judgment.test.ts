@@ -208,17 +208,20 @@ const evalua = (alertas: Alerta[], valores: Record<string, unknown> = BASE, nive
   const deEvidencia = (id: string) => decisions.find(d => d.trace.ruleId.endsWith(`/${id}`));
   const estado = (id: string) => deEvidencia(id)?.status;
   const motivo = (id: string) => deEvidencia(id)?.reason || '(sin decisión)';
+  const tabla = applyPolicyDecisionsToEvidences(evidencias, decisions, opExp5CatalogDefinition.requirements);
   const requisito = (id: string) =>
     evaluateRequirement(
       opExp5CatalogDefinition.requirements.find(q => q.id === id)!,
       nivel,
-      applyPolicyDecisionsToEvidences(evidencias, decisions, opExp5CatalogDefinition.requirements),
+      tabla,
       false,
       decisions,
       'ACTIVE'
     );
+  // La evidencia tal como la pinta la tabla, con su causa.
+  const evidencia = (id: string) => tabla.find(e => e.id === id);
 
-  return { evidencias, decisions, estado, motivo, requisito };
+  return { evidencias, decisions, estado, motivo, requisito, evidencia };
 };
 
 // --- 1. aplicabilidad -----------------------------------------------------
@@ -489,6 +492,75 @@ bloque('9. EV-05 y EV-08 · sin fuente real: NO_EVALUABLE siempre, nunca CUMPLE'
     },
   ]);
   comprueba('un package_changed de op.exp.4 no cuenta como cambio de op.exp.5', otroControl.estado('EV-02') === 'CUMPLE', otroControl.motivo('EV-02'));
+}
+
+// --- 10. la causa del hueco -------------------------------------------------
+
+bloque('10. La causa de lo que no se ha podido medir llega a la evidencia');
+
+{
+  // Datos reales de wazuh-real (26/09): P-05 sin declarar salía «no ha llegado
+  // nada» (COLLECTION), mandando a revisar el agente cuando lo que falta es
+  // una decisión en la pantalla de Configuración.
+  const sinP05 = evalua([latido(), ...registro([])], con({ 'P-05': undefined }));
+  comprueba(
+    'sin P-05 → EV-05 NO_EVALUABLE con causa CONFIGURATION, no COLLECTION',
+    sinP05.evidencia('EV-05')?.status === 'NO_EVALUABLE' && sinP05.evidencia('EV-05')?.gapCause === 'CONFIGURATION',
+    `${sinP05.evidencia('EV-05')?.status} ${sinP05.evidencia('EV-05')?.gapCause}`
+  );
+
+  const conP05 = evalua([latido(), ...registro([])]);
+  comprueba(
+    'REVERSIÓN: con P-05 declarado, EV-05 sigue sin medir pero ya no por configuración (EVIDENCE)',
+    conP05.evidencia('EV-05')?.status === 'NO_EVALUABLE' && conP05.evidencia('EV-05')?.gapCause === 'EVIDENCE',
+    `${conP05.evidencia('EV-05')?.status} ${conP05.evidencia('EV-05')?.gapCause}`
+  );
+
+  // El recolector declara CONFIGURATION (registro ausente) en EV-02; EV-03 se
+  // mide sobre el mismo registro y no tiene hecho propio en el modelo clásico.
+  const sinRegistro = evalua([
+    latido(),
+    alerta({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe /etc/ensfacil/change-register.tsv' }),
+  ]);
+  comprueba(
+    'registro ausente (CONFIGURATION del recolector) → EV-03 lleva esa causa, no COLLECTION',
+    sinRegistro.evidencia('EV-03')?.status === 'NO_EVALUABLE' && sinRegistro.evidencia('EV-03')?.gapCause === 'CONFIGURATION',
+    `${sinRegistro.evidencia('EV-03')?.status} ${sinRegistro.evidencia('EV-03')?.gapCause}`
+  );
+
+  // Reglas de auditd escritas y no cargadas: el recolector lo declara
+  // CONFIGURATION. Aunque haya cambios reales de software (que el modelo
+  // clásico toma como el hecho de EV-01), la causa es la del recolector.
+  const sinCargar = evalua([
+    software(hace(3)),
+    alerta({ event: 'evidence_state', evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'reglas de auditd escritas y no cargadas' }, hace(4)),
+    ...registro([]),
+  ]);
+  comprueba(
+    'la causa que declara el recolector (CONFIGURATION) llega a EV-01',
+    sinCargar.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinCargar.evidencia('EV-01')?.gapCause === 'CONFIGURATION',
+    `${sinCargar.evidencia('EV-01')?.status} ${sinCargar.evidencia('EV-01')?.gapCause}`
+  );
+  // Sin ningún cambio, el silencio de EV-09 se apoya en una detección que el
+  // recolector declara incompleta por configuración: esa es su causa.
+  const silencio = evalua([
+    alerta({ event: 'evidence_state', evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'reglas de auditd escritas y no cargadas' }),
+    ...registro([]),
+  ]);
+  comprueba(
+    'y el silencio de EV-09 que se apoya en EV-01 hereda esa causa (CONFIGURATION)',
+    silencio.evidencia('EV-09')?.status === 'NO_EVALUABLE' && silencio.evidencia('EV-09')?.gapCause === 'CONFIGURATION',
+    `${silencio.evidencia('EV-09')?.status} ${silencio.evidencia('EV-09')?.gapCause}`
+  );
+
+  // Una lectura del registro de hace 30 h: llegó el hecho, pero el recolector
+  // lleva más de un día sin leerlo. Es RECOGIDA.
+  const viejo = evalua([latido(), ...registro([], {}, hace(30))]);
+  comprueba(
+    'lectura del registro caducada → EV-02 con causa COLLECTION',
+    viejo.evidencia('EV-02')?.status === 'NO_EVALUABLE' && viejo.evidencia('EV-02')?.gapCause === 'COLLECTION',
+    `${viejo.evidencia('EV-02')?.status} ${viejo.evidencia('EV-02')?.gapCause}`
+  );
 }
 
 // --- salida ----------------------------------------------------------------

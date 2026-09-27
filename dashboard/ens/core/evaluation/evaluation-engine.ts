@@ -135,10 +135,17 @@ export const evaluateENSControl = (
     // policy decidía los requisitos leyendo los hechos crudos y las evidencias
     // se quedaban esperando un `evidence_state` que su agente no emite nunca.
     // Ver `policy-evidence-bridge.ts`.
+    // Si de esta máquina no ha llegado ningún hecho del control, lo que la
+    // policy no pudo medir es un hueco de recogida (ver el puente).
+    const nadaRecibido = !events.some(
+      event => event.controlId === catalogControl.id
+    );
+
     const evidencesConPolicy = applyPolicyDecisionsToEvidences(
       evidences,
       policyRuntime?.decisions || [],
-      catalogControl.requirements
+      catalogControl.requirements,
+      nadaRecibido
     );
 
     // La Declaración de Aplicabilidad se aplica sobre lo ya evaluado: su límite
@@ -411,13 +418,20 @@ export const evaluateENSControl = (
     requirement: { id: string; evidenceIds: string[] },
     requirementEvidences: ENSEvidenceResolved[],
     pendingEvidences: ENSEvidenceResolved[],
-    unusableParameters: { id: string; label: string }[]
+    unusableParameters: { id: string; label: string }[],
+    policyCause?: ENSGapCause
   ): ENSGapCause => {
     if (
       requirement.evidenceIds.length === 0 ||
       requirementEvidences.length === 0
     ) {
       return 'CATALOG';
+    }
+
+    // La policy no pudo medir el requisito y ninguna evidencia quedó
+    // pendiente de la que sacar la causa: la dice la propia policy.
+    if (pendingEvidences.length === 0 && policyCause) {
+      return policyCause;
     }
 
     if (
@@ -552,7 +566,12 @@ export const evaluateENSControl = (
           requirement,
           requirementEvidences,
           pendingEvidences,
-          parameters
+          parameters,
+          decision?.status === 'NO_EVALUABLE' && decision.cause
+            ? nadaRecibido
+              ? 'COLLECTION'
+              : decision.cause
+            : undefined
         );
 
         const motivos = pendingReasons.length

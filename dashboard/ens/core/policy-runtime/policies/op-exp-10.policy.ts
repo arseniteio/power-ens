@@ -35,7 +35,7 @@ import type {
   ENSPolicyEvaluatorResult,
   ENSRuntimeVariable,
 } from '../types';
-import type { ENSComplianceStatus } from '../../evaluation/types';
+import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
 import type { ENSControlParameter } from '../../../configuration/types';
 import {
@@ -56,14 +56,48 @@ const TOLERANCIA_FUTURO = 5 * 60 * 1000;
 // Latido que habilita un silencio, igual que en las primitivas.
 const LATIDO_HORAS = 24;
 
+// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
+// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
+// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy.
 type Medida = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
+  causa?: ENSGapCause;
 };
 
 const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
 const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-const sinMedir = (motivo: string): Medida => ({ estado: 'NO_EVALUABLE', motivo });
+// Por defecto EVIDENCE: el dato llegó y no basta. La falta de parámetro
+// (CONFIGURATION), el silencio del recolector (COLLECTION) y lo que el propio
+// recolector declara (`sinCobertura`) lo dicen expresamente.
+const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+  estado: 'NO_EVALUABLE',
+  motivo,
+  causa,
+});
+
+// La causa de varias medidas sin medir (una por máquina, o varios ejes), con el
+// mismo orden que el motor (`resolveGapCause`): COLLECTION solo si lo dicen
+// todas; CONFIGURATION si lo dice alguna; si no, EVIDENCE.
+const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
+  const causas = medidas
+    .filter(m => m.estado === 'NO_EVALUABLE')
+    .map(m => m.causa || 'EVIDENCE');
+
+  if (!causas.length) {
+    return undefined;
+  }
+
+  if (causas.every(c => c === 'COLLECTION')) {
+    return 'COLLECTION';
+  }
+
+  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+};
+
+// Ningún evento de op.exp.10 en todo el alcance: el recolector no ha corrido.
+const sinRecolector = (): Medida =>
+  sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.', 'COLLECTION');
 
 const GRAVEDAD: Record<Medida['estado'], number> = {
   CUMPLE: 0,
@@ -86,13 +120,12 @@ const combina = (medidas: Medida[], vacio: Medida): Medida => {
   }
 
   const estado = peor(medidas);
+  const responsables = medidas.filter(m => m.estado === estado);
 
   return {
     estado,
-    motivo: medidas
-      .filter(m => m.estado === estado)
-      .map(m => m.motivo)
-      .join(' | '),
+    motivo: responsables.map(m => m.motivo).join(' | '),
+    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
   };
 };
 
@@ -256,15 +289,36 @@ const cubierta = (
     : { si: false, motivo: `el último latido de ${maquina.nombre} (${ultimo.timestamp}) no declara ${evidencia} cubierta: esa pasada no pudo mirarla entera` };
 };
 
-// Motivo de la degradación más reciente que el recolector emitió para una
-// evidencia en esta máquina: es lo que dice POR QUÉ no se pudo mirar.
-const degradacion = (maquina: Maquina, evidencia: string): string => {
-  const ultima = hechos(maquina.eventos, 'evidence_state')
+// La degradación más reciente que el recolector emitió para una evidencia en
+// esta máquina: es lo que dice POR QUÉ no se pudo mirar.
+const ultimaDegradacion = (maquina: Maquina, evidencia: string): ENSNormalizedEvent | undefined =>
+  hechos(maquina.eventos, 'evidence_state')
     .filter(e => e.evidenceId === evidencia || campo(e, 'evidence_id').split(',').includes(evidencia))
     .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))[0];
 
+const degradacion = (maquina: Maquina, evidencia: string): string => {
+  const ultima = ultimaDegradacion(maquina, evidencia);
+
   return ultima ? ` El recolector dice: ${campo(ultima, 'motivo')}` : '';
 };
+
+// La causa con la que el recolector declaró que no pudo mirar: él sabe si son
+// las reglas de auditd sin cargar (CONFIGURATION) o una fuente que no pudo leer
+// (COLLECTION). Sin degradación declarada, `porDefecto`.
+const causaDeclarada = (maquina: Maquina, evidencia: string, porDefecto: ENSGapCause): ENSGapCause => {
+  const ultima = ultimaDegradacion(maquina, evidencia);
+  const declarada = ultima ? campo(ultima, 'causa').toUpperCase() : '';
+
+  return ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
+    ? (declarada as ENSGapCause)
+    : porDefecto;
+};
+
+// Una evidencia que la última pasada no miró entera: el motivo acaba con lo
+// que dice el recolector, y la causa es la suya. Sin nada declarado, el
+// latido que falta o no la cubre es un fallo de RECOGIDA.
+const sinCobertura = (maquina: Maquina, evidencia: string, motivo: string): Medida =>
+  sinMedir(`${motivo}${degradacion(maquina, evidencia)}`, causaDeclarada(maquina, evidencia, 'COLLECTION'));
 
 const prefijo = (maquina: Maquina, varias: boolean): string =>
   varias ? `[${maquina.nombre}] ` : '';
@@ -360,7 +414,7 @@ const ev01 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
   const tabla = filas(context, 'P-08');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no hay contra qué contrastar quién accede a las claves.`);
+    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no hay contra qué contrastar quién accede a las claves.`, 'CONFIGURATION');
   }
 
   const cuentas = new Set(tabla.map(f => (f.cuenta || '').trim()).filter(Boolean));
@@ -381,8 +435,10 @@ const ev01 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
       }
 
       if (!cob.si) {
-        return sinMedir(
-          `${prefijo(m, varias)}${accesos.length ? `Los ${accesos.length} acceso(s) observados son de cuentas autorizadas, pero` : 'No se ha observado ningún acceso, y'} ${cob.motivo}: lo que no se vigila no acredita nada.${degradacion(m, 'EV-01')}`
+        return sinCobertura(
+          m,
+          'EV-01',
+          `${prefijo(m, varias)}${accesos.length ? `Los ${accesos.length} acceso(s) observados son de cuentas autorizadas, pero` : 'No se ha observado ningún acceso, y'} ${cob.motivo}: lo que no se vigila no acredita nada.`
         );
       }
 
@@ -392,7 +448,7 @@ const ev01 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
           : `${prefijo(m, varias)}Ningún acceso al material criptográfico en la ventana, y ${cob.motivo}.`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -402,13 +458,13 @@ const ev03 = (context: ENSPolicyContext, todas: Maquina[]): Medida => {
   const politica = autorizados(context);
 
   if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar la configuración.`);
+    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar la configuración.`, 'CONFIGURATION');
   }
 
   const alcance = filas(context, 'P-04');
 
   if (!alcance) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin el alcance declarado no se puede afirmar que se hayan verificado todos los servicios criptográficos.`);
+    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin el alcance declarado no se puede afirmar que se hayan verificado todos los servicios criptográficos.`, 'CONFIGURATION');
   }
 
   const varias = todas.length > 1;
@@ -444,8 +500,13 @@ const ev03 = (context: ENSPolicyContext, todas: Maquina[]): Medida => {
         return noCumple(`${prefijo(m, varias)}Algoritmos no autorizados en ${etiqueta(context, 'P-03')}: ${lista(fallos, 8)}.`);
       }
 
+      // El recolector corrió y no vio ningún servicio: si dice por qué, su
+      // causa; si no, el dato llegó y no basta.
       if (!observados.length) {
-        return sinMedir(`${prefijo(m, varias)}No se ha observado la configuración de ningún servicio criptográfico.${degradacion(m, 'EV-03')}`);
+        return sinMedir(
+          `${prefijo(m, varias)}No se ha observado la configuración de ningún servicio criptográfico.${degradacion(m, 'EV-03')}`,
+          causaDeclarada(m, 'EV-03', 'EVIDENCE')
+        );
       }
 
       if (sinObservar.length) {
@@ -460,7 +521,7 @@ const ev03 = (context: ENSPolicyContext, todas: Maquina[]): Medida => {
         `${prefijo(m, varias)}Todos los algoritmos que aceptan ${lista(Array.from(new Set(observados.map(e => campo(e, 'servicio')))))} (${observados.length} directiva(s)) figuran en ${etiqueta(context, 'P-03')} con la longitud exigida.`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -470,7 +531,7 @@ const ev04 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
   const politica = autorizados(context);
 
   if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar lo negociado.`);
+    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar lo negociado.`, 'CONFIGURATION');
   }
 
   const varias = todas.length > 1;
@@ -494,8 +555,10 @@ const ev04 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
       }
 
       if (!cob.si) {
-        return sinMedir(
-          `${prefijo(m, varias)}${negociados.length ? `Lo observado (${negociados.length} algoritmo(s) negociados) está autorizado, pero` : 'No se ha observado ninguna negociación, y'} ${cob.motivo}.${degradacion(m, 'EV-04')}`
+        return sinCobertura(
+          m,
+          'EV-04',
+          `${prefijo(m, varias)}${negociados.length ? `Lo observado (${negociados.length} algoritmo(s) negociados) está autorizado, pero` : 'No se ha observado ninguna negociación, y'} ${cob.motivo}.`
         );
       }
 
@@ -509,7 +572,7 @@ const ev04 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
           : `${prefijo(m, varias)}No se ha negociado nada en la ventana, y ${cob.motivo}.`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -519,7 +582,7 @@ const ev05 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
   const tabla = filas(context, 'P-05');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no se sabe qué máquinas son medios de explotación.`);
+    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no se sabe qué máquinas son medios de explotación.`, 'CONFIGURATION');
   }
 
   const varias = todas.length > 1;
@@ -529,7 +592,7 @@ const ev05 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
       const fila = tabla.find(f => sinTildes(f.medio || '') === sinTildes(m.nombre));
 
       if (!fila) {
-        return sinMedir(`${prefijo(m, varias)}${m.nombre} no figura en ${etiqueta(context, 'P-05')}: su función (generación o explotación) no está declarada.`);
+        return sinMedir(`${prefijo(m, varias)}${m.nombre} no figura en ${etiqueta(context, 'P-05')}: su función (generación o explotación) no está declarada.`, 'CONFIGURATION');
       }
 
       const funcion = sinTildes(fila.funcion || '');
@@ -543,7 +606,7 @@ const ev05 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
       }
 
       if (funcion !== 'explotacion') {
-        return sinMedir(`${prefijo(m, varias)}La fila de ${m.nombre} en ${etiqueta(context, 'P-05')} no declara una función reconocible ('${fila.funcion}').`);
+        return sinMedir(`${prefijo(m, varias)}La fila de ${m.nombre} en ${etiqueta(context, 'P-05')} no declara una función reconocible ('${fila.funcion}').`, 'CONFIGURATION');
       }
 
       if (generadas.length) {
@@ -558,9 +621,9 @@ const ev05 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
 
       return cob.si
         ? cumple(`${prefijo(m, varias)}${m.nombre} es un medio de explotación y no se ha generado ninguna clave en la ventana; ${cob.motivo}.`)
-        : sinMedir(`${prefijo(m, varias)}No se ha observado ninguna generación en ${m.nombre}, pero ${cob.motivo}.${degradacion(m, 'EV-05')}`);
+        : sinCobertura(m, 'EV-05', `${prefijo(m, varias)}No se ha observado ninguna generación en ${m.nombre}, pero ${cob.motivo}.`);
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -570,13 +633,13 @@ const ev06 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
   const inventario = filas(context, 'P-01');
 
   if (!inventario) {
-    return sinMedir(`${etiqueta(context, 'P-01')} está sin configurar: sin inventario no se sabe qué claves están retiradas.`);
+    return sinMedir(`${etiqueta(context, 'P-01')} está sin configurar: sin inventario no se sabe qué claves están retiradas.`, 'CONFIGURATION');
   }
 
   const archivo = filas(context, 'P-06');
 
   if (!archivo) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no consta dónde se archivan las claves retiradas.`);
+    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no consta dónde se archivan las claves retiradas.`, 'CONFIGURATION');
   }
 
   // Un destino de archivo que es una máquina de EXPLOTACIÓN contradice el
@@ -614,7 +677,7 @@ const ev06 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
       }
 
       if (!cob.si) {
-        return sinMedir(`${prefijo(m, varias)}No se ha encontrado ninguna clave retirada, pero ${cob.motivo}.${degradacion(m, 'EV-06')}`);
+        return sinCobertura(m, 'EV-06', `${prefijo(m, varias)}No se ha encontrado ninguna clave retirada, pero ${cob.motivo}.`);
       }
 
       // Una retirada que solo se identifica por huella no se puede descartar
@@ -632,7 +695,7 @@ const ev06 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medid
           : `${prefijo(m, varias)}${etiqueta(context, 'P-01')} no declara ninguna clave retirada, y el barrido de esta máquina está completo (${cob.motivo}).`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -675,7 +738,7 @@ const ev07Vigencia = (context: ENSPolicyContext, todas: Maquina[], ahora: number
       }
 
       if (!cob.si) {
-        return sinMedir(`${prefijo(m, varias)}No hay certificados caducados entre los observados, pero ${cob.motivo}.${degradacion(m, 'EV-07')}`);
+        return sinCobertura(m, 'EV-07', `${prefijo(m, varias)}No hay certificados caducados entre los observados, pero ${cob.motivo}.`);
       }
 
       const aviso = proximos.length
@@ -690,7 +753,7 @@ const ev07Vigencia = (context: ENSPolicyContext, todas: Maquina[], ahora: number
           : `${prefijo(m, varias)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cob.motivo}.`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -698,7 +761,7 @@ const ev07Algoritmos = (context: ENSPolicyContext, todas: Maquina[], ahora: numb
   const politica = autorizados(context);
 
   if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar los certificados.`);
+    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar los certificados.`, 'CONFIGURATION');
   }
 
   const varias = todas.length > 1;
@@ -729,7 +792,7 @@ const ev07Algoritmos = (context: ENSPolicyContext, todas: Maquina[], ahora: numb
       }
 
       if (!cob.si) {
-        return sinMedir(`${prefijo(m, varias)}Los certificados observados están autorizados, pero ${cob.motivo}.${degradacion(m, 'EV-07')}`);
+        return sinCobertura(m, 'EV-07', `${prefijo(m, varias)}Los certificados observados están autorizados, pero ${cob.motivo}.`);
       }
 
       return cumple(
@@ -738,7 +801,7 @@ const ev07Algoritmos = (context: ENSPolicyContext, todas: Maquina[], ahora: numb
           : `${prefijo(m, varias)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cob.motivo}.`
       );
     }),
-    sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.')
+    sinRecolector()
   );
 };
 
@@ -756,7 +819,7 @@ const deLaPrimitiva = (context: ENSPolicyContext, id: string): Medida => {
   if (estado === 'CUMPLE') return cumple(motivo);
   if (estado === 'NO_CUMPLE' || estado === 'PARCIAL') return noCumple(motivo);
 
-  return sinMedir(motivo || `${id} no se ha podido medir.`);
+  return sinMedir(motivo || `${id} no se ha podido medir.`, evidencia?.gapCause || 'COLLECTION');
 };
 
 // --- decisiones -------------------------------------------------------------
@@ -778,7 +841,8 @@ const decide = (
   tipo: TipoRegla,
   ruleId: string,
   motivo: string,
-  esperado: string
+  esperado: string,
+  causa?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
   requirementId: requisito,
@@ -796,6 +860,7 @@ const decide = (
     result: estado === 'CUMPLE',
   },
   reason: motivo,
+  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
 });
 
 // Las que juzga su primitiva: ya tienen veredicto en la tabla de evidencias y
@@ -810,7 +875,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   // la ficha (condición A6) y es independiente de lo que mida la máquina.
   const faltanDocumentos = ['P-01', 'P-07'].filter(id => !configurado(parametro(context, id)));
   const documental: Medida = faltanDocumentos.length
-    ? sinMedir(`Sin ${faltanDocumentos.map(id => etiqueta(context, id)).join(' ni ')} op.exp.10.1 no se puede evaluar: no hay inventario de claves o procedimiento de ciclo de vida contra el que contrastar la custodia medida.`)
+    ? sinMedir(`Sin ${faltanDocumentos.map(id => etiqueta(context, id)).join(' ni ')} op.exp.10.1 no se puede evaluar: no hay inventario de claves o procedimiento de ciclo de vida contra el que contrastar la custodia medida.`, 'CONFIGURATION')
     : cumple(`${etiqueta(context, 'P-01')} y ${etiqueta(context, 'P-07')} están declarados.`);
 
   const vigencia = ev07Vigencia(context, todas, ahora);
@@ -883,7 +948,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         tipo,
         requisito,
         propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
-        propias.map(p => `${p.id} CUMPLE`).join(' y ')
+        propias.map(p => `${p.id} CUMPLE`).join(' y '),
+        causaComun(propias.filter(p => p.medida.estado === estado).map(p => p.medida))
       )
     );
 
@@ -901,7 +967,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
             tipo,
             `${requisito}/${p.id}`,
             p.medida.motivo,
-            `${p.id} CUMPLE`
+            `${p.id} CUMPLE`,
+            p.medida.causa
           )
         )
       );

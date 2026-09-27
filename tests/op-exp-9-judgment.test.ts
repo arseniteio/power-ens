@@ -737,6 +737,49 @@ bloque('9. Los registros se juzgan con la última pasada, no con la ventana de 3
   );
 }
 
+// --- 10. la causa del hueco ----------------------------------------------------
+
+bloque('10. La causa de lo que no se puede medir llega a la evidencia y al requisito');
+
+{
+  // El caso real de wazuh4: el manager no tiene /etc/ensfacil/incident-register.tsv.
+  // La policy ya decía «causa CONFIGURATION» en el texto, pero la tarjeta de
+  // op.exp.9.1 salía EVIDENCE: la causa se quedaba en el motivo.
+  const ausente = evalua(eventos(latido(), ...registros({ incidentes: { presente: 'no', legible: 'no', formato: '-', filas_validas: 0 } })));
+  const ev01 = ausente.puente.find(e => e.id === 'EV-01');
+
+  comprueba(
+    'registro de incidentes ausente: EV-01 sin medir con causa CONFIGURATION, no EVIDENCE',
+    ev01?.status === 'NO_EVALUABLE' && ev01?.gapCause === 'CONFIGURATION',
+    `${ev01?.status} ${ev01?.gapCause}`
+  );
+  comprueba(
+    'y la decisión de op.exp.9.1 declara la misma causa',
+    ausente.principal('op.exp.9.1').status === 'NO_EVALUABLE' && ausente.principal('op.exp.9.1').cause === 'CONFIGURATION',
+    `${ausente.principal('op.exp.9.1').status} ${ausente.principal('op.exp.9.1').cause}`
+  );
+
+  // Sin latido lo que falla es la RECOGIDA, aunque el registro sí se leyera.
+  const sinLatido = evalua(eventos(...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const ev02 = sinLatido.puente.find(e => e.id === 'EV-02');
+
+  comprueba(
+    'sin latido del recolector: EV-02 sin medir con causa COLLECTION',
+    ev02?.status === 'NO_EVALUABLE' && ev02?.gapCause === 'COLLECTION',
+    `${ev02?.status} ${ev02?.gapCause}`
+  );
+
+  // Un parámetro sin configurar se arregla en la pantalla de Configuración.
+  const sinP07 = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')), { ...BASICOS, 'P-07': undefined });
+  const ev08 = sinP07.puente.find(e => e.id === 'EV-08');
+
+  comprueba(
+    'sin P-07: EV-08 sin medir con causa CONFIGURATION',
+    ev08?.status === 'NO_EVALUABLE' && ev08?.gapCause === 'CONFIGURATION',
+    `${ev08?.status} ${ev08?.gapCause}`
+  );
+}
+
 console.log(`\n${fallos.length ? `${fallos.length} comprobación(es) fallan:\n  - ${fallos.join('\n  - ')}` : 'todas las comprobaciones pasan'}`);
 
 process.exit(fallos.length ? 1 : 0);

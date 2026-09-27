@@ -3,7 +3,7 @@ import { ENSControlDefinition } from '../../catalog';
 import { ENSControlConfiguration } from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
 import { ENSEvidenceResolved } from '../evidence/types';
-import { ENSComplianceStatus } from '../evaluation/types';
+import { ENSComplianceStatus, ENSGapCause } from '../evaluation/types';
 
 export type ENSPolicyRuleType =
   | 'MAX_AGE'
@@ -80,6 +80,13 @@ export interface ENSPolicyDecision {
   runtimeVariables: string[];
   trace: ENSPolicyTrace;
   reason: string;
+  // Solo con `status` NO_EVALUABLE: POR QUÉ la policy no ha podido medir. Es la
+  // misma causa que `ENSEvidenceResolved.gapCause`, y el puente la lleva a las
+  // evidencias que la decisión rellena. Sin ella, una evidencia que la policy
+  // mide con hechos que no son los suyos del modelo clásico se quedaba con la
+  // causa de ese modelo («no ha llegado nada», COLLECTION) aunque lo que
+  // faltara fuera un parámetro, o la causa que declaró el recolector.
+  cause?: ENSGapCause;
 }
 
 export interface ENSPolicyRuntimeResult {

@@ -446,6 +446,46 @@ bloque('11. Servidor LDAP: los hechos de slapd se juzgan con la misma política'
   comprueba('hash de contraseñas {SSHA} sin fila → NO_CUMPLE', r.deEvidencia('EV-03')?.status === 'NO_CUMPLE');
 }
 
+// --- 12. la causa del hueco ----------------------------------------------------
+
+bloque('12. Lo que no se puede medir dice POR QUÉ: la causa llega a la evidencia');
+
+{
+  const tabla = (r: ReturnType<typeof evalua>) =>
+    applyPolicyDecisionsToEvidences(r.evidencias, r.decisions, opExp10CatalogDefinition.requirements);
+
+  // (a) Falta el parámetro: se arregla en la pantalla de Configuración, no en
+  // el despliegue. El modelo clásico, sin ningún acceso observado, decía
+  // «no ha llegado nada» (COLLECTION).
+  let r = evalua(eventos(latido(TODAS)), { ...BASE, 'P-08': [] });
+  let ev = tabla(r).find(e => e.id === 'EV-01');
+  comprueba('sin P-08 → EV-01 sin medir con causa CONFIGURATION, no COLLECTION', ev?.status === 'NO_EVALUABLE' && ev?.gapCause === 'CONFIGURATION', `${ev?.status} ${ev?.gapCause}`);
+  r = evalua(eventos(latido(TODAS)), { ...BASE, 'P-05': ['otra-maquina | explotacion | DMZ'] });
+  ev = tabla(r).find(e => e.id === 'EV-05');
+  comprueba('la máquina sin fila en P-05 → EV-05 con causa CONFIGURATION', ev?.status === 'NO_EVALUABLE' && ev?.gapCause === 'CONFIGURATION', `${ev?.status} ${ev?.gapCause}`);
+  comprueba('y la decisión del requisito op.exp.10.2 la lleva', r.principal('op.exp.10.2')?.cause === 'CONFIGURATION', r.principal('op.exp.10.2')?.cause);
+
+  // (b) La pasada no cubrió EV-01 y el recolector dice por qué: las reglas de
+  // auditd no están cargadas (CONFIGURATION). El acceso observado, más reciente
+  // que la degradación, es lo que el modelo clásico toma, y sin `causa` suya
+  // la tarjeta decía EVIDENCE.
+  r = evalua(eventos(
+    latido('EV-02,EV-03'),
+    alerta({ event: 'evidence_state', evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'las reglas de auditd de op.exp.10 no estan cargadas en el kernel' }, hace(0.5)),
+    alerta({ event: 'key_material_accessed', evidence_id: 'EV-01', actor: 'root', sesion: 'con_sesion', recurso: '/etc/ssh/ssh_host_rsa_key', acceso: 'lectura', operacion: 'openat', proceso: '/usr/bin/cp', veces: 1, ultima: hace(2) }, hace(0.45))
+  ));
+  ev = tabla(r).find(e => e.id === 'EV-01');
+  comprueba('la causa que declara el recolector (CONFIGURATION) llega intacta a EV-01', ev?.status === 'NO_EVALUABLE' && ev?.gapCause === 'CONFIGURATION', `${ev?.status} ${ev?.gapCause}`);
+  comprueba('y el motivo es el suyo', /reglas de auditd/.test(r.deEvidencia('EV-01')?.reason || ''), r.deEvidencia('EV-01')?.reason);
+
+  // (c) No ha llegado nada de op.exp.10: fallo de RECOGIDA, dicho por la policy.
+  r = evalua([]);
+  comprueba('sin ningún evento → EV-05 sin medir con causa COLLECTION en su decisión', r.deEvidencia('EV-05')?.status === 'NO_EVALUABLE' && r.deEvidencia('EV-05')?.cause === 'COLLECTION', `${r.deEvidencia('EV-05')?.status} ${r.deEvidencia('EV-05')?.cause}`);
+  comprueba('y op.exp.10.2 también', r.principal('op.exp.10.2')?.cause === 'COLLECTION', r.principal('op.exp.10.2')?.cause);
+  r = evalua(eventos(latido('EV-02')));
+  comprueba('latido sin EV-05 y nada declarado → COLLECTION', r.deEvidencia('EV-05')?.cause === 'COLLECTION', r.deEvidencia('EV-05')?.cause);
+}
+
 // --- salida ----------------------------------------------------------------
 
 console.log('');

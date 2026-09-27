@@ -46,7 +46,7 @@ import type {
   ENSPolicyEvaluatorResult,
   ENSRuntimeVariable,
 } from '../types';
-import type { ENSComplianceStatus } from '../../evaluation/types';
+import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
 import type { ENSControlParameter } from '../../../configuration/types';
 import {
@@ -73,14 +73,45 @@ const REGISTRO_ENSFACIL = 'Registro ENSFácil (/etc/ensfacil/incident-register.t
 
 type Estado = Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
 
+// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
+// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
+// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy
+// (un registro de incidentes ausente salía «EVIDENCE», no CONFIGURATION).
 type Medida = {
   estado: Estado;
   motivo: string;
+  causa?: ENSGapCause;
 };
 
 const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
 const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-const sinMedir = (motivo: string): Medida => ({ estado: 'NO_EVALUABLE', motivo });
+// Por defecto EVIDENCE: el dato llegó y no basta. La falta de parámetro
+// (CONFIGURATION), la de latido o de hechos (COLLECTION) y el registro que la
+// organización no mantiene (CONFIGURATION) lo dicen expresamente.
+const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+  estado: 'NO_EVALUABLE',
+  motivo,
+  causa,
+});
+
+// La causa de varias medidas sin medir, con el mismo orden que el motor
+// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
+// dice alguna; si no, EVIDENCE.
+const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
+  const causas = medidas
+    .filter(m => m.estado === 'NO_EVALUABLE')
+    .map(m => m.causa || 'EVIDENCE');
+
+  if (!causas.length) {
+    return undefined;
+  }
+
+  if (causas.every(c => c === 'COLLECTION')) {
+    return 'COLLECTION';
+  }
+
+  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+};
 
 const GRAVEDAD: Record<Estado, number> = {
   CUMPLE: 0,
@@ -261,7 +292,8 @@ const latido = (context: ENSPolicyContext, ahora: number): Latido | Medida => {
 
   if (!candidatos.length) {
     return sinMedir(
-      'No consta ninguna pasada del recolector del manager: op.exp.9 se mide en el manager (install-manager.sh del runbook) y sin él no hay registro leído ni alertas contrastadas.'
+      'No consta ninguna pasada del recolector del manager: op.exp.9 se mide en el manager (install-manager.sh del runbook) y sin él no hay registro leído ni alertas contrastadas.',
+      'COLLECTION'
     );
   }
 
@@ -269,13 +301,15 @@ const latido = (context: ENSPolicyContext, ahora: number): Latido | Medida => {
 
   if (ahora - t > FRESCURA_HORAS * HORA) {
     return sinMedir(
-      `La última pasada del recolector del manager es de ${e.timestamp} (hace ${((ahora - t) / HORA).toFixed(1)} h, más de ${FRESCURA_HORAS} h): lo que dijo entonces de los registros no describe el estado de hoy.`
+      `La última pasada del recolector del manager es de ${e.timestamp} (hace ${((ahora - t) / HORA).toFixed(1)} h, más de ${FRESCURA_HORAS} h): lo que dijo entonces de los registros no describe el estado de hoy.`,
+      'COLLECTION'
     );
   }
 
   if (campo(e, 'resultado') !== 'completada') {
     return sinMedir(
-      `La última pasada del recolector del manager (${e.timestamp}) declara resultado='${campo(e, 'resultado') || 'sin dato'}': no terminó correctamente.`
+      `La última pasada del recolector del manager (${e.timestamp}) declara resultado='${campo(e, 'resultado') || 'sin dato'}': no terminó correctamente.`,
+      'COLLECTION'
     );
   }
 
@@ -317,17 +351,18 @@ const registro = (context: ENSPolicyContext, nombre: string): Registro | undefin
 // existe no tiene contra qué juzgarse. Devuelve la medida si hay que parar.
 const registroUtilizable = (reg: Registro | undefined, nombre: string, fichero: string): Medida | undefined => {
   if (!reg) {
-    return sinMedir(`El recolector del manager no ha informado del registro de ${nombre} (${fichero}) en su última pasada.`);
+    return sinMedir(`El recolector del manager no ha informado del registro de ${nombre} (${fichero}) en su última pasada.`, 'COLLECTION');
   }
 
   if (!reg.presente) {
     return sinMedir(
-      `No existe el registro de ${nombre} ${reg.fichero || fichero} en el manager (causa CONFIGURATION): un registro ausente no es un registro vacío, y sin él no hay contra qué juzgar. Créalo con la cabecera documentada.`
+      `No existe el registro de ${nombre} ${reg.fichero || fichero} en el manager (causa CONFIGURATION): un registro ausente no es un registro vacío, y sin él no hay contra qué juzgar. Créalo con la cabecera documentada.`,
+      'CONFIGURATION'
     );
   }
 
   if (!reg.legible) {
-    return sinMedir(`El registro de ${nombre} ${reg.fichero || fichero} existe pero el recolector no lo pudo leer.`);
+    return sinMedir(`El registro de ${nombre} ${reg.fichero || fichero} existe pero el recolector no lo pudo leer.`, 'COLLECTION');
   }
 
   if (reg.formato !== 'ok') {
@@ -442,13 +477,15 @@ const base = (
 
   if (p01 && p01 !== REGISTRO_ENSFACIL) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} declara «${p01}» como sistema de registro. ENSFácil solo lee su registro TSV del manager (/etc/ensfacil/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`
+      `${etiqueta(context, 'P-01')} declara «${p01}» como sistema de registro. ENSFácil solo lee su registro TSV del manager (/etc/ensfacil/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`,
+      'CONFIGURATION'
     );
   }
 
   if (!p01 && exigeP01) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar: no está declarado dónde se registran los incidentes.`
+      `${etiqueta(context, 'P-01')} está sin configurar: no está declarado dónde se registran los incidentes.`,
+      'CONFIGURATION'
     );
   }
 
@@ -461,7 +498,8 @@ const base = (
 
   if (!vivo.cubiertas.includes(evidencia)) {
     return sinMedir(
-      `La última pasada del recolector del manager (${vivo.evento.timestamp}) no declara haber leído las fuentes de ${evidencia}: ver sus avisos y degradaciones.`
+      `La última pasada del recolector del manager (${vivo.evento.timestamp}) no declara haber leído las fuentes de ${evidencia}: ver sus avisos y degradaciones.`,
+      'COLLECTION'
     );
   }
 
@@ -497,7 +535,8 @@ const contrasteRegistroVacio = (
 
   if (nivel === undefined) {
     return sinMedir(
-      `El registro de incidentes está vacío y ${etiqueta(context, 'P-08')} no está declarado: sin un nivel de alerta contra el que contrastarlo, cero incidentes no se puede juzgar.`
+      `El registro de incidentes está vacío y ${etiqueta(context, 'P-08')} no está declarado: sin un nivel de alerta contra el que contrastarlo, cero incidentes no se puede juzgar.`,
+      'CONFIGURATION'
     );
   }
 
@@ -507,7 +546,8 @@ const contrasteRegistroVacio = (
 
   if (!volumen) {
     return sinMedir(
-      'El registro de incidentes está vacío y el recolector no ha informado del volumen de alertas del manager: no hay contraste.'
+      'El registro de incidentes está vacío y el recolector no ha informado del volumen de alertas del manager: no hay contraste.',
+      'COLLECTION'
     );
   }
 
@@ -524,7 +564,8 @@ const contrasteRegistroVacio = (
 
   if (declaradas === undefined || reglas.length < declaradas) {
     return sinMedir(
-      `El recolector declara ${campo(volumen, 'reglas') || '?'} reglas con alertas de nivel ${detalle} o superior y solo han llegado ${reglas.length}: el contraste no se hace sobre una parte.`
+      `El recolector declara ${campo(volumen, 'reglas') || '?'} reglas con alertas de nivel ${detalle} o superior y solo han llegado ${reglas.length}: el contraste no se hace sobre una parte.`,
+      'COLLECTION'
     );
   }
 
@@ -738,7 +779,7 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p02 = filas(context, 'P-02');
 
   if (!p02) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no están declaradas las fases de reporte que se exigen.`);
+    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no están declaradas las fases de reporte que se exigen.`, 'CONFIGURATION');
   }
 
   if (!b.lista.length) {
@@ -753,7 +794,7 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
     .filter(f => ['inicial', 'intermedio', 'final'].includes(f.fase));
 
   if (!exigidas.length) {
-    return sinMedir(`${etiqueta(context, 'P-02')} no declara ninguna fase reconocible (inicial, intermedio, final).`);
+    return sinMedir(`${etiqueta(context, 'P-02')} no declara ninguna fase reconocible (inicial, intermedio, final).`, 'CONFIGURATION');
   }
 
   const hallazgos: string[] = [];
@@ -964,13 +1005,15 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!p03) {
     return sinMedir(
-      `${etiqueta(context, 'P-03')} está sin configurar: la composición de la evidencia con valor jurisdiccional no está determinada, y el ENS exige hacerlo con asesoramiento legal especializado.`
+      `${etiqueta(context, 'P-03')} está sin configurar: la composición de la evidencia con valor jurisdiccional no está determinada, y el ENS exige hacerlo con asesoramiento legal especializado.`,
+      'CONFIGURATION'
     );
   }
 
   if (!elementos(context, 'P-04').length) {
     return sinMedir(
-      `${etiqueta(context, 'P-04')} está sin configurar: la marca de relevancia jurídica del registro no tiene criterios declarados contra los que haberse tomado.`
+      `${etiqueta(context, 'P-04')} está sin configurar: la marca de relevancia jurídica del registro no tiene criterios declarados contra los que haberse tomado.`,
+      'CONFIGURATION'
     );
   }
 
@@ -996,7 +1039,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   const parada = registroUtilizable(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
 
   if (parada) {
-    return sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica. ${parada.motivo}`);
+    return sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica. ${parada.motivo}`, parada.causa);
   }
 
   const todas = selladas(context);
@@ -1053,13 +1096,13 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (!elementos(context, 'P-04').length) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin criterios de relevancia jurídica no hay régimen de custodia que exigir.`);
+    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin criterios de relevancia jurídica no hay régimen de custodia que exigir.`, 'CONFIGURATION');
   }
 
   const p05 = filas(context, 'P-05');
 
   if (!p05) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay repositorio de custodia declarado contra el que situar las evidencias.`);
+    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay repositorio de custodia declarado contra el que situar las evidencias.`, 'CONFIGURATION');
   }
 
   const p06 = filas(context, 'P-06');
@@ -1068,7 +1111,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     .filter((d): d is number => d !== undefined && d >= 0);
 
   if (!plazos.length) {
-    return sinMedir(`${etiqueta(context, 'P-06')} no declara ningún plazo de retención en días: no se puede saber si una evidencia desaparecida se destruyó antes de tiempo.`);
+    return sinMedir(`${etiqueta(context, 'P-06')} no declara ningún plazo de retención en días: no se puede saber si una evidencia desaparecida se destruyó antes de tiempo.`, 'CONFIGURATION');
   }
 
   const retencion = Math.max(...plazos);
@@ -1084,12 +1127,12 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   const relevantes = b.lista.filter(i => i.relevante);
 
   if (!regCus) {
-    return sinMedir('El recolector del manager no ha informado del registro de custodia (/etc/ensfacil/evidence-custody.tsv) en su última pasada.');
+    return sinMedir('El recolector del manager no ha informado del registro de custodia (/etc/ensfacil/evidence-custody.tsv) en su última pasada.', 'COLLECTION');
   }
 
   if (!regCus.presente) {
     return relevantes.length
-      ? sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/ensfacil/evidence-custody.tsv (causa CONFIGURATION).`)
+      ? sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/ensfacil/evidence-custody.tsv (causa CONFIGURATION).`, 'CONFIGURATION')
       : conFilasInvalidas(cumple('Ningún incidente del registro está marcado con relevancia jurídica y no hay evidencias en custodia: no hay cadena de custodia que acreditar.'), b.reg);
   }
 
@@ -1111,7 +1154,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   const paradaLog = registroUtilizable(regLog, 'cadena de custodia', '/etc/ensfacil/evidence-custody-log.tsv');
 
   if (paradaLog) {
-    return sinMedir(`Hay ${todas.length} evidencia(s) en custodia. ${paradaLog.motivo}`);
+    return sinMedir(`Hay ${todas.length} evidencia(s) en custodia. ${paradaLog.motivo}`, paradaLog.causa);
   }
 
   const destinos = p05.map(f => f.destino).filter(Boolean);
@@ -1237,7 +1280,8 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   return sinMedir(
-    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protegibles.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${lista(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial (decisión del responsable, 26/09), así que esa protección queda sin demostrar.`
+    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protegibles.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${lista(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial (decisión del responsable, 26/09), así que esa protección queda sin demostrar.`,
+    'CONFIGURATION'
   );
 };
 
@@ -1251,7 +1295,7 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p07 = filas(context, 'P-07');
 
   if (!p07) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no está decidido qué incidentes obligan a revisar los eventos auditables ni en qué plazo.`);
+    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no está decidido qué incidentes obligan a revisar los eventos auditables ni en qué plazo.`, 'CONFIGURATION');
   }
 
   const plazos = new Map<string, number>();
@@ -1265,7 +1309,7 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
   });
 
   if (!plazos.size) {
-    return sinMedir(`${etiqueta(context, 'P-07')} no declara ningún plazo en días utilizable.`);
+    return sinMedir(`${etiqueta(context, 'P-07')} no declara ningún plazo en días utilizable.`, 'CONFIGURATION');
   }
 
   if (!b.lista.length) {
@@ -1391,7 +1435,8 @@ const decide = (
   tipo: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
   motivo: string,
-  esperado: string
+  esperado: string,
+  causa?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
   requirementId: requisito,
@@ -1409,6 +1454,7 @@ const decide = (
     result: estado === 'CUMPLE',
   },
   reason: motivo,
+  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
 });
 
 export const measureOpExp9Evidences = (context: ENSPolicyContext): Record<string, Medida> => {
@@ -1450,7 +1496,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         tipo,
         requisito,
         propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
-        evidencias.map(id => `${id} CUMPLE`).join(' y ')
+        evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        causaComun(responsables.map(p => p.medida))
       )
     );
 
@@ -1466,7 +1513,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           tipo,
           `${requisito}/${p.id}`,
           p.medida.motivo,
-          `${p.id} CUMPLE`
+          `${p.id} CUMPLE`,
+          p.medida.causa
         )
       )
     );

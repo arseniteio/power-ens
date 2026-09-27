@@ -47,7 +47,7 @@ import type {
   ENSPolicyEvaluatorResult,
   ENSRuntimeVariable,
 } from '../types';
-import type { ENSComplianceStatus } from '../../evaluation/types';
+import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
 import type { ENSControlParameter, ENSLevel } from '../../../configuration/types';
 import {
@@ -102,14 +102,45 @@ export const COLUMNAS_REGISTRO = [
 const AUTORIZADAS = ['aprobada', 'implantada', 'revertida'];
 const IMPLANTADAS = ['implantada', 'revertida'];
 
+// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
+// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
+// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy
+// (EV-05 salía «no ha llegado nada» cuando lo que faltaba era P-05).
 type Medida = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
+  causa?: ENSGapCause;
 };
 
 const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
 const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-const sinMedir = (motivo: string): Medida => ({ estado: 'NO_EVALUABLE', motivo });
+// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
+// hechos lo dicen expresamente, y lo que el recolector declara llega con SU
+// causa (`degradacion`).
+const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+  estado: 'NO_EVALUABLE',
+  motivo,
+  causa,
+});
+
+// La causa de varias medidas sin medir, con el mismo orden que el motor
+// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
+// dice alguna; si no, EVIDENCE.
+const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
+  const causas = medidas
+    .filter(m => m.estado === 'NO_EVALUABLE')
+    .map(m => m.causa || 'EVIDENCE');
+
+  if (!causas.length) {
+    return undefined;
+  }
+
+  if (causas.every(c => c === 'COLLECTION')) {
+    return 'COLLECTION';
+  }
+
+  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+};
 
 const GRAVEDAD: Record<Medida['estado'], number> = {
   CUMPLE: 0,
@@ -211,8 +242,15 @@ const lista = (elementos: string[], maximo = 5): string =>
     ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
     : elementos.join('; ');
 
-// La degradación más reciente que el recolector declaró para una evidencia.
-const degradacion = (context: ENSPolicyContext, evidencia: string): string | undefined => {
+// La degradación más reciente que el recolector declaró para una evidencia,
+// con la causa que ÉL declara: es quien sabe si falta un registro que la
+// organización no mantiene (CONFIGURATION) o una fuente que no pudo leer
+// (COLLECTION). Sin causa declarada, COLLECTION.
+type Degradacion = { texto: string; causa: ENSGapCause };
+
+const CAUSAS_DECLARABLES: ENSGapCause[] = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'];
+
+const degradacion = (context: ENSPolicyContext, evidencia: string): Degradacion | undefined => {
   const d = context.events
     .filter(
       e =>
@@ -222,8 +260,21 @@ const degradacion = (context: ENSPolicyContext, evidencia: string): string | und
     )
     .sort((a, b) => (instante(b.timestamp) || 0) - (instante(a.timestamp) || 0))[0];
 
-  return d ? `${campo(d, 'motivo')} (${campo(d, 'causa') || 'COLLECTION'})` : undefined;
+  if (!d) {
+    return undefined;
+  }
+
+  const declarada = campo(d, 'causa').toUpperCase() as ENSGapCause;
+  const causa = CAUSAS_DECLARABLES.includes(declarada) ? declarada : 'COLLECTION';
+
+  return { texto: `${campo(d, 'motivo')} (${campo(d, 'causa') || 'COLLECTION'})`, causa };
 };
+
+// Por qué la detección de cambios (EV-01) no está completa: lo que declaró el
+// recolector o, sin declaración, que no hay latido que la confirme (RECOGIDA).
+// Es la causa de todo silencio que se apoya en EV-01.
+const causaDeteccion = (context: ENSPolicyContext): ENSGapCause =>
+  degradacion(context, 'EV-01')?.causa || 'COLLECTION';
 
 const latidoConfirma = (context: ENSPolicyContext, evidencia: string, ahora: number): boolean => {
   const latido = hechos(context, 'collector_run')
@@ -312,13 +363,15 @@ const sistemaDeCambios = (context: ENSPolicyContext): Medida | undefined => {
 
   if (!tabla) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar: no se ha declarado dónde se registran las peticiones de cambio, así que no hay registro contra el que contrastar los cambios reales.`
+      `${etiqueta(context, 'P-01')} está sin configurar: no se ha declarado dónde se registran las peticiones de cambio, así que no hay registro contra el que contrastar los cambios reales.`,
+      'CONFIGURATION'
     );
   }
 
   if (!tabla.some(f => sinTildes(f.herramienta) === 'registro_tsv')) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} declara que las peticiones viven en «${tabla.map(f => f.herramienta).join(', ')}», y no hay integración con ese sistema: el recolector solo lee el registro TSV de la máquina. El contraste no se puede hacer sin simular una integración que no existe.`
+      `${etiqueta(context, 'P-01')} declara que las peticiones viven en «${tabla.map(f => f.herramienta).join(', ')}», y no hay integración con ese sistema: el recolector solo lee el registro TSV de la máquina. El contraste no se puede hacer sin simular una integración que no existe.`,
+      'CONFIGURATION'
     );
   }
 
@@ -344,8 +397,9 @@ const registro = (context: ENSPolicyContext, ahora: number): Registro | Medida =
 
     return sinMedir(
       motivo
-        ? `No se ha podido leer el registro de peticiones de cambio: ${motivo}.`
-        : 'No consta ninguna lectura del registro de peticiones de cambio de esta máquina: el recolector de op.exp.5 no está desplegado o no informa.'
+        ? `No se ha podido leer el registro de peticiones de cambio: ${motivo.texto}.`
+        : 'No consta ninguna lectura del registro de peticiones de cambio de esta máquina: el recolector de op.exp.5 no está desplegado o no informa.',
+      motivo ? motivo.causa : 'COLLECTION'
     );
   }
 
@@ -353,7 +407,8 @@ const registro = (context: ENSPolicyContext, ahora: number): Registro | Medida =
 
   if (ahora - t > FRESCURA_HORAS * HORA) {
     return sinMedir(
-      `La lectura más reciente del registro de peticiones es de ${campo(cabecera, 'leido')}, hace más de ${FRESCURA_HORAS} h: no describe el registro de hoy.`
+      `La lectura más reciente del registro de peticiones es de ${campo(cabecera, 'leido')}, hace más de ${FRESCURA_HORAS} h: no describe el registro de hoy.`,
+      'COLLECTION'
     );
   }
 
@@ -376,7 +431,8 @@ const registro = (context: ENSPolicyContext, ahora: number): Registro | Medida =
 
   if (declaradas === undefined || porLinea.size < declaradas) {
     return sinMedir(
-      `La lectura del registro de ${campo(cabecera, 'leido')} declara ${campo(cabecera, 'filas') || '?'} peticiones y solo han llegado ${porLinea.size}: está incompleta y no se juzga sobre una parte.`
+      `La lectura del registro de ${campo(cabecera, 'leido')} declara ${campo(cabecera, 'filas') || '?'} peticiones y solo han llegado ${porLinea.size}: está incompleta y no se juzga sobre una parte.`,
+      'COLLECTION'
     );
   }
 
@@ -532,7 +588,8 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
     const motivo = degradacion(context, 'EV-01');
 
     return sinMedir(
-      `La detección de cambios no está completa${motivo ? `: ${motivo}` : ': no consta un latido reciente del recolector que declare leídas las cuatro fuentes (auditd sobre todas las rutas de configuración, historial de apt y dpkg, puertos en escucha e inventario de hardware)'}. Se han observado ${resumenCambios(cambios)}, pero lo que no se vigila no aparece.`
+      `La detección de cambios no está completa${motivo ? `: ${motivo.texto}` : ': no consta un latido reciente del recolector que declare leídas las cuatro fuentes (auditd sobre todas las rutas de configuración, historial de apt y dpkg, puertos en escucha e inventario de hardware)'}. Se han observado ${resumenCambios(cambios)}, pero lo que no se vigila no aparece.`,
+      motivo ? motivo.causa : 'COLLECTION'
     );
   }
 
@@ -575,7 +632,8 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!latidoConfirma(context, 'EV-01', ahora)) {
     return sinMedir(
-      `Los ${cambios.length} cambios observados tienen petición aprobada, pero la detección de cambios no está completa (ver EV-01): un cambio que no se vigila no puede salir sin petición.`
+      `Los ${cambios.length} cambios observados tienen petición aprobada, pero la detección de cambios no está completa (ver EV-01): un cambio que no se vigila no puede salir sin petición.`,
+      causaDeteccion(context)
     );
   }
 
@@ -608,12 +666,13 @@ const ev03 = (context: ENSPolicyContext, ahora: number, nivel: ENSLevel): Medida
   const { campos, desconocidos } = camposExigidos(context);
 
   if (!campos.length && !desconocidos.length) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se ha decidido qué información mínima tiene que traer una petición.`);
+    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se ha decidido qué información mínima tiene que traer una petición.`, 'CONFIGURATION');
   }
 
   if (desconocidos.length) {
     return sinMedir(
-      `${etiqueta(context, 'P-02')} nombra campos que el registro no tiene (${desconocidos.join(', ')}). Los campos válidos son las columnas del registro: ${COLUMNAS_REGISTRO.join(', ')}.`
+      `${etiqueta(context, 'P-02')} nombra campos que el registro no tiene (${desconocidos.join(', ')}). Los campos válidos son las columnas del registro: ${COLUMNAS_REGISTRO.join(', ')}.`,
+      'CONFIGURATION'
     );
   }
 
@@ -670,14 +729,15 @@ const ev03 = (context: ENSPolicyContext, ahora: number, nivel: ENSLevel): Medida
 const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (!valores(context, 'P-03').length) {
     return sinMedir(
-      `${etiqueta(context, 'P-03')} está sin configurar: no hay criterios escritos que digan cuándo un cambio es de riesgo alto, así que la columna «riesgo» del registro no se apoya en ningún análisis declarado.`
+      `${etiqueta(context, 'P-03')} está sin configurar: no hay criterios escritos que digan cuándo un cambio es de riesgo alto, así que la columna «riesgo» del registro no se apoya en ningún análisis declarado.`,
+      'CONFIGURATION'
     );
   }
 
   const rsi = (filas(context, 'P-04') || []).map(f => f.cuenta).filter(c => !vacia(c));
 
   if (!rsi.length) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: no se puede verificar que la aprobación de un cambio de riesgo alto venga del Responsable de la Seguridad.`);
+    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: no se puede verificar que la aprobación de un cambio de riesgo alto venga del Responsable de la Seguridad.`, 'CONFIGURATION');
   }
 
   const reg = registro(context, ahora);
@@ -741,7 +801,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (!revisadas.length && !latidoConfirma(context, 'EV-01', ahora)) {
-    return sinMedir('No consta ningún cambio de riesgo alto implantado, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.');
+    return sinMedir('No consta ningún cambio de riesgo alto implantado, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causaDeteccion(context));
   }
 
   return cumple(
@@ -753,7 +813,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 const ev05 = (context: ENSPolicyContext): Medida => {
   if (!filas(context, 'P-05')) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay ningún entorno de preproducción declarado para esta máquina.`);
+    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay ningún entorno de preproducción declarado para esta máquina.`, 'CONFIGURATION');
   }
 
   return sinMedir(
@@ -765,7 +825,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   const tabla = filas(context, 'P-06');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no se ha declarado qué documentación de configuración hay que actualizar tras un cambio ni dónde vive.`);
+    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no se ha declarado qué documentación de configuración hay que actualizar tras un cambio ni dónde vive.`, 'CONFIGURATION');
   }
 
   const reg = registro(context, ahora);
@@ -857,7 +917,9 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (sinDecidir.length) {
-    return sinMedir(`No se puede comprobar toda la documentación exigida: ${lista(sinDecidir)}.`);
+    // Documento que P-06 no nombra, sin plazo legible, o que el recolector no
+    // tiene declarado para vigilar: todo se arregla configurando.
+    return sinMedir(`No se puede comprobar toda la documentación exigida: ${lista(sinDecidir)}.`, 'CONFIGURATION');
   }
 
   return cumple(
@@ -878,13 +940,16 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   const horas = horasP09(context);
 
   if (horas === undefined) {
-    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no se ha decidido durante cuántas horas tras un cambio un servicio caído se atribuye a ese cambio.`);
+    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no se ha decidido durante cuántas horas tras un cambio un servicio caído se atribuye a ese cambio.`, 'CONFIGURATION');
   }
 
   if (!latidoConfirma(context, 'EV-07', ahora)) {
     const motivo = degradacion(context, 'EV-07');
 
-    return sinMedir(`No consta una lectura reciente del estado de los servicios${motivo ? `: ${motivo}` : ''}: sin ella no se sabe si algún cambio dejó un servicio caído.`);
+    return sinMedir(
+      `No consta una lectura reciente del estado de los servicios${motivo ? `: ${motivo.texto}` : ''}: sin ella no se sabe si algún cambio dejó un servicio caído.`,
+      motivo ? motivo.causa : 'COLLECTION'
+    );
   }
 
   const { cambios } = cambiosReales(context, ahora);
@@ -929,7 +994,7 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (!cambios.length && !latidoConfirma(context, 'EV-01', ahora)) {
-    return sinMedir('No consta ningún cambio real, pero la detección de cambios no está completa (ver EV-01).');
+    return sinMedir('No consta ningún cambio real, pero la detección de cambios no está completa (ver EV-01).', causaDeteccion(context));
   }
 
   return cumple(
@@ -943,7 +1008,7 @@ const ev08 = (context: ENSPolicyContext): Medida => {
   const tabla = filas(context, 'P-07');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se ha declarado por qué canal se comunican los fallos al responsable de seguridad.`);
+    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se ha declarado por qué canal se comunican los fallos al responsable de seguridad.`, 'CONFIGURATION');
   }
 
   const caidos = hechos(context, 'service_failed').map(e => campo(e, 'unidad'));
@@ -965,14 +1030,14 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   const tabla = filas(context, 'P-08');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha previsto ningún mecanismo de reversión.`);
+    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha previsto ningún mecanismo de reversión.`, 'CONFIGURATION');
   }
 
   const reg = registro(context, ahora);
   const fila = filaDelSistema(tabla, 'sistema', nombresDe(context, esMedida(reg) ? undefined : reg));
 
   if (!fila) {
-    return sinMedir(`P-08 no tiene fila para ${nombreDelAgente(context) || 'esta máquina'} ni una fila «*».`);
+    return sinMedir(`P-08 no tiene fila para ${nombreDelAgente(context) || 'esta máquina'} ni una fila «*».`, 'CONFIGURATION');
   }
 
   const mecanismo = fila.mecanismo.toLowerCase();
@@ -986,7 +1051,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   const ventana = numero(fila.ventana_horas || '');
 
   if (ventana === undefined || ventana <= 0) {
-    return sinMedir(`La ventana previa de P-08 («${fila.ventana_horas}») no es un número de horas utilizable.`);
+    return sinMedir(`La ventana previa de P-08 («${fila.ventana_horas}») no es un número de horas utilizable.`, 'CONFIGURATION');
   }
 
   const cambios = cambiosReales(context, ahora).cambios.filter(c => c.exacto);
@@ -994,7 +1059,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (!cambios.length) {
     return latidoConfirma(context, 'EV-01', ahora)
       ? cumple('Ningún cambio de configuración ni de software en la ventana evaluada, con la detección de cambios confirmada: no había punto de reversión que exigir.')
-      : sinMedir('No consta ningún cambio, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.');
+      : sinMedir('No consta ningún cambio, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causaDeteccion(context));
   }
 
   const puntos = hechos(context, 'reversion_point_created')
@@ -1005,7 +1070,10 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   const degradado = degradacion(context, 'EV-09');
 
   if (!puntos.length && degradado) {
-    return sinMedir(`El recolector no ha podido observar puntos de reversión: ${degradado}. Hay ${cambios.length} cambio(s) sin punto de reversión demostrable.`);
+    return sinMedir(
+      `El recolector no ha podido observar puntos de reversión: ${degradado.texto}. Hay ${cambios.length} cambio(s) sin punto de reversión demostrable.`,
+      degradado.causa
+    );
   }
 
   const sinPunto = cambios
@@ -1047,7 +1115,8 @@ const decide = (
   tipo: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
   motivo: string,
-  esperado: string
+  esperado: string,
+  causa?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
   requirementId: requisito,
@@ -1065,6 +1134,7 @@ const decide = (
     result: estado === 'CUMPLE',
   },
   reason: motivo,
+  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
 });
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
@@ -1115,7 +1185,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         tipo,
         requisito,
         propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
-        evidencias.map(id => `${id} CUMPLE`).join(' y ')
+        evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        causaComun(responsables.map(p => p.medida))
       )
     );
 
@@ -1131,7 +1202,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           tipo,
           `${requisito}/${p.id}`,
           p.medida.motivo,
-          `${p.id} CUMPLE`
+          `${p.id} CUMPLE`,
+          p.medida.causa
         )
       )
     );

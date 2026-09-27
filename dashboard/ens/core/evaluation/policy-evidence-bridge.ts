@@ -42,7 +42,9 @@ export const applyPolicyDecisionsToEvidences = (
   evidences: ENSEvidenceResolved[],
   decisions: ENSPolicyDecision[] = [],
   // Los requisitos del catálogo, para saber qué evidencias demuestran cada uno.
-  requirements: { id: string; evidenceIds: string[] }[] = []
+  requirements: { id: string; evidenceIds: string[] }[] = [],
+  // Si de esta máquina no ha llegado NINGÚN hecho del control. Ver abajo.
+  nadaRecibido = false
 ): ENSEvidenceResolved[] => {
   if (!decisions.length) {
     return evidences;
@@ -104,9 +106,36 @@ export const applyPolicyDecisionsToEvidences = (
       return evidence;
     }
 
+    // Si la policy tampoco ha podido medirla, la causa es la que ELLA declara:
+    // es quien ha leído los hechos y los parámetros. Manda la de la decisión
+    // que nombra solo a esta evidencia; si no la hay, la de la peor. Sin
+    // causa declarada se conserva la que traía la evidencia.
+    //
+    // Con una excepción, la misma que ordena `resolveGapCause`: si de esta
+    // máquina no ha llegado nada del control, el hueco es de RECOGIDA aunque la
+    // policy, sin hechos que mirar, haya tropezado antes con un parámetro
+    // vacío. Rellenar el parámetro no produce ninguna medida mientras el
+    // recolector no informe, y quien tiene que actuar es otro.
+    const declarada =
+      decisions.find(
+        d =>
+          d.status === 'NO_EVALUABLE' &&
+          d.cause &&
+          d.evidenceIds?.length === 1 &&
+          d.evidenceIds[0] === evidence.id
+      )?.cause || decision.cause;
+
+    const causa =
+      decision.status !== 'NO_EVALUABLE'
+        ? undefined
+        : declarada && nadaRecibido
+        ? 'COLLECTION'
+        : declarada || evidence.gapCause;
+
     return {
       ...evidence,
       status: decision.status,
+      gapCause: causa,
       // Se dice QUIÉN lo decidió. Un auditor tiene que poder distinguir una
       // evidencia que el agente declaró de una que dedujo el motor
       // correlacionando, porque la traza que sigue después es distinta.

@@ -3,6 +3,7 @@ import {
   ENSLevel,
 } from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
+import { ENSGapCause } from '../evaluation/types';
 import { judgeEvidence } from './judgment';
 import {
   getEventFieldValue,
@@ -174,6 +175,25 @@ const buildBaseEvidence = (
   qualityRequirements: definition.qualityRequirements,
 });
 
+// La causa con la que el recolector declara que no pudo medir (`causa` de su
+// `evidence_state`). Solo las tres de una evidencia: CATALOG es del requisito.
+const DECLARABLE_GAP_CAUSES: ENSGapCause[] = [
+  'CONFIGURATION',
+  'COLLECTION',
+  'EVIDENCE',
+];
+
+export const declaredGapCause = (
+  event: ENSNormalizedEvent
+): ENSGapCause | undefined => {
+  const raw = event.attributes?.causa;
+  const cause = String(raw === undefined || raw === null ? '' : raw)
+    .trim()
+    .toUpperCase() as ENSGapCause;
+
+  return DECLARABLE_GAP_CAUSES.includes(cause) ? cause : undefined;
+};
+
 const resolveEvidenceEventStatus = (
   event: ENSNormalizedEvent
 ): ENSEvidenceResolved['status'] =>
@@ -336,10 +356,16 @@ export const resolveEvidenceForControl = (
       ...baseEvidence,
       status: resolvedStatus,
       // El agente ha reportado y él mismo declara que no ha podido medir; su
-      // `motivo` dice por qué y viaja en los atributos hasta la tarjeta. No es
-      // un fallo de recogida —el dato llegó— sino del productor de la evidencia.
+      // `motivo` dice por qué y viaja en los atributos hasta la tarjeta. Si
+      // además declara la `causa`, esa es la que manda: el recolector sabe si
+      // lo que falta es el registro que la organización no mantiene
+      // (CONFIGURATION) o una fuente que no pudo leer (COLLECTION), y el motor
+      // no tiene otra forma de saberlo. Sin causa declarada, el dato llegó y no
+      // basta: es del productor de la evidencia.
       gapCause:
-        resolvedStatus === 'NO_EVALUABLE' ? 'EVIDENCE' : undefined,
+        resolvedStatus === 'NO_EVALUABLE'
+          ? declaredGapCause(latestEvent) || 'EVIDENCE'
+          : undefined,
       relatedRules: Array.from(
         new Set([
           ...definition.relatedRules,
