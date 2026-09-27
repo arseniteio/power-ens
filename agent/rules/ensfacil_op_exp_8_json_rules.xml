@@ -79,9 +79,8 @@
        local de agentes del manager (global.db, leída en solo lectura) y su
        estado de conexión, en cada pasada. La laguna la ve el motor en la serie
        de pasadas: una en la que el keepalive quedaba más atrás que P-12.
-       Sustituye a la 110904 (`log_ingestion_status`, horas sin alertas), que
-       se retiró el 27/09: un servidor tranquilo pasa horas sin alertas y eso
-       no es una laguna. El id no se reutiliza. -->
+       No se mide por horas sin alertas: un servidor tranquilo pasa horas sin
+       alertas y eso no es una laguna. Por eso 110904 no existe. -->
   <rule id="110915" level="3">
     <if_sid>110900</if_sid>
     <field name="event">agent_keepalive_observed</field>
