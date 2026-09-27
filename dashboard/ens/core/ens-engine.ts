@@ -14,6 +14,11 @@ import {
 } from './data-source';
 import { resolveEvidenceForControl } from './evidence';
 import { keepLatestRunStateFacts } from './evidence/state-facts';
+import {
+  findStaleCollector,
+  markEvidencesStale,
+  markPolicyRuntimeStale,
+} from './evidence/stale-collector';
 import { evaluateENSControl } from './evaluation';
 import {
   buildComplianceState,
@@ -76,6 +81,78 @@ const getScopedEvents = (
   });
 };
 
+// Evalúa UN control sobre los eventos ya recortados a la fila (o al conjunto,
+// sin `agentId`). Es el camino único del panel y del detalle.
+const evaluateControlOnEvents = (
+  catalogControl: ENSControlDefinition,
+  level: ENSLevel,
+  scopedEvents: ENSNormalizedEvent[],
+  agentId?: string,
+  now?: Date
+): ENSComplianceResult => {
+  // La configuración se carga ANTES de resolver las evidencias: las que
+  // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
+  // la pantalla, así que el motor no puede resolverlas sin ella.
+  const configuration = getActiveControlConfiguration(catalogControl.id);
+
+  // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
+  // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
+  const controlEvents = keepLatestRunStateFacts(
+    catalogControl.id,
+    scopedEvents,
+    now
+  );
+
+  const controlLevel = getControlLevel(catalogControl, level);
+
+  const resolvedEvidences = resolveEvidenceForControl(
+    catalogControl.id,
+    controlEvents,
+    agentId,
+    controlLevel,
+    configuration,
+    now
+  );
+
+  const policyContext = buildPolicyContext(
+    catalogControl,
+    configuration,
+    controlLevel,
+    controlEvents,
+    resolvedEvidences,
+    now
+  );
+
+  const resolvedPolicyRuntime = runPolicyRuntime(policyContext);
+
+  // En la fila de una máquina, un recolector que lleva más de 24 h sin latir no
+  // demuestra nada a fecha de `now`: el control no se juzga con esos datos (ver
+  // `evidence/stale-collector.ts`). Sin máquina no
+  // hay fila a la que atribuir el latido, y el conjunto sale de consolidar las
+  // filas, que ya lo aplican.
+  const stale =
+    agentId === undefined
+      ? undefined
+      : findStaleCollector(catalogControl.id, scopedEvents, now);
+
+  const evidences = stale
+    ? markEvidencesStale(resolvedEvidences, stale)
+    : resolvedEvidences;
+
+  const policyRuntime = stale
+    ? markPolicyRuntimeStale(resolvedPolicyRuntime, stale)
+    : resolvedPolicyRuntime;
+
+  return evaluateENSControl(
+    catalogControl,
+    configuration,
+    controlLevel,
+    evidences,
+    policyRuntime,
+    controlEvents
+  );
+};
+
 const evaluateCatalogControls = (
   catalogControls: ENSControlDefinition[],
   level: ENSLevel,
@@ -90,51 +167,15 @@ const evaluateCatalogControls = (
     scopeAgents
   );
 
-  return catalogControls.map(catalogControl => {
-    // La configuración se carga ANTES de resolver las evidencias: las que
-    // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
-    // la pantalla, así que el motor no puede resolverlas sin ella.
-    const configuration = getActiveControlConfiguration(catalogControl.id);
-
-    // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
-    // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
-    const controlEvents = keepLatestRunStateFacts(
-      catalogControl.id,
+  return catalogControls.map(catalogControl =>
+    evaluateControlOnEvents(
+      catalogControl,
+      level,
       scopedEvents,
-      now
-    );
-
-    const controlLevel = getControlLevel(catalogControl, level);
-
-    const evidences = resolveEvidenceForControl(
-      catalogControl.id,
-      controlEvents,
       agentId,
-      controlLevel,
-      configuration,
       now
-    );
-
-    const policyContext = buildPolicyContext(
-      catalogControl,
-      configuration,
-      controlLevel,
-      controlEvents,
-      evidences,
-      now
-    );
-
-    const policyRuntime = runPolicyRuntime(policyContext);
-
-    return evaluateENSControl(
-      catalogControl,
-      configuration,
-      controlLevel,
-      evidences,
-      policyRuntime,
-      controlEvents
-    );
-  });
+    )
+  );
 };
 
 // Los controles que se evalúan en la fila de una máquina: los de su plano de
@@ -485,51 +526,12 @@ const evaluateENSComplianceResultByControl = (
     scopeAgents
   );
 
-  // Mismo orden que en `getENSComplianceResults`: primero la configuración,
-  // porque las evidencias con `judgment` la necesitan para resolverse.
-  const configuration =
-    getActiveControlConfiguration(
-      controlId
-    );
-
-  // Mismo filtro que en `getENSComplianceResults`: el estado, por su última
-  // pasada; las acciones, por la ventana.
-  const controlEvents = keepLatestRunStateFacts(
-    controlId,
+  return evaluateControlOnEvents(
+    catalogControl,
+    level,
     scopedEvents,
-    now
-  );
-
-  const controlLevel = getControlLevel(catalogControl, level);
-
-  const evidences = resolveEvidenceForControl(
-    controlId,
-    controlEvents,
     agentId,
-    controlLevel,
-    configuration,
     now
-  );
-
-  const policyContext = buildPolicyContext(
-    catalogControl,
-    configuration,
-    controlLevel,
-    controlEvents,
-    evidences,
-    now
-  );
-
-  const policyRuntime =
-    runPolicyRuntime(policyContext);
-
-  return evaluateENSControl(
-    catalogControl,
-    configuration,
-    controlLevel,
-    evidences,
-    policyRuntime,
-    controlEvents
   );
 };
 
