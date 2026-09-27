@@ -329,8 +329,35 @@ bloque('9. EV-08 a EV-11 · la capa EDR observada y P-09');
   comprueba('EV-10 rootcheck sin sus bases → NO_CUMPLE', r.deEvidencia('EV-10')?.status === 'NO_CUMPLE', r.deEvidencia('EV-10')?.reason);
   const completo = evalua(eventos(alerta({ event: 'edr_capability_observed', evidence_id: 'EV-10', capacidad: 'rootcheck', desplegada: 'si', detalle: 'ok', bases: 'ninguno' })), { 'P-09': P09 });
   comprueba('REVERSIÓN: rootcheck con sus bases → NO_EVALUABLE (los hallazgos van al manager), nunca CUMPLE', completo.deEvidencia('EV-10')?.status === 'NO_EVALUABLE', completo.deEvidencia('EV-10')?.reason);
-  comprueba('EV-11 contención desplegada → CUMPLE', r.deEvidencia('EV-11')?.status === 'CUMPLE', r.deEvidencia('EV-11')?.reason);
+  comprueba('EV-11 solo firewall-drop (bloqueo de red) → NO_CUMPLE: no contiene código dañino', r.deEvidencia('EV-11')?.status === 'NO_CUMPLE' && /firewall-drop/.test(r.deEvidencia('EV-11')?.reason || ''), r.deEvidencia('EV-11')?.reason);
   comprueba('R4 sale NO_CUMPLE', r.principal('op.exp.6.r4.1').status === 'NO_CUMPLE', r.principal('op.exp.6.r4.1').reason);
+}
+
+// --- 9b. EV-11: la respuesta al malware tiene que poder ejecutarse ----------
+
+bloque('9b. EV-11 · la contención del código dañino, ejecutable en el equipo');
+
+{
+  // El hecho REAL de wazuh-real el 26/09/2026 (recolector anterior: solo
+  // `detalle`). El manager configura la cuarentena y YARA; sus scripts no
+  // están en /var/ossec/active-response/bin/.
+  const real = alerta({ event: 'edr_capability_observed', evidence_id: 'EV-11', requisito: 'op.exp.6.r4.1', equipo: 'wazuh-real', capacidad: 'active_response', desplegada: 'si', detalle: 'comandos de contencion configurados y presentes: firewall-drop; configurados sin script aqui: quersystem-malware-quarantine.sh,quersystem-yara.sh' });
+  const P09 = ['active_response | si | firewall-drop'];
+
+  const hoy = evalua(eventos(real), { 'P-09': P09 });
+  comprueba(
+    'wazuh-real: la cuarentena configurada no existe en el equipo → EV-11 NO_CUMPLE medido, nombrándola',
+    hoy.deEvidencia('EV-11')?.status === 'NO_CUMPLE' && /quersystem-malware-quarantine\.sh/.test(hoy.deEvidencia('EV-11')?.reason || ''),
+    hoy.deEvidencia('EV-11')?.reason
+  );
+  comprueba('y op.exp.6.1 no se sostiene en firewall-drop', hoy.principal('op.exp.6.1').status === 'NO_CUMPLE', hoy.principal('op.exp.6.1').status);
+
+  // El recolector ampliado lo dice en campos propios.
+  const estructurado = evalua(eventos(alerta({ event: 'edr_capability_observed', evidence_id: 'EV-11', capacidad: 'active_response', desplegada: 'si', detalle: 'x', comandos_presentes: 'firewall-drop', comandos_sin_script: 'quersystem-malware-quarantine.sh,quersystem-yara.sh' })), { 'P-09': P09 });
+  comprueba('con los campos del recolector ampliado → el mismo NO_CUMPLE', estructurado.deEvidencia('EV-11')?.status === 'NO_CUMPLE' && /quersystem-yara\.sh/.test(estructurado.deEvidencia('EV-11')?.reason || ''), estructurado.deEvidencia('EV-11')?.reason);
+
+  const conScripts = evalua(eventos(alerta({ event: 'edr_capability_observed', evidence_id: 'EV-11', capacidad: 'active_response', desplegada: 'si', detalle: 'x', comandos_presentes: 'firewall-drop,quersystem-malware-quarantine.sh,quersystem-yara.sh', comandos_sin_script: '-' })), { 'P-09': P09 });
+  comprueba('REVERSIÓN: con los scripts de cuarentena presentes → CUMPLE', conScripts.deEvidencia('EV-11')?.status === 'CUMPLE', conScripts.deEvidencia('EV-11')?.reason);
 }
 
 // --- 10. EV-12 ---------------------------------------------------------------
@@ -353,6 +380,30 @@ bloque('10. EV-12 · vías de entrada y dispositivos extraíbles');
 
   const sinP05 = evalua(eventos(latido), {});
   comprueba('sin P-05 → NO_EVALUABLE', sinP05.deEvidencia('EV-12')?.status === 'NO_EVALUABLE');
+}
+
+// --- 10b. la causa de lo que no se ha podido medir --------------------------
+
+bloque('10b. La causa del hueco: parámetro sin declarar es CONFIGURATION');
+
+{
+  const causa = (r: ReturnType<typeof evalua>, id: string) =>
+    applyPolicyDecisionsToEvidences(r.evidencias, r.decisions, opExp6CatalogDefinition.requirements).find(e => e.id === id)?.gapCause;
+
+  // op.exp.6.3 en wazuh-real: ningún hecho de EV-12 en el modelo clásico y
+  // P-05 sin declarar. Salía COLLECTION («no ha llegado nada»).
+  const sinP05 = evalua(eventos(alerta({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-12' })), {});
+  comprueba('sin P-05 → EV-12 con causa CONFIGURATION, no COLLECTION', causa(sinP05, 'EV-12') === 'CONFIGURATION', causa(sinP05, 'EV-12'));
+  comprueba('y la decisión del requisito op.exp.6.3 lo dice', sinP05.principal('op.exp.6.3').cause === 'CONFIGURATION', sinP05.principal('op.exp.6.3').cause);
+
+  const sinP06 = evalua(eventos(alerta({ event: 'full_scan_completed', evidence_id: 'EV-05', fecha: hace(30), ficheros_escaneados: '10' })), {});
+  comprueba('escaneo observado y P-06 sin configurar → CONFIGURATION', causa(sinP06, 'EV-05') === 'CONFIGURATION', causa(sinP06, 'EV-05'));
+
+  const nada = evalua(eventos(alerta({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: '' })), {});
+  comprueba('sin ninguna observación de rootcheck → COLLECTION', causa(nada, 'EV-10') === 'COLLECTION', causa(nada, 'EV-10'));
+
+  const declarada = evalua(eventos(alerta({ event: 'evidence_state', evidence_id: 'EV-08', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'la consulta la hace el manager' })), { 'P-09': ['virustotal | si | FIM'] });
+  comprueba('lo que declara el recolector (CONFIGURATION) llega a la evidencia', causa(declarada, 'EV-08') === 'CONFIGURATION', causa(declarada, 'EV-08'));
 }
 
 // --- 11. el requisito sale de sus evidencias --------------------------------
