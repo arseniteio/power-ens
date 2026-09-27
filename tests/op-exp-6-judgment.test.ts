@@ -237,6 +237,35 @@ bloque('5. EV-04 · detecciones y su resolución');
     alerta({ event: 'malware_detected', evidence_id: 'EV-04', fichero: '/srv/x.php', amenaza: 'Php.Webshell', accion: 'cuarentena', fecha: hace(30) }),
     alerta({ event: 'malware_detected', evidence_id: 'EV-04', fichero: '/srv/x.php', amenaza: 'Php.Webshell', accion: 'cuarentena', fecha: hace(3) })), { 'P-02': P02 });
   comprueba('la misma amenaza dos veces en el mismo fichero → NO_CUMPLE (persistente)', repetida.deEvidencia('EV-04')?.status === 'NO_CUMPLE', repetida.deEvidencia('EV-04')?.reason);
+
+  // Una detección = fichero + firma + instante. La prueba EICAR real de
+  // wazuh-real (26/09/2026): clamd anota dos veces el mismo segundo y
+  // clamonacc la suya sin hora; el recolector anterior le ponía la hora de
+  // lectura. Todo eso es UNA detección, en cuarentena.
+  const det = (extra: Record<string, unknown>) =>
+    alerta({ event: 'malware_detected', evidence_id: 'EV-04', plano: 'sistema', fichero: '/var/tmp/eicar.txt', amenaza: 'Eicar-Test-Signature', ...extra });
+  const eicar = [
+    det({ accion: 'sin_accion', fecha: hace(10), origen_dato: '/var/log/clamav/clamav.log' }),
+    det({ accion: 'sin_accion', fecha: hace(10), origen_dato: '/var/log/clamav/clamav.log' }),
+    det({ accion: 'cuarentena', fecha: hace(9), origen_dato: '/var/log/clamav/clamonacc.log' }),
+    det({ accion: 'cuarentena', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' }),
+  ];
+  const juntas = evalua(eventos(...CON_CLAMAV(), ...eicar), { 'P-02': P02 });
+  comprueba('la misma detección anotada 4 veces (dos iguales, clamonacc sin hora y con la hora de lectura) → una, no persistente', juntas.deEvidencia('EV-04')?.status === 'CUMPLE' && /4 anotaciones/.test(juntas.deEvidencia('EV-04')?.reason || ''), juntas.deEvidencia('EV-04')?.reason);
+
+  const juntasSinAccion = evalua(eventos(...CON_CLAMAV(), ...eicar.slice(0, 2), det({ accion: 'sin_accion', fecha: hace(9), origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
+  const r = juntasSinAccion.deEvidencia('EV-04')?.reason || '';
+  comprueba('REVERSIÓN: la misma detección sin remediar → NO_CUMPLE por sin remediar, no por persistente', juntasSinAccion.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /sin remediar/.test(r) && !/persistente/.test(r), r);
+
+  const soloSinHora = evalua(eventos(...CON_CLAMAV(),
+    det({ fichero: '/home/x.bin', accion: 'sin_accion', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
+  comprueba('una detección sin hora y sin clamd → sigue siendo una detección sin remediar', soloSinHora.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /sin hora/.test(soloSinHora.deEvidencia('EV-04')?.reason || ''), soloSinHora.deEvidencia('EV-04')?.reason);
+
+  const dosInstantes = evalua(eventos(...CON_CLAMAV(),
+    det({ accion: 'cuarentena', fecha: hace(30), instante: 'log', origen_dato: '/var/log/clamav/clamav.log' }),
+    det({ accion: 'cuarentena', fecha: hace(3), instante: 'log', origen_dato: '/var/log/clamav/clamav.log' }),
+    det({ accion: 'cuarentena', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
+  comprueba('REVERSIÓN: dos instantes con hora distintos siguen siendo persistente (2 veces, la sin hora no suma)', dosInstantes.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /\(2 veces\)/.test(dosInstantes.deEvidencia('EV-04')?.reason || ''), dosInstantes.deEvidencia('EV-04')?.reason);
 }
 
 // --- 6. EV-05 ---------------------------------------------------------------

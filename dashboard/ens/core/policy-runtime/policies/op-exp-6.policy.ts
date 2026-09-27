@@ -504,30 +504,136 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   return combina(medidas.length ? medidas : [sinEstado()]);
 };
 
+// EV-04 · una detección es un fichero, una firma y un instante. La misma
+// detección llega repetida (clamd anota dos veces el mismo segundo; clamonacc
+// anota la suya sin hora; una anotación tardía se reemite con la hora de
+// clamd), y contarla dos veces fabricaría una «infección persistente». Se
+// juntan aquí, y el motivo dice cuántas anotaciones se han juntado.
+//
+// Sin instante: `instante=sin_hora`, o un hecho anterior al campo `instante`
+// que solo anotó clamonacc.log, cuya `fecha` era la hora de lectura del
+// recolector y no la de la detección. Cuenta como detección (su acción se
+// juzga) pero nunca como repetición; si hay una detección con hora del mismo
+// fichero y firma, es esa misma.
+const REMEDIA = ['eliminado', 'cuarentena', 'bloqueado'];
+
+const pesoAccion = (accion: string): number =>
+  REMEDIA.includes(accion) ? 3 : accion === 'fallida' ? 2 : 1;
+
+const sinHora = (e: ENSNormalizedEvent): boolean => {
+  const marca = campo(e, 'instante');
+
+  if (marca) return marca === 'sin_hora';
+
+  return /(^|\/)clamonacc\.log$/.test(campo(e, 'origen_dato'));
+};
+
+interface Deteccion {
+  amenaza: string;
+  fichero: string;
+  fecha: string;
+  accion: string;
+  conHora: boolean;
+  anotaciones: number;
+}
+
+const juntaDetecciones = (eventos: ENSNormalizedEvent[]): { detecciones: Deteccion[]; juntadas: number } => {
+  const porClave = new Map<string, Deteccion>();
+  const sueltas: ENSNormalizedEvent[] = [];
+  const base = (e: ENSNormalizedEvent) => `${campo(e, 'plano')}|${campo(e, 'amenaza')}|${campo(e, 'fichero')}`;
+  const suma = (d: Deteccion, e: ENSNormalizedEvent) => {
+    d.anotaciones += 1;
+    if (pesoAccion(campo(e, 'accion')) > pesoAccion(d.accion)) d.accion = campo(e, 'accion');
+  };
+
+  eventos.forEach(e => {
+    if (sinHora(e)) {
+      sueltas.push(e);
+
+      return;
+    }
+
+    const clave = `${base(e)}|${campo(e, 'fecha')}`;
+    const previa = porClave.get(clave);
+
+    if (previa) {
+      suma(previa, e);
+    } else {
+      porClave.set(clave, {
+        amenaza: campo(e, 'amenaza'),
+        fichero: campo(e, 'fichero'),
+        fecha: campo(e, 'fecha'),
+        accion: campo(e, 'accion'),
+        conHora: true,
+        anotaciones: 1,
+      });
+    }
+  });
+
+  const conHora = Array.from(porClave.entries());
+
+  sueltas.forEach(e => {
+    // La más reciente con hora del mismo fichero y firma, si la hay.
+    const misma = conHora
+      .filter(([clave]) => clave.startsWith(`${base(e)}|`))
+      .map(([, d]) => d)
+      .sort((x, y) => (instante(y.fecha) || 0) - (instante(x.fecha) || 0))[0];
+
+    if (misma) {
+      suma(misma, e);
+
+      return;
+    }
+
+    const clave = `${base(e)}|sin_hora`;
+    const previa = porClave.get(clave);
+
+    if (previa) {
+      suma(previa, e);
+    } else {
+      porClave.set(clave, {
+        amenaza: campo(e, 'amenaza'),
+        fichero: campo(e, 'fichero'),
+        fecha: 'sin hora',
+        accion: campo(e, 'accion'),
+        conHora: false,
+        anotaciones: 1,
+      });
+    }
+  });
+
+  const detecciones = Array.from(porClave.values());
+
+  return { detecciones, juntadas: eventos.length - detecciones.length };
+};
+
 const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   const estados = planos(context, ahora);
-  const detecciones = recientes(hechos(context, 'malware_detected', 'EV-04'), ahora);
+  const anotaciones = recientes(hechos(context, 'malware_detected', 'EV-04'), ahora);
+  const { detecciones, juntadas } = juntaDetecciones(anotaciones);
+  const juntadasTexto = juntadas
+    ? ` (${anotaciones.length} anotaciones en los logs, ${juntadas} de ellas repetidas de la misma detección —mismo fichero, firma e instante, o la de clamonacc sin hora—, que se cuentan una vez)`
+    : '';
   const medidas: Medida[] = [];
 
   // Una detección sin remediar incumple aunque hoy ya no haya antimalware.
-  const sinRemediar = detecciones.filter(e =>
-    ['sin_accion', 'fallida'].includes(campo(e, 'accion'))
-  );
+  const sinRemediar = detecciones.filter(d => ['sin_accion', 'fallida'].includes(d.accion));
 
   if (sinRemediar.length) {
     medidas.push(
       noCumple(
-        `Detecciones sin remediar: ${lista(sinRemediar.map(e => `${campo(e, 'amenaza')} en ${campo(e, 'fichero')} (${campo(e, 'accion')}, ${campo(e, 'fecha')})`))}.`
+        `Detecciones sin remediar: ${lista(sinRemediar.map(d => `${d.amenaza} en ${d.fichero} (${d.accion}, ${d.fecha})`))}${juntadasTexto}.`
       )
     );
   }
 
-  // La misma amenaza en el mismo fichero más de una vez: la ficha lo llama
-  // infección persistente, y es una condición de incumplimiento propia.
+  // La misma amenaza en el mismo fichero en más de un instante: la ficha lo
+  // llama infección persistente, y es una condición de incumplimiento propia.
+  // Una detección sin hora no es otro instante.
   const veces = new Map<string, number>();
 
-  detecciones.forEach(e => {
-    const clave = `${campo(e, 'amenaza')} en ${campo(e, 'fichero')}`;
+  detecciones.filter(d => d.conHora).forEach(d => {
+    const clave = `${d.amenaza} en ${d.fichero}`;
     veces.set(clave, (veces.get(clave) || 0) + 1);
   });
 
@@ -536,7 +642,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (repetidas.length) {
     medidas.push(
       noCumple(
-        `Detecciones repetidas sobre el mismo fichero, indicio de infección persistente: ${lista(repetidas.map(([k, n]) => `${k} (${n} veces)`))}.`
+        `Detecciones repetidas sobre el mismo fichero en instantes distintos, indicio de infección persistente: ${lista(repetidas.map(([k, n]) => `${k} (${n} veces)`))}${juntadasTexto}.`
       )
     );
   }
@@ -572,7 +678,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   return cumple(
     detecciones.length
-      ? `Las ${detecciones.length} detecciones de la ventana están remediadas y ninguna se repite.`
+      ? `Las ${detecciones.length} detecciones de la ventana están remediadas y ninguna se repite${juntadasTexto}.`
       : 'Los logs de detección se han leído y no registran ninguna detección en la ventana.'
   );
 };
