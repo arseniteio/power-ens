@@ -11,6 +11,10 @@ declarar» de forma que alguien lo pueda ejecutar y comprobar.
 Esta herramienta cierra ese hueco. Toma un fichero con los valores, los FUSIONA
 con lo que ya haya y escribe. Lo que no se nombra no se toca.
 
+La fusión es por PARÁMETRO, no por fila: el valor de cada parámetro nombrado se
+SUSTITUYE entero. Una lista o una tabla no se amplía; para añadir una fila hay
+que pasar la lista completa, con las filas que ya había.
+
     export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
     export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
     python3 set-parameters.py politica-wazuh-real.json            # plan
