@@ -18,16 +18,66 @@ flowchart LR
 
 ## Controls
 
-| Control | Name | Levels | Reinforcements |
-|---|---|---|---|
-| `mp.info.6` | Backups | LOW+ | R1 (MEDIUM+), R2 (HIGH) |
-| `op.acc.1` | Identification | LOW+ | R1 (MEDIUM+) |
-| `op.acc.2` | Access requirements | LOW+ | R1 (HIGH only) |
-| `op.acc.3` | Segregation of duties | MEDIUM+ | R1 (HIGH only) |
-| `op.acc.4` | Access rights management | LOW+ | no reinforcements |
+ENSFácil evaluates 17 controls. «Levels» are the system categories in which
+Annex II requires the control; «not required» marks a reinforcement the ENS
+defines but does not require in any category, which comes out `NO_APLICA`.
 
-Each control has its own deployment repository, with one variant per machine
-type: Linux, LDAP directory server and Windows.
+| Control | Name | Levels | Reinforcements | Where it is measured |
+|---|---|---|---|---|
+| `mp.info.6` | Backups | LOW+ | R1 (MEDIUM+), R2 (HIGH) | machines |
+| `op.acc.1` | Identification | LOW+ | R1 (MEDIUM+) | machines |
+| `op.acc.2` | Access requirements | LOW+ | R1 (HIGH) | machines |
+| `op.acc.3` | Segregation of duties and tasks | MEDIUM+ | R1 (HIGH); R2–R3 not required | machines |
+| `op.acc.4` | Access rights management process | LOW+ | no reinforcements | machines |
+| `op.acc.5` | Authentication mechanism (external users) | LOW+ | R1–R4 (LOW+), R5 (MEDIUM+); R6–R7 not required | machines |
+| `op.acc.6` | Authentication mechanism (organization users) | LOW+ | R1–R4, R8–R9 (LOW+), R5 (MEDIUM+), R6–R7 (HIGH) | machines |
+| `op.exp.1` | Asset inventory | LOW+ | R1–R4 not required | machines |
+| `op.exp.2` | Security configuration | LOW+ | no reinforcements | machines |
+| `op.exp.3` | Security configuration management | LOW+ | R1 (MEDIUM+), R2–R3 (HIGH); R4–R5 not required | machines |
+| `op.exp.4` | Security maintenance and updates | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3–R4 not required | machines |
+| `op.exp.5` | Change management | MEDIUM+ | R1 (HIGH) | machines |
+| `op.exp.6` | Malware protection | LOW+ | R1–R2 (MEDIUM+), R3–R4 (HIGH); R5 not required | machines |
+| `op.exp.7` | Incident management | LOW+ | R1–R2 (MEDIUM+), R3 (HIGH); R4 not required | manager |
+| `op.exp.8` | Activity logging | LOW+ (by the Traceability level) | R1–R4 (MEDIUM+), R5 (HIGH) | machines and manager |
+| `op.exp.9` | Incident management records | LOW+ | no reinforcements | manager |
+| `op.exp.10` | Cryptographic key protection | LOW+ | R1 (MEDIUM+); R2 not required | machines |
+
+Each control has its own deployment repository (runbook) in GitLab, with one
+variant per machine type:
+
+| GitLab group | Controls |
+|---|---|
+| `quersystem/ens-controls-runbook/linux` | all 17 (mp.info.6 for Proxmox Backup servers) |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10, suffix `-ldap` |
+| `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4, suffix `-windows` |
+
+What each Linux runbook installs:
+
+| Runbook | On the manager (`install-manager.sh`) | On each agent (`install.sh`) |
+|---|---|---|
+| `mp.info.6-proxmox-backup-runbook` | rules and `<localfile>` of the `ens` group | runs and measures the backup on the Proxmox Backup server |
+| `op.acc.1-identification` | rules and `<localfile>` of the `ens` group | collector |
+| `op.acc.2-access-requirements` | same | collector |
+| `op.acc.3-segregation-of-duties-and-tasks` | same | collector |
+| `op.acc.4-access-rights-management-process` | same | collector |
+| `op.acc.5-external-users-authentication` | same | collector |
+| `op.acc.6-organization-users-authentication` | same | collector |
+| `op.exp.1-asset-inventory` | same | collector |
+| `op.exp.2-security-configuration` | same | collector |
+| `op.exp.3-security-configuration-management` | same | collector |
+| `op.exp.4-security-maintenance-and-updates` | same, plus the Vulnerability Detector bridge (see its installation guide) | collector |
+| `op.exp.5-change-management` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
+| `op.exp.6-malware-protection` | same | collector |
+| `op.exp.7-incident-management` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that the agent sends its active response log |
+| `op.exp.8-activity-logging` | rules, `<localfile>` of the `ens` group, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | collector and auditd rules |
+| `op.exp.9-incident-management-records` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that active response, FIM and dpkg are forwarded |
+| `op.exp.10-cryptographic-key-protection` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
+
+> [!important]
+> The `install.sh` scripts that write auditd rules (op.exp.5, op.exp.8 and
+> op.exp.10) leave them in `/etc/audit/rules.d/` but do not load them. Run
+> `sudo augenrules --load` at the end; without that step the evidence that
+> depends on auditd is not measured.
 
 ---
 
@@ -40,12 +90,19 @@ This `README.md` is the entry point of ENSFácil. Choose the path that matches y
 | | Need | Guide |
 |---|---|---|
 | 1 | Install from scratch | [Full installation from scratch](docs/deployment/01-installation-from-scratch.en.md) |
-| 2 | Update an existing environment | [Updating an existing environment](docs/deployment/02-updating-an-existing-environment.en.md) |
+| 2 | Update an existing environment or add new controls | [Updating an existing environment](docs/deployment/02-updating-an-existing-environment.en.md) |
 | 3 | Check compatibility with another Wazuh version | [Version compatibility](docs/deployment/03-version-compatibility.en.md) |
 | 4 | Diagnose a problem or roll back | [Troubleshooting and rollback](docs/deployment/04-troubleshooting-and-rollback.en.md) |
 
 > [!note]
 > A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.
+
+> [!important]
+> Mandatory order when adding controls: first deploy the plugin version that
+> contains them, then seed their configuration. The installed plugin validates
+> the configuration document with its own rules, which do not know the new
+> controls or parameter types: seeding first can leave the whole dashboard
+> unable to load.
 
 ---
 
@@ -57,6 +114,31 @@ Each control repository includes its guides in `docs/deployment/`: installation 
 
 > [!important]
 > The compliance policy is declared on the ENSFácil Configuration screen. Empty parameters are decisions not yet declared and must not be read as default values.
+
+### The manager in the scope
+
+The ENS scope is defined by the Wazuh `ens` group, and the manager (agent
+`000`) does not belong to any group. That is why the dashboard adds it to the
+scope by itself, and only because some controls are measured on it:
+
+| Control | Measurement planes (`measurementPlanes`) | Manager row (`000`) | Each machine row |
+|---|---|---|---|
+| `op.exp.7` | manager only | evaluated | not evaluated |
+| `op.exp.9` | manager only | evaluated | not evaluated |
+| `op.exp.8` | machines and manager | evaluated (central plane and the server itself) | evaluated; what is measured only on the manager comes out `NO_APLICA` |
+| the rest | machines only | not evaluated | evaluated |
+
+Manager facts arrive with `agent.id=000`. In the view of a machine, op.exp.7
+and op.exp.9 appear with the result of the manager row, because they are
+controls of the organization, not of the machine. In the manager view only
+op.exp.7, op.exp.8 and op.exp.9 appear.
+
+### Traceability dimension level
+
+op.exp.8 applies by the level of the Traceability (T) dimension, not by the
+system category. Configuration > Global configuration has an optional
+**Traceability level (T)** field: if left empty, op.exp.8 is evaluated with the
+global ENS level, like every other control. No other control reads it.
 
 To check the consistency between the plugin, the rules and the runbooks:
 
@@ -74,10 +156,14 @@ python3 tests/check-consistency.py
 | `Permission denied (publickey)` | the key is not registered in the right account, or `IdentitiesOnly` is missing |
 | `detected dubious ownership` | the repository was cloned with `sudo`; fix it with `chown -R $USER:$USER` |
 | The installer runs but nothing changes | the repository update did not arrive; check the hash before installing |
-| After deploying, the previous version is still shown | browser cache; open a private window |
+| After deploying, the previous version is still shown | the plugin was installed without bumping the dashboard `build.number`; deploy with `config/deploy-plugin.sh` (see the update guide) |
+| «No se pudo cargar el entorno ENS» | a parameter with a value the plugin does not accept (for example `value: null`); validate the document with `config/validate-configuration.ts` and fix the parameter it reports |
 | A configured parameter shows as not configured | the agent runs an older version; compare the installed library and the repository one with `md5sum` |
-| The control card does not appear in Configuration | its configuration block has not been seeded; see the installation or update guide |
+| The control card does not appear in Configuration | its configuration block has not been seeded, or the deployed plugin predates the control; see the update guide |
 | `inject-control.py` reports that the `active` document does not exist | the configuration has never been saved; save it once in ENSFácil > Configuration and seed again |
+| «Sin datos del recolector desde …» on a control | the collector of that control has not sent a heartbeat for more than 24 h on that machine: agent stopped, cron removed or machine down |
+| op.exp.7, op.exp.8 or op.exp.9 without data on the manager | that runbook's `install-manager.sh` is missing, or its cron has not run yet (hourly) |
+| `install-manager.sh` refuses to touch `agent.conf` | the `agent.conf` of the `ens` group has more than one `<agent_config>` block; merge them into one |
 
 Consistency check between the plugin and the runbooks:
 
@@ -107,6 +193,19 @@ proves compliance. The cause tells who has to fix it:
 | `COLLECTION` | the agent does not report, in the Wazuh deployment |
 | `EVIDENCE` | the data arrives incomplete, in the collector |
 
+When the collector itself declares why it could not measure (the `causa`
+field of its fact), that cause reaches the evidence and the requirement
+unchanged: a register the organization does not keep comes out as
+`CONFIGURATION`, not as a collection failure.
+
+**Data not renewed.** State is judged with the last run of each collector. If
+the last heartbeat of a control on a machine is older than 24 hours, that
+control is not judged with that data: its evidence comes out `NO_EVALUABLE`
+with cause `COLLECTION` and the reason «Sin datos del recolector desde <UTC
+date>», and its requirements do not count as compliant. What the machine said
+days ago does not prove how it is today. Old facts remain visible in the
+traceability view.
+
 The agent observes and the engine judges. Evidence in the current model
 declares a judgment primitive and the parameter it is checked against; the
 agent only emits the fact. That is why a change on screen changes the verdict
@@ -126,11 +225,21 @@ dashboard/ens/     ENS module (React + TypeScript)
   controls/ reports/ evidences/    the three tabs
 integration/       Wazuh Dashboard integration package
 agent/rules/       Wazuh rules per control
-config/            configuration blocks and inject-control.py
+config/            configuration blocks and manager tools:
+                   deploy-plugin.sh, inject-control.py, set-parameters.py,
+                   validate-configuration.ts
 tests/             engine suites and consistency check
 ```
 
-Rule ID ranges in use:
+Tests (Python 3 and Node.js 18 or later):
+
+```bash
+python3 tests/check-consistency.py
+for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+```
+
+Rule ID ranges in use. Those of op.exp.7 and op.exp.9, and those of the
+central plane of op.exp.8, arrive with agent `000` (the manager):
 
 | Control | Reserved band | In use |
 |---|---|---|
@@ -139,6 +248,22 @@ Rule ID ranges in use:
 | `op.acc.2` | 106900–106999 | 106900–106974 |
 | `op.acc.3` | 107000–107099 | 107000–107050 |
 | `op.acc.4` | 107100–107199 | 107100–107150 |
+| `op.acc.5` | 110000–110099 | 110000–110099 |
+| `op.acc.6` | 110100–110199 | 110100–110199 |
+| `op.exp.1` | 110200–110299 | 110200–110299 |
+| `op.exp.2` | 110300–110399 | 110300–110391 |
+| `op.exp.3` | 110400–110499 | 110400–110499 |
+| `op.exp.4` | 110500–110599 | 110500–110595 |
+| `op.exp.5` | 110600–110699 | 110600–110699 |
+| `op.exp.6` | 110700–110799 | 110700–110799 |
+| `op.exp.7` | 110800–110899 | 110800–110899 |
+| `op.exp.8` | 110900–110999 | 110900–110999 |
+| `op.exp.9` | 111000–111099 | 111000–111099 |
+| `op.exp.10` | 111100–111199 | 111100–111199 |
+
+The 107200–109999 band is not used: on some managers other integrations
+occupy it. Before deploying on a manager with its own rules, check that none
+of these bands is in use.
 
 ---
 

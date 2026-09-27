@@ -18,16 +18,66 @@ flowchart LR
 
 ## Controles
 
-| Control | Nombre | Niveles | Refuerzos |
-|---|---|---|---|
-| `mp.info.6` | Copias de seguridad | BAJO+ | R1 (MEDIO+), R2 (ALTO) |
-| `op.acc.1` | Identificación | BAJO+ | R1 (MEDIO+) |
-| `op.acc.2` | Requisitos de acceso | BAJO+ | R1 (solo ALTO) |
-| `op.acc.3` | Segregación de funciones | MEDIO+ | R1 (solo ALTO) |
-| `op.acc.4` | Gestión de derechos de acceso | BAJO+ | sin refuerzos |
+ENSFácil evalúa 17 controles. «Niveles» son las categorías del sistema en las
+que el Anexo II exige el control; «no exigible» indica un refuerzo que el ENS
+define pero no exige en ninguna categoría, que sale `NO_APLICA`.
 
-Cada control tiene su propio repositorio de despliegue, con una variante por
-tipo de máquina: Linux, servidor de directorio LDAP y Windows.
+| Control | Nombre | Niveles | Refuerzos | Dónde se mide |
+|---|---|---|---|---|
+| `mp.info.6` | Copias de seguridad | BAJO+ | R1 (MEDIO+), R2 (ALTO) | máquinas |
+| `op.acc.1` | Identificación | BAJO+ | R1 (MEDIO+) | máquinas |
+| `op.acc.2` | Requisitos de acceso | BAJO+ | R1 (ALTO) | máquinas |
+| `op.acc.3` | Segregación de funciones y tareas | MEDIO+ | R1 (ALTO); R2–R3 no exigibles | máquinas |
+| `op.acc.4` | Proceso de gestión de derechos de acceso | BAJO+ | sin refuerzos | máquinas |
+| `op.acc.5` | Mecanismo de autenticación (usuarios externos) | BAJO+ | R1–R4 (BAJO+), R5 (MEDIO+); R6–R7 no exigibles | máquinas |
+| `op.acc.6` | Mecanismo de autenticación (usuarios de la organización) | BAJO+ | R1–R4, R8–R9 (BAJO+), R5 (MEDIO+), R6–R7 (ALTO) | máquinas |
+| `op.exp.1` | Inventario de activos | BAJO+ | R1–R4 no exigibles | máquinas |
+| `op.exp.2` | Configuración de seguridad | BAJO+ | sin refuerzos | máquinas |
+| `op.exp.3` | Gestión de la configuración de seguridad | BAJO+ | R1 (MEDIO+), R2–R3 (ALTO); R4–R5 no exigibles | máquinas |
+| `op.exp.4` | Mantenimiento y actualizaciones de seguridad | BAJO+ | R1 (MEDIO+), R2 (ALTO); R3–R4 no exigibles | máquinas |
+| `op.exp.5` | Gestión de cambios | MEDIO+ | R1 (ALTO) | máquinas |
+| `op.exp.6` | Protección frente a código dañino | BAJO+ | R1–R2 (MEDIO+), R3–R4 (ALTO); R5 no exigible | máquinas |
+| `op.exp.7` | Gestión de incidentes | BAJO+ | R1–R2 (MEDIO+), R3 (ALTO); R4 no exigible | manager |
+| `op.exp.8` | Registro de la actividad | BAJO+ (por el nivel de Trazabilidad) | R1–R4 (MEDIO+), R5 (ALTO) | máquinas y manager |
+| `op.exp.9` | Registro de la gestión de incidentes | BAJO+ | sin refuerzos | manager |
+| `op.exp.10` | Protección de claves criptográficas | BAJO+ | R1 (MEDIO+); R2 no exigible | máquinas |
+
+Cada control tiene su repositorio de despliegue (runbook) en GitLab, con una
+variante por tipo de máquina:
+
+| Grupo de GitLab | Controles |
+|---|---|
+| `quersystem/ens-controls-runbook/linux` | los 17 (mp.info.6 para servidores Proxmox Backup) |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 a op.acc.6 y op.exp.1 a op.exp.10, sufijo `-ldap` |
+| `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4, sufijo `-windows` |
+
+Qué instala cada runbook Linux:
+
+| Runbook | En el manager (`install-manager.sh`) | En cada agente (`install.sh`) |
+|---|---|---|
+| `mp.info.6-proxmox-backup-runbook` | reglas y `<localfile>` del grupo `ens` | ejecución y medida de la copia en el servidor Proxmox Backup |
+| `op.acc.1-identification` | reglas y `<localfile>` del grupo `ens` | recolector |
+| `op.acc.2-access-requirements` | ídem | recolector |
+| `op.acc.3-segregation-of-duties-and-tasks` | ídem | recolector |
+| `op.acc.4-access-rights-management-process` | ídem | recolector |
+| `op.acc.5-external-users-authentication` | ídem | recolector |
+| `op.acc.6-organization-users-authentication` | ídem | recolector |
+| `op.exp.1-asset-inventory` | ídem | recolector |
+| `op.exp.2-security-configuration` | ídem | recolector |
+| `op.exp.3-security-configuration-management` | ídem | recolector |
+| `op.exp.4-security-maintenance-and-updates` | ídem, más el puente del Vulnerability Detector (ver su guía de instalación) | recolector |
+| `op.exp.5-change-management` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
+| `op.exp.6-malware-protection` | ídem | recolector |
+| `op.exp.7-incident-management` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba que el agente envía su log de respuesta activa |
+| `op.exp.8-activity-logging` | reglas, `<localfile>` del grupo `ens`, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | recolector y reglas de auditd |
+| `op.exp.9-incident-management-records` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba el reenvío de respuesta activa, FIM y dpkg |
+| `op.exp.10-cryptographic-key-protection` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
+
+> [!important]
+> Los `install.sh` que escriben reglas de auditd (op.exp.5, op.exp.8 y
+> op.exp.10) las dejan en `/etc/audit/rules.d/` pero no las cargan. Hay que
+> ejecutar `sudo augenrules --load` al terminar; sin ese paso las evidencias
+> que dependen de auditd quedan sin medir.
 
 ---
 
@@ -40,12 +90,19 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 | | Necesidad | Guía |
 |---|---|---|
 | 1 | Instalar desde cero | [Instalación completa desde cero](docs/deployment/01-installation-from-scratch.md) |
-| 2 | Actualizar un entorno existente | [Actualización de un entorno existente](docs/deployment/02-updating-an-existing-environment.md) |
+| 2 | Actualizar un entorno existente o añadir controles nuevos | [Actualización de un entorno existente](docs/deployment/02-updating-an-existing-environment.md) |
 | 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/deployment/03-version-compatibility.md) |
 | 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
+
+> [!important]
+> Orden obligatorio al añadir controles: primero se despliega la versión del
+> plugin que los contiene y después se siembra su configuración. El plugin
+> instalado valida el documento de configuración con sus propias reglas, que no
+> conocen los controles ni los tipos de parámetro nuevos: sembrar antes puede
+> dejar el panel entero sin cargar.
 
 ---
 
@@ -57,6 +114,31 @@ Cada repositorio de control incluye sus guías en `docs/deployment/`: la instala
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
+
+### El manager en el alcance
+
+El alcance ENS se define por el grupo `ens` de Wazuh, y el manager (agente
+`000`) no pertenece a ningún grupo. Por eso el panel lo añade al alcance por sí
+solo, y únicamente porque hay controles que se miden en él:
+
+| Control | Planos de medida (`measurementPlanes`) | Fila del manager (`000`) | Fila de cada máquina |
+|---|---|---|---|
+| `op.exp.7` | solo manager | se evalúa | no se evalúa |
+| `op.exp.9` | solo manager | se evalúa | no se evalúa |
+| `op.exp.8` | máquinas y manager | se evalúa (plano central y el propio servidor) | se evalúa; lo que solo se mide en el manager sale `NO_APLICA` |
+| los demás | solo máquinas | no se evalúan | se evalúan |
+
+Los hechos del manager llegan con `agent.id=000`. En la vista de una máquina,
+op.exp.7 y op.exp.9 aparecen con el resultado de la fila del manager, porque son
+controles de la organización y no de la máquina. En la vista del manager solo
+aparecen op.exp.7, op.exp.8 y op.exp.9.
+
+### Nivel de la dimensión Trazabilidad
+
+op.exp.8 se aplica por el nivel de la dimensión de Trazabilidad (T), no por la
+categoría del sistema. En Configuración > Configuración global hay un campo
+opcional **Nivel de Trazabilidad (T)**: si se deja vacío, op.exp.8 se evalúa con
+el nivel ENS global, como los demás controles. Ningún otro control lo lee.
 
 Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
@@ -74,10 +156,14 @@ python3 tests/check-consistency.py
 | `Permission denied (publickey)` | la clave no está registrada en la cuenta correcta, o falta `IdentitiesOnly` |
 | `detected dubious ownership` | el repositorio se clonó con `sudo`; corregir con `chown -R $USER:$USER` |
 | El instalador se ejecuta pero nada cambia | la actualización del repositorio no llegó; comprobar el hash antes de instalar |
-| Se despliega y sigue viéndose la versión anterior | caché del navegador; abrir una ventana de incógnito |
+| Se despliega y sigue viéndose la versión anterior | el plugin se instaló sin subir el `build.number` del dashboard; desplegar con `config/deploy-plugin.sh` (ver la guía de actualización) |
+| «No se pudo cargar el entorno ENS» | un parámetro con un valor que el plugin no acepta (por ejemplo `value: null`); validar el documento con `config/validate-configuration.ts` y corregir el parámetro que indique |
 | Un parámetro configurado aparece como no configurado | el agente ejecuta una versión anterior; comparar con `md5sum` la librería instalada y la del repositorio |
-| La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración; revisar la guía de instalación o actualización |
+| La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración, o el plugin desplegado es anterior al control; revisar la guía de actualización |
 | `inject-control.py` indica que no existe el documento `active` | la configuración no se ha guardado nunca; hacer un primer guardado en ENSFácil > Configuración y repetir la siembra |
+| «Sin datos del recolector desde …» en un control | el recolector de ese control lleva más de 24 h sin latir en esa máquina: agente parado, cron retirado o máquina caída |
+| op.exp.7, op.exp.8 u op.exp.9 sin datos en el manager | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora) |
+| `install-manager.sh` se niega a tocar `agent.conf` | el `agent.conf` del grupo `ens` tiene más de un bloque `<agent_config>`; fusionarlos en uno |
 
 Comprobación de coherencia entre el plugin y los runbooks:
 
@@ -107,6 +193,19 @@ La causa determina a quién corresponde la corrección:
 | `COLLECTION` | el agente no reporta, en el despliegue de Wazuh |
 | `EVIDENCE` | el dato llega incompleto, en el recolector |
 
+Cuando el propio recolector declara por qué no pudo medir (el campo `causa` de
+su hecho), esa causa llega intacta a la evidencia y al requisito: un registro
+que la organización no mantiene sale como `CONFIGURATION`, no como un fallo de
+recogida.
+
+**Datos sin renovar.** El estado se juzga con la última pasada de cada
+recolector. Si el último latido de un control en una máquina tiene más de
+24 horas, ese control no se juzga con esos datos: sus evidencias salen
+`NO_EVALUABLE` con causa `COLLECTION` y el motivo «Sin datos del recolector
+desde <fecha UTC>», y sus requisitos no cuentan como cumplidos. Lo que dijo la
+máquina hace días no prueba cómo está hoy. Los hechos antiguos siguen visibles
+en la trazabilidad.
+
 El agente observa y el motor juzga. Las evidencias del modelo actual declaran
 una primitiva de juicio y el parámetro contra el que se contrastan; el agente
 solo emite el hecho. Por eso un cambio en la pantalla modifica el veredicto sin
@@ -126,11 +225,21 @@ dashboard/ens/     módulo ENS (React + TypeScript)
   controls/ reports/ evidences/    las tres pestañas
 integration/       paquete de integración con Wazuh Dashboard
 agent/rules/       reglas Wazuh por control
-config/            bloques de configuración e inject-control.py
+config/            bloques de configuración y herramientas del manager:
+                   deploy-plugin.sh, inject-control.py, set-parameters.py,
+                   validate-configuration.ts
 tests/             suites del motor y comprobación de coherencia
 ```
 
-Rangos de rule ID en uso:
+Pruebas (Python 3 y Node.js 18 o superior):
+
+```bash
+python3 tests/check-consistency.py
+for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+```
+
+Rangos de rule ID en uso. Los de op.exp.7 y op.exp.9, y los del plano central
+de op.exp.8, llegan con el agente `000` (el manager):
 
 | Control | Banda reservada | En uso |
 |---|---|---|
@@ -139,6 +248,22 @@ Rangos de rule ID en uso:
 | `op.acc.2` | 106900–106999 | 106900–106974 |
 | `op.acc.3` | 107000–107099 | 107000–107050 |
 | `op.acc.4` | 107100–107199 | 107100–107150 |
+| `op.acc.5` | 110000–110099 | 110000–110099 |
+| `op.acc.6` | 110100–110199 | 110100–110199 |
+| `op.exp.1` | 110200–110299 | 110200–110299 |
+| `op.exp.2` | 110300–110399 | 110300–110391 |
+| `op.exp.3` | 110400–110499 | 110400–110499 |
+| `op.exp.4` | 110500–110599 | 110500–110595 |
+| `op.exp.5` | 110600–110699 | 110600–110699 |
+| `op.exp.6` | 110700–110799 | 110700–110799 |
+| `op.exp.7` | 110800–110899 | 110800–110899 |
+| `op.exp.8` | 110900–110999 | 110900–110999 |
+| `op.exp.9` | 111000–111099 | 111000–111099 |
+| `op.exp.10` | 111100–111199 | 111100–111199 |
+
+La banda 107200–109999 no se usa: en algunos managers la ocupan otras
+integraciones. Antes de desplegar en un manager con reglas propias, comprobar
+que ninguna de estas bandas está en uso.
 
 ---
 

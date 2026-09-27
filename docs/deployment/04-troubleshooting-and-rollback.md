@@ -17,6 +17,7 @@ flowchart LR
   C --> D["5. Restaurar el<br/>módulo ENS anterior"]
   D --> E["6. Restaurar el<br/>plugin desplegado"]
   E --> F["7. Validar<br/>el rollback"]
+  F --> G["8. Restaurar la<br/>configuración ENS"]
 ```
 
 ## 2. Cuándo detener el despliegue
@@ -31,6 +32,9 @@ Detener el procedimiento si ocurre cualquiera de estas situaciones:
 | la compilación no genera `wazuh-2.19.5.zip`. |
 | `unzip -t` informa de errores. |
 | Wazuh Dashboard no vuelve a estado `active` después de instalar el plugin. |
+| un `install-manager.sh` no confirma su regla con `wazuh-logtest` o el manager no queda `active`. |
+| `config/validate-configuration.ts` informa de `ESTRUCTURA INVÁLIDA`. |
+| el panel muestra «No se pudo cargar el entorno ENS». |
 
 > [!important]
 > Antes de modificar nada más, conservar la salida del comando que ha fallado y localizar los backups creados durante el procedimiento.
@@ -110,28 +114,22 @@ fi
 
 ## 6. Restaurar el plugin desplegado
 
-Si la nueva versión ya fue instalada en Wazuh Dashboard, utilizar el ZIP anterior conservado en el backup de actualización.
+Si la nueva versión ya fue instalada en Wazuh Dashboard, reinstalar el ZIP anterior conservado en el backup de actualización con `config/deploy-plugin.sh`, que sustituye solo el plugin `wazuh` y sube el `build.number` para que los navegadores dejen de usar la versión retirada:
 
 ```bash
 ZIP_ANTERIOR="$UPDATE_BACKUP/wazuh-2.19.5.zip"
 if sudo -u wazuh-dashboard test -r "$ZIP_ANTERIOR"; then
-  sudo systemctl stop wazuh-dashboard
-
-  sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh || true
-  sudo rm -rf /usr/share/wazuh-dashboard/plugins/wazuh
-  sudo rm -rf /usr/share/wazuh-dashboard/plugins/.plugin.installing
-
-  sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
-    install "file://$ZIP_ANTERIOR"
-
-  sudo systemctl start wazuh-dashboard
+  sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP_ANTERIOR"
 else
   echo "ERROR: ZIP anterior no accesible"
 fi
 ```
 
 > [!warning]
-> No utilizar comodines como `wazuh*` durante la retirada del plugin.
+> Si se retira el plugin a mano, no utilizar comodines como `wazuh*`: eliminarían también `wazuhCore` y `wazuhCheckUpdates`.
+
+> [!important]
+> Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 8) con la copia hecha antes de la actualización.
 
 ## 7. Validar el rollback
 
@@ -158,3 +156,36 @@ Acceder finalmente a Wazuh Dashboard y confirmar que ENSFácil vuelve a mostrars
 
 > [!note]
 > Este procedimiento restaura el código y el plugin desplegado. No revierte automáticamente datos o decisiones de configuración almacenados fuera del árbol del plugin.
+
+## 8. Restaurar la configuración ENS
+
+La configuración ENS vive en el documento `active` del índice `wazuh-ens-configuration`. Las guías de instalación y actualización guardan una copia antes de cada cambio (`/opt/ensfacil/artifacts/active-<fecha>.json` o `$BACKUP/active.json`). Para restaurarla se reescribe el `_source` de esa copia, usando el certificado de administrador del indexer:
+
+```bash
+COPIA=/opt/ensfacil/artifacts/active-AAAAMMDD-HHMMSS.json
+
+sudo python3 -c "import json,sys; json.dump(json.load(open(sys.argv[1]))['_source'], open(sys.argv[2],'w'), ensure_ascii=False)" \
+  "$COPIA" /opt/ensfacil/artifacts/active-restore.json
+
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  -H 'Content-Type: application/json' -X PUT \
+  https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active \
+  --data-binary @/opt/ensfacil/artifacts/active-restore.json
+```
+
+La respuesta debe incluir `"result":"updated"`. Validar después el documento restaurado con `config/validate-configuration.ts`, como en la [guía de instalación, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero), y recargar el panel.
+
+## 9. Problemas conocidos del despliegue
+
+| Síntoma | Causa | Qué hacer |
+|---|---|---|
+| El panel muestra «No se pudo cargar el entorno ENS» con `...parameters[M].value has an invalid value` | un parámetro con `value: null`, una tabla con menos columnas de las declaradas o una columna identificador con comas o espacios | validar el documento con `config/validate-configuration.ts`, corregir el parámetro indicado o restaurar la copia (apartado 8). Un parámetro vacío es la clave `value` ausente, nunca `null` |
+| Se despliega y el navegador sigue mostrando la versión anterior | se instaló el ZIP sin subir el `build.number` | desplegar con `config/deploy-plugin.sh` |
+| La compilación termina tras varios minutos con `ENOENT: yarn install --production` | `yarn` no está en el `PATH` del usuario que compila (habitual al compilar como `root`) | añadir el directorio de `yarn` al `PATH` (ver [instalación, apartado 13.5](01-installation-from-scratch.md#135-compilar-y-validar-el-plugin)) |
+| La compilación termina al instante con código 1 | la salida se redirige como `root` a un fichero de `/tmp` creado por otro usuario (`protected_regular`) | llevar el registro a `/opt/ensfacil/artifacts` |
+| `install-manager.sh`: «hay más de un bloque `<agent_config>`» | el `agent.conf` del grupo `ens` tiene dos bloques | fusionar todo en un solo `<agent_config>`, validar con `verify-agent-conf` y repetir |
+| `install-manager.sh` termina bien pero la regla no casa | una ejecución anterior falló tras copiar las reglas y la repetición no reinicia el manager | `sudo systemctl restart wazuh-manager` y comprobar con `wazuh-logtest` |
+| Evidencias de auditd sin medir en una máquina (op.exp.5, op.exp.8, op.exp.10) | el `install.sh` escribió las reglas en `/etc/audit/rules.d/` pero no se cargaron | comprobar que auditd no está en modo inmutable (`sudo auditctl -s`, `enabled` distinto de `2`) y ejecutar `sudo augenrules --load` |
+| Un control muestra «Sin datos del recolector desde …» | el último latido del recolector de ese control en esa máquina tiene más de 24 h | comprobar el agente, el cron del recolector y la conectividad; el control vuelve a juzgarse en cuanto llega una pasada nueva |
+| op.exp.7, op.exp.8 u op.exp.9 sin datos en la fila del manager | falta el `install-manager.sh` del runbook o su cron horario todavía no se ha ejecutado | revisar `/etc/cron.d/ensfacil-opexp*` del manager y el `<localfile>` en su `ossec.conf` |
+| Una regla de op.exp.1 aparece en eventos de op.exp.10 | reglas de op.exp.1 anteriores a la corrección, con el campo `ensfacil` sin anclar | actualizar el runbook de op.exp.1 y repetir su `install-manager.sh` |
