@@ -75,7 +75,7 @@
         "op.exp.6.2"
       ],
       "type": "table",
-      "example": "wazuh-real | sistema | servidor | clamav",
+      "example": "srv-web-01 | sistema | servidor | clamav",
       "required": true,
       "wazuhUsage": "Equipo y plano cuyo antimalware en ejecución no es el declarado (o no hay ninguno) → incumplimiento de op.exp.6.2.",
       "ensfacilUsage": "EV-01 busca la fila por equipo y plano y compara la columna «producto_esperado» con el producto que el agente ve EN EJECUCIÓN: instalado y parado no protege, y cuenta como «ninguno».",

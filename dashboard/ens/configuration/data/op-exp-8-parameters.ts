@@ -80,11 +80,11 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'servidores_en_alcance',
       label: 'Servidores en alcance',
       description:
-        'Servidores en los que deben estar activados los registros de actividad, uno por fila. La columna servidor es el NOMBRE DEL AGENTE tal como lo ve Wazuh (el manager es su propio nombre, p. ej. Wazuh-4). op.exp.8.2 es taxativo: «se activarán los registros de actividad en los servidores».',
+        'Servidores en los que deben estar activados los registros de actividad, uno por fila. La columna servidor es el NOMBRE DEL AGENTE tal como lo ve Wazuh (el manager figura con su propio nombre de agente). op.exp.8.2 es taxativo: «se activarán los registros de actividad en los servidores».',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.8.2'],
       type: 'table',
-      example: 'wazuh-real | Ubuntu 24.04 | servidor web',
+      example: 'srv-web-01 | Ubuntu 24.04 | servidor web',
       columns: [
         {
           name: 'servidor',

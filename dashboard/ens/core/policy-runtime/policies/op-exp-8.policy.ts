@@ -459,7 +459,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 // --- EV-01 · lo que se declara auditable, contra lo que de verdad se audita --
 //
-// Que auditd esté activo con reglas no dice QUÉ registra. En wazuh-real, con
+// Que auditd esté activo con reglas no dice QUÉ registra. En un servidor real, con
 // 80 reglas cargadas, EV-01 salía CUMPLE mientras op.exp.5 demostraba que no
 // se vigilaban las rutas de configuración, op.exp.10 los almacenes de claves y
 // EV-06 los cambios de hora: un CUMPLE por mera presencia de auditd. Ahora
@@ -864,7 +864,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 // Por qué no queda traza de los cambios de hora, y qué hay que hacer. Cargar
 // las reglas (`augenrules --load`) solo sirve si auditd está instalado y en
-// marcha: en wazuh4, sin auditd, ese consejo mandaba a ejecutar una orden que
+// marcha: en un manager sin auditd, ese consejo mandaba a ejecutar una orden que
 // no existe. Lo dice el estado de auditd de la misma pasada (EV-01).
 const sinTrazaDeHora = (context: ENSPolicyContext, ahora: number): string => {
   const syscalls = '(adjtimex, settimeofday, clock_settime)';

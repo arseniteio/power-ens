@@ -77,7 +77,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.6.2'],
       type: 'table',
-      example: 'wazuh-real | sistema | servidor | clamav',
+      example: 'srv-web-01 | sistema | servidor | clamav',
       columns: [
         {
           name: 'equipo',

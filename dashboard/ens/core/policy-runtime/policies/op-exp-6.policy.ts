@@ -986,7 +986,7 @@ const ev10 = (context: ENSPolicyContext, ahora: number): Medida => {
 // EV-11 · contención automática de código dañino.
 //
 // Tener alguna respuesta activa con su script en el equipo no es contener
-// código dañino. En wazuh-real salía CUMPLE sostenido solo en firewall-drop
+// código dañino. En un servidor real salía CUMPLE sostenido solo en firewall-drop
 // (bloquea direcciones de red) mientras las respuestas que el manager
 // configura para el malware —quersystem-malware-quarantine.sh,
 // quersystem-yara.sh— no existían en /var/ossec/active-response/bin/: el

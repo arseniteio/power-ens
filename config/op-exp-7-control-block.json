@@ -201,7 +201,7 @@
         "op.exp.7.r2.3"
       ],
       "type": "table",
-      "example": "wazuh-real | J. Ruiz | M. Sanz",
+      "example": "srv-web-01 | J. Ruiz | M. Sanz",
       "required": true,
       "wazuhUsage": "Asocia cada sistema del alcance a quien hay que informar cuando un incidente lo afecta.",
       "ensfacilUsage": "Para cada incidente, el motor reúne los responsables de todos sus sistemas y exige que figuren en alguna fila de notificado_a del registro.",
@@ -335,7 +335,7 @@
         "op.exp.7.2"
       ],
       "type": "table",
-      "example": "zimbraHldap | directorio de usuarios: nombre, correo, teléfono",
+      "example": "ldap-01 | directorio de usuarios: nombre, correo, teléfono",
       "required": true,
       "wazuhUsage": "Marca los sistemas cuyos incidentes arrastran las obligaciones del RGPD.",
       "ensfacilUsage": "El motor marca los incidentes que afectan a estos sistemas y exige valoración de brecha y, si procede, notificación a la AEPD dentro de 72 horas desde la fase inicial.",

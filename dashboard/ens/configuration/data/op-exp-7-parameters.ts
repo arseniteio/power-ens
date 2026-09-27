@@ -180,7 +180,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.7.r2.3'],
       type: 'table',
-      example: 'wazuh-real | J. Ruiz | M. Sanz',
+      example: 'srv-web-01 | J. Ruiz | M. Sanz',
       columns: [
         {
           name: 'sistema',
@@ -299,7 +299,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.7.2'],
       type: 'table',
-      example: 'zimbraHldap | directorio de usuarios: nombre, correo, teléfono',
+      example: 'ldap-01 | directorio de usuarios: nombre, correo, teléfono',
       columns: [
         {
           name: 'sistema',
