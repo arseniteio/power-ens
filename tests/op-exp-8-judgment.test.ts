@@ -378,6 +378,16 @@ bloque('5. EV-06 · sincronización, autenticación, desfase, fuente y traza');
   ], AGENTE));
   comprueba('un cambio de hora registrado se nombra con su actor (traza, no incumplimiento)', conCambio.requisito('op.exp.8.r2.1').status === 'CUMPLE' && /dioni con \/usr\/bin\/date/.test(conCambio.motivo('op.exp.8.r2.1')), conCambio.motivo('op.exp.8.r2.1'));
 
+  // chrony con NTS en wazuh-real y wazuh4 (27/09): P-05 declara los NOMBRES.
+  // `chronyc -n sources` daba las IP —y la de time.cloudflare.com es anycast y
+  // cambia—, con un primer elemento vacío que colaba el separador «====» de la
+  // tabla. El recolector usa ahora `chronyc -c -N sources`.
+  const P05_NTS = { ...BASE, 'P-05': ['time.cloudflare.com | NTS', 'nts.netnod.se | NTS', 'ptbtime1.ptb.de | NTS'] };
+  const porNombre = evalua(nts({ fuentes: 'nts.netnod.se,ptbtime1.ptb.de,time.cloudflare.com', fuentes_ip: '194.58.203.196,192.53.103.108,162.159.200.123' }), P05_NTS);
+  comprueba('fuentes por su nombre configurado (chronyc -N) → casan con P-05 → CUMPLE', porNombre.requisito('op.exp.8.r2.1').status === 'CUMPLE', porNombre.motivo('op.exp.8.r2.1'));
+  const porIp = evalua(nts({ fuentes: ',194.58.203.196,192.53.103.108,162.159.200.123' }), P05_NTS);
+  comprueba('ANTES: las IP de `chronyc -n` con la coma inicial → «fuente no declarada» falsa', porIp.requisito('op.exp.8.r2.1').status === 'NO_CUMPLE' && /P-05 no declara: 194\.58\.203\.196/.test(porIp.motivo('op.exp.8.r2.1')), porIp.motivo('op.exp.8.r2.1'));
+
   const medio = evalua(host(), BASE, AHORA, 'BAJO');
   comprueba('en nivel de Trazabilidad BAJO, R2 no aplica', medio.requisito('op.exp.8.r2.1').status === 'NO_APLICA', medio.requisito('op.exp.8.r2.1').status);
 }
