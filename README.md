@@ -65,7 +65,7 @@ Qué instala cada runbook Linux:
 | `op.exp.1-asset-inventory` | ídem | recolector |
 | `op.exp.2-security-configuration` | ídem | recolector |
 | `op.exp.3-security-configuration-management` | ídem | recolector |
-| `op.exp.4-security-maintenance-and-updates` | ídem, más el puente del Vulnerability Detector (ver su guía de instalación) | recolector |
+| `op.exp.4-security-maintenance-and-updates` | ídem; el puente del Vulnerability Detector es opcional y no se instala por defecto (ver su guía) | recolector |
 | `op.exp.5-change-management` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
 | `op.exp.6-malware-protection` | ídem | recolector |
 | `op.exp.7-incident-management` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba que el agente envía su log de respuesta activa |
@@ -74,8 +74,8 @@ Qué instala cada runbook Linux:
 | `op.exp.10-cryptographic-key-protection` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
 
 > [!important]
-> Los `install.sh` que escriben reglas de auditd (op.exp.5, op.exp.8 y
-> op.exp.10) las dejan en `/etc/audit/rules.d/` pero no las cargan. Hay que
+> Los `install.sh` que escriben reglas de auditd (op.acc.2, op.acc.3,
+> op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10) las dejan en `/etc/audit/rules.d/` pero no las cargan. Hay que
 > ejecutar `sudo augenrules --load` al terminar; sin ese paso las evidencias
 > que dependen de auditd quedan sin medir.
 

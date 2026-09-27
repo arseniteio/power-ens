@@ -65,7 +65,7 @@ What each Linux runbook installs:
 | `op.exp.1-asset-inventory` | same | collector |
 | `op.exp.2-security-configuration` | same | collector |
 | `op.exp.3-security-configuration-management` | same | collector |
-| `op.exp.4-security-maintenance-and-updates` | same, plus the Vulnerability Detector bridge (see its installation guide) | collector |
+| `op.exp.4-security-maintenance-and-updates` | same; the Vulnerability Detector bridge is optional and not installed by default (see its guide) | collector |
 | `op.exp.5-change-management` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
 | `op.exp.6-malware-protection` | same | collector |
 | `op.exp.7-incident-management` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that the agent sends its active response log |
@@ -74,8 +74,8 @@ What each Linux runbook installs:
 | `op.exp.10-cryptographic-key-protection` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
 
 > [!important]
-> The `install.sh` scripts that write auditd rules (op.exp.5, op.exp.8 and
-> op.exp.10) leave them in `/etc/audit/rules.d/` but do not load them. Run
+> The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3,
+> op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 and op.exp.10) leave them in `/etc/audit/rules.d/` but do not load them. Run
 > `sudo augenrules --load` at the end; without that step the evidence that
 > depends on auditd is not measured.
 
