@@ -363,6 +363,20 @@ bloque('4. EV-03 · MTTD y MTTR contra P-05 (op.exp.7.r2.2)');
 
   comprueba('sin incidentes → NO_EVALUABLE, no CUMPLE', evalua(eventos(latido('vacio')), { ...BASE, 'P-05': ['Alta | 4 | 48'] }).estado('EV-03') === 'NO_EVALUABLE');
   comprueba('sin P-05 → NO_EVALUABLE', evalua(incidente, BASE).estado('EV-03') === 'NO_EVALUABLE');
+
+  // Severidad de un incidente con varias filas: la MÁS ALTA de sus fases, como
+  // en op.exp.9. Llegó a crítico y se rebajó a baja al cerrarlo: se juzga con
+  // el plazo de los críticos, no con el de los bajos.
+  const rebajado = eventos(
+    latido(),
+    observada('wazuh-real', 12, '5712', 1, hace(72)),
+    ...fila({ id: 'INC-8', fase: 'inicial', fecha: hace(70), severidad: 'alta' }),
+    ...fila({ id: 'INC-8', fase: 'intermedio', fecha: hace(68), severidad: 'Crítica' }),
+    ...fila({ id: 'INC-8', fase: 'final', fecha: hace(40), severidad: 'baja' }),
+  );
+  const r5 = evalua(rebajado, { ...BASE, 'P-05': ['Crítica | 4 | 24', 'Baja | 4 | 48'] });
+  comprueba('crítico en una fase y rebajado a baja al cerrar: cuenta la más alta → resolución 30 h > 24 h de Crítica, NO_CUMPLE',
+    r5.estado('EV-03') === 'NO_CUMPLE' && /Crítica 30\.0 h > 24 h/.test(r5.motivo('EV-03')), r5.motivo('EV-03'));
 }
 
 // --- 5. EV-04 ---------------------------------------------------------------

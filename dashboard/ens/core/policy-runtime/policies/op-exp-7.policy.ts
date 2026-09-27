@@ -549,6 +549,9 @@ const incidentes = (context: ENSPolicyContext, ahora: number): Incidente[] => {
       mejoras: [],
     };
 
+    // La severidad del incidente es la más alta registrada en cualquiera de
+    // sus fases, la misma regla que op.exp.9: un incidente que llegó a crítico
+    // no se juzga con el plazo de uno bajo porque se rebajara al cerrarlo.
     const severidad = sinTildes(campo(e, 'severidad'));
 
     if (SEVERIDADES.includes(severidad) && rango(severidad) > rango(actual.severidad)) {

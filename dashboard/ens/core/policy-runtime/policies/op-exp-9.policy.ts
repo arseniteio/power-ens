@@ -198,6 +198,10 @@ const listaDe = (texto: string): string[] =>
         .map(t => t.trim())
         .filter(t => t && t !== '-');
 
+// De menor a mayor: el orden decide la severidad de un incidente con varias
+// filas.
+const SEVERIDADES = ['baja', 'media', 'alta', 'critica'];
+
 const sinTildes = (texto: string): string =>
   texto
     .normalize('NFD')
@@ -428,11 +432,14 @@ const incidentes = (context: ENSPolicyContext): Incidente[] => {
       const iniciales = lasFilas.filter(f => f.fase === 'inicial' && f.fecha !== undefined).map(f => f.fecha as number);
       const finales = lasFilas.filter(f => f.fase === 'final' && f.fecha !== undefined).map(f => f.fecha as number);
 
-      // La severidad vigente es la de la última fila que la declara: un
-      // incidente se reclasifica al avanzar.
-      const conSeveridad = lasFilas
-        .filter(f => !vacio(f.severidad) && f.fecha !== undefined)
-        .sort((a, b) => (a.fecha as number) - (b.fecha as number));
+      // La severidad del incidente es la más alta registrada en cualquiera de
+      // sus fases, la misma regla que op.exp.7: un incidente que llegó a
+      // crítico no se juzga con el plazo de uno bajo porque se rebajara al
+      // cerrarlo.
+      const severidad = lasFilas
+        .map(f => f.severidad)
+        .filter(s => SEVERIDADES.includes(s))
+        .reduce((a, b) => (SEVERIDADES.indexOf(b) > SEVERIDADES.indexOf(a) ? b : a), '-');
 
       return {
         id,
@@ -440,7 +447,7 @@ const incidentes = (context: ENSPolicyContext): Incidente[] => {
         inicio: iniciales.length ? Math.min(...iniciales) : Math.min(...fechas),
         fin: finales.length ? Math.max(...finales) : undefined,
         abierto: !finales.length,
-        severidad: conSeveridad.length ? conSeveridad[conSeveridad.length - 1].severidad : '-',
+        severidad,
         sistemas: Array.from(new Set(lasFilas.flatMap(f => f.sistemas))),
         relevante: lasFilas.some(f => f.relevante),
       };

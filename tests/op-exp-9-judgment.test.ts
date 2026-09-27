@@ -650,6 +650,21 @@ bloque('7. EV-08: la revisión de eventos auditables, con el reloj empezando en 
 
   comprueba('P-07 solo obliga en severidad crítica: el incidente alto no exige revisión → CUMPLE', baja.de('EV-08').status === 'CUMPLE');
 
+  // Severidad de un incidente con varias filas: la MÁS ALTA de sus fases, como
+  // en op.exp.7. Llegó a crítico y se rebajó a baja al cerrarlo: sigue
+  // obligando a la revisión de los críticos.
+  const rebajado = evalua(eventos(latido(), ...registros(),
+    fila('INC-5', 'inicial', '2026-08-01T10:00:00Z', { severidad: 'alta' }),
+    fila('INC-5', 'intermedio', '2026-08-02T10:00:00Z', { severidad: 'Crítica' }),
+    fila('INC-5', 'final', '2026-08-03T10:00:00Z', { severidad: 'baja' }),
+    ventana('INC-5')), { ...BASICOS, 'P-07': ['critica | 15 |'] });
+
+  comprueba(
+    'crítico en una fase y rebajado a baja al cerrar: cuenta la más alta → EV-08 NO_CUMPLE (severidad critica)',
+    rebajado.de('EV-08').status === 'NO_CUMPLE' && /INC-5 \(severidad critica/.test(rebajado.de('EV-08').reason),
+    rebajado.de('EV-08').reason
+  );
+
   const sinP07 = evalua(eventos(latido(), ...registros(), ...cerrado), { ...BASICOS, 'P-07': undefined });
 
   comprueba('sin P-07: NO_EVALUABLE', sinP07.de('EV-08').status === 'NO_EVALUABLE');

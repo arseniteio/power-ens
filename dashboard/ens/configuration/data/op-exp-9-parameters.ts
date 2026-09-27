@@ -230,7 +230,7 @@ export const opExp9Configuration: ENSControlConfiguration = {
       name: 'procedimiento_revision_eventos_auditables',
       label: 'Revisión de eventos auditables tras un incidente',
       description:
-        'Qué incidentes obligan a revisar la determinación de los eventos auditables y en qué plazo desde su cierre. Una fila por severidad del registro (baja, media, alta, critica); una severidad sin fila no obliga a revisar. La revisión se acredita con una fila «revision_eventos» del incidente en el registro de actuaciones o con un cambio de reglas, decodificadores, ossec.conf o agent.conf del manager dentro del plazo. La periodicidad consolidada (semestral, por ejemplo) es documental y va en la columna del procedimiento.',
+        'Qué incidentes obligan a revisar la determinación de los eventos auditables y en qué plazo desde su cierre. Una fila por severidad del registro (baja, media, alta, critica); una severidad sin fila no obliga a revisar. Un incidente con varias filas tiene la severidad más alta registrada en cualquiera de sus fases, la misma regla que op.exp.7. La revisión se acredita con una fila «revision_eventos» del incidente en el registro de actuaciones o con un cambio de reglas, decodificadores, ossec.conf o agent.conf del manager dentro del plazo. La periodicidad consolidada (semestral, por ejemplo) es documental y va en la columna del procedimiento.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.3', 'op.exp.8.r3.1'],
       type: 'table',
