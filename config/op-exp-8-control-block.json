@@ -93,8 +93,8 @@
         }
       ],
       "required": true,
-      "wazuhUsage": "Regla 110904 (log_ingestion_status): el recolector del manager mide, por agente, el último evento recibido y la laguna más larga de la ingesta.",
-      "ensfacilUsage": "EV-04 (en la fila del manager): cada servidor de P-02 tiene que tener ingesta, sin laguna mayor que P-12. Un servidor declarado sin ningún evento es un hallazgo directo de op.exp.8.2.",
+      "wazuhUsage": "Regla 110915 (agent_keepalive_observed): en cada pasada, el recolector del manager lee de global.db el último keepalive y el estado de conexión de cada agente.",
+      "ensfacilUsage": "EV-04 (en la fila del manager): en ninguna pasada de la ventana el último keepalive de un servidor de P-02 puede quedar más atrás que P-12. Un servidor declarado que no figura en la base de agentes del manager es un hallazgo directo de op.exp.8.2.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -481,7 +481,7 @@
       "controlId": "op.exp.8",
       "name": "antiguedad_maxima_keepalive_horas",
       "label": "Silencio máximo tolerado de un servidor (horas)",
-      "description": "Horas que puede pasar un servidor sin comunicar con el manager, o sin que llegue ninguno de sus eventos, antes de considerarlo desconectado de forma sostenida. Los recolectores de ENSFácil laten cada hora: un valor de 2 o 3 tolera una pasada perdida.",
+      "description": "Horas que puede pasar un servidor sin comunicar con el manager (sin keepalive) antes de considerarlo desconectado de forma sostenida. Es también el hueco máximo entre dos pasadas del recolector del manager para poder acreditar la continuidad. Los recolectores de ENSFácil laten cada hora: un valor de 2 o 3 tolera una pasada perdida.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -493,8 +493,8 @@
       "type": "duration_hours",
       "example": "3",
       "required": false,
-      "wazuhUsage": "Reglas 110902 (agent_status, último keepalive del agente) y 110904 (log_ingestion_status, último evento y laguna máxima por agente).",
-      "ensfacilUsage": "EV-02 con ANTIGUEDAD_MAXIMA: el último keepalive no puede ser más viejo. EV-04: ni el último evento ni la laguna más larga de la ingesta pueden superarlo.",
+      "wazuhUsage": "Reglas 110902 (agent_status, último keepalive leído en el agente) y 110915 (agent_keepalive_observed, último keepalive de cada agente leído en el manager en cada pasada).",
+      "ensfacilUsage": "EV-02 con ANTIGUEDAD_MAXIMA: el último keepalive no puede ser más viejo. EV-04: en ninguna pasada del recolector del manager el último keepalive de un servidor de P-02 puede quedar más atrás, y entre dos pasadas no puede pasar más tiempo (si pasa, la continuidad no se puede acreditar).",
       "evidenceIds": [
         "EV-02",
         "EV-04"

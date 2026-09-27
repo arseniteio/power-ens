@@ -144,9 +144,9 @@ export const opExp8Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Continuidad de la ingesta y detección de lagunas',
       description:
-        'Vigilancia de la continuidad del registro por fuente y por agente, detectando períodos sin eventos donde debería haberlos. Una laguna en el registro es el defecto más grave posible en este control: el período afectado queda sin trazabilidad y sin posibilidad de reconstruirla.',
+        'Vigilancia de la continuidad del registro por agente, por su latido con el manager: en cada pasada, el último keepalive de cada servidor contra el silencio máximo tolerado. Una laguna en el registro es el defecto más grave posible en este control: el período afectado queda sin trazabilidad y sin posibilidad de reconstruirla.',
       format: 'json_line',
-      events: ['evidence_state', 'log_ingestion_status'],
+      events: ['evidence_state', 'agent_keepalive_observed'],
       wazuhRuleIds: [],
     },
     {
@@ -419,7 +419,7 @@ export const opExp8Control: ENSControl = {
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
-  events: ['evidence_state', 'control_state', 'score_snapshot', 'audit_log_status', 'audit_coverage', 'agent_status', 'audit_record_fields', 'log_ingestion_status', 'log_review_recorded', 'time_sync_status', 'clock_change_observed', 'log_retention_observed', 'log_access_permissions', 'log_backup_status', 'correlation_rules_inventory', 'active_response_configured', 'active_response_executed', 'logging_service_status'],
+  events: ['evidence_state', 'control_state', 'score_snapshot', 'audit_log_status', 'audit_coverage', 'agent_status', 'audit_record_fields', 'agent_keepalive_observed', 'log_review_recorded', 'time_sync_status', 'clock_change_observed', 'log_retention_observed', 'log_access_permissions', 'log_backup_status', 'correlation_rules_inventory', 'active_response_configured', 'active_response_executed', 'logging_service_status'],
   presentationRules: {
     auditorSees: [
       'control ENS',

@@ -3224,23 +3224,28 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Los registros de auditoría del servidor traen los cinco campos de op.exp.8.1 (usuario, fecha y hora, objeto, tipo y resultado)?',
   },
   {
-    // Plano central (agent.id=000). La policy cruza P-02 con la ingesta por
-    // agente.
+    // Plano central (agent.id=000). La policy cruza P-02 con el último
+    // keepalive de cada agente en cada pasada del recolector del manager.
+    //
+    // NO es un hecho de estado aunque describa uno: la laguna se ve en la
+    // SERIE de pasadas de la ventana (una pasada en la que el keepalive quedaba
+    // más atrás que P-12), así que quedarse con la última borraría la laguna de
+    // anoche en cuanto el servidor vuelve. Por eso no declara
+    // `stateFactEventTypes`.
     id: 'EV-04',
     controlId: 'op.exp.8',
     title: 'Continuidad de la ingesta y detección de lagunas',
     description:
-      'Continuidad de la ingesta medida por el manager sobre las alertas que recibe: por agente, último evento, eventos en 24 h y laguna más larga en horas. Se cruza con los servidores declarados en P-02: un servidor sin ingesta o con una laguna mayor que P-12 queda sin trazabilidad en ese periodo.',
+      'Continuidad de la entrega de cada servidor al manager, medida por su latido: en cada pasada, el recolector del manager lee de la base local de agentes de Wazuh (global.db, en solo lectura) el último keepalive y el estado de conexión de cada agente. Se cruza con los servidores declarados en P-02: una pasada en la que el último keepalive de uno de ellos quedaba más atrás que P-12 es una laguna, y el periodo queda sin trazabilidad. Si faltan pasadas del propio recolector, la continuidad no se puede acreditar. Los eventos recibidos por agente viajan solo como dato informativo: un servidor tranquilo puede pasar horas sin alertas sin que eso sea una laguna.',
     requirements: ['op.exp.8.1', 'op.exp.8.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    expectedEventTypes: ['evidence_state', 'log_ingestion_status'],
-    stateFactEventTypes: ['log_ingestion_status'],
-    relatedRules: ['110904'],
+    expectedEventTypes: ['evidence_state', 'agent_keepalive_observed'],
+    relatedRules: ['110915'],
     auditQuestion:
-      '¿Todos los servidores declarados en P-02 entregan eventos al manager sin lagunas mayores que P-12?',
+      '¿Todos los servidores declarados en P-02 mantienen su latido con el manager sin lagunas mayores que P-12 en ninguna pasada de la ventana?',
   },
   {
     // Plano central. Registro TSV de la organización en el manager.

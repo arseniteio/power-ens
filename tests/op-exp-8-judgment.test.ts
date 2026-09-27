@@ -22,7 +22,7 @@ import { opExp8CatalogDefinition } from '../dashboard/ens/catalog/op-exp-8';
 import { opExp8Configuration } from '../dashboard/ens/configuration/data/op-exp-8-parameters';
 import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
 import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
 import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
 import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
 import type {
@@ -106,9 +106,11 @@ const REAL_WAZUH4: Record<string, unknown>[] = [
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:37Z", "host": "Wazuh-4", "event": "log_access_permissions", "evidence_id": "EV-08", "requisito": "op.exp.8.r4.1", "plano": "sistema", "ruta": "/var/ossec/logs/alerts", "propietario": "wazuh", "grupo": "wazuh", "modo": "750", "acl": "-", "lectura_mundo": "no", "ficheros_examinados": 200, "cuentas": "root,wazuh"},
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:42Z", "host": "Wazuh-4", "event": "log_access_permissions", "evidence_id": "EV-08", "requisito": "op.exp.8.r4.1", "plano": "sistema", "ruta": "/var/ossec/logs/archives", "propietario": "wazuh", "grupo": "wazuh", "modo": "750", "acl": "-", "lectura_mundo": "no", "ficheros_examinados": 200, "cuentas": "root,wazuh"},
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:42Z", "host": "Wazuh-4", "event": "log_access_permissions", "evidence_id": "EV-08", "requisito": "op.exp.8.r4.1", "plano": "sistema", "ruta": "/var/lib/wazuh-indexer", "propietario": "wazuh-indexer", "grupo": "wazuh-indexer", "modo": "750", "acl": "-", "lectura_mundo": "no", "ficheros_examinados": 6, "cuentas": "root,wazuh-indexer"},
-  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_ingestion_status", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "000", "agente": "Wazuh-4", "ultimo_evento": "2026-09-26T19:11:30Z", "eventos_24h": 866, "horas_sin_eventos_24h": 10, "mayor_laguna_horas": 5, "ventana_observada_horas": 13},
-  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_ingestion_status", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "024", "agente": "wazuh-real", "ultimo_evento": "2026-09-26T19:11:42Z", "eventos_24h": 2875, "horas_sin_eventos_24h": 0, "mayor_laguna_horas": 0, "ventana_observada_horas": 19},
-  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_ingestion_status", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "025", "agente": "wazuh-fake", "ultimo_evento": "2026-09-26T19:00:02Z", "eventos_24h": 6692, "horas_sin_eventos_24h": 0, "mayor_laguna_horas": 0, "ventana_observada_horas": 19},
+  // EV-04 con el recolector del 27/09: el último keepalive de global.db por agente.
+  // Formato real de la pasada del 27/09 en wazuh4, con los instantes de esta pasada.
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "agent_keepalive_observed", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "000", "agente": "Wazuh-4", "estado_conexion": "active", "ultimo_keepalive": "2026-09-26T19:11:44Z", "local": "si", "ultimo_evento": "2026-09-26T19:11:30Z", "eventos_24h": 866},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "agent_keepalive_observed", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "024", "agente": "wazuh-real", "estado_conexion": "active", "ultimo_keepalive": "2026-09-26T19:11:00Z", "local": "no", "ultimo_evento": "2026-09-26T19:11:42Z", "eventos_24h": 2875},
+  {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "agent_keepalive_observed", "evidence_id": "EV-04", "requisito": "op.exp.8.1,op.exp.8.2", "plano": "central", "agente_id": "025", "agente": "wazuh-fake", "estado_conexion": "active", "ultimo_keepalive": "2026-09-26T19:11:00Z", "local": "no", "ultimo_evento": "2026-09-26T19:00:02Z", "eventos_24h": 6692},
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_review_recorded", "evidence_id": "EV-05", "requisito": "op.exp.8.r1.1", "plano": "central", "registro": "/tmp/ensfacil-dev-op.exp.8/registro-ejemplo.tsv", "revisiones": 2, "ultima_revision": "2026-09-15", "revisor": "rsec", "alcance": "autenticaciones fallidas y sudo", "hallazgos": "dos fuerzas brutas SSH bloqueadas", "referencia": "https://intranet.ejemplo/revisiones/2026-09-15"},
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_retention_observed", "evidence_id": "EV-07", "requisito": "op.exp.8.r3.1", "plano": "central", "almacen": "alertas_disco", "ruta": "/var/ossec/logs/alerts", "activo": "si", "mas_antiguo": "2026-06-12", "dias_conservados": "106", "ficheros": 105},
   {"ensfacil": "op.exp.8", "ts": "2026-09-26T19:11:44Z", "host": "Wazuh-4", "event": "log_retention_observed", "evidence_id": "EV-07", "requisito": "op.exp.8.r3.1", "plano": "central", "almacen": "archives_disco", "ruta": "/var/ossec/logs/archives", "activo": "no", "logall": "no", "logall_json": "no", "mas_antiguo": "2026-06-12", "dias_conservados": "106"},
@@ -140,7 +142,7 @@ let contador = 0;
 
 const REGLA: Record<string, string> = {
   audit_log_status: '110901', agent_status: '110902', audit_record_fields: '110903',
-  log_ingestion_status: '110904', log_review_recorded: '110905', time_sync_status: '110906',
+  agent_keepalive_observed: '110915', log_review_recorded: '110905', time_sync_status: '110906',
   clock_change_observed: '110907', log_retention_observed: '110908',
   log_access_permissions: '110909', correlation_rules_inventory: '110910',
   active_response_configured: '110911', active_response_executed: '110912',
@@ -406,7 +408,7 @@ bloque('7. Fila del manager (wazuh4): servidor + sistema central');
   const r = evalua(central(), BASE, AHORA, 'ALTO', '000');
 
   comprueba('el manager sin auditd → op.exp.8.1 NO_CUMPLE (es un servidor más)', r.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /auditd no está activo/.test(r.motivo('op.exp.8.1')), r.motivo('op.exp.8.1'));
-  comprueba('Wazuh-4 con una laguna de 5 h y P-12 = 3 → op.exp.8.2 NO_CUMPLE', r.requisito('op.exp.8.2').status === 'NO_CUMPLE' && /Wazuh-4: laguna de 5 h/.test(r.motivo('op.exp.8.2')), r.motivo('op.exp.8.2'));
+  comprueba('Wazuh-4 horas sin alertas propias ya no es laguna: con su latido al día, op.exp.8.2 CUMPLE', r.requisito('op.exp.8.2').status === 'CUMPLE' && r.evidencia('EV-04')?.status === 'CUMPLE', r.motivo('op.exp.8.2'));
   comprueba('EV-02 NO_APLICA en el manager (no tiene agente propio)', r.evidencia('EV-02')?.status === 'NO_APLICA', r.evidencia('EV-02')?.status);
   comprueba('R1 CUMPLE: revisión del 15/09 con periodicidad de 30 días', r.requisito('op.exp.8.r1.1').status === 'CUMPLE', r.motivo('op.exp.8.r1.1'));
   comprueba('R3 no demostrado: la retención del indexer no se ve sin credenciales', r.requisito('op.exp.8.r3.1').evidenced === false && /ISM/.test(r.motivo('op.exp.8.r3.1')), r.motivo('op.exp.8.r3.1'));
@@ -415,11 +417,8 @@ bloque('7. Fila del manager (wazuh4): servidor + sistema central');
   comprueba('R5.1 CUMPLE: el manager carga los conjuntos wazuh y ensfacil', r.requisito('op.exp.8.r5.1').status === 'CUMPLE', r.motivo('op.exp.8.r5.1'));
   comprueba('R5.2 no demostrado: respuesta configurada pero ninguna ejecución disparada por una alerta', r.requisito('op.exp.8.r5.2').evidenced === false && /ninguna respuesta automática disparada/.test(r.motivo('op.exp.8.r5.2')), r.motivo('op.exp.8.r5.2'));
 
-  const holgado = evalua(central(), { ...BASE, 'P-12': '6' }, AHORA, 'ALTO', '000');
-  comprueba('REVERSIÓN: los MISMOS hechos con P-12 = 6 h → la ingesta ya no incumple (queda el auditd del manager)', !/Wazuh-4: laguna/.test(holgado.motivo('op.exp.8.2')) && holgado.requisito('op.exp.8.2').status === 'CUMPLE', holgado.motivo('op.exp.8.2'));
-
   const noDeclarado = evalua(central(), { ...BASE, 'P-02': ['wazuh-real | x | x', 'srv-inexistente | x | x'] }, AHORA, 'ALTO', '000');
-  comprueba('un servidor de P-02 sin ningún evento en el manager → NO_CUMPLE nombrándolo', noDeclarado.requisito('op.exp.8.2').status === 'NO_CUMPLE' && /srv-inexistente/.test(noDeclarado.motivo('op.exp.8.2')), noDeclarado.motivo('op.exp.8.2'));
+  comprueba('un servidor de P-02 que no figura en la base de agentes del manager → NO_CUMPLE nombrándolo', noDeclarado.requisito('op.exp.8.2').status === 'NO_CUMPLE' && /srv-inexistente: no figura en la base de agentes/.test(noDeclarado.motivo('op.exp.8.2')), noDeclarado.motivo('op.exp.8.2'));
 
   const semanal = evalua(central(), { ...BASE, 'P-04': '7' }, AHORA, 'ALTO', '000');
   comprueba('REVERSIÓN: la misma revisión del 15/09 con periodicidad de 7 días → NO_CUMPLE', semanal.requisito('op.exp.8.r1.1').status === 'NO_CUMPLE', semanal.motivo('op.exp.8.r1.1'));
@@ -574,6 +573,98 @@ bloque('8. Solo cuentan los hechos de op.exp.8');
   }]);
   const r = evalua(ajeno);
   comprueba('un agent_status de op.exp.1 no acredita op.exp.8.2', r.requisito('op.exp.8.2').status !== 'CUMPLE', r.requisito('op.exp.8.2').status);
+}
+
+// --- 12. EV-04: la continuidad por el latido, pasada a pasada ----------------
+
+bloque('12. EV-04 · lagunas por el keepalive en la serie de pasadas del manager');
+
+{
+  // La pasada real de wazuh4 sin sus hechos de EV-04, y una serie horaria de
+  // hechos de keepalive que termina en la pasada de las 19:11:44.
+  const FIN = Date.parse('2026-09-26T19:11:44Z');
+  const sinEv04 = REAL_WAZUH4.filter(l => l.event !== 'agent_keepalive_observed');
+  const pasada = (t: number, retraso: Record<string, number | null | undefined>) =>
+    [
+      ['000', 'Wazuh-4', 0],
+      ['024', 'wazuh-real', '024' in retraso ? retraso['024'] : 0.01],
+      ['025', 'wazuh-fake', '025' in retraso ? retraso['025'] : 0.01],
+    ]
+      .filter(([id]) => retraso[String(id)] !== undefined || !(String(id) in retraso))
+      .map(([id, nombre, horasAtras]) => ({
+        ts: new Date(t).toISOString().replace('.000Z', 'Z'),
+        event: 'agent_keepalive_observed', evidence_id: 'EV-04', requisito: 'op.exp.8.1,op.exp.8.2', plano: 'central',
+        agente_id: id, agente: nombre,
+        estado_conexion: horasAtras === null ? 'never_connected' : Number(horasAtras) > 1 ? 'disconnected' : 'active',
+        ultimo_keepalive: horasAtras === null ? '-' : new Date(t - Number(horasAtras) * 3600000).toISOString().replace('.000Z', 'Z'),
+        local: id === '000' ? 'si' : 'no',
+        ultimo_evento: '-', eventos_24h: 0,
+      }));
+  // `horas` pasadas horarias hacia atrás; `retrasos(i)` da, para la pasada i
+  // (0 = la más antigua), cuánto quedaba atrás el keepalive de cada agente.
+  const serie = (horas: number, retrasos: (i: number) => Record<string, number | null | undefined> = () => ({}), omitir: number[] = []) =>
+    eventos(
+      [
+        ...sinEv04,
+        ...Array.from({ length: horas }, (_, i) => i)
+          .filter(i => !omitir.includes(i))
+          .flatMap(i => pasada(FIN - (horas - 1 - i) * 3600000, retrasos(i))),
+      ],
+      MANAGER
+    );
+  const ev04 = (evs: ENSNormalizedEvent[], valores = BASE, ahora = AHORA) => {
+    const r = evalua(evs, valores, ahora, 'ALTO', '000');
+    // La decisión de la EVIDENCIA (la del requisito lleva `trace.ruleId` sin barra).
+    const decision = r.decisions.find(d => d.trace.ruleId === 'op.exp.8.2/EV-04');
+
+    return { estado: decision?.status, motivo: decision?.reason || '', causa: decision?.cause, r };
+  };
+
+  const tranquilo = ev04(serie(12));
+  comprueba('12 pasadas con el latido al día y CERO eventos por agente → CUMPLE (tranquilo no es laguna)', tranquilo.estado === 'CUMPLE' && /12 pasadas/.test(tranquilo.motivo), tranquilo.motivo);
+
+  const caida = ev04(serie(12, i => (i === 5 ? { '024': 4 } : {})));
+  comprueba('una pasada con el keepalive de wazuh-real 4 h atrás (P-12 = 3) → NO_CUMPLE nombrándola', caida.estado === 'NO_CUMPLE' && /wazuh-real: laguna en 1 de 12 pasadas/.test(caida.motivo) && /2026-09-26T13:11:44Z/.test(caida.motivo), caida.motivo);
+  comprueba('y op.exp.8.2 no conforma, MEDIDO', caida.r.requisito('op.exp.8.2').status === 'NO_CUMPLE' && caida.r.requisito('op.exp.8.2').evidenced === true, caida.r.requisito('op.exp.8.2').status);
+  comprueba('la laguna de hace 6 h sigue contando aunque el servidor ya haya vuelto (no es un hecho de estado)', /laguna en 1 de 12/.test(caida.motivo), caida.motivo);
+  const caidaHolgada = ev04(serie(12, i => (i === 5 ? { '024': 4 } : {})), { ...BASE, 'P-12': '5' });
+  comprueba('REVERSIÓN: la misma serie con P-12 = 5 → CUMPLE', caidaHolgada.estado === 'CUMPLE', caidaHolgada.motivo);
+
+  const huecos = ev04(serie(12, () => ({}), [4, 5, 6, 7]));
+  comprueba('faltan 4 pasadas seguidas del recolector (5 h sin mirar, P-12 = 3) → NO_EVALUABLE, no NO_CUMPLE', huecos.estado === 'NO_EVALUABLE' && huecos.causa === 'COLLECTION' && /Faltan pasadas del recolector del manager/.test(huecos.motivo), `${huecos.estado} ${huecos.causa} ${huecos.motivo}`);
+  comprueba('y op.exp.8.2 queda no demostrado, con causa de RECOGIDA', huecos.r.requisito('op.exp.8.2').evidenced === false, huecos.r.requisito('op.exp.8.2').status);
+  const huecosHolgados = ev04(serie(12, () => ({}), [4, 5, 6, 7]), { ...BASE, 'P-12': '6' });
+  comprueba('REVERSIÓN: los mismos huecos con P-12 = 6 → CUMPLE', huecosHolgados.estado === 'CUMPLE', huecosHolgados.motivo);
+  const unaPerdida = ev04(serie(12, () => ({}), [6]));
+  comprueba('una sola pasada perdida (2 h entre dos, P-12 = 3) no es un hueco', unaPerdida.estado === 'CUMPLE', unaPerdida.motivo);
+
+  const ambas = ev04(serie(12, i => (i === 9 ? { '025': 5 } : {}), [3, 4, 5, 6]));
+  comprueba('laguna observada y además pasadas perdidas → manda la medida: NO_CUMPLE', ambas.estado === 'NO_CUMPLE' && /wazuh-fake/.test(ambas.motivo), ambas.motivo);
+
+  const parado = ev04(serie(12), BASE, new Date('2026-09-27T00:30:00Z'));
+  comprueba('la última pasada tiene 5 h y P-12 = 3 → NO_EVALUABLE (el recolector no está mirando)', parado.estado === 'NO_EVALUABLE' && parado.causa === 'COLLECTION' && /hasta ahora/.test(parado.motivo), `${parado.estado} ${parado.motivo}`);
+
+  const nunca = ev04(serie(3, () => ({ '024': null })));
+  comprueba('un servidor de P-02 que nunca conectó (sin keepalive) → NO_CUMPLE', nunca.estado === 'NO_CUMPLE' && /wazuh-real: laguna en 3 de 3 pasadas/.test(nunca.motivo) && /never_connected/.test(nunca.motivo), nunca.motivo);
+
+  const baja = ev04(serie(4, i => (i === 2 ? { '025': undefined } : {})));
+  comprueba('un servidor que desaparece de la base de agentes en una pasada → laguna', baja.estado === 'NO_CUMPLE' && /wazuh-fake: laguna en 1 de 4/.test(baja.motivo) && /no figuraba/.test(baja.motivo), baja.motivo);
+
+  // Los hechos del recolector anterior (horas sin alertas) ya no deciden nada.
+  const viejo = ev04(eventos([
+    ...sinEv04,
+    { ts: '2026-09-26T19:11:44Z', event: 'log_ingestion_status', evidence_id: 'EV-04', requisito: 'op.exp.8.1,op.exp.8.2', plano: 'central', agente_id: '000', agente: 'Wazuh-4', ultimo_evento: '2026-09-26T19:11:30Z', eventos_24h: 866, horas_sin_eventos_24h: 10, mayor_laguna_horas: 5, ventana_observada_horas: 13 },
+  ], MANAGER));
+  comprueba('solo con log_ingestion_status (recolector anterior) → NO_EVALUABLE por RECOGIDA, ni CUMPLE ni la laguna de 5 h', viejo.estado === 'NO_EVALUABLE' && viejo.causa === 'COLLECTION' && !/laguna de 5 h/.test(viejo.motivo), `${viejo.estado} ${viejo.motivo}`);
+
+  const sinBase = ev04(eventos([
+    ...sinEv04,
+    ...pasada(FIN - 3600000, {}),
+    { ts: '2026-09-26T19:11:44Z', event: 'evidence_state', evidence_id: 'EV-04', requisito: 'op.exp.8.1,op.exp.8.2', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
+  ], MANAGER));
+  comprueba('global.db ilegible en la última pasada → NO_EVALUABLE con el motivo del recolector', sinBase.estado === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo), sinBase.motivo);
+
+  comprueba('EV-04 no se declara hecho de estado: el motor no descarta las pasadas anteriores', !getStateFactEventTypes('op.exp.8').has('agent_keepalive_observed'));
 }
 
 // --- salida ----------------------------------------------------------------

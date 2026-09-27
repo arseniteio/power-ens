@@ -651,57 +651,177 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   );
 };
 
-// EV-04 · cada servidor declarado entrega, sin lagunas mayores que P-12.
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'log_ingestion_status', ahora);
+// EV-04 · cada servidor declarado mantiene su latido con el manager, sin
+// lagunas mayores que P-12, en TODAS las pasadas de la ventana.
+//
+// Se mide por el keepalive, no por las alertas (decisión del 27/09): un
+// servidor sano y tranquilo pasa horas sin generar una alerta, y contar esas
+// horas como laguna daba un NO_CUMPLE que no demostraba nada. El recolector del
+// manager lee en cada pasada, de la base local de agentes, el ÚLTIMO keepalive
+// de cada uno; como la base solo guarda el último, la laguna se ve en la serie
+// de pasadas: una pasada en la que el keepalive quedaba más atrás que P-12.
+//
+// Dos límites que se dicen en el motivo y no se esconden:
+//   - con pasadas horarias, una laguna se ve si dura más que P-12 más el
+//     intervalo entre pasadas; una más corta puede caer entre dos;
+//   - si faltan pasadas del propio recolector (dos seguidas separadas más que
+//     P-12, o la última más vieja que P-12), una laguna ahí no se habría
+//     visto: NO_EVALUABLE por COLLECTION, nunca CUMPLE. Una laguna SÍ
+//     observada manda sobre eso: es una medida.
+const HECHO_KEEPALIVE = 'agent_keepalive_observed';
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-04', ultimo, 'estado de la ingesta medido en el manager');
+// Hechos de una misma pasada: el recolector los emite en pocos segundos.
+const MISMA_PASADA = 5 * 60 * 1000;
+
+// Holgura del hueco entre pasadas: el cron no cae en el mismo segundo cada hora.
+const HOLGURA_PASADA = 15 * 60 * 1000;
+
+const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
+
+const pasadasDeKeepalive = (
+  validos: ENSNormalizedEvent[]
+): { t: number; hechos: ENSNormalizedEvent[] }[] => {
+  const pasadas: { t: number; hechos: ENSNormalizedEvent[] }[] = [];
+
+  [...validos]
+    .sort((a, b) => momento(a) - momento(b))
+    .forEach(e => {
+      const actual = pasadas[pasadas.length - 1];
+
+      if (actual && momento(e) - actual.t <= MISMA_PASADA) {
+        actual.hechos.push(e);
+
+        return;
+      }
+
+      pasadas.push({ t: momento(e), hechos: [e] });
+    });
+
+  return pasadas;
+};
+
+const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const validos = hechos(context, HECHO_KEEPALIVE).filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+  const ultimo = validos.length ? Math.max(...validos.map(momento)) : undefined;
+
+  if (ultimo === undefined || ahora - ultimo > FRESCURA_HORAS * HORA) {
+    return sinHechos(context, 'EV-04', ultimo, 'último keepalive de los agentes leído en el manager');
   }
 
+  // Lo que el recolector declaró después de su último hecho (la base de
+  // agentes dejó de poder leerse, por ejemplo).
+  const deg = degradacion(context, 'EV-04', ultimo + 1);
+
+  if (deg) {
+    return deg;
+  }
+
+  const pasadas = pasadasDeKeepalive(validos);
+  const ultimaPasada = pasadas[pasadas.length - 1];
   const servidores = filas(context, 'P-02');
   const plazo = escalar(context, 'P-12');
 
   if (!servidores) {
-    return faltaParametro(context, 'P-02', `qué servidores tienen que estar entregando (el manager recibe hoy de ${vigentes.length} agentes)`);
+    return faltaParametro(context, 'P-02', `qué servidores tienen que estar entregando (el manager tiene hoy ${ultimaPasada.hechos.length} agentes registrados)`);
   }
 
   if (plazo === undefined || plazo <= 0) {
     return faltaParametro(context, 'P-12', 'cuánto silencio de un servidor es una laguna');
   }
 
+  const desde = pasadas[0].t;
+  const plazoMs = plazo * HORA;
   const fallos: string[] = [];
   const bien: string[] = [];
 
   servidores.forEach(fila => {
     const nombre = fila.servidor;
-    const hecho = vigentes.find(e => iguales(campo(e, 'agente'), nombre) || iguales(campo(e, 'agente_id'), nombre));
+    const suyo = (e: ENSNormalizedEvent) =>
+      iguales(campo(e, 'agente'), nombre) || iguales(campo(e, 'agente_id'), nombre);
 
-    if (!hecho) {
-      fallos.push(`${nombre}: el manager no ha recibido ningún evento suyo desde que se observa`);
+    if (!pasadas.some(p => p.hechos.some(suyo))) {
+      fallos.push(`${nombre}: no figura en la base de agentes del manager en ninguna pasada desde ${iso(desde)}`);
 
       return;
     }
 
-    const ult = instante(campo(hecho, 'ultimo_evento'));
-    const laguna = numero(campo(hecho, 'mayor_laguna_horas')) || 0;
+    // Por pasada, cuánto quedaba atrás su último keepalive.
+    const lagunas: { t: number; detalle: string; retraso: number }[] = [];
 
-    if (ult === undefined) {
-      fallos.push(`${nombre}: último evento ilegible (${campo(hecho, 'ultimo_evento')})`);
-    } else if (ahora - ult > plazo * HORA) {
-      fallos.push(`${nombre}: último evento el ${campo(hecho, 'ultimo_evento')}, hace ${horas(ahora - ult)} h (plazo ${plazo} h)`);
-    } else if (laguna > plazo) {
-      fallos.push(`${nombre}: laguna de ${laguna} h seguidas sin eventos en las últimas ${campo(hecho, 'ventana_observada_horas')} h (plazo ${plazo} h)`);
-    } else {
-      bien.push(`${nombre} (${campo(hecho, 'eventos_24h')} eventos en 24 h, laguna máxima ${laguna} h)`);
+    pasadas.forEach(p => {
+      const hecho = p.hechos.find(suyo);
+
+      if (!hecho) {
+        lagunas.push({ t: p.t, retraso: Infinity, detalle: 'no figuraba en la base de agentes' });
+
+        return;
+      }
+
+      const keepalive = instante(campo(hecho, 'ultimo_keepalive'));
+      const estado = campo(hecho, 'estado_conexion') || 'desconocido';
+
+      if (keepalive === undefined) {
+        lagunas.push({ t: p.t, retraso: Infinity, detalle: `sin keepalive (${estado})` });
+      } else if (p.t - keepalive > plazoMs) {
+        lagunas.push({
+          t: p.t,
+          retraso: p.t - keepalive,
+          detalle: `último keepalive ${iso(keepalive)}, ${horas(p.t - keepalive)} h antes (${estado})`,
+        });
+      }
+    });
+
+    if (lagunas.length) {
+      const peorLaguna = [...lagunas].sort((a, b) => b.retraso - a.retraso)[0];
+      const ultimaLaguna = lagunas[lagunas.length - 1];
+
+      fallos.push(
+        `${nombre}: laguna en ${lagunas.length} de ${pasadas.length} pasadas desde ${iso(desde)} (plazo ${plazo} h); la peor, en la pasada de ${iso(peorLaguna.t)}: ${peorLaguna.detalle}${
+          ultimaLaguna !== peorLaguna ? `; la más reciente, ${iso(ultimaLaguna.t)}: ${ultimaLaguna.detalle}` : ''
+        }`
+      );
+
+      return;
     }
+
+    const actual = ultimaPasada.hechos.find(suyo);
+    const keepalive = actual ? instante(campo(actual, 'ultimo_keepalive')) : undefined;
+    const eventos = actual ? campo(actual, 'eventos_24h') : '';
+
+    bien.push(
+      `${nombre} (último keepalive ${keepalive !== undefined ? `${Math.max(0, Math.round((ultimaPasada.t - keepalive) / 60000))} min antes de la última pasada` : 'desconocido'}${
+        eventos ? `; ${eventos} eventos en 24 h, dato informativo` : ''
+      })`
+    );
   });
 
   if (fallos.length) {
-    return noCumple(`Servidores de P-02 sin registro continuo en el manager: ${lista(fallos)}.`);
+    return noCumple(`Servidores de P-02 sin latido continuo con el manager: ${lista(fallos)}.`);
   }
 
-  return cumple(`Los ${bien.length} servidores de P-02 entregan su registro sin lagunas mayores de ${plazo} h: ${lista(bien)}.`);
+  // Sin laguna observada: ¿se observó TODO el periodo?
+  const huecos: string[] = [];
+
+  pasadas.forEach((p, i) => {
+    if (i > 0 && p.t - pasadas[i - 1].t > plazoMs + HOLGURA_PASADA) {
+      huecos.push(`entre ${iso(pasadas[i - 1].t)} y ${iso(p.t)} (${horas(p.t - pasadas[i - 1].t)} h)`);
+    }
+  });
+
+  if (ahora - ultimaPasada.t > plazoMs + HOLGURA_PASADA) {
+    huecos.push(`desde ${iso(ultimaPasada.t)} hasta ahora (${horas(ahora - ultimaPasada.t)} h)`);
+  }
+
+  if (huecos.length) {
+    return sinMedir(
+      `Faltan pasadas del recolector del manager ${lista(huecos)}: más de P-12 (${plazo} h) sin mirar, así que una laguna de un servidor en ese intervalo no se habría visto. En las pasadas que sí hay, ningún servidor de P-02 superó el plazo.`,
+      'COLLECTION'
+    );
+  }
+
+  return cumple(
+    `En las ${pasadas.length} pasadas del recolector del manager desde ${iso(desde)}, el último keepalive de los ${bien.length} servidores de P-02 nunca quedó más atrás de ${plazo} h: ${lista(bien)}.`
+  );
 };
 
 // EV-05 · la revisión más reciente, contra P-04.

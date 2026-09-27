@@ -18,7 +18,7 @@
            EV-01 110901 y 110914 · EV-02 110902 · EV-03 110903
            EV-06 110906 y 110907 · EV-08 110909
          plano central (solo el manager, agent.id=000)
-           EV-04 110904 · EV-05 110905 · EV-07 110908 · EV-10 110910
+           EV-04 110915 · EV-05 110905 · EV-07 110908 · EV-10 110910
            EV-11 110911 · EV-12 110912 · EV-13 110913
 
        EV-09 no tiene hecho: los snapshots del indexer solo se ven con una
@@ -75,13 +75,17 @@
     <description>op.exp.8 · EV-02 · agente $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
   </rule>
 
-  <!-- EV-04. Plano central. Continuidad de la ingesta de UN agente, medida por
-       el manager sobre las alertas que recibe: último evento, eventos en 24 h
-       y laguna más larga en horas. -->
-  <rule id="110904" level="3">
+  <!-- EV-04. Plano central. El último keepalive de UN agente según la base
+       local de agentes del manager (global.db, leída en solo lectura) y su
+       estado de conexión, en cada pasada. La laguna la ve el motor en la serie
+       de pasadas: una en la que el keepalive quedaba más atrás que P-12.
+       Sustituye a la 110904 (`log_ingestion_status`, horas sin alertas), que
+       se retiró el 27/09: un servidor tranquilo pasa horas sin alertas y eso
+       no es una laguna. El id no se reutiliza. -->
+  <rule id="110915" level="3">
     <if_sid>110900</if_sid>
-    <field name="event">log_ingestion_status</field>
-    <description>op.exp.8 · EV-04 · ingesta de $(agente): laguna máxima $(mayor_laguna_horas) h</description>
+    <field name="event">agent_keepalive_observed</field>
+    <description>op.exp.8 · EV-04 · agente $(agente) $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
   </rule>
 
   <!-- ===== op.exp.8.r1.1 · Revisión periódica de los registros ===== -->
