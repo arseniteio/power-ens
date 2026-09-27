@@ -46,7 +46,7 @@ import type {
   ENSPolicyEvaluatorResult,
   ENSRuntimeVariable,
 } from '../types';
-import type { ENSComplianceStatus } from '../../evaluation/types';
+import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
 import type { ENSControlParameter } from '../../../configuration/types';
 import {
@@ -76,14 +76,45 @@ const VENTANA_DIAS = 30;
 // Artículo 33 del RGPD: notificación a la autoridad de control en 72 horas.
 const AEPD_HORAS = 72;
 
+// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
+// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
+// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy.
 type Medida = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
+  causa?: ENSGapCause;
 };
 
 const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
 const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-const sinMedir = (motivo: string): Medida => ({ estado: 'NO_EVALUABLE', motivo });
+// Por defecto EVIDENCE: el dato llegó y no basta (o aún no hay incidente con el
+// que medir). Falta de parámetro (CONFIGURATION) y falta de pasada o de fuente
+// (COLLECTION) se dicen expresamente, y lo que el recolector declara llega con
+// SU causa (`degradacion`).
+const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+  estado: 'NO_EVALUABLE',
+  motivo,
+  causa,
+});
+
+// La causa de varias medidas sin medir, con el mismo orden que el motor
+// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
+// dice alguna; si no, EVIDENCE.
+const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
+  const causas = medidas
+    .filter(m => m.estado === 'NO_EVALUABLE')
+    .map(m => m.causa || 'EVIDENCE');
+
+  if (!causas.length) {
+    return undefined;
+  }
+
+  if (causas.every(c => c === 'COLLECTION')) {
+    return 'COLLECTION';
+  }
+
+  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+};
 
 const GRAVEDAD: Record<Medida['estado'], number> = {
   CUMPLE: 0,
@@ -356,11 +387,14 @@ const enLista = (texto: string, valor: string): boolean =>
 
 // La degradación que el recolector declaró para una evidencia en la MISMA
 // pasada que el último latido (o después): una de hace días ya no dice nada.
+// Viaja con la causa que ÉL declara (sin causa declarada, COLLECTION): es
+// quien sabe si falta un registro que la organización no mantiene o una
+// fuente que no pudo leer.
 const degradacion = (
   context: ENSPolicyContext,
   evidencia: string,
   latido: Latido
-): string | undefined => {
+): { motivo: string; causa: ENSGapCause } | undefined => {
   const candidatas = context.events
     .filter(
       e =>
@@ -372,7 +406,18 @@ const degradacion = (
     .filter(x => x.t !== undefined && (x.t as number) >= latido.t - HORA && (x.t as number) <= latido.t + TOLERANCIA_FUTURO)
     .sort((a, b) => (b.t as number) - (a.t as number));
 
-  return candidatas.length ? campo(candidatas[0].e, 'motivo') : undefined;
+  if (!candidatas.length) {
+    return undefined;
+  }
+
+  const declarada = campo(candidatas[0].e, 'causa').toUpperCase();
+
+  return {
+    motivo: campo(candidatas[0].e, 'motivo'),
+    causa: ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
+      ? (declarada as ENSGapCause)
+      : 'COLLECTION',
+  };
 };
 
 type Fuentes = { alertas?: boolean; registro?: boolean; ossecConf?: boolean };
@@ -389,7 +434,8 @@ const fuentes = (
 
   if (!latido) {
     return sinMedir(
-      'No hay ninguna pasada reciente del recolector del manager (ens_opexp7_collect.sh): sin ella no se sabe qué alertas, incidentes ni sellos hay hoy. Revisa su cron en el manager y que el alcance del plugin incluya el agente 000.'
+      'No hay ninguna pasada reciente del recolector del manager (ens_opexp7_collect.sh): sin ella no se sabe qué alertas, incidentes ni sellos hay hoy. Revisa su cron en el manager y que el alcance del plugin incluya el agente 000.',
+      'COLLECTION'
     );
   }
 
@@ -397,25 +443,29 @@ const fuentes = (
   const registro = campo(latido.evento, 'registro_incidentes');
   const motivo = degradacion(context, evidencia, latido);
 
+  // Un registro de incidentes ausente es de CONFIGURACIÓN: la organización no
+  // lo mantiene. Uno que no se pudo leer, de RECOGIDA.
   if (que.registro && !['presente', 'vacio'].includes(registro)) {
-    return sinMedir(
-      motivo ||
-        (registro === 'ausente'
-          ? 'No existe el registro de incidentes del manager (/etc/ensfacil/incident-register.tsv): la organización no ha empezado a registrar incidentes.'
-          : `El registro de incidentes no se ha podido leer en la última pasada (${registro || 'sin dato'}).`)
-    );
+    return motivo
+      ? sinMedir(motivo.motivo, motivo.causa)
+      : registro === 'ausente'
+      ? sinMedir(
+          'No existe el registro de incidentes del manager (/etc/ensfacil/incident-register.tsv): la organización no ha empezado a registrar incidentes.',
+          'CONFIGURATION'
+        )
+      : sinMedir(`El registro de incidentes no se ha podido leer en la última pasada (${registro || 'sin dato'}).`, 'COLLECTION');
   }
 
   if (que.alertas && !enLista(miradas, 'EV-01')) {
-    return sinMedir(
-      motivo || 'La última pasada del recolector no pudo leer las alertas del manager.'
-    );
+    return motivo
+      ? sinMedir(motivo.motivo, motivo.causa)
+      : sinMedir('La última pasada del recolector no pudo leer las alertas del manager.', 'COLLECTION');
   }
 
   if (que.ossecConf && !enLista(miradas, 'EV-10')) {
-    return sinMedir(
-      motivo || 'La última pasada del recolector no pudo leer el ossec.conf del manager.'
-    );
+    return motivo
+      ? sinMedir(motivo.motivo, motivo.causa)
+      : sinMedir('La última pasada del recolector no pudo leer el ossec.conf del manager.', 'COLLECTION');
   }
 
   return latido;
@@ -423,6 +473,30 @@ const fuentes = (
 
 const esMedida = (x: unknown): x is Medida =>
   typeof x === 'object' && x !== null && (x as Medida).estado !== undefined;
+
+// --- las respuestas activas ejecutadas ------------------------------------
+
+// Una ejecución de respuesta activa solo es RESPUESTA AUTOMÁTICA si la disparó
+// una alerta: `regla_disparadora` es la regla de esa alerta. Sin ella (`-`) es
+// un reinicio pedido a mano o desde la API —el `restart-wazuh.exe` de
+// WIN-OPACC-LAB del 24/09—, que no demuestra ni contención, ni reconfiguración,
+// ni que la respuesta automática opere. Se nombra en el motivo, pero no
+// acredita.
+const conOrigen = (e: ENSNormalizedEvent): boolean => {
+  const regla = campo(e, 'regla_disparadora');
+
+  return regla !== '' && regla !== '-';
+};
+
+const notaSinOrigen = (context: ENSPolicyContext): string => {
+  const sin = hechos(context, 'active_response_executed').filter(e => !conOrigen(e));
+
+  return sin.length
+    ? ` Ejecuciones sin alerta que las dispare (no acreditan): ${lista(
+        sin.map(e => `${campo(e, 'programa') || campo(e, 'comando')} ${campo(e, 'accion')} en ${campo(e, 'sistema')} (${campo(e, 'instante')})`)
+      )}.`
+    : '';
+};
 
 // --- los incidentes --------------------------------------------------------
 
@@ -616,7 +690,8 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!c) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar o no declara ningún nivel mínimo: las alertas llegan sin severidad ENS.`
+      `${etiqueta(context, 'P-01')} está sin configurar o no declara ningún nivel mínimo: las alertas llegan sin severidad ENS.`,
+      'CONFIGURATION'
     );
   }
 
@@ -628,7 +703,8 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (desde !== undefined && c.relevanteDesde !== undefined && desde > c.relevanteDesde) {
     return sinMedir(
-      `El recolector observa alertas desde nivel ${desde} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`
+      `El recolector observa alertas desde nivel ${desde} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`,
+      'CONFIGURATION'
     );
   }
 
@@ -644,7 +720,8 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (leidas === 0) {
     return sinMedir(
-      'Las pasadas del último día no han leído ninguna alerta en el manager: o no escribe alerts.json (jsonout_output) o el recolector no ve el fichero.'
+      'Las pasadas del último día no han leído ninguna alerta en el manager: o no escribe alerts.json (jsonout_output) o el recolector no ve el fichero.',
+      'COLLECTION'
     );
   }
 
@@ -684,7 +761,8 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!c || c.relevanteDesde === undefined) {
     return sinMedir(
-      `${etiqueta(context, 'P-01')} no declara desde qué nivel una alerta es Alta o Crítica: no hay alerta relevante que conciliar.`
+      `${etiqueta(context, 'P-01')} no declara desde qué nivel una alerta es Alta o Crítica: no hay alerta relevante que conciliar.`,
+      'CONFIGURATION'
     );
   }
 
@@ -692,7 +770,8 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!p02) {
     return sinMedir(
-      `${etiqueta(context, 'P-02')} está sin configurar: sin plazo de escalado no se sabe cuándo una alerta se ha quedado sin incidente.`
+      `${etiqueta(context, 'P-02')} está sin configurar: sin plazo de escalado no se sabe cuándo una alerta se ha quedado sin incidente.`,
+      'CONFIGURATION'
     );
   }
 
@@ -780,12 +859,13 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (sinPlazo.size) {
     return sinMedir(
-      `P-02 no tiene plazo para la severidad ${Array.from(sinPlazo).join(', ')}: esas alertas no se pueden conciliar.${notaExcluidas}`
+      `P-02 no tiene plazo para la severidad ${Array.from(sinPlazo).join(', ')}: esas alertas no se pueden conciliar.${notaExcluidas}`,
+      'CONFIGURATION'
     );
   }
 
   if (!enLista(campo(latido.evento, 'evidencias_cubiertas'), 'EV-02')) {
-    return sinMedir('La última pasada no declara haber leído a la vez las alertas y el registro: el silencio no acredita nada.');
+    return sinMedir('La última pasada no declara haber leído a la vez las alertas y el registro: el silencio no acredita nada.', 'COLLECTION');
   }
 
   return cumple(
@@ -833,7 +913,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   const tabla = filas(context, 'P-05');
 
   if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay plazos contra los que medir la respuesta.`);
+    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay plazos contra los que medir la respuesta.`, 'CONFIGURATION');
   }
 
   const registrados = incidentes(context, ahora);
@@ -939,7 +1019,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (sinFila.size) {
-    return sinMedir(`P-05 no tiene fila para la severidad de: ${lista(Array.from(sinFila))}.`);
+    return sinMedir(`P-05 no tiene fila para la severidad de: ${lista(Array.from(sinFila))}.`, 'CONFIGURATION');
   }
 
   const medidos = Array.from(series.values()).some(s => s.contencion.length || s.resolucion.length);
@@ -963,7 +1043,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p02 = escalados(context);
 
   if (!p02) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se sabe a quién había que escalar ni en qué plazo.`);
+    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se sabe a quién había que escalar ni en qué plazo.`, 'CONFIGURATION');
   }
 
   const registrados = incidentes(context, ahora);
@@ -1066,8 +1146,9 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
     return noCumple(`Escalado o comunicación incumplidos: ${lista(fallos)}.`);
   }
 
+  // Lo que queda sin decidir es siempre una fila que P-02 o P-04 no tienen.
   if (sinDecidir.length) {
-    return sinMedir(`No se puede juzgar todo: ${lista(sinDecidir)}.`);
+    return sinMedir(`No se puede juzgar todo: ${lista(sinDecidir)}.`, 'CONFIGURATION');
   }
 
   if (!bien) {
@@ -1089,7 +1170,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p08 = filas(context, 'P-08');
 
   if (!p08) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha decidido qué evidencias se preservan.`);
+    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha decidido qué evidencias se preservan.`, 'CONFIGURATION');
   }
 
   const registrados = incidentes(context, ahora);
@@ -1191,7 +1272,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     }
   });
 
-  const ejecuciones = hechos(context, 'active_response_executed').map(e => ({
+  const ejecuciones = hechos(context, 'active_response_executed').filter(conOrigen).map(e => ({
     sistema: campo(e, 'sistema'),
     comando: campo(e, 'comando').toLowerCase(),
     accion: campo(e, 'accion'),
@@ -1267,7 +1348,7 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p07 = filas(context, 'P-07');
 
   if (!p07) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se sabe qué sistemas tratan datos personales.`);
+    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se sabe qué sistemas tratan datos personales.`, 'CONFIGURATION');
   }
 
   const afectados = incidentes(context, ahora).filter(
@@ -1352,13 +1433,13 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p06 = filas(context, 'P-06');
 
   if (!p06) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no hay ventanilla única declarada.`);
+    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no hay ventanilla única declarada.`, 'CONFIGURATION');
   }
 
   const c = clasificacion(context);
 
   if (!c || !c.notificables.size) {
-    return sinMedir(`${etiqueta(context, 'P-01')} no marca ninguna severidad como notificable al CCN-CERT: no se sabe qué incidentes había que notificar.`);
+    return sinMedir(`${etiqueta(context, 'P-01')} no marca ninguna severidad como notificable al CCN-CERT: no se sabe qué incidentes había que notificar.`, 'CONFIGURATION');
   }
 
   const notificables = incidentes(context, ahora).filter(i => c.notificables.has(i.severidad));
@@ -1416,7 +1497,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p10 = filas(context, 'P-10');
 
   if (!p10) {
-    return sinMedir(`${etiqueta(context, 'P-10')} está sin configurar: no hay elementos de reconfiguración dinámica declarados.`);
+    return sinMedir(`${etiqueta(context, 'P-10')} está sin configurar: no hay elementos de reconfiguración dinámica declarados.`, 'CONFIGURATION');
   }
 
   const autorizadas = new Set(
@@ -1424,10 +1505,12 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
   );
 
   if (!autorizadas.size) {
-    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no hay acciones de reconfiguración autorizadas.`);
+    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no hay acciones de reconfiguración autorizadas.`, 'CONFIGURATION');
   }
 
   const elementos = p10.map(f => f.elemento).filter(Boolean);
+  // Para saber si un sistema TIENE agente vale cualquier ejecución, también
+  // las que no disparó ninguna alerta: solo dicen que el agente está ahí.
   const conAgente = new Set(
     hechos(context, 'security_alert_observed')
       .concat(hechos(context, 'active_response_executed'))
@@ -1437,6 +1520,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   const reconfiguraciones = hechos(context, 'active_response_executed').filter(
     e =>
+      conOrigen(e) &&
       autorizadas.has(campo(e, 'comando').toLowerCase()) &&
       campo(e, 'accion') !== 'delete' &&
       elementos.some(x => mismoSistema(x, campo(e, 'sistema')))
@@ -1470,12 +1554,13 @@ const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!observables.length) {
     return sinMedir(
-      `Ningún elemento de P-10 (${elementos.join(', ')}) tiene agente de Wazuh en el alcance: sus cambios no se pueden observar.`
+      `Ningún elemento de P-10 (${elementos.join(', ')}) tiene agente de Wazuh en el alcance: sus cambios no se pueden observar.`,
+      'COLLECTION'
     );
   }
 
   return sinMedir(
-    `No consta ninguna reconfiguración con una acción de P-09 sobre ${observables.join(', ')} en los últimos ${VENTANA_DIAS} días: la capacidad no se ha ejercitado y no se puede demostrar.`
+    `No consta ninguna reconfiguración con una acción de P-09 sobre ${observables.join(', ')} en los últimos ${VENTANA_DIAS} días: la capacidad no se ha ejercitado y no se puede demostrar.${notaSinOrigen(context)}`
   );
 };
 
@@ -1489,7 +1574,7 @@ const ev10 = (context: ENSPolicyContext, ahora: number): Medida => {
   const p11 = (filas(context, 'P-11') || []).filter(f => f.lista_cdb);
 
   if (!p11.length) {
-    return sinMedir(`${etiqueta(context, 'P-11')} no declara ninguna lista CDB en la que se carguen los indicadores de los avisos.`);
+    return sinMedir(`${etiqueta(context, 'P-11')} no declara ninguna lista CDB en la que se carguen los indicadores de los avisos.`, 'CONFIGURATION');
   }
 
   const ultimas = new Map<string, ENSNormalizedEvent>();
@@ -1574,14 +1659,20 @@ const ev11 = (context: ENSPolicyContext, ahora: number): Medida => {
     return noCumple('No hay ninguna respuesta activa habilitada en el ossec.conf del manager.');
   }
 
-  const ejecutadas = hechos(context, 'active_response_executed');
+  const ejecutadas = hechos(context, 'active_response_executed').filter(conOrigen);
   const texto = Array.from(new Set(configuradas.map(e => `${campo(e, 'comando')} (${campo(e, 'reglas')})`))).join(', ');
 
   if (!ejecutadas.length) {
-    return sinMedir(`Respuesta automática configurada (${texto}) pero sin ninguna ejecución en los últimos ${VENTANA_DIAS} días.`);
+    return sinMedir(
+      `Respuesta automática configurada (${texto}) pero sin ninguna ejecución disparada por una alerta en los últimos ${VENTANA_DIAS} días: no hay prueba de que opere.${notaSinOrigen(context)}`
+    );
   }
 
-  return cumple(`Respuesta automática configurada (${texto}) y ejercitada ${ejecutadas.length} vez/veces en los últimos ${VENTANA_DIAS} días.`);
+  return cumple(
+    `Respuesta automática configurada (${texto}) y ejercitada ${ejecutadas.length} vez/veces a raíz de una alerta en los últimos ${VENTANA_DIAS} días: ${lista(
+      ejecutadas.map(e => `${campo(e, 'comando')} en ${campo(e, 'sistema')} por la regla ${campo(e, 'regla_disparadora')} (${campo(e, 'instante')})`)
+    )}.${notaSinOrigen(context)}`
+  );
 };
 
 const ev12 = (context: ENSPolicyContext, ahora: number): Medida => {
@@ -1635,7 +1726,8 @@ const decide = (
   tipo: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
   motivo: string,
-  esperado: string
+  esperado: string,
+  causa?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
   requirementId: requisito,
@@ -1653,6 +1745,7 @@ const decide = (
     result: estado === 'CUMPLE',
   },
   reason: motivo,
+  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
 });
 
 export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
@@ -1694,7 +1787,8 @@ export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorRes
         tipo,
         requisito,
         propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
-        evidencias.map(id => `${id} CUMPLE`).join(' y ')
+        evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        causaComun(responsables.map(p => p.medida))
       )
     );
 
@@ -1710,7 +1804,8 @@ export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorRes
           tipo,
           `${requisito}/${p.id}`,
           p.medida.motivo,
-          `${p.id} CUMPLE`
+          `${p.id} CUMPLE`,
+          p.medida.causa
         )
       )
     );

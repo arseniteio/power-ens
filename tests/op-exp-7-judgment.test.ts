@@ -550,6 +550,99 @@ bloque('12. La decisión llega al requisito y a la tabla de evidencias');
   comprueba('y EV-01, que sí está medida, sale CUMPLE: no hereda el rojo de EV-02', color('EV-01') === 'CUMPLE', color('EV-01'));
 }
 
+bloque('14. Respuesta automática: solo acredita la que disparó una alerta');
+
+{
+  // Salida real del recolector del manager (wazuh4, 26/09): un reinicio del
+  // agente de WIN-OPACC-LAB pedido sin ninguna alerta que lo dispare.
+  const reinicio = (disparadora: string) =>
+    alerta({
+      event: 'active_response_executed',
+      evidence_id: 'EV-06,EV-09,EV-11',
+      sistema: 'WIN-OPACC-LAB',
+      agente_id: '029',
+      comando: 'restart-wazuh',
+      programa: 'restart-wazuh.exe',
+      accion: 'add',
+      regla: '657',
+      regla_disparadora: disparadora,
+      origen: '-',
+      instante: '2026-09-24T07:09:48Z',
+    });
+  const configurada = alerta({
+    event: 'active_response_configured',
+    evidence_id: 'EV-11',
+    comando: 'firewall-drop',
+    reglas: '5763',
+    deshabilitada: 'no',
+  }, hace(0.5));
+
+  const sinOrigen = evalua(eventos(latido('vacio'), configurada, reinicio('-')), BASE);
+  comprueba('el restart-wazuh.exe sin alerta de origen NO acredita EV-11 (no CUMPLE)',
+    sinOrigen.estado('EV-11') !== 'CUMPLE', `${sinOrigen.estado('EV-11')} ${sinOrigen.motivo('EV-11')}`);
+  comprueba('y el motivo lo nombra como ejecución sin alerta que la dispare',
+    /sin alerta que las dispare/.test(sinOrigen.motivo('EV-11')) && /restart-wazuh\.exe/.test(sinOrigen.motivo('EV-11')), sinOrigen.motivo('EV-11'));
+  comprueba('queda sin medir con causa EVIDENCE (llegó el dato, no demuestra nada)',
+    sinOrigen.estado('EV-11') === 'NO_EVALUABLE' && sinOrigen.deEvidencia('EV-11')?.cause === 'EVIDENCE', `${sinOrigen.estado('EV-11')} ${sinOrigen.deEvidencia('EV-11')?.cause}`);
+
+  const conOrigen = evalua(eventos(latido('vacio'), configurada, reinicio('5763')), BASE);
+  comprueba('REVERSIÓN: la MISMA ejecución disparada por la regla 5763 → CUMPLE',
+    conOrigen.estado('EV-11') === 'CUMPLE', conOrigen.motivo('EV-11'));
+
+  // EV-06: la contención tampoco se acredita con una ejecución sin origen.
+  const cerrado = [
+    ...fila({ id: 'INC-4', fase: 'inicial', fecha: hace(48), sistemas: 'WIN-OPACC-LAB' }),
+    ...fila({ id: 'INC-4', fase: 'final', fecha: hace(20), sistemas: 'WIN-OPACC-LAB' }),
+  ];
+  const ar = (disparadora: string) =>
+    alerta({
+      event: 'active_response_executed',
+      evidence_id: 'EV-06,EV-09,EV-11',
+      sistema: 'WIN-OPACC-LAB',
+      comando: 'restart-wazuh',
+      accion: 'add',
+      regla: '657',
+      regla_disparadora: disparadora,
+      instante: hace(47),
+    });
+  const p09 = { ...BASE, 'P-09': ['restart-wazuh | x | y | z'] };
+  const contenidoSinOrigen = evalua(eventos(latido(), ar('-'), ...cerrado), p09);
+  comprueba('EV-06: una respuesta de P-09 sin alerta de origen no contiene el incidente → NO_CUMPLE',
+    contenidoSinOrigen.estado('EV-06') === 'NO_CUMPLE', contenidoSinOrigen.motivo('EV-06'));
+  const contenidoConOrigen = evalua(eventos(latido(), ar('5763'), ...cerrado), p09);
+  comprueba('REVERSIÓN: la misma respuesta disparada por una alerta → CUMPLE',
+    contenidoConOrigen.estado('EV-06') === 'CUMPLE', contenidoConOrigen.motivo('EV-06'));
+}
+
+bloque('15. La causa del hueco llega a la evidencia');
+
+{
+  // Sin P-01, EV-02 no puede clasificar las alertas: falta una decisión del
+  // responsable (CONFIGURATION), no un dato del recolector.
+  const sinP01 = evalua(eventos(latido('vacio'), observada('wazuh-real', 13, '23506', 10, hace(48))), { 'P-02': P02 });
+  const tabla = applyPolicyDecisionsToEvidences(sinP01.evidencias, sinP01.decisions, opExp7CatalogDefinition.requirements);
+  const ev02 = tabla.find(e => e.id === 'EV-02');
+  comprueba('sin P-01 → EV-02 NO_EVALUABLE con causa CONFIGURATION en la tabla',
+    ev02?.status === 'NO_EVALUABLE' && ev02?.gapCause === 'CONFIGURATION', `${ev02?.status} ${ev02?.gapCause}`);
+
+  // El registro de incidentes ausente: el recolector declara CONFIGURATION.
+  const ausente = evalua(eventos(
+    latido('ausente'),
+    alerta({ event: 'evidence_state', evidence_id: 'EV-04', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de incidentes /etc/ensfacil/incident-register.tsv' }, hace(0.5)),
+  ), BASE);
+  const tablaAusente = applyPolicyDecisionsToEvidences(ausente.evidencias, ausente.decisions, opExp7CatalogDefinition.requirements);
+  const ev04 = tablaAusente.find(e => e.id === 'EV-04');
+  comprueba('registro ausente (CONFIGURATION del recolector) → EV-04 con causa CONFIGURATION',
+    ev04?.status === 'NO_EVALUABLE' && ev04?.gapCause === 'CONFIGURATION', `${ev04?.status} ${ev04?.gapCause}`);
+  const ev03 = tablaAusente.find(e => e.id === 'EV-03');
+  comprueba('y EV-03, que el recolector no degrada, también CONFIGURATION: el latido dice registro ausente',
+    ev03?.status === 'NO_EVALUABLE' && ev03?.gapCause === 'CONFIGURATION', `${ev03?.status} ${ev03?.gapCause}`);
+
+  const sinLatido = evalua(eventos(observada('wazuh-real', 13, '23506', 10, hace(48))), BASE);
+  comprueba('sin pasada del recolector → la decisión de EV-02 lleva causa COLLECTION',
+    sinLatido.deEvidencia('EV-02')?.cause === 'COLLECTION', sinLatido.deEvidencia('EV-02')?.cause);
+}
+
 bloque('13. Solo cuentan los hechos de op.exp.7');
 
 {
