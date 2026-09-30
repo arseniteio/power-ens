@@ -45,6 +45,7 @@ import json
 import os
 import re
 import pathlib
+import subprocess
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -54,73 +55,79 @@ BASE = os.path.dirname(PLUGIN)
 # Lo DESPLEGADO es la copia de `manager/` de cada runbook: es lo que instala
 # `install-manager.sh`. La de `agent/rules/` del plugin es la fuente canónica
 # para el generador, y puede divergir sin que nadie se entere.
+#
+# El primer elemento es una TUPLA de repos, no uno solo: un control puede
+# tener más de un runbook —mp.info.6 tiene el del PBS de Proxmox y el de
+# Zimbra, cada uno con su propio agente y su propia copia de `manager/`—, y
+# todas las comprobaciones que recorren runbooks tienen que pasar por los
+# dos. El resto de controles lleva una tupla de uno solo.
 RUNBOOKS = {
     "mp.info.6": (
-        "mp.info.6-proxmox-backup-runbook",
+        ("mp.info.6-proxmox-backup-runbook", "mp.info.6-zimbra"),
         ["ensfacil_mp_info_6_json_rules.xml"],
     ),
     "op.acc.1": (
-        "op.acc.1-identification",
+        ("op.acc.1-identification",),
         ["ensfacil_op_acc_1_json_rules.xml"],
     ),
     "op.acc.2": (
-        "op.acc.2-access-requirements",
+        ("op.acc.2-access-requirements",),
         ["ensfacil_op_acc_2_json_rules.xml"],
     ),
     "op.acc.3": (
-        "op.acc.3-segregation-of-duties-and-tasks",
+        ("op.acc.3-segregation-of-duties-and-tasks",),
         ["ensfacil_op_acc_3_json_rules.xml"],
     ),
     "op.acc.4": (
-        "op.acc.4-access-rights-management-process",
+        ("op.acc.4-access-rights-management-process",),
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
     "op.exp.1": (
-        "op.exp.1-asset-inventory",
+        ("op.exp.1-asset-inventory",),
         ["ensfacil_op_exp_1_json_rules.xml"],
     ),
     "op.exp.2": (
-        "op.exp.2-security-configuration",
+        ("op.exp.2-security-configuration",),
         ["ensfacil_op_exp_2_json_rules.xml"],
     ),
     "op.acc.6": (
-        "op.acc.6-organization-users-authentication",
+        ("op.acc.6-organization-users-authentication",),
         ["ensfacil_op_acc_6_json_rules.xml"],
     ),
     "op.acc.5": (
-        "op.acc.5-external-users-authentication",
+        ("op.acc.5-external-users-authentication",),
         ["ensfacil_op_acc_5_json_rules.xml"],
     ),
     "op.exp.3": (
-        "op.exp.3-security-configuration-management",
+        ("op.exp.3-security-configuration-management",),
         ["ensfacil_op_exp_3_json_rules.xml"],
     ),
     "op.exp.4": (
-        "op.exp.4-security-maintenance-and-updates",
+        ("op.exp.4-security-maintenance-and-updates",),
         ["ensfacil_op_exp_4_json_rules.xml"],
     ),
     "op.exp.5": (
-        "op.exp.5-change-management",
+        ("op.exp.5-change-management",),
         ["ensfacil_op_exp_5_json_rules.xml"],
     ),
     "op.exp.6": (
-        "op.exp.6-malware-protection",
+        ("op.exp.6-malware-protection",),
         ["ensfacil_op_exp_6_json_rules.xml"],
     ),
     "op.exp.7": (
-        "op.exp.7-incident-management",
+        ("op.exp.7-incident-management",),
         ["ensfacil_op_exp_7_json_rules.xml"],
     ),
     "op.exp.8": (
-        "op.exp.8-activity-logging",
+        ("op.exp.8-activity-logging",),
         ["ensfacil_op_exp_8_json_rules.xml"],
     ),
     "op.exp.9": (
-        "op.exp.9-incident-management-records",
+        ("op.exp.9-incident-management-records",),
         ["ensfacil_op_exp_9_json_rules.xml"],
     ),
     "op.exp.10": (
-        "op.exp.10-cryptographic-key-protection",
+        ("op.exp.10-cryptographic-key-protection",),
         ["ensfacil_op_exp_10_json_rules.xml"],
     ),
 }
@@ -153,14 +160,18 @@ def reglas_de(texto):
 
 
 def reglas_desplegadas(control):
-    repo, xmls = RUNBOOKS[control]
+    # Unión de lo desplegado en TODOS los runbooks del control: una regla es
+    # alcanzable si algún runbook la despliega, aunque el cliente solo tenga
+    # instalado uno de ellos (PBS, Zimbra, o los dos).
+    repos, xmls = RUNBOOKS[control]
     ids = set()
-    for x in xmls:
-        ruta = os.path.join(BASE, repo, "manager", x)
-        if not os.path.exists(ruta):
-            falla("XML desplegada existe", "no encuentro {}".format(ruta))
-            continue
-        ids |= reglas_de(lee(ruta))
+    for repo in repos:
+        for x in xmls:
+            ruta = os.path.join(BASE, repo, "manager", x)
+            if not os.path.exists(ruta):
+                falla("XML desplegada existe", "no encuentro {}".format(ruta))
+                continue
+            ids |= reglas_de(lee(ruta))
     return ids
 
 
@@ -235,27 +246,28 @@ for control in controles_del_catalogo:
 
 print("\n=== 2. La canónica del plugin y la copia desplegada no divergen ===\n")
 
-for control, (repo, xmls) in RUNBOOKS.items():
-    for x in xmls:
-        canonica = os.path.join(PLUGIN, "agent/rules", x)
-        copia = os.path.join(BASE, repo, "manager", x)
-        if not (os.path.exists(canonica) and os.path.exists(copia)):
-            continue
-        ids_can, ids_cop = reglas_de(lee(canonica)), reglas_de(lee(copia))
-        if ids_can == ids_cop:
-            ok("{}: mismos rule IDs en canónica y copia".format(x))
-        else:
-            solo_can = sorted(ids_can - ids_cop)
-            solo_cop = sorted(ids_cop - ids_can)
-            falla(
-                "{}: la canónica y lo desplegado son juegos distintos".format(x),
-                "solo en canónica ({}): {}… | solo desplegado ({}): {}".format(
-                    len(solo_can),
-                    ", ".join(solo_can[:6]),
-                    len(solo_cop),
-                    ", ".join(solo_cop[:6]) or "ninguna",
-                ),
-            )
+for control, (repos, xmls) in RUNBOOKS.items():
+    for repo in repos:
+        for x in xmls:
+            canonica = os.path.join(PLUGIN, "agent/rules", x)
+            copia = os.path.join(BASE, repo, "manager", x)
+            if not (os.path.exists(canonica) and os.path.exists(copia)):
+                continue
+            ids_can, ids_cop = reglas_de(lee(canonica)), reglas_de(lee(copia))
+            if ids_can == ids_cop:
+                ok("{} ({}): mismos rule IDs en canónica y copia".format(x, repo))
+            else:
+                solo_can = sorted(ids_can - ids_cop)
+                solo_cop = sorted(ids_cop - ids_can)
+                falla(
+                    "{} ({}): la canónica y lo desplegado son juegos distintos".format(x, repo),
+                    "solo en canónica ({}): {}… | solo desplegado ({}): {}".format(
+                        len(solo_can),
+                        ", ".join(solo_can[:6]),
+                        len(solo_cop),
+                        ", ".join(solo_cop[:6]) or "ninguna",
+                    ),
+                )
 
 print("\n=== 3. Toda evidencia escucha el contrato que emiten los agentes ===\n")
 
@@ -276,16 +288,17 @@ else:
 
 print("\n=== 4. Los tipos de evento declarados los emite alguna regla ===\n")
 
-for control, (repo, xmls) in RUNBOOKS.items():
+for control, (repos, xmls) in RUNBOOKS.items():
     emitidos = set()
-    for x in xmls:
-        ruta = os.path.join(BASE, repo, "manager", x)
-        if os.path.exists(ruta):
-            emitidos |= set(
-                re.findall(
-                    r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>', lee(ruta)
+    for repo in repos:
+        for x in xmls:
+            ruta = os.path.join(BASE, repo, "manager", x)
+            if os.path.exists(ruta):
+                emitidos |= set(
+                    re.findall(
+                        r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>', lee(ruta)
+                    )
                 )
-            )
     # `evidence_state`, `control_state` y `score_snapshot` los emiten reglas
     # genéricas que casan por otros campos; no se exigen aquí.
     genericos = {"evidence_state", "control_state", "score_snapshot"}
@@ -309,17 +322,18 @@ print("\n=== 5. Los tres runbooks se despliegan igual ===\n")
 # estructura antigua porque lo mantenía otra persona con un pull aparte; ese
 # runbook se modernizó también y ya no hace falta distinguirlo.
 ESPERADOS = ["install.sh", "install-manager.sh", "uninstall.sh"]
-for control, (repo, _) in RUNBOOKS.items():
-    faltan = [
-        s for s in ESPERADOS if not os.path.exists(os.path.join(BASE, repo, s))
-    ]
-    if faltan:
-        falla(
-            "{}: le faltan scripts del procedimiento común".format(control),
-            ", ".join(faltan),
-        )
-    else:
-        ok("{}: tiene los scripts de su procedimiento".format(control))
+for control, (repos, _) in RUNBOOKS.items():
+    for repo in repos:
+        faltan = [
+            s for s in ESPERADOS if not os.path.exists(os.path.join(BASE, repo, s))
+        ]
+        if faltan:
+            falla(
+                "{} ({}): le faltan scripts del procedimiento común".format(control, repo),
+                ", ".join(faltan),
+            )
+        else:
+            ok("{} ({}): tiene los scripts de su procedimiento".format(control, repo))
 
 print("\n=== 6. Cada control tiene su bloque de configuración ===\n")
 
@@ -390,17 +404,18 @@ if not tipos_motor:
         " dashboard/ens/core/evidence/judgment.ts",
     )
 else:
-    for control, (repo, xmls) in RUNBOOKS.items():
+    for control, (repos, xmls) in RUNBOOKS.items():
         emitidos = set()
-        for x in xmls:
-            ruta = os.path.join(BASE, repo, "manager", x)
-            if os.path.exists(ruta):
-                emitidos |= set(
-                    re.findall(
-                        r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>',
-                        lee(ruta),
+        for repo in repos:
+            for x in xmls:
+                ruta = os.path.join(BASE, repo, "manager", x)
+                if os.path.exists(ruta):
+                    emitidos |= set(
+                        re.findall(
+                            r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>',
+                            lee(ruta),
+                        )
                     )
-                )
         mudos = sorted(tipos_motor - emitidos)
         if mudos:
             falla(
@@ -578,14 +593,17 @@ SCORE = {
     "op.acc.2": "ens_opacc2_score.py",
 }
 
-for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
+for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
     if control not in SCORE:
         ok(
             "{}: el agente no se puntua a si mismo (modelo nuevo)".format(control)
         )
         continue
 
-    mapa = mapa_del_agente(carpeta, SCORE[control])
+    # SCORE solo nombra controles con un único runbook (op.acc.1, op.acc.2):
+    # el score.py que se puntúa a sí mismo es cosa del modelo antiguo, y
+    # ningún control con más de un runbook lo usa.
+    mapa = mapa_del_agente(repos[0], SCORE[control])
     sin_evidencia = requisitos_sin_evidencia(control)
 
     if mapa is None or sin_evidencia is None:
@@ -634,55 +652,59 @@ print("\n=== 10. Nadie manda a rellenar una variable que el agente ya no lee ===
 # encontrarla en un `.env` viejo (`_opacc2_avisar_retirado` / el bloque de
 # avisos de op.acc.1): si una variable esta ahi, es que ya nadie la lee.
 
-for control, (carpeta, _reglas) in sorted(RUNBOOKS.items()):
-    orquestador = sorted(
-        glob.glob(os.path.join(BASE, carpeta, "scripts", "*_collect.sh"))
-        + glob.glob(os.path.join(BASE, carpeta, "scripts", "*_evidence.sh"))
-    )
-    if not orquestador:
-        continue
-
-    texto = lee(orquestador[0])
-    retiradas = set(re.findall(r"_avisar_retirado (\w+)", texto))
-    retiradas |= set(
-        re.findall(r'parametro="(\w+)"[^\n]*ya no se usa en el agente', texto)
-    )
-    if not retiradas:
-        ok("{}: no declara ninguna variable retirada".format(control))
-        continue
-
-    # La librería NO puede leerlas, y nadie puede mandar a rellenarlas.
-    culpables = []
-    for fichero in sorted(
-        glob.glob(os.path.join(BASE, carpeta, "*.sh"))
-        + glob.glob(os.path.join(BASE, carpeta, "etc", "*.example"))
-        + glob.glob(os.path.join(BASE, carpeta, "docs", "*.md"))
-        + glob.glob(os.path.join(PLUGIN, "docs", "*.md"))
-    ):
-        cuerpo = lee(fichero)
-        for var in retiradas:
-            # Solo cuenta como "mandar a rellenarla" una ASIGNACION o un
-            # `REVISAR`: nombrarla para decir que ya no se usa es justo lo que
-            # hay que hacer, y no puede fallar esta comprobacion.
-            if re.search(r'^\s*(#\s*)?{}="'.format(var), cuerpo, re.M) or re.search(
-                r"REVISAR[^\n]*{}".format(var), cuerpo
-            ):
-                culpables.append(
-                    "{} -> {}".format(os.path.basename(fichero), var)
-                )
-
-    if culpables:
-        falla(
-            "{}: se manda a rellenar una variable retirada".format(control),
-            "; ".join(sorted(set(culpables))),
+for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
+    # Cada runbook tiene su propio orquestador y sus propias variables
+    # retiradas: el aviso vive en el recolector de ESE origen, así que se
+    # comprueba repo a repo y no como una unión del control.
+    for repo in repos:
+        orquestador = sorted(
+            glob.glob(os.path.join(BASE, repo, "scripts", "*_collect.sh"))
+            + glob.glob(os.path.join(BASE, repo, "scripts", "*_evidence.sh"))
         )
-    else:
-        ok(
-            "{}: nadie manda a rellenar sus {} variable(s) retirada(s)".format(
-                control, len(retiradas)
-            ),
-            ", ".join(sorted(retiradas)),
+        if not orquestador:
+            continue
+
+        texto = lee(orquestador[0])
+        retiradas = set(re.findall(r"_avisar_retirado (\w+)", texto))
+        retiradas |= set(
+            re.findall(r'parametro="(\w+)"[^\n]*ya no se usa en el agente', texto)
         )
+        if not retiradas:
+            ok("{} ({}): no declara ninguna variable retirada".format(control, repo))
+            continue
+
+        # La librería NO puede leerlas, y nadie puede mandar a rellenarlas.
+        culpables = []
+        for fichero in sorted(
+            glob.glob(os.path.join(BASE, repo, "*.sh"))
+            + glob.glob(os.path.join(BASE, repo, "etc", "*.example"))
+            + glob.glob(os.path.join(BASE, repo, "docs", "*.md"))
+            + glob.glob(os.path.join(PLUGIN, "docs", "*.md"))
+        ):
+            cuerpo = lee(fichero)
+            for var in retiradas:
+                # Solo cuenta como "mandar a rellenarla" una ASIGNACION o un
+                # `REVISAR`: nombrarla para decir que ya no se usa es justo lo que
+                # hay que hacer, y no puede fallar esta comprobacion.
+                if re.search(r'^\s*(#\s*)?{}="'.format(var), cuerpo, re.M) or re.search(
+                    r"REVISAR[^\n]*{}".format(var), cuerpo
+                ):
+                    culpables.append(
+                        "{} -> {}".format(os.path.basename(fichero), var)
+                    )
+
+        if culpables:
+            falla(
+                "{} ({}): se manda a rellenar una variable retirada".format(control, repo),
+                "; ".join(sorted(set(culpables))),
+            )
+        else:
+            ok(
+                "{} ({}): nadie manda a rellenar sus {} variable(s) retirada(s)".format(
+                    control, repo, len(retiradas)
+                ),
+                ", ".join(sorted(retiradas)),
+            )
 
 
 print("\n=== 11. Un control del modelo nuevo no juzga en la maquina ===\n")
@@ -699,40 +721,78 @@ print("\n=== 11. Un control del modelo nuevo no juzga en la maquina ===\n")
 # fuente esta rota» de «se leyo y no habia nada», y se arreglan en sitios
 # distintos.
 #
-# Se mira el control ENTERO —todas sus evidencias declaran `judgment`— y no
-# evidencia a evidencia: durante una migracion conviven las dos cosas en el
-# mismo runbook y aqui no habria forma de saber cual es cual.
-for control, (repo, _reglas) in sorted(RUNBOOKS.items()):
+# Se mira el control ENTERO y no evidencia a evidencia: durante una
+# migracion conviven las dos cosas en el mismo runbook y aqui no habria forma
+# de saber cual es cual. Y se acepta CUALQUIERA de dos formas de declarar
+# «el agente no decide, solo observa»:
+#
+#   - todas las evidencias con `judgment: {}` (una primitiva booleana por
+#     evidencia), o
+#   - todas las evidencias con `agentDeclaresOnlyGaps: true`, para cuando el
+#     juicio es copia a copia -por origen, objeto y backup_id- y "el peor
+#     manda" no cabe en una primitiva. Es el caso de mp.info.6: su catalogo
+#     no declara `judgment` en ninguna evidencia precisamente por eso, y sin
+#     esta segunda forma la comprobacion lo daba por «modelo clasico, no
+#     aplica» sin mirar una sola linea de sus runbooks -el agujero por el que
+#     se coló este mismo defecto que la comprobacion existe para atrapar.
+#
+# Solo se recorre lo VERSIONADO de cada runbook (`git ls-files`, con
+# respaldo a `os.walk` si la carpeta no es un repositorio git): un fichero
+# que nadie ha metido en el repo no se publica, y no es del runbook. Es,
+# ademas, la unica forma de no tropezar con `script_pbs.sh` ni
+# `script_zimbra.sh`, que llevan credenciales reales y por eso viven fuera
+# del repositorio a proposito (`.git/info/exclude`): `git ls-files` no los
+# lista nunca.
+for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
     bloques = bloques_evidencia(catalogo, control)
 
     if not bloques:
         continue
 
     todas_juzgadas = all("judgment: {" in cuerpo for _, cuerpo in bloques)
+    solo_declara_huecos = all(
+        "agentDeclaresOnlyGaps: true" in cuerpo for _, cuerpo in bloques
+    )
 
-    if not todas_juzgadas:
+    if not (todas_juzgadas or solo_declara_huecos):
         ok(
             "{}: modelo clasico o migracion en curso, no aplica".format(control)
         )
         continue
 
-    carpeta = os.path.join(BASE, repo)
     culpables = []
 
-    for raiz, _dirs, ficheros in os.walk(carpeta):
-        if os.sep + ".git" in raiz or os.sep + "tests" in raiz:
-            continue
-        for fichero in ficheros:
-            if not fichero.endswith((".sh", ".py")):
+    for repo in repos:
+        carpeta = os.path.join(BASE, repo)
+        listado = subprocess.run(
+            ["git", "-C", carpeta, "ls-files"], capture_output=True, text=True
+        )
+
+        if listado.returncode == 0:
+            relativas = listado.stdout.splitlines()
+        else:
+            relativas = []
+            for raiz, _dirs, ficheros in os.walk(carpeta):
+                if os.sep + ".git" in raiz or os.sep + "tests" in raiz:
+                    continue
+                for fichero in ficheros:
+                    relativas.append(
+                        os.path.relpath(os.path.join(raiz, fichero), carpeta)
+                    )
+
+        for rel in relativas:
+            if rel == "tests" or rel.startswith("tests/"):
                 continue
-            ruta = os.path.join(raiz, fichero)
+            if not rel.endswith((".sh", ".py")):
+                continue
+            ruta = os.path.join(carpeta, rel)
+            if not os.path.exists(ruta):
+                continue
             texto = lee(ruta) or ""
             for veredicto in ("estado=CUMPLE", "estado=NO_CUMPLE",
                               '"estado": "CUMPLE"', '"estado": "NO_CUMPLE"'):
                 if veredicto in texto:
-                    culpables.append(
-                        "{}: {}".format(os.path.relpath(ruta, carpeta), veredicto)
-                    )
+                    culpables.append("{} ({}): {}".format(rel, repo, veredicto))
 
     if culpables:
         falla(
