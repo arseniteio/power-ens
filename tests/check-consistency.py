@@ -57,7 +57,7 @@ BASE = os.path.dirname(PLUGIN)
 RUNBOOKS = {
     "mp.info.6": (
         "mp.info.6-proxmox-backup-runbook",
-        ["ensfacil_mp_info_6_json_rules.xml", "ensfacil_mp_info_6_pbs_rules.xml"],
+        ["ensfacil_mp_info_6_json_rules.xml"],
     ),
     "op.acc.1": (
         "op.acc.1-identification",

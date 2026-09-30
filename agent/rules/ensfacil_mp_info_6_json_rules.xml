@@ -1,444 +1,152 @@
-<group name="ensfacil,mp_info_6,score,">
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
+     Este fichero es idéntico, byte a byte, en la fuente canónica del plugin y
+     en la carpeta manager/ del runbook de backup Proxmox (y, cuando exista,
+     en la del runbook de Zimbra): lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. Si se modifica uno, hay que
+     copiar el otro. -->
+<group name="ensfacil,mp.info.6,">
 
-<rule id="106600" level="0">
+  <!-- ================================================================
+       mp.info.6 · Copias de seguridad
+       Rango reservado: 106600-106799
+       Base 106600 · hechos crudos 106601-106649 · evidence_state 106650
+       · diagnóstico del recolector 106797-106799
+
+       Reglas COMUNES a los dos orígenes de copia que cubre el control: el PBS
+       de Proxmox y Zimbra (NE u OSE). El campo `origen` (`pbs`/`zimbra-ne`/
+       `zimbra-ose-declarada`) distingue de dónde viene el hecho; el nombre del
+       evento y la regla que lo acredita son los mismos para los dos. El
+       recolector de cada runbook escribe la misma línea NDJSON en
+       /var/log/ensfacil/mp_info_6.json.
+
+       Mapa evento -> rule ID -> evidencia, que es lo que acredita
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+
+         106601 backup_run        EV-01, EV-02
+         106602 backup_schedule   EV-02
+         106603 backup_retention  EV-03
+         106604 backup_access     EV-04
+         106605 backup_storage    EV-06
+         106606 restore_test      EV-05
+
+       Fuera del mapa: 106600 (base, nivel 0), 106650 (la degradación: el
+       recolector dice que no pudo mirar), 106797 (el latido: no acredita
+       evidencia, la habilita), 106798 (aviso operativo) y 106799 (hueco en
+       las pasadas del recolector).
+
+       Ninguna regla lleva un veredicto en su descripción ni en su grupo: son
+       hechos, y el semáforo lo decide el motor del plugin.
+       ================================================================ -->
+
+  <rule id="106600" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">mp.info.6</field>
+    <field name="ensfacil">^mp.info.6$</field>
     <description>mp.info.6 · evento ENSFácil base</description>
   </rule>
 
-  <!-- POR QUE `backup_missing` ACUSA Y `restore_missing` NO. Decidido, no descuido.
+  <!-- ===== mp.info.6.1 y mp.info.6.2.a · Ejecución y frecuencia de la copia ===== -->
 
-       Las dos reglas nombran una AUSENCIA del mismo control y declaran
-       veredictos opuestos: 106601 NO_CUMPLE, 106606 NO_EVALUABLE. La asimetria
-       es deliberada. El criterio que la sostiene, en una frase:
-
-         una ausencia solo puede declararse NO_CUMPLE cuando el propio
-         despliegue garantiza que, de haber ocurrido el hecho, se habria
-         observado.
-
-       Es la diferencia entre EJECUTOR y SONDA OPCIONAL, y este runbook es cada
-       una de las dos cosas para uno de los dos hechos:
-
-       106601 `backup_missing` cumple el criterio. El runbook no observa la
-       copia: la HACE. install-real.sh instala pxbackup.sh y su cron, y la capa
-       de evidencia va DENTRO del mismo script, asi que toda copia que ocurra
-       por el camino declarado deja `backup_ok` o `backup_error`. Su unico
-       emisor, ens_mpinfo6_watchdog.py, ademas no acusa hasta que la marca de
-       primera pasada tiene al menos la edad de la ventana, con lo que queda
-       excluido el "todavia no le ha tocado" de una maquina recien instalada.
-       Lo que queda es una ausencia MEDIDA, y mp.info.6.1 exige justamente que
-       la copia exista: aqui la ausencia ES la no conformidad, y un auditor
-       puede afirmarla.
-
-       106606 `restore_missing` NO cumple el criterio. La prueba de
-       restauracion R1 esta dormida de fabrica: ENS_RESTORE_ARCHIVE y
-       ENS_RESTORE_CANARY llegan VACIOS en mpinfo6.env porque restaurar toca
-       disco y hay que decidirlo. Sin esos dos valores la prueba no la lanza
-       nadie, de modo que la ausencia de `restore_ok` es la ausencia de la
-       MEDIDA, no un hecho sobre la maquina; y el cliente puede estar haciendo
-       sus pruebas de restauracion por fuera, documentadas en su ENS. Lo que un
-       auditor puede afirmar con este dato es "no lo hemos medido", que se dice
-       NO_EVALUABLE. Declararlo NO_CUMPLE acusaba de incumplimiento a TODA
-       maquina en estado de fabrica: fue un NO_CUMPLE falso real, corregido en
-       el watchdog el 30/07.
-
-       La no conformidad de r1.1 tiene su propio evento y su propia regla:
-       106607 `restore_error`, la restauracion que se intento y fallo. Esa si
-       esta demostrada. Por eso el watchdog no emite `restore_missing` cuando
-       hay un `restore_error` en la ventana: habria prueba, y la habria fallado.
-
-       NO_EVALUABLE no es un aprobado por silencio. La regla de auditoria R1 de
-       ens_mpinfo6_score.py impide que el nivel MEDIO salga CUMPLE mientras
-       EV-05 no este en CUMPLE (degrada a PARCIAL con tope 85). Al cliente se le
-       sigue empujando a configurar la prueba; lo que no se hace es acusarle de
-       algo que nadie ha medido.
-
-       Antes de "unificarlas", las dos direcciones empeoran el informe:
-       unificar en NO_CUMPLE reintroduce el falso incumplimiento de fabrica;
-       unificar en NO_EVALUABLE convierte "esta maquina no tiene copias" en un
-       hueco de cobertura y deja al control sin su unica no conformidad tecnica
-       propia.
-
-       Nota de mecanica, para no confundir lo que manda: la clave "estado" de
-       estas lineas de info NO la lee el plugin. El semaforo lo fija el campo
-       `estado` de la linea NDJSON que escribe el emisor (lo normaliza
-       data-source-engine.ts); lo de aqui es el contrato declarado, y si emisor
-       y regla discrepan gana el emisor y nada avisa. Eso es exactamente lo que
-       paso con 106606. Por eso tests/test_vocabulario.sh (seccion 7, en el
-       runbook) contrasta ahora los dos: lo que emite el watchdog contra lo que
-       declara su regla aqui.
-  -->
-  <rule id="106601" level="12">
+  <!-- EV-01 y EV-02. La última copia observada: cuándo terminó bien, cuándo
+       terminó mal, su tipo y su destino. `resultado_ultima` distingue una
+       copia que nunca ha salido bien (`error` con `ultima_correcta=-`) de una
+       máquina que simplemente no se ha medido todavía. -->
+  <rule id="106601" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_missing</field>
-    <description>mp.info.6 · mp.info.6.1 · NO_CUMPLE (EV-01,EV-02) · Sin backup correcto en ventana temporal</description>
-    <group>ENS_mp.info.6,mp_info_6_1,EV_01,EV_02,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
-    <info type="text">requisito=mp.info.6.1 evidencia=EV-01,EV-02 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-01 formato=json_line</info>
+    <field name="event">backup_run</field>
+    <description>mp.info.6 · EV-01,EV-02 · última copia observada: $(resultado_ultima) ($(tipo))</description>
   </rule>
 
-  <rule id="106690" level="7">
+  <!-- EV-02. La planificación declarada o detectada de la copia: cada cuántas
+       horas y de dónde sale ese dato (el cron real, `zmschedulebackup` o una
+       planificación declarada por el cliente). Una línea de cron comentada no
+       cuenta como planificación activa: eso lo decide el recolector, no esta
+       regla. -->
+  <rule id="106602" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_error</field>
-    <description>mp.info.6 · mp.info.6.1 · Evento backup_error detectado</description>
-    <group>ENS_mp.info.6,mp_info_6_1,EV_07,backup_error,</group>
+    <field name="event">backup_schedule</field>
+    <description>mp.info.6 · EV-02 · planificación $(planificacion) ($(fuente))</description>
   </rule>
 
-  <rule id="106602" level="12" frequency="3" timeframe="86400">
-    <if_matched_sid>106690</if_matched_sid>
-    <description>mp.info.6 · mp.info.6.1 · NO_CUMPLE (EV-07) · Errores repetidos del agente de backup</description>
-    <group>ENS_mp.info.6,mp_info_6_1,EV_07,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
-    <info type="text">requisito=mp.info.6.1 evidencia=EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-02 formato=json_line</info>
-  </rule>
-
-  <rule id="106603" level="10">
+  <!-- EV-03. La retención configurada: cuántos días se conservan y cuál es la
+       copia más antigua que sigue presente. -->
+  <rule id="106603" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">freq_deviation</field>
-    <description>mp.info.6 · mp.info.6.2.a · NO_CUMPLE (EV-02) · Frecuencia real distinta a la esperada</description>
-    <group>ENS_mp.info.6,mp_info_6_2_a,EV_02,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
-    <info type="text">requisito=mp.info.6.2.a evidencia=EV-02 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-03 formato=json_line</info>
+    <field name="event">backup_retention</field>
+    <description>mp.info.6 · EV-03 · retención $(retencion_dias) días, copia más antigua $(copia_mas_antigua)</description>
   </rule>
 
-  <rule id="106604" level="12">
+  <!-- EV-04. Quién puede leer el repositorio de copias: ruta, modo,
+       propietario, grupo y la lista de cuentas con lectura. -->
+  <rule id="106604" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">access</field>
-    <field name="authorized">false</field>
-    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03,EV-04) · Acceso no autorizado a copias</description>
-    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,EV_04,nivel_bajo,nivel_medio,no_cumple,non_conformity,</group>
-    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03,EV-04 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
+    <field name="event">backup_access</field>
+    <description>mp.info.6 · EV-04 · acceso a $(ruta): modo $(modo), propietario $(propietario):$(grupo)</description>
   </rule>
 
-  <!-- INERTE PARA EL PLUGIN (no borrar).
-       Esta regla re-etiqueta alertas syscheck nativas de Wazuh. Esas alertas
-       NO llevan el campo `ensfacil` ni `control`, y el proveedor de datos del
-       plugin (core/data-source/opensearch-provider.ts) filtra el indice por
-       `data.control` O `data.ensfacil`: la alerta existe en wazuh-alerts-* pero
-       el plugin nunca la ve, asi que no puede acreditar EV-03 ni aparecer en la
-       trazabilidad del informe.
-       Se conserva porque para el SOC si tiene valor: un cambio FIM en la zona
-       de backup sigue generando alerta de nivel 12 en Wazuh.
-       Para que contara como evidencia ENS haria falta que el emisor publicara
-       un json_line con `ensfacil` (como el resto de reglas del fichero) o que
-       el proveedor aceptase alertas por grupo ENS_mp.info.6. -->
-  <rule id="106605" level="12">
-    <if_group>syscheck</if_group>
-    <field name="file" type="pcre2">/opt/zimbra/backup/sessions|/var/lib/pxbackup|/var/lib/proxmox-backup</field>
-    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03) · Cambio FIM en zona de backup</description>
-    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,nivel_bajo,nivel_medio,no_cumple,non_conformity,fim,</group>
-    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-05 formato=fim</info>
+  <!-- ===== mp.info.6.r2.1 · Repositorio alternativo ===== -->
+
+  <!-- EV-06. El destino de la copia: si está en la misma máquina o no, de qué
+       tipo es (local, montaje, remoto) y si está activo. -->
+  <rule id="106605" level="3">
+    <if_sid>106600</if_sid>
+    <field name="event">backup_storage</field>
+    <description>mp.info.6 · EV-06 · destino $(destino) ($(tipo)): activo=$(activo)</description>
   </rule>
 
-  <!-- NO_CUMPLE desde el 04/08/2026. Hasta esa fecha era NO_EVALUABLE, y la
-       asimetria frente al NO_CUMPLE de 106601 estaba razonada: la prueba de
-       restauracion R1 esta dormida de fabrica, asi que su ausencia era ausencia
-       de MEDIDA y no un hecho sobre la maquina.
+  <!-- ===== mp.info.6.r1.1 · Prueba de restauración ===== -->
 
-       El responsable ha decidido que esa distincion no llegue al veredicto. La
-       convencion de auditoria es que la carga de la prueba es del auditado:
-       mp.info.6.r1.1 EXIGE una prueba de restauracion, y una maquina que no la
-       tiene no puede enseñar ninguna. Un auditor no escribe "no evaluable",
-       escribe "no evidenciado" y cuenta en contra.
-
-       Lo que NO se unifica es el evento ni el motivo. 106607 (`restore_error`)
-       sigue diciendo "restaurar se intento y fallo" y esta, "no se ha
-       intentado": el operador tiene que hacer cosas distintas en cada caso, y
-       eso viaja en el `detalle`, que nombra las dos variables que arman la
-       sonda (ENS_RESTORE_ARCHIVE y ENS_RESTORE_CANARY).
-
-       El nivel se queda en 3 y NO sube a 10 con el cambio de estado, que es la
-       parte que hay que justificar. En este control el 10 es la severidad de
-       una no conformidad demostrada por un hecho observado (106603, 106607,
-       106609, 106663: algo fallo y lo vimos fallar). Esta regla dispara cada
-       noche contra cualquier maquina que sencillamente no ha activado la
-       prueba, que es el estado de fabrica: subirla a 10 llenaria el SOC de
-       alertas graves sobre una configuracion pendiente. El nivel no toca el
-       semaforo del plugin -no lo lee nadie del motor-, solo lo que ve el SOC,
-       asi que el veredicto de cumplimiento no depende de este numero. -->
+  <!-- EV-05. Una prueba de restauración sobre la cuenta o el fichero testigo:
+       si restauró bien, si el contenido coincide con lo esperado y si la
+       limpieza posterior del testigo se completó. Una limpieza fallida deja
+       el testigo `ensfacil_*` sin borrar: el recolector lo trata como
+       degradación, no esta regla. -->
   <rule id="106606" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">restore_missing</field>
-    <description>mp.info.6 · mp.info.6.r1.1 · NO_CUMPLE (EV-05) · Sin prueba de restauración R1 con md5sum</description>
-    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_cumple,non_conformity,restore,</group>
-    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-06 formato=json_line</info>
+    <field name="event">restore_test</field>
+    <description>mp.info.6 · EV-05 · prueba de restauración $(fecha): resultado=$(resultado), limpieza=$(limpieza)</description>
   </rule>
 
-  <rule id="106607" level="10">
+  <!-- ===== Degradación =====
+
+       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
+       mirar: la `causa` distingue «la fuente no se pudo leer» (COLLECTION), «el
+       parámetro necesario no está configurado» (CONFIGURATION) o «se leyó y no
+       había nada que medir» (EVIDENCE), y las tres se arreglan en sitios
+       distintos. -->
+  <rule id="106650" level="5">
     <if_sid>106600</if_sid>
-    <field name="event">restore_error</field>
-    <description>mp.info.6 · mp.info.6.r1.1 · NO_CUMPLE (EV-05) · Restauración fallida</description>
-    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,no_cumple,restore,</group>
-    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-07 formato=json_line</info>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>mp.info.6 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <rule id="106609" level="10">
-    <if_sid>106600</if_sid>
-    <field name="event">encfp_changed</field>
-    <description>mp.info.6 · mp.info.6.2.d · NO_CUMPLE (EV-03,EV-07) · Cambio de fingerprint de cifrado</description>
-    <group>ENS_mp.info.6,mp_info_6_2_d,EV_03,EV_07,nivel_bajo,nivel_medio,no_cumple,non_conformity,encryption,fingerprint,</group>
-    <info type="text">requisito=mp.info.6.2.d evidencia=EV-03,EV-07 nivel=MEDIO estado=NO_CUMPLE ev_id=NC-09 formato=json_line</info>
-  </rule>
+  <!-- ===== El recolector ===== -->
 
-  <rule id="106650" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">backup_ok</field>
-    <description>mp.info.6 · mp.info.6.1 · CUMPLE (EV-01) · Backup exitoso registrado</description>
-    <group>ENS_mp.info.6,mp_info_6_1,EV_01,nivel_bajo,nivel_medio,cumple,</group>
-    <info type="text">requisito=mp.info.6.1 evidencia=EV-01 nivel=MEDIO estado=CUMPLE ev_id=OK-01 formato=json_line</info>
-  </rule>
-
-  <rule id="106651" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">restore_ok</field>
-    <field name="job_id" type="pcre2">^.+$</field>
-    <field name="restored_path" type="pcre2">^.+$</field>
-    <status type="pcre2">(?i)^(success|ok|completed|complete|cumple)$</status>
-    <field name="md5" type="pcre2">^[a-fA-F0-9]{32}$</field>
-    <description>mp.info.6 · mp.info.6.r1.1 · CUMPLE (EV-05) · Restore correcto con md5sum</description>
-    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,nivel_medio,cumple,restore,md5,</group>
-    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 nivel=MEDIO estado=CUMPLE ev_id=OK-02 formato=json_line contrato=restore_validado</info>
-  </rule>
-
-  <rule id="106652" level="0">
-    <if_sid>106651</if_sid>
-    <field name="synthetic" type="pcre2">(?i)^(true|1|yes)$</field>
-    <description>mp.info.6 · EV-05 · Evento de restauración sintético descartado</description>
-    <group>ENS_mp.info.6,mp_info_6_r1_1,EV_05,no_evaluable,synthetic,suppressed,</group>
-    <info type="text">requisito=mp.info.6.r1.1 evidencia=EV-05 estado=NO_EVALUABLE motivo=synthetic formato=json_line</info>
-  </rule>
-
-  <!-- ===== Latido del recolector (collector_run) ==================================
-
-       QUIÉN LO EMITE, que es lo primero que hay que saber de esta regla:
-       scripts/ens_mpinfo6_score.py, al cerrar cada pasada horaria. Y NO
-       pxbackup.sh, que sería lo intuitivo por ser el que hace la copia. La razón
-       está escrita por extenso en la cabecera de ese script y en corto es esta:
-       el latido declara sobre QUÉ FUENTES ha llegado a mirar la pasada, y la
-       única pieza de este runbook que las visita todas es el score, que lee el
-       ndjson (EV-01, EV-05, EV-07) y mira la máquina (EV-02 el cron, EV-03 las
-       rutas de copia, EV-04 los permisos del keyfile). pxbackup.sh solo toca dos
-       de las siete, y solo cuando hay copia: un latido suyo declararía cobertura
-       sobre cinco evidencias que no mira, y una máquina con el cron de la copia
-       roto dejaría de latir aunque el score siguiera observándola entera.
-
-       Este control no tiene el orquestador que sí tienen op.acc.1
-       (ens_opacc1_collect.sh) y op.acc.2 (ens_opacc2_collect.sh), y por eso el
-       latido tardó en existir: entre el 31/07/2026 y su implementación esta regla
-       estuvo desplegada SIN PRODUCTOR, a propósito. Poner la regla no crea el
-       latido, y esa mitad no se improvisa.
-
-       POR QUÉ EXISTE LA REGLA. `collector_run` es el evento que el motor del
-       plugin lee DESDE EL ÍNDICE para decidir si la ausencia de hechos de una
-       evidencia puede llegar a significar CUMPLE (`resolveCollectorCoverage`, en
-       dashboard/ens/core/evidence/judgment.ts). En op.acc.1 el evento se emitía y
-       no tenía regla, así que no llegaba al índice, y EV-03 salió NO_EVALUABLE
-       permanente en una máquina sana en el primer despliegue real (31/07/2026).
-       Sin regla, un latido correcto no sirve de nada: cae en la base 106600, que
-       es de nivel 0, no genera alerta y el motor no lo ve.
-
-       LO QUE EL LATIDO DECLARA, Y LO QUE NO. `resultado=completada` dice que la
-       pasada llegó al final. `evidencias_cubiertas` es una LISTA BLANCA de lo que
-       esa pasada llegó a MIRAR, no de lo que emitió: una evidencia puede callar
-       legítimamente y ese silencio es justo el caso que puede acabar en CUMPLE.
-       Por eso la lista no se rellena de oficio con las siete, sale de que cada
-       evidencia declare si pudo consultar su fuente, y hay dos que no entran
-       nunca o casi nunca: EV-06, porque la copia externa la produce el propio
-       servidor PBS y este runbook no la recoge, y EV-05 mientras la sonda de
-       restauración R1 siga dormida. Declarar cobertura sobre una fuente que no se
-       ha podido consultar es fabricar el falso verde que el producto prohíbe.
-
-       NIVEL 3 Y SIN GRUPOS DE VEREDICTO, el mismo criterio que 106891 de op.acc.1
-       y 106906 de op.acc.2, razonado por extenso en el primero: 3 es el mínimo que
-       sigue generando alerta con la configuración por defecto del manager, y un
-       latido no es una no conformidad ni una afirmación de cumplimiento. El
-       volumen es una alerta por hora y agente, la misma cadencia que ya tienen
-       los tres agregados del score.
-
-       LOS DOS CAMPOS DE LA DESCRIPCIÓN son los dos que lee el motor, y no es
-       cosmética: tests/test_vocabulario.sh (sección 8) los saca de aquí y
-       comprueba que el ndjson que escribe el score.py real los trae. Si alguien
-       renombra uno de los dos lados, Wazuh pintaría el literal en la alerta y el
-       motor dejaría de resolver la cobertura, las dos cosas en silencio.
-
-       ID 106608: primer hueco libre de la banda 106600-106799 del control,
-       comprobado libre en los cuatro ficheros de reglas del producto. -->
-  <rule id="106608" level="3">
+  <!-- 106797. El latido. No acredita ninguna evidencia: las HABILITA. Sin un
+       latido reciente el motor no puede distinguir «esta máquina está sana y
+       calla» de «el recolector lleva días parado». -->
+  <rule id="106797" level="3">
     <if_sid>106600</if_sid>
     <field name="event">collector_run</field>
-    <description>mp.info.6 · Latido del recolector · resultado=$(resultado) · cubiertas=$(evidencias_cubiertas)</description>
-    <group>ENS_mp.info.6,collector_diagnostico,operativo,latido,</group>
+    <description>mp.info.6 · pasada del recolector ($(rol)): $(resultado), cubiertas=$(evidencias_cubiertas)</description>
   </rule>
 
-<rule id="106700" level="3">
+  <!-- 106798. Aviso operativo: .env ilegible, recolector sin permisos,
+       parámetro mal escrito. No lleva requisito ni evidencia: es higiene del
+       propio pipeline. -->
+  <rule id="106798" level="4">
     <if_sid>106600</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">CUMPLE</field>
-    <description>mp.info.6 · Evidencia CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_mp.info.6,evidence_state,cumple,</group>
+    <field name="event">collector_warning</field>
+    <description>mp.info.6 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
-  <rule id="106701" level="10">
+  <!-- 106799. El recolector ha estado parado más tiempo del que admite su
+       cron: durante ese tramo pudo haber ocurrido una copia o una
+       restauración que ya no se puede reconstruir. -->
+  <rule id="106799" level="7">
     <if_sid>106600</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>mp.info.6 · Evidencia NO_CUMPLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_mp.info.6,evidence_state,no_cumple,non_conformity,</group>
-  </rule>
-
-  <rule id="106702" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_EVALUABLE</field>
-    <description>mp.info.6 · Evidencia NO_EVALUABLE · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_mp.info.6,evidence_state,no_evaluable,</group>
-  </rule>
-
-  <rule id="106703" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_APLICA</field>
-    <description>mp.info.6 · Evidencia NO_APLICA · $(evidence_id) · requisito=$(requisito)</description>
-    <group>ENS_mp.info.6,evidence_state,no_aplica,</group>
-  </rule>
-
-  <rule id="106710" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">CUMPLE</field>
-    <description>mp.info.6 · Control CUMPLE · $(control) · nivel=$(nivel)</description>
-    <group>ENS_mp.info.6,control_state,cumple,</group>
-  </rule>
-
-  <rule id="106711" level="7">
-    <if_sid>106600</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">PARCIAL</field>
-    <description>mp.info.6 · Control PARCIAL · $(control) · nivel=$(nivel)</description>
-    <group>ENS_mp.info.6,control_state,parcial,</group>
-  </rule>
-
-  <rule id="106712" level="10">
-    <if_sid>106600</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>mp.info.6 · Control NO_CUMPLE · $(control) · nivel=$(nivel)</description>
-    <group>ENS_mp.info.6,control_state,no_cumple,non_conformity,</group>
-  </rule>
-
-  <rule id="106713" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">NO_APLICA</field>
-    <description>mp.info.6 · Control NO_APLICA · $(control) · nivel=$(nivel)</description>
-    <group>ENS_mp.info.6,control_state,no_aplica,</group>
-  </rule>
-
-  <!-- EL NO_EVALUABLE DE LOS AGREGADOS (106714 y 106723). Por que faltaba, que
-       arregla y que NO arregla.
-
-       Hasta hoy `control_state` y `score_snapshot` solo tenian regla para
-       CUMPLE, PARCIAL, NO_CUMPLE y NO_APLICA. Un agregado con
-       estado=NO_EVALUABLE no casaba con ninguna: caia en la base 106600, que es
-       level="0", no genera alerta y por tanto NO LLEGA AL INDICE. El estado
-       solo se colaba por `evidence_state`, que si tiene el suyo (106702).
-
-       Era deuda tolerable mientras NO_EVALUABLE fuese un residuo. Ya no lo es:
-       `score_de` en scripts/ens_mpinfo6_score.py publica NO_EVALUABLE cuando un
-       nivel no tiene ninguna no conformidad demostrada y le quedan requisitos
-       sin medir, y `estado_requisito` hace lo propio con el requisito cuyas
-       evidencias estan todas sin medir. Es un veredicto de primera clase, y un
-       veredicto que no llega al indice es un veredicto que el auditor no puede
-       recorrer.
-
-       QUE ARREGLA, EXACTAMENTE: que el evento exista en wazuh-alerts. Con el
-       llegan `requisitos_sin_medir` y `motivo`, que es lo unico que dice QUE
-       falta por medir; hoy esa frase se escribe en el ndjson local y muere ahi.
-
-       QUE NO ARREGLA, para no venderlo de mas: el semaforo del plugin no
-       depende de esto. El motor resuelve cada evidencia por su `evidence_state`
-       (core/evidence/engine.ts), y `score_snapshot` esta ademas en
-       GENERIC_EVENT_TYPES, asi que jamas resuelve una evidencia. Su unico
-       consumidor es el grafico de tendencia
-       (core/dashboard-adapter/presenters/evolution.presenter.ts), que exige
-       `score` o `compliance` numerico y un NO_EVALUABLE no trae ninguno de los
-       dos: lo descarta igual que antes. `control_state` si puede resolver
-       EV-03, EV-04 y EV-06 (lo declaran en expectedEventTypes) pero no cambia
-       su color: un requisito solo sale NO_EVALUABLE cuando TODAS sus evidencias
-       lo estan, asi que la evidencia ya venia en gris por su `evidence_state`.
-
-       NIVEL 3, NI 7 NI 10, y sin `non_conformity` en el <group>. Un
-       NO_EVALUABLE no es una no conformidad: es el mismo valor que el
-       NO_EVALUABLE de evidencia (106702) y el que se le puso a 106606 al
-       bajarla de 10 a 3 por este mismo motivo. 3 es ademas el minimo que sigue
-       generando alerta, que es todo lo que este arreglo necesita. Estos dos
-       eventos los emite score.py en CADA pasada horaria de CADA agente: con
-       nivel 7 o 10, una maquina en estado de fabrica llenaria el SOC de
-       severidad alta por no haber configurado nada, que es la acusacion falsa
-       de 106606 por otra via.
-
-       NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
-       agregado no significa una evidencia concreta, y meterlo ahi seria el
-       fallo de 106824 al reves. Ver la cabecera de
-       dashboard/ens/core/evidence/catalog.ts. -->
-  <rule id="106714" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">control_state</field>
-    <field name="estado">NO_EVALUABLE</field>
-    <description>mp.info.6 · Control NO_EVALUABLE · $(control) · nivel=$(nivel)</description>
-    <group>ENS_mp.info.6,control_state,no_evaluable,</group>
-  </rule>
-
-  <rule id="106720" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">CUMPLE</field>
-    <description>mp.info.6 · SCORE $(nivel) CUMPLE · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_mp.info.6,score_snapshot,cumple,</group>
-  </rule>
-
-  <rule id="106721" level="7">
-    <if_sid>106600</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">PARCIAL</field>
-    <description>mp.info.6 · SCORE $(nivel) PARCIAL · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_mp.info.6,score_snapshot,parcial,</group>
-  </rule>
-
-  <rule id="106722" level="10">
-    <if_sid>106600</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">NO_CUMPLE</field>
-    <description>mp.info.6 · SCORE $(nivel) NO_CUMPLE · score=$(score) compliance=$(compliance)</description>
-    <group>ENS_mp.info.6,score_snapshot,no_cumple,non_conformity,</group>
-  </rule>
-
-  <!-- El criterio entero (por que faltaba, que arregla, por que nivel 3) esta
-       en el comentario de 106714, arriba. Dos notas propias de esta regla:
-
-       LA DESCRIPCION NO LLEVA `score=` NI `compliance=`, a diferencia de sus
-       tres hermanas. No es un descuido: un snapshot NO_EVALUABLE se publica
-       DELIBERADAMENTE sin numero (ver `emitir_snapshot` en
-       scripts/ens_mpinfo6_score.py), asi que `$(score)` se renderizaria literal
-       y un porcentaje al lado de un "no medido" se lee como cumplimiento
-       parcial, que es justo lo que la decision de producto quita. En su lugar
-       van los dos campos que ese evento SI trae siempre y que son lo accionable:
-       que requisitos faltan por medir, y por que.
-
-       NO HAY 106724 PARA `score_snapshot` NO_APLICA, y no es un hueco: en este
-       control `score_de` no puede devolver NO_APLICA (no filtra los requisitos
-       NO_APLICA del denominador, a diferencia de op.acc.1 y op.acc.2). Una
-       regla para un estado que ningun emisor produce es una regla muerta.
-
-       EL ID SE SALE DE 106600-106722, que es lo que registra la tabla de
-       rangos del README. No colisiona con nada: el rango de mp.info.6 llega hasta
-       106799 y op.acc.1 empieza en 106800. Se prefiere continuar la banda de
-       `score_snapshot` (106720-106722) a meterla en 106714-106719, que es el
-       vecindario de `control_state`: la tabla se actualiza, un id fuera de su
-       familia confunde para siempre. -->
-  <rule id="106723" level="3">
-    <if_sid>106600</if_sid>
-    <field name="event">score_snapshot</field>
-    <field name="estado">NO_EVALUABLE</field>
-    <description>mp.info.6 · SCORE $(nivel) NO_EVALUABLE · sin_medir=$(requisitos_sin_medir) · $(motivo)</description>
-    <group>ENS_mp.info.6,score_snapshot,no_evaluable,</group>
+    <field name="event">collector_missing</field>
+    <description>mp.info.6 · hueco en las pasadas del recolector: $(motivo)</description>
   </rule>
 
 </group>
