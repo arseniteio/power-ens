@@ -12,6 +12,11 @@
  * del plugin contra los parámetros de la pantalla. Y el control solo se mide
  * en las máquinas que la organización declara en P-04.
  *
+ * Una misma máquina puede tener dos recolectores (el del PBS y el de Zimbra),
+ * cada uno con su latido: ninguno puede esconder los hechos del otro. Un
+ * veredicto antiguo del recolector no llega a la tabla de evidencias, y el
+ * informe del control enseña los valores que la policy ha medido.
+ *
  * Los hechos se construyen a mano con el contrato y pasan por el normalizador
  * real como alertas de alerts.json. Cada caso mueve UN eje y lleva al lado la
  * REVERSIÓN que demuestra que el veredicto no sale siempre igual.
@@ -39,6 +44,7 @@ import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluatio
 import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
 import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
 import { runPolicyRuntime } from '../dashboard/ens/core/policy-runtime/policy-runtime';
+import { buildENSReportModel } from '../dashboard/ens/reports/registry';
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
@@ -580,7 +586,7 @@ bloque('9. Alcance por P-04');
     comprueba('P-04 vacío: mp.info.6 no sale en ninguna fila', estado.agents.every(a => !deControl(a.results, CONTROL)));
     comprueba('pero sí en el consolidado: el panel tiene el catálogo entero', Boolean(consolidado));
     comprueba(
-      'consolidado NO_EVALUABLE: ninguna evidencia medida, ningún requisito demostrado',
+      'la MEDIDA del consolidado es NO_EVALUABLE: ninguna evidencia medida, ningún requisito demostrado',
       Boolean(consolidado) &&
         consolidado.measuredRequirements === 0 &&
         consolidado.evidences.filter((e: any) => e.status !== 'NO_APLICA').every((e: any) => e.status === 'NO_EVALUABLE'),
@@ -591,6 +597,11 @@ bloque('9. Alcance por P-04');
       requisitos.length > 0 &&
         requisitos.every((n: any) => n.origin === 'NO_EVIDENCIADA' && n.cause === 'CONFIGURATION'),
       requisitos.map((n: any) => `${n.requirementId}:${n.origin}/${n.cause}`).join(' ')
+    );
+    comprueba(
+      'y el veredicto del control es el de la convención común: no demostrado, NO_CUMPLE al 0 %',
+      Boolean(consolidado) && consolidado.status === 'NO_CUMPLE' && consolidado.score === 0,
+      consolidado && `${consolidado.status} ${consolidado.score}`
     );
     comprueba(
       'el detalle del control dice lo mismo',
@@ -659,6 +670,189 @@ bloque('10b. Dos copias del mismo objeto en la misma pasada (backup_id)');
     ])
   );
   comprueba('REVERSIÓN: las dos al día → CUMPLE (y los campos desconocidos no molestan)', lasDosAlDia.estado('EV-02') === 'CUMPLE', lasDosAlDia.motivo('EV-02'));
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('12. Dos recolectores en la misma máquina: PBS y Zimbra NE');
+
+{
+  // Un servidor de buzones con copia de ficheros por PBS y copias de Zimbra
+  // NE: dos recolectores que pasan cada hora a minutos distintos, cada uno con
+  // su latido. Ninguno puede esconder los hechos del otro.
+  const PBS = hace(2);
+  const ZIMBRA = hace(80 / 60);
+  const zimbra = (objeto: string) =>
+    copia({ origen: 'zimbra-ne', objeto, tipo: 'incremental', destino: '/opt/zimbra/backup' }, ZIMBRA);
+  const latidoZimbra = latido(ZIMBRA, { origen: 'zimbra-ne', rol: 'buzones,directorio' });
+  const pasadaZimbra = [zimbra('buzones'), zimbra('directorio'), latidoZimbra];
+
+  const pbsViejo = evalua(eventos([copia({ ultima_correcta: hace(40) }, PBS), latido(PBS), ...pasadaZimbra]));
+  comprueba(
+    'PBS a las 10:00 con la copia de hace 40 h y Zimbra a las 10:40 al día → EV-02 NO_CUMPLE por la copia de ficheros',
+    pbsViejo.estado('EV-02') === 'NO_CUMPLE' && /copia de ficheros \(pbs\)/.test(pbsViejo.motivo('EV-02')),
+    `${pbsViejo.estado('EV-02')} ${pbsViejo.motivo('EV-02')}`
+  );
+  comprueba('y los hechos de Zimbra también se juzgan', /buzones/.test(pbsViejo.motivo('EV-02')) || /buzones/.test(pbsViejo.motivo('EV-01')), pbsViejo.motivo('EV-01'));
+
+  const pbsBien = evalua(eventos([copia({ ultima_correcta: hace(12) }, PBS), latido(PBS), ...pasadaZimbra]));
+  comprueba(
+    'REVERSIÓN: la copia de ficheros de hace 12 h → EV-02 CUMPLE con los tres objetos',
+    pbsBien.estado('EV-02') === 'CUMPLE' && ['ficheros', 'buzones', 'directorio'].every(o => pbsBien.motivo('EV-02').includes(o)),
+    `${pbsBien.estado('EV-02')} ${pbsBien.motivo('EV-02')}`
+  );
+  comprueba(
+    'EV-07: los dos latidos, cada uno con su origen → CUMPLE nombrando los dos',
+    pbsBien.estado('EV-07') === 'CUMPLE' && /pbs/.test(pbsBien.motivo('EV-07')) && /zimbra-ne/.test(pbsBien.motivo('EV-07')),
+    pbsBien.motivo('EV-07')
+  );
+
+  // El recorte de la última pasada sigue funcionando DENTRO de cada origen: la
+  // pasada anterior del PBS (una copia que nunca había salido bien) no cuenta.
+  const pbsAnterior = hace(3);
+  const conPasadaAnterior = evalua(
+    eventos([
+      copia({ ultima_correcta: '-', ultima_fallida: hace(3.1), resultado_ultima: 'error' }, pbsAnterior),
+      latido(pbsAnterior),
+      copia({ ultima_correcta: hace(12) }, PBS),
+      latido(PBS),
+      ...pasadaZimbra,
+    ])
+  );
+  comprueba('la pasada anterior del PBS la recorta su propio latido → EV-01 CUMPLE', conPasadaAnterior.estado('EV-01') === 'CUMPLE', conPasadaAnterior.motivo('EV-01'));
+
+  // Otra cadencia: el PBS pasa tres horas antes que Zimbra.
+  const cadencia = evalua(eventos([copia({ ultima_correcta: hace(40) }, hace(4)), latido(hace(4)), ...pasadaZimbra]));
+  comprueba('el PBS pasó 3 h antes que Zimbra: su copia de hace 40 h sigue contando → EV-02 NO_CUMPLE', cadencia.estado('EV-02') === 'NO_CUMPLE', cadencia.motivo('EV-02'));
+
+  // El recolector del PBS lleva 30 h sin pasar: su copia no se puede dar por
+  // buena aunque Zimbra informe cada hora.
+  const pbsParado = evalua(eventos([copia({ ultima_correcta: hace(31) }, hace(30)), latido(hace(30)), ...pasadaZimbra]));
+  comprueba(
+    'PBS parado 30 h y Zimbra al día → EV-01 NO_EVALUABLE por RECOGIDA, nunca CUMPLE',
+    pbsParado.estado('EV-01') === 'NO_EVALUABLE' && pbsParado.causa('EV-01') === 'COLLECTION' && /pbs/.test(pbsParado.motivo('EV-01')),
+    `${pbsParado.estado('EV-01')} ${pbsParado.causa('EV-01')} ${pbsParado.motivo('EV-01')}`
+  );
+
+  // Y por el motor entero, fila de la máquina.
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(BASE) : c)),
+  });
+
+  const fila = getENSComplianceResultByControl(
+    CONTROL,
+    'MEDIO',
+    eventos([copia({ ultima_correcta: hace(40) }, PBS), latido(PBS), ...pasadaZimbra]),
+    SRV01.id,
+    [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }],
+    AHORA
+  );
+  comprueba(
+    'en el motor, la fila de la máquina: mp.info.6.2.a NO_CUMPLE medido por la copia del PBS',
+    Boolean(fila) && fila!.requirements.some(q => q.id === 'mp.info.6.2.a' && q.status === 'NO_CUMPLE' && q.evidenced === true),
+    fila && fila.requirements.map(q => `${q.id}:${q.status}/${q.evidenced}`).join(' ')
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('13. Un veredicto antiguo del recolector no llega a la tabla');
+
+{
+  const veredicto = linea('evidence_state', { evidence_id: 'EV-05', estado: 'CUMPLE', motivo: 'restauracion correcta' }, hace(24 * 5));
+  const r = evalua(eventos([veredicto, latido()]));
+
+  comprueba(
+    'evidence_state estado=CUMPLE para EV-05 y ninguna restore_test → EV-05 no sale CUMPLE en la tabla',
+    r.estado('EV-05') === 'NO_EVALUABLE',
+    `${r.estado('EV-05')} ${r.evidencia('EV-05')?.resolvedEventType || ''}`
+  );
+
+  const noCumple = linea('evidence_state', { evidence_id: 'EV-06', estado: 'NO_CUMPLE', motivo: 'sin copia offsite' });
+  const r6 = evalua(eventos([noCumple, latido()]), BASE, 'ALTO');
+  comprueba('ni un NO_CUMPLE: EV-06 sin hechos sale NO_EVALUABLE', r6.estado('EV-06') === 'NO_EVALUABLE', r6.estado('EV-06'));
+
+  const degradado = linea('evidence_state', { evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no hay cuenta testigo declarada' });
+  const r2 = evalua(eventos([degradado, latido()]));
+  comprueba('REVERSIÓN: su NO_EVALUABLE sí llega, con su causa', r2.estado('EV-05') === 'NO_EVALUABLE' && r2.causa('EV-05') === 'CONFIGURATION', `${r2.estado('EV-05')} ${r2.causa('EV-05')}`);
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('14. mp.info.6.2.c: almacenamiento en otros lugares (EV-06 y EV-07)');
+
+{
+  const requisito = mpInfo6CatalogDefinition.requirements.find(q => q.id === 'mp.info.6.2.c')!;
+  comprueba('el catálogo acredita mp.info.6.2.c con EV-06 y EV-07', ['EV-06', 'EV-07'].every(id => requisito.evidenceIds.includes(id)), requisito.evidenceIds.join(','));
+
+  const soloLocal = eventos([
+    linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
+    latido(),
+  ]);
+
+  const alto = evalua(soloLocal, BASE, 'ALTO');
+  comprueba(
+    'en ALTO, solo copia local → mp.info.6.2.c NO_CUMPLE medido aunque el latido esté bien',
+    alto.requisito('mp.info.6.2.c').status === 'NO_CUMPLE' && alto.requisito('mp.info.6.2.c').evidenced === true,
+    `${alto.requisito('mp.info.6.2.c').status} ${alto.requisito('mp.info.6.2.c').evidenced}`
+  );
+
+  const medio = evalua(soloLocal, BASE, 'MEDIO');
+  comprueba(
+    'en MEDIO, EV-06 no aplica (la copia separada es R2 de ALTO): mp.info.6.2.c la decide EV-07 → CUMPLE',
+    medio.requisito('mp.info.6.2.c').status === 'CUMPLE' && medio.estado('EV-06') === 'NO_APLICA',
+    `${medio.requisito('mp.info.6.2.c').status} EV-06 ${medio.estado('EV-06')}`
+  );
+
+  const conRemoto = evalua(
+    eventos([
+      linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
+      linea('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+      latido(),
+    ]),
+    BASE,
+    'ALTO'
+  );
+  comprueba('REVERSIÓN: en ALTO con copia fuera de la máquina → CUMPLE', conRemoto.requisito('mp.info.6.2.c').status === 'CUMPLE', conRemoto.requisito('mp.info.6.2.c').status);
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('15. El informe de mp.info.6 enseña lo medido');
+
+{
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(BASE) : c)),
+  });
+
+  const hechos = eventos([
+    copia({ ultima_correcta: '2026-09-30T02:00:00Z' }),
+    linea('backup_retention', { retencion_dias: '45', copia_mas_antigua: '2026-08-20T02:00:00Z' }),
+    linea('backup_access', { ruta: '/backup', modo: '750', propietario: 'root', grupo: 'backup', cuentas_con_lectura: 'root,backup', clave_ruta: '-', clave_modo: '-' }),
+    linea('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+    linea('restore_test', { fecha: '2026-09-28T03:00:00Z', testigo: '/etc/hostname', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, '2026-09-28T03:00:00Z'),
+    latido(),
+  ]);
+
+  const resultado = getENSComplianceResultByControl(CONTROL, 'ALTO', hechos, SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], AHORA);
+  const informe = buildENSReportModel(CONTROL, resultado);
+  const campo = (id: string) => informe?.fields.find(f => f.id === id);
+  const valor = (id: string) => campo(id)?.value || '';
+
+  comprueba('REP-02 · la última copia correcta, con su fecha y su antigüedad', /2026-09-30T02:00:00Z/.test(valor('REP-02')) && /10\.0 h/.test(valor('REP-02')), valor('REP-02'));
+  comprueba('REP-03 · la antigüedad frente al plazo de P-01 + P-02', /10\.0 h/.test(valor('REP-03')) && /28 h/.test(valor('REP-03')), valor('REP-03'));
+  comprueba('REP-05 · la retención configurada', /45 días/.test(valor('REP-05')), valor('REP-05'));
+  comprueba('REP-06 · quién puede leer las copias', /root, backup/.test(valor('REP-06')), valor('REP-06'));
+  comprueba('REP-07 · la última prueba de restauración, su resultado y su limpieza', /2026-09-28T03:00:00Z/.test(valor('REP-07')) && /limpieza ok/.test(valor('REP-07')), valor('REP-07'));
+  comprueba('REP-08 · el destino fuera de la máquina', /pbs-dr:datastore2/.test(valor('REP-08')), valor('REP-08'));
+  comprueba('ningún campo del informe sale SIN_DATOS con todos los hechos', (informe?.fields || []).every(f => !/SIN_DATOS/.test(f.value) && f.status !== 'SIN_DATOS'), (informe?.fields || []).filter(f => /SIN_DATOS/.test(f.value) || f.status === 'SIN_DATOS').map(f => `${f.id}: ${f.value}`).join(' | '));
+  comprueba('y el estado de cada campo es el de su evidencia', campo('REP-02')?.status === 'CUMPLE' && campo('REP-08')?.status === 'CUMPLE', `${campo('REP-02')?.status} ${campo('REP-08')?.status}`);
+
+  ensConfigurationRepository.reset();
 }
 
 // ---------------------------------------------------------------------------

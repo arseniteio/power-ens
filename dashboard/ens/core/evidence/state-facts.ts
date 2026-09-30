@@ -28,6 +28,14 @@
 // Y SIN CORTE NO SE DESCARTA NADA. Si el latido no declara cobertura, o no hay
 // una pasada anterior con la que delimitar, se conserva todo: en la duda, más
 // hechos, nunca menos.
+//
+// VARIOS RECOLECTORES DEL MISMO CONTROL EN LA MISMA MÁQUINA. En un servidor de
+// buzones, mp.info.6 tiene dos: el del PBS y el de Zimbra, cada uno con su
+// latido y a su minuto. Con los latidos mezclados, la pasada de Zimbra de las
+// 10:40 delimitaba con el latido del PBS de las 10:00 y borraba sus hechos. Si
+// las evidencias declaran `stateFactCollectorField` (`origen`), latidos y
+// hechos se agrupan por máquina y por ese campo: cada recolector delimita solo
+// los suyos. Sin el campo, todo es un solo recolector, como siempre.
 import type { ENSNormalizedEvent } from '../data-source/types';
 import { parseReferenceList } from './judgment';
 import { getEventFieldValue } from './normalized-events';
@@ -52,10 +60,20 @@ interface CollectorRun {
   covered: string[];
 }
 
-const collectorRunsByAgent = (
+// El recolector de un evento dentro de su máquina: el valor del campo que
+// declaran las evidencias del control, o '' si no declaran ninguno.
+type CollectorOf = (event: ENSNormalizedEvent) => string;
+
+const collectorKey = (
+  event: ENSNormalizedEvent,
+  collectorOf: CollectorOf
+): string => `${event.agentId || ''}|${collectorOf(event)}`;
+
+const collectorRunsByCollector = (
   controlId: string,
   events: ENSNormalizedEvent[],
-  nowMs: number
+  nowMs: number,
+  collectorOf: CollectorOf
 ): Map<string, CollectorRun[]> => {
   const runs = new Map<string, CollectorRun[]>();
 
@@ -73,10 +91,10 @@ const collectorRunsByAgent = (
       return;
     }
 
-    const agent = event.agentId || '';
+    const collector = collectorKey(event, collectorOf);
 
-    runs.set(agent, [
-      ...(runs.get(agent) || []),
+    runs.set(collector, [
+      ...(runs.get(collector) || []),
       {
         time,
         covered: parseReferenceList(
@@ -136,13 +154,33 @@ export const keepLatestRunStateFacts = (
     return events;
   }
 
-  const runs = collectorRunsByAgent(controlId, events, now.getTime());
+  const collectorField = definitions.find(
+    definition => definition.stateFactCollectorField
+  )?.stateFactCollectorField;
+
+  const collectorOf: CollectorOf = event => {
+    if (!collectorField) {
+      return '';
+    }
+
+    const value = getEventFieldValue(event, collectorField);
+
+    return value === undefined || value === null ? '' : String(value).trim();
+  };
+
+  const runs = collectorRunsByCollector(
+    controlId,
+    events,
+    now.getTime(),
+    collectorOf
+  );
 
   if (!runs.size) {
     return events;
   }
 
-  // Última emisión de un hecho de estado de cada evidencia, por agente.
+  // Última emisión de un hecho de estado de cada evidencia, por recolector de
+  // cada máquina.
   const lastFact = new Map<string, number>();
 
   events.forEach(event => {
@@ -164,7 +202,7 @@ export const keepLatestRunStateFacts = (
         return;
       }
 
-      const key = `${event.agentId || ''}|${definition.id}`;
+      const key = `${collectorKey(event, collectorOf)}|${definition.id}`;
 
       lastFact.set(key, Math.max(lastFact.get(key) ?? 0, time));
     });
@@ -172,13 +210,13 @@ export const keepLatestRunStateFacts = (
 
   const boundaries = new Map<string, number | undefined>();
 
-  const boundaryOf = (agent: string, evidenceId: string) => {
-    const key = `${agent}|${evidenceId}`;
+  const boundaryOf = (collector: string, evidenceId: string) => {
+    const key = `${collector}|${evidenceId}`;
 
     if (!boundaries.has(key)) {
       boundaries.set(
         key,
-        boundaryFor(runs.get(agent), evidenceId, lastFact.get(key))
+        boundaryFor(runs.get(collector), evidenceId, lastFact.get(key))
       );
     }
 
@@ -202,13 +240,13 @@ export const keepLatestRunStateFacts = (
       return true;
     }
 
-    const agent = event.agentId || '';
+    const collector = collectorKey(event, collectorOf);
     const time = Date.parse(event.timestamp);
 
     // Con varias dueñas manda la más permisiva: descartar un hecho que otra
     // evidencia todavía necesita sería dejarla sin nada que mirar.
     return owners.some(definition => {
-      const boundary = boundaryOf(agent, definition.id);
+      const boundary = boundaryOf(collector, definition.id);
 
       return (
         boundary === undefined ||

@@ -211,6 +211,21 @@ export interface ENSEvidenceDefinition {
   // que es una acción (un acceso, una edición) NO va aquí: descartarlo haría
   // desaparecer el único hecho que lo demuestra.
   stateFactEventTypes?: string[];
+
+  // Campo que distingue a los recolectores de un mismo control en una misma
+  // máquina (`origen` en mp.info.6: en un servidor de buzones pasan el del PBS
+  // y el de Zimbra, cada uno a su minuto y con su latido). Si se declara, la
+  // última pasada de un hecho de estado se delimita con los latidos de SU
+  // recolector —los que traen el mismo valor en ese campo— y un recolector no
+  // descarta los hechos del otro. Ver `state-facts.ts`.
+  stateFactCollectorField?: string;
+
+  // El recolector de esta evidencia solo declara huecos (`evidence_state` con
+  // NO_EVALUABLE y su causa), nunca veredictos: el veredicto lo pone la policy.
+  // Un evento que llegue declarando CUMPLE, NO_CUMPLE o PARCIAL —un veredicto
+  // del recolector anterior que siga en la ventana— no es compatible con ella
+  // y no la resuelve.
+  agentDeclaresOnlyGaps?: boolean;
 }
 
 export interface ENSEvidenceResolved {

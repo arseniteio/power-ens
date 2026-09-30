@@ -66,7 +66,7 @@ export const mpInfo6Control: ENSControl = {
       title: 'Almacenamiento en otros lugares',
       description:
         'Valida evidencias indirectas de almacenamiento; R2/offsite real se reserva para ALTO.',
-      evidences: ['EV-07'],
+      evidences: ['EV-06', 'EV-07'],
     },
     {
       id: 'mp.info.6.2.d',
@@ -157,7 +157,7 @@ export const mpInfo6Control: ENSControl = {
     },
     {
       id: 'EV-06',
-      requirement: ['mp.info.6.r2.1'],
+      requirement: ['mp.info.6.2.c', 'mp.info.6.r2.1'],
       level: ['ALTO'],
       expectedStatus: 'NO_APLICA',
       title: 'Copia separada R2',

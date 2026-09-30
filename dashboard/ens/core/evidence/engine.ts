@@ -194,6 +194,19 @@ export const declaredGapCause = (
   return DECLARABLE_GAP_CAUSES.includes(cause) ? cause : undefined;
 };
 
+// ¿El evento trae un veredicto? Se mira el estado ya normalizado: el `estado`
+// que declara el agente y, sin él, NO_EVALUABLE (o NO_CUMPLE si el nombre del
+// evento es adverso; ningún hecho de una evidencia que declara
+// `agentDeclaresOnlyGaps` lleva un nombre así).
+const VERDICT_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'PARCIAL'];
+
+const declaresVerdict = (
+  event: ENSNormalizedEvent
+): boolean =>
+  VERDICT_STATUSES.includes(
+    String(event.status || '').toUpperCase()
+  );
+
 const resolveEvidenceEventStatus = (
   event: ENSNormalizedEvent
 ): ENSEvidenceResolved['status'] =>
@@ -258,8 +271,14 @@ export const resolveEvidenceForControl = (
       );
     }
 
+    // Si el recolector de la evidencia no pone veredictos, un evento que lo
+    // declara no es suyo: no la resuelve (ver `agentDeclaresOnlyGaps`).
+    const candidateEvents = definition.agentDeclaresOnlyGaps
+      ? filteredEvents.filter(event => !declaresVerdict(event))
+      : filteredEvents;
+
     const matchingEventsByEvidenceId = sortByTimestampDesc(
-      filteredEvents.filter(event =>
+      candidateEvents.filter(event =>
         event.evidenceId === definition.id &&
         definition.sourceTypes.includes(
           event.sourceType
@@ -271,7 +290,7 @@ export const resolveEvidenceForControl = (
     );
 
     const matchingEventsByEventType = sortByTimestampDesc(
-      filteredEvents.filter(event =>
+      candidateEvents.filter(event =>
         !event.evidenceId &&
         definition.sourceTypes.includes(
           event.sourceType

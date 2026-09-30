@@ -98,7 +98,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // primitiva.
   //
   // Los hechos de ESTADO los reemite enteros el recolector en cada pasada; la
-  // prueba de restauración es una ACCIÓN y se juzga con la ventana.
+  // prueba de restauración es una ACCIÓN y se juzga con la ventana. Su última
+  // pasada se delimita por `origen`: un servidor de buzones tiene dos
+  // recolectores (PBS y Zimbra) que pasan a minutos distintos. Y como el
+  // recolector solo declara huecos, un veredicto antiguo que siga en la
+  // ventana no resuelve ninguna evidencia (`agentDeclaresOnlyGaps`).
   {
     id: 'EV-01',
     controlId: 'mp.info.6',
@@ -112,21 +116,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: ['evidence_state', 'backup_run'],
     stateFactEventTypes: ['backup_run'],
+    stateFactCollectorField: 'origen',
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106601'],
     auditQuestion: '¿Existe evidencia reciente de que la copia de seguridad se ha realizado correctamente?',
-    // Contrato de calidad del vocabulario anterior (hechos con `estado`). Solo
-    // se exige a un evento que declare CUMPLE, y ningún hecho del contrato
-    // actual declara estado: sigue rechazando los veredictos del recolector
-    // antiguo que aún queden en la ventana.
     qualityRequirements: {
-      requiredFields: [
-        'job_id',
-        'start_time',
-        'end_time',
-        'status',
-        'bytes_written',
-      ],
-      requiredFieldsWhenStatus: ['CUMPLE'],
       rejectSynthetic: true,
     },
   },
@@ -143,6 +137,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'backup_run', 'backup_schedule'],
     stateFactEventTypes: ['backup_run', 'backup_schedule'],
+    stateFactCollectorField: 'origen',
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106601', '106602'],
     auditQuestion: '¿La última copia se encuentra dentro del intervalo máximo definido por la organización?',
   },
@@ -159,6 +155,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
     expectedEventTypes: ['evidence_state', 'backup_retention'],
     stateFactEventTypes: ['backup_retention'],
+    stateFactCollectorField: 'origen',
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106603'],
     auditQuestion: '¿Existe una política de retención configurada y verificable para las copias de seguridad?',
   },
@@ -175,6 +173,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'backup_access'],
     stateFactEventTypes: ['backup_access'],
+    stateFactCollectorField: 'origen',
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106604'],
     auditQuestion: '¿El acceso al repositorio de copias está limitado a usuarios y procesos autorizados?',
   },
@@ -191,21 +191,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
     // Acción, no estado: cada prueba cuenta dentro de la ventana.
     expectedEventTypes: ['evidence_state', 'restore_test'],
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106606'],
     auditQuestion: '¿Existe evidencia de una prueba de restauración correcta dentro del periodo definido?',
-    // Mismo caso que EV-01: contrato del vocabulario anterior, que solo se
-    // exige a un evento que declare CUMPLE.
     qualityRequirements: {
-      requiredFields: [
-        'job_id',
-        'restored_path',
-        'status',
-        'md5',
-      ],
-      requiredFieldsWhenStatus: ['CUMPLE'],
-      fieldPatterns: {
-        md5: '^[a-fA-F0-9]{32}$',
-      },
       rejectSynthetic: true,
     },
   },
@@ -214,14 +203,16 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Repositorio alternativo operativo',
     description:
-      'Destinos de cada copia (`backup_storage`): si están en la misma máquina, de qué tipo son (local, montaje, remoto) y si están activos. Acredita la copia en ubicación alternativa de R2.',
-    requirements: ['mp.info.6.r2.1'],
+      'Destinos de cada copia (`backup_storage`): si están en la misma máquina, de qué tipo son (local, montaje, remoto) y si están activos. Acredita el almacenamiento en otros lugares y la copia en ubicación alternativa de R2; como la copia físicamente separada solo se exige en ALTO, solo aplica en ese nivel.',
+    requirements: ['mp.info.6.2.c', 'mp.info.6.r2.1'],
     levels: ['ALTO'],
     category: 'OFFSITE',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT', 'API'],
     expectedEventTypes: ['evidence_state', 'backup_storage'],
     stateFactEventTypes: ['backup_storage'],
+    stateFactCollectorField: 'origen',
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106605'],
     auditQuestion: '¿Existe una copia en ubicación alternativa operativa cuando el nivel ENS lo exige?',
     qualityRequirements: {
@@ -242,6 +233,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'collector_run'],
+    agentDeclaresOnlyGaps: true,
     relatedRules: ['106797'],
     auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
   },

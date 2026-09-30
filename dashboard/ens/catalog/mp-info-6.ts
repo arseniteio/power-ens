@@ -55,12 +55,12 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       id: 'mp.info.6.2.c',
       title: 'Almacenamiento en otros lugares',
       description:
-        'Los procedimientos de respaldo deben definir los requisitos de almacenamiento en otros lugares; la copia físicamente separada se evalúa únicamente mediante R2 en nivel ALTO.',
+        'Los procedimientos de respaldo deben definir los requisitos de almacenamiento en otros lugares. Se acredita con el recolector de copias (EV-07) y con los destinos de cada copia (EV-06); la copia físicamente separada solo se exige en nivel ALTO, donde también la acredita R2.',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-07'],
+      evidenceIds: ['EV-06', 'EV-07'],
       parameterIds: ['P-03'],
     },
     {
