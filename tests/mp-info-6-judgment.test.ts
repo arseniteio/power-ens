@@ -44,6 +44,10 @@ import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluatio
 import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
 import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
 import { runPolicyRuntime } from '../dashboard/ens/core/policy-runtime/policy-runtime';
+import {
+  MP_INFO_6_REQUISITOS,
+  mpInfo6PolicyDefinition,
+} from '../dashboard/ens/core/policy-runtime/policies/mp-info-6.policy';
 import { buildENSReportModel } from '../dashboard/ens/reports/registry';
 import type {
   ENSConfigurationVersion,
@@ -55,6 +59,7 @@ import type { ENSAgentScope } from '../dashboard/ens/core/scope/types';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
 declare const require: (id: string) => any;
+declare const __dirname: string;
 
 // `kibana-services` de mentira, ANTES de cargar el motor.
 {
@@ -851,6 +856,290 @@ bloque('15. El informe de mp.info.6 enseña lo medido');
   comprueba('REP-08 · el destino fuera de la máquina', /pbs-dr:datastore2/.test(valor('REP-08')), valor('REP-08'));
   comprueba('ningún campo del informe sale SIN_DATOS con todos los hechos', (informe?.fields || []).every(f => !/SIN_DATOS/.test(f.value) && f.status !== 'SIN_DATOS'), (informe?.fields || []).filter(f => /SIN_DATOS/.test(f.value) || f.status === 'SIN_DATOS').map(f => `${f.id}: ${f.value}`).join(' | '));
   comprueba('y el estado de cada campo es el de su evidencia', campo('REP-02')?.status === 'CUMPLE' && campo('REP-08')?.status === 'CUMPLE', `${campo('REP-02')?.status} ${campo('REP-08')?.status}`);
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('16. EV-02 · la planificación del cron vale para todos los backup-id');
+
+{
+  // El recolector del PBS emite un backup_run por backup-id y la planificación
+  // una sola vez, sin backup_id: sale de la línea del cron que lanza la copia.
+  const plan = (cada: string, planificacion = '17 2 * * *') =>
+    linea('backup_schedule', { planificacion, intervalo_horas: cada, fuente: 'cron' });
+  const dosCopias = [copia({ backup_id: 'srv01_root', ultima_correcta: hace(10) }), copia({ backup_id: 'srv01_opt-zimbra', ultima_correcta: hace(12) })];
+
+  const diario = evalua(eventos([...dosCopias, plan('24'), latido()]));
+  comprueba(
+    'dos backup-id y una planificación sin backup_id cada 24 h → EV-02 CUMPLE',
+    diario.estado('EV-02') === 'CUMPLE' && !/no el estado/.test(diario.motivo('EV-02')),
+    `${diario.estado('EV-02')} ${diario.motivo('EV-02')}`
+  );
+  comprueba(
+    'y la planificación se aplica a las dos copias',
+    (diario.motivo('EV-02').match(/planificada cada 24 h/g) || []).length === 2,
+    diario.motivo('EV-02')
+  );
+
+  const semanal = evalua(eventos([...dosCopias, plan('168', '@weekly'), latido()]));
+  comprueba(
+    'planificada cada 168 h con P-01 = 24 h → EV-02 NO_CUMPLE',
+    semanal.estado('EV-02') === 'NO_CUMPLE' && /cada 168 h/.test(semanal.motivo('EV-02')),
+    `${semanal.estado('EV-02')} ${semanal.motivo('EV-02')}`
+  );
+
+  const semanalHolgado = evalua(eventos([...dosCopias, plan('168', '@weekly'), latido()]), { ...BASE, 'P-01': '168' });
+  comprueba('REVERSIÓN: la misma planificación con P-01 = 168 h → CUMPLE', semanalHolgado.estado('EV-02') === 'CUMPLE', semanalHolgado.motivo('EV-02'));
+
+  const lasDos = evalua(eventos([...dosCopias, plan('168', '@weekly'), plan('24'), latido()]));
+  comprueba(
+    'una semanal y una diaria: manda la más frecuente → CUMPLE',
+    lasDos.estado('EV-02') === 'CUMPLE' && /cada 24 h/.test(lasDos.motivo('EV-02')),
+    lasDos.motivo('EV-02')
+  );
+
+  const soloPlan = evalua(eventos([plan('24'), latido()]));
+  comprueba(
+    'una planificación sin ninguna copia informada → EV-02 NO_EVALUABLE, nunca CUMPLE',
+    soloPlan.estado('EV-02') === 'NO_EVALUABLE' && /no el estado de la última copia/.test(soloPlan.motivo('EV-02')),
+    `${soloPlan.estado('EV-02')} ${soloPlan.motivo('EV-02')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('17. Las degradaciones sin backup_id son del par (origen y objeto)');
+
+{
+  const noPudo = (evidencia: string, causa: string, motivo: string, ts: string = PASADA, campos: Linea = {}) =>
+    linea('evidence_state', { evidence_id: evidencia, estado: 'NO_EVALUABLE', causa, motivo, ...campos }, ts);
+  const antes = hace(2);
+
+  const reemplazada = evalua(
+    eventos([
+      noPudo('EV-01', 'COLLECTION', 'el PBS no respondió', antes),
+      latido(antes, { resultado: 'parcial', evidencias_cubiertas: 'EV-04' }),
+      copia({ backup_id: 'srv01_root' }),
+      copia({ backup_id: 'srv01_opt-zimbra' }),
+      latido(),
+    ])
+  );
+  comprueba(
+    'una degradación del par de hace 2 h y una pasada posterior con los backup-id → EV-01 CUMPLE',
+    reemplazada.estado('EV-01') === 'CUMPLE',
+    `${reemplazada.estado('EV-01')} ${reemplazada.motivo('EV-01')}`
+  );
+
+  const posterior = evalua(
+    eventos([
+      copia({ backup_id: 'srv01_root' }, antes),
+      copia({ backup_id: 'srv01_opt-zimbra' }, antes),
+      latido(antes),
+      noPudo('EV-01', 'COLLECTION', 'el PBS no respondió'),
+      latido(PASADA, { resultado: 'parcial', evidencias_cubiertas: 'EV-04' }),
+    ])
+  );
+  comprueba(
+    'REVERSIÓN: la degradación de la pasada posterior sustituye a los hechos → NO_EVALUABLE por RECOGIDA',
+    posterior.estado('EV-01') === 'NO_EVALUABLE' && posterior.causa('EV-01') === 'COLLECTION' && /no respondió/.test(posterior.motivo('EV-01')),
+    `${posterior.estado('EV-01')} ${posterior.causa('EV-01')} ${posterior.motivo('EV-01')}`
+  );
+
+  const mismaPasada = evalua(
+    eventos([
+      linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: hace(40 * 24) }),
+      noPudo('EV-03', 'EVIDENCE', 'el PBS no conserva ninguna copia de srv01_nuevo'),
+      latido(),
+    ])
+  );
+  comprueba(
+    'en la misma pasada, una copia medida y una degradación del par → EV-03 NO_EVALUABLE (una parte no se midió)',
+    mismaPasada.estado('EV-03') === 'NO_EVALUABLE' && /srv01_nuevo/.test(mismaPasada.motivo('EV-03')),
+    `${mismaPasada.estado('EV-03')} ${mismaPasada.motivo('EV-03')}`
+  );
+
+  const conFallo = evalua(
+    eventos([
+      linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '14', copia_mas_antigua: hace(10 * 24) }),
+      noPudo('EV-03', 'EVIDENCE', 'el PBS no conserva ninguna copia de srv01_nuevo'),
+      latido(),
+    ])
+  );
+  comprueba('pero un incumplimiento medido en la misma pasada manda → EV-03 NO_CUMPLE', conFallo.estado('EV-03') === 'NO_CUMPLE', conFallo.motivo('EV-03'));
+
+  // Una degradación sin origen (del recolector anterior) de hace tres días.
+  const vieja = linea('evidence_state', { evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'sin PBS_REPO', origen: '', objeto: '' }, hace(72));
+  const conVieja = evalua(eventos([vieja]));
+  comprueba(
+    'una degradación sin origen de hace 3 días no se queda un mes: EV-01 dice que el recolector no informa (RECOGIDA)',
+    conVieja.estado('EV-01') === 'NO_EVALUABLE' && conVieja.causa('EV-01') === 'COLLECTION' && /no está informando/.test(conVieja.motivo('EV-01')),
+    `${conVieja.estado('EV-01')} ${conVieja.causa('EV-01')} ${conVieja.motivo('EV-01')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('18. EV-05 · el plazo primero, y la ventana sin pruebas');
+
+{
+  const prueba = linea('restore_test', { fecha: hace(3 * 24), testigo: '/etc/ensfacil/mpinfo6-witness.txt', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, hace(3 * 24));
+
+  const sinPlazo = evalua(eventos([prueba, latido()]), { ...BASE, 'P-05': undefined });
+  comprueba('sin P-05 → EV-05 NO_EVALUABLE por CONFIGURACIÓN aunque haya pruebas', sinPlazo.estado('EV-05') === 'NO_EVALUABLE' && sinPlazo.causa('EV-05') === 'CONFIGURATION', `${sinPlazo.estado('EV-05')} ${sinPlazo.causa('EV-05')}`);
+
+  const ilegible = evalua(eventos([prueba, latido()]), { ...BASE, 'P-05': 'cada semana' });
+  comprueba('P-05 ilegible → CONFIGURACIÓN', ilegible.estado('EV-05') === 'NO_EVALUABLE' && ilegible.causa('EV-05') === 'CONFIGURATION', `${ilegible.estado('EV-05')} ${ilegible.causa('EV-05')}`);
+
+  const ventanaVacia = evalua(eventos([latido()]));
+  comprueba(
+    'ninguna prueba en la ventana con el recolector latiendo → NO_EVALUABLE por EVIDENCIA, sin culpar a la recogida',
+    ventanaVacia.estado('EV-05') === 'NO_EVALUABLE' && ventanaVacia.causa('EV-05') === 'EVIDENCE' && /ventana consultada/.test(ventanaVacia.motivo('EV-05')),
+    `${ventanaVacia.estado('EV-05')} ${ventanaVacia.causa('EV-05')} ${ventanaVacia.motivo('EV-05')}`
+  );
+
+  const sinLatido = evalua(eventos([copia()]));
+  comprueba('sin pruebas y sin latido → RECOGIDA', sinLatido.estado('EV-05') === 'NO_EVALUABLE' && sinLatido.causa('EV-05') === 'COLLECTION', `${sinLatido.estado('EV-05')} ${sinLatido.causa('EV-05')}`);
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('19. P-04 con un nombre que no es de ningún agente');
+
+{
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion({ ...BASE, 'P-04': 'srv-99' }) : c)),
+  });
+
+  const alcance: ENSAgentScope[] = [
+    { id: SRV01.id, name: SRV01.name, groups: ['ens'] },
+    { id: SRV02.id, name: SRV02.name, groups: ['ens'] },
+  ];
+  const estado = getENSComplianceState('MEDIO', eventos([copia(), latido()]), undefined, alcance, AHORA);
+  const consolidado = estado.results.find(r => r.control.id === CONTROL);
+  const hallazgos = (consolidado?.nonConformities || []).filter(n => n.id !== 'NC-CFG');
+
+  comprueba('ninguna fila lo mide', estado.agents.every(a => !a.results.some(r => r.control.id === CONTROL)));
+  comprueba(
+    'el consolidado dice CONFIGURACIÓN, no RECOGIDA',
+    hallazgos.length > 0 && hallazgos.every(n => n.origin === 'NO_EVIDENCIADA' && n.cause === 'CONFIGURATION'),
+    hallazgos.map(n => `${n.requirementId}:${n.cause}`).join(' ')
+  );
+  comprueba(
+    'y el motivo nombra la máquina declarada que no existe',
+    (consolidado?.evidences || []).some(e => e.observations.some(o => /srv-99/.test(o) && /no coincide|coincide con un agente/.test(o))),
+    (consolidado?.evidences || [])[0]?.observations[0]
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('20. Ramas de EV-03, EV-04, EV-06 y EV-07');
+
+{
+  const acceso = (cuentas: string, modo = '0640') =>
+    linea('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo, propietario: 'root', grupo: 'root', cuentas_con_lectura: cuentas, clave_ruta: '-', clave_modo: '-' });
+
+  const cualquiera = evalua(eventos([acceso('root,*'), latido()]));
+  comprueba('cuentas_con_lectura con * → EV-04 NO_CUMPLE (cualquier cuenta)', cualquiera.estado('EV-04') === 'NO_CUMPLE' && /cualquier cuenta/.test(cualquiera.motivo('EV-04')), cualquiera.motivo('EV-04'));
+
+  const mundo = evalua(eventos([acceso('root', '0644'), latido()]));
+  comprueba('modo 0644 (lectura para otros) → EV-04 NO_CUMPLE', mundo.estado('EV-04') === 'NO_CUMPLE', mundo.motivo('EV-04'));
+
+  const nadie = evalua(eventos([acceso('-', '0600'), latido()]));
+  comprueba('cuentas_con_lectura = - es el conjunto vacío, no una cuenta llamada «-» → CUMPLE', nadie.estado('EV-04') === 'CUMPLE' && !/«-»|: -\./.test(nadie.motivo('EV-04')), `${nadie.estado('EV-04')} ${nadie.motivo('EV-04')}`);
+
+  const sinInformar = evalua(eventos([acceso(''), latido()]));
+  comprueba('cuentas_con_lectura vacío es que no se ha informado → NO_EVALUABLE', sinInformar.estado('EV-04') === 'NO_EVALUABLE', sinInformar.estado('EV-04'));
+
+  const retencion = (antiguedadDias: number) =>
+    linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: hace(antiguedadDias * 24) });
+
+  const antigua = evalua(eventos([retencion(40), latido()]));
+  comprueba('sin retención configurada y la copia más antigua de hace 40 días (≥ P-03) → EV-03 CUMPLE', antigua.estado('EV-03') === 'CUMPLE', antigua.motivo('EV-03'));
+
+  const reciente = evalua(eventos([retencion(20), latido()]));
+  comprueba('REVERSIÓN: la más antigua de hace 20 días (< P-03) → NO_EVALUABLE, nunca CUMPLE', reciente.estado('EV-03') === 'NO_EVALUABLE', `${reciente.estado('EV-03')} ${reciente.motivo('EV-03')}`);
+
+  const dudoso = evalua(eventos([linea('backup_storage', { destino: 'nas:/copias', misma_maquina: 'desconocido', tipo: 'montaje', activo: 'si' }), latido()]), BASE, 'ALTO');
+  comprueba('misma_maquina con un valor que no es si/no → EV-06 NO_EVALUABLE', dudoso.estado('EV-06') === 'NO_EVALUABLE', `${dudoso.estado('EV-06')} ${dudoso.motivo('EV-06')}`);
+
+  const parcial = evalua(eventos([latido(PASADA, { resultado: 'parcial', evidencias_cubiertas: 'EV-01,EV-04' })]));
+  comprueba('un latido parcial con cobertura declarada → EV-07 CUMPLE', parcial.estado('EV-07') === 'CUMPLE', `${parcial.estado('EV-07')} ${parcial.motivo('EV-07')}`);
+
+  const fallida = evalua(eventos([latido(PASADA, { resultado: 'error' })]));
+  comprueba('REVERSIÓN: un latido con resultado error → NO_EVALUABLE', fallida.estado('EV-07') === 'NO_EVALUABLE', fallida.estado('EV-07'));
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('21. La tabla de requisitos de la policy es la del catálogo');
+
+{
+  const ordena = (ids: string[]) => [...ids].sort().join(',');
+  const catalogo = Object.fromEntries(mpInfo6CatalogDefinition.requirements.map(q => [q.id, ordena(q.evidenceIds)]));
+  const policy = Object.fromEntries(Object.entries(MP_INFO_6_REQUISITOS).map(([id, q]) => [id, ordena(q.evidencias)]));
+  const definicion = Object.fromEntries(mpInfo6PolicyDefinition.requirements.map(q => [q.requirementId, ordena(q.evidenceIds)]));
+
+  comprueba('mismos requisitos y mismas evidencias que el catálogo', JSON.stringify(policy) === JSON.stringify(catalogo), `${JSON.stringify(policy)} ≠ ${JSON.stringify(catalogo)}`);
+  comprueba('y que la definición de la policy', JSON.stringify(definicion) === JSON.stringify(catalogo), `${JSON.stringify(definicion)} ≠ ${JSON.stringify(catalogo)}`);
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('22. Una pasada real del recolector del PBS (tests/fixtures/mp-info-6-pbs-pass.ndjson)');
+
+{
+  // Salida tal cual de ens_mpinfo6_restore_test.sh y ens_mpinfo6_collect.sh
+  // del runbook de Proxmox en modo --prueba, con un PBS simulado (ver
+  // tests/fixtures/generate-mp-info-6-pbs-pass.sh): dos backup-id, la
+  // planificación del cron, la retención con la copia más antigua, el acceso
+  // a la credencial y a un directorio local, el repositorio y el latido.
+  const fs = require('fs');
+  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
+    .split('\n')
+    .filter(Boolean)
+    .map((l: string) => JSON.parse(l));
+  const maquina = { id: SRV01.id, name: String(lineas[0].host) };
+  const ahoraReal = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  const valores = { ...BASE, 'P-04': maquina.name };
+  const real = evalua(eventos(lineas, maquina), valores, 'ALTO', ahoraReal);
+  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+
+  comprueba(
+    'las siete evidencias se miden: ninguna NO_EVALUABLE por cómo se cruzan los hechos',
+    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
+    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+  );
+  comprueba('y con esta pasada, todas CUMPLE', todas.every(id => real.estado(id) === 'CUMPLE'), todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | '));
+  comprueba(
+    'todos los requisitos de ALTO, demostrados',
+    mpInfo6CatalogDefinition.requirements.every(q => real.requisito(q.id).evidenced === true),
+    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${real.requisito(q.id).status}/${real.requisito(q.id).evidenced}`).join(' ')
+  );
+  comprueba('EV-02 aplica la planificación del cron a los dos backup-id', (real.motivo('EV-02').match(/planificada cada 24 h/g) || []).length === 2, real.motivo('EV-02'));
+
+  const nadie = evalua(eventos(lineas.map(l => (l.event === 'backup_access' ? { ...l, cuentas_con_lectura: '-' } : l)), maquina), valores, 'ALTO', ahoraReal);
+  comprueba('con cuentas_con_lectura = - (nadie) → EV-04 sigue CUMPLE', nadie.estado('EV-04') === 'CUMPLE', nadie.motivo('EV-04'));
+
+  const cualquiera = evalua(eventos(lineas.map(l => (l.event === 'backup_access' && l.tipo_ruta === 'directorio' ? { ...l, cuentas_con_lectura: 'backup,root,*' } : l)), maquina), valores, 'ALTO', ahoraReal);
+  comprueba('con * en el directorio local → EV-04 NO_CUMPLE', cualquiera.estado('EV-04') === 'NO_CUMPLE', cualquiera.motivo('EV-04'));
+
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(valores) : c)),
+  });
+
+  const fila = getENSComplianceResultByControl(CONTROL, 'ALTO', eventos(lineas, maquina), maquina.id, [{ ...maquina, groups: ['ens'] }], ahoraReal);
+  comprueba(
+    'y por el motor entero: la fila de la máquina, 100 % con todo demostrado',
+    fila?.status === 'CUMPLE' && fila.measuredRequirements === fila.applicableRequirements,
+    fila && `${fila.status} ${fila.score} ${fila.measuredRequirements}/${fila.applicableRequirements}`
+  );
 
   ensConfigurationRepository.reset();
 }

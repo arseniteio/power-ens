@@ -9,6 +9,8 @@ import {
   toParameterListItems,
   toTableRowCells,
 } from '../../configuration/services/parameter-value-validator';
+import type { ENSEvidenceResolved } from '../evidence/types';
+import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
 import { ENSAgentScope } from './types';
 
 // Planos de medida: dónde se mide cada control.
@@ -105,10 +107,20 @@ export const getDeclaredScopeAgentNames = (
   );
 };
 
-// ¿Figura esta máquina en el alcance declarado del control? El nombre es el
-// del agente de Wazuh, sin distinguir mayúsculas: es como lo escribe el
-// responsable en la pantalla. Un control sin parámetro de alcance está en
-// todas; con el parámetro vacío, en ninguna.
+// ¿Es esta máquina una de las declaradas? El nombre es el del agente de
+// Wazuh, sin distinguir mayúsculas: es como lo escribe el responsable en la
+// pantalla.
+export const isAgentNameDeclared = (
+  agentName: string | undefined,
+  declared: string[]
+): boolean => {
+  const name = String(agentName || '').trim().toLowerCase();
+
+  return name !== '' && declared.includes(name);
+};
+
+// ¿Figura esta máquina en el alcance declarado del control? Un control sin
+// parámetro de alcance está en todas; con el parámetro vacío, en ninguna.
 export const isControlInDeclaredScope = (
   control: ENSScopedControl,
   agentName: string | undefined,
@@ -116,14 +128,73 @@ export const isControlInDeclaredScope = (
 ): boolean => {
   const declared = getDeclaredScopeAgentNames(control, configuration);
 
-  if (declared === undefined) {
-    return true;
-  }
-
-  const name = String(agentName || '').trim().toLowerCase();
-
-  return name !== '' && declared.includes(name);
+  return declared === undefined || isAgentNameDeclared(agentName, declared);
 };
+
+// Sin fila, un control cuyo alcance declarado no nombra a NINGUNA máquina
+// conocida (vacío, o con nombres que no coinciden con ningún agente, una
+// errata) no tiene de quién esperar hechos: lo que no se ha podido medir es de
+// CONFIGURACIÓN, no de recogida. Estas dos marcan el resultado así, igual que
+// `stale-collector.ts` marca el de un recolector parado.
+export const describeUnmatchedDeclaredScope = (
+  parameterId: string,
+  declared: string[]
+): string =>
+  declared.length
+    ? `Ninguna de las máquinas que declara ${parameterId} (${declared.join(', ')}) coincide con un agente del alcance ENS: ninguna máquina declarada envía datos. Revisa los nombres en la pantalla de Configuración.`
+    : `${parameterId} no declara ninguna máquina: el control solo se mide en las máquinas declaradas, y sin ninguna no hay qué medir.`;
+
+export const markEvidencesUnmatchedScope = (
+  evidences: ENSEvidenceResolved[],
+  reason: string
+): ENSEvidenceResolved[] =>
+  evidences.map(evidence => {
+    if (evidence.status === 'NO_APLICA') {
+      return evidence;
+    }
+
+    const {
+      resolvedEventId,
+      resolvedEventType,
+      resolvedSourceType,
+      resolvedSource,
+      resolvedRuleId,
+      resolvedRuleDescription,
+      resolvedAttributes,
+      latestSuccessfulEventId,
+      latestSuccessfulAttributes,
+      ...rest
+    } = evidence;
+
+    return {
+      ...rest,
+      status: 'NO_EVALUABLE',
+      gapCause: 'CONFIGURATION',
+      resolvedAttributes: { motivo: reason, causa: 'CONFIGURATION' },
+      observations: [
+        `${evidence.id} NO_EVALUABLE: ${reason}`,
+        `Pregunta de auditoría: ${evidence.auditQuestion}`,
+      ],
+    };
+  });
+
+export const markPolicyRuntimeUnmatchedScope = (
+  policyRuntime: ENSPolicyRuntimeResult | undefined,
+  reason: string
+): ENSPolicyRuntimeResult | undefined =>
+  policyRuntime && {
+    ...policyRuntime,
+    decisions: policyRuntime.decisions.map(decision =>
+      decision.status === 'NO_APLICA'
+        ? decision
+        : {
+            ...decision,
+            status: 'NO_EVALUABLE',
+            cause: 'CONFIGURATION',
+            reason,
+          }
+    ),
+  };
 
 // Un control SOLO de manager es de la organización, no de una máquina: en la
 // vista de un agente se muestra con el resultado de la fila del manager.

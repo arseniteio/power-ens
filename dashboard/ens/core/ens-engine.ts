@@ -28,11 +28,15 @@ import {
 import { ENSAgentScope } from './scope/types';
 import {
   ENS_MANAGER_AGENT_ID,
+  describeUnmatchedDeclaredScope,
   getDeclaredScopeAgentNames,
+  isAgentNameDeclared,
   isControlInDeclaredScope,
   isControlMeasuredOnAgent,
   isManagerAgentId,
   isManagerOnlyControl,
+  markEvidencesUnmatchedScope,
+  markPolicyRuntimeUnmatchedScope,
 } from './scope/measurement-planes';
 import { resolveControlLevel } from './control-level';
 import type { ENSControlDefinition } from '../catalog/types';
@@ -115,7 +119,8 @@ const evaluateControlOnEvents = (
   level: ENSLevel,
   scopedEvents: ENSNormalizedEvent[],
   agentId?: string,
-  now?: Date
+  now?: Date,
+  scopeAgents?: ENSAgentScope[]
 ): ENSComplianceResult => {
   // La configuración se carga ANTES de resolver las evidencias: las que
   // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
@@ -133,17 +138,34 @@ const evaluateControlOnEvents = (
 
   const eventsInScope = declaredScope
     ? scopedEvents.filter(event =>
-        isControlInDeclaredScope(
-          catalogControl,
-          event.agentName,
-          configuration
-        )
+        isAgentNameDeclared(event.agentName, declaredScope)
       )
     : scopedEvents;
 
-  // Con el alcance declarado vacío no hay ninguna máquina de la que esperar
-  // hechos: lo que no se ha podido medir es de CONFIGURACIÓN, no de recogida.
-  const expectsFacts = !declaredScope || declaredScope.length > 0;
+  // Las máquinas que se conocen: las del alcance y, sin él, las de los
+  // eventos. Si el alcance declarado no nombra a ninguna (vacío, o una errata
+  // en los nombres), no hay de quién esperar hechos: lo que no se ha podido
+  // medir es de CONFIGURACIÓN, no de recogida.
+  const knownAgentNames = declaredScope
+    ? (scopeAgents
+        ? scopeAgents.map(agent => agent.name)
+        : scopedEvents.map(event => event.agentName)
+      ).filter((name): name is string => Boolean(name))
+    : [];
+
+  const unmatchedScope =
+    declaredScope !== undefined &&
+    !knownAgentNames.some(name => isAgentNameDeclared(name, declaredScope));
+
+  const unmatchedScopeReason =
+    unmatchedScope && catalogControl.scopeParameter
+      ? describeUnmatchedDeclaredScope(
+          catalogControl.scopeParameter,
+          declaredScope as string[]
+        )
+      : undefined;
+
+  const expectsFacts = !unmatchedScope;
 
   // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
   // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
@@ -187,10 +209,14 @@ const evaluateControlOnEvents = (
 
   const evidences = stale
     ? markEvidencesStale(resolvedEvidences, stale)
+    : unmatchedScopeReason
+    ? markEvidencesUnmatchedScope(resolvedEvidences, unmatchedScopeReason)
     : resolvedEvidences;
 
   const policyRuntime = stale
     ? markPolicyRuntimeStale(resolvedPolicyRuntime, stale)
+    : unmatchedScopeReason
+    ? markPolicyRuntimeUnmatchedScope(resolvedPolicyRuntime, unmatchedScopeReason)
     : resolvedPolicyRuntime;
 
   return evaluateENSControl(
@@ -224,7 +250,8 @@ const evaluateCatalogControls = (
       level,
       scopedEvents,
       agentId,
-      now
+      now,
+      scopeAgents
     )
   );
 };
@@ -590,7 +617,8 @@ const evaluateENSComplianceResultByControl = (
     level,
     scopedEvents,
     agentId,
-    now
+    now,
+    scopeAgents
   );
 };
 

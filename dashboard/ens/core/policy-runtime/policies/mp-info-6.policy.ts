@@ -247,14 +247,21 @@ const OBJETO: Record<string, string> = {
   directorio: 'copia del directorio',
 };
 
-// Una copia es un origen, un objeto y, si el recolector lo distingue, un
-// trabajo de copia (`backup_id`).
-const claveDe = (e: ENSNormalizedEvent): string =>
-  [campo(e, 'origen'), campo(e, 'objeto'), campo(e, 'backup_id')].join('|');
+// Un hecho es de un ORIGEN y de un OBJETO (el par) y, si el recolector lo
+// distingue, de un trabajo de copia concreto (`backup_id`). Un hecho sin
+// `backup_id` es del par entero: la planificación que lee el recolector del
+// PBS en el cron vale para todos sus backup-id, y un `evidence_state` sin
+// `backup_id` habla de todo el par.
+const parDe = (e: ENSNormalizedEvent): string => `${campo(e, 'origen')}|${campo(e, 'objeto')}`;
+
+const backupId = (e: ENSNormalizedEvent): string => campo(e, 'backup_id');
+
+// La copia de un hecho, para los que se agrupan por copia (EV-05).
+const claveDe = (e: ENSNormalizedEvent): string => `${parDe(e)}|${backupId(e)}`;
 
 const nombreDe = (e: ENSNormalizedEvent): string => {
   const objeto = campo(e, 'objeto');
-  const id = campo(e, 'backup_id');
+  const id = backupId(e);
 
   return `${OBJETO[objeto] || (objeto ? `copia de ${objeto}` : 'copia sin objeto declarado')}${id ? ` «${id}»` : ''} (${campo(e, 'origen') || 'origen sin declarar'})`;
 };
@@ -349,13 +356,41 @@ const sinHechos = (ultimo: number | undefined, queFalta: string): Medida =>
     'COLLECTION'
   );
 
-// Juzga una evidencia de ESTADO copia a copia. Los hechos de la última pasada
-// de cada origen se agrupan por copia y cada grupo lo juzga `juzga` con TODOS
-// sus hechos de esa pasada; manda el peor. Una copia de la que el recolector
-// declaró, en esa pasada o después, que no pudo medirla sale NO_EVALUABLE con
-// su causa: si no, una copia sin medir desaparecería y las demás darían un
-// CUMPLE que no la incluye. Y un origen cuyo recolector ha dejado de informar
-// sale NO_EVALUABLE aunque el otro informe cada hora.
+// Una degradación frente a los hechos de lo que declara. De una pasada
+// POSTERIOR a todos ellos, los SUSTITUYE: el estado de hoy no se ha podido
+// ver. De la MISMA pasada, se SUMA a lo medido (una parte se midió y otra no).
+// Si hay un hecho posterior, ya NO CUENTA: la pasada siguiente sí pudo mirar.
+const frenteALosHechos = (
+  hechosQueCubre: ENSNormalizedEvent[],
+  degradacion: ENSNormalizedEvent | undefined
+): 'sustituye' | 'suma' | 'no_cuenta' => {
+  if (!degradacion) {
+    return 'no_cuenta';
+  }
+
+  if (!hechosQueCubre.length) {
+    return 'sustituye';
+  }
+
+  const ultimo = Math.max(...hechosQueCubre.map(momento));
+  const t = momento(degradacion);
+
+  if (t > ultimo + MISMA_PASADA) {
+    return 'sustituye';
+  }
+
+  return t >= ultimo - MISMA_PASADA ? 'suma' : 'no_cuenta';
+};
+
+// Juzga una evidencia de ESTADO copia a copia. Por cada origen, los hechos de
+// su última pasada se reparten por par (origen y objeto) y, dentro del par, por
+// `backup_id`; un hecho sin `backup_id` vale para todas las copias del par.
+// Cada copia la juzga `juzga` con TODOS sus hechos de esa pasada; manda el peor.
+//
+// Las degradaciones cuentan si tienen menos de FRESCURA_HORAS y según
+// `frenteALosHechos`: la de una copia frente a los hechos de esa copia, y la
+// del par entero frente a los de todo el par. Un origen cuyo recolector ha
+// dejado de informar sale NO_EVALUABLE aunque el otro informe cada hora.
 const porCopia = (
   context: ENSPolicyContext,
   evidencia: string,
@@ -366,60 +401,72 @@ const porCopia = (
 ): Medida => {
   const pasadas = pasadasPorOrigen(context, tipos, ahora);
   const declaradas = degradaciones(context, evidencia, ahora);
+  const recientes = declaradas.filter(e => ahora - momento(e) <= FRESCURA_HORAS * HORA);
   const origenes = Array.from(
-    new Set([...pasadas.map(p => p.origen), ...declaradas.map(e => campo(e, 'origen'))])
+    new Set([...pasadas.map(p => p.origen), ...recientes.map(e => campo(e, 'origen'))])
   );
 
   if (!origenes.length) {
-    return sinHechos(undefined, queFalta);
+    const ultimo = declaradas.length ? Math.max(...declaradas.map(momento)) : undefined;
+
+    return sinHechos(ultimo, queFalta);
   }
+
+  const ultimaDe = (eventos: ENSNormalizedEvent[]): ENSNormalizedEvent | undefined =>
+    eventos.length ? masReciente(eventos) : undefined;
 
   const medidas = origenes.flatMap(origen => {
     const pasada = pasadas.find(p => p.origen === origen);
     const suyos = pasada ? pasada.vigentes : [];
-    const ultimo = pasada?.ultimo;
+    const susDegradaciones = recientes.filter(e => campo(e, 'origen') === origen);
 
-    // Las degradaciones que cuentan: las de la última pasada de este origen o
-    // posteriores; sin hechos vigentes, las posteriores a su último hecho.
-    const desde = suyos.length
-      ? Math.max(...suyos.map(momento)) - HORA
-      : ultimo !== undefined
-      ? ultimo + 1
-      : -Infinity;
-
-    const grupos = new Map<string, { hechos: ENSNormalizedEvent[]; degradacion?: ENSNormalizedEvent }>();
-    const grupo = (clave: string) => {
-      if (!grupos.has(clave)) {
-        grupos.set(clave, { hechos: [] });
-      }
-
-      return grupos.get(clave)!;
-    };
-
-    suyos.forEach(e => grupo(claveDe(e)).hechos.push(e));
-
-    declaradas
-      .filter(e => campo(e, 'origen') === origen && momento(e) >= desde)
-      .forEach(e => {
-        const g = grupo(claveDe(e));
-
-        if (!g.degradacion || momento(e) > momento(g.degradacion)) {
-          g.degradacion = e;
-        }
-      });
-
-    if (!grupos.size) {
-      return [sinHechos(ultimo, `${queFalta} de origen ${origen || 'sin declarar'}`)];
+    if (!suyos.length && !susDegradaciones.length) {
+      return [sinHechos(pasada?.ultimo, `${queFalta} de origen ${origen || 'sin declarar'}`)];
     }
 
-    return Array.from(grupos.values()).map(g => {
-      const ultimoDelGrupo = g.hechos.length ? Math.max(...g.hechos.map(momento)) : undefined;
+    const pares = Array.from(new Set([...suyos, ...susDegradaciones].map(parDe)));
 
-      if (g.degradacion && (ultimoDelGrupo === undefined || momento(g.degradacion) >= ultimoDelGrupo)) {
-        return comoDegradacion(g.degradacion);
+    return pares.flatMap(par => {
+      const delPar = suyos.filter(e => parDe(e) === par);
+      const degradacionesDelPar = susDegradaciones.filter(e => parDe(e) === par);
+      const generales = delPar.filter(e => !backupId(e));
+      const ids = Array.from(
+        new Set([...delPar, ...degradacionesDelPar].map(backupId).filter(Boolean))
+      );
+
+      const copias = ids.length
+        ? ids.map(id => ({ id, hechos: [...delPar.filter(e => backupId(e) === id), ...generales] }))
+        : generales.length
+        ? [{ id: '', hechos: generales }]
+        : [];
+
+      const medidasDelPar = copias.map(copia => {
+        const propios = copia.hechos.filter(e => backupId(e) === copia.id);
+        const degradacion = copia.id
+          ? ultimaDe(degradacionesDelPar.filter(e => backupId(e) === copia.id))
+          : undefined;
+        const frente = frenteALosHechos(propios, degradacion);
+
+        if (frente === 'sustituye') {
+          return comoDegradacion(degradacion as ENSNormalizedEvent);
+        }
+
+        const medida = propios.length
+          ? juzga(nombreDe(propios[0]), deLaUltimaPasada(copia.hechos, tipos))
+          : juzga(nombreDe(copia.hechos[0]), deLaUltimaPasada(copia.hechos, tipos));
+
+        return frente === 'suma' ? combina([medida, comoDegradacion(degradacion as ENSNormalizedEvent)]) : medida;
+      });
+
+      // La degradación del par entero, frente a todos los hechos del par.
+      const general = ultimaDe(degradacionesDelPar.filter(e => !backupId(e)));
+      const frente = frenteALosHechos(delPar, general);
+
+      if (frente === 'sustituye') {
+        return [comoDegradacion(general as ENSNormalizedEvent)];
       }
 
-      return juzga(nombreDe(g.hechos[0]), deLaUltimaPasada(g.hechos, tipos));
+      return frente === 'suma' ? [...medidasDelPar, comoDegradacion(general as ENSNormalizedEvent)] : medidasDelPar;
     });
   });
 
@@ -681,7 +728,10 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
         const ruta = campo(e, 'ruta') || '(ruta sin declarar)';
         const modo = campo(e, 'modo');
         const permisos = octal(modo);
-        const cuentas = campo(e, 'cuentas_con_lectura')
+        // `-` es el conjunto vacío (nadie, además de root, que lo lee todo);
+        // un campo vacío es que el recolector no lo ha informado.
+        const declaradas = campo(e, 'cuentas_con_lectura');
+        const cuentas = declaradas
           .split(',')
           .map(c => c.trim())
           .filter(c => c && c !== '-');
@@ -698,10 +748,16 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
           partes.push(noCumple(`${nombre}: el repositorio ${ruta} lo pueden leer cuentas que P-07 no autoriza: ${ajenas.join(', ')}.`));
         }
 
-        if (!cuentas.length) {
+        if (declaradas === '') {
           partes.push(sinMedir(`${nombre}: el recolector no ha informado de qué cuentas pueden leer ${ruta}.`));
         } else if (!partes.length) {
-          partes.push(cumple(`${nombre}: ${ruta} solo lo pueden leer cuentas autorizadas en P-07 (${cuentas.join(', ')}).`));
+          partes.push(
+            cumple(
+              cuentas.length
+                ? `${nombre}: ${ruta} solo lo pueden leer cuentas autorizadas en P-07 (${cuentas.join(', ')}).`
+                : `${nombre}: ${ruta} no lo puede leer ninguna cuenta además de root.`
+            )
+          );
         }
 
         const clave = campo(e, 'clave_ruta');
@@ -783,23 +839,34 @@ const RESTAURADO: Record<string, string> = {
 // puede dar un CUMPLE limpio, y el recolector no la repite hasta que se
 // resuelva.
 const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const pruebas = hechos(context, 'restore_test').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
-
-  if (!pruebas.length) {
-    const declarada = degradaciones(context, 'EV-05', ahora).sort((a, b) => momento(b) - momento(a))[0];
-
-    return declarada
-      ? comoDegradacion(declarada)
-      : sinMedir(
-          'No consta ninguna prueba de restauración de esta máquina en la ventana: el recolector de mp.info.6 no la ha ejecutado o no informa.',
-          'COLLECTION'
-        );
-  }
-
+  // Primero el plazo, como en las demás: sin él no hay contra qué juzgar.
   const plazo = plazoDeRestauracion(context);
 
   if (typeof plazo !== 'number') {
     return plazo;
+  }
+
+  const pruebas = hechos(context, 'restore_test').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+
+  if (!pruebas.length) {
+    const declarada = degradaciones(context, 'EV-05', ahora)
+      .filter(e => ahora - momento(e) <= FRESCURA_HORAS * HORA)
+      .sort((a, b) => momento(b) - momento(a))[0];
+
+    if (declarada) {
+      return comoDegradacion(declarada);
+    }
+
+    // Con el recolector latiendo, no es un fallo de recogida: se ha mirado la
+    // ventana consultada y en ella no hay ninguna prueba.
+    const late = ultimosLatidos(context, ahora).some(e => ahora - momento(e) <= FRESCURA_HORAS * HORA);
+
+    return sinMedir(
+      late
+        ? `No se ha visto ninguna prueba de restauración de esta máquina en la ventana consultada, y el recolector de mp.info.6 sí informa: no hay prueba que demuestre que las copias se restauran dentro de los ${plazo} días de P-05.`
+        : 'No se ha visto ninguna prueba de restauración de esta máquina en la ventana consultada, ni ningún latido reciente del recolector de mp.info.6: no está desplegado o no informa.',
+      late ? 'EVIDENCE' : 'COLLECTION'
+    );
   }
 
   const fecha = (e: ENSNormalizedEvent): number => instante(campo(e, 'fecha')) ?? momento(e);
@@ -899,7 +966,7 @@ const describeRecolector = (e: ENSNormalizedEvent): string => {
 };
 
 // EV-07 · el latido: la última pasada de CADA recolector es reciente, terminó
-// y declara qué cubrió.
+// (entera o en parte) y declara qué cubrió.
 const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   const latidos = ultimosLatidos(context, ahora);
 
@@ -923,7 +990,10 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
         .map(x => x.trim())
         .filter(x => x && x !== '-');
 
-      if (!['completada', 'ok'].includes(resultado.toLowerCase())) {
+      // Una pasada `parcial` también ha pasado: lo que no pudo mirar ya lleva
+      // su propio NO_EVALUABLE en la evidencia afectada, y el latido no tiene
+      // que repetirlo.
+      if (!['completada', 'ok', 'parcial'].includes(resultado.toLowerCase())) {
         return sinMedir(`${pasada} y terminó como «${resultado || 'sin resultado'}»: los registros de copia de esa pasada no se han interpretado enteros.`, 'COLLECTION');
       }
 
@@ -931,7 +1001,9 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
         return sinMedir(`${pasada} y no declara ninguna evidencia cubierta: no consta qué se ha mirado.`);
       }
 
-      return cumple(`${pasada}, terminó y declara cubiertas ${lista(cubiertas, 7)}.`);
+      return cumple(
+        `${pasada}, terminó${resultado.toLowerCase() === 'parcial' ? ' en parte (lo que no pudo mirar sale en su evidencia)' : ''} y declara cubiertas ${lista(cubiertas, 7)}.`
+      );
     })
   );
 };
@@ -1113,9 +1185,10 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
 
 type Tipo = ENSPolicyDecision['trace']['ruleType'];
 
-// Con qué evidencias se mide cada requisito. Son las del catálogo; en cada
-// nivel cuentan solo las que aplican (EV-06, la copia separada, solo en ALTO).
-const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
+// Con qué evidencias se mide cada requisito. Son las del catálogo (una prueba
+// lo comprueba); en cada nivel cuentan solo las que aplican (EV-06, la copia
+// separada, solo en ALTO).
+export const MP_INFO_6_REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
   'mp.info.6.1': { evidencias: ['EV-01', 'EV-02', 'EV-07'], parametros: ['P-01', 'P-02', 'P-03', 'P-04', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   'mp.info.6.2.a': { evidencias: ['EV-01', 'EV-02'], parametros: ['P-01', 'P-02'], tipo: 'MAX_AGE' },
   'mp.info.6.2.b': { evidencias: ['EV-03', 'EV-07'], parametros: ['P-03', 'P-06'], tipo: 'MIN_RETENTION' },
@@ -1198,7 +1271,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const requisitoDecisions: ENSPolicyDecision[] = [];
   const evidenciaDecisions: ENSPolicyDecision[] = [];
 
-  Object.entries(REQUISITOS).forEach(([requisito, definicion]) => {
+  Object.entries(MP_INFO_6_REQUISITOS).forEach(([requisito, definicion]) => {
     const propias = definicion.evidencias
       .filter(id => aplican.has(id))
       .map(id => ({ id, medida: medidas[id] }));
