@@ -1146,6 +1146,167 @@ bloque('22. Una pasada real del recolector del PBS (tests/fixtures/mp-info-6-pbs
 
 // ---------------------------------------------------------------------------
 
+// Reescala TODAS las marcas de tiempo ISO-8601 de una pasada real para que su
+// último hecho caiga en `destino`, conservando las distancias entre hechos
+// que dejó el recolector real: solo se mueve el reloj, no la forma.
+const reescala = (lineas: Linea[], destino: Date): Linea[] => {
+  const maxTs = Math.max(...lineas.map(l => Date.parse(String(l.ts))));
+  const delta = destino.getTime() - maxTs;
+  const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+  return lineas.map(l => {
+    const desplazada: Linea = {};
+
+    for (const [k, v] of Object.entries(l)) {
+      desplazada[k] =
+        typeof v === 'string' && iso.test(v)
+          ? new Date(Date.parse(v) + delta).toISOString().replace('.000Z', 'Z')
+          : v;
+    }
+
+    return desplazada;
+  });
+};
+
+bloque('23. Una pasada real del recolector de Zimbra (tests/fixtures/mp-info-6-zimbra-pass.ndjson)');
+
+{
+  // Salida tal cual de ens_mpinfo6zimbra_collect.sh y
+  // ens_mpinfo6zimbra_restore_test.sh del runbook de Zimbra en modo --prueba,
+  // con un nodo simulado con los DOS papeles (buzones y directorio), edición
+  // Network y ocho sesiones de zmbackup correctas (ver
+  // tests/fixtures/generate-mp-info-6-zimbra-pass.sh): la planificación del
+  // cron, la retención, el acceso al directorio de copias, el destino local Y
+  // uno fuera de la máquina, la prueba de restauración de cada papel y el
+  // latido con los dos papeles cubiertos.
+  const fs = require('fs');
+  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-zimbra-pass.ndjson`, 'utf8'))
+    .split('\n')
+    .filter(Boolean)
+    .map((l: string) => JSON.parse(l));
+  const maquina = { id: SRV01.id, name: String(lineas[0].host) };
+  const ahoraReal = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  // P-07 incluye la cuenta que de verdad posee el directorio de copias en un
+  // Zimbra (zimbra), igual que P-04 recoge el nombre real de la máquina.
+  const valores = { ...BASE, 'P-04': maquina.name, 'P-07': 'zimbra' };
+  const real = evalua(eventos(lineas, maquina), valores, 'ALTO', ahoraReal);
+  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+
+  comprueba(
+    'las siete evidencias se miden: ninguna NO_EVALUABLE por cómo se cruzan los hechos de buzones y directorio',
+    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
+    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+  );
+  comprueba(
+    'y con esta pasada, todas CUMPLE',
+    todas.every(id => real.estado(id) === 'CUMPLE'),
+    todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | ')
+  );
+  comprueba(
+    'EV-01 nombra los dos objetos del nodo: buzones y directorio',
+    /buzones/.test(real.motivo('EV-01')) && /directorio/.test(real.motivo('EV-01')),
+    real.motivo('EV-01')
+  );
+  // EV-06 (copia fuera de la máquina, solo ALTO): el fixture declara
+  // MPINFO6ZIMBRA_COPIA_REMOTA_DESTINO con su testigo de sincronización
+  // recién tocado, así que el recolector emite un backup_storage remoto
+  // (misma_maquina=no, activo=si) ADEMÁS del local, para cada objeto. Con uno
+  // de los dos destinos fuera de la máquina y activo, el requisito se
+  // demuestra igual que en el PBS (bloque 8): CUMPLE, no NO_APLICA, porque el
+  // nivel es ALTO.
+  comprueba(
+    'EV-06 CUMPLE: la copia remota declarada está activa para los dos objetos',
+    real.estado('EV-06') === 'CUMPLE' && /buzones/.test(real.motivo('EV-06')) && /directorio/.test(real.motivo('EV-06')),
+    real.motivo('EV-06')
+  );
+  comprueba(
+    'todos los requisitos de ALTO, demostrados',
+    mpInfo6CatalogDefinition.requirements.every(q => real.requisito(q.id).evidenced === true),
+    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${real.requisito(q.id).status}/${real.requisito(q.id).evidenced}`).join(' ')
+  );
+  comprueba(
+    'EV-07: el latido nombra los dos papeles cubiertos',
+    /EV-01/.test(real.motivo('EV-07')) && /EV-06/.test(real.motivo('EV-07')),
+    real.motivo('EV-07')
+  );
+
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(valores) : c)),
+  });
+
+  const fila = getENSComplianceResultByControl(CONTROL, 'ALTO', eventos(lineas, maquina), maquina.id, [{ ...maquina, groups: ['ens'] }], ahoraReal);
+  comprueba(
+    'y por el motor entero: la fila de la máquina, 100 % con todo demostrado',
+    fila?.status === 'CUMPLE' && fila.measuredRequirements === fila.applicableRequirements,
+    fila && `${fila.status} ${fila.score} ${fila.measuredRequirements}/${fila.applicableRequirements}`
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('24. PBS y Zimbra reales en el mismo agente, a minutos distintos');
+
+{
+  // Las dos pasadas REALES (bloques 22 y 23) pero de UN mismo agente: cada
+  // recolector con su propio latido, a minutos distintos dentro de la misma
+  // hora -el PBS a la hora en punto, Zimbra 40 minutos más tarde-, igual que
+  // el bloque 12 (hecho a mano) pero con la forma real de los dos runbooks.
+  // Se reescala cada pasada sobre SU PROPIO último hecho: las distancias
+  // internas de cada una -antigüedad de copias, retención- no cambian, solo
+  // el instante en que "ahora" las mira.
+  const fs = require('fs');
+  const cargaLineas = (fichero: string): Linea[] =>
+    String(fs.readFileSync(`${__dirname}/fixtures/${fichero}`, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map((l: string) => JSON.parse(l));
+
+  const ahoraReal = new Date('2026-09-30T14:00:00Z');
+  const pbsHora = new Date(ahoraReal.getTime() - 2 * HORA);
+  const zimbraHora = new Date(ahoraReal.getTime() - 2 * HORA + 40 * 60 * 1000);
+
+  const pbs = reescala(cargaLineas('mp-info-6-pbs-pass.ndjson'), pbsHora);
+  const zimbra = reescala(cargaLineas('mp-info-6-zimbra-pass.ndjson'), zimbraHora);
+
+  const maquina = SRV01;
+  const valores = { ...BASE, 'P-04': maquina.name, 'P-07': 'root,backup,zimbra' };
+  const real = evalua(eventos([...pbs, ...zimbra], maquina), valores, 'ALTO', ahoraReal);
+  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+
+  comprueba(
+    'las dos pasadas reales conviven: ninguna evidencia se queda sin medir por tener dos orígenes',
+    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
+    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+  );
+  comprueba(
+    'EV-01 (el peor manda) nombra los tres objetos: ficheros del PBS, buzones y directorio de Zimbra',
+    ['ficheros', 'buzones', 'directorio'].every(o => real.motivo('EV-01').includes(o)),
+    real.motivo('EV-01')
+  );
+  comprueba(
+    'EV-07 nombra los dos orígenes, cada uno con su latido: ninguno tapa al otro',
+    /pbs/.test(real.motivo('EV-07')) && /zimbra-ne/.test(real.motivo('EV-07')),
+    real.motivo('EV-07')
+  );
+  comprueba('y con las dos pasadas al día, todas CUMPLE', todas.every(id => real.estado(id) === 'CUMPLE'), todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | '));
+
+  // REVERSIÓN: si el PBS se para 30 horas -su latido incluido, no solo sus
+  // copias- su mitad falla y la de Zimbra -que sigue latiendo cada hora- no
+  // la disimula.
+  const pbsParado = reescala(cargaLineas('mp-info-6-pbs-pass.ndjson'), new Date(zimbraHora.getTime() - 30 * HORA));
+  const paro = evalua(eventos([...pbsParado, ...zimbra], maquina), valores, 'ALTO', ahoraReal);
+  comprueba(
+    'REVERSIÓN: el PBS 30 h sin latir → EV-07 NO_EVALUABLE por RECOGIDA nombrando pbs, aunque Zimbra siga latiendo al día',
+    paro.estado('EV-07') === 'NO_EVALUABLE' && paro.causa('EV-07') === 'COLLECTION' && /pbs/.test(paro.motivo('EV-07')),
+    `${paro.estado('EV-07')} ${paro.causa('EV-07')} ${paro.motivo('EV-07')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 bloque('11. Ningún otro control cambia');
 
 {
