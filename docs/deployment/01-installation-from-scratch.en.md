@@ -317,7 +317,7 @@ Each `install-manager.sh` runs a blocking check with `wazuh-logtest`. The instal
 
 | Control | Rule | Control | Rule |
 |---|---|---|---|
-| `mp.info.6` | `106650` | `op.exp.3` | `110401` |
+| `mp.info.6` | `106797` | `op.exp.3` | `110401` |
 | `op.acc.1` | `106873` | `op.exp.4` | `110505` |
 | `op.acc.2` | `106902` | `op.exp.5` | `110601` |
 | `op.acc.3` | `107001` | `op.exp.6` | `110701` |
@@ -326,6 +326,8 @@ Each `install-manager.sh` runs a blocking check with `wazuh-logtest`. The instal
 | `op.acc.6` | `110101` | `op.exp.9` | `111001` |
 | `op.exp.1` | `110205` | `op.exp.10` | `111197` |
 | `op.exp.2` | `110304` | | |
+
+For mp.info.6 the rule validated is the collector heartbeat (`106797`, `collector_run`), which arrives on every run. Once the machine has a backup, `106601` (`backup_run`) is validated as well.
 
 After running the installers, also check that Wazuh Manager stays active, that its configuration is valid and that the plugin and the runbooks are consistent:
 
