@@ -1740,6 +1740,47 @@ bloque('33. El informe enseña los montajes omitidos y la prueba declarada');
 
 // ---------------------------------------------------------------------------
 
+bloque('34. La omisión aceptada de una copia no desaparece cuando otra copia falla');
+
+{
+  // El layout real: dos backup-id del mismo origen y objeto (dos discos de la
+  // misma máquina). Uno cumple con una omisión aceptada; el otro no cumple
+  // por una razón que no tiene nada que ver con los montajes. El peor manda
+  // en el VEREDICTO de EV-01, pero el dato de la omisión aceptada de la copia
+  // que sí cumple tiene que seguir viéndose en el informe: `combina` descarta
+  // el motivo de las partes CUMPLE cuando el resultado final no lo es, así
+  // que citarla solo en el motivo combinado no basta.
+  const copiaA = copia({ backup_id: 'srv01_a', ultima_correcta: hace(10), montajes_omitidos: '', montajes_omitidos_aceptados: '/mnt/aceptado' });
+  const copiaB = copia({ backup_id: 'srv01_b', ultima_correcta: '-', ultima_fallida: hace(2), resultado_ultima: 'error' });
+  const hechos = eventos([copiaA, copiaB, latido()]);
+
+  const r = evalua(hechos);
+  comprueba(
+    'dos backup-id, uno CUMPLE con una omisión aceptada y el otro NO_CUMPLE por otra razón → EV-01 NO_CUMPLE',
+    r.estado('EV-01') === 'NO_CUMPLE',
+    `${r.estado('EV-01')} ${r.motivo('EV-01')}`
+  );
+
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(BASE) : c)),
+  });
+
+  const resultado = getENSComplianceResultByControl(CONTROL, 'MEDIO', hechos, SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], AHORA);
+  const informe = buildENSReportModel(CONTROL, resultado);
+  const rep02 = informe?.fields.find(f => f.id === 'REP-02');
+
+  comprueba(
+    'pero el dato del informe (REP-02) sigue mostrando la omisión aceptada de srv01_a, aunque el motivo combinado de EV-01 la pierda',
+    /srv01_a/.test(rep02?.value || '') && /\/mnt\/aceptado/.test(rep02?.value || ''),
+    rep02?.value
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
 bloque('11. Ningún otro control cambia');
 
 {

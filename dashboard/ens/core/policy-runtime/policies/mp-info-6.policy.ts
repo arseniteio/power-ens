@@ -1154,8 +1154,13 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
           const correcta = campo(e, 'ultima_correcta');
           const tc = instante(correcta);
           const omitidos = montajesOmitidos(campo(e, 'montajes_omitidos'));
+          // Esta línea es por copia, así que la omisión aceptada de ESTA
+          // copia se ve siempre aquí: cuando el peor de otra copia manda en
+          // el veredicto de EV-01, `combina` descarta el motivo de las partes
+          // CUMPLE y la cita desaparecería si solo viviera en el motivo.
+          const aceptados = montajesOmitidos(campo(e, 'montajes_omitidos_aceptados'));
 
-          return `${nombreDe(e)}: ${vacio(correcta) ? 'ninguna copia correcta' : `${correcta}${tc !== undefined ? `, hace ${horas(ahora - tc)} h` : ''}`}${campo(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${vacio(campo(e, 'ultima_fallida')) ? '' : ` el ${campo(e, 'ultima_fallida')}`}` : ''}${omitidos.length ? `; deja fuera ${lista(omitidos)}` : ''}`;
+          return `${nombreDe(e)}: ${vacio(correcta) ? 'ninguna copia correcta' : `${correcta}${tc !== undefined ? `, hace ${horas(ahora - tc)} h` : ''}`}${campo(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${vacio(campo(e, 'ultima_fallida')) ? '' : ` el ${campo(e, 'ultima_fallida')}`}` : ''}${omitidos.length ? `; deja fuera ${lista(omitidos)}` : ''}${aceptados.length ? `; omisión aceptada por la organización: ${lista(aceptados)}` : ''}`;
         }),
         ['EV-01', 'EV-02'],
         [],
