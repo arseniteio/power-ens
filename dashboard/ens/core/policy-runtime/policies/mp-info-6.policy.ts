@@ -247,6 +247,13 @@ const lista = (elementos: string[], maximo = 5): string =>
 const masReciente = (eventos: ENSNormalizedEvent[]): ENSNormalizedEvent =>
   [...eventos].sort((a, b) => momento(b) - momento(a))[0];
 
+// A4 · los puntos de montaje separados por comas de `montajes_omitidos` y de
+// `montajes_omitidos_aceptados`. `-` es que no hay log de esa pasada (se
+// desconoce, no es que no haya ninguno) y vacío es que no dejó ninguno fuera:
+// los dos se leen igual, como conjunto vacío.
+const montajesOmitidos = (texto: string): string[] =>
+  vacio(texto) ? [] : texto.split(',').map(m => m.trim()).filter(Boolean);
+
 // --- la copia a la que se refiere un hecho ---------------------------------
 
 const OBJETO: Record<string, string> = {
@@ -574,31 +581,57 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida =>
         const fallida = campo(e, 'ultima_fallida');
         const conError = campo(e, 'resultado_ultima') === 'error';
         const cuandoFallo = !vacio(fallida) ? ` el ${fallida}` : '';
+        const partes: Medida[] = [];
 
         if (vacio(correcta)) {
-          return noCumple(
-            `${nombre}: no consta ninguna copia terminada correctamente${conError ? `; la última terminó con error${cuandoFallo}` : ''}.`
+          partes.push(
+            noCumple(
+              `${nombre}: no consta ninguna copia terminada correctamente${conError ? `; la última terminó con error${cuandoFallo}` : ''}.`
+            )
+          );
+        } else {
+          const tc = instante(correcta);
+
+          if (tc === undefined) {
+            partes.push(sinMedir(`${nombre}: la fecha de la última copia correcta no se puede leer (${correcta}).`));
+          } else {
+            const tf = instante(fallida);
+
+            if (conError || (tf !== undefined && tf > tc)) {
+              partes.push(noCumple(`${nombre}: la última ejecución de la copia terminó con error${cuandoFallo}; la última correcta es del ${correcta}.`));
+            } else {
+              const tipo = campo(e, 'tipo');
+              const destino = campo(e, 'destino');
+
+              partes.push(
+                cumple(
+                  `${nombre}: última copia correcta el ${correcta}${tipo || destino ? ` (${[tipo, destino ? `destino ${destino}` : ''].filter(Boolean).join(', ')})` : ''}.`
+                )
+              );
+            }
+          }
+        }
+
+        // A4 · los discos montados aparte que la última ejecución dejó fuera
+        // de la copia: no basta con que la copia haya terminado bien, porque
+        // deja datos sin proteger. Los que la organización acepta a propósito
+        // no cuentan, pero se citan igual.
+        const omitidos = montajesOmitidos(campo(e, 'montajes_omitidos'));
+
+        if (omitidos.length) {
+          partes.push(
+            noCumple(
+              `${nombre}: deja fuera de la copia ${lista(omitidos)}: están en otro disco montado aparte y no se incluyeron en la copia.`
+            )
           );
         }
 
-        const tc = instante(correcta);
+        const medida = combina(partes);
+        const aceptados = montajesOmitidos(campo(e, 'montajes_omitidos_aceptados'));
 
-        if (tc === undefined) {
-          return sinMedir(`${nombre}: la fecha de la última copia correcta no se puede leer (${correcta}).`);
-        }
-
-        const tf = instante(fallida);
-
-        if (conError || (tf !== undefined && tf > tc)) {
-          return noCumple(`${nombre}: la última ejecución de la copia terminó con error${cuandoFallo}; la última correcta es del ${correcta}.`);
-        }
-
-        const tipo = campo(e, 'tipo');
-        const destino = campo(e, 'destino');
-
-        return cumple(
-          `${nombre}: última copia correcta el ${correcta}${tipo || destino ? ` (${[tipo, destino ? `destino ${destino}` : ''].filter(Boolean).join(', ')})` : ''}.`
-        );
+        return aceptados.length
+          ? { ...medida, motivo: `${medida.motivo} La organización acepta la omisión de ${lista(aceptados)}.` }
+          : medida;
       })
     )
   );
@@ -935,14 +968,24 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
       const testigo = campo(e, 'testigo');
       const detalle = campo(e, 'detalle');
       const copia = backupId(e) ? ` de la copia «${backupId(e)}»` : '';
-      const prueba = `${nombre}: prueba del ${iso(cuando)}${copia}${testigo ? ` sobre el testigo ${testigo}` : ''}`;
+      // A6 · Zimbra Open Source no tiene testigo técnico: la organización
+      // declara la prueba a mano (`testigo=declarado`, `detalle=declarada:
+      // <comprobado>`). Se juzga igual que cualquier otra prueba, pero el
+      // motivo dice que es una prueba declarada y cita lo comprobado en vez
+      // del testigo.
+      const declarada = testigo === 'declarado';
+      const comprobado = detalle.replace(/^declarada:\s*/i, '').trim();
+      const prueba = declarada
+        ? `${nombre}: prueba declarada por la organización del ${iso(cuando)}${copia}, sobre «${comprobado || 'sin detalle'}»`
+        : `${nombre}: prueba del ${iso(cuando)}${copia}${testigo ? ` sobre el testigo ${testigo}` : ''}`;
+      const detalleExtra = !declarada && detalle ? ` (${detalle})` : '';
       const correcta = campo(e, 'resultado') === 'ok' && campo(e, 'coincide') === 'si';
       const partes: Medida[] = [];
 
       if (campo(e, 'resultado') !== 'ok') {
-        partes.push(noCumple(`${prueba}: la restauración falló${detalle ? ` (${detalle})` : ''}.`));
+        partes.push(noCumple(`${prueba}: la restauración falló${detalleExtra}.`));
       } else if (campo(e, 'coincide') !== 'si') {
-        partes.push(noCumple(`${prueba}: se restauró pero el contenido no coincide con el esperado${detalle ? ` (${detalle})` : ''}.`));
+        partes.push(noCumple(`${prueba}: se restauró pero el contenido no coincide con el esperado${detalleExtra}.`));
       } else if (ahora - cuando > plazo * DIA) {
         partes.push(noCumple(`${prueba}: correcta, pero tiene ${dias(ahora - cuando)} días, más que los ${plazo} de P-05.`));
       } else {
@@ -1110,8 +1153,9 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
         copias.map(e => {
           const correcta = campo(e, 'ultima_correcta');
           const tc = instante(correcta);
+          const omitidos = montajesOmitidos(campo(e, 'montajes_omitidos'));
 
-          return `${nombreDe(e)}: ${vacio(correcta) ? 'ninguna copia correcta' : `${correcta}${tc !== undefined ? `, hace ${horas(ahora - tc)} h` : ''}`}${campo(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${vacio(campo(e, 'ultima_fallida')) ? '' : ` el ${campo(e, 'ultima_fallida')}`}` : ''}`;
+          return `${nombreDe(e)}: ${vacio(correcta) ? 'ninguna copia correcta' : `${correcta}${tc !== undefined ? `, hace ${horas(ahora - tc)} h` : ''}`}${campo(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${vacio(campo(e, 'ultima_fallida')) ? '' : ` el ${campo(e, 'ultima_fallida')}`}` : ''}${omitidos.length ? `; deja fuera ${lista(omitidos)}` : ''}`;
         }),
         ['EV-01', 'EV-02'],
         [],
@@ -1198,10 +1242,20 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     resultado.push(
       variable(
         'restauracion_ultima_prueba',
-        ultimas.map(
-          e =>
-            `${nombreDe(e)}: ${iso(fecha(e))} · resultado ${campo(e, 'resultado') || '-'} · coincide ${campo(e, 'coincide') || '-'} · limpieza ${campo(e, 'limpieza') || '-'}${campo(e, 'testigo') ? ` · testigo ${campo(e, 'testigo')}` : ''}`
-        ),
+        ultimas.map(e => {
+          const testigo = campo(e, 'testigo');
+          const declarada = testigo === 'declarado';
+          // A6 · esta prueba no tiene testigo técnico: lo que se comprueba es
+          // lo que la organización declara haber verificado.
+          const comprobado = campo(e, 'detalle').replace(/^declarada:\s*/i, '').trim();
+          const quien = declarada
+            ? ` · declarada por la organización: «${comprobado || 'sin detalle'}»`
+            : testigo
+            ? ` · testigo ${testigo}`
+            : '';
+
+          return `${nombreDe(e)}: ${iso(fecha(e))} · resultado ${campo(e, 'resultado') || '-'} · coincide ${campo(e, 'coincide') || '-'} · limpieza ${campo(e, 'limpieza') || '-'}${quien}`;
+        }),
         ['EV-05'],
         [],
         'Prueba de restauración más reciente de cada origen y objeto en la ventana.'

@@ -103,7 +103,7 @@ export const mpInfo6Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Última copia realizada correctamente',
       description:
-        'Demuestra, copia a copia, que hay una copia terminada correctamente y que la última ejecución no ha fallado.',
+        'Demuestra, copia a copia, que hay una copia terminada correctamente, que la última ejecución no ha fallado y que no dejó fuera puntos de montaje de otro disco sin incluir expresamente.',
       format: 'json_line',
       events: ['evidence_state', 'backup_run'],
       wazuhRuleIds: ['106601'],
@@ -151,7 +151,7 @@ export const mpInfo6Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Prueba de restauración del testigo',
       description:
-        'Demuestra una prueba de restauración reciente sobre el testigo —un fichero comprobado con su SHA-256 en el PBS; la cuenta testigo o una entrada conocida del directorio en Zimbra—: que se restaura, que el contenido coincide y que lo restaurado se borra después.',
+        'Demuestra una prueba de restauración reciente sobre el testigo —un fichero comprobado con su SHA-256 en el PBS; la cuenta testigo o una entrada conocida del directorio en Zimbra; o, en Zimbra Open Source sin testigo técnico, la prueba manual que declara la organización—: que se restaura, que el contenido coincide y que lo restaurado se borra después.',
       format: 'json_line',
       events: ['evidence_state', 'restore_test'],
       wazuhRuleIds: ['106606'],

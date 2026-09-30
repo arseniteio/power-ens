@@ -1539,6 +1539,207 @@ bloque('30. El informe nombra cada copia una vez, con su último estado');
 
 // ---------------------------------------------------------------------------
 
+bloque('31. EV-01 · A4, los puntos de montaje que la copia dejó fuera');
+
+{
+  const conOmision = evalua(eventos([copia({ montajes_omitidos: '/opt/zimbra/backup' }), latido()]));
+  comprueba(
+    'montajes_omitidos con un punto de montaje → EV-01 NO_CUMPLE nombrando el directorio',
+    conOmision.estado('EV-01') === 'NO_CUMPLE' && /\/opt\/zimbra\/backup/.test(conOmision.motivo('EV-01')),
+    `${conOmision.estado('EV-01')} ${conOmision.motivo('EV-01')}`
+  );
+  comprueba(
+    'y el motivo dice que está en otro disco y que no se incluyó',
+    /otro disco/.test(conOmision.motivo('EV-01')) && /no se incluyeron en la copia/.test(conOmision.motivo('EV-01')),
+    conOmision.motivo('EV-01')
+  );
+
+  const desconocido = evalua(eventos([copia({ montajes_omitidos: '-' }), latido()]));
+  comprueba(
+    'REVERSIÓN: montajes_omitidos=- (sin log, desconocido) no cuenta → EV-01 sigue CUMPLE',
+    desconocido.estado('EV-01') === 'CUMPLE',
+    `${desconocido.estado('EV-01')} ${desconocido.motivo('EV-01')}`
+  );
+
+  const ninguno = evalua(eventos([copia({ montajes_omitidos: '' }), latido()]));
+  comprueba(
+    'montajes_omitidos vacío (ninguno) no cuenta → EV-01 sigue CUMPLE',
+    ninguno.estado('EV-01') === 'CUMPLE',
+    `${ninguno.estado('EV-01')} ${ninguno.motivo('EV-01')}`
+  );
+
+  const sinCampo = evalua(eventos([copia(), latido()]));
+  comprueba(
+    'un hecho sin el campo (recolector anterior) se juzga igual que antes → EV-01 CUMPLE',
+    sinCampo.estado('EV-01') === 'CUMPLE',
+    `${sinCampo.estado('EV-01')} ${sinCampo.motivo('EV-01')}`
+  );
+
+  const aceptado = evalua(eventos([copia({ montajes_omitidos: '', montajes_omitidos_aceptados: '/mnt/aceptado' }), latido()]));
+  comprueba(
+    'montajes_omitidos_aceptados se cita en el motivo',
+    /\/mnt\/aceptado/.test(aceptado.motivo('EV-01')),
+    aceptado.motivo('EV-01')
+  );
+  comprueba(
+    'pero no cuenta: EV-01 sigue CUMPLE',
+    aceptado.estado('EV-01') === 'CUMPLE',
+    `${aceptado.estado('EV-01')} ${aceptado.motivo('EV-01')}`
+  );
+
+  const ambos = evalua(
+    eventos([copia({ montajes_omitidos: '/opt/zimbra/backup', montajes_omitidos_aceptados: '/mnt/aceptado' }), latido()])
+  );
+  comprueba(
+    'con una omisión no aceptada y otra aceptada → NO_CUMPLE nombrando la no aceptada y citando la aceptada',
+    ambos.estado('EV-01') === 'NO_CUMPLE' && /\/opt\/zimbra\/backup/.test(ambos.motivo('EV-01')) && /\/mnt\/aceptado/.test(ambos.motivo('EV-01')),
+    ambos.motivo('EV-01')
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('32. EV-05 · A6, la prueba declarada por la organización en Zimbra Open Source');
+
+{
+  const declarada = linea(
+    'restore_test',
+    {
+      origen: 'zimbra-ose-declarada',
+      objeto: 'buzones',
+      fecha: hace(3 * 24),
+      testigo: 'declarado',
+      resultado: 'ok',
+      coincide: 'si',
+      limpieza: 'no_aplica',
+      detalle: 'declarada: se abrió el buzón ensfacil_testigo y se comprobaron los últimos 5 correos',
+    },
+    hace(3 * 24)
+  );
+  const r = evalua(eventos([declarada, latido(PASADA, { origen: 'zimbra-ose-declarada', rol: 'buzones' })]));
+
+  comprueba(
+    'ok+coincide dentro de P-05 → EV-05 CUMPLE, igual que cualquier otra prueba',
+    r.estado('EV-05') === 'CUMPLE',
+    `${r.estado('EV-05')} ${r.motivo('EV-05')}`
+  );
+  comprueba(
+    'y el motivo dice que es una prueba declarada por la organización',
+    /prueba declarada por la organización/.test(r.motivo('EV-05')),
+    r.motivo('EV-05')
+  );
+  comprueba(
+    'citando lo comprobado',
+    /se abrió el buzón ensfacil_testigo/.test(r.motivo('EV-05')),
+    r.motivo('EV-05')
+  );
+
+  const normal = evalua(
+    eventos([
+      linea(
+        'restore_test',
+        {
+          origen: 'zimbra-ne',
+          objeto: 'buzones',
+          fecha: hace(3 * 24),
+          testigo: 'testigo@ejemplo.invalid',
+          resultado: 'ok',
+          coincide: 'si',
+          limpieza: 'ok',
+          detalle: 'mensaje de control presente',
+        },
+        hace(3 * 24)
+      ),
+      latido(),
+    ])
+  );
+  comprueba(
+    'REVERSIÓN: una prueba normal (con testigo técnico) no lleva esa frase',
+    !/prueba declarada por la organización/.test(normal.motivo('EV-05')),
+    normal.motivo('EV-05')
+  );
+
+  const fallo = evalua(
+    eventos([
+      linea(
+        'restore_test',
+        {
+          origen: 'zimbra-ose-declarada',
+          objeto: 'buzones',
+          fecha: hace(2 * 24),
+          testigo: 'declarado',
+          resultado: 'error',
+          coincide: 'no',
+          limpieza: 'no_aplica',
+          detalle: 'declarada: no se pudo acceder a los correos migrados',
+        },
+        hace(2 * 24)
+      ),
+      latido(PASADA, { origen: 'zimbra-ose-declarada', rol: 'buzones' }),
+    ])
+  );
+  comprueba(
+    'una prueba declarada con resultado=error se juzga igual que cualquier otra → NO_CUMPLE',
+    fallo.estado('EV-05') === 'NO_CUMPLE' && /prueba declarada por la organización/.test(fallo.motivo('EV-05')),
+    `${fallo.estado('EV-05')} ${fallo.motivo('EV-05')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('33. El informe enseña los montajes omitidos y la prueba declarada');
+
+{
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(BASE) : c)),
+  });
+
+  const hechos = eventos([
+    copia({ ultima_correcta: hace(10), montajes_omitidos: '/opt/zimbra/backup', montajes_omitidos_aceptados: '/mnt/aceptado' }),
+    latido(),
+    linea(
+      'restore_test',
+      {
+        origen: 'zimbra-ose-declarada',
+        objeto: 'buzones',
+        fecha: hace(3 * 24),
+        testigo: 'declarado',
+        resultado: 'ok',
+        coincide: 'si',
+        limpieza: 'no_aplica',
+        detalle: 'declarada: se comprobó el buzón testigo',
+      },
+      hace(3 * 24)
+    ),
+    latido(PASADA, { origen: 'zimbra-ose-declarada', rol: 'buzones' }),
+  ]);
+
+  const resultado = getENSComplianceResultByControl(CONTROL, 'MEDIO', hechos, SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], AHORA);
+  const informe = buildENSReportModel(CONTROL, resultado);
+  const campo = (id: string) => informe?.fields.find(f => f.id === id);
+
+  comprueba(
+    'REP-02 nombra el punto de montaje que dejó fuera la copia',
+    /\/opt\/zimbra\/backup/.test(campo('REP-02')?.value || ''),
+    campo('REP-02')?.value
+  );
+  comprueba(
+    'y su detalle cita la omisión aceptada',
+    (campo('REP-02')?.details || []).some(d => /\/mnt\/aceptado/.test(d)),
+    JSON.stringify(campo('REP-02')?.details)
+  );
+  comprueba(
+    'REP-07 marca la prueba como declarada por la organización',
+    /declarada por la organización/.test(campo('REP-07')?.value || ''),
+    campo('REP-07')?.value
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
 bloque('11. Ningún otro control cambia');
 
 {

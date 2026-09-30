@@ -109,7 +109,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Última copia realizada correctamente',
     description:
-      'Estado de cada copia en la última pasada del recolector (`backup_run`): cuándo terminó bien por última vez, cuándo falló, el resultado de la última ejecución, su tipo y su destino. Una copia por origen (PBS, Zimbra) y objeto (ficheros, buzones, directorio).',
+      'Estado de cada copia en la última pasada del recolector (`backup_run`): cuándo terminó bien por última vez, cuándo falló, el resultado de la última ejecución, su tipo y su destino. Una copia por origen (PBS, Zimbra) y objeto (ficheros, buzones, directorio). Incumple también si dejó fuera puntos de montaje de otro disco que no se incluyeron expresamente, salvo los que la organización acepta a propósito.',
     requirements: ['mp.info.6.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'EXECUTION',
@@ -184,7 +184,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Prueba de restauración del testigo',
     description:
-      'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05.',
+      'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05. En Zimbra Open Source, sin testigo técnico, admite la prueba manual que declara la organización.',
     requirements: ['mp.info.6.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'RECOVERY',
