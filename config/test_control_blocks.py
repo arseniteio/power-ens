@@ -436,6 +436,7 @@ OPCIONES_ESPERADAS = {
     ],
     ("mp.info.6", "P-10"): [
         "pbs", "zimbra-ne", "zimbra-ose-declarada",
+        "Veeam", "Bacula", "Amanda", "rsync", "Windows Backup", "Otro",
     ],
 }
 

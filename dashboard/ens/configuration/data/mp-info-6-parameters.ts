@@ -179,17 +179,27 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       controlId: 'mp.info.6',
       name: 'herramienta_backup',
       label: 'Origen de las copias',
-      description: 'Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server), zimbra-ne (Zimbra Network Edition) o zimbra-ose-declarada (Zimbra Open Source, con el método de copia que declara la organización).',
+      description: 'Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server), zimbra-ne (Zimbra Network Edition) o zimbra-ose-declarada (Zimbra Open Source, con el método de copia que declara la organización). Las herramientas de la lista anterior (Veeam, Bacula, Amanda, rsync, Windows Backup, Otro) se siguen admitiendo para que un valor ya guardado no deje de ser válido.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.1', 'mp.info.6.r1.1'],
       type: 'select',
       example: 'pbs',
+      // Las tres del campo `origen` y, detrás, las de la lista anterior: un
+      // valor ya guardado que dejara de ser una opción saldría inválido, y un
+      // parámetro inválido tumba la configuración entera.
       options: [
         'pbs',
         'zimbra-ne',
         'zimbra-ose-declarada',
+        'Veeam',
+        'Bacula',
+        'Amanda',
+        'rsync',
+        'Windows Backup',
+        'Otro',
       ],
-      required: true,
+      // No es obligatorio: el juicio no lo lee (cada hecho trae su origen).
+      required: false,
       wazuhUsage: 'Cada hecho del recolector lleva su origen; las reglas son las mismas para los tres, así que no cambia qué se decodifica.',
       ensfacilUsage: 'Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor: una máquina con PBS y otra con Zimbra se juzgan igual.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-07'],
