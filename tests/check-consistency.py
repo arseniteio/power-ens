@@ -305,23 +305,13 @@ print("\n=== 5. Los tres runbooks se despliegan igual ===\n")
 
 # Tres instaladores, no cuatro. `install-fake.sh` se retiró —simulaba datos en
 # una máquina de cliente— e `install-real.sh` pasó a llamarse `install.sh`: el
-# runbook ya no tiene dos caminos entre los que elegir.
-#
-# mp.info.6 se quedó con la estructura antigua A PROPÓSITO: lo mantiene otra
-# persona y lo despliega haciendo pull de su repo. Renombrarle los scripts le
-# rompería el procedimiento sin avisarle. Se comprueba contra lo que ese
-# runbook declara, no contra lo que declaran los de op.acc.
+# runbook ya no tiene dos caminos entre los que elegir. mp.info.6 tenía la
+# estructura antigua porque lo mantenía otra persona con un pull aparte; ese
+# runbook se modernizó también y ya no hace falta distinguirlo.
 ESPERADOS = ["install.sh", "install-manager.sh", "uninstall.sh"]
-ESPERADOS_ANTIGUOS = [
-    "install-real.sh",
-    "install-fake.sh",
-    "install-manager.sh",
-    "uninstall.sh",
-]
 for control, (repo, _) in RUNBOOKS.items():
-    esperados = ESPERADOS_ANTIGUOS if control == "mp.info.6" else ESPERADOS
     faltan = [
-        s for s in esperados if not os.path.exists(os.path.join(BASE, repo, s))
+        s for s in ESPERADOS if not os.path.exists(os.path.join(BASE, repo, s))
     ]
     if faltan:
         falla(
@@ -544,23 +534,13 @@ def mapa_del_agente(carpeta, script):
     texto = lee(ruta)
     mapa = {}
 
-    # Forma A (op.acc.1, op.acc.2): dict evidencia -> [requisitos].
+    # dict evidencia -> [requisitos].
     m = re.search(r"^EVIDENCIAS = \{(.*?)^\}", texto, re.S | re.M)
-    if m:
-        for ev, reqs in re.findall(r'"(EV-\d+)":\s*\[([^\]]*)\]', m.group(1)):
-            mapa[ev] = re.findall(r'"([\w.]+)"', reqs)
-        return mapa
-
-    # Forma B (mp.info.6): tuplas (requisito, [evidencias], nivel). Se invierte
-    # para dejar el mismo mapa que la forma A. Se admiten las dos en vez de
-    # unificarlas porque el objetivo de esta comprobacion es cazar divergencias,
-    # no imponer un estilo: obligar a reescribir un score.py que funciona para
-    # poder comprobarlo seria la cola meneando al perro.
-    for req, evs in re.findall(r'\("([\w.]+)",\s*\[([^\]]*)\],\s*"', texto):
-        for ev in re.findall(r'"(EV-\d+)"', evs):
-            mapa.setdefault(ev, []).append(req)
-
-    return mapa or None
+    if not m:
+        return None
+    for ev, reqs in re.findall(r'"(EV-\d+)":\s*\[([^\]]*)\]', m.group(1)):
+        mapa[ev] = re.findall(r'"([\w.]+)"', reqs)
+    return mapa
 
 
 def requisitos_sin_evidencia(control):
@@ -583,17 +563,17 @@ def requisitos_sin_evidencia(control):
 
 # El script con el que el AGENTE se puntúa a sí mismo.
 #
-# op.acc.4 no está, y no es un olvido: nació entero en el modelo nuevo, así que
-# su agente no calcula ningún veredicto —emite hechos crudos y juzga el motor—.
-# Un control sin score no puede inflar un requisito que la policy deja sin
-# evidencia, que es exactamente lo que esta comprobación vigila: la
-# incoherencia que persigue no existe por construcción.
+# op.acc.4 y mp.info.6 no están, y no es un olvido: op.acc.4 nació entero en el
+# modelo nuevo y mp.info.6 se reescribió a él —en los dos casos el agente ya no
+# calcula ningún veredicto, emite hechos crudos y juzga el motor—. Un control
+# sin score no puede inflar un requisito que la policy deja sin evidencia, que
+# es exactamente lo que esta comprobación vigila: la incoherencia que persigue
+# no existe por construcción.
 #
 # Lo que SÍ hay que vigilar en un control así es que el agente no emita
 # `estado` de cumplimiento por la puerta de atrás. Eso lo comprueba la
 # comprobación 11.
 SCORE = {
-    "mp.info.6": "ens_mpinfo6_score.py",
     "op.acc.1": "ens_opacc1_score.py",
     "op.acc.2": "ens_opacc2_score.py",
 }
