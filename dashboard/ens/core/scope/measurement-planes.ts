@@ -2,6 +2,13 @@ import type {
   ENSControlDefinition,
   ENSMeasurementPlane,
 } from '../../catalog/types';
+import type { ENSControlConfiguration } from '../../configuration/types';
+// Del fichero, no del barrel `configuration/services`: ese re-exporta el
+// cliente HTTP, que arrastra `kibana-services` al grafo del motor.
+import {
+  toParameterListItems,
+  toTableRowCells,
+} from '../../configuration/services/parameter-value-validator';
 import { ENSAgentScope } from './types';
 
 // Planos de medida: dónde se mide cada control.
@@ -56,6 +63,67 @@ export const isControlMeasuredOnAgent = (
   agentId: string
 ): boolean =>
   isControlMeasuredOnPlane(control, getAgentMeasurementPlane(agentId));
+
+// --- alcance declarado -----------------------------------------------------
+//
+// Además del plano, un control puede medirse solo en las máquinas que la
+// organización nombra en un parámetro de su configuración (`scopeParameter`
+// del catálogo; P-04 en mp.info.6). Es la misma regla que la del plano: en la
+// fila de una máquina no declarada el control no produce resultado —no suma ni
+// resta—, y en la de una declarada que no ha enviado nada sale «sin datos»,
+// que es lo que el motor ya produce para cualquier control sin hechos.
+
+type ENSScopedControl = Pick<ENSControlDefinition, 'scopeParameter'>;
+
+// Los nombres de las máquinas declaradas, en minúsculas. Cada entrada es una
+// máquina y, tras una barra vertical, lo que el parámetro añada (la
+// criticidad en P-04: `srv-bd01 | ALTA`); solo cuenta el nombre. `undefined`
+// si el control no declara parámetro de alcance: se mide en todas.
+export const getDeclaredScopeAgentNames = (
+  control: ENSScopedControl,
+  configuration: ENSControlConfiguration | undefined
+): string[] | undefined => {
+  if (!control.scopeParameter) {
+    return undefined;
+  }
+
+  const value = configuration?.parameters.find(
+    parameter => parameter.id === control.scopeParameter
+  )?.value;
+
+  // Un número o un booleano sueltos no nombran ninguna máquina.
+  if (!Array.isArray(value) && typeof value !== 'string') {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      toParameterListItems(value)
+        .map(entry => (toTableRowCells(entry)[0] || '').toLowerCase())
+        .filter(Boolean)
+    )
+  );
+};
+
+// ¿Figura esta máquina en el alcance declarado del control? El nombre es el
+// del agente de Wazuh, sin distinguir mayúsculas: es como lo escribe el
+// responsable en la pantalla. Un control sin parámetro de alcance está en
+// todas; con el parámetro vacío, en ninguna.
+export const isControlInDeclaredScope = (
+  control: ENSScopedControl,
+  agentName: string | undefined,
+  configuration: ENSControlConfiguration | undefined
+): boolean => {
+  const declared = getDeclaredScopeAgentNames(control, configuration);
+
+  if (declared === undefined) {
+    return true;
+  }
+
+  const name = String(agentName || '').trim().toLowerCase();
+
+  return name !== '' && declared.includes(name);
+};
 
 // Un control SOLO de manager es de la organización, no de una máquina: en la
 // vista de un agente se muestra con el resultado de la fila del manager.

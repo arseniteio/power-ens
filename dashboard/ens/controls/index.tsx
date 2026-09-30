@@ -18,7 +18,10 @@ import {
 import { ENSControls } from '../data';
 import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';
-import { getActiveENSConfiguration } from '../configuration/services';
+import {
+  getActiveControlConfiguration,
+  getActiveENSConfiguration,
+} from '../configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
@@ -29,6 +32,7 @@ import {
   getActiveENSScopeAgents,
 } from '../core/scope';
 import {
+  isControlInDeclaredScope,
   isControlMeasuredOnAgent,
   isManagerAgentId,
 } from '../core/scope/measurement-planes';
@@ -118,7 +122,11 @@ export const ControlsENS = () => {
    // Seleccionado el manager (000), solo se listan los controles que se miden
    // en él: los demás no tienen resultado en su fila, y pintarlos en gris los
    // confundiría con un control fuera del catálogo. En la vista de cualquier
-   // otra máquina salen todos: los de solo manager, con el resultado del manager.
+   // otra máquina salen todos (los de solo manager, con el resultado del
+   // manager) salvo los que declaran un alcance que no la incluye (mp.info.6
+   // fuera de su P-04): tampoco tienen resultado en su fila.
+   const nombreDelAgente = scopeAgents.find(agent => agent.id === agentId)?.name;
+
    const controlesListados = isManagerAgentId(agentId)
      ? ENSControls.filter(ensControl => {
          const catalogControl = getENSCatalogControl(ensControl.id);
@@ -126,6 +134,19 @@ export const ControlsENS = () => {
          return (
            !catalogControl ||
            isControlMeasuredOnAgent(catalogControl, agentId as string)
+         );
+       })
+     : agentId
+     ? ENSControls.filter(ensControl => {
+         const catalogControl = getENSCatalogControl(ensControl.id);
+
+         return (
+           !catalogControl ||
+           isControlInDeclaredScope(
+             catalogControl,
+             nombreDelAgente,
+             getActiveControlConfiguration(catalogControl.id),
+           )
          );
        })
      : ENSControls;

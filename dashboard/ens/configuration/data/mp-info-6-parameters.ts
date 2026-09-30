@@ -22,7 +22,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Alimenta la correlación temporal. Si no llega evento de backup exitoso dentro del umbral, se genera incumplimiento.',
       ensfacilUsage: 'Calcula si la periodicidad de copias cumple la política definida por el cliente.',
       evidenceIds: ['EV-01', 'EV-02'],
-      ruleIds: ['106650', '106601', '106603'],
+      ruleIds: ['106601', '106602'],
       ifNotConfigured: 'El control mp.info.6 queda NO EVALUABLE para periodicidad de copias.',
     },
     {
@@ -59,9 +59,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Puede alimentar reglas FIM para detectar borrados antes del plazo definido.',
       ensfacilUsage: 'Documenta y evalúa la política de retención en el informe ENS.',
       evidenceIds: ['EV-03'],
-      // Hueco de trazabilidad: ninguna regla de Wazuh comprueba la retención;
-      // el umbral lo calcula el motor (mp.info.6.2.b.min_retention).
-      ruleIds: [],
+      // La retención configurada la informa 106603 (`backup_retention`); el
+      // umbral lo aplica la policy del control.
+      ruleIds: ['106603'],
       ifNotConfigured: 'No se puede verificar cumplimiento de retención.',
     },
     {
@@ -78,8 +78,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Permite detectar sistemas esperados que no envían eventos de backup.',
       ensfacilUsage: 'Define el alcance real auditado del control.',
       evidenceIds: ['EV-01', 'EV-05'],
-      // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
-      // deja de enviar eventos de copia.
+      // Ninguna regla: es el alcance del control en el motor
+      // (`scopeParameter` del catálogo). Una máquina declarada que no envía
+      // nada sale «sin datos»; una que no está declarada no tiene resultado.
       ruleIds: [],
       ifNotConfigured: 'No se puede saber qué sistemas deben evaluarse.',
     },
@@ -98,7 +99,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Compara la fecha de último restore exitoso contra el umbral configurado.',
       ensfacilUsage: 'Evalúa el refuerzo R1 para nivel MEDIO y ALTO.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['106651', '106606'],
+      ruleIds: ['106606'],
       ifNotConfigured: 'R1 queda NO EVALUABLE en MEDIO/ALTO.',
     },
     {
@@ -115,8 +116,9 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Se utiliza para configurar FIM sobre el repositorio de backup.',
       ensfacilUsage: 'Permite evidenciar integridad y protección del repositorio local.',
       evidenceIds: ['EV-03', 'EV-04'],
-      // Hueco de trazabilidad: la única regla que vigila el repositorio local es
-      // la 106605, inerte para el plugin (alerta syscheck sin campo ensfacil).
+      // Hueco de trazabilidad: el acceso al repositorio lo informa 106604
+      // (`backup_access`) con la ruta que mide el recolector, y el juicio no la
+      // compara con este valor.
       ruleIds: [],
       ifNotConfigured: 'FIM no monitoriza el repositorio local de backup.',
     },
@@ -151,7 +153,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Activa o desactiva verificaciones offsite.',
       ensfacilUsage: 'Evalúa el refuerzo R2 solo cuando aplica nivel ALTO.',
       evidenceIds: ['EV-06'],
-      ruleIds: ['106662', '106663'],
+      ruleIds: ['106605'],
       ifNotConfigured: 'Para BAJO/MEDIO queda NO APLICA. Para ALTO queda NO EVALUABLE.',
     },
     {
@@ -176,28 +178,25 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       id: 'P-10',
       controlId: 'mp.info.6',
       name: 'herramienta_backup',
-      label: 'Herramienta de backup',
-      description: 'Herramienta o agente utilizado para generar las copias. Si la herramienta no está en la lista, seleccione Otro: el decoder se tratará como no identificado.',
+      label: 'Origen de las copias',
+      description: 'Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server), zimbra-ne (Zimbra Network Edition) o zimbra-ose-declarada (Zimbra Open Source, con el método de copia que declara la organización).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.1', 'mp.info.6.r1.1'],
       type: 'select',
-      example: 'Veeam',
+      example: 'pbs',
       options: [
-        'Veeam',
-        'Bacula',
-        'Amanda',
-        'rsync',
-        'Windows Backup',
-        'Otro',
+        'pbs',
+        'zimbra-ne',
+        'zimbra-ose-declarada',
       ],
       required: true,
-      wazuhUsage: 'Determina decoder, parser o normalización esperada de eventos.',
-      ensfacilUsage: 'Permite adaptar la lectura de evidencias a la tecnología usada.',
+      wazuhUsage: 'Cada hecho del recolector lleva su origen; las reglas son las mismas para los tres, así que no cambia qué se decodifica.',
+      ensfacilUsage: 'Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor: una máquina con PBS y otra con Zimbra se juzgan igual.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-07'],
-      // Hueco de trazabilidad: no existe regla que acredite el decoder de la
-      // herramienta declarada.
+      // Hueco de trazabilidad: ninguna regla acredita el origen declarado; el
+      // de cada hecho viaja en el propio hecho.
       ruleIds: [],
-      ifNotConfigured: 'Wazuh puede no interpretar correctamente los logs de backup.',
+      ifNotConfigured: 'El informe no puede citar con qué sistema se hacen las copias.',
     },
     // --- Política que vivía en el .env del agente ----------------------------
     //
@@ -240,7 +239,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       wazuhUsage: 'Determina qué se recupera en cada prueba automática de restauración.',
       ensfacilUsage: 'Sin fichero declarado no hay prueba de restauración, y el refuerzo R1 no se puede medir en MEDIO ni en ALTO.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['106651'],
+      ruleIds: ['106606'],
       ifNotConfigured: 'La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE, nunca NO_CUMPLE: no haber probado no demuestra que restaurar falle.',
     },
     {

@@ -65,6 +65,13 @@ export interface ENSControlDefinition {
   // alcance y el control se evalúa en su fila; sin `agent`, NO se evalúa en la
   // fila de ninguna otra máquina.
   measurementPlanes?: ENSMeasurementPlane[];
+  // Opcional. `id` del parámetro de la configuración del control que declara
+  // las máquinas en las que se mide (p. ej. 'P-04' de mp.info.6). Si se
+  // declara, el control solo se evalúa en la fila de las máquinas cuyo nombre
+  // figura en ese parámetro: en las demás no produce resultado, igual que un
+  // control fuera de su plano. Con el parámetro vacío no se mide en ninguna
+  // máquina. Ver `isControlInDeclaredScope` en `core/scope/measurement-planes.ts`.
+  scopeParameter?: string;
   description: string;
   levels: ENSLevel[];
   requirements: ENSRequirementDefinition[];

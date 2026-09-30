@@ -104,8 +104,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra que existe una copia correcta dentro de la ventana temporal definida.',
       format: 'json_line',
-      events: ['backup_ok', 'backup_missing'],
-      wazuhRuleIds: ['106650', '106601'],
+      events: ['evidence_state', 'backup_run'],
+      wazuhRuleIds: ['106601'],
     },
     {
       id: 'EV-02',
@@ -116,8 +116,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra que existe una planificación de backup acorde a la frecuencia definida.',
       format: 'sca_or_json_line',
-      events: ['score_snapshot', 'backup_missing'],
-      wazuhRuleIds: ['106601', '106603'],
+      events: ['evidence_state', 'backup_run', 'backup_schedule'],
+      wazuhRuleIds: ['106601', '106602'],
     },
     {
       id: 'EV-03',
@@ -128,8 +128,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra existencia e integridad técnica de rutas, cache, keyfile o repositorio local.',
       format: 'fim_or_json_line',
-      events: ['evidence_state', 'encfp_changed'],
-      wazuhRuleIds: ['106604', '106609', '106660', '106661'],
+      events: ['evidence_state', 'backup_retention'],
+      wazuhRuleIds: ['106603'],
     },
     {
       id: 'EV-04',
@@ -140,7 +140,7 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra permisos correctos y acceso autorizado sobre keyfile y copias.',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
+      events: ['evidence_state', 'backup_access'],
       wazuhRuleIds: ['106604'],
     },
     {
@@ -152,8 +152,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra prueba real de restauración y validación md5sum. Sin esta evidencia MEDIO queda PARCIAL.',
       format: 'json_line',
-      events: ['restore_ok', 'restore_error', 'restore_missing'],
-      wazuhRuleIds: ['106651', '106606', '106607'],
+      events: ['evidence_state', 'restore_test'],
+      wazuhRuleIds: ['106606'],
     },
     {
       id: 'EV-06',
@@ -164,8 +164,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Evidencia de copia separada para ALTO/R2. Fuera del alcance actual BAJO/MEDIO.',
       format: 'external_or_json_line',
-      events: ['evidence_state'],
-      wazuhRuleIds: ['106662', '106663'],
+      events: ['evidence_state', 'backup_storage'],
+      wazuhRuleIds: ['106605'],
       active: false,
     },
     {
@@ -177,8 +177,8 @@ export const mpInfo6Control: ENSControl = {
       description:
         'Demuestra que no existen errores recientes del agente de backup ni cambios críticos de cifrado.',
       format: 'json_line',
-      events: ['backup_error', 'encfp_changed'],
-      wazuhRuleIds: ['106690', '106602', '106609'],
+      events: ['evidence_state', 'collector_run'],
+      wazuhRuleIds: ['106797'],
     },
   ],
   parameters: [
@@ -279,7 +279,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'P-10',
       name: 'herramienta_backup',
-      description: 'Herramienta que genera las evidencias de backup.',
+      description: 'Origen de los hechos de copia, el que declara cada hecho del recolector: pbs, zimbra-ne o zimbra-ose-declarada.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.1', 'mp.info.6.r1.1'],
       type: 'enum',
@@ -288,16 +288,16 @@ export const mpInfo6Control: ENSControl = {
     },
   ],
   events: [
-    'backup_ok',
-    'backup_error',
-    'backup_missing',
-    'encfp_changed',
-    'restore_ok',
-    'restore_error',
-    'restore_missing',
+    'backup_run',
+    'backup_schedule',
+    'backup_retention',
+    'backup_access',
+    'backup_storage',
+    'restore_test',
     'evidence_state',
-    'control_state',
-    'score_snapshot',
+    'collector_run',
+    'collector_warning',
+    'collector_missing',
   ],
   presentationRules: {
     auditorSees: [

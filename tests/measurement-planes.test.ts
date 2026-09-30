@@ -103,6 +103,22 @@ ensConfigurationRepository.replaceActive({
     scope: 'Laboratorio',
     ensLevel: NIVEL,
   } as ENSConfigurationVersion['global'],
+  // mp.info.6 solo se mide en las máquinas que declara su P-04 (ver
+  // `mp-info-6-judgment.test.ts`). Aquí se declaran las dos del alcance, para
+  // que sus filas midan los 15 controles de plano agent y lo que se pruebe
+  // sea solo el plano.
+  controls: defaultENSConfigurationTemplate.controls.map(control =>
+    control.controlId !== 'mp.info.6'
+      ? control
+      : {
+          ...control,
+          parameters: control.parameters.map(parameter =>
+            parameter.id === 'P-04'
+              ? { ...parameter, value: ['wazuh-real', 'wazuh-fake'] }
+              : parameter
+          ),
+        }
+  ),
 });
 
 const PLANO_AGENTE = [
@@ -144,12 +160,18 @@ const hecho = (
   };
 };
 
-// Hechos SOLO de agentes: los de siempre de mp.info.6 y el latido de op.exp.8
-// de un servidor corriente.
+// Hechos SOLO de agentes: los de mp.info.6 (su contrato de hechos) y el latido
+// de op.exp.8 de un servidor corriente.
+const COPIA = { origen: 'pbs', objeto: 'fichero', ultima_correcta: '2026-09-26T02:00:00Z', ultima_fallida: '-', resultado_ultima: 'ok' };
+
 const DE_AGENTES: ENSNormalizedEvent[] = [
-  hecho('001', 'mp.info.6', 'backup_ok', { status: 'CUMPLE', ruleId: '106650' }),
-  hecho('001', 'mp.info.6', 'restore_ok', { status: 'CUMPLE', ruleId: '106651' }),
-  hecho('002', 'mp.info.6', 'backup_ok', { status: 'CUMPLE', ruleId: '106650' }),
+  hecho('001', 'mp.info.6', 'backup_run', { evidenceId: 'EV-01', ruleId: '106601', attributes: COPIA }),
+  hecho('001', 'mp.info.6', 'restore_test', {
+    evidenceId: 'EV-05',
+    ruleId: '106606',
+    attributes: { origen: 'pbs', objeto: 'fichero', fecha: '2026-09-25T03:00:00Z', resultado: 'ok', coincide: 'si', limpieza: 'ok' },
+  }),
+  hecho('002', 'mp.info.6', 'backup_run', { evidenceId: 'EV-01', ruleId: '106601', attributes: COPIA }),
   hecho('001', 'op.exp.8', 'collector_run', {
     attributes: { resultado: 'completada', tipo_servidor: 'linux', evidencias_cubiertas: 'EV-01,EV-02' },
   }),

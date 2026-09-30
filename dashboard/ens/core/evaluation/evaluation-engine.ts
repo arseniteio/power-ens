@@ -91,7 +91,12 @@ export const evaluateENSControl = (
   level: ENSLevel,
   evidences: ENSEvidenceResolved[] = [],
   policyRuntime?: ENSPolicyRuntimeResult,
-  events: ENSNormalizedEvent[] = []
+  events: ENSNormalizedEvent[] = [],
+  // ¿Había alguna máquina de la que esperar hechos? Solo es falso para un
+  // control con alcance declarado vacío evaluado sin fila (mp.info.6 sin
+  // ninguna máquina en P-04): ahí no ha fallado ninguna recogida, lo que falta
+  // es la configuración, y el hueco no se puede atribuir a RECOGIDA.
+  expectsFacts = true
 ): ENSComplianceResult => {
   const validation = configuration
     ? validateControlConfiguration(configuration, level)
@@ -137,9 +142,11 @@ export const evaluateENSControl = (
     // Ver `policy-evidence-bridge.ts`.
     // Si de esta máquina no ha llegado ningún hecho del control, lo que la
     // policy no pudo medir es un hueco de recogida (ver el puente).
-    const nadaRecibido = !events.some(
-      event => event.controlId === catalogControl.id
-    );
+    const nadaRecibido =
+      expectsFacts &&
+      !events.some(
+        event => event.controlId === catalogControl.id
+      );
 
     const evidencesConPolicy = applyPolicyDecisionsToEvidences(
       evidences,

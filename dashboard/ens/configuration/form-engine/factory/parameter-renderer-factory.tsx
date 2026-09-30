@@ -38,7 +38,7 @@ import {
 //
 // El campo numérico se reserva a los parámetros cuyo valor legítimo es SOLO un
 // número. mp.info.6 P-05 está declarado `duration_days` pero admite el contrato
-// por criticidad ('ALTA=30; MEDIA=90') que implementa el policy-runtime: en un
+// por criticidad ('ALTA=30; MEDIA=90') que implementa su policy: en un
 // EuiFieldNumber ese valor no se puede teclear y el que ya hubiera en el índice
 // se enseñaría en blanco. Va al renderer de texto, con su validación propia.
 export const ParameterRendererFactory = ({

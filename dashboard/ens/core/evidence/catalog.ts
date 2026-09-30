@@ -9,17 +9,17 @@ import { ENSEvidenceDefinition } from './types';
 //
 // Criterio de inclusión:
 //   - se incluyen las reglas que acreditan la evidencia y generan alerta;
-//   - se excluyen las reglas `level="0"` (106600/106800/106900 y 106652), que
-//     nunca producen alerta y por tanto no llevan a ningún evento crudo;
-//   - se excluyen las reglas inertes para el plugin (106605 y 106923), que
-//     re-etiquetan alertas syscheck sin campo `ensfacil` y nunca llegan aquí
-//     (ver el comentario en el propio XML);
+//   - se excluyen las reglas `level="0"` (106600/106800/106900), que nunca
+//     producen alerta y por tanto no llevan a ningún evento crudo;
+//   - se excluyen las reglas inertes para el plugin (106923), que re-etiquetan
+//     alertas syscheck sin campo `ensfacil` y nunca llegan aquí (ver el
+//     comentario en el propio XML);
 //   - se excluyen las reglas de diagnóstico operativo del recolector
 //     (106830 `collector_warning` y 106831 `collector_missing` de op.acc.1),
 //     que no llevan `requisito=` ni `evidencia=` porque no acreditan ninguna:
 //     son higiene del propio pipeline.
 //
-// Las reglas genéricas de `evidence_state` (106700-106703 / 106850-106853 /
+// Las reglas genéricas de `evidence_state` (106650 / 106850-106853 /
 // 106950-106953) no se listan: engine.ts añade el ruleId del evento que
 // resuelve la evidencia, así que aparecen solas cuando son el origen real del
 // estado.
@@ -28,7 +28,6 @@ import { ENSEvidenceDefinition } from './types';
 // lo contrario— las reglas de los AGREGADOS, `control_state` y
 // `score_snapshot`:
 //
-//   mp.info.6  control_state 106710-106714  score_snapshot 106720-106723
 //   op.acc.1   control_state 106860-106863 y 106869
 //              score_snapshot 106870-106872 y 106890
 //   op.acc.2   control_state 106960-106964  score_snapshot 106970-106974
@@ -53,11 +52,8 @@ import { ENSEvidenceDefinition } from './types';
 // resuelve una evidencia; su único consumidor es el gráfico de tendencia
 // (dashboard-adapter/presenters/evolution.presenter.ts), que descarta todo
 // snapshot sin `score` ni `compliance` numérico, y un NO_EVALUABLE no trae
-// ninguno de los dos. `control_state` sí puede resolver EV-03, EV-04 y EV-06 de
-// mp.info.6, que lo declaran en `expectedEventTypes`, pero no les cambia el
-// color: un requisito solo sale NO_EVALUABLE cuando TODAS sus evidencias lo
-// están, así que esas evidencias ya venían en gris por su `evidence_state`. El
-// arreglo compra la línea de alerta y la traza del auditor, nada más.
+// ninguno de los dos. El arreglo compra la línea de alerta y la traza del
+// auditor, nada más.
 //
 // **DE QUÉ FICHERO SE SACAN, que es donde estuvo el fallo.** Del que está
 // DESPLEGADO: la copia `manager/` del runbook, que es lo que instala su
@@ -91,31 +87,37 @@ import { ENSEvidenceDefinition } from './types';
 // el primer caso; el segundo lo vigila `tests/test_vocabulario.sh` en el
 // runbook de mp.info.6.
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
-{
+  // mp.info.6 · Copias de seguridad. Reglas: banda 106600-106799, comunes a los
+  // dos orígenes de copia (el PBS de Proxmox y Zimbra). El recolector emite
+  // HECHOS con el contrato común (`origen`, `objeto` y los campos de cada
+  // hecho) y un `evidence_state` solo cuando no pudo mirar (NO_EVALUABLE con
+  // su causa); el veredicto lo pone la policy del control
+  // (`policies/mp-info-6.policy.ts`) contra los parámetros de la pantalla.
+  // Ninguna evidencia declara `judgment`: el juicio es copia a copia (por
+  // origen, objeto y `backup_id`) y el peor manda, que no cabe en una
+  // primitiva.
+  //
+  // Los hechos de ESTADO los reemite enteros el recolector en cada pasada; la
+  // prueba de restauración es una ACCIÓN y se juzga con la ventana.
+  {
     id: 'EV-01',
     controlId: 'mp.info.6',
     title: 'Última copia realizada correctamente',
-    description: 'Existe evidencia de una copia de seguridad finalizada correctamente.',
+    description:
+      'Estado de cada copia en la última pasada del recolector (`backup_run`): cuándo terminó bien por última vez, cuándo falló, el resultado de la última ejecución, su tipo y su destino. Una copia por origen (PBS, Zimbra) y objeto (ficheros, buzones, directorio).',
     requirements: ['mp.info.6.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'EXECUTION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    // `backup_success` se retira: no lo emite ninguna regla ni ningún emisor.
-    // Era sinónimo de `backup_ok`, que sí tiene regla (106650), cron y NDJSON en
-    // producción, así que manda `backup_ok`.
-    expectedEventTypes: [
-      'evidence_state',
-      'backup_ok',
-      'backup_error',
-    ],
-    // `backup_ok` y la regla antigua 106650 ya no existen: el agente emite
-    // `backup_run` (106601) contra el contrato de hechos común a PBS y
-    // Zimbra, y es el hecho que acredita EV-01. `expectedEventTypes` arriba
-    // todavía declara el vocabulario antiguo; se actualiza junto con el
-    // resto del juicio de mp.info.6.
+    expectedEventTypes: ['evidence_state', 'backup_run'],
+    stateFactEventTypes: ['backup_run'],
     relatedRules: ['106601'],
     auditQuestion: '¿Existe evidencia reciente de que la copia de seguridad se ha realizado correctamente?',
+    // Contrato de calidad del vocabulario anterior (hechos con `estado`). Solo
+    // se exige a un evento que declare CUMPLE, y ningún hecho del contrato
+    // actual declara estado: sigue rechazando los veredictos del recolector
+    // antiguo que aún queden en la ventana.
     qualityRequirements: {
       requiredFields: [
         'job_id',
@@ -132,21 +134,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     id: 'EV-02',
     controlId: 'mp.info.6',
     title: 'Copia dentro del intervalo permitido',
-    description: 'La copia se ha realizado dentro de la frecuencia definida por el cliente.',
+    description:
+      'Antigüedad de la última copia correcta de cada copia (`backup_run`) frente a P-01 más el margen de P-02, y su planificación (`backup_schedule`: el cron real, `zmschedulebackup` o la declarada) frente a P-01.',
     requirements: ['mp.info.6.1', 'mp.info.6.2.a'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // Se retira `backup_success` (sin regla ni emisor) y se adopta
-    // `freq_deviation`, que emite la regla 106603 con `evidencia=EV-02` y
-    // `estado=NO_CUMPLE` y que hasta ahora esta evidencia no escuchaba: la
-    // desviación de frecuencia es exactamente lo que EV-02 mide.
-    expectedEventTypes: ['evidence_state', 'backup_ok', 'backup_missing', 'freq_deviation'],
-    // `backup_run` (106601, última copia) y `backup_schedule` (106602,
-    // planificación) son los hechos del contrato nuevo que acreditan EV-02.
-    // `expectedEventTypes` arriba conserva el vocabulario antiguo hasta que
-    // se reescriba el resto del juicio.
+    expectedEventTypes: ['evidence_state', 'backup_run', 'backup_schedule'],
+    stateFactEventTypes: ['backup_run', 'backup_schedule'],
     relatedRules: ['106601', '106602'],
     auditQuestion: '¿La última copia se encuentra dentro del intervalo máximo definido por la organización?',
   },
@@ -154,38 +150,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     id: 'EV-03',
     controlId: 'mp.info.6',
     title: 'Retención de copias configurada',
-    description: 'Existe evidencia de política de retención de copias.',
+    description:
+      'Retención configurada de cada copia (`backup_retention`) frente a P-03, con la copia más antigua que se conserva.',
     requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
-    // EL CASO EXTREMO de la reconciliación del vocabulario: declaraba cuatro
-    // nombres que no emite nadie (`retention_configured`, `backup_modified`,
-    // `backup_deleted`, `backup_ransomware`) y ninguno de los cuatro que sus
-    // propias reglas emiten. Resultado: solo podía resolverse por
-    // `evidence_state`, y el auditor que bajaba del estado al evento se quedaba
-    // sin el último escalón. Los cuatro que se adoptan son los de
-    // `relatedRules`, uno a uno: 106604 `access`, 106609 `encfp_changed`,
-    // 106660 `verify_ok` y 106661 `verify_error`.
-    //
-    // `retention_configured` no se sustituye por nada: ninguna regla ni ningún
-    // emisor produce un evento con la retención observada, y fabricar uno para
-    // que el catálogo cuadre sería fabricar evidencia. Por eso la decisión
-    // MIN_RETENTION del runtime sigue saliendo NO_EVALUABLE con todo desplegado
-    // (ver el comentario de `getLatestRetentionEvent` en policy-runtime.ts).
-    expectedEventTypes: [
-      'evidence_state',
-      'control_state',
-      'access',
-      'encfp_changed',
-      'verify_ok',
-      'verify_error',
-    ],
-    // `access` (106604), `encfp_changed` (106609), `verify_ok` (106660) y
-    // `verify_error` (106661) ya no existen como reglas: el contrato de
-    // hechos común los sustituye por `backup_retention` (106603), que es el
-    // hecho de retención que acredita EV-03.
+    expectedEventTypes: ['evidence_state', 'backup_retention'],
+    stateFactEventTypes: ['backup_retention'],
     relatedRules: ['106603'],
     auditQuestion: '¿Existe una política de retención configurada y verificable para las copias de seguridad?',
   },
@@ -193,22 +166,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     id: 'EV-04',
     controlId: 'mp.info.6',
     title: 'Acceso autorizado al repositorio',
-    description: 'Se controla el acceso de usuarios y procesos autorizados al repositorio de copias.',
+    description:
+      'Quién puede leer el repositorio de cada copia (`backup_access`: ruta, modo, propietario, grupo y cuentas con lectura) frente a P-07, y los permisos de la clave de cifrado de las copias.',
     requirements: ['mp.info.6.2.d'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    // `authorized_access` y `unauthorized_access` no existen como eventos: son
-    // el evento `access` de la regla 106604 con su campo `authorized`. Se
-    // sustituyen por el nombre real, y el runtime de mp.info.6.2.d lee ese
-    // campo en vez del nombre (ver `getLatestAccessEvent` en policy-runtime.ts).
-    // Los dos cambios van juntos: separarlos deja al runtime consumiendo un
-    // nombre que el catálogo ya no reconoce.
-    expectedEventTypes: ['evidence_state', 'control_state', 'access'],
-    // `backup_access` (106604) sustituye a `access` como hecho de acceso al
-    // repositorio en el contrato nuevo: mismo rule ID que antes, evento
-    // distinto.
+    expectedEventTypes: ['evidence_state', 'backup_access'],
+    stateFactEventTypes: ['backup_access'],
     relatedRules: ['106604'],
     auditQuestion: '¿El acceso al repositorio de copias está limitado a usuarios y procesos autorizados?',
   },
@@ -216,25 +182,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     id: 'EV-05',
     controlId: 'mp.info.6',
     title: 'Prueba de restauración correcta',
-    description: 'Existe evidencia de restauración correcta y verificación de integridad.',
+    description:
+      'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05.',
     requirements: ['mp.info.6.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'RECOVERY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    // `restore_success` se retira por el mismo motivo que `backup_success`:
-    // sinónimo sin regla ni emisor de `restore_ok`, que sí los tiene (106651).
-    expectedEventTypes: [
-      'evidence_state',
-      'restore_ok',
-      'restore_missing',
-      'restore_error',
-    ],
-    // `restore_ok` (106651) y `restore_error` (106607) ya no existen como
-    // reglas. `restore_test` (106606) es el único hecho de restauración del
-    // contrato nuevo; su campo `resultado` distingue éxito de fallo.
+    // Acción, no estado: cada prueba cuenta dentro de la ventana.
+    expectedEventTypes: ['evidence_state', 'restore_test'],
     relatedRules: ['106606'],
     auditQuestion: '¿Existe evidencia de una prueba de restauración correcta dentro del periodo definido?',
+    // Mismo caso que EV-01: contrato del vocabulario anterior, que solo se
+    // exige a un evento que declare CUMPLE.
     qualityRequirements: {
       requiredFields: [
         'job_id',
@@ -253,22 +213,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     id: 'EV-06',
     controlId: 'mp.info.6',
     title: 'Repositorio alternativo operativo',
-    description: 'Existe evidencia de copia en ubicación alternativa cuando aplica.',
+    description:
+      'Destinos de cada copia (`backup_storage`): si están en la misma máquina, de qué tipo son (local, montaje, remoto) y si están activos. Acredita la copia en ubicación alternativa de R2.',
     requirements: ['mp.info.6.r2.1'],
     levels: ['ALTO'],
     category: 'OFFSITE',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    // `offsite_missing` se retira: no tiene regla ni emisor. La ausencia de
-    // copia offsite la publica hoy `score.py` como `evidence_state`
-    // NO_EVALUABLE con su motivo, que es la forma honesta de decir "esto rige y
-    // no lo medimos". `offsite_success` y `offsite_error` sí tienen regla
-    // (106662 y 106663).
-    expectedEventTypes: ['evidence_state', 'control_state', 'offsite_success', 'offsite_error'],
-    // `offsite_success` (106662) y `offsite_error` (106663) vivían en
-    // ensfacil_mp_info_6_pbs_rules.xml, retirado (sin emisor, fuera de
-    // alcance del control). `backup_storage` (106605) es el hecho de
-    // destino/repositorio alternativo del contrato nuevo que acredita EV-06.
+    expectedEventTypes: ['evidence_state', 'backup_storage'],
+    stateFactEventTypes: ['backup_storage'],
     relatedRules: ['106605'],
     auditQuestion: '¿Existe una copia en ubicación alternativa operativa cuando el nivel ENS lo exige?',
     qualityRequirements: {
@@ -276,27 +229,19 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     },
   },
   {
+    // El latido del recolector (106797): que ha pasado por la máquina, con qué
+    // resultado y qué evidencias declara haber cubierto.
     id: 'EV-07',
     controlId: 'mp.info.6',
     title: 'Logs correctamente interpretados',
-    description: 'Los logs de backup se interpretan correctamente por Wazuh/ENSFácil.',
+    description:
+      'Última pasada del recolector de copias en la máquina (`collector_run`): su resultado, su papel (PBS, buzones, directorio) y las evidencias que declara cubiertas. Sin una pasada reciente y completa, lo que dicen los demás hechos no describe el estado de hoy.',
     requirements: ['mp.info.6.1', 'mp.info.6.2.b', 'mp.info.6.2.c'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'TRACEABILITY',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // De los siete declarados solo `backup_error` (106690) tenía regla.
-    // `decoder_ok`, `backup_warning`, `backup_timeout`, `backup_disk_full` y
-    // `backup_network_error` no los emite nadie y se retiran; se adopta
-    // `encfp_changed`, que emite 106609 con `evidencia=EV-03,EV-07` y además
-    // tiene emisor real (`px_emit_fp_changed` en el runbook).
-    expectedEventTypes: ['evidence_state', 'backup_error', 'encfp_changed'],
-    // `backup_error` (106690), el antiguo 106602 (NO_CUMPLE por errores
-    // repetidos) y `encfp_changed` (106609) ya no existen como reglas. Hasta
-    // que EV-07 tenga su propio hecho de interpretación de logs, se acredita
-    // con el latido del recolector (106797, `collector_run`): confirma que
-    // el recolector pasó por la máquina, no que los logs se interpretaron
-    // bien.
+    expectedEventTypes: ['evidence_state', 'collector_run'],
     relatedRules: ['106797'],
     auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
   },

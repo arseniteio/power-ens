@@ -16,24 +16,18 @@ import { ENSNormalizedEvent } from './types';
 //   missing         el artefacto que la evidencia exige no está
 //   unauthorized    acceso o identidad fuera de lo autorizado; no conformidad
 //
-// Salvedad conocida de `missing`, y ya resuelta en el origen: las reglas del
-// producto no le dan el mismo estado a los dos `*_missing` de mp.info.6 (106601
-// `backup_missing` declara NO_CUMPLE, 106606 `restore_missing` NO_EVALUABLE), y
-// esa asimetría es DELIBERADA, no un descuido pendiente de unificar. El
-// criterio, escrito junto a las dos reglas en
-// `agent/rules/ensfacil_mp_info_6_json_rules.xml`: una ausencia solo acusa
-// cuando el despliegue garantiza que, de haber ocurrido el hecho, se habría
-// observado. La copia la EJECUTA el propio runbook, así que su ausencia está
-// medida; la prueba de restauración es una sonda opcional dormida de fábrica,
-// así que lo que falta es la medida.
+// Salvedad conocida de `missing`: una ausencia solo acusa cuando el despliegue
+// garantiza que, de haber ocurrido el hecho, se habría observado, y el nombre
+// del evento no lo sabe. mp.info.6 tuvo dos `*_missing` con estados distintos
+// por ese motivo (la copia ausente, medida; la prueba de restauración ausente,
+// sin medir); con su contrato de hechos ya no emite ninguno que una evidencia
+// escuche (`collector_missing` es diagnóstico del recolector).
 //
-// Lo que eso implica AQUÍ: el patrón `missing` es correcto para el primer caso y
-// equivocado para el segundo, y por tanto el nombre del evento NO basta para
-// decidir un `*_missing`. Hoy no se manifiesta porque los dos llegan del emisor
-// con su `estado` y la inferencia no se alcanza. Si algún día un `*_missing`
-// llegara sin `estado`, este patrón lo pondría en rojo sin haberlo medido: lo
-// que procede entonces es que el emisor declare su `estado`, no que se infiera
-// aquí. Este fichero lo comparten los tres controles.
+// Lo que eso implica AQUÍ: el nombre del evento NO basta para decidir un
+// `*_missing`. Si algún día uno llegara sin `estado` a una evidencia, este
+// patrón lo pondría en rojo sin haberlo medido: lo que procede entonces es que
+// el emisor declare su `estado`, no que se infiera aquí. Este fichero lo
+// comparten todos los controles.
 const ADVERSE_EVENT_PATTERNS = [
   'error',
   'failed',
@@ -228,10 +222,10 @@ export const normalizeWazuhAlert = (hit: any): ENSNormalizedEvent => {
 
   // Sin traducciones por control. Aquí vivía un caso especial que convertía
   // `offsite_ok` en `offsite_success` para que EV-06 de mp.info.6 resolviera:
-  // un control cableado en un fichero que comparten los tres. Se ha retirado
-  // porque la regla 106662 ya emite `offsite_success` en origen. Si vuelve a
-  // hacer falta una traducción aquí, lo que hay que arreglar es el nombre en
-  // la regla, no taparlo en el normalizador.
+  // un control cableado en un fichero que comparten todos. Se retiró cuando el
+  // nombre se corrigió en la regla. Si vuelve a hacer falta una traducción
+  // aquí, lo que hay que arreglar es el nombre en la regla, no taparlo en el
+  // normalizador.
   const eventType =
     data.event ||
     rule.groups?.join(',') ||

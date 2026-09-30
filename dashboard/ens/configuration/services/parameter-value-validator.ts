@@ -84,9 +84,9 @@ export const isEmptyParameterValue = (
 
 // PARTICIÓN ÚNICA de un valor de lista en elementos. **Es la única del
 // producto**: la usan el formulario (`list-parameter-renderer.tsx`), la
-// validación de "configurado" y el runtime imperativo del motor
-// (`normalizeStringList` en `core/policy-runtime/policy-runtime.ts` delega
-// aquí). Que fuera una sola no era así hasta el 30/07 y el desajuste era éste:
+// validación de "configurado" y las policies del motor que leen listas (p. ej.
+// `entradas` en `core/policy-runtime/policies/mp-info-6.policy.ts`). Que fuera
+// una sola no era así hasta el 30/07 y el desajuste era éste:
 //
 //   el formulario partía por salto de línea y COMA
 //   el runtime partía por salto de línea y PUNTO Y COMA
@@ -159,7 +159,7 @@ const URI_CON_ESQUEMA =
   /^[A-Za-z][A-Za-z0-9+.-]*:\/\/\S+$/;
 
 // Formas booleanas que el producto usa de verdad. Las de verdad, no las que
-// serían bonitas: `toBoolean` del policy-runtime acepta true/'true'/'sí'/'si'/
+// serían bonitas: la policy de mp.info.6 (P-08) acepta true/'true'/'sí'/'si'/
 // 'yes', y los ejemplos de las fichas escriben 'sí / no'. Todo lo demás cae hoy
 // silenciosamente en `false`, que es justo lo que hay que dejar de tolerar.
 const BOOLEANOS_CIERTOS = [
@@ -935,10 +935,11 @@ const validarUmask = (
 
 // mp.info.6 P-05 `periodo_max_sin_prueba_dias` está declarado `duration_days`,
 // pero su valor legítimo NO es solo un entero: la ficha lo ejemplifica como
-// 'ALTA=30; MEDIA=90' y `parseRestoreThresholdContract` (policy-runtime) lo
-// implementa así. Exigirle un entero pelado marcaría como mal configurado un
-// despliegue correcto —una no conformidad falsa, que le cuesta al auditor el
-// mismo tiempo que un CUMPLE falso—. Se admiten las dos formas y se valida cada
+// 'ALTA=30; MEDIA=90' y `plazoDeRestauracion` (policy de mp.info.6) lo
+// implementa así, con la criticidad que P-04 declara para cada máquina.
+// Exigirle un entero pelado marcaría como mal configurado un despliegue
+// correcto —una no conformidad falsa, que le cuesta al auditor el mismo tiempo
+// que un CUMPLE falso—. Se admiten las dos formas y se valida cada
 // umbral del contrato.
 const validarUmbralRestauracion = (
   parameter: ENSControlParameter,

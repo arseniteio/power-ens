@@ -39,8 +39,6 @@ import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
 import { mpInfo6CatalogDefinition } from '../dashboard/ens/catalog/mp-info-6';
 import { mpInfo6Configuration } from '../dashboard/ens/configuration/data/mp-info-6-parameters';
 import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
-import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
 import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
 import { runPolicyRuntime } from '../dashboard/ens/core/policy-runtime/policy-runtime';
 import {
@@ -313,91 +311,104 @@ bloque('5. Sin eventos no hay serie, y el reloj desviado no la alarga');
 bloque('6. Cada punto mide la antigüedad contra SU día, no contra hoy');
 
 {
-  const definicion = getEvidenceDefinitions('mp.info.6').find(
-    item => item.id === 'EV-01'
-  );
+  // La copia se hizo el día 3 a las 9:00, y no ha vuelto a salir bien. El
+  // recolector de mp.info.6 lo informa en cada pasada: en la del día 3 a las
+  // 9:05 y en la de hoy a las 11:00, las dos con la misma última copia
+  // correcta. Evaluada al final del día 3 solo existe la primera.
+  const copia = enDia(3);
+  const pasada = (timestamp: string): ENSNormalizedEvent =>
+    evento(timestamp, {
+      controlId: 'mp.info.6',
+      eventType: 'backup_run',
+      evidenceId: 'EV-02',
+      attributes: {
+        origen: 'pbs',
+        objeto: 'fichero',
+        ultima_correcta: copia,
+        ultima_fallida: '-',
+        resultado_ultima: 'ok',
+      },
+    });
 
-  if (!definicion) {
-    throw new Error('El catálogo no define EV-01 para mp.info.6');
-  }
+  const hechos = [
+    pasada(new Date(2026, 7, 3, 9, 5, 0).toISOString()),
+    pasada(new Date(2026, 7, 5, 11, 0, 0).toISOString()),
+  ];
 
-  // La copia se hizo el día 3 a las 9:00.
-  const copia: ENSEvidenceResolved = {
-    id: definicion.id,
-    controlId: definicion.controlId,
-    title: definicion.title,
-    description: definicion.description,
-    requirements: definicion.requirements,
-    levels: definicion.levels,
-    category: definicion.category,
-    criticality: definicion.criticality,
-    sourceTypes: definicion.sourceTypes,
-    expectedEventTypes: definicion.expectedEventTypes,
-    relatedRules: definicion.relatedRules,
-    auditQuestion: definicion.auditQuestion,
-    status: 'CUMPLE',
-    observations: [],
-    lastSeen: enDia(3),
+  const configuracion = {
+    ...mpInfo6Configuration,
+    parameters: mpInfo6Configuration.parameters.map(parametro =>
+      parametro.id === 'P-01'
+        ? { ...parametro, value: '24' }
+        : parametro.id === 'P-04'
+        ? { ...parametro, value: 'srv-01' }
+        : parametro
+    ),
   };
 
-  const edadEn = (instante?: Date): number | undefined => {
+  // La medida de EV-02 (antigüedad de la última copia correcta) que deja la
+  // policy de mp.info.6 en sus variables de ejecución.
+  const medidaEn = (instante?: Date) => {
     const runtime = runPolicyRuntime(
       buildPolicyContext(
         mpInfo6CatalogDefinition,
-        mpInfo6Configuration,
+        configuracion,
         'BAJO',
+        hechos,
         [],
-        [copia],
         instante
       )
     );
 
     const variable = runtime.runtimeVariables.find(
-      item => item.name === 'lastBackupAgeHours'
+      item => item.name === 'medida_EV02'
     );
 
-    return typeof variable?.value === 'number'
-      ? variable.value
-      : undefined;
+    return {
+      estado: variable?.value,
+      motivo: variable?.description || '',
+    };
   };
 
   // Evaluada al final del día 3, la copia de esa mañana tiene ~15 h.
   const finDelDia3 = new Date(2026, 7, 3, 23, 59, 59, 999);
 
-  const edadEnSuDia = edadEn(finDelDia3);
+  const enSuDia = medidaEn(finDelDia3);
 
   comprueba(
     'evaluada en su propio día, la copia tiene menos de 24 h',
-    edadEnSuDia !== undefined && edadEnSuDia < 24,
-    `${edadEnSuDia} h`
+    enSuDia.estado === 'CUMPLE' && /hace 15\.0 h/.test(enSuDia.motivo),
+    `${enSuDia.estado} ${enSuDia.motivo}`
   );
 
   // La reversión, que es todo el defecto en una línea: la MISMA copia medida
   // contra hoy tiene dos días. Si el instante no viajara hasta aquí, el punto
   // del día 3 se juzgaría con este número y la línea bajaría hacia el pasado
   // por el mero hecho de que el pasado es viejo.
-  const edadHoy = edadEn(AHORA);
+  const hoy = medidaEn(AHORA);
 
   comprueba(
     'y la misma copia medida contra hoy pasa de 24 h',
-    edadHoy !== undefined && edadHoy > 24,
-    `${edadHoy} h`
+    hoy.estado === 'NO_CUMPLE' && /hace 51\.0 h/.test(hoy.motivo),
+    `${hoy.estado} ${hoy.motivo}`
   );
 
   comprueba(
-    'que son números distintos: el instante llega de verdad al runtime',
-    edadEnSuDia !== edadHoy,
-    `${edadEnSuDia} vs ${edadHoy}`
+    'que son medidas distintas: el instante llega de verdad al runtime',
+    enSuDia.estado !== hoy.estado,
+    `${enSuDia.estado} vs ${hoy.estado}`
   );
 
   // Y sin instante se comporta como siempre: contra el reloj real. Es lo que
-  // garantiza que el panel no ha cambiado de comportamiento.
-  const edadPorDefecto = edadEn(undefined);
+  // garantiza que el panel no ha cambiado de comportamiento: hoy los dos
+  // hechos son más viejos que la frescura de un estado, y la copia no puede
+  // salir en verde.
+  const porDefecto = medidaEn(undefined);
 
   comprueba(
     'sin instante, sigue midiendo contra el reloj real (el panel no cambia)',
-    edadPorDefecto !== undefined && edadPorDefecto > 24,
-    `${edadPorDefecto} h`
+    porDefecto.estado !== undefined && porDefecto.estado !== 'CUMPLE',
+    `${porDefecto.estado} ${porDefecto.motivo}`
   );
 }
 

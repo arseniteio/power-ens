@@ -35,9 +35,8 @@
         "EV-02"
       ],
       "ruleIds": [
-        "106650",
         "106601",
-        "106603"
+        "106602"
       ],
       "ifNotConfigured": "El control mp.info.6 queda NO EVALUABLE para periodicidad de copias."
     },
@@ -95,7 +94,9 @@
       "evidenceIds": [
         "EV-03"
       ],
-      "ruleIds": [],
+      "ruleIds": [
+        "106603"
+      ],
       "ifNotConfigured": "No se puede verificar cumplimiento de retención."
     },
     {
@@ -148,7 +149,6 @@
         "EV-05"
       ],
       "ruleIds": [
-        "106651",
         "106606"
       ],
       "ifNotConfigured": "R1 queda NO EVALUABLE en MEDIO/ALTO."
@@ -228,8 +228,7 @@
         "EV-06"
       ],
       "ruleIds": [
-        "106662",
-        "106663"
+        "106605"
       ],
       "ifNotConfigured": "Para BAJO/MEDIO queda NO APLICA. Para ALTO queda NO EVALUABLE."
     },
@@ -260,8 +259,8 @@
       "id": "P-10",
       "controlId": "mp.info.6",
       "name": "herramienta_backup",
-      "label": "Herramienta de backup",
-      "description": "Herramienta o agente utilizado para generar las copias. Si la herramienta no está en la lista, seleccione Otro: el decoder se tratará como no identificado.",
+      "label": "Origen de las copias",
+      "description": "Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server), zimbra-ne (Zimbra Network Edition) o zimbra-ose-declarada (Zimbra Open Source, con el método de copia que declara la organización).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -272,25 +271,22 @@
         "mp.info.6.r1.1"
       ],
       "type": "select",
-      "example": "Veeam",
+      "example": "pbs",
       "options": [
-        "Veeam",
-        "Bacula",
-        "Amanda",
-        "rsync",
-        "Windows Backup",
-        "Otro"
+        "pbs",
+        "zimbra-ne",
+        "zimbra-ose-declarada"
       ],
       "required": true,
-      "wazuhUsage": "Determina decoder, parser o normalización esperada de eventos.",
-      "ensfacilUsage": "Permite adaptar la lectura de evidencias a la tecnología usada.",
+      "wazuhUsage": "Cada hecho del recolector lleva su origen; las reglas son las mismas para los tres, así que no cambia qué se decodifica.",
+      "ensfacilUsage": "Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor: una máquina con PBS y otra con Zimbra se juzgan igual.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
         "EV-07"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "Wazuh puede no interpretar correctamente los logs de backup."
+      "ifNotConfigured": "El informe no puede citar con qué sistema se hacen las copias."
     },
     {
       "id": "P-11",
@@ -340,7 +336,7 @@
         "EV-05"
       ],
       "ruleIds": [
-        "106651"
+        "106606"
       ],
       "ifNotConfigured": "La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE, nunca NO_CUMPLE: no haber probado no demuestra que restaurar falle."
     },

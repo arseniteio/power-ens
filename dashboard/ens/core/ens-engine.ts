@@ -28,6 +28,8 @@ import {
 import { ENSAgentScope } from './scope/types';
 import {
   ENS_MANAGER_AGENT_ID,
+  getDeclaredScopeAgentNames,
+  isControlInDeclaredScope,
   isControlMeasuredOnAgent,
   isManagerAgentId,
   isManagerOnlyControl,
@@ -81,6 +83,31 @@ const getScopedEvents = (
   });
 };
 
+// El nombre de una máquina, para compararlo con el alcance declarado de un
+// control: el del inventario del alcance y, si no lo trae, el de sus eventos.
+const resolveAgentName = (
+  agentId: string,
+  events: ENSNormalizedEvent[],
+  scopeAgents?: ENSAgentScope[]
+): string | undefined =>
+  scopeAgents?.find(agent => agent.id === agentId)?.name ||
+  events.find(event => event.agentId === agentId && event.agentName)
+    ?.agentName;
+
+// ¿Se evalúa este control en la fila de esta máquina? Su plano de medida y, si
+// lo declara, su alcance (ver `scope/measurement-planes.ts`).
+const isControlEvaluatedOnAgent = (
+  control: ENSControlDefinition,
+  agentId: string,
+  agentName: string | undefined
+): boolean =>
+  isControlMeasuredOnAgent(control, agentId) &&
+  isControlInDeclaredScope(
+    control,
+    agentName,
+    getActiveControlConfiguration(control.id)
+  );
+
 // Evalúa UN control sobre los eventos ya recortados a la fila (o al conjunto,
 // sin `agentId`). Es el camino único del panel y del detalle.
 const evaluateControlOnEvents = (
@@ -95,11 +122,34 @@ const evaluateControlOnEvents = (
   // la pantalla, así que el motor no puede resolverlas sin ella.
   const configuration = getActiveControlConfiguration(catalogControl.id);
 
+  // Sin fila, un control con alcance declarado se mide solo con los hechos de
+  // las máquinas declaradas: los de una máquina que no está en su alcance no
+  // suman ni restan tampoco aquí. Con la fila, el motor ya solo la evalúa si
+  // la máquina está declarada.
+  const declaredScope =
+    agentId === undefined
+      ? getDeclaredScopeAgentNames(catalogControl, configuration)
+      : undefined;
+
+  const eventsInScope = declaredScope
+    ? scopedEvents.filter(event =>
+        isControlInDeclaredScope(
+          catalogControl,
+          event.agentName,
+          configuration
+        )
+      )
+    : scopedEvents;
+
+  // Con el alcance declarado vacío no hay ninguna máquina de la que esperar
+  // hechos: lo que no se ha podido medir es de CONFIGURACIÓN, no de recogida.
+  const expectsFacts = !declaredScope || declaredScope.length > 0;
+
   // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
   // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
   const controlEvents = keepLatestRunStateFacts(
     catalogControl.id,
-    scopedEvents,
+    eventsInScope,
     now
   );
 
@@ -149,7 +199,8 @@ const evaluateControlOnEvents = (
     controlLevel,
     evidences,
     policyRuntime,
-    controlEvents
+    controlEvents,
+    expectsFacts
   );
 };
 
@@ -179,15 +230,17 @@ const evaluateCatalogControls = (
 };
 
 // Los controles que se evalúan en la fila de una máquina: los de su plano de
-// medida (ver `scope/measurement-planes.ts`). Sin máquina, todos: es la
-// evaluación del conjunto de eventos, sin filas.
+// medida que, si declaran alcance, la tienen declarada (ver
+// `scope/measurement-planes.ts`). Sin máquina, todos: es la evaluación del
+// conjunto de eventos, sin filas.
 const getCatalogControlsForAgent = (
-  agentId?: string
+  agentId?: string,
+  agentName?: string
 ): ENSControlDefinition[] =>
   agentId === undefined
     ? ENSCatalog
     : ENSCatalog.filter(control =>
-        isControlMeasuredOnAgent(control, agentId)
+        isControlEvaluatedOnAgent(control, agentId, agentName)
       );
 
 // `now` es el instante al que se evalúa. Por defecto es ahora —el caso del
@@ -196,8 +249,9 @@ const getCatalogControlsForAgent = (
 // tienen que medirse contra el día del punto, no contra hoy.
 //
 // Con `agentId`, es la fila de ESA máquina: solo produce resultado para los
-// controles de su plano. Un control que no se mide en ella no sale, ni como
-// NO_APLICA: no se ha decidido que no aplique, es que no se mide ahí.
+// controles de su plano y de cuyo alcance declarado forma parte. Un control
+// que no se mide en ella no sale, ni como NO_APLICA: no se ha decidido que no
+// aplique, es que no se mide ahí.
 export const getENSComplianceResults = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
@@ -206,7 +260,12 @@ export const getENSComplianceResults = (
   now?: Date
 ) =>
   evaluateCatalogControls(
-    getCatalogControlsForAgent(agentId),
+    getCatalogControlsForAgent(
+      agentId,
+      agentId === undefined
+        ? undefined
+        : resolveAgentName(agentId, events, scopeAgents)
+    ),
     level,
     events,
     agentId,
@@ -556,9 +615,10 @@ const buildAgentComplianceStatesByControl = (
 
       return (
         !catalogControl ||
-        isControlMeasuredOnAgent(
+        isControlEvaluatedOnAgent(
           catalogControl,
-          agent.agentId
+          agent.agentId,
+          agent.agentName
         )
       );
     })
@@ -625,6 +685,19 @@ export const getENSComplianceResultByControl = (
             now
           )
         : undefined;
+    }
+
+    // Y la del alcance declarado: en la vista de una máquina que el control
+    // no declara, no tiene resultado.
+    if (
+      catalogControl &&
+      !isControlInDeclaredScope(
+        catalogControl,
+        resolveAgentName(agentId, events, scopeAgents),
+        getActiveControlConfiguration(controlId)
+      )
+    ) {
+      return undefined;
     }
 
     return evaluateENSComplianceResultByControl(

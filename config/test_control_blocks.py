@@ -435,7 +435,7 @@ OPCIONES_ESPERADAS = {
         "Mínimo privilegio + sudo", "Otro",
     ],
     ("mp.info.6", "P-10"): [
-        "Veeam", "Bacula", "Amanda", "rsync", "Windows Backup", "Otro",
+        "pbs", "zimbra-ne", "zimbra-ose-declarada",
     ],
 }
 
@@ -453,7 +453,8 @@ LISTAS_DE_ELEMENTO_ATOMICO = {
 }
 
 # Listas cuyo elemento SÍ tiene campos separados por `|` ('srv-bd01 | ALTA', que
-# el policy-runtime parte en sistema y criticidad).
+# el motor parte en sistema —el alcance de mp.info.6— y criticidad —el plazo de
+# P-05—).
 #
 # Un elemento con campos que además los tiene DECLARADOS es un `table`, y no
 # hace falta apuntarlo aquí: sus columnas dicen cuántos campos lleva su ejemplo y
@@ -658,8 +659,8 @@ def main():
              "valor": "Veeam Backup & Replication 12"},
             {"tipo": "render", "parametro": sin_opciones, "valor": "lo que sea"},
             {"tipo": "render", "parametro": p10, "valor": None,
-             "selecciona": "Bacula"},
-            {"tipo": "render", "parametro": p10, "valor": "Bacula",
+             "selecciona": "zimbra-ne"},
+            {"tipo": "render", "parametro": p10, "valor": "zimbra-ne",
              "selecciona": ""},
             {"tipo": "render", "parametro": parametro_de(bloques["op.acc.1"], "P-04"),
              "valor": None},
@@ -699,7 +700,7 @@ def main():
                   con_heredado["publicados"] == [], str(con_heredado["publicados"]))
 
         comprueba("elegir una opción la publica por nombre de parámetro",
-                  elige["publicados"] == [["herramienta_backup", "Bacula"]],
+                  elige["publicados"] == [["herramienta_backup", "zimbra-ne"]],
                   str(elige["publicados"]))
         comprueba("volver a 'sin seleccionar' deja el parámetro sin valor",
                   borra["publicados"] == [["herramienta_backup", None]],
