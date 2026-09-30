@@ -145,7 +145,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-03',
     controlId: 'mp.info.6',
-    title: 'Retención de copias configurada',
+    title: 'Retención de las copias',
     description:
       'Retención configurada de cada copia (`backup_retention`) frente a P-03, con la copia más antigua que se conserva.',
     requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
@@ -181,7 +181,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-05',
     controlId: 'mp.info.6',
-    title: 'Prueba de restauración correcta',
+    title: 'Prueba de restauración del testigo',
     description:
       'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05.',
     requirements: ['mp.info.6.r1.1'],
@@ -201,7 +201,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-06',
     controlId: 'mp.info.6',
-    title: 'Repositorio alternativo operativo',
+    title: 'Copia fuera de la máquina',
     description:
       'Destinos de cada copia (`backup_storage`): si están en la misma máquina, de qué tipo son (local, montaje, remoto) y si están activos. Acredita el almacenamiento en otros lugares y la copia en ubicación alternativa de R2; como la copia físicamente separada solo se exige en ALTO, solo aplica en ese nivel.',
     requirements: ['mp.info.6.2.c', 'mp.info.6.r2.1'],
@@ -224,7 +224,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // resultado y qué evidencias declara haber cubierto.
     id: 'EV-07',
     controlId: 'mp.info.6',
-    title: 'Logs correctamente interpretados',
+    title: 'Latido del recolector de copias',
     description:
       'Última pasada del recolector de copias en la máquina (`collector_run`): su resultado, su papel (PBS, buzones, directorio) y las evidencias que declara cubiertas. Sin una pasada reciente y completa, lo que dicen los demás hechos no describe el estado de hoy.',
     requirements: ['mp.info.6.1', 'mp.info.6.2.b', 'mp.info.6.2.c'],
