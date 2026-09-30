@@ -144,6 +144,14 @@ export const describeUnmatchedDeclaredScope = (
     ? `Ninguna de las máquinas que declara ${parameterId} (${declared.join(', ')}) coincide con un agente del alcance ENS: ninguna máquina declarada envía datos. Revisa los nombres en la pantalla de Configuración.`
     : `${parameterId} no declara ninguna máquina: el control solo se mide en las máquinas declaradas, y sin ninguna no hay qué medir.`;
 
+// Una máquina declarada que no es ninguna del alcance ENS: cuenta como una
+// máquina declarada sin datos, y el motivo dice por qué puede pasar.
+export const describeOutOfScopeDeclaredMachine = (
+  parameterId: string,
+  name: string
+): string =>
+  `${parameterId} declara ${name}, que no es ninguna máquina del alcance ENS: nombre mal escrito o máquina fuera del grupo ens. Cuenta como una máquina declarada sin datos.`;
+
 export const markEvidencesUnmatchedScope = (
   evidences: ENSEvidenceResolved[],
   reason: string

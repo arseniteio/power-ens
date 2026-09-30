@@ -973,8 +973,8 @@ bloque('17. Las degradaciones sin backup_id son del par (origen y objeto)');
   const vieja = linea('evidence_state', { evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'sin PBS_REPO', origen: '', objeto: '' }, hace(72));
   const conVieja = evalua(eventos([vieja]));
   comprueba(
-    'una degradación sin origen de hace 3 días no se queda un mes: EV-01 dice que el recolector no informa (RECOGIDA)',
-    conVieja.estado('EV-01') === 'NO_EVALUABLE' && conVieja.causa('EV-01') === 'COLLECTION' && /no está informando/.test(conVieja.motivo('EV-01')),
+    'una degradación sin origen (vocabulario anterior) no se lee: EV-01 dice que no consta nada de esta máquina (RECOGIDA), no su CONFIGURATION',
+    conVieja.estado('EV-01') === 'NO_EVALUABLE' && conVieja.causa('EV-01') === 'COLLECTION' && /No consta ningún/.test(conVieja.motivo('EV-01')),
     `${conVieja.estado('EV-01')} ${conVieja.causa('EV-01')} ${conVieja.motivo('EV-01')}`
   );
 }
@@ -999,8 +999,15 @@ bloque('18. EV-05 · el plazo primero, y la ventana sin pruebas');
     `${ventanaVacia.estado('EV-05')} ${ventanaVacia.causa('EV-05')} ${ventanaVacia.motivo('EV-05')}`
   );
 
-  const sinLatido = evalua(eventos([copia()]));
-  comprueba('sin pruebas y sin latido → RECOGIDA', sinLatido.estado('EV-05') === 'NO_EVALUABLE' && sinLatido.causa('EV-05') === 'COLLECTION', `${sinLatido.estado('EV-05')} ${sinLatido.causa('EV-05')}`);
+  const sinNada = evalua([]);
+  comprueba('sin ningún hecho ni latido → RECOGIDA', sinNada.estado('EV-05') === 'NO_EVALUABLE' && sinNada.causa('EV-05') === 'COLLECTION', `${sinNada.estado('EV-05')} ${sinNada.causa('EV-05')}`);
+
+  const copiaSinPrueba = evalua(eventos([copia()]));
+  comprueba(
+    'una copia que el recolector informa y nunca se ha probado → NO_EVALUABLE por EVIDENCIA nombrándola',
+    copiaSinPrueba.estado('EV-05') === 'NO_EVALUABLE' && copiaSinPrueba.causa('EV-05') === 'EVIDENCE' && /no consta ninguna prueba de restauración de los ficheros \(pbs\)/i.test(copiaSinPrueba.motivo('EV-05')),
+    `${copiaSinPrueba.estado('EV-05')} ${copiaSinPrueba.causa('EV-05')} ${copiaSinPrueba.motivo('EV-05')}`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1029,7 +1036,7 @@ bloque('19. P-04 con un nombre que no es de ningún agente');
   );
   comprueba(
     'y el motivo nombra la máquina declarada que no existe',
-    (consolidado?.evidences || []).some(e => e.observations.some(o => /srv-99/.test(o) && /no coincide|coincide con un agente/.test(o))),
+    (consolidado?.evidences || []).some(e => e.observations.some(o => /srv-99/.test(o) && /no es ninguna máquina del alcance ENS/.test(o))),
     (consolidado?.evidences || [])[0]?.observations[0]
   );
 
@@ -1303,6 +1310,231 @@ bloque('24. PBS y Zimbra reales en el mismo agente, a minutos distintos');
     paro.estado('EV-07') === 'NO_EVALUABLE' && paro.causa('EV-07') === 'COLLECTION' && /pbs/.test(paro.motivo('EV-07')),
     `${paro.estado('EV-07')} ${paro.causa('EV-07')} ${paro.motivo('EV-07')}`
   );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('25. Una máquina actualizada con latidos del recolector anterior');
+
+{
+  // El recolector anterior (su score.py) latía con `collector_run` sin
+  // `origen` (regla 106608) y ponía veredictos. Tras actualizar, esos eventos
+  // siguen en la ventana un mes: no pueden contar como un recolector más.
+  const MAQUINA = { id: '034', name: 'mp.info' };
+  const T = hace(0.9);
+  const nueva = (event: string, campos: Linea) => linea(event, { host: MAQUINA.name, ...campos }, T);
+  const nuevos = [
+    nueva('backup_run', { backup_id: 'r', ultima_correcta: hace(10), ultima_fallida: '-', resultado_ultima: 'ok', tipo: 'completa' }),
+    nueva('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
+    nueva('backup_retention', { backup_id: 'r', retencion_dias: '-', copia_mas_antigua: hace(24 * 40) }),
+    nueva('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
+    nueva('backup_storage', { destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+    nueva('restore_test', { backup_id: 'r', fecha: hace(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
+    latido(T, { host: MAQUINA.name }),
+  ];
+  const viejos = normalizeWazuhAlerts([
+    { _id: 'viejo-latido', _source: { '@timestamp': hace(72), agent: MAQUINA, rule: { id: '106608' }, data: { ensfacil: 'mp.info.6', event: 'collector_run', version: '1', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02,EV-07' } } },
+    { _id: 'viejo-estado', _source: { '@timestamp': hace(72), agent: MAQUINA, rule: { id: '106700' }, data: { ensfacil: 'mp.info.6', event: 'evidence_state', evidence_id: 'EV-07', estado: 'CUMPLE' } } },
+  ]);
+
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion({ ...BASE, 'P-04': MAQUINA.name }) : c)),
+  });
+
+  const fila = getENSComplianceResultByControl(CONTROL, 'MEDIO', [...viejos, ...eventos(nuevos, MAQUINA)], MAQUINA.id, [{ ...MAQUINA, groups: ['ens', 'ens-copias'] }], AHORA);
+  const ev07 = fila?.evidences.find(e => e.id === 'EV-07');
+
+  comprueba('con el latido viejo sin origen en la ventana, EV-07 sigue CUMPLE', ev07?.status === 'CUMPLE', `${ev07?.status} ${ev07?.observations[0]}`);
+  comprueba('y la máquina, al día, sale CUMPLE', fila?.status === 'CUMPLE', `${fila?.status} ${fila?.score}`);
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('26. EV-05 por origen y objeto: cada copia tiene que dar cuenta de su prueba');
+
+{
+  const zimbraRun = (objeto: string, origen = 'zimbra-ne') =>
+    copia({ origen, objeto, tipo: 'incremental', destino: '/opt/zimbra/backup' });
+  const latidoZimbra = latido(PASADA, { origen: 'zimbra-ne', rol: 'buzones,directorio' });
+  const prueba = (origen: string, objeto: string, campos: Linea = {}) =>
+    linea('restore_test', { origen, objeto, fecha: hace(72), testigo: 'testigo', resultado: 'ok', coincide: 'si', limpieza: 'ok', ...campos }, hace(72));
+  const sinTestigo = linea(
+    'evidence_state',
+    { origen: 'zimbra-ne', objeto: 'buzones', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'declara MPINFO6ZIMBRA_TESTIGO, la cuenta testigo' },
+    hace(72)
+  );
+
+  const directorioSolo = evalua(eventos([zimbraRun('buzones'), zimbraRun('directorio'), latidoZimbra, prueba('zimbra-ne', 'directorio'), sinTestigo]));
+  comprueba(
+    'Zimbra: el directorio probado y los buzones nunca (sin testigo declarado) → EV-05 NO_EVALUABLE por CONFIGURACIÓN, nunca CUMPLE',
+    directorioSolo.estado('EV-05') === 'NO_EVALUABLE' && directorioSolo.causa('EV-05') === 'CONFIGURATION' && /MPINFO6ZIMBRA_TESTIGO/.test(directorioSolo.motivo('EV-05')),
+    `${directorioSolo.estado('EV-05')} ${directorioSolo.causa('EV-05')} ${directorioSolo.motivo('EV-05')}`
+  );
+
+  const lasDos = evalua(eventos([zimbraRun('buzones'), zimbraRun('directorio'), latidoZimbra, prueba('zimbra-ne', 'directorio'), prueba('zimbra-ne', 'buzones')]));
+  comprueba('REVERSIÓN: con la prueba de los buzones también → CUMPLE', lasDos.estado('EV-05') === 'CUMPLE', lasDos.motivo('EV-05'));
+
+  const ose = evalua(eventos([zimbraRun('buzones', 'zimbra-ose-declarada'), latido(PASADA, { origen: 'zimbra-ose-declarada', rol: 'buzones' })]));
+  comprueba(
+    'Zimbra Open Source: buzones sin zmrestore ni prueba → NO_EVALUABLE por EVIDENCIA, con un motivo que dice qué copia',
+    ose.estado('EV-05') === 'NO_EVALUABLE' && ose.causa('EV-05') === 'EVIDENCE' && /no consta ninguna prueba de restauración de los buzones \(zimbra-ose-declarada\)/i.test(ose.motivo('EV-05')),
+    `${ose.estado('EV-05')} ${ose.causa('EV-05')} ${ose.motivo('EV-05')}`
+  );
+
+  const pbsDos = evalua(
+    eventos([
+      copia({ backup_id: 'srv01_root' }),
+      copia({ backup_id: 'srv01_opt-zimbra' }),
+      latido(),
+      prueba('pbs', 'fichero', { backup_id: 'srv01_root', testigo: '/etc/ensfacil/mpinfo6-witness.txt' }),
+    ])
+  );
+  comprueba('PBS con dos backup-id y el testigo en uno de ellos → CUMPLE (la prueba es del par)', pbsDos.estado('EV-05') === 'CUMPLE', `${pbsDos.estado('EV-05')} ${pbsDos.motivo('EV-05')}`);
+
+  const soloPbs = evalua(
+    eventos([
+      copia({ backup_id: 'srv01_root' }),
+      latido(),
+      zimbraRun('buzones'),
+      zimbraRun('directorio'),
+      latidoZimbra,
+      prueba('pbs', 'fichero', { backup_id: 'srv01_root' }),
+    ])
+  );
+  comprueba(
+    'un servidor con PBS y Zimbra donde solo se probó el PBS → no CUMPLE',
+    soloPbs.estado('EV-05') !== 'CUMPLE' && /buzones/.test(soloPbs.motivo('EV-05')) && /directorio/.test(soloPbs.motivo('EV-05')),
+    `${soloPbs.estado('EV-05')} ${soloPbs.motivo('EV-05')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('27. P-04 con una máquina que no es del alcance ENS');
+
+{
+  const NIVEL: ENSLevel = 'ALTO';
+  const COPIAS = { id: '003', name: 'srv-copias' };
+  const alDia = (agente: Agente) =>
+    eventos(
+      [
+        copia({ host: agente.name, backup_id: 'r' }),
+        linea('backup_schedule', { host: agente.name, planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
+        linea('backup_retention', { host: agente.name, backup_id: 'r', retencion_dias: '-', copia_mas_antigua: hace(24 * 40) }),
+        linea('backup_access', { host: agente.name, ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
+        linea('backup_storage', { host: agente.name, destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+        linea('restore_test', { host: agente.name, backup_id: 'r', fecha: hace(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
+        latido(PASADA, { host: agente.name }),
+      ],
+      agente
+    );
+  const ALCANCE: ENSAgentScope[] = [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }];
+  const activa = (p04: string[]) =>
+    ensConfigurationRepository.replaceActive({
+      ...defaultENSConfigurationTemplate,
+      controls: defaultENSConfigurationTemplate.controls.map(c =>
+        c.controlId === CONTROL ? configuracion({ ...BASE, 'P-04': p04, 'P-08': 'si' }) : c
+      ),
+    });
+  const hallazgoQueNombra = (r: any, nombre: string) =>
+    (r?.nonConformities || []).some(
+      (n: any) => n.cause === 'CONFIGURATION' && n.finding.includes(nombre) && /no es ninguna máquina del alcance ENS/.test(n.finding)
+    );
+
+  activa(['srv-01']);
+  const soloUna = getENSComplianceResultByControl(CONTROL, NIVEL, alDia(SRV01), undefined, ALCANCE, AHORA);
+  comprueba('P-04 = srv-01 y srv-01 al día → CUMPLE 100', soloUna?.status === 'CUMPLE' && soloUna.score === 100, `${soloUna?.status} ${soloUna?.score}`);
+
+  activa(['srv-01', 'srv-99']);
+  const conErrata = getENSComplianceResultByControl(CONTROL, NIVEL, alDia(SRV01), undefined, ALCANCE, AHORA);
+  comprueba('P-04 = srv-01, srv-99 (errata) → ya no CUMPLE 100', Boolean(conErrata) && conErrata!.status !== 'CUMPLE', `${conErrata?.status} ${conErrata?.score}`);
+  comprueba('y un hallazgo de CONFIGURACIÓN nombra srv-99', hallazgoQueNombra(conErrata, 'srv-99'), (conErrata?.nonConformities || []).map(n => `${n.cause}: ${n.finding.slice(0, 160)}`).join(' | '));
+  comprueba(
+    'srv-99 cuenta como máquina declarada sin datos en el consolidado',
+    JSON.stringify(conErrata?.consolidatedAgents?.map(a => a.agentName)) === '["srv-01","srv-99"]',
+    JSON.stringify(conErrata?.consolidatedAgents)
+  );
+
+  const estado = getENSComplianceState(NIVEL, alDia(SRV01), undefined, ALCANCE, AHORA);
+  const panel = estado.results.find(r => r.control.id === CONTROL);
+  comprueba('el panel dice lo mismo', Boolean(panel) && panel!.status !== 'CUMPLE' && hallazgoQueNombra(panel, 'srv-99'), `${panel?.status}`);
+  comprueba('pero srv-99 no aparece como una fila del panel: no es una máquina del alcance', estado.agents.every(a => a.agentName !== 'srv-99'), estado.agents.map(a => a.agentName).join(','));
+
+  activa(['srv-01', 'srv-copias']);
+  const soloEnCopias = getENSComplianceResultByControl(CONTROL, NIVEL, [...alDia(SRV01), ...alDia(COPIAS)], undefined, ALCANCE, AHORA);
+  comprueba(
+    'una máquina solo en ens-copias (fuera del alcance ENS) aunque envíe datos → hallazgo de CONFIGURACIÓN que la nombra, no CUMPLE',
+    Boolean(soloEnCopias) && soloEnCopias!.status !== 'CUMPLE' && hallazgoQueNombra(soloEnCopias, 'srv-copias'),
+    `${soloEnCopias?.status} ${(soloEnCopias?.nonConformities || []).map(n => n.cause).join(',')}`
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('28. EV-02 · PBS caído más de 26 h: la causa sigue siendo la recogida');
+
+{
+  const ahora = PASADA;
+  const noPudo = (evidencia: string) =>
+    linea('evidence_state', { evidence_id: evidencia, estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se pudo listar las copias de pbs:ds: connection refused' }, ahora);
+  const caido = evalua(
+    eventos([
+      copia({ backup_id: 'srv01_root', ultima_correcta: hace(40) }, hace(30)),
+      ...['EV-01', 'EV-02', 'EV-03'].map(noPudo),
+      linea('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }, ahora),
+      latido(ahora, { resultado: 'parcial', evidencias_cubiertas: 'EV-04' }),
+    ])
+  );
+  comprueba(
+    'con el plan del cron al día y el PBS sin responder → EV-02 NO_EVALUABLE por RECOGIDA, no por EVIDENCIA',
+    caido.estado('EV-02') === 'NO_EVALUABLE' && caido.causa('EV-02') === 'COLLECTION',
+    `${caido.estado('EV-02')} ${caido.causa('EV-02')} ${caido.motivo('EV-02')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('29. EV-02 · planificacion=- es que no hay ninguna copia planificada');
+
+{
+  const plan = (planificacion: string, cada: string) =>
+    linea('backup_schedule', { origen: 'zimbra-ne', objeto: 'buzones', planificacion, intervalo_horas: cada, fuente: 'cron' });
+  const buzones = copia({ origen: 'zimbra-ne', objeto: 'buzones', tipo: 'incremental', destino: '/opt/zimbra/backup' });
+
+  const sinPlan = evalua(eventos([buzones, plan('-', '-'), latido(PASADA, { origen: 'zimbra-ne' })]));
+  comprueba(
+    'Zimbra con planificacion=- → EV-02 NO_CUMPLE «no hay ninguna copia planificada»',
+    sinPlan.estado('EV-02') === 'NO_CUMPLE' && /no hay ninguna copia planificada/.test(sinPlan.motivo('EV-02')),
+    `${sinPlan.estado('EV-02')} ${sinPlan.motivo('EV-02')}`
+  );
+
+  const conPlan = evalua(eventos([buzones, plan('completa 0 1 * * 6; incremental 0 1 * * 0-5', '24'), latido(PASADA, { origen: 'zimbra-ne' })]));
+  comprueba('REVERSIÓN: con la planificación leída → CUMPLE', conPlan.estado('EV-02') === 'CUMPLE', conPlan.motivo('EV-02'));
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('30. El informe nombra cada copia una vez, con su último estado');
+
+{
+  // Durante la hora siguiente a una copia conviven la pasada horaria (con la
+  // copia de ayer) y la del final de la copia (con la de ahora).
+  const cfg = configuracion(BASE);
+  const hechosPolicy = eventos([
+    copia({ backup_id: 'srv01_root', ultima_correcta: hace(24.5) }, hace(0.9)),
+    copia({ backup_id: 'srv01_root', ultima_correcta: hace(0.4) }, hace(0.3)),
+  ]);
+  const { runtimeVariables } = runPolicyRuntime(buildPolicyContext(mpInfo6CatalogDefinition, cfg, 'MEDIO', hechosPolicy, [], AHORA));
+  const lista = runtimeVariables.find(v => v.name === 'copias_ultima_correcta')?.value as string[];
+  const edad = runtimeVariables.find(v => v.name === 'copias_antiguedad_maxima_horas')?.value;
+
+  comprueba('srv01_root sale una sola vez', Array.isArray(lista) && lista.filter(l => l.includes('srv01_root')).length === 1, JSON.stringify(lista));
+  comprueba('con la copia de ahora, no la de ayer', edad === 0.4, String(edad));
 }
 
 // ---------------------------------------------------------------------------

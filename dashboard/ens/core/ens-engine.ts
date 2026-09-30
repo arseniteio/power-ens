@@ -28,6 +28,7 @@ import {
 import { ENSAgentScope } from './scope/types';
 import {
   ENS_MANAGER_AGENT_ID,
+  describeOutOfScopeDeclaredMachine,
   describeUnmatchedDeclaredScope,
   getDeclaredScopeAgentNames,
   isAgentNameDeclared,
@@ -120,7 +121,11 @@ const evaluateControlOnEvents = (
   scopedEvents: ENSNormalizedEvent[],
   agentId?: string,
   now?: Date,
-  scopeAgents?: ENSAgentScope[]
+  scopeAgents?: ENSAgentScope[],
+  // Hueco de CONFIGURACIÓN impuesto desde fuera: la fila de una máquina que el
+  // alcance declarado nombra y que no es ninguna del alcance ENS (ver
+  // `buildOutOfScopeDeclaredRows`).
+  configurationGap?: string
 ): ENSComplianceResult => {
   // La configuración se carga ANTES de resolver las evidencias: las que
   // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
@@ -158,14 +163,15 @@ const evaluateControlOnEvents = (
     !knownAgentNames.some(name => isAgentNameDeclared(name, declaredScope));
 
   const unmatchedScopeReason =
-    unmatchedScope && catalogControl.scopeParameter
+    configurationGap ??
+    (unmatchedScope && catalogControl.scopeParameter
       ? describeUnmatchedDeclaredScope(
           catalogControl.scopeParameter,
           declaredScope as string[]
         )
-      : undefined;
+      : undefined);
 
-  const expectsFacts = !unmatchedScope;
+  const expectsFacts = !unmatchedScopeReason;
 
   // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
   // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
@@ -504,6 +510,58 @@ const buildAgentComplianceStates = (
     };
   });
 
+// Las máquinas que el alcance declarado de un control nombra y que no son
+// ninguna de las que conoce el motor (las del alcance ENS y las de los hechos):
+// un nombre mal escrito, o una máquina que está en el grupo de sus copias y no
+// en el del ENS. Cuentan como máquinas declaradas SIN DATOS: se añaden a la
+// CONSOLIDACIÓN —no a las filas del panel, porque no son máquinas del
+// alcance— con todo NO_EVALUABLE por CONFIGURACIÓN y un motivo que las nombra.
+// Sin esto, P-04 = «srv-01, srv-99» con srv-01 al día daba el control
+// demostrado al 100 %.
+const buildOutOfScopeDeclaredRows = (
+  controls: ENSControlDefinition[],
+  level: ENSLevel,
+  events: ENSNormalizedEvent[],
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
+) => {
+  const knownNames = getAgentIdentities(events, undefined, scopeAgents)
+    .map(agent => agent.agentName)
+    .filter((name): name is string => Boolean(name));
+
+  const rows = new Map<string, ENSComplianceResult[]>();
+
+  controls.forEach(control => {
+    if (!control.scopeParameter) {
+      return;
+    }
+
+    (getDeclaredScopeAgentNames(control, getActiveControlConfiguration(control.id)) || [])
+      .filter(name => !knownNames.some(known => isAgentNameDeclared(known, [name])))
+      .forEach(name => {
+        rows.set(name, [
+          ...(rows.get(name) || []),
+          evaluateControlOnEvents(
+            control,
+            level,
+            [],
+            undefined,
+            now,
+            scopeAgents,
+            describeOutOfScopeDeclaredMachine(control.scopeParameter as string, name)
+          ),
+        ]);
+      });
+  });
+
+  return Array.from(rows.entries()).map(([name, results]) => ({
+    agentId: name,
+    agentName: name,
+    results,
+    summary: buildComplianceState(results).controlSummary,
+  }));
+};
+
 export const getENSComplianceState = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
@@ -544,9 +602,16 @@ export const getENSComplianceState = (
       )
     : agents.length > 0
     ? withUnmeasuredControls(
-        consolidateAgentComplianceResults(
-          agents
-        ),
+        consolidateAgentComplianceResults([
+          ...agents,
+          ...buildOutOfScopeDeclaredRows(
+            ENSCatalog,
+            level,
+            events,
+            scopeAgents,
+            now
+          ),
+        ]),
         level,
         events,
         scopeAgents,
@@ -738,14 +803,22 @@ export const getENSComplianceResultByControl = (
     );
   }
 
-  const agents =
-    buildAgentComplianceStatesByControl(
+  const agents = [
+    ...buildAgentComplianceStatesByControl(
       controlId,
       level,
       events,
       scopeAgents,
       now
-    );
+    ),
+    ...buildOutOfScopeDeclaredRows(
+      ENSCatalog.filter(control => control.id === controlId),
+      level,
+      events,
+      scopeAgents,
+      now
+    ),
+  ];
 
   if (agents.length === 0) {
     return evaluateENSComplianceResultByControl(

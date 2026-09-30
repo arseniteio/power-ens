@@ -168,6 +168,14 @@ const hechos = (
       return false;
     }
 
+    // Un hecho sin `origen` es del vocabulario anterior (el latido y los
+    // estados que emitía el recolector de la versión previa): no se juzga. Si
+    // contara, el latido viejo de una máquina ya actualizada saldría como un
+    // recolector más que dejó de informar.
+    if (!campo(event, 'origen')) {
+      return false;
+    }
+
     const base = String(event.id || '').split('#')[0];
 
     if (vistos.has(base)) {
@@ -265,6 +273,23 @@ const nombreDe = (e: ENSNormalizedEvent): string => {
 
   return `${OBJETO[objeto] || (objeto ? `copia de ${objeto}` : 'copia sin objeto declarado')}${id ? ` «${id}»` : ''} (${campo(e, 'origen') || 'origen sin declarar'})`;
 };
+
+// El par, sin el trabajo de copia: la prueba de restauración es del par.
+const nombreDelPar = (e: ENSNormalizedEvent): string => {
+  const objeto = campo(e, 'objeto');
+
+  return `${OBJETO[objeto] || (objeto ? `copia de ${objeto}` : 'copia sin objeto declarado')} (${campo(e, 'origen') || 'origen sin declarar'})`;
+};
+
+const DE_OBJETO: Record<string, string> = {
+  fichero: 'los ficheros',
+  buzones: 'los buzones',
+  directorio: 'el directorio',
+};
+
+// Los hechos de ESTADO del contrato: los que el recolector reemite enteros en
+// cada pasada y dicen qué copias tiene hoy la máquina.
+const TIPOS_DE_ESTADO = ['backup_run', 'backup_schedule', 'backup_retention', 'backup_access', 'backup_storage'];
 
 // --- la última pasada de cada origen y las degradaciones -------------------
 
@@ -620,8 +645,10 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
     const planes = copias.filter(e => e.eventType === 'backup_schedule');
     const partes: Medida[] = [];
 
+    // Sin el estado de la copia, lo que falta es un hecho que el recolector no
+    // ha entregado: es de RECOGIDA, como la degradación que suele acompañarlo.
     if (!ejecuciones.length) {
-      partes.push(sinMedir(`${nombre}: consta su planificación pero no el estado de la última copia.`));
+      partes.push(sinMedir(`${nombre}: consta su planificación pero no el estado de la última copia.`, 'COLLECTION'));
     }
 
     ejecuciones.forEach(e => {
@@ -650,9 +677,20 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
       );
     });
 
+    // `planificacion=-` es una ausencia MEDIDA: el recolector ha leído dónde se
+    // planifica y no hay ninguna copia programada.
+    const conPlan = planes.filter(e => !vacio(campo(e, 'planificacion')));
+    const sinPlan = planes.filter(e => vacio(campo(e, 'planificacion')));
+
+    if (!conPlan.length && sinPlan.length) {
+      const fuente = campo(sinPlan[0], 'fuente');
+
+      partes.push(noCumple(`${nombre}: no hay ninguna copia planificada${fuente ? ` (según ${fuente})` : ''}.`));
+    }
+
     // La planificación: la más frecuente de la copia (una completa semanal y
     // una incremental diaria planifican una copia al día).
-    const intervalos = planes
+    const intervalos = conPlan
       .map(e => ({ e, cada: numero(campo(e, 'intervalo_horas')) }))
       .filter((p): p is { e: ENSNormalizedEvent; cada: number } => p.cada !== undefined && p.cada > 0)
       .sort((a, b) => a.cada - b.cada);
@@ -847,16 +885,18 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   const pruebas = hechos(context, 'restore_test').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+  // La prueba de restauración es semanal: su degradación también, así que
+  // vale la más reciente de la ventana, no solo la de las últimas horas.
+  const declaradas = degradaciones(context, 'EV-05', ahora);
 
-  if (!pruebas.length) {
-    const declarada = degradaciones(context, 'EV-05', ahora)
-      .filter(e => ahora - momento(e) <= FRESCURA_HORAS * HORA)
-      .sort((a, b) => momento(b) - momento(a))[0];
+  // Las copias que la máquina tiene hoy (por su último estado), y las que
+  // tienen alguna prueba o degradación: cada una tiene que dar cuenta de su
+  // prueba de restauración. Por par (origen y objeto), no por `backup_id`: el
+  // testigo del PBS vive en un backup-id y vale para todo el par.
+  const presentes = pasadasPorOrigen(context, TIPOS_DE_ESTADO, ahora).flatMap(p => p.vigentes);
+  const pares = Array.from(new Set([...presentes, ...pruebas, ...declaradas].map(parDe)));
 
-    if (declarada) {
-      return comoDegradacion(declarada);
-    }
-
+  if (!pares.length) {
     // Con el recolector latiendo, no es un fallo de recogida: se ha mirado la
     // ventana consultada y en ella no hay ninguna prueba.
     const late = ultimosLatidos(context, ahora).some(e => ahora - momento(e) <= FRESCURA_HORAS * HORA);
@@ -870,18 +910,32 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   const fecha = (e: ENSNormalizedEvent): number => instante(campo(e, 'fecha')) ?? momento(e);
-  const grupos = new Map<string, ENSNormalizedEvent[]>();
-
-  pruebas.forEach(e => grupos.set(claveDe(e), [...(grupos.get(claveDe(e)) || []), e]));
 
   return combina(
-    Array.from(grupos.values()).map(delGrupo => {
-      const e = [...delGrupo].sort((a, b) => fecha(b) - fecha(a))[0];
-      const nombre = nombreDe(e);
+    pares.map(par => {
+      const suyas = pruebas.filter(e => parDe(e) === par);
+
+      if (!suyas.length) {
+        const declarada = [...declaradas.filter(e => parDe(e) === par)].sort((a, b) => momento(b) - momento(a))[0];
+
+        if (declarada) {
+          return comoDegradacion(declarada);
+        }
+
+        const e = presentes.find(h => parDe(h) === par) as ENSNormalizedEvent;
+
+        return sinMedir(
+          `No consta ninguna prueba de restauración de ${DE_OBJETO[campo(e, 'objeto')] || `la copia de ${campo(e, 'objeto') || 'objeto sin declarar'}`} (${campo(e, 'origen')}) en la ventana consultada, y el recolector no ha declarado por qué: no hay prueba de que esa copia se pueda recuperar.`
+        );
+      }
+
+      const e = [...suyas].sort((a, b) => fecha(b) - fecha(a))[0];
+      const nombre = nombreDelPar(e);
       const cuando = fecha(e);
       const testigo = campo(e, 'testigo');
       const detalle = campo(e, 'detalle');
-      const prueba = `${nombre}: prueba del ${iso(cuando)}${testigo ? ` sobre el testigo ${testigo}` : ''}`;
+      const copia = backupId(e) ? ` de la copia «${backupId(e)}»` : '';
+      const prueba = `${nombre}: prueba del ${iso(cuando)}${copia}${testigo ? ` sobre el testigo ${testigo}` : ''}`;
       const correcta = campo(e, 'resultado') === 'ok' && campo(e, 'coincide') === 'si';
       const partes: Medida[] = [];
 
@@ -1021,9 +1075,29 @@ const variable = (
   description: string
 ): ENSRuntimeVariable => ({ name, value, parameterIds, evidenceIds, eventIds: [], description });
 
+// La última de cada cosa: durante la hora que sigue a una copia conviven en la
+// ventana la pasada del final de la copia y la horaria, y el informe tiene que
+// nombrar cada copia una vez, con lo más reciente.
+const ultimaDeCada = (
+  eventos: ENSNormalizedEvent[],
+  clave: (e: ENSNormalizedEvent) => string
+): ENSNormalizedEvent[] => {
+  const porClave = new Map<string, ENSNormalizedEvent>();
+
+  eventos.forEach(e => {
+    const actual = porClave.get(clave(e));
+
+    if (!actual || momento(e) > momento(actual)) {
+      porClave.set(clave(e), e);
+    }
+  });
+
+  return Array.from(porClave.values());
+};
+
 const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[] => {
   const resultado: ENSRuntimeVariable[] = [];
-  const copias = vigentes(context, 'backup_run', ahora);
+  const copias = ultimaDeCada(vigentes(context, 'backup_run', ahora), claveDe);
   const edades = copias
     .map(e => instante(campo(e, 'ultima_correcta')))
     .filter((t): t is number => t !== undefined)
@@ -1058,7 +1132,7 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     resultado.push(variable('copias_plazo_horas', plazo.plazo, ['EV-02'], ['P-01', 'P-02'], 'Plazo máximo entre copias correctas: P-01 más el margen de P-02.'));
   }
 
-  const planes = vigentes(context, 'backup_schedule', ahora);
+  const planes = ultimaDeCada(vigentes(context, 'backup_schedule', ahora), e => `${claveDe(e)}|${campo(e, 'planificacion')}`);
 
   if (planes.length) {
     resultado.push(
@@ -1072,7 +1146,7 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const retenciones = vigentes(context, 'backup_retention', ahora);
+  const retenciones = ultimaDeCada(vigentes(context, 'backup_retention', ahora), claveDe);
 
   if (retenciones.length) {
     resultado.push(
@@ -1091,7 +1165,7 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const accesos = vigentes(context, 'backup_access', ahora);
+  const accesos = ultimaDeCada(vigentes(context, 'backup_access', ahora), e => `${claveDe(e)}|${campo(e, 'ruta')}`);
 
   if (accesos.length) {
     resultado.push(
@@ -1117,8 +1191,8 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
 
   if (pruebas.length) {
     const fecha = (e: ENSNormalizedEvent): number => instante(campo(e, 'fecha')) ?? momento(e);
-    const ultimas = Array.from(new Set(pruebas.map(claveDe))).map(
-      clave => [...pruebas.filter(e => claveDe(e) === clave)].sort((a, b) => fecha(b) - fecha(a))[0]
+    const ultimas = Array.from(new Set(pruebas.map(parDe))).map(
+      par => [...pruebas.filter(e => parDe(e) === par)].sort((a, b) => fecha(b) - fecha(a))[0]
     );
 
     resultado.push(
@@ -1130,7 +1204,7 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
         ),
         ['EV-05'],
         [],
-        'Prueba de restauración más reciente de cada copia en la ventana.'
+        'Prueba de restauración más reciente de cada origen y objeto en la ventana.'
       )
     );
   }
@@ -1141,7 +1215,7 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     resultado.push(variable('restauracion_plazo_dias', plazoPrueba, ['EV-05'], ['P-04', 'P-05'], 'Plazo máximo sin una prueba de restauración correcta para esta máquina (P-05).'));
   }
 
-  const destinos = vigentes(context, 'backup_storage', ahora);
+  const destinos = ultimaDeCada(vigentes(context, 'backup_storage', ahora), e => `${claveDe(e)}|${campo(e, 'destino')}`);
 
   if (destinos.length) {
     resultado.push(
