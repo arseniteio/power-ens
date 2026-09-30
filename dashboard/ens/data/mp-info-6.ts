@@ -15,30 +15,32 @@ export const mpInfo6Control: ENSControl = {
     declaredLevels: ['BAJO', 'MEDIO', 'ALTO'],
     highLevelStatus: 'NO_EVALUABLE',
   },
+  // Niveles, requisitos y evidencias: los del catálogo
+  // (`catalog/mp-info-6.ts` y `core/evidence/catalog.ts`).
   expectedResult: {
     bajo: {
       status: 'CUMPLE',
       score: 100,
       condition:
-        'Todas las evidencias base están en CUMPLE y no existen errores recientes.',
+        'Copias correctas dentro de P-01 + P-02, retención de P-03, acceso limitado a P-07 y el recolector informando.',
     },
     medio: {
-      statusWithoutRestore: 'PARCIAL',
-      scoreWithoutRestore: 85,
-      statusWithRestore: 'CUMPLE',
+      status: 'CUMPLE',
+      score: 100,
       condition:
-        'MEDIO solo pasa a CUMPLE cuando EV-05 acredita restore real con md5sum.',
+        'Lo de BAJO y una prueba de restauración del testigo correcta dentro de P-05 (R1).',
     },
     alto: {
-      status: 'NO_APLICA',
+      status: 'CUMPLE',
+      score: 100,
       condition:
-        'R2/ALTO queda fuera del alcance BAJO/MEDIO salvo evidencia específica.',
+        'Lo de MEDIO y una copia fuera de la máquina y activa (R2, EV-06).',
     },
   },
   requirements: [
     {
       id: 'mp.info.6.1',
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Copias realizadas y recuperabilidad temporal',
       description:
         'Valida que existen copias de seguridad correctas dentro de la ventana temporal definida.',
@@ -46,42 +48,42 @@ export const mpInfo6Control: ENSControl = {
     },
     {
       id: 'mp.info.6.2.a',
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Frecuencia de las copias',
       description:
-        'Valida que la frecuencia de backup está configurada y se cumple.',
+        'Valida que la copia está planificada con la frecuencia de P-01 y que la última correcta no es más vieja que P-01 + P-02.',
       evidences: ['EV-01', 'EV-02'],
     },
     {
       id: 'mp.info.6.2.b',
-      level: ['BAJO', 'MEDIO'],
-      title: 'Almacenamiento en el propio lugar',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      title: 'Conservación de las copias',
       description:
-        'Valida la existencia e integridad técnica de las rutas locales de backup.',
+        'Valida que las copias se conservan al menos el plazo de P-03.',
       evidences: ['EV-03', 'EV-07'],
     },
     {
       id: 'mp.info.6.2.c',
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Almacenamiento en otros lugares',
       description:
-        'Valida evidencias indirectas de almacenamiento; R2/offsite real se reserva para ALTO.',
+        'Se acredita con el recolector de copias (EV-07) y, en ALTO, con una copia fuera de la máquina (EV-06): la copia físicamente separada solo se exige en ese nivel.',
       evidences: ['EV-06', 'EV-07'],
     },
     {
       id: 'mp.info.6.2.d',
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Acceso autorizado a las copias',
       description:
-        'Valida controles técnicos de acceso, keyfile y permisos sobre las copias.',
+        'Valida que solo las cuentas de P-07 pueden leer las copias y su credencial, y que la clave de cifrado no la puede leer cualquiera.',
       evidences: ['EV-03', 'EV-04'],
     },
     {
       id: 'mp.info.6.r1.1',
-      level: ['MEDIO'],
+      level: ['MEDIO', 'ALTO'],
       title: 'Prueba de restauración regular',
       description:
-        'Valida restore real desde copia y comprobación md5sum. Es obligatorio para cerrar MEDIO.',
+        'Valida una prueba de restauración del testigo correcta dentro del plazo de P-05.',
       evidences: ['EV-05'],
     },
     {
@@ -89,20 +91,19 @@ export const mpInfo6Control: ENSControl = {
       level: ['ALTO'],
       title: 'Copia separada',
       description:
-        'Requisito R2/ALTO. En alcance BAJO/MEDIO debe aparecer como NO_APLICA.',
+        'Requisito R2 de ALTO: al menos una copia fuera de la máquina y activa. En BAJO y MEDIO sale NO_APLICA.',
       evidences: ['EV-06'],
-      active: false,
     },
   ],
   evidences: [
     {
       id: 'EV-01',
       requirement: ['mp.info.6.1'],
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Backup correcto en ventana temporal',
+      title: 'Última copia realizada correctamente',
       description:
-        'Demuestra que existe una copia correcta dentro de la ventana temporal definida.',
+        'Demuestra, copia a copia, que hay una copia terminada correctamente y que la última ejecución no ha fallado.',
       format: 'json_line',
       events: ['evidence_state', 'backup_run'],
       wazuhRuleIds: ['106601'],
@@ -110,47 +111,47 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'EV-02',
       requirement: ['mp.info.6.1', 'mp.info.6.2.a'],
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Periodicidad configurada',
+      title: 'Copia dentro del intervalo permitido',
       description:
-        'Demuestra que existe una planificación de backup acorde a la frecuencia definida.',
-      format: 'sca_or_json_line',
+        'Demuestra que la última copia correcta de cada copia no es más vieja que P-01 + P-02 y que su planificación (el cron, zmschedulebackup o la declarada) es al menos tan frecuente como P-01.',
+      format: 'json_line',
       events: ['evidence_state', 'backup_run', 'backup_schedule'],
       wazuhRuleIds: ['106601', '106602'],
     },
     {
       id: 'EV-03',
       requirement: ['mp.info.6.2.b', 'mp.info.6.2.d'],
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Integridad de rutas y elementos de backup',
+      title: 'Retención de las copias',
       description:
-        'Demuestra existencia e integridad técnica de rutas, cache, keyfile o repositorio local.',
-      format: 'fim_or_json_line',
+        'Demuestra que cada copia se conserva al menos P-03 días: por la retención configurada o, si no consta, por la copia más antigua que se conserva.',
+      format: 'json_line',
       events: ['evidence_state', 'backup_retention'],
       wazuhRuleIds: ['106603'],
     },
     {
       id: 'EV-04',
       requirement: ['mp.info.6.2.d'],
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Acceso técnico controlado',
+      title: 'Acceso autorizado al repositorio',
       description:
-        'Demuestra permisos correctos y acceso autorizado sobre keyfile y copias.',
-      format: 'sca_or_json_line',
+        'Demuestra que la credencial del repositorio y los directorios de copia solo los pueden leer cuentas de P-07, y que la clave de cifrado no la puede leer cualquiera.',
+      format: 'json_line',
       events: ['evidence_state', 'backup_access'],
       wazuhRuleIds: ['106604'],
     },
     {
       id: 'EV-05',
       requirement: ['mp.info.6.r1.1'],
-      level: ['MEDIO'],
-      expectedStatus: 'NO_EVALUABLE',
-      title: 'Restore real con md5sum',
+      level: ['MEDIO', 'ALTO'],
+      expectedStatus: 'CUMPLE',
+      title: 'Prueba de restauración del testigo',
       description:
-        'Demuestra prueba real de restauración y validación md5sum. Sin esta evidencia MEDIO queda PARCIAL.',
+        'Demuestra una prueba de restauración reciente sobre el testigo —un fichero comprobado con su SHA-256 en el PBS; la cuenta testigo o una entrada conocida del directorio en Zimbra—: que se restaura, que el contenido coincide y que lo restaurado se borra después.',
       format: 'json_line',
       events: ['evidence_state', 'restore_test'],
       wazuhRuleIds: ['106606'],
@@ -159,23 +160,22 @@ export const mpInfo6Control: ENSControl = {
       id: 'EV-06',
       requirement: ['mp.info.6.2.c', 'mp.info.6.r2.1'],
       level: ['ALTO'],
-      expectedStatus: 'NO_APLICA',
-      title: 'Copia separada R2',
+      expectedStatus: 'CUMPLE',
+      title: 'Copia fuera de la máquina',
       description:
-        'Evidencia de copia separada para ALTO/R2. Fuera del alcance actual BAJO/MEDIO.',
-      format: 'external_or_json_line',
+        'Demuestra que cada copia tiene al menos un destino fuera de la máquina y activo. Solo aplica en ALTO, donde acredita R2 y también mp.info.6.2.c; en BAJO y MEDIO mp.info.6.2.c se acredita con EV-07.',
+      format: 'json_line',
       events: ['evidence_state', 'backup_storage'],
       wazuhRuleIds: ['106605'],
-      active: false,
     },
     {
       id: 'EV-07',
       requirement: ['mp.info.6.1', 'mp.info.6.2.b', 'mp.info.6.2.c'],
-      level: ['BAJO', 'MEDIO'],
+      level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Ausencia de errores recientes',
+      title: 'Latido del recolector de copias',
       description:
-        'Demuestra que no existen errores recientes del agente de backup ni cambios críticos de cifrado.',
+        'Demuestra que el recolector de copias de cada origen (PBS, Zimbra) ha pasado en las últimas horas, ha terminado y declara qué evidencias ha cubierto.',
       format: 'json_line',
       events: ['evidence_state', 'collector_run'],
       wazuhRuleIds: ['106797'],
