@@ -282,7 +282,9 @@ for control, (repo, xmls) in RUNBOOKS.items():
         ruta = os.path.join(BASE, repo, "manager", x)
         if os.path.exists(ruta):
             emitidos |= set(
-                re.findall(r'<field name="event">([a-z0-9_]+)</field>', lee(ruta))
+                re.findall(
+                    r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>', lee(ruta)
+                )
             )
     # `evidence_state`, `control_state` y `score_snapshot` los emiten reglas
     # genéricas que casan por otros campos; no se exigen aquí.
@@ -405,7 +407,8 @@ else:
             if os.path.exists(ruta):
                 emitidos |= set(
                     re.findall(
-                        r'<field name="event">([a-z0-9_]+)</field>', lee(ruta)
+                        r'<field name="event"[^>]*>\^?([a-z0-9_]+)\$?</field>',
+                        lee(ruta),
                     )
                 )
         mudos = sorted(tipos_motor - emitidos)

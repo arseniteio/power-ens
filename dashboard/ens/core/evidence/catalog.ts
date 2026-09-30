@@ -109,11 +109,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'backup_ok',
       'backup_error',
     ],
-    // Task 1 (2026-09-30) reescribió agent/rules/ensfacil_mp_info_6_json_rules.xml
-    // contra el contrato de hechos común a PBS y Zimbra: `backup_ok` y el
-    // `evidence_state` 106650 antiguo ya no existen como reglas. `backup_run`
-    // (106601) es el hecho que acredita EV-01 en el nuevo contrato. El resto
-    // de este bloque (expectedEventTypes, judgment) lo reescribe la Task 2.
+    // `backup_ok` y la regla antigua 106650 ya no existen: el agente emite
+    // `backup_run` (106601) contra el contrato de hechos común a PBS y
+    // Zimbra, y es el hecho que acredita EV-01. `expectedEventTypes` arriba
+    // todavía declara el vocabulario antiguo; se actualiza junto con el
+    // resto del juicio de mp.info.6.
     relatedRules: ['106601'],
     auditQuestion: '¿Existe evidencia reciente de que la copia de seguridad se ha realizado correctamente?',
     qualityRequirements: {
@@ -143,9 +143,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // `estado=NO_CUMPLE` y que hasta ahora esta evidencia no escuchaba: la
     // desviación de frecuencia es exactamente lo que EV-02 mide.
     expectedEventTypes: ['evidence_state', 'backup_ok', 'backup_missing', 'freq_deviation'],
-    // Task 1: `backup_run` (106601, última copia) y `backup_schedule` (106602,
-    // planificación) son los hechos del contrato nuevo para EV-02. Igual que en
-    // EV-01, expectedEventTypes lo reescribe la Task 2.
+    // `backup_run` (106601, última copia) y `backup_schedule` (106602,
+    // planificación) son los hechos del contrato nuevo que acreditan EV-02.
+    // `expectedEventTypes` arriba conserva el vocabulario antiguo hasta que
+    // se reescriba el resto del juicio.
     relatedRules: ['106601', '106602'],
     auditQuestion: '¿La última copia se encuentra dentro del intervalo máximo definido por la organización?',
   },
@@ -181,10 +182,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'verify_ok',
       'verify_error',
     ],
-    // Task 1: `access` (106604), `encfp_changed` (106609), `verify_ok`
-    // (106660) y `verify_error` (106661) ya no existen como reglas tras la
-    // reescritura del contrato de hechos. `backup_retention` (106603) es el
-    // hecho de retención del nuevo contrato para EV-03.
+    // `access` (106604), `encfp_changed` (106609), `verify_ok` (106660) y
+    // `verify_error` (106661) ya no existen como reglas: el contrato de
+    // hechos común los sustituye por `backup_retention` (106603), que es el
+    // hecho de retención que acredita EV-03.
     relatedRules: ['106603'],
     auditQuestion: '¿Existe una política de retención configurada y verificable para las copias de seguridad?',
   },
@@ -205,9 +206,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // Los dos cambios van juntos: separarlos deja al runtime consumiendo un
     // nombre que el catálogo ya no reconoce.
     expectedEventTypes: ['evidence_state', 'control_state', 'access'],
-    // Task 1: `backup_access` (106604) sustituye a `access` como hecho de
-    // acceso al repositorio en el contrato nuevo. Mismo rule ID que antes,
-    // evento distinto.
+    // `backup_access` (106604) sustituye a `access` como hecho de acceso al
+    // repositorio en el contrato nuevo: mismo rule ID que antes, evento
+    // distinto.
     relatedRules: ['106604'],
     auditQuestion: '¿El acceso al repositorio de copias está limitado a usuarios y procesos autorizados?',
   },
@@ -229,9 +230,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'restore_missing',
       'restore_error',
     ],
-    // Task 1: `restore_ok` (106651) y `restore_error` (106607) ya no existen
-    // como reglas. `restore_test` (106606) es el único hecho de restauración
-    // del contrato nuevo; su campo `resultado` distingue éxito de fallo.
+    // `restore_ok` (106651) y `restore_error` (106607) ya no existen como
+    // reglas. `restore_test` (106606) es el único hecho de restauración del
+    // contrato nuevo; su campo `resultado` distingue éxito de fallo.
     relatedRules: ['106606'],
     auditQuestion: '¿Existe evidencia de una prueba de restauración correcta dentro del periodo definido?',
     qualityRequirements: {
@@ -264,10 +265,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // no lo medimos". `offsite_success` y `offsite_error` sí tienen regla
     // (106662 y 106663).
     expectedEventTypes: ['evidence_state', 'control_state', 'offsite_success', 'offsite_error'],
-    // Task 1: `offsite_success` (106662) y `offsite_error` (106663) vivían en
+    // `offsite_success` (106662) y `offsite_error` (106663) vivían en
     // ensfacil_mp_info_6_pbs_rules.xml, retirado (sin emisor, fuera de
-    // alcance). `backup_storage` (106605) es el hecho de destino/repositorio
-    // alternativo del contrato nuevo para EV-06.
+    // alcance del control). `backup_storage` (106605) es el hecho de
+    // destino/repositorio alternativo del contrato nuevo que acredita EV-06.
     relatedRules: ['106605'],
     auditQuestion: '¿Existe una copia en ubicación alternativa operativa cuando el nivel ENS lo exige?',
     qualityRequirements: {
@@ -290,11 +291,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // `encfp_changed`, que emite 106609 con `evidencia=EV-03,EV-07` y además
     // tiene emisor real (`px_emit_fp_changed` en el runbook).
     expectedEventTypes: ['evidence_state', 'backup_error', 'encfp_changed'],
-    // Task 1: `backup_error` (106690), el antiguo `106602` (NO_CUMPLE por
-    // errores repetidos) y `encfp_changed` (106609) ya no existen como
-    // reglas. Mientras la Task 2 no reescriba el juicio de EV-07, se acredita
-    // provisionalmente con el latido del recolector (106797, `collector_run`)
-    // según indica el contrato de la Task 1; no es un hecho de logs en sí.
+    // `backup_error` (106690), el antiguo 106602 (NO_CUMPLE por errores
+    // repetidos) y `encfp_changed` (106609) ya no existen como reglas. Hasta
+    // que EV-07 tenga su propio hecho de interpretación de logs, se acredita
+    // con el latido del recolector (106797, `collector_run`): confirma que
+    // el recolector pasó por la máquina, no que los logs se interpretaron
+    // bien.
     relatedRules: ['106797'],
     auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
   },

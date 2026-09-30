@@ -12,7 +12,13 @@
 # disponible, o el manager no arranca, esa parte se salta con un aviso y solo
 # corren las comprobaciones estáticas (anclaje, vocabulario prohibido,
 # XML bien formado); la comprobación con wazuh-logtest real queda entonces
-# para cuando el XML se despliega en un manager (Task 3, contra wazuh4).
+# para cuando el XML se despliegue en un manager de verdad.
+#
+# Los `<field>` de `event`/`estado` llevan `type="pcre2"` además del anclaje
+# `^…$`: el matcher por defecto de Wazuh (OSMatch/OSRegex) es
+# case-INsensible incluso anclado, así que `^backup_run$` sin `pcre2` sigue
+# casando con `Backup_Run`. Con `pcre2` el anclaje sí es case-sensible; los
+# casos negativos de más abajo lo comprueban.
 set -uo pipefail
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,12 +55,12 @@ echo
 echo "=== wazuh-logtest (manager real) ==="
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "AVISO Docker no disponible: se salta wazuh-logtest (correrá en Task 3 contra wazuh4)"
+  echo "AVISO Docker no disponible: se salta wazuh-logtest (correrá contra un manager real más adelante)"
   exit "$fallos"
 fi
 
 if ! docker run --rm --platform linux/amd64 -d --name "$CONTENEDOR" "$IMAGEN" >/tmp/mp-info-6-rules-test.cid 2>/tmp/mp-info-6-rules-test.err; then
-  echo "AVISO no se pudo arrancar $IMAGEN: se salta wazuh-logtest (correrá en Task 3 contra wazuh4)"
+  echo "AVISO no se pudo arrancar $IMAGEN: se salta wazuh-logtest (correrá contra un manager real más adelante)"
   cat /tmp/mp-info-6-rules-test.err
   exit "$fallos"
 fi
@@ -72,7 +78,7 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 if [ "$listo" -ne 1 ]; then
-  echo "AVISO el manager no llegó a arrancar a tiempo: se salta wazuh-logtest (correrá en Task 3 contra wazuh4)"
+  echo "AVISO el manager no llegó a arrancar a tiempo: se salta wazuh-logtest (correrá contra un manager real más adelante)"
   exit "$fallos"
 fi
 
@@ -129,6 +135,42 @@ if echo "$salida" | grep -q "id: '106650'"; then
   fallos=1
 else
   echo "OK    evidence_state/CUMPLE no casa con 106650"
+fi
+
+# Negativos del anclaje: un `event` que solo CONTIENE el nombre esperado (una
+# superstring, un prefijo o una variante de mayúsculas) no puede casar con la
+# regla. Antes del anclaje con `pcre2`, `backup_run_extra`, `x_backup_run` y
+# `Backup_Run` disparaban igual que `backup_run`.
+salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"backup_run_extra\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$salida" | grep -q "id: '106601'"; then
+  echo "FALLA backup_run_extra no debe casar con 106601 (superstring)"
+  fallos=1
+else
+  echo "OK    backup_run_extra no casa con 106601"
+fi
+
+salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"x_backup_run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$salida" | grep -q "id: '106601'"; then
+  echo "FALLA x_backup_run no debe casar con 106601 (prefijo)"
+  fallos=1
+else
+  echo "OK    x_backup_run no casa con 106601"
+fi
+
+salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"Backup_Run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$salida" | grep -q "id: '106601'"; then
+  echo "FALLA Backup_Run no debe casar con 106601 (mayúsculas: sin pcre2 el anclaje es case-insensible)"
+  fallos=1
+else
+  echo "OK    Backup_Run no casa con 106601"
+fi
+
+salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"evidence_state\",\"estado\":\"NO_EVALUABLE_X\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$salida" | grep -q "id: '106650'"; then
+  echo "FALLA evidence_state con estado=NO_EVALUABLE_X no debe casar con 106650 (superstring)"
+  fallos=1
+else
+  echo "OK    evidence_state/NO_EVALUABLE_X no casa con 106650"
 fi
 
 # op.exp.1/op.exp.10 no se confunden con mp.info.6: una línea de otro control

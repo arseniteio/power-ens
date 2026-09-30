@@ -52,7 +52,7 @@
        máquina que simplemente no se ha medido todavía. -->
   <rule id="106601" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_run</field>
+    <field name="event" type="pcre2">^backup_run$</field>
     <description>mp.info.6 · EV-01,EV-02 · última copia observada: $(resultado_ultima) ($(tipo))</description>
   </rule>
 
@@ -63,7 +63,7 @@
        regla. -->
   <rule id="106602" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_schedule</field>
+    <field name="event" type="pcre2">^backup_schedule$</field>
     <description>mp.info.6 · EV-02 · planificación $(planificacion) ($(fuente))</description>
   </rule>
 
@@ -71,7 +71,7 @@
        copia más antigua que sigue presente. -->
   <rule id="106603" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_retention</field>
+    <field name="event" type="pcre2">^backup_retention$</field>
     <description>mp.info.6 · EV-03 · retención $(retencion_dias) días, copia más antigua $(copia_mas_antigua)</description>
   </rule>
 
@@ -79,7 +79,7 @@
        propietario, grupo y la lista de cuentas con lectura. -->
   <rule id="106604" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_access</field>
+    <field name="event" type="pcre2">^backup_access$</field>
     <description>mp.info.6 · EV-04 · acceso a $(ruta): modo $(modo), propietario $(propietario):$(grupo)</description>
   </rule>
 
@@ -89,7 +89,7 @@
        tipo es (local, montaje, remoto) y si está activo. -->
   <rule id="106605" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">backup_storage</field>
+    <field name="event" type="pcre2">^backup_storage$</field>
     <description>mp.info.6 · EV-06 · destino $(destino) ($(tipo)): activo=$(activo)</description>
   </rule>
 
@@ -102,7 +102,7 @@
        degradación, no esta regla. -->
   <rule id="106606" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">restore_test</field>
+    <field name="event" type="pcre2">^restore_test$</field>
     <description>mp.info.6 · EV-05 · prueba de restauración $(fecha): resultado=$(resultado), limpieza=$(limpieza)</description>
   </rule>
 
@@ -115,8 +115,8 @@
        distintos. -->
   <rule id="106650" level="5">
     <if_sid>106600</if_sid>
-    <field name="event">evidence_state</field>
-    <field name="estado">NO_EVALUABLE</field>
+    <field name="event" type="pcre2">^evidence_state$</field>
+    <field name="estado" type="pcre2">^NO_EVALUABLE$</field>
     <description>mp.info.6 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
@@ -127,7 +127,7 @@
        calla» de «el recolector lleva días parado». -->
   <rule id="106797" level="3">
     <if_sid>106600</if_sid>
-    <field name="event">collector_run</field>
+    <field name="event" type="pcre2">^collector_run$</field>
     <description>mp.info.6 · pasada del recolector ($(rol)): $(resultado), cubiertas=$(evidencias_cubiertas)</description>
   </rule>
 
@@ -136,7 +136,7 @@
        propio pipeline. -->
   <rule id="106798" level="4">
     <if_sid>106600</if_sid>
-    <field name="event">collector_warning</field>
+    <field name="event" type="pcre2">^collector_warning$</field>
     <description>mp.info.6 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
@@ -145,7 +145,7 @@
        restauración que ya no se puede reconstruir. -->
   <rule id="106799" level="7">
     <if_sid>106600</if_sid>
-    <field name="event">collector_missing</field>
+    <field name="event" type="pcre2">^collector_missing$</field>
     <description>mp.info.6 · hueco en las pasadas del recolector: $(motivo)</description>
   </rule>
 
