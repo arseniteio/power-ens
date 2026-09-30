@@ -739,10 +739,10 @@ print("\n=== 11. Un control del modelo nuevo no juzga en la maquina ===\n")
 # Solo se recorre lo VERSIONADO de cada runbook (`git ls-files`, con
 # respaldo a `os.walk` si la carpeta no es un repositorio git): un fichero
 # que nadie ha metido en el repo no se publica, y no es del runbook. Es,
-# ademas, la unica forma de no tropezar con `script_pbs.sh` ni
-# `script_zimbra.sh`, que llevan credenciales reales y por eso viven fuera
-# del repositorio a proposito (`.git/info/exclude`): `git ls-files` no los
-# lista nunca.
+# ademas, la unica forma de no tropezar con los ficheros sin versionar del
+# responsable, que pueden llevar credenciales reales y por eso viven fuera del
+# repositorio a proposito (`.git/info/exclude`): `git ls-files` no los lista
+# nunca.
 for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
     bloques = bloques_evidencia(catalogo, control)
 

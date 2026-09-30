@@ -83,9 +83,10 @@ import { ENSEvidenceDefinition } from './types';
 // una evidencia con eventos cuyo `eventType` esté en esta lista. Se llena con
 // los nombres que emiten las reglas DESPLEGADAS del control, ni uno más. Un
 // nombre que no emite nadie no acredita nada, y uno que se emite y no está aquí
-// deja la evidencia sorda al hecho crudo. La comprobación 4 del script vigila
-// el primer caso; el segundo lo vigila `tests/test_vocabulario.sh` en el
-// runbook de mp.info.6.
+// deja la evidencia sorda al hecho crudo. La comprobación 4 de
+// `tests/check-consistency.py` vigila el primer caso; el segundo, para
+// mp.info.6, lo vigila `tests/mp-info-6-judgment.test.ts` juzgando las pasadas
+// reales de sus dos recolectores (`tests/fixtures/`).
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // mp.info.6 · Copias de seguridad. Reglas: banda 106600-106799, comunes a los
   // dos orígenes de copia (el PBS de Proxmox y Zimbra). El recolector emite

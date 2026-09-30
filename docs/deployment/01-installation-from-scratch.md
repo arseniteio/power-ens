@@ -297,7 +297,7 @@ Cada `install-manager.sh` realiza una comprobación bloqueante con `wazuh-logtes
 
 | Control | Regla | Control | Regla |
 |---|---|---|---|
-| `mp.info.6` | `106797` | `op.exp.3` | `110401` |
+| `mp.info.6` | `106601` | `op.exp.3` | `110401` |
 | `op.acc.1` | `106873` | `op.exp.4` | `110505` |
 | `op.acc.2` | `106902` | `op.exp.5` | `110601` |
 | `op.acc.3` | `107001` | `op.exp.6` | `110701` |
@@ -307,7 +307,7 @@ Cada `install-manager.sh` realiza una comprobación bloqueante con `wazuh-logtes
 | `op.exp.1` | `110205` | `op.exp.10` | `111197` |
 | `op.exp.2` | `110304` | | |
 
-En mp.info.6 la regla que se valida es la del latido del recolector (`106797`, `collector_run`), que llega en cada pasada. Cuando la máquina ya tiene una copia hecha, se valida además `106601` (`backup_run`).
+En mp.info.6, `install-manager.sh` de los dos runbooks (Proxmox y Zimbra) comprueba con `wazuh-logtest` que casa `106601` (`backup_run`). Después, en el índice, la regla que hay que buscar es `106797` (`collector_run`), el latido que el recolector emite en cada pasada aunque todavía no haya ninguna copia.
 
 Después de ejecutar los instaladores, comprobar también que Wazuh Manager permanece activo, que su configuración es válida y que el plugin y los runbooks son coherentes:
 
