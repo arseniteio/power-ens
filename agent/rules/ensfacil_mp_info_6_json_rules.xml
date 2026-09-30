@@ -1,9 +1,8 @@
 <!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
      Este fichero es idéntico, byte a byte, en la fuente canónica del plugin y
-     en la carpeta manager/ del runbook de backup Proxmox (y, cuando exista,
-     en la del runbook de Zimbra): lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. Si se modifica uno, hay que
-     copiar el otro. -->
+     en la carpeta manager/ de los runbooks de copias de Proxmox y de Zimbra:
+     lo comprueba plugin-wazuh-ens/tests/check-consistency.py. Si se modifica
+     uno, hay que copiar los otros. -->
 <group name="ensfacil,mp.info.6,">
 
   <!-- ================================================================
@@ -28,11 +27,11 @@
          106604 backup_access     EV-04
          106605 backup_storage    EV-06
          106606 restore_test      EV-05
+         106797 collector_run     EV-07 (el latido; además habilita las demás)
 
        Fuera del mapa: 106600 (base, nivel 0), 106650 (la degradación: el
-       recolector dice que no pudo mirar), 106797 (el latido: no acredita
-       evidencia, la habilita), 106798 (aviso operativo) y 106799 (hueco en
-       las pasadas del recolector).
+       recolector dice que no pudo mirar), 106798 (aviso operativo) y 106799
+       (hueco en las pasadas del recolector).
 
        Ninguna regla lleva un veredicto en su descripción ni en su grupo: son
        hechos, y el semáforo lo decide el motor del plugin.
@@ -122,9 +121,10 @@
 
   <!-- ===== El recolector ===== -->
 
-  <!-- 106797. El latido. No acredita ninguna evidencia: las HABILITA. Sin un
-       latido reciente el motor no puede distinguir «esta máquina está sana y
-       calla» de «el recolector lleva días parado». -->
+  <!-- 106797. El latido. Acredita EV-07 (el recolector pasa y declara lo que
+       ha mirado) y habilita las demás: sin un latido reciente el motor no
+       puede distinguir «esta máquina está sana y calla» de «el recolector
+       lleva días parado». -->
   <rule id="106797" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^collector_run$</field>
