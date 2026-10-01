@@ -79,7 +79,11 @@ export const ControlRow = ({
         },
       },
     ],
+    // Los 10.000 MÁS RECIENTES, como el detalle del control: sin orden, el
+    // índice devuelve primero los más antiguos y la fila juzgaría el principio
+    // de la ventana en vez del estado actual.
     size: 10000,
+    sorting: [{ timestamp: { order: 'desc' } }],
   });
 
   const hits = esResults?.hits?.hits || [];

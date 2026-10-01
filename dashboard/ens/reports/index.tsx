@@ -126,7 +126,10 @@ const ControlReport = ({
       scopeAgentQueryFilter,
       { match_phrase: { 'data.ensfacil': controlId } },
     ],
-    size: 2000,
+    // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
+    // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
+    size: 10000,
+    sorting: [{ timestamp: { order: 'desc' } }],
     refreshKey,
   });
 

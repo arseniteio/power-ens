@@ -123,7 +123,12 @@ export const EnsDashboardMain = () => {
     // pantallas juzgaban conjuntos distintos del mismo control y podian dar
     // numeros distintos sin que nada lo dijera. 10.000 es el
     // `index.max_result_window` por defecto de OpenSearch.
+    //
+    // Y los MÁS RECIENTES: sin orden, el índice devuelve primero los más
+    // antiguos y el panel juzgaba el principio de la ventana (hechos de hace
+    // semanas, «sin datos del recolector» en máquinas que informan cada hora).
     size: 10000,
+    sorting: [{ timestamp: { order: 'desc' } }],
     refreshKey,
   });
 
