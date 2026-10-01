@@ -391,6 +391,44 @@ bloque('6. EV-04 · cuentas con lectura contra P-07');
 
   const clave = evalua(eventos([{ ...acceso('root,backup'), clave_modo: '644' }, latido()]));
   comprueba('la clave de cifrado legible por otros (644) → NO_CUMPLE', clave.estado('EV-04') === 'NO_CUMPLE' && /clave/.test(clave.motivo('EV-04')), clave.motivo('EV-04'));
+
+  // La clave no la puede leer nadie más que su dueño: 0600 o 0400, como piden
+  // las guías de los dos runbooks. Que la lea el GRUPO ya incumple: el grupo
+  // de una clave suele ser el de un servicio, y quien la lee descifra todas
+  // las copias.
+  const conClave = (modo: string) => evalua(eventos([{ ...acceso('root,backup'), clave_modo: modo }, latido()]));
+  const RUTA_CLAVE = /\/etc\/proxmox-backup-client\/encryption-key\.json/;
+
+  const grupo = conClave('0640');
+  comprueba(
+    'la clave de cifrado legible por su grupo (0640) → NO_CUMPLE nombrando la clave y el modo',
+    grupo.estado('EV-04') === 'NO_CUMPLE' && RUTA_CLAVE.test(grupo.motivo('EV-04')) && /0640/.test(grupo.motivo('EV-04')),
+    `${grupo.estado('EV-04')} ${grupo.motivo('EV-04')}`
+  );
+
+  const otros = conClave('0644');
+  comprueba(
+    'la clave de cifrado legible por grupo y otros (0644) → NO_CUMPLE nombrando la clave y el modo',
+    otros.estado('EV-04') === 'NO_CUMPLE' && RUTA_CLAVE.test(otros.motivo('EV-04')) && /0644/.test(otros.motivo('EV-04')),
+    `${otros.estado('EV-04')} ${otros.motivo('EV-04')}`
+  );
+
+  const soloOtros = conClave('0604');
+  comprueba(
+    'la clave de cifrado legible solo por otros (0604) → NO_CUMPLE',
+    soloOtros.estado('EV-04') === 'NO_CUMPLE' && /0604/.test(soloOtros.motivo('EV-04')),
+    `${soloOtros.estado('EV-04')} ${soloOtros.motivo('EV-04')}`
+  );
+
+  const duena = conClave('0600');
+  comprueba('REVERSIÓN: la clave con 0600 → CUMPLE', duena.estado('EV-04') === 'CUMPLE', `${duena.estado('EV-04')} ${duena.motivo('EV-04')}`);
+
+  const soloLectura = conClave('0400');
+  comprueba('REVERSIÓN: la clave con 0400 → CUMPLE', soloLectura.estado('EV-04') === 'CUMPLE', `${soloLectura.estado('EV-04')} ${soloLectura.motivo('EV-04')}`);
+
+  // Escribir sin leer no da la clave: el eje es la lectura, no cualquier bit.
+  const escrituraGrupo = conClave('0620');
+  comprueba('REVERSIÓN: escritura de grupo sin lectura (0620) no cuenta como lectura → CUMPLE', escrituraGrupo.estado('EV-04') === 'CUMPLE', `${escrituraGrupo.estado('EV-04')} ${escrituraGrupo.motivo('EV-04')}`);
 }
 
 // ---------------------------------------------------------------------------

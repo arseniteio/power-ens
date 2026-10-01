@@ -75,7 +75,7 @@ export const mpInfo6Control: ENSControl = {
       level: ['BAJO', 'MEDIO', 'ALTO'],
       title: 'Acceso autorizado a las copias',
       description:
-        'Valida que solo las cuentas de P-07 pueden leer las copias y su credencial, y que la clave de cifrado no la puede leer cualquiera.',
+        'Valida que solo las cuentas de P-07 pueden leer las copias y su credencial, y que la clave de cifrado solo la puede leer su dueño (0600 o 0400).',
       evidences: ['EV-03', 'EV-04'],
     },
     {
@@ -139,7 +139,7 @@ export const mpInfo6Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Acceso autorizado al repositorio',
       description:
-        'Demuestra que la credencial del repositorio y los directorios de copia solo los pueden leer cuentas de P-07, y que la clave de cifrado no la puede leer cualquiera.',
+        'Demuestra que la credencial del repositorio y los directorios de copia solo los pueden leer cuentas de P-07, y que la clave de cifrado solo la puede leer su dueño (0600 o 0400): con lectura de grupo o de otros, no cumple.',
       format: 'json_line',
       events: ['evidence_state', 'backup_access'],
       wazuhRuleIds: ['106604'],

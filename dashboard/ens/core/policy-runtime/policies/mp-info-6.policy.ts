@@ -785,7 +785,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
 };
 
 // EV-04 · quién puede leer el repositorio, contra P-07; y que la clave de
-// cifrado no la pueda leer cualquiera.
+// cifrado solo la pueda leer su dueño.
 const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   const autorizadas = entradas(context, 'P-07');
 
@@ -837,12 +837,21 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
           const modoClave = campo(e, 'clave_modo');
           const permisosClave = octal(modoClave);
 
+          // La clave solo la lee su dueño (0600 o 0400, lo que piden las guías
+          // de los runbooks). Con lectura de grupo ya incumple: quien la lee
+          // descifra todas las copias, y el grupo de un fichero suele ser el
+          // de un servicio, no una cuenta de P-07.
           if (permisosClave === undefined) {
             partes.push(sinMedir(`${nombre}: no se ha podido leer el modo de la clave de cifrado ${clave} (${modoClave || 'vacío'}).`));
-          } else if ((permisosClave & 0o004) !== 0) {
-            partes.push(noCumple(`${nombre}: la clave de cifrado ${clave} tiene modo ${modoClave}: la puede leer cualquier cuenta de la máquina.`));
+          } else if ((permisosClave & 0o044) !== 0) {
+            const quien =
+              (permisosClave & 0o004) !== 0
+                ? 'la puede leer cualquier cuenta de la máquina'
+                : 'la puede leer su grupo';
+
+            partes.push(noCumple(`${nombre}: la clave de cifrado ${clave} tiene modo ${modoClave}: ${quien}; tiene que ser 0600 o 0400, solo su dueño.`));
           } else {
-            partes.push(cumple(`${nombre}: la clave de cifrado ${clave} (modo ${modoClave}) no la pueden leer otras cuentas.`));
+            partes.push(cumple(`${nombre}: la clave de cifrado ${clave} (modo ${modoClave}) solo la puede leer su dueño.`));
           }
         }
 

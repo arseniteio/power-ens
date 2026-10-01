@@ -166,7 +166,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Acceso autorizado al repositorio',
     description:
-      'Quién puede leer el repositorio de cada copia (`backup_access`: ruta, modo, propietario, grupo y cuentas con lectura) frente a P-07, y los permisos de la clave de cifrado de las copias.',
+      'Quién puede leer el repositorio de cada copia (`backup_access`: ruta, modo, propietario, grupo y cuentas con lectura) frente a P-07, y los permisos de la clave de cifrado de las copias: solo la puede leer su dueño (0600 o 0400).',
     requirements: ['mp.info.6.2.d'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'ACCESS_CONTROL',
