@@ -107,7 +107,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       controlId: 'mp.info.6',
       name: 'directorio_backup_local',
       label: 'Directorio local de copias',
-      description: 'Ruta donde se almacenan las copias en el entorno principal. Una sola ruta absoluta; en Windows, con unidad (C:\\Backups).',
+      description: 'Ruta donde la organización guarda las copias en el entorno principal. Informativo: no cambia el juicio. Cada recolector informa la ruta real de sus copias, y EV-03 y EV-04 se juzgan con esa. Una sola ruta absoluta; en Windows, con unidad (C:\\Backups).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'path',
@@ -115,14 +115,17 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       // Informativo: cada recolector informa la ruta real de sus copias en
       // `backup_access`, y el juicio usa esa ruta, no esta.
       required: false,
-      wazuhUsage: 'Se utiliza para configurar FIM sobre el repositorio de backup.',
-      ensfacilUsage: 'Permite evidenciar integridad y protección del repositorio local.',
-      evidenceIds: ['EV-03', 'EV-04'],
+      wazuhUsage: 'Ningún agente lee este valor. En el PBS, los directorios locales de copia se declaran en el .env del agente (MPINFO6_LOCAL_BACKUP_DIRS), y cada recolector informa la ruta que mide.',
+      ensfacilUsage: 'Documenta en la configuración dónde dice la organización que están sus copias. El juicio no lo lee ni lo compara con la ruta medida.',
+      // Sin evidencias a propósito: una evidencia pendiente cuenta como hueco
+      // de CONFIGURACIÓN cuando alguno de sus parámetros está vacío, y el
+      // hallazgo mandaría a rellenar P-06, que no mide nada.
+      evidenceIds: [],
       // Hueco de trazabilidad: el acceso al repositorio lo informa 106604
       // (`backup_access`) con la ruta que mide el recolector, y el juicio no la
       // compara con este valor.
       ruleIds: [],
-      ifNotConfigured: 'FIM no monitoriza el repositorio local de backup.',
+      ifNotConfigured: 'Sin efecto en el juicio: EV-03 y EV-04 se juzgan con la ruta que informa cada recolector.',
     },
     {
       id: 'P-07',
@@ -146,17 +149,17 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       controlId: 'mp.info.6',
       name: 'repositorio_offsite_activo',
       label: 'Copia en ubicación alternativa',
-      description: 'Indica si existe copia en ubicación alternativa. Valores admitidos: sí o no.',
+      description: 'Lo que declara la organización: si existe copia en ubicación alternativa. Valores admitidos: sí o no. EV-06 se juzga con los destinos que observa el recolector, no con este valor.',
       levels: ['ALTO'],
       requirements: ['mp.info.6.r2.1'],
       type: 'boolean',
       example: 'sí',
       required: false,
-      wazuhUsage: 'Activa o desactiva verificaciones offsite.',
-      ensfacilUsage: 'Evalúa el refuerzo R2 solo cuando aplica nivel ALTO.',
+      wazuhUsage: 'Ningún agente lo lee: el recolector informa los destinos de cada copia (backup_storage, regla 106605).',
+      ensfacilUsage: 'Solo en ALTO, y solo en el motivo de EV-06: si declara sí y ningún destino de la copia está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado de EV-06.',
       evidenceIds: ['EV-06'],
       ruleIds: ['106605'],
-      ifNotConfigured: 'Para BAJO/MEDIO queda NO APLICA. Para ALTO queda NO EVALUABLE.',
+      ifNotConfigured: 'En BAJO y MEDIO no aplica. En ALTO, EV-06 se juzga igual, con los destinos que observa el recolector; su motivo no los contrasta con ninguna declaración.',
     },
     {
       id: 'P-09',
@@ -169,30 +172,31 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       type: 'path',
       example: '/mnt/s3-backup',
       required: false,
-      wazuhUsage: 'Permite monitorizar replicación o evidencias offsite.',
-      ensfacilUsage: 'Documenta y evalúa ubicación alternativa de copias.',
+      wazuhUsage: 'Ningún agente lo lee: los destinos de cada copia los informa el recolector (backup_storage).',
+      ensfacilUsage: 'Documenta la ubicación alternativa que declara la organización; el informe la cita junto a los destinos observados.',
       evidenceIds: ['EV-06'],
       // Hueco de trazabilidad: no existe regla que vigile el repositorio offsite.
       ruleIds: [],
-      ifNotConfigured: 'Para BAJO/MEDIO queda NO APLICA. Para ALTO no se evalúa offsite.',
+      ifNotConfigured: 'En BAJO y MEDIO no aplica. En ALTO, EV-06 se juzga igual, con los destinos que informa el recolector.',
     },
     {
       id: 'P-10',
       controlId: 'mp.info.6',
       name: 'herramienta_backup',
       label: 'Origen de las copias',
-      description: 'Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server), zimbra-ne (Zimbra Network Edition) o zimbra-ose-declarada (Zimbra Open Source, con el método de copia que declara la organización). Las herramientas de la lista anterior (Veeam, Bacula, Amanda, rsync, Windows Backup, Otro) se siguen admitiendo para que un valor ya guardado no deje de ser válido.',
+      description: 'Sistema de copias del que salen los hechos de mp.info.6, el mismo que el recolector declara en el campo origen de cada hecho: pbs (Proxmox Backup Server) o zimbra-ne (Zimbra 10 Network Edition, copias de zmbackup). Las herramientas de la lista anterior (Veeam, Bacula, Amanda, rsync, Windows Backup, Otro) se siguen admitiendo para que un valor ya guardado no deje de ser válido.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.1', 'mp.info.6.r1.1'],
       type: 'select',
       example: 'pbs',
-      // Las tres del campo `origen` y, detrás, las de la lista anterior: un
+      // Las dos del campo `origen` y, detrás, las de la lista anterior: un
       // valor ya guardado que dejara de ser una opción saldría inválido, y un
-      // parámetro inválido tumba la configuración entera.
+      // parámetro inválido tumba la configuración entera. `zimbra-ose-declarada`
+      // se quitó el 01/10/2026 (Zimbra Open Source no está soportado): solo se
+      // ofreció desde el 30/09, y en el laboratorio P-10 está vacío.
       options: [
         'pbs',
         'zimbra-ne',
-        'zimbra-ose-declarada',
         'Veeam',
         'Bacula',
         'Amanda',
@@ -202,7 +206,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       ],
       // No es obligatorio: el juicio no lo lee (cada hecho trae su origen).
       required: false,
-      wazuhUsage: 'Cada hecho del recolector lleva su origen; las reglas son las mismas para los tres, así que no cambia qué se decodifica.',
+      wazuhUsage: 'Cada hecho del recolector lleva su origen; las reglas son las mismas para los dos, así que no cambia qué se decodifica.',
       ensfacilUsage: 'Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor: una máquina con PBS y otra con Zimbra se juzgan igual.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-07'],
       // Hueco de trazabilidad: ninguna regla acredita el origen declarado; el
@@ -210,11 +214,13 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       ruleIds: [],
       ifNotConfigured: 'El informe no puede citar con qué sistema se hacen las copias.',
     },
-    // --- Política que vivía en el .env del agente ----------------------------
+    // --- Lo que el agente lee de su .env, documentado en la pantalla ---------
     //
-    // P-11 a P-14 salen de /etc/ensfacil/mpinfo6.env. Se traen las que DECIDEN
-    // un veredicto: la clave que se mide (EV-04) y la sonda de restauración
-    // (EV-05). La conexión al repositorio (PBS_HOST, PBS_REPO) y las rutas
+    // P-11 a P-14 documentan lo que cada agente lee de su propio .env
+    // (/etc/ensfacil/mpinfo6.env en el PBS, /etc/ensfacil/mpinfo6zimbra.env en
+    // Zimbra): la clave que se mide (EV-04) y la prueba de restauración
+    // (EV-05). Ningún agente lee estos valores y la policy tampoco: juzga lo
+    // que informa el recolector. La conexión al repositorio y las rutas
     // internas del recolector no entran, y la CREDENCIAL no puede entrar nunca:
     // `wazuh-ens-configuration` lo lee cualquiera con acceso al dashboard y su
     // contenido acaba citado en el informe.
@@ -223,74 +229,74 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       controlId: 'mp.info.6',
       name: 'ruta_clave_cifrado',
       label: 'Ruta de la clave de cifrado de las copias',
-      description: 'Fichero de clave con el que se cifran las copias. Sus permisos son la evidencia: tienen que ser 600, ni grupo ni otros. Una sola ruta absoluta. Si la clave se mueve y este valor no se cambia, la evidencia mide los permisos de un fichero que ya no cifra nada, y si allí queda el fichero viejo con 600 se publica CUMPLE sobre una clave muerta.',
+      description: 'Fichero de clave con el que se cifran las copias en el PBS, el mismo que PBS_KEYFILE en el .env del agente. Sus permisos son la evidencia (EV-04): 0600 o 0400, solo su dueño; si lo puede leer el grupo u otras cuentas, no cumple. Una sola ruta absoluta. Informativo: el agente mide la clave de su .env, no este valor, así que si la clave se mueve hay que cambiarla en los dos sitios. En Zimbra no hay clave que medir.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
       type: 'path',
-      example: '/var/lib/proxmox-backup/proxmox-backup.key',
+      example: '/root/.config/proxmox-backup/encryption-key.json',
       required: false,
-      wazuhUsage: 'Es el fichero cuyos permisos se comprueban para acreditar la protección de las copias.',
-      ensfacilUsage: 'Declara qué clave cifra de verdad las copias, para que la evidencia mida ese fichero y no otro.',
+      wazuhUsage: 'Ningún agente lee este valor: el del PBS mide la clave de PBS_KEYFILE (vacía, la del cliente por defecto si existe) e informa su ruta y su modo en backup_access.',
+      ensfacilUsage: 'Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.',
       evidenceIds: ['EV-04'],
       // Hueco de trazabilidad: la regla acredita el permiso medido, no la ruta
       // desde la que se midió.
       ruleIds: [],
-      ifNotConfigured: 'El agente mide la clave de su ruta de fábrica. Si la instalación la movió, la evidencia acredita un fichero que ya no cifra nada.',
+      ifNotConfigured: 'EV-04 se mide igual, con la clave que mide el agente (PBS_KEYFILE o, vacía, la del cliente por defecto). La configuración no documenta cuál es.',
     },
     {
       id: 'P-12',
       controlId: 'mp.info.6',
       name: 'prueba_restauracion_fichero',
       label: 'Fichero que se restaura en la prueba',
-      description: 'Nombre del archivo del repositorio que la prueba de restauración recupera. Mientras esté vacío la prueba NO se ejecuta y EV-05 se queda en NO_EVALUABLE: es deliberado, restaurar toca disco y hay que decidirlo.',
+      description: 'Qué restaura la prueba de restauración: en el PBS, el archivo de la copia que contiene el fichero testigo (root.pxar); en Zimbra, la cuenta testigo de buzones (MPINFO6ZIMBRA_TESTIGO). Informativo: la prueba se declara en el .env del agente, y mientras allí no haya testigo no se ejecuta y EV-05 queda NO_EVALUABLE.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.info.6.r1.1'],
       type: 'string',
-      example: 'prueba.pxar',
+      example: 'root.pxar',
       required: false,
-      wazuhUsage: 'Determina qué se recupera en cada prueba automática de restauración.',
-      ensfacilUsage: 'Sin fichero declarado no hay prueba de restauración, y el refuerzo R1 no se puede medir en MEDIO ni en ALTO.',
+      wazuhUsage: 'Ningún agente lee este valor: el del PBS restaura el testigo de la copia que lo contiene, y el de Zimbra la cuenta testigo. Cada prueba llega en restore_test (regla 106606).',
+      ensfacilUsage: 'Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.',
       evidenceIds: ['EV-05'],
       ruleIds: ['106606'],
-      ifNotConfigured: 'La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE, nunca NO_CUMPLE: no haber probado no demuestra que restaurar falle.',
+      ifNotConfigured: 'EV-05 se mide igual: la prueba la declara el .env del agente, no este valor.',
     },
     {
       id: 'P-13',
       controlId: 'mp.info.6',
       name: 'prueba_restauracion_canario',
       label: 'Fichero canario de la prueba',
-      description: 'Ruta absoluta del fichero cuyo md5sum se compara tras restaurar. Es lo que convierte la prueba en una comprobación: sin canario, restaurar solo demuestra que el mandato no dio error.',
+      description: 'Ruta absoluta del fichero testigo del PBS: un fichero de contenido fijo dentro de una copia, que la prueba restaura en un temporal y compara con su SHA-256 (RESTORE_WITNESS_PATH y RESTORE_WITNESS_SHA256 en el .env del agente). Es lo que convierte la prueba en una comprobación: sin testigo, restaurar solo demostraría que la orden no dio error. En Zimbra el testigo es un mensaje conocido de la cuenta testigo. Informativo: el testigo se declara en el .env del agente.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.info.6.r1.1'],
       type: 'path',
-      example: '/var/lib/pxbackup/canario.txt',
+      example: '/etc/ensfacil/mpinfo6-witness.txt',
       required: false,
-      wazuhUsage: 'Su md5sum antes y después de la restauración es lo que acredita que la copia se recupera íntegra.',
+      wazuhUsage: 'Ningún agente lee este valor: el del PBS restaura el fichero de RESTORE_WITNESS_PATH y compara su SHA-256 con RESTORE_WITNESS_SHA256; restore_test informa si coincide.',
       ensfacilUsage: 'Distingue una restauración validada de una que solo terminó sin error.',
       evidenceIds: ['EV-05'],
       // Hueco de trazabilidad: la regla acredita el resultado de la prueba, no
       // qué fichero se usó como canario.
       ruleIds: [],
-      ifNotConfigured: 'La prueba de restauración no se ejecuta y EV-05 queda NO EVALUABLE.',
+      ifNotConfigured: 'EV-05 se mide igual: el testigo lo declara el .env del agente, no este valor.',
     },
     {
       id: 'P-14',
       controlId: 'mp.info.6',
       name: 'prueba_restauracion_cada_dias',
       label: 'Cadencia de la prueba de restauración',
-      description: 'Cada cuántos días se lanza la prueba automática de restauración. Es la cadencia de la sonda, no el plazo máximo admitido: ese es P-05, y quien decide si el control cumple es P-05.',
+      description: 'Cada cuántos días se lanza la prueba automática de restauración. Es la cadencia de la prueba, no el plazo máximo admitido: ese es P-05, y quien decide si el control cumple es P-05. En el PBS es RESTORE_EVERY_DAYS en el .env del agente (7 días por defecto); en Zimbra la prueba es semanal.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.info.6.r1.1'],
       type: 'duration_days',
       example: '7',
       required: false,
       minValue: 1,
-      wazuhUsage: 'Marca cada cuánto se ejecuta la restauración de prueba dentro del ciclo de copia.',
+      wazuhUsage: 'Ningún agente lee este valor: el del PBS restaura cuando han pasado RESTORE_EVERY_DAYS días desde la última prueba correcta, y el de Zimbra cada domingo desde su cron.',
       ensfacilUsage: 'Una cadencia mayor que el plazo de P-05 garantiza que el control se degrade antes de la siguiente prueba; declararla aquí lo hace visible.',
       evidenceIds: ['EV-05'],
       // Hueco de trazabilidad: ninguna regla acredita la cadencia declarada.
       ruleIds: [],
-      ifNotConfigured: 'El agente aplica su cadencia de fábrica (7 días) y el informe no puede citar una decisión del cliente.',
+      ifNotConfigured: 'EV-05 se mide igual. La configuración no documenta la cadencia: la del PBS es la de su .env (7 días por defecto) y la de Zimbra, semanal.',
     },
     {
       id: 'P-ATT',

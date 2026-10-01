@@ -115,7 +115,7 @@ export const mpInfo6Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Copia dentro del intervalo permitido',
       description:
-        'Demuestra que la última copia correcta de cada copia no es más vieja que P-01 + P-02 y que su planificación (el cron, zmschedulebackup o la declarada) es al menos tan frecuente como P-01.',
+        'Demuestra que la última copia correcta de cada copia no es más vieja que P-01 + P-02 y que su planificación (el cron o zmschedulebackup) es al menos tan frecuente como P-01.',
       format: 'json_line',
       events: ['evidence_state', 'backup_run', 'backup_schedule'],
       wazuhRuleIds: ['106601', '106602'],
@@ -151,7 +151,7 @@ export const mpInfo6Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Prueba de restauración del testigo',
       description:
-        'Demuestra una prueba de restauración reciente sobre el testigo —un fichero comprobado con su SHA-256 en el PBS; la cuenta testigo o una entrada conocida del directorio en Zimbra; o, en Zimbra Open Source sin testigo técnico, la prueba manual que declara la organización—: que se restaura, que el contenido coincide y que lo restaurado se borra después.',
+        'Demuestra una prueba de restauración reciente sobre el testigo —un fichero comprobado con su SHA-256 en el PBS; la cuenta testigo o una entrada conocida del directorio en Zimbra 10 Network Edition—: que se restaura, que el contenido coincide y que lo restaurado se borra después.',
       format: 'json_line',
       events: ['evidence_state', 'restore_test'],
       wazuhRuleIds: ['106606'],
@@ -243,7 +243,7 @@ export const mpInfo6Control: ENSControl = {
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'path_list',
-      usage: 'Se usa para FIM, almacenamiento local y controles de acceso.',
+      usage: 'Documenta dónde dice la organización que están sus copias; ni el agente ni el juicio lo leen.',
       missingBehavior: 'Sin efecto en el juicio.',
     },
     {
@@ -259,12 +259,12 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'P-08',
       name: 'repositorio_offsite_activo',
-      description: 'Indica si existe repositorio separado para R2/ALTO.',
+      description: 'Declara si existe copia en ubicación alternativa (R2/ALTO). EV-06 se juzga con los destinos que observa el recolector, no con este valor.',
       level: ['ALTO'],
       requirements: ['mp.info.6.r2.1'],
       type: 'boolean',
-      usage: 'Solo aplica si se evalúa ALTO/R2.',
-      missingBehavior: 'Para BAJO/MEDIO se mantiene NO_APLICA.',
+      usage: 'Solo en ALTO: si declara sí y ninguna copia está fuera de la máquina y activa, el motivo de EV-06 lo cita. No cambia el resultado.',
+      missingBehavior: 'Sin efecto en el resultado; en BAJO/MEDIO no aplica.',
     },
     {
       id: 'P-09',
@@ -279,7 +279,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'P-10',
       name: 'herramienta_backup',
-      description: 'Origen de los hechos de copia, el que declara cada hecho del recolector: pbs, zimbra-ne o zimbra-ose-declarada.',
+      description: 'Origen de los hechos de copia, el que declara cada hecho del recolector: pbs o zimbra-ne (Zimbra 10 Network Edition).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.info.6.1', 'mp.info.6.r1.1'],
       type: 'enum',

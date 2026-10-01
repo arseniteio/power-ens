@@ -434,8 +434,10 @@ OPCIONES_ESPERADAS = {
         "RBAC sobre AD", "ACL granular por recurso",
         "Mínimo privilegio + sudo", "Otro",
     ],
+    # `zimbra-ose-declarada` se quitó el 01/10/2026: Zimbra Open Source no está
+    # soportado. Las de la lista anterior siguen para no invalidar lo guardado.
     ("mp.info.6", "P-10"): [
-        "pbs", "zimbra-ne", "zimbra-ose-declarada",
+        "pbs", "zimbra-ne",
         "Veeam", "Bacula", "Amanda", "rsync", "Windows Backup", "Otro",
     ],
 }

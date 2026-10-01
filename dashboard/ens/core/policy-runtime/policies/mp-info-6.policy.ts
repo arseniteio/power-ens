@@ -1,8 +1,8 @@
 // mp.info.6 · Copias de seguridad
 //
 // El agente OBSERVA y esta policy JUZGA. El recolector de cada origen de copia
-// (el PBS de Proxmox, Zimbra Network o Zimbra Open Source con el método que
-// declara la organización) emite los mismos hechos con el mismo contrato:
+// (el PBS de Proxmox o Zimbra 10 Network Edition con zmbackup) emite los mismos
+// hechos con el mismo contrato:
 //
 //   backup_run        estado   la última copia: correcta, fallida, resultado
 //   backup_schedule   estado   su planificación y cada cuántas horas
@@ -13,12 +13,13 @@
 //   evidence_state             solo NO_EVALUABLE: no pudo mirar, y por qué
 //   collector_run              el latido de la pasada
 //
-// Todos llevan `origen` (`pbs`, `zimbra-ne`, `zimbra-ose-declarada`) y `objeto`
-// (`fichero`, `buzones`, `directorio`), y pueden llevar `backup_id` cuando una
-// máquina tiene varios trabajos de copia del mismo objeto. Cada combinación es
-// UNA COPIA y se juzga por separado: el peor resultado manda, porque una copia
-// del directorio que falla no la tapa la de los buzones que funciona. Un campo
-// que el contrato no nombra no molesta: se ignora.
+// Todos llevan `origen` (`pbs`, `zimbra-ne`) y `objeto` (`fichero`, `buzones`,
+// `directorio`), y pueden llevar `backup_id` cuando una máquina tiene varios
+// trabajos de copia del mismo objeto. Cada combinación es UNA COPIA y se juzga
+// por separado: el peor resultado manda, porque una copia del directorio que
+// falla no la tapa la de los buzones que funciona. Un campo que el contrato no
+// nombra no molesta: se ignora. Un origen que no está en esa lista se juzga
+// igual: la policy no lo filtra.
 //
 // Una misma máquina puede tener dos recolectores (un servidor de buzones copia
 // sus ficheros con el PBS y sus buzones con Zimbra), cada uno con su latido y
@@ -977,11 +978,13 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
       const testigo = campo(e, 'testigo');
       const detalle = campo(e, 'detalle');
       const copia = backupId(e) ? ` de la copia «${backupId(e)}»` : '';
-      // A6 · Zimbra Open Source no tiene testigo técnico: la organización
-      // declara la prueba a mano (`testigo=declarado`, `detalle=declarada:
-      // <comprobado>`). Se juzga igual que cualquier otra prueba, pero el
-      // motivo dice que es una prueba declarada y cita lo comprobado en vez
-      // del testigo.
+      // Prueba declarada (`testigo=declarado`, `detalle=declarada:
+      // <comprobado>`): un origen sin testigo técnico en el que la
+      // organización declara la prueba a mano. Ningún recolector publicado la
+      // emite (Zimbra Open Source, para el que se pensó, se retiró el
+      // 01/10/2026); queda como soporte genérico del contrato. Se juzga igual
+      // que cualquier otra prueba, pero el motivo dice que es una prueba
+      // declarada y cita lo comprobado en vez del testigo.
       const declarada = testigo === 'declarado';
       const comprobado = detalle.replace(/^declarada:\s*/i, '').trim();
       const prueba = declarada
@@ -1259,8 +1262,8 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
         ultimas.map(e => {
           const testigo = campo(e, 'testigo');
           const declarada = testigo === 'declarado';
-          // A6 · esta prueba no tiene testigo técnico: lo que se comprueba es
-          // lo que la organización declara haber verificado.
+          // Prueba declarada (soporte genérico, ver EV-05): lo que se
+          // comprueba es lo que la organización declara haber verificado.
           const comprobado = campo(e, 'detalle').replace(/^declarada:\s*/i, '').trim();
           const quien = declarada
             ? ` · declarada por la organización: «${comprobado || 'sin detalle'}»`

@@ -1863,6 +1863,33 @@ bloque('35. Sin P-06: la ruta de las copias la informa cada recolector');
     fila && `${fila.status} ${fila.score} ${fila.measuredRequirements}/${fila.applicableRequirements}`
   );
 
+  // P-06 es informativo también cuando algo falta. Si el recolector no pudo
+  // medir la retención (EV-03), el hallazgo no puede mandar a rellenar P-06:
+  // rellenarlo no mide nada.
+  const ultimo = lineas.reduce((a, l) => (String(l.ts) > a ? String(l.ts) : a), '');
+  const sinRetencion = [
+    ...lineas.filter(l => l.event !== 'backup_retention'),
+    {
+      ensfacil: CONTROL,
+      ts: ultimo,
+      host: maquina.name,
+      event: 'evidence_state',
+      evidence_id: 'EV-03',
+      origen: 'pbs',
+      objeto: 'fichero',
+      estado: 'NO_EVALUABLE',
+      causa: 'EVIDENCE',
+      motivo: 'el PBS no devuelve la poda del datastore',
+    },
+  ];
+  const sinMedirRetencion = getENSComplianceResultByControl(CONTROL, 'MEDIO', eventos(sinRetencion, maquina), maquina.id, [{ ...maquina, groups: ['ens'] }], ahoraReal);
+  const conservacion = (sinMedirRetencion?.nonConformities || []).find(n => n.requirementId === 'mp.info.6.2.b');
+  comprueba(
+    'EV-03 sin medir y sin P-06: el hallazgo de mp.info.6.2.b no manda a configurar P-06',
+    !!conservacion && !/P-06/.test(conservacion.finding),
+    conservacion && `${conservacion.cause}: ${conservacion.finding}`
+  );
+
   ensConfigurationRepository.reset();
 }
 

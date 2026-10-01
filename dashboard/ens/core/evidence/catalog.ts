@@ -130,7 +130,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Copia dentro del intervalo permitido',
     description:
-      'Antigüedad de la última copia correcta de cada copia (`backup_run`) frente a P-01 más el margen de P-02, y su planificación (`backup_schedule`: el cron real, `zmschedulebackup` o la declarada) frente a P-01.',
+      'Antigüedad de la última copia correcta de cada copia (`backup_run`) frente a P-01 más el margen de P-02, y su planificación (`backup_schedule`: el cron real o `zmschedulebackup`) frente a P-01.',
     requirements: ['mp.info.6.1', 'mp.info.6.2.a'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -184,7 +184,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'mp.info.6',
     title: 'Prueba de restauración del testigo',
     description:
-      'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05. En Zimbra Open Source, sin testigo técnico, admite la prueba manual que declara la organización.',
+      'Pruebas de restauración sobre el testigo de cada copia (`restore_test`: fichero, cuenta de buzón o volcado del directorio): si restauró, si el contenido coincide con el esperado y si lo restaurado se pudo borrar después, frente al plazo de P-05.',
     requirements: ['mp.info.6.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'RECOVERY',
