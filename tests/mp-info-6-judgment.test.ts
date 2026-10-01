@@ -37,6 +37,7 @@ import { mpInfo6Configuration } from '../dashboard/ens/configuration/data/mp-inf
 import { defaultENSConfigurationTemplate } from '../dashboard/ens/configuration/data/default-configuration';
 import { ensConfigurationRepository } from '../dashboard/ens/configuration/repository';
 import { assertENSConfigurationVersion } from '../dashboard/ens/configuration/services/configuration-structure-validator';
+import { validateControlConfiguration } from '../dashboard/ens/configuration/services/validation-engine';
 import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
 import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
 import { keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
@@ -1774,6 +1775,54 @@ bloque('34. La omisión aceptada de una copia no desaparece cuando otra copia fa
     'pero el dato del informe (REP-02) sigue mostrando la omisión aceptada de srv01_a, aunque el motivo combinado de EV-01 la pierda',
     /srv01_a/.test(rep02?.value || '') && /\/mnt\/aceptado/.test(rep02?.value || ''),
     rep02?.value
+  );
+
+  ensConfigurationRepository.reset();
+}
+
+// ---------------------------------------------------------------------------
+
+bloque('35. Sin P-06: la ruta de las copias la informa cada recolector');
+
+{
+  // Lo declarado en wazuh4 el 01/10/2026: sin P-06 (ni P-08 a P-13). El juicio
+  // usa la ruta que informa cada recolector en backup_access, así que la falta
+  // de P-06 no puede dejar ningún requisito sin demostrar por configuración.
+  const fs = require('fs');
+  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
+    .split('\n')
+    .filter(Boolean)
+    .map((l: string) => JSON.parse(l));
+  const maquina = { id: SRV01.id, name: String(lineas[0].host) };
+  const ahoraReal = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  const declarado: Valores = {
+    'P-01': '24',
+    'P-02': '4',
+    'P-03': '30',
+    'P-04': `${maquina.name} | MEDIA`,
+    'P-05': '90',
+    // La pasada real tiene un directorio local que también lee la cuenta backup.
+    'P-07': 'root,backup',
+    'P-14': '7',
+  };
+
+  const validacion = validateControlConfiguration(configuracion(declarado), 'MEDIO');
+  comprueba(
+    'la configuración declarada queda completa: P-06 no es obligatorio',
+    validacion.status === 'CONFIGURED' && validacion.missingRequired.length === 0,
+    `${validacion.status}: faltan ${validacion.missingRequired.map(p => p.id).join(', ') || 'ninguno'}`
+  );
+
+  ensConfigurationRepository.replaceActive({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(declarado) : c)),
+  });
+
+  const fila = getENSComplianceResultByControl(CONTROL, 'MEDIO', eventos(lineas, maquina), maquina.id, [{ ...maquina, groups: ['ens'] }], ahoraReal);
+  comprueba(
+    'con la pasada real y sin P-06, la fila cumple con todo demostrado',
+    fila?.status === 'CUMPLE' && fila.measuredRequirements === fila.applicableRequirements,
+    fila && `${fila.status} ${fila.score} ${fila.measuredRequirements}/${fila.applicableRequirements}`
   );
 
   ensConfigurationRepository.reset();

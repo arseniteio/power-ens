@@ -239,12 +239,12 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'P-06',
       name: 'directorio_backup_local',
-      description: 'Rutas locales o repositorios donde se almacenan copias.',
+      description: 'Rutas locales o repositorios donde se almacenan copias. Informativo: el juicio usa la ruta que informa cada recolector.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
+      requirements: [],
       type: 'path_list',
       usage: 'Se usa para FIM, almacenamiento local y controles de acceso.',
-      missingBehavior: 'EV-03 queda NO_EVALUABLE.',
+      missingBehavior: 'Sin efecto en el juicio.',
     },
     {
       id: 'P-07',

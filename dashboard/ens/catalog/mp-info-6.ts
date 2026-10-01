@@ -49,7 +49,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-03', 'EV-07'],
-      parameterIds: ['P-03', 'P-06'],
+      parameterIds: ['P-03'],
     },
     {
       id: 'mp.info.6.2.c',
@@ -73,7 +73,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-03', 'EV-04'],
-      parameterIds: ['P-06', 'P-07'],
+      parameterIds: ['P-07'],
     },
     {
       id: 'mp.info.6.r1.1',

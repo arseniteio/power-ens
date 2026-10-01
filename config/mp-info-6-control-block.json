@@ -164,13 +164,10 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.2.b",
-        "mp.info.6.2.d"
-      ],
+      "requirements": [],
       "type": "path",
       "example": "/backup",
-      "required": true,
+      "required": false,
       "wazuhUsage": "Se utiliza para configurar FIM sobre el repositorio de backup.",
       "ensfacilUsage": "Permite evidenciar integridad y protección del repositorio local.",
       "evidenceIds": [

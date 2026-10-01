@@ -1324,9 +1324,9 @@ type Tipo = ENSPolicyDecision['trace']['ruleType'];
 export const MP_INFO_6_REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
   'mp.info.6.1': { evidencias: ['EV-01', 'EV-02', 'EV-07'], parametros: ['P-01', 'P-02', 'P-03', 'P-04', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   'mp.info.6.2.a': { evidencias: ['EV-01', 'EV-02'], parametros: ['P-01', 'P-02'], tipo: 'MAX_AGE' },
-  'mp.info.6.2.b': { evidencias: ['EV-03', 'EV-07'], parametros: ['P-03', 'P-06'], tipo: 'MIN_RETENTION' },
+  'mp.info.6.2.b': { evidencias: ['EV-03', 'EV-07'], parametros: ['P-03'], tipo: 'MIN_RETENTION' },
   'mp.info.6.2.c': { evidencias: ['EV-06', 'EV-07'], parametros: ['P-03', 'P-08', 'P-09'], tipo: 'COVERAGE_REQUIRED' },
-  'mp.info.6.2.d': { evidencias: ['EV-03', 'EV-04'], parametros: ['P-06', 'P-07'], tipo: 'WHITELIST' },
+  'mp.info.6.2.d': { evidencias: ['EV-03', 'EV-04'], parametros: ['P-07'], tipo: 'WHITELIST' },
   'mp.info.6.r1.1': { evidencias: ['EV-05'], parametros: ['P-04', 'P-05', 'P-10'], tipo: 'MAX_AGE' },
   'mp.info.6.r2.1': { evidencias: ['EV-06'], parametros: ['P-08', 'P-09'], tipo: 'CONDITIONAL_REQUIRED' },
 };
@@ -1501,7 +1501,7 @@ export const mpInfo6PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'mp.info.6.2.b',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-03', 'P-06'],
+      parameterIds: ['P-03'],
       evidenceIds: ['EV-03', 'EV-07'],
       ruleType: 'MIN_RETENTION',
     },
@@ -1515,7 +1515,7 @@ export const mpInfo6PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'mp.info.6.2.d',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-06', 'P-07'],
+      parameterIds: ['P-07'],
       evidenceIds: ['EV-03', 'EV-04'],
       ruleType: 'WHITELIST',
     },

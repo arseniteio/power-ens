@@ -109,10 +109,12 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       label: 'Directorio local de copias',
       description: 'Ruta donde se almacenan las copias en el entorno principal. Una sola ruta absoluta; en Windows, con unidad (C:\\Backups).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.info.6.2.b', 'mp.info.6.2.d'],
+      requirements: [],
       type: 'path',
       example: '/backup',
-      required: true,
+      // Informativo: cada recolector informa la ruta real de sus copias en
+      // `backup_access`, y el juicio usa esa ruta, no esta.
+      required: false,
       wazuhUsage: 'Se utiliza para configurar FIM sobre el repositorio de backup.',
       ensfacilUsage: 'Permite evidenciar integridad y protección del repositorio local.',
       evidenceIds: ['EV-03', 'EV-04'],
