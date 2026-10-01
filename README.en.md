@@ -50,16 +50,16 @@ same control.
 
 | GitLab group | Controls |
 |---|---|
-| `quersystem/ens-controls-runbook/linux` | all 17 (mp.info.6 for Proxmox Backup servers) |
+| `quersystem/ens-controls-runbook/linux` | all 17 (mp.info.6 for machines that back up to a Proxmox Backup Server) |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10 |
-| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (Zimbra backups) |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (`zmbackup` backups of Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4 |
 
 What each Linux runbook installs:
 
 | Runbook | On the manager (`install-manager.sh`) | On each agent (`install.sh`) |
 |---|---|---|
-| `linux/mp.info.6` | rules and `<localfile>` of the `ens` group | runs and measures the backup on the Proxmox Backup server |
+| `linux/mp.info.6` | rules and `<localfile>` of the `ens-copias` group | collector that measures the organization's backup procedure on the Proxmox Backup Server (it only backs up in `copiar` mode) |
 | `linux/op.acc.1` | rules and `<localfile>` of the `ens` group | collector |
 | `linux/op.acc.2` | same | collector |
 | `linux/op.acc.3` | same | collector |
@@ -167,7 +167,7 @@ python3 tests/check-consistency.py
 | `inject-control.py` reports that the `active` document does not exist | the configuration has never been saved; save it once in ENSFácil > Configuration and seed again |
 | «Sin datos del recolector desde …» on a control | the collector of that control has not sent a heartbeat for more than 24 h on that machine: agent stopped, cron removed or machine down |
 | op.exp.7, op.exp.8 or op.exp.9 without data on the manager | that runbook's `install-manager.sh` is missing, or its cron has not run yet (hourly) |
-| `install-manager.sh` refuses to touch `agent.conf` | the `agent.conf` of the `ens` group has more than one `<agent_config>` block; merge them into one |
+| `install-manager.sh` refuses to touch `agent.conf` | the `agent.conf` of the `ens` group (or the `ens-copias` one, for mp.info.6) has more than one `<agent_config>` block; merge them into one |
 
 Consistency check between the plugin and the runbooks:
 
@@ -247,7 +247,7 @@ central plane of op.exp.8, arrive with agent `000` (the manager):
 
 | Control | Reserved band | In use |
 |---|---|---|
-| `mp.info.6` | 106600–106799 | 106600–106723 |
+| `mp.info.6` | 106600–106799 | 106600–106799 |
 | `op.acc.1` | 106800–106899 | 106800–106891 |
 | `op.acc.2` | 106900–106999 | 106900–106974 |
 | `op.acc.3` | 107000–107099 | 107000–107050 |

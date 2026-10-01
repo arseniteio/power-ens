@@ -50,16 +50,16 @@ control.
 
 | Grupo de GitLab | Controles |
 |---|---|
-| `quersystem/ens-controls-runbook/linux` | los 17 (mp.info.6 para servidores Proxmox Backup) |
+| `quersystem/ens-controls-runbook/linux` | los 17 (mp.info.6 para máquinas que copian en un Proxmox Backup Server) |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 a op.acc.6 y op.exp.1 a op.exp.10 |
-| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (copias de seguridad de Zimbra) |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (copias de `zmbackup` de Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4 |
 
 Qué instala cada runbook Linux:
 
 | Runbook | En el manager (`install-manager.sh`) | En cada agente (`install.sh`) |
 |---|---|---|
-| `linux/mp.info.6` | reglas y `<localfile>` del grupo `ens` | ejecución y medida de la copia en el servidor Proxmox Backup |
+| `linux/mp.info.6` | reglas y `<localfile>` del grupo `ens-copias` | recolector que mide las copias del procedimiento de la organización en el Proxmox Backup Server (solo copia en modo `copiar`) |
 | `linux/op.acc.1` | reglas y `<localfile>` del grupo `ens` | recolector |
 | `linux/op.acc.2` | ídem | recolector |
 | `linux/op.acc.3` | ídem | recolector |
@@ -167,7 +167,7 @@ python3 tests/check-consistency.py
 | `inject-control.py` indica que no existe el documento `active` | la configuración no se ha guardado nunca; hacer un primer guardado en ENSFácil > Configuración y repetir la siembra |
 | «Sin datos del recolector desde …» en un control | el recolector de ese control lleva más de 24 h sin latir en esa máquina: agente parado, cron retirado o máquina caída |
 | op.exp.7, op.exp.8 u op.exp.9 sin datos en el manager | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora) |
-| `install-manager.sh` se niega a tocar `agent.conf` | el `agent.conf` del grupo `ens` tiene más de un bloque `<agent_config>`; fusionarlos en uno |
+| `install-manager.sh` se niega a tocar `agent.conf` | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene más de un bloque `<agent_config>`; fusionarlos en uno |
 
 Comprobación de coherencia entre el plugin y los runbooks:
 
@@ -247,7 +247,7 @@ de op.exp.8, llegan con el agente `000` (el manager):
 
 | Control | Banda reservada | En uso |
 |---|---|---|
-| `mp.info.6` | 106600–106799 | 106600–106723 |
+| `mp.info.6` | 106600–106799 | 106600–106799 |
 | `op.acc.1` | 106800–106899 | 106800–106891 |
 | `op.acc.2` | 106900–106999 | 106900–106974 |
 | `op.acc.3` | 107000–107099 | 107000–107050 |
