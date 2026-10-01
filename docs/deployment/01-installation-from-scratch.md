@@ -254,10 +254,11 @@ Los diecisiete repositorios deben devolver una URL bajo `git@gitlab.com:quersyst
 
 ## 11. Crear y validar el grupo ENS
 
-Antes de instalar las reglas de los controles, crear el grupo compartido `ens` en Wazuh Manager:
+Antes de instalar las reglas de los controles, crear el grupo compartido `ens` en Wazuh Manager y el grupo `ens-copias`, el propio de mp.info.6, en el que solo van las máquinas cuyas copias se miden:
 
 ```bash
 sudo /var/ossec/bin/agent_groups -a -g ens -q
+sudo /var/ossec/bin/agent_groups -a -g ens-copias -q
 ```
 
 Comprobar que Wazuh ha creado la estructura compartida del grupo:
@@ -266,23 +267,25 @@ Comprobar que Wazuh ha creado la estructura compartida del grupo:
 sudo test -d /var/ossec/etc/shared/ens && echo "GRUPO_ENS=OK"
 sudo test -f /var/ossec/etc/shared/ens/agent.conf && echo "AGENT_CONF_ENS=OK"
 sudo grep -c "<agent_config" /var/ossec/etc/shared/ens/agent.conf
+sudo test -f /var/ossec/etc/shared/ens-copias/agent.conf && echo "AGENT_CONF_ENS_COPIAS=OK"
+sudo grep -c "<agent_config" /var/ossec/etc/shared/ens-copias/agent.conf
 ```
 
 > [!warning]
-> La instalación de las reglas ENS no debe continuar si el grupo `ens` o su `agent.conf` no existen.
+> La instalación de las reglas ENS no debe continuar si los grupos `ens` y `ens-copias` o sus `agent.conf` no existen: sin `ens-copias`, el `install-manager.sh` de mp.info.6, el primero del bucle, se detiene.
 
 > [!important]
-> El `agent.conf` del grupo `ens` debe tener **un único bloque `<agent_config>`** (la última comprobación debe devolver `0` o `1`). Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` con más de un bloque. Cualquier ajuste adicional del grupo (por ejemplo un `<syscheck>`) se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de editarlo a mano, validarlo con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
+> El `agent.conf` de cada grupo debe tener **un único bloque `<agent_config>`** (las dos comprobaciones `grep -c` deben devolver `0` o `1`). Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` con más de un bloque. Cualquier ajuste adicional del grupo (por ejemplo un `<syscheck>`) se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de editarlo a mano, validarlo con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
 
 ## 12. Instalar y validar las reglas ENS en el Manager
 
-Con el grupo `ens` creado y los runbooks clonados, hacer una copia de la configuración del manager y ejecutar los instaladores del Manager. El proceso se detiene en el primero que falle:
+Con los grupos `ens` y `ens-copias` creados y los runbooks clonados, hacer una copia de la configuración del manager y ejecutar los instaladores del Manager. El proceso se detiene en el primero que falle:
 
 ```bash
 sudo mkdir -p /opt/ensfacil/artifacts
 sudo chown "$USER":root /opt/ensfacil/artifacts
 sudo tar czf "/opt/ensfacil/artifacts/manager-$(date +%Y%m%d-%H%M%S).tar.gz" \
-  -C /var/ossec etc/rules etc/decoders etc/shared/ens etc/ossec.conf
+  -C /var/ossec etc/rules etc/decoders etc/shared/ens etc/shared/ens-copias etc/ossec.conf
 
 (
 while read -r r; do
@@ -673,4 +676,4 @@ Abrir ENSFácil y comprobar que:
 - el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque op.exp.7, op.exp.8 y op.exp.9 se miden en él;
 - tras la primera ejecución horaria de los recolectores del manager, op.exp.7, op.exp.8 y op.exp.9 muestran datos en la fila del manager.
 
-Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` de cada runbook). Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.
+Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` de cada runbook); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.

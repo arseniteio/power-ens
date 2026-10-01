@@ -274,10 +274,11 @@ All seventeen repositories must return a URL under `git@gitlab.com:quersystem/en
 
 ## 11. Create and validate the ENS group
 
-Before installing the control rules, create the shared `ens` group on Wazuh Manager:
+Before installing the control rules, create the shared `ens` group on Wazuh Manager and the `ens-copias` group, mp.info.6's own, which only holds the machines whose backups are measured:
 
 ```bash
 sudo /var/ossec/bin/agent_groups -a -g ens -q
+sudo /var/ossec/bin/agent_groups -a -g ens-copias -q
 ```
 
 Check that Wazuh has created the shared structure of the group:
@@ -286,23 +287,25 @@ Check that Wazuh has created the shared structure of the group:
 sudo test -d /var/ossec/etc/shared/ens && echo "GRUPO_ENS=OK"
 sudo test -f /var/ossec/etc/shared/ens/agent.conf && echo "AGENT_CONF_ENS=OK"
 sudo grep -c "<agent_config" /var/ossec/etc/shared/ens/agent.conf
+sudo test -f /var/ossec/etc/shared/ens-copias/agent.conf && echo "AGENT_CONF_ENS_COPIAS=OK"
+sudo grep -c "<agent_config" /var/ossec/etc/shared/ens-copias/agent.conf
 ```
 
 > [!warning]
-> The ENS rule installation must not continue if the `ens` group or its `agent.conf` do not exist.
+> The ENS rule installation must not continue if the `ens` and `ens-copias` groups or their `agent.conf` do not exist: without `ens-copias`, the mp.info.6 `install-manager.sh`, the first one in the loop, stops.
 
 > [!important]
-> The `agent.conf` of the `ens` group must have **a single `<agent_config>` block** (the last check must return `0` or `1`). The `install-manager.sh` of every control refuses to modify an `agent.conf` with more than one block. Any additional setting for the group (for example a `<syscheck>`) goes inside the existing block, never in a second `<agent_config>`. After editing it by hand, validate it with `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
+> The `agent.conf` of each group must have **a single `<agent_config>` block** (both `grep -c` checks must return `0` or `1`). The `install-manager.sh` of every control refuses to modify an `agent.conf` with more than one block. Any additional setting for the group (for example a `<syscheck>`) goes inside the existing block, never in a second `<agent_config>`. After editing it by hand, validate it with `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
 
 ## 12. Install and validate the ENS rules on the Manager
 
-With the `ens` group created and the runbooks cloned, back up the manager configuration and run the Manager installers. The process stops at the first one that fails:
+With the `ens` and `ens-copias` groups created and the runbooks cloned, back up the manager configuration and run the Manager installers. The process stops at the first one that fails:
 
 ```bash
 sudo mkdir -p /opt/ensfacil/artifacts
 sudo chown "$USER":root /opt/ensfacil/artifacts
 sudo tar czf "/opt/ensfacil/artifacts/manager-$(date +%Y%m%d-%H%M%S).tar.gz" \
-  -C /var/ossec etc/rules etc/decoders etc/shared/ens etc/ossec.conf
+  -C /var/ossec etc/rules etc/decoders etc/shared/ens etc/shared/ens-copias etc/ossec.conf
 
 (
 while read -r r; do
@@ -693,4 +696,4 @@ Open ENSFácil and check that:
 - besides the machines in the `ens` group, the scope includes the manager (agent `000`), because op.exp.7, op.exp.8 and op.exp.9 are measured on it;
 - after the first hourly run of the manager collectors, op.exp.7, op.exp.8 and op.exp.9 show data on the manager row.
 
-Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` of each runbook). The op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that must be loaded with `sudo augenrules --load` at the end.
+Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` of each runbook); the machines whose backups are measured also go into the `ens-copias` group and into mp.info.6 P-04. The op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that must be loaded with `sudo augenrules --load` at the end.
