@@ -1895,6 +1895,88 @@ bloque('35. Sin P-06: la ruta de las copias la informa cada recolector');
 
 // ---------------------------------------------------------------------------
 
+bloque('36. Los parámetros que el juicio no lee nunca se piden en un hallazgo');
+
+{
+  // P-06 y P-08 a P-14 documentan lo que declara la organización o lo que el
+  // agente lee de su .env; el juicio no los lee (P-08 solo se cita en el
+  // motivo de EV-06). Sin valor no pueden convertir un hueco en uno de
+  // CONFIGURACIÓN ni aparecer en un «falta configurar»: rellenarlos no mide
+  // nada. Se prueba con TODO pendiente en ALTO, donde aplican todos.
+  const INFORMATIVOS = ['P-06', 'P-08', 'P-09', 'P-10', 'P-11', 'P-12', 'P-13', 'P-14'];
+  const NOMBRA = new RegExp(`\\b(${INFORMATIVOS.join('|')})\\b`);
+  const obligatorios: Valores = {
+    'P-01': '24',
+    'P-02': '4',
+    'P-03': '30',
+    'P-04': 'srv-01',
+    'P-05': '7',
+    'P-07': 'root,backup',
+  };
+  const sinMedir = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06'].map(id =>
+    linea('evidence_state', { evidence_id: id, estado: 'NO_EVALUABLE', causa: 'EVIDENCE', motivo: `el PBS no responde (${id})` })
+  );
+  const hallazgos = (valores: Valores) => {
+    ensConfigurationRepository.replaceActive({
+      ...defaultENSConfigurationTemplate,
+      controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuracion(valores) : c)),
+    });
+
+    const fila = getENSComplianceResultByControl(CONTROL, 'ALTO', eventos([...sinMedir, latido()]), SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], AHORA);
+
+    ensConfigurationRepository.reset();
+
+    return (fila?.nonConformities || []).filter(n => n.id !== 'NC-CFG');
+  };
+
+  const informativosVacios = hallazgos(obligatorios);
+  const culpables = informativosVacios.filter(
+    n => NOMBRA.test(`${n.finding} ${n.requiredAction}`) || (n.parameterIds || []).some(p => INFORMATIVOS.includes(p))
+  );
+  comprueba(
+    'todo pendiente en ALTO y P-06, P-08…P-14 sin valor: hay hallazgos de todos los requisitos',
+    informativosVacios.length === mpInfo6CatalogDefinition.requirements.length,
+    informativosVacios.map(n => n.requirementId).join(', ')
+  );
+  comprueba(
+    'y ninguno nombra ni pide configurar un parámetro informativo',
+    culpables.length === 0,
+    culpables.map(n => `${n.requirementId}: ${n.requiredAction} [${(n.parameterIds || []).join(',')}]`).join(' | ')
+  );
+  comprueba(
+    'ni convierte el hueco en uno de CONFIGURACIÓN: es de EVIDENCIA, como declara el recolector',
+    informativosVacios.every(n => n.cause === 'EVIDENCE'),
+    informativosVacios.map(n => `${n.requirementId}:${n.cause}`).join(' ')
+  );
+
+  // REVERSIÓN: un parámetro que el juicio SÍ lee, sin valor, se sigue pidiendo.
+  const { 'P-07': _p07, ...sinP07 } = obligatorios;
+  const acceso = hallazgos(sinP07).find(n => n.requirementId === 'mp.info.6.2.d');
+  comprueba(
+    'REVERSIÓN: sin P-07 el hallazgo de mp.info.6.2.d sí pide configurarlo',
+    !!acceso && acceso.cause === 'CONFIGURATION' && /P-07/.test(acceso.requiredAction),
+    acceso && `${acceso.cause}: ${acceso.requiredAction}`
+  );
+
+  // P-08 se sigue citando en el motivo de EV-06: la policy lee su valor de la
+  // configuración, no de la ficha.
+  const soloLocal = [linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }), latido()];
+  const declarada = evalua(eventos(soloLocal), { ...BASE, 'P-08': 'sí' }, 'ALTO');
+  comprueba(
+    'P-08 = sí sin copia fuera → EV-06 NO_CUMPLE y su motivo cita P-08',
+    declarada.estado('EV-06') === 'NO_CUMPLE' && /P-08 declara que existe copia en ubicación alternativa, y no se observa/.test(declarada.motivo('EV-06')),
+    `${declarada.estado('EV-06')} ${declarada.motivo('EV-06')}`
+  );
+  const sinDeclarar = evalua(eventos(soloLocal), BASE, 'ALTO');
+  comprueba(
+    'REVERSIÓN: sin P-08, el mismo NO_CUMPLE y sin la cita',
+    sinDeclarar.estado('EV-06') === 'NO_CUMPLE' && !/P-08/.test(sinDeclarar.motivo('EV-06')),
+    `${sinDeclarar.estado('EV-06')} ${sinDeclarar.motivo('EV-06')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 bloque('11. Ningún otro control cambia');
 
 {

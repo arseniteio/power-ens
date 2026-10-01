@@ -210,17 +210,13 @@
       "levels": [
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.r2.1"
-      ],
+      "requirements": [],
       "type": "boolean",
       "example": "sí",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: el recolector informa los destinos de cada copia (backup_storage, regla 106605).",
       "ensfacilUsage": "Solo en ALTO, y solo en el motivo de EV-06: si declara sí y ningún destino de la copia está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado de EV-06.",
-      "evidenceIds": [
-        "EV-06"
-      ],
+      "evidenceIds": [],
       "ruleIds": [
         "106605"
       ],
@@ -235,17 +231,13 @@
       "levels": [
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.r2.1"
-      ],
+      "requirements": [],
       "type": "path",
       "example": "/mnt/s3-backup",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: los destinos de cada copia los informa el recolector (backup_storage).",
       "ensfacilUsage": "Documenta la ubicación alternativa que declara la organización; el informe la cita junto a los destinos observados.",
-      "evidenceIds": [
-        "EV-06"
-      ],
+      "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "En BAJO y MEDIO no aplica. En ALTO, EV-06 se juzga igual, con los destinos que informa el recolector."
     },
@@ -260,10 +252,7 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.1",
-        "mp.info.6.r1.1"
-      ],
+      "requirements": [],
       "type": "select",
       "example": "pbs",
       "options": [
@@ -279,11 +268,7 @@
       "required": false,
       "wazuhUsage": "Cada hecho del recolector lleva su origen; las reglas son las mismas para los dos, así que no cambia qué se decodifica.",
       "ensfacilUsage": "Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor: una máquina con PBS y otra con Zimbra se juzgan igual.",
-      "evidenceIds": [
-        "EV-01",
-        "EV-02",
-        "EV-07"
-      ],
+      "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "El informe no puede citar con qué sistema se hacen las copias."
     },
@@ -298,18 +283,13 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.2.b",
-        "mp.info.6.2.d"
-      ],
+      "requirements": [],
       "type": "path",
       "example": "/root/.config/proxmox-backup/encryption-key.json",
       "required": false,
       "wazuhUsage": "Ningún agente lee este valor: el del PBS mide la clave de PBS_KEYFILE (vacía, la del cliente por defecto si existe) e informa su ruta y su modo en backup_access.",
       "ensfacilUsage": "Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.",
-      "evidenceIds": [
-        "EV-04"
-      ],
+      "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-04 se mide igual, con la clave que mide el agente (PBS_KEYFILE o, vacía, la del cliente por defecto). La configuración no documenta cuál es."
     },
@@ -323,17 +303,13 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.r1.1"
-      ],
+      "requirements": [],
       "type": "string",
       "example": "root.pxar",
       "required": false,
       "wazuhUsage": "Ningún agente lee este valor: el del PBS restaura el testigo de la copia que lo contiene, y el de Zimbra la cuenta testigo. Cada prueba llega en restore_test (regla 106606).",
       "ensfacilUsage": "Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.",
-      "evidenceIds": [
-        "EV-05"
-      ],
+      "evidenceIds": [],
       "ruleIds": [
         "106606"
       ],
@@ -349,17 +325,13 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.r1.1"
-      ],
+      "requirements": [],
       "type": "path",
       "example": "/etc/ensfacil/mpinfo6-witness.txt",
       "required": false,
       "wazuhUsage": "Ningún agente lee este valor: el del PBS restaura el fichero de RESTORE_WITNESS_PATH y compara su SHA-256 con RESTORE_WITNESS_SHA256; restore_test informa si coincide.",
       "ensfacilUsage": "Distingue una restauración validada de una que solo terminó sin error.",
-      "evidenceIds": [
-        "EV-05"
-      ],
+      "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-05 se mide igual: el testigo lo declara el .env del agente, no este valor."
     },
@@ -373,18 +345,14 @@
         "MEDIO",
         "ALTO"
       ],
-      "requirements": [
-        "mp.info.6.r1.1"
-      ],
+      "requirements": [],
       "type": "duration_days",
       "example": "7",
       "required": false,
       "minValue": 1,
       "wazuhUsage": "Ningún agente lee este valor: el del PBS restaura cuando han pasado RESTORE_EVERY_DAYS días desde la última prueba correcta, y el de Zimbra cada domingo desde su cron.",
       "ensfacilUsage": "Una cadencia mayor que el plazo de P-05 garantiza que el control se degrade antes de la siguiente prueba; declararla aquí lo hace visible.",
-      "evidenceIds": [
-        "EV-05"
-      ],
+      "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-05 se mide igual. La configuración no documenta la cadencia: la del PBS es la de su .env (7 días por defecto) y la de Zimbra, semanal."
     },
