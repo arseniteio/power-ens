@@ -230,6 +230,9 @@ BASE=git@gitlab.com:quersystem/ens-controls-runbook/linux
 while read -r r; do
   git clone "$BASE/$r.git" || break
 done < /opt/ensfacil/runbooks.txt
+# mp.info.6 tiene además un runbook para Zimbra; comparte las reglas y la
+# comprobación de coherencia lo compara también.
+git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
 El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes.

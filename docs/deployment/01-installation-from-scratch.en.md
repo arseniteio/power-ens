@@ -250,6 +250,9 @@ BASE=git@gitlab.com:quersystem/ens-controls-runbook/linux
 while read -r r; do
   git clone "$BASE/$r.git" || break
 done < /opt/ensfacil/runbooks.txt
+# mp.info.6 also has a Zimbra runbook; it shares the rules and the
+# consistency check compares it too.
+git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
 The file `/opt/ensfacil/runbooks.txt` is reused in the following steps.

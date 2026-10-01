@@ -1,8 +1,8 @@
 <!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
      Este fichero es idéntico, byte a byte, en la fuente canónica del plugin y
-     en la carpeta manager/ de los runbooks de copias de Proxmox y de Zimbra:
-     lo comprueba plugin-wazuh-ens/tests/check-consistency.py. Si se modifica
-     uno, hay que copiar los otros. -->
+     en la carpeta manager/ de cada runbook de mp.info.6: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. Si se modifica uno, hay que
+     copiar los otros. -->
 <group name="ensfacil,mp.info.6,">
 
   <!-- ================================================================
@@ -11,12 +11,10 @@
        Base 106600 · hechos crudos 106601-106649 · evidence_state 106650
        · diagnóstico del recolector 106797-106799
 
-       Reglas COMUNES a los dos orígenes de copia que cubre el control: el PBS
-       de Proxmox y Zimbra (NE u OSE). El campo `origen` (`pbs`/`zimbra-ne`/
-       `zimbra-ose-declarada`) distingue de dónde viene el hecho; el nombre del
-       evento y la regla que lo acredita son los mismos para los dos. El
-       recolector de cada runbook escribe la misma línea NDJSON en
-       /var/log/ensfacil/mp_info_6.json.
+       Reglas COMUNES a todos los runbooks de mp.info.6. El campo `origen`
+       dice qué recolector emitió el hecho; el nombre del evento y la regla
+       que lo acredita son los mismos para todos. Cada recolector escribe la
+       misma línea NDJSON en /var/log/ensfacil/mp_info_6.json.
 
        Mapa evento -> rule ID -> evidencia, que es lo que acredita
        `relatedRules` en dashboard/ens/core/evidence/catalog.ts:

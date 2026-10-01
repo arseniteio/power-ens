@@ -165,13 +165,33 @@ CARPETAS_ANTERIORES = {
 }
 
 
+def _repos_bajo(raiz, profundidad=3):
+    """Repositorios git bajo `raiz`, hasta `profundidad` niveles, sin entrar en
+    ninguno: admite los clones uno al lado del otro y también ordenados por
+    subgrupo (`linux/op.acc.1`, `zimbra-mta/mp.info.6`)."""
+    encontrados = []
+    pendientes = [(raiz, 0)]
+    while pendientes:
+        carpeta, nivel = pendientes.pop(0)
+        try:
+            nombres = sorted(os.listdir(carpeta))
+        except OSError:
+            continue
+        for nombre in nombres:
+            hija = os.path.join(carpeta, nombre)
+            if nombre.startswith(".") or not os.path.isdir(hija):
+                continue
+            if os.path.exists(os.path.join(hija, ".git")):
+                encontrados.append(hija)
+            elif nivel + 1 < profundidad:
+                pendientes.append((hija, nivel + 1))
+    return encontrados
+
+
 def _origenes_hermanos():
     """{carpeta: URL de `origin`} de cada repositorio git junto al plugin."""
     origenes = {}
-    for nombre in sorted(os.listdir(BASE)):
-        carpeta = os.path.join(BASE, nombre)
-        if not os.path.exists(os.path.join(carpeta, ".git")):
-            continue
+    for carpeta in _repos_bajo(BASE):
         try:
             r = subprocess.run(
                 ["git", "-C", carpeta, "remote", "get-url", "origin"],
