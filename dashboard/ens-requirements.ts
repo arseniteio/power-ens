@@ -13,7 +13,7 @@ export const ensRequirementsFile = {
   'mp.info.6.2.d':
     'Acceso autorizado a las copias - Controles técnicos de acceso, keyfile y permisos.',
   'mp.info.6.r1.1':
-    'Prueba de restauración regular - Restore real desde copia con comprobación md5sum.',
+    'Prueba de restauración regular - Restauración periódica de un testigo con su contenido comprobado, dentro del plazo de P-05: en el PBS, un fichero comparado con su SHA-256; en Zimbra, la cuenta testigo y una entrada testigo del directorio.',
   'mp.info.6.r2.1':
     'Copia separada - Requisito R2/ALTO. Copia en ubicación separada.',
   'op.acc.1.1':
