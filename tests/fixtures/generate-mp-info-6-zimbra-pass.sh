@@ -51,6 +51,28 @@ RUNBOOK="${1:-$(runbook_por_origen zimbra/zimbra-mta/mp.info.6 mp.info.6-zimbra)
 RUNBOOK="$(cd "$RUNBOOK" && pwd)"
 SALIDA="$AQUI/mp-info-6-zimbra-pass.ndjson"
 
+# Las sesiones de la salida de zmbackupquery del runbook llevan fechas fijas.
+# Se desplazan días enteros para que la sesión más reciente sea de ayer (UTC):
+# así la pasada es coherente el día que se regenere, como la del PBS.
+DESPLAZADO="$(mktemp -d)"
+trap 'rm -rf "$DESPLAZADO"' EXIT
+python3 - "$RUNBOOK/tests/fixtures/zmbackupquery-normal.txt" "$DESPLAZADO/zmbackupquery.out" <<'PY'
+import re, sys
+from datetime import datetime, timedelta, timezone
+texto = open(sys.argv[1], encoding='utf-8').read()
+etiquetas = [datetime.strptime(d, '%Y%m%d') for d in re.findall(r'^Label:\s+\w+-(\d{8})\.', texto, re.M)]
+ayer = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+dias = timedelta(days=(ayer - max(etiquetas)).days)
+def etiqueta(m):
+    return m.group(1) + (datetime.strptime(m.group(2), '%Y%m%d') + dias).strftime('%Y%m%d') + m.group(3)
+def fecha(m):
+    d = datetime.strptime(m.group(2), '%Y/%m/%d') + dias
+    return d.strftime('%a, ') + d.strftime('%Y/%m/%d')
+texto = re.sub(r'(\w+-)(\d{8})(\.)', etiqueta, texto)
+texto = re.sub(r'(\b[A-Z][a-z]{2}), (\d{4}/\d{2}/\d{2})', fecha, texto)
+open(sys.argv[2], 'w', encoding='utf-8').write(texto)
+PY
+
 docker build -q -t ensfacil-mpinfo6zimbra-fixture:ubuntu22 - >/dev/null <<'DOCKERFILE'
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
@@ -60,7 +82,7 @@ RUN apt-get update -qq \
 DOCKERFILE
 
 docker run --rm -i --hostname zimbra-01 \
-  -v "$RUNBOOK:/runbook:ro" ensfacil-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$SALIDA" <<'DENTRO'
+  -v "$RUNBOOK:/runbook:ro" -v "$DESPLAZADO:/desplazado:ro" ensfacil-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$SALIDA" <<'DENTRO'
 set -eu
 pkill slapd 2>/dev/null || true
 
@@ -75,7 +97,7 @@ E="$ZH/.escenario"
 # El zmmailbox falso, sin marca de "encontrado ninguno", cae a
 # $ESC/fixtures/zmmailbox-search-encontrado.txt por defecto.
 cp -r /runbook/tests/fixtures "$E/fixtures"
-cp /runbook/tests/fixtures/zmbackupquery-normal.txt "$E/zmbackupquery.out"
+cp /desplazado/zmbackupquery.out "$E/zmbackupquery.out"
 cp /runbook/tests/fixtures/zmschedulebackup-default.txt "$E/zmschedulebackup.out"
 cp /runbook/tests/fixtures/zmcontrol-v-ne.txt "$E/zmcontrol-v.out"
 
