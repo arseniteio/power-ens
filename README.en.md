@@ -43,35 +43,39 @@ defines but does not require in any category, which comes out `NO_APLICA`.
 | `op.exp.10` | Cryptographic key protection | LOW+ | R1 (MEDIUM+); R2 not required | machines |
 
 Each control has its own deployment repository (runbook) in GitLab, with one
-variant per machine type:
+variant per machine type. The repository is named exactly as the control and
+the subgroup gives the platform or role: `linux/op.acc.1`,
+`zimbra/zimbra-ldap/op.acc.1` and `windows/op.acc.1` are three runbooks of the
+same control.
 
 | GitLab group | Controls |
 |---|---|
 | `quersystem/ens-controls-runbook/linux` | all 17 (mp.info.6 for Proxmox Backup servers) |
-| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10, suffix `-ldap` |
-| `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4, suffix `-windows` |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10 |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (Zimbra backups) |
+| `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4 |
 
 What each Linux runbook installs:
 
 | Runbook | On the manager (`install-manager.sh`) | On each agent (`install.sh`) |
 |---|---|---|
-| `mp.info.6-proxmox-backup-runbook` | rules and `<localfile>` of the `ens` group | runs and measures the backup on the Proxmox Backup server |
-| `op.acc.1-identification` | rules and `<localfile>` of the `ens` group | collector |
-| `op.acc.2-access-requirements` | same | collector |
-| `op.acc.3-segregation-of-duties-and-tasks` | same | collector |
-| `op.acc.4-access-rights-management-process` | same | collector |
-| `op.acc.5-external-users-authentication` | same | collector |
-| `op.acc.6-organization-users-authentication` | same | collector |
-| `op.exp.1-asset-inventory` | same | collector |
-| `op.exp.2-security-configuration` | same | collector |
-| `op.exp.3-security-configuration-management` | same | collector |
-| `op.exp.4-security-maintenance-and-updates` | same; the Vulnerability Detector bridge is optional and not installed by default (see its guide) | collector |
-| `op.exp.5-change-management` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
-| `op.exp.6-malware-protection` | same | collector |
-| `op.exp.7-incident-management` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that the agent sends its active response log |
-| `op.exp.8-activity-logging` | rules, `<localfile>` of the `ens` group, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | collector and auditd rules |
-| `op.exp.9-incident-management-records` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that active response, FIM and dpkg are forwarded |
-| `op.exp.10-cryptographic-key-protection` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
+| `linux/mp.info.6` | rules and `<localfile>` of the `ens` group | runs and measures the backup on the Proxmox Backup server |
+| `linux/op.acc.1` | rules and `<localfile>` of the `ens` group | collector |
+| `linux/op.acc.2` | same | collector |
+| `linux/op.acc.3` | same | collector |
+| `linux/op.acc.4` | same | collector |
+| `linux/op.acc.5` | same | collector |
+| `linux/op.acc.6` | same | collector |
+| `linux/op.exp.1` | same | collector |
+| `linux/op.exp.2` | same | collector |
+| `linux/op.exp.3` | same | collector |
+| `linux/op.exp.4` | same; the Vulnerability Detector bridge is optional and not installed by default (see its guide) | collector |
+| `linux/op.exp.5` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
+| `linux/op.exp.6` | same | collector |
+| `linux/op.exp.7` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that the agent sends its active response log |
+| `linux/op.exp.8` | rules, `<localfile>` of the `ens` group, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | collector and auditd rules |
+| `linux/op.exp.9` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that active response, FIM and dpkg are forwarded |
+| `linux/op.exp.10` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
 
 > [!important]
 > The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3,

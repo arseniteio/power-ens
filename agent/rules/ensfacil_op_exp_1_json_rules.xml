@@ -1,7 +1,7 @@
 <!-- op.exp.1 · Inventario de activos · reglas del manager.
      Fuente canónica: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_1_json_rules.xml.
      El mismo fichero, byte a byte, vive en manager/ de los runbooks
-     op.exp.1-asset-inventory y op.exp.1-ldap. Si se modifica uno hay que copiar
+     linux/op.exp.1 y zimbra/zimbra-ldap/op.exp.1. Si se modifica uno hay que copiar
      los tres: lo comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_exp_1,">
 

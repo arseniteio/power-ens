@@ -226,23 +226,23 @@ On the Wazuh Manager server, clone the seventeen Linux runbooks used by ENSFáci
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
-mp.info.6-proxmox-backup-runbook
-op.acc.1-identification
-op.acc.2-access-requirements
-op.acc.3-segregation-of-duties-and-tasks
-op.acc.4-access-rights-management-process
-op.acc.5-external-users-authentication
-op.acc.6-organization-users-authentication
-op.exp.1-asset-inventory
-op.exp.2-security-configuration
-op.exp.3-security-configuration-management
-op.exp.4-security-maintenance-and-updates
-op.exp.5-change-management
-op.exp.6-malware-protection
-op.exp.7-incident-management
-op.exp.8-activity-logging
-op.exp.9-incident-management-records
-op.exp.10-cryptographic-key-protection
+mp.info.6
+op.acc.1
+op.acc.2
+op.acc.3
+op.acc.4
+op.acc.5
+op.acc.6
+op.exp.1
+op.exp.2
+op.exp.3
+op.exp.4
+op.exp.5
+op.exp.6
+op.exp.7
+op.exp.8
+op.exp.9
+op.exp.10
 EOF
 
 cd /opt/ensfacil
@@ -255,7 +255,7 @@ done < /opt/ensfacil/runbooks.txt
 The file `/opt/ensfacil/runbooks.txt` is reused in the following steps.
 
 > [!note]
-> The variants for the Zimbra LDAP directory server (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`, suffix `-ldap`) and for Windows (`quersystem/ens-controls-runbook/windows`, suffix `-windows`) are cloned on the corresponding machines following their own guide. On the manager the Linux runbooks are enough: the rules are the same, byte for byte.
+> Each runbook is named exactly as its control, and the subgroup gives the platform or role. The variants for the Zimbra LDAP directory server (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) and for Windows (`quersystem/ens-controls-runbook/windows`) have the same names as the Linux ones and are cloned on the corresponding machines following their own guide. On the manager the Linux runbooks are enough: the rules are the same, byte for byte.
 
 ### 10.4 Validate the cloned runbooks
 

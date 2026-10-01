@@ -56,81 +56,167 @@ BASE = os.path.dirname(PLUGIN)
 # `install-manager.sh`. La de `agent/rules/` del plugin es la fuente canónica
 # para el generador, y puede divergir sin que nadie se entere.
 #
-# El primer elemento es una TUPLA de repos, no uno solo: un control puede
+# El primer elemento es una TUPLA de runbooks, no uno solo: un control puede
 # tener más de un runbook —mp.info.6 tiene el del PBS de Proxmox y el de
 # Zimbra, cada uno con su propio agente y su propia copia de `manager/`—, y
 # todas las comprobaciones que recorren runbooks tienen que pasar por los
 # dos. El resto de controles lleva una tupla de uno solo.
+#
+# Cada runbook se nombra por su RUTA EN GITLAB bajo
+# `quersystem/ens-controls-runbook/`, no por su carpeta local. Desde el
+# 01/10/2026 el repositorio se llama exactamente como el control y el
+# subgrupo dice la plataforma o el rol (`linux/op.acc.1`,
+# `zimbra/zimbra-mta/mp.info.6`), así que dos runbooks del mismo control
+# comparten nombre y la carpeta en la que cada uno lo haya clonado no dice
+# nada. La carpeta se resuelve en `carpeta_de()`.
 RUNBOOKS = {
     "mp.info.6": (
-        ("mp.info.6-proxmox-backup-runbook", "mp.info.6-zimbra"),
+        ("linux/mp.info.6", "zimbra/zimbra-mta/mp.info.6"),
         ["ensfacil_mp_info_6_json_rules.xml"],
     ),
     "op.acc.1": (
-        ("op.acc.1-identification",),
+        ("linux/op.acc.1",),
         ["ensfacil_op_acc_1_json_rules.xml"],
     ),
     "op.acc.2": (
-        ("op.acc.2-access-requirements",),
+        ("linux/op.acc.2",),
         ["ensfacil_op_acc_2_json_rules.xml"],
     ),
     "op.acc.3": (
-        ("op.acc.3-segregation-of-duties-and-tasks",),
+        ("linux/op.acc.3",),
         ["ensfacil_op_acc_3_json_rules.xml"],
     ),
     "op.acc.4": (
-        ("op.acc.4-access-rights-management-process",),
+        ("linux/op.acc.4",),
         ["ensfacil_op_acc_4_json_rules.xml"],
     ),
     "op.exp.1": (
-        ("op.exp.1-asset-inventory",),
+        ("linux/op.exp.1",),
         ["ensfacil_op_exp_1_json_rules.xml"],
     ),
     "op.exp.2": (
-        ("op.exp.2-security-configuration",),
+        ("linux/op.exp.2",),
         ["ensfacil_op_exp_2_json_rules.xml"],
     ),
     "op.acc.6": (
-        ("op.acc.6-organization-users-authentication",),
+        ("linux/op.acc.6",),
         ["ensfacil_op_acc_6_json_rules.xml"],
     ),
     "op.acc.5": (
-        ("op.acc.5-external-users-authentication",),
+        ("linux/op.acc.5",),
         ["ensfacil_op_acc_5_json_rules.xml"],
     ),
     "op.exp.3": (
-        ("op.exp.3-security-configuration-management",),
+        ("linux/op.exp.3",),
         ["ensfacil_op_exp_3_json_rules.xml"],
     ),
     "op.exp.4": (
-        ("op.exp.4-security-maintenance-and-updates",),
+        ("linux/op.exp.4",),
         ["ensfacil_op_exp_4_json_rules.xml"],
     ),
     "op.exp.5": (
-        ("op.exp.5-change-management",),
+        ("linux/op.exp.5",),
         ["ensfacil_op_exp_5_json_rules.xml"],
     ),
     "op.exp.6": (
-        ("op.exp.6-malware-protection",),
+        ("linux/op.exp.6",),
         ["ensfacil_op_exp_6_json_rules.xml"],
     ),
     "op.exp.7": (
-        ("op.exp.7-incident-management",),
+        ("linux/op.exp.7",),
         ["ensfacil_op_exp_7_json_rules.xml"],
     ),
     "op.exp.8": (
-        ("op.exp.8-activity-logging",),
+        ("linux/op.exp.8",),
         ["ensfacil_op_exp_8_json_rules.xml"],
     ),
     "op.exp.9": (
-        ("op.exp.9-incident-management-records",),
+        ("linux/op.exp.9",),
         ["ensfacil_op_exp_9_json_rules.xml"],
     ),
     "op.exp.10": (
-        ("op.exp.10-cryptographic-key-protection",),
+        ("linux/op.exp.10",),
         ["ensfacil_op_exp_10_json_rules.xml"],
     ),
 }
+
+# Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que
+# es también la carpeta de los clones hechos hasta entonces. Solo es el
+# respaldo de `carpeta_de()` para un clon cuyo `origin` no se pueda leer.
+CARPETAS_ANTERIORES = {
+    "linux/mp.info.6": "mp.info.6-proxmox-backup-runbook",
+    "zimbra/zimbra-mta/mp.info.6": "mp.info.6-zimbra",
+    "linux/op.acc.1": "op.acc.1-identification",
+    "linux/op.acc.2": "op.acc.2-access-requirements",
+    "linux/op.acc.3": "op.acc.3-segregation-of-duties-and-tasks",
+    "linux/op.acc.4": "op.acc.4-access-rights-management-process",
+    "linux/op.acc.5": "op.acc.5-external-users-authentication",
+    "linux/op.acc.6": "op.acc.6-organization-users-authentication",
+    "linux/op.exp.1": "op.exp.1-asset-inventory",
+    "linux/op.exp.2": "op.exp.2-security-configuration",
+    "linux/op.exp.3": "op.exp.3-security-configuration-management",
+    "linux/op.exp.4": "op.exp.4-security-maintenance-and-updates",
+    "linux/op.exp.5": "op.exp.5-change-management",
+    "linux/op.exp.6": "op.exp.6-malware-protection",
+    "linux/op.exp.7": "op.exp.7-incident-management",
+    "linux/op.exp.8": "op.exp.8-activity-logging",
+    "linux/op.exp.9": "op.exp.9-incident-management-records",
+    "linux/op.exp.10": "op.exp.10-cryptographic-key-protection",
+}
+
+
+def _origenes_hermanos():
+    """{carpeta: URL de `origin`} de cada repositorio git junto al plugin."""
+    origenes = {}
+    for nombre in sorted(os.listdir(BASE)):
+        carpeta = os.path.join(BASE, nombre)
+        if not os.path.exists(os.path.join(carpeta, ".git")):
+            continue
+        try:
+            r = subprocess.run(
+                ["git", "-C", carpeta, "remote", "get-url", "origin"],
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            continue
+        if r.returncode == 0 and r.stdout.strip():
+            origenes[carpeta] = r.stdout.strip()
+    return origenes
+
+
+ORIGENES = _origenes_hermanos()
+CARPETAS = {}
+DUPLICADOS = {}
+RESUELTO_POR = {}
+
+
+def carpeta_de(runbook):
+    """Carpeta local del clon de `runbook` (su ruta en GitLab).
+
+    Es la carpeta hermana del plugin cuyo remoto `origin` termina en esa ruta
+    (con `.git` o sin él). Si ninguna lo tiene, la carpeta con el nombre de
+    antes del renombrado. Si tampoco existe, se devuelve igualmente esa ruta
+    para que cada comprobación falle diciendo qué no encuentra.
+    """
+    if runbook in CARPETAS:
+        return CARPETAS[runbook]
+    patron = re.compile(r"(^|[/:])" + re.escape(runbook) + r"(\.git)?/?$")
+    candidatas = [c for c, url in ORIGENES.items() if patron.search(url)]
+    anterior = os.path.join(BASE, CARPETAS_ANTERIORES.get(runbook, runbook.split("/")[-1]))
+    if candidatas:
+        # Dos clones del mismo repo: se queda el de siempre si está entre
+        # ellos, y si no el primero por orden alfabético. Se avisa.
+        elegida = anterior if anterior in candidatas else candidatas[0]
+        if len(candidatas) > 1:
+            DUPLICADOS[runbook] = candidatas
+        RESUELTO_POR[runbook] = "origin"
+    else:
+        elegida = anterior
+        RESUELTO_POR[runbook] = "carpeta" if os.path.isdir(anterior) else None
+    CARPETAS[runbook] = elegida
+    return elegida
+
 
 fallos = []
 avisos = []
@@ -167,9 +253,12 @@ def reglas_desplegadas(control):
     ids = set()
     for repo in repos:
         for x in xmls:
-            ruta = os.path.join(BASE, repo, "manager", x)
+            ruta = os.path.join(carpeta_de(repo), "manager", x)
             if not os.path.exists(ruta):
-                falla("XML desplegada existe", "no encuentro {}".format(ruta))
+                falla(
+                    "XML desplegada existe",
+                    "no encuentro manager/{} de {} (en {})".format(x, repo, ruta),
+                )
                 continue
             ids |= reglas_de(lee(ruta))
     return ids
@@ -194,7 +283,37 @@ def campo_lista(cuerpo, nombre):
 
 catalogo = lee(os.path.join(PLUGIN, "dashboard/ens/core/evidence/catalog.ts"))
 
-print("=== 1. Toda regla acreditada tiene que poder dispararse ===\n")
+print("=== 0. Cada runbook tiene un clon junto al plugin ===\n")
+
+# Todo lo que sigue lee los runbooks del disco. Sin su clon, las comprobaciones
+# no tendrían qué mirar: se dice aquí, una vez, con la ruta de GitLab que hay
+# que clonar.
+for control, (repos, _xmls) in RUNBOOKS.items():
+    for repo in repos:
+        carpeta = carpeta_de(repo)
+        if RESUELTO_POR[repo] is None:
+            falla(
+                "{}: no hay clon de {} junto al plugin".format(control, repo),
+                "clonar git@gitlab.com:quersystem/ens-controls-runbook/{}.git"
+                " en {}".format(repo, BASE),
+            )
+            continue
+        if repo in DUPLICADOS:
+            avisa(
+                "{}: hay más de un clon de {}".format(control, repo),
+                "se usa {}; los demás: {}".format(
+                    os.path.basename(carpeta),
+                    ", ".join(
+                        os.path.basename(c) for c in DUPLICADOS[repo] if c != carpeta
+                    ),
+                ),
+            )
+        ok(
+            "{}: {} -> {}".format(control, repo, os.path.basename(carpeta)),
+            "" if RESUELTO_POR[repo] == "origin" else "(por el nombre de carpeta anterior)",
+        )
+
+print("\n=== 1. Toda regla acreditada tiene que poder dispararse ===\n")
 
 # Se recorren LOS CONTROLES DEL CATÁLOGO, no las claves de RUNBOOKS.
 #
@@ -250,7 +369,7 @@ for control, (repos, xmls) in RUNBOOKS.items():
     for repo in repos:
         for x in xmls:
             canonica = os.path.join(PLUGIN, "agent/rules", x)
-            copia = os.path.join(BASE, repo, "manager", x)
+            copia = os.path.join(carpeta_de(repo), "manager", x)
             if not (os.path.exists(canonica) and os.path.exists(copia)):
                 continue
             ids_can, ids_cop = reglas_de(lee(canonica)), reglas_de(lee(copia))
@@ -292,7 +411,7 @@ for control, (repos, xmls) in RUNBOOKS.items():
     emitidos = set()
     for repo in repos:
         for x in xmls:
-            ruta = os.path.join(BASE, repo, "manager", x)
+            ruta = os.path.join(carpeta_de(repo), "manager", x)
             if os.path.exists(ruta):
                 emitidos |= set(
                     re.findall(
@@ -325,7 +444,7 @@ ESPERADOS = ["install.sh", "install-manager.sh", "uninstall.sh"]
 for control, (repos, _) in RUNBOOKS.items():
     for repo in repos:
         faltan = [
-            s for s in ESPERADOS if not os.path.exists(os.path.join(BASE, repo, s))
+            s for s in ESPERADOS if not os.path.exists(os.path.join(carpeta_de(repo), s))
         ]
         if faltan:
             falla(
@@ -408,7 +527,7 @@ else:
         emitidos = set()
         for repo in repos:
             for x in xmls:
-                ruta = os.path.join(BASE, repo, "manager", x)
+                ruta = os.path.join(carpeta_de(repo), "manager", x)
                 if os.path.exists(ruta):
                     emitidos |= set(
                         re.findall(
@@ -541,9 +660,9 @@ print("\n=== 9. El agente y el motor acreditan los MISMOS requisitos ===\n")
 # puede declarar evidencias que ese agente no emite, p.ej. las migradas al
 # motor, que salen de EVIDENCIAS y pasan a EVIDENCIAS_DELEGADAS-.
 
-def mapa_del_agente(carpeta, script):
+def mapa_del_agente(repo, script):
     """evidencia -> requisitos, leido del dict EVIDENCIAS de score.py."""
-    ruta = os.path.join(BASE, carpeta, "scripts", script)
+    ruta = os.path.join(carpeta_de(repo), "scripts", script)
     if not os.path.exists(ruta):
         return None
     texto = lee(ruta)
@@ -657,9 +776,10 @@ for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
     # retiradas: el aviso vive en el recolector de ESE origen, así que se
     # comprueba repo a repo y no como una unión del control.
     for repo in repos:
+        carpeta = carpeta_de(repo)
         orquestador = sorted(
-            glob.glob(os.path.join(BASE, repo, "scripts", "*_collect.sh"))
-            + glob.glob(os.path.join(BASE, repo, "scripts", "*_evidence.sh"))
+            glob.glob(os.path.join(carpeta, "scripts", "*_collect.sh"))
+            + glob.glob(os.path.join(carpeta, "scripts", "*_evidence.sh"))
         )
         if not orquestador:
             continue
@@ -676,9 +796,9 @@ for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
         # La librería NO puede leerlas, y nadie puede mandar a rellenarlas.
         culpables = []
         for fichero in sorted(
-            glob.glob(os.path.join(BASE, repo, "*.sh"))
-            + glob.glob(os.path.join(BASE, repo, "etc", "*.example"))
-            + glob.glob(os.path.join(BASE, repo, "docs", "*.md"))
+            glob.glob(os.path.join(carpeta, "*.sh"))
+            + glob.glob(os.path.join(carpeta, "etc", "*.example"))
+            + glob.glob(os.path.join(carpeta, "docs", "*.md"))
             + glob.glob(os.path.join(PLUGIN, "docs", "*.md"))
         ):
             cuerpo = lee(fichero)
@@ -763,7 +883,7 @@ for control, (repos, _reglas) in sorted(RUNBOOKS.items()):
     culpables = []
 
     for repo in repos:
-        carpeta = os.path.join(BASE, repo)
+        carpeta = carpeta_de(repo)
         listado = subprocess.run(
             ["git", "-C", carpeta, "ls-files"], capture_output=True, text=True
         )

@@ -206,23 +206,23 @@ En el servidor Wazuh Manager, clonar los diecisiete runbooks Linux utilizados po
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
-mp.info.6-proxmox-backup-runbook
-op.acc.1-identification
-op.acc.2-access-requirements
-op.acc.3-segregation-of-duties-and-tasks
-op.acc.4-access-rights-management-process
-op.acc.5-external-users-authentication
-op.acc.6-organization-users-authentication
-op.exp.1-asset-inventory
-op.exp.2-security-configuration
-op.exp.3-security-configuration-management
-op.exp.4-security-maintenance-and-updates
-op.exp.5-change-management
-op.exp.6-malware-protection
-op.exp.7-incident-management
-op.exp.8-activity-logging
-op.exp.9-incident-management-records
-op.exp.10-cryptographic-key-protection
+mp.info.6
+op.acc.1
+op.acc.2
+op.acc.3
+op.acc.4
+op.acc.5
+op.acc.6
+op.exp.1
+op.exp.2
+op.exp.3
+op.exp.4
+op.exp.5
+op.exp.6
+op.exp.7
+op.exp.8
+op.exp.9
+op.exp.10
 EOF
 
 cd /opt/ensfacil
@@ -235,7 +235,7 @@ done < /opt/ensfacil/runbooks.txt
 El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes.
 
 > [!note]
-> Las variantes para el servidor de directorio LDAP de Zimbra (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`, sufijo `-ldap`) y para Windows (`quersystem/ens-controls-runbook/windows`, sufijo `-windows`) se clonan en las máquinas correspondientes siguiendo su propia guía. En el manager basta con los runbooks Linux: las reglas son las mismas, byte a byte.
+> Cada runbook se llama exactamente como su control, y el subgrupo dice la plataforma o el rol. Las variantes para el servidor de directorio LDAP de Zimbra (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) y para Windows (`quersystem/ens-controls-runbook/windows`) se llaman igual que las de Linux y se clonan en las máquinas correspondientes siguiendo su propia guía. En el manager basta con los runbooks Linux: las reglas son las mismas, byte a byte.
 
 ### 10.4 Validar los runbooks clonados
 

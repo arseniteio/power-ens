@@ -1,7 +1,7 @@
 <!-- Reglas de op.exp.2 · Configuración de seguridad.
      El mismo fichero, byte a byte, vive en tres sitios: agent/rules/ del plugin
-     (fuente canónica) y manager/ de los runbooks op.exp.2-security-configuration
-     y op.exp.2-ldap. Si se modifica uno hay que copiarlo a los otros dos: lo
+     (fuente canónica) y manager/ de los runbooks linux/op.exp.2
+     y zimbra/zimbra-ldap/op.exp.2. Si se modifica uno hay que copiarlo a los otros dos: lo
      comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_exp_2,">
 

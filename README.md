@@ -43,35 +43,39 @@ define pero no exige en ninguna categoría, que sale `NO_APLICA`.
 | `op.exp.10` | Protección de claves criptográficas | BAJO+ | R1 (MEDIO+); R2 no exigible | máquinas |
 
 Cada control tiene su repositorio de despliegue (runbook) en GitLab, con una
-variante por tipo de máquina:
+variante por tipo de máquina. El repositorio se llama exactamente como el
+control y el subgrupo dice la plataforma o el rol: `linux/op.acc.1`,
+`zimbra/zimbra-ldap/op.acc.1` y `windows/op.acc.1` son tres runbooks del mismo
+control.
 
 | Grupo de GitLab | Controles |
 |---|---|
 | `quersystem/ens-controls-runbook/linux` | los 17 (mp.info.6 para servidores Proxmox Backup) |
-| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 a op.acc.6 y op.exp.1 a op.exp.10, sufijo `-ldap` |
-| `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4, sufijo `-windows` |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 a op.acc.6 y op.exp.1 a op.exp.10 |
+| `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (copias de seguridad de Zimbra) |
+| `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4 |
 
 Qué instala cada runbook Linux:
 
 | Runbook | En el manager (`install-manager.sh`) | En cada agente (`install.sh`) |
 |---|---|---|
-| `mp.info.6-proxmox-backup-runbook` | reglas y `<localfile>` del grupo `ens` | ejecución y medida de la copia en el servidor Proxmox Backup |
-| `op.acc.1-identification` | reglas y `<localfile>` del grupo `ens` | recolector |
-| `op.acc.2-access-requirements` | ídem | recolector |
-| `op.acc.3-segregation-of-duties-and-tasks` | ídem | recolector |
-| `op.acc.4-access-rights-management-process` | ídem | recolector |
-| `op.acc.5-external-users-authentication` | ídem | recolector |
-| `op.acc.6-organization-users-authentication` | ídem | recolector |
-| `op.exp.1-asset-inventory` | ídem | recolector |
-| `op.exp.2-security-configuration` | ídem | recolector |
-| `op.exp.3-security-configuration-management` | ídem | recolector |
-| `op.exp.4-security-maintenance-and-updates` | ídem; el puente del Vulnerability Detector es opcional y no se instala por defecto (ver su guía) | recolector |
-| `op.exp.5-change-management` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
-| `op.exp.6-malware-protection` | ídem | recolector |
-| `op.exp.7-incident-management` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba que el agente envía su log de respuesta activa |
-| `op.exp.8-activity-logging` | reglas, `<localfile>` del grupo `ens`, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | recolector y reglas de auditd |
-| `op.exp.9-incident-management-records` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba el reenvío de respuesta activa, FIM y dpkg |
-| `op.exp.10-cryptographic-key-protection` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
+| `linux/mp.info.6` | reglas y `<localfile>` del grupo `ens` | ejecución y medida de la copia en el servidor Proxmox Backup |
+| `linux/op.acc.1` | reglas y `<localfile>` del grupo `ens` | recolector |
+| `linux/op.acc.2` | ídem | recolector |
+| `linux/op.acc.3` | ídem | recolector |
+| `linux/op.acc.4` | ídem | recolector |
+| `linux/op.acc.5` | ídem | recolector |
+| `linux/op.acc.6` | ídem | recolector |
+| `linux/op.exp.1` | ídem | recolector |
+| `linux/op.exp.2` | ídem | recolector |
+| `linux/op.exp.3` | ídem | recolector |
+| `linux/op.exp.4` | ídem; el puente del Vulnerability Detector es opcional y no se instala por defecto (ver su guía) | recolector |
+| `linux/op.exp.5` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
+| `linux/op.exp.6` | ídem | recolector |
+| `linux/op.exp.7` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba que el agente envía su log de respuesta activa |
+| `linux/op.exp.8` | reglas, `<localfile>` del grupo `ens`, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | recolector y reglas de auditd |
+| `linux/op.exp.9` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba el reenvío de respuesta activa, FIM y dpkg |
+| `linux/op.exp.10` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
 
 > [!important]
 > Los `install.sh` que escriben reglas de auditd (op.acc.2, op.acc.3,

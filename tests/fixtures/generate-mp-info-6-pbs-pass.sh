@@ -18,7 +18,21 @@
 set -euo pipefail
 
 AQUI="$(cd "$(dirname "$0")" && pwd)"
-RUNBOOK="${1:-$AQUI/../../../mp.info.6-proxmox-backup-runbook}"
+# Sin argumento, el runbook es la carpeta hermana del plugin cuyo remoto
+# `origin` termina en linux/mp.info.6 (los repos se llaman como el control desde el
+# 01/10/2026, así que la carpeta no lo identifica); si no hay ninguna, la de
+# antes del renombrado, mp.info.6-proxmox-backup-runbook.
+runbook_por_origen() {
+  local d url
+  for d in "$AQUI"/../../../*/; do
+    url="$(git -C "$d" remote get-url origin 2>/dev/null || true)"
+    case "$url" in
+      */"$1"|*/"$1".git|*:"$1"|*:"$1".git) echo "${d%/}"; return 0 ;;
+    esac
+  done
+  echo "$AQUI/../../../$2"
+}
+RUNBOOK="${1:-$(runbook_por_origen linux/mp.info.6 mp.info.6-proxmox-backup-runbook)}"
 RUNBOOK="$(cd "$RUNBOOK" && pwd)"
 SALIDA="$AQUI/mp-info-6-pbs-pass.ndjson"
 

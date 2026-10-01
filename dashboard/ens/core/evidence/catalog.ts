@@ -2219,7 +2219,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
   //
   // Reglas: todas de la banda 110500-110599, desplegadas por el runbook
-  // `op.exp.4-security-maintenance-and-updates` (y su copia LDAP).
+  // `linux/op.exp.4` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.4',
@@ -2459,7 +2459,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // leer los hechos de otro.
   //
   // Reglas: todas de la banda 110600-110699, desplegadas por el runbook
-  // `op.exp.5-change-management` (y su copia LDAP).
+  // `linux/op.exp.5` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.5',
@@ -2632,7 +2632,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
   //
   // Reglas: todas de la banda 110700-110799, desplegadas por el runbook
-  // `op.exp.6-malware-protection` (y su copia LDAP). Ninguna regla nativa de
+  // `linux/op.exp.6` (y su copia LDAP). Ninguna regla nativa de
   // Wazuh (syscheck, rootcheck, VirusTotal, YARA): el motor solo lee alertas
   // ENSFácil, así que lo que se acredita es el hecho que el recolector emite.
   {
@@ -2870,7 +2870,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // restan instantes, y las decide `policies/op-exp-7.policy.ts`.
   //
   // Reglas: banda 110800-110899, desplegadas por el runbook
-  // `op.exp.7-incident-management` (y su copia LDAP).
+  // `linux/op.exp.7` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.7',
@@ -3121,7 +3121,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // qué fila se mide cada requisito, y el puente lo lleva a la tabla.
   //
   // Reglas: banda 110900-110999, desplegadas por el runbook
-  // `op.exp.8-activity-logging` (y su copia LDAP).
+  // `linux/op.exp.8` (y su copia LDAP).
   {
     // Plano del servidor. Lo juzga la policy del control: auditd activo con
     // reglas y registro del sistema persistente; en el directorio, slapd con
@@ -3600,7 +3600,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // 111102): la misma clave en disco, contrastada con tres políticas.
   //
   // Reglas: todas de la banda 111100-111199, desplegadas por el runbook
-  // `op.exp.10-cryptographic-key-protection` (y su copia LDAP).
+  // `linux/op.exp.10` (y su copia LDAP).
   {
     id: 'EV-01',
     controlId: 'op.exp.10',

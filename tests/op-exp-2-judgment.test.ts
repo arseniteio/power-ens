@@ -4,7 +4,7 @@
  *     npx tsx tests/op-exp-2-judgment.test.ts
  *
  * Los eventos de abajo son los que emitió el recolector de
- * op.exp.2-security-configuration en un Ubuntu 24.04 real (solo se ha cambiado la
+ * linux/op.exp.2 en un Ubuntu 24.04 real (solo se ha cambiado la
  * IP de origen del acceso ssh por una de documentación). Se envuelven como las
  * alertas que indexa Wazuh y se pasan por el mismo camino que el panel:
  * normalizador, resolución de evidencias y evaluación del control.

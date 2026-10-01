@@ -1,6 +1,6 @@
 <!-- FUENTE CANÓNICA de las reglas de op.acc.4.
      La copia desplegable vive en
-     op.acc.4-access-rights-management-process/manager/ensfacil_op_acc_4_json_rules.xml
+     manager/ensfacil_op_acc_4_json_rules.xml del runbook linux/op.acc.4
      Si se modifica una, hay que sincronizar la otra: lo comprueba
      plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_acc_4,score,">
