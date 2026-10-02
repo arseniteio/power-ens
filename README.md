@@ -109,6 +109,53 @@ Qué instala cada runbook Linux:
 
 ---
 
+## Requisitos y versiones probadas
+
+### Probado en
+
+| Componente | Versión | Dónde |
+|---|---|---|
+| Sistema del servidor Wazuh | Ubuntu 22.04 LTS | laboratorio de Quersystem |
+| Wazuh manager, indexer y dashboard | 4.14.7 (instalación por paquetes) | laboratorio de Quersystem |
+| OpenSearch Dashboards | 2.19.5 (el del dashboard 4.14.7) | laboratorio de Quersystem |
+| Node.js para compilar el plugin | 18.19.0 (con Yarn Classic 1.22.22) | laboratorio de Quersystem |
+| Agente Wazuh en Linux | 4.14.5 y 4.14.7 (Ubuntu 22.04 y 24.04) | laboratorio de Quersystem |
+| Agente Wazuh en Windows | 4.14.5 (Windows Server 2022 Standard, edición de evaluación) | laboratorio de Quersystem |
+| Imagen `wazuh/wazuh-manager` | 4.14.0, 4.14.1 y 4.14.7: `wazuh-logtest` e `install-manager.sh` (solo la parte del manager, sin indexer ni agentes) | contenedor de prueba |
+| Imagen `wazuh/wazuh-dashboard` | 4.14.7: solo la comprobación del `build.number` | contenedor de prueba |
+
+### Requisitos
+
+- **Wazuh 4.14.7** instalado y validado (manager, indexer y dashboard) antes de
+  instalar ENSFácil. El paquete de integración reconoce 4.14.5 y 4.14.7; ver la
+  [compatibilidad de versiones](docs/deployment/03-version-compatibility.md).
+- **Ubuntu Server** con `sudo`, conectividad de red y acceso por SSH
+  autorizado a los repositorios de GitLab.
+- Herramientas que la guía de instalación comprueba antes de empezar: `git`,
+  `curl`, `wget` y `python3` (este último también para `tests/check-consistency.py`).
+- **Para compilar el plugin:** Node.js 18.19.0 y Yarn Classic 1.22.22. El
+  Node.js 18.19.0 también viene dentro del paquete `wazuh-dashboard`; `git` es
+  necesario para preparar el árbol de compilación.
+- **En cada máquina medida:** agente de Wazuh en el grupo del control y el
+  runbook de su plataforma. Los requisitos de cada runbook (`cron`, `auditd`,
+  paquetes concretos) están en su propio README.
+- El detalle de lo que se necesita para cada paso está en la
+  [guía de instalación desde cero](docs/deployment/01-installation-from-scratch.md).
+
+### Sin probar
+
+- Otras versiones de Wazuh (distintas de 4.14.5 y 4.14.7 para el paquete de
+  integración, y de 4.14.7 para el despliegue completo): sin probar hasta
+  completar un ciclo de compatibilidad.
+- **Wazuh en Docker.** Solo está probado el manager de las imágenes oficiales
+  (versiones de la tabla anterior). El despliegue completo con `docker compose`,
+  indexer y agentes, la imagen del dashboard con el plugin, el cron del host y
+  un clúster con varios nodos están sin probar; ver
+  [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+- Otras distribuciones del servidor distintas de Ubuntu: sin probar.
+
+---
+
 ## Instalación y despliegue
 
 Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que corresponda a tu entorno.

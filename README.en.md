@@ -109,6 +109,54 @@ What each Linux runbook installs:
 
 ---
 
+## Requirements and tested versions
+
+### Tested on
+
+| Component | Version | Where |
+|---|---|---|
+| Wazuh server operating system | Ubuntu 22.04 LTS | Quersystem lab |
+| Wazuh manager, indexer and dashboard | 4.14.7 (package install) | Quersystem lab |
+| OpenSearch Dashboards | 2.19.5 (the one shipped with dashboard 4.14.7) | Quersystem lab |
+| Node.js to build the plugin | 18.19.0 (with Yarn Classic 1.22.22) | Quersystem lab |
+| Wazuh agent on Linux | 4.14.5 and 4.14.7 (Ubuntu 22.04 and 24.04) | Quersystem lab |
+| Wazuh agent on Windows | 4.14.5 (Windows Server 2022 Standard, evaluation edition) | Quersystem lab |
+| `wazuh/wazuh-manager` image | 4.14.0, 4.14.1 and 4.14.7: `wazuh-logtest` and `install-manager.sh` (manager side only, no indexer or agents) | test container |
+| `wazuh/wazuh-dashboard` image | 4.14.7: only the `build.number` check | test container |
+
+### Requirements
+
+- **Wazuh 4.14.7** installed and validated (manager, indexer and dashboard)
+  before installing ENSFácil. The integration package recognises 4.14.5 and
+  4.14.7; see the
+  [version compatibility](docs/deployment/03-version-compatibility.md).
+- **Ubuntu Server** with `sudo`, network connectivity and authorised SSH access
+  to the GitLab repositories.
+- Tools the installation guide checks before starting: `git`, `curl`, `wget`
+  and `python3` (the latter also for `tests/check-consistency.py`).
+- **To build the plugin:** Node.js 18.19.0 and Yarn Classic 1.22.22. Node.js
+  18.19.0 also ships inside the `wazuh-dashboard` package; `git` is needed to
+  prepare the build tree.
+- **On every measured machine:** a Wazuh agent in the control's group and the
+  runbook for its platform. Each runbook's requirements (`cron`, `auditd`,
+  specific packages) are in its own README.
+- The detail of what each step needs is in the
+  [installation from scratch guide](docs/deployment/01-installation-from-scratch.md).
+
+### Not tested
+
+- Other Wazuh versions (other than 4.14.5 and 4.14.7 for the integration
+  package, and other than 4.14.7 for the full deployment): not tested until a
+  compatibility cycle is completed.
+- **Wazuh in Docker.** Only the manager from the official images is tested
+  (versions in the table above). The full `docker compose` deployment with
+  indexer and agents, the dashboard image with the plugin, the host cron and a
+  multi-node cluster are untested; see
+  [Manager in a container](docs/deployment/06-wazuh-in-docker.md).
+- Server distributions other than Ubuntu: not tested.
+
+---
+
 ## Installation and deployment
 
 This `README.md` is the entry point of ENSFácil. Choose the path that matches your environment.
