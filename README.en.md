@@ -115,7 +115,8 @@ What each Linux runbook installs:
 
 | Component | Version | Where |
 |---|---|---|
-| Wazuh server operating system | Ubuntu 22.04 LTS | Quersystem lab |
+| Wazuh server operating system | Ubuntu 22.04 LTS | Quersystem lab (server in use) |
+| Wazuh server operating system | Ubuntu Server 24.04.4 LTS | from-scratch install of the [installation guide](docs/deployment/01-installation-from-scratch.en.md#81-environment-used-to-validate-this-guide) |
 | Wazuh manager, indexer and dashboard | 4.14.7 (package install) | Quersystem lab |
 | OpenSearch Dashboards | 2.19.5 (the one shipped with dashboard 4.14.7) | Quersystem lab |
 | Node.js to build the plugin | 18.19.0 (with Yarn Classic 1.22.22) | Quersystem lab |
