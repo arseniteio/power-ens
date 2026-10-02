@@ -16,6 +16,30 @@ flowchart LR
 
 [[_TOC_]]
 
+## How ENSFácil is deployed
+
+Four steps, in this order. Each one is detailed in the
+[installation-from-scratch guide](docs/deployment/01-installation-from-scratch.en.md),
+and the links to every runbook and its guides are in the
+[runbooks and registers table](docs/deployment/05-runbooks-and-registers.en.md).
+
+1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of
+   each of the 17 Linux runbooks (rules and `<localfile>`; op.exp.7, op.exp.8
+   and op.exp.9 also leave a collector on the manager itself), and finally the
+   plugin built and installed in the dashboard.
+   Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
+2. **Machines.** On each agent, the runbooks of its platform (Linux, Zimbra
+   LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of
+   each runbook**.
+3. **Configuration in the dashboard.** In ENSFácil > Configuration, the
+   parameters of each control, and on the machines or the manager, the
+   [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
+   following the `02-compliance` guide **of each runbook** (it is not in this
+   repository: each runbook has its own, linked from the table).
+4. **Measure.** After the collectors' first pass (hourly), the panel judges each
+   control; whatever cannot be demonstrated shows `NO_EVALUABLE` with its cause
+   and says where to fix it.
+
 ## Controls
 
 ENSFácil evaluates 17 controls. «Levels» are the system categories in which
@@ -97,6 +121,8 @@ This `README.md` is the entry point of ENSFácil. Choose the path that matches y
 | 2 | Update an existing environment or add new controls | [Updating an existing environment](docs/deployment/02-updating-an-existing-environment.en.md) |
 | 3 | Check compatibility with another Wazuh version | [Version compatibility](docs/deployment/03-version-compatibility.en.md) |
 | 4 | Diagnose a problem or roll back | [Troubleshooting and rollback](docs/deployment/04-troubleshooting-and-rollback.en.md) |
+| 5 | Find a control's runbook, its guides and the registers it needs | [Runbooks and the organization's registers](docs/deployment/05-runbooks-and-registers.en.md) |
+| 6 | Install with the official Wazuh Docker images | [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md) |
 
 > [!note]
 > A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.
@@ -114,7 +140,7 @@ This `README.md` is the entry point of ENSFácil. Choose the path that matches y
 
 Once ENSFácil is installed following the guides above, agents must deploy the runbooks of the controls that apply to each system.
 
-Each control repository includes its guides in `docs/deployment/`: installation in `01-installation.md`, what must be declared for the control and how each piece of evidence is checked in `02-compliance.md`, and uninstallation and troubleshooting in `03-uninstall-and-troubleshooting.md`.
+Each control repository (runbook) includes its guides in its own `docs/deployment/`: installation in `01-installation.md`, what must be declared for the control and how each piece of evidence is checked in `02-compliance.md`, and uninstallation and troubleshooting in `03-uninstall-and-troubleshooting.md`. Those guides live on GitLab, in each runbook, not in this repository: the direct links are in the [runbook table](docs/deployment/05-runbooks-and-registers.en.md#runbooks-per-control).
 
 > [!important]
 > The compliance policy is declared on the ENSFácil Configuration screen. Empty parameters are decisions not yet declared and must not be read as default values.

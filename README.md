@@ -16,6 +16,30 @@ flowchart LR
 
 [[_TOC_]]
 
+## Cómo se despliega ENSFácil
+
+Cuatro pasos, en este orden. El detalle de cada uno está en la
+[guía de instalación desde cero](docs/deployment/01-installation-from-scratch.md),
+y los enlaces a cada runbook y a sus guías, en la
+[tabla de runbooks y registros](docs/deployment/05-runbooks-and-registers.md).
+
+1. **Manager.** Wazuh instalado y validado; después, el `install-manager.sh` de
+   cada uno de los 17 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8
+   y op.exp.9 dejan además un recolector en el propio manager), y por último el
+   plugin compilado e instalado en el dashboard.
+   ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+2. **Máquinas.** En cada agente, los runbooks de su plataforma (Linux, Zimbra
+   LDAP, Zimbra MTA o Windows), siguiendo la guía `01-installation` **de cada
+   runbook**.
+3. **Configuración en el dashboard.** En ENSFácil > Configuración, los
+   parámetros de cada control, y en las máquinas o en el manager, los
+   [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
+   siguiendo la guía `02-compliance` **de cada runbook** (no está en este
+   repositorio: cada runbook tiene la suya, enlazada en la tabla).
+4. **Medir.** Tras la primera pasada de los recolectores (cada hora), el panel
+   juzga cada control; lo que no se puede demostrar sale `NO_EVALUABLE` con su
+   causa y dice dónde se corrige.
+
 ## Controles
 
 ENSFácil evalúa 17 controles. «Niveles» son las categorías del sistema en las
@@ -97,6 +121,8 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 | 2 | Actualizar un entorno existente o añadir controles nuevos | [Actualización de un entorno existente](docs/deployment/02-updating-an-existing-environment.md) |
 | 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/deployment/03-version-compatibility.md) |
 | 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
+| 5 | Encontrar el runbook de un control, sus guías y los registros que pide | [Runbooks y registros de la organización](docs/deployment/05-runbooks-and-registers.md) |
+| 6 | Instalar con las imágenes oficiales de Wazuh en Docker | [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
@@ -114,7 +140,7 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 
 Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
 
-Cada repositorio de control incluye sus guías en `docs/deployment/`: la instalación en `01-installation.md`, lo que hay que declarar en el control y cómo se comprueba cada evidencia en `02-compliance.md`, y la desinstalación y resolución de problemas en `03-uninstall-and-troubleshooting.md`.
+Cada repositorio de control (runbook) incluye sus guías en su propio `docs/deployment/`: la instalación en `01-installation.md`, lo que hay que declarar en el control y cómo se comprueba cada evidencia en `02-compliance.md`, y la desinstalación y resolución de problemas en `03-uninstall-and-troubleshooting.md`. Esas guías están en GitLab, en cada runbook, no en este repositorio: los enlaces directos están en la [tabla de runbooks](docs/deployment/05-runbooks-and-registers.md#runbooks-por-control).
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.

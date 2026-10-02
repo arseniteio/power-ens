@@ -25,6 +25,16 @@ No se presupone que estén previamente instalados o preparados Wazuh, ENSFácil,
 el árbol de compilación de Wazuh Dashboard, Node.js, Yarn, las reglas ENS, el
 grupo `ens` ni la configuración inicial de ENSFácil.
 
+> [!important]
+> **¿Wazuh corre en contenedores** (imágenes oficiales `wazuh/wazuh-manager` y
+> `wazuh/wazuh-dashboard`)? El orden de esta guía vale, pero varios pasos se
+> hacen de otra forma (sin `systemctl`, sin `hostname`, sin cron, sin `git`):
+> seguir además [Manager en contenedor](06-wazuh-in-docker.md).
+>
+> Los enlaces a cada runbook y a sus guías (`01-installation`, `02-compliance`,
+> `03-uninstall-and-troubleshooting`), y los registros que crea la organización,
+> están en [Runbooks y registros de la organización](05-runbooks-and-registers.md).
+
 ## 3. Resultado esperado
 
 Al finalizar esta guía deben quedar instalados, integrados y validados Wazuh y
@@ -676,4 +686,4 @@ Abrir ENSFácil y comprobar que:
 - el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque op.exp.7, op.exp.8 y op.exp.9 se miden en él;
 - tras la primera ejecución horaria de los recolectores del manager, op.exp.7, op.exp.8 y op.exp.9 muestran datos en la fila del manager.
 
-Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` de cada runbook); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.
+Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` **de cada runbook**, enlazada en la [tabla de runbooks](05-runbooks-and-registers.md#runbooks-por-control)); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.

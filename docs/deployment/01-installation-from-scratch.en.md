@@ -25,6 +25,16 @@ It is not assumed that Wazuh, ENSFácil, the Wazuh Dashboard build tree,
 Node.js, Yarn, the ENS rules, the `ens` group, or ENSFácil's initial
 configuration are already installed or prepared.
 
+> [!important]
+> **Does Wazuh run in containers** (official `wazuh/wazuh-manager` and
+> `wazuh/wazuh-dashboard` images)? The order of this guide still applies, but
+> several steps are done differently (no `systemctl`, no `hostname`, no cron, no
+> `git`): also follow [Manager in a container](06-wazuh-in-docker.en.md).
+>
+> The links to every runbook and its guides (`01-installation`, `02-compliance`,
+> `03-uninstall-and-troubleshooting`), and the registers the organization
+> creates, are in [Runbooks and the organization's registers](05-runbooks-and-registers.en.md).
+
 ## 3. Expected outcome
 
 By the end of this guide, Wazuh and ENSFácil must be installed, integrated,
@@ -696,4 +706,4 @@ Open ENSFácil and check that:
 - besides the machines in the `ens` group, the scope includes the manager (agent `000`), because op.exp.7, op.exp.8 and op.exp.9 are measured on it;
 - after the first hourly run of the manager collectors, op.exp.7, op.exp.8 and op.exp.9 show data on the manager row.
 
-Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` of each runbook); the machines whose backups are measured also go into the `ens-copias` group and into mp.info.6 P-04. The op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that must be loaded with `sudo augenrules --load` at the end.
+Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` **of each runbook**, linked from the [runbook table](05-runbooks-and-registers.en.md#runbooks-per-control)); the machines whose backups are measured also go into the `ens-copias` group and into mp.info.6 P-04. The op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that must be loaded with `sudo augenrules --load` at the end.
