@@ -1,8 +1,9 @@
 // Los filtros que la barra de búsqueda del dashboard añade a las consultas de
-// las pantallas ENS: la consulta y los filtros de la barra en DSL, y las
-// fechas. Sin React ni dashboard: los constructores llegan de fuera
-// (`opensearchQuery.buildOpenSearchQuery` y el `createFilter` del timefilter)
-// y así lo prueban las pruebas.
+// las pantallas ENS. Sin React ni dashboard: los constructores llegan de fuera
+// y así lo prueban las pruebas. En la app son los del contrato de arranque del
+// plugin data (`data.query.getOpenSearchQuery`, `timefilter.createFilter`), no
+// un import de `src/plugins/data/public`, que copiaría el plugin data entero
+// dentro del nuestro.
 //
 // CUIDADO CON EL BUCLE. Con un rango relativo («últimas 24 horas») el filtro
 // de fechas sale con un instante absoluto nuevo en cada llamada, y
@@ -11,8 +12,10 @@
 // consulta, filtros, rango): llamada en cada render, cada búsqueda provocaría
 // la siguiente.
 
-export interface AlertsSearchBuilders<P, Q, F, T> {
-  buildQuery: (indexPattern: P, queries: Q[], filters: F[]) => unknown;
+export interface AlertsSearchBuilders<P, T> {
+  // La consulta, los filtros y las fechas de la barra en un solo DSL.
+  buildQuery: (indexPattern: P) => unknown;
+  // Solo las fechas, para cuando la consulta no se puede traducir.
   buildTimeFilter: (indexPattern: P, timeRange: T) => unknown;
 }
 
@@ -24,31 +27,29 @@ export interface AlertsSearchFilters {
 
 const LENGUAJE_NO_ADMITIDO = 'Esta vista solo admite consultas DQL o Lucene';
 
-export const buildAlertsSearchFilters = <P, Q, F, T>(
-  { indexPattern, query, filters, timeRange }: { indexPattern?: P; query: Q; filters: F[]; timeRange: T },
-  { buildQuery, buildTimeFilter }: AlertsSearchBuilders<P, Q, F, T>
+export const buildAlertsSearchFilters = <P, F, T>(
+  { indexPattern, filters, timeRange }: { indexPattern?: P; filters: F[]; timeRange: T },
+  { buildQuery, buildTimeFilter }: AlertsSearchBuilders<P, T>
 ): AlertsSearchFilters => {
   if (!indexPattern) return { filters: [] };
 
-  // `buildOpenSearchQuery` lanza con una consulta mal escrita y, con un
-  // lenguaje que no traduce (PPL, SQL), devuelve `{ type: 'unsupported' }` en
-  // vez de DSL. Ninguna de las dos cosas puede llegar a OpenSearch ni tumbar
-  // la vista: se busca sin la consulta, con los filtros de la barra, y se avisa.
-  const traduce = (consultas: Q[]): { dsl?: unknown; error?: string } => {
-    try {
-      const dsl = buildQuery(indexPattern, consultas, filters) as { bool?: unknown } | undefined;
-      return dsl && dsl.bool ? { dsl } : { error: LENGUAJE_NO_ADMITIDO };
-    } catch (fallo) {
-      return { error: String((fallo as Error)?.message || fallo) };
-    }
-  };
+  // Con una consulta mal escrita el dashboard lanza y, con un lenguaje que no
+  // traduce a DSL (PPL, SQL), devuelve `{ type: 'unsupported' }`. Ninguna de
+  // las dos cosas puede llegar a OpenSearch ni tumbar la vista.
+  let queryError: string;
+  try {
+    const dsl = buildQuery(indexPattern) as { bool?: unknown } | undefined;
+    if (dsl && dsl.bool) return { filters: [dsl] };
+    queryError = LENGUAJE_NO_ADMITIDO;
+  } catch (fallo) {
+    queryError = String((fallo as Error)?.message || fallo);
+  }
 
-  const conConsulta = traduce([query]);
-  const consulta = conConsulta.dsl ? conConsulta.dsl : traduce([]).dsl;
-  const fechas = buildTimeFilter(indexPattern, timeRange);
-
+  // Se busca sin la consulta y se avisa: los filtros de la barra tal cual (la
+  // petición les quita `meta`, salta los desactivados y niega los negados) y
+  // las fechas.
   return {
-    filters: [consulta, fechas].filter(Boolean),
-    ...(conConsulta.error ? { queryError: conConsulta.error } : {}),
+    filters: [...filters, buildTimeFilter(indexPattern, timeRange)].filter(Boolean),
+    queryError,
   };
 };

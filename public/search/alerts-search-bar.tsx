@@ -2,7 +2,9 @@
 // `wazuh-alerts-*`, y los filtros que de ella salen para `useEsSearch`.
 // La usan las pestañas Controles y Eventos.
 import React, { useEffect, useMemo, useState } from 'react';
-import { opensearchQuery } from '../../../../src/plugins/data/public';
+// Del plugin data, solo tipos: lo de ejecución sale de su contrato de
+// arranque (`getData()`). Un import de valor de `src/plugins/data/public`
+// mete una copia entera del plugin data en el nuestro.
 import type { Filter, IndexPattern, Query, TimeRange } from '../../../../src/plugins/data/public';
 import { ENSFACIL_PLUGIN_ID, ENS_ALERTS_INDEX } from '../../common/constants';
 import { getCore, getData, getNavigation } from '../services';
@@ -70,22 +72,20 @@ export const useAlertsSearchBar = () => {
   // Memorizado sobre lo guardado en el estado, nunca recalculado en cada
   // render: con un rango relativo el filtro de fechas lleva la hora de ahora,
   // y un filtro nuevo en cada render haría que cada búsqueda provocara otra.
+  // `getOpenSearchQuery` lee la consulta, los filtros y las fechas de los
+  // mismos servicios que este estado escucha: `query`, `filtros` y `rango`
+  // están en las dependencias para recalcular cuando cambian.
   const { filters, queryError } = useMemo(
     () =>
       buildAlertsSearchFilters(
-        { indexPattern, query, filters: filtros, timeRange: rango },
+        { indexPattern, filters: filtros, timeRange: rango },
         {
-          buildQuery: (patron: IndexPattern, consultas: Query[], conFiltros: Filter[]) =>
-            opensearchQuery.buildOpenSearchQuery(
-              patron,
-              consultas,
-              conFiltros,
-              opensearchQuery.getOpenSearchQueryConfig(getCore().uiSettings)
-            ),
+          buildQuery: (patron: IndexPattern) => data.query.getOpenSearchQuery(patron),
           buildTimeFilter: (patron: IndexPattern, intervalo: TimeRange) =>
             data.query.timefilter.timefilter.createFilter(patron, intervalo),
         }
       ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, indexPattern, query, filtros, rango, pasada]
   );
 

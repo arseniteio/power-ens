@@ -34,6 +34,17 @@ const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(conf
 
 for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(f, 'utf8');
+  // En el navegador, del núcleo solo tipos. El plugin se compila solo (sin
+  // las referencias a los paquetes de los demás plugins), así que un import de
+  // valor de `src/plugins/data/public` mete una copia entera del plugin data
+  // en el nuestro (comprobado el 07/10/2026: de 15 a 58 s de compilación y
+  // +2 MB). Lo que haga falta en ejecución, del contrato de arranque
+  // (`getData()`, `getNavigation()`, `getCore()`).
+  if (f.startsWith(path.join(raiz, 'public') + path.sep)) {
+    for (const m of texto.matchAll(/^\s*(?:import|export)\s+(?!type\b)[^;]*?from\s*['"]((?:\.\.\/)+src\/[^'"]+)['"]/gm)) {
+      fallos.push(`${path.relative(raiz, f)}: importa valores del núcleo (${m[1]}); solo \`import type\``);
+    }
+  }
   for (const m of texto.matchAll(/(?:from|import\(|require\()\s*['"]([^'"]+)['"]/g)) {
     const destino = m[1];
     const rel = path.relative(raiz, f);

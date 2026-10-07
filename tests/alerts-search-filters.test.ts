@@ -1,9 +1,10 @@
 /**
  * Los filtros que la barra de búsqueda del dashboard pasa a las consultas de
- * las pantallas ENS: la consulta y los filtros de la barra en DSL, y las
- * fechas. Y la guarda contra el bucle: con un rango relativo («últimas 24
- * horas») el filtro de fechas sale con un instante nuevo en cada llamada; si se
- * construyera en cada render, cada búsqueda provocaría la siguiente.
+ * las pantallas ENS: la consulta, los filtros de la barra y las fechas en un
+ * solo DSL, el de `data.query.getOpenSearchQuery`. Y la guarda contra el
+ * bucle: con un rango relativo («últimas 24 horas») el filtro de fechas sale
+ * con un instante nuevo en cada llamada; si se construyera en cada render,
+ * cada búsqueda provocaría la siguiente.
  *
  *   npx --yes tsx tests/alerts-search-filters.test.ts
  */
@@ -15,52 +16,51 @@ declare const process: { exit(code: number): void };
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
-type Q = { query: string; language: string };
 const patron = { title: 'wazuh-alerts-*', timeFieldName: 'timestamp' };
 const filtroBarra = { meta: { key: 'agent.id' }, query: { match_phrase: { 'agent.id': '001' } } };
 const rango = { from: 'now-24h', to: 'now' };
 const fechas = { meta: { index: 'x' }, range: { timestamp: { gte: 'a', lte: 'b' } } };
+const todo = { bool: { must: [], filter: ['consulta', 'filtro', 'fechas'], should: [], must_not: [] } };
 
-const llamadas: unknown[][] = [];
+// Lo que hace `getOpenSearchQuery` con lo que haya en la barra.
+let barra: 'ok' | 'ppl' | 'rota' = 'ok';
+const llamadas: unknown[] = [];
 const constructores = {
-  buildQuery: (p: unknown, consultas: Q[], filtros: unknown[]) => {
-    llamadas.push([p, consultas, filtros]);
-    if (consultas.some(c => c.language === 'PPL')) return { type: 'unsupported', queries: consultas, filters: filtros };
-    if (consultas.some(c => c.query === 'agent.name:')) throw new Error('Expected value but end of input found');
-    return { bool: { must: [], filter: consultas.map(c => c.query).concat(filtros.map(() => 'filtro')), should: [], must_not: [] } };
+  buildQuery: (p: unknown) => {
+    llamadas.push(p);
+    if (barra === 'ppl') return { type: 'unsupported', queries: [], filters: [] };
+    if (barra === 'rota') throw new Error('Expected value but end of input found');
+    return todo;
   },
   buildTimeFilter: (_p: unknown, r: typeof rango) => (r ? fechas : undefined),
 };
+const estado = { indexPattern: patron as typeof patron | undefined, filters: [filtroBarra], timeRange: rango };
 
-const dql: Q = { query: 'agent.name: wazuh-real', language: 'kuery' };
-
-const sinPatron = buildAlertsSearchFilters({ indexPattern: undefined, query: dql, filters: [filtroBarra], timeRange: rango }, constructores);
+const sinPatron = buildAlertsSearchFilters({ ...estado, indexPattern: undefined }, constructores);
 comprueba('sin patrón de índice: ningún filtro', sinPatron.filters.length === 0 && !sinPatron.queryError);
 
-llamadas.length = 0;
-const normal = buildAlertsSearchFilters({ indexPattern: patron, query: dql, filters: [filtroBarra], timeRange: rango }, constructores);
-comprueba('con patrón: la consulta en DSL y luego las fechas', normal.filters.length === 2 && (normal.filters[0] as any).bool && normal.filters[1] === fechas, normal.filters);
-comprueba('la consulta se construye con la de la barra y sus filtros', JSON.stringify(llamadas[0]) === JSON.stringify([patron, [dql], [filtroBarra]]), llamadas);
+const normal = buildAlertsSearchFilters(estado, constructores);
+comprueba('con patrón: un solo DSL con la consulta, los filtros y las fechas', normal.filters.length === 1 && normal.filters[0] === todo, normal.filters);
+comprueba('se construye sobre el patrón', llamadas[llamadas.length - 1] === patron);
 comprueba('sin error de consulta', normal.queryError === undefined);
 
-const sinFechas = buildAlertsSearchFilters(
-  { indexPattern: patron, query: dql, filters: [], timeRange: undefined as unknown as typeof rango },
-  constructores
-);
-comprueba('un patrón sin campo de tiempo: solo la consulta', sinFechas.filters.length === 1 && (sinFechas.filters[0] as any).bool);
-
-const ppl = buildAlertsSearchFilters({ indexPattern: patron, query: { query: 'source = x', language: 'PPL' }, filters: [filtroBarra], timeRange: rango }, constructores);
+barra = 'ppl';
+const ppl = buildAlertsSearchFilters(estado, constructores);
 comprueba('lenguaje no admitido: se avisa', /DQL o Lucene/.test(ppl.queryError || ''), ppl.queryError);
-comprueba('lenguaje no admitido: nada sin `bool` llega a la consulta', ppl.filters.every(f => (f as any).bool || f === fechas), ppl.filters);
-comprueba('lenguaje no admitido: se quedan los filtros de la barra y las fechas', ppl.filters.length === 2 && JSON.stringify((ppl.filters[0] as any).bool.filter) === '["filtro"]', ppl.filters);
+comprueba('lenguaje no admitido: nada sin `bool` llega a la consulta', !ppl.filters.some(f => (f as any).type === 'unsupported'), ppl.filters);
+comprueba('lenguaje no admitido: se quedan los filtros de la barra y las fechas', ppl.filters.length === 2 && ppl.filters[0] === filtroBarra && ppl.filters[1] === fechas, ppl.filters);
 
-const rota = buildAlertsSearchFilters({ indexPattern: patron, query: { query: 'agent.name:', language: 'kuery' }, filters: [filtroBarra], timeRange: rango }, constructores);
+barra = 'rota';
+const rota = buildAlertsSearchFilters(estado, constructores);
 comprueba('consulta inválida: no revienta y dice por qué', rota.queryError === 'Expected value but end of input found', rota.queryError);
-comprueba('consulta inválida: se quedan los filtros de la barra y las fechas', rota.filters.length === 2 && JSON.stringify((rota.filters[0] as any).bool.filter) === '["filtro"]', rota.filters);
+comprueba('consulta inválida: se quedan los filtros de la barra y las fechas', rota.filters.length === 2 && rota.filters[0] === filtroBarra && rota.filters[1] === fechas, rota.filters);
+const rotaSinFechas = buildAlertsSearchFilters({ ...estado, timeRange: undefined as unknown as typeof rango }, constructores);
+comprueba('consulta inválida y patrón sin campo de tiempo: solo los filtros', rotaSinFechas.filters.length === 1 && rotaSinFechas.filters[0] === filtroBarra, rotaSinFechas.filters);
 
-// La guarda del bucle, sobre el código: toda llamada a `createFilter(` del
-// plugin va dentro de un `useMemo(`, y ese useMemo depende del rango guardado
-// en el estado, no de uno recalculado.
+// La guarda del bucle, sobre el código: toda llamada del plugin que fabrica
+// el filtro de fechas (`createFilter(`, `getOpenSearchQuery(`) va dentro de un
+// `useMemo(`, y ese useMemo depende del rango guardado en el estado, no de uno
+// recalculado.
 const raiz = path.join(__dirname, '..', 'public');
 const recorre = (dir: string, fuera: string[] = []): string[] => {
   for (const n of fs.readdirSync(dir)) {
@@ -92,10 +92,11 @@ for (const fichero of recorre(raiz)) {
   const texto = fs.readFileSync(fichero, 'utf8');
   const tramos = tramosUseMemo(texto);
   const sitio = path.relative(path.join(__dirname, '..'), fichero);
-  for (let i = texto.indexOf('createFilter('); i >= 0; i = texto.indexOf('createFilter(', i + 1)) {
+  for (const m of texto.matchAll(/\b(createFilter|getOpenSearchQuery)\(/g)) {
+    const i = m.index as number;
     creaFiltros++;
     const tramo = tramos.find(([a, b]) => a < i && i < b);
-    comprueba(`${sitio}: createFilter dentro de un useMemo`, !!tramo);
+    comprueba(`${sitio}: ${m[1]} dentro de un useMemo`, !!tramo);
     if (tramo) {
       const deps = texto.slice(tramo[0], tramo[1] + 1).match(/\[([^\]]*)\]\s*,?\s*\)$/);
       comprueba(`${sitio}: el useMemo depende del rango del estado`, !!deps && /\brango\b/.test(deps[1]), deps && deps[1]);
