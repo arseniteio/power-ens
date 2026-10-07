@@ -9,9 +9,9 @@ ellos el control se declaraba evaluable y podía salir en verde.
     python3 test_parameter_value_validator.py
 
 Ejecuta el TypeScript de verdad (no una copia del criterio en Python: una copia
-pasa igual con el cambio y sin él). Para eso copia `dashboard/` a un temporal,
-deja al lado un `kibana-services` de mentira —lo importa el cliente HTTP de
-configuración y vive fuera de este repo— y lanza un arnés con bun.
+pasa igual con el cambio y sin él). Para eso copia `public/` a un temporal,
+deja al lado un `kibana-services` de mentira —de la versión integrada; el
+arnés no lo necesita— y lanza un arnés con bun.
 
 Requiere un runtime capaz de ejecutar TypeScript: bun o deno.
 Sin dependencias de Python más allá de la stdlib.
@@ -46,9 +46,9 @@ def busca_runtime():
 
 # --- arnés ------------------------------------------------------------------
 #
-# Vive aquí y no como fichero del repo a propósito: cualquier `.ts` que se cuele
-# bajo `dashboard/` acaba copiado dentro del árbol del plugin `main` y compilado
-# con él. Un arnés de pruebas no tiene por qué viajar al cliente.
+# Vive aquí y no como fichero del repo a propósito: `public/` es el código del
+# plugin que compila `config/build-plugin.sh`, y un arnés de pruebas no tiene
+# por qué estar entre lo que se compila y se entrega al cliente.
 
 ARNES = r"""
 import { readFileSync } from 'node:fs';

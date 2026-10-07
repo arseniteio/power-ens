@@ -54,9 +54,9 @@ def busca_runtime():
 
 # --- arnés ------------------------------------------------------------------
 #
-# Vive aquí y no como fichero del repo a propósito: cualquier `.ts` que se cuele
-# bajo `dashboard/` acaba copiado dentro del árbol del plugin `main` y compilado
-# con él. Un arnés de pruebas no tiene por qué viajar al cliente.
+# Vive aquí y no como fichero del repo a propósito: `public/` es el código del
+# plugin que compila `config/build-plugin.sh`, y un arnés de pruebas no tiene
+# por qué estar entre lo que se compila y se entrega al cliente.
 
 ARNES = r"""
 import { readFileSync } from 'node:fs';

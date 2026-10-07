@@ -1,5 +1,11 @@
 /*
- * Wazuh app - Module for ENS requirements
+ * ENSFácil · descripciones de los requisitos ENS, por identificador
+ * («título - descripción»), para la vista de Controles.
+ *
+ * Lo escribe el generador de ens-controls-setup (generators/dashboard.py) al
+ * dar de alta un control. Ese generador aún escribe en la ruta de la versión
+ * integrada (dashboard/) y pone su propia cabecera: al usarlo, llevar aquí
+ * solo las entradas nuevas y conservar esta cabecera.
  */
 export const ensRequirementsFile = {
   'mp.info.6.1':
