@@ -1,0 +1,94 @@
+/**
+ * La configuración se guarda igual que en la versión integrada (documento
+ * `active` + historial en wazuh-ens-configuration) y solo la cambian
+ * `ensfacil_admin` o `all_access`.
+ *
+ *   npx --yes tsx tests/server-configuration.test.ts
+ */
+import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
+
+declare const process: { exit(code: number): void };
+const fallos: string[] = [];
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+
+// Índice en memoria con la forma del cliente de OpenSearch.
+const indice = () => {
+  const docs = new Map<string, any>();
+  let existe = false;
+  return {
+    docs,
+    indices: {
+      exists: async () => ({ body: existe }),
+      create: async (p: any) => { existe = true; (indice as any).mapping = p.body; return { body: {} }; },
+    },
+    search: async (p: any) => {
+      const ids = p.body?.query?.ids?.values;
+      const tipo = p.body?.query?.term?.documentType;
+      const hits = [...docs.entries()]
+        .filter(([id, d]) => (ids ? ids.includes(id) : d.documentType === tipo))
+        .map(([, d]) => ({ _source: d }));
+      return { body: { hits: { hits } } };
+    },
+    bulk: async (p: any) => {
+      const lineas = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
+      for (let i = 0; i < lineas.length; i += 2) {
+        const accion = lineas[i].create || lineas[i].index;
+        docs.set(accion._id, lineas[i + 1]);
+      }
+      return { body: { errors: false } };
+    },
+  };
+};
+
+const usuario = (cuerpo: any) => ({ transport: { request: async () => { if (cuerpo instanceof Error) throw cuerpo; return { body: cuerpo }; } } });
+const contexto = (interno: any, actual: any) => ({ core: { opensearch: { client: { asInternalUser: interno, asCurrentUser: actual } } } });
+const respuestas = {
+  ok: (r: any) => ({ status: 200, body: r.body }),
+  customError: (r: any) => ({ status: r.statusCode, body: r.body }),
+};
+const registro = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };
+const h = createConfigurationHandlers({ logger: registro as any, securityEnabled: true });
+const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] };
+
+(async () => {
+  const ix = indice();
+
+  let r: any = await h.getActive(contexto(ix, usuario({ user_name: 'ana', roles: [] })) as any, {} as any, respuestas as any);
+  comprueba('GET sin configuración: null, 200', r.status === 200 && r.body.data.configuration === null && r.body.statusCode === 200 && r.body.error === 0);
+
+  r = await h.save(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('sin rol de administración: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
+  comprueba('y no se guarda nada', ix.docs.size === 0);
+
+  r = await h.history(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, respuestas as any);
+  comprueba('historial sin rol: 403', r.status === 403);
+
+  r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, respuestas as any);
+  comprueba('ensfacil_admin guarda: 200', r.status === 200, r);
+  const activa = ix.docs.get('active');
+  comprueba('documento active', activa?.documentType === 'ACTIVE_CONFIGURATION' && activa?.updatedBy === 'rsis');
+  comprueba('y su historial', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === 1);
+  comprueba('rastro de auditoría', activa?.configuration?.auditTrail?.[0]?.action === 'CREATED' && activa?.configuration?.auditTrail?.[0]?.summary === 'alta');
+
+  r = await h.save(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, { body: { configuration: { ...config, global: { ensLevel: 'ALTO' } } } } as any, respuestas as any);
+  comprueba('all_access guarda', r.status === 200);
+  comprueba('UPDATED y creador conservado', ix.docs.get('active')?.configuration?.auditTrail?.[1]?.action === 'UPDATED' && ix.docs.get('active')?.configuration?.createdBy === 'rsis');
+
+  r = await h.history(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, {} as any, respuestas as any);
+  comprueba('historial con rol: dos versiones', r.status === 200 && r.body.data.length === 2);
+
+  r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, respuestas as any);
+  comprueba('cuerpo inválido: 400', r.status === 400);
+
+  const sinSesion = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  r = await h.save(contexto(ix, usuario(sinSesion)) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('sin sesión: 401, no 500', r.status === 401, r);
+
+  const libre = createConfigurationHandlers({ logger: registro as any, securityEnabled: false });
+  const ix2 = indice();
+  r = await libre.save(contexto(ix2, usuario(new Error('no hay seguridad'))) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('sin plugin de seguridad: guarda como desconocido', r.status === 200 && ix2.docs.get('active')?.updatedBy === 'desconocido', r);
+
+  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  process.exit(fallos.length ? 1 : 0);
+})();

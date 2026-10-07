@@ -1,4 +1,5 @@
 import type { CoreSetup, Logger, Plugin, PluginInitializerContext } from '../../../src/core/server';
+import { registerConfigurationRoutes } from './routes/configuration';
 
 export interface EnsfacilServerSetupDeps {
   securityDashboards?: unknown;
@@ -11,7 +12,13 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
     this.logger = initializerContext.logger.get();
   }
 
-  public setup(_core: CoreSetup, _deps: EnsfacilServerSetupDeps): {} {
+  public setup(core: CoreSetup, deps: EnsfacilServerSetupDeps): {} {
+    const router = core.http.createRouter();
+    registerConfigurationRoutes(router, {
+      logger: this.logger,
+      securityEnabled: Boolean(deps.securityDashboards),
+    });
+
     this.logger.debug('ENSFácil: servidor preparado');
 
     return {};
