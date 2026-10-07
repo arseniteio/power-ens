@@ -105,5 +105,19 @@ for (const fichero of recorre(raiz)) {
 }
 comprueba('la barra construye el filtro de fechas', creaFiltros > 0);
 
+// Los avisos de la barra, en todas las vistas que la usan: el patrón que no se
+// pudo leer (con su causa), el que no existe y la consulta que no se ha
+// aplicado. Los pinta `AlertsSearchFrame`; una vista que llame a
+// `useAlertsSearchBar()` sin él buscaría sin avisar de nada de eso.
+let vistasConBarra = 0;
+for (const fichero of recorre(raiz)) {
+  const texto = fs.readFileSync(fichero, 'utf8');
+  if (/export const useAlertsSearchBar\b/.test(texto) || !/\buseAlertsSearchBar\(/.test(texto)) continue;
+  vistasConBarra++;
+  const sitio = path.relative(path.join(__dirname, '..'), fichero);
+  comprueba(`${sitio}: pinta la barra con sus avisos (AlertsSearchFrame)`, /<AlertsSearchFrame\b/.test(texto));
+}
+comprueba('hay vistas con la barra', vistasConBarra > 0);
+
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);

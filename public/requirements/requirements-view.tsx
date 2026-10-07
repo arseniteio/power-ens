@@ -1,5 +1,7 @@
 // Pestaña Controles: la vista clásica de requisitos. A la izquierda, cada
-// control con su total de hechos (pulsable para filtrar); a la derecha, el
+// control con la SUMA de los números de sus requisitos (pulsable para
+// filtrar), que no es su total de hechos: un hecho que cita varios requisitos
+// de un mismo control cuenta una vez por requisito. A la derecha, el
 // buscador, el interruptor de requisitos sin hechos y la cuadrícula de
 // requisitos con su número. Los hechos se cuentan con la barra de búsqueda y
 // las fechas del dashboard, dentro del alcance ENS.
@@ -28,7 +30,7 @@ import {
 import { buildENSScopeAgentQueryFilter, getActiveENSScopeAgents } from '../ens/core/scope';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch } from '../routing/use-router-search';
-import { useAlertsSearchBar } from '../search/alerts-search-bar';
+import { AlertsSearchFrame, useAlertsSearchBar } from '../search/alerts-search-bar';
 import { useEsSearch } from '../search/use-es-search';
 import { ENSRequirementRow, buildRequirementsModel } from './requirements-model';
 import { RequirementFlyout } from './requirement-flyout';
@@ -172,27 +174,9 @@ const Requisitos = ({ barFilters }: { barFilters: unknown[] }) => {
 export const RequirementsView = () => {
   const barra = useAlertsSearchBar();
 
-  if (!barra.ready) {
-    return <LoadingSpinner message="Buscando el patrón de índice wazuh-alerts-*…" />;
-  }
-
-  if (barra.missingIndexPattern) {
-    return (
-      <EuiCallOut
-        color="warning"
-        iconType="alert"
-        title="No existe el patrón de índice wazuh-alerts-*: créalo desde Wazuh (o Dashboards Management) para usar esta vista"
-      />
-    );
-  }
-
-  // Los requisitos se montan con el patrón ya encontrado: así la primera
-  // búsqueda ya lleva las fechas de la barra y no recorre todo el índice.
   return (
-    <>
-      {barra.searchBar}
-      <EuiSpacer size="m" />
+    <AlertsSearchFrame barra={barra}>
       <Requisitos barFilters={barra.filters} />
-    </>
+    </AlertsSearchFrame>
   );
 };
