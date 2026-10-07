@@ -15,18 +15,18 @@
  * la REVERSIÓN que demuestra que no pasaría siempre: el mismo evento, otro
  * parámetro.
  */
-import { opAcc6CatalogDefinition } from '../dashboard/ens/catalog/op-acc-6';
-import { opAcc6Configuration } from '../dashboard/ens/configuration/data/op-acc-6-parameters';
+import { opAcc6CatalogDefinition } from '../public/ens/catalog/op-acc-6';
+import { opAcc6Configuration } from '../public/ens/configuration/data/op-acc-6-parameters';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { runPolicyRuntime } from '../dashboard/ens/core/policy-runtime/policy-runtime';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { runPolicyRuntime } from '../public/ens/core/policy-runtime/policy-runtime';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 
 declare const process: { exit(code: number): void };
 

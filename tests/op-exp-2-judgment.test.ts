@@ -13,14 +13,14 @@
  * CAMBIA EL VEREDICTO SIN TOCAR EL AGENTE. Cada bloque mueve un solo eje y lleva
  * al lado su reversión.
  */
-import { opExp2CatalogDefinition } from '../dashboard/ens/catalog/op-exp-2';
-import { opExp2Configuration } from '../dashboard/ens/configuration/data/op-exp-2-parameters';
-import type { ENSControlConfiguration } from '../dashboard/ens/configuration/types';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
+import { opExp2CatalogDefinition } from '../public/ens/catalog/op-exp-2';
+import { opExp2Configuration } from '../public/ens/configuration/data/op-exp-2-parameters';
+import type { ENSControlConfiguration } from '../public/ens/configuration/types';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

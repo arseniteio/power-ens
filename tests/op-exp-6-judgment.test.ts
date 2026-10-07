@@ -15,19 +15,19 @@
  * Los hechos de los casos «reales» son los que el recolector emitió en
  * wazuh-real el 26/09/2026 (ver el informe de op.exp.6).
  */
-import { opExp6PolicyDefinition } from '../dashboard/ens/core/policy-runtime/policies/op-exp-6.policy';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { opExp6CatalogDefinition } from '../dashboard/ens/catalog/op-exp-6';
-import { opExp6Configuration } from '../dashboard/ens/configuration/data/op-exp-6-parameters';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
+import { opExp6PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-6.policy';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { opExp6CatalogDefinition } from '../public/ens/catalog/op-exp-6';
+import { opExp6Configuration } from '../public/ens/configuration/data/op-exp-6-parameters';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

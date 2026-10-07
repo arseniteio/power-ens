@@ -31,26 +31,26 @@ import {
   ensReportStatusPdfColor,
   ENS_REPORT_EVIDENCE_FIELD,
   ENS_REPORT_SIN_EVIDENCIA,
-} from '../dashboard/ens/reports/report-rows';
-import type { ENSReportRow } from '../dashboard/ens/reports/report-rows';
-import type { ENSReportModel } from '../dashboard/ens/reports/registry';
-import { buildENSReportModel } from '../dashboard/ens/reports/registry';
-import { buildOpAcc1ReportModel } from '../dashboard/ens/reports/op-acc-1-report-model';
+} from '../public/ens/reports/report-rows';
+import type { ENSReportRow } from '../public/ens/reports/report-rows';
+import type { ENSReportModel } from '../public/ens/reports/registry';
+import { buildENSReportModel } from '../public/ens/reports/registry';
+import { buildOpAcc1ReportModel } from '../public/ens/reports/op-acc-1-report-model';
 
-import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
-import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
+import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
+import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
+} from '../public/ens/configuration/types';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 import type {
   ENSComplianceResult,
   ENSComplianceStatus,
-} from '../dashboard/ens/core/evaluation/types';
-import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
+} from '../public/ens/core/evaluation/types';
+import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

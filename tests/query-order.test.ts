@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const raiz = path.join(__dirname, '..', 'dashboard', 'ens');
+const raiz = path.join(__dirname, '..', 'public', 'ens');
 const ficheros: string[] = [];
 const recorre = (dir: string) => {
   for (const nombre of fs.readdirSync(dir)) {

@@ -37,9 +37,9 @@ import {
   getENSReportModelDefinition,
   getRegisteredENSReportControls,
   listENSControlsWithoutReportModel,
-} from '../dashboard/ens/reports/registry';
-import type { ENSReportModelDefinition } from '../dashboard/ens/reports/registry';
-import { ENSControls } from '../dashboard/ens/data';
+} from '../public/ens/reports/registry';
+import type { ENSReportModelDefinition } from '../public/ens/reports/registry';
+import { ENSControls } from '../public/ens/data';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

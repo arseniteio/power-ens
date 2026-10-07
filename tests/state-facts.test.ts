@@ -29,24 +29,24 @@
  *   5. lo declarado como estado es coherente con el catálogo;
  *   6. con el motor entero, una remediación real cambia el veredicto.
  */
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
-import { ENSEvidenceCatalog } from '../dashboard/ens/core/evidence/catalog';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
 import {
   getStateFactEventTypes,
   keepLatestRunStateFacts,
-} from '../dashboard/ens/core/evidence/state-facts';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
+} from '../public/ens/core/evidence/state-facts';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 import {
   buildPolicyContext,
   runPolicyRuntime,
-} from '../dashboard/ens/core/policy-runtime';
-import { opExp3CatalogDefinition } from '../dashboard/ens/catalog/op-exp-3';
-import { opExp3Configuration } from '../dashboard/ens/configuration/data/op-exp-3-parameters';
+} from '../public/ens/core/policy-runtime';
+import { opExp3CatalogDefinition } from '../public/ens/catalog/op-exp-3';
+import { opExp3Configuration } from '../public/ens/configuration/data/op-exp-3-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../dashboard/ens/configuration/types';
+} from '../public/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 

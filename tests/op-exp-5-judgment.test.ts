@@ -20,24 +20,24 @@
  * Los eventos se construyen como alertas de `alerts.json` y pasan por el
  * normalizador real y por el corte de hechos de estado, igual que en producción.
  */
-import { opExp5PolicyDefinition } from '../dashboard/ens/core/policy-runtime/policies/op-exp-5.policy';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { opExp5CatalogDefinition } from '../dashboard/ens/catalog/op-exp-5';
-import { opExp5Configuration } from '../dashboard/ens/configuration/data/op-exp-5-parameters';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
+import { opExp5PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-5.policy';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { opExp5CatalogDefinition } from '../public/ens/catalog/op-exp-5';
+import { opExp5Configuration } from '../public/ens/configuration/data/op-exp-5-parameters';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
 import {
   evaluateRequirement,
   evaluateRequirements,
-} from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
+} from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

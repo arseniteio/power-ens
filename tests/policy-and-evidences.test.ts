@@ -23,9 +23,9 @@
  * que ella misma declara medir, Y que eso no se convierte en una puerta trasera
  * para pisar una medida real.
  */
-import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
-import type { ENSPolicyDecision } from '../dashboard/ens/core/policy-runtime/types';
+import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+import type { ENSPolicyDecision } from '../public/ens/core/policy-runtime/types';
 
 declare const process: { exit(code: number): void };
 

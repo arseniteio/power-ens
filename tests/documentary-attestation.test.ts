@@ -27,19 +27,19 @@ import {
   describeAttestation,
   isAttestationSufficient,
   parseRequirementAttestations,
-} from '../dashboard/ens/configuration/services/attestation-service';
-import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
-import type { ENSPolicyDecision } from '../dashboard/ens/core/policy-runtime/types';
-import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
-import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
+} from '../public/ens/configuration/services/attestation-service';
+import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
+import type { ENSPolicyDecision } from '../public/ens/core/policy-runtime/types';
+import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
+import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
-import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
+} from '../public/ens/configuration/types';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
 
 declare const process: { exit(code: number): void };
 

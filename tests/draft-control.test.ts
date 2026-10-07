@@ -24,15 +24,15 @@
  * demuestra que no pasaría siempre. Aquí la reversión es literal: el mismo
  * control, el mismo día, con `status: 'ACTIVE'`.
  */
-import { ENSCatalog } from '../dashboard/ens/catalog';
-import { ENSEvidenceCatalog } from '../dashboard/ens/core/evidence/catalog';
+import { ENSCatalog } from '../public/ens/catalog';
+import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
 import type {
   ENSControlDefinition,
   ENSRequirementDefinition,
-} from '../dashboard/ens/catalog/types';
-import type { ENSLevel } from '../dashboard/ens/configuration/types';
-import { evaluateRequirements } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
+} from '../public/ens/catalog/types';
+import type { ENSLevel } from '../public/ens/configuration/types';
+import { evaluateRequirements } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
