@@ -40,7 +40,8 @@ const indice = () => {
   };
 };
 
-const usuario = (cuerpo: any) => ({ transport: { request: async () => { if (cuerpo instanceof Error) throw cuerpo; return { body: cuerpo }; } } });
+const llamadas: any[] = [];
+const usuario = (cuerpo: any) => ({ transport: { request: async (a: any) => { llamadas.push(a); if (cuerpo instanceof Error) throw cuerpo; return { body: cuerpo }; } } });
 const contexto = (interno: any, actual: any) => ({ core: { opensearch: { client: { asInternalUser: interno, asCurrentUser: actual } } } });
 const respuestas = {
   ok: (r: any) => ({ status: 200, body: r.body }),
@@ -86,8 +87,39 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
 
   const libre = createConfigurationHandlers({ logger: registro as any, securityEnabled: false });
   const ix2 = indice();
-  r = await libre.save(contexto(ix2, usuario(new Error('no hay seguridad'))) as any, { body: { configuration: config } } as any, respuestas as any);
+  r = await libre.save(contexto(ix2, usuario(Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 }))) as any, { body: { configuration: config } } as any, respuestas as any);
   comprueba('sin plugin de seguridad: guarda como desconocido', r.status === 200 && ix2.docs.get('active')?.updatedBy === 'desconocido', r);
+
+  // Seguridad cerrada por defecto.
+  const sinManejador = Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 });
+  const ix3 = indice();
+  const nadie = createConfigurationHandlers({ logger: registro as any, securityEnabled: false });
+  r = await nadie.save(contexto(ix3, usuario({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('flag false pero authinfo responde con no admin: 403', r.status === 403 && ix3.docs.size === 0, r);
+  r = await nadie.save(contexto(ix3, usuario(sinManejador)) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('flag false y "no handler": sin restricción', r.status === 200 && ix3.docs.get('active')?.updatedBy === 'desconocido', r);
+  const cerrado = createConfigurationHandlers({ logger: registro as any, securityEnabled: true });
+  r = await cerrado.save(contexto(ix3, usuario(sinManejador)) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('flag true y "no handler": 500 genérico', r.status === 500 && !/handler/.test(JSON.stringify(r.body)), r);
+  const caducada = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  r = await cerrado.history(contexto(ix3, usuario(caducada)) as any, {} as any, respuestas as any);
+  comprueba('flag true y authinfo 401: 401 en historial', r.status === 401, r);
+  r = await cerrado.save(contexto(ix3, usuario(caducada)) as any, { body: { configuration: config } } as any, respuestas as any);
+  comprueba('flag true y authinfo 401: 401 en PUT', r.status === 401, r);
+
+  // El cliente no puede falsear los campos del servidor.
+  const ix4 = indice();
+  const falsa = { ...config, createdBy: 'x', updatedBy: 'y', createdAt: '2000-01-01', updatedAt: '2000-01-01', changeReason: 'cliente', auditTrail: [{ action: 'FAKE' }] };
+  r = await h.save(contexto(ix4, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: falsa, changeReason: 'real' } } as any, respuestas as any);
+  const c4 = ix4.docs.get('active')?.configuration;
+  comprueba('campos del servidor sobrescriben los del cliente', c4?.createdBy === 'rsis' && c4?.updatedBy === 'rsis' && c4?.createdAt !== '2000-01-01' && c4?.updatedAt !== '2000-01-01' && c4?.changeReason === 'real' && c4?.auditTrail?.length === 1 && c4?.auditTrail[0].action === 'CREATED', c4);
+
+  comprueba('authinfo: GET y ruta exacta', llamadas.length > 0 && llamadas.every(a => a.method === 'GET' && a.path === '/_plugins/_security/authinfo'), llamadas[0]);
+
+  // Un fallo de OpenSearch no llega en crudo al navegador.
+  const roto = { ...indice(), indices: { exists: async () => { throw new Error('secreto interno 10.0.0.5'); } } };
+  r = await h.getActive(contexto(roto, usuario({ user_name: 'a', roles: [] })) as any, {} as any, respuestas as any);
+  comprueba('GET con fallo: 500 genérico', r.status === 500 && !/10\.0\.0\.5/.test(JSON.stringify(r.body)), r);
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);

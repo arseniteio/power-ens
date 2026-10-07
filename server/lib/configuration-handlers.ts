@@ -37,7 +37,9 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return { usuario };
     } catch (error: any) {
       const estado = estadoDe(error);
-      return { error: fallo(response, estado === 401 || estado === 403 ? estado : 500, error?.message || String(error)) };
+      if (estado === 401 || estado === 403) return { error: fallo(response, estado, error?.message || 'No autorizado') };
+      logger.error(`No se pudo comprobar el usuario de la configuración ENS: ${error?.message || error}`);
+      return { error: fallo(response, 500, 'No se pudo comprobar el usuario; el detalle está en el log del dashboard.') };
     }
   };
 
@@ -47,7 +49,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return correcto(response, { configuration: doc?.configuration ?? null, metadata: metadatos(doc) });
     } catch (error: any) {
       logger.error(`No se pudo leer la configuración ENS activa: ${error?.message || error}`);
-      return fallo(response, 500, error?.message || String(error));
+      return fallo(response, 500, 'No se pudo leer la configuración ENS; el detalle está en el log del dashboard.');
     }
   };
 
@@ -91,7 +93,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return correcto(response, { configuration: guardado.configuration, metadata: metadatos(guardado) });
     } catch (error: any) {
       logger.error(`No se pudo guardar la configuración ENS: ${error?.message || error}`);
-      return fallo(response, 500, error?.message || String(error));
+      return fallo(response, 500, 'No se pudo guardar la configuración ENS; el detalle está en el log del dashboard.');
     }
   };
 
@@ -104,7 +106,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return correcto(response, docs.map(doc => ({ configuration: doc.configuration, metadata: metadatos(doc) })));
     } catch (error: any) {
       logger.error(`No se pudo leer el historial de la configuración ENS: ${error?.message || error}`);
-      return fallo(response, 500, error?.message || String(error));
+      return fallo(response, 500, 'No se pudo leer el historial de la configuración ENS; el detalle está en el log del dashboard.');
     }
   };
 
