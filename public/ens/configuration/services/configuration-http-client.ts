@@ -1,8 +1,9 @@
-import { getHttp } from '../../../../../kibana-services';
+import { getHttp } from '../../../services';
+import { ENSFACIL_CONFIGURATION_PATH } from '../../../../common/constants';
 
 import { ENSConfigurationVersion } from '../types';
 
-const ENS_CONFIGURATION_API_PATH = '/ens/configuration';
+const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 
 export interface ENSConfigurationMetadata {
   createdAt?: string;

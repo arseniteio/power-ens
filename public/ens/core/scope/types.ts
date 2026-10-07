@@ -5,6 +5,8 @@ export interface ENSAgentScope {
   // El manager de Wazuh (000). No entra por grupo sino por el plano de medida
   // de los controles: ver `measurement-planes.ts`.
   isManager?: boolean;
+  // Estado del agente según wazuh-monitoring; solo lo usa el selector.
+  status?: string;
 }
 
 export interface ENSScopeResult {

@@ -11,12 +11,8 @@ import {
   EuiSpacer,
 } from '@elastic/eui';
 
-import {
-  LoadingSpinner,
-} from '../../../common/loading-spinner/loading-spinner';
-import {
-  getAgentsService,
-} from '../../../endpoints-summary/services/get-agents';
+import { LoadingSpinner } from '../../platform/loading-spinner';
+import { loadENSAgentInventory } from '../../agents/agent-inventory';
 import type {
   ENSAgentScope,
 } from '../core/scope';
@@ -35,22 +31,6 @@ import {
 import {
   ConfigurationShell,
 } from './components/configuration-shell';
-
-const loadENSAgentInventory = async (): Promise<
-  ENSAgentScope[]
-> => {
-  const {
-    affected_items: agents,
-  } = await getAgentsService({});
-
-  return agents.map(agent => ({
-    id: agent.id,
-    name: agent.name,
-    groups: Array.isArray(agent.group)
-      ? [...agent.group]
-      : [],
-  }));
-};
 
 const hydrateENSRuntime = async (
   force: boolean = false

@@ -5,8 +5,8 @@ import {
   EuiButtonIcon, EuiAccordion, EuiButtonEmpty, EuiCallOut, EuiFieldSearch,
   EuiFilterGroup, EuiFilterButton, EuiStat,
 } from '@elastic/eui';
-import { useRouterSearch } from '../../../common/hooks';
-import { useEsSearch } from '../../../common/hooks/use-es-search';
+import { useRouterSearch } from '../../routing/use-router-search';
+import { useEsSearch } from '../../search/use-es-search';
 import { getActiveENSConfiguration } from '../configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouterSearch } from '../../../common/hooks';
-import { useEsSearch } from '../../../common/hooks/use-es-search';
+import { useRouterSearch } from '../../routing/use-router-search';
+import { useEsSearch } from '../../search/use-es-search';
 import { ENSControls } from '../data';
 import {
   buildENSDashboardModel,

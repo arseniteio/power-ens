@@ -20,7 +20,7 @@
 // diga la verdad, y un semáforo que miente no vale nada.
 import React, { useMemo } from 'react';
 import { EuiBadge, EuiFacetButton } from '@elastic/eui';
-import { useEsSearch } from '../../../common/hooks/use-es-search';
+import { useEsSearch } from '../../search/use-es-search';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,

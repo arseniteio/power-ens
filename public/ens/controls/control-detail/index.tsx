@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useEsSearch } from '../../../../common/hooks/use-es-search';
+import { useEsSearch } from '../../../search/use-es-search';
 import {
   EuiBadge,
   EuiBasicTable,
