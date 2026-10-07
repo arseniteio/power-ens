@@ -161,14 +161,19 @@ echo "BACKUP=$BACKUP"
 
 ## 7. Actualizar la integración ENSFácil
 
-Actualizar primero el módulo ENS dentro del árbol de compilación:
+Actualizar primero el módulo ENS dentro del árbol de compilación, y con él el catálogo de requisitos de la vista de cumplimiento (cambia cada vez que entra un control o un requisito):
 
 ```bash
 DEST="$TARGET/public/components/overview/ens"
 sudo rm -rf "$DEST"
 sudo cp -a "$REPO/dashboard/ens" "$DEST"
 sudo chown -R "$USER":"$USER" "$DEST"
+sudo cp "$REPO/dashboard/ens-requirements.ts" "$TARGET/common/compliance-requirements/ens-requirements.ts"
+sudo chown "$USER":"$USER" "$TARGET/common/compliance-requirements/ens-requirements.ts"
 ```
+
+> [!note]
+> Hasta el 07/10/2026 ese catálogo viajaba dentro del paquete de integración, que no lo sustituye si ya existe: en los entornos instalados antes se quedó en los controles de su primera instalación, y la vista de cumplimiento no enseñaba los demás. Desde esa fecha se copia aquí, con el núcleo.
 
 Aplicar después únicamente los cambios pendientes del paquete de integración:
 

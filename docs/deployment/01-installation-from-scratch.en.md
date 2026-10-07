@@ -470,11 +470,12 @@ First validate the integrity of the integration package:
 ( cd "$PKG" && sha256sum -c SHA256SUMS )
 ```
 
-Add the ENS core to the plugin:
+Add the ENS core to the plugin, with the requirements catalogue of the compliance view:
 
 ```bash
 mkdir -p "$TARGET/public/components/overview"
 cp -a "$REPO/dashboard/ens" "$TARGET/public/components/overview/"
+cp "$REPO/dashboard/ens-requirements.ts" "$TARGET/common/compliance-requirements/ens-requirements.ts"
 ```
 
 Check compatibility before making changes:
@@ -483,7 +484,7 @@ Check compatibility before making changes:
 "$PKG/check-integration.sh" "$TARGET"
 ```
 
-For a clean Wazuh 4.14.7 installation, `PATCHES_APLICABLES=10`, `FICHEROS_AUSENTES=7`, no conflicts, and `RESULTADO=COMPATIBLE` must appear.
+For a clean Wazuh 4.14.7 installation, `PATCHES_APLICABLES=13`, `FICHEROS_AUSENTES=6`, no conflicts, and `RESULTADO=COMPATIBLE` must appear.
 
 Apply the ENSFácil integration:
 
@@ -499,7 +500,7 @@ Check the integration state again:
 "$PKG/check-integration.sh" "$TARGET"
 ```
 
-After the integration, `PATCHES_YA_APLICADOS=10`, `FICHEROS_YA_PRESENTES=7`, no conflicts and `RESULTADO=COMPATIBLE` must appear.
+After the integration, `PATCHES_YA_APLICADOS=13`, `FICHEROS_YA_PRESENTES=6`, no conflicts and `RESULTADO=COMPATIBLE` must appear.
 
 ### 13.5 Build and validate the plugin
 

@@ -1,0 +1,58 @@
+--- a/public/components/overview/compliance-table/components/subrequirements/subrequirements.tsx
++++ b/public/components/overview/compliance-table/components/subrequirements/subrequirements.tsx
+@@ -29,9 +29,11 @@
+ import { AppState } from '../../../../../react-services/app-state';
+ import { RequirementFlyout } from '../requirement-flyout';
+ import {
++  getCore,
+   getDataPlugin,
+   getWazuhCorePlugin,
+ } from '../../../../../kibana-services';
++import { buildENSRequirementFilter } from '../../../ens/core/compliance-view/ens-requirement-index';
+ 
+ export class ComplianceSubrequirements extends Component {
+   _isMount = false;
+@@ -61,6 +63,19 @@
+    */
+   addFilter(filter) {
+     const { filterManager } = getDataPlugin().query;
++    // ENS: un requisito no es un campo igual a un valor (ver
++    // ens/core/compliance-view/ens-requirement-index.ts).
++    if (this.props.section === 'ens') {
++      filterManager.addFilters([
++        buildENSRequirementFilter(filter.value, {
++          negate: filter.negate || false,
++          index:
++            AppState.getCurrentPattern() ||
++            getWazuhCorePlugin().configuration.getSettingValue('pattern'),
++        }),
++      ]);
++      return;
++    }
+     const matchPhrase = {};
+     matchPhrase[filter.key] = filter.value;
+     const newFilter = {
+@@ -87,6 +102,7 @@
+       nist: 'rule.nist_800_53',
+       hipaa: 'rule.hipaa',
+       tsc: 'rule.tsc',
++      ens: 'data.requisito',
+     };
+     return mapKeys[this.props.section];
+   }
+@@ -106,6 +122,15 @@
+       value: requirementId,
+       negate: false,
+     });
++    // ENS: el detalle de un requisito es el de su control, en ENSFácil.
++    if (this.props.section === 'ens') {
++      const parentControl = String(requirementId).split('.').slice(0, 3).join('.');
++      const ensUrl = getCore().application.getUrlForApp('ens', {
++        path: `#/overview/?tab=ens&tabView=plugins&control=${parentControl}&_a=(query:(language:kuery,query:''))`,
++      });
++      window.location.href = ensUrl;
++      return;
++    }
+     this.props.onSelectedTabChanged('dashboard');
+   }
+ 

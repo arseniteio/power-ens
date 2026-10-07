@@ -6,8 +6,8 @@ OpenSearch Dashboards: 2.19.5
 Versiones reconocidas: Wazuh 4.14.5 y 4.14.7
 
 Integración versionada:
-- 10 parches sobre archivos existentes del plugin oficial.
-- 7 archivos adicionales.
+- 13 parches sobre archivos existentes del plugin oficial.
+- 6 archivos adicionales.
 - Núcleo ENSFácil ubicado en dashboard/ens.
 
 Frontend ENS incluido:
@@ -15,7 +15,9 @@ Frontend ENS incluido:
 - Datasource ENS.
 - Integración de filtros ENS.
 - Integración de ComplianceTable para section=ens.
-- Catálogo de requisitos ENS mediante common/compliance-requirements/ens-requirements.ts.
+- Vista de cumplimiento: requisitos, recuentos y filtro ENS (compliance-table y subrequirements).
+- Opción ENS en el gráfico de cumplimiento de la ficha del agente (requirement_vis), que abre el control en ENSFácil.
+- El catálogo de requisitos (common/compliance-requirements/ens-requirements.ts) NO es de este paquete: se copia de dashboard/ens-requirements.ts junto al núcleo.
 - Logotipo ENS.
 
 Backend ENS incluido:

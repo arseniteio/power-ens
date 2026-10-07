@@ -161,14 +161,19 @@ echo "BACKUP=$BACKUP"
 
 ## 7. Update the ENSFácil integration
 
-First update the ENS module inside the build tree:
+First update the ENS module inside the build tree, and with it the requirements catalogue of the compliance view (it changes every time a control or a requirement is added):
 
 ```bash
 DEST="$TARGET/public/components/overview/ens"
 sudo rm -rf "$DEST"
 sudo cp -a "$REPO/dashboard/ens" "$DEST"
 sudo chown -R "$USER":"$USER" "$DEST"
+sudo cp "$REPO/dashboard/ens-requirements.ts" "$TARGET/common/compliance-requirements/ens-requirements.ts"
+sudo chown "$USER":"$USER" "$TARGET/common/compliance-requirements/ens-requirements.ts"
 ```
+
+> [!note]
+> Until 07/10/2026 that catalogue travelled inside the integration package, which does not replace it if it already exists: environments installed before kept the controls of their first installation, and the compliance view did not show the others. Since that date it is copied here, with the core.
 
 Then apply only the pending changes of the integration package:
 

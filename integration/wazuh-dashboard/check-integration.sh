@@ -40,6 +40,13 @@ if [ ! -d "$TARGET/public/components/overview/ens" ]; then
     exit 6
 fi
 
+# La vista de cumplimiento importa el catálogo de requisitos, que no es un
+# fichero de la integración: viaja con el núcleo y se copia con él.
+if [ ! -f "$TARGET/common/compliance-requirements/ens-requirements.ts" ]; then
+    echo "ERROR: falta common/compliance-requirements/ens-requirements.ts (se copia de dashboard/ens-requirements.ts)"
+    exit 8
+fi
+
 TOTAL=0
 APLICABLE=0
 APLICADO=0

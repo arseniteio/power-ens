@@ -12,19 +12,20 @@ La integración adicional está formada por:
 
 | Elemento | Descripción |
 |---|---|
-| 10 parches | sobre archivos existentes del plugin oficial de Wazuh. |
-| 7 archivos adicionales | necesarios para completar la integración frontend y backend. |
+| 13 parches | sobre archivos existentes del plugin oficial de Wazuh. |
+| 6 archivos adicionales | necesarios para completar la integración frontend y backend. |
 
-Los 7 archivos adicionales corresponden a:
+Los 6 archivos adicionales corresponden a:
 
 | Cantidad | Archivo |
 |---|---|
-| 1 | catálogo de requisitos ENS para la vista de cumplimiento. |
 | 2 | archivos TypeScript del datasource ENS. |
 | 1 | recurso gráfico con el logotipo ENS. |
 | 1 | ruta backend para la configuración ENS. |
 | 1 | controlador backend para la configuración ENS. |
 | 1 | módulo de persistencia para la configuración ENS. |
+
+El catálogo de requisitos de la vista de cumplimiento (`common/compliance-requirements/ens-requirements.ts`) no forma parte de este paquete: se copia de `dashboard/ens-requirements.ts` junto con el núcleo, porque cambia con cada control, y `check-integration.sh` se detiene si falta.
 
 ## Backend ENS
 
