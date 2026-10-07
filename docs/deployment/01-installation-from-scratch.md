@@ -22,8 +22,8 @@ Esta ruta parte de una instalación de Ubuntu Server que dispone únicamente de:
 - acceso autorizado a los repositorios GitLab del proyecto.
 
 No se presupone que estén previamente instalados o preparados Wazuh, ENSFácil,
-el árbol de compilación de Wazuh Dashboard, Node.js, Yarn, las reglas ENS, el
-grupo `ens` ni la configuración inicial de ENSFácil.
+el árbol de compilación de OpenSearch Dashboards, Node.js, Yarn, las reglas ENS,
+el grupo `ens` ni la configuración inicial de ENSFácil.
 
 > [!important]
 > **¿Wazuh corre en contenedores** (imágenes oficiales `wazuh/wazuh-manager` y
@@ -37,10 +37,11 @@ grupo `ens` ni la configuración inicial de ENSFácil.
 
 ## 3. Resultado esperado
 
-Al finalizar esta guía deben quedar instalados, integrados y validados Wazuh y
-ENSFácil, incluyendo las reglas del manager, la integración con Wazuh Dashboard,
-el plugin compilado e instalado y la configuración inicial necesaria para que
-ENSFácil pueda funcionar.
+Al finalizar esta guía deben quedar instalados y validados Wazuh y ENSFácil:
+las reglas del manager, el plugin `ensfacil` compilado e instalado en Wazuh
+Dashboard junto al plugin oficial de Wazuh (que no se modifica), el rol
+`ensfacil_admin` y la configuración inicial necesaria para que ENSFácil pueda
+funcionar.
 
 ## 4. Principio de reproducibilidad
 
@@ -58,6 +59,7 @@ La combinación utilizada durante la validación inicial de esta guía es:
 
 | Componente | Versión |
 |---|---|
+| ENSFácil | `1.0.0` |
 | Wazuh | `4.14.7` |
 | OpenSearch Dashboards | `2.19.5` |
 | Node.js para compilación | `18.19.0` |
@@ -67,7 +69,7 @@ La matriz de compatibilidad se mantiene en:
 [`docs/deployment/03-version-compatibility.md`](03-version-compatibility.md)
 
 > [!note]
-> Una nueva versión de Wazuh no debe considerarse compatible automáticamente. Antes de utilizarla deben comprobarse los puntos de integración de ENSFácil, recompilar el plugin y ejecutar las validaciones definidas para el despliegue.
+> Una nueva versión de Wazuh no debe considerarse compatible automáticamente. ENSFácil no modifica el plugin de Wazuh, pero se compila para una versión exacta de OpenSearch Dashboards: si la versión nueva de Wazuh Dashboard lleva otra, hay que recompilar el plugin y validarlo antes de actualizar.
 
 ## 6. Flujo completo de instalación
 
@@ -77,14 +79,14 @@ La instalación de ENSFácil se organiza en cinco bloques principales:
 flowchart LR
   A["1. Instalar y validar<br/>Wazuh 4.14.7"] --> B["2. Descargar ENSFácil<br/>y los runbooks desde GitLab"]
   B --> C["3. Preparar Wazuh Manager<br/>para los controles ENS"]
-  C --> D["4. Construir e instalar<br/>el plugin ENSFácil<br/>en Wazuh Dashboard"]
+  C --> D["4. Construir e instalar<br/>el plugin ENSFácil<br/>y crear su rol"]
   D --> E["5. Validar que ENSFácil<br/>queda instalado y operativo"]
 ```
 
 1. Instalar y validar Wazuh 4.14.7.
 2. Descargar ENSFácil y los runbooks desde GitLab.
 3. Preparar Wazuh Manager para los controles ENS.
-4. Construir e instalar el plugin ENSFácil en Wazuh Dashboard.
+4. Construir e instalar el plugin ENSFácil en Wazuh Dashboard y crear el rol `ensfacil_admin`.
 5. Validar que ENSFácil queda instalado y operativo.
 
 Los apartados siguientes desarrollan los comandos y comprobaciones necesarios para cada bloque.
@@ -150,7 +152,7 @@ command -v sudo apt git curl wget python3
 
 ## 9. Instalar y validar Wazuh 4.14.7
 
-ENSFácil necesita una instalación funcional y validada de Wazuh antes de continuar con la integración del plugin.
+ENSFácil necesita una instalación funcional y validada de Wazuh antes de instalar el plugin.
 
 Si Wazuh 4.14.7 todavía no está instalado, seguir primero la [Guía de instalación de Wazuh 4.14.7](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), completando los pasos 1 a 4.
 
@@ -346,11 +348,16 @@ cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 
 ## 13. Construir e instalar el plugin ENSFácil
 
-La compilación del plugin debe realizarse con Node.js `18.19.0` y Yarn Classic `1.22.22`.
+ENSFácil es un plugin propio de Wazuh Dashboard, con el identificador `ensfacil`. Se instala **junto** al plugin oficial de Wazuh, que no se modifica ni se retira.
+
+El plugin se compila dentro del código fuente de OpenSearch Dashboards `2.19.5`, la versión que lleva Wazuh Dashboard 4.14.7, con Node.js `18.19.0` y Yarn Classic `1.22.22`. El resultado es el fichero `ensfacil-2.19.5.zip`.
+
+> [!note]
+> **¿Tienes ya el zip compilado?** Si Quersystem te ha entregado `ensfacil-2.19.5.zip` para Wazuh 4.14.7, los apartados 13.1 a 13.3 no hacen falta. Copia el zip al servidor (por ejemplo, a `/opt/ensfacil/artifacts/`) y sigue en el apartado 13.4. Un zip compilado para otra versión de OpenSearch Dashboards no se instala.
 
 ### 13.1 Preparar Node.js y Yarn
 
-Antes de preparar el árbol de compilación, comprobar las versiones disponibles:
+Instalar Node.js `18.19.0` y Yarn Classic `1.22.22` con nvm:
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
@@ -363,21 +370,21 @@ nvm use 18.19.0
 npm install --global yarn@1.22.22
 ```
 
-Validar las versiones antes de continuar:
+Comprobar las versiones:
 
 ```bash
 node --version
 yarn --version
 ```
 
-El resultado esperado es Node.js `v18.19.0` y Yarn `1.22.22`. Si las versiones no coinciden, no continuar con la compilación.
+Qué tiene que salir: `v18.19.0` y `1.22.22`. Si no coinciden, no seguir.
 
 > [!note]
-> Wazuh Dashboard 4.14.7 incluye su propio Node.js `18.19.0` en `/usr/share/wazuh-dashboard/node/bin/node`. Si no se quiere instalar Node.js con nvm, puede usarse ese binario anteponiendo `/usr/share/wazuh-dashboard/node/bin` al `PATH`; Yarn Classic `1.22.22` tiene que estar igualmente en el `PATH` (el procedimiento se muestra en el apartado 13.5).
+> Wazuh Dashboard 4.14.7 trae su propio Node.js `18.19.0` en `/usr/share/wazuh-dashboard/node/bin/node`. `config/build-plugin.sh` usa ese. Yarn tiene que estar igualmente en el `PATH`.
 
-### 13.2 Preparar el árbol de Wazuh Dashboard 4.14.7
+### 13.2 Preparar el árbol de OpenSearch Dashboards 2.19.5
 
-Clonar la versión validada de Wazuh Dashboard en el directorio de compilación:
+Se usa el código fuente de Wazuh Dashboard 4.14.7, que es OpenSearch Dashboards `2.19.5`:
 
 ```bash
 sudo mkdir -p /opt/ensfacil/build
@@ -385,170 +392,149 @@ sudo chown "$USER":root /opt/ensfacil/build
 git clone --branch v4.14.7 --depth 1 https://github.com/wazuh/wazuh-dashboard.git /opt/ensfacil/build
 ```
 
-Comprobar que se ha obtenido exactamente la versión esperada:
+Comprobar la versión:
 
 ```bash
-git -C /opt/ensfacil/build rev-parse HEAD
 git -C /opt/ensfacil/build describe --tags --exact-match HEAD
+python3 -c 'import json; print(json.load(open("/opt/ensfacil/build/package.json"))["version"])'
 ```
 
-El tag debe ser `v4.14.7`.
+Qué tiene que salir: `v4.14.7` y `2.19.5`.
 
-Instalar las dependencias y preparar el árbol de OpenSearch Dashboards:
+Preparar el árbol:
 
 ```bash
 cd /opt/ensfacil/build
 yarn osd bootstrap
 ```
 
-El proceso debe finalizar mostrando `bootstrap complete`. Los avisos de dependencias que no detengan el proceso no se consideran por sí solos un fallo.
+Qué tiene que salir: `bootstrap complete` al final. Tarda varios minutos. Los avisos de dependencias que no detienen el proceso no son un fallo.
 
-### 13.3 Incorporar el plugin oficial de Wazuh 4.14.7
+> [!note]
+> No hace falta el código del plugin de Wazuh (`wazuh-dashboard-plugins`). ENSFácil no lo modifica ni lo incluye.
 
-Clonar la misma versión del repositorio oficial de plugins de Wazuh:
+### 13.3 Compilar y validar el plugin
 
-```bash
-git clone --branch v4.14.7 --depth 1 https://github.com/wazuh/wazuh-dashboard-plugins.git /opt/ensfacil/build/plugins/wazuh-dashboard-plugins
-```
-
-Comprobar la versión obtenida:
+`config/build-plugin.sh` copia el plugin a `/opt/ensfacil/build/plugins/ensfacil`, instala sus dependencias con el `yarn.lock` del repositorio y compila. No toca ningún otro plugin del árbol. Se ejecuta como `root`, con `yarn` en el `PATH`:
 
 ```bash
-git -C /opt/ensfacil/build/plugins/wazuh-dashboard-plugins describe --tags --exact-match HEAD
+YARN_BIN=$(dirname "$(command -v yarn)")
+P=$YARN_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh > /opt/ensfacil/artifacts/build.log 2>&1
+tail -1 /opt/ensfacil/artifacts/build.log
 ```
 
-El resultado debe ser `v4.14.7`.
-
-Copiar el plugin principal al árbol de compilación:
-
-```bash
-cp -a /opt/ensfacil/build/plugins/wazuh-dashboard-plugins/plugins/main /opt/ensfacil/build/plugins/main
-```
-
-Instalar las dependencias declaradas por el plugin utilizando su lockfile:
-
-```bash
-cd /opt/ensfacil/build/plugins/main
-YARN_IGNORE_ENGINES=1 yarn install --frozen-lockfile
-```
-
-La instalación debe finalizar sin errores antes de continuar.
-
-### 13.4 Integrar ENSFácil en el plugin Wazuh
-
-Definir las rutas utilizadas durante la integración:
-
-```bash
-REPO=/opt/ensfacil/repo
-TARGET=/opt/ensfacil/build/plugins/main
-PKG=$REPO/integration/wazuh-dashboard
-```
-
-Validar primero la integridad del paquete de integración:
-
-```bash
-( cd "$PKG" && sha256sum -c SHA256SUMS )
-```
-
-Incorporar el núcleo ENS al plugin, con el catálogo de requisitos de la vista de cumplimiento:
-
-```bash
-mkdir -p "$TARGET/public/components/overview"
-cp -a "$REPO/dashboard/ens" "$TARGET/public/components/overview/"
-cp "$REPO/dashboard/ens-requirements.ts" "$TARGET/common/compliance-requirements/ens-requirements.ts"
-```
-
-Comprobar la compatibilidad antes de realizar cambios:
-
-```bash
-"$PKG/check-integration.sh" "$TARGET"
-```
-
-Para una instalación limpia de Wazuh 4.14.7 deben aparecer `PATCHES_APLICABLES=13`, `FICHEROS_AUSENTES=6`, ausencia de conflictos y `RESULTADO=COMPATIBLE`.
-
-Aplicar la integración ENSFácil:
-
-```bash
-"$PKG/apply-integration.sh" "$TARGET"
-```
-
-El proceso debe finalizar con `RESULTADO=INTEGRACION_APLICADA` y `REJECTS=0`.
-
-Comprobar nuevamente el estado de la integración:
-
-```bash
-"$PKG/check-integration.sh" "$TARGET"
-```
-
-Después de la integración deben aparecer `PATCHES_YA_APLICADOS=13`, `FICHEROS_YA_PRESENTES=6`, ausencia de conflictos y `RESULTADO=COMPATIBLE`.
-
-### 13.5 Compilar y validar el plugin
-
-Seleccionar la versión de Node.js validada y compilar el plugin. La compilación completa tarda varios minutos; conviene guardar su salida en un fichero de `/opt/ensfacil/artifacts`:
-
-```bash
-nvm use 18.19.0
-cd /opt/ensfacil/build/plugins/main
-
-YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
-  --opensearch-dashboards-version=2.19.5 2>&1 | tee /opt/ensfacil/artifacts/build.log
-```
-
-Si la compilación se ejecuta como `root` (por ejemplo, porque el árbol pertenece a `root`), hacen falta dos cosas más: la opción `--allow-root` y que `yarn` esté en el `PATH` de `root`. Sin `yarn`, el proceso compila el bundle entero y muere en el último paso con `ENOENT: yarn install --production`. Con el Node.js que incluye Wazuh Dashboard:
-
-```bash
-cd /opt/ensfacil/build/plugins/main
-YARN_BIN=$(dirname "$(command -v yarn)")    # directorio de yarn del usuario que despliega
-P=/usr/share/wazuh-dashboard/node/bin:$YARN_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-sudo env PATH="$P" YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
-  --allow-root --opensearch-dashboards-version=2.19.5 > /opt/ensfacil/artifacts/build.log 2>&1
-```
+Qué tiene que salir: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`. En el registro aparecen antes `succ 1 bundles compiled successfully` y `compressing plugin into [ensfacil-2.19.5.zip]`. Tarda alrededor de un minuto.
 
 > [!warning]
 > No redirigir la salida de una compilación como `root` a un fichero de `/tmp` creado por otro usuario: con la protección `protected_regular` del kernel, `root` no puede escribir en él y la compilación termina al instante con código 1 sin mensaje útil. Usar `/opt/ensfacil/artifacts`.
 
-La compilación debe finalizar generando el fichero `build/wazuh-2.19.5.zip`.
-
-Validar que el artefacto existe, que el ZIP no contiene errores y que lleva el código de esta versión:
+Validar el zip:
 
 ```bash
-test -f build/wazuh-2.19.5.zip && echo "ZIP_GENERADO=OK"
-unzip -t build/wazuh-2.19.5.zip | tail -1
-sha256sum build/wazuh-2.19.5.zip
-unzip -p build/wazuh-2.19.5.zip "*.js" | grep -c "op.exp.10"
+ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+unzip -t "$ZIP" | tail -1
+bash /opt/ensfacil/repo/config/deploy-plugin.sh --solo-id "$ZIP"
+unzip -p "$ZIP" "*/target/public/*.js" | grep -c "op.exp.10"
+sha256sum "$ZIP"
 ```
 
-El resultado de `unzip -t` debe indicar que no se han detectado errores y el último recuento debe ser mayor que `0`. El hash SHA-256 puede conservarse como referencia de integridad del artefacto generado.
+Qué tiene que salir:
+
+| Comprobación | Resultado esperado |
+|---|---|
+| `unzip -t` | `No errors detected in compressed data of …` |
+| `--solo-id` | `ensfacil` |
+| `grep -c` | un número mayor que `0` (el zip lleva el código de los controles) |
+| `sha256sum` | el hash del zip; conservarlo como referencia |
 
 > [!warning]
-> Si el ZIP no existe o la comprobación de integridad falla, no continuar con la instalación en Wazuh Dashboard.
+> Si el zip no existe o alguna comprobación falla, no seguir con la instalación.
 
-### 13.6 Instalar el plugin en Wazuh Dashboard
+### 13.4 Instalar el plugin en Wazuh Dashboard
 
-Instalar el artefacto con `config/deploy-plugin.sh`. El script para el dashboard, retira únicamente el plugin `wazuh` (con rutas exactas, conservando `wazuhCore` y `wazuhCheckUpdates`), instala el ZIP y **sube el `build.number` del dashboard** antes de arrancarlo:
+Instalar el zip con `config/deploy-plugin.sh`:
 
 ```bash
-ZIP=/opt/ensfacil/build/plugins/main/build/wazuh-2.19.5.zip
+ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 
 sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"
 ```
 
+El script para el dashboard, retira la versión anterior de `ensfacil` si la hay, instala el zip, **sube el `build.number` del dashboard** y lo arranca. Solo toca `ensfacil`: el plugin de Wazuh (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) se queda como está.
+
+Qué tiene que salir, al final: `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
+
 > [!important]
 > Sin subir el `build.number`, el navegador sigue usando los ficheros de la versión anterior aunque el plugin nuevo esté instalado: la URL de los bundles depende de ese número, no del plugin, y ni una recarga forzada la cambia. Por eso la instalación se hace con el script y no a mano. El script guarda una copia de `package.json` junto al original (`package.json.antes-<fecha>`).
 
-> [!warning]
-> No utilizar comodines como `wazuh*` si alguna vez se retira el plugin a mano, ya que podrían eliminar también `wazuhCore` y `wazuhCheckUpdates`.
-
-Comprobar que el servicio vuelve a quedar activo y consultar el inventario de plugins:
+Comprobar:
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-Wazuh Dashboard debe devolver `active` y el plugin `wazuh` debe aparecer instalado antes de continuar.
+Qué tiene que salir:
+
+| Comprobación | Resultado esperado |
+|---|---|
+| servicio | `active` |
+| plugins | `ensfacil@1.0.0` y `wazuh@4.14.7-01`, entre otros |
+| `/api/ensfacil/configuration` | `401`: la ruta del plugin existe y pide sesión. Un `404` significa que el plugin no ha cargado ([diagnóstico](04-troubleshooting-and-rollback.md)) |
+
+### 13.5 Crear el rol ensfacil_admin
+
+Guardar la configuración ENS y ver su historial solo lo pueden hacer los usuarios con el rol `ensfacil_admin` o `all_access` del plugin de seguridad. Los demás ven la configuración, pero al guardar reciben un error 403: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
+
+`config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña.
+
+> [!note]
+> El rol no da ningún permiso por sí mismo: es una marca que ENSFácil busca entre los roles del usuario. Para ver los datos, cada usuario necesita además su rol habitual de Wazuh, con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+
+Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario del dashboard que administrará ENSFácil:
+
+```bash
+sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --dry-run --mapear <usuario>
+```
+
+Qué tiene que salir, si el rol no está asignado todavía a nadie:
+
+```text
+== modo prueba: no se envía ningún cambio
+== rol ensfacil_admin
+PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
+== asignación de ensfacil_admin
+PUT _plugins/_security/api/rolesmapping/ensfacil_admin {"users":["<usuario>"]}
+```
+
+Si el rol ya está asignado a otros usuarios, la última línea es un `PATCH` que añade `<usuario>` sin quitar a nadie.
+
+Después, de verdad:
+
+```bash
+sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
+```
+
+Qué tiene que salir: `-> 200` o `-> 201` después de cada petición y, al final, `usuarios con el rol ensfacil_admin: <usuario>`.
+
+- Se puede repetir: el rol se escribe igual y solo se añaden los usuarios que falten.
+- Varios usuarios: `--mapear <usuario1> --mapear <usuario2>`.
+- Sin `--mapear`, el script solo crea el rol.
+- Si el usuario tenía la sesión abierta y sigue recibiendo el 403, que cierre la sesión y vuelva a entrar.
+
+### 13.6 Comprobar ENSFácil en el navegador
+
+Entrar en Wazuh Dashboard y comprobar que:
+
+- en el menú, dentro de «Security operations», aparece «ENSFácil»;
+- se abre en la pestaña Panel, con las pestañas Panel, Configuración, Controles, Detalle del control, Informes, Evidencias y Eventos;
+- hay un selector «Máquina» para ver todas las máquinas del alcance o una sola.
+
+En una instalación nueva, seguir con el apartado 14: la configuración ENS se crea con el primer guardado.
 
 ## 14. Inicializar y sembrar la configuración ENS
 
@@ -566,7 +552,7 @@ IDX=https://127.0.0.1:9200
 
 En una instalación limpia, el índice `wazuh-ens-configuration` puede existir todavía sin el documento `active`.
 
-Acceder desde Wazuh Dashboard a ENSFácil > Configuración y realizar un primer guardado de la configuración.
+Acceder desde Wazuh Dashboard a ENSFácil > Configuración y realizar un primer guardado de la configuración, con un usuario que tenga el rol `ensfacil_admin` o `all_access` (apartado 13.5). Con otro usuario, el guardado devuelve el error 403.
 
 > [!important]
 > Abrir únicamente la pantalla no es suficiente: el primer guardado crea el documento `active` que utilizarán el motor y las herramientas de configuración.
@@ -597,12 +583,12 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('COPIA_OK' if d.get('found') else 'COPIA_FALLIDA')" "$BACKUP_DOC"
 ```
 
-La restauración de esta copia se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#8-restaurar-la-configuración-ens).
+La restauración de esta copia se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
 
 ### 14.3 Sembrar los controles ENS
 
 > [!important]
-> Sembrar solo con el plugin ya desplegado (apartado 13.6). La versión instalada del plugin tiene que conocer los controles que se siembran.
+> Sembrar solo con el plugin ya desplegado (apartado 13.4). La versión instalada del plugin tiene que conocer los controles que se siembran.
 
 Sembrar los diecisiete controles. Primero en modo de prueba (sin `--apply`), que muestra el plan sin escribir nada:
 

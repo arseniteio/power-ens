@@ -7,23 +7,26 @@
 
 This guide describes how to update ENSFácil when Wazuh and a previous version of the plugin are already installed and working, including the case where the new version brings new controls.
 
-The procedure keeps the existing environment, applies only the pending integration changes and builds a new plugin artifact before deploying it.
+There are two cases:
+
+| The environment has | What to follow |
+|---|---|
+| The `ensfacil` plugin (the «ENSFácil» app in the menu) | sections 2 to 9 |
+| The integrated version (the modified Wazuh plugin, with the «ENS» app in the menu) | section 10, [Transition from the integrated version](#10-transition-from-the-integrated-version) |
 
 ```mermaid
 flowchart LR
   A["2. Prerequisites"] --> B["3. Update the<br/>repositories"]
   B --> C["4. Rules on<br/>the manager"]
-  C --> D["5. Check the<br/>integration"]
-  D --> E["6. Prior<br/>backup"]
-  E --> F["7. Update the<br/>integration"]
-  F --> G["8. Rebuild"]
-  G --> H["9. Deploy<br/>the plugin"]
-  H --> I["10. Seed and validate<br/>the configuration"]
-  I --> J["11. Agents and<br/>final check"]
+  C --> D["5. Prior<br/>backup"]
+  D --> E["6. Rebuild"]
+  E --> F["7. Deploy<br/>the plugin"]
+  F --> G["8. Seed and validate<br/>the configuration"]
+  G --> H["9. Agents and<br/>final check"]
 ```
 
 > [!important]
-> Order matters: the new plugin is deployed (section 9) **before** seeding the configuration of the new controls (section 10). The installed plugin validates the configuration document with its own rules, which do not know the new controls or parameter types: seeding first can leave the whole dashboard unable to load.
+> Order matters: the new plugin is deployed (section 7) **before** seeding the configuration of the new controls (section 8). The installed plugin validates the configuration document with its own rules, which do not know the new controls or parameter types: seeding first can leave the whole dashboard unable to load.
 
 ## 2. Prerequisites
 
@@ -31,21 +34,23 @@ The following conditions must be met before starting:
 
 | Requirement |
 |---|
-| Wazuh Dashboard 4.14.7 installed. |
-| Build tree available in `/opt/ensfacil/build`. |
-| Wazuh plugin available in `/opt/ensfacil/build/plugins/main`. |
-| ENSFácil repository available in `/opt/ensfacil/repo` and runbooks in `/opt/ensfacil/<runbook>`. |
-| Node.js 18.19.0 and Yarn Classic 1.22.22 (or the Node.js shipped with Wazuh Dashboard, see [the installation guide, section 13.5](01-installation-from-scratch.en.md#135-build-and-validate-the-plugin)). |
-| The Dashboard must be operational before starting the update. |
+| Wazuh Dashboard 4.14.7 installed and operational. |
+| `ensfacil` plugin installed. If the environment has the integrated version, go to section 10. |
+| OpenSearch Dashboards 2.19.5 tree in `/opt/ensfacil/build` ([installation guide, section 13.2](01-installation-from-scratch.en.md#132-prepare-the-opensearch-dashboards-2195-tree)), or the new zip already built. |
+| ENSFácil repository in `/opt/ensfacil/repo` and runbooks in `/opt/ensfacil/<runbook>`. |
+| Node.js 18.19.0 and Yarn Classic 1.22.22 ([installation guide, section 13.1](01-installation-from-scratch.en.md#131-prepare-nodejs-and-yarn)). |
 
 Check the initial state:
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
+sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 git -C /opt/ensfacil/repo status --short
 git -C /opt/ensfacil/repo branch --show-current
 sudo mkdir -p /opt/ensfacil/artifacts && sudo chown "$USER":root /opt/ensfacil/artifacts
 ```
+
+What you should see: `active`, `ensfacil@<version>` in the plugin list and no local changes in the repository.
 
 > [!warning]
 > Do not continue if Wazuh Dashboard is not active or if the repository has unidentified local changes.
@@ -118,121 +123,84 @@ The output must be `active` and `coherencia OK`. The rules each installer confir
 > [!warning]
 > If the `agent.conf` of the `ens` group (or the `ens-copias` one) has more than one `<agent_config>` block, the installers refuse to modify it: merge the blocks into one and validate it with `verify-agent-conf` before retrying. If an installer failed after copying its rules, the retry does not restart the manager: restart it by hand and check the rule with `wazuh-logtest`.
 
-## 5. Check the existing integration
+## 5. Create a prior backup
 
-Define the working paths and verify the integrity of the integration package:
-
-```bash
-REPO=/opt/ensfacil/repo
-TARGET=/opt/ensfacil/build/plugins/main
-PKG=$REPO/integration/wazuh-dashboard
-
-( cd "$PKG" && sha256sum -c SHA256SUMS )
-"$PKG/check-integration.sh" "$TARGET"
-```
-
-The result must show `RESULTADO=COMPATIBLE`. The report may show patches already applied and others pending; this is normal during an update.
-
-> [!warning]
-> If conflicts appear or the result is not compatible, do not apply any change and see the compatibility and troubleshooting guides.
-
-## 6. Create a prior backup
-
-Back up the current ENS module, the last deployable ZIP and the active configuration document before changing anything:
+Back up the installed plugins, the deployed zip and the active configuration document before changing anything:
 
 ```bash
 STAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP=/opt/ensfacil/artifacts/update-$STAMP
 sudo mkdir -p "$BACKUP"
 
-sudo cp -a "$TARGET/public/components/overview/ens" "$BACKUP/ens"
+sudo tar -C /usr/share/wazuh-dashboard -czf "$BACKUP/plugins-antes.tgz" plugins
 
-test -f "$TARGET/build/wazuh-2.19.5.zip" && \
-  sudo cp -a "$TARGET/build/wazuh-2.19.5.zip" "$BACKUP/"
+ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+test -f "$ZIP" && sudo cp -a "$ZIP" "$BACKUP/"
 
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active | sudo tee "$BACKUP/active.json" >/dev/null
 
+ls -l "$BACKUP"
 echo "BACKUP=$BACKUP"
 ```
 
+What you should see: `plugins-antes.tgz`, `ensfacil-2.19.5.zip` and `active.json` inside `$BACKUP`.
+
 > [!important]
-> The previous ZIP and `active.json` must be kept until every validation of the new version has been completed.
+> `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil` before building: the previous zip is only kept if it is copied here. Keep the previous zip and `active.json` until every validation of the new version is complete.
 
-## 7. Update the ENSFácil integration
+## 6. Rebuild the plugin
 
-First update the ENS module inside the build tree, and with it the requirements catalogue of the compliance view (it changes every time a control or a requirement is added):
-
-```bash
-DEST="$TARGET/public/components/overview/ens"
-sudo rm -rf "$DEST"
-sudo cp -a "$REPO/dashboard/ens" "$DEST"
-sudo chown -R "$USER":"$USER" "$DEST"
-sudo cp "$REPO/dashboard/ens-requirements.ts" "$TARGET/common/compliance-requirements/ens-requirements.ts"
-sudo chown "$USER":"$USER" "$TARGET/common/compliance-requirements/ens-requirements.ts"
-```
-
-> [!note]
-> Until 07/10/2026 that catalogue travelled inside the integration package, which does not replace it if it already exists: environments installed before kept the controls of their first installation, and the compliance view did not show the others. Since that date it is copied here, with the core.
-
-Then apply only the pending changes of the integration package:
-
-```bash
-"$PKG/apply-integration.sh" "$TARGET"
-```
-
-The script creates its own backup of the modified files. It must end with `RESULTADO=INTEGRACION_APLICADA` and no `.rej` files.
-
-Check the resulting state immediately:
-
-```bash
-"$PKG/check-integration.sh" "$TARGET"
-```
-
-After the update, all patches must appear as already applied, the additional files present, and the result must be `RESULTADO=COMPATIBLE`.
-
-## 8. Rebuild the plugin
+If the new zip was received already built, skip this section and use that file in section 7.
 
 ```bash
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 nvm use 18.19.0
-cd "$TARGET"
 
-YARN_IGNORE_ENGINES=1 node ../../scripts/plugin_helpers build \
-  --opensearch-dashboards-version=2.19.5 2>&1 | tee /opt/ensfacil/artifacts/build.log
+YARN_BIN=$(dirname "$(command -v yarn)")
+P=$YARN_BIN:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh > /opt/ensfacil/artifacts/build.log 2>&1
+tail -1 /opt/ensfacil/artifacts/build.log
 ```
 
-If the tree belongs to `root` or the build uses the Node.js shipped with Wazuh Dashboard, use the variant with `--allow-root` and `yarn` in the `PATH` described in the [installation guide, section 13.5](01-installation-from-scratch.en.md#135-build-and-validate-the-plugin), with the log in `/opt/ensfacil/artifacts` and never in `/tmp`.
+What you should see: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`. The log is kept in `/opt/ensfacil/artifacts`, never in `/tmp` (see [the installation guide, section 13.3](01-installation-from-scratch.en.md#133-build-and-validate-the-plugin)).
 
-Validate the new artifact before installing it, including that it carries the new code (replace `op.exp.10` with the identifier of a control or a text that changed in this version):
+Validate the new zip, including that it carries the new code (replace `op.exp.10` with the id of a control or a text that changed in this version):
 
 ```bash
-test -f build/wazuh-2.19.5.zip && echo "ZIP_GENERADO=OK"
-unzip -t build/wazuh-2.19.5.zip | tail -1
-unzip -p build/wazuh-2.19.5.zip "*.js" | grep -c "op.exp.10"
+ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+unzip -t "$ZIP" | tail -1
+bash /opt/ensfacil/repo/config/deploy-plugin.sh --solo-id "$ZIP"
+unzip -p "$ZIP" "*/target/public/*.js" | grep -c "op.exp.10"
 ```
+
+What you should see: `No errors detected…`, `ensfacil` and a number greater than `0`.
 
 > [!warning]
-> Do not continue if the ZIP does not exist, the integrity check reports errors or the count is `0`.
+> Do not continue if the zip does not exist, the integrity check reports errors or the count is `0`.
 
-## 9. Deploy the updated version
+## 7. Deploy the updated version
 
 ```bash
-ZIP=/opt/ensfacil/build/plugins/main/build/wazuh-2.19.5.zip
+ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 
 sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"
 ```
 
-`deploy-plugin.sh` replaces only the `wazuh` plugin and bumps the dashboard `build.number` so that browsers download the new version without having to clear their cache.
+`deploy-plugin.sh` replaces only the `ensfacil` plugin and bumps the dashboard `build.number` so browsers download the new version without having to clear their cache. The Wazuh plugin is not touched.
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-## 10. Seed and validate the configuration
+What you should see: `active`, `ensfacil@<new version>` and `wazuh@4.14.7-01` in the list, and `401`.
+
+## 8. Seed and validate the configuration
 
 With the new plugin deployed, seed the configuration blocks. The operation merges: it keeps the values already declared and adds the new parameters and controls. It uses the indexer administrator certificate, with no passwords:
 
@@ -259,11 +227,11 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-The output must be `ESTRUCTURA VÁLIDA`. If it is invalid, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#8-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
+The output must be `ESTRUCTURA VÁLIDA`. If it is invalid, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
 
 If the version introduces op.exp.8, review the optional **Traceability level (T)** field in the global configuration.
 
-## 11. Agents and final check
+## 9. Agents and final check
 
 On each audited machine, update or install the runbooks that apply to it following their own guide. If any of them writes auditd rules (op.exp.5, op.exp.8, op.exp.10), load them at the end:
 
@@ -271,19 +239,14 @@ On each audited machine, update or install the runbooks that apply to it followi
 sudo augenrules --load
 ```
 
-Finally check the integration and the consistency with the runbooks:
+Check the consistency between the plugin and the runbooks:
 
 ```bash
-REPO=/opt/ensfacil/repo
-TARGET=/opt/ensfacil/build/plugins/main
-PKG=$REPO/integration/wazuh-dashboard
-
-"$PKG/check-integration.sh" "$TARGET"
-cd "$REPO"
-python3 tests/check-consistency.py
+cd /opt/ensfacil/repo
+python3 tests/check-consistency.py | tail -1
 ```
 
-Wazuh Dashboard must remain `active`, the `wazuh` plugin must appear installed and `check-integration.sh` must end with `RESULTADO=COMPATIBLE`.
+The output must be `coherencia OK`.
 
 Finally open ENSFácil in Wazuh Dashboard and confirm that:
 
@@ -291,4 +254,76 @@ Finally open ENSFácil in Wazuh Dashboard and confirm that:
 - if there are controls measured on the manager (op.exp.7, op.exp.8, op.exp.9), the manager (agent `000`) appears in the scope and, after the first hourly run of its collectors, its row has data;
 - no control shows «Sin datos del recolector desde …» on a machine that should be reporting.
 
-If any validation fails, do not keep operating the new version and use the troubleshooting and rollback procedure.
+If any validation fails, do not keep operating the new version and use the [troubleshooting and rollback](04-troubleshooting-and-rollback.en.md) procedure.
+
+## 10. Transition from the integrated version
+
+The integrated version of ENSFácil lived inside the Wazuh plugin: the official `wazuh` plugin was removed and a modified one, with the «ENS» app, was installed. ENSFácil is now a plugin of its own, `ensfacil`, and the Wazuh plugin is the official one again.
+
+The configuration is not migrated: both versions use the same index, `wazuh-ens-configuration`, and the same format. The manager rules and the runbooks do not change either.
+
+The transition has three steps: install ENSFácil next to the integrated version, compare the two, and go back to the official Wazuh plugin.
+
+### 10.1 Install ENSFácil next to the integrated version
+
+Follow sections 3 to 7 of this guide. `deploy-plugin.sh`, with the ENSFácil zip, only installs `ensfacil`: the integrated plugin (`wazuh`) stays as it is. Then create the `ensfacil_admin` role and assign it ([installation guide, section 13.5](01-installation-from-scratch.en.md#135-create-the-ensfacil_admin-role)).
+
+What you should see: in the plugin list, `ensfacil` and `wazuh`; in the dashboard menu, two apps: «ENS» (the integrated one) and «ENSFácil» (the new one). Both read the same configuration and the same data.
+
+> [!warning]
+> While they coexist, save the configuration only from «ENSFácil». Both apps write the same document.
+
+### 10.2 Compare the two versions
+
+With the same machine and the same date range, compare screen by screen: Panel, Controles, Detalle del control, Informes, Evidencias, Eventos and Configuración. The percentages, the controls and the number of facts must match.
+
+If something does not match, do not continue: write down the screen, the machine and the date range, and contact Quersystem.
+
+### 10.3 Go back to the official Wazuh plugin
+
+When both versions match, the official `wazuh-dashboard` 4.14.7 package is reinstalled. This brings back the official Wazuh plugin, removes the «ENS» app and leaves only «ENSFácil».
+
+> [!important]
+> Do this step in a test environment first. It needs the Wazuh package repository (or the downloaded `wazuh-dashboard` 4.14.7-1 package) and the ENSFácil zip installed in section 10.1.
+
+Keep what is going to be replaced:
+
+```bash
+T=/opt/ensfacil/artifacts/transicion-$(date +%Y%m%d-%H%M%S)
+sudo mkdir -p "$T"
+sudo tar -C /usr/share/wazuh-dashboard -czf "$T/plugins-antes.tgz" plugins
+sudo cp -a /usr/share/wazuh-dashboard/package.json "$T/package.json"
+sudo cp -a /etc/wazuh-dashboard "$T/etc-wazuh-dashboard"
+echo "T=$T"
+```
+
+Move the integrated plugin aside and reinstall the official package:
+
+```bash
+sudo systemctl stop wazuh-dashboard
+sudo mv /usr/share/wazuh-dashboard/plugins/wazuh "$T/wazuh-integrado"
+sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dashboard=4.14.7-1
+```
+
+`--force-confold` keeps the dashboard configuration (`/etc/wazuh-dashboard`) without asking. What you should see: the reinstallation ends without errors and `/usr/share/wazuh-dashboard/plugins/wazuh` exists again. If it fails, put the integrated plugin back (`sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh`) and start the dashboard.
+
+The reinstallation resets the dashboard `build.number` to its factory value, which browsers may have linked to files of the integrated version. That is why the previous `package.json` is restored and ENSFácil is deployed again, which bumps the number:
+
+```bash
+sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
+sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+```
+
+Check:
+
+```bash
+sudo systemctl is-active wazuh-dashboard
+sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
+```
+
+What you should see: `active`; in the list, `wazuh@4.14.7-01` (the official one) and `ensfacil@<version>`; and `401`. The menu no longer shows «ENS» and does show «ENSFácil», with the same configuration as before.
+
+Saved links to the «ENS» app (`/app/ens#…`) stop working. The new address is `/app/ensfacil`.
+
+To go back, see the [troubleshooting and rollback guide, section 6](04-troubleshooting-and-rollback.en.md#6-go-back-to-the-integrated-version).

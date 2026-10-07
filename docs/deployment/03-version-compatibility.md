@@ -5,88 +5,80 @@
 
 ## 1. Objetivo
 
-Esta guía define el alcance de compatibilidad conocido de ENSFácil y el procedimiento que debe seguirse antes de utilizar una versión distinta de Wazuh Dashboard.
+Esta guía dice con qué versiones funciona ENSFácil y qué hacer antes de usar otra versión de Wazuh.
+
+ENSFácil es un plugin propio de Wazuh Dashboard (`ensfacil`). No modifica el plugin de Wazuh: Wazuh se puede actualizar por su cuenta. Pero ENSFácil se compila para una versión **exacta** de OpenSearch Dashboards, la que lleva Wazuh Dashboard.
 
 > [!important]
-> La compatibilidad nunca debe asumirse únicamente porque Wazuh pueda instalarse o arrancar correctamente. ENSFácil modifica e incorpora componentes dentro del plugin oficial de Wazuh Dashboard y esos puntos de integración pueden cambiar entre versiones.
+> La compatibilidad nunca debe suponerse porque Wazuh se instale o arranque bien. Una versión es compatible cuando se ha compilado ENSFácil para ella y se ha validado.
 
-## 2. Versiones reconocidas actualmente
+## 2. Versión validada
 
-El paquete de integración actual reconoce las siguientes versiones de Wazuh Dashboard:
+| ENSFácil | Wazuh | OpenSearch Dashboards |
+|---|---|---|
+| `1.0.0` | `4.14.7` | `2.19.5` |
 
-| Versión reconocida |
-|---|
-| Wazuh 4.14.5. |
-| Wazuh 4.14.7. |
+Cualquier otra combinación está sin validar.
 
-La comprobación está implementada en `integration/wazuh-dashboard/check-integration.sh`.
+El zip lleva la versión de OpenSearch Dashboards en el nombre (`ensfacil-2.19.5.zip`) y en su manifiesto (`opensearchDashboardsVersion`). OpenSearch Dashboards solo acepta un plugin compilado para su versión exacta:
 
-Cualquier versión distinta debe considerarse no validada hasta completar un nuevo ciclo de compatibilidad.
+- al instalarlo, `opensearch-dashboards-plugin install` lo rechaza con `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
+- si ya estaba instalado y el dashboard cambia de versión, el dashboard **no arranca**: `Failed to initialize plugins`.
 
-## 3. Comprobación obligatoria antes de integrar ENSFácil
-
-Definir el árbol del plugin Wazuh que se quiere evaluar:
+## 3. Comprobar las versiones instaladas
 
 ```bash
-REPO=/opt/ensfacil/repo
-TARGET=/opt/ensfacil/build/plugins/main
-PKG=$REPO/integration/wazuh-dashboard
-
-( cd "$PKG" && sha256sum -c SHA256SUMS )
-"$PKG/check-integration.sh" "$TARGET"
+dpkg-query -W -f='${Package} ${Version}\n' wazuh-manager wazuh-indexer wazuh-dashboard
+sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/package.json"))["version"])'
+sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-El script identifica la versión del plugin y analiza el estado de los parches y ficheros que forman la integración ENSFácil.
+Qué tiene que salir, en la combinación validada: los tres paquetes en `4.14.7-1`, `2.19.5` y, en la lista de plugins, `ensfacil@1.0.0`.
 
-Solo debe continuarse cuando la ejecución finalice con:
+## 4. Antes de actualizar Wazuh
 
-```text
-RESULTADO=COMPATIBLE
-```
+Comprobar qué versión de OpenSearch Dashboards trae la versión nueva de Wazuh Dashboard (en sus notas de versión o en su paquete).
 
-> [!warning]
-> Si devuelve `RESULTADO=NO_COMPATIBLE`, aparecen conflictos o informa de una versión no validada, no debe ejecutarse `apply-integration.sh` sobre ese árbol.
-
-## 4. Evaluar una versión nueva de Wazuh
-
-Una versión de Wazuh distinta de las reconocidas actualmente debe evaluarse primero en un entorno de laboratorio independiente.
+- **Misma versión de OpenSearch Dashboards (`2.19.5`):** el zip de ENSFácil es el mismo. Aun así, la combinación nueva está sin validar hasta completar el apartado 5 en un entorno de pruebas.
+- **Otra versión de OpenSearch Dashboards:** hace falta un zip de ENSFácil compilado para ella. Sin ese zip, no actualizar el dashboard: con `ensfacil` instalado, no arrancaría. Si hay que actualizar igualmente, retirar antes ENSFácil ([diagnóstico y rollback, apartado 5](04-troubleshooting-and-rollback.md#5-retirar-ensfácil)).
 
 > [!warning]
-> No modificar directamente un entorno de producción para realizar esta validación.
+> No hacer esta evaluación directamente en un entorno de producción.
 
-El procedimiento de compatibilidad debe incluir:
+## 5. Evaluar una versión nueva
 
-1. Obtener el código oficial correspondiente a la nueva versión de Wazuh Dashboard y de sus plugins.
-2. Preparar un árbol de compilación limpio para esa versión.
-3. Comparar los puntos modificados por ENSFácil con los ficheros de la nueva versión.
-4. Ejecutar las comprobaciones de integración antes de aplicar cambios.
-5. Adaptar los parches únicamente si la nueva versión ha cambiado los puntos de integración.
-6. Aplicar ENSFácil sobre el árbol limpio y comprobar que no existen conflictos ni ficheros `.rej`.
-7. Compilar utilizando la versión de OpenSearch Dashboards correspondiente a esa versión de Wazuh.
-8. Instalar el artefacto en un entorno de prueba y validar el funcionamiento de ENSFácil y del Dashboard.
+En un entorno de pruebas:
 
-> [!note]
-> No debe reutilizarse automáticamente `2.19.5` para una versión futura. La versión de OpenSearch Dashboards debe comprobarse para la versión concreta de Wazuh que se esté evaluando.
+1. Preparar el árbol de compilación de la versión nueva de Wazuh Dashboard, como en la [guía de instalación, apartado 13.2](01-installation-from-scratch.md#132-preparar-el-árbol-de-opensearch-dashboards-2195), con su etiqueta.
+2. Ajustar la versión de OpenSearch Dashboards en `package.json`, `opensearch_dashboards.json` y `config/build-plugin.sh`.
+3. Compilar con `config/build-plugin.sh` y validar el zip ([apartado 13.3](01-installation-from-scratch.md#133-compilar-y-validar-el-plugin)).
+4. Instalar con `config/deploy-plugin.sh` y comprobar el servicio, la lista de plugins y la respuesta `401` de `/api/ensfacil/configuration` ([apartado 13.4](01-installation-from-scratch.md#134-instalar-el-plugin-en-wazuh-dashboard)).
+5. Pasar las pruebas del repositorio:
 
-## 5. Criterios para declarar una versión compatible
+   ```bash
+   cd /opt/ensfacil/repo
+   for t in tests/*.test.ts; do npx --yes tsx "$t" >/dev/null 2>&1 || echo "FALLA $t"; done
+   python3 tests/check-consistency.py | tail -1
+   ```
 
-Una nueva versión solo debe incorporarse a la lista admitida cuando se haya demostrado que:
+   Qué tiene que salir: ninguna línea `FALLA` y `coherencia OK`.
 
-- [ ] el paquete de integración se aplica sin conflictos;
-- [ ] no se generan ficheros `.rej`;
-- [ ] los ficheros adicionales de ENSFácil quedan instalados correctamente;
-- [ ] el plugin compila correctamente;
-- [ ] Wazuh Dashboard arranca con el plugin actualizado;
-- [ ] ENSFácil permanece accesible y sus funciones principales continúan operativas;
-- [ ] existe un procedimiento de rollback probado para volver al estado anterior.
+6. Recorrer las pantallas con datos reales: Panel, Configuración (guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
 
-Solo después de completar estas comprobaciones debe actualizarse la lista de versiones admitidas por `check-integration.sh` y documentarse la nueva combinación de versiones.
+## 6. Criterios para declarar una versión compatible
 
-## 6. Versiones no validadas
+Una versión nueva solo se añade a la tabla del apartado 2 cuando se ha demostrado que:
 
-Si una versión no figura entre las reconocidas por el paquete de integración, debe tratarse como no validada.
+- [ ] el plugin compila contra esa versión de OpenSearch Dashboards;
+- [ ] el zip se instala con `deploy-plugin.sh` sin tocar el plugin de Wazuh;
+- [ ] Wazuh Dashboard arranca con los dos plugins;
+- [ ] las pruebas del repositorio pasan;
+- [ ] las pantallas de ENSFácil funcionan con datos reales;
+- [ ] hay una vuelta atrás probada (retirar `ensfacil` o reinstalar la versión anterior).
 
-Esto no significa necesariamente que ENSFácil sea incompatible con ella, sino que todavía no existe evidencia suficiente para autorizar su despliegue.
+## 7. Versiones no validadas
+
+Una versión que no está en la tabla del apartado 2 está sin validar. No quiere decir que sea incompatible, sino que todavía no hay pruebas para autorizar el despliegue.
 
 > [!important]
-> Ante una versión no validada, detener el procedimiento y realizar primero el ciclo de compatibilidad descrito en esta guía.
+> Ante una versión sin validar, detener el procedimiento y hacer primero la evaluación del apartado 5.
