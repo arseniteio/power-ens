@@ -16,7 +16,7 @@
        regla lleva `estado` de cumplimiento.
 
        Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       dashboard/ens/core/evidence/catalog.ts:
+       public/ens/core/evidence/catalog.ts:
 
          EV-01 110301 · EV-02 110302 y 110303 · EV-03 110304
          EV-04 110305 · EV-05 110306 · EV-06 110307

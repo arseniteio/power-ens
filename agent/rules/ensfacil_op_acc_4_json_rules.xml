@@ -25,7 +25,7 @@
        indexados.
 
        Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       dashboard/ens/core/evidence/catalog.ts. Fuera queda 107100 (nivel 0,
+       public/ens/core/evidence/catalog.ts. Fuera queda 107100 (nivel 0,
        nunca genera alerta) y 107110 (el latido: no acredita evidencia, la
        habilita).
 

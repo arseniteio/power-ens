@@ -11,7 +11,7 @@
        Base 110500 · hechos crudos 110501-110549 · diagnóstico 110590-110599
 
        Mapa hecho -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+       `relatedRules` en public/ens/core/evidence/catalog.ts:
 
          110501 vulnerability_inventory  EV-01, EV-10
          110502 vulnerability_open       EV-02, EV-10

@@ -7,7 +7,7 @@
        control_state 106960-106964 · score_snapshot 106970-106974
 
        Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       dashboard/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
+       public/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
        nunca genera alerta), 106923 (inerte para el plugin) y 106906-106908
        (diagnóstico del recolector: no acreditan ninguna evidencia):
 
@@ -302,7 +302,7 @@
          gemelo 106891 en ensfacil_op_acc_1_json_rules.xml. En corto: el motor del
          plugin lee ESTE evento desde el índice para saber si la ausencia de hechos
          de una evidencia puede llegar a significar CUMPLE
-         (`resolveCollectorCoverage` en dashboard/ens/core/evidence/judgment.ts).
+         (`resolveCollectorCoverage` en public/ens/core/evidence/judgment.ts).
          Sin él en el índice, la cobertura es siempre DESCONOCIDA y la evidencia se
          queda en gris permanente aunque la máquina esté sana. Es el fallo que se
          vio en el primer despliegue real de op.acc.1 el 31/07/2026.
@@ -478,7 +478,7 @@
        NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
        agregado no significa una evidencia concreta, y meterlo ahi seria el
        fallo de 106824 al reves. Ver la cabecera de
-       dashboard/ens/core/evidence/catalog.ts.
+       public/ens/core/evidence/catalog.ts.
 
        NO CONFUNDIR CON 106915, que sigue reservada y libre: aquella es para el
        NO_CUMPLE por denegados repetidos de la fase 3 (decision D-8). -->

@@ -7,7 +7,7 @@
      observó— y ninguna afirma cumplimiento: no llevan `estado=` ni los grupos
      `cumple`/`no_cumple`/`non_conformity`. El veredicto lo pone el motor del
      plugin contrastando el hecho con un parámetro de la pantalla de
-     Configuración (ver `dashboard/ens/core/evidence/judgment.ts`).
+     Configuración (ver `public/ens/core/evidence/judgment.ts`).
 
      QUÉ NO ES. **No es lo desplegado.** Lo que instala `install-manager.sh` del
      runbook es el otro juego, `ensfacil_op_acc_1_json_rules.xml` (en este mismo

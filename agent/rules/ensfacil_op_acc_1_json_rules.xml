@@ -7,7 +7,7 @@
      verifica comparando los rule IDs de las dos.
 
      ESTE fichero es del que sale el `relatedRules` de op.acc.1 en
-     `dashboard/ens/core/evidence/catalog.ts`. Antes salía del otro juego de
+     `public/ens/core/evidence/catalog.ts`. Antes salía del otro juego de
      reglas del control —el de hechos crudos, hoy en
      `ensfacil_op_acc_1_technical_fact_rules.xml`— y el resultado fue que 39 de
      las 52 reglas que el catálogo acreditaba no existían en ningún manager: la
@@ -72,7 +72,7 @@
        una autenticación observada, sin decidir si la cuenta está permitida.
        Quien decide es el motor del plugin, contrastando `usuario` con P-04
        (cuentas_genericas_prohibidas) mediante la primitiva NINGUNO_EN_LISTA
-       que EV-03 declara en dashboard/ens/core/evidence/catalog.ts.
+       que EV-03 declara en public/ens/core/evidence/catalog.ts.
 
        De ahí que su <group> NO lleve `cumple`, `no_cumple` ni
        `non_conformity`, y que el nivel sea 3: no es una no conformidad ni un
@@ -386,7 +386,7 @@
          a ser un dato PORTANTE de un veredicto. Al migrar EV-03 al modelo nuevo,
          el motor del plugin lee este evento DESDE EL ÍNDICE para decidir si la
          ausencia de hechos puede llegar a significar CUMPLE
-         (`resolveCollectorCoverage`, en dashboard/ens/core/evidence/judgment.ts):
+         (`resolveCollectorCoverage`, en public/ens/core/evidence/judgment.ts):
          ya no lo consume solo la máquina que lo escribe.
 
          Y score_snapshot NO puede sustituirlo, aunque late con la misma cadencia:
@@ -619,7 +619,7 @@
        NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
        agregado no significa una evidencia concreta, y meterlo ahi seria el
        fallo de 106824 al reves. Ver la cabecera de
-       dashboard/ens/core/evidence/catalog.ts. -->
+       public/ens/core/evidence/catalog.ts. -->
   <rule id="106869" level="3">
     <if_sid>106800</if_sid>
     <field name="event">control_state</field>

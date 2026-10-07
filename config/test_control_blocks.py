@@ -33,7 +33,7 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.abspath(os.path.join(AQUI, ".."))
-DASHBOARD = os.path.join(RAIZ, "dashboard")
+DASHBOARD = os.path.join(RAIZ, "public")
 
 
 # --- localización del runtime -----------------------------------------------
@@ -67,10 +67,10 @@ import {
   resolveSelectFieldModel,
   toParameterListItems,
   validateParameterValue,
-} from './repo/dashboard/ens/configuration/services/parameter-value-validator';
-import { validateControlConfiguration } from './repo/dashboard/ens/configuration/services/validation-engine';
-import { ENSConfigurationRegistry } from './repo/dashboard/ens/configuration/registry';
-import { ParameterRendererFactory } from './repo/dashboard/ens/configuration/form-engine/factory';
+} from './repo/public/ens/configuration/services/parameter-value-validator';
+import { validateControlConfiguration } from './repo/public/ens/configuration/services/validation-engine';
+import { ENSConfigurationRegistry } from './repo/public/ens/configuration/registry';
+import { ParameterRendererFactory } from './repo/public/ens/configuration/form-engine/factory';
 
 const casos = JSON.parse(
   readFileSync(process.argv[process.argv.length - 1], 'utf8')
@@ -351,11 +351,11 @@ def escribe(ruta, contenido):
 
 def prepara(tmp):
     """Copia el árbol y deja los stubs donde los buscan los imports."""
-    shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "dashboard"))
+    shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "public"))
 
     # `configuration/services/configuration-http-client.ts` importa
     # '../../../../../kibana-services', que desde services/ son cinco niveles:
-    # configuration, ens, dashboard, repo y la carpeta temporal.
+    # configuration, ens, public, repo y la carpeta temporal.
     escribe(os.path.join(tmp, "kibana-services.ts"),
             "export const getHttp = () => { throw new Error('stub'); };\n")
 

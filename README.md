@@ -296,7 +296,7 @@ necesidad de volver a ejecutar nada en el servidor.
 Este repositorio contiene el código de ENSFácil y el paquete de integración necesario para incorporarlo a un árbol compatible del plugin oficial de Wazuh Dashboard. El procedimiento reproducible de construcción está documentado en las guías de despliegue anteriores.
 
 ```
-dashboard/ens/     módulo ENS (React + TypeScript)
+public/ens/     módulo ENS (React + TypeScript)
   catalog/         definición de controles y requisitos
   configuration/   parámetros configurables
   core/            motor: evidencias, evaluación, consolidación

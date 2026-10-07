@@ -25,7 +25,7 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.abspath(os.path.join(AQUI, "..", "..", "..", ".."))
-DASHBOARD = os.path.join(RAIZ, "dashboard")
+DASHBOARD = os.path.join(RAIZ, "public")
 
 
 # --- localización del runtime -----------------------------------------------
@@ -54,14 +54,14 @@ ARNES = r"""
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
-import { validateParameterValue } from './repo/dashboard/ens/configuration/services/parameter-value-validator';
+import { validateParameterValue } from './repo/public/ens/configuration/services/parameter-value-validator';
 import {
   validateControlConfiguration,
   validateControlParameterValues,
-} from './repo/dashboard/ens/configuration/services/validation-engine';
-import { evaluateENSControl } from './repo/dashboard/ens/core/evaluation/evaluation-engine';
-import { ENSCatalog } from './repo/dashboard/ens/catalog';
-import { ENSConfigurationRegistry } from './repo/dashboard/ens/configuration/registry';
+} from './repo/public/ens/configuration/services/validation-engine';
+import { evaluateENSControl } from './repo/public/ens/core/evaluation/evaluation-engine';
+import { ENSCatalog } from './repo/public/ens/catalog';
+import { ENSConfigurationRegistry } from './repo/public/ens/configuration/registry';
 
 const control = (controlId) =>
   ENSConfigurationRegistry.find((item) => item.controlId === controlId);
@@ -171,11 +171,11 @@ console.log(JSON.stringify(salida));
 
 def prepara(tmp):
     """Copia el árbol y deja el stub de kibana-services donde lo busca el import."""
-    shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "dashboard"))
+    shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "public"))
 
     # `configuration/services/configuration-http-client.ts` importa
     # '../../../../../kibana-services', que desde services/ son cinco niveles:
-    # configuration, ens, dashboard, repo y la carpeta temporal.
+    # configuration, ens, public, repo y la carpeta temporal.
     with open(os.path.join(tmp, "kibana-services.ts"), "w", encoding="utf-8") as f:
         f.write("export const getHttp = () => { throw new Error('stub'); };\n")
 

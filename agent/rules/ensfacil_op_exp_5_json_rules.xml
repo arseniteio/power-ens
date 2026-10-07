@@ -12,7 +12,7 @@
        recolector 110697-110699
 
        Mapa hecho -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+       `relatedRules` en public/ens/core/evidence/catalog.ts:
 
          110601 config_file_modified       EV-01, EV-02, EV-04, EV-07, EV-09
          110602 package_changed            EV-01, EV-02, EV-04, EV-07, EV-09
