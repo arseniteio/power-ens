@@ -15,7 +15,7 @@ const recorre = (dir: string, fuera: string[] = []): string[] => {
   for (const n of fs.readdirSync(dir)) {
     const r = path.join(dir, n);
     if (fs.statSync(r).isDirectory()) recorre(r, fuera);
-    else if (/\.(ts|tsx)$/.test(n)) fuera.push(r);
+    else if (/\.(ts|tsx|js|jsx)$/.test(n)) fuera.push(r);
   }
   return fuera;
 };
@@ -23,12 +23,14 @@ const recorre = (dir: string, fuera: string[] = []): string[] => {
 const esFichero = (r: string): boolean => fs.existsSync(r) && fs.statSync(r).isFile();
 const resuelve = (r: string): boolean =>
   esFichero(r) ||
-  ['.ts', '.tsx', '.js', '.json'].some(e => esFichero(r + e)) ||
-  ['index.ts', 'index.tsx', 'index.js'].some(i => esFichero(path.join(r, i)));
+  ['.ts', '.tsx', '.js', '.jsx', '.json'].some(e => esFichero(r + e)) ||
+  ['index.ts', 'index.tsx', 'index.js', 'index.jsx'].some(i => esFichero(path.join(r, i)));
 
 // Lo único que puede salir del plugin: el núcleo de OpenSearch Dashboards.
 const NUCLEO = /^(\.\.\/)+src\/(core|plugins\/(data|navigation))\//;
-const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake\/|rxjs|lodash|moment|crypto|fs|path)/;
+// Cada paquete entero o una ruta dentro de él: `react` no deja pasar
+// `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`.
+const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake|rxjs|lodash|moment|crypto|fs|path)(\/|$)/;
 
 for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(f, 'utf8');

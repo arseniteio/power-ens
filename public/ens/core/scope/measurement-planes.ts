@@ -247,6 +247,7 @@ export const applyManagerPlaneToScope = (
     name: inventoryManager?.name || ENS_MANAGER_FALLBACK_NAME,
     groups: inventoryManager ? [...inventoryManager.groups] : [],
     isManager: true,
+    ...(inventoryManager?.status ? { status: inventoryManager.status } : {}),
   };
 
   return [...agents, manager];

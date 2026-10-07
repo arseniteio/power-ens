@@ -1,7 +1,7 @@
 /**
  *   npx --yes tsx tests/agent-inventory.test.ts
  */
-import { buildMonitoringInventoryRequest, ENS_INVENTORY_MAX_AGE_MS, inventoryFromMonitoring } from '../public/agents/agent-inventory';
+import { buildMonitoringInventoryRequest, ENS_INVENTORY_MAX_AGE_MS, inventoryFromMonitoring, staleInventoryMessage } from '../public/agents/agent-inventory';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
@@ -21,16 +21,28 @@ const aggs = {
 };
 const inv = inventoryFromMonitoring(aggs, ahora);
 
-comprueba('cuatro agentes, por id', inv.agents.map(a => a.id).join(',') === '000,024,024,028', inv.agents.map(a => a.id));
+// `24` y `024` son el mismo agente: queda uno, el del dato más reciente.
+comprueba('tres agentes, por id, sin duplicar el 024', inv.agents.map(a => a.id).join(',') === '000,024,028', inv.agents.map(a => a.id));
+comprueba('del 024 queda el más reciente', inv.agents.find(a => a.id === '024')?.name === 'real', inv.agents.find(a => a.id === '024'));
 comprueba('grupos como lista', JSON.stringify(inv.agents.find(a => a.name === 'ldap')?.groups) === '["default","ens"]');
 comprueba('grupos como texto con comas', JSON.stringify(inv.agents.find(a => a.name === 'real')?.groups) === '["ens","ens-copias"]');
 comprueba('sin grupos: lista vacía', JSON.stringify(inv.agents.find(a => a.id === '000')?.groups) === '[]');
-comprueba('id numérico a tres cifras', inv.agents.some(a => a.name === 'numérico' && a.id === '024'));
+comprueba('id numérico a tres cifras', inventoryFromMonitoring({ agentes: { buckets: [cubo('7', { id: 7, name: 'solo', timestamp: '2026-10-07T12:15:00Z' })] } }, ahora).agents[0]?.id === '007');
+{
+  // El orden de los cubos no decide: gana el más reciente aunque llegue después.
+  const v = inventoryFromMonitoring({ agentes: { buckets: [
+    cubo('024', { id: '024', name: 'viejo', timestamp: '2026-10-07T12:00:00Z' }),
+    cubo('24', { id: 24, name: 'nuevo', timestamp: '2026-10-07T12:15:00Z' }),
+  ] } }, ahora);
+  comprueba('duplicado: gana el más reciente, llegue cuando llegue', v.agents.length === 1 && v.agents[0].name === 'nuevo', v.agents);
+}
 comprueba('estado', inv.agents.find(a => a.name === 'ldap')?.status === 'active');
 comprueba('el dato más reciente', inv.newestTimestamp === '2026-10-07T12:15:00.000Z');
 comprueba('15 minutos: no está antiguo', inv.stale === false);
 comprueba('más de 1 h: antiguo', inventoryFromMonitoring(aggs, ahora + ENS_INVENTORY_MAX_AGE_MS).stale === true);
 comprueba('sin cubos: vacío y antiguo', (() => { const v = inventoryFromMonitoring(undefined, ahora); return v.agents.length === 0 && v.stale; })());
+comprueba('aviso de antiguo con fecha', staleInventoryMessage('2026-10-07T12:15:00.000Z').includes('2026-10-07T12:15:00.000Z'));
+comprueba('aviso de antiguo sin fecha: ni «undefined» ni vacío', (() => { const m = staleInventoryMessage(undefined); return !m.includes('undefined') && /no trae ninguna fecha/.test(m); })(), staleInventoryMessage(undefined));
 const q: any = buildMonitoringInventoryRequest();
 comprueba('lee wazuh-monitoring-*', q.index === 'wazuh-monitoring-*');
 comprueba('el último documento de cada agente', q.body.aggs.agentes.aggs.ultimo.top_hits.size === 1 && q.body.aggs.agentes.aggs.ultimo.top_hits.sort[0].timestamp.order === 'desc');

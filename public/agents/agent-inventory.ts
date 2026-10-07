@@ -48,7 +48,9 @@ const gruposDe = (valor: unknown): string[] => {
 
 export const inventoryFromMonitoring = (aggregations: any, now: number = Date.now()): ENSAgentInventory => {
   let masReciente: number | undefined;
-  const agents: ENSAgentScope[] = [];
+  // Un agente por id normalizado: si dos cubos dan el mismo (`24` y `024`),
+  // queda el del dato más reciente; sin fecha, cuenta como el más antiguo.
+  const porId = new Map<string, { agente: ENSAgentScope; instante: number }>();
 
   for (const cubo of aggregations?.agentes?.buckets || []) {
     const doc = cubo?.ultimo?.hits?.hits?.[0]?._source;
@@ -58,15 +60,22 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     const instante = Date.parse(String(doc?.timestamp ?? ''));
     if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) masReciente = instante;
 
-    agents.push({
-      id,
-      name: doc?.name ? String(doc.name) : undefined,
-      groups: gruposDe(doc?.group),
-      ...(doc?.status ? { status: String(doc.status) } : {}),
+    const orden = Number.isNaN(instante) ? -Infinity : instante;
+    const previo = porId.get(id);
+    if (previo && previo.instante >= orden) continue;
+
+    porId.set(id, {
+      instante: orden,
+      agente: {
+        id,
+        name: doc?.name ? String(doc.name) : undefined,
+        groups: gruposDe(doc?.group),
+        ...(doc?.status ? { status: String(doc.status) } : {}),
+      },
     });
   }
 
-  agents.sort((a, b) => a.id.localeCompare(b.id));
+  const agents = [...porId.values()].map(v => v.agente).sort((a, b) => a.id.localeCompare(b.id));
 
   return {
     agents,
@@ -74,6 +83,11 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     stale: masReciente === undefined || now - masReciente > ENS_INVENTORY_MAX_AGE_MS,
   };
 };
+
+export const staleInventoryMessage = (newestTimestamp?: string): string =>
+  newestTimestamp
+    ? `El último dato de wazuh-monitoring es de ${newestTimestamp}: un alta o una baja reciente puede no verse todavía.`
+    : 'El inventario de wazuh-monitoring no trae ninguna fecha: no se sabe si está al día y un alta o una baja reciente puede no verse.';
 
 export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
   const respuesta: any = await getData()
@@ -90,7 +104,7 @@ export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
   if (inventario.stale) {
     getCore().notifications.toasts.addWarning({
       title: 'ENSFácil: inventario de agentes antiguo',
-      text: `El último dato de wazuh-monitoring es de ${inventario.newestTimestamp}: un alta o una baja reciente puede no verse todavía.`,
+      text: staleInventoryMessage(inventario.newestTimestamp),
     });
   }
 

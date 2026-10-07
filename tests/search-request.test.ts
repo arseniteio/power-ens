@@ -31,5 +31,20 @@ comprueba('negado: a must_not', JSON.stringify((rb.body as any).query.bool.must_
 comprueba('agregaciones si se piden', JSON.stringify((rb.body as any).aggs) === '{"a":{"terms":{"field":"x"}}}');
 comprueba('nulos fuera', JSON.stringify((buildENSSearchRequest({ preAppliedFilters: [null, undefined, ventana] }).body as any).query.bool.filter) === JSON.stringify([ventana]));
 
+// Filtros con `meta` que no son `{ meta, query }`: el de rango (lo que da
+// `timefilter.createFilter`) y el de existencia. La consulta es lo que queda
+// sin `meta` ni `$state`; si entraran, OpenSearch respondería 400.
+const rango = { meta: { index: 'x', params: {} }, range: { timestamp: { gte: 'a', lte: 'b' } } };
+const existe = { meta: { index: 'x' }, $state: { store: 'appState' }, exists: { field: 'data.ensfacil' } };
+const rr = buildENSSearchRequest({ preAppliedFilters: [rango, existe] });
+comprueba('rango con meta: solo { range }', JSON.stringify((rr.body as any).query.bool.filter[0]) === JSON.stringify({ range: { timestamp: { gte: 'a', lte: 'b' } } }), (rr.body as any).query.bool.filter[0]);
+comprueba('exists con meta y $state: solo { exists }', JSON.stringify((rr.body as any).query.bool.filter[1]) === JSON.stringify({ exists: { field: 'data.ensfacil' } }), (rr.body as any).query.bool.filter[1]);
+comprueba('ni meta ni $state en el cuerpo', !/"meta"|"\$state"/.test(JSON.stringify(rr.body)));
+const negado = { meta: { negate: true }, $state: { store: 'appState' }, query: { match_phrase: { 'agent.id': '000' } } };
+const rn = buildENSSearchRequest({ preAppliedFilters: [negado] });
+comprueba('negado con query: a must_not, sin meta', JSON.stringify((rn.body as any).query.bool.must_not) === JSON.stringify([{ match_phrase: { 'agent.id': '000' } }]) && (rn.body as any).query.bool.filter.length === 0);
+const rangoNegado = { meta: { negate: true }, range: { timestamp: { lt: 'a' } } };
+comprueba('negado sin query: lo que queda, a must_not', JSON.stringify((buildENSSearchRequest({ preAppliedFilters: [rangoNegado] }).body as any).query.bool.must_not) === JSON.stringify([{ range: { timestamp: { lt: 'a' } } }]));
+
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);

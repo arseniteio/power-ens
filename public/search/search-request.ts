@@ -12,14 +12,17 @@ export interface ENSSearchParams {
 }
 
 // Los filtros llegan como DSL suelto ({ range }, { bool }…) o como filtros de
-// la barra ({ meta, query }): de estos cuenta su `query`, se saltan los
+// la barra, con `meta` (y a veces `$state`): de estos cuenta su `query` o, si
+// no la traen ({ meta, range }, { meta, exists }…), lo que queda sin `meta` ni
+// `$state`, que OpenSearch no admite en la consulta. Se saltan los
 // desactivados y los negados van a must_not.
 const clausula = (filtro: any): { incluir?: unknown; excluir?: unknown } => {
   if (!filtro) return {};
   if (filtro.meta) {
     if (filtro.meta.disabled) return {};
-    const consulta = filtro.query ?? filtro;
-    return filtro.meta.negate ? { excluir: consulta } : { incluir: consulta };
+    const { meta, $state, query, ...resto } = filtro;
+    const consulta = query ?? resto;
+    return meta.negate ? { excluir: consulta } : { incluir: consulta };
   }
   return { incluir: filtro };
 };

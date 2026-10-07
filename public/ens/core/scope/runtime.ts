@@ -90,6 +90,10 @@ const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
             .filter((group) => typeof group === 'string' && group.trim().length > 0)
             .map((group) => group.trim())
         : [],
+      // El estado (de wazuh-monitoring) solo si lo trae: lo pinta el selector.
+      ...(typeof agent.status === 'string' && agent.status.trim()
+        ? { status: agent.status.trim() }
+        : {}),
     }));
 
 export const getActiveENSScopeAgents = (): ENSAgentScope[] => cloneAgents(activeScopeAgents);
