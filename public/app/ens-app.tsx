@@ -5,16 +5,18 @@ import { ControlsENS } from '../ens/controls';
 import { InformesENS } from '../ens/reports';
 import { EvidencesENS } from '../ens/evidences';
 import { EnsDashboardMain } from '../ens/dashboard/ens-dashboard-main';
+import { EventsView } from '../events/events-view';
 import { RequirementsView } from '../requirements/requirements-view';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
 
-// Las vistas de cada pestaña. Eventos llega en la tarea 7.
+// Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
   dashboard: EnsDashboardMain,
   configuration: ConfigurationENS,
   controls: RequirementsView,
+  events: EventsView,
   plugins: ControlsENS,
   'ens-informes': InformesENS,
   evidences: EvidencesENS,

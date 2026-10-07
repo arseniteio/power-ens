@@ -42,8 +42,9 @@ for (const fichero of ficheros) {
     desde = j + 1;
     llamadas++;
     // `size: 0` no trae hechos (solo agregaciones): no hay principio de la
-    // ventana que juzgar ni orden que pedir.
-    const conTope = /\bsize:\s*[1-9]\d*/.test(llamada);
+    // ventana que juzgar ni orden que pedir. Cualquier otro tamaño, número o
+    // variable (`size: pageSize` en la tabla de Eventos), es un tope.
+    const conTope = /\bsize:\s*(?!0\b)[\w.]+/.test(llamada);
     const recientes = /sorting:\s*\[\s*\{\s*timestamp:\s*\{\s*order:\s*'desc'/.test(llamada);
     const sitio = path.relative(path.join(__dirname, '..'), fichero);
     if (conTope && !recientes) {
