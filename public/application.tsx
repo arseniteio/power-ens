@@ -1,23 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { EuiPage, EuiPageBody, EuiText } from '@elastic/eui';
+import { Router } from 'react-router-dom';
 import type { AppMountParameters, CoreStart } from '../../../src/core/public';
 import type { EnsfacilStartDeps } from './types';
+import { EnsApp } from './app/ens-app';
 
-export const renderApp = (
-  core: CoreStart,
-  _deps: EnsfacilStartDeps,
-  { element }: AppMountParameters
-) => {
+export const renderApp = (core: CoreStart, _deps: EnsfacilStartDeps, { element, history }: AppMountParameters) => {
   ReactDOM.render(
     <core.i18n.Context>
-      <EuiPage>
-        <EuiPageBody>
-          <EuiText>
-            <p>ENSFácil</p>
-          </EuiText>
-        </EuiPageBody>
-      </EuiPage>
+      <Router history={history}>
+        <EnsApp />
+      </Router>
     </core.i18n.Context>,
     element
   );
