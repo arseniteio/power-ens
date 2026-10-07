@@ -119,5 +119,28 @@ for (const fichero of recorre(raiz)) {
 }
 comprueba('hay vistas con la barra', vistasConBarra > 0);
 
+// «Actualizar» vuelve a buscar también con un rango ABSOLUTO: ahí los
+// filtros recalculados salen con el mismo JSON y `useEsSearch` no vería
+// cambio. La barra cuenta las pasadas (`refreshKey`) y toda búsqueda de las
+// pantallas que cuelgan de ella (Controles con su panel, Eventos) lo lleva.
+const barraFuente = fs.readFileSync(path.join(raiz, 'search', 'alerts-search-bar.tsx'), 'utf8');
+comprueba('la barra devuelve su contador de pasadas como refreshKey', /\brefreshKey:\s*pasada\b/.test(barraFuente));
+let busquedasConBarra = 0;
+for (const fichero of ['events', 'requirements'].flatMap(d => recorre(path.join(raiz, d)))) {
+  const texto = fs.readFileSync(fichero, 'utf8');
+  const sitio = path.relative(path.join(__dirname, '..'), fichero);
+  for (const m of texto.matchAll(/useEsSearch\(\{/g)) {
+    let nivel = 0;
+    let j = (m.index as number) + 'useEsSearch('.length;
+    for (; j < texto.length; j++) {
+      if (texto[j] === '{') nivel++;
+      else if (texto[j] === '}' && --nivel === 0) break;
+    }
+    busquedasConBarra++;
+    comprueba(`${sitio}: la búsqueda lleva el refreshKey de la barra`, /\brefreshKey\b/.test(texto.slice(m.index as number, j + 1)));
+  }
+}
+comprueba('hay búsquedas que cuelgan de la barra', busquedasConBarra >= 3, busquedasConBarra);
+
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);

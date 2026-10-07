@@ -53,11 +53,14 @@ export const RequirementFlyout = ({
   requirementId,
   description,
   filters: filtrosDeLaVista,
+  refreshKey,
   onClose,
 }: {
   requirementId: string;
   description: string;
   filters: unknown[];
+  // El de la barra: «Actualizar» vuelve a buscar también con rango absoluto.
+  refreshKey: number;
   onClose: () => void;
 }) => {
   const cambia = useSetRouterSearch();
@@ -66,9 +69,12 @@ export const RequirementFlyout = ({
     preAppliedFilters: [...filtrosDeLaVista, buildENSRequirementQuery(requirementId)],
     size: 100,
     sorting: [{ timestamp: { order: 'desc' } }],
+    refreshKey,
   });
 
-  const hits: any[] = esResults?.hits?.hits || [];
+  // Si la búsqueda de los filtros de ahora falla, lo que queda en `esResults`
+  // es de la anterior: ni sus filas ni su recuento se enseñan como de ahora.
+  const hits: any[] = error ? [] : esResults?.hits?.hits || [];
   const total = Number(esResults?.hits?.total?.value ?? esResults?.hits?.total ?? hits.length) || 0;
   const filas: FilaHecho[] = hits.map((hit, i) => {
     const s = hit?._source || {};
@@ -101,6 +107,8 @@ export const RequirementFlyout = ({
           <p>
             {isLoading
               ? 'Buscando los hechos del requisito…'
+              : error
+              ? 'No se pudieron leer los hechos del requisito con los filtros y las fechas de ahora; pulsa «Actualizar» en la barra para volver a intentarlo.'
               : total > filas.length
               ? `Los ${filas.length} hechos más recientes de ${total}, con los filtros y las fechas de la barra.`
               : `${total} ${total === 1 ? 'hecho' : 'hechos'}, con los filtros y las fechas de la barra.`}

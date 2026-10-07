@@ -17,6 +17,10 @@ export interface AlertsSearchBar {
   searchBar: React.ReactNode;
   // Para `useEsSearch`: la consulta, los filtros y las fechas de la barra.
   filters: unknown[];
+  // Para el `refreshKey` de `useEsSearch`: sube con «Actualizar» y con el
+  // refresco automático. Con un rango absoluto los filtros recalculados
+  // tienen el mismo JSON y, sin él, no se volvería a buscar.
+  refreshKey: number;
   // Ya se sabe si el patrón está, no está o no se pudo leer.
   ready: boolean;
   // Se pudo leer la lista de patrones y no está.
@@ -110,6 +114,7 @@ export const useAlertsSearchBar = (): AlertsSearchBar => {
   return {
     searchBar,
     filters,
+    refreshKey: pasada,
     ready: busqueda !== undefined,
     missingIndexPattern: busqueda !== undefined && !busqueda.indexPattern && !busqueda.error,
     patternError: busqueda?.error,

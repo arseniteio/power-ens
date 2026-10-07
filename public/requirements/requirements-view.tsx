@@ -16,6 +16,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiPanel,
+  EuiProgress,
   EuiSpacer,
   EuiSwitch,
   EuiText,
@@ -39,7 +40,7 @@ import { RequirementFlyout } from './requirement-flyout';
 // descripción entera, al pasar el ratón y en el panel del requisito.
 const tituloDe = (descripcion: string): string => descripcion.split(' - ')[0];
 
-const Requisitos = ({ barFilters }: { barFilters: unknown[] }) => {
+const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
   const { agentId } = useRouterSearch();
   const [search, setSearch] = useState('');
   const [hideEmpty, setHideEmpty] = useState(false);
@@ -51,10 +52,13 @@ const Requisitos = ({ barFilters }: { barFilters: unknown[] }) => {
     buildENSScopeAgentQueryFilter(getActiveENSScopeAgents(), agentId),
   ];
   const filtrosDeLaVista = [...fijos, ...barFilters];
+  // El `refreshKey` de la barra: «Actualizar» vuelve a contar aunque el rango
+  // sea absoluto y los filtros no cambien.
   const { esResults, isLoading, error } = useEsSearch({
     preAppliedFilters: filtrosDeLaVista,
     preAppliedAggs: ENS_REQUIREMENT_COUNT_AGGS,
     size: 0,
+    refreshKey,
   });
 
   const modelo = useMemo(
@@ -67,21 +71,39 @@ const Requisitos = ({ barFilters }: { barFilters: unknown[] }) => {
     [esResults, search, hideEmpty, selected]
   );
 
+  const panel = abierto && (
+    <RequirementFlyout
+      requirementId={abierto.id}
+      description={abierto.description}
+      filters={filtrosDeLaVista}
+      refreshKey={refreshKey}
+      onClose={() => setAbierto(undefined)}
+    />
+  );
+
+  // Si el recuento de los filtros de ahora falla, lo que queda en `esResults`
+  // es de la búsqueda anterior (o nada, y todo saldría a cero): los números no
+  // se enseñan como si fueran de ahora. Vuelven con el primer recuento que
+  // salga bien.
+  if (error) {
+    return (
+      <>
+        {isLoading && <EuiProgress size="xs" color="accent" />}
+        <EuiCallOut color="danger" iconType="alert" title="No se pudieron contar los hechos con los filtros y las fechas de ahora">
+          <p>{String((error as any)?.message || error)}</p>
+          <p>Pulsa «Actualizar» en la barra para volver a intentarlo.</p>
+        </EuiCallOut>
+        {panel}
+      </>
+    );
+  }
+
   if (isLoading && !esResults?.aggregations) {
     return <LoadingSpinner message="Contando los hechos de cada requisito…" />;
   }
 
   return (
     <>
-      {error && (
-        <>
-          <EuiCallOut color="danger" iconType="alert" title="No se pudieron contar los hechos: los números no son fiables">
-            <p>{String((error as any)?.message || error)}</p>
-          </EuiCallOut>
-          <EuiSpacer size="m" />
-        </>
-      )}
-
       <EuiFlexGroup gutterSize="l" alignItems="flexStart">
         <EuiFlexItem grow={false} style={{ minWidth: 220 }}>
           <EuiTitle size="xxs">
@@ -159,14 +181,7 @@ const Requisitos = ({ barFilters }: { barFilters: unknown[] }) => {
         </EuiFlexItem>
       </EuiFlexGroup>
 
-      {abierto && (
-        <RequirementFlyout
-          requirementId={abierto.id}
-          description={abierto.description}
-          filters={filtrosDeLaVista}
-          onClose={() => setAbierto(undefined)}
-        />
-      )}
+      {panel}
     </>
   );
 };
@@ -176,7 +191,7 @@ export const RequirementsView = () => {
 
   return (
     <AlertsSearchFrame barra={barra}>
-      <Requisitos barFilters={barra.filters} />
+      <Requisitos barFilters={barra.filters} refreshKey={barra.refreshKey} />
     </AlertsSearchFrame>
   );
 };

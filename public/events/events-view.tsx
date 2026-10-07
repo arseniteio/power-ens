@@ -1,17 +1,18 @@
 // Pestaña Eventos: los hechos ENS de las máquinas del alcance, los más
 // recientes primero, con la barra de búsqueda y las fechas del dashboard.
-// Una página de la tabla es una búsqueda (`from`/`size`); la fecha de cada
-// fila abre el documento entero.
+// Una página de la tabla es una búsqueda (`from`/`size`); el botón de la
+// primera columna de cada fila abre el documento entero.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  EuiButtonIcon,
   EuiCallOut,
   EuiCodeBlock,
   EuiDataGrid,
   EuiFlyout,
   EuiFlyoutBody,
   EuiFlyoutHeader,
-  EuiLink,
   EuiProgress,
+  EuiScreenReaderOnly,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -33,12 +34,11 @@ const TAMANOS = [25, 50, 100];
 const TAMANO_INICIAL = 50;
 
 // Fuera del componente: las columnas no cambian y la cuadrícula no tiene que
-// recalcularlas en cada render. La fecha es un enlace, no se despliega.
+// recalcularlas en cada render.
 const COLUMNAS = ENS_EVENT_COLUMNS.map(c => ({
   id: c.id,
   displayAsText: c.label,
   initialWidth: c.initialWidth,
-  isExpandable: c.id !== 'timestamp',
 }));
 const TODAS = ENS_EVENT_COLUMNS.map(c => c.id);
 // Sin ordenar desde la tabla: el orden es el de la búsqueda (los más
@@ -60,6 +60,14 @@ const recuento = (total: number, isLoading: boolean, hayResultados: boolean): st
   }
   return `${numero(total)} ${total === 1 ? 'hecho' : 'hechos'}`;
 };
+
+// Cabecera de la columna del botón que abre el documento: sin texto a la
+// vista, con nombre para el lector de pantalla.
+const CabeceraDocumento = () => (
+  <EuiScreenReaderOnly>
+    <span>Documento del hecho</span>
+  </EuiScreenReaderOnly>
+);
 
 const Documento = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
   const s = hit?._source || {};
@@ -91,7 +99,7 @@ const Documento = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
   );
 };
 
-const Eventos = ({ barFilters }: { barFilters: unknown[] }) => {
+const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
   const { agentId } = useRouterSearch();
   // Deterministas (alcance, máquina) más los de la barra, memorizados en su
   // hook: el mismo JSON entre renders, y `useEsSearch` no vuelve a buscar.
@@ -110,32 +118,50 @@ const Eventos = ({ barFilters }: { barFilters: unknown[] }) => {
   const [visibles, setVisibles] = useState<string[]>(TODAS);
   const [abierto, setAbierto] = useState<any>();
 
-  // Con tope: los más recientes primero (tests/query-order.test.ts).
+  // Con tope: los más recientes primero (tests/query-order.test.ts). El
+  // `refreshKey` de la barra hace que «Actualizar» vuelva a buscar aunque el
+  // rango sea absoluto y los filtros no cambien.
   const { esResults, isLoading, error } = useEsSearch({
     preAppliedFilters: filtros,
     size: tamano,
     from: pageIndex * tamano,
     sorting: [{ timestamp: { order: 'desc' } }],
+    refreshKey,
   });
 
   const hits: any[] = useMemo(() => esResults?.hits?.hits || [], [esResults]);
   const total = Number(esResults?.hits?.total?.value ?? esResults?.hits?.total ?? 0) || 0;
   const inicio = pageIndex * tamano;
 
-  // Estable mientras no cambien las filas: la cuadrícula la trata como un
-  // componente y una función nueva en cada render volvería a montar las celdas.
+  // Estables mientras no cambien las filas: la cuadrícula los trata como
+  // componentes y una función nueva en cada render volvería a montar las celdas.
   const celda = useCallback(
     ({ rowIndex, columnId }: { rowIndex: number; columnId: string }) => {
+      const valor = getField(hits[rowIndex - inicio]?._source, columnId);
+      return columnId === 'timestamp' ? fecha(valor) : valor;
+    },
+    [hits, inicio]
+  );
+  const botonDocumento = useCallback(
+    ({ rowIndex }: { rowIndex: number }) => {
       const hit = hits[rowIndex - inicio];
-      const valor = getField(hit?._source, columnId);
-      if (columnId !== 'timestamp' || !hit) return valor;
+      if (!hit) return null;
       return (
-        <EuiLink onClick={() => setAbierto(hit)} aria-label={`Ver el documento del hecho del ${fecha(valor)}`}>
-          {fecha(valor)}
-        </EuiLink>
+        <EuiButtonIcon
+          iconType="inspect"
+          color="text"
+          aria-label={`Ver el documento del hecho del ${fecha(getField(hit._source, 'timestamp'))}`}
+          onClick={() => setAbierto(hit)}
+        />
       );
     },
     [hits, inicio]
+  );
+  // Una columna de control, fuera de las que el usuario oculta: el documento
+  // se puede abrir con cualquier selección de columnas.
+  const columnasDeControl = useMemo(
+    () => [{ id: 'documento', width: 40, headerCellRender: CabeceraDocumento, rowCellRender: botonDocumento }],
+    [botonDocumento]
   );
 
   const cambiaPagina = useCallback((index: number) => setPagina({ key: clave, index }), [clave]);
@@ -147,17 +173,24 @@ const Eventos = ({ barFilters }: { barFilters: unknown[] }) => {
     [clave]
   );
 
+  // Si la búsqueda de los filtros de ahora falla, lo que queda en `esResults`
+  // es de la búsqueda anterior: ni la tabla ni el recuento se enseñan como si
+  // fueran de ahora. Vuelven con la primera búsqueda que salga bien.
+  if (error) {
+    return (
+      <>
+        {isLoading && <EuiProgress size="xs" color="accent" />}
+        <EuiCallOut color="danger" iconType="alert" title="No se pudieron leer los hechos con los filtros y las fechas de ahora">
+          <p>{String((error as any)?.message || error)}</p>
+          <p>Pulsa «Actualizar» en la barra para volver a intentarlo.</p>
+        </EuiCallOut>
+        {abierto && <Documento hit={abierto} onClose={() => setAbierto(undefined)} />}
+      </>
+    );
+  }
+
   return (
     <>
-      {error && (
-        <>
-          <EuiCallOut color="danger" iconType="alert" title="No se pudieron leer los hechos">
-            <p>{String((error as any)?.message || error)}</p>
-          </EuiCallOut>
-          <EuiSpacer size="m" />
-        </>
-      )}
-
       <EuiText size="s">
         <p>
           <strong>{recuento(total, isLoading, hits.length > 0)}</strong>
@@ -171,6 +204,7 @@ const Eventos = ({ barFilters }: { barFilters: unknown[] }) => {
           aria-label="Hechos ENS"
           columns={COLUMNAS}
           columnVisibility={{ visibleColumns: visibles, setVisibleColumns: setVisibles }}
+          leadingControlColumns={columnasDeControl}
           rowCount={navigableEventRows(total)}
           renderCellValue={celda}
           toolbarVisibility={BARRA_DE_LA_TABLA}
@@ -185,7 +219,7 @@ const Eventos = ({ barFilters }: { barFilters: unknown[] }) => {
         />
       </div>
 
-      {!isLoading && !error && total === 0 && (
+      {!isLoading && total === 0 && (
         <>
           <EuiSpacer size="s" />
           <EuiText size="s" color="subdued">
@@ -204,7 +238,7 @@ export const EventsView = () => {
 
   return (
     <AlertsSearchFrame barra={barra}>
-      <Eventos barFilters={barra.filters} />
+      <Eventos barFilters={barra.filters} refreshKey={barra.refreshKey} />
     </AlertsSearchFrame>
   );
 };
