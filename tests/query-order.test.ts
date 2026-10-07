@@ -9,7 +9,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const raiz = path.join(__dirname, '..', 'public', 'ens');
+// Todo el código del navegador: las pantallas de `public/ens` y las que el
+// plugin añade fuera (Controles, Eventos).
+const raiz = path.join(__dirname, '..', 'public');
 const ficheros: string[] = [];
 const recorre = (dir: string) => {
   for (const nombre of fs.readdirSync(dir)) {
@@ -39,7 +41,9 @@ for (const fichero of ficheros) {
     const llamada = texto.slice(i, j + 1);
     desde = j + 1;
     llamadas++;
-    const conTope = /\bsize:\s*\d+/.test(llamada);
+    // `size: 0` no trae hechos (solo agregaciones): no hay principio de la
+    // ventana que juzgar ni orden que pedir.
+    const conTope = /\bsize:\s*[1-9]\d*/.test(llamada);
     const recientes = /sorting:\s*\[\s*\{\s*timestamp:\s*\{\s*order:\s*'desc'/.test(llamada);
     const sitio = path.relative(path.join(__dirname, '..'), fichero);
     if (conTope && !recientes) {

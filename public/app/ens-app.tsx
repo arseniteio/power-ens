@@ -5,24 +5,30 @@ import { ControlsENS } from '../ens/controls';
 import { InformesENS } from '../ens/reports';
 import { EvidencesENS } from '../ens/evidences';
 import { EnsDashboardMain } from '../ens/dashboard/ens-dashboard-main';
+import { RequirementsView } from '../requirements/requirements-view';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
 
-// Las vistas de cada pestaña. Requisitos y Eventos llegan en las tareas 6 y 7.
+// Las vistas de cada pestaña. Eventos llega en la tarea 7.
 const VISTAS: Record<string, React.ComponentType> = {
   dashboard: EnsDashboardMain,
   configuration: ConfigurationENS,
+  controls: RequirementsView,
   plugins: ControlsENS,
   'ens-informes': InformesENS,
   evidences: EvidencesENS,
 };
 
+// Una pestaña sin vista todavía no pinta nada. Fuera del componente: un
+// componente nuevo en cada render se desmontaría y montaría cada vez.
+const Vacia = () => null;
+
 export const EnsApp = () => {
   const { tabView } = useRouterSearch();
   const cambia = useSetRouterSearch();
   const pestana = resolveTab(tabView);
-  const Vista = VISTAS[pestana.id] || (() => null);
+  const Vista = VISTAS[pestana.id] || Vacia;
 
   const contenido = pestana.withBootstrap ? (
     <ENSConfigurationBootstrap>
