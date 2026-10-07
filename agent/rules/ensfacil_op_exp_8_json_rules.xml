@@ -12,7 +12,7 @@
        · diagnóstico del recolector 110997-110999
 
        Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       public/ens/core/evidence/catalog.ts:
+       dashboard/ens/core/evidence/catalog.ts:
 
          plano del servidor (agentes Linux y LDAP, y el propio manager)
            EV-01 110901 y 110914 · EV-02 110902 · EV-03 110903

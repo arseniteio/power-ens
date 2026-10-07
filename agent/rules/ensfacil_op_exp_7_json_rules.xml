@@ -16,7 +16,7 @@
        un hecho habla de otra máquina lo dice en su campo `sistema`.
 
        Mapa hecho -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en public/ens/core/evidence/catalog.ts:
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
 
          110801 security_alert_observed        EV-01, EV-02, EV-03
          110802 incident_registered            EV-02 a EV-08, EV-12

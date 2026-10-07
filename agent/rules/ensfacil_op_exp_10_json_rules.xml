@@ -12,7 +12,7 @@
        · diagnóstico del recolector 111197-111199
 
        Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       public/ens/core/evidence/catalog.ts:
+       dashboard/ens/core/evidence/catalog.ts:
 
          EV-01 111101 · EV-02 111102 · EV-03 111103 · EV-04 111104
          EV-05 111105 · EV-06 111102 · EV-07 111107 · EV-08 111102

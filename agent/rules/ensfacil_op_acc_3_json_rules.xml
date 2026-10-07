@@ -32,7 +32,7 @@
        almacenes de política que nadie sincroniza.
 
        Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       public/ens/core/evidence/catalog.ts:
+       dashboard/ens/core/evidence/catalog.ts:
 
          EV-01   107001     desarrollo + operación en la misma cuenta
          EV-02   107001     autorización + control en la misma cuenta

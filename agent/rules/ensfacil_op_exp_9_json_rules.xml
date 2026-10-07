@@ -17,7 +17,7 @@
        de /var/ossec/logs/alerts/ y la configuración de /var/ossec/etc/.
 
        Mapa hecho -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en public/ens/core/evidence/catalog.ts:
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
 
          111001 incident_report_registered        EV-02, EV-09
          111002 incident_source_events_available  EV-01, EV-07

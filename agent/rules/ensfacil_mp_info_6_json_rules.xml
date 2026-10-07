@@ -17,7 +17,7 @@
        misma línea NDJSON en /var/log/ensfacil/mp_info_6.json.
 
        Mapa evento -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en public/ens/core/evidence/catalog.ts:
+       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
 
          106601 backup_run        EV-01, EV-02
          106602 backup_schedule   EV-02

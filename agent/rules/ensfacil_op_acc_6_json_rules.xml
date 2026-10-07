@@ -11,7 +11,7 @@
        Base 110100 · hechos crudos 110101-110149 · diagnóstico 110195-110199
 
        Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       public/ens/core/evidence/catalog.ts:
+       dashboard/ens/core/evidence/catalog.ts:
 
          EV-01 110101 110102 110105   EV-02 110101 110108
          EV-03 110103 110104          EV-04 110102 110103

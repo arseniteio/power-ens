@@ -12,7 +12,7 @@
        Degradación 110050 · diagnóstico del recolector 110097-110099
 
        Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       public/ens/core/evidence/catalog.ts:
+       dashboard/ens/core/evidence/catalog.ts:
 
          EV-01 110002 110011 · EV-02 110004 110005 110006 · EV-03 110003
          EV-04 110007 · EV-05 110008 · EV-06 110009 · EV-07 110001
