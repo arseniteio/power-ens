@@ -59,13 +59,27 @@ const getResponseData = (
   return response.data;
 };
 
+// El servidor explica en `body.message` por qué rechaza una petición (sin el
+// rol, un 403 con «Hace falta el rol ensfacil_admin…»). El cliente HTTP del
+// núcleo solo pone en el error el texto del estado («Forbidden»), y eso es lo
+// que salía en pantalla.
+const withServerReason = (error: any): Error => {
+  const reason = error?.body?.message;
+
+  return typeof reason === 'string' && reason.trim()
+    ? new Error(reason.trim())
+    : error;
+};
+
 export async function getENSConfiguration(): Promise<
   ENSConfigurationServerState
 > {
   const response =
     await getHttp().get<ENSConfigurationApiResponse>(
       ENS_CONFIGURATION_API_PATH,
-    );
+    ).catch(error => {
+      throw withServerReason(error);
+    });
 
   return getResponseData(response);
 }
@@ -89,7 +103,9 @@ export async function saveENSConfiguration(
       {
         body: JSON.stringify(requestBody),
       },
-    );
+    ).catch(error => {
+      throw withServerReason(error);
+    });
 
   return getResponseData(response);
 }
