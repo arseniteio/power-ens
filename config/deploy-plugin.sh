@@ -2,7 +2,11 @@
 ###############################################################################
 # deploy-plugin.sh · instala el plugin Y hace que el navegador lo vea
 #
-#   sudo bash deploy-plugin.sh /ruta/al/wazuh-2.19.5.zip
+#   sudo bash deploy-plugin.sh /ruta/al/plugin.zip
+#
+# Vale para `wazuh-2.19.5.zip` y para `ensfacil-2.19.5.zip`: retira solo el
+# plugin que trae el zip. `bash deploy-plugin.sh --solo-id <zip>` imprime ese id
+# y sale sin tocar nada.
 #
 # POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
 #
@@ -28,22 +32,48 @@
 ###############################################################################
 set -euo pipefail
 
+SOLO_ID=0
+if [ "${1:-}" = "--solo-id" ]; then
+  SOLO_ID=1
+  shift
+fi
+
 ZIP="${1:-}"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
 if [ -z "$ZIP" ] || [ ! -f "$ZIP" ]; then
-  echo "uso: sudo bash deploy-plugin.sh /ruta/al/wazuh-2.19.5.zip" >&2
+  echo "uso: sudo bash deploy-plugin.sh /ruta/al/plugin.zip" >&2
   exit 1
+fi
+
+# El plugin que se retira es el que trae el zip, y solo puede ser uno de los
+# dos nuestros: el integrado (`wazuh`, mientras dure la transición) o
+# `ensfacil`. Nunca un comodín.
+# awk lee el listado entero (sin `exit`): si cortara la tubería, unzip moriría
+# por SIGPIPE en un zip con node_modules y, con pipefail, el script saldría con
+# 141 sin decir nada.
+PLUGIN_ID="$(unzip -Z1 "$ZIP" 2>/dev/null | awk -F/ '$1=="opensearch-dashboards" && $2!="" && id=="" {id=$2} END {print id}')"
+case "$PLUGIN_ID" in
+  wazuh|ensfacil) ;;
+  *)
+    echo "el zip no es de un plugin conocido (id: '${PLUGIN_ID:-ninguno}')" >&2
+    exit 2
+    ;;
+esac
+
+if [ "$SOLO_ID" = 1 ]; then
+  echo "$PLUGIN_ID"
+  exit 0
 fi
 
 echo "== 1/5 · parando el dashboard"
 systemctl stop wazuh-dashboard
 
-echo "== 2/5 · retirando el plugin anterior"
+echo "== 2/5 · retirando el plugin anterior ($PLUGIN_ID)"
 # RUTAS EXACTAS. Nunca un comodín `wazuh*`: se llevaría por delante `wazuhCore`
 # y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
-sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" remove wazuh 2>/dev/null || true
-rm -rf "$OSD/plugins/wazuh"
+sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" remove "$PLUGIN_ID" 2>/dev/null || true
+rm -rf "$OSD/plugins/$PLUGIN_ID"
 rm -rf "$OSD/plugins/.plugin.installing"
 
 echo "== 3/5 · instalando"
