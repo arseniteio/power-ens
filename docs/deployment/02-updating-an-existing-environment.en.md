@@ -305,7 +305,7 @@ The transition has three steps: install ENSFácil next to the integrated version
 
 ### 10.1 Install ENSFácil next to the integrated version
 
-Follow sections 3 to 7 of this guide, with the release zip and the `deploy-plugin.sh` in its folder (section 6.1). `deploy-plugin.sh`, with the ENSFácil zip, only installs `ensfacil`: the integrated plugin (`wazuh`) stays as it is. Then create the `ensfacil_admin` role and assign it with the `create-admin-role.sh` in the same folder ([Installing from a release, section 9](07-installing-from-a-release.en.md#9-create-the-ensfacil_admin-role); the details are in the [installation guide, section 13.5](01-installation-from-scratch.en.md#135-create-the-ensfacil_admin-role)).
+Follow sections 3 to 7 of this guide, with the release zip and the `deploy-plugin.sh` in its folder (section 6.1). `deploy-plugin.sh`, with the ENSFácil zip, only installs `ensfacil`: the integrated plugin (`wazuh`) stays as it is. If needed (it is optional: `admin`, with `all_access`, already saves the configuration), create the `ensfacil_admin` role and assign it with the `create-admin-role.sh` in the same folder ([Installing from a release, section 9](07-installing-from-a-release.en.md#9-create-the-ensfacil_admin-role); the details are in the [installation guide, section 13.5](01-installation-from-scratch.en.md#135-create-the-ensfacil_admin-role)).
 
 What you should see: in the plugin list, `ensfacil` and `wazuh`; in the dashboard menu, two apps: «ENS» (the integrated one) and «ENSFácil» (the new one). Both read the same configuration and the same data.
 
