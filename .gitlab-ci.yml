@@ -1,0 +1,153 @@
+# ENSFácil: pruebas, compilación del zip y, en las etiquetas v*, Release de
+# GitLab con el zip y su sha256.
+#
+# Todo corre en el runner propio del laboratorio (etiqueta ensfacil-build). La
+# imagen del trabajo `build`, ensfacil-osd-builder:2.19.5, solo existe en el
+# Docker de ese servidor: se construye allí con ci/osd-builder.Dockerfile (la
+# orden está en su cabecera) y el runner no la descarga (if-not-present).
+
+workflow:
+  rules:
+    # Con un MR abierto, solo el pipeline del MR, no además el de la rama.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+default:
+  tags: [ensfacil-build]
+  interruptible: true
+
+stages: [test, build, release]
+
+test:
+  stage: test
+  image: node:22-bookworm
+  before_script:
+    # node:22-bookworm no trae zip, y tests/deploy-plugin.test.sh lo usa.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends zip > /dev/null
+  script:
+    # check-consistency.py busca los runbooks junto al plugin.
+    - ci/clone-runbooks.sh "$(dirname "$CI_PROJECT_DIR")"
+    - ci/run-tests.sh
+
+build:
+  stage: build
+  image: ensfacil-osd-builder:2.19.5
+  script:
+    - bash config/build-plugin.sh /osd
+    - VERSION="$(python3 -c 'import json; print(json.load(open("opensearch_dashboards.json"))["version"])')"
+    - ZIP="ensfacil-${VERSION}-osd-2.19.5.zip"
+    - rm -rf dist && mkdir dist
+    - cp /osd/plugins/ensfacil/build/ensfacil-2.19.5.zip "dist/$ZIP"
+    - test "$(bash config/deploy-plugin.sh --solo-id "dist/$ZIP")" = ensfacil
+    # Lo necesario para instalar sin el código fuente: el zip, los dos scripts y
+    # sus sumas. Solo el nombre del fichero en SHA256SUMS: `sha256sum -c` vale
+    # en la carpeta donde se descarguen.
+    - cp config/deploy-plugin.sh config/create-admin-role.sh dist/
+    - (cd dist && sha256sum "$ZIP" deploy-plugin.sh create-admin-role.sh > SHA256SUMS && sha256sum -c SHA256SUMS)
+  artifacts:
+    paths: [dist/]
+    expire_in: 30 days
+
+release:
+  stage: release
+  image: node:22-bookworm
+  # Cortarla a medias dejaría el paquete subido y la Release sin crear.
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  needs: [build]
+  script:
+    - |
+      VERSION="$(python3 -c 'import json; print(json.load(open("opensearch_dashboards.json"))["version"])')"
+      VERSION_PKG="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+      if [ "$CI_COMMIT_TAG" != "v$VERSION" ] || [ "$CI_COMMIT_TAG" != "v$VERSION_PKG" ]; then
+        echo "ERROR: la etiqueta $CI_COMMIT_TAG no es v + la versión del plugin" >&2
+        echo "(opensearch_dashboards.json: $VERSION, package.json: $VERSION_PKG)." >&2
+        echo "Las dos versiones tienen que coincidir con la etiqueta: corrígelas o etiqueta v<versión>." >&2
+        exit 1
+      fi
+      ZIP="ensfacil-${VERSION}-osd-2.19.5.zip"
+      PAQUETE="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/ensfacil/$VERSION"
+      # Las notas de la Release son la entrada de esta versión en CHANGELOG.md:
+      # sin ella no se publica.
+      python3 - "$VERSION" > notas.md <<'PY'
+      import re, sys
+      v = sys.argv[1]
+      texto = open("CHANGELOG.md", encoding="utf-8").read()
+      m = re.search(r"^## \[%s\][^\n]*\n(.*?)(?=^## \[|\Z)" % re.escape(v), texto, re.S | re.M)
+      if not m or not m.group(1).strip():
+          sys.exit("ERROR: CHANGELOG.md no tiene entrada para la versión %s (## [%s] - AAAA-MM-DD)" % (v, v))
+      print(m.group(1).strip())
+      PY
+    # Antes de subir nada: los enlaces de una Release ya publicada llevan a lo
+    # último subido con ese nombre, y su sha256 dejaría de cuadrar.
+    - |
+      CODIGO="$(curl -sS -o /dev/null -w '%{http_code}' --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG")"
+      case "$CODIGO" in
+        404) ;;
+        200) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG; no se toca. Bórrala en GitLab si hay que rehacerla." >&2
+             exit 1 ;;
+        *)   echo "ERROR: la API de Releases contestó $CODIGO al consultar $CI_COMMIT_TAG" >&2
+             exit 1 ;;
+      esac
+    - |
+      for f in "$ZIP" deploy-plugin.sh create-admin-role.sh SHA256SUMS; do
+        echo "subiendo $f"
+        curl --fail-with-body -sS --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+          --upload-file "dist/$f" "$PAQUETE/$f"
+        echo
+      done
+    - |
+      SHA256="$(awk -v f="$ZIP" '$2 == f {print $1}' dist/SHA256SUMS)"
+      export VERSION ZIP PAQUETE SHA256
+      python3 - > release.json <<'PY'
+      import json, os
+
+      v, zip_, paquete, sha = (os.environ[k] for k in ("VERSION", "ZIP", "PAQUETE", "SHA256"))
+      guia = "%s/-/blob/%s/docs/deployment/07-installing-from-a-release.md" % (
+          os.environ["CI_PROJECT_URL"], os.environ["CI_COMMIT_TAG"])
+      descripcion = "\n".join([
+          open("notas.md", encoding="utf-8").read().strip(),
+          "",
+          "---",
+          "",
+          "**Compatibilidad:** Wazuh 4.14.7 / OpenSearch Dashboards 2.19.5.",
+          "",
+          "**Instalar sin el código fuente**, en el servidor de Wazuh Dashboard, con los cuatro ficheros de esta Release en una carpeta:",
+          "",
+          "    sha256sum -c SHA256SUMS",
+          "    sudo bash deploy-plugin.sh %s" % zip_,
+          "",
+          "Guía completa: [instalar desde una Release](%s)." % guia,
+          "",
+          "SHA-256 de `%s`: `%s`" % (zip_, sha),
+      ])
+      print(json.dumps({
+          "name": "ENSFácil %s" % v,
+          "tag_name": os.environ["CI_COMMIT_TAG"],
+          "description": descripcion,
+          "assets": {"links": [
+              # direct_asset_path da el enlace fijo de descarga de la Release:
+              # <proyecto>/-/releases/<etiqueta>/downloads/<fichero>
+              {"name": f, "url": "%s/%s" % (paquete, f), "link_type": "package",
+               "direct_asset_path": "/" + f}
+              for f in (zip_, "deploy-plugin.sh", "create-admin-role.sh", "SHA256SUMS")
+          ]},
+      }, ensure_ascii=False))
+      PY
+    - |
+      CODIGO="$(curl -sS -o respuesta.json -w '%{http_code}' -X POST \
+        --header "JOB-TOKEN: $CI_JOB_TOKEN" --header "Content-Type: application/json" \
+        --data-binary @release.json "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases")"
+      case "$CODIGO" in
+        201) echo "Release ENSFácil $VERSION creada para $CI_COMMIT_TAG" ;;
+        409) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG; no se toca. Bórrala en GitLab si hay que rehacerla." >&2
+             exit 1 ;;
+        *)   echo "ERROR: la API de Releases contestó $CODIGO:" >&2
+             cat respuesta.json >&2
+             exit 1 ;;
+      esac
