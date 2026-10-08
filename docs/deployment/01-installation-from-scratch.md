@@ -292,7 +292,7 @@ sudo grep -c "<agent_config" /var/ossec/etc/shared/ens-copias/agent.conf
 > La instalación de las reglas ENS no debe continuar si los grupos `ens` y `ens-copias` o sus `agent.conf` no existen: sin `ens-copias`, el `install-manager.sh` de mp.info.6, el primero del bucle, se detiene.
 
 > [!important]
-> El `agent.conf` de cada grupo debe tener **un único bloque `<agent_config>`** (las dos comprobaciones `grep -c` deben devolver `0` o `1`). Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` con más de un bloque. Cualquier ajuste adicional del grupo (por ejemplo un `<syscheck>`) se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de editarlo a mano, validarlo con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
+> El `agent.conf` de cada grupo debe tener **un único bloque `<agent_config>`** (las dos comprobaciones `grep -c` deben devolver `1`: con `0`, sin bloque, los instaladores también se niegan). Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` con más de un bloque. Cualquier ajuste adicional del grupo (por ejemplo un `<syscheck>`) se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de editarlo a mano, validarlo con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
 
 ## 12. Instalar y validar las reglas ENS en el Manager
 

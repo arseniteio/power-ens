@@ -251,9 +251,11 @@ Cada repositorio de control (runbook) incluye sus guías en su propio `docs/depl
 
 ### El manager en el alcance
 
-El alcance ENS se define por el grupo `ens` de Wazuh, y el manager (agente
-`000`) no pertenece a ningún grupo. Por eso el panel lo añade al alcance por sí
-solo, y únicamente porque hay controles que se miden en él:
+El alcance ENS sale de la configuración: todas las máquinas del inventario, las
+de unos grupos de Wazuh (lo habitual, el grupo `ens`) o una lista de agentes
+([el alcance ENS](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup/-/blob/main/docs/deployment/03-ens-scope.md)).
+El manager (agente `000`) no pertenece a ningún grupo. Por eso el panel lo añade
+al alcance por sí solo, y únicamente porque hay controles que se miden en él:
 
 | Control | Planos de medida (`measurementPlanes`) | Fila del manager (`000`) | Fila de cada máquina |
 |---|---|---|---|

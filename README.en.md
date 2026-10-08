@@ -250,9 +250,12 @@ Each control repository (runbook) includes its guides in its own `docs/deploymen
 
 ### The manager in the scope
 
-The ENS scope is defined by the Wazuh `ens` group, and the manager (agent
-`000`) does not belong to any group. That is why the dashboard adds it to the
-scope by itself, and only because some controls are measured on it:
+The ENS scope comes from the configuration: every machine in the inventory,
+those in some Wazuh groups (usually the `ens` group) or a list of agents
+([the ENS scope](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup/-/blob/main/docs/deployment/03-ens-scope.en.md)).
+The manager (agent `000`) does not belong to any group. That is why the
+dashboard adds it to the scope by itself, and only because some controls are
+measured on it:
 
 | Control | Measurement planes (`measurementPlanes`) | Manager row (`000`) | Each machine row |
 |---|---|---|---|
