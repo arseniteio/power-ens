@@ -36,7 +36,7 @@ case "$URL" in
     [ -n "${RUNBOOKS_DEPLOY_USER:-}" ] || faltan="$faltan RUNBOOKS_DEPLOY_USER"
     [ -n "${RUNBOOKS_DEPLOY_TOKEN:-}" ] || faltan="$faltan RUNBOOKS_DEPLOY_TOKEN"
     if [ -n "$faltan" ]; then
-      echo "ERROR: falta(n) la(s) variable(s) CI/CD:$faltan." >&2
+      echo "ERROR: sin estas variables CI/CD no se pueden clonar los runbooks:$faltan" >&2
       echo "Crea un token de despliegue en el grupo quersystem/ens-controls-runbook" >&2
       echo "(Settings > Repository > Deploy tokens, permiso read_repository) y, en este" >&2
       echo "proyecto (Settings > CI/CD > Variables), las variables RUNBOOKS_DEPLOY_USER" >&2
