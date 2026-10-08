@@ -237,13 +237,18 @@ error. Los códigos y las copias están en el
 > y una instalación por paquetes. Usa el zip de la release como en
 > [Manager en contenedor, apartado 7](06-wazuh-in-docker.md#7-el-plugin-en-el-contenedor-del-dashboard).
 
-En una instalación nueva, sigue con el rol (apartado 9) y después con la
-configuración ENS: el primer guardado y la siembra de los controles
+En una instalación nueva, sigue con la configuración ENS (el rol del apartado 9
+es opcional): el primer guardado y la siembra de los controles
 ([guía de instalación, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)).
 La siembra usa las herramientas de `config/` del repositorio, que la release no
 trae.
 
 ## 9. Crear el rol ensfacil_admin
+
+> [!note]
+> Opcional por ahora. El usuario `admin` de Wazuh, que tiene `all_access`, ya
+> puede guardar la configuración sin este rol. Solo hace falta si otro usuario,
+> sin `all_access`, tiene que guardarla o ver su historial.
 
 Solo los usuarios con el rol `ensfacil_admin` o `all_access` pueden guardar la
 configuración ENS y ver su historial. Los demás la ven, pero al guardar reciben

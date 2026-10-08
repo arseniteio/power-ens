@@ -430,6 +430,11 @@ Qué tiene que salir:
 
 ### 13.5 Crear el rol ensfacil_admin
 
+> [!note]
+> Opcional por ahora. El usuario `admin` de Wazuh, que tiene `all_access`, ya
+> puede guardar la configuración sin este rol. Solo hace falta si otro usuario,
+> sin `all_access`, tiene que guardarla o ver su historial.
+
 Guardar la configuración ENS y ver su historial solo lo pueden hacer los usuarios con el rol `ensfacil_admin` o `all_access` del plugin de seguridad. Los demás ven la configuración, pero al guardar reciben un error 403: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
 
 `config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña, y comprueba el certificado del indexer contra su CA (`/etc/wazuh-indexer/certs/root-ca.pem`; otra, con `OS_CA`). Habla con `https://127.0.0.1:9200`, el nombre para el que Wazuh hace ese certificado: con `localhost` la comprobación falla.

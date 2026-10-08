@@ -184,12 +184,15 @@ la release en una carpeta:
 ```bash
 sha256sum -c SHA256SUMS
 sudo bash deploy-plugin.sh ensfacil-1.0.0-osd-2.19.5.zip
-sudo bash create-admin-role.sh --mapear <usuario>
 ```
 
-Qué tiene que salir: `OK` en los tres ficheros, `dashboard: active` al final del
-despliegue y `usuarios con el rol ensfacil_admin: <usuario>`. Cambia `1.0.0` por
-la versión de la release.
+Qué tiene que salir: `OK` en los tres ficheros y `dashboard: active` al final del
+despliegue. Cambia `1.0.0` por la versión de la release.
+
+El rol `ensfacil_admin` es opcional por ahora: el usuario `admin` de Wazuh, con
+`all_access`, ya guarda la configuración. `create-admin-role.sh` solo hace falta
+para que la guarde otro usuario
+([guía 07, apartado 9](docs/deployment/07-installing-from-a-release.md#9-crear-el-rol-ensfacil_admin)).
 
 El plugin es solo una parte: las reglas del manager, los runbooks de cada máquina
 y la configuración se instalan aparte ([cómo se despliega ENSFácil](#cómo-se-despliega-ensfácil)).

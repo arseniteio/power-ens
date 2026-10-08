@@ -237,13 +237,18 @@ error code. The codes and the backups are in
 > and a package installation. Use the release zip as in
 > [Manager in a container, section 7](06-wazuh-in-docker.en.md#7-the-plugin-in-the-dashboard-container).
 
-On a new installation, continue with the role (section 9) and then with the ENS
-configuration: the first save and the seeding of the controls
+On a new installation, continue with the ENS configuration (the role in
+section 9 is optional): the first save and the seeding of the controls
 ([installation guide, section 14](01-installation-from-scratch.en.md#14-initialize-and-seed-the-ens-configuration)).
 The seeding uses the tools in the repository's `config/`, which the release
 does not carry.
 
 ## 9. Create the ensfacil_admin role
+
+> [!note]
+> Optional for now. The Wazuh `admin` user, who has `all_access`, can already
+> save the configuration without this role. It is only needed if another user,
+> without `all_access`, has to save it or see its history.
 
 Only users with the `ensfacil_admin` or `all_access` role can save the ENS
 configuration and see its history. The others see it, but get a 403 error when
