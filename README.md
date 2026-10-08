@@ -312,8 +312,8 @@ common/            constantes compartidas
 integration/       paquete de la versión integrada anterior (se retira tras la transición)
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración y herramientas del manager:
-                   deploy-plugin.sh, inject-control.py, set-parameters.py,
-                   validate-configuration.ts
+                   build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,
+                   inject-control.py, set-parameters.py, validate-configuration.ts
 tests/             suites del motor y comprobación de coherencia
 ```
 
