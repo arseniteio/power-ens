@@ -21,9 +21,10 @@ export const searchDataKey = (params: Record<string, unknown>): string => {
 };
 
 // Una cancelación pedida por la propia pantalla no es un fallo: ni aviso ni
-// estado de error.
-export const isAbortError = (fallo: any, signal?: { aborted: boolean }): boolean =>
-  Boolean(signal?.aborted) || fallo?.name === 'AbortError';
+// estado de error. Y solo es nuestra si la señal abortada es la NUESTRA: un
+// error que se llama AbortError con nuestra señal intacta lo ha cortado otro
+// (el servicio de búsqueda, un tiempo de espera), y eso la pantalla lo dice.
+export const isOwnCancellation = (signal?: { aborted: boolean }): boolean => Boolean(signal?.aborted);
 
 // Avisos repetidos: 17 filas que fallan igual a la vez dan un solo aviso. El
 // registro es del módulo (compartido por todas las búsquedas) y recuerda cuándo

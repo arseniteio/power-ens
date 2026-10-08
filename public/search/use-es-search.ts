@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCore, getData } from '../services';
 import { buildENSSearchRequest, ENSSearchParams } from './search-request';
-import { decideSearch, isAbortError, searchDataKey, shouldToast } from './search-decision';
+import { decideSearch, isOwnCancellation, searchDataKey, shouldToast } from './search-decision';
 
 // Compartido por todas las búsquedas de la página: un aviso por mensaje y minuto.
 const avisosDados = new Map<string, number>();
@@ -53,7 +53,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         fallaba.current = false;
       })
       .catch((fallo: any) => {
-        if (!vigente() || isAbortError(fallo, busqueda.controlador.signal)) return;
+        if (!vigente() || isOwnCancellation(busqueda.controlador.signal)) return;
         setError(fallo);
         if (fallaba.current) return;
         fallaba.current = true;

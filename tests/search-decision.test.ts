@@ -4,7 +4,7 @@
  * Lo que decide `useEsSearch` cuando cambian sus parámetros, y el aviso único
  * por mensaje.
  */
-import { decideSearch, ENS_SEARCH_TOAST_WINDOW_MS, isAbortError, searchDataKey, shouldToast } from '../public/search/search-decision';
+import { decideSearch, ENS_SEARCH_TOAST_WINDOW_MS, isOwnCancellation, searchDataKey, shouldToast } from '../public/search/search-decision';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
@@ -23,9 +23,11 @@ comprueba('nada en curso: se busca', decideSearch(undefined, a) === 'start');
 comprueba('solo sube el refreshKey con la misma búsqueda en curso: se espera a esa', decideSearch(a, aRefrescada) === 'skip');
 comprueba('cambian los datos con otra búsqueda en curso: se cancela y se busca', decideSearch(a, b) === 'abort-and-start');
 
-comprueba('cancelación por la señal propia: no es un fallo', isAbortError(new Error('x'), { aborted: true }));
-comprueba('AbortError del servicio de búsqueda: no es un fallo', isAbortError({ name: 'AbortError', message: 'Aborted' }, { aborted: false }));
-comprueba('un fallo de verdad sí lo es', !isAbortError(new Error('403 Forbidden'), { aborted: false }));
+// Lo que decide es la señal, nunca el nombre del error: un AbortError que llega
+// con nuestra señal intacta lo ha cortado otro, y es un fallo que se enseña.
+comprueba('cancelación por la señal propia: no es un fallo', isOwnCancellation({ aborted: true }));
+comprueba('AbortError con nuestra señal intacta (lo cortó otro): sí es un fallo', !isOwnCancellation({ aborted: false }));
+comprueba('sin señal: es un fallo', !isOwnCancellation(undefined));
 
 {
   const registro = new Map<string, number>();
