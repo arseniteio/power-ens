@@ -26,7 +26,7 @@ y los enlaces a cada runbook y a sus guías, en la
 1. **Manager.** Wazuh instalado y validado; después, el `install-manager.sh` de
    cada uno de los 17 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8
    y op.exp.9 dejan además un recolector en el propio manager), y por último el
-   plugin ENSFácil instalado en el dashboard, junto al de Wazuh y sin modificarlo.
+   plugin ENSFácil instalado en el dashboard desde su release, junto al de Wazuh y sin modificarlo.
    ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
 2. **Máquinas.** En cada agente, los runbooks de su plataforma (Linux, Zimbra
    LDAP, Zimbra MTA o Windows), siguiendo la guía `01-installation` **de cada
@@ -140,9 +140,14 @@ Qué instala cada runbook Linux:
   autorizado a los repositorios de GitLab.
 - Herramientas que la guía de instalación comprueba antes de empezar: `git`,
   `curl`, `wget` y `python3` (este último también para `tests/check-consistency.py`).
-- **Para compilar el plugin:** un código fuente de OpenSearch Dashboards 2.19.5,
-  Node.js 18.19.0 y Yarn Classic 1.22.22 (`config/build-plugin.sh`). El Node.js
-  18.19.0 también viene dentro del paquete `wazuh-dashboard`.
+- **Para descargar una release:** una cuenta de GitLab con acceso al proyecto
+  o, desde el servidor, un token de despliegue con `read_package_registry`
+  ([guía 07](docs/deployment/07-installing-from-a-release.md)).
+- **Para compilar el plugin** (solo si no se instala desde una release): un
+  código fuente de OpenSearch Dashboards 2.19.5, Node.js 18.19.0 y Yarn Classic
+  1.22.22 (`config/build-plugin.sh`), o Docker con la imagen de compilación de
+  CI ([guía 08](docs/deployment/08-building-from-source.md)). El Node.js 18.19.0
+  también viene dentro del paquete `wazuh-dashboard`.
 - **En cada máquina medida:** agente de Wazuh en el grupo del control y el
   runbook de su plataforma. Los requisitos de cada runbook (`cron`, `auditd`,
   paquetes concretos) están en su propio README.
@@ -162,9 +167,43 @@ Qué instala cada runbook Linux:
 
 ---
 
-## Instalación y despliegue
+## Instalación
 
 Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que corresponda a tu entorno.
+
+### El plugin: dos caminos
+
+| Camino | Cuándo | Guía |
+|---|---|---|
+| Desde una release (recomendado) | instalar o actualizar el plugin sin compilar | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
+| Compilar desde el código fuente | una versión sin release, la evaluación de otra versión de Wazuh o el desarrollo | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
+
+Desde una release, en el servidor de Wazuh Dashboard, con los cuatro ficheros de
+la release en una carpeta:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo bash deploy-plugin.sh ensfacil-1.0.0-osd-2.19.5.zip
+sudo bash create-admin-role.sh --mapear <usuario>
+```
+
+Qué tiene que salir: `OK` en los tres ficheros, `dashboard: active` al final del
+despliegue y `usuarios con el rol ensfacil_admin: <usuario>`. Cambia `1.0.0` por
+la versión de la release.
+
+El plugin es solo una parte: las reglas del manager, los runbooks de cada máquina
+y la configuración se instalan aparte ([cómo se despliega ENSFácil](#cómo-se-despliega-ensfácil)).
+
+### Dónde están las releases
+
+- En GitLab, en *Deploy → Releases* del proyecto `quersystem/plugin-wazuh-ens`:
+  cada versión, `ENSFácil X.Y.Z`, con sus notas y sus cuatro ficheros (el zip,
+  `deploy-plugin.sh`, `create-admin-role.sh` y `SHA256SUMS`).
+- Los mismos ficheros, en *Deploy → Package registry → ensfacil*.
+- Desde un servidor, por la API de paquetes, con un token de despliegue
+  ([guía 07, apartado 6](docs/deployment/07-installing-from-a-release.md#6-descargar-desde-el-servidor-con-un-token-de-despliegue)).
+
+El proyecto es privado: hace falta una cuenta de GitLab con acceso.
 
 ### ¿Qué necesitas hacer?
 
@@ -176,6 +215,8 @@ Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que correspo
 | 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
 | 5 | Encontrar el runbook de un control, sus guías y los registros que pide | [Runbooks y registros de la organización](docs/deployment/05-runbooks-and-registers.md) |
 | 6 | Instalar con las imágenes oficiales de Wazuh en Docker | [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md) |
+| 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
+| 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
@@ -326,6 +367,8 @@ for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo
 
 `tests/mp-info-6-rules.test.sh` prueba las reglas de mp.info.6 con `wazuh-logtest` en un contenedor `wazuh/wazuh-manager` (Docker); sin Docker, salta esa parte con un aviso y hace solo las comprobaciones estáticas.
 
+Cómo compilar con la imagen de CI y pasar las pruebas como CI: [Compilar desde el código fuente](docs/deployment/08-building-from-source.md).
+
 Rangos de rule ID en uso. Los de op.exp.7 y op.exp.9, y los del plano central
 de op.exp.8, llegan con el agente `000` (el manager):
 
@@ -352,6 +395,21 @@ de op.exp.8, llegan con el agente `000` (el manager):
 La banda 107200–109999 no se usa: en algunos managers la ocupan otras
 integraciones. Antes de desplegar en un manager con reglas propias, comprobar
 que ninguna de estas bandas está en uso.
+
+---
+
+## Contribuir
+
+El flujo de trabajo (rama, MR, pipeline y revisión), el estilo de los commits,
+las reglas del producto, lo que hace CI y cómo se publica una versión están en
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Versiones
+
+ENSFácil sigue el [versionado semántico](https://semver.org/lang/es/). Los cambios
+de cada versión están en el [registro de cambios](CHANGELOG.md), y cada etiqueta
+`vX.Y.Z` publica su release en GitLab. La serie 1.x es para Wazuh 4.14.7
+(OpenSearch Dashboards 2.19.5).
 
 ---
 

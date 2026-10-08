@@ -1,6 +1,7 @@
 # Imagen de compilación de ENSFácil: el árbol de OpenSearch Dashboards 2.19.5
 # (wazuh-dashboard v4.14.7) preparado con `yarn osd bootstrap` en /osd, como en
-# la guía 01, §13.1-13.2. La usa el trabajo `build` de .gitlab-ci.yml.
+# la guía 08 (docs/deployment/08-building-from-source.md), §3.1-3.2. La usa el
+# trabajo `build` de .gitlab-ci.yml; cómo usarla a mano, en el §4 de esa guía.
 #
 # Se construye EN el servidor del runner, desde la raíz del repositorio:
 #

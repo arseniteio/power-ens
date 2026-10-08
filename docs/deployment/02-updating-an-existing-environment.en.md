@@ -19,7 +19,7 @@ flowchart LR
   A["2. Prerequisites"] --> B["3. Update the<br/>repositories"]
   B --> C["4. Rules on<br/>the manager"]
   C --> D["5. Prior<br/>backup"]
-  D --> E["6. Rebuild"]
+  D --> E["6. Get the<br/>new plugin"]
   E --> F["7. Deploy<br/>the plugin"]
   F --> G["8. Seed and validate<br/>the configuration"]
   G --> H["9. Agents and<br/>final check"]
@@ -36,9 +36,8 @@ The following conditions must be met before starting:
 |---|
 | Wazuh Dashboard 4.14.7 installed and operational. |
 | `ensfacil` plugin installed. If the environment has the integrated version, go to section 10. |
-| OpenSearch Dashboards 2.19.5 tree in `/opt/ensfacil/build` ([installation guide, section 13.2](01-installation-from-scratch.en.md#132-prepare-the-opensearch-dashboards-2195-tree)), or the new zip already built. |
+| The release of the new version ([Installing from a release](07-installing-from-a-release.en.md)). Only if you are going to build: the OpenSearch Dashboards 2.19.5 tree in `/opt/ensfacil/build`, Node.js 18.19.0 and Yarn Classic 1.22.22 ([Building from source, section 3](08-building-from-source.en.md#3-build-with-the-opensearch-dashboards-tree)). |
 | ENSFácil repository in `/opt/ensfacil/repo` and runbooks in `/opt/ensfacil/<runbook>`. |
-| Node.js 18.19.0 and Yarn Classic 1.22.22 ([installation guide, section 13.1](01-installation-from-scratch.en.md#131-prepare-nodejs-and-yarn)). |
 
 Check the initial state:
 
@@ -56,6 +55,8 @@ What you should see: `active`, `ensfacil@<version>` in the plugin list and no lo
 > Do not continue if Wazuh Dashboard is not active or if the repository has unidentified local changes.
 
 ## 3. Update the repositories
+
+The repository is needed even when the plugin comes from a release: the configuration seeding (section 8) and the consistency check use its tools.
 
 ### 3.1 With GitLab access from the server
 
@@ -125,7 +126,7 @@ The output must be `active` and `coherencia OK`. The rules each installer confir
 
 ## 5. Create a prior backup
 
-Back up the installed plugins, the deployed zip and the active configuration document before changing anything:
+Back up the installed plugins, the deployed built zip (if there is one) and the active configuration document before changing anything:
 
 ```bash
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -144,14 +145,46 @@ ls -l "$BACKUP"
 echo "BACKUP=$BACKUP"
 ```
 
-What you should see: `plugins-antes.tgz`, `ensfacil-2.19.5.zip` and `active.json` inside `$BACKUP`.
+What you should see: `plugins-antes.tgz` and `active.json` inside `$BACKUP`, and `ensfacil-2.19.5.zip` if the deployed plugin was built on this server.
 
 > [!important]
-> `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil` before building: the previous zip is only kept if it is copied here. Keep the previous zip and `active.json` until every validation of the new version is complete.
+> If the deployed plugin comes from a release, its zip is already in its version's folder (`/opt/ensfacil/releases/<version>`): keep it. If it was built, `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil` before building: the previous zip is only kept if it is copied here. Keep the previous zip and `active.json` until every validation of the new version is complete.
 
-## 6. Rebuild the plugin
+## 6. Get the new plugin
 
-If the new zip was received already built, skip this section and use that file in section 7.
+By default, the new plugin is the release of the new version (section 6.1). If you need to build it, follow section 6.2. Both end with the `ZIP` and `DEPLOY` variables that section 7 uses.
+
+### 6.1 From the release (default)
+
+Download the new release into its own folder and verify it, as in [Installing from a release](07-installing-from-a-release.en.md#6-download-from-the-server-with-a-deploy-token). With the token stored on the server, replace `X.Y.Z` with the new version:
+
+```bash
+V=X.Y.Z
+R=/opt/ensfacil/releases/$V
+API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
+sudo mkdir -p "$R"
+
+for f in "ensfacil-$V-osd-2.19.5.zip" deploy-plugin.sh create-admin-role.sh SHA256SUMS; do
+  sudo curl -fsS -K /etc/ensfacil/gitlab-descarga.curlrc -o "$R/$f" "$API/$f" || { echo "ERROR: $f"; break; }
+done
+cd "$R" && sha256sum -c SHA256SUMS
+```
+
+What you should see: no `ERROR` line and `OK` for the three files. Without the stored token, or from the browser, follow that guide (sections 4 to 7).
+
+Read the release notes: they say whether it brings new controls and which versions it is compatible with.
+
+```bash
+ZIP=$R/ensfacil-$V-osd-2.19.5.zip
+DEPLOY=$R/deploy-plugin.sh
+```
+
+> [!note]
+> Keep the folder of the version you have installed: it is your way back ([troubleshooting and rollback, section 4](04-troubleshooting-and-rollback.en.md#4-reinstall-the-previous-ensfácil-version)).
+
+### 6.2 Building from source
+
+With the OpenSearch Dashboards tree and Node.js prepared ([Building from source, section 3](08-building-from-source.en.md#3-build-with-the-opensearch-dashboards-tree)):
 
 ```bash
 export NVM_DIR="$HOME/.nvm"
@@ -165,14 +198,15 @@ sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh > /opt/ensfaci
 tail -1 /opt/ensfacil/artifacts/build.log
 ```
 
-What you should see: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`. The log is kept in `/opt/ensfacil/artifacts`, never in `/tmp` (see [the installation guide, section 13.3](01-installation-from-scratch.en.md#133-build-and-validate-the-plugin)).
+What you should see: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`. The log is kept in `/opt/ensfacil/artifacts`, never in `/tmp` (see [Building from source, section 3.3](08-building-from-source.en.md#33-build-the-plugin)). You can also build with the CI builder image and copy the zip to the server (section 4 of that guide).
 
 Validate the new zip, including that it carries the new code (replace `op.exp.10` with the id of a control or a text that changed in this version):
 
 ```bash
 ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+DEPLOY=/opt/ensfacil/repo/config/deploy-plugin.sh
 unzip -t "$ZIP" | tail -1
-bash /opt/ensfacil/repo/config/deploy-plugin.sh --solo-id "$ZIP"
+bash "$DEPLOY" --solo-id "$ZIP"
 unzip -p "$ZIP" "*/target/public/*.js" | grep -c "op.exp.10"
 ```
 
@@ -183,16 +217,17 @@ What you should see: `No errors detected…`, `ensfacil` and a number greater th
 
 ## 7. Deploy the updated version
 
+With `ZIP` and `DEPLOY` from section 6.1 or 6.2:
+
 ```bash
-ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 
-sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"
+sudo bash "$DEPLOY" "$ZIP"
 ```
 
 `deploy-plugin.sh` replaces only the `ensfacil` plugin and bumps the dashboard `build.number` so browsers download the new version without having to clear their cache. The Wazuh plugin is not touched.
 
-Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`. The script creates the `ensfacil` subfolder itself (owned by root, permissions 0700) if it does not exist, and never changes the permissions of a folder that already existed. When the deployment finishes well, the last 3 copies are kept; a failed deployment deletes none. They go there and not next to the zip because the next build deletes `/opt/ensfacil/build/plugins/ensfacil` entirely. To use another folder: `sudo env ENSFACIL_BACKUP_DIR=<folder> bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"`, which saves in `<folder>/ensfacil/`. If something fails once the dashboard is stopped, the script prints how to go back to how it was and exits with an error ([troubleshooting guide, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway)).
+Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`. The script creates the `ensfacil` subfolder itself (owned by root, permissions 0700) if it does not exist, and never changes the permissions of a folder that already existed. When the deployment finishes well, the last 3 copies are kept; a failed deployment deletes none. They go there and not next to the zip because the next build deletes `/opt/ensfacil/build/plugins/ensfacil` entirely. To use another folder: `sudo env ENSFACIL_BACKUP_DIR=<folder> bash "$DEPLOY" "$ZIP"`, which saves in `<folder>/ensfacil/`. If something fails once the dashboard is stopped, the script prints how to go back to how it was and exits with an error ([troubleshooting guide, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway)).
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
@@ -270,7 +305,7 @@ The transition has three steps: install ENSFácil next to the integrated version
 
 ### 10.1 Install ENSFácil next to the integrated version
 
-Follow sections 3 to 7 of this guide. `deploy-plugin.sh`, with the ENSFácil zip, only installs `ensfacil`: the integrated plugin (`wazuh`) stays as it is. Then create the `ensfacil_admin` role and assign it ([installation guide, section 13.5](01-installation-from-scratch.en.md#135-create-the-ensfacil_admin-role)).
+Follow sections 3 to 7 of this guide, with the release zip and the `deploy-plugin.sh` in its folder (section 6.1). `deploy-plugin.sh`, with the ENSFácil zip, only installs `ensfacil`: the integrated plugin (`wazuh`) stays as it is. Then create the `ensfacil_admin` role and assign it with the `create-admin-role.sh` in the same folder ([Installing from a release, section 9](07-installing-from-a-release.en.md#9-create-the-ensfacil_admin-role); the details are in the [installation guide, section 13.5](01-installation-from-scratch.en.md#135-create-the-ensfacil_admin-role)).
 
 What you should see: in the plugin list, `ensfacil` and `wazuh`; in the dashboard menu, two apps: «ENS» (the integrated one) and «ENSFácil» (the new one). Both read the same configuration and the same data.
 
@@ -288,7 +323,7 @@ If something does not match, do not continue: write down the screen, the machine
 When both versions match, the official `wazuh-dashboard` 4.14.7 package is reinstalled. This brings back the official Wazuh plugin, removes the «ENS» app and leaves only «ENSFácil».
 
 > [!important]
-> Do this step in a test environment first. It needs the Wazuh package repository (or the downloaded `wazuh-dashboard` 4.14.7-1 package) and the ENSFácil zip installed in section 10.1.
+> Do this step in a test environment first. It needs the Wazuh package repository (or the downloaded `wazuh-dashboard` 4.14.7-1 package) and the folder of the ENSFácil release installed in section 10.1 (`/opt/ensfacil/releases/<version>`).
 
 Keep what is going to be replaced:
 
@@ -314,8 +349,10 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 The reinstallation resets the dashboard `build.number` to its factory value, which browsers may have linked to files of the integrated version. That is why the previous `package.json` is restored and ENSFácil is deployed again, which bumps the number:
 
 ```bash
+V=1.0.0   # the ENSFácil version installed in section 10.1
+R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
-sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"
 ```
 
 Check:
