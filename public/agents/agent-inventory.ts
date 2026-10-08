@@ -50,8 +50,11 @@ const gruposDe = (valor: unknown): string[] => {
 export const inventoryFromMonitoring = (aggregations: any, now: number = Date.now()): ENSAgentInventory => {
   let masReciente: number | undefined;
   // El manager (000) no se escribe en wazuh-monitoring: su nombre sale del
-  // campo `manager` del documento más reciente.
+  // campo `manager` del documento más reciente que lo trae. Un agente que
+  // nunca se ha conectado no lo trae (comprobado en wazuh4 el 08/10/2026) y la
+  // pasada escribe todos con el mismo instante: el primero no puede decidir.
   let nombreDelManager: string | undefined;
+  let instanteDelManager = -Infinity;
   // Un agente por id normalizado: si dos cubos dan el mismo (`24` y `024`),
   // queda el del dato más reciente; sin fecha, cuenta como el más antiguo.
   const porId = new Map<string, { agente: ENSAgentScope; instante: number }>();
@@ -62,9 +65,11 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     if (!id) continue;
 
     const instante = Date.parse(String(doc?.timestamp ?? ''));
-    if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) {
-      masReciente = instante;
-      nombreDelManager = doc?.manager ? String(doc.manager) : undefined;
+    if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) masReciente = instante;
+    const manager = typeof doc?.manager === 'string' ? doc.manager.trim() : '';
+    if (manager && !Number.isNaN(instante) && instante > instanteDelManager) {
+      instanteDelManager = instante;
+      nombreDelManager = manager;
     }
 
     const orden = Number.isNaN(instante) ? -Infinity : instante;

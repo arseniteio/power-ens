@@ -84,6 +84,18 @@ comprueba('aviso de antiguo sin fecha: ni «undefined» ni vacío', (() => { con
   comprueba('sin campo manager: entra sin nombre (el alcance pone el de reserva)', Boolean(sinCampo) && !sinCampo?.name, sinCampo);
   comprueba('con cubo 000: no se duplica ni se cambia', inv.agents.filter(a => a.id === '000').length === 1 && inv.agents.find(a => a.id === '000')?.name === 'Wazuh-4');
   comprueba('sin inventario: no se inventa el manager', inventoryFromMonitoring(undefined, ahora).agents.length === 0);
+  // En wazuh4, la pasada escribe todos con el mismo instante y el agente que
+  // nunca se ha conectado no trae `manager`: no puede dejar al manager sin nombre.
+  const empate = inventoryFromMonitoring({ agentes: { buckets: [
+    cubo('033', { id: '033', name: 'nunca', status: 'never_connected', timestamp: '2026-10-07T12:15:00.929Z' }),
+    cubo('024', { id: '024', name: 'real', status: 'active', timestamp: '2026-10-07T12:15:00.929Z', manager: 'Wazuh-4' }),
+  ] } }, ahora).agents.find(a => a.id === '000');
+  comprueba('el documento más reciente sin campo manager no lo borra', empate?.name === 'Wazuh-4', empate);
+  const posterior = inventoryFromMonitoring({ agentes: { buckets: [
+    cubo('024', { id: '024', name: 'real', timestamp: '2026-10-07T12:00:00Z', manager: 'Wazuh-4' }),
+    cubo('033', { id: '033', name: 'nunca', timestamp: '2026-10-07T12:15:00Z' }),
+  ] } }, ahora).agents.find(a => a.id === '000');
+  comprueba('ni aunque sea posterior', posterior?.name === 'Wazuh-4', posterior);
 }
 const q: any = buildMonitoringInventoryRequest();
 comprueba('lee wazuh-monitoring-*', q.index === 'wazuh-monitoring-*');
