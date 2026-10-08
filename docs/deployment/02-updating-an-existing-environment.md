@@ -325,6 +325,17 @@ Cuando las dos versiones coincidan, se reinstala el paquete oficial `wazuh-dashb
 > [!important]
 > Hacer este paso primero en un entorno de pruebas. Necesita el repositorio de paquetes de Wazuh (o el paquete `wazuh-dashboard` 4.14.7-1 descargado) y la carpeta de la release de ENSFácil que se instaló en el apartado 10.1 (`/opt/ensfacil/releases/<versión>`).
 
+Anota antes cómo están los datos, para compararlos al final: los tres valores
+del [apartado 10.1 de Instalar desde una release](07-installing-from-a-release.md#101-que-los-datos-siguen-ahí).
+
+> [!warning]
+> El repositorio de paquetes de Wazuh puede ofrecer ya una versión más nueva de
+> `wazuh-dashboard` (por ejemplo, 4.14.8-1). ENSFácil 1.x es solo para 4.14.7:
+> instala siempre con `=4.14.7-1`. Para que una actualización general del sistema
+> no lo suba, retenlo con `sudo apt-mark hold wazuh-dashboard` (y
+> `sudo apt-mark unhold wazuh-dashboard` cuando toque actualizar Wazuh a
+> propósito, con una release de ENSFácil para esa versión).
+
 Guardar lo que se va a sustituir:
 
 ```bash
@@ -364,6 +375,12 @@ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configu
 ```
 
 Qué tiene que salir: `active`; en la lista, `wazuh@4.14.7-01` (el oficial) y `ensfacil@<versión>`; y `401`. En el menú ya no aparece «ENS» y sí «ENSFácil», con la configuración de siempre.
+
+Compara después los datos con los que anotaste al principio: la configuración
+(mismo `updatedAt`, mismos documentos) tiene que ser la misma, y los hechos, los
+mismos o más. En las pruebas de este procedimiento, la configuración, su
+historial, los hechos, el inventario de agentes y los índices de Wazuh salieron
+idénticos antes y después.
 
 Los enlaces guardados a la app «ENS» (`/app/ens#…`) dejan de funcionar. La dirección nueva es `/app/ensfacil`.
 
