@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ControlRow } from './control-row';
-import { useRouterSearch } from '../../routing/use-router-search';
+import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
 import {
   EuiBadge,
@@ -86,6 +86,7 @@ export const ControlsENS = () => {
   );
 
   const { control, agentId } = useRouterSearch();
+  const cambiaUrl = useSetRouterSearch();
 
   useEffect(() => {
     if (!control || selectedControl) {
@@ -156,7 +157,12 @@ export const ControlsENS = () => {
       <ControlDetailENS
         control={selectedControl}
         agentId={agentId}
-        onBack={() => setSelectedControl(null)}
+        // También fuera de la URL: con `control=` en ella, el efecto de arriba
+        // volvería a abrir el detalle al cambiar de pestaña y volver.
+        onBack={() => {
+          cambiaUrl({ control: undefined });
+          setSelectedControl(null);
+        }}
       />
     );
   }

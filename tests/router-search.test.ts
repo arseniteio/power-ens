@@ -3,6 +3,7 @@
  */
 // Las funciones puras, sin React: `use-router-search` las reexporta junto a
 // los hooks, que necesitan react-router-dom y no cargan fuera del dashboard.
+import { readFileSync } from 'fs';
 import { parseRouterSearch, withRouterSearch } from '../public/routing/router-search';
 
 declare const process: { exit(code: number): void };
@@ -15,6 +16,15 @@ comprueba('vacío', JSON.stringify(parseRouterSearch('')) === '{}');
 comprueba('cambia y conserva el resto', withRouterSearch('?tabView=controls&agentId=024', { agentId: '028' }) === '?tabView=controls&agentId=028');
 comprueba('quita con undefined', withRouterSearch('?tabView=controls&agentId=024', { agentId: undefined }) === '?tabView=controls');
 comprueba('quitarlo todo deja vacío', withRouterSearch('?agentId=024', { agentId: '' }) === '');
+
+// «Volver» desde el detalle de un control quita `control` de la URL y deja el
+// resto: si se quedara, la pestaña volvería a abrir el detalle.
+comprueba('volver del detalle: fuera el control, el resto se queda', withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', { control: undefined }) === '?tabView=plugins&agentId=024');
+{
+  const controles = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
+  const volver = controles.match(/onBack=\{\(\) => \{([\s\S]*?)\n\s*\}\}/)?.[1] || '';
+  comprueba('«Volver» quita el control de la URL', /cambiaUrl\(\{ control: undefined \}\)/.test(volver) && /setSelectedControl\(null\)/.test(volver), volver);
+}
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);
