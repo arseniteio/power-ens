@@ -12,6 +12,7 @@ import {
   navigableEventRows,
   pageIndexFor,
 } from '../public/events/events-columns';
+import { readFileSync } from 'fs';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
@@ -29,6 +30,19 @@ comprueba('solo hechos ENS', JSON.stringify(f[0]) === '{"match_phrase":{"rule.gr
 comprueba('solo máquinas del alcance', JSON.stringify(f[1]) === '{"terms":{"agent.id":["024","028"]}}');
 const g: any[] = buildEventsFilters([{ id: '024', groups: ['ens'] }], '024');
 comprueba('una máquina elegida', JSON.stringify(g[1]) === '{"match_phrase":{"agent.id":"024"}}');
+// Con el manager en el alcance, el filtro del motor trae también sus hechos
+// en la vista de una máquina; las vistas de hechos crudos, no: solo los de la
+// máquina elegida, como el agente fijado de la versión integrada.
+const conManager = [{ id: '024', groups: ['ens'] }, { id: '000', groups: [] }];
+comprueba('máquina elegida con el manager en el alcance: solo esa máquina', JSON.stringify(buildEventsFilters(conManager, '024')[1]) === '{"match_phrase":{"agent.id":"024"}}', buildEventsFilters(conManager, '024'));
+comprueba('el manager elegido: solo el manager', JSON.stringify(buildEventsFilters(conManager, '000')[1]) === '{"match_phrase":{"agent.id":"000"}}');
+comprueba('máquina fuera del alcance: nada', JSON.stringify(buildEventsFilters(conManager, '031')[1]) === '{"match_none":{}}');
+comprueba('sin máquina: todo el alcance, manager incluido', JSON.stringify(buildEventsFilters(conManager, undefined)[1]) === '{"terms":{"agent.id":["024","000"]}}');
+// «Controles» (y su panel de requisito) usan los mismos filtros.
+{
+  const vista = readFileSync(`${__dirname}/../public/requirements/requirements-view.tsx`, 'utf8');
+  comprueba('«Controles» usa los filtros de hechos crudos', /buildRawFactsFilters\(getActiveENSScopeAgents\(\), agentId\)/.test(vista) && !/buildENSScopeAgentQueryFilter/.test(vista));
+}
 comprueba(
   'los mismos agentes dan el mismo JSON (useEsSearch no vuelve a buscar)',
   JSON.stringify(buildEventsFilters([{ id: '024', groups: ['ens'] }], '024')) === JSON.stringify(g)

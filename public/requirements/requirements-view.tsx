@@ -28,10 +28,11 @@ import {
   ENS_REQUIREMENT_COUNT_AGGS,
   countENSRequirements,
 } from '../ens/core/compliance-view/ens-requirement-index';
-import { buildENSScopeAgentQueryFilter, getActiveENSScopeAgents } from '../ens/core/scope';
+import { getActiveENSScopeAgents } from '../ens/core/scope';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch } from '../routing/use-router-search';
 import { AlertsSearchFrame, useAlertsSearchBar } from '../search/alerts-search-bar';
+import { buildRawFactsFilters } from '../search/raw-facts-filters';
 import { useEsSearch } from '../search/use-es-search';
 import { ENSRequirementRow, buildRequirementsModel } from './requirements-model';
 import { RequirementFlyout } from './requirement-flyout';
@@ -47,10 +48,8 @@ const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refresh
   const [selected, setSelected] = useState<string | undefined>();
   const [abierto, setAbierto] = useState<ENSRequirementRow | undefined>();
 
-  const fijos = [
-    { match_phrase: { 'rule.groups': 'ensfacil' } },
-    buildENSScopeAgentQueryFilter(getActiveENSScopeAgents(), agentId),
-  ];
+  // Con una máquina elegida, solo sus hechos (también en el panel del requisito).
+  const fijos = buildRawFactsFilters(getActiveENSScopeAgents(), agentId);
   const filtrosDeLaVista = [...fijos, ...barFilters];
   // El `refreshKey` de la barra: «Actualizar» vuelve a contar aunque el rango
   // sea absoluto y los filtros no cambien.

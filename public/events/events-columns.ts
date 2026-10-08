@@ -1,8 +1,8 @@
 // Columnas y filtros fijos de la pestaña Eventos: los mismos que la tabla de
 // Wazuh a la que sustituye (hechos ENS de las máquinas del alcance). Sin
 // React: lo prueba tests/events-columns.test.ts.
-import { buildENSScopeAgentQueryFilter } from '../ens/core/scope';
 import type { ENSAgentScope } from '../ens/core/scope/types';
+import { buildRawFactsFilters } from '../search/raw-facts-filters';
 
 export interface ENSEventColumn {
   id: string;
@@ -26,12 +26,9 @@ export const ENS_EVENT_COLUMNS: ENSEventColumn[] = [
   { id: 'rule.id', label: 'Regla', initialWidth: 90 },
 ];
 
-// Deterministas: los mismos agentes y la misma máquina dan el mismo JSON, y
-// `useEsSearch` no vuelve a buscar en cada render.
-export const buildEventsFilters = (agents: ENSAgentScope[], agentId?: string): unknown[] => [
-  { match_phrase: { 'rule.groups': 'ensfacil' } },
-  buildENSScopeAgentQueryFilter(agents, agentId),
-];
+// Los de toda vista de hechos crudos: con una máquina elegida, solo los suyos.
+export const buildEventsFilters = (agents: ENSAgentScope[], agentId?: string): unknown[] =>
+  buildRawFactsFilters(agents, agentId);
 
 export const getField = (source: any, ruta: string): string => {
   const valor = ruta.split('.').reduce((o, k) => (o == null ? undefined : o[k]), source);
