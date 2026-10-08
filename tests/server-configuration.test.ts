@@ -47,7 +47,8 @@ const respuestas = {
   ok: (r: any) => ({ status: 200, body: r.body }),
   customError: (r: any) => ({ status: r.statusCode, body: r.body }),
 };
-const registro = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };
+const avisos: string[] = [];
+const registro = { info: () => undefined, error: () => undefined, warn: (m: string) => { avisos.push(m); }, debug: () => undefined };
 const h = createConfigurationHandlers({ logger: registro as any, securityEnabled: true });
 const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] };
 
@@ -60,9 +61,13 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   r = await h.save(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, respuestas as any);
   comprueba('sin rol de administración: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
   comprueba('y no se guarda nada', ix.docs.size === 0);
+  comprueba('el intento queda en el log con el usuario', avisos.length === 1 && /ana/.test(avisos[0]) && /guardar/.test(avisos[0]), avisos);
+  comprueba('sin el cuerpo de la petición', !/MEDIO|ensLevel|configuration/.test(avisos[0]), avisos[0]);
 
   r = await h.history(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, respuestas as any);
   comprueba('historial sin rol: 403', r.status === 403);
+  comprueba('también en el log', avisos.length === 2 && /ana/.test(avisos[1]) && /historial/.test(avisos[1]), avisos);
+  avisos.length = 0;
 
   r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, respuestas as any);
   comprueba('ensfacil_admin guarda: 200', r.status === 200, r);
@@ -77,6 +82,7 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
 
   r = await h.history(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, {} as any, respuestas as any);
   comprueba('historial con rol: dos versiones', r.status === 200 && r.body.data.length === 2);
+  comprueba('lo permitido no deja aviso', avisos.length === 0, avisos);
 
   r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, respuestas as any);
   comprueba('cuerpo inválido: 400', r.status === 400);

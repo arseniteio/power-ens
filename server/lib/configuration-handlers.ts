@@ -28,15 +28,21 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
   const interno = (context: any) => context.core.opensearch.client.asInternalUser;
   const actual = (context: any) => context.core.opensearch.client.asCurrentUser;
 
-  // Quién es y si puede administrar; null y la respuesta de error si no.
-  const administrador = async (context: any, response: any) => {
+  // Quién es y si puede administrar; null y la respuesta de error si no. Cada
+  // intento rechazado (403) queda en el log con el usuario y lo que quería
+  // hacer: solo eso, nunca el cuerpo ni la sesión.
+  const administrador = async (context: any, response: any, accion: string) => {
     try {
       const usuario = await resolveCurrentUser(actual(context), securityEnabled);
-      if (!usuario.administrator) return { error: fallo(response, 403, SIN_ROL) };
+      if (!usuario.administrator) {
+        logger.warn(`Configuración ENS: rechazado ${accion} a ${usuario.username || 'un usuario sin nombre'} (no tiene ensfacil_admin ni all_access)`);
+        return { error: fallo(response, 403, SIN_ROL) };
+      }
       if (!usuario.username) return { error: fallo(response, 401, 'No se pudo identificar al usuario.') };
       return { usuario };
     } catch (error: any) {
       const estado = estadoDe(error);
+      if (estado === 403) logger.warn(`Configuración ENS: rechazado ${accion}; OpenSearch no deja identificar al usuario (403)`);
       if (estado === 401 || estado === 403) return { error: fallo(response, estado, error?.message || 'No autorizado') };
       logger.error(`No se pudo comprobar el usuario de la configuración ENS: ${error?.message || error}`);
       return { error: fallo(response, 500, 'No se pudo comprobar el usuario; el detalle está en el log del dashboard.') };
@@ -59,7 +65,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return fallo(response, 400, 'Hace falta una configuración ENS válida.');
     }
 
-    const acceso = await administrador(context, response);
+    const acceso = await administrador(context, response, 'guardar la configuración');
     if (acceso.error) return acceso.error;
     const username = acceso.usuario!.username;
 
@@ -98,7 +104,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
   };
 
   const history = async (context: any, _request: any, response: any) => {
-    const acceso = await administrador(context, response);
+    const acceso = await administrador(context, response, 'ver el historial');
     if (acceso.error) return acceso.error;
 
     try {
