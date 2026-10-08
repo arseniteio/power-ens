@@ -26,7 +26,7 @@ and the links to every runbook and its guides are in the
 1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of
    each of the 17 Linux runbooks (rules and `<localfile>`; op.exp.7, op.exp.8
    and op.exp.9 also leave a collector on the manager itself), and finally the
-   ENSFácil plugin installed in the dashboard, next to the Wazuh plugin and without modifying it.
+   ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
    Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
 2. **Machines.** On each agent, the runbooks of its platform (Linux, Zimbra
    LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of
@@ -140,9 +140,14 @@ What each Linux runbook installs:
   to the GitLab repositories.
 - Tools the installation guide checks before starting: `git`, `curl`, `wget`
   and `python3` (the latter also for `tests/check-consistency.py`).
-- **To build the plugin:** an OpenSearch Dashboards 2.19.5 source tree,
-  Node.js 18.19.0 and Yarn Classic 1.22.22 (`config/build-plugin.sh`). Node.js
-  18.19.0 also ships inside the `wazuh-dashboard` package.
+- **To download a release:** a GitLab account with access to the project or,
+  from the server, a deploy token with `read_package_registry`
+  ([guide 07](docs/deployment/07-installing-from-a-release.en.md)).
+- **To build the plugin** (only if it is not installed from a release): an
+  OpenSearch Dashboards 2.19.5 source tree, Node.js 18.19.0 and Yarn Classic
+  1.22.22 (`config/build-plugin.sh`), or Docker with the CI builder image
+  ([guide 08](docs/deployment/08-building-from-source.en.md)). Node.js 18.19.0
+  also ships inside the `wazuh-dashboard` package.
 - **On every measured machine:** a Wazuh agent in the control's group and the
   runbook for its platform. Each runbook's requirements (`cron`, `auditd`,
   specific packages) are in its own README.
@@ -162,9 +167,43 @@ What each Linux runbook installs:
 
 ---
 
-## Installation and deployment
+## Installation
 
 This `README.md` is the entry point of ENSFácil. Choose the path that matches your environment.
+
+### The plugin: two paths
+
+| Path | When | Guide |
+|---|---|---|
+| From a release (recommended) | install or update the plugin without building | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
+| Build from source | a version with no release, the evaluation of another Wazuh version or development | [Building from source](docs/deployment/08-building-from-source.en.md) |
+
+From a release, on the Wazuh Dashboard server, with the four release files in
+one folder:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo bash deploy-plugin.sh ensfacil-1.0.0-osd-2.19.5.zip
+sudo bash create-admin-role.sh --mapear <usuario>
+```
+
+What you should see: `OK` for the three files, `dashboard: active` at the end
+of the deployment and `usuarios con el rol ensfacil_admin: <usuario>`. Replace
+`1.0.0` with the release's version.
+
+The plugin is only one part: the manager rules, the runbooks on each machine
+and the configuration are installed separately ([how ENSFácil is deployed](#how-ensfácil-is-deployed)).
+
+### Where the releases are
+
+- In GitLab, under *Deploy → Releases* of the `quersystem/plugin-wazuh-ens`
+  project: every version, `ENSFácil X.Y.Z`, with its notes and its four files
+  (the zip, `deploy-plugin.sh`, `create-admin-role.sh` and `SHA256SUMS`).
+- The same files, under *Deploy → Package registry → ensfacil*.
+- From a server, through the package API, with a deploy token
+  ([guide 07, section 6](docs/deployment/07-installing-from-a-release.en.md#6-download-from-the-server-with-a-deploy-token)).
+
+The project is private: you need a GitLab account with access.
 
 ### What do you need to do?
 
@@ -176,6 +215,8 @@ This `README.md` is the entry point of ENSFácil. Choose the path that matches y
 | 4 | Diagnose a problem or roll back | [Troubleshooting and rollback](docs/deployment/04-troubleshooting-and-rollback.en.md) |
 | 5 | Find a control's runbook, its guides and the registers it needs | [Runbooks and the organization's registers](docs/deployment/05-runbooks-and-registers.en.md) |
 | 6 | Install with the official Wazuh Docker images | [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md) |
+| 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
+| 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
 
 > [!note]
 > A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.
@@ -326,6 +367,8 @@ for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo
 
 `tests/mp-info-6-rules.test.sh` tests the mp.info.6 rules with `wazuh-logtest` in a `wazuh/wazuh-manager` container (Docker); without Docker it skips that part with a warning and runs only the static checks.
 
+How to build with the CI image and run the tests like CI: [Building from source](docs/deployment/08-building-from-source.en.md).
+
 Rule ID ranges in use. Those of op.exp.7 and op.exp.9, and those of the
 central plane of op.exp.8, arrive with agent `000` (the manager):
 
@@ -352,6 +395,21 @@ central plane of op.exp.8, arrive with agent `000` (the manager):
 The 107200–109999 band is not used: on some managers other integrations
 occupy it. Before deploying on a manager with its own rules, check that none
 of these bands is in use.
+
+---
+
+## Contributing
+
+The workflow (branch, MR, pipeline and review), the commit style, the product
+rules, what CI does and how a version is released are in
+[CONTRIBUTING.en.md](CONTRIBUTING.en.md).
+
+## Versions
+
+ENSFácil follows [semantic versioning](https://semver.org/). The changes in each
+version are in the [changelog](CHANGELOG.en.md), and every `vX.Y.Z` tag
+publishes its release in GitLab. The 1.x series is for Wazuh 4.14.7
+(OpenSearch Dashboards 2.19.5).
 
 ---
 
