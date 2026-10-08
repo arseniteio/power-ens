@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 ###############################################################################
-# deploy-plugin.sh · instala el plugin Y hace que el navegador lo vea
+# deploy-plugin.sh · instala ENSFácil Y hace que el navegador lo vea
 #
-#   sudo bash deploy-plugin.sh /ruta/al/plugin.zip
+#   sudo bash deploy-plugin.sh /ruta/al/ensfacil-2.19.5.zip
 #
-# Vale para `wazuh-2.19.5.zip` y para `ensfacil-2.19.5.zip`: retira solo el
-# plugin que trae el zip. `bash deploy-plugin.sh --solo-id <zip>` imprime ese id
-# y sale sin tocar nada. Exactamente un zip: con más o con menos, no hace nada.
+# Solo instala el plugin `ensfacil`, y solo retira ese: un zip de cualquier
+# otro plugin (también el de Wazuh, `wazuh`) se rechaza sin tocar nada.
+# `bash deploy-plugin.sh --solo-id <zip>` imprime el id del zip y sale sin
+# tocar nada. Exactamente un zip: con más o con menos, no hace nada.
 #
 # Antes de retirar el plugin anterior lo guarda junto al zip
 # (plugins-<id>-antes-<fecha>.tgz). Si la instalación falla, dice cómo volver a
@@ -18,7 +19,7 @@
 # Instalar el plugin NO basta para que nadie vea el cambio. OpenSearch
 # Dashboards sirve los bundles en
 #
-#     /{buildHash}/bundles/plugin/wazuh/wazuh.chunk.N.js
+#     /{buildHash}/bundles/plugin/ensfacil/ensfacil.chunk.N.js
 #
 # y ese `buildHash` sale del `build.number` del package.json DEL DASHBOARD, no
 # del plugin (`src/optimize/optimize_mixin.js`: `buildHash:
@@ -60,17 +61,21 @@ case "$1" in -*) uso ;; esac
 ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
-# El plugin que se retira es el que trae el zip, y solo puede ser uno de los
-# dos nuestros: el integrado (`wazuh`, mientras dure la transición) o
-# `ensfacil`. Nunca un comodín.
+# El plugin que se retira es el que trae el zip, y solo puede ser `ensfacil`.
+# Nunca un comodín, y nunca el de Wazuh: ese lo instala su paquete oficial.
 # awk lee el listado entero (sin `exit`): si cortara la tubería, unzip moriría
 # por SIGPIPE en un zip con node_modules y, con pipefail, el script saldría con
 # 141 sin decir nada.
 PLUGIN_ID="$(unzip -Z1 "$ZIP" 2>/dev/null | awk -F/ '$1=="opensearch-dashboards" && $2!="" && id=="" {id=$2} END {print id}')"
 case "$PLUGIN_ID" in
-  wazuh|ensfacil) ;;
+  ensfacil) ;;
+  wazuh)
+    echo "el zip es del plugin de Wazuh (id: 'wazuh'): deploy-plugin.sh solo instala ENSFácil (id: 'ensfacil')." >&2
+    echo "El plugin de Wazuh se instala con el paquete oficial wazuh-dashboard; para ENSFácil, usar ensfacil-2.19.5.zip." >&2
+    exit 2
+    ;;
   *)
-    echo "el zip no es de un plugin conocido (id: '${PLUGIN_ID:-ninguno}')" >&2
+    echo "el zip no es de ENSFácil (id: '${PLUGIN_ID:-ninguno}'): deploy-plugin.sh solo instala el plugin 'ensfacil'." >&2
     exit 2
     ;;
 esac

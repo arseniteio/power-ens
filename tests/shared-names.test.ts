@@ -28,7 +28,7 @@ comprueba('el id del manifiesto es ENSFACIL_PLUGIN_ID', JSON.parse(lee('opensear
 comprueba('y el nombre del package.json', JSON.parse(lee('package.json')).name === ENSFACIL_PLUGIN_ID);
 comprueba('la API cuelga del id', ENSFACIL_API_BASE === `/api/${ENSFACIL_PLUGIN_ID}`, ENSFACIL_API_BASE);
 comprueba('build-plugin.sh compila en plugins/<id>', lee('config/build-plugin.sh').includes(`DEST="$OSD_SRC/plugins/${ENSFACIL_PLUGIN_ID}"`));
-comprueba('deploy-plugin.sh acepta el id', new RegExp(`^\\s*wazuh\\|${ENSFACIL_PLUGIN_ID}\\) ;;`, 'm').test(lee('config/deploy-plugin.sh')));
+comprueba('deploy-plugin.sh acepta el id, y solo ese', new RegExp(`^\\s*${ENSFACIL_PLUGIN_ID}\\) ;;`, 'm').test(lee('config/deploy-plugin.sh')) && !/^\s*wazuh\|/m.test(lee('config/deploy-plugin.sh')));
 
 // La app, como en las restricciones globales del plan.
 comprueba('título ENSFácil', ENSFACIL_APP_TITLE === 'ENSFácil', ENSFACIL_APP_TITLE);

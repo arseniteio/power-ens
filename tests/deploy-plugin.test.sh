@@ -11,8 +11,14 @@ espera() { local r; r="$(bash "$RAIZ/config/deploy-plugin.sh" --solo-id "$2" 2>&
   else [ "$r" = "$1" ] && echo "  ok   $3" || { echo "  FALLA $3 (salió: $r)"; fallos=$((fallos+1)); }; fi; }
 zip_de a ensfacil; zip_de b wazuh; zip_de c otro
 espera ensfacil "$T/a.zip" "zip de ENSFácil -> ensfacil"
-espera wazuh "$T/b.zip" "zip del integrado -> wazuh"
-espera ERROR "$T/c.zip" "un plugin que no es ninguno de los dos se rechaza"
+espera ERROR "$T/b.zip" "zip del plugin de Wazuh (wazuh) se rechaza"
+espera ERROR "$T/c.zip" "un plugin que no es ENSFácil se rechaza"
+# El rechazo dice por qué: el de Wazuh, que va con su paquete; cualquier otro,
+# que no es ENSFácil. Y en los dos casos sin tocar nada (código 2).
+r="$(bash "$RAIZ/config/deploy-plugin.sh" --solo-id "$T/b.zip" 2>&1)"; rc=$?
+[ $rc -eq 2 ] && echo "$r" | grep -q "solo instala ENSFácil" && echo "$r" | grep -q "paquete oficial wazuh-dashboard" && echo "  ok   el zip de Wazuh: mensaje claro" || { echo "  FALLA el zip de Wazuh: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
+r="$(bash "$RAIZ/config/deploy-plugin.sh" --solo-id "$T/c.zip" 2>&1)"; rc=$?
+[ $rc -eq 2 ] && echo "$r" | grep -q "no es de ENSFácil (id: 'otro')" && echo "  ok   otro zip: mensaje claro" || { echo "  FALLA otro zip: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
 espera ERROR "$T/no-existe.zip" "sin zip, error"
 # Un zip de verdad (con node_modules) lista miles de entradas: si awk corta la
 # tubería antes de que unzip acabe, SIGPIPE + pipefail = rc 141 sin mensaje.

@@ -27,7 +27,7 @@ Stop the procedure if any of these situations occurs:
 |---|
 | `config/build-plugin.sh` does not end with the path of `ensfacil-2.19.5.zip`. |
 | `unzip -t` reports errors, or `deploy-plugin.sh --solo-id` does not return `ensfacil`. |
-| `config/deploy-plugin.sh` says «el zip no es de un plugin conocido» (the zip is not from a known plugin). |
+| `config/deploy-plugin.sh` says «el zip no es de ENSFácil» (the zip is not ENSFácil) or «el zip es del plugin de Wazuh» (the zip is the Wazuh plugin). |
 | Wazuh Dashboard does not return to `active` after installing the plugin. |
 | `/api/ensfacil/configuration` returns `404`: the plugin did not load. |
 | an `install-manager.sh` does not confirm its rule with `wazuh-logtest` or the manager does not stay `active`. |
@@ -116,20 +116,23 @@ The ENS configuration stays in the `wazuh-ens-configuration` index and the `ensf
 
 ## 6. Go back to the integrated version
 
-Only during the transition from the integrated version ([update guide, section 10](02-updating-an-existing-environment.en.md#10-transition-from-the-integrated-version)).
+Only for an environment that comes from the integrated version ([update guide, section 10](02-updating-an-existing-environment.en.md#10-transition-from-the-integrated-version)). The integrated version is no longer maintained: `config/deploy-plugin.sh` does not install its zip (`wazuh-2.19.5.zip`), and going back uses what section 10.3 of that guide kept.
 
 **Before reinstalling the official Wazuh plugin** (section 10.3 of that guide), the integrated version is still installed. Removing ENSFácil is enough (section 5).
 
-**After reinstalling the official Wazuh plugin**, the integrated version zip (`wazuh-2.19.5.zip`) must be installed again. `config/deploy-plugin.sh` accepts it while the transition lasts: it removes only the `wazuh` plugin, installs the integrated one and bumps `build.number`. Use the zip the integrated version was installed with:
+**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again so that it bumps `build.number` (browsers have the official plugin's files linked to the current number):
 
 ```bash
-ZIP_INTEGRADO=/opt/ensfacil/build/plugins/main/build/wazuh-2.19.5.zip
+T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
+sudo test -d "$T/wazuh-integrado" && echo "INTEGRADO=OK"
 
-bash /opt/ensfacil/repo/config/deploy-plugin.sh --solo-id "$ZIP_INTEGRADO"
-sudo -u wazuh-dashboard test -r "$ZIP_INTEGRADO" && sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP_INTEGRADO"
+sudo systemctl stop wazuh-dashboard
+sudo mv /usr/share/wazuh-dashboard/plugins/wazuh "$T/wazuh-oficial"
+sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh
+sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 ```
 
-What you should see: `wazuh` (the zip is the integrated version) and, at the end of the deployment, `dashboard: active`. The «ENS» app appears in the menu again. ENSFácil can stay installed or be removed (section 5).
+What you should see: `INTEGRADO=OK` and, at the end of the deployment, `dashboard: active`. The «ENS» app appears in the menu again, next to «ENSFácil». ENSFácil can stay installed or be removed (section 5).
 
 > [!note]
 > The configuration does not need to be touched: both versions use the same document. If controls the integrated version does not know were seeded after the transition, restore the configuration (section 7).
@@ -164,7 +167,7 @@ The response must include `"result":"updated"`. Then validate the restored docum
 | «ENSFácil» does not appear in the menu and `/api/ensfacil/configuration` returns `404` | the plugin is not installed or did not load | check the plugin list and the log (section 3) and deploy again with `config/deploy-plugin.sh` |
 | The dashboard does not start after updating Wazuh: `Failed to initialize plugins` and `ensfacil` | the new dashboard ships another OpenSearch Dashboards version and the plugin is built for `2.19.5` | remove ENSFácil (section 5) and get the zip for that version ([version compatibility](03-version-compatibility.en.md)) |
 | The menu shows «ENS» and «ENSFácil» | the integrated version is still installed | normal during the transition; to keep only «ENSFácil», [update, section 10.3](02-updating-an-existing-environment.en.md#103-go-back-to-the-official-wazuh-plugin) |
-| `deploy-plugin.sh`: «el zip no es de un plugin conocido» | the zip is not ENSFácil (nor, during the transition, the integrated version's) | use `ensfacil-2.19.5.zip` |
+| `deploy-plugin.sh`: «el zip no es de ENSFácil» or «el zip es del plugin de Wazuh» | `deploy-plugin.sh` only installs `ensfacil`; the Wazuh plugin (also the integrated version's `wazuh-2.19.5.zip`) comes with the official `wazuh-dashboard` package | use `ensfacil-2.19.5.zip` |
 | `build-plugin.sh`: «no es un árbol de OpenSearch Dashboards» or «el árbol es … ENSFácil 1.x se compila contra 2.19.5» | the build tree is not OpenSearch Dashboards `2.19.5` | prepare the tree as in [installation, section 13.2](01-installation-from-scratch.en.md#132-prepare-the-opensearch-dashboards-2195-tree) |
 | `build-plugin.sh` ends with `yarn: command not found`, or after building with `ENOENT: yarn install --production` | `yarn` is not in `root`'s `PATH` | build as in [installation, section 13.3](01-installation-from-scratch.en.md#133-build-and-validate-the-plugin), with `sudo env PATH=…` |
 | `yarn install` stops with `Your lockfile needs to be updated` | `package.json` and `yarn.lock` do not match: there are local changes in the repository | do not touch the dependencies on the server; leave the repository as it is in GitLab (`git status`) |
