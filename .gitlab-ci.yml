@@ -69,6 +69,18 @@ release:
       fi
       ZIP="ensfacil-${VERSION}-osd-2.19.5.zip"
       PAQUETE="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/ensfacil/$VERSION"
+    # Antes de subir nada: los enlaces de una Release ya publicada llevan a lo
+    # último subido con ese nombre, y su sha256 dejaría de cuadrar.
+    - |
+      CODIGO="$(curl -sS -o /dev/null -w '%{http_code}' --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG")"
+      case "$CODIGO" in
+        404) ;;
+        200) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG; no se toca. Bórrala en GitLab si hay que rehacerla." >&2
+             exit 1 ;;
+        *)   echo "ERROR: la API de Releases contestó $CODIGO al consultar $CI_COMMIT_TAG" >&2
+             exit 1 ;;
+      esac
     - |
       for f in "$ZIP" "$ZIP.sha256"; do
         echo "subiendo $f"
