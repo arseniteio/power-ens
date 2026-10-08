@@ -95,9 +95,10 @@ for ruta in "${RUTAS[@]}"; do
 done
 
 # El token nunca va en la URL (acabaría en .git/config) ni en la línea de
-# órdenes: un helper de credenciales lo lee del entorno en el momento. El
-# helper vacío de delante anula cualquier otro (p. ej. `store`, que lo
-# guardaría en disco).
+# órdenes: un helper de credenciales lo lee del entorno en el momento (por eso
+# va entre comillas simples: lo expande el helper, no este script). El helper
+# vacío de delante anula cualquier otro (p. ej. `store`, que lo guardaría en
+# disco).
 AYUDANTE='!f() { test "$1" = get || return 0; echo "username=${RUNBOOKS_DEPLOY_USER}"; echo "password=${RUNBOOKS_DEPLOY_TOKEN}"; }; f'
 export GIT_TERMINAL_PROMPT=0
 
