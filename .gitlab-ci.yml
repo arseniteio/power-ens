@@ -89,7 +89,7 @@ release:
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG")"
       case "$CODIGO" in
         404) ;;
-        200) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG; no se toca. Bórrala en GitLab si hay que rehacerla." >&2
+        200) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG y una versión publicada no se sustituye: publica una versión de parche nueva (CONTRIBUTING.md)." >&2
              exit 1 ;;
         *)   echo "ERROR: la API de Releases contestó $CODIGO al consultar $CI_COMMIT_TAG" >&2
              exit 1 ;;
@@ -145,7 +145,7 @@ release:
         --data-binary @release.json "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases")"
       case "$CODIGO" in
         201) echo "Release ENSFácil $VERSION creada para $CI_COMMIT_TAG" ;;
-        409) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG; no se toca. Bórrala en GitLab si hay que rehacerla." >&2
+        409) echo "ERROR: ya existe una Release para $CI_COMMIT_TAG y una versión publicada no se sustituye: publica una versión de parche nueva (CONTRIBUTING.md)." >&2
              exit 1 ;;
         *)   echo "ERROR: la API de Releases contestó $CODIGO:" >&2
              cat respuesta.json >&2
