@@ -145,6 +145,29 @@ What you should see: `active`, `wazuh` in the list and not `ensfacil`, and `404`
 
 The ENS configuration stays in the `wazuh-ens-configuration` index and the `ensfacil_admin` role stays in the security plugin (it grants no permission). When ENSFácil is installed again, everything is where it was.
 
+### 5.1 Remove it completely
+
+Only if ENSFácil is not going to be used again in this environment. This deletes
+the ENS configuration and its history: first save a copy of the document
+([Installing from a release, section 11](07-installing-from-a-release.en.md#11-update-to-a-newer-release),
+step 2), and do not do it if another installation reads the same indexer.
+
+```bash
+C=/etc/wazuh-indexer/certs
+ix() { sudo curl -s --cacert $C/root-ca.pem --cert $C/admin.pem --key $C/admin-key.pem "$@"; echo; }
+ix -X DELETE https://127.0.0.1:9200/_plugins/_security/api/rolesmapping/ensfacil_admin
+ix -X DELETE https://127.0.0.1:9200/_plugins/_security/api/roles/ensfacil_admin
+ix -X DELETE https://127.0.0.1:9200/wazuh-ens-configuration
+```
+
+What you should see: `"status":"OK"` in the first two (in the first one,
+`NOT_FOUND` if the role had no users) and `"acknowledged":true` in the last one.
+
+The facts stay: they are Wazuh alerts in `wazuh-alerts-*` and expire with those
+indices' retention. The manager rules and each machine's collectors are removed
+with each runbook's `03-uninstall-and-troubleshooting` guide
+([runbooks and registers](05-runbooks-and-registers.en.md#runbooks-per-control)).
+
 ## 6. Go back to the integrated version
 
 Only for an environment that comes from the integrated version ([update guide, section 10](02-updating-an-existing-environment.en.md#10-transition-from-the-integrated-version)). The integrated version is no longer maintained: `config/deploy-plugin.sh` does not install its zip (`wazuh-2.19.5.zip`), and going back uses what section 10.3 of that guide kept.

@@ -205,6 +205,11 @@ and the configuration are installed separately ([how ENSFácil is deployed](#how
 
 The project is private: you need a GitLab account with access.
 
+To change version (from the integrated version, to a newer release or back to
+the previous one) or to uninstall ENSFácil: [guide 07, section 15](docs/deployment/07-installing-from-a-release.en.md#15-change-version-or-uninstall).
+No data is lost: the configuration, its history and the facts live in the
+indexer, not in the plugin.
+
 ### What do you need to do?
 
 | | Need | Guide |

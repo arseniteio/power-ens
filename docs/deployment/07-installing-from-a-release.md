@@ -310,6 +310,26 @@ operations», tiene que aparecer «ENSFácil», y se abre en la pestaña Panel.
 
 Si algo no sale así, sigue el [diagnóstico](04-troubleshooting-and-rollback.md#3-diagnóstico-básico).
 
+### 10.1 Que los datos siguen ahí
+
+Instalar, actualizar o retirar el plugin no toca los índices: la configuración
+ENS, su historial y los hechos de los runbooks se quedan donde estaban. Para
+comprobarlo, con el certificado de administración del indexer:
+
+```bash
+C=/etc/wazuh-indexer/certs
+ix() { sudo curl -s --cacert $C/root-ca.pem --cert $C/admin.pem --key $C/admin-key.pem "https://127.0.0.1:9200/$1"; echo; }
+ix 'wazuh-ens-configuration/_doc/active?_source_includes=updatedAt'
+ix 'wazuh-ens-configuration/_count'
+ix 'wazuh-alerts-*/_count?q=_exists_:data.ensfacil'
+```
+
+Qué tiene que salir: `"found":true` con el `updatedAt` del último guardado de la
+configuración, el número de documentos de configuración y el número de hechos
+de ENSFácil. Anota los tres antes de cambiar de versión: después, la
+configuración tiene que ser la misma (mismo `updatedAt`, mismos documentos) y
+los hechos, los mismos o más, porque los runbooks siguen enviando.
+
 ## 11. Actualizar a una release nueva
 
 1. Lee las notas de la release nueva. Fíjate en su compatibilidad y en si trae
@@ -386,3 +406,28 @@ cada máquina, y se instalan aparte:
   ([guía de instalación, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)).
 
 Sin las reglas y los runbooks, el panel no tiene hechos que juzgar.
+
+## 15. Cambiar de versión o desinstalar
+
+| Tienes | Quieres | Qué hacer |
+|---|---|---|
+| la versión integrada (el plugin de Wazuh modificado, con la app «ENS») | ENSFácil desde una release | la [transición desde la versión integrada](02-updating-an-existing-environment.md#10-transición-desde-la-versión-integrada): instalar la release junto a la integrada, comparar y reinstalar el paquete oficial `wazuh-dashboard` 4.14.7 |
+| una release de ENSFácil | una más nueva | el apartado 11 |
+| una release de ENSFácil | la anterior | el apartado 13 |
+| ENSFácil, después de la transición | la versión integrada otra vez | [volver a la versión integrada](04-troubleshooting-and-rollback.md#6-volver-a-la-versión-integrada), mientras se conserve la carpeta de la transición |
+| ENSFácil | quitarlo | lo de abajo |
+
+En todos los casos los datos se quedan donde están: compruébalo antes y después
+como en el apartado 10.1.
+
+Desinstalar ENSFácil no toca el plugin de Wazuh ni los datos:
+
+```bash
+sudo systemctl stop wazuh-dashboard
+sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove ensfacil
+sudo rm -rf /usr/share/wazuh-dashboard/plugins/ensfacil
+sudo systemctl start wazuh-dashboard
+```
+
+Qué tiene que salir, y cómo quitar además el rol y la configuración si ENSFácil
+no se va a volver a usar: [retirar ENSFácil](04-troubleshooting-and-rollback.md#5-retirar-ensfácil).

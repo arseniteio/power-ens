@@ -205,6 +205,11 @@ y la configuración se instalan aparte ([cómo se despliega ENSFácil](#cómo-se
 
 El proyecto es privado: hace falta una cuenta de GitLab con acceso.
 
+Para cambiar de versión (desde la versión integrada, a una release más nueva o a
+la anterior) o desinstalar ENSFácil: [guía 07, apartado 15](docs/deployment/07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar).
+Los datos no se pierden: la configuración, su historial y los hechos están en el
+indexer, no en el plugin.
+
 ### ¿Qué necesitas hacer?
 
 | | Necesidad | Guía |

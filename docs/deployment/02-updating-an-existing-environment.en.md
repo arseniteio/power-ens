@@ -325,6 +325,17 @@ When both versions match, the official `wazuh-dashboard` 4.14.7 package is reins
 > [!important]
 > Do this step in a test environment first. It needs the Wazuh package repository (or the downloaded `wazuh-dashboard` 4.14.7-1 package) and the folder of the ENSFácil release installed in section 10.1 (`/opt/ensfacil/releases/<version>`).
 
+Write down the state of the data first, to compare at the end: the three values
+in [section 10.1 of Installing from a release](07-installing-from-a-release.en.md#101-the-data-is-still-there).
+
+> [!warning]
+> The Wazuh package repository may already offer a newer `wazuh-dashboard`
+> (for example, 4.14.8-1). ENSFácil 1.x is for 4.14.7 only: always install with
+> `=4.14.7-1`. So that a general system update does not upgrade it, hold it with
+> `sudo apt-mark hold wazuh-dashboard` (and `sudo apt-mark unhold
+> wazuh-dashboard` when Wazuh is upgraded on purpose, with an ENSFácil release
+> for that version).
+
 Keep what is going to be replaced:
 
 ```bash
@@ -364,6 +375,11 @@ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configu
 ```
 
 What you should see: `active`; in the list, `wazuh@4.14.7-01` (the official one) and `ensfacil@<version>`; and `401`. The menu no longer shows «ENS» and does show «ENSFácil», with the same configuration as before.
+
+Then compare the data with what you wrote down at the start: the configuration
+(same `updatedAt`, same documents) must be the same, and the facts the same or
+more. In the tests of this procedure, the configuration, its history, the facts,
+the agent inventory and the Wazuh indices came out identical before and after.
 
 Saved links to the «ENS» app (`/app/ens#…`) stop working. The new address is `/app/ensfacil`.
 
