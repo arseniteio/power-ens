@@ -26,6 +26,7 @@ Stop the procedure if any of these situations occurs:
 | Situation |
 |---|
 | `config/build-plugin.sh` does not end with the path of `ensfacil-2.19.5.zip`. |
+| `sha256sum -c SHA256SUMS` says `FAILED` for a release file. |
 | `unzip -t` reports errors, or `deploy-plugin.sh --solo-id` does not return `ensfacil`. |
 | `config/deploy-plugin.sh` says «el zip no es de ENSFácil» (the zip is not ENSFácil) or «el zip es del plugin de Wazuh» (the zip is the Wazuh plugin). |
 | Wazuh Dashboard does not return to `active` after installing the plugin. |
@@ -70,7 +71,20 @@ What you should see:
 
 ## 4. Reinstall the previous ENSFácil version
 
-The update guide keeps the previous zip in the backup (`/opt/ensfacil/artifacts/update-<date>/`). To go back to it, deploy it with `config/deploy-plugin.sh`, which replaces only `ensfacil` and bumps `build.number` so browsers stop using the removed version:
+Going back to the previous version means deploying its release again. `deploy-plugin.sh` replaces only `ensfacil` and bumps `build.number` so browsers stop using the removed version.
+
+Use that version's folder (`/opt/ensfacil/releases/<version>`). If you no longer have it, download it again ([Installing from a release, section 6.3](07-installing-from-a-release.en.md#63-download-the-four-files), with that version in `V`). Replace `X.Y.Z` with the version you are going back to:
+
+```bash
+V=X.Y.Z
+R=/opt/ensfacil/releases/$V
+cd "$R" && sha256sum -c SHA256SUMS \
+  && sudo bash deploy-plugin.sh "ensfacil-$V-osd-2.19.5.zip"
+```
+
+What you should see: `OK` for the three files and, at the end, `dashboard: active` and `ensfacil` in the plugin list. Then check as in section 3: the plugin list must show `ensfacil@<previous version>`.
+
+If the previous version was built from source, the update guide keeps its zip in the backup (`/opt/ensfacil/artifacts/update-<date>/`). To go back to it, deploy it the same way, with `config/deploy-plugin.sh`:
 
 ```bash
 UPDATE_BACKUP=/opt/ensfacil/artifacts/update-AAAAMMDD-HHMMSS
@@ -103,7 +117,7 @@ If something fails once the dashboard is stopped, the script prints the commands
 | `6` | the dashboard was not active at the end | new plugin installed and dashboard not active: check `journalctl -u wazuh-dashboard` |
 | `7` | another step failed with the dashboard stopped (removing the plugin, bumping `build.number`, starting) or it was interrupted | the message names the step |
 
-To go back after a deployment that finished well, use the previous zip (above): `deploy-plugin.sh` also bumps `build.number`, and restoring the copy by hand does not.
+To go back after a deployment that finished well, use the previous release or the previous zip (above): `deploy-plugin.sh` also bumps `build.number`, and restoring the copy by hand does not.
 
 ## 5. Remove ENSFácil
 
@@ -137,20 +151,23 @@ Only for an environment that comes from the integrated version ([update guide, s
 
 **Before reinstalling the official Wazuh plugin** (section 10.3 of that guide), the integrated version is still installed. Removing ENSFácil is enough (section 5).
 
-**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again so that it bumps `build.number` (browsers have the official plugin's files linked to the current number). This is only valid while the `wazuh-dashboard` package is still 4.14.7: the integrated plugin is built for that version, and with another one the dashboard does not start.
+**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again, with the release installed in section 10.1 of that guide, so that it bumps `build.number` (browsers have the official plugin's files linked to the current number). This is only valid while the `wazuh-dashboard` package is still 4.14.7: the integrated plugin is built for that version, and with another one the dashboard does not start.
 
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
+V=1.0.0   # the installed ENSFácil version
+R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
-   && sudo test -d "$T/wazuh-integrado" && ! sudo test -e "$T/wazuh-oficial"; then
+   && sudo test -d "$T/wazuh-integrado" && ! sudo test -e "$T/wazuh-oficial" \
+   && test -f "$R/ensfacil-$V-osd-2.19.5.zip"; then
   sudo systemctl stop wazuh-dashboard \
     && sudo mv "$P/wazuh" "$T/wazuh-oficial" \
     && sudo mv "$T/wazuh-integrado" "$P/wazuh" \
-    && sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+    && sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"
 else
-  echo "NO: wazuh-dashboard is not 4.14.7-1, $T/wazuh-integrado is missing or $T/wazuh-oficial already exists"
+  echo "NO: wazuh-dashboard is not 4.14.7-1, $T/wazuh-integrado or the zip in $R is missing, or $T/wazuh-oficial already exists"
 fi
 ```
 
@@ -161,7 +178,7 @@ To undo it and go back to the official plugin left in `$T/wazuh-oficial`:
 ```bash
 sudo systemctl stop wazuh-dashboard
 sudo mv "$P/wazuh" "$T/wazuh-integrado" && sudo mv "$T/wazuh-oficial" "$P/wazuh"
-sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"
 ```
 
 If `$T/wazuh-integrado` is missing, the integrated plugin is also in `$T/plugins-antes.tgz`, the whole `plugins` folder as it was before section 10.3. Extract only `plugins/wazuh` from it to that place and repeat the first block:
@@ -205,9 +222,12 @@ The response must include `"result":"updated"`. Then validate the restored docum
 | «ENSFácil» does not appear in the menu and `/api/ensfacil/configuration` returns `404` | the plugin is not installed or did not load | check the plugin list and the log (section 3) and deploy again with `config/deploy-plugin.sh` |
 | The dashboard does not start after updating Wazuh: `Failed to initialize plugins` and `ensfacil` | the new dashboard ships another OpenSearch Dashboards version and the plugin is built for `2.19.5` | remove ENSFácil (section 5) and get the zip for that version ([version compatibility](03-version-compatibility.en.md)) |
 | The menu shows «ENS» and «ENSFácil» | the integrated version is still installed | normal during the transition; to keep only «ENSFácil», [update, section 10.3](02-updating-an-existing-environment.en.md#103-go-back-to-the-official-wazuh-plugin) |
-| `deploy-plugin.sh`: «el zip no es de ENSFácil» or «el zip es del plugin de Wazuh» | `deploy-plugin.sh` only installs `ensfacil`; the Wazuh plugin (also the integrated version's `wazuh-2.19.5.zip`) comes with the official `wazuh-dashboard` package | use `ensfacil-2.19.5.zip` |
-| `build-plugin.sh`: «no es un árbol de OpenSearch Dashboards» or «el árbol es … ENSFácil 1.x se compila contra 2.19.5» | the build tree is not OpenSearch Dashboards `2.19.5` | prepare the tree as in [installation, section 13.2](01-installation-from-scratch.en.md#132-prepare-the-opensearch-dashboards-2195-tree) |
-| `build-plugin.sh` ends with `yarn: command not found`, or after building with `ENOENT: yarn install --production` | `yarn` is not in `root`'s `PATH` | build as in [installation, section 13.3](01-installation-from-scratch.en.md#133-build-and-validate-the-plugin), with `sudo env PATH=…` |
+| `deploy-plugin.sh`: «el zip no es de ENSFácil» or «el zip es del plugin de Wazuh» | `deploy-plugin.sh` only installs `ensfacil`; the Wazuh plugin (also the integrated version's `wazuh-2.19.5.zip`) comes with the official `wazuh-dashboard` package | use the ENSFácil zip: the release's `ensfacil-<version>-osd-2.19.5.zip`, or `ensfacil-2.19.5.zip` when built |
+| When downloading the release, `curl: (22) … error: 401` or `403` | the deploy token is mistyped, expired, revoked or lacks `read_package_registry` | check the token in GitLab ([Installing from a release, section 6](07-installing-from-a-release.en.md#6-download-from-the-server-with-a-deploy-token)) |
+| When downloading the release, `curl: (22) … error: 404` | that version is not published or is misspelled | check the version in *Deploy → Releases* |
+| `sha256sum -c SHA256SUMS` says `FAILED` | the download is incomplete or the file is not the release's | do not install; delete the folder and download again |
+| `build-plugin.sh`: «no es un árbol de OpenSearch Dashboards» or «el árbol es … ENSFácil 1.x se compila contra 2.19.5» | the build tree is not OpenSearch Dashboards `2.19.5` | prepare the tree as in [Building from source, section 3.2](08-building-from-source.en.md#32-prepare-the-opensearch-dashboards-2195-tree) |
+| `build-plugin.sh` ends with `yarn: command not found`, or after building with `ENOENT: yarn install --production` | `yarn` is not in `root`'s `PATH` | build as in [Building from source, section 3.3](08-building-from-source.en.md#33-build-the-plugin), with `sudo env PATH=…` |
 | `yarn install` stops with `Your lockfile needs to be updated` | `package.json` and `yarn.lock` do not match: there are local changes in the repository | do not touch the dependencies on the server; leave the repository as it is in GitLab (`git status`) |
 | The build ends immediately with exit code 1 | the output is redirected as `root` to a `/tmp` file created by another user (`protected_regular`) | write the log to `/opt/ensfacil/artifacts` |
 | After deploying, the browser still shows the previous version | the zip was installed without bumping `build.number` | deploy with `config/deploy-plugin.sh` |

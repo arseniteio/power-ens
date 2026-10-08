@@ -20,10 +20,13 @@ ENSFácil es un plugin propio de Wazuh Dashboard (`ensfacil`). No modifica el pl
 
 Cualquier otra combinación está sin validar.
 
-El zip lleva la versión de OpenSearch Dashboards en el nombre (`ensfacil-2.19.5.zip`) y en su manifiesto (`opensearchDashboardsVersion`). OpenSearch Dashboards solo acepta un plugin compilado para su versión exacta:
+El zip lleva la versión de OpenSearch Dashboards en el nombre y en su manifiesto (`opensearchDashboardsVersion`). OpenSearch Dashboards solo acepta un plugin compilado para su versión exacta:
 
 - al instalarlo, `opensearch-dashboards-plugin install` lo rechaza con `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
 - si ya estaba instalado y el dashboard cambia de versión, el dashboard **no arranca**: `Failed to initialize plugins`.
+
+> [!note]
+> En las releases, el zip se llama `ensfacil-<versión>-osd-<versión de OpenSearch Dashboards>.zip`, por ejemplo `ensfacil-1.0.0-osd-2.19.5.zip`: hay un zip por versión del dashboard. Cada release dice en su descripción con qué versión de Wazuh y de OpenSearch Dashboards es compatible ([Instalar desde una release](07-installing-from-a-release.md#21-compatibilidad)). Compilado desde el código fuente, el zip se llama `ensfacil-2.19.5.zip`.
 
 ## 3. Comprobar las versiones instaladas
 
@@ -49,9 +52,9 @@ Comprobar qué versión de OpenSearch Dashboards trae la versión nueva de Wazuh
 
 En un entorno de pruebas:
 
-1. Preparar el árbol de compilación de la versión nueva de Wazuh Dashboard, como en la [guía de instalación, apartado 13.2](01-installation-from-scratch.md#132-preparar-el-árbol-de-opensearch-dashboards-2195), con su etiqueta.
-2. Ajustar la versión de OpenSearch Dashboards en `package.json`, `opensearch_dashboards.json` y `config/build-plugin.sh`.
-3. Compilar con `config/build-plugin.sh` y validar el zip ([apartado 13.3](01-installation-from-scratch.md#133-compilar-y-validar-el-plugin)).
+1. Preparar el árbol de compilación de la versión nueva de Wazuh Dashboard, como en [Compilar desde el código fuente, apartado 3.2](08-building-from-source.md#32-preparar-el-árbol-de-opensearch-dashboards-2195), con su etiqueta.
+2. Ajustar la versión de OpenSearch Dashboards en `package.json`, `opensearch_dashboards.json` y `config/build-plugin.sh`. Para publicarla con CI, también en `.gitlab-ci.yml` y en `ci/osd-builder.Dockerfile`.
+3. Compilar con `config/build-plugin.sh` y validar el zip ([Compilar desde el código fuente, apartados 3.3 y 5](08-building-from-source.md#33-compilar-el-plugin)).
 4. Instalar con `config/deploy-plugin.sh` y comprobar el servicio, la lista de plugins y la respuesta `401` de `/api/ensfacil/configuration` ([apartado 13.4](01-installation-from-scratch.md#134-instalar-el-plugin-en-wazuh-dashboard)).
 5. Pasar las pruebas del repositorio:
 

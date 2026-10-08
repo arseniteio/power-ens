@@ -199,11 +199,16 @@ ENSFácil es un plugin propio (`ensfacil`) que se instala **junto** al plugin de
 Wazuh, sin tocarlo. En contenedor se hace con una imagen propia basada en la
 oficial.
 
-**Compilar** necesita `git` y el código fuente de OpenSearch Dashboards: se hace
-**fuera de producción**, en un equipo de compilación con exactamente las mismas
-versiones (apartado 13 de la guía 01; resultado `ensfacil-2.19.5.zip`), o se
-pide a Quersystem el zip compilado para Wazuh `4.14.7` (OpenSearch Dashboards
-`2.19.5`). Un zip de otra versión no se instala.
+**El zip.** Descarga el de la release para Wazuh `4.14.7` (OpenSearch
+Dashboards `2.19.5`), `ensfacil-<versión>-osd-2.19.5.zip`, y compruébalo con su
+`SHA256SUMS` ([Instalar desde una release](07-installing-from-a-release.md)).
+Si hay que compilarlo, se hace **fuera de producción**, en un equipo de
+compilación con exactamente las mismas versiones o con la imagen de compilación
+de CI ([Compilar desde el código fuente](08-building-from-source.md); resultado
+`ensfacil-2.19.5.zip`). Un zip de otra versión no se instala.
+
+El `Dockerfile` de abajo espera el zip con el nombre `ensfacil-2.19.5.zip`. El de
+la release se copia con ese nombre: `cp ensfacil-1.0.0-osd-2.19.5.zip ensfacil-2.19.5.zip`.
 
 **Instalar.** `config/deploy-plugin.sh` presupone systemd y una instalación por
 paquetes. En contenedor, lo mismo en una imagen propia, con el zip junto al
