@@ -46,5 +46,7 @@ WORKDIR /osd
 RUN yarn osd bootstrap && yarn cache clean
 
 # El trabajo `build` corre como root, igual que build-plugin.sh en el servidor
-# (que compila con --allow-root).
+# (que compila con --allow-root). El optimizador llama a git en /osd, que es de
+# `node`: sin esta excepción, git se niega («dubious ownership»).
 USER root
+RUN git config --system --add safe.directory /osd
