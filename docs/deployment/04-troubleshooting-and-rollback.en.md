@@ -145,12 +145,12 @@ P=/usr/share/wazuh-dashboard/plugins
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
    && sudo test -d "$T/wazuh-integrado" && ! sudo test -e "$T/wazuh-oficial"; then
-  sudo systemctl stop wazuh-dashboard
-  sudo mv "$P/wazuh" "$T/wazuh-oficial"
-  sudo mv "$T/wazuh-integrado" "$P/wazuh"
-  sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+  sudo systemctl stop wazuh-dashboard \
+    && sudo mv "$P/wazuh" "$T/wazuh-oficial" \
+    && sudo mv "$T/wazuh-integrado" "$P/wazuh" \
+    && sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 else
-  echo "NO: wazuh-dashboard no es 4.14.7-1, falta $T/wazuh-integrado o ya existe $T/wazuh-oficial"
+  echo "NO: wazuh-dashboard is not 4.14.7-1, $T/wazuh-integrado is missing or $T/wazuh-oficial already exists"
 fi
 ```
 
