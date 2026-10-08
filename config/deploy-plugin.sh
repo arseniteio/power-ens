@@ -10,9 +10,13 @@
 # tocar nada. Exactamente un zip: con más o con menos, no hace nada.
 #
 # Antes de parar el dashboard guarda el plugin que va a sustituir en
-# ${ENSFACIL_BACKUP_DIR:-/var/backups/ensfacil} (de root, 0700), como
-# plugins-<id>-<fecha>.tgz, y conserva solo los 3 últimos de cada plugin. No
-# junto al zip: la compilación siguiente borra esa carpeta entera.
+# ${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil, como plugins-<id>-<fecha>.tgz.
+# Esa subcarpeta es SUYA: la crea (de root, 0700) si no existe, y nunca cambia
+# los permisos de una carpeta que no ha creado (ENSFACIL_BACKUP_DIR puede ser
+# /tmp o una carpeta que otros leen). No junto al zip: la compilación
+# siguiente borra esa carpeta entera. Solo cuando el despliegue termina bien
+# se quedan las 3 últimas copias: un despliegue que falla una y otra vez no
+# empuja fuera la última copia buena.
 #
 # Si algo falla con el dashboard ya parado, dice cómo volver a como estaba
 # (restaurar esa copia y arrancar) y sale con error. Códigos de salida:
@@ -91,7 +95,7 @@ if [ "$SOLO_ID" = 1 ]; then
   exit 0
 fi
 
-RESPALDOS="${ENSFACIL_BACKUP_DIR:-/var/backups/ensfacil}"
+RESPALDOS="${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil"
 RESPALDO=""
 PAQUETE_ANTES=""
 ESTADO=""
@@ -134,22 +138,27 @@ al_salir() {
 trap al_salir EXIT
 trap 'exit 130' INT TERM
 
+# La carpeta de copias, solo si no existe: entonces es nuestra y nace de root
+# y 0700. Si ya existe, se usa como está; nunca un chmod/chown de lo ajeno.
+carpeta_de_copias() {
+  [ -d "$RESPALDOS" ] && return 0
+  mkdir -p "$(dirname "$RESPALDOS")" || return 1
+  (umask 077 && mkdir "$RESPALDOS") || return 1
+  if [ "$(id -u)" -eq 0 ]; then
+    chown root:root "$RESPALDOS" || return 1
+  fi
+}
+
 PASO="1/6 · guardando el plugin anterior ($PLUGIN_ID)"
 echo "== $PASO"
 if [ -d "$OSD/plugins/$PLUGIN_ID" ]; then
   RESPALDO="$RESPALDOS/plugins-$PLUGIN_ID-$(date +%Y%m%d_%H%M%S).tgz"
-  if ! { mkdir -p "$RESPALDOS" && chmod 0700 "$RESPALDOS" \
-         && { [ "$(id -u)" -ne 0 ] || chown root:root "$RESPALDOS"; } \
-         && tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"; }; then
+  if ! { carpeta_de_copias && tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"; }; then
     echo "no se pudo guardar el plugin anterior en $RESPALDOS: no se ha tocado nada." >&2
     rm -f "$RESPALDO" 2>/dev/null || true
     exit 3
   fi
   echo "   guardado en $RESPALDO"
-  # Solo los 3 últimos de este plugin. El nombre lleva la fecha, así que el
-  # orden alfabético es el cronológico.
-  find "$RESPALDOS" -maxdepth 1 -name "plugins-$PLUGIN_ID-*.tgz" -print \
-    | sort -r | tail -n +4 | while IFS= read -r viejo; do rm -f "$viejo"; done
 else
   echo "   no hay un $PLUGIN_ID instalado: nada que guardar"
 fi
@@ -175,8 +184,10 @@ fi
 
 PASO="5/6 · invalidando la caché del navegador (subir build.number)"
 echo "== $PASO"
-PAQUETE_ANTES="$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
-cp "$OSD/package.json" "$PAQUETE_ANTES"
+# La vuelta atrás solo nombra la copia de package.json si esa copia existe.
+COPIA_PAQUETE="$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
+cp "$OSD/package.json" "$COPIA_PAQUETE"
+PAQUETE_ANTES="$COPIA_PAQUETE"
 python3 - "$OSD/package.json" <<'PY'
 import io, json, sys
 
@@ -213,5 +224,12 @@ echo "plugins:   $(ls -1 "$OSD/plugins" | tr '\n' ' ')"
 echo
 if [ "$ESTADO" != "active" ]; then
   exit 6
+fi
+
+# Desplegado y activo: ahora sí, solo las 3 últimas copias de este plugin. El
+# nombre lleva la fecha, así que el orden alfabético es el cronológico.
+if [ -n "$RESPALDO" ]; then
+  find "$RESPALDOS" -maxdepth 1 -name "plugins-$PLUGIN_ID-*.tgz" -print \
+    | sort -r | tail -n +4 | while IFS= read -r viejo; do rm -f "$viejo"; done
 fi
 echo "La URL de los bundles ha cambiado: el navegador los pedirá de nuevo solo."

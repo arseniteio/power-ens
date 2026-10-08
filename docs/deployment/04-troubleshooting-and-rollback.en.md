@@ -90,7 +90,7 @@ What you should see: `dashboard: active` and `ensfacil` in the plugin list. Then
 
 ### 4.1 If `deploy-plugin.sh` fails halfway
 
-Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz` (a root folder, permissions 0700, or the one set in `ENSFACIL_BACKUP_DIR`) and keeps the last 3 copies. It does not leave them next to the zip: the next build deletes that folder.
+Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`, or in `<folder>/ensfacil/` if `ENSFACIL_BACKUP_DIR=<folder>` is set. The script creates that subfolder (owned by root, permissions 0700) if it does not exist, and never changes the permissions of a folder that already existed. When the deployment finishes well, the last 3 copies are kept; a failed deployment deletes none, so the last good copy is still there even if it is retried. It does not leave them next to the zip: the next build deletes that folder.
 
 If something fails once the dashboard is stopped, the script prints the commands to go back to how it was (remove the half-installed plugin, restore that copy, put back `package.json` if it had already changed it, and start the dashboard) and exits with an error. Run them in the order they are printed and check as in section 3.
 
@@ -137,19 +137,40 @@ Only for an environment that comes from the integrated version ([update guide, s
 
 **Before reinstalling the official Wazuh plugin** (section 10.3 of that guide), the integrated version is still installed. Removing ENSFácil is enough (section 5).
 
-**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again so that it bumps `build.number` (browsers have the official plugin's files linked to the current number):
+**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again so that it bumps `build.number` (browsers have the official plugin's files linked to the current number). This is only valid while the `wazuh-dashboard` package is still 4.14.7: the integrated plugin is built for that version, and with another one the dashboard does not start.
 
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
-sudo test -d "$T/wazuh-integrado" && echo "INTEGRADO=OK"
+P=/usr/share/wazuh-dashboard/plugins
 
+if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
+   && sudo test -d "$T/wazuh-integrado" && ! sudo test -e "$T/wazuh-oficial"; then
+  sudo systemctl stop wazuh-dashboard
+  sudo mv "$P/wazuh" "$T/wazuh-oficial"
+  sudo mv "$T/wazuh-integrado" "$P/wazuh"
+  sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+else
+  echo "NO: wazuh-dashboard no es 4.14.7-1, falta $T/wazuh-integrado o ya existe $T/wazuh-oficial"
+fi
+```
+
+What you should see: at the end of the deployment, `dashboard: active`. The «ENS» app appears in the menu again, next to «ENSFácil». ENSFácil can stay installed or be removed (section 5). If it prints `NO: …`, nothing was touched.
+
+To undo it and go back to the official plugin left in `$T/wazuh-oficial`:
+
+```bash
 sudo systemctl stop wazuh-dashboard
-sudo mv /usr/share/wazuh-dashboard/plugins/wazuh "$T/wazuh-oficial"
-sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh
+sudo mv "$P/wazuh" "$T/wazuh-integrado" && sudo mv "$T/wazuh-oficial" "$P/wazuh"
 sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 ```
 
-What you should see: `INTEGRADO=OK` and, at the end of the deployment, `dashboard: active`. The «ENS» app appears in the menu again, next to «ENSFácil». ENSFácil can stay installed or be removed (section 5).
+If `$T/wazuh-integrado` is missing, the integrated plugin is also in `$T/plugins-antes.tgz`, the whole `plugins` folder as it was before section 10.3. Extract only `plugins/wazuh` from it to that place and repeat the first block:
+
+```bash
+sudo mkdir -p "$T/desde-tgz"
+sudo tar -xzf "$T/plugins-antes.tgz" -C "$T/desde-tgz" plugins/wazuh
+sudo mv "$T/desde-tgz/plugins/wazuh" "$T/wazuh-integrado"
+```
 
 > [!note]
 > The configuration does not need to be touched: both versions use the same document. If controls the integrated version does not know were seeded after the transition, restore the configuration (section 7).

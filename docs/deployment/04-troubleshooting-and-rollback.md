@@ -90,7 +90,7 @@ Qué tiene que salir: `dashboard: active` y `ensfacil` en la lista de plugins. C
 
 ### 4.1 Si `deploy-plugin.sh` falla a medias
 
-Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz` (carpeta de root, permisos 0700, o la que indique `ENSFACIL_BACKUP_DIR`) y conserva las 3 últimas copias. No las deja junto al zip: la compilación siguiente borra esa carpeta.
+Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`, o en `<carpeta>/ensfacil/` si se indica `ENSFACIL_BACKUP_DIR=<carpeta>`. Esa subcarpeta la crea el script (de root, permisos 0700) si no existe, y nunca cambia los permisos de una carpeta que ya existía. Cuando el despliegue termina bien se quedan las 3 últimas copias; un despliegue que falla no borra ninguna, así que la última copia buena sigue ahí aunque se repita. No las deja junto al zip: la compilación siguiente borra esa carpeta.
 
 Si algo falla con el dashboard ya parado, el script imprime los comandos para volver a como estaba (quitar el plugin a medias, restaurar esa copia, devolver el `package.json` si ya lo había cambiado y arrancar el dashboard) y sale con error. Ejecutarlos en el orden en que salen y comprobar como en el apartado 3.
 
@@ -137,19 +137,40 @@ Solo para un entorno que viene de la versión integrada ([guía de actualizació
 
 **Antes de reinstalar el plugin oficial de Wazuh** (apartado 10.3 de esa guía), la versión integrada sigue instalada. Basta con retirar ENSFácil (apartado 5).
 
-**Después de reinstalar el plugin oficial de Wazuh**, se devuelve a su sitio el plugin integrado que el apartado 10.3 apartó en `$T/wazuh-integrado`, y se vuelve a desplegar ENSFácil para que suba el `build.number` (los navegadores tienen asociados al número actual los ficheros del plugin oficial):
+**Después de reinstalar el plugin oficial de Wazuh**, se devuelve a su sitio el plugin integrado que el apartado 10.3 apartó en `$T/wazuh-integrado`, y se vuelve a desplegar ENSFácil para que suba el `build.number` (los navegadores tienen asociados al número actual los ficheros del plugin oficial). Solo vale mientras el paquete `wazuh-dashboard` siga siendo el 4.14.7: el plugin integrado está hecho para esa versión, y con otra el dashboard no arranca.
 
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
-sudo test -d "$T/wazuh-integrado" && echo "INTEGRADO=OK"
+P=/usr/share/wazuh-dashboard/plugins
 
+if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
+   && sudo test -d "$T/wazuh-integrado" && ! sudo test -e "$T/wazuh-oficial"; then
+  sudo systemctl stop wazuh-dashboard
+  sudo mv "$P/wazuh" "$T/wazuh-oficial"
+  sudo mv "$T/wazuh-integrado" "$P/wazuh"
+  sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
+else
+  echo "NO: wazuh-dashboard no es 4.14.7-1, falta $T/wazuh-integrado o ya existe $T/wazuh-oficial"
+fi
+```
+
+Qué tiene que salir: al final del despliegue, `dashboard: active`. En el menú vuelve a aparecer «ENS», junto a «ENSFácil». ENSFácil puede quedarse instalado o retirarse (apartado 5). Si sale `NO: …`, no se ha tocado nada.
+
+Para deshacerlo y volver al plugin oficial que quedó en `$T/wazuh-oficial`:
+
+```bash
 sudo systemctl stop wazuh-dashboard
-sudo mv /usr/share/wazuh-dashboard/plugins/wazuh "$T/wazuh-oficial"
-sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh
+sudo mv "$P/wazuh" "$T/wazuh-integrado" && sudo mv "$T/wazuh-oficial" "$P/wazuh"
 sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh /opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
 ```
 
-Qué tiene que salir: `INTEGRADO=OK` y, al final del despliegue, `dashboard: active`. En el menú vuelve a aparecer «ENS», junto a «ENSFácil». ENSFácil puede quedarse instalado o retirarse (apartado 5).
+Si falta `$T/wazuh-integrado`, el plugin integrado está también en `$T/plugins-antes.tgz`, la carpeta `plugins` entera tal como estaba antes del apartado 10.3. Extraer de ahí solo `plugins/wazuh` a ese sitio y repetir el primer bloque:
+
+```bash
+sudo mkdir -p "$T/desde-tgz"
+sudo tar -xzf "$T/plugins-antes.tgz" -C "$T/desde-tgz" plugins/wazuh
+sudo mv "$T/desde-tgz/plugins/wazuh" "$T/wazuh-integrado"
+```
 
 > [!note]
 > La configuración no hay que tocarla: las dos versiones usan el mismo documento. Si después de la transición se sembraron controles que la versión integrada no conoce, restaurar la configuración (apartado 7).
