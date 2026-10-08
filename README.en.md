@@ -28,9 +28,10 @@ and the links to every runbook and its guides are in the
    and op.exp.9 also leave a collector on the manager itself), and finally the
    ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
    Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
-2. **Machines.** On each agent, the runbooks of its platform (Linux, Zimbra
-   LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of
-   each runbook**.
+2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrol it on
+   the manager, the `ens` group and the plugin's ENS scope), once; then the
+   runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
+   following the `01-installation` guide **of each runbook**.
 3. **Configuration in the dashboard.** In ENSFácil > Configuration, the
    parameters of each control, and on the machines or the manager, the
    [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),

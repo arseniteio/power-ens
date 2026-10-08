@@ -266,6 +266,11 @@ Los diecisiete repositorios deben devolver una URL bajo `git@gitlab.com:quersyst
 
 ## 11. Crear y validar el grupo ENS
 
+> [!note]
+> Este apartado crea los grupos en el manager. Cómo se meten los agentes en
+> ellos, cómo se comprueba que les llega la configuración y el alcance ENS del
+> plugin están, una sola vez, en la [configuración inicial de ENSFácil](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
+
 Antes de instalar las reglas de los controles, crear el grupo compartido `ens` en Wazuh Manager y el grupo `ens-copias`, el propio de mp.info.6, en el que solo van las máquinas cuyas copias se miden:
 
 ```bash
