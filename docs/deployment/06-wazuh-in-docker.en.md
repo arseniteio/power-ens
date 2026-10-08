@@ -236,18 +236,41 @@ Without bumping `build.number`, the browser keeps using the files of the
 previous ENSFácil version when it is updated (the bundle URL depends on that
 number). Each new ENSFácil version is a new image with the new zip.
 
-Then create the `ensfacil_admin` role (section 13.5 of guide 01) from the host,
-with the indexer administrator certificate of the deployment (section 8):
+Then create the `ensfacil_admin` role (section 13.5 of guide 01) with the
+indexer administrator certificate of the deployment (section 8).
+`create-admin-role.sh` verifies the indexer certificate against its root CA, so
+the URL must carry the name that certificate was issued for. In the official
+deployment (`config/certs.yml` of `wazuh-docker`) it is `wazuh.indexer`, not
+`127.0.0.1`: with `https://127.0.0.1:9200`, curl refuses («no alternative
+certificate subject name matches»). The name is in the certificate itself:
 
 ```bash
 C=/path/to/the/deployment/config/wazuh_indexer_ssl_certs
-sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_URL=https://127.0.0.1:9200 \
+openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
+```
+
+That name only resolves inside the deployment's Docker network. From the host,
+where `docker-compose.yml` publishes the indexer port `9200`, an `/etc/hosts`
+entry pointing it to the machine itself is enough; `OS_CA` is the deployment's
+root CA (`root-ca.pem`), the one that signed the indexer certificate:
+
+```bash
+grep -q '[[:space:]]wazuh\.indexer$' /etc/hosts || echo '127.0.0.1 wazuh.indexer' | sudo tee -a /etc/hosts
+sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_URL=https://wazuh.indexer:9200 \
   bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 
+The entry can be removed afterwards (`sudo sed -i '/[[:space:]]wazuh\.indexer$/d' /etc/hosts`).
+If the indexer is not published on the host, do the same from a machine that
+reaches it, with the entry pointing to its address. In a multi-node cluster, the
+name is the one of the node you talk to (`wazuh1.indexer` in the official
+multi-node deployment): always use the one shown in the certificate.
+
 Checked on the `wazuh/wazuh-dashboard:4.14.7` image: it ships `python3` and the
-line that bumps `build.number` works. To be verified: installing the ENSFácil
-zip in the image and starting it in the customer's environment.
+line that bumps `build.number` works. To be verified (not tested yet on a Docker
+deployment): installing the ENSFácil zip in the image, starting it in the
+customer's environment and creating the role with the indexer certificate's
+name.
 
 ## 8. Seeding and validating the configuration
 
