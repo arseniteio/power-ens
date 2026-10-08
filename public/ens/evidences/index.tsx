@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
+import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import {
   EuiAccordion,
   EuiBadge,
@@ -566,7 +567,7 @@ export const EvidencesENS = () => {
     [scopeAgents.length],
   );
 
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
@@ -709,6 +710,20 @@ export const EvidencesENS = () => {
       ...current,
       [controlId]: nextIsOpen,
     }));
+
+  // Sin los hechos de ahora, ni estados ni recuentos: el refresco de 15 s
+  // vuelve a intentarlo.
+  if (error) {
+    return (
+      <EuiPanel paddingSize='l'>
+        <EuiTitle size='s'>
+          <h2>Repositorio de Evidencias ENS</h2>
+        </EuiTitle>
+        <EuiSpacer size='m' />
+        <FactsReadErrorCallOut error={error} />
+      </EuiPanel>
+    );
+  }
 
   return (
     <EuiPanel paddingSize='l'>

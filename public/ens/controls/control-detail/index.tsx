@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useEsSearch } from '../../../search/use-es-search';
+import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
 import {
   EuiBadge,
   EuiBasicTable,
@@ -121,7 +122,7 @@ export const ControlDetailENS = ({
       agentId,
     );
 
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
@@ -905,6 +906,28 @@ export const ControlDetailENS = ({
       color: 'hollow' as const,
     },
   ].filter(item => item.valor > 0);
+
+  // Sin los hechos de ahora, ni veredicto ni cifras: el refresco de 15 s
+  // vuelve a intentarlo.
+  if (error) {
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel>
+          <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
+            Volver a controles
+          </EuiButtonEmpty>
+          <EuiSpacer size='s' />
+          <EuiTitle size='m'>
+            <h2>
+              {control.id.toUpperCase()} - {control.title}
+            </h2>
+          </EuiTitle>
+          <EuiSpacer size='m' />
+          <FactsReadErrorCallOut error={error} />
+        </EuiPanel>
+      </EuiPage>
+    );
+  }
 
   // Sin agente seleccionado no se mezclan datos de varios agentes:
   // un cumplimiento combinado no es válido para auditoría.

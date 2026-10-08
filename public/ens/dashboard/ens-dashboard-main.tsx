@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
+import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { ENSControls } from '../data';
 import {
   buildENSDashboardModel,
@@ -93,7 +94,7 @@ export const EnsDashboardMain = () => {
 
   const ensControlIds = ENSControls.map(control => control.id);
   const ensRuleGroups = ensControlIds.map(controlId => `ENS_${controlId}`);
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
@@ -258,6 +259,16 @@ export const EnsDashboardMain = () => {
     marginBottom: 12,
     textTransform: 'uppercase',
   };
+
+  // Sin los hechos de ahora no hay índice que enseñar: el refresco de 15 s
+  // vuelve a intentarlo.
+  if (error) {
+    return (
+      <div style={{ padding: 16 }}>
+        <FactsReadErrorCallOut error={error} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>

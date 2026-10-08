@@ -21,6 +21,7 @@
 import React, { useMemo } from 'react';
 import { EuiBadge, EuiFacetButton } from '@elastic/eui';
 import { useEsSearch } from '../../search/use-es-search';
+import { FACTS_READ_ERROR_TITLE, factsReadErrorText } from '../../platform/facts-read-error';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
@@ -65,7 +66,7 @@ export const ControlRow = ({
   badgeDelEstado,
   onSelect,
 }: ControlRowProps) => {
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       buildENSEvaluationTimeRangeFilter(evaluationPeriod),
       scopeFilter,
@@ -120,6 +121,25 @@ export const ControlRow = ({
       requisito.status !== 'CUMPLE' &&
       (requisito as { evidenced?: boolean }).evidenced === false
   ).length;
+
+  // Sin los hechos de ahora, ni veredicto ni recuento: los de antes no valen.
+  if (error) {
+    return (
+      <EuiFacetButton
+        isSelected={false}
+        onClick={onSelect}
+        style={{ borderLeft: '4px solid #BD271E', marginBottom: 8 }}
+      >
+        <strong>{controlId}</strong> — {title}
+        <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
+          {levels}
+        </EuiBadge>
+        <EuiBadge color='danger' title={factsReadErrorText(error)} style={{ marginLeft: 6 }}>
+          {FACTS_READ_ERROR_TITLE}
+        </EuiBadge>
+      </EuiFacetButton>
+    );
+  }
 
   return (
     <EuiFacetButton

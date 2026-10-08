@@ -7,6 +7,7 @@ import {
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
+import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { getActiveENSConfiguration } from '../configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
@@ -120,7 +121,7 @@ const ControlReport = ({
   const scopeAgentQueryFilter =
     buildENSScopeAgentQueryFilter(scopeAgents, agentId);
 
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
@@ -571,6 +572,8 @@ const ControlReport = ({
   ];
 
   const exportarPDF = () => {
+    // Un informe firmado con los hechos de la búsqueda anterior no se emite.
+    if (error) return;
     const now = new Date();
     const fechaEmision = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -802,6 +805,20 @@ const ControlReport = ({
     (pdfMake as any).createPdf(docDefinition).download(nombre);
   };
 
+  // Sin los hechos de ahora, ni informe ni PDF: el refresco de 15 s vuelve a
+  // intentarlo.
+  if (error) {
+    return (
+      <>
+        <FactsReadErrorCallOut error={error} />
+        <EuiSpacer size='m' />
+        <EuiButton iconType='download' size='s' fill isDisabled>
+          Exportar PDF
+        </EuiButton>
+      </>
+    );
+  }
+
   // Sin panel propio: el informe se renderiza ya dentro de la sección plegable
   // de su control, que es la que pone el marco.
   return (
@@ -901,7 +918,7 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <EuiButton iconType='download' size='s' fill onClick={exportarPDF}>
+      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={Boolean(error)}>
         Exportar PDF
       </EuiButton>
     </>

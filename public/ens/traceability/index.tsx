@@ -11,6 +11,7 @@ import {
 
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
+import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import {
   buildControlTrace,
   buildENSEvaluationTimeRangeFilter,
@@ -44,7 +45,7 @@ export const TraceabilityENS = () => {
       agentId,
     );
 
-  const { esResults } = useEsSearch({
+  const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
@@ -86,6 +87,18 @@ export const TraceabilityENS = () => {
     selectedControl.id,
     scopeAgents,
   ]);
+
+  if (error) {
+    return (
+      <EuiPanel paddingSize='l'>
+        <EuiTitle size='m'>
+          <h2>Trazabilidad ENS</h2>
+        </EuiTitle>
+        <EuiSpacer size='m' />
+        <FactsReadErrorCallOut error={error} />
+      </EuiPanel>
+    );
+  }
 
   if (!trace) {
     return (
