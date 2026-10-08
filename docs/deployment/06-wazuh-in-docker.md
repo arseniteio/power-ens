@@ -247,7 +247,7 @@ propio certificado:
 
 ```bash
 C=/ruta/al/despliegue/config/wazuh_indexer_ssl_certs
-openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
+sudo openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
 ```
 
 Ese nombre solo se resuelve dentro de la red de Docker del despliegue. Desde el
@@ -261,7 +261,7 @@ sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_UR
   bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 
-La entrada puede quitarse al terminar (`sudo sed -i '/[[:space:]]wazuh\.indexer$/d' /etc/hosts`).
+La entrada puede quitarse al terminar; esto borra solo la línea que se añadió aquí, no otra que ya hubiera: `sudo sed -i '/^127\.0\.0\.1 wazuh\.indexer$/d' /etc/hosts`.
 Si el indexer no está publicado en el host, lo mismo desde un equipo que llegue
 a él, con la entrada apuntando a su dirección. En un clúster con varios nodos,
 el nombre es el del nodo al que se habla (`wazuh1.indexer` en el despliegue

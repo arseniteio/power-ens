@@ -246,7 +246,7 @@ certificate subject name matches»). The name is in the certificate itself:
 
 ```bash
 C=/path/to/the/deployment/config/wazuh_indexer_ssl_certs
-openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
+sudo openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
 ```
 
 That name only resolves inside the deployment's Docker network. From the host,
@@ -260,7 +260,7 @@ sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_UR
   bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 
-The entry can be removed afterwards (`sudo sed -i '/[[:space:]]wazuh\.indexer$/d' /etc/hosts`).
+The entry can be removed afterwards; this deletes only the line added here, not one that was already there: `sudo sed -i '/^127\.0\.0\.1 wazuh\.indexer$/d' /etc/hosts`.
 If the indexer is not published on the host, do the same from a machine that
 reaches it, with the entry pointing to its address. In a multi-node cluster, the
 name is the one of the node you talk to (`wazuh1.indexer` in the official
