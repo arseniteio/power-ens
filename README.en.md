@@ -316,12 +316,15 @@ config/            configuration blocks and manager tools:
 tests/             engine suites and consistency check
 ```
 
-Tests (Python 3 and Node.js 18 or later):
+Tests (Python 3 and Node.js 18 or later; the script tests also need `bash`, `zip` and `unzip`):
 
 ```bash
 python3 tests/check-consistency.py
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
+
+`tests/mp-info-6-rules.test.sh` tests the mp.info.6 rules with `wazuh-logtest` in a `wazuh/wazuh-manager` container (Docker); without Docker it skips that part with a warning and runs only the static checks.
 
 Rule ID ranges in use. Those of op.exp.7 and op.exp.9, and those of the
 central plane of op.exp.8, arrive with agent `000` (the manager):

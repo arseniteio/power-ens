@@ -316,12 +316,15 @@ config/            bloques de configuración y herramientas del manager:
 tests/             suites del motor y comprobación de coherencia
 ```
 
-Pruebas (Python 3 y Node.js 18 o superior):
+Pruebas (Python 3 y Node.js 18 o superior; las de los scripts, `bash`, `zip` y `unzip`):
 
 ```bash
 python3 tests/check-consistency.py
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
+
+`tests/mp-info-6-rules.test.sh` prueba las reglas de mp.info.6 con `wazuh-logtest` en un contenedor `wazuh/wazuh-manager` (Docker); sin Docker, salta esa parte con un aviso y hace solo las comprobaciones estáticas.
 
 Rangos de rule ID en uso. Los de op.exp.7 y op.exp.9, y los del plano central
 de op.exp.8, llegan con el agente `000` (el manager):
