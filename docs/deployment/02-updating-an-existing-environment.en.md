@@ -260,6 +260,8 @@ If any validation fails, do not keep operating the new version and use the [trou
 
 The integrated version of ENSFácil lived inside the Wazuh plugin: the official `wazuh` plugin was removed and a modified one, with the «ENS» app, was installed. ENSFácil is now a plugin of its own, `ensfacil`, and the Wazuh plugin is the official one again.
 
+The integrated version is no longer maintained or distributed: this section only applies to an environment that still has it installed. Nothing from it is needed: ENSFácil is installed, the two are compared and the official `wazuh-dashboard` 4.14.7 package is reinstalled.
+
 The configuration is not migrated: both versions use the same index, `wazuh-ens-configuration`, and the same format. The manager rules and the runbooks do not change either.
 
 The transition has three steps: install ENSFácil next to the integrated version, compare the two, and go back to the official Wazuh plugin.

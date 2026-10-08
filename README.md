@@ -309,7 +309,6 @@ public/ens/        módulo ENS (React + TypeScript)
   controls/ reports/ evidences/    las tres pestañas
 server/            rutas de configuración (/api/ensfacil/configuration)
 common/            constantes compartidas
-integration/       paquete de la versión integrada anterior (se retira tras la transición)
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración y herramientas del manager:
                    build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,
