@@ -45,12 +45,100 @@ rechaza "un zip que no existe" "$T/no-existe.zip"
 # Ruta relativa: se resuelve contra el directorio desde el que se llama.
 r="$(cd "$T" && bash "$RAIZ/config/deploy-plugin.sh" --solo-id a.zip 2>&1)"
 [ "$r" = ensfacil ] && echo "  ok   zip con ruta relativa" || { echo "  FALLA zip con ruta relativa (salió: $r)"; fallos=$((fallos+1)); }
-# Lo que no se puede ejecutar aquí (systemctl, el instalador), al menos que
-# esté escrito: la ruta absoluta en `file://`, la vuelta atrás si la
-# instalación falla y el error si el dashboard no queda activo.
-S="$RAIZ/config/deploy-plugin.sh"
-grep -q 'ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"' "$S" && grep -q 'install "file://$ZIP"' "$S" && echo "  ok   file:// con la ruta absoluta" || { echo "  FALLA file:// con la ruta absoluta"; fallos=$((fallos+1)); }
-grep -q 'if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install' "$S" && grep -q 'sudo tar -xzf $RESPALDO -C $OSD' "$S" && grep -q 'sudo systemctl start wazuh-dashboard' "$S" && echo "  ok   si la instalación falla, cómo volver" || { echo "  FALLA si la instalación falla, cómo volver"; fallos=$((fallos+1)); }
-grep -q 'if \[ "$ESTADO" != "active" \]; then' "$S" && echo "  ok   dashboard no activo al final: error" || { echo "  FALLA dashboard no activo al final"; fallos=$((fallos+1)); }
+# El despliegue entero, contra un dashboard de mentira: `systemctl`, `sudo` y
+# `curl` sustituidos, y un instalador falso dentro de un $OSD temporal. Así se
+# ejecuta de verdad lo que antes solo se buscaba escrito: el orden copia-parada,
+# la carpeta de copias, la rotación y la vuelta atrás de cada fallo.
+#   entorno <dir> [sin-plugin]  · prepara $OSD, las copias y los sustitutos
+#   despliega <dir>             · lo despliega; deja la salida y el código
+entorno() {
+  local E="$1"
+  mkdir -p "$E/bin" "$E/osd/bin" "$E/osd/plugins/wazuh"
+  [ "${2:-}" = sin-plugin ] || { mkdir -p "$E/osd/plugins/ensfacil"; echo viejo > "$E/osd/plugins/ensfacil/viejo.txt"; }
+  echo '{"name": "dashboard", "build": {"number": "100"}}' > "$E/osd/package.json"
+  echo active > "$E/estado"
+  cat > "$E/bin/systemctl" <<'EOF'
+#!/bin/sh
+echo "systemctl $* copias=$(ls "$ENSFACIL_BACKUP_DIR" 2>/dev/null | grep -c .)" >> "$FALSO/registro"
+case "$1" in
+  start) [ ! -f "$FALSO/falla-start" ] ;;
+  is-active) cat "$FALSO/estado"; [ "$(cat "$FALSO/estado")" = active ] ;;
+  *) exit 0 ;;
+esac
+EOF
+  printf '#!/bin/sh\n[ "$1" = -u ] && shift 2\nexec "$@"\n' > "$E/bin/sudo"
+  printf '#!/bin/sh\nexit 0\n' > "$E/bin/curl"
+  cat > "$E/osd/bin/opensearch-dashboards-plugin" <<'EOF'
+#!/bin/sh
+OSD="$(cd "$(dirname "$0")/.." && pwd)"
+echo "plugin $*" >> "$FALSO/registro"
+case "$1" in
+  remove) rm -rf "$OSD/plugins/$2" ;;
+  install)
+    [ -f "$FALSO/falla-install" ] && exit 1
+    rm -rf "$FALSO/zip" && mkdir -p "$FALSO/zip" && unzip -q "${2#file://}" -d "$FALSO/zip" \
+      && mv "$FALSO/zip/opensearch-dashboards/ensfacil" "$OSD/plugins/ensfacil" ;;
+esac
+EOF
+  chmod +x "$E/bin/"* "$E/osd/bin/opensearch-dashboards-plugin"
+}
+despliega() {
+  local E="$1"
+  (cd "$E" && PATH="$E/bin:$PATH" OSD="$E/osd" ENSFACIL_BACKUP_DIR="${COPIAS:-$E/copias}" FALSO="$E" \
+     bash "$RAIZ/config/deploy-plugin.sh" "$T/a.zip" > "$E/salida" 2>&1)
+  echo $? > "$E/rc"
+}
+caso() { if eval "$2"; then echo "  ok   $1"; else echo "  FALLA $1"; sed 's/^/        | /' "$E/salida"; fallos=$((fallos+1)); fi; }
+copias_de() { find "$E/copias" -maxdepth 1 -name "plugins-$1-*.tgz" 2>/dev/null | sort; }
+
+# Éxito: la copia se hace ANTES de parar, va a la carpeta de copias (0700) y
+# guarda el plugin anterior; el nuevo queda instalado y build.number sube.
+E="$T/exito"; entorno "$E"; despliega "$E"
+caso "despliegue completo: código 0" '[ "$(cat "$E/rc")" = 0 ]'
+caso "la copia existe antes de parar el dashboard" 'grep -q "^systemctl stop wazuh-dashboard copias=1$" "$E/registro"'
+caso "la copia va a ENSFACIL_BACKUP_DIR, no junto al zip" '[ "$(copias_de ensfacil | wc -l | tr -d " ")" = 1 ] && [ -z "$(ls "$T" | grep "^plugins-")" ]'
+caso "la carpeta de copias es 0700" '[ "$(ls -ld "$E/copias" | cut -c1-10)" = drwx------ ]'
+caso "la copia guarda el plugin anterior" 'tar -tzf "$(copias_de ensfacil)" | grep -q "^plugins/ensfacil/viejo.txt$"'
+caso "el plugin nuevo queda instalado, el viejo no" '[ -f "$E/osd/plugins/ensfacil/package.json" ] && [ ! -e "$E/osd/plugins/ensfacil/viejo.txt" ]'
+caso "el instalador recibe file:// con la ruta absoluta" 'grep -q "^plugin install file://$T/a.zip$" "$E/registro"'
+caso "build.number sube" 'python3 -c "import json,sys; sys.exit(json.load(open(\"$E/osd/package.json\"))[\"build\"][\"number\"] != \"101\")"'
+caso "el plugin de Wazuh no se toca" '[ -d "$E/osd/plugins/wazuh" ] && ! grep -q "remove wazuh" "$E/registro"'
+
+# Rotación: solo las 3 últimas de cada plugin, sin tocar las de otro id.
+E="$T/rotacion"; entorno "$E"; mkdir -p "$E/copias"
+for n in 1 2 3 4; do : > "$E/copias/plugins-ensfacil-20200101_00000$n.tgz"; done
+: > "$E/copias/plugins-otro-20200101_000001.tgz"
+despliega "$E"
+caso "rotación: quedan 3 copias de ensfacil" '[ "$(copias_de ensfacil | wc -l | tr -d " ")" = 3 ]'
+caso "rotación: son la nueva y las dos más recientes" '[ -f "$E/copias/plugins-ensfacil-20200101_000004.tgz" ] && [ -f "$E/copias/plugins-ensfacil-20200101_000003.tgz" ] && [ ! -e "$E/copias/plugins-ensfacil-20200101_000002.tgz" ] && copias_de ensfacil | grep -qv "20200101_"'
+caso "rotación: las copias de otro plugin no se tocan" '[ -f "$E/copias/plugins-otro-20200101_000001.tgz" ]'
+
+# Instalación fallida: código 5 y la vuelta atrás, que funciona.
+E="$T/instala"; entorno "$E"; : > "$E/falla-install"; despliega "$E"
+caso "instalación fallida: código 5" '[ "$(cat "$E/rc")" = 5 ]'
+caso "instalación fallida: dice cómo volver" 'grep -q "LA INSTALACIÓN HA FALLADO" "$E/salida" && grep -q "sudo tar -xzf $E/copias/plugins-ensfacil-.*\.tgz -C $E/osd" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+caso "instalación fallida: la copia devuelve el plugin anterior" 'tar -xzf "$(copias_de ensfacil)" -C "$E/osd" && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ]'
+
+# Cualquier otro paso con el dashboard parado: código 7 y la vuelta atrás.
+E="$T/python"; entorno "$E"; echo '{"name": "dashboard"}' > "$E/osd/package.json"; despliega "$E"
+caso "build.number imposible (python3 falla): código 7" '[ "$(cat "$E/rc")" = 7 ]'
+caso "python3 falla: dice el paso y cómo volver, package.json incluido" 'grep -q "HA FALLADO EL PASO «5/6" "$E/salida" && grep -q "sudo cp -a $E/osd/package.json.antes-.* $E/osd/package.json" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+E="$T/arranque"; entorno "$E"; : > "$E/falla-start"; despliega "$E"
+caso "systemctl start falla: código 7" '[ "$(cat "$E/rc")" = 7 ]'
+caso "systemctl start falla: dice el paso y cómo volver" 'grep -q "HA FALLADO EL PASO «6/6" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+
+# El dashboard no queda activo al final: código 6 y la vuelta atrás.
+E="$T/inactivo"; entorno "$E"; echo failed > "$E/estado"; despliega "$E"
+caso "dashboard no activo al final: código 6" '[ "$(cat "$E/rc")" = 6 ]'
+caso "dashboard no activo: dice cómo volver" 'grep -q "EL DASHBOARD NO ESTÁ ACTIVO (failed)" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida"'
+
+# Sin poder guardar la copia no se para nada: código 3 y todo como estaba.
+E="$T/sincopia"; entorno "$E"; : > "$E/fichero"; COPIAS="$E/fichero/copias" despliega "$E"
+caso "copia imposible: código 3" '[ "$(cat "$E/rc")" = 3 ]'
+caso "copia imposible: el dashboard no se para y el plugin sigue" '! grep -q "systemctl stop" "$E/registro" 2>/dev/null && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ] && grep -q "no se ha tocado nada" "$E/salida"'
+
+# Sin un ensfacil anterior no hay nada que guardar, y se instala igual.
+E="$T/nuevo"; entorno "$E" sin-plugin; despliega "$E"
+caso "sin plugin anterior: código 0 y sin copia" '[ "$(cat "$E/rc")" = 0 ] && [ -z "$(copias_de ensfacil)" ] && grep -q "nada que guardar" "$E/salida"'
 
 [ $fallos -eq 0 ] && echo "TODO OK" || { echo "$fallos FALLOS"; exit 1; }

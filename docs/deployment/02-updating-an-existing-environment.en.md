@@ -192,6 +192,8 @@ sudo bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"
 
 `deploy-plugin.sh` replaces only the `ensfacil` plugin and bumps the dashboard `build.number` so browsers download the new version without having to clear their cache. The Wazuh plugin is not touched.
 
+Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz` (a root folder, permissions 0700) and keeps the last 3 copies. They go there and not next to the zip because the next build deletes `/opt/ensfacil/build/plugins/ensfacil` entirely. To use another folder: `sudo env ENSFACIL_BACKUP_DIR=<folder> bash /opt/ensfacil/repo/config/deploy-plugin.sh "$ZIP"`. If something fails once the dashboard is stopped, the script prints how to go back to how it was and exits with an error ([troubleshooting guide, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway)).
+
 ```bash
 sudo systemctl is-active wazuh-dashboard
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list

@@ -88,6 +88,23 @@ Qué tiene que salir: `dashboard: active` y `ensfacil` en la lista de plugins. C
 > [!important]
 > Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización.
 
+### 4.1 Si `deploy-plugin.sh` falla a medias
+
+Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz` (carpeta de root, permisos 0700, o la que indique `ENSFACIL_BACKUP_DIR`) y conserva las 3 últimas copias. No las deja junto al zip: la compilación siguiente borra esa carpeta.
+
+Si algo falla con el dashboard ya parado, el script imprime los comandos para volver a como estaba (quitar el plugin a medias, restaurar esa copia, devolver el `package.json` si ya lo había cambiado y arrancar el dashboard) y sale con error. Ejecutarlos en el orden en que salen y comprobar como en el apartado 3.
+
+| Código de salida | Qué ha pasado | Cómo queda |
+|---|---|---|
+| `1` | uso incorrecto: ningún zip, dos zips o una opción desconocida | sin tocar |
+| `2` | el zip no es de ENSFácil | sin tocar |
+| `3` | no se pudo guardar la copia del plugin anterior | sin tocar: el dashboard sigue en marcha |
+| `5` | falló la instalación del zip | dashboard parado y sin `ensfacil` |
+| `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: mirar `journalctl -u wazuh-dashboard` |
+| `7` | falló otro paso con el dashboard parado (retirar el plugin, subir el `build.number`, arrancar) o se interrumpió | el mensaje dice el paso |
+
+Para volver atrás después de un despliegue que terminó bien, usar el zip anterior (arriba): `deploy-plugin.sh` sube además el `build.number`, y restaurar la copia a mano no.
+
 ## 5. Retirar ENSFácil
 
 Retirar ENSFácil no toca el plugin de Wazuh ni los datos:

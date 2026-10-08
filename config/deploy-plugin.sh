@@ -9,10 +9,16 @@
 # `bash deploy-plugin.sh --solo-id <zip>` imprime el id del zip y sale sin
 # tocar nada. Exactamente un zip: con más o con menos, no hace nada.
 #
-# Antes de retirar el plugin anterior lo guarda junto al zip
-# (plugins-<id>-antes-<fecha>.tgz). Si la instalación falla, dice cómo volver a
-# como estaba y sale con error; y sale con error también si al final el
-# dashboard no queda activo.
+# Antes de parar el dashboard guarda el plugin que va a sustituir en
+# ${ENSFACIL_BACKUP_DIR:-/var/backups/ensfacil} (de root, 0700), como
+# plugins-<id>-<fecha>.tgz, y conserva solo los 3 últimos de cada plugin. No
+# junto al zip: la compilación siguiente borra esa carpeta entera.
+#
+# Si algo falla con el dashboard ya parado, dice cómo volver a como estaba
+# (restaurar esa copia y arrancar) y sale con error. Códigos de salida:
+#   1 uso incorrecto · 2 el zip no es de ENSFácil · 3 no se pudo guardar la
+#   copia (no se ha tocado nada) · 5 falló la instalación · 6 el dashboard no
+#   quedó activo al final · 7 falló otro paso con el dashboard parado.
 #
 # POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
 #
@@ -85,42 +91,92 @@ if [ "$SOLO_ID" = 1 ]; then
   exit 0
 fi
 
-echo "== 1/5 · parando el dashboard"
+RESPALDOS="${ENSFACIL_BACKUP_DIR:-/var/backups/ensfacil}"
+RESPALDO=""
+PAQUETE_ANTES=""
+ESTADO=""
+PASO=""
+PARADO=0
+
+# Con el dashboard parado, cualquier salida con error (también un paso que
+# falla por `set -e`, o un Ctrl+C) dice cómo volver a como estaba.
+vuelta_atras() {
+  echo "Para volver a como estaba:"
+  if [ -n "$RESPALDO" ]; then
+    echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
+    echo "  sudo tar -xzf $RESPALDO -C $OSD"
+  else
+    echo "  (no había un $PLUGIN_ID anterior: arranca sin él)"
+    echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
+  fi
+  if [ -n "$PAQUETE_ANTES" ]; then
+    echo "  sudo cp -a $PAQUETE_ANTES $OSD/package.json"
+  fi
+  echo "  sudo systemctl start wazuh-dashboard"
+}
+al_salir() {
+  local rc=$?
+  trap - EXIT
+  if [ "$PARADO" = 1 ] && [ "$rc" -ne 0 ]; then
+    {
+      echo
+      case "$rc" in
+        5) echo "LA INSTALACIÓN HA FALLADO: el dashboard está parado y sin el plugin $PLUGIN_ID." ;;
+        6) echo "EL DASHBOARD NO ESTÁ ACTIVO (${ESTADO:-?}): mira 'journalctl -u wazuh-dashboard'." ;;
+        *) echo "HA FALLADO EL PASO «${PASO}» (código $rc): el dashboard puede haberse quedado parado o a medias."
+           rc=7 ;;
+      esac
+      vuelta_atras
+    } >&2
+  fi
+  exit "$rc"
+}
+trap al_salir EXIT
+trap 'exit 130' INT TERM
+
+PASO="1/6 · guardando el plugin anterior ($PLUGIN_ID)"
+echo "== $PASO"
+if [ -d "$OSD/plugins/$PLUGIN_ID" ]; then
+  RESPALDO="$RESPALDOS/plugins-$PLUGIN_ID-$(date +%Y%m%d_%H%M%S).tgz"
+  if ! { mkdir -p "$RESPALDOS" && chmod 0700 "$RESPALDOS" \
+         && { [ "$(id -u)" -ne 0 ] || chown root:root "$RESPALDOS"; } \
+         && tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"; }; then
+    echo "no se pudo guardar el plugin anterior en $RESPALDOS: no se ha tocado nada." >&2
+    rm -f "$RESPALDO" 2>/dev/null || true
+    exit 3
+  fi
+  echo "   guardado en $RESPALDO"
+  # Solo los 3 últimos de este plugin. El nombre lleva la fecha, así que el
+  # orden alfabético es el cronológico.
+  find "$RESPALDOS" -maxdepth 1 -name "plugins-$PLUGIN_ID-*.tgz" -print \
+    | sort -r | tail -n +4 | while IFS= read -r viejo; do rm -f "$viejo"; done
+else
+  echo "   no hay un $PLUGIN_ID instalado: nada que guardar"
+fi
+
+PASO="2/6 · parando el dashboard"
+echo "== $PASO"
+PARADO=1
 systemctl stop wazuh-dashboard
 
-echo "== 2/5 · retirando el plugin anterior ($PLUGIN_ID)"
-RESPALDO=""
-if [ -d "$OSD/plugins/$PLUGIN_ID" ]; then
-  RESPALDO="$(dirname "$ZIP")/plugins-$PLUGIN_ID-antes-$(date +%Y%m%d_%H%M%S).tgz"
-  tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"
-  echo "   guardado en $RESPALDO"
-fi
+PASO="3/6 · retirando el plugin anterior ($PLUGIN_ID)"
+echo "== $PASO"
 # RUTAS EXACTAS. Nunca un comodín `wazuh*`: se llevaría por delante `wazuhCore`
 # y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
 sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" remove "$PLUGIN_ID" 2>/dev/null || true
 rm -rf "$OSD/plugins/$PLUGIN_ID"
 rm -rf "$OSD/plugins/.plugin.installing"
 
-echo "== 3/5 · instalando"
+PASO="4/6 · instalando"
+echo "== $PASO"
 if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP"; then
-  {
-    echo
-    echo "LA INSTALACIÓN HA FALLADO: el dashboard está parado y sin el plugin $PLUGIN_ID."
-    echo "Para volver a como estaba:"
-    if [ -n "$RESPALDO" ]; then
-      echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
-      echo "  sudo tar -xzf $RESPALDO -C $OSD"
-    else
-      echo "  (no había un $PLUGIN_ID anterior: arranca sin él)"
-      echo "  sudo rm -rf $OSD/plugins/.plugin.installing"
-    fi
-    echo "  sudo systemctl start wazuh-dashboard"
-  } >&2
   exit 5
 fi
 
-echo "== 4/5 · invalidando la caché del navegador (subir build.number)"
-cp "$OSD/package.json" "$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
+PASO="5/6 · invalidando la caché del navegador (subir build.number)"
+echo "== $PASO"
+PAQUETE_ANTES="$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
+cp "$OSD/package.json" "$PAQUETE_ANTES"
 python3 - "$OSD/package.json" <<'PY'
 import io, json, sys
 
@@ -139,7 +195,8 @@ with io.open(ruta, 'w', encoding='utf-8') as f:
 print("   build.number: %s -> %s" % (antes, paquete['build']['number']))
 PY
 
-echo "== 5/5 · arrancando"
+PASO="6/6 · arrancando"
+echo "== $PASO"
 systemctl start wazuh-dashboard
 
 for _ in $(seq 1 24); do
@@ -155,8 +212,6 @@ echo "dashboard: $ESTADO"
 echo "plugins:   $(ls -1 "$OSD/plugins" | tr '\n' ' ')"
 echo
 if [ "$ESTADO" != "active" ]; then
-  echo "EL DASHBOARD NO ESTÁ ACTIVO ($ESTADO): mira 'journalctl -u wazuh-dashboard'." >&2
-  [ -n "$RESPALDO" ] && echo "El plugin anterior está en $RESPALDO." >&2
   exit 6
 fi
 echo "La URL de los bundles ha cambiado: el navegador los pedirá de nuevo solo."
