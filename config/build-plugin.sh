@@ -23,6 +23,26 @@ if [ ! -f "$OSD_SRC/package.json" ] || [ ! -d "$OSD_SRC/scripts" ]; then
   exit 2
 fi
 
+# `rm -rf "$DEST"` borra el destino entero: si el repositorio ES el destino, o
+# uno está dentro del otro, se llevaría el código por delante (o copiaría el
+# plugin dentro de sí mismo). Se comparan las rutas reales, con los enlaces
+# resueltos; `os.path.realpath` vale aunque el destino no exista todavía.
+ruta_real() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
+REPO_REAL="$(ruta_real "$REPO")"
+DEST_REAL="$(ruta_real "$DEST")"
+case "$DEST_REAL/" in
+  "$REPO_REAL/"*)
+    echo "el destino ($DEST_REAL) es el repositorio o está dentro de él ($REPO_REAL): no se compila ahí" >&2
+    exit 4
+    ;;
+esac
+case "$REPO_REAL/" in
+  "$DEST_REAL/"*)
+    echo "el repositorio ($REPO_REAL) está dentro del destino ($DEST_REAL), que se borra entero: no se compila ahí" >&2
+    exit 4
+    ;;
+esac
+
 VERSION_OSD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$OSD_SRC/package.json")"
 if [ "$VERSION_OSD" != "2.19.5" ]; then
   echo "el árbol es $VERSION_OSD; ENSFácil 1.x se compila contra 2.19.5" >&2
