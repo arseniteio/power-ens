@@ -45,7 +45,9 @@ for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(ra
       fallos.push(`${path.relative(raiz, f)}: importa valores del núcleo (${m[1]}); solo \`import type\``);
     }
   }
-  for (const m of texto.matchAll(/(?:from|import\(|require\()\s*['"]([^'"]+)['"]/g)) {
+  // `from '…'`, `import('…')`, `require('…')` y también el import desnudo
+  // (`import '…';`), que no trae nada con nombre pero carga el módulo entero.
+  for (const m of texto.matchAll(/(?:from|import\(|require\(|^\s*import)\s*['"]([^'"]+)['"]/gm)) {
     const destino = m[1];
     const rel = path.relative(raiz, f);
     if (/wazuh|kibana-services/i.test(destino) && !/wazuh-alerts|wazuh-monitoring/.test(destino)) {
