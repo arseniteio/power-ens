@@ -27,14 +27,15 @@ comprueba('del 024 queda el más reciente', inv.agents.find(a => a.id === '024')
 comprueba('grupos como lista', JSON.stringify(inv.agents.find(a => a.name === 'ldap')?.groups) === '["default","ens"]');
 comprueba('grupos como texto con comas', JSON.stringify(inv.agents.find(a => a.name === 'real')?.groups) === '["ens","ens-copias"]');
 comprueba('sin grupos: lista vacía', JSON.stringify(inv.agents.find(a => a.id === '000')?.groups) === '[]');
-comprueba('id numérico a tres cifras', inventoryFromMonitoring({ agentes: { buckets: [cubo('7', { id: 7, name: 'solo', timestamp: '2026-10-07T12:15:00Z' })] } }, ahora).agents[0]?.id === '007');
+comprueba('id numérico a tres cifras', inventoryFromMonitoring({ agentes: { buckets: [cubo('7', { id: 7, name: 'solo', timestamp: '2026-10-07T12:15:00Z' })] } }, ahora).agents.some(a => a.id === '007'));
 {
   // El orden de los cubos no decide: gana el más reciente aunque llegue después.
   const v = inventoryFromMonitoring({ agentes: { buckets: [
     cubo('024', { id: '024', name: 'viejo', timestamp: '2026-10-07T12:00:00Z' }),
     cubo('24', { id: 24, name: 'nuevo', timestamp: '2026-10-07T12:15:00Z' }),
   ] } }, ahora);
-  comprueba('duplicado: gana el más reciente, llegue cuando llegue', v.agents.length === 1 && v.agents[0].name === 'nuevo', v.agents);
+  const sinManager = v.agents.filter(a => a.id !== '000');
+  comprueba('duplicado: gana el más reciente, llegue cuando llegue', sinManager.length === 1 && sinManager[0].name === 'nuevo', v.agents);
 }
 comprueba('estado', inv.agents.find(a => a.name === 'ldap')?.status === 'active');
 comprueba('el dato más reciente', inv.newestTimestamp === '2026-10-07T12:15:00.000Z');
@@ -63,8 +64,30 @@ comprueba('aviso de antiguo sin fecha: ni «undefined» ni vacío', (() => { con
   ] } }, ahora + 6 * ENS_INVENTORY_MAX_AGE_MS);
   comprueba('inventario parado: antiguo pero no vacío', parado.stale && parado.agents.some(a => a.id === '024'), parado);
 }
+{
+  // El manager (000) no está en wazuh-monitoring: entra con el nombre del campo
+  // `manager` del documento más reciente, sin grupos, y activo si el
+  // inventario está al día.
+  const buckets = [
+    cubo('024', { id: '024', name: 'real', status: 'active', timestamp: '2026-10-07T12:00:00Z', manager: 'viejo' }),
+    cubo('028', { id: '028', name: 'ldap', status: 'active', timestamp: '2026-10-07T12:15:00Z', manager: 'Wazuh-4' }),
+  ];
+  const v = inventoryFromMonitoring({ agentes: { buckets } }, ahora);
+  const m = v.agents.find(a => a.id === '000');
+  comprueba('sin cubo 000: el manager entra', Boolean(m), v.agents);
+  comprueba('su nombre: el campo manager del documento más reciente', m?.name === 'Wazuh-4', m);
+  comprueba('sin grupos', JSON.stringify(m?.groups) === '[]', m);
+  comprueba('inventario al día: activo', m?.status === 'active', m);
+  const antiguo = inventoryFromMonitoring({ agentes: { buckets } }, ahora + 2 * ENS_INVENTORY_MAX_AGE_MS).agents.find(a => a.id === '000');
+  comprueba('inventario antiguo: sin estado', Boolean(antiguo) && antiguo?.status === undefined, antiguo);
+  const sinCampo = inventoryFromMonitoring({ agentes: { buckets: [cubo('024', { id: '024', timestamp: '2026-10-07T12:15:00Z' })] } }, ahora).agents.find(a => a.id === '000');
+  comprueba('sin campo manager: entra sin nombre (el alcance pone el de reserva)', Boolean(sinCampo) && !sinCampo?.name, sinCampo);
+  comprueba('con cubo 000: no se duplica ni se cambia', inv.agents.filter(a => a.id === '000').length === 1 && inv.agents.find(a => a.id === '000')?.name === 'Wazuh-4');
+  comprueba('sin inventario: no se inventa el manager', inventoryFromMonitoring(undefined, ahora).agents.length === 0);
+}
 const q: any = buildMonitoringInventoryRequest();
 comprueba('lee wazuh-monitoring-*', q.index === 'wazuh-monitoring-*');
+comprueba('pide el campo manager', q.body.aggs.agentes.aggs.ultimo.top_hits._source.includes('manager'));
 comprueba('el último documento de cada agente', q.body.aggs.agentes.aggs.ultimo.top_hits.size === 1 && q.body.aggs.agentes.aggs.ultimo.top_hits.sort[0].timestamp.order === 'desc');
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

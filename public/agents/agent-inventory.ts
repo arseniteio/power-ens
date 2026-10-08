@@ -2,6 +2,7 @@
 // rellena cada 15 minutos con cada agente. Sustituye a la API de Wazuh: el
 // plugin no necesita sus credenciales. Se lee como el usuario que mira.
 import { ENS_MONITORING_INDEX } from '../../common/constants';
+import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
 import { getCore, getData } from '../services';
 
@@ -26,7 +27,7 @@ export const buildMonitoringInventoryRequest = () => ({
             top_hits: {
               size: 1,
               sort: [{ timestamp: { order: 'desc' } }],
-              _source: ['id', 'name', 'group', 'status', 'timestamp'],
+              _source: ['id', 'name', 'group', 'status', 'timestamp', 'manager'],
             },
           },
         },
@@ -48,6 +49,9 @@ const gruposDe = (valor: unknown): string[] => {
 
 export const inventoryFromMonitoring = (aggregations: any, now: number = Date.now()): ENSAgentInventory => {
   let masReciente: number | undefined;
+  // El manager (000) no se escribe en wazuh-monitoring: su nombre sale del
+  // campo `manager` del documento más reciente.
+  let nombreDelManager: string | undefined;
   // Un agente por id normalizado: si dos cubos dan el mismo (`24` y `024`),
   // queda el del dato más reciente; sin fecha, cuenta como el más antiguo.
   const porId = new Map<string, { agente: ENSAgentScope; instante: number }>();
@@ -58,7 +62,10 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     if (!id) continue;
 
     const instante = Date.parse(String(doc?.timestamp ?? ''));
-    if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) masReciente = instante;
+    if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) {
+      masReciente = instante;
+      nombreDelManager = doc?.manager ? String(doc.manager) : undefined;
+    }
 
     const orden = Number.isNaN(instante) ? -Infinity : instante;
     const previo = porId.get(id);
@@ -88,10 +95,24 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     .map(v => v.agente)
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const stale = masReciente === undefined || now - masReciente > ENS_INVENTORY_MAX_AGE_MS;
+
+  // Si hay inventario y no trae un 000, se añade el manager: es quien escribe
+  // ese inventario, así que con el inventario al día está activo; antiguo, no
+  // se sabe y no se le pone estado.
+  if (agents.length && !agents.some(a => a.id === ENS_MANAGER_AGENT_ID)) {
+    agents.unshift({
+      id: ENS_MANAGER_AGENT_ID,
+      name: nombreDelManager,
+      groups: [],
+      ...(stale ? {} : { status: 'active' }),
+    });
+  }
+
   return {
     agents,
     newestTimestamp: masReciente === undefined ? undefined : new Date(masReciente).toISOString(),
-    stale: masReciente === undefined || now - masReciente > ENS_INVENTORY_MAX_AGE_MS,
+    stale,
   };
 };
 
