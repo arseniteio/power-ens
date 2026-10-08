@@ -37,30 +37,30 @@
  * reintroduce el ciclo transitivo del TDZ de `Settings` y arrastra
  * `kibana-services`, que solo existe en el árbol del plugin `main` de Wazuh.
  */
-import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
-import type { ENSControlDefinition } from '../dashboard/ens/catalog/types';
-import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
+import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
+import type { ENSControlDefinition } from '../public/ens/catalog/types';
+import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
-import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
-import type { ENSRequirementEvaluationResult } from '../dashboard/ens/core/evaluation/requirement';
+} from '../public/ens/configuration/types';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
+import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
+import type { ENSRequirementEvaluationResult } from '../public/ens/core/evaluation/requirement';
 import type {
   ENSComplianceResult,
   ENSComplianceStatus,
   ENSGapCause,
-} from '../dashboard/ens/core/evaluation/types';
+} from '../public/ens/core/evaluation/types';
 import {
   consolidateAgentComplianceResultByControl,
   consolidateENSStatuses,
-} from '../dashboard/ens/core/compliance-state/consolidation';
-import { buildComplianceState } from '../dashboard/ens/core/compliance-state/engine';
-import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
+} from '../public/ens/core/compliance-state/consolidation';
+import { buildComplianceState } from '../public/ens/core/compliance-state/engine';
+import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

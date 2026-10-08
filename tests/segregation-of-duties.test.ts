@@ -20,14 +20,14 @@
  * Lo que NO se prueba aquí es el recolector: eso lo hace la suite del runbook
  * sobre Ubuntu real. Aquí se prueba el JUICIO, que es lo que decide el color.
  */
-import { opAcc3PolicyDefinition } from '../dashboard/ens/core/policy-runtime/policies/op-acc-3.policy';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { opAcc3CatalogDefinition } from '../dashboard/ens/catalog/op-acc-3';
+import { opAcc3PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-acc-3.policy';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { opAcc3CatalogDefinition } from '../public/ens/catalog/op-acc-3';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

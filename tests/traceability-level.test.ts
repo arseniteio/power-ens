@@ -18,16 +18,16 @@
  * `main` de Wazuh; aquí se sustituye por un módulo vacío antes de cargarlo. La
  * evaluación no lo usa: solo lo importa el cliente HTTP de la configuración.
  */
-import { ENSCatalog } from '../dashboard/ens/catalog';
-import { resolveControlLevel } from '../dashboard/ens/core/control-level';
-import { ensConfigurationRepository } from '../dashboard/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../dashboard/ens/configuration/data/default-configuration';
-import { validateENSConfigurationStructure } from '../dashboard/ens/configuration/services/configuration-structure-validator';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+import { ENSCatalog } from '../public/ens/catalog';
+import { resolveControlLevel } from '../public/ens/core/control-level';
+import { ensConfigurationRepository } from '../public/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 import type {
   ENSConfigurationVersion,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
+} from '../public/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -46,7 +46,7 @@ declare const require: (id: string) => any;
   };
 }
 
-const { getENSComplianceResults } = require('../dashboard/ens/core/ens-engine') as typeof import('../dashboard/ens/core/ens-engine');
+const { getENSComplianceResults } = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
 
 const fallos: string[] = [];
 

@@ -1,0 +1,50 @@
+// Quién hace la petición y si puede administrar ENSFácil. Siempre se consulta
+// `authinfo` primero; solo si OpenSearch no tiene ese endpoint (no hay plugin de
+// seguridad) Y la configuración dice que no hay seguridad, no hay a quién
+// restringir. Cualquier otra duda cierra el acceso (nunca abre).
+import { ENSFACIL_ADMIN_ROLES } from '../../common/constants';
+
+export interface ENSCurrentUser {
+  username: string;
+  roles: string[];
+  administrator: boolean;
+}
+
+export class CurrentUserError extends Error {
+  constructor(message: string, public statusCode: number) {
+    super(message);
+  }
+}
+
+const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 0;
+
+// OpenSearch sin plugin de seguridad responde 400/404 "no handler found for uri".
+const isNoEndpoint = (error: any): boolean => {
+  const status = statusOf(error);
+  if (status !== 400 && status !== 404) return false;
+  const text = [
+    error?.message,
+    JSON.stringify(error?.body ?? ''),
+    JSON.stringify(error?.meta?.body ?? ''),
+  ].join(' ');
+  return /no handler found|unknown endpoint|no endpoint/i.test(text);
+};
+
+export const resolveCurrentUser = async (client: any, securityEnabled: boolean): Promise<ENSCurrentUser> => {
+  let body: any;
+  try {
+    ({ body } = await client.transport.request({ method: 'GET', path: '/_plugins/_security/authinfo' }));
+  } catch (error: any) {
+    const status = statusOf(error);
+    if (status === 401 || status === 403) throw new CurrentUserError(error?.message || 'No autorizado', status);
+    if (isNoEndpoint(error) && !securityEnabled) {
+      return { username: 'desconocido', roles: [], administrator: true };
+    }
+    throw new CurrentUserError(error?.message || String(error), 500);
+  }
+
+  const roles: string[] = Array.isArray(body?.roles) ? body.roles.map(String) : [];
+  const username = typeof body?.user_name === 'string' ? body.user_name.trim() : '';
+
+  return { username, roles, administrator: roles.some(rol => ENSFACIL_ADMIN_ROLES.includes(rol)) };
+};

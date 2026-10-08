@@ -1,0 +1,19 @@
+{
+  "name": "ensfacil",
+  "version": "1.0.0",
+  "description": "ENSFácil: cumplimiento del Esquema Nacional de Seguridad sobre los datos de Wazuh",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "opensearchDashboards": {
+    "version": "2.19.5",
+    "templateVersion": "1.0.0"
+  },
+  "scripts": {
+    "build": "yarn plugin-helpers build --opensearch-dashboards-version=2.19.5",
+    "plugin-helpers": "node ../../scripts/plugin_helpers",
+    "osd": "node ../../scripts/osd"
+  },
+  "dependencies": {
+    "pdfmake": "0.2.7"
+  }
+}

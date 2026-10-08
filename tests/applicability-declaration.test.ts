@@ -23,19 +23,19 @@ import {
   describeDeclaration,
   isDeclarationSufficient,
   parseApplicabilityDeclaration,
-} from '../dashboard/ens/configuration/services/applicability-service';
-import { applyApplicabilityDeclaration } from '../dashboard/ens/core/evaluation/requirement/applicability';
+} from '../public/ens/configuration/services/applicability-service';
+import { applyApplicabilityDeclaration } from '../public/ens/core/evaluation/requirement/applicability';
 import {
   evaluateRequirements,
   type ENSRequirementEvaluationResult,
-} from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../dashboard/ens/core/evaluation/control/control-evaluator';
-import { opAcc5CatalogDefinition } from '../dashboard/ens/catalog/op-acc-5';
-import { opAcc5Configuration } from '../dashboard/ens/configuration/data/op-acc-5-parameters';
+} from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
+import { opAcc5CatalogDefinition } from '../public/ens/catalog/op-acc-5';
+import { opAcc5Configuration } from '../public/ens/configuration/data/op-acc-5-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../dashboard/ens/configuration/types';
+} from '../public/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 

@@ -26,7 +26,7 @@ y los enlaces a cada runbook y a sus guías, en la
 1. **Manager.** Wazuh instalado y validado; después, el `install-manager.sh` de
    cada uno de los 17 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8
    y op.exp.9 dejan además un recolector en el propio manager), y por último el
-   plugin compilado e instalado en el dashboard.
+   plugin ENSFácil instalado en el dashboard, junto al de Wazuh y sin modificarlo.
    ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
 2. **Máquinas.** En cada agente, los runbooks de su plataforma (Linux, Zimbra
    LDAP, Zimbra MTA o Windows), siguiendo la guía `01-installation` **de cada
@@ -128,15 +128,21 @@ Qué instala cada runbook Linux:
 ### Requisitos
 
 - **Wazuh 4.14.7** instalado y validado (manager, indexer y dashboard) antes de
-  instalar ENSFácil. El paquete de integración reconoce 4.14.5 y 4.14.7; ver la
+  instalar ENSFácil. ENSFácil es un plugin propio (`ensfacil`) que se instala
+  junto al plugin de Wazuh sin modificarlo; esta versión se compila para el
+  dashboard de Wazuh 4.14.7 (OpenSearch Dashboards 2.19.5). Ver la
   [compatibilidad de versiones](docs/deployment/03-version-compatibility.md).
+- **Inventario de agentes:** la monitorización de agentes de Wazuh activa (el
+  índice `wazuh-monitoring-*`), legible para los usuarios que usan ENSFácil.
+- **Quién cambia la configuración:** usuarios con el rol `ensfacil_admin` (lo
+  crea `config/create-admin-role.sh`) o `all_access`.
 - **Ubuntu Server** con `sudo`, conectividad de red y acceso por SSH
   autorizado a los repositorios de GitLab.
 - Herramientas que la guía de instalación comprueba antes de empezar: `git`,
   `curl`, `wget` y `python3` (este último también para `tests/check-consistency.py`).
-- **Para compilar el plugin:** Node.js 18.19.0 y Yarn Classic 1.22.22. El
-  Node.js 18.19.0 también viene dentro del paquete `wazuh-dashboard`; `git` es
-  necesario para preparar el árbol de compilación.
+- **Para compilar el plugin:** un código fuente de OpenSearch Dashboards 2.19.5,
+  Node.js 18.19.0 y Yarn Classic 1.22.22 (`config/build-plugin.sh`). El Node.js
+  18.19.0 también viene dentro del paquete `wazuh-dashboard`.
 - **En cada máquina medida:** agente de Wazuh en el grupo del control y el
   runbook de su plataforma. Los requisitos de cada runbook (`cron`, `auditd`,
   paquetes concretos) están en su propio README.
@@ -145,9 +151,8 @@ Qué instala cada runbook Linux:
 
 ### Sin probar
 
-- Otras versiones de Wazuh (distintas de 4.14.5 y 4.14.7 para el paquete de
-  integración, y de 4.14.7 para el despliegue completo): sin probar hasta
-  completar un ciclo de compatibilidad.
+- Otras versiones de Wazuh distintas de 4.14.7 (cada versión del dashboard
+  necesita su propio zip del plugin): sin probar.
 - **Wazuh en Docker.** Solo está probado el manager de las imágenes oficiales
   (versiones de la tabla anterior). El despliegue completo con `docker compose`,
   indexer y agentes, la imagen del dashboard con el plugin, el cron del host y
@@ -293,28 +298,33 @@ necesidad de volver a ejecutar nada en el servidor.
 
 ## Desarrollo
 
-Este repositorio contiene el código de ENSFácil y el paquete de integración necesario para incorporarlo a un árbol compatible del plugin oficial de Wazuh Dashboard. El procedimiento reproducible de construcción está documentado en las guías de despliegue anteriores.
+Este repositorio es el plugin `ensfacil` de OpenSearch Dashboards: se compila dentro de un código fuente de OpenSearch Dashboards 2.19.5 con `config/build-plugin.sh` y se instala con `config/deploy-plugin.sh`, sin tocar el plugin de Wazuh.
 
 ```
-dashboard/ens/     módulo ENS (React + TypeScript)
+public/            la app del navegador: pestañas, búsqueda, inventario de agentes
+public/ens/        módulo ENS (React + TypeScript)
   catalog/         definición de controles y requisitos
   configuration/   parámetros configurables
   core/            motor: evidencias, evaluación, consolidación
   controls/ reports/ evidences/    las tres pestañas
-integration/       paquete de integración con Wazuh Dashboard
+server/            rutas de configuración (/api/ensfacil/configuration)
+common/            constantes compartidas
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración y herramientas del manager:
-                   deploy-plugin.sh, inject-control.py, set-parameters.py,
-                   validate-configuration.ts
+                   build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,
+                   inject-control.py, set-parameters.py, validate-configuration.ts
 tests/             suites del motor y comprobación de coherencia
 ```
 
-Pruebas (Python 3 y Node.js 18 o superior):
+Pruebas (Python 3 y Node.js 18 o superior; las de los scripts, `bash`, `zip` y `unzip`):
 
 ```bash
 python3 tests/check-consistency.py
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
+
+`tests/mp-info-6-rules.test.sh` prueba las reglas de mp.info.6 con `wazuh-logtest` en un contenedor `wazuh/wazuh-manager` (Docker); sin Docker, salta esa parte con un aviso y hace solo las comprobaciones estáticas.
 
 Rangos de rule ID en uso. Los de op.exp.7 y op.exp.9, y los del plano central
 de op.exp.8, llegan con el agente `000` (el manager):

@@ -16,20 +16,20 @@
  * `wazuh-real` (agente Linux) y en `wazuh4` (el manager), del 26/09/2026, en
  * modo --prueba. Pasan por el normalizador real como alertas de alerts.json.
  */
-import { opExp8PolicyDefinition } from '../dashboard/ens/core/policy-runtime/policies/op-exp-8.policy';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { opExp8CatalogDefinition } from '../dashboard/ens/catalog/op-exp-8';
-import { opExp8Configuration } from '../dashboard/ens/configuration/data/op-exp-8-parameters';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { getStateFactEventTypes, keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
+import { opExp8PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-8.policy';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { opExp8CatalogDefinition } from '../public/ens/catalog/op-exp-8';
+import { opExp8Configuration } from '../public/ens/configuration/data/op-exp-8-parameters';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

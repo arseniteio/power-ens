@@ -34,28 +34,28 @@
  * reintroduce el ciclo transitivo del TDZ de `Settings` y arrastra
  * `kibana-services`, que solo existe en el árbol del plugin `main` de Wazuh.
  */
-import { opAcc1CatalogDefinition } from '../dashboard/ens/catalog/op-acc-1';
-import type { ENSControlDefinition } from '../dashboard/ens/catalog/types';
-import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
+import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
+import type { ENSControlDefinition } from '../public/ens/catalog/types';
+import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import { evaluateENSControl } from '../dashboard/ens/core/evaluation/evaluation-engine';
+} from '../public/ens/configuration/types';
+import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 import type {
   ENSComplianceResult,
   ENSComplianceStatus,
-} from '../dashboard/ens/core/evaluation/types';
-import { consolidateAgentComplianceResultByControl } from '../dashboard/ens/core/compliance-state/consolidation';
-import type { ENSAgentComplianceState } from '../dashboard/ens/core/compliance-state/types';
-import { getEvidenceDefinitions } from '../dashboard/ens/core/evidence/registry';
-import type { ENSEvidenceResolved } from '../dashboard/ens/core/evidence/types';
+} from '../public/ens/core/evaluation/types';
+import { consolidateAgentComplianceResultByControl } from '../public/ens/core/compliance-state/consolidation';
+import type { ENSAgentComplianceState } from '../public/ens/core/compliance-state/types';
+import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
 import {
   describirAlcance,
   etiquetaDeMaquinas,
   resumirMotivos,
-} from '../dashboard/ens/controls/control-detail/general-view';
+} from '../public/ens/controls/control-detail/general-view';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

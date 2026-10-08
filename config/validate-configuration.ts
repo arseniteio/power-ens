@@ -20,7 +20,7 @@
  * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
  */
 import { readFileSync } from 'fs';
-import { validateENSConfigurationStructure } from '../dashboard/ens/configuration/services/configuration-structure-validator';
+import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
 
 declare const process: {
   argv: string[];

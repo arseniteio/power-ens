@@ -23,11 +23,11 @@
 import {
   buildClearedControlConfiguration,
   summarizeControlConfigurationReset,
-} from '../dashboard/ens/configuration/services/configuration-reset-service';
-import { opAcc1Configuration } from '../dashboard/ens/configuration/data/op-acc-1-parameters';
+} from '../public/ens/configuration/services/configuration-reset-service';
+import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
-} from '../dashboard/ens/configuration/types';
+} from '../public/ens/configuration/types';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

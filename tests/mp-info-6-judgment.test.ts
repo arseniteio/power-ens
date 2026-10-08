@@ -31,32 +31,32 @@
  * `main` de Wazuh: se sustituye por un módulo vacío antes de cargarlo, igual
  * que en `measurement-planes.test.ts`.
  */
-import { ENSCatalog } from '../dashboard/ens/catalog';
-import { mpInfo6CatalogDefinition } from '../dashboard/ens/catalog/mp-info-6';
-import { mpInfo6Configuration } from '../dashboard/ens/configuration/data/mp-info-6-parameters';
-import { defaultENSConfigurationTemplate } from '../dashboard/ens/configuration/data/default-configuration';
-import { ensConfigurationRepository } from '../dashboard/ens/configuration/repository';
-import { assertENSConfigurationVersion } from '../dashboard/ens/configuration/services/configuration-structure-validator';
-import { validateControlConfiguration } from '../dashboard/ens/configuration/services/validation-engine';
-import { normalizeWazuhAlerts } from '../dashboard/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../dashboard/ens/core/evidence/engine';
-import { keepLatestRunStateFacts } from '../dashboard/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../dashboard/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../dashboard/ens/core/evaluation/requirement/requirement-evaluator';
-import { buildPolicyContext } from '../dashboard/ens/core/policy-runtime/policy-context-builder';
-import { runPolicyRuntime } from '../dashboard/ens/core/policy-runtime/policy-runtime';
+import { ENSCatalog } from '../public/ens/catalog';
+import { mpInfo6CatalogDefinition } from '../public/ens/catalog/mp-info-6';
+import { mpInfo6Configuration } from '../public/ens/configuration/data/mp-info-6-parameters';
+import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { ensConfigurationRepository } from '../public/ens/configuration/repository';
+import { assertENSConfigurationVersion } from '../public/ens/configuration/services/configuration-structure-validator';
+import { validateControlConfiguration } from '../public/ens/configuration/services/validation-engine';
+import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+import { keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
+import { runPolicyRuntime } from '../public/ens/core/policy-runtime/policy-runtime';
 import {
   MP_INFO_6_REQUISITOS,
   mpInfo6PolicyDefinition,
-} from '../dashboard/ens/core/policy-runtime/policies/mp-info-6.policy';
-import { buildENSReportModel } from '../dashboard/ens/reports/registry';
+} from '../public/ens/core/policy-runtime/policies/mp-info-6.policy';
+import { buildENSReportModel } from '../public/ens/reports/registry';
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSLevel,
-} from '../dashboard/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../dashboard/ens/core/data-source/types';
-import type { ENSAgentScope } from '../dashboard/ens/core/scope/types';
+} from '../public/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import type { ENSAgentScope } from '../public/ens/core/scope/types';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
 declare const require: (id: string) => any;
@@ -79,7 +79,7 @@ declare const __dirname: string;
 const {
   getENSComplianceResultByControl,
   getENSComplianceState,
-} = require('../dashboard/ens/core/ens-engine') as typeof import('../dashboard/ens/core/ens-engine');
+} = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
 
 // --- comprobador mínimo ----------------------------------------------------
 

@@ -21,7 +21,7 @@ name of the manager container (`docker ps --format '{{.Names}}'`; in the officia
 >   `docker exec` and `ENS_HOST`; that the image's start script copies
 >   `/wazuh-config-mount` over `/var/ossec` on every start.
 > - **Guidance not tested yet:** the full deployment with `docker compose`,
->   indexer and agents; the dashboard image with the plugin; the host cron;
+>   indexer and agents; the dashboard image with ENSFácil; the host cron;
 >   recreating the container with the proposed volumes; a multi-node cluster.
 >   Anything still to be checked says "to be verified".
 
@@ -195,42 +195,82 @@ If the optional op.exp.4 bridge is enabled (`--con-puente-vd`), its line is
 
 ## 7. The plugin in the dashboard container
 
-**Building** needs `git` and the OpenSearch Dashboards tooling: do it **outside
-production**, on a build machine with exactly the same versions (section 13 of
-guide 01; result `wazuh-2.19.5.zip`), or ask Quersystem for a ZIP built for those
-exact versions (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). A ZIP for a
-different version will not work.
+ENSFácil is a plugin of its own (`ensfacil`) installed **next to** the Wazuh
+plugin, without touching it. In a container this is done with a custom image
+based on the official one.
 
-**Installing.** `config/deploy-plugin.sh` assumes systemd and a package install:
-it stops the service, removes the `wazuh` plugin (exact paths, keeps `wazuhCore`
-and `wazuhCheckUpdates`), installs the ZIP, **bumps the `build.number` in
-`/usr/share/wazuh-dashboard/package.json`** and starts it. In a container, the
-same in your own image:
+**Building** needs `git` and the OpenSearch Dashboards source code: it is done
+**outside production**, on a build machine with exactly the same versions
+(section 13 of guide 01; result `ensfacil-2.19.5.zip`), or Quersystem is asked
+for the zip built for Wazuh `4.14.7` (OpenSearch Dashboards `2.19.5`). A zip for
+another version does not install.
+
+**Installing.** `config/deploy-plugin.sh` assumes systemd and a package-based
+installation. In a container, the same is done in a custom image, with the zip
+next to the `Dockerfile`:
 
 ```dockerfile
 FROM wazuh/wazuh-dashboard:4.14.7
 USER root
-COPY wazuh-2.19.5.zip /tmp/wazuh-2.19.5.zip
-RUN /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh --allow-root \
- && /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install file:///tmp/wazuh-2.19.5.zip --allow-root \
- && rm /tmp/wazuh-2.19.5.zip \
+COPY ensfacil-2.19.5.zip /tmp/ensfacil-2.19.5.zip
+RUN /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install file:///tmp/ensfacil-2.19.5.zip --allow-root \
+ && rm /tmp/ensfacil-2.19.5.zip \
+ && chown -R wazuh-dashboard:wazuh-dashboard /usr/share/wazuh-dashboard/plugins/ensfacil \
  && python3 -c "import json; f='/usr/share/wazuh-dashboard/package.json'; p=json.load(open(f)); p['build']['number']=str(int(p['build']['number'])+1); json.dump(p, open(f,'w'), indent=2)"
 USER wazuh-dashboard
 ```
 
 ```bash
 docker build -t wazuh-dashboard-ensfacil:4.14.7 .
-# in docker-compose.yml, dashboard service: image: wazuh-dashboard-ensfacil:4.14.7
+docker run --rm --entrypoint /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
+  wazuh-dashboard-ensfacil:4.14.7 list
+# in docker-compose.yml, the dashboard service: image: wazuh-dashboard-ensfacil:4.14.7
 docker compose up -d
 ```
 
-Without bumping `build.number`, the browser keeps using the previous plugin's
-files even though the image is new (the bundle URL depends on that number). Never
-`remove wazuh*` with a wildcard. Checked on the `wazuh/wazuh-dashboard:4.14.7`
-image: it ships `python3`, the line that bumps `build.number` works and the
-`wazuhCore` and `wazuhCheckUpdates` plugins are separate. To be verified:
-starting this image in the customer's environment (the same pattern was used in
-the development lab with an earlier version).
+What you should see in the list: `ensfacil@1.0.0` next to `wazuh`, `wazuhCore`
+and `wazuhCheckUpdates`. The Wazuh plugin is the one from the official image: it
+is neither removed nor replaced.
+
+Without bumping `build.number`, the browser keeps using the files of the
+previous ENSFácil version when it is updated (the bundle URL depends on that
+number). Each new ENSFácil version is a new image with the new zip.
+
+Then create the `ensfacil_admin` role (section 13.5 of guide 01) with the
+indexer administrator certificate of the deployment (section 8).
+`create-admin-role.sh` verifies the indexer certificate against its root CA, so
+the URL must carry the name that certificate was issued for. In the official
+deployment (`config/certs.yml` of `wazuh-docker`) it is `wazuh.indexer`, not
+`127.0.0.1`: with `https://127.0.0.1:9200`, curl refuses («no alternative
+certificate subject name matches»). The name is in the certificate itself:
+
+```bash
+C=/path/to/the/deployment/config/wazuh_indexer_ssl_certs
+sudo openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
+```
+
+That name only resolves inside the deployment's Docker network. From the host,
+where `docker-compose.yml` publishes the indexer port `9200`, an `/etc/hosts`
+entry pointing it to the machine itself is enough; `OS_CA` is the deployment's
+root CA (`root-ca.pem`), the one that signed the indexer certificate:
+
+```bash
+grep -q '[[:space:]]wazuh\.indexer$' /etc/hosts || echo '127.0.0.1 wazuh.indexer' | sudo tee -a /etc/hosts
+sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_URL=https://wazuh.indexer:9200 \
+  bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
+```
+
+The entry can be removed afterwards; this deletes only the line added here, not one that was already there: `sudo sed -i '/^127\.0\.0\.1 wazuh\.indexer$/d' /etc/hosts`.
+If the indexer is not published on the host, do the same from a machine that
+reaches it, with the entry pointing to its address. In a multi-node cluster, the
+name is the one of the node you talk to (`wazuh1.indexer` in the official
+multi-node deployment): always use the one shown in the certificate.
+
+Checked on the `wazuh/wazuh-dashboard:4.14.7` image: it ships `python3` and the
+line that bumps `build.number` works. To be verified (not tested yet on a Docker
+deployment): installing the ENSFácil zip in the image, starting it in the
+customer's environment and creating the role with the indexer certificate's
+name.
 
 ## 8. Seeding and validating the configuration
 

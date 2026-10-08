@@ -21,7 +21,7 @@ en el despliegue *single-node* oficial suele ser `single-node-wazuh.manager-1`).
 >   `docker exec` y `ENS_HOST`; que el script de arranque de la imagen copia
 >   `/wazuh-config-mount` sobre `/var/ossec` en cada arranque.
 > - **Orientación sin probar todavía:** el despliegue completo con
->   `docker compose`, indexer y agentes; la imagen del dashboard con el plugin;
+>   `docker compose`, indexer y agentes; la imagen del dashboard con ENSFácil;
 >   el cron del host; la recreación del contenedor con los volúmenes propuestos;
 >   un clúster con varios nodos. Lo que falte por comprobar dice «por verificar».
 
@@ -195,42 +195,83 @@ Si se activa el puente opcional de op.exp.4 (`--con-puente-vd`), su línea es
 
 ## 7. El plugin en el contenedor del dashboard
 
-**Compilar** necesita `git` y las herramientas de OpenSearch Dashboards: se hace
+ENSFácil es un plugin propio (`ensfacil`) que se instala **junto** al plugin de
+Wazuh, sin tocarlo. En contenedor se hace con una imagen propia basada en la
+oficial.
+
+**Compilar** necesita `git` y el código fuente de OpenSearch Dashboards: se hace
 **fuera de producción**, en un equipo de compilación con exactamente las mismas
-versiones (apartado 13 de la guía 01; resultado `wazuh-2.19.5.zip`), o se pide a
-Quersystem un ZIP compilado para esas versiones exactas (Wazuh `4.14.7`,
-OpenSearch Dashboards `2.19.5`). Un ZIP de otra versión no sirve.
+versiones (apartado 13 de la guía 01; resultado `ensfacil-2.19.5.zip`), o se
+pide a Quersystem el zip compilado para Wazuh `4.14.7` (OpenSearch Dashboards
+`2.19.5`). Un zip de otra versión no se instala.
 
 **Instalar.** `config/deploy-plugin.sh` presupone systemd y una instalación por
-paquetes: para el servicio, retira el plugin `wazuh` (rutas exactas, conserva
-`wazuhCore` y `wazuhCheckUpdates`), instala el ZIP, **sube el `build.number` de
-`/usr/share/wazuh-dashboard/package.json`** y arranca. En contenedor, lo mismo
-en una imagen propia:
+paquetes. En contenedor, lo mismo en una imagen propia, con el zip junto al
+`Dockerfile`:
 
 ```dockerfile
 FROM wazuh/wazuh-dashboard:4.14.7
 USER root
-COPY wazuh-2.19.5.zip /tmp/wazuh-2.19.5.zip
-RUN /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin remove wazuh --allow-root \
- && /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install file:///tmp/wazuh-2.19.5.zip --allow-root \
- && rm /tmp/wazuh-2.19.5.zip \
+COPY ensfacil-2.19.5.zip /tmp/ensfacil-2.19.5.zip
+RUN /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install file:///tmp/ensfacil-2.19.5.zip --allow-root \
+ && rm /tmp/ensfacil-2.19.5.zip \
+ && chown -R wazuh-dashboard:wazuh-dashboard /usr/share/wazuh-dashboard/plugins/ensfacil \
  && python3 -c "import json; f='/usr/share/wazuh-dashboard/package.json'; p=json.load(open(f)); p['build']['number']=str(int(p['build']['number'])+1); json.dump(p, open(f,'w'), indent=2)"
 USER wazuh-dashboard
 ```
 
 ```bash
 docker build -t wazuh-dashboard-ensfacil:4.14.7 .
+docker run --rm --entrypoint /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin \
+  wazuh-dashboard-ensfacil:4.14.7 list
 # en docker-compose.yml, el servicio del dashboard: image: wazuh-dashboard-ensfacil:4.14.7
 docker compose up -d
 ```
 
-Sin subir el `build.number`, el navegador sigue usando los ficheros del plugin
-anterior aunque la imagen sea nueva (la URL de los bundles depende de ese
-número). Nunca `remove wazuh*` con comodín. Comprobado en la imagen `wazuh/wazuh-dashboard:4.14.7`:
-trae `python3`, la línea que sube el `build.number` funciona y los plugins
-`wazuhCore` y `wazuhCheckUpdates` están aparte. Por verificar: el arranque de
-esta imagen en el entorno del cliente (el mismo patrón se ha usado en el
-laboratorio de desarrollo con una versión anterior).
+Qué tiene que salir en la lista: `ensfacil@1.0.0` junto a `wazuh`, `wazuhCore` y
+`wazuhCheckUpdates`. El plugin de Wazuh es el de la imagen oficial: no se retira
+ni se sustituye.
+
+Sin subir el `build.number`, el navegador sigue usando los ficheros de la versión
+anterior de ENSFácil al actualizarla (la URL de los bundles depende de ese
+número). Cada versión nueva de ENSFácil es una imagen nueva con el zip nuevo.
+
+Después, crear el rol `ensfacil_admin` (apartado 13.5 de la guía 01) con el
+certificado de administrador del indexer del despliegue (apartado 8).
+`create-admin-role.sh` comprueba el certificado del indexer contra su CA raíz,
+así que la URL tiene que llevar el nombre para el que está hecho ese
+certificado. En el despliegue oficial (`config/certs.yml` de `wazuh-docker`) es
+`wazuh.indexer`, no `127.0.0.1`: con `https://127.0.0.1:9200`, curl se niega
+(«no alternative certificate subject name matches»). El nombre se ve en el
+propio certificado:
+
+```bash
+C=/ruta/al/despliegue/config/wazuh_indexer_ssl_certs
+sudo openssl x509 -in $C/wazuh.indexer.pem -noout -ext subjectAltName
+```
+
+Ese nombre solo se resuelve dentro de la red de Docker del despliegue. Desde el
+host, donde el `docker-compose.yml` publica el puerto `9200` del indexer, basta
+con una entrada en `/etc/hosts` que lo lleve a la propia máquina; `OS_CA` es la
+CA raíz del despliegue (`root-ca.pem`), la que firmó el certificado del indexer:
+
+```bash
+grep -q '[[:space:]]wazuh\.indexer$' /etc/hosts || echo '127.0.0.1 wazuh.indexer' | sudo tee -a /etc/hosts
+sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_URL=https://wazuh.indexer:9200 \
+  bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
+```
+
+La entrada puede quitarse al terminar; esto borra solo la línea que se añadió aquí, no otra que ya hubiera: `sudo sed -i '/^127\.0\.0\.1 wazuh\.indexer$/d' /etc/hosts`.
+Si el indexer no está publicado en el host, lo mismo desde un equipo que llegue
+a él, con la entrada apuntando a su dirección. En un clúster con varios nodos,
+el nombre es el del nodo al que se habla (`wazuh1.indexer` en el despliegue
+oficial multinodo): usar siempre el que salga en el certificado.
+
+Comprobado en la imagen `wazuh/wazuh-dashboard:4.14.7`: trae `python3` y la
+línea que sube el `build.number` funciona. Por verificar (sin probar todavía en
+un despliegue con Docker): la instalación del zip de ENSFácil en la imagen, su
+arranque en el entorno del cliente y la creación del rol con el nombre del
+certificado del indexer.
 
 ## 8. Sembrar y validar la configuración
 

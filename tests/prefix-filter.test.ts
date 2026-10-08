@@ -32,7 +32,7 @@ import {
   normalizeENSPrefixQuery,
   resolveENSSectionOpenState,
   splitENSId,
-} from '../dashboard/ens/control-filter/prefix';
+} from '../public/ens/control-filter/prefix';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
@@ -68,7 +68,7 @@ interface ControlFixture {
 }
 
 // Los tres controles DESPLEGADOS, con sus requisitos reales
-// (`dashboard/ens/data/`), más los dos que el producto tiene en camino
+// (`public/ens/data/`), más los dos que el producto tiene en camino
 // (op.acc.3 y op.acc.4) y una familia de dos cifras. `op.exp` («Explotación»)
 // es una familia real del RD 311/2022 que llega a `op.exp.11`: no es un caso
 // inventado para que la prueba salga bien, es el catálogo que viene.
