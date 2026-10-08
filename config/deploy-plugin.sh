@@ -6,7 +6,12 @@
 #
 # Vale para `wazuh-2.19.5.zip` y para `ensfacil-2.19.5.zip`: retira solo el
 # plugin que trae el zip. `bash deploy-plugin.sh --solo-id <zip>` imprime ese id
-# y sale sin tocar nada.
+# y sale sin tocar nada. Exactamente un zip: con más o con menos, no hace nada.
+#
+# Antes de retirar el plugin anterior lo guarda junto al zip
+# (plugins-<id>-antes-<fecha>.tgz). Si la instalación falla, dice cómo volver a
+# como estaba y sale con error; y sale con error también si al final el
+# dashboard no queda activo.
 #
 # POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
 #
@@ -32,19 +37,28 @@
 ###############################################################################
 set -euo pipefail
 
+uso() {
+  echo "uso: sudo bash deploy-plugin.sh /ruta/al/plugin.zip" >&2
+  echo "     bash deploy-plugin.sh --solo-id /ruta/al/plugin.zip" >&2
+  exit 1
+}
+
 SOLO_ID=0
 if [ "${1:-}" = "--solo-id" ]; then
   SOLO_ID=1
   shift
 fi
 
-ZIP="${1:-}"
-OSD="${OSD:-/usr/share/wazuh-dashboard}"
+# Un solo zip, y que sea un fichero: un segundo argumento (un comodín que
+# casa con dos zips, una opción mal escrita) no se ignora en silencio.
+[ $# -eq 1 ] || uso
+case "$1" in -*) uso ;; esac
+[ -f "$1" ] || { echo "no existe el zip: $1" >&2; uso; }
 
-if [ -z "$ZIP" ] || [ ! -f "$ZIP" ]; then
-  echo "uso: sudo bash deploy-plugin.sh /ruta/al/plugin.zip" >&2
-  exit 1
-fi
+# Ruta absoluta: `file://` con una ruta relativa no es la que se cree, y el
+# instalador corre como otro usuario.
+ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
 # El plugin que se retira es el que trae el zip, y solo puede ser uno de los
 # dos nuestros: el integrado (`wazuh`, mientras dure la transición) o
@@ -70,6 +84,12 @@ echo "== 1/5 · parando el dashboard"
 systemctl stop wazuh-dashboard
 
 echo "== 2/5 · retirando el plugin anterior ($PLUGIN_ID)"
+RESPALDO=""
+if [ -d "$OSD/plugins/$PLUGIN_ID" ]; then
+  RESPALDO="$(dirname "$ZIP")/plugins-$PLUGIN_ID-antes-$(date +%Y%m%d_%H%M%S).tgz"
+  tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"
+  echo "   guardado en $RESPALDO"
+fi
 # RUTAS EXACTAS. Nunca un comodín `wazuh*`: se llevaría por delante `wazuhCore`
 # y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
 sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" remove "$PLUGIN_ID" 2>/dev/null || true
@@ -77,7 +97,22 @@ rm -rf "$OSD/plugins/$PLUGIN_ID"
 rm -rf "$OSD/plugins/.plugin.installing"
 
 echo "== 3/5 · instalando"
-sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP"
+if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP"; then
+  {
+    echo
+    echo "LA INSTALACIÓN HA FALLADO: el dashboard está parado y sin el plugin $PLUGIN_ID."
+    echo "Para volver a como estaba:"
+    if [ -n "$RESPALDO" ]; then
+      echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
+      echo "  sudo tar -xzf $RESPALDO -C $OSD"
+    else
+      echo "  (no había un $PLUGIN_ID anterior: arranca sin él)"
+      echo "  sudo rm -rf $OSD/plugins/.plugin.installing"
+    fi
+    echo "  sudo systemctl start wazuh-dashboard"
+  } >&2
+  exit 5
+fi
 
 echo "== 4/5 · invalidando la caché del navegador (subir build.number)"
 cp "$OSD/package.json" "$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
@@ -109,8 +144,14 @@ for _ in $(seq 1 24); do
   sleep 5
 done
 
+ESTADO="$(systemctl is-active wazuh-dashboard || true)"
 echo
-echo "dashboard: $(systemctl is-active wazuh-dashboard)"
+echo "dashboard: $ESTADO"
 echo "plugins:   $(ls -1 "$OSD/plugins" | tr '\n' ' ')"
 echo
+if [ "$ESTADO" != "active" ]; then
+  echo "EL DASHBOARD NO ESTÁ ACTIVO ($ESTADO): mira 'journalctl -u wazuh-dashboard'." >&2
+  [ -n "$RESPALDO" ] && echo "El plugin anterior está en $RESPALDO." >&2
+  exit 6
+fi
 echo "La URL de los bundles ha cambiado: el navegador los pedirá de nuevo solo."
