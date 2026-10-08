@@ -33,7 +33,7 @@ case "$metodo $ruta" in
 esac
 FALSO
 chmod +x "$T/curl"
-: > "$T/admin.pem"; : > "$T/admin-key.pem"
+: > "$T/admin.pem"; : > "$T/admin-key.pem"; : > "$T/root-ca.pem"
 
 CON_ANA='{"ensfacil_admin":{"hosts":[],"users":["ana"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
 CON_RSIS='{"ensfacil_admin":{"hosts":[],"users":["ana","rsis"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
@@ -45,7 +45,7 @@ corre() {
   local mapeo="$1" codigo="$2"; shift 2
   : > "$T/registro"; : > "$T/registro.args"
   REGISTRO="$T/registro" FALSO_MAPEO="$mapeo" FALSO_MAPEO_CODIGO="$codigo" \
-    CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" \
+    CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/root-ca.pem" \
     bash "$RAIZ/config/create-admin-role.sh" "$@" > "$T/salida" 2>&1
   rc=$?
 }
@@ -90,6 +90,8 @@ compara "envía el PUT del rol y un PATCH que solo añade rsis, una vez" \
 compara "nunca quita ni sustituye usuarios" 0 "$(grep -cE '"op":"(remove|replace)"' "$T/registro")"
 compara "con el certificado" 4 "$(grep -c -- "--cert $T/admin.pem --key $T/admin-key.pem" "$T/registro.args")"
 compara "sin usuario ni contraseña en la línea de órdenes" 0 "$(grep -cE -- '(^| )(-u|--user) ' "$T/registro.args")"
+compara "comprueba el certificado del indexer con su CA" 4 "$(grep -c -- "--cacert $T/root-ca.pem" "$T/registro.args")"
+compara "nunca sin comprobarlo (-k / --insecure)" 0 "$(grep -cE -- '(^| )(-k|--insecure)( |$)' "$T/registro.args")"
 
 echo "· de verdad, sin --mapear"
 corre "$CON_ANA" 200
@@ -115,5 +117,14 @@ REGISTRO="$T/registro" CURL="$T/curl" OS_CERT="$T/no-existe.pem" OS_KEY="$T/admi
   bash "$RAIZ/config/create-admin-role.sh" > "$T/salida" 2>&1; rc=$?
 compara "sin certificado legible es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
 compara "y no envía nada" "" "$(cat "$T/registro")"
+: > "$T/registro"
+REGISTRO="$T/registro" CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/no-existe-ca.pem" \
+  bash "$RAIZ/config/create-admin-role.sh" > "$T/salida" 2>&1; rc=$?
+compara "sin CA legible es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+compara "que lo dice" 1 "$(grep -c 'CA del indexer' "$T/salida")"
+compara "y no envía nada" "" "$(cat "$T/registro")"
+echo "· por defecto"
+compara "la CA del indexer de Wazuh" 1 "$(grep -c 'OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"' "$RAIZ/config/create-admin-role.sh")"
+compara "y 127.0.0.1, el nombre de su certificado" 1 "$(grep -c 'ENS_OS_URL:-https://127.0.0.1:9200' "$RAIZ/config/create-admin-role.sh")"
 
 [ $fallos -eq 0 ] && echo "TODO OK" || { echo "$fallos FALLOS"; exit 1; }

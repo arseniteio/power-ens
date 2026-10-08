@@ -242,7 +242,7 @@ host, con el certificado de administrador del indexer del despliegue (apartado
 
 ```bash
 C=/ruta/al/despliegue/config/wazuh_indexer_ssl_certs
-sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_URL=https://127.0.0.1:9200 \
+sudo env OS_CERT=$C/admin.pem OS_KEY=$C/admin-key.pem OS_CA=$C/root-ca.pem OS_URL=https://127.0.0.1:9200 \
   bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 

@@ -510,7 +510,7 @@ What you should see:
 
 Only users with the security plugin role `ensfacil_admin` or `all_access` can save the ENS configuration and see its history. The others see the configuration, but get a 403 error when they save: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.» ("The ensfacil_admin or all_access role is needed to change the ENS configuration or see its history.").
 
-`config/create-admin-role.sh` creates the role and, if asked, assigns it. It uses the indexer administrator certificate, with no password.
+`config/create-admin-role.sh` creates the role and, if asked, assigns it. It uses the indexer administrator certificate, with no password, and verifies the indexer's certificate against its CA (`/etc/wazuh-indexer/certs/root-ca.pem`; another one with `OS_CA`). It talks to `https://127.0.0.1:9200`, the name Wazuh issues that certificate for: with `localhost` the verification fails.
 
 > [!note]
 > The role grants no permission by itself: it is a mark that ENSFácil looks for among the user's roles. To see the data, each user also needs their usual Wazuh role, with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.

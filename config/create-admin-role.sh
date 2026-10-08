@@ -9,10 +9,18 @@
 # reciben un 403. El rol no da ningún permiso: es una marca que el plugin busca
 # entre los roles del usuario.
 #
-# Habla con el indexer con su certificado de administración, sin contraseña:
+# Habla con el indexer con su certificado de administración, sin contraseña,
+# y comprueba el certificado del indexer contra su CA (nunca `-k`: este script
+# escribe en la seguridad del cluster, y sin comprobar a quién se le habla
+# cualquiera en medio recibiría el certificado de administración):
 #   OS_CERT   por defecto /etc/wazuh-indexer/certs/admin.pem
 #   OS_KEY    por defecto /etc/wazuh-indexer/certs/admin-key.pem
-#   OS_URL    por defecto https://localhost:9200 (vale también ENS_OS_URL)
+#   OS_CA     por defecto /etc/wazuh-indexer/certs/root-ca.pem
+#   OS_URL    por defecto https://127.0.0.1:9200 (vale también ENS_OS_URL)
+# La URL tiene que llevar el nombre para el que está hecho el certificado del
+# indexer: el de una instalación por defecto de Wazuh es para 127.0.0.1, no
+# para localhost (con localhost, curl se niega: «no alternative certificate
+# subject name matches»).
 #
 # Se puede repetir: el rol se reescribe igual y el mapeo solo AÑADE los
 # usuarios que falten; nunca quita a nadie. --dry-run enseña las peticiones que
@@ -28,7 +36,8 @@ RUTA_MAPEO="_plugins/_security/api/rolesmapping/$ROL"
 CURL="${CURL:-curl}"
 OS_CERT="${OS_CERT:-/etc/wazuh-indexer/certs/admin.pem}"
 OS_KEY="${OS_KEY:-/etc/wazuh-indexer/certs/admin-key.pem}"
-OS_URL="${OS_URL:-${ENS_OS_URL:-https://localhost:9200}}"
+OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"
+OS_URL="${OS_URL:-${ENS_OS_URL:-https://127.0.0.1:9200}}"
 OS_URL="${OS_URL%/}"
 
 uso() {
@@ -72,6 +81,11 @@ if [ "$PRUEBA" = 0 ] || [ "${#USUARIOS[@]}" -gt 0 ]; then
     echo "Ejecutar con sudo, o indicar OS_CERT y OS_KEY." >&2
     exit 2
   fi
+  if [ ! -r "$OS_CA" ]; then
+    echo "no se puede leer la CA del indexer ($OS_CA): sin ella no se comprueba a quién se habla." >&2
+    echo "Ejecutar con sudo, o indicar OS_CA." >&2
+    exit 2
+  fi
 fi
 
 # peticion MÉTODO RUTA [CUERPO]: deja el cuerpo de la respuesta en RESPUESTA y
@@ -80,7 +94,7 @@ RESPUESTA=
 CODIGO=
 peticion() {
   local metodo="$1" ruta="$2" cuerpo="${3:-}" salida
-  local args=(-sS -k --cert "$OS_CERT" --key "$OS_KEY" -X "$metodo" -w '\n%{http_code}')
+  local args=(-sS --cacert "$OS_CA" --cert "$OS_CERT" --key "$OS_KEY" -X "$metodo" -w '\n%{http_code}')
   if [ -n "$cuerpo" ]; then
     args+=(-H 'Content-Type: application/json' --data-binary "$cuerpo")
   fi
