@@ -286,6 +286,11 @@ All seventeen repositories must return a URL under `git@gitlab.com:quersystem/en
 
 ## 11. Create and validate the ENS group
 
+> [!note]
+> This section creates the groups on the manager. How agents are added to them,
+> how to check that the configuration reaches them and the plugin's ENS scope
+> are explained once, in the [ENSFácil initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
+
 Before installing the control rules, create the shared `ens` group on Wazuh Manager and the `ens-copias` group, mp.info.6's own, which only holds the machines whose backups are measured:
 
 ```bash
@@ -307,7 +312,7 @@ sudo grep -c "<agent_config" /var/ossec/etc/shared/ens-copias/agent.conf
 > The ENS rule installation must not continue if the `ens` and `ens-copias` groups or their `agent.conf` do not exist: without `ens-copias`, the mp.info.6 `install-manager.sh`, the first one in the loop, stops.
 
 > [!important]
-> The `agent.conf` of each group must have **a single `<agent_config>` block** (both `grep -c` checks must return `0` or `1`). The `install-manager.sh` of every control refuses to modify an `agent.conf` with more than one block. Any additional setting for the group (for example a `<syscheck>`) goes inside the existing block, never in a second `<agent_config>`. After editing it by hand, validate it with `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
+> The `agent.conf` of each group must have **a single `<agent_config>` block** (both `grep -c` checks must return `1`: with `0`, no block, the installers refuse too). The `install-manager.sh` of every control refuses to modify an `agent.conf` with more than one block. Any additional setting for the group (for example a `<syscheck>`) goes inside the existing block, never in a second `<agent_config>`. After editing it by hand, validate it with `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
 
 ## 12. Install and validate the ENS rules on the Manager
 

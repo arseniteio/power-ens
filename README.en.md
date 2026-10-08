@@ -28,9 +28,10 @@ and the links to every runbook and its guides are in the
    and op.exp.9 also leave a collector on the manager itself), and finally the
    ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
    Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
-2. **Machines.** On each agent, the runbooks of its platform (Linux, Zimbra
-   LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of
-   each runbook**.
+2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrol it on
+   the manager, the `ens` group and the plugin's ENS scope), once; then the
+   runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
+   following the `01-installation` guide **of each runbook**.
 3. **Configuration in the dashboard.** In ENSFácil > Configuration, the
    parameters of each control, and on the machines or the manager, the
    [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
@@ -249,9 +250,12 @@ Each control repository (runbook) includes its guides in its own `docs/deploymen
 
 ### The manager in the scope
 
-The ENS scope is defined by the Wazuh `ens` group, and the manager (agent
-`000`) does not belong to any group. That is why the dashboard adds it to the
-scope by itself, and only because some controls are measured on it:
+The ENS scope comes from the configuration: every machine in the inventory,
+those in some Wazuh groups (usually the `ens` group) or a list of agents
+([the ENS scope](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup/-/blob/main/docs/deployment/03-ens-scope.en.md)).
+The manager (agent `000`) does not belong to any group. That is why the
+dashboard adds it to the scope by itself, and only because some controls are
+measured on it:
 
 | Control | Measurement planes (`measurementPlanes`) | Manager row (`000`) | Each machine row |
 |---|---|---|---|
