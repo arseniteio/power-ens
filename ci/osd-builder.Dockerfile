@@ -21,6 +21,12 @@ RUN apt-get update \
 RUN npm install --global --force "yarn@${YARN_VERSION}" \
  && test "$(yarn --version)" = "${YARN_VERSION}"
 
+# El bootstrap se niega a correr como root, y su --allow-root no llega a los
+# scripts que lanza: el árbol se prepara con el usuario `node`, como la guía lo
+# hace con un usuario normal.
+RUN mkdir /osd && chown node:node /osd
+USER node
+
 RUN git clone --branch "${WAZUH_DASHBOARD_REF}" --depth 1 \
       https://github.com/wazuh/wazuh-dashboard.git /osd \
  && v="$(python3 -c 'import json; print(json.load(open("/osd/package.json"))["version"])')" \
@@ -38,3 +44,7 @@ ENV CHROMEDRIVER_SKIP_DOWNLOAD=true \
 WORKDIR /osd
 # La caché de yarn solo sirve para volver a instalar: fuera, en la misma capa.
 RUN yarn osd bootstrap && yarn cache clean
+
+# El trabajo `build` corre como root, igual que build-plugin.sh en el servidor
+# (que compila con --allow-root).
+USER root
