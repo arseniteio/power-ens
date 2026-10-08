@@ -43,6 +43,26 @@ comprueba('más de 1 h: antiguo', inventoryFromMonitoring(aggs, ahora + ENS_INVE
 comprueba('sin cubos: vacío y antiguo', (() => { const v = inventoryFromMonitoring(undefined, ahora); return v.agents.length === 0 && v.stale; })());
 comprueba('aviso de antiguo con fecha', staleInventoryMessage('2026-10-07T12:15:00.000Z').includes('2026-10-07T12:15:00.000Z'));
 comprueba('aviso de antiguo sin fecha: ni «undefined» ni vacío', (() => { const m = staleInventoryMessage(undefined); return !m.includes('undefined') && /no trae ninguna fecha/.test(m); })(), staleInventoryMessage(undefined));
+{
+  // Un agente dado de baja deja de escribirse en wazuh-monitoring: su último
+  // dato se queda atrás. Uno desconectado se sigue escribiendo y se queda.
+  const v = inventoryFromMonitoring({ agentes: { buckets: [
+    cubo('024', { id: '024', name: 'real', status: 'active', timestamp: '2026-10-07T12:15:00Z' }),
+    cubo('031', { id: '031', name: 'apagada', status: 'disconnected', timestamp: '2026-10-07T12:15:00Z' }),
+    cubo('029', { id: '029', name: 'borrada', status: 'active', timestamp: '2026-10-07T09:15:00Z' }),
+    cubo('030', { id: '030', name: 'justo 1 h', status: 'active', timestamp: '2026-10-07T11:15:00Z' }),
+  ] } }, ahora);
+  const ids = v.agents.map(a => a.id).join(',');
+  comprueba('dado de baja (3 h por detrás del dato más reciente): fuera del inventario', !ids.includes('029'), ids);
+  comprueba('desconectado pero escrito: se queda, con su estado', v.agents.find(a => a.id === '031')?.status === 'disconnected', v.agents);
+  comprueba('justo 1 h por detrás: todavía dentro', ids.includes('030'), ids);
+  // Se cuenta desde el dato más reciente, no desde el reloj: un inventario
+  // parado se avisa como antiguo pero no se vacía.
+  const parado = inventoryFromMonitoring({ agentes: { buckets: [
+    cubo('024', { id: '024', name: 'real', timestamp: '2026-10-07T12:15:00Z' }),
+  ] } }, ahora + 6 * ENS_INVENTORY_MAX_AGE_MS);
+  comprueba('inventario parado: antiguo pero no vacío', parado.stale && parado.agents.some(a => a.id === '024'), parado);
+}
 const q: any = buildMonitoringInventoryRequest();
 comprueba('lee wazuh-monitoring-*', q.index === 'wazuh-monitoring-*');
 comprueba('el último documento de cada agente', q.body.aggs.agentes.aggs.ultimo.top_hits.size === 1 && q.body.aggs.agentes.aggs.ultimo.top_hits.sort[0].timestamp.order === 'desc');

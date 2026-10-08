@@ -75,7 +75,18 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     });
   }
 
-  const agents = [...porId.values()].map(v => v.agente).sort((a, b) => a.id.localeCompare(b.id));
+  // Un agente dado de baja deja de aparecer en wazuh-monitoring (uno
+  // desconectado sigue apareciendo, con su estado): queda fuera el que no
+  // tiene dato en la última hora del inventario, contada desde su dato más
+  // reciente y no desde el reloj, para que un inventario parado no se vacíe.
+  // Sin fecha no se sabe: se queda.
+  const vigente = (instante: number) =>
+    masReciente === undefined || instante === -Infinity || masReciente - instante <= ENS_INVENTORY_MAX_AGE_MS;
+
+  const agents = [...porId.values()]
+    .filter(v => vigente(v.instante))
+    .map(v => v.agente)
+    .sort((a, b) => a.id.localeCompare(b.id));
 
   return {
     agents,
