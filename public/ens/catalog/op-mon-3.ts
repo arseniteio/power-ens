@@ -17,7 +17,7 @@ export const opMon3CatalogDefinition: ENSControlDefinition = {
   description:
     'op.mon.3 es el control que mejor define la razón de ser de ENSFácil en categorías BÁSICA y MEDIA, y el que exige más honestidad en categoría ALTA.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   // Las evidencias de cada requisito son las del diseño (spec 2026-10-09
   // §3.3). R3.1 y R4 son documentales (sin evidencia técnica: los acredita

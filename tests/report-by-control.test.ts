@@ -122,11 +122,11 @@ const definicionRegistrada = (
   // informe recibe el de otro es el defecto que este fichero vigila, y no
   // depende de que el control esté activo.
   comprueba(
-    'registro · están los dieciocho controles del catálogo, y solo esos',
+    'registro · están los diecinueve controles del catálogo, y solo esos',
     registrados.join(',') ===
       'mp.info.6,op.acc.1,op.acc.2,op.acc.3,op.acc.4,' +
       'op.acc.5,op.acc.6,op.exp.1,op.exp.2,op.exp.3,op.exp.4,' +
-      'op.exp.5,op.exp.6,op.exp.7,op.exp.8,op.exp.9,op.exp.10,op.mon.1',
+      'op.exp.5,op.exp.6,op.exp.7,op.exp.8,op.exp.9,op.exp.10,op.mon.1,op.mon.3',
     registrados.join(',')
   );
 
