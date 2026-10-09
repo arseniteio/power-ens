@@ -71,7 +71,7 @@
   <rule id="111403" level="3">
     <if_sid>111400</if_sid>
     <field name="event">agent_forwarding_observed</field>
-    <description>op.mon.3 · EV-02 · envío del agente: $(estado), último ack $(ultimo_ack)</description>
+    <description>op.mon.3 · EV-02 · envío del agente: $(conexion), último ack $(ultimo_ack)</description>
   </rule>
 
   <!-- EV-02. Cada 6 h, en el manager. Una por emisor syslog (la IP del campo

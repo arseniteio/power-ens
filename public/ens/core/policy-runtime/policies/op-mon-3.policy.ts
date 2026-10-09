@@ -546,7 +546,7 @@ const envioDelAgente = (ctxA: ENSPolicyContext, ahora: number, maquina: string):
     );
   }
 
-  const estado = campo(hecho, 'estado');
+  const estado = campo(hecho, 'conexion');
   const cola = campo(hecho, 'mensajes_en_buffer');
 
   return estado === 'connected'
@@ -1389,7 +1389,7 @@ const registroDe = (ctxM: ENSPolicyContext, ahora: number, tipo: TipoInspeccion,
   } else {
     const ultima = hechas.reduce((a, b) => (b.t > a.t ? b : a));
     const edad = momento(ultima.e) - ultima.t;
-    const que = `la última ${NOMBRE_INSPECCION[tipo]} es del ${iso(ultima.t)} (${campo(ultima.e, 'ejecutor') || 'ejecutor sin declarar'}, ${campo(ultima.e, 'alcance') || 'alcance sin declarar'}; hallazgos: ${campo(ultima.e, 'hallazgos') || '-'}, ${campo(ultima.e, 'estado') || '-'})`;
+    const que = `la última ${NOMBRE_INSPECCION[tipo]} es del ${iso(ultima.t)} (${campo(ultima.e, 'ejecutor') || 'ejecutor sin declarar'}, ${campo(ultima.e, 'alcance') || 'alcance sin declarar'}; hallazgos: ${campo(ultima.e, 'hallazgos') || '-'}, ${campo(ultima.e, 'estado_remediacion') || '-'})`;
 
     partes.push(
       edad > diasPlan * DIA
