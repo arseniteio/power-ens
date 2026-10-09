@@ -527,6 +527,19 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA');
   comprueba('sin ningún hecho → op.mon.1.1 no demostrado', nada.requisito('op.mon.1.1').evidenced === false);
   comprueba('y EV-02 por RECOGIDA, no por configuración', nada.evidencia('EV-02')?.gapCause === 'COLLECTION', nada.evidencia('EV-02')?.gapCause);
 
+  // wazuh-analysisd muere después de la pasada de las 12:05: systemctl sigue
+  // diciendo «active», pero sin el motor no llega ni el estado del propio motor.
+  const sinMotor = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-09T16:10:00Z'));
+  comprueba(
+    'cuatro horas sin estado del motor (pasa cada hora) → EV-01 NO_EVALUABLE por RECOGIDA, nombrando analysisd',
+    sinMotor.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinMotor.evidencia('EV-01')?.gapCause === 'COLLECTION' && /wazuh-analysisd/.test(sinMotor.motivo('op.mon.1.1')),
+    `${sinMotor.evidencia('EV-01')?.status} ${sinMotor.motivo('op.mon.1.1')}`
+  );
+  comprueba('y op.mon.1.1 deja de cumplir: no demostrado', sinMotor.requisito('op.mon.1.1').status === 'NO_CUMPLE' && sinMotor.requisito('op.mon.1.1').evidenced === false);
+  comprueba('mientras los hechos de 6 h, con cuatro horas, siguen vigentes', sinMotor.evidencia('EV-02')?.status === 'CUMPLE' && sinMotor.evidencia('EV-04')?.status === 'CUMPLE');
+  const conMotor = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-09T14:30:00Z'));
+  comprueba('REVERSIÓN: a las 2 h 25 min del último estado del motor → EV-01 CUMPLE', conMotor.evidencia('EV-01')?.status === 'CUMPLE', conMotor.evidencia('EV-01')?.status);
+
   const viejo = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
   comprueba('dos días sin pasadas: el estado no describe hoy → no demostrado', viejo.requisito('op.mon.1.1').evidenced === false && /no está informando/.test(viejo.motivo('op.mon.1.1')), viejo.motivo('op.mon.1.1'));
 

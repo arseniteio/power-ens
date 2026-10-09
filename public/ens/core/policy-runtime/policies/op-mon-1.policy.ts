@@ -79,6 +79,13 @@ const DIA = 24 * HORA;
 // tolerancia de OBSERVACIÓN, no política.
 const FRESCURA_HORAS = 26;
 
+// Frescura del estado del MOTOR, que llega cada hora. No vale la de 26 h: los
+// hechos de ENSFácil llegan al índice A TRAVÉS de wazuh-analysisd, así que si el
+// motor muere deja de llegar su propio estado, y el último —«procesando»—
+// seguiría acreditando el control un día entero. 3 h toleran dos pasadas
+// horarias perdidas.
+const FRESCURA_MOTOR_HORAS = 3;
+
 // Un hecho del futuro no acredita nada (misma tolerancia de reloj que el latido).
 const TOLERANCIA_FUTURO = 5 * 60 * 1000;
 
@@ -534,8 +541,15 @@ const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
   const serie = validos(context, 'detection_engine_status', ahora);
   const ultimo = serie.length ? momento(serie[serie.length - 1]) : undefined;
 
-  if (ultimo === undefined || ahora - ultimo > FRESCURA_HORAS * HORA) {
+  if (ultimo === undefined) {
     return sinHechos(context, 'EV-01', ultimo, 'estado del motor de reglas del manager');
+  }
+
+  if (ahora - ultimo > FRESCURA_MOTOR_HORAS * HORA) {
+    return sinMedir(
+      `El último estado del motor de reglas es de ${iso(ultimo)}, hace ${horas(ahora - ultimo)} h (más de ${FRESCURA_MOTOR_HORAS} h, y el recolector pasa cada hora): se ha parado el recolector de op.mon.1 o el propio motor de análisis (wazuh-analysisd), por el que llegan sus hechos. No se puede afirmar que el motor esté detectando.`,
+      'COLLECTION'
+    );
   }
 
   const actual = serie[serie.length - 1];
