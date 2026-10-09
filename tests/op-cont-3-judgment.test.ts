@@ -632,9 +632,30 @@ bloque('11. Celdas con gramática estricta; el hueco de una prueba no tapa lo me
     descartadas.evidencia('EV-01')?.status === 'NO_EVALUABLE' && descartadas.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /5:inicio; 7:tipo/.test(descartadas.de('EV-01')),
     `${estado(descartadas, 'EV-01')} ${descartadas.de('EV-01')}`
   );
+  // Un hallazgo por AUSENCIA («vencido») no se afirma con filas descartadas:
+  // la descartada puede ser la prueba que falta. Uno por PRESENCIA, sí.
+  const descarta = (l: Linea) => (l.event === 'continuity_test_register_read' ? { ...l, filas_invalidas: 2, lineas_invalidas: '5:inicio,7:tipo' } : l);
+  const vencidoConDescartes = evalua(hoy(descarta), { ...BASE, 'P-01': '3' });
   comprueba(
-    'y con otra cosa vencida, manda el NO_CUMPLE medido',
-    evalua(hoy(l => (l.event === 'continuity_test_register_read' ? { ...l, filas_invalidas: 2, lineas_invalidas: '5:inicio,7:tipo' } : l)), { ...BASE, 'P-01': '3' }).evidencia('EV-02')?.status === 'NO_CUMPLE'
+    'con filas descartadas, «vencido» pasa a NO_EVALUABLE por CONFIGURATION (la descartada puede ser la prueba que falta)',
+    vencidoConDescartes.evidencia('EV-02')?.status === 'NO_EVALUABLE' && vencidoConDescartes.evidencia('EV-02')?.gapCause === 'CONFIGURATION' && /No se puede afirmar/.test(vencidoConDescartes.de('EV-02')),
+    `${estado(vencidoConDescartes, 'EV-02')} ${vencidoConDescartes.de('EV-02')}`
+  );
+  comprueba(
+    'pero una deficiencia abierta fuera de plazo (algo PRESENTE) sigue mandando: NO_CUMPLE',
+    evalua(hoy(l => fila('continuity_deficiency_recorded', x => x.deficiencia_id === 'DEF-2026-04', { plazo: '2026-10-01' })(descarta(l)))).evidencia('EV-05')?.status === 'NO_CUMPLE'
+  );
+  comprueba(
+    'y una discrepancia medida en EV-04, también',
+    evalua(hoy(l => fila('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(descarta(l)))).evidencia('EV-04')?.status === 'NO_CUMPLE'
+  );
+  const declaraConDescartes = evalua(hoy(l =>
+    fila('continuity_test_recorded', simulacro, { deficiencias: 3 })(l.event === 'continuity_deficiency_register_read' ? { ...l, filas_invalidas: 1, lineas_invalidas: '9:plazo' } : l)
+  ));
+  comprueba(
+    '«declara 3, sigue 1» con una fila descartada en el registro de deficiencias → NO_EVALUABLE por CONFIGURATION',
+    declaraConDescartes.evidencia('EV-05')?.status === 'NO_EVALUABLE' && declaraConDescartes.evidencia('EV-05')?.gapCause === 'CONFIGURATION',
+    `${estado(declaraConDescartes, 'EV-05')} ${declaraConDescartes.de('EV-05')}`
   );
 
   // Faltan las alertas de un día de la ventana del simulacro (rotadas).
@@ -685,6 +706,54 @@ bloque('11. Celdas con gramática estricta; el hueco de una prueba no tapa lo me
     pendienteCorta.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /todavía no se sabe/.test(pendienteCorta.de('EV-04')),
     `${estado(pendienteCorta, 'EV-04')} ${pendienteCorta.de('EV-04')}`
   );
+}
+
+// --- 11 bis. filas perdidas, repetidas o mal formadas ---------------------------
+
+bloque('11 bis. Filas perdidas por el camino, repetidas o con celdas que no se entienden');
+
+{
+  const perdida = evalua(hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l)));
+  comprueba(
+    'la lectura anuncia 3 pruebas y llegan 2 → NO_EVALUABLE por RECOGIDA, diciendo cuántas faltan',
+    perdida.evidencia('EV-01')?.status === 'NO_EVALUABLE' && perdida.evidencia('EV-01')?.gapCause === 'COLLECTION' && /faltan 1/.test(perdida.de('EV-01')),
+    `${estado(perdida, 'EV-01')} ${perdida.de('EV-01')}`
+  );
+  comprueba(
+    'y con una prueba perdida, «escenario nunca probado» no se afirma',
+    evalua(hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l))).evidencia('EV-02')?.status === 'NO_EVALUABLE'
+  );
+
+  const def04 = pasada().find(l => l.deficiencia_id === 'DEF-2026-04')!;
+  const repetida = evalua(
+    hoy(fila('continuity_test_recorded', simulacro, { deficiencias: 2 }), [{ ...def04 }])
+  );
+  comprueba(
+    'una deficiencia repetida en la pasada cuenta una vez: el simulacro declara 2 y se sigue 1 → NO_CUMPLE',
+    repetida.evidencia('EV-05')?.status === 'NO_CUMPLE' && /declara 2, en seguimiento 1/.test(repetida.de('EV-05')),
+    `${estado(repetida, 'EV-05')} ${repetida.de('EV-05')}`
+  );
+  const pruebaRepetida = evalua(hoy(undefined, [pasada().find(l => l.event === 'continuity_test_recorded' && l.linea === 4)!]));
+  comprueba('una prueba repetida en la pasada no descuadra nada → CUMPLE', pruebaRepetida.requisito().status === 'CUMPLE', pruebaRepetida.motivo());
+
+  const resultado = evalua(hoy(fila('continuity_test_recorded', simulacro, { resultado: 'ok' })));
+  comprueba(
+    'un resultado fuera del vocabulario («ok») → la fila no se interpreta: RECOGIDA, nombrando línea y columna',
+    resultado.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /línea 4 \(resultado «ok»\)/.test(resultado.de('EV-01')),
+    `${estado(resultado, 'EV-01')} ${resultado.de('EV-01')}`
+  );
+  const deficiencias = evalua(hoy(fila('continuity_test_recorded', simulacro, { deficiencias: 'tres' })));
+  comprueba('unas deficiencias que no son un número («tres») → igual', /deficiencias «tres»/.test(deficiencias.de('EV-01')), deficiencias.de('EV-01'));
+
+  const sinCierre = evalua(hoy(fila('continuity_deficiency_recorded', l => l.deficiencia_id === 'DEF-2026-03', { cierre: '-' })));
+  comprueba(
+    'DEF-2026-03 «cerrada» sin fecha de cierre se juzga abierta: su plazo del 31/08 venció → NO_CUMPLE',
+    sinCierre.evidencia('EV-05')?.status === 'NO_CUMPLE' && /DEF-2026-03 .*declarada cerrada sin fecha de cierre: se juzga abierta/.test(sinCierre.de('EV-05')),
+    sinCierre.de('EV-05')
+  );
+  const cierreFuturo = evalua(hoy(fila('continuity_deficiency_recorded', l => l.deficiencia_id === 'DEF-2026-03', { cierre: '2026-12-01' })));
+  comprueba('«cerrada» con un cierre posterior a la lectura (01/12) → abierta, y vencida: NO_CUMPLE', cierreFuturo.evidencia('EV-05')?.status === 'NO_CUMPLE' && /posterior a la lectura/.test(cierreFuturo.de('EV-05')), cierreFuturo.de('EV-05'));
+  comprueba('REVERSIÓN: cerrada el 28/08 → CUMPLE', evalua(hoy()).evidencia('EV-05')?.status === 'CUMPLE');
 }
 
 // --- 12. foco: los plazos, en el instante de la lectura --------------------------------

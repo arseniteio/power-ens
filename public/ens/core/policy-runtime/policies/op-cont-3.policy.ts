@@ -112,6 +112,7 @@ const REGISTRO_DEFICIENCIAS = 'Registro ENSFácil (/etc/ensfacil/continuity-defi
 // verdad los medios alternativos.
 const TIPOS = ['revision_documental', 'escritorio', 'parcial', 'simulacro'];
 const EJERCITAN = ['parcial', 'simulacro'];
+const RESULTADOS = ['satisfactorio', 'parcial', 'fallido'];
 
 // P-02 admite meses o el nombre de la periodicidad.
 const PERIODICIDADES: Record<string, number> = {
@@ -186,6 +187,8 @@ interface Registro {
   t: number;
   fichero: string;
   filas: ENSNormalizedEvent[];
+  // Las filas válidas que el recolector dice haber emitido en esa lectura.
+  declaradas?: number;
   invalidas: number;
   lineas: string[];
 }
@@ -235,6 +238,7 @@ const leeRegistro = (
     t,
     fichero,
     filas: validos(context, tipoFila, ahora).filter(e => momento(e) >= t - MISMA_PASADA && momento(e) <= t + HORA),
+    declaradas: numero(campo(leido, 'filas')),
     invalidas: numero(campo(leido, 'filas_invalidas')) || 0,
     lineas: listaDe(campo(leido, 'lineas_invalidas')),
   };
@@ -251,6 +255,45 @@ const filasDescartadas = (reg: Registro, nombre: string): Medida | undefined =>
         'CONFIGURATION'
       )
     : undefined;
+
+// Cada fila una vez, por su clave (`inicio` de la prueba, `deficiencia_id`): un
+// hecho repetido en la misma pasada no cuenta doble.
+const unaPorClave = (filasLeidas: ENSNormalizedEvent[], clave: (e: ENSNormalizedEvent) => string): ENSNormalizedEvent[] => {
+  const vistas = new Set<string>();
+
+  return filasLeidas.filter(e => {
+    const k = clave(e);
+
+    if (vistas.has(k)) {
+      return false;
+    }
+
+    vistas.add(k);
+
+    return true;
+  });
+};
+
+// Las filas que la lectura anunció y no han llegado (una línea perdida por
+// logcollector, una alerta que el indexer rechazó): sin ellas el registro no
+// está entero.
+const filasPerdidas = (reg: Registro, recibidas: number, nombre: string): Medida | undefined =>
+  reg.declaradas !== undefined && recibidas < reg.declaradas
+    ? sinMedir(
+        `El recolector leyó ${reg.declaradas} fila(s) válidas en el registro de ${nombre} ${reg.fichero} y solo han llegado ${recibidas}: faltan ${reg.declaradas - recibidas}, y una fila perdida puede ser justo la que falta.`,
+        'COLLECTION'
+      )
+    : undefined;
+
+// Un hallazgo que se apoya en una AUSENCIA («nunca probado», «vencido»,
+// «vacío», «declara N y sigue k») no se puede afirmar si al registro le faltan
+// filas: la que falta puede ser la que lo desmiente. Pasa a NO_EVALUABLE con la
+// causa del hueco. Lo que se apoya en algo PRESENTE (una deficiencia abierta
+// fuera de plazo, una discrepancia medida) sigue mandando.
+const porAusencia = (medida: Medida, incompleto: Medida | undefined): Medida =>
+  medida.estado === 'NO_CUMPLE' && incompleto
+    ? sinMedir(`${medida.motivo} No se puede afirmar: ${incompleto.motivo.charAt(0).toLowerCase()}${incompleto.motivo.slice(1)}`, incompleto.causa)
+    : medida;
 
 // P-04 o P-05: dónde se registra. Solo se sabe leer el registro propio.
 const declaraRegistro = (
@@ -297,20 +340,30 @@ interface Prueba {
 
 const describe = (p: Prueba): string => `${p.tipo} del ${iso(p.inicio)}${vacio(p.escenario) ? '' : ` («${p.escenario}»)`}`;
 
-// Las filas del registro de pruebas. El recolector ya validó el formato: una
-// fila que aun así no se entiende es un fallo de RECOGIDA, y se nombra.
-const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[] } => {
+// Las filas del registro de pruebas, una por `inicio`. El recolector ya validó
+// el formato: una fila que aun así no se entiende es un fallo de RECOGIDA, y se
+// nombra con la columna que falla.
+const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; recibidas: number } => {
   const pruebas: Prueba[] = [];
   const malas: string[] = [];
+  const unicas = unaPorClave(reg.filas, e => String(instante(campo(e, 'inicio')) ?? campo(e, 'inicio')));
 
-  reg.filas.forEach(e => {
+  unicas.forEach(e => {
     const inicio = instante(campo(e, 'inicio'));
     const fin = instante(campo(e, 'fin'));
     const tipo = campo(e, 'tipo');
     const linea = campo(e, 'linea') || '?';
+    const texto = campo(e, 'deficiencias');
+    const mal = [
+      inicio === undefined ? `inicio «${campo(e, 'inicio')}»` : '',
+      fin === undefined || (inicio !== undefined && fin < inicio) ? `fin «${campo(e, 'fin')}»` : '',
+      !TIPOS.includes(tipo) ? `tipo «${tipo}»` : '',
+      !RESULTADOS.includes(campo(e, 'resultado')) ? `resultado «${campo(e, 'resultado')}»` : '',
+      !/^\d+$/.test(texto) ? `deficiencias «${texto}»` : '',
+    ].filter(Boolean);
 
-    if (inicio === undefined || fin === undefined || fin < inicio || !TIPOS.includes(tipo)) {
-      malas.push(`línea ${linea} (inicio «${campo(e, 'inicio')}», fin «${campo(e, 'fin')}», tipo «${tipo}»)`);
+    if (mal.length || inicio === undefined || fin === undefined) {
+      malas.push(`línea ${linea} (${mal.join(', ')})`);
 
       return;
     }
@@ -324,7 +377,7 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[] } => {
       escenario: campo(e, 'escenario'),
       sistemas: listaDe(campo(e, 'sistemas')),
       resultado: campo(e, 'resultado'),
-      deficiencias: numero(campo(e, 'deficiencias')),
+      deficiencias: Number(texto),
       referencia: campo(e, 'referencia'),
       medicion: campo(e, 'medicion'),
       medidoHasta: instante(campo(e, 'medido_hasta')),
@@ -332,7 +385,7 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[] } => {
     });
   });
 
-  return { pruebas: pruebas.sort((a, b) => a.inicio - b.inicio), malas };
+  return { pruebas: pruebas.sort((a, b) => a.inicio - b.inicio), malas, recibidas: unicas.length };
 };
 
 const filasIlegibles = (malas: string[], nombre: string): Medida | undefined =>
@@ -349,6 +402,9 @@ interface BasePruebas {
   hechas: Prueba[];
   // Lo que no impide juzgar pero impide dar el registro por bueno.
   reparos: Medida[];
+  // Lo mismo, en una medida: si existe, los hallazgos por ausencia no se
+  // afirman (`porAusencia`).
+  incompleto?: Medida;
 }
 
 const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string): BasePruebas | Medida => {
@@ -372,10 +428,18 @@ const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string
     return reg;
   }
 
-  const { pruebas, malas } = pruebasDe(reg);
-  const reparos = [filasDescartadas(reg, 'pruebas'), filasIlegibles(malas, 'pruebas')].filter((m): m is Medida => Boolean(m));
+  const { pruebas, malas, recibidas } = pruebasDe(reg);
+  const reparos = [filasDescartadas(reg, 'pruebas'), filasPerdidas(reg, recibidas, 'pruebas'), filasIlegibles(malas, 'pruebas')].filter(
+    (m): m is Medida => Boolean(m)
+  );
 
-  return { reg, pruebas, hechas: pruebas.filter(p => p.fin <= reg.t), reparos };
+  return {
+    reg,
+    pruebas,
+    hechas: pruebas.filter(p => p.fin <= reg.t),
+    reparos,
+    ...(reparos.length ? { incompleto: combina(reparos) } : {}),
+  };
 };
 
 // Las que aún no han terminado al leer el registro: no cuentan, pero se dicen.
@@ -515,8 +579,11 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!b.hechas.length) {
     partes.push(
-      noCumple(
-        `El registro de pruebas ${b.reg.fichero} está leído (${iso(b.reg.t)}) y no consta ninguna prueba realizada del plan de continuidad: el control queda sin cumplimiento acreditable.${pendientes(b)}`
+      porAusencia(
+        noCumple(
+          `El registro de pruebas ${b.reg.fichero} está leído (${iso(b.reg.t)}) y no consta ninguna prueba realizada del plan de continuidad: el control queda sin cumplimiento acreditable.${pendientes(b)}`
+        ),
+        b.incompleto
       )
     );
 
@@ -547,8 +614,11 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   if (!reales.length) {
     partes.push(
-      noCumple(
-        `Las ${b.hechas.length} pruebas registradas son solo revisiones documentales o de escritorio (${porTipo}): ninguna ejercita realmente los medios alternativos (parcial o simulacro).`
+      porAusencia(
+        noCumple(
+          `Las ${b.hechas.length} pruebas registradas son solo revisiones documentales o de escritorio (${porTipo}): ninguna ejercita realmente los medios alternativos (parcial o simulacro).`
+        ),
+        b.incompleto
       )
     );
   } else {
@@ -585,7 +655,7 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (!b.hechas.length) {
-    partes.push(noCumple(`No consta ninguna prueba realizada en el registro: la periodicidad de ${p01.meses} meses (P-01) no se cumple.`));
+    partes.push(porAusencia(noCumple(`No consta ninguna prueba realizada en el registro: la periodicidad de ${p01.meses} meses (P-01) no se cumple.`), b.incompleto));
 
     return combina(partes);
   }
@@ -639,7 +709,9 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (fuera.length) {
-    partes.push(noCumple(`Pruebas fuera de periodicidad a ${fecha(t)}, cuando se leyó el registro: ${lista(fuera, 8)}.`));
+    // «Nunca» y «vencido» son ausencias: una fila perdida puede ser la prueba
+    // que falta.
+    partes.push(porAusencia(noCumple(`Pruebas fuera de periodicidad a ${fecha(t)}, cuando se leyó el registro: ${lista(fuera, 8)}.`), b.incompleto));
   } else {
     const proximo = Math.min(...vencimientos);
 
@@ -1025,23 +1097,34 @@ interface Deficiencia {
   cierre: string;
   versionPlan: string;
   responsable: string;
+  // Declarada cerrada sin un cierre válido y ya ocurrido: se juzga abierta.
+  nota: string;
 }
 
-const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[] } => {
+// Las filas del registro de deficiencias, una por `deficiencia_id`. Una
+// `cerrada` sin fecha de cierre, o con un cierre posterior a la lectura, no
+// está cerrada: se juzga como abierta y se dice.
+const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[]; recibidas: number } => {
   const salida: Deficiencia[] = [];
   const malas: string[] = [];
+  const unicas = unaPorClave(reg.filas, e => campo(e, 'deficiencia_id'));
 
-  reg.filas.forEach(e => {
+  unicas.forEach(e => {
     const prueba = instante(campo(e, 'prueba_inicio'));
-    const situacion = campo(e, 'situacion');
+    const declarada = campo(e, 'situacion');
     const vence = vencimiento(campo(e, 'plazo'));
     const id = campo(e, 'deficiencia_id');
+    const cierre = vencimiento(campo(e, 'cierre'));
 
-    if (!id || prueba === undefined || !['abierta', 'cerrada'].includes(situacion) || vence === undefined) {
+    if (!id || prueba === undefined || !['abierta', 'cerrada'].includes(declarada) || vence === undefined) {
       malas.push(`línea ${campo(e, 'linea') || '?'} (${id || 'sin id'})`);
 
       return;
     }
+
+    // `vencimiento` da el FINAL del día: el cierre ocurrió al empezar ese día.
+    const cerradaDeVerdad = declarada === 'cerrada' && cierre !== undefined && cierre - DIA <= reg.t;
+    const situacion = declarada === 'cerrada' && !cerradaDeVerdad ? 'abierta' : declarada;
 
     salida.push({
       id,
@@ -1049,6 +1132,10 @@ const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[] 
       prueba,
       pruebaTexto: campo(e, 'prueba_inicio'),
       situacion,
+      nota:
+        declarada !== situacion
+          ? ` (declarada cerrada ${cierre === undefined ? 'sin fecha de cierre' : `con cierre el ${campo(e, 'cierre')}, posterior a la lectura`}: se juzga abierta)`
+          : '',
       vence,
       plazo: campo(e, 'plazo'),
       cierre: campo(e, 'cierre'),
@@ -1057,13 +1144,14 @@ const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[] 
     });
   });
 
-  return { lista: salida, malas };
+  return { lista: salida, malas, recibidas: unicas.length };
 };
 
 interface BaseDeficiencias {
   reg: Registro;
   deficiencias: Deficiencia[];
   reparos: Medida[];
+  incompleto?: Medida;
 }
 
 const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: string): BaseDeficiencias | Medida => {
@@ -1087,10 +1175,14 @@ const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: s
     return reg;
   }
 
-  const { lista: deficiencias, malas } = deficienciasDe(reg);
-  const reparos = [filasDescartadas(reg, 'deficiencias'), filasIlegibles(malas, 'deficiencias')].filter((m): m is Medida => Boolean(m));
+  const { lista: deficiencias, malas, recibidas } = deficienciasDe(reg);
+  const reparos = [
+    filasDescartadas(reg, 'deficiencias'),
+    filasPerdidas(reg, recibidas, 'deficiencias'),
+    filasIlegibles(malas, 'deficiencias'),
+  ].filter((m): m is Medida => Boolean(m));
 
-  return { reg, deficiencias, reparos };
+  return { reg, deficiencias, reparos, ...(reparos.length ? { incompleto: combina(reparos) } : {}) };
 };
 
 const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
@@ -1111,7 +1203,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (vencidas.length) {
     partes.push(
       noCumple(
-        `Deficiencias abiertas fuera de plazo a ${fecha(t)}: ${lista(vencidas.map(x => `${x.id} (prueba del ${fecha(x.prueba)}, plazo ${x.plazo}, ${x.responsable || 'sin responsable'})`))}. Probar sin corregir no cumple.`
+        `Deficiencias abiertas fuera de plazo a ${fecha(t)}: ${lista(vencidas.map(x => `${x.id} (prueba del ${fecha(x.prueba)}, plazo ${x.plazo}, ${x.responsable || 'sin responsable'})${x.nota}`))}. Probar sin corregir no cumple.`
       )
     );
   }
@@ -1155,10 +1247,15 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
       .map(p => ({ p, seguidas: d.deficiencias.filter(x => x.prueba === p.inicio).length }))
       .filter(v => v.seguidas < (v.p.deficiencias as number));
 
+    // Una ausencia en el registro de deficiencias: con filas perdidas o
+    // descartadas no se afirma.
     if (sinSeguir.length) {
       partes.push(
-        noCumple(
-          `Pruebas${meses !== undefined ? ` del periodo de P-01 (${meses} meses)` : ''} que declaran más deficiencias de las que el registro sigue: ${lista(sinSeguir.map(v => `${describe(v.p)}: declara ${v.p.deficiencias}, en seguimiento ${v.seguidas}`))}. Una deficiencia localizada y no registrada no se corrige.`
+        porAusencia(
+          noCumple(
+            `Pruebas${meses !== undefined ? ` del periodo de P-01 (${meses} meses)` : ''} que declaran más deficiencias de las que el registro sigue: ${lista(sinSeguir.map(v => `${describe(v.p)}: declara ${v.p.deficiencias}, en seguimiento ${v.seguidas}`))}. Una deficiencia localizada y no registrada no se corrige.`
+          ),
+          d.incompleto
         )
       );
     }
