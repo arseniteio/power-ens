@@ -14,7 +14,7 @@ export const opMon1CatalogDefinition: ENSControlDefinition = {
   description:
     'op.mon.1 es uno de los controles que Wazuh cubre por naturaleza: es un HIDS con motor de reglas, de modo que el requisito base y R1 quedan satisfechos con el propio despliegue.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §1.3),
   // no las que la plantilla asocia: op.mon.1.1 se decide con EV-01 a EV-05 y R1

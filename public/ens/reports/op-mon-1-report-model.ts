@@ -73,25 +73,37 @@ const field = (
   producerGaps,
 });
 
+const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
+
 /**
  * Modelo de informe de op.mon.1 (Detección de intrusión).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
+ *
+ * Sale de la hoja «Informe ENSFácil» de la plantilla, ajustado al juicio de la
+ * policy (`policies/op-mon-1.policy.ts`):
+ *
+ *   - R2 es documental: su campo enseña si está ACREDITADO DOCUMENTALMENTE
+ *     (P-05 o P-ATT), nunca como medido. Que cada alerta se tratara conforme a
+ *     su procedimiento (EV-06) es un dato del informe que mide op.exp.7.
+ *   - R3 no se exige en ninguna categoría: su campo sale NO_APLICA y enseña la
+ *     cobertura DE HECHO que la policy ha medido (variable
+ *     `cobertura_de_hecho_R3`), que acredita el enunciado general del bloque.
+ *   - La vigencia del ruleset y las exclusiones (EV-08) son de R1: en BÁSICA no
+ *     aplican.
  */
 export const buildOpMon1ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpMon1ReportModel => {
-  const parameters = new Map(
-    (result?.parameters || []).map(parameter => [parameter.id, parameter]),
-  );
-
   const evidences = new Map(
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
   );
 
-  const parameterValue = (parameterId: string): unknown =>
-    parameters.get(parameterId)?.value;
+  const requirements = new Map(
+    (result?.requirements || []).map(requirement => [requirement.id, requirement]),
+  );
+
+  const variables = new Map(
+    (result?.policyRuntime?.runtimeVariables || []).map(variable => [variable.name, variable]),
+  );
 
   const evidenceStatus = (evidenceId: string): OpMon1ReportFieldStatus =>
     asStatus(evidences.get(evidenceId)?.status);
@@ -107,8 +119,10 @@ export const buildOpMon1ReportModel = (
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'],
-    evidenceObservations('EV-01'),
+    ALL_EVIDENCES,
+    (result?.requirements || [])
+      .filter(requirement => requirement.status !== 'NO_APLICA')
+      .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
   );
 
   // Capacidad de detección desplegada  ·  fuente: Wazuh HIDS (EV-01)
@@ -116,7 +130,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo2',
     'Capacidad de detección desplegada',
     evidenceStatus('EV-01'),
-    'Descripción de la capacidad: tipo de detección (host y, si aplica, red), conjuntos de reglas activos con su ve',
+    'Motor de reglas del manager: servicio activo, eventos procesados entre pasadas, versión de Wazuh, reglas cargadas y con técnica MITRE ATT&CK; desde MEDIA, los conjuntos de reglas de P-03. Es la acreditación conjunta del requisito base y de R1.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +140,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo3',
     'Cobertura de la detección',
     evidenceStatus('EV-02'),
-    'Por cada sistema de P-01: agente desplegado, estado, fecha de último contacto y módulos de análisis activos. P',
+    'Por cada sistema de P-01: su agente, estado de conexión, último contacto y la última pasada de FIM y de SCA frente a P-10. Relación nominal de los sistemas sin detección efectiva.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +150,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo4',
     'Detecciones del período',
     evidenceStatus('EV-03'),
-    'Detecciones generadas agrupadas por categoría de amenaza y severidad, con su mapeo a técnicas MITRE ATT&CK. To',
+    'Por cada sistema de P-01 conectado: su última detección, las alertas y el nivel máximo de las últimas 24 h, las reglas distintas y las técnicas MITRE ATT&CK. Un sistema activo sin detecciones en P-09 días es un hallazgo.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -146,7 +160,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo5',
     'Cobertura del análisis de riesgos',
     evidenceStatus('EV-04'),
-    'Matriz que cruza cada situación de compromiso de P-04 con las reglas de detección que la cubren. Relación expl',
+    'Matriz que cruza cada situación de compromiso de P-04 con las reglas cargadas que la detectan. Las situaciones sin regla, o con reglas que el manager no carga, son los puntos ciegos declarados del control.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -156,7 +170,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo6',
     'Detección en red',
     evidenceStatus('EV-05'),
-    'Si P-02 = sí: eventos del NIDS ingeridos, detecciones de red y correlaciones establecidas con actividad en hos',
+    'Si P-02 la exige: los NIDS cuyos eventos ingiere el manager, por dónde llegan y su última alerta frente a P-09. Si no la exige: la referencia del análisis de riesgos que lo justifica.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -166,7 +180,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo7',
     'Vigencia del conjunto de reglas',
     evidenceStatus('EV-08'),
-    'Versión del ruleset, fecha de última actualización y días transcurridos. Histórico de actualizaciones. Es el e',
+    'Versión del ruleset, fecha de su fichero de reglas más reciente y días transcurridos frente a P-08. Es el equivalente, para un sistema de detección, a la antigüedad de las firmas de un antivirus.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -176,31 +190,37 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo8',
     'Exclusiones y afinación',
     evidenceStatus('EV-08'),
-    'Inventario de reglas excluidas o silenciadas con su justificación, quién lo autorizó y su fecha. Revisión de l',
+    'Ficheros de reglas excluidos y reglas reescritas a nivel 0 en el manager, cada uno contra P-06: su motivo y quién lo aprobó. Un silenciamiento sin constancia es un hallazgo de R1.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
 
-  // Tratamiento de alertas conforme a procedimiento (R2)  ·  fuente: ENSFácil + ITSM (EV-06)
+  // Tratamiento de alertas conforme a procedimiento (R2)  ·  fuente: P-05 / P-ATT (+ EV-06, dato del informe)
+  const r2 = requirements.get('op.mon.1.r2.1');
   const campo9 = field(
     'op.mon.1.campo9',
-    'Tratamiento de alertas conforme a procedimiento (R2)',
-    level === 'ALTO'
-      ? evidenceStatus('EV-06')
-      : 'NO_APLICA',
-    'Por cada alerta de severidad relevante: procedimiento de respuesta que le correspondía según P-05, si fue apli',
+    'Procedimientos de respuesta a las alertas (R2)',
+    level === 'ALTO' ? asStatus(r2?.status) : 'NO_APLICA',
+    level !== 'ALTO'
+      ? 'R2 solo se exige en categoría ALTA.'
+      : r2?.attested
+      ? 'Acreditado documentalmente: procedimientos de respuesta declarados (P-05 o P-ATT). Es una declaración, no una medida.'
+      : 'Sin acreditar: no constan procedimientos de respuesta completos en P-05 ni una atestación en P-ATT.',
     ['EV-06'],
-    evidenceObservations('EV-06'),
+    [...(r2?.observations || []), ...evidenceObservations('EV-06')],
   );
 
   // Acciones predeterminadas ejecutadas (R3)  ·  fuente: Active Response (EV-07)
+  const r3 = variables.get('cobertura_de_hecho_R3');
   const campo10 = field(
     'op.mon.1.campo10',
     'Acciones predeterminadas ejecutadas (R3)',
-    evidenceStatus('EV-07'),
-    'Si P-07 está configurado: acciones automáticas disparadas con la regla de origen, el objetivo, el resultado y',
+    'NO_APLICA',
+    r3
+      ? `R3 no es exigible en ninguna categoría. Cobertura de hecho: ${formatValue(r3.value)}.`
+      : 'R3 no es exigible en ninguna categoría.',
     ['EV-07'],
-    evidenceObservations('EV-07'),
+    [...(r3 ? [r3.description] : []), ...evidenceObservations('EV-07')],
   );
 
   // Puntuación de cumplimiento op.mon.1  ·  fuente: Motor ENSFácil
@@ -208,9 +228,16 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo11',
     'Puntuación de cumplimiento op.mon.1',
     asStatus(result?.status),
-    formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'],
-    evidenceObservations('EV-01'),
+    typeof result?.score === 'number' ? `${result.score} %` : formatValue(result?.status),
+    ALL_EVIDENCES,
+    [
+      ...(result?.requirements || []).map(requirement =>
+        requirement.status === 'NO_APLICA'
+          ? `${requirement.id}: no aplica`
+          : `${requirement.id}: ${requirement.status}${requirement.attested ? ', acreditado documentalmente (no se satisface con la herramienta)' : requirement.evidenced === false ? ', no demostrado' : ''}`,
+      ),
+      r3 ? `op.mon.1.r3.1 (no exigible): cobertura de hecho ${formatValue(r3.value)}` : '',
+    ],
   );
 
   return {

@@ -1,29 +1,1408 @@
-import { ENSPolicyDefinition } from '../types';
+// op.mon.1 · Detección de intrusión
+//
+// Por qué este control tiene policy propia. Es el control que Wazuh cubre por
+// existir, y por eso el diseño (spec 2026-10-09 §1) mide lo que la plantilla
+// pide de verdad: que la detección cubra los sistemas declarados, que produzca
+// resultado, que responda al análisis de riesgos, que su ruleset esté vigente y
+// que sus exclusiones consten. Nada de eso cabe en una primitiva:
+//
+//   1. TODO SE MIDE EN EL MANAGER y los hechos hablan de OTROS sistemas. El
+//      recolector del manager (agent.id=000) emite una fila por agente con su
+//      campo `agente`, así que cada fila de P-01 se cruza con su hecho por ID o
+//      por nombre exacto (EV-02, EV-03). Un agente que no está en P-01 —uno de
+//      prueba, uno dado de baja— no cuenta; uno que está en P-01 y no se
+//      encuentra, o casa con dos agentes, se dice.
+//   2. CRUCES ENTRE TABLAS: cada situación de P-04 contra los rangos de ids de
+//      las reglas cargadas (EV-04); EV-05 solo si P-02 exige detección en red;
+//      cada silenciamiento contra P-06 (EV-08).
+//   3. LA SERIE: que el motor procesa se ve comparando sus contadores entre dos
+//      pasadas (EV-01).
+//
+// Qué decide cada requisito (spec §1.3):
+//
+//   op.mon.1.1     EV-01 (motor activo, procesando, con reglas), EV-02, EV-03,
+//                  EV-04 y EV-05.
+//   op.mon.1.r1.1  EV-01 con los conjuntos de P-03 cargados, y EV-08 con sus
+//                  dos ejes (antigüedad contra P-08; silenciamientos contra
+//                  P-06), combinados como en op.exp.8.
+//   op.mon.1.r2.1  documental: la tabla de procedimientos de P-05, con cada
+//                  fila completa, lo acredita con la marca `attested` (en
+//                  pantalla, «acreditado documentalmente»). Sin P-05, queda sin
+//                  medir y lo puede acreditar P-ATT, porque el catálogo lo
+//                  declara sin evidencias.
+//   op.mon.1.r3.1  no se exige en ninguna categoría: EV-07 se mide y se
+//                  INFORMA, sin veredicto (NO_APLICA con lo que hay).
+//
+// EV-06 queda en el catálogo sin requisito que la juzgue: sale NO_APLICA con
+// el motivo «dato del informe» para que no se pinte en gris.
+//
+// Invariantes, las de `evidence/judgment.ts`:
+//   - el recolector emite instantes y recuentos, no edades: toda antigüedad se
+//     mide aquí contra `context.now`;
+//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo y causa; nunca un
+//     CUMPLE por ausencia;
+//   - lo que el recolector declara que no pudo medir (evidence_state
+//     NO_EVALUABLE) sale NO_EVALUABLE con SU motivo y SU causa;
+//   - la policy nunca inventa política: ningún plazo, umbral o lista tiene
+//     valor por defecto.
+//
+// Solo se emiten decisiones de los requisitos que aplican al nivel (la
+// categoría del sistema): una decisión de R1 en BÁSICA no cuenta para el
+// requisito, pero el puente la llevaría a la tabla de evidencias.
+//
+// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
+// ciclo del TDZ de Settings.
+import type {
+  ENSPolicyContext,
+  ENSPolicyDecision,
+  ENSPolicyDefinition,
+  ENSPolicyEvaluatorResult,
+  ENSRuntimeVariable,
+} from '../types';
+import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
+import type { ENSNormalizedEvent } from '../../data-source/types';
+import type { ENSControlParameter } from '../../../configuration/types';
+import {
+  toParameterTableRows,
+  toTableRowCells,
+} from '../../../configuration/services/parameter-value-validator';
+
+const CONTROL = 'op.mon.1';
+const POLICY = 'policy.op.mon.1';
+
+const HORA = 60 * 60 * 1000;
+const DIA = 24 * HORA;
+
+// Frescura de un hecho de estado. El recolector pasa cada hora (el motor) y
+// cada 6 h (lo demás) y reemite el estado entero: 26 h tolera tres pasadas
+// completas perdidas sin convertir una foto vieja en la situación de hoy. Es
+// tolerancia de OBSERVACIÓN, no política.
+const FRESCURA_HORAS = 26;
+
+// Un hecho del futuro no acredita nada (misma tolerancia de reloj que el latido).
+const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+
+// Hechos de una misma pasada: el recolector los emite en pocos segundos.
+const MISMA_PASADA = 5 * 60 * 1000;
+
+// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
+type Medida = {
+  estado: Exclude<ENSComplianceStatus, 'PARCIAL'>;
+  motivo: string;
+  causa?: ENSGapCause;
+};
+
+const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
+const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
+// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
+// hechos lo dicen expresamente (`faltaParametro`, `sinHechos`), y lo que el
+// recolector declara llega con SU causa (`degradacion`).
+const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+  estado: 'NO_EVALUABLE',
+  motivo,
+  causa,
+});
+const noAplica = (motivo: string): Medida => ({ estado: 'NO_APLICA', motivo });
+
+// La causa de varias medidas sin medir, con el mismo orden que el motor
+// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
+// dice alguna; si no, EVIDENCE.
+const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
+  const causas = medidas
+    .filter(m => m.estado === 'NO_EVALUABLE')
+    .map(m => m.causa || 'EVIDENCE');
+
+  if (!causas.length) {
+    return undefined;
+  }
+
+  if (causas.every(c => c === 'COLLECTION')) {
+    return 'COLLECTION';
+  }
+
+  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+};
+
+const GRAVEDAD: Record<Medida['estado'], number> = {
+  NO_APLICA: -1,
+  CUMPLE: 0,
+  NO_EVALUABLE: 1,
+  NO_CUMPLE: 2,
+};
+
+// El peor estado de las medidas; NO_APLICA solo si todas lo son.
+const peor = (medidas: Medida[]): Medida['estado'] => {
+  if (medidas.length && medidas.every(m => m.estado === 'NO_APLICA')) {
+    return 'NO_APLICA';
+  }
+
+  return medidas.reduce<Medida['estado']>(
+    (actual, medida) =>
+      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+    'CUMPLE'
+  );
+};
+
+// Varios ejes de una evidencia en una medida: el estado del peor, y en el
+// motivo lo que lo explica (lo que falla o falta; si todo cumple, lo medido).
+const combina = (partes: Medida[]): Medida => {
+  const estado = peor(partes);
+
+  if (estado === 'CUMPLE' || estado === 'NO_APLICA') {
+    return { estado, motivo: partes.map(p => p.motivo).join(' ') };
+  }
+
+  const responsables = partes.filter(p => p.estado === estado);
+  const ademas = partes
+    .filter(p => p.estado !== estado && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
+    .map(p => p.motivo);
+
+  return {
+    estado,
+    motivo: [...responsables.map(p => p.motivo), ...(ademas.length ? [`Además: ${ademas.join(' ')}`] : [])].join(' '),
+    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
+  };
+};
+
+// --- lectura de hechos -----------------------------------------------------
+
+// El normalizador parte un evento con `evidence_id=A,B` en uno por evidencia
+// (`<id>#A`, `<id>#B`). Aquí se juzga el HECHO, así que se cuenta una vez.
+const hechos = (
+  context: ENSPolicyContext,
+  tipo: string
+): ENSNormalizedEvent[] => {
+  const vistos = new Set<string>();
+
+  return context.events.filter(event => {
+    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+      return false;
+    }
+
+    const base = String(event.id || '').split('#')[0];
+
+    if (vistos.has(base)) {
+      return false;
+    }
+
+    vistos.add(base);
+
+    return true;
+  });
+};
+
+const campo = (event: ENSNormalizedEvent, nombre: string): string => {
+  const valor =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
+      ? event.attributes[nombre]
+      : undefined;
+
+  return valor === undefined || valor === null ? '' : String(valor).trim();
+};
+
+const numero = (texto: string): number | undefined => {
+  const limpio = String(texto).trim().replace(',', '.');
+
+  if (!/^[+-]?\d+(\.\d+)?$/.test(limpio)) {
+    return undefined;
+  }
+
+  const valor = Number(limpio);
+
+  return Number.isFinite(valor) ? valor : undefined;
+};
+
+const instante = (texto: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+    return undefined;
+  }
+
+  const valor = new Date(texto).getTime();
+
+  return Number.isFinite(valor) ? valor : undefined;
+};
+
+const momento = (event: ENSNormalizedEvent): number => {
+  const t = Date.parse(event.timestamp);
+
+  return Number.isNaN(t) ? 0 : t;
+};
+
+const lista = (elementos: string[], maximo = 5): string =>
+  elementos.length > maximo
+    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
+    : elementos.join('; ');
+
+const horas = (ms: number): string => (ms / HORA).toFixed(1);
+
+const dias = (ms: number): number => Math.floor(ms / DIA);
+
+const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
+
+const sinTildes = (texto: string): string =>
+  texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+
+const vacio = (texto: string): boolean => !texto || texto === '-';
+
+// Hechos válidos de un tipo (sin los del futuro), del más antiguo al más nuevo.
+const validos = (
+  context: ENSPolicyContext,
+  tipo: string,
+  ahora: number
+): ENSNormalizedEvent[] =>
+  hechos(context, tipo)
+    .filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO)
+    .sort((a, b) => momento(a) - momento(b));
+
+// Los hechos de estado de la ÚLTIMA pasada que los emitió, sin los del futuro.
+// Si la última es más vieja que FRESCURA_HORAS, no describen hoy.
+const estadoVigente = (
+  context: ENSPolicyContext,
+  tipo: string,
+  ahora: number
+): { vigentes: ENSNormalizedEvent[]; ultimo?: number } => {
+  const todos = validos(context, tipo, ahora);
+
+  if (!todos.length) {
+    return { vigentes: [] };
+  }
+
+  const ultimo = momento(todos[todos.length - 1]);
+
+  if (ahora - ultimo > FRESCURA_HORAS * HORA) {
+    return { vigentes: [], ultimo };
+  }
+
+  // La última pasada: lo emitido en la hora anterior al último hecho.
+  return {
+    vigentes: todos.filter(e => ultimo - momento(e) < HORA),
+    ultimo,
+  };
+};
+
+// Lo que el recolector declaró que no pudo medir de una evidencia, si es más
+// reciente que `despuesDe`, con la causa que ÉL declara. Sin causa declarada,
+// COLLECTION.
+const degradacion = (
+  context: ENSPolicyContext,
+  evidencia: string,
+  despuesDe = 0
+): Medida | undefined => {
+  const ultima = hechos(context, 'evidence_state')
+    .filter(
+      e =>
+        campo(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidencia) &&
+        String(e.status || campo(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
+        momento(e) >= despuesDe
+    )
+    .sort((a, b) => momento(b) - momento(a))[0];
+
+  if (!ultima) {
+    return undefined;
+  }
+
+  const declarada = campo(ultima, 'causa').toUpperCase();
+  const causa: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
+    ? (declarada as ENSGapCause)
+    : 'COLLECTION';
+
+  return sinMedir(
+    `El recolector no ha podido medirlo${declarada ? ` (${declarada})` : ''}: ${campo(ultima, 'motivo') || 'sin motivo declarado'}.`,
+    causa
+  );
+};
+
+const sinHechos = (
+  context: ENSPolicyContext,
+  evidencia: string,
+  ultimo: number | undefined,
+  queFalta: string
+): Medida =>
+  degradacion(context, evidencia) ||
+  sinMedir(
+    ultimo
+      ? `El último ${queFalta} es de ${iso(ultimo)}, hace más de ${FRESCURA_HORAS} h: el recolector de op.mon.1 del manager no está informando.`
+      : `No consta ningún ${queFalta}: el recolector de op.mon.1 no está desplegado en el manager o no informa.`,
+    'COLLECTION'
+  );
+
+// --- lectura de parámetros -------------------------------------------------
+
+const parametro = (
+  context: ENSPolicyContext,
+  id: string
+): ENSControlParameter | undefined =>
+  context.configuration?.parameters.find(p => p.id === id);
+
+const etiqueta = (context: ENSPolicyContext, id: string): string => {
+  const p = parametro(context, id);
+
+  return p ? `${id} (${p.label || p.name})` : id;
+};
+
+// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
+// adivina la posición: el parámetro se trata como no configurado.
+const filas = (
+  context: ENSPolicyContext,
+  id: string
+): Record<string, string>[] | undefined => {
+  const p = parametro(context, id);
+  const columnas = p?.columns || [];
+
+  if (!p || !columnas.length) {
+    return undefined;
+  }
+
+  const resultado = toParameterTableRows(p.value)
+    .map(fila => toTableRowCells(fila))
+    .filter(celdas => celdas.some(Boolean))
+    .map(celdas => {
+      const fila: Record<string, string> = {};
+
+      columnas.forEach((columna, i) => {
+        fila[columna.name] = (celdas[i] || '').trim();
+      });
+
+      return fila;
+    });
+
+  return resultado.length ? resultado : undefined;
+};
+
+const escalar = (context: ENSPolicyContext, id: string): number | undefined => {
+  const valor = parametro(context, id)?.value;
+
+  if (valor === undefined || valor === null || Array.isArray(valor)) {
+    return undefined;
+  }
+
+  const n = numero(String(valor));
+
+  return n !== undefined && n > 0 ? n : undefined;
+};
+
+const faltaParametro = (context: ENSPolicyContext, id: string, para: string): Medida =>
+  sinMedir(`${etiqueta(context, id)} está sin configurar: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
+
+const iguales = (a: string, b: string): boolean =>
+  a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// --- los sistemas de P-01 y sus agentes ------------------------------------
+//
+// Un sistema de P-01 es el NOMBRE o el ID de su agente. Se busca primero por ID
+// (un número, con o sin ceros a la izquierda: 24 es el agente 024) y después
+// por nombre EXACTO, sin distinguir mayúsculas. Nunca por parecido: un agente
+// de prueba que se llame «wazuh-real-old» no es «wazuh-real». Si el nombre casa
+// con dos agentes distintos, no se elige: se pide declararlo por ID.
+
+type Resolucion =
+  | { tipo: 'unico'; hecho: ENSNormalizedEvent }
+  | { tipo: 'ninguno' }
+  | { tipo: 'ambiguo'; ids: string[] };
+
+const idDeAgente = (texto: string): string | undefined =>
+  /^\d+$/.test(texto.trim()) ? texto.trim().padStart(3, '0') : undefined;
+
+const resuelve = (sistema: string, deAgentes: ENSNormalizedEvent[]): Resolucion => {
+  const id = idDeAgente(sistema);
+
+  if (id) {
+    const porId = deAgentes.find(e => campo(e, 'agente_id') === id);
+
+    if (porId) {
+      return { tipo: 'unico', hecho: porId };
+    }
+  }
+
+  const porNombre = deAgentes.filter(e => iguales(campo(e, 'agente'), sistema));
+  const ids = Array.from(new Set(porNombre.map(e => campo(e, 'agente_id'))));
+
+  if (ids.length === 1) {
+    return { tipo: 'unico', hecho: porNombre[0] };
+  }
+
+  return ids.length > 1 ? { tipo: 'ambiguo', ids } : { tipo: 'ninguno' };
+};
+
+const ambiguo = (sistema: string, ids: string[]): Medida =>
+  sinMedir(
+    `P-01 declara «${sistema}» y en el manager hay ${ids.length} agentes con ese nombre (${ids.join(', ')}): no se elige uno. Decláralo por su ID.`,
+    'CONFIGURATION'
+  );
+
+const nombreDe = (sistema: string, e: ENSNormalizedEvent): string => {
+  const id = campo(e, 'agente_id');
+  const agente = campo(e, 'agente');
+
+  return iguales(agente, sistema) ? `${sistema} (${id})` : `${sistema} (${agente}, ${id})`;
+};
+
+// Los agentes que el manager tiene registrados y P-01 no declara: no cuentan,
+// pero se dicen, para que un auditor vea qué queda fuera y en qué estado.
+const fueraDeP01 = (sistemas: Record<string, string>[], deAgentes: ENSNormalizedEvent[]): string => {
+  const dentro = new Set<string>();
+
+  sistemas.forEach(fila => {
+    const r = resuelve(fila.sistema, deAgentes);
+
+    if (r.tipo === 'unico') {
+      dentro.add(campo(r.hecho, 'agente_id'));
+    }
+  });
+
+  const fuera = deAgentes.filter(e => !dentro.has(campo(e, 'agente_id')));
+
+  if (!fuera.length) {
+    return '';
+  }
+
+  const desconectados = fuera.filter(e => campo(e, 'estado_conexion') && campo(e, 'estado_conexion') !== 'active');
+
+  return ` Fuera de P-01 hay ${fuera.length} agente(s) registrado(s)${
+    desconectados.length ? ` (${desconectados.length} sin conectar: ${lista(desconectados.map(e => `${campo(e, 'agente')} ${campo(e, 'agente_id')} ${campo(e, 'estado_conexion')}`))})` : ''
+  }, que no cuentan.`;
+};
+
+// --- rangos de ids -----------------------------------------------------------
+
+type Rango = [number, number];
+
+// '5700-5799,80790' (el hecho) o 'reglas 5710, 80790' (la celda de P-04).
+const rangos = (texto: string): Rango[] => {
+  const salida: Rango[] = [];
+  const patron = /(\d+)\s*-\s*(\d+)|(\d+)/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = patron.exec(texto)) !== null) {
+    if (m[3] !== undefined) {
+      const n = Number(m[3]);
+
+      salida.push([n, n]);
+    } else {
+      const a = Number(m[1]);
+      const b = Number(m[2]);
+
+      salida.push(a <= b ? [a, b] : [b, a]);
+    }
+  }
+
+  return salida;
+};
+
+const describeRango = ([a, b]: Rango): string => (a === b ? String(a) : `${a}-${b}`);
+
+const seCortan = ([a, b]: Rango, [c, d]: Rango): boolean => a <= d && c <= b;
+
+interface Conjunto {
+  conjunto: string;
+  ruta: string;
+  rangos: Rango[];
+  reglas?: number;
+  partes: number;
+  presentes: Set<number>;
+}
+
+// Los conjuntos de la última pasada, con sus partes unidas. Un conjunto con
+// tantos ids que no caben en una línea llega en varias (`parte`, `partes`).
+const conjuntosCargados = (vigentes: ENSNormalizedEvent[]): Conjunto[] => {
+  const porNombre = new Map<string, Conjunto>();
+
+  vigentes.forEach(e => {
+    const nombre = campo(e, 'conjunto');
+    const c =
+      porNombre.get(nombre) ||
+      { conjunto: nombre, ruta: campo(e, 'ruta'), rangos: [], partes: 1, presentes: new Set<number>() };
+
+    c.rangos.push(...rangos(campo(e, 'ids')));
+    c.reglas = numero(campo(e, 'reglas')) ?? c.reglas;
+    c.partes = Math.max(c.partes, numero(campo(e, 'partes')) || 1);
+    c.presentes.add(numero(campo(e, 'parte')) || 1);
+    porNombre.set(nombre, c);
+  });
+
+  return Array.from(porNombre.values());
+};
+
+const incompleto = (c: Conjunto): boolean => c.presentes.size < c.partes;
+
+// --- EV-01 · el motor de reglas activo, procesando y con reglas ---------------
+
+const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
+  const serie = validos(context, 'detection_engine_status', ahora);
+  const ultimo = serie.length ? momento(serie[serie.length - 1]) : undefined;
+
+  if (ultimo === undefined || ahora - ultimo > FRESCURA_HORAS * HORA) {
+    return sinHechos(context, 'EV-01', ultimo, 'estado del motor de reglas del manager');
+  }
+
+  const actual = serie[serie.length - 1];
+  const anterior = [...serie].reverse().find(e => momento(e) < ultimo - MISMA_PASADA);
+  const partes: Medida[] = [];
+
+  const activo = campo(actual, 'activo');
+
+  if (activo !== 'si') {
+    partes.push(noCumple(`wazuh-manager no está activo (${activo || 'desconocido'}): no hay motor de detección en marcha.`));
+  } else {
+    partes.push(cumple('wazuh-manager activo.'));
+  }
+
+  // Que procesa: los contadores del motor de análisis entre dos pasadas.
+  const procesados = numero(campo(actual, 'eventos_procesados'));
+  const antes = anterior ? numero(campo(anterior, 'eventos_procesados')) : undefined;
+  const nuevas = numero(campo(actual, 'alertas_nuevas'));
+  const volumen = `${campo(actual, 'eventos_recibidos') || '-'} recibidos, ${campo(actual, 'eventos_descartados') || '-'} descartados, ${campo(actual, 'alertas_escritas') || '-'} alertas escritas`;
+
+  if (procesados === undefined) {
+    // Sin contadores (el fichero de estado del motor no existe en esta versión
+    // o no se pudo leer): la otra prueba de que procesa es que escribe alertas.
+    if (nuevas !== undefined && nuevas > 0) {
+      partes.push(cumple(`El motor escribe alertas: ${nuevas} nuevas en alerts.json desde la pasada anterior (sin contadores del motor: ${campo(actual, 'fuente_contadores') || '-'}).`));
+    } else {
+      partes.push(
+        degradacion(context, 'EV-01', ultimo + 1) ||
+          sinMedir(
+            `El recolector no ha podido leer los contadores del motor de análisis (${campo(actual, 'fuente_contadores') || 'sin fuente'})${nuevas === 0 ? ' y no hay alertas nuevas desde la pasada anterior' : ''}: no se puede afirmar que el motor procese eventos.`,
+            'COLLECTION'
+          )
+      );
+    }
+  } else if (anterior === undefined || antes === undefined) {
+    partes.push(
+      procesados > 0
+        ? cumple(`El motor ha procesado ${procesados} eventos (${volumen}); una sola pasada, sin serie todavía.`)
+        : sinMedir('El motor no ha procesado ningún evento y no hay una pasada anterior con la que comparar.')
+    );
+  } else if (procesados > antes) {
+    partes.push(cumple(`El motor procesa: ${procesados - antes} eventos entre ${iso(momento(anterior))} y ${iso(ultimo)} (${volumen}).`));
+  } else if (procesados < antes) {
+    // Los contadores vuelven a cero al reiniciar el servicio.
+    partes.push(
+      procesados > 0
+        ? cumple(`El motor se reinició entre ${iso(momento(anterior))} y ${iso(ultimo)} y ha procesado ${procesados} eventos desde entonces.`)
+        : sinMedir(`El motor se reinició entre ${iso(momento(anterior))} y ${iso(ultimo)} y todavía no ha procesado ningún evento.`)
+    );
+  } else {
+    partes.push(
+      noCumple(`El motor de análisis no ha procesado ningún evento entre ${iso(momento(anterior))} y ${iso(ultimo)} (contador parado en ${procesados}): está en marcha, pero no analiza.`)
+    );
+  }
+
+  // Que hay reglas: el ruleset de la última pasada completa.
+  const { vigentes, ultimo: ultimoRuleset } = estadoVigente(context, 'ruleset_version_observed', ahora);
+  const ruleset = vigentes[vigentes.length - 1];
+
+  if (!ruleset) {
+    partes.push(sinHechos(context, 'EV-01', ultimoRuleset, 'inventario del ruleset del manager'));
+  } else {
+    const reglas = numero(campo(ruleset, 'reglas')) || 0;
+
+    partes.push(
+      reglas > 0
+        ? cumple(
+            `Ruleset de Wazuh ${campo(ruleset, 'version_wazuh') || '(versión desconocida)'} con ${reglas} reglas cargadas en ${campo(ruleset, 'ficheros')} ficheros, ${campo(ruleset, 'reglas_mitre') || '0'} con técnica MITRE ATT&CK.`
+          )
+        : noCumple('El manager no carga ninguna regla de detección: la detección no está basada en reglas.')
+    );
+  }
+
+  return combina(partes);
+};
+
+// R1 añade que estén cargados los conjuntos de reglas que declara P-03.
+const conjuntosDeP03 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
+
+  if (!vigentes.length) {
+    return sinHechos(context, 'EV-04', ultimo, 'inventario de reglas cargadas por conjunto');
+  }
+
+  const cargados = conjuntosCargados(vigentes);
+  const resumen = cargados.map(c => `${c.conjunto} (${c.reglas ?? '?'} reglas)`).join(', ');
+  const declarados = filas(context, 'P-03');
+
+  if (!declarados) {
+    return faltaParametro(context, 'P-03', `qué conjuntos de reglas tienen que estar activos (cargados hoy: ${resumen})`);
+  }
+
+  const faltan = declarados
+    .map(f => f.conjunto)
+    .filter(nombre => !cargados.some(c => iguales(c.conjunto, nombre) && (c.reglas ?? c.rangos.length) > 0));
+
+  return faltan.length
+    ? noCumple(`Conjuntos de reglas de P-03 que el manager no carga: ${faltan.join(', ')}. Cargados: ${resumen}.`)
+    : cumple(`Cargados todos los conjuntos de reglas de P-03 (${resumen}).`);
+};
+
+// --- EV-02 · cada sistema de P-01 con agente conectado y análisis activo ------
+
+const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, 'detection_coverage_observed', ahora);
+
+  if (!vigentes.length || ultimo === undefined) {
+    return sinHechos(context, 'EV-02', ultimo, 'estado de los agentes leído en el manager');
+  }
+
+  const deg = degradacion(context, 'EV-02', ultimo + 1);
+
+  if (deg) {
+    return deg;
+  }
+
+  const sistemas = filas(context, 'P-01');
+
+  if (!sistemas) {
+    return faltaParametro(context, 'P-01', `qué sistemas tienen que estar bajo detección (el manager tiene hoy ${vigentes.length} agentes registrados)`);
+  }
+
+  const plazo = escalar(context, 'P-10');
+  const fallos: string[] = [];
+  const conectados: string[] = [];
+  const bien: string[] = [];
+  const partes: Medida[] = [];
+
+  sistemas.forEach(fila => {
+    const r = resuelve(fila.sistema, vigentes);
+
+    if (r.tipo === 'ninguno') {
+      fallos.push(`${fila.sistema}: no figura en la base de agentes del manager`);
+
+      return;
+    }
+
+    if (r.tipo === 'ambiguo') {
+      partes.push(ambiguo(fila.sistema, r.ids));
+
+      return;
+    }
+
+    const e = r.hecho;
+    const nombre = nombreDe(fila.sistema, e);
+    const estado = campo(e, 'estado_conexion');
+
+    if (estado !== 'active') {
+      fallos.push(`${nombre}: agente ${estado || 'en estado desconocido'}, último keepalive ${vacio(campo(e, 'ultimo_keepalive')) ? 'nunca' : campo(e, 'ultimo_keepalive')}`);
+
+      return;
+    }
+
+    conectados.push(nombre);
+
+    if (plazo === undefined) {
+      return;
+    }
+
+    const problemas: string[] = [];
+    const visto: string[] = [];
+
+    ([['fim_ultimo_fin', 'FIM'], ['sca_ultimo_fin', 'SCA']] as [string, string][]).forEach(([f, modulo]) => {
+      const t = instante(campo(e, f));
+
+      if (t === undefined) {
+        problemas.push(`ninguna pasada de ${modulo} completada`);
+      } else if (ahora - t > plazo * HORA) {
+        problemas.push(`la última pasada de ${modulo} terminó el ${iso(t)}, hace ${horas(ahora - t)} h`);
+      } else {
+        visto.push(`${modulo} ${iso(t)}`);
+      }
+    });
+
+    if (problemas.length) {
+      fallos.push(`${nombre}: ${problemas.join(' y ')} (P-10 = ${plazo} h), el análisis no está activo`);
+    } else {
+      bien.push(`${nombre} (${visto.join(', ')})`);
+    }
+  });
+
+  const fuera = fueraDeP01(sistemas, vigentes);
+
+  if (fallos.length) {
+    partes.push(noCumple(`Sistemas de P-01 sin cobertura de detección efectiva: ${lista(fallos)}.${fuera}`));
+  }
+
+  if (plazo === undefined) {
+    partes.push(
+      faltaParametro(
+        context,
+        'P-10',
+        `si el análisis de FIM y SCA de cada sistema sigue activo (con el agente conectado: ${lista(conectados) || 'ninguno'})`
+      )
+    );
+  } else if (!fallos.length && bien.length) {
+    partes.push(cumple(`Los ${bien.length} sistemas de P-01 tienen el agente conectado y pasadas de FIM y SCA en las últimas ${plazo} h: ${lista(bien)}.${fuera}`));
+  }
+
+  return combina(partes);
+};
+
+// --- EV-03 · cada sistema de P-01 conectado produce detecciones -------------
+
+const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, 'detection_activity_observed', ahora);
+
+  if (!vigentes.length || ultimo === undefined) {
+    return sinHechos(context, 'EV-03', ultimo, 'resumen de detecciones por agente');
+  }
+
+  const deg = degradacion(context, 'EV-03', ultimo + 1);
+
+  if (deg) {
+    return deg;
+  }
+
+  const sistemas = filas(context, 'P-01');
+
+  if (!sistemas) {
+    return faltaParametro(context, 'P-01', 'qué sistemas tienen que producir detecciones');
+  }
+
+  const plazo = escalar(context, 'P-09');
+
+  if (plazo === undefined) {
+    return faltaParametro(context, 'P-09', 'cuántos días sin detecciones en un sistema activo son un fallo de la detección');
+  }
+
+  const cobertura = estadoVigente(context, 'detection_coverage_observed', ahora).vigentes;
+  const fallos: string[] = [];
+  const bien: string[] = [];
+  const aparte: string[] = [];
+  const partes: Medida[] = [];
+
+  sistemas.forEach(fila => {
+    const rc = resuelve(fila.sistema, cobertura);
+    const ra = resuelve(fila.sistema, vigentes);
+
+    if (rc.tipo === 'ambiguo' || ra.tipo === 'ambiguo') {
+      partes.push(ambiguo(fila.sistema, rc.tipo === 'ambiguo' ? rc.ids : (ra as { ids: string[] }).ids));
+
+      return;
+    }
+
+    // Solo se juzga la actividad de un sistema conectado: uno desconectado o
+    // sin agente lo juzga EV-02, y aquí no se cuenta dos veces.
+    if (rc.tipo === 'unico' && campo(rc.hecho, 'estado_conexion') !== 'active') {
+      aparte.push(`${nombreDe(fila.sistema, rc.hecho)}, ${campo(rc.hecho, 'estado_conexion') || 'estado desconocido'}`);
+
+      return;
+    }
+
+    if (rc.tipo === 'ninguno' && ra.tipo === 'ninguno') {
+      aparte.push(`${fila.sistema}, sin agente`);
+
+      return;
+    }
+
+    if (ra.tipo === 'ninguno') {
+      partes.push(sinMedir(`${fila.sistema}: el recolector del manager no informa de su actividad de detección.`, 'COLLECTION'));
+
+      return;
+    }
+
+    const e = ra.hecho;
+    const nombre = nombreDe(fila.sistema, e);
+    const ultima = instante(campo(e, 'ultima_alerta'));
+    const desde = instante(campo(e, 'observado_desde'));
+    const tecnicas = vacio(campo(e, 'tecnicas_mitre')) ? '' : `, técnicas ${campo(e, 'tecnicas_mitre')}`;
+    const detalle = `${campo(e, 'alertas_24h') || '0'} alertas en 24 h, nivel máximo ${campo(e, 'nivel_max_24h') || '-'}, ${campo(e, 'reglas_distintas_24h') || '0'} reglas distintas${tecnicas}`;
+
+    if (ultima !== undefined) {
+      if (ahora - ultima > plazo * DIA) {
+        fallos.push(`${nombre}: ${dias(ahora - ultima)} días sin ninguna detección (la última, ${iso(ultima)})`);
+      } else {
+        bien.push(`${nombre}: última detección ${iso(ultima)}; ${detalle}`);
+      }
+    } else if (desde !== undefined && ahora - desde > plazo * DIA) {
+      fallos.push(`${nombre}: ninguna detección desde que el manager lo observa (${iso(desde)})`);
+    } else {
+      partes.push(
+        sinMedir(
+          `${nombre}: sin detecciones observadas, y se observa desde ${desde !== undefined ? iso(desde) : 'un instante desconocido'}, menos que P-09 (${plazo} días): todavía no se puede afirmar ni negar que la detección funcione en él.`
+        )
+      );
+    }
+  });
+
+  const noJuzgados = aparte.length ? ` No se juzgan aquí, porque no están conectados (los juzga EV-02): ${lista(aparte)}.` : '';
+
+  if (fallos.length) {
+    partes.push(
+      noCumple(
+        `Sistemas de P-01 conectados sin detecciones en más de P-09 (${plazo} días): ${lista(fallos)}. Un sistema activo que no produce detecciones indica reglas que no se aplican o una ingesta que no llega.${noJuzgados}`
+      )
+    );
+  } else if (bien.length) {
+    partes.push(cumple(`Los sistemas de P-01 conectados producen detecciones dentro de P-09 (${plazo} días): ${lista(bien)}.${noJuzgados}`));
+  } else if (!partes.length) {
+    partes.push(sinMedir(`Ningún sistema de P-01 está conectado: no hay actividad que juzgar.${noJuzgados}`));
+  }
+
+  return combina(partes);
+};
+
+// --- EV-04 · cada situación de P-04 con al menos una regla cargada ----------
+
+const SIN_REGLA = /^(-|ninguna|ninguno|sin regla|punto ciego)$/i;
+
+const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
+
+  if (!vigentes.length || ultimo === undefined) {
+    return sinHechos(context, 'EV-04', ultimo, 'inventario de reglas cargadas por conjunto');
+  }
+
+  const deg = degradacion(context, 'EV-04', ultimo + 1);
+
+  if (deg) {
+    return deg;
+  }
+
+  const situaciones = filas(context, 'P-04');
+
+  if (!situaciones) {
+    return faltaParametro(context, 'P-04', 'qué situaciones del análisis de riesgos tienen que tener una regla de detección');
+  }
+
+  const cargados = conjuntosCargados(vigentes);
+  const incompletos = cargados.filter(incompleto);
+  const enQue = (r: Rango): string | undefined =>
+    cargados.find(c => c.rangos.some(cargado => seCortan(cargado, r)))?.conjunto;
+
+  const ciegas: string[] = [];
+  const sinCargar: string[] = [];
+  const bien: string[] = [];
+  const partes: Medida[] = [];
+
+  situaciones.forEach(fila => {
+    const texto = (fila.reglas || '').trim();
+    const declaradas = SIN_REGLA.test(texto) ? [] : rangos(texto);
+
+    if (!declaradas.length) {
+      ciegas.push(`«${fila.situacion}»${fila.activo_afectado ? ` (${fila.activo_afectado})` : ''}`);
+
+      return;
+    }
+
+    const cubiertas = declaradas.filter(r => enQue(r) !== undefined);
+    const fuera = declaradas.filter(r => enQue(r) === undefined);
+
+    if (cubiertas.length) {
+      bien.push(
+        `«${fila.situacion}» → ${cubiertas.map(r => `${describeRango(r)} (${enQue(r)})`).join(', ')}${fuera.length ? `; declaradas y no cargadas: ${fuera.map(describeRango).join(', ')}` : ''}`
+      );
+    } else if (incompletos.length) {
+      partes.push(
+        sinMedir(
+          `«${fila.situacion}»: ninguna de sus reglas (${declaradas.map(describeRango).join(', ')}) aparece en lo recibido, pero faltan partes del inventario de ${incompletos.map(c => `${c.conjunto} (${c.presentes.size} de ${c.partes})`).join(', ')}: no se puede afirmar que no estén cargadas.`,
+          'COLLECTION'
+        )
+      );
+    } else {
+      sinCargar.push(`«${fila.situacion}» (${declaradas.map(describeRango).join(', ')})`);
+    }
+  });
+
+  if (ciegas.length) {
+    partes.push(noCumple(`Situaciones de compromiso de P-04 sin ninguna regla de detección asociada, puntos ciegos declarados: ${lista(ciegas)}.`));
+  }
+
+  if (sinCargar.length) {
+    partes.push(noCumple(`Situaciones de P-04 cuyas reglas no están cargadas en el manager (o son de nivel 0 y no alertan): ${lista(sinCargar)}.`));
+  }
+
+  if (!ciegas.length && !sinCargar.length && bien.length) {
+    partes.push(cumple(`Las ${situaciones.length} situaciones de compromiso de P-04 tienen regla de detección cargada: ${lista(bien)}.`));
+  }
+
+  return combina(partes);
+};
+
+// --- EV-05 · la detección en red, si P-02 la exige ----------------------------
+
+const esSi = (texto: string): boolean => ['si', 'yes', 'true'].includes(sinTildes(texto.trim()));
+
+const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const declaradas = filas(context, 'P-02');
+
+  if (!declaradas) {
+    return faltaParametro(context, 'P-02', 'si el análisis de riesgos exige detección en red');
+  }
+
+  const { vigentes, ultimo } = estadoVigente(context, 'network_detection_observed', ahora);
+  const observados = vigentes.filter(e => !vacio(campo(e, 'producto')) && campo(e, 'producto') !== 'ninguno');
+  const vistos = observados.map(e => `${campo(e, 'producto')} por ${campo(e, 'fuente') || '-'}`).join(', ');
+  const exigidas = declaradas.filter(f => esSi(f.necesaria));
+
+  if (!exigidas.length) {
+    const justificaciones = declaradas.map(f => f.justificacion).filter(Boolean);
+
+    return justificaciones.length
+      ? noAplica(
+          `P-02 declara que el análisis de riesgos no exige detección en red: ${justificaciones.join('; ')}.${vistos ? ` El manager ingiere, de todos modos: ${vistos}.` : ''}`
+        )
+      : sinMedir(
+          'P-02 declara que no hace falta detección en red sin la referencia al análisis de riesgos que lo justifique: es lo primero que un auditor preguntará.',
+          'CONFIGURATION'
+        );
+  }
+
+  if (!vigentes.length || ultimo === undefined) {
+    return sinHechos(context, 'EV-05', ultimo, 'inventario de detección en red del manager');
+  }
+
+  const deg = degradacion(context, 'EV-05', ultimo + 1);
+
+  if (deg) {
+    return deg;
+  }
+
+  const plazo = escalar(context, 'P-09');
+
+  if (plazo === undefined) {
+    return faltaParametro(context, 'P-09', 'cuánto tiempo sin alertas de red es una ingesta parada');
+  }
+
+  const fallos: string[] = [];
+  const bien: string[] = [];
+
+  exigidas.forEach(f => {
+    const producto = (f.producto || '').trim();
+    const suyos = observados.filter(e =>
+      !producto || iguales(campo(e, 'producto'), producto) || sinTildes(producto).split(/[^a-z0-9]+/).includes(sinTildes(campo(e, 'producto')))
+    );
+    const nombre = producto || 'detección en red';
+
+    if (!suyos.length) {
+      fallos.push(`${nombre}: P-02 la exige y el manager no ingiere eventos de ese sistema${vistos ? ` (ingiere: ${vistos})` : ''}`);
+
+      return;
+    }
+
+    const ultimas = suyos.map(e => instante(campo(e, 'ultima_alerta'))).filter((t): t is number => t !== undefined);
+    const ultima = ultimas.length ? Math.max(...ultimas) : undefined;
+    const fuentes = suyos.map(e => campo(e, 'fuente')).join(', ');
+
+    if (ultima === undefined) {
+      fallos.push(`${nombre}: llega por ${fuentes} y no se ha recibido ninguna alerta suya`);
+    } else if (ahora - ultima > plazo * DIA) {
+      fallos.push(`${nombre}: su última alerta es del ${iso(ultima)}, hace ${dias(ahora - ultima)} días (P-09 = ${plazo})`);
+    } else {
+      const n24 = suyos.reduce((t, e) => t + (numero(campo(e, 'alertas_24h')) || 0), 0);
+
+      bien.push(`${nombre} por ${fuentes}: última alerta ${iso(ultima)}, ${n24} en 24 h`);
+    }
+  });
+
+  return fallos.length
+    ? noCumple(`Detección en red que P-02 exige y no está operativa: ${lista(fallos)}.`)
+    : cumple(`El manager ingiere la detección en red que exige P-02: ${lista(bien)}.`);
+};
+
+// --- EV-07 · las acciones predeterminadas (R3): se informan -----------------
+
+const SIN_REVERSION = ['', '-', 'no', 'ninguna', 'sin reversion', 'sin reversión'];
+
+// La medida DE HECHO de R3, la que se informa: con el mismo criterio que EV-11
+// y EV-12 de op.exp.8.
+const r3DeHecho = (context: ENSPolicyContext, ahora: number): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, 'active_response_configured', ahora);
+
+  if (!vigentes.length) {
+    return sinHechos(context, 'EV-07', ultimo, 'inventario de respuestas automáticas del manager');
+  }
+
+  const habilitadas = vigentes.filter(
+    e => !vacio(campo(e, 'comando')) && campo(e, 'deshabilitada') !== 'si' && campo(e, 'comando_definido') === 'si'
+  );
+  const ejecutadas = hechos(context, 'active_response_executed').filter(e => !vacio(campo(e, 'regla_origen')));
+  const describeEjecucion = (e: ENSNormalizedEvent) =>
+    `${campo(e, 'programa')} ${campo(e, 'accion')} en ${campo(e, 'agente')} por la regla ${campo(e, 'regla_origen')} (${campo(e, 'veces')} veces, la última el ${campo(e, 'ultima')})`;
+  const ejecuciones = ejecutadas.length
+    ? ` Ejecutadas a raíz de una alerta en la ventana: ${lista(ejecutadas.map(describeEjecucion))}.`
+    : ' Ninguna ejecutada a raíz de una alerta en la ventana.';
+
+  if (!habilitadas.length) {
+    return noCumple(`El manager no tiene ninguna respuesta automática configurada y habilitada.${ejecuciones}`);
+  }
+
+  const resumen = habilitadas
+    .map(e => `${campo(e, 'comando')} sobre ${!vacio(campo(e, 'reglas_id')) ? `reglas ${campo(e, 'reglas_id')}` : `grupos ${campo(e, 'grupos')}`}${!vacio(campo(e, 'timeout')) ? `, reversión ${campo(e, 'timeout')} s` : ''}`)
+    .join('; ');
+  const previstas = filas(context, 'P-07');
+
+  if (!previstas) {
+    return cumple(`Respuestas automáticas configuradas: ${resumen} (P-07 sin declarar, no se contrastan).${ejecuciones}`);
+  }
+
+  const fallos: string[] = [];
+
+  previstas.forEach(f => {
+    const suyas = habilitadas.filter(e => iguales(campo(e, 'comando'), f.accion));
+
+    if (!suyas.length) {
+      fallos.push(`${f.accion}: prevista en P-07 y no configurada o deshabilitada`);
+    } else if (!SIN_REVERSION.includes((f.reversion || '').trim().toLowerCase()) && suyas.every(e => vacio(campo(e, 'timeout')))) {
+      fallos.push(`${f.accion}: P-07 declara reversión (${f.reversion}) y la respuesta configurada no tiene timeout`);
+    }
+  });
+
+  return fallos.length
+    ? noCumple(`Acciones de P-07 que no están como se declaran: ${lista(fallos)}. Configuradas: ${resumen}.${ejecuciones}`)
+    : cumple(`Configuradas y habilitadas las acciones de P-07 (${resumen}).${ejecuciones}`);
+};
+
+const NO_EXIGIBLE_R3 =
+  'R3 no se exige en ninguna categoría (Anexo II): se informa, sin veredicto.';
+
+// --- EV-08 · vigencia del ruleset y silenciamientos -------------------------
+
+const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const partes: Medida[] = [];
+
+  // Eje 1: antigüedad del ruleset contra P-08.
+  const { vigentes: versiones, ultimo: ultimaVersion } = estadoVigente(context, 'ruleset_version_observed', ahora);
+  const ruleset = versiones[versiones.length - 1];
+
+  if (!ruleset) {
+    partes.push(degradacion(context, 'EV-08') || sinHechos(context, 'EV-01', ultimaVersion, 'inventario del ruleset del manager'));
+  } else {
+    const maximo = escalar(context, 'P-08');
+    const fecha = instante(campo(ruleset, 'fecha_ruleset'));
+    const que = `ruleset de Wazuh ${campo(ruleset, 'version_wazuh') || '(versión desconocida)'}`;
+
+    if (fecha === undefined) {
+      partes.push(sinMedir(`El recolector no ha podido fechar el ${que} (fecha_ruleset=${campo(ruleset, 'fecha_ruleset') || 'vacía'}).`));
+    } else if (maximo === undefined) {
+      partes.push(faltaParametro(context, 'P-08', `la vigencia del ${que}, del ${iso(fecha)} (${dias(ahora - fecha)} días)`));
+    } else if (ahora - fecha > maximo * DIA) {
+      partes.push(
+        noCumple(
+          `El ${que} es del ${iso(fecha)} (${campo(ruleset, 'fichero_mas_reciente') || 'fichero más reciente'}): ${dias(ahora - fecha)} días, más que los ${maximo} de P-08. Las reglas de detección envejecen como las firmas de un antivirus.`
+        )
+      );
+    } else {
+      partes.push(cumple(`El ${que} es del ${iso(fecha)}: ${dias(ahora - fecha)} días, dentro de los ${maximo} de P-08.`));
+    }
+  }
+
+  // Eje 2: cada silenciamiento, en P-06 con motivo y aprobación.
+  const { vigentes: barrido, ultimo: ultimoBarrido } = estadoVigente(context, 'rule_silenced', ahora);
+
+  if (!barrido.length || ultimoBarrido === undefined) {
+    partes.push(sinHechos(context, 'EV-08', ultimoBarrido, 'barrido de exclusiones y reglas silenciadas'));
+
+    return combina(partes);
+  }
+
+  const deg = degradacion(context, 'EV-08', ultimoBarrido + 1);
+
+  if (deg) {
+    partes.push(deg);
+
+    return combina(partes);
+  }
+
+  const silenciados = barrido.filter(e => campo(e, 'tipo') !== 'ninguno' && !vacio(campo(e, 'objeto')));
+  const describe = (e: ENSNormalizedEvent) =>
+    `${campo(e, 'objeto')} (${campo(e, 'tipo') === 'fichero_excluido' ? 'fichero excluido' : 'regla a nivel 0'} en ${campo(e, 'fichero') || '-'})`;
+
+  if (!silenciados.length) {
+    partes.push(cumple('El manager no tiene ningún fichero de reglas excluido ni ninguna regla reescrita a nivel 0.'));
+
+    return combina(partes);
+  }
+
+  const autorizadas = filas(context, 'P-06');
+
+  if (!autorizadas) {
+    partes.push(faltaParametro(context, 'P-06', `si los ${silenciados.length} silenciamientos del manager están justificados (${lista(silenciados.map(describe))})`));
+
+    return combina(partes);
+  }
+
+  const fuera: string[] = [];
+  const sinJustificar: string[] = [];
+  const bien: string[] = [];
+
+  silenciados.forEach(e => {
+    const objeto = campo(e, 'objeto');
+    const fila = autorizadas.find(f => iguales(f.regla, objeto));
+
+    if (!fila) {
+      fuera.push(describe(e));
+    } else if (!fila.motivo || !fila.aprobo) {
+      sinJustificar.push(`${describe(e)}: ${!fila.motivo ? 'sin motivo' : 'sin quién lo aprobó'}`);
+    } else {
+      bien.push(`${objeto} (${fila.motivo}; aprobó ${fila.aprobo})`);
+    }
+  });
+
+  if (fuera.length) {
+    partes.push(noCumple(`Silenciamientos que P-06 no declara: ${lista(fuera)}. Una exclusión sin constancia degrada la detección sin que nadie lo advierta.`));
+  }
+
+  if (sinJustificar.length) {
+    partes.push(noCumple(`Silenciamientos de P-06 sin justificación o sin aprobación: ${lista(sinJustificar)}.`));
+  }
+
+  if (!fuera.length && !sinJustificar.length) {
+    partes.push(cumple(`Los ${silenciados.length} silenciamientos del manager están en P-06 con motivo y aprobación: ${lista(bien)}.`));
+  }
+
+  return combina(partes);
+};
+
+// --- R2 · los procedimientos de respuesta, declarados -----------------------
+
+const r2 = (context: ENSPolicyContext): { medida: Medida; acreditado: boolean } => {
+  const procedimientos = filas(context, 'P-05');
+
+  if (!procedimientos) {
+    return {
+      medida: faltaParametro(context, 'P-05', 'qué procedimientos de respuesta a las alertas existen (R2 también se puede acreditar con P-ATT)'),
+      acreditado: false,
+    };
+  }
+
+  const incompletas = procedimientos.filter(f => !f.procedimiento || !f.responsable);
+
+  if (incompletas.length) {
+    return {
+      medida: sinMedir(
+        `P-05 tiene ${incompletas.length} tipo(s) de alerta sin procedimiento o sin responsable (${lista(incompletas.map(f => f.tipo_alerta))}): un procedimiento sin identificar o sin quien lo aplique no acredita una respuesta pautada.`,
+        'CONFIGURATION'
+      ),
+      acreditado: false,
+    };
+  }
+
+  return {
+    medida: cumple(
+      `P-05 declara ${procedimientos.length} procedimiento(s) de respuesta a las alertas, cada uno con su responsable: ${lista(procedimientos.map(f => `${f.tipo_alerta} → ${f.procedimiento} (${f.responsable})`))}. La aplicación de cada procedimiento a sus alertas la mide op.exp.7.`
+    ),
+    acreditado: true,
+  };
+};
+
+const DATO_DEL_INFORME =
+  'Dato del informe, sin veredicto: la existencia de los procedimientos de respuesta (R2) se acredita documentalmente con P-05 o P-ATT, y su aplicación a cada alerta la mide op.exp.7 cruzando las alertas con el registro de incidentes (sus EV-02 y EV-06).';
+
+// --- decisiones ------------------------------------------------------------
+
+type Tipo = ENSPolicyDecision['trace']['ruleType'];
+
+const decide = (
+  requisito: string,
+  estado: Medida['estado'],
+  evidencias: string[],
+  parametros: string[],
+  tipo: Tipo,
+  ruleId: string,
+  motivo: string,
+  esperado: string,
+  causa?: ENSGapCause,
+  acreditado = false
+): ENSPolicyDecision => ({
+  policyId: POLICY,
+  requirementId: requisito,
+  status: estado,
+  parameterIds: parametros,
+  evidenceIds: evidencias,
+  eventIds: [],
+  runtimeVariables: [],
+  trace: {
+    ruleId,
+    ruleType: tipo,
+    expression: esperado,
+    expected: esperado,
+    actual: estado,
+    result: estado === 'CUMPLE',
+  },
+  reason: motivo,
+  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  ...(acreditado && estado === 'CUMPLE' ? { attested: true } : {}),
+});
+
+// Con qué medidas se decide cada requisito técnico. EV-01 entra en R1 con los
+// conjuntos de P-03, que en la base no se exigen.
+const TECNICOS: { requisito: string; evidencias: string[]; parametros: string[]; tipo: Tipo }[] = [
+  { requisito: 'op.mon.1.1', evidencias: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05'], parametros: ['P-01', 'P-02', 'P-04', 'P-09', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
+  { requisito: 'op.mon.1.r1.1', evidencias: ['EV-01', 'EV-08'], parametros: ['P-03', 'P-06', 'P-08'], tipo: 'MAX_AGE' },
+];
+
+const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
+  const ahora = (context.now || new Date()).getTime();
+  const aplica = (requisito: string): boolean =>
+    Boolean(
+      context.control.requirements
+        .find(r => r.id === requisito)
+        ?.applicability.levels.includes(context.level)
+    );
+
+  // Cada medida se calcula una vez y solo si algún requisito que aplica la usa.
+  const cache: Record<string, Medida> = {};
+  const medir = (clave: string, calcula: () => Medida): Medida => {
+    if (!cache[clave]) {
+      cache[clave] = calcula();
+    }
+
+    return cache[clave];
+  };
+
+  const medidaDe = (requisito: string, evidencia: string): Medida => {
+    switch (evidencia) {
+      case 'EV-01':
+        return requisito === 'op.mon.1.r1.1'
+          ? medir('EV-01/R1', () => combina([medir('EV-01', () => ev01Base(context, ahora)), conjuntosDeP03(context, ahora)]))
+          : medir('EV-01', () => ev01Base(context, ahora));
+      case 'EV-02':
+        return medir('EV-02', () => ev02(context, ahora));
+      case 'EV-03':
+        return medir('EV-03', () => ev03(context, ahora));
+      case 'EV-04':
+        return medir('EV-04', () => ev04(context, ahora));
+      case 'EV-05':
+        return medir('EV-05', () => ev05(context, ahora));
+      default:
+        return medir('EV-08', () => ev08(context, ahora));
+    }
+  };
+
+  const requisitoDecisions: ENSPolicyDecision[] = [];
+  const evidenciaDecisions: ENSPolicyDecision[] = [];
+
+  TECNICOS.filter(r => aplica(r.requisito)).forEach(definicion => {
+    const propias = definicion.evidencias.map(id => ({ id, medida: medidaDe(definicion.requisito, id) }));
+    const estado = peor(propias.map(p => p.medida));
+    const responsables = propias.filter(p => p.medida.estado === estado);
+
+    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
+    requisitoDecisions.push(
+      decide(
+        definicion.requisito,
+        estado,
+        responsables.map(p => p.id),
+        definicion.parametros,
+        definicion.tipo,
+        definicion.requisito,
+        propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
+        definicion.evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        causaComun(responsables.map(p => p.medida))
+      )
+    );
+
+    // Y una por evidencia, con SU estado.
+    propias.forEach(p =>
+      evidenciaDecisions.push(
+        decide(definicion.requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${definicion.requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
+      )
+    );
+  });
+
+  // R2: documental. Una declaración completa en P-05 lo acredita; sin ella, la
+  // decisión queda sin medir y puede acreditarlo P-ATT.
+  let medidaR2: Medida | undefined;
+
+  if (aplica('op.mon.1.r2.1')) {
+    const { medida, acreditado } = r2(context);
+
+    medidaR2 = medida;
+    requisitoDecisions.push(
+      decide(
+        'op.mon.1.r2.1',
+        medida.estado,
+        [],
+        ['P-05'],
+        'COVERAGE_REQUIRED',
+        'op.mon.1.r2.1',
+        medida.motivo,
+        'P-05 con procedimiento y responsable por tipo de alerta, o P-ATT',
+        medida.causa,
+        acreditado
+      )
+    );
+  }
+
+  // EV-06: dato del informe. EV-07: R3 se informa con lo que hay.
+  const r3 = r3DeHecho(context, ahora);
+
+  evidenciaDecisions.push(
+    decide('op.mon.1.r2.1', 'NO_APLICA', ['EV-06'], ['P-05'], 'COVERAGE_REQUIRED', 'op.mon.1.r2.1/EV-06', DATO_DEL_INFORME, 'dato del informe'),
+    decide(
+      'op.mon.1.r3.1',
+      'NO_APLICA',
+      ['EV-07'],
+      ['P-07'],
+      'COVERAGE_REQUIRED',
+      'op.mon.1.r3.1/EV-07',
+      `${NO_EXIGIBLE_R3} De hecho: ${r3.motivo}`,
+      'se informa'
+    )
+  );
+
+  const variables: ENSRuntimeVariable[] = [
+    ...Object.entries(cache).map(([clave, medida]) => ({
+      name: `medida_${clave.replace('-', '').replace('/', '_')}`,
+      value: medida.estado,
+      parameterIds: [],
+      evidenceIds: [clave.split('/')[0]],
+      eventIds: [],
+      description: medida.motivo,
+    })),
+    ...(medidaR2
+      ? [
+          {
+            name: 'acreditacion_R2',
+            value: medidaR2.estado,
+            parameterIds: ['P-05'],
+            evidenceIds: [],
+            eventIds: [],
+            description: medidaR2.motivo,
+          },
+        ]
+      : []),
+    {
+      name: 'cobertura_de_hecho_R3',
+      value: r3.estado,
+      parameterIds: ['P-07'],
+      evidenceIds: ['EV-07'],
+      eventIds: [],
+      description: r3.motivo,
+    },
+  ];
+
+  return { decisions: [...requisitoDecisions, ...evidenciaDecisions], runtimeVariables: variables };
+};
 
 export const opMon1PolicyDefinition: ENSPolicyDefinition = {
-  id: 'policy.op.mon.1',
-  controlId: 'op.mon.1',
+  id: POLICY,
+  controlId: CONTROL,
   version: '1.0.0',
+  evaluator: evaluate,
+  // Por categoría del sistema: base en las tres, R1 desde MEDIA, R2 solo en
+  // ALTA, R3 en ninguna.
   requirements: [
     {
       requirementId: 'op.mon.1.1',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-01', 'P-02', 'P-04', 'P-06', 'P-09', 'P-10'],
-      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-08'],
+      parameterIds: ['P-01', 'P-02', 'P-04', 'P-09', 'P-10'],
+      evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05'],
       ruleType: 'COVERAGE_REQUIRED',
     },
     {
       requirementId: 'op.mon.1.r1.1',
       levels: ['MEDIO', 'ALTO'],
-      parameterIds: ['P-03', 'P-08'],
-      evidenceIds: ['EV-01', 'EV-03', 'EV-05', 'EV-08'],
+      parameterIds: ['P-03', 'P-06', 'P-08'],
+      evidenceIds: ['EV-01', 'EV-08'],
       ruleType: 'MAX_AGE',
     },
     {
       requirementId: 'op.mon.1.r2.1',
       levels: ['ALTO'],
       parameterIds: ['P-05'],
-      evidenceIds: ['EV-06'],
+      evidenceIds: [],
       ruleType: 'COVERAGE_REQUIRED',
     },
     {
