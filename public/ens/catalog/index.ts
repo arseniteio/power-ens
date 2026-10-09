@@ -17,6 +17,7 @@ export * from './op-exp-8';
 export * from './op-exp-9';
 export * from './op-exp-10';
 export * from './op-mon-1';
+export * from './op-nub-1';
 
 import { ENSControlDefinition } from './types';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
@@ -37,6 +38,7 @@ import { opExp8CatalogDefinition } from './op-exp-8';
 import { opExp9CatalogDefinition } from './op-exp-9';
 import { opExp10CatalogDefinition } from './op-exp-10';
 import { opMon1CatalogDefinition } from './op-mon-1';
+import { opNub1CatalogDefinition } from './op-nub-1';
 
 export const ENSCatalog: ENSControlDefinition[] = [
   mpInfo6CatalogDefinition,
@@ -57,6 +59,7 @@ export const ENSCatalog: ENSControlDefinition[] = [
   opExp9CatalogDefinition,
   opExp10CatalogDefinition,
   opMon1CatalogDefinition,
+  opNub1CatalogDefinition,
 ];
 
 export const getENSCatalogControl = (

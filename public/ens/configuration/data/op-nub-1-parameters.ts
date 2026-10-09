@@ -1,0 +1,583 @@
+import { ENSControlConfiguration } from '../types';
+
+export const opNub1Configuration: ENSControlConfiguration = {
+  controlId: 'op.nub.1',
+  controlName: 'Protección de servicios en la nube',
+  family: 'Marco operacional',
+  enabled: true,
+  applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'op.nub.1',
+      name: 'posicion_cliente',
+      label: 'Posicion cliente',
+      description:
+        'Determina si el cliente actúa como PRESTADOR de servicios en la nube al sector público (op.nub.1.1) o como USUARIO de servicios de terceros (op.nub.1.2), o ambas cosas. Es la primera decisión del control y condiciona todo lo demás.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.1', 'op.nub.1.2'],
+      type: 'select',
+      example: 'usuario',
+      required: true,
+      wazuhUsage:
+        'Determina qué requisitos aplican y qué evidencias pide ENSFácil. Como prestador, la carga es demostrar el cumplimiento de las medidas del modelo prestado; como usuario, verificar la conformidad del proveedor y la configuración propia.',
+      ensfacilUsage:
+        'Determina qué requisitos aplican y qué evidencias pide ENSFácil. Como prestador, la carga es demostrar el cumplimiento de las medidas del modelo prestado; como usuario, verificar la conformidad del proveedor y la configuración propia.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'El control es NO EVALUABLE. No se puede determinar qué requisitos son exigibles ni qué evidencias pedir.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'op.nub.1',
+      name: 'inventario_servicios_nube',
+      label: 'Inventario servicios nube',
+      description:
+        'Relación de servicios en la nube utilizados o prestados, con su modelo (SaaS, PaaS, IaaS), proveedor, información tratada y criticidad. Es el alcance del control.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.1', 'op.nub.1.2', 'op.nub.1.r1.1'],
+      type: 'table',
+      example: 'M365 | SaaS | Microsoft | datos personales | alta | utilizado',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'modelo',
+          label: 'Modelo',
+          type: 'select',
+          options: ['SaaS', 'PaaS', 'IaaS'],
+          required: false,
+        },
+        {
+          name: 'proveedor',
+          label: 'Proveedor',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'informacion',
+          label: 'Información',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'criticidad',
+          label: 'Criticidad',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'uso',
+          label: 'Uso',
+          type: 'select',
+          options: ['utilizado', 'prestado'],
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'Define el alcance de la monitorización cloud y de las comprobaciones documentales.',
+      ensfacilUsage:
+        'ENSFácil contrasta este inventario con los servicios que efectivamente detecta en uso, lo que revela shadow IT.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-08', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'El inventario queda incompleto. Riesgo de servicios cloud en uso sin ninguna verificación de conformidad.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'op.nub.1',
+      name: 'conformidad_ens_proveedores',
+      label: 'Conformidad ens proveedores',
+      description:
+        'Para cada servicio de terceros: conformidad con el ENS o con la guía CCN-STIC aplicable, con la referencia de la declaración o certificación, su alcance y su fecha de vigencia. op.nub.1.2 lo exige de forma directa.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'table',
+      example: 'M365 | ENS MEDIA | Microsoft 365 | 2027-06-30 | declaración de conformidad nº…',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'conformidad',
+          label: 'Conformidad',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'alcance',
+          label: 'Alcance',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'vigencia',
+          label: 'Vigencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil registra y vigila la vigencia de cada declaración, alertando antes del vencimiento. La verificación del documento en sí es documental: la herramienta no puede validar una certificación.',
+      ensfacilUsage:
+        'ENSFácil registra y vigila la vigencia de cada declaración, alertando antes del vencimiento. La verificación del documento en sí es documental: la herramienta no puede validar una certificación.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.nub.1.2 NO ACREDITADO. No se puede demostrar la conformidad de los servicios de terceros utilizados.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'op.nub.1',
+      name: 'certificacion_reconocida_occ',
+      label: 'Certificacion reconocida occ',
+      description:
+        'Certificación de cada servicio de terceros bajo una metodología reconocida por el Organismo de Certificación del Esquema Nacional de Evaluación y Certificación de Seguridad de las TI, exigida por R1 desde categoría MEDIA. Es más específico que la conformidad general de P-03.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.r1.1'],
+      type: 'table',
+      example: 'AWS producción | Common Criteria EAL4+ | CCN-2026-001 | 2027-03-31',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'metodologia',
+          label: 'Metodología',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'n_certificado',
+          label: 'Nº certificado',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'vigencia',
+          label: 'Vigencia',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil registra la certificación y su vigencia con alerta anticipada de vencimiento. Conviene no confundir este requisito con el de P-03: R1 exige certificación bajo metodología reconocida, no una simple declaración de conformidad.',
+      ensfacilUsage:
+        'ENSFácil registra la certificación y su vigencia con alerta anticipada de vencimiento. Conviene no confundir este requisito con el de P-03: R1 exige certificación bajo metodología reconocida, no una simple declaración de conformidad.',
+      evidenceIds: ['EV-08'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 NO ACREDITADO y es obligatorio desde categoría MEDIA. Es un hallazgo documental difícil de subsanar deprisa.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'op.nub.1',
+      name: 'servicios_seguridad_cloud',
+      label: 'Servicios seguridad cloud',
+      description:
+        'Identificación de los servicios en la nube que son servicios de SEGURIDAD, a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5. Es un supuesto específico que suele pasarse por alto.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.r1.2'],
+      type: 'table',
+      example: 'SIEM gestionado | SIEM | sí',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'tipo_de_seguridad',
+          label: 'Tipo de seguridad',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'cumple_op_pl_5',
+          label: 'Cumple op.pl.5',
+          type: 'select',
+          options: ['sí', 'no'],
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil marca estos servicios para exigirles la verificación adicional de op.pl.5 y lo refleja en el informe. Es llamativo que la propia plataforma de seguridad, si se consume como servicio cloud, entra en este supuesto.',
+      ensfacilUsage:
+        'ENSFácil marca estos servicios para exigirles la verificación adicional de op.pl.5 y lo refleja en el informe. Es llamativo que la propia plataforma de seguridad, si se consume como servicio cloud, entra en este supuesto.',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Se omite la verificación adicional que R1.2 exige para servicios de seguridad en la nube.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'op.nub.1',
+      name: 'integraciones_cloud_wazuh',
+      label: 'Integraciones cloud wazuh',
+      description:
+        'Servicios cloud cuyos registros se ingieren en Wazuh y mediante qué integración. Es la pieza que convierte este control de documental en técnicamente verificable en lo que respecta a la configuración del lado del cliente.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2', 'op.nub.1.r2.1'],
+      type: 'table',
+      example: 'AWS producción | aws-s3 | CloudTrail y GuardDuty de la cuenta 123456789012',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'modulo',
+          label: 'Módulo',
+          type: 'select',
+          options: ['aws-s3', 'azure-logs', 'gcp-pubsub', 'gcp-bucket', 'office365', 'ms-graph', 'github', 'ninguno'],
+          required: false,
+        },
+        {
+          name: 'ambito',
+          label: 'Ámbito',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'Activa los módulos de integración cloud de Wazuh. Permite recoger eventos de autenticación, cambios de configuración, accesos a datos y operaciones administrativas en el proveedor, que es donde se materializan los riesgos reales del lado del usuario.',
+      ensfacilUsage:
+        'Activa los módulos de integración cloud de Wazuh. Permite recoger eventos de autenticación, cambios de configuración, accesos a datos y operaciones administrativas en el proveedor, que es donde se materializan los riesgos reales del lado del usuario.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Los servicios cloud quedan fuera de la monitorización. Punto ciego grave si tratan información del sistema.',
+    },
+    {
+      id: 'P-07',
+      controlId: 'op.nub.1',
+      name: 'politicas_configuracion_cloud',
+      label: 'Politicas configuracion cloud',
+      description:
+        'Políticas de configuración de seguridad aplicables a cada servicio cloud según la guía CCN-STIC de Configuración de Seguridad Específica correspondiente. R2 subraya que están orientadas «tanto al usuario como al proveedor», de modo que la configuración del lado del cliente es exigible.',
+      levels: ['ALTO'],
+      requirements: ['op.nub.1.r2.1'],
+      type: 'table',
+      example: 'AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'guia_ccn_stic',
+          label: 'Guía CCN-STIC',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'estandar',
+          label: 'Estándar',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil evalúa la configuración de cada servicio contra la política correspondiente. Las políticas CIS para AWS, Azure, GCP y M365 son un punto de partida razonable cuando no hay política derivada directamente de la guía CCN-STIC.',
+      ensfacilUsage:
+        'ENSFácil evalúa la configuración de cada servicio contra la política correspondiente. Las políticas CIS para AWS, Azure, GCP y M365 son un punto de partida razonable cuando no hay política derivada directamente de la guía CCN-STIC.',
+      evidenceIds: ['EV-02'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R2 NO EVALUABLE y es obligatorio en categoría ALTA. La configuración del lado del cliente queda sin verificar.',
+    },
+    {
+      id: 'P-08',
+      controlId: 'op.nub.1',
+      name: 'jurisdiccion_datos',
+      label: 'Jurisdiccion datos',
+      description:
+        'Ubicación geográfica declarada de los datos y de sus copias en cada servicio, y jurisdicción aplicable. op.nub.1.2 d) lo exige expresamente como requisito del servicio.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'table',
+      example: 'M365 | UE (Irlanda) | UE | RGPD',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'region_datos',
+          label: 'Región datos',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'region_copias',
+          label: 'Región copias',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'jurisdiccion',
+          label: 'Jurisdicción',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil registra la declaración y, cuando la integración de P-06 lo permita, verifica la región efectivamente configurada en el proveedor contra la declarada. Discrepancia → hallazgo relevante también a efectos de protección de datos.',
+      ensfacilUsage:
+        'ENSFácil registra la declaración y, cuando la integración de P-06 lo permita, verifica la región efectivamente configurada en el proveedor contra la declarada. Discrepancia → hallazgo relevante también a efectos de protección de datos.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.nub.1.2 d) NO ACREDITADO. Riesgo concurrente en materia de transferencias internacionales de datos.',
+    },
+    {
+      id: 'P-09',
+      controlId: 'op.nub.1',
+      name: 'cifrado_gestion_claves_cloud',
+      label: 'Cifrado gestion claves cloud',
+      description:
+        'Mecanismo de cifrado de los datos en el servicio y modelo de gestión de claves: claves gestionadas por el proveedor, por el cliente (CMK) o custodia externa (HYOK). op.nub.1.2 c) lo exige expresamente.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'table',
+      example: 'AWS producción | AES-256 en S3 y EBS | KMS con CMK propia y rotación anual',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'cifrado',
+          label: 'Cifrado',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'gestion_claves',
+          label: 'Gestión claves',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'SCA sobre la configuración cloud verifica que el cifrado está activo y qué modelo de claves se emplea. Enlaza directamente con op.exp.10: las claves de los servicios cloud forman parte del material criptográfico a proteger.',
+      ensfacilUsage:
+        'SCA sobre la configuración cloud verifica que el cifrado está activo y qué modelo de claves se emplea. Enlaza directamente con op.exp.10: las claves de los servicios cloud forman parte del material criptográfico a proteger.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.nub.1.2 c) NO VERIFICABLE. Riesgo de datos en la nube sin cifrado o con claves bajo control exclusivo del proveedor.',
+    },
+    {
+      id: 'P-10',
+      controlId: 'op.nub.1',
+      name: 'pentesting_proveedor',
+      label: 'Pentesting proveedor',
+      description:
+        'Informes o certificaciones de auditoría de pruebas de penetración del proveedor del servicio, exigidos por op.nub.1.2 a). Es documentación del proveedor, no una prueba que el cliente ejecute.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'table',
+      example: 'AWS producción | resumen ejecutivo del pentest 2026 | 2026-02-15 | plataforma completa',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'ultimo_informe',
+          label: 'Último informe',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'alcance',
+          label: 'Alcance',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil registra la referencia y la fecha, y alerta cuando la antigüedad del informe es excesiva. Muchos proveedores solo facilitan resumen ejecutivo bajo acuerdo de confidencialidad, lo que conviene anticipar en la negociación contractual.',
+      ensfacilUsage:
+        'ENSFácil registra la referencia y la fecha, y alerta cuando la antigüedad del informe es excesiva. Muchos proveedores solo facilitan resumen ejecutivo bajo acuerdo de confidencialidad, lo que conviene anticipar en la negociación contractual.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'op.nub.1.2 a) NO ACREDITADO. Queda sin evidencia uno de los cuatro requisitos expresos del requisito base.',
+    },
+    {
+      id: 'P-11',
+      controlId: 'op.nub.1',
+      name: 'administradores_cloud_autorizados',
+      label: 'Administradores cloud autorizados',
+      description:
+        'Identidades autorizadas a ejecutar operaciones de administración en cada servicio en la nube integrado en Wazuh (P-06), tal como las registra el proveedor: el ARN del usuario o del rol de IAM en AWS (arn:aws:iam::123456789012:role/Admin; la raíz de la cuenta es arn:aws:iam::123456789012:root), la cuenta o la aplicación que figura como autor en Azure y la cuenta principal (correo) en Google Cloud. Es el homólogo cloud de la lista de administradores de op.exp.3, que esta policy no puede leer.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'table',
+      example: 'AWS producción | arn:aws:iam::123456789012:role/Admin',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'identidad',
+          label: 'Identidad',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'El recolector del manager agrupa, por actor, las operaciones administrativas que llegan en las alertas de los módulos cloud (CloudTrail, registro de actividad de Azure, Cloud Audit Logs).',
+      ensfacilUsage:
+        'ENSFácil cruza cada actor con las identidades de P-11 de su servicio: una operación de administración de un actor que no figura es un incumplimiento de op.nub.1.2.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'Si hay operaciones administrativas en un servicio integrado, EV-04 queda sin evaluar (causa CONFIGURATION): no hay contra qué contrastar a sus actores.',
+    },
+    {
+      id: 'P-12',
+      controlId: 'op.nub.1',
+      name: 'antiguedad_maxima_pentest_proveedor_meses',
+      label: 'Antiguedad maxima pentest proveedor meses',
+      description:
+        'Antigüedad máxima admitida, en meses, del último informe de pruebas de penetración de cada proveedor (P-10), contada desde su fecha. op.nub.1.2 a) exige la auditoría de pentesting y la plantilla habla de una antigüedad excesiva sin declararla: lo habitual es un informe anual.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'number',
+      example: '12',
+      required: false,
+      wazuhUsage:
+        'ENSFácil compara la fecha de cada informe de P-10 con la fecha de la evaluación: un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
+      ensfacilUsage:
+        'ENSFácil compara la fecha de cada informe de P-10 con la fecha de la evaluación: un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'El eje del pentest del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): no hay contra qué medir la antigüedad de los informes.',
+    },
+    {
+      id: 'P-13',
+      controlId: 'op.nub.1',
+      name: 'antiguedad_maxima_registros_cloud_horas',
+      label: 'Antiguedad maxima registros cloud horas',
+      description:
+        'Horas que puede pasar una integración cloud declarada en P-06 sin que entre en Wazuh ningún registro suyo antes de considerar que la ingesta está parada. CloudTrail y el registro de actividad de Azure producen eventos de forma continua en una cuenta en uso; una suscripción de Pub/Sub poco activa puede necesitar más margen. El valor tiene que ser mayor que el intervalo del módulo (interval en su bloque de configuración).',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.nub.1.2'],
+      type: 'duration_hours',
+      example: '24',
+      required: false,
+      wazuhUsage:
+        'El recolector del manager anota, por módulo cloud, el instante de la última alerta suya en alerts.json.',
+      ensfacilUsage:
+        'ENSFácil da por parada la integración de un servicio de P-06 si esa alerta tiene más de P-13 horas en el momento de la observación.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'EV-01 queda sin evaluar (causa CONFIGURATION) para los servicios integrados: no se puede decidir si una integración sin registros recientes está parada.',
+    },
+    {
+      id: 'P-ATT',
+      controlId: 'op.nub.1',
+      name: 'atestaciones_documentales',
+      label: 'Atestaciones documentales',
+      description:
+        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar op.nub.1.1 (el conjunto de medidas del modelo de servicio prestado según las guías CCN-STIC) y op.nub.1.r1.2 (la verificación de op.pl.5 de los servicios cloud de seguridad, que ENSFácil no mide).',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: [],
+      type: 'table',
+      example: 'op.nub.1.r1.2 | Informe de verificación op.pl.5 del SIEM gestionado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'requisito',
+          label: 'Requisito',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'referencia',
+          label: 'Referencia',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'enlace',
+          label: 'Enlace',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      ensfacilUsage:
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      evidenceIds: [],
+      ruleIds: [],
+      ifNotConfigured:
+        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+    },
+  ],
+};

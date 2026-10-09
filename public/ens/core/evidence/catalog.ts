@@ -3956,4 +3956,148 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  {
+    id: 'EV-01',
+    controlId: 'op.nub.1',
+    title: 'Ingesta de registros de los servicios en la nube',
+    description:
+      'Recolección de los eventos de los servicios cloud declarados en P-06: autenticaciones, operaciones administrativas, cambios de configuración, accesos a datos. Extiende la trazabilidad del sistema al perímetro cloud, que de otro modo queda fuera de toda monitorización.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'cloud_integration_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ingesta de registros de los servicios en la nube?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.nub.1',
+    title: 'Configuración de seguridad del lado del cliente (R2)',
+    description:
+      'Evaluación de la configuración del inquilino del cliente en cada servicio cloud contra las políticas de P-07: almacenamiento expuesto públicamente, identidades sobreprivilegiadas, registro de auditoría desactivado, autenticación multifactor ausente, cifrado sin configurar.',
+    requirements: ['op.nub.1.r2.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'cloud_posture_finding_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: configuración de seguridad del lado del cliente (r2)?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.nub.1',
+    title: 'Detección de servicios cloud no inventariados (shadow IT)',
+    description:
+      'Identificación de servicios en la nube en uso que no figuran en el inventario P-02, detectados a partir del tráfico de los endpoints o de las autenticaciones federadas. Un servicio cloud no inventariado no tiene ninguna verificación de conformidad.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de servicios cloud no inventariados (shadow it)?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.nub.1',
+    title: 'Operaciones administrativas en los servicios cloud',
+    description:
+      'Registro de las operaciones de administración ejecutadas en el inquilino: creación y modificación de identidades, cambios de permisos, alteración de configuración de seguridad, modificación de reglas de red. Es donde se materializan los cambios de mayor impacto.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'cloud_admin_operation_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: operaciones administrativas en los servicios cloud?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.nub.1',
+    title: 'Verificación del cifrado y del modelo de gestión de claves',
+    description:
+      'Comprobación de que el cifrado de los datos está activo en cada servicio y de que el modelo de gestión de claves declarado en P-09 es el efectivamente configurado. op.nub.1.2 c) lo exige de forma expresa.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación del cifrado y del modelo de gestión de claves?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.nub.1',
+    title: 'Verificación de la región de los datos',
+    description:
+      'Comprobación de que la región geográfica configurada para el almacenamiento de datos y sus copias coincide con la declarada en P-08. Una discrepancia tiene consecuencias tanto de ENS como de transferencias internacionales de datos personales.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación de la región de los datos?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.nub.1',
+    title: 'Autenticaciones y accesos en los servicios cloud',
+    description:
+      'Registro de las autenticaciones a los servicios cloud con su origen, resultado y método, lo que permite aplicar sobre el perímetro cloud los mismos controles de op.acc.5 y op.acc.6: doble factor, accesos desde zonas no controladas, intentos fallidos.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'cloud_authentication_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: autenticaciones y accesos en los servicios cloud?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.nub.1',
+    title: 'Vigencia de certificaciones y conformidad de proveedores',
+    description:
+      'Seguimiento de la vigencia de las declaraciones de conformidad de P-03 y de las certificaciones de P-04, con alerta anticipada de vencimiento. NO es verificación del documento: es control de su validez temporal.',
+    requirements: ['op.nub.1.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: vigencia de certificaciones y conformidad de proveedores?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'op.nub.1',
+    title: 'Expediente documental del servicio en la nube',
+    description:
+      'Consolidación por servicio de toda la documentación exigida: conformidad ENS, certificación reconocida, informe de pentesting del proveedor, cláusulas de transparencia, jurisdicción de los datos y modelo de cifrado. Es el entregable que un auditor pedirá servicio por servicio.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: expediente documental del servicio en la nube?',
+  },
 ];

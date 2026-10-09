@@ -16,7 +16,8 @@ import { opExp8Control } from './op-exp-8';
 import { opExp9Control } from './op-exp-9';
 import { opExp10Control } from './op-exp-10';
 import { opMon1Control } from './op-mon-1';
+import { opNub1Control } from './op-nub-1';
 
-const ENSControls = [mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control];
+const ENSControls = [mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opNub1Control];
 
-export { mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, ENSControls };
+export { mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opNub1Control, ENSControls };
