@@ -5,6 +5,7 @@ export * from './op-acc-3.policy';
 export * from './op-acc-4.policy';
 export * from './op-acc-5.policy';
 export * from './op-acc-6.policy';
+export * from './op-cont-3.policy';
 export * from './op-exp-1.policy';
 export * from './op-exp-2.policy';
 export * from './op-exp-3.policy';

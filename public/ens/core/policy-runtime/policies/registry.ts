@@ -31,6 +31,10 @@ import {
 } from './op-acc-6.policy';
 
 import {
+  opCont3PolicyDefinition,
+} from './op-cont-3.policy';
+
+import {
   opExp1PolicyDefinition,
 } from './op-exp-1.policy';
 
@@ -83,6 +87,7 @@ const policyDefinitions:
     opAcc4PolicyDefinition,
     opAcc5PolicyDefinition,
     opAcc6PolicyDefinition,
+    opCont3PolicyDefinition,
     opExp1PolicyDefinition,
     opExp2PolicyDefinition,
     opExp3PolicyDefinition,

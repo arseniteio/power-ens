@@ -41,6 +41,7 @@ import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
 import { buildOpAcc4ReportModel } from './op-acc-4-report-model';
 import { buildOpAcc5ReportModel } from './op-acc-5-report-model';
 import { buildOpAcc6ReportModel } from './op-acc-6-report-model';
+import { buildOpCont3ReportModel } from './op-cont-3-report-model';
 import { buildOpExp1ReportModel } from './op-exp-1-report-model';
 import { buildOpExp2ReportModel } from './op-exp-2-report-model';
 import { buildOpExp3ReportModel } from './op-exp-3-report-model';
@@ -131,6 +132,11 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'op.acc.6',
     name: 'op.acc.6 - Mecanismo de autenticación (usuarios de la organización)',
     build: buildOpAcc6ReportModel,
+  },
+  {
+    controlId: 'op.cont.3',
+    name: 'op.cont.3 - Pruebas periódicas',
+    build: buildOpCont3ReportModel,
   },
   {
     controlId: 'op.exp.1',

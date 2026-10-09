@@ -3956,4 +3956,132 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  {
+    id: 'EV-01',
+    controlId: 'op.cont.3',
+    title: 'Registro histórico de las pruebas realizadas',
+    description:
+      'Constancia de cada prueba del plan de continuidad con su fecha, tipo según P-02, escenario según P-03, participantes y resultado. Es la evidencia documental principal del control y lo primero que un auditor solicitará.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: registro histórico de las pruebas realizadas?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.cont.3',
+    title: 'Control de la periodicidad de las pruebas',
+    description:
+      'Cálculo de los meses transcurridos desde la última prueba de cada tipo y escenario, con contraste frente a la periodicidad de P-01. Es la verificación de la primera de las dos obligaciones del requisito.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: control de la periodicidad de las pruebas?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.cont.3',
+    title: 'Medición objetiva de lo ocurrido durante la prueba',
+    description:
+      'Registro de todos los eventos producidos durante la ventana de prueba declarada en P-06: caída de servicios, arranque de sistemas alternativos, conmutación de rutas, restablecimiento. Permite medir el RTO realmente alcanzado en lugar de estimarlo.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'availability_event_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: medición objetiva de lo ocurrido durante la prueba?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.cont.3',
+    title: 'Resultado de la prueba frente a los objetivos comprometidos',
+    description:
+      'Comparación entre las métricas medidas en EV-03 y los objetivos de P-07: RTO alcanzado frente al comprometido, porcentaje de servicios esenciales restablecidos, integridad de los datos recuperados. Convierte el resultado de la prueba en un dato verificable.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: resultado de la prueba frente a los objetivos comprometidos?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.cont.3',
+    title: 'Deficiencias detectadas y seguimiento de su corrección',
+    description:
+      'Registro de las deficiencias que cada prueba revela, con su responsable, plazo y estado de cierre. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: deficiencias detectadas y seguimiento de su corrección?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.cont.3',
+    title: 'Integridad y estado del sistema tras la prueba',
+    description:
+      'Verificación de que, tras una prueba que implicó conmutación o restauración, el sistema queda en el estado esperado: integridad de ficheros de configuración, versiones de software coherentes, servicios restablecidos. Una prueba puede dejar el sistema peor de lo que estaba.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'post_test_change_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: integridad y estado del sistema tras la prueba?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.cont.3',
+    title: 'Actualización del plan tras las pruebas',
+    description:
+      'Verificación de que las deficiencias cerradas se tradujeron en actualización efectiva del plan de continuidad de op.cont.2, cerrando el bucle entre prueba, corrección y documento vigente.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: actualización del plan tras las pruebas?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.cont.3',
+    title: 'Restauración de copias de seguridad en las pruebas',
+    description:
+      'Cuando la prueba incluye restauración de copias, registro de la operación y verificación de su resultado: integridad de los datos recuperados y tiempo empleado. Enlaza con mp.info.6 (copias de seguridad), porque una copia que no se restaura no está verificada.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'backup_restore_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: restauración de copias de seguridad en las pruebas?',
+  },
 ];
