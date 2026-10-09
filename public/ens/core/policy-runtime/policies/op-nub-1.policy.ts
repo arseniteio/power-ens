@@ -261,17 +261,21 @@ const NOMBRE_CATEGORIA = ['BÁSICA', 'MEDIA', 'ALTA'];
 
 type Conformidad = { tipo: 'ens'; categoria: number } | { tipo: 'guia' } | { tipo: 'ens-sin-categoria' } | { tipo: 'desconocida' };
 
+// Primero el ENS, con su categoría: una conformidad «ENS BÁSICA (CCN-STIC
+// 809)» es ENS BÁSICA, y mirar antes la guía la daba por buena en un sistema
+// MEDIA. Solo un texto sin «ENS» se lee como una guía CCN-STIC. Con dos
+// categorías en el texto, la más baja.
 const conformidadDe = (texto: string): Conformidad => {
   const t = sinTildes(texto || '');
 
-  if (/\bccn-stic\b/.test(t)) {
-    return { tipo: 'guia' };
+  if (/\bens\b/.test(t)) {
+    const categorias = (t.match(/\b(basica|media|alta)\b/g) || []).map(c => CATEGORIA[c]);
+
+    return categorias.length ? { tipo: 'ens', categoria: Math.min(...categorias) } : { tipo: 'ens-sin-categoria' };
   }
 
-  if (/\bens\b/.test(t)) {
-    const m = /\b(basica|media|alta)\b/.exec(t);
-
-    return m ? { tipo: 'ens', categoria: CATEGORIA[m[1]] } : { tipo: 'ens-sin-categoria' };
+  if (/\bccn-stic\b/.test(t)) {
+    return { tipo: 'guia' };
   }
 
   return { tipo: 'desconocida' };

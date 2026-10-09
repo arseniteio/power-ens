@@ -556,6 +556,16 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
   const basicaGcp = { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? 'GCP analítica | ENS BÁSICA | Google Cloud | 2027-01-15 | nº 1' : f)) };
   comprueba('GCP con conformidad ENS BÁSICA en un sistema MEDIA → NO_CUMPLE', evalua(hoy(), basicaGcp).evidencia('EV-09')?.status === 'NO_CUMPLE' && /inferior a la categoría MEDIA/.test(evalua(hoy(), basicaGcp).motivo('op.nub.1.2')));
   comprueba('REVERSIÓN: la misma conformidad en un sistema BÁSICA → CUMPLE', evalua(hoy(), basicaGcp, 'BAJO').evidencia('EV-09')?.status === 'CUMPLE');
+  // Mencionar una guía CCN-STIC no salta la categoría del ENS.
+  const conGuia = (conformidad: string) =>
+    evalua(hoy(), { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? `GCP analítica | ${conformidad} | Google Cloud | 2027-01-15 | nº 1` : f)) });
+  comprueba(
+    '«ENS BÁSICA (CCN-STIC 809)» en un sistema MEDIA → NO_CUMPLE: manda la categoría del ENS, no la guía',
+    conGuia('ENS BÁSICA (CCN-STIC 809)').evidencia('EV-09')?.status === 'NO_CUMPLE' && /inferior a la categoría MEDIA/.test(conGuia('ENS BÁSICA (CCN-STIC 809)').motivo('op.nub.1.2')),
+    conGuia('ENS BÁSICA (CCN-STIC 809)').motivo('op.nub.1.2')
+  );
+  comprueba('REVERSIÓN: «ENS MEDIA (CCN-STIC 809)» → CUMPLE', conGuia('ENS MEDIA (CCN-STIC 809)').evidencia('EV-09')?.status === 'CUMPLE');
+  comprueba('y una guía sin «ENS» («CCN-STIC-823») se acepta como guía → CUMPLE', conGuia('CCN-STIC-823').evidencia('EV-09')?.status === 'CUMPLE');
 
   // Pentest más viejo que P-12.
   const viejo = evalua(hoy(), { ...BASE, 'P-12': '10' });
