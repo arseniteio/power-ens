@@ -77,12 +77,17 @@ export const applyPolicyDecisionsToEvidences = (
   // misma razón que en la consolidación entre máquinas: si un requisito que se
   // apoya en ella no conforma, la evidencia no puede salir en verde.
   //
-  // Pero LO NOMBRADO MANDA SOBRE LO HEREDADO. La herencia existe para la policy
-  // que no dice qué midió; si alguna decisión NOMBRA la evidencia, la policy ha
-  // dicho expresamente cómo está, y una decisión que solo la hereda de su
-  // requisito no la pisa. Sin esto, op.cont.2.1 sin funciones declaradas (P-03,
-  // que no es ninguna evidencia) dejaba EV-01 —el plan, en vigor y juzgado en su
-  // propia decisión— «sin medir» por un parámetro que no es suyo.
+  // Con UNA excepción: lo NOMBRADO manda sobre un HUECO HEREDADO. La herencia
+  // existe para la policy que no dice qué midió; si alguna decisión NOMBRA la
+  // evidencia, la policy ha dicho expresamente cómo está, y un NO_EVALUABLE que
+  // otra decisión solo hereda de su requisito no la pisa. Sin esto, op.cont.2.1
+  // sin funciones declaradas (P-03, que no es ninguna evidencia) dejaba EV-01
+  // —el plan, en vigor y juzgado en su propia decisión— «sin medir» por un
+  // parámetro que no es suyo.
+  //
+  // Un NO_CUMPLE o un PARCIAL heredados SÍ mandan sobre lo nombrado si son
+  // peores: son un requisito que se apoya en la evidencia y no conforma, y la
+  // regla de arriba no tiene excepción para eso.
   const peorPorEvidencia = new Map<string, ENSPolicyDecision>();
   const peorHeredadaPorEvidencia = new Map<string, ENSPolicyDecision>();
 
@@ -117,7 +122,13 @@ export const applyPolicyDecisionsToEvidences = (
   });
 
   peorHeredadaPorEvidencia.forEach((decision, evidenceId) => {
-    if (!peorPorEvidencia.has(evidenceId)) {
+    const nombrada = peorPorEvidencia.get(evidenceId);
+
+    if (
+      !nombrada ||
+      (gravedad(decision.status) >= gravedad('PARCIAL') &&
+        gravedad(decision.status) > gravedad(nombrada.status))
+    ) {
       peorPorEvidencia.set(evidenceId, decision);
     }
   });
