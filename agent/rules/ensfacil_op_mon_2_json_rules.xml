@@ -1,0 +1,142 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_2_json_rules.xml
+     Este fichero es idéntico, byte a byte, en dos sitios: la fuente canónica
+     del plugin y la carpeta manager/ del runbook linux/op.mon.2. Si se
+     modifica uno, hay que copiar el otro: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_mon_2,">
+
+  <!-- ================================================================
+       op.mon.2 · Sistema de métricas
+       Rango reservado: 111300-111399
+       Base 111300 · hechos crudos 111301-111349 · evidence_state 111350
+       · diagnóstico del recolector 111397-111399
+
+       Todo lo emite el recolector del MANAGER (agent.id=000), que solo lee
+       ficheros locales y no usa credenciales. Pasa cada 6 h y reemite el
+       estado entero: los dos registros de la organización en /etc/ensfacil/
+       (el de ciclos de métricas y el de incidentes de op.exp.7, que solo
+       lee), la base de agentes (global.db) y los latidos de todos los
+       recolectores de ENSFácil, leídos en alerts.json.
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       public/ens/core/evidence/catalog.ts:
+
+         EV-02 111301 y 111302 · EV-03 111303 y 111304
+         EV-04 111305 y 111306
+
+       EV-06 lee el mismo hecho que EV-02 (111302: las columnas de recursos
+       del registro de ciclos). EV-01, EV-05 y EV-07 no tienen hecho: son
+       salida del motor y van al modelo de informe, sin veredicto.
+
+       Ninguna regla lleva `estado` de cumplimiento, ni ninguna descripción
+       lleva un campo largo (la lista de pasadas de 111306): la descripción
+       viaja en cada alerta. Añadir o mover una regla obliga a tocar los dos
+       ficheros y el catálogo a la vez.
+       ================================================================ -->
+
+  <rule id="111300" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.mon.2</field>
+    <description>op.mon.2 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.mon.2.1 y op.mon.2.r2.1 · el registro de ciclos de métricas ===== -->
+
+  <!-- EV-02. Cada 6 h. Cómo se leyó /etc/ensfacil/metrics-cycle-register.tsv:
+       si existe, si se puede leer, si su cabecera es la exigida y cuántas
+       filas valen. Se emite también con el registro ausente o vacío: vacío
+       se juzga, ausente no. -->
+  <rule id="111301" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">metrics_register_read</field>
+    <description>op.mon.2 · EV-02 · registro de ciclos de métricas: presente=$(presente), formato=$(formato), $(filas_validas) filas válidas</description>
+  </rule>
+
+  <!-- EV-02 y EV-06. Cada 6 h, un hecho por ciclo anotado (los de los últimos
+       400 días y siempre el último): periodo, fecha de consolidación, grado
+       de implantación, horas, presupuesto y quién lo validó. -->
+  <rule id="111302" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">metrics_cycle_recorded</field>
+    <description>op.mon.2 · EV-02 · ciclo de métricas $(periodo) consolidado el $(fecha_consolidacion), validado por $(validado_por)</description>
+  </rule>
+
+  <!-- ===== op.mon.2.r1.1 · el registro de incidentes (el de op.exp.7) ===== -->
+
+  <!-- EV-03. Cada 6 h. Cómo se leyó /etc/ensfacil/incident-register.tsv, el
+       mismo fichero y el mismo formato de 13 columnas que op.exp.7. -->
+  <rule id="111303" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">incident_register_read</field>
+    <description>op.mon.2 · EV-03 · registro de incidentes: presente=$(presente), formato=$(formato), $(filas_validas) filas válidas</description>
+  </rule>
+
+  <!-- EV-03. Cada 6 h, un hecho por fila (fase) de los incidentes vivos en
+       los últimos 400 días, con las 13 columnas del registro. -->
+  <rule id="111304" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">incident_registered</field>
+    <description>op.mon.2 · EV-03 · incidente $(incidente_id), fase $(fase) del $(fecha), severidad $(severidad)</description>
+  </rule>
+
+  <!-- ===== op.mon.2.1 · la fiabilidad de la medición ===== -->
+
+  <!-- EV-04. Cada 6 h, un hecho por agente registrado en global.db (leída en
+       solo lectura): estado de conexión, último keepalive y grupos. -->
+  <rule id="111305" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">agent_keepalive_observed</field>
+    <description>op.mon.2 · EV-04 · agente $(agente) ($(agente_id)) $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
+  </rule>
+
+  <!-- EV-04. Cada 6 h, un hecho por agente: la última pasada de cada
+       recolector de ENSFácil que ha informado desde él, leída de los
+       collector_run de alerts.json y conservada entre pasadas. Agregado por
+       agente, nunca un hecho por alerta ni por control. -->
+  <rule id="111306" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">collector_heartbeat_observed</field>
+    <description>op.mon.2 · EV-04 · recolectores de ENSFácil en $(agente) ($(agente_id)): $(recolectores) con pasada</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer»
+       (COLLECTION) de «no hay contra qué medir» (CONFIGURATION), y las dos se
+       arreglan en sitios distintos. -->
+  <rule id="111350" level="5">
+    <if_sid>111300</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.mon.2 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 111397. El latido, al final de cada pasada. No acredita ninguna
+       evidencia: dice qué se barrió, que es lo que delimita en el motor la
+       última pasada de cada hecho de estado. -->
+  <rule id="111397" level="3">
+    <if_sid>111300</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.mon.2 · pasada del recolector ($(tipo_servidor)): $(resultado), cubre $(evidencias_cubiertas)</description>
+  </rule>
+
+  <!-- 111398. Aviso operativo: .env ilegible, sin root, candado, una fila del
+       registro descartada, una ruta o un log_alert_level distintos de los
+       esperados. -->
+  <rule id="111398" level="5">
+    <if_sid>111300</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.mon.2 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 111399. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <rule id="111399" level="7">
+    <if_sid>111300</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.mon.2 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>
