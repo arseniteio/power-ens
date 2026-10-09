@@ -74,6 +74,10 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   const activa = ix.docs.get('active');
   comprueba('documento active', activa?.documentType === 'ACTIVE_CONFIGURATION' && activa?.updatedBy === 'rsis');
   comprueba('y su historial', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === 1);
+  // En un indexer de un solo nodo, una réplica fija deja el índice en amarillo
+  // para siempre: la réplica se ajusta a los nodos que haya (0 con uno).
+  const ajustes = (indice as any).mapping?.settings?.index;
+  comprueba('el índice se crea con réplicas automáticas (0-1) y un shard', ajustes?.auto_expand_replicas === '0-1' && ajustes?.number_of_shards === 1 && ajustes?.number_of_replicas === undefined, ajustes);
   comprueba('rastro de auditoría', activa?.configuration?.auditTrail?.[0]?.action === 'CREATED' && activa?.configuration?.auditTrail?.[0]?.summary === 'alta');
 
   r = await h.save(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, { body: { configuration: { ...config, global: { ensLevel: 'ALTO' } } } } as any, respuestas as any);
