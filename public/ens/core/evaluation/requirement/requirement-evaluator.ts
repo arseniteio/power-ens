@@ -55,6 +55,21 @@ const ATTESTED_PREFIX = 'Acreditado documentalmente';
 const describePolicyAttestation = (reason: string): string =>
   reason.startsWith(ATTESTED_PREFIX) ? reason : `${ATTESTED_PREFIX}: ${reason}`;
 
+// Por qué una evidencia está sin medir, con el vocabulario que lee el auditor
+// en el informe y en la ficha del control (`ETIQUETA_DE_CAUSA` de
+// `reports/index.tsx`): tiene que ser literalmente la misma cadena.
+const GAP_CAUSE_LABEL: Record<string, string> = {
+  CATALOG: 'catálogo',
+  CONFIGURATION: 'sin configurar',
+  COLLECTION: 'sin recogida',
+  EVIDENCE: 'evidencia insuficiente',
+};
+
+const describeUnmeasured = (evidence: ENSEvidenceResolved): string =>
+  evidence.gapCause
+    ? `${evidence.id} sin medir (${GAP_CAUSE_LABEL[evidence.gapCause] || evidence.gapCause})`
+    : `${evidence.id} sin medir`;
+
 // La MEDIDA del requisito, no su veredicto: aquí `NO_EVALUABLE` significa
 // literalmente «no se ha podido medir», y esa distinción es la que alimenta
 // después `evidenced` y la causa del hueco. El veredicto lo aplica
@@ -337,8 +352,18 @@ export const evaluateRequirement = (
       evidenced: true,
       attested: true,
       score: scoreByStatus('CUMPLE'),
+      // Y lo que queda sin medir se dice: el documento basta para el
+      // requisito, pero el auditor tiene que ver qué evidencias no se midieron
+      // y por qué.
       observations: [
         describePolicyAttestation(policyDecision.reason),
+        ...evidences
+          .filter(
+            evidence =>
+              relatedEvidenceIds.includes(evidence.id) &&
+              evidence.status === 'NO_EVALUABLE'
+          )
+          .map(describeUnmeasured),
         ...pendingParametersNote,
       ],
       evidenceIds: requirement.evidenceIds,

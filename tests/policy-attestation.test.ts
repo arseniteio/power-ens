@@ -175,6 +175,40 @@ bloque('1. Una decisión CUMPLE con `attested` cumple marcada como documental');
   );
 }
 
+// --- 1 bis. lo que queda sin medir se dice ---------------------------------
+
+bloque('1 bis. Acreditado, pero lo que queda sin medir se dice');
+
+{
+  const sinMedir = { ...evidencia('EV-06', 'NO_EVALUABLE', ['no ha llegado nada del recolector']), gapCause: 'COLLECTION' as const };
+  const r = juzga([evidencia('EV-05', 'CUMPLE'), sinMedir], [ACREDITA]);
+
+  comprueba(
+    'la primera observación sigue siendo la acreditación',
+    (r.observations[0] || '').startsWith('Acreditado documentalmente: '),
+    r.observations[0]
+  );
+  comprueba(
+    'y detrás, la evidencia sin medir con su causa',
+    r.observations.includes('EV-06 sin medir (sin recogida)'),
+    r.observations.join(' | ')
+  );
+  comprueba(
+    'la que sí se midió no se nombra como sin medir',
+    !r.observations.some(o => o.startsWith('EV-05 sin medir')),
+    r.observations.join(' | ')
+  );
+
+  // Sin causa declarada, se dice igual, sin paréntesis.
+  const sinCausa = juzga([evidencia('EV-05', 'NO_EVALUABLE')], [ACREDITA]);
+
+  comprueba(
+    'sin causa declarada: «EV-05 sin medir»',
+    sinCausa.observations.includes('EV-05 sin medir'),
+    sinCausa.observations.join(' | ')
+  );
+}
+
 // --- 2. una medida en contra manda ------------------------------------------
 
 bloque('2. Una medida en contra manda siempre sobre la acreditación');
