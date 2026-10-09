@@ -1,0 +1,183 @@
+{
+  "controlId": "op.mon.2",
+  "controlName": "Sistema de métricas",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.mon.2",
+      "name": "declaracion_aplicabilidad",
+      "label": "Declaracion aplicabilidad",
+      "description": "Relación de medidas de seguridad aplicables al sistema según su categoría y los niveles de sus dimensiones, que es la base contra la que se mide el grado de implantación. Es la Declaración de Aplicabilidad del sistema.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "table",
+      "example": "op.acc.1 | sí | MEDIO | R1",
+      "required": true,
+      "wazuhUsage": "Es el parámetro raíz de todo ENSFácil, no solo de este control: define qué controles hay que evaluar. El grado de implantación se calcula sobre esta relación, no sobre el catálogo completo del ENS.",
+      "ensfacilUsage": "Es el parámetro raíz de todo ENSFácil, no solo de este control: define qué controles hay que evaluar. El grado de implantación se calcula sobre esta relación, no sobre el catálogo completo del ENS.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-DECLARACION-APLICABILIDAD"
+      ],
+      "ifNotConfigured": "No se puede calcular el grado de implantación. op.mon.2.1 NO EVALUABLE y el informe del art. 32 sin base."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.mon.2",
+      "name": "periodicidad_calculo_metricas",
+      "label": "Periodicidad calculo metricas",
+      "description": "Cada cuánto se consolidan y publican las métricas de implantación. El ENS no fija periodicidad para el cálculo interno, pero el informe del artículo 32 es anual, de modo que conviene una cadencia que permita corregir antes del cierre.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r1.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "trimestral | 15 | 12-31",
+      "required": true,
+      "wazuhUsage": "Configura la generación automática de los cuadros de métricas de ENSFácil y la serie histórica. Una cadencia trimestral permite ver tendencia y llegar al cierre anual sin sorpresas.",
+      "ensfacilUsage": "Configura la generación automática de los cuadros de métricas de ENSFácil y la serie histórica. Una cadencia trimestral permite ver tendencia y llegar al cierre anual sin sorpresas.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-PERIODICIDAD-CALCULO-METRICAS"
+      ],
+      "ifNotConfigured": "Se calcula solo a demanda. Se pierde la serie histórica, que es lo que permite demostrar mejora."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.mon.2",
+      "name": "metricas_gestion_incidentes",
+      "label": "Metricas gestion incidentes",
+      "description": "Indicadores de comportamiento del sistema de gestión de incidentes exigidos por R1, conforme a la Instrucción Técnica de Seguridad de Notificación de Incidentes y a la guía CCN-STIC correspondiente.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r1.1"
+      ],
+      "type": "list",
+      "example": "nº incidentes por tipo, / tiempo medio de detección, / de contención y resolución, / nº notificados al CCN-CERT",
+      "required": false,
+      "wazuhUsage": "ENSFácil calcula estos indicadores a partir de los datos de op.exp.7 y op.exp.9 sin trabajo adicional: la conciliación alerta–incidente y los tiempos de respuesta ya se miden allí. Aquí solo se consolidan con el formato que exige la ITS.",
+      "ensfacilUsage": "ENSFácil calcula estos indicadores a partir de los datos de op.exp.7 y op.exp.9 sin trabajo adicional: la conciliación alerta–incidente y los tiempos de respuesta ya se miden allí. Aquí solo se consolidan con el formato que exige la ITS.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-METRICAS-GESTION-INCIDENTES"
+      ],
+      "ifNotConfigured": "R1 NO EVALUABLE. Los datos existen en op.exp.7 pero no se consolidan en el formato exigido."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.mon.2",
+      "name": "recursos_consumidos_seguridad",
+      "label": "Recursos consumidos seguridad",
+      "description": "Horas de dedicación y presupuesto consumidos por el sistema de seguridad, exigidos por R2. Es información de gestión y contabilidad que no reside en ningún sistema técnico y que el cliente debe aportar.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Personal TIC propio | horas_internas | partes de dedicación al sistema de seguridad",
+      "required": false,
+      "wazuhUsage": "Entrada MANUAL en ENSFácil. La herramienta la recoge, la conserva en serie y la presenta junto a las métricas técnicas, de modo que el informe sea completo, pero no puede obtenerla ni verificarla. Conviene decirlo con claridad al cliente desde el principio.",
+      "ensfacilUsage": "Entrada MANUAL en ENSFácil. La herramienta la recoge, la conserva en serie y la presenta junto a las métricas técnicas, de modo que el informe sea completo, pero no puede obtenerla ni verificarla. Conviene decirlo con claridad al cliente desde el principio.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-RECURSOS-CONSUMIDOS-SEGURIDAD"
+      ],
+      "ifNotConfigured": "R2 NO EVALUABLE. Es el refuerzo que con más frecuencia queda sin cubrir por no ser de naturaleza técnica."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.mon.2",
+      "name": "responsable_metricas",
+      "label": "Responsable metricas",
+      "description": "Responsable de consolidar y validar las métricas antes de su uso en el informe anual del artículo 32, y de aportar los datos de recursos de P-04.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Responsable de Seguridad | RSEG | metricas",
+      "required": false,
+      "wazuhUsage": "ENSFácil registra la validación de cada ciclo de métricas con su responsable y fecha, lo que da trazabilidad al dato que después se reporta externamente.",
+      "ensfacilUsage": "ENSFácil registra la validación de cada ciclo de métricas con su responsable y fecha, lo que da trazabilidad al dato que después se reporta externamente.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-04",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-RESPONSABLE-METRICAS"
+      ],
+      "ifNotConfigured": "Las métricas no tienen validación formal. El dato reportado en el informe anual queda sin responsable identificado."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.mon.2",
+      "name": "umbrales_objetivo",
+      "label": "Umbrales objetivo",
+      "description": "Valores objetivo o umbrales de aceptación para cada métrica, que permiten interpretar el dato. Una métrica sin umbral informa pero no permite decidir si el resultado es aceptable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "table",
+      "example": "cobertura_monitorizacion | 95 | 5",
+      "required": false,
+      "wazuhUsage": "ENSFácil presenta cada métrica con su objetivo y marca las desviaciones. Convierte el cuadro de métricas en una herramienta de gestión y no en una colección de cifras.",
+      "ensfacilUsage": "ENSFácil presenta cada métrica con su objetivo y marca las desviaciones. Convierte el cuadro de métricas en una herramienta de gestión y no en una colección de cifras.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPMON2-UMBRALES-OBJETIVO"
+      ],
+      "ifNotConfigured": "Las métricas se presentan sin referencia de aceptabilidad. Pierden utilidad para la toma de decisiones."
+    }
+  ]
+}

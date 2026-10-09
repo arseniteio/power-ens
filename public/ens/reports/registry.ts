@@ -52,6 +52,7 @@ import { buildOpExp8ReportModel } from './op-exp-8-report-model';
 import { buildOpExp9ReportModel } from './op-exp-9-report-model';
 import { buildOpExp10ReportModel } from './op-exp-10-report-model';
 import { buildOpMon1ReportModel } from './op-mon-1-report-model';
+import { buildOpMon2ReportModel } from './op-mon-2-report-model';
 
 export type ENSReportFieldStatus =
   | 'CUMPLE'
@@ -186,6 +187,11 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'op.mon.1',
     name: 'op.mon.1 - Detección de intrusión',
     build: buildOpMon1ReportModel,
+  },
+  {
+    controlId: 'op.mon.2',
+    name: 'op.mon.2 - Sistema de métricas',
+    build: buildOpMon2ReportModel,
   },
 ];
 

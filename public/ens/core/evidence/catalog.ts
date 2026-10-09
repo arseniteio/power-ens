@@ -3956,4 +3956,116 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  {
+    id: 'EV-01',
+    controlId: 'op.mon.2',
+    title: 'Grado de implantación de las medidas de seguridad',
+    description:
+      'Cálculo del porcentaje de implantación de cada medida aplicable según P-01, agregado por marco, por categoría y global. Es la métrica central del requisito base y el subproducto natural de la evaluación que ENSFácil realiza control por control.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: grado de implantación de las medidas de seguridad?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.mon.2',
+    title: 'Serie histórica y tendencia de implantación',
+    description:
+      'Evolución del grado de implantación a lo largo de los períodos de P-02, que permite distinguir un sistema que mejora de uno que se degrada. Es el dato que da sentido a la métrica: un 87 % de implantación significa cosas muy distintas si viene del 70 % o del 95 %.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'metrics_register_read', 'metrics_cycle_recorded'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: serie histórica y tendencia de implantación?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.mon.2',
+    title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
+    description:
+      'Consolidación de los indicadores de P-03: número de incidentes por tipo y severidad, tiempos medios de detección, contención y resolución, proporción de alertas que derivaron en incidente, incidentes notificados al CCN-CERT y a la AEPD.',
+    requirements: ['op.mon.2.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'incident_register_read', 'incident_registered'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: métricas de comportamiento de la gestión de incidentes (r1)?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.mon.2',
+    title: 'Cobertura de la monitorización como métrica',
+    description:
+      'Indicadores de la propia capacidad de medición: porcentaje de sistemas con agente activo, continuidad de la ingesta, categorías de evento cubiertas, parámetros de configuración cumplimentados. Mide la fiabilidad del resto de las métricas.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state', 'agent_keepalive_observed', 'collector_heartbeat_observed'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cobertura de la monitorización como métrica?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.mon.2',
+    title: 'Controles no evaluables por falta de parámetros',
+    description:
+      'Recuento y relación de controles que ENSFácil no puede evaluar porque faltan parámetros de configuración del cliente. Es una métrica incómoda pero muy útil: convierte la deuda de configuración en un número que se puede reducir y seguir en el tiempo.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: controles no evaluables por falta de parámetros?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.mon.2',
+    title: 'Recursos consumidos por el sistema de seguridad (R2)',
+    description:
+      'Registro de las horas de dedicación y del presupuesto ejecutado aportados por el cliente conforme a P-04. NO es una evidencia obtenida de Wazuh: es un dato de gestión que la herramienta recoge, conserva y presenta junto a las métricas técnicas para completar el cuadro.',
+    requirements: ['op.mon.2.r2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: recursos consumidos por el sistema de seguridad (r2)?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.mon.2',
+    title: 'Datos consolidados para el informe anual del artículo 32',
+    description:
+      'Conjunto de datos preparado con la estructura que requiere el informe anual al que remite op.mon.2.1, listo para su uso sin reelaboración. Es la salida de mayor valor práctico de este control.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: datos consolidados para el informe anual del artículo 32?',
+  },
 ];
