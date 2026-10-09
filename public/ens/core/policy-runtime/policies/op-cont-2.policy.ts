@@ -408,12 +408,28 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     return faltaParametro(context, 'P-05', 'qué formación ha recibido cada persona del plan');
   }
 
-  const ilegibles: string[] = [];
+  // Las filas que no se pueden leer se guardan con su persona: una fila ilegible
+  // puede ser justo la formación vigente de alguien, y entonces esa persona no
+  // está «sin formación», está sin demostrar. Las que no nombran a nadie van
+  // aparte.
+  const sinLeerPorPersona = new Map<string, string[]>();
+  const sinLeerSinPersona: string[] = [];
   const porPersona = new Map<string, { formacion: string; desde?: number; hasta: number }[]>();
 
   formacion.forEach((f, i) => {
+    const sinLeer = (motivo: string): void => {
+      if (vacio(f.persona)) {
+        sinLeerSinPersona.push(`${fila(i)}: ${motivo}`);
+        return;
+      }
+
+      const clave = persona(f.persona);
+
+      sinLeerPorPersona.set(clave, [...(sinLeerPorPersona.get(clave) || []), `${fila(i)} (${f.persona}): ${motivo}`]);
+    };
+
     if (vacio(f.persona) || vacio(f.formacion) || vacio(f.vigencia)) {
-      ilegibles.push(`${fila(i)} (${f.persona || 'sin persona'}): sin persona, formación o vigencia`);
+      sinLeer('sin persona, formación o vigencia');
       return;
     }
 
@@ -421,7 +437,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     const desde = vacio(f.fecha) ? undefined : fecha(f.fecha);
 
     if (hasta === undefined || (!vacio(f.fecha) && desde === undefined)) {
-      ilegibles.push(`${fila(i)} (${f.persona}): ${hasta === undefined ? `vigencia «${f.vigencia}»` : `fecha «${f.fecha}»`}, que no es una fecha AAAA-MM-DD`);
+      sinLeer(`${hasta === undefined ? `vigencia «${f.vigencia}»` : `fecha «${f.fecha}»`}, que no es una fecha AAAA-MM-DD`);
       return;
     }
 
@@ -433,14 +449,13 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   const sinFormacion: string[] = [];
   const caducadas: string[] = [];
   const formadas: string[] = [];
+  // Personas sin formación vigente legible y con alguna fila ilegible: no
+  // demostrado, nunca NO_CUMPLE.
+  const sinDemostrar: string[] = [];
 
   personas.forEach((nombre, clave) => {
     const suyas = porPersona.get(clave) || [];
-
-    if (!suyas.length) {
-      sinFormacion.push(nombre);
-      return;
-    }
+    const sinLeer = sinLeerPorPersona.get(clave) || [];
 
     // Vale la formación ya recibida y todavía vigente a la fecha de la evaluación.
     const vigente = suyas
@@ -449,6 +464,16 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
 
     if (vigente) {
       formadas.push(`${nombre} (${vigente.formacion}, hasta el ${dia(vigente.hasta)})`);
+      return;
+    }
+
+    if (sinLeer.length) {
+      sinDemostrar.push(...sinLeer);
+      return;
+    }
+
+    if (!suyas.length) {
+      sinFormacion.push(nombre);
       return;
     }
 
@@ -471,8 +496,23 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     partes.push(noCumple(`Personas del plan sin formación vigente: ${lista(caducadas)}.`));
   }
 
-  if (ilegibles.length) {
-    partes.push(sinMedir(`P-05 tiene filas que no se pueden leer: ${lista(ilegibles)}.`, 'CONFIGURATION'));
+  if (sinDemostrar.length) {
+    partes.push(
+      sinMedir(`Personas del plan cuya formación vigente no se puede leer en P-05: ${lista(sinDemostrar)}.`, 'CONFIGURATION')
+    );
+  }
+
+  // Y las demás filas ilegibles (de quien ya está formado, de quien no está en
+  // P-03 o sin persona) también se dicen: la pantalla rechaza la tabla igual.
+  const otras = [
+    ...sinLeerSinPersona,
+    ...Array.from(sinLeerPorPersona.values())
+      .reduce<string[]>((todas, filasDe) => todas.concat(filasDe), [])
+      .filter(descripcion => !sinDemostrar.includes(descripcion)),
+  ];
+
+  if (otras.length) {
+    partes.push(sinMedir(`P-05 tiene filas que no se pueden leer: ${lista(otras)}.`, 'CONFIGURATION'));
   }
 
   if (formadas.length) {

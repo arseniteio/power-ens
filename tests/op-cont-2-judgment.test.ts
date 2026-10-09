@@ -439,6 +439,33 @@ bloque('4. EV-04 y EV-06: lo que la organización declara que falta o venció es
     sinRuiz.motivo('op.cont.2.4')
   );
 
+  const ruizIlegible = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+
+  comprueba(
+    'la única fila del suplente con la vigencia ilegible: no demostrado (CONFIGURATION) nombrando la fila, no «sin formación»',
+    ruizIlegible.evidencia('EV-06')?.status === 'NO_EVALUABLE' &&
+      ruizIlegible.evidencia('EV-06')?.gapCause === 'CONFIGURATION' &&
+      /fila 2 \(J\. Ruiz\): vigencia «10\/02\/2027»/.test(ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || '') &&
+      !/sin formación registrada/.test(ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  );
+
+  const vencidaMasIlegible = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2025-01-10 | 2026-01-10', 'J. Ruiz | renovación |  | ', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+
+  comprueba(
+    'una vencida y otra fila sin vigencia de la misma persona: no demostrado, no NO_CUMPLE',
+    vencidaMasIlegible.evidencia('EV-06')?.status === 'NO_EVALUABLE' && /fila 3 \(J\. Ruiz\)/.test(vencidaMasIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    vencidaMasIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  );
+  comprueba(
+    'reversión · con la fecha bien escrita, CUMPLE',
+    evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'CUMPLE'
+  );
+  comprueba(
+    'y una persona sin ninguna fila sigue siendo NO_CUMPLE aunque haya filas ilegibles de otra',
+    evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
+  );
+
   const minusculas = evalua(con({ 'P-05': ['a. martinez | coordinación | 2026-02-10 | 2027-02-10', 'J.  RUIZ | coordinación | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
   comprueba(
