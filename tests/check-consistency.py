@@ -144,6 +144,13 @@ RUNBOOKS = {
         ("linux/op.mon.1",),
         ["ensfacil_op_mon_1_json_rules.xml"],
     ),
+    # Solo Linux y solo el manager: los registros de la organización, la base
+    # de agentes y los latidos de todos los recolectores están en él (spec
+    # 2026-10-09 §2.4).
+    "op.mon.2": (
+        ("linux/op.mon.2",),
+        ["ensfacil_op_mon_2_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que
