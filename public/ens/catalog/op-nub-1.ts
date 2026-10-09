@@ -6,11 +6,23 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Servicios en la nube',
   dimension: 'Todas',
+  // Se mide SOLO en el manager: la configuración de los módulos cloud de Wazuh,
+  // sus alertas y sus errores están en el sistema central. La credencial del
+  // proveedor vive en un agente dedicado del cliente, y sus registros llegan al
+  // manager como alertas. Lo documental lo juzga la policy con las tablas de la
+  // pantalla. Su resultado es el de la fila del manager (000).
+  measurementPlanes: ['manager'],
   description:
-    'op.nub.1 se acredita en dos planos.',
+    'op.nub.1 es mayoritariamente contractual: la conformidad y la certificación del proveedor, su pentest, la jurisdicción de los datos y el cifrado se declaran en la pantalla con su vigencia y se acreditan documentalmente. La parte técnica es la integración de los servicios en la nube con Wazuh (módulo configurado, registros que entran, errores, operaciones administrativas y accesos), medida en el manager sin credenciales.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
+  // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §4.3),
+  // no las que la plantilla asocia. op.nub.1.1 (prestador) y op.nub.1.r1.2
+  // (op.pl.5) son documentales sin evidencia técnica: los acredita P-ATT, y la
+  // policy los saca del juego (NO_APLICA) cuando P-01 o P-05 lo dicen. EV-03,
+  // EV-05 y EV-06 son datos del informe, sin requisito que las juzgue: Wazuh
+  // 4.14 no tiene «SCA cloud» ni ve el tráfico hacia la nube.
   requirements: [
     {
       id: 'op.nub.1.1',
@@ -21,6 +33,7 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
+      // Documental: solo si P-01 = prestador o ambos, y lo acredita P-ATT.
       evidenceIds: [],
       parameterIds: ['P-01', 'P-02'],
     },
@@ -33,6 +46,9 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
+      // EV-09 es el expediente documental (acreditado con `attested`); EV-01,
+      // EV-04 y EV-07 son la medida técnica de los servicios que P-06 integra,
+      // y una medida en contra manda sobre el documento.
       evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
       parameterIds: ['P-01', 'P-02', 'P-03', 'P-06', 'P-08', 'P-09', 'P-10', 'P-11', 'P-12', 'P-13'],
     },
@@ -45,7 +61,7 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'Exigible en MEDIA y ALTA. En categoría BÁSICA no aplica.',
       },
       evidenceIds: ['EV-08'],
       parameterIds: ['P-02', 'P-04'],
@@ -59,8 +75,10 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:
-          'Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.',
+          'Exigible en MEDIA y ALTA. En categoría BÁSICA no aplica.',
       },
+      // Documental: ENSFácil no tiene op.pl.5. NO_APLICA sin servicios de
+      // seguridad en P-05; con ellos, lo acredita P-ATT.
       evidenceIds: [],
       parameterIds: ['P-05'],
     },
@@ -73,7 +91,7 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'Exigible solo en categoría ALTA. En BÁSICA y MEDIA no aplica.',
       },
       evidenceIds: ['EV-02'],
       parameterIds: ['P-06', 'P-07'],

@@ -73,11 +73,28 @@ const field = (
   producerGaps,
 });
 
+const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'];
+
+// Los dos bloques que la plantilla obliga a separar: «mezclarlos daría una
+// impresión falsa de cobertura».
+const DOCUMENTALES = ['op.nub.1.1', 'op.nub.1.r1.1', 'op.nub.1.r1.2'];
+
 /**
  * Modelo de informe de op.nub.1 (Protección de servicios en la nube).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
+ *
+ * Sale de la hoja «Informe ENSFácil» de la plantilla, ajustado al juicio de la
+ * policy (`policies/op-nub-1.policy.ts`):
+ *
+ *   - El bloque DOCUMENTAL (expediente, vigencias, op.pl.5, prestador) se
+ *     marca como documentación aportada, no verificada técnicamente: su CUMPLE
+ *     es «acreditado documentalmente».
+ *   - El bloque TÉCNICO (ingesta, operaciones administrativas, accesos y, en
+ *     ALTA, la postura del proveedor) es lo medido en el manager de Wazuh.
+ *   - Wazuh 4.14 no tiene «SCA cloud»: cifrado (EV-05) y región (EV-06) salen
+ *     como datos del informe, con lo declarado; el shadow IT (EV-03) no se ve
+ *     con ficheros locales. La configuración del inquilino (R2) son los
+ *     hallazgos de postura del propio proveedor.
+ *   - Un servicio sin integración en Wazuh es un hallazgo, no un incumplimiento.
  */
 export const buildOpNub1ReportModel = (
   result: ENSComplianceResult | undefined,
@@ -90,8 +107,19 @@ export const buildOpNub1ReportModel = (
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
   );
 
-  const parameterValue = (parameterId: string): unknown =>
-    parameters.get(parameterId)?.value;
+  const requirements = new Map(
+    (result?.requirements || []).map(requirement => [requirement.id, requirement]),
+  );
+
+  const variables = new Map(
+    (result?.policyRuntime?.runtimeVariables || []).map(variable => [variable.name, variable]),
+  );
+
+  const parameterRows = (parameterId: string): string[] => {
+    const value = parameters.get(parameterId)?.value;
+
+    return Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];
+  };
 
   const evidenceStatus = (evidenceId: string): OpNub1ReportFieldStatus =>
     asStatus(evidences.get(evidenceId)?.status);
@@ -99,7 +127,25 @@ export const buildOpNub1ReportModel = (
   const evidenceObservations = (evidenceId: string): string[] =>
     evidences.get(evidenceId)?.observations || [];
 
+  const variableDescription = (name: string): string =>
+    variables.get(name)?.description || '';
+
   const level = (result?.level || '').toUpperCase();
+
+  const describeRequirement = (requirement: {
+    id: string;
+    title: string;
+    status: string;
+    attested?: boolean;
+    evidenced?: boolean;
+  }): string =>
+    `${requirement.id} ${requirement.title}: ${requirement.status}${
+      requirement.attested
+        ? ' (acreditado documentalmente)'
+        : requirement.status !== 'NO_APLICA' && requirement.evidenced === false
+        ? ' (no demostrado)'
+        : ''
+    }`;
 
   // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
   const campo1 = field(
@@ -107,110 +153,145 @@ export const buildOpNub1ReportModel = (
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'],
-    evidenceObservations('EV-01'),
+    ALL_EVIDENCES,
+    [
+      variableDescription('posicion_P01'),
+      ...(result?.requirements || [])
+        .filter(requirement => requirement.status !== 'NO_APLICA')
+        .map(describeRequirement),
+    ],
   );
 
-  // Inventario de servicios en la nube  ·  fuente: Configuración + ENSFácil (EV-03)
+  // Inventario de servicios en la nube  ·  fuente: Configuración (P-02) + EV-03 (dato del informe)
   const campo2 = field(
     'op.nub.1.campo2',
     'Inventario de servicios en la nube',
-    evidenceStatus('EV-03'),
-    'Servicios de P-02 con su modelo (SaaS, PaaS, IaaS), proveedor, información tratada y criticidad. Apartado separado para los servicios detectados en uso que no figuran en el inventario, que es el hallazgo de shadow IT.',
+    'NO_APLICA',
+    parameterRows('P-02').length
+      ? `Servicios de P-02 (servicio | modelo | proveedor | información | criticidad | uso): ${parameterRows('P-02').join('; ')}.`
+      : 'P-02 sin declarar.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
 
-  // Expediente documental por servicio  ·  fuente: ENSFácil (EV-09)
+  // Expediente documental por servicio  ·  fuente: ENSFácil (EV-09), documental
   const campo3 = field(
     'op.nub.1.campo3',
     'Expediente documental por servicio',
     evidenceStatus('EV-09'),
-    'Por cada servicio: conformidad ENS o guía CCN-STIC, certificación reconocida con su metodología y vigencia, informe de pentesting del proveedor, cláusulas de transparencia, jurisdicción declarada y modelo de cifrado. Marcado expresamente como DOCUMENTACIÓN APORTADA y no verificada técnicamente.',
+    'DOCUMENTACIÓN APORTADA, no verificada técnicamente. Por cada servicio utilizado: conformidad ENS o guía CCN-STIC vigente (P-03), informe de pentest del proveedor dentro de P-12 meses (P-10), cifrado y gestión de claves (P-09), región de los datos y de las copias y jurisdicción (P-08).',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
 
-  // Vigencia de certificaciones y conformidades  ·  fuente: ENSFácil (EV-08)
+  // Vigencia de certificaciones y conformidades  ·  fuente: ENSFácil (EV-08 y EV-09), documental
   const campo4 = field(
     'op.nub.1.campo4',
     'Vigencia de certificaciones y conformidades',
-    evidenceStatus('EV-08'),
-    'Fechas de vigencia de cada declaración y certificación con los días restantes y aviso anticipado de vencimiento. Relación de las ya caducadas, que son incumplimiento inmediato.',
-    ['EV-08'],
-    evidenceObservations('EV-08'),
+    level === 'BAJO' ? evidenceStatus('EV-09') : evidenceStatus('EV-08'),
+    'DOCUMENTACIÓN APORTADA. Fecha de vigencia de cada conformidad (P-03) y de cada certificación reconocida (P-04, R1 desde MEDIA), con los días restantes frente a la fecha de la evaluación. Las vencidas son incumplimiento inmediato.',
+    ['EV-08', 'EV-09'],
+    [variableDescription('vigencias'), ...evidenceObservations('EV-08')],
   );
 
-  // Configuración de seguridad del inquilino (R2)  ·  fuente: SCA cloud (EV-02)
+  // Configuración de seguridad del inquilino (R2)  ·  fuente: hallazgos de postura del proveedor (EV-02)
   const campo5 = field(
     'op.nub.1.campo5',
     'Configuración de seguridad del inquilino (R2)',
-    level === 'ALTO'
-      ? evidenceStatus('EV-02')
-      : 'NO_APLICA',
-    'Por cada servicio: resultado de los checks de configuración contra la política de P-07, con el porcentaje de cumplimiento y la relación de desviaciones. Destacados los hallazgos graves: almacenamiento público, privilegios excesivos, auditoría desactivada, MFA no exigida. Es el bloque de mayor valor técnico.',
+    level === 'ALTO' ? evidenceStatus('EV-02') : 'NO_APLICA',
+    level !== 'ALTO'
+      ? 'R2 solo se exige en categoría ALTA.'
+      : 'Por cada servicio de P-07: los controles de postura que el propio proveedor evalúa y Wazuh ingiere (Security Hub, Defender, Security Command Center), con los fallidos y los críticos. Wazuh 4.14 no tiene SCA para inquilinos cloud: sin esos hallazgos, R2 no es automatizable.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
 
-  // Trazabilidad del perímetro cloud  ·  fuente: Cloud integrations (EV-01)
+  // Trazabilidad del perímetro cloud  ·  fuente: módulos cloud de Wazuh (EV-01)
   const campo6 = field(
     'op.nub.1.campo6',
     'Trazabilidad del perímetro cloud',
     evidenceStatus('EV-01'),
-    'Volumen de eventos ingeridos por servicio e integración, con su continuidad. Servicios del inventario sin integración configurada, que son puntos ciegos de trazabilidad.',
+    'MEDIDO en el manager de Wazuh. Por cada servicio de P-06: su módulo cloud, dónde está configurado, su última alerta y las de 24 h frente a P-13, y sus errores. Los servicios del inventario sin integración son puntos ciegos de trazabilidad: un hallazgo, no un incumplimiento.',
     ['EV-01'],
-    evidenceObservations('EV-01'),
+    [variableDescription('servicios_sin_integracion'), ...evidenceObservations('EV-01')],
   );
 
-  // Operaciones administrativas en los servicios cloud  ·  fuente: Cloud integrations (EV-04)
+  // Operaciones administrativas en los servicios cloud  ·  fuente: módulos cloud (EV-04)
   const campo7 = field(
     'op.nub.1.campo7',
     'Operaciones administrativas en los servicios cloud',
     evidenceStatus('EV-04'),
-    'Operaciones de administración registradas: identidades creadas o modificadas, cambios de permisos, alteraciones de configuración de seguridad y de reglas de red, con el actor y la fecha. Destacadas las ejecutadas por cuentas no autorizadas.',
+    'MEDIDO en el manager de Wazuh. Operaciones de administración con éxito en la ventana, por actor, con sus operaciones y la fecha de la última, frente a los administradores autorizados de P-11. Destacadas las de actores no autorizados.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
 
-  // Cifrado y gestión de claves  ·  fuente: SCA cloud (EV-05)
+  // Cifrado y gestión de claves  ·  dato del informe (EV-05) + P-09 declarado
   const campo8 = field(
     'op.nub.1.campo8',
     'Cifrado y gestión de claves',
-    evidenceStatus('EV-05'),
-    'Por servicio: cifrado en reposo activo, modelo de gestión de claves efectivo frente al declarado en P-09, y rotación configurada. Enlaza con op.exp.10, porque las claves de los servicios cloud son material criptográfico del sistema.',
+    'NO_APLICA',
+    'Dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA cloud con el que verificar el cifrado configurado. Lo declarado en P-09 forma parte del expediente documental (op.nub.1.2 c). Enlaza con op.exp.10: las claves de los servicios cloud son material criptográfico del sistema.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
 
-  // Región de los datos y jurisdicción  ·  fuente: SCA cloud (EV-06)
+  // Región de los datos y jurisdicción  ·  dato del informe (EV-06) + P-08 declarado
   const campo9 = field(
     'op.nub.1.campo9',
     'Región de los datos y jurisdicción',
-    evidenceStatus('EV-06'),
-    'Por servicio: región configurada para los datos y para sus copias, frente a la declarada en P-08, con marca de conformidad. Aviso destacado ante discrepancias por su relevancia también en materia de transferencias internacionales de datos personales.',
+    'NO_APLICA',
+    'Dato del informe, sin veredicto: la región configurada no se puede medir sin SCA cloud ni credenciales del proveedor. Lo declarado en P-08 forma parte del expediente documental (op.nub.1.2 d).',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
 
-  // Accesos a los servicios cloud  ·  fuente: Cloud integrations (EV-07)
+  // Accesos a los servicios cloud  ·  fuente: módulos cloud (EV-07)
   const campo10 = field(
     'op.nub.1.campo10',
     'Accesos a los servicios cloud',
     evidenceStatus('EV-07'),
-    'Autenticaciones registradas por servicio con origen, resultado y método, y verificación de doble factor. Un servicio cloud es acceso a través de zona no controlada, de modo que los criterios de op.acc.6 R8 le resultan directamente aplicables.',
+    'MEDIDO en el manager de Wazuh. Inicios de sesión interactivos por servicio, con resultado, segundo factor y orígenes. Un servicio cloud es acceso desde una zona no controlada (op.acc.6): un acceso con éxito sin segundo factor es un hallazgo.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
 
-  // Puntuación de cumplimiento op.nub.1  ·  fuente: Motor ENSFácil
+  // Servicios de seguridad en la nube (R1.2)  ·  fuente: P-05 / P-ATT
+  const r12 = requirements.get('op.nub.1.r1.2');
   const campo11 = field(
     'op.nub.1.campo11',
+    'Servicios de seguridad en la nube (R1.2)',
+    level === 'BAJO' ? 'NO_APLICA' : asStatus(r12?.status),
+    level === 'BAJO'
+      ? 'R1.2 solo se exige desde categoría MEDIA.'
+      : r12?.attested
+      ? 'Acreditado documentalmente: la verificación de op.pl.5 de los servicios de seguridad de P-05 consta en P-ATT. Es una declaración, no una medida.'
+      : r12?.status === 'NO_APLICA'
+      ? 'No se declara ningún servicio en la nube de seguridad (P-05).'
+      : 'Sin acreditar: los servicios de seguridad de P-05 no tienen una atestación de su verificación de op.pl.5 en P-ATT, o se declaran no conformes.',
+    [],
+    r12?.observations || [],
+  );
+
+  // Puntuación de cumplimiento op.nub.1  ·  fuente: Motor ENSFácil
+  const documentales = (result?.requirements || []).filter(
+    requirement => DOCUMENTALES.includes(requirement.id) || requirement.attested,
+  );
+  const tecnicos = (result?.requirements || []).filter(
+    requirement => !documentales.includes(requirement),
+  );
+  const campo12 = field(
+    'op.nub.1.campo12',
     'Puntuación de cumplimiento op.nub.1',
     asStatus(result?.status),
-    formatValue(result?.status),
-    ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'],
-    evidenceObservations('EV-01'),
+    typeof result?.score === 'number' ? `${result.score} %` : formatValue(result?.status),
+    ALL_EVIDENCES,
+    [
+      `Bloque documental (se negocia con el proveedor): ${variableDescription('bloque_documental') || 'sin datos'}`,
+      ...documentales.map(describeRequirement),
+      `Bloque técnico (se configura): ${variableDescription('bloque_tecnico') || 'sin datos'}`,
+      ...tecnicos.map(describeRequirement),
+    ],
   );
 
   return {
@@ -238,6 +319,7 @@ export const buildOpNub1ReportModel = (
       campo9,
       campo10,
       campo11,
+      campo12,
     ],
   };
 };

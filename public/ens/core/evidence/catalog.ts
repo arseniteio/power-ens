@@ -3956,148 +3956,206 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  // --- op.nub.1 · Protección de servicios en la nube ------------------------
+  //
+  // Mayoritariamente contractual (spec 2026-10-09 §4). Dos planos que el
+  // informe no mezcla:
+  //
+  //   - DOCUMENTAL: EV-08 (certificación de P-04, R1) y EV-09 (expediente por
+  //     servicio: P-03, P-08, P-09 y P-10) son tablas de la pantalla con su
+  //     vigencia. No tienen hecho: las juzga la policy contra la fecha de la
+  //     evaluación, y su CUMPLE se lee «acreditado documentalmente».
+  //   - TÉCNICO: EV-01, EV-04 y EV-07 (y EV-02 en ALTA) los mide el recolector
+  //     del MANAGER (agent.id=000) con ficheros locales y sin credenciales:
+  //     la presencia de los módulos cloud de Wazuh en ossec.conf y en los
+  //     agent.conf de los grupos (nunca sus claves), sus alertas en
+  //     alerts.json y sus errores en ossec.log. La credencial del proveedor
+  //     vive en un agente dedicado del cliente. Los hechos hablan de módulos y
+  //     de servicios, no de esta máquina, así que no hay primitiva que los
+  //     juzgue: lo hace la policy (`policies/op-nub-1.policy.ts`), cruzando
+  //     cada fila de P-06 con su módulo, y el puente lo lleva a la tabla.
+  //
+  // EV-03 (shadow IT), EV-05 (cifrado) y EV-06 (región) son datos del informe,
+  // sin veredicto: la plantilla los promete con «SCA cloud» y tráfico de los
+  // equipos, y Wazuh 4.14 no tiene ninguna de las dos cosas con ficheros
+  // locales. Lo declarado de cifrado (P-09) y región (P-08) se juzga en EV-09.
+  //
+  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
+  // causa), nunca veredictos. Pasa cada 6 h. El contrato completo lo documenta
+  // el runbook, y `tests/op-nub-1-judgment.test.ts` lo ejercita.
+  //
+  // Reglas: banda 111500-111599, desplegadas por el runbook `linux/op.nub.1`.
   {
+    // Por módulo cloud, cada 6 h (o un hecho con modulo=ninguno). La policy
+    // cruza cada fila de P-06 con su módulo: configurado y habilitado, sin
+    // errores en 24 h y con registros más recientes que P-13.
     id: 'EV-01',
     controlId: 'op.nub.1',
     title: 'Ingesta de registros de los servicios en la nube',
     description:
-      'Recolección de los eventos de los servicios cloud declarados en P-06: autenticaciones, operaciones administrativas, cambios de configuración, accesos a datos. Extiende la trazabilidad del sistema al perímetro cloud, que de otro modo queda fuera de toda monitorización.',
+      'Por cada módulo cloud de Wazuh (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github): dónde está configurado (ossec.conf del manager, agent.conf de un grupo o el agente dedicado que envía sus alertas), si está habilitado, el instante de su última alerta, las alertas de las últimas 24 h y sus errores en ossec.log. Se contrasta con P-06: un servicio declarado como integrado cuyo módulo no está, está deshabilitado, da errores o lleva más de P-13 horas sin registros es un punto ciego de trazabilidad. Los servicios de P-02 sin integración se señalan en el informe, sin veredicto.',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'cloud_integration_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['cloud_integration_observed'],
+    relatedRules: ['111501'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: ingesta de registros de los servicios en la nube?',
+      '¿Llegan a Wazuh, sin errores y dentro de P-13 horas, los registros de cada servicio que P-06 declara integrado?',
   },
   {
+    // Solo ALTA (R2). No es «SCA cloud», que Wazuh 4.14 no tiene: son los
+    // hallazgos de postura del propio proveedor que Wazuh ingiere, resumidos
+    // por módulo, fuente y estándar cada 6 h.
     id: 'EV-02',
     controlId: 'op.nub.1',
-    title: 'Configuración de seguridad del lado del cliente (R2)',
+    title: 'Configuración del inquilino según los hallazgos de postura del proveedor (R2)',
     description:
-      'Evaluación de la configuración del inquilino del cliente en cada servicio cloud contra las políticas de P-07: almacenamiento expuesto públicamente, identidades sobreprivilegiadas, registro de auditoría desactivado, autenticación multifactor ausente, cifrado sin configurar.',
+      'Por módulo, fuente y estándar: los controles de postura que el propio proveedor evalúa y envía a Wazuh (AWS Security Hub o Config por aws-s3, Microsoft Defender por ms-graph, Security Command Center por gcp-pubsub), con el último resultado de cada control, los fallidos y los críticos. Se contrasta con P-07: un control fallido en un servicio de P-07 incumple R2. Wazuh 4.14 no trae políticas SCA para inquilinos cloud; sin hallazgos de postura del proveedor, R2 no es automatizable.',
     requirements: ['op.nub.1.r2.1'],
     levels: ['ALTO'],
     category: 'CONFIGURATION',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'cloud_posture_finding_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['cloud_posture_finding_observed'],
+    relatedRules: ['111502'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: configuración de seguridad del lado del cliente (r2)?',
+      '¿Pasan los controles de postura del proveedor en cada servicio de P-07, con el estándar que declara?',
   },
   {
+    // Dato del informe, sin requisito que la juzgue (spec §4.2, §7.3).
     id: 'EV-03',
     controlId: 'op.nub.1',
     title: 'Detección de servicios cloud no inventariados (shadow IT)',
     description:
-      'Identificación de servicios en la nube en uso que no figuran en el inventario P-02, detectados a partir del tráfico de los endpoints o de las autenticaciones federadas. Un servicio cloud no inventariado no tiene ninguna verificación de conformidad.',
+      'Servicios en la nube en uso que no figuran en el inventario P-02. Es un dato del informe, sin veredicto: detectarlos exige el DNS o el proxy de los equipos, y con los ficheros locales del manager no se ven (el inventario de Wazuh solo da los puertos en escucha). Lo que sí se informa son los módulos cloud que Wazuh ingiere y P-06 no declara.',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: detección de servicios cloud no inventariados (shadow it)?',
+      '¿Hay servicios en la nube en uso fuera de P-02? (dato del informe: no medible con ficheros locales)',
   },
   {
+    // Una acción, agregada por pasada (módulo, cuenta, actor). Ventana de 30
+    // días. Cada actor humano, en P-11 para su servicio.
     id: 'EV-04',
     controlId: 'op.nub.1',
     title: 'Operaciones administrativas en los servicios cloud',
     description:
-      'Registro de las operaciones de administración ejecutadas en el inquilino: creación y modificación de identidades, cambios de permisos, alteración de configuración de seguridad, modificación de reglas de red. Es donde se materializan los cambios de mayor impacto.',
+      'Operaciones de administración con éxito en los servicios integrados (creación y modificación de identidades, permisos, configuración de seguridad, reglas de red), agregadas por módulo, cuenta y actor a partir de las alertas de los módulos cloud: CloudTrail, registro de actividad de Azure, Cloud Audit Logs. Cada actor humano tiene que figurar en P-11 para su servicio; las acciones de los propios servicios del proveedor no se contrastan.',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'cloud_admin_operation_observed'],
-    relatedRules: [],
+    relatedRules: ['111503'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: operaciones administrativas en los servicios cloud?',
+      '¿Ha ejecutado operaciones de administración en algún servicio integrado un actor que P-11 no autoriza?',
   },
   {
+    // Dato del informe: sin «SCA cloud» no hay medida del cifrado configurado;
+    // lo declarado en P-09 se juzga en EV-09.
     id: 'EV-05',
     controlId: 'op.nub.1',
     title: 'Verificación del cifrado y del modelo de gestión de claves',
     description:
-      'Comprobación de que el cifrado de los datos está activo en cada servicio y de que el modelo de gestión de claves declarado en P-09 es el efectivamente configurado. op.nub.1.2 c) lo exige de forma expresa.',
+      'El cifrado de los datos y el modelo de gestión de claves de cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud y el recolector no usa credenciales del proveedor, así que el cifrado configurado no se puede medir. Lo declarado en P-09 forma parte del expediente documental (EV-09, op.nub.1.2 c).',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: verificación del cifrado y del modelo de gestión de claves?',
+      '¿Qué cifrado y qué gestión de claves declara cada servicio en P-09? (dato del informe: no medible sin SCA cloud)',
   },
   {
+    // Dato del informe: ídem con la región (P-08).
     id: 'EV-06',
     controlId: 'op.nub.1',
     title: 'Verificación de la región de los datos',
     description:
-      'Comprobación de que la región geográfica configurada para el almacenamiento de datos y sus copias coincide con la declarada en P-08. Una discrepancia tiene consecuencias tanto de ENS como de transferencias internacionales de datos personales.',
+      'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: verificación de la región de los datos?',
+      '¿Qué región de datos y de copias declara cada servicio en P-08? (dato del informe: no medible sin SCA cloud)',
   },
   {
+    // Una acción, agregada por pasada (módulo, cuenta, usuario, resultado,
+    // segundo factor). Ventana de 30 días.
     id: 'EV-07',
     controlId: 'op.nub.1',
     title: 'Autenticaciones y accesos en los servicios cloud',
     description:
-      'Registro de las autenticaciones a los servicios cloud con su origen, resultado y método, lo que permite aplicar sobre el perímetro cloud los mismos controles de op.acc.5 y op.acc.6: doble factor, accesos desde zonas no controladas, intentos fallidos.',
+      'Inicios de sesión interactivos en los servicios integrados (consola de AWS, inicios de sesión de Microsoft Entra ID), agregados por módulo, cuenta, usuario, resultado y segundo factor, con sus orígenes. Un servicio cloud es acceso desde una zona no controlada (op.acc.6): un acceso con éxito sin segundo factor incumple op.nub.1.2. Si el proveedor no registra el segundo factor (accesos federados, Google Cloud), no se puede afirmar.',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'cloud_authentication_observed'],
-    relatedRules: [],
+    relatedRules: ['111504'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: autenticaciones y accesos en los servicios cloud?',
+      '¿Se ha accedido con éxito a algún servicio integrado sin segundo factor?',
   },
   {
+    // Documental (R1): P-04 por servicio utilizado, contra la fecha de la
+    // evaluación. Sin hecho.
     id: 'EV-08',
     controlId: 'op.nub.1',
-    title: 'Vigencia de certificaciones y conformidad de proveedores',
+    title: 'Vigencia de las certificaciones de los proveedores (R1)',
     description:
-      'Seguimiento de la vigencia de las declaraciones de conformidad de P-03 y de las certificaciones de P-04, con alerta anticipada de vencimiento. NO es verificación del documento: es control de su validez temporal.',
+      'Por cada servicio utilizado de P-02, su certificación de P-04 bajo una metodología reconocida, con su número y su vigencia frente a la fecha de la evaluación, y los días que le quedan. NO es verificación del documento: es control de su validez temporal, y su CUMPLE se lee «acreditado documentalmente». Una certificación vencida o ausente incumple R1.',
     requirements: ['op.nub.1.r1.1'],
     levels: ['MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: vigencia de certificaciones y conformidad de proveedores?',
+      '¿Tiene cada servicio de terceros una certificación reconocida en vigor? (declarado, acreditado documentalmente)',
   },
   {
+    // Documental: el expediente por servicio utilizado, contra la fecha de la
+    // evaluación. Sin hecho.
     id: 'EV-09',
     controlId: 'op.nub.1',
     title: 'Expediente documental del servicio en la nube',
     description:
-      'Consolidación por servicio de toda la documentación exigida: conformidad ENS, certificación reconocida, informe de pentesting del proveedor, cláusulas de transparencia, jurisdicción de los datos y modelo de cifrado. Es el entregable que un auditor pedirá servicio por servicio.',
+      'Por cada servicio utilizado de P-02: su conformidad con el ENS (de categoría no inferior a la del sistema) o con la guía CCN-STIC, vigente (P-03); su último informe de pentest, no más viejo que P-12 meses (P-10, op.nub.1.2 a); su cifrado y gestión de claves (P-09, c); la región de sus datos y copias y la jurisdicción (P-08, d). La transparencia (b) la cubre la conformidad declarada. Es DOCUMENTACIÓN APORTADA, no verificada técnicamente: su CUMPLE se lee «acreditado documentalmente».',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
-    category: 'MONITORING',
+    category: 'CONFIGURATION',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: expediente documental del servicio en la nube?',
+      '¿Tiene cada servicio de terceros su expediente completo y vigente: conformidad, pentest, cifrado y jurisdicción? (declarado, acreditado documentalmente)',
   },
 ];
