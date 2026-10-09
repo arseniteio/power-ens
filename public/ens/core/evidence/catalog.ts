@@ -3782,8 +3782,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
   // causa), nunca veredictos. Pasa cada hora: el estado del motor de reglas
   // (EV-01) en cada pasada, y todo lo demás —estados lentos y por agente— cada
-  // 6 h, reemitido entero. Contrato completo:
-  // `.superpowers/sdd/2026-10-09-op-mon-nub-cont/op-mon-1-contract.md`.
+  // 6 h, reemitido entero. El contrato completo (campos, cadencias, partes de
+  // los ids) lo documenta el runbook, y `tests/op-mon-1-judgment.test.ts` lo
+  // ejercita.
   //
   // Reglas: banda 111200-111299, desplegadas por el runbook `linux/op.mon.1`.
   {

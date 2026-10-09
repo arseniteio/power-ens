@@ -11,11 +11,11 @@
  * lleva al lado la REVERSIÓN: el MISMO hecho con otro parámetro, u otro `now`,
  * cambia el veredicto.
  *
- * Los hechos siguen el contrato de eventos de op.mon.1
- * (`.superpowers/sdd/2026-10-09-op-mon-nub-cont/op-mon-1-contract.md`) con los
- * agentes y el ruleset de wazuh4 del 09/10/2026. El recolector todavía no
- * existe: cuando exista, se sustituyen por su salida real en modo --prueba.
- * Pasan por el normalizador real como alertas de alerts.json.
+ * Los hechos siguen el contrato de eventos de op.mon.1 (el que documenta el
+ * runbook `linux/op.mon.1`), con los agentes y el ruleset de wazuh4 del
+ * 09/10/2026. El recolector todavía no existe: cuando exista, se sustituyen por
+ * su salida real en modo --prueba. Pasan por el normalizador real como alertas
+ * de alerts.json.
  */
 import { opMon1PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-mon-1.policy';
 import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
