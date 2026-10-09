@@ -22,7 +22,7 @@ export const opCont2CatalogDefinition: ENSControlDefinition = {
   description:
     'op.cont.2 es un control de planificación y su acreditación es documental: existe el plan, identifica funciones, contempla medios alternativos contratados, se ha formado a las personas y está integrado con los demás planes de la organización.',
   levels: ['ALTO'],
-  status: 'DRAFT',
+  status: 'ACTIVE',
   version: '1.0.0',
   // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §5),
   // no las que la plantilla asocia. Cada requisito es un contenido del plan

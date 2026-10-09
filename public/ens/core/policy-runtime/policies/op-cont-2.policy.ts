@@ -61,7 +61,6 @@ import {
   cumple,
   noCumple,
   sinMedir,
-  noAplica,
   causaComun,
   peor,
   combina,
@@ -320,14 +319,16 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   const sinContrato: string[] = [];
   const vencidos: string[] = [];
-  const sinFecha: string[] = [];
+  // Filas que no permiten afirmar nada: sin nombre, o con contrato y sin una
+  // fecha de vigencia legible.
+  const ilegibles: string[] = [];
   const enVigor: string[] = [];
 
   medios.forEach((m, i) => {
-    const nombre = m.medio || `${fila(i)}, sin nombre`;
+    const nombre = m.medio;
 
     if (vacio(m.medio)) {
-      sinFecha.push(`${fila(i)}: sin nombre del medio`);
+      ilegibles.push(`${fila(i)}: sin nombre del medio`);
       return;
     }
 
@@ -337,14 +338,14 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
     }
 
     if (vacio(m.vigencia)) {
-      sinFecha.push(`${nombre} (${m.contrato}): sin fecha de vigencia`);
+      ilegibles.push(`${nombre} (${m.contrato}): sin fecha de vigencia`);
       return;
     }
 
     const hasta = fecha(m.vigencia);
 
     if (hasta === undefined) {
-      sinFecha.push(`${nombre} (${m.contrato}): vigencia «${m.vigencia}», que no es una fecha AAAA-MM-DD`);
+      ilegibles.push(`${nombre} (${m.contrato}): vigencia «${m.vigencia}», que no es una fecha AAAA-MM-DD`);
       return;
     }
 
@@ -366,8 +367,8 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
     partes.push(noCumple(`Contratos de medios alternativos vencidos: ${lista(vencidos)}.`));
   }
 
-  if (sinFecha.length) {
-    partes.push(sinMedir(`P-04 no permite afirmar que estén en vigor: ${lista(sinFecha)}.`, 'CONFIGURATION'));
+  if (ilegibles.length) {
+    partes.push(sinMedir(`P-04 no permite afirmar que estén en vigor: ${lista(ilegibles)}.`, 'CONFIGURATION'));
   }
 
   if (enVigor.length) {
@@ -540,9 +541,13 @@ const DATO_DEL_INFORME: Record<string, { requisito: string; parametros: string[]
 
 // --- decisiones ------------------------------------------------------------
 
-// Una declaración no es una medida: el motivo de cada evidencia lo dice, porque
-// el puente lo lleva a la tabla de evidencias.
-const DECLARACION = 'Declaración de la pantalla, no medida:';
+// Una declaración no es una medida: el motivo de cada evidencia juzgada lo dice,
+// porque el puente lo lleva a la tabla de evidencias. Lo que no se ha podido
+// juzgar ya dice qué falta.
+const comoDeclaracion = (medida: Medida): string =>
+  medida.estado === 'CUMPLE' || medida.estado === 'NO_CUMPLE'
+    ? `Declaración de la pantalla, no medida: ${medida.motivo}`
+    : medida.motivo;
 
 type Definicion = {
   requisito: string;
@@ -618,7 +623,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     'EV-04': ev04(context, ahora),
     'EV-06': ev06(context, ahora),
   };
-  const propias: Record<string, Medida> = {};
+  // La declaración propia de cada requisito que la tiene, para el informe.
+  const propias: { requisito: string; parametro: string; medida: Medida }[] = [];
 
   const requisitoDecisions: ENSPolicyDecision[] = [];
   const evidenciaDecisions: ENSPolicyDecision[] = [];
@@ -630,7 +636,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     ];
 
     if (definicion.propia) {
-      propias[definicion.requisito] = partes[partes.length - 1].medida;
+      propias.push({ requisito: definicion.requisito, parametro: definicion.propia.etiqueta, medida: partes[partes.length - 1].medida });
     }
 
     const estado = peor(partes.map(p => p.medida));
@@ -666,7 +672,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           definicion.parametros,
           definicion.tipo,
           `${definicion.requisito}/${id}`,
-          `${DECLARACION} ${medida.motivo}`,
+          comoDeclaracion(medida),
           `${id} CUMPLE`,
           medida.causa
         )
@@ -690,10 +696,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       eventIds: [],
       description: medida.motivo,
     })),
-    ...Object.entries(propias).map(([requisito, medida]) => ({
+    ...propias.map(({ requisito, parametro: id, medida }) => ({
       name: `declaracion_${requisito.replace(/\./g, '_')}`,
       value: medida.estado,
-      parameterIds: REQUISITOS.find(r => r.requisito === requisito)?.propia ? [REQUISITOS.find(r => r.requisito === requisito)!.propia!.etiqueta] : [],
+      parameterIds: [id],
       evidenceIds: [],
       eventIds: [],
       description: medida.motivo,
@@ -707,7 +713,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       description:
         plan.vence === undefined
           ? 'Sin fecha: el plan no está declarado o no se puede leer.'
-          : `Último día de vigencia del plan aprobado más recientemente, con la periodicidad de P-08.`,
+          : 'Último día de vigencia del plan aprobado más recientemente, con la periodicidad de P-08.',
     },
   ];
 
