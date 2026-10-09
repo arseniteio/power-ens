@@ -153,7 +153,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): cada 6 h el recolector del manager informa, por conjunto, de las reglas cargadas que pueden alertar.',
       ensfacilUsage:
-        'R1, como medida propia con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla. El número de reglas declarado es informativo. Sin P-03, R1 queda sin evaluar, pero no la fila de EV-01.',
+        'ENSFácil lo juzga en R1 como medida propia, con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla; el número de reglas declarado es informativo, y sin P-03 R1 queda sin evaluar, pero no la fila de EV-01.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
@@ -184,7 +184,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
           required: false,
         },
         {
-          name: 'reglas',
+          name: 'regla_que_la_detecta',
           label: 'Reglas que la detectan (ids o rangos)',
           type: 'string',
           required: false,
@@ -194,7 +194,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): los ids de las reglas cargadas que pueden alertar, por conjunto y en rangos comprimidos.',
       ensfacilUsage:
-        'EV-04: cada situación tiene que tener al menos una de sus reglas cargada en el manager. Una situación sin reglas, o con reglas que el manager no carga, es un punto ciego del control: un hallazgo defendible, pero un hallazgo.',
+        'ENSFácil exige en EV-04 que cada situación tenga al menos una de sus reglas cargada en el manager; una situación sin reglas, o con reglas que el manager no carga, es un punto ciego del control: un hallazgo defendible, pero un hallazgo.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
@@ -213,7 +213,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       example: 'intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad',
       columns: [
         {
-          name: 'tipo_alerta',
+          name: 'tipo_de_alerta',
           label: 'Tipo de alerta',
           type: 'string',
           required: true,
@@ -394,7 +394,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'No lo usa ningún recolector: es una declaración de la organización.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. En ENSFácil el resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

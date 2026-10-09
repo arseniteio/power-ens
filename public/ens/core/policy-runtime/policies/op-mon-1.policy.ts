@@ -623,7 +623,7 @@ const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const partes: Medida[] = [];
 
   situaciones.forEach(fila => {
-    const texto = (fila.reglas || '').trim();
+    const texto = (fila.regla_que_la_detecta || '').trim();
 
     if (!texto || SIN_REGLA.test(texto)) {
       ciegas.push(`«${fila.situacion}»${fila.activo_afectado ? ` (${fila.activo_afectado})` : ''}`);
@@ -951,7 +951,7 @@ const r2 = (context: ENSPolicyContext): { medida: Medida; acreditado: boolean } 
   if (incompletas.length) {
     return {
       medida: sinMedir(
-        `P-05 tiene ${incompletas.length} tipo(s) de alerta sin procedimiento o sin responsable (${lista(incompletas.map(f => f.tipo_alerta))}): un procedimiento sin identificar o sin quien lo aplique no acredita una respuesta pautada.`,
+        `P-05 tiene ${incompletas.length} tipo(s) de alerta sin procedimiento o sin responsable (${lista(incompletas.map(f => f.tipo_de_alerta))}): un procedimiento sin identificar o sin quien lo aplique no acredita una respuesta pautada.`,
         'CONFIGURATION'
       ),
       acreditado: false,
@@ -960,7 +960,7 @@ const r2 = (context: ENSPolicyContext): { medida: Medida; acreditado: boolean } 
 
   return {
     medida: cumple(
-      `P-05 declara ${procedimientos.length} procedimiento(s) de respuesta a las alertas, cada uno con su responsable: ${lista(procedimientos.map(f => `${f.tipo_alerta} → ${f.procedimiento} (${f.responsable})`))}. La aplicación de cada procedimiento a sus alertas la mide op.exp.7.`
+      `P-05 declara ${procedimientos.length} procedimiento(s) de respuesta a las alertas, cada uno con su responsable: ${lista(procedimientos.map(f => `${f.tipo_de_alerta} → ${f.procedimiento} (${f.responsable})`))}. La aplicación de cada procedimiento a sus alertas la mide op.exp.7.`
     ),
     acreditado: true,
   };
