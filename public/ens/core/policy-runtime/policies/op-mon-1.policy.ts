@@ -548,7 +548,6 @@ const seCortan = ([a, b]: Rango, [c, d]: Rango): boolean => a <= d && c <= b;
 
 interface Conjunto {
   conjunto: string;
-  ruta: string;
   rangos: Rango[];
   reglas?: number;
   partes: number;
@@ -564,7 +563,7 @@ const conjuntosCargados = (vigentes: ENSNormalizedEvent[]): Conjunto[] => {
     const nombre = campo(e, 'conjunto');
     const c =
       porNombre.get(nombre) ||
-      { conjunto: nombre, ruta: campo(e, 'ruta'), rangos: [], partes: 1, presentes: new Set<number>() };
+      { conjunto: nombre, rangos: [], partes: 1, presentes: new Set<number>() };
 
     c.rangos.push(...rangos(campo(e, 'ids')));
     c.reglas = numero(campo(e, 'reglas')) ?? c.reglas;
