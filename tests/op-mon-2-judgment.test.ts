@@ -34,7 +34,8 @@ import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-eng
 import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
 import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
 import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
-import { getENSReportModelDefinition } from '../public/ens/reports/registry';
+import { getENSReportModelDefinition, getRegisteredENSReportControls } from '../public/ens/reports/registry';
+import { buildENSAllControlsFactsFilter, ENS_FACTS_QUERY_LIMIT } from '../public/ens/dashboard/all-controls-facts-filter';
 import type { ENSControlConfiguration, ENSLevel } from '../public/ens/configuration/types';
 import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 import type { ENSComplianceResult } from '../public/ens/core/evaluation/types';
@@ -932,7 +933,41 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
     'sin el resultado de todos los controles: implantación, grises y art. 32 SIN_DATOS, nunca inventados',
     ['op.mon.2.campo2', 'op.mon.2.campo5', 'op.mon.2.campo8'].every(id => sinPanorama.fields.find(f => f.id === id)!.status === 'SIN_DATOS')
   );
-  comprueba('el registro de informes pide el panorama para op.mon.2', getENSReportModelDefinition('op.mon.2')?.usesAllControls === true && !getENSReportModelDefinition('op.mon.1')?.usesAllControls);
+  const conPanorama = getRegisteredENSReportControls().filter(id => getENSReportModelDefinition(id)?.usesAllControls);
+  comprueba('op.mon.2 es el ÚNICO informe registrado que pide el resultado de todos los controles', JSON.stringify(conPanorama) === '["op.mon.2"]', conPanorama.join(', '));
+
+  // La pantalla de Informes (no se puede montar aquí: se comprueba su fuente).
+  const fuente = (relativa: string) => fs.readFileSync(path.join(__dirname, '..', relativa), 'utf8');
+  const informes = fuente('public/ens/reports/index.tsx');
+  const propio = informes.slice(informes.indexOf('const ControlReport = ('), informes.indexOf('const ControlReportWithPanorama = ('));
+  const segunda = informes.slice(informes.indexOf('const ControlReportWithPanorama = ('), informes.indexOf('interface ControlReportEntry'));
+  comprueba(
+    'el veredicto de op.mon.2 sale de SU consulta (match_phrase de su control), como el de todos, nunca del conjunto compartido',
+    /\{ match_phrase: \{ 'data\.ensfacil': controlId \} \}/.test(propio) && !/definition\.usesAllControls/.test(propio) && !/exists: \{ field: 'data\.ensfacil' \}/.test(informes),
+    propio.length
+  );
+  comprueba(
+    'el panorama sale de una SEGUNDA consulta, con el filtro y el tope del panel',
+    /useEsSearch\(/.test(segunda) && /buildENSAllControlsFactsFilter\(/.test(segunda) && /size: ENS_FACTS_QUERY_LIMIT/.test(segunda) && /buildENSAllControlsFactsFilter\(/.test(fuente('public/ens/dashboard/ens-dashboard-main.tsx'))
+  );
+  comprueba(
+    'solo el informe que lo pide monta esa segunda consulta; los demás, el componente de siempre',
+    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes)
+  );
+  comprueba(
+    'mientras la segunda consulta no ha vuelto, sin panorama y sin PDF; con el tope alcanzado, un aviso',
+    /isLoading \|\| error\s*\? undefined/.test(segunda) &&
+      /if \(panorama\?\.loading\) return;/.test(informes) &&
+      /isDisabled=\{Boolean\(error\) \|\| Boolean\(panorama\?\.loading\)\}/.test(informes) &&
+      /hits\.length >= ENS_FACTS_QUERY_LIMIT/.test(segunda) &&
+      /panorama\?\.truncated \?/.test(informes)
+  );
+  const filtro = JSON.stringify(buildENSAllControlsFactsFilter(['op.acc.1', 'op.mon.2']));
+  comprueba(
+    'el filtro compartido es el del panel: data.ensfacil, data.control, data.evidence_id y los grupos ENS',
+    ENS_FACTS_QUERY_LIMIT === 10000 && ['"exists":{"field":"data.ensfacil"}', '"exists":{"field":"data.control"}', '"exists":{"field":"data.evidence_id"}', '"rule.groups":"ENS_op.mon.2"', '"data.ensfacil":"op.acc.1"'].every(x => filtro.includes(x)),
+    filtro
+  );
 }
 
 // --- salida ----------------------------------------------------------------
