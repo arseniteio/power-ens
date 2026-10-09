@@ -615,13 +615,15 @@ const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
   if (procesados === undefined) {
     // Sin contadores (el fichero de estado del motor no existe en esta versión
     // o no se pudo leer): la otra prueba de que procesa es que escribe alertas.
+    // `alertas_nuevas` no cuenta las de ENSFácil: los propios hechos de los
+    // recolectores no prueban que el motor detecte nada.
     if (nuevas !== undefined && nuevas > 0) {
-      partes.push(cumple(`El motor escribe alertas: ${nuevas} nuevas en alerts.json desde la pasada anterior (sin contadores del motor: ${campo(actual, 'fuente_contadores') || '-'}).`));
+      partes.push(cumple(`El motor escribe alertas: ${nuevas} alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil (sin contadores del motor: ${campo(actual, 'fuente_contadores') || '-'}).`));
     } else {
       partes.push(
         degradacion(context, 'EV-01', ahora, ultimo + 1) ||
           sinMedir(
-            `El recolector no ha podido leer los contadores del motor de análisis (${campo(actual, 'fuente_contadores') || 'sin fuente'})${nuevas === 0 ? ' y no hay alertas nuevas desde la pasada anterior' : ''}: no se puede afirmar que el motor procese eventos.`,
+            `El recolector no ha podido leer los contadores del motor de análisis (${campo(actual, 'fuente_contadores') || 'sin fuente'})${nuevas === 0 ? ' y no hay alertas de detección nuevas desde la pasada anterior' : ''}: no se puede afirmar que el motor procese eventos.`,
             'COLLECTION'
           )
       );

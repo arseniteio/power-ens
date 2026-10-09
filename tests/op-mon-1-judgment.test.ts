@@ -476,7 +476,13 @@ bloque('5. Rojo: cada eje con su reversión');
   const caido = evalua(hoy(l => (l.event === 'detection_engine_status' && String(l.ts).startsWith(COMPLETA) ? { ...l, activo: 'no' } : l)));
   comprueba('wazuh-manager no activo → NO_CUMPLE', caido.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no está activo/.test(caido.motivo('op.mon.1.1')), caido.motivo('op.mon.1.1'));
   const sinContadores = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-' } : l)));
-  comprueba('sin contadores del motor (otra versión), alerts.json crece → CUMPLE por las alertas', sinContadores.evidencia('EV-01')?.status === 'CUMPLE' && /812 nuevas en alerts.json/.test(sinContadores.motivo('op.mon.1.1')), sinContadores.motivo('op.mon.1.1'));
+  comprueba('sin contadores del motor (otra versión), alerts.json crece → CUMPLE por las alertas', sinContadores.evidencia('EV-01')?.status === 'CUMPLE' && /812 alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil/.test(sinContadores.motivo('op.mon.1.1')), sinContadores.motivo('op.mon.1.1'));
+  const soloEnsfacil = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: 0 } : l)));
+  comprueba(
+    'sin contadores y sin alertas de detección nuevas (los hechos de ENSFácil no cuentan) → NO_EVALUABLE, nunca CUMPLE',
+    soloEnsfacil.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /no hay alertas de detección nuevas/.test(soloEnsfacil.motivo('op.mon.1.1')),
+    soloEnsfacil.motivo('op.mon.1.1')
+  );
   const ciego = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: '-' } : l)));
   comprueba('sin contadores ni alertas legibles → NO_EVALUABLE por RECOGIDA, nunca CUMPLE', ciego.evidencia('EV-01')?.status === 'NO_EVALUABLE' && ciego.evidencia('EV-01')?.gapCause === 'COLLECTION', `${ciego.evidencia('EV-01')?.status} ${ciego.evidencia('EV-01')?.gapCause}`);
 
