@@ -92,10 +92,12 @@ export const evaluateENSControl = (
   evidences: ENSEvidenceResolved[] = [],
   policyRuntime?: ENSPolicyRuntimeResult,
   events: ENSNormalizedEvent[] = [],
-  // ¿Había alguna máquina de la que esperar hechos? Solo es falso para un
+  // ¿Había alguna máquina de la que esperar hechos? Es falso en dos casos: un
   // control con alcance declarado vacío evaluado sin fila (mp.info.6 sin
-  // ninguna máquina en P-04): ahí no ha fallado ninguna recogida, lo que falta
-  // es la configuración, y el hueco no se puede atribuir a RECOGIDA.
+  // ninguna máquina en P-04), y un control cuyas evidencias no escuchan ningún
+  // evento (op.cont.2, solo configuración: `controlExpectsFacts`). En los dos
+  // no ha fallado ninguna recogida, lo que falta es la configuración, y el
+  // hueco no se puede atribuir a RECOGIDA.
   expectsFacts = true
 ): ENSComplianceResult => {
   const validation = configuration

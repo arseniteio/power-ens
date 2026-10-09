@@ -326,6 +326,22 @@ export const resolveEvidenceForControl = (
           candidate.issues.length === 0
       )?.event;
 
+    // Una evidencia que no escucha ningún evento no espera hechos: la resuelve
+    // la policy del control con la configuración declarada (op.cont.2). Sin
+    // decisión de la policy, lo que falta es de CONFIGURACIÓN, y decir «no ha
+    // llegado ningún evento» mandaría a buscar un recolector que no existe.
+    if (!definition.expectedEventTypes.length) {
+      return {
+        ...baseEvidence,
+        status: 'NO_EVALUABLE',
+        gapCause: 'CONFIGURATION',
+        observations: [
+          `La evidencia ${definition.id} no escucha ningún hecho: la juzga la policy del control con lo declarado en la pantalla de Configuración.`,
+          `Pregunta de auditoría: ${definition.auditQuestion}`,
+        ],
+      };
+    }
+
     if (!latestEvent) {
       const latestRejectedCandidate =
         rejectedCandidates[0];
