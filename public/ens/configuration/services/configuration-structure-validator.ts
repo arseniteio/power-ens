@@ -387,6 +387,14 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.traceabilityLevel is invalid.');
   }
 
+  // El de Disponibilidad, con el mismo contrato: ausente o un nivel.
+  if (
+    'availabilityLevel' in value &&
+    !isAllowedString(value.availabilityLevel, ENS_LEVELS)
+  ) {
+    errors.push('configuration.global.availabilityLevel is invalid.');
+  }
+
   if (
     value.reportLanguage !== 'es' &&
     value.reportLanguage !== 'en'

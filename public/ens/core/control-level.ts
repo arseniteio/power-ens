@@ -22,5 +22,9 @@ export const resolveControlLevel = (
     return global.traceabilityLevel;
   }
 
+  if (control.levelDimension === 'D' && global?.availabilityLevel) {
+    return global.availabilityLevel;
+  }
+
   return level;
 };
