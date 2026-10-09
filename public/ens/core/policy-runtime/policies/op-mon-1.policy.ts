@@ -60,25 +60,49 @@ import type {
   ENSPolicyEvaluatorResult,
   ENSRuntimeVariable,
 } from '../types';
-import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
-import type { ENSControlParameter } from '../../../configuration/types';
+// Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
-  toParameterTableRows,
-  toTableRowCells,
-} from '../../../configuration/services/parameter-value-validator';
+  HORA,
+  DIA,
+  cumple,
+  noCumple,
+  sinMedir,
+  noAplica,
+  causaComun,
+  peor,
+  combina,
+  campo,
+  numero,
+  instante,
+  momento,
+  lista,
+  horas,
+  dias,
+  iso,
+  MISMA_PASADA,
+  sinTildes,
+  vacio,
+  iguales,
+  filas,
+  escalar,
+  faltaParametro,
+  lectorDeHechos,
+  decisorDe,
+} from './policy-kit';
+import type { ENSTipoDeRegla, Medida } from './policy-kit';
 
 const CONTROL = 'op.mon.1';
 const POLICY = 'policy.op.mon.1';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+// Los hechos de op.mon.1, con la frescura de los hechos de estado (26 h): el
+// recolector pasa cada hora (el motor) y cada 6 h (lo demás), y reemite el
+// estado entero.
+const { hechos, validos, estadoVigente, degradacion, sinHechos, conDegradacion } = lectorDeHechos(CONTROL, {
+  recolector: 'el recolector de op.mon.1 del manager',
+});
 
-// Frescura de un hecho de estado. El recolector pasa cada hora (el motor) y
-// cada 6 h (lo demás) y reemite el estado entero: 26 h tolera tres pasadas
-// completas perdidas sin convertir una foto vieja en la situación de hoy. Es
-// tolerancia de OBSERVACIÓN, no política.
-const FRESCURA_HORAS = 26;
+const decide = decisorDe(POLICY);
 
 // Frescura del estado del MOTOR, que llega cada hora. No vale la de 26 h: los
 // hechos de ENSFácil llegan al índice A TRAVÉS de wazuh-analysisd, así que si el
@@ -86,354 +110,6 @@ const FRESCURA_HORAS = 26;
 // seguiría acreditando el control un día entero. 3 h toleran dos pasadas
 // horarias perdidas.
 const FRESCURA_MOTOR_HORAS = 3;
-
-// Un hecho del futuro no acredita nada (misma tolerancia de reloj que el latido).
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
-
-// Hechos de una misma pasada: el recolector los emite en pocos segundos.
-const MISMA_PASADA = 5 * 60 * 1000;
-
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-type Medida = {
-  estado: Exclude<ENSComplianceStatus, 'PARCIAL'>;
-  motivo: string;
-  causa?: ENSGapCause;
-};
-
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
-// hechos lo dicen expresamente (`faltaParametro`, `sinHechos`), y lo que el
-// recolector declara llega con SU causa (`degradacion`).
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
-  estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
-});
-const noAplica = (motivo: string): Medida => ({ estado: 'NO_APLICA', motivo });
-
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
-    .filter(m => m.estado === 'NO_EVALUABLE')
-    .map(m => m.causa || 'EVIDENCE');
-
-  if (!causas.length) {
-    return undefined;
-  }
-
-  if (causas.every(c => c === 'COLLECTION')) {
-    return 'COLLECTION';
-  }
-
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
-};
-
-const GRAVEDAD: Record<Medida['estado'], number> = {
-  NO_APLICA: -1,
-  CUMPLE: 0,
-  NO_EVALUABLE: 1,
-  NO_CUMPLE: 2,
-};
-
-// El peor estado de las medidas; NO_APLICA solo si todas lo son. Sin ninguna
-// medida no hay nada demostrado: NO_EVALUABLE, nunca un CUMPLE por vacío.
-const peor = (medidas: Medida[]): Medida['estado'] => {
-  if (!medidas.length) {
-    return 'NO_EVALUABLE';
-  }
-
-  if (medidas.every(m => m.estado === 'NO_APLICA')) {
-    return 'NO_APLICA';
-  }
-
-  return medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
-    'CUMPLE'
-  );
-};
-
-// Varios ejes de una evidencia en una medida: el estado del peor, y en el
-// motivo lo que lo explica (lo que falla o falta; si todo cumple, lo medido).
-const combina = (partes: Medida[]): Medida => {
-  if (!partes.length) {
-    return sinMedir('No hay ninguna medida que juzgar.');
-  }
-
-  const estado = peor(partes);
-
-  if (estado === 'CUMPLE' || estado === 'NO_APLICA') {
-    return { estado, motivo: partes.map(p => p.motivo).join(' ') };
-  }
-
-  const responsables = partes.filter(p => p.estado === estado);
-  const ademas = partes
-    .filter(p => p.estado !== estado && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
-    .map(p => p.motivo);
-
-  return {
-    estado,
-    motivo: [...responsables.map(p => p.motivo), ...(ademas.length ? [`Además: ${ademas.join(' ')}`] : [])].join(' '),
-    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
-  };
-};
-
-// --- lectura de hechos -----------------------------------------------------
-
-// El normalizador parte un evento con `evidence_id=A,B` en uno por evidencia
-// (`<id>#A`, `<id>#B`). Aquí se juzga el HECHO, así que se cuenta una vez.
-const hechos = (
-  context: ENSPolicyContext,
-  tipo: string
-): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
-
-  return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
-      return false;
-    }
-
-    const base = String(event.id || '').split('#')[0];
-
-    if (vistos.has(base)) {
-      return false;
-    }
-
-    vistos.add(base);
-
-    return true;
-  });
-};
-
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
-      : undefined;
-
-  return valor === undefined || valor === null ? '' : String(valor).trim();
-};
-
-const numero = (texto: string): number | undefined => {
-  const limpio = String(texto).trim().replace(',', '.');
-
-  if (!/^[+-]?\d+(\.\d+)?$/.test(limpio)) {
-    return undefined;
-  }
-
-  const valor = Number(limpio);
-
-  return Number.isFinite(valor) ? valor : undefined;
-};
-
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
-    return undefined;
-  }
-
-  const valor = new Date(texto).getTime();
-
-  return Number.isFinite(valor) ? valor : undefined;
-};
-
-const momento = (event: ENSNormalizedEvent): number => {
-  const t = Date.parse(event.timestamp);
-
-  return Number.isNaN(t) ? 0 : t;
-};
-
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
-
-const horas = (ms: number): string => (ms / HORA).toFixed(1);
-
-const dias = (ms: number): number => Math.floor(ms / DIA);
-
-const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
-
-const sinTildes = (texto: string): string =>
-  texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-
-const vacio = (texto: string): boolean => !texto || texto === '-';
-
-// Hechos válidos de un tipo (sin los del futuro), del más antiguo al más nuevo.
-const validos = (
-  context: ENSPolicyContext,
-  tipo: string,
-  ahora: number
-): ENSNormalizedEvent[] =>
-  hechos(context, tipo)
-    .filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO)
-    .sort((a, b) => momento(a) - momento(b));
-
-// Los hechos de estado de la ÚLTIMA pasada que los emitió, sin los del futuro.
-// Si la última es más vieja que FRESCURA_HORAS, no describen hoy.
-const estadoVigente = (
-  context: ENSPolicyContext,
-  tipo: string,
-  ahora: number
-): { vigentes: ENSNormalizedEvent[]; ultimo?: number } => {
-  const todos = validos(context, tipo, ahora);
-
-  if (!todos.length) {
-    return { vigentes: [] };
-  }
-
-  const ultimo = momento(todos[todos.length - 1]);
-
-  if (ahora - ultimo > FRESCURA_HORAS * HORA) {
-    return { vigentes: [], ultimo };
-  }
-
-  // La última pasada: lo emitido en la hora anterior al último hecho.
-  return {
-    vigentes: todos.filter(e => ultimo - momento(e) < HORA),
-    ultimo,
-  };
-};
-
-// Lo que el recolector declaró que no pudo medir de una evidencia, si es más
-// reciente que `despuesDe`, con la causa que ÉL declara. Sin causa declarada,
-// COLLECTION. Con la misma frescura que los hechos: una degradación de hace
-// días no describe hoy, ni una del futuro.
-const degradacion = (
-  context: ENSPolicyContext,
-  evidencia: string,
-  ahora: number,
-  despuesDe = 0
-): Medida | undefined => {
-  const desde = Math.max(despuesDe, ahora - FRESCURA_HORAS * HORA);
-  const ultima = hechos(context, 'evidence_state')
-    .filter(
-      e =>
-        campo(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidencia) &&
-        String(e.status || campo(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
-        momento(e) >= desde &&
-        momento(e) <= ahora + TOLERANCIA_FUTURO
-    )
-    .sort((a, b) => momento(b) - momento(a))[0];
-
-  if (!ultima) {
-    return undefined;
-  }
-
-  const declarada = campo(ultima, 'causa').toUpperCase();
-  const causa: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
-    ? (declarada as ENSGapCause)
-    : 'COLLECTION';
-
-  return sinMedir(
-    `El recolector no ha podido medirlo${declarada ? ` (${declarada})` : ''}: ${campo(ultima, 'motivo') || 'sin motivo declarado'}.`,
-    causa
-  );
-};
-
-const sinHechos = (
-  context: ENSPolicyContext,
-  evidencia: string,
-  ahora: number,
-  ultimo: number | undefined,
-  queFalta: string
-): Medida =>
-  degradacion(context, evidencia, ahora) ||
-  sinMedir(
-    ultimo
-      ? `El último ${queFalta} es de ${iso(ultimo)}, hace más de ${FRESCURA_HORAS} h: el recolector de op.mon.1 del manager no está informando.`
-      : `No consta ningún ${queFalta}: el recolector de op.mon.1 no está desplegado en el manager o no informa.`,
-    'COLLECTION'
-  );
-
-// Lo que el recolector declaró que no pudo medir DESPUÉS del último hecho de una
-// evidencia se COMBINA con lo medido, no lo sustituye: un NO_CUMPLE medido en
-// la última pasada buena sigue mandando, y lo que cumplía deja de cumplir
-// (NO_EVALUABLE con la causa del recolector). Sin hechos vigentes no hay nada
-// que combinar: eso ya lo dice `sinHechos`, con la misma degradación.
-const conDegradacion = (
-  context: ENSPolicyContext,
-  ahora: number,
-  evidencia: string,
-  tipo: string,
-  medida: Medida
-): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, tipo, ahora);
-
-  if (!vigentes.length || ultimo === undefined) {
-    return medida;
-  }
-
-  const deg = degradacion(context, evidencia, ahora, ultimo + 1);
-
-  return deg ? combina([medida, deg]) : medida;
-};
-
-// --- lectura de parámetros -------------------------------------------------
-
-const parametro = (
-  context: ENSPolicyContext,
-  id: string
-): ENSControlParameter | undefined =>
-  context.configuration?.parameters.find(p => p.id === id);
-
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
-
-  return p ? `${id} (${p.label || p.name})` : id;
-};
-
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (
-  context: ENSPolicyContext,
-  id: string
-): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
-
-  if (!p || !columnas.length) {
-    return undefined;
-  }
-
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
-
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = (celdas[i] || '').trim();
-      });
-
-      return fila;
-    });
-
-  return resultado.length ? resultado : undefined;
-};
-
-const escalar = (context: ENSPolicyContext, id: string): number | undefined => {
-  const valor = parametro(context, id)?.value;
-
-  if (valor === undefined || valor === null || Array.isArray(valor)) {
-    return undefined;
-  }
-
-  const n = numero(String(valor));
-
-  return n !== undefined && n > 0 ? n : undefined;
-};
-
-const faltaParametro = (context: ENSPolicyContext, id: string, para: string): Medida =>
-  sinMedir(`${etiqueta(context, id)} está sin configurar: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
-
-const iguales = (a: string, b: string): boolean =>
-  a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // --- los sistemas de P-01 y sus agentes ------------------------------------
 //
@@ -1276,40 +952,6 @@ const DATO_DEL_INFORME =
 
 // --- decisiones ------------------------------------------------------------
 
-type Tipo = ENSPolicyDecision['trace']['ruleType'];
-
-const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: Tipo,
-  ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause,
-  acreditado = false
-): ENSPolicyDecision => ({
-  policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
-  eventIds: [],
-  runtimeVariables: [],
-  trace: {
-    ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
-  },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
-  ...(acreditado && estado === 'CUMPLE' ? { attested: true } : {}),
-});
-
 // Con qué medidas se decide cada requisito técnico. R1 añade una medida que NO
 // es una evidencia: los conjuntos de reglas de P-03 cargados. Va aparte, con el
 // nombre del parámetro, para que un P-03 sin configurar deje R1 sin demostrar
@@ -1318,7 +960,7 @@ const decide = (
 // decide (el puente no encuentra ninguna evidencia «P-03» y no pinta nada).
 const MEDIDA_P03 = 'P-03';
 
-const TECNICOS: { requisito: string; medidas: string[]; parametros: string[]; tipo: Tipo }[] = [
+const TECNICOS: { requisito: string; medidas: string[]; parametros: string[]; tipo: ENSTipoDeRegla }[] = [
   { requisito: 'op.mon.1.1', medidas: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05'], parametros: ['P-01', 'P-02', 'P-04', 'P-09', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   { requisito: 'op.mon.1.r1.1', medidas: ['EV-01', MEDIDA_P03, 'EV-08'], parametros: ['P-03', 'P-06', 'P-08'], tipo: 'MAX_AGE' },
 ];
