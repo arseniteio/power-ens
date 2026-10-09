@@ -107,3 +107,11 @@ export const resumirMotivos = (
     ocultos: ordenados.length - visibles.length,
   };
 };
+
+// Lo que dice la fila de un requisito que CUMPLE en el panel «Requisitos» del
+// detalle. Un cumplimiento DOCUMENTAL —`P-ATT` o una declaración que la policy
+// acredita con su vigencia— se dice como tal: el auditor tiene que separar de
+// un vistazo lo que se midió de lo que se declaró.
+export const etiquetaDeRequisitoQueCumple = (requisito: {
+  attested?: boolean;
+}): string => (requisito.attested ? 'acreditado documentalmente' : 'cumple');

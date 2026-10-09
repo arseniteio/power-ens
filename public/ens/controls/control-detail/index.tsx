@@ -26,6 +26,7 @@ import type { ENSObservationGroup } from '../../core/evaluation/types';
 import {
   describirAlcance,
   etiquetaDeMaquinas,
+  etiquetaDeRequisitoQueCumple,
   resumirMotivos,
 } from './general-view';
 import { getActiveENSConfiguration } from '../../configuration/services';
@@ -1143,9 +1144,12 @@ export const ControlDetailENS = ({
                         </EuiFlexItem>
 
                         <EuiFlexItem>
+                          {/* Un cumplimiento DOCUMENTAL se dice como tal: el
+                              auditor tiene que separar de un vistazo lo que se
+                              midió de lo que se declaró. */}
                           {cumple ? (
                             <EuiText size='xs' color='subdued'>
-                              cumple
+                              {etiquetaDeRequisitoQueCumple(requisito)}
                             </EuiText>
                           ) : culpables.length ? (
                             <EuiFlexGroup

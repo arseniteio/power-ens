@@ -281,7 +281,11 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
         }))
     );
 
-    const template = requirementEntries[0].requirement;
+    // Sin la marca documental de la primera máquina: se recalcula abajo con
+    // todas. Heredarla publicaba «acreditado» en un requisito que otra máquina
+    // tumba con una medida.
+    const template = { ...requirementEntries[0].requirement };
+    delete template.attested;
 
     const evidenceIds = uniqueValues(
       requirementEntries.flatMap(({ requirement }) => requirement.evidenceIds || [])
@@ -298,6 +302,14 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
     const statusConsolidado = consolidateENSStatuses(
       requirementEntries.map(({ requirement }) => requirement.status)
     );
+
+    // ACREDITADO DOCUMENTALMENTE si el conjunto cumple y alguna máquina lo
+    // acredita con un documento. Basta una: presentar como medido un
+    // cumplimiento que en parte descansa en un documento es esconder de qué
+    // tipo es. Y nunca en un requisito que no cumple.
+    const attested =
+      statusConsolidado === 'CUMPLE' &&
+      requirementEntries.some(({ requirement }) => requirement.attested === true);
 
     return {
       ...template,
@@ -320,6 +332,7 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       evidenced: requirementEntries.every(
         ({ requirement }) => requirement.evidenced !== false
       ),
+      ...(attested ? { attested: true } : {}),
       level: uniqueValues(requirementEntries.flatMap(({ requirement }) => requirement.level)),
       evidenceIds: evidenceIds.length > 0 ? evidenceIds : undefined,
       observations: observationGroups.map(formatObservationGroup),

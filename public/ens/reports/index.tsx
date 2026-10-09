@@ -34,6 +34,7 @@ import {
   buildENSReportRows,
   ensReportStatusBadgeColor,
   ensReportStatusPdfColor,
+  ensRequirementProofLabel,
   ENS_REPORT_EVIDENCE_FIELD,
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
@@ -251,26 +252,13 @@ const ControlReport = ({
     return causas;
   };
 
-  const etiquetaDePrueba = (requirement: ENSRequirementResult): string => {
-    // En un NO_APLICA `evidenced` no significa nada: no había nada que medir.
-    if (requirement.status === 'NO_APLICA') {
-      return '';
-    }
-
-    if (requirement.attested) {
-      return 'Atestado';
-    }
-
-    if (requirement.evidenced) {
-      return 'Medido';
-    }
-
-    const causas = causasDeRequisito(requirement.id);
-
-    return causas.length > 0
-      ? `No evidenciado · ${causas.join(', ')}`
-      : 'No evidenciado';
-  };
+  // La etiqueta sale de `./report-rows` (`ensRequirementProofLabel`), donde se
+  // puede probar: acreditado documentalmente, medido o no evidenciado.
+  const etiquetaDePrueba = (requirement: ENSRequirementResult): string =>
+    ensRequirementProofLabel(
+      requirement,
+      causasDeRequisito(requirement.id)
+    );
 
   // De la evidencia al evento crudo: regla, id del evento y cuándo se vio. Es
   // el tramo de la cadena que el informe no llevaba, y sin él el auditor se

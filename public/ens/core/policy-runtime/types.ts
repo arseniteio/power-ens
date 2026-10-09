@@ -87,6 +87,21 @@ export interface ENSPolicyDecision {
   // causa de ese modelo («no ha llegado nada», COLLECTION) aunque lo que
   // faltara fuera un parámetro, o la causa que declaró el recolector.
   cause?: ENSGapCause;
+  // Acreditado DOCUMENTALMENTE: la policy ha juzgado una DECLARACIÓN de la
+  // pantalla con su vigencia (un contrato no vencido, un plan aprobado dentro
+  // de su periodicidad, una certificación en vigor), no una medida de la
+  // máquina. Es la versión de `P-ATT` que sí vigila la vigencia.
+  //
+  // Solo cuenta con `status` CUMPLE: el requisito cumple marcado como
+  // acreditado documentalmente (`attested` en el resultado), para que la
+  // pantalla y el informe nunca lo presenten como medido. Con cualquier otro
+  // estado se ignora: un plan caducado es un NO_CUMPLE corriente.
+  //
+  // Y UNA MEDIDA EN CONTRA MANDA SIEMPRE. Si alguna evidencia del requisito
+  // (las del catálogo y las que nombra la decisión) está en NO_CUMPLE o
+  // PARCIAL, u otra decisión de la policy para el mismo requisito lo está, el
+  // requisito sale NO_CUMPLE y sin la marca. Ver `requirement-evaluator.ts`.
+  attested?: boolean;
 }
 
 export interface ENSPolicyRuntimeResult {
