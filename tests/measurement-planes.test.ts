@@ -4,7 +4,7 @@
  *     npx tsx tests/measurement-planes.test.ts
  *
  * El alcance ENS se resuelve por el grupo `ens`, y el manager no puede estar en
- * un grupo. op.exp.7, op.exp.9 y op.mon.1 se miden SOLO en el manager y op.exp.8 en los
+ * un grupo. op.cont.3, op.exp.7, op.exp.9 y op.mon.1 se miden SOLO en el manager y op.exp.8 en los
  * dos planos, así que el catálogo declara `measurementPlanes` y:
  *
  *   - el manager entra en el alcance cuando algún control ACTIVE lo pide;
@@ -20,7 +20,7 @@
  *   2. Con el manager en el alcance y hechos solo de agentes, los 14 controles
  *      de plano `agent` salen IDÉNTICOS a hoy sin manager (se compara el
  *      resultado entero, control a control, consolidado y por fila).
- *   3. op.exp.7, op.exp.9 y op.mon.1 se evalúan en la fila 000 y no aparecen en las de
+ *   3. op.cont.3, op.exp.7, op.exp.9 y op.mon.1 se evalúan en la fila 000 y no aparecen en las de
  *      agente; en la vista de un agente salen con el resultado del manager.
  *   4. op.exp.8 aparece en las dos filas y el consolidado combina ambas.
  *   5. La serie diaria (panel y control) aplica la misma regla.
@@ -127,7 +127,7 @@ const PLANO_AGENTE = [
   'op.exp.1', 'op.exp.2', 'op.exp.3', 'op.exp.4', 'op.exp.5', 'op.exp.6',
   'op.exp.10',
 ];
-const SOLO_MANAGER = ['op.exp.7', 'op.exp.9', 'op.mon.1'];
+const SOLO_MANAGER = ['op.cont.3', 'op.exp.7', 'op.exp.9', 'op.mon.1'];
 const DOBLE_PLANO = ['op.exp.8'];
 
 const AGENTES: ENSAgentScope[] = [
@@ -206,7 +206,7 @@ const ids = (resultados: Resultado[]) => resultados.map(r => r.control.id);
 bloque('0. El catálogo declara los planos');
 
 comprueba(
-  'op.exp.7, op.exp.9 y op.mon.1 se miden solo en el manager',
+  'op.cont.3, op.exp.7, op.exp.9 y op.mon.1 se miden solo en el manager',
   SOLO_MANAGER.every(id => huella(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === id)!)) === '["manager"]')
 );
 comprueba(
@@ -222,7 +222,7 @@ comprueba(
   })
 );
 comprueba(
-  'el catálogo son esos 18',
+  'el catálogo son esos 19',
   ENSCatalog.length === PLANO_AGENTE.length + SOLO_MANAGER.length + DOBLE_PLANO.length
 );
 
@@ -355,7 +355,7 @@ const resto = (): void => {
 
   comprueba('consolidado · ninguno de los 14 cambia', cambiados.length === 0, cambiados.join(', '));
   comprueba(
-    'consolidado · están los 18, en el orden del catálogo',
+    'consolidado · están los 19, en el orden del catálogo',
     huella(ids(ahora.results)) === huella(ENSCatalog.map(c => c.id)),
     ids(ahora.results).join(', ')
   );
@@ -387,13 +387,13 @@ const resto = (): void => {
   comprueba('control a control (detalle) · ninguno de los 14 cambia', porControlDistintos.length === 0, porControlDistintos.join(', '));
 
   comprueba(
-    'el manager es una fila más y solo trae sus 4 controles',
-    huella(ids(ahora.agents.find(a => a.agentId === '000')!.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
+    'el manager es una fila más y solo trae sus 5 controles',
+    huella(ids(ahora.agents.find(a => a.agentId === '000')!.results)) === '["op.cont.3","op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
     ids(ahora.agents.find(a => a.agentId === '000')?.results || []).join(', ')
   );
   comprueba(
-    'y su resumen cuenta solo esos 4',
-    ahora.agents.find(a => a.agentId === '000')!.summary.totalControls === 4
+    'y su resumen cuenta solo esos 5',
+    ahora.agents.find(a => a.agentId === '000')!.summary.totalControls === 5
   );
   comprueba(
     'el resumen de una fila de agente no cuenta los de solo manager',
@@ -402,7 +402,7 @@ const resto = (): void => {
 
   // -------------------------------------------------------------------------
 
-  bloque('3. op.exp.7, op.exp.9 y op.mon.1: fila del manager; en la vista de un agente, su resultado');
+  bloque('3. op.cont.3, op.exp.7, op.exp.9 y op.mon.1: fila del manager; en la vista de un agente, su resultado');
 
   const estado = getENSComplianceState(NIVEL, TODOS, undefined, CON_MANAGER, AHORA);
   const filaManager = estado.agents.find(a => a.agentId === '000')!;
@@ -456,20 +456,20 @@ const resto = (): void => {
     const vista = getENSComplianceState(NIVEL, TODOS, '001', CON_MANAGER, AHORA);
 
     comprueba(
-      'vista de un agente · están los 18, en el orden del catálogo',
+      'vista de un agente · están los 19, en el orden del catálogo',
       huella(ids(vista.results)) === huella(ENSCatalog.map(c => c.id)),
       ids(vista.results).join(', ')
     );
   }
 
-  // Seleccionado el propio manager: su fila, con sus 4 controles; los de plano
+  // Seleccionado el propio manager: su fila, con sus 5 controles; los de plano
   // agent no tienen resultado en ella.
   {
     const vista = getENSComplianceState(NIVEL, TODOS, '000', CON_MANAGER, AHORA);
 
     comprueba(
-      'vista del manager · sus 4 controles',
-      huella(ids(vista.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
+      'vista del manager · sus 5 controles',
+      huella(ids(vista.results)) === '["op.cont.3","op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
       ids(vista.results).join(', ')
     );
     comprueba(
