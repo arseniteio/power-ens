@@ -662,6 +662,26 @@ bloque('6. Sin recolector, hechos viejos o perdidos: NO_EVALUABLE por RECOGIDA')
   );
   comprueba('una degradación de hace dos días no se usa', degradada('2026-10-07T12:05:45Z').evidencia('EV-04')?.status === 'CUMPLE');
 
+  // El registro de ciclos es de EV-02: R1 lo lee como EV-02.
+  const sinLectorDeCiclos = evalua(
+    hoy(l => (l.event === 'metrics_register_read' || l.event === 'metrics_cycle_recorded' ? undefined : l)).concat(eventos([
+      { ts: `${COMPLETA}:15Z`, event: 'evidence_state', evidence_id: 'EV-02,EV-06', requisito: 'op.mon.2.1,op.mon.2.r2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'sin python3 no se puede leer el registro de ciclos de métricas' },
+    ]))
+  );
+  comprueba(
+    'sin lector del registro de ciclos (evidence_state de EV-02) → R1 no demostrado con el motivo del recolector de EV-02',
+    sinLectorDeCiclos.decision('op.mon.2.r1.1')?.status === 'NO_EVALUABLE' && /sin python3 no se puede leer el registro de ciclos/.test(sinLectorDeCiclos.motivo('op.mon.2.r1.1')),
+    sinLectorDeCiclos.motivo('op.mon.2.r1.1')
+  );
+  const cicloDegradado = evalua(hoy().concat(eventos([
+    { ts: `${COMPLETA}:45Z`, event: 'evidence_state', evidence_id: 'EV-02,EV-06', requisito: 'op.mon.2.1,op.mon.2.r2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'el registro de ciclos cambió durante la lectura' },
+  ])));
+  comprueba(
+    'una degradación de EV-02 posterior a la lectura de los ciclos también deja de acreditar el plazo de R1',
+    cicloDegradado.requisito('op.mon.2.r1.1').status !== 'CUMPLE' && /el registro de ciclos cambió durante la lectura/.test(cicloDegradado.motivo('op.mon.2.r1.1')),
+    cicloDegradado.motivo('op.mon.2.r1.1')
+  );
+
   const ajeno = normalizeWazuhAlerts([{
     _id: 'otro',
     _source: {

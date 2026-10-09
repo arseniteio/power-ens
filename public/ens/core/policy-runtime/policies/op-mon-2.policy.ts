@@ -1123,8 +1123,15 @@ const indicadores = (context: ENSPolicyContext): string[] | Medida => {
 
 // Decisión del responsable 7: los datos de incidentes se dan por consolidados
 // si el último ciclo de métricas está dentro de su plazo.
-const cicloEnPlazo = (context: ENSPolicyContext, ahora: number, per: Periodicidad): Medida => {
-  const reg = LEE_CICLOS(context, ahora, 'EV-03');
+//
+// El registro de ciclos es de EV-02: se lee como EV-02 (su falta de hechos
+// busca la degradación de EV-02) y lo que el recolector declare de él después
+// de su lectura se combina igual que en EV-02.
+const cicloEnPlazo = (context: ENSPolicyContext, ahora: number, per: Periodicidad): Medida =>
+  conDegradacion(context, ahora, 'EV-02', 'metrics_register_read', cicloEnPlazoHechos(context, ahora, per));
+
+const cicloEnPlazoHechos = (context: ENSPolicyContext, ahora: number, per: Periodicidad): Medida => {
+  const reg = LEE_CICLOS(context, ahora, 'EV-02');
 
   if (esMedida(reg)) {
     return reg.estado === 'NO_EVALUABLE'
