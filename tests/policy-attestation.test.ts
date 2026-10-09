@@ -36,6 +36,10 @@ import type {
 import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
 import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
 import type { ENSControlDefinition } from '../public/ens/catalog/types';
+import type {
+  ENSControlConfiguration,
+  ENSControlParameter,
+} from '../public/ens/configuration/types';
 import type { ENSComplianceStatus } from '../public/ens/core/evaluation/types';
 import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
 import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
@@ -300,10 +304,43 @@ const runtime = (decisiones: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
 
 const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
 
+// La configuración COMPLETA: con un parámetro obligatorio vacío, todo requisito
+// medido sale NO_EVALUABLE y la prueba de la fuga de abajo pasaría por esa
+// razón y no por la que dice. Mismo criterio que `aggregated-overview.test.ts`.
+const valorValido = (parametro: ENSControlParameter): ENSControlParameter['value'] => {
+  if (parametro.options && parametro.options.length) {
+    return parametro.options[0];
+  }
+
+  switch (parametro.type) {
+    case 'number':
+    case 'duration_days':
+    case 'duration_hours':
+      return typeof parametro.minValue === 'number' ? Math.max(parametro.minValue, 1) : 7;
+    case 'boolean':
+      return true;
+    case 'list':
+      return parametro.columns && parametro.columns.length ? [parametro.example || ''] : ['valor-uno', 'valor-dos'];
+    case 'table':
+      return [parametro.example || ''];
+    case 'path':
+      return '/var/lib/ensfacil';
+    case 'url':
+      return 'https://ensfacil.example.org/api';
+    default:
+      return 'valor';
+  }
+};
+
+const CONFIGURACION_COMPLETA: ENSControlConfiguration = {
+  ...opAcc1Configuration,
+  parameters: opAcc1Configuration.parameters.map(parametro => ({ ...parametro, value: valorValido(parametro) })),
+};
+
 const maquina = (excepciones: Record<string, ENSComplianceStatus>, decisiones: ENSPolicyDecision[]) =>
   evaluateENSControl(
     CONTROL,
-    opAcc1Configuration,
+    CONFIGURACION_COMPLETA,
     'MEDIO',
     TODAS.map(id => evidencia(id, excepciones[id] || 'CUMPLE')),
     runtime(decisiones),
@@ -314,13 +351,58 @@ const req = (resultado: ReturnType<typeof maquina> | undefined, id: string = REQ
   resultado?.requirements.find(r => r.id === id);
 
 {
-  // EV-06 sin medir: el puente la rellena con la decisión acreditada.
+  // EV-06 sin medir. La acreditación NO la rellena: un documento no mide
+  // ninguna evidencia (ver `policy-evidence-bridge.ts`).
   const acreditada = maquina({ 'EV-06': 'NO_EVALUABLE' }, [ACREDITA]);
+  const ev06 = acreditada.evidences.find(e => e.id === 'EV-06');
 
   comprueba(
     'motor · el requisito llega al resultado CUMPLE y marcado',
     req(acreditada)?.status === 'CUMPLE' && req(acreditada)?.attested === true,
     `${req(acreditada)?.status} attested=${req(acreditada)?.attested}`
+  );
+
+  comprueba(
+    'motor · la evidencia sin medir sigue NO_EVALUABLE: la acreditación no la mide',
+    ev06?.status === 'NO_EVALUABLE',
+    ev06?.status
+  );
+
+  // Y no se filtra a OTRO requisito que se apoya en la misma evidencia:
+  // op.acc.1.r1.2 (EV-01 y EV-06) no puede salir CUMPLE «medido» por un
+  // documento que acredita op.acc.1.2.
+  const r12 = req(acreditada, 'op.acc.1.r1.2');
+
+  comprueba(
+    'fixture · la configuración está completa (el eje parámetros, quieto)',
+    !acreditada.requirements.some(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')),
+    acreditada.requirements.filter(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')).map(r => r.id).join(',')
+  );
+
+  comprueba(
+    'motor · op.acc.1.r1.2, que comparte EV-06, no sale CUMPLE por la acreditación ajena',
+    r12?.status !== 'CUMPLE' && r12?.attested !== true,
+    `${r12?.status} attested=${r12?.attested} evidenced=${r12?.evidenced}`
+  );
+
+  // La reversión: una decisión CUMPLE SIN la marca es una medida de la policy y
+  // sí rellena la evidencia, como siempre.
+  const medidaPorPolicy = maquina({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'CUMPLE')]);
+
+  comprueba(
+    'la reversión · una decisión CUMPLE sin marca sí rellena EV-06',
+    medidaPorPolicy.evidences.find(e => e.id === 'EV-06')?.status === 'CUMPLE',
+    medidaPorPolicy.evidences.find(e => e.id === 'EV-06')?.status
+  );
+
+  // Una decisión acreditada en otro estado sí alimenta el puente: no acredita
+  // nada, así que es una medida corriente.
+  const caducada = maquina({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'NO_CUMPLE', { attested: true })]);
+
+  comprueba(
+    'y una acreditada en NO_CUMPLE sí rellena EV-06 con su NO_CUMPLE',
+    caducada.evidences.find(e => e.id === 'EV-06')?.status === 'NO_CUMPLE',
+    caducada.evidences.find(e => e.id === 'EV-06')?.status
   );
 
   // EV-05 medida en contra por el agente: el puente no la pisa y manda.
