@@ -246,6 +246,7 @@ const BASE: Valores = {
     'Azure suscripción | admin@cliente.example',
     'GCP analítica | ops@cliente.example',
   ],
+  'P-05': ['ninguno'],
   'P-12': '12',
   'P-13': '24',
 };
@@ -370,7 +371,7 @@ bloque('2. Verde: usuario de AWS, Azure y GCP con expediente vigente y la integr
   comprueba('y se lee «Acreditado documentalmente», no como medido', /^Acreditado documentalmente/.test(r12.observations[0] || ''), r12.observations[0]);
   comprueba('op.nub.1.r1.1 CUMPLE acreditado: las cuatro certificaciones en vigor', r.requisito('op.nub.1.r1.1').status === 'CUMPLE' && r.requisito('op.nub.1.r1.1').attested === true, r.motivo('op.nub.1.r1.1'));
   comprueba('op.nub.1.1 NO_APLICA: P-01 = usuario, no presta', r.requisito('op.nub.1.1').status === 'NO_APLICA', r.requisito('op.nub.1.1').status);
-  comprueba('op.nub.1.r1.2 NO_APLICA: P-05 no declara servicios de seguridad', r.requisito('op.nub.1.r1.2').status === 'NO_APLICA' && /no declara ningún servicio en la nube de seguridad/.test(r.motivo('op.nub.1.r1.2')), r.motivo('op.nub.1.r1.2'));
+  comprueba('op.nub.1.r1.2 NO_APLICA: P-05 declara «ninguno»', r.requisito('op.nub.1.r1.2').status === 'NO_APLICA' && /no se utiliza ningún servicio en la nube de seguridad/.test(r.motivo('op.nub.1.r1.2')), r.motivo('op.nub.1.r1.2'));
   comprueba('op.nub.1.r2.1 NO_APLICA en MEDIA', r.requisito('op.nub.1.r2.1').status === 'NO_APLICA');
   comprueba(
     'EV-01 CUMPLE: los tres módulos vivos, sin errores, y el de Azure visto por sus alertas',
@@ -749,6 +750,22 @@ bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales
   const conAtt = evalua([], { ...prestador, 'P-ATT': ['op.nub.1.1 | Declaración de aplicabilidad del SaaS según CCN-STIC-823 | https://intranet.ejemplo/doa.pdf | 2026-05-12 | RSI'] });
   comprueba('REVERSIÓN: con P-ATT → op.nub.1.1 CUMPLE acreditado', conAtt.requisito('op.nub.1.1').status === 'CUMPLE' && conAtt.requisito('op.nub.1.1').attested === true);
   comprueba('el control del prestador sale CUMPLE solo con la atestación', conAtt.motor().status === 'CUMPLE', conAtt.motor().status);
+
+  // P-05 vacío no es «ninguno».
+  const vacio = evalua(hoy(), { ...BASE, 'P-05': undefined });
+  comprueba(
+    'P-05 vacío → R1.2 no demostrado por CONFIGURATION, pidiendo «ninguno» (nunca NO_APLICA por ausencia)',
+    vacio.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && vacio.requisito('op.nub.1.r1.2').evidenced === false &&
+      vacio.decisions.find(d => d.requirementId === 'op.nub.1.r1.2')?.cause === 'CONFIGURATION' && /una sola fila «ninguno»/.test(vacio.motivo('op.nub.1.r1.2')),
+    `${vacio.requisito('op.nub.1.r1.2').status} ${vacio.motivo('op.nub.1.r1.2')}`
+  );
+  comprueba('REVERSIÓN: la misma configuración con P-05 = «ninguno» → NO_APLICA', evalua(hoy(), BASE).requisito('op.nub.1.r1.2').status === 'NO_APLICA');
+  const mezcla = evalua(hoy(), { ...BASE, 'P-05': ['ninguno', 'SIEM gestionado | SIEM | sí'] });
+  comprueba(
+    '«ninguno» mezclado con un servicio → CONFIGURATION, nunca NO_APLICA',
+    mezcla.requisito('op.nub.1.r1.2').evidenced === false && mezcla.decisions.find(d => d.requirementId === 'op.nub.1.r1.2')?.cause === 'CONFIGURATION' && /mezcla «ninguno»/.test(mezcla.motivo('op.nub.1.r1.2')),
+    mezcla.motivo('op.nub.1.r1.2')
+  );
 
   const siem = { ...BASE, 'P-05': ['SIEM gestionado | SIEM | sí'] };
   comprueba('un servicio de seguridad en P-05, sin P-ATT → R1.2 no demostrado', evalua(hoy(), siem).requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && evalua(hoy(), siem).requisito('op.nub.1.r1.2').evidenced === false);

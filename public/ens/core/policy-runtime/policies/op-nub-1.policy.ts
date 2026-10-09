@@ -29,9 +29,11 @@
 //   op.nub.1.2     usuario: EV-09 (expediente) con EV-01, EV-04 y EV-07 de
 //                  los servicios que P-06 integra.
 //   op.nub.1.r1.1  EV-08: certificación de P-04 en vigor por servicio.
-//   op.nub.1.r1.2  NO_APLICA sin servicios de seguridad en P-05; con ellos, un
-//                  «cumple op.pl.5 = no» incumple y lo demás espera a P-ATT
-//                  (ENSFácil no tiene op.pl.5).
+//   op.nub.1.r1.2  P-05 con una sola fila «ninguno» → NO_APLICA; vacío, o
+//                  «ninguno» mezclado con servicios → sin medir
+//                  (CONFIGURATION). Con servicios, un «cumple op.pl.5 = no»
+//                  incumple y lo demás espera a P-ATT (ENSFácil no tiene
+//                  op.pl.5).
 //   op.nub.1.r2.1  EV-02: hallazgos de postura del propio proveedor por
 //                  servicio de P-07. No hay «SCA cloud» en Wazuh 4.14: sin esos
 //                  hallazgos, no es automatizable.
@@ -1127,11 +1129,28 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     if (!usa(posicion)) {
       decideRequisito('op.nub.1.r1.2', noAplica(`P-01 = ${posicion}: R1.2 es para los servicios en la nube de terceros que se utilizan.`), [], 'usuario');
     } else if (!p05) {
+      // Vacío no es «ninguno»: lo no declarado no se puede sacar del
+      // denominador. «ninguno» es una declaración y se escribe.
       decideRequisito(
         'op.nub.1.r1.2',
-        noAplica(`${etiqueta(context, 'P-05')} no declara ningún servicio en la nube de seguridad: R1.2 no aplica. Si alguno de P-02 lo es (un SIEM gestionado, un WAF, copias gestionadas), hay que declararlo en P-05.`),
+        sinMedir(
+          `${etiqueta(context, 'P-05')} está sin configurar: no consta si alguno de los servicios en la nube es de seguridad (un SIEM gestionado, un WAF, copias gestionadas). Si no se usa ninguno, declara una sola fila «ninguno».`,
+          'CONFIGURATION'
+        ),
         [],
-        'servicios de seguridad en P-05'
+        'servicios de seguridad en P-05, o «ninguno»'
+      );
+    } else if (p05.some(f => sinTildes(f.servicio || '') === 'ninguno')) {
+      decideRequisito(
+        'op.nub.1.r1.2',
+        p05.length === 1
+          ? noAplica(`${etiqueta(context, 'P-05')} declara que no se utiliza ningún servicio en la nube de seguridad («ninguno»): R1.2 no aplica.`)
+          : sinMedir(
+              `${etiqueta(context, 'P-05')} mezcla «ninguno» con ${p05.length - 1} servicio(s) (${lista(p05.filter(f => sinTildes(f.servicio || '') !== 'ninguno').map(f => f.servicio))}): o una sola fila «ninguno», o los servicios de seguridad.`,
+              'CONFIGURATION'
+            ),
+        [],
+        'servicios de seguridad en P-05, o «ninguno»'
       );
     } else {
       const no = p05.filter(f => sinTildes(f.cumple_op_pl_5 || '') === 'no');

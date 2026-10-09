@@ -233,7 +233,7 @@
       "controlId": "op.nub.1",
       "name": "servicios_seguridad_cloud",
       "label": "Servicios en la nube de seguridad",
-      "description": "Los servicios en la nube utilizados que son servicios de SEGURIDAD (un SIEM gestionado, un WAF, copias de seguridad gestionadas), a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5, con lo que la organización declara de esa verificación. Es un supuesto que suele pasarse por alto.",
+      "description": "Los servicios en la nube utilizados que son servicios de SEGURIDAD (un SIEM gestionado, un WAF, copias de seguridad gestionadas), a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5, con lo que la organización declara de esa verificación. Si no se usa ninguno, una sola fila «ninguno». Es un supuesto que suele pasarse por alto.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -269,10 +269,10 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh. ENSFácil no tiene op.pl.5: la verificación se acredita con un documento en P-ATT.",
-      "ensfacilUsage": "Vacío: R1.2 no aplica (ningún servicio de seguridad en la nube declarado). Con filas: un servicio con «cumple op.pl.5 = no» es un incumplimiento declarado; si no, R1.2 queda pendiente de la atestación de P-ATT con la verificación de op.pl.5.",
+      "ensfacilUsage": "Una sola fila «ninguno»: R1.2 no aplica (declarado). Con servicios: uno con «cumple op.pl.5 = no» es un incumplimiento declarado; si no, R1.2 queda pendiente de la atestación de P-ATT con la verificación de op.pl.5. Vacío, o «ninguno» junto a servicios: R1.2 sin evaluar (causa CONFIGURATION).",
       "evidenceIds": [],
       "ruleIds": [],
-      "ifNotConfigured": "R1.2 no aplica: no se declara ningún servicio de seguridad en la nube. Si alguno de P-02 lo es, hay que declararlo aquí."
+      "ifNotConfigured": "R1.2 queda sin evaluar (causa CONFIGURATION): no consta si se usa algún servicio en la nube de seguridad. Si no se usa ninguno, se declara una sola fila «ninguno»."
     },
     {
       "id": "P-06",

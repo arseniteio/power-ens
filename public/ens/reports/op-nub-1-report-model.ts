@@ -267,7 +267,7 @@ export const buildOpNub1ReportModel = (
       : r12?.attested
       ? 'Acreditado documentalmente: la verificación de op.pl.5 de los servicios de seguridad de P-05 consta en P-ATT. Es una declaración, no una medida.'
       : r12?.status === 'NO_APLICA'
-      ? 'No se declara ningún servicio en la nube de seguridad (P-05).'
+      ? 'P-05 declara que no se utiliza ningún servicio en la nube de seguridad («ninguno»).'
       : 'Sin acreditar: los servicios de seguridad de P-05 no tienen una atestación de su verificación de op.pl.5 en P-ATT, o se declaran no conformes.',
     [],
     r12?.observations || [],
