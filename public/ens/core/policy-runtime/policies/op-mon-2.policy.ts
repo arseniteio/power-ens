@@ -789,7 +789,14 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
       return;
     }
 
-    const parados = pasadas.filter(p => leido - p.t > LATIDO_VIGENTE_MS || p.resultado === 'fallida');
+    // Una pasada fechada DESPUÉS de la lectura no prueba que el recolector
+    // esté al día: es un reloj adelantado (el de la máquina, si el instante
+    // salió de `data.ts`). Lo medido en contra manda; si no hay nada en contra,
+    // esa máquina queda sin determinar.
+    const futuras = pasadas.filter(p => p.t > leido + TOLERANCIA_FUTURO);
+    const parados = pasadas.filter(
+      p => p.t <= leido + TOLERANCIA_FUTURO && (leido - p.t > LATIDO_VIGENTE_MS || p.resultado === 'fallida')
+    );
 
     if (parados.length) {
       descubiertos.push(
@@ -800,6 +807,16 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
               : `${p.control} sin pasada desde ${iso(p.t)}`
           )
         )}`
+      );
+
+      return;
+    }
+
+    if (futuras.length) {
+      indeterminados.push(
+        sinMedir(
+          `${nombre}: ${lista(futuras.map(p => `${p.control} con su última pasada en el futuro (${iso(p.t)})`))}, después de la lectura de ${iso(leido)}: reloj adelantado, no se puede afirmar que esté al día`
+        )
       );
 
       return;

@@ -733,6 +733,22 @@ bloque('7. Gramáticas estrictas, edades al leer, IDs normalizados y el estado p
     conCaido.motivo('op.mon.2.1')
   );
 
+  // Un latido fechado después de la lectura (reloj adelantado) no prueba nada.
+  const adelantado = (l: Linea) =>
+    l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: String(l.pasadas).replace('op.acc.1|2026-10-09T11:45:00Z', 'op.acc.1|2026-10-09T18:45:00Z') } : l;
+  const futuroLdap = evalua(hoy(adelantado));
+  comprueba(
+    'op.acc.1 del LDAP con su última pasada a las 18:45 y leída a las 12:05 → esa máquina sin determinar (reloj adelantado), nunca cubierta: NO_EVALUABLE',
+    futuroLdap.evidencia('EV-04')?.status === 'NO_EVALUABLE' && futuroLdap.evidencia('EV-04')?.gapCause === 'EVIDENCE' && /ldap-zimbra \(028\): op\.acc\.1 con su última pasada en el futuro.*reloj adelantado/.test(futuroLdap.motivo('op.mon.2.1')),
+    `${futuroLdap.evidencia('EV-04')?.status} ${futuroLdap.evidencia('EV-04')?.gapCause} ${futuroLdap.motivo('op.mon.2.1')}`
+  );
+  comprueba(
+    'REVERSIÓN: la misma pasada dentro de la tolerancia de reloj (12:08) → cubierta, CUMPLE',
+    evalua(hoy(l => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: String(l.pasadas).replace('op.acc.1|2026-10-09T11:45:00Z', 'op.acc.1|2026-10-09T12:08:00Z') } : l))).evidencia('EV-04')?.status === 'CUMPLE'
+  );
+  const futuroYParado = evalua(hoy(l => adelantado(l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: String(l.pasadas).replace('11:50:00Z|completada', '11:50:00Z|fallida') } : l)));
+  comprueba('y con otro recolector del LDAP fallido, manda la medida: no cubierta, NO_CUMPLE', futuroYParado.evidencia('EV-04')?.status === 'NO_CUMPLE', futuroYParado.motivo('op.mon.2.1'));
+
   // Sin nada del alcance: nunca un CUMPLE por vacío.
   const sinAlcance = evalua(hoy(l => (l.event === 'agent_keepalive_observed' || l.event === 'collector_heartbeat_observed' ? (l.agente_id === '000' ? undefined : { ...l, grupos: 'default' }) : l)));
   comprueba('la base de agentes sin ningún sistema del alcance → NO_EVALUABLE, nunca CUMPLE', sinAlcance.evidencia('EV-04')?.status === 'NO_EVALUABLE', `${sinAlcance.evidencia('EV-04')?.status} ${sinAlcance.motivo('op.mon.2.1')}`);
