@@ -599,6 +599,10 @@ const SIN_REGLA = /^(-|ninguna|ninguno|sin regla|punto ciego)$/i;
 // convertían un punto ciego declarado en una situación cubierta.
 const REGLAS_DE_P04 = /^\d+(\s*-\s*\d+)?(\s*[,;\s]\s*\d+(\s*-\s*\d+)?)*$/;
 
+// Lo más que puede abarcar un rango de P-04: b - a <= 9999. Cabe cualquier
+// banda de un ruleset real, y no un par como «2021-44228».
+const ANCHO_MAXIMO_P04 = 9999;
+
 const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
 
@@ -654,6 +658,26 @@ const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
       partes.push(
         sinMedir(
           `P-04, situación «${fila.situacion}»: «${alReves.join(', ')}» no es un rango de reglas, porque el primer id es mayor que el último (¿una fecha o una referencia?). Escribe los rangos de menor a mayor (80700-80799), o «ninguna» si la situación no tiene regla.`,
+          'CONFIGURATION'
+        )
+      );
+
+      return;
+    }
+
+    // Un rango de más de ANCHO_MAXIMO_P04 ids no es una banda de reglas: es un
+    // par con aspecto de CVE o de referencia («2021-44228») que, leído como
+    // rango, cubriría cualquier regla del tramo.
+    const anchos = (texto.match(/\d+\s*-\s*\d+/g) || []).filter(r => {
+      const [a, b] = r.split('-').map(n => Number(n.trim()));
+
+      return b - a > ANCHO_MAXIMO_P04;
+    });
+
+    if (anchos.length) {
+      partes.push(
+        sinMedir(
+          `P-04, situación «${fila.situacion}»: «${anchos.join(', ')}» abarca más de ${ANCHO_MAXIMO_P04 + 1} ids, más que cualquier banda de reglas real (¿una referencia o un CVE?). Si de verdad son reglas, parte el rango en tramos más pequeños.`,
           'CONFIGURATION'
         )
       );

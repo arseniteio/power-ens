@@ -471,6 +471,15 @@ bloque('5. Rojo: cada eje con su reversión');
     );
   });
   comprueba('REVERSIÓN: el mismo rango de menor a mayor («12-2026») se lee y cubre → CUMPLE', conFecha('12-2026').evidencia('EV-04')?.status === 'CUMPLE');
+  // Un rango de más de 9.999 ids no es una banda de reglas.
+  const cve = conFecha('2021-44228');
+  comprueba(
+    '«2021-44228» (un CVE) abarca 42.208 ids → NO_EVALUABLE por CONFIGURATION nombrando la situación y pidiendo partirlo, nunca CUMPLE',
+    cve.evidencia('EV-04')?.status === 'NO_EVALUABLE' && cve.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»: «2021-44228» abarca más de 10000 ids/.test(cve.motivo('op.mon.1.1')) && /parte el rango/.test(cve.motivo('op.mon.1.1')),
+    `${cve.evidencia('EV-04')?.status} ${cve.motivo('op.mon.1.1')}`
+  );
+  comprueba('REVERSIÓN: «5700-5799», una banda real, se acepta y cubre → CUMPLE', conFecha('5700-5799').evidencia('EV-04')?.status === 'CUMPLE');
+  comprueba('y el límite es inclusivo: «5000-14999» (10.000 ids) se acepta', conFecha('5000-14999').evidencia('EV-04')?.status === 'CUMPLE');
   comprueba('REVERSIÓN: «ninguna» es el punto ciego declarado → NO_CUMPLE medido', conFecha('ninguna').evidencia('EV-04')?.status === 'NO_CUMPLE');
   comprueba('y «5710; 5712 80700 - 80799» es una lista válida → CUMPLE', conFecha('5710; 5712 80700 - 80799').evidencia('EV-04')?.status === 'CUMPLE');
 
