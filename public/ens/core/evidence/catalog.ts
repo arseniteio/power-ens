@@ -3956,132 +3956,199 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  // --- op.cont.3 · Pruebas periódicas -----------------------------------------
+  //
+  // Solo con la Disponibilidad en ALTO (`levelDimension: 'D'`): en MEDIA todo
+  // es NO_APLICA. Un requisito con dos obligaciones, probar con periodicidad y
+  // corregir lo que la prueba revela, que juzga la policy del control
+  // (`policies/op-cont-3.policy.ts`) con EV-01, EV-02, EV-04 y EV-05. EV-03,
+  // EV-06, EV-07 y EV-08 alimentan EV-04 y el informe: salen NO_APLICA como
+  // dato del informe, con lo medido en el motivo.
+  //
+  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
+  // credenciales: los dos registros TSV de la organización
+  // (/etc/ensfacil/continuity-test-register.tsv y
+  // continuity-deficiency-register.tsv) y, para cada prueba registrada, las
+  // alertas de su ventana en alerts.json y sus archivos diarios: caídas y
+  // arranques de los agentes (503/504/506), restauraciones de mp.info.6
+  // (106606, sin tocar mp.info.6) y cambios de FIM posteriores. Los hechos
+  // hablan de OTROS sistemas por su campo `agente`, y la policy cruza los
+  // sistemas de cada prueba con ellos por ID o por nombre exacto.
+  //
+  // Todos los hechos son de ESTADO: el recolector pasa cada 6 h y reemite
+  // entero lo que dice de cada prueba registrada. Lo que vio en la ventana de
+  // una prueba de hace cinco meses tiene que seguir llegando: como acción
+  // saldría de la ventana de 30 días y la última prueba quedaría sin medida casi
+  // todo el año. El contrato completo lo documenta el runbook `linux/op.cont.3`,
+  // y `tests/op-cont-3-judgment.test.ts` lo ejercita.
+  //
+  // Reglas: banda 111700-111799, desplegadas por el runbook `linux/op.cont.3`.
   {
+    // El registro de pruebas leído en la última pasada (111701) y una fila por
+    // prueba (111702), con lo que se pudo medir de su ventana. Registro vacío
+    // no es registro ausente: vacío, no consta ninguna prueba (NO_CUMPLE);
+    // ausente, no hay contra qué juzgar (CONFIGURATION).
     id: 'EV-01',
     controlId: 'op.cont.3',
     title: 'Registro histórico de las pruebas realizadas',
     description:
-      'Constancia de cada prueba del plan de continuidad con su fecha, tipo según P-02, escenario según P-03, participantes y resultado. Es la evidencia documental principal del control y lo primero que un auditor solicitará.',
+      'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/ensfacil/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
-    relatedRules: [],
+    stateFactEventTypes: ['continuity_test_register_read', 'continuity_test_recorded'],
+    relatedRules: ['111701', '111702'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: registro histórico de las pruebas realizadas?',
+      '¿Consta en el registro alguna prueba del plan de continuidad, y alguna que ejercite los medios alternativos?',
   },
   {
+    // Sin hecho propio: la policy calcula, sobre las filas de EV-01, la última
+    // prueba de todas, de cada tipo de P-02 y de cada escenario de P-03, en el
+    // instante en que se leyó el registro.
     id: 'EV-02',
     controlId: 'op.cont.3',
     title: 'Control de la periodicidad de las pruebas',
     description:
-      'Cálculo de los meses transcurridos desde la última prueba de cada tipo y escenario, con contraste frente a la periodicidad de P-01. Es la verificación de la primera de las dos obligaciones del requisito.',
+      'Meses transcurridos desde la última prueba registrada, desde la última de cada tipo de P-02 (con su periodicidad, o la de P-01) y desde la última de cada escenario de P-03, contra P-01. Los escenarios de P-03 que nunca se han probado son el hueco de cobertura más concreto. Es la verificación de la primera de las dos obligaciones del requisito.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
+    relatedRules: ['111702'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: control de la periodicidad de las pruebas?',
+      '¿Se ha probado el plan, cada tipo de prueba de P-02 y cada escenario de P-03 dentro de su periodicidad?',
   },
   {
+    // Dato del informe, sin veredicto propio: alimenta EV-04. Por prueba
+    // parcial o simulacro con sistemas y por agente candidato, la cronología de
+    // paradas, desconexiones y arranques en la ventana REAL de la prueba (la
+    // que declara su fila del registro) y las 24 h siguientes.
     id: 'EV-03',
     controlId: 'op.cont.3',
     title: 'Medición objetiva de lo ocurrido durante la prueba',
     description:
-      'Registro de todos los eventos producidos durante la ventana de prueba declarada en P-06: caída de servicios, arranque de sistemas alternativos, conmutación de rutas, restablecimiento. Permite medir el RTO realmente alcanzado en lugar de estimarlo.',
+      'Por cada prueba parcial o simulacro y cada sistema implicado que es un agente de Wazuh: la cronología de paradas (regla 506), desconexiones (504) y arranques (503) de su agente en la ventana real de la prueba (la de su fila del registro, no la prevista en P-06) y en las 24 h siguientes, de alerts.json del manager y sus archivos diarios. De ella sale la indisponibilidad medida de cada sistema, que juzga EV-04 contra P-07.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'availability_event_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['availability_event_observed'],
+    relatedRules: ['111705'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: medición objetiva de lo ocurrido durante la prueba?',
+      '¿Qué caídas y restablecimientos registró el manager en la ventana de cada prueba? (dato del informe; lo juzga EV-04)',
   },
   {
+    // Sin hecho propio: la policy cruza la cronología de EV-03 y las
+    // restauraciones de EV-08 de cada prueba del periodo con los RTO de P-07 y
+    // con el resultado que declara su fila. Discrepancia: declarada
+    // satisfactoria y medida fuera de objetivo.
     id: 'EV-04',
     controlId: 'op.cont.3',
     title: 'Resultado de la prueba frente a los objetivos comprometidos',
     description:
-      'Comparación entre las métricas medidas en EV-03 y los objetivos de P-07: RTO alcanzado frente al comprometido, porcentaje de servicios esenciales restablecidos, integridad de los datos recuperados. Convierte el resultado de la prueba en un dato verificable.',
+      'Por cada prueba parcial o simulacro del periodo de P-01: la indisponibilidad más larga medida de cada sistema implicado frente a su RTO de P-07 (con su tolerancia), si se restableció, y el resultado de las restauraciones de copias de la ventana, contrastados con el resultado declarado en el registro. Una prueba declarada satisfactoria cuya medida no alcanzó los objetivos es la discrepancia que este control persigue.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_recorded', 'availability_event_observed', 'backup_restore_observed'],
+    relatedRules: ['111702', '111705', '111706'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: resultado de la prueba frente a los objetivos comprometidos?',
+      '¿Coincide el resultado declarado de cada prueba con lo medido en los sistemas frente a los RTO de P-07?',
   },
   {
+    // El registro de deficiencias leído en la última pasada (111703) y una fila
+    // por deficiencia (111704). La columna `estado` viaja como `situacion`.
     id: 'EV-05',
     controlId: 'op.cont.3',
     title: 'Deficiencias detectadas y seguimiento de su corrección',
     description:
-      'Registro de las deficiencias que cada prueba revela, con su responsable, plazo y estado de cierre. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
+      'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/ensfacil/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
-    criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
-    relatedRules: [],
+    stateFactEventTypes: ['continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    relatedRules: ['111703', '111704'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: deficiencias detectadas y seguimiento de su corrección?',
+      '¿Está cada deficiencia de las pruebas registrada, dentro de su plazo y cerrada antes de la prueba siguiente?',
   },
   {
+    // Dato del informe, sin veredicto propio. Por prueba y agente, las
+    // alertas de FIM de las 24 h siguientes al fin de la ventana, agregadas.
     id: 'EV-06',
     controlId: 'op.cont.3',
     title: 'Integridad y estado del sistema tras la prueba',
     description:
-      'Verificación de que, tras una prueba que implicó conmutación o restauración, el sistema queda en el estado esperado: integridad de ficheros de configuración, versiones de software coherentes, servicios restablecidos. Una prueba puede dejar el sistema peor de lo que estaba.',
+      'Por cada prueba parcial o simulacro y cada sistema implicado que es un agente de Wazuh: los cambios de FIM (grupo syscheck) en las 24 h siguientes al fin de su ventana, con las rutas cambiadas. Son desviaciones que la prueba pudo dejar y que deberían constar como deficiencia aunque la prueba se considerase satisfactoria. Dato del informe, sin veredicto propio.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'INTEGRITY',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'post_test_change_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['post_test_change_observed'],
+    relatedRules: ['111707'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: integridad y estado del sistema tras la prueba?',
+      '¿Qué cambió en los sistemas de cada prueba después de su ventana? (dato del informe)',
   },
   {
+    // Sin hecho propio. La versión del plan es un parámetro de OTRO control
+    // (op.cont.2 P-01) y esta policy no lo ve: se resuelve con la columna
+    // `version_plan` del registro de deficiencias. Una deficiencia cerrada sin
+    // versión es una corrección posiblemente nominal: se informa, porque no
+    // toda corrección exige cambiar el plan.
     id: 'EV-07',
     controlId: 'op.cont.3',
     title: 'Actualización del plan tras las pruebas',
     description:
-      'Verificación de que las deficiencias cerradas se tradujeron en actualización efectiva del plan de continuidad de op.cont.2, cerrando el bucle entre prueba, corrección y documento vigente.',
+      'Por cada deficiencia cerrada del registro: la versión del plan de continuidad que recoge la corrección (columna version_plan). Las cerradas sin versión se señalan como corrección posiblemente nominal. Dato del informe, sin veredicto propio: no toda corrección cambia el plan, y la versión vigente del plan es de op.cont.2.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    relatedRules: ['111704'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: actualización del plan tras las pruebas?',
+      '¿Qué versión del plan recoge cada deficiencia cerrada? (dato del informe)',
   },
   {
+    // Dato del informe, sin veredicto propio: alimenta EV-04. Una restauración
+    // fallida en la ventana de una prueba declarada satisfactoria es una
+    // discrepancia.
     id: 'EV-08',
     controlId: 'op.cont.3',
     title: 'Restauración de copias de seguridad en las pruebas',
     description:
-      'Cuando la prueba incluye restauración de copias, registro de la operación y verificación de su resultado: integridad de los datos recuperados y tiempo empleado. Enlaza con mp.info.6 (copias de seguridad), porque una copia que no se restaura no está verificada.',
+      'Las pruebas de restauración de mp.info.6 (regla 106606) que el manager recibió en la ventana de cada prueba y las 24 h siguientes, con su agente, instante, resultado y si el contenido restaurado coincide. Se leen de alerts.json del manager, sin credenciales y sin tocar mp.info.6. Dato del informe, sin veredicto propio: una restauración fallida en una prueba declarada satisfactoria la juzga EV-04.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'backup_restore_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['backup_restore_observed'],
+    relatedRules: ['111706'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: restauración de copias de seguridad en las pruebas?',
+      '¿Qué restauraciones de copias se hicieron en cada prueba y con qué resultado? (dato del informe; lo juzga EV-04)',
   },
 ];
