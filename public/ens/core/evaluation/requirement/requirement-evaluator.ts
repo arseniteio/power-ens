@@ -200,9 +200,24 @@ export const evaluateRequirement = (
     };
   }
 
-  const policyDecision = policyDecisions.find(
+  // La decisión que lee el requisito. Una policy debería emitir UNA por
+  // requisito; si emite varias, manda la primera, salvo que haya una
+  // acreditación (CUMPLE con `attested`): entonces se lee esa, para que una
+  // decisión anterior sin medida no la esconda. Nunca por delante de un
+  // NO_APLICA, que saca el requisito del juego antes que nada. Las demás
+  // decisiones en contra siguen contando: ver la rama de `attested`.
+  const requirementDecisions = policyDecisions.filter(
     decision => decision.requirementId === requirement.id
   );
+
+  const attestedDecision = requirementDecisions.find(
+    decision => decision.attested && decision.status === 'CUMPLE'
+  );
+
+  const policyDecision =
+    requirementDecisions[0]?.status === 'NO_APLICA'
+      ? requirementDecisions[0]
+      : attestedDecision || requirementDecisions[0];
 
   // --- LA POLICY SACA EL REQUISITO DEL JUEGO ------------------------------
   //

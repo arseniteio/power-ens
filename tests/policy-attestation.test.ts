@@ -323,6 +323,58 @@ bloque('3. `attested` con otro estado no acredita nada');
   );
 }
 
+// --- 3 bis. varias decisiones para el mismo requisito -----------------------
+//
+// Una policy debería emitir una por requisito. Si emite varias, una decisión
+// anterior sin medida no puede esconder la acreditación; un NO_APLICA sigue
+// sacando el requisito del juego, y una en contra sigue mandando.
+
+bloque('3 bis. Varias decisiones para el mismo requisito');
+
+{
+  const sinMedida = decision(REQ, 'NO_EVALUABLE', { cause: 'COLLECTION', reason: 'sin hechos del recolector' });
+
+  const detras = juzga([], [sinMedida, ACREDITA]);
+
+  comprueba(
+    '[NO_EVALUABLE, CUMPLE acreditado] → se lee la acreditada: CUMPLE y marcado',
+    detras.status === 'CUMPLE' && detras.attested === true,
+    `${detras.status} attested=${detras.attested}`
+  );
+
+  const delante = juzga([], [ACREDITA, sinMedida]);
+
+  comprueba(
+    '[CUMPLE acreditado, NO_EVALUABLE] → lo mismo',
+    delante.status === 'CUMPLE' && delante.attested === true,
+    `${delante.status} attested=${delante.attested}`
+  );
+
+  const noAplica = juzga([], [decision(REQ, 'NO_APLICA', { reason: 'refuerzo no elegido' }), ACREDITA]);
+
+  comprueba(
+    'la reversión · [NO_APLICA, CUMPLE acreditado] → NO_APLICA: sale del juego antes que nada',
+    noAplica.status === 'NO_APLICA' && noAplica.attested !== true,
+    `${noAplica.status} attested=${noAplica.attested}`
+  );
+
+  const enContra = juzga([], [decision(REQ, 'NO_CUMPLE', { reason: 'medida en contra' }), ACREDITA]);
+
+  comprueba(
+    'la reversión · [NO_CUMPLE, CUMPLE acreditado] → NO_CUMPLE: la medida en contra manda',
+    enContra.status === 'NO_CUMPLE' && enContra.attested !== true,
+    `${enContra.status} attested=${enContra.attested}`
+  );
+
+  const sinAcreditar = juzga([], [sinMedida, decision(REQ, 'CUMPLE')]);
+
+  comprueba(
+    'la reversión · sin acreditación, manda la primera como siempre: NO_EVALUABLE → NO_CUMPLE',
+    sinAcreditar.status === 'NO_CUMPLE' && sinAcreditar.evidenced === false,
+    `${sinAcreditar.status} evidenced=${sinAcreditar.evidenced}`
+  );
+}
+
 // --- 4. el motor entero y la consolidación ---------------------------------
 
 bloque('4. El motor (con el puente de evidencias) y la consolidación entre máquinas');

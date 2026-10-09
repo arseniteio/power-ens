@@ -101,6 +101,14 @@ export interface ENSPolicyDecision {
   // (las del catálogo y las que nombra la decisión) está en NO_CUMPLE o
   // PARCIAL, u otra decisión de la policy para el mismo requisito lo está, el
   // requisito sale NO_CUMPLE y sin la marca. Ver `requirement-evaluator.ts`.
+  //
+  // Una policy debería emitir UNA decisión por requisito. Si emite varias, el
+  // evaluador lee la acreditada antes que la primera (salvo que la primera sea
+  // NO_APLICA), y las demás en contra siguen mandando.
+  //
+  // Una decisión acreditada NO rellena evidencias en el puente
+  // (`policy-evidence-bridge.ts`): un documento no mide ninguna, y su CUMPLE se
+  // filtraría como medido a otros requisitos que compartan la evidencia.
   attested?: boolean;
 }
 
