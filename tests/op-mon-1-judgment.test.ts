@@ -460,6 +460,17 @@ bloque('5. Rojo: cada eje con su reversión');
       `${r.evidencia('EV-04')?.status} ${r.evidencia('EV-04')?.gapCause} ${r.motivo('op.mon.1.1')}`
     );
   });
+  // Una fecha suelta pasa la gramática, pero es un rango al revés.
+  ['2026-12', '5710, 2026-12'].forEach(celda => {
+    const r = conFecha(celda);
+
+    comprueba(
+      `«${celda}»: un rango al revés (12-2026 no se lee) → NO_EVALUABLE por CONFIGURATION nombrando la situación, nunca CUMPLE`,
+      r.evidencia('EV-04')?.status === 'NO_EVALUABLE' && r.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»: «2026-12» no es un rango de reglas/.test(r.motivo('op.mon.1.1')),
+      `${r.evidencia('EV-04')?.status} ${r.evidencia('EV-04')?.gapCause} ${r.motivo('op.mon.1.1')}`
+    );
+  });
+  comprueba('REVERSIÓN: el mismo rango de menor a mayor («12-2026») se lee y cubre → CUMPLE', conFecha('12-2026').evidencia('EV-04')?.status === 'CUMPLE');
   comprueba('REVERSIÓN: «ninguna» es el punto ciego declarado → NO_CUMPLE medido', conFecha('ninguna').evidencia('EV-04')?.status === 'NO_CUMPLE');
   comprueba('y «5710; 5712 80700 - 80799» es una lista válida → CUMPLE', conFecha('5710; 5712 80700 - 80799').evidencia('EV-04')?.status === 'CUMPLE');
 

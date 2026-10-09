@@ -642,6 +642,25 @@ const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
       return;
     }
 
+    // Un rango al revés no es un rango de reglas: «2026-12» es una fecha, y
+    // leído como 12-2026 cubriría cualquier regla de ese tramo.
+    const alReves = (texto.match(/\d+\s*-\s*\d+/g) || []).filter(r => {
+      const [a, b] = r.split('-').map(n => Number(n.trim()));
+
+      return a > b;
+    });
+
+    if (alReves.length) {
+      partes.push(
+        sinMedir(
+          `P-04, situación «${fila.situacion}»: «${alReves.join(', ')}» no es un rango de reglas, porque el primer id es mayor que el último (¿una fecha o una referencia?). Escribe los rangos de menor a mayor (80700-80799), o «ninguna» si la situación no tiene regla.`,
+          'CONFIGURATION'
+        )
+      );
+
+      return;
+    }
+
     const declaradas = rangos(texto);
 
     const cubiertas = declaradas.filter(r => enQue(r) !== undefined);
