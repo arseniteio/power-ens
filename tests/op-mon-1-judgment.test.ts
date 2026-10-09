@@ -582,6 +582,19 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA');
     sinBaseConFallo.motivo('op.mon.1.1')
   );
 
+  // Una degradación de hace dos días no describe hoy (misma frescura que los hechos).
+  const sinCobertura = (ts: string) =>
+    evalua(hoy(l => (l.event === 'detection_coverage_observed' ? undefined : l)).concat(eventos([
+      { ts, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
+    ])));
+  const antigua = sinCobertura('2026-10-07T12:05:30Z');
+  comprueba(
+    'un evidence_state de hace dos días no se usa como motivo de hoy',
+    antigua.evidencia('EV-02')?.status === 'NO_EVALUABLE' && !/global\.db/.test(antigua.motivo('op.mon.1.1')) && /No consta ningún estado de los agentes/.test(antigua.motivo('op.mon.1.1')),
+    antigua.motivo('op.mon.1.1')
+  );
+  comprueba('REVERSIÓN: el mismo evidence_state de hoy sí da el motivo', /global\.db/.test(sinCobertura(`${COMPLETA}:30Z`).motivo('op.mon.1.1')));
+
   const lecturaError = (id: string) =>
     hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === id ? { ...l, lectura: 'error', fim_ultimo_fin: '-', sca_ultimo_fin: '-', inventario_ultimo: '-' } : l));
   comprueba('la base ilegible de un agente FUERA de P-01 (027) no bloquea nada → EV-02 CUMPLE', evalua(lecturaError('027')).evidencia('EV-02')?.status === 'CUMPLE');

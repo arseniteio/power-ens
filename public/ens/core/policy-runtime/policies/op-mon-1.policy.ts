@@ -301,18 +301,22 @@ const estadoVigente = (
 
 // Lo que el recolector declaró que no pudo medir de una evidencia, si es más
 // reciente que `despuesDe`, con la causa que ÉL declara. Sin causa declarada,
-// COLLECTION.
+// COLLECTION. Con la misma frescura que los hechos: una degradación de hace
+// días no describe hoy, ni una del futuro.
 const degradacion = (
   context: ENSPolicyContext,
   evidencia: string,
+  ahora: number,
   despuesDe = 0
 ): Medida | undefined => {
+  const desde = Math.max(despuesDe, ahora - FRESCURA_HORAS * HORA);
   const ultima = hechos(context, 'evidence_state')
     .filter(
       e =>
         campo(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidencia) &&
         String(e.status || campo(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
-        momento(e) >= despuesDe
+        momento(e) >= desde &&
+        momento(e) <= ahora + TOLERANCIA_FUTURO
     )
     .sort((a, b) => momento(b) - momento(a))[0];
 
@@ -334,10 +338,11 @@ const degradacion = (
 const sinHechos = (
   context: ENSPolicyContext,
   evidencia: string,
+  ahora: number,
   ultimo: number | undefined,
   queFalta: string
 ): Medida =>
-  degradacion(context, evidencia) ||
+  degradacion(context, evidencia, ahora) ||
   sinMedir(
     ultimo
       ? `El último ${queFalta} es de ${iso(ultimo)}, hace más de ${FRESCURA_HORAS} h: el recolector de op.mon.1 del manager no está informando.`
@@ -363,7 +368,7 @@ const conDegradacion = (
     return medida;
   }
 
-  const deg = degradacion(context, evidencia, ultimo + 1);
+  const deg = degradacion(context, evidencia, ahora, ultimo + 1);
 
   return deg ? combina([medida, deg]) : medida;
 };
@@ -574,7 +579,7 @@ const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
   const ultimo = serie.length ? momento(serie[serie.length - 1]) : undefined;
 
   if (ultimo === undefined) {
-    return sinHechos(context, 'EV-01', ultimo, 'estado del motor de reglas del manager');
+    return sinHechos(context, 'EV-01', ahora, ultimo, 'estado del motor de reglas del manager');
   }
 
   if (ahora - ultimo > FRESCURA_MOTOR_HORAS * HORA) {
@@ -609,7 +614,7 @@ const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
       partes.push(cumple(`El motor escribe alertas: ${nuevas} nuevas en alerts.json desde la pasada anterior (sin contadores del motor: ${campo(actual, 'fuente_contadores') || '-'}).`));
     } else {
       partes.push(
-        degradacion(context, 'EV-01', ultimo + 1) ||
+        degradacion(context, 'EV-01', ahora, ultimo + 1) ||
           sinMedir(
             `El recolector no ha podido leer los contadores del motor de análisis (${campo(actual, 'fuente_contadores') || 'sin fuente'})${nuevas === 0 ? ' y no hay alertas nuevas desde la pasada anterior' : ''}: no se puede afirmar que el motor procese eventos.`,
             'COLLECTION'
@@ -642,7 +647,7 @@ const ev01Base = (context: ENSPolicyContext, ahora: number): Medida => {
   const ruleset = vigentes[vigentes.length - 1];
 
   if (!ruleset) {
-    partes.push(sinHechos(context, 'EV-01', ultimoRuleset, 'inventario del ruleset del manager'));
+    partes.push(sinHechos(context, 'EV-01', ahora, ultimoRuleset, 'inventario del ruleset del manager'));
   } else {
     const reglas = numero(campo(ruleset, 'reglas')) || 0;
 
@@ -663,7 +668,7 @@ const conjuntosDeP03 = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
 
   if (!vigentes.length) {
-    return sinHechos(context, 'EV-04', ultimo, 'inventario de reglas cargadas por conjunto');
+    return sinHechos(context, 'EV-04', ahora, ultimo, 'inventario de reglas cargadas por conjunto');
   }
 
   const cargados = conjuntosCargados(vigentes);
@@ -694,7 +699,7 @@ const ev02Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'detection_coverage_observed', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
-    return sinHechos(context, 'EV-02', ultimo, 'estado de los agentes leído en el manager');
+    return sinHechos(context, 'EV-02', ahora, ultimo, 'estado de los agentes leído en el manager');
   }
 
   const sistemas = filas(context, 'P-01');
@@ -806,7 +811,7 @@ const ev03Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'detection_activity_observed', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
-    return sinHechos(context, 'EV-03', ultimo, 'resumen de detecciones por agente');
+    return sinHechos(context, 'EV-03', ahora, ultimo, 'resumen de detecciones por agente');
   }
 
   const sistemas = filas(context, 'P-01');
@@ -915,7 +920,7 @@ const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
-    return sinHechos(context, 'EV-04', ultimo, 'inventario de reglas cargadas por conjunto');
+    return sinHechos(context, 'EV-04', ahora, ultimo, 'inventario de reglas cargadas por conjunto');
   }
 
   const situaciones = filas(context, 'P-04');
@@ -1023,11 +1028,11 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   if (!vigentes.length || ultimo === undefined) {
-    return sinHechos(context, 'EV-05', ultimo, 'inventario de detección en red del manager');
+    return sinHechos(context, 'EV-05', ahora, ultimo, 'inventario de detección en red del manager');
   }
 
   // Solo cuando P-02 la exige: con «no», lo que no se pudo leer no cambia nada.
-  const deg = degradacion(context, 'EV-05', ultimo + 1);
+  const deg = degradacion(context, 'EV-05', ahora, ultimo + 1);
   const conDeg = (medida: Medida): Medida => (deg ? combina([medida, deg]) : medida);
   const plazo = escalar(context, 'P-09');
 
@@ -1083,7 +1088,7 @@ const r3DeHecho = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'active_response_configured', ahora);
 
   if (!vigentes.length) {
-    return sinHechos(context, 'EV-07', ultimo, 'inventario de respuestas automáticas del manager');
+    return sinHechos(context, 'EV-07', ahora, ultimo, 'inventario de respuestas automáticas del manager');
   }
 
   const habilitadas = vigentes.filter(
@@ -1139,7 +1144,7 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
   const ruleset = versiones[versiones.length - 1];
 
   if (!ruleset) {
-    partes.push(degradacion(context, 'EV-08') || sinHechos(context, 'EV-01', ultimaVersion, 'inventario del ruleset del manager'));
+    partes.push(degradacion(context, 'EV-08', ahora) || sinHechos(context, 'EV-01', ahora, ultimaVersion, 'inventario del ruleset del manager'));
   } else {
     const maximo = escalar(context, 'P-08');
     const fecha = instante(campo(ruleset, 'fecha_ruleset'));
@@ -1164,14 +1169,14 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes: barrido, ultimo: ultimoBarrido } = estadoVigente(context, 'rule_silenced', ahora);
 
   if (!barrido.length || ultimoBarrido === undefined) {
-    partes.push(sinHechos(context, 'EV-08', ultimoBarrido, 'barrido de exclusiones y reglas silenciadas'));
+    partes.push(sinHechos(context, 'EV-08', ahora, ultimoBarrido, 'barrido de exclusiones y reglas silenciadas'));
 
     return combina(partes);
   }
 
   // Lo que no se pudo barrer después de la última pasada buena se suma a lo
   // medido en ella, sin taparlo.
-  const deg = degradacion(context, 'EV-08', ultimoBarrido + 1);
+  const deg = degradacion(context, 'EV-08', ahora, ultimoBarrido + 1);
 
   if (deg) {
     partes.push(deg);
