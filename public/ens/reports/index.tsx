@@ -22,7 +22,10 @@ import {
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
-import type { ENSRequirementResult } from '../core/evaluation/types';
+import type {
+  ENSComplianceResult,
+  ENSRequirementResult,
+} from '../core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
@@ -41,6 +44,10 @@ import {
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
 import { ENSControls } from '../data';
+import {
+  buildENSAllControlsFactsFilter,
+  ENS_FACTS_QUERY_LIMIT,
+} from '../dashboard/all-controls-facts-filter';
 import {
   compareENSIds,
   filterByENSPrefix,
@@ -87,12 +94,28 @@ const ETIQUETA_DE_CAUSA: Record<string, string> = {
 // controles que tienen modelo: quien decide es el componente de la lista. Así
 // no hay ninguna rama condicional por encima de los hooks y, de paso, un control
 // sin modelo no lanza la consulta a OpenSearch que no va a poder usar.
+// El resultado de TODOS los controles para el informe que lo pide
+// (`usesAllControls`, op.mon.2). Lo calcula `<ControlReportWithPanorama>` con
+// SU propia consulta: el veredicto del control sigue saliendo de la consulta de
+// sus hechos, igual que en el detalle, y no del conjunto compartido.
+interface ENSReportPanorama {
+  // `undefined` mientras la consulta está en curso o ha fallado: el informe
+  // enseña SIN_DATOS, nunca un panorama de otra consulta.
+  results?: ENSComplianceResult[];
+  loading: boolean;
+  // La consulta llegó al tope de hechos: los más antiguos quedan fuera.
+  truncated: boolean;
+  error?: Error;
+}
+
 const ControlReport = ({
   controlId,
   definition,
+  panorama,
 }: {
   controlId: string;
   definition: ENSReportModelDefinition;
+  panorama?: ENSReportPanorama;
 }) => {
   const { agentId } = useRouterSearch();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -127,11 +150,7 @@ const ControlReport = ({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
-      // Un informe que recopila el de todos los controles (op.mon.2) lee los
-      // hechos de ENSFácil de todos ellos, como el panel.
-      definition.usesAllControls
-        ? { exists: { field: 'data.ensfacil' } }
-        : { match_phrase: { 'data.ensfacil': controlId } },
+      { match_phrase: { 'data.ensfacil': controlId } },
     ],
     // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
     // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
@@ -174,24 +193,11 @@ const ControlReport = ({
     ],
   );
 
-  // El resultado de TODOS los controles, solo para el informe que lo pide: es
-  // el mismo cálculo que el panel, con los mismos hechos.
-  const panorama = useMemo(
-    () =>
-      definition.usesAllControls
-        ? getENSComplianceState(
-            ensLevel,
-            normalizedEvents,
-            agentId,
-            scopeAgents,
-          ).results
-        : undefined,
-    [definition, ensLevel, normalizedEvents, agentId, scopeAgents],
-  );
+  const panoramaResults = panorama?.results;
 
   const reportModel = useMemo(
-    () => definition.build(complianceResult, panorama),
-    [definition, complianceResult, panorama],
+    () => definition.build(complianceResult, panoramaResults),
+    [definition, complianceResult, panoramaResults],
   );
 
   // `?? null` y no solo el ternario: un control sin medir se publica SIN
@@ -582,6 +588,8 @@ const ControlReport = ({
   const exportarPDF = () => {
     // Un informe firmado con los hechos de la búsqueda anterior no se emite.
     if (error) return;
+    // Ni uno que recopila todos los controles mientras su consulta no ha vuelto.
+    if (panorama?.loading) return;
     const now = new Date();
     const fechaEmision = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -834,6 +842,45 @@ const ControlReport = ({
       {/* Sin título: el del control ya está en la cabecera del acordeón que
           envuelve este informe. `definition.name` encabeza el PDF, que sí sale
           suelto del contexto de la pantalla. */}
+      {panorama?.truncated ? (
+        <>
+          <EuiCallOut
+            size='s'
+            color='warning'
+            iconType='alert'
+            title={`El resultado de todos los controles se ha calculado con los ${ENS_FACTS_QUERY_LIMIT.toLocaleString('es-ES')} hechos más recientes y la consulta ha llegado a ese tope`}
+          >
+            <EuiText size='xs'>
+              <p>
+                Los hechos más antiguos de la ventana quedan fuera: el grado de
+                implantación, los controles no evaluables y los datos del art.
+                32 pueden no coincidir con el detalle de cada control. Acorta el
+                periodo de evaluación o filtra por una máquina.
+              </p>
+            </EuiText>
+          </EuiCallOut>
+          <EuiSpacer size='s' />
+        </>
+      ) : null}
+      {panorama?.error ? (
+        <>
+          <EuiCallOut
+            size='s'
+            color='warning'
+            iconType='alert'
+            title='No se han podido leer los hechos de todos los controles'
+          >
+            <EuiText size='xs'>
+              <p>
+                El grado de implantación, los controles no evaluables y los
+                datos del art. 32 salen sin datos. El veredicto del control no
+                depende de esta consulta.
+              </p>
+            </EuiText>
+          </EuiCallOut>
+          <EuiSpacer size='s' />
+        </>
+      ) : null}
       <EuiFlexGroup justifyContent='spaceBetween' alignItems='center'>
         <EuiFlexItem>
           <EuiText size='xs' color='subdued'>
@@ -926,10 +973,92 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={Boolean(error)}>
+      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={Boolean(error) || Boolean(panorama?.loading)}>
         Exportar PDF
       </EuiButton>
     </>
+  );
+};
+
+// El informe de un control que recopila el de TODOS (`usesAllControls`,
+// op.mon.2). Lanza una SEGUNDA consulta, con el filtro y el tope del panel, solo
+// para calcular el resultado de cada control; el del propio control sigue
+// saliendo de la consulta de sus hechos dentro de `<ControlReport>`, como en el
+// detalle. Los demás informes no pasan por aquí y no cambian.
+const ControlReportWithPanorama = ({
+  controlId,
+  definition,
+}: {
+  controlId: string;
+  definition: ENSReportModelDefinition;
+}) => {
+  const { agentId } = useRouterSearch();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const i = window.setInterval(() => setRefreshKey(c => c + 1), 15000);
+    return () => window.clearInterval(i);
+  }, []);
+
+  const activeConfiguration = getActiveENSConfiguration();
+  const ensLevel = activeConfiguration.global.ensLevel;
+  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
+    activeConfiguration.global.evaluationPeriod,
+  );
+
+  // Anclado a la identidad del alcance, como en el panel: el resultado de
+  // todos los controles es caro y no se recalcula en cada render.
+  const scopeAgentsKey = getActiveENSScopeAgents()
+    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
+    .join(',');
+  const scopeAgents = useMemo(
+    () => getActiveENSScopeAgents(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scopeAgentsKey],
+  );
+
+  const { esResults, isLoading, error } = useEsSearch({
+    preAppliedFilters: [
+      evaluationTimeFilter,
+      buildENSScopeAgentQueryFilter(scopeAgents, agentId),
+      buildENSAllControlsFactsFilter(ENSControls.map(control => control.id)),
+    ],
+    size: ENS_FACTS_QUERY_LIMIT,
+    sorting: [{ timestamp: { order: 'desc' } }],
+    refreshKey,
+  });
+
+  const hits = useMemo(
+    () => (esResults && esResults.hits && esResults.hits.hits) || [],
+    [esResults],
+  );
+
+  // Mientras la consulta está en curso o si ha fallado, sin panorama: el
+  // informe enseña SIN_DATOS y el PDF no se exporta.
+  const results = useMemo(
+    () =>
+      isLoading || error
+        ? undefined
+        : getENSComplianceState(
+            ensLevel,
+            normalizeWazuhAlerts(hits),
+            agentId,
+            scopeAgents,
+          ).results,
+    [isLoading, error, hits, ensLevel, agentId, scopeAgents],
+  );
+
+  return (
+    <ControlReport
+      controlId={controlId}
+      definition={definition}
+      panorama={{
+        results,
+        loading: isLoading,
+        truncated: !isLoading && !error && hits.length >= ENS_FACTS_QUERY_LIMIT,
+        error,
+      }}
+    />
   );
 };
 
@@ -1224,10 +1353,17 @@ export const InformesENS = () => {
                     TIENE modelo: sin modelo no hay informe de repuesto. */}
                 {isOpen(entry.controlId) ? (
                   entry.reportModelDefinition ? (
-                    <ControlReport
-                      controlId={entry.controlId}
-                      definition={entry.reportModelDefinition}
-                    />
+                    entry.reportModelDefinition.usesAllControls ? (
+                      <ControlReportWithPanorama
+                        controlId={entry.controlId}
+                        definition={entry.reportModelDefinition}
+                      />
+                    ) : (
+                      <ControlReport
+                        controlId={entry.controlId}
+                        definition={entry.reportModelDefinition}
+                      />
+                    )
                   ) : (
                     <ControlSinModeloDeInforme entry={entry} />
                   )

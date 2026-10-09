@@ -58,7 +58,9 @@ for (const p of usan) {
 }
 const informes = fs.readFileSync(path.join(raiz, 'public/ens/reports/index.tsx'), 'utf8');
 comprueba('Informes: el PDF no se exporta con un fallo', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(error\) return;/.test(informes));
-comprueba('Informes: el botón, desactivado', /isDisabled=\{Boolean\(error\)\}/.test(informes) && /fill isDisabled>/.test(informes));
+// El informe que recopila todos los controles (op.mon.2) lo desactiva además
+// mientras su segunda consulta no ha vuelto: `Boolean(error) || …`.
+comprueba('Informes: el botón, desactivado', /isDisabled=\{Boolean\(error\)(\s*\|\|[^}]*)?\}/.test(informes) && /fill isDisabled>/.test(informes));
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);
