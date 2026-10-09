@@ -12,6 +12,7 @@ import { getActiveENSConfiguration } from '../configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
+  getENSComplianceState,
   normalizeWazuhAlerts,
 } from '../core';
 import {
@@ -126,7 +127,11 @@ const ControlReport = ({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
-      { match_phrase: { 'data.ensfacil': controlId } },
+      // Un informe que recopila el de todos los controles (op.mon.2) lee los
+      // hechos de ENSFácil de todos ellos, como el panel.
+      definition.usesAllControls
+        ? { exists: { field: 'data.ensfacil' } }
+        : { match_phrase: { 'data.ensfacil': controlId } },
     ],
     // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
     // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
@@ -169,9 +174,24 @@ const ControlReport = ({
     ],
   );
 
+  // El resultado de TODOS los controles, solo para el informe que lo pide: es
+  // el mismo cálculo que el panel, con los mismos hechos.
+  const panorama = useMemo(
+    () =>
+      definition.usesAllControls
+        ? getENSComplianceState(
+            ensLevel,
+            normalizedEvents,
+            agentId,
+            scopeAgents,
+          ).results
+        : undefined,
+    [definition, ensLevel, normalizedEvents, agentId, scopeAgents],
+  );
+
   const reportModel = useMemo(
-    () => definition.build(complianceResult),
-    [definition, complianceResult],
+    () => definition.build(complianceResult, panorama),
+    [definition, complianceResult, panorama],
   );
 
   // `?? null` y no solo el ternario: un control sin medir se publica SIN
