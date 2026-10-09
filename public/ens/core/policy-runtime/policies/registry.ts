@@ -70,25 +70,30 @@ import {
   opExp10PolicyDefinition,
 } from './op-exp-10.policy';
 
+import {
+  opMon1PolicyDefinition,
+} from './op-mon-1.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
-    opExp10PolicyDefinition,
-    opExp9PolicyDefinition,
-    opExp8PolicyDefinition,
-    opExp7PolicyDefinition,
-    opExp6PolicyDefinition,
-    opExp5PolicyDefinition,
-    opExp4PolicyDefinition,
-    opExp3PolicyDefinition,
-    opExp2PolicyDefinition,
-    opExp1PolicyDefinition,
-    opAcc6PolicyDefinition,
-    opAcc5PolicyDefinition,
-    opAcc3PolicyDefinition,
-    opAcc4PolicyDefinition,
     mpInfo6PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,
+    opAcc3PolicyDefinition,
+    opAcc4PolicyDefinition,
+    opAcc5PolicyDefinition,
+    opAcc6PolicyDefinition,
+    opExp1PolicyDefinition,
+    opExp2PolicyDefinition,
+    opExp3PolicyDefinition,
+    opExp4PolicyDefinition,
+    opExp5PolicyDefinition,
+    opExp6PolicyDefinition,
+    opExp7PolicyDefinition,
+    opExp8PolicyDefinition,
+    opExp9PolicyDefinition,
+    opExp10PolicyDefinition,
+    opMon1PolicyDefinition,
   ];
 
 const policyRegistry =

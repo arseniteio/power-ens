@@ -3769,4 +3769,188 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Toda clave privada tiene un modo no más permisivo y el propietario que P-02 declara para su almacén?',
   },
+  // --- op.mon.1 · Detección de intrusión ------------------------------------
+  //
+  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
+  // credenciales: el motor de reglas, la base de agentes (global.db) y la base
+  // de cada agente en el manager (queue/db/NNN.db), alerts.json y los ficheros
+  // de reglas. Los hechos hablan de OTROS sistemas por su campo `agente`, así
+  // que no hay primitiva que los juzgue: lo hace la policy del control
+  // (`policies/op-mon-1.policy.ts`), cruzando cada fila de P-01 con su hecho
+  // por nombre o por ID, y el puente lo lleva a la tabla.
+  //
+  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
+  // causa), nunca veredictos. Pasa cada hora: el estado del motor de reglas
+  // (EV-01) en cada pasada, y todo lo demás —estados lentos y por agente— cada
+  // 6 h, reemitido entero. Contrato completo:
+  // `.superpowers/sdd/2026-10-09-op-mon-nub-cont/op-mon-1-contract.md`.
+  //
+  // Reglas: banda 111200-111299, desplegadas por el runbook `linux/op.mon.1`.
+  {
+    // La serie del motor entre pasadas prueba que procesa; por eso
+    // `detection_engine_status` NO es hecho de estado (quedarse con la última
+    // pasada borraría la anterior, que es con la que se compara), y
+    // `ruleset_version_observed` tampoco: llega cada 6 h y la pasada horaria,
+    // que también cubre EV-01, lo descartaría. La policy toma la última de cada
+    // uno contra su frescura.
+    id: 'EV-01',
+    controlId: 'op.mon.1',
+    title: 'Capacidad de detección de intrusiones desplegada y operativa',
+    description:
+      'Motor de reglas del manager en marcha y procesando: estado del servicio wazuh-manager, contadores del motor de análisis (eventos recibidos, procesados y descartados, alertas escritas) cuya serie entre pasadas prueba que procesa, y el ruleset cargado: versión de Wazuh, fecha del fichero de reglas más reciente, ficheros, reglas y reglas con técnica MITRE ATT&CK. En MEDIA y ALTA (R1), además, que los conjuntos de reglas de P-03 estén cargados.',
+    requirements: ['op.mon.1.1', 'op.mon.1.r1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_engine_status', 'ruleset_version_observed'],
+    relatedRules: ['111201', '111202'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Está el motor de reglas del manager en marcha, procesando eventos y con reglas cargadas (y, desde MEDIA, con los conjuntos de reglas de P-03)?',
+  },
+  {
+    // Por agente, cada 6 h. La policy cruza cada sistema de P-01 con su fila
+    // por ID o por nombre: agente conectado y pasadas de FIM y SCA dentro de
+    // P-10. Los agentes fuera de P-01 (de prueba, dados de baja) no cuentan.
+    id: 'EV-02',
+    controlId: 'op.mon.1',
+    title: 'Cobertura efectiva de la detección',
+    description:
+      'Por cada agente registrado en el manager (global.db, leída en solo lectura): estado de conexión, último keepalive, versión y grupos; y, de su base en el manager, el fin de su última pasada de FIM, de SCA y de inventario. Se contrasta con los sistemas de P-01: un sistema declarado sin agente, con el agente desconectado o sin pasada de FIM o SCA en P-10 horas es un punto ciego del control.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_coverage_observed'],
+    stateFactEventTypes: ['detection_coverage_observed'],
+    relatedRules: ['111203'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada sistema de P-01 su agente conectado y ha completado pasadas de FIM y de SCA dentro de P-10?',
+  },
+  {
+    // Por agente, cada 6 h: el instante de la última alerta propia (sin las de
+    // ENSFácil) y el volumen de las últimas 24 h. «Sistema activo sin
+    // detecciones» decide (decisión del responsable del 09/10), con P-09.
+    id: 'EV-03',
+    controlId: 'op.mon.1',
+    title: 'Detecciones de intrusión del período',
+    description:
+      'Por cada agente, a partir de alerts.json del manager (sin las alertas de ENSFácil): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_activity_observed'],
+    stateFactEventTypes: ['detection_activity_observed'],
+    relatedRules: ['111204'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Ha producido cada sistema de P-01 conectado alguna detección en los últimos P-09 días?',
+  },
+  {
+    // Por conjunto de reglas, cada 6 h: los ids que pueden alertar, en rangos
+    // comprimidos y partidos en varias líneas si no caben en una.
+    id: 'EV-04',
+    controlId: 'op.mon.1',
+    title: 'Trazabilidad entre análisis de riesgos y capacidad de detección',
+    description:
+      'Identificadores de las reglas que el manager carga y que pueden generar una alerta (sin los ficheros excluidos ni las reglas de nivel 0), por conjunto y en rangos comprimidos. Se cruza con P-04: cada situación de compromiso del análisis de riesgos tiene que tener al menos una regla de detección cargada. Una situación sin regla es un punto ciego del control.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'ruleset_rules_loaded'],
+    stateFactEventTypes: ['ruleset_rules_loaded'],
+    relatedRules: ['111205'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada situación de compromiso de P-04 al menos una regla de detección cargada en el manager?',
+  },
+  {
+    // Por producto, cada 6 h. Solo se juzga si P-02 exige detección en red.
+    id: 'EV-05',
+    controlId: 'op.mon.1',
+    title: 'Ingesta y correlación de eventos de detección en red',
+    description:
+      'Por cada sistema de detección en red (Suricata, Snort, Zeek u otro IDS) cuyos eventos ingiere el manager: de dónde llegan (syslog remoto o el fichero que recoge un agente) y la última alerta de red recibida, con las de las últimas 24 h. Solo se exige si P-02 declara que el análisis de riesgos pide detección en red; si no, se informa y la justificación de P-02 queda en el informe.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'network_detection_observed'],
+    stateFactEventTypes: ['network_detection_observed'],
+    relatedRules: ['111206'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      'Si P-02 exige detección en red, ¿ingiere el manager los eventos de ese NIDS y ha recibido alertas suyas dentro de P-09?',
+  },
+  {
+    // Dato del informe, sin requisito que la juzgue (spec §1.3): «existirán
+    // procedimientos» es documental (P-05 o P-ATT) y la aplicación de un
+    // procedimiento a cada alerta ya la mide op.exp.7 (EV-02 y EV-06 de allí).
+    // La policy la devuelve NO_APLICA con ese motivo para que no salga en gris.
+    id: 'EV-06',
+    controlId: 'op.mon.1',
+    title: 'Aplicación de los procedimientos de respuesta (R2)',
+    description:
+      'Que las alertas generadas se trataron conforme al procedimiento de respuesta que les corresponde según P-05. Es un dato del informe, sin veredicto propio: la existencia de los procedimientos (R2) se acredita documentalmente con P-05, y su aplicación a cada alerta la mide op.exp.7 cruzando las alertas con el registro de incidentes.',
+    requirements: ['op.mon.1.r2.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se trataron las alertas conforme al procedimiento de P-05? (dato del informe; lo mide op.exp.7)',
+  },
+  {
+    // R3 no se exige en ninguna categoría: se mide y se INFORMA, sin veredicto.
+    // `active_response_configured` es estado (cada 6 h); `active_response_executed`
+    // es una acción, agregada por agente, programa y regla en cada pasada.
+    id: 'EV-07',
+    controlId: 'op.mon.1',
+    title: 'Acciones predeterminadas de respuesta ejecutadas (R3)',
+    description:
+      'Respuestas automáticas configuradas en el manager (comando, reglas o grupos que las disparan, reversión, si están habilitadas) frente a las acciones de P-07, y las ejecutadas en la ventana con la regla que las disparó, el agente y el objetivo. R3 no es exigible en ninguna categoría: se informa como cobertura de hecho del enunciado general del bloque op.mon.',
+    requirements: ['op.mon.1.r3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'active_response_configured', 'active_response_executed'],
+    stateFactEventTypes: ['active_response_configured'],
+    relatedRules: ['111207', '111208'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué respuestas automáticas de P-07 están configuradas y cuáles se han ejecutado a raíz de una alerta? (se informa: R3 no es exigible)',
+  },
+  {
+    // Dos ejes (spec §1.3): la antigüedad del ruleset contra P-08, con
+    // `ruleset_version_observed` (el hecho es de EV-01: un nombre de evento no
+    // puede estar en dos evidencias), y los silenciamientos contra P-06.
+    id: 'EV-08',
+    controlId: 'op.mon.1',
+    title: 'Vigencia del conjunto de reglas y gestión de exclusiones',
+    description:
+      'Antigüedad del ruleset (fecha de su fichero de reglas más reciente) frente a P-08, y el barrido de silenciamientos del manager: ficheros de reglas excluidos en ossec.conf (rule_exclude) y reglas reescritas a nivel 0 en las reglas propias. Cada silenciamiento tiene que figurar en P-06 con su motivo y quién lo aprobó: una exclusión sin constancia degrada la detección sin que nadie lo advierta.',
+    requirements: ['op.mon.1.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'rule_silenced'],
+    stateFactEventTypes: ['rule_silenced'],
+    relatedRules: ['111202', '111209'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
+  },
 ];

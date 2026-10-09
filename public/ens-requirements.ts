@@ -308,4 +308,12 @@ export const ensRequirementsFile = {
     'Evidencias con valor jurisdiccional registradas - Se registrará aquella evidencia que pueda dirimirse en un ámbito jurisdiccional, especialmente cuando el incidente pueda comportar acciones disciplinarias sobre el personal interno, sobre proveedores externos o en la persecución de delitos. En la determinación de la composición y detalle de estas evidencias, se recurrirá a asesoramiento legal especializado.',
   'op.exp.9.3':
     'Eventos auditables revisados tras los incidentes - Como consecuencia del análisis de los incidentes, se revisará la determinación de los eventos auditables.',
+  'op.mon.1.1':
+    'Herramientas de detección o prevención de intrusiones - Se dispondrá de herramientas de detección o prevención de intrusiones.',
+  'op.mon.1.r1.1':
+    'Detección basada en reglas (R1) - El sistema dispondrá de herramientas de detección o prevención de intrusiones basadas en reglas.',
+  'op.mon.1.r2.1':
+    'Procedimientos de respuesta a las alertas (R2) - Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
+  'op.mon.1.r3.1':
+    'Acciones predeterminadas automáticas (R3) - Refuerzo R3 – Acciones predeterminadas: El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.',
 };
