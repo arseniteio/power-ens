@@ -336,6 +336,29 @@ const sinHechos = (
     'COLLECTION'
   );
 
+// Lo que el recolector declaró que no pudo medir DESPUÉS del último hecho de una
+// evidencia se COMBINA con lo medido, no lo sustituye: un NO_CUMPLE medido en
+// la última pasada buena sigue mandando, y lo que cumplía deja de cumplir
+// (NO_EVALUABLE con la causa del recolector). Sin hechos vigentes no hay nada
+// que combinar: eso ya lo dice `sinHechos`, con la misma degradación.
+const conDegradacion = (
+  context: ENSPolicyContext,
+  ahora: number,
+  evidencia: string,
+  tipo: string,
+  medida: Medida
+): Medida => {
+  const { vigentes, ultimo } = estadoVigente(context, tipo, ahora);
+
+  if (!vigentes.length || ultimo === undefined) {
+    return medida;
+  }
+
+  const deg = degradacion(context, evidencia, ultimo + 1);
+
+  return deg ? combina([medida, deg]) : medida;
+};
+
 // --- lectura de parámetros -------------------------------------------------
 
 const parametro = (
@@ -653,17 +676,16 @@ const conjuntosDeP03 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 // --- EV-02 · cada sistema de P-01 con agente conectado y análisis activo ------
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
+// La degradación de EV-02 entera solo la declara el recolector cuando no puede
+// leer global.db. Si lo que no puede leer es la base de UN agente
+// (queue/db/NNN.db), emite igualmente su hecho con `lectura=error`: cuenta solo
+// si ese agente está en P-01, y un NO_CUMPLE medido de otro sistema sigue
+// mandando.
+const ev02Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'detection_coverage_observed', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
     return sinHechos(context, 'EV-02', ultimo, 'estado de los agentes leído en el manager');
-  }
-
-  const deg = degradacion(context, 'EV-02', ultimo + 1);
-
-  if (deg) {
-    return deg;
   }
 
   const sistemas = filas(context, 'P-01');
@@ -704,6 +726,17 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
     }
 
     conectados.push(nombre);
+
+    if (campo(e, 'lectura') === 'error') {
+      partes.push(
+        sinMedir(
+          `${nombre}: el recolector no ha podido leer su base en el manager (queue/db/${campo(e, 'agente_id')}.db), así que no se sabe si sus pasadas de FIM y SCA siguen.`,
+          'COLLECTION'
+        )
+      );
+
+      return;
+    }
 
     if (plazo === undefined) {
       return;
@@ -752,19 +785,16 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   return combina(partes);
 };
 
+const ev02 = (context: ENSPolicyContext, ahora: number): Medida =>
+  conDegradacion(context, ahora, 'EV-02', 'detection_coverage_observed', ev02Hechos(context, ahora));
+
 // --- EV-03 · cada sistema de P-01 conectado produce detecciones -------------
 
-const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
+const ev03Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'detection_activity_observed', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
     return sinHechos(context, 'EV-03', ultimo, 'resumen de detecciones por agente');
-  }
-
-  const deg = degradacion(context, 'EV-03', ultimo + 1);
-
-  if (deg) {
-    return deg;
   }
 
   const sistemas = filas(context, 'P-01');
@@ -856,6 +886,9 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
   return combina(partes);
 };
 
+const ev03 = (context: ENSPolicyContext, ahora: number): Medida =>
+  conDegradacion(context, ahora, 'EV-03', 'detection_activity_observed', ev03Hechos(context, ahora));
+
 // --- EV-04 · cada situación de P-04 con al menos una regla cargada ----------
 
 const SIN_REGLA = /^(-|ninguna|ninguno|sin regla|punto ciego)$/i;
@@ -866,17 +899,11 @@ const SIN_REGLA = /^(-|ninguna|ninguno|sin regla|punto ciego)$/i;
 // convertían un punto ciego declarado en una situación cubierta.
 const REGLAS_DE_P04 = /^\d+(\s*-\s*\d+)?(\s*[,;\s]\s*\d+(\s*-\s*\d+)?)*$/;
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
+const ev04Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
 
   if (!vigentes.length || ultimo === undefined) {
     return sinHechos(context, 'EV-04', ultimo, 'inventario de reglas cargadas por conjunto');
-  }
-
-  const deg = degradacion(context, 'EV-04', ultimo + 1);
-
-  if (deg) {
-    return deg;
   }
 
   const situaciones = filas(context, 'P-04');
@@ -951,6 +978,9 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   return combina(partes);
 };
 
+const ev04 = (context: ENSPolicyContext, ahora: number): Medida =>
+  conDegradacion(context, ahora, 'EV-04', 'ruleset_rules_loaded', ev04Hechos(context, ahora));
+
 // --- EV-05 · la detección en red, si P-02 la exige ----------------------------
 
 const esSi = (texto: string): boolean => ['si', 'yes', 'true'].includes(sinTildes(texto.trim()));
@@ -984,16 +1014,13 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
     return sinHechos(context, 'EV-05', ultimo, 'inventario de detección en red del manager');
   }
 
+  // Solo cuando P-02 la exige: con «no», lo que no se pudo leer no cambia nada.
   const deg = degradacion(context, 'EV-05', ultimo + 1);
-
-  if (deg) {
-    return deg;
-  }
-
+  const conDeg = (medida: Medida): Medida => (deg ? combina([medida, deg]) : medida);
   const plazo = escalar(context, 'P-09');
 
   if (plazo === undefined) {
-    return faltaParametro(context, 'P-09', 'cuánto tiempo sin alertas de red es una ingesta parada');
+    return conDeg(faltaParametro(context, 'P-09', 'cuánto tiempo sin alertas de red es una ingesta parada'));
   }
 
   const fallos: string[] = [];
@@ -1027,9 +1054,11 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
     }
   });
 
-  return fallos.length
-    ? noCumple(`Detección en red que P-02 exige y no está operativa: ${lista(fallos)}.`)
-    : cumple(`El manager ingiere la detección en red que exige P-02: ${lista(bien)}.`);
+  return conDeg(
+    fallos.length
+      ? noCumple(`Detección en red que P-02 exige y no está operativa: ${lista(fallos)}.`)
+      : cumple(`El manager ingiere la detección en red que exige P-02: ${lista(bien)}.`)
+  );
 };
 
 // --- EV-07 · las acciones predeterminadas (R3): se informan -----------------
@@ -1128,12 +1157,12 @@ const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
     return combina(partes);
   }
 
+  // Lo que no se pudo barrer después de la última pasada buena se suma a lo
+  // medido en ella, sin taparlo.
   const deg = degradacion(context, 'EV-08', ultimoBarrido + 1);
 
   if (deg) {
     partes.push(deg);
-
-    return combina(partes);
   }
 
   const silenciados = barrido.filter(e => campo(e, 'tipo') !== 'ninguno' && !vacio(campo(e, 'objeto')));

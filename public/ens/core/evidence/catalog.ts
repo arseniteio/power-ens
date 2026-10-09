@@ -3814,6 +3814,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // Por agente, cada 6 h. La policy cruza cada sistema de P-01 con su fila
     // por ID o por nombre: agente conectado y pasadas de FIM y SCA dentro de
     // P-10. Los agentes fuera de P-01 (de prueba, dados de baja) no cuentan.
+    // La base ilegible de un agente llega en su hecho (`lectura=error`); el
+    // evidence_state de la evidencia entera es solo para global.db.
     id: 'EV-02',
     controlId: 'op.mon.1',
     title: 'Cobertura efectiva de la detección',

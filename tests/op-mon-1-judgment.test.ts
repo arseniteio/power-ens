@@ -562,6 +562,34 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA');
   ])));
   comprueba('global.db ilegible en la última pasada → NO_EVALUABLE con el motivo del recolector', sinBase.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo('op.mon.1.1')), sinBase.motivo('op.mon.1.1'));
 
+  // Contrato (ronda 1): el evidence_state de EV-02 entera es solo para
+  // global.db. La base ilegible de UN agente llega en su hecho (`lectura=error`).
+  const conPrueba = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
+  const sinBaseConFallo = evalua(hoy().concat(eventos([
+    { ts: `${COMPLETA}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
+  ])), conPrueba);
+  comprueba(
+    'global.db ilegible después de una pasada con un sistema de P-01 desconectado → manda la medida: NO_CUMPLE, y la degradación se dice aparte',
+    sinBaseConFallo.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(sinBaseConFallo.motivo('op.mon.1.1')) && /Además: El recolector no ha podido medirlo/.test(sinBaseConFallo.motivo('op.mon.1.1')),
+    sinBaseConFallo.motivo('op.mon.1.1')
+  );
+
+  const lecturaError = (id: string) =>
+    hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === id ? { ...l, lectura: 'error', fim_ultimo_fin: '-', sca_ultimo_fin: '-', inventario_ultimo: '-' } : l));
+  comprueba('la base ilegible de un agente FUERA de P-01 (027) no bloquea nada → EV-02 CUMPLE', evalua(lecturaError('027')).evidencia('EV-02')?.status === 'CUMPLE');
+  const ldapIlegible = evalua(lecturaError('028'));
+  comprueba(
+    'la base ilegible de un sistema de P-01 (028) → NO_EVALUABLE por RECOGIDA nombrándolo, no NO_CUMPLE por «ninguna pasada»',
+    ldapIlegible.evidencia('EV-02')?.status === 'NO_EVALUABLE' && ldapIlegible.evidencia('EV-02')?.gapCause === 'COLLECTION' && /028 \(ldap-zimbra, 028\): el recolector no ha podido leer su base/.test(ldapIlegible.motivo('op.mon.1.1')),
+    `${ldapIlegible.evidencia('EV-02')?.status} ${ldapIlegible.motivo('op.mon.1.1')}`
+  );
+  const ambos = evalua(lecturaError('028'), conPrueba);
+  comprueba(
+    'y con otro sistema de P-01 desconectado, manda la medida → NO_CUMPLE',
+    ambos.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(ambos.motivo('op.mon.1.1')),
+    ambos.motivo('op.mon.1.1')
+  );
+
   const ajeno = normalizeWazuhAlerts([{
     _id: 'otro',
     _source: {
