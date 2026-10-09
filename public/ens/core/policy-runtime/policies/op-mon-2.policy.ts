@@ -731,6 +731,13 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
 
   vigentes.forEach(e => agentes.set(idDelHecho(e), e));
 
+  // Cuántos agentes dice el recolector que emitió: si llegan menos, faltan
+  // líneas, y un agente perdido no puede desaparecer del alcance sin decirlo.
+  // Cuentan como sistemas del alcance sin determinar, que es la cota segura
+  // (si fueran de fuera del alcance, la cobertura real solo sería mejor).
+  const emitidos = Math.max(0, ...vigentes.map(e => numero(campo(e, 'agentes_emitidos')) ?? 0));
+  const perdidos = Math.max(0, emitidos - agentes.size);
+
   const latidos = estadoVigente(context, 'collector_heartbeat_observed', ahora).vigentes;
   const latidoDe = new Map<string, ENSNormalizedEvent>();
 
@@ -843,7 +850,17 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
     cubiertos.push(`${nombre}, ${pasadas.length} recolector(es)`);
   });
 
-  const n = alcance.length;
+  if (perdidos) {
+    indeterminados.push(
+      sinMedir(
+        `de los ${emitidos} agentes que el recolector emitió en la última pasada han llegado ${agentes.size}; los ${perdidos} que faltan se cuentan como del alcance y sin determinar`,
+        'COLLECTION'
+      )
+    );
+  }
+
+  const n = alcance.length + perdidos;
+  const cuantosSinDeterminar = indeterminados.length - (perdidos ? 1 : 0) + perdidos;
   const notaFuera = fuera.length
     ? ` Fuera del alcance ENS (sin el grupo ${ENS_SCOPE_GROUP}) hay ${fuera.length} agente(s) que no cuentan: ${lista(fuera.map(e => `${campo(e, 'agente')} (${idDelHecho(e)}) ${campo(e, 'estado_conexion')}`))}.`
     : '';
@@ -857,7 +874,7 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
   }
 
   const porcentaje = (cubiertos.length / n) * 100;
-  const maximo = ((cubiertos.length + indeterminados.length) / n) * 100;
+  const maximo = ((cubiertos.length + cuantosSinDeterminar) / n) * 100;
   const medido = `${cifra(porcentaje)} % (${cubiertos.length} de ${n} sistemas del alcance ENS con el agente conectado y todos sus recolectores al día)`;
   const objetivo = objetivoDe(context, 'cobertura_monitorizacion', 'si la cobertura de la monitorización es suficiente');
 
@@ -871,7 +888,7 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
   if (maximo < objetivo.umbral) {
     return {
       medida: noCumple(
-        `Cobertura de la monitorización ${medido}${indeterminados.length ? `, como mucho ${cifra(maximo)} % con los ${indeterminados.length} sin determinar` : ''}: por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}). Un grado de implantación calculado sobre esta monitorización no es un dato sólido.${sinCubrir}${sinDeterminar}${notaFuera}`
+        `Cobertura de la monitorización ${medido}${cuantosSinDeterminar ? `, como mucho ${cifra(maximo)} % con los ${cuantosSinDeterminar} sin determinar` : ''}: por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}). Un grado de implantación calculado sobre esta monitorización no es un dato sólido.${sinCubrir}${sinDeterminar}${notaFuera}`
       ),
       porcentaje,
       alcance: n,
@@ -894,7 +911,7 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
 
   return {
     medida: sinMedir(
-      `Cobertura de la monitorización ${medido}, por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}), pero ${indeterminados.length} sistema(s) sin determinar podrían alcanzarlo.${sinCubrir}${sinDeterminar}${notaFuera}`,
+      `Cobertura de la monitorización ${medido}, por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}), pero ${cuantosSinDeterminar} sistema(s) sin determinar podrían alcanzarlo.${sinCubrir}${sinDeterminar}${notaFuera}`,
       causaComun(indeterminados)
     ),
     porcentaje,

@@ -151,6 +151,7 @@ const pasada = (hhmm = COMPLETA, o: Opciones = {}): Linea[] => {
     ...AGENTES.map(([id, agente, estado, keep, grupos]) => ({
       ...comun(t(30), 'agent_keepalive_observed', 'EV-04', 'op.mon.2.1'),
       agente_id: id, agente, estado_conexion: estado, ultimo_keepalive: keep, grupos, nodo: 'node01',
+      agentes_emitidos: AGENTES.length,
     })),
     ...AGENTES.map(([id, agente]) => ({
       ...comun(t(35), 'collector_heartbeat_observed', 'EV-04', 'op.mon.2.1'),
@@ -731,6 +732,19 @@ bloque('7. Gramáticas estrictas, edades al leer, IDs normalizados y el estado p
     'y con wazuh-real desconectado, ni con el LDAP cubierto se llega (66.7 % < 90): NO_CUMPLE medido',
     conCaido.evidencia('EV-04')?.status === 'NO_CUMPLE' && /como mucho 66\.7 %/.test(conCaido.motivo('op.mon.2.1')),
     conCaido.motivo('op.mon.2.1')
+  );
+
+  // Una línea de keepalive perdida: el agente no desaparece del alcance.
+  const sinWazuhReal = (l: Linea) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? undefined : l);
+  const perdido = evalua(hoy(sinWazuhReal));
+  comprueba(
+    'el recolector emitió 5 keepalive y llegan 4 → el que falta cuenta como del alcance y sin determinar: NO_EVALUABLE por COLLECTION, nunca CUMPLE con 2 de 2',
+    perdido.evidencia('EV-04')?.status === 'NO_EVALUABLE' && perdido.evidencia('EV-04')?.gapCause === 'COLLECTION' && /de los 5 agentes que el recolector emitió en la última pasada han llegado 4/.test(perdido.motivo('op.mon.2.1')),
+    `${perdido.evidencia('EV-04')?.status} ${perdido.motivo('op.mon.2.1')}`
+  );
+  comprueba(
+    'y con el LDAP desconectado, ni contando el perdido como cubierto se llega (66.7 % < 90): NO_CUMPLE medido',
+    evalua(hoy(l => sinWazuhReal(l.event === 'agent_keepalive_observed' && l.agente_id === '028' ? { ...l, estado_conexion: 'disconnected' } : l) as Linea)).evidencia('EV-04')?.status === 'NO_CUMPLE'
   );
 
   // Clúster de Wazuh: alerts.json es de cada nodo.
