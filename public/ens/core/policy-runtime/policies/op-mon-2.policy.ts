@@ -87,6 +87,7 @@ import {
   iso,
   sinTildes,
   vacio,
+  iguales,
   parametro,
   etiqueta,
   filas,
@@ -762,6 +763,23 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
 
     if (!latido) {
       indeterminados.push(sinMedir(`${nombre}: no ha llegado su hecho de latidos (111306) en la última pasada`, 'COLLECTION'));
+
+      return;
+    }
+
+    // En un clúster de Wazuh, alerts.json es de cada nodo: el recolector solo
+    // ve los latidos de los agentes conectados a SU nodo. Un agente de otro nodo
+    // no está ni cubierto ni descubierto: no se ha podido mirar.
+    const nodoAgente = campo(e, 'nodo');
+    const nodoLocal = campo(latido, 'nodo');
+
+    if (!vacio(nodoAgente) && !vacio(nodoLocal) && !iguales(nodoAgente, nodoLocal)) {
+      indeterminados.push(
+        sinMedir(
+          `${nombre}: está conectado al nodo ${nodoAgente} del clúster, y op.mon.2 lee los latidos en el alerts.json del nodo ${nodoLocal}, que no recibe los suyos`,
+          'COLLECTION'
+        )
+      );
 
       return;
     }

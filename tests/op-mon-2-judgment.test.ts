@@ -150,12 +150,12 @@ const pasada = (hhmm = COMPLETA, o: Opciones = {}): Linea[] => {
     ...incidentes,
     ...AGENTES.map(([id, agente, estado, keep, grupos]) => ({
       ...comun(t(30), 'agent_keepalive_observed', 'EV-04', 'op.mon.2.1'),
-      agente_id: id, agente, estado_conexion: estado, ultimo_keepalive: keep, grupos,
+      agente_id: id, agente, estado_conexion: estado, ultimo_keepalive: keep, grupos, nodo: 'node01',
     })),
     ...AGENTES.map(([id, agente]) => ({
       ...comun(t(35), 'collector_heartbeat_observed', 'EV-04', 'op.mon.2.1'),
       agente_id: id, agente, recolectores: PASADAS[id] === '-' ? 0 : PASADAS[id].split(',').length, pasadas: PASADAS[id],
-      observado_desde: '2026-09-20T00:00:00Z',
+      observado_desde: '2026-09-20T00:00:00Z', nodo: 'node01',
     })),
     { ts: t(50), event: 'collector_run', resultado: 'completada', evidencias_cubiertas: o.cubiertas ?? 'EV-02,EV-03,EV-04', tipo_servidor: 'manager', emisor: 'recolector' },
   ];
@@ -731,6 +731,20 @@ bloque('7. Gramáticas estrictas, edades al leer, IDs normalizados y el estado p
     'y con wazuh-real desconectado, ni con el LDAP cubierto se llega (66.7 % < 90): NO_CUMPLE medido',
     conCaido.evidencia('EV-04')?.status === 'NO_CUMPLE' && /como mucho 66\.7 %/.test(conCaido.motivo('op.mon.2.1')),
     conCaido.motivo('op.mon.2.1')
+  );
+
+  // Clúster de Wazuh: alerts.json es de cada nodo.
+  const enWorker = (l: Linea) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, nodo: 'worker01' } : l);
+  const cluster = evalua(hoy(enWorker));
+  comprueba(
+    'wazuh-real conectado a otro nodo del clúster → sin determinar por RECOGIDA, nunca «ningún recolector ha informado»: NO_EVALUABLE',
+    cluster.evidencia('EV-04')?.status === 'NO_EVALUABLE' && cluster.evidencia('EV-04')?.gapCause === 'COLLECTION' && /wazuh-real \(024\): está conectado al nodo worker01 del clúster/.test(cluster.motivo('op.mon.2.1')) && !/ningún recolector/.test(cluster.motivo('op.mon.2.1')),
+    `${cluster.evidencia('EV-04')?.status} ${cluster.motivo('op.mon.2.1')}`
+  );
+  comprueba('REVERSIÓN: el mismo agente en el nodo del recolector → CUMPLE', evalua(hoy(l => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, nodo: 'NODE01' } : l))).evidencia('EV-04')?.status === 'CUMPLE');
+  comprueba(
+    'y desconectado en otro nodo sigue siendo una medida (global.db del máster es de todo el clúster): NO_CUMPLE',
+    evalua(hoy(l => enWorker(l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, estado_conexion: 'disconnected' } : l))).evidencia('EV-04')?.status === 'NO_CUMPLE'
   );
 
   // Un latido fechado después de la lectura (reloj adelantado) no prueba nada.
