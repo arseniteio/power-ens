@@ -22,9 +22,10 @@
 //
 //   op.mon.1.1     EV-01 (motor activo, procesando, con reglas), EV-02, EV-03,
 //                  EV-04 y EV-05.
-//   op.mon.1.r1.1  EV-01 con los conjuntos de P-03 cargados, y EV-08 con sus
-//                  dos ejes (antigüedad contra P-08; silenciamientos contra
-//                  P-06), combinados como en op.exp.8.
+//   op.mon.1.r1.1  EV-01, los conjuntos de P-03 cargados (medida propia, no
+//                  una evidencia) y EV-08 con sus dos ejes (antigüedad contra
+//                  P-08; silenciamientos contra P-06), combinados como en
+//                  op.exp.8.
 //   op.mon.1.r2.1  documental: la tabla de procedimientos de P-05, con cada
 //                  fila completa, lo acredita con la marca `attested` (en
 //                  pantalla, «acreditado documentalmente»). Sin P-05, queda sin
@@ -1310,11 +1311,17 @@ const decide = (
   ...(acreditado && estado === 'CUMPLE' ? { attested: true } : {}),
 });
 
-// Con qué medidas se decide cada requisito técnico. EV-01 entra en R1 con los
-// conjuntos de P-03, que en la base no se exigen.
-const TECNICOS: { requisito: string; evidencias: string[]; parametros: string[]; tipo: Tipo }[] = [
-  { requisito: 'op.mon.1.1', evidencias: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05'], parametros: ['P-01', 'P-02', 'P-04', 'P-09', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
-  { requisito: 'op.mon.1.r1.1', evidencias: ['EV-01', 'EV-08'], parametros: ['P-03', 'P-06', 'P-08'], tipo: 'MAX_AGE' },
+// Con qué medidas se decide cada requisito técnico. R1 añade una medida que NO
+// es una evidencia: los conjuntos de reglas de P-03 cargados. Va aparte, con el
+// nombre del parámetro, para que un P-03 sin configurar deje R1 sin demostrar
+// sin pintar EV-01 en gris mientras la base, con la misma EV-01, cumple. No
+// lleva decisión por evidencia, y en la del requisito solo figura si es la que
+// decide (el puente no encuentra ninguna evidencia «P-03» y no pinta nada).
+const MEDIDA_P03 = 'P-03';
+
+const TECNICOS: { requisito: string; medidas: string[]; parametros: string[]; tipo: Tipo }[] = [
+  { requisito: 'op.mon.1.1', medidas: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05'], parametros: ['P-01', 'P-02', 'P-04', 'P-09', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
+  { requisito: 'op.mon.1.r1.1', medidas: ['EV-01', MEDIDA_P03, 'EV-08'], parametros: ['P-03', 'P-06', 'P-08'], tipo: 'MAX_AGE' },
 ];
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
@@ -1336,12 +1343,12 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     return cache[clave];
   };
 
-  const medidaDe = (requisito: string, evidencia: string): Medida => {
-    switch (evidencia) {
+  const medidaDe = (medida: string): Medida => {
+    switch (medida) {
       case 'EV-01':
-        return requisito === 'op.mon.1.r1.1'
-          ? medir('EV-01/R1', () => combina([medir('EV-01', () => ev01Base(context, ahora)), conjuntosDeP03(context, ahora)]))
-          : medir('EV-01', () => ev01Base(context, ahora));
+        return medir('EV-01', () => ev01Base(context, ahora));
+      case MEDIDA_P03:
+        return medir(MEDIDA_P03, () => conjuntosDeP03(context, ahora));
       case 'EV-02':
         return medir('EV-02', () => ev02(context, ahora));
       case 'EV-03':
@@ -1359,7 +1366,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const evidenciaDecisions: ENSPolicyDecision[] = [];
 
   TECNICOS.filter(r => aplica(r.requisito)).forEach(definicion => {
-    const propias = definicion.evidencias.map(id => ({ id, medida: medidaDe(definicion.requisito, id) }));
+    const propias = definicion.medidas.map(id => ({ id, medida: medidaDe(id) }));
     const estado = peor(propias.map(p => p.medida));
     const responsables = propias.filter(p => p.medida.estado === estado);
 
@@ -1373,17 +1380,19 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         definicion.tipo,
         definicion.requisito,
         propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
-        definicion.evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        definicion.medidas.map(id => `${id} CUMPLE`).join(' y '),
         causaComun(responsables.map(p => p.medida))
       )
     );
 
-    // Y una por evidencia, con SU estado.
-    propias.forEach(p =>
-      evidenciaDecisions.push(
-        decide(definicion.requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${definicion.requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
-      )
-    );
+    // Y una por evidencia, con SU estado. La de P-03 no es una evidencia.
+    propias
+      .filter(p => p.id !== MEDIDA_P03)
+      .forEach(p =>
+        evidenciaDecisions.push(
+          decide(definicion.requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${definicion.requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
+        )
+      );
   });
 
   // R2: documental. Una declaración completa en P-05 lo acredita; sin ella, la
@@ -1429,10 +1438,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   const variables: ENSRuntimeVariable[] = [
     ...Object.entries(cache).map(([clave, medida]) => ({
-      name: `medida_${clave.replace('-', '').replace('/', '_')}`,
+      name: `medida_${clave.replace('-', '')}`,
       value: medida.estado,
-      parameterIds: [],
-      evidenceIds: [clave.split('/')[0]],
+      parameterIds: clave === MEDIDA_P03 ? [MEDIDA_P03] : [],
+      evidenceIds: clave === MEDIDA_P03 ? [] : [clave],
       eventIds: [],
       description: medida.motivo,
     })),

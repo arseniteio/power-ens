@@ -527,7 +527,25 @@ bloque('6. Sin parámetros: NO_EVALUABLE con causa CONFIGURATION, nunca CUMPLE p
     comprueba(`${id} sin medir por CONFIGURATION`, r.evidencia(id)?.status === 'NO_EVALUABLE' && r.evidencia(id)?.gapCause === 'CONFIGURATION', `${r.evidencia(id)?.status} ${r.evidencia(id)?.gapCause}`)
   );
   comprueba('EV-01 se mide igual (no depende de ningún parámetro en la base)', r.deEvidencia('op.mon.1.1', 'EV-01')?.status === 'CUMPLE');
-  comprueba('y sin P-03, EV-01 en R1 queda sin medir por CONFIGURATION', r.deEvidencia('op.mon.1.r1.1', 'EV-01')?.status === 'NO_EVALUABLE' && r.deEvidencia('op.mon.1.r1.1', 'EV-01')?.cause === 'CONFIGURATION');
+  const r1 = r.decisions.find(d => d.trace.ruleId === 'op.mon.1.r1.1');
+  comprueba(
+    'y sin P-03, R1 queda sin medir por CONFIGURATION, nombrando P-03 y no EV-01',
+    r1?.status === 'NO_EVALUABLE' && r1?.cause === 'CONFIGURATION' && r1?.evidenceIds.includes('P-03') && !r1?.evidenceIds.includes('EV-01'),
+    `${r1?.status} ${r1?.cause} ${r1?.evidenceIds}`
+  );
+
+  // MEDIA, todo configurado salvo P-03: la base cumple y la fila de EV-01 no
+  // se pinta en gris por un parámetro que solo es de R1.
+  const sinP03 = evalua(hoy(), { ...BASE, 'P-03': undefined });
+  comprueba(
+    'sin P-03 en MEDIA: op.mon.1.1 CUMPLE, EV-01 CUMPLE en la tabla y R1 no demostrado por CONFIGURATION',
+    sinP03.requisito('op.mon.1.1').status === 'CUMPLE' &&
+      sinP03.evidencia('EV-01')?.status === 'CUMPLE' &&
+      sinP03.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' &&
+      sinP03.requisito('op.mon.1.r1.1').evidenced === false &&
+      sinP03.motor().nonConformities.some(n => n.requirementId === 'op.mon.1.r1.1' && n.origin === 'NO_EVIDENCIADA'),
+    `${sinP03.requisito('op.mon.1.1').status} ${sinP03.evidencia('EV-01')?.status} ${sinP03.requisito('op.mon.1.r1.1').status}`
+  );
   comprueba('el motivo de EV-02 nombra el parámetro y lo que hay', /P-01 \(Alcance de la detección en host\) está sin configurar/.test(r.motivo('op.mon.1.1')) && /5 agentes registrados/.test(r.motivo('op.mon.1.1')), r.motivo('op.mon.1.1'));
 
   const soloP09 = evalua(hoy(), { ...BASE, 'P-09': undefined });

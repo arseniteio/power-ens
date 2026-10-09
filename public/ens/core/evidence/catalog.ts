@@ -3798,7 +3798,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.1',
     title: 'Capacidad de detección de intrusiones desplegada y operativa',
     description:
-      'Motor de reglas del manager en marcha y procesando: estado del servicio wazuh-manager, contadores del motor de análisis (eventos recibidos, procesados y descartados, alertas escritas) cuya serie entre pasadas prueba que procesa, y el ruleset cargado: versión de Wazuh, fecha del fichero de reglas más reciente, ficheros, reglas y reglas con técnica MITRE ATT&CK. En MEDIA y ALTA (R1), además, que los conjuntos de reglas de P-03 estén cargados.',
+      'Motor de reglas del manager en marcha y procesando: estado del servicio wazuh-manager, contadores del motor de análisis (eventos recibidos, procesados y descartados, alertas escritas) cuya serie entre pasadas prueba que procesa, y el ruleset cargado: versión de Wazuh, fecha del fichero de reglas más reciente, ficheros, reglas y reglas con técnica MITRE ATT&CK. Los conjuntos de reglas de P-03 (R1) se juzgan aparte, con el inventario de EV-04.',
     requirements: ['op.mon.1.1', 'op.mon.1.r1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -3808,7 +3808,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     relatedRules: ['111201', '111202'],
     agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Está el motor de reglas del manager en marcha, procesando eventos y con reglas cargadas (y, desde MEDIA, con los conjuntos de reglas de P-03)?',
+      '¿Está el motor de reglas del manager en marcha, procesando eventos y con reglas cargadas?',
   },
   {
     // Por agente, cada 6 h. La policy cruza cada sistema de P-01 con su fila

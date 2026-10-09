@@ -141,9 +141,9 @@
       ],
       "required": false,
       "wazuhUsage": "Regla 111205 (ruleset_rules_loaded): cada 6 h el recolector del manager informa, por conjunto, de las reglas cargadas que pueden alertar.",
-      "ensfacilUsage": "EV-01, en R1: cada conjunto de P-03 tiene que estar cargado con al menos una regla. El número de reglas declarado es informativo.",
+      "ensfacilUsage": "R1, como medida propia con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla. El número de reglas declarado es informativo. Sin P-03, R1 queda sin evaluar, pero no la fila de EV-01.",
       "evidenceIds": [
-        "EV-01"
+        "EV-04"
       ],
       "ruleIds": [],
       "ifNotConfigured": "R1 queda sin evaluar (causa CONFIGURATION): no se puede acreditar qué detección basada en reglas se exige."

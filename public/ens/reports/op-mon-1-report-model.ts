@@ -130,7 +130,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo2',
     'Capacidad de detección desplegada',
     evidenceStatus('EV-01'),
-    'Motor de reglas del manager: servicio activo, eventos procesados entre pasadas, versión de Wazuh, reglas cargadas y con técnica MITRE ATT&CK; desde MEDIA, los conjuntos de reglas de P-03. Es la acreditación conjunta del requisito base y de R1.',
+    'Motor de reglas del manager: servicio activo, eventos procesados entre pasadas, versión de Wazuh, reglas cargadas y con técnica MITRE ATT&CK. Es la acreditación conjunta del requisito base y de R1; en R1 se exigen además los conjuntos de reglas de P-03.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
