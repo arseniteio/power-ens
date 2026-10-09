@@ -1,5 +1,14 @@
 import { ENSControlConfiguration } from '../types';
 
+// op.mon.2 · Sistema de métricas.
+//
+// Con los registros de la organización (`/etc/ensfacil/metrics-cycle-register.tsv`
+// y el `incident-register.tsv` de op.exp.7) estas tablas dejan de ser almacén y
+// pasan a DESCRIBIRLOS: qué periodicidad tienen los ciclos, qué indicadores se
+// consolidan, qué partidas entran en cada columna de recursos y quién valida.
+// Las celdas que la policy compara (medidas de P-01, indicadores de P-03,
+// métricas de P-06) tienen un vocabulario cerrado: cualquier otro texto deja el
+// requisito sin evaluar (CONFIGURATION) nombrando la fila.
 export const opMon2Configuration: ENSControlConfiguration = {
   controlId: 'op.mon.2',
   controlName: 'Sistema de métricas',
@@ -11,9 +20,9 @@ export const opMon2Configuration: ENSControlConfiguration = {
       id: 'P-01',
       controlId: 'op.mon.2',
       name: 'declaracion_aplicabilidad',
-      label: 'Declaracion aplicabilidad',
+      label: 'Declaración de aplicabilidad',
       description:
-        'Relación de medidas de seguridad aplicables al sistema según su categoría y los niveles de sus dimensiones, que es la base contra la que se mide el grado de implantación. Es la Declaración de Aplicabilidad del sistema.',
+        'Relación de medidas de seguridad aplicables al sistema según su categoría y los niveles de sus dimensiones: es la base contra la que se calcula el grado de implantación. Una fila por medida, con su identificador del ENS (op.acc.1, mp.info.6, org.1), si aplica (sí/no), el nivel y los refuerzos exigibles. Un identificador que no tenga la forma de una medida del ENS deja op.mon.2.1 sin evaluar, nombrando la fila.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.2.1'],
       type: 'table',
@@ -21,7 +30,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
       columns: [
         {
           name: 'medida',
-          label: 'Medida',
+          label: 'Medida (identificador del ENS)',
           type: 'string',
           required: true,
         },
@@ -30,7 +39,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
           label: 'Aplicable',
           type: 'select',
           options: ['sí', 'no'],
-          required: false,
+          required: true,
         },
         {
           name: 'nivel',
@@ -48,21 +57,21 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Es el parámetro raíz de todo ENSFácil, no solo de este control: define qué controles hay que evaluar. El grado de implantación se calcula sobre esta relación, no sobre el catálogo completo del ENS.',
+        'No se configura en Wazuh: es la Declaración de Aplicabilidad del sistema, el parámetro raíz de ENSFácil.',
       ensfacilUsage:
-        'Es el parámetro raíz de todo ENSFácil, no solo de este control: define qué controles hay que evaluar. El grado de implantación se calcula sobre esta relación, no sobre el catálogo completo del ENS.',
-      evidenceIds: ['EV-02', 'EV-04'],
+        'El informe de op.mon.2 calcula sobre esta relación, y no sobre el catálogo completo del ENS, el grado de implantación de cada medida aplicable, agregado por marco y global (EV-01, dato del informe sin veredicto). Sin ella op.mon.2.1 no se puede evaluar.',
+      evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede calcular el grado de implantación. op.mon.2.1 NO EVALUABLE y el informe del art. 32 sin base.',
+        'No se puede calcular el grado de implantación: op.mon.2.1 queda NO EVALUABLE (causa CONFIGURATION) y el informe del art. 32 sin base.',
     },
     {
       id: 'P-02',
       controlId: 'op.mon.2',
       name: 'periodicidad_calculo_metricas',
-      label: 'Periodicidad calculo metricas',
+      label: 'Periodicidad de los ciclos de métricas',
       description:
-        'Cada cuánto se consolidan y publican las métricas de implantación. El ENS no fija periodicidad para el cálculo interno, pero el informe del artículo 32 es anual, de modo que conviene una cadencia que permita corregir antes del cierre.',
+        'Cada cuánto se consolida y valida un ciclo de métricas (el informe de ENSFácil que la organización anota en el registro de ciclos), con los días de margen que se admiten tras el fin del periodo y la fecha del cierre anual del informe del artículo 32 (MM-DD). Una sola fila. El plazo del último ciclo es la duración del periodo (mensual 31 días, trimestral 92, semestral 184, anual 366) más el margen.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.2.1', 'op.mon.2.r1.1', 'op.mon.2.r2.1'],
       type: 'table',
@@ -77,55 +86,71 @@ export const opMon2Configuration: ENSControlConfiguration = {
         },
         {
           name: 'margen_dias',
-          label: 'Margen dias',
+          label: 'Margen (días)',
           type: 'number',
           required: false,
         },
         {
           name: 'cierre_anual',
-          label: 'Cierre anual',
+          label: 'Cierre anual del art. 32 (MM-DD)',
           type: 'string',
           required: false,
         },
       ],
       required: true,
       wazuhUsage:
-        'Configura la generación automática de los cuadros de métricas de ENSFácil y la serie histórica. Una cadencia trimestral permite ver tendencia y llegar al cierre anual sin sorpresas.',
+        'No se configura en Wazuh. El recolector del manager lee el registro de ciclos (/etc/ensfacil/metrics-cycle-register.tsv) cada 6 h.',
       ensfacilUsage:
-        'Configura la generación automática de los cuadros de métricas de ENSFácil y la serie histórica. Una cadencia trimestral permite ver tendencia y llegar al cierre anual sin sorpresas.',
-      evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-06'],
+        'Convierte la periodicidad en plazo: el último ciclo validado tiene que estar dentro de él (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1, decisión del responsable 7) y los recursos se toman del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
+      evidenceIds: ['EV-02', 'EV-03', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Se calcula solo a demanda. Se pierde la serie histórica, que es lo que permite demostrar mejora.',
+        'Ningún requisito se puede evaluar (causa CONFIGURATION): no hay plazo contra el que medir el último ciclo, y sin cadencia se pierde la serie histórica.',
     },
     {
       id: 'P-03',
       controlId: 'op.mon.2',
       name: 'metricas_gestion_incidentes',
-      label: 'Metricas gestion incidentes',
+      label: 'Indicadores de la gestión de incidentes',
       description:
-        'Indicadores de comportamiento del sistema de gestión de incidentes exigidos por R1, conforme a la Instrucción Técnica de Seguridad de Notificación de Incidentes y a la guía CCN-STIC correspondiente.',
+        'Indicadores del comportamiento de la gestión de incidentes que se consolidan en cada ciclo (R1), conforme a la Instrucción Técnica de Seguridad de Notificación de Incidentes. Solo los que se pueden calcular con el registro de incidentes de op.exp.7: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y notificados a la AEPD. El tiempo medio de detección no está: el registro anota cuándo se registró el incidente, no cuándo empezó; lo mide op.exp.7 cruzando con las alertas.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.2.r1.1'],
       type: 'list',
-      example: 'nº incidentes por tipo, / tiempo medio de detección, / de contención y resolución, / nº notificados al CCN-CERT',
+      example: 'tiempo_medio_resolucion',
+      columns: [
+        {
+          name: 'indicador',
+          label: 'Indicador',
+          type: 'select',
+          options: [
+            'incidentes_por_tipo',
+            'incidentes_por_severidad',
+            'tiempo_medio_contencion',
+            'tiempo_medio_resolucion',
+            'notificados_ccn_cert',
+            'notificados_aepd',
+          ],
+          required: true,
+        },
+      ],
       required: false,
       wazuhUsage:
-        'ENSFácil calcula estos indicadores a partir de los datos de op.exp.7 y op.exp.9 sin trabajo adicional: la conciliación alerta–incidente y los tiempos de respuesta ya se miden allí. Aquí solo se consolidan con el formato que exige la ITS.',
+        'No se configura en Wazuh. El recolector del manager reemite con la etiqueta op.mon.2 el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv), sin cambiar su formato.',
       ensfacilUsage:
-        'ENSFácil calcula estos indicadores a partir de los datos de op.exp.7 y op.exp.9 sin trabajo adicional: la conciliación alerta–incidente y los tiempos de respuesta ya se miden allí. Aquí solo se consolidan con el formato que exige la ITS.',
+        'ENSFácil calcula cada indicador con las fases del registro y exige que cada incidente del periodo tenga los datos que el indicador necesita (clasificación, fase inicial, contención anotada, datos personales). Sin incidentes en el periodo, los indicadores valen cero y R1 cumple si el registro existe y el último ciclo está en plazo.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'R1 NO EVALUABLE. Los datos existen en op.exp.7 pero no se consolidan en el formato exigido.',
+        'R1 queda NO EVALUABLE (causa CONFIGURATION): no se sabe qué indicadores consolidar.',
     },
     {
       id: 'P-04',
       controlId: 'op.mon.2',
       name: 'recursos_consumidos_seguridad',
-      label: 'Recursos consumidos seguridad',
+      label: 'Partidas de los recursos consumidos',
       description:
-        'Horas de dedicación y presupuesto consumidos por el sistema de seguridad, exigidos por R2. Es información de gestión y contabilidad que no reside en ningún sistema técnico y que el cliente debe aportar.',
+        'Qué entra en cada columna de recursos del registro de ciclos (horas internas, horas externas y presupuesto ejecutado): una fila por partida, con la columna en la que se suma y el criterio con el que se cuenta. Las cifras de cada ciclo las anota la organización en el registro; esta tabla dice de dónde salen. Es información de gestión que no reside en ningún sistema técnico.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.2.r2.1'],
       type: 'table',
@@ -139,10 +164,10 @@ export const opMon2Configuration: ENSControlConfiguration = {
         },
         {
           name: 'columna',
-          label: 'Columna',
+          label: 'Columna del registro',
           type: 'select',
           options: ['horas_internas', 'horas_externas', 'presupuesto_ejecutado'],
-          required: false,
+          required: true,
         },
         {
           name: 'criterio',
@@ -153,21 +178,21 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Entrada MANUAL en ENSFácil. La herramienta la recoge, la conserva en serie y la presenta junto a las métricas técnicas, de modo que el informe sea completo, pero no puede obtenerla ni verificarla. Conviene decirlo con claridad al cliente desde el principio.',
+        'Entrada MANUAL: no se obtiene de Wazuh ni de ningún sistema técnico.',
       ensfacilUsage:
-        'Entrada MANUAL en ENSFácil. La herramienta la recoge, la conserva en serie y la presenta junto a las métricas técnicas, de modo que el informe sea completo, pero no puede obtenerla ni verificarla. Conviene decirlo con claridad al cliente desde el principio.',
+        'ENSFácil exige que cada una de las tres columnas de recursos tenga al menos una partida declarada, y toma las cifras del último ciclo del registro. Se presentan como DATO DECLARADO: la herramienta las registra, no las verifica.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'R2 NO EVALUABLE. Es el refuerzo que con más frecuencia queda sin cubrir por no ser de naturaleza técnica.',
+        'R2 queda NO EVALUABLE (causa CONFIGURATION): las cifras del registro no tienen un significado declarado.',
     },
     {
       id: 'P-05',
       controlId: 'op.mon.2',
       name: 'responsable_metricas',
-      label: 'Responsable metricas',
+      label: 'Responsables de validar las métricas',
       description:
-        'Responsable de consolidar y validar las métricas antes de su uso en el informe anual del artículo 32, y de aportar los datos de recursos de P-04.',
+        'Quién valida cada ciclo de métricas antes de su uso en el informe anual del artículo 32 (ámbito «metricas») y quién aporta y valida los datos de recursos (ámbito «recursos»), o los dos («ambos»). La columna validado_por del registro de ciclos tiene que coincidir con el responsable o con el cargo de una fila de su ámbito, sin distinguir mayúsculas ni tildes. Una fila sin ámbito vale para los dos.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.2.1', 'op.mon.2.r2.1'],
       type: 'table',
@@ -187,7 +212,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
         },
         {
           name: 'ambito',
-          label: 'Ambito',
+          label: 'Ámbito',
           type: 'select',
           options: ['metricas', 'recursos', 'ambos'],
           required: false,
@@ -195,21 +220,21 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil registra la validación de cada ciclo de métricas con su responsable y fecha, lo que da trazabilidad al dato que después se reporta externamente.',
+        'No se configura en Wazuh.',
       ensfacilUsage:
-        'ENSFácil registra la validación de cada ciclo de métricas con su responsable y fecha, lo que da trazabilidad al dato que después se reporta externamente.',
-      evidenceIds: ['EV-02', 'EV-04', 'EV-06'],
+        'ENSFácil da por validado un ciclo solo si validado_por es un responsable de P-05 de su ámbito: da trazabilidad a un dato que después se reporta fuera de la organización.',
+      evidenceIds: ['EV-02', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Las métricas no tienen validación formal. El dato reportado en el informe anual queda sin responsable identificado.',
+        'op.mon.2.1 y R2 quedan NO EVALUABLES (causa CONFIGURATION): no se sabe quién tiene que validar los ciclos.',
     },
     {
       id: 'P-06',
       controlId: 'op.mon.2',
       name: 'umbrales_objetivo',
-      label: 'Umbrales objetivo',
+      label: 'Objetivos de las métricas',
       description:
-        'Valores objetivo o umbrales de aceptación para cada métrica, que permiten interpretar el dato. Una métrica sin umbral informa pero no permite decidir si el resultado es aceptable.',
+        'Valor objetivo de cada métrica, con su tolerancia, que permite interpretar el dato. Métricas: cobertura_monitorizacion (%, como mínimo), implantacion_global (%, como mínimo), controles_no_evaluables (número, como máximo), tiempo_medio_contencion y tiempo_medio_resolucion (horas, como máximo). La tolerancia, en las mismas unidades, se resta del mínimo o se suma al máximo; vacía es 0. Una fila por métrica.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.2.1'],
       type: 'table',
@@ -217,33 +242,39 @@ export const opMon2Configuration: ENSControlConfiguration = {
       columns: [
         {
           name: 'metrica',
-          label: 'Metrica',
+          label: 'Métrica',
           type: 'select',
-          options: ['cobertura_monitorizacion', 'implantacion_global', 'controles_no_evaluables', 'tiempo_medio_contencion', 'tiempo_medio_resolucion'],
+          options: [
+            'cobertura_monitorizacion',
+            'implantacion_global',
+            'controles_no_evaluables',
+            'tiempo_medio_contencion',
+            'tiempo_medio_resolucion',
+          ],
           required: true,
         },
         {
           name: 'objetivo',
           label: 'Objetivo',
-          type: 'string',
-          required: false,
+          type: 'number',
+          required: true,
         },
         {
           name: 'tolerancia',
           label: 'Tolerancia',
-          type: 'string',
+          type: 'number',
           required: false,
         },
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil presenta cada métrica con su objetivo y marca las desviaciones. Convierte el cuadro de métricas en una herramienta de gestión y no en una colección de cifras.',
+        'No se configura en Wazuh.',
       ensfacilUsage:
-        'ENSFácil presenta cada métrica con su objetivo y marca las desviaciones. Convierte el cuadro de métricas en una herramienta de gestión y no en una colección de cifras.',
-      evidenceIds: ['EV-02', 'EV-04'],
+        'El objetivo de cobertura_monitorizacion decide la fiabilidad de la medición (EV-04, op.mon.2.1): el porcentaje de sistemas del alcance con el agente conectado y todos sus recolectores de ENSFácil al día. Los demás objetivos no deciden nada: el informe presenta cada métrica frente a su objetivo y marca las desviaciones.',
+      evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'Las métricas se presentan sin referencia de aceptabilidad. Pierden utilidad para la toma de decisiones.',
+        'op.mon.2.1 queda NO EVALUABLE (causa CONFIGURATION): sin objetivo de cobertura no se puede decidir si la medición es fiable, y las demás métricas se presentan sin referencia.',
     },
   ],
 };

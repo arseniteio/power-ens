@@ -3956,116 +3956,162 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  // --- op.mon.2 · Sistema de métricas ---------------------------------------
+  //
+  // Un METACONTROL: su materia prima es el resultado de los demás controles, y
+  // la policy de un control no ve los demás. Por eso EV-01 (grado de
+  // implantación), EV-05 (grises) y EV-07 (datos del art. 32) son salida del
+  // motor: las calcula el modelo de informe con el estado de todos los
+  // controles, sin veredicto, y la policy las devuelve NO_APLICA con el motivo
+  // «dato del informe» para que no salgan en gris.
+  //
+  // Lo que sí deja huella se mide en el MANAGER (agent.id=000), con ficheros
+  // locales y sin credenciales, cada 6 h y reemitido entero: el registro de
+  // ciclos de métricas (EV-02 y EV-06), el registro de incidentes de op.exp.7
+  // (EV-03, mismo fichero y mismo formato) y la base de agentes con los latidos
+  // de todos los recolectores leídos en alerts.json (EV-04). El recolector solo
+  // declara huecos (`evidence_state` NO_EVALUABLE con su causa), nunca
+  // veredictos; la policy (`policies/op-mon-2.policy.ts`) juzga.
+  //
+  // Reglas: banda 111300-111399, desplegadas por el runbook `linux/op.mon.2`.
   {
+    // Dato del informe, sin veredicto (spec §2.6, pregunta 2): el porcentaje de
+    // implantación de cada medida aplicable de P-01, con el resultado de todos
+    // los demás controles. Lo calcula el modelo de informe.
     id: 'EV-01',
     controlId: 'op.mon.2',
     title: 'Grado de implantación de las medidas de seguridad',
     description:
-      'Cálculo del porcentaje de implantación de cada medida aplicable según P-01, agregado por marco, por categoría y global. Es la métrica central del requisito base y el subproducto natural de la evaluación que ENSFácil realiza control por control.',
+      'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que ENSFácil da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: grado de implantación de las medidas de seguridad?',
+      '¿Qué grado de implantación tiene cada medida aplicable de P-01? (dato del informe, sin veredicto)',
   },
   {
+    // Cada 6 h: la lectura del registro de ciclos (111301) y un hecho por ciclo
+    // de los últimos 400 días y siempre el último (111302). Vacío se juzga;
+    // ausente es CONFIGURATION.
     id: 'EV-02',
     controlId: 'op.mon.2',
-    title: 'Serie histórica y tendencia de implantación',
+    title: 'Serie histórica de los ciclos de métricas',
     description:
-      'Evolución del grado de implantación a lo largo de los períodos de P-02, que permite distinguir un sistema que mejora de uno que se degrada. Es el dato que da sentido a la métrica: un 87 % de implantación significa cosas muy distintas si viene del 70 % o del 95 %.',
+      'Registro de ciclos de métricas de la organización (/etc/ensfacil/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de ENSFácil se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'metrics_register_read', 'metrics_cycle_recorded'],
-    relatedRules: [],
+    stateFactEventTypes: ['metrics_register_read', 'metrics_cycle_recorded'],
+    relatedRules: ['111301', '111302'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: serie histórica y tendencia de implantación?',
+      '¿Está el último ciclo de métricas validado por un responsable de P-05 dentro de la periodicidad de P-02?',
   },
   {
+    // Cada 6 h: la lectura del registro de incidentes de op.exp.7 (111303) y
+    // una fila por fase de los incidentes vivos en los últimos 400 días
+    // (111304), con las 13 columnas del registro.
     id: 'EV-03',
     controlId: 'op.mon.2',
     title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
     description:
-      'Consolidación de los indicadores de P-03: número de incidentes por tipo y severidad, tiempos medios de detección, contención y resolución, proporción de alertas que derivaron en incidente, incidentes notificados al CCN-CERT y a la AEPD.',
+      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo (decisión del responsable 7).',
     requirements: ['op.mon.2.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'incident_register_read', 'incident_registered'],
-    relatedRules: [],
+    stateFactEventTypes: ['incident_register_read', 'incident_registered'],
+    relatedRules: ['111303', '111304'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: métricas de comportamiento de la gestión de incidentes (r1)?',
+      '¿Permite el registro de incidentes calcular cada indicador de P-03 del periodo, y se consolida en un ciclo de métricas en plazo?',
   },
   {
+    // Cada 6 h, por agente: su estado en global.db (111305) y la última pasada
+    // de cada recolector de ENSFácil que ha informado desde él, leída de los
+    // collector_run de alerts.json y conservada entre pasadas (111306).
     id: 'EV-04',
     controlId: 'op.mon.2',
-    title: 'Cobertura de la monitorización como métrica',
+    title: 'Fiabilidad de la medición',
     description:
-      'Indicadores de la propia capacidad de medición: porcentaje de sistemas con agente activo, continuidad de la ingesta, categorías de evento cubiertas, parámetros de configuración cumplimentados. Mide la fiabilidad del resto de las métricas.',
+      'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de ENSFácil al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'agent_keepalive_observed', 'collector_heartbeat_observed'],
-    relatedRules: [],
+    stateFactEventTypes: ['agent_keepalive_observed', 'collector_heartbeat_observed'],
+    relatedRules: ['111305', '111306'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: cobertura de la monitorización como métrica?',
+      '¿Alcanza la cobertura de la monitorización del alcance ENS el objetivo de P-06?',
   },
   {
+    // Dato del informe, sin veredicto: los grises de cada control con el
+    // parámetro que falta. Lo calcula el modelo de informe.
     id: 'EV-05',
     controlId: 'op.mon.2',
     title: 'Controles no evaluables por falta de parámetros',
     description:
-      'Recuento y relación de controles que ENSFácil no puede evaluar porque faltan parámetros de configuración del cliente. Es una métrica incómoda pero muy útil: convierte la deuda de configuración en un número que se puede reducir y seguir en el tiempo.',
+      'Recuento y relación de los controles con requisitos que ENSFácil no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: controles no evaluables por falta de parámetros?',
+      '¿Qué controles no se pueden evaluar por falta de parámetros, y cuáles faltan? (dato del informe, sin veredicto)',
   },
   {
+    // Sin hecho propio: lee `metrics_cycle_recorded`, que es de EV-02 (un
+    // nombre de evento no puede estar en dos evidencias).
     id: 'EV-06',
     controlId: 'op.mon.2',
     title: 'Recursos consumidos por el sistema de seguridad (R2)',
     description:
-      'Registro de las horas de dedicación y del presupuesto ejecutado aportados por el cliente conforme a P-04. NO es una evidencia obtenida de Wazuh: es un dato de gestión que la herramienta recoge, conserva y presenta junto a las métricas técnicas para completar el cuadro.',
+      'Horas internas, horas externas y presupuesto ejecutado del último ciclo del registro de ciclos de métricas, validados por un responsable de P-05 de recursos, con el significado de cada columna declarado en P-04. Es un DATO DECLARADO, no obtenido de Wazuh: la herramienta lo registra y lo presenta junto a las métricas técnicas, pero no lo verifica, y el requisito sale acreditado documentalmente.',
     requirements: ['op.mon.2.r2.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
     criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
-    relatedRules: [],
+    relatedRules: ['111302'],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: recursos consumidos por el sistema de seguridad (r2)?',
+      '¿Tiene el último ciclo de métricas en plazo sus horas y su presupuesto, validados por un responsable de P-05?',
   },
   {
+    // Dato del informe, sin veredicto: el informe del art. 32 ES el modelo de
+    // informe de op.mon.2, que combina EV-01 a EV-06 con la traza de cada cifra.
     id: 'EV-07',
     controlId: 'op.mon.2',
     title: 'Datos consolidados para el informe anual del artículo 32',
     description:
-      'Conjunto de datos preparado con la estructura que requiere el informe anual al que remite op.mon.2.1, listo para su uso sin reelaboración. Es la salida de mayor valor práctico de este control.',
+      'El conjunto de datos con la estructura del informe anual al que remite op.mon.2.1: grado de implantación, serie de ciclos, fiabilidad de la medición, controles no evaluables, indicadores de incidentes y recursos, cada cifra con su origen. Es la salida del modelo de informe, sin veredicto propio.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
-    criticality: 'HIGH',
-    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
+    agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se acredita: datos consolidados para el informe anual del artículo 32?',
+      '¿Qué datos aporta ENSFácil al informe anual del artículo 32, y de dónde sale cada cifra? (dato del informe, sin veredicto)',
   },
 ];
