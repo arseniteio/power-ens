@@ -128,6 +128,12 @@ const MODULOS = ['aws-s3', 'azure-logs', 'gcp-pubsub', 'gcp-bucket', 'office365'
 
 const ACREDITADO = 'Acreditado documentalmente';
 
+// Lo que se decide desde las tablas de la pantalla, no desde los hechos: sus
+// decisiones llevan `documental` (op.nub.1.2, solo cuando lo decide el
+// expediente; se marca donde se decide).
+const REQUISITOS_DOCUMENTALES = ['op.nub.1.1', 'op.nub.1.r1.1', 'op.nub.1.r1.2'];
+const EVIDENCIAS_DOCUMENTALES = ['EV-08', 'EV-09'];
+
 // --- P-01: la posición del sistema ------------------------------------------
 
 type Posicion = 'prestador' | 'usuario' | 'ambos' | 'ninguno';
@@ -950,15 +956,39 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const evidenciaDecisions: ENSPolicyDecision[] = [];
   const medidas: Record<string, Medida> = {};
 
-  const decideRequisito = (requisito: string, medida: Medida, evidencias: string[], esperado: string, acreditado = false) =>
+  // `documental`: la decisión sale de las tablas de la pantalla, no de los
+  // hechos, y sobrevive a un recolector parado (ver `ENSPolicyDecision`).
+  const marca = (decision: ENSPolicyDecision, documental: boolean): ENSPolicyDecision =>
+    documental ? { ...decision, documental: true } : decision;
+
+  const decideRequisito = (
+    requisito: string,
+    medida: Medida,
+    evidencias: string[],
+    esperado: string,
+    acreditado = false,
+    documental = REQUISITOS_DOCUMENTALES.includes(requisito)
+  ) =>
     requisitoDecisions.push(
-      decide(requisito, medida.estado, evidencias, parametrosDe(requisito), tipoDe(requisito), requisito, medida.motivo, esperado, medida.causa, acreditado)
+      marca(
+        decide(requisito, medida.estado, evidencias, parametrosDe(requisito), tipoDe(requisito), requisito, medida.motivo, esperado, medida.causa, acreditado),
+        documental
+      )
     );
 
-  const decideEvidencia = (requisito: string, evidencia: string, medida: Medida, esperado = `${evidencia} CUMPLE`) => {
+  const decideEvidencia = (
+    requisito: string,
+    evidencia: string,
+    medida: Medida,
+    esperado = `${evidencia} CUMPLE`,
+    documental = EVIDENCIAS_DOCUMENTALES.includes(evidencia)
+  ) => {
     medidas[evidencia] = medida;
     evidenciaDecisions.push(
-      decide(requisito, medida.estado, [evidencia], parametrosDe(requisito), tipoDe(requisito), `${requisito}/${evidencia}`, medida.motivo, esperado, medida.causa)
+      marca(
+        decide(requisito, medida.estado, [evidencia], parametrosDe(requisito), tipoDe(requisito), `${requisito}/${evidencia}`, medida.motivo, esperado, medida.causa),
+        documental
+      )
     );
   };
 
@@ -972,8 +1002,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     context.control.requirements
       .filter(r => aplica(r.id))
       .forEach(r => {
-        decideRequisito(r.id, sin, r.evidenceIds, 'P-01 configurado');
-        r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, sin));
+        // Sin P-01 el hueco es de CONFIGURACIÓN, también con el recolector
+        // parado: se marca documental para que no pase a ser de RECOGIDA.
+        decideRequisito(r.id, sin, r.evidenceIds, 'P-01 configurado', false, true);
+        r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, sin, `${ev} CUMPLE`, true));
       });
 
     ['EV-03', 'EV-05', 'EV-06'].forEach(ev => decideEvidencia('op.nub.1.2', ev, noAplica(ev === 'EV-03' ? DATO_EV03 : ev === 'EV-05' ? DATO_EV05 : DATO_EV06), 'dato del informe'));
@@ -1065,14 +1097,26 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       // La medida manda: un NO_CUMPLE (técnico o del expediente) decide. Si
       // no, el expediente completo y vigente acredita el requisito aunque la
       // parte técnica no se haya podido medir (integrar no es exigible).
+      // Documental cuando lo decide SOLO el expediente: un NO_CUMPLE solo de
+      // EV-09, el CUMPLE acreditado (lo técnico solo puede tumbarlo) y el sin
+      // medir, que siempre es del expediente. Con una medida técnica en contra
+      // no lo es: esa decisión sale de los hechos.
       if (enContra.length) {
-        decideRequisito('op.nub.1.2', noCumple(resumen), enContra.map(p => p.id), 'EV-09 CUMPLE y ninguna medida técnica en contra');
+        decideRequisito(
+          'op.nub.1.2',
+          noCumple(resumen),
+          enContra.map(p => p.id),
+          'EV-09 CUMPLE y ninguna medida técnica en contra',
+          false,
+          enContra.every(p => p.id === 'EV-09')
+        );
       } else if (expediente.estado === 'CUMPLE') {
         decideRequisito(
           'op.nub.1.2',
           cumple(`${ACREDITADO}: el expediente de los servicios utilizados está completo y vigente, y ninguna medida técnica está en contra. ${resumen}`),
           ['EV-09'],
           'EV-09 CUMPLE y ninguna medida técnica en contra',
+          true,
           true
         );
       } else {
@@ -1082,7 +1126,9 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           'op.nub.1.2',
           { estado: 'NO_EVALUABLE', motivo: resumen, causa: causaComun([expediente]) },
           sinMedirAun.length ? sinMedirAun.map(p => p.id) : ['EV-09'],
-          'EV-09 CUMPLE y ninguna medida técnica en contra'
+          'EV-09 CUMPLE y ninguna medida técnica en contra',
+          false,
+          true
         );
       }
 

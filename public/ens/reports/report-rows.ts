@@ -171,10 +171,12 @@ export const buildENSReportRows = (
 // que lo que separa un requisito de otro es cómo se demostró: con un documento
 // (`attested`), midiendo (`evidenced`) o no demostrado, con las causas de sus
 // no conformidades. Un cumplimiento documental se lee «acreditado
-// documentalmente», nunca como una medida. En un NO_APLICA no hay nada que
-// decir: no había nada que medir.
+// documentalmente», nunca como una medida; y un incumplimiento juzgado desde
+// una declaración (`documental`: un contrato o una certificación vencida o
+// ausente) se lee «declarado (documental)», tampoco como medido. En un
+// NO_APLICA no hay nada que decir: no había nada que medir.
 export const ensRequirementProofLabel = (
-  requirement: { status: string; attested?: boolean; evidenced?: boolean },
+  requirement: { status: string; attested?: boolean; evidenced?: boolean; documental?: boolean },
   causes: string[] = [],
 ): string => {
   if (requirement.status === 'NO_APLICA') {
@@ -183,6 +185,10 @@ export const ensRequirementProofLabel = (
 
   if (requirement.attested) {
     return 'Acreditado documentalmente';
+  }
+
+  if (requirement.evidenced && requirement.documental) {
+    return 'Declarado (documental)';
   }
 
   if (requirement.evidenced) {

@@ -37,9 +37,11 @@ import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/c
 import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
 import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
+import { markEvidencesStale, markPolicyRuntimeStale } from '../public/ens/core/evidence/stale-collector';
 import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
 import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
 import { buildOpNub1ReportModel } from '../public/ens/reports/op-nub-1-report-model';
+import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
 import type {
   ENSControlConfiguration,
   ENSLevel,
@@ -804,6 +806,57 @@ bloque('11. Volumen: un día del cliente simulado cabe en el presupuesto; las l�
   const postu = postura(`${COMPLETA}:12Z`, { fallidos: Array.from({ length: 20 }, (_, i) => `CloudFront.${i + 100}`).join(','), estandar: 'x'.repeat(120) });
   const bytes = [larga, postu].map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.nub.1', host: 'Wazuh-4', ...l })).length);
   comprueba('las líneas con las listas al tope no pasan de 8 KiB', Math.max(...bytes) <= 8192, Math.max(...bytes));
+}
+
+// --- 12. recolector parado ------------------------------------------------------
+
+bloque('12. Recolector parado: lo documental sobrevive (marca `documental`); lo técnico pasa a sin recogida');
+
+{
+  const PARADO = { since: '2026-10-07T12:05:40Z', reference: 'collector_run' as const, reason: 'Sin datos del recolector desde el 2026-10-07 12:05 UTC.' };
+  // Lo que hace `ens-engine` con una fila sin renovar: marcar las evidencias y
+  // las decisiones, y juzgar con eso.
+  const parado = (valores: Valores, cambia?: (l: Linea) => Linea | Linea[] | undefined) => {
+    const r = evalua(hoy(cambia), valores);
+    const decisiones = markPolicyRuntimeStale(
+      { controlId: 'op.nub.1', policyId: opNub1PolicyDefinition.id, evaluatedAt: AHORA.toISOString(), decisions: r.decisions, appliedParameters: [], runtimeVariables: [] },
+      PARADO
+    )!.decisions;
+    const cfg = configuracion(valores);
+    const evidencias = markEvidencesStale(resolveEvidenceForControl('op.nub.1', [], '000', 'MEDIO', cfg, AHORA), PARADO);
+    const tabla = applyPolicyDecisionsToEvidences(evidencias, decisiones, opNub1CatalogDefinition.requirements);
+    const requisito = (id: string) =>
+      evaluateRequirement(opNub1CatalogDefinition.requirements.find(q => q.id === id)!, 'MEDIO', tabla, false, decisiones, 'ACTIVE');
+
+    return { decisiones, tabla, requisito };
+  };
+
+  const sinCertificado = parado({ ...BASE, 'P-04': (BASE['P-04'] as string[]).filter(f => !f.startsWith('Hetzner')) });
+  comprueba(
+    'la certificación ausente de R1 sigue siendo un NO_CUMPLE documental, no «sin recogida»',
+    sinCertificado.requisito('op.nub.1.r1.1').status === 'NO_CUMPLE' && sinCertificado.requisito('op.nub.1.r1.1').evidenced === true && sinCertificado.requisito('op.nub.1.r1.1').documental === true,
+    `${sinCertificado.requisito('op.nub.1.r1.1').status} ${sinCertificado.requisito('op.nub.1.r1.1').evidenced}`
+  );
+  comprueba(
+    'el expediente sigue acreditando op.nub.1.2, y la ingesta se dice sin recogida',
+    sinCertificado.requisito('op.nub.1.2').attested === true && sinCertificado.tabla.find(e => e.id === 'EV-01')?.gapCause === 'COLLECTION' && sinCertificado.tabla.find(e => e.id === 'EV-09')?.status === 'CUMPLE',
+    `${sinCertificado.requisito('op.nub.1.2').status} ${sinCertificado.tabla.find(e => e.id === 'EV-01')?.status}`
+  );
+  const intruso = parado(BASE, l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && enLaUltima(l) ? [l, { ...l, actor: 'contratista@externo.example' }] : l));
+  comprueba(
+    'un NO_CUMPLE técnico (actor no autorizado) NO sobrevive: con los datos viejos, no demostrado',
+    intruso.decisiones.find(d => d.requirementId === 'op.nub.1.2')?.documental !== true && intruso.requisito('op.nub.1.2').status === 'NO_CUMPLE' && intruso.requisito('op.nub.1.2').evidenced === false,
+    `${intruso.requisito('op.nub.1.2').status} ${intruso.requisito('op.nub.1.2').evidenced}`
+  );
+  comprueba(
+    'las decisiones documentales de op.nub.1 llevan la marca: R1, EV-08 y EV-09',
+    ['op.nub.1.r1.1', 'op.nub.1.r1.1/EV-08', 'op.nub.1.2/EV-09'].every(id => evalua(hoy()).decisions.find(d => d.trace.ruleId === id)?.documental === true) &&
+      evalua(hoy()).decisions.filter(d => ['op.nub.1.2/EV-01', 'op.nub.1.2/EV-04', 'op.nub.1.2/EV-07'].includes(d.trace.ruleId)).every(d => !d.documental)
+  );
+  comprueba(
+    'y la etiqueta de un NO_CUMPLE documental es «Declarado (documental)»',
+    ensRequirementProofLabel(sinCertificado.requisito('op.nub.1.r1.1')) === 'Declarado (documental)'
+  );
 }
 
 // --- salida ----------------------------------------------------------------

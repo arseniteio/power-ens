@@ -664,7 +664,12 @@ export const evaluateENSControl = (
           decision?.reason ||
           `El requisito ${requirement.id} se ha medido y no conforma.`,
         impact: `Impide el cumplimiento del control ${catalogControl.id} en nivel ${level}.`,
-        requiredAction: decision?.trace
+        // Un NO_CUMPLE DOCUMENTAL (un contrato o una certificación vencida o
+        // ausente en la pantalla) no se corrige en la máquina: se renueva o se
+        // completa la documentación.
+        requiredAction: requirement.documental
+          ? `Renovar o completar la documentación declarada en la pestaña Configuración: ${decision?.trace?.expected || requirement.id}. Es una declaración de la organización, no una corrección en la máquina.`
+          : decision?.trace
           ? `Corregir para alcanzar: ${decision.trace.expected}. Valor actual: ${decision.trace.actual}.`
           : badEvidences.length
           ? `Revisar las evidencias ${badEvidences.join(', ')} del requisito ${requirement.id}.`
@@ -672,6 +677,7 @@ export const evaluateENSControl = (
         expected: decision?.trace?.expected,
         actual: decision?.trace?.actual,
         origin: 'MEDIDA',
+        ...(requirement.documental ? { documental: true } : {}),
         evidenceIds: badEvidences,
         parameterIds: [],
       };

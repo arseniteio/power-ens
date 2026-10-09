@@ -38,6 +38,12 @@ export interface ENSRequirementEvaluationResult {
   // solo si ninguna medida del requisito está en contra.
   attested?: boolean;
 
+  // Juzgado desde una DECLARACIÓN de la pantalla (la decisión de la policy
+  // lleva `documental`), no desde los hechos de una máquina. Con NO_CUMPLE es
+  // un documento vencido o ausente: el informe no lo presenta como «medido» ni
+  // manda a corregir la máquina.
+  documental?: boolean;
+
   score: number;
   observations: string[];
   evidenceIds: string[];
@@ -366,6 +372,7 @@ export const evaluateRequirement = (
       // Demostrado con la prueba que el ENS pide para esto: el documento.
       evidenced: true,
       attested: true,
+      ...(policyDecision.documental ? { documental: true } : {}),
       score: scoreByStatus('CUMPLE'),
       // Y lo que queda sin medir se dice: el documento basta para el
       // requisito, pero el auditor tiene que ver qué evidencias no se midieron
@@ -410,6 +417,8 @@ export const evaluateRequirement = (
     status,
     applicable: true,
     evidenced: isMeasured(measurement),
+    // Un veredicto que sale de una declaración, no de una medida de la máquina.
+    ...(policyDecision?.documental && isMeasured(measurement) ? { documental: true } : {}),
     score: scoreByStatus(status),
     observations: [
       ...requirementEvidences.flatMap(evidence => evidence.observations),
