@@ -1,0 +1,227 @@
+{
+  "controlId": "op.cont.2",
+  "controlName": "Plan de continuidad",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.cont.2",
+      "name": "plan_continuidad_referencia",
+      "label": "Plan continuidad referencia",
+      "description": "Referencia al plan de continuidad aprobado, con su versión, fecha de aprobación, alcance y responsable. Es el documento cuya existencia constituye el cumplimiento del requisito base.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1",
+        "op.cont.2.2",
+        "op.cont.2.3",
+        "op.cont.2.4",
+        "op.cont.2.5"
+      ],
+      "type": "table",
+      "example": "Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad",
+      "required": true,
+      "wazuhUsage": "ENSFácil registra la referencia y vigila su vigencia, alertando cuando supere el plazo de revisión previsto. No verifica el contenido del plan: eso es revisión documental, no monitorización.",
+      "ensfacilUsage": "ENSFácil registra la referencia y vigila su vigencia, alertando cuando supere el plazo de revisión previsto. No verifica el contenido del plan: eso es revisión documental, no monitorización.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-04",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-PLAN-CONTINUIDAD-REFERENCIA"
+      ],
+      "ifNotConfigured": "El control es NO EVALUABLE. Sin plan registrado no hay nada que acreditar ni contra qué contrastar."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.cont.2",
+      "name": "servicios_esenciales",
+      "label": "Servicios esenciales",
+      "description": "Servicios esenciales de la organización cuya prestación debe garantizarse mediante los medios alternativos, con sus objetivos de recuperación (RTO y RPO) si están definidos en el análisis de impacto.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.2"
+      ],
+      "type": "table",
+      "example": "sede electrónica | 4 h | / 1 h | srv-web, srv-bd",
+      "required": false,
+      "wazuhUsage": "ENSFácil vincula cada servicio esencial con los sistemas que lo soportan y puede medir la disponibilidad real de esos sistemas, contrastando las interrupciones detectadas con los RTO comprometidos.",
+      "ensfacilUsage": "ENSFácil vincula cada servicio esencial con los sistemas que lo soportan y puede medir la disponibilidad real de esos sistemas, contrastando las interrupciones detectadas con los RTO comprometidos.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-SERVICIOS-ESENCIALES"
+      ],
+      "ifNotConfigured": "No se puede relacionar la monitorización con los servicios esenciales ni medir el cumplimiento de los RTO."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.cont.2",
+      "name": "funciones_responsabilidades_plan",
+      "label": "Funciones responsabilidades plan",
+      "description": "Funciones, responsabilidades y actividades asignadas en el plan, con las personas designadas para cada una. op.cont.2.1 lo exige de forma expresa como primer contenido del plan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1",
+        "op.cont.2.4"
+      ],
+      "type": "table",
+      "example": "coordinador de crisis | / A. Martínez | J. Ruiz",
+      "required": false,
+      "wazuhUsage": "ENSFácil registra la asignación y verifica su coherencia con el directorio de la organización, detectando responsables que ya no pertenecen a la entidad — un plan con responsables dados de baja es un plan inservible.",
+      "ensfacilUsage": "ENSFácil registra la asignación y verifica su coherencia con el directorio de la organización, detectando responsables que ya no pertenecen a la entidad — un plan con responsables dados de baja es un plan inservible.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-FUNCIONES-RESPONSABILIDADES-PLAN"
+      ],
+      "ifNotConfigured": "op.cont.2.1 sin acreditación. Riesgo de plan con funciones asignadas a personas que ya no están."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.cont.2",
+      "name": "medios_alternativos_contratados",
+      "label": "Medios alternativos contratados",
+      "description": "Medios alternativos previstos con la referencia del acuerdo o contrato que los materializa, su alcance y vigencia. op.cont.2.3 es taxativo: TODOS los medios alternativos deben estar planificados y materializados en acuerdos o contratos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.3"
+      ],
+      "type": "table",
+      "example": "CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h",
+      "required": false,
+      "wazuhUsage": "ENSFácil registra y vigila la vigencia de cada contrato, alertando antes del vencimiento. Un medio alternativo previsto sin contrato vigente es un incumplimiento directo de op.cont.2.3.",
+      "ensfacilUsage": "ENSFácil registra y vigila la vigencia de cada contrato, alertando antes del vencimiento. Un medio alternativo previsto sin contrato vigente es un incumplimiento directo de op.cont.2.3.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-04"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-MEDIOS-ALTERNATIVOS-CONTRATADOS"
+      ],
+      "ifNotConfigured": "op.cont.2.3 sin acreditación. No se detecta el vencimiento de contratos de medios alternativos."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.cont.2",
+      "name": "formacion_personal_plan",
+      "label": "Formacion personal plan",
+      "description": "Registro de la formación específica recibida por las personas afectadas por el plan relativa a su papel en él, con fecha y contenido. op.cont.2.4 lo exige expresamente.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.4"
+      ],
+      "type": "table",
+      "example": "A. Martínez | rol de coordinación de crisis | 2026-02-10 | 2027-02-10",
+      "required": false,
+      "wazuhUsage": "ENSFácil mantiene el registro y alerta de personas con función asignada en P-03 sin formación registrada, o con formación cuya antigüedad sea excesiva. Enlaza con mp.per.4.",
+      "ensfacilUsage": "ENSFácil mantiene el registro y alerta de personas con función asignada en P-03 sin formación registrada, o con formación cuya antigüedad sea excesiva. Enlaza con mp.per.4.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-FORMACION-PERSONAL-PLAN"
+      ],
+      "ifNotConfigured": "op.cont.2.4 sin acreditación. Es un hallazgo frecuente: el plan existe pero nadie ha sido formado en él."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.cont.2",
+      "name": "integracion_planes_organizacion",
+      "label": "Integracion planes organizacion",
+      "description": "Referencia a los planes de continuidad de la organización en materias ajenas a la seguridad con los que el plan de continuidad del sistema debe ser parte integral y armónica, según op.cont.2.5.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.5"
+      ],
+      "type": "list",
+      "example": "Plan de Emergencia del / edificio, Plan de Continuidad / de Negocio corporativo",
+      "required": false,
+      "wazuhUsage": "Referencia documental que ENSFácil recoge en el informe. La verificación de que la integración es efectivamente «armónica» es revisión documental y requiere criterio humano.",
+      "ensfacilUsage": "Referencia documental que ENSFácil recoge en el informe. La verificación de que la integración es efectivamente «armónica» es revisión documental y requiere criterio humano.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-INTEGRACION-PLANES-ORGANIZACION"
+      ],
+      "ifNotConfigured": "op.cont.2.5 sin acreditación. El plan puede existir aislado y contradecir otros planes de la organización."
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.cont.2",
+      "name": "rutas_integridad_post_caida",
+      "label": "Rutas integridad post caida",
+      "description": "Componentes cuya integridad debe comprobarse tras una caída o discontinuidad del sistema: ficheros del sistema operativo, firmware y ficheros de configuración. Corresponde al Refuerzo R2, no obligatorio pero el único técnicamente verificable de este control.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.r2.1"
+      ],
+      "type": "path",
+      "example": "/boot, /etc, /sbin, / versión de BIOS/UEFI, / C:\\Windows\\System32",
+      "required": false,
+      "wazuhUsage": "FIM con scan_on_start y verificación de hash cubre esto de forma natural: al reiniciarse el agente tras una caída, compara el estado con la línea base y alerta de cualquier desviación. Enlaza con op.exp.6 R2.",
+      "ensfacilUsage": "FIM con scan_on_start y verificación de hash cubre esto de forma natural: al reiniciarse el agente tras una caída, compara el estado con la línea base y alerta de cualquier desviación. Enlaza con op.exp.6 R2.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-RUTAS-INTEGRIDAD-POST-CAIDA"
+      ],
+      "ifNotConfigured": "R2 sin cobertura. No se detectarían alteraciones del sistema aprovechando una caída, que es un vector real."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.cont.2",
+      "name": "periodicidad_revision_plan_meses",
+      "label": "Periodicidad revision plan meses",
+      "description": "Cada cuánto debe revisarse y actualizarse el plan de continuidad. El ENS no fija periodicidad en op.cont.2, pero un plan desactualizado no cumple su función y suele ser hallazgo de auditoría.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1",
+        "op.cont.2.2",
+        "op.cont.2.3",
+        "op.cont.2.4",
+        "op.cont.2.5"
+      ],
+      "type": "number",
+      "example": "12 (anual) / o 24 (bienal)",
+      "required": true,
+      "wazuhUsage": "ENSFácil alerta cuando la antigüedad del plan registrado en P-01 supere P-08, y también cuando se produzcan cambios significativos en los sistemas que soportan servicios esenciales, que deberían motivar su revisión.",
+      "ensfacilUsage": "ENSFácil alerta cuando la antigüedad del plan registrado en P-01 supere P-08, y también cuando se produzcan cambios significativos en los sistemas que soportan servicios esenciales, que deberían motivar su revisión.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-04",
+        "EV-06"
+      ],
+      "ruleIds": [
+        "ENS-OPCONT2-PERIODICIDAD-REVISION-PLAN-MESES"
+      ],
+      "ifNotConfigured": "No se vigila la vigencia del plan. Riesgo de plan formalmente existente pero materialmente obsoleto."
+    }
+  ]
+}
