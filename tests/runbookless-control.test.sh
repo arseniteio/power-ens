@@ -72,5 +72,15 @@ else
   falla "un motivo vacío pasa"; printf '%s\n' "$salida" | sed 's/^/       | /'
 fi
 
+echo "4. Un fichero del catálogo sin \`status\`: falla, no se salta"
+declara
+sed -i.bak "/^  status: 'ACTIVE',\$/d" "$P/public/ens/catalog/op-zzz-9.ts" && rm -f "$P/public/ens/catalog/op-zzz-9.ts.bak"
+salida="$(comprueba)"
+if printf '%s\n' "$salida" | grep -q '^FALLA  catálogo ilegible: op-zzz-9.ts: sin `status` del control$'; then
+  ok "un catálogo sin estado se señala"
+else
+  falla "un catálogo sin estado pasa en silencio"; printf '%s\n' "$salida" | sed 's/^/       | /'
+fi
+
 echo
 [ "$fallos" -eq 0 ] && echo "Todas las comprobaciones pasan." || { echo "$fallos comprobación(es) fallan."; exit 1; }

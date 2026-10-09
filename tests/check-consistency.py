@@ -179,12 +179,16 @@ SIN_RUNBOOK = {
 
 
 def estados_del_catalogo():
-    """control -> `status` de cada fichero por control de `public/ens/catalog`.
+    """(control -> `status`, ficheros ilegibles) de `public/ens/catalog`.
 
     El `id` y el `status` del propio control son los únicos a dos espacios de
-    sangría: los de requisitos van más adentro.
+    sangría: los de requisitos van más adentro. Un fichero sin uno de los dos
+    NO se salta en silencio: se devuelve aparte y la comprobación 14 lo da por
+    fallo. Saltarlo era dejar fuera de la comprobación justo al control que no
+    se sabe en qué estado está.
     """
     estados = {}
+    ilegibles = []
     carpeta = os.path.join(PLUGIN, "public/ens/catalog")
     for fichero in sorted(os.listdir(carpeta)):
         if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
@@ -193,12 +197,19 @@ def estados_del_catalogo():
             texto = f.read()
         ident = re.search(r"^  id: '([^']+)',$", texto, re.M)
         estado = re.search(r"^  status: '([A-Z]+)',$", texto, re.M)
+        if not ident or not estado:
+            ilegibles.append(
+                "{}: {}".format(
+                    fichero,
+                    "sin `id` del control" if not ident else "sin `status` del control",
+                )
+            )
         if ident:
             estados[ident.group(1)] = estado.group(1) if estado else None
-    return estados
+    return estados, ilegibles
 
 
-ESTADOS = estados_del_catalogo()
+ESTADOS, CATALOGO_ILEGIBLE = estados_del_catalogo()
 
 # Lo que tiene bloque de configuración: lo que tiene runbook y lo que, sin
 # runbook, está en el catálogo. Un control sin runbook se configura igual.
@@ -1195,6 +1206,16 @@ else:
     _errores = activos_sin_runbook(ESTADOS, RUNBOOKS, SIN_RUNBOOK, _acreditadas)
     for _titulo, _detalle in _errores:
         falla(_titulo, _detalle)
+
+    # Un control del que no se sabe el estado no se puede comprobar: falla.
+    for _ilegible in CATALOGO_ILEGIBLE:
+        falla(
+            "catálogo ilegible: {}".format(_ilegible),
+            "el control y su `status` van a dos espacios de sangría"
+            " (`  id: '…',` y `  status: 'ACTIVE',`); sin ellos esta"
+            " comprobación no sabe si el control exige runbook",
+        )
+    _errores = _errores + [(i, "") for i in CATALOGO_ILEGIBLE]
 
     for _c in sorted(c for c in SIN_RUNBOOK if c not in ESTADOS):
         avisa(
