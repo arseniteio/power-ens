@@ -386,7 +386,7 @@
       "controlId": "op.mon.1",
       "name": "antiguedad_maxima_analisis_horas",
       "label": "Antigüedad máxima del análisis (horas)",
-      "description": "Horas que puede pasar un sistema de P-01 sin completar una pasada de FIM y de SCA antes de considerar que su módulo de análisis está deshabilitado. Las pasadas de FIM y SCA son cada 12 h por defecto y ENSFácil las mira cada 6 h: el valor tiene que ser mayor que su frecuencia más 6 h (p. ej., 26 h para 12 h).",
+      "description": "Horas que puede pasar un sistema de P-01 sin completar una pasada de FIM y de SCA antes de considerar que su módulo de análisis está deshabilitado. Se mide en el instante en que ENSFácil lee la base del agente, no al evaluar. Las pasadas de FIM y SCA son cada 12 h por defecto: el valor tiene que ser mayor que su frecuencia configurada (p. ej., 26 h para 12 h).",
       "levels": [
         "BAJO",
         "MEDIO",

@@ -421,6 +421,14 @@ bloque('5. Rojo: cada eje con su reversión');
   const corto = evalua(hoy(), { ...BASE, 'P-10': '4' });
   comprueba('P-10 = 4 h y el FIM de wazuh-real terminó a las 06:02 → NO_CUMPLE', corto.evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): la última pasada de FIM terminó/.test(corto.motivo('op.mon.1.1')), corto.motivo('op.mon.1.1'));
   comprueba('REVERSIÓN: el mismo hecho con P-10 = 26 h → CUMPLE', evalua(hoy(), { ...BASE, 'P-10': '26' }).evidencia('EV-02')?.status === 'CUMPLE');
+  // P-10 se juzga en el instante de la LECTURA: un hecho de hace 20 h (pasadas
+  // completas perdidas) no convierte un FIM al día en «análisis inactivo».
+  const tarde = evalua(hoy(), { ...BASE, 'P-10': '12' }, 'MEDIO', new Date('2026-10-10T08:00:00Z'));
+  comprueba(
+    'la lectura de las 12:05 vista 20 h después, con P-10 = 12 h: el FIM de 06:02 tenía 6 h al leerse → EV-02 CUMPLE',
+    tarde.evidencia('EV-02')?.status === 'CUMPLE',
+    `${tarde.evidencia('EV-02')?.status} ${tarde.deEvidencia('op.mon.1.1', 'EV-02')?.reason}`
+  );
 
   const sinSca = evalua(hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === '028' ? { ...l, sca_ultimo_fin: '-' } : l)));
   comprueba('el LDAP sin ninguna pasada de SCA → el análisis no está activo', sinSca.evidencia('EV-02')?.status === 'NO_CUMPLE' && /ninguna pasada de SCA completada/.test(sinSca.motivo('op.mon.1.1')), sinSca.motivo('op.mon.1.1'));

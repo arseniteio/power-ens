@@ -750,8 +750,11 @@ const ev02Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
 
       if (t === undefined) {
         problemas.push(`ninguna pasada de ${modulo} completada`);
-      } else if (ahora - t > plazo * HORA) {
-        problemas.push(`la última pasada de ${modulo} terminó el ${iso(t)}, hace ${horas(ahora - t)} h`);
+      } else if (momento(e) - t > plazo * HORA) {
+        // Se juzga en el instante de la LECTURA, no al evaluar: el hecho puede
+        // tener hasta 26 h, y medir contra el reloj convertiría una pasada
+        // perdida del recolector en un «análisis inactivo» del agente.
+        problemas.push(`la última pasada de ${modulo} terminó el ${iso(t)}, ${horas(momento(e) - t)} h antes de la lectura del ${iso(momento(e))}`);
       } else {
         visto.push(`${modulo} ${iso(t)}`);
       }
