@@ -164,6 +164,46 @@ CARPETAS_ANTERIORES = {
     "linux/op.exp.10": "op.exp.10-cryptographic-key-protection",
 }
 
+# Controles ACTIVE que se juzgan SIN runbook, con su motivo (op.cont.2: todo lo
+# que decide está en la pantalla de Configuración). La lista vive en un JSON
+# porque la lee también `draft-control.test.ts`: una sola lista, no dos que
+# puedan divergir. Un control ACTIVE que no esté ni en RUNBOOKS ni aquí falla
+# en la comprobación 14.
+SIN_RUNBOOK = {
+    control: motivo
+    for control, motivo in json.loads(
+        open(os.path.join(AQUI, "controls-without-runbook.json"), encoding="utf-8").read()
+    ).items()
+    if not control.startswith("_")
+}
+
+
+def estados_del_catalogo():
+    """control -> `status` de cada fichero por control de `public/ens/catalog`.
+
+    El `id` y el `status` del propio control son los únicos a dos espacios de
+    sangría: los de requisitos van más adentro.
+    """
+    estados = {}
+    carpeta = os.path.join(PLUGIN, "public/ens/catalog")
+    for fichero in sorted(os.listdir(carpeta)):
+        if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
+            continue
+        with open(os.path.join(carpeta, fichero), encoding="utf-8") as f:
+            texto = f.read()
+        ident = re.search(r"^  id: '([^']+)',$", texto, re.M)
+        estado = re.search(r"^  status: '([A-Z]+)',$", texto, re.M)
+        if ident:
+            estados[ident.group(1)] = estado.group(1) if estado else None
+    return estados
+
+
+ESTADOS = estados_del_catalogo()
+
+# Lo que tiene bloque de configuración: lo que tiene runbook y lo que, sin
+# runbook, está en el catálogo. Un control sin runbook se configura igual.
+CON_BLOQUE = list(RUNBOOKS) + sorted(c for c in SIN_RUNBOOK if c in ESTADOS)
+
 
 def _repos_bajo(raiz, profundidad=3):
     """Repositorios git bajo `raiz`, hasta `profundidad` niveles, sin entrar en
@@ -476,7 +516,7 @@ for control, (repos, _) in RUNBOOKS.items():
 
 print("\n=== 6. Cada control tiene su bloque de configuración ===\n")
 
-for control in RUNBOOKS:
+for control in CON_BLOQUE:
     fichero = control.replace(".", "-") + "-control-block.json"
     ruta = os.path.join(PLUGIN, "config", fichero)
     if not os.path.exists(ruta):
@@ -973,7 +1013,7 @@ print()
 
 import re as _re
 
-for _control in sorted(RUNBOOKS):
+for _control in sorted(CON_BLOQUE):
     _slug = _control.replace(".", "-")
     _bloque = pathlib.Path(PLUGIN) / "config" / ("%s-control-block.json" % _slug)
     _fuente = pathlib.Path(PLUGIN) / "public/ens/configuration/data" / ("%s-parameters.ts" % _slug)
@@ -1065,6 +1105,114 @@ if _huerfanos:
           "conformidad." % ", ".join(sorted(set(_huerfanos))))
 else:
     ok("toda evidencia acredita requisitos, no controles")
+
+# =============================================================================
+# 14. Todo control ACTIVE tiene runbook o está declarado sin él
+# =============================================================================
+#
+# Casi todas las comprobaciones de este script recorren RUNBOOKS. Un control
+# ACTIVE que no esté ahí es INVISIBLE para ellas: sin reglas acreditadas, la 1
+# lo da por «sin agente» y las demás no lo miran. Es el mismo agujero que la 1
+# cerró para las reglas, por el otro lado.
+#
+# Hay controles que se juzgan sin runbook a propósito (op.cont.2: todo lo que
+# decide está en la pantalla). Esos se declaran en
+# `controls-without-runbook.json` con su motivo, y entonces no pueden acreditar
+# reglas: una regla solo existe si un runbook la despliega.
+
+print()
+print("=== 14. Todo control ACTIVE tiene runbook o está declarado sin él ===")
+print()
+
+
+def activos_sin_runbook(estados, runbooks, sin_runbook, acreditadas):
+    """Fallos de la comprobación 14, como lista de (titulo, detalle).
+
+    `estados`: control -> status del catálogo. `acreditadas`: control -> reglas
+    que acreditan sus evidencias. Es una función para poder anclarla abajo con
+    un catálogo inventado.
+    """
+    errores = []
+    for control, estado in sorted(estados.items()):
+        if estado != "ACTIVE" or control in runbooks:
+            continue
+        if control not in sin_runbook:
+            errores.append((
+                "{}: ACTIVE sin runbook y sin declarar".format(control),
+                "registrar su runbook en RUNBOOKS o, si se juzga sin runbook,"
+                " declararlo con su motivo en tests/controls-without-runbook.json",
+            ))
+        elif not str(sin_runbook[control]).strip():
+            errores.append((
+                "{}: declarado sin runbook pero sin motivo".format(control),
+                "tests/controls-without-runbook.json tiene que decir por qué",
+            ))
+        elif acreditadas.get(control):
+            errores.append((
+                "{}: declarado sin runbook y acredita reglas".format(control),
+                "{}: una regla solo existe si un runbook la despliega".format(
+                    ", ".join(sorted(acreditadas[control]))
+                ),
+            ))
+    for control in sorted(sin_runbook):
+        if control in runbooks:
+            errores.append((
+                "{}: tiene runbook y está declarado sin él".format(control),
+                "quitarlo de tests/controls-without-runbook.json",
+            ))
+    return errores
+
+
+# Ancla: con un catálogo inventado, un ACTIVE sin runbook y sin declarar TIENE
+# que salir. Si la función dejara de verlo, esta comprobación aprobaría en
+# vacío y el agujero volvería sin que nada avisara.
+_ancla = activos_sin_runbook(
+    {"op.zzz.1": "ACTIVE", "op.zzz.2": "ACTIVE", "op.zzz.3": "DRAFT", "op.zzz.4": "ACTIVE"},
+    {"op.zzz.4": None},
+    {"op.zzz.2": "motivo de prueba"},
+    {},
+)
+if [t for t, _ in _ancla] != ["op.zzz.1: ACTIVE sin runbook y sin declarar"]:
+    falla(
+        "el ancla de la comprobación 14 no da lo esperado",
+        "; ".join(t for t, _ in _ancla) or "ningún fallo",
+    )
+elif not activos_sin_runbook(
+    {"op.zzz.2": "ACTIVE"}, {}, {"op.zzz.2": "motivo"}, {"op.zzz.2": {"123"}}
+):
+    falla(
+        "el ancla de la comprobación 14 no da lo esperado",
+        "un control declarado sin runbook que acredita reglas no sale",
+    )
+else:
+    _acreditadas = {}
+    for _c in ESTADOS:
+        _reglas = set()
+        for _, _cuerpo in bloques_evidencia(catalogo, _c):
+            _reglas |= set(campo_lista(_cuerpo, "relatedRules"))
+        _acreditadas[_c] = _reglas
+
+    _errores = activos_sin_runbook(ESTADOS, RUNBOOKS, SIN_RUNBOOK, _acreditadas)
+    for _titulo, _detalle in _errores:
+        falla(_titulo, _detalle)
+
+    for _c in sorted(c for c in SIN_RUNBOOK if c not in ESTADOS):
+        avisa(
+            "{}: declarado sin runbook y todavía no está en el catálogo".format(_c),
+            "se comprobará cuando se genere",
+        )
+
+    if not _errores:
+        _activos = sorted(c for c, e in ESTADOS.items() if e == "ACTIVE")
+        _sin = [c for c in _activos if c in SIN_RUNBOOK]
+        ok(
+            "los {} control(es) ACTIVE tienen runbook o están declarados sin él".format(
+                len(_activos)
+            ),
+            "sin runbook: {}".format(", ".join(_sin)) if _sin else "",
+        )
+
+print()
 
 if fallos:
     print("{} comprobación(es) FALLAN: {}".format(len(fallos), "; ".join(fallos)))
