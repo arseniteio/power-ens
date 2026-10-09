@@ -1456,10 +1456,23 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       )
     );
 
-    // Y una por evidencia, con SU estado.
+    // Y una por evidencia, con SU estado. La de un requisito acreditado lleva la
+    // misma marca: el puente no rellena una evidencia con una acreditación, así
+    // que EV-06 no se presenta como medida (es dato declarado).
     propias.forEach(p =>
       evidenciaDecisions.push(
-        decide(definicion.requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${definicion.requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
+        decide(
+          definicion.requisito,
+          p.medida.estado,
+          [p.id],
+          definicion.parametros,
+          definicion.tipo,
+          `${definicion.requisito}/${p.id}`,
+          p.medida.motivo,
+          `${p.id} CUMPLE`,
+          p.medida.causa,
+          Boolean(definicion.acreditado)
+        )
       )
     );
   });

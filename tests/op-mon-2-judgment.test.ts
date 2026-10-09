@@ -363,7 +363,16 @@ bloque('2. Verde: el último ciclo validado en plazo, cobertura al 100 %, regist
   const r2 = r.requisito('op.mon.2.r2.1');
   comprueba('R2 CUMPLE marcado `attested`: dato declarado, no medido', r2.status === 'CUMPLE' && r2.attested === true && r2.evidenced === true, `${r2.status} ${r2.attested}`);
   comprueba('y su motivo dice DATO DECLARADO con las cifras del último ciclo', /130 h internas, 35 h externas y 9200 € de presupuesto ejecutado, validado por RSEG/.test(r.motivo('op.mon.2.r2.1')) && /DATO DECLARADO/.test(r.motivo('op.mon.2.r2.1')), r.motivo('op.mon.2.r2.1'));
-  comprueba('la acreditación de R2 no tapa nada: R2 es el único requisito `attested`', r.decisions.filter(d => d.attested).map(d => d.requirementId).join(',') === 'op.mon.2.r2.1');
+  comprueba(
+    'las únicas decisiones `attested` son las de R2: la del requisito y la de EV-06',
+    r.decisions.filter(d => d.attested).map(d => d.trace.ruleId).join(',') === 'op.mon.2.r2.1,op.mon.2.r2.1/EV-06',
+    r.decisions.filter(d => d.attested).map(d => d.trace.ruleId).join(',')
+  );
+  comprueba(
+    'y el puente no rellena EV-06 como medida: en la tabla no sale CUMPLE medido',
+    r.evidencia('EV-06')?.status !== 'CUMPLE',
+    `${r.evidencia('EV-06')?.status} ${r.evidencia('EV-06')?.gapCause} ${(r.evidencia('EV-06')?.observations || []).join(' | ')}`
+  );
 
   ['EV-01', 'EV-05', 'EV-07'].forEach(id =>
     comprueba(
