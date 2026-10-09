@@ -1587,7 +1587,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
             (m, i, todas) => todas.findIndex(x => x.estado === m.estado && x.motivo === m.motivo) === i
           );
 
-          return combina([...ejes, ...(peor(ejes) === 'CUMPLE' ? [cumple(CVE_SIN_MEDIR)] : [])]);
+          return conDegradacion(
+            ctxM,
+            ahora,
+            'EV-04',
+            'package_inventory_observed',
+            combina([...ejes, ...(peor(ejes) === 'CUMPLE' ? [cumple(CVE_SIN_MEDIR)] : [])])
+          );
         });
       case 'EV-06':
         return central('EV-06', () => ev06(context, ctxM, ahora));
@@ -1596,9 +1602,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       case 'EV-09':
         return central('EV-09', () => ev09(context, ctxM, ahora));
       case 'EV-10':
-        return central('EV-10', () => sup().sca);
+        return central('EV-10', () => conDegradacion(ctxM, ahora, 'EV-04', 'config_assessment_observed', sup().sca));
       default:
-        return central('EV-11', () => combina([sup().inventario, sup().detector]));
+        return central('EV-11', () =>
+          conDegradacion(ctxM, ahora, 'EV-04', 'package_inventory_observed', combina([sup().inventario, sup().detector]))
+        );
     }
   };
 
@@ -1624,9 +1632,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         parametros,
         tipo,
         requisito,
-        evidencias.length
-          ? evidencias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | ')
-          : medida.motivo,
+        [
+          ...(medida.motivo ? [medida.motivo] : []),
+          ...evidencias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`),
+        ].join(' | '),
         esperado,
         medida.causa ?? causaComun(responsables.map(p => p.medida))
       )
