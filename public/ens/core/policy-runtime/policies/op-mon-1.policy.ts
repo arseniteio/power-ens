@@ -860,6 +860,12 @@ const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 const SIN_REGLA = /^(-|ninguna|ninguno|sin regla|punto ciego)$/i;
 
+// La celda de reglas de P-04 solo admite ids y rangos: «5710, 5712, 80700-80799».
+// Cualquier otro texto se rechaza en vez de interpretarse: «pendiente 2026-12»,
+// «CVE-2021-44228» o «AR-2026-04» llevan números con guion, y leídos como rangos
+// convertían un punto ciego declarado en una situación cubierta.
+const REGLAS_DE_P04 = /^\d+(\s*-\s*\d+)?(\s*[,;\s]\s*\d+(\s*-\s*\d+)?)*$/;
+
 const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   const { vigentes, ultimo } = estadoVigente(context, 'ruleset_rules_loaded', ahora);
 
@@ -891,13 +897,25 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   situaciones.forEach(fila => {
     const texto = (fila.reglas || '').trim();
-    const declaradas = SIN_REGLA.test(texto) ? [] : rangos(texto);
 
-    if (!declaradas.length) {
+    if (!texto || SIN_REGLA.test(texto)) {
       ciegas.push(`«${fila.situacion}»${fila.activo_afectado ? ` (${fila.activo_afectado})` : ''}`);
 
       return;
     }
+
+    if (!REGLAS_DE_P04.test(texto)) {
+      partes.push(
+        sinMedir(
+          `P-04, situación «${fila.situacion}»: la columna de reglas dice «${texto}», que no es una lista de ids o rangos de reglas (5710, 5712, 80700-80799). Si la situación no tiene regla, escribe «ninguna»: es un punto ciego declarado.`,
+          'CONFIGURATION'
+        )
+      );
+
+      return;
+    }
+
+    const declaradas = rangos(texto);
 
     const cubiertas = declaradas.filter(r => enQue(r) !== undefined);
     const fuera = declaradas.filter(r => enQue(r) === undefined);

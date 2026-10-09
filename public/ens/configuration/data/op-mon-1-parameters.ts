@@ -165,7 +165,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'situaciones_compromiso_analisis_riesgos',
       label: 'Situaciones de compromiso del análisis de riesgos',
       description:
-        'Situaciones de compromiso de la seguridad identificadas en el análisis de riesgos, que el enunciado general del bloque op.mon señala como el criterio que determina qué se monitoriza, con las reglas que las detectan: ids sueltos o rangos (5710, 5712, 80700-80799). Una situación sin reglas es un punto ciego declarado.',
+        'Situaciones de compromiso de la seguridad identificadas en el análisis de riesgos, que el enunciado general del bloque op.mon señala como el criterio que determina qué se monitoriza, con las reglas que las detectan: solo ids sueltos o rangos (5710, 5712, 80700-80799). Una situación sin reglas se declara con «ninguna» y es un punto ciego; cualquier otro texto en esa columna (una fecha, una referencia) deja la situación sin evaluar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'table',

@@ -441,6 +441,20 @@ bloque('5. Rojo: cada eje con su reversión');
   // EV-04 · situaciones de P-04 sin regla, o con reglas que no están cargadas.
   const ciega = evalua(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), 'alteración del directorio LDAP | ldap-zimbra | ninguna'] });
   comprueba('una situación declarada sin regla (punto ciego) → NO_CUMPLE', ciega.evidencia('EV-04')?.status === 'NO_CUMPLE' && /puntos ciegos declarados: «alteración del directorio LDAP»/.test(ciega.motivo('op.mon.1.1')), ciega.motivo('op.mon.1.1'));
+  // Un punto ciego con fecha de remedio: los números con guion no son reglas.
+  const conFecha = (celda: string) => evalua(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), `alteración del directorio LDAP | ldap-zimbra | ${celda}`] });
+  ['pendiente 2026-12', 'CVE-2021-44228', 'AR-2026-04'].forEach(celda => {
+    const r = conFecha(celda);
+
+    comprueba(
+      `«${celda}» en la columna de reglas no se lee como un rango: NO_EVALUABLE por CONFIGURATION nombrando la situación, nunca CUMPLE`,
+      r.evidencia('EV-04')?.status === 'NO_EVALUABLE' && r.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»/.test(r.motivo('op.mon.1.1')),
+      `${r.evidencia('EV-04')?.status} ${r.evidencia('EV-04')?.gapCause} ${r.motivo('op.mon.1.1')}`
+    );
+  });
+  comprueba('REVERSIÓN: «ninguna» es el punto ciego declarado → NO_CUMPLE medido', conFecha('ninguna').evidencia('EV-04')?.status === 'NO_CUMPLE');
+  comprueba('y «5710; 5712 80700 - 80799» es una lista válida → CUMPLE', conFecha('5710; 5712 80700 - 80799').evidencia('EV-04')?.status === 'CUMPLE');
+
   const noCargada = evalua(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 99002'] });
   comprueba('una situación con reglas que el manager no carga → NO_CUMPLE', noCargada.evidencia('EV-04')?.status === 'NO_CUMPLE' && /99001, 99002/.test(noCargada.motivo('op.mon.1.1')), noCargada.motivo('op.mon.1.1'));
   const rango = evalua(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 80700-80705'] });
