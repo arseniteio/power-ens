@@ -549,6 +549,14 @@ export const parseObjetivos = (
       return;
     }
 
+    // En una métrica de mínimo, una tolerancia igual o mayor que el objetivo
+    // deja el umbral en cero o por debajo: cualquier valor lo cumpliría.
+    if (definicion.sentido === 'minimo' && tolerancia >= objetivo) {
+      problemas.push(`${describe}: la tolerancia iguala o supera el objetivo, y cualquier valor lo cumpliría`);
+
+      return;
+    }
+
     objetivos.set(metrica, {
       metrica,
       objetivo,

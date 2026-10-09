@@ -684,6 +684,14 @@ bloque('7. Gramáticas estrictas, edades al leer, IDs normalizados y el estado p
   comprueba('P-06 «cobertura» (no es una métrica del vocabulario) → CONFIGURATION nombrando la fila', cobertura.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /«cobertura \| 95 \| 5»: la métrica no es ninguna de/.test(cobertura.motivo('op.mon.2.1')), cobertura.motivo('op.mon.2.1'));
   comprueba('P-06 objetivo «noventa» → CONFIGURATION', p06(['cobertura_monitorizacion | noventa | ']).evidencia('EV-04')?.gapCause === 'CONFIGURATION');
   comprueba('P-06 objetivo 150 % → CONFIGURATION', p06(['cobertura_monitorizacion | 150 | ']).evidencia('EV-04')?.gapCause === 'CONFIGURATION');
+  const tolerante = p06(['cobertura_monitorizacion | 50 | 60']);
+  comprueba(
+    'P-06 con la tolerancia (60) mayor que el objetivo de un mínimo (50) → CONFIGURATION, nunca un umbral negativo que todo cumple',
+    tolerante.evidencia('EV-04')?.status === 'NO_EVALUABLE' && tolerante.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /la tolerancia iguala o supera el objetivo/.test(tolerante.motivo('op.mon.2.1')),
+    tolerante.motivo('op.mon.2.1')
+  );
+  comprueba('y la igual también (95 | 95)', p06(['cobertura_monitorizacion | 95 | 95']).evidencia('EV-04')?.gapCause === 'CONFIGURATION');
+  comprueba('REVERSIÓN: en una métrica de máximo la tolerancia sí puede superar el objetivo', p06(['cobertura_monitorizacion | 95 | 5', 'tiempo_medio_resolucion | 4 | 8']).evidencia('EV-04')?.status === 'CUMPLE');
   comprueba('REVERSIÓN: «95 %» con su unidad sí vale → CUMPLE', p06(['cobertura_monitorizacion | 95 % | 5']).evidencia('EV-04')?.status === 'CUMPLE');
   comprueba('P-06 con la métrica dos veces → CONFIGURATION', p06(['cobertura_monitorizacion | 95 | 5', 'cobertura_monitorizacion | 90 | ']).evidencia('EV-04')?.gapCause === 'CONFIGURATION');
 
