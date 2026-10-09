@@ -316,4 +316,28 @@ export const ensRequirementsFile = {
     'Procedimientos de respuesta a las alertas (R2) - Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
   'op.mon.1.r3.1':
     'Acciones predeterminadas automáticas (R3) - Refuerzo R3 – Acciones predeterminadas: El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.',
+  'op.mon.3.1':
+    'Recolección automática de eventos de seguridad - Se dispondrá de un sistema automático de recolección de eventos de seguridad.',
+  'op.mon.3.r1.1':
+    'Correlación de eventos (R1) - Se dispondrá de un sistema automático de recolección de eventos de seguridad que permita la correlación de los mismos.',
+  'op.mon.3.r2.1':
+    'Superficie de exposición: vulnerabilidades y configuración (R2) - Se dispondrá de soluciones de vigilancia que permitan determinar la superficie de exposición con relación a vulnerabilidades y deficiencias de configuración.',
+  'op.mon.3.r3.1':
+    'Amenazas avanzadas y comportamientos anómalos (R3) - Se dispondrá de sistemas para detección de amenazas avanzadas y comportamientos anómalos.',
+  'op.mon.3.r3.2':
+    'APT por anomalías en el tráfico de red (R3) - Se dispondrá de sistemas para la detección de amenazas persistentes avanzadas (Advanced Persistent Threat, APT) mediante la detección de anomalías significativas en el tráfico de la red.',
+  'op.mon.3.r4.1':
+    'Observatorios digitales (R4) - Se dispondrá de observatorios digitales con fines de cibervigilancia dedicados a la detección y seguimiento de anomalías que pudieran representar indicadores de amenaza en contenidos digitales.',
+  'op.mon.3.r5.1':
+    'Limitación y vigilancia de consultas (R5) - Limitación de las consultas, monitorizando volumen y frecuencia.',
+  'op.mon.3.r5.2':
+    'Alerta en tiempo real a los administradores (R5) - Alerta a los administradores de seguridad de comportamientos sospechosos en tiempo real.',
+  'op.mon.3.r6.1':
+    'Inspección: verificación de configuración (R6) - Verificación de configuración.',
+  'op.mon.3.r6.2':
+    'Inspección: análisis de vulnerabilidades (R6) - Análisis de vulnerabilidades.',
+  'op.mon.3.r6.3':
+    'Inspección: pruebas de penetración (R6) - Pruebas de penetración.',
+  'op.mon.3.r7.1':
+    'Interconexiones: control de flujos por metadatos (R7) - Refuerzo R7 – Interconexiones: En las interconexiones que lo requieran se aplicarán controles en los flujos de intercambio de información a través del uso de metadatos.',
 };

@@ -1,0 +1,93 @@
+import { ENSPolicyDefinition } from '../types';
+
+export const opMon3PolicyDefinition: ENSPolicyDefinition = {
+  id: 'policy.op.mon.3',
+  controlId: 'op.mon.3',
+  version: '1.0.0',
+  requirements: [
+    {
+      requirementId: 'op.mon.3.1',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      parameterIds: ['P-01'],
+      evidenceIds: ['EV-01', 'EV-02'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r1.1',
+      levels: ['MEDIO', 'ALTO'],
+      parameterIds: ['P-02'],
+      evidenceIds: ['EV-03'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r2.1',
+      levels: ['MEDIO', 'ALTO'],
+      parameterIds: ['P-03', 'P-11'],
+      evidenceIds: ['EV-04'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r3.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-04'],
+      evidenceIds: [],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r3.2',
+      levels: ['ALTO'],
+      parameterIds: ['P-05'],
+      evidenceIds: ['EV-06'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r4.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-06'],
+      evidenceIds: [],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r5.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-07'],
+      evidenceIds: ['EV-08'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r5.2',
+      levels: ['ALTO'],
+      parameterIds: ['P-08'],
+      evidenceIds: ['EV-09'],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+    {
+      requirementId: 'op.mon.3.r6.1',
+      levels: ['ALTO'],
+      parameterIds: ['P-03', 'P-09', 'P-10', 'P-11'],
+      evidenceIds: ['EV-10', 'EV-12'],
+      ruleType: 'MAX_AGE',
+    },
+    {
+      requirementId: 'op.mon.3.r6.2',
+      levels: ['ALTO'],
+      parameterIds: ['P-03', 'P-09', 'P-10', 'P-11'],
+      evidenceIds: ['EV-11', 'EV-12'],
+      ruleType: 'MAX_AGE',
+    },
+    {
+      requirementId: 'op.mon.3.r6.3',
+      levels: ['ALTO'],
+      parameterIds: ['P-09', 'P-10'],
+      evidenceIds: ['EV-12'],
+      ruleType: 'MAX_AGE',
+    },
+    {
+      requirementId: 'op.mon.3.r7.1',
+      levels: [],
+      parameterIds: [],
+      evidenceIds: [],
+      ruleType: 'COVERAGE_REQUIRED',
+    },
+  ],
+};
