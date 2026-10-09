@@ -632,6 +632,12 @@ bloque('8. P-01 se cruza por ID o por nombre EXACTO, sin confundir agentes');
   comprueba('«24» es el agente 024 (ID sin ceros)', por(['24 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
   comprueba('«WAZUH-REAL» es wazuh-real (sin distinguir mayúsculas)', por(['WAZUH-REAL | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
   comprueba('«000» es el manager', por(['000 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
+  const sinCeros = evalua(hoy(l => (l.agente_id === '028' ? { ...l, agente_id: '28' } : l)));
+  comprueba(
+    'un hecho con el ID sin ceros («28») casa con P-01 «028»: el ID del hecho se normaliza igual',
+    sinCeros.evidencia('EV-02')?.status === 'CUMPLE' && sinCeros.evidencia('EV-03')?.status === 'CUMPLE',
+    `${sinCeros.evidencia('EV-02')?.status} ${sinCeros.motivo('op.mon.1.1')}`
+  );
   comprueba(
     '«wazuh-rea» NO es wazuh-real: nunca por parecido',
     por(['wazuh-rea | Linux | alta']).evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-rea: no figura/.test(por(['wazuh-rea | Linux | alta']).motivo('op.mon.1.1'))

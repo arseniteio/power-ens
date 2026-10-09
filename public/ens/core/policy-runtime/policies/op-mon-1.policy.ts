@@ -450,11 +450,16 @@ type Resolucion =
 const idDeAgente = (texto: string): string | undefined =>
   /^\d+$/.test(texto.trim()) ? texto.trim().padStart(3, '0') : undefined;
 
+// El ID del agente de un hecho, normalizado igual que el de P-01: un recolector
+// que emita «24» en vez de «024» no deja al sistema sin agente.
+const idDelHecho = (e: ENSNormalizedEvent): string =>
+  idDeAgente(campo(e, 'agente_id')) || campo(e, 'agente_id');
+
 const resuelve = (sistema: string, deAgentes: ENSNormalizedEvent[]): Resolucion => {
   const id = idDeAgente(sistema);
 
   if (id) {
-    const porId = deAgentes.find(e => campo(e, 'agente_id') === id);
+    const porId = deAgentes.find(e => idDelHecho(e) === id);
 
     if (porId) {
       return { tipo: 'unico', hecho: porId };
@@ -462,7 +467,7 @@ const resuelve = (sistema: string, deAgentes: ENSNormalizedEvent[]): Resolucion 
   }
 
   const porNombre = deAgentes.filter(e => iguales(campo(e, 'agente'), sistema));
-  const ids = Array.from(new Set(porNombre.map(e => campo(e, 'agente_id'))));
+  const ids = Array.from(new Set(porNombre.map(e => idDelHecho(e))));
 
   if (ids.length === 1) {
     return { tipo: 'unico', hecho: porNombre[0] };
@@ -478,7 +483,7 @@ const ambiguo = (sistema: string, ids: string[]): Medida =>
   );
 
 const nombreDe = (sistema: string, e: ENSNormalizedEvent): string => {
-  const id = campo(e, 'agente_id');
+  const id = idDelHecho(e);
   const agente = campo(e, 'agente');
 
   return iguales(agente, sistema) ? `${sistema} (${id})` : `${sistema} (${agente}, ${id})`;
@@ -493,11 +498,11 @@ const fueraDeP01 = (sistemas: Record<string, string>[], deAgentes: ENSNormalized
     const r = resuelve(fila.sistema, deAgentes);
 
     if (r.tipo === 'unico') {
-      dentro.add(campo(r.hecho, 'agente_id'));
+      dentro.add(idDelHecho(r.hecho));
     }
   });
 
-  const fuera = deAgentes.filter(e => !dentro.has(campo(e, 'agente_id')));
+  const fuera = deAgentes.filter(e => !dentro.has(idDelHecho(e)));
 
   if (!fuera.length) {
     return '';
@@ -506,7 +511,7 @@ const fueraDeP01 = (sistemas: Record<string, string>[], deAgentes: ENSNormalized
   const desconectados = fuera.filter(e => campo(e, 'estado_conexion') && campo(e, 'estado_conexion') !== 'active');
 
   return ` Fuera de P-01 hay ${fuera.length} agente(s) registrado(s)${
-    desconectados.length ? ` (${desconectados.length} sin conectar: ${lista(desconectados.map(e => `${campo(e, 'agente')} ${campo(e, 'agente_id')} ${campo(e, 'estado_conexion')}`))})` : ''
+    desconectados.length ? ` (${desconectados.length} sin conectar: ${lista(desconectados.map(e => `${campo(e, 'agente')} ${idDelHecho(e)} ${campo(e, 'estado_conexion')}`))})` : ''
   }, que no cuentan.`;
 };
 
@@ -744,7 +749,7 @@ const ev02Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
     if (campo(e, 'lectura') === 'error') {
       partes.push(
         sinMedir(
-          `${nombre}: el recolector no ha podido leer su base en el manager (queue/db/${campo(e, 'agente_id')}.db), así que no se sabe si sus pasadas de FIM y SCA siguen.`,
+          `${nombre}: el recolector no ha podido leer su base en el manager (queue/db/${idDelHecho(e)}.db), así que no se sabe si sus pasadas de FIM y SCA siguen.`,
           'COLLECTION'
         )
       );
