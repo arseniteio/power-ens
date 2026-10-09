@@ -144,6 +144,13 @@ RUNBOOKS = {
         ("linux/op.mon.1",),
         ["ensfacil_op_mon_1_json_rules.xml"],
     ),
+    # Manager y agente en el mismo runbook, como op.exp.8: el recolector de
+    # agente solo lee ficheros de estado de Wazuh y vale igual en el LDAP, así
+    # que no hay variante zimbra (spec 2026-10-09 §3.4).
+    "op.mon.3": (
+        ("linux/op.mon.3",),
+        ["ensfacil_op_mon_3_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que
