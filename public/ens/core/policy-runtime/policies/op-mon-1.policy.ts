@@ -137,9 +137,14 @@ const GRAVEDAD: Record<Medida['estado'], number> = {
   NO_CUMPLE: 2,
 };
 
-// El peor estado de las medidas; NO_APLICA solo si todas lo son.
+// El peor estado de las medidas; NO_APLICA solo si todas lo son. Sin ninguna
+// medida no hay nada demostrado: NO_EVALUABLE, nunca un CUMPLE por vacío.
 const peor = (medidas: Medida[]): Medida['estado'] => {
-  if (medidas.length && medidas.every(m => m.estado === 'NO_APLICA')) {
+  if (!medidas.length) {
+    return 'NO_EVALUABLE';
+  }
+
+  if (medidas.every(m => m.estado === 'NO_APLICA')) {
     return 'NO_APLICA';
   }
 
@@ -153,6 +158,10 @@ const peor = (medidas: Medida[]): Medida['estado'] => {
 // Varios ejes de una evidencia en una medida: el estado del peor, y en el
 // motivo lo que lo explica (lo que falla o falta; si todo cumple, lo medido).
 const combina = (partes: Medida[]): Medida => {
+  if (!partes.length) {
+    return sinMedir('No hay ninguna medida que juzgar.');
+  }
+
   const estado = peor(partes);
 
   if (estado === 'CUMPLE' || estado === 'NO_APLICA') {
