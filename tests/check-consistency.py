@@ -138,6 +138,12 @@ RUNBOOKS = {
         ("linux/op.exp.10",),
         ["ensfacil_op_exp_10_json_rules.xml"],
     ),
+    # Solo Linux: todo se mide en el manager, y el LDAP no aporta nada que el
+    # manager no vea (spec 2026-10-09 §1.4).
+    "op.mon.1": (
+        ("linux/op.mon.1",),
+        ["ensfacil_op_mon_1_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que
