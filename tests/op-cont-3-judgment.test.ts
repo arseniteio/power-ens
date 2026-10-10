@@ -576,12 +576,28 @@ bloque('6. Rojo, segunda obligación: deficiencias fuera de plazo, vivas en la p
     evalua(hoy(fila('continuity_deficiency_recorded', l => l.deficiencia_id === 'DEF-2026-04', { plazo: '2026-10-09' }))).evidencia('EV-05')?.status === 'CUMPLE'
   );
 
-  const viva = evalua(hoy(fila('continuity_deficiency_recorded', l => l.deficiencia_id === 'DEF-2026-03', { situacion: 'abierta', cierre: '-', plazo: '2026-12-31' })));
+  // DEF-2026-03 viene del ejercicio de mesa de junio (ciberincidente), abierta
+  // y en plazo. «La prueba siguiente» es la del MISMO escenario.
+  const abierta03 = fila('continuity_deficiency_recorded', l => l.deficiencia_id === 'DEF-2026-03', { situacion: 'abierta', cierre: '-', plazo: '2026-12-31' });
+  const otraCosa = evalua(hoy(abierta03));
   comprueba(
-    'DEF-2026-03 de la prueba de junio, en plazo, pero abierta después del simulacro de septiembre → NO_CUMPLE',
-    viva.evidencia('EV-05')?.status === 'NO_CUMPLE' && /siguen abiertas después de la prueba siguiente: DEF-2026-03 \(de la prueba del 2026-06-18; la siguiente fue simulacro del 2026-09-17/.test(viva.de('EV-05')),
+    'DEF-2026-03 abierta y en plazo; después solo hubo el simulacro de OTRO escenario (CPD) → no cuenta: CUMPLE',
+    otraCosa.evidencia('EV-05')?.status === 'CUMPLE',
+    `${estado(otraCosa, 'EV-05')} ${otraCosa.de('EV-05')}`
+  );
+  const mismoEscenario = prueba(`${PASADA}:01Z`, 5, '2026-09-30T09:00:00Z', '2026-09-30T12:00:00Z', 'escritorio', 'Ciberincidente con cifrado de datos', '-', 'satisfactorio', 0);
+  const viva = evalua(hoy(abierta03, [mismoEscenario]));
+  comprueba(
+    'y con una prueba posterior del MISMO escenario (30/09) → sigue viva tras la prueba siguiente: NO_CUMPLE',
+    viva.evidencia('EV-05')?.status === 'NO_CUMPLE' && /siguen abiertas después de la prueba siguiente: DEF-2026-03 \(de la prueba del 2026-06-18; la siguiente fue escritorio del 2026-09-30/.test(viva.de('EV-05')),
     viva.de('EV-05')
   );
+  const sinEscenario = (l: Linea) => abierta03(fila('continuity_test_recorded', x => x.inicio === ESCRITORIO, { escenario: '-' })(l));
+  comprueba(
+    'si la prueba de origen no tiene escenario, cuenta la siguiente del mismo TIPO (escritorio) → NO_CUMPLE',
+    evalua(hoy(sinEscenario, [{ ...mismoEscenario, escenario: '-' }])).evidencia('EV-05')?.status === 'NO_CUMPLE'
+  );
+  comprueba('REVERSIÓN: sin escenario y solo un simulacro después (otro tipo) → CUMPLE', evalua(hoy(sinEscenario)).evidencia('EV-05')?.status === 'CUMPLE');
 
   const declaradas = evalua(hoy(fila('continuity_test_recorded', simulacro, { deficiencias: 3 })));
   comprueba(

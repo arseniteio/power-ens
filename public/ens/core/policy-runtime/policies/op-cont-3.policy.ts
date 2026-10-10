@@ -1395,9 +1395,22 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
     partes.push(b);
   } else {
     const hechas = b.hechas;
-    const vivas = abiertas
-      .map(x => ({ x, siguiente: hechas.find(p => p.inicio > x.prueba && p.fin <= t) }))
-      .filter(v => v.siguiente);
+    // «La prueba siguiente» es la siguiente del MISMO escenario (o del mismo
+    // tipo, si la de origen no tiene escenario): una prueba posterior de otra
+    // cosa no tenía por qué corregirla. Para lo demás está su plazo.
+    const siguienteDe = (x: Deficiencia): Prueba | undefined => {
+      const origen = b.pruebas.find(p => p.inicio === x.prueba);
+
+      return origen
+        ? hechas.find(
+            p =>
+              p.inicio > origen.inicio &&
+              p.fin <= t &&
+              (vacio(origen.escenario) ? p.tipo === origen.tipo : normaliza(p.escenario) === normaliza(origen.escenario))
+          )
+        : undefined;
+    };
+    const vivas = abiertas.map(x => ({ x, siguiente: siguienteDe(x) })).filter(v => v.siguiente);
 
     if (vivas.length) {
       partes.push(
