@@ -1101,7 +1101,7 @@ const DATO_EV07 =
   'Hallazgo del informe, sin veredicto: el criterio del segundo factor en el acceso desde una zona no controlada es el de op.acc.6.r8.1, que lo juzga.';
 
 const DATO_EV06 =
-  'Dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 se juzga en el expediente (EV-09, op.nub.1.2 d).';
+  'Dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor, así que la región configurada no se puede medir. Lo declarado en P-08 se juzga en el expediente (EV-09, op.nub.1.2 d).';
 
 // --- decisiones ------------------------------------------------------------
 

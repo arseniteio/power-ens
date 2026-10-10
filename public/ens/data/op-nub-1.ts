@@ -144,7 +144,7 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Verificación de la región de los datos',
       description:
-        'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
+        'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor, así que la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
       format: 'sca_or_json_line',
       events: [],
       wazuhRuleIds: [],

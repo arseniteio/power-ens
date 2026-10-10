@@ -4425,7 +4425,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Recursos consumidos por el sistema de seguridad (R2)',
     description:
-      'Horas internas, horas externas y presupuesto ejecutado del último ciclo del registro de ciclos de métricas, validados por un responsable de P-05 de recursos, con el significado de cada columna declarado en P-04. Es un DATO DECLARADO, no obtenido de Wazuh: la herramienta lo registra y lo presenta junto a las métricas técnicas, pero no lo verifica, y el requisito sale acreditado documentalmente.',
+      'Horas internas, horas externas y presupuesto ejecutado del último ciclo del registro de ciclos de métricas, validados por un responsable de P-05 del ámbito «recursos», con el significado de cada columna declarado en P-04. Es un DATO DECLARADO, no obtenido de Wazuh: la herramienta lo registra y lo presenta junto a las métricas técnicas, pero no lo verifica, y el requisito sale acreditado documentalmente.',
     requirements: ['op.mon.2.r2.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -4868,7 +4868,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.nub.1',
     title: 'Verificación de la región de los datos',
     description:
-      'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
+      'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor, así que la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'CONFIGURATION',

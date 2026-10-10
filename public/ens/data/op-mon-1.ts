@@ -163,7 +163,7 @@ export const opMon1Control: ENSControl = {
       description:
         'Antigüedad del ruleset (fecha de su fichero de reglas más reciente) frente a P-08, y el barrido de silenciamientos del manager: ficheros de reglas excluidos en ossec.conf (rule_exclude) y reglas reescritas a nivel 0 en las reglas propias. Cada silenciamiento tiene que figurar en P-06 con su motivo y quién lo aprobó: una exclusión sin constancia degrada la detección sin que nadie lo advierta.',
       format: 'json_line',
-      events: ['evidence_state', 'rule_silenced'],
+      events: ['evidence_state', 'ruleset_version_observed', 'rule_silenced'],
       wazuhRuleIds: ['111202', '111209'],
     },
   ],

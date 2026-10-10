@@ -261,7 +261,7 @@ export const opMon3Control: ENSControl = {
       description:
         'Verificación continua de la configuración con SCA en los activos de P-03 (los hechos de EV-04, contra P-11), o la última verificación del registro de inspecciones dentro de la periodicidad de P-09. La continuidad supera la exigencia de periodicidad.',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
+      events: ['evidence_state', 'config_assessment_observed'],
       wazuhRuleIds: ['111407'],
       active: false,
     },
@@ -274,7 +274,7 @@ export const opMon3Control: ENSControl = {
       description:
         'Análisis continuo de vulnerabilidades: el detector habilitado, con su fuente al día y escribiendo sin errores, sobre el inventario reciente de cada activo de P-03 (los hechos de EV-04, contra P-11), o el último análisis del registro de inspecciones dentro de la periodicidad de P-09.',
       format: 'json_line',
-      events: ['evidence_state'],
+      events: ['evidence_state', 'package_inventory_observed', 'vulnerability_detection_status'],
       wazuhRuleIds: ['111408', '111409'],
       active: false,
     },
