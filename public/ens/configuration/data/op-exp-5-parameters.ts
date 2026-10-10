@@ -327,7 +327,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       name: 'ventana_estabilidad_horas',
       label: 'Ventana de estabilidad tras un cambio (horas)',
       description:
-        'Horas siguientes a un cambio real en las que un servicio que cae se atribuye a ese cambio. Si sigue caído en la última pasada del recolector y no consta la reversión del cambio en el registro (estado «revertida»), es un efecto adverso sostenido. No está en la plantilla del auditor: EV-07 la necesita para decidir qué es «la ventana posterior al cambio».',
+        'Horas siguientes a un cambio real en las que un servicio que cae se atribuye a ese cambio. Si sigue caído en la última pasada del recolector y no consta la reversión del cambio en el registro (estado «revertida»), es un efecto adverso sostenido. EV-07 la usa para decidir qué es «la ventana posterior al cambio».',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.5', 'op.exp.5.r1.1'],
       type: 'duration_hours',
