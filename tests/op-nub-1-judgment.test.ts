@@ -773,6 +773,14 @@ bloque('9. R2 en ALTA: hallazgos de postura del proveedor; sin ellos, no automat
   const fallan = evalua(hub(3), P07, 'ALTO');
   comprueba('Security Hub con 3 controles fallidos → R2 NO_CUMPLE medido, nombrándolos', fallan.requisito('op.nub.1.r2.1').status === 'NO_CUMPLE' && fallan.requisito('op.nub.1.r2.1').evidenced === true && /S3\.2/.test(fallan.motivo('op.nub.1.r2.1')), fallan.motivo('op.nub.1.r2.1'));
   comprueba('REVERSIÓN: los 212 controles pasan → R2 CUMPLE (medido, no acreditado)', evalua(hub(0), P07, 'ALTO').requisito('op.nub.1.r2.1').status === 'CUMPLE' && !evalua(hub(0), P07, 'ALTO').requisito('op.nub.1.r2.1').attested);
+  const ilegible = evalua(hoy(l => (l.event === 'cloud_posture_finding_observed' && enLaUltima(l)
+    ? { ...l, modulo: 'aws-s3', fuente: 'securityhub', estandar: 'AWS Foundational Security Best Practices v1.0.0', controles_evaluados: '-', controles_fallidos: '-', fallidos: '-' }
+    : l)), P07, 'ALTO');
+  comprueba(
+    'controles_fallidos «-» (ilegible) → NO_EVALUABLE, nunca leído como cero (CUMPLE)',
+    ilegible.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /recuento «-»/.test(ilegible.motivo('op.nub.1.r2.1')),
+    `${estadoDe(ilegible, 'EV-02')} ${ilegible.motivo('op.nub.1.r2.1')}`
+  );
   comprueba('con otro estándar declarado en P-07, esos hallazgos no cuentan → NO_EVALUABLE', evalua(hub(3), { ...BASE, 'P-07': ['AWS producción | CCN-STIC-887 | CIS AWS Foundations'] }, 'ALTO').evidencia('EV-02')?.status === 'NO_EVALUABLE');
   comprueba('sin P-07 en ALTA → CONFIGURATION', evalua(hub(0), BASE, 'ALTO').evidencia('EV-02')?.gapCause === 'CONFIGURATION');
   comprueba('Hetzner en P-07, sin integración → no automatizable', /«Hetzner»: no tiene integración en Wazuh/.test(evalua(hub(0), { ...BASE, 'P-07': ['Hetzner | CCN-STIC-887 | -'] }, 'ALTO').motivo('op.nub.1.r2.1')));

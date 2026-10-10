@@ -1033,6 +1033,16 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
       );
     }
 
+    // Un recuento ilegible («-») no es un cero: sin él no se puede afirmar
+    // que los controles pasen. Un fallo medido en otro estándar sí manda.
+    const ilegibles = suyos.filter(e => numero(campo(e, 'controles_evaluados')) === undefined || numero(campo(e, 'controles_fallidos')) === undefined);
+
+    if (ilegibles.length) {
+      return sinMedir(
+        `«${nombre}»: el recolector no pudo contar los controles de ${lista(ilegibles.map(e => `${campo(e, 'fuente')}: ${campo(e, 'estandar')}`))} (recuento «-»): no se puede afirmar que pasen.`
+      );
+    }
+
     return evaluados > 0
       ? cumple(`«${nombre}» (${estandares}): los ${evaluados} controles evaluados pasan (${fila.guia_ccn_stic || 'guía CCN-STIC sin declarar'}).`)
       : sinMedir(`«${nombre}» (${estandares}): el proveedor no ha evaluado ningún control.`);
