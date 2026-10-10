@@ -757,7 +757,14 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
   ];
 
-  return { decisions: [...requisitoDecisions, ...evidenciaDecisions], runtimeVariables: variables };
+  // Todas DOCUMENTALES: salen de las tablas de la pantalla y su vigencia, no de
+  // los hechos de ninguna máquina. Un alcance sin máquinas (o un recolector
+  // parado, si algún día lo hubiera) no las borra: un plan vencido sigue
+  // vencido (ver `documental` en `ENSPolicyDecision`).
+  return {
+    decisions: [...requisitoDecisions, ...evidenciaDecisions].map(decision => ({ ...decision, documental: true })),
+    runtimeVariables: variables,
+  };
 };
 
 export const opCont2PolicyDefinition: ENSPolicyDefinition = {

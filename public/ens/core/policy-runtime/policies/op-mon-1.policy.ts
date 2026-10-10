@@ -30,7 +30,7 @@
 //                  fila completa, lo acredita con la marca `attested` (en
 //                  pantalla, «acreditado documentalmente»). Sin P-05, queda sin
 //                  medir y lo puede acreditar P-ATT, porque el catálogo lo
-//                  declara sin evidencias.
+//                  declara sin evidencias. Su decisión lleva `documental`.
 //   op.mon.1.r3.1  no se exige en ninguna categoría: EV-07 se mide y se
 //                  INFORMA, sin veredicto (NO_APLICA con lo que hay).
 //
@@ -1080,15 +1080,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   });
 
   // R2: documental. Una declaración completa en P-05 lo acredita; sin ella, la
-  // decisión queda sin medir y puede acreditarlo P-ATT.
+  // decisión queda sin medir y puede acreditarlo P-ATT. Sale solo de la tabla
+  // de la pantalla, así que lleva `documental`: un recolector parado no la
+  // convierte en un hueco de RECOGIDA (ver `ENSPolicyDecision`).
   let medidaR2: Medida | undefined;
 
   if (aplica('op.mon.1.r2.1')) {
     const { medida, acreditado } = r2(context);
 
     medidaR2 = medida;
-    requisitoDecisions.push(
-      decide(
+    requisitoDecisions.push({
+      ...decide(
         'op.mon.1.r2.1',
         medida.estado,
         [],
@@ -1099,8 +1101,9 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         'P-05 con procedimiento y responsable por tipo de alerta, o P-ATT',
         medida.causa,
         acreditado
-      )
-    );
+      ),
+      documental: true,
+    });
   }
 
   // EV-06: dato del informe. EV-07: R3 se informa con lo que hay.
