@@ -81,8 +81,16 @@ const prueba = (ts: string, linea: number, inicio: string, fin: string, tipo: st
   linea, inicio, fin, tipo, escenario, sistemas, participantes: 'RSI, Sistemas', resultado, deficiencias,
   referencia: `https://intranet.ejemplo/continuidad/prueba-${linea}.pdf`,
   ...(sistemas === '-' || !['parcial', 'simulacro'].includes(tipo)
-    ? { medicion: 'no_aplica', medido_desde: '-', medido_hasta: '-', dias_sin_alertas: '-' }
-    : { medicion: 'completa', medido_desde: inicio, medido_hasta: new Date(Date.parse(fin) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'), dias_sin_alertas: '-' }),
+    ? { medicion: 'no_aplica', medido_desde: '-', medido_hasta: '-', dias_sin_alertas: '-', candidatos: 0, agents_disconnection_time: '-' }
+    : {
+        // El rango medido: 24 h antes del inicio y 24 h después del fin.
+        medicion: 'completa',
+        medido_desde: new Date(Date.parse(inicio) - 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'),
+        medido_hasta: new Date(Date.parse(fin) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'),
+        dias_sin_alertas: '-',
+        candidatos: sistemas.split(',').length,
+        agents_disconnection_time: 600,
+      }),
   ...extra,
 });
 
@@ -95,7 +103,7 @@ const deficiencia = (ts: string, linea: number, id: string, pruebaInicio: string
 const disponibilidad = (ts: string, pruebaInicio: string, pruebaFin: string, sistema: string, id: string, agente: string, eventos: string, extra: Linea = {}): Linea => ({
   ts, event: 'availability_event_observed', evidence_id: 'EV-03', ...comun,
   prueba_inicio: pruebaInicio, prueba_fin: pruebaFin, sistema, agente_id: id, agente,
-  eventos, eventos_total: eventos === '-' ? 0 : eventos.split(',').length, ...extra,
+  eventos, eventos_total: eventos === '-' ? 0 : eventos.split(',').length, alertas_propias: 120, ...extra,
 });
 
 const latido = (ts: string, cubiertas = 'EV-01,EV-03,EV-05,EV-06,EV-08'): Linea => ({
@@ -126,9 +134,9 @@ const pasada = (ts = PASADA): Linea[] => {
     disponibilidad(t(4), SIMULACRO, SIMULACRO_FIN, 'wazuh-real', '024', 'wazuh-real', 'parada@2026-09-17T20:05:00Z,arranque@2026-09-17T22:41:00Z'),
     disponibilidad(t(4), SIMULACRO, SIMULACRO_FIN, '28', '028', 'ldap-zimbra', 'desconexion@2026-09-17T20:10:00Z,actividad@2026-09-17T21:20:00Z'),
     { ts: t(5), event: 'backup_restore_observed', evidence_id: 'EV-08', ...comun,
-      prueba_inicio: SIMULACRO, agente_id: '026', agente: 'pbs-01', instante: '2026-09-17T21:00:00Z', resultado: 'ok', coincide: 'si', backup_id: 'host/wazuh-real' },
+      prueba_inicio: SIMULACRO, prueba_fin: SIMULACRO_FIN, agente_id: '026', agente: 'pbs-01', instante: '2026-09-17T21:00:00Z', resultado: 'ok', coincide: 'si', backup_id: 'host/wazuh-real' },
     { ts: t(6), event: 'post_test_change_observed', evidence_id: 'EV-06', ...comun,
-      prueba_inicio: SIMULACRO, sistema: 'wazuh-real', agente_id: '024', agente: 'wazuh-real', cambios: 3, rutas: '/etc/hosts,/etc/fstab',
+      prueba_inicio: SIMULACRO, prueba_fin: SIMULACRO_FIN, sistema: 'wazuh-real', agente_id: '024', agente: 'wazuh-real', cambios: 3, rutas: '/etc/hosts,/etc/fstab',
       primera: '2026-09-18T08:00:00Z', ultima: '2026-09-18T09:10:00Z' },
     latido(t(40)),
   ];
@@ -305,8 +313,8 @@ bloque('2. Verde: tres pruebas al día, el simulacro medido dentro del RTO, defi
   comprueba('EV-01 cuenta las pruebas por tipo', /3 prueba\(s\) registrada\(s\) \(1 revision_documental, 1 escritorio, 0 parcial, 1 simulacro\)/.test(r.de('EV-01')), r.de('EV-01'));
   comprueba('EV-02 da el próximo vencimiento (la revisión documental anual, el 12/03/2027)', /próximo vencimiento es el 2027-03-12/.test(r.de('EV-02')), r.de('EV-02'));
   comprueba(
-    'EV-04: wazuh-real 2 h 36 min (RTO 4 h) y el LDAP, declarado «28», 1 h 10 min (su RTO de 2 h + 15 min)',
-    /wazuh-real \(024\): 1 caída\(s\), la más larga 2 h 36 min, restablecido \(RTO 4 h\)/.test(r.de('EV-04')) && /28 \(ldap-zimbra, 028\): 1 caída\(s\), la más larga 1 h 10 min, restablecido \(RTO 2 h \+ 15 min\)/.test(r.de('EV-04')),
+    'EV-04: wazuh-real 2 h 36 min exactas (parada → arranque, RTO 4 h) y el LDAP, declarado «28», como mucho 1 h 20 min (504 menos 10 min → su primera alerta; RTO 2 h + 15 min)',
+    /wazuh-real \(024\): 1 caída\(s\): parada 2026-09-17T20:05:00Z: 2 h 36 min, restablecido \(arranque\) \(RTO 4 h\)/.test(r.de('EV-04')) && /28 \(ldap-zimbra, 028\): 1 caída\(s\): desconexion 2026-09-17T20:10:00Z: entre 0 min y 1 h 20 min, de vuelta antes de su primera alerta propia \(RTO 2 h \+ 15 min\)/.test(r.de('EV-04')),
     r.de('EV-04')
   );
   ['EV-03', 'EV-06', 'EV-07', 'EV-08'].forEach(id =>
@@ -391,7 +399,7 @@ bloque('5. Rojo, EV-04: declarada satisfactoria y medida fuera de objetivo');
   const r = evalua(lento);
   comprueba(
     'wazuh-real 4 h 47 min sin servicio con RTO 4 h y la prueba declarada satisfactoria → NO_CUMPLE (discrepancia)',
-    r.evidencia('EV-04')?.status === 'NO_CUMPLE' && /declarada satisfactorio, y la medida la desmiente: wazuh-real \(024\) estuvo 4 h 47 min sin servicio, por encima de su RTO 4 h/.test(r.de('EV-04')),
+    r.evidencia('EV-04')?.status === 'NO_CUMPLE' && /declarada satisfactorio, y la medida la desmiente: wazuh-real \(024\) estuvo 4 h 47 min sin servicio \(parada 2026-09-17T20:05:00Z → arranque 2026-09-18T00:52:00Z\), por encima de su RTO 4 h/.test(r.de('EV-04')),
     r.de('EV-04')
   );
   comprueba('y el requisito NO_CUMPLE medido', r.requisito().status === 'NO_CUMPLE' && r.requisito().evidenced === true);
@@ -409,9 +417,9 @@ bloque('5. Rojo, EV-04: declarada satisfactoria y medida fuera de objetivo');
 
   const sinVolver = evalua(hoy(fila('availability_event_observed', l => l.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z', eventos_total: 1 })));
   comprueba(
-    'wazuh-real parado y sin volver en la ventana ni en las 24 h siguientes → supera su RTO: NO_CUMPLE',
-    sinVolver.evidencia('EV-04')?.status === 'NO_CUMPLE' && /no se restableció en la ventana medida/.test(sinVolver.de('EV-04')),
-    sinVolver.de('EV-04')
+    'wazuh-real parado y sin ninguna vuelta observada (ni arranque ni alerta propia) en 27 h → pudo volver callado: NO_EVALUABLE, nunca CUMPLE ni NO_CUMPLE',
+    sinVolver.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /no se observó su vuelta/.test(sinVolver.de('EV-04')),
+    `${estado(sinVolver, 'EV-04')} ${sinVolver.de('EV-04')}`
   );
 
   const restauracion = (resultado: string, coincide: string) =>
@@ -429,6 +437,125 @@ bloque('5. Rojo, EV-04: declarada satisfactoria y medida fuera de objetivo');
     eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-17T22:41:00Z,desconexion@2026-09-18T02:00:00Z,actividad@2026-09-18T09:00:00Z',
   })));
   comprueba('una desconexión de 7 h que empieza tras la ventana no cuenta para la prueba → CUMPLE', despues.evidencia('EV-04')?.status === 'CUMPLE', despues.de('EV-04'));
+}
+
+// --- 5 bis. la caída como intervalo ---------------------------------------------
+
+bloque('5 bis. La caída como intervalo: NO_CUMPLE solo con la cota inferior; CUMPLE solo con la superior');
+
+{
+  const ldap = (eventos: string, extra: Linea = {}) =>
+    evalua(hoy(fila('availability_event_observed', l => l.agente_id === '028', { eventos, eventos_total: eventos.split(',').length, ...extra })));
+
+  // Una caída que empezó ANTES del inicio y seguía abierta en él cuenta: el
+  // recolector mira 24 h antes del inicio.
+  const antes = evalua(hoy(fila('availability_event_observed', l => l.agente_id === '024', { eventos: 'parada@2026-09-17T19:55:00Z,arranque@2026-09-18T03:00:00Z' })));
+  comprueba(
+    'wazuh-real parado a las 19:55 (antes del inicio, 20:00) y arrancado a las 03:00 → 7 h 5 min: NO_CUMPLE',
+    antes.evidencia('EV-04')?.status === 'NO_CUMPLE' && /estuvo 7 h 5 min sin servicio/.test(antes.de('EV-04')),
+    `${estado(antes, 'EV-04')} ${antes.de('EV-04')}`
+  );
+  const cerradaAntes = evalua(hoy(fila('availability_event_observed', l => l.agente_id === '024', {
+    eventos: 'parada@2026-09-17T10:00:00Z,arranque@2026-09-17T11:00:00Z,parada@2026-09-17T20:05:00Z,arranque@2026-09-17T22:41:00Z',
+  })));
+  comprueba('una caída que empezó y acabó antes del inicio no es de la prueba → CUMPLE', cerradaAntes.evidencia('EV-04')?.status === 'CUMPLE', cerradaAntes.de('EV-04'));
+  const huerfana = evalua(hoy(l =>
+    fila('continuity_test_recorded', simulacro, { medido_desde: SIMULACRO })(
+      fila('availability_event_observed', x => x.agente_id === '024', { eventos: 'arranque@2026-09-17T21:00:00Z', eventos_total: 1 })(l)
+    )
+  ));
+  comprueba(
+    'sin mirar antes del inicio, un arranque sin caída previa → NO_EVALUABLE (EVIDENCE), nunca «sin caídas»',
+    huerfana.evidencia('EV-04')?.status === 'NO_EVALUABLE' && huerfana.evidencia('EV-04')?.gapCause === 'EVIDENCE' && /sin ninguna caída observada antes/.test(huerfana.de('EV-04')),
+    `${estado(huerfana, 'EV-04')} ${huerfana.de('EV-04')}`
+  );
+
+  // La 504 llega agents_disconnection_time (600 s) después de la caída.
+  const larga = ldap('desconexion@2026-09-17T20:10:00Z,arranque@2026-09-17T22:30:00Z');
+  comprueba(
+    'LDAP: 504 a las 20:10 y arranque a las 22:30 → al menos 2 h 20 min, más que su RTO de 2 h 15 min: NO_CUMPLE',
+    larga.evidencia('EV-04')?.status === 'NO_CUMPLE' && /28 \(ldap-zimbra, 028\) estuvo al menos 2 h 20 min sin servicio/.test(larga.de('EV-04')),
+    `${estado(larga, 'EV-04')} ${larga.de('EV-04')}`
+  );
+  const dudosa = ldap('desconexion@2026-09-17T20:10:00Z,arranque@2026-09-17T22:20:00Z');
+  comprueba(
+    'LDAP: 504 a las 20:10 y arranque a las 22:20 → entre 2 h 10 min y 2 h 20 min, y su RTO cae dentro: NO_EVALUABLE',
+    dudosa.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /entre 2 h 10 min y 2 h 20 min/.test(dudosa.de('EV-04')),
+    `${estado(dudosa, 'EV-04')} ${dudosa.de('EV-04')}`
+  );
+  comprueba('REVERSIÓN: arranque a las 21:00 → como mucho 1 h: CUMPLE', ldap('desconexion@2026-09-17T20:10:00Z,arranque@2026-09-17T21:00:00Z').evidencia('EV-04')?.status === 'CUMPLE');
+  const porActividad = ldap('desconexion@2026-09-17T20:10:00Z,actividad@2026-09-17T23:00:00Z');
+  comprueba(
+    'LDAP de vuelta antes de su primera alerta a las 23:00 (como mucho 3 h) → la primera alerta es solo cota superior: NO_EVALUABLE, nunca NO_CUMPLE',
+    porActividad.evidencia('EV-04')?.status === 'NO_EVALUABLE',
+    `${estado(porActividad, 'EV-04')} ${porActividad.de('EV-04')}`
+  );
+  const sinTiempo = evalua(hoy(fila('continuity_test_recorded', simulacro, { agents_disconnection_time: '-' })));
+  comprueba(
+    'sin agents_disconnection_time, una caída que empieza con una 504 no tiene principio conocido → NO_EVALUABLE por RECOGIDA',
+    sinTiempo.evidencia('EV-04')?.status === 'NO_EVALUABLE' && sinTiempo.evidencia('EV-04')?.gapCause === 'COLLECTION' && /agents_disconnection_time/.test(sinTiempo.de('EV-04')),
+    `${estado(sinTiempo, 'EV-04')} ${sinTiempo.de('EV-04')}`
+  );
+
+  // Un día que falta podría partir una caída larga en dos cortas.
+  const conHueco = evalua(hoy(l =>
+    fila('continuity_test_recorded', simulacro, { medicion: 'parcial', dias_sin_alertas: '2026-09-17' })(
+      fila('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(l)
+    )
+  ));
+  comprueba(
+    'la misma caída de 4 h 47 min, pero falta el día 17 → NO_EVALUABLE por RECOGIDA, no NO_CUMPLE',
+    conHueco.evidencia('EV-04')?.status === 'NO_EVALUABLE' && conHueco.evidencia('EV-04')?.gapCause === 'COLLECTION',
+    `${estado(conHueco, 'EV-04')} ${conHueco.de('EV-04')}`
+  );
+  const cortada = evalua(hoy(fila('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z', eventos_total: 60 })));
+  comprueba('y con la cronología truncada, igual: NO_EVALUABLE', cortada.evidencia('EV-04')?.status === 'NO_EVALUABLE', estado(cortada, 'EV-04'));
+
+  const callado = evalua(hoy(fila('availability_event_observed', x => x.agente_id === '024', { eventos: '-', eventos_total: 0, alertas_propias: 0 })));
+  comprueba(
+    'sin caídas, pero sin una sola alerta propia en todo el rango → no consta que estuviera en marcha: NO_EVALUABLE',
+    callado.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /tampoco envió ninguna alerta propia/.test(callado.de('EV-04')),
+    `${estado(callado, 'EV-04')} ${callado.de('EV-04')}`
+  );
+  comprueba('REVERSIÓN: sin caídas y con alertas propias → CUMPLE', evalua(hoy(fila('availability_event_observed', x => x.agente_id === '024', { eventos: '-', eventos_total: 0 }))).evidencia('EV-04')?.status === 'CUMPLE');
+
+  // Los hechos de disponibilidad perdidos no se confunden con «no es un agente».
+  const perdido = evalua(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? undefined : l)));
+  comprueba(
+    'llega 1 de los 2 hechos de disponibilidad (candidatos=2) → NO_EVALUABLE por RECOGIDA, no «wazuh-real no es un agente»',
+    perdido.evidencia('EV-04')?.status === 'NO_EVALUABLE' && perdido.evidencia('EV-04')?.gapCause === 'COLLECTION' && /faltan 1/.test(perdido.de('EV-04')),
+    `${estado(perdido, 'EV-04')} ${perdido.de('EV-04')}`
+  );
+  const sinCandidatos = evalua(hoy(fila('continuity_test_recorded', simulacro, { candidatos: '-' })));
+  comprueba('una fila sin `candidatos` → no se distingue lo perdido: RECOGIDA', sinCandidatos.evidencia('EV-04')?.gapCause === 'COLLECTION', estado(sinCandidatos, 'EV-04'));
+  const otraVentana = evalua(hoy(fila('availability_event_observed', () => true, { prueba_fin: '2026-09-17T22:00:00Z' })));
+  comprueba(
+    'hechos de disponibilidad de otra ventana (la fila se editó: otro fin) no cuentan → faltan, RECOGIDA',
+    otraVentana.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /faltan 2/.test(otraVentana.de('EV-04')),
+    `${estado(otraVentana, 'EV-04')} ${otraVentana.de('EV-04')}`
+  );
+
+  // Restauraciones: solo un fallo explícito, y solo si es de la prueba.
+  const restaura = (cambio: Linea) => evalua(hoy(fila('backup_restore_observed', () => true, cambio)));
+  comprueba(
+    'una restauración fallida del PBS al día siguiente (fuera de la ventana, y el PBS no es de la prueba) → no cuenta: CUMPLE',
+    restaura({ instante: '2026-09-18T10:00:00Z', resultado: 'error', coincide: 'no' }).evidencia('EV-04')?.status === 'CUMPLE'
+  );
+  comprueba(
+    'la misma, pero de wazuh-real (un sistema de la prueba) → cuenta: NO_CUMPLE',
+    restaura({ instante: '2026-09-18T10:00:00Z', resultado: 'error', coincide: 'no', agente_id: '024', agente: 'wazuh-real' }).evidencia('EV-04')?.status === 'NO_CUMPLE'
+  );
+  comprueba('un resultado sin dato («-») no es un fallo explícito → CUMPLE', restaura({ resultado: '-', coincide: '-' }).evidencia('EV-04')?.status === 'CUMPLE');
+  const restauraOtra = evalua(hoy(fila('backup_restore_observed', () => true, { resultado: 'error', prueba_fin: '2026-09-17T22:00:00Z' })));
+  comprueba('una restauración fallida de otra ventana (otro fin) no cuenta → CUMPLE', restauraOtra.evidencia('EV-04')?.status === 'CUMPLE');
+
+  // Una prueba que ejercita los medios alternativos sin declarar sistemas.
+  const julioSinSistemas = evalua(hoy(undefined, [prueba(`${PASADA}:01Z`, 5, '2026-07-20T18:00:00Z', '2026-07-20T21:00:00Z', 'parcial', 'pérdida total de CPD', '-', 'satisfactorio', 0)]).concat([]), BASE);
+  comprueba(
+    'una prueba parcial de julio sin sistemas, junto al simulacro medido → ya no se escapa: NO_EVALUABLE',
+    julioSinSistemas.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /no declara ningún sistema/.test(julioSinSistemas.de('EV-04')),
+    `${estado(julioSinSistemas, 'EV-04')} ${julioSinSistemas.de('EV-04')}`
+  );
 }
 
 // --- 6. segunda obligación: corregir ------------------------------------------------
@@ -591,11 +718,22 @@ bloque('10. Los sistemas de cada prueba se cruzan con los agentes por ID o por n
   const id24 = evalua(hoy(fila('availability_event_observed', l => l.agente_id === '024', { agente_id: '24' }), []), BASE);
   comprueba('un hecho con agente_id «24» casa con «wazuh-real» y con «024» (normalizado en los dos lados)', id24.evidencia('EV-04')?.status === 'CUMPLE' && evalua(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? { ...l, agente_id: '24' } : l.event === 'continuity_test_recorded' && simulacro(l) ? { ...l, sistemas: '024,28' } : l))).evidencia('EV-04')?.status === 'CUMPLE');
 
-  const parecido = sistemas('wazuh-rea,28');
+  // El recolector no encuentra agente para «wazuh-rea»: emite solo el del LDAP.
+  const sinAgente = (valor: string, candidatos: number) => (l: Linea): Linea | undefined =>
+    l.event === 'availability_event_observed' && l.agente_id === '024'
+      ? undefined
+      : fila('continuity_test_recorded', simulacro, { sistemas: valor, candidatos })(l);
+  const parecido = evalua(hoy(sinAgente('wazuh-rea,28', 1)));
   comprueba(
-    '«wazuh-rea» NO es wazuh-real: no es un agente, su RTO no se puede medir → NO_EVALUABLE, nunca CUMPLE',
-    parecido.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /«wazuh-rea» no es un agente de Wazuh/.test(parecido.de('EV-04')),
+    '«wazuh-rea» NO es wazuh-real: no es un agente, se dice, y no bloquea porque el LDAP sí está medido → CUMPLE',
+    parecido.evidencia('EV-04')?.status === 'CUMPLE' && /Sin medida, porque no son agentes de Wazuh: wazuh-rea/.test(parecido.de('EV-04')),
     `${estado(parecido, 'EV-04')} ${parecido.de('EV-04')}`
+  );
+  const ninguno = evalua(hoy(l => (l.event === 'availability_event_observed' ? undefined : fila('continuity_test_recorded', simulacro, { sistemas: 'switch-core', candidatos: 0 })(l))));
+  comprueba(
+    'si NINGÚN sistema de la prueba es un agente → NO_EVALUABLE: su resultado no se puede contrastar',
+    ninguno.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /ninguno de sus sistemas \(switch-core\) es un agente de Wazuh/.test(ninguno.de('EV-04')),
+    `${estado(ninguno, 'EV-04')} ${ninguno.de('EV-04')}`
   );
 
   // Dos agentes con el mismo nombre: el reinstalado (024) y el viejo (041).
@@ -686,11 +824,11 @@ bloque('11. Celdas con gramática estricta; el hueco de una prueba no tapa lo me
     eventos([
       ...pasada(),
       prueba(`${PASADA}:01Z`, 5, '2026-10-09T08:00:00Z', '2026-10-09T10:00:00Z', 'parcial', 'pérdida total de CPD', '028', 'satisfactorio', 0, { medicion: 'pendiente', medido_hasta: '2026-10-09T12:05:00Z' }),
-      disponibilidad(`${PASADA}:04Z`, '2026-10-09T08:00:00Z', '2026-10-09T10:00:00Z', '028', '028', 'ldap-zimbra', 'parada@2026-10-09T09:30:00Z'),
+      disponibilidad(`${PASADA}:04Z`, '2026-10-09T08:00:00Z', '2026-10-09T10:00:00Z', '028', '028', 'ldap-zimbra', 'parada@2026-10-09T09:30:00Z,arranque@2026-10-09T12:00:00Z'),
     ])
   );
   comprueba(
-    'una prueba de esta mañana con el LDAP aún caído 2 h 35 min y su RTO de 2 h 15 min → ya lo supera: NO_CUMPLE aunque la medición siga abierta',
+    'una prueba de esta mañana: el LDAP parado 2 h 30 min hasta su arranque, con su RTO de 2 h 15 min → NO_CUMPLE aunque la medición siga abierta',
     pendiente.evidencia('EV-04')?.status === 'NO_CUMPLE',
     pendiente.de('EV-04')
   );
@@ -698,12 +836,12 @@ bloque('11. Celdas con gramática estricta; el hueco de una prueba no tapa lo me
     eventos([
       ...pasada(),
       prueba(`${PASADA}:01Z`, 5, '2026-10-09T08:00:00Z', '2026-10-09T11:00:00Z', 'parcial', 'pérdida total de CPD', '028', 'satisfactorio', 0, { medicion: 'pendiente', medido_hasta: '2026-10-09T12:05:00Z' }),
-      disponibilidad(`${PASADA}:04Z`, '2026-10-09T08:00:00Z', '2026-10-09T11:00:00Z', '028', '028', 'ldap-zimbra', 'parada@2026-10-09T11:00:00Z'),
+      disponibilidad(`${PASADA}:04Z`, '2026-10-09T08:00:00Z', '2026-10-09T11:00:00Z', '028', '028', 'ldap-zimbra', 'parada@2026-10-09T09:30:00Z'),
     ])
   );
   comprueba(
-    'REVERSIÓN: caído desde las 11:00 (1 h 5 min, por debajo de su RTO) con la medición abierta → todavía no se sabe: NO_EVALUABLE, nunca CUMPLE',
-    pendienteCorta.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /todavía no se sabe/.test(pendienteCorta.de('EV-04')),
+    'REVERSIÓN: el mismo LDAP parado desde las 09:30 sin vuelta observada, con la medición abierta → todavía no se sabe: NO_EVALUABLE, nunca CUMPLE ni NO_CUMPLE',
+    pendienteCorta.evidencia('EV-04')?.status === 'NO_EVALUABLE' && /todavía no es concluyente/.test(pendienteCorta.de('EV-04')),
     `${estado(pendienteCorta, 'EV-04')} ${pendienteCorta.de('EV-04')}`
   );
 }

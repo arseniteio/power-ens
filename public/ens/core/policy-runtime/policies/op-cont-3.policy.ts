@@ -336,6 +336,11 @@ interface Prueba {
   medicion: string;
   medidoHasta?: number;
   diasSinAlertas: string[];
+  // Cuántos hechos de disponibilidad (111705) emitió el recolector para ella.
+  candidatos?: number;
+  // `agents_disconnection_time` del manager, en ms: cuánto antes de una 504
+  // pudo empezar la caída.
+  desconexion?: number;
 }
 
 const describe = (p: Prueba): string => `${p.tipo} del ${iso(p.inicio)}${vacio(p.escenario) ? '' : ` («${p.escenario}»)`}`;
@@ -382,6 +387,8 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; recibid
       medicion: campo(e, 'medicion'),
       medidoHasta: instante(campo(e, 'medido_hasta')),
       diasSinAlertas: listaDe(campo(e, 'dias_sin_alertas')),
+      candidatos: /^\d+$/.test(campo(e, 'candidatos')) ? Number(campo(e, 'candidatos')) : undefined,
+      desconexion: /^\d+$/.test(campo(e, 'agents_disconnection_time')) ? Number(campo(e, 'agents_disconnection_time')) * 1000 : undefined,
     });
   });
 
@@ -793,17 +800,62 @@ const cronologia = (texto: string): Item[] | undefined => {
   return items.sort((a, b) => a.t - b.t);
 };
 
+// Una caída, como INTERVALO: lo que se sabe de cuándo empezó y de cuándo
+// volvió el sistema.
+//
+//   - Una parada (506) la fecha exacta. Una desconexión (504) la emite el
+//     manager `agents_disconnection_time` después del último keepalive: la
+//     caída empezó entre ese instante menos ese tiempo y el de la 504. Sin el
+//     tiempo, el principio más temprano no se sabe.
+//   - Un arranque (503) fecha exacta la vuelta. La primera alerta propia del
+//     agente (`actividad`) solo dice que ya había vuelto: es una cota superior,
+//     y la vuelta pudo ser en cualquier momento desde la caída.
+//   - Sin vuelta observada hasta el final de lo medido, la caída queda abierta:
+//     el agente pudo volver sin decir nada (un servidor tranquilo no alerta).
+interface Tramo {
+  desdeMin?: number;
+  desdeMax: number;
+  hastaMin: number;
+  hastaMax?: number;
+  cierre: 'arranque' | 'actividad' | 'abierta';
+  inicial: string;
+}
+
+const minimaDe = (x: Tramo): number => Math.max(0, x.hastaMin - x.desdeMax);
+
+const maximaDe = (x: Tramo): number | undefined =>
+  x.desdeMin === undefined || x.hastaMax === undefined ? undefined : x.hastaMax - x.desdeMin;
+
+const CIERRE: Record<Tramo['cierre'], string> = {
+  arranque: 'restablecido (arranque)',
+  actividad: 'de vuelta antes de su primera alerta propia',
+  abierta: 'sin vuelta observada',
+};
+
+const describeTramo = (x: Tramo): string => {
+  const min = minimaDe(x);
+  const max = maximaDe(x);
+  const cuanto = max === undefined ? `al menos ${duracion(min)}` : min === max ? duracion(min) : `entre ${duracion(min)} y ${duracion(max)}`;
+
+  return `${x.inicial} ${iso(x.desdeMax)}: ${cuanto}, ${CIERRE[x.cierre]}`;
+};
+
 interface Sistema {
   nombre: string;
+  // Con agente y cronología legible: hay medida, concluyente o no.
+  medido: boolean;
+  // No es un agente de Wazuh: se dice, y solo bloquea si ningún sistema de la
+  // prueba está medido.
+  noAgente?: boolean;
   // Sin medida concluyente: la causa y el motivo.
   hueco?: Medida;
-  // La caída más larga, cerrada o abierta hasta `hasta`.
-  caidas: number;
-  maxima: number;
-  abierta: boolean;
+  tramos: Tramo[];
   rto?: Rto;
-  // true: no alcanzó el RTO (concluyente); false: lo alcanzó.
+  // true: la cota INFERIOR de una caída cerrada por un arranque supera el RTO;
+  // false: la cota SUPERIOR de todas cabe en él. Sin valor: no se sabe.
   excede?: boolean;
+  // La caída que lo prueba, si excede.
+  culpable?: Tramo;
   texto: string;
 }
 
@@ -813,13 +865,20 @@ interface Analisis {
   restauraciones: ENSNormalizedEvent[];
   fallidas: ENSNormalizedEvent[];
   cambios: ENSNormalizedEvent[];
-  // Lo que impide medir la prueba entera (medición incompleta).
-  hueco?: Medida;
+  // Lo que impide concluir sobre la prueba entera: la medición incompleta o
+  // pendiente, o hechos de disponibilidad perdidos por el camino.
+  huecos: Medida[];
 }
 
+// Lo medido de UNA prueba en la misma pasada que su fila: por su inicio Y su
+// fin, para que una fila editada no herede la medida de la ventana anterior.
 const delMismoPaso = (context: ENSPolicyContext, ahora: number, tipo: string, t: number, prueba: Prueba): ENSNormalizedEvent[] =>
   validos(context, tipo, ahora).filter(
-    e => momento(e) >= t - MISMA_PASADA && momento(e) <= t + HORA && instante(campo(e, 'prueba_inicio')) === prueba.inicio
+    e =>
+      momento(e) >= t - MISMA_PASADA &&
+      momento(e) <= t + HORA &&
+      instante(campo(e, 'prueba_inicio')) === prueba.inicio &&
+      instante(campo(e, 'prueba_fin')) === prueba.fin
   );
 
 const rtoDe = (rtos: Rto[], sistema: string, hecho: ENSNormalizedEvent): Rto | undefined =>
@@ -827,32 +886,106 @@ const rtoDe = (rtos: Rto[], sistema: string, hecho: ENSNormalizedEvent): Rto | u
   rtos.find(r => r.sistema === '*');
 
 const MEDICION: Record<string, string> = {
-  parcial: 'faltan alertas de algunos días de su ventana en el manager',
-  sin_alertas: 'las alertas de los días de su ventana ya no están en el manager',
-  error: 'el recolector no pudo leer las alertas de su ventana',
+  parcial: 'faltan alertas de algunos días de su rango en el manager',
+  sin_alertas: 'las alertas de los días de su rango ya no están en el manager',
+  error: 'el recolector no pudo leer las alertas de su rango',
   no_aplica: 'el recolector no la midió',
 };
 
+// ¿Es de alguno de los sistemas de la prueba? Por ID o por nombre exacto.
+const deLaPrueba = (e: ENSNormalizedEvent, prueba: Prueba): boolean =>
+  prueba.sistemas.some(s => (idDeAgente(s) !== undefined && idDeAgente(s) === idDelHecho(e)) || iguales(s, campo(e, 'agente')));
+
+// Los tramos de caída de una cronología, y las vueltas sin caída previa
+// observada (desde el inicio de la prueba).
+const tramosDe = (items: Item[], prueba: Prueba, hasta: number): { tramos: Tramo[]; huerfanas: Item[] } => {
+  const tramos: Tramo[] = [];
+  const huerfanas: Item[] = [];
+  let abierto: { desdeMin?: number; desdeMax: number; t: number; tipo: string } | undefined;
+
+  items.forEach(item => {
+    if (CAIDAS.includes(item.tipo)) {
+      if (!abierto) {
+        abierto = {
+          desdeMin: item.tipo === 'parada' ? item.t : prueba.desconexion === undefined ? undefined : item.t - prueba.desconexion,
+          desdeMax: item.t,
+          t: item.t,
+          tipo: item.tipo,
+        };
+      }
+    } else if (abierto) {
+      tramos.push({
+        desdeMin: abierto.desdeMin,
+        desdeMax: abierto.desdeMax,
+        hastaMin: item.tipo === 'arranque' ? item.t : abierto.t,
+        hastaMax: item.t,
+        cierre: item.tipo as Tramo['cierre'],
+        inicial: abierto.tipo,
+      });
+      abierto = undefined;
+    } else if (item.t >= prueba.inicio && item.t <= hasta) {
+      huerfanas.push(item);
+    }
+  });
+
+  if (abierto) {
+    tramos.push({ desdeMin: abierto.desdeMin, desdeMax: abierto.desdeMax, hastaMin: Math.max(hasta, abierto.t), cierre: 'abierta', inicial: abierto.tipo });
+  }
+
+  return { tramos, huerfanas };
+};
+
 const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Prueba, rtos: Rto[] | undefined): Analisis => {
-  const disponibilidad = delMismoPaso(context, ahora, 'availability_event_observed', t, prueba);
+  const disponibilidad = unaPorClave(delMismoPaso(context, ahora, 'availability_event_observed', t, prueba), idDelHecho);
   const restauraciones = delMismoPaso(context, ahora, 'backup_restore_observed', t, prueba);
   const cambios = delMismoPaso(context, ahora, 'post_test_change_observed', t, prueba);
-  const fallidas = restauraciones.filter(e => campo(e, 'resultado') !== 'ok' || campo(e, 'coincide') === 'no');
+  // Solo un fallo EXPLÍCITO, y solo si es de la prueba: en su ventana, o de uno
+  // de sus sistemas.
+  const fallidas = restauraciones.filter(e => {
+    const cuando = instante(campo(e, 'instante')) ?? momento(e);
+
+    return (
+      (campo(e, 'resultado') === 'error' || campo(e, 'coincide') === 'no') &&
+      ((cuando >= prueba.inicio && cuando <= prueba.fin) || deLaPrueba(e, prueba))
+    );
+  });
   const hasta = prueba.medidoHasta ?? prueba.fin;
-  const pendiente = prueba.medicion === 'pendiente';
-  const incompleta = prueba.medicion !== 'completa' && !pendiente;
-  const hueco = incompleta
-    ? sinMedir(
+  const completa = prueba.medicion === 'completa';
+  // Leídos todos los días de lo medido hasta ahora (completa o aún abierta).
+  const todosLosDias = (completa || prueba.medicion === 'pendiente') && !prueba.diasSinAlertas.length;
+  const huecos: Medida[] = [];
+
+  if (prueba.medicion === 'pendiente') {
+    huecos.push(sinMedir(`La medición de la prueba ${describe(prueba)} sigue abierta hasta las 24 h siguientes a su fin (leída hasta ${iso(hasta)}): todavía no es concluyente.`));
+  } else if (!completa) {
+    huecos.push(
+      sinMedir(
         `La medición de la prueba ${describe(prueba)} está incompleta (${prueba.medicion || 'sin dato'}: ${MEDICION[prueba.medicion] || 'estado desconocido'}${
           prueba.diasSinAlertas.length ? `; días sin alertas: ${prueba.diasSinAlertas.join(', ')}` : ''
         }).`,
         'COLLECTION'
       )
-    : undefined;
+    );
+  }
+
+  // Un sistema sin hecho es «no es un agente» solo si llegaron todos los
+  // candidatos que el recolector dice haber emitido.
+  const perdidos = prueba.candidatos === undefined ? undefined : Math.max(0, prueba.candidatos - disponibilidad.length);
+
+  if (perdidos === undefined) {
+    huecos.push(sinMedir(`La fila de la prueba ${describe(prueba)} no dice cuántos agentes candidatos midió el recolector (candidatos): no se distingue un hecho perdido de un sistema que no es agente.`, 'COLLECTION'));
+  } else if (perdidos > 0) {
+    huecos.push(
+      sinMedir(
+        `De los ${prueba.candidatos} hechos de disponibilidad que el recolector emitió para la prueba ${describe(prueba)} solo han llegado ${disponibilidad.length}: faltan ${perdidos}.`,
+        'COLLECTION'
+      )
+    );
+  }
 
   const sistemas: Sistema[] = prueba.sistemas.map(sistema => {
     const r = resuelve(sistema, disponibilidad);
-    const sinMedida: Sistema = { nombre: sistema, caidas: 0, maxima: 0, abierta: false, texto: '' };
+    const sinMedida: Sistema = { nombre: sistema, medido: false, tramos: [], texto: '' };
 
     if (r.tipo === 'ambiguo') {
       return {
@@ -865,11 +998,9 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     if (r.tipo === 'ninguno') {
       return {
         ...sinMedida,
-        hueco: sinMedir(
-          `«${sistema}» no es un agente de Wazuh en el manager: su disponibilidad durante la prueba no se puede medir (decláralo por el nombre o el ID de su agente).`,
-          incompleta ? 'COLLECTION' : 'EVIDENCE'
-        ),
-        texto: `${sistema}: sin agente, sin medida`,
+        noAgente: true,
+        hueco: sinMedir(`«${sistema}» no es un agente de Wazuh en el manager: su disponibilidad durante la prueba no se puede medir.`),
+        texto: `${sistema}: no es un agente de Wazuh, sin medida`,
       };
     }
 
@@ -877,83 +1008,116 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     const nombre = nombreDe(sistema, e);
     const items = cronologia(campo(e, 'eventos'));
     const total = numero(campo(e, 'eventos_total'));
+    const propias = numero(campo(e, 'alertas_propias'));
 
     if (!items) {
       return { ...sinMedida, nombre, hueco: sinMedir(`${nombre}: el recolector emitió una cronología que no se puede leer («${campo(e, 'eventos')}»).`, 'COLLECTION'), texto: `${nombre}: cronología ilegible` };
     }
 
-    // Las caídas que empiezan en la ventana de la prueba; las vueltas pueden
-    // llegar después (hasta las 24 h siguientes).
-    const tramos: [number, number | undefined][] = [];
-    let desde: number | undefined;
-
-    items.forEach(item => {
-      if (CAIDAS.includes(item.tipo)) {
-        if (desde === undefined && item.t >= prueba.inicio && item.t <= prueba.fin) {
-          desde = item.t;
-        }
-      } else if (desde !== undefined) {
-        tramos.push([desde, item.t]);
-        desde = undefined;
-      }
-    });
-
-    if (desde !== undefined) {
-      tramos.push([desde, undefined]);
-    }
-
-    const cerradas = tramos.filter(([, b]) => b !== undefined).map(([a, b]) => (b as number) - a);
-    const abierta = tramos.some(([, b]) => b === undefined);
-    const desdeAbierta = tramos.find(([, b]) => b === undefined)?.[0];
-    const maxima = Math.max(0, ...cerradas, abierta && desdeAbierta !== undefined ? hasta - desdeAbierta : 0);
+    const { tramos: todos, huerfanas } = tramosDe(items, prueba, hasta);
+    // Seguro de la prueba: empezó a más tardar en su fin y seguía caído en su
+    // inicio. Posible: pudo empezar en su ventana o seguir caído en ella.
+    const seguros = todos.filter(x => x.desdeMax <= prueba.fin && x.hastaMin >= prueba.inicio);
+    const posibles = todos.filter(x => (x.desdeMin ?? -Infinity) <= prueba.fin && (x.hastaMax ?? Infinity) >= prueba.inicio);
     const rto = rtos ? rtoDe(rtos, sistema, e) : undefined;
     const truncada = total !== undefined && total > items.length;
-    const resumen = !tramos.length
-      ? `${nombre}: sin caídas observadas`
-      : `${nombre}: ${tramos.length} caída(s), la más larga ${duracion(maxima)}${abierta ? `, sin restablecer a ${iso(hasta)}` : ', restablecido'}`;
-    const base: Sistema = { nombre, caidas: tramos.length, maxima, abierta, rto, texto: `${resumen}${rto ? ` (${rto.texto})` : ''}` };
+    const texto = `${nombre}: ${
+      posibles.length ? `${posibles.length} caída(s): ${posibles.map(describeTramo).join('; ')}` : `sin caídas observadas${propias !== undefined ? ` (${propias} alertas propias en el rango)` : ''}`
+    }${rto ? ` (${rto.texto})` : ''}`;
+    const base: Sistema = { nombre, medido: true, tramos: posibles, rto, texto };
 
     if (!rtos) {
       return base;
     }
 
     if (!rto) {
-      return {
-        ...base,
-        hueco: sinMedir(`${etiqueta(context, 'P-07')} no declara el RTO de «${sistema}» ni uno general (*): no hay contra qué juzgar su indisponibilidad.`, 'CONFIGURATION'),
-      };
+      return { ...base, hueco: sinMedir(`${etiqueta(context, 'P-07')} no declara el RTO de «${sistema}» ni uno general (*): no hay contra qué juzgar su indisponibilidad.`, 'CONFIGURATION') };
     }
 
-    if (maxima > rto.limite) {
-      return { ...base, excede: true };
+    // NO_CUMPLE solo con la cota INFERIOR de una caída cerrada por un
+    // arranque, con todos los días leídos y la cronología entera: un día que
+    // falta podría partir una caída larga en dos cortas.
+    const culpable = seguros
+      .filter(x => x.cierre === 'arranque' && minimaDe(x) > rto.limite)
+      .sort((a, b) => minimaDe(b) - minimaDe(a))[0];
+
+    if (culpable && todosLosDias && !truncada) {
+      return { ...base, excede: true, culpable };
     }
 
-    // Lo que no supera el RTO todavía no es concluyente si la cronología está
-    // truncada o la medición incompleta (puede faltar una caída o la vuelta),
-    // o si sigue caído y aún puede volver dentro del RTO.
-    if (truncada) {
-      return { ...base, hueco: sinMedir(`${nombre}: la cronología llegó truncada (${items.length} de ${total} eventos): no se puede afirmar que no hubo una caída más larga.`, 'COLLECTION') };
-    }
-
-    if (abierta) {
+    if (huerfanas.length) {
       return {
         ...base,
         hueco: sinMedir(
-          pendiente
-            ? `${nombre}: sigue sin restablecerse a ${iso(hasta)} y la medición de la prueba sigue abierta: todavía no se sabe si vuelve dentro de su RTO.`
-            : `${nombre}: no se observó su restablecimiento hasta ${iso(hasta)} (las 24 h siguientes a la prueba), y su ${rto.texto} es mayor: no se puede afirmar ni negar.`
+          `${nombre}: volvió (${huerfanas.map(x => `${x.tipo} ${iso(x.t)}`).join(', ')}) sin ninguna caída observada antes: no se sabe cuándo empezó a no estar disponible.`
         ),
       };
     }
 
-    return { ...base, excede: false };
+    if (truncada) {
+      return { ...base, hueco: sinMedir(`${nombre}: la cronología llegó truncada (${items.length} de ${total} eventos): no se puede afirmar que no hubo una caída más larga.`, 'COLLECTION') };
+    }
+
+    if (!completa) {
+      // Lo dice el hueco de la prueba.
+      return base;
+    }
+
+    if (!posibles.length) {
+      if (propias === undefined) {
+        return { ...base, hueco: sinMedir(`${nombre}: el recolector no dice cuántas alertas propias envió en el rango (alertas_propias).`, 'COLLECTION') };
+      }
+
+      if (propias === 0) {
+        return {
+          ...base,
+          hueco: sinMedir(`${nombre}: sin caídas observadas, pero tampoco envió ninguna alerta propia en todo el rango medido: no se puede afirmar que estuviera en marcha.`),
+        };
+      }
+
+      return { ...base, excede: false };
+    }
+
+    const maximas = posibles.map(maximaDe);
+
+    if (maximas.some(x => x === undefined)) {
+      const abierta = posibles.find(x => x.cierre === 'abierta');
+
+      return {
+        ...base,
+        hueco: abierta
+          ? sinMedir(`${nombre}: no se observó su vuelta (ni un arranque ni ninguna alerta propia) hasta ${iso(hasta)}: no se puede afirmar ni negar que se restableciera dentro de su ${rto.texto}.`)
+          : sinMedir(
+              `${nombre}: la fila de la prueba no trae agents_disconnection_time del manager, así que no se sabe cuánto antes de la desconexión (504) empezó la caída.`,
+              'COLLECTION'
+            ),
+      };
+    }
+
+    const peorCaso = Math.max(...(maximas as number[]));
+
+    if (peorCaso <= rto.limite) {
+      return { ...base, excede: false };
+    }
+
+    return {
+      ...base,
+      hueco: sinMedir(`${nombre}: su caída más larga duró entre ${duracion(Math.max(...posibles.map(minimaDe)))} y ${duracion(peorCaso)}, y su ${rto.texto} cae dentro: no se puede afirmar ni negar.`),
+    };
   });
 
-  return { prueba, sistemas, restauraciones, fallidas, cambios, hueco };
+  return { prueba, sistemas, restauraciones, fallidas, cambios, huecos };
 };
 
 const describeRestauracion = (e: ENSNormalizedEvent): string =>
   `${campo(e, 'agente') || '-'} (${idDelHecho(e) || '-'}) ${campo(e, 'instante') || iso(momento(e))}: ${campo(e, 'resultado') || '-'}${campo(e, 'coincide') === 'no' ? ', el contenido no coincide' : ''}`;
+
+// Lo que la prueba reveló según la medida: un RTO superado o una restauración
+// fallida. EV-05 exige que conste como deficiencia.
+const revelo = (a: Analisis): string[] => [
+  ...a.sistemas.filter(s => s.excede === true).map(s => `${s.nombre} por encima de su ${s.rto?.texto}`),
+  ...a.fallidas.map(e => `restauración fallida en ${describeRestauracion(e)}`),
+];
 
 // El juicio de UNA prueba: lo declarado frente a lo medido.
 const juzgaPrueba = (a: Analisis): Medida => {
@@ -967,7 +1131,14 @@ const juzgaPrueba = (a: Analisis): Medida => {
   if (satisfactoria && excedidos.length) {
     partes.push(
       noCumple(
-        `${titulo}, y la medida la desmiente: ${excedidos.map(s => `${s.nombre} estuvo ${duracion(s.maxima)} sin servicio${s.abierta ? ' y no se restableció en la ventana medida' : ''}, por encima de su ${s.rto?.texto}`).join('; ')}.`
+        `${titulo}, y la medida la desmiente: ${excedidos
+          .map(s => {
+            const x = s.culpable as Tramo;
+            const exacta = maximaDe(x) === minimaDe(x);
+
+            return `${s.nombre} estuvo ${exacta ? '' : 'al menos '}${duracion(minimaDe(x))} sin servicio (${x.inicial} ${iso(x.desdeMax)} → arranque ${iso(x.hastaMin)}), por encima de su ${s.rto?.texto}`;
+          })
+          .join('; ')}.`
       )
     );
   }
@@ -981,22 +1152,33 @@ const juzgaPrueba = (a: Analisis): Medida => {
     return combina(partes);
   }
 
-  if (a.hueco) {
-    partes.push(a.hueco);
-  }
+  partes.push(...a.huecos);
 
-  a.sistemas.filter(s => s.hueco).forEach(s => partes.push(s.hueco as Medida));
+  // Los sistemas que no son agentes se dicen; solo bloquean si ninguno de la
+  // prueba está medido.
+  const medidos = a.sistemas.filter(s => s.medido);
+  const noAgentes = a.sistemas.filter(s => s.noAgente);
+
+  a.sistemas.filter(s => s.hueco && !s.noAgente).forEach(s => partes.push(s.hueco as Medida));
+
+  if (!medidos.length && noAgentes.length) {
+    partes.push(sinMedir(`${titulo}: ninguno de sus sistemas (${lista(noAgentes.map(s => s.nombre))}) es un agente de Wazuh, así que su resultado no se puede contrastar con lo medido.`));
+  }
 
   if (partes.length) {
     return combina(partes);
   }
 
+  const aparte = noAgentes.length && medidos.length ? ` Sin medida, porque no son agentes de Wazuh: ${lista(noAgentes.map(s => s.nombre))}.` : '';
+
   return cumple(
-    satisfactoria
-      ? `${titulo}, y lo medido lo confirma: ${medido}.`
-      : excedidos.length || a.fallidas.length
-      ? `${titulo}, y lo medido es coherente con lo declarado: ${medido}${a.fallidas.length ? `; restauraciones fallidas: ${lista(a.fallidas.map(describeRestauracion))}` : ''}. Lo que la prueba reveló se juzga en EV-05.`
-      : `${titulo}; lo medido no muestra ningún objetivo incumplido: ${medido}.`
+    `${
+      satisfactoria
+        ? `${titulo}, y lo medido lo confirma: ${medido}.`
+        : excedidos.length || a.fallidas.length
+        ? `${titulo}, y lo medido es coherente con lo declarado: ${medido}${a.fallidas.length ? `; restauraciones fallidas: ${lista(a.fallidas.map(describeRestauracion))}` : ''}. Lo que la prueba reveló se juzga en EV-05.`
+        : `${titulo}; lo medido no muestra ningún objetivo incumplido: ${medido}.`
+    }${aparte}`
   );
 };
 
@@ -1064,24 +1246,21 @@ const ev04 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     partes.push(m.reparoRto);
   }
 
-  if (!m.analisis.length) {
-    partes.push(
-      m.sinSistemas.length
-        ? sinMedir(
-            `Las pruebas parciales o simulacros que se contrastan (${lista(m.sinSistemas.map(describe))}) no declaran ningún sistema: su resultado declarado no se puede contrastar con lo que pasó en los sistemas.`
-          )
-        : sinMedir('No consta ninguna prueba parcial ni simulacro realizado: no hay ningún resultado que contrastar con lo medido (lo juzga EV-01).')
-    );
+  if (!m.analisis.length && !m.sinSistemas.length) {
+    partes.push(sinMedir('No consta ninguna prueba parcial ni simulacro realizado: no hay ningún resultado que contrastar con lo medido (lo juzga EV-01).'));
 
     return combina(partes);
   }
 
   m.analisis.forEach(a => partes.push(juzgaPrueba(a)));
 
-  const aparte = m.sinSistemas.length ? ` Sin sistemas que medir: ${lista(m.sinSistemas.map(describe))}.` : '';
-  const resultado = combina(partes);
+  // Una prueba que ejercita los medios alternativos sin declarar sistemas no
+  // se escapa del contraste: no se puede demostrar su resultado.
+  m.sinSistemas.forEach(p =>
+    partes.push(sinMedir(`La prueba ${describe(p)}, declarada ${p.resultado || '-'}, no declara ningún sistema: su resultado no se puede contrastar con lo que pasó en los sistemas.`))
+  );
 
-  return aparte ? { ...resultado, motivo: `${resultado.motivo}${aparte}` } : resultado;
+  return combina(partes);
 };
 
 // --- EV-05 · las deficiencias y su corrección ------------------------------------
