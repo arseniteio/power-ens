@@ -102,9 +102,17 @@ const POLICY = 'policy.op.mon.2';
 
 // Todos los hechos de op.mon.2 son estados lentos: el recolector pasa cada 6 h
 // y reemite el estado entero. Frescura de 26 h, la del kit.
-const { hechos, estadoVigente, sinHechos, conDegradacion } = lectorDeHechos(CONTROL, {
+const { hechos, estadoVigente, degradacion, sinHechos, conDegradacion } = lectorDeHechos(CONTROL, {
   recolector: 'el recolector de op.mon.2 del manager',
 });
+
+// EV-06 (R2) lee el MISMO registro de ciclos que EV-02, y el recolector declara
+// los huecos de esa lectura con EV-02: con `log_alert_level` por encima de 3,
+// por ejemplo, degrada EV-02, EV-03 y EV-04 por CONFIGURATION y sus hechos no
+// llegan. EV-06 hereda esa degradación; si no, R2 saldría sin medir por
+// RECOGIDA un hueco que es de CONFIGURACIÓN. La suya propia, si la declara,
+// manda.
+const HEREDA_DEGRADACION: Record<string, string> = { 'EV-06': 'EV-02' };
 
 const decide = decisorDe(POLICY);
 
@@ -180,7 +188,13 @@ const registro = (
   const { vigentes, ultimo } = estadoVigente(context, tipoLectura, ahora);
 
   if (!vigentes.length || ultimo === undefined) {
-    return sinHechos(context, evidencia, ahora, ultimo, `hecho de lectura del ${nombre}`);
+    const heredada = HEREDA_DEGRADACION[evidencia];
+
+    return (
+      degradacion(context, evidencia, ahora) ||
+      (heredada ? degradacion(context, heredada, ahora) : undefined) ||
+      sinHechos(context, evidencia, ahora, ultimo, `hecho de lectura del ${nombre}`)
+    );
   }
 
   const lectura = vigentes[vigentes.length - 1];
@@ -1324,8 +1338,17 @@ const ev06Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   return combina(partes);
 };
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida =>
-  conDegradacion(context, ahora, 'EV-06', 'metrics_register_read', ev06Hechos(context, ahora));
+// Lo que el recolector declare después de la última lectura se combina con lo
+// medido: la degradación de EV-06 si la hay, y si no la de EV-02 (el mismo
+// registro). Nunca las dos: la misma línea puede nombrar «EV-02,EV-06».
+const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
+  const medida = ev06Hechos(context, ahora);
+  const propia = conDegradacion(context, ahora, 'EV-06', 'metrics_register_read', medida);
+
+  return propia !== medida
+    ? propia
+    : conDegradacion(context, ahora, HEREDA_DEGRADACION['EV-06'], 'metrics_register_read', medida);
+};
 
 // --- datos para el informe (sin veredicto) ----------------------------------------
 

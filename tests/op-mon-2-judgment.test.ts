@@ -694,6 +694,45 @@ bloque('6. Sin recolector, hechos viejos o perdidos: NO_EVALUABLE por RECOGIDA')
     cicloDegradado.motivo('op.mon.2.r1.1')
   );
 
+  // `log_alert_level` > 3: el recolector degrada EV-02, EV-03 y EV-04 por
+  // CONFIGURATION y los hechos de nivel 3 no llegan. R2 (EV-06) lee el mismo
+  // registro de ciclos que EV-02 y hereda su causa; antes salía por RECOGIDA.
+  const nivelDeAlertas = evalua(
+    hoy(l => (l.event === 'metrics_register_read' || l.event === 'metrics_cycle_recorded' ? undefined : l)).concat(eventos([
+      { ts: `${COMPLETA}:15Z`, event: 'evidence_state', evidence_id: 'EV-02,EV-03,EV-04', requisito: 'op.mon.2.1,op.mon.2.r1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'log_alert_level es 4 en ossec.conf: los hechos de nivel 3 no llegan a alerts.json' },
+    ]))
+  );
+  comprueba(
+    'log_alert_level > 3 (EV-02 degradada por CONFIGURATION) → R2 sin medir por CONFIGURATION, con el motivo del recolector',
+    nivelDeAlertas.decision('op.mon.2.r2.1')?.status === 'NO_EVALUABLE' &&
+      nivelDeAlertas.decision('op.mon.2.r2.1')?.cause === 'CONFIGURATION' &&
+      nivelDeAlertas.deEvidencia('op.mon.2.r2.1', 'EV-06')?.cause === 'CONFIGURATION' &&
+      /log_alert_level es 4/.test(nivelDeAlertas.motivo('op.mon.2.r2.1')),
+    `${nivelDeAlertas.decision('op.mon.2.r2.1')?.cause}: ${nivelDeAlertas.motivo('op.mon.2.r2.1')}`
+  );
+  const sinNingunaDegradacion = evalua(hoy(l => (l.event === 'metrics_register_read' || l.event === 'metrics_cycle_recorded' ? undefined : l)));
+  comprueba(
+    'REVERSIÓN: sin la degradación de EV-02, el registro de ciclos que no llega es de RECOGIDA',
+    sinNingunaDegradacion.decision('op.mon.2.r2.1')?.status === 'NO_EVALUABLE' && sinNingunaDegradacion.decision('op.mon.2.r2.1')?.cause === 'COLLECTION',
+    sinNingunaDegradacion.decision('op.mon.2.r2.1')?.cause
+  );
+  const despuesDeLeer = evalua(hoy().concat(eventos([
+    { ts: `${COMPLETA}:45Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'log_alert_level es 4 en ossec.conf' },
+  ])));
+  comprueba(
+    'la degradación de EV-02 posterior a la lectura de los ciclos también deja de acreditar R2, con su causa',
+    despuesDeLeer.decision('op.mon.2.r2.1')?.status === 'NO_EVALUABLE' && despuesDeLeer.decision('op.mon.2.r2.1')?.cause === 'CONFIGURATION',
+    `${despuesDeLeer.decision('op.mon.2.r2.1')?.status} ${despuesDeLeer.decision('op.mon.2.r2.1')?.cause}: ${despuesDeLeer.motivo('op.mon.2.r2.1')}`
+  );
+  const ambas = evalua(hoy().concat(eventos([
+    { ts: `${COMPLETA}:45Z`, event: 'evidence_state', evidence_id: 'EV-02,EV-06', requisito: 'op.mon.2.1,op.mon.2.r2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'el registro de ciclos cambió durante la lectura' },
+  ])));
+  comprueba(
+    'una línea que nombra EV-02 y EV-06 no repite el motivo en R2',
+    (ambas.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason.match(/cambió durante la lectura/g) || []).length === 1,
+    ambas.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason
+  );
+
   const ajeno = normalizeWazuhAlerts([{
     _id: 'otro',
     _source: {
