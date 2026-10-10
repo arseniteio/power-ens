@@ -3956,4 +3956,151 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
+  // --- op.cont.2 · Plan de continuidad --------------------------------------
+  //
+  // Control de DOCUMENTO, sin runbook ni reglas: ninguna máquina emite hechos
+  // para él, así que ninguna evidencia escucha ningún evento ni tiene origen
+  // (`expectedEventTypes` y `sourceTypes` vacíos). Todas las resuelve la policy
+  // del control (`policies/op-cont-2.policy.ts`) con las tablas de la pantalla
+  // y su vigencia contra la fecha de la evaluación, y el puente las lleva a la
+  // tabla. Un control cuyas evidencias no escuchan nada no espera hechos: lo
+  // que no se puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA (ver
+  // `controlExpectsFacts` en `registry.ts`).
+  //
+  // Se rige por el nivel de Disponibilidad y solo en ALTO: con D en BAJO o
+  // MEDIO todas salen NO_APLICA por nivel.
+  //
+  // EV-01, EV-04 y EV-06 juzgan declaraciones: su CUMPLE dice que la
+  // declaración está completa y en vigor, no que se haya medido nada, y el
+  // requisito que se apoya en ellas sale «acreditado documentalmente». EV-02,
+  // EV-05, EV-07 y EV-08 no se pueden medir hoy y EV-03 es de R2, que no se
+  // exige: las cinco salen NO_APLICA como dato del informe, con su motivo.
+  {
+    id: 'EV-01',
+    controlId: 'op.cont.2',
+    title: 'Registro del plan de continuidad y de su vigencia',
+    description:
+      'Constancia del plan aprobado de P-01 (referencia, versión y fecha de aprobación) y control de que su última aprobación no tiene más antigüedad que la periodicidad de revisión de P-08 en la fecha de la evaluación. NO es verificación del contenido del plan: es control documental de existencia y vigencia. Sostiene los cinco requisitos, porque cada uno es un contenido del plan.',
+    requirements: ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Consta un plan de continuidad aprobado, con su versión y fecha, cuya última aprobación no supera la periodicidad de revisión de P-08?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.cont.2',
+    title: 'Detección y datación de interrupciones reales del servicio',
+    description:
+      'Interrupciones efectivamente producidas en los sistemas que soportan servicios esenciales (caída de agente, parada de servicio, pérdida de conectividad), con su hora de inicio y de restablecimiento. Dato del informe, sin veredicto: el requisito pide una PREVISIÓN, no ausencia de caídas, y el hecho que las mediría no se recoge en esta versión.',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Qué interrupciones han sufrido los sistemas que soportan los servicios esenciales de P-02, y cuánto duró cada una?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.cont.2',
+    title: 'Comprobación de integridad tras caída o discontinuidad (R2)',
+    description:
+      'Verificación de la integridad del sistema operativo, del firmware y de los ficheros de configuración de P-07 al reanudarse el servicio tras una caída. R2 no se exige en ningún nivel: solo informe. La comprobación en el arranque ya la mide op.exp.6 en cada agente (su EV-06).',
+    requirements: ['op.cont.2.r2.1'],
+    levels: ['ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se comprueba la integridad de los componentes de P-07 cada vez que el sistema vuelve de una caída?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.cont.2',
+    title: 'Vigencia de los contratos de medios alternativos',
+    description:
+      'Cada medio alternativo de P-04 con el acuerdo o contrato que lo materializa y en vigor en la fecha de la evaluación. op.cont.2.3 exige que TODOS estén materializados en contrato: un medio sin contrato, o con el contrato vencido, es un incumplimiento directo. Se juzga la declaración, no el contrato.',
+    requirements: ['op.cont.2.3'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Tiene cada medio alternativo de P-04 un acuerdo o contrato en vigor?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.cont.2',
+    title: 'Coherencia de las funciones asignadas en el plan',
+    description:
+      'Contraste entre las personas con función en P-03 y su situación real en la organización (bajas, cambios de puesto). Dato del informe, sin veredicto: no hay directorio corporativo integrado (las bajas de op.acc.1 son cuentas de sistema, no personas), así que la declaración de P-03 se juzga en op.cont.2.1 y su coherencia la revisa el auditor.',
+    requirements: ['op.cont.2.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Siguen en la organización, y en el puesto, las personas a las que P-03 asigna una función del plan?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.cont.2',
+    title: 'Estado de la formación del personal afectado',
+    description:
+      'Cada responsable y cada suplente de P-03 con una fila en P-05 y la formación vigente en la fecha de la evaluación. op.cont.2.4 la exige de forma expresa: una persona con función sin formación registrada, o con la formación vencida, es un incumplimiento. Se juzga la declaración, no la formación.',
+    requirements: ['op.cont.2.4'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Tiene cada persona con función en el plan (P-03) formación específica vigente en P-05?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.cont.2',
+    title: 'Disponibilidad real frente a los objetivos comprometidos',
+    description:
+      'Disponibilidad efectiva de los sistemas que soportan servicios esenciales contrastada con los RTO y RPO de P-02. Dato del informe, sin veredicto: depende de las interrupciones de EV-02, que no se recogen en esta versión.',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se ha restablecido cada servicio esencial dentro de su RTO en las interrupciones del período?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.cont.2',
+    title: 'Entrada en servicio de los medios alternativos',
+    description:
+      'Activación efectiva de los medios alternativos (arranque en el emplazamiento secundario, conmutación de servicios) y el intervalo desde la caída del medio habitual. Dato del informe, sin veredicto: no hay un hecho genérico que distinga «arrancó el CPD alternativo» de «arrancó una máquina».',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'RECOVERY',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Entraron en servicio los medios alternativos cuando hizo falta, y en cuánto tiempo?',
+  },
 ];

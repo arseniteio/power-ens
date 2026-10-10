@@ -12,7 +12,7 @@ import {
   ENSNormalizedEvent,
   getENSNormalizedEventsFromProvider,
 } from './data-source';
-import { resolveEvidenceForControl } from './evidence';
+import { controlExpectsFacts, resolveEvidenceForControl } from './evidence';
 import { keepLatestRunStateFacts } from './evidence/state-facts';
 import {
   findStaleCollector,
@@ -171,7 +171,10 @@ const evaluateControlOnEvents = (
         )
       : undefined);
 
-  const expectsFacts = !unmatchedScopeReason;
+  // Tampoco se esperan hechos de un control que no escucha ninguno (op.cont.2:
+  // solo configuración, sin runbook). Ver `controlExpectsFacts`.
+  const expectsFacts =
+    !unmatchedScopeReason && controlExpectsFacts(catalogControl.id);
 
   // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
   // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).

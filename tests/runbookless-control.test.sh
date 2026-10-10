@@ -57,7 +57,8 @@ if printf '%s\n' "$salida" | grep -q '^FALLA  op.zzz.9'; then
 else
   ok "declarado, la comprobación 14 lo admite"
 fi
-if printf '%s\n' "$salida" | grep -q 'sin runbook: op.zzz.9'; then
+# Junto a los ACTIVE de verdad que se juzgan sin runbook (op.cont.2).
+if printf '%s\n' "$salida" | grep -qE 'sin runbook: (.*, )?op\.zzz\.9(,|$)'; then
   ok "y lo nombra entre los que se juzgan sin runbook"
 else
   falla "no lo nombra entre los que se juzgan sin runbook"; printf '%s\n' "$salida" | sed 's/^/       | /'

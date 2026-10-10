@@ -316,4 +316,18 @@ export const ensRequirementsFile = {
     'Procedimientos de respuesta a las alertas (R2) - Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
   'op.mon.1.r3.1':
     'Acciones predeterminadas automáticas (R3) - Refuerzo R3 – Acciones predeterminadas: El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.',
+  'op.cont.2.1':
+    'Funciones, responsabilidades y actividades - Se identificarán funciones, responsabilidades y actividades a realizar.',
+  'op.cont.2.2':
+    'Previsión para coordinar los medios alternativos - Existirá una previsión para coordinar la entrada en servicio de los medios alternativos de forma que se garantice poder seguir prestando los servicios esenciales de la organización.',
+  'op.cont.2.3':
+    'Medios alternativos en acuerdos o contratos - Todos los medios alternativos estarán planificados y materializados en acuerdos o contratos con los proveedores correspondientes.',
+  'op.cont.2.4':
+    'Formación de las personas afectadas - Las personas afectadas por el plan recibirán formación específica relativa a su papel en dicho plan.',
+  'op.cont.2.5':
+    'Integración con los demás planes de continuidad - El plan de continuidad será parte integral y armónica de los planes de continuidad de la organización en otras materias ajenas a la seguridad.',
+  'op.cont.2.r1.1':
+    'Plan de emergencia y contingencia (R1) - Refuerzo R1 – Plan de emergencia y contingencia: Cuando se determine la necesidad de continuidad de los sistemas, deberá existir un plan de emergencia y contingencia en consonancia. En función del análisis de Impacto, se determinarán los aspectos a cubrir.',
+  'op.cont.2.r2.1':
+    'Comprobación de integridad tras una caída (R2) - Refuerzo R2 – Comprobación de integridad: Ante una caída o discontinuidad del sistema, se deberá comprobar la integridad del sistema operativo, del firmware y de los ficheros de configuración.',
 };
