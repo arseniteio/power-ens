@@ -250,10 +250,10 @@ export const buildOpNub1ReportModel = (
   const campo10 = field(
     'op.nub.1.campo10',
     'Accesos a los servicios cloud',
-    evidenceStatus('EV-07'),
-    'MEDIDO en el manager de Wazuh. Inicios de sesión interactivos por servicio, con resultado, segundo factor y orígenes. Un servicio cloud es acceso desde una zona no controlada (op.acc.6): un acceso con éxito sin segundo factor es un hallazgo.',
+    'NO_APLICA',
+    'Hallazgo del informe, sin veredicto, cruzado con op.acc.6.r8.1 (que lo juzga): inicios de sesión interactivos por servicio, con resultado, segundo factor y orígenes, medidos en el manager de Wazuh. Destacados los accesos con éxito sin segundo factor.',
     ['EV-07'],
-    evidenceObservations('EV-07'),
+    [variableDescription('accesos_cloud'), ...evidenceObservations('EV-07')],
   );
 
   // Servicios de seguridad en la nube (R1.2)  ·  fuente: P-05, con su vigencia

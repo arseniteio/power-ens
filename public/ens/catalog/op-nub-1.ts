@@ -23,7 +23,8 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
   // tablas (P-03, P-05) con su vigencia y los saca del juego (NO_APLICA) cuando
   // P-01 o P-05 lo dicen. Sin P-ATT (decisión 1 del responsable). EV-03,
   // EV-05 y EV-06 son datos del informe, sin requisito que las juzgue: Wazuh
-  // 4.14 no tiene «SCA cloud» ni ve el tráfico hacia la nube.
+  // 4.14 no tiene «SCA cloud» ni ve el tráfico hacia la nube. EV-07 (accesos
+  // sin segundo factor) es un hallazgo cruzado con op.acc.6.r8.1, que lo juzga.
   requirements: [
     {
       id: 'op.nub.1.1',
@@ -48,10 +49,11 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      // EV-09 es el expediente documental (acreditado con `attested`); EV-01,
-      // EV-04 y EV-07 son la medida técnica de los servicios que P-06 integra,
-      // y una medida en contra manda sobre el documento.
-      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      // EV-09 es el expediente documental (acreditado con `attested`); EV-01 y
+      // EV-04 son la medida técnica de los servicios utilizados que P-06
+      // integra, y una medida en contra manda sobre el documento. EV-07 (el
+      // segundo factor) es un hallazgo del informe: lo juzga op.acc.6.r8.1.
+      evidenceIds: ['EV-01', 'EV-04', 'EV-09'],
       parameterIds: ['P-01', 'P-02', 'P-03', 'P-06', 'P-08', 'P-09', 'P-10', 'P-11', 'P-12', 'P-13'],
     },
     {

@@ -4103,12 +4103,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   },
   {
     // Una acción, agregada por pasada (módulo, cuenta, usuario, resultado,
-    // segundo factor). Ventana de 30 días.
+    // segundo factor). Ventana de 30 días. Hallazgo del informe, sin
+    // requisito que la juzgue: el criterio del segundo factor es el de
+    // op.acc.6.r8.1 (y las ubicaciones de confianza de Azure darían rojos
+    // falsos aquí). La policy la devuelve NO_APLICA con lo observado.
     id: 'EV-07',
     controlId: 'op.nub.1',
     title: 'Autenticaciones y accesos en los servicios cloud',
     description:
-      'Inicios de sesión interactivos en los servicios integrados (consola de AWS, inicios de sesión de Microsoft Entra ID), agregados por módulo, cuenta, usuario, resultado y segundo factor, con sus orígenes. Un servicio cloud es acceso desde una zona no controlada (op.acc.6): un acceso con éxito sin segundo factor incumple op.nub.1.2. Si el proveedor no registra el segundo factor (accesos federados, Google Cloud), no se puede afirmar.',
+      'Inicios de sesión interactivos en los servicios integrados (consola de AWS, inicios de sesión de Microsoft Entra ID), agregados por módulo, cuenta, usuario, resultado y segundo factor, con sus orígenes. Es un hallazgo del informe, sin veredicto en op.nub.1: un acceso con éxito sin segundo factor desde una zona no controlada lo juzga op.acc.6.r8.1, y aquí se señala cruzado con él. Si el proveedor no registra el segundo factor (accesos federados, Google Cloud), se dice.',
     requirements: ['op.nub.1.2'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'ACCESS_CONTROL',
@@ -4118,7 +4121,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     relatedRules: ['111504'],
     agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Se ha accedido con éxito a algún servicio integrado sin segundo factor?',
+      '¿Se ha accedido con éxito a algún servicio integrado sin segundo factor? (hallazgo del informe; lo juzga op.acc.6.r8.1)',
   },
   {
     // Documental (R1): P-04 por servicio utilizado, contra la fecha de la

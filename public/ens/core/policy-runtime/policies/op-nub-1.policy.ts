@@ -13,9 +13,10 @@
 //      `attested`: en pantalla, «acreditado documentalmente», nunca medido.
 //   2. LO TÉCNICO SE MIDE EN EL MANAGER y los hechos hablan de MÓDULOS cloud,
 //      no de esta máquina: cada fila de P-06 se cruza con su módulo (EV-01),
-//      con sus operaciones administrativas contra P-11 (EV-04) y con sus
-//      accesos interactivos (EV-07). Un servicio sin integración es un
-//      hallazgo del informe, no un veredicto (spec §4.6-4).
+//      y con sus operaciones administrativas contra P-11 (EV-04). Un servicio
+//      sin integración es un hallazgo del informe, no un veredicto (spec
+//      §4.6-4). Los accesos sin segundo factor (EV-07) también: el criterio
+//      es el de op.acc.6.r8.1, y aquí se informan cruzados con él.
 //   3. LA MEDIDA MANDA SOBRE EL DOCUMENTO. op.nub.1.2 cumple acreditado si el
 //      expediente está completo y vigente y ninguna medida técnica está en
 //      contra; una medida técnica en NO_CUMPLE lo deja en NO_CUMPLE, y lo
@@ -27,8 +28,8 @@
 //                  P-01 no es prestador ni ambos; si lo es, la conformidad de
 //                  cada servicio prestado de P-02 en P-03, en vigor
 //                  (`attested`).
-//   op.nub.1.2     usuario: EV-09 (expediente) con EV-01, EV-04 y EV-07 de
-//                  los servicios que P-06 integra.
+//   op.nub.1.2     usuario: EV-09 (expediente) con EV-01 y EV-04 de los
+//                  servicios utilizados que P-06 integra. EV-07 se informa.
 //   op.nub.1.r1.1  EV-08: certificación de P-04 en vigor por servicio.
 //   op.nub.1.r1.2  P-05 con una sola fila «ninguno» → NO_APLICA; vacío, o
 //                  «ninguno» mezclado con servicios → sin medir
@@ -964,6 +965,15 @@ const ev07 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
   return deg && medida.estado !== 'NO_APLICA' ? combina([medida, deg]) : medida;
 };
 
+// EV-07 no decide op.nub.1.2: el criterio del segundo factor es el de
+// op.acc.6.r8.1 (acceso desde zona no controlada), y aquí no se ven sus
+// matices (las ubicaciones de confianza de Azure darían rojos falsos). Lo
+// medido se INFORMA, cruzado con op.acc.6, sin veredicto (ronda 1).
+const accesosInformados = (medida: Medida): Medida =>
+  noAplica(
+    `Hallazgo del informe, sin veredicto: el criterio del segundo factor en el acceso desde una zona no controlada es el de op.acc.6.r8.1, que lo juzga. Lo observado: ${medida.estado === 'NO_CUMPLE' ? 'HAY ACCESOS SIN SEGUNDO FACTOR. ' : ''}${medida.motivo}`
+  );
+
 // --- EV-02 · los hallazgos de postura del proveedor (R2) -----------------------
 
 const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
@@ -1047,6 +1057,9 @@ const datoDeclarado = (context: ENSPolicyContext, id: string, que: string, colum
 const DATO_EV05 =
   'Dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud y el recolector no usa credenciales del proveedor, así que el cifrado configurado no se puede medir. Lo declarado en P-09 se juzga en el expediente (EV-09, op.nub.1.2 c).';
 
+const DATO_EV07 =
+  'Hallazgo del informe, sin veredicto: el criterio del segundo factor en el acceso desde una zona no controlada es el de op.acc.6.r8.1, que lo juzga.';
+
 const DATO_EV06 =
   'Dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 se juzga en el expediente (EV-09, op.nub.1.2 d).';
 
@@ -1121,7 +1134,9 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, sin, `${ev} CUMPLE`, true));
       });
 
-    ['EV-03', 'EV-05', 'EV-06'].forEach(ev => decideEvidencia('op.nub.1.2', ev, noAplica(ev === 'EV-03' ? DATO_EV03 : ev === 'EV-05' ? DATO_EV05 : DATO_EV06), 'dato del informe'));
+    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev =>
+      decideEvidencia('op.nub.1.2', ev, noAplica(ev === 'EV-03' ? DATO_EV03 : ev === 'EV-05' ? DATO_EV05 : ev === 'EV-06' ? DATO_EV06 : DATO_EV07), 'dato del informe')
+    );
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
@@ -1140,7 +1155,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, fuera));
       });
 
-    ['EV-03', 'EV-05', 'EV-06'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera, 'dato del informe'));
+    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera, 'dato del informe'));
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
@@ -1180,12 +1195,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   // --- op.nub.1.2 · usuario: expediente + medida técnica --------------------
   let ingesta: Ingesta | undefined;
+  let accesos: Medida | undefined;
 
   if (aplica('op.nub.1.2')) {
     if (!usa(posicion)) {
       const fuera = noAplica(`P-01 = ${posicion}: el sistema no utiliza servicios en la nube de terceros.`);
 
-      decideRequisito('op.nub.1.2', fuera, ['EV-01', 'EV-04', 'EV-07', 'EV-09'], 'usuario');
+      decideRequisito('op.nub.1.2', fuera, ['EV-01', 'EV-04', 'EV-09'], 'usuario');
       ['EV-01', 'EV-04', 'EV-07', 'EV-09'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera));
     } else {
       const utilizados = inv?.utilizados || [];
@@ -1205,9 +1221,12 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       const tecnicas: { id: string; medida: Medida }[] = [
         { id: 'EV-01', medida: ingesta.medida },
         { id: 'EV-04', medida: ev04(context, ahora, todos, ingesta) },
-        { id: 'EV-07', medida: ev07(context, ahora, todos, ingesta) },
       ];
       const propias = [{ id: 'EV-09', medida: expediente }, ...tecnicas];
+
+      // EV-07: hallazgo del informe, sin veredicto (ver `accesosInformados`).
+      accesos = ev07(context, ahora, todos, ingesta);
+      decideEvidencia('op.nub.1.2', 'EV-07', accesosInformados(accesos), 'hallazgo del informe');
       const enContra = propias.filter(p => p.medida.estado === 'NO_CUMPLE');
       const resumen = propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | ');
 
@@ -1359,11 +1378,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
     {
       name: 'bloque_tecnico',
-      value: estadoDe(['EV-01', 'EV-04', 'EV-07', 'EV-02']),
+      value: estadoDe(['EV-01', 'EV-04', 'EV-02']),
       parameterIds: ['P-06', 'P-07', 'P-11', 'P-13'],
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-07'],
       eventIds: [],
-      description: `Medido en el manager de Wazuh: ${describeBloque(['EV-01', 'EV-04', 'EV-07', 'EV-02'])}.`,
+      description: `Medido en el manager de Wazuh: ${describeBloque(['EV-01', 'EV-04', 'EV-02'])}.`,
     },
     {
       name: 'servicios_sin_integracion',
@@ -1374,6 +1393,16 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       description: sinIntegrar.length
         ? `Servicios sin integración en Wazuh (hallazgo del informe, sin veredicto): ${sinIntegrar.join(', ')}.`
         : 'Todos los servicios declarados tienen integración en Wazuh, o P-06 no está declarado.',
+    },
+    {
+      name: 'accesos_cloud',
+      value: accesos ? accesos.estado : 'NO_APLICA',
+      parameterIds: ['P-06'],
+      evidenceIds: ['EV-07'],
+      eventIds: [],
+      description: accesos
+        ? `${accesos.estado === 'NO_CUMPLE' ? 'Hay accesos interactivos con éxito sin segundo factor (hallazgo, lo juzga op.acc.6.r8.1). ' : ''}${accesos.motivo}`
+        : 'No se juzgan accesos: op.nub.1.2 no aplica o no hay servicios utilizados.',
     },
     {
       name: 'vigencias',
@@ -1415,7 +1444,7 @@ export const opNub1PolicyDefinition: ENSPolicyDefinition = {
       requirementId: 'op.nub.1.2',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       parameterIds: ['P-01', 'P-02', 'P-03', 'P-06', 'P-08', 'P-09', 'P-10', 'P-11', 'P-12', 'P-13'],
-      evidenceIds: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      evidenceIds: ['EV-01', 'EV-04', 'EV-09'],
       ruleType: 'CONDITIONAL_REQUIRED',
     },
     {

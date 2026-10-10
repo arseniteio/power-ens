@@ -324,8 +324,8 @@ bloque('1. Catálogo: categoría del sistema, plano del manager, documentales y 
     !opNub1Configuration.parameters.some(p => p.id === 'P-ATT') && parseRequirementAttestations(configuracion(BASE)).size === 0
   );
   comprueba(
-    'EV-03, EV-05 y EV-06 no las juzga ningún requisito (datos del informe, sin SCA cloud)',
-    opNub1CatalogDefinition.requirements.every(r => !['EV-03', 'EV-05', 'EV-06'].some(ev => r.evidenceIds.includes(ev)))
+    'EV-03, EV-05, EV-06 y EV-07 no las juzga ningún requisito (datos del informe: sin SCA cloud; el segundo factor lo juzga op.acc.6)',
+    opNub1CatalogDefinition.requirements.every(r => !['EV-03', 'EV-05', 'EV-06', 'EV-07'].some(ev => r.evidenceIds.includes(ev)))
   );
   comprueba(
     'la policy declara los mismos niveles, evidencias y parámetros que el catálogo',
@@ -396,14 +396,9 @@ bloque('2. Verde: usuario de AWS, Azure y GCP con expediente vigente y la integr
     r.deEvidencia('op.nub.1.2', 'EV-04')?.reason
   );
   comprueba(
-    'EV-07 NO_EVALUABLE: AWS y Azure con segundo factor, pero GCP no trae inicios de sesión (no lo tapa la acreditación)',
-    r.evidencia('EV-07')?.status === 'NO_EVALUABLE' && /GCP analítica.*no consta ningún acceso interactivo/.test(r.deEvidencia('op.nub.1.2', 'EV-07')?.reason || ''),
+    'EV-07 NO_APLICA: hallazgo del informe cruzado con op.acc.6.r8.1, con lo observado (GCP no trae inicios de sesión)',
+    r.evidencia('EV-07')?.status === 'NO_APLICA' && /op\.acc\.6\.r8\.1/.test(r.deEvidencia('op.nub.1.2', 'EV-07')?.reason || '') && /GCP analítica.*no consta ningún acceso interactivo/.test(r.deEvidencia('op.nub.1.2', 'EV-07')?.reason || ''),
     `${estadoDe(r, 'EV-07')} ${r.deEvidencia('op.nub.1.2', 'EV-07')?.reason}`
-  );
-  comprueba(
-    'y el requisito acreditado lo dice: «EV-07 sin medir»',
-    r12.observations.some(o => /^EV-07 sin medir/.test(o)),
-    r12.observations.join(' | ')
   );
   comprueba(
     'EV-09 CUMPLE «acreditado documentalmente», y el puente no la deja en «sin recogida»',
@@ -483,21 +478,30 @@ bloque('4. `attested` nunca tapa una medida técnica en NO_CUMPLE (cada eje con 
     noAcreditado(evalua(conContratista('ops@cliente.example')))
   );
 
-  // EV-07 · acceso con éxito sin segundo factor.
+  // EV-07 · acceso con éxito sin segundo factor: HALLAZGO, no veredicto
+  // (ronda 1: el criterio es el de op.acc.6.r8.1; las ubicaciones de confianza
+  // de Azure darían rojos falsos aquí).
   const sinMfa = evalua(hoy(l => (l.event === 'cloud_authentication_observed' && l.usuario === 'arn:aws:iam::123456789012:user/alice' && enLaUltima(l) ? { ...l, segundo_factor: 'no' } : l)));
   comprueba(
-    'un acceso a la consola de AWS sin segundo factor → NO_CUMPLE nombrando al usuario y su origen',
-    noAcreditado(sinMfa) && /user\/alice.*203\.0\.113\.10/.test(sinMfa.motivo('op.nub.1.2')),
-    sinMfa.motivo('op.nub.1.2')
+    'un acceso a la consola de AWS sin segundo factor NO tumba op.nub.1.2: sigue acreditado',
+    sinMfa.requisito('op.nub.1.2').attested === true,
+    `${sinMfa.requisito('op.nub.1.2').status} ${sinMfa.motivo('op.nub.1.2')}`
+  );
+  comprueba(
+    'y se informa destacado, nombrando al usuario y su origen, cruzado con op.acc.6.r8.1',
+    sinMfa.evidencia('EV-07')?.status === 'NO_APLICA' &&
+      /HAY ACCESOS SIN SEGUNDO FACTOR.*user\/alice.*203\.0\.113\.10/.test(sinMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason || '') &&
+      sinMfa.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value === 'NO_CUMPLE',
+    sinMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason
   );
   const federado = evalua(hoy(l => (l.event === 'cloud_authentication_observed' && l.modulo === 'aws-s3' ? { ...l, segundo_factor: '-' } : l)));
   comprueba(
-    'REVERSIÓN: el mismo acceso federado, sin el dato del segundo factor → no se puede afirmar: NO_EVALUABLE, y el expediente sigue acreditando',
-    federado.evidencia('EV-07')?.status === 'NO_EVALUABLE' && federado.requisito('op.nub.1.2').attested === true,
-    `${estadoDe(federado, 'EV-07')} ${federado.requisito('op.nub.1.2').status}`
+    'REVERSIÓN: el acceso federado, sin el dato del segundo factor, no se destaca (no se puede afirmar)',
+    federado.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value === 'NO_EVALUABLE' && !/HAY ACCESOS SIN SEGUNDO FACTOR/.test(federado.deEvidencia('op.nub.1.2', 'EV-07')?.reason || ''),
+    federado.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value
   );
   const fallido = evalua(hoy(l => (l.event === 'cloud_authentication_observed' && l.usuario === 'bob@cliente.example' ? { ...l, segundo_factor: 'no' } : l)));
-  comprueba('un intento FALLIDO sin segundo factor no es un acceso: no incumple', fallido.requisito('op.nub.1.2').attested === true);
+  comprueba('un intento FALLIDO sin segundo factor no es un acceso: no se destaca', fallido.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value !== 'NO_CUMPLE');
 
   // EV-01 · el módulo, su ingesta y sus errores.
   const sinModulo = evalua(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' ? undefined : l)));
@@ -621,7 +625,7 @@ bloque('6. Sin parámetros o sin inventario: NO_EVALUABLE con causa CONFIGURATIO
       `${r.requisito(id).status} ${r.requisito(id).evidenced} ${r.decisions.find(d => d.requirementId === id)?.cause}`
     )
   );
-  ['EV-01', 'EV-02', 'EV-04', 'EV-07', 'EV-08', 'EV-09'].forEach(ev =>
+  ['EV-01', 'EV-02', 'EV-04', 'EV-08', 'EV-09'].forEach(ev =>
     comprueba(`${ev} sin medir por CONFIGURATION`, r.evidencia(ev)?.status === 'NO_EVALUABLE' && r.evidencia(ev)?.gapCause === 'CONFIGURATION', estadoDe(r, ev))
   );
   comprueba('el motivo nombra P-01', /P-01 \(Posición respecto a los servicios en la nube\) está sin configurar/.test(r.motivo('op.nub.1.2')), r.motivo('op.nub.1.2'));
@@ -651,8 +655,8 @@ bloque('6. Sin parámetros o sin inventario: NO_EVALUABLE con causa CONFIGURATIO
   );
   const soloP06 = evalua(hoy(), { ...BASE, 'P-06': undefined });
   comprueba(
-    'falta P-06 → EV-01, EV-04 y EV-07 CONFIGURATION',
-    ['EV-01', 'EV-04', 'EV-07'].every(ev => soloP06.evidencia(ev)?.gapCause === 'CONFIGURATION'),
+    'falta P-06 → EV-01 y EV-04 CONFIGURATION (y el accesos se informa sin integración)',
+    ['EV-01', 'EV-04'].every(ev => soloP06.evidencia(ev)?.gapCause === 'CONFIGURATION') && soloP06.evidencia('EV-07')?.status === 'NO_APLICA',
     ['EV-01', 'EV-04', 'EV-07'].map(ev => estadoDe(soloP06, ev)).join(', ')
   );
   const soloP11 = evalua(hoy(), { ...BASE, 'P-11': undefined });
@@ -682,7 +686,7 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA; lo me
 {
   const nada = evalua([]);
   comprueba('sin ningún hecho → EV-01 por RECOGIDA', nada.evidencia('EV-01')?.status === 'NO_EVALUABLE' && nada.evidencia('EV-01')?.gapCause === 'COLLECTION', estadoDe(nada, 'EV-01'));
-  comprueba('y EV-04 y EV-07 también por RECOGIDA (no por evidencia)', nada.evidencia('EV-04')?.gapCause === 'COLLECTION' && nada.evidencia('EV-07')?.gapCause === 'COLLECTION', `${estadoDe(nada, 'EV-04')} ${estadoDe(nada, 'EV-07')}`);
+  comprueba('y EV-04 también por RECOGIDA (no por evidencia)', nada.evidencia('EV-04')?.gapCause === 'COLLECTION', estadoDe(nada, 'EV-04'));
   comprueba('op.nub.1.2 se acredita con el expediente, diciendo que no se ha medido la ingesta', nada.requisito('op.nub.1.2').attested === true && nada.requisito('op.nub.1.2').observations.some(o => /^EV-01 sin medir \(sin recogida\)/.test(o)));
 
   // La ingesta es vivacidad: caduca a las 13 h (dos pasadas de 6 h perdidas),
