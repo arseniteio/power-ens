@@ -665,6 +665,18 @@ bloque('4. op.mon.3.1 (recolección): cada fuente, cada eje, con su reversión')
     'syslog · sin alertas y observando desde hace 2 días → NO_EVALUABLE, nunca CUMPLE',
     estado(evalua(hoy(undefined, { coleccion: { alertas_observadas_desde: '2026-10-07T12:00:00Z' } }), fw), 'op.mon.3.1') === 'NO_EVALUABLE'
   );
+  // Lo que el recolector del manager no pudo leer de alerts.json después de su
+  // última pasada se combina con la fuente syslog, aunque el manager no tenga
+  // ninguna fuente propia que delimite la pasada.
+  const syslogDegradado = [
+    ...conFw('2026-10-09T11:05:00Z').filter(e => !(e.eventType === 'log_source_observed' && e.agentId === '000')),
+    ...eventos([{ _a: '000', ts: '2026-10-09T12:28:00Z', event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.3.1', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede seguir la rotación de alerts.json' }]),
+  ];
+
+  comprueba(
+    'syslog · una degradación de alerts.json posterior a su hecho cuenta (pares máquina-hecho) → NO_EVALUABLE',
+    estado(evalua(syslogDegradado, fw), 'op.mon.3.1') === 'NO_EVALUABLE' && /rotación de alerts\.json/.test(evalua(syslogDegradado, fw).motivo('op.mon.3.1'))
+  );
   comprueba('syslog · en la fila de un agente no se juzga', estado(fila24(hoy(), conP01(...(BASE['P-01'] as string[]), 'Cortafuegos | syslog | syslog | 192.0.2.10 |  | ')), 'op.mon.3.1') === 'CUMPLE');
 
   // P-01 mal escrita.

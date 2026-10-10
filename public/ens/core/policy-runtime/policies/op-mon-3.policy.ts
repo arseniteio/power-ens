@@ -660,9 +660,12 @@ const ev02 = (context: ENSPolicyContext, ahora: number, maquinas: Map<string, st
   const configuracion: Medida[] = [];
   const medidas: Medida[] = [];
   const fueraDeAqui: string[] = [];
-  // Las máquinas cuyas fuentes se han juzgado aquí, con el hecho de estado que
-  // delimita su última pasada: solo sus degradaciones cuentan.
-  const juzgadas = new Map<string, string>();
+  // Lo que se ha juzgado aquí, como pares (máquina, hecho de estado que
+  // delimita su última pasada): solo esas degradaciones cuentan. Una máquina
+  // puede tener los dos del manager (sus fuentes y las syslog).
+  const juzgadas = new Map<string, [string, string]>();
+  const juzga = (id: string, tipo: string) => juzgadas.set(`${id}|${tipo}`, [id, tipo]);
+  const envios = new Set<string>();
   const padronJuzgado = new Set<string>();
 
   declaradas.forEach((fila, i) => {
@@ -677,7 +680,7 @@ const ev02 = (context: ENSPolicyContext, ahora: number, maquinas: Map<string, st
     if (fuente.metodo === 'syslog') {
       if (hayManager) {
         medidas.push(fuenteSyslog(ctxM, ahora, fuente));
-        juzgadas.set(MANAGER, 'log_source_observed');
+        juzga(MANAGER, 'syslog_source_observed');
       } else {
         fueraDeAqui.push(`«${fuente.fuente}» (syslog, en el manager)`);
       }
@@ -693,11 +696,12 @@ const ev02 = (context: ENSPolicyContext, ahora: number, maquinas: Map<string, st
 
       medidas.push(fuenteLocal(ctxA, ahora, fuente, maquina));
 
-      if (id !== MANAGER && !juzgadas.has(id)) {
+      if (id !== MANAGER && !envios.has(id)) {
+        envios.add(id);
         medidas.push(envioDelAgente(ctxA, ahora, maquina));
       }
 
-      juzgadas.set(id, 'log_source_observed');
+      juzga(id, 'log_source_observed');
     } else {
       fueraDeAqui.push(`«${fuente.fuente}» de ${fuente.sistema}`);
     }
@@ -740,9 +744,9 @@ const ev02 = (context: ENSPolicyContext, ahora: number, maquinas: Map<string, st
 
   // Lo que un recolector declaró que no pudo leer después de su última pasada
   // buena se combina con lo medido, máquina a máquina.
-  const degradadas = Array.from(juzgadas.entries())
+  const degradadas = Array.from(juzgadas.values())
     .map(([id, tipo]) => conDegradacion(deMaquina(context, id), ahora, 'EV-02', tipo, cumple('')))
-    .filter(m => m.estado !== 'CUMPLE');
+    .filter((m, i, todas) => m.estado !== 'CUMPLE' && todas.findIndex(x => x.motivo === m.motivo) === i);
 
   return combina([...partes, ...degradadas]);
 };
