@@ -19,8 +19,9 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
   version: '1.0.0',
   // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §4.3),
   // no las que la plantilla asocia. op.nub.1.1 (prestador) y op.nub.1.r1.2
-  // (op.pl.5) son documentales sin evidencia técnica: los acredita P-ATT, y la
-  // policy los saca del juego (NO_APLICA) cuando P-01 o P-05 lo dicen. EV-03,
+  // (op.pl.5) son documentales sin evidencia técnica: la policy juzga sus
+  // tablas (P-03, P-05) con su vigencia y los saca del juego (NO_APLICA) cuando
+  // P-01 o P-05 lo dicen. Sin P-ATT (decisión 1 del responsable). EV-03,
   // EV-05 y EV-06 son datos del informe, sin requisito que las juzgue: Wazuh
   // 4.14 no tiene «SCA cloud» ni ve el tráfico hacia la nube.
   requirements: [
@@ -33,9 +34,10 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      // Documental: solo si P-01 = prestador o ambos, y lo acredita P-ATT.
+      // Documental: solo si P-01 = prestador o ambos. Lo acredita la
+      // conformidad en vigor de cada servicio prestado (P-03), no P-ATT.
       evidenceIds: [],
-      parameterIds: ['P-01', 'P-02'],
+      parameterIds: ['P-01', 'P-02', 'P-03'],
     },
     {
       id: 'op.nub.1.2',
@@ -77,8 +79,8 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible en MEDIA y ALTA. En categoría BÁSICA no aplica.',
       },
-      // Documental: ENSFácil no tiene op.pl.5. NO_APLICA sin servicios de
-      // seguridad en P-05; con ellos, lo acredita P-ATT.
+      // Documental: ENSFácil no tiene op.pl.5. NO_APLICA con P-05 = «ninguno»;
+      // con servicios, la verificación de op.pl.5 de cada uno en vigor (P-05).
       evidenceIds: [],
       parameterIds: ['P-05'],
     },

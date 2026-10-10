@@ -256,7 +256,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Servicios de seguridad en la nube (R1.2)  ·  fuente: P-05 / P-ATT
+  // Servicios de seguridad en la nube (R1.2)  ·  fuente: P-05, con su vigencia
   const r12 = requirements.get('op.nub.1.r1.2');
   const campo11 = field(
     'op.nub.1.campo11',
@@ -265,10 +265,12 @@ export const buildOpNub1ReportModel = (
     level === 'BAJO'
       ? 'R1.2 solo se exige desde categoría MEDIA.'
       : r12?.attested
-      ? 'Acreditado documentalmente: la verificación de op.pl.5 de los servicios de seguridad de P-05 consta en P-ATT. Es una declaración, no una medida.'
+      ? 'Acreditado documentalmente: cada servicio de seguridad de P-05 declara su verificación de op.pl.5, con referencia y en vigor. Es una declaración, no una medida.'
       : r12?.status === 'NO_APLICA'
       ? 'P-05 declara que no se utiliza ningún servicio en la nube de seguridad («ninguno»).'
-      : 'Sin acreditar: los servicios de seguridad de P-05 no tienen una atestación de su verificación de op.pl.5 en P-ATT, o se declaran no conformes.',
+      : r12?.evidenced
+      ? 'No conforme (declarado): algún servicio de seguridad de P-05 declara que no cumple op.pl.5, o su verificación ha vencido.'
+      : 'Sin acreditar: P-05 sin declarar, o con servicios sin la referencia o la vigencia de su verificación de op.pl.5.',
     [],
     r12?.observations || [],
   );

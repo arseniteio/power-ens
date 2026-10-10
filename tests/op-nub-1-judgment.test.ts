@@ -318,7 +318,11 @@ bloque('1. Catálogo: categoría del sistema, plano del manager, documentales y 
   comprueba('R1 (r1.1 y r1.2) desde MEDIA', niveles('op.nub.1.r1.1') === 'MEDIO,ALTO' && niveles('op.nub.1.r1.2') === 'MEDIO,ALTO');
   comprueba('R2 solo en ALTA', niveles('op.nub.1.r2.1') === 'ALTO');
   comprueba('el control está ACTIVE', opNub1CatalogDefinition.status === 'ACTIVE', opNub1CatalogDefinition.status);
-  comprueba('op.nub.1.1 y op.nub.1.r1.2 no declaran evidencia técnica (P-ATT)', !req('op.nub.1.1').evidenceIds.length && !req('op.nub.1.r1.2').evidenceIds.length);
+  comprueba('op.nub.1.1 y op.nub.1.r1.2 no declaran evidencia técnica (documentales: P-03 y P-05)', !req('op.nub.1.1').evidenceIds.length && !req('op.nub.1.r1.2').evidenceIds.length);
+  comprueba(
+    'op.nub.1 no declara P-ATT: ninguna atestación sin caducidad puede acreditar 1.1 ni R1.2 (decisión 1)',
+    !opNub1Configuration.parameters.some(p => p.id === 'P-ATT') && parseRequirementAttestations(configuracion(BASE)).size === 0
+  );
   comprueba(
     'EV-03, EV-05 y EV-06 no las juzga ningún requisito (datos del informe, sin SCA cloud)',
     opNub1CatalogDefinition.requirements.every(r => !['EV-03', 'EV-05', 'EV-06'].some(ev => r.evidenceIds.includes(ev)))
@@ -447,8 +451,6 @@ bloque('3. P-01 = ninguno: todo NO_APLICA, declarado (y no NO_EVALUABLE por un i
   comprueba('y todas las evidencias también', ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'].every(ev => r.evidencia(ev)?.status === 'NO_APLICA'));
   comprueba('el control sale NO_APLICA, sin número', r.motor().status === 'NO_APLICA' && r.motor().score === undefined, `${r.motor().status} ${r.motor().score}`);
   comprueba('el motivo dice que es una declaración', /P-01 declara que el sistema no presta ni utiliza servicios en la nube/.test(r.motivo('op.nub.1.2')));
-  const conPAtt = evalua([], { 'P-01': 'ninguno', 'P-ATT': ['op.nub.1.1 | x | https://intranet.ejemplo/x.pdf | 2026-05-12 | RSI'] }, 'ALTO');
-  comprueba('una atestación de op.nub.1.1 no lo mete en el denominador', conPAtt.requisito('op.nub.1.1').status === 'NO_APLICA');
 }
 
 // --- 4. la medida manda sobre el documento -----------------------------------------
@@ -525,9 +527,6 @@ bloque('4. `attested` nunca tapa una medida técnica en NO_CUMPLE (cada eje con 
   const deshabilitado = evalua(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' && enLaUltima(l) ? { ...l, habilitado: 'no' } : l)));
   comprueba('aws-s3 configurado pero deshabilitado → NO_CUMPLE', noAcreditado(deshabilitado) && /deshabilitado/.test(deshabilitado.motivo('op.nub.1.2')), deshabilitado.motivo('op.nub.1.2'));
 
-  // P-ATT no puede con un requisito que tiene evidencias técnicas.
-  const conAtt = evalua(hoy(parada), { ...BASE, 'P-ATT': ['op.nub.1.2 | Contrato con AWS | https://intranet.ejemplo/aws.pdf | 2026-05-12 | RSI'] });
-  comprueba('P-ATT de op.nub.1.2 con la ingesta parada → sigue NO_CUMPLE medido', noAcreditado(conAtt), conAtt.requisito('op.nub.1.2').status);
 }
 
 // --- 5. rojo documental -------------------------------------------------------------
@@ -752,16 +751,31 @@ bloque('9. R2 en ALTA: hallazgos de postura del proveedor; sin ellos, no automat
 
 // --- 10. prestador y op.pl.5 ---------------------------------------------------------
 
-bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales, con P-ATT');
+bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales, con su vigencia y sin P-ATT');
 
 {
   const prestador = { 'P-01': 'prestador', 'P-02': ['Portal de trámites | SaaS | Quersystem | expedientes | alta | prestado'] };
-  const sinAtt = evalua([], prestador);
-  comprueba('prestador sin P-ATT → op.nub.1.1 no demostrado (CONFIGURATION)', sinAtt.requisito('op.nub.1.1').status === 'NO_CUMPLE' && sinAtt.requisito('op.nub.1.1').evidenced === false && /Portal de trámites \(SaaS\)/.test(sinAtt.motivo('op.nub.1.1')), sinAtt.motivo('op.nub.1.1'));
-  comprueba('y op.nub.1.2, R1 y R1.2 no aplican: no utiliza servicios de terceros', ['op.nub.1.2', 'op.nub.1.r1.1', 'op.nub.1.r1.2'].every(id => sinAtt.requisito(id).status === 'NO_APLICA'));
-  const conAtt = evalua([], { ...prestador, 'P-ATT': ['op.nub.1.1 | Declaración de aplicabilidad del SaaS según CCN-STIC-823 | https://intranet.ejemplo/doa.pdf | 2026-05-12 | RSI'] });
-  comprueba('REVERSIÓN: con P-ATT → op.nub.1.1 CUMPLE acreditado', conAtt.requisito('op.nub.1.1').status === 'CUMPLE' && conAtt.requisito('op.nub.1.1').attested === true);
-  comprueba('el control del prestador sale CUMPLE solo con la atestación', conAtt.motor().status === 'CUMPLE', conAtt.motor().status);
+  const sinP03 = evalua([], prestador);
+  comprueba(
+    'prestador sin P-03 → op.nub.1.1 no demostrado (CONFIGURATION), nombrando lo prestado',
+    sinP03.requisito('op.nub.1.1').status === 'NO_CUMPLE' && sinP03.requisito('op.nub.1.1').evidenced === false && /Portal de trámites/.test(sinP03.motivo('op.nub.1.1')),
+    sinP03.motivo('op.nub.1.1')
+  );
+  comprueba('y op.nub.1.2, R1 y R1.2 no aplican: no utiliza servicios de terceros', ['op.nub.1.2', 'op.nub.1.r1.1', 'op.nub.1.r1.2'].every(id => sinP03.requisito(id).status === 'NO_APLICA'));
+  const conConformidad = (vigencia: string) =>
+    evalua([], { ...prestador, 'P-03': [`Portal de trámites | ENS MEDIA | SaaS de tramitación | ${vigencia} | certificado de conformidad nº 2026/300`] });
+  comprueba(
+    'REVERSIÓN: con la conformidad ENS MEDIA en vigor en P-03 → op.nub.1.1 CUMPLE acreditado',
+    conConformidad('2027-09-30').requisito('op.nub.1.1').status === 'CUMPLE' && conConformidad('2027-09-30').requisito('op.nub.1.1').attested === true,
+    conConformidad('2027-09-30').motivo('op.nub.1.1')
+  );
+  comprueba('el control del prestador sale CUMPLE con su conformidad', conConformidad('2027-09-30').motor().status === 'CUMPLE', conConformidad('2027-09-30').motor().status);
+  const vencida = conConformidad('2026-09-30');
+  comprueba(
+    'con la conformidad vencida → NO_CUMPLE documental: «Declarado (documental)», no «Medido»',
+    vencida.requisito('op.nub.1.1').status === 'NO_CUMPLE' && vencida.requisito('op.nub.1.1').documental === true && ensRequirementProofLabel(vencida.requisito('op.nub.1.1')) === 'Declarado (documental)',
+    `${vencida.requisito('op.nub.1.1').status} ${vencida.motivo('op.nub.1.1')}`
+  );
 
   // P-05 vacío no es «ninguno».
   const vacio = evalua(hoy(), { ...BASE, 'P-05': undefined });
@@ -779,12 +793,27 @@ bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales
     mezcla.motivo('op.nub.1.r1.2')
   );
 
-  const siem = { ...BASE, 'P-05': ['SIEM gestionado | SIEM | sí'] };
-  comprueba('un servicio de seguridad en P-05, sin P-ATT → R1.2 no demostrado', evalua(hoy(), siem).requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && evalua(hoy(), siem).requisito('op.nub.1.r1.2').evidenced === false);
-  const siemAtt = { ...siem, 'P-ATT': ['op.nub.1.r1.2 | Verificación op.pl.5 del SIEM gestionado | https://intranet.ejemplo/pl5.pdf | 2026-05-12 | RSI'] };
-  comprueba('REVERSIÓN: con P-ATT → R1.2 CUMPLE acreditado', evalua(hoy(), siemAtt).requisito('op.nub.1.r1.2').attested === true);
-  const noPl5 = { ...siemAtt, 'P-05': ['SIEM gestionado | SIEM | no'] };
-  comprueba('«cumple op.pl.5 = no» es un incumplimiento declarado: P-ATT no lo tapa', evalua(hoy(), noPl5).requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && evalua(hoy(), noPl5).requisito('op.nub.1.r1.2').evidenced === true && !evalua(hoy(), noPl5).requisito('op.nub.1.r1.2').attested);
+  const siem = (fila: string) => evalua(hoy(), { ...BASE, 'P-05': [fila] });
+  const sinRef = siem('SIEM gestionado | SIEM | sí');
+  comprueba(
+    'un servicio de seguridad con «sí» pero sin la referencia de la verificación → no demostrado (CONFIGURATION), nombrando la fila',
+    sinRef.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && sinRef.requisito('op.nub.1.r1.2').evidenced === false && /P-05, fila de «SIEM gestionado»/.test(sinRef.motivo('op.nub.1.r1.2')),
+    sinRef.motivo('op.nub.1.r1.2')
+  );
+  const vigente = siem('SIEM gestionado | SIEM | sí | informe de verificación op.pl.5 nº 12 | 2027-05-31');
+  comprueba(
+    'REVERSIÓN: con referencia y vigencia en vigor → R1.2 CUMPLE acreditado documentalmente',
+    vigente.requisito('op.nub.1.r1.2').status === 'CUMPLE' && vigente.requisito('op.nub.1.r1.2').attested === true,
+    vigente.motivo('op.nub.1.r1.2')
+  );
+  const caducada = siem('SIEM gestionado | SIEM | sí | informe de verificación op.pl.5 nº 12 | 2026-05-31');
+  comprueba(
+    'la verificación vencida → NO_CUMPLE documental',
+    caducada.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && caducada.requisito('op.nub.1.r1.2').documental === true && /venció el 2026-05-31/.test(caducada.motivo('op.nub.1.r1.2')),
+    caducada.motivo('op.nub.1.r1.2')
+  );
+  const noPl5 = siem('SIEM gestionado | SIEM | no | - | 2027-05-31');
+  comprueba('«cumple op.pl.5 = no» es un incumplimiento declarado', noPl5.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && noPl5.requisito('op.nub.1.r1.2').evidenced === true && !noPl5.requisito('op.nub.1.r1.2').attested);
 
   const ambos = {
     ...BASE,
@@ -793,7 +822,11 @@ bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales
   };
   const r = evalua(hoy(), ambos);
   comprueba('ambos: el servicio prestado no entra en el expediente de terceros (op.nub.1.2 sigue acreditado)', r.requisito('op.nub.1.2').attested === true, r.motivo('op.nub.1.2'));
-  comprueba('y op.nub.1.1 pide su P-ATT', r.requisito('op.nub.1.1').evidenced === false);
+  comprueba(
+    'y op.nub.1.1 juzga la conformidad de lo prestado: sin fila en P-03 → NO_CUMPLE documental',
+    r.requisito('op.nub.1.1').status === 'NO_CUMPLE' && r.requisito('op.nub.1.1').documental === true && /«Portal de trámites» \(SaaS\): sin conformidad/.test(r.motivo('op.nub.1.1')),
+    r.motivo('op.nub.1.1')
+  );
 }
 
 // --- 11. volumen y presupuesto -------------------------------------------------------

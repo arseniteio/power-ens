@@ -22,10 +22,19 @@ import { ENSControlConfiguration } from '../types';
 //         cloud): la columna es el estándar de los hallazgos de postura del
 //         propio proveedor (Security Hub, Defender, Security Command Center).
 //
-// Y cuatro no están en la plantilla: P-11 (administradores cloud autorizados),
-// P-12 (antigüedad máxima del pentest del proveedor), P-13 (horas sin registros
-// de una integración) y P-ATT. Ninguno tiene valor por defecto: sin él, su
+// Y tres no están en la plantilla: P-11 (administradores cloud autorizados),
+// P-12 (antigüedad máxima del pentest del proveedor) y P-13 (horas sin
+// registros de una integración). Ninguno tiene valor por defecto: sin él, su
 // evidencia sale NO_EVALUABLE con causa CONFIGURATION.
+//
+// SIN P-ATT, a propósito (decisión 1 del responsable): lo documental se juzga
+// con su vigencia. op.nub.1.1 lo acredita la conformidad en vigor de cada
+// servicio prestado (P-03) y op.nub.1.r1.2 la verificación de op.pl.5 en vigor
+// de cada servicio de seguridad (P-05). Una atestación no caduca: si existiera,
+// el motor la aplicaría a esos dos requisitos, que no tienen evidencia técnica.
+//
+//   P-03  cubre también los servicios PRESTADOS (op.nub.1.1).
+//   P-05  gana la referencia y la vigencia de la verificación de op.pl.5.
 //
 // `required` solo en P-01, el que sostiene el control («GRIS: no evaluable por
 // ausencia de P-01», dice la ficha). Los demás, si faltan, los nombra el juicio
@@ -51,9 +60,9 @@ export const opNub1Configuration: ENSControlConfiguration = {
       example: 'usuario',
       required: true,
       wazuhUsage:
-        'No configura nada en Wazuh: decide qué requisitos aplican. Como prestador, op.nub.1.1 se acredita documentalmente (P-ATT); como usuario, op.nub.1.2 y R1 juzgan los servicios de terceros de P-02.',
+        'No configura nada en Wazuh: decide qué requisitos aplican. Como prestador, op.nub.1.1 se acredita con la conformidad en vigor de lo prestado (P-03); como usuario, op.nub.1.2 y R1 juzgan los servicios de terceros de P-02.',
       ensfacilUsage:
-        'prestador: aplica op.nub.1.1 (y R2). usuario: aplican op.nub.1.2, R1 y R2. ambos: todos, y P-02 separa cada servicio por su columna «uso». ninguno: todo el control NO_APLICA.',
+        'prestador: aplica op.nub.1.1 (la conformidad de lo prestado en P-03) y R2. usuario: aplican op.nub.1.2, R1 y R2. ambos: todos, y P-02 separa cada servicio por su columna «uso». ninguno: todo el control NO_APLICA.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-07', 'EV-08', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -126,9 +135,9 @@ export const opNub1Configuration: ENSControlConfiguration = {
       name: 'conformidad_ens_proveedores',
       label: 'Conformidad ENS de los proveedores',
       description:
-        'Para cada servicio de terceros: conformidad con el ENS (con su categoría: ENS BÁSICA, ENS MEDIA o ENS ALTA) o con la guía CCN-STIC aplicable, su alcance, su fecha de vigencia y la referencia de la declaración o certificación. op.nub.1.2 lo exige de forma directa.',
+        'Para cada servicio de P-02 —de terceros o prestado—: conformidad con el ENS (con su categoría: ENS BÁSICA, ENS MEDIA o ENS ALTA) o con la guía CCN-STIC aplicable al modelo (SaaS, PaaS, IaaS), su alcance, su fecha de vigencia y la referencia de la declaración o certificación. op.nub.1.2 lo exige de los servicios de terceros; para los que se prestan, es la acreditación de op.nub.1.1.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.nub.1.2'],
+      requirements: ['op.nub.1.1', 'op.nub.1.2'],
       type: 'table',
       example: 'M365 | ENS MEDIA | Microsoft 365 | 2027-06-30 | declaración de conformidad nº…',
       columns: [
@@ -167,11 +176,11 @@ export const opNub1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'No configura nada en Wazuh: es una declaración de la organización. ENSFácil no puede validar el documento, solo su vigencia.',
       ensfacilUsage:
-        'EV-09: cada servicio utilizado de P-02 tiene que tener aquí su conformidad, vigente en la fecha de la evaluación y, si es ENS, de una categoría no inferior a la del sistema. Una conformidad vencida o ausente es un incumplimiento de op.nub.1.2; una vigente lo acredita documentalmente.',
+        'EV-09: cada servicio utilizado de P-02 tiene que tener aquí su conformidad, vigente en la fecha de la evaluación y, si es ENS, de una categoría no inferior a la del sistema (una conformidad ENS se juzga por su categoría aunque cite una guía). Una conformidad vencida o ausente es un incumplimiento de op.nub.1.2; una vigente lo acredita documentalmente. Con P-01 = prestador o ambos, cada servicio prestado necesita aquí la suya para op.nub.1.1, con el mismo criterio.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
-        'op.nub.1.2 queda sin acreditar (causa CONFIGURATION): no se puede demostrar la conformidad de los servicios de terceros utilizados.',
+        'op.nub.1.2 (y op.nub.1.1 si se presta algún servicio) quedan sin acreditar (causa CONFIGURATION): no se puede demostrar la conformidad de los servicios.',
     },
     {
       id: 'P-04',
@@ -226,15 +235,15 @@ export const opNub1Configuration: ENSControlConfiguration = {
       name: 'servicios_seguridad_cloud',
       label: 'Servicios en la nube de seguridad',
       description:
-        'Los servicios en la nube utilizados que son servicios de SEGURIDAD (un SIEM gestionado, un WAF, copias de seguridad gestionadas), a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5, con lo que la organización declara de esa verificación. Si no se usa ninguno, una sola fila «ninguno». Es un supuesto que suele pasarse por alto.',
+        'Los servicios en la nube utilizados que son servicios de SEGURIDAD (un SIEM gestionado, un WAF, copias de seguridad gestionadas), a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5, con lo que la organización declara de esa verificación: si cumple, la referencia del informe que lo verifica y hasta cuándo vale. Si no se usa ninguno, una sola fila «ninguno». Es un supuesto que suele pasarse por alto.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.nub.1.r1.2'],
       type: 'table',
-      example: 'SIEM gestionado | SIEM | sí',
+      example: 'SIEM gestionado | SIEM | sí | informe de verificación op.pl.5 nº 12 | 2027-05-31',
       columns: [
         {
           name: 'servicio',
-          label: 'Servicio',
+          label: 'Servicio (o «ninguno»)',
           type: 'string',
           required: true,
         },
@@ -251,12 +260,24 @@ export const opNub1Configuration: ENSControlConfiguration = {
           options: ['sí', 'no'],
           required: false,
         },
+        {
+          name: 'referencia',
+          label: 'Referencia de la verificación',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'vigente_hasta',
+          label: 'Vigente hasta (AAAA-MM-DD)',
+          type: 'date',
+          required: false,
+        },
       ],
       required: false,
       wazuhUsage:
-        'No configura nada en Wazuh. ENSFácil no tiene op.pl.5: la verificación se acredita con un documento en P-ATT.',
+        'No configura nada en Wazuh. ENSFácil no tiene op.pl.5: se juzga la verificación declarada, con su referencia y su vigencia.',
       ensfacilUsage:
-        'Una sola fila «ninguno»: R1.2 no aplica (declarado). Con servicios: uno con «cumple op.pl.5 = no» es un incumplimiento declarado; si no, R1.2 queda pendiente de la atestación de P-ATT con la verificación de op.pl.5. Vacío, o «ninguno» junto a servicios: R1.2 sin evaluar (causa CONFIGURATION).',
+        'Una sola fila «ninguno»: R1.2 no aplica (declarado). Con servicios: cada uno con «cumple op.pl.5 = sí», la referencia de la verificación y su vigencia en la fecha de la evaluación acredita R1.2 documentalmente; «no», o la verificación vencida, es un incumplimiento. Vacío, «ninguno» junto a servicios, o una fila sin la referencia o sin la fecha: R1.2 sin evaluar (causa CONFIGURATION).',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
@@ -556,59 +577,6 @@ export const opNub1Configuration: ENSControlConfiguration = {
       ruleIds: [],
       ifNotConfigured:
         'EV-01 queda sin evaluar (causa CONFIGURATION) para los servicios integrados: no se puede decidir si una integración sin registros recientes está parada.',
-    },
-    {
-      id: 'P-ATT',
-      controlId: 'op.nub.1',
-      name: 'atestaciones_documentales',
-      label: 'Atestaciones documentales',
-      description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar op.nub.1.1 (el conjunto de medidas del modelo de servicio prestado según las guías CCN-STIC) y op.nub.1.r1.2 (la verificación de op.pl.5 de los servicios cloud de seguridad, que ENSFácil no mide).',
-      levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: [],
-      type: 'table',
-      example: 'op.nub.1.r1.2 | Informe de verificación op.pl.5 del SIEM gestionado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad',
-      columns: [
-        {
-          name: 'requisito',
-          label: 'Requisito',
-          type: 'string',
-          required: true,
-        },
-        {
-          name: 'referencia',
-          label: 'Referencia',
-          type: 'string',
-          required: false,
-        },
-        {
-          name: 'enlace',
-          label: 'Enlace',
-          type: 'string',
-          required: false,
-        },
-        {
-          name: 'fecha',
-          label: 'Fecha',
-          type: 'string',
-          required: false,
-        },
-        {
-          name: 'responsable',
-          label: 'Responsable',
-          type: 'string',
-          required: false,
-        },
-      ],
-      required: false,
-      wazuhUsage:
-        'No configura nada en Wazuh.',
-      ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica (op.nub.1.1 y op.nub.1.r1.2), así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
-      evidenceIds: [],
-      ruleIds: [],
-      ifNotConfigured:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
 };

@@ -24,16 +24,21 @@
 // Qué decide cada requisito (spec §4.3):
 //
 //   op.nub.1.1     prestador: documental sin evidencia técnica. NO_APLICA si
-//                  P-01 no es prestador ni ambos; si lo es, queda sin medir
-//                  (CONFIGURATION) para que lo acredite P-ATT.
+//                  P-01 no es prestador ni ambos; si lo es, la conformidad de
+//                  cada servicio prestado de P-02 en P-03, en vigor
+//                  (`attested`).
 //   op.nub.1.2     usuario: EV-09 (expediente) con EV-01, EV-04 y EV-07 de
 //                  los servicios que P-06 integra.
 //   op.nub.1.r1.1  EV-08: certificación de P-04 en vigor por servicio.
 //   op.nub.1.r1.2  P-05 con una sola fila «ninguno» → NO_APLICA; vacío, o
 //                  «ninguno» mezclado con servicios → sin medir
-//                  (CONFIGURATION). Con servicios, un «cumple op.pl.5 = no»
-//                  incumple y lo demás espera a P-ATT (ENSFácil no tiene
-//                  op.pl.5).
+//                  (CONFIGURATION). Con servicios, cada uno con su
+//                  verificación de op.pl.5 declarada, su referencia y su
+//                  vigencia (`attested`); «cumple = no» o vencida, incumple.
+//
+// Sin P-ATT: decisión 1 del responsable, lo documental se juzga con su
+// vigencia. op.nub.1 no declara el parámetro P-ATT, así que ninguna
+// atestación sin caducidad puede acreditar 1.1 ni R1.2.
 //   op.nub.1.r2.1  EV-02: hallazgos de postura del propio proveedor por
 //                  servicio de P-07. No hay «SCA cloud» en Wazuh 4.14: sin esos
 //                  hallazgos, no es automatizable.
@@ -281,6 +286,134 @@ const conformidadDe = (texto: string): Conformidad => {
   return { tipo: 'desconocida' };
 };
 
+// La conformidad de UN servicio en P-03: ENS de categoría no inferior a la del
+// sistema, o guía CCN-STIC, en vigor en la fecha de la evaluación. Basta una
+// fila válida; si no la hay, se dice lo peor. La sirven op.nub.1.2 (servicios
+// utilizados) y op.nub.1.1 (servicios prestados).
+const conformidadDelServicio = (
+  p03: Record<string, string>[],
+  nombre: string,
+  ahora: number,
+  nivel: number,
+  vigencias: string[]
+): Medida => {
+  const suyas = deServicio(p03, nombre);
+
+  if (!suyas.length) {
+    return noCumple('sin conformidad con el ENS ni con una guía CCN-STIC en P-03');
+  }
+
+  const juicios = suyas.map((fila): Medida => {
+    const fin = fecha(fila.vigencia);
+    const tipo = conformidadDe(fila.conformidad);
+
+    if (fin === undefined) {
+      return sinMedir(`P-03, fila de «${nombre}»: la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD`, 'CONFIGURATION');
+    }
+
+    if (tipo.tipo === 'desconocida' || tipo.tipo === 'ens-sin-categoria') {
+      return sinMedir(
+        `P-03, fila de «${nombre}»: la conformidad «${fila.conformidad || ''}» no dice ${tipo.tipo === 'ens-sin-categoria' ? 'la categoría (ENS BÁSICA, ENS MEDIA o ENS ALTA)' : 'si es ENS <categoría> o una guía CCN-STIC'}`,
+        'CONFIGURATION'
+      );
+    }
+
+    const quedan = diasHasta(fin, ahora);
+
+    vigencias.push(`${nombre}: conformidad ${fila.conformidad} hasta ${dia10(fin)} (${quedan >= 0 ? `quedan ${quedan} días` : `vencida hace ${-quedan} días`})`);
+
+    if (quedan < 0) {
+      return noCumple(`conformidad ${fila.conformidad} vencida el ${dia10(fin)}`);
+    }
+
+    if (tipo.tipo === 'ens' && tipo.categoria < nivel) {
+      return noCumple(`conformidad ENS ${NOMBRE_CATEGORIA[tipo.categoria]}, inferior a la categoría ${NOMBRE_CATEGORIA[nivel]} del sistema`);
+    }
+
+    return cumple(`conformidad ${fila.conformidad} hasta ${dia10(fin)}${fila.referencia ? ` (${fila.referencia})` : ''}`);
+  });
+
+  return juicios.find(j => j.estado === 'CUMPLE') || combina(juicios);
+};
+
+// --- op.nub.1.1 · la conformidad de los servicios que se prestan --------------
+
+// Decisión 1 del responsable: lo documental se juzga con su vigencia, no con
+// P-ATT (que no caduca). El prestador acredita las medidas del modelo prestado
+// con la conformidad de cada servicio prestado en P-03.
+const prestador = (
+  context: ENSPolicyContext,
+  ahora: number,
+  prestados: Record<string, string>[]
+): Expediente => {
+  const p03 = filas(context, 'P-03');
+  const vigencias: string[] = [];
+
+  if (!p03) {
+    return {
+      medida: faltaParametro(context, 'P-03', `la conformidad de los servicios prestados (${lista(prestados.map(s => s.servicio))}) con las medidas del modelo según las guías CCN-STIC`),
+      vigencias,
+    };
+  }
+
+  const nivel = DEL_NIVEL[context.level] ?? 0;
+  const porServicio = prestados.map(servicio => {
+    const m = conformidadDelServicio(p03, servicio.servicio, ahora, nivel, vigencias);
+
+    return { ...m, motivo: `«${servicio.servicio}»${servicio.modelo ? ` (${servicio.modelo})` : ''}: ${m.motivo}` };
+  });
+  const medida = combina(porServicio);
+
+  return {
+    medida:
+      medida.estado === 'CUMPLE'
+        ? { ...medida, motivo: `${ACREDITADO}: los ${prestados.length} servicios prestados tienen su conformidad en vigor. ${medida.motivo}` }
+        : medida,
+    vigencias,
+  };
+};
+
+// --- op.nub.1.r1.2 · los servicios de seguridad y op.pl.5 -----------------------
+
+// Cada servicio de seguridad de P-05 con su verificación de op.pl.5 declarada,
+// su referencia y su vigencia. ENSFácil no tiene op.pl.5: se juzga la
+// declaración contra la fecha de la evaluación, como una certificación.
+const seguridad = (context: ENSPolicyContext, ahora: number, p05: Record<string, string>[]): Medida => {
+  const porServicio = p05.map((fila): Medida => {
+    const nombre = `«${fila.servicio}»${fila.tipo_de_seguridad ? ` (${fila.tipo_de_seguridad})` : ''}`;
+    const declara = sinTildes(fila.cumple_op_pl_5 || '');
+
+    if (declara === 'no') {
+      return noCumple(`${nombre}: P-05 declara que no cumple op.pl.5`);
+    }
+
+    if (declara !== 'si') {
+      return sinMedir(`P-05, fila de ${nombre}: falta si cumple op.pl.5 («sí» o «no»)`, 'CONFIGURATION');
+    }
+
+    const fin = fecha(fila.vigente_hasta);
+
+    if (vacio(fila.referencia || '') || fin === undefined) {
+      return sinMedir(
+        `P-05, fila de ${nombre}: ${vacio(fila.referencia || '') ? 'falta la referencia de la verificación de op.pl.5' : `la vigencia «${fila.vigente_hasta || ''}» no es una fecha AAAA-MM-DD`}`,
+        'CONFIGURATION'
+      );
+    }
+
+    const quedan = diasHasta(fin, ahora);
+
+    return quedan < 0
+      ? noCumple(`${nombre}: la verificación de op.pl.5 «${fila.referencia}» venció el ${dia10(fin)}`)
+      : cumple(`${nombre}: verificación de op.pl.5 «${fila.referencia}» hasta ${dia10(fin)} (quedan ${quedan} días)`);
+  });
+
+  const medida = combina(porServicio);
+
+  return medida.estado === 'CUMPLE'
+    ? { ...medida, motivo: `${ACREDITADO}: los ${p05.length} servicios en la nube de seguridad de P-05 tienen su verificación de op.pl.5 en vigor. ${medida.motivo}` }
+    : medida;
+};
+
 // --- EV-09 · el expediente documental de cada servicio utilizado -------------
 
 interface Expediente {
@@ -323,48 +456,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
 
     // Conformidad ENS o guía CCN-STIC, vigente y de categoría suficiente.
     if (p03) {
-      const suyas = deServicio(p03, nombre);
-
-      if (!suyas.length) {
-        partes.push(noCumple('sin conformidad con el ENS ni con una guía CCN-STIC en P-03'));
-      } else {
-        const juicios = suyas.map((fila): Medida => {
-          const fin = fecha(fila.vigencia);
-          const tipo = conformidadDe(fila.conformidad);
-
-          if (fin === undefined) {
-            return sinMedir(`P-03, fila de «${nombre}»: la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD`, 'CONFIGURATION');
-          }
-
-          if (tipo.tipo === 'desconocida' || tipo.tipo === 'ens-sin-categoria') {
-            return sinMedir(
-              `P-03, fila de «${nombre}»: la conformidad «${fila.conformidad || ''}» no dice ${tipo.tipo === 'ens-sin-categoria' ? 'la categoría (ENS BÁSICA, ENS MEDIA o ENS ALTA)' : 'si es ENS <categoría> o una guía CCN-STIC'}`,
-              'CONFIGURATION'
-            );
-          }
-
-          const quedan = diasHasta(fin, ahora);
-
-          vigencias.push(`${nombre}: conformidad ${fila.conformidad} hasta ${dia10(fin)} (${quedan >= 0 ? `quedan ${quedan} días` : `vencida hace ${-quedan} días`})`);
-
-          if (quedan < 0) {
-            return noCumple(`conformidad ${fila.conformidad} vencida el ${dia10(fin)}`);
-          }
-
-          if (tipo.tipo === 'ens' && tipo.categoria < nivel) {
-            return noCumple(
-              `conformidad ENS ${NOMBRE_CATEGORIA[tipo.categoria]}, inferior a la categoría ${NOMBRE_CATEGORIA[nivel]} del sistema`
-            );
-          }
-
-          return cumple(`conformidad ${fila.conformidad} hasta ${dia10(fin)}${fila.referencia ? ` (${fila.referencia})` : ''}`);
-        });
-
-        // Basta una conformidad válida; si no la hay, se dice lo peor.
-        const buena = juicios.find(j => j.estado === 'CUMPLE');
-
-        partes.push(buena || combina(juicios));
-      }
+      partes.push(conformidadDelServicio(p03, nombre, ahora, nivel, vigencias));
     }
 
     // a) Pentest del proveedor, no más viejo que P-12 meses.
@@ -1044,24 +1136,28 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const todos = inv ? [...inv.utilizados, ...inv.prestados] : [];
   const vigencias: string[] = [];
 
-  // --- op.nub.1.1 · prestador: documental, P-ATT ---------------------------
+  // --- op.nub.1.1 · prestador: la conformidad de lo prestado, con su vigencia --
   if (aplica('op.nub.1.1')) {
     if (!presta(posicion)) {
       decideRequisito('op.nub.1.1', noAplica(`P-01 = ${posicion}: el sistema no presta servicios en la nube al sector público.`), [], 'prestador');
     } else {
-      const modelos = inv?.prestados.length
-        ? ` Servicios prestados según P-02: ${lista(inv.prestados.map(s => `${s.servicio}${s.modelo ? ` (${s.modelo})` : ''}`))}.`
-        : ' P-02 no declara ningún servicio prestado.';
+      let medida: Medida;
 
-      decideRequisito(
-        'op.nub.1.1',
-        sinMedir(
-          `Como prestador, el conjunto de medidas del modelo de servicio prestado (SaaS, PaaS o IaaS) según las guías CCN-STIC no lo mide ninguna herramienta: se acredita con un documento en P-ATT (referencia y enlace).${modelos}`,
-          'CONFIGURATION'
-        ),
-        [],
-        'P-ATT para op.nub.1.1'
-      );
+      if (!inv) {
+        medida = sinInventario;
+      } else if (!inv.prestados.length) {
+        medida = combina([
+          ...inv.errores,
+          sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio prestado (columna «uso»), y P-01 = ${posicion}.`, 'CONFIGURATION'),
+        ]);
+      } else {
+        const e = prestador(context, ahora, inv.prestados);
+
+        vigencias.push(...e.vigencias);
+        medida = e.medida;
+      }
+
+      decideRequisito('op.nub.1.1', medida, [], 'conformidad en vigor de cada servicio prestado (P-03)', medida.estado === 'CUMPLE');
     }
   }
 
@@ -1203,19 +1299,9 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         'servicios de seguridad en P-05, o «ninguno»'
       );
     } else {
-      const no = p05.filter(f => sinTildes(f.cumple_op_pl_5 || '') === 'no');
+      const medida = seguridad(context, ahora, p05);
 
-      decideRequisito(
-        'op.nub.1.r1.2',
-        no.length
-          ? noCumple(`P-05 declara que no cumplen op.pl.5: ${lista(no.map(f => `${f.servicio}${f.tipo_de_seguridad ? ` (${f.tipo_de_seguridad})` : ''}`))}.`)
-          : sinMedir(
-              `Servicios en la nube de seguridad (P-05): ${lista(p05.map(f => `${f.servicio}${f.tipo_de_seguridad ? ` (${f.tipo_de_seguridad})` : ''}`))}. ENSFácil no tiene op.pl.5: su verificación se acredita con un documento en P-ATT (referencia y enlace).`,
-              'CONFIGURATION'
-            ),
-        [],
-        'P-ATT para op.nub.1.r1.2'
-      );
+      decideRequisito('op.nub.1.r1.2', medida, [], 'verificación de op.pl.5 en vigor de cada servicio de seguridad (P-05)', medida.estado === 'CUMPLE');
     }
   }
 
@@ -1304,7 +1390,7 @@ export const opNub1PolicyDefinition: ENSPolicyDefinition = {
     {
       requirementId: 'op.nub.1.1',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      parameterIds: ['P-01', 'P-02'],
+      parameterIds: ['P-01', 'P-02', 'P-03'],
       evidenceIds: [],
       ruleType: 'CONDITIONAL_REQUIRED',
     },
