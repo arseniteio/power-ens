@@ -930,6 +930,15 @@ bloque('9. R2 en ALTA: hallazgos de postura del proveedor; sin ellos, no automat
     ilegible.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /recuento «-»/.test(ilegible.motivo('op.nub.1.r2.1')),
     `${estadoDe(ilegible, 'EV-02')} ${ilegible.motivo('op.nub.1.r2.1')}`
   );
+  const sinTotal = evalua(hoy(l => (l.event === 'cloud_posture_finding_observed' && enLaUltima(l)
+    ? { ...l, modulo: 'aws-s3', fuente: 'securityhub', estandar: 'AWS Foundational Security Best Practices v1.0.0', controles_evaluados: '-', controles_fallidos: 3, fallidos_criticos: 1, fallidos: 'S3.2,IAM.6,EC2.19' }
+    : l)), P07, 'ALTO');
+  comprueba(
+    '3 fallidos sin total de evaluados («-») → NO_CUMPLE que dice «sin total de evaluados», nunca «3 de 0»',
+    sinTotal.evidencia('EV-02')?.status === 'NO_CUMPLE' && /3 controles fallidos \(sin total de evaluados\)/.test(sinTotal.motivo('op.nub.1.r2.1')) && !/ de 0 /.test(sinTotal.motivo('op.nub.1.r2.1')),
+    sinTotal.motivo('op.nub.1.r2.1')
+  );
+  comprueba('REVERSIÓN: con el total, «3 de 212 controles fallidos»', /3 de 212 controles fallidos/.test(fallan.motivo('op.nub.1.r2.1')), fallan.motivo('op.nub.1.r2.1'));
   comprueba('con otro estándar declarado en P-07, esos hallazgos no cuentan → NO_EVALUABLE', evalua(hub(3), { ...BASE, 'P-07': ['AWS producción | CCN-STIC-887 | CIS AWS Foundations'] }, 'ALTO').evidencia('EV-02')?.status === 'NO_EVALUABLE');
   comprueba('sin P-07 en ALTA → CONFIGURATION', evalua(hub(0), BASE, 'ALTO').evidencia('EV-02')?.gapCause === 'CONFIGURATION');
   comprueba('Hetzner en P-07, sin integración → no automatizable', /«Hetzner»: no tiene integración en Wazuh/.test(evalua(hub(0), { ...BASE, 'P-07': ['Hetzner | CCN-STIC-887 | -'] }, 'ALTO').motivo('op.nub.1.r2.1')));

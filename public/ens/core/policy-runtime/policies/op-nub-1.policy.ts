@@ -1114,9 +1114,12 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
 
     if (fallidos > 0) {
       const cuales = suyos.flatMap(e => campo(e, 'fallidos').split(',').map(x => x.trim()).filter(x => !vacio(x)));
+      // Sin el total de evaluados (un recuento «-») no se escribe «N de 0».
+      const sinTotal = suyos.some(e => numero(campo(e, 'controles_evaluados')) === undefined) || evaluados < fallidos;
+      const cuantos = sinTotal ? `${fallidos} controles fallidos (sin total de evaluados)` : `${fallidos} de ${evaluados} controles fallidos`;
 
       return noCumple(
-        `«${nombre}» (${estandares}): ${fallidos} de ${evaluados} controles fallidos${criticos ? `, ${criticos} críticos o altos` : ''}: ${lista(cuales, 8)}. La configuración no sigue ${fila.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
+        `«${nombre}» (${estandares}): ${cuantos}${criticos ? `, ${criticos} críticos o altos` : ''}: ${lista(cuales, 8)}. La configuración no sigue ${fila.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
       );
     }
 
