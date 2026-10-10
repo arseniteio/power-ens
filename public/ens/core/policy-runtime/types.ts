@@ -110,6 +110,25 @@ export interface ENSPolicyDecision {
   // (`policy-evidence-bridge.ts`): un documento no mide ninguna, y su CUMPLE se
   // filtraría como medido a otros requisitos que compartan la evidencia.
   attested?: boolean;
+  // Decidida DESDE LA CONFIGURACIÓN, no desde los hechos: una tabla declarada
+  // en la pantalla con su vigencia (un contrato, una certificación, un plan),
+  // juzgada contra la fecha de la evaluación. Vale en CUALQUIER estado: un
+  // documento vencido es un NO_CUMPLE documental, uno vigente un CUMPLE
+  // (`attested`), uno sin declarar un NO_EVALUABLE por CONFIGURATION.
+  //
+  // Para qué existe. Un recolector parado (`markPolicyRuntimeStale`) o un
+  // alcance sin máquinas (`markPolicyRuntimeUnmatchedScope`) dejan sin valor
+  // las decisiones que salen de los HECHOS, no las que salen de la
+  // configuración: una certificación vencida sigue vencida aunque el
+  // recolector no lata. Antes se borraban todas, y en un requisito sin
+  // evidencias técnicas el NO_EVALUABLE resultante dejaba pasar a P-ATT: un
+  // NO_CUMPLE declarado salía CUMPLE. Esas dos funciones conservan las
+  // decisiones con esta marca.
+  //
+  // Y el informe no las presenta como medidas: un NO_CUMPLE documental no es
+  // algo que corregir en la máquina, sino un documento que renovar o completar
+  // (`documental` en el requisito y en la no conformidad).
+  documental?: boolean;
 }
 
 export interface ENSPolicyRuntimeResult {

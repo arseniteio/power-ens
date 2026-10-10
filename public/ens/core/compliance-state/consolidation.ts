@@ -286,6 +286,7 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
     // tumba con una medida.
     const template = { ...requirementEntries[0].requirement };
     delete template.attested;
+    delete template.documental;
 
     const evidenceIds = uniqueValues(
       requirementEntries.flatMap(({ requirement }) => requirement.evidenceIds || [])
@@ -311,6 +312,15 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       statusConsolidado === 'CUMPLE' &&
       requirementEntries.some(({ requirement }) => requirement.attested === true);
 
+    // DOCUMENTAL solo si lo es en todas las máquinas que lo deciden: una que
+    // lo incumple midiendo hace que el conjunto sea una medida.
+    const decisivas = requirementEntries.filter(
+      ({ requirement }) => requirement.status === statusConsolidado
+    );
+    const documental =
+      decisivas.length > 0 &&
+      decisivas.every(({ requirement }) => requirement.documental === true);
+
     return {
       ...template,
       status: statusConsolidado,
@@ -333,6 +343,7 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
         ({ requirement }) => requirement.evidenced !== false
       ),
       ...(attested ? { attested: true } : {}),
+      ...(documental ? { documental: true } : {}),
       level: uniqueValues(requirementEntries.flatMap(({ requirement }) => requirement.level)),
       evidenceIds: evidenceIds.length > 0 ? evidenceIds : undefined,
       observations: observationGroups.map(formatObservationGroup),

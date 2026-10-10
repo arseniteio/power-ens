@@ -86,6 +86,10 @@ import {
   opMon3PolicyDefinition,
 } from './op-mon-3.policy';
 
+import {
+  opNub1PolicyDefinition,
+} from './op-nub-1.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
     mpInfo6PolicyDefinition,
@@ -109,6 +113,7 @@ const policyDefinitions:
     opMon1PolicyDefinition,
     opMon2PolicyDefinition,
     opMon3PolicyDefinition,
+    opNub1PolicyDefinition,
   ];
 
 const policyRegistry =

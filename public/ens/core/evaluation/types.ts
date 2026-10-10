@@ -81,6 +81,12 @@ export interface ENSNonConformity {
   // Medido y no conforme, o no evidenciado. Ver `ENSNonConformityOrigin`.
   origin: ENSNonConformityOrigin;
 
+  // Solo en las `MEDIDA`: lo demostrado es una DECLARACIÓN de la pantalla (un
+  // contrato, una certificación vencida o ausente), no un hallazgo sobre la
+  // máquina. Cuenta igual, pero la acción es renovar o completar el documento,
+  // no corregir la máquina.
+  documental?: boolean;
+
   // Solo en las `NO_EVIDENCIADA`. En las medidas no hay hueco del que hablar.
   cause?: ENSGapCause;
 
@@ -137,6 +143,12 @@ export interface ENSRequirementResult {
   // los requisitos organizativos, el documento ES la prueba que el ENS pide—
   // pero presentarlos igual sería esconder de qué tipo es cada uno.
   attested?: boolean;
+
+  // Juzgado desde una declaración de la pantalla con su vigencia, no desde los
+  // hechos de una máquina (ver `documental` en `ENSPolicyDecision`). Con
+  // NO_CUMPLE, un documento vencido o ausente: ni «medido» ni «corregir la
+  // máquina».
+  documental?: boolean;
 
   observations: string[];
 

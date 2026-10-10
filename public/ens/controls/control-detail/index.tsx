@@ -369,6 +369,7 @@ export const ControlDetailENS = ({
       parameterIds: nonConformity.parameterIds || [],
       origin: nonConformity.origin,
       cause: nonConformity.cause,
+      documental: nonConformity.documental === true,
       // Las máquinas en las que se ha observado ESTE hallazgo. Una tarjeta
       // idéntica en seis máquinas es una tarjeta con seis máquinas; si el
       // hallazgo difiere (otra cuenta, otro motivo), el motor ya las separa.
@@ -422,6 +423,19 @@ export const ControlDetailENS = ({
   // se ve en el color y en la etiqueta, y la causa del no evidenciado va como
   // etiqueta, no como frase.
   const clasificar = (item: (typeof nonConformityItems)[number]) => {
+    // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
+    // vencida o ausente): no hay nada que corregir en la máquina.
+    if (item.origin === 'MEDIDA' && item.documental) {
+      return {
+        etiqueta: 'Declarado (documental)',
+        icono: 'document',
+        color: '#BD271E',
+        badgeColor: 'danger' as const,
+        accion: 'Renovar o completar la documentación',
+        responsable: 'Organización (contratos y proveedores)',
+      };
+    }
+
     if (item.origin === 'MEDIDA') {
       return {
         etiqueta: 'Medido',

@@ -158,6 +158,13 @@ RUNBOOKS = {
         ("linux/op.mon.3",),
         ["ensfacil_op_mon_3_json_rules.xml"],
     ),
+    # Solo Linux, en el manager: la integración de los servicios en la nube de
+    # los clientes (módulos cloud de Wazuh, sus registros y sus errores). La
+    # parte documental la juzga el plugin sin recolector (spec 2026-10-09 §4.4).
+    "op.nub.1": (
+        ("linux/op.nub.1",),
+        ["ensfacil_op_nub_1_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que

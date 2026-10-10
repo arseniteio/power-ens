@@ -360,4 +360,14 @@ export const ensRequirementsFile = {
     'Inspección: pruebas de penetración (R6) - Pruebas de penetración.',
   'op.mon.3.r7.1':
     'Interconexiones: control de flujos por metadatos (R7) - Refuerzo R7 – Interconexiones: En las interconexiones que lo requieran se aplicarán controles en los flujos de intercambio de información a través del uso de metadatos.',
+  'op.nub.1.1':
+    'Medidas del modelo de servicio prestado (prestador) - Los sistemas que suministran un servicio en la nube a organismos del sector público deberán cumplir con el conjunto de medidas de seguridad en función del modelo de servicio en la nube que presten: Software como Servicio (Software as a Service, SaaS), Plataforma como Servicio (Platform as a Service, PaaS) e Infraestructura como Servicio (Infrastructure as a Service, IaaS) definidas en las guías CCN-STIC que sean de aplicación.',
+  'op.nub.1.2':
+    'Conformidad de los servicios en la nube de terceros (usuario) - Cuando se utilicen servicios en la nube suministrados por terceros, los sistemas de información que los soportan deberán ser conformes con el ENS o cumplir con las medidas desarrolladas en una guía CCN-STIC que incluirá, entre otros, requisitos relativos a: a) Auditoría de pruebas de penetración (pentesting). b) Transparencia. c) Cifrado y gestión de claves. d) Jurisdicción de los datos.',
+  'op.nub.1.r1.1':
+    'Servicios de terceros certificados (R1) - Cuando se utilicen servicios en la nube suministrados por terceros, estos deberán estar certificados bajo una metodología de certificación reconocida por el Organismo de Certificación del Esquema Nacional de Evaluación y Certificación de Seguridad de las Tecnologías de la Información.',
+  'op.nub.1.r1.2':
+    'Servicios cloud de seguridad conformes con op.pl.5 (R1) - Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].',
+  'op.nub.1.r2.1':
+    'Configuración según la guía CCN-STIC específica (R2) - La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.',
 };
