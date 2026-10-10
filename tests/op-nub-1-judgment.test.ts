@@ -574,6 +574,16 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
     `${estadoDe(enDiciembre, 'EV-09')} ${estadoDe(enDiciembre, 'EV-08')}`
   );
 
+  // El campo de vigencias del informe incluye las conformidades de P-03.
+  const conformidadVencida = evalua(hoy(), { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('Hetzner') ? 'Hetzner | CCN-STIC-823 | servidores | 2026-09-30 | declaración' : f)) });
+  const campo4 = buildOpNub1ReportModel(conformidadVencida.motor()).fields[3];
+  comprueba(
+    'en MEDIA, con las certificaciones en vigor y una conformidad vencida, el campo de vigencias del informe sale NO_CUMPLE',
+    conformidadVencida.evidencia('EV-08')?.status === 'CUMPLE' && campo4.status === 'NO_CUMPLE' && campo4.details.some(d => /Hetzner.*vencida/.test(d)),
+    `${campo4.status} ${campo4.details.join(' | ')}`
+  );
+  comprueba('REVERSIÓN: con la conformidad en vigor, CUMPLE', buildOpNub1ReportModel(evalua(hoy()).motor()).fields[3].status === 'CUMPLE');
+
   // Categoría de la conformidad frente a la del sistema.
   const basicaGcp = { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? 'GCP analítica | ENS BÁSICA | Google Cloud | 2027-01-15 | nº 1' : f)) };
   comprueba('GCP con conformidad ENS BÁSICA en un sistema MEDIA → NO_CUMPLE', evalua(hoy(), basicaGcp).evidencia('EV-09')?.status === 'NO_CUMPLE' && /inferior a la categoría MEDIA/.test(evalua(hoy(), basicaGcp).motivo('op.nub.1.2')));

@@ -307,12 +307,18 @@ const conformidadDelServicio = (
   nombre: string,
   ahora: number,
   nivel: number,
-  vigencias: string[]
+  vigencias: string[],
+  // Cada conformidad juzgada, para el campo de vigencias del informe.
+  registro: Medida[] = []
 ): Medida => {
   const suyas = deServicio(p03, nombre);
 
   if (!suyas.length) {
-    return noCumple('sin conformidad con el ENS ni con una guía CCN-STIC en P-03');
+    const falta = noCumple('sin conformidad con el ENS ni con una guía CCN-STIC en P-03');
+
+    registro.push({ ...falta, motivo: `«${nombre}»: ${falta.motivo}` });
+
+    return falta;
   }
 
   const juicios = suyas.map((fila): Medida => {
@@ -345,7 +351,11 @@ const conformidadDelServicio = (
     return cumple(`conformidad ${fila.conformidad} hasta ${dia10(fin)}${fila.referencia ? ` (${fila.referencia})` : ''}`);
   });
 
-  return juicios.find(j => j.estado === 'CUMPLE') || combina(juicios);
+  const medida = juicios.find(j => j.estado === 'CUMPLE') || combina(juicios);
+
+  registro.push({ ...medida, motivo: `«${nombre}»: ${medida.motivo}` });
+
+  return medida;
 };
 
 // --- op.nub.1.1 · la conformidad de los servicios que se prestan --------------
@@ -356,7 +366,8 @@ const conformidadDelServicio = (
 const prestador = (
   context: ENSPolicyContext,
   ahora: number,
-  prestados: Record<string, string>[]
+  prestados: Record<string, string>[],
+  conformidades: Medida[] = []
 ): Expediente => {
   const p03 = filas(context, 'P-03');
   const vigencias: string[] = [];
@@ -370,7 +381,7 @@ const prestador = (
 
   const nivel = DEL_NIVEL[context.level] ?? 0;
   const porServicio = prestados.map(servicio => {
-    const m = conformidadDelServicio(p03, servicio.servicio, ahora, nivel, vigencias);
+    const m = conformidadDelServicio(p03, servicio.servicio, ahora, nivel, vigencias, conformidades);
 
     return { ...m, motivo: `«${servicio.servicio}»${servicio.modelo ? ` (${servicio.modelo})` : ''}: ${m.motivo}` };
   });
@@ -437,7 +448,7 @@ interface Expediente {
   vigencias: string[];
 }
 
-const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<string, string>[]): Expediente => {
+const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<string, string>[], conformidades: Medida[] = []): Expediente => {
   const p03 = filas(context, 'P-03');
   const p08 = filas(context, 'P-08');
   const p09 = filas(context, 'P-09');
@@ -471,7 +482,7 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
 
     // Conformidad ENS o guía CCN-STIC, vigente y de categoría suficiente.
     if (p03) {
-      partes.push(conformidadDelServicio(p03, nombre, ahora, nivel, vigencias));
+      partes.push(conformidadDelServicio(p03, nombre, ahora, nivel, vigencias, conformidades));
     }
 
     // a) Pentest del proveedor, no más viejo que P-12 meses.
@@ -1203,6 +1214,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   // La parte técnica de op.nub.1.2 es de los servicios UTILIZADOS.
   const utilizados = inv?.utilizados || [];
   const vigencias: string[] = [];
+  // Las conformidades de P-03 juzgadas (de lo utilizado y de lo prestado): el
+  // informe las pinta con las certificaciones, para que una vencida no salga
+  // en verde en el campo de vigencias.
+  const conformidades: Medida[] = [];
 
   // --- op.nub.1.1 · prestador: la conformidad de lo prestado, con su vigencia --
   if (aplica('op.nub.1.1')) {
@@ -1219,7 +1234,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio prestado (columna «uso»), y P-01 = ${posicion}.`, 'CONFIGURATION'),
         ]);
       } else {
-        const e = prestador(context, ahora, inv.prestados);
+        const e = prestador(context, ahora, inv.prestados, conformidades);
 
         vigencias.push(...e.vigencias);
         medida = e.medida;
@@ -1245,7 +1260,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         : !utilizados.length
         ? combina([...inv.errores, sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio utilizado de un tercero, y P-01 = ${posicion}.`, 'CONFIGURATION')])
         : (() => {
-            const e = ev09(context, ahora, utilizados);
+            const e = ev09(context, ahora, utilizados, conformidades);
 
             vigencias.push(...e.vigencias);
 
@@ -1427,6 +1442,16 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       description: sinIntegrar.length
         ? `Servicios sin integración en Wazuh (hallazgo del informe, sin veredicto): ${sinIntegrar.join(', ')}.`
         : 'Todos los servicios declarados tienen integración en Wazuh, o P-06 no está declarado.',
+    },
+    {
+      name: 'vigencia_conformidades',
+      value: conformidades.length ? peor(conformidades) : 'NO_APLICA',
+      parameterIds: ['P-03'],
+      evidenceIds: ['EV-09'],
+      eventIds: [],
+      description: conformidades.length
+        ? `Conformidades de P-03: ${conformidades.map(m => `${m.estado} ${m.motivo}`).join('; ')}`
+        : 'No se ha juzgado ninguna conformidad de P-03.',
     },
     {
       name: 'accesos_cloud',

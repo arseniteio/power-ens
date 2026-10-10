@@ -73,6 +73,23 @@ const field = (
   producerGaps,
 });
 
+// El peor estado de varios campos (SIN_DATOS cuenta como sin medir). Sin
+// ninguno medido, el primero.
+const GRAVEDAD: Record<OpNub1ReportFieldStatus, number> = {
+  NO_APLICA: 0,
+  CUMPLE: 1,
+  SIN_DATOS: 2,
+  NO_EVALUABLE: 2,
+  PARCIAL: 3,
+  NO_CUMPLE: 4,
+};
+
+const peorEstado = (estados: OpNub1ReportFieldStatus[]): OpNub1ReportFieldStatus =>
+  estados.reduce<OpNub1ReportFieldStatus>(
+    (actual, estado) => (GRAVEDAD[estado] > GRAVEDAD[actual] ? estado : actual),
+    'NO_APLICA'
+  );
+
 const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'];
 
 // Los dos bloques que la plantilla obliga a separar: «mezclarlos daría una
@@ -188,10 +205,16 @@ export const buildOpNub1ReportModel = (
   const campo4 = field(
     'op.nub.1.campo4',
     'Vigencia de certificaciones y conformidades',
-    level === 'BAJO' ? evidenceStatus('EV-09') : evidenceStatus('EV-08'),
+    // La peor de las certificaciones (EV-08, desde MEDIA) y de las
+    // conformidades de P-03: una conformidad vencida no puede salir en verde
+    // aquí porque las certificaciones estén en vigor.
+    peorEstado([
+      ...(level === 'BAJO' ? [] : [evidenceStatus('EV-08')]),
+      asStatus(variables.get('vigencia_conformidades')?.value),
+    ]),
     'DOCUMENTACIÓN APORTADA. Fecha de vigencia de cada conformidad (P-03) y de cada certificación reconocida (P-04, R1 desde MEDIA), con los días restantes frente a la fecha de la evaluación. Las vencidas son incumplimiento inmediato.',
     ['EV-08', 'EV-09'],
-    [variableDescription('vigencias'), ...evidenceObservations('EV-08')],
+    [variableDescription('vigencias'), variableDescription('vigencia_conformidades'), ...evidenceObservations('EV-08')],
   );
 
   // Configuración de seguridad del inquilino (R2)  ·  fuente: hallazgos de postura del proveedor (EV-02)
