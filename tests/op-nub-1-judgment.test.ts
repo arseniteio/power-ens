@@ -878,6 +878,23 @@ bloque('10. Prestador (op.nub.1.1) y servicios de seguridad (R1.2): documentales
   };
   const r = evalua(hoy(), ambos);
   comprueba('ambos: el servicio prestado no entra en el expediente de terceros (op.nub.1.2 sigue acreditado)', r.requisito('op.nub.1.2').attested === true, r.motivo('op.nub.1.2'));
+  // La parte técnica de op.nub.1.2 es de lo UTILIZADO: el portal prestado,
+  // integrado por github y sin registros, no la tumba.
+  const ambosConModulo = { ...ambos, 'P-06': [...(BASE['P-06'] as string[]), 'Portal de trámites | github | organización del portal'] };
+  const prestadoIntegrado = evalua(hoy(), ambosConModulo);
+  comprueba(
+    'ambos: un servicio PRESTADO declarado en P-06 sin módulo en Wazuh no cuenta en EV-01 de op.nub.1.2',
+    prestadoIntegrado.evidencia('EV-01')?.status === 'CUMPLE' && !/github/.test(prestadoIntegrado.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''),
+    prestadoIntegrado.deEvidencia('op.nub.1.2', 'EV-01')?.reason
+  );
+  comprueba(
+    'REVERSIÓN: el mismo servicio declarado como utilizado → EV-01 NO_CUMPLE (no tiene el módulo github)',
+    evalua(hoy(), {
+      ...ambosConModulo,
+      'P-02': [...(BASE['P-02'] as string[]), 'Portal de trámites | SaaS | Quersystem | expedientes | alta | utilizado'],
+      'P-03': [...(BASE['P-03'] as string[]), 'Portal de trámites | ENS MEDIA | x | 2027-09-30 | nº'],
+    }).evidencia('EV-01')?.status === 'NO_CUMPLE'
+  );
   comprueba(
     'y op.nub.1.1 juzga la conformidad de lo prestado: sin fila en P-03 → NO_CUMPLE documental',
     r.requisito('op.nub.1.1').status === 'NO_CUMPLE' && r.requisito('op.nub.1.1').documental === true && /«Portal de trámites» \(SaaS\): sin conformidad/.test(r.motivo('op.nub.1.1')),

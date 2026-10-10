@@ -626,6 +626,9 @@ interface Integraciones {
   // Servicios con «ninguno» (o sin fila): hallazgo del informe.
   sinIntegrar: string[];
   errores: Medida[];
+  // Todos los módulos que P-06 declara, también los de servicios prestados:
+  // para no presentar como «no declarado» lo que sí lo está.
+  enP06: string[];
 }
 
 const integraciones = (context: ENSPolicyContext, servicios: Record<string, string>[]): Integraciones | undefined => {
@@ -635,9 +638,16 @@ const integraciones = (context: ENSPolicyContext, servicios: Record<string, stri
     return undefined;
   }
 
-  const salida: Integraciones = { porModulo: new Map(), sinIntegrar: [], errores: [] };
+  const salida: Integraciones = {
+    porModulo: new Map(),
+    sinIntegrar: [],
+    errores: [],
+    enP06: p06.map(f => (f.modulo || '').trim().toLowerCase()).filter(m => MODULOS.includes(m)),
+  };
 
-  p06.forEach(fila => {
+  // Solo los servicios que se juzgan (los UTILIZADOS de op.nub.1.2): la
+  // integración de un servicio prestado no es de este requisito.
+  p06.filter(fila => servicios.some(s => iguales(s.servicio || '', fila.servicio || ''))).forEach(fila => {
     const modulo = (fila.modulo || '').trim().toLowerCase();
 
     if (!modulo) {
@@ -773,7 +783,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
   const sinIntegrar = integ.sinIntegrar.length
     ? ` Sin integración en Wazuh (hallazgo del informe, sin veredicto: el ENS no exige integrarlos): ${lista(integ.sinIntegrar.map(s => `«${s}»`))}.`
     : '';
-  const ajenos = observados.filter(e => !declarados.includes(campo(e, 'modulo').toLowerCase()));
+  const ajenos = observados.filter(e => !integ.enP06.includes(campo(e, 'modulo').toLowerCase()));
   const noDeclarados = ajenos.length
     ? ` Wazuh ingiere además ${lista(Array.from(new Set(ajenos.map(e => campo(e, 'modulo')))))}, que P-06 no declara.`
     : '';
@@ -1190,7 +1200,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   const inv = inventario(context, posicion);
   const sinInventario = faltaParametro(context, 'P-02', 'qué servicios en la nube están en el alcance');
-  const todos = inv ? [...inv.utilizados, ...inv.prestados] : [];
+  // La parte técnica de op.nub.1.2 es de los servicios UTILIZADOS.
+  const utilizados = inv?.utilizados || [];
   const vigencias: string[] = [];
 
   // --- op.nub.1.1 · prestador: la conformidad de lo prestado, con su vigencia --
@@ -1229,7 +1240,6 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       decideRequisito('op.nub.1.2', fuera, ['EV-01', 'EV-04', 'EV-09'], 'usuario');
       ['EV-01', 'EV-04', 'EV-07', 'EV-09'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera));
     } else {
-      const utilizados = inv?.utilizados || [];
       const expediente: Medida = !inv
         ? sinInventario
         : !utilizados.length
@@ -1242,15 +1252,15 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
             return inv.errores.length ? combina([e.medida, ...inv.errores]) : e.medida;
           })();
 
-      ingesta = ev01(context, ahora, todos);
+      ingesta = ev01(context, ahora, utilizados);
       const tecnicas: { id: string; medida: Medida }[] = [
         { id: 'EV-01', medida: ingesta.medida },
-        { id: 'EV-04', medida: ev04(context, ahora, todos, ingesta) },
+        { id: 'EV-04', medida: ev04(context, ahora, utilizados, ingesta) },
       ];
       const propias = [{ id: 'EV-09', medida: expediente }, ...tecnicas];
 
       // EV-07: hallazgo del informe, sin veredicto (ver `accesosInformados`).
-      accesos = ev07(context, ahora, todos, ingesta);
+      accesos = ev07(context, ahora, utilizados, ingesta);
       decideEvidencia('op.nub.1.2', 'EV-07', accesosInformados(accesos), 'hallazgo del informe');
       const enContra = propias.filter(p => p.medida.estado === 'NO_CUMPLE');
       const resumen = propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | ');
@@ -1310,7 +1320,6 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       decideRequisito('op.nub.1.r1.1', fuera, ['EV-08'], 'usuario');
       decideEvidencia('op.nub.1.r1.1', 'EV-08', fuera);
     } else {
-      const utilizados = inv?.utilizados || [];
       let medida: Medida;
 
       if (!inv) {
@@ -1386,7 +1395,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       .map(id => `${id} ${medidas[id].estado}`)
       .join(', ') || 'no aplica';
   const sinIntegrar = (() => {
-    const integ = inv ? integraciones(context, todos) : undefined;
+    const integ = inv ? integraciones(context, utilizados) : undefined;
 
     return integ ? integ.sinIntegrar : [];
   })();
