@@ -39,9 +39,9 @@ y los enlaces a cada runbook y a sus guías, en la
    [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
    siguiendo la guía `02-compliance` **de cada runbook** (no está en este
    repositorio: cada runbook tiene la suya, enlazada en la tabla).
-4. **Medir.** Tras la primera pasada de los recolectores (cada hora), el panel
-   juzga cada control; lo que no se puede demostrar sale `NO_EVALUABLE` con su
-   causa y dice dónde se corrige.
+4. **Medir.** Tras la primera pasada de los recolectores (cada hora; los de
+   op.mon.2 y op.cont.3, cada 6 h), el panel juzga cada control; lo que no se
+   puede demostrar sale `NO_EVALUABLE` con su causa y dice dónde se corrige.
 
 ## Controles
 

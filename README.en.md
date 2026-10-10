@@ -38,9 +38,9 @@ and the links to every runbook and its guides are in the
    [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
    following the `02-compliance` guide **of each runbook** (it is not in this
    repository: each runbook has its own, linked from the table).
-4. **Measure.** After the collectors' first pass (hourly), the panel judges each
-   control; whatever cannot be demonstrated shows `NO_EVALUABLE` with its cause
-   and says where to fix it.
+4. **Measure.** After the collectors' first pass (hourly; those of op.mon.2 and
+   op.cont.3, every 6 h), the panel judges each control; whatever cannot be
+   demonstrated shows `NO_EVALUABLE` with its cause and says where to fix it.
 
 ## Controls
 
