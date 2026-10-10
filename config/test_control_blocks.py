@@ -59,7 +59,7 @@ def busca_runtime():
 # por qué estar entre lo que se compila y se entrega al cliente.
 
 ARNES = r"""
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import process from 'node:process';
 
 import {
@@ -292,7 +292,10 @@ const salida = casos.map((caso) => {
   return { error: 'caso desconocido' };
 });
 
-console.log(JSON.stringify(salida));
+// A un fichero y no a la salida estándar: bun corta en 64 KiB lo que escribe en
+// una tubería al salir, y el registro de parámetros de todos los controles ya
+// pasa de ese tamaño.
+writeFileSync(`${process.argv[process.argv.length - 1]}.salida.json`, JSON.stringify(salida));
 """
 
 
@@ -398,7 +401,8 @@ def ejecuta(runtime, arnes, tmp, casos):
         print(proceso.stderr, file=sys.stderr)
         raise SystemExit("el arnés TypeScript no arrancó")
 
-    return json.loads(proceso.stdout.strip().splitlines()[-1])
+    with open(entrada + ".salida.json", encoding="utf-8") as f:
+        return json.load(f)
 
 
 # --- los bloques ------------------------------------------------------------

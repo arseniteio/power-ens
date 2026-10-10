@@ -4,8 +4,8 @@
  *     npx tsx tests/measurement-planes.test.ts
  *
  * El alcance ENS se resuelve por el grupo `ens`, y el manager no puede estar en
- * un grupo. op.cont.2, op.exp.7, op.exp.9 y op.mon.1 se miden SOLO en el manager y op.exp.8 en los
- * dos planos, así que el catálogo declara `measurementPlanes` y:
+ * un grupo. op.cont.2, op.exp.7, op.exp.9 y op.mon.1 se miden SOLO en el manager y op.exp.8 y
+ * op.mon.3 en los dos planos, así que el catálogo declara `measurementPlanes` y:
  *
  *   - el manager entra en el alcance cuando algún control ACTIVE lo pide;
  *   - su fila evalúa solo los controles de plano `manager`, y la de cualquier
@@ -105,7 +105,7 @@ ensConfigurationRepository.replaceActive({
   } as ENSConfigurationVersion['global'],
   // mp.info.6 solo se mide en las máquinas que declara su P-04 (ver
   // `mp-info-6-judgment.test.ts`). Aquí se declaran las dos del alcance, para
-  // que sus filas midan los 15 controles de plano agent y lo que se pruebe
+  // que sus filas midan los 16 controles de plano agent y lo que se pruebe
   // sea solo el plano.
   controls: defaultENSConfigurationTemplate.controls.map(control =>
     control.controlId !== 'mp.info.6'
@@ -128,7 +128,7 @@ const PLANO_AGENTE = [
   'op.exp.10',
 ];
 const SOLO_MANAGER = ['op.cont.2', 'op.exp.7', 'op.exp.9', 'op.mon.1'];
-const DOBLE_PLANO = ['op.exp.8'];
+const DOBLE_PLANO = ['op.exp.8', 'op.mon.3'];
 
 const AGENTES: ENSAgentScope[] = [
   { id: '001', name: 'wazuh-real', groups: ['default', 'ens'] },
@@ -222,7 +222,7 @@ comprueba(
   })
 );
 comprueba(
-  'el catálogo son esos 19',
+  'el catálogo son esos 20',
   ENSCatalog.length === PLANO_AGENTE.length + SOLO_MANAGER.length + DOBLE_PLANO.length
 );
 
@@ -355,7 +355,7 @@ const resto = (): void => {
 
   comprueba('consolidado · ninguno de los 14 cambia', cambiados.length === 0, cambiados.join(', '));
   comprueba(
-    'consolidado · están los 19, en el orden del catálogo',
+    'consolidado · están los 20, en el orden del catálogo',
     huella(ids(ahora.results)) === huella(ENSCatalog.map(c => c.id)),
     ids(ahora.results).join(', ')
   );
@@ -387,17 +387,17 @@ const resto = (): void => {
   comprueba('control a control (detalle) · ninguno de los 14 cambia', porControlDistintos.length === 0, porControlDistintos.join(', '));
 
   comprueba(
-    'el manager es una fila más y solo trae sus 5 controles',
-    huella(ids(ahora.agents.find(a => a.agentId === '000')!.results)) === '["op.cont.2","op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
+    'el manager es una fila más y solo trae sus 6 controles',
+    huella(ids(ahora.agents.find(a => a.agentId === '000')!.results)) === '["op.cont.2","op.exp.7","op.exp.8","op.exp.9","op.mon.1","op.mon.3"]',
     ids(ahora.agents.find(a => a.agentId === '000')?.results || []).join(', ')
   );
   comprueba(
-    'y su resumen cuenta solo esos 5',
-    ahora.agents.find(a => a.agentId === '000')!.summary.totalControls === 5
+    'y su resumen cuenta solo esos 6',
+    ahora.agents.find(a => a.agentId === '000')!.summary.totalControls === 6
   );
   comprueba(
     'el resumen de una fila de agente no cuenta los de solo manager',
-    ahora.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 15)
+    ahora.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 16)
   );
 
   // -------------------------------------------------------------------------
@@ -456,20 +456,20 @@ const resto = (): void => {
     const vista = getENSComplianceState(NIVEL, TODOS, '001', CON_MANAGER, AHORA);
 
     comprueba(
-      'vista de un agente · están los 19, en el orden del catálogo',
+      'vista de un agente · están los 20, en el orden del catálogo',
       huella(ids(vista.results)) === huella(ENSCatalog.map(c => c.id)),
       ids(vista.results).join(', ')
     );
   }
 
-  // Seleccionado el propio manager: su fila, con sus 5 controles; los de plano
+  // Seleccionado el propio manager: su fila, con sus 6 controles; los de plano
   // agent no tienen resultado en ella.
   {
     const vista = getENSComplianceState(NIVEL, TODOS, '000', CON_MANAGER, AHORA);
 
     comprueba(
-      'vista del manager · sus 5 controles',
-      huella(ids(vista.results)) === '["op.cont.2","op.exp.7","op.exp.8","op.exp.9","op.mon.1"]',
+      'vista del manager · sus 6 controles',
+      huella(ids(vista.results)) === '["op.cont.2","op.exp.7","op.exp.8","op.exp.9","op.mon.1","op.mon.3"]',
       ids(vista.results).join(', ')
     );
     comprueba(
