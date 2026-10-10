@@ -824,8 +824,15 @@ const ev03 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, ahora: number):
   if (!declarados) {
     partes.push(faltaParametro(context, 'P-02', `qué conjuntos de reglas de correlación tienen que estar desplegados (cargados hoy: ${resumen})`));
   } else {
+    declarados.forEach((f, i) => {
+      if (!(f.conjunto || '').trim() || f.conjunto.trim() === '-') {
+        partes.push(sinMedir(`P-02, fila ${i + 1}: falta el conjunto de reglas.`, 'CONFIGURATION'));
+      }
+    });
+
     const faltan = declarados
-      .map(f => f.conjunto)
+      .map(f => (f.conjunto || '').trim())
+      .filter(nombre => nombre && nombre !== '-')
       .filter(nombre => !vigentes.some(e => iguales(campo(e, 'conjunto'), nombre) && correlacionan(e) > 0));
 
     if (faltan.length) {
@@ -950,9 +957,15 @@ const superficie = (context: ENSPolicyContext, ctxM: ENSPolicyContext, ahora: nu
   const sca: Medida[] = [];
   const inventario: Medida[] = [];
 
-  activos.forEach(fila => {
+  activos.forEach((fila, i) => {
     const activo = (fila.activo || '').trim();
     const declaradas = (fila.politicas_sca || '').trim();
+
+    if (!activo || activo === '-') {
+      configuracion.push(sinMedir(`P-03, fila ${i + 1}: falta el activo (el nombre o el ID de su agente).`, 'CONFIGURATION'));
+
+      return;
+    }
 
     if (declaradas && declaradas !== '-' && !POLITICAS_EN_CELDA.test(declaradas)) {
       configuracion.push(
@@ -1133,9 +1146,15 @@ const ev06 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, ahora: number):
   const fallos: string[] = [];
   const bien: string[] = [];
 
-  sondas.forEach(f => {
+  sondas.forEach((f, i) => {
     const producto = (f.producto || '').trim();
     const max = (f.max_dias_sin_alertas || '').trim();
+
+    if (!producto || producto === '-') {
+      partes.push(sinMedir(`P-05, fila ${i + 1}: falta el producto de la sonda de red.`, 'CONFIGURATION'));
+
+      return;
+    }
 
     if (max && max !== '-' && !ENTERO_POSITIVO.test(max)) {
       partes.push(sinMedir(`P-05, sonda «${producto}»: max_dias_sin_alertas dice «${max}», que no es un número entero de días.`, 'CONFIGURATION'));

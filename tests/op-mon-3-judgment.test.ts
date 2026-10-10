@@ -528,6 +528,14 @@ bloque('3. R2 (superficie de exposición): el indexer, cada eje y su reversión'
 
   comprueba('politicas_sca en texto libre → CONFIGURATION nombrando el activo', estado(evalua(hoy(), libre), 'op.mon.3.r2.1') === 'NO_EVALUABLE' && causa(evalua(hoy(), libre), 'op.mon.3.r2.1') === 'CONFIGURATION' && /activo «wazuh-real»/.test(evalua(hoy(), libre).motivo('op.mon.3.r2.1')));
 
+  comprueba(
+    'celdas clave vacías → CONFIGURATION nombrando la fila: P-03 sin activo, P-02 sin conjunto',
+    causa(evalua(hoy(), { ...BASE, 'P-03': ['Wazuh-4 | interna | ', ' | Internet | '] }), 'op.mon.3.r2.1') === 'CONFIGURATION' &&
+      /P-03, fila 2: falta el activo/.test(evalua(hoy(), { ...BASE, 'P-03': ['Wazuh-4 | interna | ', ' | Internet | '] }).motivo('op.mon.3.r2.1')) &&
+      causa(evalua(hoy(), { ...BASE, 'P-02': ['wazuh | 4515 | -', ' | 3 | -'] }), 'op.mon.3.r1.1') === 'CONFIGURATION' &&
+      /P-02, fila 2: falta el conjunto/.test(evalua(hoy(), { ...BASE, 'P-02': ['wazuh | 4515 | -', ' | 3 | -'] }).motivo('op.mon.3.r1.1'))
+  );
+
   const sinInventario = hoy(en('package_inventory_observed', { inventario_ultimo: '-' }, l => l.agente_id === '028'));
 
   comprueba('el LDAP sin inventario de paquetes → NO_CUMPLE', estado(evalua(sinInventario), 'op.mon.3.r2.1') === 'NO_CUMPLE');
@@ -839,6 +847,12 @@ bloque('7. ALTA: refuerzos R3 a R6, documentales e inspecciones');
     'R3.2 · Suricata con su última alerta de hace 4 días y máximo 2 → NO_CUMPLE; reversión con máximo 7',
     estado(evalua(verde(conPentest().map(e => (e.eventType === 'network_detection_observed' ? { ...e, attributes: { ...e.attributes, ultima_alerta: '2026-10-05T11:50:00Z' } } : e))), ALTA, 'ALTO'), 'op.mon.3.r3.2') === 'NO_CUMPLE' &&
       estado(evalua(verde(conPentest().map(e => (e.eventType === 'network_detection_observed' ? { ...e, attributes: { ...e.attributes, ultima_alerta: '2026-10-05T11:50:00Z' } } : e))), { ...ALTA, 'P-05': ['Suricata | TAP | 7'] }, 'ALTO'), 'op.mon.3.r3.2') === 'CUMPLE'
+  );
+
+  comprueba(
+    'R3.2 · una fila de P-05 sin producto → CONFIGURATION nombrando la fila',
+    causa(evalua(verde(), { ...ALTA, 'P-05': ['Suricata | TAP | 2', ' | core | 2'] }, 'ALTO'), 'op.mon.3.r3.2') === 'CONFIGURATION' &&
+      /P-05, fila 2: falta el producto/.test(evalua(verde(), { ...ALTA, 'P-05': ['Suricata | TAP | 2', ' | core | 2'] }, 'ALTO').motivo('op.mon.3.r3.2'))
   );
 
   // R5.1: las reglas de umbral.
