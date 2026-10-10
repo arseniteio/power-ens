@@ -962,6 +962,15 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
       /hits\.length >= ENS_FACTS_QUERY_LIMIT/.test(segunda) &&
       /panorama\?\.truncated \?/.test(informes)
   );
+  comprueba(
+    'sin parpadeo: un refresco de la MISMA consulta conserva el último panorama y el PDF activo; solo la primera carga o otra clave lo vacían',
+    /const claveConsulta = `\$\{ensLevel\}\|\$\{searchDataKey\(consulta\)\}`;/.test(segunda) &&
+      /useEsSearch\(\{ \.\.\.consulta, refreshKey \}\)/.test(segunda) &&
+      /ultimaRespuesta\.current\?\.clave === claveConsulta/.test(segunda) &&
+      /!error &&/.test(segunda) &&
+      /loading: !vigente && isLoading/.test(segunda) &&
+      /results: vigente\?\.results/.test(segunda)
+  );
   const filtro = JSON.stringify(buildENSAllControlsFactsFilter(['op.acc.1', 'op.mon.2']));
   comprueba(
     'el filtro compartido es el del panel: data.ensfacil, data.control, data.evidence_id y los grupos ENS',

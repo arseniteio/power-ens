@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
   EuiBadge, EuiHealth, EuiBasicTable, EuiButton, EuiHorizontalRule,
@@ -7,6 +7,7 @@ import {
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
+import { searchDataKey } from '../../search/search-decision';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { getActiveENSConfiguration } from '../configuration/services';
 import {
@@ -1017,7 +1018,7 @@ const ControlReportWithPanorama = ({
     [scopeAgentsKey],
   );
 
-  const { esResults, isLoading, error } = useEsSearch({
+  const consulta = {
     preAppliedFilters: [
       evaluationTimeFilter,
       buildENSScopeAgentQueryFilter(scopeAgents, agentId),
@@ -1025,37 +1026,64 @@ const ControlReportWithPanorama = ({
     ],
     size: ENS_FACTS_QUERY_LIMIT,
     sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
-  });
+  };
+
+  const { esResults, isLoading, error } = useEsSearch({ ...consulta, refreshKey });
+
+  // La clave de la consulta: sus datos (rango, máquina, filtro, tope) sin el
+  // `refreshKey`, y el nivel con que se evalúa. Mientras no cambia, un refresco
+  // no es una consulta nueva.
+  const claveConsulta = `${ensLevel}|${searchDataKey(consulta)}`;
 
   const hits = useMemo(
     () => (esResults && esResults.hits && esResults.hits.hits) || [],
     [esResults],
   );
 
-  // Mientras la consulta está en curso o si ha fallado, sin panorama: el
-  // informe enseña SIN_DATOS y el PDF no se exporta.
-  const results = useMemo(
+  // El panorama de la respuesta que acaba de llegar; ninguno mientras hay una
+  // consulta en curso o si ha fallado.
+  const respuesta = useMemo(
     () =>
       isLoading || error
         ? undefined
-        : getENSComplianceState(
-            ensLevel,
-            normalizeWazuhAlerts(hits),
-            agentId,
-            scopeAgents,
-          ).results,
-    [isLoading, error, hits, ensLevel, agentId, scopeAgents],
+        : {
+            clave: claveConsulta,
+            results: getENSComplianceState(
+              ensLevel,
+              normalizeWazuhAlerts(hits),
+              agentId,
+              scopeAgents,
+            ).results,
+            truncated: hits.length >= ENS_FACTS_QUERY_LIMIT,
+          },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isLoading, error, hits, claveConsulta],
   );
+
+  // El último panorama respondido. Durante un REFRESCO de la misma consulta se
+  // sigue enseñando (y el PDF sigue activo): sin parpadeo cada 15 s. Solo en la
+  // primera carga, o si la clave cambia (otro rango, otra máquina, otro nivel),
+  // no hay panorama que valga: SIN_DATOS y PDF desactivado hasta que responda.
+  const ultimaRespuesta = useRef(respuesta);
+
+  if (respuesta) {
+    ultimaRespuesta.current = respuesta;
+  }
+
+  const vigente =
+    respuesta ||
+    (!error && ultimaRespuesta.current?.clave === claveConsulta
+      ? ultimaRespuesta.current
+      : undefined);
 
   return (
     <ControlReport
       controlId={controlId}
       definition={definition}
       panorama={{
-        results,
-        loading: isLoading,
-        truncated: !isLoading && !error && hits.length >= ENS_FACTS_QUERY_LIMIT,
+        results: vigente?.results,
+        loading: !vigente && isLoading,
+        truncated: Boolean(vigente?.truncated),
         error,
       }}
     />
