@@ -264,7 +264,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo9',
     'Región de los datos y jurisdicción',
     'NO_APLICA',
-    'Dato del informe, sin veredicto: la región configurada no se puede medir: Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor. Lo declarado en P-08 forma parte del expediente documental (op.nub.1.2 d).',
+    'Dato del informe, sin veredicto: la región configurada no se puede medir, porque Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor. Lo declarado en P-08 forma parte del expediente documental (op.nub.1.2 d).',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );

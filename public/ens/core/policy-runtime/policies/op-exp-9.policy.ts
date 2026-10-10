@@ -1287,7 +1287,7 @@ const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
   }
 
   return sinMedir(
-    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protegibles.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${lista(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial (decisión del responsable, 26/09), así que esa protección queda sin demostrar.`,
+    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protegibles.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${lista(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial, así que esa protección queda sin demostrar.`,
     'CONFIGURATION'
   );
 };
