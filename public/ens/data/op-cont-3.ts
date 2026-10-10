@@ -219,7 +219,7 @@ export const opCont3Control: ENSControl = {
       id: 'P-06',
       name: 'ventanas_prueba',
       description:
-        'Franjas previstas para la ejecución de pruebas, para que los eventos de un simulacro planificado no se traten como los de una incidencia real (op.exp.7). La medida de op.cont.3 no usa esta ventana prevista, sino la REAL que declara cada fila del registro de pruebas.',
+        'Franjas previstas para la ejecución de pruebas, que la organización declara como información para el informe. ENSFácil no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 no usa esta ventana prevista, sino la REAL que declara cada fila del registro de pruebas.',
       level: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'table',
