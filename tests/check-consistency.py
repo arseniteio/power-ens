@@ -1267,6 +1267,97 @@ else:
             "sin runbook: {}".format(", ".join(_sin)) if _sin else "",
         )
 
+
+# --- 15 -------------------------------------------------------------------------
+#
+# Sin `^…$`, el valor de un `<field>` casa como SUBCADENA. Pasó en op.mon.3
+# (10/10, comprobado con wazuh-logtest 4.14.7): `log_source_observed` casaba
+# dentro de `syslog_source_observed`; las dos reglas son de nivel 3, así que
+# ganaba la primera del fichero y una fuente syslog salía con la regla de las
+# fuentes de agente. Cada mitad parecía bien: solo se ve cruzando los nombres.
+#
+# Se miran los `event` de cada XML canónica contra los demás `event` del mismo
+# fichero, y el `ensfacil` de cada regla base contra los ids de todos los
+# controles (`op.exp.1` casaría dentro de `op.exp.10`). Nada más: el `estado`
+# CUMPLE/NO_CUMPLE de op.acc.1 y op.acc.2 se solapa y lo resuelve el nivel de
+# la regla, a propósito. Las copias de los runbooks solo avisan: las arregla
+# volver a copiar la canónica.
+
+print()
+print("=== 15. Ningún `event` sin anclar casa dentro de otro evento ===")
+print()
+
+
+def _campos(texto, nombre):
+    """(rule id, valor) de cada `<field name=nombre>`, sin los comentarios."""
+    limpio = re.sub(r"<!--.*?-->", "", texto, flags=re.S)
+    salida = []
+    for regla, cuerpo in re.findall(r'<rule\s+id="(\d+)"[^>]*>(.*?)</rule>', limpio, flags=re.S):
+        for valor in re.findall(r'<field\s+name="%s"[^>]*>([^<]*)</field>' % nombre, cuerpo):
+            salida.append((regla, valor.strip()))
+    return salida
+
+
+def _casa(patron, nombre):
+    try:
+        return re.search(patron, nombre) is not None
+    except re.error:
+        return True
+
+
+def choques_de_eventos(ruta):
+    eventos = _campos(lee(ruta), "event")
+    nombres = {v.strip("^$") for _, v in eventos}
+    return [
+        "{} «{}» casa dentro de «{}»".format(regla, valor, otro)
+        for regla, valor in eventos
+        for otro in sorted(nombres - {valor.strip("^$")})
+        if _casa(valor, otro)
+    ]
+
+
+_canonicas = sorted(glob.glob(os.path.join(PLUGIN, "agent", "rules", "*.xml")))
+_bases = []
+_con_choques = 0
+
+for _ruta in _canonicas:
+    _bases += [(os.path.basename(_ruta), r, v) for r, v in _campos(lee(_ruta), "ensfacil")]
+    _choques = choques_de_eventos(_ruta)
+    if _choques:
+        _con_choques += 1
+        falla(
+            "{}: hay un `event` sin anclar que casa dentro de otro".format(os.path.basename(_ruta)),
+            "; ".join(_choques) + " — ánclalo: ^nombre$",
+        )
+
+_ids = {v.strip("^$") for _, _, v in _bases}
+_choques_base = [
+    "{} {} «{}» casa dentro de «{}»".format(f, r, v, otro)
+    for f, r, v in _bases
+    for otro in sorted(_ids - {v.strip("^$")})
+    if _casa(v, otro)
+]
+if _choques_base:
+    falla("una regla base casa con el id de otro control", "; ".join(_choques_base) + " — ánclala: ^id$")
+
+if not _con_choques and not _choques_base:
+    ok(
+        "las {} XML canónicas: ningún `event` ni regla base casa dentro de otro".format(len(_canonicas))
+    )
+
+for _control, (_repos, _xmls) in sorted(RUNBOOKS.items()):
+    for _repo in _repos:
+        for _x in _xmls:
+            _copia = os.path.join(carpeta_de(_repo), "manager", _x)
+            if not os.path.exists(_copia):
+                continue
+            _choques = choques_de_eventos(_copia)
+            if _choques:
+                avisa(
+                    "{} ({}): la copia desplegada tiene un `event` sin anclar que casa dentro de otro".format(_x, _repo),
+                    "; ".join(_choques[:3]) + " — vuelve a copiar la canónica del plugin",
+                )
+
 print()
 
 if fallos:
