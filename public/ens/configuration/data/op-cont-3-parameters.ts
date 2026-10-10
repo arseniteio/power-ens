@@ -24,9 +24,10 @@ import { ENSControlConfiguration } from '../types';
 // de cada fila del registro. Sirve a op.exp.7 para no escalar un simulacro
 // como incidente, y se enseña en el informe.
 //
-// `required` en P-01, P-04 y P-05, que sostienen las dos obligaciones del
-// requisito. Los demás, si faltan, los nombra el juicio de su evidencia con
-// causa CONFIGURATION. Ninguno tiene valor por defecto.
+// `required` en todos menos P-06: sin cualquiera de ellos el requisito no
+// puede salir CUMPLE (P-01 la periodicidad, P-02 los tipos, P-03 los
+// escenarios, P-04 y P-05 los registros, P-07 los RTO). P-06 solo se enseña.
+// Ninguno tiene valor por defecto.
 const REGISTRO_PRUEBAS = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
 const REGISTRO_DEFICIENCIAS = 'Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)';
 
@@ -90,7 +91,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: false,
+      required: true,
       wazuhUsage:
         'ENSFácil registra qué tipo de prueba se realizó en cada ocasión. Importa porque no todas acreditan lo mismo: una revisión de escritorio no demuestra que los medios alternativos funcionen, y un auditor distingue perfectamente entre ambas cosas.',
       ensfacilUsage:
@@ -125,7 +126,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: false,
+      required: true,
       wazuhUsage:
         'ENSFácil mantiene la matriz de escenarios y señala los que no se han probado nunca o cuya última prueba es más antigua que P-01. Un escenario relevante nunca probado es un hueco concreto y defendible como hallazgo.',
       ensfacilUsage:
@@ -258,7 +259,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
           required: false,
         },
       ],
-      required: false,
+      required: true,
       wazuhUsage:
         'ENSFácil mide la indisponibilidad de cada sistema durante la prueba a partir de los eventos reales y la compara con su objetivo. Es la aportación de mayor valor del control: sustituye la impresión de los participantes por una medición.',
       ensfacilUsage:

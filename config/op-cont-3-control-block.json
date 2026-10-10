@@ -72,7 +72,7 @@
           "required": false
         }
       ],
-      "required": false,
+      "required": true,
       "wazuhUsage": "ENSFácil registra qué tipo de prueba se realizó en cada ocasión. Importa porque no todas acreditan lo mismo: una revisión de escritorio no demuestra que los medios alternativos funcionen, y un auditor distingue perfectamente entre ambas cosas.",
       "ensfacilUsage": "ENSFácil exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga alguna prueba de ese alcance (EV-01), y que cada tipo previsto se haya hecho dentro de su periodicidad (EV-02).",
       "evidenceIds": [
@@ -110,7 +110,7 @@
           "required": false
         }
       ],
-      "required": false,
+      "required": true,
       "wazuhUsage": "ENSFácil mantiene la matriz de escenarios y señala los que no se han probado nunca o cuya última prueba es más antigua que P-01. Un escenario relevante nunca probado es un hueco concreto y defendible como hallazgo.",
       "ensfacilUsage": "ENSFácil busca en el registro de pruebas la última de cada escenario: uno que nunca se ha probado, o cuya última prueba tiene más de P-01 meses, es un incumplimiento (EV-02).",
       "evidenceIds": [
@@ -259,7 +259,7 @@
           "required": false
         }
       ],
-      "required": false,
+      "required": true,
       "wazuhUsage": "ENSFácil mide la indisponibilidad de cada sistema durante la prueba a partir de los eventos reales y la compara con su objetivo. Es la aportación de mayor valor del control: sustituye la impresión de los participantes por una medición.",
       "ensfacilUsage": "Para cada prueba parcial o simulacro del periodo, ENSFácil compara la caída más larga medida de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).",
       "evidenceIds": [
