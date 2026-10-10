@@ -7,6 +7,7 @@ export * from './op-acc-4';
 export * from './op-acc-5';
 export * from './op-acc-6';
 export * from './op-cont-2';
+export * from './op-cont-3';
 export * from './op-exp-1';
 export * from './op-exp-2';
 export * from './op-exp-3';
@@ -31,6 +32,7 @@ import { opAcc4CatalogDefinition } from './op-acc-4';
 import { opAcc5CatalogDefinition } from './op-acc-5';
 import { opAcc6CatalogDefinition } from './op-acc-6';
 import { opCont2CatalogDefinition } from './op-cont-2';
+import { opCont3CatalogDefinition } from './op-cont-3';
 import { opExp1CatalogDefinition } from './op-exp-1';
 import { opExp2CatalogDefinition } from './op-exp-2';
 import { opExp3CatalogDefinition } from './op-exp-3';
@@ -55,6 +57,7 @@ export const ENSCatalog: ENSControlDefinition[] = [
   opAcc5CatalogDefinition,
   opAcc6CatalogDefinition,
   opCont2CatalogDefinition,
+  opCont3CatalogDefinition,
   opExp1CatalogDefinition,
   opExp2CatalogDefinition,
   opExp3CatalogDefinition,

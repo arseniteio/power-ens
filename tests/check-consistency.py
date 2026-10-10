@@ -165,6 +165,13 @@ RUNBOOKS = {
         ("linux/op.nub.1",),
         ["ensfacil_op_nub_1_json_rules.xml"],
     ),
+    # Solo Linux y solo el manager: los dos registros de la organización y las
+    # caídas y restauraciones de cada prueba se ven en el manager; ni el LDAP
+    # ni Windows aportan nada (spec 2026-10-09 §6.4).
+    "op.cont.3": (
+        ("linux/op.cont.3",),
+        ["ensfacil_op_cont_3_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que

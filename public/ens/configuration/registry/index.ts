@@ -7,6 +7,7 @@ import { opAcc4Configuration } from '../data/op-acc-4-parameters';
 import { opAcc5Configuration } from '../data/op-acc-5-parameters';
 import { opAcc6Configuration } from '../data/op-acc-6-parameters';
 import { opCont2Configuration } from '../data/op-cont-2-parameters';
+import { opCont3Configuration } from '../data/op-cont-3-parameters';
 import { opExp1Configuration } from '../data/op-exp-1-parameters';
 import { opExp2Configuration } from '../data/op-exp-2-parameters';
 import { opExp3Configuration } from '../data/op-exp-3-parameters';
@@ -31,6 +32,7 @@ export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   opAcc5Configuration,
   opAcc6Configuration,
   opCont2Configuration,
+  opCont3Configuration,
   opExp1Configuration,
   opExp2Configuration,
   opExp3Configuration,

@@ -174,6 +174,8 @@ export const ensRequirementsFile = {
     'Plan de emergencia y contingencia (R1) - Refuerzo R1 – Plan de emergencia y contingencia: Cuando se determine la necesidad de continuidad de los sistemas, deberá existir un plan de emergencia y contingencia en consonancia. En función del análisis de Impacto, se determinarán los aspectos a cubrir.',
   'op.cont.2.r2.1':
     'Comprobación de integridad tras una caída (R2) - Refuerzo R2 – Comprobación de integridad: Ante una caída o discontinuidad del sistema, se deberá comprobar la integridad del sistema operativo, del firmware y de los ficheros de configuración.',
+  'op.cont.3.1':
+    'Pruebas periódicas del plan y corrección de lo detectado - Se realizarán pruebas periódicas para localizar y, en su caso, corregir los errores o deficiencias que puedan existir en el plan de continuidad.',
   'op.exp.1.1':
     'Inventario actualizado con naturaleza y responsable - Se mantendrá un inventario actualizado de todos los elementos del sistema, detallando su naturaleza e identificando a su responsable; es decir, la persona que toma las decisiones relativas al mismo.',
   'op.exp.1.r1.1':
