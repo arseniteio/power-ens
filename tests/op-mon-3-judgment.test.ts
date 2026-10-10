@@ -571,6 +571,28 @@ bloque('4. op.mon.3.1 (recolección): cada fuente, cada eje, con su reversión')
   comprueba('una fuente declarada que el logcollector no lee → NO_CUMPLE (y dice lo que lee)', estado(fila24(hoy(), secure), 'op.mon.3.1') === 'NO_CUMPLE' && /no lee \/var\/log\/secure \(lee: \/var\/log\/auth\.log/.test(fila24(hoy(), secure).motivo('op.mon.3.1')));
   comprueba('reversión · con el comodín /var/log/auth*, CUMPLE', estado(fila24(hoy(), conP01('auth de wazuh-real | Linux auth | agente | 24 | /var/log/auth* | ')), 'op.mon.3.1') === 'CUMPLE');
 
+  // El logcollector no lee ninguna fuente: el recolector lo dice con un hecho
+  // `ubicacion=ninguna`, que no es una ubicación y no casa con ninguna fila,
+  // tampoco con el comodín `*`.
+  const sinFuentes = hoy(l =>
+    l.event === 'log_source_observed' && l._a === '024'
+      ? l.ubicacion === '/var/log/auth.log'
+        ? { ...l, ubicacion: 'ninguna', eventos: 0, bytes: 0, descartes: 0, descartes_periodo: 0, ultimo_evento: '-', observado_desde: '-' }
+        : undefined
+      : l
+  );
+  const todo = conP01('todo de wazuh-real | Linux | agente | 24 | * | 24');
+  comprueba(
+    'una fila con el comodín * y el logcollector sin ninguna fuente (ubicacion=ninguna) → NO_CUMPLE, no NO_EVALUABLE para siempre',
+    estado(fila24(sinFuentes, todo), 'op.mon.3.1') === 'NO_CUMPLE' && /no lee \* \(no lee ninguna fuente\)/.test(fila24(sinFuentes, todo).motivo('op.mon.3.1')),
+    `${estado(fila24(sinFuentes, todo), 'op.mon.3.1')} ${fila24(sinFuentes, todo).motivo('op.mon.3.1')}`
+  );
+  comprueba(
+    'y la fila exacta de auth.log, igual: «ninguna» no casa con nada',
+    estado(fila24(sinFuentes), 'op.mon.3.1') === 'NO_CUMPLE' && /no lee ninguna fuente/.test(fila24(sinFuentes).motivo('op.mon.3.1'))
+  );
+  comprueba('reversión · con sus fuentes, la fila * → CUMPLE', estado(fila24(hoy(), todo), 'op.mon.3.1') === 'CUMPLE', fila24(hoy(), todo).motivo('op.mon.3.1'));
+
   const conDescartes = hoy(en('log_source_observed', { descartes: 5, descartes_periodo: 5 }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
 
   comprueba('5 eventos descartados en el periodo → NO_CUMPLE medido', estado(fila24(conDescartes), 'op.mon.3.1') === 'NO_CUMPLE' && /descartados/.test(fila24(conDescartes).motivo('op.mon.3.1')));

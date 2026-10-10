@@ -321,7 +321,13 @@ const leeFuente = (fila: Record<string, string>, n: number): Fuente | string => 
 
 // La ubicación de P-01 contra la del hecho: exacta, o con los comodines * y ?
 // del propio localfile. Las rutas distinguen mayúsculas, como en Linux.
+// `ninguna` (el logcollector no lee ninguna fuente) no es una ubicación: no
+// casa con ninguna fila, tampoco con `*`.
 const coincideUbicacion = (declarada: string, observada: string): boolean => {
+  if (vacio(observada) || observada === 'ninguna') {
+    return false;
+  }
+
   if (!/[*?]/.test(declarada)) {
     return declarada === observada;
   }
@@ -480,8 +486,10 @@ const fuenteLocal = (ctxA: ENSPolicyContext, ahora: number, fuente: Fuente, maqu
   const suyas = leidas.filter(e => coincideUbicacion(fuente.ubicacion, campo(e, 'ubicacion')));
 
   if (!suyas.length) {
+    const lee = leidas.map(e => campo(e, 'ubicacion')).filter(u => !vacio(u) && u !== 'ninguna');
+
     return noCumple(
-      `«${fuente.fuente}»: el logcollector de ${maquina} no lee ${fuente.ubicacion} (lee: ${lista(leidas.map(e => campo(e, 'ubicacion')), 6)}).`
+      `«${fuente.fuente}»: el logcollector de ${maquina} no lee ${fuente.ubicacion} (${lee.length ? `lee: ${lista(lee, 6)}` : 'no lee ninguna fuente'}).`
     );
   }
 
