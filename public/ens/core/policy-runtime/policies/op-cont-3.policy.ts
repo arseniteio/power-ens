@@ -189,7 +189,9 @@ interface Registro {
   filas: ENSNormalizedEvent[];
   // Las filas válidas que el recolector dice haber emitido en esa lectura.
   declaradas?: number;
-  invalidas: number;
+  // Las que descartó por no seguir el formato; sin el dato, `undefined`: un
+  // recuento que no llega no es un cero.
+  invalidas?: number;
   lineas: string[];
 }
 
@@ -239,7 +241,7 @@ const leeRegistro = (
     fichero,
     filas: validos(context, tipoFila, ahora).filter(e => momento(e) >= t - MISMA_PASADA && momento(e) <= t + HORA),
     declaradas: numero(campo(leido, 'filas')),
-    invalidas: numero(campo(leido, 'filas_invalidas')) || 0,
+    invalidas: numero(campo(leido, 'filas_invalidas')),
     lineas: listaDe(campo(leido, 'lineas_invalidas')),
   };
 };
@@ -247,7 +249,12 @@ const leeRegistro = (
 // Las filas que el recolector descartó por no seguir el formato: con ellas el
 // registro no se puede dar por completo. Se nombran por línea y columna.
 const filasDescartadas = (reg: Registro, nombre: string): Medida | undefined =>
-  reg.invalidas
+  reg.invalidas === undefined
+    ? sinMedir(
+        `La lectura del registro de ${nombre} ${reg.fichero} no dice cuántas filas descartó el recolector por no seguir el formato (filas_invalidas): no se puede comprobar que no haya ninguna, y una fila descartada puede ser justo la que falta.`,
+        'COLLECTION'
+      )
+    : reg.invalidas
     ? sinMedir(
         `El registro de ${nombre} ${reg.fichero} tiene ${reg.invalidas} fila(s) descartadas por no seguir el formato (${
           reg.lineas.length ? `línea:columna ${lista(reg.lineas, 10)}` : 'ver los avisos del recolector'
@@ -1473,10 +1480,22 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     }
 
     if (sinPrueba.length) {
+      // Por qué puede faltar su prueba sin que sea un error de quien escribe
+      // el registro: no se sabe cuántas filas leyó o descartó el recolector, o
+      // faltan filas que leyó.
+      const porRecogida =
+        b.reg.declaradas === undefined
+          ? 'La lectura del registro de pruebas no dice cuántas filas leyó el recolector, así que no se puede comprobar que hayan llegado todas, y su prueba puede ser una de las que faltan.'
+          : b.faltanFilas
+          ? 'Al registro de pruebas le faltan filas que el recolector leyó, y su prueba puede ser una de ellas.'
+          : b.reg.invalidas === undefined
+          ? 'La lectura del registro de pruebas no dice cuántas filas descartó el recolector, y su prueba puede estar en una de ellas.'
+          : undefined;
+
       partes.push(
-        b.faltanFilas
+        porRecogida
           ? sinMedir(
-              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba recibida: ${lista(sinPrueba.map(describeHuerfana))}. Al registro de pruebas le faltan filas que el recolector leyó, y su prueba puede ser una de ellas.`,
+              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba recibida: ${lista(sinPrueba.map(describeHuerfana))}. ${porRecogida}`,
               'COLLECTION'
             )
           : sinMedir(

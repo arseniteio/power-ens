@@ -949,6 +949,21 @@ bloque('11 ter. Lo que no se sabe que llegó entero no se da por entero (integra
   );
   comprueba('REVERSIÓN: con «filas», EV-01 CUMPLE', evalua(hoy()).evidencia('EV-01')?.status === 'CUMPLE');
 
+  // Lo mismo con el recuento de filas descartadas: sin él no es un cero.
+  const sinInvalidas = evalua(hoy(l => (l.event === 'continuity_test_register_read' ? sin('filas_invalidas')(l) : l)));
+  comprueba(
+    'una lectura del registro de pruebas sin «filas_invalidas» → NO_EVALUABLE por RECOGIDA, nunca cero descartadas',
+    sinInvalidas.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinInvalidas.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no dice cuántas filas descartó el recolector por no seguir el formato \(filas_invalidas\)/.test(sinInvalidas.de('EV-01')),
+    `${estado(sinInvalidas, 'EV-01')} ${sinInvalidas.de('EV-01')}`
+  );
+  const sinInvalidasDef = evalua(hoy(l => (l.event === 'continuity_deficiency_register_read' ? sin('filas_invalidas')(l) : l)));
+  comprueba(
+    'y la del registro de deficiencias sin «filas_invalidas» → EV-05 NO_EVALUABLE por RECOGIDA',
+    sinInvalidasDef.evidencia('EV-05')?.status === 'NO_EVALUABLE' && sinInvalidasDef.evidencia('EV-05')?.gapCause === 'COLLECTION' && /registro de deficiencias .*\(filas_invalidas\)/.test(sinInvalidasDef.de('EV-05')),
+    `${estado(sinInvalidasDef, 'EV-05')} ${sinInvalidasDef.de('EV-05')}`
+  );
+  comprueba('REVERSIÓN: con «filas_invalidas» = 0, EV-05 CUMPLE', evalua(hoy()).evidencia('EV-05')?.status === 'CUMPLE');
+
   const sinTotal = evalua(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? sin('eventos_total')(l) : l)));
   comprueba(
     'una cronología sin «eventos_total» → EV-04 NO_EVALUABLE por RECOGIDA, nunca entera',
@@ -977,6 +992,16 @@ bloque('11 ter. Lo que no se sabe que llegó entero no se da por entero (integra
     'una deficiencia cuya prueba se perdió por el camino → RECOGIDA, no «copia el inicio exacto»',
     pruebaPerdida.evidencia('EV-05')?.gapCause === 'COLLECTION' && /le faltan filas que el recolector leyó/.test(pruebaPerdida.de('EV-05')) && !/Copia en prueba_inicio/.test(pruebaPerdida.de('EV-05')),
     `${estado(pruebaPerdida, 'EV-05')} ${pruebaPerdida.de('EV-05')}`
+  );
+  const perdidaSinFilas = evalua(
+    hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l.event === 'continuity_test_register_read' ? sin('filas')(l) : l))
+  );
+  comprueba(
+    'sin «filas», la deficiencia sin prueba no dice que «le faltan filas que el recolector leyó»: dice que no se sabe cuántas leyó',
+    perdidaSinFilas.evidencia('EV-05')?.gapCause === 'COLLECTION' &&
+      /no dice cuántas filas leyó el recolector, así que no se puede comprobar que hayan llegado todas, y su prueba puede ser una de las que faltan/.test(perdidaSinFilas.de('EV-05')) &&
+      !/le faltan filas que el recolector leyó/.test(perdidaSinFilas.de('EV-05')),
+    `${estado(perdidaSinFilas, 'EV-05')} ${perdidaSinFilas.de('EV-05')}`
   );
   const pruebaIlegible = evalua(hoy(fila('continuity_test_recorded', l => l.linea === 3, { resultado: 'ok' })));
   comprueba(
