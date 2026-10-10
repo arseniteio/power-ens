@@ -24,8 +24,9 @@ and the links to every runbook and its guides are in the
 [runbooks and registers table](docs/deployment/05-runbooks-and-registers.en.md).
 
 1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of
-   each of the 17 Linux runbooks (rules and `<localfile>`; op.exp.7, op.exp.8
-   and op.exp.9 also leave a collector on the manager itself), and finally the
+   each of the 22 Linux runbooks (rules and `<localfile>`; op.exp.7, op.exp.8,
+   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 also leave a
+   collector on the manager itself; op.cont.2 has no runbook), and finally the
    ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
    Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
 2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrol it on
@@ -43,7 +44,7 @@ and the links to every runbook and its guides are in the
 
 ## Controls
 
-ENSFácil evaluates 17 controls. «Levels» are the system categories in which
+ENSFácil evaluates 23 controls. «Levels» are the system categories in which
 Annex II requires the control; «not required» marks a reinforcement the ENS
 defines but does not require in any category, which comes out `NO_APLICA`.
 
@@ -56,6 +57,8 @@ defines but does not require in any category, which comes out `NO_APLICA`.
 | `op.acc.4` | Access rights management process | LOW+ | no reinforcements | machines |
 | `op.acc.5` | Authentication mechanism (external users) | LOW+ | R1–R4 (LOW+), R5 (MEDIUM+); R6–R7 not required | machines |
 | `op.acc.6` | Authentication mechanism (organization users) | LOW+ | R1–R4, R8–R9 (LOW+), R5 (MEDIUM+), R6–R7 (HIGH) | machines |
+| `op.cont.2` | Continuity plan | HIGH (by the Availability level) | R1–R2 not required | manager, without a runbook: the plugin judges it from the configuration |
+| `op.cont.3` | Periodic tests | HIGH (by the Availability level) | no reinforcements | manager |
 | `op.exp.1` | Asset inventory | LOW+ | R1–R4 not required | machines |
 | `op.exp.2` | Security configuration | LOW+ | no reinforcements | machines |
 | `op.exp.3` | Security configuration management | LOW+ | R1 (MEDIUM+), R2–R3 (HIGH); R4–R5 not required | machines |
@@ -66,6 +69,10 @@ defines but does not require in any category, which comes out `NO_APLICA`.
 | `op.exp.8` | Activity logging | LOW+ (by the Traceability level) | R1–R4 (MEDIUM+), R5 (HIGH) | machines and manager |
 | `op.exp.9` | Incident management records | LOW+ | no reinforcements | manager |
 | `op.exp.10` | Cryptographic key protection | LOW+ | R1 (MEDIUM+); R2 not required | machines |
+| `op.mon.1` | Intrusion detection | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3 not required | manager |
+| `op.mon.2` | Metrics system | LOW+ | R1–R2 (MEDIUM+) | manager |
+| `op.mon.3` | Monitoring | LOW+ | R1–R2 (MEDIUM+), R3–R6 (HIGH); R7 not required | machines and manager |
+| `op.nub.1` | Protection of cloud services | LOW+ | R1 (MEDIUM+), R2 (HIGH) | manager |
 
 Each control has its own deployment repository (runbook) in GitLab, with one
 variant per machine type. The repository is named exactly as the control and
@@ -75,7 +82,7 @@ same control.
 
 | GitLab group | Controls |
 |---|---|
-| `quersystem/ens-controls-runbook/linux` | all 17 (mp.info.6 for machines that back up to a Proxmox Backup Server) |
+| `quersystem/ens-controls-runbook/linux` | 22, all but op.cont.2, which has no runbook (mp.info.6 for machines that back up to a Proxmox Backup Server) |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10 |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (`zmbackup` backups of Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4 |
@@ -101,6 +108,11 @@ What each Linux runbook installs:
 | `linux/op.exp.8` | rules, `<localfile>` of the `ens` group, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | collector and auditd rules |
 | `linux/op.exp.9` | rules, manager collector with its cron and `<localfile>` in the manager's `ossec.conf` | nothing: it only checks that active response, FIM and dpkg are forwarded |
 | `linux/op.exp.10` | rules and `<localfile>` of the `ens` group | collector and auditd rules |
+| `linux/op.cont.3` | rules, manager collector with its cron (every 6 h) and `<localfile>` in the manager's `ossec.conf`; the templates of the test and deficiency registers | nothing: it is measured entirely on the manager |
+| `linux/op.mon.1` | rules, manager collector with its cron (hourly) and `<localfile>` in the manager's `ossec.conf` | nothing: it is measured entirely on the manager |
+| `linux/op.mon.2` | rules, manager collector with its cron (every 6 h) and `<localfile>` in the manager's `ossec.conf`; the template of the metrics cycle register | nothing: it is measured entirely on the manager |
+| `linux/op.mon.3` | rules, manager collector with its cron (hourly), `<localfile>` in the manager's `ossec.conf` and in the `agent.conf` of the `ens` group; the template of the inspection register | collector (also on the LDAP server) |
+| `linux/op.nub.1` | rules, manager collector with its cron (hourly) and `<localfile>` in the manager's `ossec.conf` | nothing: it is measured entirely on the manager |
 
 > [!important]
 > The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3,
@@ -184,11 +196,11 @@ one folder:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.0.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
 ```
 
 What you should see: `OK` for the three files and `dashboard: active` at the end
-of the deployment. Replace `1.0.0` with the release's version.
+of the deployment. Replace `1.1.0` with the release's version.
 
 The `ensfacil_admin` role is optional for now: the Wazuh `admin` user, with
 `all_access`, already saves the configuration. `create-admin-role.sh` is only
@@ -259,15 +271,18 @@ measured on it:
 
 | Control | Measurement planes (`measurementPlanes`) | Manager row (`000`) | Each machine row |
 |---|---|---|---|
-| `op.exp.7` | manager only | evaluated | not evaluated |
-| `op.exp.9` | manager only | evaluated | not evaluated |
+| `op.cont.2`, `op.cont.3` | manager only | evaluated | not evaluated |
+| `op.exp.7`, `op.exp.9` | manager only | evaluated | not evaluated |
+| `op.mon.1`, `op.mon.2`, `op.nub.1` | manager only | evaluated | not evaluated |
 | `op.exp.8` | machines and manager | evaluated (central plane and the server itself) | evaluated; what is measured only on the manager comes out `NO_APLICA` |
+| `op.mon.3` | machines and manager | evaluated (central collection, correlation, exposure surface and the rest) | its log sources are evaluated |
 | the rest | machines only | not evaluated | evaluated |
 
-Manager facts arrive with `agent.id=000`. In the view of a machine, op.exp.7
-and op.exp.9 appear with the result of the manager row, because they are
-controls of the organization, not of the machine. In the manager view only
-op.exp.7, op.exp.8 and op.exp.9 appear.
+Manager facts arrive with `agent.id=000`. In the view of a machine, the
+controls measured only on the manager appear with the result of its row,
+because they are controls of the organization, not of the machine. In the
+manager view only the nine measured on it appear: op.cont.2, op.cont.3,
+op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1.
 
 ### Traceability dimension level
 
@@ -275,6 +290,13 @@ op.exp.8 applies by the level of the Traceability (T) dimension, not by the
 system category. Configuration > Global configuration has an optional
 **Traceability level (T)** field: if left empty, op.exp.8 is evaluated with the
 global ENS level, like every other control. No other control reads it.
+
+### Availability dimension level
+
+op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension,
+and only with D at HIGH. Configuration > Global configuration has an optional
+**Availability level (D)** field: if left empty, both are evaluated with the
+global ENS level. No other control reads it.
 
 To check the consistency between the plugin, the rules and the runbooks:
 
@@ -298,7 +320,7 @@ python3 tests/check-consistency.py
 | The control card does not appear in Configuration | its configuration block has not been seeded, or the deployed plugin predates the control; see the update guide |
 | `inject-control.py` reports that the `active` document does not exist | the configuration has never been saved; save it once in ENSFácil > Configuration and seed again |
 | «Sin datos del recolector desde …» on a control | the collector of that control has not sent a heartbeat for more than 24 h on that machine: agent stopped, cron removed or machine down |
-| op.exp.7, op.exp.8 or op.exp.9 without data on the manager | that runbook's `install-manager.sh` is missing, or its cron has not run yet (hourly) |
+| a control measured on the manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 or op.cont.3) without data | that runbook's `install-manager.sh` is missing, or its cron has not run yet (hourly; op.mon.2 and op.cont.3, every 6 h) |
 | `install-manager.sh` refuses to touch `agent.conf` | the `agent.conf` of the `ens` group (or the `ens-copias` one, for mp.info.6) has more than one `<agent_config>` block; merge them into one |
 
 Consistency check between the plugin and the runbooks:
@@ -381,8 +403,9 @@ for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo
 
 How to build with the CI image and run the tests like CI: [Building from source](docs/deployment/08-building-from-source.en.md).
 
-Rule ID ranges in use. Those of op.exp.7 and op.exp.9, and those of the
-central plane of op.exp.8, arrive with agent `000` (the manager):
+Rule ID ranges in use. Those of op.exp.7, op.exp.9, op.mon.1, op.mon.2,
+op.nub.1 and op.cont.3, and those of the central plane of op.exp.8 and op.mon.3,
+arrive with agent `000` (the manager). op.cont.2 has no rules:
 
 | Control | Reserved band | In use |
 |---|---|---|
@@ -403,9 +426,14 @@ central plane of op.exp.8, arrive with agent `000` (the manager):
 | `op.exp.8` | 110900–110999 | 110900–110999 |
 | `op.exp.9` | 111000–111099 | 111000–111099 |
 | `op.exp.10` | 111100–111199 | 111100–111199 |
+| `op.mon.1` | 111200–111299 | 111200–111299 |
+| `op.mon.2` | 111300–111399 | 111300–111399 |
+| `op.mon.3` | 111400–111499 | 111400–111499 |
+| `op.nub.1` | 111500–111599 | 111500–111599 |
+| `op.cont.3` | 111700–111799 | 111700–111799 |
 
 The 107200–109999 band is not used: on some managers other integrations
-occupy it. Before deploying on a manager with its own rules, check that none
+occupy it. The 111600–111699 band is free. Before deploying on a manager with its own rules, check that none
 of these bands is in use.
 
 ---

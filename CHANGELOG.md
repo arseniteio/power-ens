@@ -7,6 +7,50 @@ siguen el [versionado semántico](https://semver.org/lang/es/).
 
 La entrada de cada versión son las notas de su release en GitLab.
 
+## [1.1.0] - 2026-10-10
+
+Seis controles nuevos: el catálogo pasa de 17 a 23.
+
+### Añadido
+
+- Seis controles en el catálogo, todos medidos en el manager (op.mon.3 también
+  en las máquinas):
+  - `op.cont.2` Plan de continuidad (solo con D en ALTO), sin runbook ni reglas:
+    lo juzga el plugin con las tablas de la pantalla y su vigencia;
+  - `op.cont.3` Pruebas periódicas (solo con D en ALTO), con los registros de
+    pruebas y de deficiencias del manager y las caídas y arranques medidos en
+    la ventana real de cada prueba;
+  - `op.mon.1` Detección de intrusión;
+  - `op.mon.2` Sistema de métricas, con el registro de ciclos de métricas;
+  - `op.mon.3` Vigilancia, en el manager y en las máquinas del grupo `ens`;
+  - `op.nub.1` Protección de servicios en la nube.
+- La dimensión de Disponibilidad (D): en Configuración > Configuración global,
+  el campo opcional **Nivel de Disponibilidad (D)**. Solo lo leen op.cont.2 y
+  op.cont.3; vacío, usan el nivel ENS global.
+- La marca de acreditación documental (`attested`) en las decisiones de las
+  policies: un requisito que cumple por una declaración en vigor sale
+  «Acreditado documentalmente», nunca «Medido», y no rellena como medidas sus
+  evidencias.
+- La marca documental (`documental`) en las decisiones que salen solo de las
+  tablas de la pantalla (op.cont.2 entero, R2 de op.mon.1 y lo documental de
+  op.nub.1): un recolector parado o un alcance sin máquinas no las borran, y
+  un incumplimiento documental se lee «Declarado (documental)» y manda a
+  renovar o completar la documentación, no a corregir la máquina.
+- Informes: el de op.mon.2 recibe el resultado de todos los controles (el
+  panorama) con una segunda búsqueda de hechos, la misma que la del panel.
+
+### Cambiado
+
+- El índice de configuración, `wazuh-ens-configuration`, se crea con
+  `auto_expand_replicas: 0-1`: en un indexer de un solo nodo ya no se queda en
+  amarillo.
+- Un control cuyas evidencias no escuchan ningún hecho (op.cont.2) no espera
+  hechos: lo que no puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA.
+- Una evidencia nombrada por la policy solo sustituye a un NO_EVALUABLE
+  heredado de su requisito; un NO_CUMPLE o un PARCIAL heredado sigue mandando.
+- En el detalle del control, las no conformidades documentales tienen su
+  propio bloque y no cuentan en «Corregir el sistema auditado».
+
 ## [1.0.0] - 2026-10-08
 
 Primera versión de ENSFácil como plugin independiente de Wazuh Dashboard.
