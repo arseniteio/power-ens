@@ -238,7 +238,7 @@ de CI ([Compilar desde el código fuente](08-building-from-source.md); resultado
 `ensfacil-2.19.5.zip`). Un zip de otra versión no se instala.
 
 El `Dockerfile` de abajo espera el zip con el nombre `ensfacil-2.19.5.zip`. El de
-la release se copia con ese nombre: `cp ensfacil-1.0.0-osd-2.19.5.zip ensfacil-2.19.5.zip`.
+la release se copia con ese nombre: `cp ensfacil-1.1.0-osd-2.19.5.zip ensfacil-2.19.5.zip`.
 
 **Instalar.** `config/deploy-plugin.sh` presupone systemd y una instalación por
 paquetes. En contenedor, lo mismo en una imagen propia, con el zip junto al
@@ -263,7 +263,7 @@ docker run --rm --entrypoint /usr/share/wazuh-dashboard/bin/opensearch-dashboard
 docker compose up -d
 ```
 
-Qué tiene que salir en la lista: `ensfacil@1.0.0` junto a `wazuh`, `wazuhCore` y
+Qué tiene que salir en la lista: `ensfacil@1.1.0` junto a `wazuh`, `wazuhCore` y
 `wazuhCheckUpdates`. El plugin de Wazuh es el de la imagen oficial: no se retira
 ni se sustituye.
 

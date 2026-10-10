@@ -381,7 +381,7 @@ Hay dos formas de conseguir el zip del plugin. Las dos terminan igual, en el apa
 Descarga los cuatro ficheros de la release en `/opt/ensfacil/releases/<versión>`, desde el navegador o desde el servidor con un token de despliegue ([guía 07, apartados 4 a 6](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor)). Después, compruébalos:
 
 ```bash
-V=1.0.0
+V=1.1.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -439,7 +439,7 @@ Qué tiene que salir:
 | Comprobación | Resultado esperado |
 |---|---|
 | servicio | `active` |
-| plugins | `ensfacil@1.0.0` y `wazuh@4.14.7-01`, entre otros |
+| plugins | `ensfacil@1.1.0` y `wazuh@4.14.7-01`, entre otros |
 | `/api/ensfacil/configuration` | `401`: la ruta del plugin existe y pide sesión. Un `404` significa que el plugin no ha cargado ([diagnóstico](04-troubleshooting-and-rollback.md)) |
 
 ### 13.5 Crear el rol ensfacil_admin

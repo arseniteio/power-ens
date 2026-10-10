@@ -401,7 +401,7 @@ There are two ways to get the plugin zip. Both end the same way, in section 13.4
 Download the four release files into `/opt/ensfacil/releases/<version>`, in the browser or from the server with a deploy token ([guide 07, sections 4 to 6](07-installing-from-a-release.en.md#4-prepare-the-folder-on-the-server)). Then verify them:
 
 ```bash
-V=1.0.0
+V=1.1.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -459,7 +459,7 @@ What you should see:
 | Check | Expected result |
 |---|---|
 | service | `active` |
-| plugins | `ensfacil@1.0.0` and `wazuh@4.14.7-01`, among others |
+| plugins | `ensfacil@1.1.0` and `wazuh@4.14.7-01`, among others |
 | `/api/ensfacil/configuration` | `401`: the plugin route exists and asks for a session. A `404` means the plugin did not load ([troubleshooting](04-troubleshooting-and-rollback.en.md)) |
 
 ### 13.5 Create the ensfacil_admin role
