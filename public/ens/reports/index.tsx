@@ -8,6 +8,8 @@ import {
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
 import { searchDataKey } from '../../search/search-decision';
+import { anotaConsulta, panoramaVigente } from './panorama-vigente';
+import type { ENSPanoramaMemoria } from './panorama-vigente';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { getActiveENSConfiguration } from '../configuration/services';
 import {
@@ -1040,14 +1042,16 @@ const ControlReportWithPanorama = ({
     [esResults],
   );
 
-  // El panorama de la respuesta que acaba de llegar; ninguno mientras hay una
-  // consulta en curso o si ha fallado.
+  // Los hechos que hay ahora, ¿son de ESTA consulta? En el primer render tras
+  // cambiar la clave, `useEsSearch` aún dice `isLoading=false` con los hechos
+  // de la anterior: esos no valen (ver `panorama-vigente.ts`).
+  const memoria = useRef<ENSPanoramaMemoria<{ results: ENSComplianceResult[]; truncated: boolean }>>({});
+  const deEstaConsulta = anotaConsulta(memoria.current, claveConsulta, isLoading);
+
   const respuesta = useMemo(
     () =>
-      isLoading || error
-        ? undefined
-        : {
-            clave: claveConsulta,
+      deEstaConsulta && !error
+        ? {
             results: getENSComplianceState(
               ensLevel,
               normalizeWazuhAlerts(hits),
@@ -1055,35 +1059,24 @@ const ControlReportWithPanorama = ({
               scopeAgents,
             ).results,
             truncated: hits.length >= ENS_FACTS_QUERY_LIMIT,
-          },
+          }
+        : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isLoading, error, hits, claveConsulta],
+    [deEstaConsulta, error, hits, claveConsulta],
   );
 
-  // El último panorama respondido. Durante un REFRESCO de la misma consulta se
-  // sigue enseñando (y el PDF sigue activo): sin parpadeo cada 15 s. Solo en la
-  // primera carga, o si la clave cambia (otro rango, otra máquina, otro nivel),
-  // no hay panorama que valga: SIN_DATOS y PDF desactivado hasta que responda.
-  const ultimaRespuesta = useRef(respuesta);
-
-  if (respuesta) {
-    ultimaRespuesta.current = respuesta;
-  }
-
-  const vigente =
-    respuesta ||
-    (!error && ultimaRespuesta.current?.clave === claveConsulta
-      ? ultimaRespuesta.current
-      : undefined);
+  // Un refresco de la MISMA clave conserva el último panorama (sin parpadeo,
+  // PDF activo); la primera carga y otra clave, SIN_DATOS y PDF desactivado.
+  const vigente = panoramaVigente(memoria.current, claveConsulta, error, respuesta);
 
   return (
     <ControlReport
       controlId={controlId}
       definition={definition}
       panorama={{
-        results: vigente?.results,
-        loading: !vigente && isLoading,
-        truncated: Boolean(vigente?.truncated),
+        results: vigente.valor?.results,
+        loading: vigente.cargando,
+        truncated: Boolean(vigente.valor?.truncated),
         error,
       }}
     />

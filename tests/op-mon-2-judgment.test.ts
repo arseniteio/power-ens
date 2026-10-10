@@ -36,6 +36,8 @@ import { validateParameterValue } from '../public/ens/configuration/services/par
 import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
 import { getENSReportModelDefinition, getRegisteredENSReportControls } from '../public/ens/reports/registry';
 import { buildENSAllControlsFactsFilter, ENS_FACTS_QUERY_LIMIT } from '../public/ens/dashboard/all-controls-facts-filter';
+import { anotaConsulta, panoramaVigente } from '../public/ens/reports/panorama-vigente';
+import type { ENSPanoramaMemoria } from '../public/ens/reports/panorama-vigente';
 import type { ENSControlConfiguration, ENSLevel } from '../public/ens/configuration/types';
 import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
 import type { ENSComplianceResult } from '../public/ens/core/evaluation/types';
@@ -955,22 +957,54 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
     /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes)
   );
   comprueba(
-    'mientras la segunda consulta no ha vuelto, sin panorama y sin PDF; con el tope alcanzado, un aviso',
-    /isLoading \|\| error\s*\? undefined/.test(segunda) &&
+    'la pantalla decide el panorama con `anotaConsulta` y `panoramaVigente`; sin panorama, PDF desactivado; con el tope alcanzado, un aviso',
+    /anotaConsulta\(memoria\.current, claveConsulta, isLoading\)/.test(segunda) &&
+      /deEstaConsulta && !error/.test(segunda) &&
+      /panoramaVigente\(memoria\.current, claveConsulta, error, respuesta\)/.test(segunda) &&
+      /loading: vigente\.cargando/.test(segunda) &&
+      /const claveConsulta = `\$\{ensLevel\}\|\$\{searchDataKey\(consulta\)\}`;/.test(segunda) &&
       /if \(panorama\?\.loading\) return;/.test(informes) &&
       /isDisabled=\{Boolean\(error\) \|\| Boolean\(panorama\?\.loading\)\}/.test(informes) &&
       /hits\.length >= ENS_FACTS_QUERY_LIMIT/.test(segunda) &&
       /panorama\?\.truncated \?/.test(informes)
   );
-  comprueba(
-    'sin parpadeo: un refresco de la MISMA consulta conserva el último panorama y el PDF activo; solo la primera carga o otra clave lo vacían',
-    /const claveConsulta = `\$\{ensLevel\}\|\$\{searchDataKey\(consulta\)\}`;/.test(segunda) &&
-      /useEsSearch\(\{ \.\.\.consulta, refreshKey \}\)/.test(segunda) &&
-      /ultimaRespuesta\.current\?\.clave === claveConsulta/.test(segunda) &&
-      /!error &&/.test(segunda) &&
-      /loading: !vigente && isLoading/.test(segunda) &&
-      /results: vigente\?\.results/.test(segunda)
-  );
+
+  // Render a render, como `useEsSearch`: conserva la respuesta anterior
+  // mientras busca, y en el primer render tras cambiar la clave aún dice
+  // `isLoading=false` con los hechos VIEJOS.
+  {
+    const memoria: ENSPanoramaMemoria<string> = {};
+    const render = (clave: string, isLoading: boolean, hechos: string, error?: Error) => {
+      const deEsta = anotaConsulta(memoria, clave, isLoading);
+
+      return panoramaVigente(memoria, clave, error, deEsta && !error ? `panorama de ${hechos}` : undefined);
+    };
+    const pdfActivo = (v: { cargando: boolean }) => !v.cargando;
+
+    const montaje = render('A', true, '-');
+    comprueba('primera carga: SIN_DATOS y PDF desactivado', montaje.valor === undefined && !pdfActivo(montaje));
+    const llegaA = render('A', false, 'A');
+    comprueba('llega la respuesta de A: su panorama', llegaA.valor === 'panorama de A' && pdfActivo(llegaA), JSON.stringify(llegaA));
+    const refresco = render('A', true, 'A');
+    comprueba('refresco de la MISMA clave en curso: sigue el panorama de A y el PDF activo (sin parpadeo)', refresco.valor === 'panorama de A' && pdfActivo(refresco), JSON.stringify(refresco));
+    const refrescado = render('A', false, 'A2');
+    comprueba('y al volver, el nuevo de A', refrescado.valor === 'panorama de A2');
+    const cambio = render('B', false, 'A2');
+    comprueba(
+      'cambia la clave (otra máquina) y el primer render aún trae los hechos de A sin cargar: SIN_DATOS y PDF desactivado, nunca el panorama de A',
+      cambio.valor === undefined && !pdfActivo(cambio),
+      JSON.stringify(cambio)
+    );
+    const enCursoB = render('B', true, 'A2');
+    comprueba('mientras B está en curso, igual: SIN_DATOS y PDF desactivado', enCursoB.valor === undefined && !pdfActivo(enCursoB), JSON.stringify(enCursoB));
+    const llegaB = render('B', false, 'B');
+    comprueba('llega B: su panorama', llegaB.valor === 'panorama de B' && pdfActivo(llegaB));
+    const vuelta = render('A', false, 'B');
+    comprueba('volver a A con los hechos de B en pantalla tampoco enseña el viejo de A', vuelta.valor === undefined && !pdfActivo(vuelta), JSON.stringify(vuelta));
+    const fallo = render('A', false, 'B', new Error('índice caído'));
+    comprueba('con un fallo, sin panorama (el fallo se dice aparte)', fallo.valor === undefined);
+  }
+
   const filtro = JSON.stringify(buildENSAllControlsFactsFilter(['op.acc.1', 'op.mon.2']));
   comprueba(
     'el filtro compartido es el del panel: data.ensfacil, data.control, data.evidence_id y los grupos ENS',
