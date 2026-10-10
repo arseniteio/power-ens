@@ -455,6 +455,17 @@ bloque('3. P-01 = ninguno: todo NO_APLICA, declarado (y no NO_EVALUABLE por un i
       conP02.decisions.find(d => d.requirementId === 'op.nub.1.2')?.cause === 'CONFIGURATION' && /lo contradice: P-02 declara 4 servicio\(s\) en uso/.test(conP02.motivo('op.nub.1.2')),
     conP02.motivo('op.nub.1.2')
   );
+  const sinUso = evalua([], { 'P-01': 'ninguno', 'P-02': ['Dropbox | SaaS | Dropbox | documentos | baja |'] }, 'ALTO');
+  comprueba(
+    '«ninguno» con una fila de P-02 sin uso también es contradicción → CONFIGURATION, nunca NO_APLICA',
+    sinUso.requisito('op.nub.1.2').status !== 'NO_APLICA' && sinUso.decisions.find(d => d.requirementId === 'op.nub.1.2')?.cause === 'CONFIGURATION' &&
+      /Dropbox \(sin uso declarado\)/.test(sinUso.motivo('op.nub.1.2')),
+    sinUso.motivo('op.nub.1.2')
+  );
+  comprueba(
+    'REVERSIÓN: «ninguno» con P-02 vacío se sostiene → NO_APLICA',
+    evalua([], { 'P-01': 'ninguno' }, 'ALTO').requisito('op.nub.1.2').status === 'NO_APLICA'
+  );
   const conModulos = evalua(hoy(), { 'P-01': 'ninguno' }, 'ALTO');
   comprueba(
     '«ninguno» con módulos cloud ingiriendo en el manager → CONFIGURATION nombrando los módulos',
@@ -583,6 +594,20 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
     `${campo4.status} ${campo4.details.join(' | ')}`
   );
   comprueba('REVERSIÓN: con la conformidad en vigor, CUMPLE', buildOpNub1ReportModel(evalua(hoy()).motor()).fields[3].status === 'CUMPLE');
+
+  // Sin P-03 y con servicios utilizados o prestados, las conformidades quedan
+  // sin evaluar: el campo no sale NO_APLICA (en BÁSICA) ni solo con EV-08.
+  const vigenciasSinP03 = (valores: Valores, nivel: ENSLevel) => buildOpNub1ReportModel(evalua(hoy(), valores, nivel).motor()).fields[3];
+  const sinP03Basica = vigenciasSinP03({ ...BASE, 'P-03': undefined }, 'BAJO');
+  comprueba('sin P-03 y con servicios utilizados, en BÁSICA el campo de vigencias sale NO_EVALUABLE, no NO_APLICA', sinP03Basica.status === 'NO_EVALUABLE', sinP03Basica.status);
+  const sinP03Media = vigenciasSinP03({ ...BASE, 'P-03': undefined }, 'MEDIO');
+  comprueba(
+    'y en MEDIA, con las certificaciones de EV-08 en vigor, tampoco sale CUMPLE por EV-08',
+    evalua(hoy(), { ...BASE, 'P-03': undefined }).evidencia('EV-08')?.status === 'CUMPLE' && sinP03Media.status === 'NO_EVALUABLE' && sinP03Media.details.some(d => /P-03/.test(d)),
+    `${sinP03Media.status} ${sinP03Media.details.join(' | ')}`
+  );
+  const sinP03Prestador = vigenciasSinP03({ 'P-01': 'prestador', 'P-02': ['Portal de trámites | SaaS | Quersystem | expedientes | alta | prestado'] }, 'BAJO');
+  comprueba('sin P-03 y con un servicio prestado, también NO_EVALUABLE', sinP03Prestador.status === 'NO_EVALUABLE', sinP03Prestador.status);
 
   // Categoría de la conformidad frente a la del sistema.
   const basicaGcp = { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? 'GCP analítica | ENS BÁSICA | Google Cloud | 2027-01-15 | nº 1' : f)) };

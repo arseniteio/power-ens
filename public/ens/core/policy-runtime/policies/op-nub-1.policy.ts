@@ -373,10 +373,13 @@ const prestador = (
   const vigencias: string[] = [];
 
   if (!p03) {
-    return {
-      medida: faltaParametro(context, 'P-03', `la conformidad de los servicios prestados (${lista(prestados.map(s => s.servicio))}) con las medidas del modelo según las guías CCN-STIC`),
-      vigencias,
-    };
+    const falta = faltaParametro(context, 'P-03', `la conformidad de los servicios prestados (${lista(prestados.map(s => s.servicio))}) con las medidas del modelo según las guías CCN-STIC`);
+
+    // Para el campo de vigencias del informe: hay servicios y no hay P-03, así
+    // que las conformidades quedan sin evaluar, no fuera del alcance.
+    conformidades.push({ ...falta, motivo: `servicios prestados: ${falta.motivo}` });
+
+    return { medida: falta, vigencias };
   }
 
   const nivel = DEL_NIVEL[context.level] ?? 0;
@@ -459,7 +462,13 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
   const globales: Medida[] = [];
 
   if (!p03) {
-    globales.push(faltaParametro(context, 'P-03', 'la conformidad con el ENS de los servicios utilizados'));
+    const falta = faltaParametro(context, 'P-03', 'la conformidad con el ENS de los servicios utilizados');
+
+    globales.push(falta);
+    // Como en el prestador: sin P-03, las conformidades quedan sin evaluar.
+    if (utilizados.length) {
+      conformidades.push({ ...falta, motivo: `servicios utilizados: ${falta.motivo}` });
+    }
   }
 
   if (!p10) {
@@ -1180,12 +1189,18 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   // manager ve (un módulo cloud ingiriendo registros): entonces la
   // declaración no se sostiene y no se saca nada del denominador.
   if (posicion === 'ninguno') {
-    const enP02 = (filas(context, 'P-02') || []).filter(f => ['utilizado', 'prestado'].includes(sinTildes(f.uso || '')));
+    // Una fila sin `uso` también contradice: es un servicio en la nube del
+    // inventario, y con «ninguno» no debería haber ninguno.
+    const enP02 = (filas(context, 'P-02') || []).filter(f => {
+      const uso = sinTildes(f.uso || '').trim();
+
+      return !uso || ['utilizado', 'prestado'].includes(uso);
+    });
     const ingiriendo = ingestaLector
       .estadoVigente(context, 'cloud_integration_observed', ahora)
       .vigentes.filter(e => !vacio(campo(e, 'modulo')) && campo(e, 'modulo') !== 'ninguno' && (numero(campo(e, 'alertas_24h')) || 0) > 0);
     const contradicciones = [
-      ...(enP02.length ? [`P-02 declara ${enP02.length} servicio(s) en uso: ${lista(enP02.map(f => `${f.servicio} (${f.uso})`))}`] : []),
+      ...(enP02.length ? [`P-02 declara ${enP02.length} servicio(s) en uso: ${lista(enP02.map(f => `${f.servicio} (${f.uso || 'sin uso declarado'})`))}`] : []),
       ...(ingiriendo.length ? [`Wazuh está ingiriendo registros de ${lista(ingiriendo.map(e => `${campo(e, 'modulo')} (${campo(e, 'alertas_24h')} en 24 h)`))}`] : []),
     ];
     const medida = contradicciones.length
