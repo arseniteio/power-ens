@@ -244,7 +244,7 @@ Con el plugin nuevo ya desplegado, sembrar los bloques de configuración. La ope
 ```bash
 cd /opt/ensfacil/repo/config
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
-CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10"
+CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10 op.mon.1 op.mon.2 op.mon.3 op.nub.1 op.cont.2 op.cont.3"
 
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" || break; done
 ```
@@ -288,7 +288,7 @@ Debe salir `coherencia OK`.
 Acceder finalmente a ENSFácil desde Wazuh Dashboard y confirmar que:
 
 - aparecen todos los controles, incluidos los nuevos;
-- si hay controles que se miden en el manager (op.exp.7, op.exp.8, op.exp.9), el manager (agente `000`) aparece en el alcance y, tras la primera pasada horaria de sus recolectores, su fila tiene datos;
+- si hay controles que se miden en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3), el manager (agente `000`) aparece en el alcance y, tras la primera pasada de sus recolectores (horaria o cada 6 horas), su fila tiene datos;
 - ningún control muestra «Sin datos del recolector desde …» en una máquina que debería estar informando.
 
 Si alguna validación falla, no continuar operando con la nueva versión y utilizar el procedimiento de [diagnóstico y rollback](04-troubleshooting-and-rollback.md).

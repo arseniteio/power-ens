@@ -234,7 +234,7 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clone the ENS runbooks
 
-On the Wazuh Manager server, clone the seventeen Linux runbooks used by ENSFácil under `/opt/ensfacil`. This location keeps the control repositories next to the main repository, which is where the project consistency check looks for them (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
+On the Wazuh Manager server, clone the 22 Linux runbooks used by ENSFácil under `/opt/ensfacil`. This location keeps the control repositories next to the main repository, which is where the project consistency check looks for them (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -255,6 +255,11 @@ op.exp.7
 op.exp.8
 op.exp.9
 op.exp.10
+op.mon.1
+op.mon.2
+op.mon.3
+op.nub.1
+op.cont.3
 EOF
 
 cd /opt/ensfacil
@@ -274,7 +279,7 @@ The file `/opt/ensfacil/runbooks.txt` is reused in the following steps.
 
 ### 10.4 Validate the cloned runbooks
 
-Check that the seventeen repositories exist and point to the expected remote:
+Check that the 22 repositories exist and point to the expected remote:
 
 ```bash
 while read -r r; do
@@ -282,7 +287,7 @@ while read -r r; do
 done < /opt/ensfacil/runbooks.txt
 ```
 
-All seventeen repositories must return a URL under `git@gitlab.com:quersystem/ens-controls-runbook/linux/` before continuing.
+All 22 repositories must return a URL under `git@gitlab.com:quersystem/ens-controls-runbook/linux/` before continuing.
 
 ## 11. Create and validate the ENS group
 
@@ -334,6 +339,8 @@ done < /opt/ensfacil/runbooks.txt
 
 The `install-manager.sh` of op.exp.7, op.exp.8 and op.exp.9 also installs a collector that runs on the manager itself every hour, without any credential (it only reads local files), and adds its `<localfile>` to the manager's `ossec.conf`, because the `agent.conf` of the `ens` group does not apply to the manager. Its facts arrive with `agent.id=000`.
 
+Those of op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 (release 1.1.0) do the same: each installs its collector in `/usr/local/bin/` (`ens_opmon1_collect.sh`, `ens_opmon2_collect.sh`, `ens_opmon3_collect.sh`, `ens_opnub1_collect.sh`, `ens_opcont3_collect.sh`), its `<localfile>` in the manager's `ossec.conf` and a cron in `/etc/cron.d`. They need `jq` and honour `ENSFACIL_SYSTEMCTL`. The cron runs hourly for op.mon.1, op.mon.3 and op.nub.1, and every 6 hours for op.mon.2 and op.cont.3; op.mon.1 and op.nub.1 do their full pass every 6 hours, and op.mon.3 does it every 6 hours (the surface every 12). op.mon.3 also has an agent collector: its `install.sh`, on each machine of the `ens` group, installs `ens_opmon3_agent_collect.sh` with an hourly cron. op.cont.2 has no runbook and no rules: the plugin judges it from the screen tables. op.cont.2 and op.cont.3 apply only with Availability (D) at ALTO; at MEDIO they show «No aplica».
+
 ### 12.1 Validate the rule installation
 
 Each `install-manager.sh` runs a blocking check with `wazuh-logtest`. The installation is considered correct when the following rules are validated:
@@ -348,7 +355,9 @@ Each `install-manager.sh` runs a blocking check with `wazuh-logtest`. The instal
 | `op.acc.5` | `110001` | `op.exp.8` | `110901` |
 | `op.acc.6` | `110101` | `op.exp.9` | `111001` |
 | `op.exp.1` | `110205` | `op.exp.10` | `111197` |
-| `op.exp.2` | `110304` | | |
+| `op.exp.2` | `110304` | `op.mon.1` | `111201` |
+| `op.mon.2` | `111301` | `op.mon.3` | `111401` |
+| `op.nub.1` | `111501` | `op.cont.3` | `111701` |
 
 For mp.info.6, `install-manager.sh` of both runbooks (Proxmox and Zimbra) checks with `wazuh-logtest` that `106601` (`backup_run`) matches. Afterwards, in the index, the rule to look for is `106797` (`collector_run`), the heartbeat the collector emits on every run even before any backup exists.
 
@@ -564,11 +573,11 @@ Restoring this copy is described in the [troubleshooting and rollback guide](04-
 > [!important]
 > Seed only once the plugin is deployed (section 13.4). The installed plugin version must know the controls being seeded.
 
-Seed the seventeen controls. First in dry-run mode (without `--apply`), which shows the plan without writing anything:
+Seed the 23 controls. First in dry-run mode (without `--apply`), which shows the plan without writing anything:
 
 ```bash
 cd /opt/ensfacil/repo/config
-CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10"
+CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10 op.mon.1 op.mon.2 op.mon.3 op.nub.1 op.cont.2 op.cont.3"
 
 for c in $CONTROLS; do
   echo "===== $c ====="
@@ -606,7 +615,7 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-The result must be `ESTRUCTURA VÁLIDA` with the seventeen controls listed. If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to a workstation that has the plugin repository and run the same command there (or `docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx config/validate-configuration.ts active-now.json`).
+The result must be `ESTRUCTURA VÁLIDA` with the 23 controls listed. If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to a workstation that has the plugin repository and run the same command there (or `docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx config/validate-configuration.ts active-now.json`).
 
 > [!warning]
 > If the validation fails, restore the copy from section 14.2 before anyone opens the dashboard, and fix the reported parameter.
@@ -643,8 +652,8 @@ After declaring values, repeat the validation of section 14.4.
 
 Open ENSFácil and check that:
 
-- the seventeen controls appear;
-- besides the machines in the `ens` group, the scope includes the manager (agent `000`), because op.exp.7, op.exp.8 and op.exp.9 are measured on it;
-- after the first hourly run of the manager collectors, op.exp.7, op.exp.8 and op.exp.9 show data on the manager row.
+- the 23 controls appear;
+- besides the machines in the `ens` group, the scope includes the manager (agent `000`), because op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 are measured on it;
+- after the first run of the manager collectors (hourly or every 6 hours, depending on the control), those controls show data on the manager row.
 
 Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` **of each runbook**, linked from the [runbook table](05-runbooks-and-registers.en.md#runbooks-per-control)); the machines whose backups are measured also go into the `ens-copias` group and into mp.info.6 P-04. The op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that must be loaded with `sudo augenrules --load` at the end.

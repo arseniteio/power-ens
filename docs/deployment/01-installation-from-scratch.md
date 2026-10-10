@@ -214,7 +214,7 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clonar los runbooks ENS
 
-En el servidor Wazuh Manager, clonar los diecisiete runbooks Linux utilizados por ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal, que es donde los busca la comprobación de coherencia del proyecto (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
+En el servidor Wazuh Manager, clonar los 22 runbooks Linux utilizados por ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal, que es donde los busca la comprobación de coherencia del proyecto (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -235,6 +235,11 @@ op.exp.7
 op.exp.8
 op.exp.9
 op.exp.10
+op.mon.1
+op.mon.2
+op.mon.3
+op.nub.1
+op.cont.3
 EOF
 
 cd /opt/ensfacil
@@ -254,7 +259,7 @@ El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes.
 
 ### 10.4 Validar los runbooks clonados
 
-Comprobar que los diecisiete repositorios existen y apuntan al remoto esperado:
+Comprobar que los 22 repositorios existen y apuntan al remoto esperado:
 
 ```bash
 while read -r r; do
@@ -262,7 +267,7 @@ while read -r r; do
 done < /opt/ensfacil/runbooks.txt
 ```
 
-Los diecisiete repositorios deben devolver una URL bajo `git@gitlab.com:quersystem/ens-controls-runbook/linux/` antes de continuar.
+Los 22 repositorios deben devolver una URL bajo `git@gitlab.com:quersystem/ens-controls-runbook/linux/` antes de continuar.
 
 ## 11. Crear y validar el grupo ENS
 
@@ -314,6 +319,8 @@ done < /opt/ensfacil/runbooks.txt
 
 `install-manager.sh` de op.exp.7, op.exp.8 y op.exp.9 instala además un recolector que se ejecuta en el propio manager cada hora, sin ninguna credencial (solo lee ficheros locales), y añade su `<localfile>` al `ossec.conf` del manager, porque el `agent.conf` del grupo `ens` no se aplica al manager. Sus hechos llegan con `agent.id=000`.
 
+Los de op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 (versión 1.1.0) hacen lo mismo: cada uno instala su recolector en `/usr/local/bin/` (`ens_opmon1_collect.sh`, `ens_opmon2_collect.sh`, `ens_opmon3_collect.sh`, `ens_opnub1_collect.sh`, `ens_opcont3_collect.sh`), su `<localfile>` en el `ossec.conf` del manager y un cron en `/etc/cron.d`. Necesitan `jq` y respetan `ENSFACIL_SYSTEMCTL`. La cadencia del cron es horaria en op.mon.1, op.mon.3 y op.nub.1, y cada 6 horas en op.mon.2 y op.cont.3; op.mon.1 y op.nub.1 hacen su pasada completa cada 6 horas, y op.mon.3 la hace cada 6 horas (la superficie, cada 12). op.mon.3 tiene además un recolector de agente: su `install.sh`, en cada máquina del grupo `ens`, instala `ens_opmon3_agent_collect.sh` con un cron horario. op.cont.2 no tiene runbook ni reglas: el plugin lo juzga a partir de las tablas de la pantalla. op.cont.2 y op.cont.3 solo aplican con Disponibilidad (D) en ALTO; en MEDIO muestran «No aplica».
+
 ### 12.1 Validar la instalación de las reglas
 
 Cada `install-manager.sh` realiza una comprobación bloqueante con `wazuh-logtest`. La instalación se considera correcta cuando se validan las siguientes reglas:
@@ -328,7 +335,9 @@ Cada `install-manager.sh` realiza una comprobación bloqueante con `wazuh-logtes
 | `op.acc.5` | `110001` | `op.exp.8` | `110901` |
 | `op.acc.6` | `110101` | `op.exp.9` | `111001` |
 | `op.exp.1` | `110205` | `op.exp.10` | `111197` |
-| `op.exp.2` | `110304` | | |
+| `op.exp.2` | `110304` | `op.mon.1` | `111201` |
+| `op.mon.2` | `111301` | `op.mon.3` | `111401` |
+| `op.nub.1` | `111501` | `op.cont.3` | `111701` |
 
 En mp.info.6, `install-manager.sh` de los dos runbooks (Proxmox y Zimbra) comprueba con `wazuh-logtest` que casa `106601` (`backup_run`). Después, en el índice, la regla que hay que buscar es `106797` (`collector_run`), el latido que el recolector emite en cada pasada aunque todavía no haya ninguna copia.
 
@@ -544,11 +553,11 @@ La restauración de esta copia se describe en la [guía de diagnóstico y rollba
 > [!important]
 > Sembrar solo con el plugin ya desplegado (apartado 13.4). La versión instalada del plugin tiene que conocer los controles que se siembran.
 
-Sembrar los diecisiete controles. Primero en modo de prueba (sin `--apply`), que muestra el plan sin escribir nada:
+Sembrar los 23 controles. Primero en modo de prueba (sin `--apply`), que muestra el plan sin escribir nada:
 
 ```bash
 cd /opt/ensfacil/repo/config
-CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10"
+CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10 op.mon.1 op.mon.2 op.mon.3 op.nub.1 op.cont.2 op.cont.3"
 
 for c in $CONTROLS; do
   echo "===== $c ====="
@@ -586,7 +595,7 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-El resultado debe ser `ESTRUCTURA VÁLIDA` con los diecisiete controles listados. Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a un puesto que tenga el repositorio del plugin y ejecutar allí el mismo comando (o `docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx config/validate-configuration.ts active-now.json`).
+El resultado debe ser `ESTRUCTURA VÁLIDA` con los 23 controles listados. Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a un puesto que tenga el repositorio del plugin y ejecutar allí el mismo comando (o `docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx config/validate-configuration.ts active-now.json`).
 
 > [!warning]
 > Si la validación falla, restaurar la copia del apartado 14.2 antes de que nadie abra el panel, y corregir el parámetro indicado.
@@ -623,8 +632,8 @@ Después de declarar valores, repetir la validación del apartado 14.4.
 
 Abrir ENSFácil y comprobar que:
 
-- aparecen los diecisiete controles;
-- el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque op.exp.7, op.exp.8 y op.exp.9 se miden en él;
-- tras la primera ejecución horaria de los recolectores del manager, op.exp.7, op.exp.8 y op.exp.9 muestran datos en la fila del manager.
+- aparecen los 23 controles;
+- el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 se miden en él;
+- tras la primera ejecución de los recolectores del manager (horaria o cada 6 horas, según el control), esos controles muestran datos en la fila del manager.
 
 Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` **de cada runbook**, enlazada en la [tabla de runbooks](05-runbooks-and-registers.md#runbooks-por-control)); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.

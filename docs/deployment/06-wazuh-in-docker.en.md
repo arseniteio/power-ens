@@ -21,7 +21,8 @@ name of the manager container (`docker ps --format '{{.Names}}'`; in the officia
 >   `docker exec` and `ENS_HOST`; that the image's start script copies
 >   `/wazuh-config-mount` over `/var/ossec` on every start.
 > - **Guidance not tested yet:** the full deployment with `docker compose`,
->   indexer and agents; the dashboard image with ENSFácil; the host cron;
+>   indexer and agents; the dashboard image with ENSFácil; the host cron (the five 1.1.0 collectors
+>   included, not tried in a container);
 >   recreating the container with the proposed volumes; a multi-node cluster.
 >   Anything still to be checked says "to be verified".
 
@@ -33,9 +34,9 @@ name of the manager container (`docker ps --format '{{.Names}}'`; in the officia
 |---|---|---|---|
 | `systemctl` | the `install-manager.sh` scripts, to restart the manager | the installer fails on restart and rolls back its change | `ENSFACIL_SYSTEMCTL` (section 4) |
 | `flock` | the common emitter of every collector | **no fact is written at all** (the emitter exits with an error) | package `util-linux-core` |
-| `jq` | the `install-manager.sh` of op.exp.7, op.exp.8 and op.exp.9, and the emitter | the installer stops (op.exp.7's tries `apt-get`, which does not exist) | package `jq` |
+| `jq` | the `install-manager.sh` of op.exp.7-9 and the five of 1.1.0 (op.mon.1-3, op.nub.1, op.cont.3), and the emitter | the installer stops (op.exp.7's tries `apt-get`, which does not exist) | package `jq` |
 | `hostname` | the emitter (`host` field of each fact) | `host` is empty | package `hostname`, or `ENS_HOST` (section 5) |
-| `cron` | the manager collectors (op.exp.7, op.exp.8, op.exp.9) | they never run | host cron with `docker exec` (section 6) |
+| `cron` | the manager collectors (op.exp.7-9 and the five of 1.1.0: op.mon.1-3, op.nub.1, op.cont.3) | they never run | host cron with `docker exec` (section 6) |
 | `git` | cloning the runbooks; building the plugin | — | clone on the host and copy; build elsewhere (section 7) |
 
 `python3` is present in the image.
@@ -68,13 +69,13 @@ The official deployment mounts volumes on `/var/ossec/etc`, `/var/ossec/logs`,
 
 | Path | Contents | Persists? |
 |---|---|---|
-| `/var/ossec/etc/rules/ensfacil_*.xml` | rules of the 17 controls | yes (`/var/ossec/etc` volume) |
+| `/var/ossec/etc/rules/ensfacil_*.xml` | rules of the 22 controls that have rules | yes (`/var/ossec/etc` volume) |
 | `/var/ossec/etc/shared/ens/agent.conf`, `…/ens-copias/agent.conf` | agents' `<localfile>` | yes |
-| `/var/ossec/etc/ossec.conf` | manager `<localfile>` (op.exp.7, op.exp.8, op.exp.9) | **no, if `wazuh_manager.conf` is mounted** (see warning) |
+| `/var/ossec/etc/ossec.conf` | manager `<localfile>` (op.exp.7-9 and the five of 1.1.0: op.mon.1-3, op.nub.1, op.cont.3) | **no, if `wazuh_manager.conf` is mounted** (see warning) |
 | `/etc/ensfacil/` | the organization's registers and `.env` files | **no**: mount a volume |
 | `/var/lib/ensfacil/` | collector state | **no**: mount a volume |
 | `/var/log/ensfacil/` | fact files read by logcollector | **no**: mount a volume |
-| `/opt/ensfacil/`, `/usr/local/bin/ens_opexp*` | libraries, templates and collectors | no: re-run the `install-manager.sh` of op.exp.7, op.exp.8 and op.exp.9 after recreating (they do not overwrite `.env` files or registers) |
+| `/opt/ensfacil/`, `/usr/local/bin/ens_op*` | libraries, templates and collectors | no: re-run the `install-manager.sh` of op.exp.7-9 and the five of 1.1.0 (op.mon.1-3, op.nub.1, op.cont.3) after recreating (they do not overwrite `.env` files or registers) |
 | `/var/ossec/backup/` | copies the installers make before touching anything | no (optional: volume) |
 
 ```yaml
@@ -89,7 +90,7 @@ The official deployment mounts volumes on `/var/ossec/etc`, `/var/ossec/logs`,
 > The official deployment mounts `config/wazuh_cluster/wazuh_manager.conf` on
 > `/wazuh-config-mount/etc/ossec.conf`, and the image **copies it over
 > `/var/ossec/etc/ossec.conf` on every start**. The `<localfile>` blocks added
-> by the `install-manager.sh` of op.exp.7, op.exp.8 and op.exp.9 disappear on
+> by the `install-manager.sh` of op.exp.7-9 and the five of 1.1.0 (op.mon.1-3, op.nub.1, op.cont.3) disappear on
 > the next container restart and those three controls stop receiving data.
 > Add this block, at the end, **to the mounted file on the host**:
 >
@@ -108,6 +109,26 @@ The official deployment mounts volumes on `/var/ossec/etc`, `/var/ossec/logs`,
 >     <log_format>json</log_format>
 >     <location>/var/log/ensfacil/op_exp_9.json</location>
 >   </localfile>
+>   <localfile>
+>     <log_format>json</log_format>
+>     <location>/var/log/ensfacil/op_mon_1.json</location>
+>   </localfile>
+>   <localfile>
+>     <log_format>json</log_format>
+>     <location>/var/log/ensfacil/op_mon_2.json</location>
+>   </localfile>
+>   <localfile>
+>     <log_format>json</log_format>
+>     <location>/var/log/ensfacil/op_mon_3.json</location>
+>   </localfile>
+>   <localfile>
+>     <log_format>json</log_format>
+>     <location>/var/log/ensfacil/op_nub_1.json</location>
+>   </localfile>
+>   <localfile>
+>     <log_format>json</log_format>
+>     <location>/var/log/ensfacil/op_cont_3.json</location>
+>   </localfile>
 > </ossec_config>
 > ```
 
@@ -124,7 +145,7 @@ Clone the runbooks on the host (or on a workstation with GitLab access), as in
 section 10.3 of guide 01, and copy them into the container:
 
 ```bash
-# on the host, with the 17 Linux runbooks in ./ensfacil/<control> and runbooks.txt
+# on the host, with the 22 Linux runbooks in ./ensfacil/<control> and runbooks.txt
 docker cp ./ensfacil/. MGR:/opt/ensfacil-runbooks/
 docker exec MGR /var/ossec/bin/agent_groups -a -g ens -q
 docker exec MGR /var/ossec/bin/agent_groups -a -g ens-copias -q
@@ -177,6 +198,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 23 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp7_collect.sh >/dev/null 2>&1
 47 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp8_manager_collect.sh >/dev/null 2>&1
 23 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp9_manager_collect.sh >/dev/null 2>&1
+31 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon1_collect.sh >/dev/null 2>&1
+5 */6 * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon2_collect.sh >/dev/null 2>&1
+33 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon3_collect.sh >/dev/null 2>&1
+37 * * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opnub1_collect.sh >/dev/null 2>&1
+5 */6 * * * root docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opcont3_collect.sh >/dev/null 2>&1
 ```
 
 The first pass, by hand (op.exp.7's seeds 30 days of alerts and takes a few
@@ -186,7 +212,12 @@ minutes):
 docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp7_collect.sh
 docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp8_manager_collect.sh
 docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opexp9_manager_collect.sh
-docker exec MGR sh -c 'wc -l /var/log/ensfacil/op_exp_*.json'
+docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon1_collect.sh
+docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon2_collect.sh
+docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opmon3_collect.sh
+docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opnub1_collect.sh
+docker exec -e ENS_HOST=wazuh.manager MGR /usr/local/bin/ens_opcont3_collect.sh
+docker exec MGR sh -c 'wc -l /var/log/ensfacil/op_*.json'
 ```
 
 If the optional op.exp.4 bridge is enabled (`--con-puente-vd`), its line is
@@ -295,7 +326,7 @@ sudo env $CERT python3 inject-control.py op.exp.7 --apply    # write
 ```
 
 The rest is as in section 14 of guide 01 (first save from the screen, backup
-copy, seeding the 17, `set-parameters.py`). Validating the whole document
+copy, seeding the 23, `set-parameters.py`). Validating the whole document
 (`validate-configuration.ts`) does not need the indexer: download the document
 with the same certificate and validate it on any machine with Node.js 18 or
 later (or with the `node:22-alpine` image, section 14.4). If the indexer is not
@@ -304,6 +335,7 @@ certificate (to be verified per deployment).
 
 ## 9. What is not yet measured the same way in a container
 
+- **op.mon.3 agent collector**: besides the manager one, its `install.sh` on each machine of the `ens` group installs `ens_opmon3_agent_collect.sh` with an hourly cron; that happens on the audited machine, not in the manager container.
 - **op.exp.8 EV-13** (logging system services): the collector asks systemd about
   `wazuh-manager`, `wazuh-indexer` and `wazuh-dashboard`. In the container there
   is no systemd, so it emits `activo=desconocido`, which the panel judges
