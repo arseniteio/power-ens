@@ -47,7 +47,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.3.1'],
       type: 'table',
-      example: 'auth.log de wazuh-real | Linux auth | agente | wazuh-real | /var/log/auth.log | 24',
+      example: 'journald de srv-web-01 | Linux journald | agente | srv-web-01 | journald | 24',
       columns: [
         {
           name: 'fuente',
