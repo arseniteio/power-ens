@@ -659,9 +659,32 @@ bloque('7. Sin registro: NO_EVALUABLE por CONFIGURATION; registro vacío: se juz
   comprueba('sin registro de deficiencias → EV-05 NO_EVALUABLE por CONFIGURATION', sinDeficiencias.evidencia('EV-05')?.status === 'NO_EVALUABLE' && sinDeficiencias.evidencia('EV-05')?.gapCause === 'CONFIGURATION', estado(sinDeficiencias, 'EV-05'));
 
   const sinFilas = (deficienciasDeclaradas: number) =>
-    evalua(hoy(l => (l.event === 'continuity_deficiency_recorded' ? undefined : l.event === 'continuity_deficiency_register_read' ? { ...l, filas: 0 } : l.event === 'continuity_test_recorded' ? { ...l, deficiencias: deficienciasDeclaradas } : l)));
+    evalua(hoy(l => (l.event === 'continuity_deficiency_recorded' ? undefined : l.event === 'continuity_deficiency_register_read' ? { ...l, filas: 0 } : l.event === 'continuity_test_recorded' ? { ...l, deficiencias: deficienciasDeclaradas, ...(deficienciasDeclaradas === 0 ? { resultado: 'satisfactorio' } : {}) } : l)));
   comprueba('registro de deficiencias vacío y las pruebas declaran deficiencias → NO_CUMPLE', sinFilas(2).evidencia('EV-05')?.status === 'NO_CUMPLE');
   comprueba('REVERSIÓN: vacío y ninguna prueba declara deficiencias → CUMPLE (nada que corregir)', sinFilas(0).evidencia('EV-05')?.status === 'CUMPLE', sinFilas(0).de('EV-05'));
+
+  // La obligación de corregir no se esquiva declarando cero deficiencias.
+  const sinDefsDe = (cambio: Linea) => (l: Linea): Linea | undefined =>
+    l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-04'
+      ? undefined
+      : l.event === 'continuity_deficiency_register_read'
+      ? { ...l, filas: 3 }
+      : fila('continuity_test_recorded', simulacro, { deficiencias: 0, ...cambio })(l);
+  const fallida = evalua(hoy(sinDefsDe({ resultado: 'fallido' })));
+  comprueba(
+    'el simulacro declarado «fallido» con 0 deficiencias declaradas y ninguna en el registro → NO_CUMPLE',
+    fallida.evidencia('EV-05')?.status === 'NO_CUMPLE' && /revelaron algo que corregir.*simulacro del 2026-09-17.*declarada fallido/.test(fallida.de('EV-05')),
+    `${estado(fallida, 'EV-05')} ${fallida.de('EV-05')}`
+  );
+  const excedida = evalua(hoy(l => sinDefsDe({ resultado: 'parcial' })(fila('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(l) as Linea)));
+  comprueba(
+    'declarado «parcial», con wazuh-real por encima de su RTO y sin deficiencias → NO_CUMPLE nombrando lo medido',
+    excedida.evidencia('EV-05')?.status === 'NO_CUMPLE' && /wazuh-real \(024\) por encima de su RTO 4 h/.test(excedida.de('EV-05')),
+    `${estado(excedida, 'EV-05')} ${excedida.de('EV-05')}`
+  );
+  const restauraMal = evalua(hoy(l => sinDefsDe({})(fila('backup_restore_observed', () => true, { resultado: 'error' })(l) as Linea)));
+  comprueba('satisfactorio, pero con una restauración fallida en la ventana y sin deficiencias → NO_CUMPLE', restauraMal.evidencia('EV-05')?.status === 'NO_CUMPLE', restauraMal.de('EV-05'));
+  comprueba('REVERSIÓN: satisfactorio, medido dentro del RTO y sin deficiencias → CUMPLE', evalua(hoy(sinDefsDe({}))).evidencia('EV-05')?.status === 'CUMPLE');
 
   const otra = evalua(hoy(), { ...BASE, 'P-04': 'Otra herramienta' });
   comprueba('P-04 declara otra herramienta → NO_EVALUABLE por CONFIGURATION (la integración no existe)', otra.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /la integración con esa herramienta no existe/.test(otra.de('EV-01')), otra.de('EV-01'));

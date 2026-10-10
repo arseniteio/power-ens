@@ -1364,7 +1364,7 @@ const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: s
   return { reg, deficiencias, reparos, ...(reparos.length ? { incompleto: combina(reparos) } : {}) };
 };
 
-const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
+const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
   const d = baseDeficiencias(context, ahora, 'EV-05');
 
   if (esMedida(d)) {
@@ -1451,9 +1451,34 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
         )
       );
     }
+
+    // La obligación de corregir no se esquiva declarando cero: una prueba del
+    // periodo que se declara parcial o fallida, o cuya medida superó un RTO o
+    // tuvo una restauración fallida, y no tiene ninguna deficiencia ni
+    // declarada ni en seguimiento, no ha corregido lo que reveló.
+    const reveladas = hechas
+      .filter(p => p.inicio >= desde && (p.deficiencias || 0) === 0 && !d.deficiencias.some(x => x.prueba === p.inicio))
+      .map(p => {
+        const a = m.analisis.find(x => x.prueba.inicio === p.inicio);
+        const que = [...(p.resultado !== 'satisfactorio' ? [`declarada ${p.resultado}`] : []), ...(a ? revelo(a) : [])];
+
+        return { p, que };
+      })
+      .filter(v => v.que.length);
+
+    if (reveladas.length) {
+      partes.push(
+        porAusencia(
+          noCumple(
+            `Pruebas que revelaron algo que corregir y no tienen ninguna deficiencia, ni declarada ni en seguimiento: ${lista(reveladas.map(v => `${describe(v.p)} (${v.que.join('; ')})`))}. Localizar sin corregir no cumple.`
+          ),
+          d.incompleto
+        )
+      );
+    }
   }
 
-  if (!partes.some(m => m.estado !== 'CUMPLE')) {
+  if (!partes.some(x => x.estado !== 'CUMPLE')) {
     const tarde = cerradas.filter(x => {
       const c = vencimiento(x.cierre);
 
@@ -1589,7 +1614,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     { id: 'EV-01', medida: ev01(context, ahora) },
     { id: 'EV-02', medida: ev02(context, ahora) },
     { id: 'EV-04', medida: ev04(context, ahora, m) },
-    { id: 'EV-05', medida: ev05(context, ahora) },
+    { id: 'EV-05', medida: ev05(context, ahora, m) },
   ];
   const estado = peor(propias.map(p => p.medida));
   const responsables = propias.filter(p => p.medida.estado === estado);
