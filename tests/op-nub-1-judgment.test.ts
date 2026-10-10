@@ -625,6 +625,14 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
   const sinPrestados = vigenciasSinP03({ ...BASE, 'P-01': 'prestador', 'P-02': undefined }, 'BAJO');
   comprueba('P-01 = prestador sin P-02, en BÁSICA → NO_EVALUABLE', sinPrestados.status === 'NO_EVALUABLE', sinPrestados.status);
   comprueba('REVERSIÓN: P-01 = ninguno no se toca (el control entero no aplica)', evalua(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), { 'P-01': 'ninguno' }, 'BAJO').requisito('op.nub.1.2').status === 'NO_APLICA');
+  const vigenciasCon = (valores: Valores, nivel: ENSLevel) =>
+    buildOpNub1ReportModel(evalua(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), valores, nivel).motor()).fields[3].status;
+  comprueba(
+    'y con P-01 = ninguno el campo de vigencias sale NO_APLICA (no SIN_DATOS), en BÁSICA y en MEDIA',
+    vigenciasCon({ 'P-01': 'ninguno' }, 'BAJO') === 'NO_APLICA' && vigenciasCon({ 'P-01': 'ninguno' }, 'MEDIO') === 'NO_APLICA',
+    `${vigenciasCon({ 'P-01': 'ninguno' }, 'BAJO')} ${vigenciasCon({ 'P-01': 'ninguno' }, 'MEDIO')}`
+  );
+  comprueba('sin P-01, NO_EVALUABLE (no SIN_DATOS) también en BÁSICA', vigenciasCon(SIN_PARAMETROS, 'BAJO') === 'NO_EVALUABLE', vigenciasCon(SIN_PARAMETROS, 'BAJO'));
 
   // Categoría de la conformidad frente a la del sistema.
   const basicaGcp = { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? 'GCP analítica | ENS BÁSICA | Google Cloud | 2027-01-15 | nº 1' : f)) };

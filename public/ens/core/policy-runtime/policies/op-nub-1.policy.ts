@@ -1240,7 +1240,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
-      runtimeVariables: [{ name: 'posicion_P01', value: 'sin configurar', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: sin.motivo }],
+      runtimeVariables: [
+        { name: 'posicion_P01', value: 'sin configurar', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: sin.motivo },
+        // El campo de vigencias del informe: sin P-01 no se ha juzgado nada.
+        { name: 'vigencia_conformidades', value: 'NO_EVALUABLE', parameterIds: ['P-01', 'P-03'], evidenceIds: ['EV-09'], eventIds: [], description: sin.motivo },
+      ],
     };
   }
 
@@ -1280,7 +1284,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
-      runtimeVariables: [{ name: 'posicion_P01', value: 'ninguno', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: medida.motivo }],
+      runtimeVariables: [
+        { name: 'posicion_P01', value: 'ninguno', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: medida.motivo },
+        // Y el de vigencias: no aplica, o sin evaluar si la declaración se contradice.
+        { name: 'vigencia_conformidades', value: medida.estado, parameterIds: ['P-01', 'P-03'], evidenceIds: ['EV-09'], eventIds: [], description: medida.motivo },
+      ],
     };
   }
 
