@@ -581,6 +581,25 @@ bloque('4. op.mon.3.1 (recolección): cada fuente, cada eje, con su reversión')
   comprueba('ningún evento desde que se observa hace 3 días, máximo 24 → NO_CUMPLE', estado(fila24(nunca('2026-10-06T12:00:00Z')), 'op.mon.3.1') === 'NO_CUMPLE');
   comprueba('ningún evento, pero se observa desde hace 2 h → NO_EVALUABLE, nunca CUMPLE', estado(fila24(nunca('2026-10-09T10:20:00Z')), 'op.mon.3.1') === 'NO_EVALUABLE');
 
+  const sinDescartes = hoy(en('log_source_observed', { descartes_periodo: '-' }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
+
+  comprueba(
+    'lectura buena pero descartes_periodo «-» → NO_EVALUABLE (COLLECTION), nunca un cero',
+    estado(fila24(sinDescartes), 'op.mon.3.1') === 'NO_EVALUABLE' && causa(fila24(sinDescartes), 'op.mon.3.1') === 'COLLECTION'
+  );
+
+  const muda = hoy(en('log_source_observed', { eventos: 0, bytes: 0, ultimo_evento: '-' }, l => l._a === '028' && l.ubicacion === '/var/log/zimbra.log'));
+  const fila28 = (evs: ENSNormalizedEvent[], valores: Valores = BASE) => evalua(evs, valores, 'MEDIO', AHORA, '028');
+
+  comprueba(
+    'leída sin ningún evento y sin max_horas_sin_eventos → NO_EVALUABLE (CONFIGURATION), pidiendo declararlo',
+    estado(fila28(muda), 'op.mon.3.1') === 'NO_EVALUABLE' && causa(fila28(muda), 'op.mon.3.1') === 'CONFIGURATION' && /Declara max_horas_sin_eventos/.test(fila28(muda).motivo('op.mon.3.1'))
+  );
+  comprueba(
+    'reversión · con max_horas_sin_eventos = 24 y observada desde el 01/10 → NO_CUMPLE medido',
+    estado(fila28(muda, conP01('zimbra.log del LDAP | Zimbra | agente | 028 | /var/log/zimbra.log | 24')), 'op.mon.3.1') === 'NO_CUMPLE'
+  );
+
   const desconectado = hoy(en('agent_forwarding_observed', { conexion: 'disconnected' }, l => l._a === '024'));
 
   comprueba('el agente desconectado al leerlo → NO_CUMPLE', estado(fila24(desconectado), 'op.mon.3.1') === 'NO_CUMPLE' && /no está conectado/.test(fila24(desconectado).motivo('op.mon.3.1')));

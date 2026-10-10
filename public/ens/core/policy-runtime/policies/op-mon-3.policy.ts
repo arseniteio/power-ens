@@ -485,15 +485,36 @@ const fuenteLocal = (ctxA: ENSPolicyContext, ahora: number, fuente: Fuente, maqu
     );
   }
 
+  const detalle = `${fuente.ubicacion} en ${maquina}`;
+
+  // Con la lectura buena, un contador que falta o vale `-` es un hueco del
+  // recolector, nunca un cero.
+  const sinContador = suyas.filter(e => numero(campo(e, 'descartes_periodo')) === undefined || numero(campo(e, 'eventos')) === undefined);
+
+  if (sinContador.length) {
+    return sinMedir(
+      `«${fuente.fuente}» (${detalle}): el recolector no informa de los eventos o los descartes de ${lista(sinContador.map(e => campo(e, 'ubicacion')))}, así que no se sabe si recolecta sin pérdidas.`,
+      'COLLECTION'
+    );
+  }
+
   const descartes = suyas.reduce((t, e) => t + (numero(campo(e, 'descartes_periodo')) || 0), 0);
   const eventos = suyas.reduce((t, e) => t + (numero(campo(e, 'eventos')) || 0), 0);
-  const detalle = `${fuente.ubicacion} en ${maquina}`;
 
   if (descartes > 0) {
     return noCumple(`«${fuente.fuente}» (${detalle}): ${descartes} eventos descartados en el periodo; la recolección pierde eventos.`);
   }
 
   if (fuente.maxHoras === undefined) {
+    // Leída pero sin ningún evento nunca visto: que se lea no demuestra que
+    // recolecte. Sin un máximo de horas no hay contra qué juzgarlo.
+    if (eventos === 0 && suyas.every(e => instante(campo(e, 'ultimo_evento')) === undefined)) {
+      return sinMedir(
+        `«${fuente.fuente}» (${detalle}): el logcollector la lee pero no ha producido ningún evento desde que se observa. Declara max_horas_sin_eventos para esta fuente en P-01 y se juzgará su continuidad; sin él, lo que no se demuestra no cumple.`,
+        'CONFIGURATION'
+      );
+    }
+
     return cumple(`«${fuente.fuente}» (${detalle}): ${eventos} eventos desde el arranque del logcollector, sin descartes.`);
   }
 
