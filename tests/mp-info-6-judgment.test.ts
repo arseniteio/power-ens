@@ -21,7 +21,7 @@
  * real como alertas de alerts.json. Cada caso mueve UN eje y lleva al lado la
  * REVERSIÓN que demuestra que el veredicto no sale siempre igual.
  *
- * El caso 11 compara los otros 19 controles con y sin mp.info.6 sobre datos
+ * El caso 11 compara los otros 20 controles con y sin mp.info.6 sobre datos
  * reales descargados del índice. La carpeta se indica con ENSFACIL_REAL_DATA
  * (con `data/a-<control>.json`, `data/now.txt` y, si existe,
  * `params/active.clean.json`); sin ella se usa una muestra mínima de dos
@@ -2134,7 +2134,7 @@ bloque('11. Ningún otro control cambia');
 
   comprueba(
     `los otros ${otros.length} controles no cambian (${claves.length} resultados comparados)`,
-    otros.length === 19 && claves.length > otros.length && distintos.length === 0 && Object.keys(con).length === claves.length,
+    otros.length === 20 && claves.length > otros.length && distintos.length === 0 && Object.keys(con).length === claves.length,
     distintos.slice(0, 5).join('; ')
   );
 

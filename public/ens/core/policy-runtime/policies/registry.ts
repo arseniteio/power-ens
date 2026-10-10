@@ -79,6 +79,10 @@ import {
 } from './op-mon-1.policy';
 
 import {
+  opMon2PolicyDefinition,
+} from './op-mon-2.policy';
+
+import {
   opMon3PolicyDefinition,
 } from './op-mon-3.policy';
 
@@ -103,6 +107,7 @@ const policyDefinitions:
     opExp9PolicyDefinition,
     opExp10PolicyDefinition,
     opMon1PolicyDefinition,
+    opMon2PolicyDefinition,
     opMon3PolicyDefinition,
   ];
 

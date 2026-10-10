@@ -53,6 +53,7 @@ import { buildOpExp8ReportModel } from './op-exp-8-report-model';
 import { buildOpExp9ReportModel } from './op-exp-9-report-model';
 import { buildOpExp10ReportModel } from './op-exp-10-report-model';
 import { buildOpMon1ReportModel } from './op-mon-1-report-model';
+import { buildOpMon2ReportModel } from './op-mon-2-report-model';
 import { buildOpMon3ReportModel } from './op-mon-3-report-model';
 
 export type ENSReportFieldStatus =
@@ -95,7 +96,17 @@ export interface ENSReportModelDefinition {
   // solo hecho son dos sitios que se olvidan por separado.
   name: string;
 
-  build: (result: ENSComplianceResult | undefined) => ENSReportModel;
+  build: (
+    result: ENSComplianceResult | undefined,
+    panorama?: ENSComplianceResult[]
+  ) => ENSReportModel;
+
+  // El informe necesita el resultado de TODOS los controles, no solo el suyo
+  // (op.mon.2, el sistema de métricas: su informe es el cuadro de mando). La
+  // pantalla lee entonces los hechos de todos los controles, con el mismo tope
+  // y el mismo orden que el panel, y pasa a `build` el resultado de cada uno
+  // como `panorama`.
+  usesAllControls?: boolean;
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
@@ -195,6 +206,12 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     build: buildOpMon1ReportModel,
   },
   {
+    controlId: 'op.mon.2',
+    name: 'op.mon.2 - Sistema de métricas',
+    build: buildOpMon2ReportModel,
+    usesAllControls: true,
+  },
+  {
     controlId: 'op.mon.3',
     name: 'op.mon.3 - Vigilancia',
     build: buildOpMon3ReportModel,
@@ -249,9 +266,10 @@ export const getRegisteredENSReportControls = (): string[] =>
 // el modelo de otro control.
 export const buildENSReportModel = (
   controlId: string,
-  result: ENSComplianceResult | undefined
+  result: ENSComplianceResult | undefined,
+  panorama?: ENSComplianceResult[]
 ): ENSReportModel | undefined =>
-  getENSReportModelDefinition(controlId)?.build(result);
+  getENSReportModelDefinition(controlId)?.build(result, panorama);
 
 // Cuáles de estos controles NO tienen modelo de informe. Es lo que convierte el
 // olvido en algo visible: la pantalla lo usa para nombrarlos arriba del todo, y

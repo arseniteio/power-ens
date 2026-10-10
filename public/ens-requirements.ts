@@ -330,6 +330,12 @@ export const ensRequirementsFile = {
     'Procedimientos de respuesta a las alertas (R2) - Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
   'op.mon.1.r3.1':
     'Acciones predeterminadas automáticas (R3) - Refuerzo R3 – Acciones predeterminadas: El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.',
+  'op.mon.2.1':
+    'Datos del grado de implantación y del informe del art. 32 - Atendiendo a la categoría de seguridad del sistema, se recopilarán los datos necesarios para conocer el grado de implantación de las medidas de seguridad que resulten aplicables y, en su caso, para proveer el informe anual requerido por el artículo 32.',
+  'op.mon.2.r1.1':
+    'Datos del comportamiento de la gestión de incidentes (R1) - Se recopilarán los datos precisos que posibiliten evaluar el comportamiento del sistema de gestión de incidentes, de acuerdo con la Instrucción Técnica de Seguridad de Notificación de Incidentes de Seguridad y con la correspondiente guía CCN-STIC.',
+  'op.mon.2.r2.1':
+    'Datos de eficiencia: horas y presupuesto (R2) - Se recopilarán los datos precisos para conocer la eficiencia del sistema de seguridad, en relación con los recursos consumidos, en términos de horas y presupuesto.',
   'op.mon.3.1':
     'Recolección automática de eventos de seguridad - Se dispondrá de un sistema automático de recolección de eventos de seguridad.',
   'op.mon.3.r1.1':

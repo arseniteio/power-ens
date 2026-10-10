@@ -144,6 +144,13 @@ RUNBOOKS = {
         ("linux/op.mon.1",),
         ["ensfacil_op_mon_1_json_rules.xml"],
     ),
+    # Solo Linux y solo el manager: los registros de la organización, la base
+    # de agentes y los latidos de todos los recolectores están en él (spec
+    # 2026-10-09 §2.4).
+    "op.mon.2": (
+        ("linux/op.mon.2",),
+        ["ensfacil_op_mon_2_json_rules.xml"],
+    ),
     # Manager y agente en el mismo runbook, como op.exp.8: el recolector de
     # agente solo lee ficheros de estado de Wazuh y vale igual en el LDAP, así
     # que no hay variante zimbra (spec 2026-10-09 §3.4).

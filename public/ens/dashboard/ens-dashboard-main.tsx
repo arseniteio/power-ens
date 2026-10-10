@@ -3,6 +3,7 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { ENSControls } from '../data';
+import { buildENSAllControlsFactsFilter } from './all-controls-facts-filter';
 import {
   buildENSDashboardModel,
   buildENSEvaluationTimeRangeFilter,
@@ -93,32 +94,11 @@ export const EnsDashboardMain = () => {
     );
 
   const ensControlIds = ENSControls.map(control => control.id);
-  const ensRuleGroups = ensControlIds.map(controlId => `ENS_${controlId}`);
   const { esResults, error } = useEsSearch({
     preAppliedFilters: [
       evaluationTimeFilter,
       scopeAgentQueryFilter,
-      {
-        bool: {
-          should: [
-              { exists: { field: 'data.ensfacil' } },
-              { exists: { field: 'data.control' } },
-              { exists: { field: 'data.evidence_id' } },
-              { match_phrase: { 'rule.groups': 'ENS' } },
-
-              ...ensRuleGroups.map(group => ({
-                match_phrase: { 'rule.groups': group },
-              })),
-
-
-              ...ensControlIds.flatMap(controlId => [
-                { match_phrase: { 'data.control': controlId } },
-                { match_phrase: { 'data.ensfacil': controlId } },
-             ]),
-           ],
-          minimum_should_match: 1,
-        },
-      },
+      buildENSAllControlsFactsFilter(ensControlIds),
     ],
     // MISMO TOPE QUE EL DETALLE. Con 6000 aqui y 1000 alli, las dos
     // pantallas juzgaban conjuntos distintos del mismo control y podian dar

@@ -17,5 +17,6 @@ export * from './op-exp-8.policy';
 export * from './op-exp-9.policy';
 export * from './op-exp-10.policy';
 export * from './op-mon-1.policy';
+export * from './op-mon-2.policy';
 export * from './op-mon-3.policy';
 export * from './registry';
