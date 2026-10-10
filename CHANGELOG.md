@@ -41,9 +41,11 @@ Seis controles nuevos: el catálogo pasa de 17 a 23.
 
 ### Cambiado
 
-- El índice de configuración, `wazuh-ens-configuration`, se crea con
-  `auto_expand_replicas: 0-1`: en un indexer de un solo nodo ya no se queda en
-  amarillo.
+- En las instalaciones nuevas, el índice de configuración,
+  `wazuh-ens-configuration`, se crea con `auto_expand_replicas: 0-1`: en un
+  indexer de un solo nodo ya no se queda en amarillo. El plugin no toca un
+  índice que ya existe: uno creado por la 1.0.0 se ajusta a mano al actualizar
+  (guía de actualización, apartado 8).
 - Un control cuyas evidencias no escuchan ningún hecho (op.cont.2) no espera
   hechos: lo que no puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA.
 - Una evidencia nombrada por la policy solo sustituye a un NO_EVALUABLE

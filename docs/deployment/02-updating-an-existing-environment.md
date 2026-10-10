@@ -266,6 +266,19 @@ npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-no
 
 Debe salir `ESTRUCTURA VÁLIDA`. Si sale inválida, restaurar `$BACKUP/active.json` según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens). Las alternativas para validar fuera del servidor y la declaración de valores con `set-parameters.py` (que sustituye la lista entera de cada parámetro que nombra) están en la [guía de instalación, apartados 14.4 y 14.5](01-installation-from-scratch.md#144-validar-el-documento-entero).
 
+Si el entorno viene de la 1.0.0, ajustar las réplicas del índice de configuración. Desde la 1.1.0 el plugin crea `wazuh-ens-configuration` con `auto_expand_replicas: 0-1`, pero solo cuando el índice no existe: uno creado por la 1.0.0 conserva su réplica y, en un indexer de un solo nodo, se queda en amarillo porque esa réplica no se puede asignar. El plugin no cambia un índice que ya existe; se hace una vez, a mano, con el certificado de administrador del indexer:
+
+```bash
+C=/etc/wazuh-indexer/certs
+sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem -XPUT \
+  https://127.0.0.1:9200/wazuh-ens-configuration/_settings \
+  -H 'Content-Type: application/json' -d '{"index":{"auto_expand_replicas":"0-1"}}'; echo
+sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
+  "https://127.0.0.1:9200/_cat/indices/wazuh-ens-configuration?h=health,status,index,rep"
+```
+
+Qué tiene que salir: `{"acknowledged":true}` y, en la segunda orden, `green open wazuh-ens-configuration 0` (con varios nodos, `green` con `1` réplica). Si sale `yellow`, esperar unos segundos y repetir la segunda orden hasta que salga `green`. En un entorno instalado desde cero con la 1.1.0 o posterior no hace falta.
+
 Si la versión introduce op.exp.8, revisar en la configuración global el campo opcional **Nivel de Trazabilidad (T)**.
 
 ## 9. Agentes y comprobación final

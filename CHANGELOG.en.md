@@ -43,9 +43,11 @@ Six new controls: the catalog goes from 17 to 23.
 
 ### Changed
 
-- The configuration index, `wazuh-ens-configuration`, is created with
-  `auto_expand_replicas: 0-1`: on a single-node indexer it no longer stays
-  yellow.
+- On new installations, the configuration index, `wazuh-ens-configuration`,
+  is created with `auto_expand_replicas: 0-1`: on a single-node indexer it no
+  longer stays yellow. The plugin does not touch an index that already exists:
+  one created by 1.0.0 is adjusted by hand when updating (update guide,
+  section 8).
 - A control whose evidences listen to no facts (op.cont.2) expects no facts:
   what it cannot prove is a CONFIGURATION gap, never a COLLECTION one.
 - An evidence named by the policy only replaces a NO_EVALUABLE inherited from
