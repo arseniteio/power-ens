@@ -20,10 +20,14 @@
  *      CUMPLE; sin la marca, el mismo caso salía CUMPLE (el agujero);
  *   4. un NO_CUMPLE documental no se lee «Medido» ni manda a corregir la
  *      máquina: la etiqueta, la no conformidad y su acción lo dicen.
+ *   5. la ficha del control no lo cuenta bajo «Corregir el sistema»: tiene su
+ *      propio bloque, «renovar o completar la documentación».
  *
  * Es del motor, no de un control: se usa op.acc.1.5 (sin evidencias técnicas,
  * acreditable con P-ATT) con decisiones fabricadas.
  */
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
 import { markPolicyRuntimeStale } from '../public/ens/core/evidence/stale-collector';
@@ -45,6 +49,7 @@ import type { ENSComplianceStatus } from '../public/ens/core/evaluation/types';
 import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
 
 declare const process: { exit(code: number): void };
+declare const __dirname: string;
 
 // --- comprobador mínimo ----------------------------------------------------
 
@@ -245,6 +250,31 @@ bloque('4. Un NO_CUMPLE documental no es «Medido» ni «corregir la máquina»'
   );
   const tecnica = control(false);
   comprueba('REVERSIÓN: sin la marca, «Corregir para alcanzar»', tecnica?.documental !== true && /^Corregir para alcanzar/.test(tecnica?.requiredAction || ''), tecnica?.requiredAction);
+}
+
+bloque('5. La ficha del control no cuenta lo documental bajo «Corregir el sistema»');
+
+{
+  // La pantalla es React sin entorno de pruebas: se comprueba su fuente, como
+  // `facts-read-error.test.ts`.
+  const fuente = readFileSync(join(__dirname, '..', 'public/ens/controls/control-detail/index.tsx'), 'utf8');
+
+  comprueba(
+    'separa las documentales de las medidas técnicas',
+    /const documentales = medidas\.filter\(item => item\.documental\)/.test(fuente) &&
+      /const medidasTecnicas = medidas\.filter\(item => !item\.documental\)/.test(fuente)
+  );
+  comprueba(
+    '«Corregir N» y «medidas · corregir el sistema» cuentan solo las técnicas',
+    /`Corregir \$\{medidasTecnicas\.length\}`/.test(fuente) &&
+      /etiqueta: 'medidas · corregir el sistema',\s*valor: medidasTecnicas\.length/.test(fuente) &&
+      !/`Corregir \$\{medidas\.length\}`/.test(fuente)
+  );
+  comprueba(
+    'el bloque «Corregir el sistema auditado» lista solo las técnicas, y las documentales tienen el suyo',
+    /pie: 'Corregir el sistema auditado\.',\s*items: medidasTecnicas,/.test(fuente) &&
+      /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentales,/.test(fuente)
+  );
 }
 
 // --- salida ----------------------------------------------------------------

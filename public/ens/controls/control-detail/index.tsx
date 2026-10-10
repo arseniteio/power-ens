@@ -385,6 +385,13 @@ export const ControlDetailENS = ({
   // acciones distintas y las ejecutan personas distintas.
   const medidas = nonConformityItems.filter(item => item.origin === 'MEDIDA');
 
+  // Las demostradas sobre una DECLARACIÓN de la pantalla (un contrato, una
+  // certificación o un plan vencido o ausente): cuentan igual que las medidas,
+  // pero no hay nada que corregir en la máquina. Su acción es renovar o
+  // completar la documentación, y no se cuentan bajo «corregir el sistema».
+  const documentales = medidas.filter(item => item.documental);
+  const medidasTecnicas = medidas.filter(item => !item.documental);
+
   const noEvidenciadas = nonConformityItems.filter(
     item => item.origin === 'NO_EVIDENCIADA',
   );
@@ -576,7 +583,10 @@ export const ControlDetailENS = ({
     openNonConformitiesCount === 0
       ? 'Sin acciones pendientes'
       : [
-          medidas.length > 0 ? `Corregir ${medidas.length}` : '',
+          medidasTecnicas.length > 0 ? `Corregir ${medidasTecnicas.length}` : '',
+          documentales.length > 0
+            ? `Renovar documentación ${documentales.length}`
+            : '',
           noEvidenciadas.length > 0
             ? `Habilitar prueba ${noEvidenciadas.length}`
             : '',
@@ -616,7 +626,12 @@ export const ControlDetailENS = ({
           : ''
       }`,
     },
-    { etiqueta: 'Medidas', valor: String(medidas.length) },
+    {
+      etiqueta: 'Medidas',
+      valor: `${medidas.length}${
+        documentales.length > 0 ? ` · ${documentales.length} documental${documentales.length === 1 ? '' : 'es'}` : ''
+      }`,
+    },
     {
       etiqueta: 'No evidenciadas',
       valor: `${noEvidenciadas.length}${
@@ -636,13 +651,18 @@ export const ControlDetailENS = ({
     { etiqueta: 'Acción', valor: accionResumen },
   ];
 
-  // El encabezado de Remediación: cifras con etiqueta. Las dos primeras suman
+  // El encabezado de Remediación: cifras con etiqueta. Las tres primeras suman
   // el total; las dos siguientes son un desglose DE LAS NO EVIDENCIADAS y por
   // eso van en otra línea, dicho con esas palabras.
   const remediacionTotales = [
     {
       etiqueta: 'medidas · corregir el sistema',
-      valor: medidas.length,
+      valor: medidasTecnicas.length,
+      color: 'danger' as const,
+    },
+    {
+      etiqueta: 'documentales · renovar o completar la documentación',
+      valor: documentales.length,
       color: 'danger' as const,
     },
     {
@@ -1624,15 +1644,22 @@ export const ControlDetailENS = ({
           </EuiText>
         )}
 
-        {/* Dos bloques, un contador. El orden es el de la acción: primero lo
-            que hay que corregir en el sistema, después lo que hay que poder
+        {/* Tres bloques, un contador. El orden es el de la acción: primero lo
+            que hay que corregir en el sistema, después la documentación que
+            hay que renovar o completar, y por último lo que hay que poder
             demostrar. */}
         {[
           {
             clave: 'medidas',
-            titulo: `Medidas · ${medidas.length}`,
+            titulo: `Medidas · ${medidasTecnicas.length}`,
             pie: 'Corregir el sistema auditado.',
-            items: medidas,
+            items: medidasTecnicas,
+          },
+          {
+            clave: 'documentales',
+            titulo: `Documentales · ${documentales.length}`,
+            pie: 'Cuentan igual. La acción es renovar o completar la documentación.',
+            items: documentales,
           },
           {
             clave: 'no-evidenciadas',
