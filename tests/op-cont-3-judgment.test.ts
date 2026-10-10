@@ -933,6 +933,79 @@ bloque('11 bis. Filas perdidas por el camino, repetidas o con celdas que no se e
   comprueba('REVERSIÓN: cerrada el 28/08 → CUMPLE', evalua(hoy()).evidencia('EV-05')?.status === 'CUMPLE');
 }
 
+bloque('11 ter. Lo que no se sabe que llegó entero no se da por entero (integración)');
+
+{
+  const sin = (clave: string) => (l: Linea): Linea => {
+    const { [clave]: _fuera, ...resto } = l;
+
+    return resto as Linea;
+  };
+  const sinFilas = evalua(hoy(l => (l.event === 'continuity_test_register_read' ? sin('filas')(l) : l)));
+  comprueba(
+    'una lectura del registro sin «filas» → NO_EVALUABLE por RECOGIDA, nunca registro entero',
+    sinFilas.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinFilas.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no dice cuántas filas válidas leyó/.test(sinFilas.de('EV-01')),
+    `${estado(sinFilas, 'EV-01')} ${sinFilas.de('EV-01')}`
+  );
+  comprueba('REVERSIÓN: con «filas», EV-01 CUMPLE', evalua(hoy()).evidencia('EV-01')?.status === 'CUMPLE');
+
+  const sinTotal = evalua(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? sin('eventos_total')(l) : l)));
+  comprueba(
+    'una cronología sin «eventos_total» → EV-04 NO_EVALUABLE por RECOGIDA, nunca entera',
+    sinTotal.evidencia('EV-04')?.status === 'NO_EVALUABLE' && sinTotal.evidencia('EV-04')?.gapCause === 'COLLECTION' && /eventos_total/.test(sinTotal.de('EV-04')),
+    `${estado(sinTotal, 'EV-04')} ${sinTotal.de('EV-04')}`
+  );
+  comprueba('REVERSIÓN: con «eventos_total», EV-04 CUMPLE', evalua(hoy()).evidencia('EV-04')?.status === 'CUMPLE');
+
+  const completaConHuecos = evalua(hoy(fila('continuity_test_recorded', simulacro, { dias_sin_alertas: '2026-09-18' })));
+  comprueba(
+    'una medición «completa» con días sin alertas no da CUMPLE → NO_EVALUABLE por RECOGIDA',
+    completaConHuecos.evidencia('EV-04')?.status === 'NO_EVALUABLE' && completaConHuecos.evidencia('EV-04')?.gapCause === 'COLLECTION' && /se declara completa, pero hay días sin alertas leídas \(2026-09-18\)/.test(completaConHuecos.de('EV-04')),
+    `${estado(completaConHuecos, 'EV-04')} ${completaConHuecos.de('EV-04')}`
+  );
+
+  const pruebasDescartadas = evalua(hoy(fila('continuity_test_register_read', () => true, { filas_invalidas: 1, lineas_invalidas: '6:fin' })));
+  comprueba(
+    'EV-05 lleva los reparos del registro de pruebas: una fila de pruebas descartada no deja dar por buena la corrección',
+    pruebasDescartadas.evidencia('EV-05')?.status === 'NO_EVALUABLE' && /registro de pruebas .* descartadas/.test(pruebasDescartadas.de('EV-05')),
+    `${estado(pruebasDescartadas, 'EV-05')} ${pruebasDescartadas.de('EV-05')}`
+  );
+  comprueba('REVERSIÓN: con el registro de pruebas entero, EV-05 CUMPLE', evalua(hoy()).evidencia('EV-05')?.status === 'CUMPLE');
+
+  const pruebaPerdida = evalua(hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l)));
+  comprueba(
+    'una deficiencia cuya prueba se perdió por el camino → RECOGIDA, no «copia el inicio exacto»',
+    pruebaPerdida.evidencia('EV-05')?.gapCause === 'COLLECTION' && /le faltan filas que el recolector leyó/.test(pruebaPerdida.de('EV-05')) && !/Copia en prueba_inicio/.test(pruebaPerdida.de('EV-05')),
+    `${estado(pruebaPerdida, 'EV-05')} ${pruebaPerdida.de('EV-05')}`
+  );
+  const pruebaIlegible = evalua(hoy(fila('continuity_test_recorded', l => l.linea === 3, { resultado: 'ok' })));
+  comprueba(
+    'una deficiencia cuya prueba llegó en una fila ilegible → RECOGIDA, nombrando la fila',
+    pruebaIlegible.evidencia('EV-05')?.gapCause === 'COLLECTION' && /cuya prueba está en una fila del registro de pruebas que no se puede interpretar: DEF-2026-02/.test(pruebaIlegible.de('EV-05')) && !/Copia en prueba_inicio/.test(pruebaIlegible.de('EV-05')),
+    `${estado(pruebaIlegible, 'EV-05')} ${pruebaIlegible.de('EV-05')}`
+  );
+  const malCopiada = evalua(hoy(undefined, [deficiencia(`${PASADA}:03Z`, 6, 'DEF-2026-99', '2026-05-01T00:00:00Z', '2026-06-30', 'cerrada', '2026-06-01', '2.1')]));
+  comprueba(
+    'REVERSIÓN: con el registro de pruebas entero, un prueba_inicio que no casa → CONFIGURATION, «copia el inicio exacto»',
+    malCopiada.evidencia('EV-05')?.gapCause === 'CONFIGURATION' && /Copia en prueba_inicio el inicio exacto/.test(malCopiada.de('EV-05')),
+    `${estado(malCopiada, 'EV-05')} ${malCopiada.de('EV-05')}`
+  );
+
+  const simulacroFila = pasada().find(l => l.event === 'continuity_test_recorded' && l.linea === 4)!;
+  const ultimaManda = evalua(hoy(undefined, [{ ...simulacroFila, ts: `${PASADA}:30Z`, deficiencias: 2 }]));
+  comprueba(
+    'una fila repetida en la pasada: manda la ÚLTIMA (declara 2, en seguimiento 1 → NO_CUMPLE)',
+    ultimaManda.evidencia('EV-05')?.status === 'NO_CUMPLE' && /declara 2, en seguimiento 1/.test(ultimaManda.de('EV-05')),
+    `${estado(ultimaManda, 'EV-05')} ${ultimaManda.de('EV-05')}`
+  );
+  const primeraVieja = evalua(hoy(undefined, [{ ...simulacroFila, ts: `${PASADA}:00Z`, deficiencias: 2 }]));
+  comprueba(
+    'REVERSIÓN: si la repetida es la ANTERIOR, manda la de después (declara 1) → CUMPLE',
+    primeraVieja.evidencia('EV-05')?.status === 'CUMPLE',
+    `${estado(primeraVieja, 'EV-05')} ${primeraVieja.de('EV-05')}`
+  );
+}
+
 // --- 12. foco: los plazos, en el instante de la lectura --------------------------------
 
 bloque('12. Los plazos se juzgan cuando se leyó el registro, no al evaluar');

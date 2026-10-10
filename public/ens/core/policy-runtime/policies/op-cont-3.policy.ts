@@ -257,28 +257,27 @@ const filasDescartadas = (reg: Registro, nombre: string): Medida | undefined =>
     : undefined;
 
 // Cada fila una vez, por su clave (`inicio` de la prueba, `deficiencia_id`): un
-// hecho repetido en la misma pasada no cuenta doble.
+// hecho repetido en la misma pasada no cuenta doble. Se queda la ÚLTIMA (la más
+// reciente; a igual instante, la que llegó después): es la que describe el
+// registro tal como se leyó.
 const unaPorClave = (filasLeidas: ENSNormalizedEvent[], clave: (e: ENSNormalizedEvent) => string): ENSNormalizedEvent[] => {
-  const vistas = new Set<string>();
+  const ultima = new Map<string, ENSNormalizedEvent>();
 
-  return filasLeidas.filter(e => {
-    const k = clave(e);
+  [...filasLeidas].sort((a, b) => momento(a) - momento(b)).forEach(e => ultima.set(clave(e), e));
 
-    if (vistas.has(k)) {
-      return false;
-    }
-
-    vistas.add(k);
-
-    return true;
-  });
+  return Array.from(ultima.values());
 };
 
 // Las filas que la lectura anunció y no han llegado (una línea perdida por
 // logcollector, una alerta que el indexer rechazó): sin ellas el registro no
 // está entero.
 const filasPerdidas = (reg: Registro, recibidas: number, nombre: string): Medida | undefined =>
-  reg.declaradas !== undefined && recibidas < reg.declaradas
+  reg.declaradas === undefined
+    ? sinMedir(
+        `La lectura del registro de ${nombre} ${reg.fichero} no dice cuántas filas válidas leyó el recolector (filas): no se puede comprobar que hayan llegado todas, y una fila perdida puede ser justo la que falta.`,
+        'COLLECTION'
+      )
+    : recibidas < reg.declaradas
     ? sinMedir(
         `El recolector leyó ${reg.declaradas} fila(s) válidas en el registro de ${nombre} ${reg.fichero} y solo han llegado ${recibidas}: faltan ${reg.declaradas - recibidas}, y una fila perdida puede ser justo la que falta.`,
         'COLLECTION'
@@ -348,9 +347,10 @@ const describe = (p: Prueba): string => `${p.tipo} del ${iso(p.inicio)}${vacio(p
 // Las filas del registro de pruebas, una por `inicio`. El recolector ya validó
 // el formato: una fila que aun así no se entiende es un fallo de RECOGIDA, y se
 // nombra con la columna que falla.
-const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; recibidas: number } => {
+const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; inicioIlegibles: number[]; recibidas: number } => {
   const pruebas: Prueba[] = [];
   const malas: string[] = [];
+  const inicioIlegibles: number[] = [];
   const unicas = unaPorClave(reg.filas, e => String(instante(campo(e, 'inicio')) ?? campo(e, 'inicio')));
 
   unicas.forEach(e => {
@@ -369,6 +369,10 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; recibid
 
     if (mal.length || inicio === undefined || fin === undefined) {
       malas.push(`línea ${linea} (${mal.join(', ')})`);
+
+      if (inicio !== undefined) {
+        inicioIlegibles.push(inicio);
+      }
 
       return;
     }
@@ -392,7 +396,7 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; recibid
     });
   });
 
-  return { pruebas: pruebas.sort((a, b) => a.inicio - b.inicio), malas, recibidas: unicas.length };
+  return { pruebas: pruebas.sort((a, b) => a.inicio - b.inicio), malas, inicioIlegibles, recibidas: unicas.length };
 };
 
 const filasIlegibles = (malas: string[], nombre: string): Medida | undefined =>
@@ -412,6 +416,11 @@ interface BasePruebas {
   // Lo mismo, en una medida: si existe, los hallazgos por ausencia no se
   // afirman (`porAusencia`).
   incompleto?: Medida;
+  // El inicio de las filas que llegaron y no se pueden interpretar, y si
+  // faltan filas que el recolector leyó: una deficiencia que apunta a una de
+  // ellas no tiene su prueba por un fallo de RECOGIDA, no de configuración.
+  inicioIlegibles: number[];
+  faltanFilas: boolean;
 }
 
 const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string): BasePruebas | Medida => {
@@ -435,8 +444,9 @@ const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string
     return reg;
   }
 
-  const { pruebas, malas, recibidas } = pruebasDe(reg);
-  const reparos = [filasDescartadas(reg, 'pruebas'), filasPerdidas(reg, recibidas, 'pruebas'), filasIlegibles(malas, 'pruebas')].filter(
+  const { pruebas, malas, inicioIlegibles, recibidas } = pruebasDe(reg);
+  const perdidas = filasPerdidas(reg, recibidas, 'pruebas');
+  const reparos = [filasDescartadas(reg, 'pruebas'), perdidas, filasIlegibles(malas, 'pruebas')].filter(
     (m): m is Medida => Boolean(m)
   );
 
@@ -446,6 +456,8 @@ const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string
     hechas: pruebas.filter(p => p.fin <= reg.t),
     reparos,
     ...(reparos.length ? { incompleto: combina(reparos) } : {}),
+    inicioIlegibles,
+    faltanFilas: Boolean(perdidas),
   };
 };
 
@@ -957,6 +969,15 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
 
   if (prueba.medicion === 'pendiente') {
     huecos.push(sinMedir(`La medición de la prueba ${describe(prueba)} sigue abierta hasta las 24 h siguientes a su fin (leída hasta ${iso(hasta)}): todavía no es concluyente.`));
+  } else if (completa && prueba.diasSinAlertas.length) {
+    // Contradictoria: «completa», pero con días sin alertas leídas. Una caída
+    // de esos días no se habría visto, así que no puede salir CUMPLE.
+    huecos.push(
+      sinMedir(
+        `La medición de la prueba ${describe(prueba)} se declara completa, pero hay días sin alertas leídas (${prueba.diasSinAlertas.join(', ')}): una caída de esos días no se habría visto.`,
+        'COLLECTION'
+      )
+    );
   } else if (!completa) {
     huecos.push(
       sinMedir(
@@ -1020,7 +1041,10 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     const seguros = todos.filter(x => x.desdeMax <= prueba.fin && x.hastaMin >= prueba.inicio);
     const posibles = todos.filter(x => (x.desdeMin ?? -Infinity) <= prueba.fin && (x.hastaMax ?? Infinity) >= prueba.inicio);
     const rto = rtos ? rtoDe(rtos, sistema, e) : undefined;
-    const truncada = total !== undefined && total > items.length;
+    // Sin `eventos_total` no se sabe si la cronología llegó entera: no se da
+    // por entera.
+    const sinTotal = total === undefined;
+    const truncada = sinTotal || (total as number) > items.length;
     const texto = `${nombre}: ${
       posibles.length ? `${posibles.length} caída(s): ${posibles.map(describeTramo).join('; ')}` : `sin caídas observadas${propias !== undefined ? ` (${propias} alertas propias en el rango)` : ''}`
     }${rto ? ` (${rto.texto})` : ''}`;
@@ -1055,7 +1079,15 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     }
 
     if (truncada) {
-      return { ...base, hueco: sinMedir(`${nombre}: la cronología llegó truncada (${items.length} de ${total} eventos): no se puede afirmar que no hubo una caída más larga.`, 'COLLECTION') };
+      return {
+        ...base,
+        hueco: sinMedir(
+          sinTotal
+            ? `${nombre}: la fila no dice cuántos eventos tiene su cronología (eventos_total): no se puede afirmar que llegó entera ni que no hubo una caída más larga.`
+            : `${nombre}: la cronología llegó truncada (${items.length} de ${total} eventos): no se puede afirmar que no hubo una caída más larga.`,
+          'COLLECTION'
+        ),
+      };
     }
 
     if (!completa) {
@@ -1394,6 +1426,11 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
   if (esMedida(b)) {
     partes.push(b);
   } else {
+    // Lo que impide dar por bueno el registro de pruebas también impide dar por
+    // buena la corrección: la prueba siguiente o lo que declara cada prueba
+    // pueden estar en la fila que falta.
+    partes.push(...b.reparos);
+
     const hechas = b.hechas;
     // «La prueba siguiente» es la siguiente del MISMO escenario (o del mismo
     // tipo, si la de origen no tiene escenario): una prueba posterior de otra
@@ -1421,13 +1458,33 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     }
 
     const huerfanas = d.deficiencias.filter(x => !b.pruebas.some(p => p.inicio === x.prueba));
+    const describeHuerfana = (x: Deficiencia): string => `${x.id} (${x.pruebaTexto}, línea ${x.linea || '?'})`;
+    // Su prueba llegó, pero en una fila que no se puede interpretar: RECOGIDA.
+    const enFilaIlegible = huerfanas.filter(x => b.inicioIlegibles.includes(x.prueba));
+    const sinPrueba = huerfanas.filter(x => !b.inicioIlegibles.includes(x.prueba));
 
-    if (huerfanas.length) {
+    if (enFilaIlegible.length) {
       partes.push(
         sinMedir(
-          `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba del registro: ${lista(huerfanas.map(x => `${x.id} (${x.pruebaTexto}, línea ${x.linea || '?'})`))}. Copia en prueba_inicio el inicio exacto de su prueba.`,
-          'CONFIGURATION'
+          `Deficiencias cuya prueba está en una fila del registro de pruebas que no se puede interpretar: ${lista(enFilaIlegible.map(describeHuerfana))}. Sin su prueba no se sabe cuál es la siguiente.`,
+          'COLLECTION'
         )
+      );
+    }
+
+    if (sinPrueba.length) {
+      partes.push(
+        b.faltanFilas
+          ? sinMedir(
+              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba recibida: ${lista(sinPrueba.map(describeHuerfana))}. Al registro de pruebas le faltan filas que el recolector leyó, y su prueba puede ser una de ellas.`,
+              'COLLECTION'
+            )
+          : sinMedir(
+              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba del registro: ${lista(sinPrueba.map(describeHuerfana))}. Copia en prueba_inicio el inicio exacto de su prueba${
+                b.reg.invalidas ? ', o corrige su fila si es una de las descartadas del registro de pruebas' : ''
+              }.`,
+              'CONFIGURATION'
+            )
       );
     }
 
