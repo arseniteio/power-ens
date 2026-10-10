@@ -15,6 +15,8 @@
  *     del manager.
  *
  * Qué se prueba:
+ *   0. El catálogo: los siete de solo manager valen `["manager"]`, op.exp.8 y
+ *      op.mon.3 valen `["agent","manager"]` y los 14 de siempre, `["agent"]`.
  *   1. El alcance: el manager entra, marcado, en los tres modos; sin ningún
  *      control de plano `manager` ACTIVE, no entra (ni aunque el inventario lo
  *      traiga). La consulta de la vista de una máquina trae también al manager.
@@ -213,6 +215,10 @@ comprueba(
 comprueba(
   'op.exp.8 se mide en los dos planos',
   huella(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === 'op.exp.8')!)) === '["agent","manager"]'
+);
+comprueba(
+  'op.mon.3 se mide en los dos planos',
+  huella(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === 'op.mon.3')!)) === '["agent","manager"]'
 );
 comprueba(
   'los 14 de siempre no declaran nada y valen `agent`',
