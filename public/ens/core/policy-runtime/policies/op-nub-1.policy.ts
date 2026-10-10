@@ -1315,6 +1315,12 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         medida = e.medida;
       }
 
+      // Sin servicios prestados que juzgar, las conformidades quedan sin
+      // evaluar: el campo de vigencias del informe no puede salir NO_APLICA.
+      if (!inv || !inv.prestados.length) {
+        conformidades.push({ ...medida, motivo: `servicios prestados: ${medida.motivo}` });
+      }
+
       decideRequisito('op.nub.1.1', medida, [], 'conformidad en vigor de cada servicio prestado (P-03)', medida.estado === 'CUMPLE');
     }
   }
@@ -1341,6 +1347,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
             return inv.errores.length ? combina([e.medida, ...inv.errores]) : e.medida;
           })();
+
+      // Lo mismo con los servicios utilizados.
+      if (!inv || !utilizados.length) {
+        conformidades.push({ ...expediente, motivo: `servicios utilizados: ${expediente.motivo}` });
+      }
 
       ingesta = ev01(context, ahora, utilizados);
       const tecnicas: { id: string; medida: Medida }[] = [

@@ -612,6 +612,20 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
   const sinP03Prestador = vigenciasSinP03({ 'P-01': 'prestador', 'P-02': ['Portal de trámites | SaaS | Quersystem | expedientes | alta | prestado'] }, 'BAJO');
   comprueba('sin P-03 y con un servicio prestado, también NO_EVALUABLE', sinP03Prestador.status === 'NO_EVALUABLE', sinP03Prestador.status);
 
+  // Y sin ningún servicio que juzgar (P-02 vacío, o sin una fila con ese uso),
+  // tampoco: no se ha evaluado nada, no es que no aplique.
+  const sinP02Basica = vigenciasSinP03({ ...BASE, 'P-02': undefined }, 'BAJO');
+  comprueba(
+    'P-01 = usuario sin P-02, en BÁSICA → el campo de vigencias sale NO_EVALUABLE, no NO_APLICA',
+    sinP02Basica.status === 'NO_EVALUABLE' && sinP02Basica.details.some(d => /servicios utilizados: .*P-02/.test(d)),
+    `${sinP02Basica.status} ${sinP02Basica.details.join(' | ')}`
+  );
+  const sinUtilizados = vigenciasSinP03({ ...BASE, 'P-02': ['Portal propio | SaaS | Quersystem | trámites | alta | prestado'] }, 'BAJO');
+  comprueba('P-01 = usuario y ninguna fila «utilizado» en P-02, en BÁSICA → NO_EVALUABLE', sinUtilizados.status === 'NO_EVALUABLE', sinUtilizados.status);
+  const sinPrestados = vigenciasSinP03({ ...BASE, 'P-01': 'prestador', 'P-02': undefined }, 'BAJO');
+  comprueba('P-01 = prestador sin P-02, en BÁSICA → NO_EVALUABLE', sinPrestados.status === 'NO_EVALUABLE', sinPrestados.status);
+  comprueba('REVERSIÓN: P-01 = ninguno no se toca (el control entero no aplica)', evalua(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), { 'P-01': 'ninguno' }, 'BAJO').requisito('op.nub.1.2').status === 'NO_APLICA');
+
   // Categoría de la conformidad frente a la del sistema.
   const basicaGcp = { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('GCP') ? 'GCP analítica | ENS BÁSICA | Google Cloud | 2027-01-15 | nº 1' : f)) };
   comprueba('GCP con conformidad ENS BÁSICA en un sistema MEDIA → NO_CUMPLE', evalua(hoy(), basicaGcp).evidencia('EV-09')?.status === 'NO_CUMPLE' && /inferior a la categoría MEDIA/.test(evalua(hoy(), basicaGcp).motivo('op.nub.1.2')));
