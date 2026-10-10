@@ -75,13 +75,13 @@ Each version goes in its own folder. Keep the folder of the previous version:
 it is your way back.
 
 ```bash
-V=1.0.0
+V=1.1.0
 R=/opt/ensfacil/releases/$V
 sudo mkdir -p "$R"
 sudo chown "$USER":root "$R"
 ```
 
-Replace `1.0.0` with the version you are installing. The following sections use
+Replace `1.1.0` with the version you are installing. The following sections use
 `V` and `R`.
 
 ## 5. Download in the browser
@@ -93,8 +93,8 @@ Replace `1.0.0` with the version you are installing. The following sections use
 3. Copy them to the folder on the server:
 
    ```bash
-   scp ensfacil-1.0.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
-     <usuario>@<servidor>:/opt/ensfacil/releases/1.0.0/
+   scp ensfacil-1.1.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
+     <usuario>@<servidor>:/opt/ensfacil/releases/1.1.0/
    ```
 
 Continue at section 7.
@@ -152,7 +152,7 @@ What you should see: `600 root:root`. The file has a single line,
 ### 6.3 Download the four files
 
 ```bash
-V=1.0.0
+V=1.1.0
 R=/opt/ensfacil/releases/$V
 API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
 
