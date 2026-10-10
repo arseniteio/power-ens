@@ -425,6 +425,9 @@ const seguridad = (context: ENSPolicyContext, ahora: number, p05: Record<string,
     : medida;
 };
 
+// Un cifrado declarado que dice que no hay cifrado.
+const SIN_CIFRADO = /^(no|ninguno|ninguna|sin cifrar|sin cifrado|no cifrado|no se cifra)$/;
+
 // --- EV-09 · el expediente documental de cada servicio utilizado -------------
 
 interface Expediente {
@@ -509,6 +512,9 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
 
       if (!fila) {
         partes.push(noCumple('c) sin cifrado ni gestión de claves declarados en P-09'));
+      } else if (SIN_CIFRADO.test(sinTildes(fila.cifrado || '').trim())) {
+        // Declarar que no se cifra es declarar el incumplimiento de c).
+        partes.push(noCumple(`c) P-09 declara que los datos no se cifran («${fila.cifrado}»)`));
       } else if (vacio(fila.cifrado || '') || vacio(fila.gestion_claves || '')) {
         partes.push(sinMedir(`P-09, fila de «${nombre}»: falta ${vacio(fila.cifrado || '') ? 'el cifrado' : 'la gestión de claves'}`, 'CONFIGURATION'));
       } else {

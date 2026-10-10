@@ -478,7 +478,7 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh: es una declaración. Wazuh 4.14 no tiene SCA cloud con el que verificar el cifrado configurado, así que EV-05 lo informa sin veredicto. Las claves de los servicios cloud son material criptográfico de op.exp.10.",
-      "ensfacilUsage": "EV-09: cada servicio utilizado tiene que tener aquí su cifrado y su modelo de gestión de claves. Una fila ausente o incompleta deja el expediente incompleto (op.nub.1.2 c).",
+      "ensfacilUsage": "EV-09: cada servicio utilizado tiene que tener aquí su cifrado y su modelo de gestión de claves. Una fila ausente, o un cifrado «no» o «ninguno», incumple op.nub.1.2 c); una fila incompleta queda sin evaluar (causa CONFIGURATION).",
       "evidenceIds": [
         "EV-09"
       ],

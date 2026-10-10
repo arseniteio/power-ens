@@ -574,6 +574,19 @@ bloque('5. Rojo documental: vigencias, categoría, pentest y expediente incomple
   // Expediente sin una fila.
   const sinJurisdiccion = evalua(hoy(), { ...BASE, 'P-08': (BASE['P-08'] as string[]).filter(f => !f.startsWith('Azure')) });
   comprueba('Azure sin región ni jurisdicción en P-08 → NO_CUMPLE (d)', sinJurisdiccion.evidencia('EV-09')?.status === 'NO_CUMPLE' && /«Azure suscripción».*d\) sin región/.test(sinJurisdiccion.motivo('op.nub.1.2')), sinJurisdiccion.motivo('op.nub.1.2'));
+  ['no', 'ninguno', 'Sin cifrar'].forEach(cifrado => {
+    const r = evalua(hoy(), { ...BASE, 'P-09': (BASE['P-09'] as string[]).map(f => (f.startsWith('Hetzner') ? `Hetzner | ${cifrado} | -` : f)) });
+
+    comprueba(
+      `cifrado «${cifrado}» en P-09 → NO_CUMPLE (c), no una fila incompleta`,
+      r.evidencia('EV-09')?.status === 'NO_CUMPLE' && /«Hetzner».*c\) P-09 declara que los datos no se cifran/.test(r.motivo('op.nub.1.2')),
+      `${estadoDe(r, 'EV-09')} ${r.motivo('op.nub.1.2')}`
+    );
+  });
+  comprueba(
+    'REVERSIÓN: «LUKS en los discos» con la gestión de claves vacía → CONFIGURATION, no NO_CUMPLE',
+    evalua(hoy(), { ...BASE, 'P-09': (BASE['P-09'] as string[]).map(f => (f.startsWith('Hetzner') ? 'Hetzner | LUKS en los discos | ' : f)) }).evidencia('EV-09')?.gapCause === 'CONFIGURATION'
+  );
   const sinCertificado = evalua(hoy(), { ...BASE, 'P-04': (BASE['P-04'] as string[]).filter(f => !f.startsWith('Hetzner')) });
   comprueba('Hetzner sin certificación en P-04 → R1 NO_CUMPLE', sinCertificado.requisito('op.nub.1.r1.1').status === 'NO_CUMPLE' && sinCertificado.requisito('op.nub.1.r1.1').evidenced === true, sinCertificado.motivo('op.nub.1.r1.1'));
   comprueba('y op.nub.1.2 sigue acreditado: la certificación es de R1', sinCertificado.requisito('op.nub.1.2').attested === true);
