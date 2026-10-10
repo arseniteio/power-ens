@@ -14,7 +14,7 @@
       "controlId": "op.mon.3",
       "name": "fuentes_eventos_seguridad",
       "label": "Fuentes de eventos de seguridad",
-      "description": "Fuentes de eventos de seguridad que alimentan la recolección, una por fila. Con método «agente», sistema es el NOMBRE o el ID del agente que la lee (el manager es el 000) y ubicación es la ruta o el nombre exacto del localfile tal como lo declara Wazuh (/var/log/auth.log, journald; admite * y ?). Con método «syslog», sistema es la IP desde la que el emisor envía al manager, tal como figura en el campo location de sus alertas, y ubicación se deja vacía. La columna max_horas_sin_eventos es opcional: con valor, más horas sin un evento nuevo de esa fuente es una laguna de la vigilancia; vacía, solo se juzgan su presencia y sus descartes.",
+      "description": "Fuentes de eventos de seguridad que alimentan la recolección, una por fila. Con método «agente», sistema es el NOMBRE o el ID del agente que la lee (el manager es el 000) y ubicación es la ruta o el nombre exacto del localfile tal como lo declara Wazuh (/var/log/auth.log, journald; admite * y ?). Con método «syslog», sistema es la IP desde la que el emisor envía al manager, tal como figura en el campo location de sus alertas, y ubicación se deja vacía. La columna max_horas_sin_eventos es opcional: con valor, más horas sin un evento nuevo de esa fuente es una laguna de la vigilancia; vacía, solo se juzgan su presencia y sus descartes, y una fuente que se lee sin haber dado nunca un evento queda sin evaluar hasta que se declare.",
       "levels": [
         "BAJO",
         "MEDIO",
