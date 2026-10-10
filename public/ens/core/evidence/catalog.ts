@@ -4365,7 +4365,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
     description:
-      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo (decisión del responsable 7).',
+      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
     requirements: ['op.mon.2.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',

@@ -542,7 +542,7 @@ export const opNub1Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_pentest_proveedor_meses',
       label: 'Antigüedad máxima del pentest del proveedor (meses)',
       description:
-        'Antigüedad máxima admitida, en meses, del último informe de pruebas de penetración de cada proveedor (P-10), contada desde su fecha. op.nub.1.2 a) exige la auditoría de pentesting y la plantilla habla de una antigüedad excesiva sin declararla: lo habitual es un informe anual.',
+        'Antigüedad máxima admitida, en meses, del último informe de pruebas de penetración de cada proveedor (P-10), contada desde su fecha. op.nub.1.2 a) exige la auditoría de pentesting; lo habitual es un informe anual.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.2'],
       type: 'number',

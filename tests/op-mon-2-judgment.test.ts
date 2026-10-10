@@ -359,7 +359,7 @@ bloque('2. Verde: el último ciclo validado en plazo, cobertura al 100 %, regist
 
   comprueba(
     'R1 CUMPLE con cero incidentes: el registro existe y el último ciclo está en plazo (decisión 7)',
-    r.requisito('op.mon.2.r1.1').status === 'CUMPLE' && /Ningún incidente registrado/.test(r.motivo('op.mon.2.r1.1')) && /decisión del responsable 7/.test(r.motivo('op.mon.2.r1.1')) && /Se consolidan en el ciclo 2026-T3/.test(r.motivo('op.mon.2.r1.1')),
+    r.requisito('op.mon.2.r1.1').status === 'CUMPLE' && /Ningún incidente registrado/.test(r.motivo('op.mon.2.r1.1')) && /cero incidentes es un dato\./.test(r.motivo('op.mon.2.r1.1')) && /Se consolidan en el ciclo 2026-T3/.test(r.motivo('op.mon.2.r1.1')),
     r.motivo('op.mon.2.r1.1')
   );
 

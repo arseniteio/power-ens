@@ -1207,7 +1207,7 @@ const ev03Hechos = (context: ENSPolicyContext, ahora: number): Medida => {
   if (!delPeriodo.length) {
     partes.push(
       cumple(
-        `Ningún incidente registrado en ${ventana}: los indicadores de P-03 (${declarados.join(', ')}) valen cero. Con el registro presente, cero incidentes es un dato (decisión del responsable 7).`
+        `Ningún incidente registrado en ${ventana}: los indicadores de P-03 (${declarados.join(', ')}) valen cero. Con el registro presente, cero incidentes es un dato.`
       )
     );
 
@@ -1354,7 +1354,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
 
 const DATO_DEL_INFORME: Record<string, string> = {
   'EV-01':
-    'Dato del informe, sin veredicto: el grado de implantación de cada medida aplicable de P-01 es salida del motor sobre el resultado de todos los controles, y lo calcula el informe de op.mon.2 (spec §2.6). Que se consolida con su periodicidad lo acredita EV-02.',
+    'Dato del informe, sin veredicto: el grado de implantación de cada medida aplicable de P-01 es salida del motor sobre el resultado de todos los controles, y lo calcula el informe de op.mon.2. Que se consolida con su periodicidad lo acredita EV-02.',
   'EV-05':
     'Dato del informe, sin veredicto: los controles con requisitos sin evaluar por falta de configuración, con el parámetro que falta, salen del resultado de todos los controles y los presenta el informe de op.mon.2.',
   'EV-07':

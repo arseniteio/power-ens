@@ -101,7 +101,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'No se configura en Wazuh. El recolector del manager lee el registro de ciclos (/etc/ensfacil/metrics-cycle-register.tsv) cada 6 h.',
       ensfacilUsage:
-        'Convierte la periodicidad en plazo: el último ciclo validado tiene que estar dentro de él (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1, decisión del responsable 7) y los recursos se toman del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
+        'Convierte la periodicidad en plazo: el último ciclo validado tiene que estar dentro de él (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1) y los recursos se toman del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:

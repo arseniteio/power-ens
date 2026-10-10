@@ -90,7 +90,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
       description:
-        'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo (decisión del responsable 7).',
+        'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
       format: 'json_line',
       events: ['evidence_state', 'incident_register_read', 'incident_registered'],
       wazuhRuleIds: ['111303', '111304'],
@@ -167,7 +167,7 @@ export const opMon2Control: ENSControl = {
       requirements: ['op.mon.2.1', 'op.mon.2.r1.1', 'op.mon.2.r2.1'],
       type: 'table',
       usage:
-        'Convierte la periodicidad en plazo: el último ciclo validado tiene que estar dentro de él (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1, decisión del responsable 7) y los recursos se toman del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
+        'Convierte la periodicidad en plazo: el último ciclo validado tiene que estar dentro de él (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1) y los recursos se toman del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
       missingBehavior:
         'Ningún requisito se puede evaluar (causa CONFIGURATION): no hay plazo contra el que medir el último ciclo validado. La serie de ciclos sigue en el registro.',
     },

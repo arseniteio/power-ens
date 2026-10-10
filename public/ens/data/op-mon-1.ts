@@ -263,7 +263,7 @@ export const opMon1Control: ENSControl = {
       id: 'P-08',
       name: 'antiguedad_maxima_ruleset_dias',
       description:
-        'Antigüedad máxima admitida del conjunto de reglas de detección que carga el manager, en días, contada desde la fecha del fichero de reglas más reciente del ruleset. Las reglas de detección envejecen igual que las firmas de un antivirus; la plantilla pide una alerta al superar un umbral de antigüedad sin un parámetro que lo declare.',
+        'Antigüedad máxima admitida del conjunto de reglas de detección que carga el manager, en días, contada desde la fecha del fichero de reglas más reciente del ruleset. Las reglas de detección envejecen igual que las firmas de un antivirus.',
       level: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'duration_days',
