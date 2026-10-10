@@ -863,6 +863,10 @@ bloque('7. ALTA: refuerzos R3 a R6, documentales e inspecciones');
 
   // R5.2: los canales.
   comprueba('R5.2 · el correo deshabilitado (el laboratorio) → NO_CUMPLE', estado(evalua(conPentest(), ALTA, 'ALTO'), 'op.mon.3.r5.2') === 'NO_CUMPLE');
+  comprueba(
+    'R5.2 · el correo habilitado sin saber sus destinatarios («-») → NO_EVALUABLE, nunca CUMPLE',
+    estado(evalua(verde().map(e => (e.eventType === 'notification_channel_configured' ? { ...e, attributes: { ...e.attributes, destinatarios: '-' } } : e)), ALTA, 'ALTO'), 'op.mon.3.r5.2') === 'NO_EVALUABLE'
+  );
 
   const conSlack = (nivel: number, errores = 0) => [...conPentest(), ...eventos(slack(nivel, errores))];
   const porSlack = { ...ALTA, 'P-08': ['SOC | slack | 10 | 24x7'] };

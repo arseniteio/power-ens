@@ -1362,6 +1362,14 @@ const ev09 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, ahora: number):
       return;
     }
 
+    if (iguales(canal, 'correo') && numero(campo(e, 'destinatarios')) === undefined) {
+      partes.push(
+        sinMedir(`${quien} por correo: el recolector no informa de cuántos destinatarios tiene el correo, así que no se sabe si la alerta llega a alguien.`, 'COLLECTION')
+      );
+
+      return;
+    }
+
     if (iguales(canal, 'correo') && numero(campo(e, 'destinatarios')) === 0) {
       fallos.push(`${quien} por correo: el correo está habilitado sin ningún destinatario`);
 
