@@ -672,6 +672,18 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA; lo me
   comprueba('y EV-04 y EV-07 también por RECOGIDA (no por evidencia)', nada.evidencia('EV-04')?.gapCause === 'COLLECTION' && nada.evidencia('EV-07')?.gapCause === 'COLLECTION', `${estadoDe(nada, 'EV-04')} ${estadoDe(nada, 'EV-07')}`);
   comprueba('op.nub.1.2 se acredita con el expediente, diciendo que no se ha medido la ingesta', nada.requisito('op.nub.1.2').attested === true && nada.requisito('op.nub.1.2').observations.some(o => /^EV-01 sin medir \(sin recogida\)/.test(o)));
 
+  // La ingesta es vivacidad: caduca a las 13 h (dos pasadas de 6 h perdidas),
+  // no a las 26 h de los estados lentos.
+  const a14h = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-10T02:10:00Z'));
+  comprueba(
+    '14 h sin pasadas → EV-01 NO_EVALUABLE por RECOGIDA, y EV-04 no puede afirmar «sin operaciones»',
+    a14h.evidencia('EV-01')?.status === 'NO_EVALUABLE' && a14h.evidencia('EV-01')?.gapCause === 'COLLECTION' && /más de 13 h/.test(a14h.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''),
+    `${estadoDe(a14h, 'EV-01')} ${a14h.deEvidencia('op.nub.1.2', 'EV-01')?.reason}`
+  );
+  const sinOpsA = (ahora: string) => evalua(hoy(l => (l.event === 'cloud_admin_operation_observed' ? undefined : l)), BASE, 'MEDIO', new Date(ahora));
+  comprueba('sin operaciones y la ingesta caducada → EV-04 NO_EVALUABLE, nunca CUMPLE', sinOpsA('2026-10-10T02:10:00Z').evidencia('EV-04')?.status === 'NO_EVALUABLE', estadoDe(sinOpsA('2026-10-10T02:10:00Z'), 'EV-04'));
+  comprueba('REVERSIÓN: a las 12 h de la última pasada → EV-01 CUMPLE y EV-04 CUMPLE', evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-10T00:05:00Z')).evidencia('EV-01')?.status === 'CUMPLE' && sinOpsA('2026-10-10T00:05:00Z').evidencia('EV-04')?.status === 'CUMPLE');
+
   const viejo = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
   comprueba('dos días sin pasadas: el estado no describe hoy → EV-01 por RECOGIDA', viejo.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no está informando/.test(viejo.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''), viejo.deEvidencia('op.nub.1.2', 'EV-01')?.reason);
 

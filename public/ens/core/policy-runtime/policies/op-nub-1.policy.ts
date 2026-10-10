@@ -122,6 +122,17 @@ const { validos, estadoVigente, degradacion, sinHechos, conDegradacion } = lecto
   recolector: 'el recolector de op.nub.1 del manager',
 });
 
+// La INGESTA (EV-01) es un estado de vivacidad: dice si hoy entran registros.
+// Con la frescura de 26 h, la foto de una pasada de hace un día seguiría
+// acreditando una integración viva, y EV-04 («sin operaciones → cumple»)
+// se apoya en ella. 13 h toleran dos pasadas de 6 h perdidas.
+const FRESCURA_INGESTA_HORAS = 13;
+
+const ingestaLector = lectorDeHechos(CONTROL, {
+  recolector: 'el recolector de op.nub.1 del manager',
+  frescuraHoras: FRESCURA_INGESTA_HORAS,
+});
+
 const decide = decisorDe(POLICY);
 
 // Un hecho del futuro no acredita nada; tampoco un documento fechado en el
@@ -749,7 +760,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
     };
   }
 
-  const { vigentes, ultimo } = estadoVigente(context, 'cloud_integration_observed', ahora);
+  const { vigentes, ultimo } = ingestaLector.estadoVigente(context, 'cloud_integration_observed', ahora);
   const observados = vigentes.filter(e => !vacio(campo(e, 'modulo')) && campo(e, 'modulo') !== 'ninguno');
   const declarados = Array.from(integ.porModulo.keys());
   const sinIntegrar = integ.sinIntegrar.length
@@ -775,7 +786,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
   }
 
   if (!vigentes.length || ultimo === undefined) {
-    const falta = sinHechos(context, 'EV-01', ahora, ultimo, 'inventario de integraciones cloud del manager');
+    const falta = ingestaLector.sinHechos(context, 'EV-01', ahora, ultimo, 'inventario de integraciones cloud del manager');
 
     declarados.forEach(m => porModulo.set(m, falta));
 
@@ -793,7 +804,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
   const juntas = combina([...medidas, ...integ.errores]);
 
   return {
-    medida: conDegradacion(context, ahora, 'EV-01', 'cloud_integration_observed', {
+    medida: ingestaLector.conDegradacion(context, ahora, 'EV-01', 'cloud_integration_observed', {
       ...juntas,
       motivo: `${juntas.motivo}${sinIntegrar}${noDeclarados}${aviso}`,
     }),
