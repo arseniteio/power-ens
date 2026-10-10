@@ -446,6 +446,25 @@ bloque('3. P-01 = ninguno: todo NO_APLICA, declarado (y no NO_EVALUABLE por un i
   comprueba('y todas las evidencias también', ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'].every(ev => r.evidencia(ev)?.status === 'NO_APLICA'));
   comprueba('el control sale NO_APLICA, sin número', r.motor().status === 'NO_APLICA' && r.motor().score === undefined, `${r.motor().status} ${r.motor().score}`);
   comprueba('el motivo dice que es una declaración', /P-01 declara que el sistema no presta ni utiliza servicios en la nube/.test(r.motivo('op.nub.1.2')));
+
+  // «ninguno» contradicho por la pantalla o por el manager.
+  const conP02 = evalua([], { ...BASE, 'P-01': 'ninguno' }, 'ALTO');
+  comprueba(
+    '«ninguno» con P-02 declarando servicios utilizados → CONFIGURATION nombrando la contradicción, nunca NO_APLICA',
+    conP02.requisito('op.nub.1.2').status === 'NO_CUMPLE' && conP02.requisito('op.nub.1.2').evidenced === false &&
+      conP02.decisions.find(d => d.requirementId === 'op.nub.1.2')?.cause === 'CONFIGURATION' && /lo contradice: P-02 declara 4 servicio\(s\) en uso/.test(conP02.motivo('op.nub.1.2')),
+    conP02.motivo('op.nub.1.2')
+  );
+  const conModulos = evalua(hoy(), { 'P-01': 'ninguno' }, 'ALTO');
+  comprueba(
+    '«ninguno» con módulos cloud ingiriendo en el manager → CONFIGURATION nombrando los módulos',
+    conModulos.requisito('op.nub.1.2').evidenced === false && /Wazuh está ingiriendo registros de aws-s3 \(1840 en 24 h\)/.test(conModulos.motivo('op.nub.1.2')),
+    conModulos.motivo('op.nub.1.2')
+  );
+  comprueba(
+    'REVERSIÓN: el mismo manager con los módulos sin registros → «ninguno» se sostiene: NO_APLICA',
+    evalua(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), { 'P-01': 'ninguno' }, 'ALTO').requisito('op.nub.1.2').status === 'NO_APLICA'
+  );
 }
 
 // --- 4. la medida manda sobre el documento -----------------------------------------

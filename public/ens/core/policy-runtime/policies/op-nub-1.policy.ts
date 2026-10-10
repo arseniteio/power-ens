@@ -1154,22 +1154,37 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     };
   }
 
-  // P-01 = ninguno: todo NO_APLICA, declarado.
+  // P-01 = ninguno: todo NO_APLICA, declarado. Salvo que lo contradiga la
+  // propia pantalla (P-02 con servicios utilizados o prestados) o lo que el
+  // manager ve (un módulo cloud ingiriendo registros): entonces la
+  // declaración no se sostiene y no se saca nada del denominador.
   if (posicion === 'ninguno') {
-    const fuera = noAplica(NINGUNO);
+    const enP02 = (filas(context, 'P-02') || []).filter(f => ['utilizado', 'prestado'].includes(sinTildes(f.uso || '')));
+    const ingiriendo = ingestaLector
+      .estadoVigente(context, 'cloud_integration_observed', ahora)
+      .vigentes.filter(e => !vacio(campo(e, 'modulo')) && campo(e, 'modulo') !== 'ninguno' && (numero(campo(e, 'alertas_24h')) || 0) > 0);
+    const contradicciones = [
+      ...(enP02.length ? [`P-02 declara ${enP02.length} servicio(s) en uso: ${lista(enP02.map(f => `${f.servicio} (${f.uso})`))}`] : []),
+      ...(ingiriendo.length ? [`Wazuh está ingiriendo registros de ${lista(ingiriendo.map(e => `${campo(e, 'modulo')} (${campo(e, 'alertas_24h')} en 24 h)`))}`] : []),
+    ];
+    const medida = contradicciones.length
+      ? sinMedir(`P-01 declara «ninguno» (ni presta ni utiliza servicios en la nube), y lo contradice: ${contradicciones.join('; ')}. Corrige P-01 o la contradicción.`, 'CONFIGURATION')
+      : noAplica(NINGUNO);
+    // Una contradicción vista en los hechos no es solo de la pantalla.
+    const documental = !ingiriendo.length;
 
     context.control.requirements
       .filter(r => aplica(r.id))
       .forEach(r => {
-        decideRequisito(r.id, fuera, r.evidenceIds, 'servicios en la nube en el alcance');
-        r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, fuera));
+        decideRequisito(r.id, medida, r.evidenceIds, 'servicios en la nube en el alcance', false, documental);
+        r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, medida, `${ev} CUMPLE`, documental));
       });
 
-    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera, 'dato del informe'));
+    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev => decideEvidencia('op.nub.1.2', ev, noAplica(NINGUNO), 'dato del informe'));
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
-      runtimeVariables: [{ name: 'posicion_P01', value: 'ninguno', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: NINGUNO }],
+      runtimeVariables: [{ name: 'posicion_P01', value: 'ninguno', parameterIds: ['P-01'], evidenceIds: [], eventIds: [], description: medida.motivo }],
     };
   }
 
