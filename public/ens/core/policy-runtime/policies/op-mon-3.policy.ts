@@ -856,18 +856,50 @@ const superficie = (context: ENSPolicyContext, ctxM: ENSPolicyContext, ahora: nu
       partes.push(cumple(`Detector de vulnerabilidades habilitado, con su fuente del ${iso(feed)}${!vacio(campo(vd, 'intervalo_feed')) ? ` (actualización cada ${campo(vd, 'intervalo_feed')})` : ''}.`));
     }
 
+    // Los errores del conector del indexer. ossec.log rota a medianoche, así que
+    // el recolector lee también el rotado del día anterior, conserva el último
+    // error entre pasadas y dice desde cuándo ha podido leer (`errores_desde`).
+    // Un error de hace 24 h o menos manda aunque el recuento de la ventana
+    // leída sea 0; y un 0 sobre una ventana corta no demuestra nada.
     const errores = numero(campo(vd, 'errores_indexacion_24h'));
+    const ultimoError = instante(campo(vd, 'ultimo_error_indexacion'));
+    const desde = instante(campo(vd, 'errores_desde'));
+    const muestra = campo(vd, 'muestra_error') || 'sin muestra';
 
-    if (errores === undefined) {
-      partes.push(sinMedir('El recolector no ha podido contar los errores del conector del indexer en ossec.log: no se sabe si el detector consigue escribir su resultado.', 'COLLECTION'));
+    if (ultimoError !== undefined && momento(vd) - ultimoError <= 24 * HORA) {
+      partes.push(
+        noCumple(
+          `El detector no consigue escribir su resultado en el indexer: el último error del conector es del ${iso(ultimoError)}, ${horas(momento(vd) - ultimoError)} h antes de la lectura (${errores ?? '?'} en la ventana leída; ${muestra}). Un detector que no escribe no determina nada.`
+        )
+      );
+    } else if (errores === undefined) {
+      partes.push(
+        sinMedir(
+          'El recolector no ha podido contar los errores del conector del indexer (ossec.log ausente, vacío o solo en JSON): no se sabe si el detector consigue escribir su resultado.',
+          'COLLECTION'
+        )
+      );
     } else if (errores > 0) {
       partes.push(
         noCumple(
-          `El detector no consigue escribir su resultado en el indexer: ${errores} errores del conector en las 24 h anteriores a la lectura, el último el ${campo(vd, 'ultimo_error_indexacion') || '-'} (${campo(vd, 'muestra_error') || 'sin muestra'}). Un detector que no escribe no determina nada.`
+          `El detector no consigue escribir su resultado en el indexer: ${errores} errores del conector en las 24 h anteriores a la lectura (${muestra}). Un detector que no escribe no determina nada.`
+        )
+      );
+    } else if (desde === undefined || desde > momento(vd) - 23 * HORA) {
+      partes.push(
+        sinMedir(
+          desde === undefined
+            ? 'El recolector no dice desde cuándo ha leído ossec.log (errores_desde): un recuento de 0 errores sin su ventana no demuestra que el detector escriba.'
+            : `Sin errores del conector, pero el recolector solo ha podido leer ${horas(Math.max(0, momento(vd) - desde))} h de ossec.log (desde ${iso(desde)}), menos que las 24 h que se juzgan: no se puede afirmar que el detector escriba.`,
+          'COLLECTION'
         )
       );
     } else {
-      partes.push(cumple('Sin errores del conector del indexer al escribir las vulnerabilidades en 24 h.'));
+      partes.push(
+        cumple(
+          `Sin errores del conector del indexer al escribir las vulnerabilidades desde ${iso(desde)}${ultimoError !== undefined ? ` (el último, del ${iso(ultimoError)})` : ''}.`
+        )
+      );
     }
 
     return combina(partes);

@@ -120,7 +120,7 @@ const inventario = (ts: string, id: string, conexion: string, ultimo: string, ex
 const detector = (ts: string, extra: Linea = {}): Linea => ({
   _a: '000', ts, event: 'vulnerability_detection_status', evidence_id: 'EV-04', requisito: 'op.mon.3.r2.1', plano: 'central',
   habilitado: 'si', intervalo_feed: '60m', feed_actualizado: '2026-10-09T11:46:00Z', inventario_vd_actualizado: '2026-10-09T11:50:00Z',
-  errores_indexacion_24h: 0, ultimo_error_indexacion: '-', muestra_error: '-', errores_conector_24h: 0, cve_por_activo: 'sin_medir', ...extra,
+  errores_indexacion_24h: 0, errores_desde: '2026-10-08T12:05:18Z', ultimo_error_indexacion: '-', muestra_error: '-', errores_conector_24h: 0, cve_por_activo: 'sin_medir', ...extra,
 });
 
 // wazuh4 a las 12:05, después de subir el heap del indexer: el manager,
@@ -478,6 +478,29 @@ bloque('3. R2 (superficie de exposición): el indexer, cada eje y su reversión'
 
   comprueba('fuente del detector de hace 48 h con P-11 = 26 → NO_CUMPLE', estado(evalua(feedViejo), 'op.mon.3.r2.1') === 'NO_CUMPLE');
   comprueba('reversión · la misma fuente con P-11 = 72 → CUMPLE', estado(evalua(feedViejo, { ...BASE, 'P-11': '72' }), 'op.mon.3.r2.1') === 'CUMPLE');
+
+  // ossec.log rota a medianoche: el recuento de la ventana leída puede ser 0
+  // con el último error todavía dentro de las 24 h.
+  const rotado = (ultimo: string) =>
+    evalua(hoy(undefined, { detector: { errores_indexacion_24h: 0, ultimo_error_indexacion: ultimo, muestra_error: 'circuit_breaking_exception' } }));
+
+  comprueba(
+    'rotación · 0 errores en la ventana pero el último, conservado, de hace 9 h → NO_CUMPLE',
+    estado(rotado('2026-10-09T03:00:00Z'), 'op.mon.3.r2.1') === 'NO_CUMPLE' && /último error del conector es del 2026-10-09T03:00:00Z/.test(rotado('2026-10-09T03:00:00Z').motivo('op.mon.3.r2.1'))
+  );
+  comprueba('reversión · el último error de hace 30 h → CUMPLE', estado(rotado('2026-10-08T06:00:00Z'), 'op.mon.3.r2.1') === 'CUMPLE');
+
+  const ventanaCorta = evalua(hoy(undefined, { detector: { errores_desde: '2026-10-09T07:00:00Z' } }));
+
+  comprueba(
+    'rotación · 0 errores leyendo solo 5 h de ossec.log → NO_EVALUABLE (COLLECTION), diciendo las horas',
+    estado(ventanaCorta, 'op.mon.3.r2.1') === 'NO_EVALUABLE' && causa(ventanaCorta, 'op.mon.3.r2.1') === 'COLLECTION' && /solo ha podido leer 5\.1 h/.test(ventanaCorta.motivo('op.mon.3.r2.1')),
+    ventanaCorta.motivo('op.mon.3.r2.1')
+  );
+  comprueba(
+    'sin errores_desde, un 0 no demuestra nada → NO_EVALUABLE (COLLECTION)',
+    estado(evalua(hoy(undefined, { detector: { errores_desde: '-' } })), 'op.mon.3.r2.1') === 'NO_EVALUABLE'
+  );
 
   const sinContar = evalua(hoy(undefined, { detector: { errores_indexacion_24h: '-' } }));
 
