@@ -196,7 +196,7 @@ export const opMon3Control: ENSControl = {
       description:
         'Línea base de comportamiento de P-04 (indicadores, normalidad y umbral de anomalía). Wazuh no calcula líneas base ni hace UEBA: las anomalías son reglas que alguien escribe sobre esos indicadores. Dato del informe, sin veredicto: R3.1 se acredita documentalmente (P-ATT).',
       format: 'json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
       active: false,
     },

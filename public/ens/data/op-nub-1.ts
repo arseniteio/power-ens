@@ -14,22 +14,22 @@ export const opNub1Control: ENSControl = {
   },
   expectedResult: {
     bajo: {
-      status: 'PARCIAL',
-      score: 50,
+      status: 'CUMPLE',
+      score: 100,
       condition:
-        'op.nub.1 → Requisitos base: op.nub.1.1 + op.nub.1.2 Sin evidencia tecnica en: op.nub.1.1, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.nub.1 → Requisitos base: op.nub.1.1 + op.nub.1.2. op.nub.1.1 y el expediente de cada servicio de op.nub.1.2 (EV-09) se acreditan documentalmente con las tablas de la pantalla y su vigencia; la integración de los servicios en Wazuh (EV-01, EV-04) se mide en el manager.',
     },
     medio: {
-      status: 'PARCIAL',
-      score: 50,
+      status: 'CUMPLE',
+      score: 100,
       condition:
-        'op.nub.1 + R1 → Base + servicios de terceros certificados Sin evidencia tecnica en: op.nub.1.1, op.nub.1.r1.2, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.nub.1 + R1 → Base + servicios de terceros certificados (R1), acreditados documentalmente con su certificación vigente.',
     },
     alto: {
-      status: 'PARCIAL',
-      score: 60,
+      status: 'CUMPLE',
+      score: 100,
       condition:
-        'op.nub.1 + R1 + R2 → Base + R1 + configuración según guía CCN-STIC específica Sin evidencia tecnica en: op.nub.1.1, op.nub.1.r1.2, por lo que el nivel no puede pasar de PARCIAL.',
+        'op.nub.1 + R1 + R2 → Base + R1 + configuración según la guía CCN-STIC específica (R2), acreditada documentalmente.',
     },
   },
   requirements: [
@@ -47,7 +47,7 @@ export const opNub1Control: ENSControl = {
       title: 'Conformidad de los servicios en la nube de terceros (usuario)',
       description:
         'Cuando se utilicen servicios en la nube suministrados por terceros, los sistemas de información que los soportan deberán ser conformes con el ENS o cumplir con las medidas desarrolladas en una guía CCN-STIC que incluirá, entre otros, requisitos relativos a: a) Auditoría de pruebas de penetración (pentesting). b) Transparencia. c) Cifrado y gestión de claves. d) Jurisdicción de los datos.',
-      evidences: ['EV-01', 'EV-04', 'EV-07', 'EV-09'],
+      evidences: ['EV-01', 'EV-04', 'EV-09'],
     },
     {
       id: 'op.nub.1.r1.1',
@@ -83,22 +83,22 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Ingesta de registros de los servicios en la nube',
       description:
-        'Recolección de los eventos de los servicios cloud declarados en P-06: autenticaciones, operaciones administrativas, cambios de configuración, accesos a datos. Extiende la trazabilidad del sistema al perímetro cloud, que de otro modo queda fuera de toda monitorización.',
+        'Por cada módulo cloud de Wazuh (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github): dónde está configurado (ossec.conf del manager, agent.conf de un grupo o el agente dedicado que envía sus alertas), si está habilitado, el instante de su última alerta, las alertas de las últimas 24 h y sus errores en ossec.log. Se contrasta con P-06: un servicio declarado como integrado cuyo módulo no está, está deshabilitado, da errores o lleva más de P-13 horas sin registros es un punto ciego de trazabilidad. Los servicios de P-02 sin integración se señalan en el informe, sin veredicto.',
       format: 'json_line',
       events: ['evidence_state', 'cloud_integration_observed'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['111501'],
     },
     {
       id: 'EV-02',
       requirement: ['op.nub.1.r2.1'],
       level: ['ALTO'],
       expectedStatus: 'NO_APLICA',
-      title: 'Configuración de seguridad del lado del cliente (R2)',
+      title: 'Configuración del inquilino según los hallazgos de postura del proveedor (R2)',
       description:
-        'Evaluación de la configuración del inquilino del cliente en cada servicio cloud contra las políticas de P-07: almacenamiento expuesto públicamente, identidades sobreprivilegiadas, registro de auditoría desactivado, autenticación multifactor ausente, cifrado sin configurar.',
+        'Por módulo, fuente y estándar: los controles de postura que el propio proveedor evalúa y envía a Wazuh (AWS Security Hub o Config por aws-s3, Microsoft Defender por ms-graph, Security Command Center por gcp-pubsub), con el último resultado de cada control, los fallidos y los críticos. Se contrasta con P-07: un control fallido en un servicio de P-07 incumple R2. Wazuh 4.14 no trae políticas SCA para inquilinos cloud; sin hallazgos de postura del proveedor, R2 no es automatizable.',
       format: 'sca_or_json_line',
       events: ['evidence_state', 'cloud_posture_finding_observed'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['111502'],
       active: false,
     },
     {
@@ -108,9 +108,9 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Detección de servicios cloud no inventariados (shadow IT)',
       description:
-        'Identificación de servicios en la nube en uso que no figuran en el inventario P-02, detectados a partir del tráfico de los endpoints o de las autenticaciones federadas. Un servicio cloud no inventariado no tiene ninguna verificación de conformidad.',
+        'Servicios en la nube en uso que no figuran en el inventario P-02. Es un dato del informe, sin veredicto: detectarlos exige el DNS o el proxy de los equipos, y con los ficheros locales del manager no se ven (el inventario de Wazuh solo da los puertos en escucha). Lo que sí se informa son los módulos cloud que Wazuh ingiere y P-06 no declara.',
       format: 'json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
     },
     {
@@ -120,10 +120,10 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Operaciones administrativas en los servicios cloud',
       description:
-        'Registro de las operaciones de administración ejecutadas en el inquilino: creación y modificación de identidades, cambios de permisos, alteración de configuración de seguridad, modificación de reglas de red. Es donde se materializan los cambios de mayor impacto.',
+        'Operaciones de administración con éxito en los servicios integrados (creación y modificación de identidades, permisos, configuración de seguridad, reglas de red), agregadas por módulo, cuenta y actor a partir de las alertas de los módulos cloud: CloudTrail, registro de actividad de Azure, Cloud Audit Logs. Cada actor humano tiene que figurar en P-11 para su servicio; las acciones de los propios servicios del proveedor no se contrastan.',
       format: 'json_line',
       events: ['evidence_state', 'cloud_admin_operation_observed'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['111503'],
     },
     {
       id: 'EV-05',
@@ -132,9 +132,9 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Verificación del cifrado y del modelo de gestión de claves',
       description:
-        'Comprobación de que el cifrado de los datos está activo en cada servicio y de que el modelo de gestión de claves declarado en P-09 es el efectivamente configurado. op.nub.1.2 c) lo exige de forma expresa.',
+        'El cifrado de los datos y el modelo de gestión de claves de cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud y el recolector no usa credenciales del proveedor, así que el cifrado configurado no se puede medir. Lo declarado en P-09 forma parte del expediente documental (EV-09, op.nub.1.2 c).',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
     },
     {
@@ -144,9 +144,9 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Verificación de la región de los datos',
       description:
-        'Comprobación de que la región geográfica configurada para el almacenamiento de datos y sus copias coincide con la declarada en P-08. Una discrepancia tiene consecuencias tanto de ENS como de transferencias internacionales de datos personales.',
+        'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: sin SCA cloud ni credenciales del proveedor la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
       format: 'sca_or_json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
     },
     {
@@ -156,21 +156,21 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Autenticaciones y accesos en los servicios cloud',
       description:
-        'Registro de las autenticaciones a los servicios cloud con su origen, resultado y método, lo que permite aplicar sobre el perímetro cloud los mismos controles de op.acc.5 y op.acc.6: doble factor, accesos desde zonas no controladas, intentos fallidos.',
+        'Inicios de sesión interactivos en los servicios integrados (consola de AWS, inicios de sesión de Microsoft Entra ID), agregados por módulo, cuenta, usuario, resultado y segundo factor, con sus orígenes. Es un hallazgo del informe, sin veredicto en op.nub.1: un acceso con éxito sin segundo factor desde una zona no controlada lo juzga op.acc.6.r8.1, y aquí se señala cruzado con él. Si el proveedor no registra el segundo factor (accesos federados, Google Cloud), se dice.',
       format: 'json_line',
       events: ['evidence_state', 'cloud_authentication_observed'],
-      wazuhRuleIds: [],
+      wazuhRuleIds: ['111504'],
     },
     {
       id: 'EV-08',
       requirement: ['op.nub.1.r1.1'],
       level: ['MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
-      title: 'Vigencia de certificaciones y conformidad de proveedores',
+      title: 'Vigencia de las certificaciones de los proveedores (R1)',
       description:
-        'Seguimiento de la vigencia de las declaraciones de conformidad de P-03 y de las certificaciones de P-04, con alerta anticipada de vencimiento. NO es verificación del documento: es control de su validez temporal.',
+        'Por cada servicio utilizado de P-02, su certificación de P-04 bajo una metodología reconocida, con su número y su vigencia frente a la fecha de la evaluación, y los días que le quedan. NO es verificación del documento: es control de su validez temporal, y su CUMPLE se lee «acreditado documentalmente». Una certificación vencida o ausente incumple R1.',
       format: 'json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
     },
     {
@@ -180,9 +180,9 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Expediente documental del servicio en la nube',
       description:
-        'Consolidación por servicio de toda la documentación exigida: conformidad ENS, certificación reconocida, informe de pentesting del proveedor, cláusulas de transparencia, jurisdicción de los datos y modelo de cifrado. Es el entregable que un auditor pedirá servicio por servicio.',
+        'Por cada servicio utilizado de P-02: su conformidad con el ENS (de categoría no inferior a la del sistema) o con la guía CCN-STIC, vigente (P-03); su último informe de pentest, no más viejo que P-12 meses (P-10, op.nub.1.2 a); su cifrado y gestión de claves (P-09, c); la región de sus datos y copias y la jurisdicción (P-08, d). La transparencia (b) la cubre la conformidad declarada. Es DOCUMENTACIÓN APORTADA, no verificada técnicamente: su CUMPLE se lee «acreditado documentalmente».',
       format: 'json_line',
-      events: ['evidence_state'],
+      events: [],
       wazuhRuleIds: [],
     },
   ],
@@ -191,40 +191,40 @@ export const opNub1Control: ENSControl = {
       id: 'P-01',
       name: 'posicion_cliente',
       description:
-        'Determina si el cliente actúa como PRESTADOR de servicios en la nube al sector público (op.nub.1.1) o como USUARIO de servicios de terceros (op.nub.1.2), o ambas cosas. Es la primera decisión del control y condiciona todo lo demás.',
+        'Si el sistema PRESTA servicios en la nube al sector público (op.nub.1.1), si UTILIZA servicios en la nube de terceros (op.nub.1.2 y sus refuerzos), ambas cosas, o ninguna. Es la primera decisión del control y condiciona todo lo demás. Con «ninguno» el control entero no aplica, y queda declarado.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.1', 'op.nub.1.2'],
       type: 'select',
       usage:
-        'Determina qué requisitos aplican y qué evidencias pide ENSFácil. Como prestador, la carga es demostrar el cumplimiento de las medidas del modelo prestado; como usuario, verificar la conformidad del proveedor y la configuración propia.',
+        'prestador: aplica op.nub.1.1 (la conformidad de lo prestado en P-03) y R2. usuario: aplican op.nub.1.2, R1 y R2. ambos: todos, y P-02 separa cada servicio por su columna «uso». ninguno: todo el control NO_APLICA.',
       missingBehavior:
-        'El control es NO EVALUABLE. No se puede determinar qué requisitos son exigibles ni qué evidencias pedir.',
+        'El control es NO EVALUABLE (causa CONFIGURATION). No se puede determinar qué requisitos son exigibles ni qué evidencias pedir.',
     },
     {
       id: 'P-02',
       name: 'inventario_servicios_nube',
       description:
-        'Relación de servicios en la nube utilizados o prestados, con su modelo (SaaS, PaaS, IaaS), proveedor, información tratada y criticidad. Es el alcance del control.',
+        'Relación de servicios en la nube utilizados o prestados, con su modelo (SaaS, PaaS, IaaS), proveedor, información tratada, criticidad y uso (utilizado de un tercero o prestado). Es el alcance del control: el nombre del servicio es la clave con la que se cruzan P-03 a P-11.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.1', 'op.nub.1.2', 'op.nub.1.r1.1'],
       type: 'table',
       usage:
-        'Define el alcance de la monitorización cloud y de las comprobaciones documentales.',
+        'Cada servicio utilizado necesita su expediente documental (P-03, P-08, P-09 y P-10, en EV-09) y, desde MEDIA, su certificación (P-04, en EV-08). Con P-01 = ambos, la columna «uso» es obligatoria en cada fila. La detección de servicios en uso que no figuran aquí (shadow IT) no se puede hacer con ficheros locales: se informa.',
       missingBehavior:
-        'El inventario queda incompleto. Riesgo de servicios cloud en uso sin ninguna verificación de conformidad.',
+        'op.nub.1.2 y R1 quedan sin evaluar (causa CONFIGURATION): no hay servicios contra los que juzgar el expediente ni la certificación.',
     },
     {
       id: 'P-03',
       name: 'conformidad_ens_proveedores',
       description:
-        'Para cada servicio de terceros: conformidad con el ENS o con la guía CCN-STIC aplicable, con la referencia de la declaración o certificación, su alcance y su fecha de vigencia. op.nub.1.2 lo exige de forma directa.',
+        'Para cada servicio de P-02 —de terceros o prestado—: conformidad con el ENS (con su categoría: ENS BÁSICA, ENS MEDIA o ENS ALTA) o con la guía CCN-STIC aplicable al modelo (SaaS, PaaS, IaaS), su alcance, su fecha de vigencia y la referencia de la declaración o certificación. op.nub.1.2 lo exige de los servicios de terceros; para los que se prestan, es la acreditación de op.nub.1.1.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['op.nub.1.2'],
+      requirements: ['op.nub.1.1', 'op.nub.1.2'],
       type: 'table',
       usage:
-        'ENSFácil registra y vigila la vigencia de cada declaración, alertando antes del vencimiento. La verificación del documento en sí es documental: la herramienta no puede validar una certificación.',
+        'EV-09: cada servicio utilizado de P-02 tiene que tener aquí su conformidad, vigente en la fecha de la evaluación y, si es ENS, de una categoría no inferior a la del sistema (una conformidad ENS se juzga por su categoría aunque cite una guía). Una conformidad vencida o ausente es un incumplimiento de op.nub.1.2; una vigente lo acredita documentalmente. Con P-01 = prestador o ambos, cada servicio prestado necesita aquí la suya para op.nub.1.1, con el mismo criterio.',
       missingBehavior:
-        'op.nub.1.2 NO ACREDITADO. No se puede demostrar la conformidad de los servicios de terceros utilizados.',
+        'op.nub.1.2 (y op.nub.1.1 si se presta algún servicio) quedan sin acreditar (causa CONFIGURATION): no se puede demostrar la conformidad de los servicios.',
     },
     {
       id: 'P-04',
@@ -235,48 +235,48 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil registra la certificación y su vigencia con alerta anticipada de vencimiento. Conviene no confundir este requisito con el de P-03: R1 exige certificación bajo metodología reconocida, no una simple declaración de conformidad.',
+        'EV-08 (R1, desde MEDIA): cada servicio utilizado de P-02 tiene que tener aquí su certificación, con metodología y número, vigente en la fecha de la evaluación. Vigente: R1 acreditado documentalmente; vencida o ausente: incumplimiento. Los días que le quedan se dicen en el informe.',
       missingBehavior:
-        'R1 NO ACREDITADO y es obligatorio desde categoría MEDIA. Es un hallazgo documental difícil de subsanar deprisa.',
+        'R1 queda sin acreditar (causa CONFIGURATION), y es obligatorio desde categoría MEDIA.',
     },
     {
       id: 'P-05',
       name: 'servicios_seguridad_cloud',
       description:
-        'Identificación de los servicios en la nube que son servicios de SEGURIDAD, a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5. Es un supuesto específico que suele pasarse por alto.',
+        'Los servicios en la nube utilizados que son servicios de SEGURIDAD (un SIEM gestionado, un WAF, copias de seguridad gestionadas), a los que op.nub.1.r1.2 exige además cumplir los requisitos de op.pl.5, con lo que la organización declara de esa verificación: si cumple, la referencia del informe que lo verifica y hasta cuándo vale. Si no se usa ninguno, una sola fila «ninguno». Es un supuesto que suele pasarse por alto.',
       level: ['MEDIO', 'ALTO'],
       requirements: ['op.nub.1.r1.2'],
       type: 'table',
       usage:
-        'ENSFácil marca estos servicios para exigirles la verificación adicional de op.pl.5 y lo refleja en el informe. Es llamativo que la propia plataforma de seguridad, si se consume como servicio cloud, entra en este supuesto.',
+        'Una sola fila «ninguno»: R1.2 no aplica (declarado). Con servicios: cada uno con «cumple op.pl.5 = sí», la referencia de la verificación y su vigencia en la fecha de la evaluación acredita R1.2 documentalmente; «no», o la verificación vencida, es un incumplimiento. Vacío, «ninguno» junto a servicios, o una fila sin la referencia o sin la fecha: R1.2 sin evaluar (causa CONFIGURATION).',
       missingBehavior:
-        'Se omite la verificación adicional que R1.2 exige para servicios de seguridad en la nube.',
+        'R1.2 queda sin evaluar (causa CONFIGURATION): no consta si se usa algún servicio en la nube de seguridad. Si no se usa ninguno, se declara una sola fila «ninguno».',
     },
     {
       id: 'P-06',
       name: 'integraciones_cloud_wazuh',
       description:
-        'Servicios cloud cuyos registros se ingieren en Wazuh y mediante qué integración. Es la pieza que convierte este control de documental en técnicamente verificable en lo que respecta a la configuración del lado del cliente.',
+        'Por cada servicio de P-02, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github) o «ninguno», y su ámbito (cuenta, suscripción, proyecto, tipos de registro). La credencial del proveedor la pone el cliente en un agente dedicado, nunca en el manager ni en un agent.conf compartido: ENSFácil solo lee la presencia del módulo y sus alertas. Es la pieza que añade a lo documental la medida técnica.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.2', 'op.nub.1.r2.1'],
       type: 'table',
       usage:
-        'Activa los módulos de integración cloud de Wazuh. Permite recoger eventos de autenticación, cambios de configuración, accesos a datos y operaciones administrativas en el proveedor, que es donde se materializan los riesgos reales del lado del usuario.',
+        'EV-01: cada servicio con módulo tiene que tenerlo configurado y habilitado, sin errores en 24 h y con registros más recientes que P-13 horas. EV-04 y EV-07 se juzgan sobre esos mismos servicios. Un servicio sin integración es un hallazgo del informe, no un incumplimiento. En ALTA, R2 lee los hallazgos de postura del módulo de cada servicio.',
       missingBehavior:
-        'Los servicios cloud quedan fuera de la monitorización. Punto ciego grave si tratan información del sistema.',
+        'EV-01, EV-04 y EV-07 quedan sin evaluar (causa CONFIGURATION): no se sabe qué servicios tienen que llegar a Wazuh. op.nub.1.2 puede acreditarse igualmente con su expediente documental.',
     },
     {
       id: 'P-07',
       name: 'politicas_configuracion_cloud',
       description:
-        'Políticas de configuración de seguridad aplicables a cada servicio cloud según la guía CCN-STIC de Configuración de Seguridad Específica correspondiente. R2 subraya que están orientadas «tanto al usuario como al proveedor», de modo que la configuración del lado del cliente es exigible.',
+        'Por cada servicio en la nube, la guía CCN-STIC de Configuración de Seguridad Específica que le aplica y el estándar de postura del proveedor con el que se verifica (p. ej., AWS Foundational Security Best Practices o CIS en Security Hub, la puntuación de seguridad de Microsoft Defender, Security Command Center). R2 subraya que las guías están orientadas «tanto al usuario como al proveedor». Wazuh 4.14 no tiene políticas SCA para inquilinos cloud: la verificación son los hallazgos del propio proveedor que Wazuh ingiere.',
       level: ['ALTO'],
       requirements: ['op.nub.1.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil evalúa la configuración de cada servicio contra la política correspondiente. Las políticas CIS para AWS, Azure, GCP y M365 son un punto de partida razonable cuando no hay política derivada directamente de la guía CCN-STIC.',
+        'EV-02 (R2, solo ALTA): cada servicio de P-07 se juzga con los hallazgos de postura del módulo que P-06 le asigna (y, si se declara, solo los de ese estándar). Un control fallido incumple R2; sin hallazgos de postura del proveedor, R2 no es automatizable y queda sin evaluar.',
       missingBehavior:
-        'R2 NO EVALUABLE y es obligatorio en categoría ALTA. La configuración del lado del cliente queda sin verificar.',
+        'R2 queda sin evaluar (causa CONFIGURATION), y es obligatorio en categoría ALTA.',
     },
     {
       id: 'P-08',
@@ -287,9 +287,9 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'table',
       usage:
-        'ENSFácil registra la declaración y, cuando la integración de P-06 lo permita, verifica la región efectivamente configurada en el proveedor contra la declarada. Discrepancia → hallazgo relevante también a efectos de protección de datos.',
+        'EV-09: cada servicio utilizado tiene que tener aquí la región de sus datos, la de sus copias y la jurisdicción. Una fila ausente o incompleta deja el expediente incompleto (op.nub.1.2 d).',
       missingBehavior:
-        'op.nub.1.2 d) NO ACREDITADO. Riesgo concurrente en materia de transferencias internacionales de datos.',
+        'El eje de jurisdicción del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): op.nub.1.2 d) sin acreditar.',
     },
     {
       id: 'P-09',
@@ -300,22 +300,22 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'table',
       usage:
-        'SCA sobre la configuración cloud verifica que el cifrado está activo y qué modelo de claves se emplea. Enlaza directamente con op.exp.10: las claves de los servicios cloud forman parte del material criptográfico a proteger.',
+        'EV-09: cada servicio utilizado tiene que tener aquí su cifrado y su modelo de gestión de claves. Una fila ausente, o un cifrado «no» o «ninguno», incumple op.nub.1.2 c); una fila incompleta queda sin evaluar (causa CONFIGURATION).',
       missingBehavior:
-        'op.nub.1.2 c) NO VERIFICABLE. Riesgo de datos en la nube sin cifrado o con claves bajo control exclusivo del proveedor.',
+        'El eje de cifrado del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): op.nub.1.2 c) sin acreditar.',
     },
     {
       id: 'P-10',
       name: 'pentesting_proveedor',
       description:
-        'Informes o certificaciones de auditoría de pruebas de penetración del proveedor del servicio, exigidos por op.nub.1.2 a). Es documentación del proveedor, no una prueba que el cliente ejecute.',
+        'Informes o certificaciones de auditoría de pruebas de penetración del proveedor del servicio, exigidos por op.nub.1.2 a), con su fecha. Es documentación del proveedor, no una prueba que el cliente ejecute. Muchos proveedores solo facilitan un resumen ejecutivo bajo acuerdo de confidencialidad, lo que conviene anticipar en el contrato.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.2'],
       type: 'table',
       usage:
-        'ENSFácil registra la referencia y la fecha, y alerta cuando la antigüedad del informe es excesiva. Muchos proveedores solo facilitan resumen ejecutivo bajo acuerdo de confidencialidad, lo que conviene anticipar en la negociación contractual.',
+        'EV-09: cada servicio utilizado tiene que tener aquí su último informe de pentest, con una fecha no más vieja que P-12 meses en la fecha de la evaluación. Ausente o más viejo: el expediente queda incompleto (op.nub.1.2 a).',
       missingBehavior:
-        'op.nub.1.2 a) NO ACREDITADO. Queda sin evidencia uno de los cuatro requisitos expresos del requisito base.',
+        'El eje del pentest del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): op.nub.1.2 a) sin acreditar.',
     },
     {
       id: 'P-11',
@@ -326,7 +326,7 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'table',
       usage:
-        'El recolector del manager agrupa, por actor, las operaciones administrativas que llegan en las alertas de los módulos cloud (CloudTrail, registro de actividad de Azure, Cloud Audit Logs).',
+        'EV-04: cada actor humano de una operación de administración en la ventana tiene que figurar aquí para su servicio; uno que no figura incumple op.nub.1.2. Las acciones de los propios servicios del proveedor no se contrastan.',
       missingBehavior:
         'Si hay operaciones administrativas en un servicio integrado, EV-04 queda sin evaluar (causa CONFIGURATION): no hay contra qué contrastar a sus actores.',
     },
@@ -339,7 +339,7 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'number',
       usage:
-        'ENSFácil compara la fecha de cada informe de P-10 con la fecha de la evaluación: un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
+        'EV-09: ENSFácil compara la fecha de cada informe de P-10 con la fecha de la evaluación; un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
       missingBehavior:
         'El eje del pentest del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): no hay contra qué medir la antigüedad de los informes.',
     },
@@ -352,22 +352,9 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'duration_hours',
       usage:
-        'El recolector del manager anota, por módulo cloud, el instante de la última alerta suya en alerts.json.',
+        'EV-01: la integración de un servicio de P-06 está parada si su última alerta tiene más de P-13 horas en el momento de la observación.',
       missingBehavior:
         'EV-01 queda sin evaluar (causa CONFIGURATION) para los servicios integrados: no se puede decidir si una integración sin registros recientes está parada.',
-    },
-    {
-      id: 'P-ATT',
-      name: 'atestaciones_documentales',
-      description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar op.nub.1.1 (el conjunto de medidas del modelo de servicio prestado según las guías CCN-STIC) y op.nub.1.r1.2 (la verificación de op.pl.5 de los servicios cloud de seguridad, que ENSFácil no mide).',
-      level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: [],
-      type: 'table',
-      usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
-      missingBehavior:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },
   ],
   events: ['evidence_state', 'control_state', 'score_snapshot', 'cloud_integration_observed', 'cloud_posture_finding_observed', 'cloud_admin_operation_observed', 'cloud_authentication_observed'],
