@@ -65,6 +65,7 @@ const MAQUINAS: Record<string, string> = {
   '024': 'wazuh-real',
   '027': 'srv-prueba',
   '028': 'ldap-zimbra',
+  '030': 'srv-copias',
   '033': 'win-prueba',
 };
 
@@ -113,7 +114,7 @@ const sca = (ts: string, id: string, politica: string, fin: string, extra: Linea
 const inventario = (ts: string, id: string, conexion: string, ultimo: string, extra: Linea = {}): Linea => ({
   _a: '000', ts, event: 'package_inventory_observed', evidence_id: 'EV-04', requisito: 'op.mon.3.r2.1', plano: 'central',
   agente_id: id, agente: MAQUINAS[id] || id, estado_conexion: conexion, ultimo_keepalive: '2026-10-09T12:04:50Z',
-  inventario_ultimo: ultimo, paquetes: 812, lectura: 'ok', ...extra,
+  inventario_ultimo: ultimo, paquetes: 812, recolector_agente_ultimo: '-', lectura: 'ok', ...extra,
 });
 
 const detector = (ts: string, extra: Linea = {}): Linea => ({
@@ -150,9 +151,12 @@ const pasadaCompleta = (ts = COMPLETA, extra: { coleccion?: Linea; detector?: Li
   sca(t(ts, 16), '028', 'cis_ubuntu22-04', '2026-10-09T08:31:00Z'),
   sca(t(ts, 16), '033', '-', '-', { politica_nombre: '-', aprobados: '-', fallos: '-', puntuacion: '-', lectura: 'ausente' }),
   inventario(t(ts, 17), '000', 'active', '2026-10-09T11:30:00Z'),
-  inventario(t(ts, 17), '024', 'active', '2026-10-09T11:20:03Z'),
-  inventario(t(ts, 17), '027', 'disconnected', '2026-09-04T09:00:00Z', { ultimo_keepalive: '2026-09-04T10:00:12Z' }),
-  inventario(t(ts, 17), '028', 'active', '2026-10-09T11:40:00Z'),
+  inventario(t(ts, 17), '024', 'active', '2026-10-09T11:20:03Z', { recolector_agente_ultimo: '2026-10-09T06:20:14Z' }),
+  inventario(t(ts, 17), '027', 'disconnected', '2026-09-04T09:00:00Z', { ultimo_keepalive: '2026-09-04T10:00:12Z', recolector_agente_ultimo: '2026-09-04T06:20:00Z' }),
+  inventario(t(ts, 17), '028', 'active', '2026-10-09T11:40:00Z', { recolector_agente_ultimo: '2026-10-09T06:25:14Z' }),
+  // Un agente activo FUERA del alcance ENS (sin grupo ens) y sin el recolector
+  // de agente: el manager lo conoce, pero nadie mide sus fuentes.
+  inventario(t(ts, 17), '030', 'active', '2026-10-09T11:10:00Z'),
   inventario(t(ts, 17), '033', 'never_connected', '-', { ultimo_keepalive: '-', paquetes: '-', lectura: 'ausente' }),
   detector(t(ts, 18), extra.detector),
   { _a: '000', ts: t(ts, 19), event: 'network_detection_observed', evidence_id: 'EV-06', requisito: 'op.mon.3.r3.2', plano: 'central',
@@ -601,6 +605,19 @@ bloque('4. op.mon.3.1 (recolección): cada fuente, cada eje, con su reversión')
 
   comprueba('fila del manager · una fuente del agente de prueba desconectado (027) → NO_CUMPLE', estado(evalua(hoy(), deOtra('srv-prueba')), 'op.mon.3.1') === 'NO_CUMPLE' && /desconnected|disconnected/.test(evalua(hoy(), deOtra('srv-prueba')).motivo('op.mon.3.1')));
   comprueba('fila del manager · una máquina que el manager no conoce → NO_CUMPLE', /no figura en la base de agentes/.test(evalua(hoy(), deOtra('srv-web01')).motivo('op.mon.3.1')));
+  comprueba(
+    'fila del manager · una fuente de un agente activo sin recolector de agente (fuera del alcance) → NO_EVALUABLE (COLLECTION), nunca CUMPLE',
+    estado(evalua(hoy(), deOtra('srv-copias')), 'op.mon.3.1') === 'NO_EVALUABLE' &&
+      causa(evalua(hoy(), deOtra('srv-copias')), 'op.mon.3.1') === 'COLLECTION' &&
+      /su recolector de agente de op\.mon\.3 no informa/.test(evalua(hoy(), deOtra('srv-copias')).motivo('op.mon.3.1'))
+  );
+
+  const latidoViejo = hoy(en('package_inventory_observed', { recolector_agente_ultimo: '2026-10-07T06:20:14Z' }, l => l.agente_id === '024'));
+
+  comprueba(
+    'fila del manager · el último latido del recolector de wazuh-real de hace 54 h → NO_EVALUABLE (COLLECTION)',
+    estado(evalua(latidoViejo), 'op.mon.3.1') === 'NO_EVALUABLE' && causa(evalua(latidoViejo), 'op.mon.3.1') === 'COLLECTION'
+  );
 
   // Un nombre con dos agentes: el 041, un registro viejo desconectado.
   const duplicado = hoy(l => l);
@@ -980,6 +997,18 @@ bloque('9. El motor: op.mon.3 en la fila del manager y en las de agente, y el co
     'el LDAP desconectado al leerlo: su fila y el consolidado no cumplen op.mon.3.1; la del manager sí',
     caido.req(caido.porFila('028'), 'op.mon.3.1') === 'NO_CUMPLE' && caido.req(caido.consolidado, 'op.mon.3.1') === 'NO_CUMPLE' && caido.req(caido.porFila('000'), 'op.mon.3.1') === 'CUMPLE'
   );
+
+  conValores({ ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'copias de srv-copias | Linux | agente | srv-copias | /var/log/syslog | 24'] });
+
+  const fuera = resultado(hoy());
+
+  comprueba(
+    'una fuente de P-01 en un agente activo FUERA del alcance: no hay fila que la mida y el consolidado no cumple op.mon.3.1',
+    !fuera.porFila('030') && fuera.req(fuera.porFila('000'), 'op.mon.3.1') === 'NO_CUMPLE' && fuera.req(fuera.consolidado, 'op.mon.3.1') === 'NO_CUMPLE',
+    `${fuera.req(fuera.porFila('000'), 'op.mon.3.1')} / ${fuera.req(fuera.consolidado, 'op.mon.3.1')}`
+  );
+
+  conValores(BASE);
 
   const lab = resultado(hoy(undefined, { detector: { errores_indexacion_24h: 37, muestra_error: 'circuit_breaking_exception' } }));
 

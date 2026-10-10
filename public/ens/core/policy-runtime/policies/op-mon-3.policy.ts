@@ -77,6 +77,7 @@ import type { ENSNormalizedEvent } from '../../data-source/types';
 import {
   HORA,
   DIA,
+  FRESCURA_HORAS,
   MISMA_PASADA,
   cumple,
   noCumple,
@@ -602,8 +603,14 @@ const fuenteSyslog = (ctxM: ENSPolicyContext, ahora: number, fuente: Fuente): Me
 };
 
 // En la fila del manager, las fuentes de OTRAS máquinas: que su agente esté
-// registrado en el manager, sin ambigüedad, y conectado. El detalle de cada
-// fuente (descartes, lagunas) se juzga en la fila de su máquina.
+// registrado en el manager, sin ambigüedad, conectado y con su recolector de
+// agente informando. El detalle de cada fuente (descartes, lagunas) se juzga en
+// la fila de su máquina, PERO esa fila solo existe si la máquina está en el
+// alcance ENS: una fuente de un agente fuera del alcance, o de uno sin el
+// recolector de agente, no la mide nadie. Por eso el padrón trae el último
+// latido de su recolector de agente que el manager ha visto en alerts.json
+// (`recolector_agente_ultimo`): sin él, o más viejo que la frescura de los
+// hechos, sus fuentes están sin medir y nada se da por bueno.
 const agenteDeLaFuente = (ctxM: ENSPolicyContext, ahora: number, sistema: string, padron: ENSNormalizedEvent[]): Medida => {
   const r = resuelve(sistema, padron);
 
@@ -618,11 +625,24 @@ const agenteDeLaFuente = (ctxM: ENSPolicyContext, ahora: number, sistema: string
   const e = r.hecho;
   const estado = campo(e, 'estado_conexion');
 
-  return estado === 'active'
-    ? cumple(`${nombreDe(sistema, e)} conectado al manager.`)
-    : noCumple(
-        `${nombreDe(sistema, e)}: agente ${estado || 'en estado desconocido'} (último keepalive ${vacio(campo(e, 'ultimo_keepalive')) ? 'nunca' : campo(e, 'ultimo_keepalive')}); sus fuentes no llegan.`
-      );
+  if (estado !== 'active') {
+    return noCumple(
+      `${nombreDe(sistema, e)}: agente ${estado || 'en estado desconocido'} (último keepalive ${vacio(campo(e, 'ultimo_keepalive')) ? 'nunca' : campo(e, 'ultimo_keepalive')}); sus fuentes no llegan.`
+    );
+  }
+
+  const latido = instante(campo(e, 'recolector_agente_ultimo'));
+
+  if (latido === undefined || momento(e) - latido > FRESCURA_HORAS * HORA) {
+    return sinMedir(
+      `${nombreDe(sistema, e)}: conectado, pero su recolector de agente de op.mon.3 no informa (${
+        latido === undefined ? 'el manager no ha visto nunca su latido' : `último latido ${iso(latido)}, más de ${FRESCURA_HORAS} h antes de la lectura`
+      }): sus fuentes no se miden. Si la máquina no está en el alcance ENS (grupo ens), su fila no existe y nadie las mide.`,
+      'COLLECTION'
+    );
+  }
+
+  return cumple(`${nombreDe(sistema, e)} conectado al manager, con su recolector de agente informando (último latido ${iso(latido)}).`);
 };
 
 const ev02 = (context: ENSPolicyContext, ahora: number, maquinas: Map<string, string>): Medida => {
