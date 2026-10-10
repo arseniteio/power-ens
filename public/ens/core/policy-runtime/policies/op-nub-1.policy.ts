@@ -711,6 +711,8 @@ interface Ingesta {
   // Módulo -> su medida, para EV-04 y EV-07 (una ingesta parada no permite
   // afirmar que no haya operaciones ni accesos).
   porModulo: Map<string, Medida>;
+  // Módulo -> sus hechos de integración vigentes, para EV-04 (`fuentes_admin`).
+  hechos: Map<string, ENSNormalizedEvent[]>;
 }
 
 const ingestaDeModulo = (
@@ -788,12 +790,14 @@ const ingestaDeModulo = (
 
 const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[]): Ingesta => {
   const porModulo = new Map<string, Medida>();
+  const hechos = new Map<string, ENSNormalizedEvent[]>();
   const integ = integraciones(context, servicios);
 
   if (!integ) {
     return {
       medida: faltaParametro(context, 'P-06', 'qué servicios de P-02 se integran en Wazuh y con qué módulo (o «ninguno»)'),
       porModulo,
+      hechos,
     };
   }
 
@@ -819,6 +823,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
         noAplica(`P-06 no declara ningún servicio integrado en Wazuh: la parte técnica de op.nub.1.2 no aplica.${sinIntegrar}${noDeclarados}`),
       ]),
       porModulo,
+      hechos,
     };
   }
 
@@ -827,13 +832,14 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
 
     declarados.forEach(m => porModulo.set(m, falta));
 
-    return { medida: combina([...integ.errores, { ...falta, motivo: `${falta.motivo}${sinIntegrar}` }]), porModulo };
+    return { medida: combina([...integ.errores, { ...falta, motivo: `${falta.motivo}${sinIntegrar}` }]), porModulo, hechos };
   }
 
   const medidas = declarados.map(modulo => {
     const medida = ingestaDeModulo(context, modulo, integ.porModulo.get(modulo) || [], vigentes);
 
     porModulo.set(modulo, medida);
+    hechos.set(modulo, vigentes.filter(e => iguales(campo(e, 'modulo'), modulo)));
 
     return medida;
   });
@@ -846,10 +852,61 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
       motivo: `${juntas.motivo}${sinIntegrar}${noDeclarados}${aviso}`,
     }),
     porModulo,
+    hechos,
   };
 };
 
 // --- EV-04 · las operaciones administrativas, contra P-11 ---------------------
+
+// Los registros de operaciones de administración que el recolector sabe leer
+// (contrato, ronda 2), con el módulo que los trae. `fuentes_admin` dice cuáles
+// han dado al menos un evento en 30 días: sin ninguno, que no haya operaciones
+// no demuestra nada (Entra ID por Graph, office365, github, un aws-s3 sin
+// CloudTrail…).
+const FUENTES_ADMIN: Record<string, string> = {
+  cloudtrail: 'CloudTrail',
+  'azure-activity': 'el registro de actividad de Azure',
+  'gcp-admin-activity': 'los Cloud Audit Logs de Admin Activity',
+};
+
+const FUENTE_DEL_MODULO: Record<string, string> = {
+  'aws-s3': 'CloudTrail (un bucket de tipo cloudtrail en aws-s3)',
+  'azure-logs': 'el registro de actividad de Azure (AzureActivity, por Log Analytics en azure-logs)',
+  'gcp-pubsub': 'los Cloud Audit Logs de Admin Activity (una suscripción de Pub/Sub en gcp-pubsub)',
+  'gcp-bucket': 'los Cloud Audit Logs de Admin Activity, que ENSFácil lee por gcp-pubsub',
+};
+
+const queActivar = (modulo: string): string =>
+  FUENTE_DEL_MODULO[modulo]
+    ? `Para medirlo, activa ${FUENTE_DEL_MODULO[modulo]}.`
+    : `${modulo} no trae ningún registro de administración que ENSFácil lea: para medirlo, integra el del proveedor con CloudTrail (aws-s3), el registro de actividad de Azure (AzureActivity, por azure-logs) o los Cloud Audit Logs de Admin Activity (gcp-pubsub).`;
+
+// Sin operaciones de personas y con la ingesta viva: solo es una medida si el
+// módulo trae un registro de administración leído en 30 días.
+const sinOperaciones = (quien: string, modulo: string, hechos: ENSNormalizedEvent[], deServicios: number): Medida => {
+  const declaradas = hechos.map(e => campo(e, 'fuentes_admin'));
+  const fuentes = Array.from(
+    new Set(declaradas.flatMap(v => v.split('|').map(x => x.trim().toLowerCase())).filter(x => !vacio(x)))
+  );
+  const ninguna = `${quien}: ninguna operación de administración de una persona en la ventana`;
+
+  if (fuentes.length) {
+    return cumple(
+      `${ninguna}, y el recolector lee su registro de administración (${lista(fuentes.map(f => FUENTES_ADMIN[f] || f))}, con eventos en los últimos 30 días)${deServicios ? `; ${deServicios} de servicios del proveedor` : ''}.`
+    );
+  }
+
+  if (!declaradas.length || declaradas.some(v => v === '')) {
+    return sinMedir(
+      `${ninguna}, pero el inventario de integraciones no dice qué registros de administración lee el recolector (falta fuentes_admin: es de una versión anterior), así que la ausencia no demuestra nada. Actualiza el recolector de op.nub.1 en el manager.`,
+      'COLLECTION'
+    );
+  }
+
+  return sinMedir(
+    `${ninguna}, pero el recolector no ha leído en los últimos 30 días ningún registro de operaciones de administración de este módulo (fuentes_admin = -), así que la ausencia no demuestra nada. ${queActivar(modulo)}`
+  );
+};
 
 // Una medida técnica por módulo integrado, sobre los hechos de la ventana.
 const porModuloIntegrado = (
@@ -898,7 +955,7 @@ const ev04 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
 
     if (!humanas.length) {
       return viva(ingestaDelModulo)
-        ? cumple(`${quien}: ninguna operación de administración de una persona en la ventana${deModulo.length ? ` (${deModulo.length} de servicios del proveedor)` : ''}.`)
+        ? sinOperaciones(quien, modulo, ingesta.hechos.get(modulo) || [], deModulo.length)
         : noViva(quien, ingestaDelModulo);
     }
 

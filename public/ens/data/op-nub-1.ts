@@ -120,7 +120,7 @@ export const opNub1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Operaciones administrativas en los servicios cloud',
       description:
-        'Operaciones de administración con éxito en los servicios integrados (creación y modificación de identidades, permisos, configuración de seguridad, reglas de red), agregadas por módulo, cuenta y actor a partir de las alertas de los módulos cloud: CloudTrail, registro de actividad de Azure, Cloud Audit Logs. Cada actor humano tiene que figurar en P-11 para su servicio; las acciones de los propios servicios del proveedor no se contrastan.',
+        'Operaciones de administración con éxito en los servicios integrados (creación y modificación de identidades, permisos, configuración de seguridad, reglas de red), agregadas por módulo, cuenta y actor a partir de las alertas de los módulos cloud: CloudTrail, registro de actividad de Azure, Cloud Audit Logs. Cada actor humano tiene que figurar en P-11 para su servicio; las acciones de los propios servicios del proveedor no se contrastan. Sin operaciones de personas, solo cumple si el recolector lee un registro de administración del módulo (CloudTrail, el registro de actividad de Azure o los Cloud Audit Logs de Admin Activity) con eventos en los últimos 30 días: Entra ID por Graph, office365 y github no lo traen, y quedan sin evaluar.',
       format: 'json_line',
       events: ['evidence_state', 'cloud_admin_operation_observed'],
       wazuhRuleIds: ['111503'],

@@ -117,14 +117,17 @@ const pasada = (ts: string, acciones = true): Linea[] => {
     integracion(t(10), 'aws-s3', {
       familia: 'amazon', donde: 'grupo:cloud-aws', servicios: 'cloudtrail,guardduty', intervalo: '10m',
       agentes_origen: '031', ultima_alerta: '2026-10-09T12:01:30Z', alertas_24h: 1840, errores_24h: 0,
+      fuentes_admin: 'cloudtrail',
     }),
     integracion(t(10), 'azure-logs', {
       familia: 'azure', donde: 'agente:031', habilitado: '-', servicios: '-', secreto_en_linea: '-',
       agentes_origen: '031', ultima_alerta: '2026-10-09T11:40:00Z', alertas_24h: 412, errores_24h: '-',
+      fuentes_admin: 'azure-activity',
     }),
     integracion(t(10), 'gcp-pubsub', {
       familia: 'gcp', donde: 'manager', servicios: 'pubsub', intervalo: '1h',
       agentes_origen: '000', ultima_alerta: '2026-10-09T10:15:00Z', alertas_24h: 96, errores_24h: 0,
+      fuentes_admin: 'gcp-admin-activity',
     }),
     postura(t(12)),
     ...(acciones
@@ -780,6 +783,98 @@ bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA; lo me
   const propio = evalua(normalizeWazuhAlerts([alerta(linea), alerta(latido(`${COMPLETA}:40Z`))]), soloAws);
   const deOtro = evalua(normalizeWazuhAlerts([alerta(linea, 'op.mon.1'), alerta(latido(`${COMPLETA}:40Z`), 'op.mon.1')]), soloAws);
   comprueba('un hecho de otro control no acredita op.nub.1 (REVERSIÓN: el mismo, propio, sí)', propio.evidencia('EV-01')?.status === 'CUMPLE' && deOtro.evidencia('EV-01')?.status === 'NO_EVALUABLE', `${estadoDe(propio, 'EV-01')} / ${estadoDe(deOtro, 'EV-01')}`);
+}
+
+// --- 7 bis. sin operaciones de personas: ¿lee el recolector un registro de administración? --
+
+bloque('7 bis. Sin operaciones de personas, EV-04 solo cumple si el módulo trae un registro de administración (fuentes_admin)');
+
+{
+  const AWS_P02 = 'AWS producción | IaaS | Amazon Web Services | expedientes | alta | utilizado';
+  const ENTRA_P02 = 'Entra ID | SaaS | Microsoft | identidades | alta | utilizado';
+  const AWS_P06 = 'AWS producción | aws-s3 | CloudTrail de la cuenta 123456789012';
+  const ENTRA_P06 = 'Entra ID | ms-graph | auditoría e inicios de sesión del inquilino';
+  const AWS_Y_ENTRA: Valores = { ...BASE, 'P-02': [AWS_P02, ENTRA_P02], 'P-06': [AWS_P06, ENTRA_P06] };
+  const SOLO_AWS: Valores = { ...BASE, 'P-02': [AWS_P02], 'P-06': [AWS_P06] };
+  const SOLO_ENTRA: Valores = { ...BASE, 'P-02': [ENTRA_P02], 'P-06': [ENTRA_P06] };
+
+  // Ninguna operación de una persona en la ventana (la de config.amazonaws.com,
+  // de un servicio del proveedor, se queda). El módulo de Azure pasa a ser
+  // Entra ID por Graph, vivo y sin ningún registro de administración.
+  const sinPersonas = (cambia: (l: Linea) => Linea | undefined = l => l) =>
+    hoy(l => {
+      if (l.event === 'cloud_admin_operation_observed' && l.tipo_actor !== 'servicio') {
+        return undefined;
+      }
+
+      return cambia(
+        l.event === 'cloud_integration_observed' && l.modulo === 'azure-logs'
+          ? { ...l, modulo: 'ms-graph', familia: 'ms-graph', fuentes_admin: '-' }
+          : l
+      );
+    });
+  const ev04 = (r: ReturnType<typeof evalua>) => r.deEvidencia('op.nub.1.2', 'EV-04')?.reason || '';
+
+  const soloEntra = evalua(sinPersonas(), SOLO_ENTRA);
+  comprueba(
+    'solo Entra ID (ms-graph, fuentes_admin = -), vivo y sin operaciones → EV-04 NO_EVALUABLE por EVIDENCIA, nunca CUMPLE',
+    soloEntra.evidencia('EV-01')?.status === 'CUMPLE' &&
+      estadoDe(soloEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' &&
+      /«Entra ID» \(ms-graph\): ninguna operación de administración de una persona/.test(ev04(soloEntra)) &&
+      /ms-graph no trae ningún registro de administración que ENSFácil lea/.test(ev04(soloEntra)),
+    `${estadoDe(soloEntra, 'EV-01')} / ${estadoDe(soloEntra, 'EV-04')} ${ev04(soloEntra)}`
+  );
+
+  const soloAws = evalua(sinPersonas(), SOLO_AWS);
+  comprueba(
+    'REVERSIÓN: AWS con CloudTrail leído en 30 días y sin operaciones de personas → EV-04 CUMPLE',
+    soloAws.evidencia('EV-04')?.status === 'CUMPLE' && /lee su registro de administración \(CloudTrail, con eventos en los últimos 30 días\)/.test(ev04(soloAws)),
+    `${estadoDe(soloAws, 'EV-04')} ${ev04(soloAws)}`
+  );
+
+  const awsYEntra = evalua(sinPersonas(), AWS_Y_ENTRA);
+  comprueba(
+    'AWS con CloudTrail y Entra ID sin registro de administración → EV-04 NO_EVALUABLE (Entra no se puede afirmar)',
+    estadoDe(awsYEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Entra ID/.test(ev04(awsYEntra)),
+    `${estadoDe(awsYEntra, 'EV-04')} ${ev04(awsYEntra)}`
+  );
+
+  const awsSinCloudTrail = evalua(sinPersonas(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, fuentes_admin: '-' } : l)), SOLO_AWS);
+  comprueba(
+    'aws-s3 vivo sin CloudTrail (fuentes_admin = -) → NO_EVALUABLE por EVIDENCIA, diciendo qué activar',
+    estadoDe(awsSinCloudTrail, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Para medirlo, activa CloudTrail/.test(ev04(awsSinCloudTrail)),
+    `${estadoDe(awsSinCloudTrail, 'EV-04')} ${ev04(awsSinCloudTrail)}`
+  );
+
+  const sinCampo = evalua(
+    sinPersonas(l => {
+      if (l.event !== 'cloud_integration_observed' || l.modulo !== 'aws-s3') {
+        return l;
+      }
+
+      const { fuentes_admin: _fuera, ...resto } = l;
+
+      return resto;
+    }),
+    SOLO_AWS
+  );
+  comprueba(
+    'un hecho sin fuentes_admin (recolector anterior) → NO_EVALUABLE por RECOGIDA',
+    estadoDe(sinCampo, 'EV-04') === 'NO_EVALUABLE COLLECTION' && /falta fuentes_admin/.test(ev04(sinCampo)),
+    `${estadoDe(sinCampo, 'EV-04')} ${ev04(sinCampo)}`
+  );
+
+  const conPersona = evalua(
+    hoy(l =>
+      l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, fuentes_admin: '-' } : l
+    ),
+    SOLO_AWS
+  );
+  comprueba(
+    'REVERSIÓN: con operaciones de personas, fuentes_admin no cuenta: se juzgan contra P-11 → CUMPLE',
+    conPersona.evidencia('EV-04')?.status === 'CUMPLE' && /role\/Admin/.test(ev04(conPersona)),
+    `${estadoDe(conPersona, 'EV-04')} ${ev04(conPersona)}`
+  );
 }
 
 // --- 8. la edad, en el instante de la observación ------------------------------------

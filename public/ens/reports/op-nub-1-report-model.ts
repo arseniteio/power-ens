@@ -244,7 +244,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo7',
     'Operaciones administrativas en los servicios cloud',
     evidenceStatus('EV-04'),
-    'MEDIDO en el manager de Wazuh. Operaciones de administración con éxito en la ventana, por actor, con sus operaciones y la fecha de la última, frente a los administradores autorizados de P-11. Destacadas las de actores no autorizados.',
+    'MEDIDO en el manager de Wazuh. Operaciones de administración con éxito en la ventana, por actor, con sus operaciones y la fecha de la última, frente a los administradores autorizados de P-11. Destacadas las de actores no autorizados. Sin operaciones, el módulo solo cuenta como medido si trae un registro de administración leído en los últimos 30 días.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
