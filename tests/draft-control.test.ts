@@ -36,6 +36,7 @@ import { evaluateControlStatus } from '../public/ens/core/evaluation/control/con
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
+declare const require: (id: string) => any;
 
 // --- comprobador mínimo ----------------------------------------------------
 
@@ -390,6 +391,108 @@ bloque('6. La trazabilidad no se inventa: cada regla existe en un manager');
       .flatMap(e => e.relatedRules)
       .filter(r => !/^\d+$/.test(r))
       .join(', ')
+  );
+}
+
+// --- 7. un control ACTIVE sin runbook tiene que estar declarado -------------
+//
+// Un control con runbook acredita reglas: una regla solo existe si un runbook
+// la despliega en el manager. Uno ACTIVE que no acredita NINGUNA no tiene
+// runbook, y eso solo es legítimo si está declarado, con su motivo, en
+// `tests/controls-without-runbook.json` (op.cont.2: todo lo que decide está en
+// la pantalla). Es la misma lista que lee `check-consistency.py`
+// (comprobación 14): una sola lista, no dos que puedan divergir.
+
+bloque('7. Un control ACTIVE sin runbook tiene que estar declarado');
+
+const SIN_RUNBOOK: Record<string, string> = Object.fromEntries(
+  Object.entries(require('./controls-without-runbook.json') as Record<string, string>).filter(
+    ([clave]) => !clave.startsWith('_')
+  )
+);
+
+// Por qué un control no cuadra con su runbook, o `undefined` si cuadra.
+const problemaDeRunbook = (
+  c: Pick<ENSControlDefinition, 'id' | 'status'>,
+  reglas: string[],
+  declarados: Record<string, string>
+): string | undefined => {
+  if (c.status !== 'ACTIVE') {
+    return undefined;
+  }
+
+  const declarado = Object.prototype.hasOwnProperty.call(declarados, c.id);
+
+  if (!declarado) {
+    return reglas.length
+      ? undefined
+      : 'ACTIVE sin runbook (no acredita ninguna regla) y sin declarar en tests/controls-without-runbook.json';
+  }
+
+  if (!String(declarados[c.id]).trim()) {
+    return 'declarado sin runbook pero sin motivo';
+  }
+
+  return reglas.length
+    ? `declarado sin runbook y acredita reglas (${reglas.join(', ')}): una regla solo existe si un runbook la despliega`
+    : undefined;
+};
+
+const reglasDe = (controlId: string): string[] =>
+  ENSEvidenceCatalog.filter(evidencia => evidencia.controlId === controlId).flatMap(
+    evidencia => evidencia.relatedRules
+  );
+
+{
+  for (const c of ENSCatalog) {
+    const problema = problemaDeRunbook(c, reglasDe(c.id), SIN_RUNBOOK);
+
+    comprueba(
+      `${c.id} · ${Object.prototype.hasOwnProperty.call(SIN_RUNBOOK, c.id) ? 'declarado sin runbook' : 'cuadra con su runbook'}`,
+      problema === undefined,
+      problema
+    );
+  }
+
+  comprueba(
+    'cada control declarado sin runbook lleva su motivo',
+    Object.values(SIN_RUNBOOK).every(motivo => String(motivo).trim().length > 0),
+    Object.keys(SIN_RUNBOOK).join(', ')
+  );
+
+  comprueba(
+    'op.cont.2 está declarado sin runbook (spec §5.4)',
+    Object.prototype.hasOwnProperty.call(SIN_RUNBOOK, 'op.cont.2')
+  );
+
+  // Con un control inventado, que es lo único que demuestra que la regla
+  // FALLA: con el catálogo de hoy todo cuadra y la comprobación de arriba
+  // pasaría también con una implementación que no mirase nada.
+  const inventado = { id: 'op.zzz.9', status: 'ACTIVE' as const };
+
+  comprueba(
+    'ACTIVE, sin reglas y sin declarar: falla',
+    problemaDeRunbook(inventado, [], {}) !== undefined
+  );
+  comprueba(
+    'la reversión · declarado con su motivo: cuadra',
+    problemaDeRunbook(inventado, [], { 'op.zzz.9': 'control documental' }) === undefined
+  );
+  comprueba(
+    'la reversión · con reglas (tiene runbook) y sin declarar: cuadra',
+    problemaDeRunbook(inventado, ['111999'], {}) === undefined
+  );
+  comprueba(
+    'declarado pero sin motivo: falla',
+    problemaDeRunbook(inventado, [], { 'op.zzz.9': '  ' }) !== undefined
+  );
+  comprueba(
+    'declarado sin runbook y acreditando reglas: falla',
+    problemaDeRunbook(inventado, ['111999'], { 'op.zzz.9': 'control documental' }) !== undefined
+  );
+  comprueba(
+    'en DRAFT no se le exige nada',
+    problemaDeRunbook({ id: 'op.zzz.9', status: 'DRAFT' }, [], {}) === undefined
   );
 }
 

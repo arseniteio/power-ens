@@ -92,10 +92,12 @@ export const evaluateENSControl = (
   evidences: ENSEvidenceResolved[] = [],
   policyRuntime?: ENSPolicyRuntimeResult,
   events: ENSNormalizedEvent[] = [],
-  // ¿Había alguna máquina de la que esperar hechos? Solo es falso para un
+  // ¿Había alguna máquina de la que esperar hechos? Es falso en dos casos: un
   // control con alcance declarado vacío evaluado sin fila (mp.info.6 sin
-  // ninguna máquina en P-04): ahí no ha fallado ninguna recogida, lo que falta
-  // es la configuración, y el hueco no se puede atribuir a RECOGIDA.
+  // ninguna máquina en P-04), y un control cuyas evidencias no escuchan ningún
+  // evento (op.cont.2, solo configuración: `controlExpectsFacts`). En los dos
+  // no ha fallado ninguna recogida, lo que falta es la configuración, y el
+  // hueco no se puede atribuir a RECOGIDA.
   expectsFacts = true
 ): ENSComplianceResult => {
   const validation = configuration
@@ -664,7 +666,12 @@ export const evaluateENSControl = (
           decision?.reason ||
           `El requisito ${requirement.id} se ha medido y no conforma.`,
         impact: `Impide el cumplimiento del control ${catalogControl.id} en nivel ${level}.`,
-        requiredAction: decision?.trace
+        // Un NO_CUMPLE DOCUMENTAL (un contrato o una certificación vencida o
+        // ausente en la pantalla) no se corrige en la máquina: se renueva o se
+        // completa la documentación.
+        requiredAction: requirement.documental
+          ? `Renovar o completar la documentación declarada en la pestaña Configuración: ${decision?.trace?.expected || requirement.id}. Es una declaración de la organización, no una corrección en la máquina.`
+          : decision?.trace
           ? `Corregir para alcanzar: ${decision.trace.expected}. Valor actual: ${decision.trace.actual}.`
           : badEvidences.length
           ? `Revisar las evidencias ${badEvidences.join(', ')} del requisito ${requirement.id}.`
@@ -672,6 +679,7 @@ export const evaluateENSControl = (
         expected: decision?.trace?.expected,
         actual: decision?.trace?.actual,
         origin: 'MEDIDA',
+        ...(requirement.documental ? { documental: true } : {}),
         evidenceIds: badEvidences,
         parameterIds: [],
       };

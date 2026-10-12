@@ -160,6 +160,22 @@ export const ensRequirementsFile = {
     'Aplicación de la ITS de interconexión (R9) - Será de aplicación la ITS de Interconexión de sistemas de información.',
   'op.acc.6.r9.2':
     'Acceso remoto autorizado, cifrado y auditado (R9) - El acceso remoto deberá considerar los siguientes aspectos: a) Ser autorizado por la autoridad correspondiente. b) El tráfico deberá ser cifrado. c) Si la utilización no se produce de manera constante, el acceso remoto deberá encontrarse inhabilitado y habilitarse únicamente cuando sea necesario. d) Deberán recogerse registros de auditoría de este tipo de conexiones.',
+  'op.cont.2.1':
+    'Funciones, responsabilidades y actividades - Se identificarán funciones, responsabilidades y actividades a realizar.',
+  'op.cont.2.2':
+    'Previsión para coordinar los medios alternativos - Existirá una previsión para coordinar la entrada en servicio de los medios alternativos de forma que se garantice poder seguir prestando los servicios esenciales de la organización.',
+  'op.cont.2.3':
+    'Medios alternativos en acuerdos o contratos - Todos los medios alternativos estarán planificados y materializados en acuerdos o contratos con los proveedores correspondientes.',
+  'op.cont.2.4':
+    'Formación de las personas afectadas - Las personas afectadas por el plan recibirán formación específica relativa a su papel en dicho plan.',
+  'op.cont.2.5':
+    'Integración con los demás planes de continuidad - El plan de continuidad será parte integral y armónica de los planes de continuidad de la organización en otras materias ajenas a la seguridad.',
+  'op.cont.2.r1.1':
+    'Plan de emergencia y contingencia (R1) - Refuerzo R1 – Plan de emergencia y contingencia: Cuando se determine la necesidad de continuidad de los sistemas, deberá existir un plan de emergencia y contingencia en consonancia. En función del análisis de Impacto, se determinarán los aspectos a cubrir.',
+  'op.cont.2.r2.1':
+    'Comprobación de integridad tras una caída (R2) - Refuerzo R2 – Comprobación de integridad: Ante una caída o discontinuidad del sistema, se deberá comprobar la integridad del sistema operativo, del firmware y de los ficheros de configuración.',
+  'op.cont.3.1':
+    'Pruebas periódicas del plan y corrección de lo detectado - Se realizarán pruebas periódicas para localizar y, en su caso, corregir los errores o deficiencias que puedan existir en el plan de continuidad.',
   'op.exp.1.1':
     'Inventario actualizado con naturaleza y responsable - Se mantendrá un inventario actualizado de todos los elementos del sistema, detallando su naturaleza e identificando a su responsable; es decir, la persona que toma las decisiones relativas al mismo.',
   'op.exp.1.r1.1':
@@ -308,4 +324,52 @@ export const ensRequirementsFile = {
     'Evidencias con valor jurisdiccional registradas - Se registrará aquella evidencia que pueda dirimirse en un ámbito jurisdiccional, especialmente cuando el incidente pueda comportar acciones disciplinarias sobre el personal interno, sobre proveedores externos o en la persecución de delitos. En la determinación de la composición y detalle de estas evidencias, se recurrirá a asesoramiento legal especializado.',
   'op.exp.9.3':
     'Eventos auditables revisados tras los incidentes - Como consecuencia del análisis de los incidentes, se revisará la determinación de los eventos auditables.',
+  'op.mon.1.1':
+    'Herramientas de detección o prevención de intrusiones - Se dispondrá de herramientas de detección o prevención de intrusiones.',
+  'op.mon.1.r1.1':
+    'Detección basada en reglas (R1) - El sistema dispondrá de herramientas de detección o prevención de intrusiones basadas en reglas.',
+  'op.mon.1.r2.1':
+    'Procedimientos de respuesta a las alertas (R2) - Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
+  'op.mon.1.r3.1':
+    'Acciones predeterminadas automáticas (R3) - Refuerzo R3 – Acciones predeterminadas: El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.',
+  'op.mon.2.1':
+    'Datos del grado de implantación y del informe del art. 32 - Atendiendo a la categoría de seguridad del sistema, se recopilarán los datos necesarios para conocer el grado de implantación de las medidas de seguridad que resulten aplicables y, en su caso, para proveer el informe anual requerido por el artículo 32.',
+  'op.mon.2.r1.1':
+    'Datos del comportamiento de la gestión de incidentes (R1) - Se recopilarán los datos precisos que posibiliten evaluar el comportamiento del sistema de gestión de incidentes, de acuerdo con la Instrucción Técnica de Seguridad de Notificación de Incidentes de Seguridad y con la correspondiente guía CCN-STIC.',
+  'op.mon.2.r2.1':
+    'Datos de eficiencia: horas y presupuesto (R2) - Se recopilarán los datos precisos para conocer la eficiencia del sistema de seguridad, en relación con los recursos consumidos, en términos de horas y presupuesto.',
+  'op.mon.3.1':
+    'Recolección automática de eventos de seguridad - Se dispondrá de un sistema automático de recolección de eventos de seguridad.',
+  'op.mon.3.r1.1':
+    'Correlación de eventos (R1) - Se dispondrá de un sistema automático de recolección de eventos de seguridad que permita la correlación de los mismos.',
+  'op.mon.3.r2.1':
+    'Superficie de exposición: vulnerabilidades y configuración (R2) - Se dispondrá de soluciones de vigilancia que permitan determinar la superficie de exposición con relación a vulnerabilidades y deficiencias de configuración.',
+  'op.mon.3.r3.1':
+    'Amenazas avanzadas y comportamientos anómalos (R3) - Se dispondrá de sistemas para detección de amenazas avanzadas y comportamientos anómalos.',
+  'op.mon.3.r3.2':
+    'APT por anomalías en el tráfico de red (R3) - Se dispondrá de sistemas para la detección de amenazas persistentes avanzadas (Advanced Persistent Threat, APT) mediante la detección de anomalías significativas en el tráfico de la red.',
+  'op.mon.3.r4.1':
+    'Observatorios digitales (R4) - Se dispondrá de observatorios digitales con fines de cibervigilancia dedicados a la detección y seguimiento de anomalías que pudieran representar indicadores de amenaza en contenidos digitales.',
+  'op.mon.3.r5.1':
+    'Limitación y vigilancia de consultas (R5) - Limitación de las consultas, monitorizando volumen y frecuencia.',
+  'op.mon.3.r5.2':
+    'Alerta en tiempo real a los administradores (R5) - Alerta a los administradores de seguridad de comportamientos sospechosos en tiempo real.',
+  'op.mon.3.r6.1':
+    'Inspección: verificación de configuración (R6) - Verificación de configuración.',
+  'op.mon.3.r6.2':
+    'Inspección: análisis de vulnerabilidades (R6) - Análisis de vulnerabilidades.',
+  'op.mon.3.r6.3':
+    'Inspección: pruebas de penetración (R6) - Pruebas de penetración.',
+  'op.mon.3.r7.1':
+    'Interconexiones: control de flujos por metadatos (R7) - Refuerzo R7 – Interconexiones: En las interconexiones que lo requieran se aplicarán controles en los flujos de intercambio de información a través del uso de metadatos.',
+  'op.nub.1.1':
+    'Medidas del modelo de servicio prestado (prestador) - Los sistemas que suministran un servicio en la nube a organismos del sector público deberán cumplir con el conjunto de medidas de seguridad en función del modelo de servicio en la nube que presten: Software como Servicio (Software as a Service, SaaS), Plataforma como Servicio (Platform as a Service, PaaS) e Infraestructura como Servicio (Infrastructure as a Service, IaaS) definidas en las guías CCN-STIC que sean de aplicación.',
+  'op.nub.1.2':
+    'Conformidad de los servicios en la nube de terceros (usuario) - Cuando se utilicen servicios en la nube suministrados por terceros, los sistemas de información que los soportan deberán ser conformes con el ENS o cumplir con las medidas desarrolladas en una guía CCN-STIC que incluirá, entre otros, requisitos relativos a: a) Auditoría de pruebas de penetración (pentesting). b) Transparencia. c) Cifrado y gestión de claves. d) Jurisdicción de los datos.',
+  'op.nub.1.r1.1':
+    'Servicios de terceros certificados (R1) - Cuando se utilicen servicios en la nube suministrados por terceros, estos deberán estar certificados bajo una metodología de certificación reconocida por el Organismo de Certificación del Esquema Nacional de Evaluación y Certificación de Seguridad de las Tecnologías de la Información.',
+  'op.nub.1.r1.2':
+    'Servicios cloud de seguridad conformes con op.pl.5 (R1) - Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].',
+  'op.nub.1.r2.1':
+    'Configuración según la guía CCN-STIC específica (R2) - La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.',
 };

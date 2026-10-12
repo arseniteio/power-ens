@@ -40,9 +40,12 @@ export interface ENSRequirementDefinition {
 }
 
 // Dimensión de seguridad por cuyo NIVEL se rige un control, cuando no se rige
-// por la categoría del sistema. Hoy solo existe la Trazabilidad: op.exp.8 es la
-// única medida de op.exp que el Anexo II aplica por el nivel de una dimensión.
-export type ENSLevelDimension = 'T';
+// por la categoría del sistema. Dos, las que el Anexo II usa en las medidas que
+// cubre ENSFácil:
+//   - 'T' Trazabilidad: op.exp.8, la única medida de op.exp que se aplica por
+//     el nivel de una dimensión;
+//   - 'D' Disponibilidad: op.cont.2 y op.cont.3, que solo rigen con D en ALTO.
+export type ENSLevelDimension = 'T' | 'D';
 
 // Plano en el que se mide un control: en cada máquina del alcance (`agent`) o
 // en el manager de Wazuh (`manager`, agente 000), que no pertenece a ningún
@@ -56,7 +59,8 @@ export interface ENSControlDefinition {
   category: string;
   dimension: string;
   // Opcional. Si se declara, el control se evalúa con el nivel de esa dimensión
-  // de la configuración global (`traceabilityLevel` para 'T') y, si no está
+  // de la configuración global (`traceabilityLevel` para 'T',
+  // `availabilityLevel` para 'D') y, si no está
   // declarado allí, con el nivel ENS global, como todos los demás. `dimension`
   // sigue siendo texto descriptivo: esto es lo único que el motor lee.
   levelDimension?: ENSLevelDimension;

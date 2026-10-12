@@ -166,6 +166,40 @@ export const buildENSReportRows = (
   model: ENSReportModel | undefined,
 ): ENSReportRow[] => (model?.fields || []).map(buildENSReportRow);
 
+// La línea de PRUEBA bajo el veredicto de cada requisito del informe. El
+// veredicto es el mismo a propósito —lo no demostrado cuenta en contra—, así
+// que lo que separa un requisito de otro es cómo se demostró: con un documento
+// (`attested`), midiendo (`evidenced`) o no demostrado, con las causas de sus
+// no conformidades. Un cumplimiento documental se lee «acreditado
+// documentalmente», nunca como una medida; y un incumplimiento juzgado desde
+// una declaración (`documental`: un contrato o una certificación vencida o
+// ausente) se lee «declarado (documental)», tampoco como medido. En un
+// NO_APLICA no hay nada que decir: no había nada que medir.
+export const ensRequirementProofLabel = (
+  requirement: { status: string; attested?: boolean; evidenced?: boolean; documental?: boolean },
+  causes: string[] = [],
+): string => {
+  if (requirement.status === 'NO_APLICA') {
+    return '';
+  }
+
+  if (requirement.attested) {
+    return 'Acreditado documentalmente';
+  }
+
+  if (requirement.evidenced && requirement.documental) {
+    return 'Declarado (documental)';
+  }
+
+  if (requirement.evidenced) {
+    return 'Medido';
+  }
+
+  return causes.length > 0
+    ? `No evidenciado · ${causes.join(', ')}`
+    : 'No evidenciado';
+};
+
 // Color de la insignia de estado en pantalla (paleta de EuiBadge).
 export const ensReportStatusBadgeColor = (estado: string): string =>
   estado === 'CUMPLE'

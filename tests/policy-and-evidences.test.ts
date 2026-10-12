@@ -290,6 +290,60 @@ bloque('5. Sin `evidenceIds`, la decisión hereda las del requisito');
   );
 }
 
+// --- 6. lo nombrado y lo heredado ------------------------------------------
+
+bloque('6. Lo nombrado manda sobre un HUECO heredado, nunca sobre un incumplimiento');
+
+{
+  // R1 se demuestra con EV-X y no la nombra (la hereda); R2 nombra EV-X.
+  const REQUISITOS = [
+    { id: 'R1', evidenceIds: ['EV-X'] },
+    { id: 'R2', evidenceIds: ['EV-X'] },
+  ];
+  const resuelve = (heredada: string, nombrada: string) =>
+    estadoDe(
+      applyPolicyDecisionsToEvidences(
+        [evidencia('EV-X', 'NO_EVALUABLE')],
+        [decision('R1', heredada, []), decision('R2', nombrada, ['EV-X'])],
+        REQUISITOS
+      ),
+      'EV-X'
+    );
+
+  comprueba(
+    'un NO_EVALUABLE heredado no tapa un CUMPLE nombrado (R1 no se pudo medir por otra cosa)',
+    resuelve('NO_EVALUABLE', 'CUMPLE') === 'CUMPLE',
+    resuelve('NO_EVALUABLE', 'CUMPLE')
+  );
+  comprueba(
+    'un NO_CUMPLE heredado SÍ manda: R1 se apoya en EV-X y no conforma',
+    resuelve('NO_CUMPLE', 'CUMPLE') === 'NO_CUMPLE',
+    resuelve('NO_CUMPLE', 'CUMPLE')
+  );
+  comprueba(
+    'un PARCIAL heredado también manda sobre un CUMPLE nombrado',
+    resuelve('PARCIAL', 'CUMPLE') === 'PARCIAL',
+    resuelve('PARCIAL', 'CUMPLE')
+  );
+  comprueba(
+    'y sobre un NO_EVALUABLE nombrado',
+    resuelve('PARCIAL', 'NO_EVALUABLE') === 'PARCIAL',
+    resuelve('PARCIAL', 'NO_EVALUABLE')
+  );
+  comprueba(
+    'pero no sobre un nombrado peor: un NO_CUMPLE nombrado queda',
+    resuelve('PARCIAL', 'NO_CUMPLE') === 'NO_CUMPLE',
+    resuelve('PARCIAL', 'NO_CUMPLE')
+  );
+  comprueba(
+    'sin nada nombrado, lo heredado se aplica como siempre (incluido un hueco)',
+    estadoDe(
+      applyPolicyDecisionsToEvidences([evidencia('EV-X', 'NO_EVALUABLE')], [decision('R1', 'CUMPLE', [])], REQUISITOS),
+      'EV-X'
+    ) === 'CUMPLE'
+  );
+}
+
 // --- salida ---------------------------------------------------------------
 
 console.log('');

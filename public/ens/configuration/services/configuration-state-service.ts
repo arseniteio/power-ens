@@ -190,10 +190,15 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
-  // El nivel de Trazabilidad es opcional: si el formulario lo quita, la mezcla
-  // de arriba lo resucitaría desde la configuración activa.
+  // Los niveles de Trazabilidad y de Disponibilidad son opcionales: si el
+  // formulario los quita, la mezcla de arriba los resucitaría desde la
+  // configuración activa.
   if (!globalConfiguration.traceabilityLevel) {
     delete candidateConfiguration.global.traceabilityLevel;
+  }
+
+  if (!globalConfiguration.availabilityLevel) {
+    delete candidateConfiguration.global.availabilityLevel;
   }
 
   const serverState =

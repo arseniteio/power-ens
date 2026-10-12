@@ -1,0 +1,134 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_nub_1_json_rules.xml
+     Este fichero es idéntico, byte a byte, en dos sitios: la fuente canónica
+     del plugin y la carpeta manager/ del runbook linux/op.nub.1. Si se
+     modifica uno, hay que copiar el otro: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_nub_1,">
+
+  <!-- ================================================================
+       op.nub.1 · Protección de servicios en la nube
+       Rango reservado: 111500-111599
+       Base 111500 · hechos crudos 111501-111549 · evidence_state 111550
+       · diagnóstico del recolector 111597-111599
+
+       Todo lo emite el recolector del MANAGER (agent.id=000), que solo lee
+       ficheros locales y no usa credenciales: la configuración de los
+       módulos cloud de Wazuh (ossec.conf del manager y agent.conf de los
+       grupos, solo su PRESENCIA, nunca claves ni secretos), las alertas de
+       esos módulos en alerts.json y sus errores en ossec.log. La credencial
+       del proveedor vive en un agente dedicado que configura el cliente.
+       Pasa cada 6 h y reemite el estado entero.
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       public/ens/core/evidence/catalog.ts:
+
+         EV-01 111501 · EV-02 111502 · EV-04 111503 · EV-07 111504
+
+       EV-03 (shadow IT), EV-05 (cifrado) y EV-06 (región) no tienen hecho:
+       son datos del informe, sin veredicto (Wazuh 4.14 no tiene «SCA
+       cloud»). EV-08 y EV-09 son documentales: las juzga el plugin con las
+       tablas de la pantalla.
+
+       El grupo de estas reglas NO lleva `amazon`, `azure` ni `gcp`: los
+       hechos de ENSFácil no pueden contarse como registros de la nube. El
+       recolector, además, descarta de sus recuentos toda alerta con
+       `data.ensfacil`.
+
+       Ninguna regla lleva `estado` de cumplimiento, ni ninguna descripción
+       lleva un campo largo (las listas de operaciones, de controles fallidos
+       o de orígenes): la descripción viaja en cada alerta. Añadir o mover
+       una regla obliga a tocar los dos ficheros y el catálogo a la vez.
+       ================================================================ -->
+
+  <rule id="111500" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.nub.1</field>
+    <description>op.nub.1 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.nub.1.2 · integración de los servicios cloud en Wazuh ===== -->
+
+  <!-- EV-01. Cada 6 h, un hecho por módulo cloud (aws-s3, azure-logs,
+       gcp-pubsub, gcp-bucket, office365, ms-graph, github), o uno con
+       modulo=ninguno si no hay ninguno: dónde está configurado, si está
+       habilitado, su última alerta, las de 24 h y sus errores en 24 h. -->
+  <rule id="111501" level="3">
+    <if_sid>111500</if_sid>
+    <field name="event">cloud_integration_observed</field>
+    <description>op.nub.1 · EV-01 · integración cloud $(modulo) en $(donde): última alerta $(ultima_alerta), $(alertas_24h) en 24 h, $(errores_24h) errores</description>
+  </rule>
+
+  <!-- ===== op.nub.1.r2.1 · configuración del inquilino ===== -->
+
+  <!-- EV-02. Cada 6 h, un hecho por módulo, fuente y estándar de los
+       hallazgos de postura del propio proveedor que Wazuh ingiere (AWS
+       Security Hub o Config, Microsoft Defender, Security Command Center),
+       con el último resultado de cada control conservado entre pasadas; o
+       uno con fuente=ninguna. No es «SCA cloud»: Wazuh 4.14 no lo tiene. -->
+  <rule id="111502" level="3">
+    <if_sid>111500</if_sid>
+    <field name="event">cloud_posture_finding_observed</field>
+    <description>op.nub.1 · EV-02 · postura $(fuente) de $(modulo): $(controles_fallidos) de $(controles_evaluados) controles fallidos</description>
+  </rule>
+
+  <!-- ===== op.nub.1.2 · operaciones y accesos en la nube ===== -->
+
+  <!-- EV-04. Una acción: las operaciones de administración con éxito leídas
+       en la pasada, agregadas por módulo, cuenta y actor. Nunca un hecho por
+       operación. -->
+  <rule id="111503" level="3">
+    <if_sid>111500</if_sid>
+    <field name="event">cloud_admin_operation_observed</field>
+    <description>op.nub.1 · EV-04 · operaciones administrativas de $(actor) en $(modulo) ($(cuenta)): $(veces)</description>
+  </rule>
+
+  <!-- EV-07. Una acción: los inicios de sesión interactivos leídos en la
+       pasada, agregados por módulo, cuenta, usuario, resultado y segundo
+       factor. -->
+  <rule id="111504" level="3">
+    <if_sid>111500</if_sid>
+    <field name="event">cloud_authentication_observed</field>
+    <description>op.nub.1 · EV-07 · autenticación cloud de $(usuario) en $(modulo): $(resultado), segundo factor $(segundo_factor), $(veces) veces</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer»
+       (COLLECTION) de «lo que llegó no basta» (EVIDENCE), y las dos se
+       arreglan en sitios distintos. -->
+  <rule id="111550" level="5">
+    <if_sid>111500</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.nub.1 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 111597. El latido, al final de cada pasada. No acredita ninguna
+       evidencia: dice qué se barrió, que es lo que delimita en el motor la
+       última pasada de cada hecho de estado. -->
+  <rule id="111597" level="3">
+    <if_sid>111500</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.nub.1 · pasada del recolector ($(tipo_servidor)): $(resultado), cubre $(evidencias_cubiertas)</description>
+  </rule>
+
+  <!-- 111598. Aviso operativo: .env ilegible, sin root, candado, una ruta o un
+       log_alert_level distintos de los esperados, o un secreto del proveedor
+       escrito en el manager o en un agent.conf compartido. -->
+  <rule id="111598" level="5">
+    <if_sid>111500</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.nub.1 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 111599. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <rule id="111599" level="7">
+    <if_sid>111500</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.nub.1 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>

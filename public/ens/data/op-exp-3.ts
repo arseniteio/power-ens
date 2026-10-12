@@ -308,7 +308,7 @@ export const opExp3Control: ENSControl = {
       id: 'P-03',
       name: 'administradores_configuracion',
       description:
-        'Cuentas autorizadas a editar la configuración de seguridad, una por línea y tal como las emite el agente: la cuenta de la sesión que hizo el cambio aunque pasara por sudo (dioni, no root). Los cambios sin sesión (un paquete que se actualiza, un servicio) llegan con la cuenta del proceso, normalmente root: declararla aquí acepta esos cambios, y no declararla los deja como hallazgo para que se revisen. En un servidor LDAP, las identidades del directorio que cambian cn=config van con su DN entero y las comas cambiadas por guiones bajos (cn=config; gidNumber=0+uidNumber=0_cn=peercred_cn=external_cn=auth para root por el socket local). La comparación es literal y distingue mayúsculas.',
+        'Cuentas autorizadas a editar la configuración de seguridad, una por línea y tal como las emite el agente: la cuenta de la sesión que hizo el cambio aunque pasara por sudo (operador, no root). Los cambios sin sesión (un paquete que se actualiza, un servicio) llegan con la cuenta del proceso, normalmente root: declararla aquí acepta esos cambios, y no declararla los deja como hallazgo para que se revisen. En un servidor LDAP, las identidades del directorio que cambian cn=config van con su DN entero y las comas cambiadas por guiones bajos (cn=config; gidNumber=0+uidNumber=0_cn=peercred_cn=external_cn=auth para root por el socket local). La comparación es literal y distingue mayúsculas.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.6', 'op.exp.3.r2.1'],
       type: 'list',

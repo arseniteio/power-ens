@@ -138,6 +138,40 @@ RUNBOOKS = {
         ("linux/op.exp.10",),
         ["ensfacil_op_exp_10_json_rules.xml"],
     ),
+    # Solo Linux: todo se mide en el manager, y el LDAP no aporta nada que el
+    # manager no vea (spec 2026-10-09 §1.4).
+    "op.mon.1": (
+        ("linux/op.mon.1",),
+        ["ensfacil_op_mon_1_json_rules.xml"],
+    ),
+    # Solo Linux y solo el manager: los registros de la organización, la base
+    # de agentes y los latidos de todos los recolectores están en él (spec
+    # 2026-10-09 §2.4).
+    "op.mon.2": (
+        ("linux/op.mon.2",),
+        ["ensfacil_op_mon_2_json_rules.xml"],
+    ),
+    # Manager y agente en el mismo runbook, como op.exp.8: el recolector de
+    # agente solo lee ficheros de estado de Wazuh y vale igual en el LDAP, así
+    # que no hay variante zimbra (spec 2026-10-09 §3.4).
+    "op.mon.3": (
+        ("linux/op.mon.3",),
+        ["ensfacil_op_mon_3_json_rules.xml"],
+    ),
+    # Solo Linux, en el manager: la integración de los servicios en la nube de
+    # los clientes (módulos cloud de Wazuh, sus registros y sus errores). La
+    # parte documental la juzga el plugin sin recolector (spec 2026-10-09 §4.4).
+    "op.nub.1": (
+        ("linux/op.nub.1",),
+        ["ensfacil_op_nub_1_json_rules.xml"],
+    ),
+    # Solo Linux y solo el manager: los dos registros de la organización y las
+    # caídas y restauraciones de cada prueba se ven en el manager; ni el LDAP
+    # ni Windows aportan nada (spec 2026-10-09 §6.4).
+    "op.cont.3": (
+        ("linux/op.cont.3",),
+        ["ensfacil_op_cont_3_json_rules.xml"],
+    ),
 }
 
 # Nombre que tenía cada repositorio antes del renombrado del 01/10/2026, que
@@ -163,6 +197,57 @@ CARPETAS_ANTERIORES = {
     "linux/op.exp.9": "op.exp.9-incident-management-records",
     "linux/op.exp.10": "op.exp.10-cryptographic-key-protection",
 }
+
+# Controles ACTIVE que se juzgan SIN runbook, con su motivo (op.cont.2: todo lo
+# que decide está en la pantalla de Configuración). La lista vive en un JSON
+# porque la lee también `draft-control.test.ts`: una sola lista, no dos que
+# puedan divergir. Un control ACTIVE que no esté ni en RUNBOOKS ni aquí falla
+# en la comprobación 14.
+SIN_RUNBOOK = {
+    control: motivo
+    for control, motivo in json.loads(
+        open(os.path.join(AQUI, "controls-without-runbook.json"), encoding="utf-8").read()
+    ).items()
+    if not control.startswith("_")
+}
+
+
+def estados_del_catalogo():
+    """(control -> `status`, ficheros ilegibles) de `public/ens/catalog`.
+
+    El `id` y el `status` del propio control son los únicos a dos espacios de
+    sangría: los de requisitos van más adentro. Un fichero sin uno de los dos
+    NO se salta en silencio: se devuelve aparte y la comprobación 14 lo da por
+    fallo. Saltarlo era dejar fuera de la comprobación justo al control que no
+    se sabe en qué estado está.
+    """
+    estados = {}
+    ilegibles = []
+    carpeta = os.path.join(PLUGIN, "public/ens/catalog")
+    for fichero in sorted(os.listdir(carpeta)):
+        if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
+            continue
+        with open(os.path.join(carpeta, fichero), encoding="utf-8") as f:
+            texto = f.read()
+        ident = re.search(r"^  id: '([^']+)',$", texto, re.M)
+        estado = re.search(r"^  status: '([A-Z]+)',$", texto, re.M)
+        if not ident or not estado:
+            ilegibles.append(
+                "{}: {}".format(
+                    fichero,
+                    "sin `id` del control" if not ident else "sin `status` del control",
+                )
+            )
+        if ident:
+            estados[ident.group(1)] = estado.group(1) if estado else None
+    return estados, ilegibles
+
+
+ESTADOS, CATALOGO_ILEGIBLE = estados_del_catalogo()
+
+# Lo que tiene bloque de configuración: lo que tiene runbook y lo que, sin
+# runbook, está en el catálogo. Un control sin runbook se configura igual.
+CON_BLOQUE = list(RUNBOOKS) + sorted(c for c in SIN_RUNBOOK if c in ESTADOS)
 
 
 def _repos_bajo(raiz, profundidad=3):
@@ -476,7 +561,7 @@ for control, (repos, _) in RUNBOOKS.items():
 
 print("\n=== 6. Cada control tiene su bloque de configuración ===\n")
 
-for control in RUNBOOKS:
+for control in CON_BLOQUE:
     fichero = control.replace(".", "-") + "-control-block.json"
     ruta = os.path.join(PLUGIN, "config", fichero)
     if not os.path.exists(ruta):
@@ -973,7 +1058,7 @@ print()
 
 import re as _re
 
-for _control in sorted(RUNBOOKS):
+for _control in sorted(CON_BLOQUE):
     _slug = _control.replace(".", "-")
     _bloque = pathlib.Path(PLUGIN) / "config" / ("%s-control-block.json" % _slug)
     _fuente = pathlib.Path(PLUGIN) / "public/ens/configuration/data" / ("%s-parameters.ts" % _slug)
@@ -1065,6 +1150,215 @@ if _huerfanos:
           "conformidad." % ", ".join(sorted(set(_huerfanos))))
 else:
     ok("toda evidencia acredita requisitos, no controles")
+
+# =============================================================================
+# 14. Todo control ACTIVE tiene runbook o está declarado sin él
+# =============================================================================
+#
+# Casi todas las comprobaciones de este script recorren RUNBOOKS. Un control
+# ACTIVE que no esté ahí es INVISIBLE para ellas: sin reglas acreditadas, la 1
+# lo da por «sin agente» y las demás no lo miran. Es el mismo agujero que la 1
+# cerró para las reglas, por el otro lado.
+#
+# Hay controles que se juzgan sin runbook a propósito (op.cont.2: todo lo que
+# decide está en la pantalla). Esos se declaran en
+# `controls-without-runbook.json` con su motivo, y entonces no pueden acreditar
+# reglas: una regla solo existe si un runbook la despliega.
+
+print()
+print("=== 14. Todo control ACTIVE tiene runbook o está declarado sin él ===")
+print()
+
+
+def activos_sin_runbook(estados, runbooks, sin_runbook, acreditadas):
+    """Fallos de la comprobación 14, como lista de (titulo, detalle).
+
+    `estados`: control -> status del catálogo. `acreditadas`: control -> reglas
+    que acreditan sus evidencias. Es una función para poder anclarla abajo con
+    un catálogo inventado.
+    """
+    errores = []
+    for control, estado in sorted(estados.items()):
+        if estado != "ACTIVE" or control in runbooks:
+            continue
+        if control not in sin_runbook:
+            errores.append((
+                "{}: ACTIVE sin runbook y sin declarar".format(control),
+                "registrar su runbook en RUNBOOKS o, si se juzga sin runbook,"
+                " declararlo con su motivo en tests/controls-without-runbook.json",
+            ))
+        elif not str(sin_runbook[control]).strip():
+            errores.append((
+                "{}: declarado sin runbook pero sin motivo".format(control),
+                "tests/controls-without-runbook.json tiene que decir por qué",
+            ))
+        elif acreditadas.get(control):
+            errores.append((
+                "{}: declarado sin runbook y acredita reglas".format(control),
+                "{}: una regla solo existe si un runbook la despliega".format(
+                    ", ".join(sorted(acreditadas[control]))
+                ),
+            ))
+    for control in sorted(sin_runbook):
+        if control in runbooks:
+            errores.append((
+                "{}: tiene runbook y está declarado sin él".format(control),
+                "quitarlo de tests/controls-without-runbook.json",
+            ))
+    return errores
+
+
+# Ancla: con un catálogo inventado, un ACTIVE sin runbook y sin declarar TIENE
+# que salir. Si la función dejara de verlo, esta comprobación aprobaría en
+# vacío y el agujero volvería sin que nada avisara.
+_ancla = activos_sin_runbook(
+    {"op.zzz.1": "ACTIVE", "op.zzz.2": "ACTIVE", "op.zzz.3": "DRAFT", "op.zzz.4": "ACTIVE"},
+    {"op.zzz.4": None},
+    {"op.zzz.2": "motivo de prueba"},
+    {},
+)
+if [t for t, _ in _ancla] != ["op.zzz.1: ACTIVE sin runbook y sin declarar"]:
+    falla(
+        "el ancla de la comprobación 14 no da lo esperado",
+        "; ".join(t for t, _ in _ancla) or "ningún fallo",
+    )
+elif not activos_sin_runbook(
+    {"op.zzz.2": "ACTIVE"}, {}, {"op.zzz.2": "motivo"}, {"op.zzz.2": {"123"}}
+):
+    falla(
+        "el ancla de la comprobación 14 no da lo esperado",
+        "un control declarado sin runbook que acredita reglas no sale",
+    )
+else:
+    _acreditadas = {}
+    for _c in ESTADOS:
+        _reglas = set()
+        for _, _cuerpo in bloques_evidencia(catalogo, _c):
+            _reglas |= set(campo_lista(_cuerpo, "relatedRules"))
+        _acreditadas[_c] = _reglas
+
+    _errores = activos_sin_runbook(ESTADOS, RUNBOOKS, SIN_RUNBOOK, _acreditadas)
+    for _titulo, _detalle in _errores:
+        falla(_titulo, _detalle)
+
+    # Un control del que no se sabe el estado no se puede comprobar: falla.
+    for _ilegible in CATALOGO_ILEGIBLE:
+        falla(
+            "catálogo ilegible: {}".format(_ilegible),
+            "el control y su `status` van a dos espacios de sangría"
+            " (`  id: '…',` y `  status: 'ACTIVE',`); sin ellos esta"
+            " comprobación no sabe si el control exige runbook",
+        )
+    _errores = _errores + [(i, "") for i in CATALOGO_ILEGIBLE]
+
+    for _c in sorted(c for c in SIN_RUNBOOK if c not in ESTADOS):
+        avisa(
+            "{}: declarado sin runbook y todavía no está en el catálogo".format(_c),
+            "se comprobará cuando se genere",
+        )
+
+    if not _errores:
+        _activos = sorted(c for c, e in ESTADOS.items() if e == "ACTIVE")
+        _sin = [c for c in _activos if c in SIN_RUNBOOK]
+        ok(
+            "los {} control(es) ACTIVE tienen runbook o están declarados sin él".format(
+                len(_activos)
+            ),
+            "sin runbook: {}".format(", ".join(_sin)) if _sin else "",
+        )
+
+
+# --- 15 -------------------------------------------------------------------------
+#
+# Sin `^…$`, el valor de un `<field>` casa como SUBCADENA. Pasó en op.mon.3
+# (10/10, comprobado con wazuh-logtest 4.14.7): `log_source_observed` casaba
+# dentro de `syslog_source_observed`; las dos reglas son de nivel 3, así que
+# ganaba la primera del fichero y una fuente syslog salía con la regla de las
+# fuentes de agente. Cada mitad parecía bien: solo se ve cruzando los nombres.
+#
+# Se miran los `event` de cada XML canónica contra los demás `event` del mismo
+# fichero, y el `ensfacil` de cada regla base contra los ids de todos los
+# controles (`op.exp.1` casaría dentro de `op.exp.10`). Nada más: el `estado`
+# CUMPLE/NO_CUMPLE de op.acc.1 y op.acc.2 se solapa y lo resuelve el nivel de
+# la regla, a propósito. Las copias de los runbooks solo avisan: las arregla
+# volver a copiar la canónica.
+
+print()
+print("=== 15. Ningún `event` sin anclar casa dentro de otro evento ===")
+print()
+
+
+def _campos(texto, nombre):
+    """(rule id, valor) de cada `<field name=nombre>`, sin los comentarios."""
+    limpio = re.sub(r"<!--.*?-->", "", texto, flags=re.S)
+    salida = []
+    for regla, cuerpo in re.findall(r'<rule\s+id="(\d+)"[^>]*>(.*?)</rule>', limpio, flags=re.S):
+        for valor in re.findall(r'<field\s+name="%s"[^>]*>([^<]*)</field>' % nombre, cuerpo):
+            salida.append((regla, valor.strip()))
+    return salida
+
+
+def _casa(patron, nombre):
+    try:
+        return re.search(patron, nombre) is not None
+    except re.error:
+        return True
+
+
+def choques_de_eventos(ruta):
+    eventos = _campos(lee(ruta), "event")
+    nombres = {v.strip("^$") for _, v in eventos}
+    return [
+        "{} «{}» casa dentro de «{}»".format(regla, valor, otro)
+        for regla, valor in eventos
+        for otro in sorted(nombres - {valor.strip("^$")})
+        if _casa(valor, otro)
+    ]
+
+
+_canonicas = sorted(glob.glob(os.path.join(PLUGIN, "agent", "rules", "*.xml")))
+_bases = []
+_con_choques = 0
+
+for _ruta in _canonicas:
+    _bases += [(os.path.basename(_ruta), r, v) for r, v in _campos(lee(_ruta), "ensfacil")]
+    _choques = choques_de_eventos(_ruta)
+    if _choques:
+        _con_choques += 1
+        falla(
+            "{}: hay un `event` sin anclar que casa dentro de otro".format(os.path.basename(_ruta)),
+            "; ".join(_choques) + " — ánclalo: ^nombre$",
+        )
+
+_ids = {v.strip("^$") for _, _, v in _bases}
+_choques_base = [
+    "{} {} «{}» casa dentro de «{}»".format(f, r, v, otro)
+    for f, r, v in _bases
+    for otro in sorted(_ids - {v.strip("^$")})
+    if _casa(v, otro)
+]
+if _choques_base:
+    falla("una regla base casa con el id de otro control", "; ".join(_choques_base) + " — ánclala: ^id$")
+
+if not _con_choques and not _choques_base:
+    ok(
+        "las {} XML canónicas: ningún `event` ni regla base casa dentro de otro".format(len(_canonicas))
+    )
+
+for _control, (_repos, _xmls) in sorted(RUNBOOKS.items()):
+    for _repo in _repos:
+        for _x in _xmls:
+            _copia = os.path.join(carpeta_de(_repo), "manager", _x)
+            if not os.path.exists(_copia):
+                continue
+            _choques = choques_de_eventos(_copia)
+            if _choques:
+                avisa(
+                    "{} ({}): la copia desplegada tiene un `event` sin anclar que casa dentro de otro".format(_x, _repo),
+                    "; ".join(_choques[:3]) + " — vuelve a copiar la canónica del plugin",
+                )
+
+print()
 
 if fallos:
     print("{} comprobación(es) FALLAN: {}".format(len(fallos), "; ".join(fallos)))

@@ -3769,4 +3769,1175 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Toda clave privada tiene un modo no más permisivo y el propietario que P-02 declara para su almacén?',
   },
+  // --- op.mon.1 · Detección de intrusión ------------------------------------
+  //
+  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
+  // credenciales: el motor de reglas, la base de agentes (global.db) y la base
+  // de cada agente en el manager (queue/db/NNN.db), alerts.json y los ficheros
+  // de reglas. Los hechos hablan de OTROS sistemas por su campo `agente`, así
+  // que no hay primitiva que los juzgue: lo hace la policy del control
+  // (`policies/op-mon-1.policy.ts`), cruzando cada fila de P-01 con su hecho
+  // por nombre o por ID, y el puente lo lleva a la tabla.
+  //
+  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
+  // causa), nunca veredictos. Pasa cada hora: el estado del motor de reglas
+  // (EV-01) en cada pasada, y todo lo demás —estados lentos y por agente— cada
+  // 6 h, reemitido entero. El contrato completo (campos, cadencias, partes de
+  // los ids) lo documenta el runbook, y `tests/op-mon-1-judgment.test.ts` lo
+  // ejercita.
+  //
+  // Reglas: banda 111200-111299, desplegadas por el runbook `linux/op.mon.1`.
+  {
+    // La serie del motor entre pasadas prueba que procesa; por eso
+    // `detection_engine_status` NO es hecho de estado (quedarse con la última
+    // pasada borraría la anterior, que es con la que se compara), y
+    // `ruleset_version_observed` tampoco: llega cada 6 h y la pasada horaria,
+    // que también cubre EV-01, lo descartaría. La policy toma la última de cada
+    // uno contra su frescura.
+    id: 'EV-01',
+    controlId: 'op.mon.1',
+    title: 'Capacidad de detección de intrusiones desplegada y operativa',
+    description:
+      'Motor de reglas del manager en marcha y procesando: estado del servicio wazuh-manager, contadores del motor de análisis (eventos recibidos, procesados y descartados, alertas escritas) cuya serie entre pasadas prueba que procesa, y el ruleset cargado: versión de Wazuh, fecha del fichero de reglas más reciente, ficheros, reglas y reglas con técnica MITRE ATT&CK. Los conjuntos de reglas de P-03 (R1) se juzgan aparte, con el inventario de EV-04.',
+    requirements: ['op.mon.1.1', 'op.mon.1.r1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_engine_status', 'ruleset_version_observed'],
+    relatedRules: ['111201', '111202'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Está el motor de reglas del manager en marcha, procesando eventos y con reglas cargadas?',
+  },
+  {
+    // Por agente, cada 6 h. La policy cruza cada sistema de P-01 con su fila
+    // por ID o por nombre: agente conectado y pasadas de FIM y SCA dentro de
+    // P-10. Los agentes fuera de P-01 (de prueba, dados de baja) no cuentan.
+    // La base ilegible de un agente llega en su hecho (`lectura=error`); el
+    // evidence_state de la evidencia entera es solo para global.db.
+    id: 'EV-02',
+    controlId: 'op.mon.1',
+    title: 'Cobertura efectiva de la detección',
+    description:
+      'Por cada agente registrado en el manager (global.db, leída en solo lectura): estado de conexión, último keepalive, versión y grupos; y, de su base en el manager, el fin de su última pasada de FIM, de SCA y de inventario. Se contrasta con los sistemas de P-01: un sistema declarado sin agente, con el agente desconectado o sin pasada de FIM o SCA en P-10 horas es un punto ciego del control.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_coverage_observed'],
+    stateFactEventTypes: ['detection_coverage_observed'],
+    relatedRules: ['111203'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada sistema de P-01 su agente conectado y ha completado pasadas de FIM y de SCA dentro de P-10?',
+  },
+  {
+    // Por agente, cada 6 h: el instante de la última alerta propia (sin las de
+    // ENSFácil) y el volumen de las últimas 24 h. «Sistema activo sin
+    // detecciones» decide (decisión del responsable del 09/10), con P-09.
+    id: 'EV-03',
+    controlId: 'op.mon.1',
+    title: 'Detecciones de intrusión del período',
+    description:
+      'Por cada agente, a partir de alerts.json del manager (sin las alertas de ENSFácil): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'detection_activity_observed'],
+    stateFactEventTypes: ['detection_activity_observed'],
+    relatedRules: ['111204'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Ha producido cada sistema de P-01 conectado alguna detección en los últimos P-09 días?',
+  },
+  {
+    // Por conjunto de reglas, cada 6 h: los ids que pueden alertar, en rangos
+    // comprimidos y partidos en varias líneas si no caben en una.
+    id: 'EV-04',
+    controlId: 'op.mon.1',
+    title: 'Trazabilidad entre análisis de riesgos y capacidad de detección',
+    description:
+      'Identificadores de las reglas que el manager carga y que pueden generar una alerta (sin los ficheros excluidos ni las reglas de nivel 0), por conjunto y en rangos comprimidos. Se cruza con P-04: cada situación de compromiso del análisis de riesgos tiene que tener al menos una regla de detección cargada. Una situación sin regla es un punto ciego del control.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'ruleset_rules_loaded'],
+    stateFactEventTypes: ['ruleset_rules_loaded'],
+    relatedRules: ['111205'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada situación de compromiso de P-04 al menos una regla de detección cargada en el manager?',
+  },
+  {
+    // Por producto, cada 6 h. Solo se juzga si P-02 exige detección en red.
+    id: 'EV-05',
+    controlId: 'op.mon.1',
+    title: 'Ingesta y correlación de eventos de detección en red',
+    description:
+      'Por cada sistema de detección en red (Suricata, Snort, Zeek u otro IDS) cuyos eventos ingiere el manager: de dónde llegan (syslog remoto o el fichero que recoge un agente) y la última alerta de red recibida, con las de las últimas 24 h. Solo se exige si P-02 declara que el análisis de riesgos pide detección en red; si no, se informa y la justificación de P-02 queda en el informe.',
+    requirements: ['op.mon.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'network_detection_observed'],
+    stateFactEventTypes: ['network_detection_observed'],
+    relatedRules: ['111206'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      'Si P-02 exige detección en red, ¿ingiere el manager los eventos de ese NIDS y ha recibido alertas suyas dentro de P-09?',
+  },
+  {
+    // Dato del informe, sin requisito que la juzgue (spec §1.3): «existirán
+    // procedimientos» es documental (P-05 o P-ATT) y la aplicación de un
+    // procedimiento a cada alerta ya la mide op.exp.7 (EV-02 y EV-06 de allí).
+    // La policy la devuelve NO_APLICA con ese motivo para que no salga en gris.
+    id: 'EV-06',
+    controlId: 'op.mon.1',
+    title: 'Aplicación de los procedimientos de respuesta (R2)',
+    description:
+      'Que las alertas generadas se trataron conforme al procedimiento de respuesta que les corresponde según P-05. Es un dato del informe, sin veredicto propio: la existencia de los procedimientos (R2) se acredita documentalmente con P-05, y su aplicación a cada alerta la mide op.exp.7 cruzando las alertas con el registro de incidentes.',
+    requirements: ['op.mon.1.r2.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se trataron las alertas conforme al procedimiento de P-05? (dato del informe; lo mide op.exp.7)',
+  },
+  {
+    // R3 no se exige en ninguna categoría: se mide y se INFORMA, sin veredicto.
+    // `active_response_configured` es estado (cada 6 h); `active_response_executed`
+    // es una acción, agregada por agente, programa y regla en cada pasada.
+    id: 'EV-07',
+    controlId: 'op.mon.1',
+    title: 'Acciones predeterminadas de respuesta ejecutadas (R3)',
+    description:
+      'Respuestas automáticas configuradas en el manager (comando, reglas o grupos que las disparan, reversión, si están habilitadas) frente a las acciones de P-07, y las ejecutadas en la ventana con la regla que las disparó, el agente y el objetivo. R3 no es exigible en ninguna categoría: se informa como cobertura de hecho del enunciado general del bloque op.mon.',
+    requirements: ['op.mon.1.r3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'active_response_configured', 'active_response_executed'],
+    stateFactEventTypes: ['active_response_configured'],
+    relatedRules: ['111207', '111208'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué respuestas automáticas de P-07 están configuradas y cuáles se han ejecutado a raíz de una alerta? (se informa: R3 no es exigible)',
+  },
+  {
+    // Dos ejes (spec §1.3): la antigüedad del ruleset contra P-08, con
+    // `ruleset_version_observed` (el hecho es de EV-01: un nombre de evento no
+    // puede estar en dos evidencias), y los silenciamientos contra P-06.
+    id: 'EV-08',
+    controlId: 'op.mon.1',
+    title: 'Vigencia del conjunto de reglas y gestión de exclusiones',
+    description:
+      'Antigüedad del ruleset (fecha de su fichero de reglas más reciente) frente a P-08, y el barrido de silenciamientos del manager: ficheros de reglas excluidos en ossec.conf (rule_exclude) y reglas reescritas a nivel 0 en las reglas propias. Cada silenciamiento tiene que figurar en P-06 con su motivo y quién lo aprobó: una exclusión sin constancia degrada la detección sin que nadie lo advierta.',
+    requirements: ['op.mon.1.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'rule_silenced'],
+    stateFactEventTypes: ['rule_silenced'],
+    relatedRules: ['111202', '111209'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
+  },
+  // --- op.cont.2 · Plan de continuidad --------------------------------------
+  //
+  // Control de DOCUMENTO, sin runbook ni reglas: ninguna máquina emite hechos
+  // para él, así que ninguna evidencia escucha ningún evento ni tiene origen
+  // (`expectedEventTypes` y `sourceTypes` vacíos). Todas las resuelve la policy
+  // del control (`policies/op-cont-2.policy.ts`) con las tablas de la pantalla
+  // y su vigencia contra la fecha de la evaluación, y el puente las lleva a la
+  // tabla. Un control cuyas evidencias no escuchan nada no espera hechos: lo
+  // que no se puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA (ver
+  // `controlExpectsFacts` en `registry.ts`).
+  //
+  // Se rige por el nivel de Disponibilidad y solo en ALTO: con D en BAJO o
+  // MEDIO todas salen NO_APLICA por nivel.
+  //
+  // EV-01, EV-04 y EV-06 juzgan declaraciones: su CUMPLE dice que la
+  // declaración está completa y en vigor, no que se haya medido nada, y el
+  // requisito que se apoya en ellas sale «acreditado documentalmente». EV-02,
+  // EV-05, EV-07 y EV-08 no se pueden medir hoy y EV-03 es de R2, que no se
+  // exige: las cinco salen NO_APLICA como dato del informe, con su motivo.
+  {
+    id: 'EV-01',
+    controlId: 'op.cont.2',
+    title: 'Registro del plan de continuidad y de su vigencia',
+    description:
+      'Constancia del plan aprobado de P-01 (referencia, versión y fecha de aprobación) y control de que su última aprobación no tiene más antigüedad que la periodicidad de revisión de P-08 en la fecha de la evaluación. NO es verificación del contenido del plan: es control documental de existencia y vigencia. Sostiene los cinco requisitos, porque cada uno es un contenido del plan.',
+    requirements: ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Consta un plan de continuidad aprobado, con su versión y fecha, cuya última aprobación no supera la periodicidad de revisión de P-08?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'op.cont.2',
+    title: 'Detección y datación de interrupciones reales del servicio',
+    description:
+      'Interrupciones efectivamente producidas en los sistemas que soportan servicios esenciales (caída de agente, parada de servicio, pérdida de conectividad), con su hora de inicio y de restablecimiento. Dato del informe, sin veredicto: el requisito pide una PREVISIÓN, no ausencia de caídas, y el hecho que las mediría no se recoge en esta versión.',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Qué interrupciones han sufrido los sistemas que soportan los servicios esenciales de P-02, y cuánto duró cada una?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.cont.2',
+    title: 'Comprobación de integridad tras caída o discontinuidad (R2)',
+    description:
+      'Verificación de la integridad del sistema operativo, del firmware y de los ficheros de configuración de P-07 al reanudarse el servicio tras una caída. R2 no se exige en ningún nivel: solo informe. La comprobación en el arranque ya la mide op.exp.6 en cada agente (su EV-06).',
+    requirements: ['op.cont.2.r2.1'],
+    levels: ['ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se comprueba la integridad de los componentes de P-07 cada vez que el sistema vuelve de una caída?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'op.cont.2',
+    title: 'Vigencia de los contratos de medios alternativos',
+    description:
+      'Cada medio alternativo de P-04 con el acuerdo o contrato que lo materializa y en vigor en la fecha de la evaluación. op.cont.2.3 exige que TODOS estén materializados en contrato: un medio sin contrato, o con el contrato vencido, es un incumplimiento directo. Se juzga la declaración, no el contrato.',
+    requirements: ['op.cont.2.3'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Tiene cada medio alternativo de P-04 un acuerdo o contrato en vigor?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'op.cont.2',
+    title: 'Coherencia de las funciones asignadas en el plan',
+    description:
+      'Contraste entre las personas con función en P-03 y su situación real en la organización (bajas, cambios de puesto). Dato del informe, sin veredicto: no hay directorio corporativo integrado (las bajas de op.acc.1 son cuentas de sistema, no personas), así que la declaración de P-03 se juzga en op.cont.2.1 y su coherencia la revisa el auditor.',
+    requirements: ['op.cont.2.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Siguen en la organización, y en el puesto, las personas a las que P-03 asigna una función del plan?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.cont.2',
+    title: 'Estado de la formación del personal afectado',
+    description:
+      'Cada responsable y cada suplente de P-03 con una fila en P-05 y la formación vigente en la fecha de la evaluación. op.cont.2.4 la exige de forma expresa: una persona con función sin formación registrada, o con la formación vencida, es un incumplimiento. Se juzga la declaración, no la formación.',
+    requirements: ['op.cont.2.4'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Tiene cada persona con función en el plan (P-03) formación específica vigente en P-05?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'op.cont.2',
+    title: 'Disponibilidad real frente a los objetivos comprometidos',
+    description:
+      'Disponibilidad efectiva de los sistemas que soportan servicios esenciales contrastada con los RTO y RPO de P-02. Dato del informe, sin veredicto: depende de las interrupciones de EV-02, que no se recogen en esta versión.',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se ha restablecido cada servicio esencial dentro de su RTO en las interrupciones del período?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.cont.2',
+    title: 'Entrada en servicio de los medios alternativos',
+    description:
+      'Activación efectiva de los medios alternativos (arranque en el emplazamiento secundario, conmutación de servicios) y el intervalo desde la caída del medio habitual. Dato del informe, sin veredicto: no hay un hecho genérico que distinga «arrancó el CPD alternativo» de «arrancó una máquina».',
+    requirements: ['op.cont.2.2'],
+    levels: ['ALTO'],
+    category: 'RECOVERY',
+    criticality: 'LOW',
+    sourceTypes: [],
+    expectedEventTypes: [],
+    relatedRules: [],
+    auditQuestion:
+      '¿Entraron en servicio los medios alternativos cuando hizo falta, y en cuánto tiempo?',
+  },
+  // --- op.cont.3 · Pruebas periódicas -----------------------------------------
+  //
+  // Solo con la Disponibilidad en ALTO (`levelDimension: 'D'`): en MEDIA todo
+  // es NO_APLICA. Un requisito con dos obligaciones, probar con periodicidad y
+  // corregir lo que la prueba revela, que juzga la policy del control
+  // (`policies/op-cont-3.policy.ts`) con EV-01, EV-02, EV-04 y EV-05. EV-03,
+  // EV-06, EV-07 y EV-08 alimentan EV-04 y el informe: salen NO_APLICA como
+  // dato del informe, con lo medido en el motivo.
+  //
+  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
+  // credenciales: los dos registros TSV de la organización
+  // (/etc/ensfacil/continuity-test-register.tsv y
+  // continuity-deficiency-register.tsv) y, para cada prueba registrada, las
+  // alertas de su ventana en alerts.json y sus archivos diarios: caídas y
+  // arranques de los agentes (503/504/506), restauraciones de mp.info.6
+  // (106606, sin tocar mp.info.6) y cambios de FIM posteriores. Los hechos
+  // hablan de OTROS sistemas por su campo `agente`, y la policy cruza los
+  // sistemas de cada prueba con ellos por ID o por nombre exacto.
+  //
+  // Todos los hechos son de ESTADO: el recolector pasa cada 6 h y reemite
+  // entero lo que dice de cada prueba registrada. Lo que vio en la ventana de
+  // una prueba de hace cinco meses tiene que seguir llegando: como acción
+  // saldría de la ventana de 30 días y la última prueba quedaría sin medida casi
+  // todo el año. El contrato completo lo documenta el runbook `linux/op.cont.3`,
+  // y `tests/op-cont-3-judgment.test.ts` lo ejercita.
+  //
+  // Reglas: banda 111700-111799, desplegadas por el runbook `linux/op.cont.3`.
+  {
+    // El registro de pruebas leído en la última pasada (111701) y una fila por
+    // prueba (111702), con lo que se pudo medir de su ventana. Registro vacío
+    // no es registro ausente: vacío, no consta ninguna prueba (NO_CUMPLE);
+    // ausente, no hay contra qué juzgar (CONFIGURATION).
+    id: 'EV-01',
+    controlId: 'op.cont.3',
+    title: 'Registro histórico de las pruebas realizadas',
+    description:
+      'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/ensfacil/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
+    stateFactEventTypes: ['continuity_test_register_read', 'continuity_test_recorded'],
+    relatedRules: ['111701', '111702'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Consta en el registro alguna prueba del plan de continuidad, y alguna que ejercite los medios alternativos?',
+  },
+  {
+    // Sin hecho propio: la policy calcula, sobre las filas de EV-01, la última
+    // prueba de todas, de cada tipo de P-02 y de cada escenario de P-03, en el
+    // instante en que se leyó el registro.
+    id: 'EV-02',
+    controlId: 'op.cont.3',
+    title: 'Control de la periodicidad de las pruebas',
+    description:
+      'Meses transcurridos desde la última prueba registrada, desde la última de cada tipo de P-02 (con su periodicidad, o la de P-01) y desde la última de cada escenario de P-03, contra P-01. Los escenarios de P-03 que nunca se han probado son el hueco de cobertura más concreto. Es la verificación de la primera de las dos obligaciones del requisito.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
+    relatedRules: ['111702'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se ha probado el plan, cada tipo de prueba de P-02 y cada escenario de P-03 dentro de su periodicidad?',
+  },
+  {
+    // Dato del informe, sin veredicto propio: alimenta EV-04. Por prueba
+    // parcial o simulacro con sistemas y por agente candidato, la cronología de
+    // paradas, desconexiones y arranques en la ventana REAL de la prueba (la
+    // que declara su fila del registro) y las 24 h siguientes.
+    id: 'EV-03',
+    controlId: 'op.cont.3',
+    title: 'Medición objetiva de lo ocurrido durante la prueba',
+    description:
+      'Por cada prueba parcial o simulacro y cada sistema implicado que es un agente de Wazuh: la cronología de paradas (regla 506), desconexiones (504) y arranques (503) de su agente en la ventana real de la prueba (la de su fila del registro, no la prevista en P-06) y en las 24 h siguientes, de alerts.json del manager y sus archivos diarios. De ella sale la indisponibilidad medida de cada sistema, que juzga EV-04 contra P-07.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'availability_event_observed'],
+    stateFactEventTypes: ['availability_event_observed'],
+    relatedRules: ['111705'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué caídas y restablecimientos registró el manager en la ventana de cada prueba? (dato del informe; lo juzga EV-04)',
+  },
+  {
+    // Sin hecho propio: la policy cruza la cronología de EV-03 y las
+    // restauraciones de EV-08 de cada prueba del periodo con los RTO de P-07 y
+    // con el resultado que declara su fila. Discrepancia: declarada
+    // satisfactoria y medida fuera de objetivo.
+    id: 'EV-04',
+    controlId: 'op.cont.3',
+    title: 'Resultado de la prueba frente a los objetivos comprometidos',
+    description:
+      'Por cada prueba parcial o simulacro del periodo de P-01: la indisponibilidad más larga medida de cada sistema implicado frente a su RTO de P-07 (con su tolerancia), si se restableció, y el resultado de las restauraciones de copias de la ventana, contrastados con el resultado declarado en el registro. Una prueba declarada satisfactoria cuya medida no alcanzó los objetivos es la discrepancia que este control persigue.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_test_recorded', 'availability_event_observed', 'backup_restore_observed'],
+    relatedRules: ['111702', '111705', '111706'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Coincide el resultado declarado de cada prueba con lo medido en los sistemas frente a los RTO de P-07?',
+  },
+  {
+    // El registro de deficiencias leído en la última pasada (111703) y una fila
+    // por deficiencia (111704). La columna `estado` viaja como `situacion`.
+    id: 'EV-05',
+    controlId: 'op.cont.3',
+    title: 'Deficiencias detectadas y seguimiento de su corrección',
+    description:
+      'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/ensfacil/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    stateFactEventTypes: ['continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    relatedRules: ['111703', '111704'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Está cada deficiencia de las pruebas registrada, dentro de su plazo y cerrada antes de la prueba siguiente?',
+  },
+  {
+    // Dato del informe, sin veredicto propio. Por prueba y agente, las
+    // alertas de FIM de las 24 h siguientes al fin de la ventana, agregadas.
+    id: 'EV-06',
+    controlId: 'op.cont.3',
+    title: 'Integridad y estado del sistema tras la prueba',
+    description:
+      'Por cada prueba parcial o simulacro y cada sistema implicado que es un agente de Wazuh: los cambios de FIM (grupo syscheck) en las 24 h siguientes al fin de su ventana, con las rutas cambiadas. Son desviaciones que la prueba pudo dejar y que deberían constar como deficiencia aunque la prueba se considerase satisfactoria. Dato del informe, sin veredicto propio.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'post_test_change_observed'],
+    stateFactEventTypes: ['post_test_change_observed'],
+    relatedRules: ['111707'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué cambió en los sistemas de cada prueba después de su ventana? (dato del informe)',
+  },
+  {
+    // Sin hecho propio. La versión del plan es un parámetro de OTRO control
+    // (op.cont.2 P-01) y esta policy no lo ve: se resuelve con la columna
+    // `version_plan` del registro de deficiencias. Una deficiencia cerrada sin
+    // versión es una corrección posiblemente nominal: se informa, porque no
+    // toda corrección exige cambiar el plan.
+    id: 'EV-07',
+    controlId: 'op.cont.3',
+    title: 'Actualización del plan tras las pruebas',
+    description:
+      'Por cada deficiencia cerrada del registro: la versión del plan de continuidad que recoge la corrección (columna version_plan). Las cerradas sin versión se señalan como corrección posiblemente nominal. Dato del informe, sin veredicto propio: no toda corrección cambia el plan, y la versión vigente del plan es de op.cont.2.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
+    relatedRules: ['111704'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué versión del plan recoge cada deficiencia cerrada? (dato del informe)',
+  },
+  {
+    // Dato del informe, sin veredicto propio: alimenta EV-04. Una restauración
+    // fallida en la ventana de una prueba declarada satisfactoria es una
+    // discrepancia.
+    id: 'EV-08',
+    controlId: 'op.cont.3',
+    title: 'Restauración de copias de seguridad en las pruebas',
+    description:
+      'Las pruebas de restauración de mp.info.6 (regla 106606) que el manager recibió en la ventana de cada prueba y las 24 h siguientes, con su agente, instante, resultado y si el contenido restaurado coincide. Se leen de alerts.json del manager, sin credenciales y sin tocar mp.info.6. Dato del informe, sin veredicto propio: una restauración fallida en una prueba declarada satisfactoria la juzga EV-04.',
+    requirements: ['op.cont.3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'backup_restore_observed'],
+    stateFactEventTypes: ['backup_restore_observed'],
+    relatedRules: ['111706'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué restauraciones de copias se hicieron en cada prueba y con qué resultado? (dato del informe; lo juzga EV-04)',
+  },
+  // --- op.mon.2 · Sistema de métricas ---------------------------------------
+  //
+  // Un METACONTROL: su materia prima es el resultado de los demás controles, y
+  // la policy de un control no ve los demás. Por eso EV-01 (grado de
+  // implantación), EV-05 (grises) y EV-07 (datos del art. 32) son salida del
+  // motor: las calcula el modelo de informe con el estado de todos los
+  // controles, sin veredicto, y la policy las devuelve NO_APLICA con el motivo
+  // «dato del informe» para que no salgan en gris.
+  //
+  // Lo que sí deja huella se mide en el MANAGER (agent.id=000), con ficheros
+  // locales y sin credenciales, cada 6 h y reemitido entero: el registro de
+  // ciclos de métricas (EV-02 y EV-06), el registro de incidentes de op.exp.7
+  // (EV-03, mismo fichero y mismo formato) y la base de agentes con los latidos
+  // de todos los recolectores leídos en alerts.json (EV-04). El recolector solo
+  // declara huecos (`evidence_state` NO_EVALUABLE con su causa), nunca
+  // veredictos; la policy (`policies/op-mon-2.policy.ts`) juzga.
+  //
+  // Reglas: banda 111300-111399, desplegadas por el runbook `linux/op.mon.2`.
+  {
+    // Dato del informe, sin veredicto (spec §2.6, pregunta 2): el porcentaje de
+    // implantación de cada medida aplicable de P-01, con el resultado de todos
+    // los demás controles. Lo calcula el modelo de informe.
+    id: 'EV-01',
+    controlId: 'op.mon.2',
+    title: 'Grado de implantación de las medidas de seguridad',
+    description:
+      'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que ENSFácil da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué grado de implantación tiene cada medida aplicable de P-01? (dato del informe, sin veredicto)',
+  },
+  {
+    // Cada 6 h: la lectura del registro de ciclos (111301) y un hecho por ciclo
+    // de los últimos 400 días y siempre el último (111302). Vacío se juzga;
+    // ausente es CONFIGURATION.
+    id: 'EV-02',
+    controlId: 'op.mon.2',
+    title: 'Serie histórica de los ciclos de métricas',
+    description:
+      'Registro de ciclos de métricas de la organización (/etc/ensfacil/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de ENSFácil se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'metrics_register_read', 'metrics_cycle_recorded'],
+    stateFactEventTypes: ['metrics_register_read', 'metrics_cycle_recorded'],
+    relatedRules: ['111301', '111302'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Está el último ciclo de métricas validado por un responsable de P-05 dentro de la periodicidad de P-02?',
+  },
+  {
+    // Cada 6 h: la lectura del registro de incidentes de op.exp.7 (111303) y
+    // una fila por fase de los incidentes vivos en los últimos 400 días
+    // (111304), con las 13 columnas del registro.
+    id: 'EV-03',
+    controlId: 'op.mon.2',
+    title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
+    description:
+      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
+    requirements: ['op.mon.2.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'incident_register_read', 'incident_registered'],
+    stateFactEventTypes: ['incident_register_read', 'incident_registered'],
+    relatedRules: ['111303', '111304'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Permite el registro de incidentes calcular cada indicador de P-03 del periodo, y se consolida en un ciclo de métricas en plazo?',
+  },
+  {
+    // Cada 6 h, por agente: su estado en global.db (111305) y la última pasada
+    // de cada recolector de ENSFácil que ha informado desde él, leída de los
+    // collector_run de alerts.json y conservada entre pasadas (111306).
+    id: 'EV-04',
+    controlId: 'op.mon.2',
+    title: 'Fiabilidad de la medición',
+    description:
+      'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de ENSFácil al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'agent_keepalive_observed', 'collector_heartbeat_observed'],
+    stateFactEventTypes: ['agent_keepalive_observed', 'collector_heartbeat_observed'],
+    relatedRules: ['111305', '111306'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Alcanza la cobertura de la monitorización del alcance ENS el objetivo de P-06?',
+  },
+  {
+    // Dato del informe, sin veredicto: los grises de cada control con el
+    // parámetro que falta. Lo calcula el modelo de informe.
+    id: 'EV-05',
+    controlId: 'op.mon.2',
+    title: 'Controles no evaluables por falta de parámetros',
+    description:
+      'Recuento y relación de los controles con requisitos que ENSFácil no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué controles no se pueden evaluar por falta de parámetros, y cuáles faltan? (dato del informe, sin veredicto)',
+  },
+  {
+    // Sin hecho propio: lee `metrics_cycle_recorded`, que es de EV-02 (un
+    // nombre de evento no puede estar en dos evidencias).
+    id: 'EV-06',
+    controlId: 'op.mon.2',
+    title: 'Recursos consumidos por el sistema de seguridad (R2)',
+    description:
+      'Horas internas, horas externas y presupuesto ejecutado del último ciclo del registro de ciclos de métricas, validados por un responsable de P-05 del ámbito «recursos», con el significado de cada columna declarado en P-04. Es un DATO DECLARADO, no obtenido de Wazuh: la herramienta lo registra y lo presenta junto a las métricas técnicas, pero no lo verifica, y el requisito sale acreditado documentalmente.',
+    requirements: ['op.mon.2.r2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: ['111302'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene el último ciclo de métricas en plazo sus horas y su presupuesto, validados por un responsable de P-05?',
+  },
+  {
+    // Dato del informe, sin veredicto: el informe del art. 32 ES el modelo de
+    // informe de op.mon.2, que combina EV-01 a EV-06 con la traza de cada cifra.
+    id: 'EV-07',
+    controlId: 'op.mon.2',
+    title: 'Datos consolidados para el informe anual del artículo 32',
+    description:
+      'El conjunto de datos con la estructura del informe anual al que remite op.mon.2.1: grado de implantación, serie de ciclos, fiabilidad de la medición, controles no evaluables, indicadores de incidentes y recursos, cada cifra con su origen. Es la salida del modelo de informe, sin veredicto propio.',
+    requirements: ['op.mon.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué datos aporta ENSFácil al informe anual del artículo 32, y de dónde sale cada cifra? (dato del informe, sin veredicto)',
+  },
+  // --- op.mon.3 · Vigilancia ------------------------------------------------
+  //
+  // DOS PLANOS. El del MANAGER (agent.id=000) mide con ficheros locales y sin
+  // credenciales la recolección central (wazuh-analysisd.state,
+  // wazuh-remoted.state, <remote>), la correlación (ficheros de reglas y
+  // alerts.json), la superficie de exposición (queue/db/NNN.db de cada agente,
+  // queue/vd/feed y los errores del conector del indexer en ossec.log), la
+  // alerta en tiempo real (<integration>, email_notification) y los registros
+  // de la organización (/etc/ensfacil). El de AGENTE lee los ficheros de
+  // estado de Wazuh de cada máquina (wazuh-logcollector.state,
+  // wazuh-agentd.state): el volumen y los descartes por fuente solo se ven en
+  // la máquina que la lee. El del manager lee también su propio
+  // logcollector.
+  //
+  // Los hechos hablan de fuentes y de activos que la pantalla declara (P-01,
+  // P-03, P-07…), así que no hay primitiva que los juzgue: lo hace la policy
+  // del control (`policies/op-mon-3.policy.ts`) y el puente lo lleva a la
+  // tabla. En la fila de un agente solo se juzgan sus fuentes de P-01; todo lo
+  // demás se mide en la del manager.
+  //
+  // Los recolectores solo declaran huecos (`evidence_state` NO_EVALUABLE con
+  // su causa), nunca veredictos. El del manager pasa cada hora (el estado de la
+  // recolección, EV-01) y cada 6 h reemite entero todo lo demás; el de agente
+  // muestrea cada hora en local y emite cada 6 h. El contrato completo lo
+  // documenta el runbook `linux/op.mon.3`, y `tests/op-mon-3-judgment.test.ts`
+  // lo ejercita.
+  //
+  // Reglas: banda 111400-111499.
+  {
+    // La serie de los contadores entre pasadas horarias prueba que recolecta y
+    // que no descarta: por eso `event_collection_status` NO es hecho de estado
+    // (la última pasada borraría la anterior, que es con la que se compara).
+    id: 'EV-01',
+    controlId: 'op.mon.3',
+    title: 'Sistema automático de recolección de eventos de seguridad',
+    description:
+      'El sistema central de recolección en marcha y recibiendo: estado del servicio wazuh-manager, contadores del motor de análisis (eventos recibidos, procesados y descartados) cuya serie entre pasadas horarias prueba que recolecta y que no pierde eventos, conexiones de <remote> (secure y syslog, con su puerto) y agentes registrados y activos en global.db.',
+    requirements: ['op.mon.3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'event_collection_status'],
+    relatedRules: ['111401'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Está el sistema central de recolección en marcha, recibiendo eventos de sus fuentes y sin descartarlos?',
+  },
+  {
+    // Por fuente, cada 6 h, en los dos planos. Cada fila de P-01 se juzga en la
+    // fila de su máquina (agente + ubicación) o, si es syslog, en la del
+    // manager (IP del emisor). Una base de estado ilegible llega en el hecho
+    // (`lectura`), no como evidence_state de la evidencia entera.
+    id: 'EV-02',
+    controlId: 'op.mon.3',
+    title: 'Cobertura y continuidad de la recolección',
+    description:
+      'Por cada fuente que lee el logcollector de cada máquina (wazuh-logcollector.state): eventos, bytes y descartes desde el arranque y en el último periodo, y el último instante en que su contador creció; por cada agente, su conexión y su cola de envío (wazuh-agentd.state); y por cada emisor syslog que recibe el manager, su última alerta. Se contrasta con P-01: una fuente declarada que no se lee, que descarta eventos o que lleva más de max_horas_sin_eventos sin uno nuevo es un punto ciego de la vigilancia.',
+    requirements: ['op.mon.3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'log_source_observed', 'agent_forwarding_observed', 'syslog_source_observed'],
+    stateFactEventTypes: ['log_source_observed', 'agent_forwarding_observed', 'syslog_source_observed'],
+    relatedRules: ['111402', '111403', '111404'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Genera eventos cada fuente declarada en P-01, sin descartes y sin lagunas mayores que las que admite?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'op.mon.3',
+    title: 'Capacidad de correlación de eventos (R1)',
+    description:
+      'Por conjunto de reglas cargado en el manager: reglas, reglas que correlacionan (frequency y timeframe, o if_matched_sid / if_matched_group, con nivel efectivo de 1 o más) y técnicas MITRE ATT&CK que cubren. Y las alertas producidas por correlación en el periodo, por regla y día. Se contrasta con los conjuntos de P-02: R1 exige que se correlacione, no solo que se recolecte.',
+    requirements: ['op.mon.3.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'correlation_rules_inventory', 'correlation_alert_observed'],
+    stateFactEventTypes: ['correlation_rules_inventory'],
+    relatedRules: ['111405', '111406'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Carga el manager reglas que combinan eventos en cada conjunto que declara P-02?',
+  },
+  {
+    // R2 por CAPACIDAD (decisión del responsable 2 del 09/10): el recuento de
+    // vulnerabilidades por activo vive en el indexer y no se lee sin
+    // credenciales.
+    id: 'EV-04',
+    controlId: 'op.mon.3',
+    title: 'Superficie de exposición: vulnerabilidades y configuración (R2)',
+    description:
+      'Por cada activo de P-03, de su base en el manager (queue/db/NNN.db): el fin de su última pasada SCA por política, con aprobados, fallos y puntuación, y la fecha de su inventario de paquetes, del que se alimenta el detector de vulnerabilidades. Del detector: habilitado en ossec.conf, fecha de su fuente (queue/vd/feed) y errores del conector del indexer al escribir el estado de vulnerabilidades en las últimas 24 h (ossec.log). Un detector que no consigue escribir no determina nada. El recuento de CVE por activo no es local: se informa como «sin medir».',
+    requirements: ['op.mon.3.r2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'config_assessment_observed', 'package_inventory_observed', 'vulnerability_detection_status'],
+    stateFactEventTypes: ['config_assessment_observed', 'package_inventory_observed', 'vulnerability_detection_status'],
+    relatedRules: ['111407', '111408', '111409'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada activo de P-03 su configuración (SCA) y su inventario analizados dentro de P-11, con el detector de vulnerabilidades al día y escribiendo sin errores?',
+  },
+  {
+    // Sin hecho ni veredicto: Wazuh no trae motor de líneas base. R3.1 se
+    // acredita con P-ATT; esta evidencia informa de la línea base de P-04.
+    id: 'EV-05',
+    controlId: 'op.mon.3',
+    title: 'Detección de comportamientos anómalos (R3.1)',
+    description:
+      'Línea base de comportamiento de P-04 (indicadores, normalidad y umbral de anomalía). Wazuh no calcula líneas base ni hace UEBA: las anomalías son reglas que alguien escribe sobre esos indicadores. Dato del informe, sin veredicto: R3.1 se acredita documentalmente (P-ATT).',
+    requirements: ['op.mon.3.r3.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué línea base de comportamiento se ha validado y contra qué indicadores se detectan anomalías?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'op.mon.3',
+    title: 'Detección de APT por anomalías en el tráfico de red (R3.2)',
+    description:
+      'Sistemas de detección en red (Suricata, Snort, Zeek) cuyos eventos ingiere el manager, por dónde llegan y su última alerta. Wazuh correlaciona esa detección pero no la genera: sin sonda de red, R3.2 no se cumple.',
+    requirements: ['op.mon.3.r3.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'network_detection_observed'],
+    stateFactEventTypes: ['network_detection_observed'],
+    relatedRules: ['111410'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Ingiere el manager las alertas de la sonda de red que declara P-05, y son recientes?',
+  },
+  {
+    // Informativa: el requisito es disponer del SERVICIO, que es documental.
+    id: 'EV-07',
+    controlId: 'op.mon.3',
+    title: 'Incorporación de indicadores de cibervigilancia (R4)',
+    description:
+      'Listas CDB que carga el manager (<list> de ossec.conf): entradas, fecha de actualización y reglas que las usan, que es donde acaban los indicadores de un servicio de cibervigilancia. Dato del informe, sin veredicto: R4 exige disponer del observatorio, que se acredita documentalmente (P-ATT).',
+    requirements: ['op.mon.3.r4.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'ioc_list_observed'],
+    stateFactEventTypes: ['ioc_list_observed'],
+    relatedRules: ['111411'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué listas de indicadores carga el manager, de cuándo son y qué reglas las usan?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'op.mon.3',
+    title: 'Detección de intentos de minería de datos (R5.1)',
+    description:
+      'Ids de las reglas de umbral cargadas en el manager (con frequency y que pueden alertar) y sus alertas en el periodo. Se contrasta con P-07: cada consulta declarada tiene que estar vigilada por una regla de umbral. Requiere que la base de datos o la aplicación registren las consultas, no solo las conexiones.',
+    requirements: ['op.mon.3.r5.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'query_volume_rules_observed'],
+    stateFactEventTypes: ['query_volume_rules_observed'],
+    relatedRules: ['111412', '111406'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Vigila una regla de umbral cargada cada sistema y perfil de P-07?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'op.mon.3',
+    title: 'Alerta en tiempo real a los administradores de seguridad (R5.2)',
+    description:
+      'Canales de notificación del manager: el correo (email_notification, nivel mínimo y número de destinatarios) y cada <integration> de ossec.conf (nombre, nivel, grupos y errores de envío en integrations.log en 24 h). Nunca su hook_url ni su api_key. Se contrasta con P-08. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.',
+    requirements: ['op.mon.3.r5.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'notification_channel_configured'],
+    stateFactEventTypes: ['notification_channel_configured'],
+    relatedRules: ['111413'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Existe y está habilitado cada canal de P-08, avisa desde el nivel declarado y envía sin errores?',
+  },
+  {
+    // Sin hecho propio: los mismos hechos SCA de EV-04.
+    id: 'EV-10',
+    controlId: 'op.mon.3',
+    title: 'Inspección: verificación de configuración (R6.1)',
+    description:
+      'Verificación continua de la configuración con SCA en los activos de P-03 (los hechos de EV-04, contra P-11), o la última verificación del registro de inspecciones dentro de la periodicidad de P-09. La continuidad supera la exigencia de periodicidad.',
+    requirements: ['op.mon.3.r6.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: ['111407'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se verifica la configuración de los activos de P-03 de forma continua o con la periodicidad de P-09?',
+  },
+  {
+    // Sin hecho propio: el detector de vulnerabilidades y el inventario de
+    // EV-04.
+    id: 'EV-11',
+    controlId: 'op.mon.3',
+    title: 'Inspección: análisis de vulnerabilidades (R6.2)',
+    description:
+      'Análisis continuo de vulnerabilidades: el detector habilitado, con su fuente al día y escribiendo sin errores, sobre el inventario reciente de cada activo de P-03 (los hechos de EV-04, contra P-11), o el último análisis del registro de inspecciones dentro de la periodicidad de P-09.',
+    requirements: ['op.mon.3.r6.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: ['111408', '111409'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se analizan las vulnerabilidades de los activos de P-03 de forma continua o con la periodicidad de P-09?',
+  },
+  {
+    // El registro de actos de la organización: el recolector lo reemite entero
+    // en cada pasada sin juzgarlo. Registro vacío no es registro ausente.
+    id: 'EV-12',
+    controlId: 'op.mon.3',
+    title: 'Registro y seguimiento de las inspecciones de seguridad (R6)',
+    description:
+      'Filas del registro de inspecciones del manager (/etc/ensfacil/security-inspection-register.tsv): fecha, tipo (verificación de configuración, análisis de vulnerabilidades o prueba de penetración), alcance, ejecutor, hallazgos, estado de su remediación, motivo (periódica o tras incidente) e incidente. La última de cada tipo se contrasta con la periodicidad de P-09.',
+    requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
+    levels: ['ALTO'],
+    category: 'TRACEABILITY',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'security_inspection_recorded'],
+    stateFactEventTypes: ['security_inspection_recorded'],
+    relatedRules: ['111414'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Consta en el registro cada inspección de R6 dentro de la periodicidad de P-09?',
+  },
+  {
+    // Informativa: el registro de incidentes (13 columnas, compartido con
+    // op.exp.7 y op.exp.9) no dice qué incidentes revelaron vulnerabilidades,
+    // así que no se puede exigir la inspección posterior de ninguno.
+    id: 'EV-13',
+    controlId: 'op.mon.3',
+    title: 'Inspecciones desencadenadas por incidentes',
+    description:
+      'Incidentes del periodo del registro de incidentes del manager y las inspecciones del registro de inspecciones que los citan (motivo «post_incidente»). Dato del informe, sin veredicto: el registro de incidentes no dice qué incidentes revelaron vulnerabilidades nuevas o subestimadas, que son los que R6 obliga a inspeccionar.',
+    requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
+    levels: ['ALTO'],
+    category: 'TRACEABILITY',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'incident_registered'],
+    stateFactEventTypes: ['incident_registered'],
+    relatedRules: ['111415'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué incidentes del periodo tienen una inspección posterior registrada?',
+  },
+  // --- op.nub.1 · Protección de servicios en la nube ------------------------
+  //
+  // Mayoritariamente contractual (spec 2026-10-09 §4). Dos planos que el
+  // informe no mezcla:
+  //
+  //   - DOCUMENTAL: EV-08 (certificación de P-04, R1) y EV-09 (expediente por
+  //     servicio: P-03, P-08, P-09 y P-10) son tablas de la pantalla con su
+  //     vigencia. No tienen hecho: las juzga la policy contra la fecha de la
+  //     evaluación, y su CUMPLE se lee «acreditado documentalmente».
+  //   - TÉCNICO: EV-01, EV-04 y EV-07 (y EV-02 en ALTA) los mide el recolector
+  //     del MANAGER (agent.id=000) con ficheros locales y sin credenciales:
+  //     la presencia de los módulos cloud de Wazuh en ossec.conf y en los
+  //     agent.conf de los grupos (nunca sus claves), sus alertas en
+  //     alerts.json y sus errores en ossec.log. La credencial del proveedor
+  //     vive en un agente dedicado del cliente. Los hechos hablan de módulos y
+  //     de servicios, no de esta máquina, así que no hay primitiva que los
+  //     juzgue: lo hace la policy (`policies/op-nub-1.policy.ts`), cruzando
+  //     cada fila de P-06 con su módulo, y el puente lo lleva a la tabla.
+  //
+  // EV-03 (shadow IT), EV-05 (cifrado) y EV-06 (región) son datos del informe,
+  // sin veredicto: la plantilla los promete con «SCA cloud» y tráfico de los
+  // equipos, y Wazuh 4.14 no tiene ninguna de las dos cosas con ficheros
+  // locales. Lo declarado de cifrado (P-09) y región (P-08) se juzga en EV-09.
+  //
+  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
+  // causa), nunca veredictos. Pasa cada 6 h. El contrato completo lo documenta
+  // el runbook, y `tests/op-nub-1-judgment.test.ts` lo ejercita.
+  //
+  // Reglas: banda 111500-111599, desplegadas por el runbook `linux/op.nub.1`.
+  {
+    // Por módulo cloud, cada 6 h (o un hecho con modulo=ninguno). La policy
+    // cruza cada fila de P-06 con su módulo: configurado y habilitado, sin
+    // errores en 24 h y con registros más recientes que P-13.
+    id: 'EV-01',
+    controlId: 'op.nub.1',
+    title: 'Ingesta de registros de los servicios en la nube',
+    description:
+      'Por cada módulo cloud de Wazuh (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github): dónde está configurado (ossec.conf del manager, agent.conf de un grupo o el agente dedicado que envía sus alertas), si está habilitado, el instante de su última alerta, las alertas de las últimas 24 h y sus errores en ossec.log. Se contrasta con P-06: un servicio declarado como integrado cuyo módulo no está, está deshabilitado, da errores o lleva más de P-13 horas sin registros es un punto ciego de trazabilidad. Los servicios de P-02 sin integración se señalan en el informe, sin veredicto.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'cloud_integration_observed'],
+    stateFactEventTypes: ['cloud_integration_observed'],
+    relatedRules: ['111501'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Llegan a Wazuh, sin errores y dentro de P-13 horas, los registros de cada servicio que P-06 declara integrado?',
+  },
+  {
+    // Solo ALTA (R2). No es «SCA cloud», que Wazuh 4.14 no tiene: son los
+    // hallazgos de postura del propio proveedor que Wazuh ingiere, resumidos
+    // por módulo, fuente y estándar cada 6 h.
+    id: 'EV-02',
+    controlId: 'op.nub.1',
+    title: 'Configuración del inquilino según los hallazgos de postura del proveedor (R2)',
+    description:
+      'Por módulo, fuente y estándar: los controles de postura que el propio proveedor evalúa y envía a Wazuh (AWS Security Hub o Config por aws-s3, Microsoft Defender por ms-graph, Security Command Center por gcp-pubsub), con el último resultado de cada control, los fallidos y los críticos. Se contrasta con P-07: un control fallido en un servicio de P-07 incumple R2. Wazuh 4.14 no trae políticas SCA para inquilinos cloud; sin hallazgos de postura del proveedor, R2 no es automatizable.',
+    requirements: ['op.nub.1.r2.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'cloud_posture_finding_observed'],
+    stateFactEventTypes: ['cloud_posture_finding_observed'],
+    relatedRules: ['111502'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Pasan los controles de postura del proveedor en cada servicio de P-07, con el estándar que declara?',
+  },
+  {
+    // Dato del informe, sin requisito que la juzgue (spec §4.2, §7.3).
+    id: 'EV-03',
+    controlId: 'op.nub.1',
+    title: 'Detección de servicios cloud no inventariados (shadow IT)',
+    description:
+      'Servicios en la nube en uso que no figuran en el inventario P-02. Es un dato del informe, sin veredicto: detectarlos exige el DNS o el proxy de los equipos, y con los ficheros locales del manager no se ven (el inventario de Wazuh solo da los puertos en escucha). Lo que sí se informa son los módulos cloud que Wazuh ingiere y P-06 no declara.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Hay servicios en la nube en uso fuera de P-02? (dato del informe: no medible con ficheros locales)',
+  },
+  {
+    // Una acción, agregada por pasada (módulo, cuenta, actor). Ventana de 30
+    // días. Cada actor humano, en P-11 para su servicio.
+    id: 'EV-04',
+    controlId: 'op.nub.1',
+    title: 'Operaciones administrativas en los servicios cloud',
+    description:
+      'Operaciones de administración con éxito en los servicios integrados (creación y modificación de identidades, permisos, configuración de seguridad, reglas de red), agregadas por módulo, cuenta y actor a partir de las alertas de los módulos cloud: CloudTrail, registro de actividad de Azure, Cloud Audit Logs. Cada actor humano tiene que figurar en P-11 para su servicio; las acciones de los propios servicios del proveedor no se contrastan. Sin operaciones de personas, solo cumple si el recolector lee un registro de administración del módulo (CloudTrail, el registro de actividad de Azure o los Cloud Audit Logs de Admin Activity) con eventos en los últimos 30 días: Entra ID por Graph, office365 y github no lo traen, y quedan sin evaluar.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'ACCESS_CONTROL',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'cloud_admin_operation_observed'],
+    relatedRules: ['111503'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Ha ejecutado operaciones de administración en algún servicio integrado un actor que P-11 no autoriza?',
+  },
+  {
+    // Dato del informe: sin «SCA cloud» no hay medida del cifrado configurado;
+    // lo declarado en P-09 se juzga en EV-09.
+    id: 'EV-05',
+    controlId: 'op.nub.1',
+    title: 'Verificación del cifrado y del modelo de gestión de claves',
+    description:
+      'El cifrado de los datos y el modelo de gestión de claves de cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud y el recolector no usa credenciales del proveedor, así que el cifrado configurado no se puede medir. Lo declarado en P-09 forma parte del expediente documental (EV-09, op.nub.1.2 c).',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué cifrado y qué gestión de claves declara cada servicio en P-09? (dato del informe: no medible sin SCA cloud)',
+  },
+  {
+    // Dato del informe: ídem con la región (P-08).
+    id: 'EV-06',
+    controlId: 'op.nub.1',
+    title: 'Verificación de la región de los datos',
+    description:
+      'La región de los datos y de sus copias en cada servicio. Es un dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor, así que la región configurada no se puede medir. Lo declarado en P-08 forma parte del expediente documental (EV-09, op.nub.1.2 d).',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Qué región de datos y de copias declara cada servicio en P-08? (dato del informe: no medible sin SCA cloud)',
+  },
+  {
+    // Una acción, agregada por pasada (módulo, cuenta, usuario, resultado,
+    // segundo factor). Ventana de 30 días. Hallazgo del informe, sin
+    // requisito que la juzgue: el criterio del segundo factor es el de
+    // op.acc.6.r8.1 (y las ubicaciones de confianza de Azure darían rojos
+    // falsos aquí). La policy la devuelve NO_APLICA con lo observado.
+    id: 'EV-07',
+    controlId: 'op.nub.1',
+    title: 'Autenticaciones y accesos en los servicios cloud',
+    description:
+      'Inicios de sesión interactivos en los servicios integrados (consola de AWS, inicios de sesión de Microsoft Entra ID), agregados por módulo, cuenta, usuario, resultado y segundo factor, con sus orígenes. Es un hallazgo del informe, sin veredicto en op.nub.1: un acceso con éxito sin segundo factor desde una zona no controlada lo juzga op.acc.6.r8.1, y aquí se señala cruzado con él. Si el proveedor no registra el segundo factor (accesos federados, Google Cloud), se dice.',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'ACCESS_CONTROL',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state', 'cloud_authentication_observed'],
+    relatedRules: ['111504'],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Se ha accedido con éxito a algún servicio integrado sin segundo factor? (hallazgo del informe; lo juzga op.acc.6.r8.1)',
+  },
+  {
+    // Documental (R1): P-04 por servicio utilizado, contra la fecha de la
+    // evaluación. Sin hecho.
+    id: 'EV-08',
+    controlId: 'op.nub.1',
+    title: 'Vigencia de las certificaciones de los proveedores (R1)',
+    description:
+      'Por cada servicio utilizado de P-02, su certificación de P-04 bajo una metodología reconocida, con su número y su vigencia frente a la fecha de la evaluación, y los días que le quedan. NO es verificación del documento: es control de su validez temporal, y su CUMPLE se lee «acreditado documentalmente». Una certificación vencida o ausente incumple R1.',
+    requirements: ['op.nub.1.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada servicio de terceros una certificación reconocida en vigor? (declarado, acreditado documentalmente)',
+  },
+  {
+    // Documental: el expediente por servicio utilizado, contra la fecha de la
+    // evaluación. Sin hecho.
+    id: 'EV-09',
+    controlId: 'op.nub.1',
+    title: 'Expediente documental del servicio en la nube',
+    description:
+      'Por cada servicio utilizado de P-02: su conformidad con el ENS (de categoría no inferior a la del sistema) o con la guía CCN-STIC, vigente (P-03); su último informe de pentest, no más viejo que P-12 meses (P-10, op.nub.1.2 a); su cifrado y gestión de claves (P-09, c); la región de sus datos y copias y la jurisdicción (P-08, d). La transparencia (b) la cubre la conformidad declarada. Es DOCUMENTACIÓN APORTADA, no verificada técnicamente: su CUMPLE se lee «acreditado documentalmente».',
+    requirements: ['op.nub.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    agentDeclaresOnlyGaps: true,
+    auditQuestion:
+      '¿Tiene cada servicio de terceros su expediente completo y vigente: conformidad, pentest, cifrado y jurisdicción? (declarado, acreditado documentalmente)',
+  },
 ];

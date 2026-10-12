@@ -42,10 +42,10 @@ const ensLevelOptions = [
   },
 ];
 
-// Nivel de la dimensión de Trazabilidad. La primera opción deja la clave
-// AUSENTE (nunca vacía ni `null`): el control que se rige por T usa entonces el
-// nivel ENS global.
-const traceabilityLevelOptions = [
+// Nivel de la dimensión de Trazabilidad y de Disponibilidad. La primera opción
+// deja la clave AUSENTE (nunca vacía ni `null`): el control que se rige por esa
+// dimensión usa entonces el nivel ENS global.
+const dimensionLevelOptions = [
   {
     value: '',
     text: 'El mismo que el nivel ENS',
@@ -148,6 +148,10 @@ export const GlobalConfigurationPanel = ({
         // validador acepta como «no declarado».
         if (field === 'traceabilityLevel' && !value) {
           delete nextConfiguration.traceabilityLevel;
+        }
+
+        if (field === 'availabilityLevel' && !value) {
+          delete nextConfiguration.availabilityLevel;
         }
 
         return nextConfiguration;
@@ -301,13 +305,33 @@ export const GlobalConfigurationPanel = ({
         fullWidth
       >
         <EuiSelect
-          options={traceabilityLevelOptions}
+          options={dimensionLevelOptions}
           value={
             draftConfiguration.traceabilityLevel || ''
           }
           onChange={event =>
             updateField(
               'traceabilityLevel',
+              event.target.value
+            )
+          }
+          fullWidth
+        />
+      </EuiFormRow>
+
+      <EuiFormRow
+        label='Nivel de Disponibilidad (D)'
+        helpText='Solo para los controles que el ENS aplica por el nivel de la dimensión de Disponibilidad (op.cont.2 y op.cont.3, que solo rigen con D en ALTO). Si no se declara, se usa el nivel ENS.'
+        fullWidth
+      >
+        <EuiSelect
+          options={dimensionLevelOptions}
+          value={
+            draftConfiguration.availabilityLevel || ''
+          }
+          onChange={event =>
+            updateField(
+              'availabilityLevel',
               event.target.value
             )
           }

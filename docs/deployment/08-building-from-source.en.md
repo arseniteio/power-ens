@@ -200,7 +200,7 @@ mv dist/ensfacil-2.19.5.zip "dist/ensfacil-$V-osd-2.19.5.zip"
 ls dist/
 ```
 
-What you should see: `ensfacil-1.0.0-osd-2.19.5.zip` (with the repository's
+What you should see: `ensfacil-1.1.0-osd-2.19.5.zip` (with the repository's
 version).
 
 To get a folder like a release's, with the two scripts and their sums, do the
@@ -221,7 +221,7 @@ From the repository root, with `ZIP` pointing at the zip you just built:
 
 ```bash
 ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip   # section 3
-# ZIP=dist/ensfacil-1.0.0-osd-2.19.5.zip                             # section 4
+# ZIP=dist/ensfacil-1.1.0-osd-2.19.5.zip                             # section 4
 
 unzip -t "$ZIP" | tail -1
 bash config/deploy-plugin.sh --solo-id "$ZIP"

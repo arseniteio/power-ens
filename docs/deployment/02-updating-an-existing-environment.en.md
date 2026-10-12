@@ -244,7 +244,7 @@ With the new plugin deployed, seed the configuration blocks. The operation merge
 ```bash
 cd /opt/ensfacil/repo/config
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
-CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10"
+CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp.1 op.exp.2 op.exp.3 op.exp.4 op.exp.5 op.exp.6 op.exp.7 op.exp.8 op.exp.9 op.exp.10 op.mon.1 op.mon.2 op.mon.3 op.nub.1 op.cont.2 op.cont.3"
 
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" || break; done
 ```
@@ -265,6 +265,19 @@ npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-no
 ```
 
 The output must be `ESTRUCTURA VÁLIDA`. If it is invalid, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
+
+If the environment comes from 1.0.0, adjust the replicas of the configuration index. Since 1.1.0 the plugin creates `wazuh-ens-configuration` with `auto_expand_replicas: 0-1`, but only when the index does not exist: one created by 1.0.0 keeps its replica and, on a single-node indexer, stays yellow because that replica cannot be assigned. The plugin does not change an index that already exists; it is done once, by hand, with the indexer admin certificate:
+
+```bash
+C=/etc/wazuh-indexer/certs
+sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem -XPUT \
+  https://127.0.0.1:9200/wazuh-ens-configuration/_settings \
+  -H 'Content-Type: application/json' -d '{"index":{"auto_expand_replicas":"0-1"}}'; echo
+sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
+  "https://127.0.0.1:9200/_cat/indices/wazuh-ens-configuration?h=health,status,index,rep"
+```
+
+What you should see: `{"acknowledged":true}` and, from the second command, `green open wazuh-ens-configuration 0` (with several nodes, `green` with `1` replica). If it says `yellow`, wait a few seconds and repeat the second command until it says `green`. An environment installed from scratch with 1.1.0 or later does not need it.
 
 If the version introduces op.exp.8, review the optional **Traceability level (T)** field in the global configuration.
 
@@ -288,7 +301,7 @@ The output must be `coherencia OK`.
 Finally open ENSFácil in Wazuh Dashboard and confirm that:
 
 - all controls appear, including the new ones;
-- if there are controls measured on the manager (op.exp.7, op.exp.8, op.exp.9), the manager (agent `000`) appears in the scope and, after the first hourly run of its collectors, its row has data;
+- if there are controls measured on the manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3), the manager (agent `000`) appears in the scope and, after the first run of its collectors (hourly or every 6 hours), its row has data;
 - no control shows «Sin datos del recolector desde …» on a machine that should be reporting.
 
 If any validation fails, do not keep operating the new version and use the [troubleshooting and rollback](04-troubleshooting-and-rollback.en.md) procedure.
@@ -360,7 +373,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 The reinstallation resets the dashboard `build.number` to its factory value, which browsers may have linked to files of the integrated version. That is why the previous `package.json` is restored and ENSFácil is deployed again, which bumps the number:
 
 ```bash
-V=1.0.0   # the ENSFácil version installed in section 10.1
+V=1.1.0   # the ENSFácil version installed in section 10.1
 R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
 sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"

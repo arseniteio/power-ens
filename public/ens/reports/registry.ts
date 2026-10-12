@@ -41,6 +41,8 @@ import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
 import { buildOpAcc4ReportModel } from './op-acc-4-report-model';
 import { buildOpAcc5ReportModel } from './op-acc-5-report-model';
 import { buildOpAcc6ReportModel } from './op-acc-6-report-model';
+import { buildOpCont2ReportModel } from './op-cont-2-report-model';
+import { buildOpCont3ReportModel } from './op-cont-3-report-model';
 import { buildOpExp1ReportModel } from './op-exp-1-report-model';
 import { buildOpExp2ReportModel } from './op-exp-2-report-model';
 import { buildOpExp3ReportModel } from './op-exp-3-report-model';
@@ -51,6 +53,10 @@ import { buildOpExp7ReportModel } from './op-exp-7-report-model';
 import { buildOpExp8ReportModel } from './op-exp-8-report-model';
 import { buildOpExp9ReportModel } from './op-exp-9-report-model';
 import { buildOpExp10ReportModel } from './op-exp-10-report-model';
+import { buildOpMon1ReportModel } from './op-mon-1-report-model';
+import { buildOpMon2ReportModel } from './op-mon-2-report-model';
+import { buildOpMon3ReportModel } from './op-mon-3-report-model';
+import { buildOpNub1ReportModel } from './op-nub-1-report-model';
 
 export type ENSReportFieldStatus =
   | 'CUMPLE'
@@ -92,80 +98,20 @@ export interface ENSReportModelDefinition {
   // solo hecho son dos sitios que se olvidan por separado.
   name: string;
 
-  build: (result: ENSComplianceResult | undefined) => ENSReportModel;
+  build: (
+    result: ENSComplianceResult | undefined,
+    panorama?: ENSComplianceResult[]
+  ) => ENSReportModel;
+
+  // El informe necesita el resultado de TODOS los controles, no solo el suyo
+  // (op.mon.2, el sistema de métricas: su informe es el cuadro de mando). La
+  // pantalla lee entonces los hechos de todos los controles, con el mismo tope
+  // y el mismo orden que el panel, y pasa a `build` el resultado de cada uno
+  // como `panorama`.
+  usesAllControls?: boolean;
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
-  {
-    controlId: 'op.exp.10',
-    name: 'op.exp.10 - Protección de claves criptográficas',
-    build: buildOpExp10ReportModel,
-  },
-  {
-    controlId: 'op.exp.9',
-    name: 'op.exp.9 - Registro de la gestión de incidentes',
-    build: buildOpExp9ReportModel,
-  },
-  {
-    controlId: 'op.exp.8',
-    name: 'op.exp.8 - Registro de la actividad',
-    build: buildOpExp8ReportModel,
-  },
-  {
-    controlId: 'op.exp.7',
-    name: 'op.exp.7 - Gestión de incidentes',
-    build: buildOpExp7ReportModel,
-  },
-  {
-    controlId: 'op.exp.6',
-    name: 'op.exp.6 - Protección frente a código dañino',
-    build: buildOpExp6ReportModel,
-  },
-  {
-    controlId: 'op.exp.5',
-    name: 'op.exp.5 - Gestión de cambios',
-    build: buildOpExp5ReportModel,
-  },
-  {
-    controlId: 'op.exp.4',
-    name: 'op.exp.4 - Mantenimiento y actualizaciones de seguridad',
-    build: buildOpExp4ReportModel,
-  },
-  {
-    controlId: 'op.exp.3',
-    name: 'op.exp.3 - Gestión de la configuración de seguridad',
-    build: buildOpExp3ReportModel,
-  },
-  {
-    controlId: 'op.exp.2',
-    name: 'op.exp.2 - Configuración de seguridad',
-    build: buildOpExp2ReportModel,
-  },
-  {
-    controlId: 'op.exp.1',
-    name: 'op.exp.1 - Inventario de activos',
-    build: buildOpExp1ReportModel,
-  },
-  {
-    controlId: 'op.acc.6',
-    name: 'op.acc.6 - Mecanismo de autenticación (usuarios de la organización)',
-    build: buildOpAcc6ReportModel,
-  },
-  {
-    controlId: 'op.acc.5',
-    name: 'op.acc.5 - Mecanismo de autenticación (usuarios externos)',
-    build: buildOpAcc5ReportModel,
-  },
-  {
-    controlId: 'op.acc.4',
-    name: 'op.acc.4 - Proceso de gestión de derechos de acceso',
-    build: buildOpAcc4ReportModel,
-  },
-  {
-    controlId: 'op.acc.3',
-    name: 'op.acc.3 - Segregación de funciones y tareas',
-    build: buildOpAcc3ReportModel,
-  },
   {
     controlId: 'mp.info.6',
     name: 'mp.info.6 - Copias de seguridad',
@@ -180,6 +126,107 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'op.acc.2',
     name: 'op.acc.2 - Requisitos de acceso',
     build: buildOpAcc2ReportModel,
+  },
+  {
+    controlId: 'op.acc.3',
+    name: 'op.acc.3 - Segregación de funciones y tareas',
+    build: buildOpAcc3ReportModel,
+  },
+  {
+    controlId: 'op.acc.4',
+    name: 'op.acc.4 - Proceso de gestión de derechos de acceso',
+    build: buildOpAcc4ReportModel,
+  },
+  {
+    controlId: 'op.acc.5',
+    name: 'op.acc.5 - Mecanismo de autenticación (usuarios externos)',
+    build: buildOpAcc5ReportModel,
+  },
+  {
+    controlId: 'op.acc.6',
+    name: 'op.acc.6 - Mecanismo de autenticación (usuarios de la organización)',
+    build: buildOpAcc6ReportModel,
+  },
+  {
+    controlId: 'op.cont.2',
+    name: 'op.cont.2 - Plan de continuidad',
+    build: buildOpCont2ReportModel,
+  },
+  {
+    controlId: 'op.cont.3',
+    name: 'op.cont.3 - Pruebas periódicas',
+    build: buildOpCont3ReportModel,
+  },
+  {
+    controlId: 'op.exp.1',
+    name: 'op.exp.1 - Inventario de activos',
+    build: buildOpExp1ReportModel,
+  },
+  {
+    controlId: 'op.exp.2',
+    name: 'op.exp.2 - Configuración de seguridad',
+    build: buildOpExp2ReportModel,
+  },
+  {
+    controlId: 'op.exp.3',
+    name: 'op.exp.3 - Gestión de la configuración de seguridad',
+    build: buildOpExp3ReportModel,
+  },
+  {
+    controlId: 'op.exp.4',
+    name: 'op.exp.4 - Mantenimiento y actualizaciones de seguridad',
+    build: buildOpExp4ReportModel,
+  },
+  {
+    controlId: 'op.exp.5',
+    name: 'op.exp.5 - Gestión de cambios',
+    build: buildOpExp5ReportModel,
+  },
+  {
+    controlId: 'op.exp.6',
+    name: 'op.exp.6 - Protección frente a código dañino',
+    build: buildOpExp6ReportModel,
+  },
+  {
+    controlId: 'op.exp.7',
+    name: 'op.exp.7 - Gestión de incidentes',
+    build: buildOpExp7ReportModel,
+  },
+  {
+    controlId: 'op.exp.8',
+    name: 'op.exp.8 - Registro de la actividad',
+    build: buildOpExp8ReportModel,
+  },
+  {
+    controlId: 'op.exp.9',
+    name: 'op.exp.9 - Registro de la gestión de incidentes',
+    build: buildOpExp9ReportModel,
+  },
+  {
+    controlId: 'op.exp.10',
+    name: 'op.exp.10 - Protección de claves criptográficas',
+    build: buildOpExp10ReportModel,
+  },
+  {
+    controlId: 'op.mon.1',
+    name: 'op.mon.1 - Detección de intrusión',
+    build: buildOpMon1ReportModel,
+  },
+  {
+    controlId: 'op.mon.2',
+    name: 'op.mon.2 - Sistema de métricas',
+    build: buildOpMon2ReportModel,
+    usesAllControls: true,
+  },
+  {
+    controlId: 'op.mon.3',
+    name: 'op.mon.3 - Vigilancia',
+    build: buildOpMon3ReportModel,
+  },
+  {
+    controlId: 'op.nub.1',
+    name: 'op.nub.1 - Protección de servicios en la nube',
+    build: buildOpNub1ReportModel,
   },
 ];
 
@@ -231,9 +278,10 @@ export const getRegisteredENSReportControls = (): string[] =>
 // el modelo de otro control.
 export const buildENSReportModel = (
   controlId: string,
-  result: ENSComplianceResult | undefined
+  result: ENSComplianceResult | undefined,
+  panorama?: ENSComplianceResult[]
 ): ENSReportModel | undefined =>
-  getENSReportModelDefinition(controlId)?.build(result);
+  getENSReportModelDefinition(controlId)?.build(result, panorama);
 
 // Cuáles de estos controles NO tienen modelo de informe. Es lo que convierte el
 // olvido en algo visible: la pantalla lo usa para nombrarlos arriba del todo, y

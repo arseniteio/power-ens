@@ -26,7 +26,7 @@
         "op.exp.2.3"
       ],
       "type": "table",
-      "example": "wazuh-real | cis_ubuntu24-04",
+      "example": "srv-web-01 | cis_ubuntu24-04",
       "columns": [
         {
           "name": "perfil",
@@ -67,7 +67,7 @@
         "op.exp.2.2"
       ],
       "type": "table",
-      "example": "wazuh-real | sshd,systemd-resolve,systemd-network | 22121,53,68",
+      "example": "srv-web-01 | sshd,systemd-resolve,systemd-network | 22121,53,68",
       "columns": [
         {
           "name": "perfil",
@@ -146,7 +146,7 @@
       "controlId": "op.exp.2",
       "name": "excepciones_autorizadas",
       "label": "Excepciones autorizadas",
-      "description": "Desviaciones de la seguridad por defecto autorizadas formalmente. Una fila por desviación. En «Comprobación» va la desviación EXACTA que emite el agente, que incluye la máquina (wazuh-real:ssh_x11forwarding): así una excepción autorizada para un activo no excusa la misma desviación en otro. Si no hay ninguna excepción, se declara una fila «ninguno | ninguna | Sin excepciones autorizadas», que es una decisión y no un hueco. La vigencia se muestra pero el motor no la contrasta.",
+      "description": "Desviaciones de la seguridad por defecto autorizadas formalmente. Una fila por desviación. En «Comprobación» va la desviación EXACTA que emite el agente, que incluye la máquina (srv-web-01:ssh_x11forwarding): así una excepción autorizada para un activo no excusa la misma desviación en otro. Si no hay ninguna excepción, se declara una fila «ninguno | ninguna | Sin excepciones autorizadas», que es una decisión y no un hueco. La vigencia se muestra pero el motor no la contrasta.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -156,7 +156,7 @@
         "op.exp.2.3"
       ],
       "type": "table",
-      "example": "wazuh-real | wazuh-real:ssh_permitrootlogin | acceso de emergencia por clave | Responsable de Seguridad | 2027-03-31",
+      "example": "srv-web-01 | srv-web-01:ssh_permitrootlogin | acceso de emergencia por clave | Responsable de Seguridad | 2027-03-31",
       "columns": [
         {
           "name": "activo",

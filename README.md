@@ -24,8 +24,9 @@ y los enlaces a cada runbook y a sus guías, en la
 [tabla de runbooks y registros](docs/deployment/05-runbooks-and-registers.md).
 
 1. **Manager.** Wazuh instalado y validado; después, el `install-manager.sh` de
-   cada uno de los 17 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8
-   y op.exp.9 dejan además un recolector en el propio manager), y por último el
+   cada uno de los 22 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8,
+   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 dejan además un
+   recolector en el propio manager; op.cont.2 no tiene runbook), y por último el
    plugin ENSFácil instalado en el dashboard desde su release, junto al de Wazuh y sin modificarlo.
    ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
 2. **Máquinas.** En cada agente, primero la
@@ -38,13 +39,13 @@ y los enlaces a cada runbook y a sus guías, en la
    [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
    siguiendo la guía `02-compliance` **de cada runbook** (no está en este
    repositorio: cada runbook tiene la suya, enlazada en la tabla).
-4. **Medir.** Tras la primera pasada de los recolectores (cada hora), el panel
-   juzga cada control; lo que no se puede demostrar sale `NO_EVALUABLE` con su
-   causa y dice dónde se corrige.
+4. **Medir.** Tras la primera pasada de los recolectores (cada hora; los de
+   op.mon.2 y op.cont.3, cada 6 h), el panel juzga cada control; lo que no se
+   puede demostrar sale `NO_EVALUABLE` con su causa y dice dónde se corrige.
 
 ## Controles
 
-ENSFácil evalúa 17 controles. «Niveles» son las categorías del sistema en las
+ENSFácil evalúa 23 controles. «Niveles» son las categorías del sistema en las
 que el Anexo II exige el control; «no exigible» indica un refuerzo que el ENS
 define pero no exige en ninguna categoría, que sale `NO_APLICA`.
 
@@ -57,6 +58,8 @@ define pero no exige en ninguna categoría, que sale `NO_APLICA`.
 | `op.acc.4` | Proceso de gestión de derechos de acceso | BAJO+ | sin refuerzos | máquinas |
 | `op.acc.5` | Mecanismo de autenticación (usuarios externos) | BAJO+ | R1–R4 (BAJO+), R5 (MEDIO+); R6–R7 no exigibles | máquinas |
 | `op.acc.6` | Mecanismo de autenticación (usuarios de la organización) | BAJO+ | R1–R4, R8–R9 (BAJO+), R5 (MEDIO+), R6–R7 (ALTO) | máquinas |
+| `op.cont.2` | Plan de continuidad | ALTO (por el nivel de Disponibilidad) | R1–R2 no exigibles | manager, sin runbook: lo juzga el plugin con la configuración |
+| `op.cont.3` | Pruebas periódicas | ALTO (por el nivel de Disponibilidad) | sin refuerzos | manager |
 | `op.exp.1` | Inventario de activos | BAJO+ | R1–R4 no exigibles | máquinas |
 | `op.exp.2` | Configuración de seguridad | BAJO+ | sin refuerzos | máquinas |
 | `op.exp.3` | Gestión de la configuración de seguridad | BAJO+ | R1 (MEDIO+), R2–R3 (ALTO); R4–R5 no exigibles | máquinas |
@@ -67,6 +70,10 @@ define pero no exige en ninguna categoría, que sale `NO_APLICA`.
 | `op.exp.8` | Registro de la actividad | BAJO+ (por el nivel de Trazabilidad) | R1–R4 (MEDIO+), R5 (ALTO) | máquinas y manager |
 | `op.exp.9` | Registro de la gestión de incidentes | BAJO+ | sin refuerzos | manager |
 | `op.exp.10` | Protección de claves criptográficas | BAJO+ | R1 (MEDIO+); R2 no exigible | máquinas |
+| `op.mon.1` | Detección de intrusión | BAJO+ | R1 (MEDIO+), R2 (ALTO); R3 no exigible | manager |
+| `op.mon.2` | Sistema de métricas | BAJO+ | R1–R2 (MEDIO+) | manager |
+| `op.mon.3` | Vigilancia | BAJO+ | R1–R2 (MEDIO+), R3–R6 (ALTO); R7 no exigible | máquinas y manager |
+| `op.nub.1` | Protección de servicios en la nube | BAJO+ | R1 (MEDIO+), R2 (ALTO) | manager |
 
 Cada control tiene su repositorio de despliegue (runbook) en GitLab, con una
 variante por tipo de máquina. El repositorio se llama exactamente como el
@@ -76,7 +83,7 @@ control.
 
 | Grupo de GitLab | Controles |
 |---|---|
-| `quersystem/ens-controls-runbook/linux` | los 17 (mp.info.6 para máquinas que copian en un Proxmox Backup Server) |
+| `quersystem/ens-controls-runbook/linux` | 22, todos menos op.cont.2, que no tiene runbook (mp.info.6 para máquinas que copian en un Proxmox Backup Server) |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 a op.acc.6 y op.exp.1 a op.exp.10 |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (copias de `zmbackup` de Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4 |
@@ -102,6 +109,11 @@ Qué instala cada runbook Linux:
 | `linux/op.exp.8` | reglas, `<localfile>` del grupo `ens`, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | recolector y reglas de auditd |
 | `linux/op.exp.9` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba el reenvío de respuesta activa, FIM y dpkg |
 | `linux/op.exp.10` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
+| `linux/op.cont.3` | reglas, recolector del manager con su cron (cada 6 h) y `<localfile>` en el `ossec.conf` del manager; las plantillas de los registros de pruebas y de deficiencias | nada: se mide entero en el manager |
+| `linux/op.mon.1` | reglas, recolector del manager con su cron (cada hora) y `<localfile>` en el `ossec.conf` del manager | nada: se mide entero en el manager |
+| `linux/op.mon.2` | reglas, recolector del manager con su cron (cada 6 h) y `<localfile>` en el `ossec.conf` del manager; la plantilla del registro de ciclos de métricas | nada: se mide entero en el manager |
+| `linux/op.mon.3` | reglas, recolector del manager con su cron (cada hora), `<localfile>` en el `ossec.conf` del manager y en el `agent.conf` del grupo `ens`; la plantilla del registro de inspecciones | recolector (también en el servidor LDAP) |
+| `linux/op.nub.1` | reglas, recolector del manager con su cron (cada hora) y `<localfile>` en el `ossec.conf` del manager | nada: se mide entero en el manager |
 
 > [!important]
 > Los `install.sh` que escriben reglas de auditd (op.acc.2, op.acc.3,
@@ -185,11 +197,11 @@ la release en una carpeta:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.0.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
 ```
 
 Qué tiene que salir: `OK` en los tres ficheros y `dashboard: active` al final del
-despliegue. Cambia `1.0.0` por la versión de la release.
+despliegue. Cambia `1.1.0` por la versión de la release.
 
 El rol `ensfacil_admin` es opcional por ahora: el usuario `admin` de Wazuh, con
 `all_access`, ya guarda la configuración. `create-admin-role.sh` solo hace falta
@@ -259,15 +271,18 @@ al alcance por sí solo, y únicamente porque hay controles que se miden en él:
 
 | Control | Planos de medida (`measurementPlanes`) | Fila del manager (`000`) | Fila de cada máquina |
 |---|---|---|---|
-| `op.exp.7` | solo manager | se evalúa | no se evalúa |
-| `op.exp.9` | solo manager | se evalúa | no se evalúa |
+| `op.cont.2`, `op.cont.3` | solo manager | se evalúan | no se evalúan |
+| `op.exp.7`, `op.exp.9` | solo manager | se evalúan | no se evalúan |
+| `op.mon.1`, `op.mon.2`, `op.nub.1` | solo manager | se evalúan | no se evalúan |
 | `op.exp.8` | máquinas y manager | se evalúa (plano central y el propio servidor) | se evalúa; lo que solo se mide en el manager sale `NO_APLICA` |
+| `op.mon.3` | máquinas y manager | se evalúa (recolección central, correlación, superficie de exposición y lo demás) | se evalúan sus fuentes de registros |
 | los demás | solo máquinas | no se evalúan | se evalúan |
 
 Los hechos del manager llegan con `agent.id=000`. En la vista de una máquina,
-op.exp.7 y op.exp.9 aparecen con el resultado de la fila del manager, porque son
-controles de la organización y no de la máquina. En la vista del manager solo
-aparecen op.exp.7, op.exp.8 y op.exp.9.
+los controles que solo se miden en el manager aparecen con el resultado de su
+fila, porque son controles de la organización y no de la máquina. En la vista
+del manager solo aparecen los nueve que se miden en él: op.cont.2, op.cont.3,
+op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1.
 
 ### Nivel de la dimensión Trazabilidad
 
@@ -275,6 +290,13 @@ op.exp.8 se aplica por el nivel de la dimensión de Trazabilidad (T), no por la
 categoría del sistema. En Configuración > Configuración global hay un campo
 opcional **Nivel de Trazabilidad (T)**: si se deja vacío, op.exp.8 se evalúa con
 el nivel ENS global, como los demás controles. Ningún otro control lo lee.
+
+### Nivel de la dimensión Disponibilidad
+
+op.cont.2 y op.cont.3 se aplican por el nivel de la dimensión de Disponibilidad
+(D), y solo con D en ALTO. En Configuración > Configuración global hay un campo
+opcional **Nivel de Disponibilidad (D)**: si se deja vacío, los dos se evalúan
+con el nivel ENS global. Ningún otro control lo lee.
 
 Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
 
@@ -298,7 +320,7 @@ python3 tests/check-consistency.py
 | La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración, o el plugin desplegado es anterior al control; revisar la guía de actualización |
 | `inject-control.py` indica que no existe el documento `active` | la configuración no se ha guardado nunca; hacer un primer guardado en ENSFácil > Configuración y repetir la siembra |
 | «Sin datos del recolector desde …» en un control | el recolector de ese control lleva más de 24 h sin latir en esa máquina: agente parado, cron retirado o máquina caída |
-| op.exp.7, op.exp.8 u op.exp.9 sin datos en el manager | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora) |
+| un control medido en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 u op.cont.3) sin datos | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora; op.mon.2 y op.cont.3, cada 6 h) |
 | `install-manager.sh` se niega a tocar `agent.conf` | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene más de un bloque `<agent_config>`; fusionarlos en uno |
 
 Comprobación de coherencia entre el plugin y los runbooks:
@@ -381,8 +403,9 @@ for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo
 
 Cómo compilar con la imagen de CI y pasar las pruebas como CI: [Compilar desde el código fuente](docs/deployment/08-building-from-source.md).
 
-Rangos de rule ID en uso. Los de op.exp.7 y op.exp.9, y los del plano central
-de op.exp.8, llegan con el agente `000` (el manager):
+Rangos de rule ID en uso. Los de op.exp.7, op.exp.9, op.mon.1, op.mon.2,
+op.nub.1 y op.cont.3, y los del plano central de op.exp.8 y op.mon.3, llegan con
+el agente `000` (el manager). op.cont.2 no tiene reglas:
 
 | Control | Banda reservada | En uso |
 |---|---|---|
@@ -403,9 +426,14 @@ de op.exp.8, llegan con el agente `000` (el manager):
 | `op.exp.8` | 110900–110999 | 110900–110999 |
 | `op.exp.9` | 111000–111099 | 111000–111099 |
 | `op.exp.10` | 111100–111199 | 111100–111199 |
+| `op.mon.1` | 111200–111299 | 111200–111299 |
+| `op.mon.2` | 111300–111399 | 111300–111399 |
+| `op.mon.3` | 111400–111499 | 111400–111499 |
+| `op.nub.1` | 111500–111599 | 111500–111599 |
+| `op.cont.3` | 111700–111799 | 111700–111799 |
 
 La banda 107200–109999 no se usa: en algunos managers la ocupan otras
-integraciones. Antes de desplegar en un manager con reglas propias, comprobar
+integraciones. La 111600–111699 queda libre. Antes de desplegar en un manager con reglas propias, comprobar
 que ninguna de estas bandas está en uso.
 
 ---

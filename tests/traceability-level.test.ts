@@ -109,10 +109,12 @@ const opExp8 = ENSCatalog.find(c => c.id === 'op.exp.8');
 const otros = ENSCatalog.filter(c => c.id !== 'op.exp.8');
 
 comprueba('op.exp.8 declara que se rige por la Trazabilidad', opExp8?.levelDimension === 'T');
+// Solo la Trazabilidad: op.cont.2 y op.cont.3 se rigen por la Disponibilidad
+// (`availability-level.test.ts`), y eso no es asunto de esta prueba.
 comprueba(
-  'ningún otro control lo declara',
-  otros.every(c => c.levelDimension === undefined),
-  otros.filter(c => c.levelDimension !== undefined).map(c => c.id).join(', ')
+  'ningún otro control se rige por la Trazabilidad',
+  otros.every(c => c.levelDimension !== 'T'),
+  otros.filter(c => c.levelDimension === 'T').map(c => c.id).join(', ')
 );
 comprueba(
   'sin nivel T, op.exp.8 usa el global',

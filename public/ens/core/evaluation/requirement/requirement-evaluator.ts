@@ -33,14 +33,48 @@ export interface ENSRequirementEvaluationResult {
   // Acreditado por DOCUMENTO, no por telemetría. Viaja aparte de `status` a
   // propósito: el requisito cumple, pero la pantalla y el informe tienen que
   // poder decir «acreditado documentalmente» y nunca confundirlo con medido.
-  // Solo puede ser true en requisitos que el catálogo declara SIN NINGUNA
-  // evidencia técnica.
+  // Llega por dos caminos: `P-ATT`, solo en requisitos que el catálogo declara
+  // SIN NINGUNA evidencia técnica, y una decisión de la policy con `attested`,
+  // solo si ninguna medida del requisito está en contra.
   attested?: boolean;
+
+  // Juzgado desde una DECLARACIÓN de la pantalla (la decisión de la policy
+  // lleva `documental`), no desde los hechos de una máquina. Con NO_CUMPLE es
+  // un documento vencido o ausente: el informe no lo presenta como «medido» ni
+  // manda a corregir la máquina.
+  documental?: boolean;
 
   score: number;
   observations: string[];
   evidenceIds: string[];
 }
+
+// Lo que cuenta como una medida EN CONTRA del requisito: no conforma, o
+// conforma a medias, que para un requisito es lo mismo (ver `resolveMeasurement`).
+const MEASURED_AGAINST: ENSComplianceStatus[] = ['NO_CUMPLE', 'PARCIAL'];
+
+// El motivo de una declaración que la policy acredita. Dice SIEMPRE que es
+// documental, como `describeAttestation`: es lo que impide que se lea como una
+// medida en la pantalla y en el informe.
+const ATTESTED_PREFIX = 'Acreditado documentalmente';
+
+const describePolicyAttestation = (reason: string): string =>
+  reason.startsWith(ATTESTED_PREFIX) ? reason : `${ATTESTED_PREFIX}: ${reason}`;
+
+// Por qué una evidencia está sin medir, con el vocabulario que lee el auditor
+// en el informe y en la ficha del control (`ETIQUETA_DE_CAUSA` de
+// `reports/index.tsx`): tiene que ser literalmente la misma cadena.
+const GAP_CAUSE_LABEL: Record<string, string> = {
+  CATALOG: 'catálogo',
+  CONFIGURATION: 'sin configurar',
+  COLLECTION: 'sin recogida',
+  EVIDENCE: 'evidencia insuficiente',
+};
+
+const describeUnmeasured = (evidence: ENSEvidenceResolved): string =>
+  evidence.gapCause
+    ? `${evidence.id} sin medir (${GAP_CAUSE_LABEL[evidence.gapCause] || evidence.gapCause})`
+    : `${evidence.id} sin medir`;
 
 // La MEDIDA del requisito, no su veredicto: aquí `NO_EVALUABLE` significa
 // literalmente «no se ha podido medir», y esa distinción es la que alimenta
@@ -172,9 +206,24 @@ export const evaluateRequirement = (
     };
   }
 
-  const policyDecision = policyDecisions.find(
+  // La decisión que lee el requisito. Una policy debería emitir UNA por
+  // requisito; si emite varias, manda la primera, salvo que haya una
+  // acreditación (CUMPLE con `attested`): entonces se lee esa, para que una
+  // decisión anterior sin medida no la esconda. Nunca por delante de un
+  // NO_APLICA, que saca el requisito del juego antes que nada. Las demás
+  // decisiones en contra siguen contando: ver la rama de `attested`.
+  const requirementDecisions = policyDecisions.filter(
     decision => decision.requirementId === requirement.id
   );
+
+  const attestedDecision = requirementDecisions.find(
+    decision => decision.attested && decision.status === 'CUMPLE'
+  );
+
+  const policyDecision =
+    requirementDecisions[0]?.status === 'NO_APLICA'
+      ? requirementDecisions[0]
+      : attestedDecision || requirementDecisions[0];
 
   // --- LA POLICY SACA EL REQUISITO DEL JUEGO ------------------------------
   //
@@ -240,6 +289,109 @@ export const evaluateRequirement = (
     };
   }
 
+  const pendingParametersNote = hasMissingRequiredParameters
+    ? ['Existen parámetros obligatorios pendientes de configuración.']
+    : [];
+
+  // --- DECLARACIÓN ACREDITADA POR LA POLICY (`attested`) --------------------
+  //
+  // La policy ha juzgado una declaración de la pantalla CON SU VIGENCIA —un
+  // contrato no vencido, un plan aprobado dentro de su periodicidad— y la da
+  // por buena. Es lo que `P-ATT` no sabe hacer: una atestación no caduca, y un
+  // plan de 2019 con su enlace acreditaría hoy.
+  //
+  // El requisito cumple MARCADO como documental, igual que con `P-ATT`. Y con
+  // el mismo límite duro, que aquí se comprueba contra lo medido porque el
+  // requisito sí puede tener evidencias: NINGÚN DOCUMENTO TAPA UNA MEDIDA EN
+  // CONTRA. Si una evidencia del requisito —las del catálogo y las que nombra
+  // la decisión— está en NO_CUMPLE o PARCIAL, o lo está otra decisión de la
+  // policy para el mismo requisito, manda la medida: NO_CUMPLE y sin la marca.
+  //
+  // Una evidencia que no se ha podido medir (NO_EVALUABLE) no es una medida en
+  // contra y no lo impide, como no lo impide para `P-ATT` una policy que no ha
+  // podido medir. Quien decide si la declaración basta sin esa medida es la
+  // policy, que es la que conoce el requisito.
+  if (policyDecision?.attested && policyDecision.status === 'CUMPLE') {
+    const relatedEvidenceIds = Array.from(
+      new Set([
+        ...requirement.evidenceIds,
+        ...(policyDecision.evidenceIds || []),
+      ])
+    );
+
+    const evidencesAgainst = evidences.filter(
+      evidence =>
+        relatedEvidenceIds.includes(evidence.id) &&
+        MEASURED_AGAINST.includes(evidence.status)
+    );
+
+    const decisionsAgainst = policyDecisions.filter(
+      decision =>
+        decision !== policyDecision &&
+        decision.requirementId === requirement.id &&
+        MEASURED_AGAINST.includes(decision.status)
+    );
+
+    if (evidencesAgainst.length || decisionsAgainst.length) {
+      const culprits = Array.from(
+        new Set([
+          ...evidencesAgainst.map(evidence => `${evidence.id} ${evidence.status}`),
+          ...decisionsAgainst.flatMap(decision =>
+            decision.evidenceIds?.length
+              ? decision.evidenceIds.map(id => `${id} ${decision.status}`)
+              : [`${decision.trace.ruleId} ${decision.status}`]
+          ),
+        ])
+      );
+
+      return {
+        id: requirement.id,
+        title: requirement.title,
+        level: requirement.applicability.levels,
+        status: 'NO_CUMPLE',
+        applicable: true,
+        // Medido, y en contra: es justo lo que manda.
+        evidenced: true,
+        score: scoreByStatus('NO_CUMPLE'),
+        observations: [
+          ...evidencesAgainst.flatMap(evidence => evidence.observations),
+          ...decisionsAgainst.map(decision => decision.reason),
+          `La medida manda sobre la acreditación documental: ${culprits.join(', ')}, así que la declaración no basta para cumplir (${policyDecision.reason}).`,
+          ...pendingParametersNote,
+        ],
+        evidenceIds: requirement.evidenceIds,
+      };
+    }
+
+    return {
+      id: requirement.id,
+      title: requirement.title,
+      level: requirement.applicability.levels,
+      status: 'CUMPLE',
+      applicable: true,
+      // Demostrado con la prueba que el ENS pide para esto: el documento.
+      evidenced: true,
+      attested: true,
+      ...(policyDecision.documental ? { documental: true } : {}),
+      score: scoreByStatus('CUMPLE'),
+      // Y lo que queda sin medir se dice: el documento basta para el
+      // requisito, pero el auditor tiene que ver qué evidencias no se midieron
+      // y por qué.
+      observations: [
+        describePolicyAttestation(policyDecision.reason),
+        ...evidences
+          .filter(
+            evidence =>
+              relatedEvidenceIds.includes(evidence.id) &&
+              evidence.status === 'NO_EVALUABLE'
+          )
+          .map(describeUnmeasured),
+        ...pendingParametersNote,
+      ],
+      evidenceIds: requirement.evidenceIds,
+    };
+  }
+
   const requirementEvidences = evidences.filter(evidence =>
     requirement.evidenceIds.includes(evidence.id)
   );
@@ -265,13 +417,13 @@ export const evaluateRequirement = (
     status,
     applicable: true,
     evidenced: isMeasured(measurement),
+    // Un veredicto que sale de una declaración, no de una medida de la máquina.
+    ...(policyDecision?.documental && isMeasured(measurement) ? { documental: true } : {}),
     score: scoreByStatus(status),
     observations: [
       ...requirementEvidences.flatMap(evidence => evidence.observations),
       ...(policyDecision ? [policyDecision.reason] : []),
-      ...(hasMissingRequiredParameters
-        ? ['Existen parámetros obligatorios pendientes de configuración.']
-        : []),
+      ...pendingParametersNote,
     ],
     evidenceIds: requirement.evidenceIds,
   };

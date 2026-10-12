@@ -186,6 +186,8 @@ export const markEvidencesUnmatchedScope = (
     };
   });
 
+// Las decisiones `documental` salen de la configuración, no de las máquinas
+// declaradas: se conservan, como el NO_APLICA (ver `markPolicyRuntimeStale`).
 export const markPolicyRuntimeUnmatchedScope = (
   policyRuntime: ENSPolicyRuntimeResult | undefined,
   reason: string
@@ -193,7 +195,7 @@ export const markPolicyRuntimeUnmatchedScope = (
   policyRuntime && {
     ...policyRuntime,
     decisions: policyRuntime.decisions.map(decision =>
-      decision.status === 'NO_APLICA'
+      decision.status === 'NO_APLICA' || decision.documental
         ? decision
         : {
             ...decision,

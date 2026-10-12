@@ -76,19 +76,61 @@ export const applyPolicyDecisionsToEvidences = (
   // Una evidencia puede aparecer en varias decisiones. Gana la PEOR, por la
   // misma razón que en la consolidación entre máquinas: si un requisito que se
   // apoya en ella no conforma, la evidencia no puede salir en verde.
+  //
+  // Con UNA excepción: lo NOMBRADO manda sobre un HUECO HEREDADO. La herencia
+  // existe para la policy que no dice qué midió; si alguna decisión NOMBRA la
+  // evidencia, la policy ha dicho expresamente cómo está, y un NO_EVALUABLE que
+  // otra decisión solo hereda de su requisito no la pisa. Sin esto, op.cont.2.1
+  // sin funciones declaradas (P-03, que no es ninguna evidencia) dejaba EV-01
+  // —el plan, en vigor y juzgado en su propia decisión— «sin medir» por un
+  // parámetro que no es suyo.
+  //
+  // Un NO_CUMPLE o un PARCIAL heredados SÍ mandan sobre lo nombrado si son
+  // peores: son un requisito que se apoya en la evidencia y no conforma, y la
+  // regla de arriba no tiene excepción para eso.
   const peorPorEvidencia = new Map<string, ENSPolicyDecision>();
+  const peorHeredadaPorEvidencia = new Map<string, ENSPolicyDecision>();
 
   const gravedad = (estado: string): number =>
     estado === 'NO_CUMPLE' ? 3 : estado === 'PARCIAL' ? 2 : estado === 'NO_EVALUABLE' ? 1 : 0;
 
   decisions.forEach(decision => {
+    // UNA ACREDITACIÓN DOCUMENTAL NO MIDE NINGUNA EVIDENCIA. Un CUMPLE con
+    // `attested` dice que una DECLARACIÓN basta para el requisito, no que la
+    // policy haya medido sus evidencias. Si rellenara una evidencia sin medir
+    // con ese CUMPLE, la evidencia pasaría por medida y, con ella, cualquier
+    // OTRO requisito que se apoye en ella saldría CUMPLE «medido» sobre un
+    // documento ajeno: op.acc.1.2 acreditado dejaba op.acc.1.r1.2 en CUMPLE a
+    // través de EV-06. La evidencia se queda como estaba. Una decisión
+    // acreditada en cualquier otro estado no acredita nada (ver
+    // `requirement-evaluator`) y sí cuenta aquí, como cualquier otra.
+    if (decision.attested && decision.status === 'CUMPLE') {
+      return;
+    }
+
+    const destino = decision.evidenceIds?.length
+      ? peorPorEvidencia
+      : peorHeredadaPorEvidencia;
+
     evidenciasDe(decision).forEach(evidenceId => {
-      const actual = peorPorEvidencia.get(evidenceId);
+      const actual = destino.get(evidenceId);
 
       if (!actual || gravedad(decision.status) > gravedad(actual.status)) {
-        peorPorEvidencia.set(evidenceId, decision);
+        destino.set(evidenceId, decision);
       }
     });
+  });
+
+  peorHeredadaPorEvidencia.forEach((decision, evidenceId) => {
+    const nombrada = peorPorEvidencia.get(evidenceId);
+
+    if (
+      !nombrada ||
+      (gravedad(decision.status) >= gravedad('PARCIAL') &&
+        gravedad(decision.status) > gravedad(nombrada.status))
+    ) {
+      peorPorEvidencia.set(evidenceId, decision);
+    }
   });
 
   if (!peorPorEvidencia.size) {

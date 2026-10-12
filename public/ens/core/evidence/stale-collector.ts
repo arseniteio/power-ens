@@ -149,7 +149,10 @@ export const markEvidencesStale = (
   });
 
 // Las decisiones de la policy salen de los mismos datos viejos, así que tampoco
-// pueden decidir. Solo sobrevive el NO_APLICA, que sale de la configuración.
+// pueden decidir. Sobreviven las que salen de la configuración: el NO_APLICA y
+// las `documental` (una tabla declarada con su vigencia), en cualquier estado.
+// Borrar un NO_CUMPLE documental lo dejaba en NO_EVALUABLE, y en un requisito
+// sin evidencias técnicas eso abría la puerta a P-ATT: un CUMPLE falso.
 export const markPolicyRuntimeStale = (
   policyRuntime: ENSPolicyRuntimeResult | undefined,
   stale: ENSStaleCollector
@@ -157,7 +160,7 @@ export const markPolicyRuntimeStale = (
   policyRuntime && {
     ...policyRuntime,
     decisions: policyRuntime.decisions.map(decision =>
-      decision.status === 'NO_APLICA'
+      decision.status === 'NO_APLICA' || decision.documental
         ? decision
         : {
             ...decision,

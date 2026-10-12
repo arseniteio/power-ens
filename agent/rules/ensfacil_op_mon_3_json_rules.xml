@@ -1,0 +1,226 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_3_json_rules.xml
+     Este fichero es idéntico, byte a byte, en dos sitios: la fuente canónica
+     del plugin y la carpeta manager/ del runbook linux/op.mon.3. Si se
+     modifica uno, hay que copiar el otro: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_mon_3,">
+
+  <!-- ================================================================
+       op.mon.3 · Vigilancia
+       Rango reservado: 111400-111499
+       Base 111400 · hechos crudos 111401-111449 · evidence_state 111450
+       · diagnóstico del recolector 111497-111499
+
+       Dos recolectores, y ninguno usa credenciales:
+
+         - el del MANAGER (agent.id=000) pasa cada hora: en cada pasada el
+           estado de la recolección central (111401); cada 6 h, además, todo
+           lo demás, que se reemite entero, incluidas las fuentes que lee su
+           propio logcollector (111402);
+         - el de cada AGENTE muestrea cada hora, en local, sus ficheros de
+           estado de Wazuh y emite cada 6 h sus fuentes (111402) y su
+           conexión (111403).
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       public/ens/core/evidence/catalog.ts:
+
+         EV-01 111401 · EV-02 111402, 111403 y 111404
+         EV-03 111405 y 111406 · EV-04 111407, 111408 y 111409
+         EV-06 111410 · EV-07 111411 · EV-08 111412 (y 111406)
+         EV-09 111413 · EV-10 111407 · EV-11 111408 y 111409
+         EV-12 111414 · EV-13 111415
+
+       EV-05 no tiene hecho: es un dato del informe (R3.1 es documental).
+       EV-10 y EV-11 reutilizan los hechos de EV-04.
+
+       Cada `event` va anclado (^…$), como en mp.info.6: sin ancla, una regla
+       casa dentro del nombre de otro evento (log_source_observed dentro de
+       syslog_source_observed) y, al mismo nivel, gana la primera del fichero.
+       Lo comprueba plugin-wazuh-ens/tests/check-consistency.py.
+
+       Ninguna regla lleva `estado` de cumplimiento, ni ninguna descripción
+       lleva un campo largo (los ids de 111412): la descripción viaja en cada
+       alerta. Añadir o mover una regla obliga a tocar los dos ficheros y el
+       catálogo a la vez.
+       ================================================================ -->
+
+  <rule id="111400" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">^op.mon.3$</field>
+    <description>op.mon.3 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.mon.3.1 · la recolección ===== -->
+
+  <!-- EV-01. Cada hora, en el manager. El servicio wazuh-manager, los
+       contadores del motor de análisis (recibidos, procesados, descartados),
+       los de wazuh-remoted, las conexiones de <remote> y los agentes activos:
+       la serie entre pasadas prueba que recolecta y que no pierde eventos. -->
+  <rule id="111401" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^event_collection_status$</field>
+    <description>op.mon.3 · EV-01 · recolección: activo=$(activo), procesados $(eventos_procesados), descartados $(eventos_descartados)</description>
+  </rule>
+
+  <!-- EV-02. Cada 6 h, en cada agente y en el manager, una por fuente que lee
+       su logcollector (wazuh-logcollector.state): eventos, bytes, descartes y
+       el último instante en que su contador creció. -->
+  <rule id="111402" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^log_source_observed$</field>
+    <description>op.mon.3 · EV-02 · fuente $(ubicacion): $(eventos) eventos, $(descartes_periodo) descartes en el periodo, último evento $(ultimo_evento)</description>
+  </rule>
+
+  <!-- EV-02. Cada 6 h, en cada agente. Su conexión con el manager y su cola de
+       envío (wazuh-agentd.state). -->
+  <rule id="111403" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^agent_forwarding_observed$</field>
+    <description>op.mon.3 · EV-02 · envío del agente: $(conexion), último ack $(ultimo_ack)</description>
+  </rule>
+
+  <!-- EV-02. Cada 6 h, en el manager. Una por emisor syslog (la IP del campo
+       location de sus alertas) con su última alerta, o una con
+       ubicacion=ninguna. Las fuentes syslog solo dejan rastro cuando
+       alertan. -->
+  <rule id="111404" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^syslog_source_observed$</field>
+    <description>op.mon.3 · EV-02 · emisor syslog $(ubicacion): última alerta $(ultima_alerta), $(alertas_24h) en 24 h</description>
+  </rule>
+
+  <!-- ===== op.mon.3.r1.1 · la correlación ===== -->
+
+  <!-- EV-03. Cada 6 h, uno por conjunto de reglas cargado: reglas, reglas que
+       correlacionan (frequency o if_matched_*) y técnicas MITRE ATT&CK. -->
+  <rule id="111405" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^correlation_rules_inventory$</field>
+    <description>op.mon.3 · EV-03 · conjunto $(conjunto): $(reglas) reglas, $(reglas_correlacion) de correlación</description>
+  </rule>
+
+  <!-- EV-03 y EV-08. Una acción: las alertas de una regla de correlación
+       leídas en la pasada, agregadas por regla y día. -->
+  <rule id="111406" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^correlation_alert_observed$</field>
+    <description>op.mon.3 · EV-03 · correlación: regla $(regla) el $(dia), $(veces) veces</description>
+  </rule>
+
+  <!-- ===== op.mon.3.r2.1 · la superficie de exposición ===== -->
+
+  <!-- EV-04 (y EV-10). Cada 6 h, una por agente registrado y política SCA,
+       de su base en el manager (queue/db/NNN.db). -->
+  <rule id="111407" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^config_assessment_observed$</field>
+    <description>op.mon.3 · EV-04 · SCA de $(agente) ($(agente_id)), política $(politica): fin $(ultimo_fin), puntuación $(puntuacion)</description>
+  </rule>
+
+  <!-- EV-04 (y EV-11). Cada 6 h, una por agente registrado: su conexión y la
+       fecha de su inventario de paquetes, del que se alimenta el detector de
+       vulnerabilidades. -->
+  <rule id="111408" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^package_inventory_observed$</field>
+    <description>op.mon.3 · EV-04 · inventario de $(agente) ($(agente_id)) $(estado_conexion): $(inventario_ultimo)</description>
+  </rule>
+
+  <!-- EV-04 (y EV-11). Cada 6 h. El detector de vulnerabilidades: habilitado,
+       fecha de su fuente y errores del conector del indexer en 24 h. -->
+  <rule id="111409" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^vulnerability_detection_status$</field>
+    <description>op.mon.3 · EV-04 · detector de vulnerabilidades: habilitado=$(habilitado), fuente $(feed_actualizado), $(errores_indexacion_24h) errores de indexación en 24 h</description>
+  </rule>
+
+  <!-- ===== Refuerzos de categoría ALTA ===== -->
+
+  <!-- EV-06. Cada 6 h, uno por sistema de detección en red cuyos eventos
+       ingiere el manager (o uno con producto=ninguno). -->
+  <rule id="111410" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^network_detection_observed$</field>
+    <description>op.mon.3 · EV-06 · detección en red $(producto) por $(fuente): última alerta $(ultima_alerta)</description>
+  </rule>
+
+  <!-- EV-07. Cada 6 h, una por lista CDB cargada (o una con lista=ninguna). -->
+  <rule id="111411" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^ioc_list_observed$</field>
+    <description>op.mon.3 · EV-07 · lista $(lista): $(entradas) entradas, del $(actualizada)</description>
+  </rule>
+
+  <!-- EV-08. Cada 6 h, los ids de las reglas de umbral cargadas (en partes si
+       no caben en una línea). -->
+  <rule id="111412" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^query_volume_rules_observed$</field>
+    <description>op.mon.3 · EV-08 · reglas de umbral cargadas: $(reglas_umbral) (parte $(parte) de $(partes))</description>
+  </rule>
+
+  <!-- EV-09. Cada 6 h, uno por canal: el correo y cada integración. -->
+  <rule id="111413" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^notification_channel_configured$</field>
+    <description>op.mon.3 · EV-09 · canal $(canal): habilitado=$(habilitado), desde nivel $(nivel_minimo)</description>
+  </rule>
+
+  <!-- EV-12. Cada 6 h, una por fila del registro de inspecciones (o una con
+       tipo=ninguna si está vacío). -->
+  <rule id="111414" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^security_inspection_recorded$</field>
+    <description>op.mon.3 · EV-12 · inspección $(tipo) del $(fecha) ($(motivo))</description>
+  </rule>
+
+  <!-- EV-13. Cada 6 h, uno por incidente del registro de incidentes abierto en
+       los últimos 30 días (o uno con incidente_id=ninguno). -->
+  <rule id="111415" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^incident_registered$</field>
+    <description>op.mon.3 · EV-13 · incidente $(incidente_id) del $(fecha)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer»
+       (COLLECTION) de «no hay contra qué medir» (CONFIGURATION), y las dos se
+       arreglan en sitios distintos. -->
+  <rule id="111450" level="5">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^evidence_state$</field>
+    <field name="estado" type="pcre2">^NO_EVALUABLE$</field>
+    <description>op.mon.3 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== Los recolectores ===== -->
+
+  <!-- 111497. El latido, al final de cada pasada que emite. No acredita
+       ninguna evidencia: dice qué se barrió (EV-01 en la horaria del manager;
+       todas las que tienen hecho en su pasada de 6 h; EV-02 en la de un
+       agente), que es lo que delimita en el motor la última pasada de cada
+       hecho de estado. -->
+  <rule id="111497" level="3">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^collector_run$</field>
+    <description>op.mon.3 · pasada del recolector ($(tipo_servidor)): $(resultado), cubre $(evidencias_cubiertas)</description>
+  </rule>
+
+  <!-- 111498. Aviso operativo: .env ilegible, sin root, candado, una ruta o un
+       log_alert_level distintos de los esperados, fuentes de más. -->
+  <rule id="111498" level="5">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^collector_warning$</field>
+    <description>op.mon.3 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 111499. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <rule id="111499" level="7">
+    <if_sid>111400</if_sid>
+    <field name="event" type="pcre2">^collector_missing$</field>
+    <description>op.mon.3 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>

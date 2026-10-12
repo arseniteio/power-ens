@@ -92,6 +92,10 @@ export interface ENSGlobalConfiguration {
   // significa «el mismo que `ensLevel`», y nunca se escribe `null`. Solo lo leen
   // los controles que declaran `levelDimension: 'T'` en su catálogo.
   traceabilityLevel?: ENSLevel;
+  // Nivel de la dimensión de Disponibilidad (D), con el mismo contrato que el de
+  // Trazabilidad: la clave AUSENTE es «el mismo que `ensLevel`», nunca `null`.
+  // Solo lo leen los controles que declaran `levelDimension: 'D'`.
+  availabilityLevel?: ENSLevel;
   ensVersion: string;
   scope: string;
   evaluationPeriod: string;

@@ -35,7 +35,10 @@ export async function ensureENSConfigurationIndex(client: any, logger: Logger): 
     await client.indices.create({
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        settings: { index: { number_of_shards: 1 } },
+        // `auto_expand_replicas` y no una réplica fija: en un indexer de un solo
+        // nodo la réplica no se puede asignar nunca y el índice se queda en
+        // amarillo para siempre; con más de un nodo, se crea la réplica.
+        settings: { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } },
         mappings: {
           properties: {
             documentType: { type: 'keyword' },

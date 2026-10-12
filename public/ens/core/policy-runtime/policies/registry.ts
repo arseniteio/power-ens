@@ -31,6 +31,14 @@ import {
 } from './op-acc-6.policy';
 
 import {
+  opCont2PolicyDefinition,
+} from './op-cont-2.policy';
+
+import {
+  opCont3PolicyDefinition,
+} from './op-cont-3.policy';
+
+import {
   opExp1PolicyDefinition,
 } from './op-exp-1.policy';
 
@@ -70,25 +78,47 @@ import {
   opExp10PolicyDefinition,
 } from './op-exp-10.policy';
 
+import {
+  opMon1PolicyDefinition,
+} from './op-mon-1.policy';
+
+import {
+  opMon2PolicyDefinition,
+} from './op-mon-2.policy';
+
+import {
+  opMon3PolicyDefinition,
+} from './op-mon-3.policy';
+
+import {
+  opNub1PolicyDefinition,
+} from './op-nub-1.policy';
+
 const policyDefinitions:
   ENSPolicyDefinition[] = [
-    opExp10PolicyDefinition,
-    opExp9PolicyDefinition,
-    opExp8PolicyDefinition,
-    opExp7PolicyDefinition,
-    opExp6PolicyDefinition,
-    opExp5PolicyDefinition,
-    opExp4PolicyDefinition,
-    opExp3PolicyDefinition,
-    opExp2PolicyDefinition,
-    opExp1PolicyDefinition,
-    opAcc6PolicyDefinition,
-    opAcc5PolicyDefinition,
-    opAcc3PolicyDefinition,
-    opAcc4PolicyDefinition,
     mpInfo6PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,
+    opAcc3PolicyDefinition,
+    opAcc4PolicyDefinition,
+    opAcc5PolicyDefinition,
+    opAcc6PolicyDefinition,
+    opCont2PolicyDefinition,
+    opCont3PolicyDefinition,
+    opExp1PolicyDefinition,
+    opExp2PolicyDefinition,
+    opExp3PolicyDefinition,
+    opExp4PolicyDefinition,
+    opExp5PolicyDefinition,
+    opExp6PolicyDefinition,
+    opExp7PolicyDefinition,
+    opExp8PolicyDefinition,
+    opExp9PolicyDefinition,
+    opExp10PolicyDefinition,
+    opMon1PolicyDefinition,
+    opMon2PolicyDefinition,
+    opMon3PolicyDefinition,
+    opNub1PolicyDefinition,
   ];
 
 const policyRegistry =

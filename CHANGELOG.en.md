@@ -8,6 +8,53 @@ follow [semantic versioning](https://semver.org/).
 Each version's entry in the Spanish file, `CHANGELOG.md`, is the notes of its
 GitLab release.
 
+## [1.1.0] - 2026-10-10
+
+Six new controls: the catalog goes from 17 to 23.
+
+### Added
+
+- Six controls in the catalog, all measured on the manager (op.mon.3 on the
+  machines too):
+  - `op.cont.2` Continuity plan (only with D at HIGH), without a runbook or
+    rules: the plugin judges it from the screen tables and their validity;
+  - `op.cont.3` Periodic tests (only with D at HIGH), with the manager's test
+    and deficiency registers and the outages and starts measured in each
+    test's real window;
+  - `op.mon.1` Intrusion detection;
+  - `op.mon.2` Metrics system, with the metrics cycle register;
+  - `op.mon.3` Monitoring, on the manager and on the machines of the `ens`
+    group;
+  - `op.nub.1` Protection of cloud services.
+- The Availability (D) dimension: in Configuration > Global configuration, the
+  optional **Availability level (D)** field. Only op.cont.2 and op.cont.3 read
+  it; empty, they use the global ENS level.
+- The documentary attestation flag (`attested`) in policy decisions: a
+  requirement met by a valid declaration reads «Acreditado documentalmente»
+  (documentarily accredited), never «Medido» (measured), and does not fill its
+  evidences as measured.
+- The documentary flag (`documental`) in the decisions that come only from the
+  screen tables (all of op.cont.2, op.mon.1 R2 and the documentary part of
+  op.nub.1): a stale collector or a scope without machines does not erase
+  them, and a documentary non-conformity reads «Declarado (documental)» and
+  asks to renew or complete the documentation, not to fix the machine.
+- Reports: the op.mon.2 report receives the result of every control (the
+  panorama) through a second facts search, the same as the dashboard's.
+
+### Changed
+
+- On new installations, the configuration index, `wazuh-ens-configuration`,
+  is created with `auto_expand_replicas: 0-1`: on a single-node indexer it no
+  longer stays yellow. The plugin does not touch an index that already exists:
+  one created by 1.0.0 is adjusted by hand when updating (update guide,
+  section 8).
+- A control whose evidences listen to no facts (op.cont.2) expects no facts:
+  what it cannot prove is a CONFIGURATION gap, never a COLLECTION one.
+- An evidence named by the policy only replaces a NO_EVALUABLE inherited from
+  its requirement; an inherited NO_CUMPLE or PARCIAL still wins.
+- In the control detail, documentary non-conformities have their own block and
+  are not counted under «Corregir el sistema auditado» (fix the audited system).
+
 ## [1.0.0] - 2026-10-08
 
 First version of ENSFácil as a standalone Wazuh Dashboard plugin.

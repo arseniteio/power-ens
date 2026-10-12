@@ -6,6 +6,8 @@ export * from './op-acc-3';
 export * from './op-acc-4';
 export * from './op-acc-5';
 export * from './op-acc-6';
+export * from './op-cont-2';
+export * from './op-cont-3';
 export * from './op-exp-1';
 export * from './op-exp-2';
 export * from './op-exp-3';
@@ -16,6 +18,10 @@ export * from './op-exp-7';
 export * from './op-exp-8';
 export * from './op-exp-9';
 export * from './op-exp-10';
+export * from './op-mon-1';
+export * from './op-mon-2';
+export * from './op-mon-3';
+export * from './op-nub-1';
 
 import { ENSControlDefinition } from './types';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
@@ -25,6 +31,8 @@ import { opAcc3CatalogDefinition } from './op-acc-3';
 import { opAcc4CatalogDefinition } from './op-acc-4';
 import { opAcc5CatalogDefinition } from './op-acc-5';
 import { opAcc6CatalogDefinition } from './op-acc-6';
+import { opCont2CatalogDefinition } from './op-cont-2';
+import { opCont3CatalogDefinition } from './op-cont-3';
 import { opExp1CatalogDefinition } from './op-exp-1';
 import { opExp2CatalogDefinition } from './op-exp-2';
 import { opExp3CatalogDefinition } from './op-exp-3';
@@ -35,6 +43,10 @@ import { opExp7CatalogDefinition } from './op-exp-7';
 import { opExp8CatalogDefinition } from './op-exp-8';
 import { opExp9CatalogDefinition } from './op-exp-9';
 import { opExp10CatalogDefinition } from './op-exp-10';
+import { opMon1CatalogDefinition } from './op-mon-1';
+import { opMon2CatalogDefinition } from './op-mon-2';
+import { opMon3CatalogDefinition } from './op-mon-3';
+import { opNub1CatalogDefinition } from './op-nub-1';
 
 export const ENSCatalog: ENSControlDefinition[] = [
   mpInfo6CatalogDefinition,
@@ -44,6 +56,8 @@ export const ENSCatalog: ENSControlDefinition[] = [
   opAcc4CatalogDefinition,
   opAcc5CatalogDefinition,
   opAcc6CatalogDefinition,
+  opCont2CatalogDefinition,
+  opCont3CatalogDefinition,
   opExp1CatalogDefinition,
   opExp2CatalogDefinition,
   opExp3CatalogDefinition,
@@ -54,6 +68,10 @@ export const ENSCatalog: ENSControlDefinition[] = [
   opExp8CatalogDefinition,
   opExp9CatalogDefinition,
   opExp10CatalogDefinition,
+  opMon1CatalogDefinition,
+  opMon2CatalogDefinition,
+  opMon3CatalogDefinition,
+  opNub1CatalogDefinition,
 ];
 
 export const getENSCatalogControl = (

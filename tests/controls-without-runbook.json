@@ -1,0 +1,4 @@
+{
+  "_nota": "Controles ACTIVE que se juzgan SIN runbook, con su motivo. Los leen tests/check-consistency.py (comprobación 14) y tests/draft-control.test.ts (bloque 7). Un control ACTIVE sin runbook que no esté aquí hace fallar las dos: un control sin runbook registrado es invisible para casi todas las comprobaciones de coherencia, así que no puede pasar en silencio. Un control de esta lista no puede acreditar ninguna regla: si las acredita, tiene runbook y va en RUNBOOKS.",
+  "op.cont.2": "Control documental: el plan de continuidad, sus contratos de medios alternativos, las funciones y la formación se declaran en la pantalla de Configuración y la policy juzga su vigencia. No hay nada que recoger en ninguna máquina, así que no hay recolector ni reglas (spec 2026-10-09 §5.4)."
+}

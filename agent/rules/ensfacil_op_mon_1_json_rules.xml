@@ -1,0 +1,167 @@
+<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_1_json_rules.xml
+     Este fichero es idéntico, byte a byte, en dos sitios: la fuente canónica
+     del plugin y la carpeta manager/ del runbook linux/op.mon.1. Si se
+     modifica uno, hay que copiar el otro: lo comprueba
+     plugin-wazuh-ens/tests/check-consistency.py. -->
+<group name="ensfacil,op_mon_1,">
+
+  <!-- ================================================================
+       op.mon.1 · Detección de intrusión
+       Rango reservado: 111200-111299
+       Base 111200 · hechos crudos 111201-111249 · evidence_state 111250
+       · diagnóstico del recolector 111297-111299
+
+       Todo lo emite el recolector del MANAGER (agent.id=000), que solo lee
+       ficheros locales y no usa credenciales. Pasa cada hora: en cada pasada
+       el estado del motor (111201); cada 6 h, además, todo lo demás, que se
+       reemite entero.
+
+       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
+       public/ens/core/evidence/catalog.ts:
+
+         EV-01 111201 y 111202 · EV-02 111203 · EV-03 111204
+         EV-04 111205 · EV-05 111206 · EV-07 111207 y 111208
+         EV-08 111202 y 111209
+
+       EV-06 no tiene hecho: es un dato del informe, sin requisito que la
+       juzgue (la aplicación de los procedimientos la mide op.exp.7).
+
+       Ninguna regla lleva `estado` de cumplimiento, ni ninguna descripción
+       lleva un campo largo (los ids de 111205): la descripción viaja en cada
+       alerta. Añadir o mover una regla obliga a tocar los dos ficheros y el
+       catálogo a la vez.
+       ================================================================ -->
+
+  <rule id="111200" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="ensfacil">op.mon.1</field>
+    <description>op.mon.1 · evento ENSFácil base</description>
+  </rule>
+
+  <!-- ===== op.mon.1.1 y op.mon.1.r1.1 · el motor de detección ===== -->
+
+  <!-- EV-01. Cada hora. El servicio wazuh-manager y los contadores del motor
+       de análisis (wazuh-analysisd.state): la serie entre pasadas prueba que
+       procesa. Es la única regla de la pasada horaria. -->
+  <rule id="111201" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">detection_engine_status</field>
+    <description>op.mon.1 · EV-01 · motor de detección: activo=$(activo), eventos procesados $(eventos_procesados)</description>
+  </rule>
+
+  <!-- EV-01 y EV-08. Cada 6 h. La versión de Wazuh y el ruleset cargado: fecha
+       del fichero de reglas más reciente, ficheros, reglas y reglas con
+       técnica MITRE ATT&CK. -->
+  <rule id="111202" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">ruleset_version_observed</field>
+    <description>op.mon.1 · EV-01 · ruleset de Wazuh $(version_wazuh) del $(fecha_ruleset): $(reglas) reglas</description>
+  </rule>
+
+  <!-- ===== op.mon.1.1 · cobertura y resultado ===== -->
+
+  <!-- EV-02. Cada 6 h, un hecho por agente registrado. Su estado en global.db
+       (leída en solo lectura) y el fin de su última pasada de FIM, SCA e
+       inventario, de su base en el manager. -->
+  <rule id="111203" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">detection_coverage_observed</field>
+    <description>op.mon.1 · EV-02 · agente $(agente) ($(agente_id)) $(estado_conexion): FIM $(fim_ultimo_fin), SCA $(sca_ultimo_fin)</description>
+  </rule>
+
+  <!-- EV-03. Cada 6 h, un hecho por agente registrado. Su última alerta propia
+       en alerts.json (sin las de ENSFácil) y el volumen de las últimas 24 h.
+       Nunca un hecho por alerta ni por regla. -->
+  <rule id="111204" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">detection_activity_observed</field>
+    <description>op.mon.1 · EV-03 · agente $(agente) ($(agente_id)): última detección $(ultima_alerta), $(alertas_24h) alertas en 24 h</description>
+  </rule>
+
+  <!-- EV-04. Cada 6 h, un hecho por conjunto de reglas (o por parte, si sus ids
+       no caben en una línea): los ids que pueden alertar, en rangos
+       comprimidos. -->
+  <rule id="111205" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">ruleset_rules_loaded</field>
+    <description>op.mon.1 · EV-04 · conjunto de reglas $(conjunto): $(reglas) reglas (parte $(parte) de $(partes))</description>
+  </rule>
+
+  <!-- EV-05. Cada 6 h, un hecho por sistema de detección en red cuyos eventos
+       ingiere el manager (o uno con producto=ninguno si no hay ninguno). -->
+  <rule id="111206" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">network_detection_observed</field>
+    <description>op.mon.1 · EV-05 · detección en red $(producto) por $(fuente): última alerta $(ultima_alerta)</description>
+  </rule>
+
+  <!-- ===== op.mon.1.r3.1 · acciones predeterminadas (se informan) ===== -->
+
+  <!-- EV-07. Cada 6 h. Una respuesta activa configurada en el manager (o una
+       con comando=- si no hay ninguna). -->
+  <rule id="111207" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">active_response_configured</field>
+    <description>op.mon.1 · EV-07 · respuesta automática configurada: $(comando) sobre $(reglas_id)</description>
+  </rule>
+
+  <!-- EV-07. Una acción: las ejecuciones de una respuesta activa en la
+       ventana, agregadas por agente, programa y regla que la disparó. -->
+  <rule id="111208" level="5">
+    <if_sid>111200</if_sid>
+    <field name="event">active_response_executed</field>
+    <description>op.mon.1 · EV-07 · respuesta automática $(programa) $(accion) en $(agente) por la regla $(regla_origen)</description>
+  </rule>
+
+  <!-- ===== op.mon.1.r1.1 · vigencia y exclusiones ===== -->
+
+  <!-- EV-08. Cada 6 h. Un fichero de reglas excluido (rule_exclude de
+       ossec.conf) o una regla reescrita a nivel 0 en las reglas propias (o uno
+       con tipo=ninguno si no hay ninguno). -->
+  <rule id="111209" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">rule_silenced</field>
+    <description>op.mon.1 · EV-08 · silenciamiento $(tipo): $(objeto) en $(fichero)</description>
+  </rule>
+
+  <!-- ===== Degradación =====
+
+       El recolector no emite veredictos, pero sí tiene que poder decir que no
+       pudo mirar: la `causa` distingue «la fuente no se pudo leer»
+       (COLLECTION) de «no hay contra qué medir» (CONFIGURATION), y las dos se
+       arreglan en sitios distintos. -->
+  <rule id="111250" level="5">
+    <if_sid>111200</if_sid>
+    <field name="event">evidence_state</field>
+    <field name="estado">NO_EVALUABLE</field>
+    <description>op.mon.1 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
+  </rule>
+
+  <!-- ===== El recolector ===== -->
+
+  <!-- 111297. El latido, al final de cada pasada. No acredita ninguna
+       evidencia: dice qué se barrió (EV-01 en la horaria; todas las que tienen
+       hecho en la de 6 h), que es lo que delimita en el motor la última pasada
+       de cada hecho de estado. -->
+  <rule id="111297" level="3">
+    <if_sid>111200</if_sid>
+    <field name="event">collector_run</field>
+    <description>op.mon.1 · pasada del recolector ($(tipo_servidor)): $(resultado), cubre $(evidencias_cubiertas)</description>
+  </rule>
+
+  <!-- 111298. Aviso operativo: .env ilegible, sin root, candado, una ruta o un
+       log_alert_level distintos de los esperados. -->
+  <rule id="111298" level="5">
+    <if_sid>111200</if_sid>
+    <field name="event">collector_warning</field>
+    <description>op.mon.1 · aviso del recolector ($(parametro)): $(motivo)</description>
+  </rule>
+
+  <!-- 111299. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <rule id="111299" level="7">
+    <if_sid>111200</if_sid>
+    <field name="event">collector_missing</field>
+    <description>op.mon.1 · hueco en las pasadas del recolector: $(detalle)</description>
+  </rule>
+
+</group>
