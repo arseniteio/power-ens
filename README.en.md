@@ -26,7 +26,7 @@ and the links to every runbook and its guides are in the
 1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of
    each of the 22 Linux runbooks (rules and `<localfile>`; op.exp.7, op.exp.8,
    op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 also leave a
-   collector on the manager itself; op.cont.2 has no runbook), and finally the
+   collector on the manager itself; the op.cont.2 runbook is documentation only), and finally the
    ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
    Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
 2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrol it on
@@ -57,7 +57,7 @@ defines but does not require in any category, which comes out `NO_APLICA`.
 | `op.acc.4` | Access rights management process | LOW+ | no reinforcements | machines |
 | `op.acc.5` | Authentication mechanism (external users) | LOW+ | R1–R4 (LOW+), R5 (MEDIUM+); R6–R7 not required | machines |
 | `op.acc.6` | Authentication mechanism (organization users) | LOW+ | R1–R4, R8–R9 (LOW+), R5 (MEDIUM+), R6–R7 (HIGH) | machines |
-| `op.cont.2` | Continuity plan | HIGH (by the Availability level) | R1–R2 not required | manager, without a runbook: the plugin judges it from the configuration |
+| `op.cont.2` | Continuity plan | HIGH (by the Availability level) | R1–R2 not required | manager; the plugin judges it from the configuration (documentation-only runbook) |
 | `op.cont.3` | Periodic tests | HIGH (by the Availability level) | no reinforcements | manager |
 | `op.exp.1` | Asset inventory | LOW+ | R1–R4 not required | machines |
 | `op.exp.2` | Security configuration | LOW+ | no reinforcements | machines |
@@ -82,7 +82,7 @@ same control.
 
 | GitLab group | Controls |
 |---|---|
-| `quersystem/ens-controls-runbook/linux` | 22, all but op.cont.2, which has no runbook (mp.info.6 for machines that back up to a Proxmox Backup Server) |
+| `quersystem/ens-controls-runbook/linux` | 23; the op.cont.2 one is documentation only, with no collector or rules (mp.info.6 for machines that back up to a Proxmox Backup Server) |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-ldap` | op.acc.1 to op.acc.6 and op.exp.1 to op.exp.10 |
 | `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (`zmbackup` backups of Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4 |

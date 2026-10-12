@@ -234,7 +234,7 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clone the ENS runbooks
 
-On the Wazuh Manager server, clone the 22 Linux runbooks used by ENSFácil under `/opt/ensfacil`. This location keeps the control repositories next to the main repository, which is where the project consistency check looks for them (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
+On the Wazuh Manager server, clone the 22 Linux runbooks that get installed and that ENSFácil uses under `/opt/ensfacil`. This location keeps the control repositories next to the main repository, which is where the project consistency check looks for them (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -272,14 +272,14 @@ done < /opt/ensfacil/runbooks.txt
 git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
-The file `/opt/ensfacil/runbooks.txt` is reused in the following steps.
+The file `/opt/ensfacil/runbooks.txt` is reused in the following steps. The op.cont.2 runbook (`linux/op.cont.2`) is documentation only and is not cloned on the manager: it installs nothing, because the plugin judges that control from the Configuración screen.
 
 > [!note]
 > Each runbook is named exactly as its control, and the subgroup gives the platform or role. The variants for the Zimbra LDAP directory server (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) and for Windows (`quersystem/ens-controls-runbook/windows`) have the same names as the Linux ones and are cloned on the corresponding machines following their own guide. On the manager the Linux runbooks are enough: the rules are the same, byte for byte.
 
 ### 10.4 Validate the cloned runbooks
 
-Check that the 22 repositories exist and point to the expected remote:
+Check that the 22 cloned repositories exist and point to the expected remote:
 
 ```bash
 while read -r r; do

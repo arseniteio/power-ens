@@ -214,7 +214,7 @@ git -C /opt/ensfacil/repo status --short
 
 ### 10.3 Clonar los runbooks ENS
 
-En el servidor Wazuh Manager, clonar los 22 runbooks Linux utilizados por ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal, que es donde los busca la comprobación de coherencia del proyecto (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
+En el servidor Wazuh Manager, clonar los 22 runbooks Linux que se instalan y que usa ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal, que es donde los busca la comprobación de coherencia del proyecto (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -252,14 +252,14 @@ done < /opt/ensfacil/runbooks.txt
 git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
-El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes.
+El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes. El runbook de op.cont.2 (`linux/op.cont.2`) es solo documentación y no se clona en el manager: no instala nada, porque el plugin juzga ese control con la pantalla de Configuración.
 
 > [!note]
 > Cada runbook se llama exactamente como su control, y el subgrupo dice la plataforma o el rol. Las variantes para el servidor de directorio LDAP de Zimbra (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) y para Windows (`quersystem/ens-controls-runbook/windows`) se llaman igual que las de Linux y se clonan en las máquinas correspondientes siguiendo su propia guía. En el manager basta con los runbooks Linux: las reglas son las mismas, byte a byte.
 
 ### 10.4 Validar los runbooks clonados
 
-Comprobar que los 22 repositorios existen y apuntan al remoto esperado:
+Comprobar que los 22 repositorios clonados existen y apuntan al remoto esperado:
 
 ```bash
 while read -r r; do
