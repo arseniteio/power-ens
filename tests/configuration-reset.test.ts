@@ -109,12 +109,43 @@ bloque('1. El resumen dice qué se va a borrar, sin borrar nada');
   );
 
   // Y sobre un control sin configurar, no hay nada que borrar.
-  const virgen = summarizeControlConfigurationReset(opAcc1Configuration);
+  // El catálogo puede traer listas iniciales; una configuración vacía debe
+  // construirse explícitamente sin valores, independientemente de esas listas.
+  const sinConfigurar: ENSControlConfiguration = {
+    ...opAcc1Configuration,
+    parameters: opAcc1Configuration.parameters.map(parameter => {
+      const copia = { ...parameter };
+      delete copia.value;
+      return copia;
+    }),
+  };
+  const virgen = summarizeControlConfigurationReset(sinConfigurar);
 
   comprueba(
     'sobre un control sin configurar, no hay nada que borrar',
     virgen.clearedParameters === 0,
     String(virgen.clearedParameters)
+  );
+}
+
+{
+  const resumen = summarizeControlConfigurationReset(opAcc1Configuration);
+  comprueba(
+    'el resumen incluye las listas iniciales de P-03 y P-04',
+    ['P-03', 'P-04'].every(id => resumen.parameterIds.includes(id))
+  );
+
+  const limpio = buildClearedControlConfiguration(opAcc1Configuration, 'op.acc.1');
+  comprueba(
+    'el borrado también elimina las listas iniciales del catálogo',
+    limpio.parameters.every(parameter => parameter.value === undefined)
+  );
+  comprueba(
+    'el catálogo original conserva sus listas iniciales',
+    ['P-03', 'P-04'].every(id => {
+      const parameter = opAcc1Configuration.parameters.find(item => item.id === id);
+      return Array.isArray(parameter?.value) && parameter.value.length > 0;
+    })
   );
 }
 
