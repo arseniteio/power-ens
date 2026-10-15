@@ -28,9 +28,10 @@ import {
   retryENSConfigurationHydration,
 } from './services';
 
-import {
-  ConfigurationShell,
-} from './components/configuration-shell';
+// El formulario se descarga solo al entrar en Configuración.
+const ConfigurationShell = React.lazy(() =>
+  import('./components/configuration-shell').then(m => ({ default: m.ConfigurationShell }))
+);
 
 const hydrateENSRuntime = async (
   force: boolean = false

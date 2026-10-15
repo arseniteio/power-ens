@@ -21,15 +21,8 @@ export const opAcc1Configuration: ENSControlConfiguration = {
         'cumple.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.3', 'op.acc.1.4'],
-      type: 'select',
+      type: 'list',
       example: 'Active Directory',
-      options: [
-        'Active Directory',
-        'LDAP',
-        'Local',
-        'Azure AD',
-        'Otro',
-      ],
       required: true,
       wazuhUsage:
         'Determina qué integración de Wazuh aporta los eventos de cuenta: el ' +

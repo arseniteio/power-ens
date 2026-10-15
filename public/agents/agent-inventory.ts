@@ -5,6 +5,7 @@ import { ENS_MONITORING_INDEX } from '../../common/constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
 import { getCore, getData } from '../services';
+import { withRequestTimeout } from '../platform/request-timeout';
 
 export const ENS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 
@@ -127,9 +128,13 @@ export const staleInventoryMessage = (newestTimestamp?: string): string =>
     : 'El inventario de wazuh-monitoring no trae ninguna fecha: no se sabe si está al día y un alta o una baja reciente puede no verse.';
 
 export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
-  const respuesta: any = await getData()
-    .search.search({ params: buildMonitoringInventoryRequest() })
-    .toPromise();
+  const respuesta: any = await withRequestTimeout(
+    signal => getData().search.search(
+      { params: buildMonitoringInventoryRequest() },
+      { abortSignal: signal }
+    ).toPromise(),
+    'inventario de agentes'
+  );
   const inventario = inventoryFromMonitoring(respuesta?.rawResponse?.aggregations);
 
   if (!inventario.agents.length) {

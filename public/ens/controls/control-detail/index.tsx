@@ -1,3 +1,4 @@
+import { useActiveENSScopeAgents } from '../../core/scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useEsSearch } from '../../../search/use-es-search';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
@@ -36,6 +37,8 @@ import { NonConformityCard } from './nonconformity-card';
 import type { MotivoLinea } from './motive-cell';
 import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
 
+const EMPTY_HITS: any[] = [];
+
 interface ControlDetailENSProps {
   control: ENSControl;
   agentId?: string;
@@ -49,7 +52,6 @@ import {
 } from '../../core';
 import {
   buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
 } from '../../core/scope';
 
 const getBadgeColor = (status: string) => {
@@ -114,8 +116,7 @@ export const ControlDetailENS = ({
     activeConfiguration.global.evaluationPeriod,
   );
 
-  const scopeAgents =
-    getActiveENSScopeAgents();
+  const scopeAgents = useActiveENSScopeAgents();
 
   const scopeAgentQueryFilter =
     buildENSScopeAgentQueryFilter(
@@ -164,7 +165,9 @@ export const ControlDetailENS = ({
     hit?.fields?.['@timestamp']?.[0] ||
     hit?.sort?.[0];
 
-  const ensHits = ((esResults?.hits?.hits || []) as any[])
+  const hits = esResults?.hits?.hits || EMPTY_HITS;
+
+  const ensHits = useMemo(() => (hits as any[])
     .map(hit => ({
       ...(hit._source || {}),
       fields: hit.fields,
@@ -174,9 +177,7 @@ export const ControlDetailENS = ({
       const dateA = new Date(getHitTimestamp(a) || 0).getTime();
       const dateB = new Date(getHitTimestamp(b) || 0).getTime();
       return dateB - dateA;
-    });
-
-    const hits = esResults?.hits?.hits || [];
+    }), [hits]);
 
   // ¿Se ha quedado fuera algo? `hits.total` es lo que HAY; `hits.length` lo que
   // se ha traído. Si no coinciden, el motor ha juzgado sobre una parte y el

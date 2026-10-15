@@ -1,25 +1,20 @@
 import React from 'react';
 import { EuiFlexGroup, EuiFlexItem, EuiPage, EuiPageBody, EuiSpacer, EuiTab, EuiTabs } from '@elastic/eui';
 import { ENSConfigurationBootstrap, ConfigurationENS } from '../ens/configuration';
-import { ControlsENS } from '../ens/controls';
-import { InformesENS } from '../ens/reports';
-import { EvidencesENS } from '../ens/evidences';
-import { EnsDashboardMain } from '../ens/dashboard/ens-dashboard-main';
-import { EventsView } from '../events/events-view';
-import { RequirementsView } from '../requirements/requirements-view';
+import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
 
 // Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
-  dashboard: EnsDashboardMain,
+  dashboard: React.lazy(() => import('../ens/dashboard/ens-dashboard-main').then(m => ({ default: m.EnsDashboardMain }))),
   configuration: ConfigurationENS,
-  controls: RequirementsView,
-  events: EventsView,
-  plugins: ControlsENS,
-  'ens-informes': InformesENS,
-  evidences: EvidencesENS,
+  controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
+  events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),
+  plugins: React.lazy(() => import('../ens/controls').then(m => ({ default: m.ControlsENS }))),
+  'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.InformesENS }))),
+  evidences: React.lazy(() => import('../ens/evidences').then(m => ({ default: m.EvidencesENS }))),
 };
 
 // Una pestaña sin vista todavía no pinta nada. Fuera del componente: un
@@ -56,7 +51,9 @@ export const EnsApp = () => {
           ))}
         </EuiTabs>
         <EuiSpacer size="m" />
-        {contenido}
+        <React.Suspense fallback={<LoadingSpinner message="Cargando pantalla ENS..." />}>
+          {contenido}
+        </React.Suspense>
       </EuiPageBody>
     </EuiPage>
   );

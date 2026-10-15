@@ -1,3 +1,4 @@
+import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ControlRow } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
@@ -29,7 +30,6 @@ import {
 } from '../core';
 import {
   buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
 } from '../core/scope';
 import {
   isControlInDeclaredScope,
@@ -108,8 +108,7 @@ export const ControlsENS = () => {
     activeConfiguration.global.evaluationPeriod,
   );
 
-   const scopeAgents =
-     getActiveENSScopeAgents();
+   const scopeAgents = useActiveENSScopeAgents();
 
    const scopeAgentQueryFilter =
      buildENSScopeAgentQueryFilter(

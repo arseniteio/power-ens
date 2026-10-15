@@ -1,3 +1,4 @@
+import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
@@ -20,7 +21,6 @@ import {
 } from '../core';
 import {
   buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
 } from '../core/scope';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
@@ -144,7 +144,7 @@ const ControlReport = ({
   const evaluationTimeFilter =
     buildENSEvaluationTimeRangeFilter(evaluationPeriod);
 
-  const scopeAgents = getActiveENSScopeAgents();
+  const scopeAgents = useActiveENSScopeAgents();
 
   const scopeAgentQueryFilter =
     buildENSScopeAgentQueryFilter(scopeAgents, agentId);

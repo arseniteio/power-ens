@@ -1,3 +1,4 @@
+import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
@@ -34,7 +35,6 @@ import type {
 } from '../core/evaluation/types';
 import {
   buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
 } from '../core/scope';
 import {
   compareENSIds,
@@ -544,7 +544,7 @@ export const EvidencesENS = () => {
     activeConfiguration.global.evaluationPeriod,
   );
 
-  const scopeAgents = getActiveENSScopeAgents();
+  const scopeAgents = useActiveENSScopeAgents();
 
   const scopeAgentQueryFilter = buildENSScopeAgentQueryFilter(
     scopeAgents,

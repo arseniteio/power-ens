@@ -1,4 +1,5 @@
 import { getHttp } from '../../../services';
+import { withRequestTimeout } from '../../../platform/request-timeout';
 import { ENSFACIL_CONFIGURATION_PATH } from '../../../../common/constants';
 
 import { ENSConfigurationVersion } from '../types';
@@ -75,8 +76,11 @@ export async function getENSConfiguration(): Promise<
   ENSConfigurationServerState
 > {
   const response =
-    await getHttp().get<ENSConfigurationApiResponse>(
-      ENS_CONFIGURATION_API_PATH,
+    await withRequestTimeout(
+      signal => getHttp().get<ENSConfigurationApiResponse>(
+        ENS_CONFIGURATION_API_PATH, { signal },
+      ),
+      'configuración ENS',
     ).catch(error => {
       throw withServerReason(error);
     });

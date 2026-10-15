@@ -9,6 +9,7 @@
 // `search-decision.ts`).
 import { useEffect, useRef, useState } from 'react';
 import { getCore, getData } from '../services';
+import { ENSRequestTimeoutError, withRequestTimeout } from '../platform/request-timeout';
 import { buildENSSearchRequest, ENSSearchParams } from './search-request';
 import { decideSearch, isOwnCancellation, searchDataKey, shouldToast } from './search-decision';
 
@@ -40,12 +41,14 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
     const vigente = () => enCurso.current === busqueda;
     setIsLoading(true);
 
-    getData()
-      .search.search(
+    withRequestTimeout(
+      signal => getData().search.search(
         { params: buildENSSearchRequest(params) },
-        { abortSignal: busqueda.controlador.signal }
-      )
-      .toPromise()
+        { abortSignal: signal }
+      ).toPromise(),
+      'eventos ENS',
+      busqueda.controlador
+    )
       .then((respuesta: any) => {
         if (!vigente()) return;
         setEsResults(respuesta?.rawResponse ?? {});
@@ -53,7 +56,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         fallaba.current = false;
       })
       .catch((fallo: any) => {
-        if (!vigente() || isOwnCancellation(busqueda.controlador.signal)) return;
+        if (!vigente() || (!(fallo instanceof ENSRequestTimeoutError) && isOwnCancellation(busqueda.controlador.signal))) return;
         setError(fallo);
         if (fallaba.current) return;
         fallaba.current = true;
