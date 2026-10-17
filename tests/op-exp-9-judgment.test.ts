@@ -17,18 +17,18 @@
  * texto y `evidence_id` con comas se parte en uno por evidencia, igual que en
  * producción.
  */
-import { opExp9PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-9.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opExp9CatalogDefinition } from '../public/ens/catalog/op-exp-9';
-import { opExp9Configuration } from '../public/ens/configuration/data/op-exp-9-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import { keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import type { ENSControlConfiguration } from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import { opExp9PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-exp-9.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opExp9CatalogDefinition } from '../common/ens/catalog/op-exp-9';
+import { opExp9Configuration } from '../common/ens/configuration/data/op-exp-9-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import { keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import type { ENSControlConfiguration } from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

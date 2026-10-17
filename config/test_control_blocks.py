@@ -67,9 +67,9 @@ import {
   resolveSelectFieldModel,
   toParameterListItems,
   validateParameterValue,
-} from './repo/public/ens/configuration/services/parameter-value-validator';
-import { validateControlConfiguration } from './repo/public/ens/configuration/services/validation-engine';
-import { ENSConfigurationRegistry } from './repo/public/ens/configuration/registry';
+} from './repo/common/ens/configuration/services/parameter-value-validator';
+import { validateControlConfiguration } from './repo/common/ens/configuration/services/validation-engine';
+import { ENSConfigurationRegistry } from './repo/common/ens/configuration/registry';
 import { ParameterRendererFactory } from './repo/public/ens/configuration/form-engine/factory';
 
 const casos = JSON.parse(
@@ -355,6 +355,7 @@ def escribe(ruta, contenido):
 def prepara(tmp):
     """Copia el árbol y deja los stubs donde los buscan los imports."""
     shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "public"))
+    shutil.copytree(os.path.join(RAIZ, "common"), os.path.join(tmp, "repo", "common"))
 
     # `configuration/services/configuration-http-client.ts` importa
     # '../../../../../kibana-services', que desde services/ son cinco niveles:

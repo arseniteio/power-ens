@@ -1,10 +1,32 @@
-import { getHttp } from '../../../services';
 import { withRequestTimeout } from '../../../platform/request-timeout';
-import { ENSFACIL_CONFIGURATION_PATH } from '../../../../common/constants';
+import { ENSFACIL_CONFIGURATION_PATH } from '../../../constants';
 
 import { ENSConfigurationVersion } from '../types';
 
 const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
+
+// El cliente HTTP del núcleo del dashboard. Este fichero vive en `common/`
+// (lo comparten el navegador y el servidor, que evalúa con el mismo motor), y
+// `common/` no puede importar nada de `public/`: el navegador lo registra al
+// arrancar (`public/services.ts`). En el servidor nadie lo llama.
+export interface ENSConfigurationHttp {
+  get<T>(path: string, options?: { signal?: AbortSignal }): Promise<T>;
+  put<T>(path: string, options?: { body?: string }): Promise<T>;
+}
+
+let httpProvider: (() => ENSConfigurationHttp) | undefined;
+
+export const setENSConfigurationHttp = (provider: () => ENSConfigurationHttp): void => {
+  httpProvider = provider;
+};
+
+const getHttp = (): ENSConfigurationHttp => {
+  if (!httpProvider) {
+    throw new Error('ENSFácil: el cliente HTTP de la configuración todavía no está disponible');
+  }
+
+  return httpProvider();
+};
 
 export interface ENSConfigurationMetadata {
   createdAt?: string;

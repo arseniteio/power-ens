@@ -5,9 +5,9 @@
  *
  *   npx --yes tsx tests/scope-agent-status.test.ts
  */
-import { getActiveENSScopeAgents, hydrateENSScope, resolveENSScopeAgents } from '../public/ens/core/scope/runtime';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
-import type { ENSConfigurationScope } from '../public/ens/configuration/types';
+import { getActiveENSScopeAgents, hydrateENSScope, resolveENSScopeAgents } from '../common/ens/core/scope/runtime';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
+import type { ENSConfigurationScope } from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];

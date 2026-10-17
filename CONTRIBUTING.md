@@ -48,7 +48,7 @@ hace falta explicar por qué, va en el cuerpo.
   ningún import sale del plugin, salvo al núcleo de OpenSearch Dashboards y a
   una lista cerrada de paquetes.
 - **El veredicto lo decide el motor.** El cumplimiento lo decide el motor
-  determinista del plugin (`public/ens/core/`): las mismas evidencias y la misma
+  determinista del plugin (`common/ens/core/`): las mismas evidencias y la misma
   política dan siempre el mismo resultado. Ningún modelo decide si un control
   cumple. Los recolectores de los runbooks solo emiten hechos, y
   `tests/check-consistency.py` comprueba que ninguno emite un veredicto.

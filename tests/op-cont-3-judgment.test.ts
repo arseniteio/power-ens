@@ -18,25 +18,25 @@
  * no existe: cuando exista, se sustituyen por su salida real en modo --prueba.
  * Pasan por el normalizador real como alertas de alerts.json.
  */
-import { opCont3PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-cont-3.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opCont3CatalogDefinition } from '../public/ens/catalog/op-cont-3';
-import { opCont3Configuration } from '../public/ens/configuration/data/op-cont-3-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
-import { resolveControlLevel } from '../public/ens/core/control-level';
+import { opCont3PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-cont-3.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opCont3CatalogDefinition } from '../common/ens/catalog/op-cont-3';
+import { opCont3Configuration } from '../common/ens/configuration/data/op-cont-3-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { resolveControlLevel } from '../common/ens/core/control-level';
 import { buildOpCont3ReportModel } from '../public/ens/reports/op-cont-3-report-model';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

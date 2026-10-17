@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ENSRequestTimeoutError, withRequestTimeout } from '../public/platform/request-timeout';
+import { ENSRequestTimeoutError, withRequestTimeout } from '../common/platform/request-timeout';
 
 async function main() {
   const successController = new AbortController();

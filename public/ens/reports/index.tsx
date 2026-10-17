@@ -1,4 +1,4 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
+import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
@@ -12,23 +12,23 @@ import { searchDataKey } from '../../search/search-decision';
 import { anotaConsulta, panoramaVigente } from './panorama-vigente';
 import type { ENSPanoramaMemoria } from './panorama-vigente';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { getActiveENSConfiguration } from '../configuration/services';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   getENSComplianceState,
   normalizeWazuhAlerts,
-} from '../core';
+} from '../../../common/ens/core';
 import {
   buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
 import type {
   ENSComplianceResult,
   ENSRequirementResult,
-} from '../core/evaluation/types';
+} from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
@@ -50,7 +50,7 @@ import { ENSControls } from '../data';
 import {
   buildENSAllControlsFactsFilter,
   ENS_FACTS_QUERY_LIMIT,
-} from '../dashboard/all-controls-facts-filter';
+} from '../../../common/ens/dashboard/all-controls-facts-filter';
 import {
   compareENSIds,
   filterByENSPrefix,

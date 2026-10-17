@@ -26,35 +26,35 @@
  *      pasan por un registro que lee el recolector; con el recolector parado
  *      quedan sin medir por RECOGIDA.
  */
-import { opCont2PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-cont-2.policy';
-import { opMon1PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-mon-1.policy';
-import { opMon2PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-mon-2.policy';
-import { opCont3PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-cont-3.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opCont2CatalogDefinition } from '../public/ens/catalog/op-cont-2';
-import { opMon1CatalogDefinition } from '../public/ens/catalog/op-mon-1';
-import { opMon2CatalogDefinition } from '../public/ens/catalog/op-mon-2';
-import { opCont3CatalogDefinition } from '../public/ens/catalog/op-cont-3';
-import { opCont2Configuration } from '../public/ens/configuration/data/op-cont-2-parameters';
-import { opMon1Configuration } from '../public/ens/configuration/data/op-mon-1-parameters';
-import { opMon2Configuration } from '../public/ens/configuration/data/op-mon-2-parameters';
-import { opCont3Configuration } from '../public/ens/configuration/data/op-cont-3-parameters';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { controlExpectsFacts } from '../public/ens/core/evidence/registry';
-import { markEvidencesStale, markPolicyRuntimeStale } from '../public/ens/core/evidence/stale-collector';
-import type { ENSStaleCollector } from '../public/ens/core/evidence/stale-collector';
-import { markEvidencesUnmatchedScope, markPolicyRuntimeUnmatchedScope } from '../public/ens/core/scope/measurement-planes';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import type { ENSConfigurationVersion } from '../public/ens/configuration/types';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import type { ENSControlDefinition } from '../public/ens/catalog/types';
-import type { ENSControlConfiguration, ENSLevel } from '../public/ens/configuration/types';
-import type { ENSPolicyDefinition, ENSPolicyRuntimeResult } from '../public/ens/core/policy-runtime/types';
+import { opCont2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-cont-2.policy';
+import { opMon1PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-1.policy';
+import { opMon2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import { opCont3PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-cont-3.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opCont2CatalogDefinition } from '../common/ens/catalog/op-cont-2';
+import { opMon1CatalogDefinition } from '../common/ens/catalog/op-mon-1';
+import { opMon2CatalogDefinition } from '../common/ens/catalog/op-mon-2';
+import { opCont3CatalogDefinition } from '../common/ens/catalog/op-cont-3';
+import { opCont2Configuration } from '../common/ens/configuration/data/op-cont-2-parameters';
+import { opMon1Configuration } from '../common/ens/configuration/data/op-mon-1-parameters';
+import { opMon2Configuration } from '../common/ens/configuration/data/op-mon-2-parameters';
+import { opCont3Configuration } from '../common/ens/configuration/data/op-cont-3-parameters';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { controlExpectsFacts } from '../common/ens/core/evidence/registry';
+import { markEvidencesStale, markPolicyRuntimeStale } from '../common/ens/core/evidence/stale-collector';
+import type { ENSStaleCollector } from '../common/ens/core/evidence/stale-collector';
+import { markEvidencesUnmatchedScope, markPolicyRuntimeUnmatchedScope } from '../common/ens/core/scope/measurement-planes';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import type { ENSConfigurationVersion } from '../common/ens/configuration/types';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import type { ENSControlDefinition } from '../common/ens/catalog/types';
+import type { ENSControlConfiguration, ENSLevel } from '../common/ens/configuration/types';
+import type { ENSPolicyDefinition, ENSPolicyRuntimeResult } from '../common/ens/core/policy-runtime/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -75,7 +75,7 @@ declare const require: (id: string) => any;
   };
 }
 
-const { getENSComplianceResultByControl } = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
+const { getENSComplianceResultByControl } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
 // --- comprobador mínimo ----------------------------------------------------
 

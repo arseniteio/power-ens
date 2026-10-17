@@ -32,26 +32,26 @@
  * el árbol del plugin `main` de Wazuh; aquí se sustituye por un módulo vacío
  * antes de cargarlo, igual que en `traceability-level.test.ts`.
  */
-import { ENSCatalog } from '../public/ens/catalog';
-import type { ENSControlDefinition } from '../public/ens/catalog/types';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import { buildENSScopeAgentQueryFilter } from '../public/ens/core/scope/engine';
+import { ENSCatalog } from '../common/ens/catalog';
+import type { ENSControlDefinition } from '../common/ens/catalog/types';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { buildENSScopeAgentQueryFilter } from '../common/ens/core/scope/engine';
 import {
   ENS_MANAGER_AGENT_ID,
   getControlMeasurementPlanes,
-} from '../public/ens/core/scope/measurement-planes';
+} from '../common/ens/core/scope/measurement-planes';
 import {
   getActiveENSScopeAgents,
   hydrateENSScope,
   resolveENSScopeAgents,
-} from '../public/ens/core/scope/runtime';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/core/scope/runtime';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 import type {
   ENSConfigurationScope,
   ENSConfigurationVersion,
-} from '../public/ens/configuration/types';
+} from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -73,9 +73,9 @@ declare const require: (id: string) => any;
 const {
   getENSComplianceResultByControl,
   getENSComplianceState,
-} = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
-const { buildENSComplianceTimeline } = require('../public/ens/core/timeline/compliance-timeline') as typeof import('../public/ens/core/timeline/compliance-timeline');
-const { buildENSControlComplianceTimeline } = require('../public/ens/core/timeline/control-timeline') as typeof import('../public/ens/core/timeline/control-timeline');
+} = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
+const { buildENSComplianceTimeline } = require('../common/ens/core/timeline/compliance-timeline') as typeof import('../common/ens/core/timeline/compliance-timeline');
+const { buildENSControlComplianceTimeline } = require('../common/ens/core/timeline/control-timeline') as typeof import('../common/ens/core/timeline/control-timeline');
 
 const fallos: string[] = [];
 

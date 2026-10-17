@@ -11,11 +11,11 @@ import {
 import {
   ENSControlConfigurationStateStatus,
   resolveControlConfigurationState,
-} from '../services';
+} from '../../../../common/ens/configuration/services';
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 
 interface ControlCardProps {
   control: ENSControlConfiguration;

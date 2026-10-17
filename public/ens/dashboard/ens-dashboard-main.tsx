@@ -3,19 +3,19 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { ENSControls } from '../data';
-import { buildENSAllControlsFactsFilter } from './all-controls-facts-filter';
+import { buildENSAllControlsFactsFilter } from '../../../common/ens/dashboard/all-controls-facts-filter';
 import {
   buildENSDashboardModel,
   buildENSEvaluationTimeRangeFilter,
   buildENSComplianceTimeline,
   getENSComplianceState,
   normalizeWazuhAlerts,
-} from '../core';
-import { getActiveENSConfiguration } from '../configuration/services';
+} from '../../../common/ens/core';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import {
   buildENSScopeAgentQueryFilter,
   getActiveENSScopeAgents,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {

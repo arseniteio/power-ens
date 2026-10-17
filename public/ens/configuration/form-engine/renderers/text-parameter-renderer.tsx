@@ -2,7 +2,7 @@ import React from 'react';
 import { EuiFieldText, EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
-import { validateParameterValue } from '../../services/parameter-value-validator';
+import { validateParameterValue } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
 export const TextParameterRenderer = ({
   parameter,

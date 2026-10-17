@@ -27,16 +27,16 @@
  * El motor arrastra `kibana-services`, que solo existe en el árbol del plugin
  * `main` de Wazuh; aquí se sustituye por un módulo vacío antes de cargarlo.
  */
-import { ENSCatalog } from '../public/ens/catalog';
-import type { ENSControlDefinition } from '../public/ens/catalog/types';
-import { resolveControlLevel } from '../public/ens/core/control-level';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
+import { ENSCatalog } from '../common/ens/catalog';
+import type { ENSControlDefinition } from '../common/ens/catalog/types';
+import { resolveControlLevel } from '../common/ens/core/control-level';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
 import type {
   ENSConfigurationVersion,
   ENSLevel,
-} from '../public/ens/configuration/types';
+} from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -55,9 +55,9 @@ declare const require: (id: string) => any;
   };
 }
 
-const { getENSComplianceResults } = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
+const { getENSComplianceResults } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 const { setServices } = require('../public/services') as typeof import('../public/services');
-const { updateActiveGlobalConfiguration } = require('../public/ens/configuration/services/configuration-state-service') as typeof import('../public/ens/configuration/services/configuration-state-service');
+const { updateActiveGlobalConfiguration } = require('../common/ens/configuration/services/configuration-state-service') as typeof import('../common/ens/configuration/services/configuration-state-service');
 
 const fallos: string[] = [];
 

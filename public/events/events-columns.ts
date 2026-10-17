@@ -1,7 +1,7 @@
 // Columnas y filtros fijos de la pestaña Eventos: los mismos que la tabla de
 // Wazuh a la que sustituye (hechos ENS de las máquinas del alcance). Sin
 // React: lo prueba tests/events-columns.test.ts.
-import type { ENSAgentScope } from '../ens/core/scope/types';
+import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import { buildRawFactsFilters } from '../search/raw-facts-filters';
 
 export interface ENSEventColumn {

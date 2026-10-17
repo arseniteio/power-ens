@@ -1,4 +1,4 @@
-import type { ENSComplianceResult } from '../core';
+import type { ENSComplianceResult } from '../../../common/ens/core';
 
 export type OpMon3ReportFieldStatus =
   | 'CUMPLE'

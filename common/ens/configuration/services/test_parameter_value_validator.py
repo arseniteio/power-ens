@@ -54,14 +54,14 @@ ARNES = r"""
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
-import { validateParameterValue } from './repo/public/ens/configuration/services/parameter-value-validator';
+import { validateParameterValue } from './repo/common/ens/configuration/services/parameter-value-validator';
 import {
   validateControlConfiguration,
   validateControlParameterValues,
-} from './repo/public/ens/configuration/services/validation-engine';
-import { evaluateENSControl } from './repo/public/ens/core/evaluation/evaluation-engine';
-import { ENSCatalog } from './repo/public/ens/catalog';
-import { ENSConfigurationRegistry } from './repo/public/ens/configuration/registry';
+} from './repo/common/ens/configuration/services/validation-engine';
+import { evaluateENSControl } from './repo/common/ens/core/evaluation/evaluation-engine';
+import { ENSCatalog } from './repo/common/ens/catalog';
+import { ENSConfigurationRegistry } from './repo/common/ens/configuration/registry';
 
 const control = (controlId) =>
   ENSConfigurationRegistry.find((item) => item.controlId === controlId);
@@ -172,6 +172,7 @@ console.log(JSON.stringify(salida));
 def prepara(tmp):
     """Copia el árbol y deja el stub de kibana-services donde lo busca el import."""
     shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "public"))
+    shutil.copytree(os.path.join(RAIZ, "common"), os.path.join(tmp, "repo", "common"))
 
     # `configuration/services/configuration-http-client.ts` importa
     # '../../../../../kibana-services', que desde services/ son cinco niveles:

@@ -10,7 +10,7 @@ import {
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import {
   ControlConfigurationResolver,
 } from './control-configuration-resolver';

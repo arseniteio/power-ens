@@ -1,4 +1,4 @@
-import { useActiveENSScopeAgents } from '../../core/scope/use-active-scope-agents';
+import { useActiveENSScopeAgents } from '../../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useEsSearch } from '../../../search/use-es-search';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
@@ -21,7 +21,7 @@ import { ENSControl } from '../../types';
 // Del fichero de tipos, nunca del barrel `../../core`: `import type` se borra
 // entero al compilar, así que esto no añade ninguna arista al grafo de módulos
 // (el ciclo transitivo del TDZ de `Settings` vive justo ahí).
-import type { ENSObservationGroup } from '../../core/evaluation/types';
+import type { ENSObservationGroup } from '../../../../common/ens/core/evaluation/types';
 // Cuánto se enseña de la vista general y cómo se nombran las máquinas. Es
 // lógica pura y vive aparte para poder comprobarla sin `react` ni `@elastic/eui`.
 import {
@@ -30,12 +30,12 @@ import {
   etiquetaDeRequisitoQueCumple,
   resumirMotivos,
 } from './general-view';
-import { getActiveENSConfiguration } from '../../configuration/services';
+import { getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
 import type { MotivoLinea } from './motive-cell';
-import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
+import { buildENSControlComplianceTimeline } from '../../../../common/ens/core/timeline/control-timeline';
 
 const EMPTY_HITS: any[] = [];
 
@@ -49,10 +49,10 @@ import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   normalizeWazuhAlerts,
-} from '../../core';
+} from '../../../../common/ens/core';
 import {
   buildENSScopeAgentQueryFilter,
-} from '../../core/scope';
+} from '../../../../common/ens/core/scope';
 
 const getBadgeColor = (status: string) => {
   if (status === 'CUMPLE') {

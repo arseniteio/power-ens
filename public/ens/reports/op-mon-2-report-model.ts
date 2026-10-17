@@ -1,18 +1,18 @@
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra al
 // compilar y no añade aristas al grafo de módulos (TDZ de Settings).
-import type { ENSComplianceResult } from '../core/evaluation/types';
+import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import {
   toParameterTableRows,
   toTableRowCells,
-} from '../configuration/services/parameter-value-validator';
+} from '../../../common/ens/configuration/services/parameter-value-validator';
 // Las mismas gramáticas que la policy: P-01 y P-06 se leen igual en el juicio y
 // en el informe, o el informe presentaría contra un objetivo que la policy no
 // reconoce.
 import {
   parseDeclaracionAplicabilidad,
   parseObjetivos,
-} from '../core/policy-runtime/policies/op-mon-2.policy';
-import type { ObjetivoDeMetrica } from '../core/policy-runtime/policies/op-mon-2.policy';
+} from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import type { ObjetivoDeMetrica } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'

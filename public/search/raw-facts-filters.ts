@@ -1,8 +1,8 @@
 // Filtros fijos de las vistas de hechos crudos («Controles» con su panel de
 // requisito, y «Eventos»): solo hechos ENS de las máquinas del alcance. Sin
 // React: lo prueba tests/events-columns.test.ts.
-import { buildENSScopeAgentQueryFilter } from '../ens/core/scope';
-import type { ENSAgentScope } from '../ens/core/scope/types';
+import { buildENSScopeAgentQueryFilter } from '../../common/ens/core/scope';
+import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 
 // Con una máquina elegida, solo los hechos de ESA máquina, como el agente
 // fijado de la versión integrada (alcance y agente: una máquina fuera del

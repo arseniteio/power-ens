@@ -1,4 +1,4 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
+import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ControlRow } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
@@ -22,21 +22,21 @@ import { ControlDetailENS } from './control-detail';
 import {
   getActiveControlConfiguration,
   getActiveENSConfiguration,
-} from '../configuration/services';
+} from '../../../common/ens/configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   normalizeWazuhAlerts,
-} from '../core';
+} from '../../../common/ens/core';
 import {
   buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 import {
   isControlInDeclaredScope,
   isControlMeasuredOnAgent,
   isManagerAgentId,
-} from '../core/scope/measurement-planes';
-import { getENSCatalogControl } from '../catalog';
+} from '../../../common/ens/core/scope/measurement-planes';
+import { getENSCatalogControl } from '../../../common/ens/catalog';
 
 // El color de un control es su ESTADO, y son tres cosas distintas:
 //

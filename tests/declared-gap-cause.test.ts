@@ -22,16 +22,16 @@
  * Una misma máquina mal configurada y un agente caído puntúan igual y se
  * arreglan en sitios distintos: la causa es la acción.
  */
-import { opExp5CatalogDefinition } from '../public/ens/catalog/op-exp-5';
-import { opExp5Configuration } from '../public/ens/configuration/data/op-exp-5-parameters';
-import { opExp8Configuration } from '../public/ens/configuration/data/op-exp-8-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import type { ENSPolicyDecision } from '../public/ens/core/policy-runtime/types';
-import type { ENSComplianceStatus, ENSGapCause } from '../public/ens/core/evaluation/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import { opExp5CatalogDefinition } from '../common/ens/catalog/op-exp-5';
+import { opExp5Configuration } from '../common/ens/configuration/data/op-exp-5-parameters';
+import { opExp8Configuration } from '../common/ens/configuration/data/op-exp-8-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import type { ENSPolicyDecision } from '../common/ens/core/policy-runtime/types';
+import type { ENSComplianceStatus, ENSGapCause } from '../common/ens/core/evaluation/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

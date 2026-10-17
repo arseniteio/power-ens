@@ -26,9 +26,9 @@ import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   normalizeWazuhAlerts,
-} from '../core';
-import { ENSAgentScope } from '../core/scope/types';
-import { ENSLevel } from '../configuration/types';
+} from '../../../common/ens/core';
+import { ENSAgentScope } from '../../../common/ens/core/scope/types';
+import { ENSLevel } from '../../../common/ens/configuration/types';
 
 export interface ControlRowData {
   id: string;

@@ -17,12 +17,12 @@ falla() { echo "  FALLA $1"; fallos=$((fallos + 1)); }
 
 P="$T/plugin"
 mkdir -p "$P"
-cp -R "$RAIZ/tests" "$RAIZ/public" "$RAIZ/config" "$RAIZ/agent" "$P/"
+cp -R "$RAIZ/tests" "$RAIZ/public" "$RAIZ/common" "$RAIZ/config" "$RAIZ/agent" "$P/"
 sed -e "s/^  id: 'op.exp.10',\$/  id: 'op.zzz.9',/" \
-  "$RAIZ/public/ens/catalog/op-exp-10.ts" > "$P/public/ens/catalog/op-zzz-9.ts"
+  "$RAIZ/common/ens/catalog/op-exp-10.ts" > "$P/common/ens/catalog/op-zzz-9.ts"
 
-grep -q "^  id: 'op.zzz.9',\$" "$P/public/ens/catalog/op-zzz-9.ts" \
-  && grep -q "^  status: 'ACTIVE',\$" "$P/public/ens/catalog/op-zzz-9.ts" \
+grep -q "^  id: 'op.zzz.9',\$" "$P/common/ens/catalog/op-zzz-9.ts" \
+  && grep -q "^  status: 'ACTIVE',\$" "$P/common/ens/catalog/op-zzz-9.ts" \
   || { echo "  FALLA fixture rota: op.zzz.9 no quedó ACTIVE en el catálogo copiado"; exit 1; }
 
 # Declara (o no) op.zzz.9 en la lista, con el motivo que se le pase.
@@ -75,7 +75,7 @@ fi
 
 echo "4. Un fichero del catálogo sin \`status\`: falla, no se salta"
 declara
-sed -i.bak "/^  status: 'ACTIVE',\$/d" "$P/public/ens/catalog/op-zzz-9.ts" && rm -f "$P/public/ens/catalog/op-zzz-9.ts.bak"
+sed -i.bak "/^  status: 'ACTIVE',\$/d" "$P/common/ens/catalog/op-zzz-9.ts" && rm -f "$P/common/ens/catalog/op-zzz-9.ts.bak"
 salida="$(comprueba)"
 if printf '%s\n' "$salida" | grep -q '^FALLA  catálogo ilegible: op-zzz-9.ts: sin `status` del control$'; then
   ok "un catálogo sin estado se señala"

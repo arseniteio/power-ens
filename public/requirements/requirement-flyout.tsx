@@ -14,7 +14,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { buildENSRequirementQuery } from '../ens/core/compliance-view/ens-requirement-index';
+import { buildENSRequirementQuery } from '../../common/ens/core/compliance-view/ens-requirement-index';
 import { useSetRouterSearch } from '../routing/use-router-search';
 import { useEsSearch } from '../search/use-es-search';
 import { controlOf } from './requirements-model';

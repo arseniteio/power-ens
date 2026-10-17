@@ -1,11 +1,13 @@
 // Inventario de agentes desde `wazuh-monitoring-*`, que el propio Wazuh
 // rellena cada 15 minutos con cada agente. Sustituye a la API de Wazuh: el
 // plugin no necesita sus credenciales. Se lee como el usuario que mira.
-import { ENS_MONITORING_INDEX } from '../../common/constants';
+//
+// Aquí está la parte pura (la consulta y cómo se lee su respuesta), en
+// `common/` porque el servidor resuelve el alcance con el mismo código que el
+// navegador. La carga desde el navegador está en `public/agents/load-agent-inventory.ts`.
+import { ENS_MONITORING_INDEX } from '../constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
-import { getCore, getData } from '../services';
-import { withRequestTimeout } from '../platform/request-timeout';
 
 export const ENS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 
@@ -126,29 +128,3 @@ export const staleInventoryMessage = (newestTimestamp?: string): string =>
   newestTimestamp
     ? `El último dato de wazuh-monitoring es de ${newestTimestamp}: un alta o una baja reciente puede no verse todavía.`
     : 'El inventario de wazuh-monitoring no trae ninguna fecha: no se sabe si está al día y un alta o una baja reciente puede no verse.';
-
-export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
-  const respuesta: any = await withRequestTimeout(
-    signal => getData().search.search(
-      { params: buildMonitoringInventoryRequest() },
-      { abortSignal: signal }
-    ).toPromise(),
-    'inventario de agentes'
-  );
-  const inventario = inventoryFromMonitoring(respuesta?.rawResponse?.aggregations);
-
-  if (!inventario.agents.length) {
-    throw new Error(
-      'No hay inventario de agentes: la monitorización de agentes de Wazuh (wazuh-monitoring-*) no está activa o este usuario no puede leerla.'
-    );
-  }
-
-  if (inventario.stale) {
-    getCore().notifications.toasts.addWarning({
-      title: 'ENSFácil: inventario de agentes antiguo',
-      text: staleInventoryMessage(inventario.newestTimestamp),
-    });
-  }
-
-  return inventario.agents;
-};

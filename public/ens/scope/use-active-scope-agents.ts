@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { getActiveENSScopeAgents } from './runtime';
-import type { ENSAgentScope } from './types';
+import { getActiveENSScopeAgents } from '../../../common/ens/core/scope/runtime';
+import type { ENSAgentScope } from '../../../common/ens/core/scope/types';
 
 // El repositorio devuelve copias. La identidad de esta lista solo cambia si
 // cambia su contenido: paginar o refrescar no invalida los cálculos del motor.

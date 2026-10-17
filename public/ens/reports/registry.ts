@@ -32,7 +32,7 @@
  * ciclo transitivo del TDZ de Settings.
  */
 import { compareENSIds } from '../control-filter/prefix';
-import type { ENSComplianceResult } from '../core/evaluation/types';
+import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
 import { buildMpInfo6ReportModel } from './report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';

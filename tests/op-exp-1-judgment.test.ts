@@ -14,21 +14,21 @@
  * lleva al lado su reversión: la prueba de aceptación del modelo nuevo es que
  * cambiar el parámetro cambia el veredicto sin tocar el agente.
  */
-import { opExp1CatalogDefinition } from '../public/ens/catalog/op-exp-1';
+import { opExp1CatalogDefinition } from '../common/ens/catalog/op-exp-1';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import { opExp1Configuration } from '../public/ens/configuration/data/op-exp-1-parameters';
-import { validateControlConfiguration } from '../public/ens/configuration/services/validation-engine';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
-import { evaluateRequirements } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
+} from '../common/ens/configuration/types';
+import { opExp1Configuration } from '../common/ens/configuration/data/op-exp-1-parameters';
+import { validateControlConfiguration } from '../common/ens/configuration/services/validation-engine';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
+import { evaluateRequirements } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../common/ens/core/evaluation/control/control-evaluator';
 import { buildOpExp1ReportModel } from '../public/ens/reports/op-exp-1-report-model';
 
 declare const process: { exit(code: number): void };

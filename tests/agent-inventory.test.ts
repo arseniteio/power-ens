@@ -1,7 +1,7 @@
 /**
  *   npx --yes tsx tests/agent-inventory.test.ts
  */
-import { buildMonitoringInventoryRequest, ENS_INVENTORY_MAX_AGE_MS, inventoryFromMonitoring, staleInventoryMessage } from '../public/agents/agent-inventory';
+import { buildMonitoringInventoryRequest, ENS_INVENTORY_MAX_AGE_MS, inventoryFromMonitoring, staleInventoryMessage } from '../common/agents/agent-inventory';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];

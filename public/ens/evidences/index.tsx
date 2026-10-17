@@ -1,4 +1,4 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
+import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEsSearch } from '../../search/use-es-search';
@@ -20,22 +20,22 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControls } from '../data';
-import { getActiveENSConfiguration } from '../configuration/services';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   normalizeWazuhAlerts,
-} from '../core';
+} from '../../../common/ens/core';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (el ciclo
 // transitivo del TDZ de `Settings` vive justo ahí).
 import type {
   ENSGapCause,
   ENSObservationGroup,
-} from '../core/evaluation/types';
+} from '../../../common/ens/core/evaluation/types';
 import {
   buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 import {
   compareENSIds,
   filterByENSPrefix,

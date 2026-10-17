@@ -11,11 +11,11 @@ import {
   ENSControlConfigurationState,
   ENSControlConfigurationStateStatus,
   resolveControlConfigurationState,
-} from '../services';
+} from '../../../../common/ens/configuration/services';
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import {
   ConfigurationSession,
 } from '../sessions';

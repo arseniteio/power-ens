@@ -1,5 +1,5 @@
 import { ENSControls } from '../data';
-import { getActiveENSConfiguration } from '../configuration/services';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import React, { useMemo } from 'react';
 import {
   EuiBadge,
@@ -17,11 +17,11 @@ import {
   buildENSEvaluationTimeRangeFilter,
   getENSComplianceResultByControl,
   normalizeWazuhAlerts,
-} from '../core';
+} from '../../../common/ens/core';
 import {
   buildENSScopeAgentQueryFilter,
   getActiveENSScopeAgents,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 
 export const TraceabilityENS = () => {
   const { control, agentId } = useRouterSearch();
