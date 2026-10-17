@@ -1,8 +1,8 @@
 import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ControlRow } from './control-row';
+import { ControlRow, ControlRowSummary } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import {
   EuiBadge,
   EuiBasicTable,
@@ -21,16 +21,7 @@ import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';
 import {
   getActiveControlConfiguration,
-  getActiveENSConfiguration,
 } from '../../../common/ens/configuration/services';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../../../common/ens/core';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../../../common/ens/core/scope';
 import {
   isControlInDeclaredScope,
   isControlMeasuredOnAgent,
@@ -102,19 +93,21 @@ export const ControlsENS = () => {
     }
   }, [control, selectedControl]);
 
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
    const scopeAgents = useActiveENSScopeAgents();
 
-   const scopeAgentQueryFilter =
-     buildENSScopeAgentQueryFilter(
-       scopeAgents,
-       agentId,
-     );
+   // UNA petición para toda la lista: el servidor evalúa cada control con
+   // todos sus hechos y devuelve el resumen (estado y requisitos que no
+   // cumplen). Con la ficha abierta no se pide: la lista no se ve.
+   const resumen = useEnsEvaluation<{ controls: ControlRowSummary[] }>({
+     include: 'summary',
+     agentId,
+     enabled: !selectedControl,
+   });
+
+   const resumenDe = useMemo(
+     () => new Map((resumen.data?.controls || []).map(entry => [entry.controlId, entry])),
+     [resumen.data],
+   );
 
    // La consulta compartida se ha retirado: la hacía cada fila por su cuenta
    // desde el 10/08/2026. Ver `control-row.tsx`.
@@ -198,11 +191,9 @@ export const ControlsENS = () => {
               controlId={ensControl.id}
               title={ensControl.title}
               levels={ensControl.scope.activeLevels.join(', ')}
-              ensLevel={ensLevel}
-              evaluationPeriod={activeConfiguration.global.evaluationPeriod}
-              agentId={agentId}
-              scopeAgents={scopeAgents}
-              scopeFilter={scopeAgentQueryFilter}
+              summary={resumenDe.get(ensControl.id)}
+              isLoading={resumen.isLoading}
+              error={resumen.error}
               colorDelEstado={colorDelEstado}
               badgeDelEstado={badgeDelEstado}
               onSelect={() => setSelectedControl(ensControl)}
