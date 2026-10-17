@@ -28,7 +28,7 @@ y los enlaces a cada runbook y a sus guías, en la
    op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 dejan además un
    recolector en el propio manager; el runbook de op.cont.2 es solo documentación), y por último el
    plugin ENSFácil instalado en el dashboard desde su release, junto al de Wazuh y sin modificarlo.
-   ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+   ¿Wazuh en contenedores? → [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md).
 2. **Máquinas.** En cada agente, primero la
    [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (darlo de alta en el manager, el grupo `ens` y el
    alcance ENS del plugin), una sola vez; después, los runbooks de su plataforma
@@ -176,7 +176,7 @@ Qué instala cada runbook Linux:
   (versiones de la tabla anterior). El despliegue completo con `docker compose`,
   indexer y agentes, la imagen del dashboard con el plugin, el cron del host y
   un clúster con varios nodos están sin probar; ver
-  [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+  [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md).
 - Otras distribuciones del servidor distintas de Ubuntu: sin probar.
 
 ---
@@ -236,7 +236,7 @@ indexer, no en el plugin.
 | 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/deployment/03-version-compatibility.md) |
 | 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
 | 5 | Encontrar el runbook de un control, sus guías y los registros que pide | [Runbooks y registros de la organización](docs/deployment/05-runbooks-and-registers.md) |
-| 6 | Instalar con las imágenes oficiales de Wazuh en Docker | [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md) |
+| 6 | Instalar con las imágenes oficiales de Wazuh en Docker | [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md) |
 | 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
 

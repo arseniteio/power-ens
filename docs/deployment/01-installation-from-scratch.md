@@ -29,7 +29,7 @@ el grupo `ens` ni la configuración inicial de ENSFácil.
 > **¿Wazuh corre en contenedores** (imágenes oficiales `wazuh/wazuh-manager` y
 > `wazuh/wazuh-dashboard`)? El orden de esta guía vale, pero varios pasos se
 > hacen de otra forma (sin `systemctl`, sin `hostname`, sin cron, sin `git`):
-> seguir además [Manager en contenedor](06-wazuh-in-docker.md).
+> seguir además [Wazuh en Docker](06-wazuh-in-docker.md).
 >
 > Los enlaces a cada runbook y a sus guías (`01-installation`, `02-compliance`,
 > `03-uninstall-and-troubleshooting`), y los registros que crea la organización,

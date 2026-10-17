@@ -28,7 +28,7 @@ and the links to every runbook and its guides are in the
    op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 also leave a
    collector on the manager itself; the op.cont.2 runbook is documentation only), and finally the
    ENSFácil plugin installed in the dashboard from its release, next to the Wazuh plugin and without modifying it.
-   Wazuh in containers? → [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md).
+   Wazuh in containers? → [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md).
 2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrol it on
    the manager, the `ens` group and the plugin's ENS scope), once; then the
    runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
@@ -175,7 +175,7 @@ What each Linux runbook installs:
   (versions in the table above). The full `docker compose` deployment with
   indexer and agents, the dashboard image with the plugin, the host cron and a
   multi-node cluster are untested; see
-  [Manager in a container](docs/deployment/06-wazuh-in-docker.md).
+  [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md).
 - Server distributions other than Ubuntu: not tested.
 
 ---
@@ -235,7 +235,7 @@ indexer, not in the plugin.
 | 3 | Check compatibility with another Wazuh version | [Version compatibility](docs/deployment/03-version-compatibility.en.md) |
 | 4 | Diagnose a problem or roll back | [Troubleshooting and rollback](docs/deployment/04-troubleshooting-and-rollback.en.md) |
 | 5 | Find a control's runbook, its guides and the registers it needs | [Runbooks and the organization's registers](docs/deployment/05-runbooks-and-registers.en.md) |
-| 6 | Install with the official Wazuh Docker images | [Manager in a container](docs/deployment/06-wazuh-in-docker.en.md) |
+| 6 | Install with the official Wazuh Docker images | [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md) |
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
 

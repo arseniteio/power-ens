@@ -29,7 +29,7 @@ configuration are already installed or prepared.
 > **Does Wazuh run in containers** (official `wazuh/wazuh-manager` and
 > `wazuh/wazuh-dashboard` images)? The order of this guide still applies, but
 > several steps are done differently (no `systemctl`, no `hostname`, no cron, no
-> `git`): also follow [Manager in a container](06-wazuh-in-docker.en.md).
+> `git`): also follow [Wazuh in Docker](06-wazuh-in-docker.en.md).
 >
 > The links to every runbook and its guides (`01-installation`, `02-compliance`,
 > `03-uninstall-and-troubleshooting`), and the registers the organization

@@ -235,7 +235,7 @@ error. Los códigos y las copias están en el
 > [!note]
 > ¿Wazuh Dashboard corre en un contenedor? `deploy-plugin.sh` presupone systemd
 > y una instalación por paquetes. Usa el zip de la release como en
-> [Manager en contenedor, apartado 7](06-wazuh-in-docker.md#7-el-plugin-en-el-contenedor-del-dashboard).
+> [Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil).
 
 En una instalación nueva, sigue con la configuración ENS (el rol del apartado 9
 es opcional): el primer guardado y la siembra de los controles

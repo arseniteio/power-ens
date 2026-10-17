@@ -235,7 +235,7 @@ error code. The codes and the backups are in
 > [!note]
 > Does Wazuh Dashboard run in a container? `deploy-plugin.sh` assumes systemd
 > and a package installation. Use the release zip as in
-> [Manager in a container, section 7](06-wazuh-in-docker.en.md#7-the-plugin-in-the-dashboard-container).
+> [Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil).
 
 On a new installation, continue with the ENS configuration (the role in
 section 9 is optional): the first save and the seeding of the controls
