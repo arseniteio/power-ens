@@ -233,3 +233,33 @@ export const updateActiveGlobalConfiguration = async (
     persistedConfiguration
   );
 };
+
+// Guarda un documento entero ya preparado (lo usan las acciones de la
+// configuración por sistema: valores de agente, plantillas, tipo, migración y
+// controles añadidos). El servidor deja la versión anterior en el historial y
+// una entrada con `changeReason` en `auditTrail`.
+export const saveActiveENSConfiguration = async (
+  candidateConfiguration: ENSConfigurationVersion,
+  changeReason: string
+): Promise<ENSConfigurationVersion> => {
+  const serverState =
+    await saveENSConfiguration(
+      candidateConfiguration,
+      changeReason
+    );
+
+  if (serverState.configuration === null) {
+    throw new Error(
+      'The ENS configuration server did not return the persisted configuration.'
+    );
+  }
+
+  const persistedConfiguration =
+    assertENSConfigurationVersion(
+      serverState.configuration
+    );
+
+  return ensConfigurationRepository.commitPersisted(
+    persistedConfiguration
+  );
+};
