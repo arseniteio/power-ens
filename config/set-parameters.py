@@ -17,15 +17,15 @@ que pasar la lista completa, con las filas que ya había.
 
     export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
     export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
-    python3 set-parameters.py politica-wazuh-real.json            # plan
-    python3 set-parameters.py politica-wazuh-real.json --apply    # escribe
+    python3 set-parameters.py politica.json            # plan
+    python3 set-parameters.py politica.json --apply    # escribe
 
 El fichero es JSON:
 
     {
       "op.acc.1": {
         "P-03": ["www-data", "sshd"],
-        "P-07": ["dioni | wazuh-real | Administrador de sistema"]
+        "P-07": ["usuario1 | servidor1 | Administrador de sistema"]
       }
     }
 
