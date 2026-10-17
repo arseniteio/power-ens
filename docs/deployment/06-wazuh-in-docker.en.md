@@ -25,9 +25,9 @@ the manager runs in a container.
 | Dashboard image with ENSFácil 1.1.0, start-up and checks (sections 3 and 4) | verified on 2026-10-17 |
 | `ensfacil_admin` role from a container on the compose network (section 5) | verified on 2026-10-17 |
 | First save and check of the `active` document (section 6) | verified on 2026-10-17 |
-| Seeding from a container (section 8) | verified on 2026-10-17 with op.acc.1 and op.cont.2 |
+| Seeding of the 23 controls from a container (section 8) | verified on 2026-10-17 |
 | Validation with `node:22-alpine` (section 9) | verified on 2026-10-17 |
-| Backup and restore of the document with the `ix` function (sections 2.4, 7 and 12), `set-parameters.py` from a container (section 10) | not verified in Docker: same tools, certificates and network as the verified steps |
+| Backup and restore of the document with the `ix` function (sections 2.4, 7 and 12.2) and `set-parameters.py` from a container (section 10) | verified on 2026-10-17 |
 | Tools missing from the manager image, their installation with `dnf`, `install-manager.sh` of op.acc.1, op.exp.7, op.exp.8 and op.exp.9 with `ENSFACIL_SYSTEMCTL`, manager collectors with `docker exec` and `ENS_HOST`, copy of `/wazuh-config-mount` over `/var/ossec` on every start | verified on 2026-10-02 with the `wazuh/wazuh-manager:4.14.7` image in an isolated container, without indexer or agents |
 | Manager side inside the `docker compose` deployment: `install-manager.sh` with `ENSFACIL_SYSTEMCTL` in the official image, host cron, `<localfile>` in `wazuh_manager.conf`, agents | not verified |
 | Multi-node cluster | not verified |
@@ -123,7 +123,7 @@ and, optionally, further curl options. Define it in the shell session, with
 ix() {
   docker run --rm -i --network <project>_default \
     -v <path>/config/wazuh_indexer_ssl_certs:/certs:ro debian:12 bash -c '
-      apt-get -qq update </dev/null >/dev/null && apt-get -qq install -y curl </dev/null >/dev/null &&
+      export DEBIAN_FRONTEND=noninteractive; apt-get -qq update </dev/null >/dev/null 2>&1 && apt-get -qq install -y curl </dev/null >/dev/null 2>&1 &&
       curl -s --cacert /certs/root-ca.pem --cert /certs/admin.pem --key /certs/admin-key.pem \
         "https://wazuh.indexer:9200/$1" "${@:2}"; echo' _ "$@"
 }
@@ -246,7 +246,7 @@ docker run --rm --network <project>_default \
   -v <release>/create-admin-role.sh:/t/create-admin-role.sh:ro \
   -e OS_CERT=/certs/admin.pem -e OS_KEY=/certs/admin-key.pem -e OS_CA=/certs/root-ca.pem \
   -e OS_URL=https://wazuh.indexer:9200 debian:12 \
-  bash -c 'apt-get -qq update >/dev/null && apt-get -qq install -y curl python3 >/dev/null && bash /t/create-admin-role.sh --dry-run --mapear <user>'
+  bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get -qq update >/dev/null 2>&1 && apt-get -qq install -y curl python3 >/dev/null 2>&1 && bash /t/create-admin-role.sh --dry-run --mapear <user>'
 ```
 
 Expected result, if the role is not yet assigned to any user:
