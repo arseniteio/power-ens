@@ -185,6 +185,18 @@ export const createImpactEventsAccumulator = () => {
     });
   };
 
+  // Los pares clave → tipo ya contados, para guardarlos por control y volver a
+  // sumarlos sin los eventos.
+  const entries = (): [string, string][] => Array.from(uniqueEvents.entries());
+
+  const addEntries = (pairs: [string, string][] = []): void => {
+    pairs.forEach(([eventKey, eventType]) => {
+      if (!uniqueEvents.has(eventKey)) {
+        uniqueEvents.set(eventKey, eventType);
+      }
+    });
+  };
+
   const build = (): ImpactEventsModel => {
     const grouped = Array.from(
       uniqueEvents.values()
@@ -228,7 +240,7 @@ export const createImpactEventsAccumulator = () => {
     };
   };
 
-  return { add, build };
+  return { add, addEntries, entries, build };
 };
 
 // Los tipos que cuentan como evento operativo.

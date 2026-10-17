@@ -16,6 +16,9 @@ export const ENSFACIL_APP_CATEGORY = {
 
 export const ENSFACIL_API_BASE = '/api/ensfacil';
 export const ENSFACIL_CONFIGURATION_PATH = `${ENSFACIL_API_BASE}/configuration`;
+// La evaluación la hace el servidor del plugin (desde 1.2.0): el navegador no
+// descarga hechos para juzgar, recibe el resultado. Ver `server/README.md`.
+export const ENSFACIL_EVALUATION_PATH = `${ENSFACIL_API_BASE}/evaluation`;
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
