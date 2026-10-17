@@ -8,12 +8,12 @@ es privado; está prevista una edición comunitaria.
 
 ## Flujo de trabajo
 
-1. Crea una rama desde `main`, con un nombre que diga qué cambia (por ejemplo,
+1. Crear una rama desde `main`, con un nombre que indique qué cambia (por ejemplo,
    `fix/…`, `feat/…`, `docs/…` o `ci/…`).
-2. Abre un merge request contra `main`.
-3. Espera a que el pipeline salga en verde.
-4. Pide una revisión y resuelve sus comentarios.
-5. Fusiona con un merge commit.
+2. Abrir un merge request contra `main`.
+3. Esperar a que el pipeline termine en verde.
+4. Solicitar una revisión y resolver sus comentarios.
+5. Fusionar con un merge commit.
 
 Nada llega a `main` sin MR, pipeline en verde y revisión.
 
@@ -57,7 +57,7 @@ hace falta explicar por qué, va en el cuerpo.
   commit que en la otra.
 - **Nada del laboratorio ni de los clientes.** Nunca nombres de máquinas o de
   laboratorios, direcciones IP, datos de clientes ni secretos en el repositorio:
-  tampoco en pruebas, ejemplos ni mensajes de commit. Para ejemplos, usa
+  tampoco en pruebas, ejemplos ni mensajes de commit. Para ejemplos, se usan
   dominios `.invalido` o `example.com` y las redes de documentación
   (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`).
 
@@ -65,9 +65,12 @@ hace falta explicar por qué, va en el cuerpo.
 
 Las guías de `docs/deployment/` siguen el mismo estilo:
 
-- frases cortas, en segunda persona;
-- después de cada orden, «Qué tiene que salir» («What you should see», en
-  inglés);
+- registro impersonal o infinitivo («Comprobar la versión instalada:», «Se
+  conserva la carpeta…», «Detener el procedimiento»), sin formas de «tú», sin
+  preguntas retóricas ni incisos dirigidos al lector; en inglés, imperativo sin
+  sujeto («Check…», «Stop the procedure»), sin *you* ni *your*;
+- después de cada orden, **Resultado esperado:** (*Expected result:*, en
+  inglés), también en las tablas;
 - los avisos, con `> [!note]`, `> [!important]` o `> [!warning]`;
 - cada enlace relativo y cada ancla tienen que existir. GitLab forma el ancla
   con el título en minúsculas, los espacios cambiados por `-` y sin signos de
@@ -85,12 +88,12 @@ for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && e
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Qué tiene que salir: `coherencia OK` y ninguna línea `FAIL`.
+Resultado esperado: `coherencia OK` y ninguna línea `FAIL`.
 
 Sin Node.js, en Docker, o en una carpeta limpia como CI: ver
 [Compilar desde el código fuente, apartado 7](docs/deployment/08-building-from-source.md#7-pasar-las-pruebas).
 
-Pasa las pruebas antes de abrir el MR. Un cambio de comportamiento lleva su
+Las pruebas se pasan antes de abrir el MR. Un cambio de comportamiento lleva su
 prueba.
 
 ## Integración continua
@@ -141,13 +144,13 @@ donde `X` sube con un cambio incompatible, `Y` con una función nueva compatible
 `Z` con una corrección. La serie 1.x se compila para OpenSearch Dashboards 2.19.5
 (Wazuh 4.14.7).
 
-1. En una rama, sube la versión en `opensearch_dashboards.json` y en
+1. En una rama, subir la versión en `opensearch_dashboards.json` y en
    `package.json`. Las dos tienen que ser la misma.
-2. Añade la entrada de la versión en `CHANGELOG.md` y en `CHANGELOG.en.md`, con
+2. Añadir la entrada de la versión en `CHANGELOG.md` y en `CHANGELOG.en.md`, con
    el título `## [X.Y.Z] - AAAA-MM-DD` y las secciones que hagan falta
    (Añadido, Cambiado, Corregido, Retirado).
-3. Abre el MR, con pipeline en verde y revisión, y fusiónalo en `main`.
-4. Crea la etiqueta `vX.Y.Z` sobre `main` y súbela:
+3. Abrir el MR, con pipeline en verde y revisión, y fusionarlo en `main`.
+4. Crear la etiqueta `vX.Y.Z` sobre `main` y subirla:
 
    ```bash
    git fetch origin
@@ -156,7 +159,7 @@ donde `X` sube con un cambio incompatible, `Y` con una función nueva compatible
    ```
 
    Las etiquetas `v*` están protegidas: solo las crean los Maintainers.
-5. El pipeline de la etiqueta pasa las pruebas, compila y publica. Comprueba en
+5. El pipeline de la etiqueta pasa las pruebas, compila y publica. Comprobar en
    *Deploy → Releases* que está `ENSFácil X.Y.Z` con sus cuatro ficheros.
 
 El trabajo `release` se niega a publicar si:
@@ -169,9 +172,9 @@ El trabajo `release` se niega a publicar si:
 
 > [!important]
 > Una versión publicada no se vuelve a etiquetar ni se sustituye: el trabajo
-> `release` se niega. Si una release sale mal, publica una versión de parche
-> nueva con la corrección.
+> `release` se niega. Si una release sale mal, se publica una versión de
+> parche nueva con la corrección.
 
 La descripción de la release enlaza con
-`docs/deployment/07-installing-from-a-release.md` en esa etiqueta: no cambies de
-sitio esa guía.
+`docs/deployment/07-installing-from-a-release.md` en esa etiqueta: esa guía no se cambia
+de sitio.
