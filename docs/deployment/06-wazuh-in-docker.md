@@ -29,6 +29,7 @@ ejecuta en un contenedor.
 | Siembra de los 23 controles desde un contenedor (apartado 8) | verificado el 17/10/2026 |
 | Validación con `node:22-alpine` (apartado 9) | verificado el 17/10/2026 |
 | Copia y restauración del documento con la función `ix` (apartados 2.4, 7 y 12.2) y `set-parameters.py` desde un contenedor (apartado 10) | verificado el 17/10/2026 |
+| Vuelta atrás por etiqueta y retirada (apartados 12.2 y 12.3); la restauración del documento del apartado 12.2 sí está verificada | sin verificar en Docker |
 | Herramientas que faltan en la imagen del manager, su instalación con `dnf`, `install-manager.sh` de op.acc.1, op.exp.7, op.exp.8 y op.exp.9 con `ENSFACIL_SYSTEMCTL`, recolectores del manager con `docker exec` y `ENS_HOST`, copia de `/wazuh-config-mount` sobre `/var/ossec` en cada arranque | verificado el 02/10/2026 con la imagen `wazuh/wazuh-manager:4.14.7` en un contenedor aislado, sin indexer ni agentes |
 | Lado del manager dentro del despliegue con `docker compose`: `install-manager.sh` con `ENSFACIL_SYSTEMCTL` en la imagen oficial, cron del host, `<localfile>` en `wazuh_manager.conf`, agentes | sin verificar |
 | Clúster de varios nodos | sin verificar |
@@ -47,8 +48,15 @@ amd64 en emulación.
   (por ejemplo, la carpeta `single-node`), con los certificados generados por
   `generate-indexer-certs.yml` en `config/wazuh_indexer_ssl_certs/`
   (`admin.pem`, `admin-key.pem`, `root-ca.pem`, `wazuh.indexer.pem`, entre otros).
-- Docker con el plugin `compose` y acceso a Docker Hub para descargar
-  `debian:12`, `python:3.12-slim` y `node:22-alpine`.
+- Docker con el plugin `compose`, un usuario con permiso para ejecutar
+  `docker`, y acceso a Docker Hub para descargar `debian:12`,
+  `python:3.12-slim` y `node:22-alpine`.
+- Acceso por SSH autorizado al repositorio del plugin en GitLab, para clonarlo
+  (apartado 2.3).
+- Acceso a Internet desde los contenedores, para que `npx` descargue `tsx` en
+  la validación (apartado 9).
+- `unzip` en el host, para la comprobación `--solo-id` de la release
+  (apartado 2.3).
 
 Comprobar, desde la carpeta del compose, que los tres servicios están en marcha
 con la versión 4.14.7:
@@ -90,14 +98,20 @@ Los comandos `docker compose` se ejecutan desde `<ruta>`.
 La release de ENSFácil se descarga y se comprueba como en
 [Instalar desde una release, apartados 4 a 7](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor).
 De sus cuatro ficheros, en Docker se usan el zip, `create-admin-role.sh` y
-`SHA256SUMS`; `deploy-plugin.sh` no se usa.
+`SHA256SUMS`; `deploy-plugin.sh`, solo para la comprobación `--solo-id` del
+apartado 7 de la guía 07, que necesita `unzip` en el host.
 
 La siembra y la validación usan el repositorio del plugin (`config/` y el motor
 que importa el validador). El acceso a GitLab se configura como en la
 [instalación desde cero, apartado 10.1](01-installation-from-scratch.md#101-validar-el-acceso-al-repositorio-principal).
-Clonar el repositorio:
+
+Las carpetas de trabajo de esta guía (`<repo>`, `<imagen>`, `<copias>`) están en
+`/opt/ensfacil`, que el apartado 4 de la guía 07 crea como `root`. Asignarla al
+usuario que ejecuta el procedimiento y clonar el repositorio:
 
 ```bash
+sudo mkdir -p /opt/ensfacil
+sudo chown "$USER":root /opt/ensfacil
 git ls-remote git@gitlab.com:quersystem/plugin-wazuh-ens.git HEAD
 git clone git@gitlab.com:quersystem/plugin-wazuh-ens.git <repo>
 ```
@@ -250,7 +264,10 @@ docker run --rm --network <proyecto>_default \
   bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get -qq update >/dev/null 2>&1 && apt-get -qq install -y curl python3 >/dev/null 2>&1 && bash /t/create-admin-role.sh --dry-run --mapear <usuario>'
 ```
 
-Resultado esperado, si el rol no está asignado todavía a ningún usuario:
+El resultado siguiente corresponde a un rol que todavía no está asignado a
+ningún usuario.
+
+Resultado esperado:
 
 ```text
 == modo prueba: no se envía ningún cambio
@@ -329,15 +346,18 @@ el apartado 12.2.
 
 `inject-control.py` se ejecuta en un contenedor `python:3.12-slim` conectado a
 la red del compose, con la carpeta `config/` del repositorio montada en solo
-lectura. Para un control, sin `--apply` muestra el plan y con `--apply` escribe:
+lectura. Para un control, sin `--apply` muestra el plan y con `--apply` escribe.
+El plan de un control:
 
 ```bash
 docker run --rm --network <proyecto>_default \
   -v <ruta>/config/wazuh_indexer_ssl_certs:/certs:ro -v <repo>/config:/cfg:ro \
   -e OS_CERT=/certs/admin.pem -e OS_KEY=/certs/admin-key.pem -e OS_CA=/certs/root-ca.pem \
   -e ENS_OS_URL=https://wazuh.indexer:9200 -w /cfg python:3.12-slim \
-  python3 inject-control.py op.acc.1 --apply
+  python3 inject-control.py <control>
 ```
+
+Resultado esperado: el plan del control y, al final, `== DRY-RUN ==`.
 
 Sembrar los 23 controles. Primero el plan, sin `--apply`, que no escribe nada:
 
@@ -424,8 +444,12 @@ docker run --rm --network <proyecto>_default \
   python3 set-parameters.py /pol/politica.json
 ```
 
-Sin `--apply` muestra el plan; con `--apply` escribe. El formato del fichero y
-sus reglas están en la
+Sin `--apply` muestra el plan; con `--apply` escribe.
+
+Resultado esperado: los cambios por parámetro y `DRY-RUN: nada escrito`; con
+`--apply`, `<n> cambio(s) escritos en wazuh-ens-configuration/active`.
+
+El formato del fichero y sus reglas están en la
 [instalación desde cero, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política).
 Después de declarar valores, repetir la copia (apartado 7) antes y la
 validación (apartado 9) después.
@@ -463,10 +487,15 @@ su historial y los hechos de los runbooks se conservan.
    ejemplo, para X.Y.Z:
 
    ```bash
+   mkdir -p <imagen nueva>
+   cp <imagen>/Dockerfile <imagen nueva>/
    cp <release nueva>/ensfacil-X.Y.Z-osd-2.19.5.zip <imagen nueva>/ensfacil-2.19.5.zip
    cd <imagen nueva>
    docker build --build-arg ENSFACIL_VERSION=X.Y.Z -t wazuh-dashboard-ensfacil:X.Y.Z .
    ```
+
+   Resultado esperado: el del apartado 3, con `ensfacil@X.Y.Z` y
+   `build.number` = 414701 + X·10000 + Y·100 + Z.
 
 5. Cambiar la etiqueta en `docker-compose.yml`
    (`image: wazuh-dashboard-ensfacil:X.Y.Z`), ejecutar `docker compose up -d` y
