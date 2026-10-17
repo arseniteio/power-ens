@@ -16,10 +16,10 @@ Six new controls: the catalog goes from 17 to 23.
 
 - Six controls in the catalog, all measured on the manager (op.mon.3 on the
   machines too):
-  - `op.cont.2` Continuity plan (only with D at HIGH), without a collector or
+  - `op.cont.2` Continuity plan (only with D at ALTO), without a collector or
     rules (documentation-only runbook): the plugin judges it from the screen
     tables and their validity;
-  - `op.cont.3` Periodic tests (only with D at HIGH), with the manager's test
+  - `op.cont.3` Periodic tests (only with D at ALTO), with the manager's test
     and deficiency registers and the outages and starts measured in each
     test's real window;
   - `op.mon.1` Intrusion detection;
