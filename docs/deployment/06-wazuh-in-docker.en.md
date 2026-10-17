@@ -28,7 +28,7 @@ the manager runs in a container.
 | Seeding of the 23 controls from a container (section 8) | verified on 2026-10-17 |
 | Validation with `node:22-alpine` (section 9) | verified on 2026-10-17 |
 | Backup and restore of the document with the `ix` function (sections 2.4, 7 and 12.2) and `set-parameters.py` from a container (section 10) | verified on 2026-10-17 |
-| Rollback by tag and removal (sections 12.2 and 12.3); the document restore of section 12.2 is verified | not verified in Docker |
+| Rollback by tag (section 12.2) and removal with the official image (section 12.3) | verified on 2026-10-17 |
 | Tools missing from the manager image, their installation with `dnf`, `install-manager.sh` of op.acc.1, op.exp.7, op.exp.8 and op.exp.9 with `ENSFACIL_SYSTEMCTL`, manager collectors with `docker exec` and `ENS_HOST`, copy of `/wazuh-config-mount` over `/var/ossec` on every start | verified on 2026-10-02 with the `wazuh/wazuh-manager:4.14.7` image in an isolated container, without indexer or agents |
 | Manager side inside the `docker compose` deployment: `install-manager.sh` with `ENSFACIL_SYSTEMCTL` in the official image, host cron, `<localfile>` in `wazuh_manager.conf`, agents | not verified |
 | Multi-node cluster | not verified |
@@ -230,7 +230,7 @@ Expected result:
 |---|---|
 | `docker compose ps` | `wazuh.dashboard` with the image `wazuh-dashboard-ensfacil:1.1.0` and state `running` |
 | `/app/login` | `200`, about 20 seconds after `docker compose up -d` |
-| `/api/ensfacil/configuration` | `401`: the plugin route exists and requires a session. A `404` means that the plugin has not loaded |
+| `/api/ensfacil/configuration` | `401`: the dashboard requires a session. Without a session, the response is `401` also without the plugin: this value is the expected one with the plugin installed, but it does not prove that the plugin loaded. The dashboard log and the same request with a session, which returns `200`, prove it |
 | dashboard log | `Setting up [52] plugins: [...]`, with `ensfacil` in the list |
 
 With a session open in the browser, `/api/ensfacil/configuration` returns
@@ -547,12 +547,17 @@ Go back to the official image in `docker-compose.yml`
 ```bash
 cd <path>
 docker compose up -d
-curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-Expected result: `404`, about 20 seconds after `docker compose up -d`, and
-"ENSFácil" no longer appears in the menu. The Wazuh plugin is the one of the
-official image and is not affected.
+Expected result: "ENSFácil" no longer appears in the dashboard menu.
+Equivalent check from the host, with a session: after
+`curl -sk -c cj -X POST https://localhost/auth/login -H 'osd-xsrf: true' -H 'Content-Type: application/json' -d '{"username":"<user>","password":"<password>"}'`,
+`curl -sk -b cj -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration`
+returns `404` (with the plugin installed it returns `200`). Without a
+session, the response is `401` in both cases and is not a valid check. The
+`cj` file holds the session and is deleted afterwards.
+
+The Wazuh plugin is the one of the official image and is not affected.
 
 The ENS configuration stays in the `wazuh-ens-configuration` index and the
 `ensfacil_admin` role in the security plugin. If ENSFácil will not be used

@@ -29,7 +29,7 @@ ejecuta en un contenedor.
 | Siembra de los 23 controles desde un contenedor (apartado 8) | verificado el 17/10/2026 |
 | Validación con `node:22-alpine` (apartado 9) | verificado el 17/10/2026 |
 | Copia y restauración del documento con la función `ix` (apartados 2.4, 7 y 12.2) y `set-parameters.py` desde un contenedor (apartado 10) | verificado el 17/10/2026 |
-| Vuelta atrás por etiqueta y retirada (apartados 12.2 y 12.3); la restauración del documento del apartado 12.2 sí está verificada | sin verificar en Docker |
+| Vuelta atrás por etiqueta (apartado 12.2) y retirada con la imagen oficial (apartado 12.3) | verificado el 17/10/2026 |
 | Herramientas que faltan en la imagen del manager, su instalación con `dnf`, `install-manager.sh` de op.acc.1, op.exp.7, op.exp.8 y op.exp.9 con `ENSFACIL_SYSTEMCTL`, recolectores del manager con `docker exec` y `ENS_HOST`, copia de `/wazuh-config-mount` sobre `/var/ossec` en cada arranque | verificado el 02/10/2026 con la imagen `wazuh/wazuh-manager:4.14.7` en un contenedor aislado, sin indexer ni agentes |
 | Lado del manager dentro del despliegue con `docker compose`: `install-manager.sh` con `ENSFACIL_SYSTEMCTL` en la imagen oficial, cron del host, `<localfile>` en `wazuh_manager.conf`, agentes | sin verificar |
 | Clúster de varios nodos | sin verificar |
@@ -232,7 +232,7 @@ Resultado esperado:
 |---|---|
 | `docker compose ps` | `wazuh.dashboard` con la imagen `wazuh-dashboard-ensfacil:1.1.0` y estado `running` |
 | `/app/login` | `200`, unos 20 segundos después de `docker compose up -d` |
-| `/api/ensfacil/configuration` | `401`: la ruta del plugin existe y pide sesión. Un `404` indica que el plugin no ha cargado |
+| `/api/ensfacil/configuration` | `401`: el dashboard pide sesión. Sin sesión, la respuesta es `401` también sin el plugin: este valor es el esperado con el plugin instalado, pero no demuestra que haya cargado. Lo demuestran el registro del dashboard y la misma petición con sesión, que devuelve `200` |
 | registro del dashboard | `Setting up [52] plugins: [...]`, con `ensfacil` en la lista |
 
 Con una sesión iniciada en el navegador, `/api/ensfacil/configuration`
@@ -547,12 +547,17 @@ Volver a la imagen oficial en `docker-compose.yml`
 ```bash
 cd <ruta>
 docker compose up -d
-curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-Resultado esperado: `404`, unos 20 segundos después de `docker compose up -d`,
-y «ENSFácil» ya no aparece en el menú. El plugin de Wazuh es el de la imagen
-oficial y no se ve afectado.
+Resultado esperado: «ENSFácil» ya no aparece en el menú del dashboard.
+Comprobación equivalente desde el host, con sesión: tras
+`curl -sk -c cj -X POST https://localhost/auth/login -H 'osd-xsrf: true' -H 'Content-Type: application/json' -d '{"username":"<usuario>","password":"<contraseña>"}'`,
+`curl -sk -b cj -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration`
+devuelve `404` (con el plugin instalado devuelve `200`). Sin sesión, la
+respuesta es `401` en los dos casos y no sirve como comprobación. El fichero
+`cj` contiene la sesión y se borra después.
+
+El plugin de Wazuh es el de la imagen oficial y no se ve afectado.
 
 La configuración ENS se conserva en el índice `wazuh-ens-configuration` y el
 rol `ensfacil_admin` en el plugin de seguridad. Si ENSFácil no se va a volver a
