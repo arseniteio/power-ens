@@ -430,10 +430,9 @@ def carga_bloques():
 # Opciones que declara hoy cada `select`. La tabla es explícita para que ampliar
 # o recortar la lista sea una decisión, no un descuido: cerrar el conjunto de
 # valores de un parámetro cambia qué configuraciones son válidas.
+# op.acc.1 P-01 dejó de ser un menú el 15/10/2026 (b47427e): una organización
+# puede tener varias fuentes de identidad, y ahora es una lista.
 OPCIONES_ESPERADAS = {
-    ("op.acc.1", "P-01"): [
-        "Active Directory", "LDAP", "Local", "Azure AD", "Otro",
-    ],
     ("op.acc.2", "P-05"): [
         "RBAC sobre AD", "ACL granular por recurso",
         "Mínimo privilegio + sudo", "Otro",
@@ -450,6 +449,7 @@ OPCIONES_ESPERADAS = {
 # `|` en su ejemplo sería un menú de varias entradas disfrazado de valor, y el
 # formulario lo guardaría como UN elemento que no casa con nada.
 LISTAS_DE_ELEMENTO_ATOMICO = {
+    ("op.acc.1", "P-01"),   # una fuente de identidad
     ("op.acc.1", "P-04"),   # un nombre de cuenta prohibido
     ("op.acc.1", "P-11"),   # un grupo privilegiado
     ("op.acc.2", "P-02"),   # una ruta crítica
@@ -484,7 +484,6 @@ MENUS_ANTIGUOS = [
     ("mp.info.6", "P-09", "/mnt/s3-backup | \\\\nas-dr\\backup"),
     ("mp.info.6", "P-08", "sí / no"),
     ("op.acc.1", "P-08", "sí / no"),
-    ("op.acc.1", "P-01", "Active Directory / LDAP / local / Azure AD / otro"),
     ("mp.info.6", "P-10", "Veeam / Bacula / Amanda / rsync / Windows Backup / Otro"),
     ("op.acc.2", "P-05",
      "RBAC sobre AD / ACL granular por recurso / Mínimo privilegio + sudo"),
@@ -530,7 +529,7 @@ def main():
         ]
 
         comprueba(
-            "los tres select del producto siguen siendo tres",
+            "los dos select del producto siguen siendo dos",
             sorted((c, p["id"]) for c, p in selects) ==
             sorted(OPCIONES_ESPERADAS),
             str(sorted((c, p["id"]) for c, p in selects)))
@@ -598,7 +597,7 @@ def main():
         print("== el desplegable y el validador, de acuerdo ==\n")
 
         p10 = parametro_de(bloques["mp.info.6"], "P-10")
-        p01 = parametro_de(bloques["op.acc.1"], "P-01")
+        p05 = parametro_de(bloques["op.acc.2"], "P-05")
         sin_opciones = dict(p10)
         sin_opciones.pop("options", None)
 
@@ -606,7 +605,7 @@ def main():
             {"tipo": "select", "parametro": p10, "valor": None},
             {"tipo": "select", "parametro": p10,
              "valor": "Veeam Backup & Replication 12"},
-            {"tipo": "select", "parametro": p01, "valor": "  local "},
+            {"tipo": "select", "parametro": p05, "valor": "  rbac sobre ad "},
             {"tipo": "select", "parametro": sin_opciones, "valor": "lo que sea"},
         ])
 
@@ -636,7 +635,7 @@ def main():
                   OPCIONES_ESPERADAS[("mp.info.6", "P-10")], str(heredado["options"]))
 
         comprueba("un heredado que solo difiere en mayúsculas se resuelve a su opción",
-                  con_mayusculas["selected"] == "Local" and
+                  con_mayusculas["selected"] == "RBAC sobre AD" and
                   con_mayusculas["legacyValue"] == "" and
                   not any(o["legacy"] for o in con_mayusculas["options"]),
                   str(con_mayusculas))
