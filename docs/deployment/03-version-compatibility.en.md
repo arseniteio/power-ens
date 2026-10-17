@@ -5,7 +5,7 @@
 
 ## 1. Objective
 
-This guide states which versions ENSFácil works with and what to do before using another Wazuh version.
+This guide states the version combinations validated for ENSFácil and the procedure to follow before using another Wazuh version.
 
 ENSFácil is a Wazuh Dashboard plugin of its own (`ensfacil`). It does not modify the Wazuh plugin: Wazuh can be updated on its own. But ENSFácil is built for an **exact** OpenSearch Dashboards version, the one Wazuh Dashboard ships.
 
@@ -14,9 +14,10 @@ ENSFácil is a Wazuh Dashboard plugin of its own (`ensfacil`). It does not modif
 
 ## 2. Validated version
 
-| ENSFácil | Wazuh | OpenSearch Dashboards |
-|---|---|---|
-| `1.0.0` | `4.14.7` | `2.19.5` |
+| ENSFácil | Wazuh | OpenSearch Dashboards | Validated deployment |
+|---|---|---|---|
+| `1.0.0` | `4.14.7` | `2.19.5` | packages, all-in-one |
+| `1.1.0` | `4.14.7` | `2.19.5` | packages, all-in-one; Docker, plugin side ([Wazuh in Docker](06-wazuh-in-docker.en.md#1-verification-status)) |
 
 Any other combination is not validated.
 
@@ -26,9 +27,11 @@ The zip carries the OpenSearch Dashboards version in its name and in its manifes
 - if it was already installed and the dashboard changes version, the dashboard **does not start**: `Failed to initialize plugins`.
 
 > [!note]
-> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.0.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
+> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.1.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
 
 ## 3. Check the installed versions
+
+### 3.1 Package installation
 
 ```bash
 dpkg-query -W -f='${Package} ${Version}\n' wazuh-manager wazuh-indexer wazuh-dashboard
@@ -36,14 +39,38 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-What you should see, with the validated combination: the three packages at `4.14.7-1`, `2.19.5` and, in the plugin list, `ensfacil@1.0.0`.
+Expected result: the three packages at `4.14.7-1`; `2.19.5`; in the plugin list, the validated ENSFácil version (`ensfacil@1.1.0`) and `wazuh@4.14.7-01`.
+
+### 3.2 Docker
+
+From the folder of the official `docker-compose.yml`, with `<dashboard>` as the
+name of the dashboard container (`docker ps --format '{{.Names}}'`):
+
+```bash
+docker compose ps --format '{{.Service}} {{.Image}}'
+docker exec <dashboard> python3 -c 'import json; p=json.load(open("/usr/share/wazuh-dashboard/package.json")); print(p["version"], p["build"]["number"])'
+docker exec <dashboard> /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
+```
+
+Expected result: `wazuh.indexer` and `wazuh.manager` with images tagged
+`4.14.7` and `wazuh.dashboard` with `wazuh-dashboard-ensfacil:1.1.0`;
+`2.19.5 424801`; in the plugin list, `ensfacil@1.1.0` and `wazuh@4.14.7-01`.
+The `build.number` is explained in
+[Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil).
 
 ## 4. Before updating Wazuh
 
-Check which OpenSearch Dashboards version the new Wazuh Dashboard version ships (in its release notes or in its package).
+Check in the release notes or in the package of Wazuh Dashboard which OpenSearch Dashboards version the new version ships.
 
 - **Same OpenSearch Dashboards version (`2.19.5`):** the ENSFácil zip is the same. Even so, the new combination is not validated until section 5 is completed in a test environment.
 - **Another OpenSearch Dashboards version:** an ENSFácil zip built for it is needed. Without that zip, do not update the dashboard: with `ensfacil` installed, it would not start. If the update must happen anyway, remove ENSFácil first ([troubleshooting and rollback, section 5](04-troubleshooting-and-rollback.en.md#5-remove-ensfácil)).
+
+In Docker, updating Wazuh changes the base image of the dashboard. The
+ENSFácil image is rebuilt on the new one
+([Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil))
+only if a zip exists for its OpenSearch Dashboards version; otherwise, the
+dashboard service goes back to the official image before the update
+([Wazuh in Docker, section 12.3](06-wazuh-in-docker.en.md#123-remove-ensfácil)).
 
 > [!warning]
 > Do not run this evaluation directly on a production environment.
@@ -60,11 +87,12 @@ In a test environment:
 
    ```bash
    cd /opt/ensfacil/repo
-   for t in tests/*.test.ts; do npx --yes tsx "$t" >/dev/null 2>&1 || echo "FALLA $t"; done
-   python3 tests/check-consistency.py | tail -1
+   python3 tests/check-consistency.py
+   for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
+   for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
    ```
 
-   What you should see: no `FALLA` line and `coherencia OK`.
+   Expected result: `coherencia OK` and no `FAIL` line.
 
 6. Go through the screens with real data: Panel, Configuración (save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
 
