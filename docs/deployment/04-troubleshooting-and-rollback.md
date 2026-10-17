@@ -293,7 +293,7 @@ Resultado esperado:
 |---|---|
 | `docker compose ps` | estado `running`, con la imagen `wazuh-dashboard-ensfacil:<versión>` |
 | plugins | `ensfacil@<versión>` y `wazuh@4.14.7-01`, entre otros |
-| `/api/ensfacil/configuration` | `401`: la ruta existe y pide sesión |
+| `/api/ensfacil/configuration` | `401`: el dashboard pide sesión. Sin sesión, la respuesta es `401` también sin el plugin; la carga la confirma la línea `Setting up … plugins` |
 | `Setting up … plugins` | `1`: ENSFácil está entre los plugins cargados |
 | errores | ninguno que mencione `ensfacil` |
 
@@ -317,7 +317,7 @@ ejemplo, `ix 'wazuh-monitoring-*/_count'`.
 | `docker run --network <proyecto>_default` falla con «network … not found» | el nombre de la red no es el del compose | consultar `docker network ls`; la red es `<carpeta del compose>_default` |
 | `inject-control.py`: «no existe el documento 'active'…; guarda la configuración una vez y vuelve a ejecutar» | todavía no se ha hecho el primer guardado | guardar la configuración una vez desde la pantalla ([Wazuh en Docker, apartado 6](06-wazuh-in-docker.md#6-primer-guardado-de-la-configuración)) |
 | La validación indica `configuration.scope.agentIds must be a string array` | un documento escrito a mano sin las listas `agentIds` y `groupIds` en `scope` | añadir las dos listas, aunque estén vacías, o guardar desde la pantalla de Configuración, que siempre las escribe |
-| `/api/ensfacil/configuration` devuelve `404` después de `docker compose up -d` | el servicio usa todavía la imagen oficial, o el plugin no ha cargado | comprobar la imagen con `docker compose ps` y el registro (apartado 9.1) |
+| Después de `docker compose up -d`, «ENSFácil» no aparece en el menú, o `/api/ensfacil/configuration` devuelve `404` con una sesión iniciada (sin sesión, la respuesta es siempre `401`) | el servicio usa todavía la imagen oficial, o el plugin no ha cargado | comprobar la imagen con `docker compose ps` y el registro (apartado 9.1) |
 | Después de cambiar de versión, el navegador sigue mostrando la anterior | la imagen se construyó con un `ENSFACIL_VERSION` distinto de la versión del zip y repite el `build.number` de otra imagen | reconstruir con la versión del zip y comprobar el `build.number` ([Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil)) |
 | `install-manager.sh` falla al reiniciar el manager con `systemctl: command not found` y deshace su cambio | la imagen del manager no tiene systemd | ejecutar con `ENSFACIL_SYSTEMCTL=/var/ossec/bin/wazuh-control` ([Wazuh en Docker, apartado 13.5](06-wazuh-in-docker.md#135-grupos-copia-previa-e-instaladores-sin-systemd)) |
 | Los controles medidos en el manager se quedan sin datos después de reiniciar su contenedor | el arranque copia `wazuh_manager.conf` sobre `ossec.conf` y descarta los `<localfile>` de los instaladores | añadir el bloque de `<localfile>` a `wazuh_manager.conf` ([Wazuh en Docker, apartado 13.4](06-wazuh-in-docker.md#134-los-localfile-en-wazuh_managerconf)) |
