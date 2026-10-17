@@ -48,9 +48,9 @@ export const createEvaluationHandlers = (options: {
     }
   };
 
-  const ejecutar = (context: any, request: any, query: ENSEvaluationQuery) =>
-    service.inFlight.run(claveDePeticion(request, query), () =>
-      service.semaphore.use(() => service.run(clientes(context), query))
+  const ejecutar = (context: any, request: any, query: ENSEvaluationQuery, options: { fullTraceability?: boolean } = {}) =>
+    service.inFlight.run(claveDePeticion(request, { ...query, ...options }), () =>
+      service.semaphore.use(() => service.run(clientes(context), query, options))
     );
 
   const evaluate = (context: any, request: any, response: any) =>
@@ -60,8 +60,7 @@ export const createEvaluationHandlers = (options: {
       const s = salida.meta.stats;
       logger.debug(
         `ENSFácil: evaluación ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} en ${s.totalMs} ms ` +
-          `(${s.controls.filter((c: any) => !c.fromCache).length} controles calculados, ` +
-          `${s.controls.reduce((n: number, c: any) => n + (c.fromCache ? 0 : c.hits), 0)} hechos leídos)`
+          `(${s.computed} controles calculados, ${s.hits} hechos leídos)`
       );
       return buildEvaluationResponse(salida);
     });
@@ -72,12 +71,11 @@ export const createEvaluationHandlers = (options: {
     conErrores(response, 'comprobar si hay hechos nuevos', async () => {
       const query = normalizeQuery(request?.query || {});
       const ctx = await service.loadContext(clientes(context), query);
-      const hechos = query.controlId ? ctx.probe.controls[query.controlId] : ctx.probe;
       return {
         fingerprint: service.viewFingerprint(ctx, query),
         checkedAt: ctx.now.toISOString(),
         configurationUpdatedAt: ctx.configurationUpdatedAt,
-        facts: { count: hechos?.count || 0, newest: hechos?.newest },
+        facts: { count: ctx.probe.count, newest: ctx.probe.newest },
       };
     });
 
@@ -90,7 +88,9 @@ export const createEvaluationHandlers = (options: {
       }
       const from = Math.max(0, Math.floor(Number(q.from) || 0));
       const size = Math.max(1, Math.min(500, Math.floor(Number(q.size) || 50)));
-      return buildTraceabilityPage(await ejecutar(context, request, query), from, size);
+      // Más allá de las primeras entradas de una máquina, su vista se evalúa
+      // entera (las filas del conjunto solo guardan las primeras).
+      return buildTraceabilityPage(await ejecutar(context, request, query, { fullTraceability: from + size > 100 }), from, size);
     });
 
   return { evaluate, probe, traceability, service };

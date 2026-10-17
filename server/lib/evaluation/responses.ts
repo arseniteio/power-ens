@@ -1,7 +1,6 @@
 // Lo que devuelve cada vista. Compacto: el navegador recibe resultados, nunca
 // hechos. La forma de cada una está en `server/README.md`.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
-import { createImpactEventsAccumulator } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSEvaluationService } from './evaluation-service';
 
@@ -44,12 +43,14 @@ const stateHeader = (run: RunOutput) => {
 };
 
 export const buildEvaluationResponse = (run: RunOutput) => {
-  const { meta, query, state, stored, timeline } = run;
+  const { meta, query, state, views, timeline } = run;
 
   if (query.include === 'control' && query.controlId) {
-    const entrada = stored.get(query.controlId);
+    const entrada = views.get(query.controlId);
     return {
       meta,
+      // Las primeras entradas de la trazabilidad (las más recientes); el resto,
+      // por páginas en `/evaluation/traceability`.
       result: entrada?.result ? { ...entrada.result, traceability: (entrada.traceability || []).slice(0, 100) } : undefined,
       traceabilityTotal: entrada?.traceabilityTotal || 0,
       agents: (entrada?.rows || []).map(row => ({
@@ -76,13 +77,11 @@ export const buildEvaluationResponse = (run: RunOutput) => {
   }
 
   if (query.include === 'dashboard') {
-    const impacto = createImpactEventsAccumulator();
-    stored.forEach(entrada => impacto.addEntries(entrada.impact));
     const modelo = buildENSDashboardModel(state, [], (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
     return {
       meta,
       ...stateHeader(run),
-      dashboard: { ...modelo, impactEvents: impacto.build() },
+      dashboard: { ...modelo, impactEvents: run.impact },
       agents: agentRows(run),
       timeline,
     };
@@ -100,7 +99,7 @@ export const buildEvaluationResponse = (run: RunOutput) => {
 
 // La trazabilidad de un control, por páginas, de lo guardado.
 export const buildTraceabilityPage = (run: RunOutput, from: number, size: number) => {
-  const entrada = run.query.controlId ? run.stored.get(run.query.controlId) : undefined;
+  const entrada = run.query.controlId ? run.views.get(run.query.controlId) : undefined;
   const lista = entrada?.traceability || [];
   return {
     meta: run.meta,

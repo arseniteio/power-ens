@@ -102,6 +102,7 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[]) => (
         terms: { field: 'agent.id', size: 10000 },
         aggs: {
           first: { min: { field: '@timestamp' } },
+          latest: { max: { field: '@timestamp' } },
           last: { top_hits: { size: 1, sort: [{ '@timestamp': { order: 'desc' } }], _source: ['agent.name'] } },
         },
       },
@@ -118,7 +119,9 @@ export interface ENSFactsCount {
 export interface ENSProbeResult extends ENSFactsCount {
   controls: Record<string, ENSFactsCount>;
   orphans: ENSFactsCount;
-  presence: { agentId: string; agentName?: string; earliest: string }[];
+  // Cada máquina: su primer hecho de la ventana (la presencia), el último y
+  // cuántos tiene.
+  presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
 }
 
 const fecha = (agg: any): string | undefined =>
@@ -143,6 +146,8 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
         agentId: String(b.key),
         agentName: b.last?.hits?.hits?.[0]?._source?.agent?.name,
         earliest: fecha(b.first),
+        newest: fecha(b.latest),
+        count: Number(b.doc_count || 0),
       }))
       .filter((p: any) => p.earliest)
       .sort((a: any, b: any) => a.agentId.localeCompare(b.agentId)),
