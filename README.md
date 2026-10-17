@@ -133,7 +133,10 @@ pide a la organización, están en
   crea `config/create-admin-role.sh`) o `all_access`.
 - **Instalación por paquetes:** Ubuntu Server con `sudo`, conectividad de red
   y acceso por SSH autorizado a los repositorios de GitLab. **Docker:** un host
-  con Docker y el plugin `compose`, con el despliegue oficial de `wazuh-docker`
+  con Docker y el plugin `compose`, con el despliegue oficial de `wazuh-docker`;
+  un usuario con permiso para ejecutar `docker`; acceso por SSH autorizado a
+  GitLab para clonar el repositorio; acceso a Internet para que `npx` descargue
+  `tsx`; y `unzip` en el host
   ([Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md#2-requisitos-previos)).
 - Herramientas que la guía de instalación comprueba antes de empezar: `git`,
   `curl`, `wget` y `python3` (este último también para `tests/check-consistency.py`).
@@ -284,13 +287,6 @@ op.cont.2 y op.cont.3 se aplican por el nivel de la dimensión de Disponibilidad
 opcional **Nivel de Disponibilidad (D)**: si se deja vacío, los dos se evalúan
 con el nivel ENS global. Ningún otro control lo lee.
 
-Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
-
-```bash
-cd /opt/ensfacil/repo
-python3 tests/check-consistency.py
-```
-
 ---
 
 ## Cuando algo no cuadra
@@ -314,6 +310,8 @@ Comprobación de coherencia entre el plugin y los runbooks:
 ```bash
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
+
+Resultado esperado: `coherencia OK`.
 
 Verifica que toda regla acreditada por el plugin está en el `manager/` de
 algún runbook clonado junto al repositorio, que las copias de las reglas no

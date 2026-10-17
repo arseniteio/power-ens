@@ -132,7 +132,10 @@ it asks of the organization, are in
   (created by `config/create-admin-role.sh`) or `all_access`.
 - **Package installation:** Ubuntu Server with `sudo`, network connectivity
   and authorised SSH access to the GitLab repositories. **Docker:** a host with
-  Docker and the `compose` plugin, with the official `wazuh-docker` deployment
+  Docker and the `compose` plugin, with the official `wazuh-docker` deployment;
+  a user allowed to run `docker`; authorised SSH access to GitLab to clone the
+  repository; Internet access so that `npx` can download `tsx`; and `unzip` on
+  the host
   ([Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md#2-prerequisites)).
 - Tools the installation guide checks before starting: `git`, `curl`, `wget`
   and `python3` (the latter also for `tests/check-consistency.py`).
@@ -280,16 +283,9 @@ global ENS level, like every other control. No other control reads it.
 ### Availability dimension level
 
 op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension,
-and only with D at HIGH. Configuration > Global configuration has an optional
+and only with D at ALTO. Configuration > Global configuration has an optional
 **Availability level (D)** field: if left empty, both are evaluated with the
 global ENS level. No other control reads it.
-
-To check the consistency between the plugin, the rules and the runbooks:
-
-```bash
-cd /opt/ensfacil/repo
-python3 tests/check-consistency.py
-```
 
 ---
 
@@ -314,6 +310,8 @@ Consistency check between the plugin and the runbooks:
 ```bash
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
+
+Expected result: `coherencia OK`.
 
 It verifies that every rule referenced by the plugin is in the `manager/`
 folder of some runbook cloned next to the repository, that the rule copies do
