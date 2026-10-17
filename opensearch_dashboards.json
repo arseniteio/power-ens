@@ -5,5 +5,5 @@
   "server": true,
   "ui": true,
   "requiredPlugins": ["data", "navigation"],
-  "optionalPlugins": ["securityDashboards"]
+  "optionalPlugins": ["securityDashboards", "home"]
 }

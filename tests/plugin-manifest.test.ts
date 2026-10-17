@@ -24,7 +24,7 @@ comprueba('id ensfacil', manifiesto.id === 'ensfacil');
 comprueba('dashboard 2.19.5', manifiesto.opensearchDashboardsVersion === '2.19.5');
 comprueba('servidor y navegador', manifiesto.server === true && manifiesto.ui === true);
 comprueba('requisitos: solo el núcleo', JSON.stringify(manifiesto.requiredPlugins) === '["data","navigation"]');
-comprueba('seguridad opcional', JSON.stringify(manifiesto.optionalPlugins) === '["securityDashboards"]');
+comprueba('opcionales: seguridad y portada', JSON.stringify(manifiesto.optionalPlugins) === '["securityDashboards","home"]');
 comprueba(
   'ningún plugin de Wazuh entre las dependencias',
   ![...(manifiesto.requiredPlugins || []), ...(manifiesto.optionalPlugins || []), ...(manifiesto.requiredBundles || [])]
@@ -38,7 +38,7 @@ comprueba('pdfmake propio, 0.2.7', paquete.dependencies?.pdfmake === '0.2.7');
 for (const f of [
   'public/index.ts', 'public/plugin.ts', 'public/application.tsx', 'public/services.ts',
   'server/index.ts', 'server/plugin.ts', 'common/constants.ts',
-  'public/ens/index.ts', 'public/ens-requirements.ts', 'public/assets/ens-logo.png',
+  'public/ens/index.ts', 'public/ens-requirements.ts', 'public/assets/ens-logo.png', 'public/home-card.ts',
 ]) {
   comprueba(`existe ${f}`, fs.existsSync(path.join(raiz, f)));
 }

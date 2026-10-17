@@ -1,8 +1,10 @@
 import type { DataPublicPluginStart } from '../../../src/plugins/data/public';
 import type { NavigationPublicPluginStart } from '../../../src/plugins/navigation/public';
+import type { HomeSetupLike } from './home-card';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface EnsfacilSetupDeps {}
+export interface EnsfacilSetupDeps {
+  home?: HomeSetupLike;
+}
 
 export interface EnsfacilStartDeps {
   data: DataPublicPluginStart;
