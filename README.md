@@ -24,14 +24,17 @@ y los enlaces a cada runbook y a sus guías, en la
 [tabla de runbooks y registros](docs/deployment/05-runbooks-and-registers.md).
 
 1. **Manager.** Wazuh instalado y validado; después, el `install-manager.sh` de
-   cada uno de los 22 runbooks Linux (reglas y `<localfile>`; op.exp.7, op.exp.8,
-   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 dejan además un
-   recolector en el propio manager; el runbook de op.cont.2 es solo documentación), y por último el
-   plugin ENSFácil instalado en el dashboard desde su release, junto al de Wazuh y sin modificarlo.
-   ¿Wazuh en contenedores? → [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+   cada uno de los 22 runbooks Linux, que instala reglas y `<localfile>`. Los de
+   op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y
+   op.cont.3 instalan además un recolector en el propio manager; el runbook de
+   op.cont.2 es solo documentación. Por último, el plugin ENSFácil se instala en
+   el dashboard desde su release, junto al de Wazuh y sin modificarlo. Con las
+   imágenes oficiales de Wazuh en Docker, el procedimiento está en
+   [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md).
 2. **Máquinas.** En cada agente, primero la
-   [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (darlo de alta en el manager, el grupo `ens` y el
-   alcance ENS del plugin), una sola vez; después, los runbooks de su plataforma
+   [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup)
+   (alta en el manager, grupo `ens` y alcance ENS del plugin), una sola vez;
+   después, los runbooks de su plataforma
    (Linux, Zimbra LDAP, Zimbra MTA o Windows), siguiendo la guía
    `01-installation` **de cada runbook**.
 3. **Configuración en el dashboard.** En ENSFácil > Configuración, los
@@ -88,38 +91,16 @@ control.
 | `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (copias de `zmbackup` de Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 a op.acc.4 |
 
-Qué instala cada runbook Linux:
-
-| Runbook | En el manager (`install-manager.sh`) | En cada agente (`install.sh`) |
-|---|---|---|
-| `linux/mp.info.6` | reglas y `<localfile>` del grupo `ens-copias` | recolector que mide las copias del procedimiento de la organización en el Proxmox Backup Server (solo copia en modo `copiar`) |
-| `linux/op.acc.1` | reglas y `<localfile>` del grupo `ens` | recolector |
-| `linux/op.acc.2` | ídem | recolector |
-| `linux/op.acc.3` | ídem | recolector |
-| `linux/op.acc.4` | ídem | recolector |
-| `linux/op.acc.5` | ídem | recolector |
-| `linux/op.acc.6` | ídem | recolector |
-| `linux/op.exp.1` | ídem | recolector |
-| `linux/op.exp.2` | ídem | recolector |
-| `linux/op.exp.3` | ídem | recolector |
-| `linux/op.exp.4` | ídem; el puente del Vulnerability Detector es opcional y no se instala por defecto (ver su guía) | recolector |
-| `linux/op.exp.5` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
-| `linux/op.exp.6` | ídem | recolector |
-| `linux/op.exp.7` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba que el agente envía su log de respuesta activa |
-| `linux/op.exp.8` | reglas, `<localfile>` del grupo `ens`, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | recolector y reglas de auditd |
-| `linux/op.exp.9` | reglas, recolector del manager con su cron y `<localfile>` en el `ossec.conf` del manager | nada: solo comprueba el reenvío de respuesta activa, FIM y dpkg |
-| `linux/op.exp.10` | reglas y `<localfile>` del grupo `ens` | recolector y reglas de auditd |
-| `linux/op.cont.3` | reglas, recolector del manager con su cron (cada 6 h) y `<localfile>` en el `ossec.conf` del manager; las plantillas de los registros de pruebas y de deficiencias | nada: se mide entero en el manager |
-| `linux/op.mon.1` | reglas, recolector del manager con su cron (cada hora) y `<localfile>` en el `ossec.conf` del manager | nada: se mide entero en el manager |
-| `linux/op.mon.2` | reglas, recolector del manager con su cron (cada 6 h) y `<localfile>` en el `ossec.conf` del manager; la plantilla del registro de ciclos de métricas | nada: se mide entero en el manager |
-| `linux/op.mon.3` | reglas, recolector del manager con su cron (cada hora), `<localfile>` en el `ossec.conf` del manager y en el `agent.conf` del grupo `ens`; la plantilla del registro de inspecciones | recolector (también en el servidor LDAP) |
-| `linux/op.nub.1` | reglas, recolector del manager con su cron (cada hora) y `<localfile>` en el `ossec.conf` del manager | nada: se mide entero en el manager |
+Lo que instala cada runbook en el manager y en cada agente, y los registros que
+pide a la organización, están en
+[Runbooks y registros de la organización](docs/deployment/05-runbooks-and-registers.md#runbooks-por-control).
 
 > [!important]
 > Los `install.sh` que escriben reglas de auditd (op.acc.2, op.acc.3,
-> op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10) las dejan en `/etc/audit/rules.d/` pero no las cargan. Hay que
-> ejecutar `sudo augenrules --load` al terminar; sin ese paso las evidencias
-> que dependen de auditd quedan sin medir.
+> op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10) las dejan en
+> `/etc/audit/rules.d/` pero no las cargan. Se cargan con
+> `sudo augenrules --load` al terminar; sin ese paso, las evidencias que
+> dependen de auditd quedan sin medir.
 
 ---
 
@@ -136,8 +117,8 @@ Qué instala cada runbook Linux:
 | Node.js para compilar el plugin | 18.19.0 (con Yarn Classic 1.22.22) | laboratorio de Quersystem |
 | Agente Wazuh en Linux | 4.14.5 y 4.14.7 (Ubuntu 22.04 y 24.04) | laboratorio de Quersystem |
 | Agente Wazuh en Windows | 4.14.5 (Windows Server 2022 Standard, edición de evaluación) | laboratorio de Quersystem |
-| Imagen `wazuh/wazuh-manager` | 4.14.0, 4.14.1 y 4.14.7: `wazuh-logtest` e `install-manager.sh` (solo la parte del manager, sin indexer ni agentes) | contenedor de prueba |
-| Imagen `wazuh/wazuh-dashboard` | 4.14.7: solo la comprobación del `build.number` | contenedor de prueba |
+| Imagen `wazuh/wazuh-manager` | 4.14.0 y 4.14.1: `wazuh-logtest` con las reglas; 4.14.7: `install-manager.sh` con `ENSFACIL_SYSTEMCTL` y recolectores del manager, sin indexer ni agentes | contenedor de prueba |
+| Imágenes `wazuh/wazuh-indexer`, `wazuh/wazuh-manager` y `wazuh/wazuh-dashboard` | 4.14.7, despliegue *single-node* oficial de `wazuh-docker`: imagen del dashboard con ENSFácil 1.1.0, arranque, rol, siembra y validación ([Wazuh en Docker, apartado 1](docs/deployment/06-wazuh-in-docker.md#1-estado-de-la-verificación)) | `docker compose` en un portátil |
 
 ### Requisitos
 
@@ -150,8 +131,13 @@ Qué instala cada runbook Linux:
   índice `wazuh-monitoring-*`), legible para los usuarios que usan ENSFácil.
 - **Quién cambia la configuración:** usuarios con el rol `ensfacil_admin` (lo
   crea `config/create-admin-role.sh`) o `all_access`.
-- **Ubuntu Server** con `sudo`, conectividad de red y acceso por SSH
-  autorizado a los repositorios de GitLab.
+- **Instalación por paquetes:** Ubuntu Server con `sudo`, conectividad de red
+  y acceso por SSH autorizado a los repositorios de GitLab. **Docker:** un host
+  con Docker y el plugin `compose`, con el despliegue oficial de `wazuh-docker`;
+  un usuario con permiso para ejecutar `docker`; acceso por SSH autorizado a
+  GitLab para clonar el repositorio; acceso a Internet para que `npx` descargue
+  `tsx`; y `unzip` en el host
+  ([Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md#2-requisitos-previos)).
 - Herramientas que la guía de instalación comprueba antes de empezar: `git`,
   `curl`, `wget` y `python3` (este último también para `tests/check-consistency.py`).
 - **Para descargar una release:** una cuenta de GitLab con acceso al proyecto
@@ -172,18 +158,19 @@ Qué instala cada runbook Linux:
 
 - Otras versiones de Wazuh distintas de 4.14.7 (cada versión del dashboard
   necesita su propio zip del plugin): sin probar.
-- **Wazuh en Docker.** Solo está probado el manager de las imágenes oficiales
-  (versiones de la tabla anterior). El despliegue completo con `docker compose`,
-  indexer y agentes, la imagen del dashboard con el plugin, el cron del host y
-  un clúster con varios nodos están sin probar; ver
-  [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md).
+- **Wazuh en Docker.** Está verificado el lado del plugin con el despliegue
+  *single-node* oficial. Sin probar: el lado del manager dentro del despliegue
+  con `docker compose` (instaladores, cron del host, `<localfile>` en
+  `wazuh_manager.conf`, agentes), un clúster de varios nodos y el plugin en un
+  despliegue real de cliente
+  ([Wazuh en Docker, apartado 1](docs/deployment/06-wazuh-in-docker.md#1-estado-de-la-verificación)).
 - Otras distribuciones del servidor distintas de Ubuntu: sin probar.
 
 ---
 
 ## Instalación
 
-Este `README.md` es el punto de entrada de ENSFácil. Elige la ruta que corresponda a tu entorno.
+Este `README.md` es el punto de entrada de ENSFácil. La ruta de instalación depende del entorno.
 
 ### El plugin: dos caminos
 
@@ -200,12 +187,16 @@ sha256sum -c SHA256SUMS
 sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
 ```
 
-Qué tiene que salir: `OK` en los tres ficheros y `dashboard: active` al final del
-despliegue. Cambia `1.1.0` por la versión de la release.
+Resultado esperado: `OK` en los tres ficheros y `dashboard: active` al final
+del despliegue. Sustituir `1.1.0` por la versión de la release.
 
-El rol `ensfacil_admin` es opcional por ahora: el usuario `admin` de Wazuh, con
-`all_access`, ya guarda la configuración. `create-admin-role.sh` solo hace falta
-para que la guarde otro usuario
+Estas órdenes corresponden a la instalación por paquetes: `deploy-plugin.sh`
+usa `systemctl`, `sudo -u wazuh-dashboard` y `https://localhost:443`. En
+Docker, el zip de la release se instala en una imagen propia del dashboard
+([Wazuh en Docker, apartado 3](docs/deployment/06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil)).
+
+El rol `ensfacil_admin` solo es necesario si un usuario sin `all_access` debe
+guardar la configuración; el usuario `admin` de Wazuh tiene `all_access`
 ([guía 07, apartado 9](docs/deployment/07-installing-from-a-release.md#9-crear-el-rol-ensfacil_admin)).
 
 El plugin es solo una parte: las reglas del manager, los runbooks de cada máquina
@@ -227,16 +218,16 @@ la anterior) o desinstalar ENSFácil: [guía 07, apartado 15](docs/deployment/07
 Los datos no se pierden: la configuración, su historial y los hechos están en el
 indexer, no en el plugin.
 
-### ¿Qué necesitas hacer?
+### Guía según la tarea
 
-| | Necesidad | Guía |
+| | Tarea | Guía |
 |---|---|---|
 | 1 | Instalar desde cero | [Instalación completa desde cero](docs/deployment/01-installation-from-scratch.md) |
 | 2 | Actualizar un entorno existente o añadir controles nuevos | [Actualización de un entorno existente](docs/deployment/02-updating-an-existing-environment.md) |
 | 3 | Comprobar compatibilidad con otra versión de Wazuh | [Compatibilidad de versiones](docs/deployment/03-version-compatibility.md) |
 | 4 | Diagnosticar un problema o volver atrás | [Diagnóstico y rollback](docs/deployment/04-troubleshooting-and-rollback.md) |
 | 5 | Encontrar el runbook de un control, sus guías y los registros que pide | [Runbooks y registros de la organización](docs/deployment/05-runbooks-and-registers.md) |
-| 6 | Instalar con las imágenes oficiales de Wazuh en Docker | [Manager en contenedor](docs/deployment/06-wazuh-in-docker.md) |
+| 6 | Instalar, actualizar o retirar ENSFácil con las imágenes oficiales de Wazuh en Docker | [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md) |
 | 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
 
@@ -244,17 +235,15 @@ indexer, no en el plugin.
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
 
 > [!important]
-> Orden obligatorio al añadir controles: primero se despliega la versión del
-> plugin que los contiene y después se siembra su configuración. El plugin
-> instalado valida el documento de configuración con sus propias reglas, que no
-> conocen los controles ni los tipos de parámetro nuevos: sembrar antes puede
-> dejar el panel entero sin cargar.
+> Al añadir controles, primero se despliega la versión del plugin que los
+> contiene y después se siembra su configuración. El motivo está en
+> [Instalar desde una release, apartado 11](docs/deployment/07-installing-from-a-release.md#11-actualizar-a-una-release-nueva).
 
 ---
 
 ## Operación después del despliegue
 
-Una vez instalado ENSFácil mediante las guías anteriores, los agentes deben desplegar los runbooks de los controles que correspondan a cada sistema.
+Una vez instalado ENSFácil mediante las guías anteriores, en cada sistema se despliegan los runbooks de los controles que le correspondan.
 
 Cada repositorio de control (runbook) incluye sus guías en su propio `docs/deployment/`: la instalación en `01-installation.md`, lo que hay que declarar en el control y cómo se comprueba cada evidencia en `02-compliance.md`, y la desinstalación y resolución de problemas en `03-uninstall-and-troubleshooting.md`. Esas guías están en GitLab, en cada runbook, no en este repositorio: los enlaces directos están en la [tabla de runbooks](docs/deployment/05-runbooks-and-registers.md#runbooks-por-control).
 
@@ -298,13 +287,6 @@ op.cont.2 y op.cont.3 se aplican por el nivel de la dimensión de Disponibilidad
 opcional **Nivel de Disponibilidad (D)**: si se deja vacío, los dos se evalúan
 con el nivel ENS global. Ningún otro control lo lee.
 
-Para comprobar la coherencia entre el plugin, las reglas y los runbooks:
-
-```bash
-cd /opt/ensfacil/repo
-python3 tests/check-consistency.py
-```
-
 ---
 
 ## Cuando algo no cuadra
@@ -320,7 +302,7 @@ python3 tests/check-consistency.py
 | La tarjeta del control no aparece en Configuración | falta sembrar su bloque de configuración, o el plugin desplegado es anterior al control; revisar la guía de actualización |
 | `inject-control.py` indica que no existe el documento `active` | la configuración no se ha guardado nunca; hacer un primer guardado en ENSFácil > Configuración y repetir la siembra |
 | «Sin datos del recolector desde …» en un control | el recolector de ese control lleva más de 24 h sin latir en esa máquina: agente parado, cron retirado o máquina caída |
-| un control medido en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 u op.cont.3) sin datos | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora; op.mon.2 y op.cont.3, cada 6 h) |
+| un control con recolector en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 u op.cont.3) sin datos en la fila del manager | falta `install-manager.sh` de ese runbook, o su cron no se ha ejecutado todavía (cada hora; op.mon.2 y op.cont.3, cada 6 h). op.cont.2 no tiene recolector: se evalúa con las tablas de la pantalla. En Docker, revisar los `<localfile>` de `wazuh_manager.conf` y el cron del host ([Wazuh en Docker, apartado 13](docs/deployment/06-wazuh-in-docker.md#13-lado-del-manager)) |
 | `install-manager.sh` se niega a tocar `agent.conf` | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene más de un bloque `<agent_config>`; fusionarlos en uno |
 
 Comprobación de coherencia entre el plugin y los runbooks:
@@ -329,9 +311,12 @@ Comprobación de coherencia entre el plugin y los runbooks:
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
 
-Verifica que toda regla acreditada por el plugin está desplegada en el manager,
-que las copias de las reglas no divergen y que las evidencias escuchan los
-eventos que los agentes emiten.
+Resultado esperado: `coherencia OK`.
+
+Verifica que toda regla acreditada por el plugin está en el `manager/` de
+algún runbook clonado junto al repositorio, que las copias de las reglas no
+divergen y que las evidencias escuchan los eventos que los agentes emiten. Lee
+los clones de los runbooks, no las reglas instaladas en el manager.
 
 ---
 
@@ -455,4 +440,4 @@ de cada versión están en el [registro de cambios](CHANGELOG.md), y cada etique
 
 ## Licencia
 
-Software propietario de Quersystem. Consulta [LICENSE](LICENSE).
+Software propietario de Quersystem. Véase [LICENSE](LICENSE).

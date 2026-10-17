@@ -1,8 +1,9 @@
 # Runbooks and the organization's registers
 [Español](05-runbooks-and-registers.md)
 
-Which runbook is installed where, where its three guides are, and which
-registers the organization has to create so that the panel can judge.
+This guide states which runbook is installed on each system, where its three
+guides are, and which registers the organization must create so that the
+dashboard can evaluate the controls.
 
 > [!important]
 > When an installer or a runbook guide says `docs/deployment/02-compliance.md`
@@ -59,22 +60,25 @@ How to read the table:
 - **Eight runbooks have a collector on the manager**: op.exp.7, op.exp.8,
   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3. Their facts
   arrive with `agent.id=000` and need a scheduler (cron) on the manager. The
-  rest only put rules on the manager and measure on the agents.
+  rest only install rules on the manager and measure on the agents.
+- **In Docker**, the `install-manager.sh` scripts run in the manager container
+  and the manager collectors are scheduled in the host cron:
+  [Wazuh in Docker, section 13](06-wazuh-in-docker.en.md#13-manager-side).
 - **On each agent**, install the runbooks of its platform (`install.sh` on
   Linux and LDAP, `install.ps1` on Windows), following its guide **01**.
   Machines whose backups are measured also go into the `ens-copias` group
   (mp.info.6).
 - The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3,
   op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 and op.exp.10) do not load
-  them: run `sudo augenrules --load` at the end.
+  them: load them with `sudo augenrules --load` at the end.
 
 ## Registers the organization creates
 
 No installer creates these files: they are the organization's registers, and
-their absence is a fact the panel has to see. Common rules: **tab**-separated
-TSV (not spaces), owner `root`, mode `640`, ISO 8601 dates in UTC, and
-**only real facts** (an invented date is exactly the false compliance the
-product exists to prevent).
+their absence is a fact the dashboard must reflect. Common rules:
+**tab**-separated TSV, not spaces; owner `root`; mode `640`; ISO 8601 dates in
+UTC; and **only real facts**. An invented date produces false compliance,
+which is what the product prevents.
 
 A **missing** register is not an **empty** one: missing gives `NO_EVALUABLE`
 with cause `CONFIGURATION` (it is not known where the organization records

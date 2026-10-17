@@ -26,10 +26,12 @@ el árbol de compilación de OpenSearch Dashboards, Node.js, Yarn, las reglas EN
 el grupo `ens` ni la configuración inicial de ENSFácil.
 
 > [!important]
-> **¿Wazuh corre en contenedores** (imágenes oficiales `wazuh/wazuh-manager` y
-> `wazuh/wazuh-dashboard`)? El orden de esta guía vale, pero varios pasos se
-> hacen de otra forma (sin `systemctl`, sin `hostname`, sin cron, sin `git`):
-> seguir además [Manager en contenedor](06-wazuh-in-docker.md).
+> Esta guía corresponde a la instalación por paquetes de Wazuh, con el indexer
+> en la misma máquina (instalación todo en uno). Con las imágenes oficiales de
+> Wazuh en Docker, el procedimiento está en [Wazuh en Docker](06-wazuh-in-docker.md):
+> la instalación del plugin, el rol, la siembra y la validación se hacen allí
+> de otra forma, y la parte del manager se ejecuta sin `systemctl`, sin
+> `hostname`, sin cron y sin `git`.
 >
 > Los enlaces a cada runbook y a sus guías (`01-installation`, `02-compliance`,
 > `03-uninstall-and-troubleshooting`), y los registros que crea la organización,
@@ -55,11 +57,11 @@ ni depender de una máquina previamente configurada.
 
 ENSFácil debe desplegarse únicamente sobre combinaciones de versiones que hayan sido validadas.
 
-La combinación utilizada durante la validación inicial de esta guía es:
+Las combinaciones utilizadas en la validación de esta guía son:
 
 | Componente | Versión |
 |---|---|
-| ENSFácil | `1.0.0` |
+| ENSFácil | `1.0.0` (validación inicial) y `1.1.0` |
 | Wazuh | `4.14.7` |
 | OpenSearch Dashboards | `2.19.5` |
 | Node.js para compilación | `18.19.0` |
@@ -172,7 +174,7 @@ Comprobar que los servicios principales están activos:
 sudo systemctl is-active wazuh-manager wazuh-indexer wazuh-dashboard filebeat
 ```
 
-Los cuatro servicios deben devolver `active` antes de continuar.
+Resultado esperado: `active` en los cuatro servicios.
 
 Para la combinación validada en esta guía, `wazuh-manager`, `wazuh-indexer` y `wazuh-dashboard` deben corresponder a Wazuh `4.14.7` (paquetes `4.14.7-1`). Además, los cuatro servicios anteriores deben estar en estado `active` y el acceso al Dashboard debe haber sido validado según el paso 4 de la guía de instalación de Wazuh.
 
@@ -191,7 +193,7 @@ Comprobar que Git puede acceder mediante SSH al repositorio principal de ENSFác
 git ls-remote git@gitlab.com:quersystem/plugin-wazuh-ens.git HEAD
 ```
 
-La comprobación debe devolver un hash seguido de `HEAD`. Si Git solicita autenticación y no puede acceder al repositorio, no continuar hasta disponer de acceso autorizado.
+Resultado esperado: un hash seguido de `HEAD`. Si Git solicita autenticación y no puede acceder al repositorio, no continuar hasta disponer de acceso autorizado.
 
 ### 10.2 Clonar el repositorio de ENSFácil
 
@@ -211,6 +213,8 @@ git -C /opt/ensfacil/repo remote -v
 git -C /opt/ensfacil/repo branch --show-current
 git -C /opt/ensfacil/repo status --short
 ```
+
+Resultado esperado: el remoto `git@gitlab.com:quersystem/plugin-wazuh-ens.git`, la rama `main` y ningún cambio local.
 
 ### 10.3 Clonar los runbooks ENS
 
@@ -267,7 +271,7 @@ while read -r r; do
 done < /opt/ensfacil/runbooks.txt
 ```
 
-Los 22 repositorios deben devolver una URL bajo `git@gitlab.com:quersystem/ens-controls-runbook/linux/` antes de continuar.
+Resultado esperado: los 22 repositorios con una URL bajo `git@gitlab.com:quersystem/ens-controls-runbook/linux/`.
 
 ## 11. Crear y validar el grupo ENS
 
@@ -293,11 +297,13 @@ sudo test -f /var/ossec/etc/shared/ens-copias/agent.conf && echo "AGENT_CONF_ENS
 sudo grep -c "<agent_config" /var/ossec/etc/shared/ens-copias/agent.conf
 ```
 
+Resultado esperado: `GRUPO_ENS=OK`, `AGENT_CONF_ENS=OK`, `1`, `AGENT_CONF_ENS_COPIAS=OK` y `1`.
+
 > [!warning]
 > La instalación de las reglas ENS no debe continuar si los grupos `ens` y `ens-copias` o sus `agent.conf` no existen: sin `ens-copias`, el `install-manager.sh` de mp.info.6, el primero del bucle, se detiene.
 
 > [!important]
-> El `agent.conf` de cada grupo debe tener **un único bloque `<agent_config>`** (las dos comprobaciones `grep -c` deben devolver `1`: con `0`, sin bloque, los instaladores también se niegan). Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` con más de un bloque. Cualquier ajuste adicional del grupo (por ejemplo un `<syscheck>`) se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de editarlo a mano, validarlo con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
+> El `agent.conf` de cada grupo debe tener **un único bloque `<agent_config>`**: por eso las dos comprobaciones `grep -c` dan `1`. Los `install-manager.sh` de todos los controles se niegan a modificar un `agent.conf` sin bloque o con más de uno. Cualquier ajuste adicional del grupo, por ejemplo un `<syscheck>`, se añade dentro del bloque existente, nunca en un segundo `<agent_config>`. Después de una edición manual, validar el fichero con `sudo /var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/ens/agent.conf`.
 
 ## 12. Instalar y validar las reglas ENS en el Manager
 
@@ -319,7 +325,7 @@ done < /opt/ensfacil/runbooks.txt
 
 `install-manager.sh` de op.exp.7, op.exp.8 y op.exp.9 instala además un recolector que se ejecuta en el propio manager cada hora, sin ninguna credencial (solo lee ficheros locales), y añade su `<localfile>` al `ossec.conf` del manager, porque el `agent.conf` del grupo `ens` no se aplica al manager. Sus hechos llegan con `agent.id=000`.
 
-Los de op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 (versión 1.1.0) hacen lo mismo: cada uno instala su recolector en `/usr/local/bin/` (`ens_opmon1_collect.sh`, `ens_opmon2_collect.sh`, `ens_opmon3_collect.sh`, `ens_opnub1_collect.sh`, `ens_opcont3_collect.sh`), su `<localfile>` en el `ossec.conf` del manager y un cron en `/etc/cron.d`. Necesitan `jq` y respetan `ENSFACIL_SYSTEMCTL`. La cadencia del cron es horaria en op.mon.1, op.mon.3 y op.nub.1, y cada 6 horas en op.mon.2 y op.cont.3; op.mon.1 y op.nub.1 hacen su pasada completa cada 6 horas, y op.mon.3 la hace cada 6 horas (la superficie, cada 12). op.mon.3 tiene además un recolector de agente: su `install.sh`, en cada máquina del grupo `ens`, instala `ens_opmon3_agent_collect.sh` con un cron horario. op.cont.2 no tiene runbook ni reglas: el plugin lo juzga a partir de las tablas de la pantalla. op.cont.2 y op.cont.3 solo aplican con Disponibilidad (D) en ALTO; en MEDIO muestran «No aplica».
+Los de op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 (versión 1.1.0) hacen lo mismo: cada uno instala su recolector en `/usr/local/bin/` (`ens_opmon1_collect.sh`, `ens_opmon2_collect.sh`, `ens_opmon3_collect.sh`, `ens_opnub1_collect.sh`, `ens_opcont3_collect.sh`), su `<localfile>` en el `ossec.conf` del manager y un cron en `/etc/cron.d`. Necesitan `jq` y respetan `ENSFACIL_SYSTEMCTL`. La cadencia del cron es horaria en op.mon.1, op.mon.3 y op.nub.1, y cada 6 horas en op.mon.2 y op.cont.3; op.mon.1 y op.nub.1 hacen su pasada completa cada 6 horas, y op.mon.3 la hace cada 6 horas (la superficie, cada 12). op.mon.3 tiene además un recolector de agente: su `install.sh`, en cada máquina del grupo `ens`, instala `ens_opmon3_agent_collect.sh` con un cron horario. op.cont.2 no tiene recolector ni reglas (su runbook es solo de documentación): el plugin lo evalúa a partir de las tablas de la pantalla de Configuración. op.cont.2 y op.cont.3 solo aplican con Disponibilidad (D) en ALTO; en MEDIO muestran «No aplica».
 
 ### 12.1 Validar la instalación de las reglas
 
@@ -349,8 +355,10 @@ sudo /var/ossec/bin/wazuh-analysisd -t && echo "CONFIG_MANAGER=OK"
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 ```
 
+Resultado esperado: `active`, `CONFIG_MANAGER=OK` y `coherencia OK`. `check-consistency.py` compara las reglas que acredita el plugin con las de los runbooks clonados en `/opt/ensfacil`, no con las del manager.
+
 > [!warning]
-> El resultado debe ser `active`, `CONFIG_MANAGER=OK` y `coherencia OK`. Si cualquiera de los instaladores falla, no confirma su regla esperada o el Manager no queda activo, detener el despliegue antes de continuar.
+> Si cualquiera de los instaladores falla, no confirma su regla esperada o el Manager no queda activo, detener el despliegue antes de continuar.
 
 > [!important]
 > Si un `install-manager.sh` falla **después** de copiar sus reglas, al volver a ejecutarlo no detecta cambios y **no reinicia** el manager, así que las reglas nuevas pueden no estar cargadas aunque el instalador termine bien. En ese caso, reiniciar a mano y confirmar la regla del control con `wazuh-logtest`:
@@ -370,7 +378,7 @@ Hay dos formas de conseguir el zip del plugin. Las dos terminan igual, en el apa
 
 | Opción | Cuándo | Guía |
 |---|---|---|
-| A. Desde una release (por defecto) | hay una release para tu versión de Wazuh | [Instalar desde una release](07-installing-from-a-release.md) |
+| A. Desde una release (por defecto) | existe una release para la versión de Wazuh instalada | [Instalar desde una release](07-installing-from-a-release.md) |
 | B. Compilar desde el código fuente | una versión sin release, la evaluación de otra versión de Wazuh o el desarrollo del plugin | [Compilar desde el código fuente](08-building-from-source.md) |
 
 > [!note]
@@ -378,7 +386,7 @@ Hay dos formas de conseguir el zip del plugin. Las dos terminan igual, en el apa
 
 ### 13.2 Opción A: desde una release
 
-Descarga los cuatro ficheros de la release en `/opt/ensfacil/releases/<versión>`, desde el navegador o desde el servidor con un token de despliegue ([guía 07, apartados 4 a 6](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor)). Después, compruébalos:
+Descargar los cuatro ficheros de la release en `/opt/ensfacil/releases/<versión>`, desde el navegador o desde el servidor con un token de despliegue ([guía 07, apartados 4 a 6](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor)), y verificar su integridad:
 
 ```bash
 V=1.1.0
@@ -387,9 +395,9 @@ cd "$R"
 sha256sum -c SHA256SUMS
 ```
 
-Qué tiene que salir: `OK` en los tres ficheros. Si alguno dice `FAILED`, no sigas.
+Resultado esperado: `OK` en los tres ficheros. Si alguno indica `FAILED`, detener el procedimiento.
 
-Sigue en el apartado 13.4 con:
+Continuar en el apartado 13.4 con:
 
 ```bash
 ZIP=$R/ensfacil-$V-osd-2.19.5.zip
@@ -398,9 +406,9 @@ DEPLOY=$R/deploy-plugin.sh
 
 ### 13.3 Opción B: compilar desde el código fuente
 
-Compila y valida el zip con la [guía 08](08-building-from-source.md): con Node.js 18.19.0, Yarn Classic 1.22.22 y el árbol de OpenSearch Dashboards 2.19.5 en `/opt/ensfacil/build` (apartado 3), o con la imagen de compilación de CI (apartado 4). Valida el zip antes de seguir (apartado 5).
+Compilar y validar el zip con la [guía 08](08-building-from-source.md): con Node.js 18.19.0, Yarn Classic 1.22.22 y el árbol de OpenSearch Dashboards 2.19.5 en `/opt/ensfacil/build` (apartado 3), o con la imagen de compilación de CI (apartado 4). Validar el zip antes de continuar (apartado 5).
 
-Sigue en el apartado 13.4 con estas rutas. Si compilaste con la imagen en otro equipo, copia el zip al servidor y pon su ruta en `ZIP`:
+Continuar en el apartado 13.4 con estas rutas. Si el zip se compiló con la imagen en otro equipo, copiar el zip al servidor e indicar su ruta en `ZIP`:
 
 ```bash
 ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip
@@ -409,7 +417,7 @@ DEPLOY=/opt/ensfacil/repo/config/deploy-plugin.sh
 
 ### 13.4 Instalar el plugin en Wazuh Dashboard
 
-Instala el zip con `deploy-plugin.sh`, con `ZIP` y `DEPLOY` del apartado 13.2 o del 13.3:
+Instalar el zip con `deploy-plugin.sh`, con `ZIP` y `DEPLOY` del apartado 13.2 o del 13.3:
 
 ```bash
 sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
@@ -419,9 +427,9 @@ sudo bash "$DEPLOY" "$ZIP"
 
 El script para el dashboard, retira la versión anterior de `ensfacil` si la hay, instala el zip, **sube el `build.number` del dashboard** y lo arranca. Solo toca `ensfacil`: el plugin de Wazuh (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) se queda como está.
 
-Qué tiene que salir, al final: `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
+Resultado esperado: al final del despliegue, `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
 
-Si algo falla, el script dice cómo volver a como estaba y sale con error. Los códigos de salida y las copias que guarda están en el [diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias).
+Si algo falla, el script indica cómo volver al estado anterior y sale con error. Los códigos de salida y las copias que guarda están en el [diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias).
 
 > [!important]
 > Sin subir el `build.number`, el navegador sigue usando los ficheros de la versión anterior aunque el plugin nuevo esté instalado: la URL de los bundles depende de ese número, no del plugin, y ni una recarga forzada la cambia. Por eso la instalación se hace con el script y no a mano. El script guarda una copia de `package.json` junto al original (`package.json.antes-<fecha>`).
@@ -434,7 +442,7 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-Qué tiene que salir:
+Resultado esperado:
 
 | Comprobación | Resultado esperado |
 |---|---|
@@ -445,15 +453,15 @@ Qué tiene que salir:
 ### 13.5 Crear el rol ensfacil_admin
 
 > [!note]
-> Opcional por ahora. El usuario `admin` de Wazuh, que tiene `all_access`, ya
-> puede guardar la configuración sin este rol. Solo hace falta si otro usuario,
-> sin `all_access`, tiene que guardarla o ver su historial.
+> Este paso solo es necesario si un usuario sin `all_access` debe guardar la
+> configuración o consultar su historial. El usuario `admin` de Wazuh tiene
+> `all_access` y puede guardar la configuración sin este rol.
 
 Guardar la configuración ENS y ver su historial solo lo pueden hacer los usuarios con el rol `ensfacil_admin` o `all_access` del plugin de seguridad. Los demás ven la configuración, pero al guardar reciben un error 403: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
 
-`config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña, y comprueba el certificado del indexer contra su CA (`/etc/wazuh-indexer/certs/root-ca.pem`; otra, con `OS_CA`). Habla con `https://127.0.0.1:9200`, el nombre para el que Wazuh hace ese certificado: con `localhost` la comprobación falla.
+`config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña, y comprueba el certificado del indexer contra su CA: por defecto `/etc/wazuh-indexer/certs/root-ca.pem`, la de la instalación todo en uno; otra se indica con `OS_CA`. Por defecto se conecta a `https://127.0.0.1:9200`, el nombre para el que la instalación todo en uno de Wazuh emite el certificado del indexer: con `localhost`, la comprobación falla. En Docker, el procedimiento está en [Wazuh en Docker, apartado 5](06-wazuh-in-docker.md#5-crear-el-rol-ensfacil_admin).
 
-Con la opción A, la carpeta de la release trae también este script (`$R/create-admin-role.sh`), de la versión de la release y comprobado con `SHA256SUMS`. Puedes usar ese en lugar del del repositorio: las opciones son las mismas.
+Con la opción A, la carpeta de la release trae también este script (`$R/create-admin-role.sh`), de la versión de la release y comprobado con `SHA256SUMS`. Se puede usar ese script en lugar del del repositorio: las opciones son las mismas.
 
 > [!note]
 > El rol no da ningún permiso por sí mismo: es una marca que ENSFácil busca entre los roles del usuario. Para ver los datos, cada usuario necesita además su rol habitual de Wazuh, con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
@@ -464,7 +472,9 @@ Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario
 sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --dry-run --mapear <usuario>
 ```
 
-Qué tiene que salir, si el rol no está asignado todavía a nadie:
+El resultado siguiente corresponde a un rol que todavía no está asignado a ningún usuario.
+
+Resultado esperado:
 
 ```text
 == modo prueba: no se envía ningún cambio
@@ -476,18 +486,18 @@ PUT _plugins/_security/api/rolesmapping/ensfacil_admin {"users":["<usuario>"]}
 
 Si el rol ya está asignado a otros usuarios, la última línea es un `PATCH` que añade `<usuario>` sin quitar a nadie.
 
-Después, de verdad:
+Después, la ejecución real:
 
 ```bash
 sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 
-Qué tiene que salir: `-> 200` o `-> 201` después de cada petición y, al final, `usuarios con el rol ensfacil_admin: <usuario>`.
+Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, `usuarios con el rol ensfacil_admin: <usuario>`.
 
-- Se puede repetir: el rol se escribe igual y solo se añaden los usuarios que falten.
+- La ejecución es repetible: el rol se escribe igual y solo se añaden los usuarios que falten.
 - Varios usuarios: `--mapear <usuario1> --mapear <usuario2>`.
 - Sin `--mapear`, el script solo crea el rol.
-- Si el usuario tenía la sesión abierta y sigue recibiendo el 403, que cierre la sesión y vuelva a entrar.
+- Si el usuario tenía una sesión abierta y sigue recibiendo el error 403, debe cerrar la sesión e iniciar otra.
 
 ### 13.6 Comprobar ENSFácil en el navegador
 
@@ -501,7 +511,7 @@ En una instalación nueva, seguir con el apartado 14: la configuración ENS se c
 
 ## 14. Inicializar y sembrar la configuración ENS
 
-Las herramientas de `config/` hablan con el indexer usando el **certificado de administrador del indexer**, que existe en todo manager en `/etc/wazuh-indexer/certs/`. No hace falta conocer ni escribir ninguna contraseña. Se ejecutan con `sudo` porque la clave del certificado solo es legible por `root`:
+Las herramientas de `config/` se conectan al indexer con el **certificado de administrador del indexer**, que en la instalación todo en uno está en `/etc/wazuh-indexer/certs/`. No hace falta conocer ni escribir ninguna contraseña. Se ejecutan con `sudo` porque la clave del certificado solo es legible por `root`:
 
 ```bash
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
@@ -509,7 +519,10 @@ IDX=https://127.0.0.1:9200
 ```
 
 > [!note]
-> Si el indexer no está en la misma máquina, exportar `ENS_OS_URL` con su URL y usar el certificado de administrador de ese indexer. Las herramientas admiten también `OS_USER` y `OS_PASS`, pero no se recomienda: obliga a escribir la contraseña en la sesión.
+> Si el indexer no está en la misma máquina, exportar `ENS_OS_URL` con su URL y usar el certificado de administrador de ese indexer. Las herramientas admiten también `OS_USER` y `OS_PASS`, pero no se recomienda: obliga a escribir la contraseña en la sesión. En Docker, los pasos de este apartado están en [Wazuh en Docker, apartados 6 a 10](06-wazuh-in-docker.md#6-primer-guardado-de-la-configuración).
+
+> [!note]
+> `inject-control.py` y `set-parameters.py` no verifican el certificado del indexer, por lo que admiten `127.0.0.1` o `localhost`. `create-admin-role.sh` sí lo verifica contra la CA (apartado 13.5) y necesita el nombre para el que está emitido el certificado.
 
 ### 14.1 Crear la configuración activa
 
@@ -551,7 +564,7 @@ La restauración de esta copia se describe en la [guía de diagnóstico y rollba
 ### 14.3 Sembrar los controles ENS
 
 > [!important]
-> Sembrar solo con el plugin ya desplegado (apartado 13.4). La versión instalada del plugin tiene que conocer los controles que se siembran.
+> Sembrar solo con el plugin ya desplegado (apartado 13.4). El motivo está en [Instalar desde una release, apartado 11](07-installing-from-a-release.md#11-actualizar-a-una-release-nueva).
 
 Sembrar los 23 controles. Primero en modo de prueba (sin `--apply`), que muestra el plan sin escribir nada:
 
@@ -595,14 +608,14 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-El resultado debe ser `ESTRUCTURA VÁLIDA` con los 23 controles listados. Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a un puesto que tenga el repositorio del plugin y ejecutar allí el mismo comando (o `docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx config/validate-configuration.ts active-now.json`).
+Resultado esperado: `controles (23): …` y `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a la raíz de un clon del repositorio del plugin en otro equipo y ejecutar allí el mismo comando o, con Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. El validador importa el motor del plugin: necesita el repositorio completo, no solo `config/`.
 
 > [!warning]
 > Si la validación falla, restaurar la copia del apartado 14.2 antes de que nadie abra el panel, y corregir el parámetro indicado.
 
 ### 14.5 Declarar la política
 
-Los valores de los parámetros son decisiones del responsable y se declaran en ENSFácil > Configuración. En la tarjeta de configuración global se declara también el nivel ENS y, si procede, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8 (vacío = el nivel ENS global).
+Los valores de los parámetros son decisiones del responsable y se declaran en ENSFácil > Configuración. En Configuración > Configuración global se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, y el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3. Si T o D no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
 Para declarar valores desde el servidor (entornos reproducibles, o cuando la política ya está decidida por escrito) se usa `config/set-parameters.py` con un fichero JSON:
 
@@ -633,7 +646,7 @@ Después de declarar valores, repetir la validación del apartado 14.4.
 Abrir ENSFácil y comprobar que:
 
 - aparecen los 23 controles;
-- el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3 se miden en él;
+- el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque en él se evalúan nueve controles: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los ocho distintos de op.cont.2 tienen recolector en el manager; op.cont.2 se evalúa con las tablas de la pantalla de Configuración;
 - tras la primera ejecución de los recolectores del manager (horaria o cada 6 horas, según el control), esos controles muestran datos en la fila del manager.
 
-Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` **de cada runbook**, enlazada en la [tabla de runbooks](05-runbooks-and-registers.md#runbooks-por-control)); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que hay que cargar con `sudo augenrules --load` al terminar.
+Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` **de cada runbook**, enlazada en la [tabla de runbooks](05-runbooks-and-registers.md#runbooks-por-control)); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que se cargan con `sudo augenrules --load` al terminar.

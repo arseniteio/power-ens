@@ -1,8 +1,9 @@
 # Runbooks y registros de la organización
 [English](05-runbooks-and-registers.en.md)
 
-Qué runbook se instala en cada sitio, dónde están sus tres guías y qué
-registros tiene que crear la organización para que el panel pueda juzgar.
+Esta guía indica qué runbook se instala en cada sistema, dónde están sus tres
+guías y qué registros debe crear la organización para que el panel pueda
+evaluar los controles.
 
 > [!important]
 > Cuando un instalador o una guía de runbook dice `docs/deployment/02-compliance.md`
@@ -58,21 +59,24 @@ Cómo leer la tabla:
 - **Ocho runbooks tienen recolector en el manager**: op.exp.7, op.exp.8,
   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3. Sus hechos
   llegan con `agent.id=000` y necesitan un planificador (cron) en el manager.
-  Los demás solo ponen reglas en el manager y miden en los agentes.
+  Los demás solo instalan reglas en el manager y miden en los agentes.
+- **En Docker**, los `install-manager.sh` se ejecutan en el contenedor del
+  manager y los recolectores del manager se planifican en el cron del host:
+  [Wazuh en Docker, apartado 13](06-wazuh-in-docker.md#13-lado-del-manager).
 - **En cada agente** se instalan los runbooks de su plataforma (`install.sh`
   en Linux y LDAP, `install.ps1` en Windows), siguiendo su guía **01**. Las
   máquinas cuyas copias se miden van además al grupo `ens-copias` (mp.info.6).
 - Los `install.sh` que escriben reglas de auditd (op.acc.2, op.acc.3, op.acc.4,
-  op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10) no las cargan: hay que
-  ejecutar `sudo augenrules --load` al terminar.
+  op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10) no las cargan: se
+  cargan con `sudo augenrules --load` al terminar.
 
 ## Registros que crea la organización
 
-Ningún instalador crea estos ficheros: son registros de la organización y que
-falten es un hecho que el panel tiene que ver. Reglas comunes: TSV separado por
-**tabulador** (no espacios), `root`, modo `640`, fechas ISO 8601 en UTC, y
-**solo hechos reales** (una fecha inventada es exactamente el cumplimiento falso
-que el producto evita).
+Ningún instalador crea estos ficheros: son registros de la organización, y su
+ausencia es un hecho que el panel debe reflejar. Reglas comunes: TSV separado
+por **tabulador**, no por espacios; propietario `root`; modo `640`; fechas
+ISO 8601 en UTC; y **solo hechos reales**. Una fecha inventada produce un
+cumplimiento falso, que es lo que el producto evita.
 
 Un registro **ausente** no es un registro **vacío**: ausente sale
 `NO_EVALUABLE` con causa `CONFIGURATION` (no consta dónde registra la

@@ -2,7 +2,10 @@
 ###############################################################################
 # deploy-plugin.sh · instala ENSFácil Y hace que el navegador lo vea
 #
-#   sudo bash deploy-plugin.sh /ruta/al/ensfacil-2.19.5.zip
+#   sudo bash deploy-plugin.sh /ruta/al/ensfacil-X.Y.Z-osd-2.19.5.zip
+#
+# El zip es el de la release (ensfacil-X.Y.Z-osd-2.19.5.zip) o el que deja
+# build-plugin.sh al compilar (ensfacil-2.19.5.zip): el contenido es el mismo.
 #
 # Solo instala el plugin `ensfacil`, y solo retira ese: un zip de cualquier
 # otro plugin (también el de Wazuh, `wazuh`) se rechaza sin tocar nada.
@@ -39,9 +42,9 @@
 # a pedir: ni con Ctrl+Shift+R, porque para el navegador esa URL ya está
 # resuelta y no ha caducado.
 #
-# El 05, el 06 y el 07 de agosto de 2026 se dio por desplegado tres veces algo
-# que el usuario no estaba viendo. Se le dijo «recarga forzando» y no era
-# suficiente: el problema no era la recarga, era la URL.
+# Por eso una recarga forzada del navegador no basta para ver la versión
+# nueva: lo que hay que cambiar no es la página cargada, sino la URL de los
+# bundles.
 #
 # Subir el `build.number` cambia la URL de TODOS los bundles y obliga al
 # navegador a pedirlos de nuevo. Cuesta una primera carga más lenta, una vez.
@@ -81,7 +84,7 @@ case "$PLUGIN_ID" in
   ensfacil) ;;
   wazuh)
     echo "el zip es del plugin de Wazuh (id: 'wazuh'): deploy-plugin.sh solo instala ENSFácil (id: 'ensfacil')." >&2
-    echo "El plugin de Wazuh se instala con el paquete oficial wazuh-dashboard; para ENSFácil, usar ensfacil-2.19.5.zip." >&2
+    echo "El plugin de Wazuh se instala con el paquete oficial wazuh-dashboard; para ENSFácil, usar el zip de la release, ensfacil-X.Y.Z-osd-2.19.5.zip." >&2
     exit 2
     ;;
   *)

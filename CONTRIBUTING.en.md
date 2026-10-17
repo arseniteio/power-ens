@@ -65,9 +65,12 @@ changes; if the reason needs explaining, it goes in the body.
 
 The guides in `docs/deployment/` follow the same style:
 
-- short sentences, in the second person;
-- after each command, «What you should see» («Qué tiene que salir», in
-  Spanish);
+- impersonal or infinitive register in Spanish («Comprobar la versión
+  instalada:», «Se conserva la carpeta…», «Detener el procedimiento»), without
+  «tú» forms, rhetorical questions or asides to the reader; in English, bare
+  imperative («Check…», «Stop the procedure»), without *you* or *your*;
+- after each command, **Expected result:** (**Resultado esperado:**, in
+  Spanish), also in tables;
 - notices with `> [!note]`, `> [!important]` or `> [!warning]`;
 - every relative link and every anchor must exist. GitLab builds the anchor
   from the heading in lowercase, with spaces turned into `-` and punctuation
@@ -85,12 +88,12 @@ for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && e
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-What you should see: `coherencia OK` and no `FAIL` line.
+Expected result: `coherencia OK` and no `FAIL` line.
 
 Without Node.js, in Docker, or in a clean folder like CI: see
 [Building from source, section 7](docs/deployment/08-building-from-source.en.md#7-run-the-tests).
 
-Run the tests before you open the MR. A change in behaviour comes with its
+Run the tests before opening the MR. A change in behaviour comes with its
 test.
 
 ## Continuous integration

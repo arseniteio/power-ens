@@ -8,17 +8,18 @@
 This guide builds the ENSFácil plugin zip from this repository, validates it
 and runs the tests.
 
-To install, the recommended way is a release
+To install, the recommended method is a release
 ([Installing from a release](07-installing-from-a-release.en.md)): CI builds it
-from a tag and publishes its SHA-256 sums. Build it yourself when:
+from a tag and publishes its SHA-256 sums. Build locally only in the following
+cases:
 
-- you need a version that has no release yet (a branch or an MR);
-- you are evaluating another Wazuh version ([version compatibility](03-version-compatibility.en.md#5-evaluate-a-new-version));
-- you are developing the plugin.
+- a version without a release (a branch or an MR);
+- evaluation of another Wazuh version ([version compatibility](03-version-compatibility.en.md#5-evaluate-a-new-version));
+- plugin development.
 
 There are two ways to build:
 
-| Way | What it needs | Section |
+| Method | Requirements | Section |
 |---|---|---|
 | With the OpenSearch Dashboards tree | Node.js 18.19.0, Yarn Classic 1.22.22 and the prepared tree | 3 |
 | With the builder image, like CI | Docker | 4 |
@@ -27,12 +28,12 @@ There are two ways to build:
 
 The plugin is built inside the OpenSearch Dashboards `2.19.5` source code, the
 version that Wazuh Dashboard 4.14.7 ships. The result is the file
-`ensfacil-2.19.5.zip`. It only installs on that exact OpenSearch Dashboards
+`ensfacil-2.19.5.zip`, which only installs on that exact OpenSearch Dashboards
 version.
 
-CI renames it to `ensfacil-<version>-osd-2.19.5.zip`, the release name. The
-content is the same: `deploy-plugin.sh` recognizes the plugin by what it
-carries, not by the file name.
+CI gives it the release name, `ensfacil-<version>-osd-2.19.5.zip`. The content
+is the same: `deploy-plugin.sh` recognizes the plugin by its content, not by
+the file name.
 
 > [!note]
 > The Wazuh plugin source code (`wazuh-dashboard-plugins`) is not needed.
@@ -40,7 +41,7 @@ carries, not by the file name.
 
 ## 3. Build with the OpenSearch Dashboards tree
 
-This way uses the paths of the [installation guide](01-installation-from-scratch.en.md):
+This method uses the paths of the [installation guide](01-installation-from-scratch.en.md):
 the repository in `/opt/ensfacil/repo` (section 10.2) and the logs in
 `/opt/ensfacil/artifacts`:
 
@@ -71,13 +72,12 @@ node --version
 yarn --version
 ```
 
-What you should see: `v18.19.0` and `1.22.22`. If they do not match, do not
-continue.
+Expected result: `v18.19.0` and `1.22.22`. If they differ, stop the procedure.
 
 > [!note]
 > Wazuh Dashboard 4.14.7 ships its own Node.js `18.19.0` in
 > `/usr/share/wazuh-dashboard/node/bin/node`. If it exists,
-> `config/build-plugin.sh` uses that one. Yarn still has to be in the `PATH`.
+> `config/build-plugin.sh` uses it. Yarn must still be in the `PATH`.
 
 ### 3.2 Prepare the OpenSearch Dashboards 2.19.5 tree
 
@@ -97,7 +97,7 @@ git -C /opt/ensfacil/build describe --tags --exact-match HEAD
 python3 -c 'import json; print(json.load(open("/opt/ensfacil/build/package.json"))["version"])'
 ```
 
-What you should see: `v4.14.7` and `2.19.5`.
+Expected result: `v4.14.7` and `2.19.5`.
 
 Prepare the tree:
 
@@ -106,15 +106,15 @@ cd /opt/ensfacil/build
 yarn osd bootstrap
 ```
 
-What you should see: `bootstrap complete` at the end. It takes several minutes.
-Dependency warnings that do not stop the process are not a failure.
+Expected result: `bootstrap complete` at the end. The process takes several
+minutes. Dependency warnings that do not stop the process are not a failure.
 
 ### 3.3 Build the plugin
 
 `config/build-plugin.sh` copies the plugin to `/opt/ensfacil/build/plugins/ensfacil`,
-installs its dependencies with the repository's `yarn.lock` and builds it. It
-does not touch any other plugin in the tree. It runs as `root`, with `yarn` in
-the `PATH`:
+installs its dependencies with the repository's `yarn.lock` and builds. It
+modifies no other plugin in the tree. It runs as `root`, with `yarn` in the
+`PATH`:
 
 ```bash
 YARN_BIN=$(dirname "$(command -v yarn)")
@@ -124,32 +124,33 @@ sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh > /opt/ensfaci
 tail -1 /opt/ensfacil/artifacts/build.log
 ```
 
-What you should see: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`.
-Earlier in the log, `succ 1 bundles compiled successfully` and
-`compressing plugin into [ensfacil-2.19.5.zip]` appear. It takes about a minute.
+Expected result: `/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip`.
+Before it, the log contains `succ 1 bundles compiled successfully` and
+`compressing plugin into [ensfacil-2.19.5.zip]`. The build takes about one
+minute.
 
 For another tree, pass it as an argument:
 `sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh <tree>`.
 
 > [!warning]
-> Do not redirect the output of a build run as `root` to a file in `/tmp`
-> created by another user: with the kernel's `protected_regular` protection,
-> `root` cannot write to it and the build ends immediately with exit code 1 and
-> no useful message. Use `/opt/ensfacil/artifacts`.
+> Do not redirect the output of a build run as `root` to a `/tmp` file created
+> by another user: with the kernel's `protected_regular` protection, `root`
+> cannot write to it and the build ends immediately with exit code 1, without
+> a useful message. Use `/opt/ensfacil/artifacts`.
 
 > [!important]
-> `config/build-plugin.sh` deletes the whole `/opt/ensfacil/build/plugins/ensfacil`
-> before building: the previous zip is only kept if you copy it to another
-> folder first.
+> `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil`
+> entirely before building: the previous zip is only kept if it is copied to
+> another folder first.
 
-Continue at section 5.
+Continue with section 5.
 
 ## 4. Build with the builder image
 
-The `ensfacil-osd-builder:2.19.5` image is the one the CI `build` job uses. It
-carries the OpenSearch Dashboards 2.19.5 tree (Wazuh Dashboard v4.14.7) already
-prepared in `/osd`, with Node.js 18.19.0 and Yarn Classic 1.22.22. You only need
-Docker.
+The `ensfacil-osd-builder:2.19.5` image is the one used by the CI `build` job.
+It contains the OpenSearch Dashboards 2.19.5 tree (Wazuh Dashboard v4.14.7)
+already prepared in `/osd`, with Node.js 18.19.0 and Yarn Classic 1.22.22. It
+only requires Docker.
 
 ### 4.1 Build the image
 
@@ -160,21 +161,21 @@ docker build -f ci/osd-builder.Dockerfile -t ensfacil-osd-builder:2.19.5 ci/
 docker image ls ensfacil-osd-builder:2.19.5
 ```
 
-What you should see: the `ensfacil-osd-builder:2.19.5` image, about 7.5 GB.
+Expected result: the `ensfacil-osd-builder:2.19.5` image, about 7.5 GB.
 
 - It works with Docker's classic builder: BuildKit is not needed.
-- It takes about 11 minutes on 4 CPUs.
+- The build takes about 11 minutes on 4 CPUs.
 - It is not pushed to any registry. The CI runner uses it from its local
   Docker, so it is built on the runner's machine
   ([contributing](../../CONTRIBUTING.en.md#continuous-integration)).
 
-If `ci/osd-builder.Dockerfile` changes, build it again.
+If `ci/osd-builder.Dockerfile` changes, rebuild the image.
 
 ### 4.2 Build like CI
 
-The repository is mounted read-only at `/src` and copied inside the container:
-the build does not write into your copy. The zip comes out through the `dist/`
-folder, mounted at `/dist`. From the repository root:
+The repository is mounted read-only on `/src` and copied inside the container:
+the build does not write to the working copy. The zip comes out through the
+`dist/` folder, mounted on `/dist`. From the repository root:
 
 ```bash
 mkdir -p dist
@@ -188,11 +189,12 @@ docker run --rm \
 ls -l dist/
 ```
 
-What you should see: in the output, `succ 1 bundles compiled successfully` and
-`/osd/plugins/ensfacil/build/ensfacil-2.19.5.zip`; in `dist/`, the zip, owned
-by you. It takes about a minute.
+Expected result: in the output, `succ 1 bundles compiled successfully` and
+`/osd/plugins/ensfacil/build/ensfacil-2.19.5.zip`; in `dist/`, the zip, with
+the same owner as the `dist/` folder. The build takes about one minute.
 
-Give it the release name, with the version in `opensearch_dashboards.json`:
+Give the zip the release name, with the version in
+`opensearch_dashboards.json`:
 
 ```bash
 V=$(python3 -c 'import json; print(json.load(open("opensearch_dashboards.json"))["version"])')
@@ -200,11 +202,11 @@ mv dist/ensfacil-2.19.5.zip "dist/ensfacil-$V-osd-2.19.5.zip"
 ls dist/
 ```
 
-What you should see: `ensfacil-1.1.0-osd-2.19.5.zip` (with the repository's
-version).
+Expected result: `ensfacil-1.1.0-osd-2.19.5.zip`, with the repository's
+version.
 
-To get a folder like a release's, with the two scripts and their sums, do the
-same as the `build` job:
+To obtain a folder like a release's, with the two scripts and their sums,
+repeat what the `build` job does:
 
 ```bash
 cp config/deploy-plugin.sh config/create-admin-role.sh dist/
@@ -212,12 +214,12 @@ cp config/deploy-plugin.sh config/create-admin-role.sh dist/
   && sha256sum -c SHA256SUMS)
 ```
 
-What you should see: `OK` for the three files. That folder installs like a
+Expected result: `OK` for the three files. That folder installs like a
 release ([guide 07, section 8](07-installing-from-a-release.en.md#8-first-install)).
 
 ## 5. Validate the zip
 
-From the repository root, with `ZIP` pointing at the zip you just built:
+From the repository root, with `ZIP` pointing to the built zip:
 
 ```bash
 ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip   # section 3
@@ -229,43 +231,49 @@ unzip -p "$ZIP" "*/target/public/*.js" | grep -c "op.exp.10"
 sha256sum "$ZIP"
 ```
 
-What you should see:
+Expected result:
 
 | Check | Expected result |
 |---|---|
 | `unzip -t` | `No errors detected in compressed data of …` |
 | `--solo-id` | `ensfacil` |
-| `grep -c` | a number greater than `0` (the zip carries the controls' code) |
-| `sha256sum` | the zip hash; keep it as a reference |
+| `grep -c` | a number greater than `0`: the zip contains the controls' code |
+| `sha256sum` | the zip hash, kept as a reference |
 
-To check that the zip carries a specific change, replace `op.exp.10` with the id
-of a control or a text that has changed.
+To check that the zip contains a specific change, replace `op.exp.10` with the
+identifier of a control or a text that has changed.
 
 > [!warning]
 > If the zip does not exist or any check fails, do not install it.
 
 ## 6. Install the zip
 
-The zip is installed with the `config/deploy-plugin.sh` of the same repository:
+The zip is installed with the `config/deploy-plugin.sh` of the same
+repository:
 
 - first install: [installation guide, section 13.4](01-installation-from-scratch.en.md#134-install-the-plugin-on-wazuh-dashboard),
   then the role (section 13.5);
 - update: [update guide, section 7](02-updating-an-existing-environment.en.md#7-deploy-the-updated-version);
 - rollback: [troubleshooting and rollback, section 4](04-troubleshooting-and-rollback.en.md#4-reinstall-the-previous-ensfácil-version).
 
-If you built on another machine, copy the zip to the server (for example, to
-`/opt/ensfacil/artifacts/`) and check its `sha256sum` there.
+If the zip was built on another machine, copy it to the server (for example,
+to `/opt/ensfacil/artifacts/`) and check its `sha256sum` there.
+
+In Docker, `deploy-plugin.sh` is not used: the built zip,
+`ensfacil-2.19.5.zip`, is installed in the dashboard image with the version in
+`opensearch_dashboards.json` as `ENSFACIL_VERSION`
+([Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)).
 
 ## 7. Run the tests
 
 The tests need Python 3 and Node.js 18 or later. The script tests also need
-`bash`, `zip` and `unzip`. `tests/check-consistency.py` compares the plugin with
-the runbooks: it looks for them next to the plugin folder and recognizes them by
-their `origin` remote, whatever their folder names.
+`bash`, `zip` and `unzip`. `tests/check-consistency.py` compares the plugin
+with the runbooks: it looks for them next to the plugin folder and recognizes
+them by their `origin` remote, whatever the folder name.
 
 ### 7.1 With the runbooks already cloned
 
-If you have the runbooks next to the plugin (as in the
+With the runbooks next to the plugin (as in the
 [installation guide, section 10.3](01-installation-from-scratch.en.md#103-clone-the-ens-runbooks)),
 the README loop is enough, from the repository root:
 
@@ -275,28 +283,28 @@ for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && e
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-What you should see: `coherencia OK` at the end of the first command and no
-`FAIL` line.
+Expected result: `coherencia OK` at the end of the first command and no `FAIL`
+line.
 
-Without Node.js on your machine, each TypeScript suite runs in Docker:
+Without Node.js on the machine, each TypeScript suite runs in Docker:
 
 ```bash
 docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx tests/plugin-manifest.test.ts
 ```
 
-Or everything at once, with `ci/run-tests.sh` in the same image as CI. The
-folder that holds the plugin and the runbooks is mounted read-only:
+Or all of them, with `ci/run-tests.sh` in the same image as CI. The folder that
+holds the plugin and the runbooks is mounted read-only:
 
 ```bash
 docker run --rm -v "$(dirname "$PWD")":/base:ro -w "/base/$(basename "$PWD")" node:22-bookworm \
   bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends zip > /dev/null && ci/run-tests.sh'
 ```
 
-What you should see: `OK` for each suite and, at the end, `las <n> suites pasan`.
+Expected result: `OK` for each suite and, at the end, `las <n> suites pasan`.
 
 `tests/mp-info-6-rules.test.sh` tests the mp.info.6 rules with `wazuh-logtest`
-in a `wazuh/wazuh-manager` container. Without Docker (also inside another
-container), it skips that part with a warning.
+in a `wazuh/wazuh-manager` container. Without Docker, including inside another
+container, that part is skipped with a warning.
 
 ### 7.2 Like CI, in a clean folder
 
@@ -317,6 +325,6 @@ ci/run-tests.sh
   output of each failing suite and exits with an error if any fails.
 
 > [!warning]
-> `ci/clone-runbooks.sh` deletes and clones again every destination folder. Use
-> it in a folder just for the tests, with a separate clone of the plugin. Never
-> in the folder where you keep your working copies of the runbooks.
+> `ci/clone-runbooks.sh` deletes and clones again every destination folder.
+> Use it in a folder dedicated to the tests, with a separate clone of the
+> plugin, never in the folder that holds the working copies of the runbooks.

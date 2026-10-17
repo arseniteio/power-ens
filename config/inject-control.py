@@ -12,11 +12,12 @@ Idempotente: si el control ya estaba, FUSIONA. Conserva el valor de cada
 parámetro que ya tuviera uno y añade los que falten. Los valores que el auditor
 puso desde la UI no se tocan.
 
-Por qué fusiona y no sustituye: sustituía, y el 30/07 una segunda ejecución
-borró la configuración de op.acc.2 en producción de pruebas y su cumplimiento
-cayó de 83 % a 17 %. El script lo avisaba por pantalla. Un aviso no basta cuando
-la operación destruye datos del cliente: el comportamiento por defecto tiene que
-ser el seguro, y el destructivo tiene que pedirse (--sustituir).
+Por qué fusiona y no sustituye: sustituir descarta los valores que el
+responsable ya ha declarado, de modo que una segunda ejecución vaciaría la
+configuración del control y su cumplimiento caería sin que nada hubiera cambiado
+en los sistemas. Un aviso por pantalla no basta cuando la operación destruye
+datos del cliente: el comportamiento por defecto tiene que ser el seguro, y el
+destructivo tiene que pedirse (--sustituir).
 
 Dry-run por defecto; --apply para escribir.
 
@@ -61,9 +62,11 @@ bloque_fichero = args.block or control_id.replace(".", "-") + "-control-block.js
 # DOS FORMAS DE AUTENTICARSE, y la del certificado existe por una razón
 # práctica: en un manager de Wazuh la contraseña de `admin` vive en el keystore
 # del dashboard y no se puede leer en claro, mientras que el certificado de
-# administrador del indexer SIEMPRE está en /etc/wazuh-indexer/certs. Exigir la
-# contraseña obligaba a ir a buscarla fuera de la máquina para una operación que
-# se hace EN la máquina, y eso acaba en contraseñas pegadas en un chat.
+# administrador del indexer está disponible: en la instalación todo en uno, en
+# /etc/wazuh-indexer/certs; en el despliegue oficial con Docker, en
+# config/wazuh_indexer_ssl_certs/. Exigir la contraseña obligaría a obtenerla
+# fuera de la máquina para una operación que se hace en la máquina, y a
+# escribirla en la sesión.
 #
 #   OS_PASS               contraseña de OS_USER (por defecto, admin)
 #   OS_CERT + OS_KEY      certificado de cliente. Tiene prioridad si está.
