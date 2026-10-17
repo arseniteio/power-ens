@@ -1,7 +1,9 @@
 import { useActiveENSScopeAgents } from '../../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useEsSearch } from '../../../search/use-es-search';
+import { useEnsEvaluation } from '../../../evaluation/use-evaluation';
+import { fetchTraceabilityPage } from '../../../evaluation/evaluation-client';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
+import { LoadingSpinner } from '../../../platform/loading-spinner';
 import {
   EuiBadge,
   EuiBasicTable,
@@ -35,24 +37,27 @@ import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
 import type { MotivoLinea } from './motive-cell';
-import { buildENSControlComplianceTimeline } from '../../../../common/ens/core/timeline/control-timeline';
+import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
+import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
 
-const EMPTY_HITS: any[] = [];
+// Lo que devuelve el servidor para la ficha (`include=control`).
+interface ControlEvaluationResponse {
+  meta: { level: string; facts: { count: number; newest?: string }; evaluatedAt: string; fingerprint: string };
+  result?: ENSComplianceResult;
+  traceabilityTotal: number;
+  timeline?: (Omit<ENSControlTimelinePoint, 'date'> & { date: string })[];
+}
+
+// Las entradas de la trazabilidad que el servidor guarda de un control (las
+// más recientes) y las que trae con la ficha.
+const TRAZABILIDAD_GUARDADA = 2000;
+const TRAZABILIDAD_INICIAL = 100;
 
 interface ControlDetailENSProps {
   control: ENSControl;
   agentId?: string;
   onBack: () => void;
 }
-
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../../../../common/ens/core';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../../../../common/ens/core/scope';
 
 const getBadgeColor = (status: string) => {
   if (status === 'CUMPLE') {
@@ -97,154 +102,46 @@ export const ControlDetailENS = ({
    agentId,
    onBack,
  }: ControlDetailENSProps) => {
-  const [refreshKey, setRefreshKey] = useState(0);
   const [tracePageIndex, setTracePageIndex] = useState(0);
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey(current => current + 1);
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
   const scopeAgents = useActiveENSScopeAgents();
 
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(
-      scopeAgents,
-      agentId,
-    );
-
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      {
-        bool: {
-          should: [
-            { match_phrase: { 'data.ensfacil': control.id } },
-            { match_phrase: { 'data.control': control.id } },
-            { match_phrase: { 'data.control_id': control.id } },
-            { match_phrase: { 'data.ens': control.id } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ],
-    // EL TOPE DECIDE EL VEREDICTO, así que no puede ser un número puesto de
-    // cualquier manera. Con `size: 1000` y 17.444 alertas de op.acc.3 en la
-    // ventana, el motor juzgaba el 6 % de los hechos —los más recientes— y lo
-    // presentaba como «cumplimiento de los últimos 30 días». Una acción de hace
-    // unas horas que quedaba fuera del corte hacía desaparecer una
-    // incompatibilidad real, y el control pasaba a 100 % él solo.
-    //
-    // Peor todavía: el Panel pedía 6000 y esta pantalla 1000, así que las dos
-    // juzgaban conjuntos distintos y podían dar números distintos del mismo
-    // control sin que nada lo dijera.
-    //
-    // 10.000 es el `index.max_result_window` por defecto de OpenSearch: pedir
-    // más exige `search_after`, que es otra conversación. Lo que NO puede pasar
-    // es que se recorte EN SILENCIO, y de eso se encarga `hechosRecortados`.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // EL SERVIDOR EVALÚA EL CONTROL CON TODOS SUS HECHOS DE LA VENTANA. Hasta
+  // 1.1.0 esta pantalla bajaba los 10.000 más recientes y avisaba si quedaban
+  // fuera (op.acc.3 tenía 17.444 en 30 días): el porcentaje podía no cubrir la
+  // ventana que decía cubrir. Ya no hay corte, así que no hay aviso que dar. La
+  // serie de 30 días también viene calculada (los días pasados, una vez al día).
+  const evaluacion = useEnsEvaluation<ControlEvaluationResponse>({
+    include: 'control',
+    controlId: control.id,
+    agentId,
+    timelineDays: 30,
   });
+  const { error } = evaluacion;
+  const ensLevel = evaluacion.data?.meta?.level || getActiveENSConfiguration().global.ensLevel;
+  const complianceResult = evaluacion.data?.result;
+  const traceabilityTotal = evaluacion.data?.traceabilityTotal || 0;
 
-  const getHitTimestamp = (hit: any) =>
-    hit?.['@timestamp'] ||
-    hit?.data?.ts ||
-    hit?.fields?.['@timestamp']?.[0] ||
-    hit?.sort?.[0];
-
-  const hits = esResults?.hits?.hits || EMPTY_HITS;
-
-  const ensHits = useMemo(() => (hits as any[])
-    .map(hit => ({
-      ...(hit._source || {}),
-      fields: hit.fields,
-      sort: hit.sort,
-    }))
-    .sort((a, b) => {
-      const dateA = new Date(getHitTimestamp(a) || 0).getTime();
-      const dateB = new Date(getHitTimestamp(b) || 0).getTime();
-      return dateB - dateA;
-    }), [hits]);
-
-  // ¿Se ha quedado fuera algo? `hits.total` es lo que HAY; `hits.length` lo que
-  // se ha traído. Si no coinciden, el motor ha juzgado sobre una parte y el
-  // número de arriba no cubre la ventana entera. Callarlo sería presentar una
-  // medida parcial como completa, que es la misma mentira que un CUMPLE sin
-  // medir.
-  const totalEnIndice = (() => {
-    const total = (esResults?.hits as any)?.total;
-
-    if (typeof total === 'number') {
-      return total;
-    }
-
-    return typeof total?.value === 'number' ? total.value : hits.length;
-  })();
-
-  const hechosRecortados = Math.max(0, totalEnIndice - hits.length);
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const complianceResult = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        control.id,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      control.id,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
-  );
-
-  // La serie diaria DE ESTE CONTROL. Se calcula con los mismos eventos y el
-  // mismo alcance que el resultado de arriba, así que su último punto es el
-  // mismo número: es lo que la hace comprobable de un vistazo.
+  // La serie diaria DE ESTE CONTROL: su último punto es el número de arriba.
   const controlTimeline = useMemo(
     () =>
-      buildENSControlComplianceTimeline(
-        control.id,
-        ensLevel,
-        normalizedEvents,
-        {
-          agentId,
-          scopeAgents,
-          days: 30,
-        }
-      ),
-    [
-      control.id,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
+      (evaluacion.data?.timeline || []).map(point => ({
+        ...point,
+        date: new Date(point.date),
+      })),
+    [evaluacion.data],
   );
 
-  const latestEvaluationDate = ensHits[0]
-    ? new Date(getHitTimestamp(ensHits[0])).toLocaleDateString('es-ES')
+  // Otra máquina u otro control: la tabla vuelve a la primera página.
+  useEffect(() => {
+    setTracePageIndex(0);
+  }, [control.id, agentId]);
+
+  const newestFact = evaluacion.data?.meta?.facts?.newest;
+  const latestEvaluationDate = newestFact
+    ? new Date(newestFact).toLocaleDateString('es-ES')
     : 'Sin datos';
 
   // Sobre cuántas máquinas se ha resumido la vista general. Solo existe
@@ -253,8 +150,7 @@ export const ControlDetailENS = ({
   const totalMaquinas = (complianceResult?.consolidatedAgents || []).length;
 
   const agenteNombre = agentId
-    ? ((ensHits.find(h => h?.agent?.name)?.agent?.name) ||
-       (ensHits.find(h => h?.data?.host)?.data?.host) ||
+    ? (scopeAgents.find(agent => agent.id === agentId)?.name ||
        ('Agente ' + agentId))
     // Decir cuántas máquinas hay detrás es lo que convierte «6 de ellas fallan»
     // en un dato: sin el total, un recuento no se puede leer.
@@ -686,8 +582,7 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
-  const traceabilityItems = (complianceResult?.traceability || []).map(
-    (item, index) => ({
+  const toTraceItem = (item: ENSTraceabilityResult, index: number) => ({
       key: `${item.source}-${item.reference}-${index}`,
       source: item.source,
       reference: item.reference,
@@ -714,15 +609,37 @@ export const ControlDetailENS = ({
       timestamp: formatTraceabilityTimestamp(item.timestamp),
       auditAttributes: item.auditAttributes || {},
       auditorMeaning: item.description,
-    }),
-  );
+    });
+
+  // LA TABLA SE PAGINA EN EL SERVIDOR. La ficha trae las entradas más
+  // recientes; más allá, cada página se pide aparte. El servidor guarda las
+  // ${TRAZABILIDAD_GUARDADA} más recientes de cada control (op.acc.3 tiene
+  // decenas de miles): el total se dice siempre.
+  const iniciales = complianceResult?.traceability || [];
+  const pageFrom = tracePageIndex * tracePageSize;
+  const traceabilityAvailable = Math.min(traceabilityTotal, TRAZABILIDAD_GUARDADA);
+  const [remotePage, setRemotePage] = useState<{ key: string; items: ENSTraceabilityResult[] } | undefined>();
+  const remoteKey = `${control.id}|${agentId || ''}|${pageFrom}|${tracePageSize}|${evaluacion.data?.meta?.fingerprint || ''}`;
+  const necesitaRemota = Boolean(complianceResult) && pageFrom + tracePageSize > Math.min(iniciales.length, TRAZABILIDAD_INICIAL) && pageFrom < traceabilityAvailable;
+
+  useEffect(() => {
+    if (!necesitaRemota) return;
+    const controller = new AbortController();
+    fetchTraceabilityPage({ controlId: control.id, agentId, from: pageFrom, size: tracePageSize }, controller)
+      .then(page => setRemotePage({ key: remoteKey, items: page.items || [] }))
+      .catch(() => setRemotePage({ key: remoteKey, items: [] }));
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteKey, necesitaRemota]);
+
+  const traceabilityPageItems = (necesitaRemota
+    ? remotePage?.key === remoteKey
+      ? remotePage.items
+      : []
+    : iniciales.slice(pageFrom, pageFrom + tracePageSize)
+  ).map((item, index) => toTraceItem(item, pageFrom + index));
 
   // --- Trazabilidad: vista compacta, paginada y con detalle expandible ---
-  const traceabilityPageItems = traceabilityItems.slice(
-    tracePageIndex * tracePageSize,
-    tracePageIndex * tracePageSize + tracePageSize,
-  );
-
   const toggleTraceDetail = (key: string) =>
     setExpandedTraceIds(current =>
       current.includes(key)
@@ -730,7 +647,7 @@ export const ControlDetailENS = ({
         : [...current, key],
     );
 
-  const renderTraceDetail = (item: (typeof traceabilityItems)[number]) => (
+  const renderTraceDetail = (item: (typeof traceabilityPageItems)[number]) => (
     <EuiText size='xs'>
       <p>
         <strong>Referencia:</strong> {item.reference}
@@ -792,7 +709,7 @@ export const ControlDetailENS = ({
 
   const traceExpandedRowMap = expandedTraceIds.reduce(
     (acc: Record<string, React.ReactNode>, key) => {
-      const item = traceabilityItems.find(trace => trace.key === key);
+      const item = traceabilityPageItems.find(trace => trace.key === key);
 
       if (item) {
         acc[key] = renderTraceDetail(item);
@@ -846,7 +763,7 @@ export const ControlDetailENS = ({
       align: 'right' as const,
       width: '40px',
       isExpander: true,
-      render: (item: (typeof traceabilityItems)[number]) => (
+      render: (item: (typeof traceabilityPageItems)[number]) => (
         <EuiButtonIcon
           onClick={() => toggleTraceDetail(item.key)}
           aria-label={
@@ -943,8 +860,8 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
-  // Sin los hechos de ahora, ni veredicto ni cifras: el refresco de 15 s
-  // vuelve a intentarlo.
+  // Sin la evaluación de ahora, ni veredicto ni cifras: la comprobación
+  // periódica vuelve a intentarlo.
   if (error) {
     return (
       <EuiPage paddingSize='m'>
@@ -960,6 +877,27 @@ export const ControlDetailENS = ({
           </EuiTitle>
           <EuiSpacer size='m' />
           <FactsReadErrorCallOut error={error} />
+        </EuiPanel>
+      </EuiPage>
+    );
+  }
+
+  // Mientras llega la evaluación de ESTE control y ESTA máquina no se pinta
+  // ningún veredicto: el de la máquina anterior no es el de esta.
+  if (!evaluacion.data) {
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel>
+          <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
+            Volver a controles
+          </EuiButtonEmpty>
+          <EuiSpacer size='s' />
+          <EuiTitle size='m'>
+            <h2>
+              {control.id.toUpperCase()} - {control.title}
+            </h2>
+          </EuiTitle>
+          <LoadingSpinner message='Evaluando el control en el servidor con todos los hechos de la ventana…' />
         </EuiPanel>
       </EuiPage>
     );
@@ -1341,38 +1279,6 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
-        {/* EL AVISO VA ANTES QUE EL NÚMERO, no en una nota al pie. Si el motor
-            no ha visto todos los hechos, el porcentaje de arriba no cubre la
-            ventana que dice cubrir, y eso hay que leerlo ANTES de creerse el
-            número — no después. */}
-        {hechosRecortados > 0 && (
-          <>
-            <EuiCallOut
-              title={`El veredicto se ha calculado sobre ${hits.length.toLocaleString('es-ES')} hechos de ${totalEnIndice.toLocaleString('es-ES')}`}
-              color='warning'
-              iconType='alert'
-            >
-              <p>
-                El motor solo puede traer del índice los{' '}
-                {hits.length.toLocaleString('es-ES')} más recientes, y en la
-                ventana evaluada hay {totalEnIndice.toLocaleString('es-ES')}.
-                <strong>
-                  {' '}Un hallazgo más antiguo que el corte no está contado
-                </strong>
-                , así que el porcentaje puede ser mejor que la realidad. No es
-                una medida completa de los últimos 30 días.
-              </p>
-              <p>
-                Se arregla reduciendo lo que emite el agente —un hecho por
-                observación distinta, no uno por repetición— o acortando el
-                periodo de evaluación en Configuración.
-              </p>
-            </EuiCallOut>
-
-            <EuiSpacer size='l' />
-          </>
-        )}
-
         <EuiPanel>
           <EuiTitle size='s'>
             <h3>Evolución del cumplimiento · {control.id}</h3>
@@ -1584,15 +1490,18 @@ export const ControlDetailENS = ({
 
             <EuiFlexItem grow={false}>
               <EuiText size='xs' color='subdued'>
-                {traceabilityItems.length} registro
-                {traceabilityItems.length === 1 ? '' : 's'}
+                {traceabilityTotal.toLocaleString('es-ES')} registro
+                {traceabilityTotal === 1 ? '' : 's'}
+                {traceabilityTotal > traceabilityAvailable
+                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} más recientes; todos los hechos están en Eventos`
+                  : ''}
               </EuiText>
             </EuiFlexItem>
           </EuiFlexGroup>
 
           <EuiSpacer size='s' />
 
-          {traceabilityItems.length === 0 ? (
+          {traceabilityTotal === 0 ? (
             <EuiText size='s' color='subdued'>
               <p>
                 No hay información de trazabilidad disponible para este control.
@@ -1609,7 +1518,7 @@ export const ControlDetailENS = ({
               pagination={{
                 pageIndex: tracePageIndex,
                 pageSize: tracePageSize,
-                totalItemCount: traceabilityItems.length,
+                totalItemCount: traceabilityAvailable,
                 pageSizeOptions: [5, 10, 25, 50],
               }}
               onChange={({ page }) => {
