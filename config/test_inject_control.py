@@ -155,6 +155,22 @@ def main():
         comprueba("--sustituir · dice cuáles se pierden",
                   "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
 
+        # --- la capa por sistema (1.2.0) sobrevive a la siembra
+        agentes = {"028": {"templates": ["zimbra-ldap"],
+                           "controls": {"op.acc.1": {"parameters": {"P-07": ["u | s | r"], "P-99": "x"}}}}}
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))],
+                                           "agents": json.loads(json.dumps(agentes))},
+                         "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply")
+        comprueba("agents · resembrar no borra configuration.agents",
+                  estado["doc"]["configuration"].get("agents") == agentes,
+                  str(estado["doc"]["configuration"].get("agents")))
+        comprueba("agents · avisa del valor por agente de un parámetro retirado",
+                  "P-99 en el agente 028" in r.stdout, r.stdout)
+        r = siembra(url, bloque_path, "--apply", "--sustituir")
+        comprueba("agents · ni con --sustituir",
+                  estado["doc"]["configuration"].get("agents") == agentes, r.stdout)
+
         # --- no toca los demás controles
         otro = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intacto"}]}
         estado["doc"] = {"configuration": {"controls": [otro]}, "updatedAt": ""}

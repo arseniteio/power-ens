@@ -21,6 +21,12 @@ destructivo tiene que pedirse (--sustituir).
 
 Dry-run por defecto; --apply para escribir.
 
+LA CAPA POR SISTEMA (`configuration.agents`, plugin 1.2.0) NO SE TOCA: se
+escribe el `_source` entero y solo cambia `controls`. Si un parámetro se retira
+del bloque y algún agente tenía valor propio para él, se avisa: ese valor queda
+huérfano (no lo lee nadie) hasta que se quite en la pantalla. Al sembrar un
+control nuevo no se crean asignaciones ni valores por agente.
+
 Uso:
     export OS_USER=admin
     export OS_PASS='...'
@@ -190,11 +196,22 @@ if anterior and not args.sustituir:
         if x.get("id") not in ids_nuevos
     ]
 
+    # Valores por agente de los parámetros que se retiran: quedan huérfanos.
+    ids_retirados = {x.get("id") for x in anterior.get("parameters", []) if x.get("id") not in ids_nuevos}
+    huerfanos = sorted(
+        "{} en el agente {}".format(pid, agente)
+        for agente, perfil in (cfg.get("agents") or {}).items()
+        for pid in ((((perfil or {}).get("controls") or {}).get(control_id) or {}).get("parameters") or {})
+        if pid in ids_retirados
+    )
+
     print("Fusión con lo ya configurado:")
     print("  conserva su valor: {}".format(", ".join(conservados) or "ninguno"))
     print("  parámetros nuevos: {}".format(", ".join(nuevos) or "ninguno"))
     if retirados:
         print("  YA NO EXISTEN en el bloque y se pierden: {}".format(", ".join(retirados)))
+    if huerfanos:
+        print("  AVISO: valores por agente de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
 elif anterior and args.sustituir:
     con_valor = [
         x.get("id") for x in anterior.get("parameters", []) if tiene_valor(x.get("value"))
@@ -219,6 +236,8 @@ cfg["changeReason"] = "{} del control {} en la configuración activa.".format(mo
 source["updatedAt"] = ahora
 
 print("Tras la operación:", sorted(c["controlId"] for c in cfg["controls"]))
+if cfg.get("agents"):
+    print("Valores por sistema (configuration.agents): se conservan los de {} agente(s).".format(len(cfg["agents"])))
 
 if not args.apply:
     print("\n== DRY-RUN ==  nada se ha escrito. Añade --apply si el plan es correcto.")

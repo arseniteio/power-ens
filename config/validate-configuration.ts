@@ -18,10 +18,23 @@
  * va a aceptar. Revisar a ojo falló dos veces seguidas sobre el mismo
  * parámetro.
  *
+ * LA CAPA POR SISTEMA (`configuration.agents`, 1.2.0). Su forma la comprueba
+ * el mismo validador estructural (un valor `null` o un objeto en un agente
+ * también impide cargar el entorno). Además se comprueba su significado: que
+ * cada control y parámetro exista, que no sea de organización, que cada
+ * plantilla exista y no choque con otra, y que cada valor sea válido para su
+ * parámetro. Eso no impide cargar el entorno, pero la fila de esa máquina se
+ * evalúa con una configuración inválida: también sale con 1. Se imprime una
+ * línea por agente con su tipo, sus plantillas y sus valores propios.
+ *
  * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
  */
 import { readFileSync } from 'fs';
 import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
+import {
+  summarizeAgentsConfiguration,
+  validateAgentsConfiguration,
+} from '../public/ens/configuration/agents/agent-configuration-validator';
 
 declare const process: {
   argv: string[];
@@ -55,11 +68,38 @@ if (configuration && configuration.global) {
   );
 }
 
-if (result.valid) {
-  console.log('ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.');
+if (!result.valid) {
+  console.log(`ESTRUCTURA INVÁLIDA (${result.errors.length} error(es)): el plugin NO cargará el entorno ENS.`);
+  result.errors.forEach(error => console.log(`  - ${error}`));
+  process.exit(1);
+}
+
+console.log('ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.');
+
+const agents = summarizeAgentsConfiguration(configuration);
+
+if (!agents.length) {
+  console.log('valores por sistema: ninguno (todo se evalúa con el valor de la organización)');
   process.exit(0);
 }
 
-console.log(`ESTRUCTURA INVÁLIDA (${result.errors.length} error(es)): el plugin NO cargará el entorno ENS.`);
-result.errors.forEach(error => console.log(`  - ${error}`));
+console.log(`valores por sistema (${agents.length} agente(s)):`);
+agents.forEach(agent =>
+  console.log(
+    `  ${agent.agentId}${agent.name ? ` ${agent.name}` : ''}` +
+      ` · tipo: ${agent.type || '(sin tipo)'} (${agent.typeSource})` +
+      ` · plantillas: ${agent.templates.join(', ') || '(ninguna)'}` +
+      ` · valores propios: ${agent.ownValues}`
+  )
+);
+
+const issues = validateAgentsConfiguration(configuration);
+
+if (!issues.length) {
+  console.log('VALORES POR SISTEMA VÁLIDOS.');
+  process.exit(0);
+}
+
+console.log(`VALORES POR SISTEMA INVÁLIDOS (${issues.length}): el plugin carga el entorno, pero esas máquinas se evalúan con una configuración inválida.`);
+issues.forEach(issue => console.log(`  - agente ${issue.agentId}: ${issue.message}`));
 process.exit(1);

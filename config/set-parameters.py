@@ -32,6 +32,26 @@ El fichero es JSON:
 Una lista se guarda como lista (es lo que espera un parámetro `list` o `table`,
 una fila por elemento); una cadena, como cadena; un número, como número.
 
+VALORES DE UN AGENTE (plugin 1.2.0). La clave `agents` declara valores propios
+de una máquina, por su id de Wazuh; van a `configuration.agents` y no tocan el
+valor de la organización:
+
+    {
+      "op.acc.1": { "P-04": ["admin", "test"] },
+      "agents": {
+        "028": {
+          "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
+          "op.exp.4": { "P-04": null }
+        }
+      }
+    }
+
+Solo admiten valor por agente los parámetros por sistema y por plataforma (la
+clasificación de `public/ens/configuration/agents/parameter-classes.ts`); uno de
+organización se rechaza. `null` QUITA el valor propio de ese agente (vuelve a
+heredar de su plantilla o de la organización); en el documento nunca se
+escribe `null`. El id se normaliza a tres cifras (`28` es `028`).
+
 DRY-RUN POR DEFECTO. Escribir exige `--apply`, igual que en `inject-control.py`
 y por la misma razón: esto sobreescribe decisiones del responsable, y cuando una
 operación puede destruir datos del cliente el defecto tiene que ser el seguro.
@@ -100,6 +120,8 @@ def req(method, path, body=None):
 with open(args.fichero, encoding="utf-8") as f:
     deseado = json.load(f)
 
+por_agente = deseado.pop("agents", None) or {}
+
 try:
     actual = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
 except urllib.error.HTTPError as e:
@@ -107,6 +129,35 @@ except urllib.error.HTTPError as e:
 
 config = actual.get("configuration", actual)
 por_id = {c["controlId"]: c for c in config["controls"]}
+
+
+def id_agente(valor):
+    texto = str(valor).strip()
+    return texto.zfill(3) if texto.isdigit() else texto
+
+
+def clases():
+    """La clasificación de los parámetros, de su única fuente: el objeto JSON
+    de `parameter-classes.ts`. None si no está (el script fuera del repo)."""
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "ens",
+                        "configuration", "agents", "parameter-classes.ts")
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            fuente = f.read()
+    except OSError:
+        return None
+    inicio = fuente.index("{", fuente.index("ENS_PARAMETER_CLASSES:"))
+    fin = fuente.index("\n};", inicio)
+    return json.loads(fuente[inicio:fin + 2])
+
+
+def valor_valido(v):
+    if isinstance(v, bool) or isinstance(v, str):
+        return True
+    if isinstance(v, (int, float)):
+        return v == v and v not in (float("inf"), float("-inf"))
+    return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
 
 # --- validación ANTES de tocar nada -----------------------------------------
 errores = []
@@ -121,10 +172,42 @@ for control_id, valores in deseado.items():
             errores.append("%s no declara el parámetro %s (declara: %s)"
                            % (control_id, pid, ", ".join(sorted(declarados))))
 
+clasificacion = clases() if por_agente else {}
+if por_agente and clasificacion is None:
+    errores.append("no encuentro public/ens/configuration/agents/parameter-classes.ts: "
+                   "los valores por agente se declaran desde el directorio config/ del repo del plugin")
+    clasificacion = {}
+
+for agente, controles in por_agente.items():
+    if not id_agente(agente):
+        errores.append("agents: hay un id de agente vacío")
+        continue
+    for control_id, valores in (controles or {}).items():
+        if control_id not in por_id:
+            errores.append("agente %s: el control %s no está sembrado" % (id_agente(agente), control_id))
+            continue
+        declarados = {x["id"] for x in por_id[control_id]["parameters"]}
+        for pid, v in (valores or {}).items():
+            clase = clasificacion.get(control_id, {}).get(pid)
+            if pid not in declarados:
+                errores.append("agente %s: %s no declara el parámetro %s" % (id_agente(agente), control_id, pid))
+            elif clase not in ("system", "platform"):
+                errores.append("agente %s: %s %s es un parámetro de organización (vale para todas las máquinas)"
+                               % (id_agente(agente), control_id, pid))
+            elif v is not None and not valor_valido(v):
+                errores.append("agente %s: %s %s tiene un valor que no es texto, número, booleano ni lista de textos"
+                               % (id_agente(agente), control_id, pid))
+
 if errores:
     for e in errores:
         print("ERROR: " + e, file=sys.stderr)
     sys.exit(1)
+
+
+def corto(v):
+    t = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
+    return (t[:70] + "…") if len(t) > 70 else t
+
 
 # --- el plan ----------------------------------------------------------------
 cambios = 0
@@ -139,12 +222,44 @@ for control_id, valores in sorted(deseado.items()):
         if viejo == nuevo:
             print("   %-6s sin cambio" % par["id"])
             continue
-        def corto(v):
-            t = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
-            return (t[:70] + "…") if len(t) > 70 else t
         print("   %-6s %s  ->  %s" % (par["id"], corto(viejo) if viejo not in (None, "") else "(vacío)", corto(nuevo)))
         par["value"] = nuevo
         cambios += 1
+
+agentes = config.get("agents") or {}
+for agente, controles in sorted(por_agente.items()):
+    aid = id_agente(agente)
+    print("── agente %s" % aid)
+    perfil = agentes.get(aid) or {}
+    propios = perfil.get("controls") or {}
+    for control_id, valores in sorted((controles or {}).items()):
+        parametros = dict((propios.get(control_id) or {}).get("parameters") or {})
+        for pid, nuevo in sorted((valores or {}).items()):
+            viejo = parametros.get(pid)
+            if nuevo is None:
+                if pid not in parametros:
+                    print("   %s %-6s sin valor propio: nada que quitar" % (control_id, pid))
+                    continue
+                del parametros[pid]
+                print("   %s %-6s %s  ->  (hereda)" % (control_id, pid, corto(viejo)))
+            elif viejo == nuevo:
+                print("   %s %-6s sin cambio" % (control_id, pid))
+                continue
+            else:
+                parametros[pid] = nuevo
+                print("   %s %-6s %s  ->  %s" % (control_id, pid, corto(viejo) if viejo is not None else "(hereda)", corto(nuevo)))
+            cambios += 1
+        if parametros:
+            propios[control_id] = {"parameters": parametros}
+        else:
+            propios.pop(control_id, None)
+    if propios:
+        perfil["controls"] = propios
+    else:
+        perfil.pop("controls", None)
+    agentes[aid] = perfil
+if por_agente:
+    config["agents"] = agentes
 
 if not cambios:
     print("\nNada que cambiar.")
