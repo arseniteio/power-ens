@@ -272,7 +272,7 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Expected result: `{"acknowledged":true}` and, from the second command, `green open wazuh-ens-configuration 0` (with several nodes, `green` with `1` replica). If it says `yellow`, wait a few seconds and repeat the second command until it says `green`. In an environment installed from scratch with 1.1.0 or later, this step is not required.
 
-In Configuration > Global configuration, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, used by op.cont.2 and op.cont.3, added in 1.1.0. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+In Configuration > Global configuration, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, added in 1.1.0 and used by op.cont.2 and op.cont.3. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 ## 9. Agents and final check
 
