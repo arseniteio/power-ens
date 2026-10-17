@@ -52,9 +52,13 @@ docker exec <dashboard> python3 -c 'import json; p=json.load(open("/usr/share/wa
 docker exec <dashboard> /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Resultado esperado: `wazuh.indexer` y `wazuh.manager` con imágenes de etiqueta
-`4.14.7` y `wazuh.dashboard` con `wazuh-dashboard-ensfacil:1.1.0`;
-`2.19.5 424801`; en la lista de plugins, `ensfacil@1.1.0` y `wazuh@4.14.7-01`.
+Resultado esperado:
+
+- antes de instalar ENSFácil: `wazuh.dashboard` con
+  `wazuh/wazuh-dashboard:4.14.7`, `2.19.5 414701` y sin `ensfacil` en la lista;
+- con ENSFácil 1.1.0 instalado: `wazuh.indexer` y `wazuh.manager` con imágenes
+  de etiqueta `4.14.7` y `wazuh.dashboard` con `wazuh-dashboard-ensfacil:1.1.0`;
+  `2.19.5 424801`; en la lista de plugins, `ensfacil@1.1.0` y `wazuh@4.14.7-01`.
 El `build.number` se explica en
 [Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil).
 
@@ -82,7 +86,7 @@ En un entorno de pruebas:
 1. Preparar el árbol de compilación de la versión nueva de Wazuh Dashboard, como en [Compilar desde el código fuente, apartado 3.2](08-building-from-source.md#32-preparar-el-árbol-de-opensearch-dashboards-2195), con su etiqueta.
 2. Ajustar la versión de OpenSearch Dashboards en `package.json`, `opensearch_dashboards.json` y `config/build-plugin.sh`. Para publicarla con CI, también en `.gitlab-ci.yml` y en `ci/osd-builder.Dockerfile`.
 3. Compilar con `config/build-plugin.sh` y validar el zip ([Compilar desde el código fuente, apartados 3.3 y 5](08-building-from-source.md#33-compilar-el-plugin)).
-4. Instalar con `config/deploy-plugin.sh` y comprobar el servicio, la lista de plugins y la respuesta `401` de `/api/ensfacil/configuration` ([apartado 13.4](01-installation-from-scratch.md#134-instalar-el-plugin-en-wazuh-dashboard)).
+4. Instalar con `config/deploy-plugin.sh` y comprobar el servicio, la lista de plugins y la respuesta `401` de `/api/ensfacil/configuration` ([instalación desde cero, apartado 13.4](01-installation-from-scratch.md#134-instalar-el-plugin-en-wazuh-dashboard)).
 5. Pasar las pruebas del repositorio:
 
    ```bash

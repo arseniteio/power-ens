@@ -52,9 +52,14 @@ docker exec <dashboard> python3 -c 'import json; p=json.load(open("/usr/share/wa
 docker exec <dashboard> /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Expected result: `wazuh.indexer` and `wazuh.manager` with images tagged
-`4.14.7` and `wazuh.dashboard` with `wazuh-dashboard-ensfacil:1.1.0`;
-`2.19.5 424801`; in the plugin list, `ensfacil@1.1.0` and `wazuh@4.14.7-01`.
+Expected result:
+
+- before installing ENSFácil: `wazuh.dashboard` with
+  `wazuh/wazuh-dashboard:4.14.7`, `2.19.5 414701` and no `ensfacil` in the list;
+- with ENSFácil 1.1.0 installed: `wazuh.indexer` and `wazuh.manager` with
+  images tagged `4.14.7` and `wazuh.dashboard` with
+  `wazuh-dashboard-ensfacil:1.1.0`; `2.19.5 424801`; in the plugin list,
+  `ensfacil@1.1.0` and `wazuh@4.14.7-01`.
 The `build.number` is explained in
 [Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil).
 
@@ -82,7 +87,7 @@ In a test environment:
 1. Prepare the build tree of the new Wazuh Dashboard version, as in [Building from source, section 3.2](08-building-from-source.en.md#32-prepare-the-opensearch-dashboards-2195-tree), with its tag.
 2. Adjust the OpenSearch Dashboards version in `package.json`, `opensearch_dashboards.json` and `config/build-plugin.sh`. To publish it through CI, also in `.gitlab-ci.yml` and `ci/osd-builder.Dockerfile`.
 3. Build with `config/build-plugin.sh` and validate the zip ([Building from source, sections 3.3 and 5](08-building-from-source.en.md#33-build-the-plugin)).
-4. Install with `config/deploy-plugin.sh` and check the service, the plugin list and the `401` answer of `/api/ensfacil/configuration` ([section 13.4](01-installation-from-scratch.en.md#134-install-the-plugin-on-wazuh-dashboard)).
+4. Install with `config/deploy-plugin.sh` and check the service, the plugin list and the `401` answer of `/api/ensfacil/configuration` ([installation from scratch, section 13.4](01-installation-from-scratch.en.md#134-install-the-plugin-on-wazuh-dashboard)).
 5. Run the repository tests:
 
    ```bash
