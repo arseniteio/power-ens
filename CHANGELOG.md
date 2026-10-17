@@ -15,8 +15,9 @@ Seis controles nuevos: el catálogo pasa de 17 a 23.
 
 - Seis controles en el catálogo, todos medidos en el manager (op.mon.3 también
   en las máquinas):
-  - `op.cont.2` Plan de continuidad (solo con D en ALTO), sin runbook ni reglas:
-    lo juzga el plugin con las tablas de la pantalla y su vigencia;
+  - `op.cont.2` Plan de continuidad (solo con D en ALTO), sin recolector ni
+    reglas (runbook solo de documentación): lo juzga el plugin con las tablas
+    de la pantalla y su vigencia;
   - `op.cont.3` Pruebas periódicas (solo con D en ALTO), con los registros de
     pruebas y de deficiencias del manager y las caídas y arranques medidos en
     la ventana real de cada prueba;
