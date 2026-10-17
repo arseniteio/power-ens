@@ -1,21 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { ENSControls } from '../data';
-import { buildENSAllControlsFactsFilter } from '../../../common/ens/dashboard/all-controls-facts-filter';
-import {
-  buildENSDashboardModel,
-  buildENSEvaluationTimeRangeFilter,
-  buildENSComplianceTimeline,
-  getENSComplianceState,
-  normalizeWazuhAlerts,
-} from '../../../common/ens/core';
-import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
-import {
-  buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
-} from '../../../common/ens/core/scope';
+import { LoadingSpinner } from '../../platform/loading-spinner';
+import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {
@@ -57,116 +45,32 @@ const requirementStatusPresentation = (
 
 export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey(current => current + 1);
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
-  // `getActiveENSScopeAgents()` CLONA: devuelve un array nuevo en cada llamada,
-  // así que usarlo directo como dependencia deja sin efecto todos los `useMemo`
-  // que cuelgan de él —el motor volvía a evaluarlo todo en cada render, no solo
-  // cuando cambiaba algo—. Se ancla a la identidad del alcance, que es lo que
-  // de verdad cambia.
-  const scopeAgentsKey = getActiveENSScopeAgents()
-    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
-    .join(',');
-
-  const scopeAgents = useMemo(
-    () => getActiveENSScopeAgents(),
-    [scopeAgentsKey],
-  );
-
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(
-      scopeAgents,
-      agentId,
-    );
-
-  const ensControlIds = ENSControls.map(control => control.id);
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      buildENSAllControlsFactsFilter(ensControlIds),
-    ],
-    // MISMO TOPE QUE EL DETALLE. Con 6000 aqui y 1000 alli, las dos
-    // pantallas juzgaban conjuntos distintos del mismo control y podian dar
-    // numeros distintos sin que nada lo dijera. 10.000 es el
-    // `index.max_result_window` por defecto de OpenSearch.
-    //
-    // Y los MÁS RECIENTES: sin orden, el índice devuelve primero los más
-    // antiguos y el panel juzgaba el principio de la ventana (hechos de hace
-    // semanas, «sin datos del recolector» en máquinas que informan cada hora).
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // El panel lo calcula el SERVIDOR, con todos los hechos de la ventana (sin el
+  // tope de 10.000, que dejaba fuera máquinas enteras): aquí llega el modelo
+  // ya hecho, unos KB. Hasta 1.1.0 el navegador bajaba 10.000 hechos cada 15 s
+  // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
+  // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
+  // pedir (ver `public/evaluation/use-evaluation.ts`).
+  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel> }>({
+    include: 'dashboard',
+    agentId,
+    timelineDays: 7,
   });
+  const { error } = evaluacion;
+  const dashboardModel = evaluacion.data?.dashboard;
 
-  const hits = esResults?.hits?.hits || [];
-
-  const normalizedEvents = useMemo(() => normalizeWazuhAlerts(hits), [hits]);
-
-  const complianceState = useMemo(
-    () =>
-      getENSComplianceState(
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      normalizedEvents,
-      agentId,
-      ensLevel,
-      scopeAgents,
-    ],
-  );
-  // La serie diaria son SIETE pasadas completas del motor, así que se memoriza
-  // aparte del modelo del panel: el intervalo de refresco reconstruye el
-  // modelo cada 15 s y sin este `useMemo` reevaluaría los siete días cada vez.
-  const complianceTimeline = useMemo(
-    () =>
-      buildENSComplianceTimeline(
-        ensLevel,
-        normalizedEvents,
-        {
-          agentId,
-          scopeAgents,
-          days: 7,
-        },
-      ),
-    [
-      normalizedEvents,
-      agentId,
-      ensLevel,
-      scopeAgents,
-    ],
-  );
-
-  const dashboardModel = useMemo(
-    () =>
-      buildENSDashboardModel(
-        complianceState,
-        normalizedEvents,
-        complianceTimeline
-      ),
-    [
-      complianceState,
-      normalizedEvents,
-      complianceTimeline,
-    ],
-  );
+  if (!dashboardModel) {
+    // Sin el resultado de ESTA vista no se enseña nada: ni el de la máquina
+    // anterior ni ceros que parezcan un veredicto.
+    return error ? (
+      <div style={{ padding: 16 }}>
+        <FactsReadErrorCallOut error={error} />
+      </div>
+    ) : (
+      <LoadingSpinner message='Evaluando los controles ENS en el servidor…' />
+    );
+  }
 
   const requirementsModel = dashboardModel.requirementsSummary;
 
