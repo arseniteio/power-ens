@@ -7,6 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
+import { validateAgentsConfigurationShape } from '../../../../common/agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -517,6 +518,13 @@ export const validateENSConfigurationStructure = (
       );
     });
   }
+
+  // La capa por sistema (1.2.0): opcional; presente, con su forma. Que sus
+  // controles y parámetros existan y que cada valor signifique algo para su
+  // columna no se juzga aquí (ver `agents/agent-configuration-validator.ts`):
+  // un valor mal escrito en un agente degrada la fila de esa máquina, no el
+  // entorno entero.
+  errors.push(...validateAgentsConfigurationShape(value.agents));
 
   if (!Array.isArray(value.auditTrail)) {
     errors.push('configuration.auditTrail must be an array.');
