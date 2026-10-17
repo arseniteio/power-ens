@@ -10,6 +10,11 @@ Esta guía describe las comprobaciones que deben realizarse cuando una instalaci
 > [!warning]
 > No debe continuarse con un despliegue si una validación previa ha fallado.
 
+> [!note]
+> Los comandos de los apartados 3 a 8 corresponden a la instalación por paquetes
+> (systemd, `/etc/wazuh-indexer/certs` y `https://127.0.0.1:9200`). Con Wazuh en
+> Docker se aplica el apartado 9.
+
 ```mermaid
 flowchart LR
   A["2. Cuándo detener<br/>el despliegue"] --> B["3. Diagnóstico<br/>básico"]
@@ -17,6 +22,7 @@ flowchart LR
   C --> D["5. Retirar<br/>ENSFácil"]
   D --> E["6. Volver a la<br/>versión integrada"]
   E --> F["7. Restaurar la<br/>configuración ENS"]
+  F --> G["9. Docker"]
 ```
 
 ## 2. Cuándo detener el despliegue
@@ -56,7 +62,7 @@ sudo journalctl -u wazuh-dashboard --since "-15 min" --no-pager \
 sudo journalctl -u wazuh-dashboard --since "-15 min" --no-pager | grep -iE '"level":"error"|fatal' | tail -20
 ```
 
-Qué tiene que salir:
+Resultado esperado:
 
 | Comprobación | Resultado esperado |
 |---|---|
@@ -67,13 +73,13 @@ Qué tiene que salir:
 | errores | ninguno que mencione `ensfacil` |
 
 > [!note]
-> Las líneas de error de conexiones TLS de clientes (`bad certificate`, `ERR_SSL_…`) no tienen que ver con el plugin.
+> Las líneas de error de conexiones TLS de clientes (`bad certificate`, `ERR_SSL_…`) no están relacionadas con el plugin.
 
 ## 4. Reinstalar la versión anterior de ENSFácil
 
 Volver a la versión anterior es desplegar de nuevo su release. `deploy-plugin.sh` sustituye solo `ensfacil` y sube el `build.number` para que los navegadores dejen de usar la versión retirada.
 
-Usa la carpeta de esa versión (`/opt/ensfacil/releases/<versión>`). Si ya no la tienes, descárgala de nuevo ([Instalar desde una release, apartado 6.3](07-installing-from-a-release.md#63-descargar-los-cuatro-ficheros), con esa versión en `V`). Cambia `X.Y.Z` por la versión a la que vuelves:
+Se usa la carpeta de esa versión (`/opt/ensfacil/releases/<versión>`). Si ya no existe, descargar la release de nuevo ([Instalar desde una release, apartado 6.3](07-installing-from-a-release.md#63-descargar-los-cuatro-ficheros), con esa versión en `V`). Sustituir `X.Y.Z` por la versión de destino:
 
 ```bash
 V=X.Y.Z
@@ -82,9 +88,9 @@ cd "$R" && sha256sum -c SHA256SUMS \
   && sudo bash deploy-plugin.sh "ensfacil-$V-osd-2.19.5.zip"
 ```
 
-Qué tiene que salir: `OK` en los tres ficheros y, al final, `dashboard: active` y `ensfacil` en la lista de plugins. Comprobarlo después como en el apartado 3: la lista de plugins tiene que decir `ensfacil@<versión anterior>`.
+Resultado esperado: `OK` en los tres ficheros y, al final, `dashboard: active` y `ensfacil` en la lista de plugins. Comprobar después como en el apartado 3: la lista de plugins debe indicar `ensfacil@<versión anterior>`.
 
-Si la versión anterior se compiló desde el código fuente, la guía de actualización guarda su zip en el respaldo (`/opt/ensfacil/artifacts/update-<fecha>/`). Para volver a él, desplegarlo igual, con `config/deploy-plugin.sh`:
+Si la versión anterior se compiló desde el código fuente, la guía de actualización guarda su zip en el respaldo (`/opt/ensfacil/artifacts/update-<fecha>/`). Para volver a ese zip, se despliega del mismo modo, con `config/deploy-plugin.sh`:
 
 ```bash
 UPDATE_BACKUP=/opt/ensfacil/artifacts/update-AAAAMMDD-HHMMSS
@@ -97,7 +103,7 @@ else
 fi
 ```
 
-Qué tiene que salir: `dashboard: active` y `ensfacil` en la lista de plugins. Comprobarlo después como en el apartado 3.
+Resultado esperado: `dashboard: active` y `ensfacil` en la lista de plugins. Comprobar después como en el apartado 3.
 
 > [!important]
 > Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización.
@@ -106,7 +112,7 @@ Qué tiene que salir: `dashboard: active` y `ensfacil` en la lista de plugins. C
 
 Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`, o en `<carpeta>/ensfacil/` si se indica `ENSFACIL_BACKUP_DIR=<carpeta>`. Esa subcarpeta la crea el script (de root, permisos 0700) si no existe, y nunca cambia los permisos de una carpeta que ya existía. Cuando el despliegue termina bien se quedan las 3 últimas copias; un despliegue que falla no borra ninguna, así que la última copia buena sigue ahí aunque se repita. No las deja junto al zip: la compilación siguiente borra esa carpeta.
 
-Si algo falla con el dashboard ya parado, el script imprime los comandos para volver a como estaba (quitar el plugin a medias, restaurar esa copia, devolver el `package.json` si ya lo había cambiado y arrancar el dashboard) y sale con error. Ejecutarlos en el orden en que salen y comprobar como en el apartado 3.
+Si algo falla con el dashboard ya parado, el script imprime los comandos para volver a como estaba (quitar el plugin a medias, restaurar esa copia, devolver el `package.json` si ya lo había cambiado y arrancar el dashboard) y sale con error. Ejecutar esos comandos en el orden en que aparecen y comprobar como en el apartado 3.
 
 | Código de salida | Qué ha pasado | Cómo queda |
 |---|---|---|
@@ -114,7 +120,7 @@ Si algo falla con el dashboard ya parado, el script imprime los comandos para vo
 | `2` | el zip no es de ENSFácil | sin tocar |
 | `3` | no se pudo guardar la copia del plugin anterior | sin tocar: el dashboard sigue en marcha |
 | `5` | falló la instalación del zip | dashboard parado y sin `ensfacil` |
-| `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: mirar `journalctl -u wazuh-dashboard` |
+| `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: revisar `journalctl -u wazuh-dashboard` |
 | `7` | falló otro paso con el dashboard parado (retirar el plugin, subir el `build.number`, arrancar) o se interrumpió | el mensaje dice el paso |
 
 Para volver atrás después de un despliegue que terminó bien, usar la release anterior o el zip anterior (arriba): `deploy-plugin.sh` sube además el `build.number`, y restaurar la copia a mano no.
@@ -138,7 +144,7 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
 ```
 
-Qué tiene que salir: `active`, `wazuh` en la lista y no `ensfacil`, y `404`.
+Resultado esperado: `active`; `wazuh` en la lista, sin `ensfacil`; `404`.
 
 > [!warning]
 > Retirar siempre por el nombre exacto, `ensfacil`. Nunca con comodines como `wazuh*` o `*`: se llevarían por delante `wazuhCore` y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
@@ -148,9 +154,9 @@ La configuración ENS se queda en el índice `wazuh-ens-configuration` y el rol 
 ### 5.1 Quitarlo del todo
 
 Solo si ENSFácil no se va a volver a usar en este entorno. Esto borra la
-configuración ENS y su historial: guarda antes una copia del documento
-([Instalar desde una release, apartado 11](07-installing-from-a-release.md#11-actualizar-a-una-release-nueva),
-paso 2) y no lo hagas si otra instalación lee el mismo indexer.
+configuración ENS y su historial. Antes de ejecutarlo, guardar una copia del
+documento ([Instalar desde una release, apartado 11](07-installing-from-a-release.md#11-actualizar-a-una-release-nueva),
+paso 2). No ejecutar este paso si otra instalación usa el mismo indexer.
 
 ```bash
 C=/etc/wazuh-indexer/certs
@@ -160,7 +166,7 @@ ix -X DELETE https://127.0.0.1:9200/_plugins/_security/api/roles/ensfacil_admin
 ix -X DELETE https://127.0.0.1:9200/wazuh-ens-configuration
 ```
 
-Qué tiene que salir: `"status":"OK"` en las dos primeras (en la primera,
+Resultado esperado: `"status":"OK"` en las dos primeras (en la primera,
 `NOT_FOUND` si el rol no tenía usuarios) y `"acknowledged":true` en la última.
 
 Los hechos se quedan: son alertas de Wazuh en `wazuh-alerts-*` y caducan con la
@@ -194,7 +200,7 @@ else
 fi
 ```
 
-Qué tiene que salir: al final del despliegue, `dashboard: active`. En el menú vuelve a aparecer «ENS», junto a «ENSFácil». ENSFácil puede quedarse instalado o retirarse (apartado 5). Si sale `NO: …`, no se ha tocado nada.
+Resultado esperado: al final del despliegue, `dashboard: active`. En el menú vuelve a aparecer «ENS», junto a «ENSFácil». ENSFácil puede quedarse instalado o retirarse (apartado 5). Si sale `NO: …`, no se ha tocado nada.
 
 Para deshacerlo y volver al plugin oficial que quedó en `$T/wazuh-oficial`:
 
@@ -231,17 +237,17 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
   --data-binary @/opt/ensfacil/artifacts/active-restore.json
 ```
 
-La respuesta debe incluir `"result":"updated"`. Validar después el documento restaurado con `config/validate-configuration.ts`, como en la [guía de instalación, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero), y recargar el panel.
+Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después el documento restaurado con `config/validate-configuration.ts`, como en la [guía de instalación, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero), y recargar el panel.
 
 ## 8. Problemas conocidos del despliegue
 
 | Síntoma | Causa | Qué hacer |
 |---|---|---|
-| «No se pudo cargar el entorno ENS» con «No hay inventario de agentes: la monitorización de agentes de Wazuh (wazuh-monitoring-*) no está activa o este usuario no puede leerla.» | Wazuh no está guardando el estado de los agentes en `wazuh-monitoring-*`, o el rol del usuario no puede leer ese índice | contar los documentos: `sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem "https://127.0.0.1:9200/wazuh-monitoring-*/_count"`. Si sale `0`, activar la monitorización de agentes en la configuración de la app de Wazuh (`wazuh.monitoring.enabled`); si hay documentos, dar al rol del usuario lectura sobre `wazuh-monitoring-*` |
+| «No se pudo cargar el entorno ENS» con «No hay inventario de agentes: la monitorización de agentes de Wazuh (wazuh-monitoring-*) no está activa o este usuario no puede leerla.» | Wazuh no está guardando el estado de los agentes en `wazuh-monitoring-*`, o el rol del usuario no puede leer ese índice | contar los documentos: `sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem "https://127.0.0.1:9200/wazuh-monitoring-*/_count"`. Si sale `0`, activar la monitorización de agentes en la configuración de la app de Wazuh (`wazuh.monitoring.enabled`); si hay documentos, conceder al rol del usuario lectura sobre `wazuh-monitoring-*` |
 | Aviso «ENSFácil: inventario de agentes antiguo» | el último dato de `wazuh-monitoring-*` tiene más de 1 hora: un alta o una baja reciente puede no verse | comprobar que la monitorización de agentes de Wazuh sigue activa |
 | En Controles o Eventos: «No existe el patrón de índice wazuh-alerts-*: créalo desde Wazuh (o Dashboards Management) para usar esta vista» | el patrón de índice `wazuh-alerts-*` no existe todavía | abrir una vez la app de Wazuh, que lo crea en su comprobación inicial, o crearlo en Dashboards Management > Index patterns. Las demás pestañas funcionan sin él |
-| Al guardar la configuración: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.» (error 403) | el usuario no tiene ninguno de los dos roles | asignarle el rol con `config/create-admin-role.sh --mapear <usuario>` ([instalación, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)); si tenía la sesión abierta, cerrar la sesión y volver a entrar |
-| Las pantallas muestran un error de permisos al buscar datos | el rol del usuario no puede leer `wazuh-alerts-*` | darle lectura sobre `wazuh-alerts-*`, el permiso habitual para ver datos de Wazuh |
+| Al guardar la configuración: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.» (error 403) | el usuario no tiene ninguno de los dos roles | asignar el rol al usuario con `config/create-admin-role.sh --mapear <usuario>` ([instalación, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)); si el usuario tenía una sesión abierta, debe cerrar la sesión e iniciar otra |
+| Las pantallas muestran un error de permisos al buscar datos | el rol del usuario no puede leer `wazuh-alerts-*` | conceder al rol lectura sobre `wazuh-alerts-*`, el permiso habitual para ver datos de Wazuh |
 | No aparece «ENSFácil» en el menú y `/api/ensfacil/configuration` devuelve `404` | el plugin no está instalado o no ha cargado | revisar la lista de plugins y el registro (apartado 3) y desplegar de nuevo con `config/deploy-plugin.sh` |
 | El dashboard no arranca después de actualizar Wazuh: `Failed to initialize plugins` y `ensfacil` | el dashboard nuevo lleva otra versión de OpenSearch Dashboards y el plugin está compilado para `2.19.5` | retirar ENSFácil (apartado 5) y conseguir el zip para esa versión ([compatibilidad de versiones](03-version-compatibility.md)) |
 | En el menú aparecen «ENS» y «ENSFácil» | la versión integrada sigue instalada | normal durante la transición; para dejar solo «ENSFácil», [actualización, apartado 10.3](02-updating-an-existing-environment.md#103-volver-al-plugin-oficial-de-wazuh) |
@@ -257,7 +263,62 @@ La respuesta debe incluir `"result":"updated"`. Validar después el documento re
 | El panel muestra «No se pudo cargar el entorno ENS» con `...parameters[M].value has an invalid value` | un parámetro con `value: null`, una tabla con menos columnas de las declaradas o una columna identificador con comas o espacios | validar el documento con `config/validate-configuration.ts`, corregir el parámetro indicado o restaurar la copia (apartado 7). Un parámetro vacío es la clave `value` ausente, nunca `null` |
 | `install-manager.sh`: «hay más de un bloque `<agent_config>`» | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene dos bloques | fusionar todo en un solo `<agent_config>`, validar con `verify-agent-conf` y repetir |
 | `install-manager.sh` termina bien pero la regla no casa | una ejecución anterior falló tras copiar las reglas y la repetición no reinicia el manager | `sudo systemctl restart wazuh-manager` y comprobar con `wazuh-logtest` |
-| Evidencias de auditd sin medir en una máquina (op.exp.5, op.exp.8, op.exp.10) | el `install.sh` escribió las reglas en `/etc/audit/rules.d/` pero no se cargaron | comprobar que auditd no está en modo inmutable (`sudo auditctl -s`, `enabled` distinto de `2`) y ejecutar `sudo augenrules --load` |
+| Evidencias de auditd sin medir en una máquina (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8, op.exp.10) | el `install.sh` escribió las reglas en `/etc/audit/rules.d/` pero no se cargaron | comprobar que auditd no está en modo inmutable (`sudo auditctl -s`, `enabled` distinto de `2`) y ejecutar `sudo augenrules --load` |
 | Un control muestra «Sin datos del recolector desde …» | el último latido del recolector de ese control en esa máquina tiene más de 24 h | comprobar el agente, el cron del recolector y la conectividad; el control vuelve a juzgarse en cuanto llega una pasada nueva |
-| op.exp.7, op.exp.8 u op.exp.9 sin datos en la fila del manager | falta el `install-manager.sh` del runbook o su cron horario todavía no se ha ejecutado | revisar `/etc/cron.d/ensfacil-opexp*` del manager y el `<localfile>` en su `ossec.conf` |
+| Un control medido en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) sin datos en la fila del manager | falta el `install-manager.sh` del runbook o su cron (horario o cada 6 horas, según el control) todavía no se ha ejecutado | revisar `/etc/cron.d/ensfacil-op*` del manager y el `<localfile>` en su `ossec.conf`. En Docker, el apartado 9.3 |
 | Una regla de op.exp.1 aparece en eventos de op.exp.10 | reglas de op.exp.1 anteriores a la corrección, con el campo `ensfacil` sin anclar | actualizar el runbook de op.exp.1 y repetir su `install-manager.sh` |
+
+## 9. Docker
+
+Con Wazuh en Docker ([Wazuh en Docker](06-wazuh-in-docker.md)), el diagnóstico,
+la vuelta atrás y la retirada se hacen con `docker compose` y con la etiqueta de
+la imagen del dashboard. `deploy-plugin.sh` y sus copias en
+`/var/backups/ensfacil` no se usan. Los comandos se ejecutan desde la carpeta
+del `docker-compose.yml` oficial; `ix` es la función de consulta del indexer de
+[Wazuh en Docker, apartado 2.4](06-wazuh-in-docker.md#24-función-de-consulta-del-indexer).
+
+### 9.1 Diagnóstico en Docker
+
+```bash
+docker compose ps wazuh.dashboard
+docker compose exec wazuh.dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/ensfacil/configuration
+docker compose logs wazuh.dashboard | grep -o 'Setting up \[[0-9]*\] plugins: \[[^]]*\]' | tail -1 | grep -c ensfacil
+docker compose logs --since 15m wazuh.dashboard | grep -iE '"level":"error"|fatal' | tail -20
+```
+
+Resultado esperado:
+
+| Comprobación | Resultado esperado |
+|---|---|
+| `docker compose ps` | estado `running`, con la imagen `wazuh-dashboard-ensfacil:<versión>` |
+| plugins | `ensfacil@<versión>` y `wazuh@4.14.7-01`, entre otros |
+| `/api/ensfacil/configuration` | `401`: la ruta existe y pide sesión |
+| `Setting up … plugins` | `1`: ENSFácil está entre los plugins cargados |
+| errores | ninguno que mencione `ensfacil` |
+
+Las consultas al indexer del apartado 8 se hacen en Docker con `ix`; por
+ejemplo, `ix 'wazuh-monitoring-*/_count'`.
+
+### 9.2 Vuelta atrás, retirada y restauración en Docker
+
+| Operación | Procedimiento |
+|---|---|
+| Volver a la versión anterior | etiqueta anterior de la imagen y `docker compose up -d`: [Wazuh en Docker, apartado 12.2](06-wazuh-in-docker.md#122-volver-a-la-versión-anterior) |
+| Restaurar la configuración ENS | `ix` con la copia del documento `active`: [Wazuh en Docker, apartado 12.2](06-wazuh-in-docker.md#122-volver-a-la-versión-anterior) |
+| Retirar ENSFácil | imagen oficial `wazuh/wazuh-dashboard:4.14.7` y `docker compose up -d`: [Wazuh en Docker, apartado 12.3](06-wazuh-in-docker.md#123-retirar-ensfácil) |
+
+### 9.3 Problemas conocidos en Docker
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| `docker compose up -d` falla con «error while creating mount source path … root-ca-manager.pem», después de que `generate-indexer-certs.yml` informara de `Permission denied` al copiar `root-ca-manager.pem` y `root-ca-manager.key` | el generador de certificados de `wazuh-docker`, en hosts macOS, no copia esos dos ficheros. No está relacionado con ENSFácil | en `config/wazuh_indexer_ssl_certs/`, copiar `root-ca.pem` a `root-ca-manager.pem` y `root-ca.key` a `root-ca-manager.key`, y repetir `docker compose up -d` |
+| Desde el host, curl o `create-admin-role.sh` con `https://127.0.0.1:9200` fallan con «no alternative certificate subject name matches» | el certificado del indexer está emitido para `wazuh.indexer` | ejecutar desde un contenedor de la red del compose ([Wazuh en Docker, apartados 2.4 y 5](06-wazuh-in-docker.md#24-función-de-consulta-del-indexer)) |
+| `docker run --network <proyecto>_default` falla con «network … not found» | el nombre de la red no es el del compose | consultar `docker network ls`; la red es `<carpeta del compose>_default` |
+| `inject-control.py`: «no existe el documento 'active'…; guarda la configuración una vez y vuelve a ejecutar» | todavía no se ha hecho el primer guardado | guardar la configuración una vez desde la pantalla ([Wazuh en Docker, apartado 6](06-wazuh-in-docker.md#6-primer-guardado-de-la-configuración)) |
+| La validación indica `configuration.scope.agentIds must be a string array` | un documento escrito a mano sin las listas `agentIds` y `groupIds` en `scope` | añadir las dos listas, aunque estén vacías, o guardar desde la pantalla de Configuración, que siempre las escribe |
+| `/api/ensfacil/configuration` devuelve `404` después de `docker compose up -d` | el servicio usa todavía la imagen oficial, o el plugin no ha cargado | comprobar la imagen con `docker compose ps` y el registro (apartado 9.1) |
+| Después de cambiar de versión, el navegador sigue mostrando la anterior | la imagen se construyó con un `ENSFACIL_VERSION` distinto de la versión del zip y repite el `build.number` de otra imagen | reconstruir con la versión del zip y comprobar el `build.number` ([Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil)) |
+| `install-manager.sh` falla al reiniciar el manager con `systemctl: command not found` y deshace su cambio | la imagen del manager no tiene systemd | ejecutar con `ENSFACIL_SYSTEMCTL=/var/ossec/bin/wazuh-control` ([Wazuh en Docker, apartado 13.5](06-wazuh-in-docker.md#135-grupos-copia-previa-e-instaladores-sin-systemd)) |
+| Los controles medidos en el manager se quedan sin datos después de reiniciar su contenedor | el arranque copia `wazuh_manager.conf` sobre `ossec.conf` y descarta los `<localfile>` de los instaladores | añadir el bloque de `<localfile>` a `wazuh_manager.conf` ([Wazuh en Docker, apartado 13.4](06-wazuh-in-docker.md#134-los-localfile-en-wazuh_managerconf)) |
+| op.exp.8 EV-13 sale `NO_CUMPLE` en la fila del manager | el contenedor no tiene systemd y el recolector emite `activo=desconocido` | limitación conocida ([Wazuh en Docker, apartado 14](06-wazuh-in-docker.md#14-limitaciones-conocidas-en-contenedor)) |

@@ -68,7 +68,7 @@ differs, stop the procedure and refer to
 > On macOS hosts, `generate-indexer-certs.yml` can leave
 > `root-ca-manager.pem` and `root-ca-manager.key` uncopied, and the compose
 > deployment does not start. The symptom and the fix are in
-> [Troubleshooting](04-troubleshooting-and-rollback.en.md).
+> [Troubleshooting, section 9.3](04-troubleshooting-and-rollback.en.md#93-known-problems-in-docker).
 
 ### 2.2 Placeholders used in this guide
 
@@ -225,7 +225,7 @@ With a session open in the browser, `/api/ensfacil/configuration` returns
 `{"configuration":null`.
 
 If any check fails, stop the procedure and follow
-[Troubleshooting](04-troubleshooting-and-rollback.en.md).
+[Troubleshooting, section 9](04-troubleshooting-and-rollback.en.md#9-docker).
 
 ## 5. Create the `ensfacil_admin` role
 

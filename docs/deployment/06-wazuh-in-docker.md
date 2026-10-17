@@ -68,7 +68,7 @@ la versión es otra, detener el procedimiento y consultar la
 > En hosts macOS, `generate-indexer-certs.yml` puede dejar sin copiar
 > `root-ca-manager.pem` y `root-ca-manager.key`, y el compose no arranca. El
 > síntoma y la solución están en el
-> [diagnóstico](04-troubleshooting-and-rollback.md).
+> [diagnóstico, apartado 9.3](04-troubleshooting-and-rollback.md#93-problemas-conocidos-en-docker).
 
 ### 2.2 Marcadores de esta guía
 
@@ -226,7 +226,7 @@ devuelve `200`. Antes del primer guardado, la respuesta empieza por
 `{"configuration":null`.
 
 Si alguna comprobación falla, detener el procedimiento y seguir el
-[diagnóstico](04-troubleshooting-and-rollback.md).
+[diagnóstico, apartado 9](04-troubleshooting-and-rollback.md#9-docker).
 
 ## 5. Crear el rol `ensfacil_admin`
 
