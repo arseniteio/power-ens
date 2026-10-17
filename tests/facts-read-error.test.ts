@@ -24,14 +24,18 @@ comprueba('el aviso dice la causa', t.startsWith(`${FACTS_READ_ERROR_TITLE}: Req
 comprueba('y que lo de antes no vale como de ahora', /búsqueda anterior/.test(t), t);
 
 // Cada pantalla que busca hechos lee el `error` de `useEsSearch` y, con él,
-// no enseña lo que quedó de la búsqueda anterior.
+// no enseña lo que quedó de la búsqueda anterior. Desde 1.2.0 las que evalúan
+// no buscan hechos: piden la evaluación al servidor (`useEnsEvaluation`), y
+// con un fallo tampoco enseñan nada de antes (ver más abajo).
 const raiz = path.join(__dirname, '..');
-const PANTALLAS = [
+const EVALUAN = [
   'public/ens/dashboard/ens-dashboard-main.tsx',
   'public/ens/controls/control-detail/index.tsx',
-  'public/ens/controls/control-row.tsx',
+  'public/ens/controls/index.tsx',
   'public/ens/reports/index.tsx',
   'public/ens/evidences/index.tsx',
+];
+const PANTALLAS = [
   'public/ens/traceability/index.tsx',
   'public/requirements/requirements-view.tsx',
   'public/requirements/requirement-flyout.tsx',
@@ -56,6 +60,18 @@ for (const p of usan) {
   comprueba(`${p}: lee el error de la búsqueda`, lee);
   comprueba(`${p}: y lo usa`, /if \(error\)|error \?|error=\{|isDisabled=\{Boolean\(error\)\}/.test(texto));
 }
+const evaluan = recorre(path.join(raiz, 'public', 'ens'))
+  .filter(f => /useEnsEvaluation[<(]/.test(fs.readFileSync(f, 'utf8')))
+  .map(f => path.relative(raiz, f).replace(/\\/g, '/'))
+  .sort();
+comprueba('las pantallas que piden la evaluación al servidor son las previstas', JSON.stringify(evaluan) === JSON.stringify([...EVALUAN].sort()), evaluan);
+for (const p of evaluan) {
+  const texto = fs.readFileSync(path.join(raiz, p), 'utf8');
+  comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = evaluacion;/.test(texto) || /error=\{resumen\.error\}/.test(texto));
+  comprueba(`${p}: y lo usa`, /if \(error\)|error \?|error=\{|isDisabled=\{Boolean\(error\)\}/.test(texto));
+}
+const fila = fs.readFileSync(path.join(raiz, 'public/ens/controls/control-row.tsx'), 'utf8');
+comprueba('la fila de la lista: con un fallo, el aviso y no un veredicto', /if \(error\)/.test(fila) && !/useEsSearch|useEnsEvaluation/.test(fila));
 const informes = fs.readFileSync(path.join(raiz, 'public/ens/reports/index.tsx'), 'utf8');
 comprueba('Informes: el PDF no se exporta con un fallo', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(error\) return;/.test(informes));
 // El informe que recopila todos los controles (op.mon.2) lo desactiva además
