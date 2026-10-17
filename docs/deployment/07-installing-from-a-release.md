@@ -62,8 +62,8 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 Resultado esperado: `wazuh-dashboard 4.14.7-1` y `2.19.5`. Si la versión es
 otra, detener el procedimiento y consultar la
 [compatibilidad de versiones](03-version-compatibility.md). En Docker, la
-comprobación equivalente está en
-[Compatibilidad de versiones, apartado 3.2](03-version-compatibility.md#32-docker).
+comprobación previa a la instalación está en
+[Wazuh en Docker, apartado 2.1](06-wazuh-in-docker.md#21-el-despliegue-oficial-de-wazuh).
 
 ## 3. Dónde están las releases
 
@@ -374,6 +374,9 @@ En Docker, las mismas tres consultas se hacen con la función `ix` de
      | sudo tee "/opt/ensfacil/artifacts/active-$(date +%Y%m%d-%H%M%S).json" >/dev/null
    ```
 
+   Resultado esperado: el fichero `active-<fecha>.json` en
+   `/opt/ensfacil/artifacts`, con `"found":true`.
+
 3. Descargar la versión nueva en su propia carpeta y comprobarla: apartados 4,
    6.3 (o 5) y 7, con la versión nueva en `V`. Con el token guardado, basta el
    apartado 6.3.
@@ -473,8 +476,9 @@ sudo rm -rf /usr/share/wazuh-dashboard/plugins/ensfacil
 sudo systemctl start wazuh-dashboard
 ```
 
-El resultado esperado, y la retirada del rol y de la configuración si ENSFácil
-no se va a volver a usar, están en
+Resultado esperado: el dashboard vuelve a arrancar sin `ensfacil`. Las
+comprobaciones, y la retirada del rol y de la configuración si ENSFácil no se va
+a volver a usar, están en
 [retirar ENSFácil](04-troubleshooting-and-rollback.md#5-retirar-ensfácil). En
 Docker:
 [Wazuh en Docker, apartado 12.3](06-wazuh-in-docker.md#123-retirar-ensfácil).
