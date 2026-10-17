@@ -14,6 +14,7 @@ import {
 import {
   assertENSConfigurationVersion,
 } from './configuration-structure-validator';
+import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
@@ -96,10 +97,20 @@ export const getConfiguredControlById = (
     control => control.controlId === controlId
   );
 
+// La configuración con la que se evalúa un control: la de la fila de
+// `agentId` (valor del agente → sus plantillas → organización) o, sin agente,
+// la vista de organización. Es el ÚNICO punto por el que la configuración entra
+// en el motor; ver `agents/configuration-resolver.ts`. Sin `configuration.agents`
+// devuelve el mismo objeto que `getConfiguredControlById`.
 export const getActiveControlConfiguration = (
-  controlId: string
+  controlId: string,
+  agentId?: string
 ): ENSControlConfiguration | undefined =>
-  getConfiguredControlById(controlId);
+  resolveControlConfigurationForAgent(
+    getActiveENSConfiguration(),
+    controlId,
+    agentId
+  );
 
 export const updateActiveControlConfiguration = async (
   controlConfiguration: ENSControlConfiguration
