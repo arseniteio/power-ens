@@ -427,7 +427,7 @@ sudo bash "$DEPLOY" "$ZIP"
 
 El script para el dashboard, retira la versión anterior de `ensfacil` si la hay, instala el zip, **sube el `build.number` del dashboard** y lo arranca. Solo toca `ensfacil`: el plugin de Wazuh (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) se queda como está.
 
-Resultado esperado, al final del despliegue: `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
+Resultado esperado: al final del despliegue, `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
 
 Si algo falla, el script indica cómo volver al estado anterior y sale con error. Los códigos de salida y las copias que guarda están en el [diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias).
 
@@ -472,7 +472,9 @@ Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario
 sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --dry-run --mapear <usuario>
 ```
 
-Resultado esperado, si el rol no está asignado todavía a ningún usuario:
+El resultado siguiente corresponde a un rol que todavía no está asignado a ningún usuario.
+
+Resultado esperado:
 
 ```text
 == modo prueba: no se envía ningún cambio

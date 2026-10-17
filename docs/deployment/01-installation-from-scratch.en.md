@@ -447,7 +447,7 @@ sudo bash "$DEPLOY" "$ZIP"
 
 The script stops the dashboard, removes the previous `ensfacil` version if there is one, installs the zip, **bumps the dashboard `build.number`** and starts it. It only touches `ensfacil`: the Wazuh plugin (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) stays as it is.
 
-Expected result, at the end of the deployment: `dashboard: active` and, under `plugins:`, `ensfacil` next to `wazuh`, `wazuhCore` and `wazuhCheckUpdates`.
+Expected result: at the end of the deployment, `dashboard: active` and, under `plugins:`, `ensfacil` next to `wazuh`, `wazuhCore` and `wazuhCheckUpdates`.
 
 If something fails, the script states how to return to the previous state and exits with an error. The exit codes and the backups it keeps are in [troubleshooting, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway).
 
@@ -492,7 +492,9 @@ First in test mode, which changes nothing. Replace `<usuario>` with the dashboar
 sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --dry-run --mapear <usuario>
 ```
 
-Expected result, if the role is not yet assigned to any user:
+The following result corresponds to a role that is not yet assigned to any user.
+
+Expected result:
 
 ```text
 == modo prueba: no se envía ningún cambio
