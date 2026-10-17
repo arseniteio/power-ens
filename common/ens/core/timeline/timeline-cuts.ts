@@ -42,6 +42,13 @@ export interface ENSTimelineCutsOptions {
   // Cuántos días como máximo. Cada corte es una pasada completa del motor.
   days?: number;
   now?: Date;
+  // Zona horaria de los días (IANA, «Europe/Madrid»). Sin ella, la del
+  // proceso: en el navegador es la de quien mira. El servidor la recibe del
+  // navegador para que los días del gráfico sean los mismos.
+  timeZone?: string;
+  // El presupuesto de la serie (ver `pasoQueCabe`). El servidor lo quita
+  // (`Infinity`): calcula los días pasados una vez y los guarda.
+  maxEvaluatedEvents?: number;
 }
 
 const DEFAULT_DAYS = 7;
@@ -77,6 +84,100 @@ const labelOf = (date: Date): string => {
   return `${day}/${month}`;
 };
 
+// Los días del calendario de una zona horaria concreta. El servidor no puede
+// usar la zona del proceso: la de quien mira es la que dice qué es «hoy».
+interface ENSTimelineCalendar {
+  startOfDay(date: Date): Date;
+  endOfDay(date: Date): Date;
+  addDays(date: Date, days: number): Date;
+  label(date: Date): string;
+}
+
+const localCalendar: ENSTimelineCalendar = {
+  startOfDay,
+  endOfDay,
+  addDays,
+  label: labelOf,
+};
+
+const zonedParts = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+  const valor = (tipo: string) => Number(parts.find(p => p.type === tipo)?.value);
+
+  return {
+    year: valor('year'),
+    month: valor('month'),
+    day: valor('day'),
+    hour: valor('hour'),
+    minute: valor('minute'),
+    second: valor('second'),
+  };
+};
+
+// Desfase de la zona en ese instante (ms que hay que sumar a UTC).
+const zoneOffset = (date: Date, timeZone: string): number => {
+  const p = zonedParts(date, timeZone);
+  const comoUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+
+  return comoUtc - (date.getTime() - date.getMilliseconds());
+};
+
+// La medianoche local de un día del calendario (año, mes, día) de la zona.
+const zonedMidnight = (year: number, month: number, day: number, timeZone: string): Date => {
+  const utc = Date.UTC(year, month - 1, day);
+  let instante = utc - zoneOffset(new Date(utc), timeZone);
+  // Una segunda vuelta por si entre medias cambia la hora (horario de verano).
+  instante = utc - zoneOffset(new Date(instante), timeZone);
+
+  return new Date(instante);
+};
+
+export const zonedCalendar = (timeZone: string): ENSTimelineCalendar => {
+  const inicio = (date: Date): Date => {
+    const p = zonedParts(date, timeZone);
+
+    return zonedMidnight(p.year, p.month, p.day, timeZone);
+  };
+  const mover = (date: Date, days: number): Date => {
+    const p = zonedParts(date, timeZone);
+    const destino = new Date(Date.UTC(p.year, p.month - 1, p.day + days));
+
+    return zonedMidnight(
+      destino.getUTCFullYear(),
+      destino.getUTCMonth() + 1,
+      destino.getUTCDate(),
+      timeZone
+    );
+  };
+
+  return {
+    startOfDay: inicio,
+    endOfDay: date => new Date(mover(inicio(date), 1).getTime() - 1),
+    addDays: (date, days) => mover(inicio(date), days),
+    label: date => {
+      const p = zonedParts(date, timeZone);
+
+      return `${String(p.day).padStart(2, '0')}/${String(p.month).padStart(2, '0')}`;
+    },
+  };
+};
+
+const calendarOf = (timeZone?: string): ENSTimelineCalendar =>
+  timeZone ? zonedCalendar(timeZone) : localCalendar;
+
+// Inicio del día de `date` en la zona (o en la del proceso, sin zona).
+export const startOfDayIn = (date: Date, timeZone?: string): Date =>
+  calendarOf(timeZone).startOfDay(date);
+
 // EL PRESUPUESTO DE LA SERIE, y por qué existe.
 //
 // Cada punto es una pasada COMPLETA del motor sobre el prefijo de eventos de
@@ -102,7 +203,11 @@ const MAX_EVENTOS_EVALUADOS = 400000;
 
 // El paso en días que mantiene la serie dentro del presupuesto. Nunca menos de
 // 1 (diario) y el punto de hoy entra siempre, sea cual sea el paso.
-const pasoQueCabe = (dias: number, eventos: number): number => {
+const pasoQueCabe = (
+  dias: number,
+  eventos: number,
+  presupuesto: number = MAX_EVENTOS_EVALUADOS
+): number => {
   if (dias <= 1 || eventos <= 0) {
     return 1;
   }
@@ -111,74 +216,54 @@ const pasoQueCabe = (dias: number, eventos: number): number => {
   // una serie de N puntos es del orden de N * eventos / 2.
   const costeDiario = (dias * eventos) / 2;
 
-  if (costeDiario <= MAX_EVENTOS_EVALUADOS) {
+  if (costeDiario <= presupuesto) {
     return 1;
   }
 
   return Math.min(
     dias,
-    Math.ceil(costeDiario / MAX_EVENTOS_EVALUADOS)
+    Math.ceil(costeDiario / presupuesto)
   );
 };
 
-export const buildENSTimelineCuts = (
-  events: ENSNormalizedEvent[] = [],
+// Un punto de la serie sin sus eventos: qué día, contra qué instante.
+export type ENSTimelineCutPlan = Omit<ENSTimelineCut, 'events'>;
+
+// Los puntos de la serie a partir de lo único que deciden: el primer evento
+// del pasado y cuántos hay. Es la mitad sin eventos de `buildENSTimelineCuts`,
+// que la usa; el servidor la usa también para evaluar control a control sin
+// tener todos los eventos a la vez.
+export const planENSTimelineCuts = (
+  firstPastTime: number | undefined,
+  pastCount: number,
   options: ENSTimelineCutsOptions = {}
-): ENSTimelineCut[] => {
+): ENSTimelineCutPlan[] => {
   const now = options.now || new Date();
+  const calendar = calendarOf(options.timeZone);
 
   const days =
     options.days && options.days > 0
       ? Math.floor(options.days)
       : DEFAULT_DAYS;
 
-  // Se ordena UNA vez y cada corte es un prefijo de este array. Un `filter` por
-  // punto recorrería los mismos miles de eventos una vez por día.
-  const sorted = events
-    .map(event => ({
-      event,
-      time: new Date(event.timestamp).getTime(),
-    }))
-    .filter(item => Number.isFinite(item.time))
-    .sort((left, right) => left.time - right.time);
-
-  if (!sorted.length) {
+  if (firstPastTime === undefined || !pastCount) {
     return [];
   }
 
-  const nowMs = now.getTime();
-
-  // Un evento con fecha futura —reloj desviado en el agente— no puede definir
-  // el origen de la serie ni alargarla hacia adelante. Sí entra en el punto
-  // del presente: ahí el conjunto de eventos tiene que ser EXACTAMENTE el del
-  // panel, o los dos números dejarían de ser comparables, que es justo el
-  // defecto que esta serie viene a corregir.
-  const past = sorted.filter(
-    item => item.time <= nowMs
+  const windowStart = calendar.startOfDay(
+    calendar.addDays(now, -(days - 1))
   );
 
-  if (!past.length) {
-    return [];
-  }
+  const today = calendar.startOfDay(now);
 
-  const windowStart = startOfDay(
-    addDays(now, -(days - 1))
-  );
+  const cuts: ENSTimelineCutPlan[] = [];
 
-  const today = startOfDay(now);
-
-  const cuts: ENSTimelineCut[] = [];
-
-  // Los cortes van hacia adelante sobre un array ordenado, así que el prefijo
-  // solo crece: este índice avanza una vez en toda la serie.
-  let cursor = 0;
-
-  const paso = pasoQueCabe(days, past.length);
+  const paso = pasoQueCabe(days, pastCount, options.maxEvaluatedEvents);
 
   for (
     let day = new Date(windowStart);
     day.getTime() <= today.getTime();
-    day = addDays(day, paso)
+    day = calendar.addDays(day, paso)
   ) {
     // El punto de hoy se añade FUERA del bucle, siempre. Con paso > 1 el bucle
     // avanza de `paso` en `paso` desde el inicio de la ventana y no tiene por
@@ -190,33 +275,22 @@ export const buildENSTimelineCuts = (
       break;
     }
 
-    const cutoff = endOfDay(day);
-    const cutoffMs = cutoff.getTime();
-
-    while (
-      cursor < past.length &&
-      past[cursor].time <= cutoffMs
-    ) {
-      cursor += 1;
-    }
+    const cutoff = calendar.endOfDay(day);
 
     // Sin nada conocido todavía, no hay punto. Es lo que impide el 0 % falso
     // de los días anteriores al primer evento: con cero eventos el motor
     // devuelve los tres controles NO_EVALUABLE, que como veredicto es legítimo
     // y como histórico dibujaría a la máquina incumpliendo antes de que nadie
     // la mirase.
-    if (!cursor) {
+    if (firstPastTime > cutoff.getTime()) {
       continue;
     }
 
     cuts.push({
       day,
-      label: labelOf(day),
+      label: calendar.label(day),
       cutoff,
       isCurrent: false,
-      events: past
-        .slice(0, cursor)
-        .map(item => item.event),
     });
   }
 
@@ -225,11 +299,64 @@ export const buildENSTimelineCuts = (
   // que ser el mismo número.
   cuts.push({
     day: today,
-    label: labelOf(today),
+    label: calendar.label(today),
     cutoff: now,
     isCurrent: true,
-    events,
   });
 
   return cuts;
+};
+
+export const buildENSTimelineCuts = (
+  events: ENSNormalizedEvent[] = [],
+  options: ENSTimelineCutsOptions = {}
+): ENSTimelineCut[] => {
+  const now = options.now || new Date();
+
+  // Se ordena UNA vez y cada corte es un prefijo de este array. Un `filter` por
+  // punto recorrería los mismos miles de eventos una vez por día.
+  const sorted = events
+    .map(event => ({
+      event,
+      time: new Date(event.timestamp).getTime(),
+    }))
+    .filter(item => Number.isFinite(item.time))
+    .sort((left, right) => left.time - right.time);
+
+  const nowMs = now.getTime();
+
+  // Un evento con fecha futura —reloj desviado en el agente— no puede definir
+  // el origen de la serie ni alargarla hacia adelante. Sí entra en el punto
+  // del presente (ver `planENSTimelineCuts`).
+  const past = sorted.filter(
+    item => item.time <= nowMs
+  );
+
+  // Los cortes van hacia adelante sobre un array ordenado, así que el prefijo
+  // solo crece: este índice avanza una vez en toda la serie.
+  let cursor = 0;
+
+  return planENSTimelineCuts(past[0]?.time, past.length, { ...options, now }).map(
+    cut => {
+      if (cut.isCurrent) {
+        return { ...cut, events };
+      }
+
+      const cutoffMs = cut.cutoff.getTime();
+
+      while (
+        cursor < past.length &&
+        past[cursor].time <= cutoffMs
+      ) {
+        cursor += 1;
+      }
+
+      return {
+        ...cut,
+        events: past
+          .slice(0, cursor)
+          .map(item => item.event),
+      };
+    }
+  );
 };
