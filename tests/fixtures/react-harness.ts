@@ -80,7 +80,18 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     Fragment: 'Fragment',
     Suspense: 'Suspense',
     Component,
-    lazy: (f: any) => f,
+    // Como React.lazy: la primera pintada lanza la carga y no pinta nada; las
+    // siguientes (tras `await`), el componente cargado.
+    lazy: (cargador: any) => {
+      let cargado: any;
+      let pendiente: any;
+      const Lazy = (props: any) => {
+        if (cargado) return reactStub.createElement(cargado, props);
+        if (!pendiente) pendiente = Promise.resolve(cargador()).then((m: any) => { cargado = m.default; });
+        return null;
+      };
+      return Lazy;
+    },
     useState: (inicial: any) => {
       const { arr, i } = casilla(() => (typeof inicial === 'function' ? inicial() : inicial));
       return [arr[i], (v: any) => { arr[i] = typeof v === 'function' ? v(arr[i]) : v; }];
@@ -160,11 +171,14 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     if (typeof type === 'function' && type.prototype && typeof type.prototype.render === 'function') {
       const aqui = `${donde}/${type.name || 'K'}${props?.key !== undefined ? `:${props.key}` : ''}`;
       let inst = instancias.get(aqui);
+      const nueva = !inst;
       if (!inst) {
         inst = new type(props);
         instancias.set(aqui, inst);
       }
+      const anteriores = inst.props;
       inst.props = props;
+      if (!nueva && typeof inst.componentDidUpdate === 'function') pendientes.push(() => inst.componentDidUpdate(anteriores));
       const intento: string[] = [];
       const cuantos = nodos.length;
       try {
@@ -255,7 +269,7 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     findAll,
     click: async (texto, tipo) => {
       const b = nodos.find(
-        n => ['EuiButton', 'EuiButtonEmpty', 'EuiLink', 'EuiBadge', 'EuiFacetButton'].includes(n.type) && (!tipo || n.type === tipo) && texto.test(n.texto) && (n.props.onClick || n.props.onClickAriaLabel)
+        n => ['EuiButton', 'EuiButtonEmpty', 'EuiLink', 'EuiBadge', 'EuiFacetButton', 'EuiTab'].includes(n.type) && (!tipo || n.type === tipo) && texto.test(n.texto) && (n.props.onClick || n.props.onClickAriaLabel)
       );
       if (!b) throw new Error(`no hay nada que pulsar con ${texto}`);
       await b.props.onClick();

@@ -24,7 +24,10 @@ const VISTAS: Record<string, React.ComponentType> = {
 const Vacia = () => null;
 
 export const EnsApp = () => {
-  const { tabView, agentId } = useRouterSearch();
+  const { tabView, agentId, control } = useRouterSearch();
+  // Cambiar de máquina o de control no desmonta la pestaña (ver
+  // `tab-error-boundary.tsx`): solo borra un error de pintado anterior.
+  const reintento = `${agentId || ''}|${control || ''}`;
   const cambia = useSetRouterSearch();
   const pestana = resolveTab(tabView);
   const Vista = VISTAS[pestana.id] || Vacia;
@@ -36,12 +39,12 @@ export const EnsApp = () => {
           <MachineSelector />
         </EuiFlexItem>
       </EuiFlexGroup>
-      <TabErrorBoundary key={`${pestana.id}|${agentId || ''}`} tabName={pestana.name}>
+      <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
         <Vista />
       </TabErrorBoundary>
     </ENSConfigurationBootstrap>
   ) : (
-    <TabErrorBoundary key={pestana.id} tabName={pestana.name}>
+    <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
       <Vista />
     </TabErrorBoundary>
   );

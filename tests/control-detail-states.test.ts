@@ -126,8 +126,6 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     comprueba('volver: Detalle, mismo control y máquina, sin nada de Configuración',
       atras.tabView === 'plugins' && atras.control === 'op.acc.1' && atras.agentId === '024' && !Object.keys(atras).some(k => k.startsWith('config')), atras);
     comprueba('sin configBack no hay vuelta', enlace.parseConfigurationBack({ control: 'op.acc.1' }) === undefined);
-    const app = readFileSync(`${__dirname}/../public/app/ens-app.tsx`, 'utf8');
-    comprueba('cambiar de pestaña limpia también configBack', /configBack: undefined/.test(app));
   }
 
   console.log('4. La pantalla');
@@ -210,11 +208,17 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     p = await h.click(/Reintentar/);
     comprueba('«Reintentar» vuelve a pintarla', /pintada/.test(p) && !/No se pudo mostrar/.test(p), p);
     comprueba('un error sin mensaje se dice igual', /desconocido/.test(describeRenderError(undefined)));
-    const app = readFileSync(`${__dirname}/../public/app/ens-app.tsx`, 'utf8');
-    comprueba('cada pestaña va dentro de su TabErrorBoundary con key pestaña + máquina', /<TabErrorBoundary key=\{`\$\{pestana\.id\}\|\$\{agentId \|\| ''\}`\}/.test(app));
-    const lista = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
-    comprueba('el control abierto sale de la URL (sin estado local) y elegir uno lo escribe en ella',
-      /ENSControls\.find\(item => item\.id === control\)/.test(lista) && /cambiaUrl\(\{ control: (ensControl|entrada)\.id \}\)/.test(lista) && !/setSelectedControl/.test(lista));
+    // (La pestaña dentro de la app, cambiando de máquina: `app-machine-switch.test.ts`.)
+    h.reset();
+    const { ControlsENS } = require('../public/ens/controls');
+    h.setSearch('?tabView=plugins&control=op.acc.1&agentId=101');
+    let lista = await h.render(ControlsENS);
+    comprueba('con `control=` en la URL se abre su detalle', /OP\.ACC\.1/.test(lista), lista.slice(0, 200));
+    h.setSearch('?tabView=plugins&control=mp.info.6&agentId=101');
+    lista = await h.rerender();
+    comprueba('si la URL cambia de control con el detalle abierto, el detalle la sigue', /MP\.INFO\.6/.test(lista) && !/OP\.ACC\.1 -/.test(lista), lista.slice(0, 200));
+    await h.click(/Volver a controles/);
+    comprueba('«Volver a controles» quita el control de la URL y vuelve a la lista', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 23, h.search());
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
