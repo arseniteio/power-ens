@@ -16,25 +16,14 @@ import { ENSConfigurationRegistry } from '../registry';
 import { getAgentTemplateValue, resolveControlConfigurationWithOrigins } from './configuration-resolver';
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
 import type { ENSDetectableAgent, ENSSystemDetection } from './system-detection';
-import { hostnameFromUname } from './system-detection';
+import { cloneDocument, mergeAliases, profileIdentity } from './profile-identity';
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+const clone = cloneDocument;
 
 const sameValue = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-// Lo que el perfil guarda de la máquina la primera vez que se toca: su nombre,
-// su hostname como alias y el tipo detectado con su evidencia. Sirve para
-// reconocerla aunque cambie el inventario y para que la evaluación sea
-// reproducible.
-const identity = (agent?: ENSDetectableAgent, detection?: ENSSystemDetection): ENSAgentProfile => {
-  const hostname = hostnameFromUname(agent?.os?.uname);
-  return {
-    ...(agent?.name ? { name: agent.name } : {}),
-    ...(hostname && hostname.toLowerCase() !== String(agent?.name || '').toLowerCase() ? { aliases: [hostname] } : {}),
-    ...(detection?.type ? { detectedType: detection.type, detectedBy: detection.evidence } : {}),
-  };
-};
+const identity = profileIdentity;
 
 const withProfile = (
   configuration: ENSConfigurationVersion,
@@ -53,11 +42,6 @@ const withProfile = (
   agents[id] = updated;
   next.agents = agents;
   return next;
-};
-
-const mergeAliases = (left?: string[], right?: string[]): string[] | undefined => {
-  const all = Array.from(new Set([...(left || []), ...(right || [])]));
-  return all.length ? all : undefined;
 };
 
 /**

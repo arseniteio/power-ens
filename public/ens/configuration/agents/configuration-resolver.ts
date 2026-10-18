@@ -45,8 +45,9 @@ import { getENSCatalogControl } from '../../catalog';
 import type { ENSControlDefinition } from '../../catalog/types';
 import { getConfigurationTemplate } from '../templates';
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
+import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
-export const ENS_MANAGER_AGENT = '000';
+export const ENS_MANAGER_AGENT = ENS_MANAGER_AGENT_ID;
 
 export type ENSValueSource = 'agent' | 'template' | 'organisation' | 'union';
 
@@ -143,10 +144,11 @@ const rowsOf = (parameter: ENSControlParameter, value: unknown): string[] =>
     .map(row => String(row))
     .filter(row => row.trim().length > 0);
 
-// Dos filas son la misma si dicen lo mismo celda a celda (sin distinguir
-// mayúsculas ni espacios alrededor de `|`).
+// Dos filas son la misma solo si dicen EXACTAMENTE lo mismo celda a celda,
+// sin contar los espacios alrededor de `|`. Las mayúsculas cuentan: en Linux
+// `Ana` y `ana` son dos cuentas distintas.
 export const rowKey = (row: string): string =>
-  toTableRowCells(row).map(cell => cell.toLowerCase()).join('|');
+  toTableRowCells(row).join('|');
 
 const resolveUnion = (
   configuration: Pick<ENSConfigurationVersion, 'agents'>,

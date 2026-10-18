@@ -40,6 +40,17 @@ import type { ENSAgentScope } from '../public/ens/core/scope/types';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
 declare const __dirname: string;
+declare const require: (id: string) => any;
+
+// `kibana-services` de mentira, por si se carga el motor (copia real).
+{
+  const Module = require('module');
+  const cargar = Module._load;
+  Module._load = function (peticion: string, ...resto: unknown[]) {
+    if (/kibana-services$/.test(peticion)) return {};
+    return cargar.call(this, peticion, ...resto);
+  };
+}
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
   console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
@@ -64,7 +75,7 @@ const doc: ENSConfigurationVersion = {
   controls: [
     conValores('op.acc.1', {
       'P-01': 'Local',
-      'P-07': ['ana | web01 | Administrador', 'svc | dir01.example.com | Cuenta de servicio', 'root | DIR01.example.com | Cuenta de sistema', 'eva | srv-sin-agente | Administradora'],
+      'P-07': ['Ana | web01 | Administrador', 'ana | web01 | Administrador', 'svc | dir01.example.com | Cuenta de servicio', 'root | DIR01.example.com | Cuenta de sistema', 'eva | srv-sin-agente | Administradora'],
     }),
     conValores('op.exp.1', { 'P-06': ['dir01 | alta | directorio'] }),
     conValores('op.exp.4', { 'P-04': ['* | * 06:00-08:00'], 'P-09': ['web01 | 1.0 | anual', 'dir01 | 2.0 | anual'] }),
@@ -82,7 +93,7 @@ const inventario: ENSAgentScope[] = [
 ];
 
 const original = JSON.stringify(doc);
-const plan = planMigrationToSystems(doc, inventario);
+const plan = planMigrationToSystems(doc, inventario, { scopeAgentIds: ['000', '101', '102', '103'] });
 const m = plan.configuration;
 const valor = (d: ENSConfigurationVersion, c: string, p: string) => d.controls.find(x => x.controlId === c)?.parameters.find(x => x.id === p)?.value;
 const propio = (d: ENSConfigurationVersion, a: string, c: string, p: string) => d.agents?.[a]?.controls?.[c]?.parameters?.[p];
@@ -100,10 +111,16 @@ console.log('1. Reparto');
   comprueba('una tabla sin filas propias no se toca (op.exp.2 P-04)', JSON.stringify(valor(m, 'op.exp.2', 'P-04')) === JSON.stringify(valor(doc, 'op.exp.2', 'P-04')));
   comprueba('la fila * se queda en la organización…', JSON.stringify(valor(m, 'op.exp.4', 'P-04')) === JSON.stringify(['* | * 06:00-08:00']));
   comprueba('… y las listas de alcance no se tocan (mp.info.6 P-04)', JSON.stringify(valor(m, 'mp.info.6', 'P-04')) === JSON.stringify(['web01 | MEDIA']));
-  comprueba('sin filas en la organización: la clave value desaparece (nunca null)', !('value' in m.controls.find(x => x.controlId === 'op.exp.7')!.parameters.find(x => x.id === 'P-07')!));
+  comprueba('sin filas en la organización: la clave value desaparece (nunca null)', !('value' in m.controls.find(x => x.controlId === 'op.exp.1')!.parameters.find(x => x.id === 'P-06')!));
   comprueba('el perfil nuevo guarda el nombre y el hostname como alias', m.agents?.['102']?.name === 'dirHost' && JSON.stringify(m.agents?.['102']?.aliases) === '["dir01.example.com"]', m.agents?.['102']);
   comprueba('un agente sin filas no tiene perfil', !m.agents?.['103']);
-  comprueba('resumen', /pasan a 3 agente/.test(summarizeMigrationPlan(plan)), summarizeMigrationPlan(plan));
+  comprueba('resumen: cuántas salen y cuántas se copian', /a 3 agente/.test(summarizeMigrationPlan(plan)) && /se copian/.test(summarizeMigrationPlan(plan)), summarizeMigrationPlan(plan));
+  comprueba('las mayúsculas cuentan: Ana y ana son dos filas y las dos pasan a 101', JSON.stringify(propio(m, '101', 'op.acc.1', 'P-07')) === JSON.stringify(['Ana | web01 | Administrador', 'ana | web01 | Administrador']), propio(m, '101', 'op.acc.1', 'P-07'));
+  const modo = (c: string, p: string) => Array.from(new Set(plan.moves.filter(x => x.controlId === c && x.parameterId === p).map(x => x.mode))).join();
+  comprueba('op.acc.1 P-07 sale de la organización: la máquina sin filas propias sigue teniendo valor', modo('op.acc.1', 'P-07') === 'movida');
+  comprueba('op.exp.8 P-02 (obligatorio) se COPIA: quitarlo dejaría sin valor a 103', modo('op.exp.8', 'P-02') === 'copiada' && JSON.stringify(valor(m, 'op.exp.8', 'P-02')) === JSON.stringify(valor(doc, 'op.exp.8', 'P-02')), plan.moves.filter(x => x.controlId === 'op.exp.8'));
+  comprueba('op.exp.1 P-06 (opcional) sale de la organización', modo('op.exp.1', 'P-06') === 'movida');
+  comprueba('ninguna máquina del alcance se queda sin un obligatorio que tenía', plan.incomplete.length === 0, plan.incomplete);
 }
 
 console.log('2. Sin pérdida');
@@ -126,7 +143,7 @@ console.log('2. Sin pérdida');
 console.log('3. Idempotente y válido');
 {
   comprueba('el original no se toca', JSON.stringify(doc) === original);
-  const otra = planMigrationToSystems(m, inventario);
+  const otra = planMigrationToSystems(m, inventario, { scopeAgentIds: ['000', '101', '102', '103'] });
   comprueba('una segunda pasada no cambia nada', !otra.changed && otra.configuration === m);
   comprueba('y sigue avisando de lo mismo', otra.warnings.length === plan.warnings.length);
   comprueba('el documento migrado es válido', validateENSConfigurationStructure(m).valid, validateENSConfigurationStructure(m).errors);
@@ -145,11 +162,17 @@ console.log('4. Lo que ve cada fila');
 {
   const filas = (d: ENSConfigurationVersion, c: string, p: string, a?: string) =>
     toParameterTableRows(resolveControlConfigurationForAgent(d, c, a)?.parameters.find(x => x.id === p)?.value as any).filter(r => r.trim()).map(rowKey).sort();
-  comprueba('fila 102: sus cuentas de op.acc.1 P-07', JSON.stringify(filas(m, 'op.acc.1', 'P-07', '102')) === JSON.stringify(['root|dir01.example.com|cuenta de sistema', 'svc|dir01.example.com|cuenta de servicio']));
-  comprueba('fila 103 (sin perfil): lo que queda en la organización', JSON.stringify(filas(m, 'op.acc.1', 'P-07', '103')) === JSON.stringify(['eva|srv-sin-agente|administradora']));
+  comprueba('fila 102: sus cuentas de op.acc.1 P-07, tal cual', JSON.stringify(filas(m, 'op.acc.1', 'P-07', '102')) === JSON.stringify(['root|DIR01.example.com|Cuenta de sistema', 'svc|dir01.example.com|Cuenta de servicio']), filas(m, 'op.acc.1', 'P-07', '102'));
+  comprueba('fila 103 (sin perfil): lo que queda en la organización', JSON.stringify(filas(m, 'op.acc.1', 'P-07', '103')) === JSON.stringify(['eva|srv-sin-agente|Administradora']));
+  comprueba('fila 103, op.exp.8 P-02 copiado: sigue viendo la tabla de hoy', JSON.stringify(filas(m, 'op.exp.8', 'P-02', '103')) === JSON.stringify(filas(doc, 'op.exp.8', 'P-02', '103')));
   comprueba('fila del manager, op.exp.8 P-02: todos los servidores, como antes', JSON.stringify(filas(m, 'op.exp.8', 'P-02', '000')) === JSON.stringify(filas(doc, 'op.exp.8', 'P-02', '000')));
   comprueba('fila del manager, op.exp.7 P-07: como antes', JSON.stringify(filas(m, 'op.exp.7', 'P-07', '000')) === JSON.stringify(filas(doc, 'op.exp.7', 'P-07', '000')));
   comprueba('fila 101, op.exp.4 P-09: la suya', JSON.stringify(filas(m, 'op.exp.4', 'P-09', '101')) === JSON.stringify(['web01|1.0|anual']));
+  const rowsAll = (d: ENSConfigurationVersion) => [
+    ...toParameterTableRows(valor(d, 'op.acc.1', 'P-07') as any),
+    ...Object.keys(d.agents || {}).flatMap(a => toParameterTableRows(propio(d, a, 'op.acc.1', 'P-07') as any)),
+  ];
+  comprueba('sin pérdida, fila exacta: «Ana» y «ana» siguen en el documento', rowsAll(m).includes('Ana | web01 | Administrador') && rowsAll(m).includes('ana | web01 | Administrador'));
 }
 
 // Sobre una copia real, si se pasa. Solo comprueba invariantes y cuenta.
@@ -162,11 +185,31 @@ if (LAB && MON) {
   const mon = JSON.parse(readFileSync(MON, 'utf8'));
   const cubos = (mon.aggregations?.agentes || mon.aggregations?.a)?.buckets || [];
   const inv = inventoryFromMonitoring({ agentes: { buckets: cubos.map((b: any) => ({ key: b.key, ultimo: b.ultimo || b.u })) } }).agents;
-  const p = planMigrationToSystems(config, inv);
+  const { resolveENSScopeAgents } = require('../public/ens/core/scope/runtime');
+  const alcance: string[] = resolveENSScopeAgents(inv, config.scope).map((a: any) => a.id);
+  const p = planMigrationToSystems(config, inv, { scopeAgentIds: alcance });
   console.log(`    ${summarizeMigrationPlan(p)}`);
   p.warnings.forEach(w => console.log(`    aviso: ${describeMigrationWarning(w)}`));
   comprueba('real: válido', validateENSConfigurationStructure(p.configuration).valid && validateAgentsConfiguration(p.configuration).length === 0);
-  comprueba('real: idempotente', !planMigrationToSystems(p.configuration, inv).changed);
+  comprueba('real: idempotente', !planMigrationToSystems(p.configuration, inv, { scopeAgentIds: alcance }).changed);
+  comprueba('real: ningún obligatorio se queda sin valor en el alcance', p.incomplete.length === 0, p.incomplete);
+  // El motor de verdad, sin hechos, antes y después: ni un NC-CFG nuevo.
+  const { getENSComplianceResultByControl } = require('../public/ens/core/ens-engine');
+  const { ensConfigurationRepository } = require('../public/ens/configuration/repository');
+  const agentesAlcance = resolveENSScopeAgents(inv, config.scope);
+  const ncCfg = (d: ENSConfigurationVersion) => {
+    ensConfigurationRepository.replaceActive(d);
+    const salida: string[] = [];
+    alcance.forEach(a => d.controls.forEach(c => {
+      const r = getENSComplianceResultByControl(c.controlId, d.global.ensLevel, [], a, agentesAlcance, new Date('2026-10-17T10:00:00Z'));
+      (r?.nonConformities || []).filter((n: any) => n.id === 'NC-CFG').forEach((n: any) => salida.push(`${a} ${c.controlId} ${n.finding}`));
+    }));
+    return salida;
+  };
+  const antes = new Set(ncCfg(config));
+  const nuevos = ncCfg(p.configuration).filter(x => !antes.has(x));
+  console.log(`    NC-CFG sin hechos: ${antes.size} antes; nuevos después: ${nuevos.length}`);
+  comprueba('real: el motor no da ningún NC-CFG nuevo en ninguna máquina del alcance', nuevos.length === 0, nuevos.slice(0, 5));
   const perdidas: string[] = [];
   config.controls.forEach(c => {
     Object.keys(ENS_SYSTEM_KEY_COLUMNS[c.controlId] || {}).forEach(pid => {

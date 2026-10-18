@@ -218,7 +218,7 @@ const documento = (): any => ({
     busqueda = '?tabView=configuration&configView=sistemas';
     const sistemas = texto(reactStub.createElement(ConfigurationShell, null));
     comprueba('Sistemas: los agentes con su tipo detectado y su evidencia', /101 · web01/.test(sistemas) && /Linux/.test(sistemas) && /detectado por os\.platform = ubuntu/.test(sistemas), sistemas.slice(0, 500));
-    comprueba('Sistemas: la migración propuesta con su botón', /\[ Migrar a sistemas \]/.test(sistemas) && /pasan a 2 agente/.test(sistemas), sistemas.slice(0, 900));
+    comprueba('Sistemas: la migración propuesta con su botón', /\[ Migrar a sistemas \]/.test(sistemas) && /a 2 agente/.test(sistemas), sistemas.slice(0, 900));
     comprueba('Sistemas: plantillas y completitud', /Servidor LDAP Zimbra/.test(sistemas) && /con valor/.test(sistemas));
 
     busqueda = '?tabView=configuration&configAgent=102&configControl=op.acc.1&configParam=P-01';

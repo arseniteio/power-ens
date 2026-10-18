@@ -8,6 +8,7 @@ import { normalizeAgentId } from '../../../../common/agent-configuration';
 import { getENSCatalogControl } from '../../catalog';
 import { getBaseTemplateForSystemType } from '../templates';
 import { isAgentLevelParameter } from './parameter-classes';
+import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
 export interface ENSAgentControl {
   controlId: string;
@@ -24,7 +25,7 @@ export const getAgentControls = (
   type: ENSSystemType | undefined,
   getLevel: (controlId: string) => ENSLevel
 ): ENSAgentControl[] => {
-  const manager = normalizeAgentId(agentId) === '000';
+  const manager = normalizeAgentId(agentId) === ENS_MANAGER_AGENT_ID;
   const plane = manager ? 'manager' : 'agent';
   const only = getBaseTemplateForSystemType(type)?.onlyControls;
 

@@ -23,8 +23,9 @@ import {
 } from '../../../../common/agent-configuration';
 import type { ENSAgentOS } from '../../core/scope/types';
 import { getBaseTemplateForSystemType } from '../templates';
+import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
-export const ENS_MANAGER_ID = '000';
+export const ENS_MANAGER_ID = ENS_MANAGER_AGENT_ID;
 
 export interface ENSDetectableAgent {
   id: string;
