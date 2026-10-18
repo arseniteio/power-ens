@@ -852,6 +852,17 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
+  const configurarControl = () =>
+    cambiaUrl(
+      detailConfigurationChanges({
+        controlId: control.id,
+        agentId: agenteMostrado,
+        hasAgentLevelParameters: (getActiveControlConfiguration(control.id)?.parameters || []).some(parameter =>
+          isAgentLevelParameter(control.id, parameter.id)
+        ),
+      })
+    );
+
   // La cabecera de todos los estados: volver, la ruta y el título.
   const cabecera = (
     <>
@@ -862,11 +873,23 @@ export const ControlDetailENS = ({
       <EuiText size='s' color='subdued'>
         ENS / {control.family} / {control.category} / {control.id}
       </EuiText>
-      <EuiTitle size='m'>
-        <h2>
-          {control.id.toUpperCase()} - {control.title}
-        </h2>
-      </EuiTitle>
+      <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
+          <EuiTitle size='m'>
+            <h2>
+              {control.id.toUpperCase()} - {control.title}
+            </h2>
+          </EuiTitle>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          {/* Abre Configuración en este control (en la página de la máquina
+              elegida si el control tiene parámetros por sistema o plataforma)
+              y deja en la URL la vuelta a este mismo detalle. */}
+          <EuiButton size='s' iconType='gear' onClick={configurarControl}>
+            Configurar este control
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
     </>
   );
 

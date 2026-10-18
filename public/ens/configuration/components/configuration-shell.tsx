@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 import {
   EuiBadge,
+  EuiButtonEmpty,
   EuiHorizontalRule,
   EuiPage,
   EuiPanel,
@@ -27,7 +28,9 @@ import {
 } from '../../../routing/use-router-search';
 import {
   ENSConfigurationTarget,
+  configurationBackChanges,
   configurationSearchChanges,
+  parseConfigurationBack,
   parseConfigurationTarget,
 } from '../../../routing/configuration-link';
 
@@ -42,7 +45,12 @@ import { SystemsLevel } from './systems-level';
 // Lo que se ve lo decide la URL (`configControl`, `configAgent`, `configParam`,
 // `configView`): así el Detalle del control enlaza aquí y «atrás» funciona.
 export const ConfigurationShell = () => {
-  const target = parseConfigurationTarget(useRouterSearch());
+  const search = useRouterSearch();
+  const target = parseConfigurationTarget(search);
+  // Abierta desde el Detalle del control («Configurar este control» o un
+  // parámetro de una no conformidad): la vuelta a ese mismo detalle, con su
+  // control y su máquina (siguen en la URL).
+  const vuelta = parseConfigurationBack(search);
   const setSearch = useSetRouterSearch();
 
   const [
@@ -87,6 +95,14 @@ export const ConfigurationShell = () => {
   return (
     <EuiPage paddingSize='m'>
       <EuiPanel paddingSize='l'>
+        {vuelta && (
+          <>
+            <EuiButtonEmpty iconType='arrowLeft' flush='left' onClick={() => setSearch(configurationBackChanges(vuelta))}>
+              {`Volver al detalle de ${vuelta.controlId}${search.agentId ? ` (${search.agentId})` : ''}`}
+            </EuiButtonEmpty>
+            <EuiSpacer size='s' />
+          </>
+        )}
         <EuiTitle size='m'>
           <h2>Configuración ENS</h2>
         </EuiTitle>

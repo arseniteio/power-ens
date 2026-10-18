@@ -10,6 +10,7 @@ import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationStatusLine, EvaluationLoading } from '../../evaluation/evaluation-status';
 import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
+import { describeParameterForMachine } from '../controls/parameter-origins';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
@@ -265,10 +266,14 @@ const ControlReport = ({
     return String(value);
   };
 
+  // El valor es el que aplicó el motor a ESTA vista (la fila de la máquina,
+  // con su configuración resuelta); el origen lo dice el resolutor de
+  // Configuración: propio de la máquina, de una plantilla o de la organización.
   const parameterRows = parameterResults.map(parameter => ({
     parametro: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
     value: formatParameterValue(parameter.value),
+    origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
     required: parameter.required ? 'Sí' : 'No',
     requirements: parameter.requirements.join(', ') || '-',
     // Solo en los dos estados en los que el motor aplica de verdad el
@@ -439,6 +444,16 @@ const ControlReport = ({
     {
       field: 'value',
       name: 'Valor aplicado',
+      render: (value: string, item: { origin: string }) => (
+        <>
+          <EuiText size='xs'>{value}</EuiText>
+          {item.origin ? (
+            <EuiText size='xs' color='subdued'>
+              {item.origin}
+            </EuiText>
+          ) : null}
+        </>
+      ),
     },
     {
       field: 'required',
@@ -709,7 +724,7 @@ const ControlReport = ({
               ],
               ...parameterRows.map(parameter => [
                 {
-                  text: `${parameter.parametro}: ${parameter.value}`,
+                  text: `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`,
                   style: 'td',
                 },
                 { text: parameter.required, style: 'td' },

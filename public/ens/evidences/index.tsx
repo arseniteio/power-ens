@@ -504,10 +504,12 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
 );
 
 export const EvidencesENS = () => {
-  const { agentId } = useRouterSearch();
+  const { agentId, control } = useRouterSearch();
 
   // Filtro por prefijo del identificador ENS. Vacío = sin filtro = se ve todo.
-  const [prefix, setPrefix] = useState<string>('');
+  // Con `control=` en la URL (una evidencia pulsada en el Detalle del control),
+  // empieza filtrado por ese control.
+  const [prefix, setPrefix] = useState<string>(() => control || '');
 
   // Secciones que el operador ha abierto o cerrado a mano. Lo que no está aquí
   // usa el criterio por defecto (ver `isOpen`).
