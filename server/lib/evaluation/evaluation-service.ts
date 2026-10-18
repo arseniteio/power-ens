@@ -766,14 +766,13 @@ export const createEvaluationService = ({
 
   class StreamFallbackError extends Error {}
 
-  // Un rechazo del indexador (4xx de su cliente, con `meta.statusCode`) a la
-  // lectura por máquina: sus filas se leen una a una, con el orden de siempre.
-  // Los errores propios (datos incompletos, demasiados hechos, cancelada) no
-  // traen `meta` y siguen su camino.
-  const rechazoDelIndexador = (error: any): boolean => {
-    const estado = Number(error?.meta?.statusCode);
-    return estado >= 400 && estado < 500 && estado !== 499;
-  };
+  // Un 400 del indexador (la consulta: un mapeo o un orden que no admite) a
+  // la lectura por máquina: sus filas se leen una a una, con el orden de
+  // siempre. Nada más: un 401/403 (permisos) se dice tal cual, y un 429 o un
+  // 5xx (indexador saturado o caído) falla con su motivo y se reintenta con
+  // espera (no se multiplica en una lectura por fila). Los errores propios
+  // (datos incompletos, demasiados hechos, cancelada) no traen `meta`.
+  const rechazoDelIndexador = (error: any): boolean => Number(error?.meta?.statusCode) === 400;
 
   interface AgentSide {
     runs: ENSNormalizedEvent[];

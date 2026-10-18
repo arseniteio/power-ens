@@ -121,7 +121,7 @@ const pide = async (servicio: any, clientes: any, q: any) => {
   const esperado = await pide(referencia, clientesRef, { include: 'results' });
   comprueba('con lo mismo que sin ese día', respuesta && igual(respuesta.results, esperado.results) && igual(respuesta.agents, esperado.agents));
 
-  console.log('3. Cualquier 4xx del flujo: fila a fila');
+  console.log('3. Un 400 del flujo: fila a fila');
   const rechazos: string[] = [];
   const rechazador = {
     ...conAjena,
@@ -154,6 +154,29 @@ const pide = async (servicio: any, clientes: any, q: any) => {
   const serieRef = await pide(referencia, clientesRef, { include: 'dashboard', timelineDays: 3 });
   comprueba('la serie también se calcula fila a fila', !fs && !serie?.meta?.seriesPending && (serie?.timeline || []).length > 1, fs?.message || serie?.meta);
   comprueba('y es la misma', serie && igual((serie.timeline || []).map((p: any) => [p.label, p.score]), (serieRef.timeline || []).map((p: any) => [p.label, p.score])));
+
+  console.log('4. Solo un 400 pasa a fila a fila: 401/403 y 429/5xx fallan con su motivo');
+  for (const estado of [401, 403, 429, 503]) {
+    const lecturas: string[] = [];
+    const conEstado = {
+      ...conAjena,
+      search: async (p: any) => {
+        if ((p.body?.sort || [])[0]?.['data.ensfacil']) {
+          throw Object.assign(new Error(`estado ${estado}`), { statusCode: estado, meta: { statusCode: estado } });
+        }
+        if (p.body?.size > 0) lecturas.push(JSON.stringify(p.body.query).slice(0, 80));
+        return conAjena.search(p);
+      },
+    };
+    const s4 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+    let f4: any;
+    try {
+      await pide(s4, { asCurrentUser: conEstado, asInternalUser: conEstado }, { include: 'results' });
+    } catch (e) {
+      f4 = e;
+    }
+    comprueba(`${estado}: falla con su estado y su motivo (no se reintenta fila a fila)`, Number(f4?.meta?.statusCode ?? f4?.statusCode) === estado && new RegExp(`estado ${estado}`).test(f4?.message || ''), f4?.message);
+  }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);
