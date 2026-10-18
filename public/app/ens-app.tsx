@@ -5,6 +5,7 @@ import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
+import { TabErrorBoundary } from './tab-error-boundary';
 
 // Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
@@ -22,7 +23,7 @@ const VISTAS: Record<string, React.ComponentType> = {
 const Vacia = () => null;
 
 export const EnsApp = () => {
-  const { tabView } = useRouterSearch();
+  const { tabView, agentId } = useRouterSearch();
   const cambia = useSetRouterSearch();
   const pestana = resolveTab(tabView);
   const Vista = VISTAS[pestana.id] || Vacia;
@@ -34,10 +35,14 @@ export const EnsApp = () => {
           <MachineSelector />
         </EuiFlexItem>
       </EuiFlexGroup>
-      <Vista />
+      <TabErrorBoundary key={`${pestana.id}|${agentId || ''}`} tabName={pestana.name}>
+        <Vista />
+      </TabErrorBoundary>
     </ENSConfigurationBootstrap>
   ) : (
-    <Vista />
+    <TabErrorBoundary key={pestana.id} tabName={pestana.name}>
+      <Vista />
+    </TabErrorBoundary>
   );
 
   return (
@@ -45,7 +50,11 @@ export const EnsApp = () => {
       <EuiPageBody>
         <EuiTabs>
           {ENS_TABS.map(t => (
-            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() => cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined })}>
+            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() =>
+                // Los parámetros de Configuración (y su vuelta al detalle) son
+                // de esa pantalla: se limpian al cambiar de pestaña.
+                cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined })
+              }>
               {t.name}
             </EuiTab>
           ))}

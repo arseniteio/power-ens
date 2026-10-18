@@ -1,5 +1,5 @@
 import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ControlRow, ControlRowSummary } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
@@ -77,28 +77,14 @@ const badgeDelEstado = (estado: string): string => {
 export const ControlsENS = () => {
   const { control, agentId } = useRouterSearch();
 
-  // Con `?control=` en la URL, la ficha se abre en el PRIMER render: así la
-  // lista no lanza la evaluación de todos los controles para cancelarla un
-  // instante después.
-  const [selectedControl, setSelectedControl] = useState<ENSControl | null>(
-    () => ENSControls.find(item => item.id === control) || null,
-  );
+  // EL CONTROL ABIERTO ES EL DE LA URL (`control=`), no un estado local: así
+  // se conserva al cambiar de pestaña y volver, al recargar, al venir de la
+  // Vista general o de «Volver al detalle» en Configuración, y la ficha sigue
+  // a la URL si cambia con ella abierta. Con `control=` la ficha se abre en el
+  // PRIMER render, sin lanzar antes la evaluación de la lista.
+  const selectedControl: ENSControl | null = ENSControls.find(item => item.id === control) || null;
 
   const cambiaUrl = useSetRouterSearch();
-
-  useEffect(() => {
-    if (!control || selectedControl) {
-      return;
-    }
-
-    const controlFromUrl = ENSControls.find(
-      item => item.id === control,
-    );
-
-    if (controlFromUrl) {
-      setSelectedControl(controlFromUrl);
-    }
-  }, [control, selectedControl]);
 
    const scopeAgents = useActiveENSScopeAgents();
 
@@ -153,12 +139,7 @@ export const ControlsENS = () => {
       <ControlDetailENS
         control={selectedControl}
         agentId={agentId}
-        // También fuera de la URL: con `control=` en ella, el efecto de arriba
-        // volvería a abrir el detalle al cambiar de pestaña y volver.
-        onBack={() => {
-          cambiaUrl({ control: undefined });
-          setSelectedControl(null);
-        }}
+        onBack={() => cambiaUrl({ control: undefined })}
       />
     );
   }
@@ -203,7 +184,7 @@ export const ControlsENS = () => {
               error={resumen.error}
               colorDelEstado={colorDelEstado}
               badgeDelEstado={badgeDelEstado}
-              onSelect={() => setSelectedControl(ensControl)}
+              onSelect={() => cambiaUrl({ control: ensControl.id })}
             />
           ))}
         </EuiFacetGroup>
