@@ -29,8 +29,10 @@ const resuelve = (r: string): boolean =>
 // Lo único que puede salir del plugin: el núcleo de OpenSearch Dashboards.
 const NUCLEO = /^(\.\.\/)+src\/(core|plugins\/(data|navigation))\//;
 // Cada paquete entero o una ruta dentro de él: `react` no deja pasar
-// `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`.
-const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake|rxjs|lodash|moment|crypto|fs|path|zlib|https)(\/|$)/;
+// `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`. De
+// `@osd/ui-shared-deps`, solo `theme` (las variables del tema, que siguen el
+// modo oscuro; el dashboard las comparte con los plugins).
+const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n|ui-shared-deps\/theme)|pdfmake|rxjs|lodash|moment|crypto|fs|path|zlib|https)(\/|$)/;
 
 for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(f, 'utf8');
