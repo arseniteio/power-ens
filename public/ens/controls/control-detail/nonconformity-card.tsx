@@ -56,6 +56,7 @@ import {
   partToText,
 } from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadgeColor } from './motive-view';
+import { ENS_THEME } from '../../theme-colors';
 
 export type { ClaseNoConformidad } from './nonconformity-class';
 
@@ -137,30 +138,72 @@ export const readCardMotive = (
   };
 };
 
-// La lista de una parte, vista desde su detalle (el texto tras la primera
-// frase). Si la lista está en la primera frase, se enseña entera debajo.
-// Un titular de más de `TITULAR_MAX` caracteres se corta en la tarjeta (dos
-// líneas); lo que no cabe se pinta al principio de la causa, para que no quede
-// solo en el `title` o en el panel.
+// CÓMO SE REPARTE LA PARTE CULPABLE EN LA TARJETA (sin React, lo prueba
+// `tests/nonconformity-card.test.ts`): el titular (su primera frase), lo que
+// queda de esa frase si se corta y el resto de la parte. Tres reglas:
+//   - Una lista sale UNA vez, como lista, y siempre DESPUÉS de la frase que
+//     la presenta: si está en la primera frase, el titular acaba justo antes
+//     de ella («…en ejecución:») y la lista abre la causa; si está en el
+//     resto, va dentro de ese texto, en su sitio.
+//   - Un titular largo se corta en un espacio antes de `TITULAR_MAX`
+//     caracteres, con «…», y lo que no cabe abre la causa con «…»: nada queda
+//     solo en el `title` ni se recorta con CSS (en una tarjeta estrecha, dos
+//     líneas cortaban el titular por la mitad).
+//   - Una frase que empieza casi con la lista (menos de `INTRO_MIN`
+//     caracteres delante) no se parte ahí: la lista se queda en su texto.
 export const TITULAR_MAX = 200;
+const INTRO_MIN = 15;
 
-const listaDelDetalle = (part: MotivePart): { texto: string; list?: MotiveList; listaSuelta?: MotiveList; resto?: string } => {
-  const resto = part.summary.length > TITULAR_MAX ? part.summary.slice(TITULAR_MAX).trimStart() : undefined;
-  if (resto) return { texto: part.detail, resto, ...(part.list ? { listaSuelta: part.list } : {}) };
-  if (!part.list) return { texto: part.detail };
-  const desde = part.summary.length + (part.detail ? 1 : 0);
-  if (part.detail && part.list.start >= desde) {
-    return { texto: part.detail, list: { ...part.list, start: part.list.start - desde, end: part.list.end - desde } };
-  }
-  return { texto: part.detail, listaSuelta: part.list };
+export interface CardTextBlock {
+  text: string;
+  list?: MotiveList;
+}
+
+export interface CardPartLayout {
+  headline: string;
+  // El titular se cortó en un espacio (y no justo antes de su lista).
+  cutAtWord: boolean;
+  // Lo que queda de la primera frase tras el corte (con su lista).
+  rest?: CardTextBlock;
+  // El resto de la parte (con su lista, si la tiene ahí).
+  detail?: CardTextBlock;
+}
+
+const desplaza = (list: MotiveList, desde: number): MotiveList => ({ ...list, start: list.start - desde, end: list.end - desde });
+const saltaEspacios = (texto: string, i: number) => {
+  while (i < texto.length && /\s/.test(texto[i])) i += 1;
+  return i;
 };
 
-const DOS_LINEAS: React.CSSProperties = {
-  display: '-webkit-box',
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: 'vertical',
-  overflow: 'hidden',
-} as any;
+export const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, max: number = TITULAR_MAX): CardPartLayout => {
+  const frase = part.summary;
+  const texto = part.text;
+  const lista = part.list;
+  const listaEnFrase = Boolean(lista && lista.start < frase.length);
+  // Dónde acaba la primera frase (o su lista, si se alarga más allá).
+  const finFrase = listaEnFrase ? Math.max(frase.length, lista!.end) : frase.length;
+  let corte = frase.length;
+  let cutAtWord = false;
+  if (listaEnFrase && lista!.start >= INTRO_MIN) corte = lista!.start;
+  if (corte > max) {
+    const espacio = frase.lastIndexOf(' ', max);
+    corte = espacio > max / 2 ? espacio : max;
+    cutAtWord = true;
+  }
+  const cortada = corte < frase.length;
+  const headline = !cortada ? frase : cutAtWord ? `${frase.slice(0, corte).trimEnd()}…` : frase.slice(0, corte).trimEnd();
+  let rest: CardTextBlock | undefined;
+  if (cortada) {
+    const desde = saltaEspacios(texto, corte);
+    rest = { text: texto.slice(desde, finFrase), ...(listaEnFrase && lista!.start >= desde ? { list: desplaza(lista!, desde) } : {}) };
+  }
+  const desdeDetalle = saltaEspacios(texto, finFrase);
+  const resto = texto.slice(desdeDetalle);
+  const detail = resto
+    ? { text: resto, ...(lista && !listaEnFrase && lista.start >= desdeDetalle ? { list: desplaza(lista, desdeDetalle) } : {}) }
+    : undefined;
+  return { headline, cutAtWord, ...(rest ? { rest } : {}), ...(detail ? { detail } : {}) };
+};
 
 export const NonConformityCard = ({
   item,
@@ -179,10 +222,8 @@ export const NonConformityCard = ({
 
   const leido = readCardMotive(lineasMotivo, item.evidenceIds || evidenciasImplicadas, item.finding, conocidos);
   const { culpable } = leido;
-  const detalle: { texto: string; list?: MotiveList; listaSuelta?: MotiveList; resto?: string } = culpable
-    ? listaDelDetalle(culpable)
-    : { texto: '' };
-  const titular = detalle.resto ? `${leido.titular.slice(0, TITULAR_MAX).trimEnd()}…` : leido.titular;
+  const reparto: CardPartLayout = culpable ? layoutGuiltyPart(culpable) : layoutGuiltyPart({ text: leido.titular, summary: leido.titular });
+  const titular = reparto.headline;
 
   // Los parámetros: los que cita el motivo y los que la no conformidad nombra.
   const parametros = [
@@ -247,9 +288,7 @@ export const NonConformityCard = ({
               </>
             )}
           </p>
-          <p style={DOS_LINEAS} title={leido.titular}>
-            {titular}
-          </p>
+          <p title={leido.titular}>{titular}</p>
         </EuiText>
 
         <EuiSpacer size='xs' />
@@ -260,23 +299,23 @@ export const NonConformityCard = ({
         </EuiText>
 
         {/* La causa: el resto de la parte culpable, en texto normal. */}
-        {(detalle.texto || detalle.listaSuelta || detalle.resto || culpable?.secondary !== undefined) && (
+        {(reparto.rest || reparto.detail || culpable?.secondary !== undefined) && (
           <>
             <EuiSpacer size='s' />
             <EuiText size='xs'>
-              {detalle.resto && (
+              {reparto.rest && (
                 <div style={{ marginBottom: 6 }}>
-                  …<MotiveText texto={detalle.resto} />
+                  {reparto.cutAtWord ? '…' : ''}
+                  <MotiveText texto={reparto.rest.text} list={reparto.rest.list} />
                 </div>
               )}
-              {detalle.listaSuelta && <MotiveText texto={culpable!.text.slice(detalle.listaSuelta.start, detalle.listaSuelta.end)} list={{ ...detalle.listaSuelta, start: 0, end: detalle.listaSuelta.end - detalle.listaSuelta.start }} />}
-              {detalle.texto && (
+              {reparto.detail && (
                 <div style={{ marginBottom: 6 }}>
-                  <MotiveText texto={detalle.texto} list={detalle.list} />
+                  <MotiveText texto={reparto.detail.text} list={reparto.detail.list} />
                 </div>
               )}
               {culpable?.secondary !== undefined && (
-                <p style={{ color: '#69707D' }}>
+                <p style={{ color: ENS_THEME.subduedText }}>
                   <strong>Además:</strong> <MotiveText texto={culpable.secondary} />
                 </p>
               )}
@@ -461,7 +500,7 @@ export const NonConformityCard = ({
                 <strong>Acción requerida:</strong> {accion}
               </p>
               {accion !== item.requiredAction && (
-                <p style={{ color: '#69707D' }}>
+                <p style={{ color: ENS_THEME.subduedText }}>
                   <small>Del motor: {item.requiredAction}</small>
                 </p>
               )}

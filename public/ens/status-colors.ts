@@ -14,8 +14,7 @@ export const ENS_STATUS_COLORS: Record<string, string> = {
 
 export const ENS_STATUS_ORDER = ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'];
 
-// Sin resultado (no se mide aquí): rayado, nunca un gris de estado.
-export const ENS_NO_RESULT_PATTERN = 'repeating-linear-gradient(45deg, #F5F7FA, #F5F7FA 4px, #E9EDF3 4px, #E9EDF3 8px)';
+// El rayado de «sin resultado» y los neutros, del tema: `theme-colors.ts`.
 
 export const statusColor = (status?: string): string => ENS_STATUS_COLORS[status || ''] || ENS_STATUS_COLORS.NO_EVALUABLE;
 

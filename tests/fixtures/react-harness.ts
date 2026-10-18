@@ -34,6 +34,17 @@ export interface ReactHarness {
   reset: () => void;
 }
 
+// Lo que las pantallas leen de `euiThemeVars` (los valores del tema claro).
+export const TEMA_CLARO = {
+  euiColorEmptyShade: '#FFF',
+  euiColorLightestShade: '#F5F7FA',
+  euiColorLightShade: '#D3DAE6',
+  euiColorMediumShade: '#98A2B3',
+  euiColorDarkShade: '#69707D',
+  euiColorDangerText: '#BD271E',
+  euiColorPrimary: '#006BB4',
+};
+
 export const installReactHarness = (opts: { overrides?: Record<string, (real: any) => any> } = {}): ReactHarness => {
   const estados = new Map<string, any[]>();
   const efectosHechos = new Map<string, string>();
@@ -130,6 +141,8 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     if (/kibana-services$/.test(peticion)) return {};
     if (peticion === 'react') return reactStub;
     if (peticion === '@elastic/eui') return euiStub;
+    // Las variables del tema de OpenSearch Dashboards (las del tema claro).
+    if (peticion === '@osd/ui-shared-deps/theme') return { euiThemeVars: TEMA_CLARO };
     if (peticion === 'react-router-dom') {
       return {
         useLocation: () => ({ search: busqueda }),

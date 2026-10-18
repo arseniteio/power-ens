@@ -39,7 +39,8 @@ import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent, isManagerOnlyControl } from '../../../common/ens/core/scope/measurement-planes';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';
 import { describeTally } from '../controls/controls-list-model';
-import { ENS_NO_RESULT_PATTERN, ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
+import { ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
+import { ENS_NO_RESULT_PATTERN, ENS_THEME } from '../theme-colors';
 import {
   buildMachineSummaries,
   buildMatrix,
@@ -53,15 +54,16 @@ import {
   overviewMachines,
 } from './overview-model';
 
-// Los colores de todas las pantallas (`status-colors.ts`); lo que no se mide en
-// una máquina no es gris de NO_APLICA: es un hueco rayado.
+// Los colores de estado de todas las pantallas (`status-colors.ts`) y los
+// neutros del tema (`theme-colors.ts`, siguen el modo oscuro); lo que no se
+// mide en una máquina no es gris de NO_APLICA: es un hueco rayado.
 const RAYADO = ENS_NO_RESULT_PATTERN;
 
 // La matriz: columnas de máquina con un ancho mínimo (con muchas máquinas, la
 // tabla se desplaza en horizontal en vez de estrecharlas hasta no leerse), la
 // columna «Control» fija a la izquierda y la de «Máquinas» a su lado.
 export const MATRIX_MACHINE_MIN_WIDTH = 64;
-const FIJA: React.CSSProperties = { position: 'sticky', left: 0, background: '#FFFFFF', zIndex: 1 };
+const FIJA: React.CSSProperties = { position: 'sticky', left: 0, background: ENS_THEME.surface, zIndex: 1 };
 
 // Lo que aún se está calculando (primera carga por partes): ni un resultado
 // ni «no se mide».
@@ -88,7 +90,7 @@ const Celda = ({ cell }: { cell: MatrixCell }) => {
       <EuiBadge color={statusBadgeColor(cell.status)}>
         {typeof cell.score === 'number' ? `${cell.score}%` : cell.status === 'NO_APLICA' ? 'n/a' : '—'}
       </EuiBadge>
-      {cell.notMet > 0 && <span style={{ fontSize: 11, color: '#BD271E', marginLeft: 4 }}>{cell.notMet}</span>}
+      {cell.notMet > 0 && <span style={{ fontSize: 11, color: ENS_THEME.dangerText, marginLeft: 4 }}>{cell.notMet}</span>}
     </span>
   );
 };
@@ -194,7 +196,7 @@ export const OverviewENS = () => {
             <EuiBasicTable
               compressed
               items={porMaquina.map(m => ({ ...m, id: m.agentId }))}
-              rowProps={(m: any) => ({ style: m.agentId === agentId ? { background: '#F1F4FA' } : undefined })}
+              rowProps={(m: any) => ({ style: m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined })}
               columns={[
                 {
                   field: 'agentId',
@@ -314,7 +316,7 @@ export const OverviewENS = () => {
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                               fontSize: 11,
-                              color: '#69707D',
+                              color: ENS_THEME.subduedText,
                             }}
                           >
                             {m.agentName || ''}
@@ -369,7 +371,7 @@ export const OverviewENS = () => {
                           <EuiTableRowCell
                             key={m.agentId}
                             align='center'
-                            style={m.agentId === agentId ? { background: '#F1F4FA' } : undefined}
+                            style={m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined}
                           >
                             {medida ? (
                               <EuiLink onClick={() => abreDetalle(fila.controlId, m.agentId)}>
@@ -489,7 +491,8 @@ export const OverviewENS = () => {
                     style={{
                       width: 14,
                       height: `${Math.max(2, ((p.score as number) || 0) * 0.6)}px`,
-                      background: p.isCurrent ? '#006BB4' : '#79AAD9',
+                      background: ENS_THEME.primary,
+                      opacity: p.isCurrent ? 1 : 0.55,
                     }}
                   />
                 </EuiToolTip>

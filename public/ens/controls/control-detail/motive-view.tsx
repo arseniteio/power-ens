@@ -8,6 +8,7 @@ import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@e
 import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from '../../../../common/ens/evaluation/motive-parser';
 
 import { statusBadgeColor } from '../../status-colors';
+import { ENS_THEME } from '../../theme-colors';
 
 export { statusBadgeColor };
 
@@ -31,7 +32,7 @@ const ConFechas = ({ texto }: { texto: string }) => (
   <>
     {splitTimestamps(texto).map((trozo, i) =>
       trozo.iso ? (
-        <span key={i} title={trozo.iso} style={{ borderBottom: '1px dotted #98A2B3' }}>
+        <span key={i} title={trozo.iso} style={{ borderBottom: `1px dotted ${ENS_THEME.mutedText}` }}>
           {formatTimestamp(trozo.iso)}
         </span>
       ) : (

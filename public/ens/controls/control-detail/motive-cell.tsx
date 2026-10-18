@@ -36,6 +36,7 @@ import {
 } from '@elastic/eui';
 import { KnownReasonParts, parseMotive } from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveView, MotiveViewHandlers, statusBadgeColor } from './motive-view';
+import { ENS_THEME } from '../../theme-colors';
 
 const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
 
@@ -136,14 +137,14 @@ export const MotiveCell = ({
 
         {/* Lo que no cabe se anuncia, nunca se calla: agregar no es esconder. */}
         {ocultos > 0 && (
-          <p style={{ color: '#69707D', marginBottom: 6 }}>
+          <p style={{ color: ENS_THEME.subduedText, marginBottom: 6 }}>
             y {ocultos} motivo{ocultos === 1 ? '' : 's'} más · seleccione un
             agente para verlos todos
           </p>
         )}
 
         {pregunta && (
-          <p style={{ color: '#98A2B3', fontStyle: 'italic', marginBottom: 0 }}>
+          <p style={{ color: ENS_THEME.mutedText, fontStyle: 'italic', marginBottom: 0 }}>
             {pregunta.texto}
           </p>
         )}

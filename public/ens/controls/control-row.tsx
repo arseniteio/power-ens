@@ -18,6 +18,7 @@
 import React from 'react';
 import { EuiBadge, EuiFacetButton, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiText } from '@elastic/eui';
 import { ENS_STATUS_COLORS } from '../status-colors';
+import { ENS_THEME } from '../theme-colors';
 import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
 import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
 import { controlRowWaitLabel } from './control-row-state';
@@ -59,7 +60,7 @@ export const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
   ].filter(tramo => tramo.n > 0);
   return (
     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-      <span style={{ display: 'inline-flex', width: 96, height: 8, borderRadius: 4, overflow: 'hidden', background: '#EEF2F7' }}>
+      <span style={{ display: 'inline-flex', width: 96, height: 8, borderRadius: 4, overflow: 'hidden', background: ENS_THEME.track }}>
         {tramos.map(tramo => (
           <span key={tramo.estado} style={{ width: `${(tramo.n / tally.total) * 100}%`, background: ENS_STATUS_COLORS[tramo.estado] }} />
         ))}
@@ -98,7 +99,7 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
   // no es un cumplimiento ni un incumplimiento.
   if (entry.notMeasured) {
     return fila(
-      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: '4px dashed #D3DAE6', opacity: 0.7 }}>
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px dashed ${ENS_THEME.track}`, opacity: 0.7 }}>
         <strong>{controlId}</strong> — {title}
         <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
           {levels}
@@ -120,7 +121,7 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
   const espera = error ? undefined : controlRowWaitLabel(isLoading, summary);
   if (espera) {
     return fila(
-      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: '4px solid #D3DAE6' }}>
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px solid ${ENS_THEME.track}` }}>
         <strong>{controlId}</strong> — {title}
         <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
           {levels}
@@ -139,7 +140,7 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
   // Sin los hechos de ahora, ni veredicto ni recuento: los de antes no valen.
   if (error) {
     return fila(
-      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: '4px solid #BD271E' }}>
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px solid ${ENS_THEME.dangerText}` }}>
         <strong>{controlId}</strong> — {title}
         <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
           {levels}
