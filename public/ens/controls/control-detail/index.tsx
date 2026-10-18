@@ -1306,6 +1306,7 @@ export const ControlDetailENS = ({
           <ControlEvolutionChart
             points={controlTimeline}
             controlId={control.id}
+            pending={Boolean(evaluacion.data?.meta?.seriesPending)}
           />
         </EuiPanel>
 

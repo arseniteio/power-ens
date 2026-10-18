@@ -102,6 +102,16 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       dashboard: { ...modelo, impactEvents: run.impact },
       agents: agentRows(run),
       timeline,
+      // Con la primera carga a medias, el estado de cada control (los que
+      // faltan, `pending`): el panel enseña esos y no cifras de conjunto.
+      ...(pendientes.length
+        ? {
+            controls: conPendientes(
+              state.results.map(result => controlSummaryOf(result.control.id, result)),
+              controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
+            ),
+          }
+        : {}),
     };
   }
 

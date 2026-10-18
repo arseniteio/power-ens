@@ -34,18 +34,26 @@ export const EvaluationStatusLine = ({
 }) => {
   if (!meta) return null;
   if (meta.refreshError) {
+    // Mientras se reintenta, se dice: el botón no se queda sin respuesta.
+    const reintentando = Boolean(refreshing);
     return (
       <EuiCallOut
         size="s"
         color="warning"
-        iconType="alert"
-        title={label ? `${label}: no se pudo actualizar` : 'No se pudo actualizar la evaluación'}
+        iconType={reintentando ? 'clock' : 'alert'}
+        title={
+          reintentando
+            ? `${label ? `${label}: r` : 'R'}eintentando la actualización…`
+            : label
+            ? `${label}: no se pudo actualizar`
+            : 'No se pudo actualizar la evaluación'
+        }
       >
         <p>
           {meta.refreshError.message} (a las {hora(meta.refreshError.at) || '—'}). Se muestra el resultado calculado el{' '}
           {hora(meta.computedAt) || '—'}.
         </p>
-        {onRetry ? (
+        {onRetry && !reintentando ? (
           <EuiButtonEmpty size="xs" iconType="refresh" onClick={onRetry}>
             Reintentar
           </EuiButtonEmpty>
@@ -61,7 +69,11 @@ export const EvaluationStatusLine = ({
         ventana.{' '}
         {actualizando ? (
           <EuiBadge color="warning" iconType="clock">
-            {meta.seriesPending && !meta.refreshError ? 'Calculando la evolución…' : 'Actualizando…'}
+            {meta.pending
+              ? `Calculando: ${meta.pending.total - meta.pending.rows} de ${meta.pending.total} filas listas…`
+              : meta.seriesPending
+              ? 'Calculando la evolución…'
+              : 'Actualizando…'}
           </EuiBadge>
         ) : null}
       </p>

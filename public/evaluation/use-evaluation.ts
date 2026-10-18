@@ -20,7 +20,7 @@ import {
   visibleEvaluation,
 } from './refresh-policy';
 
-const TICK_MS = 10 * 1000;
+const TICK_MS = 2 * 1000;
 
 const pestanaVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
