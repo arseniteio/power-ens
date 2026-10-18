@@ -4,6 +4,9 @@ import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapt
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import type { ENSEvaluationService } from './evaluation-service';
+// Lo que añaden las vistas generales (Task 2), aparte para que se pueda
+// reenganchar sin tocar lo demás.
+import { agentControlRows, freshnessOf, nonConformitiesOf } from './overview-fields';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
@@ -24,61 +27,6 @@ export const controlSummaryOf = (controlId: string, result?: ENSComplianceResult
     ).length,
   };
 };
-
-// La fila de cada máquina con lo que dice cada control en ella (la matriz de
-// la Vista general y la barra por control de la lista).
-const agentControlRows = (run: RunOutput) =>
-  (run.state?.agents || []).map(agent => ({
-    agentId: agent.agentId,
-    agentName: agent.agentName,
-    summary: agent.summary,
-    controls: agent.results.map(result => controlSummaryOf(result.control.id, result)),
-  }));
-
-// La frescura, de la sonda que ya se hizo para la huella: ni una lectura más.
-const freshnessOf = (run: RunOutput) => {
-  const probe = run.ctx.probe;
-  const enAlcance = new Set(run.meta.scope.map(agent => agent.id));
-  return {
-    checkedAt: run.meta.evaluatedAt,
-    agents: run.meta.scope.map(agent => {
-      const presencia = probe.presence.find(p => p.agentId === agent.id);
-      const latidos = probe.heartbeats[agent.id] || [];
-      return {
-        agentId: agent.id,
-        agentName: agent.name || presencia?.agentName,
-        count: presencia?.count || 0,
-        earliest: presencia?.earliest,
-        newest: presencia?.newest,
-        lastHeartbeat: latidos.length ? latidos[latidos.length - 1] : undefined,
-      };
-    }),
-    cells: Object.entries(probe.controls).flatMap(([controlId, hechos]) =>
-      Object.entries(hechos.agents || {})
-        .filter(([agentId]) => enAlcance.has(agentId))
-        .map(([agentId, h]) => ({ controlId, agentId, count: h.count, newest: h.newest }))
-    ),
-  };
-};
-
-// La cola de trabajo: las no conformidades de la vista de conjunto, con su
-// control. Sin impacto ni trazas: el detalle está a un clic.
-const nonConformitiesOf = (run: RunOutput) =>
-  (run.state?.results || []).flatMap(result =>
-    (result.nonConformities || []).map(nc => ({
-      controlId: result.control.id,
-      id: nc.id,
-      requirementId: nc.requirementId,
-      origin: nc.origin,
-      ...(nc.cause ? { cause: nc.cause } : {}),
-      ...(nc.documental ? { documental: true } : {}),
-      evidenceIds: nc.evidenceIds || [],
-      parameterIds: nc.parameterIds || [],
-      agents: nc.agents || [],
-      finding: nc.finding,
-      requiredAction: nc.requiredAction,
-    }))
-  );
 
 const agentRows = (run: RunOutput) =>
   (run.state?.agents || []).map(agent => ({
@@ -131,11 +79,11 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       meta,
       ...stateHeader(run),
       controls: state.results.map(result => controlSummaryOf(result.control.id, result)),
-      agents: agentControlRows(run),
+      agents: agentControlRows(run.state, controlSummaryOf),
       ...(timeline ? { timeline } : {}),
     };
     return query.include === 'overview'
-      ? { ...resumen, freshness: freshnessOf(run), nonConformities: nonConformitiesOf(run) }
+      ? { ...resumen, freshness: freshnessOf(run.ctx.probe, run.meta), nonConformities: nonConformitiesOf(run.state) }
       : resumen;
   }
 

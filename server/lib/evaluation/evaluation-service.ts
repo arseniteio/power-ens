@@ -81,6 +81,7 @@ import {
   resolveEvaluationWindow,
 } from './queries';
 import type { ENSEvaluationWindow, ENSProbeResult } from './queries';
+import { perControlOfPoint, perControlOfResults } from './overview-fields';
 
 export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
 
@@ -824,11 +825,7 @@ export const createEvaluationService = ({
           const resultados = controls
             .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
             .filter((r): r is ENSComplianceResult => Boolean(r));
-          // Y cada control ese día (la tendencia por control de la Vista general).
-          const porControlEseDia = Object.fromEntries(
-            controls.flatMap((controlId, i) => (puntos[i] ? [[controlId, { status: puntos[i]!.status, score: puntos[i]!.score }]] : []))
-          );
-          return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: porControlEseDia };
+          return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: perControlOfPoint(controls, puntos) };
         });
         if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
       }
@@ -845,10 +842,7 @@ export const createEvaluationService = ({
                 events: factsOfView(ctx, query).count,
                 ...(query.controlId
                   ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
-                  : {
-                      score: state!.controlSummary.scoreAverage,
-                      controls: Object.fromEntries(state!.results.map(r => [r.control.id, { status: r.status, score: r.score }])),
-                    }),
+                  : { score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) }),
               },
             ]
           : []),
