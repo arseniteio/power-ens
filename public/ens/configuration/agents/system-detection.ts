@@ -19,6 +19,7 @@ import {
   ENSAgentProfile,
   ENSSystemType,
   ENS_SYSTEM_TYPE_LABELS,
+  knownSystemType,
   normalizeAgentId,
 } from '../../../../common/agent-configuration';
 import type { ENSAgentOS } from '../../core/scope/types';
@@ -131,12 +132,13 @@ export const effectiveSystemType = (
   profile?: ENSAgentProfile
 ): ENSEffectiveSystemType => {
   // Sin datos vivos, el tipo detectado que se guardó la última vez.
-  const detectedType = detection.type || profile?.detectedType;
+  const detectedType = detection.type || knownSystemType(profile?.detectedType);
   const detectedBy = detection.type ? detection.evidence : profile?.detectedBy || detection.evidence;
+  const override = knownSystemType(profile?.typeOverride);
 
-  if (profile?.typeOverride) {
+  if (override) {
     return {
-      type: profile.typeOverride,
+      type: override,
       manual: true,
       description: `corregido a mano${detectedType ? ` (detectado: ${ENS_SYSTEM_TYPE_LABELS[detectedType]}, por ${detectedBy})` : ''}`,
     };

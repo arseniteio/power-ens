@@ -98,16 +98,34 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
+// `previous`: el documento que se sustituye, cuando no está ya como la última
+// versión del historial (lo escribió una herramienta de `config/` sin pasar por
+// el plugin, o es anterior a que existiera el historial). Se guarda en el mismo
+// bulk, un milisegundo antes, para que la versión anterior a CUALQUIER guardado
+// —también la migración a sistemas— quede siempre en el historial.
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,
   configuration: Record<string, unknown>,
-  username: string
+  username: string,
+  previous?: { configuration: Record<string, unknown>; author?: string }
 ): Promise<ENSConfigurationStoredDocument> {
   await ensureENSConfigurationIndex(client, logger);
 
-  const timestamp = new Date().toISOString();
-  const historyId = ['history', Date.now(), randomBytes(6).toString('hex')].join('-');
+  const now = Date.now();
+  const timestamp = new Date(now).toISOString();
+  const historyId = ['history', now, randomBytes(6).toString('hex')].join('-');
+  const previousLines = previous
+    ? [
+        JSON.stringify({ create: { _index: ENS_CONFIGURATION_INDEX, _id: ['history', now - 1, randomBytes(6).toString('hex')].join('-') } }),
+        JSON.stringify({
+          documentType: 'CONFIGURATION_HISTORY',
+          configuration: previous.configuration,
+          createdAt: new Date(now - 1).toISOString(),
+          createdBy: previous.author || 'desconocido',
+        }),
+      ]
+    : [];
 
   const activeDocument: ENSConfigurationStoredDocument = {
     documentType: 'ACTIVE_CONFIGURATION',
@@ -124,6 +142,7 @@ export async function persistENSConfiguration(
   };
 
   const bulkBody = [
+    ...previousLines,
     JSON.stringify({ create: { _index: ENS_CONFIGURATION_INDEX, _id: historyId } }),
     JSON.stringify(historyDocument),
     JSON.stringify({ index: { _index: ENS_CONFIGURATION_INDEX, _id: ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID } }),

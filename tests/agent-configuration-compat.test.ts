@@ -53,7 +53,12 @@ const indice = () => {
     search: async (p: any) => {
       const ids = p.body?.query?.ids?.values;
       const tipo = p.body?.query?.term?.documentType;
-      const hits = [...docs.entries()].filter(([id, d]) => (ids ? ids.includes(id) : d.documentType === tipo)).map(([, d]) => ({ _source: d }));
+      // Como OpenSearch: el historial, del más reciente al más antiguo, y `size`.
+      const hits = [...docs.entries()]
+        .filter(([id, d]) => (ids ? ids.includes(id) : d.documentType === tipo))
+        .map(([, d]) => ({ _source: d }))
+        .sort((a, b) => String(b._source.createdAt || '').localeCompare(String(a._source.createdAt || '')))
+        .slice(0, p.body?.size || 10);
       return { body: { hits: { hits } } };
     },
     bulk: async (p: any) => {
@@ -93,8 +98,24 @@ const guarda = (ix: any, configuration: any) => h.save(contexto(ix) as any, { bo
   r = await guarda(ix, { ...migrado, agents: [] });
   comprueba('agents que no es un mapa: 400', r.status === 400);
 
+  r = await guarda(ix, { ...migrado, agents: { srvWeb01: { templates: ['linux-ubuntu'] } } });
+  comprueba('un perfil por nombre y no por id: 400 con el remedio', r.status === 400 && /«srvWeb01» no es un id de agente/.test(r.body.message), r);
+  r = await guarda(ix, { ...migrado, agents: { '102': { attributes: { criticidad: 'alta' }, templates: ['zimbra-ldap'] } } });
+  comprueba('claves de una versión posterior: se aceptan (se ignoran)', r.status === 200, r);
+
   r = await guarda(ix, { ...migrado, agents: {} });
   comprueba('agents vacío lo vacía', r.status === 200 && JSON.stringify(ix.docs.get('active')?.configuration?.agents) === '{}');
+
+  // L5: la versión anterior a CUALQUIER guardado queda en el historial, también
+  // si la escribió una herramienta de config/ sin pasar por el plugin.
+  const fuera = { ...JSON.parse(JSON.stringify(migrado)), changeReason: 'escrito por inject-control.py' };
+  ix.docs.set('active', { documentType: 'ACTIVE_CONFIGURATION', configuration: fuera, updatedAt: '2026-10-17T09:00:00.000Z', updatedBy: 'script' });
+  const antesDe = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length;
+  r = await guarda(ix, { ...migrado, changeReason: 'Migración a sistemas' });
+  const historia = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY');
+  comprueba('un activo escrito fuera del plugin entra en el historial antes de sustituirse', r.status === 200 && historia.length === antesDe + 2 && historia.some(d => d.configuration?.changeReason === 'escrito por inject-control.py'), historia.length - antesDe);
+  r = await guarda(ix, { ...migrado, changeReason: 'otro guardado' });
+  comprueba('si ya es la última versión del historial, no se repite', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === historia.length + 1);
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);

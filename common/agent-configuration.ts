@@ -43,7 +43,9 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
 export interface ENSAgentControlOverrides {
-  parameters: Record<string, ENSAgentParameterValue>;
+  // Opcional: una versión posterior puede guardar otras claves en el control
+  // (`assigned`, por ejemplo) sin valores propios.
+  parameters?: Record<string, ENSAgentParameterValue>;
 }
 
 export interface ENSAgentProfile {
@@ -78,16 +80,32 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
   isStringArray(value);
 
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
+const CONTROL_KEYS = ['parameters'];
+
+// ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
+// se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
+// máquina y su valor no se aplicaría.
+export const isNormalisedAgentId = (key: string): boolean =>
+  /^\d+$/.test(key) && normalizeAgentId(key) === key;
+
+export const describeNonIdAgentKey = (key: string): string =>
+  /^\d+$/.test(key.trim())
+    ? `«${key}» no es un id de agente normalizado; usar ${normalizeAgentId(key)}`
+    : `«${key}» no es un id de agente; usar el id numérico del agente de Wazuh (p. ej. 001)`;
 
 /**
- * Comprueba la FORMA de `configuration.agents`, igual que el validador
- * estructural comprueba la del resto del documento: la clave ausente es válida;
- * presente, cada perfil tiene que tener los tipos de arriba.
+ * Comprueba la FORMA de `configuration.agents` que el motor necesita para no
+ * romperse: la clave ausente es válida; presente, un mapa de perfiles cuyos
+ * campos conocidos tienen su tipo y cuyos valores son un escalar o una lista de
+ * texto (nunca `null` ni un objeto). Estos errores son los únicos FATALES: los
+ * usa el validador estructural (hidratación) y el guardado del servidor.
  *
- * No juzga si un control o un parámetro existen, ni si un valor significa algo
- * para su columna: eso lo hace `validateAgentsConfiguration` (pantalla, scripts)
- * y, en la evaluación, la validación del control de cada máquina, que degrada
- * esa fila y no el entorno entero.
+ * No son fatales, a propósito, y los da `checkAgentsConfigurationKeys`:
+ *   - una clave de perfil que no es un id normalizado (error de significado);
+ *   - una clave que esta versión no conoce, dentro de un perfil o de un control
+ *     (aviso: una versión posterior puede añadir campos y volver a esta no
+ *     puede tumbar el entorno);
+ *   - un tipo de sistema que esta versión no conoce (aviso).
  */
 export const validateAgentsConfigurationShape = (
   value: unknown,
@@ -106,20 +124,10 @@ export const validateAgentsConfigurationShape = (
   Object.entries(value).forEach(([agentId, profile]) => {
     const at = `${path}.${agentId}`;
 
-    if (!agentId.trim() || normalizeAgentId(agentId) !== agentId) {
-      errors.push(`${at}: the key must be the normalised agent id (${normalizeAgentId(agentId) || 'empty'}).`);
-    }
-
     if (!isRecord(profile)) {
       errors.push(`${at} must be an object.`);
       return;
     }
-
-    Object.keys(profile).forEach(key => {
-      if (!PROFILE_KEYS.includes(key)) {
-        errors.push(`${at}.${key} is not a known key (${PROFILE_KEYS.join(', ')}).`);
-      }
-    });
 
     if (profile.name !== undefined && typeof profile.name !== 'string') {
       errors.push(`${at}.name must be a string.`);
@@ -129,13 +137,9 @@ export const validateAgentsConfigurationShape = (
       errors.push(`${at}.aliases must be a string array.`);
     }
 
-    if (profile.detectedBy !== undefined && typeof profile.detectedBy !== 'string') {
-      errors.push(`${at}.detectedBy must be a string.`);
-    }
-
-    (['detectedType', 'typeOverride'] as const).forEach(key => {
-      if (profile[key] !== undefined && !ENS_SYSTEM_TYPES.includes(profile[key] as ENSSystemType)) {
-        errors.push(`${at}.${key} must be one of ${ENS_SYSTEM_TYPES.join(', ')}.`);
+    (['detectedBy', 'detectedType', 'typeOverride'] as const).forEach(key => {
+      if (profile[key] !== undefined && typeof profile[key] !== 'string') {
+        errors.push(`${at}.${key} must be a string.`);
       }
     });
 
@@ -155,8 +159,17 @@ export const validateAgentsConfigurationShape = (
     Object.entries(profile.controls).forEach(([controlId, control]) => {
       const cat = `${at}.controls.${controlId}`;
 
-      if (!isRecord(control) || !isRecord(control.parameters)) {
-        errors.push(`${cat} must be an object with a "parameters" object.`);
+      if (!isRecord(control)) {
+        errors.push(`${cat} must be an object.`);
+        return;
+      }
+
+      if (control.parameters === undefined) {
+        return;
+      }
+
+      if (!isRecord(control.parameters)) {
+        errors.push(`${cat}.parameters must be an object keyed by parameter id.`);
         return;
       }
 
@@ -172,3 +185,64 @@ export const validateAgentsConfigurationShape = (
 
   return errors;
 };
+
+export interface ENSAgentsKeyCheck {
+  // Perfiles guardados con una clave que no es un id: su valor no se aplica.
+  errors: string[];
+  // Lo que esta versión no conoce y se ignora.
+  warnings: string[];
+}
+
+export const checkAgentsConfigurationKeys = (
+  value: unknown,
+  path: string = 'configuration.agents'
+): ENSAgentsKeyCheck => {
+  const result: ENSAgentsKeyCheck = { errors: [], warnings: [] };
+
+  if (!isRecord(value)) {
+    return result;
+  }
+
+  Object.entries(value).forEach(([agentId, profile]) => {
+    const at = `${path}.${agentId}`;
+
+    if (!isNormalisedAgentId(agentId)) {
+      result.errors.push(`${at}: ${describeNonIdAgentKey(agentId)}.`);
+    }
+
+    if (!isRecord(profile)) {
+      return;
+    }
+
+    Object.keys(profile)
+      .filter(key => !PROFILE_KEYS.includes(key))
+      .forEach(key => result.warnings.push(`${at}.${key}: esta versión no conoce la clave y la ignora.`));
+
+    (['detectedType', 'typeOverride'] as const).forEach(key => {
+      const type = profile[key];
+      if (typeof type === 'string' && !ENS_SYSTEM_TYPES.includes(type as ENSSystemType)) {
+        result.warnings.push(`${at}.${key}: el tipo «${type}» no es de esta versión (${ENS_SYSTEM_TYPES.join(', ')}) y se ignora.`);
+      }
+    });
+
+    if (!isRecord(profile.controls)) {
+      return;
+    }
+
+    Object.entries(profile.controls).forEach(([controlId, control]) => {
+      if (!isRecord(control)) return;
+      Object.keys(control)
+        .filter(key => !CONTROL_KEYS.includes(key))
+        .forEach(key => result.warnings.push(`${at}.controls.${controlId}.${key}: esta versión no conoce la clave y la ignora.`));
+    });
+  });
+
+  return result;
+};
+
+// El tipo, si es de esta versión. Un tipo desconocido (de una versión
+// posterior) se trata como ausente.
+export const knownSystemType = (value: unknown): ENSSystemType | undefined =>
+  typeof value === 'string' && ENS_SYSTEM_TYPES.includes(value as ENSSystemType)
+    ? (value as ENSSystemType)
+    : undefined;

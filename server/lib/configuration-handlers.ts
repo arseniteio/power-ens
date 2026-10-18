@@ -6,7 +6,10 @@ import {
   readENSConfigurationHistory,
 } from './configuration-storage';
 import { resolveCurrentUser } from './current-user';
-import { validateAgentsConfigurationShape } from '../../common/agent-configuration';
+import {
+  checkAgentsConfigurationKeys,
+  validateAgentsConfigurationShape,
+} from '../../common/agent-configuration';
 
 interface Opciones {
   logger: Logger;
@@ -68,7 +71,12 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
 
     // La capa por sistema (1.2.0) se valida por su forma antes de escribir: un
     // valor `null` o un objeto en un agente impediría cargar el entorno ENS.
-    const erroresAgentes = validateAgentsConfigurationShape(cuerpo.configuration.agents);
+    // Y por sus claves: un perfil tiene que ser de un id de agente (un nombre no
+    // se aplicaría nunca). Lo que esta versión no conoce se acepta y se ignora.
+    const erroresAgentes = [
+      ...validateAgentsConfigurationShape(cuerpo.configuration.agents),
+      ...checkAgentsConfigurationKeys(cuerpo.configuration.agents).errors,
+    ];
     if (erroresAgentes.length) {
       return fallo(response, 400, `configuration.agents no es válida: ${erroresAgentes.slice(0, 5).join(' ')}`);
     }
@@ -111,7 +119,14 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
         ],
       };
 
-      const guardado = await persistENSConfiguration(interno(context), logger, configuracion, username);
+      // La versión anterior, al historial si no es ya su última entrada.
+      const ultima = anterior ? (await readENSConfigurationHistory(interno(context), logger, 1))[0] : undefined;
+      const anteriorFueraDelHistorial =
+        anterior && JSON.stringify(ultima?.configuration ?? null) !== JSON.stringify(anterior.configuration)
+          ? { configuration: anterior.configuration, author: texto(previa.updatedBy) || anterior.updatedBy }
+          : undefined;
+
+      const guardado = await persistENSConfiguration(interno(context), logger, configuracion, username, anteriorFueraDelHistorial);
       logger.info(`Configuración ENS guardada por ${username}`);
 
       return correcto(response, { configuration: guardado.configuration, metadata: metadatos(guardado) });

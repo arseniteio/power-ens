@@ -53,7 +53,16 @@ class Indice(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         largo = int(self.headers.get("Content-Length", 0))
-        estado["doc"] = json.loads(self.rfile.read(largo).decode())
+        cuerpo = json.loads(self.rfile.read(largo).decode())
+        # La versión anterior que guardan las herramientas antes de escribir.
+        if "/_doc/history-" in self.path:
+            if estado.get("historial_falla"):
+                self._responde({"error": "no"}, 403)
+                return
+            estado.setdefault("historial", []).append({"orden": estado["version"], "path": self.path, "doc": cuerpo})
+            self._responde({"result": "created"})
+            return
+        estado["doc"] = cuerpo
         estado["version"] += 1
         self._responde({"result": "updated", "_version": estado["version"]})
 
@@ -117,6 +126,40 @@ def main():
         cfg = estado["doc"]["configuration"]
         comprueba("agente · null quita el valor propio (sin escribir null)",
                   r.returncode == 0 and "controls" not in cfg["agents"]["028"] and "null" not in json.dumps(cfg["agents"]), json.dumps(cfg["agents"]))
+
+        # --- vacío = sin valor, también en la organización (nunca null)
+        reinicia(agentes)
+        r = ejecuta(url, tmp, {"op.acc.1": {"P-04": [], "P-01": None}}, "--apply")
+        params = {x["id"]: x for x in estado["doc"]["configuration"]["controls"][0]["parameters"]}
+        comprueba("organización · [] y null quitan la clave value",
+                  r.returncode == 0 and "value" not in params["P-04"] and "value" not in params["P-01"], json.dumps(params))
+
+        # --- quitar se admite siempre: un valor huérfano también
+        reinicia({"028": {"controls": {"op.acc.1": {"parameters": {"P-99": "x", "P-04": ["y"]}},
+                                       "op.exp.1": {"parameters": {"P-01": ["a | b | c | d"]}}}}})
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-99": None, "P-04": ""}, "op.exp.1": {"P-01": None}}}}, "--apply")
+        comprueba("agente · null quita valores que no se aplican (parámetro inexistente, de organización, control no sembrado)",
+                  r.returncode == 0 and "controls" not in estado["doc"]["configuration"]["agents"]["028"],
+                  r.stdout + r.stderr + json.dumps(estado["doc"]["configuration"].get("agents")))
+
+        # --- la clave es el id; un nombre se rechaza, con el id si se conoce
+        reinicia({"028": {"name": "dirHost", "aliases": ["dir01.example.com"]}})
+        version = estado["version"]
+        r = ejecuta(url, tmp, {"agents": {"dirHost": {"op.acc.1": {"P-07": ["x | y | z"]}}}}, "--apply")
+        comprueba("clave · un nombre se rechaza y se propone el id",
+                  r.returncode == 1 and '"dirHost" no es un id de agente; usar el id (028)' in r.stderr and estado["version"] == version, r.stderr)
+        r = ejecuta(url, tmp, {"agents": {"srv-desconocido": {"op.acc.1": {"P-07": ["x | y | z"]}}}}, "--apply")
+        comprueba("clave · un nombre que no se conoce se rechaza igual",
+                  r.returncode == 1 and '"srv-desconocido" no es un id de agente' in r.stderr, r.stderr)
+
+        # --- la versión anterior, al historial antes de escribir
+        reinicia(agentes)
+        estado["historial"] = []
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-11": ["sudo"]}}}}, "--apply")
+        h = estado.get("historial") or []
+        comprueba("historial · guarda la versión anterior y dice dónde",
+                  len(h) == 1 and h[0]["doc"]["configuration"]["agents"] == agentes and "Versión anterior guardada en: historial" in r.stdout,
+                  r.stdout + str(h)[:200])
 
         for nombre, contenido, motivo in [
             ("rechaza un parámetro de organización por agente", {"agents": {"028": {"op.acc.1": {"P-04": ["x"]}}}}, "parámetro de organización"),

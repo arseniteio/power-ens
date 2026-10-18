@@ -27,6 +27,10 @@ del bloque y algún agente tenía valor propio para él, se avisa: ese valor que
 huérfano (no lo lee nadie) hasta que se quite en la pantalla. Al sembrar un
 control nuevo no se crean asignaciones ni valores por agente.
 
+ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
+`wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
+en un fichero local `active-antes-<fecha>.json`. La herramienta dice dónde.
+
 Uso:
     export OS_USER=admin
     export OS_PASS='...'
@@ -49,6 +53,9 @@ import ssl
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ensfacil_history import guarda_version_anterior  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
@@ -147,6 +154,7 @@ except urllib.error.HTTPError as e:
     raise
 
 source = doc["_source"]
+fuente_previa = json.loads(json.dumps(source))
 cfg = source["configuration"]
 controls = cfg.get("controls", [])
 presentes = [c["controlId"] for c in controls]
@@ -173,6 +181,16 @@ conservados = []
 nuevos = []
 retirados = []
 
+# Valores por agente de los parámetros que el bloque ya no declara: quedan
+# huérfanos (no los lee nadie). Se avisa al fusionar y al sustituir.
+ids_bloque = {x.get("id") for x in parametros}
+huerfanos = sorted(
+    "{} en el agente {}".format(pid, agente)
+    for agente, perfil in (cfg.get("agents") or {}).items()
+    for pid in ((((perfil or {}).get("controls") or {}).get(control_id) or {}).get("parameters") or {})
+    if pid not in ids_bloque
+) if anterior else []
+
 if anterior and not args.sustituir:
     valores_previos = {
         x.get("id"): x.get("value")
@@ -196,15 +214,6 @@ if anterior and not args.sustituir:
         if x.get("id") not in ids_nuevos
     ]
 
-    # Valores por agente de los parámetros que se retiran: quedan huérfanos.
-    ids_retirados = {x.get("id") for x in anterior.get("parameters", []) if x.get("id") not in ids_nuevos}
-    huerfanos = sorted(
-        "{} en el agente {}".format(pid, agente)
-        for agente, perfil in (cfg.get("agents") or {}).items()
-        for pid in ((((perfil or {}).get("controls") or {}).get(control_id) or {}).get("parameters") or {})
-        if pid in ids_retirados
-    )
-
     print("Fusión con lo ya configurado:")
     print("  conserva su valor: {}".format(", ".join(conservados) or "ninguno"))
     print("  parámetros nuevos: {}".format(", ".join(nuevos) or "ninguno"))
@@ -218,6 +227,9 @@ elif anterior and args.sustituir:
     ]
     print("--sustituir: se DESCARTAN los valores ya configurados.")
     print("  se pierden: {}".format(", ".join(con_valor) or "ninguno (no había valores puestos)"))
+    print("  los valores por agente (configuration.agents) se conservan")
+    if huerfanos:
+        print("  AVISO: valores por agente de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
 
 # --- reemplazar el bloque del control sin tocar los demás
 controls = [c for c in controls if c["controlId"] != control_id]
@@ -243,6 +255,7 @@ if not args.apply:
     print("\n== DRY-RUN ==  nada se ha escrito. Añade --apply si el plan es correcto.")
     sys.exit(0)
 
+print("\nVersión anterior guardada en: {}".format(guarda_version_anterior(req, INDEX, fuente_previa, "inject-control.py")))
 result = req("PUT", "/{}/_doc/{}".format(INDEX, DOC), source)
 print("\n== APLICADO ==  result: {} | version: {}".format(result.get("result"), result.get("_version")))
 print("El control aparecerá en la pantalla de Configuración del plugin.")

@@ -23,8 +23,10 @@
  * también impide cargar el entorno). Además se comprueba su significado: que
  * cada control y parámetro exista, que no sea de organización, que cada
  * plantilla exista y no choque con otra, y que cada valor sea válido para su
- * parámetro. Eso no impide cargar el entorno, pero la fila de esa máquina se
- * evalúa con una configuración inválida: también sale con 1. Se imprime una
+ * parámetro, y que cada perfil sea de un id de agente. Eso no impide cargar el
+ * entorno, pero sale con 1: un valor que no se aplica se ignora, y una máquina
+ * con un valor inválido se evalúa con una configuración inválida. Las claves
+ * que esta versión no conoce son avisos y no cambian la salida. Se imprime una
  * línea por agente con su tipo, sus plantillas y sus valores propios.
  *
  * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
@@ -94,12 +96,20 @@ agents.forEach(agent =>
 );
 
 const issues = validateAgentsConfiguration(configuration);
+const warnings = issues.filter(issue => issue.severity === 'warning');
+const errors = issues.filter(issue => issue.severity === 'error');
 
-if (!issues.length) {
+// Lo que esta versión no conoce (de una versión posterior) se ignora: aviso.
+if (warnings.length) {
+  console.log(`avisos (${warnings.length}): claves que esta versión no conoce y que ignora:`);
+  warnings.forEach(issue => console.log(`  - ${issue.message}`));
+}
+
+if (!errors.length) {
   console.log('VALORES POR SISTEMA VÁLIDOS.');
   process.exit(0);
 }
 
-console.log(`VALORES POR SISTEMA INVÁLIDOS (${issues.length}): el plugin carga el entorno, pero esas máquinas se evalúan con una configuración inválida.`);
-issues.forEach(issue => console.log(`  - agente ${issue.agentId}: ${issue.message}`));
+console.log(`VALORES POR SISTEMA INVÁLIDOS (${errors.length}): el plugin carga el entorno; lo que «no se aplica» se ignora y se quita en la página del agente o con set-parameters.py (null), y una máquina con un valor inválido se evalúa con una configuración inválida.`);
+errors.forEach(issue => console.log(`  - agente ${issue.agentId}: ${issue.message}`));
 process.exit(1);

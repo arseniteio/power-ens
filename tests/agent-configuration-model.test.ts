@@ -25,7 +25,8 @@ import {
 import { ENS_CONFIGURATION_TEMPLATES, templateConflict } from '../public/ens/configuration/templates';
 import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
 import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
-import { validateAgentsConfigurationShape } from '../common/agent-configuration';
+import { checkAgentsConfigurationKeys, validateAgentsConfigurationShape } from '../common/agent-configuration';
+import { resolveControlConfigurationForAgent } from '../public/ens/configuration/agents/configuration-resolver';
 import {
   summarizeAgentsConfiguration,
   validateAgentsConfiguration,
@@ -137,11 +138,26 @@ console.log('3. Forma de configuration.agents');
   comprueba('sin la clave, válido', validateAgentsConfigurationShape(undefined).length === 0);
   comprueba('un valor null no', validateAgentsConfigurationShape({ '024': { controls: { 'op.acc.1': { parameters: { 'P-07': null } } } } }).length === 1);
   comprueba('un objeto como valor no', validateAgentsConfigurationShape({ '024': { controls: { 'op.acc.1': { parameters: { 'P-07': { a: 1 } } } } } }).length === 1);
-  comprueba('la clave tiene que ser el id normalizado', validateAgentsConfigurationShape({ '24': {} }).length === 1);
-  comprueba('un tipo desconocido no', validateAgentsConfigurationShape({ '024': { typeOverride: 'solaris' } }).length === 1);
-  comprueba('una clave desconocida no', validateAgentsConfigurationShape({ '024': { overrides: {} } }).length === 1);
+  comprueba('un tipo que no es texto no', validateAgentsConfigurationShape({ '024': { typeOverride: 3 } }).length === 1);
+  comprueba('plantillas que no son una lista de texto no', validateAgentsConfigurationShape({ '024': { templates: 'linux-ubuntu' } }).length === 1);
+
+  // L3: la clave es el id normalizado. No tumba el entorno (no es de forma),
+  // pero es un error de significado: el valor no se aplicaría a ninguna fila.
+  comprueba('una clave que no es un id no es de forma (no tumba el entorno)', validateAgentsConfigurationShape({ srvWeb01: {}, '24': {} }).length === 0);
+  const claves = checkAgentsConfigurationKeys({ srvWeb01: {}, '24': {}, '024': {} });
+  comprueba('pero es un error, con el remedio', claves.errors.length === 2 && claves.errors.some(e => /«srvWeb01» no es un id de agente; usar el id numérico/.test(e)) && claves.errors.some(e => /«24» no es un id de agente normalizado; usar 024/.test(e)), claves.errors);
+
+  // L4: lo que esta versión no conoce se ignora con un aviso, nunca un error.
+  const futuro = { '024': { platform: 'zimbra-ldap', platformSource: 'hechos', attributes: { criticidad: 'alta' }, typeOverride: 'macos', templates: ['linux-ubuntu'], controls: { 'op.acc.1': { assigned: true, parameters: { 'P-07': ['u | srv-a | admin'] } }, 'op.exp.1': { assigned: true } } } };
+  comprueba('claves de una versión posterior: forma válida', validateAgentsConfigurationShape(futuro).length === 0, validateAgentsConfigurationShape(futuro));
+  const avisos = checkAgentsConfigurationKeys(futuro);
+  comprueba('y avisos, no errores', avisos.errors.length === 0 && avisos.warnings.length === 6 && avisos.warnings.every(w => /ignora/.test(w)), avisos);
   comprueba('una lista no es un mapa de agentes', validateAgentsConfigurationShape([]).length === 1);
 
+  const conFuturo: any = { ...defaultENSConfigurationTemplate, agents: futuro };
+  comprueba('un documento con claves de una versión posterior carga', validateENSConfigurationStructure(conFuturo).valid, validateENSConfigurationStructure(conFuturo).errors);
+  comprueba('y se evalúa: el valor propio se aplica', JSON.stringify(resolveControlConfigurationForAgent(conFuturo, 'op.acc.1', '024')?.parameters.find(p => p.id === 'P-07')?.value) === '["u | srv-a | admin"]');
+  comprueba('el validador de significado lo da como avisos', validateAgentsConfiguration(conFuturo).filter(i => i.severity === 'warning').length === 6 && validateAgentsConfiguration(conFuturo).filter(i => i.severity === 'error').length === 0, validateAgentsConfiguration(conFuturo));
   const doc: any = { ...defaultENSConfigurationTemplate, agents: valido };
   comprueba('el validador estructural acepta un documento con agents', validateENSConfigurationStructure(doc).valid, validateENSConfigurationStructure(doc).errors);
   const roto: any = { ...defaultENSConfigurationTemplate, agents: { '024': { controls: { 'op.acc.1': { parameters: { 'P-07': null } } } } } };
@@ -165,7 +181,10 @@ console.log('4. Significado');
     },
   } as any);
   const m = issues.map(i => i.message).join(' || ');
-  comprueba('parámetro de organización por agente: error', /P-04 es un parámetro de organización/.test(m), m);
+  comprueba('parámetro de organización por agente: error, huérfano (no se aplica)', /P-04 es un parámetro de organización/.test(m) && issues.find(i => i.parameterId === 'P-04')?.kind === 'huerfano', m);
+  comprueba('un valor inválido sí se aplica: de tipo valor', issues.find(i => i.parameterId === 'P-10')?.kind === 'valor');
+  const porNombre = validateAgentsConfiguration({ controls, agents: { srvWeb01: { controls: { 'op.acc.1': { parameters: { 'P-07': ['u | s | r'] } } } } } } as any);
+  comprueba('un perfil guardado por nombre: error que lo dice', porNombre.some(i => i.severity === 'error' && /no es un id de agente/.test(i.message)), porNombre);
   comprueba('parámetro que no existe: error', /no declara el parámetro P-99/.test(m), m);
   comprueba('control no sembrado: error', /op\.exp\.1 no está en la configuración/.test(m), m);
   comprueba('plantilla desconocida: error', /no-existe/.test(m), m);

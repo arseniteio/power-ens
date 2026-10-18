@@ -240,7 +240,8 @@ export const planMigrationToSystems = (
         const profile = profileFor(agentId);
         const controls = (profile.controls = profile.controls || {});
         const overrides = (controls[control.controlId] = controls[control.controlId] || { parameters: {} });
-        const previous = overrides.parameters[parameter.id];
+        const parameters = (overrides.parameters = overrides.parameters || {});
+        const previous = parameters[parameter.id];
         const merged: string[] = previous === undefined ? [] : toParameterTableRows(previous).filter(row => row.trim());
         const seen = new Set(merged.map(rowKey));
         const append = (row: string) => {
@@ -252,7 +253,7 @@ export const planMigrationToSystems = (
 
         byAgent.get(agentId)!.forEach(append);
         wildcards.forEach(append);
-        overrides.parameters[parameter.id] = merged;
+        parameters[parameter.id] = merged;
       });
 
       // ¿Se pueden quitar de la organización? Se prueba quitándolas y viendo si

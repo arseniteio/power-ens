@@ -83,8 +83,12 @@ export const setAgentParameterValue = (
         parameters[parameterId] = value as ENSAgentParameterValue;
       }
 
+      // Lo que una versión posterior guarde junto a `parameters` se conserva.
+      const { parameters: _previous, ...rest } = (controls[controlId] || {}) as Record<string, unknown>;
       if (Object.keys(parameters).length) {
-        controls[controlId] = { parameters };
+        controls[controlId] = { ...rest, parameters } as typeof controls[string];
+      } else if (Object.keys(rest).length) {
+        controls[controlId] = rest as unknown as typeof controls[string];
       } else {
         delete controls[controlId];
       }
@@ -255,3 +259,70 @@ export const getAgentCompleteness = (
 
   return result;
 };
+
+// --- remedios ---------------------------------------------------------------
+
+/**
+ * Quita lo que un perfil guarda y no se aplica: un perfil entero (por ejemplo,
+ * uno guardado con un nombre en lugar de un id), los valores de un control o
+ * el valor de un parámetro. `agentKey` es la clave TAL CUAL está en el
+ * documento, sin normalizar: es la que hay que borrar.
+ */
+export const removeAgentEntry = (
+  configuration: ENSConfigurationVersion,
+  agentKey: string,
+  controlId?: string,
+  parameterId?: string
+): ENSConfigurationVersion => {
+  if (!configuration.agents || !configuration.agents[agentKey]) {
+    return configuration;
+  }
+
+  const next = clone(configuration);
+  const agents = next.agents!;
+
+  if (!controlId) {
+    delete agents[agentKey];
+    return next;
+  }
+
+  const profile = agents[agentKey];
+  const controls = profile.controls || {};
+
+  if (!parameterId) {
+    delete controls[controlId];
+  } else {
+    const entry = controls[controlId];
+    if (entry?.parameters) {
+      delete entry.parameters[parameterId];
+      if (!Object.keys(entry.parameters).length) delete entry.parameters;
+    }
+    if (entry && !Object.keys(entry).length) delete controls[controlId];
+  }
+
+  if (!Object.keys(controls).length) delete profile.controls;
+  return next;
+};
+
+// Otros nombres por los que se conoce a la máquina en las tablas de la
+// configuración: los usa la migración para reconocerla.
+export const setAgentAliases = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  aliases: string[],
+  agent?: ENSDetectableAgent,
+  detection?: ENSSystemDetection
+): ENSConfigurationVersion =>
+  withProfile(
+    configuration,
+    agentId,
+    current => {
+      const clean = mergeAliases(aliases);
+      const next = { ...current };
+      if (clean) next.aliases = clean;
+      else delete next.aliases;
+      return next;
+    },
+    agent,
+    detection
+  );
