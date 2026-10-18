@@ -51,7 +51,7 @@ export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
   id: 'linux-ubuntu',
   label: 'Linux Ubuntu',
   description:
-    'Servidor Ubuntu (22.04 o 24.04) con el agente de Wazuh y los recolectores de ENSFácil: cuentas y grupos del sistema, rutas críticas, SUID, auditd, ClamAV y SSH.',
+    'Servidor Ubuntu (22.04 o 24.04) con el agente de Wazuh y los recolectores de ENSFácil: cuentas y grupos del sistema, rutas críticas, SUID, auditd, ClamAV y SSH. La lista de SUID es la de 22.04 y 24.04 juntas: en una 22.04 autoriza también binarios que solo trae la 24.04, y se ajusta con un valor propio si hace falta.',
   kind: 'base',
   systemTypes: ['linux'],
   sources: [
