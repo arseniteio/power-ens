@@ -256,7 +256,7 @@ La pestaña Configuración se abre en un control, un agente o un parámetro con 
 | `?tabView=configuration&configAgent=001` | «Sistemas», página del agente 001 |
 | `?tabView=configuration&configAgent=001&configControl=op.acc.1&configParam=P-07` | La página del agente 001 con op.acc.1 desplegado y P-07 en edición |
 
-Desde el Detalle del control, «Configurar este control» y las insignias de parámetro de cada no conformidad añaden a la URL `control` (el control del detalle), `agentId` (la máquina elegida) y `configBack=plugins`. Con una máquina elegida y un parámetro por sistema o por plataforma, se abre la página de esa máquina en «Sistemas»; con un parámetro de organización, o sin máquina, la ficha del control en «Organización». Configuración muestra entonces «Volver al detalle de op.acc.1 (024)», que vuelve al mismo control y a la misma máquina.
+Desde el Detalle del control, «Configurar este control» y las insignias de parámetro de cada no conformidad añaden a la URL `control` (el control del detalle), `agentId` (la máquina elegida) y `configBack=plugins`. Con una máquina elegida y un parámetro por sistema o por plataforma, se abre la página de esa máquina en «Sistemas»; con un parámetro de organización, o sin máquina, la ficha del control en «Organización». Configuración muestra entonces «Volver al detalle de op.acc.1 (001)», que vuelve al mismo control y a la misma máquina; mientras está, es la única vuelta (no aparece «Volver a controles» ni «Volver a sistemas»).
 
 Resultado esperado: tras guardar y pulsar «Volver al detalle de …», el Detalle del control muestra el mismo control y la misma máquina, y la URL ya no lleva ningún parámetro `config*`.
 
