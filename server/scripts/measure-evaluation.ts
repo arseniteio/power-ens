@@ -97,7 +97,7 @@ const pide = (metodo: string, ruta: string, consulta: Record<string, unknown> = 
         agent: agente,
         headers: { 'content-type': 'application/json', ...(datos ? { 'content-length': Buffer.byteLength(datos) } : {}) },
       },
-      res => {
+      (res: any) => {
         const trozos: any[] = [];
         res.on('data', (c: any) => trozos.push(c));
         res.on('end', () => {

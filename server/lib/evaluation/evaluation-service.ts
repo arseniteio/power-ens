@@ -217,6 +217,8 @@ interface StoredRow {
   scopeKey: string;
   // El último intento de refrescarla en segundo plano que falló.
   refreshError?: { message: string; at: string };
+  // Ya la sustituyó otra (hechos nuevos): su serie pendiente no se calcula.
+  superseded?: boolean;
 }
 
 export interface ENSRowComputeStats {
@@ -335,6 +337,12 @@ export interface ENSViewPartition {
 // Lo que una vista con serie espera a los días que aún se están calculando
 // antes de responder sin ella (`meta.timelinePending`).
 export const SERIES_WAIT_MS = 20 * 1000;
+// Los días que cada fila calcula en su primer turno (los del panel: 7 días,
+// el de hoy es el resultado actual).
+export const SERIES_FIRST_DAYS = 6;
+// Hechos (normalizados) que pueden esperar a la vez en la cola de la serie
+// (~1,7 KB cada uno: unos 100 MB).
+export const SERIES_MAX_QUEUED_EVENTS = 60000;
 
 // Lo que tarda en reintentarse un refresco que falló: 30 s, 1 min, 2, 4… hasta 5 min.
 const esperaTrasFallo = (fallos: number): number => Math.min(5 * 60 * 1000, 30 * 1000 * 2 ** Math.max(0, fallos - 1));
@@ -360,10 +368,11 @@ export const createEvaluationService = ({
   // Los días pasados se evalúan después de responder con el actual, con los
   // mismos hechos, de uno en uno (el motor es CPU del proceso del dashboard).
   const cutsQueue = new Semaphore(1);
-  const cutsRunning = new Set<string>();
   // La serie que se está calculando de cada fila (para esperarla un poco en
-  // vez de responder «pendiente»).
-  const seriesInFlight = new Map<string, Promise<void>>();
+  // vez de responder «pendiente»). Cada cálculo con su testigo: el final de
+  // uno anterior de la misma fila no borra al nuevo.
+  const seriesInFlight = new Map<string, object>();
+  let eventosEnCola = 0;
   const refreshFailures = new Map<string, { failures: number; nextAt: number }>();
 
   // --- 1. contexto ---------------------------------------------------------
@@ -619,50 +628,72 @@ export const createEvaluationService = ({
 
       // Los días pasados, con los mismos hechos y después de responder, del
       // más reciente al más antiguo (los 7 del panel salen primero), y cada
-      // punto se guarda en cuanto está. No se suelta la plaza de lectura
-      // mientras haya otra fila esperando a evaluar su serie: así los hechos
-      // en memoria a la vez siguen acotados.
-      while (cutsQueue.queued >= 1) await new Promise(r => setTimeout(r, 20));
+      // punto se guarda en cuanto está. Las filas esperan su turno con sus
+      // hechos en memoria: si en la cola ya hay `SERIES_MAX_QUEUED_EVENTS`,
+      // no se suelta la plaza de lectura hasta que baje (así los hechos en
+      // memoria a la vez siguen acotados sin frenar las lecturas de más).
+      while (cutsQueue.queued >= 1 && eventosEnCola + events.length > SERIES_MAX_QUEUED_EVENTS) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      const enCola = events.length;
+      eventosEnCola += enCola;
       const tarea = `${options.rowKey}|${serie.key}`;
       const cuts: StoredCuts = { key: serie.key, points: {}, complete: false };
       row.cuts = cuts;
       options.onCuts(cuts, 0);
-      cutsRunning.add(tarea);
-      let termina: () => void = () => undefined;
-      seriesInFlight.set(tarea, new Promise<void>(resolve => (termina = resolve)));
-      void cutsQueue
-        .use(async () => {
-          const t0 = Date.now();
-          const ascending = events
+      const testigo = {};
+      seriesInFlight.set(tarea, testigo);
+      // En dos turnos: primero los días del panel (los más recientes) de cada
+      // fila, luego el resto (detrás de los primeros turnos de las demás).
+      const dias = [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime());
+      let ascending: { event: ENSNormalizedEvent; time: number }[] | undefined;
+      let cpuMs = 0;
+      const evaluaDias = async (lista: typeof dias): Promise<boolean> => {
+        if (!ascending) {
+          ascending = events
             .map(event => ({ event, time: Date.parse(event.timestamp) }))
             .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
             .sort((left, right) => left.time - right.time);
-          const hasta = (limite: number) => {
-            let lo = 0;
-            let hi = ascending.length;
-            while (lo < hi) {
-              const mid = (lo + hi) >> 1;
-              if (ascending[mid].time <= limite) lo = mid + 1;
-              else hi = mid;
-            }
-            return lo;
-          };
-          for (const cut of [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
-            // Cede el hilo entre día y día: una petición que sale de la
-            // memoria no espera a que termine la serie.
-            await new Promise(r => setImmediate(r));
-            const enCorte = evalua(ascending.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
-            cuts.points[cut.cutoff.toISOString()] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
+        }
+        const orden = ascending;
+        const hasta = (limite: number) => {
+          let lo = 0;
+          let hi = orden.length;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (orden[mid].time <= limite) lo = mid + 1;
+            else hi = mid;
           }
+          return lo;
+        };
+        for (const cut of lista) {
+          // Cede el hilo entre día y día: una petición que sale de la memoria
+          // no espera a que termine la serie.
+          await new Promise(r => setImmediate(r));
+          // Una fila ya sustituida por otra más nueva no termina su serie: la
+          // nueva trae la suya.
+          if (row.superseded) return false;
+          const t0 = Date.now();
+          const enCorte = evalua(orden.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
+          cuts.points[cut.cutoff.toISOString()] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
+          cpuMs += Date.now() - t0;
+        }
+        return true;
+      };
+      void cutsQueue
+        .use(() => evaluaDias(dias.slice(0, SERIES_FIRST_DAYS)))
+        .then(sigue => (sigue ? cutsQueue.use(() => evaluaDias(dias.slice(SERIES_FIRST_DAYS)), { background: true }) : false))
+        .then(completa => {
+          if (!completa) return;
           cuts.complete = true;
-          row.stats.cutsMs = Date.now() - t0;
-          options.onCuts(cuts, Date.now() - t0);
+          row.stats.cutsMs = cpuMs;
+          options.onCuts(cuts, cpuMs);
         })
         .catch(error => logger.warn(`ENSFácil: no se pudo calcular la serie de ${que}: ${error?.message || error}`))
         .finally(() => {
-          cutsRunning.delete(tarea);
-          seriesInFlight.delete(tarea);
-          termina();
+          eventosEnCola -= enCola;
+          ascending = undefined;
+          if (seriesInFlight.get(tarea) === testigo) seriesInFlight.delete(tarea);
         });
 
       return row;
@@ -708,6 +739,8 @@ export const createEvaluationService = ({
     const conSerie = (cuts: StoredCuts, ms: number) => adoptCuts(key, fingerprint, cuts, ms);
     const guarda = (row: StoredRow) => {
       refreshFailures.delete(key);
+      const anterior = rows.peek(key);
+      if (anterior && anterior.value !== row) anterior.value.superseded = true;
       rows.set(key, fingerprint, row);
       return row;
     };
@@ -1105,14 +1138,14 @@ export const createEvaluationService = ({
       const fingerprint = entrada.fingerprint;
       if (tasks.has(`${u.key}|${fingerprint}`)) continue;
       const tarea = `${u.key}|${fingerprint}|serie|${serieKey}`;
-      if (tasks.has(tarea) || cutsRunning.has(`${u.key}|${serieKey}`)) continue;
+      if (tasks.has(tarea) || seriesInFlight.has(`${u.key}|${serieKey}`)) continue;
       tasks
         .run(tarea, signal => u.recompute(signal, (cuts, ms) => adoptCuts(u.key, fingerprint, cuts, ms)))
         .catch(error => logger.warn(`ENSFácil: no se pudo calcular la serie de ${u.key}: ${error?.message || error}`));
     }
   };
 
-  return { loadContext, run, viewFingerprint, rows, timelines, tasks, reads, cutsQueue, cutsRunning };
+  return { loadContext, run, viewFingerprint, rows, timelines, tasks, reads, cutsQueue, seriesInFlight };
 };
 
 // Una espera que nunca se cancela (llamadas internas y pruebas).
