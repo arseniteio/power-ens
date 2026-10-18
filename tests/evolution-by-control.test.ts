@@ -18,9 +18,9 @@
  */
 import {
   mapCutsToControlPoints,
-} from '../public/ens/core/timeline/control-timeline-points';
-import { buildENSTimelineCuts } from '../public/ens/core/timeline/timeline-cuts';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/core/timeline/control-timeline-points';
+import { buildENSTimelineCuts } from '../common/ens/core/timeline/timeline-cuts';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

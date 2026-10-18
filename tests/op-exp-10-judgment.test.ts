@@ -19,20 +19,20 @@
  * parte en uno por evidencia, igual que en producción. Los hechos son los que
  * emitió el recolector en wazuh-real el 26/09/2026.
  */
-import { opExp10PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-10.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opExp10CatalogDefinition } from '../public/ens/catalog/op-exp-10';
-import { opExp10Configuration } from '../public/ens/configuration/data/op-exp-10-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { opExp10PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-exp-10.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opExp10CatalogDefinition } from '../common/ens/catalog/op-exp-10';
+import { opExp10Configuration } from '../common/ens/configuration/data/op-exp-10-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
 import { compareENSIds } from '../public/ens/control-filter/prefix';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

@@ -35,3 +35,26 @@ export const buildENSAllControlsFactsFilter = (controlIds: string[]) => {
 // El tope de hechos que leen el panel, el detalle y los informes: los 10.000
 // MÁS RECIENTES (`index.max_result_window` por defecto de OpenSearch).
 export const ENS_FACTS_QUERY_LIMIT = 10000;
+
+// Los campos por los que un hecho dice de qué control es, en el orden en que
+// los lee el normalizador (`data-source-engine.ts`): el primero que trae manda.
+export const ENS_CONTROL_ID_FIELDS = ['data.ensfacil', 'data.ens', 'data.control_id', 'data.control'];
+
+// Los hechos de UN control: los que lo nombran en cualquiera de esos campos.
+// Es el filtro de la ficha del control; el servidor lee así cada control.
+export const buildENSControlFactsFilter = (controlId: string) => ({
+  bool: {
+    should: ENS_CONTROL_ID_FIELDS.map(field => ({ match_phrase: { [field]: controlId } })),
+    minimum_should_match: 1,
+  },
+});
+
+// Los hechos que no nombran ningún control: el filtro de todos los controles
+// los admite (por los grupos de regla o por `data.evidence_id`) y el motor los
+// considera de todos (`resolveEvidenceForControl` acepta los que no traen
+// control). El servidor los lee aparte y se los da a cada control.
+export const buildENSFactsWithoutControlFilter = () => ({
+  bool: {
+    must_not: ENS_CONTROL_ID_FIELDS.map(field => ({ exists: { field } })),
+  },
+});

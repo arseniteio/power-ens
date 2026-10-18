@@ -17,10 +17,10 @@ import {
   getActiveENSConfiguration,
   getConfiguredControlById,
   getConfiguredControls,
-} from '../services';
-import { ENSLevel } from '../types';
-import { getENSCatalogControl } from '../../catalog';
-import { resolveControlLevel } from '../../core/control-level';
+} from '../../../../common/ens/configuration/services';
+import { ENSLevel } from '../../../../common/ens/configuration/types';
+import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { resolveControlLevel } from '../../../../common/ens/core/control-level';
 
 import {
   ConfigurationCatalog,

@@ -26,27 +26,27 @@
  * Wazuh. Cuando exista el recolector, se sustituyen por su salida real en modo
  * --prueba. Pasan por el normalizador real como alertas de alerts.json.
  */
-import { opNub1PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-nub-1.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opNub1CatalogDefinition } from '../public/ens/catalog/op-nub-1';
-import { opNub1Configuration } from '../public/ens/configuration/data/op-nub-1-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { markEvidencesStale, markPolicyRuntimeStale } from '../public/ens/core/evidence/stale-collector';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
+import { opNub1PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-nub-1.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opNub1CatalogDefinition } from '../common/ens/catalog/op-nub-1';
+import { opNub1Configuration } from '../common/ens/configuration/data/op-nub-1-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { markEvidencesStale, markPolicyRuntimeStale } from '../common/ens/core/evidence/stale-collector';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 import { buildOpNub1ReportModel } from '../public/ens/reports/op-nub-1-report-model';
 import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

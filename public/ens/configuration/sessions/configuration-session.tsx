@@ -13,11 +13,11 @@ import { applyENSControlParameterValues } from '../engine';
 import {
   updateActiveControlConfiguration,
   validateControlParameterValues,
-} from '../services';
+} from '../../../../common/ens/configuration/services';
 import {
   ENSControlConfiguration,
   ENSControlParameterValues,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;

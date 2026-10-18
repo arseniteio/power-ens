@@ -25,24 +25,24 @@
  * Imports desde el FICHERO, nunca desde un barrel de alto nivel (el ciclo del
  * TDZ de `Settings`).
  */
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { consolidateAgentComplianceResultByControl } from '../public/ens/core/compliance-state/consolidation';
-import type { ENSAgentComplianceState } from '../public/ens/core/compliance-state/types';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { consolidateAgentComplianceResultByControl } from '../common/ens/core/compliance-state/consolidation';
+import type { ENSAgentComplianceState } from '../common/ens/core/compliance-state/types';
 import type {
   ENSPolicyDecision,
   ENSPolicyRuntimeResult,
-} from '../public/ens/core/policy-runtime/types';
-import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
-import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
-import type { ENSControlDefinition } from '../public/ens/catalog/types';
+} from '../common/ens/core/policy-runtime/types';
+import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
+import { opAcc1Configuration } from '../common/ens/configuration/data/op-acc-1-parameters';
+import type { ENSControlDefinition } from '../common/ens/catalog/types';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../public/ens/configuration/types';
-import type { ENSComplianceStatus } from '../public/ens/core/evaluation/types';
-import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+} from '../common/ens/configuration/types';
+import type { ENSComplianceStatus } from '../common/ens/core/evaluation/types';
+import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 import { etiquetaDeRequisitoQueCumple } from '../public/ens/controls/control-detail/general-view';
 import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
 

@@ -21,26 +21,26 @@
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { ENSCatalog } from '../public/ens/catalog';
-import { opCont2PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-cont-2.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opCont2CatalogDefinition } from '../public/ens/catalog/op-cont-2';
-import { opCont2Configuration } from '../public/ens/configuration/data/op-cont-2-parameters';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { controlExpectsFacts, getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { ENSCatalog } from '../common/ens/catalog';
+import { opCont2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-cont-2.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opCont2CatalogDefinition } from '../common/ens/catalog/op-cont-2';
+import { opCont2Configuration } from '../common/ens/configuration/data/op-cont-2-parameters';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { controlExpectsFacts, getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { buildOpCont2ReportModel } from '../public/ens/reports/op-cont-2-report-model';
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+} from '../common/ens/configuration/types';
+import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -60,7 +60,7 @@ declare const __dirname: string;
   };
 }
 
-const { getENSComplianceResults, getENSComplianceState } = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
+const { getENSComplianceResults, getENSComplianceState } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
 // --- comprobador mínimo ----------------------------------------------------
 

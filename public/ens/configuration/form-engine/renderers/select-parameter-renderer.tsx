@@ -5,7 +5,7 @@ import { ENSFormFieldProps } from '../types';
 import {
   resolveSelectFieldModel,
   validateParameterValue,
-} from '../../services/parameter-value-validator';
+} from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
 // Renderer de parámetros `type: 'select'` con opciones declaradas.
 //

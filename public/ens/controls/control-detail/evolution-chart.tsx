@@ -12,7 +12,7 @@
 // refuerzos R1 y R2 estarían todo el histórico tocando el suelo—. La línea se
 // parte y se dice cuántos días quedaron fuera.
 import React from 'react';
-import type { ENSControlTimelinePoint } from '../../core/timeline/control-timeline-points';
+import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
 
 interface ControlEvolutionChartProps {
   points: ENSControlTimelinePoint[];

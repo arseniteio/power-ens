@@ -141,32 +141,39 @@ const boundaryFor = (
   return previous?.time;
 };
 
+const stateFactDefinitions = (controlId: string) =>
+  getEvidenceDefinitions(controlId).filter(
+    definition => (definition.stateFactEventTypes || []).length
+  );
+
+const collectorFieldOf = (
+  definitions: ReturnType<typeof stateFactDefinitions>
+): string | undefined =>
+  definitions.find(definition => definition.stateFactCollectorField)
+    ?.stateFactCollectorField;
+
+const collectorOfField = (collectorField?: string): CollectorOf => event => {
+  if (!collectorField) {
+    return '';
+  }
+
+  const value = getEventFieldValue(event, collectorField);
+
+  return value === undefined || value === null ? '' : String(value).trim();
+};
+
 export const keepLatestRunStateFacts = (
   controlId: string,
   events: ENSNormalizedEvent[],
   now: Date = new Date()
 ): ENSNormalizedEvent[] => {
-  const definitions = getEvidenceDefinitions(controlId).filter(
-    definition => (definition.stateFactEventTypes || []).length
-  );
+  const definitions = stateFactDefinitions(controlId);
 
   if (!definitions.length) {
     return events;
   }
 
-  const collectorField = definitions.find(
-    definition => definition.stateFactCollectorField
-  )?.stateFactCollectorField;
-
-  const collectorOf: CollectorOf = event => {
-    if (!collectorField) {
-      return '';
-    }
-
-    const value = getEventFieldValue(event, collectorField);
-
-    return value === undefined || value === null ? '' : String(value).trim();
-  };
+  const collectorOf = collectorOfField(collectorFieldOf(definitions));
 
   const runs = collectorRunsByCollector(
     controlId,
@@ -256,3 +263,92 @@ export const keepLatestRunStateFacts = (
     });
   });
 };
+
+// LO QUE EL SERVIDOR PUEDE DEJAR DE LEER, Y POR QUÉ NO CAMBIA NADA.
+//
+// El servidor evalúa sobre la ventana entera, y los hechos de estado se repiten
+// en cada pasada: leerlos todos para quedarse con la última es casi todo el
+// volumen de algunos controles. Esta función dice, por máquina, recolector y
+// tipo de hecho de estado, hasta qué instante (incluido) es seguro no leerlos:
+// el corte de `keepLatestRunStateFacts` calculado SOLO con los latidos que
+// declaran cubrir la evidencia, sin la última emisión del hecho.
+//
+// Por qué es seguro. El corte del motor es el latido anterior a la última vez
+// que se miró la evidencia, y «mirar» es lo más tardío entre el latido que la
+// cubre y el último hecho emitido. Sin el hecho, el corte solo puede salir
+// IGUAL O ANTERIOR, nunca posterior: lo que queda fuera, el motor también lo
+// habría descartado. Y el último hecho emitido, si es posterior al latido que
+// cubre, queda dentro (es posterior al corte), así que el motor, sobre lo que
+// se lee, vuelve a calcular el mismo corte y conserva los mismos hechos. Con
+// varias evidencias dueñas del mismo tipo, manda el corte más antiguo. Una
+// evidencia que nunca se ha declarado cubierta no tiene corte: de sus tipos no
+// se descarta nada.
+//
+// `at` es el instante de evaluación más antiguo que se va a pedir (el primer
+// punto de la serie, o ahora): el corte solo avanza con el tiempo, así que el
+// de `at` vale para todos los posteriores.
+//
+// Devuelve claves `agente|recolector|tipo` → instante en ms.
+export const computeStateFactPruningCutoffs = (
+  controlId: string,
+  runEvents: ENSNormalizedEvent[],
+  at: Date
+): Map<string, number> => {
+  const cutoffs = new Map<string, number>();
+  const definitions = stateFactDefinitions(controlId);
+
+  if (!definitions.length) {
+    return cutoffs;
+  }
+
+  const collectorOf = collectorOfField(collectorFieldOf(definitions));
+  const runs = collectorRunsByCollector(
+    controlId,
+    runEvents,
+    at.getTime(),
+    collectorOf
+  );
+
+  runs.forEach((_list, collector) => {
+    const eventTypes = new Set(
+      definitions.flatMap(definition => definition.stateFactEventTypes || [])
+    );
+
+    eventTypes.forEach(eventType => {
+      const owners = definitions.filter(definition =>
+        (definition.stateFactEventTypes || []).includes(eventType)
+      );
+
+      const boundaries = owners.map(definition =>
+        boundaryFor(runs.get(collector), definition.id, undefined)
+      );
+
+      if (boundaries.some(boundary => boundary === undefined)) {
+        return;
+      }
+
+      cutoffs.set(
+        `${collector}|${eventType}`,
+        Math.min(...(boundaries as number[]))
+      );
+    });
+  });
+
+  return cutoffs;
+};
+
+// Las evidencias que pueden ser dueñas de un tipo de hecho de estado: un hecho
+// que declara OTRA evidencia no es de estado para el motor y no se descarta.
+export const getStateFactOwnerEvidenceIds = (
+  controlId: string,
+  eventType: string
+): string[] =>
+  stateFactDefinitions(controlId)
+    .filter(definition =>
+      (definition.stateFactEventTypes || []).includes(eventType)
+    )
+    .map(definition => definition.id);
+
+export const getStateFactCollectorField = (
+  controlId: string
+): string | undefined => collectorFieldOf(stateFactDefinitions(controlId));

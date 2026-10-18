@@ -152,73 +152,106 @@ const operationalEventType = (
     : undefined;
 };
 
-export const buildImpactEventsModel = (
-  events: ENSNormalizedEvent[] = []
-): ImpactEventsModel => {
+// Los eventos operativos se cuentan una vez por hecho (sin repetir el que el
+// normalizador reparte por evidencia). Se acumulan aparte para que el servidor,
+// que lee los hechos control a control, cuente lo mismo que una pasada sobre
+// todos: `add` con los de cada control y `build` al final.
+export const createImpactEventsAccumulator = () => {
   const uniqueEvents =
     new Map<string, string>();
 
-  events.forEach(event => {
-    if (event.isSynthetic) {
-      return;
-    }
+  const add = (events: ENSNormalizedEvent[] = []): void => {
+    events.forEach(event => {
+      if (event.isSynthetic) {
+        return;
+      }
 
-    const eventType =
-      operationalEventType(event);
+      const eventType =
+        operationalEventType(event);
 
-    if (!eventType) {
-      return;
-    }
+      if (!eventType) {
+        return;
+      }
 
-    const eventKey =
-      canonicalEventKey(event);
+      const eventKey =
+        canonicalEventKey(event);
 
-    if (!uniqueEvents.has(eventKey)) {
-      uniqueEvents.set(
-        eventKey,
-        eventType
-      );
-    }
-  });
-
-  const grouped = Array.from(
-    uniqueEvents.values()
-  ).reduce<Record<string, number>>(
-    (acc, eventType) => {
-      acc[eventType] =
-        (acc[eventType] || 0) + 1;
-
-      return acc;
-    },
-    {}
-  );
-
-  const maxCount = Math.max(
-    ...Object.values(grouped),
-    1
-  );
-
-  const rows = Object.entries(grouped)
-    .map(([eventType, count]) => ({
-      id: eventType,
-      label: metadata[eventType].label,
-      description:
-        metadata[eventType].description,
-      severity:
-        metadata[eventType].severity,
-      count,
-      percent: Math.round(
-        (count * 100) / maxCount
-      ),
-    }))
-    .sort(
-      (a, b) => b.count - a.count
-    )
-    .slice(0, 5);
-
-  return {
-    title:
-      'EVENTOS OPERATIVOS ENS RELEVANTES',
-    rows,
+      if (!uniqueEvents.has(eventKey)) {
+        uniqueEvents.set(
+          eventKey,
+          eventType
+        );
+      }
+    });
   };
+
+  // Los pares clave → tipo ya contados, para guardarlos por control y volver a
+  // sumarlos sin los eventos.
+  const entries = (): [string, string][] => Array.from(uniqueEvents.entries());
+
+  const addEntries = (pairs: [string, string][] = []): void => {
+    pairs.forEach(([eventKey, eventType]) => {
+      if (!uniqueEvents.has(eventKey)) {
+        uniqueEvents.set(eventKey, eventType);
+      }
+    });
+  };
+
+  const build = (): ImpactEventsModel => {
+    const grouped = Array.from(
+      uniqueEvents.values()
+    ).reduce<Record<string, number>>(
+      (acc, eventType) => {
+        acc[eventType] =
+          (acc[eventType] || 0) + 1;
+
+        return acc;
+      },
+      {}
+    );
+
+    const maxCount = Math.max(
+      ...Object.values(grouped),
+      1
+    );
+
+    const rows = Object.entries(grouped)
+      .map(([eventType, count]) => ({
+        id: eventType,
+        label: metadata[eventType].label,
+        description:
+          metadata[eventType].description,
+        severity:
+          metadata[eventType].severity,
+        count,
+        percent: Math.round(
+          (count * 100) / maxCount
+        ),
+      }))
+      .sort(
+        (a, b) => b.count - a.count
+      )
+      .slice(0, 5);
+
+    return {
+      title:
+        'EVENTOS OPERATIVOS ENS RELEVANTES',
+      rows,
+    };
+  };
+
+  return { add, addEntries, entries, build };
+};
+
+// Los tipos que cuentan como evento operativo.
+export const IMPACT_EVENT_TYPES = (): string[] => Object.keys(metadata);
+
+export const buildImpactEventsModel = (
+  events: ENSNormalizedEvent[] = []
+): ImpactEventsModel => {
+  const accumulator = createImpactEventsAccumulator();
+
+  accumulator.add(events);
+
+  return accumulator.build();
 };

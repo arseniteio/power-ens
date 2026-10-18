@@ -18,20 +18,20 @@
  * (agent.id 000) y pasan por el normalizador real: los números llegan como
  * texto y `evidence_id` con comas se parte en uno por evidencia.
  */
-import { opExp7PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-7.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opExp7CatalogDefinition } from '../public/ens/catalog/op-exp-7';
-import { opExp7Configuration } from '../public/ens/configuration/data/op-exp-7-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
+import { opExp7PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-exp-7.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opExp7CatalogDefinition } from '../common/ens/catalog/op-exp-7';
+import { opExp7Configuration } from '../common/ens/configuration/data/op-exp-7-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 

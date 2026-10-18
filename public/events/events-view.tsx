@@ -17,7 +17,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { getActiveENSScopeAgents } from '../ens/core/scope';
+import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { useRouterSearch } from '../routing/use-router-search';
 import { AlertsSearchFrame, useAlertsSearchBar } from '../search/alerts-search-bar';
 import { useEsSearch } from '../search/use-es-search';

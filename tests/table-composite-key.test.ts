@@ -14,13 +14,13 @@
  * no figura en la matriz sigue siendo un hallazgo, y una fila que declara otro
  * acceso para ese mismo recurso sigue incumpliendo.
  */
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { opAcc4Configuration } from '../public/ens/configuration/data/op-acc-4-parameters';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { opAcc4Configuration } from '../common/ens/configuration/data/op-acc-4-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../public/ens/configuration/types';
+} from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 

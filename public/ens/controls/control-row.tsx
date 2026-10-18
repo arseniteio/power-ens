@@ -1,34 +1,15 @@
-// Una fila del catálogo, con SU PROPIA consulta al índice.
+// Una fila del catálogo.
 //
-// POR QUÉ UNA CONSULTA POR CONTROL Y NO UNA PARA TODOS.
-//
-// El listado hacía UNA búsqueda de 10.000 hechos para los cinco controles y
-// evaluaba los cinco sobre ese mismo montón. Como los hechos vienen ordenados
-// por fecha descendente y op.acc.3 emite casi veinte mil en la ventana, los
-// 10.000 más recientes eran casi todos suyos: op.acc.2 se quedaba con las
-// migajas y el motor, viendo cuatro hechos, lo declaraba PARCIAL.
-//
-// Y a diez centímetros, su ficha —que sí pide 10.000 para ese control solo—
-// decía 100 % CUMPLE. Dos pantallas del mismo producto dando veredictos
-// distintos del mismo control, sin que nada avisara de cuál creer.
-//
-// Un control con mucho volumen no puede robarle la medida a los demás. Cada
-// fila pide lo suyo, que es exactamente lo que hace la ficha, así que las dos
-// pantallas ven el mismo conjunto y no pueden discrepar.
-//
-// El coste son cinco búsquedas en vez de una. Es el precio de que el semáforo
-// diga la verdad, y un semáforo que miente no vale nada.
-import React, { useMemo } from 'react';
+// DESDE 1.2.0 LA FILA NO CONSULTA NADA. Hasta 1.1.0 cada fila pedía los
+// 10.000 hechos más recientes de su control y lo evaluaba en el navegador: 23
+// búsquedas a la vez, 170 MB de JSON en el laboratorio, y la pestaña colgada.
+// Ahora la lista pide UNA vez el resumen de todos los controles al servidor,
+// que evalúa cada control con TODOS sus hechos de la ventana (sin tope), y la
+// fila solo lo pinta. La fila y la ficha siguen juzgando el mismo conjunto: el
+// servidor usa la misma evaluación para las dos.
+import React from 'react';
 import { EuiBadge, EuiFacetButton } from '@elastic/eui';
-import { useEsSearch } from '../../search/use-es-search';
 import { FACTS_READ_ERROR_TITLE, factsReadErrorText } from '../../platform/facts-read-error';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../core';
-import { ENSAgentScope } from '../core/scope/types';
-import { ENSLevel } from '../configuration/types';
 
 export interface ControlRowData {
   id: string;
@@ -39,15 +20,23 @@ export interface ControlRowData {
   pending: number;
 }
 
+// Lo que el servidor dice de un control (`include=summary`).
+export interface ControlRowSummary {
+  controlId: string;
+  status: string;
+  score?: number;
+  evaluated: boolean;
+  requirementsNotMet: number;
+  requirementsNotEvidenced: number;
+}
+
 interface ControlRowProps {
   controlId: string;
   title: string;
   levels: string;
-  ensLevel: ENSLevel;
-  evaluationPeriod: string;
-  agentId?: string;
-  scopeAgents: ENSAgentScope[];
-  scopeFilter: unknown;
+  summary?: ControlRowSummary;
+  isLoading: boolean;
+  error?: Error;
   colorDelEstado: (estado: string) => string;
   badgeDelEstado: (estado: string) => string;
   onSelect: () => void;
@@ -57,70 +46,38 @@ export const ControlRow = ({
   controlId,
   title,
   levels,
-  ensLevel,
-  evaluationPeriod,
-  agentId,
-  scopeAgents,
-  scopeFilter,
+  summary,
+  isLoading,
+  error,
   colorDelEstado,
   badgeDelEstado,
   onSelect,
 }: ControlRowProps) => {
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      buildENSEvaluationTimeRangeFilter(evaluationPeriod),
-      scopeFilter,
-      {
-        bool: {
-          should: [
-            { match_phrase: { 'data.ensfacil': controlId } },
-            { match_phrase: { 'data.control': controlId } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ],
-    // Los 10.000 MÁS RECIENTES, como el detalle del control: sin orden, el
-    // índice devuelve primero los más antiguos y la fila juzgaría el principio
-    // de la ventana en vez del estado actual.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-  });
-
-  const hits = esResults?.hits?.hits || [];
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const resultado = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        controlId,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [controlId, ensLevel, normalizedEvents, agentId, scopeAgents],
-  );
-
   // Sin resultado no es que el control incumpla: es que no está en el catálogo
   // del motor. Ése es el único gris de esta pantalla.
-  const estado = resultado?.status || 'NO_EVALUABLE';
+  const estado = summary?.status || 'NO_EVALUABLE';
+  const noConformidades = summary?.requirementsNotMet || 0;
+  const sinDemostrar = summary?.requirementsNotEvidenced || 0;
 
-  const noConformidades = (resultado?.requirements || []).filter(
-    requisito =>
-      requisito.applicable && requisito.status !== 'CUMPLE'
-  ).length;
-
-  const sinDemostrar = (resultado?.requirements || []).filter(
-    requisito =>
-      requisito.applicable &&
-      requisito.status !== 'CUMPLE' &&
-      (requisito as { evidenced?: boolean }).evidenced === false
-  ).length;
+  // Mientras llega el resumen de ESTA vista no se pinta ningún veredicto: el
+  // de la máquina anterior no es el de esta.
+  if (isLoading && !summary) {
+    return (
+      <EuiFacetButton
+        isSelected={false}
+        onClick={onSelect}
+        style={{ borderLeft: '4px solid #D3DAE6', marginBottom: 8 }}
+      >
+        <strong>{controlId}</strong> — {title}
+        <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
+          {levels}
+        </EuiBadge>
+        <EuiBadge color='default' iconType='clock' style={{ marginLeft: 6 }}>
+          Evaluando…
+        </EuiBadge>
+      </EuiFacetButton>
+    );
+  }
 
   // Sin los hechos de ahora, ni veredicto ni recuento: los de antes no valen.
   if (error) {

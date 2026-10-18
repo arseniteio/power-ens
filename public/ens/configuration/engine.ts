@@ -2,7 +2,7 @@ import {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSControlParameterValues,
-} from './types';
+} from '../../../common/ens/configuration/types';
 
 const applyValueToParameter = (
   parameter: ENSControlParameter,

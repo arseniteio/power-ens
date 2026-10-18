@@ -79,7 +79,8 @@ const resolveHydrationError = (error: unknown): string => {
   return 'No se pudo resolver el alcance ENS.';
 };
 
-const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
+// Exportada para el servidor, que resuelve el alcance con el mismo código.
+export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
   agents
     .filter((agent) => typeof agent?.id === 'string' && agent.id.trim().length > 0)
     .map((agent) => ({

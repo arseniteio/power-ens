@@ -1,4 +1,4 @@
-import { ENSConfigurationLifecycleStatus } from '../types';
+import { ENSConfigurationLifecycleStatus } from '../../../../common/ens/configuration/types';
 
 export type ENSPolicyLifecycleAction =
   | 'START_CONFIGURATION'

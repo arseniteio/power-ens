@@ -17,7 +17,7 @@
 import type {
   ENSAgentRef,
   ENSObservationGroup,
-} from '../../core/evaluation/types';
+} from '../../../../common/ens/core/evaluation/types';
 
 // Motivos distintos que se enseñan en una celda antes de contar el resto. Tres
 // caben sin que la fila crezca; el cuarto ya obliga a hacer scroll para leer la

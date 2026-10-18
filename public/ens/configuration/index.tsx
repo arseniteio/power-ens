@@ -12,21 +12,21 @@ import {
 } from '@elastic/eui';
 
 import { LoadingSpinner } from '../../platform/loading-spinner';
-import { loadENSAgentInventory } from '../../agents/agent-inventory';
+import { loadENSAgentInventory } from '../../agents/load-agent-inventory';
 import type {
   ENSAgentScope,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 import {
   getENSScopeHydrationState,
   hydrateENSScope,
   retryENSScopeHydration,
-} from '../core/scope';
+} from '../../../common/ens/core/scope';
 
 import {
   getENSConfigurationHydrationState,
   hydrateENSConfiguration,
   retryENSConfigurationHydration,
-} from './services';
+} from '../../../common/ens/configuration/services';
 
 // El formulario se descarga solo al entrar en Configuración.
 const ConfigurationShell = React.lazy(() =>

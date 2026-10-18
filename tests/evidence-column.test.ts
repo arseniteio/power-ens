@@ -37,20 +37,20 @@ import type { ENSReportModel } from '../public/ens/reports/registry';
 import { buildENSReportModel } from '../public/ens/reports/registry';
 import { buildOpAcc1ReportModel } from '../public/ens/reports/op-acc-1-report-model';
 
-import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
-import { opAcc1Configuration } from '../public/ens/configuration/data/op-acc-1-parameters';
+import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
+import { opAcc1Configuration } from '../common/ens/configuration/data/op-acc-1-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
+} from '../common/ens/configuration/types';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
 import type {
   ENSComplianceResult,
   ENSComplianceStatus,
-} from '../public/ens/core/evaluation/types';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+} from '../common/ens/core/evaluation/types';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

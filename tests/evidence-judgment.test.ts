@@ -18,12 +18,12 @@ import {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { consolidateAgentComplianceResults } from '../public/ens/core/compliance-state/consolidation';
-import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
+} from '../common/ens/configuration/types';
+import { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { consolidateAgentComplianceResults } from '../common/ens/core/compliance-state/consolidation';
+import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
 import { buildOpAcc1ReportModel } from '../public/ens/reports/op-acc-1-report-model';
 import {
   judgeEvidence,
@@ -31,14 +31,14 @@ import {
   parseReferenceRows,
   resolveCollectorCoverage,
   splitRowCells,
-} from '../public/ens/core/evidence/judgment';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+} from '../common/ens/core/evidence/judgment';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 import {
   ENSEvidenceBaseFields,
   ENSEvidenceDefinition,
   ENSEvidenceJudgment,
   ENSEvidenceResolved,
-} from '../public/ens/core/evidence/types';
+} from '../common/ens/core/evidence/types';
 
 // El repo no tiene @types/node y no va a tenerlos: se declara lo único que se
 // usa del runtime para que el fichero siga comprobando tipos por sí solo.

@@ -35,16 +35,16 @@
  * eje respecto del anterior, y toda afirmación de «esto pasa» lleva al lado la
  * REVERSIÓN que demuestra que no pasaría siempre.
  */
-import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
-import { mpInfo6CatalogDefinition } from '../public/ens/catalog/mp-info-6';
-import { mpInfo6Configuration } from '../public/ens/configuration/data/mp-info-6-parameters';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { runPolicyRuntime } from '../public/ens/core/policy-runtime/policy-runtime';
+import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
+import { mpInfo6CatalogDefinition } from '../common/ens/catalog/mp-info-6';
+import { mpInfo6Configuration } from '../common/ens/configuration/data/mp-info-6-parameters';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { runPolicyRuntime } from '../common/ens/core/policy-runtime/policy-runtime';
 import {
   buildENSTimelineCuts,
   startOfDay,
-} from '../public/ens/core/timeline/timeline-cuts';
+} from '../common/ens/core/timeline/timeline-cuts';
 
 // El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };

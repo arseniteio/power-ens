@@ -19,22 +19,22 @@
  * real en modo --prueba. Pasan por el normalizador real como alertas de
  * alerts.json, y el último bloque por el motor entero.
  */
-import { opMon3PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-mon-3.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opMon3CatalogDefinition } from '../public/ens/catalog/op-mon-3';
-import { opMon3Configuration } from '../public/ens/configuration/data/op-mon-3-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
+import { opMon3PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-3.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opMon3CatalogDefinition } from '../common/ens/catalog/op-mon-3';
+import { opMon3Configuration } from '../common/ens/configuration/data/op-mon-3-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 import { buildOpMon3ReportModel } from '../public/ens/reports/op-mon-3-report-model';
-import type { ENSControlConfiguration, ENSLevel } from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+import type { ENSControlConfiguration, ENSLevel } from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -1046,9 +1046,9 @@ bloque('9. El motor: op.mon.3 en la fila del manager y en las de agente, y el co
     return cargar.call(this, peticion, ...resto);
   };
 
-  const { ensConfigurationRepository } = require('../public/ens/configuration/repository');
-  const { defaultENSConfigurationTemplate } = require('../public/ens/configuration/data/default-configuration');
-  const { getENSComplianceState } = require('../public/ens/core/ens-engine');
+  const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
+  const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration');
+  const { getENSComplianceState } = require('../common/ens/core/ens-engine');
 
   const conValores = (valores: Valores) =>
     ensConfigurationRepository.replaceActive({

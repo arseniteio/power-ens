@@ -9,7 +9,7 @@
 // `search-decision.ts`).
 import { useEffect, useRef, useState } from 'react';
 import { getCore, getData } from '../services';
-import { ENSRequestTimeoutError, withRequestTimeout } from '../platform/request-timeout';
+import { ENSRequestTimeoutError, withRequestTimeout } from '../../common/platform/request-timeout';
 import { buildENSSearchRequest, ENSSearchParams } from './search-request';
 import { decideSearch, isOwnCancellation, searchDataKey, shouldToast } from './search-decision';
 

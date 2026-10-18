@@ -398,7 +398,9 @@ interface ENSAgentIdentity {
   agentName?: string;
 }
 
-const getAgentIdentities = (
+// Exportada para el servidor, que arma el estado control a control (ver
+// `control-partition.ts`) y necesita las mismas máquinas, en el mismo orden.
+export const getAgentIdentities = (
   events: ENSNormalizedEvent[],
   requestedAgentId?: string,
   scopeAgents?: ENSAgentScope[]
@@ -806,14 +808,41 @@ export const getENSComplianceResultByControl = (
     );
   }
 
+  return getENSControlEvaluation(
+    controlId,
+    level,
+    events,
+    scopeAgents,
+    now
+  ).result;
+};
+
+// La vista de conjunto de UN control y, además, las filas de las máquinas que
+// lo miden. Es la rama sin máquina de `getENSComplianceResultByControl` (que la
+// llama) y la usa el servidor, que evalúa control a control: con las filas
+// arma la lista de máquinas del panel sin volver a evaluar nada. Las filas de
+// las máquinas declaradas que no están en el alcance entran en la
+// consolidación, pero no son filas del panel, y por eso no se devuelven.
+export const getENSControlEvaluation = (
+  controlId: string,
+  level: ENSLevel,
+  events: ENSNormalizedEvent[] = [],
+  scopeAgents?: ENSAgentScope[],
+  now?: Date
+): {
+  result: ENSComplianceResult | undefined;
+  agents: ReturnType<typeof buildAgentComplianceStatesByControl>;
+} => {
+  const measuredAgents = buildAgentComplianceStatesByControl(
+    controlId,
+    level,
+    events,
+    scopeAgents,
+    now
+  );
+
   const agents = [
-    ...buildAgentComplianceStatesByControl(
-      controlId,
-      level,
-      events,
-      scopeAgents,
-      now
-    ),
+    ...measuredAgents,
     ...buildOutOfScopeDeclaredRows(
       ENSCatalog.filter(control => control.id === controlId),
       level,
@@ -824,30 +853,35 @@ export const getENSComplianceResultByControl = (
   ];
 
   if (agents.length === 0) {
-    return evaluateENSComplianceResultByControl(
-      controlId,
-      level,
-      events,
-      undefined,
-      scopeAgents,
-      now
-    );
+    return {
+      result: evaluateENSComplianceResultByControl(
+        controlId,
+        level,
+        events,
+        undefined,
+        scopeAgents,
+        now
+      ),
+      agents: measuredAgents,
+    };
   }
 
-  return (
-    consolidateAgentComplianceResultByControl(
-      agents,
-      controlId
-    ) ||
-    evaluateENSComplianceResultByControl(
-      controlId,
-      level,
-      events,
-      undefined,
-      scopeAgents,
-      now
-    )
-  );
+  return {
+    result:
+      consolidateAgentComplianceResultByControl(
+        agents,
+        controlId
+      ) ||
+      evaluateENSComplianceResultByControl(
+        controlId,
+        level,
+        events,
+        undefined,
+        scopeAgents,
+        now
+      ),
+    agents: measuredAgents,
+  };
 };
 
 export const getENSRegisteredConfigurationControls = () =>

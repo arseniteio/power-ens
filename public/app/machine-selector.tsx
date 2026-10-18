@@ -2,7 +2,7 @@
 // todas. Solo toca `agentId` en la URL, que es lo que leen las pantallas.
 import React from 'react';
 import { EuiFormRow, EuiSuperSelect, EuiHealth } from '@elastic/eui';
-import { getActiveENSScopeAgents } from '../ens/core/scope';
+import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 
 const TODAS = '__todas__';

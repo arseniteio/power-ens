@@ -17,10 +17,10 @@ import {
 
 import {
   updateActiveGlobalConfiguration,
-} from '../services';
+} from '../../../../common/ens/configuration/services';
 import {
   ENSGlobalConfiguration,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 
 interface GlobalConfigurationPanelProps {
   configuration: ENSGlobalConfiguration;

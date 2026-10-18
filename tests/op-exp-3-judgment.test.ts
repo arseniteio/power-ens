@@ -23,21 +23,21 @@
  *
  * Cada afirmación lleva al lado su REVERSIÓN.
  */
-import { opExp3CatalogDefinition } from '../public/ens/catalog/op-exp-3';
-import { opExp3Configuration } from '../public/ens/configuration/data/op-exp-3-parameters';
+import { opExp3CatalogDefinition } from '../common/ens/catalog/op-exp-3';
+import { opExp3Configuration } from '../common/ens/configuration/data/op-exp-3-parameters';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { ENSEvidenceCatalog } from '../public/ens/core/evidence/catalog';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { evaluateRequirements } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateControlStatus } from '../public/ens/core/evaluation/control/control-evaluator';
-import { opExp3PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-exp-3.policy';
+} from '../common/ens/configuration/types';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { evaluateRequirements } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateControlStatus } from '../common/ens/core/evaluation/control/control-evaluator';
+import { opExp3PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-exp-3.policy';
 import bloqueSemilla from '../config/op-exp-3-control-block.json';
 
 declare const process: { exit(code: number): void };

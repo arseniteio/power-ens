@@ -1,4 +1,4 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
+import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
@@ -7,28 +7,16 @@ import {
   EuiFilterGroup, EuiFilterButton, EuiStat,
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
-import { searchDataKey } from '../../search/search-decision';
-import { anotaConsulta, panoramaVigente } from './panorama-vigente';
-import type { ENSPanoramaMemoria } from './panorama-vigente';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { getActiveENSConfiguration } from '../configuration/services';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  getENSComplianceState,
-  normalizeWazuhAlerts,
-} from '../core';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
 import type {
   ENSComplianceResult,
   ENSRequirementResult,
-} from '../core/evaluation/types';
+} from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
@@ -47,10 +35,7 @@ import {
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
 import { ENSControls } from '../data';
-import {
-  buildENSAllControlsFactsFilter,
-  ENS_FACTS_QUERY_LIMIT,
-} from '../dashboard/all-controls-facts-filter';
+import { ENS_FACTS_QUERY_LIMIT } from '../../../common/ens/dashboard/all-controls-facts-filter';
 import {
   compareENSIds,
   filterByENSPrefix,
@@ -121,7 +106,6 @@ const ControlReport = ({
   panorama?: ENSReportPanorama;
 }) => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
 
   const toggleRequirementDetail = (id: string) =>
@@ -131,70 +115,20 @@ const ControlReport = ({
         : [...current, id],
     );
 
-  useEffect(() => {
-    const i = window.setInterval(() => setRefreshKey(c => c + 1), 15000);
-    return () => window.clearInterval(i);
-  }, []);
-
   const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  const evaluationTimeFilter =
-    buildENSEvaluationTimeRangeFilter(evaluationPeriod);
-
-  const scopeAgents = useActiveENSScopeAgents();
-
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(scopeAgents, agentId);
-
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      { match_phrase: { 'data.ensfacil': controlId } },
-    ],
-    // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
-    // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // El resultado del control lo calcula el servidor con TODOS sus hechos de la
+  // ventana (hasta 1.1.0, los 10.000 más recientes, evaluados aquí cada 15 s).
+  const evaluacion = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: { level?: string } }>({
+    include: 'control',
+    controlId,
+    agentId,
   });
-
-  const hits = useMemo(() => {
-    const raw = (esResults && esResults.hits && esResults.hits.hits) || [];
-    return [...raw].sort((a, b) => (new Date(getTs(b)).getTime() || 0) - (new Date(getTs(a)).getTime() || 0));
-  }, [esResults]);
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const complianceResult = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        controlId,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      // `controlId` en las dependencias, y no solo en las de `reportModel`:
-      // faltaba, y el selector de control renderizaba SIEMPRE el mismo
-      // `<ControlReport>` sin `key`, así que React reutilizaba la instancia al
-      // cambiar de control y el resultado del motor se quedaba congelado en el
-      // anterior mientras el modelo de informe sí cambiaba — un informe de
-      // op.acc.2 con los datos de op.acc.1.
-      controlId,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
-  );
+  const { error } = evaluacion;
+  const complianceResult = evaluacion.data?.result;
+  const ensLevel = evaluacion.data?.meta?.level || activeConfiguration.global.ensLevel;
 
   const panoramaResults = panorama?.results;
 
@@ -996,78 +930,21 @@ const ControlReportWithPanorama = ({
   definition: ENSReportModelDefinition;
 }) => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const i = window.setInterval(() => setRefreshKey(c => c + 1), 15000);
-    return () => window.clearInterval(i);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
-  // Anclado a la identidad del alcance, como en el panel: el resultado de
-  // todos los controles es caro y no se recalcula en cada render.
-  const scopeAgentsKey = getActiveENSScopeAgents()
-    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
-    .join(',');
-  const scopeAgents = useMemo(
-    () => getActiveENSScopeAgents(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scopeAgentsKey],
-  );
-
-  const consulta = {
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      buildENSScopeAgentQueryFilter(scopeAgents, agentId),
-      buildENSAllControlsFactsFilter(ENSControls.map(control => control.id)),
-    ],
-    size: ENS_FACTS_QUERY_LIMIT,
-    sorting: [{ timestamp: { order: 'desc' } }],
+  // El panorama (el resultado de todos los controles) lo calcula el servidor
+  // con todos los hechos de la ventana: ya no hay tope ni hechos recortados.
+  // El hook no devuelve nunca el de otra máquina como si fuera de esta: con
+  // otra clave, `data` vuelve a estar vacío hasta que llega el suyo (lo que
+  // antes resolvía `panorama-vigente.ts` para `useEsSearch`).
+  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[] }>({
+    include: 'results',
+    agentId,
+  });
+  const { error } = evaluacion;
+  const vigente = {
+    valor: evaluacion.data ? { results: evaluacion.data.results, truncated: false } : undefined,
+    cargando: !evaluacion.data && !error,
   };
-
-  const { esResults, isLoading, error } = useEsSearch({ ...consulta, refreshKey });
-
-  // La clave de la consulta: sus datos (rango, máquina, filtro, tope) sin el
-  // `refreshKey`, y el nivel con que se evalúa. Mientras no cambia, un refresco
-  // no es una consulta nueva.
-  const claveConsulta = `${ensLevel}|${searchDataKey(consulta)}`;
-
-  const hits = useMemo(
-    () => (esResults && esResults.hits && esResults.hits.hits) || [],
-    [esResults],
-  );
-
-  // Los hechos que hay ahora, ¿son de ESTA consulta? En el primer render tras
-  // cambiar la clave, `useEsSearch` aún dice `isLoading=false` con los hechos
-  // de la anterior: esos no valen (ver `panorama-vigente.ts`).
-  const memoria = useRef<ENSPanoramaMemoria<{ results: ENSComplianceResult[]; truncated: boolean }>>({});
-  const deEstaConsulta = anotaConsulta(memoria.current, claveConsulta, isLoading);
-
-  const respuesta = useMemo(
-    () =>
-      deEstaConsulta && !error
-        ? {
-            results: getENSComplianceState(
-              ensLevel,
-              normalizeWazuhAlerts(hits),
-              agentId,
-              scopeAgents,
-            ).results,
-            truncated: hits.length >= ENS_FACTS_QUERY_LIMIT,
-          }
-        : undefined,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deEstaConsulta, error, hits, claveConsulta],
-  );
-
-  // Un refresco de la MISMA clave conserva el último panorama (sin parpadeo,
-  // PDF activo); la primera carga y otra clave, SIN_DATOS y PDF desactivado.
-  const vigente = panoramaVigente(memoria.current, claveConsulta, error, respuesta);
 
   return (
     <ControlReport

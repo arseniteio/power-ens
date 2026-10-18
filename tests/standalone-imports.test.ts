@@ -60,6 +60,15 @@ for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(ra
         // Dentro del plugin tiene que existir: una ruta que no resuelve es la
         // huella de un import que apuntaba al árbol de Wazuh antes de mudarse.
         if (!resuelve(resuelto)) fallos.push(`${rel}: no resuelve dentro del plugin ${destino}`);
+        // El servidor solo lleva `server/` y `common/`: el empaquetado del
+        // plugin deja fuera todo `public/` (`**/public/**` en las plugin
+        // helpers de OSD). Un import de `public/` desde ahí compila en local y
+        // revienta al arrancar el dashboard con el zip.
+        const desde = path.relative(raiz, f).split(path.sep)[0];
+        const hacia = path.relative(raiz, resuelto).split(path.sep)[0];
+        if ((desde === 'server' || desde === 'common') && hacia === 'public') {
+          fallos.push(`${rel}: ${desde}/ no puede importar de public/ (${destino})`);
+        }
       } else {
         const desdeRaiz = path.relative(path.join(raiz, 'x', 'y'), resuelto);
         if (!NUCLEO.test(desdeRaiz.replace(/\\/g, '/') + '/')) fallos.push(`${rel}: sale del plugin hacia ${destino}`);
