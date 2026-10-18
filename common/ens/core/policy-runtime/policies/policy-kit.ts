@@ -19,7 +19,7 @@
 //   - lo que el recolector declara que no pudo medir sale con SU motivo y SU
 //     causa, y se combina con lo medido sin taparlo;
 //   - nada de aquí inventa política: ningún plazo, umbral o lista por defecto.
-import type { ENSPolicyContext, ENSPolicyDecision } from '../types';
+import type { ENSPolicyContext, ENSPolicyDecision, ENSReasonPart } from '../types';
 import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';
 import type { ENSControlParameter } from '../../../configuration/types';
@@ -131,6 +131,37 @@ export const combina = (partes: Medida[]): Medida => {
     ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
   };
 };
+
+// --- el motivo de un requisito medido por varias evidencias -----------------
+//
+// `<ID> <ESTADO>: <motivo>` de cada evidencia, unidos por ` | ` (el texto de
+// siempre) y, además, partido (`reasonParts`): la pantalla lo pinta por partes
+// sin tener que adivinar los cortes.
+export const motivoCompuesto = (propias: { id: string; medida: Medida }[]): string =>
+  propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | ');
+
+const ADEMAS = 'Además: ';
+
+export const partesDe = (propias: { id: string; medida: Medida }[]): ENSReasonPart[] =>
+  propias.map(p => {
+    const motivo = p.medida.motivo;
+    const corte = motivo.startsWith(ADEMAS) ? 0 : motivo.indexOf(` ${ADEMAS}`);
+    const principal = corte < 0 ? motivo : motivo.slice(0, corte);
+    const secundario = corte < 0 ? undefined : motivo.slice(corte + (corte === 0 ? 0 : 1) + ADEMAS.length);
+    return {
+      evidenceId: p.id,
+      status: p.medida.estado,
+      text: principal,
+      ...(p.medida.causa && p.medida.estado === 'NO_EVALUABLE' ? { cause: p.medida.causa } : {}),
+      ...(secundario !== undefined ? { secondary: [secundario] } : {}),
+    };
+  });
+
+// La decisión con sus partes.
+export const conPartes = (decision: ENSPolicyDecision, partes: ENSReasonPart[]): ENSPolicyDecision => ({
+  ...decision,
+  reasonParts: partes,
+});
 
 // --- valores de un hecho ------------------------------------------------------
 

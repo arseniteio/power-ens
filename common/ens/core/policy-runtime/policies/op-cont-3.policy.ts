@@ -55,6 +55,8 @@
 // Solo se emiten decisiones si el requisito aplica al nivel, que es el de la
 // Disponibilidad (`levelDimension: 'D'`, `core/control-level.ts`): con D por
 // debajo de ALTO el motor lo da todo por NO_APLICA.
+// El motivo compuesto, en texto y por partes (`reasonParts`).
+import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDefinition,
@@ -1697,17 +1699,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
   const decisiones = [
-    decide(
+    conPartes(decide(
       REQUISITO,
       estado,
       responsables.map(p => p.id),
       PARAMETROS,
       TIPO,
       REQUISITO,
-      propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | '),
+      motivoCompuesto(propias),
       JUZGAN.map(id => `${id} CUMPLE`).join(' y '),
       causaComun(responsables.map(p => p.medida))
-    ),
+    ), partesDe(propias)),
     // Una por evidencia, con SU estado.
     ...propias.map(p =>
       decide(REQUISITO, p.medida.estado, [p.id], PARAMETROS, TIPO, `${REQUISITO}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)

@@ -15,6 +15,11 @@
 //
 // No se recorta el contenido, se aparta. Recortar sería esconder evidencia.
 //
+// Desde 1.2.0 la celda lee el motivo por partes (`motive-parser.ts`): enseña la
+// parte de ESTA evidencia (`EV-04 NO_CUMPLE · su primera frase`), no la
+// plantilla «Resuelta por la política…» ni el segmento de otra evidencia; el
+// panel lo pinta entero, partido (`motive-view.tsx`).
+//
 // Y la «Pregunta de auditoría» sale del cuerpo: es la misma frase en todas las
 // filas de la misma evidencia, así que repetida es ruido. Va al pie, en gris,
 // que es donde el auditor la busca.
@@ -29,6 +34,8 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
+import { KnownReasonParts, parseMotive } from './motive-parser';
+import { MotiveView, MotiveViewHandlers, statusBadgeColor } from './motive-view';
 
 const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
 
@@ -46,12 +53,31 @@ interface MotiveCellProps {
   // Encabeza el panel. Sin él, el lector no sabe de qué evidencia es el
   // motivo que está leyendo, que es justo lo que el panel viene a resolver.
   titulo?: string;
+  // La evidencia de la fila: de un motivo compuesto se enseña SU parte.
+  evidenceId?: string;
+  conocidos?: KnownReasonParts[];
+  handlers?: MotiveViewHandlers;
 }
+
+// La línea de la celda: la parte de esta evidencia (o la primera), con su
+// estado delante. Sin prefijos de puente ni de máquinas (las máquinas van en la
+// etiqueta).
+export const cellLine = (texto: string, evidenceId?: string, conocidos: KnownReasonParts[] = []) => {
+  const motivo = parseMotive(texto, conocidos);
+  const parte =
+    (evidenceId && motivo.parts.find(p => p.evidenceId === evidenceId)) ||
+    motivo.parts.find(p => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
+    motivo.parts[0];
+  return { motivo, parte, compuesto: motivo.parts.length > 1 || Boolean(motivo.policy) };
+};
 
 export const MotiveCell = ({
   lineas,
   ocultos = 0,
   titulo = 'Motivo completo',
+  evidenceId,
+  conocidos = [],
+  handlers = {},
 }: MotiveCellProps) => {
   const [panelAbierto, setPanelAbierto] = useState(false);
 
@@ -71,10 +97,10 @@ export const MotiveCell = ({
     );
   }
 
-  const largo = cuerpo.reduce((total, linea) => total + linea.texto.length, 0);
-  const hayMas = largo > LIMITE || cuerpo.length > 1;
-
   const primera = cuerpo[0];
+  const leida = primera ? cellLine(primera.texto, evidenceId, conocidos) : undefined;
+  const resumen = leida?.parte ? leida.parte.summary : primera?.texto || '';
+  const hayMas = cuerpo.length > 1 || Boolean(leida && (leida.compuesto || leida.parte?.detail || leida.parte?.secondary !== undefined)) || resumen.length > LIMITE;
 
   return (
     <>
@@ -86,9 +112,12 @@ export const MotiveCell = ({
                 <EuiBadge color='hollow'>{primera.etiqueta}</EuiBadge>{' '}
               </>
             )}
-            {primera.texto.length > LIMITE
-              ? `${primera.texto.slice(0, LIMITE).trimEnd()}…`
-              : primera.texto}
+            {leida?.parte?.evidenceId && leida.compuesto && (
+              <>
+                <EuiBadge color={statusBadgeColor(leida.parte.status)}>{`${leida.parte.evidenceId} ${leida.parte.status}`}</EuiBadge>{' '}
+              </>
+            )}
+            {resumen.length > LIMITE ? `${resumen.slice(0, LIMITE).trimEnd()}…` : resumen}
           </p>
         )}
 
@@ -134,18 +163,14 @@ export const MotiveCell = ({
           </EuiFlyoutHeader>
 
           <EuiFlyoutBody>
-            <EuiText size='s'>
-              {cuerpo.map((linea, indice) => (
-                <p key={`${linea.texto}-${indice}`}>
-                  {linea.etiqueta && (
-                    <>
-                      <EuiBadge color='hollow'>{linea.etiqueta}</EuiBadge>{' '}
-                    </>
-                  )}
-                  {linea.texto}
-                </p>
-              ))}
-            </EuiText>
+            {cuerpo.map((linea, indice) => (
+              <MotiveView
+                key={`${linea.texto}-${indice}`}
+                parsed={parseMotive(linea.texto, conocidos)}
+                label={linea.etiqueta}
+                handlers={handlers}
+              />
+            ))}
 
             {pregunta && (
               <>

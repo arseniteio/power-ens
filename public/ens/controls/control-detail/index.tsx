@@ -37,6 +37,10 @@ import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
+import { classifyNonConformity } from './nonconformity-class';
+import type { KnownReasonParts } from './motive-parser';
+import type { MotiveViewHandlers } from './motive-view';
+import { describeParameterForMachine } from '../parameter-origins';
 import type { MotivoLinea } from './motive-cell';
 import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
 import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
@@ -341,79 +345,35 @@ export const ControlDetailENS = ({
     noEvidenciadas.flatMap(item => item.agents.map(agent => agent.agentId)),
   ).size;
 
-  // QUÉ CLASE DE INCUMPLIMIENTO ES, DE QUIÉN ES EL ARREGLO Y DE QUÉ COLOR VA.
-  //
-  // Un solo sitio para las tres cosas, porque las tres tienen que decir lo
-  // mismo: la franja de la tarjeta, la insignia y la acción salen de aquí. La
-  // distinción medido / no evidenciado no se explica en prosa —restan igual—,
-  // se ve en el color y en la etiqueta, y la causa del no evidenciado va como
-  // etiqueta, no como frase.
-  const clasificar = (item: (typeof nonConformityItems)[number]) => {
-    // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
-    // vencida o ausente): no hay nada que corregir en la máquina.
-    if (item.origin === 'MEDIDA' && item.documental) {
-      return {
-        etiqueta: 'Declarado (documental)',
-        icono: 'document',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Renovar o completar la documentación',
-        responsable: 'Organización (contratos y proveedores)',
-      };
-    }
+  // Clase, responsable y color: `nonconformity-class.ts` (lo usa también la
+  // cola de trabajo de la Vista general).
+  const clasificar = (item: (typeof nonConformityItems)[number]) => classifyNonConformity(item);
 
-    if (item.origin === 'MEDIDA') {
-      return {
-        etiqueta: 'Medido',
-        icono: 'inspect',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Corregir la máquina',
-        responsable: 'Sistema auditado',
-      };
-    }
+  // Las partes que publicaron las policies (`reasonParts`): la tarjeta y la
+  // tabla las usan en vez de partir el texto cuando el motivo es el suyo.
+  const partesConocidas: KnownReasonParts[] = (complianceResult?.policyRuntime?.decisions || [])
+    .filter(decision => decision.reasonParts && decision.reasonParts.length > 0)
+    .map(decision => ({ reason: decision.reason, parts: decision.reasonParts! }));
 
-    if (item.cause === 'CATALOG') {
-      return {
-        etiqueta: 'No evidenciado · catálogo',
-        icono: 'package',
-        color: '#98A2B3',
-        badgeColor: 'default' as const,
-        accion: 'Declarar la evidencia',
-        responsable: 'Producto ENSFácil',
-      };
-    }
-
-    if (item.cause === 'CONFIGURATION') {
-      return {
-        etiqueta: 'No evidenciado · sin configurar',
-        icono: 'gear',
-        color: '#F5A700',
-        badgeColor: 'warning' as const,
-        accion: 'Declarar la decisión',
-        responsable: 'Responsable ENS',
-      };
-    }
-
-    if (item.cause === 'COLLECTION') {
-      return {
-        etiqueta: 'No evidenciado · sin recogida',
-        icono: 'offline',
-        color: '#0077CC',
-        badgeColor: 'primary' as const,
-        accion: 'Restablecer la recogida',
-        responsable: 'Operación Wazuh',
-      };
-    }
-
-    return {
-      etiqueta: 'No evidenciado · evidencia insuficiente',
-      icono: 'alert',
-      color: '#F5A700',
-      badgeColor: 'warning' as const,
-      accion: 'Habilitar la prueba',
-      responsable: 'Productor de la evidencia',
-    };
+  // Lo que se puede pulsar en un motivo: un parámetro lleva a Configuración en
+  // ese parámetro (con la vuelta a este detalle); una evidencia, a Evidencias
+  // con este control; y de cada parámetro se dice el valor que aplica a esta
+  // máquina y de dónde sale.
+  const manejadores: MotiveViewHandlers = {
+    onParameter: parameterId =>
+      cambiaUrl(
+        detailConfigurationChanges({
+          controlId: control.id,
+          agentId: agenteMostrado,
+          parameterId,
+          parameterIsAgentLevel: isAgentLevelParameter(control.id, parameterId),
+        })
+      ),
+    onEvidence: () => cambiaUrl({ tabView: 'evidences', control: control.id }),
+    parameterInfo: parameterId => {
+      const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, agenteMostrado, parameterId);
+      return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
+    },
   };
 
   const buscarEvidencia = (evidenceId: string) =>
@@ -1535,6 +1495,9 @@ export const ControlDetailENS = ({
                         .filter(Boolean)
                         .map(texto => ({ texto }))}
                       titulo={`Motivo · ${item.id}`}
+                      evidenceId={item.id}
+                      conocidos={partesConocidas}
+                      handlers={manejadores}
                     />
                   );
                 }
@@ -1555,6 +1518,9 @@ export const ControlDetailENS = ({
                     }))}
                     ocultos={ocultos}
                     titulo={`Motivo · ${item.id}`}
+                    evidenceId={item.id}
+                    conocidos={partesConocidas}
+                    handlers={manejadores}
                   />
                 );
               },
@@ -1826,6 +1792,8 @@ export const ControlDetailENS = ({
                         lineasMotivo={lineasMotivo}
                         evidenciasImplicadas={evidenciasImplicadas}
                         controlId={control.id}
+                        conocidos={partesConocidas}
+                        handlers={manejadores}
                       />
                     </EuiFlexItem>
                   );

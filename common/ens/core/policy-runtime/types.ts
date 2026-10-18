@@ -70,6 +70,22 @@ export interface ENSPolicyTrace {
   result: boolean;
 }
 
+// Una parte de un motivo compuesto: lo que dijo UNA evidencia. El motivo de
+// texto (`reason`) es la unión de las partes, `<ID> <ESTADO>: <texto>` separadas
+// por ` | `, y no cambia: informes, PDF, el chatbot y las pruebas lo siguen
+// leyendo. Las partes son para la pantalla, que así no tiene que adivinar dónde
+// acaba una evidencia y empieza la siguiente (` | ` también aparece dentro de
+// valores como `srv | MEDIA`).
+export interface ENSReasonPart {
+  evidenceId: string;
+  status: ENSComplianceStatus;
+  // El motivo de esa evidencia, sin lo de «Además:».
+  text: string;
+  cause?: ENSGapCause;
+  // Lo que `combina` añade tras «Además:» (otros ejes que tampoco conforman).
+  secondary?: string[];
+}
+
 export interface ENSPolicyDecision {
   policyId: string;
   requirementId: string;
@@ -80,6 +96,8 @@ export interface ENSPolicyDecision {
   runtimeVariables: string[];
   trace: ENSPolicyTrace;
   reason: string;
+  // Opcional: `reason` partido por evidencia (ver `ENSReasonPart`).
+  reasonParts?: ENSReasonPart[];
   // Solo con `status` NO_EVALUABLE: POR QUÉ la policy no ha podido medir. Es la
   // misma causa que `ENSEvidenceResolved.gapCause`, y el puente la lleva a las
   // evidencias que la decisión rellena. Sin ella, una evidencia que la policy
