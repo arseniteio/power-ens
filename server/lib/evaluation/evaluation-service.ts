@@ -1431,6 +1431,11 @@ export const createEvaluationService = ({
       filasDe.set(controlId, filas);
     }
 
+    // El tope de la memoria sigue al alcance: que quepan al menos 10 usuarios
+    // con todas sus filas (~60 KB cada una), entre `maxStoredBytes` y 4 veces
+    // eso.
+    rows.setMaxBytes(Math.min(maxStoredBytes * 4, Math.max(maxStoredBytes, needs.length * 60 * 1024 * 10)));
+
     // 2. Lo guardado (vigente o viejo) y lo que hay que calcular.
     const listos = new Map<string, UsedRow>();
     const viejos: RowNeed[] = [];
