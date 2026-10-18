@@ -101,8 +101,9 @@ import {
   resolveEvaluationWindow,
 } from './queries';
 import type { ENSEvaluationWindow, ENSProbeResult, ENSStateFactLastSeen } from './queries';
+import { overviewQueryFlags, perControlOfPoint, perControlOfResults } from './overview-fields';
 
-export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control';
+export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
 
 export interface ENSEvaluationQuery {
   agentId?: string;
@@ -112,6 +113,8 @@ export interface ENSEvaluationQuery {
   timelineDays?: number;
   // Zona horaria de quien mira (IANA): decide qué es «un día» en la serie.
   timeZone: string;
+  // Las cifras por control de cada punto de la serie (`overview-fields.ts`).
+  timelineControls?: boolean;
 }
 
 export interface ENSEvaluationClients {
@@ -165,7 +168,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
     throw new ENSBadRequestError(`«${zona}» no es una zona horaria IANA válida.`);
   }
   const include = texto(query.include);
-  if (include && !['summary', 'results', 'dashboard', 'control'].includes(include)) {
+  if (include && !['summary', 'results', 'dashboard', 'control', 'overview'].includes(include)) {
     throw new ENSBadRequestError(`Vista desconocida: «${include}».`);
   }
   const dias = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
@@ -178,6 +181,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
     include: (include as ENSEvaluationInclude) || (controlId ? 'control' : 'summary'),
     timelineDays: dias,
     timeZone: zona || 'UTC',
+    ...overviewQueryFlags(query),
   };
 };
 
@@ -1680,7 +1684,7 @@ export const createEvaluationService = ({
             const resultados = controls
               .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
               .filter((r): r is ENSComplianceResult => Boolean(r));
-            return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage };
+            return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: perControlOfPoint(controls, puntos) };
           });
           if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
         }
@@ -1699,7 +1703,7 @@ export const createEvaluationService = ({
                   events: factsOfView(ctx, query).count,
                   ...(query.controlId
                     ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
-                    : { score: state!.controlSummary.scoreAverage }),
+                    : { score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) }),
                 },
               ]
             : []),

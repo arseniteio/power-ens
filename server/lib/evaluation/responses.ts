@@ -5,6 +5,9 @@ import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/ty
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { catalogControlIds } from './queries';
 import type { ENSEvaluationService } from './evaluation-service';
+// Lo que añaden las vistas generales (Task 2), aparte para que se pueda
+// reenganchar sin tocar lo demás.
+import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } from './overview-fields';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
@@ -45,7 +48,8 @@ const stateHeader = (run: RunOutput) => {
 };
 
 export const buildEvaluationResponse = (run: RunOutput) => {
-  const { meta, query, state, views, timeline } = run;
+  const { meta, query, state, views } = run;
+  const timeline = visibleTimeline(run.timeline, query);
 
   if (query.include === 'control' && query.controlId) {
     const entrada = views.get(query.controlId);
@@ -82,16 +86,22 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       .map(id => porId.get(id) || pendiente(id));
   };
 
-  if (query.include === 'summary') {
-    return {
+  if (query.include === 'summary' || query.include === 'overview') {
+    const resumen = {
       meta,
       ...stateHeader(run),
       controls: conPendientes(
         state.results.map(result => controlSummaryOf(result.control.id, result)),
         controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
       ),
-      agents: agentRows(run).map(({ results, ...agent }) => agent),
+      // Cada máquina con lo que dice cada control en su fila; los pendientes
+      // aún no están (la pantalla los marca por `controls[].pending`).
+      agents: agentControlRows(run.state, controlSummaryOf),
+      ...(timeline ? { timeline } : {}),
     };
+    return query.include === 'overview'
+      ? { ...resumen, freshness: freshnessOf(run.ctx.probe, run.meta), nonConformities: nonConformitiesOf(run.state) }
+      : resumen;
   }
 
   if (query.include === 'dashboard') {

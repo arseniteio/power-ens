@@ -5,10 +5,23 @@ import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
+import { TabErrorBoundary } from './tab-error-boundary';
+import { isAgentInScope } from './agent-in-scope';
+import { useActiveENSScopeAgents } from '../ens/scope/use-active-scope-agents';
+
+// Con una máquina de la URL fuera del alcance no se pinta la pestaña: el
+// selector ya lo dice (y ofrece quitarla), y cada pantalla pediría al servidor
+// una evaluación que responde 400, con su aviso y su notificación.
+const SoloEnElAlcance = ({ children }: { children: React.ReactNode }) => {
+  const { agentId } = useRouterSearch();
+  const alcance = useActiveENSScopeAgents();
+  return agentId && !isAgentInScope(agentId, alcance) ? null : (children as any);
+};
 
 // Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
   dashboard: React.lazy(() => import('../ens/dashboard/ens-dashboard-main').then(m => ({ default: m.EnsDashboardMain }))),
+  overview: React.lazy(() => import('../ens/overview').then(m => ({ default: m.OverviewENS }))),
   configuration: ConfigurationENS,
   controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
   events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),
@@ -22,7 +35,10 @@ const VISTAS: Record<string, React.ComponentType> = {
 const Vacia = () => null;
 
 export const EnsApp = () => {
-  const { tabView } = useRouterSearch();
+  const { tabView, agentId, control } = useRouterSearch();
+  // Cambiar de máquina o de control no desmonta la pestaña (ver
+  // `tab-error-boundary.tsx`): solo borra un error de pintado anterior.
+  const reintento = `${agentId || ''}|${control || ''}`;
   const cambia = useSetRouterSearch();
   const pestana = resolveTab(tabView);
   const Vista = VISTAS[pestana.id] || Vacia;
@@ -34,10 +50,16 @@ export const EnsApp = () => {
           <MachineSelector />
         </EuiFlexItem>
       </EuiFlexGroup>
-      <Vista />
+      <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
+        <SoloEnElAlcance>
+          <Vista />
+        </SoloEnElAlcance>
+      </TabErrorBoundary>
     </ENSConfigurationBootstrap>
   ) : (
-    <Vista />
+    <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
+      <Vista />
+    </TabErrorBoundary>
   );
 
   return (
@@ -45,7 +67,11 @@ export const EnsApp = () => {
       <EuiPageBody>
         <EuiTabs>
           {ENS_TABS.map(t => (
-            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() => cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined })}>
+            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() =>
+                // Los parámetros de Configuración (y su vuelta al detalle) son
+                // de esa pantalla: se limpian al cambiar de pestaña.
+                cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
+              }>
               {t.name}
             </EuiTab>
           ))}

@@ -34,6 +34,8 @@ const EVALUAN = [
   'public/ens/controls/index.tsx',
   'public/ens/reports/index.tsx',
   'public/ens/evidences/index.tsx',
+  // Desde 1.2.0, la Vista general (dos peticiones: el conjunto y la tendencia).
+  'public/ens/overview/index.tsx',
 ];
 // (La antigua pantalla de trazabilidad, sin montar y con el motor en el
 // navegador, se retiró en 1.2.0: la trazabilidad está en la ficha del control.)
@@ -68,9 +70,11 @@ const evaluan = recorre(path.join(raiz, 'public', 'ens'))
 comprueba('las pantallas que piden la evaluación al servidor son las previstas', JSON.stringify(evaluan) === JSON.stringify([...EVALUAN].sort()), evaluan);
 for (const p of evaluan) {
   const texto = fs.readFileSync(path.join(raiz, p), 'utf8');
-  comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = evaluacion;/.test(texto) || /error=\{resumen\.error\}/.test(texto));
+  // El detalle lo lee a través de `decideDetailView` (que conserva el último
+  // resultado del control mientras tanto, rotulado con su máquina).
+  comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = evaluacion;/.test(texto) || /error=\{resumen\.error\}/.test(texto) || /decideDetailView\(peticion, evaluacion,/.test(texto) || /error=\{(general|tendencia)\.error\}/.test(texto));
   // Y lo enseña CON «Reintentar» (un tiempo agotado incluido).
-  comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|resumen\.error)\} onRetry=\{(evaluacion|resumen)\.retry\} \/>/.test(texto));
+  comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|resumen\.error|vista\.error as Error|general\.error|tendencia\.error)\} onRetry=\{(evaluacion|resumen|general|tendencia)\.retry\} \/>/.test(texto));
   // Y mientras no hay resultado de ESTA selección, la carga, no un veredicto.
   comprueba(`${p}: con carga mientras no hay resultado`, /<EvaluationLoading\s/.test(texto) || /isLoading=\{resumen\.isLoading\}/.test(texto));
 }

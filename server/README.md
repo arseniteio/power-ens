@@ -37,20 +37,21 @@ Cómo se calcula (`lib/evaluation/evaluation-service.ts`):
 
 ### `GET /api/ensfacil/evaluation`
 
-Parámetros: `include` (`summary` | `results` | `dashboard` | `control`), `agentId`, `controlId`, `timelineDays` (0-90), `timeZone` (IANA, la del navegador: decide qué es «un día» en la serie), `retryRefresh` (`1`: reintentar ya un refresco que falló).
+Parámetros: `include` (`summary` | `overview` | `results` | `dashboard` | `control`), `agentId`, `controlId`, `timelineDays` (0-90), `timeZone` (IANA, la del navegador: decide qué es «un día» en la serie), `timelineControls` (`true`: los puntos de la serie llevan además el estado de cada control; solo lo pide la tendencia de la Vista general), `retryRefresh` (`1`: reintentar ya un refresco que falló).
 
 Respuesta: `{ statusCode: 200, error: 0, data }`, con `data`:
 
 | `include` | Para | Contenido |
 |---|---|---|
-| `summary` | Lista de controles | `meta`, resúmenes del estado (`controlSummary`, `requirementSummary`, `agentSummary`, `evidenceSummary`), `controls[]` = `{ controlId, status, score, evaluated, requirementsNotMet, requirementsNotEvidenced }`, `agents[]` = `{ agentId, agentName, summary }` |
+| `summary` | Lista de controles | `meta`, resúmenes del estado (`controlSummary`, `requirementSummary`, `agentSummary`, `evidenceSummary`), `controls[]` = `{ controlId, status, score, evaluated, requirementsNotMet, requirementsNotEvidenced }`, `agents[]` = `{ agentId, agentName, summary, controls[] }` (`controls`: lo mismo para cada control EN LA FILA de esa máquina; los que no se miden en ella no aparecen) y, con `timelineDays`, `timeline` |
+| `overview` | Vista general | lo de `summary` + `freshness` = `{ checkedAt, agents[]: { agentId, count, earliest, newest, lastHeartbeat }, cells[]: { controlId, agentId, count, newest } }` (de la sonda: ninguna lectura más; los nombres, en `meta.scope`) + `nonConformities[]` = las no conformidades de la vista de conjunto, solo lo que pinta la cola de trabajo: `controlId`, `id`, `requirementId`, `origin`, `cause`, `documental`, `evidenceIds`, `agentIds` y el titular (`title`, `titleEvidenceId`, `titleStatus`: la primera frase de la evidencia culpable, `common/ens/evaluation/motive-parser.ts`) |
 | `dashboard` | Panel | lo anterior + `dashboard` (el modelo del panel ya construido, con `impactEvents` y `evolution`), `agents[].results` = `{ controlId, status, score }[]` y `timeline` |
 | `results` | Evidencias, panorama de op.mon.2 | resúmenes + `results[]` (el `ENSComplianceResult` de cada control **sin** `traceability`), `agents` y `timeline` |
 | `control` (con `controlId`) | Ficha del control, informes | `result` (el `ENSComplianceResult` con las 100 primeras entradas de `traceability`), `traceabilityTotal`, `traceabilityAvailable` (las que se pueden recorrer por páginas), `agents[]` = `{ agentId, agentName, status, score }` y `timeline` |
 
 `meta`: `{ fingerprint, refreshing, pending, seriesPending, refreshError, computedAt, evaluatedAt, configurationUpdatedAt, level, window: { from, to }, agentId, controlId, facts: { count, newest }, scope[], inventory: { stale, newestTimestamp, agents }, stats }`. Con `refreshing` (lo guardado mientras se recalcula, filas o serie pendientes), `fingerprint` empieza por `refreshing:` (la sonda siguiente siempre la verá distinta). `pending` = `{ rows, controls, total }`: la primera carga a medias (solo `summary` y `dashboard`; el `dashboard` lleva entonces también `controls[]`). `seriesPending`: la vista pidió serie y aún se está calculando (va sin `timeline`). `refreshError` = `{ message, at }`: el último refresco en segundo plano que falló; lo que se enseña es lo anterior a él. Los tipos están en `common/ens/evaluation/types.ts`.
 
-Un punto de `timeline`: `{ date, label, isCurrent, events, score, status? }`. `events` cuenta hechos (documentos) conocidos hasta ese día; el último punto es el resultado de arriba.
+Un punto de `timeline`: `{ date, label, isCurrent, events, score, status?, controls? }`; `controls` (solo sin `controlId` y con `timelineControls=true`) = `{ [controlId]: { status, score } }`, el estado de cada control ese día en la vista. `events` cuenta hechos (documentos) conocidos hasta ese día; el último punto es el resultado de arriba.
 
 ### `GET /api/ensfacil/evaluation/probe`
 

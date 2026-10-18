@@ -11,6 +11,7 @@ import {
 } from '../../configuration/services/parameter-value-validator';
 import type { ENSEvidenceResolved } from '../evidence/types';
 import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
+import { withReplacedReason } from '../policy-runtime/reason-parts';
 import { ENSAgentScope } from './types';
 
 // Planos de medida: dónde se mide cada control.
@@ -197,12 +198,11 @@ export const markPolicyRuntimeUnmatchedScope = (
     decisions: policyRuntime.decisions.map(decision =>
       decision.status === 'NO_APLICA' || decision.documental
         ? decision
-        : {
-            ...decision,
+        : withReplacedReason(decision, {
             status: 'NO_EVALUABLE',
             cause: 'CONFIGURATION',
             reason,
-          }
+          })
     ),
   };
 
@@ -299,6 +299,17 @@ export const describeNotMeasuredOnAgent = (
       text: isManagerAgentId(agentId)
         ? `${control.id} se mide en cada máquina del alcance ENS, no en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}): el manager no tiene fila para este control.`
         : `${control.id} se mide solo en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}), no en ${etiquetaDeMaquina(agentId, agentName)}.`,
+    };
+  }
+
+  // Un control con alcance declarado que no está en la configuración: no es
+  // que su parámetro no nombre la máquina, es que no hay parámetro.
+  if (control.scopeParameter && !configuration) {
+    return {
+      cause: 'DECLARED_SCOPE',
+      parameterId: control.scopeParameter,
+      declared: [],
+      text: `${control.id} no está en la configuración activa: sin ${control.scopeParameter} no hay máquinas declaradas en que medirlo.`,
     };
   }
 

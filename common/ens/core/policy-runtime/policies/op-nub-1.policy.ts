@@ -75,6 +75,9 @@
 //
 // Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
 // ciclo del TDZ de Settings.
+// El motivo compuesto, en texto y por partes (`reasonParts`).
+import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import type { ENSReasonPart } from '../types';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -1193,14 +1196,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     evidencias: string[],
     esperado: string,
     acreditado = false,
-    documental = REQUISITOS_DOCUMENTALES.includes(requisito)
-  ) =>
-    requisitoDecisions.push(
-      marca(
-        decide(requisito, medida.estado, evidencias, parametrosDe(requisito), tipoDe(requisito), requisito, medida.motivo, esperado, medida.causa, acreditado),
-        documental
-      )
-    );
+    documental = REQUISITOS_DOCUMENTALES.includes(requisito),
+    // Cuando el motivo es el compuesto de las evidencias, sus partes.
+    partes?: ENSReasonPart[]
+  ) => {
+    const decision = decide(requisito, medida.estado, evidencias, parametrosDe(requisito), tipoDe(requisito), requisito, medida.motivo, esperado, medida.causa, acreditado);
+    requisitoDecisions.push(marca(partes ? conPartes(decision, partes) : decision, documental));
+  };
 
   const decideEvidencia = (
     requisito: string,
@@ -1372,7 +1374,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       accesos = ev07(context, ahora, utilizados, ingesta);
       decideEvidencia('op.nub.1.2', 'EV-07', accesosInformados(accesos), 'hallazgo del informe');
       const enContra = propias.filter(p => p.medida.estado === 'NO_CUMPLE');
-      const resumen = propias.map(p => `${p.id} ${p.medida.estado}: ${p.medida.motivo}`).join(' | ');
+      const resumen = motivoCompuesto(propias);
 
       // La medida manda: un NO_CUMPLE (técnico o del expediente) decide. Si
       // no, el expediente completo y vigente acredita el requisito aunque la
@@ -1388,7 +1390,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           enContra.map(p => p.id),
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           false,
-          enContra.every(p => p.id === 'EV-09')
+          enContra.every(p => p.id === 'EV-09'),
+          partesDe(propias)
         );
       } else if (expediente.estado === 'CUMPLE') {
         decideRequisito(
@@ -1408,7 +1411,8 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
           sinMedirAun.length ? sinMedirAun.map(p => p.id) : ['EV-09'],
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           false,
-          true
+          true,
+          partesDe(propias)
         );
       }
 

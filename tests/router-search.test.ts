@@ -22,8 +22,10 @@ comprueba('quitarlo todo deja vacío', withRouterSearch('?agentId=024', { agentI
 comprueba('volver del detalle: fuera el control, el resto se queda', withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', { control: undefined }) === '?tabView=plugins&agentId=024');
 {
   const controles = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
-  const volver = controles.match(/onBack=\{\(\) => \{([\s\S]*?)\n\s*\}\}/)?.[1] || '';
-  comprueba('«Volver» quita el control de la URL', /cambiaUrl\(\{ control: undefined \}\)/.test(volver) && /setSelectedControl\(null\)/.test(volver), volver);
+  // Desde 1.2.0 el control abierto ES el de la URL (sin estado local): volver
+  // es quitarlo de ella.
+  const volver = controles.match(/onBack=\{\(\) => ([^\n]*)\}/)?.[1] || '';
+  comprueba('«Volver» quita el control de la URL', /cambiaUrl\(\{ control: undefined \}\)/.test(volver) && !/setSelectedControl/.test(controles), volver);
 }
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

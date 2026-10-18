@@ -16,6 +16,7 @@ import type {
 } from '../policy-runtime/types';
 import type { ENSAgentComplianceState } from './types';
 import { scoreByStatus } from '../evaluation/utils/score';
+import { withReplacedReason } from '../policy-runtime/reason-parts';
 
 interface ENSAgentResultEntry {
   agentId: string;
@@ -432,8 +433,9 @@ const consolidatePolicyDecisions = (
 
     const status = consolidateENSStatuses(decisionEntries.map((item) => item.decision.status));
 
-    return {
-      ...template,
+    // El motivo consolidado es otro texto: las partes de la primera máquina no
+    // lo describen (`withReplacedReason`).
+    return withReplacedReason(template, {
       status,
       parameterIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.parameterIds)),
       evidenceIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.evidenceIds)),
@@ -456,7 +458,7 @@ const consolidatePolicyDecisions = (
         decisionEntries
           .map(({ entry, decision }) => `${getAgentLabel(entry)}=${decision.status}`)
           .join(', '),
-    };
+    });
   });
 };
 

@@ -1,11 +1,12 @@
 import { useActiveENSScopeAgents } from '../../scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEnsEvaluation } from '../../../evaluation/use-evaluation';
 import { fetchTraceabilityPage } from '../../../evaluation/evaluation-client';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
 import {
   EuiBadge,
   EuiBasicTable,
+  EuiButton,
   EuiButtonIcon,
   EuiButtonEmpty,
   EuiCallOut,
@@ -13,6 +14,7 @@ import {
   EuiFlexItem,
   EuiPage,
   EuiPanel,
+  EuiProgress,
   EuiSpacer,
   EuiStat,
   EuiText,
@@ -31,15 +33,33 @@ import {
   etiquetaDeRequisitoQueCumple,
   resumirMotivos,
 } from './general-view';
-import { getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
+import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
+import { classifyNonConformity } from './nonconformity-class';
+import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-parser';
+import type { MotiveViewHandlers } from './motive-view';
+import { describeParameterForMachine } from '../parameter-origins';
+import { statusBadgeColor } from '../../status-colors';
 import type { MotivoLinea } from './motive-cell';
 import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
 import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
 import { traceabilityPageSource } from '../../../evaluation/traceability-paging';
 import { EvaluationLoading, EvaluationStatusLine } from '../../../evaluation/evaluation-status';
+import { useSetRouterSearch } from '../../../routing/use-router-search';
+import { detailConfigurationChanges } from '../../../routing/configuration-link';
+import { AddControlWithDefaultsButton } from '../add-control-button';
+import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
+import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
+import {
+  ENSRetainedEvaluation,
+  decideDetailView,
+  describeComputedAt,
+  isFromAnotherMachine,
+  nextRetained,
+} from './detail-view-state';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -47,18 +67,8 @@ interface ControlDetailENSProps {
   onBack: () => void;
 }
 
-const getBadgeColor = (status: string) => {
-  if (status === 'CUMPLE') {
-    return 'success';
-  }
-  if (status === 'PARCIAL') {
-    return 'warning';
-  }
-  if (status === 'NO_CUMPLE') {
-    return 'danger';
-  }
-  return 'default';
-};
+// Un estado, un color (`status-colors.ts`).
+const getBadgeColor = (status: string) => statusBadgeColor(status);
 
 // Icono por estado de evidencia. La distinción que no se puede perder —medido y
 // no conforme (`cross`) frente a no demostrado (`clock`)— se lee del icono sin
@@ -107,19 +117,33 @@ export const ControlDetailENS = ({
     agentId,
     timelineDays: 30,
   });
-  const { error } = evaluacion;
-  const ensLevel = evaluacion.data?.meta?.level || getActiveENSConfiguration().global.ensLevel;
-  const complianceResult = evaluacion.data?.result;
-  const traceabilityTotal = evaluacion.data?.traceabilityTotal || 0;
+  const cambiaUrl = useSetRouterSearch();
+
+  // QUÉ SE ENSEÑA (`detail-view-state.ts`): lo de esta petición; mientras
+  // llega, o si falla, lo último de ESTE control rotulado con SU máquina y su
+  // hora; nunca lo de otra máquina como si fuera de la elegida.
+  const peticion = { controlId: control.id, agentId };
+  const calculadoEl = (datos: ENSControlEvaluationResponse) => datos?.meta?.computedAt || datos?.meta?.evaluatedAt;
+  const retenido = useRef<ENSRetainedEvaluation<ENSControlEvaluationResponse> | undefined>(undefined);
+  const vista = decideDetailView(peticion, evaluacion, retenido.current, calculadoEl);
+  retenido.current = nextRetained(peticion, evaluacion, retenido.current, calculadoEl);
+  const datos = vista.kind === 'shown' ? vista.data : undefined;
+  // La máquina de lo que se ve (la elegida, o la del resultado retenido).
+  const agenteMostrado = vista.kind === 'shown' ? vista.agentId : agentId;
+  const error = vista.kind === 'error' ? vista.error : vista.kind === 'shown' ? vista.error : undefined;
+
+  const ensLevel = datos?.meta?.level || getActiveENSConfiguration().global.ensLevel;
+  const complianceResult = datos?.result;
+  const traceabilityTotal = datos?.traceabilityTotal || 0;
 
   // La serie diaria DE ESTE CONTROL: su último punto es el número de arriba.
   const controlTimeline = useMemo(
     () =>
-      (evaluacion.data?.timeline || []).map(point => ({
+      (datos?.timeline || []).map(point => ({
         ...point,
         date: new Date(point.date),
       })),
-    [evaluacion.data],
+    [datos],
   );
 
   // Otra máquina u otro control: la tabla vuelve a la primera página.
@@ -127,7 +151,7 @@ export const ControlDetailENS = ({
     setTracePageIndex(0);
   }, [control.id, agentId]);
 
-  const newestFact = evaluacion.data?.meta?.facts?.newest;
+  const newestFact = datos?.meta?.facts?.newest;
   const latestEvaluationDate = newestFact
     ? new Date(newestFact).toLocaleDateString('es-ES')
     : 'Sin datos';
@@ -137,9 +161,14 @@ export const ControlDetailENS = ({
   // de la pantalla y no hay nada que contar.
   const totalMaquinas = (complianceResult?.consolidatedAgents || []).length;
 
-  const agenteNombre = agentId
-    ? (scopeAgents.find(agent => agent.id === agentId)?.name ||
-       ('Agente ' + agentId))
+  // El nombre sale del inventario del alcance, nunca de los hechos: la vista de
+  // una máquina trae también los del manager, y el más reciente puede ser suyo.
+  const nombreDe = (id?: string) => (id ? scopeAgents.find(agent => agent.id === id)?.name : undefined);
+  const etiquetaDe = (id?: string) => (id ? `${id} · ${nombreDe(id) || 'sin nombre'}` : 'todas las máquinas');
+
+  const agenteNombre = agenteMostrado
+    ? (nombreDe(agenteMostrado) ||
+       ('Agente ' + agenteMostrado))
     // Decir cuántas máquinas hay detrás es lo que convierte «6 de ellas fallan»
     // en un dato: sin el total, un recuento no se puede leer.
     : totalMaquinas > 0
@@ -190,7 +219,7 @@ export const ControlDetailENS = ({
     (requisito: any) => requisito.status !== 'NO_APLICA'
   ).length;
 
-  const esVistaAgregada = !agentId && totalMaquinas > 1;
+  const esVistaAgregada = !agenteMostrado && totalMaquinas > 1;
 
   const requisitosDelDenominador = esVistaAgregada
     ? requisitosConsolidados
@@ -307,79 +336,41 @@ export const ControlDetailENS = ({
     noEvidenciadas.flatMap(item => item.agents.map(agent => agent.agentId)),
   ).size;
 
-  // QUÉ CLASE DE INCUMPLIMIENTO ES, DE QUIÉN ES EL ARREGLO Y DE QUÉ COLOR VA.
-  //
-  // Un solo sitio para las tres cosas, porque las tres tienen que decir lo
-  // mismo: la franja de la tarjeta, la insignia y la acción salen de aquí. La
-  // distinción medido / no evidenciado no se explica en prosa —restan igual—,
-  // se ve en el color y en la etiqueta, y la causa del no evidenciado va como
-  // etiqueta, no como frase.
-  const clasificar = (item: (typeof nonConformityItems)[number]) => {
-    // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
-    // vencida o ausente): no hay nada que corregir en la máquina.
-    if (item.origin === 'MEDIDA' && item.documental) {
-      return {
-        etiqueta: 'Declarado (documental)',
-        icono: 'document',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Renovar o completar la documentación',
-        responsable: 'Organización (contratos y proveedores)',
-      };
-    }
+  // Clase, responsable y color: `nonconformity-class.ts` (lo usa también la
+  // cola de trabajo de la Vista general).
+  const controlConfigurado = Boolean(getActiveControlConfiguration(control.id));
+  const clasificar = (item: (typeof nonConformityItems)[number]) =>
+    classifyNonConformity(item, { controlConfigured: controlConfigurado });
 
-    if (item.origin === 'MEDIDA') {
-      return {
-        etiqueta: 'Medido',
-        icono: 'inspect',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Corregir la máquina',
-        responsable: 'Sistema auditado',
-      };
-    }
+  // Las partes que publicaron las policies (`reasonParts`): la tarjeta y la
+  // tabla las usan en vez de partir el texto cuando el motivo es el suyo.
+  const partesConocidas: KnownReasonParts[] = (complianceResult?.policyRuntime?.decisions || [])
+    .filter(decision => decision.reasonParts && decision.reasonParts.length > 0)
+    .map(decision => ({ reason: decision.reason, parts: decision.reasonParts! }));
 
-    if (item.cause === 'CATALOG') {
-      return {
-        etiqueta: 'No evidenciado · catálogo',
-        icono: 'package',
-        color: '#98A2B3',
-        badgeColor: 'default' as const,
-        accion: 'Declarar la evidencia',
-        responsable: 'Producto ENSFácil',
-      };
-    }
-
-    if (item.cause === 'CONFIGURATION') {
-      return {
-        etiqueta: 'No evidenciado · sin configurar',
-        icono: 'gear',
-        color: '#F5A700',
-        badgeColor: 'warning' as const,
-        accion: 'Declarar la decisión',
-        responsable: 'Responsable ENS',
-      };
-    }
-
-    if (item.cause === 'COLLECTION') {
-      return {
-        etiqueta: 'No evidenciado · sin recogida',
-        icono: 'offline',
-        color: '#0077CC',
-        badgeColor: 'primary' as const,
-        accion: 'Restablecer la recogida',
-        responsable: 'Operación Wazuh',
-      };
-    }
-
-    return {
-      etiqueta: 'No evidenciado · evidencia insuficiente',
-      icono: 'alert',
-      color: '#F5A700',
-      badgeColor: 'warning' as const,
-      accion: 'Habilitar la prueba',
-      responsable: 'Productor de la evidencia',
-    };
+  // Lo que se puede pulsar en un motivo: un parámetro lleva a Configuración en
+  // ese parámetro (con la vuelta a este detalle); una evidencia, a Evidencias
+  // con este control; y de cada parámetro se dice el valor que aplica a esta
+  // máquina y de dónde sale.
+  const manejadores: MotiveViewHandlers = {
+    // Configuración, de la máquina ELEGIDA (no de la del resultado que se ve
+    // mientras carga la nueva): es a la que se vuelve.
+    onParameter: parameterId =>
+      cambiaUrl(
+        detailConfigurationChanges({
+          controlId: control.id,
+          agentId,
+          parameterId,
+          parameterIsAgentLevel: isAgentLevelParameter(control.id, parameterId),
+        })
+      ),
+    // Su propio parámetro: el `control=` del detalle no filtra Evidencias.
+    onEvidence: () => cambiaUrl({ tabView: 'evidences', evidenceControl: control.id }),
+    // El valor y su origen, de la máquina del resultado que se ve.
+    parameterInfo: parameterId => {
+      const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, agenteMostrado, parameterId);
+      return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
+    },
   };
 
   const buscarEvidencia = (evidenceId: string) =>
@@ -606,14 +597,15 @@ export const ControlDetailENS = ({
   // total se dice siempre.
   const iniciales = complianceResult?.traceability || [];
   const pageFrom = tracePageIndex * tracePageSize;
-  const traceabilityAvailable = evaluacion.data?.traceabilityAvailable ?? iniciales.length;
+  const traceabilityAvailable = datos?.traceabilityAvailable ?? iniciales.length;
   const [remotePage, setRemotePage] = useState<
     { key: string; items?: ENSTraceabilityResult[]; error?: Error } | undefined
   >();
   const [reintentoTraza, setReintentoTraza] = useState(0);
   // El reintento entra en la clave: al pulsar «Reintentar» el error anterior
-  // deja paso a «Cargando la página…».
-  const remoteKey = `${control.id}|${agentId || ''}|${pageFrom}|${tracePageSize}|${evaluacion.data?.meta?.fingerprint || ''}|${reintentoTraza}`;
+  // deja paso a «Cargando la página…». Las páginas son las de la máquina del
+  // resultado que se enseña.
+  const remoteKey = `${control.id}|${agenteMostrado || ''}|${pageFrom}|${tracePageSize}|${datos?.meta?.fingerprint || ''}|${reintentoTraza}`;
   const necesitaRemota =
     Boolean(complianceResult) &&
     traceabilityPageSource({ initialCount: iniciales.length, available: traceabilityAvailable, pageFrom, pageSize: tracePageSize }) === 'remote';
@@ -624,7 +616,7 @@ export const ControlDetailENS = ({
     // Solo se calla lo que cancela la pantalla al cambiar de página o salir:
     // el tiempo agotado también aborta el controlador y debe verse.
     let cancelada = false;
-    fetchTraceabilityPage({ controlId: control.id, agentId, from: pageFrom, size: tracePageSize }, controller)
+    fetchTraceabilityPage({ controlId: control.id, agentId: agenteMostrado, from: pageFrom, size: tracePageSize }, controller)
       .then(page => {
         if (!cancelada) setRemotePage({ key: remoteKey, items: page.items || [] });
       })
@@ -868,44 +860,198 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
-  // Sin la evaluación de ahora, ni veredicto ni cifras: la comprobación
-  // periódica vuelve a intentarlo.
-  if (error) {
-    return (
-      <EuiPage paddingSize='m'>
-        <EuiPanel>
-          <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
-            Volver a controles
-          </EuiButtonEmpty>
-          <EuiSpacer size='s' />
+  const configurarControl = () =>
+    cambiaUrl(
+      detailConfigurationChanges({
+        controlId: control.id,
+        agentId,
+        hasAgentLevelParameters: (getActiveControlConfiguration(control.id)?.parameters || []).some(parameter =>
+          isAgentLevelParameter(control.id, parameter.id)
+        ),
+      })
+    );
+
+  // La cabecera de todos los estados: volver, la ruta y el título.
+  const cabecera = (
+    <>
+      <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
+        Volver a controles
+      </EuiButtonEmpty>
+      <EuiSpacer size='s' />
+      <EuiText size='s' color='subdued'>
+        ENS / {control.family} / {control.category} / {control.id}
+      </EuiText>
+      <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
           <EuiTitle size='m'>
             <h2>
               {control.id.toUpperCase()} - {control.title}
             </h2>
           </EuiTitle>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          {/* Abre Configuración en este control (en la página de la máquina
+              elegida si el control tiene parámetros por sistema o plataforma)
+              y deja en la URL la vuelta a este mismo detalle. */}
+          <EuiButton size='s' iconType='gear' onClick={configurarControl}>
+            Configurar este control
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </>
+  );
+
+  // Sin nada que enseñar y con error: el aviso con «Reintentar» (la
+  // comprobación periódica también vuelve a intentarlo).
+  if (vista.kind === 'error') {
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel>
+          {cabecera}
           <EuiSpacer size='m' />
-          <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+          <FactsReadErrorCallOut error={vista.error as Error} onRetry={evaluacion.retry} />
         </EuiPanel>
       </EuiPage>
     );
   }
 
-  // Mientras llega la evaluación de ESTE control y ESTA máquina no se pinta
-  // ningún veredicto: el de la máquina anterior no es el de esta.
-  if (!evaluacion.data) {
+  // Mientras llega la evaluación de ESTE control y ESTA máquina, sin nada
+  // anterior del control que enseñar: ningún veredicto.
+  if (vista.kind === 'loading') {
     return (
       <EuiPage paddingSize='m'>
         <EuiPanel>
-          <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
-            Volver a controles
-          </EuiButtonEmpty>
+          {cabecera}
+          <EvaluationLoading message={`Evaluando ${control.id} en ${etiquetaDe(agentId)} en el servidor con todos los hechos de la ventana.`} />
+        </EuiPanel>
+      </EuiPage>
+    );
+  }
+
+  // Lo que se ve no es de la petición de ahora: se dice de qué máquina y de
+  // qué hora es, y que llega lo nuevo (o que ha fallado).
+  const deOtraMaquina = isFromAnotherMachine(peticion, vista);
+  const horaMostrada = describeComputedAt(vista.computedAt);
+  const avisoDeVigencia = !vista.current ? (
+    <>
+      {vista.loading && <EuiProgress size='xs' color='accent' position='absolute' />}
+      {vista.error ? (
+        <>
+          <FactsReadErrorCallOut error={vista.error as Error} onRetry={evaluacion.retry} />
           <EuiSpacer size='s' />
-          <EuiTitle size='m'>
-            <h2>
-              {control.id.toUpperCase()} - {control.title}
-            </h2>
-          </EuiTitle>
-          <EvaluationLoading message='Evaluando el control en el servidor con todos los hechos de la ventana.' />
+          <EuiCallOut
+            size='s'
+            color='warning'
+            iconType='clock'
+            title={`Se muestra el último resultado de ${etiquetaDe(vista.agentId)}${horaMostrada ? `, calculado ${horaMostrada}` : ''}`}
+          >
+            {deOtraMaquina && (
+              <p>No es el de {etiquetaDe(agentId)}: el de esa máquina no se ha podido calcular.</p>
+            )}
+          </EuiCallOut>
+        </>
+      ) : (
+        <EuiCallOut
+          size='s'
+          color='primary'
+          iconType='clock'
+          title={
+            deOtraMaquina
+              ? `Cargando ${etiquetaDe(agentId)}… Mientras tanto se muestra el resultado de ${etiquetaDe(vista.agentId)}${horaMostrada ? ` (${horaMostrada})` : ''}.`
+              : `Actualizando… Se muestra el resultado${horaMostrada ? ` de ${horaMostrada}` : ''}.`
+          }
+        />
+      )}
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
+  // Un control del catálogo que no está en la configuración activa: no se
+  // puede demostrar nada, y la acción es darlo de alta (no «corregir lo que el
+  // productor declara»).
+  const avisoSinConfigurar = !getActiveControlConfiguration(control.id) ? (
+    <>
+      <EuiCallOut color='warning' iconType='gear' title={`${control.id} no está en la configuración activa`}>
+        <p>
+          El control existe en el catálogo de esta versión pero no se ha añadido a la configuración: sus requisitos
+          cuentan como no evidenciados hasta que se añade y se declaran sus parámetros obligatorios.
+        </p>
+        <AddControlWithDefaultsButton controlId={control.id} onAdded={() => evaluacion.retry()} />
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
+  // EL CONTROL NO SE MIDE EN ESTA MÁQUINA. El servidor no da resultado para
+  // ella: no es «sin datos» ni «todo conforme», y se dice por qué.
+  if (!complianceResult) {
+    const catalogo = getENSCatalogControl(control.id);
+    const motivo =
+      agenteMostrado && catalogo
+        ? describeNotMeasuredOnAgent(
+            catalogo,
+            agenteMostrado,
+            nombreDe(agenteMostrado),
+            getActiveControlConfiguration(control.id, agenteMostrado)
+          )
+        : undefined;
+    const parametroDeAlcance = motivo?.parameterId;
+
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel style={{ position: 'relative' }}>
+          {cabecera}
+          <EuiSpacer size='m' />
+          {avisoDeVigencia}
+          {avisoSinConfigurar}
+          <EuiCallOut
+            color='primary'
+            iconType='iInCircle'
+            title={
+              agenteMostrado
+                ? `${control.id} no se mide en ${etiquetaDe(agenteMostrado)}`
+                : `${control.id} no tiene resultado en ninguna máquina`
+            }
+          >
+            <p>
+              {motivo?.text ||
+                (agenteMostrado
+                  ? `El servidor no ha devuelto resultado de ${control.id} para esta máquina: no está entre las que lo miden.`
+                  : `Ninguna máquina del alcance ENS mide ${control.id} y no hay hechos con los que evaluarlo.`)}
+            </p>
+            <p>No es un incumplimiento ni un cumplimiento: en esta máquina no hay nada que juzgar.</p>
+            <EuiFlexGroup gutterSize='s' responsive={false} wrap>
+              {agenteMostrado && (
+                <EuiFlexItem grow={false}>
+                  <EuiButton size='s' iconType='list' onClick={() => cambiaUrl({ agentId: undefined })}>
+                    Ver todas las máquinas
+                  </EuiButton>
+                </EuiFlexItem>
+              )}
+              {parametroDeAlcance && (
+                <EuiFlexItem grow={false}>
+                  <EuiButtonEmpty
+                    size='s'
+                    iconType='gear'
+                    onClick={() =>
+                      cambiaUrl(
+                        detailConfigurationChanges({
+                          controlId: control.id,
+                          agentId,
+                          parameterId: parametroDeAlcance,
+                          parameterIsAgentLevel: isAgentLevelParameter(control.id, parametroDeAlcance),
+                        })
+                      )
+                    }
+                  >
+                    Configurar {parametroDeAlcance}
+                  </EuiButtonEmpty>
+                </EuiFlexItem>
+              )}
+            </EuiFlexGroup>
+          </EuiCallOut>
+          <EuiSpacer size='s' />
+          <EvaluationStatusLine meta={datos?.meta} refreshing={evaluacion.isRefreshing} />
         </EuiPanel>
       </EuiPage>
     );
@@ -915,24 +1061,15 @@ export const ControlDetailENS = ({
   // un cumplimiento combinado no es válido para auditoría.
   return (
     <EuiPage paddingSize='m'>
-      <EuiPanel>
-        <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
-          Volver a controles
-        </EuiButtonEmpty>
+      <EuiPanel style={{ position: 'relative' }}>
+        {/* De lo general a lo concreto: marco (`family`) y luego grupo
+            (`category`), segun la convencion de catalog/. */}
+        {cabecera}
 
         <EuiSpacer size='s' />
 
-        <EuiText size='s' color='subdued'>
-          {/* De lo general a lo concreto: marco (`family`) y luego grupo
-              (`category`), segun la convencion de catalog/. */}
-          ENS / {control.family} / {control.category} / {control.id}
-        </EuiText>
-
-        <EuiTitle size='m'>
-          <h2>
-            {control.id.toUpperCase()} - {control.title}
-          </h2>
-        </EuiTitle>
+        {avisoDeVigencia}
+        {avisoSinConfigurar}
 
         <EuiText>
           <p>
@@ -952,7 +1089,7 @@ export const ControlDetailENS = ({
               <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
-          <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+          <EvaluationStatusLine meta={datos?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
         </EuiPanel>
 
         <EuiSpacer size='l' />
@@ -1306,7 +1443,7 @@ export const ControlDetailENS = ({
           <ControlEvolutionChart
             points={controlTimeline}
             controlId={control.id}
-            pending={Boolean(evaluacion.data?.meta?.seriesPending)}
+            pending={Boolean(datos?.meta?.seriesPending)}
           />
         </EuiPanel>
 
@@ -1316,7 +1453,7 @@ export const ControlDetailENS = ({
           <h3>Evidencias ENS del control</h3>
         </EuiTitle>
 
-        {!agentId && totalMaquinas > 1 && (
+        {!agenteMostrado && totalMaquinas > 1 && (
           <>
             <EuiSpacer size='xs' />
 
@@ -1390,6 +1527,9 @@ export const ControlDetailENS = ({
                         .filter(Boolean)
                         .map(texto => ({ texto }))}
                       titulo={`Motivo · ${item.id}`}
+                      evidenceId={item.id}
+                      conocidos={partesConocidas}
+                      handlers={manejadores}
                     />
                   );
                 }
@@ -1410,6 +1550,9 @@ export const ControlDetailENS = ({
                     }))}
                     ocultos={ocultos}
                     titulo={`Motivo · ${item.id}`}
+                    evidenceId={item.id}
+                    conocidos={partesConocidas}
+                    handlers={manejadores}
                   />
                 );
               },
@@ -1567,9 +1710,15 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='s' />
 
+        {/* Solo con un resultado que aplica: sin él, o fuera del nivel, no
+            hay nada demostrado que afirmar. */}
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
-            <p>Todo lo aplicable en este control se ha demostrado conforme.</p>
+            <p>
+              {complianceResult.status === 'NO_APLICA'
+                ? `${control.id} no aplica en el nivel ${nivelesTexto}: no hay no conformidades que medir.`
+                : 'Todo lo aplicable en este control se ha demostrado conforme.'}
+            </p>
           </EuiText>
         )}
 
@@ -1675,6 +1824,8 @@ export const ControlDetailENS = ({
                         lineasMotivo={lineasMotivo}
                         evidenciasImplicadas={evidenciasImplicadas}
                         controlId={control.id}
+                        conocidos={partesConocidas}
+                        handlers={manejadores}
                       />
                     </EuiFlexItem>
                   );

@@ -587,9 +587,24 @@ export const evaluateENSControl = (
           ? ` Motivo — ${pendingReasons.join('; ')}.`
           : '';
 
+        // El control entero falta en la configuración activa (sembrado a
+        // medias): sea cual sea la causa (sin recogida, evidencia insuficiente
+        // o sin configurar), lo primero es darlo de alta; sin él no hay
+        // decisión del responsable contra la que contrastar nada. La causa se
+        // conserva (y su dato, detrás), y el catálogo sigue siendo del producto.
+        const sinConfiguracion = !configuration && cause !== 'CATALOG';
+        const ademasDeLaCausa =
+          cause === 'COLLECTION'
+            ? ` Además, no ha llegado ningún dato para ${pendingEvidenceIds.join(', ')}.`
+            : cause === 'EVIDENCE' && pendingEvidenceIds.length
+            ? ` Además, ${pendingEvidenceIds.join(', ')} ha llegado sin datos suficientes.`
+            : '';
+
         const finding =
           cause === 'CATALOG'
             ? `El requisito ${requirement.id} no declara ninguna evidencia en el catálogo: no hay nada con lo que demostrarlo, y lo que no se demuestra no cumple.`
+            : sinConfiguracion
+            ? `${catalogControl.id} no está en la configuración activa: el requisito ${requirement.id} no se ha podido demostrar porque no hay ninguna decisión del responsable contra la que contrastarlo, y lo que no se demuestra no cumple.${ademasDeLaCausa}${motivos}`
             : cause === 'CONFIGURATION'
             ? `El requisito ${requirement.id} no se ha podido demostrar: falta configurar lo que el responsable tiene que decidir${
                 listaParametros ? ` (${listaParametros})` : ''
@@ -605,12 +620,16 @@ export const evaluateENSControl = (
         const requiredAction =
           cause === 'CATALOG'
             ? `Declarar en el catálogo qué evidencias acreditan ${requirement.id}.`
+            : sinConfiguracion
+            ? `Añadir con valores por defecto (Configuración > Organización > «Controles del catálogo sin añadir»): ${catalogControl.id} no está en la configuración activa. Después, declarar sus parámetros obligatorios.`
             : cause === 'COLLECTION'
             ? `Restablecer la RECOGIDA: comprobar que el agente está activo y que su recolector emite ${pendingEvidenceIds.join(
                 ', '
               )}. Es una acción sobre el despliegue de Wazuh, no una corrección en el sistema auditado.`
             : listaParametros
             ? `Configurar ${listaParametros} en la pestaña Configuración.`
+            : cause === 'CONFIGURATION'
+            ? `Completar la configuración obligatoria del control ${catalogControl.id} en la pestaña Configuración.`
             : pendingEvidenceIds.length
             ? `Corregir lo que el productor de ${pendingEvidenceIds.join(
                 ', '

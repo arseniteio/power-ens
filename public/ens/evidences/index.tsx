@@ -1,6 +1,6 @@
 import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useMemo, useState } from 'react';
-import { useRouterSearch } from '../../routing/use-router-search';
+import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
@@ -504,10 +504,15 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
 );
 
 export const EvidencesENS = () => {
-  const { agentId } = useRouterSearch();
+  const { agentId, evidenceControl } = useRouterSearch();
+  const cambiaUrl = useSetRouterSearch();
 
   // Filtro por prefijo del identificador ENS. Vacío = sin filtro = se ve todo.
-  const [prefix, setPrefix] = useState<string>('');
+  // Solo empieza filtrado si se llega desde una evidencia pulsada en el Detalle
+  // del control (`evidenceControl=`, su propio parámetro): el `control=` que deja
+  // abierto el detalle NO filtra esta pantalla. El filtro se ve («Filtro: …» y
+  // «Quitar filtro») y, en cuanto se toca, deja de venir de la URL.
+  const [prefix, setPrefix] = useState<string>(() => evidenceControl || '');
 
   // Secciones que el operador ha abierto o cerrado a mano. Lo que no está aquí
   // usa el criterio por defecto (ver `isOpen`).
@@ -520,6 +525,7 @@ export const EvidencesENS = () => {
   // porque se cerró a mano tres búsquedas antes.
   const applyPrefix = (value: string) => {
     setPrefix(value);
+    if (evidenceControl) cambiaUrl({ evidenceControl: undefined });
     setOpenControlIds({});
   };
 
@@ -788,7 +794,9 @@ export const EvidencesENS = () => {
 
         {filtered.isActive && (
           <EuiFlexItem grow={false}>
-            <EuiBadge color='accent'>Filtro: {filtered.query}</EuiBadge>
+            <EuiBadge color='accent'>
+              {`Filtro: ${filtered.query}${evidenceControl && prefix === evidenceControl ? ' (desde el Detalle del control)' : ''}`}
+            </EuiBadge>
           </EuiFlexItem>
         )}
 
