@@ -9,7 +9,8 @@
 // servidor usa la misma evaluación para las dos.
 import React from 'react';
 import { EuiBadge, EuiFacetButton } from '@elastic/eui';
-import { FACTS_READ_ERROR_TITLE, factsReadErrorText } from '../../platform/facts-read-error';
+import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
+import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
 
 export interface ControlRowData {
   id: string;
@@ -21,14 +22,7 @@ export interface ControlRowData {
 }
 
 // Lo que el servidor dice de un control (`include=summary`).
-export interface ControlRowSummary {
-  controlId: string;
-  status: string;
-  score?: number;
-  evaluated: boolean;
-  requirementsNotMet: number;
-  requirementsNotEvidenced: number;
-}
+export type ControlRowSummary = ENSControlSummaryEntry;
 
 interface ControlRowProps {
   controlId: string;
@@ -91,8 +85,8 @@ export const ControlRow = ({
         <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
           {levels}
         </EuiBadge>
-        <EuiBadge color='danger' title={factsReadErrorText(error)} style={{ marginLeft: 6 }}>
-          {FACTS_READ_ERROR_TITLE}
+        <EuiBadge color='danger' title={evaluationErrorText(error)} style={{ marginLeft: 6 }}>
+          {EVALUATION_ERROR_TITLE}
         </EuiBadge>
       </EuiFacetButton>
     );

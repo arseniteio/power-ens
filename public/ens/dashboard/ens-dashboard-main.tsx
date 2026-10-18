@@ -2,7 +2,8 @@ import React from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { LoadingSpinner } from '../../platform/loading-spinner';
+import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 
 const findingSeverityColor = (severity: string): string => {
@@ -52,7 +53,7 @@ export const EnsDashboardMain = () => {
   // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
   // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
   // pedir (ver `public/evaluation/use-evaluation.ts`).
-  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel> }>({
+  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
@@ -65,10 +66,10 @@ export const EnsDashboardMain = () => {
     // anterior ni ceros que parezcan un veredicto.
     return error ? (
       <div style={{ padding: 16 }}>
-        <FactsReadErrorCallOut error={error} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
       </div>
     ) : (
-      <LoadingSpinner message='Evaluando los controles ENS en el servidor…' />
+      <EvaluationLoading message='Evaluando los controles ENS en el servidor con todos los hechos de la ventana.' />
     );
   }
 
@@ -144,18 +145,9 @@ export const EnsDashboardMain = () => {
     textTransform: 'uppercase',
   };
 
-  // Sin los hechos de ahora no hay índice que enseñar: el refresco de 15 s
-  // vuelve a intentarlo.
-  if (error) {
-    return (
-      <div style={{ padding: 16 }}>
-        <FactsReadErrorCallOut error={error} />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         <div style={card}>
           <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>
@@ -807,7 +799,7 @@ export const EnsDashboardMain = () => {
         </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>
-        ⓘ El índice de cumplimiento se calcula con base en eventos ENS normalizados recibidos desde Wazuh/OpenSearch. La dashboard se actualiza automáticamente cada 15 segundos.
+        ⓘ El índice de cumplimiento lo calcula el servidor con todos los hechos ENS de la ventana de evaluación. Cada 5 minutos se comprueba si han llegado hechos nuevos y, solo entonces, se vuelve a calcular.
       </div>
     </div>
   );

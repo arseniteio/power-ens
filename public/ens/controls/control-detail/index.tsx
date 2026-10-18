@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useEnsEvaluation } from '../../../evaluation/use-evaluation';
 import { fetchTraceabilityPage } from '../../../evaluation/evaluation-client';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
-import { LoadingSpinner } from '../../../platform/loading-spinner';
 import {
   EuiBadge,
   EuiBasicTable,
@@ -37,21 +36,10 @@ import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
 import type { MotivoLinea } from './motive-cell';
-import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
-import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
-
-// Lo que devuelve el servidor para la ficha (`include=control`).
-interface ControlEvaluationResponse {
-  meta: { level: string; facts: { count: number; newest?: string }; evaluatedAt: string; fingerprint: string };
-  result?: ENSComplianceResult;
-  traceabilityTotal: number;
-  timeline?: (Omit<ENSControlTimelinePoint, 'date'> & { date: string })[];
-}
-
-// Las entradas de la trazabilidad que el servidor guarda de un control (las
-// más recientes) y las que trae con la ficha.
-const TRAZABILIDAD_GUARDADA = 2000;
-const TRAZABILIDAD_INICIAL = 100;
+import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
+import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
+import { traceabilityPageSource } from '../../../evaluation/traceability-paging';
+import { EvaluationLoading, EvaluationStatusLine } from '../../../evaluation/evaluation-status';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -113,7 +101,7 @@ export const ControlDetailENS = ({
   // fuera (op.acc.3 tenía 17.444 en 30 días): el porcentaje podía no cubrir la
   // ventana que decía cubrir. Ya no hay corte, así que no hay aviso que dar. La
   // serie de 30 días también viene calculada (los días pasados, una vez al día).
-  const evaluacion = useEnsEvaluation<ControlEvaluationResponse>({
+  const evaluacion = useEnsEvaluation<ENSControlEvaluationResponse>({
     include: 'control',
     controlId: control.id,
     agentId,
@@ -611,31 +599,41 @@ export const ControlDetailENS = ({
       auditorMeaning: item.description,
     });
 
-  // LA TABLA SE PAGINA EN EL SERVIDOR. La ficha trae las entradas más
-  // recientes; más allá, cada página se pide aparte. El servidor guarda las
-  // ${TRAZABILIDAD_GUARDADA} más recientes de cada control (op.acc.3 tiene
-  // decenas de miles): el total se dice siempre.
+  // LA TABLA SE PAGINA EN EL SERVIDOR. La ficha trae las primeras entradas;
+  // más allá, cada página se pide aparte, con su estado de carga y su error
+  // (nunca una página vacía muda). El servidor guarda las primeras de cada
+  // control (`traceabilityAvailable`; op.acc.3 tiene decenas de miles): el
+  // total se dice siempre.
   const iniciales = complianceResult?.traceability || [];
   const pageFrom = tracePageIndex * tracePageSize;
-  const traceabilityAvailable = Math.min(traceabilityTotal, TRAZABILIDAD_GUARDADA);
-  const [remotePage, setRemotePage] = useState<{ key: string; items: ENSTraceabilityResult[] } | undefined>();
+  const traceabilityAvailable = evaluacion.data?.traceabilityAvailable ?? iniciales.length;
+  const [remotePage, setRemotePage] = useState<
+    { key: string; items?: ENSTraceabilityResult[]; error?: Error } | undefined
+  >();
   const remoteKey = `${control.id}|${agentId || ''}|${pageFrom}|${tracePageSize}|${evaluacion.data?.meta?.fingerprint || ''}`;
-  const necesitaRemota = Boolean(complianceResult) && pageFrom + tracePageSize > Math.min(iniciales.length, TRAZABILIDAD_INICIAL) && pageFrom < traceabilityAvailable;
+  const necesitaRemota =
+    Boolean(complianceResult) &&
+    traceabilityPageSource({ initialCount: iniciales.length, available: traceabilityAvailable, pageFrom, pageSize: tracePageSize }) === 'remote';
+  const [reintentoTraza, setReintentoTraza] = useState(0);
 
   useEffect(() => {
     if (!necesitaRemota) return;
     const controller = new AbortController();
     fetchTraceabilityPage({ controlId: control.id, agentId, from: pageFrom, size: tracePageSize }, controller)
       .then(page => setRemotePage({ key: remoteKey, items: page.items || [] }))
-      .catch(() => setRemotePage({ key: remoteKey, items: [] }));
+      .catch(error => {
+        if (!controller.signal.aborted) setRemotePage({ key: remoteKey, error });
+      });
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteKey, necesitaRemota]);
+  }, [remoteKey, necesitaRemota, reintentoTraza]);
+
+  const paginaRemota = remotePage?.key === remoteKey ? remotePage : undefined;
+  const trazaCargando = necesitaRemota && !paginaRemota;
+  const trazaError = necesitaRemota ? paginaRemota?.error : undefined;
 
   const traceabilityPageItems = (necesitaRemota
-    ? remotePage?.key === remoteKey
-      ? remotePage.items
-      : []
+    ? paginaRemota?.items || []
     : iniciales.slice(pageFrom, pageFrom + tracePageSize)
   ).map((item, index) => toTraceItem(item, pageFrom + index));
 
@@ -876,7 +874,7 @@ export const ControlDetailENS = ({
             </h2>
           </EuiTitle>
           <EuiSpacer size='m' />
-          <FactsReadErrorCallOut error={error} />
+          <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
         </EuiPanel>
       </EuiPage>
     );
@@ -897,7 +895,7 @@ export const ControlDetailENS = ({
               {control.id.toUpperCase()} - {control.title}
             </h2>
           </EuiTitle>
-          <LoadingSpinner message='Evaluando el control en el servidor con todos los hechos de la ventana…' />
+          <EvaluationLoading message='Evaluando el control en el servidor con todos los hechos de la ventana.' />
         </EuiPanel>
       </EuiPage>
     );
@@ -941,9 +939,10 @@ export const ControlDetailENS = ({
               <strong>Activo:</strong> {agenteNombre} &nbsp; | &nbsp;
               <strong>Fuente:</strong> Wazuh / OpenSearch &nbsp; | &nbsp;
               <strong>Nivel ENS:</strong> {nivelesTexto} &nbsp; | &nbsp;
-              <strong>Última evaluación:</strong> {latestEvaluationDate}
+              <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
+          <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
         </EuiPanel>
 
         <EuiSpacer size='l' />
@@ -1493,13 +1492,20 @@ export const ControlDetailENS = ({
                 {traceabilityTotal.toLocaleString('es-ES')} registro
                 {traceabilityTotal === 1 ? '' : 's'}
                 {traceabilityTotal > traceabilityAvailable
-                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} más recientes; todos los hechos están en Eventos`
+                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} primeros; todos los hechos están en Eventos`
                   : ''}
               </EuiText>
             </EuiFlexItem>
           </EuiFlexGroup>
 
           <EuiSpacer size='s' />
+
+          {trazaError ? (
+            <>
+              <FactsReadErrorCallOut error={trazaError} onRetry={() => setReintentoTraza(n => n + 1)} />
+              <EuiSpacer size='s' />
+            </>
+          ) : null}
 
           {traceabilityTotal === 0 ? (
             <EuiText size='s' color='subdued'>
@@ -1510,6 +1516,8 @@ export const ControlDetailENS = ({
           ) : (
             <EuiBasicTable
               items={traceabilityPageItems}
+              loading={trazaCargando}
+              noItemsMessage={trazaCargando ? 'Cargando la página…' : trazaError ? 'No se pudo leer esta página.' : undefined}
               itemId='key'
               itemIdToExpandedRowMap={traceExpandedRowMap}
               isExpandable={true}

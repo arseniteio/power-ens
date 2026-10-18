@@ -3,6 +3,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ControlRow, ControlRowSummary } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
+import { EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
+import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import {
   EuiBadge,
   EuiBasicTable,
@@ -72,11 +75,15 @@ const badgeDelEstado = (estado: string): string => {
 };
 
 export const ControlsENS = () => {
+  const { control, agentId } = useRouterSearch();
+
+  // Con `?control=` en la URL, la ficha se abre en el PRIMER render: así la
+  // lista no lanza la evaluación de todos los controles para cancelarla un
+  // instante después.
   const [selectedControl, setSelectedControl] = useState<ENSControl | null>(
-    null,
+    () => ENSControls.find(item => item.id === control) || null,
   );
 
-  const { control, agentId } = useRouterSearch();
   const cambiaUrl = useSetRouterSearch();
 
   useEffect(() => {
@@ -98,7 +105,7 @@ export const ControlsENS = () => {
    // UNA petición para toda la lista: el servidor evalúa cada control con
    // todos sus hechos y devuelve el resumen (estado y requisitos que no
    // cumplen). Con la ficha abierta no se pide: la lista no se ve.
-   const resumen = useEnsEvaluation<{ controls: ControlRowSummary[] }>({
+   const resumen = useEnsEvaluation<{ controls: ControlRowSummary[]; meta: ENSEvaluationMeta }>({
      include: 'summary',
      agentId,
      enabled: !selectedControl,
@@ -108,9 +115,6 @@ export const ControlsENS = () => {
      () => new Map((resumen.data?.controls || []).map(entry => [entry.controlId, entry])),
      [resumen.data],
    );
-
-   // La consulta compartida se ha retirado: la hacía cada fila por su cuenta
-   // desde el 10/08/2026. Ver `control-row.tsx`.
 
    // Seleccionado el manager (000), solo se listan los controles que se miden
    // en él: los demás no tienen resultado en su fila, y pintarlos en gris los
@@ -159,10 +163,6 @@ export const ControlsENS = () => {
     );
   }
 
-  // El bloque `items` se ha retirado: cada fila calcula lo suyo desde el
-  // 10/08/2026, porque una consulta compartida hacía que el control con más
-  // volumen dejara a los demás sin datos. Ver `control-row.tsx`.
-
   return (
     <EuiPage paddingSize='m'>
       <EuiPanel>
@@ -180,10 +180,17 @@ export const ControlsENS = () => {
           </p>
         </EuiText>
         <EuiSpacer size='l' />
-        {/* CADA FILA CONSULTA LO SUYO. Ver la cabecera de `control-row.tsx`:
-            una sola búsqueda compartida hacía que el control con más volumen
-            se quedara con los 10.000 hechos y dejara a los demás sin datos, y
-            la lista contradecía a la ficha del mismo control. */}
+        {/* Una sola evaluación para toda la lista (ver `control-row.tsx`):
+            cada control con todos sus hechos, evaluado en el servidor igual
+            que en su ficha. */}
+        {resumen.error ? (
+          <>
+            <FactsReadErrorCallOut error={resumen.error} onRetry={resumen.retry} />
+            <EuiSpacer size='m' />
+          </>
+        ) : (
+          <EvaluationStatusLine meta={resumen.data?.meta} refreshing={resumen.isRefreshing} />
+        )}
         <EuiFacetGroup>
           {controlesListados.map(ensControl => (
             <ControlRow

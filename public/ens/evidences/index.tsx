@@ -1,8 +1,9 @@
 import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
-import { LoadingSpinner } from '../../platform/loading-spinner';
+import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import {
   EuiAccordion,
@@ -543,7 +544,7 @@ export const EvidencesENS = () => {
   // Los resultados de TODOS los controles, evaluados en el servidor con todos
   // los hechos de la ventana (hasta 1.1.0, aquí se bajaban los 10.000 más
   // recientes y se evaluaba cada control en el navegador cada 15 s).
-  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[] }>({
+  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta: ENSEvaluationMeta }>({
     include: 'results',
     agentId,
   });
@@ -675,7 +676,7 @@ export const EvidencesENS = () => {
           <h2>Repositorio de Evidencias ENS</h2>
         </EuiTitle>
         <EuiSpacer size='m' />
-        <FactsReadErrorCallOut error={error} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
       </EuiPanel>
     );
   }
@@ -687,7 +688,7 @@ export const EvidencesENS = () => {
         <EuiTitle size='s'>
           <h2>Repositorio de Evidencias ENS</h2>
         </EuiTitle>
-        <LoadingSpinner message='Evaluando las evidencias en el servidor…' />
+        <EvaluationLoading message='Evaluando las evidencias en el servidor con todos los hechos de la ventana.' />
       </EuiPanel>
     );
   }
@@ -697,6 +698,7 @@ export const EvidencesENS = () => {
       <EuiTitle size='s'>
         <h2>Repositorio de Evidencias ENS</h2>
       </EuiTitle>
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
 
       {/* Sin subtítulo: «evidencias resueltas por el motor desde eventos de
           Wazuh, agrupadas por control» es lo que ya dicen el título, los

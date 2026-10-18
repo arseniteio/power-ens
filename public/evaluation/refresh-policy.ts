@@ -3,14 +3,18 @@
 //
 //   - Cada 5 minutos, y solo con la pestaña a la vista: primero la SONDA
 //     (unos cientos de bytes) y solo si la huella cambió, la evaluación.
-//   - Aunque la huella no cambie, si el resultado tiene más de 10 minutos se
+//   - Aunque la huella no cambie, si el resultado tiene más de 60 minutos se
 //     vuelve a pedir: el motor mide contra el reloj (un recolector sin latir 24 h
-//     deja de demostrar), y eso cambia sin que llegue ningún hecho.
+//     deja de demostrar), y eso cambia sin que llegue ningún hecho. Es la misma
+//     vida que le da el servidor.
+//   - Si el servidor responde con algo guardado mientras recalcula
+//     (`meta.refreshing`), se vuelve a pedir a los 10 segundos.
 //   - Como mucho 2 peticiones a la vez en toda la aplicación: la lista de
 //     controles ya no lanza una por fila, pero dos pestañas del plugin, o el
 //     panel y una sonda, no compiten por las conexiones del navegador.
 export const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-export const EVALUATION_MAX_AGE_MS = 10 * 60 * 1000;
+export const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
+export const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
 export const EVALUATION_MAX_CONCURRENT = 2;
 
 // ¿Toca mirar si hay algo nuevo?
@@ -25,6 +29,7 @@ export const shouldReload = (
   now: number
 ): boolean => {
   if (!dataFingerprint || !evaluatedAt) return true;
+  if (dataFingerprint.startsWith('refreshing:')) return true;
   if (probeFingerprint && probeFingerprint !== dataFingerprint) return true;
   const edad = now - Date.parse(evaluatedAt);
   return !Number.isFinite(edad) || edad >= EVALUATION_MAX_AGE_MS;
@@ -112,5 +117,144 @@ export const visibleEvaluation = <T>(state: EvaluationViewState<T>, key: string)
     error: vigente ? state.error : undefined,
     isLoading: !vigente || state.loading,
     isRefreshing: vigente && state.refreshing,
+  };
+};
+
+// EL CICLO DE UNA PANTALLA, sin React (lo envuelve `useEnsEvaluation` y lo
+// prueba `tests/evaluation-refresh.test.ts`). Las reglas:
+//
+//   - Una carga se identifica por su petición: lo que llega de una petición que
+//     ya no es la actual (otra máquina, otro control) se tira.
+//   - Una carga cancelada por la propia pantalla no es un error; un tiempo
+//     agotado SÍ lo es, y se dice (con «Reintentar»).
+//   - La sonda no interrumpe nunca una carga en curso, y su reloj vuelve a
+//     cero al cambiar de máquina o de control.
+//   - Volver a pedir la misma clave (otra vez visible la lista, por ejemplo)
+//     no borra lo que se ve: se refresca encima.
+export interface EvaluationControllerDeps<T> {
+  fetch: (controller: AbortController) => Promise<T>;
+  probe: (controller: AbortController) => Promise<{ fingerprint: string }>;
+  now: () => number;
+  visible: () => boolean;
+  onChange: (state: EvaluationViewState<T>) => void;
+}
+
+interface Peticion {
+  key: string;
+  controller: AbortController;
+  cancelled: boolean;
+  startedAt: number;
+}
+
+export const createEvaluationController = <T extends { meta?: { fingerprint?: string; evaluatedAt?: string; refreshing?: boolean } }>(
+  initialDeps: EvaluationControllerDeps<T>
+) => {
+  let deps = initialDeps;
+  let key: string | undefined;
+  let state: EvaluationViewState<T> = initialEvaluationState<T>();
+  let actual: Peticion | undefined;
+  let sondeando: AbortController | undefined;
+  let ultimaComprobacion: number | undefined;
+  let ultimaCarga: number | undefined;
+
+  const emite = (event: EvaluationEvent<T>) => {
+    state = evaluationReducer(state, event);
+    deps.onChange(state);
+  };
+
+  const cancela = () => {
+    if (actual) {
+      actual.cancelled = true;
+      actual.controller.abort();
+      actual = undefined;
+    }
+    if (sondeando) {
+      sondeando.abort();
+      sondeando = undefined;
+    }
+  };
+
+  const carga = (modo: 'load' | 'refresh') => {
+    if (!key) return;
+    cancela();
+    const peticion: Peticion = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now() };
+    actual = peticion;
+    ultimaCarga = peticion.startedAt;
+    emite({ type: modo, key });
+    deps
+      .fetch(peticion.controller)
+      .then(data => {
+        if (actual !== peticion) return;
+        actual = undefined;
+        ultimaComprobacion = deps.now();
+        emite({ type: 'success', key: peticion.key, data });
+      })
+      .catch(error => {
+        // Solo se calla lo que la pantalla canceló ella misma.
+        if (peticion.cancelled || actual !== peticion) return;
+        actual = undefined;
+        emite({ type: 'failure', key: peticion.key, error });
+      });
+  };
+
+  return {
+    get state() {
+      return state;
+    },
+    get loading() {
+      return Boolean(actual);
+    },
+    setDeps(next: EvaluationControllerDeps<T>) {
+      deps = next;
+    },
+    // La pantalla pide esta clave. Si ya es la que tiene, no hace nada.
+    setKey(next: string) {
+      if (next === key) return;
+      key = next;
+      ultimaComprobacion = undefined;
+      carga('load');
+    },
+    // Vuelve a pedir lo que ya se ve (o lo que falló).
+    retry() {
+      carga(state.key === key && state.data !== undefined ? 'refresh' : 'load');
+    },
+    // Cada pocos segundos y al volver a la pestaña.
+    async tick(): Promise<'busy' | 'skip' | 'reload' | 'unchanged' | 'probe-failed'> {
+      if (!key || actual) return 'busy';
+      const ahora = deps.now();
+      const datos: any = state.key === key ? state.data : undefined;
+      // Lo que el servidor está recalculando se vuelve a pedir enseguida.
+      if (datos?.meta?.refreshing && deps.visible() && ahora - (ultimaCarga ?? 0) >= EVALUATION_REFRESHING_RETRY_MS) {
+        carga('refresh');
+        return 'reload';
+      }
+      if (!shouldProbe(ultimaComprobacion, ahora, deps.visible())) return 'skip';
+      ultimaComprobacion = ahora;
+      const claveSonda = key;
+      const controller = new AbortController();
+      sondeando = controller;
+      try {
+        const sonda = await deps.probe(controller);
+        if (key !== claveSonda || actual || controller.signal.aborted) return 'busy';
+        const presente: any = state.key === key ? state.data : undefined;
+        if (shouldReload(sonda.fingerprint, presente?.meta?.fingerprint, presente?.meta?.evaluatedAt, deps.now())) {
+          carga(presente ? 'refresh' : 'load');
+          return 'reload';
+        }
+        return 'unchanged';
+      } catch {
+        // Cancelada por un cambio de clave: no cuenta como fallo.
+        if (key !== claveSonda || controller.signal.aborted) return 'busy';
+        // La sonda falla en silencio: lo que se ve sigue siendo de esta clave y
+        // la siguiente vuelta lo vuelve a intentar.
+        return 'probe-failed';
+      } finally {
+        if (sondeando === controller) sondeando = undefined;
+      }
+    },
+    dispose() {
+      cancela();
+      key = undefined;
+    },
   };
 };

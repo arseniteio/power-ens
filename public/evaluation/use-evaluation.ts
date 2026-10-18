@@ -1,25 +1,26 @@
-// El resultado de la evaluación del servidor para una pantalla.
+// El resultado de la evaluación del servidor para una pantalla. Es la envoltura
+// React del ciclo de `refresh-policy.ts` (`createEvaluationController`), que
+// es donde están las reglas y sus pruebas:
 //
 // - Mientras no llega el de ESTA clave (máquina, control, vista), `data` es
-//   `undefined` y `isLoading` es verdadero: nunca se enseña el de la máquina o
-//   el control anterior como si fuera el actual.
+//   `undefined` e `isLoading` verdadero: nunca se enseña el de la máquina o el
+//   control anterior como si fuera el actual.
 // - Cada 5 minutos, con la pestaña a la vista, la sonda; solo si cambió algo
-//   (o el resultado tiene más de 10 minutos) se vuelve a pedir. Mientras tanto
-//   se sigue viendo el de la misma clave, marcado como `isRefreshing`.
-// - Con la pestaña oculta no se pide nada; al volver, se mira enseguida si toca.
-import { useCallback, useEffect, useRef, useState } from 'react';
+//   (o el resultado tiene más de 60 minutos) se vuelve a pedir. Si el servidor
+//   respondió con algo guardado mientras recalcula, a los 10 segundos.
+// - Un tiempo agotado o un fallo se dicen (`error`) y `retry` lo reintenta.
+import { useEffect, useRef, useState } from 'react';
 import { getCore } from '../services';
 import { ENSEvaluationParams, fetchEvaluation, fetchEvaluationProbe } from './evaluation-client';
 import {
+  createEvaluationController,
   evaluationKey,
-  evaluationReducer,
   EvaluationViewState,
-  EVALUATION_REFRESH_INTERVAL_MS,
   initialEvaluationState,
-  shouldProbe,
-  shouldReload,
   visibleEvaluation,
 } from './refresh-policy';
+
+const TICK_MS = 10 * 1000;
 
 const pestanaVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
@@ -40,79 +41,54 @@ export const useEnsEvaluation = <T = any>(params: ENSEvaluationParams & { enable
   const { enabled = true, ...pedido } = params;
   const key = evaluationKey(pedido as Record<string, unknown>);
   const [estado, setEstado] = useState<EvaluationViewState<T>>(initialEvaluationState<T>());
-  const actual = useRef<{ key: string; controller: AbortController } | undefined>();
-  const ultimaComprobacion = useRef<number | undefined>();
-  const datos = useRef<T | undefined>();
+  const pedidoActual = useRef(pedido);
+  pedidoActual.current = pedido;
 
-  const carga = useCallback(
-    (modo: 'load' | 'refresh') => {
-      actual.current?.controller.abort();
-      const peticion = { key, controller: new AbortController() };
-      actual.current = peticion;
-      setEstado(previo => evaluationReducer(previo, { type: modo, key }));
-      fetchEvaluation<T>(pedido, peticion.controller)
-        .then(data => {
-          if (actual.current !== peticion) return;
-          datos.current = data;
-          ultimaComprobacion.current = Date.now();
-          setEstado(previo => evaluationReducer(previo, { type: 'success', key, data }));
-        })
-        .catch(error => {
-          if (actual.current !== peticion || peticion.controller.signal.aborted) return;
-          avisa(String(error?.message || error));
-          setEstado(previo => evaluationReducer(previo, { type: 'failure', key, error }));
-        });
-    },
-    // `key` resume `pedido`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [key]
-  );
-
-  // Clave nueva: se carga de cero.
-  useEffect(() => {
-    if (!enabled) return;
-    datos.current = undefined;
-    carga('load');
-    return () => actual.current?.controller.abort();
-  }, [carga, enabled]);
-
-  // La sonda: cada 5 minutos y al volver a la pestaña.
-  useEffect(() => {
-    if (!enabled) return;
-    let viva = true;
-    const comprueba = async () => {
-      const ahora = Date.now();
-      if (!shouldProbe(ultimaComprobacion.current, ahora, pestanaVisible()) || actual.current?.key !== key) return;
-      ultimaComprobacion.current = ahora;
-      const presente: any = datos.current;
-      try {
-        const sonda = await fetchEvaluationProbe(pedido);
-        if (!viva || actual.current?.key !== key) return;
-        if (shouldReload(sonda.fingerprint, presente?.meta?.fingerprint, presente?.meta?.evaluatedAt, Date.now())) {
-          carga('refresh');
+  const controlador = useRef<ReturnType<typeof createEvaluationController<any>>>();
+  if (!controlador.current) {
+    controlador.current = createEvaluationController<any>({
+      fetch: controller => fetchEvaluation(pedidoActual.current, controller),
+      probe: controller => fetchEvaluationProbe(pedidoActual.current, controller),
+      now: () => Date.now(),
+      visible: pestanaVisible,
+      onChange: siguiente => {
+        if (siguiente.error && siguiente.key === evaluationKey(pedidoActual.current as Record<string, unknown>)) {
+          avisa(String((siguiente.error as any)?.message || siguiente.error));
         }
-      } catch {
-        // La sonda falla en silencio: lo que se ve sigue siendo de esta clave y
-        // la siguiente vuelta lo vuelve a intentar.
-      }
+        setEstado(siguiente);
+      },
+    });
+  }
+
+  // La clave que pide la pantalla (una pantalla oculta no pide nada, pero
+  // conserva lo que tenía: al volver, se refresca encima).
+  useEffect(() => {
+    if (enabled) controlador.current!.setKey(key);
+  }, [key, enabled]);
+
+  useEffect(() => () => controlador.current!.dispose(), []);
+
+  // La sonda y los reintentos de lo que se está recalculando.
+  useEffect(() => {
+    if (!enabled) return;
+    const vuelta = () => {
+      void controlador.current!.tick();
     };
-    const intervalo = window.setInterval(comprueba, Math.min(EVALUATION_REFRESH_INTERVAL_MS, 60000));
+    const intervalo = window.setInterval(vuelta, TICK_MS);
     const alVolver = () => {
-      if (pestanaVisible()) void comprueba();
+      if (pestanaVisible()) vuelta();
     };
     document.addEventListener('visibilitychange', alVolver);
     return () => {
-      viva = false;
       window.clearInterval(intervalo);
       document.removeEventListener('visibilitychange', alVolver);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, enabled, carga]);
+  }, [enabled]);
 
   const visible = visibleEvaluation(estado, key);
   return {
     ...visible,
     error: visible.error as Error | undefined,
-    reload: () => carga('refresh'),
+    retry: () => controlador.current!.retry(),
   };
 };

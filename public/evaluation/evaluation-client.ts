@@ -4,9 +4,11 @@ import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
 import { withRequestTimeout } from '../../common/platform/request-timeout';
 import { getHttp } from '../services';
 import { RequestLimiter } from './refresh-policy';
+import type { ENSTraceabilityPageResponse } from '../../common/ens/evaluation/types';
 
-// Una evaluación en frío lee la ventana entera (en el laboratorio, ~20 s para
-// todo el alcance); el minuto de las búsquedas no basta.
+// Una evaluación en frío lee la ventana entera (en el laboratorio, ~20-30 s
+// para todo el alcance); el minuto de las búsquedas no basta. Si se agota, la
+// pantalla lo dice y ofrece «Reintentar».
 export const EVALUATION_TIMEOUT_MS = 180 * 1000;
 
 export interface ENSEvaluationParams {
@@ -71,7 +73,7 @@ export const fetchTraceabilityPage = (
   params: { controlId: string; agentId?: string; from: number; size: number },
   controller?: AbortController
 ) =>
-  pide<{ total: number; available: number; from: number; items: any[] }>(
+  pide<ENSTraceabilityPageResponse>(
     `${ENSFACIL_EVALUATION_PATH}/traceability`,
     { ...params },
     'trazabilidad del control',

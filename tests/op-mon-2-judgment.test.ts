@@ -993,14 +993,14 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
   );
   comprueba(
     'solo el informe que lo pide monta esa segunda evaluación; los demás, el componente de siempre',
-    /usesAllControls \? \(\s*<ControlReport$|usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes)
+    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes) && /\) : \(\s*<ControlReport\s/.test(informes)
   );
   comprueba(
     'sin panorama de esta máquina, PDF desactivado; el panorama solo es el de la evaluación vigente',
-    /valor: evaluacion\.data \? \{ results: evaluacion\.data\.results, truncated: false \} : undefined/.test(segunda) &&
+    /valor: evaluacion\.data \? \{ results: evaluacion\.data\.results \} : undefined/.test(segunda) &&
       /loading: vigente\.cargando/.test(segunda) &&
       /if \(panorama\?\.loading\) return;/.test(informes) &&
-      /isDisabled=\{Boolean\(error\) \|\| Boolean\(panorama\?\.loading\)\}/.test(informes)
+      /isDisabled=\{Boolean\(error\) \|\| !complianceResult \|\| Boolean\(panorama\?\.loading\)\}/.test(informes)
   );
 
   // Render a render, como el hook de la evaluación (`useEnsEvaluation`): una

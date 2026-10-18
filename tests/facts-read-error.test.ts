@@ -68,15 +68,19 @@ comprueba('las pantallas que piden la evaluación al servidor son las previstas'
 for (const p of evaluan) {
   const texto = fs.readFileSync(path.join(raiz, p), 'utf8');
   comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = evaluacion;/.test(texto) || /error=\{resumen\.error\}/.test(texto));
-  comprueba(`${p}: y lo usa`, /if \(error\)|error \?|error=\{|isDisabled=\{Boolean\(error\)\}/.test(texto));
+  // Y lo enseña CON «Reintentar» (un tiempo agotado incluido).
+  comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|resumen\.error)\} onRetry=\{(evaluacion|resumen)\.retry\} \/>/.test(texto));
+  // Y mientras no hay resultado de ESTA selección, la carga, no un veredicto.
+  comprueba(`${p}: con carga mientras no hay resultado`, /<EvaluationLoading /.test(texto) || /isLoading=\{resumen\.isLoading\}/.test(texto));
 }
 const fila = fs.readFileSync(path.join(raiz, 'public/ens/controls/control-row.tsx'), 'utf8');
 comprueba('la fila de la lista: con un fallo, el aviso y no un veredicto', /if \(error\)/.test(fila) && !/useEsSearch|useEnsEvaluation/.test(fila));
 const informes = fs.readFileSync(path.join(raiz, 'public/ens/reports/index.tsx'), 'utf8');
-comprueba('Informes: el PDF no se exporta con un fallo', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(error\) return;/.test(informes));
+comprueba('Informes: el PDF no se exporta con un fallo ni sin el resultado de esta selección', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(error \|\| !complianceResult\) return;/.test(informes));
 // El informe que recopila todos los controles (op.mon.2) lo desactiva además
 // mientras su segunda consulta no ha vuelto: `Boolean(error) || …`.
-comprueba('Informes: el botón, desactivado', /isDisabled=\{Boolean\(error\)(\s*\|\|[^}]*)?\}/.test(informes) && /fill isDisabled>/.test(informes));
+comprueba('Informes: el botón, desactivado con un fallo, sin resultado o con el panorama cargando', /isDisabled=\{Boolean\(error\) \|\| !complianceResult \|\| Boolean\(panorama\?\.loading\)\}/.test(informes) && /fill isDisabled>/.test(informes));
+comprueba('Informes: sin resultado, la carga y el botón desactivado (nunca NO_EVALUABLE de relleno)', /if \(!hayResultado\) \{[\s\S]{0,400}<EvaluationLoading [\s\S]{0,200}fill isDisabled>/.test(informes));
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);
