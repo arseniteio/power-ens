@@ -766,7 +766,7 @@ export const createEvaluationService = ({
   }
   // Lo de aparte de cada máquina se comparte entre los grupos de controles y
   // entre las peticiones que calculan a la vez con la misma ventana; se
-  // olvida poco después de leerlo.
+  // olvida a los 5 minutos de leerlo.
   const sides = new Map<string, Promise<AgentSide>>();
 
   const sideOf = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, agentId: string, signal: Cancellable): Promise<AgentSide> => {
@@ -793,10 +793,11 @@ export const createEvaluationService = ({
       const lastSeen = readAgentStateFactLastSeen(STATE_CONTROLS, ultimos);
       return { runs, lastSeen, sideFor: (controlId: string) => sideHits.filter(hit => sideFactBelongsTo(hit, controlId)) };
     })();
+    // (Una primera carga lenta puede durar más de un minuto: se guarda 5.)
     const olvida = () => {
       const t = setTimeout(() => {
         if (sides.get(clave) === promesa) sides.delete(clave);
-      }, 30 * 1000);
+      }, 5 * 60 * 1000);
       (t as any).unref?.();
     };
     promesa.then(olvida, () => sides.delete(clave));

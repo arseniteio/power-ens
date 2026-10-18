@@ -367,6 +367,48 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
       c7.dispose();
     }
 
+    // Más casos de pantalla oculta: un «Reintentar» soltado se repite como
+    // tal; soltada durante un refresco con datos, al volver se refresca encima;
+    // con otra clave mientras estaba oculta, se carga la nueva; una sonda
+    // soltada no cuenta como comprobación.
+    {
+      const pedidas: { controller: AbortController; opciones?: any; resolve: (v: any) => void }[] = [];
+      const e10: any[] = [];
+      let r10 = 11_000_000;
+      const c10 = createEvaluationController<any>({
+        fetch: (controller, opciones) => new Promise((resolve, reject) => {
+          pedidas.push({ controller, opciones, resolve });
+          controller.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+        }),
+        probe: controller => new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('aborted')))),
+        now: () => r10,
+        visible: () => true,
+        onChange: st => e10.push(st),
+      });
+      c10.setKey('A');
+      pedidas[0].resolve({ meta: { fingerprint: 'f', evaluatedAt: new Date(r10).toISOString() } });
+      await espera0();
+      c10.retry();
+      c10.suspend();
+      c10.setKey('A');
+      comprueba('oculta durante «Reintentar»: al volver se repite como «Reintentar»', pedidas[pedidas.length - 1].opciones?.retryRefresh === true);
+      comprueba('y se refresca encima de lo que se veía', visibleEvaluation(e10[e10.length - 1], 'A').data?.meta.fingerprint === 'f' && visibleEvaluation(e10[e10.length - 1], 'A').isRefreshing);
+      pedidas[pedidas.length - 1].resolve({ meta: { fingerprint: 'f2', evaluatedAt: new Date(r10).toISOString() } });
+      await espera0();
+      r10 += EVALUATION_REFRESH_INTERVAL_MS;
+      const sondeo = c10.tick();
+      c10.suspend();
+      comprueba('sonda soltada al ocultarse: «busy», sin error', (await sondeo) === 'busy' && !e10.some(st => st.error));
+      c10.setKey('A');
+      const otraSonda = c10.tick();
+      comprueba('al volver se sondea enseguida (la soltada no contó)', (await Promise.race([otraSonda.then(() => 'terminó'), espera0().then(() => 'sondeando')])) === 'sondeando');
+      c10.suspend();
+      await otraSonda;
+      c10.setKey('B');
+      comprueba('otra clave mientras estaba oculta: se carga la nueva', e10[e10.length - 1].key === 'B' && e10[e10.length - 1].loading);
+      c10.dispose();
+    }
+
     // Una sonda que agota su tiempo es un fallo de la sonda, no «ocupado».
     {
       const c6 = createEvaluationController<any>({

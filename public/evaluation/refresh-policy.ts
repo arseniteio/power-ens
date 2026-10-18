@@ -154,6 +154,8 @@ interface Peticion {
   controller: AbortController;
   cancelled: boolean;
   startedAt: number;
+  // Era un «Reintentar» (se repite como tal si la pantalla la suelta).
+  retryRefresh?: boolean;
 }
 
 export const createEvaluationController = <T extends { meta?: { fingerprint?: string; evaluatedAt?: string; refreshing?: boolean; refreshError?: unknown; pending?: unknown; seriesPending?: boolean } }>(
@@ -172,6 +174,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   let ultimoErrorDeRefresco: string | undefined;
   // Una carga que se soltó al ocultarse la pantalla: al volver, se repite.
   let suelta = false;
+  let sueltaConReintento = false;
 
   const emite = (event: EvaluationEvent<T>) => {
     state = evaluationReducer(state, event);
@@ -193,7 +196,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   const carga = (modo: 'load' | 'refresh', opciones: { retryRefresh?: boolean } = {}) => {
     if (!key) return;
     cancela();
-    const peticion: Peticion = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now() };
+    const peticion: Peticion = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now(), retryRefresh: opciones.retryRefresh };
     actual = peticion;
     ultimaCarga = peticion.startedAt;
     emite({ type: modo, key });
@@ -242,7 +245,8 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       if (next === key) {
         if (suelta && !actual) {
           suelta = false;
-          carga(state.key === key && state.data !== undefined ? 'refresh' : 'load');
+          carga(state.key === key && state.data !== undefined ? 'refresh' : 'load', { retryRefresh: sueltaConReintento });
+          sueltaConReintento = false;
         }
         return;
       }
@@ -313,10 +317,13 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
     // plazas del navegador) sin borrar lo que se ve; al volver, se repite.
     suspend() {
       if (actual) {
+        sueltaConReintento = Boolean(actual.retryRefresh);
         cancela();
         suelta = true;
       } else if (sondeando) {
         cancela();
+        // La sonda soltada no cuenta como comprobación: al volver, se sondea.
+        ultimaComprobacion = undefined;
       }
     },
     dispose() {
