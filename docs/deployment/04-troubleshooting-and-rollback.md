@@ -119,6 +119,7 @@ Si algo falla con el dashboard ya parado, el script imprime los comandos para vo
 | `1` | uso incorrecto: ningún zip, dos zips o una opción desconocida | sin tocar |
 | `2` | el zip no es de ENSFácil | sin tocar |
 | `3` | no se pudo guardar la copia del plugin anterior | sin tocar: el dashboard sigue en marcha |
+| `4` | el usuario `wazuh-dashboard` no puede leer la copia temporal del zip (el script la deja en `${TMPDIR:-/tmp}`) | sin tocar: el dashboard sigue en marcha; indicar otra carpeta con `TMPDIR=<carpeta>` |
 | `5` | falló la instalación del zip | dashboard parado y sin `ensfacil` |
 | `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: revisar `journalctl -u wazuh-dashboard` |
 | `7` | falló otro paso con el dashboard parado (retirar el plugin, subir el `build.number`, arrancar) o se interrumpió | el mensaje dice el paso |

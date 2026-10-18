@@ -119,6 +119,7 @@ If something fails once the dashboard is stopped, the script prints the commands
 | `1` | wrong usage: no zip, two zips or an unknown option | untouched |
 | `2` | the zip is not ENSFácil | untouched |
 | `3` | the copy of the previous plugin could not be saved | untouched: the dashboard keeps running |
+| `4` | the `wazuh-dashboard` user cannot read the temporary copy of the zip (the script places it in `${TMPDIR:-/tmp}`) | untouched: the dashboard keeps running; set another folder with `TMPDIR=<folder>` |
 | `5` | installing the zip failed | dashboard stopped and without `ensfacil` |
 | `6` | the dashboard was not active at the end | new plugin installed and dashboard not active: check `journalctl -u wazuh-dashboard` |
 | `7` | another step failed with the dashboard stopped (removing the plugin, bumping `build.number`, starting) or it was interrupted | the message names the step |
