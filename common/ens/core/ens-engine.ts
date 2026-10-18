@@ -101,7 +101,7 @@ const resolveAgentName = (
 
 // ¿Se evalúa este control en la fila de esta máquina? Su plano de medida y, si
 // lo declara, su alcance (ver `scope/measurement-planes.ts`).
-const isControlEvaluatedOnAgent = (
+export const isControlEvaluatedOnAgent = (
   control: ENSControlDefinition,
   agentId: string,
   agentName: string | undefined
@@ -525,7 +525,9 @@ const buildAgentComplianceStates = (
 // alcance— con todo NO_EVALUABLE por CONFIGURACIÓN y un motivo que las nombra.
 // Sin esto, P-04 = «srv-01, srv-99» con srv-01 al día daba el control
 // demostrado al 100 %.
-const buildOutOfScopeDeclaredRows = (
+// Exportada para el servidor, que consolida las filas de cada máquina sin
+// tener sus hechos a la vez (ver `control-partition.ts`).
+export const buildOutOfScopeDeclaredRows = (
   controls: ENSControlDefinition[],
   level: ENSLevel,
   events: ENSNormalizedEvent[],

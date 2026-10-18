@@ -9,6 +9,9 @@ const consulta = schema.object(
     controlId: schema.maybe(schema.string({ maxLength: 64 })),
     include: schema.maybe(schema.string({ maxLength: 16 })),
     timelineDays: schema.maybe(schema.string({ maxLength: 3 })),
+    // El resto de comprobaciones (control del catálogo, máquina del alcance,
+    // zona IANA, páginas acotadas) las hace `normalizeQuery`, con un 400 y el
+    // motivo.
     timeZone: schema.maybe(schema.string({ maxLength: 64 })),
     from: schema.maybe(schema.string({ maxLength: 8 })),
     size: schema.maybe(schema.string({ maxLength: 4 })),

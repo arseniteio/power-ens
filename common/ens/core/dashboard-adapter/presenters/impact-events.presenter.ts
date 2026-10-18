@@ -197,50 +197,55 @@ export const createImpactEventsAccumulator = () => {
     });
   };
 
-  const build = (): ImpactEventsModel => {
-    const grouped = Array.from(
-      uniqueEvents.values()
-    ).reduce<Record<string, number>>(
-      (acc, eventType) => {
-        acc[eventType] =
-          (acc[eventType] || 0) + 1;
+  const build = (): ImpactEventsModel =>
+    buildImpactEventsModelFromCounts(
+      Array.from(uniqueEvents.values()).reduce<Record<string, number>>(
+        (acc, eventType) => {
+          acc[eventType] = (acc[eventType] || 0) + 1;
 
-        return acc;
-      },
-      {}
-    );
-
-    const maxCount = Math.max(
-      ...Object.values(grouped),
-      1
-    );
-
-    const rows = Object.entries(grouped)
-      .map(([eventType, count]) => ({
-        id: eventType,
-        label: metadata[eventType].label,
-        description:
-          metadata[eventType].description,
-        severity:
-          metadata[eventType].severity,
-        count,
-        percent: Math.round(
-          (count * 100) / maxCount
-        ),
-      }))
-      .sort(
-        (a, b) => b.count - a.count
+          return acc;
+        },
+        {}
       )
-      .slice(0, 5);
-
-    return {
-      title:
-        'EVENTOS OPERATIVOS ENS RELEVANTES',
-      rows,
-    };
-  };
+    );
 
   return { add, addEntries, entries, build };
+};
+
+// El modelo a partir de cuántos hechos hay de cada tipo. El servidor lo cuenta
+// con una agregación por `data.event` (en minúsculas y sin espacios, como
+// `operationalEventType`): los tipos que no son eventos operativos se ignoran.
+export const buildImpactEventsModelFromCounts = (
+  counts: Record<string, number>
+): ImpactEventsModel => {
+  const grouped: Record<string, number> = {};
+
+  Object.entries(counts).forEach(([rawType, count]) => {
+    const eventType = String(rawType || '').trim().toLowerCase();
+
+    if (metadata[eventType] && count > 0) {
+      grouped[eventType] = (grouped[eventType] || 0) + count;
+    }
+  });
+
+  const maxCount = Math.max(...Object.values(grouped), 1);
+
+  const rows = Object.entries(grouped)
+    .map(([eventType, count]) => ({
+      id: eventType,
+      label: metadata[eventType].label,
+      description: metadata[eventType].description,
+      severity: metadata[eventType].severity,
+      count,
+      percent: Math.round((count * 100) / maxCount),
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return {
+    title: 'EVENTOS OPERATIVOS ENS RELEVANTES',
+    rows,
+  };
 };
 
 // Los tipos que cuentan como evento operativo.

@@ -320,8 +320,8 @@ export const normalizeWazuhAlert = (hit: any): ENSNormalizedEvent => {
       data.compliance !== undefined && Number.isFinite(Number(data.compliance))
         ? Number(data.compliance)
         : undefined,
-
-    raw: source,
+    // Sin `raw`: el documento entero no lo lee nadie, y guardarlo mantenía
+    // vivo cada documento mientras vivía su evento.
   };
 };
 

@@ -10,6 +10,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+declare const require: any;
 import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService } from '../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse } from '../server/lib/evaluation/responses';
@@ -37,7 +38,7 @@ let n = 0;
 const hecho = (agente: string, nombre: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.17',
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), agent: { id: agente, name: nombre }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agente, name: nombre }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 const docs: FakeDoc[] = [];
@@ -51,8 +52,8 @@ for (let h = 200; h >= 1; h -= 1) {
   docs.push(hecho('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: h > 100 ? 'telnet' : 'sshd', estado: 'CUMPLE' }, h - 0.01));
 }
 // op.acc.3: acciones (más de una página de lectura) en 024 y en 028.
-for (let i = 0; i < FACTS_PAGE_SIZE + 300; i++) {
-  docs.push(hecho(i % 3 ? '024' : '028', i % 3 ? 'wazuh-real' : 'zimbraHldap', { ensfacil: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + (i % 500) / 10));
+for (let i = 0; i < FACTS_PAGE_SIZE + 1300; i++) {
+  docs.push(hecho(i % 6 ? '024' : '028', i % 6 ? 'wazuh-real' : 'zimbraHldap', { ensfacil: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + (i % 500) / 10));
 }
 for (const [a, nm] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) docs.push(hecho(a, nm, { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
 docs.push(hecho('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
@@ -92,7 +93,10 @@ const referencia = () => {
   const todos = indice.docs
     .filter(d => d._index.startsWith('wazuh-alerts') && ['000', '024', '028'].includes(d._source.agent.id))
     .filter(d => Date.parse(d._source['@timestamp']) >= desde && Date.parse(d._source['@timestamp']) <= reloj.getTime())
-    .sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || a._id.localeCompare(b._id));
+    // El orden del servidor: fecha descendente y, a igual fecha, el `id` de la
+    // alerta (con varios hechos en el mismo milisegundo, el motor toma el
+    // primero como «el último»; 1.1.0 no fijaba ningún orden para ese empate).
+    .sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || (a._source.id < b._source.id ? -1 : a._source.id > b._source.id ? 1 : 0));
   const inventario = inventoryFromMonitoring({ agentes: { buckets: ['024', '028', '099'].map(id => ({ key: id, ultimo: { hits: { hits: [indice.docs.find(d => d._id === `m${id}`)] } } })) } }, reloj.getTime());
   const alcance = resolveENSScopeAgents(normalizeInventory(inventario.agents), configuracion.scope as any);
   return { eventos: normalizeWazuhAlerts(todos), alcance, nivel: (configuracion as any).global.ensLevel, docs: todos };
@@ -110,12 +114,20 @@ const referencia = () => {
   comprueba('conjunto: el resumen y las máquinas, iguales', igual(conjunto.state!.controlSummary, esperado.controlSummary) &&
     igual(conjunto.state!.agents.map(a => [a.agentId, a.summary, a.results.map(r => [r.control.id, r.status, r.score])]), esperado.agents.map(a => [a.agentId, a.summary, a.results.map(r => [r.control.id, r.status, r.score])])));
   const totalTraza = esperado.results.find(r => r.control.id === 'op.acc.3')!.traceability.length;
-  comprueba('la trazabilidad se cuenta entera aunque no viaje', conjunto.views.get('op.acc.3')!.traceabilityTotal === totalTraza && totalTraza > 100, totalTraza);
+  comprueba('la trazabilidad se cuenta entera aunque no viaje', conjunto.views.get('op.acc.3')!.traceabilityTotal === totalTraza && totalTraza > 100, [totalTraza, conjunto.views.get('op.acc.3')!.traceabilityTotal]);
 
   // 2. Hechos de estado podados: op.exp.3 no lee las pasadas viejas y juzga igual.
-  const leidosExp3 = conjunto.meta.stats.controls.find((c: any) => c.controlId === 'op.exp.3');
+  const leidosExp3 = conjunto.meta.stats.rows.find((c: any) => c.controlId === 'op.exp.3' && c.agentId === '024');
   comprueba('op.exp.3: se podan los hechos de estado de pasadas anteriores', Boolean(leidosExp3?.pruned) && leidosExp3!.hits < 400 + 200, leidosExp3);
-  comprueba('op.acc.3: se lee en varias páginas (sin el tope de una sola búsqueda)', (conjunto.meta.stats.controls.find((c: any) => c.controlId === 'op.acc.3')?.pages || 0) >= 2);
+  comprueba('op.acc.3 en 024: se lee en varias páginas (sin el tope de una sola búsqueda)', (conjunto.meta.stats.rows.find((c: any) => c.controlId === 'op.acc.3' && c.agentId === '024')?.pages || 0) >= 2);
+  // Solo un control que ninguna máquina mide se lee entero (el motor lo evalúa
+  // sin fila); todos los demás, máquina a máquina.
+  const sinFila = conjunto.meta.stats.rows.filter((r: any) => r.agentId === '*').map((r: any) => r.controlId);
+  const lecturasDeConjunto = indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts') && !JSON.stringify(l.body.query).includes('{"term":{"agent.id":'));
+  comprueba('cada lectura de hechos es de UNA máquina, salvo los controles sin fila (la poda no crece con las máquinas)',
+    lecturasDeConjunto.every(l => sinFila.some((id: string) => JSON.stringify(l.body.query).includes(`"data.ensfacil":"${id}"`))), [sinFila, lecturasDeConjunto.length]);
+  comprueba('nadie pide resultados parciales a los índices de Wazuh', indice.log.filter(l => /^wazuh-(alerts|monitoring)/.test(l.index || '')).every(l => l.params?.allow_partial_search_results === false));
+  comprueba('ninguna lectura ordena por `_id`', indice.log.every(l => !JSON.stringify(l.body?.sort || []).includes('"_id"')));
   comprueba('ninguna lectura pide más de una página por vez', indice.log.every(l => (l.body?.size ?? 0) <= FACTS_PAGE_SIZE));
   comprueba('cada hecho se lee con `_source` filtrado (sin el documento entero)', indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).every(l => Array.isArray(l.body._source) && !l.body._source.includes('full_log')));
 
@@ -143,7 +155,7 @@ const referencia = () => {
   const sonda2: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   comprueba('un hecho nuevo cambia la huella', sonda2.data.fingerprint !== sonda.data.fingerprint);
   const tras = await servicio.run(clientes, { include: 'summary', timeZone: 'UTC' });
-  comprueba('y solo se recalcula su control', tras.meta.stats.computed === 1 && tras.meta.stats.controls.find((c: any) => !c.fromCache)?.controlId === 'op.acc.3', tras.meta.stats.controls.filter((c: any) => !c.fromCache).map((c: any) => c.controlId));
+  comprueba('y solo se recalcula su fila (op.acc.3 en 024)', tras.meta.stats.computed === 1 && tras.meta.stats.rows[0]?.controlId === 'op.acc.3' && tras.meta.stats.rows[0]?.agentId === '024', tras.meta.stats.rows.map((c: any) => `${c.controlId}@${c.agentId}`));
   const ref2 = referencia();
   comprueba('con el hecho nuevo, sigue igual que el motor sobre todo', igual(tras.state!.results.map(sinTraza), getENSComplianceState(ref2.nivel, ref2.eventos, undefined, ref2.alcance, reloj).results.map(sinTraza)));
 
@@ -152,10 +164,11 @@ const referencia = () => {
   const deLuis = await servicio.run({ asCurrentUser: otroIndice, asInternalUser: indice }, { include: 'summary', timeZone: 'UTC' });
   comprueba('otro usuario: su propia evaluación', deLuis.meta.stats.computed > 0);
 
-  // Pasado el tiempo de vida, se recalcula aunque no haya hechos nuevos.
-  reloj = new Date(reloj.getTime() + 11 * 60 * 1000);
+  // Pasado el tiempo de vida (60 min, para lo que cambia solo con el reloj),
+  // se recalcula aunque no haya hechos nuevos.
+  reloj = new Date(reloj.getTime() + 61 * 60 * 1000);
   const caducado = await servicio.run(clientes, { include: 'summary', timeZone: 'UTC' });
-  comprueba('caducado (10 min): se vuelve a evaluar', caducado.meta.stats.computed > 0);
+  comprueba('caducado (60 min): se vuelve a evaluar', caducado.meta.stats.computed > 0);
 
   // 5. Las respuestas: compactas y sin hechos.
   const resumen = JSON.stringify(buildEvaluationResponse(caducado));

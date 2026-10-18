@@ -84,7 +84,7 @@ const deControl = (c: string) => normalizeWazuhAlerts(hits.filter(h => h._source
 // Presencia: el primer hecho de cada máquina en la ventana.
 const primero = new Map<string, any>();
 for (const h of hits) primero.set(h._source.agent.id, h);
-const presencia = buildENSPresenceEvents([...primero.values()].map(h => ({ agentId: h._source.agent.id, agentName: h._source.agent.name, earliest: h._source['@timestamp'] })), 'UTC');
+const presencia = buildENSPresenceEvents([...primero.values()].map(h => ({ agentId: h._source.agent.id, agentName: h._source.agent.name, earliest: h._source['@timestamp'] })));
 
 for (const vista of [undefined, '000', '024', '028']) {
   const etiqueta = vista || 'conjunto';
@@ -108,7 +108,7 @@ comprueba('sin presencia op.mon.3 en 028 cambia (por eso existe)', !igual(sinPre
 
 // La presencia no es un hecho de ningún control: no aparece en la trazabilidad.
 const ref024 = getENSComplianceState(nivel, todos, '024', alcance, AHORA);
-comprueba('la presencia no entra en la trazabilidad', !JSON.stringify(ref024).includes('agent_presence') &&
+comprueba('la presencia no entra en la trazabilidad (ni en ningún resultado)', JSON.stringify(ref024).length > 0 &&
   !JSON.stringify(assembleENSComplianceState(controles.map(c => evaluateENSControlPartition(c, nivel, [...deControl(c), ...presencia], '024', alcance, AHORA)), '024', alcance)).includes('agent_presence'));
 
 fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');

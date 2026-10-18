@@ -19,6 +19,8 @@ import {
   getStateFactCollectorField,
   getStateFactOwnerEvidenceIds,
 } from '../../../common/ens/core/evidence/state-facts';
+import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
+import { ENS_CROSS_CONTROL_EVENT_TYPES, ENS_CROSS_CONTROL_HEARTBEAT } from '../../../common/ens/core/control-partition';
 
 // Lo único que lee el motor de cada hecho (`normalizeWazuhAlert`). Sin `raw`:
 // el documento entero no lo lee nadie.
@@ -36,9 +38,16 @@ export const ENGINE_SOURCE_FIELDS = [
   'id',
 ];
 
-// El orden en que el navegador recibía los hechos (más recientes primero) y
-// un desempate estable para `search_after`.
-export const FACTS_SORT = [{ '@timestamp': { order: 'desc' } }, { _id: { order: 'asc' } }];
+// El orden de lectura: del más reciente al más antiguo (como los recibía el
+// navegador), y un desempate determinista con campos `keyword` que llevan
+// todas las alertas de Wazuh (`id` es único por manager). Nunca `_id`: ordenar
+// por `_id` carga su fielddata para todos los documentos de cada shard.
+export const FACTS_SORT = [
+  { '@timestamp': { order: 'desc' } },
+  { id: { order: 'asc', missing: '_last', unmapped_type: 'keyword' } },
+  { 'manager.name': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } },
+  { 'agent.id': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } },
+];
 
 export interface ENSEvaluationWindow {
   from: string;
@@ -76,39 +85,85 @@ export const buildViewFilters = (
   buildENSAllControlsFactsFilter(catalogControlIds()),
 ];
 
-// LA SONDA. Unos cientos de bytes: cuántos hechos hay y el más reciente, en
-// total, por control y sin control; y de cada máquina, su primer hecho de la
-// ventana (la presencia, ver `control-partition.ts`) y el nombre del último.
-export const buildProbeRequest = (filters: unknown[], controlIds: string[]) => ({
-  index: ENS_ALERTS_INDEX,
-  body: {
-    size: 0,
-    track_total_hits: true,
-    query: { bool: { filter: filters } },
-    aggs: {
-      newest: { max: { field: '@timestamp' } },
-      oldest: { min: { field: '@timestamp' } },
-      controls: {
-        filters: {
-          filters: Object.fromEntries(controlIds.map(id => [id, buildENSControlFactsFilter(id)])),
+// LA SONDA. Una sola consulta sin documentos: cuántos hechos hay y el más
+// reciente, en total, por control y máquina (lo que decide qué filas hay que
+// recalcular), los que no nombran ningún control, los de los tipos que op.acc.3
+// lee de otros controles; de cada máquina, su primer hecho de la ventana (la
+// presencia) y el nombre del último; y el último latido de cada día de cada
+// máquina, de cualquier control (ver `control-partition.ts`).
+export const buildProbeRequest = (filters: unknown[], controlIds: string[], timeZone?: string) => {
+  const porMaquina = (aggs?: Record<string, unknown>) => ({
+    terms: { field: 'agent.id', size: 10000 },
+    aggs: { newest: { max: { field: '@timestamp' } }, ...(aggs || {}) },
+  });
+  const cruzados = Object.entries(ENS_CROSS_CONTROL_EVENT_TYPES).filter(([id]) => controlIds.includes(id));
+  return {
+    index: ENS_ALERTS_INDEX,
+    body: {
+      size: 0,
+      track_total_hits: true,
+      query: { bool: { filter: filters } },
+      aggs: {
+        newest: { max: { field: '@timestamp' } },
+        oldest: { min: { field: '@timestamp' } },
+        controls: {
+          filters: {
+            filters: Object.fromEntries(controlIds.map(id => [id, buildENSControlFactsFilter(id)])),
+          },
+          aggs: {
+            newest: { max: { field: '@timestamp' } },
+            oldest: { min: { field: '@timestamp' } },
+            agents: porMaquina({ oldest: { min: { field: '@timestamp' } } }),
+          },
         },
-        aggs: { newest: { max: { field: '@timestamp' } }, oldest: { min: { field: '@timestamp' } } },
-      },
-      orphans: {
-        filter: buildENSFactsWithoutControlFilter(),
-        aggs: { newest: { max: { field: '@timestamp' } } },
-      },
-      agents: {
-        terms: { field: 'agent.id', size: 10000 },
-        aggs: {
-          first: { min: { field: '@timestamp' } },
-          latest: { max: { field: '@timestamp' } },
-          last: { top_hits: { size: 1, sort: [{ '@timestamp': { order: 'desc' } }], _source: ['agent.name'] } },
+        orphans: {
+          filter: buildENSFactsWithoutControlFilter(),
+          aggs: { newest: { max: { field: '@timestamp' } }, agents: porMaquina() },
+        },
+        ...Object.fromEntries(
+          cruzados.map(([id, tipos]) => [
+            `cross:${id}`,
+            {
+              filter: { bool: { filter: [{ terms: { 'data.event': tipos } }], must_not: [buildENSControlFactsFilter(id)] } },
+              aggs: { agents: porMaquina() },
+            },
+          ])
+        ),
+        ...(ENS_CROSS_CONTROL_HEARTBEAT.some(id => controlIds.includes(id))
+          ? {
+              heartbeats: {
+                filter: { term: { 'data.event': 'collector_run' } },
+                aggs: {
+                  agents: {
+                    terms: { field: 'agent.id', size: 10000 },
+                    aggs: {
+                      days: {
+                        date_histogram: {
+                          field: '@timestamp',
+                          calendar_interval: 'day',
+                          time_zone: timeZone || 'UTC',
+                          min_doc_count: 1,
+                        },
+                        aggs: { last: { max: { field: '@timestamp' } } },
+                      },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+        agents: {
+          terms: { field: 'agent.id', size: 10000 },
+          aggs: {
+            first: { min: { field: '@timestamp' } },
+            latest: { max: { field: '@timestamp' } },
+            last: { top_hits: { size: 1, sort: [{ '@timestamp': { order: 'desc' } }], _source: ['agent.name'] } },
+          },
         },
       },
     },
-  },
-});
+  };
+};
 
 export interface ENSFactsCount {
   count: number;
@@ -117,8 +172,11 @@ export interface ENSFactsCount {
 }
 
 export interface ENSProbeResult extends ENSFactsCount {
-  controls: Record<string, ENSFactsCount>;
-  orphans: ENSFactsCount;
+  controls: Record<string, ENSFactsCount & { agents: Record<string, ENSFactsCount> }>;
+  orphans: ENSFactsCount & { agents: Record<string, ENSFactsCount> };
+  cross: Record<string, Record<string, ENSFactsCount>>;
+  // Por máquina, el último latido de cada día (de cualquier control).
+  heartbeats: Record<string, string[]>;
   // Cada máquina: su primer hecho de la ventana (la presencia), el último y
   // cuántos tiene.
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
@@ -126,6 +184,14 @@ export interface ENSProbeResult extends ENSFactsCount {
 
 const fecha = (agg: any): string | undefined =>
   agg && typeof agg.value === 'number' ? new Date(agg.value).toISOString() : undefined;
+
+const porMaquinaDe = (agg: any): Record<string, ENSFactsCount> =>
+  Object.fromEntries(
+    (agg?.buckets || []).map((b: any) => [
+      String(b.key),
+      { count: Number(b.doc_count || 0), newest: fecha(b.newest), oldest: fecha(b.oldest) },
+    ])
+  );
 
 export const readProbeResponse = (body: any): ENSProbeResult => {
   const aggs = body?.aggregations || {};
@@ -137,10 +203,21 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
     controls: Object.fromEntries(
       Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [
         id,
-        { count: Number(b?.doc_count || 0), newest: fecha(b?.newest), oldest: fecha(b?.oldest) },
+        { count: Number(b?.doc_count || 0), newest: fecha(b?.newest), oldest: fecha(b?.oldest), agents: porMaquinaDe(b?.agents) },
       ])
     ),
-    orphans: { count: Number(aggs.orphans?.doc_count || 0), newest: fecha(aggs.orphans?.newest) },
+    orphans: { count: Number(aggs.orphans?.doc_count || 0), newest: fecha(aggs.orphans?.newest), agents: porMaquinaDe(aggs.orphans?.agents) },
+    cross: Object.fromEntries(
+      Object.entries(aggs)
+        .filter(([nombre]) => nombre.startsWith('cross:'))
+        .map(([nombre, agg]: [string, any]) => [nombre.slice('cross:'.length), porMaquinaDe(agg?.agents)])
+    ),
+    heartbeats: Object.fromEntries(
+      (aggs.heartbeats?.agents?.buckets || []).map((b: any) => [
+        String(b.key),
+        (b.days?.buckets || []).map((d: any) => fecha(d.last)).filter(Boolean),
+      ])
+    ),
     presence: (aggs.agents?.buckets || [])
       .map((b: any) => ({
         agentId: String(b.key),
@@ -161,16 +238,23 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
 // con `data.event` (el tipo), `agent.id` (la máquina), `@timestamp` (la fecha),
 // `data.ensfacil` (el control) y sin declarar una evidencia que no sea dueña
 // del tipo. Ante cualquier duda, el hecho se lee.
+// Cuántas cláusulas puede ocupar la poda. OpenSearch cuenta TODAS las hojas de
+// la consulta contra `indices.query.bool.max_clause_count` (1024 por defecto),
+// y los filtros de la vista ya ocupan unas 80: lo que no cabe, se lee.
+export const PRUNING_MAX_KEYS = 40;
+
 export const buildStateFactPruningClause = (
   controlId: string,
   cutoffs: Map<string, number>
 ): unknown | undefined => {
   if (!cutoffs.size) return undefined;
   const campo = getStateFactCollectorField(controlId);
+  const todasLasEvidencias = getEvidenceDefinitions(controlId).map(definition => definition.id);
 
-  const should = [...cutoffs.entries()].map(([clave, corte]) => {
+  const should = [...cutoffs.entries()].slice(0, PRUNING_MAX_KEYS).map(([clave, corte]) => {
     const [agente, recolector, tipo] = clave.split('|');
     const duenas = getStateFactOwnerEvidenceIds(controlId, tipo);
+    const ajenas = todasLasEvidencias.filter(id => !duenas.includes(id));
     const filter: unknown[] = [
       { term: { 'data.ensfacil': controlId } },
       { term: { 'agent.id': agente } },
@@ -178,7 +262,12 @@ export const buildStateFactPruningClause = (
       { range: { '@timestamp': { lte: new Date(corte).toISOString() } } },
       {
         bool: {
-          must_not: ['data.evidenceId', 'data.ev_id', 'data.evidencias'].map(field => ({ exists: { field } })),
+          // Un hecho que (también) declara otra evidencia se queda: con varios
+          // valores en `evidence_id`, el motor conserva la copia de la otra.
+          must_not: [
+            ...['data.evidenceId', 'data.ev_id', 'data.evidencias'].map(field => ({ exists: { field } })),
+            ...(ajenas.length ? [{ terms: { 'data.evidence_id': ajenas } }] : []),
+          ],
           should: [
             { bool: { must_not: { exists: { field: 'data.evidence_id' } } } },
             { terms: { 'data.evidence_id': duenas } },
@@ -200,30 +289,74 @@ export const buildStateFactPruningClause = (
   return { bool: { should, minimum_should_match: 1 } };
 };
 
-// Los hechos de un control (o los que no nombran ninguno), con su poda.
+// Los hechos de un control en UNA máquina: los suyos, los que no nombran
+// ningún control y, si el control los lee, los de los tipos que lee de otros
+// controles. Con la poda de sus hechos de estado. `agentId` vacío: los del
+// control en todo el alcance de `viewFilters` (solo para evaluar un control
+// que ninguna máquina mide, como el motor).
 export const buildFactsQuery = (
   viewFilters: unknown[],
-  controlId: string | null,
+  controlId: string,
+  agentId: string | undefined,
   pruning?: unknown
-) => ({
-  bool: {
-    filter: [
-      ...viewFilters,
-      controlId === null ? buildENSFactsWithoutControlFilter() : buildENSControlFactsFilter(controlId),
-    ],
-    ...(pruning ? { must_not: [pruning] } : {}),
-  },
-});
+) => {
+  const tiposAjenos = ENS_CROSS_CONTROL_EVENT_TYPES[controlId] || [];
+  return {
+    bool: {
+      filter: [
+        ...viewFilters,
+        ...(agentId ? [{ term: { 'agent.id': agentId } }] : []),
+        {
+          bool: {
+            should: [
+              buildENSControlFactsFilter(controlId),
+              buildENSFactsWithoutControlFilter(),
+              ...(tiposAjenos.length ? [{ terms: { 'data.event': tiposAjenos } }] : []),
+            ],
+            minimum_should_match: 1,
+          },
+        },
+      ],
+      ...(pruning ? { must_not: [pruning] } : {}),
+    },
+  };
+};
 
-// Los latidos de un control: con ellos se calcula la poda antes de leer el
-// resto.
-export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: string) => ({
+// Los latidos de un control en una máquina: con ellos se calcula la poda antes
+// de leer el resto.
+export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: string, agentId: string) => ({
   bool: {
     filter: [
       ...viewFilters,
+      { term: { 'agent.id': agentId } },
       buildENSControlFactsFilter(controlId),
       { term: { 'data.event': 'collector_run' } },
     ],
+  },
+});
+
+// Los eventos operativos del panel (copias, restauraciones…): cuántos hechos
+// hay de cada tipo en la vista. Se agrupa por `data.event` y el tipo se compara
+// en minúsculas, como el presentador.
+export const buildImpactEventsRequest = (filters: unknown[]) => ({
+  index: ENS_ALERTS_INDEX,
+  body: {
+    size: 0,
+    query: {
+      bool: {
+        filter: filters,
+        must_not: [
+          ...['data.demo', 'data.synthetic', 'data.is_synthetic', 'data.isSynthetic'].map(field => ({
+            // En Wazuh, `data.*` se mapea `keyword` (comprobado en el laboratorio):
+            // se comparan cadenas, como hace `normalizeBoolean`.
+            terms: { [field]: ['true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES'] },
+          })),
+          { exists: { field: 'data.test_id' } },
+          { exists: { field: 'data.testId' } },
+        ],
+      },
+    },
+    aggs: { types: { terms: { field: 'data.event', size: 2000 } } },
   },
 });
 

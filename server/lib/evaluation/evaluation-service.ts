@@ -1,20 +1,23 @@
 // La evaluación en el servidor del plugin.
 //
-// El navegador ya no descarga hechos para juzgar: pide aquí el resultado. El
-// servidor lee los hechos de la ventana ENTERA (sin el tope de 10.000), como
-// el usuario que mira, control a control, los juzga con el MISMO motor que
-// usaba el navegador (`common/ens/core`) y devuelve el resultado compacto.
+// El navegador no descarga hechos para juzgar: pide aquí el resultado. El
+// servidor lee los hechos de la ventana ENTERA, como el usuario que mira, de UN
+// control en UNA máquina a la vez, los juzga con el MISMO motor que usaba el
+// navegador (`common/ens/core`) y los suelta antes de leer los siguientes.
 //
-//   1. Contexto: quién mira, la configuración activa, el alcance (inventario
-//      de wazuh-monitoring) y una SONDA de unos cientos de bytes: cuántos
-//      hechos hay por control y el más reciente, y el primero de cada máquina.
-//   2. Por cada control: si su huella (configuración, alcance, hechos del
-//      control, presencia) es la misma y no ha caducado, el resultado guardado;
-//      si no, se leen sus hechos página a página —sin los de estado que el
-//      motor descartaría (`computeStateFactPruningCutoffs`)—, se evalúa y se
-//      sueltan.
-//   3. El estado del panel se arma con los resultados de cada control
-//      (`assembleENSComplianceState`), igual que el motor sobre todo.
+//   1. Contexto: quién mira, la configuración activa, el alcance (inventario de
+//      wazuh-monitoring) y una SONDA sin documentos: hechos por control y
+//      máquina (cuántos y el más reciente), los que no nombran control, la
+//      presencia de cada máquina y sus latidos (ver `queries.ts`).
+//   2. Cada fila (un control en una máquina que lo mide): si su huella es la
+//      misma y no tiene más de 60 minutos, la guardada; si cambió, la guardada
+//      se enseña al instante (marcada) y se recalcula detrás; si no hay
+//      ninguna, se calcula: latidos → poda de los hechos de estado → hechos de
+//      esa máquina página a página → motor → se sueltan.
+//   3. La vista de conjunto de cada control se consolida con la consolidación
+//      del motor (`consolidateENSControlRows`); la de una máquina sale de sus
+//      filas. El estado del panel se arma con `assembleENSComplianceState`.
+//      Todo da lo mismo que el motor sobre todos los hechos a la vez.
 //   4. La serie diaria: los días pasados se calculan una vez al día.
 //
 // La respuesta de cada vista está descrita en `server/README.md`.
@@ -28,13 +31,21 @@ import { ensConfigurationRepository } from '../../../common/ens/configuration/re
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
+import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
   assembleENSComplianceState,
+  buildENSHeartbeatEvents,
   buildENSPresenceEvents,
+  consolidateENSControlRows,
+  ENS_CROSS_CONTROL_HEARTBEAT,
   ENSControlPartition,
   evaluateENSControlPartition,
+  evaluateENSControlRow,
+  listENSControlRowAgents,
+  resultStatusStub,
 } from '../../../common/ens/core/control-partition';
-import { createImpactEventsAccumulator } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
+import { buildImpactEventsModelFromCounts } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
+import type { ImpactEventsModel } from '../../../common/ens/core/dashboard-adapter/models/impact-events.model';
 import { normalizeWazuhAlerts } from '../../../common/ens/core/data-source/data-source-engine';
 import type { ENSNormalizedEvent } from '../../../common/ens/core/data-source/types';
 import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common/ens/core/evaluation/types';
@@ -51,15 +62,17 @@ import {
 import type { ENSAgentScope } from '../../../common/ens/core/scope/types';
 import { planENSTimelineCuts, startOfDayIn } from '../../../common/ens/core/timeline/timeline-cuts';
 import type { ENSTimelineCutPlan } from '../../../common/ens/core/timeline/timeline-cuts';
+import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { readActiveENSConfiguration } from '../configuration-storage';
 import { resolveCurrentUser } from '../current-user';
-import { EVALUATION_TTL_MS, EvaluationCache, InFlight, Semaphore } from './cache';
-import { newReadStats, readAllFacts } from './facts-reader';
+import { Cancellable, CacheEntry, EVALUATION_TTL_MS, EvaluationCache, Semaphore, SharedTasks } from './cache';
+import { newReadStats, readAllFacts, searchComplete, throwIfCancelled } from './facts-reader';
 import type { ENSFactsReadStats } from './facts-reader';
 import {
   buildCollectorRunsQuery,
   buildDailyCountsRequest,
   buildFactsQuery,
+  buildImpactEventsRequest,
   buildProbeRequest,
   buildStateFactPruningClause,
   buildViewFilters,
@@ -78,7 +91,7 @@ export interface ENSEvaluationQuery {
   // Días de la serie (0 o nada: sin serie). El panel pide 7 y el detalle 30.
   timelineDays?: number;
   // Zona horaria de quien mira (IANA): decide qué es «un día» en la serie.
-  timeZone?: string;
+  timeZone: string;
 }
 
 export interface ENSEvaluationClients {
@@ -86,34 +99,74 @@ export interface ENSEvaluationClients {
   asInternalUser: any;
 }
 
-// Cuántas entradas de la trazabilidad de un control se guardan y se sirven
-// (las más recientes). El total se dice siempre.
-export const TRACEABILITY_CAP = 2000;
+export interface ENSRunOptions {
+  // Responder con lo guardado aunque ya no valga, y recalcular detrás.
+  allowStale?: boolean;
+  // Quien espera la respuesta (se cancela si se va).
+  signal?: Cancellable;
+}
+
+// Una petición mal hecha: 400 con el motivo.
+export class ENSBadRequestError extends Error {
+  statusCode = 400;
+  constructor(message: string) {
+    super(message);
+    this.name = 'ENSBadRequestError';
+  }
+}
+
+// El id de una máquina como lo escribe el inventario (`24` → `024`).
+const normalizeAgentId = (value: string): string => {
+  const texto = value.trim();
+  return /^\d+$/.test(texto) ? texto.padStart(3, '0') : texto;
+};
 
 const sha = (...parts: unknown[]): string =>
   createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 16);
 
-const isValidTimeZone = (timeZone?: string): string | undefined => {
-  if (!timeZone) return undefined;
+export const isValidTimeZone = (timeZone?: string): boolean => {
+  if (!timeZone) return false;
   try {
     new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
-    return timeZone;
+    return true;
   } catch {
-    return undefined;
+    return false;
   }
 };
 
-export const normalizeQuery = (query: Partial<ENSEvaluationQuery>): ENSEvaluationQuery => ({
-  agentId: query.agentId ? String(query.agentId).trim() || undefined : undefined,
-  controlId: query.controlId ? String(query.controlId).trim() || undefined : undefined,
-  include: (['summary', 'results', 'dashboard', 'control'] as const).includes(query.include as any)
-    ? (query.include as ENSEvaluationInclude)
-    : query.controlId
-    ? 'control'
-    : 'summary',
-  timelineDays: Math.max(0, Math.min(90, Math.floor(Number(query.timelineDays) || 0))),
-  timeZone: isValidTimeZone(query.timeZone),
-});
+// Los parámetros de la petición, comprobados. Lo que depende del alcance (que
+// la máquina esté en él) se comprueba con el contexto (`run`).
+export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQuery => {
+  const texto = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const controlId = texto(query.controlId);
+  if (controlId && !ENSCatalog.some(control => control.id === controlId)) {
+    throw new ENSBadRequestError(`El control «${controlId}» no está en el catálogo de ENSFácil.`);
+  }
+  const agente = texto(query.agentId);
+  const agentId = agente ? normalizeAgentId(agente) : undefined;
+  if (agente && (!agentId || agentId.length > 64)) {
+    throw new ENSBadRequestError(`«${agente}» no es un identificador de máquina válido.`);
+  }
+  const zona = texto(query.timeZone);
+  if (zona && !isValidTimeZone(zona)) {
+    throw new ENSBadRequestError(`«${zona}» no es una zona horaria IANA válida.`);
+  }
+  const include = texto(query.include);
+  if (include && !['summary', 'results', 'dashboard', 'control'].includes(include)) {
+    throw new ENSBadRequestError(`Vista desconocida: «${include}».`);
+  }
+  const dias = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
+  if (!Number.isInteger(dias) || dias < 0 || dias > ENS_EVALUATION_LIMITS.maxTimelineDays) {
+    throw new ENSBadRequestError(`Los días de la serie van de 0 a ${ENS_EVALUATION_LIMITS.maxTimelineDays}.`);
+  }
+  return {
+    agentId,
+    controlId,
+    include: (include as ENSEvaluationInclude) || (controlId ? 'control' : 'summary'),
+    timelineDays: dias,
+    timeZone: zona || 'UTC',
+  };
+};
 
 export interface ENSEvaluationContext {
   now: Date;
@@ -126,114 +179,86 @@ export interface ENSEvaluationContext {
   inventory: { stale: boolean; newestTimestamp?: string; agents: number };
   window: ENSEvaluationWindow;
   // Los filtros del alcance ENTERO: el servidor evalúa siempre todas las
-  // máquinas y la vista de una sale de sus filas (ver `deriveForAgent`).
+  // máquinas; la vista de una sale de sus filas.
   filters: unknown[];
   probe: ENSProbeResult;
+  // Los hechos de presencia de todas las máquinas (identidad y nombres).
   presenceEvents: ENSNormalizedEvent[];
-  baseFingerprint: string;
-  timeZone?: string;
+  presenceOf: Map<string, ENSNormalizedEvent>;
+  heartbeatsOf: Map<string, ENSNormalizedEvent[]>;
+  timeZone: string;
 }
 
-// Un punto de la serie de UN control a fecha de un corte.
+// Un punto de la serie de una fila a fecha de un corte.
 interface CutPoint {
   status: string;
   score?: number;
 }
 
-// Los días pasados de un control: el resultado del conjunto y el de cada fila.
-interface StoredCuts {
-  consolidated: CutPoint[];
-  rows: Record<string, CutPoint>[];
-}
-
-// Lo que se guarda de un control evaluado. Sin hechos: solo resultados.
-interface StoredPartition {
+// Lo que se guarda de una fila (un control en una máquina). Sin hechos.
+interface StoredRow {
   result?: ENSComplianceResult;
   traceability: ENSTraceabilityResult[];
   traceabilityTotal: number;
-  // Las filas de las máquinas que lo miden, sin su trazabilidad (de cada una
-  // se guardan las primeras entradas y el total).
-  rows: { agentId: string; result: ENSComplianceResult; traceability: ENSTraceabilityResult[]; traceabilityTotal: number }[];
-  impact: [string, string][];
-  stats: ENSControlComputeStats;
-  cuts: Record<string, StoredCuts>;
+  cuts: Record<string, CutPoint[]>;
+  stats: ENSRowComputeStats;
+  // Con qué configuración y alcance se calculó: una entrada de otra
+  // configuración no se enseña ni mientras se recalcula.
+  configurationKey: string;
+  scopeKey: string;
 }
 
-const ROW_TRACEABILITY_CAP = 100;
-
-export interface ENSControlComputeStats {
+export interface ENSRowComputeStats {
   controlId: string;
-  agentId?: string;
-  fromCache: boolean;
+  agentId: string;
   hits: number;
   pages: number;
-  bytes: number;
-  pit: boolean;
   events: number;
   fetchMs: number;
   evaluateMs: number;
   pruned: boolean;
 }
 
-// Lo mínimo de un resultado que necesita el resumen del motor
-// (`buildComplianceState`) para sumar el número del panel en un día pasado.
-const pointAsResult = (controlId: string, point: CutPoint): ENSComplianceResult =>
-  ({
-    control: { id: controlId },
-    status: point.status,
-    score: point.score,
-    requirements: [],
-    evidences: [],
-  } as unknown as ENSComplianceResult);
-
-// El resultado tal cual, salvo la trazabilidad: la lista de hechos del
-// control (decenas de miles con op.acc.3), que no hace falta para juzgar ni
-// para pintar ninguna pantalla de resumen.
+// El resultado tal cual, salvo la trazabilidad (la lista de hechos del
+// control, decenas de miles con op.acc.3).
 export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({
   ...result,
   traceability: [],
 });
 
-const mergeByFactOrder = (a: any[], b: any[]): any[] => {
-  if (!b.length) return a;
-  if (!a.length) return b;
-  const clave = (h: any) => [Number(h?.sort?.[0] ?? Date.parse(h?._source?.['@timestamp'])), String(h?._id ?? '')] as const;
-  return [...a, ...b].sort((x, y) => {
-    const [tx, ix] = clave(x);
-    const [ty, iy] = clave(y);
-    return ty - tx || (ix < iy ? -1 : ix > iy ? 1 : 0);
-  });
-};
-
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// La configuración activa se relee solo si cambia su fecha: el documento
-// lleva el historial de auditoría y pesa cientos de KB.
+// La configuración activa se relee solo si cambia su sello: el documento lleva
+// el historial y pesa cientos de KB. El sello incluye `_seq_no` y
+// `_primary_term`: cambian con cualquier escritura, aunque no toque las fechas.
 const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
-  const { body } = await client.search({
-    index: ENS_CONFIGURATION_INDEX,
-    body: {
-      size: 1,
-      query: { ids: { values: ['active'] } },
-      _source: ['updatedAt', 'configuration.updatedAt'],
+  const body = await searchComplete(
+    client,
+    {
+      index: ENS_CONFIGURATION_INDEX,
+      body: {
+        size: 1,
+        seq_no_primary_term: true,
+        query: { ids: { values: ['active'] } },
+        _source: ['updatedAt', 'configuration.updatedAt'],
+      },
     },
-  });
-  const doc = body?.hits?.hits?.[0]?._source;
-  return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}` : undefined;
+    'la configuración ENS'
+  );
+  const hit = body?.hits?.hits?.[0];
+  const doc = hit?._source;
+  return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
 };
 
-// La vista de UNA máquina sale de las filas del conjunto, sin volver a leer
-// ni a evaluar: es lo que hace `getENSComplianceResultByControl` con la
-// máquina (ver `evaluateENSControlPartition`). Su fila si el control se mide
-// en ella; la del manager si es un control de organización; nada si no se
-// mide. `null` cuando no se puede decidir desde las filas (una máquina fuera
-// del alcance, o un control de organización sin fila del manager): entonces
-// se evalúa directamente.
+// La vista de UNA máquina sale de las filas del conjunto: su fila si el
+// control se mide en ella; la del manager si es un control de organización;
+// nada si no se mide. `null` cuando no se puede decidir desde las filas (un
+// control de organización sin fila del manager): entonces se evalúa aparte.
 export const deriveForAgent = (
   controlId: string,
   agentId: string,
-  rows: { agentId: string }[],
+  rowAgents: string[],
   scope: ENSAgentScope[]
 ): { from: 'row' | 'manager' | 'none' } | null => {
   if (!scope.some(agent => agent.id === agentId)) return null;
@@ -241,10 +266,10 @@ export const deriveForAgent = (
   if (!control) return null;
   if (isControlMeasuredOnAgent(control, agentId)) {
     // Sin fila: la máquina no está en su alcance declarado (sin resultado).
-    return { from: rows.some(row => row.agentId === agentId) ? 'row' : 'none' };
+    return { from: rowAgents.includes(agentId) ? 'row' : 'none' };
   }
   if (isManagerOnlyControl(control) && !isManagerAgentId(agentId)) {
-    return rows.some(row => row.agentId === ENS_MANAGER_AGENT_ID) ? { from: 'manager' } : null;
+    return rowAgents.includes(ENS_MANAGER_AGENT_ID) ? { from: 'manager' } : null;
   }
   return { from: 'none' };
 };
@@ -253,29 +278,45 @@ export interface ENSEvaluationServiceOptions {
   logger: Logger;
   securityEnabled: boolean;
   clock?: () => Date;
-  // Sin PIT (pruebas, o un indexador que no lo admita).
-  usePit?: boolean;
-  maxConcurrentEvaluations?: number;
+  // Lecturas pesadas (un control en una máquina) a la vez.
+  maxConcurrentReads?: number;
+  // Hechos en memoria a la vez por lectura.
+  maxFactsPerRead?: number;
+  // Tamaño de lo guardado de las filas (JSON).
+  maxStoredBytes?: number;
+}
+
+// La vista de un control para la petición: su resultado, su trazabilidad y
+// sus filas (las del panel).
+export interface ENSViewPartition {
+  controlId: string;
+  result?: ENSComplianceResult;
+  traceability: ENSTraceabilityResult[];
+  traceabilityTotal: number;
+  rows: { agentId: string; result: ENSComplianceResult }[];
+  cutsOf: (key: string) => (CutPoint | undefined)[] | undefined;
 }
 
 export const createEvaluationService = ({
   logger,
   securityEnabled,
   clock = () => new Date(),
-  usePit = true,
-  maxConcurrentEvaluations = 2,
+  maxConcurrentReads = 2,
+  maxFactsPerRead,
+  maxStoredBytes = 48 * 1024 * 1024,
 }: ENSEvaluationServiceOptions) => {
   const reloj = () => clock().getTime();
-  // Cada control guardado pesa hasta unos MB (resultado, filas y las 2.000
-  // entradas de trazabilidad); 120 son unas cinco vistas completas (usuarios).
-  const partitions = new EvaluationCache<StoredPartition>(120, EVALUATION_TTL_MS, reloj);
-  // Los días pasados de una serie no cambian en el día: se guardan hasta 26 h
-  // (la clave lleva el día, así que el de mañana es otra entrada).
+  const jsonBytes = (value: unknown) => JSON.stringify(value).length;
+  const rows = new EvaluationCache<StoredRow>(4000, EVALUATION_TTL_MS, reloj, maxStoredBytes, jsonBytes);
+  // Los días pasados de una serie no cambian en el día: hasta 26 h (la clave
+  // lleva el día y la zona; solo zonas IANA válidas llegan aquí).
   const timelines = new EvaluationCache<any[]>(200, 26 * 3600 * 1000, reloj);
+  const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, reloj);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, reloj);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, reloj);
-  const inFlight = new InFlight<any>();
-  const semaphore = new Semaphore(maxConcurrentEvaluations);
+  const tasks = new SharedTasks<StoredRow>();
+  const reads = new Semaphore(maxConcurrentReads);
+  const leer = { maxFacts: maxFactsPerRead };
 
   // --- 1. contexto ---------------------------------------------------------
 
@@ -306,19 +347,23 @@ export const createEvaluationService = ({
 
     let inventory = inventories.get(userKey, 'inventory');
     if (!inventory) {
-      const { body } = await clients.asCurrentUser.search(buildMonitoringInventoryRequest());
+      const body = await searchComplete(clients.asCurrentUser, buildMonitoringInventoryRequest(), 'el inventario de agentes');
       const leido = inventoryFromMonitoring(body?.aggregations, now.getTime());
       inventory = { agents: normalizeInventory(leido.agents), stale: leido.stale, newestTimestamp: leido.newestTimestamp };
       inventories.set(userKey, 'inventory', inventory);
     }
     const scope = resolveENSScopeAgents(inventory.agents, configuration.scope);
+    if (query.agentId && !scope.some(agent => agent.id === query.agentId)) {
+      throw new ENSBadRequestError(`La máquina ${query.agentId} no está en el alcance ENS.`);
+    }
     const scopeKey = sha(scope.map(agent => [agent.id, agent.name, agent.groups]));
 
     const window = resolveEvaluationWindow(configuration.global.evaluationPeriod, now);
     const filters = buildViewFilters(window, scope);
-    const { body: probeBody } = await clients.asCurrentUser.search(buildProbeRequest(filters, catalogControlIds()));
-    const probe = readProbeResponse(probeBody);
-    const presenceEvents = buildENSPresenceEvents(probe.presence, query.timeZone);
+    const probe = readProbeResponse(
+      await searchComplete(clients.asCurrentUser, buildProbeRequest(filters, catalogControlIds(), query.timeZone), 'la sonda de hechos')
+    );
+    const presenceEvents = buildENSPresenceEvents(probe.presence);
 
     return {
       now,
@@ -333,156 +378,233 @@ export const createEvaluationService = ({
       filters,
       probe,
       presenceEvents,
-      timeZone: query.timeZone,
-      baseFingerprint: sha(
-        configurationKey,
-        scopeKey,
-        query.timeZone || '',
-        presenceEvents.map(event => [event.agentId, event.agentName, event.timestamp]),
-        probe.orphans
+      presenceOf: new Map(presenceEvents.map(event => [event.agentId as string, event])),
+      heartbeatsOf: new Map(
+        Object.entries(probe.heartbeats).map(([agentId, times]) => [agentId, buildENSHeartbeatEvents([{ agentId, times }])])
       ),
+      timeZone: query.timeZone,
     };
   };
 
   const controlsOf = (query: ENSEvaluationQuery): string[] =>
     query.controlId ? [query.controlId] : catalogControlIds();
 
-  const controlFingerprint = (ctx: ENSEvaluationContext, controlId: string): string => {
-    const hechos = ctx.probe.controls[controlId] || { count: 0 };
-    return sha(ctx.baseFingerprint, controlId, hechos.count, hechos.newest || '');
+  const identitiesOf = (ctx: ENSEvaluationContext) => {
+    ensConfigurationRepository.replaceActive(ctx.configuration);
+    return { all: listENSControlRowAgents('', ctx.scope, ctx.presenceEvents), forControl: (controlId: string) => listENSControlRowAgents(controlId, ctx.scope, ctx.presenceEvents) };
   };
 
-  // La huella de la vista: lo que compara la sonda del navegador. Es la de
-  // sus controles sobre el alcance entero (la vista de una máquina sale del
-  // conjunto, así que cambia con él).
-  const viewFingerprint = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): string =>
-    sha(ctx.baseFingerprint, query.agentId || '*', controlsOf(query).map(id => controlFingerprint(ctx, id)));
+  // La huella de una fila: lo que, si cambia, cambia su resultado.
+  const rowFingerprint = (ctx: ENSEvaluationContext, controlId: string, agentId: string): string =>
+    sha(
+      ctx.configurationKey,
+      ctx.scopeKey,
+      controlId,
+      agentId,
+      ctx.probe.controls[controlId]?.agents[agentId] || null,
+      ctx.probe.orphans.agents[agentId] || null,
+      ctx.presenceOf.has(agentId),
+      ctx.probe.cross[controlId]?.[agentId] || null,
+      ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? (ctx.probe.heartbeats[agentId] || []).slice(-1)[0] || null : null
+    );
 
-  const partitionKey = (ctx: ENSEvaluationContext, agentId: string | undefined, controlId: string) =>
-    ['p', ctx.userKey, agentId || '*', controlId, ctx.timeZone || ''].join('|');
+  // La de un control sin filas (lo evalúa el motor sobre todos sus hechos).
+  const fallbackFingerprint = (ctx: ENSEvaluationContext, controlId: string): string =>
+    sha(ctx.configurationKey, ctx.scopeKey, controlId, ctx.probe.controls[controlId] || null, ctx.probe.orphans, ctx.presenceEvents.map(e => e.agentId));
 
-  // --- 2. un control ---------------------------------------------------------
+  // La huella de la vista: la que compara la sonda del navegador.
+  const viewFingerprint = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): string => {
+    const { forControl } = identitiesOf(ctx);
+    return sha(
+      ctx.configurationKey,
+      ctx.scopeKey,
+      query.agentId || '*',
+      controlsOf(query).map(controlId => {
+        const filas = forControl(controlId).map(agent => rowFingerprint(ctx, controlId, agent.agentId));
+        return filas.length ? filas : fallbackFingerprint(ctx, controlId);
+      })
+    );
+  };
 
-  const readFacts = async (client: any, query: unknown, stats: ENSFactsReadStats): Promise<any[]> => {
+  // --- 2. una fila -------------------------------------------------------------
+
+  const readFacts = async (client: any, query: unknown, stats: ENSFactsReadStats, what: string, signal?: Cancellable): Promise<any[]> => {
     const hits: any[] = [];
     await readAllFacts(client, query, page => {
       for (const hit of page) hits.push(hit);
-    }, stats, { usePit });
+    }, stats, { ...leer, what, signal });
     return hits;
   };
 
-  const capRow = (row: { agentId: string; result: ENSComplianceResult }) => ({
-    agentId: row.agentId,
-    result: withoutTraceability(row.result),
-    traceability: (row.result.traceability || []).slice(0, ROW_TRACEABILITY_CAP),
-    traceabilityTotal: (row.result.traceability || []).length,
-  });
-
-  // Lee los hechos de UN control (de todo el alcance, o de una máquina y el
-  // manager si `agentId`), lo evalúa y, si se pide, también a fecha de cada
-  // día pasado de `cuts`.
-  const computeControl = async (
+  // Lee los hechos de un control en la máquina `factsAgent` (o en todo el
+  // alcance, sin ella), los evalúa para la vista `viewAgent` y, si se pide,
+  // también a fecha de cada día pasado de `cuts`. Suelta los hechos al
+  // terminar.
+  const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
     controlId: string,
-    agentId: string | undefined,
+    factsAgent: string | undefined,
+    viewAgent: string | undefined,
     cuts: { key: string; plan: ENSTimelineCutPlan[] } | undefined,
-    orphanHits: any[]
-  ): Promise<StoredPartition> => {
-    const started = Date.now();
-    const stats = newReadStats();
-    const filters = agentId ? buildViewFilters(ctx.window, ctx.scope, agentId) : ctx.filters;
-    let pruning: unknown;
+    signal: Cancellable
+  ): Promise<StoredRow> =>
+    reads.use(async () => {
+      throwIfCancelled(signal);
+      const started = Date.now();
+      const stats = newReadStats();
+      const que = `${controlId}${factsAgent ? ` en ${factsAgent}` : ''}`;
+      let pruning: unknown;
 
-    // La poda de los hechos de estado se calcula con los latidos del control,
-    // a fecha del instante más antiguo que se va a evaluar.
-    if (hasStateFacts(controlId)) {
-      const runs = await readFacts(clients.asCurrentUser, buildCollectorRunsQuery(filters, controlId), stats);
-      const at = cuts?.plan.length ? cuts.plan[0].cutoff : ctx.now;
-      pruning = buildStateFactPruningClause(controlId, computeStateFactPruningCutoffs(controlId, normalizeWazuhAlerts(runs), at));
-    }
-
-    const hits = mergeByFactOrder(await readFacts(clients.asCurrentUser, buildFactsQuery(filters, controlId, pruning), stats), orphanHits);
-    const fetchMs = Date.now() - started;
-
-    const evaluateStarted = Date.now();
-    const events = [...normalizeWazuhAlerts(hits), ...ctx.presenceEvents];
-    const level = ctx.configuration.global.ensLevel;
-
-    // Bloque síncrono: la configuración activa del motor es la de esta
-    // petición mientras se evalúa (otra petición solo puede colarse en un
-    // `await`, y aquí no hay ninguno). El motor la resuelve para cada fila
-    // (`getActiveControlConfiguration(control, agente)`: valor del agente →
-    // plantillas → organización, uniones en el manager), igual que en el
-    // navegador.
-    ensConfigurationRepository.replaceActive(ctx.configuration);
-    const partition = evaluateENSControlPartition(controlId, level, events, agentId, ctx.scope, ctx.now);
-
-    // Los días pasados: el mismo motor sobre lo conocido hasta el final de
-    // cada día, a fecha de ese día (ver `timeline-cuts.ts`).
-    const storedCuts: Record<string, StoredCuts> = {};
-    if (cuts?.plan.length) {
-      const ascending = events
-        .map(event => ({ event, time: Date.parse(event.timestamp) }))
-        .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
-        .sort((left, right) => left.time - right.time);
-      const consolidated: CutPoint[] = [];
-      const rows: Record<string, CutPoint>[] = [];
-      let cursor = 0;
-      for (const cut of cuts.plan) {
-        const limite = cut.cutoff.getTime();
-        while (cursor < ascending.length && ascending[cursor].time <= limite) cursor += 1;
-        const prefix = ascending.slice(0, cursor).map(item => item.event);
-        const enCorte = evaluateENSControlPartition(controlId, level, prefix, agentId, ctx.scope, cut.cutoff);
-        consolidated.push({ status: enCorte.result?.status || 'NO_EVALUABLE', score: enCorte.result?.score });
-        rows.push(Object.fromEntries(enCorte.rows.map(row => [row.agentId, { status: row.result.status, score: row.result.score }])));
+      // La poda de los hechos de estado se calcula con los latidos de la
+      // máquina, a fecha del instante más antiguo que se va a evaluar.
+      if (factsAgent && hasStateFacts(controlId)) {
+        const runs = await readFacts(clients.asCurrentUser, buildCollectorRunsQuery(ctx.filters, controlId, factsAgent), stats, `los latidos de ${que}`, signal);
+        const at = cuts?.plan.length ? cuts.plan[0].cutoff : ctx.now;
+        pruning = buildStateFactPruningClause(controlId, computeStateFactPruningCutoffs(controlId, normalizeWazuhAlerts(runs), at));
       }
-      storedCuts[cuts.key] = { consolidated, rows };
+
+      const hits = await readFacts(clients.asCurrentUser, buildFactsQuery(ctx.filters, controlId, factsAgent, pruning), stats, `los hechos de ${que}`, signal);
+      const fetchMs = Date.now() - started;
+      throwIfCancelled(signal);
+
+      const evaluateStarted = Date.now();
+      const sinteticos = factsAgent
+        ? [
+            ...(ctx.presenceOf.has(factsAgent) ? [ctx.presenceOf.get(factsAgent)!] : []),
+            ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? ctx.heartbeatsOf.get(factsAgent) || [] : []),
+          ]
+        : [
+            ...ctx.presenceEvents,
+            ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? [...ctx.heartbeatsOf.values()].flat() : []),
+          ];
+      const events = [...normalizeWazuhAlerts(hits), ...sinteticos];
+      hits.length = 0;
+      const level = ctx.configuration.global.ensLevel;
+
+      // Bloque síncrono: la configuración activa del motor es la de esta
+      // petición mientras se evalúa (otra petición solo puede colarse en un
+      // `await`, y aquí no hay ninguno). La resolución por máquina (Task 3)
+      // lee de ahí.
+      ensConfigurationRepository.replaceActive(ctx.configuration);
+      const evalua = (lista: ENSNormalizedEvent[], instante: Date) =>
+        factsAgent
+          ? evaluateENSControlRow(controlId, level, lista, viewAgent as string, ctx.scope, instante)
+          : evaluateENSControlPartition(controlId, level, lista, undefined, ctx.scope, instante).result;
+      const result = evalua(events, ctx.now);
+
+      const puntos: CutPoint[] = [];
+      if (cuts?.plan.length) {
+        const ascending = events
+          .map(event => ({ event, time: Date.parse(event.timestamp) }))
+          .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
+          .sort((left, right) => left.time - right.time);
+        let cursor = 0;
+        for (const cut of cuts.plan) {
+          const limite = cut.cutoff.getTime();
+          while (cursor < ascending.length && ascending[cursor].time <= limite) cursor += 1;
+          const enCorte = evalua(ascending.slice(0, cursor).map(item => item.event), cut.cutoff);
+          puntos.push({ status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score });
+        }
+      }
+
+      const traceability = result?.traceability || [];
+      return {
+        result: result && withoutTraceability(result),
+        traceability: traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored),
+        traceabilityTotal: traceability.length,
+        cuts: cuts ? { [cuts.key]: puntos } : {},
+        configurationKey: ctx.configurationKey,
+        scopeKey: ctx.scopeKey,
+        stats: {
+          controlId,
+          agentId: factsAgent || '*',
+          hits: stats.hits,
+          pages: stats.pages,
+          events: events.length - sinteticos.length,
+          fetchMs,
+          evaluateMs: Date.now() - evaluateStarted,
+          pruned: Boolean(pruning),
+        },
+      };
+    });
+
+  // --- 3. lo guardado, lo que se recalcula y lo que se espera ---------------
+
+  interface Obtained {
+    row: StoredRow;
+    storedAt: number;
+    stale: boolean;
+    computed: boolean;
+  }
+
+  // Una fila: guardada y vigente; guardada pero vieja (se enseña y se
+  // recalcula detrás, si se permite y es de la misma configuración); o se
+  // calcula ahora, compartiendo el cálculo con quien ya lo esté haciendo.
+  const obtain = async (
+    key: string,
+    fingerprint: string,
+    ctx: ENSEvaluationContext,
+    needCuts: string | undefined,
+    compute: (signal: Cancellable) => Promise<StoredRow>,
+    options: ENSRunOptions,
+    background: { started: number }
+  ): Promise<Obtained> => {
+    const entrada = rows.peek(key);
+    const sirve = (e: CacheEntry<StoredRow>) => !needCuts || Boolean(e.value.cuts[needCuts]);
+    if (entrada && rows.isFresh(entrada, fingerprint) && sirve(entrada)) {
+      return { row: entrada.value, storedAt: entrada.storedAt, stale: false, computed: false };
     }
-
-    const impact = createImpactEventsAccumulator();
-    impact.add(events);
-    const traceability = partition.result?.traceability || [];
-
-    return {
-      result: partition.result && withoutTraceability(partition.result),
-      traceability: traceability.slice(0, TRACEABILITY_CAP),
-      traceabilityTotal: traceability.length,
-      rows: partition.rows.map(capRow),
-      impact: impact.entries(),
-      cuts: storedCuts,
-      stats: {
-        controlId,
-        agentId,
-        fromCache: false,
-        hits: stats.hits,
-        pages: stats.pages,
-        bytes: stats.bytes,
-        pit: stats.pit,
-        events: events.length - ctx.presenceEvents.length,
-        fetchMs,
-        evaluateMs: Date.now() - evaluateStarted,
-        pruned: Boolean(pruning),
-      },
+    const tarea = `${key}|${fingerprint}|${needCuts || ''}`;
+    const guarda = (row: StoredRow) => {
+      const previa = rows.peek(key);
+      // Los días pasados ya calculados con la misma huella se conservan.
+      const cuts = previa && previa.fingerprint === fingerprint ? { ...previa.value.cuts, ...row.cuts } : row.cuts;
+      rows.set(key, fingerprint, { ...row, cuts });
+      return row;
     };
+    if (
+      options.allowStale &&
+      entrada &&
+      sirve(entrada) &&
+      entrada.value.configurationKey === ctx.configurationKey &&
+      entrada.value.scopeKey === ctx.scopeKey
+    ) {
+      if (!tasks.has(tarea)) {
+        background.started += 1;
+        tasks
+          .run(tarea, signal => compute(signal).then(guarda))
+          .catch(error => logger.warn(`ENSFácil: no se pudo refrescar ${key}: ${error?.message || error}`));
+      }
+      return { row: entrada.value, storedAt: entrada.storedAt, stale: true, computed: false };
+    }
+    const row = await tasks.run(tarea, signal => compute(signal).then(guarda), options.signal || new CancelSignalNever());
+    return { row, storedAt: clock().getTime(), stale: false, computed: true };
   };
 
-  // --- 3. una vista ---------------------------------------------------------
+  // --- 4. una vista ---------------------------------------------------------
 
   const timelinePlan = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): ENSTimelineCutPlan[] => {
     if (!query.timelineDays) return [];
+    const propios = (agentes: string[]) => ctx.probe.presence.filter(p => agentes.includes(p.agentId));
     let primero: number | undefined;
     let cuantos = 0;
     if (query.controlId) {
       const hechos = ctx.probe.controls[query.controlId];
-      primero = hechos?.oldest ? Date.parse(hechos.oldest) : undefined;
-      cuantos = hechos?.count || 0;
+      if (query.agentId) {
+        // La serie de una máquina empieza con su primer hecho del control (o
+        // con el del manager, para un control de organización).
+        const delAgente = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => hechos?.agents[id]).filter(Boolean) as any[];
+        primero = delAgente.length ? Math.min(...delAgente.map(h => Date.parse(h.oldest || h.newest))) : undefined;
+        cuantos = delAgente.reduce((n, h) => n + h.count, 0);
+      } else {
+        primero = hechos?.oldest ? Date.parse(hechos.oldest) : undefined;
+        cuantos = hechos?.count || 0;
+      }
     } else if (query.agentId) {
-      // La serie de una máquina empieza con su primer hecho (o el del manager,
-      // que también lee).
-      const propios = ctx.probe.presence.filter(p => p.agentId === query.agentId || p.agentId === ENS_MANAGER_AGENT_ID);
-      primero = propios.length ? Math.min(...propios.map(p => Date.parse(p.earliest))) : undefined;
-      cuantos = propios.reduce((n, p) => n + (p.count || 0), 0);
+      const lista = propios([query.agentId, ENS_MANAGER_AGENT_ID]);
+      primero = lista.length ? Math.min(...lista.map(p => Date.parse(p.earliest))) : undefined;
+      cuantos = lista.reduce((n, p) => n + (p.count || 0), 0);
     } else {
       primero = ctx.probe.oldest ? Date.parse(ctx.probe.oldest) : undefined;
       cuantos = ctx.probe.count;
@@ -496,120 +618,179 @@ export const createEvaluationService = ({
     });
   };
 
-  const dailyCounts = async (
-    clients: ENSEvaluationClients,
-    ctx: ENSEvaluationContext,
-    query: ENSEvaluationQuery,
-    cuts: ENSTimelineCutPlan[]
-  ): Promise<number[]> => {
-    const base = query.agentId ? buildViewFilters(ctx.window, ctx.scope, query.agentId) : ctx.filters;
+  const viewFilters = (ctx: ENSEvaluationContext, agentId?: string) =>
+    agentId ? buildViewFilters(ctx.window, ctx.scope, agentId) : ctx.filters;
+
+  const dailyCounts = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, cuts: ENSTimelineCutPlan[]): Promise<number[]> => {
+    const base = viewFilters(ctx, query.agentId);
     const filters = query.controlId ? [...base, buildENSControlFactsFilter(query.controlId)] : base;
-    const { body } = await clients.asCurrentUser.search(buildDailyCountsRequest(filters, query.timeZone));
+    const body = await searchComplete(clients.asCurrentUser, buildDailyCountsRequest(filters, query.timeZone), 'los hechos por día');
     const dias = (body?.aggregations?.days?.buckets || []).map((b: any) => ({ at: Number(b.key), n: Number(b.doc_count || 0) }));
     return cuts.map(cut => dias.filter((d: any) => d.at <= cut.cutoff.getTime()).reduce((s: number, d: any) => s + d.n, 0));
   };
 
-  // La vista de una máquina para un control, desde lo guardado del conjunto.
-  const viewOf = (
-    star: StoredPartition,
-    controlId: string,
-    agentId: string | undefined,
-    scope: ENSAgentScope[]
-  ): ENSViewPartition | null => {
-    if (!agentId) {
-      return {
-        controlId,
-        result: star.result,
-        traceability: star.traceability,
-        traceabilityTotal: star.traceabilityTotal,
-        rows: star.rows,
-        cutsOf: key => star.cuts[key]?.consolidated,
-      };
-    }
-    const decision = deriveForAgent(controlId, agentId, star.rows, scope);
-    if (!decision) return null;
-    const fila =
-      decision.from === 'row'
-        ? star.rows.find(row => row.agentId === agentId)
-        : decision.from === 'manager'
-        ? star.rows.find(row => row.agentId === ENS_MANAGER_AGENT_ID)
-        : undefined;
-    const filaDe = decision.from === 'row' ? agentId : decision.from === 'manager' ? ENS_MANAGER_AGENT_ID : undefined;
-    return {
-      controlId,
-      result: fila?.result,
-      traceability: fila?.traceability || [],
-      traceabilityTotal: fila?.traceabilityTotal || 0,
-      rows: decision.from === 'row' && fila ? [fila] : [],
-      cutsOf: key =>
-        star.cuts[key] && filaDe
-          ? star.cuts[key].rows.map(rows => rows[filaDe] || { status: 'NO_EVALUABLE' })
-          : star.cuts[key]
-          ? star.cuts[key].rows.map(() => undefined)
-          : undefined,
-    };
+  const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string) => {
+    const clave = `i|${ctx.userKey}|${query.agentId || '*'}`;
+    const guardado = impacts.get(clave, fingerprint);
+    if (guardado) return guardado;
+    // Los de la vista: la máquina y el manager, o todo el alcance.
+    const body = await searchComplete(clients.asCurrentUser, buildImpactEventsRequest(viewFilters(ctx, query.agentId)), 'los eventos operativos');
+    const modelo = buildImpactEventsModelFromCounts(
+      Object.fromEntries((body?.aggregations?.types?.buckets || []).map((b: any) => [String(b.key), Number(b.doc_count || 0)]))
+    );
+    impacts.set(clave, fingerprint, modelo);
+    return modelo;
   };
 
-  const run = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery, options: { fullTraceability?: boolean } = {}) => {
+  const run = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery, options: ENSRunOptions = {}) => {
     const started = Date.now();
     const ctx = await loadContext(clients, query);
     const controls = controlsOf(query);
     const plan = timelinePlan(ctx, query);
     const pastCuts = plan.filter(cut => !cut.isCurrent);
-    const cutsKey = sha(pastCuts.map(cut => cut.cutoff.toISOString()));
-    const tKey = ['t', ctx.userKey, query.agentId || '*', query.controlId || '*', query.timelineDays, query.timeZone || '', startOfDayIn(ctx.now, query.timeZone).toISOString()].join('|');
+    const cutsKey = sha(query.timeZone, pastCuts.map(cut => cut.cutoff.toISOString()));
+    const tKey = ['t', ctx.userKey, query.agentId || '*', query.controlId || '*', query.timelineDays, query.timeZone, startOfDayIn(ctx.now, query.timeZone).toISOString()].join('|');
     const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey);
     const cachedTimeline = query.timelineDays ? timelines.get(tKey, tFingerprint) : undefined;
-    const wantCuts = Boolean(query.timelineDays) && !cachedTimeline && pastCuts.length > 0;
+    const needCuts = Boolean(query.timelineDays) && !cachedTimeline && pastCuts.length > 0 ? cutsKey : undefined;
+    const cutsArg = needCuts ? { key: cutsKey, plan: pastCuts } : undefined;
+    const background = { started: 0 };
+    const usados: Obtained[] = [];
+    const level = ctx.configuration.global.ensLevel;
+    const { all: identidades, forControl } = identitiesOf(ctx);
+    const nombre = (agentId: string) => identidades.find(agent => agent.agentId === agentId)?.agentName;
+    const sinIdentidades = identidades.length === 0;
 
-    // Los hechos que no nombran ningún control son de todos: se leen una vez.
-    const orphanStats = newReadStats();
-    let orphanHits: any[] | undefined;
-    const orphans = async () => {
-      if (orphanHits === undefined) {
-        orphanHits = ctx.probe.orphans.count
-          ? await readFacts(clients.asCurrentUser, buildFactsQuery(ctx.filters, null), orphanStats)
-          : [];
-      }
-      return orphanHits;
-    };
-
-    const views = new Map<string, ENSViewPartition>();
-    const impactos: [string, string][][] = [];
-    const controlStats: ENSControlComputeStats[] = [];
-
-    for (const controlId of controls) {
-      const fingerprint = controlFingerprint(ctx, controlId);
-      const starKey = partitionKey(ctx, undefined, controlId);
-      let star = partitions.get(starKey, fingerprint);
-      if (star && (!wantCuts || star.cuts[cutsKey])) {
-        controlStats.push({ ...star.stats, fromCache: true });
-      } else {
-        star = await computeControl(clients, ctx, controlId, undefined, wantCuts ? { key: cutsKey, plan: pastCuts } : undefined, await orphans());
-        partitions.set(starKey, fingerprint, star);
-        controlStats.push(star.stats);
-      }
-      impactos.push(star.impact);
-
-      let view = viewOf(star, controlId, query.agentId, ctx.scope);
-      // Lo que no sale de las filas, o la trazabilidad completa de una
-      // máquina: se evalúa la vista directamente.
-      if (!view || (options.fullTraceability && query.agentId)) {
-        const directKey = partitionKey(ctx, query.agentId, controlId);
-        let direct = partitions.get(directKey, fingerprint);
-        if (!direct || (wantCuts && !direct.cuts[cutsKey])) {
-          direct = await computeControl(clients, ctx, controlId, query.agentId, wantCuts ? { key: cutsKey, plan: pastCuts } : undefined, await orphans());
-          partitions.set(directKey, fingerprint, direct);
-          controlStats.push(direct.stats);
+    // Las filas de cada control (en paralelo hasta el límite de lecturas: las
+    // que salen de la memoria no esperan).
+    const filasDe = new Map<string, { agentId: string; agentName?: string; got: Obtained }[]>();
+    const sinFilas = new Map<string, Obtained>();
+    await Promise.all(
+      controls.map(async controlId => {
+        const agentes = sinIdentidades ? [] : forControl(controlId);
+        // Sin filas, las máquinas declaradas fuera del alcance todavía dan la
+        // vista consolidada (sin leer nada); solo si tampoco las hay, el motor
+        // evalúa el control sobre todos sus hechos sin fila.
+        if (!agentes.length && !sinIdentidades) {
+          ensConfigurationRepository.replaceActive(ctx.configuration);
+          if (consolidateENSControlRows(controlId, level, [], ctx.presenceEvents, ctx.scope, ctx.now)) {
+            filasDe.set(controlId, []);
+            return;
+          }
         }
-        const d = direct;
+        if (!agentes.length) {
+          const got = await obtain(
+            `f|${ctx.userKey}|${controlId}`,
+            fallbackFingerprint(ctx, controlId),
+            ctx,
+            needCuts,
+            signal => computeRow(clients, ctx, controlId, undefined, undefined, cutsArg, signal),
+            options,
+            background
+          );
+          usados.push(got);
+          sinFilas.set(controlId, got);
+          filasDe.set(controlId, []);
+          return;
+        }
+        const filas = await Promise.all(
+          agentes.map(async agent => {
+            const got = await obtain(
+              `r|${ctx.userKey}|${controlId}|${agent.agentId}`,
+              rowFingerprint(ctx, controlId, agent.agentId),
+              ctx,
+              needCuts,
+              signal => computeRow(clients, ctx, controlId, agent.agentId, agent.agentId, cutsArg, signal),
+              options,
+              background
+            );
+            usados.push(got);
+            return { agentId: agent.agentId, agentName: agent.agentName, got };
+          })
+        );
+        filasDe.set(controlId, filas);
+      })
+    );
+
+    // La vista de cada control.
+    ensConfigurationRepository.replaceActive(ctx.configuration);
+    const views = new Map<string, ENSViewPartition>();
+    for (const controlId of controls) {
+      const filas = filasDe.get(controlId) || [];
+      const fallback = sinFilas.get(controlId);
+      let view: ENSViewPartition | undefined;
+      if (!query.agentId) {
+        if (fallback) {
+          view = {
+            controlId,
+            result: fallback.row.result,
+            traceability: fallback.row.traceability,
+            traceabilityTotal: fallback.row.traceabilityTotal,
+            rows: [],
+            cutsOf: key => fallback.row.cuts[key],
+          };
+        } else {
+          const conTraza = filas
+            .filter(f => f.got.row.result)
+            .map(f => ({ agentId: f.agentId, agentName: f.agentName, result: { ...f.got.row.result!, traceability: f.got.row.traceability } }));
+          const consolidado = consolidateENSControlRows(controlId, level, conTraza, ctx.presenceEvents, ctx.scope, ctx.now);
+          const traza = consolidado?.traceability || [];
+          const guardadas = conTraza.reduce((n, f) => n + f.result.traceability.length, 0);
+          const totales = filas.reduce((n, f) => n + f.got.row.traceabilityTotal, 0);
+          view = {
+            controlId,
+            result: consolidado && withoutTraceability(consolidado),
+            traceability: traza.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored),
+            traceabilityTotal: traza.length - guardadas + totales,
+            rows: conTraza.map(f => ({ agentId: f.agentId, result: withoutTraceability(f.result) })),
+            cutsOf: key => {
+              if (filas.some(f => !f.got.row.cuts[key])) return undefined;
+              return pastCuts.map((cut, i) => {
+                const enCorte = consolidateENSControlRows(
+                  controlId,
+                  level,
+                  filas.map(f => ({ agentId: f.agentId, agentName: f.agentName, result: resultStatusStub(controlId, f.got.row.cuts[key][i].status, f.got.row.cuts[key][i].score) })),
+                  ctx.presenceEvents,
+                  ctx.scope,
+                  cut.cutoff
+                );
+                return enCorte ? { status: enCorte.status, score: enCorte.score } : undefined;
+              });
+            },
+          };
+        }
+      } else {
+        const decision = deriveForAgent(controlId, query.agentId, filas.map(f => f.agentId), ctx.scope);
+        let fila =
+          decision?.from === 'row'
+            ? filas.find(f => f.agentId === query.agentId)?.got.row
+            : decision?.from === 'manager'
+            ? filas.find(f => f.agentId === ENS_MANAGER_AGENT_ID)?.got.row
+            : undefined;
+        if (!decision) {
+          // Un control de organización sin fila del manager: se evalúa la
+          // vista con los hechos del manager, como el motor.
+          const got = await obtain(
+            `d|${ctx.userKey}|${controlId}|${query.agentId}`,
+            rowFingerprint(ctx, controlId, ENS_MANAGER_AGENT_ID),
+            ctx,
+            needCuts,
+            signal => computeRow(clients, ctx, controlId, ENS_MANAGER_AGENT_ID, query.agentId, cutsArg, signal),
+            options,
+            background
+          );
+          usados.push(got);
+          fila = got.row;
+          ensConfigurationRepository.replaceActive(ctx.configuration);
+        }
+        const propia = decision?.from === 'row' ? fila : undefined;
         view = {
           controlId,
-          result: d.result,
-          traceability: d.traceability,
-          traceabilityTotal: d.traceabilityTotal,
-          rows: d.rows,
-          cutsOf: key => d.cuts[key]?.consolidated,
+          result: fila?.result,
+          traceability: fila?.traceability || [],
+          traceabilityTotal: fila?.traceabilityTotal || 0,
+          rows: propia?.result ? [{ agentId: query.agentId, result: propia.result }] : [],
+          cutsOf: key => (fila ? fila.cuts[key] : pastCuts.map(() => undefined)),
         };
       }
       views.set(controlId, view);
@@ -618,9 +799,11 @@ export const createEvaluationService = ({
     const parts: ENSControlPartition[] = controls.map(controlId => ({
       controlId,
       result: views.get(controlId)?.result,
-      rows: (views.get(controlId)?.rows || []).map(row => ({ agentId: row.agentId, result: row.result })),
+      rows: views.get(controlId)?.rows || [],
     }));
-    const state = query.controlId ? undefined : assembleENSComplianceState(parts, query.agentId, ctx.scope, ctx.presenceEvents);
+    const state: ENSComplianceState | undefined = query.controlId
+      ? undefined
+      : assembleENSComplianceState(parts, query.agentId, ctx.scope, ctx.presenceEvents);
 
     // La serie: días pasados (guardados o recién calculados) + el presente.
     let timeline: any[] | undefined;
@@ -628,20 +811,22 @@ export const createEvaluationService = ({
       let pasados = cachedTimeline;
       if (!pasados) {
         const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
+        ensConfigurationRepository.replaceActive(ctx.configuration);
+        const porControl = controls.map(controlId => views.get(controlId)?.cutsOf(cutsKey));
         pasados = pastCuts.map((cut, index) => {
           const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
-          const puntos = controls.map(controlId => views.get(controlId)?.cutsOf(cutsKey)?.[index]);
+          const puntos = porControl.map(lista => lista?.[index]);
           if (query.controlId) {
             return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
           }
           // El número del panel en ese día: el mismo resumen del motor, sobre
           // los controles con resultado en la vista.
           const resultados = controls
-            .map((controlId, i) => (puntos[i] ? pointAsResult(controlId, puntos[i] as CutPoint) : undefined))
+            .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
             .filter((r): r is ENSComplianceResult => Boolean(r));
           return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage };
         });
-        timelines.set(tKey, tFingerprint, pasados);
+        if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
       }
       const hoy = plan.find(cut => cut.isCurrent);
       const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
@@ -663,14 +848,21 @@ export const createEvaluationService = ({
       ];
     }
 
-    const impacto = createImpactEventsAccumulator();
-    impactos.forEach(entries => impacto.addEntries(entries));
+    const refreshing = usados.some(u => u.stale);
+    const fingerprint = viewFingerprint(ctx, query);
+    const impact = query.include === 'dashboard' ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
+    const calculadas = usados.filter(u => u.computed);
 
     const meta = {
-      fingerprint: viewFingerprint(ctx, query),
+      // Con algo viejo a la vista, la huella no es la de los datos: la sonda
+      // siguiente la verá distinta y el navegador volverá a pedir.
+      fingerprint: refreshing ? `refreshing:${fingerprint}` : fingerprint,
+      refreshing,
+      // Cuándo se calculó lo que se enseña (lo más antiguo de ello).
+      computedAt: new Date(usados.length ? Math.min(...usados.map(u => u.storedAt)) : ctx.now.getTime()).toISOString(),
       evaluatedAt: ctx.now.toISOString(),
       configurationUpdatedAt: ctx.configurationUpdatedAt,
-      level: ctx.configuration.global.ensLevel,
+      level,
       window: ctx.window,
       agentId: query.agentId,
       controlId: query.controlId,
@@ -679,26 +871,23 @@ export const createEvaluationService = ({
       inventory: ctx.inventory,
       stats: {
         totalMs: Date.now() - started,
-        computed: controlStats.filter(stat => !stat.fromCache).length,
-        hits: controlStats.reduce((n, stat) => n + (stat.fromCache ? 0 : stat.hits), 0),
-        controls: controlStats,
-        orphans: orphanStats.hits,
+        computed: calculadas.length,
+        refreshingInBackground: background.started,
+        hits: calculadas.reduce((n, u) => n + u.row.stats.hits, 0),
+        rows: calculadas.map(u => u.row.stats),
       },
     };
 
-    return { ctx, query, meta, state, views, timeline, impact: impacto.build() };
+    return { ctx, query, meta, state, views, timeline, impact, rowName: nombre };
   };
 
-  return { loadContext, run, viewFingerprint, partitions, timelines, inFlight, semaphore };
+  return { loadContext, run, viewFingerprint, rows, timelines, tasks, reads };
 };
 
-export interface ENSViewPartition {
-  controlId: string;
-  result?: ENSComplianceResult;
-  traceability: ENSTraceabilityResult[];
-  traceabilityTotal: number;
-  rows: { agentId: string; result: ENSComplianceResult; traceability: ENSTraceabilityResult[]; traceabilityTotal: number }[];
-  cutsOf: (key: string) => (CutPoint | undefined)[] | undefined;
+// Una espera que nunca se cancela (llamadas internas y pruebas).
+class CancelSignalNever implements Cancellable {
+  readonly aborted = false;
+  onAbort(): void {}
 }
 
 // Cuántos hechos ve la vista y el más reciente: los de la máquina (y del
@@ -706,12 +895,15 @@ export interface ENSViewPartition {
 const factsOfView = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): { count: number; newest?: string } => {
   if (query.controlId) {
     const hechos = ctx.probe.controls[query.controlId];
+    if (query.agentId) {
+      const propios = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => hechos?.agents[id]).filter(Boolean) as any[];
+      return { count: propios.reduce((n, h) => n + h.count, 0), newest: propios.map(h => h.newest).filter(Boolean).sort().pop() };
+    }
     return { count: hechos?.count || 0, newest: hechos?.newest };
   }
   if (query.agentId) {
     const propios = ctx.probe.presence.filter(p => p.agentId === query.agentId || p.agentId === ENS_MANAGER_AGENT_ID);
-    const newest = propios.map(p => p.newest).filter(Boolean).sort().pop();
-    return { count: propios.reduce((n, p) => n + (p.count || 0), 0), newest };
+    return { count: propios.reduce((n, p) => n + (p.count || 0), 0), newest: propios.map(p => p.newest).filter(Boolean).sort().pop() };
   }
   return { count: ctx.probe.count, newest: ctx.probe.newest };
 };

@@ -2,6 +2,7 @@
 // hechos. La forma de cada una está en `server/README.md`.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
+import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import type { ENSEvaluationService } from './evaluation-service';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
@@ -51,11 +52,14 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       meta,
       // Las primeras entradas de la trazabilidad (las más recientes); el resto,
       // por páginas en `/evaluation/traceability`.
-      result: entrada?.result ? { ...entrada.result, traceability: (entrada.traceability || []).slice(0, 100) } : undefined,
+      result: entrada?.result
+        ? { ...entrada.result, traceability: (entrada.traceability || []).slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
+        : undefined,
       traceabilityTotal: entrada?.traceabilityTotal || 0,
+      traceabilityAvailable: (entrada?.traceability || []).length,
       agents: (entrada?.rows || []).map(row => ({
         agentId: row.agentId,
-        agentName: meta.scope.find(agent => agent.id === row.agentId)?.name,
+        agentName: run.rowName(row.agentId) || meta.scope.find(agent => agent.id === row.agentId)?.name,
         status: row.result.status,
         score: row.result.score,
       })),

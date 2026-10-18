@@ -44,7 +44,7 @@ let n = 0;
 const hecho = (agente: string, nombre: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.17',
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), agent: { id: agente, name: nombre }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agente, name: nombre }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 // Los hechos: op.exp.3 EV-04 (servicios en ejecución juzgados contra P-02, un
@@ -128,7 +128,7 @@ const referencia = (configuration: any) => {
   ensConfigurationRepository.replaceActive(configuration);
   const todos = indice.docs
     .filter(d => d._index.startsWith('wazuh-alerts'))
-    .sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || a._id.localeCompare(b._id));
+    .sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || (a._source.id < b._source.id ? -1 : a._source.id > b._source.id ? 1 : 0));
   const inventario = inventoryFromMonitoring({ agentes: { buckets: ['024', '028'].map(id => ({ key: id, ultimo: { hits: { hits: [indice.docs.find(d => d._id === `m${id}`)] } } })) } }, reloj.getTime());
   const alcance = resolveENSScopeAgents(normalizeInventory(inventario.agents), configuration.scope);
   const eventos = normalizeWazuhAlerts(todos);

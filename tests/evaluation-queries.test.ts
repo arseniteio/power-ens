@@ -14,6 +14,8 @@ import {
   buildProbeRequest,
   buildStateFactPruningClause,
   buildViewFilters,
+  FACTS_SORT,
+  PRUNING_MAX_KEYS,
   ENGINE_SOURCE_FIELDS,
   readProbeResponse,
   resolveEvaluationWindow,
@@ -89,7 +91,7 @@ for (const controlId of ['op.exp.3', 'mp.info.6']) {
     const runs = normalizeWazuhAlerts(todos.filter(d => d._source.data.event === 'collector_run'));
     const cortes = computeStateFactPruningCutoffs(controlId, runs, at);
     const poda = buildStateFactPruningClause(controlId, cortes);
-    const consulta = buildFactsQuery([], controlId, poda);
+    const consulta = buildFactsQuery([], controlId, undefined, poda);
     const leidosOrden = todos.filter(d => matchesQuery(d, consulta, AHORA.getTime()));
     // Todos los cortes que el motor puede pedir a partir de `at`.
     const instantes = [at, new Date((at.getTime() + AHORA.getTime()) / 2), AHORA];
@@ -105,7 +107,7 @@ for (const controlId of ['op.exp.3', 'mp.info.6']) {
 {
   const todos = todosDe('op.exp.3');
   const poda = buildStateFactPruningClause('op.exp.3', computeStateFactPruningCutoffs('op.exp.3', normalizeWazuhAlerts(todos.filter(d => d._source.data.event === 'collector_run')), AHORA));
-  const consulta = buildFactsQuery([], 'op.exp.3', poda);
+  const consulta = buildFactsQuery([], 'op.exp.3', undefined, poda);
   const fuera = todos.filter(d => !matchesQuery(d, consulta, AHORA.getTime()));
   comprueba('nunca se poda un latido', fuera.every(d => d._source.data.event !== 'collector_run'));
   comprueba('ni un hecho que declara otra evidencia', fuera.every(d => d._source.data.evidence_id !== 'EV-99'));
@@ -113,6 +115,20 @@ for (const controlId of ['op.exp.3', 'mp.info.6']) {
   comprueba('ni nada de la máquina cuyo latido nunca declara la evidencia', fuera.every(d => d._source.agent.id !== '028'));
   comprueba('sin latidos no hay corte', computeStateFactPruningCutoffs('op.exp.3', [], AHORA).size === 0);
   comprueba('un control sin hechos de estado no poda nada', buildStateFactPruningClause('op.acc.3', computeStateFactPruningCutoffs('op.acc.3', normalizeWazuhAlerts(todos), AHORA)) === undefined);
+}
+
+// --- lo que no puede romper el indexador -----------------------------------
+comprueba('el orden de lectura no usa `_id` (su fielddata) y desempata con keywords', !JSON.stringify(FACTS_SORT).includes('"_id"') && JSON.stringify(FACTS_SORT).includes('"id"') && JSON.stringify(FACTS_SORT).includes('manager.name'));
+{
+  // Una máquina con muchísimas claves (recolectores × tipos): la cláusula se
+  // acota y la consulta entera queda lejos del límite de 1024 cláusulas.
+  const cortes = new Map<string, number>();
+  for (let r = 0; r < 20; r++) for (const tipo of ['log_source_observed', 'agent_forwarding_observed', 'syslog_source_observed', 'correlation_rules_inventory', 'config_assessment_observed']) cortes.set(`024|r${r}|${tipo}`, Date.parse('2026-10-10T00:00:00Z'));
+  const hojas = (q: any): number => Array.isArray(q) ? q.reduce((n, x) => n + hojas(x), 0) : q && typeof q === 'object'
+    ? (q.bool ? ['filter', 'must', 'should', 'must_not'].reduce((n, k) => n + (q.bool[k] ? hojas([].concat(q.bool[k])) : 0), 0) : 1) : 0;
+  const consulta = buildFactsQuery(buildViewFilters(w, alcance), 'op.mon.3', '024', buildStateFactPruningClause('op.mon.3', cortes));
+  comprueba(`la poda de una máquina se acota a ${PRUNING_MAX_KEYS} claves`, (buildStateFactPruningClause('op.mon.3', cortes) as any).bool.should.length === PRUNING_MAX_KEYS);
+  comprueba('y la consulta entera queda por debajo de 1024 cláusulas', hojas(consulta) < 1024, hojas(consulta));
 }
 
 fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
