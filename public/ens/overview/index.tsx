@@ -149,10 +149,13 @@ export const OverviewENS = () => {
   // ya calculados y «…» en los demás; las cifras por máquina y la cola, que
   // son de todos los controles, esperan. El navegador vuelve a pedir cada 2 s.
   const enCurso = describeOverviewPending(datos?.meta.pending);
-  // La serie se calcula después de responder (`meta.seriesPending`, o aún con
-  // filas pendientes): la tendencia lo dice en vez de quedarse vacía.
+  // La serie se calcula después de responder (`meta.seriesPending`): la
+  // tendencia lo dice en vez de quedarse vacía. Con filas aún pendientes
+  // (`meta.pending`) tampoco se pinta, venga o no una serie: su barra
+  // «Actual» saldría de una parte de los controles (como hace el Panel).
   const seriePendiente =
-    Boolean(tendencia.data?.meta?.seriesPending || tendencia.data?.meta?.pending) && !(tendencia.data?.timeline || []).length;
+    Boolean(tendencia.data?.meta?.pending) ||
+    (Boolean(tendencia.data?.meta?.seriesPending) && !(tendencia.data?.timeline || []).length);
 
   const abreDetalle = (controlId: string, agente?: string) =>
     cambiaUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agente });
