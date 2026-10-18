@@ -11,16 +11,16 @@
  *      evidencia («detectado por …») y la corrección a mano.
  *   4. Los alias por los que se reconoce a una máquina en las tablas.
  */
-import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../public/agents/agent-inventory';
+import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../common/agents/agent-inventory';
 import { buildPlatformFactsRequest, platformFactsFromAggregations } from '../public/agents/agent-platform-facts';
-import { hydrateENSScope } from '../public/ens/core/scope/runtime';
+import { hydrateENSScope } from '../common/ens/core/scope/runtime';
 import {
   agentAliases,
   detectAgentSystem,
   effectiveSystemType,
   hostnameFromUname,
   suggestedTemplates,
-} from '../public/ens/configuration/agents/system-detection';
+} from '../common/ens/configuration/agents/system-detection';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];

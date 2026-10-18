@@ -80,6 +80,16 @@ const guardados: { configuration: any; changeReason?: string }[] = [];
 let inventarioFalso: any = { agentes: { buckets: [] } };
 let hechosFalsos: any = { agentes: { buckets: [] } };
 const SERVICES = `${__dirname}/../public/services.ts`;
+// El cliente HTTP de la configuración vive en `common/` y recibe `http` por
+// inyección (en el plugin, `public/services.ts` al arrancar).
+const httpFalso = {
+  get: async () => ({ statusCode: 200, error: 0, data: { configuration: null, metadata: null } }),
+  put: async (_url: string, opciones: any) => {
+    const cuerpo = JSON.parse(opciones.body);
+    guardados.push(cuerpo);
+    return { statusCode: 200, error: 0, data: { configuration: cuerpo.configuration, metadata: null } };
+  },
+};
 {
   const Module = require('module');
   const path = require('path');
@@ -98,14 +108,7 @@ const SERVICES = `${__dirname}/../public/services.ts`;
     try { resuelto = Module._resolveFilename(peticion, padre); } catch (e) { resuelto = ''; }
     if (resuelto && path.resolve(resuelto) === path.resolve(SERVICES)) {
       return {
-        getHttp: () => ({
-          get: async () => ({ statusCode: 200, error: 0, data: { configuration: null, metadata: null } }),
-          put: async (_url: string, opciones: any) => {
-            const cuerpo = JSON.parse(opciones.body);
-            guardados.push(cuerpo);
-            return { statusCode: 200, error: 0, data: { configuration: cuerpo.configuration, metadata: null } };
-          },
-        }),
+        getHttp: () => httpFalso,
         getData: () => ({
           search: {
             search: (p: any) => ({
@@ -205,12 +208,14 @@ const pulsa = async (raiz: any, texto: RegExp) => {
 const { buildConfigurationSearch, parseConfigurationTarget, configurationSearchChanges } =
   require('../public/routing/configuration-link') as typeof import('../public/routing/configuration-link');
 const { parseRouterSearch } = require('../public/routing/router-search') as typeof import('../public/routing/router-search');
-const acciones = require('../public/ens/configuration/agents/agent-configuration-actions') as typeof import('../public/ens/configuration/agents/agent-configuration-actions');
-const { ensConfigurationRepository } = require('../public/ens/configuration/repository') as typeof import('../public/ens/configuration/repository');
-const { defaultENSConfigurationTemplate } = require('../public/ens/configuration/data/default-configuration') as typeof import('../public/ens/configuration/data/default-configuration');
-const { hydrateENSScope } = require('../public/ens/core/scope/runtime') as typeof import('../public/ens/core/scope/runtime');
+const acciones = require('../common/ens/configuration/agents/agent-configuration-actions') as typeof import('../common/ens/configuration/agents/agent-configuration-actions');
+const { ensConfigurationRepository } = require('../common/ens/configuration/repository') as typeof import('../common/ens/configuration/repository');
+const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration') as typeof import('../common/ens/configuration/data/default-configuration');
+const { hydrateENSScope } = require('../common/ens/core/scope/runtime') as typeof import('../common/ens/core/scope/runtime');
+(require('../common/ens/configuration/services/configuration-http-client') as typeof import('../common/ens/configuration/services/configuration-http-client'))
+  .setENSConfigurationHttp(() => httpFalso as any);
 const { ConfigurationShell } = require('../public/ens/configuration/components/configuration-shell') as typeof import('../public/ens/configuration/components/configuration-shell');
-const { resolveControlConfigurationWithOrigins } = require('../public/ens/configuration/agents/configuration-resolver') as typeof import('../public/ens/configuration/agents/configuration-resolver');
+const { resolveControlConfigurationWithOrigins } = require('../common/ens/configuration/agents/configuration-resolver') as typeof import('../common/ens/configuration/agents/configuration-resolver');
 
 const CONFIG = `${__dirname}/../config`;
 const bloques: Record<string, any> = {};

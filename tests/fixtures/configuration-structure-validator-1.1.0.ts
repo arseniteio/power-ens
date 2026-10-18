@@ -12,7 +12,7 @@ import {
   ENSParameterColumnType,
   ENSParameterStatus,
   ENSParameterType,
-} from '../../public/ens/configuration/types';
+} from '../../common/ens/configuration/types';
 
 type UnknownRecord = Record<string, unknown>;
 

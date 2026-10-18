@@ -1,4 +1,4 @@
-import type { ENSAgentsConfiguration } from '../../../../common/agent-configuration';
+import type { ENSAgentsConfiguration } from '../../../agent-configuration';
 
 export type {
   ENSAgentControlOverrides,
@@ -6,7 +6,7 @@ export type {
   ENSAgentProfile,
   ENSAgentsConfiguration,
   ENSSystemType,
-} from '../../../../common/agent-configuration';
+} from '../../../agent-configuration';
 
 export type ENSLevel = 'BAJO' | 'MEDIO' | 'ALTO';
 

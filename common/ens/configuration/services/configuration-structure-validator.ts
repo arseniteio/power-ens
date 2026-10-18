@@ -7,7 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
-import { validateAgentsConfigurationShape } from '../../../../common/agent-configuration';
+import { validateAgentsConfigurationShape } from '../../../agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
 

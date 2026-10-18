@@ -21,17 +21,17 @@ import { readFileSync, readdirSync } from 'fs';
 import {
   ENS_PARAMETER_CLASSES,
   ENS_SYSTEM_KEY_COLUMNS,
-} from '../public/ens/configuration/agents/parameter-classes';
-import { ENS_CONFIGURATION_TEMPLATES, templateConflict } from '../public/ens/configuration/templates';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
-import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
+} from '../common/ens/configuration/agents/parameter-classes';
+import { ENS_CONFIGURATION_TEMPLATES, templateConflict } from '../common/ens/configuration/templates';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
 import { checkAgentsConfigurationKeys, validateAgentsConfigurationShape } from '../common/agent-configuration';
-import { resolveControlConfigurationForAgent } from '../public/ens/configuration/agents/configuration-resolver';
+import { resolveControlConfigurationForAgent } from '../common/ens/configuration/agents/configuration-resolver';
 import {
   summarizeAgentsConfiguration,
   validateAgentsConfiguration,
-} from '../public/ens/configuration/agents/agent-configuration-validator';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+} from '../common/ens/configuration/agents/agent-configuration-validator';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -87,7 +87,7 @@ console.log('1. Clasificación');
   comprueba('la columna «de sistema» de cada tabla existe y la tabla es por sistema', malas.length === 0, malas);
 
   // Lo lee config/set-parameters.py tal cual: tiene que ser JSON.
-  const fuente = readFileSync(`${__dirname}/../public/ens/configuration/agents/parameter-classes.ts`, 'utf8');
+  const fuente = readFileSync(`${__dirname}/../common/ens/configuration/agents/parameter-classes.ts`, 'utf8');
   const inicio = fuente.indexOf('{', fuente.indexOf('ENS_PARAMETER_CLASSES:'));
   const fin = fuente.indexOf('\n};', inicio);
   let json: any;

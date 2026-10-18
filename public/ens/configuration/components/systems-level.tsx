@@ -14,31 +14,31 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import type { ENSConfigurationVersion, ENSLevel } from '../types';
+import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
 import { ENS_SYSTEM_TYPE_LABELS, normalizeAgentId } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
-import type { ENSAgentScope } from '../../core/scope/types';
-import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../templates';
+import type { ENSAgentScope } from '../../../../common/ens/core/scope/types';
+import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
 import {
   ENSSystemDetection,
   detectAgentSystem,
   effectiveSystemType,
-} from '../agents/system-detection';
+} from '../../../../common/ens/configuration/agents/system-detection';
 import {
   ENSTemplatePreview,
   applyTemplateToAgent,
   getAgentCompleteness,
   previewTemplateApplication,
   removeAgentEntry,
-} from '../agents/agent-configuration-actions';
-import { getAgentControls } from '../agents/agent-controls';
+} from '../../../../common/ens/configuration/agents/agent-configuration-actions';
+import { getAgentControls } from '../../../../common/ens/configuration/agents/agent-controls';
 import {
   describeMigrationWarning,
   planMigrationToSystems,
   summarizeMigrationPlan,
-} from '../agents/migration';
-import { validateAgentsConfiguration } from '../agents/agent-configuration-validator';
-import { saveFromLatestConfiguration } from '../services/configuration-state-service';
+} from '../../../../common/ens/configuration/agents/migration';
+import { validateAgentsConfiguration } from '../../../../common/ens/configuration/agents/agent-configuration-validator';
+import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ConfirmModal, errorMessage } from './confirm-modal';

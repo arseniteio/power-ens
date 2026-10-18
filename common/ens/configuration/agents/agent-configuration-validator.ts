@@ -18,7 +18,7 @@ import {
   describeNonIdAgentKey,
   isNormalisedAgentId,
   knownSystemType,
-} from '../../../../common/agent-configuration';
+} from '../../../agent-configuration';
 import {
   getConfigurationTemplate,
   templateConflict,

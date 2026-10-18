@@ -4,7 +4,7 @@
 // para algunos (Windows: op.acc.1-4), solo esos. Los demás se enseñan aparte
 // como «sin recolector en esta plataforma», que no es lo mismo que no cumplir.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
-import { normalizeAgentId } from '../../../../common/agent-configuration';
+import { normalizeAgentId } from '../../../agent-configuration';
 import { getENSCatalogControl } from '../../catalog';
 import { getBaseTemplateForSystemType } from '../templates';
 import { isAgentLevelParameter } from './parameter-classes';

@@ -21,7 +21,7 @@ import {
   ENS_SYSTEM_TYPE_LABELS,
   knownSystemType,
   normalizeAgentId,
-} from '../../../../common/agent-configuration';
+} from '../../../agent-configuration';
 import type { ENSAgentOS } from '../../core/scope/types';
 import { getBaseTemplateForSystemType } from '../templates';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';

@@ -14,16 +14,16 @@
  *   4. El motor evalúa la fila de cada agente con SU valor.
  */
 import { readFileSync, readdirSync } from 'fs';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import {
   isUnionParameter,
   resolveControlConfigurationForAgent,
   resolveControlConfigurationWithOrigins,
-} from '../public/ens/configuration/agents/configuration-resolver';
-import type { ENSConfigurationVersion } from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
+} from '../common/ens/configuration/agents/configuration-resolver';
+import type { ENSConfigurationVersion } from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -40,9 +40,9 @@ declare const __dirname: string;
 }
 
 const { getENSComplianceState, getENSComplianceResultByControl } =
-  require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
+  require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 const { getActiveControlConfiguration } =
-  require('../public/ens/configuration/services/configuration-state-service') as typeof import('../public/ens/configuration/services/configuration-state-service');
+  require('../common/ens/configuration/services/configuration-state-service') as typeof import('../common/ens/configuration/services/configuration-state-service');
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
@@ -245,9 +245,9 @@ const GI = (process as any).env?.ENSFACIL_GOLDEN_INVENTORY;
 if (GF && GD && GI) {
   console.log('5. Hechos reales');
   const { readFileSync: leer } = require('fs');
-  const { normalizeWazuhAlert } = require('../public/ens/core/data-source/data-source-engine');
-  const { inventoryFromMonitoring } = require('../public/agents/agent-inventory');
-  const { resolveENSScopeAgents } = require('../public/ens/core/scope/runtime');
+  const { normalizeWazuhAlert } = require('../common/ens/core/data-source/data-source-engine');
+  const { inventoryFromMonitoring } = require('../common/agents/agent-inventory');
+  const { resolveENSScopeAgents } = require('../common/ens/core/scope/runtime');
   const real = JSON.parse(leer(GD, 'utf8'));
   const config = real._source ? real._source.configuration : real.configuration || real;
   const instante = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());

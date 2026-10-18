@@ -36,7 +36,7 @@ import { validateENSConfigurationStructure } from '../common/ens/configuration/s
 import {
   summarizeAgentsConfiguration,
   validateAgentsConfiguration,
-} from '../public/ens/configuration/agents/agent-configuration-validator';
+} from '../common/ens/configuration/agents/agent-configuration-validator';
 
 declare const process: {
   argv: string[];

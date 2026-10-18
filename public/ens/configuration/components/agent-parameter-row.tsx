@@ -11,16 +11,16 @@ import {
   EuiText,
 } from '@elastic/eui';
 
-import type { ENSAgentParameterValue, ENSControlParameter } from '../types';
+import type { ENSAgentParameterValue, ENSControlParameter } from '../../../../common/ens/configuration/types';
 import { ParameterRendererFactory, parameterAnchorId } from '../form-engine';
 import {
   isEmptyParameterValue,
   toParameterListItems,
   toParameterTableRows,
   validateParameterValue,
-} from '../services/parameter-value-validator';
-import type { ENSResolvedValueOrigin } from '../agents/configuration-resolver';
-import { getConfigurationTemplate } from '../templates';
+} from '../../../../common/ens/configuration/services/parameter-value-validator';
+import type { ENSResolvedValueOrigin } from '../../../../common/ens/configuration/agents/configuration-resolver';
+import { getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
 import { errorMessage } from './confirm-modal';
 
 interface AgentParameterRowProps {

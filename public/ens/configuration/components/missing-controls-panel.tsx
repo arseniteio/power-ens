@@ -10,12 +10,12 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import type { ENSConfigurationVersion } from '../types';
+import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import {
   addMissingControls,
   getMissingCatalogControls,
-} from '../agents/agent-configuration-actions';
-import { saveFromLatestConfiguration } from '../services/configuration-state-service';
+} from '../../../../common/ens/configuration/agents/agent-configuration-actions';
+import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 import { errorMessage } from './confirm-modal';
 
 interface MissingControlsPanelProps {

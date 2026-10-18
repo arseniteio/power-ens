@@ -1,4 +1,4 @@
-import type { ENSSystemType } from '../../../../common/agent-configuration';
+import type { ENSSystemType } from '../../../agent-configuration';
 import type { ENSConfigurationTemplate } from './types';
 import { linuxUbuntuTemplate } from './linux-ubuntu';
 import { zimbraLdapTemplate } from './zimbra-ldap';

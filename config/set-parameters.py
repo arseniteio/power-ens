@@ -51,7 +51,7 @@ valor de la organización:
     }
 
 Solo admiten valor por agente los parámetros por sistema y por plataforma (la
-clasificación de `public/ens/configuration/agents/parameter-classes.ts`); uno de
+clasificación de `common/ens/configuration/agents/parameter-classes.ts`); uno de
 organización se rechaza. `null` (o vacío) QUITA el valor propio de ese agente,
 que vuelve a heredar de su plantilla o de la organización; quitar se admite
 siempre, también para un valor que no se aplica (un control que ya no está, un
@@ -154,7 +154,7 @@ def id_agente(valor):
 def clases():
     """La clasificación de los parámetros, de su única fuente: el objeto JSON
     de `parameter-classes.ts`. None si no está (el script fuera del repo)."""
-    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "ens",
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens",
                         "configuration", "agents", "parameter-classes.ts")
     try:
         with open(ruta, encoding="utf-8") as f:
@@ -208,7 +208,7 @@ for control_id, valores in deseado.items():
 
 clasificacion = clases() if por_agente else {}
 if por_agente and clasificacion is None:
-    errores.append("no encuentro public/ens/configuration/agents/parameter-classes.ts: "
+    errores.append("no encuentro common/ens/configuration/agents/parameter-classes.ts: "
                    "los valores por agente se declaran desde el directorio config/ del repo del plugin")
     clasificacion = {}
 

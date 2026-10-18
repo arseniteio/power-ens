@@ -13,9 +13,9 @@
  *      anterior queda en el historial.
  */
 import { validateENSConfigurationStructure as validador110 } from './fixtures/configuration-structure-validator-1.1.0';
-import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import { planMigrationToSystems } from '../public/ens/configuration/agents/migration';
+import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { planMigrationToSystems } from '../common/ens/configuration/agents/migration';
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 
 declare const process: { exit(code: number): void };

@@ -10,7 +10,7 @@
 import { ENS_ALERTS_INDEX } from '../../common/constants';
 import { normalizeAgentId } from '../../common/agent-configuration';
 import { getData } from '../services';
-import { withRequestTimeout } from '../platform/request-timeout';
+import { withRequestTimeout } from '../../common/platform/request-timeout';
 
 export interface ENSAgentPlatformFacts {
   // Hechos por valor de `data.plano` en la ventana.

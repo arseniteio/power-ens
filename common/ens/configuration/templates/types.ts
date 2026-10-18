@@ -1,7 +1,7 @@
 import type {
   ENSAgentParameterValue,
   ENSSystemType,
-} from '../../../../common/agent-configuration';
+} from '../../../agent-configuration';
 
 // Una plantilla es CÓDIGO: va versionada con el plugin, se revisa en un MR y
 // la evaluación es reproducible (el documento guarda qué plantillas tiene cada

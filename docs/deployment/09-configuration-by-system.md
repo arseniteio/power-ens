@@ -20,7 +20,7 @@ Declarar la política común una sola vez, en el nivel de la organización, y de
 
 ## 3. Los dos niveles de Configuración
 
-Cada parámetro de cada control pertenece a una de tres clases. La clasificación es única y la usan la pantalla, la evaluación, el validador y `set-parameters.py`; está en `public/ens/configuration/agents/parameter-classes.ts`.
+Cada parámetro de cada control pertenece a una de tres clases. La clasificación es única y la usan la pantalla, la evaluación, el validador y `set-parameters.py`; está en `common/ens/configuration/agents/parameter-classes.ts`.
 
 | Clase | Qué describe | Parámetros (23 controles) | Dónde se declara |
 |---|---|---|---|
@@ -275,7 +275,7 @@ Reglas:
 - Vacío es sin valor: `null`, `""` y `[]` quitan el valor propio del agente, que vuelve a heredar, y en la organización quitan la clave `value`. En el documento nunca se escribe `null`.
 - Quitar se admite siempre, también para un valor que no se aplica: un parámetro que el control ya no declara, uno de organización o un control que no está.
 - Como en la organización, el valor de cada parámetro nombrado se sustituye entero.
-- La herramienta lee la clasificación de `public/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
+- La herramienta lee la clasificación de `common/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
 
 ```bash
 cd /opt/ensfacil/repo/config

@@ -20,7 +20,7 @@ Declare the common policy once, at organisation level, and declare in each syste
 
 ## 3. The two levels of Configuración
 
-Each parameter of each control belongs to one of three classes. The classification is unique and is used by the screen, the evaluation, the validator and `set-parameters.py`; it lives in `public/ens/configuration/agents/parameter-classes.ts`.
+Each parameter of each control belongs to one of three classes. The classification is unique and is used by the screen, the evaluation, the validator and `set-parameters.py`; it lives in `common/ens/configuration/agents/parameter-classes.ts`.
 
 | Class | What it describes | Parameters (23 controls) | Where it is declared |
 |---|---|---|---|
@@ -275,7 +275,7 @@ Rules:
 - Empty means no value: `null`, `""` and `[]` remove the agent's own value, which inherits again, and at organisation level they remove the `value` key. `null` is never written to the document.
 - Removing is always accepted, also for a value that does not apply: a parameter the control no longer declares, an organisation parameter or a control that is not present.
 - As for the organisation, the value of each named parameter is replaced whole.
-- The tool reads the classification from `public/ens/configuration/agents/parameter-classes.ts`: run it from `config/` inside the complete plugin repository.
+- The tool reads the classification from `common/ens/configuration/agents/parameter-classes.ts`: run it from `config/` inside the complete plugin repository.
 
 ```bash
 cd /opt/ensfacil/repo/config

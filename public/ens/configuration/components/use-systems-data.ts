@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-import { loadENSAgentInventory } from '../../../agents/agent-inventory';
+import { loadENSAgentInventory } from '../../../agents/load-agent-inventory';
 import {
   ENSAgentPlatformFacts,
   loadAgentPlatformFacts,
 } from '../../../agents/agent-platform-facts';
-import { getActiveENSScopeAgents } from '../../core/scope/runtime';
-import type { ENSAgentScope } from '../../core/scope/types';
+import { getActiveENSScopeAgents } from '../../../../common/ens/core/scope/runtime';
+import type { ENSAgentScope } from '../../../../common/ens/core/scope/types';
 
 export interface ENSSystemsData {
   // Los agentes del alcance (con el manager si algún control se mide en él).

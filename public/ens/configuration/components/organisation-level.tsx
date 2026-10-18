@@ -10,14 +10,14 @@ import {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import {
   getParameterClass,
   isAgentLevelParameter,
-} from '../agents/parameter-classes';
+} from '../../../../common/ens/configuration/agents/parameter-classes';
 
-import { getENSControlConfiguration } from '../registry';
+import { getENSControlConfiguration } from '../../../../common/ens/configuration/registry';
 import { ConfigurationCatalog } from './configuration-catalog';
 import { ControlConfigurationPage } from './control-configuration-page';
 import { GlobalConfigurationPanel } from './global-configuration-panel';

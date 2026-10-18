@@ -22,21 +22,21 @@ import type {
   ENSConfigurationVersion,
   ENSLevel,
   ENSSystemType,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import {
   ENS_SYSTEM_TYPES,
   ENS_SYSTEM_TYPE_LABELS,
 } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
-import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../templates';
+import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
 import {
   ENS_MANAGER_AGENT,
   getAgentLevelValue,
   isUnionParameter,
   resolveControlConfigurationWithOrigins,
-} from '../agents/configuration-resolver';
-import { getParameterClass } from '../agents/parameter-classes';
-import { effectiveSystemType, suggestedTemplates } from '../agents/system-detection';
+} from '../../../../common/ens/configuration/agents/configuration-resolver';
+import { getParameterClass } from '../../../../common/ens/configuration/agents/parameter-classes';
+import { effectiveSystemType, suggestedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
 import {
   ENSTemplatePreview,
   applyTemplateToAgent,
@@ -48,11 +48,11 @@ import {
   setAgentAliases,
   setAgentParameterValue,
   setAgentTypeOverride,
-} from '../agents/agent-configuration-actions';
-import { getAgentControls } from '../agents/agent-controls';
-import { validateAgentProfile } from '../agents/agent-configuration-validator';
-import { getENSCatalogControl } from '../../catalog';
-import { saveFromLatestConfiguration } from '../services/configuration-state-service';
+} from '../../../../common/ens/configuration/agents/agent-configuration-actions';
+import { getAgentControls } from '../../../../common/ens/configuration/agents/agent-controls';
+import { validateAgentProfile } from '../../../../common/ens/configuration/agents/agent-configuration-validator';
+import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 
 import { AgentParameterRow, valueRows } from './agent-parameter-row';
 import { errorMessage } from './confirm-modal';

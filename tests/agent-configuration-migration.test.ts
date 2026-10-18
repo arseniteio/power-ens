@@ -23,20 +23,20 @@
  * la búsqueda del inventario de `wazuh-monitoring-*` (agregación `agentes`).
  */
 import { readFileSync, readdirSync } from 'fs';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import {
   describeMigrationWarning,
   planMigrationToSystems,
   summarizeMigrationPlan,
-} from '../public/ens/configuration/agents/migration';
-import { resolveControlConfigurationForAgent, rowKey } from '../public/ens/configuration/agents/configuration-resolver';
-import { ENS_SYSTEM_KEY_COLUMNS } from '../public/ens/configuration/agents/parameter-classes';
-import { validateENSConfigurationStructure } from '../public/ens/configuration/services/configuration-structure-validator';
-import { validateAgentsConfiguration } from '../public/ens/configuration/agents/agent-configuration-validator';
-import { toParameterTableRows } from '../public/ens/configuration/services/parameter-value-validator';
-import { inventoryFromMonitoring } from '../public/agents/agent-inventory';
-import type { ENSConfigurationVersion } from '../public/ens/configuration/types';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
+} from '../common/ens/configuration/agents/migration';
+import { resolveControlConfigurationForAgent, rowKey } from '../common/ens/configuration/agents/configuration-resolver';
+import { ENS_SYSTEM_KEY_COLUMNS } from '../common/ens/configuration/agents/parameter-classes';
+import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
+import { validateAgentsConfiguration } from '../common/ens/configuration/agents/agent-configuration-validator';
+import { toParameterTableRows } from '../common/ens/configuration/services/parameter-value-validator';
+import { inventoryFromMonitoring } from '../common/agents/agent-inventory';
+import type { ENSConfigurationVersion } from '../common/ens/configuration/types';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
 declare const __dirname: string;
@@ -185,7 +185,7 @@ if (LAB && MON) {
   const mon = JSON.parse(readFileSync(MON, 'utf8'));
   const cubos = (mon.aggregations?.agentes || mon.aggregations?.a)?.buckets || [];
   const inv = inventoryFromMonitoring({ agentes: { buckets: cubos.map((b: any) => ({ key: b.key, ultimo: b.ultimo || b.u })) } }).agents;
-  const { resolveENSScopeAgents } = require('../public/ens/core/scope/runtime');
+  const { resolveENSScopeAgents } = require('../common/ens/core/scope/runtime');
   const alcance: string[] = resolveENSScopeAgents(inv, config.scope).map((a: any) => a.id);
   const p = planMigrationToSystems(config, inv, { scopeAgentIds: alcance });
   console.log(`    ${summarizeMigrationPlan(p)}`);
@@ -194,8 +194,8 @@ if (LAB && MON) {
   comprueba('real: idempotente', !planMigrationToSystems(p.configuration, inv, { scopeAgentIds: alcance }).changed);
   comprueba('real: ningún obligatorio se queda sin valor en el alcance', p.incomplete.length === 0, p.incomplete);
   // El motor de verdad, sin hechos, antes y después: ni un NC-CFG nuevo.
-  const { getENSComplianceResultByControl } = require('../public/ens/core/ens-engine');
-  const { ensConfigurationRepository } = require('../public/ens/configuration/repository');
+  const { getENSComplianceResultByControl } = require('../common/ens/core/ens-engine');
+  const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
   const agentesAlcance = resolveENSScopeAgents(inv, config.scope);
   const ncCfg = (d: ENSConfigurationVersion) => {
     ensConfigurationRepository.replaceActive(d);

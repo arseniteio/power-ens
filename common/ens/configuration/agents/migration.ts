@@ -34,7 +34,7 @@ import type {
   ENSConfigurationVersion,
   ENSControlParameter,
 } from '../types';
-import { normalizeAgentId } from '../../../../common/agent-configuration';
+import { normalizeAgentId } from '../../../agent-configuration';
 import {
   getParameterColumns,
   isEmptyParameterValue,

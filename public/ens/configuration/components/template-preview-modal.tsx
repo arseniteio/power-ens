@@ -1,7 +1,7 @@
 import React from 'react';
 import { EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
 
-import type { ENSTemplatePreview } from '../agents/agent-configuration-actions';
+import type { ENSTemplatePreview } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { ConfirmModal } from './confirm-modal';
 
 interface TemplatePreviewModalProps {

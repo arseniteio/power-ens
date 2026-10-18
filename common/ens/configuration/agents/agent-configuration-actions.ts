@@ -9,7 +9,7 @@ import type {
   ENSLevel,
   ENSSystemType,
 } from '../types';
-import { normalizeAgentId } from '../../../../common/agent-configuration';
+import { normalizeAgentId } from '../../../agent-configuration';
 import { isEmptyParameterValue } from '../services/parameter-value-validator';
 import { getConfigurationTemplate } from '../templates';
 import { ENSConfigurationRegistry } from '../registry';
