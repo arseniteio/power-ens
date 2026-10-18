@@ -232,63 +232,10 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
   };
 };
 
-// Los hechos de estado que el servidor no necesita leer (ver
-// `computeStateFactPruningCutoffs`). Cada clave `agente|recolector|tipo` con su
-// corte se convierte en «hechos de ese tipo, de esa máquina y ese recolector,
-// de este control, hasta el corte». Solo los que el normalizador leería igual:
-// con `data.event` (el tipo), `agent.id` (la máquina), `@timestamp` (la fecha),
-// `data.ensfacil` (el control) y sin declarar una evidencia que no sea dueña
-// del tipo. Ante cualquier duda, el hecho se lee.
-// Cuántas cláusulas puede ocupar la poda. OpenSearch cuenta TODAS las hojas de
+// Cuántas hojas puede ocupar la poda. OpenSearch cuenta TODAS las hojas de
 // la consulta contra `indices.query.bool.max_clause_count` (1024 por defecto),
 // y los filtros de la vista ya ocupan unas 80: lo que no cabe, se lee.
-export const PRUNING_MAX_KEYS = 40;
-
-export const buildStateFactPruningClause = (
-  controlId: string,
-  cutoffs: Map<string, number>
-): unknown | undefined => {
-  if (!cutoffs.size) return undefined;
-  const campo = getStateFactCollectorField(controlId);
-  const todasLasEvidencias = getEvidenceDefinitions(controlId).map(definition => definition.id);
-
-  const should = [...cutoffs.entries()].slice(0, PRUNING_MAX_KEYS).map(([clave, corte]) => {
-    const [agente, recolector, tipo] = clave.split('|');
-    const duenas = getStateFactOwnerEvidenceIds(controlId, tipo);
-    const ajenas = todasLasEvidencias.filter(id => !duenas.includes(id));
-    const filter: unknown[] = [
-      { term: { 'data.ensfacil': controlId } },
-      { term: { 'agent.id': agente } },
-      { term: { 'data.event': tipo } },
-      { range: { '@timestamp': { lte: new Date(corte).toISOString() } } },
-      {
-        bool: {
-          // Un hecho que (también) declara otra evidencia se queda: con varios
-          // valores en `evidence_id`, el motor conserva la copia de la otra.
-          must_not: [
-            ...['data.evidenceId', 'data.ev_id', 'data.evidencias'].map(field => ({ exists: { field } })),
-            ...(ajenas.length ? [{ terms: { 'data.evidence_id': ajenas } }] : []),
-          ],
-          should: [
-            { bool: { must_not: { exists: { field: 'data.evidence_id' } } } },
-            { terms: { 'data.evidence_id': duenas } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ];
-    if (campo) {
-      filter.push(
-        recolector
-          ? { term: { [`data.${campo}`]: recolector } }
-          : { bool: { must_not: { exists: { field: `data.${campo}` } } } }
-      );
-    }
-    return { bool: { filter } };
-  });
-
-  return { bool: { should, minimum_should_match: 1 } };
-};
+export const PRUNING_MAX_LEAVES = 400;
 
 // Los hechos de un control en UNA máquina: los suyos, los que no nombran
 // ningún control y, si el control los lee, los de los tipos que lee de otros
@@ -537,6 +484,7 @@ export const buildStateFactKeepClause = (
 ): unknown | undefined => {
   const campo = getStateFactCollectorField(controlId);
   const todas = getEvidenceDefinitions(controlId).map(definition => definition.id);
+  if (!getStateFactEventTypes(controlId).size) return undefined;
   const porTipo = [...getStateFactEventTypes(controlId)].map(tipo => {
     const duenas = getStateFactOwnerEvidenceIds(controlId, tipo);
     const ajenas = todas.filter(id => !duenas.includes(id));
@@ -549,8 +497,17 @@ export const buildStateFactKeepClause = (
       },
     };
   });
-  const should = [...gapsByCollector.entries()]
+  // Recolector a recolector mientras quepan sus rangos; los que no caben se
+  // leen enteros.
+  let hojas = porTipo.length * 4 + 8;
+  const caben = [...gapsByCollector.entries()]
     .filter(([, gaps]) => gaps.length)
+    .filter(([, gaps]) => {
+      if (hojas + gaps.length + 1 > PRUNING_MAX_LEAVES) return false;
+      hojas += gaps.length + 1;
+      return true;
+    });
+  const should = caben
     .map(([collector, gaps]) => ({
       bool: {
         filter: [
