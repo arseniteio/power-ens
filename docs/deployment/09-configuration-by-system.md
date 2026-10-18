@@ -59,7 +59,8 @@ La pestaña «Sistemas» detecta el tipo de cada agente con la primera regla que
 | 2 | `os.platform` es `windows` en el inventario de agentes | Windows | «os.platform = windows en el inventario de agentes» |
 | 3 | Hay hechos de ENSFácil con `data.plano = directorio` en los últimos 30 días | LDAP (Zimbra) | «N hechos del recolector LDAP (data.plano = directorio) en 30 días» |
 | 4 | `os.platform` es de la familia Linux, o `os.uname` empieza por «Linux» | Linux | «os.platform = ubuntu en el inventario de agentes» |
-| 5 | El inventario no trae el sistema operativo | Sin detectar | «el inventario no trae su sistema operativo …; se elige a mano» |
+| 5 | `os.platform` trae un valor que no es de los anteriores | Sin detectar | «os.platform = …: no es un tipo previsto; se elige a mano» |
+| 6 | El inventario no trae el sistema operativo | Sin detectar | «el inventario no trae su sistema operativo …; se elige a mano» |
 
 Además, los hechos de mp.info.6 con `data.origen = pbs` proponen el añadido «Copias con PBS», y los que traen `data.origen = zimbra-ne`, el añadido «Copias Zimbra NE». Proponer una plantilla no la aplica.
 
@@ -105,21 +106,27 @@ Reglas de aplicación:
 
 ### 6.1 Aplicar una plantilla a uno o varios sistemas
 
+Antes de guardar, el plugin enseña una vista previa por sistema: cuántos parámetros cambian de valor efectivo y cuáles, qué fija la plantilla, qué valores propios siguen ganando y, si la plantilla no es para el tipo del sistema o sustituye a otra plantilla de plataforma, el aviso. Con un aviso, la confirmación exige teclear `aplicar`.
+
 1. Abrir ENSFácil > Configuración > Sistemas.
 
-   Resultado esperado: la tabla de sistemas con su tipo, sus plantillas y su completitud.
+   Resultado esperado: la tabla de sistemas con su tipo, sus plantillas y su completitud, y el desplegable de plantillas en «Elegir plantilla…».
 
-2. Marcar las casillas de los sistemas, elegir la plantilla en el desplegable de encima de la tabla y pulsar «Aplicar a N sistema(s) seleccionado(s)».
+2. Marcar las casillas de los sistemas, elegir la plantilla en el desplegable de encima de la tabla y pulsar «Aplicar a N sistema(s) seleccionado(s)…».
 
-   Resultado esperado: el aviso «… aplicada a …» y la plantilla en la columna «Plantillas» de cada sistema. Si algún sistema no la admite, el aviso indica cuál y por qué.
+   Resultado esperado: la ventana «Aplicar «…» a N sistema(s)» con un apartado por sistema. Un sistema que no admite la plantilla aparece con «No se aplica: …».
 
-3. Para un solo sistema, abrir el agente, elegir la plantilla en «Plantillas aplicadas» (las propuestas llevan «(propuesta)») y pulsar «Aplicar».
+3. Revisar cada sistema y pulsar «Aplicar la plantilla»; si aparece «Tipo distinto» o «Sustituye a la plantilla …», teclear antes `aplicar`.
 
-   Resultado esperado: la plantilla aparece en «Plantillas aplicadas» y los parámetros que fija muestran «heredado de la plantilla …».
+   Resultado esperado: el aviso «… aplicada a …», la plantilla en la columna «Plantillas» de cada sistema y las casillas vacías.
 
-4. Para quitar una plantilla, pulsar la cruz de su etiqueta en «Plantillas aplicadas».
+4. Para un solo sistema, abrir el agente, elegir la plantilla en el desplegable de «Plantillas aplicadas» y pulsar «Aplicar…». La propuesta para su tipo lleva «(propuesta)» y se actualiza cuando termina la detección; una plantilla de plataforma que sustituiría a otra lleva «(sustituye a «…»)».
 
-   Resultado esperado: la etiqueta desaparece y esos parámetros vuelven a heredar de la organización, salvo los que tengan valor propio.
+   Resultado esperado: la misma vista previa para ese sistema; tras confirmar, la plantilla en «Plantillas aplicadas» y los parámetros que fija con «heredado de la plantilla …».
+
+5. Para quitar una plantilla, pulsar la cruz de su etiqueta en «Plantillas aplicadas».
+
+   Resultado esperado: la etiqueta desaparece y esos parámetros vuelven a heredar de otra plantilla aplicada o de la organización, salvo los que tengan valor propio.
 
 ## 7. Valores propios de un sistema
 
@@ -131,28 +138,54 @@ Dentro de cada agente, los parámetros por sistema y por plataforma se agrupan p
 
 2. Pulsar «Dar valor propio» (o «Editar», si ya lo tiene), escribir el valor y pulsar «Guardar para este sistema».
 
-   Resultado esperado: el origen pasa a «valor propio de este sistema». Un valor que no es válido para el parámetro se rechaza con el motivo y no se guarda. Un valor igual al que el sistema ya heredaba no se guarda como propio.
+   Resultado esperado: el origen pasa a «valor propio de este sistema». Un valor que no es válido para el parámetro se rechaza con el motivo y no se guarda.
 
-3. Para volver a heredar, pulsar «Quitar valor propio (vuelve a heredar)».
+3. Para volver a heredar, pulsar «Quitar valor propio (vuelve a heredar)», o vaciar el campo y guardar.
 
    Resultado esperado: el origen pasa a «heredado de la plantilla …» o a «heredado de la organización».
 
-En una unión (apartado 4), el valor que se edita en un agente es solo lo que aporta ese sistema; la página lo indica con «Se evalúa como UNIÓN …». Los controles que se miden en el manager aparecen en cada agente con la etiqueta correspondiente: sus filas se juntan en la fila del manager.
+Reglas del guardado, que el editor indica antes de guardar:
+
+- Un valor vacío no se guarda como valor propio: el sistema vuelve a heredar. Por eso un sistema no puede declarar «ninguna fila» para dejar de heredar una tabla de la organización; si una máquina no debe heredar una fila, la fila se quita de la organización y se declara en las máquinas a las que sí aplica.
+- Un valor igual al que el sistema ya heredaba no se guarda como propio: sigue a su origen cuando cambie.
+- Los guardados de una misma página se hacen en orden y sobre la versión más reciente del documento: dos cambios seguidos no se pisan.
+
+Los parámetros por sistema de un control que se mide en el manager (op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07) y el alcance declarado de mp.info.6 describen máquinas: en cada sistema se declaran solo sus filas. La página enseña aparte, de solo lectura, «De la organización» con las filas de la organización, y el botón es «Declarar filas de este sistema»: el editor parte de lo que ya aporta el sistema, no de las filas de la organización. En la página del manager se enseña además «Lo que se evalúa en esta fila», la unión completa.
 
 Cada guardado escribe el documento entero; el servidor guarda la versión anterior en el historial y una entrada en `auditTrail`.
 
+### 7.1 Quitar valores que no se aplican
+
+Un perfil puede guardar valores que no se aplican: el de un parámetro que el control ya no declara (tras una siembra con `inject-control.py`), el de un control que no está en la configuración o el de un parámetro de organización. La página del agente los lista en «Valores de este sistema que no se aplican», y la pestaña «Sistemas» en «Valores por sistema que hay que corregir».
+
+1. Pulsar «Quitar» junto al valor.
+
+   Resultado esperado: el valor desaparece de la lista y del documento; el resto del perfil se conserva.
+
+Lo que esta versión no conoce (una clave de un perfil guardada por una versión posterior) se ignora y se lista en «Claves que esta versión no conoce (se ignoran)»: no es un error y no se quita.
+
+### 7.2 Otros nombres de una máquina
+
+La migración (apartado 8) reconoce a una máquina por su id, su nombre de agente y su hostname. Si las tablas la nombran de otra forma, ese nombre se declara en su página.
+
+1. Escribir los nombres en «Otros nombres de esta máquina», separados por comas, y pulsar «Guardar otros nombres».
+
+   Resultado esperado: los nombres se quedan en el campo tras guardar, y la pestaña «Sistemas» deja de avisar de las filas que los usan y las ofrece en «Migrar a sistemas».
+
 ## 8. Migración a sistemas
 
-Antes de la 1.2.0, lo que era de una máquina se declaraba en la organización: tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…) y listas que mezclan máquinas. La migración reparte esas filas sin perder ninguna:
+Antes de la 1.2.0, lo que era de una máquina se declaraba en la organización: tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…) y listas que mezclan máquinas. La migración copia esas filas a cada máquina sin perder ninguna y sin dejar a ninguna máquina sin valor:
 
-- Las filas de las tablas con columna de sistema que nombran a un agente pasan a ese agente. El agente se reconoce por su id, su nombre, el hostname de `os.uname`, la parte corta de ambos (antes del primer punto) y los alias guardados en su perfil, sin distinguir mayúsculas.
+- Las filas de las tablas con columna de sistema que nombran a un agente se **copian** a ese agente. El agente se reconoce por su id, su nombre, el hostname de `os.uname`, la parte corta de ambos (antes del primer punto) y sus otros nombres (apartado 7.2), sin distinguir mayúsculas.
+- Una fila copiada **sale** de la organización solo si con eso ninguna máquina del alcance que evalúa el control se queda sin valor: si el parámetro es opcional, o si cada una de esas máquinas termina con valor propio, de plantilla o de la unión. Si no, la fila se queda también en la organización y las máquinas sin filas propias siguen heredando la tabla de hoy.
 - Las filas `*` se quedan en la organización y se copian también al agente que recibe filas propias, porque su valor propio sustituye al de la organización.
 - Las filas que no nombran a ningún agente, o que nombran a varios, se quedan en la organización y se listan como aviso.
+- Dos filas son la misma solo si son idénticas: las mayúsculas cuentan (`Ana` y `ana` son dos cuentas).
 - No se tocan las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), las tablas por sistema sin columna de sistema (rutas, ACL, matrices de privilegios) ni las listas que mezclan plataformas: se reparten en cada agente o con una plantilla.
 - Nada se borra: un parámetro de la organización que se queda sin filas pierde la clave `value` (nunca se escribe `null`), y la versión anterior del documento queda en el historial.
 - Es idempotente: sobre un documento ya migrado no cambia nada.
 
-La pestaña «Sistemas» calcula la migración al cargarse, sin escribir: si hay filas que mover, muestra «Hay valores de organización que son de un sistema concreto», el resumen, el detalle en «Ver qué se mueve» y el botón «Migrar a sistemas». Los avisos de filas sin agente se muestran siempre que existan.
+La pestaña «Sistemas» calcula la migración al cargarse, sin escribir: si hay filas que copiar, muestra «Hay valores de organización que son de un sistema concreto», el resumen (cuántas filas salen de la organización y cuántas se copian), el detalle en «Ver qué se mueve y qué se copia» y el botón «Migrar a sistemas». Los avisos de filas sin agente se muestran siempre que existan.
 
 ### 8.1 Migrar
 
@@ -160,19 +193,25 @@ La pestaña «Sistemas» calcula la migración al cargarse, sin escribir: si hay
 
    Resultado esperado: `COPIA_OK`.
 
-2. Abrir ENSFácil > Configuración > Sistemas, revisar «Ver qué se mueve» y los avisos.
+2. Abrir ENSFácil > Configuración > Sistemas, revisar «Ver qué se mueve y qué se copia» y los avisos.
 
-   Resultado esperado: cada movimiento indica control, parámetro, agente y número de filas; cada aviso indica la fila y el nombre que no casa.
+   Resultado esperado: cada línea indica agente, control, parámetro, número de filas y si salen de la organización o se copian; cada aviso indica la fila y el nombre que no casa.
 
 3. Pulsar «Migrar a sistemas».
 
-   Resultado esperado: el aviso «Migración a sistemas: N fila(s) de M parámetro(s) pasan a K agente(s)…» y la desaparición del bloque de migración. Los avisos de filas sin agente siguen visibles.
+   Resultado esperado: la ventana «Migrar a sistemas» con, por sistema, lo que se mueve y lo que se copia; «Parámetros que se quedarían sin valor en alguna máquina del alcance: ninguno»; el aviso de que los veredictos de esas máquinas pueden cambiar; el de que un plugin 1.1.0 deja de ver las filas que salen de la organización; y el de que la versión anterior queda en el historial.
 
-4. Validar el documento entero (apartado 11.2).
+4. Teclear `migrar` y pulsar «Migrar».
+
+   Resultado esperado: el aviso «Migración a sistemas: … La versión anterior queda en el historial.» y la desaparición del bloque de migración. Los avisos de filas sin agente siguen visibles.
+
+5. Validar el documento entero (apartado 11.2).
 
    Resultado esperado: `ESTRUCTURA VÁLIDA` y `VALORES POR SISTEMA VÁLIDOS.`
 
-Para una fila que nombra una máquina del alcance con otro nombre, añadir el valor en el agente (apartado 7) y quitar la fila de la organización en la ficha del control.
+6. Para una fila que nombra una máquina del alcance con otro nombre, declarar ese nombre en la máquina (apartado 7.2) y repetir los pasos 2 a 5.
+
+   Resultado esperado: el aviso de esa fila desaparece y la fila aparece en «Ver qué se mueve y qué se copia» del paso 2.
 
 ## 9. Controles del catálogo sin añadir
 
@@ -200,10 +239,10 @@ La pestaña Configuración se abre en un control, un agente o un parámetro con 
 | `?tabView=configuration&configControl=op.acc.1` | «Organización», ficha de op.acc.1 |
 | `?tabView=configuration&configControl=op.acc.1&configParam=P-04` | La misma ficha, con el formulario abierto en P-04 |
 | `?tabView=configuration&configView=sistemas` | «Sistemas», lista de sistemas |
-| `?tabView=configuration&configAgent=024` | «Sistemas», página del agente 024 |
-| `?tabView=configuration&configAgent=024&configControl=op.acc.1&configParam=P-07` | La página del agente 024 con op.acc.1 desplegado y P-07 en edición |
+| `?tabView=configuration&configAgent=001` | «Sistemas», página del agente 001 |
+| `?tabView=configuration&configAgent=001&configControl=op.acc.1&configParam=P-07` | La página del agente 001 con op.acc.1 desplegado y P-07 en edición |
 
-Si el control no está en el documento, la pestaña «Organización» lo indica y lo resalta en «Controles del catálogo sin añadir». La navegación dentro de Configuración actualiza la URL, de modo que el botón «atrás» del navegador vuelve a la vista anterior.
+Si el control no está en el documento, la pestaña «Organización» lo indica y lo resalta en «Controles del catálogo sin añadir»; si no es ningún control del catálogo, lo dice. Un agente que no está en el inventario ni en la configuración se abre con un aviso. Tras guardar el parámetro que pedía la URL, el editor se cierra y la URL deja de pedirlo. La navegación dentro de Configuración actualiza la URL, de modo que el botón «atrás» del navegador vuelve a la vista anterior; al cambiar de pestaña de ENSFácil, la URL deja de llevar el control y el agente de Configuración.
 
 ## 11. Desde el servidor
 
@@ -221,7 +260,7 @@ CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs
 {
   "op.acc.1": { "P-04": ["admin", "test"] },
   "agents": {
-    "028": {
+    "001": {
       "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
       "op.exp.4": { "P-04": null }
     }
@@ -231,9 +270,10 @@ CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs
 
 Reglas:
 
+- La clave es el id del agente; `7` se normaliza a `007`. Un nombre se rechaza con `"<nombre>" no es un id de agente; usar el id …` y, si el documento ya conoce ese nombre (por el nombre o los otros nombres de un perfil), con su id.
 - Solo admiten valor por agente los parámetros por sistema y por plataforma; uno de organización se rechaza.
-- `null` quita el valor propio de ese agente, que vuelve a heredar; en el documento nunca se escribe `null`.
-- El id se normaliza a tres cifras (`28` es `028`).
+- Vacío es sin valor: `null`, `""` y `[]` quitan el valor propio del agente, que vuelve a heredar, y en la organización quitan la clave `value`. En el documento nunca se escribe `null`.
+- Quitar se admite siempre, también para un valor que no se aplica: un parámetro que el control ya no declara, uno de organización o un control que no está.
 - Como en la organización, el valor de cada parámetro nombrado se sustituye entero.
 - La herramienta lee la clasificación de `public/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
 
@@ -243,7 +283,7 @@ sudo env $CERT python3 set-parameters.py /ruta/sistemas.json            # plan
 sudo env $CERT python3 set-parameters.py /ruta/sistemas.json --apply    # escribe
 ```
 
-Resultado esperado: sin `--apply`, una línea por cambio bajo `── agente 028` y `DRY-RUN: nada escrito`; con `--apply`, `<n> cambio(s) escritos en wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro de organización o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
+Resultado esperado: sin `--apply`, una línea por cambio bajo `── agente 001` y `DRY-RUN: nada escrito`; con `--apply`, `Versión anterior guardada en: historial de wazuh-ens-configuration (…)` y `<n> cambio(s) escritos en wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro de organización, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
 
 > [!note]
 > En Docker ([Wazuh en Docker, apartado 10](06-wazuh-in-docker.md#10-declarar-la-política-niveles-t-y-d)), la sección `agents` necesita el repositorio completo montado: `-v <repo>:/repo:ro -w /repo/config` en lugar de `-v <repo>/config:/cfg:ro -w /cfg`.
@@ -261,16 +301,47 @@ Resultado esperado: `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.
 
 | Mensaje | Significado | Actuación |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` | Un valor `null`, un objeto o una clave desconocida en un agente: el plugin no carga el entorno | Restaurar la copia y corregir el agente indicado |
-| `VALORES POR SISTEMA INVÁLIDOS` | Un control o parámetro que no existe, un parámetro de organización por agente, una plantilla desconocida o incompatible, o un valor inválido para su parámetro: el entorno carga, pero esa máquina se evalúa con una configuración inválida | Corregir el valor en la página del agente o con `set-parameters.py` |
+| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` | Un valor `null` o un objeto en un agente, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el agente indicado |
+| `VALORES POR SISTEMA INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, o un parámetro de organización: el valor se ignora | Quitarlo con «Quitar» (apartado 7.1) o con `set-parameters.py` y `null` |
+| `VALORES POR SISTEMA INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro: esa máquina se evalúa con una configuración inválida | Corregir el valor en la página del agente o con `set-parameters.py` |
+| `VALORES POR SISTEMA INVÁLIDOS` con una plantilla | Una plantilla que no existe en esta versión o dos que no se combinan | Quitar la plantilla en la página del agente |
+| `avisos (…): claves que esta versión no conoce y que ignora` | Claves de una versión posterior del plugin | Ninguna: no cambian la salida |
 
 ### 11.3 Sembrar controles
 
-`inject-control.py` conserva `configuration.agents` en cada siembra, también con `--sustituir`. Si un parámetro se retira del bloque y algún agente tenía valor propio para él, el plan muestra `AVISO: valores por agente de parámetros retirados, quedan huérfanos: …`; esos valores no los lee nadie y se quitan en la página del agente. Al sembrar un control nuevo no se crean valores por sistema.
+`inject-control.py` conserva `configuration.agents` en cada siembra, también con `--sustituir`. Si el bloque ya no declara un parámetro y algún agente tenía valor propio para él, el plan muestra, al fusionar y al sustituir, `AVISO: valores por agente de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 7.1. Al sembrar un control nuevo no se crean valores por sistema.
 
 ## 12. Compatibilidad y vuelta atrás
 
 - Los valores por sistema van en una clave nueva de primer nivel, `configuration.agents`. `controls[].parameters[].value` sigue siendo el valor de la organización, que es lo que leen un plugin 1.1.0 y los scripts.
 - Un plugin 1.1.0 carga un documento de la 1.2.0: su validador no comprueba claves desconocidas, ignora `agents` y evalúa con los valores de la organización. Un guardado desde un plugin 1.1.0 conserva `agents`, porque reenvía el documento entero.
-- El servidor de la 1.2.0 rechaza con el error 400 un guardado cuyo `agents` no tiene la forma correcta, y conserva el `agents` existente cuando el cuerpo no trae la clave.
-- Para volver a la 1.1.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Tras la migración, las filas movidas a los agentes ya no están en la organización: una 1.1.0 no las ve. Para recuperarlas en la 1.1.0, restaurar la copia anterior a la migración según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
+- Del mismo modo, la 1.2.0 ignora, con un aviso, las claves que una versión posterior guarde en un perfil: volver a la 1.2.0 desde una versión posterior no impide cargar el entorno.
+- El servidor de la 1.2.0 rechaza con el error 400 un guardado cuyo `agents` no tiene la forma correcta o guarda un perfil con una clave que no es un id, y conserva el `agents` existente cuando el cuerpo no trae la clave.
+- **Cada versión del documento queda en el historial antes de sustituirse**, con independencia de quién escribe: el servidor la añade al historial si no es ya su última entrada (por ejemplo, porque la escribió `inject-control.py` o `set-parameters.py`), también en la migración; y las dos herramientas guardan la versión que sustituyen antes de escribir, en el historial con el mismo formato que el plugin o, si el índice no lo admite, en un fichero local `active-antes-<fecha>.json` del directorio desde el que se ejecutan. Las dos indican dónde quedó con `Versión anterior guardada en: …`.
+- Para volver a la 1.1.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Tras la migración, las filas que salieron de la organización ya no están en ella y una 1.1.0 no las ve; las copiadas siguen.
+
+Para recuperar en la 1.1.0 la configuración anterior a la migración, con la copia del apartado 8.1, paso 1, restaurarla según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens). Sin esa copia, se usa la versión del historial:
+
+1. Listar las últimas versiones del historial:
+
+   ```bash
+   C="--cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem"
+   sudo curl -sk $C "https://127.0.0.1:9200/wazuh-ens-configuration/_search?q=documentType:CONFIGURATION_HISTORY&sort=createdAt:desc&size=10&filter_path=hits.hits._id,hits.hits._source.createdAt,hits.hits._source.createdBy,hits.hits._source.configuration.changeReason&pretty"
+   ```
+
+   Resultado esperado: las versiones de la más reciente a la más antigua, con su `_id`. La anterior a la migración es la que va justo después de la que tiene `changeReason` «Migración a sistemas: …».
+
+2. Copiarla como documento activo, con el `_id` del paso 1:
+
+   ```bash
+   ID=<_id de la versión anterior a la migración>
+   sudo curl -sk $C "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/$ID" -o /opt/ensfacil/artifacts/historial.json
+   sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); s=d['_source']; s['documentType']='ACTIVE_CONFIGURATION'; json.dump({'_source': s, 'found': True}, open(sys.argv[2],'w'), ensure_ascii=False)" \
+     /opt/ensfacil/artifacts/historial.json /opt/ensfacil/artifacts/active-desde-historial.json
+   ```
+
+   Resultado esperado: el fichero `/opt/ensfacil/artifacts/active-desde-historial.json`.
+
+3. Restaurar ese fichero según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens), con `COPIA=/opt/ensfacil/artifacts/active-desde-historial.json`.
+
+   Resultado esperado: la respuesta incluye `"result":"updated"`.

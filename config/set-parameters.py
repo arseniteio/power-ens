@@ -56,7 +56,7 @@ organización se rechaza. `null` (o vacío) QUITA el valor propio de ese agente,
 que vuelve a heredar de su plantilla o de la organización; quitar se admite
 siempre, también para un valor que no se aplica (un control que ya no está, un
 parámetro que no existe o uno de organización). La clave es el id del agente
-(`28` se normaliza a `028`); un nombre se rechaza, con el id si el documento ya
+(`7` se normaliza a `007`); un nombre se rechaza, con el id si el documento ya
 conoce ese nombre.
 
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
