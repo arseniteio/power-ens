@@ -298,13 +298,14 @@ CASOS_VALOR = [
      sintetico(sint("select", options=["Veeam", "Bacula"]), "Bacula"), True),
     ("select · con opciones, valor fuera de la lista",
      sintetico(sint("select", options=["Veeam", "Bacula"]), "Acronis"), False),
-    # Los tres selects REALES del producto, con las opciones que declaran hoy.
-    ("select · op.acc.1 P-01 rechaza el texto libre",
-     valor("op.acc.1", "P-01", "lo que sea"), False),
-    ("select · op.acc.1 P-01 admite una opción declarada",
-     valor("op.acc.1", "P-01", "Active Directory"), True),
-    ("select · op.acc.1 P-01 tolera mayúsculas y espacios del valor heredado",
+    # op.acc.1 P-01 dejó de ser un select (b47427e): es una LISTA de orígenes
+    # de identidad, sin opciones cerradas. Admite los valores que antes eran
+    # opciones y también los heredados como cadena.
+    ("list · op.acc.1 P-01 admite varios orígenes",
+     valor("op.acc.1", "P-01", ["Active Directory", "Local"]), True),
+    ("list · op.acc.1 P-01 admite el valor heredado de cuando era un select",
      valor("op.acc.1", "P-01", "  local "), True),
+    # Los selects REALES del producto, con las opciones que declaran hoy.
     ("select · op.acc.2 P-05 rechaza el texto libre",
      valor("op.acc.2", "P-05", "lo que se nos ocurra"), False),
     ("select · op.acc.2 P-05 admite una opción declarada",

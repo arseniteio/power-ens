@@ -673,13 +673,13 @@ print("\n=== 8. Todo control declarado tiene su modelo de informe ===\n")
 
 
 def controles_declarados(carpeta):
-    """IDs de control de los ficheros por control de `public/ens/<carpeta>`.
+    """IDs de control de los ficheros por control de `<carpeta>`.
 
     El `id` del propio control es el único a dos espacios de sangría: los de
     requisitos y evidencias van más adentro.
     """
     ids = {}
-    ruta = os.path.join(PLUGIN, "public/ens", carpeta)
+    ruta = os.path.join(PLUGIN, carpeta)
     for fichero in sorted(os.listdir(ruta)):
         if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
             continue
@@ -692,7 +692,9 @@ def controles_declarados(carpeta):
 
 
 declarados = {}
-for carpeta in ("catalog", "data"):
+# El catálogo está en `common/` (lo lee también el servidor); los datos de
+# los informes, en `public/`.
+for carpeta in ("common/ens/catalog", "public/ens/data"):
     # `setdefault` y no `update`: si el control está en las dos carpetas —lo
     # normal, son el doble catálogo—, el mensaje cita la primera, que es
     # siempre la misma. Un aviso que cambia de fichero según el orden del
