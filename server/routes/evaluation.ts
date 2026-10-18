@@ -2,23 +2,11 @@ import { schema } from '@osd/config-schema';
 import type { IRouter, Logger } from '../../../../src/core/server';
 import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
 import { createEvaluationHandlers } from '../lib/evaluation-handlers';
+import { buildEvaluationQuerySchema } from './evaluation-query';
 
-const consulta = schema.object(
-  {
-    agentId: schema.maybe(schema.string({ maxLength: 64 })),
-    controlId: schema.maybe(schema.string({ maxLength: 64 })),
-    include: schema.maybe(schema.string({ maxLength: 16 })),
-    timelineDays: schema.maybe(schema.string({ maxLength: 3 })),
-    // El resto de comprobaciones (control del catálogo, máquina del alcance,
-    // zona IANA, páginas acotadas) las hace `normalizeQuery`, con un 400 y el
-    // motivo.
-    timeZone: schema.maybe(schema.string({ maxLength: 64 })),
-    from: schema.maybe(schema.string({ maxLength: 8 })),
-    size: schema.maybe(schema.string({ maxLength: 4 })),
-    retryRefresh: schema.maybe(schema.string({ maxLength: 5 })),
-  },
-  { unknowns: 'ignore' }
-);
+// Los parámetros, declarados en `evaluation-query.ts` (lo que no está allí no
+// llega al servicio).
+const consulta = buildEvaluationQuerySchema(schema);
 
 export const registerEvaluationRoutes = (
   router: IRouter,

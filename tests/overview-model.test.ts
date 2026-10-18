@@ -10,6 +10,10 @@
  *   2. La pantalla, con una respuesta de la ruta: la matriz entera, una celda
  *      abre el detalle con control y máquina, la frescura dice «nunca» donde
  *      no ha llegado nada, la cola por responsable y la tendencia.
+ *   3. La matriz con muchas máquinas.
+ *   4. La primera carga por partes (`meta.pending`): «…» en los controles por
+ *      calcular, sin cifras por máquina ni «no hay no conformidades»; y la
+ *      tendencia con la serie pendiente.
  */
 import { installReactHarness } from './fixtures/react-harness';
 
@@ -176,6 +180,44 @@ const respuesta: any = {
       cabeceras.length === n + 2 && cabeceras[0].props.style.position === 'sticky' && /Máquinas/.test(cabeceras[1].texto) && cabeceras.slice(2).every(c => c.props.style.minWidth === 64));
     comprueba(`${n} máquinas: cada cabecera con el id y el nombre (recortado; entero en el tooltip)`, h.findAll('EuiToolTip').filter(t => /^2\d\d · servidor-de-nombre-largo-/.test(String(t.props.content))).length === n && /200 servidor-de-nombre-largo-0/.test(p));
     comprueba(`${n} máquinas: las celdas de «Control» también fijas`, h.findAll('EuiTableRowCell').filter(c => c.props.style?.position === 'sticky').length === 23);
+  }
+
+  console.log('4. Primera carga por partes (`meta.pending`) y serie pendiente');
+  {
+    const pendiente = { controlId: 'op.exp.8', status: 'NO_EVALUABLE', evaluated: false, pending: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 };
+    const pendienteManager = { ...pendiente, controlId: 'op.exp.7' };
+    const controlesParciales = [entrada('op.acc.1', 'PARCIAL', 50, 2), pendienteManager, pendiente, entrada('mp.info.6', 'NO_CUMPLE', 0, 1)];
+    const matriz = m.buildMatrix(ENSControls.map((c: any) => ({ id: c.id, title: c.title })), m.overviewMachines(scope), controlesParciales, respuesta.agents, {
+      isManagerOnly: id => ['op.exp.7'].includes(id),
+      notMeasuredReason: () => 'no se mide',
+    });
+    const fila8 = matriz.find(r => r.controlId === 'op.exp.8')!;
+    const fila7 = matriz.find(r => r.controlId === 'op.exp.7')!;
+    comprueba('un control pendiente: «calculando» en cada máquina, ni resultado ni «no se mide», sin barra', fila8.pending === true && Object.values(fila8.cells).every(c => c.kind === 'pending') && fila8.tally === undefined);
+    comprueba('pendiente y solo de manager: «en el manager» en los agentes, «calculando» en 000 (aunque su fila vieja dijera otra cosa)', fila7.cells['101'].kind === 'manager' && fila7.cells['000'].kind === 'pending');
+    comprueba('los ya calculados, igual que siempre', matriz.find(r => r.controlId === 'op.acc.1')!.cells['101'].kind === 'result' && !matriz.find(r => r.controlId === 'op.acc.1')!.pending);
+    const texto = m.describeOverviewPending({ rows: 4, controls: ['op.exp.7', 'op.exp.8'], total: 20 });
+    comprueba('lo que falta, dicho', texto?.title === 'Calculando la evaluación: 16 de 20 filas (control × máquina) listas' && /Faltan 2 controles \(op\.exp\.7, op\.exp\.8\)/.test(texto!.text) && m.describeOverviewPending(undefined) === undefined, texto);
+
+    h.reset();
+    h.setSearch('?tabView=overview');
+    respuestas.overview = {
+      ...respuesta,
+      meta: { ...respuesta.meta, refreshing: true, pending: { rows: 4, controls: ['op.exp.7', 'op.exp.8'], total: 20 } },
+      controls: controlesParciales,
+      nonConformities: [],
+    };
+    respuestas.summary = { meta: { ...respuesta.meta, refreshing: true, seriesPending: true }, controls: [] };
+    p = await h.render(OverviewENS);
+    comprueba('la pantalla dice cuánto falta y qué', h.findAll('EuiCallOut').some(c => /Calculando la evaluación: 16 de 20 filas/.test(String(c.props.title))) && /Faltan 2 controles \(op\.exp\.7, op\.exp\.8\)/.test(p));
+    comprueba('sin cifras por máquina que parezcan finales (ni recuentos ni peores controles)', !h.findAll('EuiBadge').some(b => /^\d+ (CUMPLE|NO_CUMPLE|PARCIAL|NO_EVALUABLE|NO_APLICA)$/.test(b.texto)) && h.findAll('EuiBadge').filter(b => b.props.iconType === 'clock').length >= 3 * 3);
+    comprueba('la matriz: «…» en las filas pendientes, los calculados con su resultado', h.findAll('EuiTableRow').length === 23 && /\[ 50% \]|\[ 100% \]/.test(p) && /Calculando…/.test(p));
+    comprueba('la cola no dice «No hay no conformidades abiertas» con controles por calcular', !/No hay no conformidades abiertas/.test(p) && /Incompleta: faltan op\.exp\.7, op\.exp\.8/.test(p));
+    comprueba('la tendencia, con la serie pendiente: «Calculando la serie», no un gráfico vacío', /Calculando la serie de 30 días/.test(p) && !/sin resultado ese día/.test(p));
+    respuestas.overview = respuesta;
+    respuestas.summary = { meta: respuesta.meta, controls: [], timeline: [] };
+    p = await h.rerender();
+    comprueba('completa: sin el aviso, con la cola y los recuentos', !/Calculando la evaluación/.test(p) && h.findAll('EuiAccordion').length === 4 && h.findAll('EuiBadge').some(b => /^\d+ CUMPLE$/.test(b.texto)));
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

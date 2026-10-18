@@ -171,6 +171,9 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
   if (include && !['summary', 'results', 'dashboard', 'control', 'overview'].includes(include)) {
     throw new ENSBadRequestError(`Vista desconocida: «${include}».`);
   }
+  if (include === 'overview' && controlId) {
+    throw new ENSBadRequestError('La Vista general es de todos los controles: sin «controlId».');
+  }
   const dias = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
   if (!Number.isInteger(dias) || dias < 0 || dias > ENS_EVALUATION_LIMITS.maxTimelineDays) {
     throw new ENSBadRequestError(`Los días de la serie van de 0 a ${ENS_EVALUATION_LIMITS.maxTimelineDays}.`);
@@ -368,12 +371,12 @@ export interface ENSViewPartition {
   pointAt: (cutoffIso: string, cutoff: Date) => CutPoint | null | undefined;
 }
 
-// La lista y el panel responden, como mucho a los 1,5 s de empezar a leer
-// (unos 2 s con el contexto), con las filas que ya están; las demás siguen
-// calculándose detrás (`meta.pending`).
+// La lista, la Vista general y el panel responden, como mucho a los 1,5 s de
+// empezar a leer (unos 2 s con el contexto), con las filas que ya están; las
+// demás siguen calculándose detrás (`meta.pending`).
 export const FIRST_RESPONSE_MS = 1500;
 // Las vistas que responden por partes.
-const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'dashboard'];
+const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'overview', 'dashboard'];
 // Un cálculo en frío que falló se dice en las peticiones siguientes durante
 // este tiempo (sin volver a lanzarlo en cada sondeo del navegador).
 const COLD_FAILURE_MS = 30 * 1000;
@@ -1751,8 +1754,8 @@ export const createEvaluationService = ({
       // volverá a pedir.
       fingerprint: refreshing || seriesPending || pendientes.length ? `refreshing:${fingerprint}` : fingerprint,
       refreshing: refreshing || seriesPending || pendientes.length > 0,
-      // Filas que aún se están calculando (la lista y el panel responden sin
-      // esperarlas): cuántas y de qué controles.
+      // Filas que aún se están calculando (la lista, la Vista general y el
+      // panel responden sin esperarlas): cuántas y de qué controles.
       pending: pendientes.length ? { rows: filasPendientes, controls: pendientes, total: needs.length } : undefined,
       seriesPending,
       // El último refresco en segundo plano que falló (lo que se enseña es lo

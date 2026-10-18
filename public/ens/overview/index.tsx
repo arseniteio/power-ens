@@ -10,6 +10,7 @@ import {
   EuiBadge,
   EuiBasicTable,
   EuiButtonGroup,
+  EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHealth,
@@ -45,6 +46,7 @@ import {
   buildTrend,
   buildWorkQueue,
   describeAge,
+  describeOverviewPending,
   freshnessCell,
   machineLabel,
   MatrixCell,
@@ -61,7 +63,16 @@ const RAYADO = ENS_NO_RESULT_PATTERN;
 export const MATRIX_MACHINE_MIN_WIDTH = 64;
 const FIJA: React.CSSProperties = { position: 'sticky', left: 0, background: '#FFFFFF', zIndex: 1 };
 
+// Lo que aún se está calculando (primera carga por partes): ni un resultado
+// ni «no se mide».
+const Calculando = () => (
+  <EuiBadge color='default' iconType='clock' title='Calculando: el servidor aún no tiene todas las filas de este control.'>
+    …
+  </EuiBadge>
+);
+
 const Celda = ({ cell }: { cell: MatrixCell }) => {
+  if (cell.kind === 'pending') return <Calculando />;
   if (cell.kind === 'manager') {
     return (
       <EuiText size='xs' color='subdued'>
@@ -132,6 +143,14 @@ export const OverviewENS = () => {
     [datos, agentId]
   );
   const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);
+  // PRIMERA CARGA POR PARTES (`meta.pending`): la matriz enseña los controles
+  // ya calculados y «…» en los demás; las cifras por máquina y la cola, que
+  // son de todos los controles, esperan. El navegador vuelve a pedir cada 2 s.
+  const enCurso = describeOverviewPending(datos?.meta.pending);
+  // La serie se calcula después de responder (`meta.seriesPending`, o aún con
+  // filas pendientes): la tendencia lo dice en vez de quedarse vacía.
+  const seriePendiente =
+    Boolean(tendencia.data?.meta?.seriesPending || tendencia.data?.meta?.pending) && !(tendencia.data?.timeline || []).length;
 
   const abreDetalle = (controlId: string, agente?: string) =>
     cambiaUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agente });
@@ -156,7 +175,15 @@ export const OverviewENS = () => {
           <EvaluationLoading message='Evaluando todos los controles en todas las máquinas del alcance.' />
         ) : (
           <>
-            <EvaluationStatusLine meta={datos.meta} refreshing={general.isRefreshing} />
+            <EvaluationStatusLine meta={datos.meta} refreshing={general.isRefreshing} onRetry={general.retry} />
+            {enCurso && (
+              <>
+                <EuiSpacer size='s' />
+                <EuiCallOut size='s' color='primary' iconType='clock' title={enCurso.title}>
+                  <p>{enCurso.text}</p>
+                </EuiCallOut>
+              </>
+            )}
             <EuiSpacer size='m' />
 
             {/* V3 · RESUMEN POR MÁQUINA */}
@@ -181,7 +208,7 @@ export const OverviewENS = () => {
                 {
                   field: 'counts',
                   name: 'Controles medidos',
-                  render: (_: any, m: any) => (
+                  render: (_: any, m: any) => enCurso ? <Calculando /> : (
                     <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
                       {(['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE', 'CUMPLE', 'NO_APLICA'] as const)
                         .filter(e => m.counts[e] > 0)
@@ -197,7 +224,7 @@ export const OverviewENS = () => {
                 {
                   field: 'notMet',
                   name: 'Requisitos que no cumplen',
-                  render: (_: any, m: any) => `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`,
+                  render: (_: any, m: any) => (enCurso ? <Calculando /> : `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`),
                 },
                 {
                   field: 'lastSeen',
@@ -215,7 +242,7 @@ export const OverviewENS = () => {
                 {
                   field: 'worst',
                   name: 'Peores controles',
-                  render: (_: any, m: any) => (
+                  render: (_: any, m: any) => enCurso ? <Calculando /> : (
                     <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
                       {m.worst.map((w: any) => (
                         <EuiFlexItem grow={false} key={w.controlId}>
@@ -307,12 +334,19 @@ export const OverviewENS = () => {
                       </EuiTableRowCell>
                       <EuiTableRowCell>
                         <EuiText size='xs' color='subdued'>
-                          {fila.tally ? describeTally(fila.tally) : 'ninguna lo mide'}
+                          {fila.pending ? 'Calculando…' : fila.tally ? describeTally(fila.tally) : 'ninguna lo mide'}
                         </EuiText>
                       </EuiTableRowCell>
                       {maquinas.map(m => {
                         const celda = fila.cells[m.agentId];
                         const medida = celda.kind === 'result';
+                        if (modo === 'frescura' && celda.kind === 'pending') {
+                          return (
+                            <EuiTableRowCell key={m.agentId} align='center'>
+                              <Calculando />
+                            </EuiTableRowCell>
+                          );
+                        }
                         if (modo === 'frescura') {
                           const f = freshnessCell(datos.freshness, fila.controlId, m.agentId, medida, ahora);
                           return (
@@ -366,7 +400,12 @@ export const OverviewENS = () => {
               </p>
             </EuiText>
             <EuiSpacer size='s' />
-            {cola.length === 0 && (
+            {enCurso && (
+              <EuiText size='s' color='subdued'>
+                <p>{`Incompleta: faltan ${enCurso.controls.join(', ')}. Se completa cuando estén calculados.`}</p>
+              </EuiText>
+            )}
+            {cola.length === 0 && !enCurso && (
               <EuiText size='s' color='subdued'>
                 <p>No hay no conformidades abiertas.</p>
               </EuiText>
@@ -428,6 +467,11 @@ export const OverviewENS = () => {
           <FactsReadErrorCallOut error={tendencia.error} onRetry={tendencia.retry} />
         ) : !tendencia.data ? (
           <EvaluationLoading message='Calculando el resultado de cada día de la ventana.' />
+        ) : seriePendiente ? (
+          <>
+            <EvaluationStatusLine meta={tendencia.data.meta} refreshing={tendencia.isRefreshing} onRetry={tendencia.retry} label='Tendencia' />
+            <EvaluationLoading message='Calculando la serie de 30 días en el servidor: aparece en cuanto esté.' />
+          </>
         ) : (
           <>
             <EuiText size='xs' color='subdued'>

@@ -12,6 +12,9 @@
  *   3. La serie (`timelineDays`) en `summary`, con el estado de cada control
  *      cada día; el último punto es el resultado de arriba.
  *   4. La vista se acepta en la petición; ninguna lectura de hechos de más.
+ *   5. Responde por partes (`meta.pending`) como la lista y el panel: los
+ *      controles pendientes marcados y fuera de las filas y de la cola; la
+ *      frescura entera; sondeando, acaba igual.
  */
 import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService, normalizeQuery } from '../server/lib/evaluation/evaluation-service';
@@ -158,6 +161,29 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   comprueba('una vista desconocida, 400', rechaza);
   const run2 = await servicio.run(clientes, { include: 'overview', timeZone: 'UTC' });
   comprueba('la vista general, con todo en memoria, no calcula ninguna fila', run2.meta.stats.computed === 0, run2.meta.stats);
+
+  console.log('5. La Vista general responde por partes, como la lista y el panel');
+  {
+    // Un indexador lento: la primera respuesta llega con lo que ya está.
+    const espera = (ms: number) => new Promise(listo => setTimeout(listo, ms));
+    const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) await espera(40); return indice.search(p); } };
+    const cl = { asCurrentUser: lento, asInternalUser: lento };
+    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 300 });
+    const t0 = Date.now();
+    const primera = buildEvaluationResponse(await s5.run(cl, { include: 'overview', timeZone: 'UTC' })) as any;
+    const pendientes = primera.meta.pending?.controls || [];
+    comprueba('responde sin esperar a todo, con `meta.pending`', Date.now() - t0 < 3000 && (primera.meta.pending?.rows || 0) > 0 && primera.meta.refreshing, primera.meta.pending);
+    comprueba('los controles pendientes, en su sitio y marcados (sin estado inventado)', primera.controls.length === 23 && primera.controls.filter((c: any) => c.pending).map((c: any) => c.controlId).join() === pendientes.join() && primera.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    comprueba('ninguna máquina trae todavía un control pendiente', primera.agents.every((a: any) => a.controls.every((c: any) => !pendientes.includes(c.controlId))));
+    comprueba('la frescura ya va entera (es de la sonda)', primera.freshness.agents.map((a: any) => a.agentId).sort().join() === '000,101,102');
+    comprueba('la cola solo con controles ya calculados', primera.nonConformities.every((nc: any) => !pendientes.includes(nc.controlId)));
+    let ultima = primera;
+    for (let i = 0; i < 600 && ultima.meta.pending; i++) {
+      await espera(50);
+      ultima = buildEvaluationResponse(await s5.run(cl, { include: 'overview', timeZone: 'UTC' })) as any;
+    }
+    comprueba('sondeando, acaba completa e igual que la de antes', !ultima.meta.pending && JSON.stringify(ultima.controls) === JSON.stringify(general.controls) && JSON.stringify(ultima.agents) === JSON.stringify(general.agents) && JSON.stringify(ultima.nonConformities) === JSON.stringify(general.nonConformities));
+  }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);

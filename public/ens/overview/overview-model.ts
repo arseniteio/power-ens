@@ -57,7 +57,9 @@ export type MatrixCell =
   // manager, que es otra columna.
   | { kind: 'manager' }
   // No se mide en esta máquina (plano o alcance declarado), con el motivo.
-  | { kind: 'not-measured'; reason?: string };
+  | { kind: 'not-measured'; reason?: string }
+  // Primera carga por partes: el control aún se está calculando.
+  | { kind: 'pending' };
 
 export interface MatrixRow {
   controlId: string;
@@ -65,6 +67,8 @@ export interface MatrixRow {
   overall?: ENSControlSummaryEntry;
   cells: Record<string, MatrixCell>;
   tally?: ENSMachineTally;
+  // Aún calculándose (`controls[].pending`): ni resultado ni «no se mide».
+  pending?: boolean;
 }
 
 export interface MatrixOptions {
@@ -81,10 +85,16 @@ export const buildMatrix = (
 ): MatrixRow[] =>
   controls.map(control => {
     const cells: Record<string, MatrixCell> = {};
+    const general = overall.find(entry => entry.controlId === control.id);
+    // Un control que el servidor aún calcula no tiene filas todavía: no es que
+    // no se mida en ninguna máquina.
+    const pendiente = Boolean(general?.pending);
     machines.forEach(machine => {
       const fila = agentRows.find(row => row.agentId === machine.agentId);
       const entrada = fila?.controls.find(c => c.controlId === control.id);
-      if (entrada) {
+      if (pendiente) {
+        cells[machine.agentId] = !machine.isManager && options.isManagerOnly(control.id) ? { kind: 'manager' } : { kind: 'pending' };
+      } else if (entrada) {
         cells[machine.agentId] = {
           kind: 'result',
           status: entrada.status,
@@ -101,11 +111,28 @@ export const buildMatrix = (
     return {
       controlId: control.id,
       title: control.title,
-      overall: overall.find(entry => entry.controlId === control.id),
+      overall: general,
       cells,
-      tally: tallyMachines(control.id, agentRows),
+      tally: pendiente ? undefined : tallyMachines(control.id, agentRows),
+      ...(pendiente ? { pending: true } : {}),
     };
   });
+
+// La primera carga por partes (`meta.pending`): cuánto falta. Mientras, la
+// pantalla no da cifras de conjunto (por máquina, la cola entera) como si
+// fueran finales: serían de una parte de los controles.
+export const describeOverviewPending = (
+  pending: { rows: number; controls: string[]; total: number } | undefined
+): { title: string; text: string; controls: string[] } | undefined =>
+  pending
+    ? {
+        title: `Calculando la evaluación: ${pending.total - pending.rows} de ${pending.total} filas (control × máquina) listas`,
+        text:
+          `Faltan ${pending.controls.length} control${pending.controls.length === 1 ? '' : 'es'} (${pending.controls.join(', ')}). ` +
+          'Las cifras por máquina y la cola de trabajo se completan cuando estén todos; mientras, la matriz enseña los ya calculados.',
+        controls: pending.controls,
+      }
+    : undefined;
 
 // --- V2 ----------------------------------------------------------------------
 
