@@ -61,7 +61,7 @@ export const EvaluationStatusLine = ({
         ventana.{' '}
         {actualizando ? (
           <EuiBadge color="warning" iconType="clock">
-            {meta.timelinePending && !meta.refreshError ? 'Calculando la evolución…' : 'Actualizando…'}
+            {meta.seriesPending && !meta.refreshError ? 'Calculando la evolución…' : 'Actualizando…'}
           </EuiBadge>
         ) : null}
       </p>

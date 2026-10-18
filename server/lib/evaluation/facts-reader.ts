@@ -67,7 +67,10 @@ export const throwIfCancelled = (signal?: { aborted: boolean }): void => {
 
 // Una búsqueda que no admite resultados parciales.
 export const searchComplete = async (client: any, params: { index?: string; body: unknown }, what: string): Promise<any> => {
-  const { body } = await client.search({ ...params, allow_partial_search_results: false });
+  // Con una lista de índices (los de la ventana), uno que ya no exista no
+  // hace fallar la búsqueda.
+  const lista = typeof params.index === 'string' && params.index.includes(',');
+  const { body } = await client.search({ ...params, allow_partial_search_results: false, ...(lista ? { ignore_unavailable: true } : {}) });
   assertCompleteResponse(body, what);
   return body;
 };
@@ -75,19 +78,38 @@ export const searchComplete = async (client: any, params: { index?: string; body
 export interface ENSFactsReadStats {
   pages: number;
   hits: number;
+  // Lo que se esperó al cliente del indexador (la respuesta y su análisis).
+  searchMs: number;
 }
 
-export const newReadStats = (): ENSFactsReadStats => ({ pages: 0, hits: 0 });
+export const newReadStats = (): ENSFactsReadStats => ({ pages: 0, hits: 0, searchMs: 0 });
+
+// Cede el hilo: entre página y página y entre fila y fila, para que el
+// proceso del dashboard siga atendiendo otras peticiones durante un cálculo.
+export const yieldToEventLoop = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
 
 // Recorre TODOS los hechos de la consulta y llama a `onPage` con cada página.
 export const readAllFacts = async (
   client: any,
   query: unknown,
-  onPage: (hits: any[]) => void,
+  onPage: (hits: any[]) => void | Promise<void>,
   stats: ENSFactsReadStats = newReadStats(),
-  options: { pageSize?: number; maxFacts?: number; what?: string; signal?: { aborted: boolean } } = {}
+  options: {
+    pageSize?: number;
+    maxFacts?: number;
+    what?: string;
+    signal?: { aborted: boolean };
+    // El índice (o la lista de índices de la ventana).
+    index?: string;
+    // Otro orden (el flujo por máquina lleva delante el control) y la
+    // posición de `id` en él.
+    sort?: unknown[];
+    idIndex?: number;
+  } = {}
 ): Promise<ENSFactsReadStats> => {
   const pageSize = options.pageSize || FACTS_PAGE_SIZE;
+  const sort = options.sort || FACTS_SORT;
+  const idIndex = options.idIndex ?? 1;
   const maxFacts = options.maxFacts ?? MAX_FACTS_PER_READ;
   const what = options.what || 'los hechos';
   let after: unknown[] | undefined;
@@ -95,28 +117,30 @@ export const readAllFacts = async (
 
   for (;;) {
     throwIfCancelled(options.signal);
+    const t0 = Date.now();
     const respuesta = await searchComplete(
       client,
       {
-        index: ENS_ALERTS_INDEX,
+        index: options.index || ENS_ALERTS_INDEX,
         body: {
           size: pageSize,
           track_total_hits: false,
           _source: ENGINE_SOURCE_FIELDS,
-          sort: FACTS_SORT,
+          sort,
           query,
           ...(after ? { search_after: after } : {}),
         },
       },
       what
     );
+    stats.searchMs += Date.now() - t0;
     const hits: any[] = respuesta?.hits?.hits || [];
 
     stats.pages += 1;
     stats.hits += hits.length;
     leidos += hits.length;
     if (leidos > maxFacts) throw new ENSTooManyFactsError(what, maxFacts);
-    onPage(hits);
+    await onPage(hits);
 
     if (hits.length < pageSize) break;
     after = hits[hits.length - 1]?.sort;
@@ -124,9 +148,10 @@ export const readAllFacts = async (
     // Sin `id` (el desempate que es único por manager) dos hechos del mismo
     // instante no se pueden separar entre páginas: se perderían o se
     // repetirían en silencio.
-    if (after[1] === null || after[1] === undefined) {
+    if (after[idIndex] === null || after[idIndex] === undefined) {
       throw new ENSIncompleteDataError(`hay hechos sin \`id\` en ${what}: no se pueden leer por páginas sin perder ninguno`);
     }
+    await yieldToEventLoop();
   }
 
   return stats;

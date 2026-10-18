@@ -172,7 +172,7 @@ const mide = async (nombre: string, q: Record<string, unknown>) => {
   const salida: any = await servicio.run(clientes as any, { timeZone: opciones.tz, ...q } as any, { allowStale: true });
   const ms = Date.now() - t0;
   const meta = salida.meta;
-  const serie = salida.timeline ? `serie=${salida.timeline.length}` : meta.timelinePending ? 'serie=PENDIENTE' : '';
+  const serie = salida.timeline ? `serie=${salida.timeline.length}` : meta.seriesPending ? 'serie=PENDIENTE' : '';
   console.log(
     `${nombre.padEnd(30)} ${String(ms).padStart(7)} ms  llamadas=${medida.calls - c0}  leído=${((medida.bytes - b0) / 1e6).toFixed(1)} MB` +
       `  filas calculadas=${meta.stats.computed} hechos=${meta.stats.hits}  ${serie}${meta.refreshing ? '  refreshing' : ''}${meta.refreshError ? `  refreshError=${meta.refreshError.message}` : ''}`

@@ -61,6 +61,10 @@ docs.push(hecho('028', 'zimbraHldap', { ensfacil: 'mp.info.6', event: 'backup_er
 // Hechos que no nombran ningún control (los admite el filtro por el grupo ENS).
 docs.push(hecho('024', 'wazuh-real', { event: 'service_running', evidence_id: 'EV-04', servicio: 'cron' }, 4));
 docs.push(hecho('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
+// Hechos con el control en un campo antiguo (sin `data.ensfacil`), y uno con
+// los dos (va a las dos filas, como la lectura por fila).
+docs.push(hecho('024', 'wazuh-real', { control: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'legado' }, 3.5));
+docs.push(hecho('024', 'wazuh-real', { ensfacil: 'op.exp.1', control: 'op.exp.3', event: 'asset_system', evidence_id: 'EV-01' }, 2.5));
 
 const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.28',
@@ -124,7 +128,7 @@ const referencia = () => {
   comprueba('trazabilidad sin control: 400 (no 500)', sinControl.status === 400, sinControl);
 
   // 2. Shards fallidos: no se evalúa ni se guarda nada.
-  const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+  const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
   fallar = 1;
   const roto = await servicio.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   comprueba('un shard fallido: la evaluación falla con el motivo (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
@@ -158,7 +162,9 @@ const referencia = () => {
   void t0;
 
   // 5. Dos vistas a la vez comparten cada fila; si todos se van, se cancela.
-  const otro = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+  const otro = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
+  // (La serie del servicio anterior, que sigue detrás, lee del mismo índice.)
+  while (!servicio.idle()) await espera(20);
   const lecturas = indice.log.length;
   await Promise.all([
     otro.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' })),
@@ -167,11 +173,13 @@ const referencia = () => {
   const deHechos = indice.log.slice(lecturas).filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts'));
   const repetidas = deHechos.length - new Set(deHechos.map(l => JSON.stringify([l.body.query, l.body.search_after]))).size;
   comprueba('panel y lista a la vez: cada lectura una sola vez', repetidas === 0, repetidas);
-  const tercero = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+  const tercero = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
   // Un indexador lento: cada lectura de hechos tarda 30 ms.
   const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) await espera(30); return indice.search(p); } };
   const senal = new CancelSignal();
-  const promesa = tercero.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { signal: senal }).then(() => 'terminó', (e: any) => e?.statusCode);
+  // (Con `results`: la lista y el panel, que responden por partes, siguen
+  // calculando detrás aunque el navegador se vaya; ver §10.)
+  const promesa = tercero.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'results', timeZone: 'UTC' }), { signal: senal }).then(() => 'terminó', (e: any) => e?.statusCode);
   await espera(40);
   senal.cancel();
   const fin = await promesa;
@@ -196,8 +204,8 @@ const referencia = () => {
   // 8. Una serie en Europe/Madrid que cruza el cambio de hora.
   const tz = 'Europe/Madrid';
   let serie = await servicio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
-  for (let i = 0; i < 200 && serie.meta.timelinePending; i++) {
-    await espera(20);
+  for (let i = 0; i < 300 && serie.meta.seriesPending; i++) {
+    await espera(200);
     serie = await servicio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
   }
   const ref4 = referencia();
@@ -216,7 +224,7 @@ const referencia = () => {
   // sigue enseñando con el motivo y la hora; la petición siguiente NO lanza
   // otro cálculo (espera creciente); «Reintentar» sí; al ir bien, se limpia.
   {
-    const s9 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+    const s9 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
     const resumen = (opciones: any = {}) => s9.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...opciones });
     await resumen();
     const lecturasDeHechos = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
@@ -244,6 +252,73 @@ const referencia = () => {
     const bien = await resumen();
     comprueba('U-N1: al ir bien, sin error ni marca', !bien.meta.refreshing && !bien.meta.refreshError, bien.meta.refreshError);
     reloj = guardado;
+  }
+
+  // 10. Primera carga por partes. Con un indexador lento, la lista responde a
+  // los `firstResponseMs` con las filas que ya están (las baratas primero) y
+  // `meta.pending`; el resto sigue detrás aunque el navegador se vaya; el
+  // sondeo siguiente trae lo que falta. Nada se espera por la serie.
+  {
+    const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) await espera(40); return indice.search(p); } };
+    const cl = { asCurrentUser: lento, asInternalUser: lento };
+    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 150 });
+    const senal = new CancelSignal();
+    const t0 = Date.now();
+    const primera = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, signal: senal });
+    const ms = Date.now() - t0;
+    senal.cancel();
+    const resp: any = buildEvaluationResponse(primera);
+    comprueba('§10 la primera respuesta llega sin esperar a todo, con `pending`', ms < 1500 && (primera.meta.pending?.rows || 0) > 0 && primera.meta.refreshing && primera.meta.fingerprint.startsWith('refreshing:'), [ms, primera.meta.pending]);
+    comprueba('§10 los controles pendientes van en la lista, marcados (sin estado inventado)', resp.controls.length === 23 && resp.controls.filter((c: any) => c.pending).length === primera.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    let n = 0;
+    let ultima = primera;
+    while (ultima.meta.pending && n++ < 200) {
+      await espera(50);
+      ultima = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
+    }
+    const ref10 = referencia();
+    comprueba('§10 el cálculo sigue aunque se fuera quien lo pidió, y acaba igual que el motor', !ultima.meta.pending && igual(ultima.state!.results.map(sinTraza), getENSComplianceState(ref10.nivel, ref10.eventos, undefined, ref10.alcance, reloj).results.map(sinTraza)));
+    while (!s10.idle()) await espera(20);
+  }
+
+  // 11. Cuántas llamadas: una lectura por máquina (en grupos de controles),
+  // lo de aparte una vez por máquina, op.acc.3 aparte; y en los índices de la
+  // ventana, no en el comodín.
+  {
+    const s11 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
+    const desde = indice.log.length;
+    await s11.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }));
+    const llamadas = indice.log.slice(desde);
+    const deHechos = llamadas.filter(l => l.body?.size > 0);
+    const maquinas = 3;
+    comprueba('§11 lecturas de hechos: unas pocas por máquina, no una por control y máquina', deHechos.length <= maquinas * 6, deHechos.length);
+    comprueba('§11 todas las lecturas salvo la sonda nombran los índices de la ventana', llamadas.filter(l => l.index === 'wazuh-alerts-*').length === 1 && llamadas.filter(l => String(l.index).startsWith('wazuh-alerts-4.x-')).length === llamadas.length - 1 - llamadas.filter(l => !String(l.index).startsWith('wazuh-alerts')).length, [...new Set(llamadas.map(l => l.index))]);
+    comprueba('§11 con `ignore_unavailable` (un índice que ya no exista no falla)', llamadas.filter(l => String(l.index).includes(',')).every(l => l.params?.ignore_unavailable === true));
+    while (!s11.idle()) await espera(20);
+  }
+
+  // 12. N4: «Reintentar» tras un refresco que falló. El intento nuevo borra el
+  // error (lo que se enseña es lo guardado, actualizándose), y si va bien la
+  // fila nueva sustituye a la vieja.
+  {
+    const s12 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
+    const resumen = (o: any = {}) => s12.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...o });
+    await resumen();
+    while (!s12.idle()) await espera(20);
+    indice.docs.push(hecho('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'n4', funcion: 'operacion' }, 0.1));
+    fallar = 1;
+    await resumen();
+    while (s12.tasks.size) await espera(5);
+    const conError = await resumen();
+    comprueba('§12 el refresco falló: lo guardado con `refreshError`', /Datos incompletos/.test(conError.meta.refreshError?.message || ''));
+    fallar = 0;
+    const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) await espera(60); return indice.search(p); } };
+    const reintento = await s12.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, retryRefresh: true });
+    comprueba('§12 «Reintentar»: responde lo guardado, actualizándose y SIN el error viejo', reintento.meta.refreshing && !reintento.meta.refreshError && reintento.meta.stats.refreshingInBackground >= 1, reintento.meta);
+    while (s12.tasks.size) await espera(5);
+    const bien = await resumen();
+    comprueba('§12 y la petición siguiente trae lo nuevo, sin marca', !bien.meta.refreshing && !bien.meta.refreshError);
+    while (!s12.idle()) await espera(20);
   }
 
   fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');

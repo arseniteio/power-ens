@@ -11,6 +11,7 @@ import {
   buildENSAllControlsFactsFilter,
   buildENSControlFactsFilter,
   buildENSFactsWithoutControlFilter,
+  ENS_CONTROL_ID_FIELDS,
 } from '../../../common/ens/dashboard/all-controls-facts-filter';
 import { resolveENSEvaluationTimeRange } from '../../../common/ens/core/data-source/evaluation-time-range';
 import { buildENSScopeAgentQueryFilter } from '../../../common/ens/core/scope/engine';
@@ -107,6 +108,9 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
       aggs: {
         newest: { max: { field: '@timestamp' } },
         oldest: { min: { field: '@timestamp' } },
+        // Los índices con hechos de la ventana: las lecturas los nombran en
+        // lugar del comodín (cada índice de más es coste en cada llamada).
+        indices: { terms: { field: '_index', size: 500 } },
         controls: {
           filters: {
             filters: Object.fromEntries(controlIds.map(id => [id, buildENSControlFactsFilter(id)])),
@@ -181,6 +185,8 @@ export interface ENSProbeResult extends ENSFactsCount {
   // Cada máquina: su primer hecho de la ventana (la presencia), el último y
   // cuántos tiene.
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
+  // Los índices con hechos de la ventana (sin lista fiable, `undefined`).
+  indices?: string[];
 }
 
 const fecha = (agg: any): string | undefined =>
@@ -197,7 +203,11 @@ const porMaquinaDe = (agg: any): Record<string, ENSFactsCount> =>
 export const readProbeResponse = (body: any): ENSProbeResult => {
   const aggs = body?.aggregations || {};
   const total = body?.hits?.total;
+  const indices = aggs.indices && !(Number(aggs.indices.sum_other_doc_count) > 0)
+    ? (aggs.indices.buckets || []).map((b: any) => String(b.key))
+    : undefined;
   return {
+    indices,
     count: typeof total === 'number' ? total : Number(total?.value || 0),
     newest: fecha(aggs.newest),
     oldest: fecha(aggs.oldest),
@@ -337,14 +347,10 @@ const CAMPOS_EVIDENCIA_ALTERNATIVOS = ['data.evidenceId', 'data.ev_id', 'data.ev
 // con él se calcula el corte EXACTO del motor (`computeStateFactCutoffsByCollector`).
 // Solo hechos que el normalizador atribuye igual: `data.ensfacil` del control,
 // `data.event` del tipo, la máquina en `agent.id`.
-export const buildStateFactLastSeenRequest = (
-  viewFilters: unknown[],
-  controlId: string,
-  agentId: string,
-  timeZone: string
-) => {
+// Las agregaciones del último hecho de estado de UN control (dentro de una
+// consulta ya acotada a sus hechos de estado en una máquina).
+const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
   const campo = getStateFactCollectorField(controlId);
-  const tipos = [...getStateFactEventTypes(controlId)];
   const porDia = {
     days: {
       date_histogram: { field: '@timestamp', calendar_interval: 'day', time_zone: timeZone, min_doc_count: 1 },
@@ -358,37 +364,66 @@ export const buildStateFactLastSeenRequest = (
     },
   };
   return {
-    index: ENS_ALERTS_INDEX,
-    body: {
-      size: 0,
-      query: {
-        bool: {
-          filter: [
-            ...viewFilters,
-            { term: { 'agent.id': agentId } },
-            { term: { 'data.ensfacil': controlId } },
-            { terms: { 'data.event': tipos } },
-          ],
-        },
-      },
-      aggs: {
-        alt: { filter: { bool: { should: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
-        // Un campo con varios valores en un mismo hecho (una lista) no se
-        // atribuye bien a un solo cubo: se compara cuántos valores hay con
-        // cuántos hechos lo llevan.
-        ...Object.fromEntries(
-          ['data.event', 'data.evidence_id', ...(campo ? [`data.${campo}`] : [])].flatMap((field, i) => [
-            [`values_${i}`, { value_count: { field } }],
-            [`docs_${i}`, { filter: { exists: { field } } }],
-          ])
-        ),
-        collectors: campo
-          ? { terms: { field: `data.${campo}`, size: 200, missing: SIN_VALOR }, aggs: porTipo }
-          : { filters: { filters: { [SIN_VALOR]: { match_all: {} } } }, aggs: porTipo },
-      },
-    },
+    alt: { filter: { bool: { should: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
+    // Un campo con varios valores en un mismo hecho (una lista) no se
+    // atribuye bien a un solo cubo: se compara cuántos valores hay con
+    // cuántos hechos lo llevan.
+    ...Object.fromEntries(
+      ['data.event', 'data.evidence_id', ...(campo ? [`data.${campo}`] : [])].flatMap((field, i) => [
+        [`values_${i}`, { value_count: { field } }],
+        [`docs_${i}`, { filter: { exists: { field } } }],
+      ])
+    ),
+    collectors: campo
+      ? { terms: { field: `data.${campo}`, size: 200, missing: SIN_VALOR }, aggs: porTipo }
+      : { filters: { filters: { [SIN_VALOR]: { match_all: {} } } }, aggs: porTipo },
   };
 };
+
+const hechosDeEstadoDe = (controlId: string) => [
+  { term: { 'data.ensfacil': controlId } },
+  { terms: { 'data.event': [...getStateFactEventTypes(controlId)] } },
+];
+
+export const buildStateFactLastSeenRequest = (
+  viewFilters: unknown[],
+  controlId: string,
+  agentId: string,
+  timeZone: string,
+  index: string = ENS_ALERTS_INDEX
+) => ({
+  index,
+  body: {
+    size: 0,
+    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, ...hechosDeEstadoDe(controlId)] } },
+    aggs: stateFactLastSeenAggs(controlId, timeZone),
+  },
+});
+
+// Lo mismo para TODOS los controles con hechos de estado de una máquina, en
+// una sola consulta (una agregación por control, con su propio filtro).
+export const buildAgentStateFactLastSeenRequest = (
+  viewFilters: unknown[],
+  controlIds: string[],
+  agentId: string,
+  timeZone: string,
+  index: string = ENS_ALERTS_INDEX
+) => ({
+  index,
+  body: {
+    size: 0,
+    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.ensfacil': controlIds } }] } },
+    aggs: Object.fromEntries(
+      controlIds.map((controlId, i) => [
+        `c${i}`,
+        { filter: { bool: { filter: hechosDeEstadoDe(controlId) } }, aggs: stateFactLastSeenAggs(controlId, timeZone) },
+      ])
+    ),
+  },
+});
+
+export const readAgentStateFactLastSeen = (controlIds: string[], body: any): Map<string, ENSStateFactLastSeen> =>
+  new Map(controlIds.map((controlId, i) => [controlId, readStateFactLastSeen(controlId, { aggregations: body?.aggregations?.[`c${i}`] })]));
 
 export interface ENSStateFactLastSeen {
   // Recolectores con hechos de estado (`''` sin campo de recolector).
@@ -530,4 +565,136 @@ export const buildStateFactKeepClause = (
       must_not: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })),
     },
   };
+};
+
+
+// --- un flujo por máquina ------------------------------------------------------
+//
+// En el indexador real cuesta cada LLAMADA (0,16-0,34 s, con o sin hechos),
+// no los bytes. En lugar de una lectura por control y máquina, se lee una vez
+// por máquina (o por grupos de controles de la máquina), ordenado por control:
+// cada control se evalúa en cuanto termina su tramo. Lo que el tramo no trae
+// se lee aparte, una vez por máquina: los hechos sin `data.ensfacil` o con un
+// campo de control antiguo (los que no nombran control van a todas las filas;
+// los antiguos, a la de su control) y los latidos (para la poda).
+
+export const ENS_LEGACY_CONTROL_FIELDS = ['data.ens', 'data.control_id', 'data.control'];
+
+// El orden del flujo: por control y, dentro de cada control, el de siempre
+// (así cada fila recibe sus hechos en el mismo orden que leyéndola sola).
+export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc' } }, ...FACTS_SORT];
+
+export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, controlIds: string[], prunings: unknown[]) => ({
+  bool: {
+    filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.ensfacil': controlIds } }],
+    must_not: [...ENS_LEGACY_CONTROL_FIELDS.map(field => ({ exists: { field } })), ...prunings],
+  },
+});
+
+// Lo que el flujo no lleva: sin `data.ensfacil`, o con un campo de control antiguo.
+export const buildAgentSideQuery = (viewFilters: unknown[], agentId: string) => ({
+  bool: {
+    filter: [
+      ...viewFilters,
+      { term: { 'agent.id': agentId } },
+      {
+        bool: {
+          should: [
+            { bool: { must_not: { exists: { field: 'data.ensfacil' } } } },
+            ...ENS_LEGACY_CONTROL_FIELDS.map(field => ({ exists: { field } })),
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    ],
+  },
+});
+
+// Los latidos de una máquina, de todos sus controles.
+export const buildAgentRunsQuery = (viewFilters: unknown[], agentId: string) => ({
+  bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, { term: { 'data.event': 'collector_run' } }] },
+});
+
+const valoresDeCampo = (data: any, field: string): unknown[] => {
+  const v = data?.[field.slice('data.'.length)];
+  if (v === undefined || v === null) return [];
+  return (Array.isArray(v) ? v : [v]).filter(x => x !== undefined && x !== null);
+};
+
+// ¿Va este hecho (leído aparte) a la fila de este control? Lo mismo que
+// decide el filtro de una lectura por fila: lo nombra en cualquiera de los
+// cuatro campos, o no nombra ninguno.
+export const sideFactBelongsTo = (hit: any, controlId: string): boolean => {
+  const data = hit?._source?.data;
+  const valores = ENS_CONTROL_ID_FIELDS.map(field => valoresDeCampo(data, field));
+  if (valores.every(lista => lista.length === 0)) return true;
+  return valores.some(lista => lista.some(valor => String(valor) === controlId));
+};
+
+// Compara dos cadenas por punto de código (el orden de los `keyword`).
+const porCodigo = (a: string, b: string): number => {
+  if (a === b) return 0;
+  const x = [...a];
+  const y = [...b];
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = (x[i].codePointAt(0) as number) - (y[i].codePointAt(0) as number);
+    if (d) return d;
+  }
+  return x.length - y.length;
+};
+
+// El orden de `FACTS_SORT` entre dos hechos, con sus valores de orden (los
+// cuatro últimos: el flujo lleva delante el control).
+export const compareFactsOrder = (a: any, b: any): number => {
+  const x = (a?.sort || []).slice(-4);
+  const y = (b?.sort || []).slice(-4);
+  const ta = x[0] === null || x[0] === undefined ? null : Number(x[0]);
+  const tb = y[0] === null || y[0] === undefined ? null : Number(y[0]);
+  if (ta !== tb) {
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return tb - ta;
+  }
+  for (let i = 1; i < 4; i++) {
+    const va = x[i] === null || x[i] === undefined ? null : String(x[i]);
+    const vb = y[i] === null || y[i] === undefined ? null : String(y[i]);
+    if (va === vb) continue;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return porCodigo(va, vb);
+  }
+  return 0;
+};
+
+// Mezcla dos listas ya ordenadas por `FACTS_SORT`.
+export const mergeFactsInOrder = (a: any[], b: any[]): any[] => {
+  if (!b.length) return a;
+  if (!a.length) return b;
+  const salida: any[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) salida.push(compareFactsOrder(a[i], b[j]) <= 0 ? a[i++] : b[j++]);
+  while (i < a.length) salida.push(a[i++]);
+  while (j < b.length) salida.push(b[j++]);
+  return salida;
+};
+
+// Los índices que leer: los que tienen hechos de la ventana según la sonda
+// (y, si siguen el nombre diario de Wazuh, los de cada día de la ventana, por
+// si se crea uno después de la sonda). Sin lista fiable, el comodín.
+const DIARIO = /^(.*-)(\d{4})\.(\d{2})\.(\d{2})$/;
+export const factsIndexFor = (indices: string[] | undefined, window: { from: string; to: string }): string => {
+  if (!indices || !indices.length) return ENS_ALERTS_INDEX;
+  const nombres = new Set(indices);
+  const prefijos = new Set(indices.map(i => DIARIO.exec(i)?.[1]).filter(Boolean) as string[]);
+  if (prefijos.size === 1 && indices.every(i => DIARIO.test(i))) {
+    const prefijo = [...prefijos][0];
+    for (let t = Date.parse(window.from.slice(0, 10)); t <= Date.parse(window.to); t += 86400e3) {
+      const d = new Date(t);
+      nombres.add(`${prefijo}${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`);
+    }
+  }
+  const lista = [...nombres].sort().join(',');
+  // Una URL demasiado larga: el comodín.
+  return lista.length > 3000 ? ENS_ALERTS_INDEX : lista;
 };

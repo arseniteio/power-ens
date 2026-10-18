@@ -3,6 +3,7 @@
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
+import { catalogControlIds } from './queries';
 import type { ENSEvaluationService } from './evaluation-service';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
@@ -71,11 +72,24 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     return { meta };
   }
 
+  // Los controles aún por calcular (primera carga): en su sitio, sin estado.
+  const pendientes = meta.pending?.controls || [];
+  const conPendientes = <T extends { controlId: string }>(listos: T[], pendiente: (controlId: string) => T): T[] => {
+    if (!pendientes.length) return listos;
+    const porId = new Map(listos.map(entrada => [entrada.controlId, entrada]));
+    return catalogControlIds()
+      .filter(id => porId.has(id) || pendientes.includes(id))
+      .map(id => porId.get(id) || pendiente(id));
+  };
+
   if (query.include === 'summary') {
     return {
       meta,
       ...stateHeader(run),
-      controls: state.results.map(result => controlSummaryOf(result.control.id, result)),
+      controls: conPendientes(
+        state.results.map(result => controlSummaryOf(result.control.id, result)),
+        controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
+      ),
       agents: agentRows(run).map(({ results, ...agent }) => agent),
     };
   }
