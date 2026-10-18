@@ -266,7 +266,9 @@ export const createEvaluationService = ({
   maxConcurrentEvaluations = 2,
 }: ENSEvaluationServiceOptions) => {
   const reloj = () => clock().getTime();
-  const partitions = new EvaluationCache<StoredPartition>(600, EVALUATION_TTL_MS, reloj);
+  // Cada control guardado pesa hasta unos MB (resultado, filas y las 2.000
+  // entradas de trazabilidad); 120 son unas cinco vistas completas (usuarios).
+  const partitions = new EvaluationCache<StoredPartition>(120, EVALUATION_TTL_MS, reloj);
   // Los días pasados de una serie no cambian en el día: se guardan hasta 26 h
   // (la clave lleva el día, así que el de mañana es otra entrada).
   const timelines = new EvaluationCache<any[]>(200, 26 * 3600 * 1000, reloj);
