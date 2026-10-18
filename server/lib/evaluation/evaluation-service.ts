@@ -411,7 +411,10 @@ export const createEvaluationService = ({
 
     // Bloque síncrono: la configuración activa del motor es la de esta
     // petición mientras se evalúa (otra petición solo puede colarse en un
-    // `await`, y aquí no hay ninguno).
+    // `await`, y aquí no hay ninguno). El motor la resuelve para cada fila
+    // (`getActiveControlConfiguration(control, agente)`: valor del agente →
+    // plantillas → organización, uniones en el manager), igual que en el
+    // navegador.
     ensConfigurationRepository.replaceActive(ctx.configuration);
     const partition = evaluateENSControlPartition(controlId, level, events, agentId, ctx.scope, ctx.now);
 
