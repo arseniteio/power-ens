@@ -6,10 +6,16 @@ import type { ENSComplianceSummary } from '../core/compliance-state/types';
 export interface ENSEvaluationMeta {
   // Huella de los datos de la vista (la que compara la sonda).
   fingerprint: string;
-  // Se enseña algo guardado mientras se recalcula detrás (o la serie diaria
-  // aún se está calculando: `timelinePending`).
+  // Se enseña algo guardado mientras se recalcula detrás, o aún faltan filas
+  // (`pending`) o la serie diaria (`seriesPending`).
   refreshing: boolean;
-  timelinePending?: boolean;
+  // La primera carga responde con lo que ya está: cuántas filas faltan, de
+  // cuáles controles y cuántas son en total. El navegador vuelve a pedir
+  // cada 2 s mientras lo haya.
+  pending?: { rows: number; controls: string[]; total: number };
+  // La serie diaria aún se está calculando (en segundo plano): la vista va
+  // sin `timeline` y el navegador vuelve a pedir.
+  seriesPending?: boolean;
   // El último refresco en segundo plano que falló: lo que se enseña es lo
   // anterior a él.
   refreshError?: { message: string; at: string };
@@ -41,6 +47,8 @@ export interface ENSControlSummaryEntry {
   status: string;
   score?: number;
   evaluated: boolean;
+  // Aún se está calculando (primera carga): ni estado ni número.
+  pending?: boolean;
   requirementsNotMet: number;
   requirementsNotEvidenced: number;
 }

@@ -83,7 +83,7 @@ const indice = createFakeIndexer([
 ], { clock: () => reloj.getTime() });
 const clientes = { asCurrentUser: indice, asInternalUser: indice };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
-const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
 
 // La referencia: el motor con todos los hechos de la ventana y del alcance,
 // del más reciente al más antiguo, como los leía el navegador sin tope.
@@ -179,15 +179,24 @@ const referencia = () => {
   // 6. La serie diaria del panel: cada día, el motor sobre lo conocido hasta
   // ese día y a fecha de ese día; el último punto es el número del panel.
   const ref3 = referencia();
-  // La serie sale de la MISMA pasada que el resultado actual: el panel pedido
-  // justo después de la lista no vuelve a leer ningún hecho (espera, como
-  // mucho, a que terminen los días que se están evaluando).
+  // La serie NUNCA hace esperar: el panel responde enseguida sin ella
+  // (`seriesPending`) y la serie se calcula detrás, después de todo lo demás.
+  // Una vez calculada, el panel y la ficha la reutilizan sin leer nada.
   const deHechosHasta = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
+  const t0 = Date.now();
+  let conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  comprueba('el panel no espera a la serie: responde enseguida y la marca pendiente', Date.now() - t0 < 2000 && (conSerie.meta.seriesPending === true || (conSerie.timeline || []).length > 1), conSerie.meta.seriesPending);
+  // Como el navegador: vuelve a pedir mientras la serie esté pendiente (aquí
+  // cada 0,5 s; cada sondeo compite por el hilo con la serie).
+  for (let i = 0; i < 600 && conSerie.meta.seriesPending; i++) {
+    await new Promise(r => setTimeout(r, 500));
+    conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  }
   const lecturasAntes = deHechosHasta();
-  const conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
-  comprueba('la serie llega sin volver a leer ningún hecho', !conSerie.meta.timelinePending && (conSerie.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
+  const otraVez = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  comprueba('calculada la serie, el panel no vuelve a leer ningún hecho', !otraVez.meta.seriesPending && (otraVez.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
   const ficha30 = await servicio.run(clientes, { include: 'control', controlId: 'op.exp.3', timelineDays: 30, timeZone: 'UTC' });
-  comprueba('y la ficha con 30 días tampoco lee nada (misma serie de cada fila)', !ficha30.meta.timelinePending && (ficha30.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
+  comprueba('y la ficha con 30 días tampoco (la misma serie de cada fila)', !ficha30.meta.seriesPending && (ficha30.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
   const asc = ref3.eventos.map(e => ({ e, t: Date.parse(e.timestamp) })).sort((a, b) => a.t - b.t);
   const plan = planENSTimelineCuts(Math.min(...asc.map(x => x.t)), asc.length, { now: reloj, days: 7, timeZone: 'UTC', maxEvaluatedEvents: Infinity });
   const esperada = plan.map(c => getENSComplianceState(ref3.nivel, c.isCurrent ? ref3.eventos : asc.filter(x => x.t <= c.cutoff.getTime()).map(x => x.e), undefined, ref3.alcance, c.cutoff).controlSummary.scoreAverage);

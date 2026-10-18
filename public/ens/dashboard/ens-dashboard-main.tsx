@@ -3,7 +3,8 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
-import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
+import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiSpacer } from '@elastic/eui';
+import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 
 const findingSeverityColor = (severity: string): string => {
@@ -53,7 +54,7 @@ export const EnsDashboardMain = () => {
   // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
   // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
   // pedir (ver `public/evaluation/use-evaluation.ts`).
-  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta }>({
+  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[] }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
@@ -70,6 +71,47 @@ export const EnsDashboardMain = () => {
       </div>
     ) : (
       <EvaluationLoading message='Evaluando los controles ENS en el servidor con todos los hechos de la ventana.' />
+    );
+  }
+
+  // PRIMERA CARGA A MEDIAS. Las cifras del panel son de TODOS los controles:
+  // con alguno aún calculándose no se enseñan (serían de una parte, y
+  // parecerían de todo). Se enseña cuánto falta, los controles ya calculados
+  // con su estado y «Calculando…» en los demás; el navegador vuelve a pedir
+  // cada 2 s.
+  const enCurso = evaluacion.data?.meta?.pending;
+  if (enCurso) {
+    const controles = evaluacion.data?.controls || [];
+    return (
+      <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
+        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+        <EuiCallOut size='s' color='primary' iconType='clock' title='Calculando la evaluación'>
+          <p>
+            {enCurso.total - enCurso.rows} de {enCurso.total} filas (control × máquina) listas. Las cifras del panel
+            aparecen cuando estén todos los controles; mientras, el estado de los ya calculados.
+          </p>
+        </EuiCallOut>
+        <EuiSpacer size='m' />
+        <EuiFlexGroup wrap gutterSize='s'>
+          {controles.map(control => {
+            const estado = requirementStatusPresentation(control.status);
+            return (
+              <EuiFlexItem grow={false} key={control.controlId}>
+                {control.pending ? (
+                  <EuiBadge color='default' iconType='clock'>
+                    {control.controlId} · Calculando…
+                  </EuiBadge>
+                ) : (
+                  <EuiBadge color={estado.color}>
+                    {control.controlId} · {estado.label}
+                    {control.score !== undefined ? ` · ${control.score}%` : ''}
+                  </EuiBadge>
+                )}
+              </EuiFlexItem>
+            );
+          })}
+        </EuiFlexGroup>
+      </div>
     );
   }
 

@@ -11,6 +11,7 @@ import React from 'react';
 import { EuiBadge, EuiFacetButton } from '@elastic/eui';
 import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
 import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
+import { controlRowWaitLabel } from './control-row-state';
 
 export interface ControlRowData {
   id: string;
@@ -23,6 +24,7 @@ export interface ControlRowData {
 
 // Lo que el servidor dice de un control (`include=summary`).
 export type ControlRowSummary = ENSControlSummaryEntry;
+
 
 interface ControlRowProps {
   controlId: string;
@@ -54,8 +56,10 @@ export const ControlRow = ({
   const sinDemostrar = summary?.requirementsNotEvidenced || 0;
 
   // Mientras llega el resumen de ESTA vista no se pinta ningún veredicto: el
-  // de la máquina anterior no es el de esta.
-  if (isLoading && !summary) {
+  // de la máquina anterior no es el de esta. Tampoco el de un control que aún
+  // se está calculando.
+  const espera = error ? undefined : controlRowWaitLabel(isLoading, summary);
+  if (espera) {
     return (
       <EuiFacetButton
         isSelected={false}
@@ -67,7 +71,7 @@ export const ControlRow = ({
           {levels}
         </EuiBadge>
         <EuiBadge color='default' iconType='clock' style={{ marginLeft: 6 }}>
-          Evaluando…
+          {espera}
         </EuiBadge>
       </EuiFacetButton>
     );

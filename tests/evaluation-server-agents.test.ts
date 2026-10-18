@@ -153,7 +153,7 @@ const toma = async (servicio: ReturnType<typeof createEvaluationService>): Promi
 };
 const evalua = async (configuration: any): Promise<Toma> => {
   ponActivo(configuration);
-  return toma(createEvaluationService({ logger, securityEnabled: true, clock: () => reloj }));
+  return toma(createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 }));
 };
 const identicas = (a: Toma, b: Toma) =>
   igual(a.conjunto.results.map(sinTraza), b.conjunto.results.map(sinTraza)) &&
@@ -210,7 +210,7 @@ const aplicado = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) 
 
   console.log('3. Un guardado cambia la huella');
   ponActivo(sinClave);
-  const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+  const servicio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
   const antes = await toma(servicio);
   comprueba('antes de guardar: lo de sin la clave', identicas(antes, base));
   comprueba('repetir no recalcula nada', (await servicio.run(clientes, { include: 'summary', timeZone: 'UTC' })).meta.stats.computed === 0);

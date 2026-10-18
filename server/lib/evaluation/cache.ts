@@ -27,12 +27,22 @@ export class EvaluationCache<T> {
     private readonly maxEntries: number,
     private readonly ttlMs: number = EVALUATION_TTL_MS,
     private readonly clock: () => number = Date.now,
-    private readonly maxBytes: number = Infinity,
+    private maxBytes: number = Infinity,
     private readonly sizeOf: (value: T) => number = () => 0
   ) {}
 
   get bytes(): number {
     return this.totalBytes;
+  }
+
+  get budget(): number {
+    return this.maxBytes;
+  }
+
+  // Ajusta el tope de tamaño (el servicio lo deriva del alcance). Lo que ya no
+  // cabe se va al guardar lo siguiente.
+  setMaxBytes(maxBytes: number): void {
+    this.maxBytes = maxBytes;
   }
 
   private remove(key: string): void {

@@ -186,7 +186,7 @@ const agrega = (docs: FakeDoc[], aggs: any): any => {
     } else if (def.terms) {
       const grupos = new Map<string, FakeDoc[]>();
       for (const d of docs) {
-        const valores = valoresDe(d._source, def.terms.field);
+        const valores = def.terms.field === '_index' ? [d._index] : valoresDe(d._source, def.terms.field);
         // `missing`: los que no tienen el campo van a un cubo con ese nombre.
         const claves = valores.length ? valores.map(String) : def.terms.missing !== undefined ? [String(def.terms.missing)] : [];
         for (const k of claves) {
@@ -239,7 +239,7 @@ export const createFakeIndexer = (
   const docs = [...initial];
   const log: { index?: string; body: any; hits: number; params: any }[] = [];
   const indiceCasa = (patron: string | undefined, indice: string) =>
-    !patron || new RegExp(`^${patron.replace(/\*/g, '.*')}$`).test(indice);
+    !patron || patron.split(',').some(p => new RegExp(`^${p.trim().replace(/\./g, '\\.').replace(/\*/g, '.*')}$`).test(indice));
 
   const search = async (params: any) => {
     const { index, body } = params;
