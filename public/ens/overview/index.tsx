@@ -37,7 +37,7 @@ import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent, isManagerOnlyControl } from '../../../common/ens/core/scope/measurement-planes';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';
 import { describeTally } from '../controls/controls-list-model';
-import { statusBadgeColor } from '../controls/control-detail/motive-view';
+import { ENS_NO_RESULT_PATTERN, ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
 import {
   buildMachineSummaries,
   buildMatrix,
@@ -50,16 +50,15 @@ import {
   overviewMachines,
 } from './overview-model';
 
-const COLOR: Record<string, string> = {
-  CUMPLE: '#00A65A',
-  PARCIAL: '#F5A700',
-  NO_CUMPLE: '#BD271E',
-  NO_EVALUABLE: '#98A2B3',
-  NO_APLICA: '#D3DAE6',
-};
+// Los colores de todas las pantallas (`status-colors.ts`); lo que no se mide en
+// una máquina no es gris de NO_APLICA: es un hueco rayado.
+const RAYADO = ENS_NO_RESULT_PATTERN;
 
-// Lo que no se mide en una máquina no es gris de NO_APLICA: es un hueco rayado.
-const RAYADO = 'repeating-linear-gradient(45deg, #F5F7FA, #F5F7FA 4px, #E9EDF3 4px, #E9EDF3 8px)';
+// La matriz: columnas de máquina con un ancho mínimo (con muchas máquinas, la
+// tabla se desplaza en horizontal en vez de estrecharlas hasta no leerse), la
+// columna «Control» fija a la izquierda y la de «Máquinas» a su lado.
+export const MATRIX_MACHINE_MIN_WIDTH = 64;
+const FIJA: React.CSSProperties = { position: 'sticky', left: 0, background: '#FFFFFF', zIndex: 1 };
 
 const Celda = ({ cell }: { cell: MatrixCell }) => {
   if (cell.kind === 'manager') {
@@ -200,11 +199,15 @@ export const OverviewENS = () => {
                   render: (_: any, m: any) => `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`,
                 },
                 {
-                  field: 'newest',
+                  field: 'lastSeen',
                   name: 'Último dato',
+                  // La misma fecha con la que se decide el rojo: la más reciente
+                  // entre el último hecho y el último latido del recolector.
                   render: (_: any, m: any) => (
                     <EuiText size='xs' color={m.stale ? 'danger' : 'default'}>
-                      <span title={m.newest || ''}>{describeAge(m.newest, ahora)}</span>
+                      <span title={`Último hecho: ${m.newest || 'ninguno'} · último latido: ${m.lastHeartbeat || 'ninguno'}`}>
+                        {describeAge(m.lastSeen, ahora)}
+                      </span>
                     </EuiText>
                   ),
                 },
@@ -260,26 +263,51 @@ export const OverviewENS = () => {
               </p>
             </EuiText>
             <EuiSpacer size='s' />
-            <div style={{ overflowX: 'auto' }}>
-              <EuiTable compressed>
+            <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+              <EuiTable
+                compressed
+                tableLayout='auto'
+                style={{ minWidth: 120 + 200 + maquinas.length * MATRIX_MACHINE_MIN_WIDTH }}
+              >
                 <EuiTableHeader>
-                  <EuiTableHeaderCell width='200px'>Control</EuiTableHeaderCell>
+                  <EuiTableHeaderCell style={{ ...FIJA, minWidth: 120 }}>Control</EuiTableHeaderCell>
+                  <EuiTableHeaderCell style={{ minWidth: 200 }}>Máquinas</EuiTableHeaderCell>
                   {maquinas.map(m => (
-                    <EuiTableHeaderCell key={m.agentId} align='center'>
+                    <EuiTableHeaderCell key={m.agentId} align='center' style={{ minWidth: MATRIX_MACHINE_MIN_WIDTH }}>
                       <EuiToolTip content={machineLabel(m)}>
-                        <span style={{ fontWeight: m.agentId === agentId ? 700 : 400 }}>{m.agentId}</span>
+                        <span style={{ display: 'block', lineHeight: 1.2 }}>
+                          <span style={{ fontWeight: m.agentId === agentId ? 700 : 400 }}>{m.agentId}</span>
+                          <br />
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              maxWidth: MATRIX_MACHINE_MIN_WIDTH,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              fontSize: 11,
+                              color: '#69707D',
+                            }}
+                          >
+                            {m.agentName || ''}
+                          </span>
+                        </span>
                       </EuiToolTip>
                     </EuiTableHeaderCell>
                   ))}
-                  <EuiTableHeaderCell>Máquinas</EuiTableHeaderCell>
                 </EuiTableHeader>
                 <EuiTableBody>
                   {matriz.map(fila => (
                     <EuiTableRow key={fila.controlId}>
-                      <EuiTableRowCell>
+                      <EuiTableRowCell style={FIJA}>
                         <EuiLink onClick={() => abreDetalle(fila.controlId)} title={fila.title}>
                           {fila.controlId}
                         </EuiLink>
+                      </EuiTableRowCell>
+                      <EuiTableRowCell>
+                        <EuiText size='xs' color='subdued'>
+                          {fila.tally ? describeTally(fila.tally) : 'ninguna lo mide'}
+                        </EuiText>
                       </EuiTableRowCell>
                       {maquinas.map(m => {
                         const celda = fila.cells[m.agentId];
@@ -291,12 +319,12 @@ export const OverviewENS = () => {
                               {f.kind === 'not-expected' ? (
                                 <div style={{ background: RAYADO, height: 22, borderRadius: 3 }} title='No se espera nada de este control en esta máquina.' />
                               ) : (
-                                <EuiLink onClick={() => abreDetalle(fila.controlId, m.agentId)}>
-                                  <EuiText size='xs' color={f.kind === 'fresh' ? 'success' : 'danger'}>
-                                    <span title={f.kind === 'never' ? 'Ningún dato en la ventana' : `${f.count} hechos · último ${f.newest}`}>
-                                      {f.kind === 'never' ? 'nunca' : describeAge(f.newest, ahora)}
-                                    </span>
-                                  </EuiText>
+                                <EuiLink
+                                  color={f.kind === 'fresh' ? 'secondary' : 'danger'}
+                                  onClick={() => abreDetalle(fila.controlId, m.agentId)}
+                                  title={f.kind === 'never' ? 'Ningún dato en la ventana' : `${f.count} hechos · último ${f.newest}`}
+                                >
+                                  <span style={{ fontSize: 12 }}>{f.kind === 'never' ? 'nunca' : describeAge(f.newest, ahora)}</span>
                                 </EuiLink>
                               )}
                             </EuiTableRowCell>
@@ -318,11 +346,6 @@ export const OverviewENS = () => {
                           </EuiTableRowCell>
                         );
                       })}
-                      <EuiTableRowCell>
-                        <EuiText size='xs' color='subdued'>
-                          {fila.tally ? describeTally(fila.tally) : 'ninguna lo mide'}
-                        </EuiText>
-                      </EuiTableRowCell>
                     </EuiTableRow>
                   ))}
                 </EuiTableBody>
@@ -414,7 +437,7 @@ export const OverviewENS = () => {
               </p>
             </EuiText>
             <EuiSpacer size='s' />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 64 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 64, paddingLeft: 92 }}>
               {serie.points.map(p => (
                 <EuiToolTip key={p.date} content={`${p.label}: ${typeof p.score === 'number' ? `${p.score}%` : 'sin datos'}`}>
                   <div
@@ -427,6 +450,35 @@ export const OverviewENS = () => {
                 </EuiToolTip>
               ))}
             </div>
+            {serie.points.length > 0 && (
+              <EuiText size='xs' color='subdued'>
+                <p style={{ paddingLeft: 92 }}>
+                  {`${serie.points[0].label} — ${serie.points[serie.points.length - 1].label} (hoy)`}
+                </p>
+              </EuiText>
+            )}
+            <EuiSpacer size='s' />
+            {/* La leyenda: los mismos colores que la lista y la matriz. */}
+            <EuiFlexGroup gutterSize='s' wrap responsive={false}>
+              {ENS_STATUS_ORDER.map(estado => (
+                <EuiFlexItem grow={false} key={estado}>
+                  <EuiText size='xs'>
+                    <span>
+                      <span style={{ display: 'inline-block', width: 12, height: 10, background: ENS_STATUS_COLORS[estado], marginRight: 4 }} />
+                      {estado}
+                    </span>
+                  </EuiText>
+                </EuiFlexItem>
+              ))}
+              <EuiFlexItem grow={false}>
+                <EuiText size='xs'>
+                  <span>
+                    <span style={{ display: 'inline-block', width: 12, height: 10, background: RAYADO, marginRight: 4 }} />
+                    sin resultado ese día
+                  </span>
+                </EuiText>
+              </EuiFlexItem>
+            </EuiFlexGroup>
             <EuiSpacer size='s' />
             {serie.hasControls && (
               <div style={{ overflowX: 'auto' }}>
@@ -439,7 +491,7 @@ export const OverviewENS = () => {
                       <span
                         key={c.date}
                         title={`${fila.controlId} · ${c.label}: ${c.status || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
-                        style={{ width: 14, height: 12, background: c.status ? COLOR[c.status] || '#98A2B3' : RAYADO, display: 'inline-block' }}
+                        style={{ width: 14, height: 12, background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : RAYADO, display: 'inline-block' }}
                       />
                     ))}
                     {fila.changed && (

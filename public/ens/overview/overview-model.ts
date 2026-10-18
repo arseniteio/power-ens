@@ -144,6 +144,8 @@ export interface MachineSummary {
   notEvidenced: number;
   newest?: string;
   lastHeartbeat?: string;
+  // La fecha con la que se decide `stale`: la más reciente de las dos.
+  lastSeen?: string;
   stale: boolean;
   worst: { controlId: string; status: string; score?: number }[];
 }
@@ -171,6 +173,7 @@ export const buildMachineSummaries = (
       notEvidenced: controles.reduce((n, c) => n + (c.requirementsNotEvidenced || 0), 0),
       newest: fresca?.newest,
       lastHeartbeat: fresca?.lastHeartbeat,
+      lastSeen: ultimo,
       stale: !ultimo || nowMs - Date.parse(ultimo) > STALE_AFTER_MS,
       worst: controles
         .filter(c => c.status !== 'CUMPLE' && c.status !== 'NO_APLICA')

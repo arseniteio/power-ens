@@ -103,6 +103,8 @@ const respuesta: any = {
   const r102 = resumen.find(x => x.agentId === '102')!;
   comprueba('por máquina: estados, requisitos que no cumplen y sin demostrar', r101.counts.CUMPLE === 1 && r101.counts.NO_CUMPLE === 1 && r101.counts.NO_EVALUABLE === 1 && r101.notMet === 3 && r101.notEvidenced === 2, r101);
   comprueba('la máquina sin datos desde hace 50 h, vieja; la de hace 1 h, no', r102.stale && !r101.stale);
+  const r000 = resumen.find(x => x.agentId === '000')!;
+  comprueba('«Último dato» es la fecha con la que se decide el rojo (lo más reciente de hecho y latido)', r102.lastSeen === hace(50) && r000.lastSeen === hace(0.5));
   comprueba('peores primero: NO_CUMPLE antes que NO_EVALUABLE; sin los que cumplen', r101.worst.map(w => w.controlId).join() === 'mp.info.6,op.exp.3', r101.worst);
   const nombres: Record<string, string> = { '101': 'srv-web01', '102': 'ldap01' };
   const cola = m.buildWorkQueue(respuesta.nonConformities, undefined, () => true, id => nombres[id]);
@@ -151,9 +153,30 @@ const respuesta: any = {
   comprueba('frescura: «nunca» donde se mide y no ha llegado nada, y edades', /nunca/.test(p) && /hace 1 h/.test(p) && /hace 2 d/.test(p));
   comprueba('la cola: un acordeón por responsable', h.findAll('EuiAccordion').length === 4);
   comprueba('la tendencia: un tramo por día y la fila de op.acc.1 marcada como cambiada', /NO_CUMPLE → PARCIAL/.test(p));
+  comprueba('la tendencia: leyenda con los cinco estados y «sin resultado», y las fechas del primer y del último día', ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'].every(e => p.includes(e)) && /sin resultado ese día/.test(p) && /15\/10 — 17\/10 \(hoy\)/.test(p));
   respuestas.summary = undefined;
   p = await h.rerender();
   comprueba('sin la tendencia aún: su carga, y el resto ya pintado', /Calculando el resultado de cada día/.test(p) && h.findAll('EuiTableRow').length === 23);
+
+  console.log('3. La matriz con 6 y con 50 máquinas');
+  for (const n of [6, 50]) {
+    const muchas = Array.from({ length: n }, (_, i) => ({ id: String(200 + i).padStart(3, '0'), name: `servidor-de-nombre-largo-${i}`, status: 'active' }));
+    respuestas.overview = {
+      ...respuesta,
+      meta: { ...respuesta.meta, scope: muchas },
+      agents: muchas.map(m => ({ agentId: m.id, controls: [entrada('op.acc.1', 'CUMPLE', 100)] })),
+      freshness: { checkedAt: respuesta.meta.evaluatedAt, agents: [], cells: [] },
+    };
+    h.reset();
+    p = await h.render(OverviewENS);
+    const tabla = h.findAll('EuiTable')[0];
+    const cabeceras = h.findAll('EuiTableHeaderCell');
+    comprueba(`${n} máquinas: tabla en disposición automática, más ancha que ${n} × 64 px (se desplaza, no se estrecha)`, tabla?.props.tableLayout === 'auto' && tabla.props.style.minWidth >= n * 64, tabla?.props);
+    comprueba(`${n} máquinas: «Control» fija a la izquierda y «Máquinas» a su lado; cada máquina con ancho mínimo`,
+      cabeceras.length === n + 2 && cabeceras[0].props.style.position === 'sticky' && /Máquinas/.test(cabeceras[1].texto) && cabeceras.slice(2).every(c => c.props.style.minWidth === 64));
+    comprueba(`${n} máquinas: cada cabecera con el id y el nombre (recortado; entero en el tooltip)`, h.findAll('EuiToolTip').filter(t => /^2\d\d · servidor-de-nombre-largo-/.test(String(t.props.content))).length === n && /200 servidor-de-nombre-largo-0/.test(p));
+    comprueba(`${n} máquinas: las celdas de «Control» también fijas`, h.findAll('EuiTableRowCell').filter(c => c.props.style?.position === 'sticky').length === 23);
+  }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);
