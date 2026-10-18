@@ -27,7 +27,7 @@ import {
   motiveToText,
   parseMotive,
   splitTimestamps,
-} from '../public/ens/controls/control-detail/motive-parser';
+} from '../common/ens/evaluation/motive-parser';
 import { conPartes, motivoCompuesto, partesDe } from '../common/ens/core/policy-runtime/policies/policy-kit';
 
 declare const process: { exit(code: number): void };

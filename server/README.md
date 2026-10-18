@@ -30,21 +30,21 @@ Cómo se calcula (`lib/evaluation/evaluation-service.ts`):
 
 ### `GET /api/ensfacil/evaluation`
 
-Parámetros: `include` (`summary` | `overview` | `results` | `dashboard` | `control`), `agentId`, `controlId`, `timelineDays` (0-90), `timeZone` (IANA, la del navegador: decide qué es «un día» en la serie).
+Parámetros: `include` (`summary` | `overview` | `results` | `dashboard` | `control`), `agentId`, `controlId`, `timelineDays` (0-90), `timeZone` (IANA, la del navegador: decide qué es «un día» en la serie), `timelineControls` (`true`: los puntos de la serie llevan además el estado de cada control; solo lo pide la tendencia de la Vista general).
 
 Respuesta: `{ statusCode: 200, error: 0, data }`, con `data`:
 
 | `include` | Para | Contenido |
 |---|---|---|
 | `summary` | Lista de controles | `meta`, resúmenes del estado (`controlSummary`, `requirementSummary`, `agentSummary`, `evidenceSummary`), `controls[]` = `{ controlId, status, score, evaluated, requirementsNotMet, requirementsNotEvidenced }`, `agents[]` = `{ agentId, agentName, summary, controls[] }` (`controls`: lo mismo para cada control EN LA FILA de esa máquina; los que no se miden en ella no aparecen) y, con `timelineDays`, `timeline` |
-| `overview` | Vista general | lo de `summary` + `freshness` = `{ checkedAt, agents[]: { agentId, agentName, count, earliest, newest, lastHeartbeat }, cells[]: { controlId, agentId, count, newest } }` (de la sonda: ninguna lectura más) + `nonConformities[]` = las no conformidades de la vista de conjunto con su `controlId` (`id`, `requirementId`, `origin`, `cause`, `documental`, `evidenceIds`, `parameterIds`, `agents`, `finding`, `requiredAction`) |
+| `overview` | Vista general | lo de `summary` + `freshness` = `{ checkedAt, agents[]: { agentId, count, earliest, newest, lastHeartbeat }, cells[]: { controlId, agentId, count, newest } }` (de la sonda: ninguna lectura más; los nombres, en `meta.scope`) + `nonConformities[]` = las no conformidades de la vista de conjunto, solo lo que pinta la cola de trabajo: `controlId`, `id`, `requirementId`, `origin`, `cause`, `documental`, `evidenceIds`, `agentIds` y el titular (`title`, `titleEvidenceId`, `titleStatus`: la primera frase de la evidencia culpable, `common/ens/evaluation/motive-parser.ts`) |
 | `dashboard` | Panel | lo anterior + `dashboard` (el modelo del panel ya construido, con `impactEvents` y `evolution`), `agents[].results` = `{ controlId, status, score }[]` y `timeline` |
 | `results` | Evidencias, panorama de op.mon.2 | resúmenes + `results[]` (el `ENSComplianceResult` de cada control **sin** `traceability`), `agents` y `timeline` |
 | `control` (con `controlId`) | Ficha del control, informes | `result` (el `ENSComplianceResult` con las 100 primeras entradas de `traceability`), `traceabilityTotal`, `traceabilityAvailable` (las que se pueden recorrer por páginas), `agents[]` = `{ agentId, agentName, status, score }` y `timeline` |
 
 `meta`: `{ fingerprint, refreshing, computedAt, evaluatedAt, configurationUpdatedAt, level, window: { from, to }, agentId, controlId, facts: { count, newest }, scope[], inventory: { stale, newestTimestamp, agents }, stats }`. Con `refreshing`, `fingerprint` empieza por `refreshing:` (la sonda siguiente siempre la verá distinta). Los tipos están en `common/ens/evaluation/types.ts`.
 
-Un punto de `timeline`: `{ date, label, isCurrent, events, score, status?, controls? }`; `controls` (solo sin `controlId`) = `{ [controlId]: { status, score } }`, el estado de cada control ese día en la vista. `events` cuenta hechos (documentos) conocidos hasta ese día; el último punto es el resultado de arriba.
+Un punto de `timeline`: `{ date, label, isCurrent, events, score, status?, controls? }`; `controls` (solo sin `controlId` y con `timelineControls=true`) = `{ [controlId]: { status, score } }`, el estado de cada control ese día en la vista. `events` cuenta hechos (documentos) conocidos hasta ese día; el último punto es el resultado de arriba.
 
 ### `GET /api/ensfacil/evaluation/probe`
 

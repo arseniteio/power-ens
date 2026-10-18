@@ -1,6 +1,6 @@
 // La forma de las respuestas de `/api/ensfacil/evaluation` que leen las
 // pantallas (la describe también `server/README.md`).
-import type { ENSAgentRef, ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
+import type { ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
 
 export interface ENSEvaluationMeta {
@@ -76,7 +76,7 @@ export interface ENSSummaryEvaluationResponse {
 // primero, el último y su último latido de recolector.
 export interface ENSFreshnessAgent {
   agentId: string;
-  agentName?: string;
+  // Los nombres están una vez, en `meta.scope`.
   count: number;
   earliest?: string;
   newest?: string;
@@ -96,13 +96,16 @@ export interface ENSFreshness {
   cells: ENSFreshnessCell[];
 }
 
-// Una no conformidad de la vista de conjunto, para la cola de trabajo.
-export type ENSOverviewNonConformity = Pick<
-  ENSNonConformity,
-  'id' | 'requirementId' | 'origin' | 'cause' | 'documental' | 'evidenceIds' | 'parameterIds' | 'finding' | 'requiredAction'
-> & {
+// Una no conformidad de la vista de conjunto, para la cola de trabajo: lo que
+// pinta la cola y nada más. El titular es la primera frase de la evidencia
+// culpable (`motive-parser.ts`), calculado en el servidor; el motivo entero está
+// a un clic, en el detalle. Las máquinas, por id (los nombres, en `meta.scope`).
+export type ENSOverviewNonConformity = Pick<ENSNonConformity, 'id' | 'requirementId' | 'origin' | 'cause' | 'documental' | 'evidenceIds'> & {
   controlId: string;
-  agents: ENSAgentRef[];
+  agentIds: string[];
+  title: string;
+  titleEvidenceId?: string;
+  titleStatus?: string;
 };
 
 // `include=overview`: la Vista general en una sola petición.

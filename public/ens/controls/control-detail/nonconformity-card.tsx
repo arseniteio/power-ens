@@ -54,7 +54,7 @@ import {
   parseMotive,
   ParsedMotive,
   partToText,
-} from './motive-parser';
+} from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadgeColor } from './motive-view';
 
 export type { ClaseNoConformidad } from './nonconformity-class';

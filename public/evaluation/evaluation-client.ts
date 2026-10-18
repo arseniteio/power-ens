@@ -16,6 +16,8 @@ export interface ENSEvaluationParams {
   agentId?: string;
   controlId?: string;
   timelineDays?: number;
+  // Las cifras por control de cada día (solo la tendencia de la Vista general).
+  timelineControls?: boolean;
 }
 
 const limiter = new RequestLimiter();

@@ -5,7 +5,7 @@
 // que no se ve de golpe se despliega.
 import React, { useState } from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
-import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from './motive-parser';
+import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from '../../../../common/ens/evaluation/motive-parser';
 
 export const statusBadgeColor = (status?: string) =>
   status === 'CUMPLE' ? 'success' : status === 'NO_CUMPLE' ? 'danger' : status === 'PARCIAL' ? 'warning' : status === 'NO_EVALUABLE' ? 'default' : 'hollow';

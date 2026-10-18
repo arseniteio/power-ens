@@ -7,6 +7,7 @@ import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/ty
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import type { ENSControlSummaryEntry, ENSFreshness, ENSOverviewNonConformity } from '../../../common/ens/evaluation/types';
 import type { ENSProbeResult } from './queries';
+import { guiltyPart, parseMotive } from '../../../common/ens/evaluation/motive-parser';
 
 // `summary` y `overview`: cada máquina con lo que dice cada control EN SU FILA
 // (la matriz de la Vista general y la barra por control de la lista). Un
@@ -36,7 +37,6 @@ export const freshnessOf = (
       const latidos = probe.heartbeats[agent.id] || [];
       return {
         agentId: agent.id,
-        agentName: agent.name || presencia?.agentName,
         count: presencia?.count || 0,
         earliest: presencia?.earliest,
         newest: presencia?.newest,
@@ -52,23 +52,37 @@ export const freshnessOf = (
 };
 
 // `overview`: la cola de trabajo, las no conformidades de la vista de conjunto
-// con su control. Sin impacto ni trazas: el detalle está a un clic.
+// con su control. Solo lo que pinta la cola: el titular (la primera frase de la
+// evidencia culpable, el mismo analizador que la tarjeta), las máquinas por id.
+// Ni acción, ni hallazgo entero, ni impacto, ni trazas: el detalle está a un clic.
 export const nonConformitiesOf = (state: Pick<ENSComplianceState, 'results'> | undefined): ENSOverviewNonConformity[] =>
   (state?.results || []).flatMap(result =>
-    (result.nonConformities || []).map(nc => ({
-      controlId: result.control.id,
-      id: nc.id,
-      requirementId: nc.requirementId,
-      origin: nc.origin,
-      ...(nc.cause ? { cause: nc.cause } : {}),
-      ...(nc.documental ? { documental: true } : {}),
-      evidenceIds: nc.evidenceIds || [],
-      parameterIds: nc.parameterIds || [],
-      agents: nc.agents || [],
-      finding: nc.finding,
-      requiredAction: nc.requiredAction,
-    }))
+    (result.nonConformities || []).map(nc => {
+      const culpable = guiltyPart(parseMotive(nc.finding).parts, nc.evidenceIds || []);
+      return {
+        controlId: result.control.id,
+        id: nc.id,
+        requirementId: nc.requirementId,
+        origin: nc.origin,
+        ...(nc.cause ? { cause: nc.cause } : {}),
+        ...(nc.documental ? { documental: true } : {}),
+        evidenceIds: nc.evidenceIds || [],
+        agentIds: (nc.agents || []).map(agent => agent.agentId),
+        title: culpable?.summary || nc.finding,
+        ...(culpable?.evidenceId ? { titleEvidenceId: culpable.evidenceId, titleStatus: culpable.status } : {}),
+      };
+    })
   );
+
+// Las cifras por control de cada punto de la serie solo van a quien las pide
+// (`timelineControls=true`, la tendencia de la Vista general): el Panel y el
+// detalle no las leen. El servicio las calcula siempre (se guardan con los días
+// pasados y valen para cualquier petición); aquí se quitan si no se piden.
+export const overviewQueryFlags = (query: Record<string, unknown>): { timelineControls?: true } =>
+  query.timelineControls === true || query.timelineControls === 'true' ? { timelineControls: true } : {};
+
+export const visibleTimeline = (timeline: any[] | undefined, query: { timelineControls?: boolean }): any[] | undefined =>
+  timeline && !query.timelineControls ? timeline.map(({ controls, ...point }) => point) : timeline;
 
 // Un punto de la serie sin control: el estado de cada control ese día (la
 // tendencia por control de la Vista general). `points[i]` es el del control

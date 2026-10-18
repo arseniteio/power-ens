@@ -6,7 +6,7 @@ import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import type { ENSEvaluationService } from './evaluation-service';
 // Lo que añaden las vistas generales (Task 2), aparte para que se pueda
 // reenganchar sin tocar lo demás.
-import { agentControlRows, freshnessOf, nonConformitiesOf } from './overview-fields';
+import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } from './overview-fields';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
@@ -47,7 +47,8 @@ const stateHeader = (run: RunOutput) => {
 };
 
 export const buildEvaluationResponse = (run: RunOutput) => {
-  const { meta, query, state, views, timeline } = run;
+  const { meta, query, state, views } = run;
+  const timeline = visibleTimeline(run.timeline, query);
 
   if (query.include === 'control' && query.controlId) {
     const entrada = views.get(query.controlId);

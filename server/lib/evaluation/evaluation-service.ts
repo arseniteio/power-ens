@@ -81,7 +81,7 @@ import {
   resolveEvaluationWindow,
 } from './queries';
 import type { ENSEvaluationWindow, ENSProbeResult } from './queries';
-import { perControlOfPoint, perControlOfResults } from './overview-fields';
+import { overviewQueryFlags, perControlOfPoint, perControlOfResults } from './overview-fields';
 
 export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
 
@@ -93,6 +93,8 @@ export interface ENSEvaluationQuery {
   timelineDays?: number;
   // Zona horaria de quien mira (IANA): decide qué es «un día» en la serie.
   timeZone: string;
+  // Las cifras por control de cada punto de la serie (`overview-fields.ts`).
+  timelineControls?: boolean;
 }
 
 export interface ENSEvaluationClients {
@@ -166,6 +168,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
     include: (include as ENSEvaluationInclude) || (controlId ? 'control' : 'summary'),
     timelineDays: dias,
     timeZone: zona || 'UTC',
+    ...overviewQueryFlags(query),
   };
 };
 

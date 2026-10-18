@@ -1,4 +1,6 @@
-// EL MOTIVO DE UNA NO CONFORMIDAD, PARTIDO PARA LEERLO. Sin React (lo prueba
+// EL MOTIVO DE UNA NO CONFORMIDAD, PARTIDO PARA LEERLO. Puro, en `common/`: lo
+// usan la pantalla y el servidor (el titular de la cola de trabajo de la Vista
+// general, `overview-fields.ts`). Sin React (lo prueba
 // `tests/motive-parser.test.ts` con los ejemplos reales del diagnóstico y con
 // cada plantilla de motivo de las policies).
 //

@@ -34,7 +34,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { KnownReasonParts, parseMotive } from './motive-parser';
+import { KnownReasonParts, parseMotive } from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveView, MotiveViewHandlers, statusBadgeColor } from './motive-view';
 
 const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';

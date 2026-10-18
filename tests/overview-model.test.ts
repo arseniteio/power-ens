@@ -50,7 +50,6 @@ const scope = [
   { id: '102', name: 'ldap01', status: 'disconnected' },
   { id: '101', name: 'srv-web01', status: 'active' },
 ];
-const PUENTE = 'Resuelta por la política del control (policy.op.exp.6), que mide esta evidencia junto a op.exp.6.1: ';
 const respuesta: any = {
   meta: { evaluatedAt: new Date(AHORA).toISOString(), computedAt: new Date(AHORA).toISOString(), fingerprint: 'f', refreshing: false, level: 'BAJO', scope, facts: { count: 10 }, window: {}, inventory: {} },
   controls: [entrada('op.acc.1', 'PARCIAL', 50, 2), entrada('op.exp.7', 'NO_CUMPLE', 0, 3), entrada('mp.info.6', 'NO_CUMPLE', 0, 1)],
@@ -73,10 +72,10 @@ const respuesta: any = {
     ],
   },
   nonConformities: [
-    { controlId: 'op.exp.6', id: 'NC-1', requirementId: 'op.exp.6.1', origin: 'MEDIDA', evidenceIds: ['EV-11'], parameterIds: [], agents: [{ agentId: '101', agentName: 'srv-web01' }], finding: 'EV-01 NO_EVALUABLE: Falta P-02. | EV-11 NO_CUMPLE: Faltan scripts de respuesta. Detalle.', requiredAction: 'x' },
-    { controlId: 'op.acc.1', id: 'NC-2', requirementId: 'op.acc.1.2', origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', evidenceIds: ['EV-03'], parameterIds: [], agents: [{ agentId: '102', agentName: 'ldap01' }], finding: 'El requisito op.acc.1.2 no se ha podido demostrar: no ha llegado ningún dato para EV-03. Es un fallo de RECOGIDA.', requiredAction: 'y' },
-    { controlId: 'op.nub.1', id: 'NC-3', requirementId: 'op.nub.1.1', origin: 'NO_EVIDENCIADA', cause: 'CATALOG', evidenceIds: [], parameterIds: [], agents: [], finding: 'El requisito op.nub.1.1 no declara ninguna evidencia en el catálogo.', requiredAction: 'z' },
-    { controlId: 'op.exp.4', id: 'NC-4', requirementId: 'op.exp.4.1', origin: 'NO_EVIDENCIADA', cause: 'CONFIGURATION', evidenceIds: ['EV-01'], parameterIds: ['P-01'], agents: [{ agentId: '101' }, { agentId: '102' }], finding: `${PUENTE}EV-01 NO_EVALUABLE: P-01 (inventario) sin configurar.`, requiredAction: 'w' },
+    { controlId: 'op.exp.6', id: 'NC-1', requirementId: 'op.exp.6.1', origin: 'MEDIDA', evidenceIds: ['EV-11'], agentIds: ['101'], title: 'Faltan scripts de respuesta.', titleEvidenceId: 'EV-11', titleStatus: 'NO_CUMPLE' },
+    { controlId: 'op.acc.1', id: 'NC-2', requirementId: 'op.acc.1.2', origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', evidenceIds: ['EV-03'], agentIds: ['102'], title: 'El requisito op.acc.1.2 no se ha podido demostrar: no ha llegado ningún dato para EV-03.' },
+    { controlId: 'op.nub.1', id: 'NC-3', requirementId: 'op.nub.1.1', origin: 'NO_EVIDENCIADA', cause: 'CATALOG', evidenceIds: [], agentIds: [], title: 'El requisito op.nub.1.1 no declara ninguna evidencia en el catálogo.' },
+    { controlId: 'op.exp.4', id: 'NC-4', requirementId: 'op.exp.4.1', origin: 'NO_EVIDENCIADA', cause: 'CONFIGURATION', evidenceIds: ['EV-01'], agentIds: ['101', '102'], title: 'P-01 (inventario) sin configurar.', titleEvidenceId: 'EV-01', titleStatus: 'NO_EVALUABLE' },
   ],
 };
 
@@ -105,10 +104,13 @@ const respuesta: any = {
   comprueba('por máquina: estados, requisitos que no cumplen y sin demostrar', r101.counts.CUMPLE === 1 && r101.counts.NO_CUMPLE === 1 && r101.counts.NO_EVALUABLE === 1 && r101.notMet === 3 && r101.notEvidenced === 2, r101);
   comprueba('la máquina sin datos desde hace 50 h, vieja; la de hace 1 h, no', r102.stale && !r101.stale);
   comprueba('peores primero: NO_CUMPLE antes que NO_EVALUABLE; sin los que cumplen', r101.worst.map(w => w.controlId).join() === 'mp.info.6,op.exp.3', r101.worst);
-  const cola = m.buildWorkQueue(respuesta.nonConformities);
+  const nombres: Record<string, string> = { '101': 'srv-web01', '102': 'ldap01' };
+  const cola = m.buildWorkQueue(respuesta.nonConformities, undefined, () => true, id => nombres[id]);
   comprueba('la cola, por responsable y en orden de acción', cola.map(g => g.owner).join(' | ') === 'Sistema auditado | Responsable ENS | Operación Wazuh | Producto ENSFácil', cola.map(g => g.owner));
-  comprueba('el titular es la evidencia culpable (EV-11), no la primera', cola[0].items[0].title === 'Faltan scripts de respuesta.' && cola[0].items[0].evidenceId === 'EV-11');
-  comprueba('sin la plantilla del puente', cola[1].items[0].title === 'P-01 (inventario) sin configurar.');
+  comprueba('el titular del servidor, con su evidencia y estado', cola[0].items[0].title === 'Faltan scripts de respuesta.' && cola[0].items[0].evidenceId === 'EV-11' && cola[0].items[0].status === 'NO_CUMPLE');
+  comprueba('sin evidencia culpable, solo el titular', cola[2].items[0].evidenceId === undefined);
+  const sinAlta = m.buildWorkQueue(respuesta.nonConformities, undefined, id => id !== 'op.acc.1', id => nombres[id]);
+  comprueba('un control sin configurar: a «Responsable ENS», con la acción de añadirlo', sinAlta.find(g => g.owner === 'Responsable ENS')!.items.some(i => i.controlId === 'op.acc.1') && !sinAlta.some(g => g.owner === 'Operación Wazuh'));
   comprueba('dónde: máquinas por nombre; las del catálogo, todas', cola[0].items[0].machines === 'srv-web01 (101)' && cola[3].items[0].machines === 'todas las máquinas');
   const de102 = m.buildWorkQueue(respuesta.nonConformities, '102');
   comprueba('con una máquina elegida, solo lo suyo (y lo del catálogo)', de102.flatMap(g => g.items.map(i => i.nc.id)).sort().join() === 'NC-2,NC-3,NC-4');

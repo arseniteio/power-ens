@@ -38,7 +38,7 @@ import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
 import { classifyNonConformity } from './nonconformity-class';
-import type { KnownReasonParts } from './motive-parser';
+import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-parser';
 import type { MotiveViewHandlers } from './motive-view';
 import { describeParameterForMachine } from '../parameter-origins';
 import type { MotivoLinea } from './motive-cell';

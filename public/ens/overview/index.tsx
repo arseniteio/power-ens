@@ -92,7 +92,7 @@ export const OverviewENS = () => {
   const general = useEnsEvaluation<ENSOverviewEvaluationResponse>({ include: 'overview' });
   // La tendencia aparte: sus días pasados se calculan una vez al día y tardan
   // más la primera vez; el resto de la pantalla no espera por ella.
-  const tendencia = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, agentId });
+  const tendencia = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, timelineControls: true, agentId });
 
   const datos = general.data;
   const ahora = datos ? Date.parse(datos.meta.evaluatedAt) || Date.now() : Date.now();
@@ -125,7 +125,10 @@ export const OverviewENS = () => {
     [datos, maquinas]
   );
   const cola = useMemo(
-    () => (datos ? buildWorkQueue(datos.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id))) : []),
+    () =>
+      datos
+        ? buildWorkQueue(datos.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id)), id => nombreDe(id))
+        : [],
     [datos, agentId]
   );
   const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);

@@ -20,7 +20,6 @@ import type {
 } from '../../../common/ens/evaluation/types';
 import { ENSMachineTally, tallyMachines } from '../controls/controls-list-model';
 import { classifyNonConformity, ClaseNoConformidad } from '../controls/control-detail/nonconformity-class';
-import { guiltyPart, parseMotive } from '../controls/control-detail/motive-parser';
 
 export const HOUR = 60 * 60 * 1000;
 export const STALE_AFTER_MS = STALE_COLLECTOR_MAX_AGE_HOURS * HOUR;
@@ -192,7 +191,8 @@ export const buildMachineSummaries = (
 export interface WorkItem {
   controlId: string;
   nc: ENSOverviewNonConformity;
-  // La primera frase de la evidencia culpable (`motive-parser.ts`).
+  // La primera frase de la evidencia culpable (la calcula el servidor con
+  // `motive-parser.ts`, el mismo analizador que la tarjeta).
   title: string;
   evidenceId?: string;
   status?: string;
@@ -206,32 +206,31 @@ export interface WorkGroup {
   controls: number;
 }
 
-const describeMachines = (agents: { agentId: string; agentName?: string }[]) =>
-  !agents.length
+const describeMachines = (agentIds: string[], nameOf: (agentId: string) => string | undefined) =>
+  !agentIds.length
     ? 'todas las máquinas'
-    : agents.length <= 3
-    ? agents.map(a => (a.agentName ? `${a.agentName} (${a.agentId})` : a.agentId)).join(', ')
-    : `${agents.length} máquinas`;
+    : agentIds.length <= 3
+    ? agentIds.map(id => (nameOf(id) ? `${nameOf(id)} (${id})` : id)).join(', ')
+    : `${agentIds.length} máquinas`;
 
 export const buildWorkQueue = (
   ncs: ENSOverviewNonConformity[],
   agentId?: string,
-  isConfigured: (controlId: string) => boolean = () => true
+  isConfigured: (controlId: string) => boolean = () => true,
+  nameOf: (agentId: string) => string | undefined = () => undefined
 ): WorkGroup[] => {
   const grupos = new Map<string, WorkGroup>();
   ncs
-    .filter(nc => !agentId || !nc.agents.length || nc.agents.some(a => a.agentId === agentId))
+    .filter(nc => !agentId || !nc.agentIds.length || nc.agentIds.includes(agentId))
     .forEach(nc => {
       const clase = classifyNonConformity(nc, { controlConfigured: isConfigured(nc.controlId) });
-      const motivo = parseMotive(nc.finding);
-      const parte = guiltyPart(motivo.parts, nc.evidenceIds);
       const grupo = grupos.get(clase.responsable) || { owner: clase.responsable, clase, items: [], controls: 0 };
       grupo.items.push({
         controlId: nc.controlId,
         nc,
-        title: parte?.summary || nc.finding,
-        ...(parte?.evidenceId ? { evidenceId: parte.evidenceId, status: parte.status } : {}),
-        machines: describeMachines(nc.agents),
+        title: nc.title,
+        ...(nc.titleEvidenceId ? { evidenceId: nc.titleEvidenceId, status: nc.titleStatus } : {}),
+        machines: describeMachines(nc.agentIds, nameOf),
       });
       grupos.set(clase.responsable, grupo);
     });

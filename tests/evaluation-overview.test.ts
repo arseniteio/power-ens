@@ -16,6 +16,7 @@
 import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService, normalizeQuery } from '../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse, controlSummaryOf } from '../server/lib/evaluation/responses';
+import { nonConformitiesOf } from '../server/lib/evaluation/overview-fields';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
 declare const process: { exit(code: number): void };
@@ -98,20 +99,45 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   comprueba('op.acc.3 en 102: último hecho hace 40 h', Date.parse(celda('op.acc.3', '102').newest) === Date.parse(hora(40)));
   comprueba('sin hechos, sin celda (op.acc.1 en 101)', !celda('op.acc.1', '101'));
   const a101 = general.freshness.agents.find((a: any) => a.agentId === '101');
-  comprueba('por máquina: recuento, primero, último y último latido', a101.count === docs.filter(d => d._source.agent.id === '101').length && Date.parse(a101.newest) === Date.parse(hora(1 - 0.01)) && Date.parse(a101.lastHeartbeat) === Date.parse(hora(1)), a101);
+  comprueba('por máquina: recuento, primero, último y último latido (sin el nombre: está en meta.scope)', a101.count === docs.filter(d => d._source.agent.id === '101').length && Date.parse(a101.newest) === Date.parse(hora(1 - 0.01)) && Date.parse(a101.lastHeartbeat) === Date.parse(hora(1)) && a101.agentName === undefined, a101);
   comprueba('las máquinas de la frescura son las del alcance', general.freshness.agents.map((a: any) => a.agentId).sort().join() === '000,101,102');
   const ncs = run.state!.results.reduce((t, r) => t + (r.nonConformities || []).length, 0);
-  comprueba('la cola: todas las no conformidades de la vista de conjunto, con su control', general.nonConformities.length === ncs && ncs > 0 &&
-    general.nonConformities.every((x: any) => x.controlId && x.requirementId && x.finding && Array.isArray(x.agents) && Array.isArray(x.parameterIds)), { ncs, n: general.nonConformities.length });
-  comprueba('compacta: sin evidencias ni trazas', !JSON.stringify(general).includes('"traceability"') && !JSON.stringify(general).includes('"evidences"'));
+  comprueba('la cola: todas las no conformidades de la vista de conjunto, con su control, su titular y las máquinas por id', general.nonConformities.length === ncs && ncs > 0 &&
+    general.nonConformities.every((x: any) => x.controlId && x.requirementId && x.title && Array.isArray(x.agentIds) && x.agentIds.every((id: any) => typeof id === 'string')), { ncs, n: general.nonConformities.length });
+  comprueba('compacta: sin evidencias, trazas, hallazgo entero, acción ni nombres repetidos',
+    !/"traceability"|"evidences"|"finding"|"requiredAction"|"agentName"/.test(JSON.stringify({ nonConformities: general.nonConformities, freshness: general.freshness })));
+  const PUENTE = 'Resuelta por la política del control (policy.op.exp.6), que mide esta evidencia junto a op.exp.6.1: ';
+  const titulo = nonConformitiesOf({
+    results: [{ control: { id: 'op.exp.6' }, nonConformities: [{ id: 'NC-1', requirementId: 'op.exp.6.1', origin: 'MEDIDA', evidenceIds: ['EV-11'], parameterIds: [], agents: [{ agentId: '101', agentName: 'srv-web01' }], finding: `${PUENTE}EV-01 NO_EVALUABLE: Falta P-02. Más. | EV-11 NO_CUMPLE: Faltan scripts de respuesta. Detalle largo.`, impact: 'x', requiredAction: 'y' }] }],
+  } as any)[0];
+  comprueba('el titular lo calcula el servidor: la primera frase de la evidencia culpable, sin el puente', titulo.title === 'Faltan scripts de respuesta.' && titulo.titleEvidenceId === 'EV-11' && titulo.titleStatus === 'NO_CUMPLE' && JSON.stringify(titulo.agentIds) === '["101"]', titulo);
 
-  console.log('3. La serie en summary, con cada control');
-  const serie = await pide({ include: 'summary', timelineDays: 3 });
+  console.log('3. La serie en summary, con cada control solo si se pide');
+  const sinCifras = await pide({ include: 'summary', timelineDays: 3 });
+  comprueba('sin `timelineControls`: los puntos sin cifras por control', sinCifras.timeline.every((p: any) => p.controls === undefined));
+  const panel = await pide({ include: 'dashboard', timelineDays: 3 });
+  comprueba('el Panel tampoco las recibe', panel.timeline.every((p: any) => p.controls === undefined));
+  comprueba('la petición acepta el indicador', normalizeQuery({ include: 'summary', timelineControls: 'true' }).timelineControls === true && normalizeQuery({ include: 'summary' }).timelineControls === undefined);
+  const serie = await pide({ include: 'summary', timelineDays: 3, timelineControls: true });
   comprueba('trae `timeline`', Array.isArray(serie.timeline) && serie.timeline.length > 1, serie.timeline?.length);
   const hoy = serie.timeline[serie.timeline.length - 1];
   comprueba('el último punto es el de ahora, con cada control como arriba', hoy.isCurrent &&
     serie.controls.every((c: any) => hoy.controls[c.controlId]?.status === c.status && hoy.controls[c.controlId]?.score === c.score), hoy);
   comprueba('los días pasados también traen cada control', serie.timeline.slice(0, -1).every((p: any) => p.controls && Object.keys(p.controls).length > 0));
+  // Cada cifra de un día pasado es la de la serie de ESE control ese día (un
+  // desplazamiento de índice entre controles y cortes lo rompería).
+  let comparados = 0;
+  const distintos: unknown[] = [];
+  for (const c of serie.controls.map((x: any) => x.controlId)) {
+    const propia = (await pide({ include: 'control', controlId: c, timelineDays: 3 })).timeline || [];
+    for (const punto of propia.filter((p: any) => !p.isCurrent)) {
+      const delResumen = serie.timeline.find((p: any) => p.date === punto.date)?.controls?.[c];
+      if (!delResumen) continue;
+      comparados += 1;
+      if (delResumen.status !== punto.status || delResumen.score !== punto.score) distintos.push({ c, date: punto.date, resumen: delResumen, propia: [punto.status, punto.score] });
+    }
+  }
+  comprueba('los días pasados: cada control = la serie de su detalle ese día', comparados > 0 && distintos.length === 0, { comparados, distintos: distintos.slice(0, 3) });
   comprueba('sin `timelineDays`, sin serie', resumen.timeline === undefined);
 
   console.log('4. La petición');
