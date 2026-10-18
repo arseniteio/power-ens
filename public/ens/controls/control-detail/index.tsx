@@ -871,34 +871,36 @@ export const ControlDetailENS = ({
       })
     );
 
-  // La cabecera de todos los estados: volver, la ruta y el título.
   const cabecera = (
-    <>
-      <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
+    <div className='ensfacil-control-header' style={{ padding: '4px 8px 12px' }}>
+      <EuiButtonEmpty iconType='arrowLeft' size='s' flush='left' onClick={onBack}>
         Volver a controles
       </EuiButtonEmpty>
-      <EuiSpacer size='s' />
-      <EuiText size='s' color='subdued'>
-        ENS / {control.family} / {control.category} / {control.id}
-      </EuiText>
-      <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false} wrap>
-        <EuiFlexItem grow={false}>
-          <EuiTitle size='m'>
-            <h2>
-              {control.id.toUpperCase()} - {control.title}
-            </h2>
+      <EuiSpacer size='m' />
+      <EuiFlexGroup alignItems='flexStart' justifyContent='spaceBetween' gutterSize='l' wrap>
+        <EuiFlexItem style={{ minWidth: 280 }}>
+          <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
+            <EuiFlexItem grow={false}>
+              <EuiBadge color='hollow'>{control.id}</EuiBadge>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiText size='s' color='subdued'>
+                {control.family} · {control.category}
+              </EuiText>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiSpacer size='s' />
+          <EuiTitle size='l'>
+            <h2>{control.title}</h2>
           </EuiTitle>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          {/* Abre Configuración en este control (en la página de la máquina
-              elegida si el control tiene parámetros por sistema o plataforma)
-              y deja en la URL la vuelta a este mismo detalle. */}
-          <EuiButton size='s' iconType='gear' onClick={configurarControl}>
+          <EuiButton iconType='gear' onClick={configurarControl}>
             Configurar este control
           </EuiButton>
         </EuiFlexItem>
       </EuiFlexGroup>
-    </>
+    </div>
   );
 
   // Sin nada que enseñar y con error: el aviso con «Reintentar» (la

@@ -186,7 +186,7 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     h.reset();
     evaluacion = { data: undefined, error: new Error('503 Datos incompletos'), isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.2'), agentId: undefined, onBack: () => undefined });
-    comprueba('error sin nada: título del control y el aviso con «Reintentar»', /OP\.ACC\.2/.test(p) && /Datos incompletos/.test(p) && Boolean(h.find('EuiButton', /Reintentar/) || h.find('EuiButtonEmpty', /Reintentar/)), p.slice(0, 400));
+    comprueba('error sin nada: título del control y el aviso con «Reintentar»', /op\.acc\.2/.test(p) && /Datos incompletos/.test(p) && Boolean(h.find('EuiButton', /Reintentar/) || h.find('EuiButtonEmpty', /Reintentar/)), p.slice(0, 400));
 
     // e) NO_APLICA sin no conformidades: no «todo conforme».
     h.reset();
