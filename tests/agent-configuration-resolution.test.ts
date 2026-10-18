@@ -100,6 +100,8 @@ console.log('1. Niveles');
         },
       },
       '102': { templates: ['zimbra-ldap', 'linux-ubuntu'] },
+      '104': { controls: { 'op.acc.1': { parameters: { 'P-07': ['eva | srv-d | admin'] } } } },
+      '105': { templates: ['linux-ubuntu'], controls: { 'op.acc.1': { parameters: { 'P-11': ['wheel'] } } } },
     },
   } as ENSConfigurationVersion;
 
@@ -107,7 +109,11 @@ console.log('1. Niveles');
   const v = (id: string) => r.configuration.parameters.find(p => p.id === id)?.value;
   comprueba('valor del agente', JSON.stringify(v('P-07')) === '["ana | srv-a | admin"]' && r.origins['P-07'].source === 'agent', r.origins['P-07']);
   comprueba('valor de su plantilla', JSON.stringify(v('P-11')) === '["sudo","wheel","admin"]' && r.origins['P-11'].source === 'template' && r.origins['P-11'].templateId === 'linux-ubuntu', r.origins['P-11']);
-  comprueba('valor de la organización', JSON.stringify(v('P-02')) === undefined && r.origins['P-02'].source === 'organisation');
+  const r4 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '104')!;
+  comprueba('valor de la organización: el que hay en la organización llega a la fila', JSON.stringify(r4.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["sudo"]' && r4.origins['P-11'].source === 'organisation', r4.origins['P-11']);
+  const r5 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '105')!;
+  comprueba('valor propio y plantilla sobre el mismo parámetro: gana el propio', JSON.stringify(r5.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["wheel"]' && r5.origins['P-11'].source === 'agent', r5.origins['P-11']);
+  comprueba('y la plantilla sigue dando los demás', r5.origins['P-10'].source === 'template' && r5.configuration.parameters.find(p => p.id === 'P-10')?.value === 1000);
   comprueba('un parámetro de organización no sale del agente', JSON.stringify(v('P-04')) === '["admin","test"]' && r.origins['P-04'].source === 'organisation');
   const r2 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '102')!;
   comprueba('plantillas en orden: gana la primera que fija el parámetro', r2.configuration.parameters.find(p => p.id === 'P-01')?.value === 'LDAP' && r2.origins['P-01'].templateId === 'zimbra-ldap');
@@ -224,6 +230,38 @@ console.log('4. El motor usa el valor de la fila');
   comprueba('fila 102: P-07 de la organización', JSON.stringify(aplicado('102', 'P-07')) === '["ana | srv-a | admin","luis | srv-b | admin"]', aplicado('102', 'P-07'));
   comprueba('fila 102: P-01 de su plantilla LDAP', aplicado('102', 'P-01') === 'LDAP', aplicado('102', 'P-01'));
   comprueba('fila 101: P-01 de la organización', aplicado('101', 'P-01') === 'Local', aplicado('101', 'P-01'));
+}
+
+// Sobre hechos REALES de 30 días, si se pasan (nunca se suben al repositorio):
+//   ENSFACIL_GOLDEN_FACTS=facts.jsonl ENSFACIL_GOLDEN_DOC=active.json \
+//   ENSFACIL_GOLDEN_INVENTORY=inventory.json [ENSFACIL_GOLDEN_AT=2026-10-17T16:11:25Z]
+// `facts.jsonl`, un hit de wazuh-alerts-* por línea; `inventory.json`, la
+// búsqueda del inventario de wazuh-monitoring-*. El estado ENTERO (23 controles,
+// todas las filas, veredictos, requisitos y evidencias) tiene que salir idéntico
+// sin agents y con perfiles sin valores.
+const GF = (process as any).env?.ENSFACIL_GOLDEN_FACTS;
+const GD = (process as any).env?.ENSFACIL_GOLDEN_DOC;
+const GI = (process as any).env?.ENSFACIL_GOLDEN_INVENTORY;
+if (GF && GD && GI) {
+  console.log('5. Hechos reales');
+  const { readFileSync: leer } = require('fs');
+  const { normalizeWazuhAlert } = require('../public/ens/core/data-source/data-source-engine');
+  const { inventoryFromMonitoring } = require('../public/agents/agent-inventory');
+  const { resolveENSScopeAgents } = require('../public/ens/core/scope/runtime');
+  const real = JSON.parse(leer(GD, 'utf8'));
+  const config = real._source ? real._source.configuration : real.configuration || real;
+  const instante = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());
+  const inv = inventoryFromMonitoring(JSON.parse(leer(GI, 'utf8')).aggregations, instante.getTime()).agents;
+  const alcance = resolveENSScopeAgents(inv, config.scope);
+  const hechos = String(leer(GF, 'utf8')).split('\n').filter(Boolean).map((l: string) => normalizeWazuhAlert(JSON.parse(l)));
+  const estado = (d: any) => {
+    ensConfigurationRepository.replaceActive(d);
+    return JSON.stringify(getENSComplianceState(d.global.ensLevel, hechos, undefined, alcance, instante), (k, x) => (k === 'evaluatedAt' ? undefined : x));
+  };
+  const sin = estado(config);
+  const conPerfiles = estado({ ...config, agents: Object.fromEntries(alcance.map((a: any) => [a.id, { name: a.name, detectedType: 'linux', aliases: ['x.example.com'] }])) });
+  console.log(`    ${hechos.length} hechos, ${alcance.length} filas, estado de ${sin.length} bytes`);
+  comprueba('hechos reales: el estado entero es idéntico sin agents y con perfiles sin valores', sin === conPerfiles);
 }
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
