@@ -44,6 +44,7 @@ import { traceabilityPageSource } from '../../../evaluation/traceability-paging'
 import { EvaluationLoading, EvaluationStatusLine } from '../../../evaluation/evaluation-status';
 import { useSetRouterSearch } from '../../../routing/use-router-search';
 import { detailConfigurationChanges } from '../../../routing/configuration-link';
+import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
@@ -974,6 +975,22 @@ export const ControlDetailENS = ({
     </>
   ) : null;
 
+  // Un control del catálogo que no está en la configuración activa: no se
+  // puede demostrar nada, y la acción es darlo de alta (no «corregir lo que el
+  // productor declara»).
+  const avisoSinConfigurar = !getActiveControlConfiguration(control.id) ? (
+    <>
+      <EuiCallOut color='warning' iconType='gear' title={`${control.id} no está en la configuración activa`}>
+        <p>
+          El control existe en el catálogo de esta versión pero no se ha añadido a la configuración: sus requisitos
+          cuentan como no evidenciados hasta que se añade y se declaran sus parámetros obligatorios.
+        </p>
+        <AddControlWithDefaultsButton controlId={control.id} onAdded={() => evaluacion.retry()} />
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
   // EL CONTROL NO SE MIDE EN ESTA MÁQUINA. El servidor no da resultado para
   // ella: no es «sin datos» ni «todo conforme», y se dice por qué.
   if (!complianceResult) {
@@ -995,6 +1012,7 @@ export const ControlDetailENS = ({
           {cabecera}
           <EuiSpacer size='m' />
           {avisoDeVigencia}
+          {avisoSinConfigurar}
           <EuiCallOut
             color='primary'
             iconType='iInCircle'
@@ -1060,6 +1078,7 @@ export const ControlDetailENS = ({
         <EuiSpacer size='s' />
 
         {avisoDeVigencia}
+        {avisoSinConfigurar}
 
         <EuiText>
           <p>

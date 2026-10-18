@@ -587,9 +587,16 @@ export const evaluateENSControl = (
           ? ` Motivo — ${pendingReasons.join('; ')}.`
           : '';
 
+        // El control entero falta en la configuración activa (sembrado a
+        // medias): no hay parámetros que nombrar ni productor al que culpar;
+        // la acción es darlo de alta.
+        const sinConfiguracion = !configuration && cause === 'CONFIGURATION';
+
         const finding =
           cause === 'CATALOG'
             ? `El requisito ${requirement.id} no declara ninguna evidencia en el catálogo: no hay nada con lo que demostrarlo, y lo que no se demuestra no cumple.`
+            : sinConfiguracion
+            ? `${catalogControl.id} no está en la configuración activa: el requisito ${requirement.id} no se ha podido demostrar porque no hay ninguna decisión del responsable contra la que contrastarlo, y lo que no se demuestra no cumple.${motivos}`
             : cause === 'CONFIGURATION'
             ? `El requisito ${requirement.id} no se ha podido demostrar: falta configurar lo que el responsable tiene que decidir${
                 listaParametros ? ` (${listaParametros})` : ''
@@ -609,8 +616,12 @@ export const evaluateENSControl = (
             ? `Restablecer la RECOGIDA: comprobar que el agente está activo y que su recolector emite ${pendingEvidenceIds.join(
                 ', '
               )}. Es una acción sobre el despliegue de Wazuh, no una corrección en el sistema auditado.`
+            : sinConfiguracion
+            ? `Añadir ${catalogControl.id} a la configuración activa (Configuración > Organización > «Controles del catálogo sin añadir» > «Añadir con valores por defecto») y declarar después sus parámetros obligatorios.`
             : listaParametros
             ? `Configurar ${listaParametros} en la pestaña Configuración.`
+            : cause === 'CONFIGURATION'
+            ? `Completar la configuración obligatoria del control ${catalogControl.id} en la pestaña Configuración.`
             : pendingEvidenceIds.length
             ? `Corregir lo que el productor de ${pendingEvidenceIds.join(
                 ', '
