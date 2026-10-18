@@ -254,3 +254,68 @@ export const applyManagerPlaneToScope = (
 
   return [...agents, manager];
 };
+
+// --- «no se mide en esta máquina» -----------------------------------------
+//
+// Con una máquina elegida, un control puede no tener resultado en ella por dos
+// razones, y la pantalla tiene que decir cuál en vez de quedarse en blanco (o,
+// peor, afirmar que todo es conforme):
+//
+//   - PLANE           el control no se mide en el plano de esa máquina: los de
+//                     plano `agent` en el manager (000);
+//   - DECLARED_SCOPE  el control declara las máquinas en que se mide (P-04 de
+//                     mp.info.6) y esta no figura.
+//
+// Un control solo de manager en la vista de otra máquina SÍ tiene resultado
+// (el de la fila del manager): aquí no devuelve nada. Es la misma regla que
+// aplica el servidor al derivar la vista de una máquina (`deriveForAgent`).
+export type ENSNotMeasuredCause = 'PLANE' | 'DECLARED_SCOPE';
+
+export interface ENSNotMeasuredReason {
+  cause: ENSNotMeasuredCause;
+  text: string;
+  // Solo con DECLARED_SCOPE: el parámetro que declara las máquinas y las que
+  // nombra (en minúsculas, como las compara el motor).
+  parameterId?: string;
+  declared?: string[];
+}
+
+const etiquetaDeMaquina = (agentId: string, agentName?: string): string =>
+  agentName ? `${agentId} · ${agentName}` : agentId;
+
+export const describeNotMeasuredOnAgent = (
+  control: Pick<ENSControlDefinition, 'id' | 'measurementPlanes' | 'scopeParameter'>,
+  agentId: string,
+  agentName: string | undefined,
+  configuration: ENSControlConfiguration | undefined
+): ENSNotMeasuredReason | undefined => {
+  if (!isControlMeasuredOnAgent(control, agentId)) {
+    if (isManagerOnlyControl(control) && !isManagerAgentId(agentId)) {
+      return undefined;
+    }
+
+    return {
+      cause: 'PLANE',
+      text: isManagerAgentId(agentId)
+        ? `${control.id} se mide en cada máquina del alcance ENS, no en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}): el manager no tiene fila para este control.`
+        : `${control.id} se mide solo en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}), no en ${etiquetaDeMaquina(agentId, agentName)}.`,
+    };
+  }
+
+  const declared = getDeclaredScopeAgentNames(control, configuration);
+
+  if (declared === undefined || isAgentNameDeclared(agentName, declared)) {
+    return undefined;
+  }
+
+  const parameterId = control.scopeParameter as string;
+
+  return {
+    cause: 'DECLARED_SCOPE',
+    parameterId,
+    declared,
+    text: declared.length
+      ? `${control.id} solo se mide en las máquinas que declara ${parameterId} (${declared.join(', ')}); ${etiquetaDeMaquina(agentId, agentName)} no está entre ellas.`
+      : `${control.id} solo se mide en las máquinas que declara ${parameterId}, y ${parameterId} no declara ninguna: ${etiquetaDeMaquina(agentId, agentName)} no está entre ellas.`,
+  };
+};

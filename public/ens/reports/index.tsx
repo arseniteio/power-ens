@@ -9,7 +9,10 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationStatusLine, EvaluationLoading } from '../../evaluation/evaluation-status';
-import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
+import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../common/ens/configuration/services';
+import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
+import { canExportReport, reportViewState } from './report-view-state';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
@@ -84,11 +87,15 @@ const ETIQUETA_DE_CAUSA: Record<string, string> = {
 // servidor aparte: el veredicto del control sigue saliendo de la evaluación de
 // ESE control, igual que en el detalle, y no del conjunto.
 interface ENSReportPanorama {
-  // `undefined` mientras la evaluación está en curso o ha fallado: el informe
-  // enseña SIN_DATOS, nunca un panorama de otra máquina.
+  // `undefined` mientras la evaluación está en curso (el informe enseña que
+  // carga, nunca SIN_DATOS de relleno) o ha fallado (SIN_DATOS con su aviso).
+  // Nunca un panorama de otra máquina.
   results?: ENSComplianceResult[];
   loading: boolean;
   error?: Error;
+  meta?: ENSEvaluationMeta;
+  refreshing?: boolean;
+  retry?: () => void;
 }
 
 const ControlReport = ({
@@ -125,8 +132,26 @@ const ControlReport = ({
   const complianceResult = evaluacion.data?.result;
   const ensLevel = evaluacion.data?.meta?.level || activeConfiguration.global.ensLevel;
   // Un informe solo se pinta (y se exporta) con un resultado real de ESTA
-  // selección: mientras llega, ni NO_EVALUABLE ni N/A de relleno.
-  const hayResultado = Boolean(evaluacion.data && complianceResult);
+  // selección: mientras llega, ni NO_EVALUABLE ni N/A de relleno; y si llega
+  // sin resultado para esta máquina, se dice que no se mide aquí y por qué.
+  const maquina = agentId ? evaluacion.data?.meta?.scope?.find(agent => agent.id === agentId) : undefined;
+  const vista = reportViewState({
+    controlId,
+    agentId,
+    agentLabel: agentId ? (maquina?.name ? `${agentId} · ${maquina.name}` : agentId) : undefined,
+    error,
+    hasData: Boolean(evaluacion.data),
+    hasResult: Boolean(complianceResult),
+    usesPanorama: Boolean(panorama),
+    panoramaLoading: Boolean(panorama?.loading),
+    notMeasured: () => {
+      const catalogo = getENSCatalogControl(controlId);
+      return catalogo && agentId
+        ? describeNotMeasuredOnAgent(catalogo, agentId, maquina?.name, getActiveControlConfiguration(controlId, agentId))
+        : undefined;
+    },
+  });
+  const exportable = canExportReport(vista);
 
   const panoramaResults = panorama?.results;
 
@@ -521,10 +546,9 @@ const ControlReport = ({
   ];
 
   const exportarPDF = () => {
-    // Un informe firmado sin el resultado de esta selección no se emite.
-    if (error || !complianceResult) return;
-    // Ni uno que recopila todos los controles mientras su evaluación no ha vuelto.
-    if (panorama?.loading) return;
+    // Un informe firmado sin el resultado de esta selección no se emite, ni
+    // uno que recopila todos los controles mientras su panorama no ha vuelto.
+    if (!exportable || !complianceResult) return;
     const now = new Date();
     const fechaEmision = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -769,10 +793,34 @@ const ControlReport = ({
     );
   }
 
-  if (!hayResultado) {
+  if (vista.kind === 'not-measured') {
     return (
       <>
-        <EvaluationLoading message='Evaluando el control en el servidor con todos los hechos de la ventana…' />
+        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+        <EuiCallOut size='s' color='primary' iconType='iInCircle' title={vista.title}>
+          <EuiText size='xs'>
+            <p>{vista.text}</p>
+            <p>Sin resultado en esta selección no hay informe que exportar.</p>
+          </EuiText>
+        </EuiCallOut>
+        <EuiSpacer size='m' />
+        <EuiButton iconType='download' size='s' fill isDisabled>
+          Exportar PDF
+        </EuiButton>
+      </>
+    );
+  }
+
+  if (vista.kind === 'loading' || vista.kind === 'panorama-loading') {
+    return (
+      <>
+        <EvaluationLoading
+          message={
+            vista.kind === 'loading'
+              ? 'Evaluando el control en el servidor con todos los hechos de la ventana…'
+              : 'Evaluando todos los controles para el panorama del informe (grado de implantación, controles no evaluables, art. 32)…'
+          }
+        />
         <EuiButton iconType='download' size='s' fill isDisabled>
           Exportar PDF
         </EuiButton>
@@ -787,7 +835,10 @@ const ControlReport = ({
       {/* Sin título: el del control ya está en la cabecera del acordeón que
           envuelve este informe. `definition.name` encabeza el PDF, que sí sale
           suelto del contexto de la pantalla. */}
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+      {panorama?.meta ? (
+        <EvaluationStatusLine label='Panorama de todos los controles' meta={panorama.meta} refreshing={panorama.refreshing} onRetry={panorama.retry} />
+      ) : null}
       {panorama?.error ? (
         <>
           <EuiCallOut
@@ -802,7 +853,13 @@ const ControlReport = ({
                 datos del art. 32 salen sin datos. El veredicto del control no
                 depende de esta consulta.
               </p>
+              <p>{String(panorama.error?.message || panorama.error)}</p>
             </EuiText>
+            {panorama.retry ? (
+              <EuiButtonEmpty size='xs' iconType='refresh' onClick={panorama.retry}>
+                Reintentar
+              </EuiButtonEmpty>
+            ) : null}
           </EuiCallOut>
           <EuiSpacer size='s' />
         </>
@@ -899,7 +956,7 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={Boolean(error) || !complianceResult || Boolean(panorama?.loading)}>
+      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={!exportable}>
         Exportar PDF
       </EuiButton>
     </>
@@ -925,7 +982,7 @@ const ControlReportWithPanorama = ({
   // El hook no devuelve nunca el de otra máquina como si fuera de esta: con
   // otra clave, `data` vuelve a estar vacío hasta que llega el suyo (lo que
   // antes resolvía `panorama-vigente.ts` para `useEsSearch`).
-  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[] }>({
+  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta?: ENSEvaluationMeta }>({
     include: 'results',
     agentId,
   });
@@ -943,6 +1000,9 @@ const ControlReportWithPanorama = ({
         results: vigente.valor?.results,
         loading: vigente.cargando,
         error,
+        meta: evaluacion.data?.meta,
+        refreshing: evaluacion.isRefreshing,
+        retry: evaluacion.retry,
       }}
     />
   );

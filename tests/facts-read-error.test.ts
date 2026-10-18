@@ -71,16 +71,17 @@ for (const p of evaluan) {
   // Y lo enseña CON «Reintentar» (un tiempo agotado incluido).
   comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|resumen\.error)\} onRetry=\{(evaluacion|resumen)\.retry\} \/>/.test(texto));
   // Y mientras no hay resultado de ESTA selección, la carga, no un veredicto.
-  comprueba(`${p}: con carga mientras no hay resultado`, /<EvaluationLoading /.test(texto) || /isLoading=\{resumen\.isLoading\}/.test(texto));
+  comprueba(`${p}: con carga mientras no hay resultado`, /<EvaluationLoading\s/.test(texto) || /isLoading=\{resumen\.isLoading\}/.test(texto));
 }
 const fila = fs.readFileSync(path.join(raiz, 'public/ens/controls/control-row.tsx'), 'utf8');
 comprueba('la fila de la lista: con un fallo, el aviso y no un veredicto', /if \(error\)/.test(fila) && !/useEsSearch|useEnsEvaluation/.test(fila));
 const informes = fs.readFileSync(path.join(raiz, 'public/ens/reports/index.tsx'), 'utf8');
-comprueba('Informes: el PDF no se exporta con un fallo ni sin el resultado de esta selección', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(error \|\| !complianceResult\) return;/.test(informes));
-// El informe que recopila todos los controles (op.mon.2) lo desactiva además
-// mientras su segunda consulta no ha vuelto: `Boolean(error) || …`.
-comprueba('Informes: el botón, desactivado con un fallo, sin resultado o con el panorama cargando', /isDisabled=\{Boolean\(error\) \|\| !complianceResult \|\| Boolean\(panorama\?\.loading\)\}/.test(informes) && /fill isDisabled>/.test(informes));
-comprueba('Informes: sin resultado, la carga y el botón desactivado (nunca NO_EVALUABLE de relleno)', /if \(!hayResultado\) \{[\s\S]{0,400}<EvaluationLoading [\s\S]{0,200}fill isDisabled>/.test(informes));
+// Qué enseña cada sección lo decide `reportViewState` (probado en
+// `tests/report-view-state.test.ts`); aquí, que la pantalla lo use así.
+comprueba('Informes: el PDF solo se exporta con el informe listo', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(!exportable \|\| !complianceResult\) return;/.test(informes) && /const exportable = canExportReport\(vista\);/.test(informes));
+comprueba('Informes: el botón, desactivado salvo con el informe listo', /onClick=\{exportarPDF\} isDisabled=\{!exportable\}/.test(informes) && /fill isDisabled>/.test(informes));
+comprueba('Informes: sin resultado aún (o con el panorama en curso), la carga y el botón desactivado (nunca NO_EVALUABLE ni SIN_DATOS de relleno)', /if \(vista\.kind === 'loading' \|\| vista\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(informes));
+comprueba('Informes: llegada sin resultado para esta máquina, «no se mide» con su motivo y el botón desactivado', /if \(vista\.kind === 'not-measured'\) \{[\s\S]{0,600}\{vista\.text\}[\s\S]{0,300}fill isDisabled>/.test(informes) && /describeNotMeasuredOnAgent\(/.test(informes));
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);
