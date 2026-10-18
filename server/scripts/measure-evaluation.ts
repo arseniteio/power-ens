@@ -109,7 +109,14 @@ const permitida = (metodo: string, ruta: string, consulta: Record<string, unknow
 // Llamadas, bytes, tiempo de red (de enviar a recibir la respuesta entera) y
 // tiempo de análisis del JSON.
 const medida = { calls: 0, bytes: 0, redMs: 0, parseMs: 0 };
-const pide = (metodo: string, ruta: string, consulta: Record<string, unknown> = {}, cuerpo?: unknown): Promise<any> => {
+// Una conexión reutilizada que el otro lado ya había cerrado (`ECONNRESET`,
+// `EPIPE`) se reintenta una vez: todas las peticiones son lecturas.
+const pide = (metodo: string, ruta: string, consulta: Record<string, unknown> = {}, cuerpo?: unknown): Promise<any> =>
+  pideUnaVez(metodo, ruta, consulta, cuerpo).catch((error: any) =>
+    ['ECONNRESET', 'EPIPE'].includes(error?.code) ? pideUnaVez(metodo, ruta, consulta, cuerpo) : Promise.reject(error)
+  );
+
+const pideUnaVez = (metodo: string, ruta: string, consulta: Record<string, unknown> = {}, cuerpo?: unknown): Promise<any> => {
   const motivo = permitida(metodo, ruta, consulta);
   if (motivo) return Promise.reject(new ENSWriteRefusedError(`Rechazado (la medida es de solo lectura): ${metodo} ${ruta} — ${motivo}`));
   const qs = Object.entries(consulta).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
