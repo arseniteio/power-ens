@@ -265,6 +265,30 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
       c5.dispose();
     }
 
+    // Una pantalla que se oculta suelta su carga (libera la plaza) sin error y,
+    // al volver, la repite.
+    {
+      const e7: any[] = [];
+      const pedidas: AbortController[] = [];
+      const c7 = createEvaluationController<any>({
+        fetch: controller => new Promise((_, reject) => {
+          pedidas.push(controller);
+          controller.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+        }),
+        probe: () => Promise.resolve({ fingerprint: 'f' }),
+        now: () => reloj,
+        visible: () => true,
+        onChange: st => e7.push(st),
+      });
+      c7.setKey('lista');
+      c7.suspend();
+      await espera0();
+      comprueba('oculta: la carga en curso se suelta, sin error', pedidas[0].signal.aborted && !e7.some(st => st.error) && !c7.loading);
+      c7.setKey('lista');
+      comprueba('visible otra vez (misma clave): se vuelve a pedir', pedidas.length === 2 && !pedidas[1].signal.aborted && c7.loading);
+      c7.dispose();
+    }
+
     // Una sonda que agota su tiempo es un fallo de la sonda, no «ocupado».
     {
       const c6 = createEvaluationController<any>({

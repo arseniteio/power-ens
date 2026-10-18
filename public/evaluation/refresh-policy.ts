@@ -164,6 +164,8 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   let ultimaCarga: number | undefined;
   // Fallos seguidos: de la carga, o del refresco que el servidor no consigue.
   let fallos = 0;
+  // Una carga que se soltó al ocultarse la pantalla: al volver, se repite.
+  let suelta = false;
 
   const emite = (event: EvaluationEvent<T>) => {
     state = evaluationReducer(state, event);
@@ -221,7 +223,14 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
     },
     // La pantalla pide esta clave. Si ya es la que tiene, no hace nada.
     setKey(next: string) {
-      if (next === key) return;
+      if (next === key) {
+        if (suelta && !actual) {
+          suelta = false;
+          carga(state.key === key && state.data !== undefined ? 'refresh' : 'load');
+        }
+        return;
+      }
+      suelta = false;
       key = next;
       ultimaComprobacion = undefined;
       fallos = 0;
@@ -274,6 +283,16 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         return 'probe-failed';
       } finally {
         if (sondeando === controller) sondeando = undefined;
+      }
+    },
+    // La pantalla se oculta: suelta la carga en curso (no ocupa una de las
+    // plazas del navegador) sin borrar lo que se ve; al volver, se repite.
+    suspend() {
+      if (actual) {
+        cancela();
+        suelta = true;
+      } else if (sondeando) {
+        cancela();
       }
     },
     dispose() {

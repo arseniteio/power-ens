@@ -60,10 +60,12 @@ export const useEnsEvaluation = <T = any>(params: ENSEvaluationParams & { enable
     });
   }
 
-  // La clave que pide la pantalla (una pantalla oculta no pide nada, pero
-  // conserva lo que tenía: al volver, se refresca encima).
+  // La clave que pide la pantalla (una pantalla oculta no pide nada y suelta
+  // lo que estaba pidiendo, pero conserva lo que tenía: al volver, se refresca
+  // encima).
   useEffect(() => {
     if (enabled) controlador.current!.setKey(key);
+    else controlador.current!.suspend();
   }, [key, enabled]);
 
   useEffect(() => () => controlador.current!.dispose(), []);

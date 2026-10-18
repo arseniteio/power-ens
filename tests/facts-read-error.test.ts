@@ -35,8 +35,9 @@ const EVALUAN = [
   'public/ens/reports/index.tsx',
   'public/ens/evidences/index.tsx',
 ];
+// (La antigua pantalla de trazabilidad, sin montar y con el motor en el
+// navegador, se retiró en 1.2.0: la trazabilidad está en la ficha del control.)
 const PANTALLAS = [
-  'public/ens/traceability/index.tsx',
   'public/requirements/requirements-view.tsx',
   'public/requirements/requirement-flyout.tsx',
   'public/events/events-view.tsx',
