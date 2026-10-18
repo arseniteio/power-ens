@@ -17,6 +17,7 @@ import { buildENSScopeAgentQueryFilter } from '../../../common/ens/core/scope/en
 import type { ENSAgentScope } from '../../../common/ens/core/scope/types';
 import {
   getStateFactCollectorField,
+  getStateFactEventTypes,
   getStateFactOwnerEvidenceIds,
 } from '../../../common/ens/core/evidence/state-facts';
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
@@ -379,3 +380,197 @@ export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) =
     },
   },
 });
+
+// --- poda exacta para el instante actual y los días de la serie ------------
+
+const SIN_VALOR = '__none__';
+const CAMPOS_EVIDENCIA_ALTERNATIVOS = ['data.evidenceId', 'data.ev_id', 'data.evidencias'];
+
+// El último hecho de estado de cada recolector, tipo y evidencia, día a día:
+// con él se calcula el corte EXACTO del motor (`computeStateFactCutoffsByCollector`).
+// Solo hechos que el normalizador atribuye igual: `data.ensfacil` del control,
+// `data.event` del tipo, la máquina en `agent.id`.
+export const buildStateFactLastSeenRequest = (
+  viewFilters: unknown[],
+  controlId: string,
+  agentId: string,
+  timeZone: string
+) => {
+  const campo = getStateFactCollectorField(controlId);
+  const tipos = [...getStateFactEventTypes(controlId)];
+  const porDia = {
+    days: {
+      date_histogram: { field: '@timestamp', calendar_interval: 'day', time_zone: timeZone, min_doc_count: 1 },
+      aggs: { last: { max: { field: '@timestamp' } } },
+    },
+  };
+  const porTipo = {
+    types: {
+      terms: { field: 'data.event', size: 200 },
+      aggs: { ids: { terms: { field: 'data.evidence_id', size: 200, missing: SIN_VALOR }, aggs: porDia } },
+    },
+  };
+  return {
+    index: ENS_ALERTS_INDEX,
+    body: {
+      size: 0,
+      query: {
+        bool: {
+          filter: [
+            ...viewFilters,
+            { term: { 'agent.id': agentId } },
+            { term: { 'data.ensfacil': controlId } },
+            { terms: { 'data.event': tipos } },
+          ],
+        },
+      },
+      aggs: {
+        alt: { filter: { bool: { should: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
+        // Un campo con varios valores en un mismo hecho (una lista) no se
+        // atribuye bien a un solo cubo: se compara cuántos valores hay con
+        // cuántos hechos lo llevan.
+        ...Object.fromEntries(
+          ['data.event', 'data.evidence_id', ...(campo ? [`data.${campo}`] : [])].flatMap((field, i) => [
+            [`values_${i}`, { value_count: { field } }],
+            [`docs_${i}`, { filter: { exists: { field } } }],
+          ])
+        ),
+        collectors: campo
+          ? { terms: { field: `data.${campo}`, size: 200, missing: SIN_VALOR }, aggs: porTipo }
+          : { filters: { filters: { [SIN_VALOR]: { match_all: {} } } }, aggs: porTipo },
+      },
+    },
+  };
+};
+
+export interface ENSStateFactLastSeen {
+  // Recolectores con hechos de estado (`''` sin campo de recolector).
+  collectors: string[];
+  lastFactOf: (collector: string, evidenceId: string, at: number) => number | undefined;
+}
+
+export const readStateFactLastSeen = (controlId: string, body: any): ENSStateFactLastSeen => {
+  const aggs = body?.aggregations || {};
+  // Sin poder atribuir cada hecho a su recolector, tipo y evidencia no se poda
+  // nada (sin último hecho, ningún recolector tiene corte):
+  //   - hechos que declaran la evidencia en otro campo;
+  //   - algún campo con varios valores en el mismo hecho;
+  //   - cubos que no cupieron en la respuesta (`sum_other_doc_count`).
+  const multivalor = Object.keys(aggs)
+    .filter(k => k.startsWith('values_'))
+    .some(k => Number(aggs[k]?.value) > Number(aggs[`docs_${k.slice(7)}`]?.doc_count));
+  const recortado = (nodo: any): boolean =>
+    Boolean(nodo) &&
+    typeof nodo === 'object' &&
+    (Number(nodo.sum_other_doc_count) > 0 || Object.values(nodo).some(v => (Array.isArray(v) ? v.some(recortado) : recortado(v))));
+  const atribuible = !(Number(aggs.alt?.doc_count) > 0) && !multivalor && !recortado(aggs.collectors);
+  const maximos = new Map<string, number[]>();
+  const cubos = Array.isArray(aggs.collectors?.buckets)
+    ? aggs.collectors.buckets
+    : Object.entries(aggs.collectors?.buckets || {}).map(([key, b]: [string, any]) => ({ key, ...b }));
+  const collectors: string[] = [];
+  for (const c of cubos) {
+    const collector = String(c.key) === SIN_VALOR ? '' : String(c.key).trim();
+    collectors.push(collector);
+    for (const t of c.types?.buckets || []) {
+      for (const id of t.ids?.buckets || []) {
+        const clave = `${collector}|${t.key}|${String(id.key) === SIN_VALOR ? '' : id.key}`;
+        const dias = (id.days?.buckets || []).map((d: any) => Number(d.last?.value)).filter(Number.isFinite);
+        maximos.set(clave, [...(maximos.get(clave) || []), ...dias].sort((a, b) => a - b));
+      }
+    }
+  }
+  const tiposDe = (evidenceId: string) =>
+    [...getStateFactEventTypes(controlId)].filter(tipo => getStateFactOwnerEvidenceIds(controlId, tipo).includes(evidenceId));
+  return {
+    collectors: [...new Set(collectors)],
+    lastFactOf: (collector, evidenceId, at) => {
+      if (!atribuible) return undefined;
+      let ultimo: number | undefined;
+      for (const tipo of tiposDe(evidenceId)) {
+        for (const id of [evidenceId, '']) {
+          for (const m of maximos.get(`${collector}|${tipo}|${id}`) || []) {
+            if (m <= at && (ultimo === undefined || m > ultimo)) ultimo = m;
+          }
+        }
+      }
+      return ultimo;
+    },
+  };
+};
+
+// Los rangos de fecha que NO hace falta leer de un recolector: lo que queda
+// fuera de la unión de (corte, instante] de todos los instantes. Sin corte en
+// un instante, todo lo anterior a él se lee.
+export const prunableRanges = (
+  windowStart: number,
+  instants: number[],
+  cutoffs: (number | undefined)[]
+): { from: number; to: number }[] => {
+  const dentro = instants
+    .map((hi, i) => ({ lo: cutoffs[i] === undefined ? windowStart - 1 : (cutoffs[i] as number), hi }))
+    .filter(r => r.hi > r.lo)
+    .sort((a, b) => a.lo - b.lo);
+  const unidos: { lo: number; hi: number }[] = [];
+  for (const r of dentro) {
+    const ultimo = unidos[unidos.length - 1];
+    if (ultimo && r.lo <= ultimo.hi) ultimo.hi = Math.max(ultimo.hi, r.hi);
+    else unidos.push({ ...r });
+  }
+  // Huecos: [inicio, lo1], (hi1, lo2], … Los extremos son instantes en ms;
+  // un hecho con fecha igual al corte se descarta (el motor conserva > corte).
+  const huecos: { from: number; to: number }[] = [];
+  let desde = windowStart;
+  for (const u of unidos) {
+    if (u.lo >= desde) huecos.push({ from: desde, to: u.lo });
+    desde = u.hi + 1;
+  }
+  return huecos;
+};
+
+// La cláusula que deja fuera esos rangos, tipo a tipo (con sus evidencias
+// dueñas) y recolector a recolector. Ante cualquier duda el hecho se lee.
+export const buildStateFactKeepClause = (
+  controlId: string,
+  agentId: string,
+  gapsByCollector: Map<string, { from: number; to: number }[]>
+): unknown | undefined => {
+  const campo = getStateFactCollectorField(controlId);
+  const todas = getEvidenceDefinitions(controlId).map(definition => definition.id);
+  const porTipo = [...getStateFactEventTypes(controlId)].map(tipo => {
+    const duenas = getStateFactOwnerEvidenceIds(controlId, tipo);
+    const ajenas = todas.filter(id => !duenas.includes(id));
+    return {
+      bool: {
+        filter: [{ term: { 'data.event': tipo } }],
+        should: [{ bool: { must_not: { exists: { field: 'data.evidence_id' } } } }, { terms: { 'data.evidence_id': duenas } }],
+        minimum_should_match: 1,
+        ...(ajenas.length ? { must_not: [{ terms: { 'data.evidence_id': ajenas } }] } : {}),
+      },
+    };
+  });
+  const should = [...gapsByCollector.entries()]
+    .filter(([, gaps]) => gaps.length)
+    .map(([collector, gaps]) => ({
+      bool: {
+        filter: [
+          ...(campo
+            ? [collector ? { term: { [`data.${campo}`]: collector } } : { bool: { must_not: { exists: { field: `data.${campo}` } } } }]
+            : []),
+          { bool: { should: gaps.map(g => ({ range: { '@timestamp': { gte: new Date(g.from).toISOString(), lte: new Date(g.to).toISOString() } } })), minimum_should_match: 1 } },
+        ],
+      },
+    }));
+  if (!should.length) return undefined;
+  return {
+    bool: {
+      filter: [
+        { term: { 'data.ensfacil': controlId } },
+        { term: { 'agent.id': agentId } },
+        { bool: { should: porTipo, minimum_should_match: 1 } },
+        { bool: { should, minimum_should_match: 1 } },
+      ],
+      must_not: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })),
+    },
+  };
+};

@@ -30,7 +30,7 @@ const resuelve = (r: string): boolean =>
 const NUCLEO = /^(\.\.\/)+src\/(core|plugins\/(data|navigation))\//;
 // Cada paquete entero o una ruta dentro de él: `react` no deja pasar
 // `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`.
-const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake|rxjs|lodash|moment|crypto|fs|path)(\/|$)/;
+const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake|rxjs|lodash|moment|crypto|fs|path|zlib)(\/|$)/;
 
 for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(f, 'utf8');

@@ -6,8 +6,13 @@ import type { ENSComplianceSummary } from '../core/compliance-state/types';
 export interface ENSEvaluationMeta {
   // Huella de los datos de la vista (la que compara la sonda).
   fingerprint: string;
-  // Se enseña algo guardado mientras se recalcula detrás.
+  // Se enseña algo guardado mientras se recalcula detrás (o la serie diaria
+  // aún se está calculando: `timelinePending`).
   refreshing: boolean;
+  timelinePending?: boolean;
+  // El último refresco en segundo plano que falló: lo que se enseña es lo
+  // anterior a él.
+  refreshError?: { message: string; at: string };
   // Cuándo se calculó lo que se enseña (lo más antiguo de ello).
   computedAt: string;
   evaluatedAt: string;

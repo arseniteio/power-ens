@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import type { Logger } from '../../../../src/core/server';
 import { ENS_CONFIGURATION_INDEX } from '../../common/constants';
+import { assertCompleteResponse } from './evaluation/facts-reader';
 
 export const ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID = 'active';
 
@@ -74,6 +75,8 @@ export async function readActiveENSConfiguration(
     },
   });
 
+  // Con un shard fallido no se cae a la plantilla por defecto en silencio.
+  assertCompleteResponse(result.body, 'la configuración ENS');
   const hit = result.body?.hits?.hits?.[0];
 
   return hit?._source as ENSConfigurationStoredDocument | undefined;
@@ -95,6 +98,7 @@ export async function readENSConfigurationHistory(
     },
   });
 
+  assertCompleteResponse(result.body, 'el historial de la configuración ENS');
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 

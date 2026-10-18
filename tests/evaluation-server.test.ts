@@ -179,7 +179,15 @@ const referencia = () => {
   // 6. La serie diaria del panel: cada día, el motor sobre lo conocido hasta
   // ese día y a fecha de ese día; el último punto es el número del panel.
   const ref3 = referencia();
+  // La serie sale de la MISMA pasada que el resultado actual: el panel pedido
+  // justo después de la lista no vuelve a leer ningún hecho (espera, como
+  // mucho, a que terminen los días que se están evaluando).
+  const deHechosHasta = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
+  const lecturasAntes = deHechosHasta();
   const conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  comprueba('la serie llega sin volver a leer ningún hecho', !conSerie.meta.timelinePending && (conSerie.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
+  const ficha30 = await servicio.run(clientes, { include: 'control', controlId: 'op.exp.3', timelineDays: 30, timeZone: 'UTC' });
+  comprueba('y la ficha con 30 días tampoco lee nada (misma serie de cada fila)', !ficha30.meta.timelinePending && (ficha30.timeline || []).length > 1 && deHechosHasta() === lecturasAntes);
   const asc = ref3.eventos.map(e => ({ e, t: Date.parse(e.timestamp) })).sort((a, b) => a.t - b.t);
   const plan = planENSTimelineCuts(Math.min(...asc.map(x => x.t)), asc.length, { now: reloj, days: 7, timeZone: 'UTC', maxEvaluatedEvents: Infinity });
   const esperada = plan.map(c => getENSComplianceState(ref3.nivel, c.isCurrent ? ref3.eventos : asc.filter(x => x.t <= c.cutoff.getTime()).map(x => x.e), undefined, ref3.alcance, c.cutoff).controlSummary.scoreAverage);

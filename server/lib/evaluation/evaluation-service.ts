@@ -22,6 +22,7 @@
 //
 // La respuesta de cada vista está descrita en `server/README.md`.
 import { createHash } from 'crypto';
+import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../src/core/server';
 import { ENS_CONFIGURATION_INDEX } from '../../../common/constants';
 import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../../../common/agents/agent-inventory';
@@ -50,7 +51,7 @@ import { normalizeWazuhAlerts } from '../../../common/ens/core/data-source/data-
 import type { ENSNormalizedEvent } from '../../../common/ens/core/data-source/types';
 import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common/ens/core/evaluation/types';
 import { buildENSControlFactsFilter } from '../../../common/ens/dashboard/all-controls-facts-filter';
-import { computeStateFactPruningCutoffs } from '../../../common/ens/core/evidence/state-facts';
+import { computeStateFactCutoffsByCollector } from '../../../common/ens/core/evidence/state-facts';
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
 import { normalizeInventory, resolveENSScopeAgents } from '../../../common/ens/core/scope/runtime';
 import {
@@ -66,7 +67,7 @@ import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { readActiveENSConfiguration } from '../configuration-storage';
 import { resolveCurrentUser } from '../current-user';
 import { Cancellable, CacheEntry, EVALUATION_TTL_MS, EvaluationCache, Semaphore, SharedTasks } from './cache';
-import { newReadStats, readAllFacts, searchComplete, throwIfCancelled } from './facts-reader';
+import { MAX_FACTS_PER_READ, newReadStats, readAllFacts, searchComplete, throwIfCancelled } from './facts-reader';
 import type { ENSFactsReadStats } from './facts-reader';
 import {
   buildCollectorRunsQuery,
@@ -74,8 +75,11 @@ import {
   buildFactsQuery,
   buildImpactEventsRequest,
   buildProbeRequest,
-  buildStateFactPruningClause,
+  buildStateFactKeepClause,
+  buildStateFactLastSeenRequest,
   buildViewFilters,
+  prunableRanges,
+  readStateFactLastSeen,
   catalogControlIds,
   readProbeResponse,
   resolveEvaluationWindow,
@@ -97,13 +101,6 @@ export interface ENSEvaluationQuery {
 export interface ENSEvaluationClients {
   asCurrentUser: any;
   asInternalUser: any;
-}
-
-export interface ENSRunOptions {
-  // Responder con lo guardado aunque ya no valga, y recalcular detrás.
-  allowStale?: boolean;
-  // Quien espera la respuesta (se cancela si se va).
-  signal?: Cancellable;
 }
 
 // Una petición mal hecha: 400 con el motivo.
@@ -195,17 +192,31 @@ interface CutPoint {
   score?: number;
 }
 
+// Los días de la serie que tiene calculados una fila: para una zona horaria y
+// un día de hoy (`key`), el punto de cada final de día (por su instante ISO).
+interface StoredCuts {
+  key: string;
+  points: Record<string, CutPoint>;
+  // Todos los días calculados (se van guardando a medida que salen).
+  complete: boolean;
+}
+
 // Lo que se guarda de una fila (un control en una máquina). Sin hechos.
 interface StoredRow {
   result?: ENSComplianceResult;
-  traceability: ENSTraceabilityResult[];
+  // La trazabilidad guardada (las primeras entradas), comprimida: es casi
+  // todo el tamaño de una fila y solo la leen la ficha y sus páginas.
+  traceability: Buffer | null;
+  traceabilityStored: number;
   traceabilityTotal: number;
-  cuts: Record<string, CutPoint[]>;
+  cuts?: StoredCuts;
   stats: ENSRowComputeStats;
   // Con qué configuración y alcance se calculó: una entrada de otra
   // configuración no se enseña ni mientras se recalcula.
   configurationKey: string;
   scopeKey: string;
+  // El último intento de refrescarla en segundo plano que falló.
+  refreshError?: { message: string; at: string };
 }
 
 export interface ENSRowComputeStats {
@@ -216,8 +227,21 @@ export interface ENSRowComputeStats {
   events: number;
   fetchMs: number;
   evaluateMs: number;
+  cutsMs?: number;
   pruned: boolean;
 }
+
+const comprime = (lista: ENSTraceabilityResult[]): Buffer | null =>
+  lista.length ? deflateRawSync(Buffer.from(JSON.stringify(lista), 'utf8')) : null;
+
+export const descomprime = (datos: Buffer | null): ENSTraceabilityResult[] =>
+  datos ? JSON.parse(inflateRawSync(datos).toString('utf8')) : [];
+
+// Lo que ocupa una fila guardada (para el tope de la memoria).
+// La serie se cuenta con su tamaño completo (90 días como mucho), aunque sus
+// puntos vayan llegando después de guardar la fila.
+export const storedRowBytes = (row: StoredRow): number =>
+  JSON.stringify(row.result || null).length + (row.traceability?.length || 0) + ENS_EVALUATION_LIMITS.maxTimelineDays * 80 + 512;
 
 // El resultado tal cual, salvo la trazabilidad (la lista de hechos del
 // control, decenas de miles con op.acc.3).
@@ -280,10 +304,19 @@ export interface ENSEvaluationServiceOptions {
   clock?: () => Date;
   // Lecturas pesadas (un control en una máquina) a la vez.
   maxConcurrentReads?: number;
-  // Hechos en memoria a la vez por lectura.
+  // Hechos en memoria a la vez por lectura (~1,7 KB de memoria por hecho).
   maxFactsPerRead?: number;
-  // Tamaño de lo guardado de las filas (JSON).
+  // Tamaño de lo guardado de las filas.
   maxStoredBytes?: number;
+}
+
+export interface ENSRunOptions {
+  // Responder con lo guardado aunque ya no valga, y recalcular detrás.
+  allowStale?: boolean;
+  // Quien espera la respuesta (se cancela si se va).
+  signal?: Cancellable;
+  // «Reintentar»: refrescar ya lo que no se pudo refrescar, sin esperar.
+  retryRefresh?: boolean;
 }
 
 // La vista de un control para la petición: su resultado, su trazabilidad y
@@ -291,23 +324,31 @@ export interface ENSEvaluationServiceOptions {
 export interface ENSViewPartition {
   controlId: string;
   result?: ENSComplianceResult;
-  traceability: ENSTraceabilityResult[];
+  traceability: () => ENSTraceabilityResult[];
+  traceabilityStored: number;
   traceabilityTotal: number;
   rows: { agentId: string; result: ENSComplianceResult }[];
-  cutsOf: (key: string) => (CutPoint | undefined)[] | undefined;
+  // El punto de un día pasado, o `undefined` si aún no está calculado.
+  pointAt: (cutoffIso: string, cutoff: Date) => CutPoint | null | undefined;
 }
+
+// Lo que una vista con serie espera a los días que aún se están calculando
+// antes de responder sin ella (`meta.timelinePending`).
+export const SERIES_WAIT_MS = 20 * 1000;
+
+// Lo que tarda en reintentarse un refresco que falló: 30 s, 1 min, 2, 4… hasta 5 min.
+const esperaTrasFallo = (fallos: number): number => Math.min(5 * 60 * 1000, 30 * 1000 * 2 ** Math.max(0, fallos - 1));
 
 export const createEvaluationService = ({
   logger,
   securityEnabled,
   clock = () => new Date(),
   maxConcurrentReads = 2,
-  maxFactsPerRead,
-  maxStoredBytes = 48 * 1024 * 1024,
+  maxFactsPerRead = MAX_FACTS_PER_READ,
+  maxStoredBytes = 64 * 1024 * 1024,
 }: ENSEvaluationServiceOptions) => {
   const reloj = () => clock().getTime();
-  const jsonBytes = (value: unknown) => JSON.stringify(value).length;
-  const rows = new EvaluationCache<StoredRow>(4000, EVALUATION_TTL_MS, reloj, maxStoredBytes, jsonBytes);
+  const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, reloj, maxStoredBytes, storedRowBytes);
   // Los días pasados de una serie no cambian en el día: hasta 26 h (la clave
   // lleva el día y la zona; solo zonas IANA válidas llegan aquí).
   const timelines = new EvaluationCache<any[]>(200, 26 * 3600 * 1000, reloj);
@@ -316,7 +357,14 @@ export const createEvaluationService = ({
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, reloj);
   const tasks = new SharedTasks<StoredRow>();
   const reads = new Semaphore(maxConcurrentReads);
-  const leer = { maxFacts: maxFactsPerRead };
+  // Los días pasados se evalúan después de responder con el actual, con los
+  // mismos hechos, de uno en uno (el motor es CPU del proceso del dashboard).
+  const cutsQueue = new Semaphore(1);
+  const cutsRunning = new Set<string>();
+  // La serie que se está calculando de cada fila (para esperarla un poco en
+  // vez de responder «pendiente»).
+  const seriesInFlight = new Map<string, Promise<void>>();
+  const refreshFailures = new Map<string, { failures: number; nextAt: number }>();
 
   // --- 1. contexto ---------------------------------------------------------
 
@@ -426,44 +474,94 @@ export const createEvaluationService = ({
     );
   };
 
+  // Los días de la serie que calcula cada fila: los de la ventana de la
+  // configuración (30 en la de por defecto), en la zona de quien mira. Cubren
+  // cualquier serie que pidan las pantallas (el panel 7, la ficha 30).
+  const seriesOf = (ctx: ENSEvaluationContext) => {
+    // Un día más que la ventana: su primer día suele ser parcial y la serie
+    // de una vista empieza en el día de su primer hecho.
+    const dias = Math.min(
+      ENS_EVALUATION_LIMITS.maxTimelineDays,
+      Math.max(1, Math.ceil((Date.parse(ctx.window.to) - Date.parse(ctx.window.from)) / 86400e3) + 1)
+    );
+    const plan = planENSTimelineCuts(Date.parse(ctx.window.from), 1, {
+      now: ctx.now,
+      days: dias,
+      timeZone: ctx.timeZone,
+      maxEvaluatedEvents: Infinity,
+    }).filter(cut => !cut.isCurrent);
+    return { key: sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), dias), plan };
+  };
+
   // --- 2. una fila -------------------------------------------------------------
 
   const readFacts = async (client: any, query: unknown, stats: ENSFactsReadStats, what: string, signal?: Cancellable): Promise<any[]> => {
     const hits: any[] = [];
     await readAllFacts(client, query, page => {
       for (const hit of page) hits.push(hit);
-    }, stats, { ...leer, what, signal });
+    }, stats, { maxFacts: maxFactsPerRead, what, signal });
     return hits;
   };
 
+  // La poda exacta de los hechos de estado de una máquina para ahora y para
+  // el final de cada día de la serie (ver `computeStateFactCutoffsByCollector`).
+  const pruningFor = async (
+    clients: ENSEvaluationClients,
+    ctx: ENSEvaluationContext,
+    controlId: string,
+    agentId: string,
+    instants: Date[],
+    stats: ENSFactsReadStats,
+    signal: Cancellable
+  ): Promise<unknown | undefined> => {
+    if (!hasStateFacts(controlId)) return undefined;
+    const que = `${controlId} en ${agentId}`;
+    const runs = await readFacts(clients.asCurrentUser, buildCollectorRunsQuery(ctx.filters, controlId, agentId), stats, `los latidos de ${que}`, signal);
+    const ultimos = readStateFactLastSeen(
+      controlId,
+      await searchComplete(clients.asCurrentUser, buildStateFactLastSeenRequest(ctx.filters, controlId, agentId, ctx.timeZone), `los últimos hechos de estado de ${que}`)
+    );
+    if (!ultimos.collectors.length) return undefined;
+    const cortes = computeStateFactCutoffsByCollector(controlId, normalizeWazuhAlerts(runs), instants, ultimos.lastFactOf, ultimos.collectors);
+    const inicio = Date.parse(ctx.window.from);
+    const huecos = new Map([...cortes.entries()].map(([collector, porInstante]) => [collector, prunableRanges(inicio, instants.map(i => i.getTime()), porInstante)]));
+    return buildStateFactKeepClause(controlId, agentId, huecos);
+  };
+
   // Lee los hechos de un control en la máquina `factsAgent` (o en todo el
-  // alcance, sin ella), los evalúa para la vista `viewAgent` y, si se pide,
-  // también a fecha de cada día pasado de `cuts`. Suelta los hechos al
-  // terminar.
+  // alcance, sin ella), los evalúa para la vista `viewAgent` a fecha de ahora
+  // y devuelve la fila. Con los MISMOS hechos, y sin hacer esperar a quien
+  // pidió el resultado actual, evalúa después cada día pasado de la serie
+  // (`onCuts`). Suelta los hechos al terminar.
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
     controlId: string,
     factsAgent: string | undefined,
     viewAgent: string | undefined,
-    cuts: { key: string; plan: ENSTimelineCutPlan[] } | undefined,
-    signal: Cancellable
+    signal: Cancellable,
+    options: { background: boolean; rowKey: string; onCuts: (cuts: StoredCuts, ms: number) => void; previous?: StoredRow }
   ): Promise<StoredRow> =>
     reads.use(async () => {
       throwIfCancelled(signal);
       const started = Date.now();
       const stats = newReadStats();
+      const serie = seriesOf(ctx);
+      // Los días pasados ya calculados hoy (en esta zona, con esta
+      // configuración y este alcance) no se vuelven a leer ni a evaluar: los
+      // hechos nuevos que obligan a recalcular la fila son de ahora.
+      const previa = options.previous;
+      const pasadosHechos =
+        previa &&
+        previa.configurationKey === ctx.configurationKey &&
+        previa.scopeKey === ctx.scopeKey &&
+        previa.cuts?.key === serie.key &&
+        previa.cuts.complete
+          ? previa.cuts
+          : undefined;
+      const instantes = pasadosHechos ? [ctx.now] : [...serie.plan.map(cut => cut.cutoff), ctx.now];
       const que = `${controlId}${factsAgent ? ` en ${factsAgent}` : ''}`;
-      let pruning: unknown;
-
-      // La poda de los hechos de estado se calcula con los latidos de la
-      // máquina, a fecha del instante más antiguo que se va a evaluar.
-      if (factsAgent && hasStateFacts(controlId)) {
-        const runs = await readFacts(clients.asCurrentUser, buildCollectorRunsQuery(ctx.filters, controlId, factsAgent), stats, `los latidos de ${que}`, signal);
-        const at = cuts?.plan.length ? cuts.plan[0].cutoff : ctx.now;
-        pruning = buildStateFactPruningClause(controlId, computeStateFactPruningCutoffs(controlId, normalizeWazuhAlerts(runs), at));
-      }
-
+      const pruning = factsAgent ? await pruningFor(clients, ctx, controlId, factsAgent, instantes, stats, signal) : undefined;
       const hits = await readFacts(clients.asCurrentUser, buildFactsQuery(ctx.filters, controlId, factsAgent, pruning), stats, `los hechos de ${que}`, signal);
       const fetchMs = Date.now() - started;
       throwIfCancelled(signal);
@@ -484,36 +582,22 @@ export const createEvaluationService = ({
 
       // Bloque síncrono: la configuración activa del motor es la de esta
       // petición mientras se evalúa (otra petición solo puede colarse en un
-      // `await`, y aquí no hay ninguno). La resolución por máquina (Task 3)
-      // lee de ahí.
-      ensConfigurationRepository.replaceActive(ctx.configuration);
-      const evalua = (lista: ENSNormalizedEvent[], instante: Date) =>
-        factsAgent
+      // `await`, y aquí no hay ninguno). La resolución por máquina lee de ahí.
+      const evalua = (lista: ENSNormalizedEvent[], instante: Date) => {
+        ensConfigurationRepository.replaceActive(ctx.configuration);
+        return factsAgent
           ? evaluateENSControlRow(controlId, level, lista, viewAgent as string, ctx.scope, instante)
           : evaluateENSControlPartition(controlId, level, lista, undefined, ctx.scope, instante).result;
+      };
       const result = evalua(events, ctx.now);
-
-      const puntos: CutPoint[] = [];
-      if (cuts?.plan.length) {
-        const ascending = events
-          .map(event => ({ event, time: Date.parse(event.timestamp) }))
-          .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
-          .sort((left, right) => left.time - right.time);
-        let cursor = 0;
-        for (const cut of cuts.plan) {
-          const limite = cut.cutoff.getTime();
-          while (cursor < ascending.length && ascending[cursor].time <= limite) cursor += 1;
-          const enCorte = evalua(ascending.slice(0, cursor).map(item => item.event), cut.cutoff);
-          puntos.push({ status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score });
-        }
-      }
-
       const traceability = result?.traceability || [];
-      return {
+      const guardadas = traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
+
+      const row: StoredRow = {
         result: result && withoutTraceability(result),
-        traceability: traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored),
+        traceability: comprime(guardadas),
+        traceabilityStored: guardadas.length,
         traceabilityTotal: traceability.length,
-        cuts: cuts ? { [cuts.key]: puntos } : {},
         configurationKey: ctx.configurationKey,
         scopeKey: ctx.scopeKey,
         stats: {
@@ -527,11 +611,80 @@ export const createEvaluationService = ({
           pruned: Boolean(pruning),
         },
       };
-    });
+
+      if (pasadosHechos) {
+        row.cuts = pasadosHechos;
+        return row;
+      }
+
+      // Los días pasados, con los mismos hechos y después de responder, del
+      // más reciente al más antiguo (los 7 del panel salen primero), y cada
+      // punto se guarda en cuanto está. No se suelta la plaza de lectura
+      // mientras haya otra fila esperando a evaluar su serie: así los hechos
+      // en memoria a la vez siguen acotados.
+      while (cutsQueue.queued >= 1) await new Promise(r => setTimeout(r, 20));
+      const tarea = `${options.rowKey}|${serie.key}`;
+      const cuts: StoredCuts = { key: serie.key, points: {}, complete: false };
+      row.cuts = cuts;
+      options.onCuts(cuts, 0);
+      cutsRunning.add(tarea);
+      let termina: () => void = () => undefined;
+      seriesInFlight.set(tarea, new Promise<void>(resolve => (termina = resolve)));
+      void cutsQueue
+        .use(async () => {
+          const t0 = Date.now();
+          const ascending = events
+            .map(event => ({ event, time: Date.parse(event.timestamp) }))
+            .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
+            .sort((left, right) => left.time - right.time);
+          const hasta = (limite: number) => {
+            let lo = 0;
+            let hi = ascending.length;
+            while (lo < hi) {
+              const mid = (lo + hi) >> 1;
+              if (ascending[mid].time <= limite) lo = mid + 1;
+              else hi = mid;
+            }
+            return lo;
+          };
+          for (const cut of [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
+            // Cede el hilo entre día y día: una petición que sale de la
+            // memoria no espera a que termine la serie.
+            await new Promise(r => setImmediate(r));
+            const enCorte = evalua(ascending.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
+            cuts.points[cut.cutoff.toISOString()] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
+          }
+          cuts.complete = true;
+          row.stats.cutsMs = Date.now() - t0;
+          options.onCuts(cuts, Date.now() - t0);
+        })
+        .catch(error => logger.warn(`ENSFácil: no se pudo calcular la serie de ${que}: ${error?.message || error}`))
+        .finally(() => {
+          cutsRunning.delete(tarea);
+          seriesInFlight.delete(tarea);
+          termina();
+        });
+
+      return row;
+    }, { background: options.background });
 
   // --- 3. lo guardado, lo que se recalcula y lo que se espera ---------------
 
+  // La serie calculada aparte se pone en la fila guardada de ESA huella; una
+  // serie completa no se cambia por una a medias.
+  const adoptCuts = (key: string, fingerprint: string, cuts: StoredCuts, ms: number) => {
+    const actual = rows.peek(key);
+    if (!actual || actual.fingerprint !== fingerprint) return;
+    const tenia = actual.value.cuts;
+    if (tenia && tenia.key === cuts.key && tenia.complete && !cuts.complete) return;
+    actual.value.cuts = cuts;
+    if (cuts.complete) actual.value.stats.cutsMs = ms;
+  };
+
   interface Obtained {
+    key: string;
+    // Con qué se calcula (para recalcular solo su serie).
+    recompute: (signal: Cancellable, onCuts: (cuts: StoredCuts, ms: number) => void) => Promise<StoredRow>;
     row: StoredRow;
     storedAt: number;
     stale: boolean;
@@ -545,41 +698,50 @@ export const createEvaluationService = ({
     key: string,
     fingerprint: string,
     ctx: ENSEvaluationContext,
-    needCuts: string | undefined,
-    compute: (signal: Cancellable) => Promise<StoredRow>,
+    compute: (signal: Cancellable, background: boolean, onCuts: (cuts: StoredCuts, ms: number) => void, sinPrevia?: boolean) => Promise<StoredRow>,
     options: ENSRunOptions,
     background: { started: number }
   ): Promise<Obtained> => {
     const entrada = rows.peek(key);
-    const sirve = (e: CacheEntry<StoredRow>) => !needCuts || Boolean(e.value.cuts[needCuts]);
-    if (entrada && rows.isFresh(entrada, fingerprint) && sirve(entrada)) {
-      return { row: entrada.value, storedAt: entrada.storedAt, stale: false, computed: false };
-    }
-    const tarea = `${key}|${fingerprint}|${needCuts || ''}`;
+    const tarea = `${key}|${fingerprint}`;
+    // Cuando llega la serie, se guarda en la entrada de ESTA huella.
+    const conSerie = (cuts: StoredCuts, ms: number) => adoptCuts(key, fingerprint, cuts, ms);
     const guarda = (row: StoredRow) => {
-      const previa = rows.peek(key);
-      // Los días pasados ya calculados con la misma huella se conservan.
-      const cuts = previa && previa.fingerprint === fingerprint ? { ...previa.value.cuts, ...row.cuts } : row.cuts;
-      rows.set(key, fingerprint, { ...row, cuts });
+      refreshFailures.delete(key);
+      rows.set(key, fingerprint, row);
       return row;
     };
+    const recompute = (signal: Cancellable, onCuts: (cuts: StoredCuts, ms: number) => void) => compute(signal, true, onCuts, true);
+    if (entrada && rows.isFresh(entrada, fingerprint)) {
+      return { key, recompute, row: entrada.value, storedAt: entrada.storedAt, stale: false, computed: false };
+    }
     if (
       options.allowStale &&
       entrada &&
-      sirve(entrada) &&
       entrada.value.configurationKey === ctx.configurationKey &&
       entrada.value.scopeKey === ctx.scopeKey
     ) {
-      if (!tasks.has(tarea)) {
+      const fallo = refreshFailures.get(key);
+      const espera = fallo && fallo.nextAt > clock().getTime() && !options.retryRefresh;
+      if (!espera && !tasks.has(tarea)) {
         background.started += 1;
         tasks
-          .run(tarea, signal => compute(signal).then(guarda))
-          .catch(error => logger.warn(`ENSFácil: no se pudo refrescar ${key}: ${error?.message || error}`));
+          .run(tarea, signal => compute(signal, true, conSerie).then(guarda))
+          .catch(error => {
+            // El refresco falló: lo guardado se sigue enseñando, con el motivo
+            // y la hora, y no se reintenta hasta pasado un tiempo creciente.
+            const previo = refreshFailures.get(key);
+            const failures = (previo?.failures || 0) + 1;
+            refreshFailures.set(key, { failures, nextAt: clock().getTime() + esperaTrasFallo(failures) });
+            const actual = rows.peek(key);
+            if (actual) actual.value.refreshError = { message: String(error?.message || error), at: clock().toISOString() };
+            logger.warn(`ENSFácil: no se pudo refrescar ${key}: ${error?.message || error}`);
+          });
       }
-      return { row: entrada.value, storedAt: entrada.storedAt, stale: true, computed: false };
+      return { key, recompute, row: entrada.value, storedAt: entrada.storedAt, stale: true, computed: false };
     }
-    const row = await tasks.run(tarea, signal => compute(signal).then(guarda), options.signal || new CancelSignalNever());
-    return { row, storedAt: clock().getTime(), stale: false, computed: true };
+    const row = await tasks.run(tarea, signal => compute(signal, false, conSerie).then(guarda), options.signal || new CancelSignalNever());
+    return { key, recompute, row, storedAt: clock().getTime(), stale: false, computed: true };
   };
 
   // --- 4. una vista ---------------------------------------------------------
@@ -652,14 +814,21 @@ export const createEvaluationService = ({
     const tKey = ['t', ctx.userKey, query.agentId || '*', query.controlId || '*', query.timelineDays, query.timeZone, startOfDayIn(ctx.now, query.timeZone).toISOString()].join('|');
     const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey);
     const cachedTimeline = query.timelineDays ? timelines.get(tKey, tFingerprint) : undefined;
-    const needCuts = Boolean(query.timelineDays) && !cachedTimeline && pastCuts.length > 0 ? cutsKey : undefined;
-    const cutsArg = needCuts ? { key: cutsKey, plan: pastCuts } : undefined;
+    const serie = seriesOf(ctx);
     const background = { started: 0 };
     const usados: Obtained[] = [];
     const level = ctx.configuration.global.ensLevel;
     const { all: identidades, forControl } = identitiesOf(ctx);
     const nombre = (agentId: string) => identidades.find(agent => agent.agentId === agentId)?.agentName;
     const sinIdentidades = identidades.length === 0;
+    const computeFor = (rowKey: string, controlId: string, factsAgent: string | undefined, viewAgent: string | undefined) =>
+      (signal: Cancellable, enFondo: boolean, onCuts: (cuts: StoredCuts, ms: number) => void, sinPrevia = false) =>
+        computeRow(clients, ctx, controlId, factsAgent, viewAgent, signal, {
+          background: enFondo,
+          rowKey,
+          onCuts,
+          previous: sinPrevia ? undefined : rows.peek(rowKey)?.value,
+        });
 
     // Las filas de cada control (en paralelo hasta el límite de lecturas: las
     // que salen de la memoria no esperan).
@@ -679,15 +848,8 @@ export const createEvaluationService = ({
           }
         }
         if (!agentes.length) {
-          const got = await obtain(
-            `f|${ctx.userKey}|${controlId}`,
-            fallbackFingerprint(ctx, controlId),
-            ctx,
-            needCuts,
-            signal => computeRow(clients, ctx, controlId, undefined, undefined, cutsArg, signal),
-            options,
-            background
-          );
+          const clave = `f|${ctx.userKey}|${controlId}`;
+          const got = await obtain(clave, fallbackFingerprint(ctx, controlId), ctx, computeFor(clave, controlId, undefined, undefined), options, background);
           usados.push(got);
           sinFilas.set(controlId, got);
           filasDe.set(controlId, []);
@@ -695,12 +857,12 @@ export const createEvaluationService = ({
         }
         const filas = await Promise.all(
           agentes.map(async agent => {
+            const clave = `r|${ctx.userKey}|${controlId}|${agent.agentId}`;
             const got = await obtain(
-              `r|${ctx.userKey}|${controlId}|${agent.agentId}`,
+              clave,
               rowFingerprint(ctx, controlId, agent.agentId),
               ctx,
-              needCuts,
-              signal => computeRow(clients, ctx, controlId, agent.agentId, agent.agentId, cutsArg, signal),
+              computeFor(clave, controlId, agent.agentId, agent.agentId),
               options,
               background
             );
@@ -712,8 +874,14 @@ export const createEvaluationService = ({
       })
     );
 
+    // El punto de una fila en un día pasado: el guardado de su serie, o
+    // `undefined` si su serie de hoy (en esta zona) aún no está calculada.
+    const puntoDe = (row: StoredRow, iso: string): CutPoint | undefined =>
+      row.cuts && row.cuts.key === serie.key ? row.cuts.points[iso] : undefined;
+
     // La vista de cada control.
     ensConfigurationRepository.replaceActive(ctx.configuration);
+    const conTrazas = query.include === 'control';
     const views = new Map<string, ENSViewPartition>();
     for (const controlId of controls) {
       const filas = filasDe.get(controlId) || [];
@@ -721,41 +889,50 @@ export const createEvaluationService = ({
       let view: ENSViewPartition | undefined;
       if (!query.agentId) {
         if (fallback) {
+          const row = fallback.row;
           view = {
             controlId,
-            result: fallback.row.result,
-            traceability: fallback.row.traceability,
-            traceabilityTotal: fallback.row.traceabilityTotal,
+            result: row.result,
+            traceability: () => descomprime(row.traceability),
+            traceabilityStored: row.traceabilityStored,
+            traceabilityTotal: row.traceabilityTotal,
             rows: [],
-            cutsOf: key => fallback.row.cuts[key],
+            pointAt: iso => puntoDe(row, iso),
           };
         } else {
+          // La trazabilidad del conjunto solo se descomprime para la ficha.
           const conTraza = filas
             .filter(f => f.got.row.result)
-            .map(f => ({ agentId: f.agentId, agentName: f.agentName, result: { ...f.got.row.result!, traceability: f.got.row.traceability } }));
+            .map(f => ({
+              agentId: f.agentId,
+              agentName: f.agentName,
+              result: { ...f.got.row.result!, traceability: conTrazas ? descomprime(f.got.row.traceability) : [] },
+            }));
           const consolidado = consolidateENSControlRows(controlId, level, conTraza, ctx.presenceEvents, ctx.scope, ctx.now);
           const traza = consolidado?.traceability || [];
-          const guardadas = conTraza.reduce((n, f) => n + f.result.traceability.length, 0);
+          const guardadas = conTrazas ? filas.reduce((n, f) => n + f.got.row.traceabilityStored, 0) : 0;
           const totales = filas.reduce((n, f) => n + f.got.row.traceabilityTotal, 0);
+          const lista = traza.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
           view = {
             controlId,
             result: consolidado && withoutTraceability(consolidado),
-            traceability: traza.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored),
+            traceability: () => lista,
+            traceabilityStored: lista.length,
             traceabilityTotal: traza.length - guardadas + totales,
             rows: conTraza.map(f => ({ agentId: f.agentId, result: withoutTraceability(f.result) })),
-            cutsOf: key => {
-              if (filas.some(f => !f.got.row.cuts[key])) return undefined;
-              return pastCuts.map((cut, i) => {
-                const enCorte = consolidateENSControlRows(
-                  controlId,
-                  level,
-                  filas.map(f => ({ agentId: f.agentId, agentName: f.agentName, result: resultStatusStub(controlId, f.got.row.cuts[key][i].status, f.got.row.cuts[key][i].score) })),
-                  ctx.presenceEvents,
-                  ctx.scope,
-                  cut.cutoff
-                );
-                return enCorte ? { status: enCorte.status, score: enCorte.score } : undefined;
-              });
+            pointAt: (iso, cutoff) => {
+              const puntos = filas.map(f => puntoDe(f.got.row, iso));
+              if (puntos.some(p => p === undefined)) return undefined;
+              ensConfigurationRepository.replaceActive(ctx.configuration);
+              const enCorte = consolidateENSControlRows(
+                controlId,
+                level,
+                filas.map((f, i) => ({ agentId: f.agentId, agentName: f.agentName, result: resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) })),
+                ctx.presenceEvents,
+                ctx.scope,
+                cutoff
+              );
+              return enCorte ? { status: enCorte.status, score: enCorte.score } : null;
             },
           };
         }
@@ -770,12 +947,12 @@ export const createEvaluationService = ({
         if (!decision) {
           // Un control de organización sin fila del manager: se evalúa la
           // vista con los hechos del manager, como el motor.
+          const clave = `d|${ctx.userKey}|${controlId}|${query.agentId}`;
           const got = await obtain(
-            `d|${ctx.userKey}|${controlId}|${query.agentId}`,
+            clave,
             rowFingerprint(ctx, controlId, ENS_MANAGER_AGENT_ID),
             ctx,
-            needCuts,
-            signal => computeRow(clients, ctx, controlId, ENS_MANAGER_AGENT_ID, query.agentId, cutsArg, signal),
+            computeFor(clave, controlId, ENS_MANAGER_AGENT_ID, query.agentId),
             options,
             background
           );
@@ -784,13 +961,16 @@ export const createEvaluationService = ({
           ensConfigurationRepository.replaceActive(ctx.configuration);
         }
         const propia = decision?.from === 'row' ? fila : undefined;
+        const f = fila;
         view = {
           controlId,
-          result: fila?.result,
-          traceability: fila?.traceability || [],
-          traceabilityTotal: fila?.traceabilityTotal || 0,
+          result: f?.result,
+          traceability: () => (f ? descomprime(f.traceability) : []),
+          traceabilityStored: f?.traceabilityStored || 0,
+          traceabilityTotal: f?.traceabilityTotal || 0,
           rows: propia?.result ? [{ agentId: query.agentId, result: propia.result }] : [],
-          cutsOf: key => (fila ? fila.cuts[key] : pastCuts.map(() => undefined)),
+          // Sin fila (no se mide aquí) no hay punto: `null`.
+          pointAt: iso => (f ? puntoDe(f, iso) : null),
         };
       }
       views.set(controlId, view);
@@ -805,59 +985,92 @@ export const createEvaluationService = ({
       ? undefined
       : assembleENSComplianceState(parts, query.agentId, ctx.scope, ctx.presenceEvents);
 
-    // La serie: días pasados (guardados o recién calculados) + el presente.
+    // La serie: días pasados (guardados o sacados de la serie de cada fila) +
+    // el presente. Si alguna fila aún está calculando la suya, la serie queda
+    // pendiente y se pide otra vez (`meta.timelinePending`).
     let timeline: any[] | undefined;
+    let timelinePending = false;
     if (query.timelineDays) {
       let pasados = cachedTimeline;
       if (!pasados) {
-        const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
-        ensConfigurationRepository.replaceActive(ctx.configuration);
-        const porControl = controls.map(controlId => views.get(controlId)?.cutsOf(cutsKey));
-        pasados = pastCuts.map((cut, index) => {
-          const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
-          const puntos = porControl.map(lista => lista?.[index]);
-          if (query.controlId) {
-            return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
-          }
-          // El número del panel en ese día: el mismo resumen del motor, sobre
-          // los controles con resultado en la vista.
-          const resultados = controls
-            .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
-            .filter((r): r is ENSComplianceResult => Boolean(r));
-          return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage };
-        });
-        if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
+        const puntosDe = () => pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
+        let porControl = puntosDe();
+        const faltan = () => porControl.some(puntos => puntos.some(p => p === undefined));
+        // La serie de estas filas se está calculando (la misma pasada que su
+        // resultado): se espera un poco a los días que pide la vista, que
+        // salen del más reciente al más antiguo, antes que responder pendiente.
+        const limite = Date.now() + SERIES_WAIT_MS;
+        while (
+          faltan() &&
+          Date.now() < limite &&
+          !options.signal?.aborted &&
+          usados.some(u => seriesInFlight.has(`${u.key}|${serie.key}`))
+        ) {
+          await new Promise(r => setTimeout(r, 25));
+          porControl = puntosDe();
+        }
+        if (faltan()) {
+          timelinePending = true;
+          // Una fila vigente sin la serie de hoy en esta zona (otro día u otra
+          // zona) la recalcula detrás.
+          scheduleSeries(clients, ctx, usados, serie.key);
+        } else {
+          const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
+          pasados = pastCuts.map((cut, index) => {
+            const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
+            const puntos = porControl[index];
+            if (query.controlId) {
+              return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
+            }
+            // El número del panel en ese día: el mismo resumen del motor, sobre
+            // los controles con resultado en la vista.
+            const resultados = controls
+              .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
+              .filter((r): r is ENSComplianceResult => Boolean(r));
+            return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage };
+          });
+          if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
+        }
       }
-      const hoy = plan.find(cut => cut.isCurrent);
-      const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
-      timeline = [
-        ...pasados,
-        ...(hoy
-          ? [
-              {
-                date: hoy.cutoff.toISOString(),
-                label: hoy.label,
-                isCurrent: true,
-                events: factsOfView(ctx, query).count,
-                ...(query.controlId
-                  ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
-                  : { score: state!.controlSummary.scoreAverage }),
-              },
-            ]
-          : []),
-      ];
+      if (pasados) {
+        const hoy = plan.find(cut => cut.isCurrent);
+        const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
+        timeline = [
+          ...pasados,
+          ...(hoy
+            ? [
+                {
+                  date: hoy.cutoff.toISOString(),
+                  label: hoy.label,
+                  isCurrent: true,
+                  events: factsOfView(ctx, query).count,
+                  ...(query.controlId
+                    ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
+                    : { score: state!.controlSummary.scoreAverage }),
+                },
+              ]
+            : []),
+        ];
+      }
     }
 
     const refreshing = usados.some(u => u.stale);
     const fingerprint = viewFingerprint(ctx, query);
     const impact = query.include === 'dashboard' ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
     const calculadas = usados.filter(u => u.computed);
+    const errores = usados.map(u => u.row.refreshError).filter(Boolean) as { message: string; at: string }[];
+    const refreshError = errores.sort((a, b) => b.at.localeCompare(a.at))[0];
 
     const meta = {
-      // Con algo viejo a la vista, la huella no es la de los datos: la sonda
-      // siguiente la verá distinta y el navegador volverá a pedir.
-      fingerprint: refreshing ? `refreshing:${fingerprint}` : fingerprint,
-      refreshing,
+      // Con algo viejo a la vista, o la serie pendiente, la huella no es la de
+      // los datos: la sonda siguiente la verá distinta y el navegador volverá
+      // a pedir.
+      fingerprint: refreshing || timelinePending ? `refreshing:${fingerprint}` : fingerprint,
+      refreshing: refreshing || timelinePending,
+      timelinePending,
+      // El último refresco en segundo plano que falló (lo que se enseña es lo
+      // anterior a él).
+      refreshError: refreshing ? refreshError : undefined,
       // Cuándo se calculó lo que se enseña (lo más antiguo de ello).
       computedAt: new Date(usados.length ? Math.min(...usados.map(u => u.storedAt)) : ctx.now.getTime()).toISOString(),
       evaluatedAt: ctx.now.toISOString(),
@@ -881,7 +1094,25 @@ export const createEvaluationService = ({
     return { ctx, query, meta, state, views, timeline, impact, rowName: nombre };
   };
 
-  return { loadContext, run, viewFingerprint, rows, timelines, tasks, reads };
+  // Las filas vigentes que no tienen la serie de hoy en esta zona (las
+  // calculadas otro día o con otra zona) la recalculan en segundo plano. Las
+  // que la están calculando ahora (la misma pasada que su resultado) no.
+  const scheduleSeries = (_clients: ENSEvaluationClients, _ctx: ENSEvaluationContext, usados: Obtained[], serieKey: string) => {
+    for (const u of usados) {
+      if (u.row.cuts && u.row.cuts.key === serieKey) continue;
+      const entrada = rows.peek(u.key);
+      if (!entrada) continue;
+      const fingerprint = entrada.fingerprint;
+      if (tasks.has(`${u.key}|${fingerprint}`)) continue;
+      const tarea = `${u.key}|${fingerprint}|serie|${serieKey}`;
+      if (tasks.has(tarea) || cutsRunning.has(`${u.key}|${serieKey}`)) continue;
+      tasks
+        .run(tarea, signal => u.recompute(signal, (cuts, ms) => adoptCuts(u.key, fingerprint, cuts, ms)))
+        .catch(error => logger.warn(`ENSFácil: no se pudo calcular la serie de ${u.key}: ${error?.message || error}`));
+    }
+  };
+
+  return { loadContext, run, viewFingerprint, rows, timelines, tasks, reads, cutsQueue, cutsRunning };
 };
 
 // Una espera que nunca se cancela (llamadas internas y pruebas).

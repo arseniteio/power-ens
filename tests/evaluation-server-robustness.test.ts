@@ -195,7 +195,11 @@ const referencia = () => {
 
   // 8. Una serie en Europe/Madrid que cruza el cambio de hora.
   const tz = 'Europe/Madrid';
-  const serie = await servicio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
+  let serie = await servicio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
+  for (let i = 0; i < 200 && serie.meta.timelinePending; i++) {
+    await espera(20);
+    serie = await servicio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
+  }
   const ref4 = referencia();
   const propios = ref4.docs.filter(d => d._source.data.ensfacil === 'op.exp.3' && d._source.agent.id === '024');
   const plan = planENSTimelineCuts(Math.min(...propios.map(d => Date.parse(d._source['@timestamp']))), propios.length, { now: reloj, days: 7, timeZone: tz, maxEvaluatedEvents: Infinity });
@@ -207,6 +211,40 @@ const referencia = () => {
   comprueba('serie de 7 días en Europe/Madrid (con el cambio de hora): los puntos del motor', igual((serie.timeline || []).map(p => [p.label, p.score, p.status]), esperada), [(serie.timeline || []).map(p => p.label), esperada.map(e => e[0])]);
   const delDia = (corte: Date) => ref4.docs.filter(d => (d._source.data.ensfacil === 'op.exp.3' || d._source.data.control === 'op.exp.3') && ['024', '000'].includes(d._source.agent.id) && Date.parse(d._source['@timestamp']) <= corte.getTime()).length;
   comprueba('los hechos de cada día, contados hasta el final del día en Madrid', (serie.timeline || []).filter(p => !p.isCurrent).every((p, i) => p.events === delDia(plan[i].cutoff)));
+
+  // 9. U-N1: el refresco en segundo plano falla (un shard). Lo guardado se
+  // sigue enseñando con el motivo y la hora; la petición siguiente NO lanza
+  // otro cálculo (espera creciente); «Reintentar» sí; al ir bien, se limpia.
+  {
+    const s9 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj });
+    const resumen = (opciones: any = {}) => s9.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...opciones });
+    await resumen();
+    const lecturasDeHechos = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
+    indice.docs.push(hecho('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'otra', funcion: 'operacion' }, 0.2));
+    fallar = 1;
+    const viejo9 = await resumen();
+    comprueba('U-N1: datos nuevos, refresco lanzado detrás', viejo9.meta.refreshing && viejo9.meta.stats.refreshingInBackground >= 1 && !viejo9.meta.refreshError);
+    while (s9.tasks.size) await espera(5);
+    const antes = lecturasDeHechos();
+    const conError = await resumen();
+    comprueba('U-N1: el refresco falló: lo último bueno con `refreshError` (motivo y hora)',
+      conError.meta.refreshing && /Datos incompletos/.test(conError.meta.refreshError?.message || '') && conError.meta.refreshError?.at === reloj.toISOString() && Boolean(conError.state), conError.meta.refreshError);
+    comprueba('U-N1: y la petición siguiente no lanza otro cálculo', conError.meta.stats.refreshingInBackground === 0 && lecturasDeHechos() === antes, conError.meta.stats);
+    const h9: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: s9 }).evaluate(contexto, { query: { include: 'summary', timeZone: 'UTC' } }, respuesta);
+    comprueba('U-N1: la ruta lleva `meta.refreshError`', h9.status === 200 && /Datos incompletos/.test(h9.body.data.meta.refreshError?.message || ''), h9.body?.data?.meta);
+    const reintento: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: s9 }).evaluate(contexto, { query: { include: 'summary', timeZone: 'UTC', retryRefresh: '1' } }, respuesta);
+    comprueba('U-N1: «Reintentar» (retryRefresh=1) lo intenta ya', reintento.body.data.meta.stats.refreshingInBackground >= 1, reintento.body?.data?.meta?.stats);
+    while (s9.tasks.size) await espera(5);
+    fallar = 0;
+    const guardado = reloj;
+    reloj = new Date(reloj.getTime() + 61 * 1000);
+    const pasado = await resumen();
+    comprueba('U-N1: pasada la espera, se reintenta solo', pasado.meta.stats.refreshingInBackground >= 1, pasado.meta.stats);
+    while (s9.tasks.size) await espera(5);
+    const bien = await resumen();
+    comprueba('U-N1: al ir bien, sin error ni marca', !bien.meta.refreshing && !bien.meta.refreshError, bien.meta.refreshError);
+    reloj = guardado;
+  }
 
   fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
   process.exit(fallos.length ? 1 : 0);

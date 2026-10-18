@@ -18,8 +18,10 @@ import { ENGINE_SOURCE_FIELDS, FACTS_SORT } from './queries';
 export const FACTS_PAGE_SIZE = 5000;
 // Los hechos que se tienen a la vez en memoria por lectura (un control en una
 // máquina). Por encima, la evaluación se para con un error claro antes de
-// poner en riesgo el proceso del dashboard.
-export const MAX_FACTS_PER_READ = 250000;
+// poner en riesgo el proceso del dashboard: cada hecho ocupa ~1,7 KB de
+// memoria leído y normalizado, así que 50.000 son unos 85 MB (y con las dos
+// lecturas a la vez, el doble). La mayor lectura del laboratorio son ~20.000.
+export const MAX_FACTS_PER_READ = 50000;
 
 export class ENSIncompleteDataError extends Error {
   statusCode = 503;
@@ -119,9 +121,10 @@ export const readAllFacts = async (
     if (hits.length < pageSize) break;
     after = hits[hits.length - 1]?.sort;
     if (!after) break;
-    // Sin desempate (`id` falta) dos hechos del mismo instante no se pueden
-    // separar entre páginas: se perderían o se repetirían en silencio.
-    if (after.slice(1).every(valor => valor === null || valor === undefined)) {
+    // Sin `id` (el desempate que es único por manager) dos hechos del mismo
+    // instante no se pueden separar entre páginas: se perderían o se
+    // repetirían en silencio.
+    if (after[1] === null || after[1] === undefined) {
       throw new ENSIncompleteDataError(`hay hechos sin \`id\` en ${what}: no se pueden leer por páginas sin perder ninguno`);
     }
   }

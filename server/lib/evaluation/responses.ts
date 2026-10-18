@@ -53,10 +53,10 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       // Las primeras entradas de la trazabilidad (las más recientes); el resto,
       // por páginas en `/evaluation/traceability`.
       result: entrada?.result
-        ? { ...entrada.result, traceability: (entrada.traceability || []).slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
+        ? { ...entrada.result, traceability: entrada.traceability().slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
         : undefined,
       traceabilityTotal: entrada?.traceabilityTotal || 0,
-      traceabilityAvailable: (entrada?.traceability || []).length,
+      traceabilityAvailable: entrada?.traceabilityStored || 0,
       agents: (entrada?.rows || []).map(row => ({
         agentId: row.agentId,
         agentName: run.rowName(row.agentId) || meta.scope.find(agent => agent.id === row.agentId)?.name,
@@ -104,7 +104,7 @@ export const buildEvaluationResponse = (run: RunOutput) => {
 // La trazabilidad de un control, por páginas, de lo guardado.
 export const buildTraceabilityPage = (run: RunOutput, from: number, size: number) => {
   const entrada = run.query.controlId ? run.views.get(run.query.controlId) : undefined;
-  const lista = entrada?.traceability || [];
+  const lista = entrada ? entrada.traceability() : [];
   return {
     meta: run.meta,
     total: entrada?.traceabilityTotal || 0,

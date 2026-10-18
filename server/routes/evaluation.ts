@@ -15,6 +15,7 @@ const consulta = schema.object(
     timeZone: schema.maybe(schema.string({ maxLength: 64 })),
     from: schema.maybe(schema.string({ maxLength: 8 })),
     size: schema.maybe(schema.string({ maxLength: 4 })),
+    retryRefresh: schema.maybe(schema.string({ maxLength: 5 })),
   },
   { unknowns: 'ignore' }
 );

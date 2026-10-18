@@ -125,12 +125,17 @@ export class SharedTasks<T> {
     return this.running.size;
   }
 
+  // En curso y sin cancelar (uno cancelado ya no sirve a nadie).
   has(key: string): boolean {
-    return this.running.has(key);
+    const entrada = this.running.get(key);
+    return Boolean(entrada && !entrada.signal.aborted);
   }
 
   run(key: string, task: (signal: Cancellable) => Promise<T>, waiter?: Cancellable): Promise<T> {
     let entrada = this.running.get(key);
+    // Un cálculo ya cancelado no se comparte: quien llega ahora empieza otro
+    // (el `finally` del cancelado no borra al nuevo).
+    if (entrada && entrada.signal.aborted) entrada = undefined;
     if (!entrada) {
       const signal = new CancelSignal();
       const promise = Promise.resolve()
@@ -160,10 +165,11 @@ export class SharedTasks<T> {
 }
 
 // Cuántas lecturas pesadas (un control en una máquina) corren a la vez en el
-// servidor del dashboard. Lo que sale de la memoria no pasa por aquí.
+// servidor del dashboard. Lo que sale de la memoria no pasa por aquí. Lo que
+// alguien espera ahora pasa delante de lo que se refresca en segundo plano.
 export class Semaphore {
   private active = 0;
-  private readonly waiting: (() => void)[] = [];
+  private readonly waiting: { resolve: () => void; background: boolean }[] = [];
 
   constructor(private readonly limit: number) {}
 
@@ -175,10 +181,18 @@ export class Semaphore {
     return this.waiting.length;
   }
 
-  async use<T>(task: () => Promise<T>): Promise<T> {
+  async use<T>(task: () => Promise<T>, options: { background?: boolean } = {}): Promise<T> {
     if (this.active >= this.limit) {
       // Quien termina le pasa su plaza directamente (ver `finally`).
-      await new Promise<void>(resolve => this.waiting.push(resolve));
+      await new Promise<void>(resolve => {
+        const entrada = { resolve, background: Boolean(options.background) };
+        if (entrada.background) this.waiting.push(entrada);
+        else {
+          const primeraDeFondo = this.waiting.findIndex(w => w.background);
+          if (primeraDeFondo < 0) this.waiting.push(entrada);
+          else this.waiting.splice(primeraDeFondo, 0, entrada);
+        }
+      });
     } else {
       this.active += 1;
     }
@@ -186,7 +200,7 @@ export class Semaphore {
       return await task();
     } finally {
       const siguiente = this.waiting.shift();
-      if (siguiente) siguiente();
+      if (siguiente) siguiente.resolve();
       else this.active -= 1;
     }
   }

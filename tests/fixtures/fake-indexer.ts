@@ -186,16 +186,25 @@ const agrega = (docs: FakeDoc[], aggs: any): any => {
     } else if (def.terms) {
       const grupos = new Map<string, FakeDoc[]>();
       for (const d of docs) {
-        for (const v of valoresDe(d._source, def.terms.field)) {
-          const k = String(v);
+        const valores = valoresDe(d._source, def.terms.field);
+        // `missing`: los que no tienen el campo van a un cubo con ese nombre.
+        const claves = valores.length ? valores.map(String) : def.terms.missing !== undefined ? [String(def.terms.missing)] : [];
+        for (const k of claves) {
           const g = grupos.get(k);
           if (g) g.push(d);
           else grupos.set(k, [d]);
         }
       }
       // Como OpenSearch: los más numerosos primero y como mucho `size`.
-      const cubos = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1)).slice(0, def.terms.size ?? 10);
-      salida[nombre] = { buckets: cubos.map(([key, ds]) => ({ key, doc_count: ds.length, ...agrega(ds, def.aggs) })) };
+      const todos = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length || (a[0] < b[0] ? -1 : 1));
+      const cubos = todos.slice(0, def.terms.size ?? 10);
+      salida[nombre] = {
+        // Lo que no cabe en `size` se cuenta aparte, como en OpenSearch.
+        sum_other_doc_count: todos.slice(def.terms.size ?? 10).reduce((n, [, ds]) => n + ds.length, 0),
+        buckets: cubos.map(([key, ds]) => ({ key, doc_count: ds.length, ...agrega(ds, def.aggs) })),
+      };
+    } else if (def.value_count) {
+      salida[nombre] = { value: docs.reduce((n, d) => n + valoresDe(d._source, def.value_count.field).length, 0) };
     } else if (def.top_hits) {
       const ordenados = ordena(docs, def.top_hits.sort);
       salida[nombre] = {

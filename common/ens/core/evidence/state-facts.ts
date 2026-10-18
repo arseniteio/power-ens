@@ -352,3 +352,66 @@ export const getStateFactOwnerEvidenceIds = (
 export const getStateFactCollectorField = (
   controlId: string
 ): string | undefined => collectorFieldOf(stateFactDefinitions(controlId));
+
+// EL CORTE EXACTO, por recolector y a fecha de varios instantes (ahora y el
+// final de cada día de la serie). Es el mismo corte que `keepLatestRunStateFacts`
+// —el latido anterior a la última vez que se miró cada evidencia, siendo
+// «mirar» lo más tardío entre el latido que la cubre y su último hecho—, con el
+// último hecho que da `lastFactOf` (el servidor lo saca de una agregación).
+//
+// Por recolector, el mínimo de los cortes de sus tipos con hechos: un solo
+// rango por recolector y día, que el motor vuelve a recortar con su regla. Si
+// algún tipo con hechos no tiene corte (su recolector no late, o no hay pasada
+// anterior), ese recolector no se poda en ese instante (`undefined`).
+//
+// `lastFactOf(collector, evidenceId, at)`: el último hecho de estado de esa
+// evidencia (suyo o sin evidencia declarada) del recolector hasta `at`, o
+// `undefined` si no hay. Si devuelve MENOS de lo que hay (un hecho que no supo
+// atribuir), el corte solo puede salir antes: se lee de más, nunca de menos.
+export const computeStateFactCutoffsByCollector = (
+  controlId: string,
+  runEvents: ENSNormalizedEvent[],
+  instants: Date[],
+  lastFactOf: (collector: string, evidenceId: string, at: number) => number | undefined,
+  collectors: string[]
+): Map<string, (number | undefined)[]> => {
+  const salida = new Map<string, (number | undefined)[]>();
+  const definitions = stateFactDefinitions(controlId);
+
+  if (!definitions.length) {
+    return salida;
+  }
+
+  const collectorOf = collectorOfField(collectorFieldOf(definitions));
+  const tipos = Array.from(new Set(definitions.flatMap(definition => definition.stateFactEventTypes || [])));
+
+  collectors.forEach(collectorValue => {
+    salida.set(
+      collectorValue,
+      instants.map(instant => {
+        const at = instant.getTime();
+        const runs = collectorRunsByCollector(controlId, runEvents, at, collectorOf);
+        // Los latidos son de una sola máquina: la clave del recolector es
+        // `agente|valor`.
+        const clave = [...runs.keys()].find(key => key.slice(key.indexOf('|') + 1) === collectorValue);
+        const propios = clave ? runs.get(clave) : undefined;
+        let minimo: number | undefined;
+
+        for (const tipo of tipos) {
+          const duenas = definitions.filter(definition => (definition.stateFactEventTypes || []).includes(tipo));
+          const conHechos = duenas.filter(definition => lastFactOf(collectorValue, definition.id, at) !== undefined);
+          if (!conHechos.length) continue;
+          for (const definition of duenas) {
+            const corte = boundaryFor(propios, definition.id, lastFactOf(collectorValue, definition.id, at));
+            if (corte === undefined) return undefined;
+            minimo = minimo === undefined ? corte : Math.min(minimo, corte);
+          }
+        }
+
+        return minimo;
+      })
+    );
+  });
+
+  return salida;
+};

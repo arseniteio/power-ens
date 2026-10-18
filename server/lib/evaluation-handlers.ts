@@ -74,7 +74,9 @@ export const createEvaluationHandlers = (options: {
   const evaluate = (context: any, request: any, response: any) =>
     conErrores(request, response, 'evaluar los controles', async signal => {
       const query = normalizeQuery(request?.query || {});
-      const salida = await service.run(clientes(context), query, { allowStale: true, signal });
+      // «Reintentar» tras un refresco que falló: se intenta ya, sin esperar.
+      const retryRefresh = request?.query?.retryRefresh === '1' || request?.query?.retryRefresh === 'true';
+      const salida = await service.run(clientes(context), query, { allowStale: true, signal, retryRefresh });
       const s = salida.meta.stats;
       logger.debug(
         `ENSFácil: evaluación ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} en ${s.totalMs} ms ` +
