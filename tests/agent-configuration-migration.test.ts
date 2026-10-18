@@ -150,6 +150,11 @@ console.log('3. Idempotente y válido');
   comprueba('y sus valores por agente también', validateAgentsConfiguration(m).length === 0, validateAgentsConfiguration(m));
   const nada = planMigrationToSystems({ ...defaultENSConfigurationTemplate, controls: [conValores('op.acc.1', { 'P-07': ['x | nadie | y'] })] }, inventario);
   comprueba('sin nada que mover: el mismo documento', !nada.changed && nada.warnings.length === 1);
+  // Con el alcance vacío no se puede comprobar que ninguna máquina se quede
+  // sin un obligatorio: la migración no hace nada.
+  const vacio = planMigrationToSystems(doc, inventario, { scopeAgentIds: [] });
+  comprueba('alcance vacío: no migra nada', vacio.emptyScope === true && !vacio.changed && vacio.moves.length === 0 && vacio.configuration === doc);
+  comprueba('sin alcance ni inventario: tampoco', planMigrationToSystems(doc, []).emptyScope === true);
   // Una fila nueva en la organización que casa con un agente que ya tiene
   // valor propio se AÑADE a lo suyo.
   const mas = JSON.parse(JSON.stringify(m));

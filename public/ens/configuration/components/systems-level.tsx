@@ -42,6 +42,7 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ConfirmModal, errorMessage } from './confirm-modal';
+import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { TemplatePreviewModal } from './template-preview-modal';
 import { useSystemsData } from './use-systems-data';
 
@@ -78,6 +79,8 @@ export const SystemsLevel = ({
   const [templateId, setTemplateId] = useState<string>('');
   const [preview, setPreview] = useState<ENSTemplatePreview[] | undefined>();
   const [confirmMigration, setConfirmMigration] = useState(false);
+  // Quitar un perfil o un control enteros: primero, lo que se pierde.
+  const [removal, setRemoval] = useState<ENSEntryRemoval | undefined>();
   const [notice, setNotice] = useState<Notice>();
   // La selección de EuiBasicTable no se controla desde fuera: tras aplicar, la
   // tabla se monta de nuevo para que las casillas se vacíen de verdad.
@@ -129,6 +132,8 @@ export const SystemsLevel = ({
   const rowById = (id: string) => rows.find(row => row.id === id);
 
   const runMigration = async (): Promise<string | undefined> => {
+    // Sin máquinas en el alcance no se migra (ver `emptyScope`).
+    if (!scopeIds.length) return 'El alcance ENS no tiene ninguna máquina: no se puede migrar.';
     try {
       const done = await saveFromLatestConfiguration(latest => {
         const plan = planMigrationToSystems(latest, data.inventory, { scopeAgentIds: scopeIds });
@@ -192,16 +197,38 @@ export const SystemsLevel = ({
     }
   };
 
-  const removeOrphan = async (agentKey: string, controlId?: string, parameterId?: string) => {
+  const removeOrphan = async (agentKey: string, controlId?: string, parameterId?: string): Promise<string | undefined> => {
     try {
       await saveFromLatestConfiguration(latest => ({
         configuration: removeAgentEntry(latest, agentKey, controlId, parameterId),
-        reason: `Quitado de ${agentKey} un valor que no se aplicaba${controlId ? ` (${controlId}${parameterId ? ` ${parameterId}` : ''})` : ''}.`,
+        reason: controlId
+          ? `Quitado de ${agentKey} un valor que no se aplicaba (${controlId}${parameterId ? ` ${parameterId}` : ''}).`
+          : `Quitado el perfil ${agentKey}, que no se aplicaba a ninguna máquina.`,
       }));
       onConfigurationSaved();
+      return undefined;
     } catch (error) {
-      setNotice({ color: 'danger', text: errorMessage(error) });
+      const text = errorMessage(error);
+      setNotice({ color: 'danger', text });
+      return text;
     }
+  };
+
+  // Un valor suelto se quita directamente; un perfil o un control enteros,
+  // tras enseñar lo que se pierde.
+  const askRemoval = (agentKey: string, controlId?: string, parameterId?: string) => {
+    if (parameterId) {
+      removeOrphan(agentKey, controlId, parameterId);
+      return;
+    }
+    setRemoval({ agentKey, controlId });
+  };
+
+  const confirmRemoval = async (): Promise<string | undefined> => {
+    if (!removal) return undefined;
+    const failure = await removeOrphan(removal.agentKey, removal.controlId);
+    if (!failure) setRemoval(undefined);
+    return failure;
   };
 
   if (target.agentId) {
@@ -330,6 +357,22 @@ export const SystemsLevel = ({
         </>
       )}
 
+      {migration.emptyScope && !data.loading && (
+        <>
+          <EuiCallOut color='warning' iconType='alert' size='s' title='«Migrar a sistemas» no está disponible: el alcance ENS no tiene ninguna máquina'>
+            <p>
+              Sin máquinas en el alcance no se puede comprobar que ninguna se
+              quede sin un parámetro obligatorio. El alcance se define en
+              initial-setup.
+            </p>
+            <EuiButton fill size='s' isDisabled>
+              Migrar a sistemas
+            </EuiButton>
+          </EuiCallOut>
+          <EuiSpacer size='m' />
+        </>
+      )}
+
       {migration.changed && (
         <>
           <EuiCallOut color='primary' iconType='iInCircle' title='Hay valores de organización que son de un sistema concreto'>
@@ -353,7 +396,7 @@ export const SystemsLevel = ({
               </ul>
             </EuiAccordion>
             <EuiSpacer size='s' />
-            <EuiButton fill size='s' isDisabled={data.loading || migration.incomplete.length > 0} onClick={() => setConfirmMigration(true)}>
+            <EuiButton fill size='s' isDisabled={data.loading || migration.incomplete.length > 0 || !scopeIds.length} onClick={() => setConfirmMigration(true)}>
               Migrar a sistemas
             </EuiButton>
           </EuiCallOut>
@@ -431,7 +474,7 @@ export const SystemsLevel = ({
                 <li key={`${index}-${issue.agentId}`}>
                   {issue.agentId}: {issue.message}
                   {issue.kind === 'huerfano' && (
-                    <EuiButtonEmpty size='xs' color='danger' onClick={() => removeOrphan(issue.agentId, issue.controlId, issue.parameterId)}>
+                    <EuiButtonEmpty size='xs' color='danger' onClick={() => askRemoval(issue.agentId, issue.controlId, issue.parameterId)}>
                       Quitar
                     </EuiButtonEmpty>
                   )}
@@ -441,6 +484,15 @@ export const SystemsLevel = ({
           </EuiCallOut>
           <EuiSpacer size='m' />
         </>
+      )}
+
+      {removal && (
+        <RemoveEntryModal
+          configuration={configuration}
+          removal={removal}
+          onCancel={() => setRemoval(undefined)}
+          onConfirm={confirmRemoval}
+        />
       )}
 
       {warnings.length > 0 && (

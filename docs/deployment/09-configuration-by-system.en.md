@@ -126,6 +126,10 @@ Before saving, the plugin shows a preview per system: how many parameters change
 
 5. To remove a template, click the cross on its badge in «Plantillas aplicadas».
 
+   Expected result: the «Quitar «…» de 1 sistema(s)» window with the parameters whose effective value changes, what the template set and the own values, which do not change. If a required parameter is left without a value, the window says so in «Se quedan sin valor parámetros obligatorios: …» and the confirmation requires typing `quitar`.
+
+6. Click «Quitar la plantilla».
+
    Expected result: the badge disappears and those parameters inherit again from another applied template or from the organisation, except those with an own value.
 
 ## 7. Own values of a system
@@ -162,6 +166,14 @@ A profile can hold values that do not apply: one for a parameter the control no 
 
    Expected result: the value disappears from the list and from the document; the rest of the profile is kept.
 
+2. For a whole control that is not in the configuration, or a whole profile saved under a name instead of an id, click «Quitar» next to it.
+
+   Expected result: the «Quitar …» window with every item that is deleted (name, other names, manual type, templates and each value). A whole profile requires typing `quitar`.
+
+3. Click «Quitar».
+
+   Expected result: the profile or the control disappears from the list and from the document. The previous version stays in the history (section 12).
+
 What this version does not know (a profile key saved by a later version) is ignored and listed under «Claves que esta versión no conoce (se ignoran)»: it is not an error and it is not removed.
 
 ### 7.2 Other names of a machine
@@ -186,6 +198,8 @@ Before 1.2.0, what belonged to one machine was declared at organisation level: t
 - It is idempotent: on an already migrated document it changes nothing.
 
 The «Sistemas» tab computes the migration when it loads, without writing: if there are rows to copy, it shows «Hay valores de organización que son de un sistema concreto», the summary (how many rows leave the organisation and how many are copied), the detail under «Ver qué se mueve y qué se copia» and the «Migrar a sistemas» button. Warnings about rows without an agent are shown whenever they exist.
+
+If the ENS scope has no machine, the migration is neither computed nor run: the tab shows the notice ««Migrar a sistemas» no está disponible: el alcance ENS no tiene ninguna máquina», with the button disabled. With no machine in scope it cannot be checked that none is left without a required parameter. The scope is defined in initial-setup.
 
 ### 8.1 Migrate
 
@@ -325,8 +339,8 @@ To recover in 1.1.0 the configuration from before the migration, restore the bac
 1. List the latest versions in the history:
 
    ```bash
-   C="--cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem"
-   sudo curl -sk $C "https://127.0.0.1:9200/wazuh-ens-configuration/_search?q=documentType:CONFIGURATION_HISTORY&sort=createdAt:desc&size=10&filter_path=hits.hits._id,hits.hits._source.createdAt,hits.hits._source.createdBy,hits.hits._source.configuration.changeReason&pretty"
+   C="--cacert /etc/wazuh-indexer/certs/root-ca.pem --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem"
+   sudo curl -s $C "https://127.0.0.1:9200/wazuh-ens-configuration/_search?q=documentType:CONFIGURATION_HISTORY&sort=createdAt:desc&size=10&filter_path=hits.hits._id,hits.hits._source.createdAt,hits.hits._source.createdBy,hits.hits._source.configuration.changeReason&pretty"
    ```
 
    Expected result: the versions from newest to oldest, with their `_id`. The one before the migration is the one right after the version whose `changeReason` is «Migración a sistemas: …».
@@ -335,7 +349,7 @@ To recover in 1.1.0 the configuration from before the migration, restore the bac
 
    ```bash
    ID=<_id of the version before the migration>
-   sudo curl -sk $C "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/$ID" -o /opt/ensfacil/artifacts/historial.json
+   sudo curl -s $C "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/$ID" -o /opt/ensfacil/artifacts/historial.json
    sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); s=d['_source']; s['documentType']='ACTIVE_CONFIGURATION'; json.dump({'_source': s, 'found': True}, open(sys.argv[2],'w'), ensure_ascii=False)" \
      /opt/ensfacil/artifacts/historial.json /opt/ensfacil/artifacts/active-desde-historial.json
    ```

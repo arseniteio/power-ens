@@ -80,6 +80,11 @@ const guardados: { configuration: any; changeReason?: string }[] = [];
 let inventarioFalso: any = { agentes: { buckets: [] } };
 let hechosFalsos: any = { agentes: { buckets: [] } };
 const SERVICES = `${__dirname}/../public/services.ts`;
+// El alcance ENS sin ninguna máquina (ni el manager): solo antes de hidratar o
+// sin controles activos en el manager. Se simula para ver la migración
+// bloqueada.
+const RUNTIME = `${__dirname}/../common/ens/core/scope/runtime.ts`;
+let alcanceVacio = false;
 // El cliente HTTP de la configuración vive en `common/` y recibe `http` por
 // inyección (en el plugin, `public/services.ts` al arrancar).
 const httpFalso = {
@@ -106,6 +111,10 @@ const httpFalso = {
     }
     let resuelto = '';
     try { resuelto = Module._resolveFilename(peticion, padre); } catch (e) { resuelto = ''; }
+    if (resuelto && path.resolve(resuelto) === path.resolve(RUNTIME)) {
+      const real = cargar.call(this, peticion, padre, ...resto);
+      return { ...real, getActiveENSScopeAgents: () => (alcanceVacio ? [] : real.getActiveENSScopeAgents()) };
+    }
     if (resuelto && path.resolve(resuelto) === path.resolve(SERVICES)) {
       return {
         getHttp: () => httpFalso,
@@ -401,11 +410,53 @@ const ultimo = () => guardados[guardados.length - 1];
     comprueba('aportación: el editor parte de lo de este sistema, no de la organización', !!filaE7 && JSON.stringify(filaE7.props.parameter.value) === '["dirHost | directorio"]' && filaE7.props.contributionOnly === true, filaE7?.props.parameter.value);
     comprueba('y las filas de la organización se enseñan aparte, de solo lectura', JSON.stringify(filaE7?.props.organisationRows) === '["srv-x | nóminas"]' && /De la organización/.test(p));
 
+    // Quitar una plantilla desde su etiqueta: la misma vista previa que al aplicarla.
+    const conPlantilla = documento();
+    conPlantilla.agents = { '102': { name: 'dirHost', templates: ['zimbra-ldap'] } };
+    await prepara(conPlantilla);
+    busqueda = '?tabView=configuration&configAgent=102';
+    p = await renderiza(ConfigurationShell);
+    nodos.find(n => n.type === 'EuiBadge' && typeof n.props.iconOnClick === 'function')!.props.iconOnClick();
+    p = await renderiza(ConfigurationShell);
+    comprueba('quitar una plantilla abre su vista previa y no guarda', guardados.length === 0 && /Quitar «Servidor LDAP Zimbra» de 1 sistema/.test(p) && /Cambia el valor efectivo de [1-9]\d* parámetro/.test(p) && /La plantilla fijaba ?: /.test(p), p.slice(p.indexOf('Quitar «'), p.indexOf('Quitar «') + 1400));
+    const campoQuitar = nodos.find(n => n.type === 'EuiFieldText' && /quitar/.test(n.props['aria-label'] || ''));
+    comprueba('con obligatorios que se quedan sin valor, lo dice y pide teclear «quitar»', !!campoQuitar === /Se quedan sin valor parámetros obligatorios/.test(p));
+    if (campoQuitar) {
+      await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+      comprueba('sin teclear «quitar» no guarda', guardados.length === 0);
+      campoQuitar.props.onChange({ target: { value: 'quitar' } });
+      await renderiza(ConfigurationShell, 1);
+    }
+    await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+    p = await renderiza(ConfigurationShell);
+    comprueba('confirmado: guarda sin la plantilla', guardados.length === 1 && !ultimo().configuration.agents['102'].templates && /plantilla «Servidor LDAP Zimbra» quitada/i.test(ultimo().changeReason || ''), guardados.map(g => g.changeReason));
+
+    // Quitar un perfil entero (guardado con un nombre): lo que se pierde y «quitar» tecleado.
+    const conNombre = documento();
+    conNombre.agents = { srvWeb: { aliases: ['web'], templates: ['linux-ubuntu'], controls: { 'op.acc.1': { parameters: { 'P-07': ['ana | srvWeb | admin'] } } } } };
+    await prepara(conNombre);
+    busqueda = '?tabView=configuration&configView=sistemas';
+    p = await renderiza(ConfigurationShell);
+    p = await pulsa(ConfigurationShell, /^Quitar$/);
+    comprueba('quitar un perfil entero enseña antes lo que se pierde', guardados.length === 0 && /Quitar el perfil «srvWeb»/.test(p) && /op\.acc\.1 P-07: ana \| srvWeb \| admin/.test(p) && /Plantillas: /.test(p) && /Otros nombres: web/.test(p), p.slice(p.indexOf('Quitar el perfil'), p.indexOf('Quitar el perfil') + 400));
+    await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+    comprueba('sin teclear «quitar» no se borra', guardados.length === 0);
+    nodos.find(n => n.type === 'EuiFieldText' && /quitar/.test(n.props['aria-label'] || ''))!.props.onChange({ target: { value: 'quitar' } });
+    await renderiza(ConfigurationShell, 1);
+    await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+    p = await renderiza(ConfigurationShell);
+    comprueba('tecleado: el perfil sale del documento', guardados.length === 1 && !ultimo().configuration.agents?.srvWeb, guardados.map(g => g.changeReason));
+
     // Sin agents, sin agentes y con un agente fuera del alcance.
     await prepara(documento(), []);
     busqueda = '?tabView=configuration&configView=sistemas';
     p = await renderiza(ConfigurationShell);
     comprueba('sin agentes ni agents: se pinta', /No hay agentes en el alcance|Sistemas del alcance/.test(p));
+    alcanceVacio = true;
+    estados.clear(); efectosHechos.clear();
+    p = await renderiza(ConfigurationShell);
+    alcanceVacio = false;
+    comprueba("alcance vacío: «Migrar a sistemas» no está disponible", /no está disponible: el alcance ENS no tiene ninguna máquina/.test(p) && boton(/^Migrar a sistemas$/)?.props.isDisabled === true && !/Hay valores de organización que son de un sistema concreto/.test(p), p.slice(0, 1500));
     const fuera = documento();
     fuera.agents = { '777': { name: 'retirado', controls: { 'op.acc.1': { parameters: { 'P-07': ['x | retirado | y'] } } } } };
     await prepara(fuera);

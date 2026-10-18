@@ -43,6 +43,7 @@ import {
   describeAgentValueSave,
   getAgentCompleteness,
   previewTemplateApplication,
+  previewTemplateRemoval,
   removeAgentEntry,
   removeTemplateFromAgent,
   setAgentAliases,
@@ -57,6 +58,7 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 import { AgentParameterRow, valueRows } from './agent-parameter-row';
 import { errorMessage } from './confirm-modal';
 import { TemplatePreviewModal } from './template-preview-modal';
+import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import type { ENSSystemRow } from './systems-level';
 
 interface AgentConfigurationPageProps {
@@ -119,6 +121,10 @@ export const AgentConfigurationPage = ({
     ? chosen
     : proposed[0] || available[0]?.id || '';
   const [preview, setPreview] = useState<ENSTemplatePreview[] | undefined>();
+  // Quitar una plantilla pasa por la misma vista previa que aplicarla.
+  const [removalPreview, setRemovalPreview] = useState<ENSTemplatePreview | undefined>();
+  // Quitar un control entero que no se aplica: primero, lo que se pierde.
+  const [entryRemoval, setEntryRemoval] = useState<ENSEntryRemoval | undefined>();
   const [aliasesText, setAliasesText] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -161,6 +167,30 @@ export const AgentConfigurationPage = ({
       setPreview(undefined);
       setChosen(undefined);
     }
+    return failure;
+  };
+
+  const confirmTemplateRemoval = async () => {
+    if (!removalPreview) return undefined;
+    const id = removalPreview.templateId;
+    const failure = await save(
+      latest => removeTemplateFromAgent(latest, agentId, id),
+      `Plantilla «${getConfigurationTemplate(id)?.label || id}» quitada de ${label}.`
+    );
+    if (!failure) setRemovalPreview(undefined);
+    return failure;
+  };
+
+  const removeOrphan = (controlId?: string, parameterId?: string) =>
+    save(
+      latest => removeAgentEntry(latest, agentId, controlId, parameterId),
+      `Quitado de ${label} un valor que no se aplicaba (${controlId || ''}${parameterId ? ` ${parameterId}` : ''}).`
+    );
+
+  const confirmEntryRemoval = async () => {
+    if (!entryRemoval) return undefined;
+    const failure = await removeOrphan(entryRemoval.controlId);
+    if (!failure) setEntryRemoval(undefined);
     return failure;
   };
 
@@ -252,10 +282,9 @@ export const AgentConfigurationPage = ({
                     color='danger'
                     isDisabled={saving}
                     onClick={() =>
-                      save(
-                        latest => removeAgentEntry(latest, agentId, issue.controlId, issue.parameterId),
-                        `Quitado de ${label} un valor que no se aplicaba (${issue.controlId || ''} ${issue.parameterId || ''}).`
-                      )
+                      issue.parameterId
+                        ? removeOrphan(issue.controlId, issue.parameterId)
+                        : setEntryRemoval({ agentKey: agentId, controlId: issue.controlId })
                     }
                   >
                     Quitar
@@ -332,12 +361,7 @@ export const AgentConfigurationPage = ({
                     color='primary'
                     iconType='cross'
                     iconSide='right'
-                    iconOnClick={() =>
-                      save(
-                        latest => removeTemplateFromAgent(latest, agentId, id),
-                        `Plantilla «${getConfigurationTemplate(id)?.label || id}» quitada de ${label}.`
-                      )
-                    }
+                    iconOnClick={() => setRemovalPreview(previewTemplateRemoval(configuration, agentId, id))}
                     iconOnClickAriaLabel='Quitar la plantilla'
                   >
                     {getConfigurationTemplate(id)?.label || id}
@@ -389,6 +413,25 @@ export const AgentConfigurationPage = ({
           previews={preview}
           onCancel={() => setPreview(undefined)}
           onConfirm={applyPreview}
+        />
+      )}
+
+      {removalPreview && (
+        <TemplatePreviewModal
+          mode='remove'
+          label={removalPreview.label}
+          previews={[removalPreview]}
+          onCancel={() => setRemovalPreview(undefined)}
+          onConfirm={confirmTemplateRemoval}
+        />
+      )}
+
+      {entryRemoval && (
+        <RemoveEntryModal
+          configuration={configuration}
+          removal={entryRemoval}
+          onCancel={() => setEntryRemoval(undefined)}
+          onConfirm={confirmEntryRemoval}
         />
       )}
 

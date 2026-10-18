@@ -87,11 +87,15 @@ export interface ENSMigrationPlan {
   // del alcance. Por construcción, vacío; si no, la migración no se ofrece.
   incomplete: ENSMigrationIncomplete[];
   changed: boolean;
+  // El alcance no tiene ninguna máquina: no se migra nada. Sin máquinas no se
+  // puede comprobar que ninguna se quede sin un obligatorio, y la migración
+  // podría sacar filas obligatorias de la organización.
+  emptyScope?: boolean;
 }
 
 export interface ENSMigrationOptions {
   // Las máquinas del alcance (las que se evalúan). Sin ellas, todas las del
-  // inventario.
+  // inventario. Si no queda ninguna, la migración no hace nada (`emptyScope`).
   scopeAgentIds?: string[];
 }
 
@@ -135,6 +139,12 @@ export const planMigrationToSystems = (
   inventory: ENSDetectableAgent[],
   options: ENSMigrationOptions = {}
 ): ENSMigrationPlan => {
+  const scope = (options.scopeAgentIds || inventory.map(agent => agent.id)).map(normalizeAgentId);
+
+  if (!scope.length) {
+    return { configuration, moves: [], warnings: [], incomplete: [], changed: false, emptyScope: true };
+  }
+
   const migrated = cloneDocument(configuration);
   const agents: Record<string, ENSAgentProfile> = migrated.agents ? migrated.agents : {};
   migrated.agents = agents;
@@ -148,8 +158,6 @@ export const planMigrationToSystems = (
   Object.entries(agents).forEach(([id, profile]) => {
     if (!known.has(id)) known.set(id, { id, name: profile?.name });
   });
-
-  const scope = (options.scopeAgentIds || inventory.map(agent => agent.id)).map(normalizeAgentId);
 
   const byAlias = new Map<string, Set<string>>();
   known.forEach((agent, id) => {

@@ -345,6 +345,9 @@ export interface ENSTemplatePreview {
   mismatch?: string;
   // No se puede aplicar (incompatible): el motivo.
   error?: string;
+  // Solo al QUITAR la plantilla: los obligatorios que se quedan sin valor en
+  // este sistema (tenían valor y dejan de tenerlo).
+  leftEmpty?: string[];
   configuration: ENSConfigurationVersion;
 }
 
@@ -353,6 +356,33 @@ const TYPE_LABELS: Record<string, string> = {
   'zimbra-ldap': 'LDAP (Zimbra)',
   windows: 'Windows',
   manager: 'Manager',
+};
+
+// Los parámetros por sistema y por plataforma cuyo valor efectivo en la fila
+// de `agentId` cambia de un documento a otro y, de ellos, los obligatorios que
+// tenían valor y se quedan sin él.
+const effectiveChanges = (
+  before: ENSConfigurationVersion,
+  after: ENSConfigurationVersion,
+  agentId: string
+): { changes: string[]; leftEmpty: string[] } => {
+  const changes: string[] = [];
+  const leftEmpty: string[] = [];
+  before.controls.forEach(control => {
+    const left = resolveControlConfigurationWithOrigins(before, control.controlId, agentId);
+    const right = resolveControlConfigurationWithOrigins(after, control.controlId, agentId);
+    control.parameters.forEach(parameter => {
+      if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
+      const was = left?.configuration.parameters.find(item => item.id === parameter.id)?.value;
+      const is = right?.configuration.parameters.find(item => item.id === parameter.id)?.value;
+      if (sameValue(was, is)) return;
+      changes.push(`${control.controlId} ${parameter.id}`);
+      if (parameter.required && !isEmptyParameterValue(was) && isEmptyParameterValue(is)) {
+        leftEmpty.push(`${control.controlId} ${parameter.id}`);
+      }
+    });
+  });
+  return { changes, leftEmpty };
 };
 
 /**
@@ -401,16 +431,7 @@ export const previewTemplateApplication = (
     });
   });
 
-  configuration.controls.forEach(control => {
-    const before = resolveControlConfigurationWithOrigins(configuration, control.controlId, id);
-    const after = resolveControlConfigurationWithOrigins(result.configuration, control.controlId, id);
-    control.parameters.forEach(parameter => {
-      if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
-      const left = before?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-      const right = after?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-      if (!sameValue(left, right)) base.changes.push(`${control.controlId} ${parameter.id}`);
-    });
-  });
+  base.changes.push(...effectiveChanges(configuration, result.configuration, id).changes);
 
   const replaced =
     template.kind === 'base'
@@ -428,6 +449,96 @@ export const previewTemplateApplication = (
   }
 
   return { ...base, configuration: result.configuration };
+};
+
+/**
+ * Qué haría QUITAR `templateId` de una máquina, sin guardar nada: lo que la
+ * plantilla fijaba, qué valores efectivos cambian (pasan a heredar de la
+ * siguiente plantilla o de la organización) y qué obligatorios se quedan sin
+ * valor. La pantalla lo enseña igual que al aplicar y solo guarda tras
+ * confirmarlo.
+ */
+export const previewTemplateRemoval = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  templateId: string
+): ENSTemplatePreview => {
+  const id = normalizeAgentId(agentId);
+  const template = getConfigurationTemplate(templateId);
+  const profile = configuration.agents?.[id];
+  const base: ENSTemplatePreview = {
+    agentId: id,
+    templateId,
+    label: template?.label || templateId,
+    sets: [],
+    ownWins: [],
+    changes: [],
+    leftEmpty: [],
+    configuration,
+  };
+
+  if (!(profile?.templates || []).includes(templateId)) {
+    return { ...base, error: `la plantilla ${templateId} no está aplicada a ${id}` };
+  }
+
+  const seeded = (controlId: string) => configuration.controls.some(control => control.controlId === controlId);
+  Object.entries(template?.values || {}).forEach(([controlId, values]) => {
+    if (!seeded(controlId)) return;
+    Object.keys(values).forEach(parameterId => {
+      base.sets.push(`${controlId} ${parameterId}`);
+      const own = profile?.controls?.[controlId]?.parameters;
+      if (own && Object.prototype.hasOwnProperty.call(own, parameterId)) base.ownWins.push(`${controlId} ${parameterId}`);
+    });
+  });
+
+  const next = removeTemplateFromAgent(configuration, id, templateId);
+  const { changes, leftEmpty } = effectiveChanges(configuration, next, id);
+  return { ...base, changes, leftEmpty, configuration: next };
+};
+
+const describeValue = (value: unknown): string => {
+  if (Array.isArray(value)) return value.length ? value.map(item => String(item)).join('; ') : '(vacío)';
+  if (value && typeof value === 'object') return JSON.stringify(value);
+  return value === undefined || value === null || value === '' ? '(vacío)' : String(value);
+};
+
+/**
+ * Lo que se pierde al quitar una entrada de un perfil (el perfil entero, un
+ * control o un parámetro): una línea por dato guardado. La pantalla lo enseña
+ * antes de quitar un perfil o un control enteros, que pueden llevar muchos
+ * valores y solo se recuperan desde el historial.
+ */
+export const describeAgentEntryRemoval = (
+  configuration: ENSConfigurationVersion,
+  agentKey: string,
+  controlId?: string,
+  parameterId?: string
+): string[] => {
+  const profile: any = configuration.agents?.[agentKey];
+  if (!profile) return [];
+  const lines: string[] = [];
+  const controls: Record<string, any> = profile.controls || {};
+
+  if (!controlId) {
+    if (profile.name) lines.push(`Nombre: ${profile.name}`);
+    if (profile.aliases?.length) lines.push(`Otros nombres: ${profile.aliases.join(', ')}`);
+    if (profile.typeOverride) lines.push(`Tipo corregido a mano: ${profile.typeOverride}`);
+    if (profile.templates?.length) {
+      lines.push(`Plantillas: ${profile.templates.map((id: string) => getConfigurationTemplate(id)?.label || id).join(', ')}`);
+    }
+  }
+
+  Object.entries(controls)
+    .filter(([id]) => !controlId || id === controlId)
+    .forEach(([id, entry]) => {
+      const parameters: Record<string, unknown> = entry?.parameters || {};
+      Object.entries(parameters)
+        .filter(([parameter]) => !parameterId || parameter === parameterId)
+        .forEach(([parameter, value]) => lines.push(`${id} ${parameter}: ${describeValue(value)}`));
+      if (!parameterId && !Object.keys(parameters).length) lines.push(`${id}: sin valores`);
+    });
+
+  return lines;
 };
 
 // Qué pasa al guardar `value` como valor de un sistema: se quita (vacío), no se
