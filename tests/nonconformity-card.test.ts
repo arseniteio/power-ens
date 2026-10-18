@@ -90,6 +90,13 @@ const tarjeta = (props: any = {}) => () => React.createElement(NonConformityCard
   p = await h.render(tarjeta({ item: { ...item, expected: 'todo acceso con dos factores', actual: '1 caso(s) con un solo factor' } }));
   comprueba('el concreto sí, y sin negrita', /Se pedía todo acceso con dos factores/.test(p) && /Hay 1 caso\(s\) con un solo factor/.test(p) && !h.nodes().some(n => n.type === 'strong' && /dos factores/.test(n.texto)));
 
+  const larga = `La respuesta activa ${'no tiene sus scripts '.repeat(14)}en la máquina auditada.`;
+  const propiasLargas = [{ id: 'EV-11', medida: { estado: 'NO_CUMPLE', motivo: `${larga} Detalle.` } }];
+  p = await h.render(tarjeta({ item: { ...item, finding: motivoCompuesto(propiasLargas) }, lineasMotivo: [{ texto: `${PUENTE}${motivoCompuesto(propiasLargas)}`, etiqueta: 'EV-11' }] }));
+  const corto = h.nodes().find(n => n.type === 'p' && n.props?.title === larga);
+  comprueba('un titular de más de 200 caracteres se corta con «…» y lo que no cabe abre la causa', Boolean(corto) && /…$/.test(corto!.texto) && corto!.texto.length <= 202 && p.includes(larga.slice(200).trimStart().slice(0, 30)), corto?.texto.length);
+  comprueba('la acción concreta, a la vista bajo la clase', /Corregir EV-11 hasta que conforme\./.test(p));
+
   console.log('4. La celda');
   const celda = () => React.createElement(MotiveCell, { lineas: [{ texto: `${PUENTE}${motivo}` }], evidenceId: 'EV-04', titulo: 'Motivo · EV-04' });
   p = await h.render(celda);
