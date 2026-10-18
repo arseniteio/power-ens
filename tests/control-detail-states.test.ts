@@ -214,7 +214,7 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     comprueba('cada pestaña va dentro de su TabErrorBoundary con key pestaña + máquina', /<TabErrorBoundary key=\{`\$\{pestana\.id\}\|\$\{agentId \|\| ''\}`\}/.test(app));
     const lista = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
     comprueba('el control abierto sale de la URL (sin estado local) y elegir uno lo escribe en ella',
-      /ENSControls\.find\(item => item\.id === control\)/.test(lista) && /cambiaUrl\(\{ control: ensControl\.id \}\)/.test(lista) && !/setSelectedControl/.test(lista));
+      /ENSControls\.find\(item => item\.id === control\)/.test(lista) && /cambiaUrl\(\{ control: (ensControl|entrada)\.id \}\)/.test(lista) && !/setSelectedControl/.test(lista));
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

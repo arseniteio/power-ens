@@ -10,6 +10,7 @@ import { TabErrorBoundary } from './tab-error-boundary';
 // Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
   dashboard: React.lazy(() => import('../ens/dashboard/ens-dashboard-main').then(m => ({ default: m.EnsDashboardMain }))),
+  overview: React.lazy(() => import('../ens/overview').then(m => ({ default: m.OverviewENS }))),
   configuration: ConfigurationENS,
   controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
   events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),

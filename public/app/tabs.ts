@@ -15,6 +15,9 @@ export const ENS_CONTROL_DETAIL_TAB_ID = 'plugins';
 
 export const ENS_TABS: ENSTab[] = [
   { id: 'dashboard', name: 'Panel', withBootstrap: true },
+  // Desde 1.2.0: máquinas × controles, frescura de la recogida, resumen por
+  // máquina, cola de trabajo y tendencia (`public/ens/overview`).
+  { id: ENS_OVERVIEW_TAB_ID, name: 'Vista general', withBootstrap: true },
   { id: 'configuration', name: 'Configuración', withBootstrap: false },
   { id: ENS_REQUIREMENTS_TAB_ID, name: 'Controles', withBootstrap: true },
   { id: ENS_CONTROL_DETAIL_TAB_ID, name: 'Detalle del control', withBootstrap: true },
