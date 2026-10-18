@@ -203,9 +203,9 @@ console.log('4. Las partes publicadas');
   const DIR = `${__dirname}/../common/ens/core/policy-runtime/policies`;
   const sinPartes = readdirSync(DIR).filter(f => f.endsWith('.policy.ts')).filter(f => {
     const s = readFileSync(`${DIR}/${f}`, 'utf8');
-    return /\.map\(p => `\$\{p\.id\} \$\{p\.medida\.estado\}: \$\{p\.medida\.motivo\}`\)\.join\(' \| '\)/.test(s) && !/op-nub-1|op-mon-3/.test(f);
+    return /\.map\(p => `\$\{p\.id\} \$\{p\.medida\.estado\}: \$\{p\.medida\.motivo\}`\)\.join\(' \| '\)/.test(s) && !/op-mon-3/.test(f);
   });
-  comprueba('las policies con motivo compuesto lo hacen con motivoCompuesto + partesDe (salvo op.nub.1 y op.mon.3, que el analizador cubre)', sinPartes.length === 0, sinPartes);
+  comprueba('las policies con motivo compuesto lo hacen con motivoCompuesto + partesDe (salvo op.mon.3, que antepone una parte sin evidencia y cubre el analizador)', sinPartes.length === 0, sinPartes);
 }
 
 console.log('5. Lo que usa la tarjeta');

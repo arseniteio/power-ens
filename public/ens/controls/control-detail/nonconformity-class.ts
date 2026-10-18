@@ -16,7 +16,16 @@ export interface ClaseNoConformidad {
   orden: number;
 }
 
-export const classifyNonConformity = (item: { origin?: string; cause?: string; documental?: boolean }): ClaseNoConformidad => {
+export const classifyNonConformity = (
+  item: { origin?: string; cause?: string; documental?: boolean },
+  // ¿Está el control en la configuración activa? Si no, lo que hay que hacer
+  // primero es añadirlo, sea cual sea la causa del hueco (salvo el catálogo,
+  // que es del producto): la misma regla que el motor en el hallazgo.
+  options: { controlConfigured?: boolean } = {}
+): ClaseNoConformidad => {
+  if (options.controlConfigured === false && item.origin !== 'MEDIDA' && item.cause !== 'CATALOG') {
+    return { etiqueta: 'No evidenciado · control sin añadir', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Añadir el control a la configuración', responsable: 'Responsable ENS', orden: 3 };
+  }
   // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
   // vencida o ausente): no hay nada que corregir en la máquina.
   if (item.origin === 'MEDIDA' && item.documental) {

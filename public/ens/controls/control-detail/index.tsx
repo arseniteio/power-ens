@@ -347,7 +347,9 @@ export const ControlDetailENS = ({
 
   // Clase, responsable y color: `nonconformity-class.ts` (lo usa también la
   // cola de trabajo de la Vista general).
-  const clasificar = (item: (typeof nonConformityItems)[number]) => classifyNonConformity(item);
+  const controlConfigurado = Boolean(getActiveControlConfiguration(control.id));
+  const clasificar = (item: (typeof nonConformityItems)[number]) =>
+    classifyNonConformity(item, { controlConfigured: controlConfigurado });
 
   // Las partes que publicaron las policies (`reasonParts`): la tarjeta y la
   // tabla las usan en vez de partir el texto cuando el motivo es el suyo.

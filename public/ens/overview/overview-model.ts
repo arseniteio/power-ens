@@ -213,12 +213,16 @@ const describeMachines = (agents: { agentId: string; agentName?: string }[]) =>
     ? agents.map(a => (a.agentName ? `${a.agentName} (${a.agentId})` : a.agentId)).join(', ')
     : `${agents.length} máquinas`;
 
-export const buildWorkQueue = (ncs: ENSOverviewNonConformity[], agentId?: string): WorkGroup[] => {
+export const buildWorkQueue = (
+  ncs: ENSOverviewNonConformity[],
+  agentId?: string,
+  isConfigured: (controlId: string) => boolean = () => true
+): WorkGroup[] => {
   const grupos = new Map<string, WorkGroup>();
   ncs
     .filter(nc => !agentId || !nc.agents.length || nc.agents.some(a => a.agentId === agentId))
     .forEach(nc => {
-      const clase = classifyNonConformity(nc);
+      const clase = classifyNonConformity(nc, { controlConfigured: isConfigured(nc.controlId) });
       const motivo = parseMotive(nc.finding);
       const parte = guiltyPart(motivo.parts, nc.evidenceIds);
       const grupo = grupos.get(clase.responsable) || { owner: clase.responsable, clase, items: [], controls: 0 };

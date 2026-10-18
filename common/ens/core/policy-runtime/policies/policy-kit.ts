@@ -145,7 +145,9 @@ const ADEMAS = 'Además: ';
 export const partesDe = (propias: { id: string; medida: Medida }[]): ENSReasonPart[] =>
   propias.map(p => {
     const motivo = p.medida.motivo;
-    const corte = motivo.startsWith(ADEMAS) ? 0 : motivo.indexOf(` ${ADEMAS}`);
+    // Como el analizador de la pantalla: al principio, o tras un espacio con
+    // algo antes (desde la posición 1).
+    const corte = motivo.startsWith(ADEMAS) ? 0 : motivo.indexOf(` ${ADEMAS}`, 1);
     const principal = corte < 0 ? motivo : motivo.slice(0, corte);
     const secundario = corte < 0 ? undefined : motivo.slice(corte + (corte === 0 ? 0 : 1) + ADEMAS.length);
     return {

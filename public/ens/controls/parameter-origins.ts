@@ -54,12 +54,23 @@ export const describeParameterForMachine = (
   if (!resuelto || !parametro) return undefined;
   const { text, empty } = summarizeParameterValue(parametro.value);
   const origin = resuelto.origins[parameterId];
+  // Sin máquina, la vista de conjunto consolida filas evaluadas cada una con SU
+  // valor: si alguna máquina tiene uno propio o de plantilla, se dice.
+  const conValorPropio =
+    agentId === undefined && origin?.source !== 'union'
+      ? Object.keys(configuration.agents || {}).filter(id => {
+          const fuente = resolveControlConfigurationWithOrigins(configuration, controlId, id)?.origins[parameterId]?.source;
+          return fuente === 'agent' || fuente === 'template';
+        })
+      : [];
   return {
     id: parameterId,
     label: parametro.label || parametro.name,
     value: text,
     empty,
-    origin: describeValueOrigin(origin, empty, Boolean(agentId)),
+    origin: conValorPropio.length
+      ? `varía por máquina: ${conValorPropio.join(', ')} con valor propio o de plantilla; aquí, el de la organización`
+      : describeValueOrigin(origin, empty, Boolean(agentId)),
     source: origin?.source,
   };
 };

@@ -20,7 +20,9 @@
 // fechas) son anotaciones con su posición, no sustituciones.
 //
 // Si la policy publicó las partes (`reasonParts`, ver `policy-kit.ts`), se usan
-// esas en vez de partir el texto: son las mismas, sin adivinar.
+// esas en vez de partir el texto, pero SOLO si unidas son exactamente el texto:
+// un motivo sustituido después (recolector parado, alcance, consolidación) no
+// se pinta nunca con las partes de otro.
 
 export const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
 
@@ -57,6 +59,12 @@ export interface ParsedMotive {
   structured: boolean;
 }
 
+// El texto que forman unas partes publicadas (como `motivoCompuesto`).
+export const knownPartsText = (parts: KnownReasonParts['parts']): string =>
+  parts
+    .map(p => `${p.evidenceId} ${p.status}: ${p.text}${p.secondary?.length ? `${p.text ? ' ' : ''}Además: ${p.secondary.join(' ')}` : ''}`)
+    .join(' | ');
+
 export interface KnownReasonParts {
   reason: string;
   parts: { evidenceId: string; status: string; text: string; secondary?: string[] }[];
@@ -75,13 +83,13 @@ const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g;
 const PARAMETRO = /\b(P-\d{2})(?: \(([^()]+)\))?/g;
 // Fin de frase: un punto tras minúscula, cifra con unidad, cierre de paréntesis
 // o de comillas, seguido de espacio y mayúscula o «¿». No corta «9.0 h», IPs
-// ni rutas.
-const FIN_DE_FRASE = /(?<=[\p{Ll})»'"\d])\. (?=[\p{Lu}¿«])/u;
+// ni rutas. Sin «lookbehind» (no existe en Safari antes de 16.4).
+const FIN_DE_FRASE = /[\p{Ll})»'"\d]\. (?=[\p{Lu}¿«])/u;
 
 const primeraFrase = (texto: string): { summary: string; detail: string } => {
   const m = FIN_DE_FRASE.exec(texto);
   if (!m) return { summary: texto, detail: '' };
-  const corte = m.index + 1;
+  const corte = m.index + 2;
   return { summary: texto.slice(0, corte), detail: texto.slice(corte + 1) };
 };
 
@@ -145,9 +153,11 @@ const parte = (texto: string, cabeza?: { evidenceId: string; status: string }, s
   };
 };
 
+// «Además:» al principio, o tras un espacio y algo antes (desde la posición 1:
+// con el espacio al principio no se parte, o el espacio se perdería).
 const partirAdemas = (texto: string): { principal: string; secundario?: string } => {
   if (texto.startsWith(ADEMAS)) return { principal: '', secundario: texto.slice(ADEMAS.length) };
-  const i = texto.indexOf(` ${ADEMAS}`);
+  const i = texto.indexOf(` ${ADEMAS}`, 1);
   return i < 0 ? { principal: texto } : { principal: texto.slice(0, i), secundario: texto.slice(i + 1 + ADEMAS.length) };
 };
 
@@ -179,7 +189,7 @@ export const parseMotive = (raw: string, known: KnownReasonParts[] = []): Parsed
     return { raw, ...(machines ? { machines } : {}), ...(policy ? { policy } : {}), question, parts: [], structured: false };
   }
 
-  const conocido = known.find(k => k.reason === resto && k.parts.length > 0);
+  const conocido = known.find(k => k.reason === resto && k.parts.length > 0 && knownPartsText(k.parts) === k.reason);
   if (conocido) {
     return {
       raw,

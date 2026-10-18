@@ -124,7 +124,10 @@ export const OverviewENS = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [datos, maquinas]
   );
-  const cola = useMemo(() => (datos ? buildWorkQueue(datos.nonConformities, agentId) : []), [datos, agentId]);
+  const cola = useMemo(
+    () => (datos ? buildWorkQueue(datos.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id))) : []),
+    [datos, agentId]
+  );
   const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);
 
   const abreDetalle = (controlId: string, agente?: string) =>

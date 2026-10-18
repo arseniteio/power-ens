@@ -159,10 +159,13 @@ const listaDe = (agentId?: string, nombre?: string, extra: any = {}) =>
     const mon1 = estado.results.find((r: any) => r.control.id === 'op.mon.1');
     const ncs = mon1?.nonConformities || [];
     comprueba('op.mon.1 (sin configurar): no conformidades no evidenciadas', ncs.length > 0 && ncs.every((n: any) => n.origin === 'NO_EVIDENCIADA'), ncs.length);
-    comprueba('…con la acción de darlo de alta, nunca la del productor',
-      ncs.filter((n: any) => n.cause === 'CONFIGURATION').every((n: any) => /^Añadir op\.mon\.1 a la configuración activa/.test(n.requiredAction)) &&
-      !ncs.some((n: any) => /Corregir lo que el productor/.test(n.requiredAction)), ncs.map((n: any) => [n.cause, n.requiredAction.slice(0, 60)]));
-    comprueba('…y el hallazgo lo dice', ncs.filter((n: any) => n.cause === 'CONFIGURATION').every((n: any) => /^op\.mon\.1 no está en la configuración activa/.test(n.finding)));
+    // Sin datos la causa es COLLECTION: la regla vale con cualquier causa
+    // (salvo el catálogo), así que se comprueban TODAS, no un subconjunto vacío.
+    const noCatalogo = ncs.filter((n: any) => n.cause !== 'CATALOG');
+    comprueba('…con la acción de darlo de alta (con cualquier causa), nunca la del productor ni la de la recogida',
+      noCatalogo.length > 0 && noCatalogo.every((n: any) => /^Añadir con valores por defecto \(Configuración/.test(n.requiredAction)) &&
+      !ncs.some((n: any) => /Corregir lo que el productor|Restablecer la RECOGIDA/.test(n.requiredAction)), ncs.map((n: any) => [n.cause, n.requiredAction.slice(0, 60)]));
+    comprueba('…y el hallazgo lo dice', noCatalogo.every((n: any) => /^op\.mon\.1 no está en la configuración activa/.test(n.finding)));
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

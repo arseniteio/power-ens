@@ -34,6 +34,7 @@
 // auditor ve qué llegó y cuándo.
 import type { ENSNormalizedEvent } from '../data-source/types';
 import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
+import { withReplacedReason } from '../policy-runtime/reason-parts';
 import type { ENSEvidenceResolved } from './types';
 
 // Umbral ÚNICO de antigüedad del último latido. Los recolectores laten cada
@@ -162,11 +163,10 @@ export const markPolicyRuntimeStale = (
     decisions: policyRuntime.decisions.map(decision =>
       decision.status === 'NO_APLICA' || decision.documental
         ? decision
-        : {
-            ...decision,
+        : withReplacedReason(decision, {
             status: 'NO_EVALUABLE',
             cause: 'COLLECTION',
             reason: stale.reason,
-          }
+          })
     ),
   };
