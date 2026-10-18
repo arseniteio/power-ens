@@ -409,7 +409,7 @@ There are two ways to get the plugin zip. Both end the same way, in section 13.4
 Download the four release files to `/opt/ensfacil/releases/<version>`, in the browser or from the server with a deploy token ([guide 07, sections 4 to 6](07-installing-from-a-release.en.md#4-prepare-the-folder-on-the-server)), and verify their integrity:
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -467,7 +467,7 @@ Expected result:
 | Check | Expected result |
 |---|---|
 | service | `active` |
-| plugins | `ensfacil@1.1.0` and `wazuh@4.14.7-01`, among others |
+| plugins | `ensfacil@1.2.0` (the installed version) and `wazuh@4.14.7-01`, among others |
 | `/api/ensfacil/configuration` | `401`: the plugin route exists and asks for a session. A `404` means the plugin did not load ([troubleshooting](04-troubleshooting-and-rollback.en.md)) |
 
 ### 13.5 Create the ensfacil_admin role
@@ -524,6 +524,7 @@ Expected result: `-> 200` or `-> 201` after each request and, at the end, `usuar
 Log in to Wazuh Dashboard and check that:
 
 - in the menu, under «Security operations», «ENSFácil» appears;
+- on the OpenSearch Dashboards home page (`/app/home`), the «ENSFácil» card opens the application; the Wazuh home page does not accept other plugins' cards, so there ENSFácil is only in the menu;
 - it opens on the Panel tab, with the tabs Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias and Eventos;
 - there is a «Máquina» selector to see all the machines in scope or a single one.
 
@@ -671,9 +672,13 @@ Open ENSFácil and check that:
 - besides the machines in the `ens` group, the scope includes the manager (agent `000`), because nine controls are evaluated on it: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1. The eight other than op.cont.2 have a collector on the manager; op.cont.2 is evaluated from the tables of the Configuración screen;
 - after the first run of the manager collectors (hourly or every 6 hours, depending on the control), those controls show data on the manager row.
 
+The evaluation runs on the plugin server with every fact of the 30-day window. Each user's first load answers in parts: the notice «Calculando la evaluación» (computing the evaluation), with how many rows (control × machine) are ready, the status of the controls already computed and «Calculando…» on the rest.
+
+Expected result: the first controls appear within a few seconds and, once all are computed, the dashboard figures; the daily evolution reads «Calculando la serie…» until it is computed. In the lab, the complete result takes about 20 s; after that, the screens answer at once.
+
 ### 14.7 Check the overview and the detail of a control
 
-Open the **Vista general** tab with «Todas las máquinas» in the selector. The screen makes one evaluation request for the whole scope and a separate one for the trend; the first time it can take up to a minute.
+Open the **Vista general** tab with «Todas las máquinas» in the selector. The screen makes one evaluation request for the whole scope and a separate one for the trend. On the first load, while controls are missing, it shows «Calculando la evaluación: X de N filas (control × máquina) listas» with the missing controls, «…» on their matrix rows, and leaves the per-machine figures and the work queue for the end; the trend reads «Calculando la serie de 30 días» until it is ready.
 
 | Section | What it shows | Expected result |
 |---|---|---|
@@ -700,7 +705,7 @@ Expected result: the tab is not remounted. While the new machine's result arrive
 
 Review a non-conformity card.
 
-Expected result: the headline is the failing evidence, its status and the first sentence of its reason, in normal weight and at most two lines. Below it come the rest of the reason in normal text, lists as lists, what follows «Además» set apart, the other evidences of the requirement with their status and the conforming ones folded. Each cited parameter is a badge with the value that applies to that machine and its origin (the machine's own, a template or the organization); clicking it opens Configuración on that parameter. Clicking an evidence opens Evidencias filtered by that control, with the filter visible and «Quitar filtro». The specific action appears under the non-conformity class. «Ver detalle» shows the full reason.
+Expected result: the headline is the failing evidence, its status and the first sentence of its reason, in normal weight; a headline longer than 200 characters is cut at a space with «…» and continues below. Below it come the rest of the reason in normal text, lists as lists (only once, and after the sentence that introduces them), what follows «Además» set apart, the other evidences of the requirement with their status and the conforming ones folded. Each cited parameter is a badge with the value that applies to that machine and its origin (the machine's own, a template or the organization); clicking it opens Configuración on that parameter. Clicking an evidence opens Evidencias filtered by that control, with the filter visible and «Quitar filtro». The specific action appears under the non-conformity class. «Ver detalle» shows the full reason.
 
 Click **Configurar este control** in the detail header.
 

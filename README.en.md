@@ -186,11 +186,11 @@ one folder:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.2.0-osd-2.19.5.zip
 ```
 
 Expected result: `OK` for the three files and `dashboard: active` at the end
-of the deployment. Replace `1.1.0` with the release's version.
+of the deployment. Replace `1.2.0` with the release's version.
 
 These commands apply to the package installation: `deploy-plugin.sh` uses
 `systemctl`, `sudo -u wazuh-dashboard` and `https://localhost:443`. In Docker,
@@ -252,6 +252,12 @@ Each control repository (runbook) includes its guides in its own `docs/deploymen
 
 > [!important]
 > The compliance policy is declared on the ENSFácil Configuration screen. Empty parameters are decisions not yet declared and must not be read as default values.
+
+### Where ENSFácil opens
+
+ENSFácil is in the dashboard menu, under «Security operations». From 1.2.0 there is also an «ENSFácil» card on the OpenSearch Dashboards home page (`/app/home`), when the dashboard includes the `home` plugin. The Wazuh home page offers no extension point for other plugins' cards, and ENSFácil does not modify the Wazuh plugin: on that page it is only in the menu.
+
+The **Vista general** (overview) tab shows every machine in scope and every control at once: the per-machine summary, the controls × machines matrix, the work queue and the 30-day trend ([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
 
 ### The manager in the scope
 
@@ -357,6 +363,15 @@ date>», and its requirements do not count as compliant. What the machine said
 days ago does not prove how it is today. Old facts remain visible in the
 traceability view.
 
+**The whole window.** The plugin server evaluates each control with every fact
+of the evaluation window (30 days), with the permissions of the viewing user,
+and the browser receives the results. Up to 1.1.0 the browser evaluated with
+the newest 10,000 facts, which in an active scope covered hours. Each user's
+first load reads the whole window and answers in parts («Calculando la
+evaluación»); after that, the result is served at once and recomputed in the
+background when new facts arrive. The technical detail is in
+[`server/README.md`](server/README.md).
+
 The agent observes and the engine judges. Evidence in the current model
 declares a judgment primitive and the parameter it is checked against; the
 agent only emits the fact. That is why a change on screen changes the verdict
@@ -370,13 +385,15 @@ This repository is the `ensfacil` OpenSearch Dashboards plugin: it is built insi
 
 ```
 public/            the browser app: tabs, search, agent inventory
-public/ens/        ENS module (React + TypeScript)
+public/ens/        ENS screens (React + TypeScript): dashboard/ overview/
+                   controls/ reports/ evidences/ configuration/
+public/evaluation/ evaluation client: probe, reload and partial first load
+common/ens/        what the browser and the server share
   catalog/         control and requirement definitions
-  configuration/   configurable parameters
+  configuration/   configurable parameters, templates and per-system resolution
   core/            engine: evidence, evaluation, consolidation
-  controls/ reports/ evidences/    the three tabs
-server/            configuration routes (/api/ensfacil/configuration)
-common/            shared constants
+server/            configuration routes (/api/ensfacil/configuration) and
+                   evaluation routes (/api/ensfacil/evaluation; see server/README.md)
 agent/rules/       Wazuh rules per control
 config/            configuration blocks and manager tools:
                    build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,

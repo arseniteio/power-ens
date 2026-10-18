@@ -106,7 +106,7 @@ fi
 Resultado esperado: `dashboard: active` y `ensfacil` en la lista de plugins. Comprobar después como en el apartado 3.
 
 > [!important]
-> Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización.
+> Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización. Para volver de la 1.2.0 a la 1.1.0 después de «Migrar a sistemas», restaurar la versión del documento anterior a la migración ([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
 ### 4.1 Si `deploy-plugin.sh` falla a medias
 
@@ -186,7 +186,7 @@ Solo para un entorno que viene de la versión integrada ([guía de actualizació
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.1.0   # la versión de ENSFácil instalada
+V=1.2.0   # la versión de ENSFácil instalada
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
@@ -265,6 +265,10 @@ Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después 
 | `install-manager.sh`: «hay más de un bloque `<agent_config>`» | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene dos bloques | fusionar todo en un solo `<agent_config>`, validar con `verify-agent-conf` y repetir |
 | `install-manager.sh` termina bien pero la regla no casa | una ejecución anterior falló tras copiar las reglas y la repetición no reinicia el manager | `sudo systemctl restart wazuh-manager` y comprobar con `wazuh-logtest` |
 | Evidencias de auditd sin medir en una máquina (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8, op.exp.10) | el `install.sh` escribió las reglas en `/etc/audit/rules.d/` pero no se cargaron | comprobar que auditd no está en modo inmutable (`sudo auditctl -s`, `enabled` distinto de `2`) y ejecutar `sudo augenrules --load` |
+| «Datos incompletos: N de M shards fallaron al leer …» (error 503) | algún shard del indexer no respondió; la evaluación no se hace con datos a medias ni se guarda | comprobar el estado del clúster (`_cluster/health`) y pulsar «Reintentar» cuando esté en `green` o `yellow` |
+| «Demasiados hechos para evaluar … de una vez (más de 50.000)» | un control tiene en una máquina más hechos en la ventana de los que el servidor del plugin lee de una vez | acortar el periodo de evaluación o el alcance; revisar si un recolector emite más de lo habitual |
+| «No se pudo actualizar la evaluación: …», con el resultado calculado antes | el recálculo en segundo plano falló; la pantalla muestra el último resultado correcto con su hora | pulsar «Reintentar»; el plugin también lo reintenta solo, con esperas crecientes de 30 s a 5 min. Si persiste, revisar el registro del dashboard (apartado 3) |
+| «Calculando la evaluación» o «Calculando la serie…» durante minutos | la primera carga de cada usuario lee la ventana entera (en el laboratorio, unos 20 s); con muchas máquinas o muchos hechos tarda más | esperar: el cálculo sigue aunque se cambie de pestaña, y la pantalla se completa sola. Si no termina, revisar el registro del dashboard (apartado 3) |
 | Un control muestra «Sin datos del recolector desde …» | el último latido del recolector de ese control en esa máquina tiene más de 24 h | comprobar el agente, el cron del recolector y la conectividad; el control vuelve a juzgarse en cuanto llega una pasada nueva |
 | Un control medido en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) sin datos en la fila del manager | falta el `install-manager.sh` del runbook o su cron (horario o cada 6 horas, según el control) todavía no se ha ejecutado | revisar `/etc/cron.d/ensfacil-op*` del manager y el `<localfile>` en su `ossec.conf`. En Docker, el apartado 9.3 |
 | Una regla de op.exp.1 aparece en eventos de op.exp.10 | reglas de op.exp.1 anteriores a la corrección, con el campo `ensfacil` sin anclar | actualizar el runbook de op.exp.1 y repetir su `install-manager.sh` |

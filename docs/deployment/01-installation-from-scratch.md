@@ -389,7 +389,7 @@ Hay dos formas de conseguir el zip del plugin. Las dos terminan igual, en el apa
 Descargar los cuatro ficheros de la release en `/opt/ensfacil/releases/<versión>`, desde el navegador o desde el servidor con un token de despliegue ([guía 07, apartados 4 a 6](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor)), y verificar su integridad:
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -447,7 +447,7 @@ Resultado esperado:
 | Comprobación | Resultado esperado |
 |---|---|
 | servicio | `active` |
-| plugins | `ensfacil@1.1.0` y `wazuh@4.14.7-01`, entre otros |
+| plugins | `ensfacil@1.2.0` (la versión instalada) y `wazuh@4.14.7-01`, entre otros |
 | `/api/ensfacil/configuration` | `401`: la ruta del plugin existe y pide sesión. Un `404` significa que el plugin no ha cargado ([diagnóstico](04-troubleshooting-and-rollback.md)) |
 
 ### 13.5 Crear el rol ensfacil_admin
@@ -504,6 +504,7 @@ Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, 
 Entrar en Wazuh Dashboard y comprobar que:
 
 - en el menú, dentro de «Security operations», aparece «ENSFácil»;
+- en la portada de OpenSearch Dashboards (`/app/home`), la tarjeta «ENSFácil» abre la aplicación; la portada de Wazuh no admite tarjetas de otros plugins, así que en ella ENSFácil solo está en el menú;
 - se abre en la pestaña Panel, con las pestañas Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias y Eventos;
 - hay un selector «Máquina» para ver todas las máquinas del alcance o una sola.
 
@@ -651,9 +652,13 @@ Abrir ENSFácil y comprobar que:
 - el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque en él se evalúan nueve controles: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los ocho distintos de op.cont.2 tienen recolector en el manager; op.cont.2 se evalúa con las tablas de la pantalla de Configuración;
 - tras la primera ejecución de los recolectores del manager (horaria o cada 6 horas, según el control), esos controles muestran datos en la fila del manager.
 
+La evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días. La primera carga de cada usuario responde por partes: el aviso «Calculando la evaluación», con cuántas filas (control × máquina) están listas, el estado de los controles ya calculados y «Calculando…» en los demás.
+
+Resultado esperado: en unos segundos aparecen los primeros controles y, al completarse todos, las cifras del panel; la evolución diaria indica «Calculando la serie…» hasta que está calculada. En el laboratorio, el resultado completo tarda unos 20 s; después, las pantallas responden al instante.
+
 ### 14.7 Comprobar la vista general y el detalle de un control
 
-Abrir la pestaña **Vista general** con «Todas las máquinas» en el selector. La pantalla hace una sola petición de evaluación para todo el alcance y otra, aparte, para la tendencia; la primera vez puede tardar hasta un minuto.
+Abrir la pestaña **Vista general** con «Todas las máquinas» en el selector. La pantalla hace una sola petición de evaluación para todo el alcance y otra, aparte, para la tendencia. En la primera carga, mientras faltan controles, muestra «Calculando la evaluación: X de N filas (control × máquina) listas» con los controles que faltan, «…» en sus filas de la matriz, y deja para el final las cifras por máquina y la cola de trabajo; la tendencia indica «Calculando la serie de 30 días» hasta tenerla.
 
 | Sección | Qué muestra | Resultado esperado |
 |---|---|---|
@@ -680,7 +685,7 @@ Resultado esperado: la pestaña no se vuelve a montar. Mientras llega el resulta
 
 Revisar una tarjeta de no conformidad.
 
-Resultado esperado: el titular es la evidencia que falla, su estado y la primera frase de su motivo, en peso normal y en dos líneas como máximo. Debajo aparecen el resto del motivo en texto normal, las listas como listas, lo que va tras «Además» aparte, las demás evidencias del requisito con su estado y las que conforman plegadas. Cada parámetro citado es una insignia que indica el valor que aplica a esa máquina y su origen (propio de la máquina, de una plantilla o de la organización); al pulsarla se abre Configuración en ese parámetro. Pulsar una evidencia abre Evidencias filtrada por ese control, con el filtro a la vista y «Quitar filtro». Bajo la clase de la no conformidad aparece la acción concreta. «Ver detalle» muestra el motivo completo.
+Resultado esperado: el titular es la evidencia que falla, su estado y la primera frase de su motivo, en peso normal; un titular de más de 200 caracteres se corta en un espacio con «…» y continúa debajo. Debajo aparecen el resto del motivo en texto normal, las listas como listas (una sola vez y detrás de la frase que las presenta), lo que va tras «Además» aparte, las demás evidencias del requisito con su estado y las que conforman plegadas. Cada parámetro citado es una insignia que indica el valor que aplica a esa máquina y su origen (propio de la máquina, de una plantilla o de la organización); al pulsarla se abre Configuración en ese parámetro. Pulsar una evidencia abre Evidencias filtrada por ese control, con el filtro a la vista y «Quitar filtro». Bajo la clase de la no conformidad aparece la acción concreta. «Ver detalle» muestra el motivo completo.
 
 Pulsar **Configurar este control** en la cabecera del detalle.
 

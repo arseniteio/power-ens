@@ -187,11 +187,11 @@ la release en una carpeta:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.2.0-osd-2.19.5.zip
 ```
 
 Resultado esperado: `OK` en los tres ficheros y `dashboard: active` al final
-del despliegue. Sustituir `1.1.0` por la versión de la release.
+del despliegue. Sustituir `1.2.0` por la versión de la release.
 
 Estas órdenes corresponden a la instalación por paquetes: `deploy-plugin.sh`
 usa `systemctl`, `sudo -u wazuh-dashboard` y `https://localhost:443`. En
@@ -253,6 +253,12 @@ Cada repositorio de control (runbook) incluye sus guías en su propio `docs/depl
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
+
+### Dónde se abre ENSFácil
+
+ENSFácil está en el menú del dashboard, dentro de «Security operations». Desde la 1.2.0 también hay una tarjeta «ENSFácil» en la portada de OpenSearch Dashboards (`/app/home`), si el dashboard incluye el plugin `home`. La portada de Wazuh no ofrece ningún punto de extensión para tarjetas de otros plugins, y ENSFácil no modifica el plugin de Wazuh: en esa portada solo está en el menú.
+
+La pestaña **Vista general** muestra todas las máquinas del alcance y todos los controles a la vez: el resumen por máquina, la matriz controles × máquinas, la cola de trabajo y la tendencia de 30 días ([instalación desde cero, apartado 14.7](docs/deployment/01-installation-from-scratch.md#147-comprobar-la-vista-general-y-el-detalle-de-un-control)).
 
 ### El manager en el alcance
 
@@ -357,6 +363,15 @@ desde <fecha UTC>», y sus requisitos no cuentan como cumplidos. Lo que dijo la
 máquina hace días no prueba cómo está hoy. Los hechos antiguos siguen visibles
 en la trazabilidad.
 
+**Toda la ventana.** El servidor del plugin evalúa cada control con todos los
+hechos de la ventana de evaluación (30 días), con los permisos del usuario que
+mira, y el navegador recibe los resultados. Hasta la 1.1.0 se evaluaba en el
+navegador con los 10.000 hechos más recientes, que en un alcance con actividad
+cubrían horas. La primera carga de cada usuario lee la ventana entera y responde
+por partes («Calculando la evaluación»); después, el resultado se sirve al
+instante y se recalcula en segundo plano cuando llegan hechos nuevos. El detalle
+técnico está en [`server/README.md`](server/README.md).
+
 El agente observa y el motor juzga. Las evidencias del modelo actual declaran
 una primitiva de juicio y el parámetro contra el que se contrastan; el agente
 solo emite el hecho. Por eso un cambio en la pantalla modifica el veredicto sin
@@ -370,13 +385,15 @@ Este repositorio es el plugin `ensfacil` de OpenSearch Dashboards: se compila de
 
 ```
 public/            la app del navegador: pestañas, búsqueda, inventario de agentes
-public/ens/        módulo ENS (React + TypeScript)
+public/ens/        pantallas ENS (React + TypeScript): dashboard/ overview/
+                   controls/ reports/ evidences/ configuration/
+public/evaluation/ cliente de la evaluación: sondeo, recarga y carga por partes
+common/ens/        lo que comparten navegador y servidor
   catalog/         definición de controles y requisitos
-  configuration/   parámetros configurables
+  configuration/   parámetros configurables, plantillas y resolución por sistema
   core/            motor: evidencias, evaluación, consolidación
-  controls/ reports/ evidences/    las tres pestañas
-server/            rutas de configuración (/api/ensfacil/configuration)
-common/            constantes compartidas
+server/            rutas de configuración (/api/ensfacil/configuration) y de
+                   evaluación (/api/ensfacil/evaluation; ver server/README.md)
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración y herramientas del manager:
                    build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,

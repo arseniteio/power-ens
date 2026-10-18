@@ -279,6 +279,8 @@ From 1.2.0, the Configuration screen has two levels, «Organización» and «Sis
 
 The procedure is in [Configuration by system and templates](09-configuration-by-system.en.md#8-migration-to-systems).
 
+From 1.2.0, the evaluation runs on the plugin server with every fact of the 30-day window; 1.1.0 evaluated in the browser with the newest 10,000 facts. After the update, some verdicts change because they are those of the whole window: recording the dashboard status beforehand makes the differences explainable. Each user's first load answers in parts («Calculando la evaluación») until every control is computed. To go back to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
+
 In Configuration > Global configuration, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, added in 1.1.0 and used by op.cont.2 and op.cont.3. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 ## 9. Agents and final check
@@ -373,7 +375,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 The reinstallation resets the dashboard `build.number` to its factory value, which browsers may have linked to files of the integrated version. That is why the previous `package.json` is restored and ENSFácil is deployed again, which bumps the number:
 
 ```bash
-V=1.1.0   # the ENSFácil version installed in section 10.1
+V=1.2.0   # the ENSFácil version installed in section 10.1
 R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
 sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"

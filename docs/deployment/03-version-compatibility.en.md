@@ -21,13 +21,16 @@ ENSFácil is a Wazuh Dashboard plugin of its own (`ensfacil`). It does not modif
 
 Any other combination is not validated.
 
+> [!note]
+> `1.2.0` is published for the same combination as `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). It is added to this table once it meets the criteria of section 6 in a real environment.
+
 The zip carries the OpenSearch Dashboards version in its name and in its manifest (`opensearchDashboardsVersion`). OpenSearch Dashboards only accepts a plugin built for its exact version:
 
 - on installation, `opensearch-dashboards-plugin install` rejects it with `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
 - if it was already installed and the dashboard changes version, the dashboard **does not start**: `Failed to initialize plugins`.
 
 > [!note]
-> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.1.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
+> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.2.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
 
 ## 3. Check the installed versions
 
@@ -39,7 +42,7 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Expected result: the three packages at `4.14.7-1`; `2.19.5`; in the plugin list, the validated ENSFácil version (`ensfacil@1.1.0`) and `wazuh@4.14.7-01`.
+Expected result: the three packages at `4.14.7-1`; `2.19.5`; in the plugin list, the installed ENSFácil version (for example, `ensfacil@1.2.0`) and `wazuh@4.14.7-01`.
 
 ### 3.2 Docker
 
@@ -99,7 +102,7 @@ In a test environment:
 
    Expected result: `coherencia OK` and no `FAIL` line.
 
-6. Go through the screens with real data: Panel, Configuración (save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
+6. Go through the screens with real data: Panel, Vista general, Configuración («Organización» and «Sistemas» tabs; save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
 
 ## 6. Criteria for declaring a version compatible
 

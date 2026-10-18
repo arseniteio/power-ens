@@ -48,6 +48,7 @@ exact version.
 |---|---|---|---|
 | `1.0.0` | `4.14.7` | `2.19.5` | `ensfacil-1.0.0-osd-2.19.5.zip` |
 | `1.1.0` | `4.14.7` | `2.19.5` | `ensfacil-1.1.0-osd-2.19.5.zip` |
+| `1.2.0` | `4.14.7` | `2.19.5` | `ensfacil-1.2.0-osd-2.19.5.zip` |
 
 The validated combinations are kept in
 [Version compatibility](03-version-compatibility.en.md#2-validated-version).
@@ -87,13 +88,13 @@ Each version is kept in its own folder. Retain the previous version's folder;
 it is required for rollback.
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 sudo mkdir -p "$R"
 sudo chown "$USER":root "$R"
 ```
 
-Replace `1.1.0` with the version being installed. The following sections use
+Replace `1.2.0` with the version being installed. The following sections use
 `V` and `R`.
 
 ## 5. Download in the browser
@@ -105,8 +106,8 @@ Replace `1.1.0` with the version being installed. The following sections use
 3. Copy the files to the server folder:
 
    ```bash
-   scp ensfacil-1.1.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
-     <user>@<server>:/opt/ensfacil/releases/1.1.0/
+   scp ensfacil-1.2.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
+     <user>@<server>:/opt/ensfacil/releases/1.2.0/
    ```
 
 Continue with section 7.
@@ -165,7 +166,7 @@ Expected result: `600 root:root`. The file has a single line,
 ### 6.3 Download the four files
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
 
@@ -330,7 +331,9 @@ Expected result:
 | `/api/ensfacil/configuration` | `401`: the plugin route exists and requires a session. A `404` means that the plugin has not loaded |
 
 In the browser, log in to Wazuh Dashboard. In the menu, under "Security
-operations", "ENSFácil" must appear, opening on the Panel tab.
+operations", "ENSFácil" must appear, opening on the Panel tab. From 1.2.0,
+the OpenSearch Dashboards home page (`/app/home`) also shows the "ENSFácil"
+card; the Wazuh home page does not accept other plugins' cards.
 
 If any result differs, follow
 [Troubleshooting](04-troubleshooting-and-rollback.en.md#3-basic-diagnosis). In
@@ -430,7 +433,10 @@ Expected result: `OK` for the three files and, at the end, `dashboard: active`.
 Then check as in section 10: the plugin list must show the previous version.
 
 If the removed version had seeded controls that the previous one does not
-know, also restore the copy of the configuration. The full procedure is in
+know, also restore the copy of the configuration. To go back from 1.2.0 to
+1.1.0 after «Migrar a sistemas», restore the version of the document from
+before the migration
+([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)). The full procedure is in
 [Troubleshooting and rollback, section 4](04-troubleshooting-and-rollback.en.md#4-reinstall-the-previous-ensfácil-version).
 In Docker:
 [Wazuh in Docker, section 12.2](06-wazuh-in-docker.en.md#122-go-back-to-the-previous-version).

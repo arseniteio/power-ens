@@ -48,6 +48,7 @@ compilado para su versión exacta.
 |---|---|---|---|
 | `1.0.0` | `4.14.7` | `2.19.5` | `ensfacil-1.0.0-osd-2.19.5.zip` |
 | `1.1.0` | `4.14.7` | `2.19.5` | `ensfacil-1.1.0-osd-2.19.5.zip` |
+| `1.2.0` | `4.14.7` | `2.19.5` | `ensfacil-1.2.0-osd-2.19.5.zip` |
 
 Las combinaciones validadas se mantienen en
 [Compatibilidad de versiones](03-version-compatibility.md#2-versión-validada).
@@ -88,13 +89,13 @@ Cada versión se guarda en su propia carpeta. Se conserva la carpeta de la
 versión anterior: es necesaria para la vuelta atrás.
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 sudo mkdir -p "$R"
 sudo chown "$USER":root "$R"
 ```
 
-Sustituir `1.1.0` por la versión que se instala. Los apartados siguientes usan
+Sustituir `1.2.0` por la versión que se instala. Los apartados siguientes usan
 `V` y `R`.
 
 ## 5. Descargar desde el navegador
@@ -106,8 +107,8 @@ Sustituir `1.1.0` por la versión que se instala. Los apartados siguientes usan
 3. Copiar los ficheros a la carpeta del servidor:
 
    ```bash
-   scp ensfacil-1.1.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
-     <usuario>@<servidor>:/opt/ensfacil/releases/1.1.0/
+   scp ensfacil-1.2.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
+     <usuario>@<servidor>:/opt/ensfacil/releases/1.2.0/
    ```
 
 Continuar en el apartado 7.
@@ -166,7 +167,7 @@ Resultado esperado: `600 root:root`. El fichero tiene una sola línea,
 ### 6.3 Descargar los cuatro ficheros
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
 
@@ -330,7 +331,9 @@ Resultado esperado:
 | `/api/ensfacil/configuration` | `401`: la ruta del plugin existe y pide sesión. Un `404` indica que el plugin no ha cargado |
 
 En el navegador, entrar en Wazuh Dashboard. En el menú, dentro de «Security
-operations», debe aparecer «ENSFácil», que se abre en la pestaña Panel.
+operations», debe aparecer «ENSFácil», que se abre en la pestaña Panel. Desde
+la 1.2.0, la portada de OpenSearch Dashboards (`/app/home`) muestra además la
+tarjeta «ENSFácil»; la portada de Wazuh no admite tarjetas de otros plugins.
 
 Si algún resultado no coincide, seguir el
 [diagnóstico](04-troubleshooting-and-rollback.md#3-diagnóstico-básico). En
@@ -433,7 +436,10 @@ Comprobar después como en el apartado 10: la lista de plugins debe indicar la
 versión anterior.
 
 Si la versión retirada había sembrado controles que la anterior no conoce,
-restaurar también la copia de la configuración. El procedimiento completo está
+restaurar también la copia de la configuración. Para volver de la 1.2.0 a la
+1.1.0 después de «Migrar a sistemas», restaurar la versión del documento
+anterior a la migración
+([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)). El procedimiento completo está
 en el [diagnóstico y rollback, apartado 4](04-troubleshooting-and-rollback.md#4-reinstalar-la-versión-anterior-de-ensfácil).
 En Docker:
 [Wazuh en Docker, apartado 12.2](06-wazuh-in-docker.md#122-volver-a-la-versión-anterior).

@@ -106,7 +106,7 @@ fi
 Expected result: `dashboard: active` and `ensfacil` in the plugin list. Then check as in section 3.
 
 > [!important]
-> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update.
+> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.2.0 to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
 ### 4.1 If `deploy-plugin.sh` fails halfway
 
@@ -186,7 +186,7 @@ Only for an environment that comes from the integrated version ([update guide, s
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.1.0   # the installed ENSFácil version
+V=1.2.0   # the installed ENSFácil version
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
@@ -265,6 +265,10 @@ Expected result: the response includes `"result":"updated"`. Then validate the r
 | `install-manager.sh`: «hay más de un bloque `<agent_config>`» | the `agent.conf` of the `ens` group (or the `ens-copias` one, for mp.info.6) has two blocks | merge everything into a single `<agent_config>`, validate with `verify-agent-conf` and retry |
 | `install-manager.sh` ends fine but the rule does not match | a previous run failed after copying the rules and the retry does not restart the manager | `sudo systemctl restart wazuh-manager` and check with `wazuh-logtest` |
 | auditd evidence not measured on a machine (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8, op.exp.10) | `install.sh` wrote the rules to `/etc/audit/rules.d/` but they were not loaded | check that auditd is not immutable (`sudo auditctl -s`, `enabled` other than `2`) and run `sudo augenrules --load` |
+| «Datos incompletos: N de M shards fallaron al leer …» (incomplete data; error 503) | some indexer shard did not answer; the evaluation is neither made with partial data nor stored | check the cluster status (`_cluster/health`) and click «Reintentar» once it is `green` or `yellow` |
+| «Demasiados hechos para evaluar … de una vez (más de 50.000)» (too many facts to evaluate at once) | a control has more facts in the window on one machine than the plugin server reads at once | shorten the evaluation period or the scope; check whether a collector emits more than usual |
+| «No se pudo actualizar la evaluación: …» (the evaluation could not be updated), with the result computed earlier | the background recomputation failed; the screen shows the last correct result with its time | click «Reintentar»; the plugin also retries on its own, with growing waits from 30 s to 5 min. If it persists, check the dashboard log (section 3) |
+| «Calculando la evaluación» or «Calculando la serie…» for minutes | each user's first load reads the whole window (about 20 s in the lab); with many machines or many facts it takes longer | wait: the computation continues even when switching tabs, and the screen completes on its own. If it does not finish, check the dashboard log (section 3) |
 | A control shows «Sin datos del recolector desde …» | the last heartbeat of that control's collector on that machine is older than 24 h | check the agent, the collector cron and connectivity; the control is judged again as soon as a new run arrives |
 | A control measured on the manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) without data on the manager row | the runbook's `install-manager.sh` is missing or its cron (hourly or every 6 hours, depending on the control) has not run yet | check the manager's `/etc/cron.d/ensfacil-op*` and the `<localfile>` in its `ossec.conf`. In Docker, section 9.3 |
 | An op.exp.1 rule appears on op.exp.10 events | op.exp.1 rules older than the fix, with the `ensfacil` field not anchored | update the op.exp.1 runbook and run its `install-manager.sh` again |
