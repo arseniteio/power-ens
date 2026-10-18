@@ -12,6 +12,7 @@
 // pantalla al navegar, así que «atrás» en el navegador vuelve a donde se estaba.
 // Sin React, para poder probarlo.
 import { withRouterSearch } from './router-search';
+import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
 export const CONFIGURATION_TAB_ID = 'configuration';
 
@@ -67,7 +68,7 @@ export const buildConfigurationSearch = (
 // (`agentId`) también, y `configBack` dice a qué pestaña volver. Configuración
 // pinta entonces «Volver al detalle de op.exp.6».
 export const CONFIGURATION_BACK_PARAM = 'configBack';
-export const CONTROL_DETAIL_TAB_ID = 'plugins';
+export const CONTROL_DETAIL_TAB_ID = ENS_CONTROL_DETAIL_TAB_ID;
 
 export interface ENSDetailConfigurationTarget {
   controlId: string;

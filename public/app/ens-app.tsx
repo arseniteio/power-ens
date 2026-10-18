@@ -6,6 +6,17 @@ import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-searc
 import { ENS_TABS, resolveTab } from './tabs';
 import { MachineSelector } from './machine-selector';
 import { TabErrorBoundary } from './tab-error-boundary';
+import { isAgentInScope } from './agent-in-scope';
+import { useActiveENSScopeAgents } from '../ens/scope/use-active-scope-agents';
+
+// Con una máquina de la URL fuera del alcance no se pinta la pestaña: el
+// selector ya lo dice (y ofrece quitarla), y cada pantalla pediría al servidor
+// una evaluación que responde 400, con su aviso y su notificación.
+const SoloEnElAlcance = ({ children }: { children: React.ReactNode }) => {
+  const { agentId } = useRouterSearch();
+  const alcance = useActiveENSScopeAgents();
+  return agentId && !isAgentInScope(agentId, alcance) ? null : (children as any);
+};
 
 // Las vistas de cada pestaña.
 const VISTAS: Record<string, React.ComponentType> = {
@@ -40,7 +51,9 @@ export const EnsApp = () => {
         </EuiFlexItem>
       </EuiFlexGroup>
       <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
-        <Vista />
+        <SoloEnElAlcance>
+          <Vista />
+        </SoloEnElAlcance>
       </TabErrorBoundary>
     </ENSConfigurationBootstrap>
   ) : (

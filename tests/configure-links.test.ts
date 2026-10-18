@@ -113,6 +113,15 @@ doc.agents = {
   s = parseRouterSearch(h.search());
   comprueba('…que vuelve al detalle de op.acc.1 en 101, sin nada de Configuración', s.tabView === 'plugins' && s.control === 'op.acc.1' && s.agentId === '101' && !Object.keys(s).some(k => k.startsWith('config')), s);
   h.reset();
+  h.setSearch('?tabView=configuration&configControl=op.acc.1&control=op.acc.1&configBack=plugins');
+  await h.render(ConfigurationShell);
+  const volveres = h.nodes().filter(n => ['EuiButton', 'EuiButtonEmpty'].includes(n.type) && /^Volver/.test(n.texto)).map(n => n.texto);
+  comprueba('desde el detalle, un solo «Volver» (al detalle), no también «Volver a controles»', JSON.stringify(volveres) === JSON.stringify(['Volver al detalle de op.acc.1']), volveres);
+  h.reset();
+  h.setSearch('?tabView=configuration&configControl=op.acc.1');
+  await h.render(ConfigurationShell);
+  comprueba('sin venir del detalle, «Volver a controles» sigue', Boolean(h.find('EuiButton', /Volver a controles/)));
+  h.reset();
   h.setSearch('?tabView=configuration&configControl=op.acc.1');
   await h.render(ConfigurationShell);
   comprueba('sin venir del detalle, no hay vuelta', !h.find('EuiButtonEmpty', /Volver al detalle/));

@@ -31,6 +31,7 @@ import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
+import { ENS_CONTROL_DETAIL_TAB_ID } from '../../app/tabs';
 import type { ENSOverviewEvaluationResponse, ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
 import { ENSControls } from '../data';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
@@ -133,7 +134,7 @@ export const OverviewENS = () => {
   const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);
 
   const abreDetalle = (controlId: string, agente?: string) =>
-    cambiaUrl({ tabView: 'plugins', control: controlId, agentId: agente });
+    cambiaUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agente });
 
   return (
     <EuiPage paddingSize='m'>

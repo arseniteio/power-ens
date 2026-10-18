@@ -28,6 +28,8 @@ import {
   ENS_SYSTEM_TYPE_LABELS,
 } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
+import { parseConfigurationBack } from '../../../routing/configuration-link';
+import { useRouterSearch } from '../../../routing/use-router-search';
 import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
 import {
   ENS_MANAGER_AGENT,
@@ -215,13 +217,21 @@ export const AgentConfigurationPage = ({
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
   ];
 
+  const vieneDelDetalle = Boolean(parseConfigurationBack(useRouterSearch()));
+
   return (
     <EuiPanel paddingSize='l'>
-      <EuiButton size='s' onClick={() => onNavigate({ view: 'systems' })}>
-        Volver a sistemas
-      </EuiButton>
+      {/* Abierta desde el Detalle del control, la única vuelta es «Volver al
+          detalle de …», arriba. */}
+      {!vieneDelDetalle && (
+        <>
+          <EuiButton size='s' onClick={() => onNavigate({ view: 'systems' })}>
+            Volver a sistemas
+          </EuiButton>
 
-      <EuiSpacer size='m' />
+          <EuiSpacer size='m' />
+        </>
+      )}
 
       <EuiTitle size='m'>
         <h2>{label}</h2>

@@ -124,7 +124,20 @@ const detalle = (agentId?: string) => clave({ include: 'control', controlId: 'op
   const tras = require('../public/routing/router-search').parseRouterSearch(h.search());
   comprueba('pulsar otra pestaña limpia todo lo de Configuración (también la vuelta) y conserva máquina y control', tras.tabView === 'dashboard' && !Object.keys(tras).some(k => k.startsWith('config')) && tras.agentId === '101' && tras.control === 'op.acc.1', tras);
 
-  console.log('5. Un fallo de pintado se borra al cambiar de máquina');
+  console.log('5. Una máquina fuera del alcance');
+  const pedidasAntesFuera = Object.values(claves).reduce((n, l) => n + l.length, 0);
+  h.setSearch('?tabView=plugins&control=op.acc.1&agentId=025');
+  p = await h.rerender();
+  comprueba('el selector lo dice y ofrece quitarla', /025 no está en el alcance ENS/.test(p) && Boolean(h.find('EuiButton', /Quitar la máquina/)));
+  comprueba('…y ninguna pantalla pide la evaluación de esa máquina', Object.values(claves).reduce((n, l) => n + l.length, 0) === pedidasAntesFuera && !/Panel ejecutivo/.test(p));
+  await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => [{ id: '024', name: 'srv-c', groups: ['ens'], status: 'active' }] as any, true);
+  const { MachineSelector } = require('../public/app/machine-selector');
+  h.reset();
+  h.setSearch('?tabView=plugins&agentId=24');
+  p = await h.render(MachineSelector);
+  comprueba('«24» es 024: el selector lo muestra elegido y sin aviso', h.find('EuiSuperSelect')?.props.valueOfSelected === '024' && !/no está en el alcance/.test(p), h.find('EuiSuperSelect')?.props.valueOfSelected);
+
+  console.log('6. Un fallo de pintado se borra al cambiar de máquina');
   h.reset();
   let rompe = true;
   const Rota = () => { if (rompe) throw new Error('boom'); return 'pintada'; };

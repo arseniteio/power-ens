@@ -7,7 +7,7 @@ import React from 'react';
 import { EuiButton, EuiCallOut, EuiFormRow, EuiSpacer, EuiSuperSelect, EuiHealth } from '@elastic/eui';
 import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
-import { describeAgentOutOfScope, isAgentInScope } from './agent-in-scope';
+import { describeAgentOutOfScope, isAgentInScope, normalizeAgentIdForScope } from './agent-in-scope';
 
 const TODAS = '__todas__';
 
@@ -43,7 +43,7 @@ export const MachineSelector = () => {
         <EuiSuperSelect
           compressed
           options={opciones}
-          valueOfSelected={agentId || TODAS}
+          valueOfSelected={agentId ? (fuera ? agentId : normalizeAgentIdForScope(agentId)) : TODAS}
           onChange={valor => cambia({ agentId: valor === TODAS ? undefined : valor })}
         />
       </EuiFormRow>
