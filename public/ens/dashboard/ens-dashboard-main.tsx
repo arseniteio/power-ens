@@ -78,7 +78,7 @@ export const EnsDashboardMain = () => {
   // con alguno aún calculándose no se enseñan (serían de una parte, y
   // parecerían de todo). Se enseña cuánto falta, los controles ya calculados
   // con su estado y «Calculando…» en los demás; el navegador vuelve a pedir
-  // cada 2 s.
+  // cada 2 s (15 s pasados 2 minutos).
   const enCurso = evaluacion.data?.meta?.pending;
   if (enCurso) {
     const controles = evaluacion.data?.controls || [];

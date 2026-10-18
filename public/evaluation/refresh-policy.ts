@@ -11,7 +11,8 @@
 //     (`meta.refreshing`), se vuelve a pedir a los 10 segundos.
 //   - En la primera carga el servidor responde con lo que ya está
 //     (`meta.pending`), y con la serie aún por calcular (`meta.seriesPending`):
-//     se vuelve a pedir cada 2 segundos hasta que esté todo.
+//     se vuelve a pedir cada 2 segundos (los 2 primeros minutos; después,
+//     cada 15) hasta que esté todo.
 //   - Como mucho 2 peticiones a la vez en toda la aplicación: la lista de
 //     controles ya no lanza una por fila, pero dos pestañas del plugin, o el
 //     panel y una sonda, no compiten por las conexiones del navegador.
@@ -19,6 +20,10 @@ export const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
 export const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
 export const EVALUATION_PENDING_RETRY_MS = 2 * 1000;
+// Si a los 2 minutos sigue a medias, cada 15 s (cada petición cuesta la
+// sonda y el contexto en el servidor).
+export const EVALUATION_PENDING_FAST_FOR_MS = 2 * 60 * 1000;
+export const EVALUATION_PENDING_SLOW_RETRY_MS = 15 * 1000;
 // Tras un fallo (de la evaluación o de su refresco en segundo plano), el
 // siguiente intento automático espera cada vez el doble, hasta 5 minutos.
 export const EVALUATION_BACKOFF_MAX_MS = 5 * 60 * 1000;
@@ -171,6 +176,8 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   // Fallos seguidos: de la carga, o del refresco que el servidor no consigue
   // (un error de refresco cuenta UNA vez: el mismo error repetido, no).
   let fallos = 0;
+  // Desde cuándo está a medias lo que se ve (filas o serie pendientes).
+  let aMediasDesde: number | undefined;
   let ultimoErrorDeRefresco: string | undefined;
   // Una carga que se soltó al ocultarse la pantalla: al volver, se repite.
   let suelta = false;
@@ -212,6 +219,8 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         // espera; y la respuesta a «Reintentar» (lo guardado, actualizándose)
         // tampoco es un fallo.
         const error = (data as any)?.meta?.refreshError;
+        const pendiente = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending);
+        aMediasDesde = pendiente ? aMediasDesde ?? deps.now() : undefined;
         if (!error) {
           fallos = 0;
           ultimoErrorDeRefresco = undefined;
@@ -254,6 +263,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       key = next;
       ultimaComprobacion = undefined;
       fallos = 0;
+      aMediasDesde = undefined;
       carga('load');
     },
     // «Reintentar»: vuelve a pedir lo que ya se ve (o lo que falló), y pide al
@@ -274,9 +284,14 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       // Tras un fallo, el siguiente intento automático espera (y el error
       // sigue a la vista mientras tanto).
       if (fallos > 0 && ahora - (ultimaCarga ?? 0) < backoffAfter(fallos)) return 'skip';
-      // La primera carga a medias (filas o serie aún calculándose): cada 2 s.
+      // La primera carga a medias (filas o serie aún calculándose).
+      // Cada 2 s los primeros 2 minutos; después, cada 15 s. Con la pestaña
+      // oculta, nada.
       const aMedias = Boolean(datos?.meta?.pending?.rows > 0 || datos?.meta?.seriesPending);
-      if (aMedias && deps.visible() && ahora - (ultimaCarga ?? 0) >= EVALUATION_PENDING_RETRY_MS) {
+      const cada =
+        aMediasDesde !== undefined && ahora - aMediasDesde >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
+      if (aMedias) {
+        if (!deps.visible() || ahora - (ultimaCarga ?? 0) < cada) return 'skip';
         carga('refresh');
         return 'reload';
       }

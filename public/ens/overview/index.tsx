@@ -147,7 +147,7 @@ export const OverviewENS = () => {
   const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);
   // PRIMERA CARGA POR PARTES (`meta.pending`): la matriz enseña los controles
   // ya calculados y «…» en los demás; las cifras por máquina y la cola, que
-  // son de todos los controles, esperan. El navegador vuelve a pedir cada 2 s.
+  // son de todos los controles, esperan. El navegador vuelve a pedir cada 2 s (15 s pasados 2 minutos).
   const enCurso = describeOverviewPending(datos?.meta.pending);
   // La serie se calcula después de responder (`meta.seriesPending`): la
   // tendencia lo dice en vez de quedarse vacía. Con filas aún pendientes

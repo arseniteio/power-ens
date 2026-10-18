@@ -305,6 +305,40 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
       c9.dispose();
     }
 
+    // M6: a medias, cada 2 s durante 2 minutos; después, cada 15 s; con la
+    // pestaña oculta, nada.
+    {
+      const sueltas: { resolve: (v: any) => void }[] = [];
+      let r11 = 13_000_000;
+      let visible11 = true;
+      const c11 = createEvaluationController<any>({
+        fetch: () => new Promise(resolve => sueltas.push({ resolve })),
+        probe: () => Promise.resolve({ fingerprint: 'x' }),
+        now: () => r11,
+        visible: () => visible11,
+        onChange: () => undefined,
+      });
+      const aMedias = () => ({ meta: { fingerprint: 'refreshing:s', evaluatedAt: new Date(r11).toISOString(), refreshing: true, seriesPending: true } });
+      c11.setKey('A');
+      sueltas.pop()!.resolve(aMedias());
+      await espera0();
+      const esperas: number[] = [];
+      for (let i = 0; i < 70; i++) {
+        const desde = r11;
+        let v = 0;
+        while ((await c11.tick()) !== 'reload' && v++ < 100) r11 += 1000;
+        esperas.push((r11 - desde) / 1000);
+        sueltas.pop()!.resolve(aMedias());
+        await espera0();
+      }
+      comprueba('M6: cada 2 s los primeros 2 minutos', esperas.slice(0, 55).every(e => e === 2), esperas.slice(0, 62).join());
+      comprueba('M6: después, cada 15 s', esperas.slice(-5).every(e => e === 15), esperas.slice(-8).join());
+      visible11 = false;
+      r11 += 60000;
+      comprueba('M6: con la pestaña oculta, nada', (await c11.tick()) === 'skip');
+      c11.dispose();
+    }
+
     // La fila de la lista: «Calculando…» para un control pendiente, nunca un estado.
     comprueba('fila: control pendiente → «Calculando…»', controlRowWaitLabel(false, { controlId: 'op.acc.3', status: 'NO_EVALUABLE', evaluated: false, pending: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 }) === 'Calculando…');
     comprueba('fila: primera carga sin resumen → «Evaluando…»; con resultado → nada', controlRowWaitLabel(true, undefined) === 'Evaluando…' && controlRowWaitLabel(false, { controlId: 'op.acc.3', status: 'CUMPLE', evaluated: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 }) === undefined);
