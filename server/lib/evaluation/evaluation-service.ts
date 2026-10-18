@@ -82,7 +82,7 @@ import {
 } from './queries';
 import type { ENSEvaluationWindow, ENSProbeResult } from './queries';
 
-export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control';
+export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
 
 export interface ENSEvaluationQuery {
   agentId?: string;
@@ -152,7 +152,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
     throw new ENSBadRequestError(`«${zona}» no es una zona horaria IANA válida.`);
   }
   const include = texto(query.include);
-  if (include && !['summary', 'results', 'dashboard', 'control'].includes(include)) {
+  if (include && !['summary', 'results', 'dashboard', 'control', 'overview'].includes(include)) {
     throw new ENSBadRequestError(`Vista desconocida: «${include}».`);
   }
   const dias = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
@@ -824,7 +824,11 @@ export const createEvaluationService = ({
           const resultados = controls
             .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
             .filter((r): r is ENSComplianceResult => Boolean(r));
-          return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage };
+          // Y cada control ese día (la tendencia por control de la Vista general).
+          const porControlEseDia = Object.fromEntries(
+            controls.flatMap((controlId, i) => (puntos[i] ? [[controlId, { status: puntos[i]!.status, score: puntos[i]!.score }]] : []))
+          );
+          return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: porControlEseDia };
         });
         if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
       }
@@ -841,7 +845,10 @@ export const createEvaluationService = ({
                 events: factsOfView(ctx, query).count,
                 ...(query.controlId
                   ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
-                  : { score: state!.controlSummary.scoreAverage }),
+                  : {
+                      score: state!.controlSummary.scoreAverage,
+                      controls: Object.fromEntries(state!.results.map(r => [r.control.id, { status: r.status, score: r.score }])),
+                    }),
               },
             ]
           : []),

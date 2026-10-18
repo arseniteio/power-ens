@@ -12,7 +12,7 @@ import type { ENSTraceabilityPageResponse } from '../../common/ens/evaluation/ty
 export const EVALUATION_TIMEOUT_MS = 180 * 1000;
 
 export interface ENSEvaluationParams {
-  include: 'summary' | 'results' | 'dashboard' | 'control';
+  include: 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
   agentId?: string;
   controlId?: string;
   timelineDays?: number;

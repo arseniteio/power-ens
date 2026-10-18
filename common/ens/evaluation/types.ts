@@ -1,6 +1,6 @@
 // La forma de las respuestas de `/api/ensfacil/evaluation` que leen las
 // pantallas (la describe también `server/README.md`).
-import type { ENSComplianceResult } from '../core/evaluation/types';
+import type { ENSAgentRef, ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
 
 export interface ENSEvaluationMeta {
@@ -29,6 +29,9 @@ export interface ENSEvaluationTimelinePoint {
   events: number;
   score?: number;
   status?: string;
+  // Sin control (lista, panel, vista general): el estado de cada control ese
+  // día en la vista (la tendencia por control de la Vista general).
+  controls?: Record<string, { status?: string; score?: number }>;
 }
 
 export interface ENSControlSummaryEntry {
@@ -50,10 +53,62 @@ export interface ENSControlEvaluationResponse {
   timeline?: ENSEvaluationTimelinePoint[];
 }
 
+// Una máquina del alcance y lo que dice cada control en SU fila. Un control que
+// no se mide en ella no aparece (ni como NO_APLICA): no tiene fila.
+export interface ENSAgentControlsRow {
+  agentId: string;
+  agentName?: string;
+  summary?: ENSComplianceSummary;
+  controls: ENSControlSummaryEntry[];
+}
+
 export interface ENSSummaryEvaluationResponse {
   meta: ENSEvaluationMeta;
   controlSummary: ENSComplianceSummary;
   controls: ENSControlSummaryEntry[];
+  agents?: ENSAgentControlsRow[];
+  // Con `timelineDays`.
+  timeline?: ENSEvaluationTimelinePoint[];
+}
+
+// Frescura de la recogida, de la sonda (sin leer ningún hecho más): el último
+// hecho y cuántos hay de cada control en cada máquina, y de cada máquina, el
+// primero, el último y su último latido de recolector.
+export interface ENSFreshnessAgent {
+  agentId: string;
+  agentName?: string;
+  count: number;
+  earliest?: string;
+  newest?: string;
+  lastHeartbeat?: string;
+}
+
+export interface ENSFreshnessCell {
+  controlId: string;
+  agentId: string;
+  count: number;
+  newest?: string;
+}
+
+export interface ENSFreshness {
+  checkedAt: string;
+  agents: ENSFreshnessAgent[];
+  cells: ENSFreshnessCell[];
+}
+
+// Una no conformidad de la vista de conjunto, para la cola de trabajo.
+export type ENSOverviewNonConformity = Pick<
+  ENSNonConformity,
+  'id' | 'requirementId' | 'origin' | 'cause' | 'documental' | 'evidenceIds' | 'parameterIds' | 'finding' | 'requiredAction'
+> & {
+  controlId: string;
+  agents: ENSAgentRef[];
+};
+
+// `include=overview`: la Vista general en una sola petición.
+export interface ENSOverviewEvaluationResponse extends ENSSummaryEvaluationResponse {
+  freshness: ENSFreshness;
+  nonConformities: ENSOverviewNonConformity[];
 }
 
 export interface ENSResultsEvaluationResponse {
