@@ -10,7 +10,11 @@
  * Servidor: memoria por huella y tiempo de vida, sin mezclar entradas;
  * peticiones iguales a la vez comparten cálculo; tope de cálculos a la vez.
  */
+import { ENSRequestTimeoutError, withRequestTimeout } from '../common/platform/request-timeout';
+import { traceabilityPageSource } from '../public/evaluation/traceability-paging';
 import {
+  createEvaluationController,
+  EVALUATION_REFRESHING_RETRY_MS,
   EVALUATION_MAX_AGE_MS,
   EVALUATION_REFRESH_INTERVAL_MS,
   evaluationKey,
@@ -21,7 +25,7 @@ import {
   shouldReload,
   visibleEvaluation,
 } from '../public/evaluation/refresh-policy';
-import { EvaluationCache, InFlight, Semaphore } from '../server/lib/evaluation/cache';
+import { CancelSignal, EvaluationCache, Semaphore, SharedTasks } from '../server/lib/evaluation/cache';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
@@ -40,6 +44,7 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
   comprueba('misma huella y resultado reciente: no se recarga', !shouldReload('a', 'a', hace(60000), ahora));
   comprueba('huella distinta: se recarga', shouldReload('b', 'a', hace(60000), ahora));
   comprueba('misma huella pero resultado viejo (el motor mide contra el reloj): se recarga', shouldReload('a', 'a', hace(EVALUATION_MAX_AGE_MS), ahora));
+  comprueba('lo que se enseñaba mientras se recalculaba se recarga', shouldReload('a', 'refreshing:a', hace(1000), ahora));
   comprueba('sin resultado: se carga', shouldReload('a', undefined, undefined, ahora));
   comprueba('la clave no depende del orden de los parámetros', evaluationKey({ include: 'x', agentId: '024' }) === evaluationKey({ agentId: '024', include: 'x' }));
   comprueba('otra máquina, otra clave', evaluationKey({ include: 'x', agentId: '024' }) !== evaluationKey({ include: 'x', agentId: '028' }));
@@ -77,9 +82,106 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
   e = evaluationReducer(e, { type: 'failure', key: B, error: new Error('caído') });
   comprueba('con un fallo, el error y ningún dato', visibleEvaluation(e, B).data === undefined && Boolean(visibleEvaluation(e, B).error) && !visibleEvaluation(e, B).isLoading);
 
+  // --- el ciclo de una pantalla (lo que hace `useEnsEvaluation`) -------------
+  {
+    let reloj = 1_000_000;
+    let visible = true;
+    const pendientes: { resolve: (v: any) => void; reject: (e: any) => void; controller: AbortController; tipo: string }[] = [];
+    const estados: any[] = [];
+    const promesa = (tipo: string, controller: AbortController) =>
+      new Promise<any>((resolve, reject) => {
+        pendientes.push({ resolve, reject, controller, tipo });
+        controller.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      });
+    const c = createEvaluationController<any>({
+      fetch: controller => promesa('fetch', controller),
+      probe: controller => promesa('probe', controller),
+      now: () => reloj,
+      visible: () => visible,
+      onChange: st => estados.push(st),
+    });
+    const ultimo = () => estados[estados.length - 1];
+    const tick = () => c.tick();
+    const resuelve = (tipo: string, valor: any) => {
+      const p = pendientes.filter(x => x.tipo === tipo && !x.controller.signal.aborted).pop()!;
+      pendientes.splice(pendientes.indexOf(p), 1);
+      p.resolve(valor);
+    };
+    const espera0 = () => new Promise(r => setTimeout(r, 0));
+
+    c.setKey('A');
+    comprueba('primera carga: cargando, sin datos', ultimo().loading && ultimo().data === undefined);
+    reloj += 10 * 60 * 1000;
+    comprueba('una vuelta durante la primera carga no sondea ni la interrumpe', (await tick()) === 'busy' && pendientes.filter(p => p.tipo === 'fetch' && !p.controller.signal.aborted).length === 1);
+    resuelve('fetch', { meta: { fingerprint: 'f1', evaluatedAt: new Date(reloj).toISOString() } });
+    await espera0();
+    comprueba('llega: datos de A', ultimo().key === 'A' && ultimo().data?.meta.fingerprint === 'f1');
+    comprueba('justo después, no se sondea (5 min)', (await tick()) === 'skip');
+    reloj += EVALUATION_REFRESH_INTERVAL_MS;
+    visible = false;
+    comprueba('pestaña oculta: nada', (await tick()) === 'skip' && pendientes.length === 0);
+    visible = true;
+    const sondeo = tick();
+    resuelve('probe', { fingerprint: 'f1' });
+    comprueba('visible otra vez: sonda; misma huella, no recarga', (await sondeo) === 'unchanged' && pendientes.length === 0);
+    reloj += EVALUATION_REFRESH_INTERVAL_MS;
+    const sondeo2 = tick();
+    resuelve('probe', { fingerprint: 'f2' });
+    comprueba('huella nueva: recarga encima (se sigue viendo lo de A)', (await sondeo2) === 'reload' && ultimo().data?.meta.fingerprint === 'f1' && ultimo().refreshing);
+    resuelve('fetch', { meta: { fingerprint: 'f2', evaluatedAt: new Date(reloj).toISOString(), refreshing: true } });
+    await espera0();
+    reloj += EVALUATION_REFRESHING_RETRY_MS;
+    comprueba('el servidor estaba recalculando: se vuelve a pedir a los 10 s', (await tick()) === 'reload');
+    resuelve('fetch', { meta: { fingerprint: 'f3', evaluatedAt: new Date(reloj).toISOString() } });
+    await espera0();
+
+    // Cambio de máquina con la carga anterior en curso.
+    reloj += EVALUATION_REFRESH_INTERVAL_MS;
+    const sondeo3 = tick();
+    c.setKey('B');
+    comprueba('cambiar de clave anula la sonda en curso', (await sondeo3) === 'busy');
+    comprueba('B: cargando, nada de A', ultimo().key === 'B' && ultimo().data === undefined && ultimo().loading);
+    const tardia = pendientes.find(p => p.tipo === 'fetch' && p.controller.signal.aborted);
+    comprueba('la carga de A se cancela (sin error)', !estados.some(e => e.error));
+    resuelve('fetch', { meta: { fingerprint: 'b1', evaluatedAt: new Date(reloj).toISOString() } });
+    await espera0();
+    comprueba('el reloj de la sonda vuelve a cero con la clave nueva', (await tick()) === 'skip');
+    c.setKey('B');
+    comprueba('pedir otra vez la misma clave no borra lo que se ve', ultimo().data?.meta.fingerprint === 'b1');
+
+    // Un tiempo agotado se dice.
+    const c2Estados: any[] = [];
+    const c2 = createEvaluationController<any>({
+      fetch: controller => withRequestTimeout(signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')))), 'evaluación ENS', controller, 20),
+      probe: () => Promise.resolve({ fingerprint: 'x' }),
+      now: () => reloj,
+      visible: () => true,
+      onChange: st => c2Estados.push(st),
+    });
+    c2.setKey('lenta');
+    await new Promise(r => setTimeout(r, 60));
+    const fin = c2Estados[c2Estados.length - 1];
+    comprueba('un tiempo agotado llega como error (no se calla)', fin.error instanceof ENSRequestTimeoutError && !fin.loading, fin.error?.message);
+    c2.retry();
+    comprueba('«Reintentar» lo vuelve a pedir', c2Estados[c2Estados.length - 1].loading);
+    c2.dispose();
+    c.dispose();
+    void tardia;
+  }
+
+  // --- la tabla de trazabilidad ------------------------------------------------
+  comprueba('página dentro de lo que trajo la ficha: local', traceabilityPageSource({ initialCount: 100, available: 200, pageFrom: 90, pageSize: 10 }) === 'local');
+  comprueba('7 entradas y página de 10: local (no se pide nada)', traceabilityPageSource({ initialCount: 7, available: 7, pageFrom: 0, pageSize: 10 }) === 'local');
+  comprueba('más allá de lo que trajo: al servidor', traceabilityPageSource({ initialCount: 100, available: 200, pageFrom: 100, pageSize: 10 }) === 'remote');
+  comprueba('última página parcial dentro de lo traído: local', traceabilityPageSource({ initialCount: 95, available: 95, pageFrom: 90, pageSize: 10 }) === 'local');
+
   // --- servidor ----------------------------------------------------------------
   let reloj = 0;
   const memoria = new EvaluationCache<string>(3, 1000, () => reloj);
+  const porTamano = new EvaluationCache<string>(100, 1000, () => reloj, 10, v => v.length);
+  porTamano.set('x', 'h', '123456');
+  porTamano.set('y', 'h', '123456');
+  comprueba('memoria: con el tope de tamaño se va la más antigua', porTamano.get('x', 'h') === undefined && porTamano.get('y', 'h') === '123456' && porTamano.bytes === 6);
   memoria.set('k', 'huella-1', 'valor');
   comprueba('memoria: misma huella, el valor', memoria.get('k', 'huella-1') === 'valor');
   comprueba('memoria: otra huella (hechos nuevos), nada', memoria.get('k', 'huella-2') === undefined);
@@ -90,13 +192,30 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
   ['a', 'b', 'c', 'd'].forEach(k => memoria.set(k, 'h', k));
   comprueba('memoria: con el tope, se va la que lleva más sin usarse', memoria.size === 3 && memoria.get('a', 'h') === undefined && memoria.get('d', 'h') === 'd');
 
-  const compartido = new InFlight<number>();
+  const compartido = new SharedTasks<number>();
   let calculos = 0;
-  const calcula = async () => { calculos += 1; await espera(5); return 42; };
-  const [x, y] = await Promise.all([compartido.run('vista', calcula), compartido.run('vista', calcula)]);
-  comprueba('dos peticiones iguales a la vez: un solo cálculo', calculos === 1 && x === 42 && y === 42);
-  await compartido.run('vista', calcula);
-  comprueba('terminada, la siguiente calcula de nuevo', calculos === 2);
+  let cancelado = false;
+  const calcula = async (signal: any) => { calculos += 1; await espera(10); if (signal.aborted) { cancelado = true; throw new Error('cancelado'); } return 42; };
+  const [x, y] = await Promise.all([compartido.run('fila', calcula, new CancelSignal()), compartido.run('fila', calcula, new CancelSignal())]);
+  comprueba('dos peticiones del mismo cálculo a la vez: uno solo', calculos === 1 && x === 42 && y === 42);
+  await compartido.run('fila', calcula, new CancelSignal());
+  comprueba('terminado, el siguiente calcula de nuevo', calculos === 2);
+  const a1 = new CancelSignal();
+  const a2 = new CancelSignal();
+  const p1 = compartido.run('otra', calcula, a1).catch(() => 'x');
+  const p2 = compartido.run('otra', calcula, a2).catch(() => 'x');
+  a1.cancel();
+  comprueba('si se va uno de dos, el cálculo sigue', !cancelado);
+  a2.cancel();
+  await Promise.all([p1, p2]);
+  comprueba('si se van todos, el cálculo se cancela', cancelado);
+  cancelado = false;
+  const sinEspera = compartido.run('fondo', calcula);
+  const a3 = new CancelSignal();
+  const p3 = compartido.run('fondo', calcula, a3).catch(() => 'x');
+  a3.cancel();
+  await Promise.all([sinEspera, p3]);
+  comprueba('el que se refresca en segundo plano no se cancela', !cancelado);
 
   const semaforo = new Semaphore(2);
   let activos = 0;
