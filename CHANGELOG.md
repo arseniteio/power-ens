@@ -137,6 +137,12 @@ pantallas que no desaparecen.
   entera. En el laboratorio, los primeros controles aparecen en unos segundos y
   el resultado completo en unos 20 s; después, las vistas se sirven al
   instante.
+- El servidor del dashboard evalúa ahora los controles, y eso ocupa memoria
+  suya: en el laboratorio (6 máquinas), unos 15 MB por usuario tras la primera
+  carga y unos 50 MB mientras se calcula. Lo acotan 50.000 hechos por lectura,
+  4 lecturas a la vez y una memoria de resultados de 64 a 256 MB según el
+  alcance. En un despliegue mayor, dar más montón al dashboard
+  (`--max-old-space-size`, guía 04, apartado 8.1).
 
 ## [1.1.0] - 2026-10-10
 

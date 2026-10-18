@@ -272,6 +272,62 @@ Expected result: the response includes `"result":"updated"`. Then validate the r
 | A control shows «Sin datos del recolector desde …» | the last heartbeat of that control's collector on that machine is older than 24 h | check the agent, the collector cron and connectivity; the control is judged again as soon as a new run arrives |
 | A control measured on the manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) without data on the manager row | the runbook's `install-manager.sh` is missing or its cron (hourly or every 6 hours, depending on the control) has not run yet | check the manager's `/etc/cron.d/ensfacil-op*` and the `<localfile>` in its `ossec.conf`. In Docker, section 9.3 |
 | An op.exp.1 rule appears on op.exp.10 events | op.exp.1 rules older than the fix, with the `ensfacil` field not anchored | update the op.exp.1 runbook and run its `install-manager.sh` again |
+| The dashboard restarts on its own and the log says `JavaScript heap out of memory` or `FATAL ERROR: … Allocation failed` | since 1.2.0 the dashboard server evaluates the controls, and in a large scope Node's default heap is too small | give the dashboard more heap (section 8.1) |
+
+### 8.1 Dashboard memory
+
+Since 1.2.0 the dashboard server evaluates the controls. In the lab (6
+machines, about 210,000 facts in 30 days) that adds about 15 MB per user after
+the first load and about 50 MB while computing; the dashboard process uses
+about 470-550 MB in total. It is bounded by 50,000 facts per read (about
+85 MB), 4 reads at a time (about 340 MB in the worst case) and a result memory
+of 64 to 256 MB depending on the scope (`server/README.md`, «Memoria»).
+
+In a deployment larger than the lab (tens of machines or millions of facts in
+the window), set the dashboard's Node heap: 2048 MB up to about 30 machines
+and 4096 MB above that, with at least twice that memory free on the server.
+
+1. Check whether the package ships the dashboard's Node options file:
+
+   ```bash
+   sudo cat /etc/wazuh-dashboard/node.options
+   ```
+
+2. If it exists, add the line (or remove the `#` from the one already there):
+
+   ```bash
+   echo '--max-old-space-size=2048' | sudo tee -a /etc/wazuh-dashboard/node.options
+   ```
+
+   If it does not exist, set it on the service:
+
+   ```bash
+   sudo systemctl edit wazuh-dashboard
+   ```
+
+   with this content:
+
+   ```ini
+   [Service]
+   Environment="NODE_OPTIONS=--max-old-space-size=2048"
+   ```
+
+3. Restart the dashboard and check that the process carries the option:
+
+   ```bash
+   sudo systemctl restart wazuh-dashboard
+   pid=$(systemctl show -p MainPID --value wazuh-dashboard)
+   sudo cat /proc/$pid/cmdline /proc/$pid/environ | tr '\0' '\n' | grep -o 'max-old-space-size=[0-9]*'
+   ```
+
+   Expected result: `max-old-space-size=2048`.
+
+In Docker, the variable goes in the `wazuh.dashboard` service of
+`docker-compose.yml` (`environment: - NODE_OPTIONS=--max-old-space-size=2048`),
+and is applied with `docker compose up -d wazuh.dashboard`.
+
+To revert, remove the line (or the `systemctl edit` file) and restart the
+dashboard.
 
 ## 9. Docker
 

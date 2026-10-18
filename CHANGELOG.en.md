@@ -140,6 +140,12 @@ screens that no longer disappear.
 - Each user's first load after the dashboard starts reads the whole window. In
   the lab, the first controls appear within a few seconds and the complete
   result in about 20 s; after that, the views are served at once.
+- The dashboard server now evaluates the controls, which uses its memory: in
+  the lab (6 machines), about 15 MB per user after the first load and about
+  50 MB while computing. It is bounded by 50,000 facts per read, 4 reads at a
+  time and a result memory of 64 to 256 MB depending on the scope. In a larger
+  deployment, give the dashboard more heap (`--max-old-space-size`, guide 04,
+  section 8.1).
 
 ## [1.1.0] - 2026-10-10
 
