@@ -93,10 +93,16 @@ export const buildViewFilters = (
 // lee de otros controles; de cada máquina, su primer hecho de la ventana (la
 // presencia) y el nombre del último; y el último latido de cada día de cada
 // máquina, de cualquier control (ver `control-partition.ts`).
-export const buildProbeRequest = (filters: unknown[], controlIds: string[], timeZone?: string) => {
+// `past`: los días pasados ENTEROS de la ventana (desde el primer día
+// completo hasta el inicio de hoy, en la zona de quien mira). Cuántos hechos
+// hay ahí, por control y máquina, sin control y de los tipos cruzados: si no
+// cambia, los puntos ya calculados de esos días siguen valiendo aunque lleguen
+// hechos nuevos (que son de hoy).
+export const buildProbeRequest = (filters: unknown[], controlIds: string[], timeZone?: string, past?: { from: string; to: string }) => {
+  const pasado = past ? { past: { filter: { range: { '@timestamp': { gte: past.from, lt: past.to } } } } } : {};
   const porMaquina = (aggs?: Record<string, unknown>) => ({
     terms: { field: 'agent.id', size: 10000 },
-    aggs: { newest: { max: { field: '@timestamp' } }, ...(aggs || {}) },
+    aggs: { newest: { max: { field: '@timestamp' } }, ...pasado, ...(aggs || {}) },
   });
   const cruzados = Object.entries(ENS_CROSS_CONTROL_EVENT_TYPES).filter(([id]) => controlIds.includes(id));
   return {
@@ -118,12 +124,13 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
           aggs: {
             newest: { max: { field: '@timestamp' } },
             oldest: { min: { field: '@timestamp' } },
+            ...pasado,
             agents: porMaquina({ oldest: { min: { field: '@timestamp' } } }),
           },
         },
         orphans: {
           filter: buildENSFactsWithoutControlFilter(),
-          aggs: { newest: { max: { field: '@timestamp' } }, agents: porMaquina() },
+          aggs: { newest: { max: { field: '@timestamp' } }, ...pasado, agents: porMaquina() },
         },
         ...Object.fromEntries(
           cruzados.map(([id, tipos]) => [
@@ -176,6 +183,12 @@ export interface ENSFactsCount {
   oldest?: string;
 }
 
+// Los hechos de los días pasados enteros de la ventana (ver `buildProbeRequest`).
+export interface ENSPastFactsCount {
+  total: number;
+  agents: Record<string, number>;
+}
+
 export interface ENSProbeResult extends ENSFactsCount {
   controls: Record<string, ENSFactsCount & { agents: Record<string, ENSFactsCount> }>;
   orphans: ENSFactsCount & { agents: Record<string, ENSFactsCount> };
@@ -187,6 +200,9 @@ export interface ENSProbeResult extends ENSFactsCount {
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
   // Los índices con hechos de la ventana (sin lista fiable, `undefined`).
   indices?: string[];
+  // Aparte (no entra en la huella de las filas): los hechos de los días
+  // pasados enteros, por control, sin control y de los tipos cruzados.
+  past?: { controls: Record<string, ENSPastFactsCount>; orphans: ENSPastFactsCount; cross: Record<string, ENSPastFactsCount> };
 }
 
 const fecha = (agg: any): string | undefined =>
@@ -206,8 +222,24 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
   const indices = aggs.indices && !(Number(aggs.indices.sum_other_doc_count) > 0)
     ? (aggs.indices.buckets || []).map((b: any) => String(b.key))
     : undefined;
+  const pasadoDe = (agg: any): ENSPastFactsCount => ({
+    total: Number(agg?.past?.doc_count || 0),
+    agents: Object.fromEntries((agg?.agents?.buckets || []).map((b: any) => [String(b.key), Number(b.past?.doc_count || 0)])),
+  });
+  const conPasado = Boolean(aggs.orphans?.past);
   return {
     indices,
+    past: conPasado
+      ? {
+          controls: Object.fromEntries(Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [id, pasadoDe(b)])),
+          orphans: pasadoDe(aggs.orphans),
+          cross: Object.fromEntries(
+            Object.entries(aggs)
+              .filter(([nombre]) => nombre.startsWith('cross:'))
+              .map(([nombre, agg]: [string, any]) => [nombre.slice('cross:'.length), pasadoDe(agg)])
+          ),
+        }
+      : undefined,
     count: typeof total === 'number' ? total : Number(total?.value || 0),
     newest: fecha(aggs.newest),
     oldest: fecha(aggs.oldest),

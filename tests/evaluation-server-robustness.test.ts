@@ -322,6 +322,112 @@ const referencia = () => {
     while (!s12.idle()) await espera(20);
   }
 
+  // 13. C1: la serie sobrevive a los refrescos. Como en producción, llega un
+  // hecho nuevo antes de cada petición (y alguno mientras la serie se está
+  // calculando, con un indexador lento). Calculada una vez, el panel y la
+  // ficha la siguen trayendo (nunca pendiente otra vez) aunque las filas se
+  // refresquen; sus días pasados son los del motor.
+  {
+    let k = 0;
+    const nuevo = () => {
+      k += 1;
+      indice.docs.push(hecho(k % 2 ? '024' : '000', k % 2 ? 'wazuh-real' : 'manager', { ensfacil: k % 2 ? 'op.exp.3' : 'op.mon.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.0001 * (50 - k)));
+    };
+    const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) { await espera(10); nuevo(); } return indice.search(p); } };
+    const cl = { asCurrentUser: lento, asInternalUser: lento };
+    const s13 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
+    const pide = (q: any) => s13.run(cl, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
+    await pide({ include: 'summary' });
+    nuevo();
+    await pide({ include: 'summary' });
+    nuevo();
+    let panel = await pide({ include: 'dashboard', timelineDays: '7' });
+    // Mientras la serie se calcula, sigue llegando de todo (el indexador lento
+    // añade un hecho en cada lectura) y se sigue pidiendo.
+    for (let i = 0; i < 300 && !panel.timeline; i++) {
+      await espera(100);
+      nuevo();
+      panel = await pide({ include: 'dashboard', timelineDays: '7' });
+    }
+    comprueba('C1: la serie llega aunque las filas se refresquen mientras se calcula', (panel.timeline || []).length > 1, panel.meta);
+    let siempre = true;
+    let ultimaFicha: any;
+    for (let i = 0; i < 6; i++) {
+      nuevo();
+      const p = await pide({ include: 'dashboard', timelineDays: '7' });
+      nuevo();
+      ultimaFicha = await pide({ include: 'control', controlId: 'op.exp.3', timelineDays: '30' });
+      if (!p.timeline || p.meta.seriesPending || !ultimaFicha.timeline || ultimaFicha.meta.seriesPending) siempre = false;
+    }
+    comprueba('C1: y con un hecho nuevo antes de cada petición, el panel y la ficha la siguen trayendo (nunca pendiente)', siempre);
+    while (!s13.idle()) await espera(20);
+    nuevo();
+    const tras = await pide({ include: 'dashboard', timelineDays: '7' });
+    const ficha = await pide({ include: 'control', controlId: 'op.exp.3', timelineDays: '30' });
+    comprueba('C1: terminado todo, con otro hecho nuevo: el panel y la ficha con serie', Boolean(tras.timeline) && !tras.meta.seriesPending && Boolean(ficha.timeline) && !ficha.meta.seriesPending);
+    // Los días pasados, los del motor sobre estos mismos hechos (los nuevos
+    // son de hoy): igual que un servicio recién arrancado.
+    const limpio = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600000 });
+    let ref13 = await limpio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
+    for (let i = 0; i < 300 && !ref13.timeline; i++) {
+      await espera(50);
+      ref13 = await limpio.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
+    }
+    const pasadosDe = (t: any[]) => t.filter(p => !p.isCurrent).map(p => [p.label, p.score, p.status]);
+    comprueba('C1: los días pasados que se sirven son los de un cálculo limpio', igual(pasadosDe(ficha.timeline || []), pasadosDe(ref13.timeline || [])), [pasadosDe(ficha.timeline || []).slice(-3), pasadosDe(ref13.timeline || []).slice(-3)]);
+    while (!s13.idle() || !limpio.idle()) await espera(20);
+
+    // La secuencia de la revisión final: el reloj avanza 2 minutos y llegan
+    // hechos de dos filas antes de cada petición; la primera respuesta, por
+    // partes. Antes, la versión nueva de una fila que esperaba su serie se
+    // quedaba sin ella y el panel y la ficha volvían a «pendiente».
+    const guardado = reloj;
+    const s15 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 1 });
+    const pide15 = (q: any) => s15.run(clientes, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
+    const avanza = () => {
+      reloj = new Date(reloj.getTime() + 2 * 60 * 1000);
+      indice.docs.push(hecho('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.001));
+      indice.docs.push(hecho('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 0.001));
+    };
+    const tranquilo = async () => { for (let i = 0; i < 600 && !s15.idle(); i++) await espera(20); };
+    await pide15({ include: 'summary' });
+    while (s15.backgroundWork().rows > 0) await espera(20);
+    avanza();
+    await pide15({ include: 'summary' });
+    avanza();
+    await pide15({ include: 'dashboard', timelineDays: '7' });
+    await tranquilo();
+    const sinSerie = [...(s15.rows as any).entries.values()].filter((e: any) => !e.value.cuts || !e.value.cuts.complete).length;
+    comprueba('C1 (revisión): terminado el segundo plano, ninguna fila sin su serie', sinSerie === 0, sinSerie);
+    avanza();
+    const panel15 = await pide15({ include: 'dashboard', timelineDays: '7' });
+    const ficha15 = await pide15({ include: 'control', controlId: 'op.exp.3', timelineDays: '30' });
+    await tranquilo();
+    avanza();
+    const otra15 = await pide15({ include: 'dashboard', timelineDays: '7' });
+    comprueba('C1 (revisión): con un hecho nuevo antes de cada petición, panel y ficha con serie',
+      Boolean(panel15.timeline) && !panel15.meta.seriesPending && Boolean(ficha15.timeline) && !ficha15.meta.seriesPending && Boolean(otra15.timeline) && !otra15.meta.seriesPending,
+      [panel15.meta.seriesPending, ficha15.meta.seriesPending, otra15.meta.seriesPending]);
+    await tranquilo();
+    reloj = guardado;
+
+    // I1: con filas pendientes no hay serie (aunque haya una guardada): su
+    // punto de hoy saldría de una parte de los controles.
+    const s14 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 1 });
+    const pide14 = (q: any) => s14.run(cl, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
+    let p14 = await pide14({ include: 'dashboard', timelineDays: '7' });
+    for (let i = 0; i < 300 && !p14.timeline; i++) {
+      await espera(50);
+      p14 = await pide14({ include: 'dashboard', timelineDays: '7' });
+    }
+    while (!s14.idle()) await espera(20);
+    const clave = [...(s14.rows as any).entries.keys()].find((k: string) => k.includes('|op.exp.3|024'));
+    (s14.rows as any).remove(clave);
+    const conHueco = await pide14({ include: 'dashboard', timelineDays: '7' });
+    comprueba('I1: con una fila pendiente y la serie guardada: sin serie y pendiente (ningún punto de hoy a medias)', Boolean(conHueco.meta.pending) && conHueco.meta.seriesPending === true && !conHueco.timeline, conHueco.meta);
+    while (!s14.idle()) await espera(20);
+  }
+
   fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
   process.exit(fallos.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

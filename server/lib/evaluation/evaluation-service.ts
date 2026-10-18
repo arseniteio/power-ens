@@ -221,8 +221,17 @@ interface CutPoint {
 // un día de hoy (`key`), el punto de cada final de día (por su instante ISO).
 interface StoredCuts {
   key: string;
+  // Con qué hechos de los días pasados se calcularon (`pastSignature`): los
+  // hechos nuevos son de hoy y no los cambian; un hecho tardío fechado en un
+  // día pasado, sí.
+  pastKey: string;
+  // El instante de la petición con que se empezó: entre dos series del mismo
+  // día para la misma fila, manda la más reciente.
+  asOf: number;
   points: Record<string, CutPoint>;
-  // Todos los días calculados (se van guardando a medida que salen).
+  // Todos los días calculados (se van guardando a medida que salen). Una
+  // serie a medias pasa de una versión de la fila a la siguiente (los hechos
+  // nuevos son de hoy) y se sigue llenando.
   complete: boolean;
 }
 
@@ -242,7 +251,7 @@ interface StoredRow {
   scopeKey: string;
   // El último intento de refrescarla en segundo plano que falló.
   refreshError?: { message: string; at: string };
-  // Ya la sustituyó otra (hechos nuevos): su serie pendiente no se calcula.
+  // Ya la sustituyó otra versión (hechos nuevos).
   superseded?: boolean;
 }
 
@@ -420,7 +429,7 @@ export const createEvaluationService = ({
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, reloj, maxStoredBytes, storedRowBytes);
   // Los días pasados de una serie no cambian en el día: hasta 26 h (la clave
   // lleva el día y la zona; solo zonas IANA válidas llegan aquí).
-  const timelines = new EvaluationCache<any[]>(200, 26 * 3600 * 1000, reloj);
+  const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, reloj);
   const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, reloj);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, reloj);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, reloj);
@@ -483,8 +492,16 @@ export const createEvaluationService = ({
 
     const window = resolveEvaluationWindow(configuration.global.evaluationPeriod, now);
     const filters = buildViewFilters(window, scope);
+    // Los días pasados ENTEROS de la ventana: del primer día completo (fijo
+    // durante todo el día, aunque la ventana se desplace) al inicio de hoy.
+    const hoy = startOfDayIn(now, query.timeZone);
+    const primerDia = startOfDayIn(new Date(Date.parse(window.from) + 86400e3), query.timeZone);
     const probe = readProbeResponse(
-      await searchComplete(clients.asCurrentUser, buildProbeRequest(filters, catalogControlIds(), query.timeZone), 'la sonda de hechos')
+      await searchComplete(
+        clients.asCurrentUser,
+        buildProbeRequest(filters, catalogControlIds(), query.timeZone, { from: primerDia.toISOString(), to: hoy.toISOString() }),
+        'la sonda de hechos'
+      )
     );
     const presenceEvents = buildENSPresenceEvents(probe.presence);
 
@@ -531,6 +548,25 @@ export const createEvaluationService = ({
       ctx.probe.cross[controlId]?.[agentId] || null,
       ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? (ctx.probe.heartbeats[agentId] || []).slice(-1)[0] || null : null
     );
+
+  // Los hechos de los días pasados enteros de una fila (en la zona de quien
+  // mira): si no cambian, sus puntos de esos días siguen valiendo.
+  const pastSignature = (ctx: ENSEvaluationContext, spec: RowSpec): string => {
+    const pasado = ctx.probe.past;
+    const hoy = startOfDayIn(ctx.now, ctx.timeZone).getTime();
+    if (!spec.factsAgent) {
+      return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), pasado?.controls[spec.controlId]?.total ?? null, pasado?.orphans.total ?? null);
+    }
+    const agente = spec.factsAgent;
+    return sha(
+      ctx.timeZone,
+      startOfDayIn(ctx.now, ctx.timeZone).toISOString(),
+      pasado?.controls[spec.controlId]?.agents[agente] ?? null,
+      pasado?.orphans.agents[agente] ?? null,
+      pasado?.cross[spec.controlId]?.agents[agente] ?? null,
+      ENS_CROSS_CONTROL_HEARTBEAT.includes(spec.controlId) ? (ctx.probe.heartbeats[agente] || []).filter(t => Date.parse(t) < hoy) : null
+    );
+  };
 
   // La de un control sin filas (lo evalúa el motor sobre todos sus hechos).
   const fallbackFingerprint = (ctx: ENSEvaluationContext, controlId: string): string =>
@@ -673,15 +709,18 @@ export const createEvaluationService = ({
       const guardadas = traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
       const serie = seriesOf(ctx);
       // Los días pasados ya calculados hoy (en esta zona, con esta
-      // configuración y este alcance) siguen valiendo: los hechos nuevos que
-      // obligan a recalcular la fila son de ahora.
+      // configuración, este alcance y los mismos hechos de días pasados)
+      // siguen valiendo: los hechos nuevos que obligan a recalcular la fila
+      // son de hoy. La serie pasa a la versión nueva aunque esté a medias: es
+      // el MISMO objeto, y quien la calcula lo sigue llenando.
+      const pastKey = pastSignature(ctx, spec);
       const previa = o.previous;
       const pasados =
         previa &&
         previa.configurationKey === ctx.configurationKey &&
         previa.scopeKey === ctx.scopeKey &&
         previa.cuts?.key === serie.key &&
-        previa.cuts.complete
+        previa.cuts.pastKey === pastKey
           ? previa.cuts
           : undefined;
       const row: StoredRow = {
@@ -1155,17 +1194,26 @@ export const createEvaluationService = ({
   let seriesBusy = false;
   let seriesTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const seriesVigente = (need: RowNeed) => {
-    const entrada = rows.peek(need.key);
-    return entrada && entrada.fingerprint === need.fingerprint && !entrada.value.superseded ? entrada.value : undefined;
+  // La serie va con la fila guardada AHORA bajo esa clave (la versión que
+  // sea: un refresco por hechos nuevos no la cambia), mientras sea de la
+  // misma configuración y alcance que la petición que la pidió.
+  const seriesTarget = (ctx: ENSEvaluationContext, need: RowNeed) => {
+    const fila = rows.peek(need.key)?.value;
+    return fila && fila.configurationKey === ctx.configurationKey && fila.scopeKey === ctx.scopeKey ? fila : undefined;
   };
+  // ¿Tiene ya la fila su serie entera (de hoy, en esta zona, con estos
+  // hechos de días pasados)?
+  const seriesDone = (fila: StoredRow, serieKey: string, pastKey: string) =>
+    Boolean(fila.cuts && fila.cuts.key === serieKey && fila.cuts.pastKey === pastKey && fila.cuts.complete);
 
   const wantSeries = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
     const serieKey = seriesOf(ctx).key;
-    const fila = seriesVigente(need);
-    if (!fila || (fila.cuts && fila.cuts.key === serieKey)) return;
+    const fila = seriesTarget(ctx, need);
+    if (!fila || seriesDone(fila, serieKey, pastSignature(ctx, need.spec))) return;
     const clave = `${need.key}|${serieKey}`;
-    if (!seriesWanted.has(clave)) seriesWanted.set(clave, { clients, ctx, need, serieKey });
+    // Una versión más nueva de la fila sustituye a la que esperaba.
+    const previo = seriesWanted.get(clave);
+    if (!previo || previo.need.fingerprint !== need.fingerprint) seriesWanted.set(clave, { clients, ctx, need, serieKey });
     kickSeries();
   };
 
@@ -1185,8 +1233,11 @@ export const createEvaluationService = ({
     if (seriesBusy || foregroundJobs > 0) return;
     const ahora = clock().getTime();
     const listos = [...seriesWanted.entries()].filter(([clave, w]) => {
-      const fila = seriesVigente(w.need);
-      if (!fila || (fila.cuts && fila.cuts.key === w.serieKey)) {
+      // La fila de esa clave, la versión que sea (un refresco no la saca de
+      // la cola); fuera solo si ya tiene su serie, o si la fila ya es de otra
+      // configuración, alcance o días pasados (la nueva la pedirá con lo suyo).
+      const fila = seriesTarget(w.ctx, w.need);
+      if (!fila || seriesDone(fila, w.serieKey, pastSignature(w.ctx, w.need.spec))) {
         seriesWanted.delete(clave);
         return false;
       }
@@ -1250,70 +1301,87 @@ export const createEvaluationService = ({
   // La serie de una fila con sus hechos (ya leídos con la poda de la serie).
   const seriesForRow = async (ctx: ENSEvaluationContext, need: RowNeed, hits: any[], searchMs: number) => {
     const serie = seriesOf(ctx);
-    const fila = seriesVigente(need);
-    if (!fila || (fila.cuts && fila.cuts.key === serie.key)) return;
-    const cuts: StoredCuts = { key: serie.key, points: {}, complete: false };
-    fila.cuts = cuts;
-    try {
-      const { ascending, normalizeMs, n } = await cpu.use(async () => {
-        const t0 = Date.now();
-        const total = hits.length;
-        const { events } = eventsOf(ctx, need.spec, hits);
-        hits.length = 0;
-        const orden = events
-          .map(event => ({ event, time: Date.parse(event.timestamp) }))
-          .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
-          .sort((left, right) => left.time - right.time);
-        return { ascending: orden, normalizeMs: Date.now() - t0, n: total };
-      }, { background: true });
-      const hasta = (limite: number) => {
-        let lo = 0;
-        let hi = ascending.length;
-        while (lo < hi) {
-          const mid = (lo + hi) >> 1;
-          if (ascending[mid].time <= limite) lo = mid + 1;
-          else hi = mid;
-        }
-        return lo;
-      };
-      const evalua = evaluatorOf(ctx, need.spec);
-      let evaluateMs = 0;
-      for (const cut of [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
-        // Una fila sustituida por otra más nueva no termina su serie.
-        if (!seriesVigente(need)) {
-          if (fila.cuts === cuts) fila.cuts = undefined;
-          return;
-        }
-        // Cada día, un turno del motor: lo que alguien espera pasa delante.
-        await cpu.use(async () => {
-          await yieldToEventLoop();
-          const t0 = Date.now();
-          const enCorte = evalua(ascending.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
-          cuts.points[cut.cutoff.toISOString()] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
-          evaluateMs += Date.now() - t0;
-        }, { background: true });
+    const pastKey = pastSignature(ctx, need.spec);
+    const fila = seriesTarget(ctx, need);
+    if (!fila || seriesDone(fila, serie.key, pastKey)) return;
+    // La serie a medias de una versión anterior (los mismos días pasados) se
+    // sigue llenando; si no hay, una nueva.
+    const cuts: StoredCuts =
+      fila.cuts && fila.cuts.key === serie.key && fila.cuts.pastKey === pastKey
+        ? fila.cuts
+        : { key: serie.key, pastKey, asOf: ctx.now.getTime(), points: {}, complete: false };
+    // La fila de esa clave sigue queriendo ESTA serie: la versión que sea, con
+    // la misma configuración y alcance, mientras no tenga otra del mismo día
+    // más reciente (calculada con hechos de días pasados más nuevos). Si una
+    // versión nueva de la fila no la trae, se le pone.
+    const sigue = (): boolean => {
+      const actual = seriesTarget(ctx, need);
+      if (!actual) return false;
+      if (actual.cuts === cuts) return true;
+      if (actual.cuts && actual.cuts.key === serie.key && (actual.cuts.asOf > cuts.asOf || actual.cuts.pastKey === pastKey)) return false;
+      actual.cuts = cuts;
+      return true;
+    };
+    if (!sigue()) return;
+    const { ascending, normalizeMs, n } = await cpu.use(async () => {
+      const t0 = Date.now();
+      const total = hits.length;
+      const { events } = eventsOf(ctx, need.spec, hits);
+      hits.length = 0;
+      const orden = events
+        .map(event => ({ event, time: Date.parse(event.timestamp) }))
+        .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
+        .sort((left, right) => left.time - right.time);
+      return { ascending: orden, normalizeMs: Date.now() - t0, n: total };
+    }, { background: true });
+    const hasta = (limite: number) => {
+      let lo = 0;
+      let hi = ascending.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (ascending[mid].time <= limite) lo = mid + 1;
+        else hi = mid;
       }
-      cuts.complete = true;
-      fila.stats.cutsMs = evaluateMs;
-      fila.stats.seriesFetchMs = searchMs;
-      fila.stats.seriesNormalizeMs = normalizeMs;
-      const m = metricsOf(need.spec.controlId);
-      m.seriesRows += 1;
-      m.seriesHits += n;
-      m.seriesFetchMs += searchMs;
-      m.seriesNormalizeMs += normalizeMs;
-      m.seriesEvaluateMs += evaluateMs;
-    } catch (error) {
-      if (fila.cuts === cuts) fila.cuts = undefined;
-      throw error;
+      return lo;
+    };
+    const evalua = evaluatorOf(ctx, need.spec);
+    let evaluateMs = 0;
+    for (const cut of [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
+      const iso = cut.cutoff.toISOString();
+      // Ya calculado (una serie a medias que se retoma).
+      if (cuts.points[iso]) continue;
+      // Otra configuración, alcance o días pasados: la serie ya no vale.
+      if (!sigue()) return;
+      // Cada día, un turno del motor: lo que alguien espera pasa delante.
+      await cpu.use(async () => {
+        await yieldToEventLoop();
+        const t0 = Date.now();
+        const enCorte = evalua(ascending.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
+        cuts.points[iso] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
+        evaluateMs += Date.now() - t0;
+      }, { background: true });
     }
+    if (!sigue()) return;
+    cuts.complete = true;
+    const actual = seriesTarget(ctx, need);
+    if (actual) {
+      actual.stats.cutsMs = evaluateMs;
+      actual.stats.seriesFetchMs = searchMs;
+      actual.stats.seriesNormalizeMs = normalizeMs;
+    }
+    const m = metricsOf(need.spec.controlId);
+    m.seriesRows += 1;
+    m.seriesHits += n;
+    m.seriesFetchMs += searchMs;
+    m.seriesNormalizeMs += normalizeMs;
+    m.seriesEvaluateMs += evaluateMs;
   };
 
   // La serie de una fila leída sola.
   const computeSeriesSingle = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
     const serie = seriesOf(ctx);
-    const fila = seriesVigente(need);
-    if (!fila || (fila.cuts && fila.cuts.key === serie.key)) return;
+    const fila = seriesTarget(ctx, need);
+    if (!fila || seriesDone(fila, serie.key)) return;
     const stats = newReadStats();
     const instantes = [...serie.plan.map(cut => cut.cutoff), ctx.now];
     const que = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;
@@ -1438,8 +1506,6 @@ export const createEvaluationService = ({
     const pastCuts = plan.filter(cut => !cut.isCurrent);
     const cutsKey = sha(query.timeZone, pastCuts.map(cut => cut.cutoff.toISOString()));
     const tKey = ['t', ctx.userKey, query.agentId || '*', query.controlId || '*', query.timelineDays, query.timeZone, startOfDayIn(ctx.now, query.timeZone).toISOString()].join('|');
-    const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey);
-    const cachedTimeline = query.timelineDays ? timelines.get(tKey, tFingerprint) : undefined;
     const serie = seriesOf(ctx);
     const progressive = PROGRESSIVE.includes(query.include);
     const level = ctx.configuration.global.ensLevel;
@@ -1562,8 +1628,13 @@ export const createEvaluationService = ({
     }
 
     // 4. La vista de cada control con todas sus filas listas.
-    const puntoDe = (row: StoredRow, iso: string): CutPoint | undefined =>
-      row.cuts && row.cuts.key === serie.key ? row.cuts.points[iso] : undefined;
+    // Solo puntos de una serie de hoy, en esta zona y con los MISMOS hechos de
+    // días pasados que dice ahora la sonda (un hecho tardío la invalida).
+    const pasadoDe = new Map(needs.map(need => [need.key, pastSignature(ctx, need.spec)]));
+    const puntoDe = (row: StoredRow, iso: string, need: RowNeed): CutPoint | undefined =>
+      row.cuts && row.cuts.key === serie.key && row.cuts.pastKey === (pasadoDe.get(need.key) ?? pastSignature(ctx, need.spec))
+        ? row.cuts.points[iso]
+        : undefined;
     ensConfigurationRepository.replaceActive(ctx.configuration);
     const conTrazas = query.include === 'control';
     const views = new Map<string, ENSViewPartition>();
@@ -1590,7 +1661,7 @@ export const createEvaluationService = ({
             traceabilityStored: row.traceabilityStored,
             traceabilityTotal: row.traceabilityTotal,
             rows: [],
-            pointAt: iso => puntoDe(row, iso),
+            pointAt: iso => puntoDe(row, iso, fallbackNeed),
           };
         } else {
           // La trazabilidad del conjunto solo se descomprime para la ficha.
@@ -1614,7 +1685,7 @@ export const createEvaluationService = ({
             traceabilityTotal: traza.length - guardadas + totales,
             rows: conTraza.map(f => ({ agentId: f.agentId, result: withoutTraceability(f.result) })),
             pointAt: (iso, cutoff) => {
-              const puntos = filas.map(f => puntoDe(filaDe(f.need), iso));
+              const puntos = filas.map(f => puntoDe(filaDe(f.need), iso, f.need));
               if (puntos.some(p => p === undefined)) return undefined;
               ensConfigurationRepository.replaceActive(ctx.configuration);
               const enCorte = consolidateENSControlRows(
@@ -1631,12 +1702,13 @@ export const createEvaluationService = ({
         }
       } else {
         const decision = deriveForAgent(controlId, query.agentId, filas.map(f => f.agentId), ctx.scope);
-        let fila =
+        let deFila: RowNeed | undefined =
           decision?.from === 'row'
-            ? filaDe(filas.find(f => f.agentId === query.agentId)!.need)
+            ? filas.find(f => f.agentId === query.agentId)!.need
             : decision?.from === 'manager'
-            ? filaDe(filas.find(f => f.agentId === ENS_MANAGER_AGENT_ID)!.need)
+            ? filas.find(f => f.agentId === ENS_MANAGER_AGENT_ID)!.need
             : undefined;
+        let fila = deFila ? filaDe(deFila) : undefined;
         if (!decision) {
           // Un control de organización sin fila del manager: se evalúa la
           // vista con los hechos del manager, como el motor.
@@ -1646,6 +1718,7 @@ export const createEvaluationService = ({
             spec: { controlId, factsAgent: ENS_MANAGER_AGENT_ID, viewAgent: query.agentId },
             weight: weightOf(ctx, controlId, ENS_MANAGER_AGENT_ID),
           };
+          deFila = need;
           const entrada = rows.peek(need.key);
           if (entrada && rows.isFresh(entrada, need.fingerprint)) {
             fila = entrada.value;
@@ -1659,6 +1732,7 @@ export const createEvaluationService = ({
         }
         const propia = decision?.from === 'row' ? fila : undefined;
         const f = fila;
+        const deF = deFila;
         view = {
           controlId,
           result: f?.result,
@@ -1667,7 +1741,7 @@ export const createEvaluationService = ({
           traceabilityTotal: f?.traceabilityTotal || 0,
           rows: propia?.result ? [{ agentId: query.agentId, result: propia.result }] : [],
           // Sin fila (no se mide aquí) no hay punto: `null`.
-          pointAt: iso => (f ? puntoDe(f, iso) : null),
+          pointAt: iso => (f && deF ? puntoDe(f, iso, deF) : null),
         };
       }
       views.set(controlId, view);
@@ -1685,52 +1759,72 @@ export const createEvaluationService = ({
     // sin serie (`meta.seriesPending`) y la serie se calcula detrás.
     let timeline: any[] | undefined;
     let seriesPending = false;
+    // Se enseña la última serie buena mientras se calcula la nueva.
+    let seriesRefreshing = false;
     if (query.timelineDays) {
-      let pasados = cachedTimeline;
-      if (!pasados && pendientes.length) {
+      if (pendientes.length) {
+        // Con filas aún por calcular, ni la serie: el punto de hoy saldría de
+        // una parte de los controles y parecería el de todos.
         seriesPending = true;
-      } else if (!pasados) {
-        const porControl = pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
-        if (porControl.some(puntos => puntos.some(p => p === undefined))) {
-          seriesPending = true;
-          for (const u of usados) wantSeries(clients, ctx, u.need);
-        } else {
-          const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
-          pasados = pastCuts.map((cut, index) => {
-            const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
-            const puntos = porControl[index];
-            if (query.controlId) {
-              return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
+      } else {
+        // Los días pasados de esta vista, guardados hasta el día siguiente
+        // mientras no cambie la configuración, el alcance ni los hechos de
+        // días pasados de sus filas (aunque alguna fila se esté refrescando:
+        // los hechos nuevos son de hoy).
+        const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey, needs.map(need => pasadoDe.get(need.key) ?? null));
+        let pasados = timelines.get(tKey, tFingerprint)?.pasados;
+        if (!pasados) {
+          const porControl = pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
+          if (porControl.some(puntos => puntos.some(p => p === undefined))) {
+            for (const u of usados) wantSeries(clients, ctx, u.need);
+            // La última serie buena de esta vista (mismo día, zona,
+            // configuración y alcance), marcada «actualizándose»: solo el
+            // punto de hoy es de ahora.
+            const anterior = timelines.peek(tKey)?.value;
+            if (anterior && anterior.configurationKey === ctx.configurationKey && anterior.scopeKey === ctx.scopeKey) {
+              pasados = anterior.pasados;
+              seriesRefreshing = true;
+            } else {
+              seriesPending = true;
             }
-            // El número del panel en ese día: el mismo resumen del motor, sobre
-            // los controles con resultado en la vista.
-            const resultados = controls
-              .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
-              .filter((r): r is ENSComplianceResult => Boolean(r));
-            return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: perControlOfPoint(controls, puntos) };
-          });
-          if (!usados.some(u => u.stale)) timelines.set(tKey, tFingerprint, pasados);
+          } else {
+            const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
+            pasados = pastCuts.map((cut, index) => {
+              const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
+              const puntos = porControl[index];
+              if (query.controlId) {
+                return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
+              }
+              // El número del panel en ese día: el mismo resumen del motor, sobre
+              // los controles con resultado en la vista.
+              const resultados = controls
+                .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
+                .filter((r): r is ENSComplianceResult => Boolean(r));
+              return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: perControlOfPoint(controls, puntos) };
+            });
+            timelines.set(tKey, tFingerprint, { pasados, configurationKey: ctx.configurationKey, scopeKey: ctx.scopeKey });
+          }
         }
-      }
-      if (pasados) {
-        const hoy = plan.find(cut => cut.isCurrent);
-        const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
-        timeline = [
-          ...pasados,
-          ...(hoy
-            ? [
-                {
-                  date: hoy.cutoff.toISOString(),
-                  label: hoy.label,
-                  isCurrent: true,
-                  events: factsOfView(ctx, query).count,
-                  ...(query.controlId
-                    ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
-                    : { score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) }),
-                },
-              ]
-            : []),
-        ];
+        if (pasados) {
+          const hoy = plan.find(cut => cut.isCurrent);
+          const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
+          timeline = [
+            ...pasados,
+            ...(hoy
+              ? [
+                  {
+                    date: hoy.cutoff.toISOString(),
+                    label: hoy.label,
+                    isCurrent: true,
+                    events: factsOfView(ctx, query).count,
+                    ...(query.controlId
+                      ? { score: actual?.score, status: actual?.status || 'NO_EVALUABLE' }
+                      : { score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) }),
+                  },
+                ]
+              : []),
+          ];
+        }
       }
     }
 
@@ -1751,8 +1845,8 @@ export const createEvaluationService = ({
       // Con algo viejo a la vista, filas o serie pendientes, la huella no es
       // la de los datos: la sonda siguiente la verá distinta y el navegador
       // volverá a pedir.
-      fingerprint: refreshing || seriesPending || pendientes.length ? `refreshing:${fingerprint}` : fingerprint,
-      refreshing: refreshing || seriesPending || pendientes.length > 0,
+      fingerprint: refreshing || seriesPending || seriesRefreshing || pendientes.length ? `refreshing:${fingerprint}` : fingerprint,
+      refreshing: refreshing || seriesPending || seriesRefreshing || pendientes.length > 0,
       // Filas que aún se están calculando (la lista, la Vista general y el
       // panel responden sin esperarlas): cuántas y de qué controles.
       pending: pendientes.length ? { rows: filasPendientes, controls: pendientes, total: needs.length } : undefined,
