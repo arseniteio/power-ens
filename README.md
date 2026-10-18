@@ -274,8 +274,12 @@ al alcance por sí solo, y únicamente porque hay controles que se miden en él:
 Los hechos del manager llegan con `agent.id=000`. En la vista de una máquina,
 los controles que solo se miden en el manager aparecen con el resultado de su
 fila, porque son controles de la organización y no de la máquina. En la vista
-del manager solo aparecen los nueve que se miden en él: op.cont.2, op.cont.3,
-op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1.
+del manager se miden los nueve que tienen fila en él: op.cont.2, op.cont.3,
+op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los demás
+siguen en la lista, al final y en gris, con «No se mide en esta máquina» y el
+motivo; su detalle lo explica en vez de quedarse vacío. La pestaña Vista
+general muestra todos los controles en todas las máquinas a la vez
+([instalación desde cero, apartado 14.7](docs/deployment/01-installation-from-scratch.md#147-comprobar-la-vista-general-y-el-detalle-de-un-control)).
 
 ### Nivel de la dimensión Trazabilidad
 

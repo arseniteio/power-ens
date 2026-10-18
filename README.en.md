@@ -274,8 +274,12 @@ measured on it:
 Manager facts arrive with `agent.id=000`. In the view of a machine, the
 controls measured only on the manager appear with the result of its row,
 because they are controls of the organization, not of the machine. In the
-manager view only the nine measured on it appear: op.cont.2, op.cont.3,
-op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1.
+manager view the nine with a row on it are measured: op.cont.2, op.cont.3,
+op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1. The
+rest stay in the list, last and in grey, with «No se mide en esta máquina» and
+the reason; their detail explains it instead of staying empty. The Vista
+general tab shows every control on every machine at once
+([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
 
 ### Traceability dimension level
 

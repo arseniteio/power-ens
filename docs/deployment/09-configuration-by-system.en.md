@@ -256,6 +256,10 @@ The Configuración tab opens on a control, an agent or a parameter with these pa
 | `?tabView=configuration&configAgent=001` | «Sistemas», page of agent 001 |
 | `?tabView=configuration&configAgent=001&configControl=op.acc.1&configParam=P-07` | Agent 001's page with op.acc.1 expanded and P-07 in edit mode |
 
+From the Control detail, «Configurar este control» and the parameter badges of each non-conformity add `control` (the control of the detail), `agentId` (the selected machine) and `configBack=plugins` to the URL. With a machine selected and a per-system or per-platform parameter, that machine's page opens in «Sistemas»; with an organisation parameter, or without a machine, the control page opens in «Organización». Configuración then shows «Volver al detalle de op.acc.1 (024)», which returns to the same control and the same machine.
+
+Expected result: after saving and clicking «Volver al detalle de …», the Control detail shows the same control and the same machine, and the URL no longer carries any `config*` parameter.
+
 If the control is not in the document, the «Organización» tab says so and highlights it under «Controles del catálogo sin añadir»; if it is not a catalog control at all, it says so. An agent that is neither in the inventory nor in the configuration opens with a warning. After saving the parameter the URL asked for, the editor closes and the URL stops asking for it. Navigation inside Configuración updates the URL, so the browser's back button returns to the previous view; switching to another ENSFácil tab drops the Configuración control and agent from the URL.
 
 ## 11. From the server

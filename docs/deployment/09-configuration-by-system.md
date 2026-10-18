@@ -256,6 +256,10 @@ La pestaña Configuración se abre en un control, un agente o un parámetro con 
 | `?tabView=configuration&configAgent=001` | «Sistemas», página del agente 001 |
 | `?tabView=configuration&configAgent=001&configControl=op.acc.1&configParam=P-07` | La página del agente 001 con op.acc.1 desplegado y P-07 en edición |
 
+Desde el Detalle del control, «Configurar este control» y las insignias de parámetro de cada no conformidad añaden a la URL `control` (el control del detalle), `agentId` (la máquina elegida) y `configBack=plugins`. Con una máquina elegida y un parámetro por sistema o por plataforma, se abre la página de esa máquina en «Sistemas»; con un parámetro de organización, o sin máquina, la ficha del control en «Organización». Configuración muestra entonces «Volver al detalle de op.acc.1 (024)», que vuelve al mismo control y a la misma máquina.
+
+Resultado esperado: tras guardar y pulsar «Volver al detalle de …», el Detalle del control muestra el mismo control y la misma máquina, y la URL ya no lleva ningún parámetro `config*`.
+
 Si el control no está en el documento, la pestaña «Organización» lo indica y lo resalta en «Controles del catálogo sin añadir»; si no es ningún control del catálogo, lo dice. Un agente que no está en el inventario ni en la configuración se abre con un aviso. Tras guardar el parámetro que pedía la URL, el editor se cierra y la URL deja de pedirlo. La navegación dentro de Configuración actualiza la URL, de modo que el botón «atrás» del navegador vuelve a la vista anterior; al cambiar de pestaña de ENSFácil, la URL deja de llevar el control y el agente de Configuración.
 
 ## 11. Desde el servidor

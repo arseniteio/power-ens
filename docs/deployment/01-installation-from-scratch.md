@@ -504,7 +504,7 @@ Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, 
 Entrar en Wazuh Dashboard y comprobar que:
 
 - en el menú, dentro de «Security operations», aparece «ENSFácil»;
-- se abre en la pestaña Panel, con las pestañas Panel, Configuración, Controles, Detalle del control, Informes, Evidencias y Eventos;
+- se abre en la pestaña Panel, con las pestañas Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias y Eventos;
 - hay un selector «Máquina» para ver todas las máquinas del alcance o una sola.
 
 En una instalación nueva, seguir con el apartado 14: la configuración ENS se crea con el primer guardado.
@@ -650,5 +650,36 @@ Abrir ENSFácil y comprobar que:
 - aparecen los 23 controles;
 - el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque en él se evalúan nueve controles: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los ocho distintos de op.cont.2 tienen recolector en el manager; op.cont.2 se evalúa con las tablas de la pantalla de Configuración;
 - tras la primera ejecución de los recolectores del manager (horaria o cada 6 horas, según el control), esos controles muestran datos en la fila del manager.
+
+### 14.7 Comprobar la vista general y el detalle de un control
+
+Abrir la pestaña **Vista general** con «Todas las máquinas» en el selector. La pantalla hace una sola petición de evaluación para todo el alcance y otra, aparte, para la tendencia; la primera vez puede tardar hasta un minuto.
+
+| Sección | Qué muestra | Resultado esperado |
+|---|---|---|
+| Máquinas | Una fila por máquina del alcance (el manager al final): controles medidos por estado, requisitos que no cumplen y cuántos de ellos sin demostrar, último dato recibido y sus tres peores controles. | Una máquina sin datos desde hace más de 24 h aparece en rojo. Pulsar su nombre la elige en el selector; pulsar uno de sus peores controles abre su detalle en esa máquina. |
+| Controles × máquinas | Los 23 controles por las máquinas del alcance. En «Cumplimiento», cada celda es el número del control en esa máquina y, en rojo, los requisitos que no cumplen; rayada, «no se mide en esta máquina»; «en el manager», un control de la organización cuyo resultado está en la columna `000`. En «Frescura de la recogida», el último dato de ese control en esa máquina. | Pulsar una celda abre el Detalle del control de ese control en esa máquina. Un control que se mide en una máquina y del que no ha llegado nada en la ventana dice «nunca», en rojo. La última columna dice cuántas máquinas cumplen, cuántas no y cuántas no tienen datos. |
+| Cola de trabajo | Las no conformidades de todos los controles, agrupadas por quien tiene que actuar: sistema auditado, organización, responsable ENS, operación Wazuh, productor de la evidencia, producto ENSFácil. Con una máquina elegida, solo las suyas. | Cada fila dice el control, el requisito y la primera frase de la evidencia que falla, sin la plantilla «Resuelta por la política…». Pulsar el control abre su detalle. |
+| Tendencia de 30 días | El índice medio de cumplimiento de cada día y, debajo, el estado de cada control cada día. | Cada día se evalúa con los hechos conocidos hasta ese día. Un control que ha cambiado de estado en la ventana aparece en negrita, con el estado inicial y el final. |
+
+Abrir después **Detalle del control** y elegir el manager (`000`) en el selector.
+
+Resultado esperado: la lista muestra los 23 controles. Los 14 que solo se miden en las máquinas (mp.info.6, op.acc.1-6, op.exp.1-6 y op.exp.10) aparecen al final, en gris, con «No se mide en esta máquina» y el motivo, y sin número. Con el nivel BAJO, una línea indica «Nivel BAJO: 4 controles no aplican (…)», con un enlace a Configuración. Un control del catálogo que no está en la configuración activa muestra «No está en la configuración activa» y el botón «Añadir con valores por defecto».
+
+Abrir op.acc.1 con el manager elegido.
+
+Resultado esperado: el detalle no se queda vacío ni indica «Todo lo aplicable … conforme»; muestra «op.acc.1 no se mide en 000 · …», el motivo y los botones «Ver todas las máquinas» y, si el control declara las máquinas en que se mide (P-04 de mp.info.6), «Configurar P-04».
+
+Cambiar a otra máquina con el detalle abierto.
+
+Resultado esperado: mientras llega el resultado de la máquina nueva, una barra de progreso y el aviso «Cargando … Mientras tanto se muestra el resultado de …» indican de qué máquina y de qué hora es lo que se ve. Si la evaluación falla, el aviso de error aparece encima del último resultado, con «Reintentar»; la página no desaparece.
+
+Revisar una tarjeta de no conformidad.
+
+Resultado esperado: el titular es la evidencia que falla, su estado y la primera frase de su motivo, en peso normal y en dos líneas como máximo. Debajo aparecen el resto del motivo en texto normal, las listas como listas, lo que va tras «Además» aparte, las demás evidencias del requisito con su estado y las que conforman plegadas. Cada parámetro citado es una insignia que indica el valor que aplica a esa máquina y su origen (propio de la máquina, de una plantilla o de la organización); al pulsarla se abre Configuración en ese parámetro. «Ver detalle» muestra el motivo completo.
+
+Pulsar **Configurar este control** en la cabecera del detalle.
+
+Resultado esperado: se abre Configuración en ese control (en la página de la máquina elegida, si el control tiene parámetros por sistema o por plataforma) con «Volver al detalle de …» arriba, que devuelve al mismo control y a la misma máquina. El detalle abierto se conserva en la URL (`control=`): cambiar de pestaña y volver, o recargar la página, lo vuelve a abrir.
 
 Los agentes se incorporan después, instalando en cada máquina los runbooks que le correspondan según su propia guía (`docs/deployment/01-installation.md` **de cada runbook**, enlazada en la [tabla de runbooks](05-runbooks-and-registers.md#runbooks-por-control)); las máquinas cuyas copias se miden van además al grupo `ens-copias` y a P-04 de mp.info.6. Los runbooks de op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 y op.exp.10 escriben reglas de auditd que se cargan con `sudo augenrules --load` al terminar.
