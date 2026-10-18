@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  EuiAccordion,
   EuiButton,
   EuiCallOut,
   EuiPanel,
@@ -8,7 +9,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import { ENSControlForm } from '../form-engine';
+import { ENSControlForm, parameterAnchorId } from '../form-engine';
 import { applyENSControlParameterValues } from '../engine';
 import {
   updateActiveControlConfiguration,
@@ -22,6 +23,15 @@ import {
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
   onConfigurationSaved: () => void;
+  // Qué parámetros se enseñan arriba (por defecto, todos) y cuáles en un
+  // desplegable aparte, con su título. Se guarda SIEMPRE el control entero:
+  // filtrar lo que se enseña no puede borrar lo que no se enseña.
+  parameterIds?: string[];
+  secondaryParameterIds?: string[];
+  secondaryTitle?: string;
+  secondaryDescription?: string;
+  // El parámetro que pide la URL: se abre su desplegable y se lleva a la vista.
+  focusParameterId?: string;
 }
 
 const resolveSaveError = (
@@ -47,7 +57,32 @@ const resolveSaveError = (
 export const ConfigurationSession = ({
   control,
   onConfigurationSaved,
+  parameterIds,
+  secondaryParameterIds,
+  secondaryTitle,
+  secondaryDescription,
+  focusParameterId,
 }: ConfigurationSessionProps) => {
+  const mainParameters = parameterIds
+    ? control.parameters.filter(parameter => parameterIds.includes(parameter.id))
+    : control.parameters;
+
+  const secondaryParameters = secondaryParameterIds
+    ? control.parameters.filter(parameter => secondaryParameterIds.includes(parameter.id))
+    : [];
+
+  useEffect(() => {
+    if (!focusParameterId || typeof document === 'undefined') {
+      return;
+    }
+
+    const element = document.getElementById(
+      parameterAnchorId(control.controlId, focusParameterId)
+    );
+
+    element?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [control.controlId, focusParameterId]);
+
   const initialValues = useMemo(
     () =>
       control.parameters.reduce<
@@ -226,10 +261,38 @@ export const ConfigurationSession = ({
   return (
     <>
       <ENSControlForm
-        parameters={control.parameters}
+        parameters={mainParameters}
         values={values}
         onChange={handleParameterChange}
       />
+
+      {secondaryParameters.length > 0 && (
+        <>
+          <EuiSpacer size='m' />
+
+          <EuiAccordion
+            id={`ens-config-secondary-${control.controlId}`}
+            buttonContent={secondaryTitle || 'Otros parámetros'}
+            initialIsOpen={
+              !!focusParameterId &&
+              secondaryParameters.some(parameter => parameter.id === focusParameterId)
+            }
+            paddingSize='m'
+          >
+            {secondaryDescription && (
+              <EuiText size='s' color='subdued'>
+                <p>{secondaryDescription}</p>
+              </EuiText>
+            )}
+
+            <ENSControlForm
+              parameters={secondaryParameters}
+              values={values}
+              onChange={handleParameterChange}
+            />
+          </EuiAccordion>
+        </>
+      )}
 
       <EuiSpacer size='m' />
 

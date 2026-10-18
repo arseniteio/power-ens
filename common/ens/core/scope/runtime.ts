@@ -35,6 +35,7 @@ let hydrationPromiseScopeKey: string | null = null;
 const cloneAgent = (agent: ENSAgentScope): ENSAgentScope => ({
   ...agent,
   groups: [...agent.groups],
+  ...(agent.os ? { os: { ...agent.os } } : {}),
 });
 
 // Los agentes del alcance: los que resuelve el modo configurado (global, grupo
@@ -95,6 +96,9 @@ export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
       ...(typeof agent.status === 'string' && agent.status.trim()
         ? { status: agent.status.trim() }
         : {}),
+      // El sistema operativo, si lo trae: lo usa Configuración para detectar
+      // el tipo de sistema.
+      ...(agent.os && typeof agent.os === 'object' ? { os: { ...agent.os } } : {}),
     }));
 
 export const getActiveENSScopeAgents = (): ENSAgentScope[] => cloneAgents(activeScopeAgents);

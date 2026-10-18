@@ -1,3 +1,13 @@
+import type { ENSAgentsConfiguration } from '../../../../common/agent-configuration';
+
+export type {
+  ENSAgentControlOverrides,
+  ENSAgentParameterValue,
+  ENSAgentProfile,
+  ENSAgentsConfiguration,
+  ENSSystemType,
+} from '../../../../common/agent-configuration';
+
 export type ENSLevel = 'BAJO' | 'MEDIO' | 'ALTO';
 
 export type ENSParameterType =
@@ -216,6 +226,11 @@ export interface ENSConfigurationVersion {
   scope: ENSConfigurationScope;
   controls: ENSControlConfiguration[];
   auditTrail: ENSConfigurationAuditEntry[];
+  // Configuración por sistema (1.2.0): valores propios de cada agente, su tipo
+  // y sus plantillas. Opcional y de primer nivel: sin ella todo se evalúa con
+  // el valor de organización, y un plugin 1.1.0 la ignora. Ver
+  // `common/agent-configuration.ts`.
+  agents?: ENSAgentsConfiguration;
 }
 export type ENSConfigurationLifecycleStatus =
   | 'DRAFT'

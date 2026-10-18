@@ -608,14 +608,14 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `controles (23): …` y `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a la raíz de un clon del repositorio del plugin en otro equipo y ejecutar allí el mismo comando o, con Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. El validador importa el motor del plugin: necesita el repositorio completo, no solo `config/`.
+Resultado esperado: `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` y, con valores por sistema, `VALORES POR SISTEMA VÁLIDOS.` ([Configuración por sistema y plantillas, apartado 11.2](09-configuration-by-system.md#112-validar-el-documento)). Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a la raíz de un clon del repositorio del plugin en otro equipo y ejecutar allí el mismo comando o, con Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. El validador importa el motor del plugin: necesita el repositorio completo, no solo `config/`.
 
 > [!warning]
 > Si la validación falla, restaurar la copia del apartado 14.2 antes de que nadie abra el panel, y corregir el parámetro indicado.
 
 ### 14.5 Declarar la política
 
-Los valores de los parámetros son decisiones del responsable y se declaran en ENSFácil > Configuración. En Configuración > Configuración global se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, y el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3. Si T o D no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+Los valores de los parámetros son decisiones del responsable y se declaran en ENSFácil > Configuración, en dos niveles: en la pestaña «Organización», la política común de cada control; en la pestaña «Sistemas», lo propio de cada máquina del alcance y de su plataforma, con plantillas para Linux Ubuntu, servidor LDAP de Zimbra, Windows Server y el manager. El procedimiento completo, con la detección del tipo de sistema, las plantillas, la herencia de valores y la migración de una configuración anterior, está en [Configuración por sistema y plantillas](09-configuration-by-system.md). En Configuración > Configuración global se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, y el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3. Si T o D no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
 Para declarar valores desde el servidor (entornos reproducibles, o cuando la política ya está decidida por escrito) se usa `config/set-parameters.py` con un fichero JSON:
 
@@ -638,6 +638,8 @@ sudo env $CERT python3 set-parameters.py /ruta/politica.json --apply    # escrib
 
 > [!note]
 > Un parámetro vacío es la clave `value` **ausente**, nunca `null`. Para vaciar un parámetro, hacerlo desde la pantalla de Configuración.
+
+Los valores propios de una máquina se declaran con la sección `agents` del mismo fichero: [Configuración por sistema y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-valores-de-un-sistema-con-set-parameterspy).
 
 Después de declarar valores, repetir la validación del apartado 14.4.
 

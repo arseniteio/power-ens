@@ -45,7 +45,7 @@ export const EnsApp = () => {
       <EuiPageBody>
         <EuiTabs>
           {ENS_TABS.map(t => (
-            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() => cambia({ tabView: t.id })}>
+            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() => cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined })}>
               {t.name}
             </EuiTab>
           ))}

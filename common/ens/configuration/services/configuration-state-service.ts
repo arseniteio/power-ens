@@ -14,6 +14,7 @@ import {
 import {
   assertENSConfigurationVersion,
 } from './configuration-structure-validator';
+import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
@@ -96,10 +97,20 @@ export const getConfiguredControlById = (
     control => control.controlId === controlId
   );
 
+// La configuración con la que se evalúa un control: la de la fila de
+// `agentId` (valor del agente → sus plantillas → organización) o, sin agente,
+// la vista de organización. Es el ÚNICO punto por el que la configuración entra
+// en el motor; ver `agents/configuration-resolver.ts`. Sin `configuration.agents`
+// devuelve el mismo objeto que `getConfiguredControlById`.
 export const getActiveControlConfiguration = (
-  controlId: string
+  controlId: string,
+  agentId?: string
 ): ENSControlConfiguration | undefined =>
-  getConfiguredControlById(controlId);
+  resolveControlConfigurationForAgent(
+    getActiveENSConfiguration(),
+    controlId,
+    agentId
+  );
 
 export const updateActiveControlConfiguration = async (
   controlConfiguration: ENSControlConfiguration
@@ -221,4 +232,54 @@ export const updateActiveGlobalConfiguration = async (
   return ensConfigurationRepository.commitPersisted(
     persistedConfiguration
   );
+};
+
+// Guarda un documento entero ya preparado (lo usan las acciones de la
+// configuración por sistema: valores de agente, plantillas, tipo, migración y
+// controles añadidos). El servidor deja la versión anterior en el historial y
+// una entrada con `changeReason` en `auditTrail`.
+export const saveActiveENSConfiguration = async (
+  candidateConfiguration: ENSConfigurationVersion,
+  changeReason: string
+): Promise<ENSConfigurationVersion> => {
+  const serverState =
+    await saveENSConfiguration(
+      candidateConfiguration,
+      changeReason
+    );
+
+  if (serverState.configuration === null) {
+    throw new Error(
+      'The ENS configuration server did not return the persisted configuration.'
+    );
+  }
+
+  const persistedConfiguration =
+    assertENSConfigurationVersion(
+      serverState.configuration
+    );
+
+  return ensConfigurationRepository.commitPersisted(
+    persistedConfiguration
+  );
+};
+
+// Los guardados de la configuración por sistema, EN FILA y sobre el documento
+// más reciente: cada acción construye su documento a partir del activo en el
+// momento de ejecutarse, no del que había al pintar la pantalla. Dos guardados
+// seguidos (un valor y otro, o un valor y una plantilla) ya no se pisan.
+let agentSaveQueue: Promise<unknown> = Promise.resolve();
+
+export const saveFromLatestConfiguration = (
+  build: (
+    latest: ENSConfigurationVersion
+  ) => { configuration: ENSConfigurationVersion; reason: string } | undefined
+): Promise<ENSConfigurationVersion | undefined> => {
+  const run = agentSaveQueue.then(async () => {
+    const plan = build(getActiveENSConfiguration());
+    if (!plan) return undefined;
+    return saveActiveENSConfiguration(plan.configuration, plan.reason);
+  });
+  agentSaveQueue = run.catch(() => undefined);
+  return run;
 };

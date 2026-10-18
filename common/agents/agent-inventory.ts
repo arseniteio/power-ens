@@ -30,7 +30,7 @@ export const buildMonitoringInventoryRequest = () => ({
             top_hits: {
               size: 1,
               sort: [{ timestamp: { order: 'desc' } }],
-              _source: ['id', 'name', 'group', 'status', 'timestamp', 'manager'],
+              _source: ['id', 'name', 'group', 'status', 'timestamp', 'manager', 'os'],
             },
           },
         },
@@ -42,6 +42,18 @@ export const buildMonitoringInventoryRequest = () => ({
 const idDeAgente = (valor: unknown): string => {
   const texto = String(valor ?? '').trim();
   return /^\d+$/.test(texto) ? texto.padStart(3, '0') : texto;
+};
+
+// El sistema operativo del agente, para detectar su tipo en Configuración
+// (Windows, Linux). Solo los campos de texto que se usan; un agente que nunca
+// se ha conectado no trae `os`.
+const sistemaDe = (valor: any): ENSAgentScope['os'] => {
+  if (!valor || typeof valor !== 'object') return undefined;
+  const os: NonNullable<ENSAgentScope['os']> = {};
+  (['platform', 'name', 'version', 'uname'] as const).forEach(campo => {
+    if (typeof valor[campo] === 'string' && valor[campo].trim()) os[campo] = valor[campo].trim();
+  });
+  return Object.keys(os).length ? os : undefined;
 };
 
 const gruposDe = (valor: unknown): string[] => {
@@ -86,6 +98,7 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
         name: doc?.name ? String(doc.name) : undefined,
         groups: gruposDe(doc?.group),
         ...(doc?.status ? { status: String(doc.status) } : {}),
+        ...(sistemaDe(doc?.os) ? { os: sistemaDe(doc?.os) } : {}),
       },
     });
   }

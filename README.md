@@ -37,8 +37,11 @@ y los enlaces a cada runbook y a sus guías, en la
    después, los runbooks de su plataforma
    (Linux, Zimbra LDAP, Zimbra MTA o Windows), siguiendo la guía
    `01-installation` **de cada runbook**.
-3. **Configuración en el dashboard.** En ENSFácil > Configuración, los
-   parámetros de cada control, y en las máquinas o en el manager, los
+3. **Configuración en el dashboard.** En ENSFácil > Configuración, la
+   política común de cada control (pestaña «Organización») y lo propio de cada
+   máquina y de su plataforma, con plantillas (pestaña «Sistemas»; ver
+   [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md)),
+   y en las máquinas o en el manager, los
    [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
    siguiendo la guía `02-compliance` **de cada runbook** (no está en este
    repositorio: cada runbook tiene la suya, enlazada en la tabla).
@@ -230,6 +233,7 @@ indexer, no en el plugin.
 | 6 | Instalar, actualizar o retirar ENSFácil con las imágenes oficiales de Wazuh en Docker | [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md) |
 | 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
+| 9 | Declarar la configuración de cada sistema, aplicar plantillas o migrar una configuración anterior | [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.

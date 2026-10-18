@@ -32,6 +32,37 @@ El fichero es JSON:
 Una lista se guarda como lista (es lo que espera un parámetro `list` o `table`,
 una fila por elemento); una cadena, como cadena; un número, como número.
 
+VACÍO = SIN VALOR. `null`, `""` y `[]` QUITAN el valor: en la organización
+desaparece la clave `value` (un parámetro vacío es la clave ausente, nunca
+`null`), igual que al vaciar un campo en la pantalla.
+
+VALORES DE UN AGENTE (plugin 1.2.0). La clave `agents` declara valores propios
+de una máquina, por su id de Wazuh; van a `configuration.agents` y no tocan el
+valor de la organización:
+
+    {
+      "op.acc.1": { "P-04": ["admin", "test"] },
+      "agents": {
+        "001": {
+          "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
+          "op.exp.4": { "P-04": null }
+        }
+      }
+    }
+
+Solo admiten valor por agente los parámetros por sistema y por plataforma (la
+clasificación de `public/ens/configuration/agents/parameter-classes.ts`); uno de
+organización se rechaza. `null` (o vacío) QUITA el valor propio de ese agente,
+que vuelve a heredar de su plantilla o de la organización; quitar se admite
+siempre, también para un valor que no se aplica (un control que ya no está, un
+parámetro que no existe o uno de organización). La clave es el id del agente
+(`7` se normaliza a `007`); un nombre se rechaza, con el id si el documento ya
+conoce ese nombre.
+
+ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
+`wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
+en un fichero local `active-antes-<fecha>.json`. La herramienta dice dónde.
+
 DRY-RUN POR DEFECTO. Escribir exige `--apply`, igual que en `inject-control.py`
 y por la misma razón: esto sobreescribe decisiones del responsable, y cuando una
 operación puede destruir datos del cliente el defecto tiene que ser el seguro.
@@ -50,6 +81,9 @@ import ssl
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ensfacil_history import guarda_version_anterior  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
@@ -100,13 +134,62 @@ def req(method, path, body=None):
 with open(args.fichero, encoding="utf-8") as f:
     deseado = json.load(f)
 
+por_agente = deseado.pop("agents", None) or {}
+
 try:
     actual = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
 except urllib.error.HTTPError as e:
     sys.exit("ERROR: no se pudo leer la configuración activa (%s). ¿Has sembrado los controles con inject-control.py?" % e)
 
+anterior = json.loads(json.dumps(actual))
 config = actual.get("configuration", actual)
 por_id = {c["controlId"]: c for c in config["controls"]}
+
+
+def id_agente(valor):
+    texto = str(valor).strip()
+    return texto.zfill(3) if texto.isdigit() else texto
+
+
+def clases():
+    """La clasificación de los parámetros, de su única fuente: el objeto JSON
+    de `parameter-classes.ts`. None si no está (el script fuera del repo)."""
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "ens",
+                        "configuration", "agents", "parameter-classes.ts")
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            fuente = f.read()
+    except OSError:
+        return None
+    inicio = fuente.index("{", fuente.index("ENS_PARAMETER_CLASSES:"))
+    fin = fuente.index("\n};", inicio)
+    return json.loads(fuente[inicio:fin + 2])
+
+
+def vacio(v):
+    return v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, list) and not [x for x in v if str(x).strip()])
+
+
+def valor_valido(v):
+    if isinstance(v, bool) or isinstance(v, str):
+        return True
+    if isinstance(v, (int, float)):
+        return v == v and v not in (float("inf"), float("-inf"))
+    return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
+
+agentes_doc = config.get("agents") or {}
+
+
+def sugerencia(nombre):
+    """El id de un perfil que ya conoce ese nombre (su nombre o un alias)."""
+    buscado = str(nombre).strip().lower()
+    for aid, perfil in agentes_doc.items():
+        nombres = [str((perfil or {}).get("name") or "")] + list((perfil or {}).get("aliases") or [])
+        if buscado in [n.strip().lower() for n in nombres if n]:
+            return aid
+    return None
+
 
 # --- validación ANTES de tocar nada -----------------------------------------
 errores = []
@@ -116,15 +199,54 @@ for control_id, valores in deseado.items():
         errores.append("el control %s no está sembrado: ejecútalo antes con inject-control.py" % control_id)
         continue
     declarados = {x["id"] for x in por_id[control_id]["parameters"]}
-    for pid in valores:
+    for pid, v in valores.items():
         if pid not in declarados:
             errores.append("%s no declara el parámetro %s (declara: %s)"
                            % (control_id, pid, ", ".join(sorted(declarados))))
+        elif not vacio(v) and not valor_valido(v):
+            errores.append("%s %s tiene un valor que no es texto, número, booleano ni lista de textos" % (control_id, pid))
+
+clasificacion = clases() if por_agente else {}
+if por_agente and clasificacion is None:
+    errores.append("no encuentro public/ens/configuration/agents/parameter-classes.ts: "
+                   "los valores por agente se declaran desde el directorio config/ del repo del plugin")
+    clasificacion = {}
+
+for agente, controles in por_agente.items():
+    aid = id_agente(agente)
+    if not aid.isdigit():
+        conocido = sugerencia(agente)
+        errores.append('"%s" no es un id de agente; usar el id%s' % (
+            agente, " (%s)" % conocido if conocido else " numérico del agente de Wazuh, p. ej. 001"))
+        continue
+    propios = ((agentes_doc.get(aid) or {}).get("controls") or {})
+    for control_id, valores in (controles or {}).items():
+        for pid, v in (valores or {}).items():
+            # Quitar se admite siempre: también un valor que no se aplica.
+            if vacio(v):
+                continue
+            clase = clasificacion.get(control_id, {}).get(pid)
+            if control_id not in por_id:
+                errores.append("agente %s: el control %s no está sembrado" % (aid, control_id))
+            elif pid not in {x["id"] for x in por_id[control_id]["parameters"]}:
+                errores.append("agente %s: %s no declara el parámetro %s" % (aid, control_id, pid))
+            elif clase not in ("system", "platform"):
+                errores.append("agente %s: %s %s es un parámetro de organización (vale para todas las máquinas)"
+                               % (aid, control_id, pid))
+            elif not valor_valido(v):
+                errores.append("agente %s: %s %s tiene un valor que no es texto, número, booleano ni lista de textos"
+                               % (aid, control_id, pid))
 
 if errores:
     for e in errores:
         print("ERROR: " + e, file=sys.stderr)
     sys.exit(1)
+
+
+def corto(v):
+    t = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
+    return (t[:70] + "…") if len(t) > 70 else t
+
 
 # --- el plan ----------------------------------------------------------------
 cambios = 0
@@ -136,15 +258,60 @@ for control_id, valores in sorted(deseado.items()):
             continue
         nuevo = valores[par["id"]]
         viejo = par.get("value")
+        if vacio(nuevo):
+            if "value" not in par:
+                print("   %-6s sin valor: nada que quitar" % par["id"])
+                continue
+            del par["value"]
+            print("   %-6s %s  ->  (sin valor)" % (par["id"], corto(viejo)))
+            cambios += 1
+            continue
         if viejo == nuevo:
             print("   %-6s sin cambio" % par["id"])
             continue
-        def corto(v):
-            t = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
-            return (t[:70] + "…") if len(t) > 70 else t
         print("   %-6s %s  ->  %s" % (par["id"], corto(viejo) if viejo not in (None, "") else "(vacío)", corto(nuevo)))
         par["value"] = nuevo
         cambios += 1
+
+for agente, controles in sorted(por_agente.items()):
+    aid = id_agente(agente)
+    print("── agente %s" % aid)
+    perfil = agentes_doc.get(aid) or {}
+    propios = perfil.get("controls") or {}
+    for control_id, valores in sorted((controles or {}).items()):
+        entrada = dict(propios.get(control_id) or {})
+        parametros = dict(entrada.get("parameters") or {})
+        for pid, nuevo in sorted((valores or {}).items()):
+            viejo = parametros.get(pid)
+            if vacio(nuevo):
+                if pid not in parametros:
+                    print("   %s %-6s sin valor propio: nada que quitar" % (control_id, pid))
+                    continue
+                del parametros[pid]
+                print("   %s %-6s %s  ->  (hereda)" % (control_id, pid, corto(viejo)))
+            elif viejo == nuevo:
+                print("   %s %-6s sin cambio" % (control_id, pid))
+                continue
+            else:
+                parametros[pid] = nuevo
+                print("   %s %-6s %s  ->  %s" % (control_id, pid, corto(viejo) if viejo is not None else "(hereda)", corto(nuevo)))
+            cambios += 1
+        # Lo que una versión posterior guarde junto a `parameters` se conserva.
+        if parametros:
+            entrada["parameters"] = parametros
+        else:
+            entrada.pop("parameters", None)
+        if entrada:
+            propios[control_id] = entrada
+        else:
+            propios.pop(control_id, None)
+    if propios:
+        perfil["controls"] = propios
+    else:
+        perfil.pop("controls", None)
+    agentes_doc[aid] = perfil
+if por_agente:
+    config["agents"] = agentes_doc
 
 if not cambios:
     print("\nNada que cambiar.")
@@ -153,6 +320,9 @@ if not cambios:
 if not args.apply:
     print("\n%d cambio(s). DRY-RUN: nada escrito. Añade --apply." % cambios)
     sys.exit(0)
+
+# La versión que se sustituye, antes de escribir (el documento tal como se leyó).
+print("Versión anterior guardada en: %s" % guarda_version_anterior(req, INDEX, anterior, "set-parameters.py"))
 
 config["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 actual["configuration"] = config

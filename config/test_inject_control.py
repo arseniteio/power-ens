@@ -61,7 +61,16 @@ class Indice(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         largo = int(self.headers.get("Content-Length", 0))
-        estado["doc"] = json.loads(self.rfile.read(largo).decode())
+        cuerpo = json.loads(self.rfile.read(largo).decode())
+        # La versión anterior que guardan las herramientas antes de escribir.
+        if "/_doc/history-" in self.path:
+            if estado.get("historial_falla"):
+                self._responde({"error": "no"}, 403)
+                return
+            estado.setdefault("historial", []).append({"orden": estado["version"], "path": self.path, "doc": cuerpo})
+            self._responde({"result": "created"})
+            return
+        estado["doc"] = cuerpo
         estado["version"] += 1
         self._responde({"result": "updated", "_version": estado["version"]})
 
@@ -154,6 +163,51 @@ def main():
                   v == {"P-01": None, "P-04": None, "P-09": None}, str(v))
         comprueba("--sustituir · dice cuáles se pierden",
                   "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
+
+        # --- la capa por sistema (1.2.0) sobrevive a la siembra
+        agentes = {"028": {"templates": ["zimbra-ldap"],
+                           "controls": {"op.acc.1": {"parameters": {"P-07": ["u | s | r"], "P-99": "x"}}}}}
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))],
+                                           "agents": json.loads(json.dumps(agentes))},
+                         "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply")
+        comprueba("agents · resembrar no borra configuration.agents",
+                  estado["doc"]["configuration"].get("agents") == agentes,
+                  str(estado["doc"]["configuration"].get("agents")))
+        comprueba("agents · avisa del valor por agente de un parámetro retirado",
+                  "P-99 en el agente 028" in r.stdout, r.stdout)
+        r = siembra(url, bloque_path, "--apply", "--sustituir")
+        comprueba("agents · ni con --sustituir",
+                  estado["doc"]["configuration"].get("agents") == agentes, r.stdout)
+        comprueba("agents · con --sustituir también avisa de los huérfanos",
+                  "P-99 en el agente 028" in r.stdout, r.stdout)
+
+        # --- la versión anterior, al historial ANTES de escribir
+        estado["historial"] = []
+        previo = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))], "changeReason": "previo"},
+                  "updatedAt": ""}
+        estado["doc"] = json.loads(json.dumps(previo))
+        r = siembra(url, bloque_path, "--apply")
+        h = estado["historial"]
+        comprueba("historial · guarda la versión anterior con el formato del plugin",
+                  len(h) == 1 and h[0]["doc"]["documentType"] == "CONFIGURATION_HISTORY"
+                  and h[0]["doc"]["configuration"] == previo["configuration"]
+                  and h[0]["doc"]["createdBy"] == "inject-control.py" and h[0]["orden"] < estado["version"],
+                  str(h)[:300])
+        comprueba("historial · dice dónde", "Versión anterior guardada en: historial" in r.stdout, r.stdout)
+
+        # --- sin permiso para el historial: copia local con fecha
+        estado["historial_falla"] = True
+        estado["doc"] = json.loads(json.dumps(previo))
+        entorno = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
+        r = subprocess.run([sys.executable, SCRIPT, "op.acc.1", "--block", bloque_path, "--apply"],
+                           capture_output=True, text=True, env=entorno, cwd=tmp)
+        copias = [f for f in os.listdir(tmp) if f.startswith("active-antes-")]
+        contenido = json.load(open(os.path.join(tmp, copias[0]))) if copias else {}
+        comprueba("historial · sin permiso, copia local restaurable (con _source)",
+                  len(copias) == 1 and contenido.get("_source", {}).get("configuration") == previo["configuration"]
+                  and "fichero local" in r.stdout, r.stdout + r.stderr)
+        estado["historial_falla"] = False
 
         # --- no toca los demás controles
         otro = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intacto"}]}

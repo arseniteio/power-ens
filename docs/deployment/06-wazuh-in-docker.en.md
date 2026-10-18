@@ -381,7 +381,11 @@ the block and lost). If the plan is correct, repeat the loop with
 Expected result: `== APLICADO ==` for each control.
 
 Seeding merges: it keeps the value of every parameter that already had one and
-adds the missing ones.
+adds the missing ones. It also keeps the per-system values (`configuration.agents`).
+
+With ENSFácil 1.2.0 or later, a control the document does not have can also be
+added from ENSFácil > Configuración > Organización, with «Añadir con valores por
+defecto» ([Configuration by system and templates, section 9](09-configuration-by-system.en.md#9-catalog-controls-not-yet-added)).
 
 > [!note]
 > Evidence that depends on mandatory parameters without a value stays
@@ -404,8 +408,9 @@ docker run --rm -v <repo>:/w -w /w node:22-alpine \
   sh -c 'npx --yes tsx config/validate-configuration.ts /w/active.json'
 ```
 
-Expected result: `controles (23): mp.info.6 op.acc.1 …` and, at the end,
-`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`
+Expected result: `controles (23): mp.info.6 op.acc.1 …`,
+`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, if there are
+per-system values, one line per agent and `VALORES POR SISTEMA VÁLIDOS.`
 
 A `scope` without the `agentIds` and `groupIds` arrays is rejected
 (`configuration.scope.agentIds must be a string array`). The Configuración
@@ -451,6 +456,10 @@ Expected result: the changes per parameter and `DRY-RUN: nada escrito`; with
 
 The file format and its rules are in the
 [installation from scratch, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy).
+For the `agents` section (a machine's own values), mount the complete
+repository, `-v <repo>:/repo:ro -w /repo/config`, instead of `<repo>/config`:
+the tool reads the parameter classification from `public/`
+([Configuration by system and templates, section 11.1](09-configuration-by-system.en.md#111-declare-a-systems-values-with-set-parameterspy)).
 After declaring values, repeat the backup (section 7) before and the
 validation (section 9) after.
 

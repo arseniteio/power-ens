@@ -6,6 +6,10 @@ import {
   readENSConfigurationHistory,
 } from './configuration-storage';
 import { resolveCurrentUser } from './current-user';
+import {
+  checkAgentsConfigurationKeys,
+  validateAgentsConfigurationShape,
+} from '../../common/agent-configuration';
 
 interface Opciones {
   logger: Logger;
@@ -65,6 +69,18 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return fallo(response, 400, 'Hace falta una configuración ENS válida.');
     }
 
+    // La capa por sistema (1.2.0) se valida por su forma antes de escribir: un
+    // valor `null` o un objeto en un agente impediría cargar el entorno ENS.
+    // Y por sus claves: un perfil tiene que ser de un id de agente (un nombre no
+    // se aplicaría nunca). Lo que esta versión no conoce se acepta y se ignora.
+    const erroresAgentes = [
+      ...validateAgentsConfigurationShape(cuerpo.configuration.agents),
+      ...checkAgentsConfigurationKeys(cuerpo.configuration.agents).errors,
+    ];
+    if (erroresAgentes.length) {
+      return fallo(response, 400, `configuration.agents no es válida: ${erroresAgentes.slice(0, 5).join(' ')}`);
+    }
+
     const acceso = await administrador(context, response, 'guardar la configuración');
     if (acceso.error) return acceso.error;
     const username = acceso.usuario!.username;
@@ -80,8 +96,18 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
         texto(cuerpo.configuration.changeReason) ||
         (inicial ? 'Configuración ENS creada.' : 'Configuración ENS actualizada.');
 
+      // Un cuerpo SIN la clave `agents` no la borra: se conserva la que hubiera.
+      // Solo la quita quien la manda vacía (`agents: {}`). Así ningún cliente
+      // que no la conozca puede perder los valores por sistema al guardar.
+      const conservaAgentes =
+        !Object.prototype.hasOwnProperty.call(cuerpo.configuration, 'agents') &&
+        previa.agents && typeof previa.agents === 'object'
+          ? { agents: previa.agents }
+          : {};
+
       const configuracion = {
         ...cuerpo.configuration,
+        ...conservaAgentes,
         createdAt: inicial ? ahora : texto(previa.createdAt) || ahora,
         createdBy: inicial ? username : texto(previa.createdBy) || username,
         updatedAt: ahora,
@@ -93,7 +119,14 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
         ],
       };
 
-      const guardado = await persistENSConfiguration(interno(context), logger, configuracion, username);
+      // La versión anterior, al historial si no es ya su última entrada.
+      const ultima = anterior ? (await readENSConfigurationHistory(interno(context), logger, 1))[0] : undefined;
+      const anteriorFueraDelHistorial =
+        anterior && JSON.stringify(ultima?.configuration ?? null) !== JSON.stringify(anterior.configuration)
+          ? { configuration: anterior.configuration, author: texto(previa.updatedBy) || anterior.updatedBy }
+          : undefined;
+
+      const guardado = await persistENSConfiguration(interno(context), logger, configuracion, username, anteriorFueraDelHistorial);
       logger.info(`Configuración ENS guardada por ${username}`);
 
       return correcto(response, { configuration: guardado.configuration, metadata: metadatos(guardado) });

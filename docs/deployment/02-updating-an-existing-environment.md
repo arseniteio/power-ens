@@ -272,6 +272,13 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Resultado esperado: `{"acknowledged":true}` y, en la segunda orden, `green open wazuh-ens-configuration 0` (con varios nodos, `green` con `1` réplica). Si sale `yellow`, esperar unos segundos y repetir la segunda orden hasta que salga `green`. En un entorno instalado desde cero con la 1.1.0 o posterior, este paso no es necesario.
 
+Desde la 1.2.0, la pantalla de Configuración tiene dos niveles, «Organización» y «Sistemas». Al actualizar desde la 1.1.0:
+
+- los controles que el documento todavía no tiene aparecen en «Organización», en «Controles del catálogo sin añadir», y se añaden con «Añadir con valores por defecto», con la misma semántica que `inject-control.py` para un control nuevo;
+- la pestaña «Sistemas» propone repartir a cada agente las filas de las tablas con columna de sistema que lo nombran («Migrar a sistemas»), sin borrar nada; antes de migrar, guardar una copia del documento (apartado 5).
+
+El procedimiento está en [Configuración por sistema y plantillas](09-configuration-by-system.md#8-migración-a-sistemas).
+
 Revisar en Configuración > Configuración global los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
 ## 9. Agentes y comprobación final

@@ -36,8 +36,11 @@ and the links to every runbook and its guides are in the
    (enrolment on the manager, `ens` group and the plugin's ENS scope), once; then the
    runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
    following the `01-installation` guide **of each runbook**.
-3. **Configuration in the dashboard.** In ENSFácil > Configuration, the
-   parameters of each control, and on the machines or the manager, the
+3. **Configuration in the dashboard.** In ENSFácil > Configuration, each
+   control's common policy («Organización» tab) and what belongs to each
+   machine and its platform, with templates («Sistemas» tab; see
+   [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md)),
+   and on the machines or the manager, the
    [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
    following the `02-compliance` guide **of each runbook** (it is not in this
    repository: each runbook has its own, linked from the table).
@@ -229,6 +232,7 @@ indexer, not in the plugin.
 | 6 | Install, update or remove ENSFácil with the official Wazuh Docker images | [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md) |
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
+| 9 | Declare each system's configuration, apply templates or migrate an earlier configuration | [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md) |
 
 > [!note]
 > A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.

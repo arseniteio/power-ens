@@ -23,6 +23,11 @@ interface ControlConfigurationPageProps {
   activeLevel: ENSLevel;
   onBack: () => void;
   onConfigurationSaved: () => void;
+  parameterIds?: string[];
+  secondaryParameterIds?: string[];
+  secondaryTitle?: string;
+  secondaryDescription?: string;
+  focusParameterId?: string;
 }
 
 export const ControlConfigurationPage = ({
@@ -30,6 +35,11 @@ export const ControlConfigurationPage = ({
   activeLevel,
   onBack,
   onConfigurationSaved,
+  parameterIds,
+  secondaryParameterIds,
+  secondaryTitle,
+  secondaryDescription,
+  focusParameterId,
 }: ControlConfigurationPageProps) => (
   <EuiPanel paddingSize='l'>
     <EuiButton
@@ -60,6 +70,11 @@ export const ControlConfigurationPage = ({
       onConfigurationSaved={
         onConfigurationSaved
       }
+      parameterIds={parameterIds}
+      secondaryParameterIds={secondaryParameterIds}
+      secondaryTitle={secondaryTitle}
+      secondaryDescription={secondaryDescription}
+      focusParameterId={focusParameterId}
     />
 
     <EuiSpacer size='l' />

@@ -130,7 +130,9 @@ const evaluateControlOnEvents = (
   // La configuración se carga ANTES de resolver las evidencias: las que
   // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
   // la pantalla, así que el motor no puede resolverlas sin ella.
-  const configuration = getActiveControlConfiguration(catalogControl.id);
+  // Resuelta para la fila (agente → plantillas → organización); sin fila, la
+  // vista de organización.
+  const configuration = getActiveControlConfiguration(catalogControl.id, agentId);
 
   // Sin fila, un control con alcance declarado se mide solo con los hechos de
   // las máquinas declaradas: los de una máquina que no está en su alcance no
