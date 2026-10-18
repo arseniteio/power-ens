@@ -11,8 +11,13 @@
 // Y LA FILA NO DESAPARECE: un control que no se mide en la máquina elegida sale
 // al final, en gris, con el motivo y sin número; uno que no está en la
 // configuración activa lo dice y ofrece añadirlo (`controls-list-model.ts`).
+//
+// El botón (`EuiFacetButton`) solo lleva id, título e insignias: su texto se
+// corta a una línea. El motivo y la barra de máquinas van en una segunda línea
+// de la fila, fuera del botón, y se parten con normalidad.
 import React from 'react';
-import { EuiBadge, EuiFacetButton, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiText, EuiToolTip } from '@elastic/eui';
+import { EuiBadge, EuiFacetButton, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiText } from '@elastic/eui';
+import { ENS_STATUS_COLORS } from '../status-colors';
 import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
 import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
 import type { ENSControlListEntry, ENSMachineTally } from './controls-list-model';
@@ -43,7 +48,7 @@ interface ControlRowProps {
 
 // La barra de máquinas de un control: un tramo por estado, del ancho de su
 // recuento. Solo con todas las máquinas a la vista.
-export const MachineTallyBar = ({ tally, colorDelEstado }: { tally: ENSMachineTally; colorDelEstado: (estado: string) => string }) => {
+export const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
   const tramos = [
     { estado: 'CUMPLE', n: tally.cumple },
     { estado: 'PARCIAL', n: tally.parcial },
@@ -52,22 +57,16 @@ export const MachineTallyBar = ({ tally, colorDelEstado }: { tally: ENSMachineTa
     { estado: 'NO_APLICA', n: tally.noAplica },
   ].filter(tramo => tramo.n > 0);
   return (
-    <EuiToolTip content={describeTally(tally)}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
-        <span style={{ display: 'inline-flex', width: 96, height: 8, borderRadius: 4, overflow: 'hidden', background: '#EEF2F7' }}>
-          {tramos.map(tramo => (
-            <span
-              key={tramo.estado}
-              style={{
-                width: `${(tramo.n / tally.total) * 100}%`,
-                background: tramo.estado === 'NO_EVALUABLE' ? '#D3DAE6' : colorDelEstado(tramo.estado),
-              }}
-            />
-          ))}
-        </span>
-        <span style={{ fontSize: 12, color: '#69707D' }}>{describeTally(tally)}</span>
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+      <span style={{ display: 'inline-flex', width: 96, height: 8, borderRadius: 4, overflow: 'hidden', background: '#EEF2F7' }}>
+        {tramos.map(tramo => (
+          <span key={tramo.estado} style={{ width: `${(tramo.n / tally.total) * 100}%`, background: ENS_STATUS_COLORS[tramo.estado] }} />
+        ))}
       </span>
-    </EuiToolTip>
+      <EuiText size='xs' color='subdued'>
+        <span>{`Máquinas: ${describeTally(tally)}`}</span>
+      </EuiText>
+    </div>
   );
 };
 
@@ -84,11 +83,14 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
     </EuiBadge>
   ) : null;
 
-  const fila = (contenido: React.ReactNode) => (
-    <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} style={{ marginBottom: 8 }}>
-      <EuiFlexItem>{contenido}</EuiFlexItem>
-      {accion}
-    </EuiFlexGroup>
+  const fila = (contenido: React.ReactNode, segundaLinea?: React.ReactNode) => (
+    <div style={{ marginBottom: 8 }}>
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+        <EuiFlexItem>{contenido}</EuiFlexItem>
+        {accion}
+      </EuiFlexGroup>
+      {segundaLinea && <div style={{ padding: '2px 0 0 16px' }}>{segundaLinea}</div>}
+    </div>
   );
 
   // NO SE MIDE EN ESTA MÁQUINA: al final, en gris, con el motivo. Sin número:
@@ -104,10 +106,10 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
           No se mide en esta máquina
         </EuiBadge>
         {sinConfigurar}
-        <EuiText size='xs' color='subdued'>
-          <span>{entry.notMeasured.text}</span>
-        </EuiText>
-      </EuiFacetButton>
+      </EuiFacetButton>,
+      <EuiText size='xs' color='subdued'>
+        <p>{entry.notMeasured.text}</p>
+      </EuiText>
     );
   }
 
@@ -170,7 +172,7 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEs
         </EuiBadge>
       )}
       {sinConfigurar}
-      {entry.machines && <MachineTallyBar tally={entry.machines} colorDelEstado={colorDelEstado} />}
-    </EuiFacetButton>
+    </EuiFacetButton>,
+    entry.machines ? <MachineTallyBar tally={entry.machines} /> : undefined
   );
 };

@@ -139,7 +139,14 @@ export const readCardMotive = (
 
 // La lista de una parte, vista desde su detalle (el texto tras la primera
 // frase). Si la lista está en la primera frase, se enseña entera debajo.
-const listaDelDetalle = (part: MotivePart): { texto: string; list?: MotiveList; listaSuelta?: MotiveList } => {
+// Un titular de más de `TITULAR_MAX` caracteres se corta en la tarjeta (dos
+// líneas); lo que no cabe se pinta al principio de la causa, para que no quede
+// solo en el `title` o en el panel.
+export const TITULAR_MAX = 200;
+
+const listaDelDetalle = (part: MotivePart): { texto: string; list?: MotiveList; listaSuelta?: MotiveList; resto?: string } => {
+  const resto = part.summary.length > TITULAR_MAX ? part.summary.slice(TITULAR_MAX).trimStart() : undefined;
+  if (resto) return { texto: part.detail, resto, ...(part.list ? { listaSuelta: part.list } : {}) };
   if (!part.list) return { texto: part.detail };
   const desde = part.summary.length + (part.detail ? 1 : 0);
   if (part.detail && part.list.start >= desde) {
@@ -172,7 +179,10 @@ export const NonConformityCard = ({
 
   const leido = readCardMotive(lineasMotivo, item.evidenceIds || evidenciasImplicadas, item.finding, conocidos);
   const { culpable } = leido;
-  const detalle = culpable ? listaDelDetalle(culpable) : { texto: '' };
+  const detalle: { texto: string; list?: MotiveList; listaSuelta?: MotiveList; resto?: string } = culpable
+    ? listaDelDetalle(culpable)
+    : { texto: '' };
+  const titular = detalle.resto ? `${leido.titular.slice(0, TITULAR_MAX).trimEnd()}…` : leido.titular;
 
   // Los parámetros: los que cita el motivo y los que la no conformidad nombra.
   const parametros = [
@@ -226,7 +236,11 @@ export const NonConformityCard = ({
           <p style={{ marginBottom: 0 }}>
             {culpable?.evidenceId && (
               <>
-                <EuiBadge color='hollow'>
+                <EuiBadge
+                  color='hollow'
+                  onClick={handlers.onEvidence ? () => handlers.onEvidence!(culpable.evidenceId!) : undefined}
+                  onClickAriaLabel={`Ver ${culpable.evidenceId} en Evidencias`}
+                >
                   <strong>{culpable.evidenceId}</strong>
                 </EuiBadge>{' '}
                 <EuiBadge color={statusBadgeColor(culpable.status)}>{culpable.status}</EuiBadge>{' '}
@@ -234,7 +248,7 @@ export const NonConformityCard = ({
             )}
           </p>
           <p style={DOS_LINEAS} title={leido.titular}>
-            {leido.titular}
+            {titular}
           </p>
         </EuiText>
 
@@ -246,15 +260,20 @@ export const NonConformityCard = ({
         </EuiText>
 
         {/* La causa: el resto de la parte culpable, en texto normal. */}
-        {(detalle.texto || detalle.listaSuelta || culpable?.secondary !== undefined) && (
+        {(detalle.texto || detalle.listaSuelta || detalle.resto || culpable?.secondary !== undefined) && (
           <>
             <EuiSpacer size='s' />
             <EuiText size='xs'>
+              {detalle.resto && (
+                <div style={{ marginBottom: 6 }}>
+                  …<MotiveText texto={detalle.resto} />
+                </div>
+              )}
               {detalle.listaSuelta && <MotiveText texto={culpable!.text.slice(detalle.listaSuelta.start, detalle.listaSuelta.end)} list={{ ...detalle.listaSuelta, start: 0, end: detalle.listaSuelta.end - detalle.listaSuelta.start }} />}
               {detalle.texto && (
-                <p>
+                <div style={{ marginBottom: 6 }}>
                   <MotiveText texto={detalle.texto} list={detalle.list} />
-                </p>
+                </div>
               )}
               {culpable?.secondary !== undefined && (
                 <p style={{ color: '#69707D' }}>
@@ -273,7 +292,13 @@ export const NonConformityCard = ({
             {leido.otrasNoConformes.map((parte, i) => (
               <EuiText size='xs' key={`${parte.evidenceId}-${i}`}>
                 <p style={{ marginBottom: 2 }}>
-                  <EuiBadge color='hollow'>{parte.evidenceId}</EuiBadge>{' '}
+                  <EuiBadge
+                    color='hollow'
+                    onClick={handlers.onEvidence && parte.evidenceId ? () => handlers.onEvidence!(parte.evidenceId!) : undefined}
+                    onClickAriaLabel={`Ver ${parte.evidenceId} en Evidencias`}
+                  >
+                    {parte.evidenceId}
+                  </EuiBadge>{' '}
                   <EuiBadge color={statusBadgeColor(parte.status)}>{parte.status}</EuiBadge>{' '}
                   <MotiveText texto={parte.summary} />
                 </p>
@@ -343,9 +368,7 @@ export const NonConformityCard = ({
           <EuiFlexItem grow={false}>
             <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false} wrap>
               <EuiFlexItem grow={false}>
-                <EuiBadge color={clase.badgeColor} title={accion}>
-                  {clase.accion}
-                </EuiBadge>
+                <EuiBadge color={clase.badgeColor}>{clase.accion}</EuiBadge>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiText size='xs' color='subdued'>
@@ -353,6 +376,10 @@ export const NonConformityCard = ({
                 </EuiText>
               </EuiFlexItem>
             </EuiFlexGroup>
+            {/* La acción concreta, a la vista (no solo en un `title`). */}
+            <EuiText size='xs'>
+              <span>{accion}</span>
+            </EuiText>
           </EuiFlexItem>
 
           <EuiFlexItem grow={false}>

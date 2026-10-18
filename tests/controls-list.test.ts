@@ -127,6 +127,10 @@ const listaDe = (agentId?: string, nombre?: string, extra: any = {}) =>
     comprueba('con el manager: 23 filas', filas.length === 23, filas.length);
     comprueba('cargando: spinner en las medidas, ningún veredicto', h.findAll('EuiLoadingSpinner').length === 9 && !/NO_CUMPLE|NO_EVALUABLE|CUMPLE/.test(p.replace(/No se mide/g, '')), h.findAll('EuiLoadingSpinner').length);
     comprueba('14 «No se mide en esta máquina», con el motivo', h.findAll('EuiBadge', /No se mide en esta máquina/).length === 14 && /no en el manager de Wazuh \(000\)/.test(p));
+    // El botón corta su texto a una línea: el motivo va fuera, en su propia línea.
+    const botonGris = h.findAll('EuiFacetButton').find(n => /op\.acc\.1/.test(n.texto))!;
+    const motivoFuera = h.findAll('EuiText').find(n => /op\.acc\.1 se mide en cada máquina/.test(n.texto));
+    comprueba('el motivo, fuera del botón (su propia línea)', Boolean(motivoFuera) && !motivoFuera!.ruta.startsWith(botonGris.ruta + '.') && !/se mide en cada máquina/.test(botonGris.texto), motivoFuera?.ruta);
     comprueba('el aviso de cuántos no se miden y «Ver todas las máquinas»', /14 controles no se miden en 000/.test(p) && Boolean(h.find('EuiLink', /Ver todas las máquinas/)), p.slice(p.indexOf('Nivel BAJO') + 100, p.indexOf('Nivel BAJO') + 500));
     comprueba('«Nivel BAJO: 4 controles no aplican» con enlace a Configuración', /Nivel BAJO: 4 controles no aplican/.test(p) && Boolean(h.find('EuiLink', /Cambiar el nivel en Configuración/)));
     evaluacion = { data: { meta: {}, controls: [{ controlId: 'op.exp.7', status: 'NO_CUMPLE', score: 0, evaluated: true, requirementsNotMet: 3, requirementsNotEvidenced: 1 }], agents: [] }, isLoading: false };
@@ -145,6 +149,8 @@ const listaDe = (agentId?: string, nombre?: string, extra: any = {}) =>
     evaluacion = { data: { meta: {}, controls: [], agents: [{ agentId: '101', controls: [{ controlId: 'op.acc.1', status: 'CUMPLE' }] }, { agentId: '102', controls: [{ controlId: 'op.acc.1', status: 'NO_CUMPLE' }] }] }, isLoading: false };
     p = await h.render(ControlsENS);
     comprueba('sin máquina: la barra de máquinas del control', /1 cumple · 1 no cumple \(de 2 máquinas\)/.test(p), p.slice(0, 300));
+    const botonAcc1 = h.findAll('EuiFacetButton').find(n => /op\.acc\.1/.test(n.texto))!;
+    comprueba('…fuera del botón', !/Máquinas:/.test(botonAcc1.texto) && h.findAll('EuiText').some(n => /^Máquinas: 1 cumple/.test(n.texto) && !n.ruta.startsWith(botonAcc1.ruta + '.')));
     h.reset();
     await h.render(ControlsENS);
     const fila = h.findAll('EuiFacetButton').find(n => /op\.acc\.2/.test(n.texto));

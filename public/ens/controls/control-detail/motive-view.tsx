@@ -7,8 +7,9 @@ import React, { useState } from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from '../../../../common/ens/evaluation/motive-parser';
 
-export const statusBadgeColor = (status?: string) =>
-  status === 'CUMPLE' ? 'success' : status === 'NO_CUMPLE' ? 'danger' : status === 'PARCIAL' ? 'warning' : status === 'NO_EVALUABLE' ? 'default' : 'hollow';
+import { statusBadgeColor } from '../../status-colors';
+
+export { statusBadgeColor };
 
 // Un parámetro citado: su valor para la máquina y de dónde sale, si se sabe.
 export interface MotiveParameterInfo {
@@ -113,7 +114,7 @@ export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: 
 export const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePart; handlers: MotiveViewHandlers; withSummary?: boolean }) => (
   <div style={{ marginBottom: 8 }}>
     <EuiText size='s'>
-      <p style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 4 }}>
         {part.evidenceId && (
           <>
             <EuiBadge
@@ -127,14 +128,14 @@ export const MotivePartView = ({ part, handlers, withSummary = true }: { part: M
           </>
         )}
         {withSummary ? <MotiveText texto={part.text} list={part.list} /> : <MotiveText texto={part.detail} list={undefined} />}
-      </p>
+      </div>
     </EuiText>
     {part.parameters.length > 0 && <ParameterBadges ids={part.parameters} handlers={handlers} />}
     {part.secondary !== undefined && (
       <EuiText size='xs' color='subdued'>
-        <p style={{ marginTop: 4 }}>
+        <div style={{ marginTop: 4 }}>
           <strong>Además:</strong> <MotiveText texto={part.secondary} />
-        </p>
+        </div>
       </EuiText>
     )}
   </div>

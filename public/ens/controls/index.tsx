@@ -32,6 +32,7 @@ import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measu
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../common/ens/core/control-level';
 import { buildControlListEntries, describeLevelExclusions } from './controls-list-model';
+import { statusBadgeColor, statusColor } from '../status-colors';
 
 // El color de un control es su ESTADO, y son tres cosas distintas:
 //
@@ -43,37 +44,12 @@ import { buildControlListEntries, describeLevelExclusions } from './controls-lis
 // Pintarlas del mismo color porque todas tienen alguna no conformidad convierte
 // la lista en un semáforo de una sola luz: el auditor no puede priorizar y deja
 // de mirarla.
-const colorDelEstado = (estado: string): string => {
-  if (estado === 'CUMPLE') {
-    return '#00A65A';
-  }
+//
+// Los colores son los de todas las pantallas (`status-colors.ts`): NO_EVALUABLE
+// en gris oscuro (sin demostrar, importa), NO_APLICA en gris claro.
+const colorDelEstado = (estado: string): string => statusColor(estado);
 
-  if (estado === 'PARCIAL') {
-    return '#F5A700';
-  }
-
-  if (estado === 'NO_CUMPLE') {
-    return '#BD271E';
-  }
-
-  return '#98A2B3';
-};
-
-const badgeDelEstado = (estado: string): string => {
-  if (estado === 'CUMPLE') {
-    return 'success';
-  }
-
-  if (estado === 'PARCIAL') {
-    return 'warning';
-  }
-
-  if (estado === 'NO_CUMPLE') {
-    return 'danger';
-  }
-
-  return 'default';
-};
+const badgeDelEstado = (estado: string): string => statusBadgeColor(estado);
 
 export const ControlsENS = () => {
   const { control, agentId } = useRouterSearch();

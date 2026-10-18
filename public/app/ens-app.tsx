@@ -57,7 +57,7 @@ export const EnsApp = () => {
             <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() =>
                 // Los parámetros de Configuración (y su vuelta al detalle) son
                 // de esa pantalla: se limpian al cambiar de pestaña.
-                cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined })
+                cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
               }>
               {t.name}
             </EuiTab>

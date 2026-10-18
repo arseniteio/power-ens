@@ -25,7 +25,7 @@ export const AddControlWithDefaultsButton = ({ controlId, onAdded, size = 's' }:
 
   if (estado.done) {
     return (
-      <EuiText size='xs' color='success'>
+      <EuiText size='xs' color='secondary'>
         <p>{controlId} añadido a la configuración activa. Se evalúa en la próxima actualización.</p>
       </EuiText>
     );

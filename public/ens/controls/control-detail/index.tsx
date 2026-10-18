@@ -41,6 +41,7 @@ import { classifyNonConformity } from './nonconformity-class';
 import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-parser';
 import type { MotiveViewHandlers } from './motive-view';
 import { describeParameterForMachine } from '../parameter-origins';
+import { statusBadgeColor } from '../../status-colors';
 import type { MotivoLinea } from './motive-cell';
 import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
 import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
@@ -66,18 +67,8 @@ interface ControlDetailENSProps {
   onBack: () => void;
 }
 
-const getBadgeColor = (status: string) => {
-  if (status === 'CUMPLE') {
-    return 'success';
-  }
-  if (status === 'PARCIAL') {
-    return 'warning';
-  }
-  if (status === 'NO_CUMPLE') {
-    return 'danger';
-  }
-  return 'default';
-};
+// Un estado, un color (`status-colors.ts`).
+const getBadgeColor = (status: string) => statusBadgeColor(status);
 
 // Icono por estado de evidencia. La distinción que no se puede perder —medido y
 // no conforme (`cross`) frente a no demostrado (`clock`)— se lee del icono sin
@@ -362,16 +353,20 @@ export const ControlDetailENS = ({
   // con este control; y de cada parámetro se dice el valor que aplica a esta
   // máquina y de dónde sale.
   const manejadores: MotiveViewHandlers = {
+    // Configuración, de la máquina ELEGIDA (no de la del resultado que se ve
+    // mientras carga la nueva): es a la que se vuelve.
     onParameter: parameterId =>
       cambiaUrl(
         detailConfigurationChanges({
           controlId: control.id,
-          agentId: agenteMostrado,
+          agentId,
           parameterId,
           parameterIsAgentLevel: isAgentLevelParameter(control.id, parameterId),
         })
       ),
-    onEvidence: () => cambiaUrl({ tabView: 'evidences', control: control.id }),
+    // Su propio parámetro: el `control=` del detalle no filtra Evidencias.
+    onEvidence: () => cambiaUrl({ tabView: 'evidences', evidenceControl: control.id }),
+    // El valor y su origen, de la máquina del resultado que se ve.
     parameterInfo: parameterId => {
       const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, agenteMostrado, parameterId);
       return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
@@ -858,7 +853,7 @@ export const ControlDetailENS = ({
     cambiaUrl(
       detailConfigurationChanges({
         controlId: control.id,
-        agentId: agenteMostrado,
+        agentId,
         hasAgentLevelParameters: (getActiveControlConfiguration(control.id)?.parameters || []).some(parameter =>
           isAgentLevelParameter(control.id, parameter.id)
         ),
@@ -1031,7 +1026,7 @@ export const ControlDetailENS = ({
                       cambiaUrl(
                         detailConfigurationChanges({
                           controlId: control.id,
-                          agentId: agenteMostrado,
+                          agentId,
                           parameterId: parametroDeAlcance,
                           parameterIsAgentLevel: isAgentLevelParameter(control.id, parametroDeAlcance),
                         })

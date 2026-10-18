@@ -134,10 +134,26 @@ doc.agents = {
   comprueba('Informes: el origen en la tabla y en el PDF', /describeParameterForMachine\(activeConfiguration, controlId, agentId, parameter\.id\)/.test(informes) && /parameter\.origin \? ` \(\$\{parameter\.origin\}\)`/.test(informes));
 
   console.log('5. Una evidencia pulsada');
-  const evidencias = readFileSync(`${__dirname}/../public/ens/evidences/index.tsx`, 'utf8');
-  comprueba('Evidencias empieza filtrada por el control de la URL', /useState<string>\(\(\) => control \|\| ''\)/.test(evidencias));
-  const detalle = readFileSync(`${__dirname}/../public/ens/controls/control-detail/index.tsx`, 'utf8');
-  comprueba('el detalle manda a Evidencias con su control', /onEvidence: \(\) => cambiaUrl\(\{ tabView: 'evidences', control: control\.id \}\)/.test(detalle));
+  h.reset();
+  h.setSearch('?tabView=plugins&control=op.exp.10&agentId=101');
+  evaluacion = { data: { meta, result: { ...resultado, nonConformities: [{ ...nc, finding: 'EV-02 NO_EVALUABLE: Falta P-02 (rutas).' }] }, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  await h.render(ControlDetailENS, { control: ctl('op.exp.10'), agentId: '101', onBack: () => undefined });
+  const ev = h.findAll('EuiBadge').find(n => /EV-02/.test(n.texto) && n.props.onClick);
+  ev!.props.onClick();
+  s = parseRouterSearch(h.search());
+  comprueba('la evidencia de la tarjeta lleva a Evidencias con su propio parámetro (evidenceControl)', s.tabView === 'evidences' && s.evidenceControl === 'op.exp.10', s);
+  const { EvidencesENS } = require('../public/ens/evidences');
+  h.reset();
+  evaluacion = { data: { meta, results: [] }, isLoading: false };
+  h.setSearch('?tabView=evidences&control=op.acc.1&agentId=101');
+  await h.render(EvidencesENS);
+  comprueba('el `control=` que deja el detalle NO filtra Evidencias', h.find('EuiFieldSearch')?.props.value === '');
+  h.reset();
+  h.setSearch('?tabView=evidences&evidenceControl=op.exp.10&agentId=101');
+  let ev2 = await h.render(EvidencesENS);
+  comprueba('llegando desde una evidencia: filtrado por op.exp.10, y se ve por qué', h.find('EuiFieldSearch')?.props.value === 'op.exp.10' && /Filtro: op\.exp\.10 \(desde el Detalle del control\)/.test(ev2), ev2.slice(0, 300));
+  ev2 = await h.click(/Quitar filtro/);
+  comprueba('«Quitar filtro» lo quita y deja de venir de la URL', h.find('EuiFieldSearch')?.props.value === '' && !parseRouterSearch(h.search()).evidenceControl, h.search());
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
   process.exit(fallos.length ? 1 : 0);
