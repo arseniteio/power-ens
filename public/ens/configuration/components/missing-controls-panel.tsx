@@ -15,7 +15,8 @@ import {
   addMissingControls,
   getMissingCatalogControls,
 } from '../agents/agent-configuration-actions';
-import { saveActiveENSConfiguration } from '../services/configuration-state-service';
+import { saveFromLatestConfiguration } from '../services/configuration-state-service';
+import { errorMessage } from './confirm-modal';
 
 interface MissingControlsPanelProps {
   configuration: ENSConfigurationVersion;
@@ -23,8 +24,6 @@ interface MissingControlsPanelProps {
   onConfigurationSaved: () => void;
 }
 
-const message = (error: unknown): string =>
-  error instanceof Error && error.message.trim() ? error.message.trim() : 'No se pudo guardar la configuración ENS.';
 
 // Los controles del catálogo que el documento no tiene. Antes solo se añadían
 // con `config/inject-control.py`; desde aquí se añaden con la misma semántica:
@@ -47,16 +46,18 @@ export const MissingControlsPanel = ({
     setSaving(key);
     setError(undefined);
     try {
-      const result = addMissingControls(configuration, controlIds);
-      if (result.added.length) {
-        await saveActiveENSConfiguration(
-          result.configuration,
-          `Alta de ${result.added.join(', ')} en la configuración activa (valores por defecto).`
-        );
-        onConfigurationSaved();
-      }
+      const done = await saveFromLatestConfiguration(latest => {
+        const result = addMissingControls(latest, controlIds);
+        return result.added.length
+          ? {
+              configuration: result.configuration,
+              reason: `Alta de ${result.added.join(', ')} en la configuración activa (valores por defecto).`,
+            }
+          : undefined;
+      });
+      if (done) onConfigurationSaved();
     } catch (failure) {
-      setError(message(failure));
+      setError(errorMessage(failure));
     } finally {
       setSaving(undefined);
     }

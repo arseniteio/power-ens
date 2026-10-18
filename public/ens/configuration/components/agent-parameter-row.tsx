@@ -17,40 +17,65 @@ import {
   isEmptyParameterValue,
   toParameterListItems,
   toParameterTableRows,
+  validateParameterValue,
 } from '../services/parameter-value-validator';
-import { validateParameterValue } from '../services/parameter-value-validator';
 import type { ENSResolvedValueOrigin } from '../agents/configuration-resolver';
 import { getConfigurationTemplate } from '../templates';
+import { errorMessage } from './confirm-modal';
 
 interface AgentParameterRowProps {
   agentId: string;
+  // `value` es lo que se enseña y se edita: el valor efectivo o, en un
+  // parámetro de contribución, solo lo que aporta este sistema.
   parameter: ENSControlParameter;
   parameterClass: 'system' | 'platform';
   origin: ENSResolvedValueOrigin;
-  // En la fila del manager, este parámetro se junta con los de los demás.
-  unionNote?: string;
-  // El valor que se enseña es solo lo que aporta este sistema a una unión.
+  // Parámetro que describe otras máquinas en un control del manager (o el
+  // alcance declarado): aquí se declara solo la aportación de este sistema.
   contributionOnly?: boolean;
+  // Las filas de la organización, aparte y de solo lectura.
+  organisationRows?: string[];
+  // Lo que se evalúa de verdad (la unión en la fila del manager), de solo lectura.
+  effectiveRows?: string[];
+  note?: string;
   applicable: boolean;
   focused: boolean;
+  // Qué pasará al guardar este valor (vacío, igual al heredado o propio).
+  describeSave: (value: ENSAgentParameterValue | undefined) => 'quitar' | 'igual' | 'propio';
   onSave: (value: ENSAgentParameterValue | undefined) => Promise<void>;
+  // Tras guardar el parámetro que pidió la URL, para que no vuelva a abrirse.
+  onDone?: () => void;
 }
 
 // De dónde sale el valor, dicho explícitamente.
 export const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): string => {
   if (origin.source === 'agent') return 'valor propio de este sistema';
-  if (contributionOnly && origin.source !== 'template') return 'este sistema no aporta filas propias';
   if (origin.source === 'template') return `heredado de la plantilla «${getConfigurationTemplate(origin.templateId || '')?.label || origin.templateId}»`;
+  if (contributionOnly) return 'este sistema no aporta filas propias';
   if (origin.source === 'union') return `unión de la organización y de los sistemas ${(origin.contributors || []).join(', ')}`;
   return hasValue ? 'heredado de la organización' : 'sin valor: ni propio, ni de plantilla, ni de la organización';
 };
 
-const summary = (parameter: ENSControlParameter): string[] => {
-  const value = parameter.value;
+export const valueRows = (parameter: Pick<ENSControlParameter, 'type'>, value: ENSControlParameter['value']): string[] => {
   if (isEmptyParameterValue(value)) return [];
   if (parameter.type === 'table') return toParameterTableRows(value).filter(row => row.trim());
   if (parameter.type === 'list') return toParameterListItems(value);
   return [String(value)];
+};
+
+const Rows = ({ rows }: { rows: string[] }) =>
+  rows.length ? (
+    <ul>
+      {rows.slice(0, 8).map((row, index) => <li key={`${index}-${row}`}>{row}</li>)}
+      {rows.length > 8 && <li>… y {rows.length - 8} más</li>}
+    </ul>
+  ) : (
+    <p>—</p>
+  );
+
+const HINTS: Record<'quitar' | 'igual', string> = {
+  quitar: 'Vacío: al guardar, este sistema se queda sin valor propio y vuelve a heredar (de su plantilla o de la organización).',
+  igual: 'Igual al que ya hereda: al guardar no se guarda como propio, y seguirá a su origen cuando cambie.',
 };
 
 export const AgentParameterRow = ({
@@ -58,43 +83,66 @@ export const AgentParameterRow = ({
   parameter,
   parameterClass,
   origin,
-  unionNote,
   contributionOnly = false,
+  organisationRows,
+  effectiveRows,
+  note,
   applicable,
   focused,
+  describeSave,
   onSave,
+  onDone,
 }: AgentParameterRowProps) => {
+  // Solo al montar: el parámetro que pide la URL se abre una vez.
   const [editing, setEditing] = useState(focused);
   const [draft, setDraft] = useState<ENSControlParameter['value']>(parameter.value);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [saved, setSaved] = useState<string | undefined>();
   const anchor = useRef<HTMLDivElement>(null);
-  const rows = summary(parameter);
+  const mounted = useRef(true);
+  const rows = valueRows(parameter, parameter.value);
   const own = origin.source === 'agent';
+  const valueKey = JSON.stringify(parameter.value ?? null);
+
+  useEffect(() => () => {
+    mounted.current = false;
+  }, []);
 
   useEffect(() => {
     if (focused) anchor.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-  }, [focused]);
+  }, []);
+
+  // Cuando el valor cambia (tras guardar), el borrador vuelve a él.
+  useEffect(() => {
+    if (!editing) setDraft(parameter.value);
+  }, [valueKey]);
 
   const save = async (value: ENSAgentParameterValue | undefined) => {
-    if (value !== undefined) {
+    if (value !== undefined && !isEmptyParameterValue(value)) {
       const verdict = validateParameterValue(parameter, value);
       if (!verdict.valid) {
         setError(`${parameter.id} · ${parameter.label}: ${verdict.reason}.`);
         return;
       }
     }
+    const mode = describeSave(value);
     setSaving(true);
     setError(undefined);
     try {
       await onSave(value);
+      if (!mounted.current) return;
       setEditing(false);
+      setSaved(mode === 'propio' ? undefined : HINTS[mode]);
+      onDone?.();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'No se pudo guardar la configuración ENS.');
+      if (mounted.current) setError(errorMessage(failure));
     } finally {
-      setSaving(false);
+      if (mounted.current) setSaving(false);
     }
   };
+
+  const mode = editing ? describeSave(draft as ENSAgentParameterValue | undefined) : 'propio';
 
   return (
     <div ref={anchor} id={parameterAnchorId(parameter.controlId, parameter.id, agentId)}>
@@ -123,22 +171,30 @@ export const AgentParameterRow = ({
           </EuiFlexItem>
         </EuiFlexGroup>
 
-        {unionNote && (
+        {note && (
           <EuiText size='xs' color='subdued'>
-            <p>{unionNote}</p>
+            <p>{note}</p>
           </EuiText>
         )}
 
         {!editing && (
           <EuiText size='xs'>
-            {rows.length ? (
-              <ul>
-                {rows.slice(0, 8).map(row => <li key={row}>{row}</li>)}
-                {rows.length > 8 && <li>… y {rows.length - 8} más</li>}
-              </ul>
-            ) : (
-              <p>—</p>
-            )}
+            {contributionOnly && <p><strong>De este sistema:</strong></p>}
+            <Rows rows={rows} />
+          </EuiText>
+        )}
+
+        {contributionOnly && organisationRows && organisationRows.length > 0 && (
+          <EuiText size='xs' color='subdued'>
+            <p><strong>De la organización</strong> (solo lectura; se editan en «Organización»):</p>
+            <Rows rows={organisationRows} />
+          </EuiText>
+        )}
+
+        {effectiveRows && (
+          <EuiText size='xs' color='subdued'>
+            <p><strong>Lo que se evalúa en esta fila</strong> (solo lectura):</p>
+            <Rows rows={effectiveRows} />
           </EuiText>
         )}
 
@@ -150,7 +206,18 @@ export const AgentParameterRow = ({
               value={draft}
               onChange={(_name, value) => setDraft(value)}
             />
+            {mode !== 'propio' && (
+              <EuiText size='xs' color='subdued'>
+                <p>{HINTS[mode]}</p>
+              </EuiText>
+            )}
           </>
+        )}
+
+        {saved && !editing && (
+          <EuiText size='xs' color='subdued'>
+            <p>{saved}</p>
+          </EuiText>
         )}
 
         {error && (
@@ -171,15 +238,15 @@ export const AgentParameterRow = ({
                 </EuiButton>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiButtonEmpty size='s' onClick={() => { setDraft(parameter.value); setError(undefined); setEditing(false); }}>
+                <EuiButtonEmpty size='s' onClick={() => { setDraft(parameter.value); setError(undefined); setEditing(false); onDone?.(); }}>
                   Cancelar
                 </EuiButtonEmpty>
               </EuiFlexItem>
             </>
           ) : (
             <EuiFlexItem grow={false}>
-              <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { setDraft(parameter.value); setEditing(true); }}>
-                {own ? 'Editar' : 'Dar valor propio'}
+              <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { setDraft(parameter.value); setSaved(undefined); setEditing(true); }}>
+                {own ? 'Editar' : contributionOnly ? 'Declarar filas de este sistema' : 'Dar valor propio'}
               </EuiButtonEmpty>
             </EuiFlexItem>
           )}

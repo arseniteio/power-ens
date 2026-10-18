@@ -326,3 +326,123 @@ export const setAgentAliases = (
     agent,
     detection
   );
+
+// --- vista previa de una plantilla ------------------------------------------
+
+export interface ENSTemplatePreview {
+  agentId: string;
+  templateId: string;
+  label: string;
+  // Lo que la plantilla fija en controles que están en la configuración.
+  sets: string[];
+  // De esos, los que el sistema tiene como valor propio: el suyo sigue ganando.
+  ownWins: string[];
+  // Parámetros cuyo valor efectivo cambia en este sistema al aplicarla.
+  changes: string[];
+  // La plantilla de plataforma a la que sustituye, si la hay.
+  replaces?: string;
+  // La plantilla no es para el tipo de este sistema.
+  mismatch?: string;
+  // No se puede aplicar (incompatible): el motivo.
+  error?: string;
+  configuration: ENSConfigurationVersion;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  linux: 'Linux',
+  'zimbra-ldap': 'LDAP (Zimbra)',
+  windows: 'Windows',
+  manager: 'Manager',
+};
+
+/**
+ * Qué haría aplicar `templateId` a una máquina, sin guardar nada: qué fija, qué
+ * valores propios siguen ganando, qué cambia de verdad y, si la plantilla no es
+ * para su tipo o sustituye a otra de plataforma, el aviso. La pantalla lo
+ * enseña y solo guarda tras confirmarlo.
+ */
+export const previewTemplateApplication = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  templateId: string,
+  effectiveType: ENSSystemType | undefined,
+  agent?: ENSDetectableAgent,
+  detection?: ENSSystemDetection
+): ENSTemplatePreview => {
+  const id = normalizeAgentId(agentId);
+  const template = getConfigurationTemplate(templateId);
+  const base: ENSTemplatePreview = {
+    agentId: id,
+    templateId,
+    label: template?.label || templateId,
+    sets: [],
+    ownWins: [],
+    changes: [],
+    configuration,
+  };
+
+  const result = applyTemplateToAgent(configuration, id, templateId, agent, detection);
+
+  if (!template || result.error) {
+    return { ...base, error: result.error || `la plantilla ${templateId} no existe` };
+  }
+
+  const profile = configuration.agents?.[id];
+  const seeded = (controlId: string) => configuration.controls.some(control => control.controlId === controlId);
+
+  Object.entries(template.values).forEach(([controlId, values]) => {
+    if (!seeded(controlId)) return;
+    Object.keys(values).forEach(parameterId => {
+      base.sets.push(`${controlId} ${parameterId}`);
+      const own = profile?.controls?.[controlId]?.parameters;
+      if (own && Object.prototype.hasOwnProperty.call(own, parameterId)) {
+        base.ownWins.push(`${controlId} ${parameterId}`);
+      }
+    });
+  });
+
+  configuration.controls.forEach(control => {
+    const before = resolveControlConfigurationWithOrigins(configuration, control.controlId, id);
+    const after = resolveControlConfigurationWithOrigins(result.configuration, control.controlId, id);
+    control.parameters.forEach(parameter => {
+      if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
+      const left = before?.configuration.parameters.find(item => item.id === parameter.id)?.value;
+      const right = after?.configuration.parameters.find(item => item.id === parameter.id)?.value;
+      if (!sameValue(left, right)) base.changes.push(`${control.controlId} ${parameter.id}`);
+    });
+  });
+
+  const replaced =
+    template.kind === 'base'
+      ? (profile?.templates || []).find(other => other !== templateId && getConfigurationTemplate(other)?.kind === 'base')
+      : undefined;
+
+  if (replaced) {
+    base.replaces = getConfigurationTemplate(replaced)?.label || replaced;
+  }
+
+  if (!effectiveType) {
+    base.mismatch = `el tipo de este sistema no está detectado; «${template.label}» es para ${template.systemTypes.map(type => TYPE_LABELS[type] || type).join(' o ')}`;
+  } else if (!template.systemTypes.includes(effectiveType)) {
+    base.mismatch = `«${template.label}» es para ${template.systemTypes.map(type => TYPE_LABELS[type] || type).join(' o ')} y este sistema es ${TYPE_LABELS[effectiveType] || effectiveType}`;
+  }
+
+  return { ...base, configuration: result.configuration };
+};
+
+// Qué pasa al guardar `value` como valor de un sistema: se quita (vacío), no se
+// guarda (igual al que hereda) o pasa a ser propio. La pantalla lo dice antes.
+export const describeAgentValueSave = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  controlId: string,
+  parameterId: string,
+  value: ENSAgentParameterValue | undefined
+): 'quitar' | 'igual' | 'propio' => {
+  if (value === undefined || isEmptyParameterValue(value)) return 'quitar';
+  const profile = configuration.agents?.[normalizeAgentId(agentId)];
+  const inherited =
+    getAgentTemplateValue(profile, controlId, parameterId)?.value ??
+    configuration.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId)?.value;
+  return sameValue(value, inherited) ? 'igual' : 'propio';
+};

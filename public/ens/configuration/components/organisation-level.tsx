@@ -17,6 +17,7 @@ import {
   isAgentLevelParameter,
 } from '../agents/parameter-classes';
 
+import { getENSControlConfiguration } from '../registry';
 import { ConfigurationCatalog } from './configuration-catalog';
 import { ControlConfigurationPage } from './control-configuration-page';
 import { GlobalConfigurationPanel } from './global-configuration-panel';
@@ -93,8 +94,9 @@ export const OrganisationLevel = ({
             title={`${target.controlId} no está en la configuración`}
           >
             <p>
-              El enlace pide un control que todavía no se ha añadido. Se añade
-              abajo, en «Controles del catálogo sin añadir».
+              {getENSControlConfiguration(target.controlId)
+                ? 'El enlace pide un control que todavía no se ha añadido. Se añade abajo, en «Controles del catálogo sin añadir».'
+                : `${target.controlId} no es ningún control del catálogo de esta versión: el enlace está mal escrito o es de otra versión.`}
             </p>
           </EuiCallOut>
           <EuiSpacer size='m' />

@@ -25,8 +25,11 @@ import {
   effectiveSystemType,
 } from '../agents/system-detection';
 import {
+  ENSTemplatePreview,
   applyTemplateToAgent,
   getAgentCompleteness,
+  previewTemplateApplication,
+  removeAgentEntry,
 } from '../agents/agent-configuration-actions';
 import { getAgentControls } from '../agents/agent-controls';
 import {
@@ -35,9 +38,11 @@ import {
   summarizeMigrationPlan,
 } from '../agents/migration';
 import { validateAgentsConfiguration } from '../agents/agent-configuration-validator';
-import { saveActiveENSConfiguration } from '../services/configuration-state-service';
+import { saveFromLatestConfiguration } from '../services/configuration-state-service';
 
 import { AgentConfigurationPage } from './agent-configuration-page';
+import { ConfirmModal, errorMessage } from './confirm-modal';
+import { TemplatePreviewModal } from './template-preview-modal';
 import { useSystemsData } from './use-systems-data';
 
 interface SystemsLevelProps {
@@ -55,8 +60,7 @@ export interface ENSSystemRow {
   detection: ENSSystemDetection;
 }
 
-const message = (error: unknown): string =>
-  error instanceof Error && error.message.trim() ? error.message.trim() : 'No se pudo guardar la configuración ENS.';
+type Notice = { color: 'success' | 'danger' | 'warning'; text: string } | undefined;
 
 // «Sistemas»: los agentes del alcance con su tipo detectado (y corregible),
 // sus plantillas y cuánto tienen declarado. Los perfiles de máquinas que ya no
@@ -69,10 +73,15 @@ export const SystemsLevel = ({
   onConfigurationSaved,
 }: SystemsLevelProps) => {
   const data = useSystemsData();
-  const [selected, setSelected] = useState<ENSSystemRow[]>([]);
-  const [templateId, setTemplateId] = useState<string>(ENS_CONFIGURATION_TEMPLATES[0].id);
-  const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ color: 'success' | 'danger' | 'warning'; text: string } | undefined>();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Sin plantilla elegida de antemano: elegirla es una decisión.
+  const [templateId, setTemplateId] = useState<string>('');
+  const [preview, setPreview] = useState<ENSTemplatePreview[] | undefined>();
+  const [confirmMigration, setConfirmMigration] = useState(false);
+  const [notice, setNotice] = useState<Notice>();
+  // La selección de EuiBasicTable no se controla desde fuera: tras aplicar, la
+  // tabla se monta de nuevo para que las casillas se vacíen de verdad.
+  const [tableKey, setTableKey] = useState(0);
 
   const rows = useMemo<ENSSystemRow[]>(() => {
     const byId = new Map<string, ENSSystemRow>();
@@ -93,81 +102,125 @@ export const SystemsLevel = ({
     return Array.from(byId.values()).sort((left, right) => left.id.localeCompare(right.id));
   }, [data, configuration]);
 
+  const scopeIds = useMemo(() => data.scopeAgents.map(agent => normalizeAgentId(agent.id)), [data.scopeAgents]);
+
   const migration = useMemo(
-    () => planMigrationToSystems(configuration, data.inventory),
-    [configuration, data.inventory]
+    () => planMigrationToSystems(configuration, data.inventory, { scopeAgentIds: scopeIds }),
+    [configuration, data.inventory, scopeIds]
   );
 
   const issues = useMemo(() => validateAgentsConfiguration(configuration), [configuration]);
+  const errors = issues.filter(issue => issue.severity === 'error');
+  const warnings = issues.filter(issue => issue.severity === 'warning');
 
-  const save = async (candidate: ENSConfigurationVersion, reason: string) => {
-    await saveActiveENSConfiguration(candidate, reason);
-    onConfigurationSaved();
-  };
+  // Una vez por documento, no en cada clic.
+  const completeness = useMemo(() => {
+    const byId = new Map<string, ReturnType<typeof getAgentCompleteness>>();
+    rows.forEach(row => {
+      const type = effectiveSystemType(row.detection, configuration.agents?.[row.id]).type;
+      const measured = getAgentControls(configuration, row.id, type, getActiveLevel)
+        .filter(control => control.measured)
+        .map(control => ({ controlId: control.controlId, level: control.level }));
+      byId.set(row.id, getAgentCompleteness(configuration, row.id, measured));
+    });
+    return byId;
+  }, [rows, configuration, getActiveLevel]);
 
-  const runMigration = async () => {
-    setSaving(true);
-    setNotice(undefined);
+  const rowById = (id: string) => rows.find(row => row.id === id);
+
+  const runMigration = async (): Promise<string | undefined> => {
     try {
-      await save(migration.configuration, summarizeMigrationPlan(migration));
-      setNotice({ color: 'success', text: `${summarizeMigrationPlan(migration)} La versión anterior queda en el historial.` });
+      const done = await saveFromLatestConfiguration(latest => {
+        const plan = planMigrationToSystems(latest, data.inventory, { scopeAgentIds: scopeIds });
+        return plan.changed && !plan.incomplete.length
+          ? { configuration: plan.configuration, reason: summarizeMigrationPlan(plan) }
+          : undefined;
+      });
+      setConfirmMigration(false);
+      setNotice({
+        color: done ? 'success' : 'warning',
+        text: done
+          ? `${summarizeMigrationPlan(migration)} La versión anterior queda en el historial.`
+          : 'No había nada que migrar en la versión más reciente del documento.',
+      });
+      onConfigurationSaved();
+      return undefined;
     } catch (error) {
-      setNotice({ color: 'danger', text: message(error) });
-    } finally {
-      setSaving(false);
+      return errorMessage(error);
     }
   };
 
-  const applyToSelected = async () => {
+  const openPreview = () => {
+    if (!templateId || !selectedIds.length) return;
+    setPreview(
+      selectedIds.map(id => {
+        const row = rowById(id);
+        const type = row ? effectiveSystemType(row.detection, configuration.agents?.[id]).type : undefined;
+        return previewTemplateApplication(configuration, id, templateId, type, row?.agent, row?.detection);
+      })
+    );
+  };
+
+  const applyPreview = async (): Promise<string | undefined> => {
     const template = getConfigurationTemplate(templateId);
-    if (!template || !selected.length) return;
-    setSaving(true);
-    setNotice(undefined);
-    let candidate = configuration;
-    const skipped: string[] = [];
-    const applied: string[] = [];
-    selected.forEach(row => {
-      const result = applyTemplateToAgent(candidate, row.id, templateId, row.agent, row.detection);
-      if (result.error) skipped.push(`${row.id} (${result.error})`);
-      else {
-        candidate = result.configuration;
-        applied.push(row.id);
-      }
-    });
+    const ids = (preview || []).filter(item => !item.error).map(item => item.agentId);
     try {
-      if (applied.length) {
-        await save(candidate, `Plantilla «${template.label}» aplicada a ${applied.join(', ')}.`);
-      }
+      await saveFromLatestConfiguration(latest => {
+        let candidate = latest;
+        ids.forEach(id => {
+          const row = rowById(id);
+          const result = applyTemplateToAgent(candidate, id, templateId, row?.agent, row?.detection);
+          if (!result.error) candidate = result.configuration;
+        });
+        return ids.length ? { configuration: candidate, reason: `Plantilla «${template?.label}» aplicada a ${ids.join(', ')}.` } : undefined;
+      });
+      const skipped = (preview || []).filter(item => item.error);
       setNotice({
         color: skipped.length ? 'warning' : 'success',
         text: [
-          applied.length ? `«${template.label}» aplicada a ${applied.join(', ')}.` : '',
-          skipped.length ? `No se aplicó a: ${skipped.join('; ')}.` : '',
+          ids.length ? `«${template?.label}» aplicada a ${ids.join(', ')}.` : '',
+          skipped.length ? `No se aplicó a: ${skipped.map(item => `${item.agentId} (${item.error})`).join('; ')}.` : '',
         ].filter(Boolean).join(' '),
       });
-      setSelected([]);
+      setPreview(undefined);
+      setSelectedIds([]);
+      setTableKey(key => key + 1);
+      onConfigurationSaved();
+      return undefined;
     } catch (error) {
-      setNotice({ color: 'danger', text: message(error) });
-    } finally {
-      setSaving(false);
+      return errorMessage(error);
     }
   };
 
-  const selectedRow = target.agentId
-    ? rows.find(row => row.id === normalizeAgentId(target.agentId))
-    : undefined;
+  const removeOrphan = async (agentKey: string, controlId?: string, parameterId?: string) => {
+    try {
+      await saveFromLatestConfiguration(latest => ({
+        configuration: removeAgentEntry(latest, agentKey, controlId, parameterId),
+        reason: `Quitado de ${agentKey} un valor que no se aplicaba${controlId ? ` (${controlId}${parameterId ? ` ${parameterId}` : ''})` : ''}.`,
+      }));
+      onConfigurationSaved();
+    } catch (error) {
+      setNotice({ color: 'danger', text: errorMessage(error) });
+    }
+  };
 
   if (target.agentId) {
-    const row: ENSSystemRow = selectedRow || {
-      id: normalizeAgentId(target.agentId),
-      agent: { id: normalizeAgentId(target.agentId), groups: [] },
+    const id = normalizeAgentId(target.agentId);
+    const inventoryAgent = data.inventory.find(agent => normalizeAgentId(agent.id) === id);
+    const row: ENSSystemRow = rowById(id) || {
+      id,
+      agent: inventoryAgent || { id, groups: [] },
       inScope: false,
-      detection: detectAgentSystem({ id: normalizeAgentId(target.agentId) }),
+      detection: detectAgentSystem(inventoryAgent || { id }, data.facts[id]),
     };
     return (
       <AgentConfigurationPage
+        key={row.id}
         configuration={configuration}
         row={row}
+        known={!!rowById(id) || !!inventoryAgent}
+        loading={data.loading}
+        detectionErrors={data.errors}
         target={target}
         getActiveLevel={getActiveLevel}
         onNavigate={onNavigate}
@@ -197,7 +250,7 @@ export const SystemsLevel = ({
               {effective.type ? ENS_SYSTEM_TYPE_LABELS[effective.type] : 'Sin detectar'}
             </EuiBadge>
             <EuiText size='xs' color='subdued'>
-              <p>{effective.description}</p>
+              <p>{data.loading && !effective.manual ? 'detectando…' : effective.description}</p>
             </EuiText>
           </div>
         );
@@ -221,19 +274,15 @@ export const SystemsLevel = ({
       field: 'inScope',
       name: 'Completitud',
       render: (_inScope: boolean, row: ENSSystemRow) => {
-        const type = effectiveSystemType(row.detection, configuration.agents?.[row.id]).type;
-        const measured = getAgentControls(configuration, row.id, type, getActiveLevel)
-          .filter(control => control.measured)
-          .map(control => ({ controlId: control.controlId, level: control.level }));
-        const completeness = getAgentCompleteness(configuration, row.id, measured);
-        return (
+        const value = completeness.get(row.id);
+        return value ? (
           <EuiText size='xs'>
             <p>
-              {completeness.withValue} de {completeness.total} con valor · {completeness.ownValues} propios
-              {completeness.missingRequired.length ? ` · ${completeness.missingRequired.length} obligatorios sin valor` : ''}
+              {value.withValue} de {value.total} con valor · {value.ownValues} propios
+              {value.missingRequired.length ? ` · ${value.missingRequired.length} obligatorios sin valor` : ''}
             </p>
           </EuiText>
-        );
+        ) : null;
       },
     },
     {
@@ -247,6 +296,8 @@ export const SystemsLevel = ({
         ),
     },
   ];
+
+  const byAgent = Array.from(new Set(migration.moves.map(move => move.agentId))).sort();
 
   return (
     <>
@@ -284,25 +335,25 @@ export const SystemsLevel = ({
           <EuiCallOut color='primary' iconType='iInCircle' title='Hay valores de organización que son de un sistema concreto'>
             <p>{summarizeMigrationPlan(migration)}</p>
             <p>
-              «Migrar a sistemas» pasa a cada agente las filas de las tablas con
-              columna de sistema que lo nombran (por su id, su nombre o su
-              hostname). Las filas «*» se quedan en la organización y se copian
-              al agente; las que no nombran a ningún agente se quedan en la
-              organización. No se borra nada: la versión anterior queda en el
-              historial.
+              «Migrar a sistemas» copia a cada agente las filas de las tablas con
+              columna de sistema que lo nombran (por su id, su nombre, su hostname
+              o sus otros nombres). Una fila sale de la organización solo si
+              ninguna máquina del alcance se queda con ello sin valor; si no, se
+              copia y se queda también en la organización. Las filas «*» se
+              copian; las que no nombran a ningún agente se quedan. No se borra
+              nada: la versión anterior queda en el historial.
             </p>
-            <EuiAccordion id='ens-migration-moves' buttonContent='Ver qué se mueve'>
+            <EuiAccordion id='ens-migration-moves' buttonContent='Ver qué se mueve y qué se copia'>
               <ul>
                 {migration.moves.map(move => (
                   <li key={`${move.agentId}-${move.controlId}-${move.parameterId}`}>
-                    {move.controlId} {move.parameterId} → {move.agentId}
-                    {move.agentName ? ` · ${move.agentName}` : ''}: {move.rows.length} fila(s)
+                    {move.agentId}{move.agentName ? ` · ${move.agentName}` : ''}: {move.controlId} {move.parameterId}, {move.rows.length} fila(s) {move.mode === 'movida' ? 'salen de la organización' : 'se copian (se quedan también en la organización)'}
                   </li>
                 ))}
               </ul>
             </EuiAccordion>
             <EuiSpacer size='s' />
-            <EuiButton fill size='s' isLoading={saving} isDisabled={saving || data.loading} onClick={runMigration}>
+            <EuiButton fill size='s' isDisabled={data.loading || migration.incomplete.length > 0} onClick={() => setConfirmMigration(true)}>
               Migrar a sistemas
             </EuiButton>
           </EuiCallOut>
@@ -310,17 +361,61 @@ export const SystemsLevel = ({
         </>
       )}
 
+      {confirmMigration && (
+        <ConfirmModal
+          title='Migrar a sistemas'
+          confirmLabel='Migrar'
+          typedWord='migrar'
+          danger
+          onCancel={() => setConfirmMigration(false)}
+          onConfirm={runMigration}
+        >
+          <EuiText size='s'>
+            <p>{summarizeMigrationPlan(migration)}</p>
+            {byAgent.map(agentId => (
+              <React.Fragment key={agentId}>
+                <h4>Sistema {agentId}</h4>
+                <ul>
+                  {migration.moves.filter(move => move.agentId === agentId).map(move => (
+                    <li key={`${move.controlId}-${move.parameterId}`}>
+                      {move.controlId} {move.parameterId}: {move.rows.length} fila(s) {move.mode === 'movida' ? 'movidas' : 'copiadas'}
+                    </li>
+                  ))}
+                </ul>
+              </React.Fragment>
+            ))}
+            <p>
+              Parámetros que se quedarían sin valor en alguna máquina del alcance:{' '}
+              {migration.incomplete.length ? migration.incomplete.map(item => `${item.agentId} ${item.controlId} ${item.parameterId}`).join(', ') : 'ninguno'}.
+            </p>
+            <p>
+              <strong>Los veredictos de estas máquinas pueden cambiar</strong>: cada
+              una pasa a evaluarse con sus filas, no con las de las demás.
+            </p>
+            <p>
+              Un plugin 1.1.0 no lee los valores por sistema: si se vuelve a la
+              1.1.0, deja de ver las filas que salen de la organización.
+            </p>
+            <p>
+              La versión anterior del documento queda en el historial. Antes,
+              guardar además una copia (guía 09, apartado 8.1).
+            </p>
+          </EuiText>
+        </ConfirmModal>
+      )}
+
       {migration.warnings.length > 0 && (
         <>
           <EuiCallOut color='warning' iconType='iInCircle' title={`${migration.warnings.length} fila(s) sin agente se quedan en la organización`}>
             <p>
-              Lo heredan las máquinas sin valor propio. Si nombran una máquina
-              del alcance con otro nombre, se añade ese nombre como alias del
-              agente o se mueve la fila a mano.
+              Lo heredan las máquinas sin valor propio. Si una nombra a una
+              máquina del alcance con otro nombre, ese nombre se añade en la
+              página de la máquina, en «Otros nombres de esta máquina», y la
+              migración la reconoce.
             </p>
             <ul>
-              {migration.warnings.map(warning => (
-                <li key={`${warning.controlId}-${warning.parameterId}-${warning.row}`}>{describeMigrationWarning(warning)}</li>
+              {migration.warnings.map((warning, index) => (
+                <li key={`${index}-${warning.controlId}-${warning.parameterId}`}>{describeMigrationWarning(warning)}</li>
               ))}
             </ul>
           </EuiCallOut>
@@ -328,13 +423,31 @@ export const SystemsLevel = ({
         </>
       )}
 
-      {issues.length > 0 && (
+      {errors.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Valores por sistema que no se pueden aplicar'>
+          <EuiCallOut color='danger' iconType='alert' title='Valores por sistema que hay que corregir'>
             <ul>
-              {issues.map(issue => (
-                <li key={`${issue.agentId}-${issue.message}`}>{issue.agentId}: {issue.message}</li>
+              {errors.map((issue, index) => (
+                <li key={`${index}-${issue.agentId}`}>
+                  {issue.agentId}: {issue.message}
+                  {issue.kind === 'huerfano' && (
+                    <EuiButtonEmpty size='xs' color='danger' onClick={() => removeOrphan(issue.agentId, issue.controlId, issue.parameterId)}>
+                      Quitar
+                    </EuiButtonEmpty>
+                  )}
+                </li>
               ))}
+            </ul>
+          </EuiCallOut>
+          <EuiSpacer size='m' />
+        </>
+      )}
+
+      {warnings.length > 0 && (
+        <>
+          <EuiCallOut color='primary' iconType='iInCircle' size='s' title='Claves que esta versión no conoce (se ignoran)'>
+            <ul>
+              {warnings.map((issue, index) => <li key={`${index}-${issue.agentId}`}>{issue.message}</li>)}
             </ul>
           </EuiCallOut>
           <EuiSpacer size='m' />
@@ -346,33 +459,48 @@ export const SystemsLevel = ({
           <EuiSelect
             compressed
             aria-label='Plantilla'
-            options={ENS_CONFIGURATION_TEMPLATES.map(template => ({
-              value: template.id,
-              text: `${template.label}${template.kind === 'addon' ? ' (añadido)' : ''}`,
-            }))}
+            options={[
+              { value: '', text: 'Elegir plantilla…' },
+              ...ENS_CONFIGURATION_TEMPLATES.map(template => ({
+                value: template.id,
+                text: `${template.label}${template.kind === 'addon' ? ' (añadido)' : ''}`,
+              })),
+            ]}
             value={templateId}
             onChange={event => setTemplateId(event.target.value)}
           />
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          <EuiButton size='s' isDisabled={!selected.length || saving} isLoading={saving} onClick={applyToSelected}>
-            Aplicar a {selected.length} sistema(s) seleccionado(s)
+          <EuiButton size='s' isDisabled={!templateId || !selectedIds.length} onClick={openPreview}>
+            Aplicar a {selectedIds.length} sistema(s) seleccionado(s)…
           </EuiButton>
         </EuiFlexItem>
       </EuiFlexGroup>
-      <EuiText size='xs' color='subdued'>
-        <p>{getConfigurationTemplate(templateId)?.description}</p>
-      </EuiText>
+      {templateId && (
+        <EuiText size='xs' color='subdued'>
+          <p>{getConfigurationTemplate(templateId)?.description}</p>
+        </EuiText>
+      )}
+
+      {preview && (
+        <TemplatePreviewModal
+          label={getConfigurationTemplate(templateId)?.label || templateId}
+          previews={preview}
+          onCancel={() => setPreview(undefined)}
+          onConfirm={applyPreview}
+        />
+      )}
 
       <EuiSpacer size='m' />
 
       <EuiBasicTable
+        key={tableKey}
         items={rows}
         itemId='id'
         columns={columns as any}
         loading={data.loading}
         isSelectable
-        selection={{ onSelectionChange: (items: ENSSystemRow[]) => setSelected(items) }}
+        selection={{ onSelectionChange: (items: ENSSystemRow[]) => setSelectedIds(items.map(item => item.id)) }}
         noItemsMessage='No hay agentes en el alcance.'
       />
     </>

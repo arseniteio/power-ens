@@ -1,20 +1,22 @@
 /**
- * Configuración: la pantalla de dos niveles, el enlace desde la URL y las
- * acciones que hace sobre el documento.
+ * Configuración: la pantalla de dos niveles, el enlace desde la URL y lo que
+ * hacen sus botones.
  *
  *   npx --yes tsx tests/configuration-screen.test.ts
  *
+ * La pantalla se pinta con un React de mentira que SÍ guarda el estado de los
+ * hooks entre pintadas (useState, useRef, useEffect), con EUI de mentira y con
+ * el cliente HTTP y la búsqueda del dashboard de mentira. Así se pulsan los
+ * botones de verdad y se comprueba qué documento se manda a guardar:
+ *
  *   1. El enlace: `?tabView=configuration&configControl=…&configAgent=…&configParam=…`.
- *   2. Las acciones (puras): valor propio de un agente (y quitarlo), plantilla
- *      que sustituye a otra de plataforma, añadidos incompatibles, tipo
- *      corregido a mano, completitud.
- *   3. «Añadir con valores por defecto»: añade exactamente el bloque semilla
- *      de `config/` (lo mismo que `inject-control.py` con un control que no
- *      estaba) y no toca nada más.
- *   4. La pantalla, pintada con React y EUI de mentira: Organización con los
- *      controles sin añadir; un control abierto desde la URL; Sistemas con la
- *      migración; un agente abierto desde la URL con el parámetro pedido y el
- *      origen de cada valor.
+ *   2. Las acciones puras: valor propio (y quitarlo), plantilla que sustituye a
+ *      otra, incompatibles, tipo, completitud, vista previa de una plantilla.
+ *   3. «Añadir con valores por defecto» = exactamente el bloque semilla.
+ *   4. La pantalla y sus botones: migrar (con confirmación tecleada), aplicar
+ *      una plantilla (con vista previa), quitar un valor propio, añadir un
+ *      control, quitar un valor huérfano, otros nombres; sin agents, sin
+ *      agentes y con un agente fuera del alcance; una aportación en un agente.
  */
 import { readFileSync, readdirSync } from 'fs';
 
@@ -22,10 +24,21 @@ declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-// --- React, EUI y el router de mentira, ANTES de cargar nada ----------------
-let busqueda = '';
-const empujadas: string[] = [];
+// --- React con hooks de verdad (mínimos), EUI y el router de mentira ---------
 const ELEMENTO = Symbol('elemento');
+const estados = new Map<string, any[]>();
+const efectosHechos = new Map<string, string>();
+let pendientes: Array<() => void> = [];
+let ruta = '';
+let indice = 0;
+const casilla = (inicial: () => any) => {
+  const clave = ruta;
+  let arr = estados.get(clave);
+  if (!arr) { arr = []; estados.set(clave, arr); }
+  const i = indice++;
+  if (!(i in arr)) arr[i] = inicial();
+  return { arr, i };
+};
 const reactStub: any = {
   createElement: (type: any, props: any, ...children: any[]) => ({
     [ELEMENTO]: true,
@@ -35,11 +48,21 @@ const reactStub: any = {
   Fragment: 'Fragment',
   Suspense: 'Suspense',
   lazy: (f: any) => f,
-  useState: (inicial: any) => [typeof inicial === 'function' ? inicial() : inicial, () => undefined],
+  useState: (inicial: any) => {
+    const { arr, i } = casilla(() => (typeof inicial === 'function' ? inicial() : inicial));
+    return [arr[i], (v: any) => { arr[i] = typeof v === 'function' ? v(arr[i]) : v; }];
+  },
+  useRef: (inicial: any) => casilla(() => ({ current: inicial ?? null })).arr[indice - 1],
   useMemo: (f: any) => f(),
   useCallback: (f: any) => f,
-  useEffect: () => undefined,
-  useRef: () => ({ current: null }),
+  useEffect: (f: any, deps?: any[]) => {
+    const clave = `${ruta}#${indice++}`;
+    const firma = deps === undefined ? String(Math.random()) : JSON.stringify(deps);
+    if (efectosHechos.get(clave) !== firma) {
+      efectosHechos.set(clave, firma);
+      pendientes.push(f);
+    }
+  },
 };
 reactStub.default = reactStub;
 const euiStub = new Proxy({}, {
@@ -51,20 +74,51 @@ const euiStub = new Proxy({}, {
     return c;
   },
 });
+
+let busqueda = '';
+const guardados: { configuration: any; changeReason?: string }[] = [];
+let inventarioFalso: any = { agentes: { buckets: [] } };
+let hechosFalsos: any = { agentes: { buckets: [] } };
+const SERVICES = `${__dirname}/../public/services.ts`;
 {
   const Module = require('module');
+  const path = require('path');
   const cargar = Module._load;
-  Module._load = function (peticion: string, ...resto: unknown[]) {
+  Module._load = function (peticion: string, padre: any, ...resto: unknown[]) {
     if (/kibana-services$/.test(peticion)) return {};
     if (peticion === 'react') return reactStub;
     if (peticion === '@elastic/eui') return euiStub;
     if (peticion === 'react-router-dom') {
       return {
         useLocation: () => ({ search: busqueda }),
-        useHistory: () => ({ push: (l: any) => empujadas.push(l.search) }),
+        useHistory: () => ({ push: (l: any) => { busqueda = l.search; } }),
       };
     }
-    return cargar.call(this, peticion, ...resto);
+    let resuelto = '';
+    try { resuelto = Module._resolveFilename(peticion, padre); } catch (e) { resuelto = ''; }
+    if (resuelto && path.resolve(resuelto) === path.resolve(SERVICES)) {
+      return {
+        getHttp: () => ({
+          get: async () => ({ statusCode: 200, error: 0, data: { configuration: null, metadata: null } }),
+          put: async (_url: string, opciones: any) => {
+            const cuerpo = JSON.parse(opciones.body);
+            guardados.push(cuerpo);
+            return { statusCode: 200, error: 0, data: { configuration: cuerpo.configuration, metadata: null } };
+          },
+        }),
+        getData: () => ({
+          search: {
+            search: (p: any) => ({
+              toPromise: async () => ({
+                rawResponse: { aggregations: /monitoring/.test(p.params.index) ? inventarioFalso : hechosFalsos },
+              }),
+            }),
+          },
+        }),
+        getCore: () => ({ notifications: { toasts: { addWarning: () => undefined } } }),
+      };
+    }
+    return cargar.call(this, peticion, padre, ...resto);
   };
 }
 
@@ -74,31 +128,79 @@ const comprueba = (n: string, c: boolean, d: unknown = '') => {
   if (!c) fallos.push(n);
 };
 
-// Pinta el árbol entero a texto: ejecuta los componentes propios, abre los de
-// EUI por sus hijos y por las props que son elementos, y en una tabla pinta
-// cada celda con su `render`.
-const pinta = (nodo: any, salida: string[] = []): string[] => {
-  if (nodo === null || nodo === undefined || nodo === false || nodo === true) return salida;
-  if (Array.isArray(nodo)) { nodo.forEach(n => pinta(n, salida)); return salida; }
-  if (typeof nodo === 'string' || typeof nodo === 'number') { salida.push(String(nodo)); return salida; }
-  if (!nodo[ELEMENTO]) return salida;
+// --- pintar -------------------------------------------------------------------
+interface Nodo { type: string; props: any; ruta: string; texto: string }
+let nodos: Nodo[] = [];
+
+const textoDe = (nodo: any): string => {
+  if (nodo === null || nodo === undefined || typeof nodo === 'boolean') return '';
+  if (Array.isArray(nodo)) return nodo.map(textoDe).join(' ');
+  if (typeof nodo === 'string' || typeof nodo === 'number') return String(nodo);
+  if (!nodo[ELEMENTO]) return '';
+  return textoDe(nodo.props?.children);
+};
+
+const pinta = (nodo: any, donde: string, salida: string[]): void => {
+  if (nodo === null || nodo === undefined || typeof nodo === 'boolean') return;
+  if (Array.isArray(nodo)) { nodo.forEach((n, i) => pinta(n, `${donde}.${n?.props?.key ?? n?.key ?? i}`, salida)); return; }
+  if (typeof nodo === 'string' || typeof nodo === 'number') { salida.push(String(nodo)); return; }
+  if (!nodo[ELEMENTO]) return;
   const { type, props } = nodo;
-  if (typeof type === 'function' && !(type as any).eui) return pinta(type(props), salida);
-  if (typeof type === 'function') return pinta(type(props), salida);
-  if (type === 'eui:EuiBasicTable') {
-    (props.items || []).forEach((item: any) => (props.columns || []).forEach((col: any) => pinta(col.render ? col.render(item[col.field], item) : item[col.field], salida)));
+  if (typeof type === 'function' && !(type as any).eui) {
+    const aqui = `${donde}/${type.name || 'C'}${props?.key !== undefined ? `:${props.key}` : ''}`;
+    const antes = [ruta, indice] as const;
+    ruta = aqui; indice = 0;
+    const hijo = type(props);
+    ruta = antes[0]; indice = antes[1];
+    nodos.push({ type: type.name, props, ruta: aqui, texto: '' });
+    pinta(hijo, aqui, salida);
+    return;
   }
-  if (type === 'eui:EuiButton' || type === 'eui:EuiButtonEmpty' || type === 'eui:EuiTab') salida.push('[');
+  if (typeof type === 'function') { pinta(type(props), donde, salida); return; }
+  const nombre = String(type).replace(/^eui:/, '');
+  nodos.push({ type: nombre, props, ruta: donde, texto: textoDe(props?.children).replace(/\s+/g, ' ').trim() });
+  if (nombre === 'EuiBasicTable') {
+    (props.items || []).forEach((item: any) => (props.columns || []).forEach((col: any) => pinta(col.render ? col.render(item[col.field], item) : item[col.field], `${donde}.${item.id}`, salida)));
+  }
+  const marca = ['EuiButton', 'EuiButtonEmpty', 'EuiTab'].includes(nombre);
+  if (marca) salida.push('[');
   Object.entries(props || {}).forEach(([clave, valor]: [string, any]) => {
     if (clave === 'children') return;
-    if (['title', 'helpText', 'label', 'noItemsMessage', 'buttonContent'].includes(clave)) { if (typeof valor === 'string') salida.push(valor); }
-    if (valor && (valor[ELEMENTO] || Array.isArray(valor))) pinta(valor, salida);
+    if (['title', 'helpText', 'label', 'noItemsMessage', 'buttonContent'].includes(clave) && typeof valor === 'string') salida.push(valor);
+    if (valor && (valor[ELEMENTO] || Array.isArray(valor))) pinta(valor, `${donde}.${clave}`, salida);
   });
-  pinta(props?.children, salida);
-  if (type === 'eui:EuiButton' || type === 'eui:EuiButtonEmpty' || type === 'eui:EuiTab') salida.push(']');
-  return salida;
+  pinta(props?.children, `${donde}.c`, salida);
+  if (marca) salida.push(']');
 };
-const texto = (nodo: any) => pinta(nodo).join(' ').replace(/\s+/g, ' ');
+
+const espera = () => new Promise(r => setTimeout(r, 0));
+
+let pantalla = '';
+const renderiza = async (raiz: any, vueltas = 4): Promise<string> => {
+  for (let v = 0; v < vueltas; v += 1) {
+    nodos = [];
+    const salida: string[] = [];
+    ruta = ''; indice = 0;
+    pinta(reactStub.createElement(raiz, null), 'raiz', salida);
+    pantalla = salida.join(' ').replace(/\s+/g, ' ');
+    const efectos = pendientes;
+    pendientes = [];
+    efectos.forEach(f => f());
+    await espera();
+    await espera();
+  }
+  return pantalla;
+};
+
+const boton = (texto: RegExp, tipo?: string) =>
+  nodos.find(n => (n.type === 'EuiButton' || n.type === 'EuiButtonEmpty') && (!tipo || n.type === tipo) && texto.test(n.texto));
+const pulsa = async (raiz: any, texto: RegExp) => {
+  const b = boton(texto);
+  if (!b) throw new Error(`no hay botón ${texto}`);
+  await b.props.onClick();
+  await espera();
+  return renderiza(raiz);
+};
 
 const { buildConfigurationSearch, parseConfigurationTarget, configurationSearchChanges } =
   require('../public/routing/configuration-link') as typeof import('../public/routing/configuration-link');
@@ -126,9 +228,24 @@ const documento = (): any => ({
       b.parameters.find((p: any) => p.id === 'P-07').value = ['ana | web01 | admin', 'svc | dir01.example.com | servicio'];
       b.parameters.find((p: any) => p.id === 'P-01').value = 'Local';
     }
+    if (id === 'op.exp.7') b.parameters.find((p: any) => p.id === 'P-07').value = ['srv-x | nóminas'];
     return b;
   }),
 });
+const AGENTES = [
+  { id: '101', name: 'web01', groups: ['ens'], status: 'active', os: { platform: 'ubuntu', uname: 'Linux |web01 |6.8 |x86_64' } },
+  { id: '102', name: 'dirHost', groups: ['ens'], status: 'active', os: { platform: 'ubuntu', uname: 'Linux |dir01.example.com |6.8 |x86_64' } },
+  { id: '103', name: 'win01', groups: ['ens'], status: 'active', os: { platform: 'windows' } },
+];
+const cubo = (a: any) => ({ key: a.id, ultimo: { hits: { hits: [{ _source: { ...a, group: a.groups, timestamp: new Date().toISOString(), manager: 'mgr-01' } }] } } });
+const prepara = async (doc: any, agentes = AGENTES) => {
+  ensConfigurationRepository.completeHydration(doc);
+  estados.clear(); efectosHechos.clear(); pendientes = []; guardados.length = 0;
+  inventarioFalso = { agentes: { buckets: agentes.map(cubo) } };
+  hechosFalsos = { agentes: { buckets: [{ key: '102', planos: { buckets: [{ key: 'directorio', doc_count: 50 }] }, copias: { origenes: { buckets: [] } } }] } };
+  await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => agentes as any, true);
+};
+const ultimo = () => guardados[guardados.length - 1];
 
 (async () => {
   console.log('1. Enlace');
@@ -142,93 +259,156 @@ const documento = (): any => ({
     comprueba('solo control: nivel Organización', parseConfigurationTarget({ configControl: 'op.acc.1' }).view === 'organisation');
     comprueba('lista de sistemas', parseConfigurationTarget({ configView: 'sistemas' }).view === 'systems');
     comprueba('volver a la lista de sistemas limpia agente, control y parámetro', JSON.stringify(configurationSearchChanges({ view: 'systems' })) === JSON.stringify({ tabView: 'configuration', configView: 'sistemas' }));
+    const app = readFileSync(`${__dirname}/../public/app/ens-app.tsx`, 'utf8');
+    comprueba('cambiar de pestaña limpia los config*', /configAgent: undefined/.test(app) && /configParam: undefined/.test(app));
   }
 
   console.log('2. Acciones');
   {
     const d = documento();
-    const agente = { id: '102', name: 'dirHost', os: { platform: 'ubuntu', uname: 'Linux |dir01.example.com |6.8 |x86_64' } };
+    const agente = AGENTES[1];
     const deteccion = { type: 'linux' as const, source: 'inventario' as const, evidence: 'os.platform = ubuntu en el inventario de agentes', addons: [] };
     const conValor = acciones.setAgentParameterValue(d, '102', 'op.acc.1', 'P-07', ['svc | dir01.example.com | servicio'], agente, deteccion);
-    comprueba('valor propio guardado', JSON.stringify(conValor.agents?.['102']?.controls?.['op.acc.1']?.parameters?.['P-07']) === '["svc | dir01.example.com | servicio"]');
-    comprueba('con la identidad de la máquina', conValor.agents?.['102']?.name === 'dirHost' && conValor.agents?.['102']?.aliases?.[0] === 'dir01.example.com' && conValor.agents?.['102']?.detectedType === 'linux', conValor.agents?.['102']);
-    comprueba('sin tocar el original', !d.agents);
-    const quitado = acciones.setAgentParameterValue(conValor, '102', 'op.acc.1', 'P-07', undefined);
-    comprueba('quitarlo borra la clave (vuelve a heredar)', !quitado.agents?.['102']?.controls);
-    const igual = acciones.setAgentParameterValue(d, '102', 'op.acc.1', 'P-01', 'Local');
-    comprueba('un valor igual al heredado no se guarda', !igual.agents?.['102']?.controls);
-    let error = '';
-    try { acciones.setAgentParameterValue(d, '102', 'op.acc.1', 'P-04', ['x']); } catch (e: any) { error = e.message; }
-    comprueba('un parámetro de organización no admite valor de agente', /organización/.test(error), error);
-
+    comprueba('valor propio guardado, con la identidad de la máquina', JSON.stringify(conValor.agents?.['102']?.controls?.['op.acc.1']?.parameters?.['P-07']) === '["svc | dir01.example.com | servicio"]' && conValor.agents?.['102']?.aliases?.[0] === 'dir01.example.com');
+    comprueba('quitarlo borra la clave', !acciones.setAgentParameterValue(conValor, '102', 'op.acc.1', 'P-07', undefined).agents?.['102']?.controls);
+    comprueba('vacío = quitar; igual al heredado = no se guarda; distinto = propio',
+      acciones.describeAgentValueSave(d, '102', 'op.acc.1', 'P-07', []) === 'quitar' &&
+      acciones.describeAgentValueSave(d, '102', 'op.acc.1', 'P-01', 'Local') === 'igual' &&
+      acciones.describeAgentValueSave(d, '102', 'op.acc.1', 'P-01', 'LDAP') === 'propio');
     const linux = acciones.applyTemplateToAgent(d, '102', 'linux-ubuntu', agente, deteccion).configuration;
     const pbs = acciones.applyTemplateToAgent(linux, '102', 'pbs-backup').configuration;
     const ldap = acciones.applyTemplateToAgent(pbs, '102', 'zimbra-ldap').configuration;
-    comprueba('una plataforma sustituye a la otra y el añadido se queda', JSON.stringify(ldap.agents?.['102']?.templates) === '["zimbra-ldap","pbs-backup"]', ldap.agents?.['102']?.templates);
-    const zne = acciones.applyTemplateToAgent(pbs, '102', 'zimbra-ne-backup');
-    comprueba('PBS y Zimbra NE: no, con el motivo, y sin cambios', !!zne.error && /no se combina/.test(zne.error) && zne.configuration === pbs, zne.error);
-    comprueba('quitar una plantilla', JSON.stringify(acciones.removeTemplateFromAgent(ldap, '102', 'pbs-backup').agents?.['102']?.templates) === '["zimbra-ldap"]');
-    const tipo = acciones.setAgentTypeOverride(d, '102', 'zimbra-ldap', agente, deteccion);
-    comprueba('tipo corregido a mano, con lo detectado', tipo.agents?.['102']?.typeOverride === 'zimbra-ldap' && tipo.agents?.['102']?.detectedType === 'linux');
-    comprueba('y vuelta al detectado', !acciones.setAgentTypeOverride(tipo, '102', undefined).agents?.['102']?.typeOverride);
+    comprueba('una plataforma sustituye a la otra y el añadido se queda', JSON.stringify(ldap.agents?.['102']?.templates) === '["zimbra-ldap","pbs-backup"]');
+    comprueba('PBS y Zimbra NE: no', !!acciones.applyTemplateToAgent(pbs, '102', 'zimbra-ne-backup').error);
+    const vista = acciones.previewTemplateApplication(pbs, '102', 'zimbra-ldap', 'linux');
+    comprueba('vista previa: sustituye a Linux Ubuntu, avisa del tipo y dice qué cambia', vista.replaces === 'Linux Ubuntu' && /es para LDAP/.test(vista.mismatch || '') && vista.changes.includes('op.acc.1 P-01'), vista);
+    const conPropio = acciones.setAgentParameterValue(pbs, '102', 'op.acc.1', 'P-01', 'Active Directory');
+    const vista2 = acciones.previewTemplateApplication(conPropio, '102', 'zimbra-ldap', 'zimbra-ldap');
+    comprueba('vista previa: el valor propio sigue ganando y no cuenta como cambio', vista2.ownWins.includes('op.acc.1 P-01') && !vista2.changes.includes('op.acc.1 P-01') && !vista2.mismatch, vista2);
     const r = resolveControlConfigurationWithOrigins(ldap, 'op.acc.1', '102')!;
-    comprueba('tras aplicar, el valor se hereda de la plantilla', r.origins['P-01'].source === 'template' && r.configuration.parameters.find(p => p.id === 'P-01')!.value === 'LDAP');
+    comprueba('tras aplicar, el valor se hereda de la plantilla', r.origins['P-01'].source === 'template');
     const c = acciones.getAgentCompleteness(ldap, '102', [{ controlId: 'op.acc.1', level: 'MEDIO' }]);
-    comprueba('completitud: con valor sobre el total de por sistema y por plataforma del nivel', c.total === 6 && c.withValue === 5 && c.missingRequired.join() === 'op.acc.1 P-02', c);
+    comprueba('completitud', c.total === 6 && c.withValue === 5 && c.missingRequired.join() === 'op.acc.1 P-02', c);
+    const huerfano = { ...d, agents: { '102': { controls: { 'op.acc.1': { parameters: { 'P-99': 'x', 'P-07': ['a | b | c'] } }, 'op.nub.1': { parameters: { 'P-01': 'x' } } } }, srvWeb: { templates: [] } } };
+    const sinP99 = acciones.removeAgentEntry(huerfano, '102', 'op.acc.1', 'P-99');
+    comprueba('quitar un valor huérfano deja lo demás', JSON.stringify(sinP99.agents?.['102']?.controls?.['op.acc.1']?.parameters) === '{"P-07":["a | b | c"]}');
+    comprueba('quitar un control huérfano', !acciones.removeAgentEntry(huerfano, '102', 'op.nub.1').agents?.['102']?.controls?.['op.nub.1']);
+    comprueba('quitar un perfil guardado por nombre', !acciones.removeAgentEntry(huerfano, 'srvWeb').agents?.srvWeb);
   }
 
   console.log('3. Añadir con valores por defecto');
   {
     const d = documento();
-    const faltan = acciones.getMissingCatalogControls(d).map(c => c.controlId).sort();
-    comprueba('lista los 6 que faltan', JSON.stringify(faltan) === JSON.stringify([...FALTAN].sort()), faltan);
     const r = acciones.addMissingControls(d, FALTAN);
-    comprueba('los añade', JSON.stringify(r.added.sort()) === JSON.stringify([...FALTAN].sort()));
-    const distintos = FALTAN.filter(id => JSON.stringify(r.configuration.controls.find(c => c.controlId === id)) !== JSON.stringify(bloques[id]));
-    comprueba('cada uno es EXACTAMENTE su bloque semilla (lo que siembra inject-control.py)', distintos.length === 0, distintos);
-    comprueba('sin tocar los que ya estaban', JSON.stringify(r.configuration.controls.slice(0, SEMBRADOS.length)) === JSON.stringify(d.controls));
-    const conAgentes = { ...d, agents: { '101': { templates: ['linux-ubuntu'] } } };
-    comprueba('ni la capa por sistema', JSON.stringify(acciones.addMissingControls(conAgentes, ['op.mon.1']).configuration.agents) === JSON.stringify(conAgentes.agents));
-    comprueba('uno que ya está no se toca', acciones.addMissingControls(d, ['op.acc.1']).added.length === 0);
+    comprueba('los 6 que faltan, cada uno EXACTAMENTE su bloque semilla', JSON.stringify(r.added.sort()) === JSON.stringify([...FALTAN].sort()) && FALTAN.every(id => JSON.stringify(r.configuration.controls.find(c => c.controlId === id)) === JSON.stringify(bloques[id])));
+    comprueba('sin tocar los que ya estaban ni la capa por sistema', JSON.stringify(r.configuration.controls.slice(0, SEMBRADOS.length)) === JSON.stringify(d.controls) && r.configuration.agents === undefined);
   }
 
-  console.log('4. Pantalla');
+  console.log('4. Pantalla y botones');
   {
-    const d = documento();
-    d.agents = { '102': { name: 'dirHost', templates: ['zimbra-ldap'], controls: { 'op.exp.1': { parameters: { 'P-06': ['dir01 | alta | directorio'] } } } } };
-    ensConfigurationRepository.completeHydration(d);
-    await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => [
-      { id: '101', name: 'web01', groups: ['ens'], status: 'active', os: { platform: 'ubuntu' } },
-      { id: '102', name: 'dirHost', groups: ['ens'], status: 'active', os: { platform: 'ubuntu', uname: 'Linux |dir01.example.com |6.8 |x86_64' } },
-    ], true);
-
+    // Organización: añadir un control que falta.
+    await prepara(documento());
     busqueda = '?tabView=configuration';
-    const org = texto(reactStub.createElement(ConfigurationShell, null));
-    comprueba('dos niveles', /\[ Organización \]/.test(org) && /\[ Sistemas \]/.test(org), org.slice(0, 300));
-    comprueba('Organización lista los controles sin añadir con su botón', /Controles del catálogo sin añadir \( 6 \)|Controles del catálogo sin añadir \(6\)/.test(org) && /\[ Añadir con valores por defecto \]/.test(org) && /op\.mon\.1/.test(org), org.slice(org.indexOf('sin añadir') - 50, org.indexOf('sin añadir') + 300));
+    let p = await renderiza(ConfigurationShell);
+    comprueba('dos niveles y los controles sin añadir', /\[ Organización \]/.test(p) && /\[ Sistemas \]/.test(p) && /Controles del catálogo sin añadir \(6\)/.test(p.replace(/\( 6 \)/, '(6)')), p.slice(0, 200));
+    p = await pulsa(ConfigurationShell, /^Añadir con valores por defecto$/);
+    comprueba('«Añadir con valores por defecto» guarda el control con su motivo', guardados.length === 1 && ultimo().configuration.controls.some((c: any) => c.controlId === 'op.cont.2') && /Alta de op\.cont\.2/.test(ultimo().changeReason || ''), guardados.map(g => g.changeReason));
+    comprueba('y deja de estar en la lista', /sin añadir \(5\)|sin añadir \( 5 \)/.test(p));
 
     busqueda = '?tabView=configuration&configControl=op.acc.1&configParam=P-07';
-    const control = texto(reactStub.createElement(ConfigurationShell, null));
-    comprueba('un control desde la URL: su página, con los de organización arriba', /op\.acc\.1 · /.test(control) && /Valores que heredan los sistemas/.test(control), control.slice(0, 400));
+    p = await renderiza(ConfigurationShell);
+    comprueba('un control desde la URL: su página, organización arriba', /op\.acc\.1 · /.test(p) && /Valores que heredan los sistemas/.test(p));
+    busqueda = '?tabView=configuration&configControl=op.zzz.9';
+    p = await renderiza(ConfigurationShell);
+    comprueba('un control que no existe en el catálogo: lo dice', /no es ningún control del catálogo/.test(p));
 
-    busqueda = '?tabView=configuration&configControl=op.nub.1';
-    const falta = texto(reactStub.createElement(ConfigurationShell, null));
-    comprueba('un control sin añadir desde la URL: lo dice y ofrece añadirlo', /op\.nub\.1 no está en la configuración/.test(falta));
-
+    // Sistemas: migrar, con confirmación tecleada.
+    await prepara(documento());
     busqueda = '?tabView=configuration&configView=sistemas';
-    const sistemas = texto(reactStub.createElement(ConfigurationShell, null));
-    comprueba('Sistemas: los agentes con su tipo detectado y su evidencia', /101 · web01/.test(sistemas) && /Linux/.test(sistemas) && /detectado por os\.platform = ubuntu/.test(sistemas), sistemas.slice(0, 500));
-    comprueba('Sistemas: la migración propuesta con su botón', /\[ Migrar a sistemas \]/.test(sistemas) && /a 2 agente/.test(sistemas), sistemas.slice(0, 900));
-    comprueba('Sistemas: plantillas y completitud', /Servidor LDAP Zimbra/.test(sistemas) && /con valor/.test(sistemas));
+    p = await renderiza(ConfigurationShell);
+    comprueba('Sistemas: tipo detectado con su evidencia, también por hechos', /101 · web01/.test(p) && /detectado por os\.platform = ubuntu/.test(p) && /LDAP \(Zimbra\)/.test(p), p.slice(0, 600));
+    p = await pulsa(ConfigurationShell, /^Migrar a sistemas$/);
+    const modal = nodos.find(n => n.type === 'EuiConfirmModal');
+    comprueba('«Migrar a sistemas» abre la confirmación con lo que mueve, veredictos, 1.1.0 e historial', !!modal && /Sistema 101/.test(p) && /veredictos de estas máquinas pueden cambiar/.test(p) && /1\.1\.0/.test(p) && /historial/.test(p), p.slice(p.indexOf('Migrar a sistemas'), p.indexOf('Migrar a sistemas') + 600));
+    await modal!.props.onConfirm();
+    comprueba('sin teclear «migrar» no guarda nada', guardados.length === 0);
+    const campo = nodos.find(n => n.type === 'EuiFieldText' && /migrar/.test(n.props['aria-label'] || ''));
+    campo!.props.onChange({ target: { value: 'migrar' } });
+    await renderiza(ConfigurationShell, 1);
+    await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+    await renderiza(ConfigurationShell);
+    comprueba('tecleado: guarda la migración', guardados.length === 1 && /Migración a sistemas/.test(ultimo().changeReason || '') && !!ultimo().configuration.agents?.['101'], guardados.map(g => g.changeReason));
 
+    // Aplicar una plantilla desde la lista: vista previa y, con aviso, «aplicar».
+    await prepara(documento());
+    busqueda = '?tabView=configuration&configView=sistemas';
+    p = await renderiza(ConfigurationShell);
+    const selector = nodos.find(n => n.type === 'EuiSelect' && n.props['aria-label'] === 'Plantilla');
+    comprueba('el selector de la lista no trae ninguna plantilla elegida', selector?.props.value === '' && boton(/^Aplicar a 0 sistema/)?.props.isDisabled === true);
+    nodos.find(n => n.type === 'EuiBasicTable')!.props.selection.onSelectionChange([{ id: '103' }]);
+    selector!.props.onChange({ target: { value: 'linux-ubuntu' } });
+    p = await renderiza(ConfigurationShell, 1);
+    p = await pulsa(ConfigurationShell, /^Aplicar a 1 sistema/);
+    comprueba('vista previa por sistema con el aviso de tipo', /Sistema 103/.test(p) && /Tipo distinto/.test(p) && /es para Linux y este sistema es Windows/.test(p), p.slice(p.indexOf('Aplicar «'), p.indexOf('Aplicar «') + 500));
+    const modalPlantilla = nodos.find(n => n.type === 'EuiConfirmModal');
+    await modalPlantilla!.props.onConfirm();
+    comprueba('con aviso, sin teclear «aplicar» no guarda', guardados.length === 0);
+    nodos.find(n => n.type === 'EuiFieldText' && /aplicar/.test(n.props['aria-label'] || ''))!.props.onChange({ target: { value: 'aplicar' } });
+    await renderiza(ConfigurationShell, 1);
+    await nodos.find(n => n.type === 'EuiConfirmModal')!.props.onConfirm();
+    p = await renderiza(ConfigurationShell);
+    comprueba('tecleado: guarda la plantilla en 103', guardados.length === 1 && JSON.stringify(ultimo().configuration.agents?.['103']?.templates) === '["linux-ubuntu"]', guardados.map(g => g.changeReason));
+    comprueba('las casillas se vacían tras aplicar', /Aplicar a 0 sistema/.test(p));
+
+    // Página de un agente: quitar un valor propio, quitar un huérfano, otros nombres.
+    const conPropio = documento();
+    conPropio.agents = {
+      '102': {
+        name: 'dirHost',
+        templates: ['zimbra-ldap'],
+        controls: {
+          'op.acc.1': { parameters: { 'P-07': ['svc | dir01.example.com | servicio'], 'P-99': 'huérfano' } },
+          'op.exp.7': { parameters: { 'P-07': ['dirHost | directorio'] } },
+        },
+      },
+    };
+    await prepara(conPropio);
     busqueda = '?tabView=configuration&configAgent=102&configControl=op.acc.1&configParam=P-01';
-    const agente = texto(reactStub.createElement(ConfigurationShell, null));
-    comprueba('un agente desde la URL: su página', /102 · dirHost/.test(agente) && /Tipo de sistema/.test(agente), agente.slice(0, 400));
-    comprueba('origen explícito: heredado de la plantilla', /heredado de la plantilla «Servidor LDAP Zimbra»/.test(agente));
-    comprueba('origen explícito: valor propio', /valor propio de este sistema/.test(agente) && /\[ Quitar valor propio \(vuelve a heredar\) \]/.test(agente));
-    comprueba('origen explícito: heredado de la organización', /heredado de la organización/.test(agente));
-    comprueba('solo parámetros por sistema y por plataforma (P-04 es de organización)', !/P-04 · /.test(agente.slice(agente.indexOf('op.acc.1'), agente.indexOf('op.acc.2'))), '');
-    comprueba('el parámetro pedido se abre para editar', /\[ Guardar para este sistema \]/.test(agente));
+    p = await renderiza(ConfigurationShell);
+    comprueba('un agente desde la URL: su página, orígenes explícitos', /102 · dirHost/.test(p) && /heredado de la plantilla «Servidor LDAP Zimbra»/.test(p) && /valor propio de este sistema/.test(p) && /heredado de la organización/.test(p));
+    const filaP01 = nodos.find(n => n.type === 'AgentParameterRow' && n.props.parameter.id === 'P-01' && n.props.parameter.controlId === 'op.acc.1');
+    comprueba('el parámetro pedido (y solo ese) se abre para editar', !!filaP01 && nodos.some(n => n.type === 'EuiButton' && /Guardar para este sistema/.test(n.texto) && n.ruta.startsWith(filaP01.ruta)) && nodos.filter(n => n.type === 'EuiButton' && /Guardar para este sistema/.test(n.texto)).length === 1);
+    comprueba('el huérfano se lista con «Quitar»', /P-99: el valor no se aplica/.test(p) && !!boton(/^Quitar$/));
+    await pulsa(ConfigurationShell, /^Quitar$/);
+    comprueba('«Quitar» borra el valor huérfano', guardados.length === 1 && !('P-99' in (ultimo().configuration.agents['102'].controls['op.acc.1'].parameters || {})) && JSON.stringify(ultimo().configuration.agents['102'].controls['op.acc.1'].parameters['P-07']) === '["svc | dir01.example.com | servicio"]');
+    p = await pulsa(ConfigurationShell, /^Quitar valor propio/);
+    comprueba('«Quitar valor propio» guarda sin el valor y vuelve a heredar', guardados.length === 2 && !ultimo().configuration.agents['102'].controls?.['op.acc.1'], ultimo().configuration.agents['102']);
+    const alias = nodos.find(n => n.type === 'EuiFieldText' && n.props.value !== undefined && /dir01\.example\.com/.test(String(n.props.value)));
+    alias!.props.onChange({ target: { value: 'dir01.example.com, directorio-principal' } });
+    p = await renderiza(ConfigurationShell, 1);
+    await pulsa(ConfigurationShell, /^Guardar otros nombres$/);
+    comprueba('«Otros nombres de esta máquina» se guardan', JSON.stringify(ultimo().configuration.agents['102'].aliases) === '["dir01.example.com","directorio-principal"]', ultimo().configuration.agents['102']);
+
+    // Una aportación en un agente que no es el manager: lo suyo y, aparte, lo de la organización.
+    busqueda = '?tabView=configuration&configAgent=102&configControl=op.exp.7';
+    p = await renderiza(ConfigurationShell);
+    const filaE7 = nodos.find(n => n.type === 'AgentParameterRow' && n.props.parameter.controlId === 'op.exp.7' && n.props.parameter.id === 'P-07');
+    comprueba('aportación: el editor parte de lo de este sistema, no de la organización', !!filaE7 && JSON.stringify(filaE7.props.parameter.value) === '["dirHost | directorio"]' && filaE7.props.contributionOnly === true, filaE7?.props.parameter.value);
+    comprueba('y las filas de la organización se enseñan aparte, de solo lectura', JSON.stringify(filaE7?.props.organisationRows) === '["srv-x | nóminas"]' && /De la organización/.test(p));
+
+    // Sin agents, sin agentes y con un agente fuera del alcance.
+    await prepara(documento(), []);
+    busqueda = '?tabView=configuration&configView=sistemas';
+    p = await renderiza(ConfigurationShell);
+    comprueba('sin agentes ni agents: se pinta', /No hay agentes en el alcance|Sistemas del alcance/.test(p));
+    const fuera = documento();
+    fuera.agents = { '777': { name: 'retirado', controls: { 'op.acc.1': { parameters: { 'P-07': ['x | retirado | y'] } } } } };
+    await prepara(fuera);
+    p = await renderiza(ConfigurationShell);
+    comprueba('un perfil fuera del alcance se lista como tal', /777 · retirado/.test(p) && /fuera del alcance/.test(p));
+    busqueda = '?tabView=configuration&configAgent=999';
+    p = await renderiza(ConfigurationShell);
+    comprueba('un id que no existe: lo avisa', /No hay ningún agente 999/.test(p));
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

@@ -263,3 +263,23 @@ export const saveActiveENSConfiguration = async (
     persistedConfiguration
   );
 };
+
+// Los guardados de la configuración por sistema, EN FILA y sobre el documento
+// más reciente: cada acción construye su documento a partir del activo en el
+// momento de ejecutarse, no del que había al pintar la pantalla. Dos guardados
+// seguidos (un valor y otro, o un valor y una plantilla) ya no se pisan.
+let agentSaveQueue: Promise<unknown> = Promise.resolve();
+
+export const saveFromLatestConfiguration = (
+  build: (
+    latest: ENSConfigurationVersion
+  ) => { configuration: ENSConfigurationVersion; reason: string } | undefined
+): Promise<ENSConfigurationVersion | undefined> => {
+  const run = agentSaveQueue.then(async () => {
+    const plan = build(getActiveENSConfiguration());
+    if (!plan) return undefined;
+    return saveActiveENSConfiguration(plan.configuration, plan.reason);
+  });
+  agentSaveQueue = run.catch(() => undefined);
+  return run;
+};
