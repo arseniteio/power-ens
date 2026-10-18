@@ -763,6 +763,15 @@ export const createEvaluationService = ({
 
   class StreamFallbackError extends Error {}
 
+  // Un rechazo del indexador (4xx de su cliente, con `meta.statusCode`) a la
+  // lectura por máquina: sus filas se leen una a una, con el orden de siempre.
+  // Los errores propios (datos incompletos, demasiados hechos, cancelada) no
+  // traen `meta` y siguen su camino.
+  const rechazoDelIndexador = (error: any): boolean => {
+    const estado = Number(error?.meta?.statusCode);
+    return estado >= 400 && estado < 500 && estado !== 499;
+  };
+
   interface AgentSide {
     runs: ENSNormalizedEvent[];
     lastSeen: Map<string, ENSStateFactLastSeen>;
@@ -873,31 +882,37 @@ export const createEvaluationService = ({
           await seriesForRow(ctx, need, entrada, searchMs);
         }
       };
-      await readAllFacts(
-        clients.asCurrentUser,
-        buildAgentStreamQuery(ctx.filters, agentId, controles, podas),
-        async page => {
-          for (const hit of page) {
-            const valor = hit?._source?.data?.ensfacil;
-            // Un hecho con varios controles en `data.ensfacil`: el flujo no
-            // sabe repartirlo como la lectura por fila; se leen solas.
-            if (Array.isArray(valor)) throw new StreamFallbackError();
-            const controlId = String(valor);
-            if (!tramo || tramo.controlId !== controlId) {
-              if (tramo) {
-                const anterior = tramo;
-                tramo = undefined;
-                await cierra(anterior.controlId, anterior.hits, stats.searchMs - anterior.desde, stats.pages - anterior.paginas + 1);
+      try {
+        await readAllFacts(
+          clients.asCurrentUser,
+          buildAgentStreamQuery(ctx.filters, agentId, controles, podas),
+          async page => {
+            for (const hit of page) {
+              const valor = hit?._source?.data?.ensfacil;
+              // Un hecho con varios controles en `data.ensfacil`: el flujo no
+              // sabe repartirlo como la lectura por fila; se leen solas.
+              if (Array.isArray(valor)) throw new StreamFallbackError();
+              const controlId = String(valor);
+              if (!tramo || tramo.controlId !== controlId) {
+                if (tramo) {
+                  const anterior = tramo;
+                  tramo = undefined;
+                  await cierra(anterior.controlId, anterior.hits, stats.searchMs - anterior.desde, stats.pages - anterior.paginas + 1);
+                }
+                tramo = { controlId, hits: [], desde: stats.searchMs, paginas: stats.pages };
               }
-              tramo = { controlId, hits: [], desde: stats.searchMs, paginas: stats.pages };
+              tramo.hits.push(hit);
+              if (tramo.hits.length > maxFactsPerRead) throw new ENSTooManyFactsError(`${controlId} en ${agentId}`, maxFactsPerRead);
             }
-            tramo.hits.push(hit);
-            if (tramo.hits.length > maxFactsPerRead) throw new ENSTooManyFactsError(`${controlId} en ${agentId}`, maxFactsPerRead);
-          }
-        },
-        stats,
-        { what: `los hechos de ${agentId}`, signal, index: ctx.factsIndex, sort: STREAM_SORT, idIndex: 2, maxFacts: Number.MAX_SAFE_INTEGER }
-      );
+          },
+          stats,
+          { what: `los hechos de ${agentId}`, signal, index: ctx.factsIndex, sort: STREAM_SORT, idIndex: 2, maxFacts: Number.MAX_SAFE_INTEGER }
+        );
+      } catch (error: any) {
+        if (!rechazoDelIndexador(error)) throw error;
+        logger.warn(`ENSFácil: el indexador rechazó la lectura de los hechos de ${agentId} (${error?.message}); se leen sus filas una a una.`);
+        throw new StreamFallbackError(error?.message);
+      }
       if (tramo) await cierra(tramo.controlId, tramo.hits, stats.searchMs - tramo.desde, stats.pages - tramo.paginas + 1);
       // Los controles sin ningún hecho propio en la ventana: con lo de aparte.
       for (const controlId of controles) if (!vistos.has(controlId)) await cierra(controlId, [], 0, 0);
@@ -1205,7 +1220,13 @@ export const createEvaluationService = ({
     const job: Job = { background: true, pinned: true, waiters: 0, signal: new CancelSignal(), resolveRow: () => undefined };
     try {
       if (streamable(primero.need)) {
-        await runStreamChunk(primero.clients, primero.ctx, primero.need.spec.factsAgent as string, elegidos.map(([, w]) => w.need), 'series', job);
+        try {
+          await runStreamChunk(primero.clients, primero.ctx, primero.need.spec.factsAgent as string, elegidos.map(([, w]) => w.need), 'series', job);
+        } catch (error) {
+          if (!(error instanceof StreamFallbackError)) throw error;
+          // Como la carga: las filas que el flujo no pudo, una a una.
+          for (const [, w] of elegidos) await computeSeriesSingle(w.clients, w.ctx, w.need);
+        }
       } else {
         await computeSeriesSingle(primero.clients, primero.ctx, primero.need);
       }

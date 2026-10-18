@@ -3,7 +3,7 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
-import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiSpacer } from '@elastic/eui';
+import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
 import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 
@@ -54,7 +54,7 @@ export const EnsDashboardMain = () => {
   // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
   // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
   // pedir (ver `public/evaluation/use-evaluation.ts`).
-  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[] }>({
+  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
@@ -116,6 +116,11 @@ export const EnsDashboardMain = () => {
   }
 
   const requirementsModel = dashboardModel.requirementsSummary;
+  // La serie se calcula después de responder (`meta.seriesPending`, la
+  // respuesta llega sin `timeline`): mientras, el gráfico lo dice, sin el punto
+  // suelto de ahora ni el texto de «todavía no hay eventos».
+  const seriePendiente = Boolean(evaluacion.data?.meta?.seriesPending) && !(evaluacion.data?.timeline || []).length;
+  const filasEvolucion: typeof dashboardModel.evolution.rows = seriePendiente ? [] : dashboardModel.evolution.rows;
 
   const Donut = ({
     center,
@@ -611,25 +616,25 @@ export const EnsDashboardMain = () => {
                 );
               })}
 
-              {dashboardModel.evolution.rows.length > 0 && (
+              {filasEvolucion.length > 0 && (
                 <polygon
                   points={[
-                    ...dashboardModel.evolution.rows.map((row, index) => {
+                    ...filasEvolucion.map((row, index) => {
                       const x =
-                        dashboardModel.evolution.rows.length === 1
+                        filasEvolucion.length === 1
                           ? 300
-                          : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                          : (index * 600) / (filasEvolucion.length - 1);
                       const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                       return `${x},${y}`;
                     }),
                     `${
-                      dashboardModel.evolution.rows.length === 1
+                      filasEvolucion.length === 1
                         ? 300
-                        : ((dashboardModel.evolution.rows.length - 1) * 600) /
-                          (dashboardModel.evolution.rows.length - 1)
+                        : ((filasEvolucion.length - 1) * 600) /
+                          (filasEvolucion.length - 1)
                     },200`,
-                    `${dashboardModel.evolution.rows.length === 1 ? 300 : 0},200`,
+                    `${filasEvolucion.length === 1 ? 300 : 0},200`,
                   ].join(' ')}
                   fill='rgba(0, 107, 180, 0.16)'
                 />
@@ -641,12 +646,12 @@ export const EnsDashboardMain = () => {
                 strokeWidth='3'
                 strokeLinecap='round'
                 strokeLinejoin='round'
-                points={dashboardModel.evolution.rows
+                points={filasEvolucion
                   .map((row, index) => {
                     const x =
-                      dashboardModel.evolution.rows.length === 1
+                      filasEvolucion.length === 1
                         ? 300
-                        : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                        : (index * 600) / (filasEvolucion.length - 1);
                     const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                     return `${x},${y}`;
@@ -654,11 +659,11 @@ export const EnsDashboardMain = () => {
                   .join(' ')}
               />
 
-              {dashboardModel.evolution.rows.map((row, index) => {
+              {filasEvolucion.map((row, index) => {
                  const x =
-                   dashboardModel.evolution.rows.length === 1
+                   filasEvolucion.length === 1
                      ? 300
-                     : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                     : (index * 600) / (filasEvolucion.length - 1);
                  const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                  return (
@@ -712,6 +717,27 @@ export const EnsDashboardMain = () => {
        })}
             </svg>
 
+            {seriePendiente && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 78,
+                  right: 14,
+                  top: 8,
+                  height: 200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <EuiLoadingSpinner size='m' />
+                <EuiText size='s' color='subdued'>
+                  <span>Calculando la serie…</span>
+                </EuiText>
+              </div>
+            )}
+
             <div
               style={{
                 position: 'absolute',
@@ -738,7 +764,9 @@ export const EnsDashboardMain = () => {
               fontSize: 12,
             }}
           >
-            {dashboardModel.evolution.description}
+            {seriePendiente
+              ? 'Calculando en el servidor la serie diaria de los últimos 7 días; aparece en cuanto esté. Las cifras de arriba ya son las de ahora.'
+              : dashboardModel.evolution.description}
           </div>
         </div>
         <div style={card}>

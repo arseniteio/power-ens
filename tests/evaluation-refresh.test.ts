@@ -310,6 +310,12 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
     comprueba('fila: primera carga sin resumen → «Evaluando…»; con resultado → nada', controlRowWaitLabel(true, undefined) === 'Evaluando…' && controlRowWaitLabel(false, { controlId: 'op.acc.3', status: 'CUMPLE', evaluated: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 }) === undefined);
     const grafico = require('fs').readFileSync(require('path').join(__dirname, '../public/ens/controls/control-detail/evolution-chart.tsx'), 'utf8');
     comprueba('la evolución de la ficha dice «Calculando la serie…» con la serie pendiente (no «ningún día medido»)', /if \(pending && !points\.length\)[\s\S]{0,300}Calculando la serie…/.test(grafico));
+    const panel = require('fs').readFileSync(require('path').join(__dirname, '../public/ens/dashboard/ens-dashboard-main.tsx'), 'utf8');
+    comprueba('la evolución del Panel también: «Calculando la serie…», sin el punto suelto de ahora ni «todavía no hay eventos»',
+      /const seriePendiente = Boolean\(evaluacion\.data\?\.meta\?\.seriesPending\)/.test(panel) &&
+      /seriePendiente \? \[\] : dashboardModel\.evolution\.rows/.test(panel) &&
+      /\{seriePendiente && \([\s\S]{0,600}Calculando la serie…/.test(panel) &&
+      !/dashboardModel\.evolution\.rows\.(length|map)/.test(panel));
 
     // Tras un fallo de la carga, el reintento automático NO cambia el error
     // por la rueda: el error sigue a la vista mientras se vuelve a pedir.

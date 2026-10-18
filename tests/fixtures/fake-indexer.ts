@@ -6,6 +6,15 @@
 // `top_hits` con `_source`, `date_histogram` diario con `time_zone`).
 // También puede responder con shards fallidos (`failShards`).
 //
+// LOS MAPEOS: la plantilla de Wazuh mapea `data.*` de forma dinámica, así que
+// un índice diario sin ningún hecho de ENSFácil no tiene `data.ensfacil`.
+// Ordenar por un campo que un índice no mapea, sin `unmapped_type`, es un 400
+// en OpenSearch («No mapping found for [campo] in order to sort on»), también
+// si el índice no aporta ningún resultado. El falso hace lo mismo con los
+// campos `data.*`: un índice los mapea si alguno de sus documentos los lleva.
+// Los demás (los de la plantilla, los del índice de configuración) se dan por
+// mapeados.
+//
 // NO es OpenSearch: lo que valida es que el servidor arma bien las consultas
 // y que, con la semántica de esos operadores, el resultado es el del motor
 // sobre todos los hechos.
@@ -241,9 +250,30 @@ export const createFakeIndexer = (
   const indiceCasa = (patron: string | undefined, indice: string) =>
     !patron || patron.split(',').some(p => new RegExp(`^${p.trim().replace(/\./g, '\\.').replace(/\*/g, '.*')}$`).test(indice));
 
+  // ¿Mapea el índice el campo? (ver «LOS MAPEOS» arriba)
+  const mapea = (indice: string, campo: string) =>
+    !campo.startsWith('data.') || docs.some(d => d._index === indice && valoresDe(d._source, campo).length > 0);
+  const compruebaOrden = (index: string | undefined, sort: any[]) => {
+    const indices = [...new Set(docs.map(d => d._index))].filter(i => indiceCasa(index, i));
+    for (const s of sort) {
+      const [campo, o]: [string, any] = Object.entries(s)[0] as any;
+      if (o && typeof o === 'object' && o.unmapped_type) continue;
+      const sinMapeo = indices.find(i => !mapea(i, campo));
+      if (sinMapeo) {
+        const motivo = `No mapping found for [${campo}] in order to sort on`;
+        throw Object.assign(new Error(`search_phase_execution_exception: [query_shard_exception] Reason: ${motivo}`), {
+          name: 'ResponseError',
+          statusCode: 400,
+          meta: { statusCode: 400, body: { error: { type: 'search_phase_execution_exception', root_cause: [{ type: 'query_shard_exception', reason: motivo, index: sinMapeo }] }, status: 400 } },
+        });
+      }
+    }
+  };
+
   const search = async (params: any) => {
     const { index, body } = params;
     if (options.clock) ahoraDelIndice = options.clock;
+    compruebaOrden(index, body?.sort || []);
     let candidatos = docs.filter(d => indiceCasa(index, d._index) && casa(d, body?.query));
     const sort = body?.sort || [];
     if (sort.length) candidatos = ordena(candidatos, sort);

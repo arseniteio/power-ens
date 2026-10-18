@@ -582,7 +582,12 @@ export const ENS_LEGACY_CONTROL_FIELDS = ['data.ens', 'data.control_id', 'data.c
 
 // El orden del flujo: por control y, dentro de cada control, el de siempre
 // (así cada fila recibe sus hechos en el mismo orden que leyéndola sola).
-export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc' } }, ...FACTS_SORT];
+// `unmapped_type`: la plantilla de Wazuh mapea `data.*` de forma dinámica, y un
+// índice diario sin ningún hecho de ENSFácil (un día sin recolectores, los
+// anteriores a instalarlo) no mapea `data.ensfacil`; sin él, OpenSearch
+// rechaza la búsqueda entera con un 400 («No mapping found … in order to sort
+// on»), también con el comodín.
+export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }, ...FACTS_SORT];
 
 export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, controlIds: string[], prunings: unknown[]) => ({
   bool: {
