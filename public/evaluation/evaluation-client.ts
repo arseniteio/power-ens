@@ -58,8 +58,8 @@ const pide = async <T>(path: string, query: Record<string, unknown>, operacion: 
   return respuesta.data as T;
 };
 
-export const fetchEvaluation = <T = any>(params: ENSEvaluationParams, controller?: AbortController) =>
-  pide<T>(ENSFACIL_EVALUATION_PATH, { ...params }, 'evaluación ENS', controller);
+export const fetchEvaluation = <T = any>(params: ENSEvaluationParams, controller?: AbortController, options: { retryRefresh?: boolean } = {}) =>
+  pide<T>(ENSFACIL_EVALUATION_PATH, { ...params, ...(options.retryRefresh ? { retryRefresh: '1' } : {}) }, 'evaluación ENS', controller);
 
 export const fetchEvaluationProbe = (params: ENSEvaluationParams, controller?: AbortController) =>
   pide<{ fingerprint: string; checkedAt: string; facts: { count: number; newest?: string } }>(

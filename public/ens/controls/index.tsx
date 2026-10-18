@@ -189,7 +189,7 @@ export const ControlsENS = () => {
             <EuiSpacer size='m' />
           </>
         ) : (
-          <EvaluationStatusLine meta={resumen.data?.meta} refreshing={resumen.isRefreshing} />
+          <EvaluationStatusLine meta={resumen.data?.meta} refreshing={resumen.isRefreshing} onRetry={resumen.retry} />
         )}
         <EuiFacetGroup>
           {controlesListados.map(ensControl => (

@@ -698,7 +698,7 @@ export const EvidencesENS = () => {
       <EuiTitle size='s'>
         <h2>Repositorio de Evidencias ENS</h2>
       </EuiTitle>
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
 
       {/* Sin subtítulo: «evidencias resueltas por el motor desde eventos de
           Wazuh, agrupadas por control» es lo que ya dicen el título, los

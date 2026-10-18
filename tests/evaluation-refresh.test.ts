@@ -13,7 +13,9 @@
 import { ENSRequestTimeoutError, withRequestTimeout } from '../common/platform/request-timeout';
 import { traceabilityPageSource } from '../public/evaluation/traceability-paging';
 import {
+  backoffAfter,
   createEvaluationController,
+  EVALUATION_BACKOFF_MAX_MS,
   EVALUATION_REFRESHING_RETRY_MS,
   EVALUATION_MAX_AGE_MS,
   EVALUATION_REFRESH_INTERVAL_MS,
@@ -141,8 +143,7 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
     c.setKey('B');
     comprueba('cambiar de clave anula la sonda en curso', (await sondeo3) === 'busy');
     comprueba('B: cargando, nada de A', ultimo().key === 'B' && ultimo().data === undefined && ultimo().loading);
-    const tardia = pendientes.find(p => p.tipo === 'fetch' && p.controller.signal.aborted);
-    comprueba('la carga de A se cancela (sin error)', !estados.some(e => e.error));
+    comprueba('cambiar de clave no deja ningún error', !estados.some(e => e.error));
     resuelve('fetch', { meta: { fingerprint: 'b1', evaluatedAt: new Date(reloj).toISOString() } });
     await espera0();
     comprueba('el reloj de la sonda vuelve a cero con la clave nueva', (await tick()) === 'skip');
@@ -166,7 +167,119 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
     comprueba('«Reintentar» lo vuelve a pedir', c2Estados[c2Estados.length - 1].loading);
     c2.dispose();
     c.dispose();
-    void tardia;
+
+    // Una respuesta tardía de verdad: la petición de A no atiende al abort y
+    // resuelve DESPUÉS de cambiar a B. No se enseña en B.
+    {
+      const sueltas: { resolve: (v: any) => void; opciones?: any }[] = [];
+      const e3: any[] = [];
+      const c3 = createEvaluationController<any>({
+        fetch: (_controller, opciones) => new Promise(resolve => sueltas.push({ resolve, opciones })),
+        probe: () => Promise.resolve({ fingerprint: 'x' }),
+        now: () => reloj,
+        visible: () => true,
+        onChange: st => e3.push(st),
+      });
+      c3.setKey('A');
+      c3.setKey('B');
+      sueltas[0].resolve({ meta: { fingerprint: 'de-A' } });
+      await espera0();
+      const enB = e3[e3.length - 1];
+      comprueba('respuesta tardía de A con B a la vista: no aparece, B sigue cargando', enB.key === 'B' && enB.loading && enB.data === undefined);
+      sueltas[1].resolve({ meta: { fingerprint: 'de-B' } });
+      await espera0();
+      comprueba('y la de B sí', e3[e3.length - 1].data?.meta.fingerprint === 'de-B');
+      c3.dispose();
+    }
+
+    // U-N1: un refresco en segundo plano que falla. El servidor devuelve lo
+    // último bueno con `refreshError`: se enseña (con el motivo) y no se pide
+    // otra vez cada 10 s, sino cada vez más espaciado, hasta 5 min.
+    {
+      const sueltas: { resolve: (v: any) => void; reject: (e: any) => void; opciones?: any }[] = [];
+      const e4: any[] = [];
+      let r4 = 5_000_000;
+      const c4 = createEvaluationController<any>({
+        fetch: (_controller, opciones) => new Promise((resolve, reject) => sueltas.push({ resolve, reject, opciones })),
+        probe: () => Promise.resolve({ fingerprint: 'otra' }),
+        now: () => r4,
+        visible: () => true,
+        onChange: st => e4.push(st),
+      });
+      const conFallo = (n: number) => ({ meta: { fingerprint: `refreshing:f${n}`, evaluatedAt: new Date(r4).toISOString(), refreshing: true, refreshError: { message: 'Datos incompletos', at: new Date(r4).toISOString() } } });
+      c4.setKey('A');
+      sueltas.pop()!.resolve(conFallo(1));
+      await espera0();
+      comprueba('refreshError: se enseña lo último bueno con el motivo', e4[e4.length - 1].data?.meta.refreshError?.message === 'Datos incompletos' && !e4[e4.length - 1].loading);
+      const esperas: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        const desde = r4;
+        let vueltas = 0;
+        while ((await c4.tick()) !== 'reload') {
+          r4 += 1000;
+          if (++vueltas > 400) break;
+        }
+        esperas.push(Math.round((r4 - desde) / 1000));
+        sueltas.pop()!.resolve(conFallo(i + 2));
+        await espera0();
+      }
+      comprueba('no cada 10 s: 10, 20, 40, 80, 160 s y luego 300 s como mucho', esperas.join() === '10,20,40,80,160,300,300,300', esperas.join());
+      comprueba('backoffAfter: tope de 5 min', backoffAfter(1) === 10000 && backoffAfter(30) === EVALUATION_BACKOFF_MAX_MS);
+      c4.retry();
+      comprueba('«Reintentar» pide ya y pide al servidor que intente el refresco', sueltas[sueltas.length - 1]?.opciones?.retryRefresh === true);
+      sueltas.pop()!.resolve({ meta: { fingerprint: 'f-bien', evaluatedAt: new Date(r4).toISOString() } });
+      await espera0();
+      comprueba('cuando vuelve a ir bien, sin error y sin espera', !e4[e4.length - 1].data?.meta.refreshError && c4.failures === 0);
+      c4.dispose();
+    }
+
+    // Tras un fallo de la carga, el reintento automático NO cambia el error
+    // por la rueda: el error sigue a la vista mientras se vuelve a pedir.
+    {
+      const sueltas: { resolve: (v: any) => void; reject: (e: any) => void }[] = [];
+      const e5: any[] = [];
+      let r5 = 9_000_000;
+      const c5 = createEvaluationController<any>({
+        fetch: () => new Promise((resolve, reject) => sueltas.push({ resolve, reject })),
+        probe: () => Promise.resolve({ fingerprint: 'f' }),
+        now: () => r5,
+        visible: () => true,
+        onChange: st => e5.push(st),
+      });
+      c5.setKey('A');
+      sueltas.pop()!.reject(new Error('caído'));
+      await espera0();
+      comprueba('fallo: el error', Boolean(e5[e5.length - 1].error));
+      r5 += 5000;
+      comprueba('a los 5 s no se reintenta (espera)', (await c5.tick()) === 'skip');
+      r5 += 5000;
+      comprueba('a los 10 s se reintenta solo', (await c5.tick()) === 'reload');
+      const durante = visibleEvaluation(e5[e5.length - 1], 'A');
+      comprueba('y mientras, el error sigue a la vista (sin rueda)', Boolean(durante.error) && !durante.isLoading && durante.isRefreshing);
+      sueltas.pop()!.reject(new Error('caído otra vez'));
+      await espera0();
+      r5 += 15000;
+      comprueba('segundo fallo: a los 15 s todavía no', (await c5.tick()) === 'skip');
+      c5.retry();
+      comprueba('«Reintentar» (a mano) sí enseña que carga', visibleEvaluation(e5[e5.length - 1], 'A').isLoading);
+      c5.dispose();
+    }
+
+    // Una sonda que agota su tiempo es un fallo de la sonda, no «ocupado».
+    {
+      const c6 = createEvaluationController<any>({
+        fetch: () => Promise.resolve({ meta: { fingerprint: 'f', evaluatedAt: new Date(reloj).toISOString() } }),
+        probe: controller => withRequestTimeout(signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')))), 'sonda', controller, 20),
+        now: () => reloj,
+        visible: () => true,
+        onChange: () => undefined,
+      });
+      c6.setKey('A');
+      await espera0();
+      reloj += EVALUATION_REFRESH_INTERVAL_MS;
+      comprueba('sonda agotada: probe-failed', (await c6.tick()) === 'probe-failed');
+      c6.dispose();
+    }
   }
 
   // --- la tabla de trazabilidad ------------------------------------------------
@@ -217,6 +330,28 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
   await Promise.all([sinEspera, p3]);
   comprueba('el que se refresca en segundo plano no se cancela', !cancelado);
 
+  // S-N1: quien llega cuando el cálculo en curso ya está cancelado (se fueron
+  // todos los que esperaban) no se une a él: empieza uno nuevo y le llega su
+  // resultado, no el error del cancelado.
+  {
+    let arrancados = 0;
+    const lento = async (signal: any) => {
+      arrancados += 1;
+      await espera(15);
+      if (signal.aborted) throw new Error('cancelado');
+      return 7;
+    };
+    const tareas = new SharedTasks<number>();
+    const primero = new CancelSignal();
+    const pPrimero = tareas.run('fila', lento, primero).catch(e => e.message);
+    primero.cancel();
+    comprueba('S-N1: cancelado, ya no cuenta como en curso', !tareas.has('fila'));
+    const segundo = await tareas.run('fila', lento, new CancelSignal()).catch(e => `error: ${e.message}`);
+    comprueba('S-N1: el que llega después no hereda la cancelación: calcula de nuevo', segundo === 7 && arrancados === 2, { segundo, arrancados });
+    comprueba('S-N1: el cancelado termina en error para quien se fue', (await pPrimero) === 'cancelado');
+    comprueba('S-N1: y su final no borra al nuevo de la lista', tareas.size === 0);
+  }
+
   const semaforo = new Semaphore(2);
   let activos = 0;
   let maximo = 0;
@@ -227,6 +362,17 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
     activos -= 1;
   })));
   comprueba('servidor: como mucho 2 evaluaciones a la vez', maximo === 2, maximo);
+
+  // R4: lo que alguien espera pasa delante de lo que se refresca en segundo
+  // plano (que ya estaba en la cola).
+  {
+    const sem = new Semaphore(1);
+    const orden: string[] = [];
+    const trabajo = (nombre: string, background: boolean) => sem.use(async () => { orden.push(nombre); await espera(2); }, { background });
+    const todas = [trabajo('ocupa', false), trabajo('fondo-1', true), trabajo('fondo-2', true), trabajo('primer-plano', false)];
+    await Promise.all(todas);
+    comprueba('R4: el de primer plano adelanta a los de fondo en cola', orden.join() === 'ocupa,primer-plano,fondo-1,fondo-2', orden);
+  }
 
   fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
   process.exit(fallos.length ? 1 : 0);

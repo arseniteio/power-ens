@@ -147,7 +147,7 @@ export const EnsDashboardMain = () => {
 
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         <div style={card}>
           <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>

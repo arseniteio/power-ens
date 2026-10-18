@@ -610,23 +610,33 @@ export const ControlDetailENS = ({
   const [remotePage, setRemotePage] = useState<
     { key: string; items?: ENSTraceabilityResult[]; error?: Error } | undefined
   >();
-  const remoteKey = `${control.id}|${agentId || ''}|${pageFrom}|${tracePageSize}|${evaluacion.data?.meta?.fingerprint || ''}`;
+  const [reintentoTraza, setReintentoTraza] = useState(0);
+  // El reintento entra en la clave: al pulsar «Reintentar» el error anterior
+  // deja paso a «Cargando la página…».
+  const remoteKey = `${control.id}|${agentId || ''}|${pageFrom}|${tracePageSize}|${evaluacion.data?.meta?.fingerprint || ''}|${reintentoTraza}`;
   const necesitaRemota =
     Boolean(complianceResult) &&
     traceabilityPageSource({ initialCount: iniciales.length, available: traceabilityAvailable, pageFrom, pageSize: tracePageSize }) === 'remote';
-  const [reintentoTraza, setReintentoTraza] = useState(0);
 
   useEffect(() => {
     if (!necesitaRemota) return;
     const controller = new AbortController();
+    // Solo se calla lo que cancela la pantalla al cambiar de página o salir:
+    // el tiempo agotado también aborta el controlador y debe verse.
+    let cancelada = false;
     fetchTraceabilityPage({ controlId: control.id, agentId, from: pageFrom, size: tracePageSize }, controller)
-      .then(page => setRemotePage({ key: remoteKey, items: page.items || [] }))
+      .then(page => {
+        if (!cancelada) setRemotePage({ key: remoteKey, items: page.items || [] });
+      })
       .catch(error => {
-        if (!controller.signal.aborted) setRemotePage({ key: remoteKey, error });
+        if (!cancelada) setRemotePage({ key: remoteKey, error });
       });
-    return () => controller.abort();
+    return () => {
+      cancelada = true;
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteKey, necesitaRemota, reintentoTraza]);
+  }, [remoteKey, necesitaRemota]);
 
   const paginaRemota = remotePage?.key === remoteKey ? remotePage : undefined;
   const trazaCargando = necesitaRemota && !paginaRemota;
@@ -942,7 +952,7 @@ export const ControlDetailENS = ({
               <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
-          <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} />
+          <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
         </EuiPanel>
 
         <EuiSpacer size='l' />

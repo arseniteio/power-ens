@@ -47,7 +47,7 @@ export const useEnsEvaluation = <T = any>(params: ENSEvaluationParams & { enable
   const controlador = useRef<ReturnType<typeof createEvaluationController<any>>>();
   if (!controlador.current) {
     controlador.current = createEvaluationController<any>({
-      fetch: controller => fetchEvaluation(pedidoActual.current, controller),
+      fetch: (controller, opciones) => fetchEvaluation(pedidoActual.current, controller, opciones),
       probe: controller => fetchEvaluationProbe(pedidoActual.current, controller),
       now: () => Date.now(),
       visible: pestanaVisible,
