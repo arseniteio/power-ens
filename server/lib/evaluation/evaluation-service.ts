@@ -1381,7 +1381,7 @@ export const createEvaluationService = ({
   const computeSeriesSingle = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
     const serie = seriesOf(ctx);
     const fila = seriesTarget(ctx, need);
-    if (!fila || seriesDone(fila, serie.key)) return;
+    if (!fila || seriesDone(fila, serie.key, pastSignature(ctx, need.spec))) return;
     const stats = newReadStats();
     const instantes = [...serie.plan.map(cut => cut.cutoff), ctx.now];
     const que = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;

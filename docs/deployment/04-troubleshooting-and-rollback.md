@@ -285,20 +285,31 @@ memoria de resultados de 64 a 256 MB según el alcance (`server/README.md`,
 apartado «Memoria»).
 
 En un despliegue mayor que el laboratorio (decenas de máquinas o millones de
-hechos en la ventana), fijar el montón de Node del dashboard: 2048 MB hasta
-unas 30 máquinas y 4096 MB por encima, con al menos el doble de memoria libre
-en el servidor.
+hechos en la ventana), el montón de Node del dashboard debe ser de al menos
+2048 MB hasta unas 30 máquinas y de 4096 MB por encima, con al menos el doble
+de memoria libre en el servidor. El límite por defecto de Node depende de la
+memoria del servidor (en uno de 8 GB es de unos 2096 MB): solo se fija un valor
+si el actual es menor.
 
-1. Comprobar si el paquete trae el fichero de opciones de Node del dashboard:
+1. Comprobar el fichero de opciones de Node del dashboard y el límite que Node
+   asigna por defecto en este servidor (en MB):
 
    ```bash
    sudo cat /etc/wazuh-dashboard/node.options
+   sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/node/bin/node -e 'console.log(Math.round(require("v8").getHeapStatistics().heap_size_limit / 1048576))'
    ```
 
-2. Si existe, añadir la línea (o quitar el `#` de la que ya esté):
+   Resultado esperado: el contenido del fichero y un número. Si el fichero ya
+   lleva `--max-old-space-size` con un valor igual o mayor que el elegido, o el
+   número es mayor que el valor elegido, no cambiar nada: fijar un valor menor
+   reduce la memoria del dashboard.
+
+2. Si el fichero existe, sustituir cualquier `--max-old-space-size` anterior por
+   el valor elegido:
 
    ```bash
-   echo '--max-old-space-size=2048' | sudo tee -a /etc/wazuh-dashboard/node.options
+   sudo sed -i '/--max-old-space-size=/d' /etc/wazuh-dashboard/node.options
+   echo '--max-old-space-size=4096' | sudo tee -a /etc/wazuh-dashboard/node.options
    ```
 
    Si no existe, ponerla en el servicio:
@@ -311,7 +322,7 @@ en el servidor.
 
    ```ini
    [Service]
-   Environment="NODE_OPTIONS=--max-old-space-size=2048"
+   Environment="NODE_OPTIONS=--max-old-space-size=4096"
    ```
 
 3. Reiniciar el dashboard y comprobar que el proceso lleva la opción:
@@ -322,10 +333,10 @@ en el servidor.
    sudo cat /proc/$pid/cmdline /proc/$pid/environ | tr '\0' '\n' | grep -o 'max-old-space-size=[0-9]*'
    ```
 
-   Resultado esperado: `max-old-space-size=2048`.
+   Resultado esperado: `max-old-space-size=4096`.
 
 En Docker, la variable va en el servicio `wazuh.dashboard` del
-`docker-compose.yml` (`environment: - NODE_OPTIONS=--max-old-space-size=2048`),
+`docker-compose.yml` (`environment: - NODE_OPTIONS=--max-old-space-size=4096`),
 y se aplica con `docker compose up -d wazuh.dashboard`.
 
 Para revertir, quitar la línea (o el fichero de `systemctl edit`) y reiniciar el

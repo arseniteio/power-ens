@@ -36,6 +36,7 @@ Medido con los hechos del laboratorio (6 máquinas, 86 filas, unos 210.000 hecho
 | Lecturas a la vez | 4 | unos 340 MB de hechos a la vez |
 | La serie | un grupo de filas de una máquina a la vez | los hechos de ese grupo |
 | Filas guardadas | 10 usuarios × las filas del alcance × 60 KB, entre 64 y 256 MB | 256 MB |
+| Lo de aparte de cada máquina (hechos sin control, latidos, último hecho de estado) | una entrada por máquina y ventana, 5 minutos | las ventanas de 5 minutos de refrescos de todos los usuarios |
 
 En un despliegue mayor que el laboratorio conviene darle al dashboard más montón que el que Node asigna por defecto (guía 04, apartado 8.1).
 
