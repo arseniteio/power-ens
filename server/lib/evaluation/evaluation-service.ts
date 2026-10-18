@@ -933,35 +933,59 @@ export const createEvaluationService = ({
     need.key.startsWith('r|') &&
     !(need.spec.controlId in ENS_CROSS_CONTROL_EVENT_TYPES);
 
-  // Agrupa las filas: las de flujo por máquina y en grupos de hasta
-  // `CHUNK_FACTS` hechos (los baratos primero); las demás, de una en una.
+  // Agrupa las filas. Un control solo se puede enseñar cuando están TODAS sus
+  // filas (una por máquina): por eso se reparten en FRANJAS de controles, de
+  // los baratos a los caros según la sonda, y cada franja en un flujo por
+  // máquina (de hasta `CHUNK_FACTS` hechos en la máquina que más tenga). Las
+  // franjas se calculan en orden: los controles baratos están enseguida en
+  // todas las máquinas. Las filas que se leen solas, en su franja por peso.
   const planGroups = (needs: RowNeed[]) => {
-    const grupos: { agentId?: string; needs: RowNeed[]; weight: number }[] = [];
-    const porMaquina = new Map<string, RowNeed[]>();
+    const grupos: { agentId?: string; needs: RowNeed[]; weight: number; band: number }[] = [];
+    const porControl = new Map<string, RowNeed[]>();
     for (const need of needs) {
-      if (streamable(need)) {
-        const lista = porMaquina.get(need.spec.factsAgent as string) || [];
-        lista.push(need);
-        porMaquina.set(need.spec.factsAgent as string, lista);
-      } else {
-        grupos.push({ needs: [need], weight: need.weight });
-      }
+      const lista = porControl.get(need.spec.controlId) || [];
+      lista.push(need);
+      porControl.set(need.spec.controlId, lista);
     }
-    for (const [agentId, lista] of porMaquina) {
-      let actual: RowNeed[] = [];
-      let peso = 0;
-      for (const need of [...lista].sort((a, b) => a.weight - b.weight)) {
-        if (actual.length && peso + need.weight > CHUNK_FACTS) {
-          grupos.push({ agentId, needs: actual, weight: peso });
-          actual = [];
-          peso = 0;
+    const controles = [...porControl.entries()]
+      .map(([controlId, lista]) => ({ controlId, lista, peso: lista.reduce((n, need) => n + need.weight, 0) }))
+      .sort((a, b) => a.peso - b.peso);
+    let franja = 0;
+    let porMaquina = new Map<string, number>();
+    const enFranja: RowNeed[][] = [[]];
+    for (const control of controles) {
+      const suma = new Map(porMaquina);
+      for (const need of control.lista) {
+        if (streamable(need)) suma.set(need.spec.factsAgent as string, (suma.get(need.spec.factsAgent as string) || 0) + need.weight);
+      }
+      const desborda = [...suma.values()].some(n => n > CHUNK_FACTS);
+      if (desborda && enFranja[franja].length) {
+        franja += 1;
+        enFranja[franja] = [];
+        porMaquina = new Map();
+        for (const need of control.lista) {
+          if (streamable(need)) porMaquina.set(need.spec.factsAgent as string, (porMaquina.get(need.spec.factsAgent as string) || 0) + need.weight);
         }
-        actual.push(need);
-        peso += need.weight;
+      } else {
+        porMaquina = suma;
       }
-      if (actual.length) grupos.push({ agentId, needs: actual, weight: peso });
+      enFranja[franja].push(...control.lista);
     }
-    return grupos.sort((a, b) => a.weight - b.weight);
+    enFranja.forEach((lista, band) => {
+      const deMaquina = new Map<string, RowNeed[]>();
+      for (const need of lista) {
+        if (streamable(need)) {
+          const agente = need.spec.factsAgent as string;
+          deMaquina.set(agente, [...(deMaquina.get(agente) || []), need]);
+        } else {
+          grupos.push({ needs: [need], weight: need.weight, band });
+        }
+      }
+      for (const [agentId, propias] of deMaquina) {
+        grupos.push({ agentId, needs: propias, weight: propias.reduce((n, need) => n + need.weight, 0), band });
+      }
+    });
+    return grupos.sort((a, b) => a.band - b.band || a.weight - b.weight);
   };
 
   // Calcula (o se une al cálculo de) unas filas. Devuelve la promesa de cada

@@ -261,7 +261,7 @@ const referencia = () => {
   {
     const lento = { ...indice, search: async (p: any) => { if (p.body?.size > 0) await espera(40); return indice.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 150 });
+    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => reloj, firstResponseMs: 600 });
     const senal = new CancelSignal();
     const t0 = Date.now();
     const primera = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, signal: senal });
@@ -270,6 +270,7 @@ const referencia = () => {
     const resp: any = buildEvaluationResponse(primera);
     comprueba('§10 la primera respuesta llega sin esperar a todo, con `pending`', ms < 1500 && (primera.meta.pending?.rows || 0) > 0 && primera.meta.refreshing && primera.meta.fingerprint.startsWith('refreshing:'), [ms, primera.meta.pending]);
     comprueba('§10 los controles pendientes van en la lista, marcados (sin estado inventado)', resp.controls.length === 23 && resp.controls.filter((c: any) => c.pending).length === primera.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    comprueba('§10 y los baratos ya están, en todas sus máquinas (por franjas de controles)', resp.controls.some((c: any) => !c.pending && c.evaluated), resp.controls.filter((c: any) => !c.pending).length);
     let n = 0;
     let ultima = primera;
     while (ultima.meta.pending && n++ < 200) {
