@@ -7,7 +7,9 @@ import {
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// Renderer of `type: 'select'` parameters with declared options. Options and current value come from `resolveSelectFieldModel` (services/parameter-value-validator), so the dropdown and the validator understand options identically (including case and whitespace tolerance).
+// Renderer of `type: 'select'` parameters with declared options. Options and current value come from
+// `resolveSelectFieldModel` (services/parameter-value-validator), so the dropdown and the validator understand
+// options identically (including case and whitespace tolerance).
 
 export const SelectParameterRenderer = ({
   parameter,
@@ -24,7 +26,8 @@ export const SelectParameterRenderer = ({
     value
   );
 
-  // The empty option is always available: leaving a parameter unset is legitimate (the control degrades to NO EVALUABLE).
+  // The empty option is always available: leaving a parameter unset is legitimate (the control degrades to NO
+  // EVALUABLE).
   const options = [
     {
       value: '',

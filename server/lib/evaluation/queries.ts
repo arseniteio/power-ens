@@ -1,5 +1,6 @@
 // Server queries against the facts. Pure: tested by `tests/evaluation-queries.test.ts` without an index.
-// The filters are THE SAME as the browser used (configuration window, view scope, ENS facts), with the window in absolute instants so a paged read always sees the same set even if new facts arrive.
+// The filters are THE SAME as the browser used (configuration window, view scope, ENS facts), with the window in
+// absolute instants so a paged read always sees the same set even if new facts arrive.
 import { ENS_ALERTS_INDEX } from '../../../common/constants';
 import { ENSCatalog } from '../../../common/ens/catalog';
 import {
@@ -34,7 +35,8 @@ export const ENGINE_SOURCE_FIELDS = [
   'id',
 ];
 
-// Read order: newest first, with a deterministic tiebreaker on `keyword` fields every Wazuh alert has (`id` is unique per manager). Never `_id`: sorting by it loads its fielddata for every document of each shard.
+// Read order: newest first, with a deterministic tiebreaker on `keyword` fields every Wazuh alert has (`id` is
+// unique per manager). Never `_id`: sorting by it loads its fielddata for every document of each shard.
 export const FACTS_SORT = [
   { '@timestamp': { order: 'desc' } },
   { id: { order: 'asc', missing: '_last', unmapped_type: 'keyword' } },
@@ -66,7 +68,8 @@ export const resolveEvaluationWindow = (evaluationPeriod: string, now: Date): EN
 
 export const catalogControlIds = (): string[] => ENSCatalog.map(control => control.id);
 
-// Filters of a view: window, scope (the machine and, if present, the manager) and ENS facts; exactly the set the panel judged.
+// Filters of a view: window, scope (the machine and, if present, the manager) and ENS facts; exactly the set the
+// panel judged.
 export const buildViewFilters = (
   window: ENSEvaluationWindow,
   scopeAgents: ENSAgentScope[],
@@ -77,8 +80,13 @@ export const buildViewFilters = (
   buildENSAllControlsFactsFilter(catalogControlIds()),
 ];
 
-// THE PROBE. One query without documents: how many facts and the latest, in total, per control and machine (which rows to recompute), those naming no control, those of the types op.acc.3 reads from other controls; per machine, its first fact in the window (presence) and the name of the last; and the last heartbeat of each day of each machine, any control (see `control-partition.ts`).
-// `past`: WHOLE past days of the window (first full day to the start of today, in the viewer's zone): counts per control and machine, without control and of crossed types. If unchanged, the points already computed for those days stay valid even when new facts (today's) arrive.
+// THE PROBE. One query without documents: how many facts and the latest, in total, per control and machine
+// (which rows to recompute), those naming no control, those of the types op.acc.3 reads from other controls; per
+// machine, its first fact in the window (presence) and the name of the last; and the last heartbeat of each day
+// of each machine, any control (see `control-partition.ts`).
+// `past`: WHOLE past days of the window (first full day to the start of today, in the viewer's zone): counts per
+// control and machine, without control and of crossed types. If unchanged, the points already computed for those
+// days stay valid even when new facts (today's) arrive.
 export const buildProbeRequest = (filters: unknown[], controlIds: string[], timeZone?: string, past?: { from: string; to: string }) => {
   const pastDay = past ? { past: { filter: { range: { '@timestamp': { gte: past.from, lt: past.to } } } } } : {};
   const byMachine = (aggs?: Record<string, unknown>) => ({
@@ -95,7 +103,8 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
       aggs: {
         newest: { max: { field: '@timestamp' } },
         oldest: { min: { field: '@timestamp' } },
-        // Indices with facts in the window: reads name them instead of the wildcard (each extra index costs on every call).
+        // Indices with facts in the window: reads name them instead of the wildcard (each extra index costs on
+        // every call).
         indices: { terms: { field: '_index', size: 500 } },
         controls: {
           filters: {
@@ -179,7 +188,8 @@ export interface ENSProbeResult extends ENSFactsCount {
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
   // Indices with facts in the window (`undefined` without a reliable list).
   indices?: string[];
-  // Apart (not part of the row fingerprint): facts of whole past days, per control, without control and of crossed types.
+  // Apart (not part of the row fingerprint): facts of whole past days, per control, without control and of
+  // crossed types.
   past?: { controls: Record<string, ENSPastFactsCount>; orphans: ENSPastFactsCount; cross: Record<string, ENSPastFactsCount> };
 }
 
@@ -252,10 +262,14 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
   };
 };
 
-// How many leaves pruning may use. OpenSearch counts ALL leaves of the query against `indices.query.bool.max_clause_count` (1024 by default) and the view filters already take about 80: what does not fit is read.
+// How many leaves pruning may use. OpenSearch counts ALL leaves of the query against
+// `indices.query.bool.max_clause_count` (1024 by default) and the view filters already take about 80: what does
+// not fit is read.
 export const PRUNING_MAX_LEAVES = 400;
 
-// Facts of a control on ONE machine: its own, those naming no control and, if the control reads them, those of types read from other controls; with its state facts pruned. Empty `agentId`: the control's facts across the whole `viewFilters` scope (only to evaluate a control no machine measures, like the engine).
+// Facts of a control on ONE machine: its own, those naming no control and, if the control reads them, those of
+// types read from other controls; with its state facts pruned. Empty `agentId`: the control's facts across the
+// whole `viewFilters` scope (only to evaluate a control no machine measures, like the engine).
 export const buildFactsQuery = (
   viewFilters: unknown[],
   controlId: string,
@@ -296,7 +310,8 @@ export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: strin
   },
 });
 
-// Operational events of the panel (backups, restores...): facts per type in the view. Grouped by `data.event`; the type is compared in lowercase, like the presenter.
+// Operational events of the panel (backups, restores...): facts per type in the view. Grouped by `data.event`;
+// the type is compared in lowercase, like the presenter.
 export const buildImpactEventsRequest = (filters: unknown[]) => ({
   index: ENS_ALERTS_INDEX,
   body: {
@@ -306,7 +321,8 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
         filter: filters,
         must_not: [
           ...['data.demo', 'data.synthetic', 'data.is_synthetic', 'data.isSynthetic'].map(field => ({
-            // In Wazuh `data.*` is mapped `keyword` (checked in the lab): strings are compared, like `normalizeBoolean`.
+            // In Wazuh `data.*` is mapped `keyword` (checked in the lab): strings are compared, like
+            // `normalizeBoolean`.
             terms: { [field]: ['true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES'] },
           })),
           { exists: { field: 'data.test_id' } },
@@ -342,8 +358,11 @@ export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) =
 const NO_VALUE = '__none__';
 const ALTERNATIVE_EVIDENCE_FIELDS = ['data.evidenceId', 'data.ev_id', 'data.evidencias'];
 
-// The last state fact of each collector, type and evidence, day by day: the engine's EXACT cutoff is computed from it (`computeStateFactCutoffsByCollector`). Only facts the normalizer attributes the same way: `data.ensfacil` of the control, `data.event` of the type, the machine in `agent.id`.
-// Aggregations of the last state fact of ONE control (inside a query already bounded to its state facts on a machine).
+// The last state fact of each collector, type and evidence, day by day: the engine's EXACT cutoff is computed
+// from it (`computeStateFactCutoffsByCollector`). Only facts the normalizer attributes the same way:
+// `data.ensfacil` of the control, `data.event` of the type, the machine in `agent.id`.
+// Aggregations of the last state fact of ONE control (inside a query already bounded to its state facts on a
+// machine).
 const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
   const fieldName = getStateFactCollectorField(controlId);
   const byDay = {
@@ -360,7 +379,8 @@ const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
   };
   return {
     alt: { filter: { bool: { should: ALTERNATIVE_EVIDENCE_FIELDS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
-    // A field with several values in one fact (a list) cannot be attributed to a single bucket: the number of values is compared with the number of facts carrying it.
+    // A field with several values in one fact (a list) cannot be attributed to a single bucket: the number of
+    // values is compared with the number of facts carrying it.
     ...Object.fromEntries(
       ['data.event', 'data.evidence_id', ...(fieldName ? [`data.${fieldName}`] : [])].flatMap((field, i) => [
         [`values_${i}`, { value_count: { field } }],
@@ -393,7 +413,8 @@ export const buildStateFactLastSeenRequest = (
   },
 });
 
-// The same for ALL controls with state facts of a machine, in one query (one aggregation per control, with its own filter).
+// The same for ALL controls with state facts of a machine, in one query (one aggregation per control, with its
+// own filter).
 export const buildAgentStateFactLastSeenRequest = (
   viewFilters: unknown[],
   controlIds: string[],
@@ -425,7 +446,8 @@ export interface ENSStateFactLastSeen {
 
 export const readStateFactLastSeen = (controlId: string, body: any): ENSStateFactLastSeen => {
   const aggs = body?.aggregations || {};
-  // If each fact cannot be attributed to its collector, type and evidence, nothing is pruned (without a last fact, no collector has a cutoff):
+  // If each fact cannot be attributed to its collector, type and evidence, nothing is pruned (without a last
+  // fact, no collector has a cutoff):
   //   - facts declaring the evidence in another field;
   //   - a field with several values in the same fact;
   //   - buckets that did not fit in the response (`sum_other_doc_count`).
@@ -472,7 +494,8 @@ export const readStateFactLastSeen = (controlId: string, body: any): ENSStateFac
   };
 };
 
-// Date ranges that need NOT be read for a collector: what lies outside the union of (cutoff, instant] over all instants. Without a cutoff at an instant, everything before it is read.
+// Date ranges that need NOT be read for a collector: what lies outside the union of (cutoff, instant] over all
+// instants. Without a cutoff at an instant, everything before it is read.
 export const prunableRanges = (
   windowStart: number,
   instants: number[],
@@ -488,7 +511,8 @@ export const prunableRanges = (
     if (last2 && r.lo <= last2.hi) last2.hi = Math.max(last2.hi, r.hi);
     else joined.push({ ...r });
   }
-  // Gaps: [start, lo1], (hi1, lo2], ... Bounds are instants in ms; a fact dated exactly at the cutoff is discarded (the engine keeps > cutoff).
+  // Gaps: [start, lo1], (hi1, lo2], ... Bounds are instants in ms; a fact dated exactly at the cutoff is
+  // discarded (the engine keeps > cutoff).
   const gaps: { from: number; to: number }[] = [];
   let since = windowStart;
   for (const u of joined) {
@@ -498,7 +522,8 @@ export const prunableRanges = (
   return gaps;
 };
 
-// The clause excluding those ranges, type by type (with their owning evidences) and collector by collector. When in doubt the fact is read.
+// The clause excluding those ranges, type by type (with their owning evidences) and collector by collector. When
+// in doubt the fact is read.
 export const buildStateFactKeepClause = (
   controlId: string,
   agentId: string,
@@ -555,12 +580,19 @@ export const buildStateFactKeepClause = (
 
 
 // --- one stream per machine ---
-// On the real indexer each CALL costs (0.16-0.34 s), not the bytes. Instead of one read per control and machine, it reads once per machine (or per group of its controls), sorted by control: each control is evaluated as soon as its stretch ends. What the stretch does not carry is read apart, once per machine: facts without `data.ensfacil` or with an old control field (those naming no control go to every row; old ones to their control's) and heartbeats (for pruning).
+// On the real indexer each CALL costs (0.16-0.34 s), not the bytes. Instead of one read per control and machine,
+// it reads once per machine (or per group of its controls), sorted by control: each control is evaluated as soon
+// as its stretch ends. What the stretch does not carry is read apart, once per machine: facts without
+// `data.ensfacil` or with an old control field (those naming no control go to every row; old ones to their
+// control's) and heartbeats (for pruning).
 
 export const ENS_LEGACY_CONTROL_FIELDS = ['data.ens', 'data.control_id', 'data.control'];
 
-// Stream order: by control and, inside each control, the usual order (each row receives its facts in the same order as reading it alone).
-// `unmapped_type`: the Wazuh template maps `data.*` dynamically, and a daily index without any ENSFácil fact (days without collectors, before installation) does not map `data.ensfacil`; without it OpenSearch rejects the whole search with a 400 ("No mapping found ... in order to sort on"), wildcard included.
+// Stream order: by control and, inside each control, the usual order (each row receives its facts in the same
+// order as reading it alone).
+// `unmapped_type`: the Wazuh template maps `data.*` dynamically, and a daily index without any ENSFácil fact
+// (days without collectors, before installation) does not map `data.ensfacil`; without it OpenSearch rejects the
+// whole search with a 400 ("No mapping found ... in order to sort on"), wildcard included.
 export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }, ...FACTS_SORT];
 
 export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, controlIds: string[], prunings: unknown[]) => ({
@@ -600,7 +632,8 @@ const fieldValues = (data: any, field: string): unknown[] => {
   return (Array.isArray(v) ? v : [v]).filter(x => x !== undefined && x !== null);
 };
 
-// Does this fact (read apart) go to this control's row? Same as the filter of a per-row read: it names it in any of the four fields, or names none.
+// Does this fact (read apart) go to this control's row? Same as the filter of a per-row read: it names it in any
+// of the four fields, or names none.
 export const sideFactBelongsTo = (hit: any, controlId: string): boolean => {
   const data = hit?._source?.data;
   const values = ENS_CONTROL_ID_FIELDS.map(field => fieldValues(data, field));
@@ -655,7 +688,9 @@ export const mergeFactsInOrder = (a: any[], b: any[]): any[] => {
   return output;
 };
 
-// Indices to read: those with facts in the window according to the probe (and, if they follow Wazuh's daily name, those of each day of the window, in case one is created after the probe). Without a reliable list, the wildcard.
+// Indices to read: those with facts in the window according to the probe (and, if they follow Wazuh's daily
+// name, those of each day of the window, in case one is created after the probe). Without a reliable list, the
+// wildcard.
 const DAILY = /^(.*-)(\d{4})\.(\d{2})\.(\d{2})$/;
 export const factsIndexFor = (indices: string[] | undefined, window: { from: string; to: string }): string => {
   if (!indices || !indices.length) return ENS_ALERTS_INDEX;

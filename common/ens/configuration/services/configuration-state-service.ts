@@ -224,7 +224,8 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
-  // Traceability and Availability levels are optional: the merge above would resurrect them from the active configuration if the form removed them.
+  // Traceability and Availability levels are optional: the merge above would resurrect them from the active
+  // configuration if the form removed them.
   if (!globalConfiguration.traceabilityLevel) {
     delete candidateConfiguration.global.traceabilityLevel;
   }
@@ -255,7 +256,8 @@ export const updateActiveGlobalConfiguration = async (
   );
 };
 
-// Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous version in the history and an entry with `changeReason` in `auditTrail`.
+// Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous
+// version in the history and an entry with `changeReason` in `auditTrail`.
 export const saveActiveENSConfiguration = async (
   candidateConfiguration: ENSConfigurationVersion,
   changeReason: string

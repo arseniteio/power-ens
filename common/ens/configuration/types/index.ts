@@ -22,10 +22,12 @@ export type ENSParameterType =
   | 'url'
   | 'duration_hours'
   | 'duration_days'
-  // Policy that fits neither a scalar nor a list: a grid of rows with declared columns (the hand-written machine files such as `opacc2-acl.tsv`). See `columns` and `ENSParameterColumn`.
+  // Policy that fits neither a scalar nor a list: a grid of rows with declared columns (the hand-written machine
+  // files such as `opacc2-acl.tsv`). See `columns` and `ENSParameterColumn`.
   | 'table';
 
-// Cell types: a short vocabulary, so each means the same in every table. A check valid for one table only goes in `PARAMETER_REFINEMENTS`.
+// Cell types: a short vocabulary, so each means the same in every table. A check valid for one table only goes
+// in `PARAMETER_REFINEMENTS`.
 export type ENSParameterColumnType =
   // Free text: 'root:ops', 'sudo:total', 'u:auditor:r-x'.
   | 'string'
@@ -53,7 +55,8 @@ export interface ENSParameterColumn {
   required: boolean;
   // Required for `select` and `multiselect`; ignored otherwise.
   options?: string[];
-  // Only valid on the LAST column: the row may carry more cells than declared and all belong to it (op.acc.3 P-03 is `function | indicator | indicator | ...`).
+  // Only valid on the LAST column: the row may carry more cells than declared and all belong to it (op.acc.3
+  // P-03 is `function | indicator | indicator | ...`).
   variadic?: boolean;
 }
 
@@ -75,7 +78,8 @@ export interface ENSGlobalConfiguration {
   clientName: string;
   organization: string;
   ensLevel: ENSLevel;
-  // Traceability (T) dimension level. Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Read only by controls declaring `levelDimension: 'T'`.
+  // Traceability (T) dimension level. Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Read
+  // only by controls declaring `levelDimension: 'T'`.
   traceabilityLevel?: ENSLevel;
   // Availability (D) dimension level, same contract as T; read by controls declaring `levelDimension: 'D'`.
   availabilityLevel?: ENSLevel;
@@ -99,7 +103,9 @@ export interface ENSControlParameter {
   // Mode of `value`, stored beside it; the value stays text or a list, so its type in the index does not change.
   matchMode?: ENSMatchMode;
   example?: string;
-  // Options accepted for `type: 'select'`: the form draws a dropdown and validation requires one of them. Optional: without `options` the select is free text and validated as "not empty" (blocks seeded earlier; reseed with `inject-control.py`, which keeps configured values).
+  // Options accepted for `type: 'select'`: the form draws a dropdown and validation requires one of them.
+  // Optional: without `options` the select is free text and validated as "not empty" (blocks seeded earlier;
+  // reseed with `inject-control.py`, which keeps configured values).
   options?: string[];
   // Shape of the parameter ITEM; same two effects as `options` (editable grid and per-cell validation).
   //   - `type: 'table'`: one column per field of the row.
@@ -154,7 +160,8 @@ export interface ENSControlConfigurationValidation {
   invalid: number;
   missingRequired: ENSControlParameter[];
   invalidParameters: ENSControlParameter[];
-  // Required parameters of the active level that have a value meaningless for their type. They block evaluation like missing ones; the fix is to correct, not to fill.
+  // Required parameters of the active level that have a value meaningless for their type. They block evaluation
+  // like missing ones; the fix is to correct, not to fill.
   invalidRequired: ENSControlParameter[];
   issues: ENSParameterValueIssue[];
   status: 'CONFIGURED' | 'INCOMPLETE' | 'INVALID';

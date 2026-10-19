@@ -82,7 +82,8 @@ const httpsAgent = new https.Agent({
 
 export class ENSWriteRefusedError extends Error {}
 
-// The only thing that goes to the indexer, checked at the last point before the network: method, path and parameters.
+// The only thing that goes to the indexer, checked at the last point before the network: method, path and
+// parameters.
 const INDEX_NAME = /^[a-z0-9*][a-z0-9*._,-]*$/;
 const SEARCH_PARAMETERS = new Set(['allow_partial_search_results', 'ignore_unavailable', 'track_total_hits']);
 const refusalReason = (method: string, path: string, query: Record<string, unknown>): string | undefined => {
@@ -98,7 +99,8 @@ const refusalReason = (method: string, path: string, query: Record<string, unkno
 
 // Calls, bytes, network time (from sending to receiving the whole response) and JSON parse time.
 const measurement = { calls: 0, bytes: 0, networkMs: 0, parseMs: 0 };
-// A reused connection the other side had already closed (`ECONNRESET`, `EPIPE`) is retried once: every request is a read.
+// A reused connection the other side had already closed (`ECONNRESET`, `EPIPE`) is retried once: every request
+// is a read.
 const request = (method: string, path: string, query: Record<string, unknown> = {}, body?: unknown): Promise<any> =>
   requestOnce(method, path, query, body).catch((error: any) =>
     ['ECONNRESET', 'EPIPE'].includes(error?.code) ? requestOnce(method, path, query, body) : Promise.reject(error)

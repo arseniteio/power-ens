@@ -210,7 +210,8 @@ BUILTIN_TEMPLATES = {
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"
 
-# Parameters with the «Expresión regular» mode; tests/parameter-match-mode-levels.test.ts checks it against the plugin.
+# Parameters with the «Expresión regular» mode; tests/parameter-match-mode-levels.test.ts checks it against the
+# plugin.
 PATTERN_PARAMETERS = {
     "op.acc.1": ["P-03", "P-04"],
     "op.acc.4": ["P-05"],

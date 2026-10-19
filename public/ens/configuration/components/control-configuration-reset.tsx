@@ -17,7 +17,8 @@ import { updateActiveControlConfiguration } from '../../../../common/ens/configu
 import type { ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 
 // Deletes the declared configuration of a control.
-// The button asks to type the control id: a "¿seguro?" is accepted without reading. Only the VALUES are deleted, not the control (see `configuration-reset-service`).
+// The button asks to type the control id: a "¿seguro?" is accepted without reading. Only the VALUES are deleted,
+// not the control (see `configuration-reset-service`).
 
 interface ControlConfigurationResetProps {
   control: ENSControlConfiguration;

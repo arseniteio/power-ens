@@ -1,11 +1,15 @@
-// Fields the evaluation route adds for the overview views (1.2.0, Task 2). Pure functions over what the evaluation already holds in memory (built state, probe, series points): no extra reads. Kept apart from `responses.ts` and `evaluation-service.ts` to hook in with one line each. What the screens consume is in `server/README.md`.
+// Fields the evaluation route adds for the overview views (1.2.0, Task 2). Pure functions over what the
+// evaluation already holds in memory (built state, probe, series points): no extra reads. Kept apart from
+// `responses.ts` and `evaluation-service.ts` to hook in with one line each. What the screens consume is in
+// `server/README.md`.
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import type { ENSControlSummaryEntry, ENSFreshness, ENSOverviewNonConformity } from '../../../common/ens/evaluation/types';
 import type { ENSProbeResult } from './queries';
 import { guiltyPart, parseMotive } from '../../../common/ens/evaluation/motive-parser';
 
-// `summary` and `overview`: each machine with what each control says ON ITS ROW (the Vista general matrix and the per-control bar of the list). A control not measured there does not appear.
+// `summary` and `overview`: each machine with what each control says ON ITS ROW (the Vista general matrix and
+// the per-control bar of the list). A control not measured there does not appear.
 export const agentControlRows = (
   state: Pick<ENSComplianceState, 'agents'> | undefined,
   summaryOf: (controlId: string, result?: ENSComplianceResult) => ENSControlSummaryEntry
@@ -17,7 +21,8 @@ export const agentControlRows = (
     controls: agent.results.map(result => summaryOf(result.control.id, result)),
   }));
 
-// `overview`: collection freshness, from the probe already done for the fingerprint. The machines are those in scope.
+// `overview`: collection freshness, from the probe already done for the fingerprint. The machines are those in
+// scope.
 export const freshnessOf = (
   probe: Pick<ENSProbeResult, 'presence' | 'heartbeats' | 'controls'>,
   meta: { evaluatedAt: string; scope: { id: string; name?: string }[] }
@@ -44,7 +49,9 @@ export const freshnessOf = (
   };
 };
 
-// `overview`: the work queue, the non-conformities of the overview with their control. Only what the queue draws: the headline (first sentence of the culprit evidence, same parser as the card) and machines by id. No action, full finding, impact or traces: the detail is one click away.
+// `overview`: the work queue, the non-conformities of the overview with their control. Only what the queue
+// draws: the headline (first sentence of the culprit evidence, same parser as the card) and machines by id. No
+// action, full finding, impact or traces: the detail is one click away.
 export const nonConformitiesOf = (state: Pick<ENSComplianceState, 'results'> | undefined): ENSOverviewNonConformity[] =>
   (state?.results || []).flatMap(result =>
     (result.nonConformities || []).map(nc => {
@@ -64,14 +71,16 @@ export const nonConformitiesOf = (state: Pick<ENSComplianceState, 'results'> | u
     })
   );
 
-// Per-control figures of each series point go only to whoever asks (`timelineControls=true`, the Vista general trend). The service always computes them (stored with the past days); they are stripped here if not requested.
+// Per-control figures of each series point go only to whoever asks (`timelineControls=true`, the Vista general
+// trend). The service always computes them (stored with the past days); they are stripped here if not requested.
 export const overviewQueryFlags = (query: Record<string, unknown>): { timelineControls?: true } =>
   query.timelineControls === true || query.timelineControls === 'true' ? { timelineControls: true } : {};
 
 export const visibleTimeline = (timeline: any[] | undefined, query: { timelineControls?: boolean }): any[] | undefined =>
   timeline && !query.timelineControls ? timeline.map(({ controls, ...point }) => point) : timeline;
 
-// A series point without control: the state of each control that day. `points[i]` is that of `controls[i]` at that cut (`null` or nothing: not measured that day in the view).
+// A series point without control: the state of each control that day. `points[i]` is that of `controls[i]` at
+// that cut (`null` or nothing: not measured that day in the view).
 export const perControlOfPoint = (
   controls: string[],
   points: ({ status?: string; score?: number } | null | undefined)[]

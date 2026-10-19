@@ -1,6 +1,10 @@
 // Server memory for evaluations.
-// An entry is valid while its fingerprint (configuration, scope, and the facts of that row: count and latest) is the same. The probe checks it on every request, so new data expires only its control on its machine. Maximum life 60 minutes for what changes with the clock alone (a collector that stops beating stops proving after 24 h).
-// What is no longer valid can still be SHOWN while recomputing (`peek`): the server answers at once with it, marked, and recomputes behind.
+// An entry is valid while its fingerprint (configuration, scope, and the facts of that row: count and latest) is
+// the same. The probe checks it on every request, so new data expires only its control on its machine. Maximum
+// life 60 minutes for what changes with the clock alone (a collector that stops beating stops proving after 24
+// h).
+// What is no longer valid can still be SHOWN while recomputing (`peek`): the server answers at once with it,
+// marked, and recomputes behind.
 export const EVALUATION_TTL_MS = 60 * 60 * 1000;
 
 export interface CacheEntry<T> {
@@ -14,7 +18,8 @@ export class EvaluationCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();
   private totalBytes = 0;
 
-  // `maxBytes` and `sizeOf`: besides the entry count, a size cap (JSON size of each value, measured once on store).
+  // `maxBytes` and `sizeOf`: besides the entry count, a size cap (JSON size of each value, measured once on
+  // store).
   constructor(
     private readonly maxEntries: number,
     private readonly ttlMs: number = EVALUATION_TTL_MS,
@@ -31,7 +36,8 @@ export class EvaluationCache<T> {
     return this.maxBytes;
   }
 
-  // Adjusts the size cap (the service derives it from the scope). What no longer fits is evicted on the next store.
+  // Adjusts the size cap (the service derives it from the scope). What no longer fits is evicted on the next
+  // store.
   setMaxBytes(maxBytes: number): void {
     this.maxBytes = maxBytes;
   }
@@ -114,7 +120,9 @@ export class CancelSignal implements Cancellable {
   }
 }
 
-// The same computation (one control on one machine, same fingerprint) is shared by all requests needing it at once. If all waiters leave (the browser closes the request), it is cancelled; the one launched to refresh in the background is not.
+// The same computation (one control on one machine, same fingerprint) is shared by all requests needing it at
+// once. If all waiters leave (the browser closes the request), it is cancelled; the one launched to refresh in
+// the background is not.
 export class SharedTasks<T> {
   private readonly running = new Map<string, { promise: Promise<T>; waiters: number; signal: CancelSignal; pinned: boolean }>();
 
@@ -130,7 +138,8 @@ export class SharedTasks<T> {
 
   run(key: string, task: (signal: Cancellable) => Promise<T>, waiter?: Cancellable): Promise<T> {
     let entry = this.running.get(key);
-    // A cancelled computation is not shared: whoever arrives now starts another (the cancelled one's `finally` does not delete the new one).
+    // A cancelled computation is not shared: whoever arrives now starts another (the cancelled one's `finally`
+    // does not delete the new one).
     if (entry && entry.signal.aborted) entry = undefined;
     if (!entry) {
       const signal = new CancelSignal();
@@ -160,7 +169,8 @@ export class SharedTasks<T> {
   }
 }
 
-// How many heavy reads (one control on one machine) run at once on the dashboard server. Memory hits do not pass through here. What someone waits for now goes ahead of background refreshes.
+// How many heavy reads (one control on one machine) run at once on the dashboard server. Memory hits do not pass
+// through here. What someone waits for now goes ahead of background refreshes.
 export class Semaphore {
   private active = 0;
   private readonly waiting: { resolve: () => void; background: boolean }[] = [];

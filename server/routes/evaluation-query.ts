@@ -1,5 +1,9 @@
-// Parameters the evaluation routes accept. The route validates with `unknowns: 'ignore'`, and in `@osd/config-schema` that REMOVES undeclared keys from `request.query`: a parameter a screen sends and this list lacks never reaches the service, without error. Hence the list lives apart, free of dashboard dependencies, and `tests/evaluation-route-query.test.ts` runs each screen's real queries through it.
-// The other checks (catalog control, in-scope machine, IANA zone, bounded pages) are done by `normalizeQuery`, with a 400 and the reason.
+// Parameters the evaluation routes accept. The route validates with `unknowns: 'ignore'`, and in
+// `@osd/config-schema` that REMOVES undeclared keys from `request.query`: a parameter a screen sends and this
+// list lacks never reaches the service, without error. Hence the list lives apart, free of dashboard
+// dependencies, and `tests/evaluation-route-query.test.ts` runs each screen's real queries through it.
+// The other checks (catalog control, in-scope machine, IANA zone, bounded pages) are done by `normalizeQuery`,
+// with a 400 and the reason.
 export const EVALUATION_QUERY_FIELDS: Record<string, number> = {
   // All views.
   agentId: 64,

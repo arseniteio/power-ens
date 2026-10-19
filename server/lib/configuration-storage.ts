@@ -36,7 +36,8 @@ export async function ensureENSConfigurationIndex(client: any, logger: Logger): 
     await client.indices.create({
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        // `auto_expand_replicas` instead of a fixed replica: on a single-node indexer a replica can never be assigned and the index stays yellow; with more nodes, the replica is created.
+        // `auto_expand_replicas` instead of a fixed replica: on a single-node indexer a replica can never be
+        // assigned and the index stays yellow; with more nodes, the replica is created.
         settings: { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } },
         mappings: {
           properties: {
@@ -100,7 +101,9 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
-// `previous`: the document being replaced, when it is not already the last history version (written by a `config/` tool bypassing the plugin, or older than the history). Stored in the same bulk, one millisecond earlier, so the version before ANY save (including the systems migration) is always in the history.
+// `previous`: the document being replaced, when it is not already the last history version (written by a
+// `config/` tool bypassing the plugin, or older than the history). Stored in the same bulk, one millisecond
+// earlier, so the version before ANY save (including the systems migration) is always in the history.
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,

@@ -24,7 +24,8 @@ interface ControlConfigurationResolverProps {
   control: ENSControlConfiguration;
   activeLevel: ENSLevel;
   onConfigurationSaved: () => void;
-  // Parameters of this screen level (Organización): the state is computed from them alone and the form shows them first; the rest go in a dropdown. Without it, all.
+  // Parameters of this screen level (Organización): the state is computed from them alone and the form shows
+  // them first; the rest go in a dropdown. Without it, all.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;

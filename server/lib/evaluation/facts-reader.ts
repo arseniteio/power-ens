@@ -1,11 +1,17 @@
 // Reading of facts and aggregations, as the viewing user.
-// NO PARTIAL DATA. OpenSearch answers 200 with partial results if a shard fails. Each search sends `allow_partial_search_results=false` and the response is still checked: with a failed shard, a timeout or an early-terminated search the evaluation fails with the reason and nothing is judged or stored.
-// NO PIT. `search_after` over a fixed window (ending when the evaluation starts), sorted by date with a `keyword` tiebreaker (`FACTS_SORT`); facts are only appended, so pages do not move. A PIT on `wazuh-alerts-*` would open one context per shard, more than `search.max_open_pit_context`.
+// NO PARTIAL DATA. OpenSearch answers 200 with partial results if a shard fails. Each search sends
+// `allow_partial_search_results=false` and the response is still checked: with a failed shard, a timeout or an
+// early-terminated search the evaluation fails with the reason and nothing is judged or stored.
+// NO PIT. `search_after` over a fixed window (ending when the evaluation starts), sorted by date with a
+// `keyword` tiebreaker (`FACTS_SORT`); facts are only appended, so pages do not move. A PIT on `wazuh-alerts-*`
+// would open one context per shard, more than `search.max_open_pit_context`.
 import { ENS_ALERTS_INDEX } from '../../../common/constants';
 import { ENGINE_SOURCE_FIELDS, FACTS_SORT } from './queries';
 
 export const FACTS_PAGE_SIZE = 5000;
-// Facts held in memory at once per read (one control on one machine). Above this the evaluation stops with a clear error before endangering the dashboard process: each fact takes ~1.7 KB once read and normalised, so 50,000 are ~85 MB (double with two concurrent reads).
+// Facts held in memory at once per read (one control on one machine). Above this the evaluation stops with a
+// clear error before endangering the dashboard process: each fact takes ~1.7 KB once read and normalised, so
+// 50,000 are ~85 MB (double with two concurrent reads).
 export const MAX_FACTS_PER_READ = 50000;
 
 export class ENSIncompleteDataError extends Error {
@@ -68,7 +74,8 @@ export interface ENSFactsReadStats {
 
 export const newReadStats = (): ENSFactsReadStats => ({ pages: 0, hits: 0, searchMs: 0 });
 
-// Yields the thread between pages and rows so the dashboard process keeps serving other requests during a computation.
+// Yields the thread between pages and rows so the dashboard process keeps serving other requests during a
+// computation.
 export const yieldToEventLoop = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
 
 // Walks ALL facts of the query, calling `onPage` with each page.
@@ -127,7 +134,8 @@ export const readAllFacts = async (
     if (hits.length < pageSize) break;
     after = hits[hits.length - 1]?.sort;
     if (!after) break;
-    // Without `id` (the per-manager unique tiebreaker) two facts of the same instant cannot be separated across pages: they would be lost or repeated silently.
+    // Without `id` (the per-manager unique tiebreaker) two facts of the same instant cannot be separated across
+    // pages: they would be lost or repeated silently.
     if (after[idIndex] === null || after[idIndex] === undefined) {
       throw new ENSIncompleteDataError(`hay hechos sin \`id\` en ${what}: no se pueden leer por páginas sin perder ninguno`);
     }

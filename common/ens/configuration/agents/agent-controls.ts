@@ -1,4 +1,7 @@
-// Controls measured on a machine, for its system screen and completeness: those of its measurement plane (`manager` plane for the manager, `agent` for the rest) and, if its platform has a collector for only some (Windows: op.acc.1-4), only those. The others are shown apart as "sin recolector en esta plataforma", which is not a failure.
+// Controls measured on a machine, for its system screen and completeness: those of its measurement plane
+// (`manager` plane for the manager, `agent` for the rest) and, if its platform has a collector for only some
+// (Windows: op.acc.1-4), only those. The others are shown apart as "sin recolector en esta plataforma", which is
+// not a failure.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
 import { getENSCatalogControl } from '../../catalog';

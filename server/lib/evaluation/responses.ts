@@ -1,4 +1,5 @@
-// What each view returns. Compact: the browser receives results, never facts. The shape of each is in `server/README.md`.
+// What each view returns. Compact: the browser receives results, never facts. The shape of each is in
+// `server/README.md`.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
@@ -9,9 +10,11 @@ import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } fro
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
-// What the control list draws for each: the state and how many applicable requirements fail (and of those, how many for lack of evidence).
+// What the control list draws for each: the state and how many applicable requirements fail (and of those, how
+// many for lack of evidence).
 export const controlSummaryOf = (controlId: string, result?: ENSComplianceResult) => {
-  // `applicable` is set by the requirement evaluator even if the type does not declare it; same filter the list row used.
+  // `applicable` is set by the requirement evaluator even if the type does not declare it; same filter the list
+  // row used.
   const requirements = (result?.requirements || []).filter(requirement => (requirement as { applicable?: boolean }).applicable);
   return {
     controlId,
@@ -89,7 +92,8 @@ export const buildEvaluationResponse = (run: RunOutput) => {
         state.results.map(result => controlSummaryOf(result.control.id, result)),
         controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
       ),
-      // Each machine with what each control says on its row; pending ones are not there yet (the screen marks them by `controls[].pending`).
+      // Each machine with what each control says on its row; pending ones are not there yet (the screen marks
+      // them by `controls[].pending`).
       agents: agentControlRows(run.state, controlSummaryOf),
       ...(timeline ? { timeline } : {}),
     };
@@ -106,7 +110,8 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       dashboard: { ...model, impactEvents: run.impact },
       agents: agentRows(run),
       timeline,
-      // With the first load half done, the state of each control (the missing ones, `pending`): the panel shows those, not aggregate figures.
+      // With the first load half done, the state of each control (the missing ones, `pending`): the panel shows
+      // those, not aggregate figures.
       ...(pendings.length
         ? {
             controls: withPending(

@@ -117,7 +117,9 @@ export const ENSConfigurationBootstrap = ({
       .catch(synchronizeHydrationStates);
   };
 
-  // ERROR FIRST. The scope hydrates after the configuration and only if it succeeded; when the configuration fails `hydrateENSRuntime` throws before the scope, which stays NOT_STARTED (one of the spinner states). The error notice must be checked before the spinner, or the screen loads forever without saying why.
+  // ERROR FIRST. The scope hydrates after the configuration and only if it succeeded; when the configuration
+  // fails `hydrateENSRuntime` throws before the scope, which stays NOT_STARTED (one of the spinner states). The
+  // error notice must be checked before the spinner, or the screen loads forever without saying why.
   if (
     hydrationState.status === 'ERROR' ||
     scopeHydrationState.status === 'ERROR'

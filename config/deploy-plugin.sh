@@ -48,7 +48,8 @@ if [ "${1:-}" = "--solo-id" ]; then
   shift
 fi
 
-# A single zip, and a file: a second argument (a wildcard matching two zips, a mistyped option) is not silently ignored.
+# A single zip, and a file: a second argument (a wildcard matching two zips, a mistyped option) is not silently
+# ignored.
 [ $# -eq 1 ] || usage
 case "$1" in -*) usage ;; esac
 [ -f "$1" ] || { echo "the zip does not exist: $1" >&2; usage; }

@@ -11,9 +11,12 @@ import {
   splitsParameterOnSpaces,
 } from '../../../../../common/ens/configuration/services/parameter-input';
 
-// Renderer of `type: 'list'` parameters. A pill combo box: the stored value is always `string[]` (what `ENSControlParameter['value']` and the structure validator declare).
+// Renderer of `type: 'list'` parameters. A pill combo box: the stored value is always `string[]` (what
+// `ENSControlParameter['value']` and the structure validator declare).
 
-// Conversion of the stored value to items lives in `toParameterListItems` (services/parameter-value-validator) so the validator counts exactly as the form. A legacy string is split by newline and comma, never by `|` (it separates the fields of one item).
+// Conversion of the stored value to items lives in `toParameterListItems` (services/parameter-value-validator)
+// so the validator counts exactly as the form. A legacy string is split by newline and comma, never by `|` (it
+// separates the fields of one item).
 
 export const ListParameterRenderer = ({
   parameter,

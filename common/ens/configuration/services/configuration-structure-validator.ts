@@ -128,7 +128,9 @@ const validateRequiredStrings = (
   });
 };
 
-// `columns` is checked for shape only; whether a cell is valid for its column is decided by `parameter-value-validator`. This validator THROWS on hydration, and a badly filled table must degrade its control, not the whole Configuration screen.
+// `columns` is checked for shape only; whether a cell is valid for its column is decided by
+// `parameter-value-validator`. This validator THROWS on hydration, and a badly filled table must degrade its
+// control, not the whole Configuration screen.
 const validateParameterColumns = (
   value: unknown,
   path: string,
@@ -213,7 +215,8 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
-  // `options` is checked for shape only; whether the value is one of them is decided by `parameter-value-validator.ts` (this validator throws on hydration).
+  // `options` is checked for shape only; whether the value is one of them is decided by
+  // `parameter-value-validator.ts` (this validator throws on hydration).
   if (
     value.options !== undefined &&
     !isStringArray(value.options)
@@ -515,7 +518,9 @@ export const validateENSConfigurationStructure = (
     });
   }
 
-  // Per-system layer (1.2.0): optional; if present, shape-checked. Existence of controls and parameters and value validity are judged in `agents/agent-configuration-validator.ts`: a bad value in an agent degrades that machine's row, not the whole environment.
+  // Per-system layer (1.2.0): optional; if present, shape-checked. Existence of controls and parameters and
+  // value validity are judged in `agents/agent-configuration-validator.ts`: a bad value in an agent degrades
+  // that machine's row, not the whole environment.
   errors.push(...validateAgentsConfigurationShape(value.agents));
   errors.push(...validateCustomTemplatesShape(value.templates));
 

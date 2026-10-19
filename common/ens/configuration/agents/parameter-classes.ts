@@ -1,4 +1,5 @@
-// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict JSON.
+// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict
+// JSON.
 export type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
 export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
@@ -28,7 +29,9 @@ export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterCl
   "op.nub.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation", "P-12": "organisation", "P-13": "organisation"}
 };
 
-// Column that NAMES THE MACHINE in per-system tables; the migration distributes rows by it. Per-system tables absent here (paths, ACL, privilege matrices) have no such column and are not distributed, nor are the scope lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), which the engine reads whole.
+// Column that NAMES THE MACHINE in per-system tables; the migration distributes rows by it. Per-system tables
+// absent here (paths, ACL, privilege matrices) have no such column and are not distributed, nor are the scope
+// lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), which the engine reads whole.
 export const ENS_SYSTEM_KEY_COLUMNS: Record<string, Record<string, string>> = {
   'op.acc.1': { 'P-07': 'sistema' },
   'op.acc.5': { 'P-02': 'host' },

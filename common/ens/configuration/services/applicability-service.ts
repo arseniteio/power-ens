@@ -1,5 +1,7 @@
 // Statement of Applicability: excludes a whole control when the system lacks what the control regulates.
-// An incomplete statement does not exclude (reason, reference and a link are required). An exclusion never hides what was measured: see `core/evaluation/requirement/applicability.ts`. Excluded requirements are NO_APLICA, with reference and reason.
+// An incomplete statement does not exclude (reason, reference and a link are required). An exclusion never hides
+// what was measured: see `core/evaluation/requirement/applicability.ts`. Excluded requirements are NO_APLICA,
+// with reference and reason.
 // Types from the file, never from a high-level barrel.
 import type { ENSControlConfiguration } from '../types';
 import { cells, isUsableLink, parameterRows } from './attestation-service';
@@ -45,7 +47,8 @@ export const parseApplicabilityDeclaration = (
   return undefined;
 };
 
-// Complete enough to exclude: reason, reference and at least one usable link. Date and owner go to the report but do not block.
+// Complete enough to exclude: reason, reference and at least one usable link. Date and owner go to the report
+// but do not block.
 export const isDeclarationSufficient = (
   declaration?: ENSApplicabilityDeclaration
 ): boolean =>

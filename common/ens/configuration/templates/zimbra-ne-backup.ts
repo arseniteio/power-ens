@@ -1,7 +1,9 @@
 import type { ENSPlatformSource } from './types';
 
-// An mp.info.6 alternative for Zimbra 10 Network with zmbackup only, proposed by facts with `data.origen = zimbra-ne`.
-// P-11, P-12 and P-13 are PBS-only and stay unset: the zmbackup restore test uses a witness account declared in the machine `.env`.
+// An mp.info.6 alternative for Zimbra 10 Network with zmbackup only, proposed by facts with `data.origen =
+// zimbra-ne`.
+// P-11, P-12 and P-13 are PBS-only and stay unset: the zmbackup restore test uses a witness account declared in
+// the machine `.env`.
 export const zimbraNeBackupTemplate: ENSPlatformSource = {
   id: 'zimbra-ne-backup',
   label: 'Copias Zimbra NE',

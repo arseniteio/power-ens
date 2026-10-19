@@ -1,8 +1,14 @@
 // MIGRATION TO SYSTEMS, lossless.
-// Rows of tables with a system column (`ENS_SYSTEM_KEY_COLUMNS`) that match one agent (by id, name, hostname or stored alias) are COPIED to it; rows matching none or several stay in the organization and are reported. `*` rows stay in the organization and are also copied to any agent that receives own rows (its own value replaces the organization's whole).
-// Copied rows are REMOVED from the organization only if no machine is left without a value (optional parameter, or every in-scope machine ends with its own, template or union value); otherwise the organization stays as it was. `incomplete` checks the result and must be empty.
+// Rows of tables with a system column (`ENS_SYSTEM_KEY_COLUMNS`) that match one agent (by id, name, hostname or
+// stored alias) are COPIED to it; rows matching none or several stay in the organization and are reported. `*`
+// rows stay in the organization and are also copied to any agent that receives own rows (its own value replaces
+// the organization's whole).
+// Copied rows are REMOVED from the organization only if no machine is left without a value (optional parameter,
+// or every in-scope machine ends with its own, template or union value); otherwise the organization stays as it
+// was. `incomplete` checks the result and must be empty.
 // Two rows are the same only if identical (spaces around `|` trimmed, case counts).
-// Pure: returns the migrated document and the plan. The screen runs it on load (dry) and writes it only on "Repartir por agentes" after confirmation; the server keeps the previous document in the history. Idempotent.
+// Pure: returns the migrated document and the plan. The screen runs it on load (dry) and writes it only on
+// "Repartir por agentes" after confirmation; the server keeps the previous document in the history. Idempotent.
 // Scope lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01) and lists mixing platforms are not touched.
 import type {
   ENSAgentProfile,
@@ -32,7 +38,8 @@ export interface ENSMigrationMove {
   controlId: string;
   parameterId: string;
   rows: string[];
-  // `movida`: the row leaves the organization. `copiada`: it also stays there, since removing it would leave some machine without a value.
+  // `movida`: the row leaves the organization. `copiada`: it also stays there, since removing it would leave
+  // some machine without a value.
   mode: 'movida' | 'copiada';
 }
 
@@ -56,7 +63,8 @@ export interface ENSMigrationPlan {
   configuration: ENSConfigurationVersion;
   moves: ENSMigrationMove[];
   warnings: ENSMigrationWarning[];
-  // Required parameters with a value before and none after, per in-scope machine. Empty by construction; otherwise the migration is not offered.
+  // Required parameters with a value before and none after, per in-scope machine. Empty by construction;
+  // otherwise the migration is not offered.
   incomplete: ENSMigrationIncomplete[];
   changed: boolean;
   // Empty scope: nothing is migrated, since no machine can be checked.
@@ -64,7 +72,8 @@ export interface ENSMigrationPlan {
 }
 
 export interface ENSMigrationOptions {
-  // In-scope (evaluated) machines; without scope, the whole inventory. If none, the migration does nothing (`emptyScope`).
+  // In-scope (evaluated) machines; without scope, the whole inventory. If none, the migration does nothing
+  // (`emptyScope`).
   scopeAgentIds?: string[];
 }
 
@@ -234,7 +243,8 @@ export const planMigrationToSystems = (
         parameters[parameter.id] = merged;
       });
 
-      // Can they be removed from the organization? Tested by removing them and checking whether an in-scope machine loses a value.
+      // Can they be removed from the organization? Tested by removing them and checking whether an in-scope
+      // machine loses a value.
       const original = parameter.value;
       if (stay.length) parameter.value = stay;
       else delete parameter.value;

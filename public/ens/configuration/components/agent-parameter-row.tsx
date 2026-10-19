@@ -25,11 +25,13 @@ import { errorMessage } from './confirm-modal';
 
 interface AgentParameterRowProps {
   agentId: string;
-  // `value` is what is shown and edited: the effective value or, in a contribution parameter, only what this system adds.
+  // `value` is what is shown and edited: the effective value or, in a contribution parameter, only what this
+  // system adds.
   parameter: ENSControlParameter;
   parameterClass: 'system' | 'platform';
   origin: ENSResolvedValueOrigin;
-  // Parameter describing other machines in a manager control (or the declared scope): only this system's contribution is declared here.
+  // Parameter describing other machines in a manager control (or the declared scope): only this system's
+  // contribution is declared here.
   contributionOnly?: boolean;
   // The organization rows, apart and read-only.
   organisationRows?: string[];

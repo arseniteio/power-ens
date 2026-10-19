@@ -42,7 +42,8 @@ const ensLevelOptions = [
   },
 ];
 
-// Traceability and Availability dimension level. The first option leaves the key ABSENT (never empty or `null`): the control then uses the global ENS level.
+// Traceability and Availability dimension level. The first option leaves the key ABSENT (never empty or `null`):
+// the control then uses the global ENS level.
 const dimensionLevelOptions = [
   {
     value: '',
@@ -142,7 +143,8 @@ export const GlobalConfigurationPanel = ({
           [field]: value,
         } as ENSGlobalConfiguration;
 
-        // An optional field without a value is REMOVED: an absent key is what the validator accepts as "not declared".
+        // An optional field without a value is REMOVED: an absent key is what the validator accepts as "not
+        // declared".
         if (field === 'traceabilityLevel' && !value) {
           delete nextConfiguration.traceabilityLevel;
         }

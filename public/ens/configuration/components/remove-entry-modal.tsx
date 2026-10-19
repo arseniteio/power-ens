@@ -18,7 +18,8 @@ interface RemoveEntryModalProps {
   onConfirm: () => Promise<string | undefined>;
 }
 
-// Removes a whole profile, or a whole control of a profile, showing what is lost value by value first. A whole profile requires typing «quitar»: it is owner data, recoverable only from the history.
+// Removes a whole profile, or a whole control of a profile, showing what is lost value by value first. A whole
+// profile requires typing «quitar»: it is owner data, recoverable only from the history.
 export const RemoveEntryModal = ({ configuration, removal, onCancel, onConfirm }: RemoveEntryModalProps) => {
   const lines = describeAgentEntryRemoval(configuration, removal.agentKey, removal.controlId);
   const whole = !removal.controlId;

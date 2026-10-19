@@ -25,7 +25,8 @@ import { withMatchMode } from '../../../../common/ens/configuration/services/par
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
   onConfigurationSaved: () => void;
-  // Parameters shown first (default, all) and those in a separate dropdown, with its title. The whole control is ALWAYS saved: filtering what is shown cannot delete what is not shown.
+  // Parameters shown first (default, all) and those in a separate dropdown, with its title. The whole control is
+  // ALWAYS saved: filtering what is shown cannot delete what is not shown.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;
@@ -125,7 +126,8 @@ export const ConfigurationSession = ({
   const [saveError, setSaveError] =
     useState<string | undefined>();
 
-  // Reasons why the save was rejected before leaving the screen; apart from `saveError` (server errors) because the fix differs: here a field is corrected, there it is retried.
+  // Reasons why the save was rejected before leaving the screen; apart from `saveError` (server errors) because
+  // the fix differs: here a field is corrected, there it is retried.
   const [valueIssues, setValueIssues] =
     useState<string[]>([]);
 

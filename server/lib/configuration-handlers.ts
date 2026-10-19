@@ -34,7 +34,8 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
   const internal = (context: any) => context.core.opensearch.client.asInternalUser;
   const actual = (context: any) => context.core.opensearch.client.asCurrentUser;
 
-  // Who the user is and whether they can administer; null and the error response otherwise. Each rejected attempt (403) is logged with the user and what they wanted to do: never the body or the session.
+  // Who the user is and whether they can administer; null and the error response otherwise. Each rejected
+  // attempt (403) is logged with the user and what they wanted to do: never the body or the session.
   const administrator = async (context: any, response: any, actionName: string) => {
     try {
       const userName = await resolveCurrentUser(actual(context), securityEnabled);
@@ -69,7 +70,9 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, 'Hace falta una configuración ENS válida.');
     }
 
-    // The per-system layer (1.2.0) is shape-validated before writing: a `null` or an object on an agent would stop the ENS environment from loading. Keys too: a profile must be an agent id (a name would never apply). What this version does not know is accepted and ignored.
+    // The per-system layer (1.2.0) is shape-validated before writing: a `null` or an object on an agent would
+    // stop the ENS environment from loading. Keys too: a profile must be an agent id (a name would never apply).
+    // What this version does not know is accepted and ignored.
     const agentErrors = [
       ...validateAgentsConfigurationShape(bodyText.configuration.agents),
       ...checkAgentsConfigurationKeys(bodyText.configuration.agents).errors,
@@ -103,7 +106,8 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
         text(bodyText.configuration.changeReason) ||
         (initial ? 'Configuración ENS creada.' : 'Configuración ENS actualizada.');
 
-      // A body WITHOUT the `agents` key does not delete it: the existing one is kept. Only an empty `agents: {}` removes it, so a client that does not know the key cannot lose per-system values.
+      // A body WITHOUT the `agents` key does not delete it: the existing one is kept. Only an empty `agents: {}`
+      // removes it, so a client that does not know the key cannot lose per-system values.
       const keepsAgents =
         !Object.prototype.hasOwnProperty.call(bodyText.configuration, 'agents') &&
         previous2.agents && typeof previous2.agents === 'object'

@@ -1,8 +1,10 @@
-// System type detection per agent. Pure: takes what the inventory (`wazuh-monitoring`) and the facts (30-day aggregation) say and returns the type with its EVIDENCE.
+// System type detection per agent. Pure: takes what the inventory (`wazuh-monitoring`) and the facts (30-day
+// aggregation) say and returns the type with its EVIDENCE.
 // Order (first matching rule wins):
 //   1. id 000 -> Manager
 //   2. os.platform = windows -> Windows
-//   3. facts with data.plano = directorio -> LDAP (Zimbra); only its collector's facts reveal it, so a fresh install without facts is Linux until corrected by hand
+//   3. facts with data.plano = directorio -> LDAP (Zimbra); only its collector's facts reveal it, so a fresh
+// install without facts is Linux until corrected by hand
 //   4. Linux-family os.platform, or os.uname starting with "Linux" -> Linux
 //   5. no os -> undetected
 // mp.info.6 backup facts (data.origen = pbs or zimbra-ne) only propose a template there, never apply it.
@@ -152,7 +154,8 @@ export const hostnameFromUname = (uname?: string): string | undefined => {
   return /^linux$/i.test(parts[0] || '') && parts[1] ? parts[1] : undefined;
 };
 
-// Names a machine is known by in the configuration tables: id, agent name, `os.uname` hostname, the short part of both (before the first dot) and stored profile aliases. Lowercase, deduplicated.
+// Names a machine is known by in the configuration tables: id, agent name, `os.uname` hostname, the short part
+// of both (before the first dot) and stored profile aliases. Lowercase, deduplicated.
 export const agentAliases = (
   agent: ENSDetectableAgent,
   profile?: ENSAgentProfile

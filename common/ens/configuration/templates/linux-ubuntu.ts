@@ -1,6 +1,7 @@
 import type { ENSPlatformSource } from './types';
 
-// Standard Linux (Ubuntu) server. Proposed to agents with a Linux-family `os.platform` and no LDAP collector facts.
+// Standard Linux (Ubuntu) server. Proposed to agents with a Linux-family `os.platform` and no LDAP collector
+// facts.
 
 const UBUNTU_SYSTEM_ACCOUNTS = [
   '_apt', 'backup', 'bin', 'daemon', 'dhcpcd', 'fwupd-refresh', 'games', 'irc',

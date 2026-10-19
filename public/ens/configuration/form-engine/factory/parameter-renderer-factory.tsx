@@ -16,9 +16,14 @@ import {
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import { supportsParameterPattern } from '../../../../../common/ens/configuration/services/parameter-input';
 
-// `boolean`, `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need their own renderer.
-// A `table` without declared columns falls to the list renderer, and a `select` without options to the text renderer (blocks seeded earlier); their validation degrades the same way (`validateTable`, `validateSelection`), so form and engine agree: never offer a field that accepts what the engine rejects, nor reject what the field lets you write. Reseed with `inject-control.py`, which keeps configured values.
-// The numeric field is only for parameters whose value is just a number: mp.info.6 P-05 is `duration_days` but accepts 'ALTA=30; MEDIA=90', so it uses the text renderer.
+// `boolean`, `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
+// their own renderer.
+// A `table` without declared columns falls to the list renderer, and a `select` without options to the text
+// renderer (blocks seeded earlier); their validation degrades the same way (`validateTable`,
+// `validateSelection`), so form and engine agree: never offer a field that accepts what the engine rejects, nor
+// reject what the field lets you write. Reseed with `inject-control.py`, which keeps configured values.
+// The numeric field is only for parameters whose value is just a number: mp.info.6 P-05 is `duration_days` but
+// accepts 'ALTA=30; MEDIA=90', so it uses the text renderer.
 export const ParameterRendererFactory = ({
   parameter,
   value,

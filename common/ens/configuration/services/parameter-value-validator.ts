@@ -7,8 +7,10 @@ import { ENS_MATCH_MODES } from '../../../agent-configuration';
 import { compileParameterPattern } from './parameter-pattern';
 import { supportsParameterPattern } from './parameter-input';
 
-// Value validity rules per parameter type. Pure functions; imports only from `../types` and leaf modules (TDZ cycle rule).
-// Judges a PRESENT value: an empty value is valid here, "not configured" is decided by `hasValue` in validation-engine.
+// Value validity rules per parameter type. Pure functions; imports only from `../types` and leaf modules (TDZ
+// cycle rule).
+// Judges a PRESENT value: an empty value is valid here, "not configured" is decided by `hasValue` in
+// validation-engine.
 
 const VALID: ENSParameterValueVerdict = { valid: true };
 
@@ -66,7 +68,8 @@ export const isEmptyParameterValue = (
 };
 
 // Single split of a list value into items, shared by the form, the "configured" check and the engine policies.
-// Separators: newline, comma and semicolon (union of the form and runtime sets). Never `|`: it separates the fields of one item.
+// Separators: newline, comma and semicolon (union of the form and runtime sets). Never `|`: it separates the
+// fields of one item.
 export const toParameterListItems = (
   value: ENSControlParameter['value']
 ): string[] => {
@@ -113,7 +116,8 @@ const UNC_PATH = /^\\\\[^\\/\s]+\\[^\\/\s]/;
 const URI_WITH_SCHEME =
   /^[A-Za-z][A-Za-z0-9+.-]*:\/\/\S+$/;
 
-// Boolean forms the product really uses (mp.info.6 P-08 policy: true/'true'/'sí'/'si'/'yes'; sheets write 'sí / no').
+// Boolean forms the product really uses (mp.info.6 P-08 policy: true/'true'/'sí'/'si'/'yes'; sheets write 'sí /
+// no').
 const TRUE_BOOLEANS = [
   'true',
   'sí',
@@ -256,7 +260,8 @@ const validateBoolean = (
   );
 };
 
-// `path`: absolute path (POSIX, Windows drive, UNC or URI with scheme). Rejects relative paths, `~/...` and bare names.
+// `path`: absolute path (POSIX, Windows drive, UNC or URI with scheme). Rejects relative paths, `~/...` and bare
+// names.
 const validatePath = (
   value: ENSControlParameter['value']
 ): ENSParameterValueVerdict => {
@@ -298,7 +303,8 @@ const validateUrl = (
 };
 
 // --- `table`: rows with declared columns ---
-// Stored as `string[]`: one row per element, fields separated by `|` (same format as multi-field list items). A cell cannot contain `|` or newlines.
+// Stored as `string[]`: one row per element, fields separated by `|` (same format as multi-field list items). A
+// cell cannot contain `|` or newlines.
 
 export const TABLE_FIELD_SEPARATOR = ' | ';
 
@@ -614,7 +620,8 @@ const validateTable = (
     const number = index + 1;
     const cells = toTableRowCells(row);
 
-    // A last `variadic` column absorbs the extra cells (op.acc.3 P-03 is `function | indicator | indicator | ...`).
+    // A last `variadic` column absorbs the extra cells (op.acc.3 P-03 is `function | indicator | indicator |
+    // ...`).
     const last = columns[columns.length - 1];
     const allowsMore = Boolean(last && last.variadic);
 
@@ -659,7 +666,8 @@ const validateTable = (
 };
 
 // --- `select`: declared options ---
-// Single criterion shared by the form and the validator. A `select` without `options` accepts any text (blocks seeded before options existed).
+// Single criterion shared by the form and the validator. A `select` without `options` accepts any text (blocks
+// seeded before options existed).
 
 export const getParameterOptions = (
   parameter: ENSControlParameter
@@ -718,7 +726,8 @@ const validateString = (
 };
 
 // --- Per-parameter refinements ---
-// Refined by `name` instead of adding a type: the entry stops matching if the parameter is renamed, and the base type keeps validating.
+// Refined by `name` instead of adding a type: the entry stops matching if the parameter is renamed, and the base
+// type keeps validating.
 
 interface ParameterRefinement {
   controlId: string;
@@ -746,7 +755,8 @@ const validateUmask = (
   );
 };
 
-// mp.info.6 P-05 `periodo_max_sin_prueba_dias` is `duration_days` but also accepts the contract form 'ALTA=30; MEDIA=90' (criticality per machine from P-04).
+// mp.info.6 P-05 `periodo_max_sin_prueba_dias` is `duration_days` but also accepts the contract form 'ALTA=30;
+// MEDIA=90' (criticality per machine from P-04).
 const validateRestoreThreshold = (
   parameter: ENSControlParameter,
   value: ENSControlParameter['value']
@@ -1014,7 +1024,8 @@ const cellOptions = (
       legacy: false,
     }));
 
-  // Same rule as `resolveSelectFieldModel`: a stored value outside the options is offered marked and selected, never replaced.
+  // Same rule as `resolveSelectFieldModel`: a stored value outside the options is offered marked and selected,
+  // never replaced.
   if (
     column.type === 'select' &&
     declared.length > 0 &&
@@ -1105,7 +1116,8 @@ export const resolveTableFieldModel = (
   return { columns, rows };
 };
 
-// The three pure form operations: take the stored value, return the next. `undefined` means "not configured" (last row deleted).
+// The three pure form operations: take the stored value, return the next. `undefined` means "not configured"
+// (last row deleted).
 const rowsAsValue = (
   rows: string[]
 ): string[] | undefined =>
@@ -1122,7 +1134,8 @@ export const setTableCell = (
     getParameterColumns(parameter);
   const rows = toParameterTableRows(value);
 
-  // Guard on the INDEX, not on row content: a blank row is stored as an empty string (falsy). Covered by `config/test_control_blocks.py`, case "write in a cell".
+  // Guard on the INDEX, not on row content: a blank row is stored as an empty string (falsy). Covered by
+  // `config/test_control_blocks.py`, case "write in a cell".
   if (
     rowIndex < 0 ||
     rowIndex >= rows.length

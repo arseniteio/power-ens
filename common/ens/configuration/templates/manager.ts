@@ -1,7 +1,10 @@
 import type { ENSPlatformSource } from './types';
 import { AUDITD_RECORD_FIELDS, LINUX_AUDITABLE_EVENTS } from './linux-ubuntu';
 
-// Wazuh manager (agent 000). Its row evaluates only `manager`-plane controls (op.exp.7, op.exp.9, op.mon.1, op.mon.2, op.cont.2, op.cont.3, op.nub.1, plus op.exp.8 and op.mon.3, measured on both planes). Mostly organization policy; the platform-specific part is op.exp.8: audited sources, fields and the accounts writing the logs (Wazuh and indexer).
+// Wazuh manager (agent 000). Its row evaluates only `manager`-plane controls (op.exp.7, op.exp.9, op.mon.1,
+// op.mon.2, op.cont.2, op.cont.3, op.nub.1, plus op.exp.8 and op.mon.3, measured on both planes). Mostly
+// organization policy; the platform-specific part is op.exp.8: audited sources, fields and the accounts writing
+// the logs (Wazuh and indexer).
 export const managerWazuhTemplate: ENSPlatformSource = {
   id: 'manager-wazuh',
   label: 'Manager Wazuh',

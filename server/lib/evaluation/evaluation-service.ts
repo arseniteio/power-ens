@@ -1,9 +1,19 @@
 // Evaluation on the plugin server.
-// The browser does not download facts to judge: it asks here for the result. The server reads the WHOLE window as the viewing user, one control on one machine at a time, judges it with the SAME engine the browser used (`common/ens/core`) and releases the facts.
-//   1. Context: who is viewing, the active configuration, the scope (wazuh-monitoring inventory) and a document-less PROBE (see `queries.ts`).
-//   2. Each row (a control on a machine that measures it): if its fingerprint is unchanged and under 60 minutes old, the stored one; if changed, the stored one is shown at once (marked) and recomputed behind; if none, computed: heartbeats -> state-fact pruning -> the machine's facts page by page -> engine (one at a time) -> released. Up to 4 reads at once, cheap rows first. The list and the panel answer with what exists (`meta.pending`).
-//   3. The overview of a control is consolidated with the engine's consolidation (`consolidateENSControlRows`); a machine's comes from its rows. The panel state is built with `assembleENSComplianceState`. The result equals the engine over all facts at once.
-//   4. The daily series: once the row exists, in the background and behind everything else, the end of each window day is evaluated and stored in the row; until then views asking for it report `meta.seriesPending`.
+// The browser does not download facts to judge: it asks here for the result. The server reads the WHOLE window
+// as the viewing user, one control on one machine at a time, judges it with the SAME engine the browser used
+// (`common/ens/core`) and releases the facts.
+//   1. Context: who is viewing, the active configuration, the scope (wazuh-monitoring inventory) and a
+// document-less PROBE (see `queries.ts`).
+//   2. Each row (a control on a machine that measures it): if its fingerprint is unchanged and under 60 minutes
+// old, the stored one; if changed, the stored one is shown at once (marked) and recomputed behind; if none,
+// computed: heartbeats -> state-fact pruning -> the machine's facts page by page -> engine (one at a time) ->
+// released. Up to 4 reads at once, cheap rows first. The list and the panel answer with what exists
+// (`meta.pending`).
+//   3. The overview of a control is consolidated with the engine's consolidation (`consolidateENSControlRows`);
+// a machine's comes from its rows. The panel state is built with `assembleENSComplianceState`. The result equals
+// the engine over all facts at once.
+//   4. The daily series: once the row exists, in the background and behind everything else, the end of each
+// window day is evaluated and stored in the row; until then views asking for it report `meta.seriesPending`.
 // The response of each view is described in `server/README.md`.
 import { createHash } from 'crypto';
 import { deflateRawSync, inflateRawSync } from 'zlib';
@@ -129,7 +139,8 @@ export const isValidTimeZone = (timeZone?: string): boolean => {
   }
 };
 
-// Checked request parameters. What depends on the scope (the machine being in it) is checked with the context (`run`).
+// Checked request parameters. What depends on the scope (the machine being in it) is checked with the context
+// (`run`).
 export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQuery => {
   const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
   const controlId = text(query.controlId);
@@ -197,25 +208,30 @@ interface CutPoint {
 // Series days a row has computed: for a time zone and a today (`key`), the point of each day end (by ISO instant).
 interface StoredCuts {
   key: string;
-  // With which past-day facts they were computed (`pastSignature`): new facts are today's and do not change them; a late fact dated on a past day does.
+  // With which past-day facts they were computed (`pastSignature`): new facts are today's and do not change
+  // them; a late fact dated on a past day does.
   pastKey: string;
-  // Instant of the request that started it: between two series of the same day for the same row, the most recent wins.
+  // Instant of the request that started it: between two series of the same day for the same row, the most recent
+  // wins.
   asOf: number;
   points: Record<string, CutPoint>;
-  // All computed days (stored as they come out). A half-done series passes from one row version to the next and keeps filling.
+  // All computed days (stored as they come out). A half-done series passes from one row version to the next and
+  // keeps filling.
   complete: boolean;
 }
 
 // What is stored of a row (a control on a machine). No facts.
 interface StoredRow {
   result?: ENSComplianceResult;
-  // Stored traceability (first entries), compressed: almost all of a row's size, read only by the detail and its pages.
+  // Stored traceability (first entries), compressed: almost all of a row's size, read only by the detail and its
+  // pages.
   traceability: Buffer | null;
   traceabilityStored: number;
   traceabilityTotal: number;
   cuts?: StoredCuts;
   stats: ENSRowComputeStats;
-  // Configuration and scope it was computed with: an entry from another configuration is not shown, not even while recomputing.
+  // Configuration and scope it was computed with: an entry from another configuration is not shown, not even
+  // while recomputing.
   configurationKey: string;
   scopeKey: string;
   // Last background refresh attempt that failed.
@@ -251,7 +267,8 @@ const compresses = (list: ENSTraceabilityResult[]): Buffer | null =>
 export const decompressTraceability = (dataItems: Buffer | null): ENSTraceabilityResult[] =>
   dataItems ? JSON.parse(inflateRawSync(dataItems).toString('utf8')) : [];
 
-// Size of a stored row (for the memory cap). The series counts at full size (90 days at most) even if its points arrive after storing.
+// Size of a stored row (for the memory cap). The series counts at full size (90 days at most) even if its points
+// arrive after storing.
 export const storedRowBytes = (row: StoredRow): number =>
   JSON.stringify(row.result || null).length + (row.traceability?.length || 0) + ENS_EVALUATION_LIMITS.maxTimelineDays * 80 + 512;
 
@@ -264,7 +281,8 @@ export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceR
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// The active configuration is re-read only when its stamp changes: the document carries the history and weighs hundreds of KB. The stamp includes `_seq_no` and `_primary_term`, which change on any write.
+// The active configuration is re-read only when its stamp changes: the document carries the history and weighs
+// hundreds of KB. The stamp includes `_seq_no` and `_primary_term`, which change on any write.
 const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
   const body = await searchComplete(
     client,
@@ -284,7 +302,9 @@ const readConfigurationStamp = async (client: any): Promise<string | undefined> 
   return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
 };
 
-// A machine's view comes from the overview rows: its row if the control is measured there; the manager's row for an organization control; nothing if not measured. `null` when it cannot be decided from the rows (organization control without a manager row): then it is evaluated apart.
+// A machine's view comes from the overview rows: its row if the control is measured there; the manager's row for
+// an organization control; nothing if not measured. `null` when it cannot be decided from the rows (organization
+// control without a manager row): then it is evaluated apart.
 export const deriveForAgent = (
   controlId: string,
   agentId: string,
@@ -339,11 +359,13 @@ export interface ENSViewPartition {
   pointAt: (cutoffIso: string, cutoff: Date) => CutPoint | null | undefined;
 }
 
-// The list, the overview and the panel answer at most 1.5 s after starting to read (about 2 s with the context), with the rows that exist; the rest keep computing (`meta.pending`).
+// The list, the overview and the panel answer at most 1.5 s after starting to read (about 2 s with the context),
+// with the rows that exist; the rest keep computing (`meta.pending`).
 export const FIRST_RESPONSE_MS = 1500;
 // Views that answer in parts.
 const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'overview', 'dashboard'];
-// A failed cold computation is reported in following requests for this time, without relaunching it on every browser poll.
+// A failed cold computation is reported in following requests for this time, without relaunching it on every
+// browser poll.
 const COLD_FAILURE_MS = 30 * 1000;
 
 // Retry delay of a failed refresh (or series): 30 s, 1 min, 2, 4... up to 5 min.
@@ -382,12 +404,14 @@ export const createEvaluationService = ({
 }: ENSEvaluationServiceOptions) => {
   const clockValue = () => clock().getTime();
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
-  // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid IANA zones arrive here).
+  // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
+  // IANA zones arrive here).
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
   const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
-  // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What someone waits for goes ahead of background work (refreshes and series).
+  // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What
+  // someone waits for goes ahead of background work (refreshes and series).
   const reads = new Semaphore(maxConcurrentReads);
   const cpu = new Semaphore(1);
   const refreshFailures = new Map<string, { failures: number; nextAt: number }>();
@@ -444,7 +468,8 @@ export const createEvaluationService = ({
 
     const window = resolveEvaluationWindow(configuration.global.evaluationPeriod, now);
     const filters = buildViewFilters(window, scope);
-    // WHOLE past days of the window: from the first full day (fixed all day even if the window moves) to the start of today.
+    // WHOLE past days of the window: from the first full day (fixed all day even if the window moves) to the
+    // start of today.
     const today = startOfDayIn(now, query.timeZone);
     const firstDay = startOfDayIn(new Date(Date.parse(window.from) + 86400e3), query.timeZone);
     const probe = readProbeResponse(
@@ -540,9 +565,11 @@ export const createEvaluationService = ({
   const weightOf = (ctx: ENSEvaluationContext, controlId: string, agentId?: string): number =>
     agentId ? ctx.probe.controls[controlId]?.agents[agentId]?.count || 0 : ctx.probe.controls[controlId]?.count || 0;
 
-  // Series days each row computes: those of the configuration window (30 by default), in the viewer's zone. They cover any series the screens ask (panel 7, detail 30).
+  // Series days each row computes: those of the configuration window (30 by default), in the viewer's zone. They
+  // cover any series the screens ask (panel 7, detail 30).
   const seriesOf = (ctx: ENSEvaluationContext) => {
-    // One day more than the window: its first day is usually partial and a view's series starts on the day of its first fact.
+    // One day more than the window: its first day is usually partial and a view's series starts on the day of
+    // its first fact.
     const days = Math.min(
       ENS_EVALUATION_LIMITS.maxTimelineDays,
       Math.max(1, Math.ceil((Date.parse(ctx.window.to) - Date.parse(ctx.window.from)) / 86400e3) + 1)
@@ -566,7 +593,8 @@ export const createEvaluationService = ({
     return hits;
   };
 
-  // Exact pruning of a machine's state facts as of some instants (see `computeStateFactCutoffsByCollector`): now, for the result; now and each day end, for the series.
+  // Exact pruning of a machine's state facts as of some instants (see `computeStateFactCutoffsByCollector`):
+  // now, for the result; now and each day end, for the series.
   const pruningFor = async (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -604,7 +632,8 @@ export const createEvaluationService = ({
     return buildStateFactKeepClause(controlId, agentId, gaps);
   };
 
-  // Normalised facts of a row, with the synthetic ones the engine read from other controls (presence and heartbeats).
+  // Normalised facts of a row, with the synthetic ones the engine read from other controls (presence and
+  // heartbeats).
   const eventsOf = (ctx: ENSEvaluationContext, spec: RowSpec, hits: any[]): { events: ENSNormalizedEvent[]; synthetic: number } => {
     const { controlId, factsAgent } = spec;
     const synthetic = factsAgent
@@ -619,7 +648,8 @@ export const createEvaluationService = ({
     return { events: [...normalizeWazuhAlerts(hits), ...synthetic], synthetic: synthetic.length };
   };
 
-  // The engine over some facts as of an instant. Synchronous: the engine's active configuration is this request's while evaluating (another request can only slip in at an `await`, and there is none).
+  // The engine over some facts as of an instant. Synchronous: the engine's active configuration is this
+  // request's while evaluating (another request can only slip in at an `await`, and there is none).
   const evaluatorOf = (ctx: ENSEvaluationContext, spec: RowSpec) => (list: ENSNormalizedEvent[], instant: Date) => {
     ensConfigurationRepository.replaceActive(ctx.configuration);
     const level = ctx.configuration.global.ensLevel;
@@ -648,7 +678,9 @@ export const createEvaluationService = ({
       const traceability = result?.traceability || [];
       const savedOnes = traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
       const series = seriesOf(ctx);
-      // Past days already computed today (same zone, configuration, scope and past-day facts) stay valid: the new facts forcing the row to recompute are today's. The series moves to the new version even half done: it is the SAME object and its computer keeps filling it.
+      // Past days already computed today (same zone, configuration, scope and past-day facts) stay valid: the
+      // new facts forcing the row to recompute are today's. The series moves to the new version even half done:
+      // it is the SAME object and its computer keeps filling it.
       const pastKey = pastSignature(ctx, spec);
       const previous2 = o.previous;
       const pasts =
@@ -693,7 +725,9 @@ export const createEvaluationService = ({
     }, { background: o.background });
   };
 
-  // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a machine's view of an organization control without a manager row. The read slot is kept until the engine finishes: no more than `maxConcurrentReads` reads in memory.
+  // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a
+  // machine's view of an organization control without a manager row. The read slot is kept until the engine
+  // finishes: no more than `maxConcurrentReads` reads in memory.
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -720,7 +754,11 @@ export const createEvaluationService = ({
   };
 
   // --- 3. one stream per machine ---
-  // A machine's other rows are read together: a stream sorted by control (or several, by control groups, if the machine has many facts) and, once per machine, what the stream does not carry (facts without `data.ensfacil` or with an old control field), its heartbeats and the last state fact of each control (for pruning). Each control is evaluated as soon as its stretch ends, with its facts in the SAME order as reading it alone (`mergeFactsInOrder`).
+  // A machine's other rows are read together: a stream sorted by control (or several, by control groups, if the
+  // machine has many facts) and, once per machine, what the stream does not carry (facts without `data.ensfacil`
+  // or with an old control field), its heartbeats and the last state fact of each control (for pruning). Each
+  // control is evaluated as soon as its stretch ends, with its facts in the SAME order as reading it alone
+  // (`mergeFactsInOrder`).
 
   // Facts that roughly fit in a control group of a machine.
   const CHUNK_FACTS = 20000;
@@ -730,7 +768,9 @@ export const createEvaluationService = ({
 
   class StreamFallbackError extends Error {}
 
-  // An indexer 400 (the query: a mapping or sort it does not support) on the per-machine read: its rows are read one by one, in the usual order. Nothing else: a 401/403 is reported as is, and a 429 or 5xx fails with its reason and is retried with a wait. Own errors (incomplete data, too many facts, cancelled) carry no `meta`.
+  // An indexer 400 (the query: a mapping or sort it does not support) on the per-machine read: its rows are read
+  // one by one, in the usual order. Nothing else: a 401/403 is reported as is, and a 429 or 5xx fails with its
+  // reason and is retried with a wait. Own errors (incomplete data, too many facts, cancelled) carry no `meta`.
   const indexerRejection = (error: any): boolean => Number(error?.meta?.statusCode) === 400;
 
   interface AgentSide {
@@ -738,7 +778,8 @@ export const createEvaluationService = ({
     lastSeen: Map<string, ENSStateFactLastSeen>;
     sideFor: (controlId: string) => any[];
   }
-  // The per-machine apart data is shared between control groups and between requests computing at once with the same window; forgotten 5 minutes after reading.
+  // The per-machine apart data is shared between control groups and between requests computing at once with the
+  // same window; forgotten 5 minutes after reading.
   const sides = new Map<string, Promise<AgentSide>>();
 
   const sideOf = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, agentId: string, signal: Cancellable): Promise<AgentSide> => {
@@ -786,7 +827,8 @@ export const createEvaluationService = ({
         : 1
       : 0;
 
-  // Reads a control group of a machine and, stretch by stretch, computes its current result (`current`) or its series (`series`).
+  // Reads a control group of a machine and, stretch by stretch, computes its current result (`current`) or its
+  // series (`series`).
   const runStreamChunk = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -847,7 +889,8 @@ export const createEvaluationService = ({
           async page => {
             for (const hit of page) {
               const value = hit?._source?.data?.ensfacil;
-              // A fact with several controls in `data.ensfacil`: the stream cannot distribute it like the per-row read; they are read alone.
+              // A fact with several controls in `data.ensfacil`: the stream cannot distribute it like the
+              // per-row read; they are read alone.
               if (Array.isArray(value)) throw new StreamFallbackError();
               const controlId = String(value);
               if (!span || span.controlId !== controlId) {
@@ -910,7 +953,10 @@ export const createEvaluationService = ({
     need.key.startsWith('r|') &&
     !(need.spec.controlId in ENS_CROSS_CONTROL_EVENT_TYPES);
 
-  // Groups the rows. A control can be shown only when ALL its rows (one per machine) exist, so controls are split into BANDS, cheap to expensive per the probe, and each band into a per-machine stream (up to `CHUNK_FACTS` facts on the busiest machine). Bands are computed in order, so cheap controls are on every machine soon. Rows read alone go in their weight band.
+  // Groups the rows. A control can be shown only when ALL its rows (one per machine) exist, so controls are
+  // split into BANDS, cheap to expensive per the probe, and each band into a per-machine stream (up to
+  // `CHUNK_FACTS` facts on the busiest machine). Bands are computed in order, so cheap controls are on every
+  // machine soon. Rows read alone go in their weight band.
   const planGroups = (needs: RowNeed[]) => {
     const groups: { agentId?: string; needs: RowNeed[]; weight: number; band: number }[] = [];
     const byControl = new Map<string, RowNeed[]>();
@@ -960,7 +1006,8 @@ export const createEvaluationService = ({
     return groups.sort((a, b) => a.band - b.band || a.weight - b.weight);
   };
 
-  // Computes (or joins the computation of) some rows; returns each one's promise. `pinned`: continues if whoever asked leaves (partial answers and refreshes); otherwise it is cancelled when nobody waits.
+  // Computes (or joins the computation of) some rows; returns each one's promise. `pinned`: continues if whoever
+  // asked leaves (partial answers and refreshes); otherwise it is cancelled when nobody waits.
   const ensureRows = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -1084,7 +1131,9 @@ export const createEvaluationService = ({
   };
 
   // --- 5. the series, in the background ---
-  // When no foreground job is running, group by group (cheap first): facts are read with exact pruning for now and each day end and each day is evaluated (newest to oldest, each in its engine turn, behind whatever someone waits for). Points are stored in the row as they come out; views reuse them without reading again.
+  // When no foreground job is running, group by group (cheap first): facts are read with exact pruning for now
+  // and each day end and each day is evaluated (newest to oldest, each in its engine turn, behind whatever
+  // someone waits for). Points are stored in the row as they come out; views reuse them without reading again.
 
   interface SeriesWanted {
     clients: ENSEvaluationClients;
@@ -1097,7 +1146,8 @@ export const createEvaluationService = ({
   let seriesBusy = false;
   let seriesTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // The series goes with the row stored NOW under that key (whatever version: a refresh for new facts does not change it) while it has the same configuration and scope as the request that asked for it.
+  // The series goes with the row stored NOW under that key (whatever version: a refresh for new facts does not
+  // change it) while it has the same configuration and scope as the request that asked for it.
   const seriesTarget = (ctx: ENSEvaluationContext, need: RowNeed) => {
     const row = rows.peek(need.key)?.value;
     return row && row.configurationKey === ctx.configurationKey && row.scopeKey === ctx.scopeKey ? row : undefined;
@@ -1117,7 +1167,8 @@ export const createEvaluationService = ({
     kickSeries();
   };
 
-  // The series starts a little after the foreground ends: a request arriving just behind (the panel after the list) goes first.
+  // The series starts a little after the foreground ends: a request arriving just behind (the panel after the
+  // list) goes first.
   const SERIES_IDLE_MS = 200;
   function kickSeries() {
     if (seriesBusy || seriesTimer) return;
@@ -1132,7 +1183,9 @@ export const createEvaluationService = ({
     if (seriesBusy || foregroundJobs > 0) return;
     const now = clock().getTime();
     const readyOnes = [...seriesWanted.entries()].filter(([key, w]) => {
-      // The row under that key, whatever version (a refresh does not take it out of the queue); out only if it already has its series, or the row is of another configuration, scope or past days (the new one will ask with its own).
+      // The row under that key, whatever version (a refresh does not take it out of the queue); out only if it
+      // already has its series, or the row is of another configuration, scope or past days (the new one will ask
+      // with its own).
       const row = seriesTarget(w.ctx, w.need);
       if (!row || seriesDone(row, w.serieKey, pastSignature(w.ctx, w.need.spec))) {
         seriesWanted.delete(key);
@@ -1205,7 +1258,9 @@ export const createEvaluationService = ({
       row.cuts && row.cuts.key === series.key && row.cuts.pastKey === pastKey
         ? row.cuts
         : { key: series.key, pastKey, asOf: ctx.now.getTime(), points: {}, complete: false };
-    // The row under that key still wants THIS series: any version, same configuration and scope, while it has no newer one for the same day (computed with newer past-day facts). If a new row version lacks it, it is attached.
+    // The row under that key still wants THIS series: any version, same configuration and scope, while it has no
+    // newer one for the same day (computed with newer past-day facts). If a new row version lacks it, it is
+    // attached.
     const follows = (): boolean => {
       const actual = seriesTarget(ctx, need);
       if (!actual) return false;
@@ -1295,7 +1350,8 @@ export const createEvaluationService = ({
     if (query.controlId) {
       const facts = ctx.probe.controls[query.controlId];
       if (query.agentId) {
-        // A machine's series starts at its first fact of the control (or the manager's, for an organization control).
+        // A machine's series starts at its first fact of the control (or the manager's, for an organization
+        // control).
         const ofAgent = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => facts?.agents[id]).filter(Boolean) as any[];
         first2 = ofAgent.length ? Math.min(...ofAgent.map(h => Date.parse(h.oldest || h.newest))) : undefined;
         howMany = ofAgent.reduce((n, h) => n + h.count, 0);
@@ -1353,7 +1409,8 @@ export const createEvaluationService = ({
     computed: boolean;
   }
 
-  // Refreshes behind the stored rows that are no longer valid (what is shown is the stored data). A new attempt clears the previous error; if it fails it is noted with its time and the next waits longer.
+  // Refreshes behind the stored rows that are no longer valid (what is shown is the stored data). A new attempt
+  // clears the previous error; if it fails it is noted with its time and the next waits longer.
   const refreshStale = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, stale: RowNeed[], options: ENSRunOptions): number => {
     const now = clock().getTime();
     const due = stale.filter(need => {
@@ -1408,7 +1465,8 @@ export const createEvaluationService = ({
     const needs: RowNeed[] = [];
     for (const controlId of controls) {
       const agentNames = withoutIdentities ? [] : forControl(controlId);
-      // Without rows, machines declared out of scope still give the consolidated view (reading nothing); only if there are none does the engine evaluate the control over all its facts without a row.
+      // Without rows, machines declared out of scope still give the consolidated view (reading nothing); only if
+      // there are none does the engine evaluate the control over all its facts without a row.
       if (!agentNames.length && !withoutIdentities) {
         ensConfigurationRepository.replaceActive(ctx.configuration);
         if (consolidateENSControlRows(controlId, level, [], ctx.presenceEvents, ctx.scope, ctx.now)) {
@@ -1436,7 +1494,8 @@ export const createEvaluationService = ({
       rowsOf.set(controlId, rows);
     }
 
-    // The memory cap follows the scope: room for at least 10 users with all their rows (~60 KB each), between `maxStoredBytes` and 4 times that.
+    // The memory cap follows the scope: room for at least 10 users with all their rows (~60 KB each), between
+    // `maxStoredBytes` and 4 times that.
     rows.setMaxBytes(Math.min(maxStoredBytes * 4, Math.max(maxStoredBytes, needs.length * 60 * 1024 * 10)));
 
     // 2. What is stored (valid or old) and what must be computed.
@@ -1456,7 +1515,8 @@ export const createEvaluationService = ({
         readyOnes.set(need.key, { key: need.key, need, row: entry.value, storedAt: entry.storedAt, stale: true, computed: false });
         old.push(need);
       } else {
-        // A row that failed AFTER answering (the first load continues behind): the next poll reports the error once, instead of relaunching the computation unnoticed.
+        // A row that failed AFTER answering (the first load continues behind): the next poll reports the error
+        // once, instead of relaunching the computation unnoticed.
         const failure = coldFailures.get(need.key);
         if (failure) {
           coldFailures.delete(need.key);
@@ -1469,7 +1529,8 @@ export const createEvaluationService = ({
     }
     const refreshingInBackground = refreshStale(clients, ctx, old, options);
 
-    // 3. Cold: the list and the panel answer with what exists at `firstResponseMs` and the rest continues behind; other views wait.
+    // 3. Cold: the list and the panel answer with what exists at `firstResponseMs` and the rest continues
+    // behind; other views wait.
     const promises = ensureRows(clients, ctx, cold, {
       background: false,
       pinned: progressive,
@@ -1510,7 +1571,8 @@ export const createEvaluationService = ({
     }
 
     // 4. The view of each control with all its rows ready.
-    // Only points of today's series, in this zone and with the SAME past-day facts the probe reports now (a late fact invalidates it).
+    // Only points of today's series, in this zone and with the SAME past-day facts the probe reports now (a late
+    // fact invalidates it).
     const pastOf = new Map(needs.map(need => [need.key, pastSignature(ctx, need.spec)]));
     const pointOf = (row: StoredRow, iso: string, need: RowNeed): CutPoint | undefined =>
       row.cuts && row.cuts.key === series.key && row.cuts.pastKey === (pastOf.get(need.key) ?? pastSignature(ctx, need.spec))
@@ -1591,7 +1653,8 @@ export const createEvaluationService = ({
             : undefined;
         let rowItem = ofRow ? rowOf(ofRow) : undefined;
         if (!decision) {
-          // An organization control without a manager row: the view is evaluated with the manager's facts, like the engine.
+          // An organization control without a manager row: the view is evaluated with the manager's facts, like
+          // the engine.
           const need: RowNeed = {
             key: `d|${ctx.userKey}|${controlId}|${query.agentId}`,
             fingerprint: rowFingerprint(ctx, controlId, ENS_MANAGER_AGENT_ID),
@@ -1634,24 +1697,28 @@ export const createEvaluationService = ({
       ? undefined
       : assembleENSComplianceState(parts, query.agentId, ctx.scope, ctx.presenceEvents);
 
-    // 5. The series: past days (stored or taken from each row's series) + the present. Never waits: if a day is missing the view answers without series (`meta.seriesPending`) and the series is computed behind.
+    // 5. The series: past days (stored or taken from each row's series) + the present. Never waits: if a day is
+    // missing the view answers without series (`meta.seriesPending`) and the series is computed behind.
     let timeline: any[] | undefined;
     let seriesPending = false;
     // The last good series is shown while the new one is computed.
     let seriesRefreshing = false;
     if (query.timelineDays) {
       if (pendings.length) {
-        // With rows still to compute, no series either: today's point would come from some controls and look like all of them.
+        // With rows still to compute, no series either: today's point would come from some controls and look
+        // like all of them.
         seriesPending = true;
       } else {
-        // Past days of this view, stored until the next day while the configuration, scope and past-day facts of its rows do not change (even if some row is refreshing: new facts are today's).
+        // Past days of this view, stored until the next day while the configuration, scope and past-day facts of
+        // its rows do not change (even if some row is refreshing: new facts are today's).
         const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey, needs.map(need => pastOf.get(need.key) ?? null));
         let pasts = timelines.get(tKey, tFingerprint)?.pasados;
         if (!pasts) {
           const byControl = pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
           if (byControl.some(points => points.some(p => p === undefined))) {
             for (const u of used) wantSeries(clients, ctx, u.need);
-            // The last good series of this view (same day, zone, configuration and scope), marked as refreshing: only today's point is current.
+            // The last good series of this view (same day, zone, configuration and scope), marked as refreshing:
+            // only today's point is current.
             const previous = timelines.peek(tKey)?.value;
             if (previous && previous.configurationKey === ctx.configurationKey && previous.scopeKey === ctx.scopeKey) {
               pasts = previous.pasados;
@@ -1667,7 +1734,8 @@ export const createEvaluationService = ({
               if (query.controlId) {
                 return { ...base, score: points[0]?.score, status: points[0]?.status || 'NO_EVALUABLE' };
               }
-              // The panel number on that day: the engine's same summary over the controls with a result in the view.
+              // The panel number on that day: the engine's same summary over the controls with a result in the
+              // view.
               const results = controls
                 .map((controlId, i) => (points[i] ? resultStatusStub(controlId, points[i]!.status, points[i]!.score) : undefined))
                 .filter((r): r is ENSComplianceResult => Boolean(r));
@@ -1703,7 +1771,8 @@ export const createEvaluationService = ({
     const fingerprint = viewFingerprint(ctx, query);
     const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
     const computed = used.filter(u => u.computed);
-    // A refresh error is reported while no other attempt is in progress (a new attempt clears it; if it also fails it is noted with its time).
+    // A refresh error is reported while no other attempt is in progress (a new attempt clears it; if it also
+    // fails it is noted with its time).
     const errorList2 = used
       .filter(u => u.stale && !inflight.has(`${u.need.key}|${u.need.fingerprint}`))
       .map(u => u.row.refreshError)
@@ -1712,10 +1781,12 @@ export const createEvaluationService = ({
     const pendingRows = needs.filter(need => !readyOnes.has(need.key)).length;
 
     const meta = {
-      // With something old in view, or rows or series pending, the fingerprint is not that of the data: the next probe sees it different and the browser asks again.
+      // With something old in view, or rows or series pending, the fingerprint is not that of the data: the next
+      // probe sees it different and the browser asks again.
       fingerprint: refreshing || seriesPending || seriesRefreshing || pendings.length ? `refreshing:${fingerprint}` : fingerprint,
       refreshing: refreshing || seriesPending || seriesRefreshing || pendings.length > 0,
-      // Rows still being computed (the list, the overview and the panel answer without waiting): how many and of which controls.
+      // Rows still being computed (the list, the overview and the panel answer without waiting): how many and of
+      // which controls.
       pending: pendings.length ? { rows: pendingRows, controls: pendings, total: needs.length } : undefined,
       seriesPending,
       // The last background refresh that failed (what is shown predates it).
@@ -1779,7 +1850,8 @@ export const createEvaluationService = ({
   };
 };
 
-// Facts the view sees and the latest: the machine's (and the manager's, which it also reads) or the whole scope's; for a control, its own.
+// Facts the view sees and the latest: the machine's (and the manager's, which it also reads) or the whole
+// scope's; for a control, its own.
 const factsOfView = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): { count: number; newest?: string } => {
   if (query.controlId) {
     const facts = ctx.probe.controls[query.controlId];

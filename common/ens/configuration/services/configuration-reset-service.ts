@@ -1,5 +1,8 @@
 // Deletes the declared configuration of a control.
-// Only the values are deleted, not the control: saving from the UI rejects a control absent from the index, so removing the block would leave it impossible to reconfigure without reseeding with `inject-control.py`. Destructive on client data, so the safe default applies: the caller must pass the `controlId` to delete, and the screen asks to type it.
+// Only the values are deleted, not the control: saving from the UI rejects a control absent from the index, so
+// removing the block would leave it impossible to reconfigure without reseeding with `inject-control.py`.
+// Destructive on client data, so the safe default applies: the caller must pass the `controlId` to delete, and
+// the screen asks to type it.
 // `value` and its match mode are deleted; `defaultValue` stays (part of the parameter definition).
 // Types from the file, never from a high-level barrel.
 import type {
@@ -48,7 +51,8 @@ export const summarizeControlConfigurationReset = (
   };
 };
 
-// Returns the control with the values deleted. Does not persist: `updateActiveControlConfiguration` does, and validates against the server. Kept separate so it can be tested without `kibana-services`.
+// Returns the control with the values deleted. Does not persist: `updateActiveControlConfiguration` does, and
+// validates against the server. Kept separate so it can be tested without `kibana-services`.
 export const buildClearedControlConfiguration = (
   control: ENSControlConfiguration,
   confirmedControlId: string
@@ -67,7 +71,8 @@ export const buildClearedControlConfiguration = (
 
       delete cleared.value;
       delete cleared.matchMode;
-      // `status` is derived and the HTTP client strips it on persist; cleared here so the result equals what will be saved.
+      // `status` is derived and the HTTP client strips it on persist; cleared here so the result equals what
+      // will be saved.
       delete cleared.status;
 
       return cleared;

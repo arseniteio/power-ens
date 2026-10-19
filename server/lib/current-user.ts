@@ -1,4 +1,6 @@
-// Who makes the request and whether they can administer ENSFácil. `authinfo` is always queried first; only if OpenSearch has no such endpoint (no security plugin) AND the configuration says there is no security is there nobody to restrict. Any other doubt closes access.
+// Who makes the request and whether they can administer ENSFácil. `authinfo` is always queried first; only if
+// OpenSearch has no such endpoint (no security plugin) AND the configuration says there is no security is there
+// nobody to restrict. Any other doubt closes access.
 import { ENSFACIL_ADMIN_ROLES } from '../../common/constants';
 
 export interface ENSCurrentUser {

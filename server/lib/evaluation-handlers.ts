@@ -1,5 +1,9 @@
-// Evaluation routes. Everything is read as the viewing user (`asCurrentUser`) so the indexer keeps applying their permissions; only the active configuration is read as before (`asInternalUser`, like `GET /api/ensfacil/configuration`).
-// Computations are shared per row (one control on one machine, see `evaluation-service.ts`), not per request: what comes from memory never waits behind a cold computation. If the browser closes the request and nobody else waits for that computation, it is cancelled.
+// Evaluation routes. Everything is read as the viewing user (`asCurrentUser`) so the indexer keeps applying
+// their permissions; only the active configuration is read as before (`asInternalUser`, like `GET
+// /api/ensfacil/configuration`).
+// Computations are shared per row (one control on one machine, see `evaluation-service.ts`), not per request:
+// what comes from memory never waits behind a cold computation. If the browser closes the request and nobody
+// else waits for that computation, it is cancelled.
 import type { Logger } from '../../../../src/core/server';
 import { ENS_EVALUATION_LIMITS } from '../../common/ens/evaluation/limits';
 import { CancelSignal } from './evaluation/cache';
@@ -50,7 +54,8 @@ export const createEvaluationHandlers = (options: {
       return correct(response, await taskItem(signal));
     } catch (error: any) {
       const status = statusOf(error);
-      // Errors that have a reason for the viewer (bad request, permissions, incomplete data, too many facts, cancelled) are returned with it.
+      // Errors that have a reason for the viewer (bad request, permissions, incomplete data, too many facts,
+      // cancelled) are returned with it.
       if ((status >= 400 && status < 500) || status === 503) {
         if (status === 503) logger.warn(`ENSFácil: could not ${actionName}: ${error?.message}`);
         return failure(response, status, error?.message || 'No autorizado');
@@ -76,7 +81,8 @@ export const createEvaluationHandlers = (options: {
       return buildEvaluationResponse(output);
     });
 
-  // Probe: has anything changed since the last evaluation? A few hundred bytes; the browser requests the evaluation again only if the fingerprint changes.
+  // Probe: has anything changed since the last evaluation? A few hundred bytes; the browser requests the
+  // evaluation again only if the fingerprint changes.
   const probe = (context: any, request: any, response: any) =>
     withErrors(request, response, 'comprobar si hay hechos nuevos', async () => {
       const query = normalizeQuery(request?.query || {});
