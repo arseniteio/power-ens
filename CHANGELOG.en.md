@@ -21,7 +21,7 @@ English.
   with the origin of each value; and «General», with the ENS level, the T and
   D levels and the read-only scope.
 - Templates per control: one built-in per system type (Linux, LDAP server,
-  Windows, Wazuh manager) and custom ones, which are created, duplicated,
+  Windows, Wazuh manager, PBS backup, Zimbra NE backup) and custom ones, which are created, duplicated,
   edited and deleted. Editing or deleting a template in use shows the
   affected agents and asks for confirmation. Assignment accepts several agents
   at once.
@@ -35,14 +35,16 @@ English.
 - Lists accept several items separated by commas, semicolons or line breaks;
   empty and repeated entries are removed.
 - The `re2js` 2.8.6 dependency.
+- `config/set-parameters.py` accepts, per agent and control, the `template` key (template id, `none` or `null`) and values as a `{value, matchMode}` object; `config/inject-control.py` keeps the `matchMode` and the custom templates; `config/validate-configuration.ts` lists invalid common values and per-agent templates.
 
 ### Changed
 
 - A 1.2.0 configuration is converted on save: applied templates become
   assignments per control. No value is lost and the previous version stays in
   the history.
-- The controls list marks a control as incomplete when a required value is
+- The «Controles» tab of Configuration marks a control as incomplete when a required value is
   missing for any agent.
+- In the control detail and the reports, a value compared as a regular expression is labelled «Expresión regular: …».
 - The control detail header: the identifier in a badge and the title on its
   own line.
 - Configuration texts use parameter and agent names, without internal codes;
@@ -51,15 +53,18 @@ English.
   (informes)».
 - Code, comments, log messages, `config/` scripts and tests in English. The
   user interface stays in Spanish.
+- An agent's comparison mode without its own setting is shown as a setting that does not apply and is removed with «Quitar».
 - More direct documentation, in Spanish and English.
 
 ### Upgrade notes
 
+- The output of `config/` (`inject-control.py`, `set-parameters.py`, `validate-configuration.ts`, `create-admin-role.sh`, `deploy-plugin.sh`, `build-plugin.sh`) is in English; the runbooks that quote it are updated.
 - The tests and `config/validate-configuration.ts` first need
   `npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive`
   (guides 01 and 08).
-- Going back to 1.2.0 after saving with 1.3.0: restore from the history the
-  version before the conversion (guide 09, section 12). 1.2.0 compares a
+- Going back to 1.2.0: deploying its zip is enough. Restoring from the
+  history the version before the conversion is only needed for 1.2.0 to
+  evaluate with its templates (guide 09, section 12). 1.2.0 compares a
   regular expression as a literal name.
 
 ## [1.2.0] - 2026-10-18

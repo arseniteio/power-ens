@@ -20,7 +20,7 @@ código en inglés.
   con el origen de cada valor; y «General», con el nivel ENS, los niveles T y
   D y el alcance de solo lectura.
 - Plantillas por control: una de serie por tipo de sistema (Linux, servidor
-  LDAP, Windows, manager de Wazuh) y las propias, que se crean, duplican,
+  LDAP, Windows, manager de Wazuh, copia PBS, copia Zimbra NE) y las propias, que se crean, duplican,
   editan y borran. Editar o borrar una plantilla en uso muestra los agentes
   afectados y pide confirmación. La asignación admite varios agentes a la vez.
 - Valor que se aplica a un agente: su ajuste propio; si no, la plantilla
@@ -33,14 +33,16 @@ código en inglés.
 - Las listas aceptan varios elementos separados por comas, punto y coma o
   saltos de línea; se quitan las entradas vacías y las repetidas.
 - La dependencia `re2js` 2.8.6.
+- `config/set-parameters.py` admite, por agente y control, la clave `template` (id de plantilla, `none` o `null`) y valores como objeto `{value, matchMode}`; `config/inject-control.py` conserva el `matchMode` y las plantillas propias; `config/validate-configuration.ts` lista los valores comunes inválidos y las plantillas por agente.
 
 ### Cambiado
 
 - Una configuración de la 1.2.0 se convierte al guardar: las plantillas
   aplicadas pasan a asignaciones por control. No se pierde ningún valor y la
   versión anterior queda en el historial.
-- La lista de controles marca como incompleto un control al que le falta un
+- La pestaña «Controles» de Configuración marca como incompleto un control al que le falta un
   valor obligatorio en algún agente.
+- En el detalle del control y en los informes, un valor que se compara como expresión regular lleva la etiqueta «Expresión regular: …».
 - La cabecera del detalle del control: el identificador en una etiqueta y el
   título en su propia línea.
 - Los textos de Configuración usan nombres de parámetros y de agentes, sin
@@ -49,15 +51,18 @@ código en inglés.
   del alcance (informes)».
 - Código, comentarios, mensajes de registro, scripts de `config/` y tests en
   inglés. La interfaz sigue en español.
+- Un modo de comparación de un agente sin su ajuste propio se muestra como ajuste que no se aplica y se quita con «Quitar».
 - Documentación más directa, en español y en inglés.
 
 ### Notas de actualización
 
+- La salida de `config/` (`inject-control.py`, `set-parameters.py`, `validate-configuration.ts`, `create-admin-role.sh`, `deploy-plugin.sh`, `build-plugin.sh`) está en inglés; los runbooks que la citan se actualizan.
 - Los tests y `config/validate-configuration.ts` necesitan antes
   `npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive`
   (guías 01 y 08).
-- Volver a la 1.2.0 después de guardar con la 1.3.0: restaurar desde el
-  historial la versión anterior a la conversión (guía 09, apartado 12). La
+- Volver a la 1.2.0: basta con desplegar su zip. Restaurar desde el
+  historial la versión anterior a la conversión solo hace falta para que la
+  1.2.0 evalúe con sus plantillas (guía 09, apartado 12). La
   1.2.0 compara una expresión regular como un nombre literal.
 
 ## [1.2.0] - 2026-10-18

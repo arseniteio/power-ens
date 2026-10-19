@@ -150,11 +150,11 @@ la release en una carpeta:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.2.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.3.0-osd-2.19.5.zip
 ```
 
 Resultado esperado: `OK` en los tres ficheros y `dashboard: active` al final
-del despliegue. Sustituir `1.2.0` por la versión de la release.
+del despliegue. Sustituir `1.3.0` por la versión de la release.
 
 Órdenes de la instalación por paquetes (`deploy-plugin.sh` usa `systemctl`, `sudo -u wazuh-dashboard` y `https://localhost:443`). En Docker, el zip de la release se instala en una imagen propia del dashboard ([Wazuh en Docker, apartado 3](docs/deployment/06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil)).
 

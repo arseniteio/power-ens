@@ -22,7 +22,7 @@ ENSFácil (`ensfacil`) is built for an **exact** OpenSearch Dashboards version, 
 Any other combination is not validated.
 
 > [!note]
-> `1.2.0` is published for the same combination as `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). It is added to this table once it meets the criteria of section 6 in a real environment.
+> `1.2.0` and `1.3.0` are published for the same combination as `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). It is added to this table once it meets the criteria of section 6 in a real environment.
 
 OpenSearch Dashboards only accepts a zip built for its exact version (`opensearchDashboardsVersion` in the manifest):
 
@@ -30,7 +30,7 @@ OpenSearch Dashboards only accepts a zip built for its exact version (`opensearc
 - if it was already installed and the dashboard changes version, the dashboard **does not start**: `Failed to initialize plugins`.
 
 > [!note]
-> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.2.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
+> In the releases, the zip is named `ensfacil-<version>-osd-<OpenSearch Dashboards version>.zip`, for example `ensfacil-1.3.0-osd-2.19.5.zip`: there is one zip per dashboard version. Each release states in its description which Wazuh and OpenSearch Dashboards versions it is compatible with ([Installing from a release](07-installing-from-a-release.en.md#21-compatibility)). Built from source, the zip is named `ensfacil-2.19.5.zip`.
 
 ## 3. Check the installed versions
 
@@ -42,7 +42,7 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Expected result: the three packages at `4.14.7-1`; `2.19.5`; in the plugin list, the installed ENSFácil version (for example, `ensfacil@1.2.0`) and `wazuh@4.14.7-01`.
+Expected result: the three packages at `4.14.7-1`; `2.19.5`; in the plugin list, the installed ENSFácil version (for example, `ensfacil@1.3.0`) and `wazuh@4.14.7-01`.
 
 ### 3.2 Docker
 
