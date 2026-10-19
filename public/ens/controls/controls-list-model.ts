@@ -92,12 +92,13 @@ export const buildControlListEntries = (controls: ENSListControl[], options: ENS
 };
 
 export const describeLevelExclusions = (
-  entries: Pick<ENSControlListEntry, 'id' | 'appliesAtLevel'>[],
+  entries: (Pick<ENSControlListEntry, 'id' | 'appliesAtLevel'> & Partial<Pick<ENSControlListEntry, 'pendingMeasurement'>>)[],
   globalLevel: string,
   // A control governed by a dimension is excluded by its own level: the text says which one, not the ENS level.
   levelOf?: (controlId: string) => string
 ): { count: number; ids: string[]; text: string } | undefined => {
-  const ids = entries.filter(entry => !entry.appliesAtLevel).map(entry => entry.id);
+  // A control without collector is not evaluated at any level: it carries its own label, not this notice.
+  const ids = entries.filter(entry => !entry.appliesAtLevel && !entry.pendingMeasurement).map(entry => entry.id);
   if (!ids.length) return undefined;
   const named = ids.map(id => {
     const level = levelOf ? levelOf(id) : globalLevel;
