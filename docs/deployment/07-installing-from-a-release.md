@@ -345,8 +345,8 @@ En Docker, las mismas tres consultas se hacen con la función `ix` de
 6. Si la versión trae controles o parámetros nuevos, sembrar su configuración
    **después** de desplegar
    ([guía de actualización, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
-7. Revisar en la pantalla de Configuración los niveles de Trazabilidad (T) y de
-   Disponibilidad (D)
+7. Revisar en la pantalla de Configuración los niveles de las dimensiones (C, I,
+   T, A y D)
    ([guía de instalación, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política)).
 
 > [!important]

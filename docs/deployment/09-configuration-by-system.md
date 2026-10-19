@@ -24,7 +24,7 @@ Declarar cada control una sola vez: los ajustes comunes de la organización, las
 |---|---|
 | Controles | Los 23 controles del catálogo con su estado. En cada control: «Ajustes comunes», «Plantillas» y «Asignación» |
 | Agentes | Los agentes del alcance con su tipo detectado y su completitud. En cada agente, control por control: la plantilla que usa y sus ajustes propios |
-| General | Nivel ENS, nivel de Trazabilidad (T), nivel de Disponibilidad (D), el resto de la configuración global y el alcance ENS en solo lectura |
+| General | Nivel ENS, niveles de las dimensiones (C, I, T, A y D), el resto de la configuración global y el alcance ENS en solo lectura |
 
 Cada parámetro de cada control pertenece a una de tres clases (`common/ens/configuration/agents/parameter-classes.ts`), las mismas para la pantalla, la evaluación, los validadores y `set-parameters.py`.
 
@@ -317,11 +317,19 @@ El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre
 
 1. Abrir ENSFácil > Configuración > General.
 
-   Resultado esperado: el formulario «Configuración global de evaluación» con el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3, y el resto de la configuración global, con «Descripción del alcance (informes)», el texto que describe el alcance en los informes; debajo, «Alcance ENS», en solo lectura, con «Agentes evaluados» y, según el modo, los grupos o los agentes.
+   Resultado esperado: el formulario «Configuración global de evaluación» con el nivel ENS, los niveles de **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**, cada uno con una línea que indica los controles que lo usan, y el resto de la configuración global, con «Descripción del alcance (informes)», el texto que describe el alcance en los informes; debajo, «Alcance ENS», en solo lectura, con «Agentes evaluados» y, según el modo, los grupos o los agentes.
 
 2. Cambiar los niveles y pulsar «Guardar configuración global».
 
-   Resultado esperado: «Configuración guardada». Si T o D no se declaran, se usa el nivel ENS. op.cont.2 y op.cont.3 solo aplican con D en ALTO.
+   Resultado esperado: «Configuración guardada». Una dimensión sin declarar es el nivel ENS. Un control con varias dimensiones se evalúa con la más alta. op.cont.2 y op.cont.3 solo aplican con D en ALTO. Si una dimensión supera el nivel ENS, aparece «Niveles incoherentes» y el botón no guarda: el nivel ENS es la categoría del sistema, el más alto de sus dimensiones.
+
+   | Dimensiones | Controles |
+   |---|---|
+   | C, I, T y A | op.acc.2 a op.acc.6 |
+   | T y A | op.acc.1 |
+   | T | op.exp.8 |
+   | D | mp.info.6, op.cont.2 y op.cont.3 |
+   | ninguna | el resto, por la categoría (nivel ENS) |
 
 El alcance se cambia con la [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
@@ -455,7 +463,7 @@ sudo env $CERT python3 set-parameters.py /ruta/agentes.json --apply    # escribe
 Resultado esperado: sin `--apply`, una línea por cambio bajo `── agent 001` (`op.acc.1 template (the built-in of its type)  ->  linux-ubuntu` para una asignación) y `DRY-RUN: nothing written`; con `--apply`, `Previous version saved in: history of wazuh-ens-configuration (…)` y `<n> change(s) written to wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro común, una plantilla que el control no tiene, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
 
 > [!note]
-> En Docker ([Wazuh en Docker, apartado 10](06-wazuh-in-docker.md#10-declarar-la-política-niveles-t-y-d)), la sección `agents` necesita el repositorio completo montado: `-v <repo>:/repo:ro -w /repo/config` en lugar de `-v <repo>/config:/cfg:ro -w /cfg`.
+> En Docker ([Wazuh en Docker, apartado 10](06-wazuh-in-docker.md#10-declarar-la-política-niveles-de-las-dimensiones)), la sección `agents` necesita el repositorio completo montado: `-v <repo>:/repo:ro -w /repo/config` en lugar de `-v <repo>/config:/cfg:ro -w /cfg`.
 
 Las plantillas propias se crean y se editan en la pantalla (apartado 5.3).
 

@@ -24,7 +24,7 @@ Declare each control once: the organisation's common settings, the templates tha
 |---|---|
 | Controles | The 23 catalog controls with their state. In each control: «Ajustes comunes», «Plantillas» and «Asignación» |
 | Agentes | The agents in scope with their detected type and completeness. In each agent, control by control: the template it uses and its own settings |
-| General | ENS level, Traceability level (T), Availability level (D), the rest of the global configuration and the ENS scope, read-only |
+| General | ENS level, dimension levels (C, I, T, A and D), the rest of the global configuration and the ENS scope, read-only |
 
 Each parameter of each control belongs to one of three classes (`common/ens/configuration/agents/parameter-classes.ts`), the same for the screen, the evaluation, the validators and `set-parameters.py`.
 
@@ -317,11 +317,19 @@ The distribution by agents (section 9) recognises a machine by its id, its agent
 
 1. Open ENSFácil > Configuración > General.
 
-   Expected result: the «Configuración global de evaluación» form with the ENS level, the **Traceability level (T)**, used only by op.exp.8, the **Availability level (D)**, used by op.cont.2 and op.cont.3, and the rest of the global configuration, with «Descripción del alcance (informes)», the text that describes the scope in the reports; below, «Alcance ENS», read-only, with «Agentes evaluados» and, depending on the mode, the groups or the agents.
+   Expected result: the «Configuración global de evaluación» form with the ENS level, the levels of **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** and **Disponibilidad (D)**, each with a line naming the controls that use it, and the rest of the global configuration, with «Descripción del alcance (informes)», the text that describes the scope in the reports; below, «Alcance ENS», read-only, with «Agentes evaluados» and, depending on the mode, the groups or the agents.
 
 2. Change the levels and press «Guardar configuración global».
 
-   Expected result: «Configuración guardada». If T or D is not declared, the ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO.
+   Expected result: «Configuración guardada». An undeclared dimension is the ENS level. A control with several dimensions is evaluated with the highest. op.cont.2 and op.cont.3 only apply with D at ALTO. If a dimension exceeds the ENS level, «Niveles incoherentes» appears and the button does not save: the ENS level is the system category, the highest of its dimensions.
+
+   | Dimensions | Controls |
+   |---|---|
+   | C, I, T and A | op.acc.2 to op.acc.6 |
+   | T and A | op.acc.1 |
+   | T | op.exp.8 |
+   | D | mp.info.6, op.cont.2 and op.cont.3 |
+   | none | the rest, by the category (ENS level) |
 
 The scope is changed with the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
@@ -455,7 +463,7 @@ sudo env $CERT python3 set-parameters.py /path/agents.json --apply    # write
 Expected result: without `--apply`, one line per change under `── agent 001` (`op.acc.1 template (the built-in of its type)  ->  linux-ubuntu` for an assignment) and `DRY-RUN: nothing written`; with `--apply`, `Previous version saved in: history of wazuh-ens-configuration (…)` and `<n> change(s) written to wazuh-ens-configuration/active`. For a control not seeded, a parameter that does not exist, a common parameter, a template the control does not have, a name instead of an id or a value with an impossible shape, the tool shows `ERROR:` and writes nothing.
 
 > [!note]
-> In Docker ([Wazuh in Docker, section 10](06-wazuh-in-docker.en.md#10-declare-the-policy-t-and-d-levels)), the `agents` section needs the complete repository mounted: `-v <repo>:/repo:ro -w /repo/config` instead of `-v <repo>/config:/cfg:ro -w /cfg`.
+> In Docker ([Wazuh in Docker, section 10](06-wazuh-in-docker.en.md#10-declare-the-policy-dimension-levels)), the `agents` section needs the complete repository mounted: `-v <repo>:/repo:ro -w /repo/config` instead of `-v <repo>/config:/cfg:ro -w /cfg`.
 
 Custom templates are created and edited on the screen (section 5.3).
 

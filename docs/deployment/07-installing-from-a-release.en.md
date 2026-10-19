@@ -344,7 +344,7 @@ In Docker, the same three queries are made with the `ix` function of
 6. If the version brings new controls or parameters, seed their configuration
    **after** the deployment
    ([update guide, section 8](02-updating-an-existing-environment.en.md#8-seed-and-validate-the-configuration)).
-7. Review the Traceability (T) and Availability (D) levels on the
+7. Review the dimension levels (C, I, T, A and D) on the
    Configuración screen
    ([installation guide, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy)).
 

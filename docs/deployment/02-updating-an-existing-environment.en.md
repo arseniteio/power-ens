@@ -281,7 +281,9 @@ From 1.3.0, the Configuration screen has three tabs, «Controles», «Agentes» 
 
 From 1.2.0, the evaluation runs on the plugin server with every fact of the 30-day window; 1.1.0 evaluated in the browser with the newest 10,000 facts. After the update, some verdicts change: record the dashboard status beforehand. Each user's first load answers in parts («Calculando la evaluación»). To go back to an earlier version after the conversion or after «Repartir por agentes», restore the earlier version of the document ([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
-In Configuration > General, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, added in 1.1.0 and used by op.cont.2 and op.cont.3. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+In Configuration > General, review the optional dimension levels. From 1.4.0 there are five: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** and **Disponibilidad (D)**; they are used by op.acc.2 to op.acc.6 (C, I, T and A), op.acc.1 (T and A), op.exp.8 (T) and mp.info.6, op.cont.2 and op.cont.3 (D), and with several dimensions the highest rules. If they are not declared, the global ENS level applies and the results do not change from 1.3.0. Before declaring a dimension, check that it does not exceed the ENS level: the screen does not save it. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+
+From 1.4.0 the lists follow the Annex II order (op.acc, op.exp, op.nub, op.cont, op.mon and, last, mp.info.6), and the text of each requirement is the BOE literal labelled «Norma ENS»; the interpretation appears apart as «Criterio de aplicación».
 
 ## 9. Agents and final check
 

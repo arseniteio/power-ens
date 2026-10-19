@@ -281,7 +281,9 @@ Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles�
 
 Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian: anotar antes el estado del panel. La primera carga de cada usuario responde por partes («Calculando la evaluación»). Para volver a una versión anterior después de la conversión o de «Repartir por agentes», restaurar la versión del documento anterior ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
-Revisar en Configuración > General los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+Revisar en Configuración > General los niveles opcionales de las dimensiones. Desde la 1.4.0 son cinco: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**; los usan op.acc.2 a op.acc.6 (C, I, T y A), op.acc.1 (T y A), op.exp.8 (T) y mp.info.6, op.cont.2 y op.cont.3 (D), y con varias dimensiones rige la más alta. Si no se declaran, se usa el nivel ENS global y los resultados no cambian respecto a la 1.3.0. Antes de declarar una dimensión, comprobar que no supera el nivel ENS: la pantalla no lo guarda. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+
+Desde la 1.4.0 las listas siguen el orden del Anexo II (op.acc, op.exp, op.nub, op.cont, op.mon y, al final, mp.info.6), y el texto de cada requisito es el literal del BOE con la etiqueta «Norma ENS»; la interpretación aparece aparte como «Criterio de aplicación».
 
 ## 9. Agentes y comprobación final
 

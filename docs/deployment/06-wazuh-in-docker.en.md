@@ -377,15 +377,20 @@ A `scope` without the `agentIds` and `groupIds` arrays is rejected (`configurati
 
 `<repo>/active.json` can be deleted after the validation.
 
-## 10. Declare the policy: T and D levels
+## 10. Declare the policy: dimension levels
 
 Parameter values are declared in ENSFácil > Configuration. The global configuration card also declares:
 
 | Field | Controls | Not declared |
 |---|---|---|
 | ENS level | all | — |
-| Nivel de Trazabilidad (T) (traceability level) | op.exp.8 | the ENS level applies |
-| Nivel de Disponibilidad (D) (availability level) | op.cont.2 and op.cont.3, which only apply with D at ALTO | the ENS level applies |
+| Nivel de Confidencialidad (C) (confidentiality level) | op.acc.2 to op.acc.6 | the ENS level applies |
+| Nivel de Integridad (I) (integrity level) | op.acc.2 to op.acc.6 | the ENS level applies |
+| Nivel de Trazabilidad (T) (traceability level) | op.acc.1 to op.acc.6 and op.exp.8 | the ENS level applies |
+| Nivel de Autenticidad (A) (authenticity level) | op.acc.1 to op.acc.6 | the ENS level applies |
+| Nivel de Disponibilidad (D) (availability level) | mp.info.6, op.cont.2 and op.cont.3 (these two only apply with D at ALTO) | the ENS level applies |
+
+A control with several dimensions is evaluated with the highest of them. No dimension may exceed the ENS level.
 
 With the ENS level at MEDIO and D not declared, op.cont.2 and op.cont.3 show
 "No aplica" (not applicable).
@@ -464,7 +469,7 @@ Each ENSFácil version is an image with its tag. Installing, updating or removin
    `ensfacil@X.Y.Z`.
 6. If the version brings new controls or parameters, seed them after the
    deployment (section 8) and validate the document (section 9).
-7. Review the T and D levels (section 10).
+7. Review the dimension levels (section 10).
 
 Keep the previous image until the new one is validated: it is the rollback.
 

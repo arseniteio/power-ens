@@ -377,15 +377,20 @@ Un `scope` sin las listas `agentIds` y `groupIds` se rechaza (`configuration.sco
 
 `<repo>/active.json` puede borrarse después de la validación.
 
-## 10. Declarar la política: niveles T y D
+## 10. Declarar la política: niveles de las dimensiones
 
 Los valores de los parámetros se declaran en ENSFácil > Configuración. En la tarjeta de configuración global se declaran también:
 
 | Campo | Controles | Sin declarar |
 |---|---|---|
 | Nivel ENS | todos | — |
-| Nivel de Trazabilidad (T) | op.exp.8 | se usa el nivel ENS |
-| Nivel de Disponibilidad (D) | op.cont.2 y op.cont.3, que solo aplican con D en ALTO | se usa el nivel ENS |
+| Nivel de Confidencialidad (C) | op.acc.2 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Integridad (I) | op.acc.2 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Trazabilidad (T) | op.acc.1 a op.acc.6 y op.exp.8 | se usa el nivel ENS |
+| Nivel de Autenticidad (A) | op.acc.1 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Disponibilidad (D) | mp.info.6, op.cont.2 y op.cont.3 (estos dos solo aplican con D en ALTO) | se usa el nivel ENS |
+
+Un control con varias dimensiones se evalúa con la más alta de ellas. Ninguna dimensión puede superar el nivel ENS.
 
 Con el nivel ENS en MEDIO y sin declarar D, op.cont.2 y op.cont.3 muestran
 «No aplica».
@@ -463,7 +468,7 @@ Cada versión de ENSFácil es una imagen con su etiqueta. Instalar, actualizar o
    indicar `ensfacil@X.Y.Z`.
 6. Si la versión trae controles o parámetros nuevos, sembrarlos después de
    desplegar (apartado 8) y validar el documento (apartado 9).
-7. Revisar los niveles T y D (apartado 10).
+7. Revisar los niveles de las dimensiones (apartado 10).
 
 La imagen anterior se conserva hasta validar la nueva: es la vuelta atrás.
 
