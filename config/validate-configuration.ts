@@ -34,6 +34,8 @@ import {
   summarizeTemplateMigration,
 } from '../common/ens/configuration/agents/template-migration';
 import { getCustomTemplates } from '../common/ens/configuration/templates';
+import { validateControlParameterValues } from '../common/ens/configuration/services/validation-engine';
+import type { ENSControlConfiguration } from '../common/ens/configuration/types';
 
 declare const process: {
   argv: string[];
@@ -114,9 +116,19 @@ if (warnings.length) {
   warnings.forEach(message => console.log(`  - ${message}`));
 }
 
+// The same check as «Ajustes comunes»: a regex written by set-parameters.py is only compiled here.
+const commonErrors: string[] = model.controls.flatMap((control: ENSControlConfiguration) =>
+  validateControlParameterValues(control, {}).map(issue => `${control.controlId} «${issue.label}»: ${issue.reason}`)
+);
+
+if (commonErrors.length) {
+  console.log(`VALORES COMUNES INVÁLIDOS (${commonErrors.length}): el plugin carga el entorno; el control queda «Inválido» y lo que depende de ese valor, en NO_EVALUABLE.`);
+  commonErrors.forEach(message => console.log(`  - ${message}`));
+}
+
 if (!errors.length) {
   console.log('AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.');
-  process.exit(0);
+  process.exit(commonErrors.length ? 1 : 0);
 }
 
 console.log(`AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS (${errors.length}): el plugin carga el entorno; lo que «no se aplica» se ignora y se quita en la página del agente o con set-parameters.py, y un agente con un valor inválido se evalúa con una configuración inválida.`);

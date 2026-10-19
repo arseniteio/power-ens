@@ -4,7 +4,10 @@
  *
  *   npx --yes tsx tests/parameter-match-mode-levels.test.ts
  */
-import { readFileSync, readdirSync } from 'fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { spawnSync } from 'child_process';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import * as actions from '../common/ens/configuration/agents/agent-configuration-actions';
 import {
@@ -201,6 +204,25 @@ console.log('7. set-parameters.py');
   }));
   check('it knows the same parameters with the regex mode', JSON.stringify(fromScript) === JSON.stringify(fromPlugin), [fromScript, fromPlugin]);
   check('and the same pattern length', script.includes(`MAX_PATTERN_LENGTH = ${MAX_PARAMETER_PATTERN_LENGTH}`));
+}
+
+console.log('8. validate-configuration.ts');
+{
+  const folder = mkdtempSync(join(tmpdir(), 'ensfacil-match-mode-'));
+  const run = (doc: any) => {
+    const file = join(folder, 'active.json');
+    writeFileSync(file, JSON.stringify({ _source: { configuration: doc } }));
+    return spawnSync('npx', ['--yes', 'tsx', `${__dirname}/../config/validate-configuration.ts`, file], { encoding: 'utf8' });
+  };
+  const valid = run(documentWith());
+  check('modes at every level: valid', valid.status === 0 && /AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS/.test(valid.stdout) && !/VALORES COMUNES INVÁLIDOS/.test(valid.stdout), valid.stdout + valid.stderr);
+  const bad = documentWith();
+  bad.controls[0].parameters.find((p: any) => p.id === 'P-04').value = '[';
+  bad.agents['104'].controls['op.acc.1'].parameters['P-03'] = '(';
+  const invalid = run(bad);
+  check('an invalid common pattern is listed (it is compiled only here after set-parameters.py)', invalid.status === 1 &&
+    /VALORES COMUNES INVÁLIDOS \(1\)/.test(invalid.stdout) && /op\.acc\.1 «Cuentas genéricas prohibidas»: Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
+  check('and an invalid override pattern too', /agente 104: op\.acc\.1 «Cuentas de servicio legítimas» Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
 }
 
 if (failures.length) {
