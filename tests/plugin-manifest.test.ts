@@ -34,6 +34,7 @@ comprueba('package.json se llama ensfacil', paquete.name === 'ensfacil');
 comprueba('misma versión de dashboard en package.json', paquete.opensearchDashboards?.version === '2.19.5');
 comprueba('misma versión del plugin en los dos', paquete.version === manifiesto.version);
 comprueba('pdfmake propio, 0.2.7', paquete.dependencies?.pdfmake === '0.2.7');
+comprueba('re2js propio, 2.8.6', paquete.dependencies?.re2js === '2.8.6');
 
 for (const f of [
   'public/index.ts', 'public/plugin.ts', 'public/application.tsx', 'public/services.ts',

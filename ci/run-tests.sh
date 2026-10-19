@@ -5,9 +5,10 @@
 #   ci/run-tests.sh
 #
 # Corre lo mismo que el bucle del README: check-consistency.py, cada
-# tests/*.test.ts con `npx --yes tsx` y cada tests/*.test.sh. El bucle del
-# README solo imprime OK/FAIL y nunca falla; aquí se enseña además el final de
-# la salida de cada suite que falla, y se sale con error si falla alguna.
+# config/test_*.py, cada tests/*.test.ts con `npx --yes tsx` y cada
+# tests/*.test.sh. El bucle del README solo imprime OK/FAIL y nunca falla; aquí
+# se enseña además el final de la salida de cada suite que falla, y se sale con
+# error si falla alguna.
 ###############################################################################
 set -uo pipefail
 
@@ -41,6 +42,10 @@ else
   fallidas+=("tests/check-consistency.py")
 fi
 echo
+
+for p in config/test_*.py; do
+  suite "$p" python3 "$p"
+done
 
 for t in tests/*.test.ts; do
   suite "$t" timeout 180 npx --yes tsx "$t"
