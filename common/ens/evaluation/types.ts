@@ -19,7 +19,7 @@ export interface ENSEvaluationMeta {
   // El último refresco en segundo plano que falló: lo que se enseña es lo
   // anterior a él.
   refreshError?: { message: string; at: string };
-  // Cuándo se calculó lo que se enseña (lo más antiguo de ello).
+  // When the shown result was last confirmed current; while refreshing, the time of the oldest stale part.
   computedAt: string;
   evaluatedAt: string;
   configurationUpdatedAt?: string;

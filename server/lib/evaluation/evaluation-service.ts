@@ -1856,8 +1856,12 @@ export const createEvaluationService = ({
       // El último refresco en segundo plano que falló (lo que se enseña es lo
       // anterior a él).
       refreshError,
-      // Cuándo se calculó lo que se enseña (lo más antiguo de ello).
-      computedAt: new Date(usados.length ? Math.min(...usados.map(u => u.storedAt)) : ctx.now.getTime()).toISOString(),
+      // Current rows are still valid now (same fingerprint): only stale data shows its own, older time.
+      computedAt: new Date(
+        (refreshing || seriesPending || seriesRefreshing || pendientes.length) && usados.length
+          ? Math.min(...usados.map(u => u.storedAt))
+          : ctx.now.getTime()
+      ).toISOString(),
       evaluatedAt: ctx.now.toISOString(),
       configurationUpdatedAt: ctx.configurationUpdatedAt,
       level,

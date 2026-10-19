@@ -145,6 +145,7 @@ const referencia = () => {
   // 4. Memoria y sonda.
   const otra = await servicio.run(clientes, { include: 'summary', timeZone: 'UTC' });
   comprueba('segunda vez, nada se recalcula', otra.meta.stats.computed === 0);
+  comprueba('current result: computedAt is the confirmation time, not the oldest row', !otra.meta.refreshing && otra.meta.computedAt === otra.meta.evaluatedAt, [otra.meta.computedAt, otra.meta.evaluatedAt]);
   const h = createEvaluationHandlers({ logger, securityEnabled: true, service: servicio });
   const ctx = { core: { opensearch: { client: clientes } } };
   const resp = { ok: (r: any) => r.body, customError: (r: any) => ({ error: r }) };
@@ -183,9 +184,9 @@ const referencia = () => {
   // (`seriesPending`) y la serie se calcula detrás, después de todo lo demás.
   // Una vez calculada, el panel y la ficha la reutilizan sin leer nada.
   const deHechosHasta = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
-  const t0 = Date.now();
   let conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
-  comprueba('el panel no espera a la serie: responde enseguida y la marca pendiente', Date.now() - t0 < 2000 && (conSerie.meta.seriesPending === true || (conSerie.timeline || []).length > 1), conSerie.meta.seriesPending);
+  // Structural, not wall-clock: CI machines are slower.
+  comprueba('el panel no espera a la serie: responde sin ella y la marca pendiente', conSerie.meta.seriesPending === true && !conSerie.timeline, conSerie.meta.seriesPending);
   // Como el navegador: vuelve a pedir mientras la serie esté pendiente (aquí
   // cada 0,5 s; cada sondeo compite por el hilo con la serie).
   for (let i = 0; i < 600 && conSerie.meta.seriesPending; i++) {
