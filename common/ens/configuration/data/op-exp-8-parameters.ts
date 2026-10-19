@@ -1,31 +1,14 @@
 import { ENSControlConfiguration } from '../types';
 
-// Parámetros de op.exp.8.
-//
-// El nivel exigible de este control es el de la dimensión de TRAZABILIDAD
-// (`traceabilityLevel` de la configuración global), no la categoría del
-// sistema: los `levels` de aquí se leen contra ese nivel.
-//
-// Cinco parámetros de la plantilla estaban mal tipados y se corrigen aquí,
-// porque un parámetro tiene UN tipo y el motor compara contra ese tipo:
-//
-//   P-02  «Lista» con tres columnas (servidor | SO | rol): es una tabla.
-//   P-03  «Lista de campos + mapeo por fuente»: tabla documental del mapeo.
-//   P-05  «Lista + método»: tabla fuente | método.
-//   P-07  «Entero (días) por categoría»: el propio ejemplo trae tres categorías
-//         con tres plazos, así que es una tabla categoría → días.
-//   P-10  «Inventario» no es un tipo del motor: tabla.
-//
-// Y uno no está en la plantilla:
-//
-//   P-12  el plazo de «agente desconectado de forma sostenida» que la plantilla
-//         nombra en la condición de incumplimiento de op.exp.8.2 sin darle
-//         parámetro. Sin plazo, la antigüedad del último contacto no tiene
-//         contra qué medirse.
-//
-// `required` solo en P-01 y P-02, los que sostienen la base («no evaluable por
-// ausencia de P-01 o P-02», dice la ficha). Los demás, si faltan, los nombra el
-// juicio de su propia evidencia con causa CONFIGURATION.
+// op.exp.8 parameters.
+// The required level is the TRACEABILITY dimension's (`traceabilityLevel` of the global configuration), not the
+// system category: the `levels` here read against it.
+// Five template parameters were mistyped and are fixed because a parameter has ONE type: P-02 (server | SO |
+// role), P-03 (documentary field mapping), P-05 (source | method), P-07 (category -> days) and P-10 are tables.
+// P-12 is new: the "sustained disconnected agent" threshold that the template names in the op.exp.8.2 breach
+// condition without a parameter.
+// `required` only on P-01 and P-02, which hold the base; for the rest, the judgment of their own evidence names
+// what is missing (cause CONFIGURATION).
 export const opExp8Configuration: ENSControlConfiguration = {
   controlId: 'op.exp.8',
   controlName: 'Registro de la actividad',
@@ -39,7 +22,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'eventos_auditables',
       label: 'Eventos auditables',
       description:
-        'Relación de eventos de seguridad que serán auditados, que R3 exige que figure en la documentación de seguridad del sistema: una fila por categoría, con la fuente que la registra y el nivel mínimo de alerta. Es el primer documento que un auditor pedirá para verificar este control.',
+        'Eventos de seguridad que se auditan, que R3 exige en la documentación de seguridad: una fila por categoría, con la fuente que la registra y el nivel mínimo de alerta. Es el primer documento que pedirá un auditor.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.8.1', 'op.exp.8.r3.1'],
       type: 'table',
@@ -66,13 +49,13 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Define la configuración de log collection y los niveles de alerta. Las reglas 110901 (audit_log_status) y 110903 (audit_record_fields) informan de las fuentes de registro de cada servidor, y la 110914 (audit_coverage) de lo que las reglas de auditd cargadas registran por categoría.',
+        'Define log collection y niveles de alerta. Las reglas 110901 (audit_log_status) y 110903 (audit_record_fields) informan de las fuentes de registro de cada servidor y la 110914 (audit_coverage), de lo que registran las reglas de auditd cargadas por categoría.',
       ensfacilUsage:
-        'EV-01 contrasta cada categoría declarada con lo que el servidor audita de verdad: autenticación con las fuentes de registro activas; cambios de configuración, cuentas y grupos, privilegios y almacenes de claves con las rutas que auditd vigila en escritura; cambios de hora con las llamadas al sistema auditadas; directorio LDAP con el nivel de log de slapd. Una categoría declarada que no se audita es un incumplimiento de op.exp.8.1; una que ENSFácil no reconoce queda sin evaluar (causa CONFIGURATION). Sin P-01, op.exp.8.1 queda sin evaluar (causa CONFIGURATION): no consta qué se audita. Es además la mitad documental de op.exp.8.r3.1.',
+        'EV-01 contrasta cada categoría con lo que el servidor audita (fuentes de registro, rutas vigiladas por auditd, llamadas al sistema auditadas, nivel de log de slapd): una declarada y no auditada incumple op.exp.8.1 y una no reconocida queda sin evaluar. Es también la mitad documental de op.exp.8.r3.1.',
       evidenceIds: ['EV-01', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede acreditar qué se audita: op.exp.8.1 queda sin evaluar. Bloquea el control: es obligatorio.',
+        'op.exp.8.1 queda sin evaluar (causa CONFIGURATION): no consta qué se audita. Bloquea el control, que es obligatorio.',
     },
     {
       id: 'P-02',
@@ -80,7 +63,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'servidores_en_alcance',
       label: 'Servidores en alcance',
       description:
-        'Servidores en los que deben estar activados los registros de actividad, uno por fila. La columna servidor es el NOMBRE DEL AGENTE tal como lo ve Wazuh (el manager figura con su propio nombre de agente). op.exp.8.2 es taxativo: «se activarán los registros de actividad en los servidores».',
+        'Servidores donde deben estar activados los registros de actividad (op.exp.8.2), uno por fila. La columna servidor es el NOMBRE DEL AGENTE en Wazuh (el manager figura con el suyo).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.8.2'],
       type: 'table',
@@ -107,13 +90,13 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Regla 110915 (agent_keepalive_observed): en cada pasada, el recolector del manager lee de global.db el último keepalive y el estado de conexión de cada agente.',
+        'Regla 110915 (agent_keepalive_observed): en cada pasada el recolector del manager lee de global.db el último keepalive y el estado de conexión de cada agente.',
       ensfacilUsage:
-        'EV-04 (en la fila del manager): en ninguna pasada de la ventana el último keepalive de un servidor de P-02 puede quedar más atrás que P-12. Un servidor declarado que no figura en la base de agentes del manager es un hallazgo directo de op.exp.8.2.',
+        'EV-04 (fila del manager): en ninguna pasada de la ventana el último keepalive de un servidor de P-02 puede quedar más atrás que P-12. Un servidor declarado que no está en la base de agentes del manager incumple op.exp.8.2.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la cobertura de servidores: op.exp.8.2 queda sin evaluar en el manager. Bloquea el control: es obligatorio.',
+        'No se verifica la cobertura de servidores: op.exp.8.2 queda sin evaluar en el manager. Bloquea el control, que es obligatorio.',
     },
     {
       id: 'P-03',
@@ -121,7 +104,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'campos_minimos_registro',
       label: 'Mapeo de los campos mínimos por fuente',
       description:
-        'Documental: por cada fuente de registro, en qué campo lleva cada uno de los cinco datos que exige op.exp.8.1 (usuario o entidad, fecha y hora, objeto, tipo de evento y resultado). El juicio de EV-03 no depende de esta tabla —comprueba los cinco datos que exige el ENS en una muestra real—, pero sin ella no queda escrito por qué un decodificador da por bueno un campo.',
+        'Documental: por cada fuente de registro, en qué campo lleva cada uno de los cinco datos de op.exp.8.1 (usuario o entidad, fecha y hora, objeto, tipo de evento y resultado). EV-03 no depende de esta tabla: comprueba los cinco datos en una muestra real.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.8.1'],
       type: 'table',
@@ -142,7 +125,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'No queda escrito el mapeo de campos por fuente. EV-03 se sigue midiendo: no depende de este parámetro.',
+        'No queda escrito el mapeo de campos por fuente. EV-03 se mide igual.',
     },
     {
       id: 'P-04',
@@ -150,7 +133,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'periodicidad_revision_registros_dias',
       label: 'Periodicidad de la revisión de los registros (días)',
       description:
-        'Cada cuántos días, como mucho, se revisan los registros de actividad buscando patrones anormales. R1 exige revisión «informalmente, de forma periódica», sin fijar plazo. Cada revisión se anota en el registro de revisiones del manager (/etc/ensfacil/log-review-register.tsv).',
+        'Cada cuántos días, como máximo, se revisan los registros de actividad buscando patrones anormales; R1 exige revisión «informalmente, de forma periódica» sin plazo. Cada revisión se anota en /etc/ensfacil/log-review-register.tsv del manager.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r1.1'],
       type: 'duration_days',
@@ -159,11 +142,11 @@ export const opExp8Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 110905 (log_review_recorded): la revisión más reciente anotada y cuántas hay.',
       ensfacilUsage:
-        'EV-05: la revisión más reciente no puede ser más antigua que este plazo. Un registro sin ninguna revisión no cumple nunca.',
+        'EV-05: la revisión más reciente no puede superar este plazo. Un registro sin revisiones no cumple.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-05 NO_EVALUABLE (causa CONFIGURATION): op.exp.8.r1.1 no acredita. No se aplica ningún plazo por defecto.',
+        'EV-05 NO_EVALUABLE (causa CONFIGURATION): op.exp.8.r1.1 no acredita. No hay plazo por defecto.',
     },
     {
       id: 'P-05',
@@ -171,7 +154,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'fuente_tiempo_ntp',
       label: 'Fuentes de tiempo y método de sincronización',
       description:
-        'Servidores de tiempo empleados como referencia, uno por fila, escritos como los ve el servicio de sincronización (nombre o dirección), y el método con el que se autentica la sincronización (NTS, clave simétrica). R2 exige autenticación e integridad cuando el reloj se sincroniza con otros dispositivos.',
+        'Servidores de tiempo de referencia, uno por fila, como los ve el servicio de sincronización (nombre o dirección), y método de autenticación de la sincronización (NTS, clave simétrica). R2 exige autenticación e integridad cuando el reloj se sincroniza con otros dispositivos.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r2.1'],
       type: 'table',
@@ -192,13 +175,13 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 110906 (time_sync_status): servicio de sincronización, fuentes en uso, si la sincronización está autenticada y desfase medido.',
+        'Regla 110906 (time_sync_status): servicio de sincronización, fuentes en uso, si está autenticada y desfase medido.',
       ensfacilUsage:
-        'EV-06: toda fuente en uso tiene que figurar aquí, y la sincronización tiene que estar autenticada (lo exige R2, lo declare o no esta tabla).',
+        'EV-06: toda fuente en uso debe figurar aquí y la sincronización debe estar autenticada (lo exige R2, figure o no en la tabla).',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-06 no puede decir si las fuentes en uso son las previstas: NO_EVALUABLE (causa CONFIGURATION) salvo que ya haya un incumplimiento medido.',
+        'EV-06 no puede decir si las fuentes en uso son las previstas: NO_EVALUABLE (causa CONFIGURATION), salvo incumplimiento ya medido.',
     },
     {
       id: 'P-06',
@@ -206,7 +189,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'desviacion_maxima_reloj_segundos',
       label: 'Desviación máxima del reloj (segundos)',
       description:
-        'Desviación máxima admitida entre el reloj de cada sistema y su referencia de tiempo, en segundos. Determina cuándo una desincronización pasa a ser hallazgo.',
+        'Desviación máxima admitida, en segundos, entre el reloj de cada sistema y su referencia de tiempo. Determina cuándo una desincronización es hallazgo.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r2.1'],
       type: 'number',
@@ -220,7 +203,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-06 no puede juzgar el desfase: NO_EVALUABLE (causa CONFIGURATION) salvo que ya haya un incumplimiento medido.',
+        'EV-06 no puede juzgar el desfase: NO_EVALUABLE (causa CONFIGURATION), salvo incumplimiento ya medido.',
     },
     {
       id: 'P-07',
@@ -228,7 +211,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'retencion_registros_dias',
       label: 'Retención de los registros por categoría (días)',
       description:
-        'Tiempo de retención de los registros antes de ser eliminados, por categoría de evento de P-01, que R3 exige indicar en la documentación de seguridad del sistema. Debe ser coherente con la retención de cuentas de op.acc.1 y con el registro de accesos de op.acc.5 y op.acc.6.',
+        'Días de retención de los registros por categoría de P-01, que R3 exige indicar en la documentación de seguridad. Coherente con la retención de cuentas de op.acc.1 y con el registro de accesos de op.acc.5 y op.acc.6.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r3.1'],
       type: 'table',
@@ -263,7 +246,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'personal_autorizado_registros',
       label: 'Cuentas autorizadas a acceder a los registros',
       description:
-        'Cuentas autorizadas a acceder o eliminar los registros de actividad y sus copias, una por fila, con su permiso y alcance. Se compara contra las cuentas que PUEDEN leer los registros en cada servidor (propietario, grupo, ACL), así que incluye también las cuentas de servicio que los escriben (root, syslog, wazuh). R4 es taxativo: «solamente podrán ser accedidos o eliminarse por personal debidamente autorizado».',
+        'Cuentas autorizadas a acceder o eliminar los registros de actividad y sus copias, una por fila con permiso y alcance. Se comparan con las que PUEDEN leer cada registro (propietario, grupo, ACL), incluidas las de servicio (root, syslog, wazuh), según R4: «solamente podrán ser accedidos o eliminarse por personal debidamente autorizado».',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r4.1'],
       type: 'table',
@@ -292,7 +275,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 110909 (log_access_permissions): por registro, las cuentas que pueden leerlo. Los roles y el audit log del indexer no se leen (exigen credencial).',
       ensfacilUsage:
-        'EV-08: toda cuenta con lectura sobre un registro tiene que figurar aquí; un registro legible por cualquiera no cumple. En el manager, los accesos efectivos al indexer quedan sin demostrar.',
+        'EV-08: toda cuenta con lectura sobre un registro debe figurar aquí; un registro legible por cualquiera no cumple. En el manager, los accesos efectivos al indexer quedan sin demostrar.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -304,7 +287,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'copias_seguridad_registros',
       label: 'Copias de seguridad de los registros',
       description:
-        'Existencia, destino y periodicidad de las copias de seguridad de los registros de actividad, y quién puede acceder a ellas. R4 las menciona expresamente («y, en su caso, las copias de seguridad de los mismos»).',
+        'Existencia, destino y periodicidad de las copias de seguridad de los registros de actividad y quién accede a ellas. R4 las menciona expresamente («y, en su caso, las copias de seguridad de los mismos»).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r4.1'],
       type: 'table',
@@ -331,7 +314,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'reglas_correlacion_activas',
       label: 'Conjuntos de reglas de análisis desplegados',
       description:
-        'Conjuntos de reglas de correlación y detección que tienen que estar desplegados en el manager, uno por fila, con la cobertura que se les atribuye respecto a P-01 y su mapeo a MITRE ATT&CK. El conjunto se escribe como lo emite el recolector: `wazuh` para el ruleset oficial y, para /var/ossec/etc/rules, el prefijo del fichero (ensfacil, local, quersystem…).',
+        'Conjuntos de reglas de correlación y detección que deben estar desplegados en el manager, uno por fila, con su cobertura respecto a P-01 y su mapeo a MITRE ATT&CK. El conjunto se escribe como lo emite el recolector: `wazuh` para el ruleset oficial y, para /var/ossec/etc/rules, el prefijo del fichero (ensfacil, local, quersystem…).',
       levels: ['ALTO'],
       requirements: ['op.exp.8.r5.1'],
       type: 'table',
@@ -343,9 +326,9 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 110910 (correlation_rules_inventory): conjuntos de reglas cargados, con cuántas reglas y cuántas mapean técnicas MITRE.',
+        'Regla 110910 (correlation_rules_inventory): conjuntos de reglas cargados, cuántas reglas tienen y cuántas mapean técnicas MITRE.',
       ensfacilUsage:
-        'EV-10: cada conjunto declarado tiene que estar cargado con al menos una regla.',
+        'EV-10: cada conjunto declarado debe estar cargado con al menos una regla.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -357,7 +340,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'respuesta_automatica_configurada',
       label: 'Respuestas automáticas previstas',
       description:
-        'Acciones de respuesta automática previstas ante los eventos correlacionados, una por fila: la acción es el nombre del comando de Active Response (firewall-drop, disable-account…), con su disparador, su alcance y su reversión. op.exp.8.r5.2 exige «respuesta automática», no solo detección.',
+        'Acciones de respuesta automática previstas ante eventos correlacionados, una por fila: el nombre del comando de Active Response (firewall-drop, disable-account…), con disparador, alcance y reversión. op.exp.8.r5.2 exige «respuesta automática», no solo detección.',
       levels: ['ALTO'],
       requirements: ['op.exp.8.r5.2'],
       type: 'table',
@@ -372,11 +355,11 @@ export const opExp8Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Reglas 110911 (active_response_configured) y 110912 (active_response_executed).',
       ensfacilUsage:
-        'EV-11: cada acción declarada tiene que estar configurada y habilitada en el manager. EV-12: consta al menos una ejecución disparada por una alerta en la ventana.',
+        'EV-11: cada acción declarada debe estar configurada y habilitada en el manager. EV-12: debe constar al menos una ejecución disparada por una alerta en la ventana.',
       evidenceIds: ['EV-11', 'EV-12'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-11 NO_EVALUABLE (causa CONFIGURATION) salvo que no haya ninguna respuesta configurada, que es un incumplimiento medido.',
+        'EV-11 NO_EVALUABLE (causa CONFIGURATION), salvo que no haya ninguna respuesta configurada, que es un incumplimiento medido.',
     },
     {
       id: 'P-12',
@@ -384,20 +367,20 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_keepalive_horas',
       label: 'Silencio máximo tolerado de un servidor (horas)',
       description:
-        'Horas que puede pasar un servidor sin comunicar con el manager (sin keepalive) antes de considerarlo desconectado de forma sostenida. Es también el hueco máximo entre dos pasadas del recolector del manager para poder acreditar la continuidad. Los recolectores de ENSFácil laten cada hora: un valor de 2 o 3 tolera una pasada perdida.',
+        'Horas que puede pasar un servidor sin comunicar con el manager (sin keepalive) antes de considerarlo desconectado, y hueco máximo entre dos pasadas del recolector del manager para acreditar continuidad. Los recolectores laten cada hora: 2 o 3 tolera una pasada perdida.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.8.2'],
       type: 'duration_hours',
       example: '3',
       required: false,
       wazuhUsage:
-        'Reglas 110902 (agent_status, último keepalive leído en el agente) y 110915 (agent_keepalive_observed, último keepalive de cada agente leído en el manager en cada pasada).',
+        'Reglas 110902 (agent_status, último keepalive leído en el agente) y 110915 (agent_keepalive_observed, último keepalive de cada agente leído en el manager).',
       ensfacilUsage:
-        'EV-02 con ANTIGUEDAD_MAXIMA: el último keepalive no puede ser más viejo. EV-04: en ninguna pasada del recolector del manager el último keepalive de un servidor de P-02 puede quedar más atrás, y entre dos pasadas no puede pasar más tiempo (si pasa, la continuidad no se puede acreditar).',
+        'EV-02 con ANTIGUEDAD_MAXIMA: el último keepalive no puede ser más viejo. EV-04: en ninguna pasada del recolector del manager el keepalive de un servidor de P-02 puede quedar más atrás, ni pasar más tiempo entre dos pasadas (si no, la continuidad no se acredita).',
       evidenceIds: ['EV-02', 'EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-02 y EV-04 NO_EVALUABLE (causa CONFIGURATION): op.exp.8.2 no acredita. No se aplica ningún plazo por defecto.',
+        'EV-02 y EV-04 NO_EVALUABLE (causa CONFIGURATION): op.exp.8.2 no acredita. No hay plazo por defecto.',
     },
     {
       id: 'P-ATT',
@@ -405,7 +388,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En op.exp.8 todos los requisitos tienen evidencia técnica, así que hoy no desbloquea ninguno: se mantiene por forma.',
+        'Documentos que acreditan un requisito que ninguna medida técnica puede demostrar. En op.exp.8 todos los requisitos tienen evidencia técnica, así que hoy no desbloquea ninguno; se mantiene por forma.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -419,13 +402,13 @@ export const opExp8Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+        'Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple.',
     },
   ],
 };

@@ -13,7 +13,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'sistemas_en_scope',
       label: 'Sistemas incluidos en el alcance',
       description:
-        'Lista de sistemas (hostname/IP y SO) sobre los que ENSFácil debe verificar el cumplimiento de op.acc.2.',
+        'Sistemas sobre los que debe verificarse op.acc.2, identificados por nombre de máquina o IP y por sistema operativo. Lo que no figure aquí no se audita.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1', 'op.acc.2.3'],
       type: 'list',
@@ -22,13 +22,12 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Define en qué sistemas se ejecutan las comprobaciones SCA, FIM y log collection.',
       ensfacilUsage:
-        'Delimita el alcance real auditado del control de acceso.',
+        'Delimita el alcance auditado y distingue un sistema que no reporta de uno que nunca se pidió auditar.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03'],
-      // Hueco de trazabilidad: ninguna regla detecta un sistema del alcance que
-      // deja de enviar eventos.
+      // Traceability gap: no rule detects an in-scope system that stops sending events.
       ruleIds: [],
       ifNotConfigured:
-        'Control marcado como NO EVALUABLE. Sin scope definido no se puede emitir semáforo.',
+        'El control es NO EVALUABLE: sin alcance no se puede emitir semáforo. En un despliegue por agente el alcance es la propia máquina y el parámetro es informativo.',
     },
     {
       id: 'P-02',
@@ -36,18 +35,14 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'rutas_criticas_so',
       label: 'Rutas críticas del sistema operativo',
       description:
-        'Rutas de ficheros y directorios del SO consideradas críticas que deben estar bajo control de acceso estricto y monitorizadas por FIM. Una ruta por entrada: /etc/passwd, /etc/shadow, /etc/sudoers, /etc/ssh/sshd_config.',
+        'Rutas de ficheros y directorios del SO críticas, bajo control de acceso estricto y vigiladas por FIM. Una ruta por entrada: /etc/passwd, /etc/shadow, /etc/sudoers, /etc/ssh/sshd_config.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.3'],
-      // La ficha define una lista de rutas criticas (la regla 106923 cubre
-      // cinco): `list`, no `path`, que designa una ruta unica. El ejemplo es UNA
-      // ruta porque el formulario guarda un elemento por entrada; las demas van
-      // en la descripcion.
+      // A `list` (rule 106923 covers five), not a `path`, which designates a single path. The example is ONE
+      // path because the form stores one item per entry.
       type: 'list',
       example: '/etc/passwd',
-      // La forma del elemento: una RUTA, no un nombre suelto. Antes de
-      // declararla, un `passwd` a secas se daba por bueno y FIM no vigilaba
-      // nada.
+      // The item shape is a PATH, not a bare name: a plain `passwd` used to pass and FIM watched nothing.
       columns: [
         {
           name: 'ruta',
@@ -60,11 +55,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.',
       ensfacilUsage:
-        'Permite evidenciar la integridad de los componentes del sistema operativo.',
+        'Evidencia la integridad del SO comparando hash, modo y propietario de cada ruta con la pasada anterior y detectando cambios sin justificar.',
       evidenceIds: ['EV-02'],
       ruleIds: ['106920', '106921', '106922'],
       ifNotConfigured:
-        'EV-02 (FIM sobre SO) desactivado. op.acc.2.3 NO EVALUABLE automáticamente.',
+        'EV-02 se publica NO EVALUABLE y op.acc.2.3 no puede acreditarse automáticamente.',
     },
     {
       id: 'P-03',
@@ -72,20 +67,20 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'permisos_world_writable_permitidos',
       label: 'World-writable permitidos',
       description:
-        'Indica si se permiten ficheros o directorios con permisos de escritura para todos (world-writable). Si no, cualquier world-writable es incumplimiento. Valores admitidos: sí o no; las excepciones concretas (/tmp, /var/tmp) se cargan como whitelist en Wazuh, no en este campo.',
+        'Indica si se permiten ficheros o directorios con escritura para todos (world-writable): sí o no. Las excepciones concretas (/tmp, /var/tmp) se declaran en P-11.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1'],
       type: 'boolean',
       example: 'no',
       required: true,
       wazuhUsage:
-        'SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta. Las excepciones se cargan como whitelist.',
+        'SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta; las excepciones se cargan como whitelist.',
       ensfacilUsage:
-        'Permite distinguir world-writable de incumplimiento frente a los legítimos.',
+        'Distingue un world-writable que es incumplimiento de uno legítimo sin apagar la comprobación entera.',
       evidenceIds: ['EV-01'],
       ruleIds: ['106902'],
       ifNotConfigured:
-        'No se puede distinguir qué world-writable files son incumplimiento y cuáles legítimos.',
+        'No se puede decidir qué world-writable es incumplimiento y EV-01 no se pronuncia sobre ese eje.',
     },
     {
       id: 'P-04',
@@ -93,21 +88,21 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'politica_acceso_so_referencia',
       label: 'Referencia de la política de acceso',
       description:
-        'Referencia a la política o normativa interna que establece los derechos de acceso a los recursos del sistema. Acredita op.acc.2.2.',
+        'Referencia a la política o normativa interna que establece los derechos de acceso a los recursos. Acredita op.acc.2.2.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.2'],
       type: 'string',
       example: 'Política de Control de Acceso v2.1, aprobada 01/01/2025',
       required: true,
       wazuhUsage:
-        'Se incluye como referencia documental en el informe. Acredita respaldo normativo interno de los derechos de acceso.',
+        'Se incluye como referencia documental en el informe.',
       ensfacilUsage:
-        'Permite acreditar que los derechos de acceso siguen la decisión del responsable del recurso.',
+        'Acredita que los derechos de acceso responden a una decisión escrita del responsable del recurso, como exige op.acc.2.2, y da al informe la referencia normativa.',
       evidenceIds: ['EV-04'],
-      // Hueco de trazabilidad: parámetro documental; ninguna alerta lo acredita.
+      // Traceability gap: documentary parameter; no alert accredits it.
       ruleIds: [],
       ifNotConfigured:
-        'El informe no puede acreditar el cumplimiento de op.acc.2.2. Campo del informe vacío.',
+        'El informe no cita la norma que respalda los derechos de acceso. Es un hueco documental: EV-04 no se degrada.',
     },
     {
       id: 'P-05',
@@ -115,7 +110,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'modelo_privilegios',
       label: 'Modelo de privilegios',
       description:
-        'Modelo de privilegios utilizado en el sistema. Exigido por R1. Si el modelo implantado no es ninguno de los de la lista (ABAC, por ejemplo), seleccione Otro y detállelo en la política referenciada en P-04.',
+        'Modelo de privilegios del sistema, exigido por R1. Si no es ninguno de la lista (ABAC, por ejemplo), seleccionar Otro y detallarlo en la política referenciada en P-04.',
       levels: ['ALTO'],
       requirements: ['op.acc.2.r1.1', 'op.acc.2.r1.2'],
       type: 'select',
@@ -128,13 +123,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil verifica en logs y SCA que el modelo declarado se implementa. Detecta usuarios con privilegios de admin no justificados.',
+        'ENSFácil verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.',
       ensfacilUsage:
-        'Permite verificar el refuerzo R1 (op.acc.2.r1.1) sobre el modelo de privilegios.',
+        'Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).',
       evidenceIds: ['EV-05'],
       ruleIds: ['106930', '106931'],
       ifNotConfigured:
-        'R1 marcado como NO EVALUABLE. No se puede verificar op.acc.2.r1.1 ni op.acc.2.r1.2.',
+        'El refuerzo R1 es NO EVALUABLE y no se pueden verificar op.acc.2.r1.1 ni op.acc.2.r1.2.',
     },
     {
       id: 'P-06',
@@ -142,15 +137,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'tipos_acceso_permitidos_por_perfil',
       label: 'Tipos de acceso permitidos por perfil',
       description:
-        'Tipos de acceso que cada perfil puede ejercer sobre cada recurso. Una fila por perfil y recurso. El perfil enlaza con la columna Perfil de P-09. El recurso tiene que ser una ruta absoluta, y es además la que se vigila con auditd: no se admiten /, /etc, /usr, /var, /var/log, /proc, /sys, /dev, /bin, /sbin, /lib ni /boot, porque vigilar cualquiera de ellas inunda el log de auditoría y tumba el servidor.',
+        'Tipos de acceso de cada perfil sobre cada recurso, una fila por perfil y recurso; el perfil enlaza con la columna Perfil de P-09. El recurso es una ruta absoluta vigilada con auditd: no se admiten /, /etc, /usr, /var, /var/log, /proc, /sys, /dev, /bin, /sbin, /lib ni /boot, porque inundan el log de auditoría.',
       levels: ['ALTO'],
       requirements: ['op.acc.2.r1.2'],
-      // Era `list` con el ejemplo 'ops -> lectura+escritura', que no es lo que
-      // el agente lee: `opacc2-accesos.tsv` tiene TRES columnas. El valor
-      // guardado no cambia de forma (sigue siendo `string[]`, una fila por
-      // elemento), así que lo que hubiera en el índice se sigue viendo; lo que
-      // cambia es que ahora se valida columna a columna, y una fila con el
-      // formato viejo sale en rojo con el motivo en vez de darse por buena.
+      // Three columns, like `opacc2-accesos.tsv`. The stored value keeps its shape (`string[]`, one row per
+      // item); rows in the old format now show red with the reason.
       type: 'table',
       example: 'ops | /srv/datos | lectura,escritura',
       columns: [
@@ -171,8 +162,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
           label: 'Tipos de acceso',
           type: 'multiselect',
           required: true,
-          // El vocabulario ENS, cerrado: un 'todos' o un 'rw' no significan
-          // nada para quien compara esto con un acceso real.
+          // Closed ENS vocabulary: 'todos' or 'rw' mean nothing against a real access.
           options: [
             'lectura',
             'escritura',
@@ -183,13 +173,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil cruza los permisos de SCA (EV-01) y las ACLs reales contra esta tabla. Diferencias generan alerta.',
+        'ENSFácil cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.',
       ensfacilUsage:
-        'Permite verificar si los privilegios detectados se corresponden con los autorizados (op.acc.2.r1.2).',
+        'Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.',
       evidenceIds: ['EV-04', 'EV-06'],
       ruleIds: ['106935', '106936'],
       ifNotConfigured:
-        'No se puede verificar si los privilegios detectados se corresponden con los autorizados.',
+        'EV-06 se publica NO EVALUABLE: sin la tabla, no encontrar violaciones no significa que no las haya.',
     },
     {
       id: 'P-07',
@@ -197,35 +187,32 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'umask_minimo',
       label: 'umask mínimo exigido',
       description:
-        'Valor mínimo de umask exigido para la creación de ficheros. Garantiza que los nuevos ficheros no se crean con permisos abiertos por defecto. Tres o cuatro dígitos octales: 022 deja permisos 755/644 y 027 deja 750/640.',
+        'Umask mínimo exigido para crear ficheros, para que no se creen con permisos abiertos. Tres o cuatro dígitos octales: 022 deja 755/644 y 027 deja 750/640.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1'],
       type: 'string',
       example: '027',
       required: true,
       wazuhUsage:
-        'SCA verifica el umask en perfiles de usuario y /etc/profile. Si el umask real es más permisivo que P-07, genera alerta.',
+        'SCA verifica el umask en los perfiles de usuario y /etc/profile. Si es más permisivo que P-07, genera alerta.',
       ensfacilUsage:
-        'Permite verificar si la configuración de permisos por defecto es suficientemente restrictiva.',
+        'Compara el umask efectivo de las fuentes del sistema con el mínimo exigido.',
       evidenceIds: ['EV-01'],
       ruleIds: ['106903', '106904'],
       ifNotConfigured:
-        'No se puede verificar si la configuración de permisos por defecto es suficientemente restrictiva.',
+        'No hay contra qué comparar el umask observado y EV-01 no se pronuncia sobre ese eje.',
     },
-    // --- Política que vivía en ficheros de la máquina ------------------------
-    //
-    // P-08 a P-12 son lo que hasta ahora escribía el operador por SSH en
-    // /etc/ensfacil (opacc2-acl.tsv, opacc2-privilegios.tsv, opacc2-suid.allow y
-    // dos listas del .env). El auditor no las veía en ninguna pantalla, y son
-    // literalmente las decisiones que op.acc.2 exige del responsable del
-    // recurso. Ahora se declaran aquí.
+    // --- Policy that used to live in machine files ---
+    // P-08 to P-12 are what the operator used to write over SSH in /etc/ensfacil (opacc2-acl.tsv,
+    // opacc2-privilegios.tsv, opacc2-suid.allow and two .env lists); they are the decisions op.acc.2 requires
+    // from the resource owner.
     {
       id: 'P-08',
       controlId: 'op.acc.2',
       name: 'acl_declarada',
       label: 'Derechos de acceso declarados por recurso',
       description:
-        'Derechos que el responsable del recurso decide para cada ruta protegida: una fila por recurso. El modo se compara como número octal, así que 750 y 0750 son el mismo. La ACL extendida se escribe con la sintaxis de setfacl (u:auditor:r-x). Propietario y ACL se pueden dejar vacíos cuando ese eje no se declara.',
+        'Derechos que el responsable decide para cada ruta protegida, una fila por recurso. El modo se compara como octal (750 y 0750 son iguales), la ACL extendida usa la sintaxis de setfacl (u:auditor:r-x) y propietario y ACL pueden quedar vacíos.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.2'],
       type: 'table',
@@ -258,13 +245,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Es la tabla contra la que se comparan las ACLs reales de cada recurso. Una diferencia genera acl_deviation.',
+        'Es la tabla contra la que se comparan las ACL reales de cada recurso. Una diferencia genera acl_deviation.',
       ensfacilUsage:
-        'Acredita que los derechos de acceso responden a una decisión escrita del responsable del recurso, que es literalmente lo que exige op.acc.2.2.',
+        'Acredita que los derechos responden a una decisión escrita del responsable (op.acc.2.2) y es la tabla contra la que se comparan modo, propietario y ACL reales.',
       evidenceIds: ['EV-04'],
       ruleIds: ['106913', '106914'],
       ifNotConfigured:
-        'EV-04 se publica NO_EVALUABLE, nunca CUMPLE: sin la decisión escrita no hay contra qué comparar las ACLs reales de la máquina.',
+        'EV-04 se publica NO EVALUABLE, nunca CUMPLE: sin la decisión escrita no hay contra qué comparar las ACL reales.',
     },
     {
       id: 'P-09',
@@ -272,7 +259,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'privilegios_declarados',
       label: 'Privilegios declarados por usuario',
       description:
-        'Perfil y privilegios que el responsable concede a cada cuenta. El usuario se escribe tal y como aparece en /etc/passwd: la comparación es literal y distingue mayúsculas, porque un error de tecleo del administrador no puede pasar por una autorización válida. El perfil es la etiqueta que enlaza con P-06.',
+        'Perfil y privilegios que el responsable concede a cada cuenta. El usuario se escribe como en /etc/passwd (comparación literal, distingue mayúsculas); el perfil enlaza con P-06.',
       levels: ['ALTO'],
       requirements: ['op.acc.2.r1.1', 'op.acc.2.r1.2'],
       type: 'table',
@@ -299,13 +286,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Se contrasta con la pertenencia real a grupos privilegiados y con el uso de sudo. Un usuario con más de lo declarado genera excessive_privilege.',
+        'Se contrasta con la pertenencia real a grupos privilegiados y el uso de sudo. Un usuario con más de lo declarado genera excessive_privilege.',
       ensfacilUsage:
-        'Permite verificar el refuerzo R1: que los privilegios se mantienen individualmente y restringen el tipo de acceso.',
+        'Verifica el refuerzo R1: contrasta cada cuenta con privilegio observada con lo declarado para ella.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: ['106933'],
       ifNotConfigured:
-        'EV-05 se publica NO_EVALUABLE, y EV-06 también: sin el perfil de cada usuario no se puede decidir si un acceso supera el tipo autorizado.',
+        'EV-05 y EV-06 se publican NO EVALUABLE: sin el perfil de cada usuario no se puede decidir si un acceso supera el autorizado.',
     },
     {
       id: 'P-10',
@@ -313,11 +300,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'suid_autorizados',
       label: 'Línea base de binarios SUID/SGID autorizados',
       description:
-        'Rutas absolutas de los binarios con bit SUID o SGID que el responsable ha revisado y autoriza. Un nombre de binario sin ruta (sudo, passwd) no casa con nada y dejaría los ~25 SUID legítimos de un sistema limpio como no autorizados. No se siembra sola a propósito: sembrarla con lo que hay en la máquina declararía autorizada la puerta trasera de un sistema ya comprometido; la revisión ES el control.',
+        'Rutas absolutas de los binarios SUID o SGID revisados y autorizados por el responsable; un nombre sin ruta (sudo, passwd) no casa con nada. No se siembra sola: la revisión es el control.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1', 'op.acc.2.3'],
-      // Lista, no tabla: el elemento es UNA ruta. Se declara su forma para que
-      // un 'sudo' sin ruta no pase por línea base válida.
+      // A list, not a table: the item is ONE path, with its shape declared so a path-less 'sudo' is not a valid
+      // baseline.
       type: 'list',
       example: '/usr/bin/sudo',
       columns: [
@@ -330,13 +317,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Todo binario SUID/SGID encontrado fuera de esta lista se publica como suid_sgid no autorizado.',
+        'Todo binario SUID/SGID fuera de esta lista se publica como suid_sgid no autorizado.',
       ensfacilUsage:
-        'Permite distinguir un SUID legítimo revisado de uno que nadie ha autorizado, que es la única forma de que EV-07 signifique algo.',
+        'Distingue un binario SUID/SGID aprobado de uno que nadie ha revisado. Sin línea base, EV-07 no significa nada.',
       evidenceIds: ['EV-07'],
       ruleIds: ['106925', '106926'],
       ifNotConfigured:
-        'EV-07 se publica NO_EVALUABLE, nunca CUMPLE: sin línea base revisada, ni encontrar SUID ni no encontrarlos dice nada.',
+        'EV-07 se publica NO EVALUABLE, nunca CUMPLE: sembrarla con lo que hay en la máquina declararía autorizada la puerta trasera de un sistema comprometido.',
     },
     {
       id: 'P-11',
@@ -344,7 +331,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'world_writable_excepciones',
       label: 'Excepciones world-writable',
       description:
-        'Rutas con escritura para todos que el responsable declara legítimas, como los directorios temporales con sticky bit. Fuera de esta lista, un recurso world-writable es incumplimiento cuando P-03 dice que no se permiten. Son DATO y no código a propósito: el auditor las ve aquí y no escondidas dentro del recolector.',
+        'Rutas con escritura para todos que el responsable declara legítimas, como los directorios temporales con sticky bit. Fuera de esta lista, un world-writable incumple si P-03 dice que no se permiten.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1'],
       type: 'list',
@@ -359,13 +346,13 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Actúa como lista blanca de la comprobación de world-writable: lo que está aquí no genera alerta.',
+        'Actúa como lista blanca de la comprobación world-writable: lo que figura aquí no genera alerta.',
       ensfacilUsage:
-        'Permite distinguir el world-writable legítimo del incumplimiento sin apagar la comprobación entera.',
+        'Distingue el world-writable legítimo del incumplimiento sin apagar la comprobación. Cada ruta exceptuada viaja por nombre en la evidencia.',
       evidenceIds: ['EV-01'],
       ruleIds: ['106902'],
       ifNotConfigured:
-        'No se declara ninguna excepción: cualquier recurso world-writable cuenta como incumplimiento si P-03 es no.',
+        'No hay excepciones: todo world-writable cuenta como incumplimiento cuando P-03 indica que no se permiten.',
     },
     {
       id: 'P-12',
@@ -373,7 +360,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       name: 'grupos_privilegiados',
       label: 'Grupos que otorgan privilegio administrativo',
       description:
-        'Grupos del sistema cuya pertenencia concede privilegios de administración. Es la decisión que define qué cuenta como privilegio en esta máquina: pertenecer a uno de ellos y no estar declarado en P-09 es un privilegio no justificado.',
+        'Grupos del sistema cuya pertenencia concede privilegios de administración. Pertenecer a uno y no estar declarado en P-09 es un privilegio no justificado.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.2.1', 'op.acc.2.r1.1'],
       type: 'list',
@@ -390,11 +377,11 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Define qué pertenencias se registran como group_membership privilegiada.',
       ensfacilUsage:
-        'Sin esta decisión, ENSFácil aplicaría la lista de fábrica del recolector y el informe afirmaría algo que el cliente no ha declarado.',
+        'Define qué cuenta como privilegio administrativo en la máquina.',
       evidenceIds: ['EV-05'],
       ruleIds: ['106932'],
       ifNotConfigured:
-        'El agente aplica su lista de fábrica (sudo, wheel, admin, adm, root) y el informe no puede citar una decisión del cliente.',
+        'El agente aplica su lista de fábrica (sudo, wheel, admin, adm y root) y el informe no cita una decisión del cliente.',
     },
   ],
 };

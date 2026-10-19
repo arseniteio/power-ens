@@ -13,7 +13,7 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'matriz_funciones_persona',
       label: 'Matriz de funciones por persona',
       description:
-        'Relación entre cada cuenta y las funciones que tiene atribuidas en el sistema según el organigrama: desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría o supervisión. Es una declaración organizativa del responsable y no se deduce de la máquina. Se escribe una fila por cuenta, con las funciones que ejerce.',
+        'Funciones atribuidas a cada cuenta según el organigrama (desarrollo, operación, autorización, control, configuración, mantenimiento, auditoría, supervisión). Declaración organizativa del responsable, una fila por cuenta.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'],
       type: 'table',
@@ -34,13 +34,13 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Ningún agente lee esta tabla. Lo que el agente recoge de la máquina son las acciones de cada cuenta sin clasificar, y esta matriz es la referencia organizativa contra la que se contrastan.',
+        'Ningún agente lo lee. Es la referencia organizativa contra la que se contrastan las acciones sin clasificar que recoge el agente.',
       ensfacilUsage:
-        'ENSFácil la incorpora al informe como soporte documental: permite comparar las funciones que una cuenta ejerce de hecho, deducidas de lo que hace, con las que tiene atribuidas sobre el papel. El veredicto de incompatibilidad no sale de aquí, sino del cruce de P-03 con P-02.',
+        'Se incorpora al informe como soporte documental para comparar las funciones ejercidas con las atribuidas. El veredicto de incompatibilidad sale del cruce de P-03 con P-02.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'El informe pierde la referencia organizativa y la comparación entre lo observado y lo atribuido pasa a hacerse a mano en la revisión documental. Al estar declarado obligatorio, además, la configuración del control queda incompleta hasta que se rellene.',
+        'El informe pierde la referencia organizativa y la comparación se hace a mano. Al ser obligatorio, la configuración del control queda incompleta.',
     },
     {
       id: 'P-02',
@@ -48,20 +48,20 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'pares_funciones_incompatibles',
       label: 'Pares de funciones incompatibles',
       description:
-        'Qué parejas de funciones no puede acumular una misma persona. En nivel MEDIO el ENS exige separar desarrollo de operación y autorización de control; en ALTO se añaden configuración frente a mantenimiento y auditoría frente a cualquier otra función, que se escribe con el comodín asterisco en la segunda celda. Se declara una pareja por línea, con las dos funciones separadas por una barra vertical, y los nombres tienen que escribirse exactamente igual que en P-03.',
+        'Parejas de funciones que una misma persona no puede acumular: en MEDIO desarrollo frente a operación y autorización frente a control; en ALTO también configuración frente a mantenimiento y auditoría frente a cualquier otra (asterisco en la segunda celda). Una pareja por línea, separada por barra vertical, con los nombres idénticos a P-03.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2', 'op.acc.3.r1.1', 'op.acc.3.r1.2'],
       type: 'list',
       example: 'desarrollo | operacion',
       required: true,
       wazuhUsage:
-        'Ningún agente lo lee: qué combinación de funciones está prohibida es una decisión de política y vive solo en esta pantalla. La máquina se limita a decir qué hizo cada cuenta.',
+        'Ningún agente lo lee: qué combinación está prohibida es política y vive solo en esta pantalla.',
       ensfacilUsage:
-        'Es la mitad del juicio de este control. El motor agrupa las acciones observadas por cuenta, las traduce a funciones con P-03 y comprueba si alguna cuenta reúne los dos términos de alguna de estas parejas. Cuando ocurre, el requisito correspondiente sale como no conforme nombrando la cuenta y las funciones que aúna, y cambiar una línea de aquí cambia el veredicto sin volver a ejecutar nada en el servidor.',
+        'El motor agrupa las acciones por cuenta, las traduce a funciones con P-03 y comprueba si alguna cuenta reúne los dos términos de una pareja. Si ocurre, el requisito sale no conforme nombrando cuenta y funciones.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Los cuatro requisitos que dependen del cruce salen NO EVALUABLE y el motivo nombra este parámetro. No salen como incumplidos: sin saber qué combinaciones están prohibidas no se ha llegado a medir, y afirmar un incumplimiento sobre algo que no se ha comprobado sería falso.',
+        'Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro, no incumplidos.',
     },
     {
       id: 'P-03',
@@ -69,7 +69,7 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'acciones_por_funcion',
       label: 'Acciones por función',
       description:
-        'Traducción de cada función organizativa a lo que se puede observar en la máquina: qué comandos, binarios o rutas identifican una acción de desarrollo, de operación, de configuración o de auditoría. Cada fila lleva el nombre de la función y uno o varios indicadores. Cada indicador casa por subcadena contra el binario ejecutado y la ruta tocada, así que una misma acción puede pertenecer a varias funciones sin que eso sea un error.',
+        'Traducción de cada función a lo observable en la máquina: comandos, binarios o rutas que identifican una acción. Cada fila lleva el nombre de la función y uno o varios indicadores, que casan por subcadena con el binario ejecutado y la ruta tocada.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2'],
       type: 'table',
@@ -86,19 +86,19 @@ export const opAcc3Configuration: ENSControlConfiguration = {
           label: 'Indicadores',
           type: 'string',
           required: false,
-          // La fila trae N indicadores: `funcion | ind | ind | ...`.
+          // The row carries N indicators: `function | ind | ind | ...`.
           variadic: true,
         },
       ],
       required: true,
       wazuhUsage:
-        'El agente emite las acciones sin clasificar, con la cuenta, el binario y la ruta. Esta tabla es la que convierte esa observación en una función, y también la que decide qué vigila el sistema: la plantilla de reglas de auditoría del agente solo observa los binarios que aquí se declaran, así que al añadir una función hay que añadir su binario en la máquina y recargar las reglas.',
+        'El agente emite las acciones sin clasificar; esta tabla las convierte en función y decide qué vigila el sistema. Las reglas de auditoría solo observan los binarios declarados aquí: al añadir una función hay que añadir su binario en la máquina y recargar las reglas.',
       ensfacilUsage:
-        'Es la traducción indispensable entre el plano organizativo y el técnico, y sin ella el motor no puede saber qué función está ejerciendo una cuenta cuando ejecuta una acción. Con ella construye, para cada cuenta, el conjunto de funciones que ha ejercido en el periodo, que es lo que después se cruza con P-02.',
+        'Traduce el plano organizativo al técnico: con ella el motor construye el conjunto de funciones ejercidas por cada cuenta, que se cruza con P-02.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro: sin la traducción de acción a función no hay ninguna incompatibilidad que ver, por buena que sea la telemetría recogida.',
+        'Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro.',
     },
     {
       id: 'P-04',
@@ -106,20 +106,20 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'tareas_criticas_doble_persona',
       label: 'Tareas críticas con doble persona',
       description:
-        'Qué tareas se consideran críticas y cuántas personas distintas exige cada una, que es lo que pide el enunciado general de op.acc.3: despliegues en producción, cambios en el cortafuegos, restauración de copias o modificación de privilegios. Se declara una tarea por línea, con su nombre y el número de personas. Es la mitad de la declaración: qué comando es cada tarea en cada máquina se escribe en el fichero de tareas críticas del agente, y las dos mitades se unen por el nombre, en minúsculas.',
+        'Tareas críticas y número de personas distintas que exige cada una (despliegues, cambios en el cortafuegos, restauración de copias, cambios de privilegios), una por línea. Qué comando es cada tarea se declara en el fichero de tareas críticas del agente; ambas mitades se unen por el nombre en minúsculas.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3'],
       type: 'list',
       example: 'despliegue en produccion | 2',
       required: true,
       wazuhUsage:
-        'El agente observa qué cuentas distintas ejecutaron cada tarea declarada en el fichero de tareas críticas de su máquina y emite una por persona, no una por ejecución. Contar cuántas hubo y compararlas con lo exigido no es cosa suya.',
+        'El agente emite una observación por cuenta distinta que ejecutó cada tarea del fichero de tareas críticas, no una por ejecución. No cuenta ni compara.',
       ensfacilUsage:
-        'El motor cuenta cuántas cuentas distintas intervinieron en cada tarea que se haya ejecutado en el periodo y lo compara con el número declarado aquí. Una tarea que nadie ejecutó no incumple, porque exigir concurrencia a algo que no ocurrió sería acusar por una ausencia. Una fila con menos de dos personas, o con algo que no sea un número, se ignora.',
+        'El motor cuenta las cuentas distintas por tarea ejecutada en el periodo y las compara con el número declarado. Una tarea no ejecutada no incumple; una fila con menos de dos personas o sin número se ignora.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'La concurrencia no se mide: la tarea se sigue observando pero no se juzga. Los hechos se recogen igualmente, así que al declararlo más tarde el veredicto se calcula sobre lo ya recogido sin volver a tocar el servidor.',
+        'La concurrencia no se juzga, pero los hechos se recogen: al declararlo, el veredicto se calcula sobre lo ya recogido.',
     },
     {
       id: 'P-05',
@@ -127,20 +127,20 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'cuentas_auditoria',
       label: 'Cuentas de auditoría',
       description:
-        'Qué cuentas ejercen funciones de auditoría o supervisión del sistema, con su ámbito. Solo se exige en nivel ALTO, y ahí el ENS es taxativo: esas cuentas no pueden aunar ninguna otra función. Se declara una cuenta por línea; del ámbito el motor solo lee la primera celda, que es la cuenta.',
+        'Cuentas que ejercen funciones de auditoría o supervisión, con su ámbito; solo se exige en nivel ALTO, donde no pueden aunar otra función. Una cuenta por línea; del ámbito el motor solo lee la primera celda, la cuenta.',
       levels: ['ALTO'],
       requirements: ['op.acc.3.r1.2'],
       type: 'list',
       example: 'auditor1 | global',
       required: false,
       wazuhUsage:
-        'Ningún agente lo lee: quién audita es una decisión organizativa. El agente se limita a emitir todas las acciones de todas las cuentas, incluidas las de auditoría.',
+        'Ningún agente lo lee: quién audita es una decisión organizativa.',
       ensfacilUsage:
-        'El motor comprueba que ninguna cuenta declarada aquí tenga, en el conjunto de acciones observadas, ninguna función distinta de auditoría o supervisión. Reconoce esa función por su nombre literal, así que si en P-03 se le llama de otra forma la propia actividad de auditar contará como otra función y el requisito saldrá incumplido sin motivo.',
+        'El motor comprueba que ninguna cuenta declarada tenga funciones distintas de auditoría o supervisión. Reconoce esa función por su nombre literal: si en P-03 se llama de otra forma, el requisito saldrá incumplido sin motivo.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'El requisito op.acc.3.r1.2 pierde su comprobación directa y solo puede verificarse por la otra vía, el comodín de auditoría en P-02. En niveles BAJO y MEDIO no es exigible y sale como no aplicable.',
+        'op.acc.3.r1.2 pierde su comprobación directa y solo se verifica con el comodín de auditoría de P-02. En BAJO y MEDIO no es exigible (no aplicable).',
     },
     {
       id: 'P-06',
@@ -148,20 +148,20 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'ventana_correlacion_dias',
       label: 'Ventana de correlación en días',
       description:
-        'Periodo, en días, dentro del cual dos acciones de una misma cuenta se consideran concurrentes a efectos de segregación. Es el horizonte que la organización declara ante el auditor y que el informe cita, y suele coincidir con su ciclo de revisión: un mes natural o un trimestre.',
+        'Periodo, en días, dentro del cual dos acciones de una misma cuenta se consideran concurrentes para la segregación. Es el horizonte que la organización declara y el informe cita; suele coincidir con su ciclo de revisión.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3.1', 'op.acc.3.2'],
       type: 'duration_days',
       example: '30',
       required: true,
       wazuhUsage:
-        'Ningún agente lo lee. Cada recolector decide por su cuenta qué tramo del registro de auditoría relee en cada pasada, que es otra cosa: eso solo evita repetir hechos ya emitidos.',
+        'Ningún agente lo lee. El tramo del registro de auditoría que relee cada recolector es independiente.',
       ensfacilUsage:
-        'Hoy el evaluador de op.acc.3 no consulta este parámetro: la correlación se calcula sobre la ventana de evaluación del motor, que es de treinta días. Se declara igualmente porque es lo que documenta el criterio ante el auditor y lo que el informe recoge.',
+        'El evaluador de op.acc.3 aún no lo consulta: la correlación usa la ventana de evaluación del motor, de treinta días. Se declara porque documenta el criterio ante el auditor.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Rige la ventana de evaluación del motor, de treinta días, que puede no ajustarse al ciclo real de la organización. Al estar declarado obligatorio, además, la configuración del control queda incompleta hasta que se rellene.',
+        'Rige la ventana de treinta días del motor, que puede no ajustarse al ciclo real. Al ser obligatorio, la configuración del control queda incompleta.',
     },
     {
       id: 'P-ATT',
@@ -169,7 +169,7 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna telemetría puede demostrar. Se declara una fila por requisito, con el documento aprobado, su enlace, la fecha y quién lo declara. En op.acc.3 el caso es el refuerzo R2 sobre privilegios de auditoría, que exige que existan cuentas de auditoría estrictamente controladas y personalizadas: eso se acredita con un procedimiento escrito, no con un evento.',
+        'Documentos que acreditan un requisito que ninguna telemetría puede demostrar, una fila por requisito con documento aprobado, enlace, fecha y declarante. Aquí es el refuerzo R2: cuentas de auditoría estrictamente controladas y personalizadas, acreditado con un procedimiento escrito.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -208,13 +208,13 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No lo lee ningún agente: es la prueba documental de lo que la telemetría no alcanza. El motor lo aplica solo a requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que falla.',
+        'Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
       ensfacilUsage:
-        'El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y su enlace en el informe, y nunca se presenta como medido. Lo que no es legítimo es apuntar a un documento que todavía no se ha escrito.',
+        'El requisito pasa a cumplir marcado como acreditado documentalmente, con documento y enlace en el informe, nunca como medido. No debe apuntar a un documento sin escribir.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos sin evidencia técnica siguen contando como no conformes, que es el criterio por defecto: la carga de la prueba es del auditado.',
+        'Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado.',
     },
   ],
 };
