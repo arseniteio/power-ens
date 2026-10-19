@@ -339,7 +339,7 @@ const rest = (): void => {
 
   check(
     'the manager is one more row and brings only its 9 controls',
-    fingerprint(ids(now.agents.find(a => a.agentId === '000')!.results)) === '["op.cont.2","op.cont.3","op.exp.7","op.exp.8","op.exp.9","op.mon.1","op.mon.2","op.mon.3","op.nub.1"]',
+    fingerprint(ids(now.agents.find(a => a.agentId === '000')!.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
     ids(now.agents.find(a => a.agentId === '000')?.results || []).join(', ')
   );
   check(
@@ -413,7 +413,7 @@ const rest = (): void => {
 
     check(
       'vista del manager · sus 9 controles',
-      fingerprint(ids(vista.results)) === '["op.cont.2","op.cont.3","op.exp.7","op.exp.8","op.exp.9","op.mon.1","op.mon.2","op.mon.3","op.nub.1"]',
+      fingerprint(ids(vista.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
       ids(vista.results).join(', ')
     );
     check(

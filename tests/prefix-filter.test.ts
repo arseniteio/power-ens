@@ -370,8 +370,8 @@ section('8. Families and order');
   );
 
   check(
-    'families · three families, without repeats and in order',
-    equal(families, ['mp.info', 'op.acc', 'op.exp']),
+    'families · three families, without repeats and in Annex II order (op.acc 4.2, op.exp 4.3, mp.info 5.7)',
+    equal(families, ['op.acc', 'op.exp', 'mp.info']),
     `familias: ${families.join(', ')}`
   );
 

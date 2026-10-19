@@ -1,4 +1,5 @@
 import { ENSControlConfiguration } from '../types';
+import { compareENSControlIdsByAnnex } from '../../catalog';
 import { mpInfo6Configuration } from '../data/mp-info-6-parameters';
 import { opAcc1Configuration } from '../data/op-acc-1-parameters';
 import { opAcc2Configuration } from '../data/op-acc-2-parameters';
@@ -47,7 +48,7 @@ export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   opMon2Configuration,
   opMon3Configuration,
   opNub1Configuration,
-];
+].sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId));
 
 export const getENSControlConfiguration = (
   controlId: string

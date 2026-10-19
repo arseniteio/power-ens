@@ -37,7 +37,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'mp.info.6.1',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      title: 'Copias realizadas y recuperabilidad temporal',
+      title: 'Realización de copias de seguridad',
       description:
         'Valida que existen copias de seguridad correctas dentro de la ventana temporal definida.',
       evidences: ['EV-01', 'EV-02', 'EV-07'],
@@ -53,7 +53,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'mp.info.6.2.b',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      title: 'Conservación de las copias',
+      title: 'Almacenamiento en el propio lugar',
       description:
         'Valida que las copias se conservan al menos el plazo de P-03.',
       evidences: ['EV-03', 'EV-07'],
@@ -77,7 +77,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'mp.info.6.r1.1',
       level: ['MEDIO', 'ALTO'],
-      title: 'Prueba de restauración regular',
+      title: 'Pruebas de recuperación',
       description:
         'Valida una prueba de restauración del testigo correcta dentro del plazo de P-05.',
       evidences: ['EV-05'],
@@ -85,7 +85,7 @@ export const mpInfo6Control: ENSControl = {
     {
       id: 'mp.info.6.r2.1',
       level: ['ALTO'],
-      title: 'Copia separada',
+      title: 'Protección de las copias de seguridad',
       description:
         'Requisito R2 de ALTO: al menos una copia fuera de la máquina y activa. En BAJO y MEDIO sale NO_APLICA.',
       evidences: ['EV-06'],

@@ -95,7 +95,9 @@ const listOf = (agentId?: string, name?: string, extra: any = {}) =>
     check('the bar: the machines that measure the control', t?.total === 3 && t.cumple === 1 && t.parcial === 1 && t.sinDatos === 1, t);
     check('...in words', model.describeTally(t!) === '1 cumple · 1 parcial · 1 sin datos (de 3 máquinas)', model.describeTally(t!));
     check('a control no machine measures: no bar', model.tallyMachines('op.nub.1', rows) === undefined);
-    check('the bar only without a chosen machine', listOf(undefined, undefined, { agentRows: rows })[1].machines?.total === 3 && !listOf('101', 'srv-web01', { agentRows: rows })[1].machines);
+    const acc1 = (list: any[]) => list.find(entry => entry.id === 'op.acc.1');
+    check('the bar only without a chosen machine', acc1(listOf(undefined, undefined, { agentRows: rows }))?.machines?.total === 3 && !acc1(listOf('101', 'srv-web01', { agentRows: rows }))?.machines);
+    check('the list follows the Annex II order: op.acc first, mp.info.6 last', listOf()[0].id === 'op.acc.1' && listOf()[22].id === 'mp.info.6', listOf().map(e => e.id).join(','));
   }
 
   console.log('2. The screen');
@@ -127,7 +129,7 @@ const listOf = (agentId?: string, name?: string, extra: any = {}) =>
     check('the 6 unconfigured: the mark and «Añadir con valores por defecto»', h.findAll('EuiBadge', /No está en la configuración activa/).length === 6 && h.findAll('EuiButton', /Añadir con valores por defecto/).length === 6);
     await h.click(/Añadir con valores por defecto/);
     const ultimo = savedItems[savedItems.length - 1];
-    check('«Añadir» saves the document with op.cont.2 added (and nothing else)', ultimo && ultimo.configuration.controls.some((c: any) => c.controlId === 'op.cont.2') && ultimo.configuration.controls.length === 18, ultimo?.configuration?.controls?.length);
+    check('«Añadir» saves the document with op.nub.1 added, the first missing one in Annex II order (and nothing else)', ultimo && ultimo.configuration.controls.some((c: any) => c.controlId === 'op.nub.1') && ultimo.configuration.controls.length === 18, ultimo?.configuration?.controls?.length);
     check('...and requests the evaluation again', retries === 1, retries);
     h.setSearch('?tabView=plugins');
     h.reset();

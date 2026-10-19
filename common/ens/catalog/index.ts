@@ -1,4 +1,6 @@
 export * from './types';
+export * from './support/order';
+export * from './support/provenance';
 export * from './mp-info-6';
 export * from './op-acc-1';
 export * from './op-acc-2';
@@ -24,6 +26,7 @@ export * from './op-mon-3';
 export * from './op-nub-1';
 
 import { ENSControlDefinition } from './types';
+import { compareControlsByAnnex } from './support/order';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
 import { opAcc1CatalogDefinition } from './op-acc-1';
 import { opAcc2CatalogDefinition } from './op-acc-2';
@@ -72,9 +75,28 @@ export const ENSCatalog: ENSControlDefinition[] = [
   opMon2CatalogDefinition,
   opMon3CatalogDefinition,
   opNub1CatalogDefinition,
-];
+].sort(compareControlsByAnnex);
 
 export const getENSCatalogControl = (
   controlId: string
 ): ENSControlDefinition | undefined =>
   ENSCatalog.find(control => control.id === controlId);
+
+// Annex II order of two control ids; ids outside the catalog go after, by identifier.
+export const compareENSControlIdsByAnnex = (a: string, b: string): number =>
+  compareControlsByAnnex(
+    getENSCatalogControl(a) || { id: a },
+    getENSCatalogControl(b) || { id: b }
+  );
+
+// Annex II order of two families ('op.acc', 'mp.info'): by the first section of their catalog controls.
+export const compareENSFamiliesByAnnex = (a: string, b: string): number => {
+  const firstSection = (family: string) =>
+    ENSCatalog.find(control => control.id.startsWith(`${family}.`))?.annexSection;
+
+  return compareControlsByAnnex(
+    { id: a, annexSection: firstSection(a) },
+    { id: b, annexSection: firstSection(b) }
+  );
+};
+export * from './support/template-correspondence';

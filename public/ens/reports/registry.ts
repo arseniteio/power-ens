@@ -1,5 +1,5 @@
 /** Report model registry by control. There is no default model: a control without one has no report (`undefined`), never another control's. */
-import { compareENSIds } from '../control-filter/prefix';
+import { compareENSControlsInAnnexOrder } from '../control-filter/prefix';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
 import { buildMpInfo6ReportModel } from './report-model';
@@ -224,7 +224,7 @@ export const getENSReportModelDefinition = (
   reportModelRegistry.get((controlId || '').trim());
 
 export const getRegisteredENSReportControls = (): string[] =>
-  Array.from(reportModelRegistry.keys()).sort(compareENSIds);
+  Array.from(reportModelRegistry.keys()).sort(compareENSControlsInAnnexOrder);
 
 export const buildENSReportModel = (
   controlId: string,

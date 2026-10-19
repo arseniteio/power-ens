@@ -1,45 +1,45 @@
 /* ENS requirement descriptions by identifier ('title - description') for the Controles view. Written by the ens-controls-setup generator (generators/dashboard.py) when a control is added. */
 export const ensRequirementsFile = {
   'mp.info.6.1':
-    'Copias de seguridad - Se realizan copias de seguridad que permiten recuperar datos perdidos accidental o intencionadamente.',
+    'Realización de copias de seguridad - Se realizarán copias de seguridad que permitan recuperar datos perdidos, accidental o intencionadamente. La periodicidad y los plazos de retención de estas copias de seguridad se determinarán en la normativa interna de la organización relativa a copias de seguridad.',
   'mp.info.6.2.a':
-    'Frecuencia de las copias - La periodicidad de las copias está configurada y se cumple.',
+    'Frecuencia de las copias - Los procedimientos de respaldo establecidos indicarán: a) Frecuencia de las copias.',
   'mp.info.6.2.b':
-    'Almacenamiento local - Existencia e integridad técnica de las rutas locales de backup.',
+    'Almacenamiento en el propio lugar - Los procedimientos de respaldo establecidos indicarán: b) Requisitos de almacenamiento en el propio lugar.',
   'mp.info.6.2.c':
-    'Almacenamiento en otros lugares - Evidencias indirectas de almacenamiento alternativo.',
+    'Almacenamiento en otros lugares - Los procedimientos de respaldo establecidos indicarán: c) Requisitos de almacenamiento en otros lugares.',
   'mp.info.6.2.d':
-    'Acceso autorizado a las copias - Controles técnicos de acceso, keyfile y permisos.',
+    'Acceso autorizado a las copias - Los procedimientos de respaldo establecidos indicarán: d) Controles para el acceso autorizado a las copias de respaldo.',
   'mp.info.6.r1.1':
-    'Prueba de restauración regular - Restauración periódica de un testigo con su contenido comprobado, dentro del plazo de P-05: en el PBS, un fichero comparado con su SHA-256; en Zimbra, la cuenta testigo y una entrada testigo del directorio.',
+    'Pruebas de recuperación - Los procedimientos de copia de seguridad y restauración deben probarse regularmente. Su frecuencia dependerá de la criticidad de los datos y del impacto que cause la falta de disponibilidad.',
   'mp.info.6.r2.1':
-    'Copia separada - Requisito R2/ALTO. Copia en ubicación separada.',
+    'Protección de las copias de seguridad - Al menos una de las copias de seguridad se almacenará de forma separada en lugar diferente, de tal manera que un incidente no pueda afectar tanto al repositorio original como a la copia simultáneamente.',
   'op.acc.1.1':
-    'Identificador único válido - Cada entidad usa un identificador único; no se admiten cuentas genéricas o compartidas.',
+    'Identificador único válido - Se podrá utilizar como identificador único los sistemas de identificación previstos en la normativa de aplicación, entre ellos, los sistemas de clave concertada y cualquier otro sistema que las administraciones consideren válido en los términos de la Ley 39/2015.',
   'op.acc.1.2':
-    'Identificadores singulares por rol - Cada rol de un usuario recibe un identificador singular con privilegios delimitados.',
+    'Identificadores singulares por rol - Cuando el usuario tenga diferentes roles frente al sistema (como ciudadano, trabajador del organismo o administrador, por ejemplo) recibirá identificadores singulares para cada perfil, de forma que se recaben los correspondientes registros de actividad y se delimiten los privilegios de cada perfil.',
   'op.acc.1.3':
-    'Identificador singular por entidad - Cada entidad que accede al sistema cuenta con un identificador singular y trazable.',
+    'Identificador singular por entidad - Cada entidad (usuario o proceso) que accede al sistema contará con un identificador singular que permita conocer el destinatario, los derechos de acceso que recibe y las acciones realizadas por dicha entidad.',
   'op.acc.1.4':
-    'Gestión del ciclo de vida de las cuentas - Las cuentas se inhabilitan al cese en plazo y se retienen para trazabilidad.',
+    'Gestión del ciclo de vida de las cuentas - Las cuentas de usuario se gestionarán de la siguiente forma: a) Cada cuenta estará asociada a un identificador único. b) Las cuentas deben ser inhabilitadas cuando: el usuario deja la organización; cesa en la función para la cual se requería la cuenta; o la persona que la autorizó da orden contraria. c) Las cuentas se retendrán durante el período necesario para atender las necesidades de trazabilidad de los registros de actividad (denominado «período de retención»).',
   'op.acc.1.5':
-    'Identificación en comunicaciones electrónicas (eIDAS) - Identificación conforme a eIDAS con el nivel de aseguramiento correspondiente.',
+    'Identificación en comunicaciones electrónicas (eIDAS) - En comunicaciones electrónicas, las partes se identificarán conforme al Reglamento (UE) n.º 910/2014 (eIDAS), con la siguiente correspondencia: a) Autenticidad nivel BAJO → nivel de seguridad eIDAS bajo, sustancial o alto. b) Autenticidad nivel MEDIO → nivel de seguridad eIDAS sustancial o alto. c) Autenticidad nivel ALTO → nivel de seguridad eIDAS alto.',
   'op.acc.1.r1.1':
-    'Singularización de la persona - La identificación permite singularizar a la persona y sus responsabilidades en el sistema.',
+    'Singularización de la persona - La identificación del usuario permitirá al Responsable del Sistema, al Responsable de la Seguridad o a sus administradores delegados, singularizar a la persona asociada al mismo, así como sus responsabilidades en el sistema.',
   'op.acc.1.r1.2':
-    'Identificación ligada a privilegios - Los datos de identificación determinan los privilegios conforme a la política de control de acceso.',
+    'Identificación ligada a privilegios - Los datos de identificación serán utilizados por el sistema para determinar los privilegios del usuario conforme a los requisitos de control de acceso establecidos en la documentación de seguridad.',
   'op.acc.1.r1.3':
-    'Lista actualizada de usuarios autorizados - Existe una lista de usuarios autorizados contra la que se contrastan las cuentas activas.',
+    'Lista actualizada de usuarios autorizados - Se asegurará la existencia de una lista actualizada de usuarios autorizados, mantenida por el administrador del sistema o de la seguridad del sistema.',
   'op.acc.2.1':
-    'Protección de recursos - Los recursos del sistema se protegen con mecanismos que impiden su uso salvo a entidades con derechos suficientes.',
+    'Protección de recursos - Los recursos del sistema se protegerán con algún mecanismo que impida su utilización, salvo a las entidades que disfruten de derechos de acceso suficientes.',
   'op.acc.2.2':
-    'Derechos según responsable - Los derechos de acceso se establecen según las decisiones del responsable del recurso y la política de seguridad.',
+    'Derechos según responsable - Los derechos de acceso de cada recurso se establecerán según las decisiones de la persona responsable del recurso, ateniéndose a la política y normativa de seguridad del sistema.',
   'op.acc.2.3':
-    'Control de acceso al SO - Se controla el acceso a los componentes del sistema operativo y sus ficheros o registros de configuración.',
+    'Control de acceso al SO - Particularmente, se controlará el acceso a los componentes del sistema operativo y a sus ficheros o registros de configuración.',
   'op.acc.2.r1.1':
-    'Privilegios individuales - Cada usuario autorizado tiene un conjunto de privilegios mantenido individualmente (R1/ALTO).',
+    'Privilegios individuales - Todos los usuarios autorizados deben tener un conjunto de atributos de seguridad (privilegios) que puedan ser mantenidos individualmente.',
   'op.acc.2.r1.2':
-    'Privilegios que restringen acceso - Los privilegios restringen el tipo de acceso: lectura, escritura, modificación, borrado (R1/ALTO).',
+    'Privilegios que restringen acceso - Los privilegios de acceso se implementarán para restringir el tipo de acceso que un usuario puede tener (lectura, escritura, modificación, borrado, etc.).',
   'op.acc.3.1':
     'Siempre que sea posible, las capacidades de desarrollo y operación no recaerán en la misma persona.',
   'op.acc.3.2':

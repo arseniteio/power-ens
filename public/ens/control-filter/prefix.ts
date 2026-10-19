@@ -2,6 +2,13 @@
 // Only the last segment may match partially, and only if nothing matches by whole segments.
 
 import { ENSPrefixFilterResult } from './types';
+import {
+  compareENSControlIdsByAnnex,
+  compareENSFamiliesByAnnex,
+} from '../../../common/ens/catalog';
+
+// Lists of controls follow the Annex II order (op.acc 4.2 … op.mon 4.7, then mp.* 5.x), not the alphabet.
+export const compareENSControlsInAnnexOrder = compareENSControlIdsByAnnex;
 
 export const splitENSId = (id: string): string[] =>
   String(id).trim().toLowerCase().split('.');
@@ -119,7 +126,7 @@ export const compareENSIds = (a: string, b: string): number => {
 export const listENSFamilies = (ids: readonly string[]): string[] => {
   const families = ids.map(ensFamilyOf).filter(family => family !== '');
 
-  return [...new Set(families)].sort(compareENSIds);
+  return [...new Set(families)].sort(compareENSFamiliesByAnnex);
 };
 
 // Sections start closed; with exactly one matching control the section starts open.

@@ -62,11 +62,11 @@ const registeredDefinition = (
   const registered2 = getRegisteredENSReportControls();
 
   check(
-    'registry · the twenty-three catalog controls are there, and only those',
+    'registry · the twenty-three catalog controls are there, and only those, in Annex II order',
     registered2.join(',') ===
-      'mp.info.6,op.acc.1,op.acc.2,op.acc.3,op.acc.4,' +
-      'op.acc.5,op.acc.6,op.cont.2,op.cont.3,op.exp.1,op.exp.2,op.exp.3,op.exp.4,' +
-      'op.exp.5,op.exp.6,op.exp.7,op.exp.8,op.exp.9,op.exp.10,op.mon.1,op.mon.2,op.mon.3,op.nub.1',
+      'op.acc.1,op.acc.2,op.acc.3,op.acc.4,op.acc.5,op.acc.6,' +
+      'op.exp.1,op.exp.2,op.exp.3,op.exp.4,op.exp.5,op.exp.6,op.exp.7,op.exp.8,op.exp.9,op.exp.10,' +
+      'op.nub.1,op.cont.2,op.cont.3,op.mon.1,op.mon.2,op.mon.3,mp.info.6',
     registered2.join(',')
   );
 

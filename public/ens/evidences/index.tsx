@@ -29,7 +29,7 @@ import type {
   ENSObservationGroup,
 } from '../../../common/ens/core/evaluation/types';
 import {
-  compareENSIds,
+  compareENSControlsInAnnexOrder,
   filterByENSPrefix,
   listENSFamilies,
   resolveENSSectionOpenState,
@@ -516,7 +516,7 @@ export const EvidencesENS = () => {
         unmeasured: countByStatus('NO_EVALUABLE'),
         notApplicable: countByStatus('NO_APLICA'),
       };
-    }).sort((a, b) => compareENSIds(a.controlId, b.controlId));
+    }).sort((a, b) => compareENSControlsInAnnexOrder(a.controlId, b.controlId));
   }, [results]);
 
   const filtered = useMemo(

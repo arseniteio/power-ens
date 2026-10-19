@@ -14,7 +14,7 @@ const desc = {
 const accounts = [{ key: 'mp.info.6.1', doc_count: 40 }, { key: 'op.acc.1.1', doc_count: 31 }, { key: 'op.acc.1', doc_count: 93 }];
 const m = buildRequirementsModel(desc, accounts, { search: '', hideEmpty: false, selected: undefined });
 
-check('one control per requirement group', m.controls.map(c => c.id).join() === 'mp.info.6,op.acc.1,op.exp.10', m.controls.map(c => c.id));
+check('one control per requirement group, in Annex II order', m.controls.map(c => c.id).join() === 'op.acc.1,op.exp.10,mp.info.6', m.controls.map(c => c.id));
 check('control total = sum of its requirements', m.controls.find(c => c.id === 'mp.info.6')?.count === 40);
 check('a control-level count is not added', m.controls.find(c => c.id === 'op.acc.1')?.count === 31);
 check('control without facts: 0', m.controls.find(c => c.id === 'op.exp.10')?.count === 0);
