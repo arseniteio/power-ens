@@ -211,7 +211,6 @@ const resolveUnion = (
 export interface ENSResolvedControlConfiguration {
   configuration: ENSControlConfiguration;
   origins: Record<string, ENSResolvedValueOrigin>;
-  template: ENSEffectiveTemplate;
 }
 
 // A control resolved for an agent's row (without agent: the common view, with the unions) and where each value comes
@@ -233,12 +232,11 @@ const resolveInModel = (
     origins[parameter.id] = { source: 'organisation' };
   });
 
-  const profile = profileOf(model, agentId);
-  const template = agentId === undefined ? { via: 'none' as const } : effectiveTemplateOf(model, profile, controlId);
-
   if (!model.agents || Object.keys(model.agents).length === 0) {
-    return { configuration: base, origins, template };
+    return { configuration: base, origins };
   }
+
+  const profile = profileOf(model, agentId);
 
   let changed = false;
 
@@ -269,7 +267,6 @@ const resolveInModel = (
   return {
     configuration: changed ? { ...base, parameters } : base,
     origins,
-    template,
   };
 };
 
