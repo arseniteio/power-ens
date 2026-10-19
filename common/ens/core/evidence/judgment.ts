@@ -659,7 +659,7 @@ const resolveParameterReference = (
     ) {
       return {
         kind: 'SIN_PARAMETRO',
-        reason: `El parámetro ${parameterLabel} no contiene una expresión regular utilizable: ${verdict.reason ?? 'el juicio no admite patrones'}.`,
+        reason: `El parámetro ${parameterLabel} no contiene una expresión regular utilizable: ${(verdict.reason ?? 'el juicio no admite patrones').replace(/\.$/, '')}.`,
       };
     }
     try {

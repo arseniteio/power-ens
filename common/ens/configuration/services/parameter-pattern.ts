@@ -15,7 +15,7 @@ const SYNTAX_ERRORS: Record<string, string> = {
   'invalid or unsupported Perl syntax': 'una construcción que RE2 no admite, como lookaround',
   'invalid escape sequence': 'una secuencia de escape que RE2 no admite',
   'trailing backslash at end of expression': 'una barra invertida al final',
-  'invalid character class range': 'un rango de caracteres al revés',
+  'invalid character class range': 'un rango o una clase de caracteres no válidos',
   'invalid named capture': 'un grupo con nombre no válido o una construcción que RE2 no admite',
   'duplicate capture group name': 'dos grupos con el mismo nombre',
   'expression nests too deeply': 'demasiados niveles de paréntesis',

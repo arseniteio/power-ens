@@ -135,7 +135,7 @@ export const AgentParameterRow = ({
     if (value !== undefined && !isEmptyParameterValue(value)) {
       const verdict = validateParameterValue(withMatchMode(parameter, matchMode), value);
       if (!verdict.valid) {
-        setError(`${parameter.id} · ${parameter.label}: ${verdict.reason}.`);
+        setError(`${parameter.id} · ${parameter.label}: ${String(verdict.reason).replace(/\.$/, '')}.`);
         return;
       }
     }

@@ -299,7 +299,7 @@ const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplat
     if (value === undefined || isEmptyParameterValue(value)) return;
     const matchMode = input.matchModes?.[parameterId];
     const issue = describeAgentLevelValueIssue(control, parameterId, value, matchMode);
-    if (issue) throw new Error(`${issue.message}.`);
+    if (issue) throw new Error(`${issue.message.replace(/\.$/, '')}.`);
     values[parameterId] = value;
     setMode(matchModes, parameterId, matchMode);
   });
