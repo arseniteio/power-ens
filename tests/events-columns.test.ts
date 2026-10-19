@@ -25,11 +25,11 @@ check('only ENS facts', JSON.stringify(f[0]) === '{"match_phrase":{"rule.groups"
 check('only scope machines', JSON.stringify(f[1]) === '{"terms":{"agent.id":["024","028"]}}');
 const g: any[] = buildEventsFilters([{ id: '024', groups: ['ens'] }], '024');
 check('a chosen machine', JSON.stringify(g[1]) === '{"match_phrase":{"agent.id":"024"}}');
-const conManager = [{ id: '024', groups: ['ens'] }, { id: '000', groups: [] }];
-check('chosen machine with the manager in scope: only that machine', JSON.stringify(buildEventsFilters(conManager, '024')[1]) === '{"match_phrase":{"agent.id":"024"}}', buildEventsFilters(conManager, '024'));
-check('the manager chosen: only the manager', JSON.stringify(buildEventsFilters(conManager, '000')[1]) === '{"match_phrase":{"agent.id":"000"}}');
-check('machine outside the scope: nothing', JSON.stringify(buildEventsFilters(conManager, '031')[1]) === '{"match_none":{}}');
-check('no machine: the whole scope, manager included', JSON.stringify(buildEventsFilters(conManager, undefined)[1]) === '{"terms":{"agent.id":["024","000"]}}');
+const withManager = [{ id: '024', groups: ['ens'] }, { id: '000', groups: [] }];
+check('chosen machine with the manager in scope: only that machine', JSON.stringify(buildEventsFilters(withManager, '024')[1]) === '{"match_phrase":{"agent.id":"024"}}', buildEventsFilters(withManager, '024'));
+check('the manager chosen: only the manager', JSON.stringify(buildEventsFilters(withManager, '000')[1]) === '{"match_phrase":{"agent.id":"000"}}');
+check('machine outside the scope: nothing', JSON.stringify(buildEventsFilters(withManager, '031')[1]) === '{"match_none":{}}');
+check('no machine: the whole scope, manager included', JSON.stringify(buildEventsFilters(withManager, undefined)[1]) === '{"terms":{"agent.id":["024","000"]}}');
 {
   const vista = readFileSync(`${__dirname}/../public/requirements/requirements-view.tsx`, 'utf8');
   check('«Controles» uses the raw-fact filters', /buildRawFactsFilters\(getActiveENSScopeAgents\(\), agentId\)/.test(vista) && !/buildENSScopeAgentQueryFilter/.test(vista));

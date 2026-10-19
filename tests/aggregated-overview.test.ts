@@ -80,7 +80,7 @@ const evidence = (
   };
 };
 
-const TODAS = [
+const ALL_OF_THEM = [
   'EV-01',
   'EV-02',
   'EV-03',
@@ -96,7 +96,7 @@ const evidences = (
   motives: Record<string, string[]> = {},
   agentMotives: Record<string, string> = {}
 ): ENSEvidenceResolved[] =>
-  TODAS.map(id =>
+  ALL_OF_THEM.map(id =>
     evidence(
       id,
       exceptions[id] || 'CUMPLE',
@@ -171,8 +171,8 @@ const fleet = (
     summary: undefined as never,
   }));
 
-const consolidate = (agentes: ENSAgentComplianceState[]): ENSComplianceResult => {
-  const result = consolidateAgentComplianceResultByControl(agentes, 'op.acc.1');
+const consolidate = (agents: ENSAgentComplianceState[]): ENSComplianceResult => {
+  const result = consolidateAgentComplianceResultByControl(agents, 'op.acc.1');
 
   if (!result) {
     throw new Error('The consolidation returned no result for op.acc.1');
@@ -182,10 +182,10 @@ const consolidate = (agentes: ENSAgentComplianceState[]): ENSComplianceResult =>
 };
 
 const sumByAgent = (
-  agentes: ENSAgentComplianceState[],
+  agents: ENSAgentComplianceState[],
   selector: (result: ENSComplianceResult) => number
 ): number =>
-  agentes.reduce((total, agent) => total + selector(agent.results[0]), 0);
+  agents.reduce((total, agent) => total + selector(agent.results[0]), 0);
 
 const gaps = (result: ENSComplianceResult) =>
   result.nonConformities.filter(item => item.origin === 'NO_EVIDENCIADA');
@@ -291,23 +291,23 @@ section('1 · a motive repeated on N machines is ONE motive');
 section('2 · cards are not multiplied per machine');
 
 {
-  const agentes = fleet(7, () =>
+  const agents = fleet(7, () =>
     evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }))
   );
 
-  const antes = sumByAgent(agentes, result => gaps(result).length);
-  const consolidated = consolidate(agentes);
+  const antes = sumByAgent(agents, result => gaps(result).length);
+  const consolidated = consolidate(agents);
   const after = gaps(consolidated).length;
 
   check(
     'each agent brings its own gaps (the "before" is not zero)',
-    antes === agentes.length * gaps(agentes[0].results[0]).length &&
+    antes === agents.length * gaps(agents[0].results[0]).length &&
       antes > 0,
     String(antes)
   );
 
   const distinct = new Set(
-    agentes.flatMap(agent =>
+    agents.flatMap(agent =>
       gaps(agent.results[0]).map(
         gap => `${gap.requirementId}|${gap.finding}|${gap.requiredAction}`
       )
@@ -426,7 +426,7 @@ section('3 · what comes from the catalog is not a per-machine finding');
     JSON.stringify([...fromCatalog, ...ofTheMachine].map(gap => gap.id))
   );
 
-  const unaSola = consolidate(
+  const onlyOne2 = consolidate(
     fleet(1, () =>
       evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }))
     )
@@ -434,19 +434,19 @@ section('3 · what comes from the catalog is not a per-machine finding');
 
   check(
     'reversal · with a single machine, its gap does carry its label',
-    gaps(unaSola).some(
+    gaps(onlyOne2).some(
       gap => gap.cause === 'EVIDENCE' && gap.id.startsWith('021:NC-')
     ),
-    JSON.stringify(gaps(unaSola).map(gap => gap.id))
+    JSON.stringify(gaps(onlyOne2).map(gap => gap.id))
   );
 
   check(
     'reversal · but the catalog one still does not carry it even with one machine',
-    gaps(unaSola)
+    gaps(onlyOne2)
       .filter(gap => gap.cause === 'CATALOG')
       .every(gap => !gap.id.includes(':')),
     JSON.stringify(
-      gaps(unaSola)
+      gaps(onlyOne2)
         .filter(gap => gap.cause === 'CATALOG')
         .map(gap => gap.id)
     )
@@ -456,7 +456,7 @@ section('3 · what comes from the catalog is not a per-machine finding');
 section('4 · aggregating does not dilute the measured / not-evidenced distinction');
 
 {
-  const agentes = fleet(7, index =>
+  const agents = fleet(7, index =>
     index === 0
       ? evaluate(evidences({ 'EV-03': 'NO_CUMPLE' }))
       : evaluate(
@@ -464,7 +464,7 @@ section('4 · aggregating does not dilute the measured / not-evidenced distincti
         )
   );
 
-  const consolidated = consolidate(agentes);
+  const consolidated = consolidate(agents);
 
   const ofOpAcc11 = consolidated.nonConformities.filter(
     item => item.requirementId === 'op.acc.1.1'
@@ -616,23 +616,23 @@ section('6 · the screen figures with the 7 agents of the real deployment');
     evaluate(
       evidences(
         Object.fromEntries(
-          TODAS.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
+          ALL_OF_THEM.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
         ),
-        Object.fromEntries(TODAS.map(id => [id, [NO_DATA_MOTIVE]]))
+        Object.fromEntries(ALL_OF_THEM.map(id => [id, [NO_DATA_MOTIVE]]))
       )
     );
 
-  const agentes = fleet(7, nothingMeasured);
-  const consolidated = consolidate(agentes);
+  const agents = fleet(7, nothingMeasured);
+  const consolidated = consolidate(agents);
 
   const cardsBefore = sumByAgent(
-    agentes,
+    agents,
     result => result.nonConformities.length
   );
 
   const cardsAfter = consolidated.nonConformities.length;
 
-  const lineasAntes = sumByAgent(agentes, result =>
+  const linesBefore = sumByAgent(agents, result =>
     result.evidences.reduce(
       (total, evidence) => total + evidence.observations.length,
       0
@@ -645,8 +645,8 @@ section('6 · the screen figures with the 7 agents of the real deployment');
   );
 
   console.log(
-    `       tarjetas: ${cardsBefore} -> ${cardsAfter} · ` +
-      `líneas de motivo: ${lineasAntes} -> ${linesAfter}`
+    `         cards: ${cardsBefore} -> ${cardsAfter} · ` +
+      `motive lines: ${linesBefore} -> ${linesAfter}`
   );
 
   check(
@@ -657,14 +657,14 @@ section('6 · the screen figures with the 7 agents of the real deployment');
 
   check(
     'motive lines stop being multiplied by seven',
-    linesAfter * 7 === lineasAntes,
-    `antes ${lineasAntes}, después ${linesAfter}`
+    linesAfter * 7 === linesBefore,
+    `antes ${linesBefore}, después ${linesAfter}`
   );
 
   check(
     'and no evidence was lost on the way',
-    consolidated.evidences.length === agentes[0].results[0].evidences.length,
-    `${consolidated.evidences.length} vs ${agentes[0].results[0].evidences.length}`
+    consolidated.evidences.length === agents[0].results[0].evidences.length,
+    `${consolidated.evidences.length} vs ${agents[0].results[0].evidences.length}`
   );
 
   check(
@@ -691,45 +691,45 @@ section('7 · the consolidated score does not keep the first machine\'s');
   const healthyAhead = withOrder(true);
   const healthyLast = withOrder(false);
 
-  const scoreDe = (r: ENSComplianceResult, id: string) =>
+  const scoreOf = (r: ENSComplianceResult, id: string) =>
     (r.requirements.find(x => x.id === id) as { score?: number } | undefined)?.score;
 
-  const estadoDe = (r: ENSComplianceResult, id: string) =>
+  const stateOf = (r: ENSComplianceResult, id: string) =>
     r.requirements.find(x => x.id === id)?.status;
 
   const REQ = 'op.acc.1.4';
 
   check(
     'baseline: the requirement differs on the healthy machine and on the broken one',
-    estadoDe(healthy(), REQ) !== estadoDe(rota(), REQ),
-    `${estadoDe(healthy(), REQ)} / ${estadoDe(rota(), REQ)}`
+    stateOf(healthy(), REQ) !== stateOf(rota(), REQ),
+    `${stateOf(healthy(), REQ)} / ${stateOf(rota(), REQ)}`
   );
 
   check(
     'the consolidated state is the same in both orders',
-    estadoDe(healthyAhead, REQ) === estadoDe(healthyLast, REQ),
-    `${estadoDe(healthyAhead, REQ)} / ${estadoDe(healthyLast, REQ)}`
+    stateOf(healthyAhead, REQ) === stateOf(healthyLast, REQ),
+    `${stateOf(healthyAhead, REQ)} / ${stateOf(healthyLast, REQ)}`
   );
 
   check(
     'and the score too, whichever machine goes first',
-    scoreDe(healthyAhead, REQ) === scoreDe(healthyLast, REQ),
-    `${scoreDe(healthyAhead, REQ)} / ${scoreDe(healthyLast, REQ)}`
+    scoreOf(healthyAhead, REQ) === scoreOf(healthyLast, REQ),
+    `${scoreOf(healthyAhead, REQ)} / ${scoreOf(healthyLast, REQ)}`
   );
 
   check(
     'and the score does not contradict the consolidated state',
-    (estadoDe(healthyAhead, REQ) === 'CUMPLE') ===
-      (scoreDe(healthyAhead, REQ) === 100),
-    `${estadoDe(healthyAhead, REQ)} con score ${scoreDe(healthyAhead, REQ)}`
+    (stateOf(healthyAhead, REQ) === 'CUMPLE') ===
+      (scoreOf(healthyAhead, REQ) === 100),
+    `${stateOf(healthyAhead, REQ)} con score ${scoreOf(healthyAhead, REQ)}`
   );
 
   const bothHealthy = consolidate(fleet(2, () => healthy()));
 
   check(
     'with both machines compliant, the consolidated one scores 100',
-    scoreDe(bothHealthy, REQ) === 100,
-    `${estadoDe(bothHealthy, REQ)} con score ${scoreDe(bothHealthy, REQ)}`
+    scoreOf(bothHealthy, REQ) === 100,
+    `${stateOf(bothHealthy, REQ)} con score ${scoreOf(bothHealthy, REQ)}`
   );
 }
 

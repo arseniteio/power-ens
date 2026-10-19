@@ -35,44 +35,44 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-type Linea = Record<string, unknown>;
+type Line = Record<string, unknown>;
 
 const HOURLY = '2026-10-09T11:05';
 const COMPLETE = '2026-10-09T12:05';
 
 const NOW = new Date('2026-10-09T12:30:00Z');
 
-const motor = (ts: string, extra: Linea = {}): Linea => ({
+const motor = (ts: string, extra: Line = {}): Line => ({
   ts, event: 'detection_engine_status', evidence_id: 'EV-01', requisito: 'op.mon.1.1,op.mon.1.r1.1', plano: 'central',
   activo: 'si', eventos_recibidos: 1203345, eventos_procesados: 1203300, eventos_descartados: 0, alertas_escritas: 45210,
   fuente_contadores: '/var/ossec/var/run/wazuh-analysisd.state', alertas_nuevas: 812, ...extra,
 });
 
-const heartbeat = (ts: string, covered: string): Linea => ({
+const heartbeat = (ts: string, covered: string): Line => ({
   ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, tipo_servidor: 'manager', emisor: 'recolector',
 });
 
 const FULL_COVER = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-07,EV-08';
 
-const coverage = (ts: string, id: string, agent: string, estado: string, extra: Linea = {}): Linea => ({
+const coverage = (ts: string, id: string, agent: string, estado: string, extra: Line = {}): Line => ({
   ts, event: 'detection_coverage_observed', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central',
   agente_id: id, agente: agent, estado_conexion: estado, ultimo_keepalive: '2026-10-09T12:04:50Z', version_agente: 'v4.14.7',
   grupos: 'default,ens', fim_ultimo_fin: '2026-10-09T06:02:11Z', sca_ultimo_fin: '2026-10-09T05:59:40Z',
   inventario_ultimo: '2026-10-09T11:20:03Z', ...extra,
 });
 
-const activity = (ts: string, id: string, agent: string, ultima: string, extra: Linea = {}): Linea => ({
+const activity = (ts: string, id: string, agent: string, ultima: string, extra: Line = {}): Line => ({
   ts, event: 'detection_activity_observed', evidence_id: 'EV-03', requisito: 'op.mon.1.1', plano: 'central',
   agente_id: id, agente: agent, ultima_alerta: ultima, alertas_24h: 120, nivel_max_24h: 7, reglas_distintas_24h: 14,
   tecnicas_mitre: 'T1078,T1110', observado_desde: '2026-10-01T00:00:00Z', ...extra,
 });
 
-const whole = (ts: string, name: string, ruta: string, ids: string, rules: number, part = 1, partes = 1): Linea => ({
+const whole = (ts: string, name: string, ruta: string, ids: string, rules: number, part = 1, parts = 1): Line => ({
   ts, event: 'ruleset_rules_loaded', evidence_id: 'EV-04', requisito: 'op.mon.1.1', plano: 'central',
-  conjunto: name, ruta, ids, reglas: rules, parte: part, partes,
+  conjunto: name, ruta, ids, reglas: rules, parte: part, partes: parts,
 });
 
-const completePass = (ts = COMPLETE): Linea[] => {
+const completePass = (ts = COMPLETE): Line[] => {
   const t = (s: number) => `${ts}:${String(s).padStart(2, '0')}Z`;
 
   return [
@@ -105,7 +105,7 @@ const completePass = (ts = COMPLETE): Linea[] => {
   ];
 };
 
-const hourlyPass = (ts = HOURLY, extra: Linea = {}): Linea[] => [
+const hourlyPass = (ts = HOURLY, extra: Line = {}): Line[] => [
   motor(`${ts}:10Z`, extra),
   heartbeat(`${ts}:12Z`, 'EV-01'),
 ];
@@ -121,9 +121,9 @@ const RULE: Record<string, string> = {
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
-const alert = (linea: Linea) => {
+const alert = (line: Line) => {
   counter += 1;
-  const { ts, host: _host, ...data } = linea as Linea & { ts: string };
+  const { ts, host: _host, ...data } = line as Line & { ts: string };
 
   return {
     _id: `alerta-${counter}`,
@@ -137,29 +137,29 @@ const alert = (linea: Linea) => {
   };
 };
 
-const events = (lineas: Linea[], changes: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lines: Line[], changes: (l: Line) => Line | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .map(l => changes({ ...l }))
-      .filter((l): l is Linea => Boolean(l))
+      .filter((l): l is Line => Boolean(l))
       .map(alert)
   );
 
-const hoy = (changes?: (l: Linea) => Linea | undefined) =>
+const hoy = (changes?: (l: Line) => Line | undefined) =>
   events([...hourlyPass(), ...completePass()], changes);
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opMon1Configuration,
   parameters: opMon1Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': ['Wazuh-4 | Ubuntu 22.04 | alta', 'wazuh-real | Ubuntu 24.04 | alta', '028 | Ubuntu 22.04 | alta'],
   'P-02': ['no | - | AR-2026 §4.2: sin amenazas de red que exijan inspección de tráfico'],
   'P-03': ['wazuh | ruleset oficial de Wazuh | 4510'],
@@ -172,18 +172,18 @@ const BASE: Valores = {
   'P-10': '26',
 };
 
-const NO_PARAMETERS: Valores = {};
+const NO_PARAMETERS: Values = {};
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'MEDIO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts('op.mon.1', evs, now);
-  const evidences = resolveEvidenceForControl('op.mon.1', delControl, '000', level, cfg, now);
-  const context = buildPolicyContext(opMon1CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts('op.mon.1', evs, now);
+  const evidences = resolveEvidenceForControl('op.mon.1', ofTheControl, '000', level, cfg, now);
+  const context = buildPolicyContext(opMon1CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions, runtimeVariables } = opMon1PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opMon1CatalogDefinition.requirements);
   const attestations = parseRequirementAttestations(cfg);
@@ -214,7 +214,7 @@ const evaluate = (
         appliedParameters: [],
         runtimeVariables,
       },
-      delControl
+      ofTheControl
     );
 
   return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, deEvidencia: ofEvidence, motor };
@@ -467,10 +467,10 @@ section('5. Red: each axis with its reversal');
 
   const requires = { ...BASE, 'P-02': ['sí | Suricata | AR-2026 §4.2: segmento DMZ'] };
   check('P-02 requires Suricata and the manager ingests no NIDS → NO_CUMPLE', evaluate(hoy(), requires).evidencia('EV-05')?.status === 'NO_CUMPLE');
-  const conSuricata = (ultima: string) =>
+  const withSuricata = (ultima: string) =>
     hoy(l => (l.event === 'network_detection_observed' ? { ...l, producto: 'suricata', fuente: '/var/log/suricata/eve.json', ultima_alerta: ultima, alertas_24h: 31 } : l));
-  check('REVERSAL: with Suricata via eve.json and today\'s alerts → CUMPLE', evaluate(conSuricata('2026-10-09T10:00:00Z'), requires).evidencia('EV-05')?.status === 'CUMPLE');
-  check('Suricata with its last alert 20 days ago (P-09 = 7) → NO_CUMPLE', evaluate(conSuricata('2026-09-19T10:00:00Z'), requires).evidencia('EV-05')?.status === 'NO_CUMPLE');
+  check('REVERSAL: with Suricata via eve.json and today\'s alerts → CUMPLE', evaluate(withSuricata('2026-10-09T10:00:00Z'), requires).evidencia('EV-05')?.status === 'CUMPLE');
+  check('Suricata with its last alert 20 days ago (P-09 = 7) → NO_CUMPLE', evaluate(withSuricata('2026-09-19T10:00:00Z'), requires).evidencia('EV-05')?.status === 'NO_CUMPLE');
   const unjustified = evaluate(hoy(), { ...BASE, 'P-02': ['no |  | '] });
   check('P-02 = no without a risk-analysis reference → not proven, cause CONFIGURATION', unjustified.evidencia('EV-05')?.status === 'NO_EVALUABLE' && unjustified.evidencia('EV-05')?.gapCause === 'CONFIGURATION', `${unjustified.evidencia('EV-05')?.status} ${unjustified.evidencia('EV-05')?.gapCause}`);
 }
@@ -529,24 +529,24 @@ section('7. Without a collector or with the source broken: NO_EVALUABLE by COLLE
   check('without any fact → op.mon.1.1 not proven', nothing.requisito('op.mon.1.1').evidenced === false);
   check('and EV-02 by COLLECTION, not by configuration', nothing.evidencia('EV-02')?.gapCause === 'COLLECTION', nothing.evidencia('EV-02')?.gapCause);
 
-  const sinMotor = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T16:10:00Z'));
+  const withoutEngine = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T16:10:00Z'));
   check(
     'four hours without engine state (it passes every hour) → EV-01 NO_EVALUABLE by COLLECTION, naming analysisd',
-    sinMotor.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinMotor.evidencia('EV-01')?.gapCause === 'COLLECTION' && /wazuh-analysisd/.test(sinMotor.motivo('op.mon.1.1')),
-    `${sinMotor.evidencia('EV-01')?.status} ${sinMotor.motivo('op.mon.1.1')}`
+    withoutEngine.evidencia('EV-01')?.status === 'NO_EVALUABLE' && withoutEngine.evidencia('EV-01')?.gapCause === 'COLLECTION' && /wazuh-analysisd/.test(withoutEngine.motivo('op.mon.1.1')),
+    `${withoutEngine.evidencia('EV-01')?.status} ${withoutEngine.motivo('op.mon.1.1')}`
   );
-  check('and op.mon.1.1 stops complying: not proven', sinMotor.requisito('op.mon.1.1').status === 'NO_CUMPLE' && sinMotor.requisito('op.mon.1.1').evidenced === false);
-  check('while the 6 h facts, with four hours, are still valid', sinMotor.evidencia('EV-02')?.status === 'CUMPLE' && sinMotor.evidencia('EV-04')?.status === 'CUMPLE');
-  const conMotor = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T14:30:00Z'));
-  check('REVERSAL: at 2 h 25 min from the last engine state → EV-01 CUMPLE', conMotor.evidencia('EV-01')?.status === 'CUMPLE', conMotor.evidencia('EV-01')?.status);
+  check('and op.mon.1.1 stops complying: not proven', withoutEngine.requisito('op.mon.1.1').status === 'NO_CUMPLE' && withoutEngine.requisito('op.mon.1.1').evidenced === false);
+  check('while the 6 h facts, with four hours, are still valid', withoutEngine.evidencia('EV-02')?.status === 'CUMPLE' && withoutEngine.evidencia('EV-04')?.status === 'CUMPLE');
+  const withEngine = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T14:30:00Z'));
+  check('REVERSAL: at 2 h 25 min from the last engine state → EV-01 CUMPLE', withEngine.evidencia('EV-01')?.status === 'CUMPLE', withEngine.evidencia('EV-01')?.status);
 
   const old = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
   check('two days without passes: the state does not describe today → not proven', old.requisito('op.mon.1.1').evidenced === false && /no está informando/.test(old.motivo('op.mon.1.1')), old.motivo('op.mon.1.1'));
 
-  const sinBase = evaluate(hoy().concat(events([
+  const withoutBase = evaluate(hoy().concat(events([
     { ts: `${COMPLETE}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
   ])));
-  check('global.db unreadable in the last pass → NO_EVALUABLE with the collector\'s motive', sinBase.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo('op.mon.1.1')), sinBase.motivo('op.mon.1.1'));
+  check('global.db unreadable in the last pass → NO_EVALUABLE with the collector\'s motive', withoutBase.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /global\.db/.test(withoutBase.motivo('op.mon.1.1')), withoutBase.motivo('op.mon.1.1'));
 
   const withTest = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
   const withoutBaseWithFailure = evaluate(hoy().concat(events([
@@ -605,18 +605,18 @@ section('8. P-01 is matched by ID or EXACT name, without mixing agents');
   check('«24» is agent 024 (ID without zeros)', via(['24 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
   check('«WAZUH-REAL» is wazuh-real (ignoring case)', via(['WAZUH-REAL | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
   check('«000» es el manager', via(['000 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
-  const sinCeros = evaluate(hoy(l => (l.agente_id === '028' ? { ...l, agente_id: '28' } : l)));
+  const withoutZeros = evaluate(hoy(l => (l.agente_id === '028' ? { ...l, agente_id: '28' } : l)));
   check(
     'a fact with the ID without zeros («28») matches P-01 «028»: the fact\'s ID is normalized the same',
-    sinCeros.evidencia('EV-02')?.status === 'CUMPLE' && sinCeros.evidencia('EV-03')?.status === 'CUMPLE',
-    `${sinCeros.evidencia('EV-02')?.status} ${sinCeros.motivo('op.mon.1.1')}`
+    withoutZeros.evidencia('EV-02')?.status === 'CUMPLE' && withoutZeros.evidencia('EV-03')?.status === 'CUMPLE',
+    `${withoutZeros.evidencia('EV-02')?.status} ${withoutZeros.motivo('op.mon.1.1')}`
   );
   check(
     '«wazuh-rea» is NOT wazuh-real: never by similarity',
     via(['wazuh-rea | Linux | alta']).evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-rea: no figura/.test(via(['wazuh-rea | Linux | alta']).motivo('op.mon.1.1'))
   );
 
-  const duplicated = (l: Linea): Linea[] =>
+  const duplicated = (l: Line): Line[] =>
     (l.event === 'detection_coverage_observed' || l.event === 'detection_activity_observed') && l.agente_id === '024'
       ? [l, { ...l, agente_id: '041', ...(l.event === 'detection_coverage_observed' ? { estado_conexion: 'disconnected' } : {}) }]
       : [l];
@@ -640,7 +640,7 @@ section('9. State facts: the hourly pass does not delete the 6 h ones; the 6 h p
   const hourlyOnes = ['07', '08', '09', '10', '11'].flatMap((h, i) =>
     hourlyPass(`2026-10-09T${h}:05`, { eventos_procesados: 1203300 + i * 1000 })
   );
-  const connected = (l: Linea) =>
+  const connected = (l: Line) =>
     l.agente_id !== '027'
       ? l
       : l.event === 'detection_coverage_observed'
@@ -691,26 +691,26 @@ section('10. Volume: the ids of a large set fit in logcollector lines');
     return output;
   };
   const part = (chunks: string[]): string[] => {
-    const partes: string[] = [];
+    const parts: string[] = [];
     let actual = '';
 
     chunks.forEach(t => {
       if (actual && actual.length + 1 + t.length > ID_LIMIT) {
-        partes.push(actual);
+        parts.push(actual);
         actual = t;
       } else {
         actual = actual ? `${actual},${t}` : t;
       }
     });
 
-    return actual ? [...partes, actual] : partes;
+    return actual ? [...parts, actual] : parts;
   };
 
   const ids = Array.from({ length: 39667 }, (_, k) => 1000 + k * 3);
   const chunks = part(compresses(ids));
   const ts = `${COMPLETE}:18Z`;
-  const lineas = chunks.map((s, k) => whole(ts, 'wazuh', '/var/ossec/ruleset/rules', s, ids.length, k + 1, chunks.length));
-  const bytes = lineas.map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.mon.1', host: 'Wazuh-4', ...l })).length);
+  const lines = chunks.map((s, k) => whole(ts, 'wazuh', '/var/ossec/ruleset/rules', s, ids.length, k + 1, chunks.length));
+  const bytes = lines.map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.mon.1', host: 'Wazuh-4', ...l })).length);
 
   check(
     `${chunks.length} parts, no line exceeds 8 KiB (logcollector cuts at 64 KiB; the indexer does not index a term over 32 KiB)`,
@@ -722,7 +722,7 @@ section('10. Volume: the ids of a large set fit in logcollector lines');
     events([
       ...hourlyPass(),
       ...completePass().filter(l => !(l.event === 'ruleset_rules_loaded' && l.conjunto === 'wazuh')),
-      ...lineas.filter((_, k) => k !== remove),
+      ...lines.filter((_, k) => k !== remove),
     ]);
   const lastPart = ranges(chunks[chunks.length - 1])[0];
   const p04 = { ...BASE, 'P-04': [`situación de la última parte | x | ${lastPart}`] };
@@ -730,11 +730,11 @@ section('10. Volume: the ids of a large set fit in logcollector lines');
   const whole2 = evaluate(largo(), p04);
   check(`with all parts, rule ${lastPart} (the last one's) is loaded → CUMPLE`, whole2.evidencia('EV-04')?.status === 'CUMPLE', whole2.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
 
-  const sinUna = evaluate(largo(chunks.length - 1), p04);
+  const withoutOne = evaluate(largo(chunks.length - 1), p04);
   check(
     'if a part is missing, a rule that does not appear is not taken as not loaded: NO_EVALUABLE by COLLECTION',
-    sinUna.evidencia('EV-04')?.status === 'NO_EVALUABLE' && sinUna.evidencia('EV-04')?.gapCause === 'COLLECTION' && /faltan partes del inventario de wazuh/.test(sinUna.motivo('op.mon.1.1')),
-    `${sinUna.evidencia('EV-04')?.status} ${sinUna.motivo('op.mon.1.1')}`
+    withoutOne.evidencia('EV-04')?.status === 'NO_EVALUABLE' && withoutOne.evidencia('EV-04')?.gapCause === 'COLLECTION' && /faltan partes del inventario de wazuh/.test(withoutOne.motivo('op.mon.1.1')),
+    `${withoutOne.evidencia('EV-04')?.status} ${withoutOne.motivo('op.mon.1.1')}`
   );
   const otherPart = ranges(chunks[0])[0];
   check(

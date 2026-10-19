@@ -13,7 +13,7 @@ const check = (n: string, c: boolean, d: unknown = '') => {
 
 const responses = new Map<string, any>();
 const mounts: Record<string, number> = {};
-const claves: Record<string, string[]> = {};
+const keys: Record<string, string[]> = {};
 const clave = (p: any) => JSON.stringify(Object.keys(p).sort().map(k => [k, p[k]]));
 const h = installReactHarness({
   overrides: {
@@ -27,12 +27,12 @@ const h = installReactHarness({
           mounts[who] = (mounts[who] || 0) + 1;
         }
         const { enabled, ...requested } = p;
-        (claves[who] = claves[who] || []).push(clave(requested));
+        (keys[who] = keys[who] || []).push(clave(requested));
         const r = responses.get(clave(requested));
         return { data: r?.data, error: r?.error, isLoading: !r || r.loading, isRefreshing: false, retry: () => undefined };
       },
     }),
-    [`${__dirname}/../public/ens/configuration/index.tsx`]: real => ({ ...real, ENSConfigurationBootstrap: ({ children }: any) => children }),
+    [`${__dirname}/../public/ens/configuration/index.tsx`]: actual => ({ ...actual, ENSConfigurationBootstrap: ({ children }: any) => children }),
   },
 });
 
@@ -69,7 +69,7 @@ const detail = (agentId?: string) => clave({ include: 'control', controlId: 'op.
   h.setSearch('?tabView=plugins&control=op.acc.1&agentId=102');
   p = await h.rerender();
   check('choosing 102 the tab is not unmounted (the detail stays mounted)', mounts['control:op.acc.1'] === mountsBefore, { antes: mountsBefore, despues: mounts['control:op.acc.1'] });
-  check('...and asks for 102\'s data', claves['control:op.acc.1'].slice(-1)[0] === detail('102'));
+  check('...and asks for 102\'s data', keys['control:op.acc.1'].slice(-1)[0] === detail('102'));
   check('while it arrives: 101\'s data labelled, with the loading', /Cargando 102 · ldap01… Mientras tanto se muestra el resultado de 101 · srv-web01/.test(p) && /Panel ejecutivo/.test(p) && Boolean(h.find('EuiProgress')), p.slice(0, 600));
   check('...with 101\'s header, never 102\'s', /Activo:\s*srv-web01/.test(p) && !/Activo:\s*ldap01/.test(p));
   responses.set(detail('102'), { data: { meta: meta('102'), result: result(40), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 } });
@@ -93,27 +93,27 @@ const detail = (agentId?: string) => clave({ include: 'control', controlId: 'op.
   group!.props.onChange('frescura');
   await h.rerender();
   const mountedBefore = mounts.overview;
-  const requestedBefore = new Set(claves.overview).size;
+  const requestedBefore = new Set(keys.overview).size;
   h.setSearch('?tabView=overview&agentId=102');
   p = await h.rerender();
   check('switching machine does not mount it again', mounts.overview === mountedBefore, mounts);
-  check('nor does it change the overview request (same key: the hook does not ask again)', new Set(claves.overview).size === requestedBefore && requestedBefore === 1, claves.overview.slice(-2));
+  check('nor does it change the overview request (same key: the hook does not ask again)', new Set(keys.overview).size === requestedBefore && requestedBefore === 1, keys.overview.slice(-2));
   check('keeps the chosen view («Frescura»)', h.find('EuiButtonGroup')?.props.idSelected === 'frescura');
-  check('only the trend changes key (it is per machine)', claves.summary.slice(-1)[0].includes('"102"'));
+  check('only the trend changes key (it is per machine)', keys.summary.slice(-1)[0].includes('"102"'));
 
   console.log('4. Switching tab');
   h.setSearch('?tabView=configuration&configControl=op.acc.1&configParam=P-07&configBack=plugins&control=op.acc.1&agentId=101');
   await h.rerender();
   await h.click(/^Panel$/, 'EuiTab');
-  const tras = require('../public/routing/router-search').parseRouterSearch(h.search());
-  check('clicking another tab clears everything from Configuration (also the way back) and keeps machine and control', tras.tabView === 'dashboard' && !Object.keys(tras).some(k => k.startsWith('config')) && tras.agentId === '101' && tras.control === 'op.acc.1', tras);
+  const after2 = require('../public/routing/router-search').parseRouterSearch(h.search());
+  check('clicking another tab clears everything from Configuration (also the way back) and keeps machine and control', after2.tabView === 'dashboard' && !Object.keys(after2).some(k => k.startsWith('config')) && after2.agentId === '101' && after2.control === 'op.acc.1', after2);
 
   console.log('5. A machine outside the scope');
-  const requestedBeforeOutside = Object.values(claves).reduce((n, l) => n + l.length, 0);
+  const requestedBeforeOutside = Object.values(keys).reduce((n, l) => n + l.length, 0);
   h.setSearch('?tabView=plugins&control=op.acc.1&agentId=025');
   p = await h.rerender();
   check('the selector says so and offers to remove it', /025 no está en el alcance ENS/.test(p) && Boolean(h.find('EuiButton', /Quitar la máquina/)));
-  check('...and no screen requests that machine\'s evaluation', Object.values(claves).reduce((n, l) => n + l.length, 0) === requestedBeforeOutside && !/Panel ejecutivo/.test(p));
+  check('...and no screen requests that machine\'s evaluation', Object.values(keys).reduce((n, l) => n + l.length, 0) === requestedBeforeOutside && !/Panel ejecutivo/.test(p));
   await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => [{ id: '024', name: 'srv-c', groups: ['ens'], status: 'active' }] as any, true);
   const { MachineSelector } = require('../public/app/machine-selector');
   h.reset();

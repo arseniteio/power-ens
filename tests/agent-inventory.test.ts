@@ -30,8 +30,8 @@ check('numeric id to three digits', inventoryFromMonitoring({ agentes: { buckets
     bucket('024', { id: '024', name: 'viejo', timestamp: '2026-10-07T12:00:00Z' }),
     bucket('24', { id: 24, name: 'nuevo', timestamp: '2026-10-07T12:15:00Z' }),
   ] } }, now);
-  const sinManager = v.agents.filter(a => a.id !== '000');
-  check('duplicate: the most recent wins, whenever it arrives', sinManager.length === 1 && sinManager[0].name === 'nuevo', v.agents);
+  const withoutManager = v.agents.filter(a => a.id !== '000');
+  check('duplicate: the most recent wins, whenever it arrives', withoutManager.length === 1 && withoutManager[0].name === 'nuevo', v.agents);
 }
 check('estado', inv.agents.find(a => a.name === 'ldap')?.status === 'active');
 check('the most recent data', inv.newestTimestamp === '2026-10-07T12:15:00.000Z');
@@ -69,8 +69,8 @@ check('stale warning without date: neither «undefined» nor empty', (() => { co
   check('up-to-date inventory: active', m?.status === 'active', m);
   const stale = inventoryFromMonitoring({ agentes: { buckets } }, now + 2 * ENS_INVENTORY_MAX_AGE_MS).agents.find(a => a.id === '000');
   check('stale inventory: no status', Boolean(stale) && stale?.status === undefined, stale);
-  const sinCampo = inventoryFromMonitoring({ agentes: { buckets: [bucket('024', { id: '024', timestamp: '2026-10-07T12:15:00Z' })] } }, now).agents.find(a => a.id === '000');
-  check('no manager field: enters without a name (the scope supplies the fallback)', Boolean(sinCampo) && !sinCampo?.name, sinCampo);
+  const withoutField = inventoryFromMonitoring({ agentes: { buckets: [bucket('024', { id: '024', timestamp: '2026-10-07T12:15:00Z' })] } }, now).agents.find(a => a.id === '000');
+  check('no manager field: enters without a name (the scope supplies the fallback)', Boolean(withoutField) && !withoutField?.name, withoutField);
   check('with bucket 000: not duplicated or changed', inv.agents.filter(a => a.id === '000').length === 1 && inv.agents.find(a => a.id === '000')?.name === 'Wazuh-4');
   check('no inventory: the manager is not invented', inventoryFromMonitoring(undefined, now).agents.length === 0);
   const tie = inventoryFromMonitoring({ agentes: { buckets: [

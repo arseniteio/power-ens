@@ -63,12 +63,12 @@ const heartbeat = (covered: string, result = 'completada') =>
   });
 
 const configuration = (
-  valores: Record<string, ENSControlParameter['value']>
+  values: Record<string, ENSControlParameter['value']>
 ): ENSControlConfiguration => ({
   ...opExp3Configuration,
   parameters: opExp3Configuration.parameters.map(parameter =>
-    parameter.id in valores
-      ? { ...parameter, value: valores[parameter.id] }
+    parameter.id in values
+      ? { ...parameter, value: values[parameter.id] }
       : { ...parameter }
   ),
 });
@@ -76,7 +76,7 @@ const configuration = (
 const evidence = (
   id: string,
   events: ENSNormalizedEvent[],
-  valores: Record<string, ENSControlParameter['value']>,
+  values: Record<string, ENSControlParameter['value']>,
   level: ENSLevel = 'ALTO'
 ) =>
   resolveEvidenceForControl(
@@ -84,7 +84,7 @@ const evidence = (
     events,
     undefined,
     level,
-    configuration(valores),
+    configuration(values),
     NOW
   ).find(item => item.id === id);
 
@@ -126,7 +126,7 @@ section('1. Reinforcements accumulate: 6 at BAJO, 9 at MEDIO, 11 at ALTO');
     );
   }
 
-  const divergentes = opExp3CatalogDefinition.requirements.filter(requirement => {
+  const divergent = opExp3CatalogDefinition.requirements.filter(requirement => {
     const decision = opExp3PolicyDefinition.requirements.find(
       item => item.requirementId === requirement.id
     );
@@ -138,11 +138,11 @@ section('1. Reinforcements accumulate: 6 at BAJO, 9 at MEDIO, 11 at ALTO');
     );
   });
 
-  check('the policy declares the same levels and evidences as the catalog', divergentes.length === 0, divergentes.map(r => r.id).join(','));
+  check('the policy declares the same levels and evidences as the catalog', divergent.length === 0, divergent.map(r => r.id).join(','));
 
   const evidences = ENSEvidenceCatalog.filter(e => e.controlId === 'op.exp.3');
 
-  const incoherentes = evidences.filter(e => {
+  const incoherent = evidences.filter(e => {
     const declare = opExp3CatalogDefinition.requirements
       .filter(r => r.evidenceIds.includes(e.id))
       .map(r => r.id)
@@ -152,7 +152,7 @@ section('1. Reinforcements accumulate: 6 at BAJO, 9 at MEDIO, 11 at ALTO');
     return declare !== [...e.requirements].sort().join(',');
   });
 
-  check('evidences and requirements declare each other', incoherentes.length === 0, incoherentes.map(e => e.id).join(','));
+  check('evidences and requirements declare each other', incoherent.length === 0, incoherent.map(e => e.id).join(','));
 }
 
 section('2. EV-02 · the actor against P-03, and silence only with coverage');
@@ -250,8 +250,8 @@ section('5. EV-08 · the count against P-09, never by absence');
   const silence = evidence('EV-08', [heartbeat('EV-02,EV-03,EV-08')], { 'P-09': 3 });
   check('without a count (incomplete window) · NO_EVALUABLE even with a heartbeat', silence?.status === 'NO_EVALUABLE', silence?.status);
 
-  const enMedio = evidence('EV-08', [tally], { 'P-09': 3 }, 'MEDIO');
-  check('at MEDIO it does not apply', enMedio?.status === 'NO_APLICA', enMedio?.status);
+  const inMiddle = evidence('EV-08', [tally], { 'P-09': 3 }, 'MEDIO');
+  check('at MEDIO it does not apply', inMiddle?.status === 'NO_APLICA', inMiddle?.status);
 }
 
 section('6. EV-09 and EV-11 · age against the clock');
@@ -297,9 +297,9 @@ section('7. EV-01, EV-05, EV-06, EV-07 and EV-10 do not accredit with what the a
 
   const resolved = resolveEvidenceForControl('op.exp.3', [], undefined, 'BAJO', configuration({}), NOW);
   const requirements = evaluateRequirements(opExp3CatalogDefinition.requirements, 'BAJO', resolved, false, [], 'ACTIVE');
-  const dos = requirements.find(r => r.id === 'op.exp.3.2');
+  const two = requirements.find(r => r.id === 'op.exp.3.2');
 
-  check('op.exp.3.2 · NO_CUMPLE and marked as not evidenced', dos?.status === 'NO_CUMPLE' && dos?.evidenced === false, `${dos?.status}/${dos?.evidenced}`);
+  check('op.exp.3.2 · NO_CUMPLE and marked as not evidenced', two?.status === 'NO_CUMPLE' && two?.evidenced === false, `${two?.status}/${two?.evidenced}`);
 
   const control = evaluateControlStatus(requirements);
   check('the control measuring nothing does not comply', control.status === 'NO_CUMPLE', control.status);
@@ -337,8 +337,8 @@ section('9. Examples are valid values and the seed block says the same');
 {
   for (const parameter of opExp3Configuration.parameters) {
     const example = parameter.example || '';
-    const valor = parameter.type === 'list' || parameter.type === 'table' ? [example] : example;
-    const verdict = validateParameterValue(parameter, valor);
+    const value = parameter.type === 'list' || parameter.type === 'table' ? [example] : example;
+    const verdict = validateParameterValue(parameter, value);
 
     check(`${parameter.id} · its example is valid`, verdict.valid, verdict.reason);
   }

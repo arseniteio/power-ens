@@ -33,8 +33,8 @@ export const TEMA_CLARO = {
   euiColorPrimary: '#006BB4',
 };
 
-export const installReactHarness = (opts: { overrides?: Record<string, (real: any) => any> } = {}): ReactHarness => {
-  const estados = new Map<string, any[]>();
+export const installReactHarness = (opts: { overrides?: Record<string, (actual: any) => any> } = {}): ReactHarness => {
+  const states = new Map<string, any[]>();
   const factEffects = new Map<string, string>();
   const instances = new Map<string, any>();
   let pending: Array<() => void> = [];
@@ -44,14 +44,14 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
   let nodes: HarnessNode[] = [];
   let screen = '';
   let lastRoot: any;
-  let ultimasProps: any;
+  let latestProps: any;
 
   const checkbox = (initial: () => any) => {
     const clave = ruta;
-    let arr = estados.get(clave);
+    let arr = states.get(clave);
     if (!arr) {
       arr = [];
-      estados.set(clave, arr);
+      states.set(clave, arr);
     }
     const i = index++;
     if (!(i in arr)) arr[i] = initial();
@@ -121,7 +121,7 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
   const path = require('path');
   const load = Module._load;
   const overrides = Object.fromEntries(
-    Object.entries(opts.overrides || {}).map(([clave, valor]) => [path.resolve(clave), valor])
+    Object.entries(opts.overrides || {}).map(([clave, value]) => [path.resolve(clave), value])
   );
   Module._load = function (request: string, padre: any, ...rest: unknown[]) {
     if (/kibana-services$/.test(request)) return {};
@@ -174,16 +174,16 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
         inst = new type(props);
         instances.set(here, inst);
       }
-      const anteriores = inst.props;
+      const previous = inst.props;
       inst.props = props;
-      if (!fresh && typeof inst.componentDidUpdate === 'function') pending.push(() => inst.componentDidUpdate(anteriores));
+      if (!fresh && typeof inst.componentDidUpdate === 'function') pending.push(() => inst.componentDidUpdate(previous));
       const attempt: string[] = [];
-      const cuantos = nodes.length;
+      const howManyOnes = nodes.length;
       try {
         pinta(inst.render(), here, attempt);
       } catch (error) {
         if (typeof type.getDerivedStateFromError !== 'function') throw error;
-        nodes.length = cuantos;
+        nodes.length = howManyOnes;
         inst.state = { ...(inst.state || {}), ...type.getDerivedStateFromError(error) };
         if (typeof inst.componentDidCatch === 'function') inst.componentDidCatch(error);
         attempt.length = 0;
@@ -223,10 +223,10 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     }
     const mark = ['EuiButton', 'EuiButtonEmpty', 'EuiTab', 'EuiLink', 'EuiBadge'].includes(name);
     if (mark) output.push('[');
-    Object.entries(props || {}).forEach(([clave, valor]: [string, any]) => {
+    Object.entries(props || {}).forEach(([clave, value]: [string, any]) => {
       if (clave === 'children') return;
-      if (['title', 'helpText', 'label', 'noItemsMessage', 'buttonContent', 'message', 'content', 'description'].includes(clave) && typeof valor === 'string') output.push(valor);
-      if (valor && (valor[ELEMENT] || Array.isArray(valor))) pinta(valor, `${where}.${clave}`, output);
+      if (['title', 'helpText', 'label', 'noItemsMessage', 'buttonContent', 'message', 'content', 'description'].includes(clave) && typeof value === 'string') output.push(value);
+      if (value && (value[ELEMENT] || Array.isArray(value))) pinta(value, `${where}.${clave}`, output);
     });
     pinta(props?.children, `${where}.c`, output);
     if (mark) output.push(']');
@@ -240,7 +240,7 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
       const output: string[] = [];
       ruta = '';
       index = 0;
-      pinta(reactStub.createElement(lastRoot, ultimasProps), 'raiz', output);
+      pinta(reactStub.createElement(lastRoot, latestProps), 'raiz', output);
       screen = output.join(' ').replace(/\s+/g, ' ');
       const effects = pending;
       pending = [];
@@ -257,7 +257,7 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
   return {
     render: async (root, props, laps) => {
       lastRoot = root;
-      ultimasProps = props;
+      latestProps = props;
       return rerender(laps);
     },
     rerender,
@@ -277,7 +277,7 @@ export const installReactHarness = (opts: { overrides?: Record<string, (real: an
     search: () => search,
     setSearch: s => { search = s; },
     reset: () => {
-      estados.clear();
+      states.clear();
       factEffects.clear();
       instances.clear();
       pending = [];

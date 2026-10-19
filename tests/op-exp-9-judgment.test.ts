@@ -30,8 +30,8 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-26T12:00:00Z');
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
 let counter = 0;
 
@@ -52,15 +52,15 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
   };
 };
 
-const TODAS = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09';
+const ALL_OF_THEM = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09';
 
-const heartbeat = (ts = ago(0.5), covered = TODAS) =>
+const heartbeat = (ts = ago(0.5), covered = ALL_OF_THEM) =>
   alert({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, perfil: 'manager' }, ts);
 
 const readOne = (record: string, extra: Record<string, unknown> = {}, ts = ago(0.6)) =>
   alert({
     event: 'register_read',
-    evidence_id: TODAS,
+    evidence_id: ALL_OF_THEM,
     registro: record,
     fichero: `/etc/ensfacil/${record}.tsv`,
     presente: 'si',
@@ -133,16 +133,16 @@ const BASIC_ONES: Record<string, string[] | string> = {
   'P-08': '12',
 };
 
-const configuration = (valores: Record<string, string[] | string | undefined>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, string[] | string | undefined>): ENSControlConfiguration => ({
   ...opExp9Configuration,
   parameters: opExp9Configuration.parameters.map(p => {
-    const valor = valores[p.id];
+    const value = values[p.id];
     const copy = { ...p };
 
-    if (valor === undefined) {
+    if (value === undefined) {
       delete copy.value;
     } else {
-      copy.value = valor;
+      copy.value = value;
     }
 
     return copy;
@@ -151,16 +151,16 @@ const configuration = (valores: Record<string, string[] | string | undefined>): 
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[] | string | undefined> = BASIC_ONES,
+  values: Record<string, string[] | string | undefined> = BASIC_ONES,
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
+  const cfg = configuration(values);
   const cutOnes = keepLatestRunStateFacts('op.exp.9', evs, now);
   const evidences = resolveEvidenceForControl('op.exp.9', cutOnes, '000', 'MEDIO', cfg, now);
   const context = buildPolicyContext(opExp9CatalogDefinition, cfg, 'MEDIO', cutOnes, evidences, now);
   const { decisions } = opExp9PolicyDefinition.evaluator!(context);
   const principal = (requirement: string) => decisions.find(d => d.requirementId === requirement)!;
-  const de = (id: string) => decisions.find(d => d.trace.ruleId.endsWith(`/${id}`))!;
+  const from = (id: string) => decisions.find(d => d.trace.ruleId.endsWith(`/${id}`))!;
   const bridge = applyPolicyDecisionsToEvidences(evidences, decisions, opExp9CatalogDefinition.requirements);
   const requirement = (id: string) =>
     evaluateRequirement(
@@ -172,7 +172,7 @@ const evaluate = (
       opExp9CatalogDefinition.status
     );
 
-  return { decisions, principal, de, puente: bridge, requisito: requirement };
+  return { decisions, principal, de: from, puente: bridge, requisito: requirement };
 };
 
 const closedIncident = (id = 'INC-2026-001', extra: Record<string, unknown> = {}) => [
@@ -206,11 +206,11 @@ section('1. Catalog: three base requirements, active, state by the last pass');
     definitions.every(d => d.relatedRules.length > 0 && d.relatedRules.every(r => /^1110\d\d$/.test(r)))
   );
 
-  const tablas = ['P-02', 'P-03', 'P-05', 'P-06', 'P-07'];
+  const tables = ['P-02', 'P-03', 'P-05', 'P-06', 'P-07'];
 
   check(
     'P-02, P-03, P-05, P-06 and P-07 are tables with columns',
-    tablas.every(id => {
+    tables.every(id => {
       const p = opExp9Configuration.parameters.find(x => x.id === id)!;
 
       return p.type === 'table' && (p.columns || []).length >= 2;
@@ -384,13 +384,13 @@ section('3. EV-02: P-02\'s phases, with the exception of duration and open end')
 section('4. EV-01 and EV-07: the period\'s events, on disk and with their sum');
 
 {
-  const bien = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')));
+  const good = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')));
 
-  check('window with alerts and all days verified: EV-01 CUMPLE', bien.de('EV-01').status === 'CUMPLE', bien.de('EV-01').reason);
+  check('window with alerts and all days verified: EV-01 CUMPLE', good.de('EV-01').status === 'CUMPLE', good.de('EV-01').reason);
 
   check(
     'incident closed without legal relevance: EV-07 CUMPLE, there is no period to protect',
-    bien.de('EV-07').status === 'CUMPLE'
+    good.de('EV-07').status === 'CUMPLE'
   );
 
   const lost2 = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { dias_sin_archivo: '2026-09-10' })));
@@ -433,22 +433,22 @@ section('5. EV-03 and EV-04: what Wazuh saw in the window, against the file');
   const action = (type: string, object: string, system = 'wazuh-real') =>
     alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-10T10:30:00Z', sistema: system, tipo: type, objeto: object, descripcion: 'x', referencia: 'y' }, ago(0.6));
 
-  const conAr = (extra: ReturnType<typeof alert>[] = []) =>
+  const withAr = (extra: ReturnType<typeof alert>[] = []) =>
     events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { acciones: 1, acciones_emitidas: 1 }), ar, ...extra);
 
-  const sinRegistrar = evaluate(conAr());
+  const unregistered2 = evaluate(withAr());
 
   check(
     'firewall-drop active response without a recorded action: EV-03 NO_CUMPLE',
-    sinRegistrar.de('EV-03').status === 'NO_CUMPLE' && /firewall-drop/.test(sinRegistrar.de('EV-03').reason),
-    sinRegistrar.de('EV-03').reason
+    unregistered2.de('EV-03').status === 'NO_CUMPLE' && /firewall-drop/.test(unregistered2.de('EV-03').reason),
+    unregistered2.de('EV-03').reason
   );
 
-  const recorded = evaluate(conAr([action('emergencia', 'firewall-drop')]));
+  const recorded = evaluate(withAr([action('emergencia', 'firewall-drop')]));
 
   check('REVERSAL: the SAME one with its emergency action recorded → CUMPLE', recorded.de('EV-03').status === 'CUMPLE', recorded.de('EV-03').reason);
 
-  const otherType = evaluate(conAr([action('modificacion', 'firewall-drop')]));
+  const otherType = evaluate(withAr([action('modificacion', 'firewall-drop')]));
 
   check('recorded as a modification, not as an emergency: still NO_CUMPLE', otherType.de('EV-03').status === 'NO_CUMPLE');
 
@@ -602,10 +602,10 @@ section('7. EV-08: review of auditable events, with the clock starting at closin
 
   check('rules change on 10/08: CUMPLE by temporal correlation', withChange.de('EV-08').status === 'CUMPLE' && /correlación temporal/.test(withChange.de('EV-08').reason));
 
-  const conRevision = evaluate(events(heartbeat(), ...records(), ...closed,
+  const withReview = evaluate(events(heartbeat(), ...records(), ...closed,
     alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-5', fecha: '2026-08-15T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'sin cambios necesarios', referencia: 'acta' }, ago(0.6))));
 
-  check('review recorded on 15/08 without changes: CUMPLE', conRevision.de('EV-08').status === 'CUMPLE');
+  check('review recorded on 15/08 without changes: CUMPLE', withReview.de('EV-08').status === 'CUMPLE');
 
   const lowOne = evaluate(events(heartbeat(), ...records(), ...closed.map(a => a), ), { ...BASIC_ONES, 'P-07': ['critica | 15 |'] });
 
@@ -644,21 +644,21 @@ section('8. EV-09 and the requirement decisions');
     ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'].every(r => withoutReference.principal(r).status === 'NO_CUMPLE')
   );
 
-  const bien = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001'),
+  const good = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001'),
     alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-20T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'x', referencia: 'y' }, ago(0.6))));
 
-  check('well-run incident: op.exp.9.1 CUMPLE', bien.principal('op.exp.9.1').status === 'CUMPLE', bien.principal('op.exp.9.1').reason);
-  check('op.exp.9.2 CUMPLE (no legal relevance or open incidents)', bien.principal('op.exp.9.2').status === 'CUMPLE', bien.principal('op.exp.9.2').reason);
-  check('op.exp.9.3 CUMPLE (review recorded)', bien.principal('op.exp.9.3').status === 'CUMPLE', bien.principal('op.exp.9.3').reason);
+  check('well-run incident: op.exp.9.1 CUMPLE', good.principal('op.exp.9.1').status === 'CUMPLE', good.principal('op.exp.9.1').reason);
+  check('op.exp.9.2 CUMPLE (no legal relevance or open incidents)', good.principal('op.exp.9.2').status === 'CUMPLE', good.principal('op.exp.9.2').reason);
+  check('op.exp.9.3 CUMPLE (review recorded)', good.principal('op.exp.9.3').status === 'CUMPLE', good.principal('op.exp.9.3').reason);
 
   check(
     'the evaluated requirement comes out CUMPLE and measured',
-    bien.requisito('op.exp.9.1').status === 'CUMPLE' && bien.requisito('op.exp.9.1').evidenced === true
+    good.requisito('op.exp.9.1').status === 'CUMPLE' && good.requisito('op.exp.9.1').evidenced === true
   );
 
   check(
     'the bridge carries the measurement to the evidence table (EV-02 stops being grey)',
-    bien.puente.find(e => e.id === 'EV-02')?.status === 'CUMPLE'
+    good.puente.find(e => e.id === 'EV-02')?.status === 'CUMPLE'
   );
 
   const opened = evaluate(events(heartbeat(), ...records(), row('INC-9', 'inicial', ago(5)), window('INC-9', { abierto: 'si' })));

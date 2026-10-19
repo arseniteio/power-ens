@@ -48,10 +48,10 @@ const index = () => {
       return { body: { hits: { hits } } };
     },
     bulk: async (p: any) => {
-      const lineas = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
-      for (let i = 0; i < lineas.length; i += 2) {
-        const action = lineas[i].create || lineas[i].index;
-        docs.set(action._id, lineas[i + 1]);
+      const lines = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
+      for (let i = 0; i < lines.length; i += 2) {
+        const action = lines[i].create || lines[i].index;
+        docs.set(action._id, lines[i + 1]);
       }
       return { body: { errors: false } };
     },
@@ -69,9 +69,9 @@ const save = (ix: any, configuration: any) => h.save(context(ix) as any, { body:
   let r: any = await save(ix, migrated);
   check('saves agents as is', r.status === 200 && JSON.stringify(ix.docs.get('active')?.configuration?.agents) === JSON.stringify(migrated.agents), r);
 
-  const sinClave = { ...migrated };
-  delete sinClave.agents;
-  r = await save(ix, sinClave);
+  const withoutKey = { ...migrated };
+  delete withoutKey.agents;
+  r = await save(ix, withoutKey);
   check('a body without the agents key does not delete it', r.status === 200 && JSON.stringify(ix.docs.get('active')?.configuration?.agents) === JSON.stringify(migrated.agents), ix.docs.get('active')?.configuration?.agents);
 
   const historial = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY');
@@ -94,10 +94,10 @@ const save = (ix: any, configuration: any) => h.save(context(ix) as any, { body:
 
   const outside = { ...JSON.parse(JSON.stringify(migrated)), changeReason: 'escrito por inject-control.py' };
   ix.docs.set('active', { documentType: 'ACTIVE_CONFIGURATION', configuration: outside, updatedAt: '2026-10-17T09:00:00.000Z', updatedBy: 'script' });
-  const antesDe = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length;
+  const beforeOf = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length;
   r = await save(ix, { ...migrated, changeReason: 'Migración a sistemas' });
   const history = [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY');
-  check('an asset written outside the plugin enters the history before being replaced', r.status === 200 && history.length === antesDe + 2 && history.some(d => d.configuration?.changeReason === 'escrito por inject-control.py'), history.length - antesDe);
+  check('an asset written outside the plugin enters the history before being replaced', r.status === 200 && history.length === beforeOf + 2 && history.some(d => d.configuration?.changeReason === 'escrito por inject-control.py'), history.length - beforeOf);
   r = await save(ix, { ...migrated, changeReason: 'otro guardado' });
   check('if it is already the latest version in the history, it is not repeated', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === history.length + 1);
 

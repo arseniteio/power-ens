@@ -58,18 +58,18 @@ const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-10-09T12:00:00Z');
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opCont2Configuration,
   parameters: opCont2Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': [
     'Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad',
     'Plan de Continuidad del Servicio | v2.1 | 2024-03-10 | Comité de Seguridad | Responsable de Seguridad',
@@ -93,12 +93,12 @@ const BASE: Valores = {
   'P-08': '12',
 };
 
-const con = (changesList: Valores): Valores => ({ ...BASE, ...changesList });
+const withIt = (changesList: Values): Values => ({ ...BASE, ...changesList });
 
 const BASE_REQ = ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'];
 
-const evaluate = (valores: Valores = BASE, level: ENSLevel = 'ALTO', now: Date = NOW, touchesTable?: (t: ENSEvidenceResolved[]) => ENSEvidenceResolved[]) => {
-  const cfg = configuration(valores);
+const evaluate = (values: Values = BASE, level: ENSLevel = 'ALTO', now: Date = NOW, touchesTable?: (t: ENSEvidenceResolved[]) => ENSEvidenceResolved[]) => {
+  const cfg = configuration(values);
   const evidences = resolveEvidenceForControl('op.cont.2', [], '000', level, cfg, now);
   const context = buildPolicyContext(opCont2CatalogDefinition, cfg, level, [], evidences, now);
   const { decisions, runtimeVariables } = opCont2PolicyDefinition.evaluator!(context);
@@ -268,7 +268,7 @@ section('2. Green: everything declared and in force on 09/10/2026, D at ALTO');
 section('3. EV-01: the expired plan brings down all five; periodicity and date decide');
 
 {
-  const old = con({ 'P-01': ['Plan de Continuidad del Servicio | v2.1 | 2025-09-01 | Comité de Seguridad | RS'] });
+  const old = withIt({ 'P-01': ['Plan de Continuidad del Servicio | v2.1 | 2025-09-01 | Comité de Seguridad | RS'] });
   const r = evaluate(old);
 
   check(
@@ -286,7 +286,7 @@ section('3. EV-01: the expired plan brings down all five; periodicity and date d
     biennial.motivo('op.cont.2.1')
   );
 
-  const justo = con({ 'P-01': ['Plan | v1 | 2025-10-09 | Comité | RS'] });
+  const justo = withIt({ 'P-01': ['Plan | v1 | 2025-10-09 | Comité | RS'] });
 
   check(
     'approved on 09/10/2025 with P-08 = 12: on 09/10/2026 it is still valid (expires at the end of the day)',
@@ -298,13 +298,13 @@ section('3. EV-01: the expired plan brings down all five; periodicity and date d
     evaluate(justo, 'ALTO', new Date('2026-10-10T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE'
   );
 
-  const finDeMes = con({ 'P-01': ['Plan | v1 | 2026-01-31 | Comité | RS'], 'P-08': '1' });
+  const endOfMonth = withIt({ 'P-01': ['Plan | v1 | 2026-01-31 | Comité | RS'], 'P-08': '1' });
 
   check(
     'months are calendar months: 31/01 + 1 month expires on 28/02, not 03/03',
-    evaluate(finDeMes, 'ALTO', new Date('2026-02-28T23:00:00Z')).evidencia('EV-01')?.status === 'CUMPLE' &&
-      evaluate(finDeMes, 'ALTO', new Date('2026-03-01T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE',
-    evaluate(finDeMes, 'ALTO', new Date('2026-02-28T23:00:00Z')).deEvidencia('op.cont.2.1', 'EV-01')?.reason
+    evaluate(endOfMonth, 'ALTO', new Date('2026-02-28T23:00:00Z')).evidencia('EV-01')?.status === 'CUMPLE' &&
+      evaluate(endOfMonth, 'ALTO', new Date('2026-03-01T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE',
+    evaluate(endOfMonth, 'ALTO', new Date('2026-02-28T23:00:00Z')).deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
 
   const antes = evaluate(BASE, 'ALTO', new Date('2025-12-01T12:00:00Z'));
@@ -315,7 +315,7 @@ section('3. EV-01: the expired plan brings down all five; periodicity and date d
     antes.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
 
-  const onlyFuture = evaluate(con({ 'P-01': ['Plan | v3.0 | 2026-01-15 | Comité | RS'] }), 'ALTO', new Date('2025-12-01T12:00:00Z'));
+  const onlyFuture = evaluate(withIt({ 'P-01': ['Plan | v3.0 | 2026-01-15 | Comité | RS'] }), 'ALTO', new Date('2025-12-01T12:00:00Z'));
 
   check(
     'no approved version on that date: not proven (CONFIGURATION), never CUMPLE',
@@ -327,7 +327,7 @@ section('3. EV-01: the expired plan brings down all five; periodicity and date d
 section('4. EV-04 and EV-06: what the organization declares missing or expired is NO_CUMPLE');
 
 {
-  const withoutContract = evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h', 'sede de respaldo | - |  |  | 24 h'] }));
+  const withoutContract = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h', 'sede de respaldo | - |  |  | 24 h'] }));
 
   check(
     'a means without a contract: op.cont.2.3 measured NO_CUMPLE, and it names it',
@@ -339,7 +339,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.4', 'op.cont.2.5'].every(id => withoutContract.requisito(id).status === 'CUMPLE' && withoutContract.requisito(id).attested === true)
   );
 
-  const expired2 = evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }));
+  const expired2 = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }));
 
   check(
     'a contract expired on 30/06: NO_CUMPLE with the date',
@@ -348,10 +348,10 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
   );
   check(
     'reversal · the same contract evaluated on 15/06/2026: in force',
-    evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }), 'ALTO', new Date('2026-06-15T12:00:00Z')).evidencia('EV-04')?.status === 'CUMPLE'
+    evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }), 'ALTO', new Date('2026-06-15T12:00:00Z')).evidencia('EV-04')?.status === 'CUMPLE'
   );
 
-  const withoutDate = evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 |  | 48 h'] }));
+  const withoutDate = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 |  | 48 h'] }));
 
   check(
     'a contract without a validity date: not proven (CONFIGURATION), not CUMPLE',
@@ -362,7 +362,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     withoutDate.deEvidencia('op.cont.2.3', 'EV-04')?.reason
   );
 
-  const mala = evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] }));
+  const mala = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] }));
 
   check(
     'a validity «30/06/2027» is not a date: CONFIGURATION, naming the means',
@@ -372,13 +372,13 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
   check(
     'and the screen rejects it all the same',
     (() => {
-      const p04 = configuration(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] })).parameters.find(p => p.id === 'P-04')!;
+      const p04 = configuration(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] })).parameters.find(p => p.id === 'P-04')!;
 
       return !validateParameterValue(p04, p04.value).valid;
     })()
   );
 
-  const mixedOne = evaluate(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h', 'enlace | Operador Y | CT-9 |  | 4 h'] }));
+  const mixedOne = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h', 'enlace | Operador Y | CT-9 |  | 4 h'] }));
 
   check(
     'an expired contract and another without a date: the breach prevails, and the other is mentioned',
@@ -386,7 +386,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     mixedOne.deEvidencia('op.cont.2.3', 'EV-04')?.reason
   );
 
-  const withoutRuiz = evaluate(con({ 'P-05': (BASE['P-05'] as string[]).filter(f => !f.startsWith('J. Ruiz')) }));
+  const withoutRuiz = evaluate(withIt({ 'P-05': (BASE['P-05'] as string[]).filter(f => !f.startsWith('J. Ruiz')) }));
 
   check(
     'the deputy without registered training: op.cont.2.4 NO_CUMPLE, and it names them',
@@ -394,7 +394,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     withoutRuiz.motivo('op.cont.2.4')
   );
 
-  const unreadableRuiz = evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+  const unreadableRuiz = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
   check(
     'the deputy\'s only row with unreadable validity: not proven (CONFIGURATION) naming the row, not «sin formación»',
@@ -405,7 +405,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     unreadableRuiz.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 
-  const expiredPlusUnreadable = evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2025-01-10 | 2026-01-10', 'J. Ruiz | renovación |  | ', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+  const expiredPlusUnreadable = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2025-01-10 | 2026-01-10', 'J. Ruiz | renovación |  | ', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
   check(
     'one expired row and another row without validity for the same person: not proven, not NO_CUMPLE',
@@ -414,14 +414,14 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
   );
   check(
     'reversal · with the date well written, CUMPLE',
-    evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'CUMPLE'
+    evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'CUMPLE'
   );
   check(
     'and a person with no row at all is still NO_CUMPLE even if there are unreadable rows of another',
-    evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
+    evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
   );
 
-  const lowerCase = evaluate(con({ 'P-05': ['a. martinez | coordinación | 2026-02-10 | 2027-02-10', 'J.  RUIZ | coordinación | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+  const lowerCase = evaluate(withIt({ 'P-05': ['a. martinez | coordinación | 2026-02-10 | 2027-02-10', 'J.  RUIZ | coordinación | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
   check(
     'reversal · «a. martinez» and «J.  RUIZ» are P-03\'s people (ignoring case, accents and extra spaces)',
@@ -430,10 +430,10 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
   );
   check(
     'but never by similarity: «Martínez» is not «A. Martínez»',
-    evaluate(con({ 'P-05': ['Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
+    evaluate(withIt({ 'P-05': ['Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
   );
 
-  const expiredOne = evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+  const expiredOne = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
 
   check(
     'training expired on 10/02: NO_CUMPLE with the date',
@@ -441,11 +441,11 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     expiredOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 
-  const renewed = evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'A. Martínez | coordinación (renovación) | 2026-02-09 | 2027-02-09', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+  const renewed = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'A. Martínez | coordinación (renovación) | 2026-02-09 | 2027-02-09', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
 
   check('reversal · with the renewal in another row, valid', renewed.evidencia('EV-06')?.status === 'CUMPLE', renewed.deEvidencia('op.cont.2.4', 'EV-06')?.reason);
 
-  const futureOne = evaluate(con({ 'P-05': ['A. Martínez | coordinación | 2026-11-15 | 2027-11-15', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+  const futureOne = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-11-15 | 2027-11-15', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
 
   check(
     'training that will be received in November does not train today',
@@ -453,7 +453,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
     futureOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 
-  const withoutP05 = evaluate(con({ 'P-05': undefined }));
+  const withoutP05 = evaluate(withIt({ 'P-05': undefined }));
 
   check(
     'empty P-05: not proven (CONFIGURATION), never CUMPLE nor an invented NO_CUMPLE',
@@ -465,7 +465,7 @@ section('4. EV-04 and EV-06: what the organization declares missing or expired i
 section('5. P-03, P-02 and P-06: a half row or unreadable duration is CONFIGURATION, with the row');
 
 {
-  const withoutActivities = evaluate(con({ 'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | ', 'responsable de sistemas | L. Gómez | - | conmutar'] }));
+  const withoutActivities = evaluate(withIt({ 'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | ', 'responsable de sistemas | L. Gómez | - | conmutar'] }));
 
   check(
     'a function without activities: op.cont.2.1 not proven (CONFIGURATION), naming the row',
@@ -480,7 +480,7 @@ section('5. P-03, P-02 and P-06: a half row or unreadable duration is CONFIGURAT
     `${withoutActivities.evidencia('EV-01')?.status} ${(withoutActivities.evidencia('EV-01')?.observations || [])[0]}`
   );
 
-  const rto = evaluate(con({ 'P-02': ['sede electrónica | cuanto antes | 1 h | srv-web', 'correo corporativo | 8 h | 30 min | ldap-zimbra'] }));
+  const rto = evaluate(withIt({ 'P-02': ['sede electrónica | cuanto antes | 1 h | srv-web', 'correo corporativo | 8 h | 30 min | ldap-zimbra'] }));
 
   check(
     'an RTO «cuanto antes»: op.cont.2.2 not proven (CONFIGURATION), naming the service',
@@ -489,11 +489,11 @@ section('5. P-03, P-02 and P-06: a half row or unreadable duration is CONFIGURAT
   );
   check(
     'reversal · «1,5 horas», «2 días» and «45 min» are durations',
-    evaluate(con({ 'P-02': ['sede electrónica | 1,5 horas | 45 min | srv-web', 'correo | 2 días | 4 h | x'] })).requisito('op.cont.2.2').status === 'CUMPLE'
+    evaluate(withIt({ 'P-02': ['sede electrónica | 1,5 horas | 45 min | srv-web', 'correo | 2 días | 4 h | x'] })).requisito('op.cont.2.2').status === 'CUMPLE'
   );
-  check('an RTO «4» without a unit is not', evaluate(con({ 'P-02': ['sede | 4 | 1 h | x'] })).requisito('op.cont.2.2').evidenced === false);
+  check('an RTO «4» without a unit is not', evaluate(withIt({ 'P-02': ['sede | 4 | 1 h | x'] })).requisito('op.cont.2.2').evidenced === false);
 
-  const withoutP06 = evaluate(con({ 'P-06': undefined }));
+  const withoutP06 = evaluate(withIt({ 'P-06': undefined }));
 
   check(
     'empty P-06: op.cont.2.5 not proven (CONFIGURATION)',
@@ -582,7 +582,7 @@ section('7. Without parameters: NO_CUMPLE not proven for CONFIGURACIÓN, never f
     asIfExpectingFacts.nonConformities.map(nc => `${nc.id}:${nc.cause}`).join(' ')
   );
 
-  const withoutP08 = evaluate(con({ 'P-08': undefined }));
+  const withoutP08 = evaluate(withIt({ 'P-08': undefined }));
 
   check(
     'without P-08: the plan has no validity to measure (CONFIGURATION)',
@@ -591,10 +591,10 @@ section('7. Without parameters: NO_CUMPLE not proven for CONFIGURACIÓN, never f
   );
   check(
     'P-08 = 12,5: it must be a whole number of months (CONFIGURATION)',
-    evaluate(con({ 'P-08': '12.5' })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
+    evaluate(withIt({ 'P-08': '12.5' })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
   );
 
-  const badDate = evaluate(con({ 'P-01': ['Plan de Continuidad del Servicio | v3.0 | 15/01/2026 | Comité | RS'] }));
+  const badDate = evaluate(withIt({ 'P-01': ['Plan de Continuidad del Servicio | v3.0 | 15/01/2026 | Comité | RS'] }));
 
   check(
     'an approval date «15/01/2026»: CONFIGURATION, naming the row',
@@ -603,14 +603,14 @@ section('7. Without parameters: NO_CUMPLE not proven for CONFIGURACIÓN, never f
   );
   check(
     'a plan version without version: CONFIGURATION',
-    evaluate(con({ 'P-01': ['Plan de Continuidad del Servicio |  | 2026-01-15 | Comité | RS'] })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
+    evaluate(withIt({ 'P-01': ['Plan de Continuidad del Servicio |  | 2026-01-15 | Comité | RS'] })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
   );
 }
 
 section('8. Whole engine: only with D at ALTO, in the manager row and without collection');
 
 {
-  const conValores = (global: Record<string, unknown>, valores: Valores): ENSConfigurationVersion => ({
+  const withValues = (global: Record<string, unknown>, values: Values): ENSConfigurationVersion => ({
     ...defaultENSConfigurationTemplate,
     global: {
       ...defaultENSConfigurationTemplate.global,
@@ -620,12 +620,12 @@ section('8. Whole engine: only with D at ALTO, in the manager row and without co
       ...global,
     } as ENSConfigurationVersion['global'],
     controls: defaultENSConfigurationTemplate.controls.map(control =>
-      control.controlId !== 'op.cont.2' ? control : configuration(valores)
+      control.controlId !== 'op.cont.2' ? control : configuration(values)
     ),
   });
 
-  const evaluateEngine = (global: Record<string, unknown>, level: ENSLevel, valores: Valores = BASE) => {
-    ensConfigurationRepository.replaceActive(conValores(global, valores));
+  const evaluateEngine = (global: Record<string, unknown>, level: ENSLevel, values: Values = BASE) => {
+    ensConfigurationRepository.replaceActive(withValues(global, values));
 
     return getENSComplianceResults(level, [], undefined, undefined, NOW).find(r => r.control.id === 'op.cont.2')!;
   };
@@ -673,7 +673,7 @@ section('8. Whole engine: only with D at ALTO, in the manager row and without co
       emptyHigh.evidences.filter(e => e.status === 'NO_EVALUABLE').map(e => `${e.id}: ${e.observations.join(' / ')}`).join(' || ')
   );
 
-  ensConfigurationRepository.replaceActive(conValores({ ensLevel: 'ALTO' }, BASE));
+  ensConfigurationRepository.replaceActive(withValues({ ensLevel: 'ALTO' }, BASE));
 
   const scope = [
     { id: '001', name: 'wazuh-real', groups: ['ens'] },

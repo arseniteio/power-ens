@@ -66,8 +66,8 @@ const evaluate = (global: Record<string, unknown>, level: ENSLevel) => {
   return getENSComplianceResults(level, [], undefined, undefined, NOW);
 };
 
-const fingerprint = (valor: unknown): string =>
-  JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
+const fingerprint = (value: unknown): string =>
+  JSON.stringify(value, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
 const byControl = (results: ReturnType<typeof evaluate>) =>
   new Map(results.map(r => [r.control.id, r]));
@@ -118,7 +118,7 @@ check(
 try {
   fallback.levelDimension = 'D';
 
-  const deD = new Set([FALLBACK, ...declareD.map(c => c.id)]);
+  const ofD = new Set([FALLBACK, ...declareD.map(c => c.id)]);
 
   for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
     const base = evaluate({ ensLevel: global }, global);
@@ -135,12 +135,12 @@ try {
 
       check(
         `${global} with D=${d} · the D control is evaluated with ${d}`,
-        Array.from(deD).every(id => after.get(id)?.level === d),
-        Array.from(deD).map(id => `${id}=${after.get(id)?.level}`).join(' ')
+        Array.from(ofD).every(id => after.get(id)?.level === d),
+        Array.from(ofD).map(id => `${id}=${after.get(id)?.level}`).join(' ')
       );
 
       const changed = Array.from(antes.keys()).filter(
-        id => !deD.has(id) && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
+        id => !ofD.has(id) && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
       );
 
       check(
@@ -193,10 +193,10 @@ section('3. The global configuration validator');
 const valid = (global: Record<string, unknown>) =>
   validateENSConfigurationStructure(configuration(global));
 
-const sinD = configuration({});
-delete (sinD.global as { availabilityLevel?: unknown }).availabilityLevel;
+const withoutD = configuration({});
+delete (withoutD.global as { availabilityLevel?: unknown }).availabilityLevel;
 
-check('the missing key is valid', validateENSConfigurationStructure(sinD).valid, validateENSConfigurationStructure(sinD).errors.join('; '));
+check('the missing key is valid', validateENSConfigurationStructure(withoutD).valid, validateENSConfigurationStructure(withoutD).errors.join('; '));
 check('a level is valid', valid({ availabilityLevel: 'ALTO' }).valid);
 check('with T and D at once, valid', valid({ traceabilityLevel: 'MEDIO', availabilityLevel: 'ALTO' }).valid);
 check('null is NOT valid', !valid({ availabilityLevel: null }).valid);
@@ -231,10 +231,10 @@ check(
     configuration({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO', availabilityLevel: 'MEDIO' })
   );
 
-  const delPanel = { ...configuration({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO' }).global };
-  delete (delPanel as { availabilityLevel?: unknown }).availabilityLevel;
+  const ofPanel = { ...configuration({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO' }).global };
+  delete (ofPanel as { availabilityLevel?: unknown }).availabilityLevel;
 
-  await updateActiveGlobalConfiguration(delPanel);
+  await updateActiveGlobalConfiguration(ofPanel);
 
   check(
     'the sent configuration does NOT carry availabilityLevel (it is not revived from the active one)',
@@ -247,7 +247,7 @@ check(
     sent[0]?.global?.traceabilityLevel
   );
 
-  await updateActiveGlobalConfiguration({ ...delPanel, availabilityLevel: 'BAJO' });
+  await updateActiveGlobalConfiguration({ ...ofPanel, availabilityLevel: 'BAJO' });
 
   check(
     'reversal · declared, it is saved',

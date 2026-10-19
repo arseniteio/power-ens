@@ -66,7 +66,7 @@ const configuration = (matrix: string[]): ENSControlConfiguration => ({
   ),
 });
 
-const estadoEV02 = (matrix: string[], facts: ENSNormalizedEvent[]) =>
+const stateEv02 = (matrix: string[], facts: ENSNormalizedEvent[]) =>
   resolveEvidenceForControl(
     'op.acc.4',
     [...facts, heartbeat()],
@@ -84,7 +84,7 @@ section('1. Each privilege is judged against ITS resource\'s row');
     'root | cortafuegos | administracion del cortafuegos del sistema',
   ];
 
-  const result = estadoEV02(matrix, [
+  const result = stateEv02(matrix, [
     fact('root', 'sudo', 'ALL=(ALL:ALL) ALL'),
     fact('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
     fact('root', 'cortafuegos', 'administracion del cortafuegos del sistema'),
@@ -105,7 +105,7 @@ section('2. What is not declared is still a finding');
     'root | cortafuegos | administracion del cortafuegos del sistema',
   ];
 
-  const withExtraAccess = estadoEV02(matrix, [
+  const withExtraAccess = stateEv02(matrix, [
     fact('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
   ]);
 
@@ -115,7 +115,7 @@ section('2. What is not declared is still a finding');
     String(withExtraAccess?.status)
   );
 
-  const resourceWithoutRow = estadoEV02(matrix, [
+  const resourceWithoutRow = stateEv02(matrix, [
     fact('root', 'base de datos', 'lectura y escritura'),
   ]);
 
@@ -125,7 +125,7 @@ section('2. What is not declared is still a finding');
     String(resourceWithoutRow?.status)
   );
 
-  const otherSubject = estadoEV02(matrix, [
+  const otherSubject = stateEv02(matrix, [
     fact('invitado', 'sudo', 'ALL=(ALL:ALL) ALL'),
   ]);
 

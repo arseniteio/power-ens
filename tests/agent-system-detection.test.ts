@@ -85,8 +85,8 @@ const WINDOWS = { platform: 'windows', name: 'Microsoft Windows Server 2022 Stan
     check('manual correction: wins and says what was detected', corrected.type === 'zimbra-ldap' && corrected.manual && /corregido a mano/.test(corrected.description) && /Linux/.test(corrected.description), corrected);
     const saved = effectiveSystemType(n, { detectedType: 'linux', detectedBy: 'os.platform = ubuntu en el inventario de agentes' });
     check('no live data, the stored detected type', saved.type === 'linux' && /detectado por os\.platform/.test(saved.description), saved);
-    const sin = effectiveSystemType(n);
-    check('nothing: undetected', sin.type === undefined && /^sin detectar/.test(sin.description), sin);
+    const withoutIt = effectiveSystemType(n);
+    check('nothing: undetected', withoutIt.type === undefined && /^sin detectar/.test(withoutIt.description), withoutIt);
   }
 
   console.log('4. Alias');

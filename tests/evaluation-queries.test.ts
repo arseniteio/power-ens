@@ -51,9 +51,9 @@ check('the engine reads only those fields (no `raw` or `full_log`)', ENGINE_SOUR
 
 const hora = (h: number) => new Date(NOW.getTime() - h * 3600e3).toISOString();
 let n = 0;
-const doc = (agent: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const doc = (agent: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `d${String(++n).padStart(5, '0')}`, _index: 'wazuh-alerts-4.x-x',
-  _source: { '@timestamp': hora(horas), id: `i${n}`, agent: { id: agent, name: agent }, data },
+  _source: { '@timestamp': hora(hours), id: `i${n}`, agent: { id: agent, name: agent }, data },
 });
 const docs: FakeDoc[] = [];
 for (let h = 160; h >= 1; h -= 1) {
@@ -86,8 +86,8 @@ const allOf = (controlId: string, agent: string) => docs
 
 const pruningOf = async (controlId: string, agent: string) => {
   const runs = (await index.search({ index: 'wazuh-alerts-*', body: { size: 10000, query: buildCollectorRunsQuery([], controlId, agent) } })).body.hits.hits;
-  const ultimos = readStateFactLastSeen(controlId, (await index.search(buildStateFactLastSeenRequest([], controlId, agent, 'UTC'))).body);
-  const cortes = computeStateFactCutoffsByCollector(controlId, normalizeWazuhAlerts(runs), instantes, ultimos.lastFactOf, ultimos.collectors);
+  const latest = readStateFactLastSeen(controlId, (await index.search(buildStateFactLastSeenRequest([], controlId, agent, 'UTC'))).body);
+  const cortes = computeStateFactCutoffsByCollector(controlId, normalizeWazuhAlerts(runs), instantes, latest.lastFactOf, latest.collectors);
   const gaps = new Map([...cortes.entries()].map(([c, byInstant]) => [c, prunableRanges(start, instantes.map(i => i.getTime()), byInstant)]));
   return { clausula: buildStateFactKeepClause(controlId, agent, gaps), cortes };
 };
@@ -106,8 +106,8 @@ const ids = (events: any[]) => events.map(e => e.id).sort().join();
     const query = buildFactsQuery([], controlId, agent, clausula);
     const readOnes = all.filter(d => matchesQuery(d, query, NOW.getTime()));
     const equal = instantes.filter(t => {
-      const hasta = (list: FakeDoc[]) => normalizeWazuhAlerts(list.filter(d => Date.parse(d._source['@timestamp']) <= t.getTime()));
-      return ids(keepLatestRunStateFacts(controlId, hasta(all), t)) === ids(keepLatestRunStateFacts(controlId, hasta(readOnes), t));
+      const until = (list: FakeDoc[]) => normalizeWazuhAlerts(list.filter(d => Date.parse(d._source['@timestamp']) <= t.getTime()));
+      return ids(keepLatestRunStateFacts(controlId, until(all), t)) === ids(keepLatestRunStateFacts(controlId, until(readOnes), t));
     }).length;
     const what = `${controlId} en ${agent}`;
     check(`${what}: ${shouldPrune ? 'fewer facts are read' : 'when in doubt, everything is read'}`, shouldPrune ? readOnes.length < all.length : readOnes.length === all.length && clausula === undefined, [readOnes.length, all.length, [...cortes.keys()]]);

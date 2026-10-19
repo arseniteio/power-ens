@@ -38,7 +38,7 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-type Linea = Record<string, unknown>;
+type Line = Record<string, unknown>;
 
 const PASSES = ['2026-10-08T18:05', '2026-10-09T00:05', '2026-10-09T06:05', '2026-10-09T12:05'];
 const COMPLETE = PASSES[PASSES.length - 1];
@@ -47,36 +47,36 @@ const NOW = new Date('2026-10-09T12:30:00Z');
 
 const COVERS = 'EV-01,EV-02,EV-04,EV-07';
 
-const heartbeat = (ts: string, covered = COVERS): Linea => ({
+const heartbeat = (ts: string, covered = COVERS): Line => ({
   ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, tipo_servidor: 'manager', emisor: 'recolector', pasada: 'completa',
 });
 
-const integration = (ts: string, modulo: string, extra: Linea = {}): Linea => ({
+const integration = (ts: string, modulo: string, extra: Line = {}): Line => ({
   ts, event: 'cloud_integration_observed', evidence_id: 'EV-01', requisito: 'op.nub.1.2', plano: 'central',
   modulo, familia: '-', donde: '-', habilitado: 'si', servicios: '-', intervalo: '-', secreto_en_linea: 'no',
   agentes_origen: '-', ultima_alerta: '-', alertas_24h: 0, errores_24h: 0, ultimo_error: '-',
   observado_desde: '2026-09-20T00:05:00Z', ...extra,
 });
 
-const operation = (ts: string, modulo: string, actor: string, extra: Linea = {}): Linea => ({
+const operation = (ts: string, modulo: string, actor: string, extra: Line = {}): Line => ({
   ts, event: 'cloud_admin_operation_observed', evidence_id: 'EV-04', requisito: 'op.nub.1.2', plano: 'central',
   modulo, familia: '-', cuenta: '-', actor, tipo_actor: 'rol', operaciones: 'CreateUser', veces: 1,
   primera: ts.replace(/:(\d\d)Z$/, ':00Z'), ultima: ts.replace(/:(\d\d)Z$/, ':00Z'), agente_id: '031', ...extra,
 });
 
-const access = (ts: string, modulo: string, user: string, extra: Linea = {}): Linea => ({
+const access = (ts: string, modulo: string, user: string, extra: Line = {}): Line => ({
   ts, event: 'cloud_authentication_observed', evidence_id: 'EV-07', requisito: 'op.nub.1.2', plano: 'central',
   modulo, familia: '-', cuenta: '-', usuario: user, resultado: 'exito', segundo_factor: 'si', metodo: 'consola', veces: 1,
   primera: '2026-10-09T09:00:00Z', ultima: '2026-10-09T09:00:00Z', origenes: '203.0.113.10', ...extra,
 });
 
-const posture = (ts: string, extra: Linea = {}): Linea => ({
+const posture = (ts: string, extra: Line = {}): Line => ({
   ts, event: 'cloud_posture_finding_observed', evidence_id: 'EV-02', requisito: 'op.nub.1.r2.1', plano: 'central',
   modulo: '-', fuente: 'ninguna', estandar: '-', cuenta: '-', controles_evaluados: 0, controles_fallidos: 0,
   fallidos_criticos: 0, fallidos: '-', ultimo_hallazgo: '-', ...extra,
 });
 
-const pass = (ts: string, actions = true): Linea[] => {
+const pass = (ts: string, actions = true): Line[] => {
   const t = (s: number) => `${ts}:${String(s).padStart(2, '0')}Z`;
 
   return [
@@ -119,9 +119,9 @@ const RULE: Record<string, string> = {
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
-const alert = (linea: Linea, control = 'op.nub.1') => {
+const alert = (line: Line, control = 'op.nub.1') => {
   counter += 1;
-  const { ts, host: _host, ...data } = linea as Linea & { ts: string };
+  const { ts, host: _host, ...data } = line as Line & { ts: string };
 
   return {
     _id: `alerta-${counter}`,
@@ -135,9 +135,9 @@ const alert = (linea: Linea, control = 'op.nub.1') => {
   };
 };
 
-const events = (lineas: Linea[], changes: (l: Linea) => Linea | Linea[] | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lines: Line[], changes: (l: Line) => Line | Line[] | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .flatMap(l => {
         const r = changes({ ...l });
 
@@ -146,23 +146,23 @@ const events = (lineas: Linea[], changes: (l: Linea) => Linea | Linea[] | undefi
       .map(l => alert(l))
   );
 
-const hoy = (changes?: (l: Linea) => Linea | Linea[] | undefined) =>
+const hoy = (changes?: (l: Line) => Line | Line[] | undefined) =>
   events(PASSES.flatMap(ts => pass(ts)), changes);
 
-const enLaUltima = (l: Linea): boolean => String(l.ts).startsWith(COMPLETE);
+const inTheLast = (l: Line): boolean => String(l.ts).startsWith(COMPLETE);
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opNub1Configuration,
   parameters: opNub1Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': 'usuario',
   'P-02': [
     'AWS producción | IaaS | Amazon Web Services | expedientes | alta | utilizado',
@@ -216,18 +216,18 @@ const BASE: Valores = {
   'P-13': '24',
 };
 
-const NO_PARAMETERS: Valores = {};
+const NO_PARAMETERS: Values = {};
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'MEDIO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts('op.nub.1', evs, now);
-  const evidences = resolveEvidenceForControl('op.nub.1', delControl, '000', level, cfg, now);
-  const context = buildPolicyContext(opNub1CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts('op.nub.1', evs, now);
+  const evidences = resolveEvidenceForControl('op.nub.1', ofTheControl, '000', level, cfg, now);
+  const context = buildPolicyContext(opNub1CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions, runtimeVariables } = opNub1PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opNub1CatalogDefinition.requirements);
   const attestations = parseRequirementAttestations(cfg);
@@ -258,13 +258,13 @@ const evaluate = (
         appliedParameters: [],
         runtimeVariables,
       },
-      delControl
+      ofTheControl
     );
 
   return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, deEvidencia: ofEvidence, motor };
 };
 
-const estadoDe = (r: ReturnType<typeof evaluate>, ev: string) => `${r.evidencia(ev)?.status} ${r.evidencia(ev)?.gapCause || ''}`.trim();
+const stateOf = (r: ReturnType<typeof evaluate>, ev: string) => `${r.evidencia(ev)?.status} ${r.evidencia(ev)?.gapCause || ''}`.trim();
 
 section('1. Catalog: system category, manager plane, documentary items and report data');
 
@@ -357,18 +357,18 @@ section('2. Green: AWS, Azure and GCP user with a valid file and the live integr
   check(
     'EV-07 NO_APLICA: report finding crossed with op.acc.6.r8.1, with what is observed (GCP brings no logins)',
     r.evidencia('EV-07')?.status === 'NO_APLICA' && /op\.acc\.6\.r8\.1/.test(r.deEvidencia('op.nub.1.2', 'EV-07')?.reason || '') && /GCP analítica.*no consta ningún acceso interactivo/.test(r.deEvidencia('op.nub.1.2', 'EV-07')?.reason || ''),
-    `${estadoDe(r, 'EV-07')} ${r.deEvidencia('op.nub.1.2', 'EV-07')?.reason}`
+    `${stateOf(r, 'EV-07')} ${r.deEvidencia('op.nub.1.2', 'EV-07')?.reason}`
   );
   check(
     'EV-09 CUMPLE «acreditado documentalmente», and the bridge does not leave it at «sin recogida»',
     r.evidencia('EV-09')?.status === 'CUMPLE' && (r.evidencia('EV-09')?.observations || []).some(o => /Acreditado documentalmente/.test(o)),
-    estadoDe(r, 'EV-09')
+    stateOf(r, 'EV-09')
   );
   ['EV-03', 'EV-05', 'EV-06'].forEach(ev =>
     check(
       `${ev} NO_APLICA as a report datum, not grey`,
       r.evidencia(ev)?.status === 'NO_APLICA' && (r.evidencia(ev)?.observations || []).some(o => /Dato del informe, sin veredicto/.test(o)),
-      estadoDe(r, ev)
+      stateOf(r, ev)
     )
   );
   check('EV-05 shows what is declared in P-09', (r.evidencia('EV-05')?.observations || []).some(o => /Declarado en P-09: AWS producción: AES-256/.test(o)));
@@ -422,11 +422,11 @@ section('3. P-01 = ninguno: everything NO_APLICA, declared (and not NO_EVALUABLE
     'REVERSAL: «ninguno» with empty P-02 holds → NO_APLICA',
     evaluate([], { 'P-01': 'ninguno' }, 'ALTO').requisito('op.nub.1.2').status === 'NO_APLICA'
   );
-  const conModulos = evaluate(hoy(), { 'P-01': 'ninguno' }, 'ALTO');
+  const withModules = evaluate(hoy(), { 'P-01': 'ninguno' }, 'ALTO');
   check(
     '«ninguno» with cloud modules ingesting on the manager → CONFIGURATION naming the modules',
-    conModulos.requisito('op.nub.1.2').evidenced === false && /Wazuh está ingiriendo registros de aws-s3 \(1840 en 24 h\)/.test(conModulos.motivo('op.nub.1.2')),
-    conModulos.motivo('op.nub.1.2')
+    withModules.requisito('op.nub.1.2').evidenced === false && /Wazuh está ingiriendo registros de aws-s3 \(1840 en 24 h\)/.test(withModules.motivo('op.nub.1.2')),
+    withModules.motivo('op.nub.1.2')
   );
   check(
     'REVERSAL: the same manager with modules without records → «ninguno» holds: NO_APLICA',
@@ -444,7 +444,7 @@ section('4. `attested` never covers a technical measure in NO_CUMPLE (each axis 
   };
 
   const withContractor = (actor: string) =>
-    hoy(l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && enLaUltima(l) ? [l, { ...l, actor, operaciones: 'Microsoft.Authorization/roleAssignments/write' }] : l));
+    hoy(l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && inTheLast(l) ? [l, { ...l, actor, operaciones: 'Microsoft.Authorization/roleAssignments/write' }] : l));
   const intruder2 = evaluate(withContractor('contratista@externo.example'));
   check(
     'administration operation by an actor P-11 does not authorize → op.nub.1.2 measured NO_CUMPLE, without the mark',
@@ -461,18 +461,18 @@ section('4. `attested` never covers a technical measure in NO_CUMPLE (each axis 
     notAccredited(evaluate(withContractor('ops@cliente.example')))
   );
 
-  const sinMfa = evaluate(hoy(l => (l.event === 'cloud_authentication_observed' && l.usuario === 'arn:aws:iam::123456789012:user/alice' && enLaUltima(l) ? { ...l, segundo_factor: 'no' } : l)));
+  const withoutMfa = evaluate(hoy(l => (l.event === 'cloud_authentication_observed' && l.usuario === 'arn:aws:iam::123456789012:user/alice' && inTheLast(l) ? { ...l, segundo_factor: 'no' } : l)));
   check(
     'an AWS console access without a second factor does NOT bring op.nub.1.2 down: it stays accredited',
-    sinMfa.requisito('op.nub.1.2').attested === true,
-    `${sinMfa.requisito('op.nub.1.2').status} ${sinMfa.motivo('op.nub.1.2')}`
+    withoutMfa.requisito('op.nub.1.2').attested === true,
+    `${withoutMfa.requisito('op.nub.1.2').status} ${withoutMfa.motivo('op.nub.1.2')}`
   );
   check(
     'and it is reported highlighted, naming the user and origin, crossed with op.acc.6.r8.1',
-    sinMfa.evidencia('EV-07')?.status === 'NO_APLICA' &&
-      /HAY ACCESOS SIN SEGUNDO FACTOR.*user\/alice.*203\.0\.113\.10/.test(sinMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason || '') &&
-      sinMfa.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value === 'NO_CUMPLE',
-    sinMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason
+    withoutMfa.evidencia('EV-07')?.status === 'NO_APLICA' &&
+      /HAY ACCESOS SIN SEGUNDO FACTOR.*user\/alice.*203\.0\.113\.10/.test(withoutMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason || '') &&
+      withoutMfa.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value === 'NO_CUMPLE',
+    withoutMfa.deEvidencia('op.nub.1.2', 'EV-07')?.reason
   );
   const federated = evaluate(hoy(l => (l.event === 'cloud_authentication_observed' && l.modulo === 'aws-s3' ? { ...l, segundo_factor: '-' } : l)));
   check(
@@ -483,11 +483,11 @@ section('4. `attested` never covers a technical measure in NO_CUMPLE (each axis 
   const failedOne2 = evaluate(hoy(l => (l.event === 'cloud_authentication_observed' && l.usuario === 'bob@cliente.example' ? { ...l, segundo_factor: 'no' } : l)));
   check('a FAILED attempt without a second factor is not an access: not highlighted', failedOne2.runtimeVariables.find(v => v.name === 'accesos_cloud')?.value !== 'NO_CUMPLE');
 
-  const sinModulo = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' ? undefined : l)));
+  const withoutModule = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' ? undefined : l)));
   check(
     'P-06 declares GCP via gcp-pubsub and Wazuh has no module → NO_CUMPLE',
-    notAccredited(sinModulo) && /no tiene el módulo gcp-pubsub configurado/.test(sinModulo.motivo('op.nub.1.2')),
-    sinModulo.motivo('op.nub.1.2')
+    notAccredited(withoutModule) && /no tiene el módulo gcp-pubsub configurado/.test(withoutModule.motivo('op.nub.1.2')),
+    withoutModule.motivo('op.nub.1.2')
   );
   check(
     'REVERSAL: the same fact with GCP declared «ninguno» in P-06 → finding, not a breach',
@@ -497,17 +497,17 @@ section('4. `attested` never covers a technical measure in NO_CUMPLE (each axis 
     }).requisito('op.nub.1.2').attested === true
   );
 
-  const stopped = (l: Linea) => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, ultima_alerta: '2026-10-07T08:00:00Z', alertas_24h: 0 } : l);
+  const stopped = (l: Line) => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, ultima_alerta: '2026-10-07T08:00:00Z', alertas_24h: 0 } : l);
   check('AWS without records for 52 h (P-13 = 24) → ingestion is stopped: NO_CUMPLE', notAccredited(evaluate(hoy(stopped))), evaluate(hoy(stopped)).motivo('op.nub.1.2'));
   check('REVERSAL: the same fact with P-13 = 72 → accredited CUMPLE', evaluate(hoy(stopped), { ...BASE, 'P-13': '72' }).requisito('op.nub.1.2').attested === true);
 
-  const errores = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' && enLaUltima(l) ? { ...l, errores_24h: 7, ultimo_error: 'wazuh-modulesd:gcp-pubsub: ERROR: 403 permission denied on subscription' } : l)));
+  const errors = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' && inTheLast(l) ? { ...l, errores_24h: 7, ultimo_error: 'wazuh-modulesd:gcp-pubsub: ERROR: 403 permission denied on subscription' } : l)));
   check(
     'gcp-pubsub with 7 errors in 24 h → NO_CUMPLE with the last error',
-    notAccredited(errores) && /7 errores en 24 h.*403 permission denied/.test(errores.motivo('op.nub.1.2')),
-    errores.motivo('op.nub.1.2')
+    notAccredited(errors) && /7 errores en 24 h.*403 permission denied/.test(errors.motivo('op.nub.1.2')),
+    errors.motivo('op.nub.1.2')
   );
-  const disabledOne = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' && enLaUltima(l) ? { ...l, habilitado: 'no' } : l)));
+  const disabledOne = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' && inTheLast(l) ? { ...l, habilitado: 'no' } : l)));
   check('aws-s3 configured but disabled → NO_CUMPLE', notAccredited(disabledOne) && /deshabilitado/.test(disabledOne.motivo('op.nub.1.2')), disabledOne.motivo('op.nub.1.2'));
 
 }
@@ -527,7 +527,7 @@ section('5. Documentary red: validities, category, pentest and incomplete file')
   check(
     'REVERSAL: the last day of validity is still valid (the file; ingestion is no longer judged at that date)',
     inDecember.evidencia('EV-09')?.status === 'CUMPLE' && inDecember.evidencia('EV-08')?.status === 'CUMPLE',
-    `${estadoDe(inDecember, 'EV-09')} ${estadoDe(inDecember, 'EV-08')}`
+    `${stateOf(inDecember, 'EV-09')} ${stateOf(inDecember, 'EV-08')}`
   );
 
   const expiredConformity = evaluate(hoy(), { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('Hetzner') ? 'Hetzner | CCN-STIC-823 | servidores | 2026-09-30 | declaración' : f)) });
@@ -539,7 +539,7 @@ section('5. Documentary red: validities, category, pentest and incomplete file')
   );
   check('REVERSAL: with the conformity in force, CUMPLE', buildOpNub1ReportModel(evaluate(hoy()).motor()).fields[3].status === 'CUMPLE');
 
-  const validitiesWithoutP03 = (valores: Valores, level: ENSLevel) => buildOpNub1ReportModel(evaluate(hoy(), valores, level).motor()).fields[3];
+  const validitiesWithoutP03 = (values: Values, level: ENSLevel) => buildOpNub1ReportModel(evaluate(hoy(), values, level).motor()).fields[3];
   const withoutP03Basic = validitiesWithoutP03({ ...BASE, 'P-03': undefined }, 'BAJO');
   check('without P-03 and with used services, at BÁSICA the validity field comes out NO_EVALUABLE, not NO_APLICA', withoutP03Basic.status === 'NO_EVALUABLE', withoutP03Basic.status);
   const withoutP03Medium = validitiesWithoutP03({ ...BASE, 'P-03': undefined }, 'MEDIO');
@@ -562,8 +562,8 @@ section('5. Documentary red: validities, category, pentest and incomplete file')
   const withoutProvided = validitiesWithoutP03({ ...BASE, 'P-01': 'prestador', 'P-02': undefined }, 'BAJO');
   check('P-01 = prestador without P-02, at BÁSICA → NO_EVALUABLE', withoutProvided.status === 'NO_EVALUABLE', withoutProvided.status);
   check('REVERSAL: P-01 = ninguno is not touched (the whole control does not apply)', evaluate(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), { 'P-01': 'ninguno' }, 'BAJO').requisito('op.nub.1.2').status === 'NO_APLICA');
-  const validitiesWith = (valores: Valores, level: ENSLevel) =>
-    buildOpNub1ReportModel(evaluate(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), valores, level).motor()).fields[3].status;
+  const validitiesWith = (values: Values, level: ENSLevel) =>
+    buildOpNub1ReportModel(evaluate(hoy(l => (l.event === 'cloud_integration_observed' ? { ...l, alertas_24h: 0 } : l)), values, level).motor()).fields[3].status;
   check(
     'and with P-01 = ninguno the validity field comes out NO_APLICA (not SIN_DATOS), at BÁSICA and MEDIA',
     validitiesWith({ 'P-01': 'ninguno' }, 'BAJO') === 'NO_APLICA' && validitiesWith({ 'P-01': 'ninguno' }, 'MEDIO') === 'NO_APLICA',
@@ -596,7 +596,7 @@ section('5. Documentary red: validities, category, pentest and incomplete file')
     check(
       `encryption «${encryption}» in P-09 → NO_CUMPLE (c), not an incomplete row`,
       r.evidencia('EV-09')?.status === 'NO_CUMPLE' && /«Hetzner».*c\) P-09 declara que los datos no se cifran/.test(r.motivo('op.nub.1.2')),
-      `${estadoDe(r, 'EV-09')} ${r.motivo('op.nub.1.2')}`
+      `${stateOf(r, 'EV-09')} ${r.motivo('op.nub.1.2')}`
     );
   });
   check(
@@ -613,7 +613,7 @@ section('5. Documentary red: validities, category, pentest and incomplete file')
     check(
       `validity «${cell}» → NO_EVALUABLE by CONFIGURATION naming the row, never CUMPLE`,
       r.evidencia('EV-09')?.status === 'NO_EVALUABLE' && r.evidencia('EV-09')?.gapCause === 'CONFIGURATION' && /P-03, fila de «Azure suscripción»/.test(r.motivo('op.nub.1.2')) && !r.requisito('op.nub.1.2').attested,
-      `${estadoDe(r, 'EV-09')} ${r.motivo('op.nub.1.2')}`
+      `${stateOf(r, 'EV-09')} ${r.motivo('op.nub.1.2')}`
     );
   });
   const withoutCategory = evaluate(hoy(), { ...BASE, 'P-03': (BASE['P-03'] as string[]).map(f => (f.startsWith('Azure') ? 'Azure suscripción | ENS | Microsoft Azure | 2027-03-31 | nº' : f)) });
@@ -635,7 +635,7 @@ section('6. Without parameters or inventory: NO_EVALUABLE with cause CONFIGURATI
     )
   );
   ['EV-01', 'EV-02', 'EV-04', 'EV-08', 'EV-09'].forEach(ev =>
-    check(`${ev} unmeasured by CONFIGURATION`, r.evidencia(ev)?.status === 'NO_EVALUABLE' && r.evidencia(ev)?.gapCause === 'CONFIGURATION', estadoDe(r, ev))
+    check(`${ev} unmeasured by CONFIGURATION`, r.evidencia(ev)?.status === 'NO_EVALUABLE' && r.evidencia(ev)?.gapCause === 'CONFIGURATION', stateOf(r, ev))
   );
   check('the motive names P-01', /P-01 \(Posición respecto a los servicios en la nube\) está sin configurar/.test(r.motivo('op.nub.1.2')), r.motivo('op.nub.1.2'));
 
@@ -646,7 +646,7 @@ section('6. Without parameters or inventory: NO_EVALUABLE with cause CONFIGURATI
   check(
     'without P-02 (the scope), op.nub.1.2 and R1 not proven by CONFIGURATION, even if ingestion complies',
     withoutInventory.requisito('op.nub.1.2').evidenced === false && withoutInventory.evidencia('EV-09')?.gapCause === 'CONFIGURATION' && withoutInventory.requisito('op.nub.1.r1.1').evidenced === false,
-    `${withoutInventory.requisito('op.nub.1.2').status} ${estadoDe(withoutInventory, 'EV-09')}`
+    `${withoutInventory.requisito('op.nub.1.2').status} ${stateOf(withoutInventory, 'EV-09')}`
   );
   const onlyP03 = evaluate(hoy(), { ...BASE, 'P-03': undefined });
   check('only P-03 missing → op.nub.1.2 not proven, EV-09 CONFIGURATION', onlyP03.requisito('op.nub.1.2').evidenced === false && onlyP03.evidencia('EV-09')?.gapCause === 'CONFIGURATION');
@@ -656,7 +656,7 @@ section('6. Without parameters or inventory: NO_EVALUABLE with cause CONFIGURATI
   check('only P-04 missing → R1 not proven, CONFIGURATION', onlyP04.requisito('op.nub.1.r1.1').evidenced === false && onlyP04.evidencia('EV-08')?.gapCause === 'CONFIGURATION');
 
   const onlyP13 = evaluate(hoy(), { ...BASE, 'P-13': undefined });
-  check('only P-13 missing → EV-01 CONFIGURATION', onlyP13.evidencia('EV-01')?.status === 'NO_EVALUABLE' && onlyP13.evidencia('EV-01')?.gapCause === 'CONFIGURATION', estadoDe(onlyP13, 'EV-01'));
+  check('only P-13 missing → EV-01 CONFIGURATION', onlyP13.evidencia('EV-01')?.status === 'NO_EVALUABLE' && onlyP13.evidencia('EV-01')?.gapCause === 'CONFIGURATION', stateOf(onlyP13, 'EV-01'));
   check(
     'and op.nub.1.2 stays accredited by the file, saying what is left to measure (integrating is not required)',
     onlyP13.requisito('op.nub.1.2').attested === true && onlyP13.requisito('op.nub.1.2').observations.some(o => /^EV-01 sin medir \(sin configurar\)/.test(o)),
@@ -666,19 +666,19 @@ section('6. Without parameters or inventory: NO_EVALUABLE with cause CONFIGURATI
   check(
     'P-06 missing → EV-01 and EV-04 CONFIGURATION (and access is reported without integration)',
     ['EV-01', 'EV-04'].every(ev => onlyP06.evidencia(ev)?.gapCause === 'CONFIGURATION') && onlyP06.evidencia('EV-07')?.status === 'NO_APLICA',
-    ['EV-01', 'EV-04', 'EV-07'].map(ev => estadoDe(onlyP06, ev)).join(', ')
+    ['EV-01', 'EV-04', 'EV-07'].map(ev => stateOf(onlyP06, ev)).join(', ')
   );
   const onlyP11 = evaluate(hoy(), { ...BASE, 'P-11': undefined });
   check('P-11 missing with operations by people → EV-04 CONFIGURATION, naming the actors', onlyP11.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /role\/Admin/.test(onlyP11.deEvidencia('op.nub.1.2', 'EV-04')?.reason || ''));
-  const sinOps = evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' ? undefined : l)), { ...BASE, 'P-11': undefined });
-  check('REVERSAL: without operations in the window and with live ingestion, P-11 is not needed → EV-04 CUMPLE', sinOps.evidencia('EV-04')?.status === 'CUMPLE', estadoDe(sinOps, 'EV-04'));
+  const withoutOps = evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' ? undefined : l)), { ...BASE, 'P-11': undefined });
+  check('REVERSAL: without operations in the window and with live ingestion, P-11 is not needed → EV-04 CUMPLE', withoutOps.evidencia('EV-04')?.status === 'CUMPLE', stateOf(withoutOps, 'EV-04'));
 
   const bothWithoutUse = { ...BASE, 'P-01': 'ambos', 'P-02': (BASE['P-02'] as string[]).map(f => (f.startsWith('Hetzner') ? 'Hetzner | IaaS | Hetzner | laboratorio | baja' : f)) };
   const ambos = evaluate(hoy(), bothWithoutUse);
   check(
     'P-01 = ambos and a P-02 row without «uso» → CONFIGURATION naming the row, never CUMPLE',
     ambos.evidencia('EV-09')?.gapCause === 'CONFIGURATION' && /P-02, servicio «Hetzner»: con P-01 = ambos hay que decir/.test(ambos.motivo('op.nub.1.2')) && !ambos.requisito('op.nub.1.2').attested,
-    `${estadoDe(ambos, 'EV-09')} ${ambos.motivo('op.nub.1.2')}`
+    `${stateOf(ambos, 'EV-09')} ${ambos.motivo('op.nub.1.2')}`
   );
   check('REVERSAL: with P-01 = usuario the same row is a used service → accredited', evaluate(hoy(), { ...bothWithoutUse, 'P-01': 'usuario' }).requisito('op.nub.1.2').attested === true);
   const contradictory = evaluate(hoy(), { ...BASE, 'P-02': [...(BASE['P-02'] as string[]), 'Portal propio | SaaS | Quersystem | trámites | alta | prestado'] });
@@ -691,43 +691,43 @@ section('7. Without a collector or with the source broken: NO_EVALUABLE by COLLE
 
 {
   const nothing = evaluate([]);
-  check('without any fact → EV-01 by COLLECTION', nothing.evidencia('EV-01')?.status === 'NO_EVALUABLE' && nothing.evidencia('EV-01')?.gapCause === 'COLLECTION', estadoDe(nothing, 'EV-01'));
-  check('and EV-04 also by COLLECTION (not by evidence)', nothing.evidencia('EV-04')?.gapCause === 'COLLECTION', estadoDe(nothing, 'EV-04'));
+  check('without any fact → EV-01 by COLLECTION', nothing.evidencia('EV-01')?.status === 'NO_EVALUABLE' && nothing.evidencia('EV-01')?.gapCause === 'COLLECTION', stateOf(nothing, 'EV-01'));
+  check('and EV-04 also by COLLECTION (not by evidence)', nothing.evidencia('EV-04')?.gapCause === 'COLLECTION', stateOf(nothing, 'EV-04'));
   check('op.nub.1.2 is accredited with the file, saying ingestion was not measured', nothing.requisito('op.nub.1.2').attested === true && nothing.requisito('op.nub.1.2').observations.some(o => /^EV-01 sin medir \(sin recogida\)/.test(o)));
 
   const at14h = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-10T02:10:00Z'));
   check(
     '14 h without passes → EV-01 NO_EVALUABLE by COLLECTION, and EV-04 cannot assert «sin operaciones»',
     at14h.evidencia('EV-01')?.status === 'NO_EVALUABLE' && at14h.evidencia('EV-01')?.gapCause === 'COLLECTION' && /más de 13 h/.test(at14h.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''),
-    `${estadoDe(at14h, 'EV-01')} ${at14h.deEvidencia('op.nub.1.2', 'EV-01')?.reason}`
+    `${stateOf(at14h, 'EV-01')} ${at14h.deEvidencia('op.nub.1.2', 'EV-01')?.reason}`
   );
-  const sinOpsA = (now: string) => evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' ? undefined : l)), BASE, 'MEDIO', new Date(now));
-  check('no operations and expired ingestion → EV-04 NO_EVALUABLE, never CUMPLE', sinOpsA('2026-10-10T02:10:00Z').evidencia('EV-04')?.status === 'NO_EVALUABLE', estadoDe(sinOpsA('2026-10-10T02:10:00Z'), 'EV-04'));
-  check('REVERSAL: at 12 h from the last pass → EV-01 CUMPLE and EV-04 CUMPLE', evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-10T00:05:00Z')).evidencia('EV-01')?.status === 'CUMPLE' && sinOpsA('2026-10-10T00:05:00Z').evidencia('EV-04')?.status === 'CUMPLE');
+  const withoutOpsA = (now: string) => evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' ? undefined : l)), BASE, 'MEDIO', new Date(now));
+  check('no operations and expired ingestion → EV-04 NO_EVALUABLE, never CUMPLE', withoutOpsA('2026-10-10T02:10:00Z').evidencia('EV-04')?.status === 'NO_EVALUABLE', stateOf(withoutOpsA('2026-10-10T02:10:00Z'), 'EV-04'));
+  check('REVERSAL: at 12 h from the last pass → EV-01 CUMPLE and EV-04 CUMPLE', evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-10T00:05:00Z')).evidencia('EV-01')?.status === 'CUMPLE' && withoutOpsA('2026-10-10T00:05:00Z').evidencia('EV-04')?.status === 'CUMPLE');
 
   const old = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
   check('two days without passes: the state does not describe today → EV-01 by COLLECTION', old.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no está informando/.test(old.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''), old.deEvidencia('op.nub.1.2', 'EV-01')?.reason);
 
   const gap = (ev: string, cause: string, motive: string) =>
     ({ ts: `${COMPLETE}:30Z`, event: 'evidence_state', evidence_id: ev, requisito: 'op.nub.1.2', plano: 'central', estado: 'NO_EVALUABLE', causa: cause, motivo: motive });
-  const sinConf = evaluate(hoy().concat(events([gap('EV-01', 'COLLECTION', 'no se puede leer /var/ossec/etc/ossec.conf')])));
-  check('ossec.conf unreadable after the pass → EV-01 NO_EVALUABLE with the collector\'s motive', sinConf.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /ossec\.conf/.test(sinConf.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''));
+  const withoutConf = evaluate(hoy().concat(events([gap('EV-01', 'COLLECTION', 'no se puede leer /var/ossec/etc/ossec.conf')])));
+  check('ossec.conf unreadable after the pass → EV-01 NO_EVALUABLE with the collector\'s motive', withoutConf.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /ossec\.conf/.test(withoutConf.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''));
   const stoppedAndGap = evaluate(events(PASSES.flatMap(ts => pass(ts)), l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, ultima_alerta: '2026-10-07T08:00:00Z' } : l)).concat(events([gap('EV-01', 'COLLECTION', 'no se puede leer ossec.log')])));
   check(
     'and if the pass had a stopped ingestion, the measurement prevails: NO_CUMPLE, with the degradation apart',
     stoppedAndGap.evidencia('EV-01')?.status === 'NO_CUMPLE' && /Además: El recolector no ha podido medirlo/.test(stoppedAndGap.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''),
     stoppedAndGap.deEvidencia('op.nub.1.2', 'EV-01')?.reason
   );
-  const tope = evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && enLaUltima(l) ? [l, { ...l, actor: 'contratista@externo.example' }] : l)).concat(events([gap('EV-04', 'EVIDENCE', 'más de 60 actores distintos en la pasada: no se emiten todos')])));
+  const tope = evaluate(hoy(l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && inTheLast(l) ? [l, { ...l, actor: 'contratista@externo.example' }] : l)).concat(events([gap('EV-04', 'EVIDENCE', 'más de 60 actores distintos en la pasada: no se emiten todos')])));
   check('too many actors in a pass (EVIDENCE) do not cover an unauthorized actor: NO_CUMPLE', tope.evidencia('EV-04')?.status === 'NO_CUMPLE' && /más de 60 actores/.test(tope.deEvidencia('op.nub.1.2', 'EV-04')?.reason || ''), tope.deEvidencia('op.nub.1.2', 'EV-04')?.reason);
   const cleanCap = evaluate(hoy().concat(events([gap('EV-04', 'EVIDENCE', 'más de 60 actores distintos en la pasada')])));
   check('REVERSAL: without an unauthorized actor, the incomplete view does not allow asserting: NO_EVALUABLE', cleanCap.evidencia('EV-04')?.status === 'NO_EVALUABLE');
 
-  const linea = integration(`${COMPLETE}:10Z`, 'aws-s3', { ultima_alerta: '2026-10-09T12:01:30Z' });
-  const soloAws = { ...BASE, 'P-06': ['AWS producción | aws-s3 | -'] };
-  const own = evaluate(normalizeWazuhAlerts([alert(linea), alert(heartbeat(`${COMPLETE}:40Z`))]), soloAws);
-  const ofAnother = evaluate(normalizeWazuhAlerts([alert(linea, 'op.mon.1'), alert(heartbeat(`${COMPLETE}:40Z`), 'op.mon.1')]), soloAws);
-  check('a fact from another control does not accredit op.nub.1 (REVERSAL: the same, its own, does)', own.evidencia('EV-01')?.status === 'CUMPLE' && ofAnother.evidencia('EV-01')?.status === 'NO_EVALUABLE', `${estadoDe(own, 'EV-01')} / ${estadoDe(ofAnother, 'EV-01')}`);
+  const line = integration(`${COMPLETE}:10Z`, 'aws-s3', { ultima_alerta: '2026-10-09T12:01:30Z' });
+  const awsOnly = { ...BASE, 'P-06': ['AWS producción | aws-s3 | -'] };
+  const own = evaluate(normalizeWazuhAlerts([alert(line), alert(heartbeat(`${COMPLETE}:40Z`))]), awsOnly);
+  const ofAnother = evaluate(normalizeWazuhAlerts([alert(line, 'op.mon.1'), alert(heartbeat(`${COMPLETE}:40Z`), 'op.mon.1')]), awsOnly);
+  check('a fact from another control does not accredit op.nub.1 (REVERSAL: the same, its own, does)', own.evidencia('EV-01')?.status === 'CUMPLE' && ofAnother.evidencia('EV-01')?.status === 'NO_EVALUABLE', `${stateOf(own, 'EV-01')} / ${stateOf(ofAnother, 'EV-01')}`);
 }
 
 section('7 bis. Without operations by people, EV-04 complies only if the module brings an administration log (fuentes_admin)');
@@ -737,11 +737,11 @@ section('7 bis. Without operations by people, EV-04 complies only if the module 
   const ENTRA_P02 = 'Entra ID | SaaS | Microsoft | identidades | alta | utilizado';
   const AWS_P06 = 'AWS producción | aws-s3 | CloudTrail de la cuenta 123456789012';
   const ENTRA_P06 = 'Entra ID | ms-graph | auditoría e inicios de sesión del inquilino';
-  const AWS_Y_ENTRA: Valores = { ...BASE, 'P-02': [AWS_P02, ENTRA_P02], 'P-06': [AWS_P06, ENTRA_P06] };
-  const SOLO_AWS: Valores = { ...BASE, 'P-02': [AWS_P02], 'P-06': [AWS_P06] };
-  const ONLY_ENTRA: Valores = { ...BASE, 'P-02': [ENTRA_P02], 'P-06': [ENTRA_P06] };
+  const AWS_Y_ENTRA: Values = { ...BASE, 'P-02': [AWS_P02, ENTRA_P02], 'P-06': [AWS_P06, ENTRA_P06] };
+  const AWS_ONLY: Values = { ...BASE, 'P-02': [AWS_P02], 'P-06': [AWS_P06] };
+  const ONLY_ENTRA: Values = { ...BASE, 'P-02': [ENTRA_P02], 'P-06': [ENTRA_P06] };
 
-  const sinPersonas = (changes: (l: Linea) => Linea | undefined = l => l) =>
+  const withoutPeople = (changes: (l: Line) => Line | undefined = l => l) =>
     hoy(l => {
       if (l.event === 'cloud_admin_operation_observed' && l.tipo_actor !== 'servicio') {
         return undefined;
@@ -755,39 +755,39 @@ section('7 bis. Without operations by people, EV-04 complies only if the module 
     });
   const ev04 = (r: ReturnType<typeof evaluate>) => r.deEvidencia('op.nub.1.2', 'EV-04')?.reason || '';
 
-  const onlyEntra = evaluate(sinPersonas(), ONLY_ENTRA);
+  const onlyEntra = evaluate(withoutPeople(), ONLY_ENTRA);
   check(
     'only Entra ID (ms-graph, fuentes_admin = -), alive and without operations → EV-04 NO_EVALUABLE by EVIDENCE, never CUMPLE',
     onlyEntra.evidencia('EV-01')?.status === 'CUMPLE' &&
-      estadoDe(onlyEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' &&
+      stateOf(onlyEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' &&
       /«Entra ID» \(ms-graph\): ninguna operación de administración de una persona/.test(ev04(onlyEntra)) &&
       /ms-graph no trae ningún registro de administración que ENSFácil lea/.test(ev04(onlyEntra)),
-    `${estadoDe(onlyEntra, 'EV-01')} / ${estadoDe(onlyEntra, 'EV-04')} ${ev04(onlyEntra)}`
+    `${stateOf(onlyEntra, 'EV-01')} / ${stateOf(onlyEntra, 'EV-04')} ${ev04(onlyEntra)}`
   );
 
-  const soloAws = evaluate(sinPersonas(), SOLO_AWS);
+  const awsOnly = evaluate(withoutPeople(), AWS_ONLY);
   check(
     'REVERSAL: AWS with CloudTrail read in 30 days and no operations by people → EV-04 CUMPLE',
-    soloAws.evidencia('EV-04')?.status === 'CUMPLE' && /lee su registro de administración \(CloudTrail, con eventos en los últimos 30 días\)/.test(ev04(soloAws)),
-    `${estadoDe(soloAws, 'EV-04')} ${ev04(soloAws)}`
+    awsOnly.evidencia('EV-04')?.status === 'CUMPLE' && /lee su registro de administración \(CloudTrail, con eventos en los últimos 30 días\)/.test(ev04(awsOnly)),
+    `${stateOf(awsOnly, 'EV-04')} ${ev04(awsOnly)}`
   );
 
-  const awsAndEntra = evaluate(sinPersonas(), AWS_Y_ENTRA);
+  const awsAndEntra = evaluate(withoutPeople(), AWS_Y_ENTRA);
   check(
     'AWS with CloudTrail and Entra ID without an administration log → EV-04 NO_EVALUABLE (Entra cannot be asserted)',
-    estadoDe(awsAndEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Entra ID/.test(ev04(awsAndEntra)),
-    `${estadoDe(awsAndEntra, 'EV-04')} ${ev04(awsAndEntra)}`
+    stateOf(awsAndEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Entra ID/.test(ev04(awsAndEntra)),
+    `${stateOf(awsAndEntra, 'EV-04')} ${ev04(awsAndEntra)}`
   );
 
-  const awsSinCloudTrail = evaluate(sinPersonas(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, fuentes_admin: '-' } : l)), SOLO_AWS);
+  const awsWithoutCloudTrail = evaluate(withoutPeople(l => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, fuentes_admin: '-' } : l)), AWS_ONLY);
   check(
     'aws-s3 alive without CloudTrail (fuentes_admin = -) → NO_EVALUABLE by EVIDENCE, saying what to enable',
-    estadoDe(awsSinCloudTrail, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Para medirlo, activa CloudTrail/.test(ev04(awsSinCloudTrail)),
-    `${estadoDe(awsSinCloudTrail, 'EV-04')} ${ev04(awsSinCloudTrail)}`
+    stateOf(awsWithoutCloudTrail, 'EV-04') === 'NO_EVALUABLE EVIDENCE' && /Para medirlo, activa CloudTrail/.test(ev04(awsWithoutCloudTrail)),
+    `${stateOf(awsWithoutCloudTrail, 'EV-04')} ${ev04(awsWithoutCloudTrail)}`
   );
 
-  const sinCampo = evaluate(
-    sinPersonas(l => {
+  const withoutField = evaluate(
+    withoutPeople(l => {
       if (l.event !== 'cloud_integration_observed' || l.modulo !== 'aws-s3') {
         return l;
       }
@@ -796,31 +796,31 @@ section('7 bis. Without operations by people, EV-04 complies only if the module 
 
       return rest;
     }),
-    SOLO_AWS
+    AWS_ONLY
   );
   check(
     'a fact without fuentes_admin (earlier collector) → NO_EVALUABLE by COLLECTION',
-    estadoDe(sinCampo, 'EV-04') === 'NO_EVALUABLE COLLECTION' && /falta fuentes_admin/.test(ev04(sinCampo)),
-    `${estadoDe(sinCampo, 'EV-04')} ${ev04(sinCampo)}`
+    stateOf(withoutField, 'EV-04') === 'NO_EVALUABLE COLLECTION' && /falta fuentes_admin/.test(ev04(withoutField)),
+    `${stateOf(withoutField, 'EV-04')} ${ev04(withoutField)}`
   );
 
-  const conPersona = evaluate(
+  const withPerson = evaluate(
     hoy(l =>
       l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, fuentes_admin: '-' } : l
     ),
-    SOLO_AWS
+    AWS_ONLY
   );
   check(
     'REVERSAL: with operations by people, fuentes_admin does not count: they are judged against P-11 → CUMPLE',
-    conPersona.evidencia('EV-04')?.status === 'CUMPLE' && /role\/Admin/.test(ev04(conPersona)),
-    `${estadoDe(conPersona, 'EV-04')} ${ev04(conPersona)}`
+    withPerson.evidencia('EV-04')?.status === 'CUMPLE' && /role\/Admin/.test(ev04(withPerson)),
+    `${stateOf(withPerson, 'EV-04')} ${ev04(withPerson)}`
   );
 }
 
 section('8. The age of records is measured when observed, not when evaluating');
 
 {
-  const yesterday = (l: Linea) => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, ultima_alerta: '2026-10-08T13:00:00Z' } : l);
+  const yesterday = (l: Line) => (l.event === 'cloud_integration_observed' && l.modulo === 'aws-s3' ? { ...l, ultima_alerta: '2026-10-08T13:00:00Z' } : l);
   const r = evaluate(hoy(yesterday), BASE, 'MEDIO', new Date('2026-10-09T20:00:00Z'));
   check('23 h before the observation with P-13 = 24 → CUMPLE even if at evaluation it is 31 h', r.evidencia('EV-01')?.status === 'CUMPLE', r.deEvidencia('op.nub.1.2', 'EV-01')?.reason);
   check('REVERSAL: with P-13 = 20 → NO_CUMPLE, and the motive gives the hours at observation', evaluate(hoy(yesterday), { ...BASE, 'P-13': '20' }, 'MEDIO', new Date('2026-10-09T20:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE' &&
@@ -832,7 +832,7 @@ section('8. The age of records is measured when observed, not when evaluating');
 
   const secreto = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && l.modulo === 'gcp-pubsub' ? { ...l, secreto_en_linea: 'si' } : l)));
   check('a credential written on the manager is warned about without changing the verdict', secreto.evidencia('EV-01')?.status === 'CUMPLE' && /Aviso: gcp-pubsub en manager lleva la credencial/.test(secreto.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''));
-  const foreignOne = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && enLaUltima(l) && l.modulo === 'gcp-pubsub' ? [l, { ...l, modulo: 'office365', familia: 'office365', donde: 'agente:031' }] : l)));
+  const foreignOne = evaluate(hoy(l => (l.event === 'cloud_integration_observed' && inTheLast(l) && l.modulo === 'gcp-pubsub' ? [l, { ...l, modulo: 'office365', familia: 'office365', donde: 'agente:031' }] : l)));
   check('a module Wazuh ingests and P-06 does not declare is mentioned, without a verdict', foreignOne.evidencia('EV-01')?.status === 'CUMPLE' && /Wazuh ingiere además office365, que P-06 no declara/.test(foreignOne.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''));
 }
 
@@ -847,27 +847,27 @@ section('9. R2 at ALTA: provider posture findings; without them, not automatable
     withoutPosture.motivo('op.nub.1.r2.1')
   );
   const hub = (failed: number) =>
-    hoy(l => (l.event === 'cloud_posture_finding_observed' && enLaUltima(l)
+    hoy(l => (l.event === 'cloud_posture_finding_observed' && inTheLast(l)
       ? { ...l, modulo: 'aws-s3', fuente: 'securityhub', estandar: 'AWS Foundational Security Best Practices v1.0.0', cuenta: '123456789012', controles_evaluados: 212, controles_fallidos: failed, fallidos_criticos: failed ? 1 : 0, fallidos: failed ? 'S3.2,IAM.6,EC2.19' : '-', ultimo_hallazgo: '2026-10-09T11:00:00Z' }
       : l));
   const fail2 = evaluate(hub(3), P07, 'ALTO');
   check('Security Hub with 3 failed controls → R2 measured NO_CUMPLE, naming them', fail2.requisito('op.nub.1.r2.1').status === 'NO_CUMPLE' && fail2.requisito('op.nub.1.r2.1').evidenced === true && /S3\.2/.test(fail2.motivo('op.nub.1.r2.1')), fail2.motivo('op.nub.1.r2.1'));
   check('REVERSAL: the 212 controls pass → R2 CUMPLE (measured, not accredited)', evaluate(hub(0), P07, 'ALTO').requisito('op.nub.1.r2.1').status === 'CUMPLE' && !evaluate(hub(0), P07, 'ALTO').requisito('op.nub.1.r2.1').attested);
-  const unreadable = evaluate(hoy(l => (l.event === 'cloud_posture_finding_observed' && enLaUltima(l)
+  const unreadable = evaluate(hoy(l => (l.event === 'cloud_posture_finding_observed' && inTheLast(l)
     ? { ...l, modulo: 'aws-s3', fuente: 'securityhub', estandar: 'AWS Foundational Security Best Practices v1.0.0', controles_evaluados: '-', controles_fallidos: '-', fallidos: '-' }
     : l)), P07, 'ALTO');
   check(
     'controles_fallidos «-» (unreadable) → NO_EVALUABLE, never read as zero (CUMPLE)',
     unreadable.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /recuento «-»/.test(unreadable.motivo('op.nub.1.r2.1')),
-    `${estadoDe(unreadable, 'EV-02')} ${unreadable.motivo('op.nub.1.r2.1')}`
+    `${stateOf(unreadable, 'EV-02')} ${unreadable.motivo('op.nub.1.r2.1')}`
   );
-  const sinTotal = evaluate(hoy(l => (l.event === 'cloud_posture_finding_observed' && enLaUltima(l)
+  const withoutTotal = evaluate(hoy(l => (l.event === 'cloud_posture_finding_observed' && inTheLast(l)
     ? { ...l, modulo: 'aws-s3', fuente: 'securityhub', estandar: 'AWS Foundational Security Best Practices v1.0.0', controles_evaluados: '-', controles_fallidos: 3, fallidos_criticos: 1, fallidos: 'S3.2,IAM.6,EC2.19' }
     : l)), P07, 'ALTO');
   check(
     '3 failed without a total of evaluated («-») → NO_CUMPLE that says «sin total de evaluados», never «3 de 0»',
-    sinTotal.evidencia('EV-02')?.status === 'NO_CUMPLE' && /3 controles fallidos \(sin total de evaluados\)/.test(sinTotal.motivo('op.nub.1.r2.1')) && !/ de 0 /.test(sinTotal.motivo('op.nub.1.r2.1')),
-    sinTotal.motivo('op.nub.1.r2.1')
+    withoutTotal.evidencia('EV-02')?.status === 'NO_CUMPLE' && /3 controles fallidos \(sin total de evaluados\)/.test(withoutTotal.motivo('op.nub.1.r2.1')) && !/ de 0 /.test(withoutTotal.motivo('op.nub.1.r2.1')),
+    withoutTotal.motivo('op.nub.1.r2.1')
   );
   check('REVERSAL: with the total, «3 de 212 controles fallidos»', /3 de 212 controles fallidos/.test(fail2.motivo('op.nub.1.r2.1')), fail2.motivo('op.nub.1.r2.1'));
   check('with another standard declared in P-07, those findings do not count → NO_EVALUABLE', evaluate(hub(3), { ...BASE, 'P-07': ['AWS producción | CCN-STIC-887 | CIS AWS Foundations'] }, 'ALTO').evidencia('EV-02')?.status === 'NO_EVALUABLE');
@@ -917,11 +917,11 @@ section('10. Provider (op.nub.1.1) and security services (R1.2): documentary, wi
   );
 
   const siem = (row: string) => evaluate(hoy(), { ...BASE, 'P-05': [row] });
-  const sinRef = siem('SIEM gestionado | SIEM | sí');
+  const withoutRef = siem('SIEM gestionado | SIEM | sí');
   check(
     'a security service with «sí» but without the verification reference → not proven (CONFIGURATION), naming the row',
-    sinRef.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && sinRef.requisito('op.nub.1.r1.2').evidenced === false && /P-05, fila de «SIEM gestionado»/.test(sinRef.motivo('op.nub.1.r1.2')),
-    sinRef.motivo('op.nub.1.r1.2')
+    withoutRef.requisito('op.nub.1.r1.2').status === 'NO_CUMPLE' && withoutRef.requisito('op.nub.1.r1.2').evidenced === false && /P-05, fila de «SIEM gestionado»/.test(withoutRef.motivo('op.nub.1.r1.2')),
+    withoutRef.motivo('op.nub.1.r1.2')
   );
   const valid = siem('SIEM gestionado | SIEM | sí | informe de verificación op.pl.5 nº 12 | 2027-05-31');
   check(
@@ -945,8 +945,8 @@ section('10. Provider (op.nub.1.1) and security services (R1.2): documentary, wi
   };
   const r = evaluate(hoy(), ambos);
   check('both: the provided service does not enter the third-party file (op.nub.1.2 stays accredited)', r.requisito('op.nub.1.2').attested === true, r.motivo('op.nub.1.2'));
-  const ambosConModulo = { ...ambos, 'P-06': [...(BASE['P-06'] as string[]), 'Portal de trámites | github | organización del portal'] };
-  const providedIntegrated = evaluate(hoy(), ambosConModulo);
+  const bothWithModule = { ...ambos, 'P-06': [...(BASE['P-06'] as string[]), 'Portal de trámites | github | organización del portal'] };
+  const providedIntegrated = evaluate(hoy(), bothWithModule);
   check(
     'both: a PROVIDED service declared in P-06 without a Wazuh module does not count in op.nub.1.2\'s EV-01',
     providedIntegrated.evidencia('EV-01')?.status === 'CUMPLE' && !/github/.test(providedIntegrated.deEvidencia('op.nub.1.2', 'EV-01')?.reason || ''),
@@ -955,7 +955,7 @@ section('10. Provider (op.nub.1.1) and security services (R1.2): documentary, wi
   check(
     'REVERSAL: the same service declared as used → EV-01 NO_CUMPLE (it has no github module)',
     evaluate(hoy(), {
-      ...ambosConModulo,
+      ...bothWithModule,
       'P-02': [...(BASE['P-02'] as string[]), 'Portal de trámites | SaaS | Quersystem | expedientes | alta | utilizado'],
       'P-03': [...(BASE['P-03'] as string[]), 'Portal de trámites | ENS MEDIA | x | 2027-09-30 | nº'],
     }).evidencia('EV-01')?.status === 'NO_CUMPLE'
@@ -979,8 +979,8 @@ section('11. Volume: a simulated customer day fits the budget; lines, logcollect
   const long = access(`${COMPLETE}:16Z`, 'aws-s3', `arn:aws:iam::123456789012:user/${'x'.repeat(64)}`, {
     origenes: Array.from({ length: 10 }, (_, i) => `2001:db8:1234:5678:9abc:def0:1234:${String(i).padStart(4, '0')}`).join(','),
   });
-  const postu = posture(`${COMPLETE}:12Z`, { fallidos: Array.from({ length: 20 }, (_, i) => `CloudFront.${i + 100}`).join(','), estandar: 'x'.repeat(120) });
-  const bytes = [long, postu].map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.nub.1', host: 'Wazuh-4', ...l })).length);
+  const postureShort = posture(`${COMPLETE}:12Z`, { fallidos: Array.from({ length: 20 }, (_, i) => `CloudFront.${i + 100}`).join(','), estandar: 'x'.repeat(120) });
+  const bytes = [long, postureShort].map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.nub.1', host: 'Wazuh-4', ...l })).length);
   check('lines with lists at the cap do not exceed 8 KiB', Math.max(...bytes) <= 8192, Math.max(...bytes));
 }
 
@@ -988,19 +988,19 @@ section('12. Collector stopped: documentary survives (mark `documental`); techni
 
 {
   const PARADO = { since: '2026-10-07T12:05:40Z', reference: 'collector_run' as const, reason: 'Sin datos del recolector desde el 2026-10-07 12:05 UTC.' };
-  const parado = (valores: Valores, changes?: (l: Linea) => Linea | Linea[] | undefined) => {
-    const r = evaluate(hoy(changes), valores);
-    const decisiones = markPolicyRuntimeStale(
+  const parado = (values: Values, changes?: (l: Line) => Line | Line[] | undefined) => {
+    const r = evaluate(hoy(changes), values);
+    const decisions = markPolicyRuntimeStale(
       { controlId: 'op.nub.1', policyId: opNub1PolicyDefinition.id, evaluatedAt: NOW.toISOString(), decisions: r.decisions, appliedParameters: [], runtimeVariables: [] },
       PARADO
     )!.decisions;
-    const cfg = configuration(valores);
+    const cfg = configuration(values);
     const evidences = markEvidencesStale(resolveEvidenceForControl('op.nub.1', [], '000', 'MEDIO', cfg, NOW), PARADO);
-    const tabla = applyPolicyDecisionsToEvidences(evidences, decisiones, opNub1CatalogDefinition.requirements);
+    const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opNub1CatalogDefinition.requirements);
     const requirement = (id: string) =>
-      evaluateRequirement(opNub1CatalogDefinition.requirements.find(q => q.id === id)!, 'MEDIO', tabla, false, decisiones, 'ACTIVE');
+      evaluateRequirement(opNub1CatalogDefinition.requirements.find(q => q.id === id)!, 'MEDIO', tabla, false, decisions, 'ACTIVE');
 
-    return { decisiones, tabla, requisito: requirement };
+    return { decisiones: decisions, tabla, requisito: requirement };
   };
 
   const withoutCertificate = parado({ ...BASE, 'P-04': (BASE['P-04'] as string[]).filter(f => !f.startsWith('Hetzner')) });
@@ -1014,7 +1014,7 @@ section('12. Collector stopped: documentary survives (mark `documental`); techni
     withoutCertificate.requisito('op.nub.1.2').attested === true && withoutCertificate.tabla.find(e => e.id === 'EV-01')?.gapCause === 'COLLECTION' && withoutCertificate.tabla.find(e => e.id === 'EV-09')?.status === 'CUMPLE',
     `${withoutCertificate.requisito('op.nub.1.2').status} ${withoutCertificate.tabla.find(e => e.id === 'EV-01')?.status}`
   );
-  const intruder2 = parado(BASE, l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && enLaUltima(l) ? [l, { ...l, actor: 'contratista@externo.example' }] : l));
+  const intruder2 = parado(BASE, l => (l.event === 'cloud_admin_operation_observed' && l.modulo === 'azure-logs' && inTheLast(l) ? [l, { ...l, actor: 'contratista@externo.example' }] : l));
   check(
     'a technical NO_CUMPLE (unauthorized actor) does NOT survive: with old data, not proven',
     intruder2.decisiones.find(d => d.requirementId === 'op.nub.1.2')?.documental !== true && intruder2.requisito('op.nub.1.2').status === 'NO_CUMPLE' && intruder2.requisito('op.nub.1.2').evidenced === false,

@@ -172,7 +172,7 @@ section('4. Before the first event there is NO point');
     cortes[0].label
   );
 
-  const largos = buildENSTimelineCuts(
+  const long2 = buildENSTimelineCuts(
     [
       event(onDay(1)),
       event(onDay(2)),
@@ -185,8 +185,8 @@ section('4. Before the first event there is NO point');
 
   check(
     'and with evidence from day 1, the series reaches day 1',
-    largos.length === 5 && largos[0].label === '01/08',
-    `${largos.length} puntos, empieza ${largos[0].label}`
+    long2.length === 5 && long2[0].label === '01/08',
+    `${long2.length} puntos, empieza ${long2[0].label}`
   );
 
   const trimmed = buildENSTimelineCuts(
@@ -349,15 +349,15 @@ section('7. The series does not depend on the agent\'s score_snapshot');
     `${cortes.length}`
   );
 
-  const sinSnapshots = buildENSTimelineCuts(
+  const withoutSnapshots = buildENSTimelineCuts(
     [event(onDay(3)), event(onDay(4)), event(onDay(5))],
     { now: NOW, days: 7 }
   );
 
   check(
     'and without any score_snapshot the series exists all the same',
-    sinSnapshots.length === 3,
-    `${sinSnapshots.length}`
+    withoutSnapshots.length === 3,
+    `${withoutSnapshots.length}`
   );
 }
 
@@ -416,12 +416,12 @@ section('9. With high volume, fewer points — but never fewer events');
     `${series[series.length - 1].events.length} de ${many.length}`
   );
 
-  const pocos = [
+  const few = [
     event(new Date(2026, 7, 1, 9).toISOString()),
     event(new Date(2026, 7, 3, 9).toISOString()),
   ];
 
-  const shortSeries = buildENSTimelineCuts(pocos, { now: NOW, days: 30 });
+  const shortSeries = buildENSTimelineCuts(few, { now: NOW, days: 30 });
 
   check(
     'with low volume the step is still DAILY',

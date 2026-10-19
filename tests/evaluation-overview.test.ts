@@ -15,10 +15,10 @@ const check = (n: string, c: boolean, d: unknown = '') => {
 const clock = new Date('2026-10-17T12:00:00Z');
 const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.17',
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 const docs: FakeDoc[] = [];
 for (const [agent, name, list] of [['101', 'srv-web01', ['ssh.service', 'telnet.service']], ['102', 'ldap01', ['ssh.service']]] as [string, string, string[]][]) {
@@ -45,12 +45,12 @@ const index = createFakeIndexer([
   monitor('102', 'ldap01'),
   { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration: configuration, updatedAt: configuration.updatedAt } },
 ], { clock: () => clock.getTime(), user: { user_name: 'ana', roles: ['all_access'] } });
-const clientes = { asCurrentUser: index, asInternalUser: index };
+const clients2 = { asCurrentUser: index, asInternalUser: index };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 
 (async () => {
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
-  const request1 = async (q: any) => buildEvaluationResponse(await service.run(clientes, { timeZone: 'UTC', ...q })) as any;
+  const request1 = async (q: any) => buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q })) as any;
   const request = async (q: any) => {
     let r = await request1(q);
     for (let i = 0; i < 600 && (r.meta?.pending || r.meta?.seriesPending); i++) {
@@ -65,9 +65,9 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   const machines = (summary.agents || []).map((a: any) => a.agentId).sort();
   check('summary brings the machines of the scope (000, 101, 102)', JSON.stringify(machines) === JSON.stringify(['000', '101', '102']), machines);
   check('each with `controls` (state, number, nonconformities)', summary.agents.every((a: any) => Array.isArray(a.controls) && a.controls.every((c: any) => 'status' in c && 'requirementsNotMet' in c)));
-  const de = (id: string) => summary.agents.find((a: any) => a.agentId === id).controls.map((c: any) => c.controlId);
-  check('101: those of plane agent (op.acc.1, op.exp.3...), none manager-only', de('101').includes('op.acc.1') && de('101').includes('op.exp.3') && !de('101').includes('op.exp.7'), de('101'));
-  check('000: only those measured on the manager', de('000').includes('op.exp.7') && !de('000').includes('op.acc.1'), de('000'));
+  const from = (id: string) => summary.agents.find((a: any) => a.agentId === id).controls.map((c: any) => c.controlId);
+  check('101: those of plane agent (op.acc.1, op.exp.3...), none manager-only', from('101').includes('op.acc.1') && from('101').includes('op.exp.3') && !from('101').includes('op.exp.7'), from('101'));
+  check('000: only those measured on the manager', from('000').includes('op.exp.7') && !from('000').includes('op.acc.1'), from('000'));
   for (const agent of ['101', '102', '000']) {
     const vista = await request({ include: 'summary', agentId: agent });
     const ownItems = summary.agents.find((a: any) => a.agentId === agent).controls;
@@ -77,7 +77,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     });
     check(`${agent}: its row's data is what that machine's view gives`, equal);
   }
-  const run = await service.run(clientes, { include: 'summary', timeZone: 'UTC' });
+  const run = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });
   check('it is `controlSummaryOf` of the row\'s result', JSON.stringify(summary.agents.map((a: any) => a.controls)) ===
     JSON.stringify(run.state!.agents.map(a => a.results.map(r => controlSummaryOf(r.control.id, r)))));
 
@@ -136,7 +136,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   let rejects = false;
   try { normalizeQuery({ include: 'nada' }); } catch (e) { rejects = (e as any).statusCode === 400; }
   check('an unknown view, 400', rejects);
-  const run2 = await service.run(clientes, { include: 'overview', timeZone: 'UTC' });
+  const run2 = await service.run(clients2, { include: 'overview', timeZone: 'UTC' });
   check('the overview, with everything in memory, computes no row', run2.meta.stats.computed === 0, run2.meta.stats);
 
   console.log('5. The Overview answers in parts, like the list and the panel');

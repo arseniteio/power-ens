@@ -31,8 +31,8 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-26T19:00:00Z');
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
 let counter = 0;
 
@@ -56,21 +56,21 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
 const events = (...alerts: ReturnType<typeof alert>[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(alerts);
 
-const configuration = (valores: Record<string, string[] | string>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, string[] | string>): ENSControlConfiguration => ({
   ...opExp6Configuration,
   parameters: opExp6Configuration.parameters.map(p => ({
     ...p,
-    value: valores[p.id] as never,
+    value: values[p.id] as never,
   })),
 });
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[] | string>,
+  values: Record<string, string[] | string>,
   level: ENSLevel = 'ALTO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
+  const cfg = configuration(values);
   const evidences = resolveEvidenceForControl('op.exp.6', evs, '024', level, cfg, now);
   const context = buildPolicyContext(opExp6CatalogDefinition, cfg, level, evs, evidences, now);
   const { decisions } = opExp6PolicyDefinition.evaluator!(context);
@@ -122,8 +122,8 @@ section('1. Applicability: cumulative reinforcements, R5 outside the denominator
   check('R5 applies at no level', levelsOf('op.exp.6.r5.1') === '' && levelsOf('op.exp.6.r5.2') === '');
   check('the control is ACTIVE', opExp6CatalogDefinition.status === 'ACTIVE', opExp6CatalogDefinition.status);
 
-  const tablas = opExp6Configuration.parameters.filter(p => ['P-02', 'P-04', 'P-09'].includes(p.id));
-  check('P-02, P-04 and P-09 are tables with columns', tablas.length === 3 && tablas.every(p => p.type === 'table' && (p.columns || []).length >= 3));
+  const tables = opExp6Configuration.parameters.filter(p => ['P-02', 'P-04', 'P-09'].includes(p.id));
+  check('P-02, P-04 and P-09 are tables with columns', tables.length === 3 && tables.every(p => p.type === 'table' && (p.columns || []).length >= 3));
   check('no parameter carries `value` in the definition', opExp6Configuration.parameters.every(p => !('value' in p)));
   check('P-ATT is optional', opExp6Configuration.parameters.find(p => p.id === 'P-ATT')!.required === false);
 }
@@ -131,12 +131,12 @@ section('1. Applicability: cumulative reinforcements, R5 outside the denominator
 section('2. EV-01 · the running antimalware against P-02');
 
 {
-  const sin = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02 });
-  check('without antimalware and P-02 expects clamav → measured NO_CUMPLE', sin.evidencia('EV-01').status === 'NO_CUMPLE', sin.evidencia('EV-01').observations.join(' '));
-  check('op.exp.6.2 comes out measured NO_CUMPLE', sin.requisito('op.exp.6.2').status === 'NO_CUMPLE' && sin.requisito('op.exp.6.2').evidenced === true, `${sin.requisito('op.exp.6.2').status}`);
+  const withoutIt = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02 });
+  check('without antimalware and P-02 expects clamav → measured NO_CUMPLE', withoutIt.evidencia('EV-01').status === 'NO_CUMPLE', withoutIt.evidencia('EV-01').observations.join(' '));
+  check('op.exp.6.2 comes out measured NO_CUMPLE', withoutIt.requisito('op.exp.6.2').status === 'NO_CUMPLE' && withoutIt.requisito('op.exp.6.2').evidenced === true, `${withoutIt.requisito('op.exp.6.2').status}`);
 
-  const con = evaluate(events(...WITH_CLAMAV()), { 'P-02': P02 });
-  check('REVERSAL: clamav running → CUMPLE', con.evidencia('EV-01').status === 'CUMPLE', con.evidencia('EV-01').observations.join(' '));
+  const withIt = evaluate(events(...WITH_CLAMAV()), { 'P-02': P02 });
+  check('REVERSAL: clamav running → CUMPLE', withIt.evidencia('EV-01').status === 'CUMPLE', withIt.evidencia('EV-01').observations.join(' '));
 
   const parado = evaluate(events(alert({ event: 'antimalware_status', evidence_id: 'EV-01', plano: 'sistema', equipo: 'wazuh-real', producto: 'clamav', instalado: 'si', servicio_activo: 'no', producto_activo: 'ninguno' })), { 'P-02': P02 });
   check('clamav installed and STOPPED → NO_CUMPLE (it does not protect)', parado.evidencia('EV-01').status === 'NO_CUMPLE');
@@ -153,9 +153,9 @@ section('2. EV-01 · the running antimalware against P-02');
 section('3. EV-02 · each plane\'s signatures against P-03');
 
 {
-  const sin = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02, 'P-03': '48' });
-  check('without antimalware → measured NO_CUMPLE, not NO_EVALUABLE', sin.deEvidencia('EV-02')?.status === 'NO_CUMPLE', sin.deEvidencia('EV-02')?.reason);
-  check('and the evidence table paints it so', sin.color('EV-02') === 'NO_CUMPLE', sin.color('EV-02'));
+  const withoutIt = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02, 'P-03': '48' });
+  check('without antimalware → measured NO_CUMPLE, not NO_EVALUABLE', withoutIt.deEvidencia('EV-02')?.status === 'NO_CUMPLE', withoutIt.deEvidencia('EV-02')?.reason);
+  check('and the evidence table paints it so', withoutIt.color('EV-02') === 'NO_CUMPLE', withoutIt.color('EV-02'));
 
   const up_to_date = evaluate(events(...WITH_CLAMAV(10)), { 'P-02': P02, 'P-03': '48' });
   check('signatures from 10 h ago with P-03=48 → CUMPLE', up_to_date.deEvidencia('EV-02')?.status === 'CUMPLE', up_to_date.deEvidencia('EV-02')?.reason);
@@ -166,28 +166,28 @@ section('3. EV-02 · each plane\'s signatures against P-03');
   const withoutP03 = evaluate(events(...WITH_CLAMAV(10)), { 'P-02': P02 });
   check('sin P-03 → NO_EVALUABLE', withoutP03.deEvidencia('EV-02')?.status === 'NO_EVALUABLE');
 
-  const dos = evaluate(events(
+  const two = evaluate(events(
     ...WITH_CLAMAV(10),
     alert({ event: 'antimalware_status', evidence_id: 'EV-01', plano: 'correo', equipo: 'wazuh-real', producto: 'clamav-zimbra', instalado: 'si', servicio_activo: 'si', producto_activo: 'clamav-zimbra' }),
     alert({ event: 'antimalware_signatures_updated', evidence_id: 'EV-02', plano: 'correo', producto: 'clamav-zimbra', fecha: ago(24 * 20) }),
   ), { 'P-02': P02, 'P-03': '48' });
-  check('an up-to-date plane does NOT cover the other, expired one → NO_CUMPLE', dos.deEvidencia('EV-02')?.status === 'NO_CUMPLE', dos.deEvidencia('EV-02')?.reason);
+  check('an up-to-date plane does NOT cover the other, expired one → NO_CUMPLE', two.deEvidencia('EV-02')?.status === 'NO_CUMPLE', two.deEvidencia('EV-02')?.reason);
 }
 
 section('4. EV-03 · settings against P-04');
 
 {
-  const sin = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-04': P04 });
-  check('without real-time protection and P-04 requires it → NO_CUMPLE', sin.evidencia('EV-03').status === 'NO_CUMPLE', sin.evidencia('EV-03').observations.join(' '));
-  const con = evaluate(events(...WITH_CLAMAV()), { 'P-04': P04 });
-  check('REVERSAL: clamonacc and freshclam running → CUMPLE', con.evidencia('EV-03').status === 'CUMPLE', con.evidencia('EV-03').observations.join(' '));
+  const withoutIt = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-04': P04 });
+  check('without real-time protection and P-04 requires it → NO_CUMPLE', withoutIt.evidencia('EV-03').status === 'NO_CUMPLE', withoutIt.evidencia('EV-03').observations.join(' '));
+  const withIt = evaluate(events(...WITH_CLAMAV()), { 'P-04': P04 });
+  check('REVERSAL: clamonacc and freshclam running → CUMPLE', withIt.evidencia('EV-03').status === 'CUMPLE', withIt.evidencia('EV-03').observations.join(' '));
 }
 
 section('5. EV-04 · detections and their resolution');
 
 {
-  const sin = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02 });
-  check('without antimalware → NO_CUMPLE (no reaction mechanism)', sin.deEvidencia('EV-04')?.status === 'NO_CUMPLE', sin.deEvidencia('EV-04')?.reason);
+  const withoutIt = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-02': P02 });
+  check('without antimalware → NO_CUMPLE (no reaction mechanism)', withoutIt.deEvidencia('EV-04')?.status === 'NO_CUMPLE', withoutIt.deEvidencia('EV-04')?.reason);
 
   const clean = evaluate(events(...WITH_CLAMAV()), { 'P-02': P02 });
   check('clamav, logs read and no detection → CUMPLE', clean.deEvidencia('EV-04')?.status === 'CUMPLE', clean.deEvidencia('EV-04')?.reason);
@@ -214,29 +214,29 @@ section('5. EV-04 · detections and their resolution');
     det({ accion: 'cuarentena', fecha: ago(9), origen_dato: '/var/log/clamav/clamonacc.log' }),
     det({ accion: 'cuarentena', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' }),
   ];
-  const juntas = evaluate(events(...WITH_CLAMAV(), ...eicar), { 'P-02': P02 });
-  check('the same detection noted 4 times (two equal, clamonacc without time and with the read time) → one, not persistent', juntas.deEvidencia('EV-04')?.status === 'CUMPLE' && /4 anotaciones/.test(juntas.deEvidencia('EV-04')?.reason || ''), juntas.deEvidencia('EV-04')?.reason);
+  const together = evaluate(events(...WITH_CLAMAV(), ...eicar), { 'P-02': P02 });
+  check('the same detection noted 4 times (two equal, clamonacc without time and with the read time) → one, not persistent', together.deEvidencia('EV-04')?.status === 'CUMPLE' && /4 anotaciones/.test(together.deEvidencia('EV-04')?.reason || ''), together.deEvidencia('EV-04')?.reason);
 
   const togetherWithoutAction = evaluate(events(...WITH_CLAMAV(), ...eicar.slice(0, 2), det({ accion: 'sin_accion', fecha: ago(9), origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
   const r = togetherWithoutAction.deEvidencia('EV-04')?.reason || '';
   check('REVERSAL: the same detection unremediated → NO_CUMPLE for unremediated, not for persistent', togetherWithoutAction.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /sin remediar/.test(r) && !/persistente/.test(r), r);
 
-  const soloSinHora = evaluate(events(...WITH_CLAMAV(),
+  const withoutTimeOnly = evaluate(events(...WITH_CLAMAV(),
     det({ fichero: '/home/x.bin', accion: 'sin_accion', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
-  check('a detection without time and without clamd → still an unremediated detection', soloSinHora.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /sin hora/.test(soloSinHora.deEvidencia('EV-04')?.reason || ''), soloSinHora.deEvidencia('EV-04')?.reason);
+  check('a detection without time and without clamd → still an unremediated detection', withoutTimeOnly.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /sin hora/.test(withoutTimeOnly.deEvidencia('EV-04')?.reason || ''), withoutTimeOnly.deEvidencia('EV-04')?.reason);
 
-  const dosInstantes = evaluate(events(...WITH_CLAMAV(),
+  const twoInstants = evaluate(events(...WITH_CLAMAV(),
     det({ accion: 'cuarentena', fecha: ago(30), instante: 'log', origen_dato: '/var/log/clamav/clamav.log' }),
     det({ accion: 'cuarentena', fecha: ago(3), instante: 'log', origen_dato: '/var/log/clamav/clamav.log' }),
     det({ accion: 'cuarentena', instante: 'sin_hora', origen_dato: '/var/log/clamav/clamonacc.log' })), { 'P-02': P02 });
-  check('REVERSAL: two different timed instants are still persistent (2 times, the untimed one does not add)', dosInstantes.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /\(2 veces\)/.test(dosInstantes.deEvidencia('EV-04')?.reason || ''), dosInstantes.deEvidencia('EV-04')?.reason);
+  check('REVERSAL: two different timed instants are still persistent (2 times, the untimed one does not add)', twoInstants.deEvidencia('EV-04')?.status === 'NO_CUMPLE' && /\(2 veces\)/.test(twoInstants.deEvidencia('EV-04')?.reason || ''), twoInstants.deEvidencia('EV-04')?.reason);
 }
 
 section('6. EV-05 · the full scan against P-06');
 
 {
-  const sin = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-06': '7' });
-  check('without antimalware → NO_CUMPLE', sin.deEvidencia('EV-05')?.status === 'NO_CUMPLE', sin.deEvidencia('EV-05')?.reason);
+  const withoutIt = evaluate(events(...WITHOUT_ANTIMALWARE()), { 'P-06': '7' });
+  check('without antimalware → NO_CUMPLE', withoutIt.deEvidencia('EV-05')?.status === 'NO_CUMPLE', withoutIt.deEvidencia('EV-05')?.reason);
 
   const scan = alert({ event: 'full_scan_completed', evidence_id: 'EV-05', fecha: ago(72), ficheros_escaneados: '184233', infectados: '0' });
   const weekly = evaluate(events(...WITH_CLAMAV(), scan), { 'P-06': '7' });
@@ -257,11 +257,11 @@ section('7. EV-06 · boot analysis against P-07');
 {
   const boot = alert({ event: 'boot_integrity_check', evidence_id: 'EV-06', equipo: 'wazuh-real', arranque_agente: '2026-09-17T10:30:43Z', arranque_sistema: '2026-07-28T22:53:21Z', fim_inicio: '2026-09-17T10:30:43Z', fim_fin: '2026-09-17T10:30:44Z', rutas: '/bin,/boot,/etc,/sbin,/usr/bin,/usr/sbin', rootcheck_avisos: 'sin_rootkit_files,sin_rootkit_trojans' });
 
-  const conModulos = evaluate(events(boot), { 'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin', '* | /lib/modules'] });
-  check('P-07 includes /lib/modules and the agent does not watch it → NO_CUMPLE', conModulos.deEvidencia('EV-06')?.status === 'NO_CUMPLE' && /lib\/modules/.test(conModulos.deEvidencia('EV-06')?.reason || ''), conModulos.deEvidencia('EV-06')?.reason);
+  const withModules = evaluate(events(boot), { 'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin', '* | /lib/modules'] });
+  check('P-07 includes /lib/modules and the agent does not watch it → NO_CUMPLE', withModules.deEvidencia('EV-06')?.status === 'NO_CUMPLE' && /lib\/modules/.test(withModules.deEvidencia('EV-06')?.reason || ''), withModules.deEvidencia('EV-06')?.reason);
 
-  const sinModulos = evaluate(events(boot), { 'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin/sshd', '* | /etc/ssh'] });
-  check('REVERSAL: paths covered (also by parent directory) → CUMPLE', sinModulos.deEvidencia('EV-06')?.status === 'CUMPLE', sinModulos.deEvidencia('EV-06')?.reason);
+  const withoutModules = evaluate(events(boot), { 'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin/sshd', '* | /etc/ssh'] });
+  check('REVERSAL: paths covered (also by parent directory) → CUMPLE', withoutModules.deEvidencia('EV-06')?.status === 'CUMPLE', withoutModules.deEvidencia('EV-06')?.reason);
 
   const ofAnother = evaluate(events(boot), { 'P-07': ['* | /boot', 'ldapserver | /opt/zimbra/data/ldap/config'] });
   check('a path declared for ANOTHER machine is not required here → CUMPLE', ofAnother.deEvidencia('EV-06')?.status === 'CUMPLE', ofAnother.deEvidencia('EV-06')?.reason);
@@ -319,10 +319,10 @@ section('9. EV-08 to EV-11 · the observed EDR layer and P-09');
 section('9b. EV-11 · malicious-code containment, executable on the machine');
 
 {
-  const real = alert({ event: 'edr_capability_observed', evidence_id: 'EV-11', requisito: 'op.exp.6.r4.1', equipo: 'wazuh-real', capacidad: 'active_response', desplegada: 'si', detalle: 'comandos de contencion configurados y presentes: firewall-drop; configurados sin script aqui: quersystem-malware-quarantine.sh,quersystem-yara.sh' });
+  const actual = alert({ event: 'edr_capability_observed', evidence_id: 'EV-11', requisito: 'op.exp.6.r4.1', equipo: 'wazuh-real', capacidad: 'active_response', desplegada: 'si', detalle: 'comandos de contencion configurados y presentes: firewall-drop; configurados sin script aqui: quersystem-malware-quarantine.sh,quersystem-yara.sh' });
   const P09 = ['active_response | si | firewall-drop'];
 
-  const hoy = evaluate(events(real), { 'P-09': P09 });
+  const hoy = evaluate(events(actual), { 'P-09': P09 });
   check(
     'wazuh-real: the configured quarantine does not exist on the machine → EV-11 measured NO_CUMPLE, naming it',
     hoy.deEvidencia('EV-11')?.status === 'NO_CUMPLE' && /quersystem-malware-quarantine\.sh/.test(hoy.deEvidencia('EV-11')?.reason || ''),
@@ -333,8 +333,8 @@ section('9b. EV-11 · malicious-code containment, executable on the machine');
   const structured = evaluate(events(alert({ event: 'edr_capability_observed', evidence_id: 'EV-11', capacidad: 'active_response', desplegada: 'si', detalle: 'x', comandos_presentes: 'firewall-drop', comandos_sin_script: 'quersystem-malware-quarantine.sh,quersystem-yara.sh' })), { 'P-09': P09 });
   check('with the extended collector\'s fields → the same NO_CUMPLE', structured.deEvidencia('EV-11')?.status === 'NO_CUMPLE' && /quersystem-yara\.sh/.test(structured.deEvidencia('EV-11')?.reason || ''), structured.deEvidencia('EV-11')?.reason);
 
-  const conScripts = evaluate(events(alert({ event: 'edr_capability_observed', evidence_id: 'EV-11', capacidad: 'active_response', desplegada: 'si', detalle: 'x', comandos_presentes: 'firewall-drop,quersystem-malware-quarantine.sh,quersystem-yara.sh', comandos_sin_script: '-' })), { 'P-09': P09 });
-  check('REVERSAL: with the quarantine scripts present → CUMPLE', conScripts.deEvidencia('EV-11')?.status === 'CUMPLE', conScripts.deEvidencia('EV-11')?.reason);
+  const withScripts = evaluate(events(alert({ event: 'edr_capability_observed', evidence_id: 'EV-11', capacidad: 'active_response', desplegada: 'si', detalle: 'x', comandos_presentes: 'firewall-drop,quersystem-malware-quarantine.sh,quersystem-yara.sh', comandos_sin_script: '-' })), { 'P-09': P09 });
+  check('REVERSAL: with the quarantine scripts present → CUMPLE', withScripts.deEvidencia('EV-11')?.status === 'CUMPLE', withScripts.deEvidencia('EV-11')?.reason);
 }
 
 section('10. EV-12 · entry vectors and removable devices');

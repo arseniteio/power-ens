@@ -62,10 +62,10 @@ const RULE_ID: Record<string, string> = {
   collector_run: '110390',
 };
 
-const alerts = (lineas: string[]): ENSNormalizedEvent[] =>
+const alerts = (lines: string[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas.map((linea, i) => {
-      const data = JSON.parse(linea);
+    lines.map((line, i) => {
+      const data = JSON.parse(line);
 
       return {
         _id: `op-exp-2-${i}`,
@@ -81,7 +81,7 @@ const alerts = (lineas: string[]): ENSNormalizedEvent[] =>
   );
 
 const withoutEvent = (event: string): string[] =>
-  REALES.filter(linea => JSON.parse(linea).event !== event);
+  REALES.filter(line => JSON.parse(line).event !== event);
 
 const withEvent = (extra: Record<string, unknown>): string[] => [
   ...REALES,
@@ -93,9 +93,9 @@ const withEvent = (extra: Record<string, unknown>): string[] => [
   }),
 ];
 
-type Valor = string[] | number | undefined;
+type Value = string[] | number | undefined;
 
-const VALORES: Record<string, Valor> = {
+const VALUES: Record<string, Value> = {
   'P-01': ['wazuh-real | cis_ubuntu24-04'],
   'P-02': ['wazuh-real | sshd,systemd-resolve,systemd-network | 22121,53,68'],
   'P-03': [
@@ -109,27 +109,27 @@ const VALORES: Record<string, Valor> = {
 };
 
 const configuration = (
-  changesList: Record<string, Valor> = {}
+  changesList: Record<string, Value> = {}
 ): ENSControlConfiguration => {
-  const valores = { ...VALORES, ...changesList };
+  const values = { ...VALUES, ...changesList };
 
   return {
     ...opExp2Configuration,
     parameters: opExp2Configuration.parameters.map(parameter => ({
       ...parameter,
-      value: valores[parameter.id] as string[] | number | undefined,
+      value: values[parameter.id] as string[] | number | undefined,
     })),
   };
 };
 
 const evidences = (
-  lineas: string[] = REALES,
-  changesList: Record<string, Valor> = {}
+  lines: string[] = REALES,
+  changesList: Record<string, Value> = {}
 ): Map<string, ENSEvidenceResolved> =>
   new Map(
     resolveEvidenceForControl(
       'op.exp.2',
-      alerts(lineas),
+      alerts(lines),
       '024',
       'BAJO',
       configuration(changesList),
@@ -256,7 +256,7 @@ section('2. The four requirements, with the whole engine');
     )
   );
 
-  const sinUmbral = evaluateENSControl(
+  const withoutThreshold = evaluateENSControl(
     opExp2CatalogDefinition,
     configuration({ 'P-05': undefined }),
     'BAJO',
@@ -266,7 +266,7 @@ section('2. The four requirements, with the whole engine');
   );
   check(
     'reversal: without a mandatory parameter, op.exp.2.1 stops COMPLYING',
-    sinUmbral.requirements.find(item => item.id === 'op.exp.2.1')?.status ===
+    withoutThreshold.requirements.find(item => item.id === 'op.exp.2.1')?.status ===
       'NO_CUMPLE'
   );
 }
@@ -274,13 +274,13 @@ section('2. The four requirements, with the whole engine');
 section('3. P-03 decides which account is standard, not the agent');
 
 {
-  const conRoot = evidences(REALES, { 'P-03': ['root | Linux'] });
+  const withRoot = evidences(REALES, { 'P-03': ['root | Linux'] });
 
   check(
     'root in P-03 → EV-02 NO_CUMPLE naming root',
-    estado(conRoot, 'EV-02') === 'NO_CUMPLE' &&
-      motive(conRoot, 'EV-02').includes("'root'"),
-    motive(conRoot, 'EV-02')
+    estado(withRoot, 'EV-02') === 'NO_CUMPLE' &&
+      motive(withRoot, 'EV-02').includes("'root'"),
+    motive(withRoot, 'EV-02')
   );
   check(
     'ROOT in upper case counts the same (forbidden list)',
@@ -354,7 +354,7 @@ section('4. P-02: minimum functionality');
 section('5. P-04: exceptions are per machine');
 
 {
-  const todas = [
+  const allOnes = [
     'ssh_permitrootlogin',
     'ssh_x11forwarding',
     'ssh_macs_debiles',
@@ -366,7 +366,7 @@ section('5. P-04: exceptions are per machine');
     'the five authorized for wazuh-real → EV-04 CUMPLE',
     estado(
       evidences(REALES, {
-        'P-04': todas.map(c => `wazuh-real | wazuh-real:${c} | prueba`),
+        'P-04': allOnes.map(c => `wazuh-real | wazuh-real:${c} | prueba`),
       }),
       'EV-04'
     ) === 'CUMPLE'
@@ -375,7 +375,7 @@ section('5. P-04: exceptions are per machine');
     'the same authorized for ANOTHER machine do not excuse this one → NO_CUMPLE',
     estado(
       evidences(REALES, {
-        'P-04': todas.map(c => `otra | otra:${c} | prueba`),
+        'P-04': allOnes.map(c => `otra | otra:${c} | prueba`),
       }),
       'EV-04'
     ) === 'NO_CUMPLE'
@@ -389,7 +389,7 @@ section('5. P-04: exceptions are per machine');
     estado(
       evidences(
         withoutEvent('insecure_default').filter(
-          linea => JSON.parse(linea).event !== 'collector_run'
+          line => JSON.parse(line).event !== 'collector_run'
         )
       ),
       'EV-04'

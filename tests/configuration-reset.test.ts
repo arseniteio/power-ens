@@ -44,10 +44,10 @@ const configured = (): ENSControlConfiguration => ({
       return { ...parameter, value: 90 };
     }
 
-    const sinValor = { ...parameter };
-    delete sinValor.value;
+    const withoutValue = { ...parameter };
+    delete withoutValue.value;
 
-    return sinValor;
+    return withoutValue;
   }),
 });
 

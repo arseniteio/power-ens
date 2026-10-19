@@ -212,7 +212,7 @@ section('5. R2 and R3 of op.acc.3 do not enter the denominator');
     r1.map(r => `${r.id}=${r.applicability.levels.join('|')}`).join(' ')
   );
 
-  const enAlto = evaluate(
+  const atHigh = evaluate(
     control('op.acc.3').requirements,
     'ALTO',
     'ACTIVE'
@@ -220,8 +220,8 @@ section('5. R2 and R3 of op.acc.3 do not enter the denominator');
 
   check(
     'in ALTO the denominator is 4 requirements, not 6',
-    enAlto.applicableRequirements === 4,
-    String(enAlto.applicableRequirements)
+    atHigh.applicableRequirements === 4,
+    String(atHigh.applicableRequirements)
   );
 }
 

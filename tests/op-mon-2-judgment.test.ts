@@ -41,37 +41,37 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-type Linea = Record<string, unknown>;
+type Line = Record<string, unknown>;
 
 const COMPLETE = '2026-10-09T12:05';
 const ANTERIOR = '2026-10-09T06:05';
 
 const NOW = new Date('2026-10-09T12:30:00Z');
 
-const common = (ts: string, event: string, evidence: string, requirement: string): Linea => ({
+const common = (ts: string, event: string, evidence: string, requirement: string): Line => ({
   ts, event, evidence_id: evidence, requisito: requirement, plano: 'central',
 });
 
-const cycle = (ts: string, linea: number, period: string, date: string, extra: Linea = {}): Linea => ({
+const cycle = (ts: string, line: number, period: string, date: string, extra: Line = {}): Line => ({
   ...common(ts, 'metrics_cycle_recorded', 'EV-02', 'op.mon.2.1,op.mon.2.r2.1'),
   periodo: period, fecha_consolidacion: date, implantacion_global: 82.4, horas_internas: 118, horas_externas: 36,
   presupuesto_ejecutado: 8100, validado_por: 'Responsable de Seguridad', referencia: `https://intranet.ejemplo/metricas/${period}.pdf`,
-  linea, ...extra,
+  linea: line, ...extra,
 });
 
-const CYCLES = (ts: string): Linea[] => [
+const CYCLES = (ts: string): Line[] => [
   cycle(ts, 3, '2026-T2', '2026-07-08T09:00:00Z'),
   cycle(ts, 4, '2026-T3', '2026-10-02T10:00:00Z', { implantacion_global: 87.1, horas_internas: 130, horas_externas: 35, presupuesto_ejecutado: 9200, validado_por: 'RSEG' }),
 ];
 
-const phase = (ts: string, linea: number, id: string, name: string, date: string, extra: Linea = {}): Linea => ({
+const phase = (ts: string, line: number, id: string, name: string, date: string, extra: Line = {}): Line => ({
   ...common(ts, 'incident_registered', 'EV-03', 'op.mon.2.r1.1'),
   incidente_id: id, fase: name, fecha: date, severidad: 'alta', sistemas: 'wazuh-real', clasificacion: 'acceso no autorizado',
   escalado_a: '-', notificado_a: '-', datos_personales: 'no', notificacion_ccn_cert: '-', relevancia_juridica: 'no',
-  medidas_mejora: '-', referencia: `https://intranet.ejemplo/expedientes/${id}`, linea, ...extra,
+  medidas_mejora: '-', referencia: `https://intranet.ejemplo/expedientes/${id}`, linea: line, ...extra,
 });
 
-const INCIDENTES = (ts: string): Linea[] => [
+const INCIDENTS = (ts: string): Line[] => [
   phase(ts, 2, 'INC-2026-014', 'inicial', '2026-09-10T08:15:00Z'),
   phase(ts, 3, 'INC-2026-014', 'intermedio', '2026-09-10T11:40:00Z', { notificacion_ccn_cert: '2026-09-10T12:00:00Z', escalado_a: 'RSI' }),
   phase(ts, 4, 'INC-2026-014', 'final', '2026-09-11T16:30:00Z', { medidas_mejora: 'bloqueo de la cuenta genérica' }),
@@ -79,7 +79,7 @@ const INCIDENTES = (ts: string): Linea[] => [
   phase(ts, 6, 'INC-2026-015', 'intermedio', '2026-10-01T10:30:00Z', { severidad: 'media', sistemas: 'ldap-zimbra', clasificacion: 'código dañino', datos_personales: 'si', notificado_a: 'AEPD,Responsable de la Información' }),
 ];
 
-const AGENTES: [string, string, string, string, string][] = [
+const AGENTS: [string, string, string, string, string][] = [
   ['000', 'Wazuh-4', 'active', '2026-10-09T12:05:30Z', '-'],
   ['024', 'wazuh-real', 'active', '2026-10-09T12:04:50Z', 'default,ens'],
   ['027', 'srv-prueba', 'disconnected', '2026-09-04T10:00:12Z', 'default'],
@@ -96,34 +96,34 @@ const PASSES: Record<string, string> = {
 };
 
 interface Options {
-  ciclos?: Linea[];
-  incidentes?: Linea[];
-  lecturaCiclos?: Linea;
-  lecturaIncidentes?: Linea;
+  ciclos?: Line[];
+  incidentes?: Line[];
+  lecturaCiclos?: Line;
+  lecturaIncidentes?: Line;
   cubiertas?: string;
 }
 
-const reading = (ts: string, event: string, evidence: string, file: string, rows: number, extra: Linea = {}): Linea => ({
+const reading = (ts: string, event: string, evidence: string, file: string, rows: number, extra: Line = {}): Line => ({
   ...common(ts, event, evidence, evidence === 'EV-02' ? 'op.mon.2.1,op.mon.2.r1.1,op.mon.2.r2.1' : 'op.mon.2.r1.1'),
   fichero: file, presente: 'si', legible: 'si', formato: 'ok', filas_validas: rows, filas_descartadas: 0, filas_emitidas: rows, ...extra,
 });
 
-const pass = (hhmm = COMPLETE, o: Options = {}): Linea[] => {
+const pass = (hhmm = COMPLETE, o: Options = {}): Line[] => {
   const t = (s: number) => `${hhmm}:${String(s).padStart(2, '0')}Z`;
   const cycles = (o.ciclos ?? CYCLES(t(11))).map(l => ({ ...l, ts: t(11) }));
-  const incidentes = (o.incidentes ?? []).map(l => ({ ...l, ts: t(21) }));
+  const incidents = (o.incidentes ?? []).map(l => ({ ...l, ts: t(21) }));
 
   return [
     reading(t(10), 'metrics_register_read', 'EV-02', '/etc/ensfacil/metrics-cycle-register.tsv', cycles.length, o.lecturaCiclos),
     ...cycles,
-    reading(t(20), 'incident_register_read', 'EV-03', '/etc/ensfacil/incident-register.tsv', incidentes.length, o.lecturaIncidentes),
-    ...incidentes,
-    ...AGENTES.map(([id, agent, estado, keep, groups]) => ({
+    reading(t(20), 'incident_register_read', 'EV-03', '/etc/ensfacil/incident-register.tsv', incidents.length, o.lecturaIncidentes),
+    ...incidents,
+    ...AGENTS.map(([id, agent, estado, keep, groups]) => ({
       ...common(t(30), 'agent_keepalive_observed', 'EV-04', 'op.mon.2.1'),
       agente_id: id, agente: agent, estado_conexion: estado, ultimo_keepalive: keep, grupos: groups, nodo: 'node01',
-      agentes_emitidos: AGENTES.length,
+      agentes_emitidos: AGENTS.length,
     })),
-    ...AGENTES.map(([id, agent]) => ({
+    ...AGENTS.map(([id, agent]) => ({
       ...common(t(35), 'collector_heartbeat_observed', 'EV-04', 'op.mon.2.1'),
       agente_id: id, agente: agent, recolectores: PASSES[id] === '-' ? 0 : PASSES[id].split(',').length, pasadas: PASSES[id],
       observado_desde: '2026-09-20T00:00:00Z', nodo: 'node01',
@@ -142,9 +142,9 @@ const RULE: Record<string, string> = {
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
-const alert = (linea: Linea) => {
+const alert = (line: Line) => {
   counter += 1;
-  const { ts, ...data } = linea as Linea & { ts: string };
+  const { ts, ...data } = line as Line & { ts: string };
 
   return {
     _id: `alerta-${counter}`,
@@ -158,32 +158,32 @@ const alert = (linea: Linea) => {
   };
 };
 
-const events = (lineas: Linea[], changes: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lines: Line[], changes: (l: Line) => Line | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .map(l => changes({ ...l }))
-      .filter((l): l is Linea => Boolean(l))
+      .filter((l): l is Line => Boolean(l))
       .map(alert)
   );
 
-const hoy = (changes?: (l: Linea) => Linea | undefined, o: Options = {}) =>
+const hoy = (changes?: (l: Line) => Line | undefined, o: Options = {}) =>
   events([...pass(ANTERIOR, o), ...pass(COMPLETE, o)], changes);
 
-const conIncidentes = (incidentes: Linea[] = INCIDENTES(COMPLETE), changes?: (l: Linea) => Linea | undefined) =>
-  events([...pass(COMPLETE, { incidentes })], changes);
+const withIncidents = (incidents: Line[] = INCIDENTS(COMPLETE), changes?: (l: Line) => Line | undefined) =>
+  events([...pass(COMPLETE, { incidentes: incidents })], changes);
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opMon2Configuration,
   parameters: opMon2Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': [
     'op.acc.1 | sí | MEDIO | R1',
     'op.exp.7 | sí | MEDIO | R1 R2',
@@ -203,18 +203,18 @@ const BASE: Valores = {
   'P-06': ['cobertura_monitorizacion | 95 | 5', 'implantacion_global | 90 | ', 'controles_no_evaluables | 0 | ', 'tiempo_medio_resolucion | 72 | '],
 };
 
-const NO_PARAMETERS: Valores = {};
+const NO_PARAMETERS: Values = {};
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'MEDIO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts('op.mon.2', evs, now);
-  const evidences = resolveEvidenceForControl('op.mon.2', delControl, '000', level, cfg, now);
-  const context = buildPolicyContext(opMon2CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts('op.mon.2', evs, now);
+  const evidences = resolveEvidenceForControl('op.mon.2', ofTheControl, '000', level, cfg, now);
+  const context = buildPolicyContext(opMon2CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions, runtimeVariables } = opMon2PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opMon2CatalogDefinition.requirements);
   const attestations = parseRequirementAttestations(cfg);
@@ -247,7 +247,7 @@ const evaluate = (
         appliedParameters: [],
         runtimeVariables,
       },
-      delControl
+      ofTheControl
     );
 
   return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, deEvidencia: ofEvidence, decision, variable, motor };
@@ -354,7 +354,7 @@ section('2. Green: the last cycle validated on time, 100 % coverage, empty incid
 section('3. R1 with incidents: P-03\'s indicators come from the record, and a missing datum → NO_CUMPLE');
 
 {
-  const r = evaluate(conIncidentes());
+  const r = evaluate(withIncidents());
 
   check('with complete data → R1 CUMPLE', r.requisito('op.mon.2.r1.1').status === 'CUMPLE', r.motivo('op.mon.2.r1.1'));
   check(
@@ -373,20 +373,20 @@ section('3. R1 with incidents: P-03\'s indicators come from the record, and a mi
     JSON.stringify(r.variable('indicadores_incidentes_periodo')?.value)
   );
 
-  const withoutContainment = INCIDENTES(COMPLETE).filter(l => !(l.incidente_id === 'INC-2026-014' && l.fase === 'intermedio'));
-  const red = evaluate(conIncidentes(withoutContainment));
+  const withoutContainment = INCIDENTS(COMPLETE).filter(l => !(l.incidente_id === 'INC-2026-014' && l.fase === 'intermedio'));
+  const red = evaluate(withIncidents(withoutContainment));
   check(
     'INC-2026-014 closed without an intermediate phase and P-03 asks for containment → R1 NO_CUMPLE naming it',
     red.requisito('op.mon.2.r1.1').status === 'NO_CUMPLE' && red.requisito('op.mon.2.r1.1').evidenced === true && /tiempo_medio_contencion: INC-2026-014 cerrado sin fase intermedia/.test(red.motivo('op.mon.2.r1.1')),
     red.motivo('op.mon.2.r1.1')
   );
-  const withoutRequestingIt = evaluate(conIncidentes(withoutContainment), { ...BASE, 'P-03': ['incidentes_por_tipo', 'tiempo_medio_resolucion'] });
+  const withoutRequestingIt = evaluate(withIncidents(withoutContainment), { ...BASE, 'P-03': ['incidentes_por_tipo', 'tiempo_medio_resolucion'] });
   check('REVERSAL: the same record with P-03 without containment → CUMPLE', withoutRequestingIt.requisito('op.mon.2.r1.1').status === 'CUMPLE', withoutRequestingIt.motivo('op.mon.2.r1.1'));
 
-  const withoutClass = evaluate(conIncidentes(INCIDENTES(COMPLETE).map(l => (l.incidente_id === 'INC-2026-015' ? { ...l, clasificacion: '-' } : l))));
+  const withoutClass = evaluate(withIncidents(INCIDENTS(COMPLETE).map(l => (l.incidente_id === 'INC-2026-015' ? { ...l, clasificacion: '-' } : l))));
   check('an unclassified incident → cannot be counted by type: NO_CUMPLE', withoutClass.requisito('op.mon.2.r1.1').status === 'NO_CUMPLE' && /incidentes_por_tipo: INC-2026-015 sin clasificación/.test(withoutClass.motivo('op.mon.2.r1.1')), withoutClass.motivo('op.mon.2.r1.1'));
 
-  const withoutPersonalData = evaluate(conIncidentes(INCIDENTES(COMPLETE).map(l => (l.incidente_id === 'INC-2026-015' ? { ...l, datos_personales: '-' } : l))));
+  const withoutPersonalData = evaluate(withIncidents(INCIDENTS(COMPLETE).map(l => (l.incidente_id === 'INC-2026-015' ? { ...l, datos_personales: '-' } : l))));
   check(
     'an incident that does not say whether it affects personal data → AEPD cannot be counted: NO_CUMPLE',
     withoutPersonalData.requisito('op.mon.2.r1.1').status === 'NO_CUMPLE' && /notificados_aepd: INC-2026-015 sin indicar si afecta a datos personales/.test(withoutPersonalData.motivo('op.mon.2.r1.1')),
@@ -397,14 +397,14 @@ section('3. R1 with incidents: P-03\'s indicators come from the record, and a mi
     phase(COMPLETE, 2, 'INC-2026-003', 'inicial', '2026-03-02T08:00:00Z', { clasificacion: '-' }),
     phase(COMPLETE, 3, 'INC-2026-003', 'final', '2026-03-03T08:00:00Z', { clasificacion: '-' }),
   ];
-  const outsidePeriod = evaluate(conIncidentes(old));
+  const outsidePeriod = evaluate(withIncidents(old));
   check(
     'an unclassified incident closed in March is not in the period: R1 CUMPLE with zero incidents',
     outsidePeriod.requisito('op.mon.2.r1.1').status === 'CUMPLE' && /Ningún incidente registrado/.test(outsidePeriod.motivo('op.mon.2.r1.1')),
     outsidePeriod.motivo('op.mon.2.r1.1')
   );
 
-  const discarded = evaluate(conIncidentes(INCIDENTES(COMPLETE), l => (l.event === 'incident_register_read' ? { ...l, filas_descartadas: 1 } : l)));
+  const discarded = evaluate(withIncidents(INCIDENTS(COMPLETE), l => (l.event === 'incident_register_read' ? { ...l, filas_descartadas: 1 } : l)));
   check(
     'a row discarded by the collector → it cannot be asserted that the indicators are complete: NO_EVALUABLE, never CUMPLE',
     discarded.requisito('op.mon.2.r1.1').status !== 'CUMPLE' && discarded.decision('op.mon.2.r1.1')?.status === 'NO_EVALUABLE' && /1 fila\(s\) del registro de incidentes se descartaron/.test(discarded.motivo('op.mon.2.r1.1')),
@@ -439,7 +439,7 @@ section('4. Red: cycles out of time or unvalidated, low coverage, incomplete res
 
   const unvalidated = evaluate(hoy(l => (l.event === 'metrics_cycle_recorded' ? { ...l, validado_por: '-' } : l)));
   check('no validated cycle → NO_CUMPLE', unvalidated.evidencia('EV-02')?.status === 'NO_CUMPLE' && /no tiene quién lo validó/.test(unvalidated.motivo('op.mon.2.1')), unvalidated.motivo('op.mon.2.1'));
-  const another = (l: Linea) => (l.event === 'metrics_cycle_recorded' ? { ...l, validado_por: 'Técnico de sistemas' } : l);
+  const another = (l: Line) => (l.event === 'metrics_cycle_recorded' ? { ...l, validado_por: 'Técnico de sistemas' } : l);
   const foreignOne = evaluate(hoy(another));
   check('validated by someone P-05 does not designate → NO_CUMPLE', foreignOne.evidencia('EV-02')?.status === 'NO_CUMPLE' && /lo validó «Técnico de sistemas», que P-05 no designa/.test(foreignOne.motivo('op.mon.2.1')), foreignOne.motivo('op.mon.2.1'));
   check(
@@ -461,7 +461,7 @@ section('4. Red: cycles out of time or unvalidated, low coverage, incomplete res
   );
   check('and with it, R1 and R2 also NO_CUMPLE', empty.requisito('op.mon.2.r1.1').status === 'NO_CUMPLE' && empty.requisito('op.mon.2.r2.1').status === 'NO_CUMPLE');
 
-  const downedLdap = (l: Linea) => (l.event === 'agent_keepalive_observed' && l.agente_id === '028' ? { ...l, estado_conexion: 'disconnected', ultimo_keepalive: '2026-10-08T22:00:00Z' } : l);
+  const downedLdap = (l: Line) => (l.event === 'agent_keepalive_observed' && l.agente_id === '028' ? { ...l, estado_conexion: 'disconnected', ultimo_keepalive: '2026-10-08T22:00:00Z' } : l);
   const down = evaluate(hoy(downedLdap));
   check(
     'the LDAP of the ens group disconnected → coverage 66.7 %, below 95 − 5 → NO_CUMPLE naming it',
@@ -471,13 +471,13 @@ section('4. Red: cycles out of time or unvalidated, low coverage, incomplete res
   check('REVERSAL: the same state with target 70 and tolerance 5 → CUMPLE within tolerance', /dentro de la tolerancia/.test(evaluate(hoy(downedLdap), { ...BASE, 'P-06': ['cobertura_monitorizacion | 70 | 5'] }).deEvidencia('op.mon.2.1', 'EV-04')?.reason || '') && evaluate(hoy(downedLdap), { ...BASE, 'P-06': ['cobertura_monitorizacion | 70 | 5'] }).evidencia('EV-04')?.status === 'CUMPLE');
   check('and without the tolerance, the same target 70 → NO_CUMPLE', evaluate(hoy(downedLdap), { ...BASE, 'P-06': ['cobertura_monitorizacion | 70 | '] }).evidencia('EV-04')?.status === 'NO_CUMPLE');
 
-  const parado = (l: Linea) =>
+  const parado = (l: Line) =>
     l.event === 'collector_heartbeat_observed' && l.agente_id === '024' ? { ...l, pasadas: String(l.pasadas).replace('op.acc.1|2026-10-09T11:30:02Z', 'op.acc.1|2026-10-08T10:00:00Z') } : l;
-  const conParado = evaluate(hoy(parado));
+  const withStopped = evaluate(hoy(parado));
   check(
     'wazuh-real\'s op.acc.1 with no pass for 26 h → the machine does not count as covered: NO_CUMPLE',
-    conParado.evidencia('EV-04')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): op\.acc\.1 sin pasada desde 2026-10-08T10:00:00Z/.test(conParado.motivo('op.mon.2.1')),
-    conParado.motivo('op.mon.2.1')
+    withStopped.evidencia('EV-04')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): op\.acc\.1 sin pasada desde 2026-10-08T10:00:00Z/.test(withStopped.motivo('op.mon.2.1')),
+    withStopped.motivo('op.mon.2.1')
   );
   const failedOne = evaluate(hoy(l => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: String(l.pasadas).replace('11:50:00Z|completada', '11:50:00Z|fallida') } : l)));
   check('the LDAP\'s op.exp.8 failed in its last pass → not covered: NO_CUMPLE', failedOne.evidencia('EV-04')?.status === 'NO_CUMPLE' && /op\.exp\.8 falló en su última pasada/.test(failedOne.motivo('op.mon.2.1')), failedOne.motivo('op.mon.2.1'));
@@ -527,11 +527,11 @@ section('5. Without a record or parameters: NO_EVALUABLE with cause CONFIGURATIO
     withoutCycles.motivo('op.mon.2.r1.1')
   );
 
-  const sinIncidentes = evaluate(hoy(undefined, { lecturaIncidentes: { presente: 'no', legible: '-', formato: '-' } }));
+  const withoutIncidents = evaluate(hoy(undefined, { lecturaIncidentes: { presente: 'no', legible: '-', formato: '-' } }));
   check(
     'without an incident record (wazuh4 has only the .example) → R1 not proven, CONFIGURATION; never CUMPLE for zero incidents',
-    unproven(sinIncidentes, 'op.mon.2.r1.1', 'CONFIGURATION') && /No existe el registro de incidentes \(\/etc\/ensfacil\/incident-register\.tsv\)/.test(sinIncidentes.motivo('op.mon.2.r1.1')),
-    sinIncidentes.motivo('op.mon.2.r1.1')
+    unproven(withoutIncidents, 'op.mon.2.r1.1', 'CONFIGURATION') && /No existe el registro de incidentes \(\/etc\/ensfacil\/incident-register\.tsv\)/.test(withoutIncidents.motivo('op.mon.2.r1.1')),
+    withoutIncidents.motivo('op.mon.2.r1.1')
   );
   check('REVERSAL: the record present and empty → R1 CUMPLE', evaluate(hoy()).requisito('op.mon.2.r1.1').status === 'CUMPLE');
 
@@ -547,9 +547,9 @@ section('5. Without a record or parameters: NO_EVALUABLE with cause CONFIGURATIO
   check('and the control does not score as met', r.motor().status !== 'CUMPLE');
 
   const missingOne = (id: string, req: string, patron: RegExp) => {
-    const sin = evaluate(hoy(), { ...BASE, [id]: undefined });
+    const withoutIt = evaluate(hoy(), { ...BASE, [id]: undefined });
 
-    check(`only ${id} missing → ${req} not proven by CONFIGURATION, naming it`, unproven(sin, req, 'CONFIGURATION') && patron.test(sin.motivo(req)), sin.motivo(req));
+    check(`only ${id} missing → ${req} not proven by CONFIGURATION, naming it`, unproven(withoutIt, req, 'CONFIGURATION') && patron.test(withoutIt.motivo(req)), withoutIt.motivo(req));
   };
   missingOne('P-01', 'op.mon.2.1', /P-01 \(Declaración de aplicabilidad\) está sin configurar/);
   missingOne('P-02', 'op.mon.2.1', /P-02 \(Periodicidad de los ciclos de métricas\) está sin configurar/);
@@ -593,7 +593,7 @@ section('6. Without a collector, old or lost facts: NO_EVALUABLE by COLLECTION')
     lostOne.motivo('op.mon.2.1')
   );
 
-  const degraded2 = (ts: string, changes?: (l: Linea) => Linea | undefined) =>
+  const degraded2 = (ts: string, changes?: (l: Line) => Line | undefined) =>
     evaluate(hoy(changes).concat(events([
       { ts, event: 'evidence_state', evidence_id: 'EV-04', requisito: 'op.mon.2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer /var/ossec/logs/alerts/alerts.json: los latidos de los recolectores no se actualizan' },
     ])));
@@ -657,13 +657,13 @@ section('6. Without a collector, old or lost facts: NO_EVALUABLE by COLLECTION')
     afterReading.decision('op.mon.2.r2.1')?.status === 'NO_EVALUABLE' && afterReading.decision('op.mon.2.r2.1')?.cause === 'CONFIGURATION',
     `${afterReading.decision('op.mon.2.r2.1')?.status} ${afterReading.decision('op.mon.2.r2.1')?.cause}: ${afterReading.motivo('op.mon.2.r2.1')}`
   );
-  const ambas = evaluate(hoy().concat(events([
+  const both = evaluate(hoy().concat(events([
     { ts: `${COMPLETE}:45Z`, event: 'evidence_state', evidence_id: 'EV-02,EV-06', requisito: 'op.mon.2.1,op.mon.2.r2.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'el registro de ciclos cambió durante la lectura' },
   ])));
   check(
     'a line naming EV-02 and EV-06 does not repeat the motive in R2',
-    (ambas.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason.match(/cambió durante la lectura/g) || []).length === 1,
-    ambas.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason
+    (both.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason.match(/cambió durante la lectura/g) || []).length === 1,
+    both.deEvidencia('op.mon.2.r2.1', 'EV-06')?.reason
   );
 
   const foreignOne = normalizeWazuhAlerts([{
@@ -722,10 +722,10 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
     `${late.evidencia('EV-04')?.status} ${late.motivo('op.mon.2.1')}`
   );
 
-  const sinCeros = evaluate(hoy(l => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, agente_id: '24' } : l)));
-  check('a keepalive with «24» matches the «024» heartbeat', sinCeros.evidencia('EV-04')?.status === 'CUMPLE', sinCeros.motivo('op.mon.2.1'));
+  const withoutZeros = evaluate(hoy(l => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, agente_id: '24' } : l)));
+  check('a keepalive with «24» matches the «024» heartbeat', withoutZeros.evidencia('EV-04')?.status === 'CUMPLE', withoutZeros.motivo('op.mon.2.1'));
 
-  const unreadable = (l: Linea) => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: 'op.acc.1@ayer' } : l);
+  const unreadable = (l: Line) => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: 'op.acc.1@ayer' } : l);
   const oneUnreadable = evaluate(hoy(unreadable));
   check(
     'the LDAP\'s unreadable pass list → that machine undetermined; with 2 of 3 covered and target 90, it cannot be decided: NO_EVALUABLE by COLLECTION',
@@ -739,8 +739,8 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
     withDowned.motivo('op.mon.2.1')
   );
 
-  const sinWazuhReal = (l: Linea) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? undefined : l);
-  const lost2 = evaluate(hoy(sinWazuhReal));
+  const withoutWazuhReal = (l: Line) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? undefined : l);
+  const lost2 = evaluate(hoy(withoutWazuhReal));
   check(
     'the collector emitted 5 keepalives and 4 arrive → the missing one counts as in scope and undetermined: NO_EVALUABLE by COLLECTION, never CUMPLE with 2 of 2',
     lost2.evidencia('EV-04')?.status === 'NO_EVALUABLE' && lost2.evidencia('EV-04')?.gapCause === 'COLLECTION' && /de los 5 agentes que el recolector emitió en la última pasada han llegado 4/.test(lost2.motivo('op.mon.2.1')),
@@ -748,11 +748,11 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
   );
   check(
     'and with the LDAP disconnected, not even counting the lost one as covered is it reached (66.7 % < 90): measured NO_CUMPLE',
-    evaluate(hoy(l => sinWazuhReal(l.event === 'agent_keepalive_observed' && l.agente_id === '028' ? { ...l, estado_conexion: 'disconnected' } : l) as Linea)).evidencia('EV-04')?.status === 'NO_CUMPLE'
+    evaluate(hoy(l => withoutWazuhReal(l.event === 'agent_keepalive_observed' && l.agente_id === '028' ? { ...l, estado_conexion: 'disconnected' } : l) as Line)).evidencia('EV-04')?.status === 'NO_CUMPLE'
   );
 
-  const enWorker = (l: Linea) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, nodo: 'worker01' } : l);
-  const cluster = evaluate(hoy(enWorker));
+  const inWorker = (l: Line) => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, nodo: 'worker01' } : l);
+  const cluster = evaluate(hoy(inWorker));
   check(
     'wazuh-real connected to another cluster node → undetermined by COLLECTION, never «no collector has reported»: NO_EVALUABLE',
     cluster.evidencia('EV-04')?.status === 'NO_EVALUABLE' && cluster.evidencia('EV-04')?.gapCause === 'COLLECTION' && /wazuh-real \(024\): está conectado al nodo worker01 del clúster/.test(cluster.motivo('op.mon.2.1')) && !/ningún recolector/.test(cluster.motivo('op.mon.2.1')),
@@ -761,10 +761,10 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
   check('REVERSAL: the same agent on the collector\'s node → CUMPLE', evaluate(hoy(l => (l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, nodo: 'NODE01' } : l))).evidencia('EV-04')?.status === 'CUMPLE');
   check(
     'and disconnected on another node is still a measurement (the master\'s global.db covers the whole cluster): NO_CUMPLE',
-    evaluate(hoy(l => enWorker(l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, estado_conexion: 'disconnected' } : l))).evidencia('EV-04')?.status === 'NO_CUMPLE'
+    evaluate(hoy(l => inWorker(l.event === 'agent_keepalive_observed' && l.agente_id === '024' ? { ...l, estado_conexion: 'disconnected' } : l))).evidencia('EV-04')?.status === 'NO_CUMPLE'
   );
 
-  const ahead = (l: Linea) =>
+  const ahead = (l: Line) =>
     l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: String(l.pasadas).replace('op.acc.1|2026-10-09T11:45:00Z', 'op.acc.1|2026-10-09T18:45:00Z') } : l;
   const futureLdap = evaluate(hoy(ahead));
   check(
@@ -786,11 +786,11 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
     ...pass(ANTERIOR),
     ...pass(COMPLETE, { ciclos: [cycle(COMPLETE, 3, '2026-T2', '2026-07-08T09:00:00Z')] }),
   ]);
-  const sinT3 = evaluate(deleted);
+  const withoutT3 = evaluate(deleted);
   check(
     'T3 was there at 06:05 and was deleted at 12:05: only T2 counts (93 days, still in time)',
-    sinT3.evidencia('EV-02')?.status === 'CUMPLE' && /2026-T2 \(consolidado el 2026-07-08.*hace 93 días/.test(sinT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason || '') && !/2026-T3/.test(sinT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason || ''),
-    sinT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason
+    withoutT3.evidencia('EV-02')?.status === 'CUMPLE' && /2026-T2 \(consolidado el 2026-07-08.*hace 93 días/.test(withoutT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason || '') && !/2026-T3/.test(withoutT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason || ''),
+    withoutT3.deEvidencia('op.mon.2.1', 'EV-02')?.reason
   );
 
   const example = evaluate(events(pass(COMPLETE, { ciclos: [cycle(COMPLETE, 3, '2026-T3', '2026-10-02T10:00:00Z', { validado_por: 'RSEG', referencia: 'https://EJEMPLO.invalido/metricas.pdf' })] })));
@@ -828,30 +828,30 @@ section('8. The band 111300 rules match the catalog, and a day fits the budget')
   );
   check('no rule carries an `estado` field except evidence_state\'s', (xml.match(/<field name="estado">/g) || []).length === 1);
 
-  const mensuales = Array.from({ length: 14 }, (_, i) => cycle(COMPLETE, i + 3, `2025-${String(i + 1).padStart(2, '0')}`, `2025-${String((i % 12) + 1).padStart(2, '0')}-05T09:00:00Z`));
+  const monthly = Array.from({ length: 14 }, (_, i) => cycle(COMPLETE, i + 3, `2025-${String(i + 1).padStart(2, '0')}`, `2025-${String((i % 12) + 1).padStart(2, '0')}-05T09:00:00Z`));
   const rows = Array.from({ length: 30 }, (_, i) => phase(COMPLETE, i + 2, `INC-${Math.floor(i / 3)}`, ['inicial', 'intermedio', 'final'][i % 3], '2026-09-10T08:00:00Z'));
-  const day = ['00', '06', '12', '18'].flatMap(h => pass(`2026-10-09T${h}:05`, { ciclos: mensuales, incidentes: rows }));
+  const day = ['00', '06', '12', '18'].flatMap(h => pass(`2026-10-09T${h}:05`, { ciclos: monthly, incidentes: rows }));
   check(`a lab day is ${day.length} facts, below the budget's 300`, day.length <= 300, day.length);
 
   const largo = Array.from({ length: 30 }, (_, i) => `op.ctl.${i}|2026-10-09T11:30:02Z|completada`).join(',');
-  const linea = JSON.stringify({ ...pass()[0], event: 'collector_heartbeat_observed', pasadas: largo });
-  check(`a heartbeat with 30 collectors takes ${linea.length} bytes, far below a logcollector line`, linea.length < 8192, linea.length);
+  const line = JSON.stringify({ ...pass()[0], event: 'collector_heartbeat_observed', pasadas: largo });
+  check(`a heartbeat with 30 collectors takes ${line.length} bytes, far below a logcollector line`, line.length < 8192, line.length);
 }
 
 section('9. The report: implementation and greys with the result of all controls, without a verdict');
 
 {
-  const r = evaluate(conIncidentes());
+  const r = evaluate(withIncidents());
   const result = r.motor() as ENSComplianceResult;
-  const de = (id: string, status: ENSComplianceResult['status'], score: number | undefined, extra: Partial<ENSComplianceResult> = {}) =>
+  const from = (id: string, status: ENSComplianceResult['status'], score: number | undefined, extra: Partial<ENSComplianceResult> = {}) =>
     ({ ...result, control: { ...result.control, id }, status, score, missingParameters: [], nonConformities: [], ...extra } as ENSComplianceResult);
   const panorama: ENSComplianceResult[] = [
-    de('op.acc.1', 'CUMPLE', 100),
-    de('op.exp.7', 'PARCIAL', 60, {
+    from('op.acc.1', 'CUMPLE', 100),
+    from('op.exp.7', 'PARCIAL', 60, {
       nonConformities: [{ id: 'nc', evidenceId: 'EV-07', requirementId: 'op.exp.7.2', finding: 'x', impact: 'x', requiredAction: 'x', origin: 'NO_EVIDENCIADA', cause: 'CONFIGURATION', evidenceIds: ['EV-07'], parameterIds: ['P-07'] }],
     }),
-    de('op.mon.1', 'NO_CUMPLE', 80, { missingParameters: ['P-01'] }),
-    de('op.mon.2', result.status, result.score),
+    from('op.mon.1', 'NO_CUMPLE', 80, { missingParameters: ['P-01'] }),
+    from('op.mon.2', result.status, result.score),
   ];
   const report = buildOpMon2ReportModel(result, panorama);
   const campo = (id: string) => report.fields.find(f => f.id === id)!;
@@ -881,21 +881,21 @@ section('9. The report: implementation and greys with the result of all controls
     campo('op.mon.2.campo8').details.join(' | ')
   );
 
-  const sinPanorama = buildOpMon2ReportModel(result);
+  const withoutOverview = buildOpMon2ReportModel(result);
   check(
     'without the result of all controls: implementation, greys and art. 32 SIN_DATOS, never invented',
-    ['op.mon.2.campo2', 'op.mon.2.campo5', 'op.mon.2.campo8'].every(id => sinPanorama.fields.find(f => f.id === id)!.status === 'SIN_DATOS')
+    ['op.mon.2.campo2', 'op.mon.2.campo5', 'op.mon.2.campo8'].every(id => withoutOverview.fields.find(f => f.id === id)!.status === 'SIN_DATOS')
   );
-  const conPanorama = getRegisteredENSReportControls().filter(id => getENSReportModelDefinition(id)?.usesAllControls);
-  check('op.mon.2 is the ONLY registered report that asks for the result of all controls', JSON.stringify(conPanorama) === '["op.mon.2"]', conPanorama.join(', '));
+  const withOverview = getRegisteredENSReportControls().filter(id => getENSReportModelDefinition(id)?.usesAllControls);
+  check('op.mon.2 is the ONLY registered report that asks for the result of all controls', JSON.stringify(withOverview) === '["op.mon.2"]', withOverview.join(', '));
 
   const source = (relative: string) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
-  const informes = source('public/ens/reports/index.tsx');
-  const own = informes.slice(informes.indexOf('const ControlReport = ('), informes.indexOf('const ControlReportWithPanorama = ('));
-  const secondOne = informes.slice(informes.indexOf('const ControlReportWithPanorama = ('), informes.indexOf('interface ControlReportEntry'));
+  const reports = source('public/ens/reports/index.tsx');
+  const own = reports.slice(reports.indexOf('const ControlReport = ('), reports.indexOf('const ControlReportWithPanorama = ('));
+  const secondOne = reports.slice(reports.indexOf('const ControlReportWithPanorama = ('), reports.indexOf('interface ControlReportEntry'));
   check(
     'op.mon.2\'s verdict comes from ITS evaluation (the control\'s on the server), like everyone\'s, never from the shared set',
-    /include: 'control',\s*controlId,/.test(own) && !/definition\.usesAllControls/.test(own) && !/exists: \{ field: 'data\.ensfacil' \}/.test(informes),
+    /include: 'control',\s*controlId,/.test(own) && !/definition\.usesAllControls/.test(own) && !/exists: \{ field: 'data\.ensfacil' \}/.test(reports),
     own.length
   );
   check(
@@ -904,15 +904,15 @@ section('9. The report: implementation and greys with the result of all controls
   );
   check(
     'only the report that asks for it mounts that second evaluation; the others, the usual component',
-    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes) && /\) : \(\s*<ControlReport\s/.test(informes)
+    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(reports) && /\) : \(\s*<ControlReport\s/.test(reports)
   );
   check(
     'without this machine\'s overview, PDF disabled and the loading (not SIN_DATOS); the overview is only the current evaluation\'s',
     /valor: evaluation\.data \? \{ results: evaluation\.data\.results \} : undefined/.test(secondOne) &&
       /loading: valid\.cargando/.test(secondOne) &&
-      /panoramaLoading: Boolean\(panorama\?\.loading\)/.test(informes) &&
-      /if \(!exportable \|\| !complianceResult\) return;/.test(informes) &&
-      /isDisabled=\{!exportable\}/.test(informes)
+      /panoramaLoading: Boolean\(panorama\?\.loading\)/.test(reports) &&
+      /if \(!exportable \|\| !complianceResult\) return;/.test(reports) &&
+      /isDisabled=\{!exportable\}/.test(reports)
   );
 
   {

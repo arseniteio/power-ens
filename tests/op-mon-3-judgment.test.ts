@@ -34,7 +34,7 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-type Linea = Record<string, unknown>;
+type Line = Record<string, unknown>;
 
 const MACHINES: Record<string, string> = {
   '000': 'Wazuh-4',
@@ -54,50 +54,50 @@ const NOW = new Date('2026-10-09T12:30:00Z');
 
 const t = (base: string, s: number): string => `${base}:${String(s).padStart(2, '0')}Z`;
 
-const collection = (ts: string, extra: Linea = {}): Linea => ({
+const collection = (ts: string, extra: Line = {}): Line => ({
   _a: '000', ts, event: 'event_collection_status', evidence_id: 'EV-01', requisito: 'op.mon.3.1', plano: 'central',
   activo: 'si', eventos_recibidos: 1203345, eventos_procesados: 1203300, eventos_descartados: 0,
   fuente_contadores: '/var/ossec/var/run/wazuh-analysisd.state', mensajes_remoted: 990210, descartados_remoted: 0, sesiones_tcp: 4,
   conexiones: 'secure:1514/tcp', agentes_registrados: 4, agentes_activos: 2, alertas_observadas_desde: '2026-09-01T00:00:00Z', ...extra,
 });
 
-const heartbeat = (a: string, ts: string, covered: string, type = 'manager'): Linea => ({
+const heartbeat = (a: string, ts: string, covered: string, type = 'manager'): Line => ({
   _a: a, ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, tipo_servidor: type, emisor: 'recolector',
 });
 
 const FULL_COVER = 'EV-01,EV-02,EV-03,EV-04,EV-06,EV-07,EV-08,EV-09,EV-12,EV-13';
 
-const source = (a: string, ts: string, location: string, extra: Linea = {}): Linea => ({
+const source = (a: string, ts: string, location: string, extra: Line = {}): Line => ({
   _a: a, ts, event: 'log_source_observed', evidence_id: 'EV-02', requisito: 'op.mon.3.1', plano: a === '000' ? 'central' : 'agente',
   ubicacion: location, eventos: 18250, bytes: 2410200, descartes: 0, descartes_periodo: 0, contador_desde: '2026-10-01T07:00:00Z',
   ultimo_evento: '2026-10-09T12:00:00Z', observado_desde: '2026-10-01T08:00:00Z', lectura: 'ok', ...extra,
 });
 
-const delivery = (a: string, ts: string, extra: Linea = {}): Linea => ({
+const delivery = (a: string, ts: string, extra: Line = {}): Line => ({
   _a: a, ts, event: 'agent_forwarding_observed', evidence_id: 'EV-02', requisito: 'op.mon.3.1', plano: 'agente',
   conexion: 'connected', ultimo_keepalive: '2026-10-09T12:19:50Z', ultimo_ack: '2026-10-09T12:19:55Z',
   mensajes_generados: 88120, mensajes_enviados: 88120, mensajes_en_buffer: 0, lectura: 'ok', ...extra,
 });
 
-const sca = (ts: string, id: string, policy: string, fin: string, extra: Linea = {}): Linea => ({
+const sca = (ts: string, id: string, policy: string, end: string, extra: Line = {}): Line => ({
   _a: '000', ts, event: 'config_assessment_observed', evidence_id: 'EV-04', requisito: 'op.mon.3.r2.1', plano: 'central',
-  agente_id: id, agente: MACHINES[id] || id, politica: policy, politica_nombre: `CIS ${policy}`, ultimo_fin: fin,
+  agente_id: id, agente: MACHINES[id] || id, politica: policy, politica_nombre: `CIS ${policy}`, ultimo_fin: end,
   aprobados: 120, fallos: 61, puntuacion: 66, lectura: 'ok', ...extra,
 });
 
-const inventory = (ts: string, id: string, connection: string, ultimo: string, extra: Linea = {}): Linea => ({
+const inventory = (ts: string, id: string, connection: string, ultimo: string, extra: Line = {}): Line => ({
   _a: '000', ts, event: 'package_inventory_observed', evidence_id: 'EV-04', requisito: 'op.mon.3.r2.1', plano: 'central',
   agente_id: id, agente: MACHINES[id] || id, estado_conexion: connection, ultimo_keepalive: '2026-10-09T12:04:50Z',
   inventario_ultimo: ultimo, paquetes: 812, recolector_agente_ultimo: '-', lectura: 'ok', ...extra,
 });
 
-const detector = (ts: string, extra: Linea = {}): Linea => ({
+const detector = (ts: string, extra: Line = {}): Line => ({
   _a: '000', ts, event: 'vulnerability_detection_status', evidence_id: 'EV-04', requisito: 'op.mon.3.r2.1', plano: 'central',
   habilitado: 'si', intervalo_feed: '60m', feed_actualizado: '2026-10-09T11:46:00Z', inventario_vd_actualizado: '2026-10-09T11:50:00Z',
   errores_indexacion_24h: 0, errores_desde: '2026-10-08T12:05:18Z', ultimo_error_indexacion: '-', muestra_error: '-', errores_conector_24h: 0, cve_por_activo: 'sin_medir', ...extra,
 });
 
-const completePass = (ts = COMPLETE, extra: { coleccion?: Linea; detector?: Linea } = {}): Linea[] => [
+const completePass = (ts = COMPLETE, extra: { coleccion?: Line; detector?: Line } = {}): Line[] => [
   collection(t(ts, 10), { eventos_procesados: 1210450, eventos_recibidos: 1210500, mensajes_remoted: 995300, ...extra.coleccion }),
   source('000', t(ts, 11), '/var/log/auth.log', { ultimo_evento: '2026-10-09T12:00:00Z' }),
   source('000', t(ts, 11), 'journald', { eventos: 99120 }),
@@ -143,12 +143,12 @@ const completePass = (ts = COMPLETE, extra: { coleccion?: Linea; detector?: Line
   heartbeat('000', t(ts, 40), FULL_COVER),
 ];
 
-const hourlyPass = (ts = HOURLY, extra: Linea = {}): Linea[] => [
+const hourlyPass = (ts = HOURLY, extra: Line = {}): Line[] => [
   collection(t(ts, 10), extra),
   heartbeat('000', t(ts, 12), 'EV-01'),
 ];
 
-const agentPass = (a: '024' | '028', ts = a === '024' ? AGENT_024 : AGENT_028, extra: { fuentes?: Linea; envio?: Linea } = {}): Linea[] => [
+const agentPass = (a: '024' | '028', ts = a === '024' ? AGENT_024 : AGENT_028, extra: { fuentes?: Line; envio?: Line } = {}): Line[] => [
   ...(a === '024'
     ? [
         source(a, t(ts, 10), '/var/log/auth.log', { ultimo_evento: '2026-10-09T12:00:00Z', ...extra.fuentes }),
@@ -174,9 +174,9 @@ const RULE: Record<string, string> = {
   evidence_state: '111450', collector_run: '111497',
 };
 
-const alert = (linea: Linea, control = 'op.mon.3') => {
+const alert = (line: Line, control = 'op.mon.3') => {
   counter += 1;
-  const { ts, _a, host: _host, ...data } = linea as Linea & { ts: string; _a: string };
+  const { ts, _a, host: _host, ...data } = line as Line & { ts: string; _a: string };
 
   return {
     _id: `alerta-${counter}`,
@@ -190,35 +190,35 @@ const alert = (linea: Linea, control = 'op.mon.3') => {
   };
 };
 
-const events = (lineas: Linea[], changes: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lines: Line[], changes: (l: Line) => Line | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .map(l => changes({ ...l }))
-      .filter((l): l is Linea => Boolean(l))
+      .filter((l): l is Line => Boolean(l))
       .map(l => alert(l))
   );
 
-const hoy = (changes?: (l: Linea) => Linea | undefined, extra: { coleccion?: Linea; detector?: Linea } = {}) =>
+const hoy = (changes?: (l: Line) => Line | undefined, extra: { coleccion?: Line; detector?: Line } = {}) =>
   events([...hourlyPass(), ...completePass(COMPLETE, extra), ...agentPass('024'), ...agentPass('028')], changes);
 
-const en = (event: string, changesList: Linea, filter: (l: Linea) => boolean = () => true) => (l: Linea): Linea =>
+const in2 = (event: string, changesList: Line, filter: (l: Line) => boolean = () => true) => (l: Line): Line =>
   l.event === event && filter(l) ? { ...l, ...changesList } : l;
 
-const sin = (event: string, filter: (l: Linea) => boolean = () => true) => (l: Linea): Linea | undefined =>
+const withoutIt = (event: string, filter: (l: Line) => boolean = () => true) => (l: Line): Line | undefined =>
   l.event === event && filter(l) ? undefined : l;
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opMon3Configuration,
   parameters: opMon3Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': [
     'auth.log de wazuh-real | Linux auth | agente | wazuh-real | /var/log/auth.log | 24',
     'zimbra.log del LDAP | Zimbra | agente | 028 | /var/log/zimbra.log | ',
@@ -229,7 +229,7 @@ const BASE: Valores = {
   'P-11': '26',
 };
 
-const HIGH: Valores = {
+const HIGH: Values = {
   ...BASE,
   'P-04': ['accesos fuera de horario | 7-20 h | cualquier acceso a otra hora'],
   'P-05': ['Suricata | TAP del perímetro → syslog a Wazuh | 2'],
@@ -244,20 +244,20 @@ const HIGH: Valores = {
   ],
 };
 
-const NO_PARAMETERS: Valores = {};
+const NO_PARAMETERS: Values = {};
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'MEDIO',
   now: Date = NOW,
   row = '000'
 ) => {
-  const cfg = configuration(valores);
+  const cfg = configuration(values);
   const ofRow = evs.filter(e => e.agentId === row);
-  const delControl = keepLatestRunStateFacts('op.mon.3', ofRow, now);
-  const evidences = resolveEvidenceForControl('op.mon.3', delControl, row, level, cfg, now);
-  const context = buildPolicyContext(opMon3CatalogDefinition, cfg, level, delControl, evidences, now);
+  const ofTheControl = keepLatestRunStateFacts('op.mon.3', ofRow, now);
+  const evidences = resolveEvidenceForControl('op.mon.3', ofTheControl, row, level, cfg, now);
+  const context = buildPolicyContext(opMon3CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions, runtimeVariables } = opMon3PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opMon3CatalogDefinition.requirements);
   const attestations = parseRequirementAttestations(cfg);
@@ -289,7 +289,7 @@ const evaluate = (
         appliedParameters: [],
         runtimeVariables,
       },
-      delControl
+      ofTheControl
     );
 
   return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, decision, motivo: motive, deEvidencia: ofEvidence, motor };
@@ -327,12 +327,12 @@ section('1. Catalog: system category, two planes and seven reinforcements');
   );
 
   const definitions = getEvidenceDefinitions('op.mon.3');
-  const estados = getStateFactEventTypes('op.mon.3');
+  const states = getStateFactEventTypes('op.mon.3');
 
   check('13 evidences, all «the agent only declares gaps»', definitions.length === 13 && definitions.every(d => d.agentDeclaresOnlyGaps));
   check(
     'state facts are the contract\'s; the series and the action are not',
-    estados.size === 13 && !estados.has('event_collection_status') && !estados.has('correlation_alert_observed') && estados.has('agent_forwarding_observed')
+    states.size === 13 && !states.has('event_collection_status') && !states.has('correlation_alert_observed') && states.has('agent_forwarding_observed')
   );
   check(
     'each relatedRule is in band 111400-111499',
@@ -451,7 +451,7 @@ section('3. R2 (exposure surface): the indexer, each axis and its reversal');
 
   check('unable to count the errors → NO_EVALUABLE (COLLECTION), never CUMPLE', estado(uncounted, 'op.mon.3.r2.1') === 'NO_EVALUABLE' && cause(uncounted, 'op.mon.3.r2.1') === 'COLLECTION');
 
-  const oldSca = hoy(en('config_assessment_observed', { ultimo_fin: '2026-10-08T03:00:00Z' }, l => l.agente_id === '024'));
+  const oldSca = hoy(in2('config_assessment_observed', { ultimo_fin: '2026-10-08T03:00:00Z' }, l => l.agente_id === '024'));
 
   check('wazuh-real\'s SCA from 33 h ago → NO_CUMPLE naming it', estado(evaluate(oldSca), 'op.mon.3.r2.1') === 'NO_CUMPLE' && /wazuh-real \(024\)/.test(evaluate(oldSca).motivo('op.mon.3.r2.1')));
   check('reversal · with P-11 = 48, CUMPLE', estado(evaluate(oldSca, { ...BASE, 'P-11': '48' }), 'op.mon.3.r2.1') === 'CUMPLE');
@@ -479,7 +479,7 @@ section('3. R2 (exposure surface): the indexer, each axis and its reversal');
       /P-02, fila 2: falta el conjunto/.test(evaluate(hoy(), { ...BASE, 'P-02': ['wazuh | 4515 | -', ' | 3 | -'] }).motivo('op.mon.3.r1.1'))
   );
 
-  const withoutInventory = hoy(en('package_inventory_observed', { inventario_ultimo: '-' }, l => l.agente_id === '028'));
+  const withoutInventory = hoy(in2('package_inventory_observed', { inventario_ultimo: '-' }, l => l.agente_id === '028'));
 
   check('the LDAP without package inventory → NO_CUMPLE', estado(evaluate(withoutInventory), 'op.mon.3.r2.1') === 'NO_CUMPLE');
 
@@ -504,8 +504,8 @@ section('3. R2 (exposure surface): the indexer, each axis and its reversal');
 section('4. op.mon.3.1 (collection): each source, each axis, with its reversal');
 
 {
-  const row24 = (evs: ENSNormalizedEvent[], valores: Valores = BASE) => evaluate(evs, valores, 'MEDIO', NOW, '024');
-  const withP01 = (...rows: string[]): Valores => ({ ...BASE, 'P-01': rows });
+  const row24 = (evs: ENSNormalizedEvent[], values: Values = BASE) => evaluate(evs, values, 'MEDIO', NOW, '024');
+  const withP01 = (...rows: string[]): Values => ({ ...BASE, 'P-01': rows });
 
   const secure = withP01('secure de wazuh-real | Linux auth | agente | 24 | /var/log/secure | ');
 
@@ -531,33 +531,33 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
   );
   check('reversal · with its sources, the * row → CUMPLE', estado(row24(hoy(), all), 'op.mon.3.1') === 'CUMPLE', row24(hoy(), all).motivo('op.mon.3.1'));
 
-  const withDiscards = hoy(en('log_source_observed', { descartes: 5, descartes_periodo: 5 }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
+  const withDiscards = hoy(in2('log_source_observed', { descartes: 5, descartes_periodo: 5 }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
 
   check('5 events discarded in the period → measured NO_CUMPLE', estado(row24(withDiscards), 'op.mon.3.1') === 'NO_CUMPLE' && /descartados/.test(row24(withDiscards).motivo('op.mon.3.1')));
   check(
     'reversal · discards from before the period (descartes=5, descartes_periodo=0) → CUMPLE',
-    estado(row24(hoy(en('log_source_observed', { descartes: 5, descartes_periodo: 0 }, l => l._a === '024'))), 'op.mon.3.1') === 'CUMPLE'
+    estado(row24(hoy(in2('log_source_observed', { descartes: 5, descartes_periodo: 0 }, l => l._a === '024'))), 'op.mon.3.1') === 'CUMPLE'
   );
 
-  const lacuna = hoy(en('log_source_observed', { ultimo_evento: '2026-10-08T06:00:00Z' }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
+  const lacuna = hoy(in2('log_source_observed', { ultimo_evento: '2026-10-08T06:00:00Z' }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
 
   check('30 h without events in auth.log with maximum 24 → NO_CUMPLE (gap)', estado(row24(lacuna), 'op.mon.3.1') === 'NO_CUMPLE' && /laguna/.test(row24(lacuna).motivo('op.mon.3.1')));
   check('reversal · without a declared maximum, continuity is not judged → CUMPLE', estado(row24(lacuna, withP01('auth.log de wazuh-real | Linux auth | agente | wazuh-real | /var/log/auth.log | ')), 'op.mon.3.1') === 'CUMPLE');
 
-  const never = (since: string) => hoy(en('log_source_observed', { ultimo_evento: '-', observado_desde: since }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
+  const never = (since: string) => hoy(in2('log_source_observed', { ultimo_evento: '-', observado_desde: since }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
 
   check('no event since it is observed 3 days ago, maximum 24 → NO_CUMPLE', estado(row24(never('2026-10-06T12:00:00Z')), 'op.mon.3.1') === 'NO_CUMPLE');
   check('no event, but observed since 2 h ago → NO_EVALUABLE, never CUMPLE', estado(row24(never('2026-10-09T10:20:00Z')), 'op.mon.3.1') === 'NO_EVALUABLE');
 
-  const withoutDiscards = hoy(en('log_source_observed', { descartes_periodo: '-' }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
+  const withoutDiscards = hoy(in2('log_source_observed', { descartes_periodo: '-' }, l => l._a === '024' && l.ubicacion === '/var/log/auth.log'));
 
   check(
     'good read but descartes_periodo «-» → NO_EVALUABLE (COLLECTION), never a zero',
     estado(row24(withoutDiscards), 'op.mon.3.1') === 'NO_EVALUABLE' && cause(row24(withoutDiscards), 'op.mon.3.1') === 'COLLECTION'
   );
 
-  const silent = hoy(en('log_source_observed', { eventos: 0, bytes: 0, ultimo_evento: '-' }, l => l._a === '028' && l.ubicacion === '/var/log/zimbra.log'));
-  const row28 = (evs: ENSNormalizedEvent[], valores: Valores = BASE) => evaluate(evs, valores, 'MEDIO', NOW, '028');
+  const silent = hoy(in2('log_source_observed', { eventos: 0, bytes: 0, ultimo_evento: '-' }, l => l._a === '028' && l.ubicacion === '/var/log/zimbra.log'));
+  const row28 = (evs: ENSNormalizedEvent[], values: Values = BASE) => evaluate(evs, values, 'MEDIO', NOW, '028');
 
   check(
     'read without any event and without max_horas_sin_eventos → NO_EVALUABLE (CONFIGURATION), asking to declare it',
@@ -568,11 +568,11 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
     estado(row28(silent, withP01('zimbra.log del LDAP | Zimbra | agente | 028 | /var/log/zimbra.log | 24')), 'op.mon.3.1') === 'NO_CUMPLE'
   );
 
-  const disconnected = hoy(en('agent_forwarding_observed', { conexion: 'disconnected' }, l => l._a === '024'));
+  const disconnected = hoy(in2('agent_forwarding_observed', { conexion: 'disconnected' }, l => l._a === '024'));
 
   check('the agent disconnected when read → NO_CUMPLE', estado(row24(disconnected), 'op.mon.3.1') === 'NO_CUMPLE' && /no está conectado/.test(row24(disconnected).motivo('op.mon.3.1')));
 
-  const sinEstado = hoy(l =>
+  const withoutState = hoy(l =>
     l.event === 'log_source_observed' && l._a === '024'
       ? l.ubicacion === '/var/log/auth.log'
         ? { ...l, ubicacion: '-', eventos: '-', bytes: '-', descartes: '-', descartes_periodo: '-', lectura: 'error' }
@@ -580,7 +580,7 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
       : l
   );
 
-  check('wazuh-logcollector.state unreadable → NO_EVALUABLE (COLLECTION) in that row', estado(row24(sinEstado), 'op.mon.3.1') === 'NO_EVALUABLE' && cause(row24(sinEstado), 'op.mon.3.1') === 'COLLECTION');
+  check('wazuh-logcollector.state unreadable → NO_EVALUABLE (COLLECTION) in that row', estado(row24(withoutState), 'op.mon.3.1') === 'NO_EVALUABLE' && cause(row24(withoutState), 'op.mon.3.1') === 'COLLECTION');
 
   const parado = events([...hourlyPass(HOURLY, { eventos_procesados: 1210450 }), ...completePass()]);
 
@@ -594,9 +594,9 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
 
   check('restart (the counter drops) with events since → CUMPLE', ev(evaluate(restart), 'op.mon.3.1', 'EV-01') === 'CUMPLE' && /se reinició/.test(evMotive2(evaluate(restart), 'op.mon.3.1', 'EV-01')));
 
-  const soloRemoted = hoy(l => (l.event === 'event_collection_status' ? { ...l, eventos_procesados: '-', eventos_recibidos: '-', eventos_descartados: '-', fuente_contadores: '-' } : l));
+  const remotedOnly = hoy(l => (l.event === 'event_collection_status' ? { ...l, eventos_procesados: '-', eventos_recibidos: '-', eventos_descartados: '-', fuente_contadores: '-' } : l));
 
-  check('without wazuh-analysisd.state, the wazuh-remoted series → CUMPLE', ev(evaluate(soloRemoted), 'op.mon.3.1', 'EV-01') === 'CUMPLE' && /wazuh-remoted/.test(evMotive2(evaluate(soloRemoted), 'op.mon.3.1', 'EV-01')));
+  check('without wazuh-analysisd.state, the wazuh-remoted series → CUMPLE', ev(evaluate(remotedOnly), 'op.mon.3.1', 'EV-01') === 'CUMPLE' && /wazuh-remoted/.test(evMotive2(evaluate(remotedOnly), 'op.mon.3.1', 'EV-01')));
 
   const withoutCounters = hoy(l => (l.event === 'event_collection_status' ? { ...l, eventos_procesados: '-', eventos_descartados: '-', mensajes_remoted: '-', fuente_contadores: '-' } : l));
 
@@ -620,7 +620,7 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
       /su recolector de agente de op\.mon\.3 no informa/.test(evaluate(hoy(), ofAnother2('srv-copias')).motivo('op.mon.3.1'))
   );
 
-  const oldHeartbeat = hoy(en('package_inventory_observed', { recolector_agente_ultimo: '2026-10-07T06:20:14Z' }, l => l.agente_id === '024'));
+  const oldHeartbeat = hoy(in2('package_inventory_observed', { recolector_agente_ultimo: '2026-10-07T06:20:14Z' }, l => l.agente_id === '024'));
 
   check(
     'manager row · wazuh-real\'s collector\'s last heartbeat from 54 h ago → NO_EVALUABLE (COLLECTION)',
@@ -639,17 +639,17 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
   );
 
   const fw = withP01('Cortafuegos perimetral | syslog | syslog | 192.0.2.10 |  | 2');
-  const conFw = (ultima: string) => hoy(en('syslog_source_observed', { ubicacion: '192.0.2.10', ultima_alerta: ultima, alertas_24h: 480, nivel_max_24h: 6 }));
+  const withFw = (ultima: string) => hoy(in2('syslog_source_observed', { ubicacion: '192.0.2.10', ultima_alerta: ultima, alertas_24h: 480, nivel_max_24h: 6 }));
 
-  check('syslog · the sender with alerts 1 h ago, maximum 2 → CUMPLE', estado(evaluate(conFw('2026-10-09T11:05:00Z'), fw), 'op.mon.3.1') === 'CUMPLE');
-  check('syslog · its last alert from 5 h ago, maximum 2 → NO_CUMPLE', estado(evaluate(conFw('2026-10-09T07:05:00Z'), fw), 'op.mon.3.1') === 'NO_CUMPLE');
+  check('syslog · the sender with alerts 1 h ago, maximum 2 → CUMPLE', estado(evaluate(withFw('2026-10-09T11:05:00Z'), fw), 'op.mon.3.1') === 'CUMPLE');
+  check('syslog · its last alert from 5 h ago, maximum 2 → NO_CUMPLE', estado(evaluate(withFw('2026-10-09T07:05:00Z'), fw), 'op.mon.3.1') === 'NO_CUMPLE');
   check('syslog · no alerts from the sender and 38 days observing → NO_CUMPLE', estado(evaluate(hoy(), fw), 'op.mon.3.1') === 'NO_CUMPLE' && /30 días/.test(evaluate(hoy(), fw).motivo('op.mon.3.1')));
   check(
     'syslog · no alerts and observing since 2 days ago → NO_EVALUABLE, never CUMPLE',
     estado(evaluate(hoy(undefined, { coleccion: { alertas_observadas_desde: '2026-10-07T12:00:00Z' } }), fw), 'op.mon.3.1') === 'NO_EVALUABLE'
   );
   const degradedSyslog = [
-    ...conFw('2026-10-09T11:05:00Z').filter(e => !(e.eventType === 'log_source_observed' && e.agentId === '000')),
+    ...withFw('2026-10-09T11:05:00Z').filter(e => !(e.eventType === 'log_source_observed' && e.agentId === '000')),
     ...events([{ _a: '000', ts: '2026-10-09T12:28:00Z', event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.3.1', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede seguir la rotación de alerts.json' }]),
   ];
 
@@ -663,9 +663,9 @@ section('4. op.mon.3.1 (collection): each source, each axis, with its reversal')
 
   check('P-01 with a method that is neither agent nor syslog → CONFIGURATION naming the source', estado(row24(hoy(), badMethod), 'op.mon.3.1') === 'NO_EVALUABLE' && cause(row24(hoy(), badMethod), 'op.mon.3.1') === 'CONFIGURATION' && /fuente «ftp del NAS»/.test(row24(hoy(), badMethod).motivo('op.mon.3.1')));
 
-  const malMax = withP01('auth.log | Linux | agente | wazuh-real | /var/log/auth.log | muchas', 'secure | Linux | agente | wazuh-real | /var/log/secure | ');
+  const badMax = withP01('auth.log | Linux | agente | wazuh-real | /var/log/auth.log | muchas', 'secure | Linux | agente | wazuh-real | /var/log/secure | ');
 
-  check('and a measured NO_CUMPLE of another source still prevails over the badly written row', estado(row24(hoy(), malMax), 'op.mon.3.1') === 'NO_CUMPLE' && /max_horas_sin_eventos dice «muchas»/.test(row24(hoy(), malMax).motivo('op.mon.3.1')));
+  check('and a measured NO_CUMPLE of another source still prevails over the badly written row', estado(row24(hoy(), badMax), 'op.mon.3.1') === 'NO_CUMPLE' && /max_horas_sin_eventos dice «muchas»/.test(row24(hoy(), badMax).motivo('op.mon.3.1')));
 
   const undeclaredOne = evaluate(hoy(), withP01('auth.log del manager | Linux auth | agente | 000 | /var/log/auth.log | '), 'MEDIO', NOW, '024');
 
@@ -739,7 +739,7 @@ section('6. Without a collector, or with what the collector declares it could no
   check('a degradation over 26 h old, or earlier than the pass, does not count', estado(evaluate(stale), 'op.mon.3.r2.1') === 'CUMPLE');
 
   const absentRecord = [
-    ...hoy(sin('security_inspection_recorded')),
+    ...hoy(withoutIt('security_inspection_recorded')),
     ...events([{ _a: '000', ts: t(COMPLETE, 23), event: 'evidence_state', evidence_id: 'EV-12,EV-13', requisito: 'op.mon.3.r6.1,op.mon.3.r6.2,op.mon.3.r6.3', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de inspecciones /etc/ensfacil/security-inspection-register.tsv' }]),
   ];
   const r6 = evaluate(absentRecord, HIGH, 'ALTO');
@@ -751,16 +751,16 @@ section('7. ALTA: reinforcements R3 to R6, documentary ones and inspections');
 
 {
   const suricata = (ultima: string) =>
-    en('network_detection_observed', { producto: 'suricata', fuente: 'syslog', ultima_alerta: ultima, alertas_24h: 2210 });
-  const slack = (level: number, errores = 0): Linea[] => [
+    in2('network_detection_observed', { producto: 'suricata', fuente: 'syslog', ultima_alerta: ultima, alertas_24h: 2210 });
+  const slack = (level: number, errors = 0): Line[] => [
     { _a: '000', ts: t(COMPLETE, 22), event: 'notification_channel_configured', evidence_id: 'EV-09', requisito: 'op.mon.3.r5.2', plano: 'central',
-      canal: 'slack', habilitado: 'si', nivel_minimo: level, grupos: '-', formato: 'json', destinatarios: '-', errores_24h: errores },
+      canal: 'slack', habilitado: 'si', nivel_minimo: level, grupos: '-', formato: 'json', destinatarios: '-', errores_24h: errors },
   ];
-  const inspection = (date: string, type: string, extra: Linea = {}): Linea => ({
+  const inspection = (date: string, type: string, extra: Line = {}): Line => ({
     _a: '000', ts: t(COMPLETE, 23), event: 'security_inspection_recorded', evidence_id: 'EV-12', requisito: 'op.mon.3.r6.1,op.mon.3.r6.2,op.mon.3.r6.3', plano: 'central',
     fila: 2, fecha: date, tipo: type, alcance: 'perímetro y aplicaciones web', ejecutor: 'Proveedor S.L.', hallazgos: '12 hallazgos, 2 críticos', estado_remediacion: 'en_remediacion', motivo: 'periodica', incidente_id: '-', referencia: 'pentest-2026', formato: 'ok', ...extra,
   });
-  const withPentest = (date = '2026-03-12T00:00:00Z', extra: Linea = {}) =>
+  const withPentest = (date = '2026-03-12T00:00:00Z', extra: Line = {}) =>
     [...hoy(l => (l.event === 'security_inspection_recorded' ? undefined : suricata('2026-10-09T11:50:00Z')(l))), ...events([inspection(date, 'pentest', extra)])];
   const mailYes = (evs: ENSNormalizedEvent[]) => evs;
   const green = (evs = withPentest()) =>
@@ -786,7 +786,7 @@ section('7. ALTA: reinforcements R3 to R6, documentary ones and inspections');
   );
   check('R6.3 · the pentest of 12/03 within 365 days', estado(a, 'op.mon.3.r6.3') === 'CUMPLE' && /2026-03-12/.test(a.motivo('op.mon.3.r6.3')));
 
-  check('R3.2 · without NIDS → NO_CUMPLE even if P-05 declares Suricata', estado(evaluate(green([...hoy(sin('security_inspection_recorded')), ...events([inspection('2026-03-12', 'pentest')])]), HIGH, 'ALTO'), 'op.mon.3.r3.2') === 'NO_CUMPLE');
+  check('R3.2 · without NIDS → NO_CUMPLE even if P-05 declares Suricata', estado(evaluate(green([...hoy(withoutIt('security_inspection_recorded')), ...events([inspection('2026-03-12', 'pentest')])]), HIGH, 'ALTO'), 'op.mon.3.r3.2') === 'NO_CUMPLE');
   check(
     'R3.2 · Suricata with its last alert 4 days ago and maximum 2 → NO_CUMPLE; reversal with maximum 7',
     estado(evaluate(green(withPentest().map(e => (e.eventType === 'network_detection_observed' ? { ...e, attributes: { ...e.attributes, ultima_alerta: '2026-10-05T11:50:00Z' } } : e))), HIGH, 'ALTO'), 'op.mon.3.r3.2') === 'NO_CUMPLE' &&
@@ -810,13 +810,13 @@ section('7. ALTA: reinforcements R3 to R6, documentary ones and inspections');
     estado(evaluate(green().map(e => (e.eventType === 'notification_channel_configured' ? { ...e, attributes: { ...e.attributes, destinatarios: '-' } } : e)), HIGH, 'ALTO'), 'op.mon.3.r5.2') === 'NO_EVALUABLE'
   );
 
-  const conSlack = (level: number, errores = 0) => [...withPentest(), ...events(slack(level, errores))];
+  const withSlack = (level: number, errors = 0) => [...withPentest(), ...events(slack(level, errors))];
   const bySlack = { ...HIGH, 'P-08': ['SOC | slack | 10 | 24x7'] };
 
-  check('R5.2 · slack from level 12 and P-08 requires it from 10 → NO_CUMPLE', estado(evaluate(conSlack(12), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'NO_CUMPLE');
-  check('reversal · slack from level 7 → CUMPLE', estado(evaluate(conSlack(7), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'CUMPLE');
-  check('R5.2 · slack with 3 delivery errors in 24 h → NO_CUMPLE', estado(evaluate(conSlack(7, 3), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'NO_CUMPLE');
-  check('R5.2 · nivel_minimo «alto» in P-08 → CONFIGURATION', cause(evaluate(conSlack(7), { ...HIGH, 'P-08': ['SOC | slack | alto | 24x7'] }, 'ALTO'), 'op.mon.3.r5.2') === 'CONFIGURATION');
+  check('R5.2 · slack from level 12 and P-08 requires it from 10 → NO_CUMPLE', estado(evaluate(withSlack(12), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'NO_CUMPLE');
+  check('reversal · slack from level 7 → CUMPLE', estado(evaluate(withSlack(7), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'CUMPLE');
+  check('R5.2 · slack with 3 delivery errors in 24 h → NO_CUMPLE', estado(evaluate(withSlack(7, 3), bySlack, 'ALTO'), 'op.mon.3.r5.2') === 'NO_CUMPLE');
+  check('R5.2 · nivel_minimo «alto» in P-08 → CONFIGURATION', cause(evaluate(withSlack(7), { ...HIGH, 'P-08': ['SOC | slack | alto | 24x7'] }, 'ALTO'), 'op.mon.3.r5.2') === 'CONFIGURATION');
 
   check('R6.3 · the same pentest with periodicity 180 → NO_CUMPLE (expired)', estado(evaluate(green(), { ...HIGH, 'P-09': ['verificacion_configuracion | continua | -', 'analisis_vulnerabilidades | continua | -', 'pentest | 180 | externo'] }, 'ALTO'), 'op.mon.3.r6.3') === 'NO_CUMPLE');
   check('R6.3 · empty record → NO_CUMPLE («no consta ninguna»)', /No consta ninguna prueba de penetración/.test(evaluate(hoy(suricata('2026-10-09T11:50:00Z')), HIGH, 'ALTO').motivo('op.mon.3.r6.3')));
@@ -835,10 +835,10 @@ section('7. ALTA: reinforcements R3 to R6, documentary ones and inspections');
 
   check('R6.1 periodic · old SCA and no record row → NO_CUMPLE', estado(evaluate(green(brokenSca), periodic, 'ALTO'), 'op.mon.3.r6.1') === 'NO_CUMPLE');
 
-  const conRevision = [...brokenSca, ...events([inspection('2026-08-20', 'verificacion_configuracion', { fila: 4, ejecutor: 'interno', motivo: 'periodica' })])];
+  const withReview = [...brokenSca, ...events([inspection('2026-08-20', 'verificacion_configuracion', { fila: 4, ejecutor: 'interno', motivo: 'periodica' })])];
 
-  check('reversal · with a verification of 20/08 within 90 days → CUMPLE with the record', estado(evaluate(green(conRevision), periodic, 'ALTO'), 'op.mon.3.r6.1') === 'CUMPLE' && /Acreditada con el registro/.test(evaluate(green(conRevision), periodic, 'ALTO').motivo('op.mon.3.r6.1')));
-  check('and R2 (MEDIA) stays NO_CUMPLE because of that SCA: the inspection does not cover R2\'s measurement', estado(evaluate(green(conRevision), periodic, 'ALTO'), 'op.mon.3.r2.1') === 'NO_CUMPLE');
+  check('reversal · with a verification of 20/08 within 90 days → CUMPLE with the record', estado(evaluate(green(withReview), periodic, 'ALTO'), 'op.mon.3.r6.1') === 'CUMPLE' && /Acreditada con el registro/.test(evaluate(green(withReview), periodic, 'ALTO').motivo('op.mon.3.r6.1')));
+  check('and R2 (MEDIA) stays NO_CUMPLE because of that SCA: the inspection does not cover R2\'s measurement', estado(evaluate(green(withReview), periodic, 'ALTO'), 'op.mon.3.r2.1') === 'NO_CUMPLE');
 
   const withIncident = [
     ...green(),
@@ -865,7 +865,7 @@ section('7. ALTA: reinforcements R3 to R6, documentary ones and inspections');
     report.fields[10].details.join(' | ')
   );
 
-  const withoutProbe = buildOpMon3ReportModel(evaluate(green([...hoy(sin('security_inspection_recorded')), ...events([inspection('2026-03-12', 'pentest')])]), HIGH, 'ALTO').motor());
+  const withoutProbe = buildOpMon3ReportModel(evaluate(green([...hoy(withoutIt('security_inspection_recorded')), ...events([inspection('2026-03-12', 'pentest')])]), HIGH, 'ALTO').motor());
 
   check('ALTA report · without a probe, «no cubierto»', /R3\.2\): no cubierto/.test(withoutProbe.fields[10].details.join(' ')) && withoutProbe.fields[10].status === 'NO_CUMPLE');
 }
@@ -895,33 +895,33 @@ section('8. State and two cadences; id parts; fact budget');
 
   const many = Array.from({ length: 1500 }, (_, i) => String(200000 + i * 2));
   const corta = (ids: string[], max = 6000): string[] => {
-    const partes: string[] = [];
+    const parts: string[] = [];
     let actual = '';
 
     ids.forEach(id => {
       if (actual && actual.length + id.length + 1 > max) {
-        partes.push(actual);
+        parts.push(actual);
         actual = id;
       } else {
         actual = actual ? `${actual},${id}` : id;
       }
     });
 
-    return actual ? [...partes, actual] : partes;
+    return actual ? [...parts, actual] : parts;
   };
-  const partes = corta([...many, '107215']);
-  const lineasUmbral = partes.map((ids, i) => ({
+  const parts = corta([...many, '107215']);
+  const thresholdLines = parts.map((ids, i) => ({
     _a: '000', ts: t(COMPLETE, 21), event: 'query_volume_rules_observed', evidence_id: 'EV-08', requisito: 'op.mon.3.r5.1', plano: 'central',
-    ids, reglas_umbral: many.length + 1, parte: i + 1, partes: partes.length,
+    ids, reglas_umbral: many.length + 1, parte: i + 1, partes: parts.length,
   }));
-  const conPartes = (which: number[]) => [...hoy(sin('query_volume_rules_observed')), ...events(lineasUmbral.filter((_, i) => which.includes(i)))];
-  const jsonMasLargo = Math.max(...lineasUmbral.map(l => JSON.stringify({ ensfacil: 'op.mon.3', host: 'wazuh-4', ...l }).length));
+  const withParts = (which: number[]) => [...hoy(withoutIt('query_volume_rules_observed')), ...events(thresholdLines.filter((_, i) => which.includes(i)))];
+  const longestJson = Math.max(...thresholdLines.map(l => JSON.stringify({ ensfacil: 'op.mon.3', host: 'wazuh-4', ...l }).length));
 
-  check(`1501 loose ids in ${partes.length} parts; no line exceeds 8 KiB (${jsonMasLargo})`, partes.length >= 2 && jsonMasLargo < 8192);
-  check('the parts join: P-07\'s rule in the last part is found', estado(evaluate(conPartes(partes.map((_, i) => i)), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'CUMPLE');
-  check('if the part carrying it is missing → NO_EVALUABLE (COLLECTION), not NO_CUMPLE', estado(evaluate(conPartes([0]), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'NO_EVALUABLE' && cause(evaluate(conPartes([0]), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'COLLECTION');
+  check(`1501 loose ids in ${parts.length} parts; no line exceeds 8 KiB (${longestJson})`, parts.length >= 2 && longestJson < 8192);
+  check('the parts join: P-07\'s rule in the last part is found', estado(evaluate(withParts(parts.map((_, i) => i)), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'CUMPLE');
+  check('if the part carrying it is missing → NO_EVALUABLE (COLLECTION), not NO_CUMPLE', estado(evaluate(withParts([0]), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'NO_EVALUABLE' && cause(evaluate(withParts([0]), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'COLLECTION');
 
-  const day: Linea[] = [];
+  const day: Line[] = [];
 
   for (let h = 0; h < 24; h += 1) {
     const ts = `2026-10-09T${String(h).padStart(2, '0')}:05`;
@@ -954,12 +954,12 @@ section('9. The engine: op.mon.3 in the manager row and the agent rows, and the 
   const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration');
   const { getENSComplianceState } = require('../common/ens/core/ens-engine');
 
-  const conValores = (valores: Valores) =>
+  const withValues = (values: Values) =>
     ensConfigurationRepository.replaceActive({
       ...defaultENSConfigurationTemplate,
       global: { ...defaultENSConfigurationTemplate.global, clientName: 'Cliente de prueba', organization: 'Organización de prueba', scope: 'Laboratorio', ensLevel: 'MEDIO' },
       controls: defaultENSConfigurationTemplate.controls.map((control: { controlId: string }) =>
-        control.controlId === 'op.mon.3' ? configuration(valores) : control
+        control.controlId === 'op.mon.3' ? configuration(values) : control
       ),
     });
 
@@ -978,7 +978,7 @@ section('9. The engine: op.mon.3 in the manager row and the agent rows, and the 
     return { porFila: byRow, consolidado: consolidated, req };
   };
 
-  conValores(BASE);
+  withValues(BASE);
 
   const green = result(hoy());
 
@@ -989,14 +989,14 @@ section('9. The engine: op.mon.3 in the manager row and the agent rows, and the 
   );
   check('in an agent\'s row, R2 does not apply; in the consolidated, R2 is the manager\'s', green.req(green.porFila('024'), 'op.mon.3.r2.1') === 'NO_APLICA' && green.req(green.consolidado, 'op.mon.3.r2.1') === 'CUMPLE');
 
-  const down = result(hoy(en('agent_forwarding_observed', { conexion: 'disconnected' }, l => l._a === '028')));
+  const down = result(hoy(in2('agent_forwarding_observed', { conexion: 'disconnected' }, l => l._a === '028')));
 
   check(
     'the LDAP disconnected when read: its row and the consolidated do not comply with op.mon.3.1; the manager\'s does',
     down.req(down.porFila('028'), 'op.mon.3.1') === 'NO_CUMPLE' && down.req(down.consolidado, 'op.mon.3.1') === 'NO_CUMPLE' && down.req(down.porFila('000'), 'op.mon.3.1') === 'CUMPLE'
   );
 
-  conValores({ ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'copias de srv-copias | Linux | agente | srv-copias | /var/log/syslog | 24'] });
+  withValues({ ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'copias de srv-copias | Linux | agente | srv-copias | /var/log/syslog | 24'] });
 
   const outside = result(hoy());
 
@@ -1006,7 +1006,7 @@ section('9. The engine: op.mon.3 in the manager row and the agent rows, and the 
     `${outside.req(outside.porFila('000'), 'op.mon.3.1')} / ${outside.req(outside.consolidado, 'op.mon.3.1')}`
   );
 
-  conValores(BASE);
+  withValues(BASE);
 
   const lab = result(hoy(undefined, { detector: { errores_indexacion_24h: 37, muestra_error: 'circuit_breaking_exception' } }));
 

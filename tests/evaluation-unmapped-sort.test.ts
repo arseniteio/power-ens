@@ -19,10 +19,10 @@ const clock = new Date('2026-10-17T12:00:00Z');
 const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
 const dayOf = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
-  _index: `wazuh-alerts-4.x-${dayOf(hora(horas))}`,
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+  _index: `wazuh-alerts-4.x-${dayOf(hora(hours))}`,
+  _source: { '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 const ens: FakeDoc[] = [];
@@ -55,11 +55,11 @@ const rest: FakeDoc[] = [
 const indexer = (docs: FakeDoc[]) => createFakeIndexer([...docs, ...rest], { clock: () => clock.getTime(), user: { user_name: 'ana', roles: ['all_access'] } });
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 
-const request = async (service: any, clientes: any, q: any) => {
-  let r = buildEvaluationResponse(await service.run(clientes, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
+const request = async (service: any, clients2: any, q: any) => {
+  let r = buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
   for (let i = 0; i < 600 && (r.meta?.pending || r.meta?.seriesPending); i++) {
     await new Promise(ready => setTimeout(ready, 50));
-    r = buildEvaluationResponse(await service.run(clientes, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
+    r = buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
   }
   return r;
 };
@@ -76,8 +76,8 @@ const request = async (service: any, clientes: any, q: any) => {
     error = e;
   }
   check('sorting by data.ensfacil without unmapped_type on a day that does not map it: 400 «No mapping found»', error?.meta?.statusCode === 400 && /No mapping found for \[data\.ensfacil\] in order to sort on/.test(error?.message), error?.message);
-  const bien = await searches([{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }]);
-  check('con unmapped_type responde', bien.body.hits.hits.length === 1);
+  const good = await searches([{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }]);
+  check('con unmapped_type responde', good.body.hits.hits.length === 1);
   check('the stream\'s order carries unmapped_type on all its keys except the date', STREAM_SORT.every((s: any) => {
     const [campo, o] = Object.entries(s)[0] as [string, any];
     return campo === '@timestamp' || o.unmapped_type === 'keyword';
@@ -86,20 +86,20 @@ const request = async (service: any, clientes: any, q: any) => {
   console.log('2. A day without ENSFácil facts in the window');
   const reference = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
   const withoutForeign = indexer(ens);
-  const clientesRef = { asCurrentUser: withoutForeign, asInternalUser: withoutForeign };
+  const clientsRef = { asCurrentUser: withoutForeign, asInternalUser: withoutForeign };
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
-  const clientes = { asCurrentUser: withForeign, asInternalUser: withForeign };
+  const clients2 = { asCurrentUser: withForeign, asInternalUser: withForeign };
   let response: any;
   let failure: any;
   try {
-    response = await request(service, clientes, { include: 'results' });
+    response = await request(service, clients2, { include: 'results' });
   } catch (e) {
     failure = e;
   }
   check('the first load answers', !failure && Array.isArray(response?.results), failure?.message);
   const named = withForeign.log.some(l => typeof l.index === 'string' && l.index.split(',').includes('wazuh-alerts-4.x-2026.10.16') && (l.body?.sort || [])[0]?.['data.ensfacil']);
   check('and the per-machine stream did name the day without facts', named);
-  const expectedValue = await request(reference, clientesRef, { include: 'results' });
+  const expectedValue = await request(reference, clientsRef, { include: 'results' });
   check('with the same as without that day', response && same(response.results, expectedValue.results) && same(response.agents, expectedValue.agents));
 
   console.log('3. A 400 from the stream: row by row');
@@ -114,12 +114,12 @@ const request = async (service: any, clientes: any, q: any) => {
       return withForeign.search(p);
     },
   };
-  const servicio3 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+  const service3 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
   const clients3 = { asCurrentUser: rejector, asInternalUser: rejector };
   let r3: any;
   let f3: any;
   try {
-    r3 = await request(servicio3, clients3, { include: 'results' });
+    r3 = await request(service3, clients3, { include: 'results' });
   } catch (e) {
     f3 = e;
   }
@@ -128,18 +128,18 @@ const request = async (service: any, clientes: any, q: any) => {
   let series: any;
   let fs: any;
   try {
-    series = await request(servicio3, clients3, { include: 'dashboard', timelineDays: 3 });
+    series = await request(service3, clients3, { include: 'dashboard', timelineDays: 3 });
   } catch (e) {
     fs = e;
   }
-  const seriesRef = await request(reference, clientesRef, { include: 'dashboard', timelineDays: 3 });
+  const seriesRef = await request(reference, clientsRef, { include: 'dashboard', timelineDays: 3 });
   check('the series is also computed row by row', !fs && !series?.meta?.seriesPending && (series?.timeline || []).length > 1, fs?.message || series?.meta);
   check('and it is the same', series && same((series.timeline || []).map((p: any) => [p.label, p.score]), (seriesRef.timeline || []).map((p: any) => [p.label, p.score])));
 
   console.log('4. Only a 400 falls to row by row: 401/403 and 429/5xx fail with their motive');
   for (const estado of [401, 403, 429, 503]) {
     const reads: string[] = [];
-    const conEstado = {
+    const withState = {
       ...withForeign,
       search: async (p: any) => {
         if ((p.body?.sort || [])[0]?.['data.ensfacil']) {
@@ -152,7 +152,7 @@ const request = async (service: any, clientes: any, q: any) => {
     const s4 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
     let f4: any;
     try {
-      await request(s4, { asCurrentUser: conEstado, asInternalUser: conEstado }, { include: 'results' });
+      await request(s4, { asCurrentUser: withState, asInternalUser: withState }, { include: 'results' });
     } catch (e) {
       f4 = e;
     }

@@ -15,8 +15,8 @@ const INVENTORY: ENSAgentScope[] = [
 ];
 const global: ENSConfigurationScope = { mode: 'global', agentIds: [], groupIds: [] };
 
-const conManager = resolveENSScopeAgents(INVENTORY, global, [{ status: 'ACTIVE', measurementPlanes: ['manager'] }] as any);
-check('the manager keeps its inventory state', conManager.find(a => a.id === '000')?.status === 'active', conManager);
+const withManager = resolveENSScopeAgents(INVENTORY, global, [{ status: 'ACTIVE', measurementPlanes: ['manager'] }] as any);
+check('the manager keeps its inventory state', withManager.find(a => a.id === '000')?.status === 'active', withManager);
 const managerWithoutInventory = resolveENSScopeAgents(INVENTORY.filter(a => a.id !== '000'), global, [{ status: 'ACTIVE', measurementPlanes: ['manager'] }] as any);
 check('without 000 in the inventory, the manager invents no state', !('status' in (managerWithoutInventory.find(a => a.id === '000') || {})), managerWithoutInventory);
 

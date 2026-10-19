@@ -68,11 +68,11 @@ const decision = (
   ...extra,
 });
 
-const runtime = (decisiones: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
+const runtime = (decisions: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
   controlId: 'op.acc.1',
   policyId: 'prueba',
   evaluatedAt: '2026-10-09T12:00:00Z',
-  decisions: decisiones,
+  decisions: decisions,
   appliedParameters: [],
   runtimeVariables: [],
 });
@@ -116,22 +116,22 @@ const ATTESTATION = parseRequirementAttestations(
   configuration([`${REQ} | Política de identificación v3 | https://intranet/pol-id-v3.pdf | 2026-05-12 | RSI`])
 ).get(REQ);
 
-const judges = (decisiones: ENSPolicyDecision[], id = REQ, evidences: ENSEvidenceResolved[] = []) =>
-  evaluateRequirement(requirement(id), 'ALTO', evidences, false, decisiones, 'ACTIVE', id === REQ ? ATTESTATION : undefined);
+const judges = (decisions: ENSPolicyDecision[], id = REQ, evidences: ENSEvidenceResolved[] = []) =>
+  evaluateRequirement(requirement(id), 'ALTO', evidences, false, decisions, 'ACTIVE', id === REQ ? ATTESTATION : undefined);
 
 section('1. Collector stopped: documentary is kept in any state; technical is not');
 
 {
-  const documentales = (['NO_CUMPLE', 'CUMPLE', 'NO_EVALUABLE'] as ENSComplianceStatus[]).map(status =>
+  const documentary = (['NO_CUMPLE', 'CUMPLE', 'NO_EVALUABLE'] as ENSComplianceStatus[]).map(status =>
     decision(REQ, status, { documental: true, cause: status === 'NO_EVALUABLE' ? 'CONFIGURATION' : undefined, attested: status === 'CUMPLE' || undefined })
   );
   const technical = decision(TECHNICAL, 'CUMPLE');
   const outside = decision('op.acc.1.r1.1', 'NO_APLICA');
-  const marked = markPolicyRuntimeStale(runtime([...documentales, technical, outside]), PARADO)!.decisions;
+  const marked = markPolicyRuntimeStale(runtime([...documentary, technical, outside]), PARADO)!.decisions;
 
   check(
     'the three documentary ones come out intact (state, motive, cause)',
-    marked.slice(0, 3).every((d, i) => d.status === documentales[i].status && d.reason === documentales[i].reason && d.cause === documentales[i].cause),
+    marked.slice(0, 3).every((d, i) => d.status === documentary[i].status && d.reason === documentary[i].reason && d.cause === documentary[i].cause),
     marked.slice(0, 3).map(d => `${d.status}/${d.cause}`).join(', ')
   );
   check(
@@ -170,7 +170,7 @@ section('3. Collector stopped + documentary NO_CUMPLE + P-ATT: never CUMPLE');
     `${withMark.status} evidenced=${withMark.evidenced} attested=${withMark.attested}`
   );
 
-  const { documental: _sin, ...withoutMark } = expired;
+  const { documental: _without, ...withoutMark } = expired;
   const hole = judges(markPolicyRuntimeStale(runtime([withoutMark]), PARADO)!.decisions);
   check(
     'REVERSAL (the hole it closes): without the mark, the stopped collector leaves it NO_EVALUABLE and P-ATT took it as CUMPLE',

@@ -8,14 +8,14 @@ export interface FakeDoc {
   _source: any;
 }
 
-const valoresDe = (obj: any, campo: string): any[] => {
+const valuesOf = (obj: any, campo: string): any[] => {
   if (obj === null || obj === undefined) return [];
-  if (Array.isArray(obj)) return obj.flatMap(o => valoresDe(o, campo));
+  if (Array.isArray(obj)) return obj.flatMap(o => valuesOf(o, campo));
   if (typeof obj !== 'object') return [];
   const output: any[] = [];
   if (Object.prototype.hasOwnProperty.call(obj, campo)) output.push(...[].concat(obj[campo]));
   for (let p = campo.indexOf('.'); p !== -1; p = campo.indexOf('.', p + 1)) {
-    output.push(...valoresDe(obj[campo.slice(0, p)], campo.slice(p + 1)));
+    output.push(...valuesOf(obj[campo.slice(0, p)], campo.slice(p + 1)));
   }
   return output.filter(v => v !== undefined && v !== null && typeof v !== 'object');
 };
@@ -24,10 +24,10 @@ export const pickSource = (source: any, fields: string[] | undefined): any => {
   if (!Array.isArray(fields)) return source;
   const out: any = {};
   for (const f of fields) {
-    const partes = f.split('.');
+    const parts = f.split('.');
     let since = source;
     let ok = true;
-    for (const p of partes) {
+    for (const p of parts) {
       if (since && typeof since === 'object' && p in since) since = since[p];
       else {
         ok = false;
@@ -36,10 +36,10 @@ export const pickSource = (source: any, fields: string[] | undefined): any => {
     }
     if (!ok) continue;
     let towards = out;
-    partes.slice(0, -1).forEach(p => {
+    parts.slice(0, -1).forEach(p => {
       towards = towards[p] = towards[p] || {};
     });
-    towards[partes[partes.length - 1]] = since;
+    towards[parts[parts.length - 1]] = since;
   }
   return out;
 };
@@ -76,26 +76,26 @@ const matches = (doc: FakeDoc, q: any): boolean => {
   }
   if (q.range) {
     const [campo, r]: [string, any] = Object.entries(q.range)[0] as any;
-    return valoresDe(doc._source, campo).some(v => {
+    return valuesOf(doc._source, campo).some(v => {
       const t = time(v);
       return (r.gte === undefined || t >= time(r.gte)) && (r.lte === undefined || t <= time(r.lte)) &&
         (r.gt === undefined || t > time(r.gt)) && (r.lt === undefined || t < time(r.lt));
     });
   }
   if (q.term) {
-    const [campo, valor]: [string, any] = Object.entries(q.term)[0] as any;
-    const searched = valor && typeof valor === 'object' && 'value' in valor ? valor.value : valor;
-    return valoresDe(doc._source, campo).some(v => String(v) === String(searched));
+    const [campo, value]: [string, any] = Object.entries(q.term)[0] as any;
+    const searched = value && typeof value === 'object' && 'value' in value ? value.value : value;
+    return valuesOf(doc._source, campo).some(v => String(v) === String(searched));
   }
   if (q.terms) {
-    const [campo, valores]: [string, any] = Object.entries(q.terms)[0] as any;
-    return valoresDe(doc._source, campo).some(v => valores.map(String).includes(String(v)));
+    const [campo, values]: [string, any] = Object.entries(q.terms)[0] as any;
+    return valuesOf(doc._source, campo).some(v => values.map(String).includes(String(v)));
   }
   if (q.match_phrase) {
-    const [campo, valor]: [string, any] = Object.entries(q.match_phrase)[0] as any;
-    return valoresDe(doc._source, campo).some(v => String(v) === String(valor));
+    const [campo, value]: [string, any] = Object.entries(q.match_phrase)[0] as any;
+    return valuesOf(doc._source, campo).some(v => String(v) === String(value));
   }
-  if (q.exists) return valoresDe(doc._source, q.exists.field).length > 0;
+  if (q.exists) return valuesOf(doc._source, q.exists.field).length > 0;
   throw new Error(`fake-indexer: unsupported query ${JSON.stringify(q).slice(0, 120)}`);
 };
 
@@ -106,7 +106,7 @@ export const matchesQuery = (doc: FakeDoc, query: unknown, now?: number): boolea
 
 const orderValue = (doc: FakeDoc, campo: string): number | string | null => {
   if (campo === '_id') throw new Error('fake-indexer: sorting by _id is not supported (it loads its fielddata in OpenSearch)');
-  const v = valoresDe(doc._source, campo)[0];
+  const v = valuesOf(doc._source, campo)[0];
   if (v === undefined) return null;
   return DATE_FIELDS.has(campo) ? time(v) : String(v);
 };
@@ -125,9 +125,9 @@ const compare = (a: number | string | null, b: number | string | null, desc: boo
 };
 
 const sorts = (docs: FakeDoc[], sort: any[] = []) => {
-  const claves = sort.map(orderOf);
+  const keys = sort.map(orderOf);
   return [...docs].sort((a, b) => {
-    for (const { campo, desc } of claves) {
+    for (const { campo, desc } of keys) {
       const r = compare(orderValue(a, campo), orderValue(b, campo), desc);
       if (r) return r;
     }
@@ -142,15 +142,15 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
   for (const [name, def] of Object.entries<any>(aggs || {})) {
     if (def.max || def.min) {
       const campo = (def.max || def.min).field;
-      let valor: number | null = null;
+      let value: number | null = null;
       for (const d of docs) {
-        for (const v of valoresDe(d._source, campo)) {
+        for (const v of valuesOf(d._source, campo)) {
           const t = time(v);
           if (!Number.isFinite(t)) continue;
-          if (valor === null || (def.max ? t > valor : t < valor)) valor = t;
+          if (value === null || (def.max ? t > value : t < value)) value = t;
         }
       }
-      output[name] = { value: valor };
+      output[name] = { value: value };
     } else if (def.filters) {
       output[name] = {
         buckets: Object.fromEntries(
@@ -166,9 +166,9 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
     } else if (def.terms) {
       const groups = new Map<string, FakeDoc[]>();
       for (const d of docs) {
-        const valores = def.terms.field === '_index' ? [d._index] : valoresDe(d._source, def.terms.field);
-        const claves = valores.length ? valores.map(String) : def.terms.missing !== undefined ? [String(def.terms.missing)] : [];
-        for (const k of claves) {
+        const values = def.terms.field === '_index' ? [d._index] : valuesOf(d._source, def.terms.field);
+        const keys = values.length ? values.map(String) : def.terms.missing !== undefined ? [String(def.terms.missing)] : [];
+        for (const k of keys) {
           const g = groups.get(k);
           if (g) g.push(d);
           else groups.set(k, [d]);
@@ -181,7 +181,7 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
         buckets: buckets.map(([key, ds]) => ({ key, doc_count: ds.length, ...aggregate(ds, def.aggs) })),
       };
     } else if (def.value_count) {
-      output[name] = { value: docs.reduce((n, d) => n + valoresDe(d._source, def.value_count.field).length, 0) };
+      output[name] = { value: docs.reduce((n, d) => n + valuesOf(d._source, def.value_count.field).length, 0) };
     } else if (def.top_hits) {
       const sorted = sorts(docs, def.top_hits.sort);
       output[name] = {
@@ -191,7 +191,7 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
       const zone = def.date_histogram.time_zone || 'UTC';
       const days = new Map<number, FakeDoc[]>();
       for (const d of docs) {
-        for (const v of valoresDe(d._source, def.date_histogram.field)) {
+        for (const v of valuesOf(d._source, def.date_histogram.field)) {
           const day = startOfDay(time(v), zone);
           const g = days.get(day);
           if (g) g.push(d);
@@ -219,7 +219,7 @@ export const createFakeIndexer = (
     !patron || patron.split(',').some(p => new RegExp(`^${p.trim().replace(/\./g, '\\.').replace(/\*/g, '.*')}$`).test(index));
 
   const maps = (index: string, campo: string) =>
-    !campo.startsWith('data.') || docs.some(d => d._index === index && valoresDe(d._source, campo).length > 0);
+    !campo.startsWith('data.') || docs.some(d => d._index === index && valuesOf(d._source, campo).length > 0);
   const checkOrder = (index: string | undefined, sort: any[]) => {
     const indices = [...new Set(docs.map(d => d._index))].filter(i => matchingIndex(index, i));
     for (const s of sort) {
@@ -245,11 +245,11 @@ export const createFakeIndexer = (
     const sort = body?.sort || [];
     if (sort.length) candidates = sorts(candidates, sort);
     if (body?.search_after) {
-      const claves = sort.map(orderOf);
+      const keys = sort.map(orderOf);
       const after = body.search_after;
       candidates = candidates.filter(d => {
-        for (let i = 0; i < claves.length; i++) {
-          const r = compare(orderValue(d, claves[i].campo), after[i], claves[i].desc);
+        for (let i = 0; i < keys.length; i++) {
+          const r = compare(orderValue(d, keys[i].campo), after[i], keys[i].desc);
           if (r) return r > 0;
         }
         return false;

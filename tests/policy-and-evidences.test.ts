@@ -50,7 +50,7 @@ const decision = (
     reason: `la policy dice ${status}`,
   } as unknown as ENSPolicyDecision);
 
-const estadoDe = (
+const stateOf = (
   list: ENSEvidenceResolved[],
   id: string
 ): string | undefined => list.find(e => e.id === id)?.status;
@@ -65,8 +65,8 @@ section('1. What the policy measured reaches the evidence');
 
   check(
     'an evidence the classic model could not resolve takes the policy\'s verdict',
-    estadoDe(resolvedOne, 'EV-01') === 'CUMPLE',
-    estadoDe(resolvedOne, 'EV-01')
+    stateOf(resolvedOne, 'EV-01') === 'CUMPLE',
+    stateOf(resolvedOne, 'EV-01')
   );
 
   check(
@@ -95,8 +95,8 @@ section('2. An already measured evidence prevails over the policy');
 
   check(
     'an observed NO_CUMPLE does NOT become CUMPLE through the policy',
-    estadoDe(withFinding, 'EV-01') === 'NO_CUMPLE',
-    estadoDe(withFinding, 'EV-01')
+    stateOf(withFinding, 'EV-01') === 'NO_CUMPLE',
+    stateOf(withFinding, 'EV-01')
   );
 
   const alreadyComplies = applyPolicyDecisionsToEvidences(
@@ -106,8 +106,8 @@ section('2. An already measured evidence prevails over the policy');
 
   check(
     'and an observed CUMPLE is not overwritten by the policy either',
-    estadoDe(alreadyComplies, 'EV-01') === 'CUMPLE',
-    estadoDe(alreadyComplies, 'EV-01')
+    stateOf(alreadyComplies, 'EV-01') === 'CUMPLE',
+    stateOf(alreadyComplies, 'EV-01')
   );
 
   const notApplicable = applyPolicyDecisionsToEvidences(
@@ -117,8 +117,8 @@ section('2. An already measured evidence prevails over the policy');
 
   check(
     'a NO_APLICA is a level decision and is not touched either',
-    estadoDe(notApplicable, 'EV-04') === 'NO_APLICA',
-    estadoDe(notApplicable, 'EV-04')
+    stateOf(notApplicable, 'EV-04') === 'NO_APLICA',
+    stateOf(notApplicable, 'EV-04')
   );
 }
 
@@ -135,11 +135,11 @@ section('3. If an evidence backs two requirements, the worse wins');
 
   check(
     'an evidence backing a failing requirement does not come out green',
-    estadoDe(resolvedOne, 'EV-06') === 'NO_CUMPLE',
-    estadoDe(resolvedOne, 'EV-06')
+    stateOf(resolvedOne, 'EV-06') === 'NO_CUMPLE',
+    stateOf(resolvedOne, 'EV-06')
   );
 
-  const alReves = applyPolicyDecisionsToEvidences(
+  const reversed = applyPolicyDecisionsToEvidences(
     [evidence('EV-06', 'NO_EVALUABLE')],
     [
       decision('op.acc.3.2', 'NO_CUMPLE', ['EV-06']),
@@ -149,8 +149,8 @@ section('3. If an evidence backs two requirements, the worse wins');
 
   check(
     'and the order of the decisions does not matter',
-    estadoDe(alReves, 'EV-06') === estadoDe(resolvedOne, 'EV-06'),
-    `${estadoDe(alReves, 'EV-06')} vs ${estadoDe(resolvedOne, 'EV-06')}`
+    stateOf(reversed, 'EV-06') === stateOf(resolvedOne, 'EV-06'),
+    `${stateOf(reversed, 'EV-06')} vs ${stateOf(resolvedOne, 'EV-06')}`
   );
 }
 
@@ -164,18 +164,18 @@ section('4. An evidence the policy does not measure stays as it was');
 
   check(
     'EV-07 remains unproven because nobody measured it',
-    estadoDe(resolvedOne, 'EV-07') === 'NO_EVALUABLE',
-    estadoDe(resolvedOne, 'EV-07')
+    stateOf(resolvedOne, 'EV-07') === 'NO_EVALUABLE',
+    stateOf(resolvedOne, 'EV-07')
   );
 
-  const sinPolicy = applyPolicyDecisionsToEvidences(
+  const withoutPolicy = applyPolicyDecisionsToEvidences(
     [evidence('EV-01', 'NO_EVALUABLE')],
     []
   );
 
   check(
     'without any decision, nothing changes',
-    estadoDe(sinPolicy, 'EV-01') === 'NO_EVALUABLE'
+    stateOf(withoutPolicy, 'EV-01') === 'NO_EVALUABLE'
   );
 }
 
@@ -199,14 +199,14 @@ section('5. Without `evidenceIds`, the decision inherits the requirement\'s');
 
   check(
     'EV-01 takes the verdict because op.acc.3.1 is proven with it',
-    estadoDe(resolvedOne, 'EV-01') === 'NO_CUMPLE',
-    estadoDe(resolvedOne, 'EV-01')
+    stateOf(resolvedOne, 'EV-01') === 'NO_CUMPLE',
+    stateOf(resolvedOne, 'EV-01')
   );
 
   check(
     'and so does EV-06, the other of the same requirement',
-    estadoDe(resolvedOne, 'EV-06') === 'NO_CUMPLE',
-    estadoDe(resolvedOne, 'EV-06')
+    stateOf(resolvedOne, 'EV-06') === 'NO_CUMPLE',
+    stateOf(resolvedOne, 'EV-06')
   );
 
   const naming = applyPolicyDecisionsToEvidences(
@@ -217,9 +217,9 @@ section('5. Without `evidenceIds`, the decision inherits the requirement\'s');
 
   check(
     'if the decision names only EV-01, EV-06 is not touched',
-    estadoDe(naming, 'EV-01') === 'CUMPLE' &&
-      estadoDe(naming, 'EV-06') === 'NO_EVALUABLE',
-    `${estadoDe(naming, 'EV-01')} / ${estadoDe(naming, 'EV-06')}`
+    stateOf(naming, 'EV-01') === 'CUMPLE' &&
+      stateOf(naming, 'EV-06') === 'NO_EVALUABLE',
+    `${stateOf(naming, 'EV-01')} / ${stateOf(naming, 'EV-06')}`
   );
 
   const blindly = applyPolicyDecisionsToEvidences(
@@ -230,8 +230,8 @@ section('5. Without `evidenceIds`, the decision inherits the requirement\'s');
 
   check(
     'without catalog or names, no evidence is touched',
-    estadoDe(blindly, 'EV-01') === 'NO_EVALUABLE',
-    estadoDe(blindly, 'EV-01')
+    stateOf(blindly, 'EV-01') === 'NO_EVALUABLE',
+    stateOf(blindly, 'EV-01')
   );
 }
 
@@ -243,7 +243,7 @@ section('6. The named prevails over an inherited GAP, never over a breach');
     { id: 'R2', evidenceIds: ['EV-X'] },
   ];
   const resolves = (inheritedOne: string, named2: string) =>
-    estadoDe(
+    stateOf(
       applyPolicyDecisionsToEvidences(
         [evidence('EV-X', 'NO_EVALUABLE')],
         [decision('R1', inheritedOne, []), decision('R2', named2, ['EV-X'])],
@@ -279,7 +279,7 @@ section('6. The named prevails over an inherited GAP, never over a breach');
   );
   check(
     'with nothing named, the inherited applies as always (including a gap)',
-    estadoDe(
+    stateOf(
       applyPolicyDecisionsToEvidences([evidence('EV-X', 'NO_EVALUABLE')], [decision('R1', 'CUMPLE', [])], REQUIREMENTS),
       'EV-X'
     ) === 'CUMPLE'

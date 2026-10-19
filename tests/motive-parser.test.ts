@@ -82,8 +82,8 @@ console.log('1. The diagnosis examples');
 console.log('2. Nothing is lost');
 {
   const all = Object.entries(EJ);
-  const malos = all.filter(([, t]) => !withoutLoss(t)).map(([k]) => k);
-  check(`the ${all.length} examples return to their exact text`, malos.length === 0, malos);
+  const bad = all.filter(([, t]) => !withoutLoss(t)).map(([k]) => k);
+  check(`the ${all.length} examples return to their exact text`, bad.length === 0, bad);
   check('with a single machine\'s prefix too', withoutLoss(`[srv-web01 (101)] ${EJ.e2}`) && parseMotive(`[srv-web01 (101)] ${EJ.e2}`).machines === 'srv-web01 (101)');
   check('an empty text', withoutLoss('') && parseMotive('').parts.length === 1);
   check('two sentences separated by «; » are not a list', findList('Falta el plan; se pidió en marzo. Sin él no hay prueba.') === undefined);
@@ -139,7 +139,7 @@ console.log('3. Each policy motive template');
   check(`templates extracted from the policies (${templates.length})`, templates.length > 300, templates.length);
   const lost = templates.filter(p => !withoutLoss(p.texto));
   check('each template alone returns to its exact text', lost.length === 0, lost.slice(0, 3));
-  let malas = 0;
+  let badOnes = 0;
   let example: unknown;
   templates.forEach((p, i) => {
     const other = templates[(i * 7 + 3) % templates.length].texto;
@@ -149,16 +149,16 @@ console.log('3. Each policy motive template');
     ];
     const text = `[2 máquinas: srv-a (101), srv-b (102)] ${BRIDGE('policy.x', 'op.x.1')}${compositeReason(ownOnes)}`;
     const m = parseMotive(text);
-    const partes = reasonPartsOf(ownOnes);
+    const parts = reasonPartsOf(ownOnes);
     const equal =
       m.parts.length === 2 &&
-      m.parts.every((q, k) => q.evidenceId === partes[k].evidenceId && q.status === partes[k].status && q.text === partes[k].text && (q.secondary ?? undefined) === (partes[k].secondary?.[0] ?? undefined));
+      m.parts.every((q, k) => q.evidenceId === parts[k].evidenceId && q.status === parts[k].status && q.text === parts[k].text && (q.secondary ?? undefined) === (parts[k].secondary?.[0] ?? undefined));
     if (!equal || motiveToText(m) !== text) {
-      malas += 1;
+      badOnes += 1;
       example = example || { texto: text.slice(0, 300), partes: m.parts.map(q => [q.evidenceId, q.text.slice(0, 60)]) };
     }
   });
-  check('each template, composed with another and with both prefixes: the text\'s parts = those the policy publishes', malas === 0, { malas, ejemplo: example });
+  check('each template, composed with another and with both prefixes: the text\'s parts = those the policy publishes', badOnes === 0, { malas: badOnes, ejemplo: example });
 }
 
 console.log('4. The published parts');
@@ -169,20 +169,20 @@ console.log('4. The published parts');
   ];
   const motive = compositeReason(ownOnes);
   check('the composed text does not change', motive === 'EV-01 CUMPLE: Bien. | EV-02 NO_CUMPLE: Valor «x | EV-09 CUMPLE: y» raro. Además: otra.');
-  const partes = reasonPartsOf(ownOnes);
-  check('the parts separate «Además»', partes[1].text === 'Valor «x | EV-09 CUMPLE: y» raro.' && partes[1].secondary?.[0] === 'otra.');
+  const parts = reasonPartsOf(ownOnes);
+  check('the parts separate «Además»', parts[1].text === 'Valor «x | EV-09 CUMPLE: y» raro.' && parts[1].secondary?.[0] === 'otra.');
   const guessed = parseMotive(motive);
   check('without parts, the text is split wrongly where a value imitates a header (3 parts)', guessed.parts.length === 3);
-  const published = parseMotive(`${BRIDGE('p', 'op.x.1')}${motive}`, [{ reason: motive, parts: partes }]);
-  check('with the published parts: 2 exact parts, marked as structured', published.structured && published.parts.length === 2 && published.parts[1].text === partes[1].text && motiveToText(published) === `${BRIDGE('p', 'op.x.1')}${motive}`);
-  const d = withReasonParts({ reason: motive } as any, partes);
-  check('withReasonParts keeps the decision and adds reasonParts', d.reason === motive && d.reasonParts === partes);
+  const published = parseMotive(`${BRIDGE('p', 'op.x.1')}${motive}`, [{ reason: motive, parts: parts }]);
+  check('with the published parts: 2 exact parts, marked as structured', published.structured && published.parts.length === 2 && published.parts[1].text === parts[1].text && motiveToText(published) === `${BRIDGE('p', 'op.x.1')}${motive}`);
+  const d = withReasonParts({ reason: motive } as any, parts);
+  check('withReasonParts keeps the decision and adds reasonParts', d.reason === motive && d.reasonParts === parts);
   const DIR = `${__dirname}/../common/ens/core/policy-runtime/policies`;
-  const sinPartes = readdirSync(DIR).filter(f => f.endsWith('.policy.ts')).filter(f => {
+  const withoutParts = readdirSync(DIR).filter(f => f.endsWith('.policy.ts')).filter(f => {
     const s = readFileSync(`${DIR}/${f}`, 'utf8');
     return /\.map\(p => `\$\{p\.id\} \$\{p\.medida\.estado\}: \$\{p\.medida\.motivo\}`\)\.join\(' \| '\)/.test(s) && !/op-mon-3/.test(f);
   });
-  check('policies with a composite motive do it with compositeReason + reasonPartsOf (except op.mon.3, which prepends a part without evidence and covers the parser)', sinPartes.length === 0, sinPartes);
+  check('policies with a composite motive do it with compositeReason + reasonPartsOf (except op.mon.3, which prepends a part without evidence and covers the parser)', withoutParts.length === 0, withoutParts);
 }
 
 console.log('5. What the card uses');

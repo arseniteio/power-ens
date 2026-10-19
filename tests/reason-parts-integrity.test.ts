@@ -51,13 +51,13 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
     ensConfigurationRepository.completeHydration({ ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: [JSON.parse(JSON.stringify(blocks['op.exp.6']))] });
     const scope = [{ id: '101', name: 'srv-a', groups: ['ens'], status: 'active' }, { id: '102', name: 'srv-b', groups: ['ens'], status: 'active' }];
     const estado = getENSComplianceState('BAJO', [], undefined, scope, new Date('2026-10-17T12:00:00Z'));
-    const agentes = estado.agents.map((a: any) => ({
+    const agents = estado.agents.map((a: any) => ({
       ...a,
       results: a.results.map((r: any) => (r.control.id === 'op.exp.6' && r.policyRuntime ? { ...r, policyRuntime: { ...r.policyRuntime, decisions: r.policyRuntime.decisions.map((d: any) => withReasonParts(d, reasonPartsOf(ownOnes))) } } : r)),
     }));
-    const conPartesAntes = agentes.flatMap((a: any) => a.results.filter((r: any) => r.control.id === 'op.exp.6').flatMap((r: any) => r.policyRuntime?.decisions || [])).filter((d: any) => d.reasonParts).length;
-    const consolidated = consolidateAgentComplianceResultByControl(agentes, 'op.exp.6');
-    check('consolidation: consolidated decisions carry no parts', conPartesAntes > 0 && (consolidated?.policyRuntime?.decisions || []).length > 0 && consolidated.policyRuntime.decisions.every((d: any) => d.reasonParts === undefined), { conPartesAntes });
+    const withPartsBefore = agents.flatMap((a: any) => a.results.filter((r: any) => r.control.id === 'op.exp.6').flatMap((r: any) => r.policyRuntime?.decisions || [])).filter((d: any) => d.reasonParts).length;
+    const consolidated = consolidateAgentComplianceResultByControl(agents, 'op.exp.6');
+    check('consolidation: consolidated decisions carry no parts', withPartsBefore > 0 && (consolidated?.policyRuntime?.decisions || []).length > 0 && consolidated.policyRuntime.decisions.every((d: any) => d.reasonParts === undefined), { conPartesAntes: withPartsBefore });
   }
 
   console.log('2. The parser only accepts parts that are the text');
@@ -88,18 +88,18 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
     mp.parameters.find((p: any) => p.id === 'P-04').value = ['srv-inexistente | MEDIA'];
     ensConfigurationRepository.completeHydration({ ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: [mp] });
     const scope = [{ id: '101', name: 'srv-a', groups: ['ens'], status: 'active' }, { id: '034', name: 'copias01', groups: ['ens'], status: 'active' }, { id: '000', name: 'm', groups: [], isManager: true }];
-    const ncsDe = (level: string, agent: string | undefined, control: string) =>
+    const ncsOf = (level: string, agent: string | undefined, control: string) =>
       (getENSComplianceState(level, [], agent, scope, new Date('2026-10-17T12:00:00Z')).results.find((r: any) => r.control.id === control)?.nonConformities || []) as any[];
-    const mon3 = ncsDe('BAJO', '034', 'op.mon.3');
+    const mon3 = ncsOf('BAJO', '034', 'op.mon.3');
     check('op.mon.3 unconfigured and no data on 034 (COLLECTION): there are nonconformities', mon3.length > 0 && mon3.every(n => n.cause === 'COLLECTION'), mon3.map(n => n.cause));
     check('...with «op.mon.3 no está en la configuración activa» and the collection datum behind it', mon3.every(n => /^op\.mon\.3 no está en la configuración activa/.test(n.finding) && /Además, no ha llegado ningún dato para/.test(n.finding)));
     check('...and the action «Añadir con valores por defecto», never «Restablecer la RECOGIDA»', mon3.every(n => /^Añadir con valores por defecto \(Configuración/.test(n.requiredAction) && !/RECOGIDA/.test(n.requiredAction)));
-    const cont2 = ncsDe('ALTO', undefined, 'op.cont.2');
+    const cont2 = ncsOf('ALTO', undefined, 'op.cont.2');
     check('op.cont.2 at ALTO (CONFIGURATION): the same action', cont2.length > 0 && cont2.every(n => n.cause === 'CONFIGURATION' && /^Añadir con valores por defecto/.test(n.requiredAction)), cont2.map(n => [n.cause, n.requiredAction.slice(0, 30)]));
-    const mp6 = ncsDe('BAJO', undefined, 'mp.info.6');
+    const mp6 = ncsOf('BAJO', undefined, 'mp.info.6');
     check('mp.info.6 configured, P-04 with no known machine (CONFIGURATION without parameters): «Completar la configuración obligatoria»',
       mp6.length > 0 && mp6.every(n => n.cause === 'CONFIGURATION' && !n.parameterIds.length && /^Completar la configuración obligatoria del control mp\.info\.6/.test(n.requiredAction)) && !mp6.some(n => /productor/.test(n.requiredAction)), mp6.map(n => [n.cause, n.parameterIds, n.requiredAction.slice(0, 40)]));
-    check('the catalog is still the product\'s', ncsDe('BAJO', undefined, 'op.nub.1').filter(n => n.cause === 'CATALOG').every(n => /^Declarar en el catálogo/.test(n.requiredAction)));
+    check('the catalog is still the product\'s', ncsOf('BAJO', undefined, 'op.nub.1').filter(n => n.cause === 'CATALOG').every(n => /^Declarar en el catálogo/.test(n.requiredAction)));
     const kind = classifyNonConformity({ origin: 'NO_EVIDENCIADA', cause: 'COLLECTION' }, { controlConfigured: false });
     check('the card and the queue classify it «Añadir el control a la configuración» (Responsable ENS)', kind.accion === 'Añadir el control a la configuración' && kind.responsable === 'Responsable ENS');
   }
@@ -109,7 +109,7 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
     const pieces = ['EV-01 NO_CUMPLE: ', 'EV-11 CUMPLE: ', 'P-02 NO_EVALUABLE: ', ' | ', 'Además: ', ' Además: ', 'texto', 'Frase. ', 'Otra frase', '; ', ' y 3 más', '2026-10-17T06:03:34Z', 'P-02 (nombre)', '[2 máquinas: a (1), b (2)] ', 'Resuelta por la política del control (p), que mide esta evidencia junto a r.1: ', 'Pregunta de auditoría: ', '«x | EV-09 CUMPLE: y»', ' ', '.', 'a; b; c'];
     let seed = 7;
     const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
-    let malos = 0;
+    let bad = 0;
     let example = '';
     for (let i = 0; i < 20000; i++) {
       const n = 1 + Math.floor(random() * 8);
@@ -117,9 +117,9 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
       for (let k = 0; k < n; k++) t += pieces[Math.floor(random() * pieces.length)];
       const r = parseMotive(t);
       const ok = motiveToText(r) === t && r.parts.every((p: any) => p.summary + (p.detail ? ` ${p.detail}` : '') === p.text && (!p.list || p.text.slice(p.list.start, p.list.end) === p.list.values.join('; ') + (p.list.more !== undefined ? ` y ${p.list.more} más` : '')));
-      if (!ok) { malos += 1; example = example || t; }
+      if (!ok) { bad += 1; example = example || t; }
     }
-    check('20,000 random texts with the grammar\'s pieces: all come back exact', malos === 0, { malos, ejemplo: example });
+    check('20,000 random texts with the grammar\'s pieces: all come back exact', bad === 0, { malos: bad, ejemplo: example });
     check('« Además: x» with the leading space does not lose the space', motiveToText(parseMotive('EV-01 CUMPLE:  Además: x')) === 'EV-01 CUMPLE:  Además: x');
     const withSpace = reasonPartsOf([{ id: 'EV-01', medida: { estado: 'CUMPLE', motivo: ' Además: x' } }]);
     check('reasonPartsOf does not split there either', withSpace[0].text === ' Además: x' && withSpace[0].secondary === undefined);

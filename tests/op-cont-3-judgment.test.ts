@@ -36,7 +36,7 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-type Linea = Record<string, unknown>;
+type Line = Record<string, unknown>;
 
 const PASS = '2026-10-09T12:05';
 const NOW = new Date('2026-10-09T12:30:00Z');
@@ -44,7 +44,7 @@ const NOW = new Date('2026-10-09T12:30:00Z');
 const REQ = 'op.cont.3.1';
 const common = { requisito: REQ, plano: 'central' };
 
-const reading = (ts: string, event: string, evidence: string, file: string, rows: number, extra: Linea = {}): Linea => ({
+const reading = (ts: string, event: string, evidence: string, file: string, rows: number, extra: Line = {}): Line => ({
   ts, event: event, evidence_id: evidence, ...common,
   fichero: file, presente: 'si', legible: 'si', cabecera: 'ok', filas: rows, filas_invalidas: 0, lineas_invalidas: '-', ...extra,
 });
@@ -52,16 +52,16 @@ const reading = (ts: string, event: string, evidence: string, file: string, rows
 const TEST_FILE = '/etc/ensfacil/continuity-test-register.tsv';
 const DEFICIENCY_FILE = '/etc/ensfacil/continuity-deficiency-register.tsv';
 
-const test = (ts: string, linea: number, start: string, fin: string, type: string, scenario: string, systems: string, result: string, deficiencies: number, extra: Linea = {}): Linea => ({
+const test = (ts: string, line: number, start: string, end: string, type: string, scenario: string, systems: string, result: string, deficiencies: number, extra: Line = {}): Line => ({
   ts, event: 'continuity_test_recorded', evidence_id: 'EV-01', ...common,
-  linea, inicio: start, fin, tipo: type, escenario: scenario, sistemas: systems, participantes: 'RSI, Sistemas', resultado: result, deficiencias: deficiencies,
-  referencia: `https://intranet.ejemplo/continuidad/prueba-${linea}.pdf`,
+  linea: line, inicio: start, fin: end, tipo: type, escenario: scenario, sistemas: systems, participantes: 'RSI, Sistemas', resultado: result, deficiencias: deficiencies,
+  referencia: `https://intranet.ejemplo/continuidad/prueba-${line}.pdf`,
   ...(systems === '-' || !['parcial', 'simulacro'].includes(type)
     ? { medicion: 'no_aplica', medido_desde: '-', medido_hasta: '-', dias_sin_alertas: '-', candidatos: 0, agents_disconnection_time: '-' }
     : {
         medicion: 'completa',
         medido_desde: new Date(Date.parse(start) - 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'),
-        medido_hasta: new Date(Date.parse(fin) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'),
+        medido_hasta: new Date(Date.parse(end) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z'),
         dias_sin_alertas: '-',
         candidatos: systems.split(',').length,
         agents_disconnection_time: 600,
@@ -69,19 +69,19 @@ const test = (ts: string, linea: number, start: string, fin: string, type: strin
   ...extra,
 });
 
-const deficiency = (ts: string, linea: number, id: string, testStart: string, deadline: string, situation: string, closing: string, version: string, extra: Linea = {}): Linea => ({
+const deficiency = (ts: string, line: number, id: string, testStart: string, deadline: string, situation: string, closing: string, version: string, extra: Line = {}): Line => ({
   ts, event: 'continuity_deficiency_recorded', evidence_id: 'EV-05', ...common,
-  linea, deficiencia_id: id, prueba_inicio: testStart, descripcion: `deficiencia ${id}`, responsable: 'Responsable de Sistemas',
+  linea: line, deficiencia_id: id, prueba_inicio: testStart, descripcion: `deficiencia ${id}`, responsable: 'Responsable de Sistemas',
   plazo: deadline, situacion: situation, cierre: closing, version_plan: version, referencia: '-', ...extra,
 });
 
-const availability = (ts: string, testStart: string, testEnd: string, system: string, id: string, agent: string, events: string, extra: Linea = {}): Linea => ({
+const availability = (ts: string, testStart: string, testEnd: string, system: string, id: string, agent: string, events: string, extra: Line = {}): Line => ({
   ts, event: 'availability_event_observed', evidence_id: 'EV-03', ...common,
   prueba_inicio: testStart, prueba_fin: testEnd, sistema: system, agente_id: id, agente: agent,
   eventos: events, eventos_total: events === '-' ? 0 : events.split(',').length, alertas_propias: 120, ...extra,
 });
 
-const heartbeat = (ts: string, covered = 'EV-01,EV-03,EV-05,EV-06,EV-08'): Linea => ({
+const heartbeat = (ts: string, covered = 'EV-01,EV-03,EV-05,EV-06,EV-08'): Line => ({
   ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, tipo_servidor: 'manager', emisor: 'recolector',
 });
 
@@ -90,7 +90,7 @@ const DRILL_END = '2026-09-17T23:30:00Z';
 const DESKTOP = '2026-06-18T09:00:00Z';
 const REVISION = '2026-03-12T00:00:00Z';
 
-const pass = (ts = PASS): Linea[] => {
+const pass = (ts = PASS): Line[] => {
   const t = (s: number) => `${ts}:${String(s).padStart(2, '0')}Z`;
 
   return [
@@ -125,9 +125,9 @@ const RULE: Record<string, string> = {
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
-const alert = (linea: Linea) => {
+const alert = (line: Line) => {
   counter += 1;
-  const { ts, host: _host, ...data } = linea as Linea & { ts: string };
+  const { ts, host: _host, ...data } = line as Line & { ts: string };
 
   return {
     _id: `alerta-${counter}`,
@@ -141,36 +141,36 @@ const alert = (linea: Linea) => {
   };
 };
 
-const events = (lineas: Linea[], changes: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lines: Line[], changes: (l: Line) => Line | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .map(l => changes({ ...l }))
-      .filter((l): l is Linea => Boolean(l))
+      .filter((l): l is Line => Boolean(l))
       .map(alert)
   );
 
-const hoy = (changes?: (l: Linea) => Linea | undefined, extra: Linea[] = []) => events([...pass(), ...extra], changes);
+const hoy = (changes?: (l: Line) => Line | undefined, extra: Line[] = []) => events([...pass(), ...extra], changes);
 
-const row = (event: string, where: (l: Linea) => boolean, change: Linea) => (l: Linea): Linea =>
+const row = (event: string, where: (l: Line) => boolean, change: Line) => (l: Line): Line =>
   l.event === event && where(l) ? { ...l, ...change } : l;
 
-const drill = (l: Linea) => l.inicio === DRILL || l.prueba_inicio === DRILL;
+const drill = (l: Line) => l.inicio === DRILL || l.prueba_inicio === DRILL;
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opCont3Configuration,
   parameters: opCont3Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
 const TEST_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
 const DEFICIENCY_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)';
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': '12',
   'P-02': ['revision_documental | revisión del plan | anual', 'escritorio | ejercicio de mesa | 12', 'simulacro | conmutación real al CPD alternativo | 12'],
   'P-03': ['pérdida total de CPD | todos', 'ciberincidente con cifrado de datos | correo, LDAP'],
@@ -180,18 +180,18 @@ const BASE: Valores = {
   'P-07': ['* | 4 | 0', '028 | 2 | 15'],
 };
 
-const NO_PARAMETERS: Valores = {};
+const NO_PARAMETERS: Values = {};
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'ALTO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts('op.cont.3', evs, now);
-  const evidences = resolveEvidenceForControl('op.cont.3', delControl, '000', level, cfg, now);
-  const context = buildPolicyContext(opCont3CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts('op.cont.3', evs, now);
+  const evidences = resolveEvidenceForControl('op.cont.3', ofTheControl, '000', level, cfg, now);
+  const context = buildPolicyContext(opCont3CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions, runtimeVariables } = opCont3PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opCont3CatalogDefinition.requirements);
   const attestations = parseRequirementAttestations(cfg);
@@ -207,7 +207,7 @@ const evaluate = (
     );
   const evidence = (id: string) => tabla.find(e => e.id === id);
   const motive = () => decisions.find(d => d.trace.ruleId === REQ)?.reason || '';
-  const de = (ev: string) => decisions.find(d => d.trace.ruleId === `${REQ}/${ev}`)?.reason || '';
+  const from = (ev: string) => decisions.find(d => d.trace.ruleId === `${REQ}/${ev}`)?.reason || '';
   const motor = () =>
     evaluateENSControl(
       opCont3CatalogDefinition,
@@ -222,10 +222,10 @@ const evaluate = (
         appliedParameters: [],
         runtimeVariables,
       },
-      delControl
+      ofTheControl
     );
 
-  return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, de, motor };
+  return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, de: from, motor };
 };
 
 const estado = (r: ReturnType<typeof evaluate>, id: string) => `${r.evidencia(id)?.status} ${r.evidencia(id)?.gapCause || ''}`.trim();
@@ -329,8 +329,8 @@ section('4. Red, first obligation: periodicity, scenarios and scope, each with i
     evaluate(hoy(), { ...BASE, 'P-01': '3', 'P-03': ['pérdida total de CPD | todos'], 'P-02': ['escritorio | x | ', 'simulacro | x | 12'] }).evidencia('EV-02')?.status === 'NO_CUMPLE'
   );
 
-  const soloMesa = hoy(row('continuity_test_recorded', drill, { tipo: 'escritorio', medicion: 'no_aplica' }));
-  const mesa = evaluate(soloMesa);
+  const deskOnly = hoy(row('continuity_test_recorded', drill, { tipo: 'escritorio', medicion: 'no_aplica' }));
+  const mesa = evaluate(deskOnly);
   check(
     'only documentary and desktop reviews → EV-01 NO_CUMPLE (none exercises the alternative means)',
     mesa.evidencia('EV-01')?.status === 'NO_CUMPLE' && /solo revisiones documentales o de escritorio/.test(mesa.de('EV-01')),
@@ -342,8 +342,8 @@ section('4. Red, first obligation: periodicity, scenarios and scope, each with i
     evaluate(hoy(row('continuity_test_recorded', drill, { tipo: 'parcial' })), { ...BASE, 'P-02': [...(BASE['P-02'] as string[]).filter(f => !f.startsWith('simulacro')), 'parcial | conmutación de componentes | 12'] }).evidencia('EV-01')?.status === 'CUMPLE'
   );
 
-  const sinReales = evaluate(hoy(), { ...BASE, 'P-02': ['revision_documental | x | 12', 'escritorio | x | 12'] });
-  check('P-02 provides no modality that exercises the alternative means → EV-01 NO_CUMPLE', sinReales.evidencia('EV-01')?.status === 'NO_CUMPLE' && /ninguna modalidad \(parcial o simulacro\)/.test(sinReales.de('EV-01')), sinReales.de('EV-01'));
+  const withoutRealOnes = evaluate(hoy(), { ...BASE, 'P-02': ['revision_documental | x | 12', 'escritorio | x | 12'] });
+  check('P-02 provides no modality that exercises the alternative means → EV-01 NO_CUMPLE', withoutRealOnes.evidencia('EV-01')?.status === 'NO_CUMPLE' && /ninguna modalidad \(parcial o simulacro\)/.test(withoutRealOnes.de('EV-01')), withoutRealOnes.de('EV-01'));
 }
 
 section('5. Red, EV-04: declared satisfactory and measured out of target');
@@ -358,7 +358,7 @@ section('5. Red, EV-04: declared satisfactory and measured out of target');
   );
   check('and the requirement measured NO_CUMPLE', r.requisito().status === 'NO_CUMPLE' && r.requisito().evidenced === true);
   check('REVERSAL: P-07 with a general RTO of 5 h → CUMPLE', evaluate(lento, { ...BASE, 'P-07': ['* | 5 | 0', '028 | 2 | 15'] }).evidencia('EV-04')?.status === 'CUMPLE');
-  const slowAndPartial = (l: Linea): Linea =>
+  const slowAndPartial = (l: Line): Line =>
     row('continuity_test_recorded', drill, { resultado: 'parcial' })(
       row('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(l)
     );
@@ -395,7 +395,7 @@ section('5. Red, EV-04: declared satisfactory and measured out of target');
 section('5 bis. The down as an interval: NO_CUMPLE only with the lower bound; CUMPLE only with the upper');
 
 {
-  const ldap = (events: string, extra: Linea = {}) =>
+  const ldap = (events: string, extra: Line = {}) =>
     evaluate(hoy(row('availability_event_observed', l => l.agente_id === '028', { eventos: events, eventos_total: events.split(',').length, ...extra })));
 
   const antes = evaluate(hoy(row('availability_event_observed', l => l.agente_id === '024', { eventos: 'parada@2026-09-17T19:55:00Z,arranque@2026-09-18T03:00:00Z' })));
@@ -481,7 +481,7 @@ section('5 bis. The down as an interval: NO_CUMPLE only with the lower bound; CU
     `${estado(otherWindow, 'EV-04')} ${otherWindow.de('EV-04')}`
   );
 
-  const restores = (change: Linea) => evaluate(hoy(row('backup_restore_observed', () => true, change)));
+  const restores = (change: Line) => evaluate(hoy(row('backup_restore_observed', () => true, change)));
   check(
     'a failed PBS restoration the next day (outside the window, and PBS is not part of the test) → does not count: CUMPLE',
     restores({ instante: '2026-09-18T10:00:00Z', resultado: 'error', coincide: 'no' }).evidencia('EV-04')?.status === 'CUMPLE'
@@ -532,7 +532,7 @@ section('6. Red, second obligation: deficiencies past due, alive at the next tes
     viva.evidencia('EV-05')?.status === 'NO_CUMPLE' && /siguen abiertas después de la prueba siguiente: DEF-2026-03 \(de la prueba del 2026-06-18; la siguiente fue escritorio del 2026-09-30/.test(viva.de('EV-05')),
     viva.de('EV-05')
   );
-  const withoutScenario = (l: Linea) => open03(row('continuity_test_recorded', x => x.inicio === DESKTOP, { escenario: '-' })(l));
+  const withoutScenario = (l: Line) => open03(row('continuity_test_recorded', x => x.inicio === DESKTOP, { escenario: '-' })(l));
   check(
     'if the originating test has no scenario, the next of the same TYPE (desktop) counts → NO_CUMPLE',
     evaluate(hoy(withoutScenario, [{ ...sameScenario, escenario: '-' }])).evidencia('EV-05')?.status === 'NO_CUMPLE'
@@ -600,7 +600,7 @@ section('7. Without a record: NO_EVALUABLE by CONFIGURATION; empty record: judge
   check('empty deficiency record and the tests declare deficiencies → NO_CUMPLE', withoutRows(2).evidencia('EV-05')?.status === 'NO_CUMPLE');
   check('REVERSAL: empty and no test declares deficiencies → CUMPLE (nothing to correct)', withoutRows(0).evidencia('EV-05')?.status === 'CUMPLE', withoutRows(0).de('EV-05'));
 
-  const withoutDefsOf = (change: Linea) => (l: Linea): Linea | undefined =>
+  const withoutDefsOf = (change: Line) => (l: Line): Line | undefined =>
     l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-04'
       ? undefined
       : l.event === 'continuity_deficiency_register_read'
@@ -612,13 +612,13 @@ section('7. Without a record: NO_EVALUABLE by CONFIGURATION; empty record: judge
     failedOne.evidencia('EV-05')?.status === 'NO_CUMPLE' && /revelaron algo que corregir.*simulacro del 2026-09-17.*declarada fallido/.test(failedOne.de('EV-05')),
     `${estado(failedOne, 'EV-05')} ${failedOne.de('EV-05')}`
   );
-  const exceeded = evaluate(hoy(l => withoutDefsOf({ resultado: 'parcial' })(row('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(l) as Linea)));
+  const exceeded = evaluate(hoy(l => withoutDefsOf({ resultado: 'parcial' })(row('availability_event_observed', x => x.agente_id === '024', { eventos: 'parada@2026-09-17T20:05:00Z,arranque@2026-09-18T00:52:00Z' })(l) as Line)));
   check(
     'declared «parcial», with wazuh-real above its RTO and no deficiencies → NO_CUMPLE naming what was measured',
     exceeded.evidencia('EV-05')?.status === 'NO_CUMPLE' && /wazuh-real \(024\) por encima de su RTO 4 h/.test(exceeded.de('EV-05')),
     `${estado(exceeded, 'EV-05')} ${exceeded.de('EV-05')}`
   );
-  const restoresBadly = evaluate(hoy(l => withoutDefsOf({})(row('backup_restore_observed', () => true, { resultado: 'error' })(l) as Linea)));
+  const restoresBadly = evaluate(hoy(l => withoutDefsOf({})(row('backup_restore_observed', () => true, { resultado: 'error' })(l) as Line)));
   check('satisfactory, but with a failed restoration in the window and no deficiencies → NO_CUMPLE', restoresBadly.evidencia('EV-05')?.status === 'NO_CUMPLE', restoresBadly.de('EV-05'));
   check('REVERSAL: satisfactory, measured within the RTO and no deficiencies → CUMPLE', evaluate(hoy(withoutDefsOf({}))).evidencia('EV-05')?.status === 'CUMPLE');
 
@@ -665,10 +665,10 @@ section('9. Without a collector or with the source broken: NO_EVALUABLE by RECOG
   const old = evaluate(hoy(), BASE, 'ALTO', new Date('2026-10-11T12:30:00Z'));
   check('two days without passes: the records read do not describe today → RECOGIDA', old.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no está informando/.test(old.de('EV-01')), old.de('EV-01'));
 
-  const conEstado = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? undefined : l), [
+  const withState = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? undefined : l), [
     { ts: `${PASS}:00Z`, event: 'evidence_state', evidence_id: 'EV-01', ...common, estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'sin python3 en el manager: no se puede leer el registro de pruebas' },
   ]));
-  check('the collector declares it could not read → NO_EVALUABLE with ITS motive', conEstado.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /sin python3/.test(conEstado.de('EV-01')), conEstado.de('EV-01'));
+  check('the collector declares it could not read → NO_EVALUABLE with ITS motive', withState.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /sin python3/.test(withState.de('EV-01')), withState.de('EV-01'));
 
   const unreadable = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? { ...l, legible: 'no' } : l)));
   check('record present but unreadable → RECOGIDA', unreadable.evidencia('EV-01')?.gapCause === 'COLLECTION', estado(unreadable, 'EV-01'));
@@ -680,17 +680,17 @@ section('9. Without a collector or with the source broken: NO_EVALUABLE by RECOG
 section('10. Each test\'s systems are matched with agents by ID or EXACT name');
 
 {
-  const systems = (valor: string) => evaluate(hoy(row('continuity_test_recorded', drill, { sistemas: valor })));
+  const systems = (value: string) => evaluate(hoy(row('continuity_test_recorded', drill, { sistemas: value })));
 
   check('«28» is agent 028 (ID without zeros)', systems('wazuh-real,28').evidencia('EV-04')?.status === 'CUMPLE');
   check('«WAZUH-REAL» is wazuh-real (ignoring case)', systems('WAZUH-REAL,28').evidencia('EV-04')?.status === 'CUMPLE');
   const id24 = evaluate(hoy(row('availability_event_observed', l => l.agente_id === '024', { agente_id: '24' }), []), BASE);
   check('a fact with agente_id «24» matches «wazuh-real» and «024» (normalized on both sides)', id24.evidencia('EV-04')?.status === 'CUMPLE' && evaluate(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? { ...l, agente_id: '24' } : l.event === 'continuity_test_recorded' && drill(l) ? { ...l, sistemas: '024,28' } : l))).evidencia('EV-04')?.status === 'CUMPLE');
 
-  const withoutAgent = (valor: string, candidates: number) => (l: Linea): Linea | undefined =>
+  const withoutAgent = (value: string, candidates: number) => (l: Line): Line | undefined =>
     l.event === 'availability_event_observed' && l.agente_id === '024'
       ? undefined
-      : row('continuity_test_recorded', drill, { sistemas: valor, candidatos: candidates })(l);
+      : row('continuity_test_recorded', drill, { sistemas: value, candidatos: candidates })(l);
   const similar = evaluate(hoy(withoutAgent('wazuh-rea,28', 1)));
   check(
     '«wazuh-rea» is NOT wazuh-real: it is not an agent, it is said, and it does not block because the LDAP is measured → CUMPLE',
@@ -704,8 +704,8 @@ section('10. Each test\'s systems are matched with agents by ID or EXACT name');
     `${estado(none, 'EV-04')} ${none.de('EV-04')}`
   );
 
-  const dos = hoy(undefined, [availability(`${PASS}:04Z`, DRILL, DRILL_END, 'wazuh-real', '041', 'wazuh-real', '-')]);
-  const ambiguous = evaluate(dos);
+  const two = hoy(undefined, [availability(`${PASS}:04Z`, DRILL, DRILL_END, 'wazuh-real', '041', 'wazuh-real', '-')]);
+  const ambiguous = evaluate(two);
   check(
     'a name with two agents (024 and 041) → not chosen: NO_EVALUABLE by CONFIGURATION asking for the ID',
     ambiguous.evidencia('EV-04')?.status === 'NO_EVALUABLE' && ambiguous.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /Decláralo por su ID/.test(ambiguous.de('EV-04')),
@@ -735,7 +735,7 @@ section('11. Cells with strict grammar; one test\'s gap does not cover what was 
     discarded.evidencia('EV-01')?.status === 'NO_EVALUABLE' && discarded.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /5:inicio; 7:tipo/.test(discarded.de('EV-01')),
     `${estado(discarded, 'EV-01')} ${discarded.de('EV-01')}`
   );
-  const discards = (l: Linea) => (l.event === 'continuity_test_register_read' ? { ...l, filas_invalidas: 2, lineas_invalidas: '5:inicio,7:tipo' } : l);
+  const discards = (l: Line) => (l.event === 'continuity_test_register_read' ? { ...l, filas_invalidas: 2, lineas_invalidas: '5:inicio,7:tipo' } : l);
   const expiredWithDiscards = evaluate(hoy(discards), { ...BASE, 'P-01': '3' });
   check(
     'with discarded rows, «vencido» becomes NO_EVALUABLE by CONFIGURATION (the discarded one may be the missing test)',
@@ -856,12 +856,12 @@ section('11 bis. Rows lost on the way, repeated or with cells that are not under
 section('11 ter. What is not known to have arrived whole is not taken as whole (integration)');
 
 {
-  const sin = (clave: string) => (l: Linea): Linea => {
+  const withoutIt = (clave: string) => (l: Line): Line => {
     const { [clave]: _outside, ...rest } = l;
 
-    return rest as Linea;
+    return rest as Line;
   };
-  const withoutRows = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? sin('filas')(l) : l)));
+  const withoutRows = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? withoutIt('filas')(l) : l)));
   check(
     'a record read without «filas» → NO_EVALUABLE by RECOGIDA, never a whole record',
     withoutRows.evidencia('EV-01')?.status === 'NO_EVALUABLE' && withoutRows.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no dice cuántas filas válidas leyó/.test(withoutRows.de('EV-01')),
@@ -869,13 +869,13 @@ section('11 ter. What is not known to have arrived whole is not taken as whole (
   );
   check('REVERSAL: with «filas», EV-01 CUMPLE', evaluate(hoy()).evidencia('EV-01')?.status === 'CUMPLE');
 
-  const withoutInvalid = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? sin('filas_invalidas')(l) : l)));
+  const withoutInvalid = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? withoutIt('filas_invalidas')(l) : l)));
   check(
     'a test-record read without «filas_invalidas» → NO_EVALUABLE by RECOGIDA, never zero discarded',
     withoutInvalid.evidencia('EV-01')?.status === 'NO_EVALUABLE' && withoutInvalid.evidencia('EV-01')?.gapCause === 'COLLECTION' && /no dice cuántas filas descartó el recolector por no seguir el formato \(filas_invalidas\)/.test(withoutInvalid.de('EV-01')),
     `${estado(withoutInvalid, 'EV-01')} ${withoutInvalid.de('EV-01')}`
   );
-  const withoutInvalidDef = evaluate(hoy(l => (l.event === 'continuity_deficiency_register_read' ? sin('filas_invalidas')(l) : l)));
+  const withoutInvalidDef = evaluate(hoy(l => (l.event === 'continuity_deficiency_register_read' ? withoutIt('filas_invalidas')(l) : l)));
   check(
     'and the deficiency-record one without «filas_invalidas» → EV-05 NO_EVALUABLE by RECOGIDA',
     withoutInvalidDef.evidencia('EV-05')?.status === 'NO_EVALUABLE' && withoutInvalidDef.evidencia('EV-05')?.gapCause === 'COLLECTION' && /registro de deficiencias .*\(filas_invalidas\)/.test(withoutInvalidDef.de('EV-05')),
@@ -883,11 +883,11 @@ section('11 ter. What is not known to have arrived whole is not taken as whole (
   );
   check('REVERSAL: with «filas_invalidas» = 0, EV-05 CUMPLE', evaluate(hoy()).evidencia('EV-05')?.status === 'CUMPLE');
 
-  const sinTotal = evaluate(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? sin('eventos_total')(l) : l)));
+  const withoutTotal = evaluate(hoy(l => (l.event === 'availability_event_observed' && l.agente_id === '024' ? withoutIt('eventos_total')(l) : l)));
   check(
     'a chronology without «eventos_total» → EV-04 NO_EVALUABLE by RECOGIDA, never whole',
-    sinTotal.evidencia('EV-04')?.status === 'NO_EVALUABLE' && sinTotal.evidencia('EV-04')?.gapCause === 'COLLECTION' && /eventos_total/.test(sinTotal.de('EV-04')),
-    `${estado(sinTotal, 'EV-04')} ${sinTotal.de('EV-04')}`
+    withoutTotal.evidencia('EV-04')?.status === 'NO_EVALUABLE' && withoutTotal.evidencia('EV-04')?.gapCause === 'COLLECTION' && /eventos_total/.test(withoutTotal.de('EV-04')),
+    `${estado(withoutTotal, 'EV-04')} ${withoutTotal.de('EV-04')}`
   );
   check('REVERSAL: with «eventos_total», EV-04 CUMPLE', evaluate(hoy()).evidencia('EV-04')?.status === 'CUMPLE');
 
@@ -913,7 +913,7 @@ section('11 ter. What is not known to have arrived whole is not taken as whole (
     `${estado(lostTest, 'EV-05')} ${lostTest.de('EV-05')}`
   );
   const lostWithoutRows = evaluate(
-    hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l.event === 'continuity_test_register_read' ? sin('filas')(l) : l))
+    hoy(l => (l.event === 'continuity_test_recorded' && l.linea === 3 ? undefined : l.event === 'continuity_test_register_read' ? withoutIt('filas')(l) : l))
   );
   check(
     'without «filas», the deficiency without a test does not say it «lacks rows the collector read»: it says it is not known how many it read',
@@ -953,7 +953,7 @@ section('11 ter. What is not known to have arrived whole is not taken as whole (
 section('12. Deadlines are judged when the record was read, not when evaluating');
 
 {
-  const withDeadline = (l: Linea) => (l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-04' ? { ...l, plazo: '2026-10-08' } : l);
+  const withDeadline = (l: Line) => (l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-04' ? { ...l, plazo: '2026-10-08' } : l);
   const yesterday = '2026-10-08T18:05';
   const readYesterday = evaluate(events(pass(yesterday), withDeadline), BASE, 'ALTO', new Date('2026-10-09T12:30:00Z'));
   check(
@@ -968,7 +968,7 @@ section('12. Deadlines are judged when the record was read, not when evaluating'
 section('13. State facts: a deficiency closed at noon stops counting as open');
 
 {
-  const open = (l: Linea) => (l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-03' ? { ...l, situacion: 'abierta', cierre: '-' } : l);
+  const open = (l: Line) => (l.event === 'continuity_deficiency_recorded' && l.deficiencia_id === 'DEF-2026-03' ? { ...l, situacion: 'abierta', cierre: '-' } : l);
   const morning = events(pass('2026-10-09T06:05'), open);
   const r0630 = evaluate(morning, BASE, 'ALTO', new Date('2026-10-09T06:30:00Z'));
   check('at 06:30, DEF-2026-03 is still open after the drill → NO_CUMPLE', r0630.evidencia('EV-05')?.status === 'NO_CUMPLE');

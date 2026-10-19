@@ -39,10 +39,10 @@ const CONFIG = `${__dirname}/../config`;
 const blocks = readdirSync(CONFIG)
   .filter(f => f.endsWith('-control-block.json'))
   .map(f => JSON.parse(readFileSync(`${CONFIG}/${f}`, 'utf8')));
-const conValores = (controlId: string, valores: Record<string, unknown>) => {
+const withValues = (controlId: string, values: Record<string, unknown>) => {
   const b = JSON.parse(JSON.stringify(blocks.find(x => x.controlId === controlId)));
   b.parameters.forEach((p: any) => {
-    if (p.id in valores) p.value = valores[p.id];
+    if (p.id in values) p.value = values[p.id];
   });
   return b;
 };
@@ -52,7 +52,7 @@ const base = (): ENSConfigurationVersion => ({
   templates: undefined,
   controls: blocks.map(b => {
     if (b.controlId === 'op.acc.1') {
-      return conValores('op.acc.1', {
+      return withValues('op.acc.1', {
         'P-01': 'Local',
         'P-04': ['admin', 'test'],
         'P-07': ['ana | srv-a | admin', 'luis | srv-b | admin'],
@@ -60,13 +60,13 @@ const base = (): ENSConfigurationVersion => ({
       });
     }
     if (b.controlId === 'op.exp.7') {
-      return conValores('op.exp.7', { 'P-04': ['srv-x | R. Info | R. Serv'], 'P-07': ['srv-x | nóminas'] });
+      return withValues('op.exp.7', { 'P-04': ['srv-x | R. Info | R. Serv'], 'P-07': ['srv-x | nóminas'] });
     }
     if (b.controlId === 'op.exp.8') {
-      return conValores('op.exp.8', { 'P-02': ['srv-x | Ubuntu 24.04 | web'], 'P-12': 24 });
+      return withValues('op.exp.8', { 'P-02': ['srv-x | Ubuntu 24.04 | web'], 'P-12': 24 });
     }
     if (b.controlId === 'mp.info.6') {
-      return conValores('mp.info.6', { 'P-01': 24, 'P-04': ['srv-a | ALTA'] });
+      return withValues('mp.info.6', { 'P-01': 24, 'P-04': ['srv-a | ALTA'] });
     }
     return JSON.parse(JSON.stringify(b));
   }),
@@ -150,12 +150,12 @@ console.log('3. Parity');
   const doc = base();
   const rows = [undefined, '000', '101', '102'];
   const distinct: string[] = [];
-  const variantes: [string, ENSConfigurationVersion][] = [
+  const variants: [string, ENSConfigurationVersion][] = [
     ['sin agents', doc],
     ['agents vacío', { ...doc, agents: {} }],
     ['perfiles sin valores ni plantillas', { ...doc, agents: { '101': { name: 'srv-a', detectedType: 'linux', detectedBy: 'os.platform = ubuntu', aliases: ['srv-a.example.com'] }, '000': { typeOverride: 'manager' } } }],
   ];
-  variantes.forEach(([name, d]) => {
+  variants.forEach(([name, d]) => {
     d.controls.forEach(c => {
       rows.forEach(f => {
         if (resolveControlConfigurationForAgent(d, c.controlId, f) !== c) distinct.push(`${name}: ${c.controlId} ${f}`);
@@ -165,7 +165,7 @@ console.log('3. Parity');
   check('23 controls x 4 rows x 3 variants: the engine receives the SAME object as today', distinct.length === 0, distinct.slice(0, 5));
 
   const NOW = new Date('2026-10-17T10:00:00Z');
-  const agentes: ENSAgentScope[] = [
+  const agents: ENSAgentScope[] = [
     { id: '000', name: 'mgr', groups: [], isManager: true },
     { id: '101', name: 'srv-a', groups: ['ens'] },
     { id: '102', name: 'srv-b', groups: ['ens'] },
@@ -181,14 +181,14 @@ console.log('3. Parity');
     ev('000', 'mgr', 'op.exp.7', 'incident_register_read', 'CUMPLE'),
   ];
   const withoutInstant = (v: unknown) => JSON.stringify(v, (k, x) => (k === 'evaluatedAt' ? undefined : x));
-  const results = variantes.map(([, d]) => {
+  const results = variants.map(([, d]) => {
     ensConfigurationRepository.replaceActive(d);
-    return withoutInstant(getENSComplianceState('MEDIO', facts, undefined, agentes, NOW));
+    return withoutInstant(getENSComplianceState('MEDIO', facts, undefined, agents, NOW));
   });
   check('getENSComplianceState identical with and without agents', results[0] === results[1] && results[0] === results[2]);
-  const byRow = variantes.map(([, d]) => {
+  const byRow = variants.map(([, d]) => {
     ensConfigurationRepository.replaceActive(d);
-    return withoutInstant(['mp.info.6', 'op.acc.1', 'op.exp.7', 'op.exp.8'].map(c => getENSComplianceResultByControl(c, 'MEDIO', facts, '101', agentes, NOW)));
+    return withoutInstant(['mp.info.6', 'op.acc.1', 'op.exp.7', 'op.exp.8'].map(c => getENSComplianceResultByControl(c, 'MEDIO', facts, '101', agents, NOW)));
   });
   check('and the per-control result in a machine\'s view', byRow[0] === byRow[1] && byRow[0] === byRow[2]);
 }
@@ -205,9 +205,9 @@ console.log('4. The engine uses the row\'s value');
   ensConfigurationRepository.replaceActive(doc);
   check('getActiveControlConfiguration(control, agent) resolves', JSON.stringify(getActiveControlConfiguration('op.acc.1', '101')?.parameters.find(p => p.id === 'P-07')?.value) === '["ana | srv-a | admin"]');
   check('and without an agent, the organization', getActiveControlConfiguration('op.acc.1') === doc.controls.find(c => c.controlId === 'op.acc.1'));
-  const agentes: ENSAgentScope[] = [{ id: '101', name: 'srv-a', groups: ['ens'] }, { id: '102', name: 'srv-b', groups: ['ens'] }];
+  const agents: ENSAgentScope[] = [{ id: '101', name: 'srv-a', groups: ['ens'] }, { id: '102', name: 'srv-b', groups: ['ens'] }];
   const applied = (agentId: string, id: string) =>
-    getENSComplianceResultByControl('op.acc.1', 'MEDIO', [], agentId, agentes, new Date('2026-10-17T10:00:00Z'))
+    getENSComplianceResultByControl('op.acc.1', 'MEDIO', [], agentId, agents, new Date('2026-10-17T10:00:00Z'))
       ?.policyRuntime?.appliedParameters.find(p => p.id === id)?.value;
   check('row 101: the agent\'s P-07', JSON.stringify(applied('101', 'P-07')) === '["ana | srv-a | admin"]', applied('101', 'P-07'));
   check('row 102: the organization\'s P-07', JSON.stringify(applied('102', 'P-07')) === '["ana | srv-a | admin","luis | srv-b | admin"]', applied('102', 'P-07'));
@@ -224,8 +224,8 @@ if (GF && GD && GI) {
   const { normalizeWazuhAlert } = require('../common/ens/core/data-source/data-source-engine');
   const { inventoryFromMonitoring } = require('../common/agents/agent-inventory');
   const { resolveENSScopeAgents } = require('../common/ens/core/scope/runtime');
-  const real = JSON.parse(leer(GD, 'utf8'));
-  const config = real._source ? real._source.configuration : real.configuration || real;
+  const actual = JSON.parse(leer(GD, 'utf8'));
+  const config = actual._source ? actual._source.configuration : actual.configuration || actual;
   const instant = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());
   const inv = inventoryFromMonitoring(JSON.parse(leer(GI, 'utf8')).aggregations, instant.getTime()).agents;
   const scope = resolveENSScopeAgents(inv, config.scope);
@@ -234,10 +234,10 @@ if (GF && GD && GI) {
     ensConfigurationRepository.replaceActive(d);
     return JSON.stringify(getENSComplianceState(d.global.ensLevel, facts, undefined, scope, instant), (k, x) => (k === 'evaluatedAt' ? undefined : x));
   };
-  const sin = estado(config);
+  const withoutIt = estado(config);
   const withProfiles = estado({ ...config, agents: Object.fromEntries(scope.map((a: any) => [a.id, { name: a.name, detectedType: 'linux', aliases: ['x.example.com'] }])) });
-  console.log(`    ${facts.length} facts, ${scope.length} rows, state of ${sin.length} bytes`);
-  check('real facts: the whole state is identical without agents and with profiles without values', sin === withProfiles);
+  console.log(`    ${facts.length} facts, ${scope.length} rows, state of ${withoutIt.length} bytes`);
+  check('real facts: the whole state is identical without agents and with profiles without values', withoutIt === withProfiles);
 }
 
 console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');

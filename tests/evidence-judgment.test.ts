@@ -543,7 +543,7 @@ section('List comparison');
 section('Unreadable facts');
 
 {
-  const sinCampo = judges(
+  const withoutField = judges(
     JUDGMENT_NONE,
     [event('generic_account_login', { otro_campo: 'x' })],
     configuration('P-04', ['admin'])
@@ -551,8 +551,8 @@ section('Unreadable facts');
 
   check(
     'fact event without the field · NO_EVALUABLE, not CUMPLE',
-    sinCampo.status === 'NO_EVALUABLE',
-    sinCampo.status
+    withoutField.status === 'NO_EVALUABLE',
+    withoutField.status
   );
 
   const mix = judges(
@@ -1451,8 +1451,8 @@ section('ANTIGUEDAD_MAXIMA');
     })
   );
 
-  const copy = (fin: string) => [
-    event('backup_ok', { fin_copia: fin }),
+  const copy = (end: string) => [
+    event('backup_ok', { fin_copia: end }),
   ];
 
   const recent = judges(
@@ -1763,13 +1763,13 @@ section(
 );
 
 {
-  const P07 = (valor: string[]) =>
+  const P07 = (value: string[]) =>
     config(
       parameter({
         id: 'P-07',
         name: 'lista_usuarios_autorizados',
         type: 'table',
-        value: valor,
+        value: value,
         columns: [
           {
             name: 'usuario',
@@ -2276,7 +2276,7 @@ section('CONFORME_A_TABLA');
     String(unreadableMode.gapCause)
   );
 
-  const sinClave = judges(
+  const withoutKey = judges(
     JUDGMENT_ACL,
     measure({ modo: '750' }),
     P08(FULL_ROW)
@@ -2284,8 +2284,8 @@ section('CONFORME_A_TABLA');
 
   check(
     'fact without the field that identifies its row · NO_EVALUABLE',
-    sinClave.status === 'NO_EVALUABLE',
-    `${sinClave.status} — ${motives(sinClave)}`
+    withoutKey.status === 'NO_EVALUABLE',
+    `${withoutKey.status} — ${motives(withoutKey)}`
   );
 
   check(

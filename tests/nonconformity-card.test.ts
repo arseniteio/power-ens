@@ -111,12 +111,12 @@ const card = (props: any = {}) => () => React.createElement(NonConformityCard, {
       const m = compositeReason(ownLists);
       return card({ item: { ...item, finding: m, evidenceIds: ['EV-04'] }, evidenciasImplicadas: ['EV-04'], lineasMotivo: [{ texto: `${BRIDGE}${m}`, etiqueta: 'EV-04' }] });
     };
-    const enFrase = 'Hay servicios en ejecución que P-02 no permite en esta máquina: telnet.service; rsh.service; tftp.service; finger.service y 3 más. Revisar P-02 o pararlos.';
-    const partA = parseMotive(enFrase).parts[0];
+    const inSentence = 'Hay servicios en ejecución que P-02 no permite en esta máquina: telnet.service; rsh.service; tftp.service; finger.service y 3 más. Revisar P-02 o pararlos.';
+    const partA = parseMotive(inSentence).parts[0];
     const a = layoutGuiltyPart(partA);
     check('list in the first sentence: the headline ends right before it, without «…»', a.headline === 'Hay servicios en ejecución que P-02 no permite en esta máquina:' && !a.cutAtWord, a);
     check('...and the list opens the cause, with its values', a.rest?.list?.start === 0 && a.rest.text.startsWith('telnet.service') && a.detail?.text === 'Revisar P-02 o pararlos.' && !a.detail.list, a);
-    p = withoutTitle(await h.render(withList(enFrase)), partA.summary);
+    p = withoutTitle(await h.render(withList(inSentence)), partA.summary);
     check('rendered: each value once, as a list, and after the sentence that introduces it',
       times(p, 'telnet.service') === 1 && h.nodes().filter(n => n.type === 'li').length === 4 && p.indexOf('no permite en esta máquina:') < p.indexOf('telnet.service'), p.slice(0, 600));
     const largo = `La respuesta activa ${'no tiene sus scripts de contención '.repeat(8)}en la máquina auditada.`;
@@ -143,8 +143,8 @@ const card = (props: any = {}) => () => React.createElement(NonConformityCard, {
     const fs = require('fs');
     const path = require('path');
     const sources = ['public/ens/overview/index.tsx', 'public/ens/controls/control-row.tsx', 'public/ens/controls/control-detail/nonconformity-card.tsx', 'public/ens/controls/control-detail/motive-view.tsx', 'public/ens/controls/control-detail/motive-cell.tsx'];
-    const conHex = sources.filter(f => /['"`]#[0-9A-Fa-f]{3,8}\b|\b(rgba?)\(/.test(fs.readFileSync(path.join(__dirname, '..', f), 'utf8')));
-    check('the new screens do not hand-write colours (backgrounds, borders and texts come from the theme)', conHex.length === 0, conHex);
+    const withHex = sources.filter(f => /['"`]#[0-9A-Fa-f]{3,8}\b|\b(rgba?)\(/.test(fs.readFileSync(path.join(__dirname, '..', f), 'utf8')));
+    check('the new screens do not hand-write colours (backgrounds, borders and texts come from the theme)', withHex.length === 0, withHex);
     const tema = fs.readFileSync(path.join(__dirname, '../public/ens/theme-colors.ts'), 'utf8');
     check('...but from `euiThemeVars` (`@osd/ui-shared-deps/theme`, which follows dark mode)', /import \{ euiThemeVars \} from '@osd\/ui-shared-deps\/theme';/.test(tema) && !/#[0-9A-Fa-f]{3,8}\b/.test(tema));
   }

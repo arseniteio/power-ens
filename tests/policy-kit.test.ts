@@ -93,12 +93,12 @@ check(
 
 section('3. Parameters and decisions');
 
-const conValor = (value: unknown): ENSPolicyContext =>
+const withValue = (value: unknown): ENSPolicyContext =>
   ({ configuration: { parameters: [{ id: 'P-01', value }] } } as unknown as ENSPolicyContext);
 
-check('a zero deadline is not a deadline', positiveScalar(conValor('0'), 'P-01') === undefined);
-check('a negative deadline neither', positiveScalar(conValor('-3'), 'P-01') === undefined);
-check('«26» es 26', positiveScalar(conValor('26'), 'P-01') === 26);
+check('a zero deadline is not a deadline', positiveScalar(withValue('0'), 'P-01') === undefined);
+check('a negative deadline neither', positiveScalar(withValue('-3'), 'P-01') === undefined);
+check('«26» es 26', positiveScalar(withValue('26'), 'P-01') === 26);
 
 const decide = decisionBuilderFor('policy.op.zzz.1');
 check('`attested` travels with CUMPLE', decide('op.zzz.1.1', 'CUMPLE', [], [], 'COVERAGE_REQUIRED', 'r', 'm', 'e', undefined, true).attested === true);

@@ -40,11 +40,11 @@ section('the classic view\'s catalog is the engine\'s');
   check('ens-requirements.ts has no requirements the catalog lacks', extra.length === 0, extra.join(', '));
 
   const groups = new Set([...ofFile].map(id => id.split('.').slice(0, 3).join('.')));
-  const controles = ENSCatalog.map(control => control.id);
+  const controls = ENSCatalog.map(control => control.id);
 
   check(
-    `the ${controles.length} controls appear in the controls column`,
-    controles.every(id => groups.has(id)) && groups.size === controles.length,
+    `the ${controls.length} controls appear in the controls column`,
+    controls.every(id => groups.has(id)) && groups.size === controls.length,
     [...groups].join(', ')
   );
   check('no empty description', Object.values(ensRequirementsFile).every(text => String(text).trim().length > 0));

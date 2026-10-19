@@ -31,14 +31,14 @@ for (const file of files) {
     const call = text.slice(i, j + 1);
     since = j + 1;
     calls++;
-    const conTope = /\bsize:\s*(?!0\b)[\w.]+/.test(call);
+    const withCap = /\bsize:\s*(?!0\b)[\w.]+/.test(call);
     const recentOnes = /sorting:\s*\[\s*\{\s*timestamp:\s*\{\s*order:\s*'desc'/.test(call);
     const sitio = path.relative(path.join(__dirname, '..'), file);
-    if (conTope && !recentOnes) {
+    if (withCap && !recentOnes) {
       failures++;
       console.log(`  FAIL ${sitio}: capped query without asking for the most recent`);
     } else {
-      console.log(`  ok   ${sitio}${conTope ? ': capped, the most recent' : ': sin tope'}`);
+      console.log(`  ok   ${sitio}${withCap ? ': capped, the most recent' : ': sin tope'}`);
     }
   }
 }

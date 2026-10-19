@@ -23,9 +23,9 @@ const schema = {
   string: (o: { maxLength: number }) => ({ tipo: 'string', maxLength: o.maxLength, opcional: false }),
   maybe: (t: any) => ({ ...t, opcional: true }),
   object: (props: Record<string, any>, options: { unknowns: string }) => ({
-    validate: (valor: Record<string, unknown>) => {
+    validate: (value: Record<string, unknown>) => {
       const output: Record<string, unknown> = {};
-      for (const [clave, v] of Object.entries(valor || {})) {
+      for (const [clave, v] of Object.entries(value || {})) {
         const type = props[clave];
         if (!type) {
           if (options.unknowns === 'ignore') continue;
@@ -44,7 +44,7 @@ const declaredItems = Object.keys(EVALUATION_QUERY_FIELDS);
 
 const asUrl = (query: Record<string, unknown>) =>
   new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString();
-const deUrl = (string: string) => Object.fromEntries(new URLSearchParams(string));
+const ofUrl = (string: string) => Object.fromEntries(new URLSearchParams(string));
 
 const requested: { path: string; query: Record<string, unknown> }[] = [];
 setServices({ http: { get: async (p: string, o: any) => { requested.push({ path: p, query: o.query }); return { statusCode: 200, error: 0, data: {} }; } } } as any, {} as any);
@@ -54,12 +54,12 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   const service = lee('server/lib/evaluation/evaluation-service.ts');
   const normalize = service.slice(service.indexOf('export const normalizeQuery'), service.indexOf('export interface ENSEvaluationContext'));
   const handlers = lee('server/lib/evaluation-handlers.ts');
-  const campos = lee('server/lib/evaluation/overview-fields.ts');
+  const fields = lee('server/lib/evaluation/overview-fields.ts');
   const read = new Set<string>([
     ...[...normalize.matchAll(/query\.(\w+)/g)].map(m => m[1]),
     ...[...handlers.matchAll(/request\?\.query\?\.(\w+)/g)].map(m => m[1]),
     ...[...handlers.matchAll(/\bq\.(\w+)/g)].map(m => m[1]),
-    ...[...campos.matchAll(/overviewQueryFlags[\s\S]{0,200}?query\.(\w+)/g)].map(m => m[1]),
+    ...[...fields.matchAll(/overviewQueryFlags[\s\S]{0,200}?query\.(\w+)/g)].map(m => m[1]),
   ]);
   check('the reads are found (include, timelineDays, timelineControls, retryRefresh, from, size...)', ['include', 'timelineDays', 'timelineControls', 'retryRefresh', 'from', 'size', 'timeZone'].every(c => read.has(c)), [...read]);
   const undeclared2 = [...read].filter(c => !declaredItems.includes(c));
@@ -89,10 +89,10 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   const clock = new Date('2026-10-17T12:00:00Z');
   const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
   let n = 0;
-  const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+  const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
     _id: `h${String(++n).padStart(5, '0')}`,
     _index: 'wazuh-alerts-4.x-2026.10.17',
-    _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+    _source: { '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
   });
   const docs: FakeDoc[] = [];
   for (const [agent, name] of [['101', 'srv-web01'], ['102', 'ldap01']]) {
@@ -118,7 +118,7 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   const throughRoute = async (string: string, validator = ruta) => {
     let r: any;
     for (let i = 0; i < 600; i++) {
-      r = await h.evaluate(context, { query: validator.validate(deUrl(string)), events: {} }, response);
+      r = await h.evaluate(context, { query: validator.validate(ofUrl(string)), events: {} }, response);
       if (r.status !== 200 || (!r.data.meta?.pending && !r.data.meta?.seriesPending)) break;
       await new Promise(ready => setTimeout(ready, 50));
     }
@@ -129,11 +129,11 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   const trend = asUrl(requested[0].query);
   check('the trend query carries the flag', /(^|&)timelineControls=true(&|$)/.test(trend), trend);
   const withFlag = await throughRoute(trend);
-  const puntos = withFlag.data?.timeline || [];
-  check('through the route, the trend receives each control\'s state at each point', withFlag.status === 200 && puntos.length > 1 && puntos.every((p: any) => p.controls && Object.keys(p.controls).length > 0), { status: withFlag.status, puntos: puntos.length, primero: puntos[0] });
-  const sinElCampo = { ...EVALUATION_QUERY_FIELDS };
-  delete sinElCampo.timelineControls;
-  const oldRoute = schema.object(Object.fromEntries(Object.entries(sinElCampo).map(([k, max]) => [k, schema.maybe(schema.string({ maxLength: max }))])), { unknowns: 'ignore' });
+  const points = withFlag.data?.timeline || [];
+  check('through the route, the trend receives each control\'s state at each point', withFlag.status === 200 && points.length > 1 && points.every((p: any) => p.controls && Object.keys(p.controls).length > 0), { status: withFlag.status, puntos: points.length, primero: points[0] });
+  const withoutTheField = { ...EVALUATION_QUERY_FIELDS };
+  delete withoutTheField.timelineControls;
+  const oldRoute = schema.object(Object.fromEntries(Object.entries(withoutTheField).map(([k, max]) => [k, schema.maybe(schema.string({ maxLength: max }))])), { unknowns: 'ignore' });
   const withoutFlag = await throughRoute(trend, oldRoute);
   check('undeclared, the route would drop it and the points would arrive without controls (the earlier failure)', withoutFlag.status === 200 && (withoutFlag.data?.timeline || []).every((p: any) => p.controls === undefined));
   const panel = await throughRoute(asUrl({ include: 'dashboard', timelineDays: 7, timeZone: 'UTC' }));
@@ -142,8 +142,8 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   check('the Overview, through the route: freshness and queue', general.status === 200 && Array.isArray(general.data?.freshness?.cells) && Array.isArray(general.data?.nonConformities));
 
   console.log('4. The Overview covers all controls');
-  const conControl = await h.evaluate(context, { query: ruta.validate(deUrl(asUrl({ include: 'overview', controlId: 'op.exp.3' }))), events: {} }, response);
-  check('include=overview with controlId: 400 with the motive', conControl.status === 400 && /Vista general/.test(conControl.message || ''), conControl);
+  const withControl = await h.evaluate(context, { query: ruta.validate(ofUrl(asUrl({ include: 'overview', controlId: 'op.exp.3' }))), events: {} }, response);
+  check('include=overview with controlId: 400 with the motive', withControl.status === 400 && /Vista general/.test(withControl.message || ''), withControl);
 
   console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);

@@ -73,9 +73,9 @@ const listOf = (agentId?: string, name?: string, extra: any = {}) =>
   {
     const manager = listOf('000', 'Manager');
     check('con el manager: los 23', manager.length === 23 && ENSControls.length === 23);
-    const grises = manager.filter(e => !e.measured);
-    check('14 unmeasured, all at the end and with the PLANE motive', grises.length === 14 && manager.slice(-14).every(e => !e.measured && e.notMeasured?.cause === 'PLANE'), grises.map(e => e.id));
-    check('the measured ones, first and in catalog order', JSON.stringify(manager.slice(0, 9).map(e => e.id)) === JSON.stringify(ENSControls.map((c: any) => c.id).filter((id: string) => !grises.some(g => g.id === id))));
+    const greys = manager.filter(e => !e.measured);
+    check('14 unmeasured, all at the end and with the PLANE motive', greys.length === 14 && manager.slice(-14).every(e => !e.measured && e.notMeasured?.cause === 'PLANE'), greys.map(e => e.id));
+    check('the measured ones, first and in catalog order', JSON.stringify(manager.slice(0, 9).map(e => e.id)) === JSON.stringify(ENSControls.map((c: any) => c.id).filter((id: string) => !greys.some(g => g.id === id))));
     const ldap = listOf('102', 'ldap01');
     check('with a machine outside P-04: the 23 and mp.info.6 last, with P-04', ldap.length === 23 && ldap[22].id === 'mp.info.6' && ldap[22].notMeasured?.cause === 'DECLARED_SCOPE', ldap[22]);
     check('on a declared one, mp.info.6 is measured', listOf('101', 'srv-web01').every(e => e.measured));

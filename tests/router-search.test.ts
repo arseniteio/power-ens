@@ -15,9 +15,9 @@ check('removing everything leaves it empty', withRouterSearch('?agentId=024', { 
 
 check('back from the detail: the control goes, the rest stays', withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', { control: undefined }) === '?tabView=plugins&agentId=024');
 {
-  const controles = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
-  const goBack = controles.match(/onBack=\{\(\) => ([^\n]*)\}/)?.[1] || '';
-  check('«Volver» removes the control from the URL', /updateUrl\(\{ control: undefined \}\)/.test(goBack) && !/setSelectedControl/.test(controles), goBack);
+  const controls = readFileSync(`${__dirname}/../public/ens/controls/index.tsx`, 'utf8');
+  const goBack = controls.match(/onBack=\{\(\) => ([^\n]*)\}/)?.[1] || '';
+  check('«Volver» removes the control from the URL', /updateUrl\(\{ control: undefined \}\)/.test(goBack) && !/setSelectedControl/.test(controls), goBack);
 }
 
 console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');

@@ -74,18 +74,18 @@ const LDAP_REAL = [
   '{"ensfacil":"op.exp.1","ts":"2026-09-17T09:14:54Z","host":"ldapserver.qsprueba.com","event":"collector_run","resultado":"completada","evidencias_cubiertas":"EV-05","fuentes_leidas":"EV-01,EV-07,EV-02,EV-03,EV-04,EV-05","cambios_emitidos":0,"perfil":"ldap","planos_mirados":"sistema,directorio","emisor":"recolector"}',
 ];
 
-const SIN_REVISION =
+const WITHOUT_REVIEW =
   '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:15:53Z","host":"wazuh-real","event":"evidence_state","evidence_id":"EV-06","requisito":"op.exp.1.1","estado":"NO_EVALUABLE","causa":"CONFIGURATION","motivo":"no consta ningun registro de revision del inventario en /etc/ensfacil/opexp1-revisiones.tsv"}';
 
 let counter = 0;
 
 const indexes = (
-  lineas: string[],
+  lines: string[],
   agent = { id: '024', name: 'wazuh-real' }
 ): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas.map(linea => {
-      const data = JSON.parse(linea);
+    lines.map(line => {
+      const data = JSON.parse(line);
 
       counter += 1;
 
@@ -104,12 +104,12 @@ const indexes = (
     })
   );
 
-const withoutEvent = (lineas: string[], event: string): string[] =>
-  lineas.filter(linea => JSON.parse(linea).event !== event);
+const withoutEvent = (lines: string[], event: string): string[] =>
+  lines.filter(line => JSON.parse(line).event !== event);
 
-type Valores = Record<string, ENSControlParameter['value'] | undefined>;
+type Values = Record<string, ENSControlParameter['value'] | undefined>;
 
-const CORRECT_VALUES: Valores = {
+const CORRECT_VALUES: Values = {
   'P-01': ['wazuh-real | Responsable de Sistemas | Resp. Sistemas | HW servidor'],
   'P-02': ['gw-proveedor | router | 172.31.1.1 | Proveedor de hosting'],
   'P-03': ['HW servidor', 'HW red', 'SW base', 'servicio'],
@@ -117,18 +117,18 @@ const CORRECT_VALUES: Valores = {
   'P-08': 24,
 };
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opExp1Configuration,
   parameters: opExp1Configuration.parameters.map(parameter => {
     const { value: _discarded, ...rest } = parameter as ENSControlParameter;
 
-    return valores[parameter.id] === undefined
+    return values[parameter.id] === undefined
       ? (rest as ENSControlParameter)
-      : ({ ...rest, value: valores[parameter.id] } as ENSControlParameter);
+      : ({ ...rest, value: values[parameter.id] } as ENSControlParameter);
   }),
 });
 
-const con = (changesList: Valores): Valores => ({
+const withIt = (changesList: Values): Values => ({
   ...CORRECT_VALUES,
   ...changesList,
 });
@@ -136,18 +136,18 @@ const con = (changesList: Valores): Valores => ({
 const NOW = new Date('2026-09-16T18:00:00Z');
 
 const resolves = (
-  lineas: string[],
-  valores: Valores,
+  lines: string[],
+  values: Values,
   now: Date = NOW,
   agent = { id: '024', name: 'wazuh-real' }
 ): Map<string, ENSEvidenceResolved> =>
   new Map(
     resolveEvidenceForControl(
       'op.exp.1',
-      indexes(lineas, agent),
+      indexes(lines, agent),
       agent.id,
       'MEDIO',
-      configuration(valores),
+      configuration(values),
       now
     ).map(evidence => [evidence.id, evidence])
   );
@@ -255,7 +255,7 @@ section('3. EV-07 · an observed asset without a row in P-01 does not comply');
 {
   const withoutRow = resolves(
     WAZUH_REAL,
-    con({ 'P-01': ['srv-otro | Responsable | Rol | HW servidor'] })
+    withIt({ 'P-01': ['srv-otro | Responsable | Rol | HW servidor'] })
   ).get('EV-07');
 
   check(
@@ -279,11 +279,11 @@ section('3. EV-07 · an observed asset without a row in P-01 does not comply');
     'the comparison is case-sensitive (Wazuh-Real does not authorize wazuh-real)',
     resolves(
       WAZUH_REAL,
-      con({ 'P-01': ['Wazuh-Real | Responsable | Rol | HW servidor'] })
+      withIt({ 'P-01': ['Wazuh-Real | Responsable | Rol | HW servidor'] })
     ).get('EV-07')?.status === 'NO_CUMPLE'
   );
 
-  const withoutP01 = resolves(WAZUH_REAL, con({ 'P-01': undefined })).get('EV-07');
+  const withoutP01 = resolves(WAZUH_REAL, withIt({ 'P-01': undefined })).get('EV-07');
 
   check(
     'P-01 unconfigured · NO_EVALUABLE with cause CONFIGURATION, never CUMPLE',
@@ -292,7 +292,7 @@ section('3. EV-07 · an observed asset without a row in P-01 does not comply');
   );
 
   const withoutOwner = validateControlConfiguration(
-    configuration(con({ 'P-01': ['wazuh-real |  | Rol | HW servidor'] })),
+    configuration(withIt({ 'P-01': ['wazuh-real |  | Rol | HW servidor'] })),
     'MEDIO'
   );
 
@@ -303,7 +303,7 @@ section('3. EV-07 · an observed asset without a row in P-01 does not comply');
   );
 
   const withoutNature = validateControlConfiguration(
-    configuration(con({ 'P-01': ['wazuh-real | Responsable | Rol'] })),
+    configuration(withIt({ 'P-01': ['wazuh-real | Responsable | Rol'] })),
     'MEDIO'
   );
 
@@ -339,7 +339,7 @@ section('4. EV-05 · a neighbour host not declared in P-02 does not comply');
 {
   const undeclared2 = resolves(
     WAZUH_REAL,
-    con({ 'P-02': ['impresora-01 | impresora | 10.0.0.9 | Oficina'] })
+    withIt({ 'P-02': ['impresora-01 | impresora | 10.0.0.9 | Oficina'] })
   ).get('EV-05');
 
   check(
@@ -355,7 +355,7 @@ section('4. EV-05 · a neighbour host not declared in P-02 does not comply');
 
   const onlyName = resolves(
     WAZUH_REAL,
-    con({ 'P-02': ['sai-01 | SAI |  | Mantenimiento'] })
+    withIt({ 'P-02': ['sai-01 | SAI |  | Mantenimiento'] })
   ).get('EV-05');
 
   check(
@@ -394,7 +394,7 @@ section('5. EV-01 to EV-04 · the technical inventory expires against P-08');
   const outside = resolves(WAZUH_REAL, CORRECT_VALUES, new Date('2026-09-17T18:00:00Z'));
   const longerDeadline = resolves(
     WAZUH_REAL,
-    con({ 'P-08': 48 }),
+    withIt({ 'P-08': 48 }),
     new Date('2026-09-17T18:00:00Z')
   );
 
@@ -417,11 +417,11 @@ section('5. EV-01 to EV-04 · the technical inventory expires against P-08');
     );
   }
 
-  const withoutKeepalive = WAZUH_REAL.map(linea => {
-    const data = JSON.parse(linea);
+  const withoutKeepalive = WAZUH_REAL.map(line => {
+    const data = JSON.parse(line);
 
     if (data.event !== 'agent_status') {
-      return linea;
+      return line;
     }
 
     delete data.ultimo_keepalive;
@@ -438,7 +438,7 @@ section('5. EV-01 to EV-04 · the technical inventory expires against P-08');
     `${ev04?.status} ${ev04?.gapCause}`
   );
 
-  const withoutP07 = resolves(WAZUH_REAL, con({ 'P-08': undefined })).get('EV-01');
+  const withoutP07 = resolves(WAZUH_REAL, withIt({ 'P-08': undefined })).get('EV-01');
 
   check(
     'P-08 unconfigured · EV-01 NO_EVALUABLE (CONFIGURATION)',
@@ -454,7 +454,7 @@ section('6. EV-06 · the inventory review expires against P-04');
     resolves(WAZUH_REAL, CORRECT_VALUES).get('EV-06')?.status === 'CUMPLE'
   );
 
-  const expired = resolves(WAZUH_REAL, con({ 'P-04': 3 })).get('EV-06');
+  const expired = resolves(WAZUH_REAL, withIt({ 'P-04': 3 })).get('EV-06');
 
   check(
     'reversal · the same record with P-04 = 3 · NO_CUMPLE',
@@ -463,7 +463,7 @@ section('6. EV-06 · the inventory review expires against P-04');
   );
 
   const withoutRecord = resolves(
-    [...withoutEvent(WAZUH_REAL, 'inventory_review'), SIN_REVISION],
+    [...withoutEvent(WAZUH_REAL, 'inventory_review'), WITHOUT_REVIEW],
     CORRECT_VALUES
   ).get('EV-06');
 
@@ -491,7 +491,7 @@ section('6. EV-06 · the inventory review expires against P-04');
 section('7. op.exp.1.1 declaring nothing: does NOT COMPLY, and not for lack of an agent');
 
 {
-  const empty: Valores = {};
+  const empty: Values = {};
 
   const evidences = Array.from(resolves(WAZUH_REAL, empty).values());
 
@@ -590,7 +590,7 @@ section('9. Real LDAP: the directory plane arrives, and without a review it does
 {
   const ldapAgent = { id: '028', name: 'zimbraHldap' };
 
-  const valoresLdap: Valores = {
+  const ldapValues: Values = {
     'P-01': ['ldapserver | Responsable del directorio | Resp. directorio | servicio de directorio'],
     'P-02': [
       'nat-virtualbox | HW red | 10.0.2.2 | Laboratorio',
@@ -603,7 +603,7 @@ section('9. Real LDAP: the directory plane arrives, and without a review it does
   };
 
   const now = new Date('2026-09-17T12:00:00Z');
-  const evidences = resolves(LDAP_REAL, valoresLdap, now, ldapAgent);
+  const evidences = resolves(LDAP_REAL, ldapValues, now, ldapAgent);
 
   for (const id of ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07']) {
     check(
@@ -640,7 +640,7 @@ section('9. Real LDAP: the directory plane arrives, and without a review it does
     'the asset is the hostname (ldapserver), not the agent name (zimbraHldap)',
     resolves(
       LDAP_REAL,
-      { ...valoresLdap, 'P-01': ['zimbraHldap | Responsable | Rol | servicio de directorio'] },
+      { ...ldapValues, 'P-01': ['zimbraHldap | Responsable | Rol | servicio de directorio'] },
       now,
       ldapAgent
     ).get('EV-07')?.status === 'NO_CUMPLE' &&
@@ -649,7 +649,7 @@ section('9. Real LDAP: the directory plane arrives, and without a review it does
 
   const withoutIpv6 = resolves(
     LDAP_REAL,
-    { ...valoresLdap, 'P-02': valoresLdap['P-02']!.slice(0, 2) as string[] },
+    { ...ldapValues, 'P-02': ldapValues['P-02']!.slice(0, 2) as string[] },
     now,
     ldapAgent
   ).get('EV-05');

@@ -90,15 +90,15 @@ const AGENT_PLANE = [
   'op.exp.1', 'op.exp.2', 'op.exp.3', 'op.exp.4', 'op.exp.5', 'op.exp.6',
   'op.exp.10',
 ];
-const SOLO_MANAGER = ['op.cont.2', 'op.cont.3', 'op.exp.7', 'op.exp.9', 'op.mon.1', 'op.mon.2', 'op.nub.1'];
+const MANAGER_ONLY = ['op.cont.2', 'op.cont.3', 'op.exp.7', 'op.exp.9', 'op.mon.1', 'op.mon.2', 'op.nub.1'];
 const DOUBLE_PLANE = ['op.exp.8', 'op.mon.3'];
 
-const AGENTES: ENSAgentScope[] = [
+const AGENTS: ENSAgentScope[] = [
   { id: '001', name: 'wazuh-real', groups: ['default', 'ens'] },
   { id: '002', name: 'wazuh-fake', groups: ['ens'] },
 ];
 const MANAGER: ENSAgentScope = { id: '000', name: 'Wazuh-4', groups: [], isManager: true };
-const CON_MANAGER = [...AGENTES, MANAGER];
+const WITH_MANAGER = [...AGENTS, MANAGER];
 
 let counter = 0;
 
@@ -113,7 +113,7 @@ const fact = (
   return {
     id: `hecho-${counter}`,
     agentId,
-    agentName: [...AGENTES, MANAGER].find(a => a.id === agentId)?.name,
+    agentName: [...AGENTS, MANAGER].find(a => a.id === agentId)?.name,
     controlId,
     eventType,
     sourceType: 'WAZUH_ALERT',
@@ -125,7 +125,7 @@ const fact = (
 
 const COPY = { origen: 'pbs', objeto: 'fichero', ultima_correcta: '2026-09-26T02:00:00Z', ultima_fallida: '-', resultado_ultima: 'ok' };
 
-const DE_AGENTES: ENSNormalizedEvent[] = [
+const OF_AGENTS: ENSNormalizedEvent[] = [
   fact('001', 'mp.info.6', 'backup_run', { evidenceId: 'EV-01', ruleId: '106601', attributes: COPY }),
   fact('001', 'mp.info.6', 'restore_test', {
     evidenceId: 'EV-05',
@@ -138,7 +138,7 @@ const DE_AGENTES: ENSNormalizedEvent[] = [
   }),
 ];
 
-const DEL_MANAGER: ENSNormalizedEvent[] = [
+const OF_MANAGER: ENSNormalizedEvent[] = [
   fact('000', 'op.exp.8', 'collector_run', {
     attributes: { resultado: 'completada', tipo_servidor: 'manager', evidencias_cubiertas: 'EV-04,EV-05' },
   }),
@@ -147,12 +147,12 @@ const DEL_MANAGER: ENSNormalizedEvent[] = [
   }),
 ];
 
-const ALL = [...DE_AGENTES, ...DEL_MANAGER];
+const ALL = [...OF_AGENTS, ...OF_MANAGER];
 
 type Result = { control: { id: string } };
 
-const fingerprint = (valor: unknown): string =>
-  JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
+const fingerprint = (value: unknown): string =>
+  JSON.stringify(value, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
 const byControl = <T extends Result>(results: T[]) =>
   new Map(results.map(r => [r.control.id, r]));
@@ -163,7 +163,7 @@ section('0. The catalog declares the planes');
 
 check(
   'op.cont.2, op.cont.3, op.exp.7, op.exp.9, op.mon.1, op.mon.2 and op.nub.1 are measured only on the manager',
-  SOLO_MANAGER.every(id => fingerprint(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === id)!)) === '["manager"]')
+  MANAGER_ONLY.every(id => fingerprint(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === id)!)) === '["manager"]')
 );
 check(
   'op.exp.8 is measured on both planes',
@@ -183,13 +183,13 @@ check(
 );
 check(
   'the catalog is those 23',
-  ENSCatalog.length === AGENT_PLANE.length + SOLO_MANAGER.length + DOUBLE_PLANE.length
+  ENSCatalog.length === AGENT_PLANE.length + MANAGER_ONLY.length + DOUBLE_PLANE.length
 );
 
 section('1. The scope');
 
 const INVENTORY: ENSAgentScope[] = [
-  ...AGENTES,
+  ...AGENTS,
   { id: '003', name: 'fuera', groups: ['default'] },
 ];
 
@@ -207,23 +207,23 @@ const MODES: Array<[string, ENSConfigurationScope]> = [
 ];
 
 for (const [mode, scope] of MODES) {
-  const agentes = resolveENSScopeAgents(INVENTORY, scope);
-  const manager = agentes.find(a => a.id === ENS_MANAGER_AGENT_ID);
+  const agents = resolveENSScopeAgents(INVENTORY, scope);
+  const manager = agents.find(a => a.id === ENS_MANAGER_AGENT_ID);
 
-  check(`mode ${mode} · the manager enters, marked, without being in any group`, Boolean(manager?.isManager), fingerprint(agentes));
+  check(`mode ${mode} · the manager enters, marked, without being in any group`, Boolean(manager?.isManager), fingerprint(agents));
   check(`mode ${mode} · without the inventory, it is still named`, Boolean(manager?.name));
 }
 
 {
-  const agentes = resolveENSScopeAgents(
+  const agents = resolveENSScopeAgents(
     [...INVENTORY, { id: '000', name: 'Wazuh-4', groups: [] }],
     scopeOf({ mode: 'global', groupIds: [] })
   );
 
   check(
     'with 000 in the inventory, it appears once and with its name',
-    agentes.filter(a => a.id === '000').length === 1 && agentes.find(a => a.id === '000')?.name === 'Wazuh-4',
-    fingerprint(agentes)
+    agents.filter(a => a.id === '000').length === 1 && agents.find(a => a.id === '000')?.name === 'Wazuh-4',
+    fingerprint(agents)
   );
 }
 
@@ -235,7 +235,7 @@ for (const [mode, scope] of MODES) {
   );
 
   for (const [mode, scope] of MODES) {
-    const agentes = resolveENSScopeAgents(
+    const agents = resolveENSScopeAgents(
       [...INVENTORY, { id: '000', name: 'Wazuh-4', groups: [] }],
       scope,
       withoutActiveManager
@@ -243,14 +243,14 @@ for (const [mode, scope] of MODES) {
 
     check(
       `mode ${mode} · without an ACTIVE manager plane, the manager does not enter`,
-      !agentes.some(a => a.id === '000'),
-      fingerprint(agentes)
+      !agents.some(a => a.id === '000'),
+      fingerprint(agents)
     );
   }
 
   check(
     'and the rest of the scope is as usual',
-    fingerprint(resolveENSScopeAgents(INVENTORY, scopeOf({ mode: 'group' }), withoutActiveManager)) === fingerprint(AGENTES)
+    fingerprint(resolveENSScopeAgents(INVENTORY, scopeOf({ mode: 'group' }), withoutActiveManager)) === fingerprint(AGENTS)
   );
 }
 
@@ -275,17 +275,17 @@ hydrateENSScope(scopeOf({ mode: 'group' }), async () => INVENTORY).then(() => {
     fingerprint(ofOne)
   );
 
-  const delManager = buildENSScopeAgentQueryFilter(actives, '000') as { match_phrase?: { 'agent.id': string } };
+  const ofManager = buildENSScopeAgentQueryFilter(actives, '000') as { match_phrase?: { 'agent.id': string } };
 
   check(
     'the manager\'s view brings only its own',
-    delManager.match_phrase?.['agent.id'] === '000',
-    fingerprint(delManager)
+    ofManager.match_phrase?.['agent.id'] === '000',
+    fingerprint(ofManager)
   );
 
   check(
     'without the manager in scope, a machine\'s view is as usual',
-    fingerprint(buildENSScopeAgentQueryFilter(AGENTES, '001')) === fingerprint({ match_phrase: { 'agent.id': '001' } })
+    fingerprint(buildENSScopeAgentQueryFilter(AGENTS, '001')) === fingerprint({ match_phrase: { 'agent.id': '001' } })
   );
 
   rest();
@@ -297,8 +297,8 @@ hydrateENSScope(scopeOf({ mode: 'group' }), async () => INVENTORY).then(() => {
 const rest = (): void => {
   section('2. With the manager and facts only from agents, the 14 agent-plane ones do not change');
 
-  const hoy = getENSComplianceState(LEVEL, DE_AGENTES, undefined, AGENTES, NOW);
-  const now = getENSComplianceState(LEVEL, DE_AGENTES, undefined, CON_MANAGER, NOW);
+  const hoy = getENSComplianceState(LEVEL, OF_AGENTS, undefined, AGENTS, NOW);
+  const now = getENSComplianceState(LEVEL, OF_AGENTS, undefined, WITH_MANAGER, NOW);
 
   const changed = AGENT_PLANE.filter(
     id => fingerprint(byControl(hoy.results).get(id)) !== fingerprint(byControl(now.results).get(id))
@@ -311,7 +311,7 @@ const rest = (): void => {
     ids(now.results).join(', ')
   );
 
-  for (const agent of AGENTES) {
+  for (const agent of AGENTS) {
     const rowToday = hoy.agents.find(a => a.agentId === agent.id)!;
     const rowNow = now.agents.find(a => a.agentId === agent.id)!;
     const distinct = AGENT_PLANE.filter(
@@ -320,8 +320,8 @@ const rest = (): void => {
 
     check(`row ${agent.id} · none of the 14 changes`, distinct.length === 0, distinct.join(', '));
 
-    const vistaHoy = getENSComplianceState(LEVEL, DE_AGENTES, agent.id, AGENTES, NOW);
-    const viewNow = getENSComplianceState(LEVEL, DE_AGENTES, agent.id, CON_MANAGER, NOW);
+    const vistaHoy = getENSComplianceState(LEVEL, OF_AGENTS, agent.id, AGENTS, NOW);
+    const viewNow = getENSComplianceState(LEVEL, OF_AGENTS, agent.id, WITH_MANAGER, NOW);
     const distinctView = AGENT_PLANE.filter(
       id => fingerprint(byControl(vistaHoy.results).get(id)) !== fingerprint(byControl(viewNow.results).get(id))
     );
@@ -331,8 +331,8 @@ const rest = (): void => {
 
   const byControlDistinct = AGENT_PLANE.filter(
     id =>
-      fingerprint(getENSComplianceResultByControl(id, LEVEL, DE_AGENTES, undefined, AGENTES, NOW)) !==
-      fingerprint(getENSComplianceResultByControl(id, LEVEL, DE_AGENTES, undefined, CON_MANAGER, NOW))
+      fingerprint(getENSComplianceResultByControl(id, LEVEL, OF_AGENTS, undefined, AGENTS, NOW)) !==
+      fingerprint(getENSComplianceResultByControl(id, LEVEL, OF_AGENTS, undefined, WITH_MANAGER, NOW))
   );
 
   check('control by control (detail) · none of the 14 changes', byControlDistinct.length === 0, byControlDistinct.join(', '));
@@ -353,44 +353,44 @@ const rest = (): void => {
 
   section('3. op.cont.2, op.cont.3, op.exp.7, op.exp.9, op.mon.1, op.mon.2 and op.nub.1: manager row; in an agent\'s view, its result');
 
-  const estado = getENSComplianceState(LEVEL, ALL, undefined, CON_MANAGER, NOW);
+  const estado = getENSComplianceState(LEVEL, ALL, undefined, WITH_MANAGER, NOW);
   const managerRow = estado.agents.find(a => a.agentId === '000')!;
 
-  for (const id of SOLO_MANAGER) {
+  for (const id of MANAGER_ONLY) {
     check(`${id} · evaluated in row 000`, byControl(managerRow.results).has(id));
     check(
       `${id} · does not appear in any agent row`,
       estado.agents.filter(a => a.agentId !== '000').every(a => !byControl(a.results).has(id))
     );
 
-    const delManager = byControl(managerRow.results).get(id);
+    const ofManager = byControl(managerRow.results).get(id);
     const consolidated = byControl(estado.results).get(id);
 
     check(
       `${id} · the consolidated is the manager row's, over a single machine`,
-      consolidated?.status === delManager?.status &&
+      consolidated?.status === ofManager?.status &&
         fingerprint(consolidated?.consolidatedAgents?.map(a => a.agentId)) === '["000"]',
       fingerprint(consolidated?.consolidatedAgents)
     );
 
-    for (const agent of AGENTES) {
-      const vista = getENSComplianceState(LEVEL, ALL, agent.id, CON_MANAGER, NOW);
+    for (const agent of AGENTS) {
+      const vista = getENSComplianceState(LEVEL, ALL, agent.id, WITH_MANAGER, NOW);
 
       check(
         `${id} · in ${agent.name}'s view, the manager's result`,
-        fingerprint(byControl(vista.results).get(id)) === fingerprint(delManager),
+        fingerprint(byControl(vista.results).get(id)) === fingerprint(ofManager),
         byControl(vista.results).get(id)?.status
       );
       check(
         `${id} · and the same in the control detail`,
-        fingerprint(getENSComplianceResultByControl(id, LEVEL, ALL, agent.id, CON_MANAGER, NOW)) === fingerprint(delManager)
+        fingerprint(getENSComplianceResultByControl(id, LEVEL, ALL, agent.id, WITH_MANAGER, NOW)) === fingerprint(ofManager)
       );
     }
   }
 
   {
-    const withoutFacts = getENSComplianceState(LEVEL, DE_AGENTES, '001', CON_MANAGER, NOW);
-    const withFacts = getENSComplianceState(LEVEL, ALL, '001', CON_MANAGER, NOW);
+    const withoutFacts = getENSComplianceState(LEVEL, OF_AGENTS, '001', WITH_MANAGER, NOW);
+    const withFacts = getENSComplianceState(LEVEL, ALL, '001', WITH_MANAGER, NOW);
 
     check(
       'op.exp.7 · in an agent\'s view, the manager\'s facts change the result',
@@ -399,7 +399,7 @@ const rest = (): void => {
   }
 
   {
-    const vista = getENSComplianceState(LEVEL, ALL, '001', CON_MANAGER, NOW);
+    const vista = getENSComplianceState(LEVEL, ALL, '001', WITH_MANAGER, NOW);
 
     check(
       'an agent\'s view · all 23 are there, in catalog order',
@@ -409,7 +409,7 @@ const rest = (): void => {
   }
 
   {
-    const vista = getENSComplianceState(LEVEL, ALL, '000', CON_MANAGER, NOW);
+    const vista = getENSComplianceState(LEVEL, ALL, '000', WITH_MANAGER, NOW);
 
     check(
       'vista del manager · sus 9 controles',
@@ -418,7 +418,7 @@ const rest = (): void => {
     );
     check(
       'manager\'s view · an agent-plane control has no result',
-      getENSComplianceResultByControl('op.acc.1', LEVEL, ALL, '000', CON_MANAGER, NOW) === undefined
+      getENSComplianceResultByControl('op.acc.1', LEVEL, ALL, '000', WITH_MANAGER, NOW) === undefined
     );
   }
 
@@ -443,10 +443,10 @@ const rest = (): void => {
     );
     check(
       'op.exp.8 · the control detail gives the same consolidated',
-      fingerprint(getENSComplianceResultByControl('op.exp.8', LEVEL, ALL, undefined, CON_MANAGER, NOW)) === fingerprint(consolidated)
+      fingerprint(getENSComplianceResultByControl('op.exp.8', LEVEL, ALL, undefined, WITH_MANAGER, NOW)) === fingerprint(consolidated)
     );
 
-    const vista = getENSComplianceState(LEVEL, ALL, '001', CON_MANAGER, NOW);
+    const vista = getENSComplianceState(LEVEL, ALL, '001', WITH_MANAGER, NOW);
 
     check(
       'op.exp.8 · in an agent\'s view, THAT agent\'s row',
@@ -458,7 +458,7 @@ const rest = (): void => {
   section('5. The daily series applies the same rule');
 
   {
-    const series = buildENSComplianceTimeline(LEVEL, ALL, { scopeAgents: CON_MANAGER, now: NOW, days: 2 });
+    const series = buildENSComplianceTimeline(LEVEL, ALL, { scopeAgents: WITH_MANAGER, now: NOW, days: 2 });
     const ultimo = series[series.length - 1];
 
     check(
@@ -467,8 +467,8 @@ const rest = (): void => {
       `${ultimo?.score} frente a ${estado.controlSummary.scoreAverage}`
     );
 
-    const agentSeries = buildENSComplianceTimeline(LEVEL, ALL, { agentId: '001', scopeAgents: CON_MANAGER, now: NOW, days: 2 });
-    const vista = getENSComplianceState(LEVEL, ALL, '001', CON_MANAGER, NOW);
+    const agentSeries = buildENSComplianceTimeline(LEVEL, ALL, { agentId: '001', scopeAgents: WITH_MANAGER, now: NOW, days: 2 });
+    const vista = getENSComplianceState(LEVEL, ALL, '001', WITH_MANAGER, NOW);
 
     check(
       'an agent\'s panel · the last point is its view\'s',
@@ -477,16 +477,16 @@ const rest = (): void => {
 
     const controlSeries = buildENSControlComplianceTimeline('op.exp.7', LEVEL, ALL, {
       agentId: '001',
-      scopeAgents: CON_MANAGER,
+      scopeAgents: WITH_MANAGER,
       now: NOW,
       days: 2,
     });
-    const delManager = byControl(managerRow.results).get('op.exp.7');
+    const ofManager = byControl(managerRow.results).get('op.exp.7');
 
     check(
       'op.exp.7 detail in an agent\'s view · the last point is the manager\'s',
-      controlSeries[controlSeries.length - 1]?.status === delManager?.status &&
-        controlSeries[controlSeries.length - 1]?.score === delManager?.score,
+      controlSeries[controlSeries.length - 1]?.status === ofManager?.status &&
+        controlSeries[controlSeries.length - 1]?.score === ofManager?.score,
       fingerprint(controlSeries[controlSeries.length - 1])
     );
   }

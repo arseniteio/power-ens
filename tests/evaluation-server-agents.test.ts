@@ -24,10 +24,10 @@ const withoutTrace = (r: any) => (r ? { ...r, traceability: [] } : r);
 const clock = new Date('2026-10-17T12:00:00Z');
 const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.17',
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 const docs: FakeDoc[] = [];
@@ -59,15 +59,15 @@ const monitor = (id: string, name: string, group: string[]): FakeDoc => ({
 const P02_ORGANIZATION = ['wazuh-real | ssh.service', 'zimbraHldap | ssh.service,slapd.service'];
 const P02_OF_024 = ['wazuh-real | ssh.service,telnet.service'];
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
-const sinClave: any = (() => {
+const withoutKey: any = (() => {
   const c: any = copy(defaultENSConfigurationTemplate);
   c.scope = { mode: 'group', agentIds: [], groupIds: ['ens'] };
   c.updatedAt = '2026-10-14T10:00:00.000Z';
   c.controls.find((x: any) => x.controlId === 'op.exp.3').parameters.find((p: any) => p.id === 'P-02').value = P02_ORGANIZATION;
   return c;
 })();
-const conAgentes = (agents: unknown, stamp: string) => ({ ...copy(sinClave), agents: copy(agents), updatedAt: stamp });
-const CON_024 = { '024': { name: 'wazuh-real', controls: { 'op.exp.3': { parameters: { 'P-02': P02_OF_024 } } } } };
+const withAgents = (agents: unknown, stamp: string) => ({ ...copy(withoutKey), agents: copy(agents), updatedAt: stamp });
+const WITH_024 = { '024': { name: 'wazuh-real', controls: { 'op.exp.3': { parameters: { 'P-02': P02_OF_024 } } } } };
 
 const active = (configuration: any, updatedAt: string): FakeDoc => ({
   _id: 'active', _index: 'wazuh-ens-configuration',
@@ -77,20 +77,20 @@ const index = createFakeIndexer([
   ...docs,
   monitor('024', 'wazuh-real', ['ens']),
   monitor('028', 'zimbraHldap', ['ens']),
-  active(sinClave, sinClave.updatedAt),
+  active(withoutKey, withoutKey.updatedAt),
 ], { clock: () => clock.getTime(), user: { user_name: 'ana', roles: ['all_access'] } });
 (index as any).bulk = async ({ body }: any) => {
-  const lineas = String(body).split('\n').filter(Boolean).map(l => JSON.parse(l));
-  for (let i = 0; i < lineas.length; i += 2) {
-    const [op, meta] = Object.entries<any>(lineas[i])[0];
-    const doc: FakeDoc = { _id: meta._id, _index: meta._index, _source: lineas[i + 1] };
+  const lines = String(body).split('\n').filter(Boolean).map(l => JSON.parse(l));
+  for (let i = 0; i < lines.length; i += 2) {
+    const [op, meta] = Object.entries<any>(lines[i])[0];
+    const doc: FakeDoc = { _id: meta._id, _index: meta._index, _source: lines[i + 1] };
     const j = index.docs.findIndex(d => d._id === meta._id && d._index === meta._index);
     if (op === 'index' && j >= 0) index.docs[j] = doc;
     else index.docs.push(doc);
   }
   return { body: { errors: false, items: [] } };
 };
-const clientes = { asCurrentUser: index, asInternalUser: index };
+const clients2 = { asCurrentUser: index, asInternalUser: index };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 const setActive = (configuration: any) => {
   const j = index.docs.findIndex(d => d._id === 'active');
@@ -98,7 +98,7 @@ const setActive = (configuration: any) => {
 };
 const activeNow = () => index.docs.find(d => d._id === 'active')!._source.configuration;
 
-const AGENTES = ['000', '024', '028'];
+const AGENTS = ['000', '024', '028'];
 const reference = (configuration: any) => {
   ensConfigurationRepository.replaceActive(configuration);
   const all = index.docs
@@ -110,7 +110,7 @@ const reference = (configuration: any) => {
   const level = configuration.global.ensLevel;
   return {
     conjunto: getENSComplianceState(level, events, undefined, scope, clock),
-    vistas: Object.fromEntries(AGENTES.map(a => [a, getENSComplianceState(level, events, a, scope, clock)])),
+    vistas: Object.fromEntries(AGENTS.map(a => [a, getENSComplianceState(level, events, a, scope, clock)])),
   };
 };
 
@@ -118,12 +118,12 @@ type Toma = { conjunto: any; filas: Record<string, Record<string, any>>; vistas:
 const rowsOf = (state: any) => Object.fromEntries(state.agents.map((a: any) =>
   [a.agentId, Object.fromEntries(a.results.map((r: any) => [r.control.id, withoutTrace(r)]))]));
 const toma = async (service: ReturnType<typeof createEvaluationService>): Promise<Toma> => {
-  const whole = (await service.run(clientes, { include: 'results', timeZone: 'UTC' })).state!;
-  const vistas: Record<string, any[]> = {};
-  for (const agent of AGENTES) {
-    vistas[agent] = (await service.run(clientes, { include: 'results', agentId: agent, timeZone: 'UTC' })).state!.results.map(withoutTrace);
+  const whole = (await service.run(clients2, { include: 'results', timeZone: 'UTC' })).state!;
+  const views: Record<string, any[]> = {};
+  for (const agent of AGENTS) {
+    views[agent] = (await service.run(clients2, { include: 'results', agentId: agent, timeZone: 'UTC' })).state!.results.map(withoutTrace);
   }
-  return { conjunto: whole, filas: rowsOf(whole), vistas };
+  return { conjunto: whole, filas: rowsOf(whole), vistas: views };
 };
 const evaluate = async (configuration: any): Promise<Toma> => {
   setActive(configuration);
@@ -139,24 +139,24 @@ const applied = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) =
 
 (async () => {
   console.log('1. Without per-system values, the same as without the key');
-  const base = await evaluate(sinClave);
-  check('the test scope: 000, 024 and 028', same(Object.keys(base.filas).sort(), AGENTES), Object.keys(base.filas));
+  const base = await evaluate(withoutKey);
+  check('the test scope: 000, 024 and 028', same(Object.keys(base.filas).sort(), AGENTS), Object.keys(base.filas));
   check('without the key: same as the engine over all facts',
-    same(base.conjunto.results.map(withoutTrace), reference(sinClave).conjunto.results.map(withoutTrace)));
+    same(base.conjunto.results.map(withoutTrace), reference(withoutKey).conjunto.results.map(withoutTrace)));
   check('without the key: 024 does not comply with EV-04 (unauthorized telnet)', ev04(base.filas['024']['op.exp.3']) === 'NO_CUMPLE', ev04(base.filas['024']['op.exp.3']));
   check('without the key: 028 complies with EV-04', ev04(base.filas['028']['op.exp.3']) === 'CUMPLE', ev04(base.filas['028']['op.exp.3']));
-  const empty = await evaluate(conAgentes({}, '2026-10-15T10:00:00.000Z'));
+  const empty = await evaluate(withAgents({}, '2026-10-15T10:00:00.000Z'));
   check('`agents: {}`: identical to without the key (whole, rows and views)', identical(empty, base));
-  const profiles = await evaluate(conAgentes({ '024': { name: 'wazuh-real', aliases: ['wazuh-real.lab'], templates: [], controls: {} }, '028': { name: 'zimbraHldap', controls: {} } }, '2026-10-15T11:00:00.000Z'));
+  const profiles = await evaluate(withAgents({ '024': { name: 'wazuh-real', aliases: ['wazuh-real.lab'], templates: [], controls: {} }, '028': { name: 'zimbraHldap', controls: {} } }, '2026-10-15T11:00:00.000Z'));
   check('profiles without values: identical to without the key (whole, rows and views)', identical(profiles, base));
 
   console.log('2. 024 with its own op.exp.3 P-02');
-  const configuration024 = conAgentes(CON_024, '2026-10-15T12:00:00.000Z');
+  const configuration024 = withAgents(WITH_024, '2026-10-15T12:00:00.000Z');
   const own = await evaluate(configuration024);
   check('024\'s row is evaluated with its value', same(applied(own.filas['024']['op.exp.3']), P02_OF_024), applied(own.filas['024']['op.exp.3']));
   check('028\'s, with the organization\'s', same(applied(own.filas['028']['op.exp.3']), P02_ORGANIZATION), applied(own.filas['028']['op.exp.3']));
   check('024 now complies with EV-04', ev04(own.filas['024']['op.exp.3']) === 'CUMPLE', ev04(own.filas['024']['op.exp.3']));
-  const changed = AGENTES.flatMap(a => Object.keys({ ...base.filas[a], ...own.filas[a] })
+  const changed = AGENTS.flatMap(a => Object.keys({ ...base.filas[a], ...own.filas[a] })
     .filter(c => !same(base.filas[a][c], own.filas[a][c])).map(c => `${a}:${c}`));
   check('only 024\'s row in op.exp.3 changes', same(changed, ['024:op.exp.3']), changed);
   const consolidated = own.conjunto.results.filter((r: any, i: number) => !same(withoutTrace(r), withoutTrace(base.conjunto.results[i]))).map((r: any) => r.control.id);
@@ -167,36 +167,36 @@ const applied = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) =
   const ref = reference(configuration024);
   check('the whole, same as the browser engine with that configuration',
     same(own.conjunto.results.map(withoutTrace), ref.conjunto.results.map(withoutTrace)) && same(own.filas, rowsOf(ref.conjunto)));
-  check('each view, same as the browser engine', AGENTES.every(a => same(own.vistas[a], ref.vistas[a].results.map(withoutTrace))));
+  check('each view, same as the browser engine', AGENTS.every(a => same(own.vistas[a], ref.vistas[a].results.map(withoutTrace))));
 
   console.log('2b. The manager row evaluates with the UNIONS');
-  const conUnion = conAgentes({ '024': { controls: { 'op.exp.7': { parameters: { 'P-07': ['wazuh-real | nóminas'] } } } } }, '2026-10-15T13:00:00.000Z');
-  conUnion.controls.find((x: any) => x.controlId === 'op.exp.7').parameters.find((p: any) => p.id === 'P-07').value = ['srv-x | proveedores'];
-  const union = await evaluate(conUnion);
+  const withUnion = withAgents({ '024': { controls: { 'op.exp.7': { parameters: { 'P-07': ['wazuh-real | nóminas'] } } } } }, '2026-10-15T13:00:00.000Z');
+  withUnion.controls.find((x: any) => x.controlId === 'op.exp.7').parameters.find((p: any) => p.id === 'P-07').value = ['srv-x | proveedores'];
+  const union = await evaluate(withUnion);
   const p07 = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) => p.id === 'P-07')?.value;
   check('manager: op.exp.7 P-07 = organization + 024\'s contribution', same(p07(union.filas['000']['op.exp.7']), ['srv-x | proveedores', 'wazuh-real | nóminas']), p07(union.filas['000']['op.exp.7']));
-  const refUnion = reference(conUnion);
+  const refUnion = reference(withUnion);
   check('same as the browser engine with that configuration', same(union.filas, rowsOf(refUnion.conjunto)) &&
-    AGENTES.every(a => same(union.vistas[a], refUnion.vistas[a].results.map(withoutTrace))));
+    AGENTS.every(a => same(union.vistas[a], refUnion.vistas[a].results.map(withoutTrace))));
 
   console.log('3. A save changes the fingerprint');
-  setActive(sinClave);
+  setActive(withoutKey);
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const antes = await toma(service);
   check('before saving: the without-the-key data', identical(antes, base));
-  check('repeating recomputes nothing', (await service.run(clientes, { include: 'summary', timeZone: 'UTC' })).meta.stats.computed === 0);
+  check('repeating recomputes nothing', (await service.run(clients2, { include: 'summary', timeZone: 'UTC' })).meta.stats.computed === 0);
   const h = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
-  const ctx = { core: { opensearch: { client: clientes } } };
+  const ctx = { core: { opensearch: { client: clients2 } } };
   const resp = { ok: (r: any) => r.body, customError: (r: any) => ({ error: r }) };
   const probe1: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   const saved: any = await createConfigurationHandlers({ logger, securityEnabled: true })
-    .save(ctx, { body: { configuration: { ...copy(activeNow()), agents: copy(CON_024) }, changeReason: 'Valor propio de 024' } }, resp);
+    .save(ctx, { body: { configuration: { ...copy(activeNow()), agents: copy(WITH_024) }, changeReason: 'Valor propio de 024' } }, resp);
   check('the save answers with the configuration', saved?.statusCode === 200 && Boolean(saved?.data?.configuration?.agents?.['024']), saved);
-  check('and changes the active document\'s date', activeNow().updatedAt !== sinClave.updatedAt);
+  check('and changes the active document\'s date', activeNow().updatedAt !== withoutKey.updatedAt);
   const probe2: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   check('the probe sees the change (another fingerprint)', Boolean(probe1?.data?.fingerprint) && probe2?.data?.fingerprint !== probe1.data.fingerprint);
-  const tras = await service.run(clientes, { include: 'summary', timeZone: 'UTC' });
-  check('the next evaluation recomputes', tras.meta.stats.computed > 0, tras.meta.stats.computed);
+  const after2 = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });
+  check('the next evaluation recomputes', after2.meta.stats.computed > 0, after2.meta.stats.computed);
   const after = await toma(service);
   const savedRef = reference(activeNow());
   check('and uses the saved document: 024 complies with EV-04', ev04(after.filas['024']['op.exp.3']) === 'CUMPLE');

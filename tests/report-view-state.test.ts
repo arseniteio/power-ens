@@ -16,7 +16,7 @@ check('with an error: the error (before anything), no PDF', error.kind === 'erro
 
 const opExp3 = getENSCatalogControl('op.exp.3')!;
 let asked = 0;
-const enManager = reportViewState({
+const onManager = reportViewState({
   ...base,
   agentId: '000',
   agentLabel: '000 · wazuh4',
@@ -24,9 +24,9 @@ const enManager = reportViewState({
   notMeasured: () => { asked += 1; return describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined); },
 });
 check('U-N2: agent control on the manager: «no se mide en esta máquina», not a spinner',
-  enManager.kind === 'not-measured' && /no se mide en esta máquina/.test(enManager.title) && enManager.reason?.cause === 'PLANE' && asked === 1, enManager);
-check('U-N2: with the common rule\'s motive', enManager.kind === 'not-measured' && enManager.text === describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined)!.text);
-check('U-N2: sin PDF', !canExportReport(enManager));
+  onManager.kind === 'not-measured' && /no se mide en esta máquina/.test(onManager.title) && onManager.reason?.cause === 'PLANE' && asked === 1, onManager);
+check('U-N2: with the common rule\'s motive', onManager.kind === 'not-measured' && onManager.text === describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined)!.text);
+check('U-N2: sin PDF', !canExportReport(onManager));
 
 const mpInfo6 = getENSCatalogControl('mp.info.6')!;
 const p04 = { controlId: 'mp.info.6', parameters: [{ id: 'P-04', value: ['srv-web01 | MEDIA'] }] } as any;

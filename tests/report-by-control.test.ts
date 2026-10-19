@@ -111,15 +111,15 @@ const registeredDefinition = (
     );
   }
 
-  const camposDe = (controlId: string): string =>
+  const fieldsOf = (controlId: string): string =>
     (buildENSReportModel(controlId, resultWithoutEvidences)?.fields || [])
       .map(campo => campo.id)
       .join(',');
 
   const sets = new Set([
-    camposDe('mp.info.6'),
-    camposDe('op.acc.1'),
-    camposDe('op.acc.2'),
+    fieldsOf('mp.info.6'),
+    fieldsOf('op.acc.1'),
+    fieldsOf('op.acc.2'),
   ]);
 
   check(

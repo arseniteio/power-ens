@@ -74,7 +74,7 @@ section('1. Each point is evaluated at the instant of its day, not today\'s');
 
   check(
     'instants are in increasing order',
-    instantes.every((valor, i) => i === 0 || valor >= instantes[i - 1]),
+    instantes.every((value, i) => i === 0 || value >= instantes[i - 1]),
     instantes.join(' ')
   );
 
@@ -125,21 +125,21 @@ section('2. A day on which the control did not apply comes out WITHOUT a number'
     JSON.stringify(series.map(p => p.status))
   );
 
-  const conCero = mapCutsToControlPoints(
+  const withZero = mapCutsToControlPoints(
     cortes(events),
     () => ({ score: 0, status: 'NO_CUMPLE' })
   );
 
   check(
     'a truly measured 0 is kept',
-    conCero.every(punto => punto.score === 0),
-    JSON.stringify(conCero.map(p => p.score))
+    withZero.every(punto => punto.score === 0),
+    JSON.stringify(withZero.map(p => p.score))
   );
 
   check(
     'and it is distinguished from NO_APLICA by the state',
-    conCero.every(punto => punto.status === 'NO_CUMPLE'),
-    JSON.stringify(conCero.map(p => p.status))
+    withZero.every(punto => punto.status === 'NO_CUMPLE'),
+    JSON.stringify(withZero.map(p => p.status))
   );
 }
 

@@ -36,19 +36,19 @@ const { TabErrorBoundary, describeRenderError } = require('../public/app/tab-err
 const { readFileSync, readdirSync } = require('fs');
 
 const control = (id: string) => ENSCatalog.find((c: any) => c.id === id);
-const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters: [{ id: 'P-04', value: valor }] }) as any;
+const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters: [{ id: 'P-04', value: value }] }) as any;
 
 (async () => {
   console.log('1. Not measured on this machine');
   {
     const ofAgent = ENSCatalog.filter((c: any) => !planes.isControlMeasuredOnPlane(c, 'manager')).map((c: any) => c.id).sort();
     check('14 controls of plane agent', ofAgent.length === 14, ofAgent);
-    const enManager = ofAgent.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
-    check('the 14, on the manager: PLANE with its text', enManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), enManager.map((m: any) => m?.cause));
-    const soloManager = ENSCatalog.filter((c: any) => planes.isManagerOnlyControl(c));
+    const onManager = ofAgent.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
+    check('the 14, on the manager: PLANE with its text', onManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), onManager.map((m: any) => m?.cause));
+    const managerOnly = ENSCatalog.filter((c: any) => planes.isManagerOnlyControl(c));
     check('manager-only ones, on another machine: no motive (seen with the manager row)',
-      soloManager.length === 7 && soloManager.every((c: any) => planes.describeNotMeasuredOnAgent(c, '101', 'srv-web01', undefined) === undefined), soloManager.map((c: any) => c.id));
-    check('manager-only ones, on the manager: no motive', soloManager.every((c: any) => planes.describeNotMeasuredOnAgent(c, '000', 'Manager', undefined) === undefined));
+      managerOnly.length === 7 && managerOnly.every((c: any) => planes.describeNotMeasuredOnAgent(c, '101', 'srv-web01', undefined) === undefined), managerOnly.map((c: any) => c.id));
+    check('manager-only ones, on the manager: no motive', managerOnly.every((c: any) => planes.describeNotMeasuredOnAgent(c, '000', 'Manager', undefined) === undefined));
     check('op.exp.8 and op.mon.3 (both planes), on the manager and on another: no motive',
       ['op.exp.8', 'op.mon.3'].every(id => !planes.describeNotMeasuredOnAgent(control(id), '000', 'M', undefined) && !planes.describeNotMeasuredOnAgent(control(id), '101', 'x', undefined)));
     const p04 = mpInfo6Config(['srv-copias | MEDIA', 'srv-web01 | MEDIA']);
@@ -122,11 +122,11 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     const doc = { ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: ['op.acc.1', 'mp.info.6'].map(id => JSON.parse(JSON.stringify(blocks[id]))) };
     doc.controls[1].parameters.find((p: any) => p.id === 'P-04').value = ['srv-web01 | MEDIA'];
     ensConfigurationRepository.completeHydration(doc);
-    const agentes = [
+    const agents = [
       { id: '101', name: 'srv-web01', groups: ['ens'], status: 'active' },
       { id: '102', name: 'ldap01', groups: ['ens'], status: 'active' },
     ];
-    await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => agentes as any, true);
+    await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => agents as any, true);
     const ctl = (id: string) => ENSControls.find((c: any) => c.id === id);
     const meta = { computedAt: '2026-10-17T12:05:00Z', evaluatedAt: '2026-10-17T12:05:00Z', fingerprint: 'f', level: 'BAJO', facts: { count: 1 } };
     const result = (estado: string) => ({ control: { id: 'op.acc.1' }, status: estado, score: 20, requirements: [{ id: 'op.acc.1.1', status: 'CUMPLE', evidenceIds: [] }], evidences: [], nonConformities: [], applicableRequirements: 1, measuredRequirements: 1, traceability: [] });

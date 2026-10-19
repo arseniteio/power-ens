@@ -31,8 +31,8 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-16T12:00:00Z');
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
 let counter = 0;
 
@@ -56,11 +56,11 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
 const events = (...alerts: ReturnType<typeof alert>[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(alerts);
 
-const configuration = (valores: Record<string, string[]>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, string[]>): ENSControlConfiguration => ({
   ...opExp4Configuration,
   parameters: opExp4Configuration.parameters.map(p => ({
     ...p,
-    value: valores[p.id],
+    value: values[p.id],
   })),
 });
 
@@ -89,11 +89,11 @@ const snapshotOne = (text: string, openOnes: { cvss: string; detectada: string; 
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[]>,
+  values: Record<string, string[]>,
   now: Date = NOW,
   level: ENSLevel = 'ALTO'
 ) => {
-  const cfg = configuration(valores);
+  const cfg = configuration(values);
   const evidences = resolveEvidenceForControl('op.exp.4', evs, '024', level, cfg, now);
   const context = buildPolicyContext(opExp4CatalogDefinition, cfg, level, evs, evidences, now);
   const { decisions } = opExp4PolicyDefinition.evaluator!(context);
@@ -311,8 +311,8 @@ section('8. R1 unsimulated and R2 with precedence');
 section('9. EV-10 · debt week by week');
 
 {
-  const header = (horas: number, openOnes: number) =>
-    alert({ event: 'vulnerability_inventory', evidence_id: 'EV-01,EV-10', instantanea: ago(horas), abiertas: openOnes, puntuaciones: 0, sin_puntuacion: 0 }, ago(horas));
+  const header = (hours: number, openOnes: number) =>
+    alert({ event: 'vulnerability_inventory', evidence_id: 'EV-01,EV-10', instantanea: ago(hours), abiertas: openOnes, puntuaciones: 0, sin_puntuacion: 0 }, ago(hours));
 
   const grows = evaluate(events(header(24 * 15, 100), header(24 * 8, 120), header(2, 150)), {});
   check('100 → 120 → 150 in three weeks → NO_CUMPLE', grows.deEvidencia('EV-10')?.status === 'NO_CUMPLE', grows.deEvidencia('EV-10')?.reason);

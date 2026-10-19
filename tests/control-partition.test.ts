@@ -34,14 +34,14 @@ const scope: ENSAgentScope[] = [
 ];
 const hora = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000).toISOString();
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number) => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number) => ({
   _id: `h${++n}`,
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(hours), timestamp: hora(hours), agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 const hits: any[] = [];
-for (const linea of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-pass.ndjson'), 'utf8').split('\n').filter(Boolean)) {
-  const data = JSON.parse(linea);
+for (const line of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-pass.ndjson'), 'utf8').split('\n').filter(Boolean)) {
+  const data = JSON.parse(line);
   hits.push(fact('024', 'wazuh-real', data, 3));
 }
 for (const h of [30, 20, 10, 2]) {
@@ -61,8 +61,8 @@ hits.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.8', event: 'audit_log_st
 
 hits.sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || a._id.localeCompare(b._id));
 const all = normalizeWazuhAlerts(hits);
-const controles = ENSCatalog.map(c => c.id);
-const deControl = (c: string) => normalizeWazuhAlerts(hits.filter(h => h._source.data.ensfacil === c));
+const controls = ENSCatalog.map(c => c.id);
+const ofControl = (c: string) => normalizeWazuhAlerts(hits.filter(h => h._source.data.ensfacil === c));
 
 const primero = new Map<string, any>();
 for (const h of hits) primero.set(h._source.agent.id, h);
@@ -71,25 +71,25 @@ const presence = buildENSPresenceEvents([...primero.values()].map(h => ({ agentI
 for (const vista of [undefined, '000', '024', '028']) {
   const label = vista || 'conjunto';
   const reference = getENSComplianceState(level, all, vista, scope, NOW);
-  const partitions = controles.map(c => evaluateENSControlPartition(c, level, [...deControl(c), ...presence], vista, scope, NOW));
+  const partitions = controls.map(c => evaluateENSControlPartition(c, level, [...ofControl(c), ...presence], vista, scope, NOW));
   const armado = assembleENSComplianceState(partitions, vista, scope, []);
   check(`${label}: the state built control by control is the engine's over everything`, same(armado, reference),
     reference.results.filter((r, i) => !same(r, armado.results[i])).map(r => r.control.id));
   check(`${label}: same machines and same rows`, same(armado.agents, reference.agents));
-  const distinct = controles.filter(c => !same(
+  const distinct = controls.filter(c => !same(
     partitions.find(p => p.controlId === c)!.result,
     getENSComplianceResultByControl(c, level, all, vista, scope, NOW)
   ));
   check(`${label}: each control, same as the sheet over all facts`, distinct.length === 0, distinct);
 }
 
-const withoutPresence = evaluateENSControlPartition('op.mon.3', level, deControl('op.mon.3'), '028', scope, NOW).result;
+const withoutPresence = evaluateENSControlPartition('op.mon.3', level, ofControl('op.mon.3'), '028', scope, NOW).result;
 const withEverything = getENSComplianceResultByControl('op.mon.3', level, all, '028', scope, NOW);
 check('without presence op.mon.3 on 028 changes (that is why it exists)', !same(withoutPresence, withEverything));
 
 const ref024 = getENSComplianceState(level, all, '024', scope, NOW);
 check('presence does not enter traceability (nor any result)', JSON.stringify(ref024).length > 0 &&
-  !JSON.stringify(assembleENSComplianceState(controles.map(c => evaluateENSControlPartition(c, level, [...deControl(c), ...presence], '024', scope, NOW)), '024', scope)).includes('agent_presence'));
+  !JSON.stringify(assembleENSComplianceState(controls.map(c => evaluateENSControlPartition(c, level, [...ofControl(c), ...presence], '024', scope, NOW)), '024', scope)).includes('agent_presence'));
 
 failures.length ? console.log(`\n${failures.length} FAILURES`) : console.log('\nAll checks pass.');
 process.exit(failures.length ? 1 : 0);

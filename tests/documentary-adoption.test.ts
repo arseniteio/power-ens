@@ -70,14 +70,14 @@ const PARADO: ENSStaleCollector = {
   reason: 'Sin datos del recolector desde el 2026-10-07 10:00 UTC.',
 };
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuration = (base: ENSControlConfiguration, valores: Valores): ENSControlConfiguration => ({
+const configuration = (base: ENSControlConfiguration, values: Values): ENSControlConfiguration => ({
   ...base,
   parameters: base.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
@@ -127,7 +127,7 @@ const evaluate = (
 section('1. op.cont.2: all documentary; an expired contract stays expired (through the real engine and with the scope gap)');
 
 {
-  const VALORES: Valores = {
+  const VALUES: Values = {
     'P-01': ['Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad'],
     'P-02': ['sede electrónica | 4 h | 1 h | srv-web, srv-bd'],
     'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | activar el plan y convocar al comité de crisis'],
@@ -139,7 +139,7 @@ section('1. op.cont.2: all documentary; an expired contract stays expired (throu
     'P-06': ['Plan de Emergencia del edificio'],
     'P-08': '12',
   };
-  const cfg = configuration(opCont2Configuration, VALORES);
+  const cfg = configuration(opCont2Configuration, VALUES);
   const healthy = evaluate(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO');
   const withoutScope = evaluate(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO', 'sin-alcance');
 
@@ -158,9 +158,9 @@ section('1. op.cont.2: all documentary; an expired contract stays expired (throu
     controls: defaultENSConfigurationTemplate.controls.map(control => (control.controlId === 'op.cont.2' ? cfg : control)),
   });
   const MANAGER: ENSAgentScope = { id: '000', name: 'manager', groups: [], isManager: true };
-  const real = getENSComplianceResultByControl('op.cont.2', 'ALTO', [], '000', [MANAGER], NOW);
-  const realRequirement = (id: string) => real?.requirements.find(q => q.id === id);
-  const ncReal = real?.nonConformities.find(n => n.requirementId === 'op.cont.2.3');
+  const actual = getENSComplianceResultByControl('op.cont.2', 'ALTO', [], '000', [MANAGER], NOW);
+  const realRequirement = (id: string) => actual?.requirements.find(q => q.id === id);
+  const realNc = actual?.nonConformities.find(n => n.requirementId === 'op.cont.2.3');
 
   check(
     'through the real engine, without facts: op.cont.2.3 documentary NO_CUMPLE and op.cont.2.1 accredited CUMPLE',
@@ -172,13 +172,13 @@ section('1. op.cont.2: all documentary; an expired contract stays expired (throu
   );
   check(
     'and it never says «Sin datos del recolector»: op.cont.2 does not wait for facts',
-    real !== undefined && !JSON.stringify(real).includes('Sin datos del recolector'),
-    real?.status
+    actual !== undefined && !JSON.stringify(actual).includes('Sin datos del recolector'),
+    actual?.status
   );
   check(
     'its nonconformity is documentary and sends to renew the documentation',
-    ncReal?.documental === true && /^Renovar o completar la documentación/.test(ncReal?.requiredAction || ''),
-    `${ncReal?.documental} ${ncReal?.requiredAction}`
+    realNc?.documental === true && /^Renovar o completar la documentación/.test(realNc?.requiredAction || ''),
+    `${realNc?.documental} ${realNc?.requiredAction}`
   );
 
   check(
@@ -206,10 +206,10 @@ section('1. op.cont.2: all documentary; an expired contract stays expired (throu
 section('2. op.mon.1: R2 (P-05) documentary; the technical part is not');
 
 {
-  const COMPLETE: Valores = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad'] };
-  const A_MEDIAS: Valores = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] };
+  const COMPLETE: Values = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad'] };
+  const HALF_DONE: Values = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] };
   const complete = configuration(opMon1Configuration, COMPLETE);
-  const aMedias = configuration(opMon1Configuration, A_MEDIAS);
+  const halfDone = configuration(opMon1Configuration, HALF_DONE);
 
   const healthy = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, complete, 'ALTO');
 
@@ -230,12 +230,12 @@ section('2. op.mon.1: R2 (P-05) documentary; the technical part is not');
     parado.requisito('op.mon.1.r2.1').status
   );
 
-  const paradoAMedias = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, aMedias, 'ALTO', 'parado');
+  const stoppedHalfway = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, halfDone, 'ALTO', 'parado');
 
   check(
     'with P-05 half done and the collector stopped, R2 stays unmeasured by CONFIGURATION (not by RECOGIDA)',
-    paradoAMedias.decision('op.mon.1.r2.1')?.status === 'NO_EVALUABLE' && paradoAMedias.decision('op.mon.1.r2.1')?.cause === 'CONFIGURATION',
-    `${paradoAMedias.decision('op.mon.1.r2.1')?.status} ${paradoAMedias.decision('op.mon.1.r2.1')?.cause}`
+    stoppedHalfway.decision('op.mon.1.r2.1')?.status === 'NO_EVALUABLE' && stoppedHalfway.decision('op.mon.1.r2.1')?.cause === 'CONFIGURATION',
+    `${stoppedHalfway.decision('op.mon.1.r2.1')?.status} ${stoppedHalfway.decision('op.mon.1.r2.1')?.cause}`
   );
   check(
     'REVERSAL: the technical decision op.mon.1.1 becomes RECOGIDA',

@@ -123,8 +123,8 @@ doc.agents = {
   check('no value anywhere: «sin valor»', empty?.empty && empty.value === 'sin valor' && /^sin valor: ni ajuste propio/.test(empty.origin), empty);
   check('a control that is not in the configuration: nothing', describeParameterForMachine(doc, 'op.mon.1', '101', 'P-01') === undefined);
   check('long lists, summarized with their row count', /^3 filas: a; b; c$/.test(summarizeParameterValue(['a', 'b', 'c']).text));
-  const informes = readFileSync(`${__dirname}/../public/ens/reports/index.tsx`, 'utf8');
-  check('Reports: the origin in the table and in the PDF', /describeParameterForMachine\(activeConfiguration, controlId, agentId, parameter\.id\)/.test(informes) && /parameter\.origin \? ` \(\$\{parameter\.origin\}\)`/.test(informes));
+  const reports = readFileSync(`${__dirname}/../public/ens/reports/index.tsx`, 'utf8');
+  check('Reports: the origin in the table and in the PDF', /describeParameterForMachine\(activeConfiguration, controlId, agentId, parameter\.id\)/.test(reports) && /parameter\.origin \? ` \(\$\{parameter\.origin\}\)`/.test(reports));
 
   console.log('5. A clicked evidence');
   h.reset();

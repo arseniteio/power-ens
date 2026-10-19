@@ -239,12 +239,12 @@ section('4. A half segment still finds');
     `pasan: ${typing.pasan.join(', ')}`
   );
 
-  const puntoFinal = filters(CATALOG, 'op.acc.');
+  const trailingDot = filters(CATALOG, 'op.acc.');
 
   check(
     'typing · «op.acc.» (loose trailing dot) is the whole family',
-    equal(puntoFinal.pasan, ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4']),
-    `pasan: ${puntoFinal.pasan.join(', ')}`
+    equal(trailingDot.pasan, ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4']),
+    `pasan: ${trailingDot.pasan.join(', ')}`
   );
 
   const shortPartial = filters(CATALOG, 'mp.i');
@@ -353,31 +353,31 @@ section('7. When nothing matches');
     nothing.total === CATALOG.length
   );
 
-  const puntosDeMas = filters(CATALOG, 'op..acc');
+  const extraDots = filters(CATALOG, 'op..acc');
 
   check(
     'zero · an extra dot is not corrected by itself nor invents matches',
-    puntosDeMas.pasan.length === 0,
-    `pasan: ${puntosDeMas.pasan.join(', ')}`
+    extraDots.pasan.length === 0,
+    `pasan: ${extraDots.pasan.join(', ')}`
   );
 }
 
 section('8. Families and order');
 
 {
-  const familias = listENSFamilies(
+  const families = listENSFamilies(
     CATALOG.map(control => control.controlId)
   );
 
   check(
     'families · three families, without repeats and in order',
-    equal(familias, ['mp.info', 'op.acc', 'op.exp']),
-    `familias: ${familias.join(', ')}`
+    equal(families, ['mp.info', 'op.acc', 'op.exp']),
+    `familias: ${families.join(', ')}`
   );
 
   check(
     'families · nine controls give three families: the buttons do not overflow',
-    familias.length < CATALOG.length
+    families.length < CATALOG.length
   );
 
   check(

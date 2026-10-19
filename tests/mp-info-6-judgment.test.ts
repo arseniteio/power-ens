@@ -68,8 +68,8 @@ const NOW = new Date('2026-09-30T12:00:00Z');
 const HORA = 60 * 60 * 1000;
 const DAY = 24 * HORA;
 
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * HORA).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * HORA).toISOString().replace('.000Z', 'Z');
 
 const PASS = ago(55 / 60);
 
@@ -95,9 +95,9 @@ const EVIDENCE: Record<string, string> = {
   restore_test: 'EV-05',
 };
 
-type Linea = Record<string, string | number>;
+type Line = Record<string, string | number>;
 
-const linea = (event: string, campos: Linea = {}, ts: string = PASS): Linea => ({
+const line = (event: string, fields: Line = {}, ts: string = PASS): Line => ({
   ensfacil: CONTROL,
   ts,
   host: 'srv-01',
@@ -105,24 +105,24 @@ const linea = (event: string, campos: Linea = {}, ts: string = PASS): Linea => (
   ...(EVIDENCE[event] ? { evidence_id: EVIDENCE[event] } : {}),
   origen: 'pbs',
   objeto: 'fichero',
-  ...campos,
+  ...fields,
 });
 
-const heartbeat = (ts: string = PASS, campos: Linea = {}): Linea =>
-  linea(
+const heartbeat = (ts: string = PASS, fields: Line = {}): Line =>
+  line(
     'collector_run',
     {
       resultado: 'completada',
       evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06',
       evidencias_miradas: 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06',
       rol: 'pbs',
-      ...campos,
+      ...fields,
     },
     ts
   );
 
-const copy = (campos: Linea = {}, ts: string = PASS): Linea =>
-  linea(
+const copy = (fields: Line = {}, ts: string = PASS): Line =>
+  line(
     'backup_run',
     {
       ultima_correcta: ago(10),
@@ -131,19 +131,19 @@ const copy = (campos: Linea = {}, ts: string = PASS): Linea =>
       tipo: 'completa',
       tamano_bytes: 1073741824,
       destino: 'pbs01:datastore1',
-      ...campos,
+      ...fields,
     },
     ts
   );
 
 let counter = 0;
 
-type Agente = { id: string; name: string };
+type Agent2 = { id: string; name: string };
 
-const SRV01: Agente = { id: '001', name: 'srv-01' };
-const SRV02: Agente = { id: '002', name: 'srv-02' };
+const SRV01: Agent2 = { id: '001', name: 'srv-01' };
+const SRV02: Agent2 = { id: '002', name: 'srv-02' };
 
-const alert = (l: Linea, agent: Agente) => {
+const alert = (l: Line, agent: Agent2) => {
   counter += 1;
 
   return {
@@ -158,12 +158,12 @@ const alert = (l: Linea, agent: Agente) => {
   };
 };
 
-const events = (lineas: Linea[], agent: Agente = SRV01): ENSNormalizedEvent[] =>
-  normalizeWazuhAlerts(lineas.map(l => alert(l, agent)));
+const events = (lines: Line[], agent: Agent2 = SRV01): ENSNormalizedEvent[] =>
+  normalizeWazuhAlerts(lines.map(l => alert(l, agent)));
 
-type Valores = Record<string, string | string[] | undefined>;
+type Values = Record<string, string | string[] | undefined>;
 
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': '24',
   'P-02': '4',
   'P-03': '30',
@@ -174,25 +174,25 @@ const BASE: Valores = {
   'P-10': 'pbs',
 };
 
-const configuration = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...mpInfo6Configuration,
   parameters: mpInfo6Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Valores = BASE,
+  values: Values = BASE,
   level: ENSLevel = 'MEDIO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts(CONTROL, evs, now);
-  const evidences = resolveEvidenceForControl(CONTROL, delControl, SRV01.id, level, cfg, now);
-  const context = buildPolicyContext(mpInfo6CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts(CONTROL, evs, now);
+  const evidences = resolveEvidenceForControl(CONTROL, ofTheControl, SRV01.id, level, cfg, now);
+  const context = buildPolicyContext(mpInfo6CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions } = runPolicyRuntime(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, mpInfo6CatalogDefinition.requirements);
   const requirement = (id: string) =>
@@ -272,7 +272,7 @@ section('3. There was never a correct backup (ultima_correcta=-, resultado_ultim
 section('4. Solo evidence_state NO_EVALUABLE (CONFIGURATION) para EV-01');
 
 {
-  const degraded = linea('evidence_state', {
+  const degraded = line('evidence_state', {
     evidence_id: 'EV-01',
     estado: 'NO_EVALUABLE',
     causa: 'CONFIGURATION',
@@ -284,7 +284,7 @@ section('4. Solo evidence_state NO_EVALUABLE (CONFIGURATION) para EV-01');
   check('and its motive', /datastore del PBS/.test(r.motivo('EV-01')), r.motivo('EV-01'));
   check('mp.info.6.1 not proven, never a measured NO_CUMPLE', r.requisito('mp.info.6.1').evidenced === false, `${r.requisito('mp.info.6.1').status} evidenced=${r.requisito('mp.info.6.1').evidenced}`);
 
-  const verdict = linea('evidence_state', { evidence_id: 'EV-03', estado: 'CUMPLE', motivo: 'retención correcta' });
+  const verdict = line('evidence_state', { evidence_id: 'EV-03', estado: 'CUMPLE', motivo: 'retención correcta' });
   const withVerdict = evaluate(events([verdict, heartbeat()]));
   check(
     'an evidence_state with a verdict is not read by the policy: EV-03 stays unmeasured',
@@ -297,7 +297,7 @@ section('5. EV-03 · retention configured against P-03');
 
 {
   const retention = (days: string) =>
-    linea('backup_retention', { retencion_dias: days, copia_mas_antigua: ago(20 * 24) });
+    line('backup_retention', { retencion_dias: days, copia_mas_antigua: ago(20 * 24) });
 
   const corta = evaluate(events([retention('14'), heartbeat()]));
   check('retencion_dias=14 with P-03=30 → EV-03 NO_CUMPLE', corta.estado('EV-03') === 'NO_CUMPLE' && /14/.test(corta.motivo('EV-03')), `${corta.estado('EV-03')} ${corta.motivo('EV-03')}`);
@@ -310,7 +310,7 @@ section('6. EV-04 · accounts with read access against P-07');
 
 {
   const access = (accounts: string) =>
-    linea('backup_access', {
+    line('backup_access', {
       ruta: '/backup',
       modo: '750',
       propietario: 'root',
@@ -329,45 +329,45 @@ section('6. EV-04 · accounts with read access against P-07');
   const clave = evaluate(events([{ ...access('root,backup'), clave_modo: '644' }, heartbeat()]));
   check('the encryption key readable by others (644) → NO_CUMPLE', clave.estado('EV-04') === 'NO_CUMPLE' && /clave/.test(clave.motivo('EV-04')), clave.motivo('EV-04'));
 
-  const conClave = (mode: string) => evaluate(events([{ ...access('root,backup'), clave_modo: mode }, heartbeat()]));
+  const withKey = (mode: string) => evaluate(events([{ ...access('root,backup'), clave_modo: mode }, heartbeat()]));
   const RUTA_CLAVE = /\/etc\/proxmox-backup-client\/encryption-key\.json/;
 
-  const group = conClave('0640');
+  const group = withKey('0640');
   check(
     'the encryption key readable by its group (0640) → NO_CUMPLE naming the key and the mode',
     group.estado('EV-04') === 'NO_CUMPLE' && RUTA_CLAVE.test(group.motivo('EV-04')) && /0640/.test(group.motivo('EV-04')),
     `${group.estado('EV-04')} ${group.motivo('EV-04')}`
   );
 
-  const others = conClave('0644');
+  const others = withKey('0644');
   check(
     'the encryption key readable by group and others (0644) → NO_CUMPLE naming the key and the mode',
     others.estado('EV-04') === 'NO_CUMPLE' && RUTA_CLAVE.test(others.motivo('EV-04')) && /0644/.test(others.motivo('EV-04')),
     `${others.estado('EV-04')} ${others.motivo('EV-04')}`
   );
 
-  const othersOnly = conClave('0604');
+  const othersOnly = withKey('0604');
   check(
     'the encryption key readable only by others (0604) → NO_CUMPLE',
     othersOnly.estado('EV-04') === 'NO_CUMPLE' && /0604/.test(othersOnly.motivo('EV-04')),
     `${othersOnly.estado('EV-04')} ${othersOnly.motivo('EV-04')}`
   );
 
-  const owner = conClave('0600');
+  const owner = withKey('0600');
   check('REVERSAL: the key with 0600 → CUMPLE', owner.estado('EV-04') === 'CUMPLE', `${owner.estado('EV-04')} ${owner.motivo('EV-04')}`);
 
-  const readOnly = conClave('0400');
+  const readOnly = withKey('0400');
   check('REVERSAL: the key with 0400 → CUMPLE', readOnly.estado('EV-04') === 'CUMPLE', `${readOnly.estado('EV-04')} ${readOnly.motivo('EV-04')}`);
 
-  const groupWrite = conClave('0620');
+  const groupWrite = withKey('0620');
   check('REVERSAL: group write without read (0620) does not count as read → CUMPLE', groupWrite.estado('EV-04') === 'CUMPLE', `${groupWrite.estado('EV-04')} ${groupWrite.motivo('EV-04')}`);
 }
 
 section('7. EV-05 · the restore test against P-05');
 
 {
-  const test = (days: number, campos: Linea = {}) =>
-    linea(
+  const test = (days: number, fields: Line = {}) =>
+    line(
       'restore_test',
       {
         origen: 'zimbra-ne',
@@ -378,7 +378,7 @@ section('7. EV-05 · the restore test against P-05');
         coincide: 'si',
         limpieza: 'ok',
         detalle: 'mensaje de control presente',
-        ...campos,
+        ...fields,
       },
       ago(days * 24)
     );
@@ -415,10 +415,10 @@ section('8. EV-06 · the off-machine copy (level ALTO)');
 
 {
   const destination = (same2: string, active: string, name: string) =>
-    linea('backup_storage', { destino: name, misma_maquina: same2, tipo: same2 === 'si' ? 'local' : 'remoto', activo: active });
+    line('backup_storage', { destino: name, misma_maquina: same2, tipo: same2 === 'si' ? 'local' : 'remoto', activo: active });
 
-  const soloLocal = evaluate(events([destination('si', 'si', '/backup'), heartbeat()]), BASE, 'ALTO');
-  check('only misma_maquina=si → EV-06 NO_CUMPLE', soloLocal.estado('EV-06') === 'NO_CUMPLE', `${soloLocal.estado('EV-06')} ${soloLocal.motivo('EV-06')}`);
+  const localOnly = evaluate(events([destination('si', 'si', '/backup'), heartbeat()]), BASE, 'ALTO');
+  check('only misma_maquina=si → EV-06 NO_CUMPLE', localOnly.estado('EV-06') === 'NO_CUMPLE', `${localOnly.estado('EV-06')} ${localOnly.motivo('EV-06')}`);
 
   const withRemote = evaluate(events([destination('si', 'si', '/backup'), destination('no', 'si', 'pbs-dr:datastore2'), heartbeat()]), BASE, 'ALTO');
   check('REVERSAL: with one misma_maquina=no and activo=si → CUMPLE', withRemote.estado('EV-06') === 'CUMPLE', withRemote.motivo('EV-06'));
@@ -436,13 +436,13 @@ section('9. Scope by P-04');
     { id: SRV02.id, name: SRV02.name, groups: ['ens'] },
   ];
 
-  const active2 = (valores: Valores): void => {
+  const active2 = (values: Values): void => {
     ensConfigurationRepository.replaceActive({
       ...defaultENSConfigurationTemplate,
       global: { ...defaultENSConfigurationTemplate.global, ensLevel: LEVEL },
       scope: { mode: 'group', agentIds: [], groupIds: ['ens'] },
       controls: defaultENSConfigurationTemplate.controls.map(c =>
-        c.controlId === CONTROL ? configuration(valores) : c
+        c.controlId === CONTROL ? configuration(values) : c
       ),
     } as ENSConfigurationVersion);
   };
@@ -468,7 +468,7 @@ section('9. Scope by P-04');
     ]),
   ];
 
-  const deControl = (results: { control: { id: string } }[], id: string) =>
+  const ofControl = (results: { control: { id: string } }[], id: string) =>
     results.find(r => r.control.id === id) as any;
 
   const withoutData = (r: any): boolean =>
@@ -486,20 +486,20 @@ section('9. Scope by P-04');
     const estado = getENSComplianceState(LEVEL, FACTS, undefined, SCOPE, NOW);
     const row01 = estado.agents.find(a => a.agentId === SRV01.id)!;
     const row02 = estado.agents.find(a => a.agentId === SRV02.id)!;
-    const itsOwn = deControl(row01.results, CONTROL);
+    const itsOwn = ofControl(row01.results, CONTROL);
 
     check('srv-01 is in P-04 and has sent nothing: mp.info.6 APPEARS in its row', Boolean(itsOwn), row01.results.map(r => r.control.id).join(', '));
     check('and appears «sin datos»: NO_CUMPLE with nothing proven, evidences NO_EVALUABLE, RECOGIDA findings', withoutData(itsOwn), JSON.stringify(itsOwn && { status: itsOwn.status, medidos: itsOwn.measuredRequirements, nc: itsOwn.nonConformities.map((n: any) => `${n.id}:${n.origin}/${n.cause}`) }));
     check(
       'just like another control measured by its policy on that machine without facts (op.exp.8)',
-      withoutData(deControl(row01.results, 'op.exp.8')) &&
-        deControl(row01.results, 'op.exp.8').status === itsOwn?.status,
-      deControl(row01.results, 'op.exp.8')?.status
+      withoutData(ofControl(row01.results, 'op.exp.8')) &&
+        ofControl(row01.results, 'op.exp.8').status === itsOwn?.status,
+      ofControl(row01.results, 'op.exp.8')?.status
     );
-    check('srv-02 is outside P-04: mp.info.6 does NOT appear in its row', !deControl(row02.results, CONTROL), row02.results.map(r => r.control.id).join(', '));
+    check('srv-02 is outside P-04: mp.info.6 does NOT appear in its row', !ofControl(row02.results, CONTROL), row02.results.map(r => r.control.id).join(', '));
     check('and its row does not count mp.info.6 in the summary', row02.summary.totalControls === row01.summary.totalControls - 1, `${row02.summary.totalControls} frente a ${row01.summary.totalControls}`);
 
-    const consolidated = deControl(estado.results, CONTROL);
+    const consolidated = ofControl(estado.results, CONTROL);
     check(
       'the consolidated summarizes only srv-01: srv-02\'s failed backup neither adds nor subtracts',
       JSON.stringify(consolidated?.consolidatedAgents?.map((a: any) => a.agentId)) === '["001"]' && consolidated.measuredRequirements === 0,
@@ -521,7 +521,7 @@ section('9. Scope by P-04');
 
     check(
       'P-04 = «SRV-01 | ALTA» also includes srv-01',
-      Boolean(deControl(estado.agents.find(a => a.agentId === SRV01.id)!.results, CONTROL))
+      Boolean(ofControl(estado.agents.find(a => a.agentId === SRV01.id)!.results, CONTROL))
     );
   }
 
@@ -529,7 +529,7 @@ section('9. Scope by P-04');
 
   {
     const estado = getENSComplianceState(LEVEL, FACTS, undefined, SCOPE, NOW);
-    const itsOwn = deControl(estado.agents.find(a => a.agentId === SRV02.id)!.results, CONTROL);
+    const itsOwn = ofControl(estado.agents.find(a => a.agentId === SRV02.id)!.results, CONTROL);
 
     check(
       'REVERSAL: with srv-02 in P-04, its failed backup comes out measured NO_CUMPLE in its row',
@@ -542,10 +542,10 @@ section('9. Scope by P-04');
 
   {
     const estado = getENSComplianceState(LEVEL, FACTS, undefined, SCOPE, NOW);
-    const consolidated = deControl(estado.results, CONTROL);
+    const consolidated = ofControl(estado.results, CONTROL);
     const requirements = (consolidated?.nonConformities || []).filter((n: any) => n.id !== 'NC-CFG');
 
-    check('empty P-04: mp.info.6 appears in no row', estado.agents.every(a => !deControl(a.results, CONTROL)));
+    check('empty P-04: mp.info.6 appears in no row', estado.agents.every(a => !ofControl(a.results, CONTROL)));
     check('but it does in the consolidated: the panel has the whole catalog', Boolean(consolidated));
     check(
       'the consolidated MEASURE is NO_EVALUABLE: no evidence measured, no requirement proven',
@@ -579,12 +579,12 @@ section('9. Scope by P-04');
 section('10. Zimbra NE: mailboxes and directory on the same machine, the worst prevails');
 
 {
-  const zimbra = (object: string, campos: Linea = {}) =>
-    copy({ origen: 'zimbra-ne', objeto: object, tipo: object === 'buzones' ? 'incremental' : 'volcado', destino: '/opt/zimbra/backup', ...campos });
+  const zimbra = (object: string, fields: Line = {}) =>
+    copy({ origen: 'zimbra-ne', objeto: object, tipo: object === 'buzones' ? 'incremental' : 'volcado', destino: '/opt/zimbra/backup', ...fields });
 
-  const dosBien = evaluate(events([zimbra('buzones'), zimbra('directorio'), heartbeat(PASS, { rol: 'buzones,directorio' })]));
-  check('mailboxes and directory with a correct backup → EV-01 CUMPLE', dosBien.estado('EV-01') === 'CUMPLE', dosBien.motivo('EV-01'));
-  check('and the motive names both objects', /buzones/.test(dosBien.motivo('EV-01')) && /directorio/.test(dosBien.motivo('EV-01')), dosBien.motivo('EV-01'));
+  const twoWell = evaluate(events([zimbra('buzones'), zimbra('directorio'), heartbeat(PASS, { rol: 'buzones,directorio' })]));
+  check('mailboxes and directory with a correct backup → EV-01 CUMPLE', twoWell.estado('EV-01') === 'CUMPLE', twoWell.motivo('EV-01'));
+  check('and the motive names both objects', /buzones/.test(twoWell.motivo('EV-01')) && /directorio/.test(twoWell.motivo('EV-01')), twoWell.motivo('EV-01'));
 
   const directoryBad = evaluate(
     events([
@@ -598,7 +598,7 @@ section('10. Zimbra NE: mailboxes and directory on the same machine, the worst p
   const directoryUnmeasured = evaluate(
     events([
       zimbra('buzones'),
-      linea('evidence_state', { origen: 'zimbra-ne', objeto: 'directorio', evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'zmslapcat no responde' }),
+      line('evidence_state', { origen: 'zimbra-ne', objeto: 'directorio', evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'zmslapcat no responde' }),
       heartbeat(PASS, { rol: 'buzones,directorio' }),
     ])
   );
@@ -650,23 +650,23 @@ section('12. Two collectors on the same machine: PBS and Zimbra NE');
   );
   check('and the Zimbra facts are judged too', /buzones/.test(oldPbs.motivo('EV-02')) || /buzones/.test(oldPbs.motivo('EV-01')), oldPbs.motivo('EV-01'));
 
-  const pbsBien = evaluate(events([copy({ ultima_correcta: ago(12) }, PBS), heartbeat(PBS), ...zimbraPass]));
+  const pbsWell = evaluate(events([copy({ ultima_correcta: ago(12) }, PBS), heartbeat(PBS), ...zimbraPass]));
   check(
     'REVERSAL: the file backup from 12 h ago → EV-02 CUMPLE with the three objects',
-    pbsBien.estado('EV-02') === 'CUMPLE' && ['ficheros', 'buzones', 'directorio'].every(o => pbsBien.motivo('EV-02').includes(o)),
-    `${pbsBien.estado('EV-02')} ${pbsBien.motivo('EV-02')}`
+    pbsWell.estado('EV-02') === 'CUMPLE' && ['ficheros', 'buzones', 'directorio'].every(o => pbsWell.motivo('EV-02').includes(o)),
+    `${pbsWell.estado('EV-02')} ${pbsWell.motivo('EV-02')}`
   );
   check(
     'EV-07: both heartbeats, each with its origin → CUMPLE naming both',
-    pbsBien.estado('EV-07') === 'CUMPLE' && /pbs/.test(pbsBien.motivo('EV-07')) && /zimbra-ne/.test(pbsBien.motivo('EV-07')),
-    pbsBien.motivo('EV-07')
+    pbsWell.estado('EV-07') === 'CUMPLE' && /pbs/.test(pbsWell.motivo('EV-07')) && /zimbra-ne/.test(pbsWell.motivo('EV-07')),
+    pbsWell.motivo('EV-07')
   );
 
-  const pbsAnterior = ago(3);
+  const pbsPrevious = ago(3);
   const withPreviousPass = evaluate(
     events([
-      copy({ ultima_correcta: '-', ultima_fallida: ago(3.1), resultado_ultima: 'error' }, pbsAnterior),
-      heartbeat(pbsAnterior),
+      copy({ ultima_correcta: '-', ultima_fallida: ago(3.1), resultado_ultima: 'error' }, pbsPrevious),
+      heartbeat(pbsPrevious),
       copy({ ultima_correcta: ago(12) }, PBS),
       heartbeat(PBS),
       ...zimbraPass,
@@ -677,11 +677,11 @@ section('12. Two collectors on the same machine: PBS and Zimbra NE');
   const cadence = evaluate(events([copy({ ultima_correcta: ago(40) }, ago(4)), heartbeat(ago(4)), ...zimbraPass]));
   check('PBS ran 3 h before Zimbra: its 40-h-old backup still counts → EV-02 NO_CUMPLE', cadence.estado('EV-02') === 'NO_CUMPLE', cadence.motivo('EV-02'));
 
-  const pbsParado = evaluate(events([copy({ ultima_correcta: ago(31) }, ago(30)), heartbeat(ago(30)), ...zimbraPass]));
+  const pbsStopped = evaluate(events([copy({ ultima_correcta: ago(31) }, ago(30)), heartbeat(ago(30)), ...zimbraPass]));
   check(
     'PBS stopped 30 h and Zimbra up to date → EV-01 NO_EVALUABLE by RECOGIDA, never CUMPLE',
-    pbsParado.estado('EV-01') === 'NO_EVALUABLE' && pbsParado.causa('EV-01') === 'COLLECTION' && /pbs/.test(pbsParado.motivo('EV-01')),
-    `${pbsParado.estado('EV-01')} ${pbsParado.causa('EV-01')} ${pbsParado.motivo('EV-01')}`
+    pbsStopped.estado('EV-01') === 'NO_EVALUABLE' && pbsStopped.causa('EV-01') === 'COLLECTION' && /pbs/.test(pbsStopped.motivo('EV-01')),
+    `${pbsStopped.estado('EV-01')} ${pbsStopped.causa('EV-01')} ${pbsStopped.motivo('EV-01')}`
   );
 
   ensConfigurationRepository.replaceActive({
@@ -709,7 +709,7 @@ section('12. Two collectors on the same machine: PBS and Zimbra NE');
 section('13. An old collector verdict does not reach the table');
 
 {
-  const verdict = linea('evidence_state', { evidence_id: 'EV-05', estado: 'CUMPLE', motivo: 'restauracion correcta' }, ago(24 * 5));
+  const verdict = line('evidence_state', { evidence_id: 'EV-05', estado: 'CUMPLE', motivo: 'restauracion correcta' }, ago(24 * 5));
   const r = evaluate(events([verdict, heartbeat()]));
 
   check(
@@ -718,11 +718,11 @@ section('13. An old collector verdict does not reach the table');
     `${r.estado('EV-05')} ${r.evidencia('EV-05')?.resolvedEventType || ''}`
   );
 
-  const nonCompliant = linea('evidence_state', { evidence_id: 'EV-06', estado: 'NO_CUMPLE', motivo: 'sin copia offsite' });
+  const nonCompliant = line('evidence_state', { evidence_id: 'EV-06', estado: 'NO_CUMPLE', motivo: 'sin copia offsite' });
   const r6 = evaluate(events([nonCompliant, heartbeat()]), BASE, 'ALTO');
   check('nor a NO_CUMPLE: EV-06 without facts comes out NO_EVALUABLE', r6.estado('EV-06') === 'NO_EVALUABLE', r6.estado('EV-06'));
 
-  const degraded = linea('evidence_state', { evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no hay cuenta testigo declarada' });
+  const degraded = line('evidence_state', { evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no hay cuenta testigo declarada' });
   const r2 = evaluate(events([degraded, heartbeat()]));
   check('REVERSAL: its NO_EVALUABLE does arrive, with its cause', r2.estado('EV-05') === 'NO_EVALUABLE' && r2.causa('EV-05') === 'CONFIGURATION', `${r2.estado('EV-05')} ${r2.causa('EV-05')}`);
 }
@@ -733,19 +733,19 @@ section('14. mp.info.6.2.c: storage in other places (EV-06 and EV-07)');
   const requirement = mpInfo6CatalogDefinition.requirements.find(q => q.id === 'mp.info.6.2.c')!;
   check('the catalog accredits mp.info.6.2.c with EV-06 and EV-07', ['EV-06', 'EV-07'].every(id => requirement.evidenceIds.includes(id)), requirement.evidenceIds.join(','));
 
-  const soloLocal = events([
-    linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
+  const localOnly = events([
+    line('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
     heartbeat(),
   ]);
 
-  const alto = evaluate(soloLocal, BASE, 'ALTO');
+  const alto = evaluate(localOnly, BASE, 'ALTO');
   check(
     'at ALTO, local copy only → mp.info.6.2.c NO_CUMPLE measured even if the heartbeat is fine',
     alto.requisito('mp.info.6.2.c').status === 'NO_CUMPLE' && alto.requisito('mp.info.6.2.c').evidenced === true,
     `${alto.requisito('mp.info.6.2.c').status} ${alto.requisito('mp.info.6.2.c').evidenced}`
   );
 
-  const medio = evaluate(soloLocal, BASE, 'MEDIO');
+  const medio = evaluate(localOnly, BASE, 'MEDIO');
   check(
     'at MEDIO, EV-06 does not apply (the separate copy is R2 of ALTO): mp.info.6.2.c is decided by EV-07 → CUMPLE',
     medio.requisito('mp.info.6.2.c').status === 'CUMPLE' && medio.estado('EV-06') === 'NO_APLICA',
@@ -754,8 +754,8 @@ section('14. mp.info.6.2.c: storage in other places (EV-06 and EV-07)');
 
   const withRemote = evaluate(
     events([
-      linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
-      linea('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+      line('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }),
+      line('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
       heartbeat(),
     ]),
     BASE,
@@ -774,24 +774,24 @@ section('15. The mp.info.6 report shows what was measured');
 
   const facts = events([
     copy({ ultima_correcta: '2026-09-30T02:00:00Z' }),
-    linea('backup_retention', { retencion_dias: '45', copia_mas_antigua: '2026-08-20T02:00:00Z' }),
-    linea('backup_access', { ruta: '/backup', modo: '750', propietario: 'root', grupo: 'backup', cuentas_con_lectura: 'root,backup', clave_ruta: '-', clave_modo: '-' }),
-    linea('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
-    linea('restore_test', { fecha: '2026-09-28T03:00:00Z', testigo: '/etc/hostname', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, '2026-09-28T03:00:00Z'),
+    line('backup_retention', { retencion_dias: '45', copia_mas_antigua: '2026-08-20T02:00:00Z' }),
+    line('backup_access', { ruta: '/backup', modo: '750', propietario: 'root', grupo: 'backup', cuentas_con_lectura: 'root,backup', clave_ruta: '-', clave_modo: '-' }),
+    line('backup_storage', { destino: 'pbs-dr:datastore2', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+    line('restore_test', { fecha: '2026-09-28T03:00:00Z', testigo: '/etc/hostname', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, '2026-09-28T03:00:00Z'),
     heartbeat(),
   ]);
 
   const result = getENSComplianceResultByControl(CONTROL, 'ALTO', facts, SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], NOW);
   const report = buildENSReportModel(CONTROL, result);
   const campo = (id: string) => report?.fields.find(f => f.id === id);
-  const valor = (id: string) => campo(id)?.value || '';
+  const value = (id: string) => campo(id)?.value || '';
 
-  check('REP-02 · the last correct backup, with its date and age', /2026-09-30T02:00:00Z/.test(valor('REP-02')) && /10\.0 h/.test(valor('REP-02')), valor('REP-02'));
-  check('REP-03 · the age against the P-01 + P-02 deadline', /10\.0 h/.test(valor('REP-03')) && /28 h/.test(valor('REP-03')), valor('REP-03'));
-  check('REP-05 · the configured retention', /45 días/.test(valor('REP-05')), valor('REP-05'));
-  check('REP-06 · who can read the backups', /root, backup/.test(valor('REP-06')), valor('REP-06'));
-  check('REP-07 · the last restore test, its result and its cleanup', /2026-09-28T03:00:00Z/.test(valor('REP-07')) && /limpieza ok/.test(valor('REP-07')), valor('REP-07'));
-  check('REP-08 · the off-machine destination', /pbs-dr:datastore2/.test(valor('REP-08')), valor('REP-08'));
+  check('REP-02 · the last correct backup, with its date and age', /2026-09-30T02:00:00Z/.test(value('REP-02')) && /10\.0 h/.test(value('REP-02')), value('REP-02'));
+  check('REP-03 · the age against the P-01 + P-02 deadline', /10\.0 h/.test(value('REP-03')) && /28 h/.test(value('REP-03')), value('REP-03'));
+  check('REP-05 · the configured retention', /45 días/.test(value('REP-05')), value('REP-05'));
+  check('REP-06 · who can read the backups', /root, backup/.test(value('REP-06')), value('REP-06'));
+  check('REP-07 · the last restore test, its result and its cleanup', /2026-09-28T03:00:00Z/.test(value('REP-07')) && /limpieza ok/.test(value('REP-07')), value('REP-07'));
+  check('REP-08 · the off-machine destination', /pbs-dr:datastore2/.test(value('REP-08')), value('REP-08'));
   check('no report field comes out SIN_DATOS with all the facts', (report?.fields || []).every(f => !/SIN_DATOS/.test(f.value) && f.status !== 'SIN_DATOS'), (report?.fields || []).filter(f => /SIN_DATOS/.test(f.value) || f.status === 'SIN_DATOS').map(f => `${f.id}: ${f.value}`).join(' | '));
   check('and each field\'s state is its evidence\'s', campo('REP-02')?.status === 'CUMPLE' && campo('REP-08')?.status === 'CUMPLE', `${campo('REP-02')?.status} ${campo('REP-08')?.status}`);
 
@@ -802,7 +802,7 @@ section('16. EV-02 · the cron schedule holds for all backup-ids');
 
 {
   const plan = (each: string, schedule = '17 2 * * *') =>
-    linea('backup_schedule', { planificacion: schedule, intervalo_horas: each, fuente: 'cron' });
+    line('backup_schedule', { planificacion: schedule, intervalo_horas: each, fuente: 'cron' });
   const twoBackups = [copy({ backup_id: 'srv01_root', ultima_correcta: ago(10) }), copy({ backup_id: 'srv01_opt-zimbra', ultima_correcta: ago(12) })];
 
   const daily = evaluate(events([...twoBackups, plan('24'), heartbeat()]));
@@ -827,26 +827,26 @@ section('16. EV-02 · the cron schedule holds for all backup-ids');
   const looseWeekly = evaluate(events([...twoBackups, plan('168', '@weekly'), heartbeat()]), { ...BASE, 'P-01': '168' });
   check('REVERSAL: the same schedule with P-01 = 168 h → CUMPLE', looseWeekly.estado('EV-02') === 'CUMPLE', looseWeekly.motivo('EV-02'));
 
-  const lasDos = evaluate(events([...twoBackups, plan('168', '@weekly'), plan('24'), heartbeat()]));
+  const bothOnes = evaluate(events([...twoBackups, plan('168', '@weekly'), plan('24'), heartbeat()]));
   check(
     'one weekly and one daily: the more frequent prevails → CUMPLE',
-    lasDos.estado('EV-02') === 'CUMPLE' && /cada 24 h/.test(lasDos.motivo('EV-02')),
-    lasDos.motivo('EV-02')
+    bothOnes.estado('EV-02') === 'CUMPLE' && /cada 24 h/.test(bothOnes.motivo('EV-02')),
+    bothOnes.motivo('EV-02')
   );
 
-  const soloPlan = evaluate(events([plan('24'), heartbeat()]));
+  const planOnly = evaluate(events([plan('24'), heartbeat()]));
   check(
     'a schedule with no backup reported → EV-02 NO_EVALUABLE, never CUMPLE',
-    soloPlan.estado('EV-02') === 'NO_EVALUABLE' && /no el estado de la última copia/.test(soloPlan.motivo('EV-02')),
-    `${soloPlan.estado('EV-02')} ${soloPlan.motivo('EV-02')}`
+    planOnly.estado('EV-02') === 'NO_EVALUABLE' && /no el estado de la última copia/.test(planOnly.motivo('EV-02')),
+    `${planOnly.estado('EV-02')} ${planOnly.motivo('EV-02')}`
   );
 }
 
 section('17. Degradations without backup_id belong to the pair (origin and object)');
 
 {
-  const couldNot = (evidence: string, cause: string, motive: string, ts: string = PASS, campos: Linea = {}) =>
-    linea('evidence_state', { evidence_id: evidence, estado: 'NO_EVALUABLE', causa: cause, motivo: motive, ...campos }, ts);
+  const couldNot = (evidence: string, cause: string, motive: string, ts: string = PASS, fields: Line = {}) =>
+    line('evidence_state', { evidence_id: evidence, estado: 'NO_EVALUABLE', causa: cause, motivo: motive, ...fields }, ts);
   const antes = ago(2);
 
   const replaced = evaluate(
@@ -881,7 +881,7 @@ section('17. Degradations without backup_id belong to the pair (origin and objec
 
   const samePass = evaluate(
     events([
-      linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: ago(40 * 24) }),
+      line('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: ago(40 * 24) }),
       couldNot('EV-03', 'EVIDENCE', 'el PBS no conserva ninguna copia de srv01_nuevo'),
       heartbeat(),
     ])
@@ -894,14 +894,14 @@ section('17. Degradations without backup_id belong to the pair (origin and objec
 
   const withFailure = evaluate(
     events([
-      linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '14', copia_mas_antigua: ago(10 * 24) }),
+      line('backup_retention', { backup_id: 'srv01_root', retencion_dias: '14', copia_mas_antigua: ago(10 * 24) }),
       couldNot('EV-03', 'EVIDENCE', 'el PBS no conserva ninguna copia de srv01_nuevo'),
       heartbeat(),
     ])
   );
   check('but a measured breach in the same pass prevails → EV-03 NO_CUMPLE', withFailure.estado('EV-03') === 'NO_CUMPLE', withFailure.motivo('EV-03'));
 
-  const old2 = linea('evidence_state', { evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'sin PBS_REPO', origen: '', objeto: '' }, ago(72));
+  const old2 = line('evidence_state', { evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'sin PBS_REPO', origen: '', objeto: '' }, ago(72));
   const withOld = evaluate(events([old2]));
   check(
     'a degradation without origin (earlier vocabulary) is not read: EV-01 says nothing from this machine is on record (RECOGIDA), not its CONFIGURATION',
@@ -913,7 +913,7 @@ section('17. Degradations without backup_id belong to the pair (origin and objec
 section('18. EV-05 · the deadline first, and the window without tests');
 
 {
-  const test = linea('restore_test', { fecha: ago(3 * 24), testigo: '/etc/ensfacil/mpinfo6-witness.txt', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, ago(3 * 24));
+  const test = line('restore_test', { fecha: ago(3 * 24), testigo: '/etc/ensfacil/mpinfo6-witness.txt', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, ago(3 * 24));
 
   const withoutDeadline = evaluate(events([test, heartbeat()]), { ...BASE, 'P-05': undefined });
   check('without P-05 → EV-05 NO_EVALUABLE by CONFIGURACIÓN even if there are tests', withoutDeadline.estado('EV-05') === 'NO_EVALUABLE' && withoutDeadline.causa('EV-05') === 'CONFIGURATION', `${withoutDeadline.estado('EV-05')} ${withoutDeadline.causa('EV-05')}`);
@@ -974,7 +974,7 @@ section('20. Ramas de EV-03, EV-04, EV-06 y EV-07');
 
 {
   const access = (accounts: string, mode = '0640') =>
-    linea('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo: mode, propietario: 'root', grupo: 'root', cuentas_con_lectura: accounts, clave_ruta: '-', clave_modo: '-' });
+    line('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo: mode, propietario: 'root', grupo: 'root', cuentas_con_lectura: accounts, clave_ruta: '-', clave_modo: '-' });
 
   const anyOne = evaluate(events([access('root,*'), heartbeat()]));
   check('cuentas_con_lectura with * → EV-04 NO_CUMPLE (any account)', anyOne.estado('EV-04') === 'NO_CUMPLE' && /cualquier cuenta/.test(anyOne.motivo('EV-04')), anyOne.motivo('EV-04'));
@@ -989,7 +989,7 @@ section('20. Ramas de EV-03, EV-04, EV-06 y EV-07');
   check('empty cuentas_con_lectura means it was not reported → NO_EVALUABLE', unreported.estado('EV-04') === 'NO_EVALUABLE', unreported.estado('EV-04'));
 
   const retention = (ageDays: number) =>
-    linea('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: ago(ageDays * 24) });
+    line('backup_retention', { backup_id: 'srv01_root', retencion_dias: '-', copia_mas_antigua: ago(ageDays * 24) });
 
   const old3 = evaluate(events([retention(40), heartbeat()]));
   check('without configured retention and the oldest backup from 40 days ago (≥ P-03) → EV-03 CUMPLE', old3.estado('EV-03') === 'CUMPLE', old3.motivo('EV-03'));
@@ -997,7 +997,7 @@ section('20. Ramas de EV-03, EV-04, EV-06 y EV-07');
   const recent = evaluate(events([retention(20), heartbeat()]));
   check('REVERSAL: the oldest from 20 days ago (< P-03) → NO_EVALUABLE, never CUMPLE', recent.estado('EV-03') === 'NO_EVALUABLE', `${recent.estado('EV-03')} ${recent.motivo('EV-03')}`);
 
-  const doubtful = evaluate(events([linea('backup_storage', { destino: 'nas:/copias', misma_maquina: 'desconocido', tipo: 'montaje', activo: 'si' }), heartbeat()]), BASE, 'ALTO');
+  const doubtful = evaluate(events([line('backup_storage', { destino: 'nas:/copias', misma_maquina: 'desconocido', tipo: 'montaje', activo: 'si' }), heartbeat()]), BASE, 'ALTO');
   check('misma_maquina with a value that is not si/no → EV-06 NO_EVALUABLE', doubtful.estado('EV-06') === 'NO_EVALUABLE', `${doubtful.estado('EV-06')} ${doubtful.motivo('EV-06')}`);
 
   const partial = evaluate(events([heartbeat(PASS, { resultado: 'parcial', evidencias_cubiertas: 'EV-01,EV-04' })]));
@@ -1023,41 +1023,41 @@ section('22. A real PBS collector pass (tests/fixtures/mp-info-6-pbs-pass.ndjson
 
 {
   const fs = require('fs');
-  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
+  const lines: Line[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
     .split('\n')
     .filter(Boolean)
     .map((l: string) => JSON.parse(l));
-  const machine = { id: SRV01.id, name: String(lineas[0].host) };
-  const realNow = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
-  const valores = { ...BASE, 'P-04': machine.name };
-  const real = evaluate(events(lineas, machine), valores, 'ALTO', realNow);
-  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+  const machine = { id: SRV01.id, name: String(lines[0].host) };
+  const realNow = new Date(Math.max(...lines.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  const values = { ...BASE, 'P-04': machine.name };
+  const actual = evaluate(events(lines, machine), values, 'ALTO', realNow);
+  const allOnes = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
 
   check(
     'the seven evidences are measured: none NO_EVALUABLE because of how facts are crossed',
-    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
-    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+    allOnes.every(id => actual.estado(id) !== 'NO_EVALUABLE'),
+    allOnes.map(id => `${id}:${actual.estado(id)}`).join(' ')
   );
-  check('and with this pass, all CUMPLE', todas.every(id => real.estado(id) === 'CUMPLE'), todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | '));
+  check('and with this pass, all CUMPLE', allOnes.every(id => actual.estado(id) === 'CUMPLE'), allOnes.filter(id => actual.estado(id) !== 'CUMPLE').map(id => `${id}: ${actual.motivo(id)}`).join(' | '));
   check(
     'all ALTO requirements, proven',
-    mpInfo6CatalogDefinition.requirements.every(q => real.requisito(q.id).evidenced === true),
-    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${real.requisito(q.id).status}/${real.requisito(q.id).evidenced}`).join(' ')
+    mpInfo6CatalogDefinition.requirements.every(q => actual.requisito(q.id).evidenced === true),
+    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${actual.requisito(q.id).status}/${actual.requisito(q.id).evidenced}`).join(' ')
   );
-  check('EV-02 applies the cron schedule to both backup-ids', (real.motivo('EV-02').match(/planificada cada 24 h/g) || []).length === 2, real.motivo('EV-02'));
+  check('EV-02 applies the cron schedule to both backup-ids', (actual.motivo('EV-02').match(/planificada cada 24 h/g) || []).length === 2, actual.motivo('EV-02'));
 
-  const nobody = evaluate(events(lineas.map(l => (l.event === 'backup_access' ? { ...l, cuentas_con_lectura: '-' } : l)), machine), valores, 'ALTO', realNow);
+  const nobody = evaluate(events(lines.map(l => (l.event === 'backup_access' ? { ...l, cuentas_con_lectura: '-' } : l)), machine), values, 'ALTO', realNow);
   check('with cuentas_con_lectura = - (nobody) → EV-04 stays CUMPLE', nobody.estado('EV-04') === 'CUMPLE', nobody.motivo('EV-04'));
 
-  const anyOne = evaluate(events(lineas.map(l => (l.event === 'backup_access' && l.tipo_ruta === 'directorio' ? { ...l, cuentas_con_lectura: 'backup,root,*' } : l)), machine), valores, 'ALTO', realNow);
+  const anyOne = evaluate(events(lines.map(l => (l.event === 'backup_access' && l.tipo_ruta === 'directorio' ? { ...l, cuentas_con_lectura: 'backup,root,*' } : l)), machine), values, 'ALTO', realNow);
   check('with * in the local directory → EV-04 NO_CUMPLE', anyOne.estado('EV-04') === 'NO_CUMPLE', anyOne.motivo('EV-04'));
 
   ensConfigurationRepository.replaceActive({
     ...defaultENSConfigurationTemplate,
-    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(valores) : c)),
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(values) : c)),
   });
 
-  const row = getENSComplianceResultByControl(CONTROL, 'ALTO', events(lineas, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
+  const row = getENSComplianceResultByControl(CONTROL, 'ALTO', events(lines, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
   check(
     'and through the whole engine: the machine row, 100 % with everything proven',
     row?.status === 'CUMPLE' && row.measuredRequirements === row.applicableRequirements,
@@ -1067,13 +1067,13 @@ section('22. A real PBS collector pass (tests/fixtures/mp-info-6-pbs-pass.ndjson
   ensConfigurationRepository.reset();
 }
 
-const rescale = (lineas: Linea[], destination: Date): Linea[] => {
-  const maxTs = Math.max(...lineas.map(l => Date.parse(String(l.ts))));
+const rescale = (lines: Line[], destination: Date): Line[] => {
+  const maxTs = Math.max(...lines.map(l => Date.parse(String(l.ts))));
   const delta = destination.getTime() - maxTs;
   const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
-  return lineas.map(l => {
-    const shifted: Linea = {};
+  return lines.map(l => {
+    const shifted: Line = {};
 
     for (const [k, v] of Object.entries(l)) {
       shifted[k] =
@@ -1090,53 +1090,53 @@ section('23. A real Zimbra collector pass (tests/fixtures/mp-info-6-zimbra-pass.
 
 {
   const fs = require('fs');
-  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-zimbra-pass.ndjson`, 'utf8'))
+  const lines: Line[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-zimbra-pass.ndjson`, 'utf8'))
     .split('\n')
     .filter(Boolean)
     .map((l: string) => JSON.parse(l));
-  const machine = { id: SRV01.id, name: String(lineas[0].host) };
-  const realNow = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
-  const valores = { ...BASE, 'P-04': machine.name, 'P-07': 'zimbra' };
-  const real = evaluate(events(lineas, machine), valores, 'ALTO', realNow);
-  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+  const machine = { id: SRV01.id, name: String(lines[0].host) };
+  const realNow = new Date(Math.max(...lines.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  const values = { ...BASE, 'P-04': machine.name, 'P-07': 'zimbra' };
+  const actual = evaluate(events(lines, machine), values, 'ALTO', realNow);
+  const allOnes = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
 
   check(
     'the seven evidences are measured: none NO_EVALUABLE because of how mailbox and directory facts are crossed',
-    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
-    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+    allOnes.every(id => actual.estado(id) !== 'NO_EVALUABLE'),
+    allOnes.map(id => `${id}:${actual.estado(id)}`).join(' ')
   );
   check(
     'and with this pass, all CUMPLE',
-    todas.every(id => real.estado(id) === 'CUMPLE'),
-    todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | ')
+    allOnes.every(id => actual.estado(id) === 'CUMPLE'),
+    allOnes.filter(id => actual.estado(id) !== 'CUMPLE').map(id => `${id}: ${actual.motivo(id)}`).join(' | ')
   );
   check(
     'EV-01 names the node\'s two objects: mailboxes and directory',
-    /buzones/.test(real.motivo('EV-01')) && /directorio/.test(real.motivo('EV-01')),
-    real.motivo('EV-01')
+    /buzones/.test(actual.motivo('EV-01')) && /directorio/.test(actual.motivo('EV-01')),
+    actual.motivo('EV-01')
   );
   check(
     'EV-06 CUMPLE: the declared remote copy is active for both objects',
-    real.estado('EV-06') === 'CUMPLE' && /buzones/.test(real.motivo('EV-06')) && /directorio/.test(real.motivo('EV-06')),
-    real.motivo('EV-06')
+    actual.estado('EV-06') === 'CUMPLE' && /buzones/.test(actual.motivo('EV-06')) && /directorio/.test(actual.motivo('EV-06')),
+    actual.motivo('EV-06')
   );
   check(
     'all ALTO requirements, proven',
-    mpInfo6CatalogDefinition.requirements.every(q => real.requisito(q.id).evidenced === true),
-    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${real.requisito(q.id).status}/${real.requisito(q.id).evidenced}`).join(' ')
+    mpInfo6CatalogDefinition.requirements.every(q => actual.requisito(q.id).evidenced === true),
+    mpInfo6CatalogDefinition.requirements.map(q => `${q.id}:${actual.requisito(q.id).status}/${actual.requisito(q.id).evidenced}`).join(' ')
   );
   check(
     'EV-07: the heartbeat names the two covered roles',
-    /EV-01/.test(real.motivo('EV-07')) && /EV-06/.test(real.motivo('EV-07')),
-    real.motivo('EV-07')
+    /EV-01/.test(actual.motivo('EV-07')) && /EV-06/.test(actual.motivo('EV-07')),
+    actual.motivo('EV-07')
   );
 
   ensConfigurationRepository.replaceActive({
     ...defaultENSConfigurationTemplate,
-    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(valores) : c)),
+    controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(values) : c)),
   });
 
-  const row = getENSComplianceResultByControl(CONTROL, 'ALTO', events(lineas, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
+  const row = getENSComplianceResultByControl(CONTROL, 'ALTO', events(lines, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
   check(
     'and through the whole engine: the machine row, 100 % with everything proven',
     row?.status === 'CUMPLE' && row.measuredRequirements === row.applicableRequirements,
@@ -1150,43 +1150,43 @@ section('24. Real PBS and Zimbra on the same agent, at different minutes');
 
 {
   const fs = require('fs');
-  const cargaLineas = (file: string): Linea[] =>
+  const loadLines = (file: string): Line[] =>
     String(fs.readFileSync(`${__dirname}/fixtures/${file}`, 'utf8'))
       .split('\n')
       .filter(Boolean)
       .map((l: string) => JSON.parse(l));
 
   const realNow = new Date('2026-09-30T14:00:00Z');
-  const pbsHora = new Date(realNow.getTime() - 2 * HORA);
-  const zimbraHora = new Date(realNow.getTime() - 2 * HORA + 40 * 60 * 1000);
+  const pbsTime = new Date(realNow.getTime() - 2 * HORA);
+  const zimbraTime = new Date(realNow.getTime() - 2 * HORA + 40 * 60 * 1000);
 
-  const pbs = rescale(cargaLineas('mp-info-6-pbs-pass.ndjson'), pbsHora);
-  const zimbra = rescale(cargaLineas('mp-info-6-zimbra-pass.ndjson'), zimbraHora);
+  const pbs = rescale(loadLines('mp-info-6-pbs-pass.ndjson'), pbsTime);
+  const zimbra = rescale(loadLines('mp-info-6-zimbra-pass.ndjson'), zimbraTime);
 
   const machine = SRV01;
-  const valores = { ...BASE, 'P-04': machine.name, 'P-07': 'root,backup,zimbra' };
-  const real = evaluate(events([...pbs, ...zimbra], machine), valores, 'ALTO', realNow);
-  const todas = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+  const values = { ...BASE, 'P-04': machine.name, 'P-07': 'root,backup,zimbra' };
+  const actual = evaluate(events([...pbs, ...zimbra], machine), values, 'ALTO', realNow);
+  const allOnes = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
 
   check(
     'the two real passes coexist: no evidence is left unmeasured for having two origins',
-    todas.every(id => real.estado(id) !== 'NO_EVALUABLE'),
-    todas.map(id => `${id}:${real.estado(id)}`).join(' ')
+    allOnes.every(id => actual.estado(id) !== 'NO_EVALUABLE'),
+    allOnes.map(id => `${id}:${actual.estado(id)}`).join(' ')
   );
   check(
     'EV-01 (the worst prevails) names the three objects: PBS files, Zimbra mailboxes and directory',
-    ['ficheros', 'buzones', 'directorio'].every(o => real.motivo('EV-01').includes(o)),
-    real.motivo('EV-01')
+    ['ficheros', 'buzones', 'directorio'].every(o => actual.motivo('EV-01').includes(o)),
+    actual.motivo('EV-01')
   );
   check(
     'EV-07 names the two origins, each with its heartbeat: neither covers the other',
-    /pbs/.test(real.motivo('EV-07')) && /zimbra-ne/.test(real.motivo('EV-07')),
-    real.motivo('EV-07')
+    /pbs/.test(actual.motivo('EV-07')) && /zimbra-ne/.test(actual.motivo('EV-07')),
+    actual.motivo('EV-07')
   );
-  check('and with both passes up to date, all CUMPLE', todas.every(id => real.estado(id) === 'CUMPLE'), todas.filter(id => real.estado(id) !== 'CUMPLE').map(id => `${id}: ${real.motivo(id)}`).join(' | '));
+  check('and with both passes up to date, all CUMPLE', allOnes.every(id => actual.estado(id) === 'CUMPLE'), allOnes.filter(id => actual.estado(id) !== 'CUMPLE').map(id => `${id}: ${actual.motivo(id)}`).join(' | '));
 
-  const pbsParado = rescale(cargaLineas('mp-info-6-pbs-pass.ndjson'), new Date(zimbraHora.getTime() - 30 * HORA));
-  const stoppage = evaluate(events([...pbsParado, ...zimbra], machine), valores, 'ALTO', realNow);
+  const pbsStopped = rescale(loadLines('mp-info-6-pbs-pass.ndjson'), new Date(zimbraTime.getTime() - 30 * HORA));
+  const stoppage = evaluate(events([...pbsStopped, ...zimbra], machine), values, 'ALTO', realNow);
   check(
     'REVERSAL: PBS 30 h without beating → EV-07 NO_EVALUABLE by RECOGIDA naming pbs, even if Zimbra keeps beating on time',
     stoppage.estado('EV-07') === 'NO_EVALUABLE' && stoppage.causa('EV-07') === 'COLLECTION' && /pbs/.test(stoppage.motivo('EV-07')),
@@ -1199,7 +1199,7 @@ section('25. A machine updated with heartbeats from the earlier collector');
 {
   const MACHINE = { id: '034', name: 'mp.info' };
   const T = ago(0.9);
-  const fresh = (event: string, campos: Linea) => linea(event, { host: MACHINE.name, ...campos }, T);
+  const fresh = (event: string, fields: Line) => line(event, { host: MACHINE.name, ...fields }, T);
   const added = [
     fresh('backup_run', { backup_id: 'r', ultima_correcta: ago(10), ultima_fallida: '-', resultado_ultima: 'ok', tipo: 'completa' }),
     fresh('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
@@ -1234,9 +1234,9 @@ section('26. EV-05 by origin and object: each backup must account for its test')
   const zimbraRun = (object: string, origin = 'zimbra-ne') =>
     copy({ origen: origin, objeto: object, tipo: 'incremental', destino: '/opt/zimbra/backup' });
   const zimbraHeartbeat = heartbeat(PASS, { origen: 'zimbra-ne', rol: 'buzones,directorio' });
-  const test = (origin: string, object: string, campos: Linea = {}) =>
-    linea('restore_test', { origen: origin, objeto: object, fecha: ago(72), testigo: 'testigo', resultado: 'ok', coincide: 'si', limpieza: 'ok', ...campos }, ago(72));
-  const withoutWitness = linea(
+  const test = (origin: string, object: string, fields: Line = {}) =>
+    line('restore_test', { origen: origin, objeto: object, fecha: ago(72), testigo: 'testigo', resultado: 'ok', coincide: 'si', limpieza: 'ok', ...fields }, ago(72));
+  const withoutWitness = line(
     'evidence_state',
     { origen: 'zimbra-ne', objeto: 'buzones', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'declara MPINFO6ZIMBRA_TESTIGO, la cuenta testigo' },
     ago(72)
@@ -1249,8 +1249,8 @@ section('26. EV-05 by origin and object: each backup must account for its test')
     `${directoryOnly.estado('EV-05')} ${directoryOnly.causa('EV-05')} ${directoryOnly.motivo('EV-05')}`
   );
 
-  const lasDos = evaluate(events([zimbraRun('buzones'), zimbraRun('directorio'), zimbraHeartbeat, test('zimbra-ne', 'directorio'), test('zimbra-ne', 'buzones')]));
-  check('REVERSAL: with the mailboxes\' test too → CUMPLE', lasDos.estado('EV-05') === 'CUMPLE', lasDos.motivo('EV-05'));
+  const bothOnes = evaluate(events([zimbraRun('buzones'), zimbraRun('directorio'), zimbraHeartbeat, test('zimbra-ne', 'directorio'), test('zimbra-ne', 'buzones')]));
+  check('REVERSAL: with the mailboxes\' test too → CUMPLE', bothOnes.estado('EV-05') === 'CUMPLE', bothOnes.motivo('EV-05'));
 
   const ose = evaluate(events([zimbraRun('buzones', 'zimbra-ose-declarada'), heartbeat(PASS, { origen: 'zimbra-ose-declarada', rol: 'buzones' })]));
   check(
@@ -1259,7 +1259,7 @@ section('26. EV-05 by origin and object: each backup must account for its test')
     `${ose.estado('EV-05')} ${ose.causa('EV-05')} ${ose.motivo('EV-05')}`
   );
 
-  const pbsDos = evaluate(
+  const pbsTwo = evaluate(
     events([
       copy({ backup_id: 'srv01_root' }),
       copy({ backup_id: 'srv01_opt-zimbra' }),
@@ -1267,9 +1267,9 @@ section('26. EV-05 by origin and object: each backup must account for its test')
       test('pbs', 'fichero', { backup_id: 'srv01_root', testigo: '/etc/ensfacil/mpinfo6-witness.txt' }),
     ])
   );
-  check('PBS with two backup-ids and the witness on one of them → CUMPLE (the test belongs to the pair)', pbsDos.estado('EV-05') === 'CUMPLE', `${pbsDos.estado('EV-05')} ${pbsDos.motivo('EV-05')}`);
+  check('PBS with two backup-ids and the witness on one of them → CUMPLE (the test belongs to the pair)', pbsTwo.estado('EV-05') === 'CUMPLE', `${pbsTwo.estado('EV-05')} ${pbsTwo.motivo('EV-05')}`);
 
-  const soloPbs = evaluate(
+  const pbsOnly = evaluate(
     events([
       copy({ backup_id: 'srv01_root' }),
       heartbeat(),
@@ -1281,8 +1281,8 @@ section('26. EV-05 by origin and object: each backup must account for its test')
   );
   check(
     'a server with PBS and Zimbra where only PBS was tested → does not CUMPLE',
-    soloPbs.estado('EV-05') !== 'CUMPLE' && /buzones/.test(soloPbs.motivo('EV-05')) && /directorio/.test(soloPbs.motivo('EV-05')),
-    `${soloPbs.estado('EV-05')} ${soloPbs.motivo('EV-05')}`
+    pbsOnly.estado('EV-05') !== 'CUMPLE' && /buzones/.test(pbsOnly.motivo('EV-05')) && /directorio/.test(pbsOnly.motivo('EV-05')),
+    `${pbsOnly.estado('EV-05')} ${pbsOnly.motivo('EV-05')}`
   );
 }
 
@@ -1291,15 +1291,15 @@ section('27. P-04 with a machine that is not in the ENS scope');
 {
   const LEVEL: ENSLevel = 'ALTO';
   const BACKUPS = { id: '003', name: 'srv-copias' };
-  const upToDate = (agent: Agente) =>
+  const upToDate = (agent: Agent2) =>
     events(
       [
         copy({ host: agent.name, backup_id: 'r' }),
-        linea('backup_schedule', { host: agent.name, planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
-        linea('backup_retention', { host: agent.name, backup_id: 'r', retencion_dias: '-', copia_mas_antigua: ago(24 * 40) }),
-        linea('backup_access', { host: agent.name, ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
-        linea('backup_storage', { host: agent.name, destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
-        linea('restore_test', { host: agent.name, backup_id: 'r', fecha: ago(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
+        line('backup_schedule', { host: agent.name, planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
+        line('backup_retention', { host: agent.name, backup_id: 'r', retencion_dias: '-', copia_mas_antigua: ago(24 * 40) }),
+        line('backup_access', { host: agent.name, ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
+        line('backup_storage', { host: agent.name, destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
+        line('restore_test', { host: agent.name, backup_id: 'r', fecha: ago(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
         heartbeat(PASS, { host: agent.name }),
       ],
       agent
@@ -1318,17 +1318,17 @@ section('27. P-04 with a machine that is not in the ENS scope');
     );
 
   active2(['srv-01']);
-  const soloUna = getENSComplianceResultByControl(CONTROL, LEVEL, upToDate(SRV01), undefined, SCOPE, NOW);
-  check('P-04 = srv-01 and srv-01 up to date → CUMPLE 100', soloUna?.status === 'CUMPLE' && soloUna.score === 100, `${soloUna?.status} ${soloUna?.score}`);
+  const onlyOneOf = getENSComplianceResultByControl(CONTROL, LEVEL, upToDate(SRV01), undefined, SCOPE, NOW);
+  check('P-04 = srv-01 and srv-01 up to date → CUMPLE 100', onlyOneOf?.status === 'CUMPLE' && onlyOneOf.score === 100, `${onlyOneOf?.status} ${onlyOneOf?.score}`);
 
   active2(['srv-01', 'srv-99']);
-  const conErrata = getENSComplianceResultByControl(CONTROL, LEVEL, upToDate(SRV01), undefined, SCOPE, NOW);
-  check('P-04 = srv-01, srv-99 (typo) → no longer CUMPLE 100', Boolean(conErrata) && conErrata!.status !== 'CUMPLE', `${conErrata?.status} ${conErrata?.score}`);
-  check('and a CONFIGURACIÓN finding names srv-99', findingThatNames(conErrata, 'srv-99'), (conErrata?.nonConformities || []).map(n => `${n.cause}: ${n.finding.slice(0, 160)}`).join(' | '));
+  const withTypo = getENSComplianceResultByControl(CONTROL, LEVEL, upToDate(SRV01), undefined, SCOPE, NOW);
+  check('P-04 = srv-01, srv-99 (typo) → no longer CUMPLE 100', Boolean(withTypo) && withTypo!.status !== 'CUMPLE', `${withTypo?.status} ${withTypo?.score}`);
+  check('and a CONFIGURACIÓN finding names srv-99', findingThatNames(withTypo, 'srv-99'), (withTypo?.nonConformities || []).map(n => `${n.cause}: ${n.finding.slice(0, 160)}`).join(' | '));
   check(
     'srv-99 counts as a declared machine without data in the consolidated',
-    JSON.stringify(conErrata?.consolidatedAgents?.map(a => a.agentName)) === '["srv-01","srv-99"]',
-    JSON.stringify(conErrata?.consolidatedAgents)
+    JSON.stringify(withTypo?.consolidatedAgents?.map(a => a.agentName)) === '["srv-01","srv-99"]',
+    JSON.stringify(withTypo?.consolidatedAgents)
   );
 
   const estado = getENSComplianceState(LEVEL, upToDate(SRV01), undefined, SCOPE, NOW);
@@ -1352,12 +1352,12 @@ section('28. EV-02 · PBS down for more than 26 h: the cause is still collection
 {
   const now = PASS;
   const couldNot = (evidence: string) =>
-    linea('evidence_state', { evidence_id: evidence, estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se pudo listar las copias de pbs:ds: connection refused' }, now);
+    line('evidence_state', { evidence_id: evidence, estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se pudo listar las copias de pbs:ds: connection refused' }, now);
   const down = evaluate(
     events([
       copy({ backup_id: 'srv01_root', ultima_correcta: ago(40) }, ago(30)),
       ...['EV-01', 'EV-02', 'EV-03'].map(couldNot),
-      linea('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }, now),
+      line('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }, now),
       heartbeat(now, { resultado: 'parcial', evidencias_cubiertas: 'EV-04' }),
     ])
   );
@@ -1372,18 +1372,18 @@ section('29. EV-02 · planificacion=- means no backup is scheduled');
 
 {
   const plan = (schedule: string, each: string) =>
-    linea('backup_schedule', { origen: 'zimbra-ne', objeto: 'buzones', planificacion: schedule, intervalo_horas: each, fuente: 'cron' });
+    line('backup_schedule', { origen: 'zimbra-ne', objeto: 'buzones', planificacion: schedule, intervalo_horas: each, fuente: 'cron' });
   const mailboxes = copy({ origen: 'zimbra-ne', objeto: 'buzones', tipo: 'incremental', destino: '/opt/zimbra/backup' });
 
-  const sinPlan = evaluate(events([mailboxes, plan('-', '-'), heartbeat(PASS, { origen: 'zimbra-ne' })]));
+  const withoutPlan = evaluate(events([mailboxes, plan('-', '-'), heartbeat(PASS, { origen: 'zimbra-ne' })]));
   check(
     'Zimbra with planificacion=- → EV-02 NO_CUMPLE «no hay ninguna copia planificada»',
-    sinPlan.estado('EV-02') === 'NO_CUMPLE' && /no hay ninguna copia planificada/.test(sinPlan.motivo('EV-02')),
-    `${sinPlan.estado('EV-02')} ${sinPlan.motivo('EV-02')}`
+    withoutPlan.estado('EV-02') === 'NO_CUMPLE' && /no hay ninguna copia planificada/.test(withoutPlan.motivo('EV-02')),
+    `${withoutPlan.estado('EV-02')} ${withoutPlan.motivo('EV-02')}`
   );
 
-  const conPlan = evaluate(events([mailboxes, plan('completa 0 1 * * 6; incremental 0 1 * * 0-5', '24'), heartbeat(PASS, { origen: 'zimbra-ne' })]));
-  check('REVERSAL: with the schedule read → CUMPLE', conPlan.estado('EV-02') === 'CUMPLE', conPlan.motivo('EV-02'));
+  const withPlan = evaluate(events([mailboxes, plan('completa 0 1 * * 6; incremental 0 1 * * 0-5', '24'), heartbeat(PASS, { origen: 'zimbra-ne' })]));
+  check('REVERSAL: with the schedule read → CUMPLE', withPlan.estado('EV-02') === 'CUMPLE', withPlan.motivo('EV-02'));
 }
 
 section('30. The report names each backup once, with its latest state');
@@ -1431,11 +1431,11 @@ section('31. EV-01 · A4, the mount points the backup left out');
     `${none.estado('EV-01')} ${none.motivo('EV-01')}`
   );
 
-  const sinCampo = evaluate(events([copy(), heartbeat()]));
+  const withoutField = evaluate(events([copy(), heartbeat()]));
   check(
     'a fact without the field (earlier collector) is judged as before → EV-01 CUMPLE',
-    sinCampo.estado('EV-01') === 'CUMPLE',
-    `${sinCampo.estado('EV-01')} ${sinCampo.motivo('EV-01')}`
+    withoutField.estado('EV-01') === 'CUMPLE',
+    `${withoutField.estado('EV-01')} ${withoutField.motivo('EV-01')}`
   );
 
   const accepted = evaluate(events([copy({ montajes_omitidos: '', montajes_omitidos_aceptados: '/mnt/aceptado' }), heartbeat()]));
@@ -1463,7 +1463,7 @@ section('31. EV-01 · A4, the mount points the backup left out');
 section('32. EV-05 · A6, the test declared by the organization on Zimbra Open Source');
 
 {
-  const declared2 = linea(
+  const declared2 = line(
     'restore_test',
     {
       origen: 'zimbra-ose-declarada',
@@ -1497,7 +1497,7 @@ section('32. EV-05 · A6, the test declared by the organization on Zimbra Open S
 
   const normal = evaluate(
     events([
-      linea(
+      line(
         'restore_test',
         {
           origen: 'zimbra-ne',
@@ -1522,7 +1522,7 @@ section('32. EV-05 · A6, the test declared by the organization on Zimbra Open S
 
   const failure = evaluate(
     events([
-      linea(
+      line(
         'restore_test',
         {
           origen: 'zimbra-ose-declarada',
@@ -1557,7 +1557,7 @@ section('33. The report shows the omitted mounts and the declared test');
   const facts = events([
     copy({ ultima_correcta: ago(10), montajes_omitidos: '/opt/zimbra/backup', montajes_omitidos_aceptados: '/mnt/aceptado' }),
     heartbeat(),
-    linea(
+    line(
       'restore_test',
       {
         origen: 'zimbra-ose-declarada',
@@ -1633,13 +1633,13 @@ section('35. Without P-06: the backup path is reported by each collector');
 
 {
   const fs = require('fs');
-  const lineas: Linea[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
+  const lines: Line[] = String(fs.readFileSync(`${__dirname}/fixtures/mp-info-6-pbs-pass.ndjson`, 'utf8'))
     .split('\n')
     .filter(Boolean)
     .map((l: string) => JSON.parse(l));
-  const machine = { id: SRV01.id, name: String(lineas[0].host) };
-  const realNow = new Date(Math.max(...lineas.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
-  const declared: Valores = {
+  const machine = { id: SRV01.id, name: String(lines[0].host) };
+  const realNow = new Date(Math.max(...lines.map(l => Date.parse(String(l.ts)))) + 10 * 60 * 1000);
+  const declared: Values = {
     'P-01': '24',
     'P-02': '4',
     'P-03': '30',
@@ -1661,16 +1661,16 @@ section('35. Without P-06: the backup path is reported by each collector');
     controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(declared) : c)),
   });
 
-  const row = getENSComplianceResultByControl(CONTROL, 'MEDIO', events(lineas, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
+  const row = getENSComplianceResultByControl(CONTROL, 'MEDIO', events(lines, machine), machine.id, [{ ...machine, groups: ['ens'] }], realNow);
   check(
     'with the real pass and without P-06, the row complies with everything proven',
     row?.status === 'CUMPLE' && row.measuredRequirements === row.applicableRequirements,
     row && `${row.status} ${row.score} ${row.measuredRequirements}/${row.applicableRequirements}`
   );
 
-  const ultimo = lineas.reduce((a, l) => (String(l.ts) > a ? String(l.ts) : a), '');
+  const ultimo = lines.reduce((a, l) => (String(l.ts) > a ? String(l.ts) : a), '');
   const withoutRetention = [
-    ...lineas.filter(l => l.event !== 'backup_retention'),
+    ...lines.filter(l => l.event !== 'backup_retention'),
     {
       ensfacil: CONTROL,
       ts: ultimo,
@@ -1700,7 +1700,7 @@ section('36. Parameters the judgment never reads are never requested in a findin
 {
   const INFORMATIVE = ['P-06', 'P-08', 'P-09', 'P-10', 'P-11', 'P-12', 'P-13', 'P-14'];
   const NAMES = new RegExp(`\\b(${INFORMATIVE.join('|')})\\b`);
-  const mandatory: Valores = {
+  const mandatory: Values = {
     'P-01': '24',
     'P-02': '4',
     'P-03': '30',
@@ -1709,12 +1709,12 @@ section('36. Parameters the judgment never reads are never requested in a findin
     'P-07': 'root,backup',
   };
   const unmeasured = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06'].map(id =>
-    linea('evidence_state', { evidence_id: id, estado: 'NO_EVALUABLE', causa: 'EVIDENCE', motivo: `el PBS no responde (${id})` })
+    line('evidence_state', { evidence_id: id, estado: 'NO_EVALUABLE', causa: 'EVIDENCE', motivo: `el PBS no responde (${id})` })
   );
-  const findings = (valores: Valores) => {
+  const findings = (values: Values) => {
     ensConfigurationRepository.replaceActive({
       ...defaultENSConfigurationTemplate,
-      controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(valores) : c)),
+      controls: defaultENSConfigurationTemplate.controls.map(c => (c.controlId === CONTROL ? configuration(values) : c)),
     });
 
     const row = getENSComplianceResultByControl(CONTROL, 'ALTO', events([...unmeasured, heartbeat()]), SRV01.id, [{ id: SRV01.id, name: SRV01.name, groups: ['ens'] }], NOW);
@@ -1725,7 +1725,7 @@ section('36. Parameters the judgment never reads are never requested in a findin
   };
 
   const emptyInformatives = findings(mandatory);
-  const culpables = emptyInformatives.filter(
+  const culprits = emptyInformatives.filter(
     n => NAMES.test(`${n.finding} ${n.requiredAction}`) || (n.parameterIds || []).some(p => INFORMATIVE.includes(p))
   );
   check(
@@ -1735,8 +1735,8 @@ section('36. Parameters the judgment never reads are never requested in a findin
   );
   check(
     'and none names or asks to configure an informative parameter',
-    culpables.length === 0,
-    culpables.map(n => `${n.requirementId}: ${n.requiredAction} [${(n.parameterIds || []).join(',')}]`).join(' | ')
+    culprits.length === 0,
+    culprits.map(n => `${n.requirementId}: ${n.requiredAction} [${(n.parameterIds || []).join(',')}]`).join(' | ')
   );
   check(
     'nor turns the gap into a CONFIGURACIÓN one: it is EVIDENCIA, as the collector declares',
@@ -1752,14 +1752,14 @@ section('36. Parameters the judgment never reads are never requested in a findin
     access && `${access.cause}: ${access.requiredAction}`
   );
 
-  const soloLocal = [linea('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }), heartbeat()];
-  const declared2 = evaluate(events(soloLocal), { ...BASE, 'P-08': 'sí' }, 'ALTO');
+  const localOnly = [line('backup_storage', { destino: '/backup', misma_maquina: 'si', tipo: 'local', activo: 'si' }), heartbeat()];
+  const declared2 = evaluate(events(localOnly), { ...BASE, 'P-08': 'sí' }, 'ALTO');
   check(
     'P-08 = sí with no off-machine copy → EV-06 NO_CUMPLE and its motive cites P-08',
     declared2.estado('EV-06') === 'NO_CUMPLE' && /P-08 declara que existe copia en ubicación alternativa, y no se observa/.test(declared2.motivo('EV-06')),
     `${declared2.estado('EV-06')} ${declared2.motivo('EV-06')}`
   );
-  const undeclared2 = evaluate(events(soloLocal), BASE, 'ALTO');
+  const undeclared2 = evaluate(events(localOnly), BASE, 'ALTO');
   check(
     'REVERSAL: without P-08, the same NO_CUMPLE and without the citation',
     undeclared2.estado('EV-06') === 'NO_CUMPLE' && !/P-08/.test(undeclared2.motivo('EV-06')),
@@ -1787,7 +1787,7 @@ section('11. No other control changes');
 
     now = new Date(fs.readFileSync(`${folder}/data/now.txt`, 'utf8').trim());
 
-    const vistos = new Set<string>();
+    const seen = new Set<string>();
     const hits: any[] = [];
 
     ENSCatalog.forEach(c => {
@@ -1798,8 +1798,8 @@ section('11. No other control changes');
       }
 
       JSON.parse(fs.readFileSync(file, 'utf8')).hits.hits.forEach((h: any) => {
-        if (!vistos.has(h._id)) {
-          vistos.add(h._id);
+        if (!seen.has(h._id)) {
+          seen.add(h._id);
           hits.push(h);
         }
       });
@@ -1840,18 +1840,18 @@ section('11. No other control changes');
   const machine = scope.find(a => a.id !== '000')!;
   const level = base.global.ensLevel;
 
-  const withMpInfo6 = (valores: Valores | undefined): void => {
+  const withMpInfo6 = (values: Values | undefined): void => {
     ensConfigurationRepository.replaceActive({
       ...base,
       controls: base.controls.map(c =>
-        c.controlId !== CONTROL || !valores
+        c.controlId !== CONTROL || !values
           ? c
           : {
               ...c,
               parameters: c.parameters.map(p => {
-                const { value: _anterior, ...sinValor } = p;
+                const { value: _anterior, ...withoutValue } = p;
 
-                return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+                return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
               }),
             }
       ),
@@ -1866,16 +1866,16 @@ section('11. No other control changes');
     { id: machine.id, name: machine.name || '' }
   );
 
-  const fingerprint = (valor: unknown): string =>
-    JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
+  const fingerprint = (value: unknown): string =>
+    JSON.stringify(value, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
   const others = ENSCatalog.map(c => c.id).filter(id => id !== CONTROL);
 
   const snapshot = (evs: ENSNormalizedEvent[]) => {
     const result: Record<string, string> = {};
-    const vistas: Array<string | undefined> = [undefined, ...scope.map(a => a.id)];
+    const views: Array<string | undefined> = [undefined, ...scope.map(a => a.id)];
 
-    vistas.forEach(vista => {
+    views.forEach(vista => {
       const estado = getENSComplianceState(level, evs, vista, scope, now);
 
       estado.results
@@ -1903,11 +1903,11 @@ section('11. No other control changes');
   };
 
   withMpInfo6({ 'P-04': undefined });
-  const sin = snapshot(facts);
+  const withoutIt = snapshot(facts);
   const rowWithout = getENSComplianceState(level, facts, undefined, scope, now).agents.find(a => a.agentId === machine.id)!;
 
   withMpInfo6({ ...BASE, 'P-04': machine.name });
-  const con = snapshot([...facts, ...ofMpInfo6]);
+  const withIt = snapshot([...facts, ...ofMpInfo6]);
   const rowWith = getENSComplianceState(level, [...facts, ...ofMpInfo6], undefined, scope, now).agents.find(a => a.agentId === machine.id)!;
 
   check(
@@ -1915,12 +1915,12 @@ section('11. No other control changes');
     !rowWithout.results.some(r => r.control.id === CONTROL) && rowWith.results.some(r => r.control.id === CONTROL)
   );
 
-  const claves = Object.keys(sin);
-  const distinct = claves.filter(k => sin[k] !== con[k]);
+  const keys = Object.keys(withoutIt);
+  const distinct = keys.filter(k => withoutIt[k] !== withIt[k]);
 
   check(
-    `the other ${others.length} controls do not change (${claves.length} results compared)`,
-    others.length === 22 && claves.length > others.length && distinct.length === 0 && Object.keys(con).length === claves.length,
+    `the other ${others.length} controls do not change (${keys.length} results compared)`,
+    others.length === 22 && keys.length > others.length && distinct.length === 0 && Object.keys(withIt).length === keys.length,
     distinct.slice(0, 5).join('; ')
   );
 

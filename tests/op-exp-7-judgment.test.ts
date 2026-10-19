@@ -32,8 +32,8 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-26T12:00:00Z');
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
 let counter = 0;
 
@@ -59,14 +59,14 @@ type Alert = ReturnType<typeof alert>;
 const events = (...alerts: Alert[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(alerts);
 
-const TODAS = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09,EV-10,EV-11,EV-12';
+const ALL_OF_THEM = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09,EV-10,EV-11,EV-12';
 
 const heartbeat = (record = 'presente', extra: Record<string, unknown> = {}) =>
   alert({
     event: 'collector_run',
     resultado: 'completada',
-    evidencias_cubiertas: record === 'presente' || record === 'vacio' ? TODAS : 'EV-01,EV-06,EV-09,EV-10,EV-11',
-    evidencias_miradas: record === 'presente' || record === 'vacio' ? TODAS : 'EV-01,EV-06,EV-09,EV-11,EV-10',
+    evidencias_cubiertas: record === 'presente' || record === 'vacio' ? ALL_OF_THEM : 'EV-01,EV-06,EV-09,EV-10,EV-11',
+    evidencias_miradas: record === 'presente' || record === 'vacio' ? ALL_OF_THEM : 'EV-01,EV-06,EV-09,EV-11,EV-10',
     registro_incidentes: record,
     alertas_leidas: 16000,
     nivel_observado_desde: 7,
@@ -157,21 +157,21 @@ const row = (f: Row): Alert[] => {
   return output;
 };
 
-const configuration = (valores: Record<string, string[]>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, string[]>): ENSControlConfiguration => ({
   ...opExp7Configuration,
   parameters: opExp7Configuration.parameters.map(p => ({
     ...p,
-    value: valores[p.id],
+    value: values[p.id],
   })),
 });
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[]>,
+  values: Record<string, string[]>,
   level: ENSLevel = 'ALTO',
   now: Date = NOW
 ) => {
-  const cfg = configuration(valores);
+  const cfg = configuration(values);
   const evidences = resolveEvidenceForControl('op.exp.7', evs, '000', level, cfg, now);
   const context = buildPolicyContext(opExp7CatalogDefinition, cfg, level, evs, evidences, now);
   const { decisions } = opExp7PolicyDefinition.evaluator!(context);

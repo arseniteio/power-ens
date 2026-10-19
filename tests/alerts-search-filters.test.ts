@@ -15,7 +15,7 @@ const all = { bool: { must: [], filter: ['consulta', 'filtro', 'fechas'], should
 
 let barra: 'ok' | 'ppl' | 'rota' = 'ok';
 const calls: unknown[] = [];
-const constructores = {
+const builders = {
   buildQuery: (p: unknown) => {
     calls.push(p);
     if (barra === 'ppl') return { type: 'unsupported', queries: [], filters: [] };
@@ -26,25 +26,25 @@ const constructores = {
 };
 const estado = { indexPattern: patron as typeof patron | undefined, filters: [barFilter], timeRange: range };
 
-const sinPatron = buildAlertsSearchFilters({ ...estado, indexPattern: undefined }, constructores);
-check('no index pattern: no filter', sinPatron.filters.length === 0 && !sinPatron.queryError);
+const withoutPattern = buildAlertsSearchFilters({ ...estado, indexPattern: undefined }, builders);
+check('no index pattern: no filter', withoutPattern.filters.length === 0 && !withoutPattern.queryError);
 
-const normal = buildAlertsSearchFilters(estado, constructores);
+const normal = buildAlertsSearchFilters(estado, builders);
 check('with pattern: a single DSL with the query, the filters and the dates', normal.filters.length === 1 && normal.filters[0] === all, normal.filters);
 check('it is built on the pattern', calls[calls.length - 1] === patron);
 check('no query error', normal.queryError === undefined);
 
 barra = 'ppl';
-const ppl = buildAlertsSearchFilters(estado, constructores);
+const ppl = buildAlertsSearchFilters(estado, builders);
 check('unsupported language: a warning is raised', /DQL o Lucene/.test(ppl.queryError || ''), ppl.queryError);
 check('unsupported language: nothing without `bool` reaches the query', !ppl.filters.some(f => (f as any).type === 'unsupported'), ppl.filters);
 check('unsupported language: the bar filters and the dates remain', ppl.filters.length === 2 && ppl.filters[0] === barFilter && ppl.filters[1] === dates, ppl.filters);
 
 barra = 'rota';
-const rota = buildAlertsSearchFilters(estado, constructores);
+const rota = buildAlertsSearchFilters(estado, builders);
 check('invalid query: does not blow up and says why', rota.queryError === 'Expected value but end of input found', rota.queryError);
 check('invalid query: the bar filters and the dates remain', rota.filters.length === 2 && rota.filters[0] === barFilter && rota.filters[1] === dates, rota.filters);
-const brokenWithoutDates = buildAlertsSearchFilters({ ...estado, timeRange: undefined as unknown as typeof range }, constructores);
+const brokenWithoutDates = buildAlertsSearchFilters({ ...estado, timeRange: undefined as unknown as typeof range }, builders);
 check('invalid query and pattern without a time field: only the filters', brokenWithoutDates.filters.length === 1 && brokenWithoutDates.filters[0] === barFilter, brokenWithoutDates.filters);
 
 const root = path.join(__dirname, '..', 'public');
@@ -91,15 +91,15 @@ for (const file of walk(root)) {
 }
 check('the bar builds the date filter', buildFilters > 0);
 
-let vistasConBarra = 0;
+let viewsWithBar = 0;
 for (const file of walk(root)) {
   const text = fs.readFileSync(file, 'utf8');
   if (/export const useAlertsSearchBar\b/.test(text) || !/\buseAlertsSearchBar\(/.test(text)) continue;
-  vistasConBarra++;
+  viewsWithBar++;
   const sitio = path.relative(path.join(__dirname, '..'), file);
   check(`${sitio}: renders the bar with its warnings (AlertsSearchFrame)`, /<AlertsSearchFrame\b/.test(text));
 }
-check('hay vistas con la barra', vistasConBarra > 0);
+check('hay vistas con la barra', viewsWithBar > 0);
 
 const barSource = fs.readFileSync(path.join(root, 'search', 'alerts-search-bar.tsx'), 'utf8');
 check('the bar returns its pass counter as refreshKey', /\brefreshKey:\s*run\b/.test(barSource));

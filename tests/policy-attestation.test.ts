@@ -87,11 +87,11 @@ const REQ = 'op.acc.1.2';
 
 const judges = (
   evidences: ENSEvidenceResolved[],
-  decisiones: ENSPolicyDecision[],
+  decisions: ENSPolicyDecision[],
   requirementId: string = REQ,
   estadoControl: ENSControlDefinition['status'] = 'ACTIVE',
   level: 'BAJO' | 'MEDIO' | 'ALTO' = 'MEDIO'
-) => evaluateRequirement(requirement(requirementId), level, evidences, false, decisiones, estadoControl);
+) => evaluateRequirement(requirement(requirementId), level, evidences, false, decisions, estadoControl);
 
 const ACCREDITS = decision(REQ, 'CUMPLE', { attested: true });
 
@@ -120,12 +120,12 @@ section('1. A CUMPLE decision with `attested` complies marked as documentary');
     `${withoutMark.status} attested=${withoutMark.attested}`
   );
 
-  const yaLoDice = judges([], [decision(REQ, 'CUMPLE', { attested: true, reason: 'Acreditado documentalmente: contrato vigente' })]);
+  const alreadySaysIt = judges([], [decision(REQ, 'CUMPLE', { attested: true, reason: 'Acreditado documentalmente: contrato vigente' })]);
 
   check(
     'a motive that already starts with «Acreditado documentalmente» is not duplicated',
-    yaLoDice.observations[0] === 'Acreditado documentalmente: contrato vigente',
-    yaLoDice.observations[0]
+    alreadySaysIt.observations[0] === 'Acreditado documentalmente: contrato vigente',
+    alreadySaysIt.observations[0]
   );
 
   const withoutEvidences = judges([], [decision('op.acc.1.5', 'CUMPLE', { attested: true })], 'op.acc.1.5');
@@ -186,8 +186,8 @@ section('2. A measurement against always prevails over the accreditation');
     ],
   ];
 
-  for (const [name, evidences, decisiones] of cases) {
-    const r = judges(evidences, decisiones);
+  for (const [name, evidences, decisions] of cases) {
+    const r = judges(evidences, decisions);
 
     check(
       `${name}: NO_CUMPLE and without the mark`,
@@ -305,12 +305,12 @@ section('3 bis. Several decisions for the same requirement');
     `${notApplicable.status} attested=${notApplicable.attested}`
   );
 
-  const enContra = judges([], [decision(REQ, 'NO_CUMPLE', { reason: 'medida en contra' }), ACCREDITS]);
+  const against = judges([], [decision(REQ, 'NO_CUMPLE', { reason: 'medida en contra' }), ACCREDITS]);
 
   check(
     'the reversal · [NO_CUMPLE, accredited CUMPLE] → NO_CUMPLE: the measurement against prevails',
-    enContra.status === 'NO_CUMPLE' && enContra.attested !== true,
-    `${enContra.status} attested=${enContra.attested}`
+    against.status === 'NO_CUMPLE' && against.attested !== true,
+    `${against.status} attested=${against.attested}`
   );
 
   const unaccredited = judges([], [withoutMeasure, decision(REQ, 'CUMPLE')]);
@@ -324,16 +324,16 @@ section('3 bis. Several decisions for the same requirement');
 
 section('4. The engine (with the evidence bridge) and consolidation across machines');
 
-const runtime = (decisiones: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
+const runtime = (decisions: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
   controlId: 'op.acc.1',
   policyId: 'prueba',
   evaluatedAt: '2026-10-09T12:00:00Z',
-  decisions: decisiones,
+  decisions: decisions,
   appliedParameters: [],
   runtimeVariables: [],
 });
 
-const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
+const ALL_OF_THEM = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
 
 const validValue = (parameter: ENSControlParameter): ENSControlParameter['value'] => {
   if (parameter.options && parameter.options.length) {
@@ -365,13 +365,13 @@ const FULL_CONFIGURATION: ENSControlConfiguration = {
   parameters: opAcc1Configuration.parameters.map(parameter => ({ ...parameter, value: validValue(parameter) })),
 };
 
-const machine = (exceptions: Record<string, ENSComplianceStatus>, decisiones: ENSPolicyDecision[]) =>
+const machine = (exceptions: Record<string, ENSComplianceStatus>, decisions: ENSPolicyDecision[]) =>
   evaluateENSControl(
     CONTROL,
     FULL_CONFIGURATION,
     'MEDIO',
-    TODAS.map(id => evidence(id, exceptions[id] || 'CUMPLE')),
-    runtime(decisiones),
+    ALL_OF_THEM.map(id => evidence(id, exceptions[id] || 'CUMPLE')),
+    runtime(decisions),
     []
   );
 
@@ -446,20 +446,20 @@ const req = (result: ReturnType<typeof machine> | undefined, id: string = REQ) =
       summary: undefined as never,
     }));
 
-  const ambas = consolidateAgentComplianceResultByControl(fleet([accredited2, accredited2]), 'op.acc.1');
+  const both = consolidateAgentComplianceResultByControl(fleet([accredited2, accredited2]), 'op.acc.1');
 
   check(
     'consolidation · two accredited machines: CUMPLE and marked',
-    req(ambas)?.status === 'CUMPLE' && req(ambas)?.attested === true,
-    `${req(ambas)?.status} attested=${req(ambas)?.attested}`
+    req(both)?.status === 'CUMPLE' && req(both)?.attested === true,
+    `${req(both)?.status} attested=${req(both)?.attested}`
   );
 
-  const unaEnContra = consolidateAgentComplianceResultByControl(fleet([accredited2, measuredAgainst]), 'op.acc.1');
+  const oneAgainst = consolidateAgentComplianceResultByControl(fleet([accredited2, measuredAgainst]), 'op.acc.1');
 
   check(
     'consolidation · one machine with the measurement against: NO_CUMPLE and without the mark',
-    req(unaEnContra)?.status === 'NO_CUMPLE' && req(unaEnContra)?.attested !== true,
-    `${req(unaEnContra)?.status} attested=${req(unaEnContra)?.attested}`
+    req(oneAgainst)?.status === 'NO_CUMPLE' && req(oneAgainst)?.attested !== true,
+    `${req(oneAgainst)?.status} attested=${req(oneAgainst)?.attested}`
   );
 
   const measure = machine({}, [decision(REQ, 'CUMPLE')]);

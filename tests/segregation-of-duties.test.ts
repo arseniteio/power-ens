@@ -217,15 +217,15 @@ section('2. Two incompatible functions in the SAME account');
     verdict(complies, 'op.acc.3.1')?.status
   );
 
-  const unaSola = judges(
+  const onlyOne2 = judges(
     [action('pgarcia', '/usr/bin/git', '/srv/repos/app')],
     [P02, P03]
   );
 
   check(
     'an account with ONE function complies',
-    verdict(unaSola, 'op.acc.3.1')?.status === 'CUMPLE',
-    verdict(unaSola, 'op.acc.3.1')?.status
+    verdict(onlyOne2, 'op.acc.3.1')?.status === 'CUMPLE',
+    verdict(onlyOne2, 'op.acc.3.1')?.status
   );
 }
 
@@ -266,12 +266,12 @@ section('4. Critical tasks: two people or it does not count');
     'cambio de cortafuegos | 2',
   ]);
 
-  const unaSola = judges(
+  const onlyOne2 = judges(
     [tarea('despliegue en produccion', 'pgarcia')],
     [P02, P03, P04]
   );
 
-  const d = verdict(unaSola, 'op.acc.3.2');
+  const d = verdict(onlyOne2, 'op.acc.3.2');
 
   check(
     'a critical task with ONE person breaches',
@@ -286,7 +286,7 @@ section('4. Critical tasks: two people or it does not count');
     d?.reason
   );
 
-  const dos = judges(
+  const two = judges(
     [
       tarea('despliegue en produccion', 'jgomez'),
       tarea('despliegue en produccion', 'mlopez'),
@@ -296,8 +296,8 @@ section('4. Critical tasks: two people or it does not count');
 
   check(
     'the same task with TWO people complies',
-    verdict(dos, 'op.acc.3.2')?.status === 'CUMPLE',
-    verdict(dos, 'op.acc.3.2')?.status
+    verdict(two, 'op.acc.3.2')?.status === 'CUMPLE',
+    verdict(two, 'op.acc.3.2')?.status
   );
 
   const duplicate = judges(

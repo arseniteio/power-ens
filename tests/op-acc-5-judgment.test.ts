@@ -35,21 +35,21 @@ const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-16T12:00:00Z');
 
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString();
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString();
 
-type Valores = Record<string, string | number | boolean | string[]>;
+type Values = Record<string, string | number | boolean | string[]>;
 
-const buildConfiguration = (valores: Valores): ENSControlConfiguration => ({
+const buildConfiguration = (values: Values): ENSControlConfiguration => ({
   ...opAcc5Configuration,
   parameters: opAcc5Configuration.parameters.map(parameter =>
-    Object.prototype.hasOwnProperty.call(valores, parameter.id)
-      ? { ...parameter, value: valores[parameter.id] }
+    Object.prototype.hasOwnProperty.call(values, parameter.id)
+      ? { ...parameter, value: values[parameter.id] }
       : { ...parameter }
   ),
 });
 
-const COMPLETE: Valores = {
+const COMPLETE: Values = {
   'P-01': 'R2',
   'P-02': ['sede | sede.organismo.es | /var/log/sede/autenticacion.json'],
   'P-03': 5,
@@ -67,8 +67,8 @@ const COMPLETE: Valores = {
   ],
 };
 
-const sin = (valores: Valores, ...ids: string[]): Valores => {
-  const copy = { ...valores };
+const withoutIt = (values: Values, ...ids: string[]): Values => {
+  const copy = { ...values };
   ids.forEach(id => delete copy[id]);
 
   return copy;
@@ -80,24 +80,24 @@ const fact = (
   eventType: string,
   evidenceId: string | undefined,
   attributes: Record<string, unknown>,
-  horas = 1
+  hours = 1
 ): ENSNormalizedEvent => ({
   id: `ev-${++sequence}`,
   controlId: 'op.acc.5',
   evidenceId,
   eventType,
   sourceType: 'WAZUH_ALERT',
-  timestamp: ago(horas),
+  timestamp: ago(hours),
   agentId: '001',
   agentName: 'portal-01',
   attributes,
 });
 
-const heartbeat = (covered: string, horas = 1) =>
+const heartbeat = (covered: string, hours = 1) =>
   fact('collector_run', undefined, {
     resultado: 'completada',
     evidencias_cubiertas: covered,
-  }, horas);
+  }, hours);
 
 const HEALTHY: ENSNormalizedEvent[] = [
   fact('access_log_source', 'EV-01', { servicio: 'sede', dias_conservados: 400 }),
@@ -112,10 +112,10 @@ const HEALTHY: ENSNormalizedEvent[] = [
 
 const evaluate = (
   level: ENSLevel,
-  valores: Valores,
+  values: Values,
   events: ENSNormalizedEvent[]
 ) => {
-  const configuration = buildConfiguration(valores);
+  const configuration = buildConfiguration(values);
 
   const evidences = resolveEvidenceForControl(
     'op.acc.5',
@@ -179,19 +179,19 @@ const REINFORCEMENTS = [
 section('0. Catalog: nine documentary requirements and R6/R7 without levels');
 
 {
-  const documentales = opAcc5CatalogDefinition.requirements
+  const documentary = opAcc5CatalogDefinition.requirements
     .filter(item => item.evidenceIds.length === 0)
     .map(item => item.id);
 
   check(
     'exactly the nine documentary ones go without technical evidence',
-    JSON.stringify(documentales) ===
+    JSON.stringify(documentary) ===
       JSON.stringify([
         'op.acc.5.1', 'op.acc.5.2', 'op.acc.5.3', 'op.acc.5.9',
         'op.acc.5.r3.3', 'op.acc.5.r4.3', 'op.acc.5.r5.2',
         'op.acc.5.r6.1', 'op.acc.5.r7.1',
       ]),
-    documentales.join(', ')
+    documentary.join(', ')
   );
 
   check(
@@ -236,7 +236,7 @@ section('1. Only the reinforcement chosen in P-01 counts');
     applicable(r3).join(', ')
   );
 
-  const withoutP01 = evaluate('MEDIO', sin(COMPLETE, 'P-01'), HEALTHY);
+  const withoutP01 = evaluate('MEDIO', withoutIt(COMPLETE, 'P-01'), HEALTHY);
 
   check(
     'without P-01 no reinforcement is discarded: all nine count, unproven',
@@ -364,15 +364,15 @@ section('3. A well-configured, healthy R2 client at MEDIO complies entirely');
     evidenceOf(healthy, 'EV-08')?.status
   );
 
-  const conR1 = evaluate('MEDIO', COMPLETE, [
+  const withR1 = evaluate('MEDIO', COMPLETE, [
     ...HEALTHY,
     fact('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'luis', refuerzo: 'R1' }),
   ]);
 
   check(
     'reversal: ONE authentication without OTP brings r2.1 down (measured NO_CUMPLE)',
-    verdict(conR1, 'op.acc.5.r2.1') === 'NO_CUMPLE' &&
-      req(conR1, 'op.acc.5.r2.1').evidenced === true
+    verdict(withR1, 'op.acc.5.r2.1') === 'NO_CUMPLE' &&
+      req(withR1, 'op.acc.5.r2.1').evidenced === true
   );
 }
 
@@ -445,7 +445,7 @@ section('4. op.acc.5.8: configured limit, effective lockout and reactivation');
     evidenceOf(undeclaredOne, 'EV-02')?.status
   );
 
-  const withoutP04 = evaluate('MEDIO', sin(COMPLETE, 'P-04'), HEALTHY);
+  const withoutP04 = evaluate('MEDIO', withoutIt(COMPLETE, 'P-04'), HEALTHY);
 
   check(
     'without P-04 (reactivation procedure) there is no CUMPLE',
@@ -535,7 +535,7 @@ section('7. Without any external access service (wazuh-real and the LDAP today)'
     heartbeat(''),
   ];
 
-  const result = evaluate('MEDIO', sin({ ...COMPLETE, 'P-01': 'R2' }, 'P-02'), empty);
+  const result = evaluate('MEDIO', withoutIt({ ...COMPLETE, 'P-01': 'R2' }, 'P-02'), empty);
 
   const technicalOnes = result.requirements.filter(
     item =>

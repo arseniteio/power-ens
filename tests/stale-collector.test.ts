@@ -80,12 +80,12 @@ const WAZUH_REAL = [
 let counter = 0;
 
 const indexes = (
-  lineas: string[],
+  lines: string[],
   agent: { id: string; name: string } = { id: '024', name: 'wazuh-real' }
 ): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas.map(linea => {
-      const data = JSON.parse(linea);
+    lines.map(line => {
+      const data = JSON.parse(line);
 
       counter += 1;
 
@@ -116,7 +116,7 @@ const fact = (
   attributes: {},
 });
 
-const VALORES: Record<string, ENSControlParameter['value']> = {
+const VALUES: Record<string, ENSControlParameter['value']> = {
   'P-01': ['wazuh-real | Responsable de Sistemas | Resp. Sistemas | HW servidor'],
   'P-02': ['gw-proveedor | router | 172.31.1.1 | Proveedor de hosting'],
   'P-03': ['HW servidor', 'HW red', 'SW base', 'servicio'],
@@ -129,9 +129,9 @@ const opExp1: ENSControlConfiguration = {
   parameters: opExp1Configuration.parameters.map(parameter => {
     const { value: _discarded, ...rest } = parameter as ENSControlParameter;
 
-    return VALORES[parameter.id] === undefined
+    return VALUES[parameter.id] === undefined
       ? (rest as ENSControlParameter)
-      : ({ ...rest, value: VALORES[parameter.id] } as ENSControlParameter);
+      : ({ ...rest, value: VALUES[parameter.id] } as ENSControlParameter);
   }),
 };
 
@@ -153,10 +153,10 @@ const WAZUH: ENSAgentScope = { id: '024', name: 'wazuh-real', groups: ['ens'] };
 const LDAP: ENSAgentScope = { id: '028', name: 'zimbraHldap', groups: ['ens'] };
 const MANAGER: ENSAgentScope = { id: '000', name: 'Wazuh-4', groups: [], isManager: true };
 
-const tras = (horas: number, since = PASS): Date =>
-  new Date(Date.parse(since) + horas * HORA);
+const after2 = (hours: number, since = PASS): Date =>
+  new Date(Date.parse(since) + hours * HORA);
 
-const opExp1De = (
+const opExp1Of = (
   events: ENSNormalizedEvent[],
   agent: string | undefined,
   scope: ENSAgentScope[],
@@ -178,11 +178,11 @@ section('1. The detector: 24 h since the last heartbeat, or since the last orpha
 
   check(
     'with the heartbeat from 23 h ago there is nothing to mark',
-    findStaleCollector('op.acc.3', pass, tras(23, '2026-09-25T12:33:03Z')) === undefined
+    findStaleCollector('op.acc.3', pass, after2(23, '2026-09-25T12:33:03Z')) === undefined
   );
   check(
     'exactly at 24 h it still counts as alive',
-    findStaleCollector('op.acc.3', pass, tras(24, '2026-09-25T12:33:03Z')) === undefined
+    findStaleCollector('op.acc.3', pass, after2(24, '2026-09-25T12:33:03Z')) === undefined
   );
 
   const old = findStaleCollector('op.acc.3', pass, new Date('2026-09-27T03:49:49Z'));
@@ -230,7 +230,7 @@ section('1. The detector: 24 h since the last heartbeat, or since the last orpha
   );
   check(
     'facts without a heartbeat but recent: judged',
-    findStaleCollector('op.acc.3', orphan2, tras(2, '2026-09-25T12:33:02Z')) === undefined
+    findStaleCollector('op.acc.3', orphan2, after2(2, '2026-09-25T12:33:02Z')) === undefined
   );
   check(
     'without facts or heartbeat it decides nothing: it is already «no ha llegado nada»',
@@ -243,8 +243,8 @@ const EVENTS_024 = indexes(WAZUH_REAL);
 section('2. op.exp.1 on wazuh-real: the same pass, fresh and 25 h later');
 
 {
-  const fresco = opExp1De(EVENTS_024, '024', [WAZUH], tras(1));
-  const old = opExp1De(EVENTS_024, '024', [WAZUH], tras(25));
+  const fresco = opExp1Of(EVENTS_024, '024', [WAZUH], after2(1));
+  const old = opExp1Of(EVENTS_024, '024', [WAZUH], after2(25));
 
   check('with the pass from 1 h ago, CUMPLE', fresco?.status === 'CUMPLE', `${fresco?.score} ${fresco?.status}`);
   check('with the same pass 25 h later, NO_CUMPLE', old?.status === 'NO_CUMPLE', `${old?.score} ${old?.status}`);
@@ -301,10 +301,10 @@ section('2. op.exp.1 on wazuh-real: the same pass, fresh and 25 h later');
 
   const opAcc1 = getENSComplianceState(
     LEVEL,
-    [...EVENTS_024, fact('op.acc.1', 'collector_run', tras(24.5).toISOString())],
+    [...EVENTS_024, fact('op.acc.1', 'collector_run', after2(24.5).toISOString())],
     '024',
     [WAZUH],
-    tras(25)
+    after2(25)
   ).results.find(r => r.control.id === 'op.acc.1');
 
   check(
@@ -317,16 +317,16 @@ section('3. The consolidated does not come out CUMPLE with an unrenewed row');
 
 {
   const ldap = indexes(
-    WAZUH_REAL.map(linea => linea.replace(/2026-09-16T16:16:13Z/g, '2026-09-15T16:00:00Z')),
+    WAZUH_REAL.map(line => line.replace(/2026-09-16T16:16:13Z/g, '2026-09-15T16:00:00Z')),
     { id: '028', name: 'zimbraHldap' }
   );
-  const now = tras(1);
-  const whole = opExp1De([...EVENTS_024, ...ldap], undefined, [WAZUH, LDAP], now);
-  const soloWazuh = opExp1De([...EVENTS_024, ...ldap], '024', [WAZUH, LDAP], now);
-  const soloLdap = opExp1De([...EVENTS_024, ...ldap], '028', [WAZUH, LDAP], now);
+  const now = after2(1);
+  const whole = opExp1Of([...EVENTS_024, ...ldap], undefined, [WAZUH, LDAP], now);
+  const wazuhOnly = opExp1Of([...EVENTS_024, ...ldap], '024', [WAZUH, LDAP], now);
+  const ldapOnly = opExp1Of([...EVENTS_024, ...ldap], '028', [WAZUH, LDAP], now);
 
-  check('the fresh row CUMPLE', soloWazuh?.status === 'CUMPLE', soloWazuh?.status);
-  check('the unrenewed row NO_CUMPLE', soloLdap?.status === 'NO_CUMPLE', soloLdap?.status);
+  check('the fresh row CUMPLE', wazuhOnly?.status === 'CUMPLE', wazuhOnly?.status);
+  check('the unrenewed row NO_CUMPLE', ldapOnly?.status === 'NO_CUMPLE', ldapOnly?.status);
   check('the whole is not CUMPLE', whole?.status !== 'CUMPLE', `${whole?.score} ${whole?.status}`);
 
   const detail = getENSComplianceResultByControl('op.exp.1', LEVEL, [...EVENTS_024, ...ldap], undefined, [WAZUH, LDAP], now);

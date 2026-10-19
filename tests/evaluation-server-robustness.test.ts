@@ -25,11 +25,11 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 let clock = new Date('2026-10-28T10:00:00Z');
 const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.28',
   _source: {
-    '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`,
+    '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`,
     manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data,
   },
 });
@@ -54,15 +54,15 @@ const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.28',
   _source: { id, name, group, status: 'active', timestamp: hora(0.1), manager: 'manager' },
 });
-const conValores = (template: any, controlId: string, valores: Record<string, unknown>) => ({
+const withValues = (template: any, controlId: string, values: Record<string, unknown>) => ({
   ...template,
   controls: template.controls.map((c: any) => c.controlId !== controlId ? c : {
     ...c,
-    parameters: c.parameters.map((p: any) => (p.id in valores ? { ...p, value: valores[p.id] } : p)),
+    parameters: c.parameters.map((p: any) => (p.id in values ? { ...p, value: values[p.id] } : p)),
   }),
 });
 const configuration = {
-  ...conValores(defaultENSConfigurationTemplate, 'op.acc.3', {
+  ...withValues(defaultENSConfigurationTemplate, 'op.acc.3', {
     'P-02': ['desarrollo | operacion', 'autorizacion | control'],
     'P-03': ['desarrollo | /usr/bin/git', 'operacion | /usr/bin/systemctl'],
   }),
@@ -76,11 +76,11 @@ const searchIndex = createFakeIndexer([
   monitor('028', 'zimbraHldap', ['ens']),
   { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration: configuration, updatedAt: '2026-10-14T10:00:00.000Z' } },
 ], { clock: () => clock.getTime(), failShards: (body, index) => (fail && index?.startsWith('wazuh-alerts') && body?.size > 0 ? fail : 0) });
-const clientes = { asCurrentUser: searchIndex, asInternalUser: searchIndex };
-const avisos: string[] = [];
-const logger: any = { info() {}, warn: (m: string) => avisos.push(m), debug() {}, error: (m: string) => avisos.push(m) };
+const clients2 = { asCurrentUser: searchIndex, asInternalUser: searchIndex };
+const notices: string[] = [];
+const logger: any = { info() {}, warn: (m: string) => notices.push(m), debug() {}, error: (m: string) => notices.push(m) };
 const response = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
-const context = { core: { opensearch: { client: clientes } } };
+const context = { core: { opensearch: { client: clients2 } } };
 
 const reference = () => {
   ensConfigurationRepository.replaceActive(configuration as any);
@@ -106,12 +106,12 @@ const reference = () => {
   check('machine outside the scope: 400 with its motive', outside.status === 400 && /099.*alcance/.test(outside.body.message), outside);
   const pagina: any = await h.traceability(context, { query: { controlId: 'op.acc.3', size: '100000' } }, response);
   check('oversized traceability page: 400', pagina.status === 400, pagina);
-  const sinControl: any = await h.traceability(context, { query: {} }, response);
-  check('traceability without control: 400 (not 500)', sinControl.status === 400, sinControl);
+  const withoutControl: any = await h.traceability(context, { query: {} }, response);
+  check('traceability without control: 400 (not 500)', withoutControl.status === 400, withoutControl);
 
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   fail = 1;
-  const roto = await service.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
+  const roto = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
   check('and nothing is stored', service.rows.size === 0, service.rows.size);
   const viaRuta: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: service }).evaluate(context, { query: { timeZone: 'UTC' } }, response);
@@ -119,23 +119,23 @@ const reference = () => {
   fail = 0;
 
   const ref = reference();
-  const whole = await service.run(clientes, normalizeQuery({ include: 'results', timeZone: 'UTC' }));
+  const whole = await service.run(clients2, normalizeQuery({ include: 'results', timeZone: 'UTC' }));
   const expectedValue = getENSComplianceState(ref.nivel, ref.eventos, undefined, ref.alcance, clock);
   check('with facts without control and another control\'s heartbeat: same as the engine', same(whole.state!.results.map(withoutTrace), expectedValue.results.map(withoutTrace)),
     expectedValue.results.filter((r, i) => !same(withoutTrace(r), withoutTrace(whole.state!.results[i]))).map(r => r.control.id));
   const ofThe028 = getENSComplianceResultByControl('op.acc.3', ref.nivel, ref.eventos, '028', ref.alcance, clock);
-  const view028 = await service.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.acc.3', agentId: '028', timeZone: 'UTC' }));
+  const view028 = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.acc.3', agentId: '028', timeZone: 'UTC' }));
   check('op.acc.3 on 028 (no own facts, with op.exp.1\'s heartbeat): as 1.1.0', same(withoutTrace(view028.views.get('op.acc.3')!.result), withoutTrace(ofThe028)));
   const withoutForeignHeartbeat = getENSComplianceResultByControl('op.acc.3', ref.nivel, ref.eventos.filter(e => !(e.agentId === '028' && e.controlId === 'op.exp.1')), '028', ref.alcance, clock);
   check('(and that foreign heartbeat changes the result: the test really looks at it)', !same(withoutTrace(withoutForeignHeartbeat), withoutTrace(ofThe028)));
 
   searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'nueva', funcion: 'desarrollo' }, 0.5));
   const t0 = Date.now();
-  const old = await service.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
+  const old = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
   check('with new data: answers with the stored result, marked, without waiting', old.meta.refreshing && old.meta.fingerprint.startsWith('refreshing:') && old.meta.stats.computed === 0 && old.meta.stats.refreshingInBackground === 1, old.meta.stats);
   await wait(50);
   while (service.tasks.size) await wait(10);
-  const newOne = await service.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
+  const newOne = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
   const ref2 = reference();
   check('when requested again: the recomputed one, unmarked', !newOne.meta.refreshing && newOne.meta.stats.computed === 0 && same(newOne.state!.results.map(withoutTrace), getENSComplianceState(ref2.nivel, ref2.eventos, undefined, ref2.alcance, clock).results.map(withoutTrace)));
   void t0;
@@ -144,8 +144,8 @@ const reference = () => {
   while (!service.idle()) await wait(20);
   const reads = searchIndex.log.length;
   await Promise.all([
-    another.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' })),
-    another.run(clientes, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' })),
+    another.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })),
+    another.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' })),
   ]);
   const ofFacts = searchIndex.log.slice(reads).filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts'));
   const repeated = ofFacts.length - new Set(ofFacts.map(l => JSON.stringify([l.body.query, l.body.search_after]))).size;
@@ -156,15 +156,15 @@ const reference = () => {
   const promise = third.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'results', timeZone: 'UTC' }), { signal: signal }).then(() => 'terminó', (e: any) => e?.statusCode);
   await wait(40);
   signal.cancel();
-  const fin = await promise;
+  const end = await promise;
   while (third.tasks.size) await wait(5);
-  check('the browser leaves and nobody else waits: it is cancelled', fin === 499 && third.rows.size < 23, [fin, third.rows.size]);
+  check('the browser leaves and nobody else waits: it is cancelled', end === 499 && third.rows.size < 23, [end, third.rows.size]);
 
-  const panel024 = buildEvaluationResponse(await service.run(clientes, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }))) as any;
+  const panel024 = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }))) as any;
   const ref3 = reference();
   const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'));
   check('«eventos con impacto» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
-  const panelAll = buildEvaluationResponse(await service.run(clientes, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
+  const panelAll = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
   check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos)));
 
   const hs = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
@@ -174,10 +174,10 @@ const reference = () => {
   check('`available` says how many can be paged through', p1.body.data.available === Math.min(sheetRef.traceability.length, 500));
 
   const tz = 'Europe/Madrid';
-  let series = await service.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
+  let series = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
   for (let i = 0; i < 300 && series.meta.seriesPending; i++) {
     await wait(200);
-    series = await service.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
+    series = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
   }
   const ref4 = reference();
   const ownItems = ref4.docs.filter(d => d._source.data.ensfacil === 'op.exp.3' && d._source.agent.id === '024');
@@ -193,7 +193,7 @@ const reference = () => {
 
   {
     const s9 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
-    const summary = (options: any = {}) => s9.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...options });
+    const summary = (options: any = {}) => s9.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...options });
     await summary();
     const factReads = () => searchIndex.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
     searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'otra', funcion: 'operacion' }, 0.2));
@@ -202,10 +202,10 @@ const reference = () => {
     check('U-N1: new data, refresh launched behind', old9.meta.refreshing && old9.meta.stats.refreshingInBackground >= 1 && !old9.meta.refreshError);
     while (s9.tasks.size) await wait(5);
     const antes = factReads();
-    const conError = await summary();
+    const withError = await summary();
     check('U-N1: the refresh failed: the last good data with `refreshError` (motive and time)',
-      conError.meta.refreshing && /Datos incompletos/.test(conError.meta.refreshError?.message || '') && conError.meta.refreshError?.at === clock.toISOString() && Boolean(conError.state), conError.meta.refreshError);
-    check('U-N1: and the next request does not launch another computation', conError.meta.stats.refreshingInBackground === 0 && factReads() === antes, conError.meta.stats);
+      withError.meta.refreshing && /Datos incompletos/.test(withError.meta.refreshError?.message || '') && withError.meta.refreshError?.at === clock.toISOString() && Boolean(withError.state), withError.meta.refreshError);
+    check('U-N1: and the next request does not launch another computation', withError.meta.stats.refreshingInBackground === 0 && factReads() === antes, withError.meta.stats);
     const h9: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: s9 }).evaluate(context, { query: { include: 'summary', timeZone: 'UTC' } }, response);
     check('U-N1: the route carries `meta.refreshError`', h9.status === 200 && /Datos incompletos/.test(h9.body.data.meta.refreshError?.message || ''), h9.body?.data?.meta);
     const retry: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: s9 }).evaluate(context, { query: { include: 'summary', timeZone: 'UTC', retryRefresh: '1' } }, response);
@@ -217,8 +217,8 @@ const reference = () => {
     const past = await summary();
     check('U-N1: after the wait, it retries by itself', past.meta.stats.refreshingInBackground >= 1, past.meta.stats);
     while (s9.tasks.size) await wait(5);
-    const bien = await summary();
-    check('U-N1: on success, no error or mark', !bien.meta.refreshing && !bien.meta.refreshError, bien.meta.refreshError);
+    const good = await summary();
+    check('U-N1: on success, no error or mark', !good.meta.refreshing && !good.meta.refreshError, good.meta.refreshError);
     clock = saved;
   }
 
@@ -249,7 +249,7 @@ const reference = () => {
   {
     const s11 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     const since = searchIndex.log.length;
-    await s11.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }));
+    await s11.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }));
     const calls = searchIndex.log.slice(since);
     const ofFacts = calls.filter(l => l.body?.size > 0);
     const machines = 3;
@@ -261,22 +261,22 @@ const reference = () => {
 
   {
     const s12 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
-    const summary = (o: any = {}) => s12.run(clientes, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...o });
+    const summary = (o: any = {}) => s12.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...o });
     await summary();
     while (!s12.idle()) await wait(20);
     searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'n4', funcion: 'operacion' }, 0.1));
     fail = 1;
     await summary();
     while (s12.tasks.size) await wait(5);
-    const conError = await summary();
-    check('§12 the refresh failed: the stored result with `refreshError`', /Datos incompletos/.test(conError.meta.refreshError?.message || ''));
+    const withError = await summary();
+    check('§12 the refresh failed: the stored result with `refreshError`', /Datos incompletos/.test(withError.meta.refreshError?.message || ''));
     fail = 0;
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) await wait(60); return searchIndex.search(p); } };
     const retry = await s12.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, retryRefresh: true });
     check('§12 «Reintentar»: answers the stored result, updating and WITHOUT the old error', retry.meta.refreshing && !retry.meta.refreshError && retry.meta.stats.refreshingInBackground >= 1, retry.meta);
     while (s12.tasks.size) await wait(5);
-    const bien = await summary();
-    check('§12 and the next request brings the new data, unmarked', !bien.meta.refreshing && !bien.meta.refreshError);
+    const good = await summary();
+    check('§12 and the next request brings the new data, unmarked', !good.meta.refreshing && !good.meta.refreshError);
     while (!s12.idle()) await wait(20);
   }
 
@@ -313,14 +313,14 @@ const reference = () => {
     check('C1: and with a new fact before each request, the panel and the sheet keep bringing it (never pending)', always);
     while (!s13.idle()) await wait(20);
     newOne();
-    const tras = await request({ include: 'dashboard', timelineDays: '7' });
+    const after2 = await request({ include: 'dashboard', timelineDays: '7' });
     const sheet = await request({ include: 'control', controlId: 'op.exp.3', timelineDays: '30' });
-    check('C1: all finished, with another new fact: the panel and the sheet with series', Boolean(tras.timeline) && !tras.meta.seriesPending && Boolean(sheet.timeline) && !sheet.meta.seriesPending);
+    check('C1: all finished, with another new fact: the panel and the sheet with series', Boolean(after2.timeline) && !after2.meta.seriesPending && Boolean(sheet.timeline) && !sheet.meta.seriesPending);
     const clean = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
-    let ref13 = await clean.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
+    let ref13 = await clean.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
     for (let i = 0; i < 300 && !ref13.timeline; i++) {
       await wait(50);
-      ref13 = await clean.run(clientes, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
+      ref13 = await clean.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
     }
     const pastOf = (t: any[]) => t.filter(p => !p.isCurrent).map(p => [p.label, p.score, p.status]);
     check('C1: the past days served are those of a clean computation', same(pastOf(sheet.timeline || []), pastOf(ref13.timeline || [])), [pastOf(sheet.timeline || []).slice(-3), pastOf(ref13.timeline || []).slice(-3)]);
@@ -328,7 +328,7 @@ const reference = () => {
 
     const saved = clock;
     const s15 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 1 });
-    const request15 = (q: any) => s15.run(clientes, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
+    const request15 = (q: any) => s15.run(clients2, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
     const advances = () => {
       clock = new Date(clock.getTime() + 2 * 60 * 1000);
       searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.001));

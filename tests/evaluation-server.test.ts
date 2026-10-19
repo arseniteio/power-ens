@@ -26,15 +26,15 @@ const withoutTrace = (r: any) => (r ? { ...r, traceability: [] } : r);
 let clock = new Date('2026-10-17T12:00:00Z');
 const hora = (h: number) => new Date(clock.getTime() - h * 3600 * 1000).toISOString();
 let n = 0;
-const fact = (agent: string, name: string, data: Record<string, unknown>, horas: number): FakeDoc => ({
+const fact = (agent: string, name: string, data: Record<string, unknown>, hours: number): FakeDoc => ({
   _id: `h${String(++n).padStart(5, '0')}`,
   _index: 'wazuh-alerts-4.x-2026.10.17',
-  _source: { '@timestamp': hora(horas), timestamp: hora(horas), id: `${Date.parse(hora(horas)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
+  _source: { '@timestamp': hora(hours), timestamp: hora(hours), id: `${Date.parse(hora(hours)) / 1000}.${n}`, manager: { name: 'wazuh-manager' }, agent: { id: agent, name: name }, rule: { id: '100', groups: ['ENS'] }, data },
 });
 
 const docs: FakeDoc[] = [];
-for (const linea of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-pass.ndjson'), 'utf8').split('\n').filter(Boolean)) {
-  docs.push(fact('024', 'wazuh-real', JSON.parse(linea), 3));
+for (const line of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-pass.ndjson'), 'utf8').split('\n').filter(Boolean)) {
+  docs.push(fact('024', 'wazuh-real', JSON.parse(line), 3));
 }
 for (let h = 200; h >= 1; h -= 1) {
   docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
@@ -68,7 +68,7 @@ const index = createFakeIndexer([
   monitor('099', 'fuera', ['default']),
   { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration: configuration, updatedAt: '2026-10-14T10:00:00.000Z' } },
 ], { clock: () => clock.getTime() });
-const clientes = { asCurrentUser: index, asInternalUser: index };
+const clients2 = { asCurrentUser: index, asInternalUser: index };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
 
@@ -88,7 +88,7 @@ const reference = () => {
   const ref = reference();
   check('the test scope: manager, 024 and 028', JSON.stringify(ref.alcance.map(a => a.id).sort()) === '["000","024","028"]', ref.alcance.map(a => a.id));
 
-  const whole = await service.run(clientes, { include: 'results', timeZone: 'UTC' });
+  const whole = await service.run(clients2, { include: 'results', timeZone: 'UTC' });
   const expectedValue = getENSComplianceState(ref.nivel, ref.eventos, undefined, ref.alcance, clock);
   check('whole: the results are the engine\'s over all facts', same(whole.state!.results.map(withoutTrace), expectedValue.results.map(withoutTrace)),
     expectedValue.results.filter((r, i) => !same(withoutTrace(r), withoutTrace(whole.state!.results[i]))).map(r => r.control.id));
@@ -111,7 +111,7 @@ const reference = () => {
 
   const reads = index.log.length;
   for (const agent of ['000', '024', '028']) {
-    const vista = await service.run(clientes, { include: 'results', agentId: agent, timeZone: 'UTC' });
+    const vista = await service.run(clients2, { include: 'results', agentId: agent, timeZone: 'UTC' });
     const its = getENSComplianceState(ref.nivel, ref.eventos, agent, ref.alcance, clock);
     check(`${agent}: same as the engine over everything`, same(vista.state!.results.map(withoutTrace), its.results.map(withoutTrace)) && same(vista.state!.controlSummary, its.controlSummary));
     check(`${agent}: each control as the sheet`, vista.state!.results.every(r => same(withoutTrace(r), withoutTrace(getENSComplianceResultByControl(r.control.id, ref.nivel, ref.eventos, agent, ref.alcance, clock)))));
@@ -119,11 +119,11 @@ const reference = () => {
   }
   check('machine views only do the probe (no fact reads)', index.log.slice(reads).every(l => l.body?.size === 0 || l.index === 'wazuh-ens-configuration'));
 
-  const other = await service.run(clientes, { include: 'summary', timeZone: 'UTC' });
+  const other = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });
   check('second time, nothing is recomputed', other.meta.stats.computed === 0);
   check('current result: computedAt is the confirmation time, not the oldest row', !other.meta.refreshing && other.meta.computedAt === other.meta.evaluatedAt, [other.meta.computedAt, other.meta.evaluatedAt]);
   const h = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
-  const ctx = { core: { opensearch: { client: clientes } } };
+  const ctx = { core: { opensearch: { client: clients2 } } };
   const resp = { ok: (r: any) => r.body, customError: (r: any) => ({ error: r }) };
   const probe: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   check('the probe: few bytes', JSON.stringify(probe).length < 400, JSON.stringify(probe).length);
@@ -131,42 +131,42 @@ const reference = () => {
   index.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'nuevo', funcion: 'desarrollo' }, 0.5));
   const probe2: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   check('a new fact changes the fingerprint', probe2.data.fingerprint !== probe.data.fingerprint);
-  const tras = await service.run(clientes, { include: 'summary', timeZone: 'UTC' });
-  check('and only its row is recomputed (op.acc.3 on 024)', tras.meta.stats.computed === 1 && tras.meta.stats.rows[0]?.controlId === 'op.acc.3' && tras.meta.stats.rows[0]?.agentId === '024', tras.meta.stats.rows.map((c: any) => `${c.controlId}@${c.agentId}`));
+  const after2 = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });
+  check('and only its row is recomputed (op.acc.3 on 024)', after2.meta.stats.computed === 1 && after2.meta.stats.rows[0]?.controlId === 'op.acc.3' && after2.meta.stats.rows[0]?.agentId === '024', after2.meta.stats.rows.map((c: any) => `${c.controlId}@${c.agentId}`));
   const ref2 = reference();
-  check('with the new fact, it is still the same as the engine over everything', same(tras.state!.results.map(withoutTrace), getENSComplianceState(ref2.nivel, ref2.eventos, undefined, ref2.alcance, clock).results.map(withoutTrace)));
+  check('with the new fact, it is still the same as the engine over everything', same(after2.state!.results.map(withoutTrace), getENSComplianceState(ref2.nivel, ref2.eventos, undefined, ref2.alcance, clock).results.map(withoutTrace)));
 
   const otherIndex = { ...index, transport: { request: async () => ({ body: { user_name: 'luis', roles: ['readall'] } }) } };
-  const deLuis = await service.run({ asCurrentUser: otherIndex, asInternalUser: index }, { include: 'summary', timeZone: 'UTC' });
-  check('another user: their own evaluation', deLuis.meta.stats.computed > 0);
+  const ofLuis = await service.run({ asCurrentUser: otherIndex, asInternalUser: index }, { include: 'summary', timeZone: 'UTC' });
+  check('another user: their own evaluation', ofLuis.meta.stats.computed > 0);
 
   clock = new Date(clock.getTime() + 61 * 60 * 1000);
-  const expired = await service.run(clientes, { include: 'summary', timeZone: 'UTC' });
+  const expired = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });
   check('expired (60 min): evaluated again', expired.meta.stats.computed > 0);
 
   const summary = JSON.stringify(buildEvaluationResponse(expired));
-  const sheet = JSON.stringify(buildEvaluationResponse(await service.run(clientes, { include: 'control', controlId: 'op.acc.3', timeZone: 'UTC' })));
+  const sheet = JSON.stringify(buildEvaluationResponse(await service.run(clients2, { include: 'control', controlId: 'op.acc.3', timeZone: 'UTC' })));
   check('no response carries index documents', !/"_source"|"full_log"/.test(summary + sheet));
   check('the sheet brings at most 100 traceability entries', (JSON.parse(sheet).result.traceability || []).length <= 100);
 
   const ref3 = reference();
   const ofFactsUntil = () => index.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
-  let withSeries = await service.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  let withSeries = await service.run(clients2, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
   check('the panel does not wait for the series: answers without it and marks it pending', withSeries.meta.seriesPending === true && !withSeries.timeline, withSeries.meta.seriesPending);
   for (let i = 0; i < 600 && withSeries.meta.seriesPending; i++) {
     await new Promise(r => setTimeout(r, 500));
-    withSeries = await service.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+    withSeries = await service.run(clients2, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
   }
   const readsBefore = ofFactsUntil();
-  const again2 = await service.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  const again2 = await service.run(clients2, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
   check('series computed, the panel reads no fact again', !again2.meta.seriesPending && (again2.timeline || []).length > 1 && ofFactsUntil() === readsBefore);
-  const sheet30 = await service.run(clientes, { include: 'control', controlId: 'op.exp.3', timelineDays: 30, timeZone: 'UTC' });
+  const sheet30 = await service.run(clients2, { include: 'control', controlId: 'op.exp.3', timelineDays: 30, timeZone: 'UTC' });
   check('and the sheet with 30 days neither (the same series of each row)', !sheet30.meta.seriesPending && (sheet30.timeline || []).length > 1 && ofFactsUntil() === readsBefore);
   const asc = ref3.eventos.map(e => ({ e, t: Date.parse(e.timestamp) })).sort((a, b) => a.t - b.t);
   const plan = planENSTimelineCuts(Math.min(...asc.map(x => x.t)), asc.length, { now: clock, days: 7, timeZone: 'UTC', maxEvaluatedEvents: Infinity });
   const expected = plan.map(c => getENSComplianceState(ref3.nivel, c.isCurrent ? ref3.eventos : asc.filter(x => x.t <= c.cutoff.getTime()).map(x => x.e), undefined, ref3.alcance, c.cutoff).controlSummary.scoreAverage);
   check('the panel series: the same points as the engine day by day', same((withSeries.timeline || []).map(p => p.score), expected), [(withSeries.timeline || []).map(p => p.score), expected]);
-  const again = await service.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
+  const again = await service.run(clients2, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
   check('past days are stored: the second time nothing is evaluated', again.meta.stats.computed === 0 && same(again.timeline, withSeries.timeline));
   const model = (buildEvaluationResponse(withSeries) as any).dashboard;
   check('the panel receives the finished model (with its series)', model && model.evolution.rows.length === expected.length);

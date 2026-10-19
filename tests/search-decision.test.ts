@@ -25,8 +25,8 @@ check('without a signal: it is a failure', !isOwnCancellation(undefined));
 {
   const record = new Map<string, number>();
   const t0 = Date.parse('2026-10-08T10:00:00Z');
-  const avisos = Array.from({ length: 17 }, (_, i) => shouldToast(record, 'Request Timeout', t0 + i * 10)).filter(Boolean).length;
-  check('17 rows failing the same at once: a single notice', avisos === 1, avisos);
+  const notices = Array.from({ length: 17 }, (_, i) => shouldToast(record, 'Request Timeout', t0 + i * 10)).filter(Boolean).length;
+  check('17 rows failing the same at once: a single notice', notices === 1, notices);
   check('another message: its own notice', shouldToast(record, 'Forbidden', t0 + 200));
   check('the same message within the minute: silent', !shouldToast(record, 'Request Timeout', t0 + ENS_SEARCH_TOAST_WINDOW_MS - 1));
   check('after the minute: warned again', shouldToast(record, 'Request Timeout', t0 + ENS_SEARCH_TOAST_WINDOW_MS));

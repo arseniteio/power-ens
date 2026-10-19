@@ -48,7 +48,7 @@ const check = (
 
 const section = (title: string): void => console.log(`\n${title}`);
 
-const CONTROLES = ['mp.info.6', 'op.acc.1', 'op.acc.2'];
+const CONTROLS = ['mp.info.6', 'op.acc.1', 'op.acc.2'];
 
 const VALID_STATES = [
   'CUMPLE',
@@ -166,7 +166,7 @@ const rowOf = (rows: ENSReportRow[], campoId: string): ENSReportRow => {
 section('1 · the row carries what the «Evidencia» column needs');
 
 {
-  for (const controlId of CONTROLES) {
+  for (const controlId of CONTROLS) {
     const model = buildENSReportModel(controlId, undefined);
     const rows = buildENSReportRows(model);
 
@@ -193,11 +193,11 @@ section('1 · the row carries what the «Evidencia» column needs');
     check(
       `${controlId} · the column reads a key the row does have`,
       rows.every(row => {
-        const valor = (row as unknown as Record<string, unknown>)[
+        const value = (row as unknown as Record<string, unknown>)[
           ENS_REPORT_EVIDENCE_FIELD
         ];
 
-        return typeof valor === 'string' && valor.length > 0;
+        return typeof value === 'string' && value.length > 0;
       }),
       ENS_REPORT_EVIDENCE_FIELD
     );

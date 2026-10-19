@@ -78,7 +78,7 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
     let clock = 1_000_000;
     let visible = true;
     const pending: { resolve: (v: any) => void; reject: (e: any) => void; controller: AbortController; tipo: string }[] = [];
-    const estados: any[] = [];
+    const states: any[] = [];
     const promise = (type: string, controller: AbortController) =>
       new Promise<any>((resolve, reject) => {
         pending.push({ resolve, reject, controller, tipo: type });
@@ -89,14 +89,14 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
       probe: controller => promise('probe', controller),
       now: () => clock,
       visible: () => visible,
-      onChange: st => estados.push(st),
+      onChange: st => states.push(st),
     });
-    const ultimo = () => estados[estados.length - 1];
+    const ultimo = () => states[states.length - 1];
     const tick = () => c.tick();
-    const resolves = (type: string, valor: any) => {
+    const resolves = (type: string, value: any) => {
       const p = pending.filter(x => x.tipo === type && !x.controller.signal.aborted).pop()!;
       pending.splice(pending.indexOf(p), 1);
-      p.resolve(valor);
+      p.resolve(value);
     };
     const wait0 = () => new Promise(r => setTimeout(r, 0));
 
@@ -131,27 +131,27 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
     c.setKey('B');
     check('changing key cancels the probe in progress', (await probing3) === 'busy');
     check('B: loading, nothing from A', ultimo().key === 'B' && ultimo().data === undefined && ultimo().loading);
-    check('changing key leaves no error', !estados.some(e => e.error));
+    check('changing key leaves no error', !states.some(e => e.error));
     resolves('fetch', { meta: { fingerprint: 'b1', evaluatedAt: new Date(clock).toISOString() } });
     await wait0();
     check('the probe clock goes back to zero with the new key', (await tick()) === 'skip');
     c.setKey('B');
     check('requesting the same key again does not erase what is seen', ultimo().data?.meta.fingerprint === 'b1');
 
-    const c2Estados: any[] = [];
+    const c2States: any[] = [];
     const c2 = createEvaluationController<any>({
       fetch: controller => withRequestTimeout(signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')))), 'evaluación ENS', controller, 20),
       probe: () => Promise.resolve({ fingerprint: 'x' }),
       now: () => clock,
       visible: () => true,
-      onChange: st => c2Estados.push(st),
+      onChange: st => c2States.push(st),
     });
     c2.setKey('lenta');
     await new Promise(r => setTimeout(r, 60));
-    const fin = c2Estados[c2Estados.length - 1];
-    check('a timeout arrives as an error (it is not silenced)', fin.error instanceof ENSRequestTimeoutError && !fin.loading, fin.error?.message);
+    const end = c2States[c2States.length - 1];
+    check('a timeout arrives as an error (it is not silenced)', end.error instanceof ENSRequestTimeoutError && !end.loading, end.error?.message);
     c2.retry();
-    check('«Reintentar» requests it again', c2Estados[c2Estados.length - 1].loading);
+    check('«Reintentar» requests it again', c2States[c2States.length - 1].loading);
     c2.dispose();
     c.dispose();
 
@@ -169,8 +169,8 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
       c3.setKey('B');
       loose[0].resolve({ meta: { fingerprint: 'de-A' } });
       await wait0();
-      const enB = e3[e3.length - 1];
-      check('late response from A with B in view: it does not appear, B keeps loading', enB.key === 'B' && enB.loading && enB.data === undefined);
+      const onB = e3[e3.length - 1];
+      check('late response from A with B in view: it does not appear, B keeps loading', onB.key === 'B' && onB.loading && onB.data === undefined);
       loose[1].resolve({ meta: { fingerprint: 'de-B' } });
       await wait0();
       check('and B\'s does', e3[e3.length - 1].data?.meta.fingerprint === 'de-B');
@@ -287,9 +287,9 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
         visible: () => visible11,
         onChange: () => undefined,
       });
-      const aMedias = () => ({ meta: { fingerprint: 'refreshing:s', evaluatedAt: new Date(r11).toISOString(), refreshing: true, seriesPending: true } });
+      const halfDone = () => ({ meta: { fingerprint: 'refreshing:s', evaluatedAt: new Date(r11).toISOString(), refreshing: true, seriesPending: true } });
       c11.setKey('A');
-      loose.pop()!.resolve(aMedias());
+      loose.pop()!.resolve(halfDone());
       await wait0();
       const waits: number[] = [];
       for (let i = 0; i < 70; i++) {
@@ -297,7 +297,7 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
         let v = 0;
         while ((await c11.tick()) !== 'reload' && v++ < 100) r11 += 1000;
         waits.push((r11 - since) / 1000);
-        loose.pop()!.resolve(aMedias());
+        loose.pop()!.resolve(halfDone());
         await wait0();
       }
       check('M6: every 2 s for the first 2 minutes', waits.slice(0, 55).every(e => e === 2), waits.slice(0, 62).join());
@@ -481,15 +481,15 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
       if (signal.aborted) throw new Error('cancelled');
       return 7;
     };
-    const tareas = new SharedTasks<number>();
+    const tasks = new SharedTasks<number>();
     const primero = new CancelSignal();
-    const pPrimero = tareas.run('fila', lento, primero).catch(e => e.message);
+    const pPrimero = tasks.run('fila', lento, primero).catch(e => e.message);
     primero.cancel();
-    check('S-N1: cancelled, it no longer counts as in progress', !tareas.has('fila'));
-    const second = await tareas.run('fila', lento, new CancelSignal()).catch(e => `error: ${e.message}`);
+    check('S-N1: cancelled, it no longer counts as in progress', !tasks.has('fila'));
+    const second = await tasks.run('fila', lento, new CancelSignal()).catch(e => `error: ${e.message}`);
     check('S-N1: the one arriving later does not inherit the cancellation: computes again', second === 7 && started === 2, { segundo: second, arrancados: started });
     check('S-N1: the cancelled one ends in error for whoever left', (await pPrimero) === 'cancelled');
-    check('S-N1: and its end does not erase the new one from the list', tareas.size === 0);
+    check('S-N1: and its end does not erase the new one from the list', tasks.size === 0);
   }
 
   const traffic = new Semaphore(2);
@@ -504,11 +504,11 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
   check('server: at most 2 evaluations at a time', max === 2, max);
 
   {
-    const sem = new Semaphore(1);
+    const week = new Semaphore(1);
     const order: string[] = [];
-    const job = (name: string, background: boolean) => sem.use(async () => { order.push(name); await wait(2); }, { background });
-    const todas = [job('ocupa', false), job('fondo-1', true), job('fondo-2', true), job('primer-plano', false)];
-    await Promise.all(todas);
+    const job = (name: string, background: boolean) => week.use(async () => { order.push(name); await wait(2); }, { background });
+    const allOnes = [job('ocupa', false), job('fondo-1', true), job('fondo-2', true), job('primer-plano', false)];
+    await Promise.all(allOnes);
     check('R4: the foreground one overtakes the background ones in the queue', order.join() === 'ocupa,primer-plano,fondo-1,fondo-2', order);
   }
 

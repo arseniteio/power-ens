@@ -64,8 +64,8 @@ const evaluate = (global: Record<string, unknown>, level: ENSLevel, events: ENSN
   return getENSComplianceResults(level, events, undefined, undefined, NOW);
 };
 
-const fingerprint = (valor: unknown): string =>
-  JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
+const fingerprint = (value: unknown): string =>
+  JSON.stringify(value, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
 const byControl = (results: ReturnType<typeof evaluate>) =>
   new Map(results.map(r => [r.control.id, r]));
@@ -116,9 +116,9 @@ for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
   );
 
   for (const t of (['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]).filter(l => l !== global)) {
-    const conT = evaluate({ ensLevel: global, traceabilityLevel: t }, global);
+    const withT = evaluate({ ensLevel: global, traceabilityLevel: t }, global);
     const antes = byControl(base);
-    const after = byControl(conT);
+    const after = byControl(withT);
 
     check(
       `${global} with T=${t} · op.exp.8 is evaluated with ${t}`,
@@ -195,10 +195,10 @@ section('3. The global configuration validator');
 const valid = (global: Record<string, unknown>) =>
   validateENSConfigurationStructure(configuration(global));
 
-const sinT = configuration({});
-delete (sinT.global as { traceabilityLevel?: unknown }).traceabilityLevel;
+const withoutT = configuration({});
+delete (withoutT.global as { traceabilityLevel?: unknown }).traceabilityLevel;
 
-check('the missing key is valid', validateENSConfigurationStructure(sinT).valid, validateENSConfigurationStructure(sinT).errors.join('; '));
+check('the missing key is valid', validateENSConfigurationStructure(withoutT).valid, validateENSConfigurationStructure(withoutT).errors.join('; '));
 check('a level is valid', valid({ traceabilityLevel: 'ALTO' }).valid);
 check('null is NOT valid', !valid({ traceabilityLevel: null }).valid);
 check('an empty string is NOT valid', !valid({ traceabilityLevel: '' }).valid);

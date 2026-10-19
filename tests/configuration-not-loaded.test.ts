@@ -26,7 +26,7 @@ const section = (title: string): void => console.log(`\n${title}`);
 section('1. A column without a boolean `required` does not pass, and it says which');
 
 {
-  const conTabla = (requiredOfSecond: boolean | undefined) => {
+  const withTable = (requiredOfSecond: boolean | undefined) => {
     const cfg = JSON.parse(
       JSON.stringify(defaultENSConfigurationTemplate)
     );
@@ -83,7 +83,7 @@ section('1. A column without a boolean `required` does not pass, and it says whi
   let message = '';
 
   try {
-    assertENSConfigurationVersion(conTabla(undefined));
+    assertENSConfigurationVersion(withTable(undefined));
   } catch (error) {
     message = error instanceof Error ? error.message : String(error);
   }
@@ -104,7 +104,7 @@ section('1. A column without a boolean `required` does not pass, and it says whi
   let motive = '';
 
   try {
-    assertENSConfigurationVersion(conTabla(false));
+    assertENSConfigurationVersion(withTable(false));
   } catch (error) {
     fixedPasses = false;
     motive = error instanceof Error ? error.message : String(error);

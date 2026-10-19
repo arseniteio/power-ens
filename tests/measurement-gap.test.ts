@@ -81,19 +81,19 @@ const evidence = (
   };
 };
 
-const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
+const ALL_OF_THEM = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
 
 const evidences = (
   exceptions: Record<string, ENSComplianceStatus> = {},
   motives: Record<string, string> = {},
   causes: Record<string, ENSGapCause> = {}
 ): ENSEvidenceResolved[] =>
-  TODAS.map(id =>
+  ALL_OF_THEM.map(id =>
     evidence(id, exceptions[id] || 'CUMPLE', motives[id], causes[id])
   );
 
 const ALL_UNMEASURED = Object.fromEntries(
-  TODAS.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
+  ALL_OF_THEM.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
 );
 
 const FULL_CONFIGURATION: ENSControlConfiguration = {
@@ -119,7 +119,7 @@ const evaluate = (
 ): ENSComplianceResult =>
   evaluateENSControl(CONTROL, configuration, level, resolved, undefined, []);
 
-const estadoDe = (
+const stateOf = (
   result: ENSComplianceResult,
   requirementId: string
 ): ENSComplianceStatus | undefined =>
@@ -141,9 +141,9 @@ const notEvidenced = (result: ENSComplianceResult) =>
   result.nonConformities.filter(item => item.origin === 'NO_EVIDENCIADA');
 
 const requirements = (
-  ...estados: ENSComplianceStatus[]
+  ...states: ENSComplianceStatus[]
 ): ENSRequirementEvaluationResult[] =>
-  estados.map((status, position) => ({
+  states.map((status, position) => ({
     id: `req-${position}`,
     title: `req-${position}`,
     level: ['BAJO', 'MEDIO', 'ALTO'],
@@ -163,14 +163,14 @@ section('1 · requirement: what is not proven does NOT COMPLY, and it is known i
 
   check(
     'all compliant · op.acc.1.2 CUMPLE',
-    estadoDe(compliant2, 'op.acc.1.2') === 'CUMPLE',
-    String(estadoDe(compliant2, 'op.acc.1.2'))
+    stateOf(compliant2, 'op.acc.1.2') === 'CUMPLE',
+    String(stateOf(compliant2, 'op.acc.1.2'))
   );
 
   check(
     'EV-05 unproven · op.acc.1.2 NO_CUMPLE, no longer NO_EVALUABLE',
-    estadoDe(unproven, 'op.acc.1.2') === 'NO_CUMPLE',
-    String(estadoDe(unproven, 'op.acc.1.2'))
+    stateOf(unproven, 'op.acc.1.2') === 'NO_CUMPLE',
+    String(stateOf(unproven, 'op.acc.1.2'))
   );
 
   check(
@@ -202,8 +202,8 @@ section('1 · requirement: what is not proven does NOT COMPLY, and it is known i
 
   check(
     'EV-05 breaches · op.acc.1.2 NO_CUMPLE, without partial credit for EV-06',
-    estadoDe(withBreach, 'op.acc.1.2') === 'NO_CUMPLE',
-    String(estadoDe(withBreach, 'op.acc.1.2'))
+    stateOf(withBreach, 'op.acc.1.2') === 'NO_CUMPLE',
+    String(stateOf(withBreach, 'op.acc.1.2'))
   );
 
   check(
@@ -233,10 +233,10 @@ section('1 · requirement: what is not proven does NOT COMPLY, and it is known i
 
   check(
     'a PARTIAL evidence brings the requirement down and is still a MEASUREMENT',
-    estadoDe(withPartial, 'op.acc.1.2') === 'NO_CUMPLE' &&
+    stateOf(withPartial, 'op.acc.1.2') === 'NO_CUMPLE' &&
       proven(withPartial, 'op.acc.1.2') === true &&
       card(withPartial, 'op.acc.1.2')?.origin === 'MEDIDA',
-    `${String(estadoDe(withPartial, 'op.acc.1.2'))}/${String(
+    `${String(stateOf(withPartial, 'op.acc.1.2'))}/${String(
       proven(withPartial, 'op.acc.1.2')
     )}/${String(card(withPartial, 'op.acc.1.2')?.origin)}`
   );
@@ -406,12 +406,12 @@ section('2 · the scenario of the first real deployment, with the new criterion'
 section('3 · control state and denominator');
 
 {
-  const soloConformes = evaluateControlStatus(requirements('CUMPLE', 'CUMPLE'));
+  const onlyCompliant = evaluateControlStatus(requirements('CUMPLE', 'CUMPLE'));
 
   check(
     'all proven and compliant · CUMPLE at 100',
-    soloConformes.status === 'CUMPLE' && soloConformes.score === 100,
-    `${soloConformes.status}/${String(soloConformes.score)}`
+    onlyCompliant.status === 'CUMPLE' && onlyCompliant.score === 100,
+    `${onlyCompliant.status}/${String(onlyCompliant.score)}`
   );
 
   const unproven = evaluateControlStatus(
@@ -557,7 +557,7 @@ section('4 · consolidation across agents');
     consolidateENSStatuses(['NO_APLICA', 'NO_APLICA'])
   );
 
-  const conNumero = evaluate(evidences({ 'EV-05': 'NO_CUMPLE' }));
+  const withNumber = evaluate(evidences({ 'EV-05': 'NO_CUMPLE' }));
   const withoutAnything = evaluate(evidences(ALL_UNMEASURED));
 
   check(
@@ -571,7 +571,7 @@ section('4 · consolidation across agents');
       {
         agentId: '001',
         agentName: 'CLIENTE-01',
-        results: [conNumero],
+        results: [withNumber],
         summary: undefined as never,
       },
       {
@@ -587,8 +587,8 @@ section('4 · consolidation across agents');
   check(
     'consolidated · the agent that proves nothing drags the average',
     consolidated?.score ===
-      Math.round(((conNumero.score as number) + (withoutAnything.score as number)) / 2),
-    `${String(consolidated?.score)} de ${String(conNumero.score)} y ${String(
+      Math.round(((withNumber.score as number) + (withoutAnything.score as number)) / 2),
+    `${String(consolidated?.score)} de ${String(withNumber.score)} y ${String(
       withoutAnything.score
     )}`
   );
@@ -602,9 +602,9 @@ section('4 · consolidation across agents');
   check(
     'consolidated · applicable and proven add up across agents',
     consolidated?.applicableRequirements ===
-      conNumero.applicableRequirements + withoutAnything.applicableRequirements &&
+      withNumber.applicableRequirements + withoutAnything.applicableRequirements &&
       consolidated?.measuredRequirements ===
-        conNumero.measuredRequirements + withoutAnything.measuredRequirements,
+        withNumber.measuredRequirements + withoutAnything.measuredRequirements,
     `${String(consolidated?.applicableRequirements)}/${String(
       consolidated?.measuredRequirements
     )}`
@@ -705,7 +705,7 @@ section('5 · global index of the main screen');
     `${withNotApplicable.controlSummary.scoreAverage}/${withNotApplicable.controlSummary.measured}`
   );
 
-  const estadoConAgentes = buildComplianceState(
+  const stateWithAgents = buildComplianceState(
     [compliantControl, withoutAnything],
     [
       {
@@ -725,10 +725,10 @@ section('5 · global index of the main screen');
 
   check(
     'agents · the machine that has proven nothing counts as «sin resultados»',
-    estadoConAgentes.agentSummary.totalAgents === 2 &&
-      estadoConAgentes.agentSummary.agentsWithResults === 1 &&
-      estadoConAgentes.agentSummary.agentsWithoutResults === 1,
-    JSON.stringify(estadoConAgentes.agentSummary)
+    stateWithAgents.agentSummary.totalAgents === 2 &&
+      stateWithAgents.agentSummary.agentsWithResults === 1 &&
+      stateWithAgents.agentSummary.agentsWithoutResults === 1,
+    JSON.stringify(stateWithAgents.agentSummary)
   );
 }
 

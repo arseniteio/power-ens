@@ -46,7 +46,7 @@ const alert = (control: string, agent: { id: string; name: string }, data: Recor
 };
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
-const REAL = { id: '024', name: 'wazuh-real' };
+const ACTUAL = { id: '024', name: 'wazuh-real' };
 
 const decision = (
   requirement: string,
@@ -106,18 +106,18 @@ section('1. A NO_EVALUABLE evidence_state arrives with the cause the collector d
 section('2. The evidence a policy fills in carries the cause the policy declares');
 
 const facts5 = normalizeWazuhAlerts([
-  alert('op.exp.5', REAL, { event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02' }),
+  alert('op.exp.5', ACTUAL, { event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02' }),
 ]);
 const classic = resolveEvidenceForControl('op.exp.5', facts5, '024', 'MEDIO', opExp5Configuration, NOW);
 
 {
   check('starting point: the classic model says COLLECTION for EV-05', classic.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', classic.find(e => e.id === 'EV-05')?.gapCause);
 
-  const decisiones = [
+  const decisions = [
     decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION'),
     decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION'),
   ];
-  const tabla = applyPolicyDecisionsToEvidences(classic, decisiones, opExp5CatalogDefinition.requirements);
+  const tabla = applyPolicyDecisionsToEvidences(classic, decisions, opExp5CatalogDefinition.requirements);
   check('with the policy\'s cause, EV-05 comes out CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause === 'CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause);
 
   const mixed = applyPolicyDecisionsToEvidences(
@@ -130,24 +130,24 @@ const classic = resolveEvidenceForControl('op.exp.5', facts5, '024', 'MEDIO', op
   const silent = applyPolicyDecisionsToEvidences(classic, [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'])], opExp5CatalogDefinition.requirements);
   check('a policy that declares no cause does not change the existing one (those of earlier controls)', silent.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', silent.find(e => e.id === 'EV-05')?.gapCause);
 
-  const nothing = applyPolicyDecisionsToEvidences(classic, decisiones, opExp5CatalogDefinition.requirements, true);
+  const nothing = applyPolicyDecisionsToEvidences(classic, decisions, opExp5CatalogDefinition.requirements, true);
   check('if NOTHING from the control has arrived from the machine, the gap is a collection one (COLLECTION)', nothing.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', nothing.find(e => e.id === 'EV-05')?.gapCause);
 }
 
 section('3. The cause reaches the requirement\'s nonconformity');
 
 {
-  const runtime = (decisiones: ENSPolicyDecision[]) => ({
+  const runtime = (decisions: ENSPolicyDecision[]) => ({
     controlId: 'op.exp.5',
     policyId: 'policy.prueba',
     evaluatedAt: NOW.toISOString(),
-    decisions: decisiones,
+    decisions: decisions,
     appliedParameters: [],
     runtimeVariables: [],
   });
-  const decisiones = [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION')];
+  const decisions = [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION')];
 
-  const withFacts = evaluateENSControl(opExp5CatalogDefinition, opExp5Configuration, 'MEDIO', classic, runtime(decisiones), facts5);
+  const withFacts = evaluateENSControl(opExp5CatalogDefinition, opExp5Configuration, 'MEDIO', classic, runtime(decisions), facts5);
   const nc = withFacts.nonConformities.find(n => n.requirementId === 'op.exp.5.3');
   check('op.exp.5.3 with the collector reporting and P-05 undeclared → NC CONFIGURATION (formerly COLLECTION)', nc?.cause === 'CONFIGURATION', `${nc?.origin} ${nc?.cause}`);
 
@@ -156,7 +156,7 @@ section('3. The cause reaches the requirement\'s nonconformity');
     opExp5Configuration,
     'MEDIO',
     resolveEvidenceForControl('op.exp.5', [], '028', 'MEDIO', opExp5Configuration, NOW),
-    runtime(decisiones),
+    runtime(decisions),
     []
   );
   const nc2 = withoutFacts.nonConformities.find(n => n.requirementId === 'op.exp.5.3');

@@ -78,15 +78,15 @@ const NOW = new Date('2026-09-21T18:00:00Z');
 section('1. State prior to the last observation is discarded');
 
 {
-  const estados = getStateFactEventTypes('op.acc.6');
+  const states = getStateFactEventTypes('op.acc.6');
 
   check(
     'op.acc.6 declares password_policy_checked as state',
-    estados.has('password_policy_checked')
+    states.has('password_policy_checked')
   );
   check(
     'authentication_success is NOT state: it is an action',
-    !estados.has('authentication_success')
+    !states.has('authentication_success')
   );
 
   const events = [
@@ -249,7 +249,7 @@ section('4. Without declared coverage the emission prevails; with nothing, no cu
 section('5. Everything declared as state is listened to by its evidence');
 
 {
-  const incoherentes = ENSEvidenceCatalog.flatMap(evidence =>
+  const incoherent = ENSEvidenceCatalog.flatMap(evidence =>
     (evidence.stateFactEventTypes || [])
       .filter(type => !evidence.expectedEventTypes.includes(type))
       .map(type => `${evidence.controlId}/${evidence.id}:${type}`)
@@ -257,8 +257,8 @@ section('5. Everything declared as state is listened to by its evidence');
 
   check(
     'no state type outside expectedEventTypes',
-    incoherentes.length === 0,
-    incoherentes.join(', ')
+    incoherent.length === 0,
+    incoherent.join(', ')
   );
 
   const forbidden = ENSEvidenceCatalog.flatMap(evidence =>

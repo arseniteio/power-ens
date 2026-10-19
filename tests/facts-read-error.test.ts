@@ -63,11 +63,11 @@ for (const p of evaluate) {
 }
 const row = fs.readFileSync(path.join(root, 'public/ens/controls/control-row.tsx'), 'utf8');
 check('the list row: with a failure, the notice and not a verdict', /if \(error\)/.test(row) && !/useEsSearch|useEnsEvaluation/.test(row));
-const informes = fs.readFileSync(path.join(root, 'public/ens/reports/index.tsx'), 'utf8');
-check('Reports: the PDF is exported only with the report ready', /const exportPdf = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(!exportable \|\| !complianceResult\) return;/.test(informes) && /const exportable = canExportReport\(view\);/.test(informes));
-check('Reports: the button, disabled except with the report ready', /onClick=\{exportPdf\} isDisabled=\{!exportable\}/.test(informes) && /fill isDisabled>/.test(informes));
-check('Reports: no result yet (or with the overview in progress), the loading and the disabled button (never filler NO_EVALUABLE or SIN_DATOS)', /if \(view\.kind === 'loading' \|\| view\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(informes));
-check('Reports: arrival without a result for this machine, «no se mide» with its motive and the disabled button', /if \(view\.kind === 'not-measured'\) \{[\s\S]{0,600}\{view\.text\}[\s\S]{0,300}fill isDisabled>/.test(informes) && /describeNotMeasuredOnAgent\(/.test(informes));
+const reports = fs.readFileSync(path.join(root, 'public/ens/reports/index.tsx'), 'utf8');
+check('Reports: the PDF is exported only with the report ready', /const exportPdf = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(!exportable \|\| !complianceResult\) return;/.test(reports) && /const exportable = canExportReport\(view\);/.test(reports));
+check('Reports: the button, disabled except with the report ready', /onClick=\{exportPdf\} isDisabled=\{!exportable\}/.test(reports) && /fill isDisabled>/.test(reports));
+check('Reports: no result yet (or with the overview in progress), the loading and the disabled button (never filler NO_EVALUABLE or SIN_DATOS)', /if \(view\.kind === 'loading' \|\| view\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(reports));
+check('Reports: arrival without a result for this machine, «no se mide» with its motive and the disabled button', /if \(view\.kind === 'not-measured'\) \{[\s\S]{0,600}\{view\.text\}[\s\S]{0,300}fill isDisabled>/.test(reports) && /describeNotMeasuredOnAgent\(/.test(reports));
 
 console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

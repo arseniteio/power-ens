@@ -56,9 +56,9 @@ const REAL_COVERAGE_WAZUH_REAL: Record<string, unknown>[] = [
 ];
 
 const FULL_COVERAGE = REAL_COVERAGE_WAZUH_REAL.map(l => {
-  const todas = [l.vigiladas, l.sin_vigilar].filter(v => v !== '-').join(',');
+  const allOnes = [l.vigiladas, l.sin_vigilar].filter(v => v !== '-').join(',');
 
-  return { ...l, vigiladas: todas, sin_vigilar: '-' };
+  return { ...l, vigiladas: allOnes, sin_vigilar: '-' };
 });
 
 const REAL_WAZUH4: Record<string, unknown>[] = [
@@ -114,14 +114,14 @@ const RULE: Record<string, string> = {
   logging_service_status: '110913', audit_coverage: '110914', evidence_state: '110950', collector_run: '110997',
 };
 
-const alert = (linea: Record<string, unknown>, agent: { id: string; name: string }, ts?: string) => {
+const alert = (line: Record<string, unknown>, agent: { id: string; name: string }, ts?: string) => {
   counter += 1;
-  const { ts: tsLinea, host: _host, ...data } = linea as Record<string, unknown> & { ts: string };
+  const { ts: tsLine, host: _host, ...data } = line as Record<string, unknown> & { ts: string };
 
   return {
     _id: `alerta-${counter}`,
     _source: {
-      '@timestamp': ts || tsLinea,
+      '@timestamp': ts || tsLine,
       agent: agent,
       rule: { id: RULE[String(data.event)] || '110900', description: 'op.exp.8' },
       location: '/var/log/ensfacil/op_exp_8.json',
@@ -134,22 +134,22 @@ const AGENT = { id: '024', name: 'wazuh-real' };
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
 const events = (
-  lineas: Record<string, unknown>[],
+  lines: Record<string, unknown>[],
   agent: { id: string; name: string },
   changes: (l: Record<string, unknown>) => Record<string, unknown> | undefined = l => l
 ): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas
+    lines
       .map(l => changes({ ...l }))
       .filter((l): l is Record<string, unknown> => Boolean(l))
       .map(l => alert(l, agent))
   );
 
-const configuration = (valores: Record<string, string[] | string>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, string[] | string>): ENSControlConfiguration => ({
   ...opExp8Configuration,
   parameters: opExp8Configuration.parameters.map(p => ({
     ...p,
-    value: valores[p.id],
+    value: values[p.id],
   })),
 });
 
@@ -168,15 +168,15 @@ const BASE: Record<string, string[] | string> = {
 
 const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[] | string> = BASE,
+  values: Record<string, string[] | string> = BASE,
   now: Date = NOW,
   level: ENSLevel = 'ALTO',
   agent = '024'
 ) => {
-  const cfg = configuration(valores);
-  const delControl = keepLatestRunStateFacts('op.exp.8', evs, now);
-  const evidences = resolveEvidenceForControl('op.exp.8', delControl, agent, level, cfg, now);
-  const context = buildPolicyContext(opExp8CatalogDefinition, cfg, level, delControl, evidences, now);
+  const cfg = configuration(values);
+  const ofTheControl = keepLatestRunStateFacts('op.exp.8', evs, now);
+  const evidences = resolveEvidenceForControl('op.exp.8', ofTheControl, agent, level, cfg, now);
+  const context = buildPolicyContext(opExp8CatalogDefinition, cfg, level, ofTheControl, evidences, now);
   const { decisions } = opExp8PolicyDefinition.evaluator!(context);
   const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opExp8CatalogDefinition.requirements);
   const requirement = (id: string) =>
@@ -196,7 +196,7 @@ const evaluate = (
 
 const host = (changes?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
   events([...REAL_WAZUH_REAL, ...FULL_COVERAGE], AGENT, changes);
-const hostReal = (changes?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
+const realHost = (changes?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
   events([...REAL_WAZUH_REAL, ...REAL_COVERAGE_WAZUH_REAL], AGENT, changes);
 const hostWithoutCoverage = () => events(REAL_WAZUH_REAL, AGENT);
 const central = (changes?: (l: Record<string, unknown>) => Record<string, unknown> | undefined) =>
@@ -302,8 +302,8 @@ section('5. EV-06 · synchronization, authentication, skew, source and trace');
   const nts = (extra: Record<string, unknown> = {}) =>
     host(l => (l.event === 'time_sync_status' ? { ...l, servicio: 'chrony', autenticacion: 'nts_o_clave', vigilancia_cambio_hora: 'si', ...extra } : l));
 
-  const bien = evaluate(nts());
-  check('chrony with NTS, declared source, skew 1.9 ms, changes watched → CUMPLE', bien.requisito('op.exp.8.r2.1').status === 'CUMPLE', bien.motivo('op.exp.8.r2.1'));
+  const good = evaluate(nts());
+  check('chrony with NTS, declared source, skew 1.9 ms, changes watched → CUMPLE', good.requisito('op.exp.8.r2.1').status === 'CUMPLE', good.motivo('op.exp.8.r2.1'));
 
   const far = evaluate(nts({ desfase_segundos: '2.5' }));
   check('skew of 2.5 s with P-06 = 1 → NO_CUMPLE', far.requisito('op.exp.8.r2.1').status === 'NO_CUMPLE' && /2.5/.test(far.motivo('op.exp.8.r2.1')), far.motivo('op.exp.8.r2.1'));
@@ -411,7 +411,7 @@ section('7. Manager row (wazuh4): server + central system');
 section('9. EV-01 · P-01\'s categories against what the server really audits');
 
 {
-  const hoy = evaluate(hostReal());
+  const hoy = evaluate(realHost());
   check(
     'wazuh-real as it is: «cambios de configuración» declared and /etc/netplan, /etc/hosts... unwatched → measured op.exp.8.1 NO_CUMPLE',
     hoy.requisito('op.exp.8.1').status === 'NO_CUMPLE' && hoy.requisito('op.exp.8.1').evidenced === true && /\/etc\/netplan/.test(hoy.motivo('op.exp.8.1')) && /\/etc\/crontab/.test(hoy.motivo('op.exp.8.1')),
@@ -430,28 +430,28 @@ section('9. EV-01 · P-01\'s categories against what the server really audits');
   const complete2 = evaluate(host());
   check('REVERSAL: the same categories with all their paths watched → CUMPLE', complete2.requisito('op.exp.8.1').status === 'CUMPLE', complete2.motivo('op.exp.8.1'));
 
-  const conHora = { ...BASE, 'P-01': ['autenticación | sshd | 3', 'cambios de hora | auditd | 5'] };
-  const horaReal = evaluate(hostReal(), conHora);
+  const withTime = { ...BASE, 'P-01': ['autenticación | sshd | 3', 'cambios de hora | auditd | 5'] };
+  const realTime = evaluate(realHost(), withTime);
   check(
     '«cambios de hora» declared and no loaded rule records adjtimex/settimeofday/clock_settime → NO_CUMPLE',
-    horaReal.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /clock_settime/.test(horaReal.motivo('op.exp.8.1')),
-    horaReal.motivo('op.exp.8.1')
+    realTime.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /clock_settime/.test(realTime.motivo('op.exp.8.1')),
+    realTime.motivo('op.exp.8.1')
   );
-  const oldHour = evaluate(hostWithoutCoverage(), conHora);
+  const oldHour = evaluate(hostWithoutCoverage(), withTime);
   check(
     'without audit_coverage, time is decided with EV-06\'s time_sync_status (vigilancia_cambio_hora=no) → NO_CUMPLE',
     oldHour.requisito('op.exp.8.1').status === 'NO_CUMPLE' && oldHour.requisito('op.exp.8.1').evidenced === true,
     oldHour.motivo('op.exp.8.1')
   );
 
-  const claves = evaluate(hostReal(), { ...BASE, 'P-01': ['almacenes de claves | auditd | 7'] });
+  const keys = evaluate(realHost(), { ...BASE, 'P-01': ['almacenes de claves | auditd | 7'] });
   check(
     '«almacenes de claves» declared with /etc/ssl/private unwatched → NO_CUMPLE naming it',
-    claves.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /\/etc\/ssl\/private/.test(claves.motivo('op.exp.8.1')),
-    claves.motivo('op.exp.8.1')
+    keys.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /\/etc\/ssl\/private/.test(keys.motivo('op.exp.8.1')),
+    keys.motivo('op.exp.8.1')
   );
 
-  const privileges = evaluate(hostReal(), { ...BASE, 'P-01': ['autenticación | sshd | 3', 'uso de privilegios (sudo) | auditd | 5'] });
+  const privileges = evaluate(realHost(), { ...BASE, 'P-01': ['autenticación | sshd | 3', 'uso de privilegios (sudo) | auditd | 5'] });
   check('REVERSAL: a category that IS fully audited (privileges) → CUMPLE', privileges.requisito('op.exp.8.1').status === 'CUMPLE', privileges.motivo('op.exp.8.1'));
 
   const odd = evaluate(host(), { ...BASE, 'P-01': ['autenticación | sshd | 3', 'eventos de la aplicación de nóminas | app | 3'] });
@@ -464,10 +464,10 @@ section('9. EV-01 · P-01\'s categories against what the server really audits');
   const ldapOnLinux = evaluate(host(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'directorio LDAP | slapd | 3'] });
   check('«directorio LDAP» does not apply on a server without slapd: it does not bring it down', ldapOnLinux.requisito('op.exp.8.1').status === 'CUMPLE' && /no aplica a este servidor/.test(ldapOnLinux.motivo('op.exp.8.1')), ldapOnLinux.motivo('op.exp.8.1'));
 
-  const sinAuditd = evaluate(host(l =>
+  const withoutAuditd = evaluate(host(l =>
     l.event === 'audit_coverage' ? { ...l, auditd: 'no_instalado', sin_vigilar: [l.vigiladas, l.sin_vigilar].filter(v => v !== '-').join(','), vigiladas: '-' }
       : l.event === 'audit_log_status' && l.fuente === 'auditd' ? { ...l, activo: 'no_instalado', reglas_cargadas: 0 } : l));
-  check('without auditd, the declared category says so: «auditd no está instalado»', sinAuditd.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /auditd no está instalado, así que nada registra/.test(sinAuditd.motivo('op.exp.8.1')), sinAuditd.motivo('op.exp.8.1'));
+  check('without auditd, the declared category says so: «auditd no está instalado»', withoutAuditd.requisito('op.exp.8.1').status === 'NO_CUMPLE' && /auditd no está instalado, así que nada registra/.test(withoutAuditd.motivo('op.exp.8.1')), withoutAuditd.motivo('op.exp.8.1'));
 }
 
 section('10. The cause the collector declares reaches the evidence');
@@ -519,7 +519,7 @@ section('8. Only op.exp.8 facts count');
 section('12. EV-04 · gaps by keepalive in the manager\'s series of passes');
 
 {
-  const FIN = Date.parse('2026-09-26T19:11:44Z');
+  const END = Date.parse('2026-09-26T19:11:44Z');
   const withoutEv04 = REAL_WAZUH4.filter(l => l.event !== 'agent_keepalive_observed');
   const pass = (t: number, delay: Record<string, number | null | undefined>) =>
     [
@@ -537,18 +537,18 @@ section('12. EV-04 · gaps by keepalive in the manager\'s series of passes');
         local: id === '000' ? 'si' : 'no',
         ultimo_evento: '-', eventos_24h: 0,
       }));
-  const series = (horas: number, delays: (i: number) => Record<string, number | null | undefined> = () => ({}), omit: number[] = []) =>
+  const series = (hours: number, delays: (i: number) => Record<string, number | null | undefined> = () => ({}), omit: number[] = []) =>
     events(
       [
         ...withoutEv04,
-        ...Array.from({ length: horas }, (_, i) => i)
+        ...Array.from({ length: hours }, (_, i) => i)
           .filter(i => !omit.includes(i))
-          .flatMap(i => pass(FIN - (horas - 1 - i) * 3600000, delays(i))),
+          .flatMap(i => pass(END - (hours - 1 - i) * 3600000, delays(i))),
       ],
       MANAGER
     );
-  const ev04 = (evs: ENSNormalizedEvent[], valores = BASE, now = NOW) => {
-    const r = evaluate(evs, valores, now, 'ALTO', '000');
+  const ev04 = (evs: ENSNormalizedEvent[], values = BASE, now = NOW) => {
+    const r = evaluate(evs, values, now, 'ALTO', '000');
     const decision = r.decisions.find(d => d.trace.ruleId === 'op.exp.8.2/EV-04');
 
     return { estado: decision?.status, motivo: decision?.reason || '', causa: decision?.cause, r };
@@ -572,8 +572,8 @@ section('12. EV-04 · gaps by keepalive in the manager\'s series of passes');
   const oneLost = ev04(series(12, () => ({}), [6]));
   check('a single lost pass (2 h between two, P-12 = 3) is not a hole', oneLost.estado === 'CUMPLE', oneLost.motivo);
 
-  const ambas = ev04(series(12, i => (i === 9 ? { '025': 5 } : {}), [3, 4, 5, 6]));
-  check('observed gap and also lost passes → the measurement prevails: NO_CUMPLE', ambas.estado === 'NO_CUMPLE' && /wazuh-fake/.test(ambas.motivo), ambas.motivo);
+  const both = ev04(series(12, i => (i === 9 ? { '025': 5 } : {}), [3, 4, 5, 6]));
+  check('observed gap and also lost passes → the measurement prevails: NO_CUMPLE', both.estado === 'NO_CUMPLE' && /wazuh-fake/.test(both.motivo), both.motivo);
 
   const parado = ev04(series(12), BASE, new Date('2026-09-27T00:30:00Z'));
   check('the last pass is 5 h old and P-12 = 3 → NO_EVALUABLE (the collector is not looking)', parado.estado === 'NO_EVALUABLE' && parado.causa === 'COLLECTION' && /hasta ahora/.test(parado.motivo), `${parado.estado} ${parado.motivo}`);
@@ -590,12 +590,12 @@ section('12. EV-04 · gaps by keepalive in the manager\'s series of passes');
   ], MANAGER));
   check('only with log_ingestion_status (earlier collector) → NO_EVALUABLE by COLLECTION, neither CUMPLE nor the 5 h gap', old.estado === 'NO_EVALUABLE' && old.causa === 'COLLECTION' && !/laguna de 5 h/.test(old.motivo), `${old.estado} ${old.motivo}`);
 
-  const sinBase = ev04(events([
+  const withoutBase = ev04(events([
     ...withoutEv04,
-    ...pass(FIN - 3600000, {}),
+    ...pass(END - 3600000, {}),
     { ts: '2026-09-26T19:11:44Z', event: 'evidence_state', evidence_id: 'EV-04', requisito: 'op.exp.8.1,op.exp.8.2', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
   ], MANAGER));
-  check('global.db unreadable in the last pass → NO_EVALUABLE with the collector\'s motive', sinBase.estado === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo), sinBase.motivo);
+  check('global.db unreadable in the last pass → NO_EVALUABLE with the collector\'s motive', withoutBase.estado === 'NO_EVALUABLE' && /global\.db/.test(withoutBase.motivo), withoutBase.motivo);
 
   check('EV-04 is not declared a state fact: the engine does not discard earlier passes', !getStateFactEventTypes('op.exp.8').has('agent_keepalive_observed'));
 }

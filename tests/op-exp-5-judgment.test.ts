@@ -36,8 +36,8 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const NOW = new Date('2026-09-26T12:00:00Z');
-const ago = (horas: number): string =>
-  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+const ago = (hours: number): string =>
+  new Date(NOW.getTime() - hours * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
 let counter = 0;
 
@@ -60,11 +60,11 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
 
 type Alert = ReturnType<typeof alert>;
 
-const configuration = (valores: Record<string, unknown>): ENSControlConfiguration => ({
+const configuration = (values: Record<string, unknown>): ENSControlConfiguration => ({
   ...opExp5Configuration,
   parameters: opExp5Configuration.parameters.map(p => ({
     ...p,
-    value: valores[p.id] as never,
+    value: values[p.id] as never,
   })),
 });
 
@@ -80,9 +80,9 @@ const BASE: Record<string, unknown> = {
   'P-09': '24',
 };
 
-const con = (changesList: Record<string, unknown>): Record<string, unknown> => ({ ...BASE, ...changesList });
+const withIt = (changesList: Record<string, unknown>): Record<string, unknown> => ({ ...BASE, ...changesList });
 
-const request = (campos: Record<string, string>) => ({
+const request = (fields: Record<string, string>) => ({
   peticion_id: 'RFC-1',
   fecha_registro: ago(48),
   sistema: 'wazuh-real',
@@ -97,7 +97,7 @@ const request = (campos: Record<string, string>) => ({
   documentacion: '-',
   impacto_seguridad: 'bajo: parche de seguridad',
   referencia: 'https://tickets.invalido/RFC-1',
-  ...campos,
+  ...fields,
 });
 
 const record = (requests: Record<string, string>[], extra: Record<string, unknown> = {}, ts = ago(0.5)): Alert[] => [
@@ -126,16 +126,16 @@ const record = (requests: Record<string, string>[], extra: Record<string, unknow
 const heartbeat = (covered = 'EV-01,EV-07', ts = ago(0.5)) =>
   alert({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered }, ts);
 
-const software = (start: string, fin = start, actor = 'unattended-upgrades') =>
+const software = (start: string, end = start, actor = 'unattended-upgrades') =>
   alert({
     event: 'package_changed',
     evidence_id: 'EV-01,EV-02,EV-04,EV-07,EV-09',
     actor,
     mecanismo: 'unattended-upgrades',
     inicio: start,
-    fin,
+    fin: end,
     paquetes: 'openssl 3.0.13-0ubuntu3.6',
-  }, fin);
+  }, end);
 
 const editedConfiguration = (first: string, process = '/usr/bin/vim.basic') =>
   alert({
@@ -172,8 +172,8 @@ const document = (ruta: string, modified: string) =>
 const snapshot = (created: string) =>
   alert({ event: 'reversion_point_created', evidence_id: 'EV-09', mecanismo: 'lvm', identificador: 'vg0/pre-cambio', creado: created }, ago(0.5));
 
-const evaluate = (alerts: Alert[], valores: Record<string, unknown> = BASE, level: ENSLevel = 'ALTO') => {
-  const cfg = configuration(valores);
+const evaluate = (alerts: Alert[], values: Record<string, unknown> = BASE, level: ENSLevel = 'ALTO') => {
+  const cfg = configuration(values);
   const evs: ENSNormalizedEvent[] = keepLatestRunStateFacts('op.exp.5', normalizeWazuhAlerts(alerts), NOW);
   const evidences = resolveEvidenceForControl('op.exp.5', evs, '024', level, cfg, NOW);
   const context = buildPolicyContext(opExp5CatalogDefinition, cfg, level, evs, evidences, NOW);
@@ -288,10 +288,10 @@ section('3. EV-02 · without changes, without a record, or another management sy
   ]);
   check('absent record → NO_EVALUABLE with the collector\'s motive', withoutRecord.estado('EV-02') === 'NO_EVALUABLE' && /change-register\.tsv/.test(withoutRecord.motivo('EV-02')), withoutRecord.motivo('EV-02'));
 
-  const jira = evaluate([heartbeat(), ...record([])], con({ 'P-01': ['jira | https://jira.invalido | CHG-'] }));
+  const jira = evaluate([heartbeat(), ...record([])], withIt({ 'P-01': ['jira | https://jira.invalido | CHG-'] }));
   check('P-01 declares Jira without integration → NO_EVALUABLE, the TSV is not judged', jira.estado('EV-02') === 'NO_EVALUABLE' && /integración/.test(jira.motivo('EV-02')), jira.motivo('EV-02'));
 
-  const withoutP01 = evaluate([heartbeat(), ...record([])], con({ 'P-01': undefined }));
+  const withoutP01 = evaluate([heartbeat(), ...record([])], withIt({ 'P-01': undefined }));
   check('sin P-01 → NO_EVALUABLE', withoutP01.estado('EV-02') === 'NO_EVALUABLE', withoutP01.motivo('EV-02'));
 
   const incomplete = evaluate([heartbeat(), ...record([request({})], { filas: 3 })]);
@@ -322,7 +322,7 @@ section('4. EV-03 · minimum information from P-02, and at ALTO the impact asses
   const unreadable = [heartbeat(), ...record([request({})], { filas_ilegibles: 1 })];
   check('a row that lacks the 14 columns → NO_CUMPLE', evaluate(unreadable, BASE, 'MEDIO').estado('EV-03') === 'NO_CUMPLE', evaluate(unreadable, BASE, 'MEDIO').motivo('EV-03'));
 
-  const oddField = evaluate(complete, con({ 'P-02': ['descripcion', 'solicitante'] }), 'MEDIO');
+  const oddField = evaluate(complete, withIt({ 'P-02': ['descripcion', 'solicitante'] }), 'MEDIO');
   check('P-02 names a column the record lacks → NO_EVALUABLE', oddField.estado('EV-03') === 'NO_EVALUABLE', oddField.motivo('EV-03'));
 }
 
@@ -330,8 +330,8 @@ section('5. EV-04 · high risk: approved by the RSI and BEFORE deployment');
 
 {
   const change = software(ago(5));
-  const bien = evaluate([heartbeat(), change, ...record([request({ riesgo: 'alto', fecha_aprobacion: ago(24) })])]);
-  check('approved by rsi one day before → CUMPLE', bien.estado('EV-04') === 'CUMPLE', bien.motivo('EV-04'));
+  const good = evaluate([heartbeat(), change, ...record([request({ riesgo: 'alto', fecha_aprobacion: ago(24) })])]);
+  check('approved by rsi one day before → CUMPLE', good.estado('EV-04') === 'CUMPLE', good.motivo('EV-04'));
 
   const late = evaluate([heartbeat(), change, ...record([request({ riesgo: 'alto', fecha_aprobacion: ago(4.5) })])]);
   check('REVERSAL: approved after the real change → NO_CUMPLE', late.estado('EV-04') === 'NO_CUMPLE' && /DESPUÉS/.test(late.motivo('EV-04')), late.motivo('EV-04'));
@@ -342,7 +342,7 @@ section('5. EV-04 · high risk: approved by the RSI and BEFORE deployment');
   const lowRisk = evaluate([heartbeat(), change, ...record([request({ aprobado_por: 'jgomez' })])]);
   check('the same approver on a low-risk change is not an EV-04 finding', lowRisk.estado('EV-04') === 'CUMPLE', lowRisk.motivo('EV-04'));
 
-  const withoutP03 = evaluate([heartbeat(), change, ...record([request({ riesgo: 'alto' })])], con({ 'P-03': undefined }));
+  const withoutP03 = evaluate([heartbeat(), change, ...record([request({ riesgo: 'alto' })])], withIt({ 'P-03': undefined }));
   check('without high-risk criteria (P-03) → NO_EVALUABLE', withoutP03.estado('EV-04') === 'NO_EVALUABLE', withoutP03.motivo('EV-04'));
 
   const withoutRequest = evaluate([heartbeat(), change, ...record([])]);
@@ -366,7 +366,7 @@ section('6. EV-06 · P-06 documentation is modified after the change and on time
   const unwatched = evaluate([heartbeat(), ...record([askFor])]);
   check('document the collector does not watch → NO_EVALUABLE', unwatched.estado('EV-06') === 'NO_EVALUABLE', unwatched.motivo('EV-06'));
 
-  const withoutP06 = evaluate([heartbeat(), ...record([askFor])], con({ 'P-06': undefined }));
+  const withoutP06 = evaluate([heartbeat(), ...record([askFor])], withIt({ 'P-06': undefined }));
   check('sin P-06 → NO_EVALUABLE', withoutP06.estado('EV-06') === 'NO_EVALUABLE', withoutP06.motivo('EV-06'));
 }
 
@@ -377,7 +377,7 @@ section('7. EV-07 · a service that goes down after a change and stays down');
   const adverse = evaluate([heartbeat(), change, down('nginx.service', ago(3)), ...record([request({})])]);
   check('nginx goes down 2 h after a change and stays down → NO_CUMPLE', adverse.estado('EV-07') === 'NO_CUMPLE', adverse.motivo('EV-07'));
 
-  const corta = evaluate([heartbeat(), change, down('nginx.service', ago(3)), ...record([request({})])], con({ 'P-09': '1' }));
+  const corta = evaluate([heartbeat(), change, down('nginx.service', ago(3)), ...record([request({})])], withIt({ 'P-09': '1' }));
   check('REVERSAL: with a 1 h stability window it is not attributed to the change → CUMPLE', corta.estado('EV-07') === 'CUMPLE', corta.motivo('EV-07'));
 
   const reverted = evaluate([heartbeat(), change, down('nginx.service', ago(3)), ...record([request({ estado: 'revertida' })])]);
@@ -392,7 +392,7 @@ section('7. EV-07 · a service that goes down after a change and stays down');
   ]);
   check('down in the previous pass and up in the last → CUMPLE', recovered.estado('EV-07') === 'CUMPLE', recovered.motivo('EV-07'));
 
-  const withoutP09 = evaluate([heartbeat(), change, ...record([request({})])], con({ 'P-09': undefined }));
+  const withoutP09 = evaluate([heartbeat(), change, ...record([request({})])], withIt({ 'P-09': undefined }));
   check('sin P-09 → NO_EVALUABLE', withoutP09.estado('EV-07') === 'NO_EVALUABLE', withoutP09.motivo('EV-07'));
 }
 
@@ -400,8 +400,8 @@ section('8. EV-09 · rollback point BEFORE the change (op.exp.4\'s logic)');
 
 {
   const change = software(ago(5));
-  const conPunto = evaluate([heartbeat(), change, snapshot(ago(6)), ...record([request({})])]);
-  check('LVM snapshot 1 h before the change → CUMPLE', conPunto.estado('EV-09') === 'CUMPLE', conPunto.motivo('EV-09'));
+  const withDot = evaluate([heartbeat(), change, snapshot(ago(6)), ...record([request({})])]);
+  check('LVM snapshot 1 h before the change → CUMPLE', withDot.estado('EV-09') === 'CUMPLE', withDot.motivo('EV-09'));
 
   const after = evaluate([heartbeat(), change, snapshot(ago(4)), ...record([request({})])]);
   check('REVERSAL: snapshot AFTER the change → NO_CUMPLE', after.estado('EV-09') === 'NO_CUMPLE', after.motivo('EV-09'));
@@ -414,7 +414,7 @@ section('8. EV-09 · rollback point BEFORE the change (op.exp.4\'s logic)');
   ]);
   check('machine without an observable local mechanism → NO_EVALUABLE with the motive', withoutLvm.estado('EV-09') === 'NO_EVALUABLE' && /mecanismo/.test(withoutLvm.motivo('EV-09')), withoutLvm.motivo('EV-09'));
 
-  const hypervisor = evaluate([heartbeat(), change, ...record([request({})])], con({ 'P-08': ['* | hipervisor | snapshot de Proxmox | 24'] }));
+  const hypervisor = evaluate([heartbeat(), change, ...record([request({})])], withIt({ 'P-08': ['* | hipervisor | snapshot de Proxmox | 24'] }));
   check('P-08 declares hypervisor → NO_EVALUABLE, it is not simulated', hypervisor.estado('EV-09') === 'NO_EVALUABLE', hypervisor.motivo('EV-09'));
 
   const calm = evaluate([heartbeat(), ...record([])]);
@@ -450,7 +450,7 @@ section('9. EV-05 and EV-08 · without a real source: always NO_EVALUABLE, never
 section('10. The cause of what could not be measured reaches the evidence');
 
 {
-  const withoutP05 = evaluate([heartbeat(), ...record([])], con({ 'P-05': undefined }));
+  const withoutP05 = evaluate([heartbeat(), ...record([])], withIt({ 'P-05': undefined }));
   check(
     'without P-05 → EV-05 NO_EVALUABLE with cause CONFIGURATION, not COLLECTION',
     withoutP05.evidencia('EV-05')?.status === 'NO_EVALUABLE' && withoutP05.evidencia('EV-05')?.gapCause === 'CONFIGURATION',

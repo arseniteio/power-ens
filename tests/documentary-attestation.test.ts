@@ -124,33 +124,33 @@ section('1. A requirement without technical evidence CAN be accredited');
     String(requirement('op.acc.1.5').evidenceIds.length)
   );
 
-  const sin = judges('op.acc.1.5', []);
+  const withoutIt = judges('op.acc.1.5', []);
 
   check(
     'without attestation it does NOT comply, which is the default criterion',
-    sin.status === 'NO_CUMPLE',
-    sin.status
+    withoutIt.status === 'NO_CUMPLE',
+    withoutIt.status
   );
 
-  const con = judges('op.acc.1.5', [GOOD_ATTESTATION]);
+  const withIt = judges('op.acc.1.5', [GOOD_ATTESTATION]);
 
   check(
     'with the document and its link, CUMPLE',
-    con.status === 'CUMPLE',
-    con.status
+    withIt.status === 'CUMPLE',
+    withIt.status
   );
 
   check(
     'but marked as documentarily accredited, not as measured',
-    con.attested === true,
-    String(con.attested)
+    withIt.attested === true,
+    String(withIt.attested)
   );
 
   check(
     'and the motive names the document and leaves the link',
-    (con.observations[0] || '').includes('Política de identificación v3') &&
-      (con.observations[0] || '').includes('https://intranet/pol-id-v3.pdf'),
-    con.observations[0]
+    (withIt.observations[0] || '').includes('Política de identificación v3') &&
+      (withIt.observations[0] || '').includes('https://intranet/pol-id-v3.pdf'),
+    withIt.observations[0]
   );
 
   const measured = judges(
@@ -269,9 +269,9 @@ section('4. Several links in the same attestation');
 section('5. With both documentary ones accredited, op.acc.1 reaches 100 %');
 
 {
-  const documentales = ['op.acc.1.5', 'op.acc.1.r1.1'];
+  const documentary = ['op.acc.1.5', 'op.acc.1.r1.1'];
 
-  for (const id of documentales) {
+  for (const id of documentary) {
     check(
       `${id} · no technical evidence in the catalog`,
       requirement(id).evidenceIds.length === 0
@@ -283,7 +283,7 @@ section('5. With both documentary ones accredited, op.acc.1 reaches 100 %');
     'op.acc.1.r1.1 | Procedimiento de alta de personal v2 | https://intranet/alta.pdf | 2026-04-01 | RRHH',
   ];
 
-  const accredited = documentales.map(id => judges(id, rows));
+  const accredited = documentary.map(id => judges(id, rows));
 
   check(
     'both accredit with their document',
@@ -321,7 +321,7 @@ section('6. The shipped example accredits nothing');
     `${withExample.status} attested=${withExample.attested}`
   );
 
-  const conEnlaceReal = judges('op.acc.1.5', [
+  const withRealLink = judges('op.acc.1.5', [
     (example || '').replace(
       /https:\/\/EJEMPLO\.invalido\/[^ |]+/,
       'https://intranet/politica-real.pdf'
@@ -330,8 +330,8 @@ section('6. The shipped example accredits nothing');
 
   check(
     'and with a real link, the same row does accredit',
-    conEnlaceReal.status === 'CUMPLE' && conEnlaceReal.attested === true,
-    `${conEnlaceReal.status} attested=${conEnlaceReal.attested}`
+    withRealLink.status === 'CUMPLE' && withRealLink.attested === true,
+    `${withRealLink.status} attested=${withRealLink.attested}`
   );
 }
 
@@ -360,7 +360,7 @@ section('7. No attestation beats a policy decision');
     reason: `la policy decide ${status}`,
   });
 
-  const conPolicy = (status: ENSPolicyDecision['status']) =>
+  const withPolicy = (status: ENSPolicyDecision['status']) =>
     evaluateRequirement(
       requirement('op.acc.1.5'),
       'MEDIO',
@@ -373,7 +373,7 @@ section('7. No attestation beats a policy decision');
       )
     );
 
-  const notApplicable = conPolicy('NO_APLICA');
+  const notApplicable = withPolicy('NO_APLICA');
 
   check(
     'policy NO_APLICA + complete attestation → NO_APLICA, not CUMPLE',
@@ -387,7 +387,7 @@ section('7. No attestation beats a policy decision');
     String(evaluateControlStatus([notApplicable]).applicableRequirements)
   );
 
-  const nonCompliant = conPolicy('NO_CUMPLE');
+  const nonCompliant = withPolicy('NO_CUMPLE');
 
   check(
     'policy NO_CUMPLE + complete attestation → NO_CUMPLE: the document does not cover the measurement',
@@ -395,7 +395,7 @@ section('7. No attestation beats a policy decision');
     `${nonCompliant.status} attested=${nonCompliant.attested}`
   );
 
-  const noEvaluable = conPolicy('NO_EVALUABLE');
+  const noEvaluable = withPolicy('NO_EVALUABLE');
 
   check(
     'policy NO_EVALUABLE + complete attestation → accredits, because nobody had proven it',

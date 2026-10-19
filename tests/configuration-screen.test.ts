@@ -87,8 +87,8 @@ const fakeHttp = {
     let resolved = '';
     try { resolved = Module._resolveFilename(request, parent); } catch (error) { resolved = ''; }
     if (resolved && nodePath.resolve(resolved) === nodePath.resolve(RUNTIME)) {
-      const real = load.call(this, request, parent, ...rest);
-      return { ...real, getActiveENSScopeAgents: () => (emptyScope ? [] : real.getActiveENSScopeAgents()) };
+      const actual = load.call(this, request, parent, ...rest);
+      return { ...actual, getActiveENSScopeAgents: () => (emptyScope ? [] : actual.getActiveENSScopeAgents()) };
     }
     if (resolved && nodePath.resolve(resolved) === nodePath.resolve(SERVICES)) {
       return {

@@ -23,10 +23,10 @@ const index = () => {
       return { body: { hits: { hits } } };
     },
     bulk: async (p: any) => {
-      const lineas = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
-      for (let i = 0; i < lineas.length; i += 2) {
-        const action = lineas[i].create || lineas[i].index;
-        docs.set(action._id, lineas[i + 1]);
+      const lines = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
+      for (let i = 0; i < lines.length; i += 2) {
+        const action = lines[i].create || lines[i].index;
+        docs.set(action._id, lines[i + 1]);
       }
       return { body: { errors: false } };
     },
@@ -40,8 +40,8 @@ const responses = {
   ok: (r: any) => ({ status: 200, body: r.body }),
   customError: (r: any) => ({ status: r.statusCode, body: r.body }),
 };
-const avisos: string[] = [];
-const record = { info: () => undefined, error: () => undefined, warn: (m: string) => { avisos.push(m); }, debug: () => undefined };
+const notices: string[] = [];
+const record = { info: () => undefined, error: () => undefined, warn: (m: string) => { notices.push(m); }, debug: () => undefined };
 const h = createConfigurationHandlers({ logger: record as any, securityEnabled: true });
 const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] };
 
@@ -54,13 +54,13 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   r = await h.save(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, responses as any);
   check('without the administration role: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
   check('and nothing is saved', ix.docs.size === 0);
-  check('the attempt stays in the log with the user', avisos.length === 1 && /ana/.test(avisos[0]) && /guardar/.test(avisos[0]), avisos);
-  check('without the request body', !/MEDIO|ensLevel|configuration/.test(avisos[0]), avisos[0]);
+  check('the attempt stays in the log with the user', notices.length === 1 && /ana/.test(notices[0]) && /guardar/.test(notices[0]), notices);
+  check('without the request body', !/MEDIO|ensLevel|configuration/.test(notices[0]), notices[0]);
 
   r = await h.history(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, responses as any);
   check('history without role: 403', r.status === 403);
-  check('also in the log', avisos.length === 2 && /ana/.test(avisos[1]) && /historial/.test(avisos[1]), avisos);
-  avisos.length = 0;
+  check('also in the log', notices.length === 2 && /ana/.test(notices[1]) && /historial/.test(notices[1]), notices);
+  notices.length = 0;
 
   r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, responses as any);
   check('ensfacil_admin saves: 200', r.status === 200, r);
@@ -77,7 +77,7 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
 
   r = await h.history(context(ix, user({ user_name: 'root', roles: ['all_access'] })) as any, {} as any, responses as any);
   check('history with role: two versions', r.status === 200 && r.body.data.length === 2);
-  check('what is allowed leaves no warning', avisos.length === 0, avisos);
+  check('what is allowed leaves no warning', notices.length === 0, notices);
 
   r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, responses as any);
   check('invalid body: 400', r.status === 400);

@@ -62,12 +62,12 @@ const facts = (
   );
 
 const configuration = (
-  valores: Record<string, unknown>
+  values: Record<string, unknown>
 ): ENSControlConfiguration => ({
   ...opAcc6Configuration,
   parameters: opAcc6Configuration.parameters.map(parameter =>
-    Object.prototype.hasOwnProperty.call(valores, parameter.id)
-      ? { ...parameter, value: valores[parameter.id] as never }
+    Object.prototype.hasOwnProperty.call(values, parameter.id)
+      ? { ...parameter, value: values[parameter.id] as never }
       : parameter
   ),
 });
@@ -88,11 +88,11 @@ const BASE: Record<string, unknown> = {
 };
 
 const evaluate = (
-  valores: Record<string, unknown>,
+  values: Record<string, unknown>,
   events: ENSNormalizedEvent[],
   level: ENSLevel = 'BAJO'
 ) => {
-  const config = configuration({ ...BASE, ...valores });
+  const config = configuration({ ...BASE, ...values });
   const control = { ...opAcc6CatalogDefinition, status: 'ACTIVE' as const };
   const evidences = resolveEvidenceForControl(
     'op.acc.6',
@@ -218,11 +218,11 @@ section('2. R8: the origin is classified against P-02 and outside requires two f
     almost.decision('op.acc.6.r8.1')?.reason
   );
 
-  const dosFactores = facts([
+  const twoFactors = facts([
     { ...REALES[0], metodos: 'publickey+keyboard-interactive/pam', factores: 2 },
     { ...REALES[5], factores_minimos: '2' },
   ]);
-  const double = evaluate({ 'P-02': ['192.168.10.0/24'] }, dosFactores);
+  const double = evaluate({ 'P-02': ['192.168.10.0/24'] }, twoFactors);
   check(
     'two factors from outside and a channel that requires two · r8.1 CUMPLE',
     double.requisito('op.acc.6.r8.1')?.status === 'CUMPLE',
