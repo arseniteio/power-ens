@@ -6,7 +6,8 @@ import type {
   ENSControlParameter,
   ENSOrganizationData,
 } from '../types';
-import { isEmptyParameterValue } from '../services/parameter-value-validator';
+import { isEmptyParameterValue, validateParameterValue } from '../services/parameter-value-validator';
+import { organizationDataParameter } from './organization-data-form';
 import {
   ENS_ORGANIZATION_DATA_ITEMS,
   ENSOrganizationDataItem,
@@ -57,6 +58,8 @@ export interface ENSOrganizationItemState {
   candidates: ENSOrganizationCandidate[];
   // Views whose value the item cannot hold as it is (cells it has no column for).
   unrepresentable: string[];
+  // Why a value everyone agrees on is not moved or not completed: the item or a parameter would not accept it.
+  reasons: string[];
 }
 
 const hasOwn = (record: object | undefined, key: string): boolean =>
@@ -150,7 +153,7 @@ export const describeOrganizationItem = (
   item: ENSOrganizationDataItem
 ): ENSOrganizationItemState => {
   const views = viewStates(configuration, item);
-  const base = { item, views, candidates: [] as ENSOrganizationCandidate[], unrepresentable: [] as string[] };
+  const base = { item, views, candidates: [] as ENSOrganizationCandidate[], unrepresentable: [] as string[], reasons: [] as string[] };
 
   if (!item.views.length) return { ...base, status: 'informative', stored: false };
 
@@ -159,11 +162,25 @@ export const describeOrganizationItem = (
   const unrepresentable = configured.filter(state => !keepsValue(item, state, mergeAll(item, [], inverse(item, state))));
   const representable = configured.filter(state => !unrepresentable.includes(state));
   const stored = storedOrganizationValue(configuration, item.id);
+  // A parameter without value is completed only with a value valid for it, as the screen would require.
+  const refusedFills = (rows: ENSOrganizationRow[]): string[] =>
+    present
+      .filter(state => !state.configured)
+      .flatMap(state => {
+        const next = projected(item, state, rows);
+        const verdict = isEmptyParameterValue(next) ? { valid: true } : validateParameterValue(state.parameter!, next);
+        return verdict.valid ? [] : [`${state.key} no admite el valor común: ${verdict.reason}`];
+      });
 
   if (stored !== undefined) {
     const storedRows = organizationRows(item, stored);
     const diverging = configured.filter(state => !keepsValue(item, state, storedRows));
-    if (!diverging.length) return { ...base, status: 'value', value: stored, stored: true };
+    const refused = diverging.length ? [] : refusedFills(storedRows);
+    if (!diverging.length && !refused.length) return { ...base, status: 'value', value: stored, stored: true };
+    if (!diverging.length) {
+      const keeps = present.filter(state => keepsValue(item, state, storedRows)).map(state => state.key);
+      return { ...base, status: 'conflict', stored: true, value: stored, reasons: refused, candidates: [{ value: stored, from: ORGANIZATION_SOURCE, keeps }] };
+    }
     // Changed outside this version (a 1.3.0 plugin, a manual edit): nothing is overwritten until someone chooses.
     const storedCandidate: ENSOrganizationCandidate = {
       value: stored,
@@ -197,14 +214,20 @@ export const describeOrganizationItem = (
 
   // A parameter without value is not a different value: it takes the item's, and the migration says so.
   const full = configured.reduce((rows, state) => mergeAll(item, rows, inverse(item, state)), [] as ENSOrganizationRow[]);
-  if (!unrepresentable.length && configured.every(state => keepsValue(item, state, full))) {
-    return { ...base, status: 'value', value: organizationValueFromRows(item, full), stored: false };
+  const agreed = !unrepresentable.length && configured.every(state => keepsValue(item, state, full));
+  const composed = organizationValueFromRows(item, full);
+  const own = validateParameterValue(organizationDataParameter(item), composed);
+  // Agreed but not valid as a whole (op.acc.4 P-04 alone has no encryption or authoriser for op.acc.6): not moved.
+  const reasons = agreed ? [...(own.valid ? [] : [`«${item.label}» no admite el valor: ${own.reason}`]), ...refusedFills(full)] : [];
+  if (agreed && !reasons.length) {
+    return { ...base, status: 'value', value: composed, stored: false };
   }
 
   return {
     ...base,
     status: 'conflict',
     stored: false,
+    reasons,
     unrepresentable: unrepresentable.map(state => state.key),
     candidates: uniqueCandidates(
       representable.map(state =>

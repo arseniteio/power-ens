@@ -115,11 +115,11 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'canales_acceso_remoto_permitidos',
       label: 'Canales acceso remoto permitidos',
       description:
-        'Canales, protocolos y orígenes autorizados para el acceso remoto: VPN corporativa, bastión SSH, escritorio remoto con segundo factor, rangos de direcciones admitidos.',
+        'Canales autorizados para el acceso remoto, uno por línea como canal | puerto | origen, con el nombre de canal del agente (ssh, rdp, openvpn…), sin espacios: es el mismo canal de op.acc.6 P-07 en Datos de la organización.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.5'],
       type: 'list',
-      example: 'VPN | 1194 | cualquiera / SSH bastión | 22 | 10.0.0.0/8',
+      example: 'ssh | 22 | 10.0.0.0/8',
       required: true,
       wazuhUsage:
         'Canal, puerto y origen de cada conexión remota quedan en la evidencia y en la traza.',

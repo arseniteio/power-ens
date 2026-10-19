@@ -35,6 +35,7 @@ import type {
 } from '../../../../common/ens/configuration/organization/organization-data-migration';
 import { describeOrganizationDataView } from '../../../../common/ens/configuration/organization/organization-data-items';
 import {
+  describeOrganizationChoice,
   organizationCrossChecks,
   organizationDataParameter,
   organizationValueLines,
@@ -43,7 +44,7 @@ import {
 } from '../../../../common/ens/configuration/organization/organization-data-form';
 import { ParameterRendererFactory } from '../form-engine';
 import { useRouterSearch } from '../../../routing/use-router-search';
-import { errorMessage } from './confirm-modal';
+import { ConfirmModal, errorMessage } from './confirm-modal';
 
 interface OrganizationDataPanelProps {
   configuration: ENSConfigurationVersion;
@@ -108,6 +109,8 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
   const [issues, setIssues] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  // The value about to be chosen: the dialog lists what each parameter loses before saving it.
+  const [choosing, setChoosing] = useState<{ state: ENSOrganizationItemState; candidate: ENSOrganizationCandidate } | undefined>();
 
   useEffect(() => {
     if (!focusItemId || typeof document === 'undefined') return;
@@ -115,6 +118,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
   }, [focusItemId]);
 
   const save = async (itemId: string, value: ENSAgentParameterValue | undefined, reason: string) => {
+    if (busy) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -158,8 +162,49 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
     return save(state.item.id, draft, `Datos de la organización: «${state.item.label}» actualizado.`);
   };
 
+  const choice = choosing ? describeOrganizationChoice(configuration, choosing.state.item, choosing.candidate.value) : [];
+  const confirmChoice = async (): Promise<string | undefined> => {
+    const { state, candidate } = choosing!;
+    const source = candidate.from === ORGANIZATION_SOURCE ? 'el valor guardado' : `el valor de ${candidate.from}`;
+    try {
+      await saveFromLatestConfiguration(latest => ({
+        configuration: setOrganizationValue(latest, state.item.id, candidate.value),
+        reason: `Datos de la organización: «${state.item.label}» con ${source}.`,
+      }));
+      setChoosing(undefined);
+      onConfigurationSaved();
+      return undefined;
+    } catch (failure) {
+      return errorMessage(failure);
+    }
+  };
+
   return (
     <EuiPanel paddingSize='m'>
+      {choosing && (
+        <ConfirmModal title={`Elegir el valor de «${choosing.state.item.label}»`} confirmLabel='Elegir este valor' onCancel={() => setChoosing(undefined)} onConfirm={confirmChoice}>
+          <EuiText size='s'>
+            {choice.some(change => change.removed.length) ? (
+              <>
+                <p>Al elegir este valor, estos parámetros pierden lo que tienen ahora:</p>
+                <ul>
+                  {choice
+                    .filter(change => change.removed.length)
+                    .map(change => (
+                      <li key={change.parameter}>{`${change.parameter}: se quita ${change.removed.map(line => `«${line}»`).join(', ')}; queda ${change.after.length ? change.after.map(line => `«${line}»`).join(', ') : 'sin valor'}.`}</li>
+                    ))}
+                </ul>
+              </>
+            ) : (
+              <p>Ningún parámetro pierde nada de lo que tiene ahora.</p>
+            )}
+            {choice.some(change => !change.removed.length) && (
+              <p>{`Toman el valor: ${choice.filter(change => !change.removed.length).map(change => change.parameter).join(', ')}.`}</p>
+            )}
+            <p>La versión anterior queda en el historial. Para conservar filas de varios controles, escribir el valor en «Editar».</p>
+          </EuiText>
+        </ConfirmModal>
+      )}
       <EuiTitle size='s'>
         <h3>Datos de la organización</h3>
       </EuiTitle>
@@ -191,7 +236,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <p>Ningún control cambia de valor.</p>
             )}
             <p>Se guarda con el próximo cambio.</p>
-            <EuiButton size='s' onClick={savePending} isLoading={busy}>
+            <EuiButton size='s' onClick={savePending} isLoading={busy} isDisabled={busy}>
               Guardar ahora
             </EuiButton>
           </EuiCallOut>
@@ -210,6 +255,11 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <EuiTitle size='xxs'>
                 <h4>{state.item.label}</h4>
               </EuiTitle>
+              {state.reasons.length > 0 && (
+                <EuiText size='xs'>
+                  <p>{`No se completa solo: ${state.reasons.join('; ')}.`}</p>
+                </EuiText>
+              )}
               {state.candidates.map(candidate => {
                 const refused = validateOrganizationValue(configuration, state.item, candidate.value);
                 return (
@@ -230,13 +280,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                   <EuiButton
                     size='s'
                     isDisabled={busy || refused.length > 0}
-                    onClick={() =>
-                      save(
-                        state.item.id,
-                        candidate.value,
-                        `Datos de la organización: «${state.item.label}» con ${candidate.from === ORGANIZATION_SOURCE ? 'el valor guardado' : `el valor de ${candidate.from}`}.`
-                      )
-                    }
+                    onClick={() => setChoosing({ state, candidate })}
                   >
                     Elegir este valor
                   </EuiButton>
@@ -304,7 +348,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                 <EuiSpacer size='s' />
                 <EuiFlexGroup gutterSize='s' responsive={false}>
                   <EuiFlexItem grow={false}>
-                    <EuiButton fill size='s' isLoading={busy} onClick={() => saveDraft(state)}>
+                    <EuiButton fill size='s' isLoading={busy} isDisabled={busy} onClick={() => saveDraft(state)}>
                       Guardar
                     </EuiButton>
                   </EuiFlexItem>

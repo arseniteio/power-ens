@@ -59,7 +59,12 @@ client.setENSConfigurationHttp(() => ({
   check('related parameters that stay in their control are listed', /Parámetros relacionados que siguen en su control/.test(screen));
 
   console.log('2. Choosing');
+  const beforeChoice = saved.length;
   screen = await h.click(/Elegir este valor/);
+  check('choosing first shows what each parameter loses, without saving yet',
+    saved.length === beforeChoice && screen.includes('op.acc.4 P-06: se quita «root»; queda «sudo», «wheel».') && /La versión anterior queda en el historial/.test(screen), screen.slice(0, 400));
+  await h.find('ConfirmModal')!.props.onConfirm();
+  screen = await h.rerender();
   const chosen = saved[saved.length - 1];
   check('«Elegir este valor» saves the value in every mapped parameter', JSON.stringify(param(chosen.configuration, 'op.acc.4', 'P-06').value) === '["sudo","wheel"]' &&
     JSON.stringify(chosen.configuration.organizationData.values.grupos_privilegiados) === '["sudo","wheel"]', chosen?.configuration?.organizationData);

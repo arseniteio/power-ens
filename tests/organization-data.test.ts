@@ -6,6 +6,7 @@ import {
   ENS_ORGANIZATION_DATA_ITEMS,
   ORGANIZATION_SOURCE,
   checkOrganizationDataKeys,
+  describeOrganizationChoice,
   describeOrganizationFills,
   organizationCrossChecks,
   organizationValueWarnings,
@@ -230,6 +231,24 @@ console.log('4. Migration');
   check('remote channels: keeping op.acc.6 gives op.acc.4 its channels', JSON.stringify(valueOf(setOrganizationValue(channels, 'canales_acceso_remoto', keepSix.value), 'op.acc.4', 'P-04')) === '["ssh","vpn"]');
   const keepFour = differentChannels.candidates.find(candidate => candidate.from === 'op.acc.4 P-04')!;
   check('remote channels: keeping op.acc.4 is refused until op.acc.6 gets its columns', validateOrganizationValue(channels, getOrganizationDataItem('canales_acceso_remoto')!, keepFour.value).some(issue => issue.source === 'op.acc.6 P-07'));
+  const choice = describeOrganizationChoice(channels, getOrganizationDataItem('canales_acceso_remoto')!, keepSix.value);
+  check('before choosing, what each parameter loses is listed', JSON.stringify(choice) === '[{"parameter":"op.acc.4 P-04","removed":["RDP | 3389 | cualquiera"],"added":["ssh","vpn"],"after":["ssh","vpn"]}]', choice);
+
+  const fourAlone = base();
+  set(fourAlone, 'op.acc.4', 'P-04', ['ssh | 22 | 10.0.0.0/8']);
+  const fourState = describeOrganizationItem(fourAlone, getOrganizationDataItem('canales_acceso_remoto')!);
+  const fourReport = normalizeOrganizationData(fourAlone);
+  check('op.acc.4 P-04 alone does not complete op.acc.6 P-07 with a value it does not accept', fourState.status === 'conflict' &&
+    !('value' in param(fourReport.configuration, 'op.acc.6', 'P-07')) && !fourReport.written.length && !fourReport.moved.includes('canales_acceso_remoto'), fourReport);
+  check('and says why', fourState.reasons.some(reason => reason.includes('Cifrado')) && fourState.reasons.some(reason => reason.startsWith('op.acc.6 P-07 no admite el valor común')), fourState.reasons);
+  const wrongGroup = base();
+  set(wrongGroup, 'op.acc.4', 'P-06', ['Domain Admins | AD']);
+  const groupState = describeOrganizationItem(wrongGroup, getOrganizationDataItem('grupos_privilegiados')!);
+  check('a group name op.acc.1 P-11 does not accept is not copied into it', groupState.status === 'conflict' &&
+    groupState.reasons.some(reason => reason.startsWith('op.acc.1 P-11 no admite el valor común')) && !('value' in param(normalizeOrganizationData(wrongGroup).configuration, 'op.acc.1', 'P-11')), groupState.reasons);
+  const storedChannels = setOrganizationValue(base(), 'canales_acceso_remoto', ['ssh | si | RSEG | si | 22 | 10.0.0.0/8']);
+  set(storedChannels, 'op.acc.6', 'P-07', undefined);
+  check('a valid stored value still completes an empty parameter', JSON.stringify(valueOf(normalizeOrganizationData(storedChannels).configuration, 'op.acc.6', 'P-07')) === '["ssh | si | RSEG | si"]');
 
   const people = base();
   set(people, 'op.exp.3', 'P-03', ['dioni', 'root']);

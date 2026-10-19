@@ -121,6 +121,36 @@ export const organizationCrossChecks = (configuration: ENSDocument, itemId: stri
     : [`op.exp.9 P-01 dice «${String(selector.value)}» y la fila de incidentes de este dato ${declared ? 'nombra' : 'no nombra'} el registro de ENSFácil: comprobar que sean la misma herramienta.`];
 };
 
+export interface ENSOrganizationChoiceChange {
+  parameter: string;
+  // Rows the parameter loses (ports, origins, entries), rows it gains and what it ends with.
+  removed: string[];
+  added: string[];
+  after: string[];
+}
+
+const comparable = (line: string): string => {
+  const cells = toTableRowCells(line);
+  while (cells.length && !cells[cells.length - 1]) cells.pop();
+  return cells.join('|');
+};
+
+// What each parameter that reads the item becomes with this value: shown before choosing it.
+export const describeOrganizationChoice = (
+  configuration: ENSDocument,
+  item: ENSOrganizationDataItem,
+  value: ENSAgentParameterValue | undefined
+): ENSOrganizationChoiceChange[] =>
+  item.views.flatMap(view => {
+    const parameter = parameterOf(configuration, view.controlId, view.parameterId);
+    if (!parameter) return [];
+    const before = organizationValueLines(parameter.value);
+    const after = organizationValueLines(organizationViewValue(item, view, parameter, value));
+    const removed = before.filter(line => !after.some(other => comparable(other) === comparable(line)));
+    const added = after.filter(line => !before.some(other => comparable(other) === comparable(line)));
+    return removed.length || added.length ? [{ parameter: `${view.controlId} ${view.parameterId}`, removed, added, after }] : [];
+  });
+
 // One line per list item or table row, for reading.
 export const organizationValueLines = (value: ENSControlParameter['value'] | undefined): string[] =>
   Array.isArray(value)

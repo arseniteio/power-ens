@@ -33,6 +33,7 @@ export type {
 } from './organization-data-migration';
 export {
   ORGANIZATION_FIELD_ID,
+  describeOrganizationChoice,
   organizationCrossChecks,
   organizationDataParameter,
   organizationSingleValueIssues,
@@ -40,4 +41,4 @@ export {
   organizationValueWarnings,
   validateOrganizationValue,
 } from './organization-data-form';
-export type { ENSOrganizationValueIssue } from './organization-data-form';
+export type { ENSOrganizationChoiceChange, ENSOrganizationValueIssue } from './organization-data-form';
