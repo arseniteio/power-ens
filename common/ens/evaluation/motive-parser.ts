@@ -95,8 +95,8 @@ const primeraFrase = (texto: string): { summary: string; detail: string } => {
   return { summary: texto.slice(0, corte), detail: texto.slice(corte + 1) };
 };
 
-// Una lista de `lista()` (`a; b; c y N más`) dentro del texto. Empieza tras
-// «: » o « en » (lo que precede a `lista()` en las policies) o al principio; el
+// Una lista de `formatList()` (`a; b; c y N más`) dentro del texto. Empieza tras
+// «: » o « en » (lo que precede a `formatList()` en las policies) o al principio; el
 // último valor acaba en « y N más», en fin de frase, en «, », en « (» o en
 // « y ». Solo se reconoce con tres valores o más, o con «y N más», y con
 // valores cortos (rutas, cuentas, direcciones): dos frases separadas por «; »
