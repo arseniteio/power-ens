@@ -1,7 +1,4 @@
-// Lo que el perfil de un agente guarda de la máquina la primera vez que se
-// toca (desde la pantalla o en la migración): su nombre, su hostname como alias
-// y, si se conoce, el tipo detectado con su evidencia. Sirve para reconocerla
-// aunque cambie el inventario y para que la evaluación sea reproducible.
+// What an agent profile stores about the machine the first time it is touched (screen or migration): name, hostname as alias and, if known, the detected type with its evidence. Keeps it recognisable if the inventory changes and the evaluation reproducible.
 import type { ENSAgentProfile } from '../types';
 import type { ENSDetectableAgent, ENSSystemDetection } from './system-detection';
 import { hostnameFromUname } from './system-detection';

@@ -1,52 +1,24 @@
-// Declaración de Aplicabilidad: excluir un control entero cuando el sistema no
-// tiene aquello que el control regula.
-//
-// POR QUÉ HACE FALTA. op.acc.5 regula cómo se autentican los usuarios AJENOS a
-// la organización. En un servidor donde no se autentica nadie de fuera no hay
-// sujeto que medir, y el motor lo publicaba como 0 %: un incumplimiento
-// inventado sobre algo que no existe, que además hundía el índice global. El
-// ENS lo resuelve con la Declaración de Aplicabilidad, que excluye una medida
-// con su justificación, y así lo audita un auditor humano.
-//
-// POR QUÉ ESTO NO ROMPE «NUNCA UN CUMPLE FALSO». Una exclusión es la forma más
-// cómoda de esconder un incumplimiento, así que tiene dos límites duros:
-//
-//   1. UNA DECLARACIÓN INCOMPLETA NO EXCLUYE. Sin motivo, sin referencia o sin
-//      un documento al que apuntar es una casilla marcada, no una prueba.
-//
-//   2. NUNCA TAPA LO MEDIDO. Si en una máquina se ha medido o acreditado
-//      cualquier requisito del control, el sujeto existe y la exclusión queda
-//      contradicha: no se aplica, y se dice. Ese límite vive en
-//      `core/evaluation/requirement/applicability.ts`, que mira los resultados,
-//      no la declaración.
-//
-// Y lo excluido nunca se confunde con lo cumplido: sale NO_APLICA, sin número,
-// con la referencia y el motivo en cada requisito.
-//
-// Tipos desde el fichero, nunca desde un barrel de alto nivel.
+// Statement of Applicability: excludes a whole control when the system lacks what the control regulates.
+// An incomplete statement does not exclude (reason, reference and a link are required). An exclusion never hides what was measured: see `core/evaluation/requirement/applicability.ts`. Excluded requirements are NO_APLICA, with reference and reason.
+// Types from the file, never from a high-level barrel.
 import type { ENSControlConfiguration } from '../types';
 import { cells, isUsableLink, parameterRows } from './attestation-service';
 
-// El id del parámetro, igual en todos los controles que lo declaren. Fijo por
-// la misma razón que P-ATT: el motor lo busca sin saber de qué control se trata.
+// Parameter id, identical in every control that declares it (the engine looks it up without knowing the control).
 export const ENS_APPLICABILITY_PARAMETER_ID = 'P-DA';
 
 export interface ENSApplicabilityDeclaration {
-  // Por qué el control no aplica a este sistema. Es lo primero que lee un
-  // auditor, y lo que decide si la exclusión se sostiene.
+  // Why the control does not apply to this system.
   reason: string;
-  // Cómo se llama el documento que la aprueba.
+  // Name of the approving document.
   reference: string;
   links: string[];
   date?: string;
   responsible?: string;
 }
 
-// La declaración de un control: la primera fila con motivo y referencia.
-//
-// El formato de la fila es `motivo | referencia | enlace | fecha | responsable`,
-// y los enlaces adicionales se separan por espacios dentro de su celda, igual
-// que en las atestaciones.
+// Statement of a control: the first row with reason and reference.
+// Row format: `reason | reference | link | date | owner`; extra links are separated by spaces inside their cell.
 export const parseApplicabilityDeclaration = (
   configuration?: ENSControlConfiguration
 ): ENSApplicabilityDeclaration | undefined => {
@@ -73,9 +45,7 @@ export const parseApplicabilityDeclaration = (
   return undefined;
 };
 
-// ¿Está lo bastante completa para excluir? Motivo, referencia Y al menos un
-// enlace utilizable. La fecha y el responsable viajan al informe, pero no
-// bloquean.
+// Complete enough to exclude: reason, reference and at least one usable link. Date and owner go to the report but do not block.
 export const isDeclarationSufficient = (
   declaration?: ENSApplicabilityDeclaration
 ): boolean =>
@@ -86,8 +56,7 @@ export const isDeclarationSufficient = (
       declaration.links.length > 0
   );
 
-// La frase de la pantalla y del informe. Dice SIEMPRE que es una exclusión
-// declarada: es lo que impide que se lea como cumplimiento.
+// Screen and report sentence; always states that it is a declared exclusion.
 export const describeDeclaration = (
   declaration: ENSApplicabilityDeclaration
 ): string => {

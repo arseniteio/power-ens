@@ -33,14 +33,7 @@ const getParameterCandidateValue = (
   return undefined;
 };
 
-/**
- * Veredicto de un parámetro para el nivel activo, con el motivo si es inválido.
- *
- * "Configurado" significa "configurado con un valor válido para su tipo". Un
- * campo relleno con algo que no significa nada NO cuenta como configurado: si
- * contara, el control se declararía evaluable y podría salir en verde sobre un
- * dato inexistente.
- */
+/** Verdict of a parameter for the active level, with the reason if invalid. "Configured" means configured with a value valid for its type. */
 export const getParameterVerdict = (
   parameter: ENSControlParameter,
   activeLevel: ENSLevel
@@ -128,8 +121,7 @@ export const validateControlConfiguration = (
     parameter => parameter.status === 'INVALID'
   );
 
-  // `INVALID` implica aplicable al nivel activo: `getParameterVerdict` corta
-  // antes con `NOT_APPLICABLE`. Por eso basta con filtrar por obligatorio.
+  // `INVALID` implies applicable at the active level: `getParameterVerdict` returns `NOT_APPLICABLE` first.
   const invalidRequired = invalidParameters.filter(
     parameter => parameter.required
   );
@@ -156,14 +148,7 @@ export const validateControlConfiguration = (
   };
 };
 
-/**
- * Motivos de invalidez de un juego de valores todavía sin persistir.
- *
- * Lo usa el formulario antes de guardar: rechazar el valor con el motivo es lo
- * que evita que el fallo reaparezca luego como un control degradado sin
- * explicación. No mira niveles a propósito —el auditor está editando el control
- * entero, no el nivel activo— y no juzga las ausencias: eso lo dirá la tarjeta.
- */
+/** Invalidity reasons of a not yet persisted set of values, used by the form before saving. Ignores levels (the whole control is being edited) and does not judge absences. */
 export const validateControlParameterValues = (
   control: ENSControlConfiguration,
   values: ENSControlParameterValues

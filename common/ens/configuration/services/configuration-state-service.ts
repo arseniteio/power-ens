@@ -224,9 +224,7 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
-  // Los niveles de Trazabilidad y de Disponibilidad son opcionales: si el
-  // formulario los quita, la mezcla de arriba los resucitaría desde la
-  // configuración activa.
+  // Traceability and Availability levels are optional: the merge above would resurrect them from the active configuration if the form removed them.
   if (!globalConfiguration.traceabilityLevel) {
     delete candidateConfiguration.global.traceabilityLevel;
   }
@@ -257,10 +255,7 @@ export const updateActiveGlobalConfiguration = async (
   );
 };
 
-// Guarda un documento entero ya preparado (lo usan las acciones de la
-// configuración por sistema: valores de agente, plantillas, tipo, migración y
-// controles añadidos). El servidor deja la versión anterior en el historial y
-// una entrada con `changeReason` en `auditTrail`.
+// Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous version in the history and an entry with `changeReason` in `auditTrail`.
 export const saveActiveENSConfiguration = async (
   candidateConfiguration: ENSConfigurationVersion,
   changeReason: string
@@ -287,10 +282,7 @@ export const saveActiveENSConfiguration = async (
   );
 };
 
-// Los guardados de la configuración por sistema, EN FILA y sobre el documento
-// más reciente: cada acción construye su documento a partir del activo en el
-// momento de ejecutarse, no del que había al pintar la pantalla. Dos guardados
-// seguidos (un valor y otro, o un valor y una plantilla) ya no se pisan.
+// Per-system saves run in a queue against the latest document, so consecutive saves do not overwrite each other.
 let agentSaveQueue: Promise<unknown> = Promise.resolve();
 
 export const saveFromLatestConfiguration = (
