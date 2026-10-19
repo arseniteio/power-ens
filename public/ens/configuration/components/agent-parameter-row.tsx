@@ -6,6 +6,7 @@ import {
   EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiLink,
   EuiPanel,
   EuiSpacer,
   EuiText,
@@ -22,6 +23,9 @@ import {
 } from '../../../../common/ens/configuration/services/parameter-value-validator';
 import type { ENSResolvedValueOrigin } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import { errorMessage } from './confirm-modal';
+import { findOrganizationDataLink } from '../../../../common/ens/configuration/organization/organization-data-items';
+import { useSetRouterSearch } from '../../../routing/use-router-search';
+import { configurationSearchChanges } from '../../../routing/configuration-link';
 
 interface AgentParameterRowProps {
   agentId: string;
@@ -102,6 +106,14 @@ export const AgentParameterRow = ({
 }: AgentParameterRowProps) => {
   // On mount only: the parameter requested by the URL opens once.
   const [editing, setEditing] = useState(focused);
+  const setSearch = useSetRouterSearch();
+  const link = findOrganizationDataLink(parameter.controlId, parameter.id);
+  // Identical data read by other controls: an agent's own value is still set in each of them.
+  const siblings = link
+    ? link.item.views
+        .filter(view => !view.where && !view.columns && !(view.controlId === parameter.controlId && view.parameterId === parameter.id))
+        .map(view => `${view.controlId} ${view.parameterId}`)
+    : [];
   const [draft, setDraft] = useState<ENSControlParameter['value']>(parameter.value);
   const [draftMode, setDraftMode] = useState<ENSMatchMode>(parameter.matchMode === 'regex' ? 'regex' : 'exact');
   const [saving, setSaving] = useState(false);
@@ -190,6 +202,18 @@ export const AgentParameterRow = ({
           </EuiText>
         )}
 
+        {link && (
+          <EuiText size='xs' color='subdued'>
+            <p>
+              {`El valor común es «${link.item.label}», de Datos de la organización. `}
+              <EuiLink onClick={() => setSearch(configurationSearchChanges({ view: 'general', itemId: link.item.id }))}>
+                {`Ir a «${link.item.label}»`}
+              </EuiLink>
+              {siblings.length ? ` El ajuste propio de este agente vale solo para ${parameter.controlId} ${parameter.id}; ${siblings.join(' y ')} se ajustan aparte.` : ''}
+            </p>
+          </EuiText>
+        )}
+
         {!editing && (
           <EuiText size='xs'>
             {contributionOnly && <p><strong>De este agente:</strong></p>}
@@ -199,7 +223,7 @@ export const AgentParameterRow = ({
 
         {contributionOnly && organisationRows && organisationRows.length > 0 && (
           <EuiText size='xs' color='subdued'>
-            <p><strong>Del valor común</strong> (solo lectura; se edita en «Controles»):</p>
+            <p><strong>Del valor común</strong> (solo lectura; se edita en {link ? '«Datos de la organización»' : '«Controles»'}):</p>
             <Rows rows={organisationRows} />
           </EuiText>
         )}

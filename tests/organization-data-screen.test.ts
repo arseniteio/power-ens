@@ -18,6 +18,8 @@ const { OrganizationDataPanel, OrganizationDataNotice } = require('../public/ens
 const { ENSControlForm } = require('../public/ens/configuration/form-engine');
 const { ConfigurationSession } = require('../public/ens/configuration/sessions');
 const { parseRouterSearch } = require('../public/routing/router-search');
+const { AgentParameterRow } = require('../public/ens/configuration/components/agent-parameter-row');
+const { ENS_ORGANIZATION_DATA_ITEMS: ENS_ITEMS } = require('../common/ens/configuration/organization/organization-data-items');
 
 const clone = (value: any) => JSON.parse(JSON.stringify(value));
 const param = (doc: any, controlId: string, parameterId: string): any =>
@@ -131,6 +133,64 @@ client.setENSConfigurationHttp(() => ({
   check('and takes to General', opened);
   screen = await h.render(OrganizationDataNotice, { configuration: service.getActiveENSConfiguration(), onOpen: () => undefined });
   check('nothing to say, no notice', screen.trim() === '', screen);
+
+  console.log('6. Completed, refused and warned');
+  h.reset();
+  const second = clone(defaultENSConfigurationTemplate);
+  delete second.organizationData;
+  param(second, 'op.exp.4', 'P-07').value = ['* | lvm | snapshot | 24'];
+  param(second, 'op.acc.6', 'P-07').value = ['ssh | si | RSEG | si'];
+  param(second, 'op.acc.4', 'P-04').value = ['RDP | 3389 | cualquiera'];
+  param(second, 'op.exp.9', 'P-01').value = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
+  param(second, 'op.exp.7', 'P-03').value = ['GLPI | https://glpi | RSEG'];
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({ statusCode: 200, error: 0, data: { configuration: clone(second), metadata: null } }),
+    put: async (_path: string, options: any) => {
+      const body = JSON.parse(options.body);
+      saved.push(body);
+      return { statusCode: 200, error: 0, data: { configuration: body.configuration, metadata: null } };
+    },
+  }));
+  await service.hydrateENSConfiguration(true);
+  screen = await h.render(OrganizationDataPanel, props());
+  check('the migration notice lists each parameter completed and where its value came from',
+    screen.includes('Se ha completado op.exp.5 P-08 con el valor de op.exp.4 P-07.') && !/Ningún control cambia de valor/.test(screen), screen.slice(0, 600));
+  check('a value a control cannot take is not offered as a choice, saying why',
+    /No se puede elegir tal cual: .*op\.acc\.6 P-07/.test(screen) && h.findAll('EuiButton', /Elegir este valor/).some(button => button.props.isDisabled), screen.slice(screen.indexOf('Canales'), screen.indexOf('Canales') + 600));
+  check('op.exp.9 P-01 disagreeing with the incident tool is warned about in its item', /op\.exp\.9 P-01 dice «Registro ENSFácil/.test(screen));
+  const editPeople = h.findAll('EuiButton', /^Editar$/)[0];
+  await editPeople.props.onClick();
+  await h.rerender();
+  const peopleField = h.find('ParameterRendererFactory')!;
+  peopleField.props.onChange(peopleField.props.parameter.name, ['ana | mantenimiento, registros | servidores | lectura']);
+  screen = await h.rerender();
+  check('a row with several uses sharing «Ámbito» or «Detalle» is warned about while editing', /La fila de «ana» tiene varios usos/.test(screen));
+  h.reset();
+  const retention = service.getActiveENSConfiguration();
+  screen = await h.render(OrganizationDataPanel, { configuration: retention, onConfigurationSaved: () => undefined });
+  const editButtons = h.findAll('EuiButton', /^Editar$/);
+  await editButtons[ENS_ITEMS.filter((item: any) => item.views.length).findIndex((item: any) => item.id === 'retencion')].props.onClick();
+  await h.rerender();
+  const retentionField = h.find('ParameterRendererFactory')!;
+  retentionField.props.onChange(retentionField.props.parameter.name, ['accesos | VPN | 365', 'accesos | web | 90']);
+  await h.rerender();
+  const beforeTwice = saved.length;
+  screen = await h.click(/^Guardar$/);
+  check('two rows for a one-value parameter are refused on screen', saved.length === beforeTwice && screen.includes('op.acc.5 P-08: lee un solo valor: dejar una sola fila con uso «accesos» en «Plazos de retención».'), screen.slice(screen.indexOf('Hay valores'), screen.indexOf('Hay valores') + 200));
+
+  console.log('7. Agent page');
+  h.reset();
+  h.setSearch('?tabView=configuration&configAgent=024');
+  const groups = service.getActiveENSConfiguration().controls.find((candidate: any) => candidate.controlId === 'op.acc.1').parameters.find((parameter: any) => parameter.id === 'P-11');
+  screen = await h.render(AgentParameterRow, {
+    agentId: '024', parameter: groups, parameterClass: 'platform', origin: { source: 'organisation' }, applicable: true, focused: false,
+    describeSave: () => 'propio', onSave: async () => undefined,
+  });
+  check('a per-agent parameter that is organisation data says where its common value is edited',
+    screen.includes('El valor común es «Grupos con privilegio administrativo», de Datos de la organización.') &&
+    screen.includes('vale solo para op.acc.1 P-11; op.acc.2 P-12 y op.acc.4 P-06 se ajustan aparte'), screen.slice(0, 500));
+  await h.click(/Ir a «Grupos con privilegio administrativo»/);
+  check('and links to it', parseRouterSearch(h.search()).configItem === 'grupos_privilegiados');
 
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);

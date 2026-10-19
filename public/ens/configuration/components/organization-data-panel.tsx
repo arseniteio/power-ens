@@ -25,6 +25,7 @@ import {
 import {
   ORGANIZATION_SOURCE,
   describeOrganizationData,
+  describeOrganizationFills,
   setOrganizationValue,
   summarizeOrganizationMigration,
 } from '../../../../common/ens/configuration/organization/organization-data-migration';
@@ -34,8 +35,10 @@ import type {
 } from '../../../../common/ens/configuration/organization/organization-data-migration';
 import { describeOrganizationDataView } from '../../../../common/ens/configuration/organization/organization-data-items';
 import {
+  organizationCrossChecks,
   organizationDataParameter,
   organizationValueLines,
+  organizationValueWarnings,
   validateOrganizationValue,
 } from '../../../../common/ens/configuration/organization/organization-data-form';
 import { ParameterRendererFactory } from '../form-engine';
@@ -76,7 +79,7 @@ const usedBy = (state: ENSOrganizationItemState): string =>
   state.views
     .filter(view => view.parameter)
     .map(view => describeOrganizationDataView(view.view))
-    .join(', ') || 'ningún control sembrado';
+    .join(', ') || 'ningún control en la configuración';
 
 const statusBadge = (state: ENSOrganizationItemState) =>
   state.status === 'conflict' ? (
@@ -178,7 +181,16 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
         <>
           <EuiCallOut color='primary' iconType='iInCircle' title='Valores de los controles pasados a Datos de la organización'>
             <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [] })}</p>
-            <p>Ningún control cambia de valor. Se guarda con el próximo cambio.</p>
+            {pending!.filled.length ? (
+              <ul>
+                {describeOrganizationFills(pending!.filled).map(line => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>Ningún control cambia de valor.</p>
+            )}
+            <p>Se guarda con el próximo cambio.</p>
             <EuiButton size='s' onClick={savePending} isLoading={busy}>
               Guardar ahora
             </EuiButton>
@@ -198,7 +210,9 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <EuiTitle size='xxs'>
                 <h4>{state.item.label}</h4>
               </EuiTitle>
-              {state.candidates.map(candidate => (
+              {state.candidates.map(candidate => {
+                const refused = validateOrganizationValue(configuration, state.item, candidate.value);
+                return (
                 <div key={`${state.item.id}-${candidate.from}`}>
                   <EuiSpacer size='s' />
                   <EuiText size='s'>
@@ -208,9 +222,14 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                     </p>
                   </EuiText>
                   <ValueLines value={candidate.value} />
+                  {refused.length > 0 && (
+                    <EuiText size='xs' color='danger'>
+                      <p>{`No se puede elegir tal cual: ${refused.map(issue => `${issue.source}: ${issue.reason}`).join('; ')}. Escribir el valor en «Editar».`}</p>
+                    </EuiText>
+                  )}
                   <EuiButton
                     size='s'
-                    isDisabled={busy}
+                    isDisabled={busy || refused.length > 0}
                     onClick={() =>
                       save(
                         state.item.id,
@@ -222,7 +241,8 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                     Elegir este valor
                   </EuiButton>
                 </div>
-              ))}
+                );
+              })}
               {state.views.some(view => view.parameter && !view.configured) && (
                 <EuiText size='xs' color='subdued'>
                   <p>{`Sin valor: ${state.views.filter(view => view.parameter && !view.configured).map(view => view.key).join(', ')}.`}</p>
@@ -255,6 +275,11 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <p>{state.item.description}</p>
               <p>{`Lo usan: ${usedBy(state)}.`}</p>
             </EuiText>
+            {[...organizationCrossChecks(configuration, state.item.id), ...organizationValueWarnings(state.item, editing === state.item.id ? draft : state.value)].map(warning => (
+              <EuiText key={warning} size='xs' color='warning'>
+                <p>{warning}</p>
+              </EuiText>
+            ))}
             <EuiSpacer size='s' />
 
             {editing === state.item.id ? (
@@ -358,6 +383,7 @@ export const OrganizationDataNotice = ({ configuration, onOpen }: OrganizationDa
     <>
       <EuiCallOut color={conflicts.length ? 'warning' : 'primary'} iconType={conflicts.length ? 'alert' : 'iInCircle'} title='Datos de la organización'>
         {pendingSave && <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [] })} Se guarda con el próximo cambio.</p>}
+        {pendingSave && describeOrganizationFills(pending!.filled).map(line => <p key={line}>{line}</p>)}
         {conflicts.length > 0 && <p>{`Valores distintos entre controles: ${conflicts.map(state => `«${state.item.label}»`).join(', ')}. Cada control sigue con el suyo hasta elegir.`}</p>}
         <EuiButton size='s' onClick={onOpen}>
           Ver Datos de la organización
