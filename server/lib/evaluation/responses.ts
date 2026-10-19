@@ -1,30 +1,26 @@
-// Lo que devuelve cada vista. Compacto: el navegador recibe resultados, nunca
-// hechos. La forma de cada una está en `server/README.md`.
+// What each view returns. Compact: the browser receives results, never facts. The shape of each is in `server/README.md`.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { catalogControlIds } from './queries';
 import type { ENSEvaluationService } from './evaluation-service';
-// Lo que añaden las vistas generales (Task 2), aparte para que se pueda
-// reenganchar sin tocar lo demás.
+// What the overview views add (Task 2), kept apart so it can be re-hooked without touching the rest.
 import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } from './overview-fields';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
-// Lo que pinta la lista de controles de cada uno: el estado y cuántos
-// requisitos aplicables no cumplen (y de ellos, cuántos por falta de prueba).
+// What the control list draws for each: the state and how many applicable requirements fail (and of those, how many for lack of evidence).
 export const controlSummaryOf = (controlId: string, result?: ENSComplianceResult) => {
-  // `applicable` lo pone el evaluador de requisitos aunque el tipo no lo
-  // declare; es el mismo filtro que usaba la fila de la lista.
-  const requisitos = (result?.requirements || []).filter(requisito => (requisito as { applicable?: boolean }).applicable);
+  // `applicable` is set by the requirement evaluator even if the type does not declare it; same filter the list row used.
+  const requirements = (result?.requirements || []).filter(requirement => (requirement as { applicable?: boolean }).applicable);
   return {
     controlId,
     status: result?.status || 'NO_EVALUABLE',
     score: result?.score,
     evaluated: Boolean(result),
-    requirementsNotMet: requisitos.filter(requisito => requisito.status !== 'CUMPLE').length,
-    requirementsNotEvidenced: requisitos.filter(
-      requisito => requisito.status !== 'CUMPLE' && (requisito as { evidenced?: boolean }).evidenced === false
+    requirementsNotMet: requirements.filter(requirement => requirement.status !== 'CUMPLE').length,
+    requirementsNotEvidenced: requirements.filter(
+      requirement => requirement.status !== 'CUMPLE' && (requirement as { evidenced?: boolean }).evidenced === false
     ).length,
   };
 };
@@ -52,17 +48,16 @@ export const buildEvaluationResponse = (run: RunOutput) => {
   const timeline = visibleTimeline(run.timeline, query);
 
   if (query.include === 'control' && query.controlId) {
-    const entrada = views.get(query.controlId);
+    const entry = views.get(query.controlId);
     return {
       meta,
-      // Las primeras entradas de la trazabilidad (las más recientes); el resto,
-      // por páginas en `/evaluation/traceability`.
-      result: entrada?.result
-        ? { ...entrada.result, traceability: entrada.traceability().slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
+      // The first traceability entries (the most recent); the rest are paged in `/evaluation/traceability`.
+      result: entry?.result
+        ? { ...entry.result, traceability: entry.traceability().slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
         : undefined,
-      traceabilityTotal: entrada?.traceabilityTotal || 0,
-      traceabilityAvailable: entrada?.traceabilityStored || 0,
-      agents: (entrada?.rows || []).map(row => ({
+      traceabilityTotal: entry?.traceabilityTotal || 0,
+      traceabilityAvailable: entry?.traceabilityStored || 0,
+      agents: (entry?.rows || []).map(row => ({
         agentId: row.agentId,
         agentName: run.rowName(row.agentId) || meta.scope.find(agent => agent.id === row.agentId)?.name,
         status: row.result.status,
@@ -76,47 +71,45 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     return { meta };
   }
 
-  // Los controles aún por calcular (primera carga): en su sitio, sin estado.
-  const pendientes = meta.pending?.controls || [];
-  const conPendientes = <T extends { controlId: string }>(listos: T[], pendiente: (controlId: string) => T): T[] => {
-    if (!pendientes.length) return listos;
-    const porId = new Map(listos.map(entrada => [entrada.controlId, entrada]));
+  // Controls still to compute (first load): in place, without state.
+  const pendings = meta.pending?.controls || [];
+  const withPending = <T extends { controlId: string }>(readyOnes: T[], pending: (controlId: string) => T): T[] => {
+    if (!pendings.length) return readyOnes;
+    const byIdMap = new Map(readyOnes.map(entry => [entry.controlId, entry]));
     return catalogControlIds()
-      .filter(id => porId.has(id) || pendientes.includes(id))
-      .map(id => porId.get(id) || pendiente(id));
+      .filter(id => byIdMap.has(id) || pendings.includes(id))
+      .map(id => byIdMap.get(id) || pending(id));
   };
 
   if (query.include === 'summary' || query.include === 'overview') {
-    const resumen = {
+    const summary = {
       meta,
       ...stateHeader(run),
-      controls: conPendientes(
+      controls: withPending(
         state.results.map(result => controlSummaryOf(result.control.id, result)),
         controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
       ),
-      // Cada máquina con lo que dice cada control en su fila; los pendientes
-      // aún no están (la pantalla los marca por `controls[].pending`).
+      // Each machine with what each control says on its row; pending ones are not there yet (the screen marks them by `controls[].pending`).
       agents: agentControlRows(run.state, controlSummaryOf),
       ...(timeline ? { timeline } : {}),
     };
     return query.include === 'overview'
-      ? { ...resumen, freshness: freshnessOf(run.ctx.probe, run.meta), nonConformities: nonConformitiesOf(run.state) }
-      : resumen;
+      ? { ...summary, freshness: freshnessOf(run.ctx.probe, run.meta), nonConformities: nonConformitiesOf(run.state) }
+      : summary;
   }
 
   if (query.include === 'dashboard') {
-    const modelo = buildENSDashboardModel(state, [], (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
+    const model = buildENSDashboardModel(state, [], (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
     return {
       meta,
       ...stateHeader(run),
-      dashboard: { ...modelo, impactEvents: run.impact },
+      dashboard: { ...model, impactEvents: run.impact },
       agents: agentRows(run),
       timeline,
-      // Con la primera carga a medias, el estado de cada control (los que
-      // faltan, `pending`): el panel enseña esos y no cifras de conjunto.
-      ...(pendientes.length
+      // With the first load half done, the state of each control (the missing ones, `pending`): the panel shows those, not aggregate figures.
+      ...(pendings.length
         ? {
-            controls: conPendientes(
+            controls: withPending(
               state.results.map(result => controlSummaryOf(result.control.id, result)),
               controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
             ),
@@ -125,7 +118,7 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     };
   }
 
-  // 'results': todo lo que el motor dice de cada control, sin la trazabilidad.
+  // 'results': everything the engine says of each control, without traceability.
   return {
     meta,
     ...stateHeader(run),
@@ -135,15 +128,15 @@ export const buildEvaluationResponse = (run: RunOutput) => {
   };
 };
 
-// La trazabilidad de un control, por páginas, de lo guardado.
+// The traceability of a control, paged, from what is stored.
 export const buildTraceabilityPage = (run: RunOutput, from: number, size: number) => {
-  const entrada = run.query.controlId ? run.views.get(run.query.controlId) : undefined;
-  const lista = entrada ? entrada.traceability() : [];
+  const entry = run.query.controlId ? run.views.get(run.query.controlId) : undefined;
+  const list = entry ? entry.traceability() : [];
   return {
     meta: run.meta,
-    total: entrada?.traceabilityTotal || 0,
-    available: lista.length,
+    total: entry?.traceabilityTotal || 0,
+    available: list.length,
     from,
-    items: lista.slice(from, from + size),
+    items: list.slice(from, from + size),
   };
 };

@@ -4,9 +4,8 @@ import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
 import { createEvaluationHandlers } from '../lib/evaluation-handlers';
 import { buildEvaluationQuerySchema } from './evaluation-query';
 
-// Los parámetros, declarados en `evaluation-query.ts` (lo que no está allí no
-// llega al servicio).
-const consulta = buildEvaluationQuerySchema(schema);
+// Parameters declared in `evaluation-query.ts` (what is not there never reaches the service).
+const searchQuery = buildEvaluationQuerySchema(schema);
 
 export const registerEvaluationRoutes = (
   router: IRouter,
@@ -14,7 +13,7 @@ export const registerEvaluationRoutes = (
 ): void => {
   const h = createEvaluationHandlers(options);
 
-  router.get({ path: ENSFACIL_EVALUATION_PATH, validate: { query: consulta } }, h.evaluate);
-  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/probe`, validate: { query: consulta } }, h.probe);
-  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/traceability`, validate: { query: consulta } }, h.traceability);
+  router.get({ path: ENSFACIL_EVALUATION_PATH, validate: { query: searchQuery } }, h.evaluate);
+  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/probe`, validate: { query: searchQuery } }, h.probe);
+  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/traceability`, validate: { query: searchQuery } }, h.traceability);
 };

@@ -1,26 +1,11 @@
-// Lectura de hechos y de agregaciones, como el usuario que mira.
-//
-// SIN DATOS A MEDIAS. OpenSearch responde 200 con resultados parciales si algún
-// shard falla (cláusulas de más, el cortacircuitos de memoria, un shard sin
-// asignar). Cada búsqueda va con `allow_partial_search_results=false`, y aun
-// así se comprueba la respuesta: con un shard fallido, un tiempo agotado o una
-// búsqueda cortada antes de tiempo, la evaluación falla con el motivo y no se
-// juzga ni se guarda nada.
-//
-// SIN PIT. `search_after` sobre una ventana fija (su final es el instante en que
-// empieza la evaluación), ordenada por fecha con un desempate `keyword`
-// (`FACTS_SORT`): los hechos solo se añaden, así que las páginas no se mueven.
-// Un PIT sobre `wazuh-alerts-*` abriría un contexto por shard (381 en el
-// laboratorio, más que `search.max_open_pit_context`).
+// Reading of facts and aggregations, as the viewing user.
+// NO PARTIAL DATA. OpenSearch answers 200 with partial results if a shard fails. Each search sends `allow_partial_search_results=false` and the response is still checked: with a failed shard, a timeout or an early-terminated search the evaluation fails with the reason and nothing is judged or stored.
+// NO PIT. `search_after` over a fixed window (ending when the evaluation starts), sorted by date with a `keyword` tiebreaker (`FACTS_SORT`); facts are only appended, so pages do not move. A PIT on `wazuh-alerts-*` would open one context per shard, more than `search.max_open_pit_context`.
 import { ENS_ALERTS_INDEX } from '../../../common/constants';
 import { ENGINE_SOURCE_FIELDS, FACTS_SORT } from './queries';
 
 export const FACTS_PAGE_SIZE = 5000;
-// Los hechos que se tienen a la vez en memoria por lectura (un control en una
-// máquina). Por encima, la evaluación se para con un error claro antes de
-// poner en riesgo el proceso del dashboard: cada hecho ocupa ~1,7 KB de
-// memoria leído y normalizado, así que 50.000 son unos 85 MB (y con las dos
-// lecturas a la vez, el doble). La mayor lectura del laboratorio son ~20.000.
+// Facts held in memory at once per read (one control on one machine). Above this the evaluation stops with a clear error before endangering the dashboard process: each fact takes ~1.7 KB once read and normalised, so 50,000 are ~85 MB (double with two concurrent reads).
 export const MAX_FACTS_PER_READ = 50000;
 
 export class ENSIncompleteDataError extends Error {
@@ -47,7 +32,7 @@ export class ENSEvaluationCancelledError extends Error {
   }
 }
 
-// La respuesta está entera, o se lanza `ENSIncompleteDataError`.
+// The response is complete, or `ENSIncompleteDataError` is thrown.
 export const assertCompleteResponse = (body: any, what: string): void => {
   const shards = body?._shards;
   if (shards && Number(shards.failed) > 0) {
@@ -65,12 +50,11 @@ export const throwIfCancelled = (signal?: { aborted: boolean }): void => {
   if (signal?.aborted) throw new ENSEvaluationCancelledError();
 };
 
-// Una búsqueda que no admite resultados parciales.
+// A search that does not allow partial results.
 export const searchComplete = async (client: any, params: { index?: string; body: unknown }, what: string): Promise<any> => {
-  // Con una lista de índices (los de la ventana), uno que ya no exista no
-  // hace fallar la búsqueda.
-  const lista = typeof params.index === 'string' && params.index.includes(',');
-  const { body } = await client.search({ ...params, allow_partial_search_results: false, ...(lista ? { ignore_unavailable: true } : {}) });
+  // With a list of indices (the window's), one that no longer exists does not fail the search.
+  const list = typeof params.index === 'string' && params.index.includes(',');
+  const { body } = await client.search({ ...params, allow_partial_search_results: false, ...(list ? { ignore_unavailable: true } : {}) });
   assertCompleteResponse(body, what);
   return body;
 };
@@ -78,17 +62,16 @@ export const searchComplete = async (client: any, params: { index?: string; body
 export interface ENSFactsReadStats {
   pages: number;
   hits: number;
-  // Lo que se esperó al cliente del indexador (la respuesta y su análisis).
+  // Time awaited on the indexer client (response and parsing).
   searchMs: number;
 }
 
 export const newReadStats = (): ENSFactsReadStats => ({ pages: 0, hits: 0, searchMs: 0 });
 
-// Cede el hilo: entre página y página y entre fila y fila, para que el
-// proceso del dashboard siga atendiendo otras peticiones durante un cálculo.
+// Yields the thread between pages and rows so the dashboard process keeps serving other requests during a computation.
 export const yieldToEventLoop = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
 
-// Recorre TODOS los hechos de la consulta y llama a `onPage` con cada página.
+// Walks ALL facts of the query, calling `onPage` with each page.
 export const readAllFacts = async (
   client: any,
   query: unknown,
@@ -99,10 +82,9 @@ export const readAllFacts = async (
     maxFacts?: number;
     what?: string;
     signal?: { aborted: boolean };
-    // El índice (o la lista de índices de la ventana).
+    // The index (or the window's list of indices).
     index?: string;
-    // Otro orden (el flujo por máquina lleva delante el control) y la
-    // posición de `id` en él.
+    // Another sort order (the per-machine stream puts the control first) and the position of `id` in it.
     sort?: unknown[];
     idIndex?: number;
   } = {}
@@ -113,12 +95,12 @@ export const readAllFacts = async (
   const maxFacts = options.maxFacts ?? MAX_FACTS_PER_READ;
   const what = options.what || 'los hechos';
   let after: unknown[] | undefined;
-  let leidos = 0;
+  let readValues = 0;
 
   for (;;) {
     throwIfCancelled(options.signal);
     const t0 = Date.now();
-    const respuesta = await searchComplete(
+    const response = await searchComplete(
       client,
       {
         index: options.index || ENS_ALERTS_INDEX,
@@ -134,20 +116,18 @@ export const readAllFacts = async (
       what
     );
     stats.searchMs += Date.now() - t0;
-    const hits: any[] = respuesta?.hits?.hits || [];
+    const hits: any[] = response?.hits?.hits || [];
 
     stats.pages += 1;
     stats.hits += hits.length;
-    leidos += hits.length;
-    if (leidos > maxFacts) throw new ENSTooManyFactsError(what, maxFacts);
+    readValues += hits.length;
+    if (readValues > maxFacts) throw new ENSTooManyFactsError(what, maxFacts);
     await onPage(hits);
 
     if (hits.length < pageSize) break;
     after = hits[hits.length - 1]?.sort;
     if (!after) break;
-    // Sin `id` (el desempate que es único por manager) dos hechos del mismo
-    // instante no se pueden separar entre páginas: se perderían o se
-    // repetirían en silencio.
+    // Without `id` (the per-manager unique tiebreaker) two facts of the same instant cannot be separated across pages: they would be lost or repeated silently.
     if (after[idIndex] === null || after[idIndex] === undefined) {
       throw new ENSIncompleteDataError(`hay hechos sin \`id\` en ${what}: no se pueden leer por páginas sin perder ninguno`);
     }
