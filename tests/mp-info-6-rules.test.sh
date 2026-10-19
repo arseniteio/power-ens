@@ -1,98 +1,84 @@
 #!/usr/bin/env bash
-# Comprueba que agent/rules/ensfacil_mp_info_6_json_rules.xml casa con el
-# contrato de hechos de mp.info.6 (cada `event` con su rule ID), que la
-# degradación solo dispara con NO_EVALUABLE y que la base anclada no se
-# confunde con otro control.
+# Checks that agent/rules/ensfacil_mp_info_6_json_rules.xml matches the mp.info.6 fact contract (each `event` with its rule ID), that the degradation fires only on NO_EVALUABLE and that the anchored base is not confused with another control.
 #
 #     tests/mp-info-6-rules.test.sh
 #
-# La parte de wazuh-logtest necesita un manager con el XML cargado: por
-# defecto usa un contenedor `wazuh/wazuh-manager:4.14.x` (Docker,
-# `--platform linux/amd64` si hace falta emular). Si Docker no está
-# disponible, o el manager no arranca, esa parte se salta con un aviso y solo
-# corren las comprobaciones estáticas (anclaje, vocabulario prohibido,
-# XML bien formado); la comprobación con wazuh-logtest real queda entonces
-# para cuando el XML se despliegue en un manager de verdad.
+# The wazuh-logtest part needs a manager with the XML loaded: by default a `wazuh/wazuh-manager:4.14.x` container (Docker, `--platform linux/amd64` if emulation is needed). Without Docker, or if the manager does not start, that part is skipped with a warning and only the static checks run.
 #
-# Los `<field>` de `event`/`estado` llevan `type="pcre2"` además del anclaje
-# `^…$`: el matcher por defecto de Wazuh (OSMatch/OSRegex) es
-# case-INsensible incluso anclado, así que `^backup_run$` sin `pcre2` sigue
-# casando con `Backup_Run`. Con `pcre2` el anclaje sí es case-sensible; los
-# casos negativos de más abajo lo comprueban.
+# The `event`/`estado` fields carry `type="pcre2"` besides the `^...$` anchor: Wazuh's default matcher is case-INsensitive even when anchored, so `^backup_run$` without `pcre2` still matches `Backup_Run`.
 set -uo pipefail
 
-AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-X="$AQUI/../agent/rules/ensfacil_mp_info_6_json_rules.xml"
-IMAGEN="${WAZUH_MANAGER_IMAGE:-wazuh/wazuh-manager:4.14.0}"
-CONTENEDOR="ens-mp-info-6-rules-test"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+X="$HERE/../agent/rules/ensfacil_mp_info_6_json_rules.xml"
+IMAGE="${WAZUH_MANAGER_IMAGE:-wazuh/wazuh-manager:4.14.0}"
+CONTAINER="ens-mp-info-6-rules-test"
 
-fallos=0
+failures=0
 
-echo "=== Estático ==="
+echo "=== Static ==="
 
 if python3 -c 'import xml.dom.minidom,sys; xml.dom.minidom.parseString("<root>"+open(sys.argv[1]).read()+"</root>")' "$X"; then
-  echo "OK    XML bien formado"
+  echo "OK    well-formed XML"
 else
-  echo "FALLA XML mal formado"
-  fallos=1
+  echo "FAIL malformed XML"
+  failures=1
 fi
 
 if grep -qF '<field name="ensfacil">^mp.info.6$</field>' "$X"; then
-  echo "OK    base anclada (^mp.info.6\$)"
+  echo "OK    anchored base (^mp.info.6\$)"
 else
-  echo "FALLA falta el anclaje de la regla base"
-  fallos=1
+  echo "FAIL the base rule anchor is missing"
+  failures=1
 fi
 
 if grep -qiE "CUMPLE|claude|asistente" "$X"; then
-  echo "FALLA el fichero menciona CUMPLE/claude/asistente"
-  fallos=1
+  echo "FAIL the file mentions CUMPLE/claude/asistente"
+  failures=1
 else
-  echo "OK    sin CUMPLE/claude/asistente"
+  echo "OK    no CUMPLE/claude/asistente"
 fi
 
 echo
-echo "=== wazuh-logtest (manager real) ==="
+echo "=== wazuh-logtest (real manager) ==="
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "AVISO Docker no disponible: se salta wazuh-logtest (correrá contra un manager real más adelante)"
-  exit "$fallos"
+  echo "WARN Docker not available: wazuh-logtest skipped (it will run against a real manager later)"
+  exit "$failures"
 fi
 
-if ! docker run --rm --platform linux/amd64 -d --name "$CONTENEDOR" "$IMAGEN" >/tmp/mp-info-6-rules-test.cid 2>/tmp/mp-info-6-rules-test.err; then
-  echo "AVISO no se pudo arrancar $IMAGEN: se salta wazuh-logtest (correrá contra un manager real más adelante)"
+if ! docker run --rm --platform linux/amd64 -d --name "$CONTAINER" "$IMAGE" >/tmp/mp-info-6-rules-test.cid 2>/tmp/mp-info-6-rules-test.err; then
+  echo "WARN could not start $IMAGE: wazuh-logtest skipped (it will run against a real manager later)"
   cat /tmp/mp-info-6-rules-test.err
-  exit "$fallos"
+  exit "$failures"
 fi
 
-limpiar() { docker rm -f "$CONTENEDOR" >/dev/null 2>&1; }
-trap limpiar EXIT
+cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1; }
+trap cleanup EXIT
 
-# Espera a que wazuh-logtest responda, hasta 60s.
-listo=0
+# Wait for wazuh-logtest to answer, up to 60s.
+ready=0
 for _ in $(seq 1 30); do
-  if docker exec "$CONTENEDOR" bash -c 'echo "{}" | /var/ossec/bin/wazuh-logtest' >/dev/null 2>&1; then
-    listo=1
+  if docker exec "$CONTAINER" bash -c 'echo "{}" | /var/ossec/bin/wazuh-logtest' >/dev/null 2>&1; then
+    ready=1
     break
   fi
   sleep 2
 done
-if [ "$listo" -ne 1 ]; then
-  echo "AVISO el manager no llegó a arrancar a tiempo: se salta wazuh-logtest (correrá contra un manager real más adelante)"
-  exit "$fallos"
+if [ "$ready" -ne 1 ]; then
+  echo "WARN the manager did not start in time: wazuh-logtest skipped (it will run against a real manager later)"
+  exit "$failures"
 fi
 
-docker cp "$X" "$CONTENEDOR:/var/ossec/etc/rules/ensfacil_mp_info_6_json_rules.xml" >/dev/null
-docker exec "$CONTENEDOR" /var/ossec/bin/wazuh-control restart >/dev/null 2>&1
+docker cp "$X" "$CONTAINER:/var/ossec/etc/rules/ensfacil_mp_info_6_json_rules.xml" >/dev/null
+docker exec "$CONTAINER" /var/ossec/bin/wazuh-control restart >/dev/null 2>&1
 
-id_de() {
-  docker exec "$CONTENEDOR" bash -c "echo '$1' | /var/ossec/bin/wazuh-logtest 2>&1" \
+id_of() {
+  docker exec "$CONTAINER" bash -c "echo '$1' | /var/ossec/bin/wazuh-logtest 2>&1" \
     | grep -oE "id: '[0-9]+'" | head -1 | grep -oE '[0-9]+'
 }
 
-# Pares "event id", uno por línea: bash 3.2 (macOS sin homebrew) no tiene
-# arrays asociativos, así que se evita `declare -A` a propósito.
-ESPERADO="
+# "event id" pairs, one per line: bash 3.2 has no associative arrays, so `declare -A` is avoided on purpose.
+EXPECTED="
 backup_run 106601
 backup_schedule 106602
 backup_retention 106603
@@ -104,88 +90,83 @@ collector_warning 106798
 collector_missing 106799
 "
 
-while read -r ev esperado; do
+while read -r ev expected; do
   [ -z "$ev" ] && continue
-  linea="{\"ensfacil\":\"mp.info.6\",\"event\":\"$ev\",\"ts\":\"2026-09-30T00:00:00Z\"}"
-  id=$(id_de "$linea")
-  if [ "$id" = "$esperado" ]; then
+  line="{\"ensfacil\":\"mp.info.6\",\"event\":\"$ev\",\"ts\":\"2026-09-30T00:00:00Z\"}"
+  id=$(id_of "$line")
+  if [ "$id" = "$expected" ]; then
     echo "OK    $ev -> $id"
   else
-    echo "FALLA $ev -> $id (esperado $esperado)"
-    fallos=1
+    echo "FAIL $ev -> $id (expected $expected)"
+    failures=1
   fi
 done <<EOF
-$ESPERADO
+$EXPECTED
 EOF
 
-# evidence_state solo casa con NO_EVALUABLE (106650).
-id=$(id_de '{"ensfacil":"mp.info.6","event":"evidence_state","estado":"NO_EVALUABLE"}')
+# evidence_state matches only with NO_EVALUABLE (106650).
+id=$(id_of '{"ensfacil":"mp.info.6","event":"evidence_state","estado":"NO_EVALUABLE"}')
 if [ "$id" = "106650" ]; then
   echo "OK    evidence_state/NO_EVALUABLE -> $id"
 else
-  echo "FALLA evidence_state/NO_EVALUABLE -> $id (esperado 106650)"
-  fallos=1
+  echo "FAIL evidence_state/NO_EVALUABLE -> $id (expected 106650)"
+  failures=1
 fi
 
-# El recolector no emite veredictos: evidence_state con otro estado no puede
-# casar con la regla de degradación.
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"evidence_state\",\"estado\":\"CUMPLE\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -q "id: '106650'"; then
-  echo "FALLA evidence_state/CUMPLE no debe casar con la regla de degradación"
-  fallos=1
+# The collector emits no verdicts: evidence_state with another state cannot match the degradation rule.
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"evidence_state\",\"estado\":\"CUMPLE\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -q "id: '106650'"; then
+  echo "FAIL evidence_state/CUMPLE must not match the degradation rule"
+  failures=1
 else
-  echo "OK    evidence_state/CUMPLE no casa con 106650"
+  echo "OK    evidence_state/CUMPLE does not match 106650"
 fi
 
-# Negativos del anclaje: un `event` que solo CONTIENE el nombre esperado (una
-# superstring, un prefijo o una variante de mayúsculas) no puede casar con la
-# regla. Antes del anclaje con `pcre2`, `backup_run_extra`, `x_backup_run` y
-# `Backup_Run` disparaban igual que `backup_run`.
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"backup_run_extra\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -q "id: '106601'"; then
-  echo "FALLA backup_run_extra no debe casar con 106601 (superstring)"
-  fallos=1
+# Anchor negatives: an `event` that only CONTAINS the expected name (a superstring, a prefix or a case variant) cannot match the rule.
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"backup_run_extra\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -q "id: '106601'"; then
+  echo "FAIL backup_run_extra must not match 106601 (superstring)"
+  failures=1
 else
-  echo "OK    backup_run_extra no casa con 106601"
+  echo "OK    backup_run_extra does not match 106601"
 fi
 
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"x_backup_run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -q "id: '106601'"; then
-  echo "FALLA x_backup_run no debe casar con 106601 (prefijo)"
-  fallos=1
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"x_backup_run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -q "id: '106601'"; then
+  echo "FAIL x_backup_run must not match 106601 (prefix)"
+  failures=1
 else
-  echo "OK    x_backup_run no casa con 106601"
+  echo "OK    x_backup_run does not match 106601"
 fi
 
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"Backup_Run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -q "id: '106601'"; then
-  echo "FALLA Backup_Run no debe casar con 106601 (mayúsculas: sin pcre2 el anclaje es case-insensible)"
-  fallos=1
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"Backup_Run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -q "id: '106601'"; then
+  echo "FAIL Backup_Run must not match 106601 (case: without pcre2 the anchor is case-insensitive)"
+  failures=1
 else
-  echo "OK    Backup_Run no casa con 106601"
+  echo "OK    Backup_Run does not match 106601"
 fi
 
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"evidence_state\",\"estado\":\"NO_EVALUABLE_X\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -q "id: '106650'"; then
-  echo "FALLA evidence_state con estado=NO_EVALUABLE_X no debe casar con 106650 (superstring)"
-  fallos=1
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"mp.info.6\",\"event\":\"evidence_state\",\"estado\":\"NO_EVALUABLE_X\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -q "id: '106650'"; then
+  echo "FAIL evidence_state with estado=NO_EVALUABLE_X must not match 106650 (superstring)"
+  failures=1
 else
-  echo "OK    evidence_state/NO_EVALUABLE_X no casa con 106650"
+  echo "OK    evidence_state/NO_EVALUABLE_X does not match 106650"
 fi
 
-# op.exp.1/op.exp.10 no se confunden con mp.info.6: una línea de otro control
-# no puede casar con ninguna regla de esta banda.
-salida=$(docker exec "$CONTENEDOR" bash -c "echo '{\"ensfacil\":\"op.exp.1\",\"event\":\"backup_run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
-if echo "$salida" | grep -qE "id: '1066[0-9][0-9]'"; then
-  echo "FALLA op.exp.1 con event=backup_run no debe casar con una regla de mp.info.6"
-  fallos=1
+# op.exp.1/op.exp.10 are not confused with mp.info.6: a line of another control cannot match any rule of this band.
+output=$(docker exec "$CONTAINER" bash -c "echo '{\"ensfacil\":\"op.exp.1\",\"event\":\"backup_run\",\"ts\":\"2026-09-30T00:00:00Z\"}' | /var/ossec/bin/wazuh-logtest 2>&1")
+if echo "$output" | grep -qE "id: '1066[0-9][0-9]'"; then
+  echo "FAIL op.exp.1 with event=backup_run must not match an mp.info.6 rule"
+  failures=1
 else
-  echo "OK    op.exp.1 no se confunde con mp.info.6"
+  echo "OK    op.exp.1 is not confused with mp.info.6"
 fi
 
-if [ "$fallos" -eq 0 ]; then
+if [ "$failures" -eq 0 ]; then
   echo
   echo "OK"
 fi
 
-exit "$fallos"
+exit "$failures"
