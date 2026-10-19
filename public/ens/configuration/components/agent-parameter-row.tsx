@@ -11,7 +11,8 @@ import {
   EuiText,
 } from '@elastic/eui';
 
-import type { ENSAgentParameterValue, ENSControlParameter } from '../../../../common/ens/configuration/types';
+import type { ENSAgentParameterValue, ENSControlParameter, ENSMatchMode } from '../../../../common/ens/configuration/types';
+import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 import { ParameterRendererFactory, parameterAnchorId } from '../form-engine';
 import {
   isEmptyParameterValue,
@@ -40,8 +41,8 @@ interface AgentParameterRowProps {
   applicable: boolean;
   focused: boolean;
   // Qué pasará al guardar este valor (vacío, igual al heredado o propio).
-  describeSave: (value: ENSAgentParameterValue | undefined) => 'quitar' | 'igual' | 'propio';
-  onSave: (value: ENSAgentParameterValue | undefined) => Promise<void>;
+  describeSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => 'quitar' | 'igual' | 'propio';
+  onSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => Promise<void>;
   // Tras guardar el parámetro que pidió la URL, para que no vuelva a abrirse.
   onDone?: () => void;
 }
@@ -57,8 +58,13 @@ const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contr
   return hasValue ? 'heredado del valor común del control' : 'sin valor: ni ajuste propio, ni plantilla, ni valor común';
 };
 
-export const valueRows = (parameter: Pick<ENSControlParameter, 'type'>, value: ENSControlParameter['value']): string[] => {
+export const valueRows = (
+  parameter: Pick<ENSControlParameter, 'type'>,
+  value: ENSControlParameter['value'],
+  matchMode?: ENSMatchMode
+): string[] => {
   if (isEmptyParameterValue(value)) return [];
+  if (matchMode === 'regex') return [`Expresión regular: ${String(value)}`];
   if (parameter.type === 'table') return toParameterTableRows(value).filter(row => row.trim());
   if (parameter.type === 'list') return toParameterListItems(value);
   return [String(value)];
@@ -97,14 +103,20 @@ export const AgentParameterRow = ({
   // Solo al montar: el parámetro que pide la URL se abre una vez.
   const [editing, setEditing] = useState(focused);
   const [draft, setDraft] = useState<ENSControlParameter['value']>(parameter.value);
+  const [draftMode, setDraftMode] = useState<ENSMatchMode>(parameter.matchMode === 'regex' ? 'regex' : 'exact');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [saved, setSaved] = useState<string | undefined>();
   const anchor = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
-  const rows = valueRows(parameter, parameter.value);
+  const rows = valueRows(parameter, parameter.value, parameter.matchMode);
   const own = origin.source === 'agent';
-  const valueKey = JSON.stringify(parameter.value ?? null);
+  const valueKey = JSON.stringify([parameter.value ?? null, parameter.matchMode ?? null]);
+  const storedMode: ENSMatchMode = parameter.matchMode === 'regex' ? 'regex' : 'exact';
+  const resetDraft = () => {
+    setDraft(parameter.value);
+    setDraftMode(storedMode);
+  };
 
   useEffect(() => () => {
     mounted.current = false;
@@ -116,22 +128,22 @@ export const AgentParameterRow = ({
 
   // Cuando el valor cambia (tras guardar), el borrador vuelve a él.
   useEffect(() => {
-    if (!editing) setDraft(parameter.value);
+    if (!editing) resetDraft();
   }, [valueKey]);
 
-  const save = async (value: ENSAgentParameterValue | undefined) => {
+  const save = async (value: ENSAgentParameterValue | undefined, matchMode: ENSMatchMode) => {
     if (value !== undefined && !isEmptyParameterValue(value)) {
-      const verdict = validateParameterValue(parameter, value);
+      const verdict = validateParameterValue(withMatchMode(parameter, matchMode), value);
       if (!verdict.valid) {
         setError(`${parameter.id} · ${parameter.label}: ${verdict.reason}.`);
         return;
       }
     }
-    const mode = describeSave(value);
+    const mode = describeSave(value, matchMode);
     setSaving(true);
     setError(undefined);
     try {
-      await onSave(value);
+      await onSave(value, matchMode);
       if (!mounted.current) return;
       setEditing(false);
       setSaved(mode === 'propio' ? undefined : HINTS[mode]);
@@ -143,7 +155,7 @@ export const AgentParameterRow = ({
     }
   };
 
-  const mode = editing ? describeSave(draft as ENSAgentParameterValue | undefined) : 'propio';
+  const mode = editing ? describeSave(draft as ENSAgentParameterValue | undefined, draftMode) : 'propio';
 
   return (
     <div ref={anchor} id={parameterAnchorId(parameter.controlId, parameter.id, agentId)}>
@@ -203,9 +215,10 @@ export const AgentParameterRow = ({
           <>
             <EuiSpacer size='s' />
             <ParameterRendererFactory
-              parameter={parameter}
+              parameter={withMatchMode(parameter, draftMode)}
               value={draft}
               onChange={(_name, value) => setDraft(value)}
+              onMatchModeChange={(_name, next) => setDraftMode(next)}
             />
             {mode !== 'propio' && (
               <EuiText size='xs' color='subdued'>
@@ -234,26 +247,26 @@ export const AgentParameterRow = ({
           {editing ? (
             <>
               <EuiFlexItem grow={false}>
-                <EuiButton size='s' fill isLoading={saving} onClick={() => save(draft as ENSAgentParameterValue | undefined)}>
+                <EuiButton size='s' fill isLoading={saving} onClick={() => save(draft as ENSAgentParameterValue | undefined, draftMode)}>
                   Guardar para este agente
                 </EuiButton>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiButtonEmpty size='s' onClick={() => { setDraft(parameter.value); setError(undefined); setEditing(false); onDone?.(); }}>
+                <EuiButtonEmpty size='s' onClick={() => { resetDraft(); setError(undefined); setEditing(false); onDone?.(); }}>
                   Cancelar
                 </EuiButtonEmpty>
               </EuiFlexItem>
             </>
           ) : (
             <EuiFlexItem grow={false}>
-              <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { setDraft(parameter.value); setSaved(undefined); setEditing(true); }}>
+              <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { resetDraft(); setSaved(undefined); setEditing(true); }}>
                 {own ? 'Editar' : contributionOnly ? 'Declarar filas de este agente' : 'Dar ajuste propio'}
               </EuiButtonEmpty>
             </EuiFlexItem>
           )}
           {own && !editing && (
             <EuiFlexItem grow={false}>
-              <EuiButtonEmpty size='s' color='danger' isLoading={saving} onClick={() => save(undefined)}>
+              <EuiButtonEmpty size='s' color='danger' isLoading={saving} onClick={() => save(undefined, 'exact')}>
                 Quitar ajuste propio (vuelve a heredar)
               </EuiButtonEmpty>
             </EuiFlexItem>

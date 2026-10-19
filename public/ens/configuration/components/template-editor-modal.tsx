@@ -23,6 +23,7 @@ import type {
   ENSAgentParameterValue,
   ENSControlConfiguration,
   ENSControlParameter,
+  ENSMatchMode,
   ENSSystemType,
 } from '../../../../common/ens/configuration/types';
 import { ENS_SYSTEM_TYPES, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
@@ -30,6 +31,7 @@ import { ENSControlTemplate, describeTemplate } from '../../../../common/ens/con
 import type { ENSTemplateInput } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { getParameterClass, isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { isEmptyParameterValue } from '../../../../common/ens/configuration/services/parameter-value-validator';
+import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 import { ParameterRendererFactory } from '../form-engine';
 import { valueRows } from './agent-parameter-row';
 
@@ -64,6 +66,7 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
   const [description, setDescription] = useState(template?.description || '');
   const [systemType, setSystemType] = useState<string>(template?.systemType || '');
   const [values, setValues] = useState<Record<string, ENSAgentParameterValue | undefined>>(() => ({ ...(template?.values || {}) }));
+  const [modes, setModes] = useState<Record<string, ENSMatchMode>>(() => ({ ...(template?.matchModes || {}) }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -71,15 +74,19 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
     setSaving(true);
     setError(undefined);
     const clean: Record<string, ENSAgentParameterValue> = {};
+    const matchModes: Record<string, ENSMatchMode> = {};
     Object.entries(values).forEach(([parameterId, value]) => {
       const typed = value as ENSAgentParameterValue | undefined;
-      if (typed !== undefined && !isEmptyParameterValue(typed)) clean[parameterId] = typed;
+      if (typed === undefined || isEmptyParameterValue(typed)) return;
+      clean[parameterId] = typed;
+      if (modes[parameterId] === 'regex') matchModes[parameterId] = 'regex';
     });
     const failure = await onSave({
       name,
       description,
       systemType: (systemType || undefined) as ENSSystemType | undefined,
       values: clean,
+      matchModes,
     });
     if (failure) {
       setSaving(false);
@@ -150,16 +157,24 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
                   )}
                 </EuiFlexGroup>
                 {readOnly ? (
-                  <EuiText size='xs'><Rows rows={valueRows(parameter, value as ENSControlParameter['value'])} /></EuiText>
+                  <EuiText size='xs'><Rows rows={valueRows(parameter, value as ENSControlParameter['value'], modes[parameter.id])} /></EuiText>
                 ) : (
                   <>
                     <ParameterRendererFactory
-                      parameter={parameter}
+                      parameter={withMatchMode(parameter, modes[parameter.id])}
                       value={value as ENSControlParameter['value']}
                       onChange={(_name, next) => setValues(current => ({ ...current, [parameter.id]: next as ENSAgentParameterValue }))}
+                      onMatchModeChange={(_name, mode) => setModes(current => ({ ...current, [parameter.id]: mode }))}
                     />
                     {!empty && (
-                      <EuiButtonEmpty size='xs' color='danger' onClick={() => setValues(current => ({ ...current, [parameter.id]: undefined }))}>
+                      <EuiButtonEmpty
+                        size='xs'
+                        color='danger'
+                        onClick={() => {
+                          setValues(current => ({ ...current, [parameter.id]: undefined }));
+                          setModes(current => ({ ...current, [parameter.id]: 'exact' }));
+                        }}
+                      >
                         Vaciar (valor común)
                       </EuiButtonEmpty>
                     )}

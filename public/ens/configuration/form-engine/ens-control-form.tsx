@@ -14,6 +14,7 @@ export const ENSControlForm = ({
   parameters,
   values,
   onChange,
+  onMatchModeChange,
 }: ENSControlFormProps) => (
   <>
     {parameters.map(parameter => (
@@ -25,6 +26,7 @@ export const ENSControlForm = ({
           parameter={parameter}
           value={values[parameter.name]}
           onChange={onChange}
+          onMatchModeChange={onMatchModeChange}
         />
       </div>
     ))}

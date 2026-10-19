@@ -18,7 +18,9 @@ import {
 import {
   ENSControlConfiguration,
   ENSControlParameterValues,
+  ENSMatchMode,
 } from '../../../../common/ens/configuration/types';
+import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
@@ -63,14 +65,6 @@ export const ConfigurationSession = ({
   secondaryDescription,
   focusParameterId,
 }: ConfigurationSessionProps) => {
-  const mainParameters = parameterIds
-    ? control.parameters.filter(parameter => parameterIds.includes(parameter.id))
-    : control.parameters;
-
-  const secondaryParameters = secondaryParameterIds
-    ? control.parameters.filter(parameter => secondaryParameterIds.includes(parameter.id))
-    : [];
-
   useEffect(() => {
     if (!focusParameterId || typeof document === 'undefined') {
       return;
@@ -100,6 +94,27 @@ export const ConfigurationSession = ({
     useState<ENSControlParameterValues>(
       initialValues
     );
+
+  const [matchModes, setMatchModes] =
+    useState<Record<string, ENSMatchMode>>({});
+
+  const draftControl: ENSControlConfiguration = {
+    ...control,
+    parameters: control.parameters.map(parameter =>
+      withMatchMode(parameter, matchModes[parameter.name] ?? parameter.matchMode)
+    ),
+  };
+
+  const mainParameters = parameterIds
+    ? draftControl.parameters.filter(parameter => parameterIds.includes(parameter.id))
+    : draftControl.parameters;
+
+  const secondaryParameters = secondaryParameterIds
+    ? draftControl.parameters.filter(parameter => secondaryParameterIds.includes(parameter.id))
+    : [];
+
+  const handleMatchModeChange = (parameterName: string, mode: ENSMatchMode) =>
+    setMatchModes(previous => ({ ...previous, [parameterName]: mode }));
 
   const [savedValues, setSavedValues] =
     useState<
@@ -141,7 +156,7 @@ export const ConfigurationSession = ({
     // había que dejar de hacer: la ausencia se arregla rellenando, esto se
     // arregla corrigiendo, y el auditor tiene que poder distinguirlo.
     const issues = validateControlParameterValues(
-      control,
+      draftControl,
       values
     );
 
@@ -164,7 +179,7 @@ export const ConfigurationSession = ({
     try {
       const configuredControl =
         applyENSControlParameterValues(
-          control,
+          draftControl,
           values
         );
 
@@ -197,6 +212,12 @@ export const ConfigurationSession = ({
         }, {});
 
       setValues(persistedValues);
+      setMatchModes(
+        persistedControl.parameters.reduce<Record<string, ENSMatchMode>>((acc, parameter) => {
+          acc[parameter.name] = parameter.matchMode === 'regex' ? 'regex' : 'exact';
+          return acc;
+        }, {})
+      );
       setSavedValues(persistedValues);
       onConfigurationSaved();
     } catch (error) {
@@ -237,6 +258,7 @@ export const ConfigurationSession = ({
                   {parameter.id} ·{' '}
                   {parameter.label}:
                 </strong>{' '}
+                {(matchModes[parameter.name] ?? parameter.matchMode) === 'regex' && 'Expresión regular: '}
                 {String(
                   savedValues[
                     parameter.name
@@ -264,6 +286,7 @@ export const ConfigurationSession = ({
         parameters={mainParameters}
         values={values}
         onChange={handleParameterChange}
+        onMatchModeChange={handleMatchModeChange}
       />
 
       {secondaryParameters.length > 0 && (
@@ -289,6 +312,7 @@ export const ConfigurationSession = ({
               parameters={secondaryParameters}
               values={values}
               onChange={handleParameterChange}
+              onMatchModeChange={handleMatchModeChange}
             />
           </EuiAccordion>
         </>

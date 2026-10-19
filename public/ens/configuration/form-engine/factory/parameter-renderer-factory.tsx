@@ -4,6 +4,7 @@ import { ENSFormFieldProps } from '../types';
 import {
   ListParameterRenderer,
   NumberParameterRenderer,
+  PatternParameterRenderer,
   SelectParameterRenderer,
   TableParameterRenderer,
   TextParameterRenderer,
@@ -13,6 +14,7 @@ import {
   hasParameterOptions,
   isPlainNumericParameter,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
+import { supportsParameterPattern } from '../../../../../common/ens/configuration/services/parameter-input';
 
 // `boolean`, `path` y `url` siguen cayendo en el renderer de texto: se editan
 // como cadena, que es lo que declaran. `list`, `select` y `table` necesitan
@@ -45,7 +47,19 @@ export const ParameterRendererFactory = ({
   parameter,
   value,
   onChange,
+  onMatchModeChange,
 }: ENSFormFieldProps) => {
+  if (supportsParameterPattern(parameter) && (onMatchModeChange || parameter.matchMode === 'regex')) {
+    return (
+      <PatternParameterRenderer
+        parameter={parameter}
+        value={value}
+        onChange={onChange}
+        onMatchModeChange={onMatchModeChange}
+      />
+    );
+  }
+
   if (isPlainNumericParameter(parameter)) {
     return (
       <NumberParameterRenderer

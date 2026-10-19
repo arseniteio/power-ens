@@ -39,10 +39,7 @@ export const RemoveEntryModal = ({ configuration, removal, onCancel, onConfirm }
         <ul>
           {lines.length ? lines.map((line, index) => <li key={`${index}-${line}`}>{line}</li>) : <li>nada guardado</li>}
         </ul>
-        <p>
-          Hoy no se aplica a ninguna máquina. La versión anterior del documento
-          queda en el historial y se restaura desde allí (guía 09, apartado 12).
-        </p>
+        <p>No se aplica a ninguna máquina y la versión anterior queda en el historial.</p>
       </EuiText>
     </ConfirmModal>
   );

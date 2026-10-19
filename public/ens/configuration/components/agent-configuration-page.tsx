@@ -21,6 +21,7 @@ import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
   ENSLevel,
+  ENSMatchMode,
   ENSSystemType,
 } from '../../../../common/ens/configuration/types';
 import {
@@ -235,10 +236,10 @@ export const AgentConfigurationPage = ({
     return failure;
   };
 
-  const saveParameter = async (controlId: string, parameterId: string, value: ENSAgentParameterValue | undefined) => {
-    const mode = describeAgentValueSave(configuration, agentId, controlId, parameterId, value);
+  const saveParameter = async (controlId: string, parameterId: string, value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => {
+    const mode = describeAgentValueSave(configuration, agentId, controlId, parameterId, value, matchMode);
     const failure = await save(
-      latest => setAgentParameterValue(latest, agentId, controlId, parameterId, value, row.agent),
+      latest => setAgentParameterValue(latest, agentId, controlId, parameterId, value, row.agent, matchMode),
       mode === 'propio' ? `${controlId} ${parameterId}: ajuste propio de ${label}.` : `${controlId} ${parameterId}: ${label} vuelve a heredar el valor.`
     );
     if (failure) throw new Error(failure);
@@ -383,7 +384,7 @@ export const AgentConfigurationPage = ({
         <EuiFlexItem style={{ minWidth: 320 }}>
           <EuiFormRow
             label='Otros nombres de este agente'
-            helpText='Separados por comas. El reparto por agentes reconoce por ellos las filas que nombran a este agente, además del id, el nombre y el hostname.'
+            helpText='Separados por comas; como el id, el nombre y el nombre del equipo, sirven para reconocer las filas que nombran a este agente.'
           >
             <EuiFieldText
               value={aliasesValue}
@@ -564,8 +565,8 @@ export const AgentConfigurationPage = ({
                     }
                     applicable={parameter.levels.includes(control.level)}
                     focused={open && target.parameterId === parameter.id}
-                    describeSave={next => describeAgentValueSave(configuration, agentId, control.controlId, parameter.id, next)}
-                    onSave={next => saveParameter(control.controlId, parameter.id, next)}
+                    describeSave={(next, matchMode) => describeAgentValueSave(configuration, agentId, control.controlId, parameter.id, next, matchMode)}
+                    onSave={(next, matchMode) => saveParameter(control.controlId, parameter.id, next, matchMode)}
                     onDone={
                       open && target.parameterId === parameter.id
                         ? () => onNavigate({ view: 'agents', agentId, controlId: control.controlId })
