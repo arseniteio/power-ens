@@ -11,11 +11,11 @@ import {
   ENSControlConfigurationState,
   ENSControlConfigurationStateStatus,
   resolveControlConfigurationState,
-} from '../services';
+} from '../../../../common/ens/configuration/services';
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import {
   ConfigurationSession,
 } from '../sessions';
@@ -24,6 +24,14 @@ interface ControlConfigurationResolverProps {
   control: ENSControlConfiguration;
   activeLevel: ENSLevel;
   onConfigurationSaved: () => void;
+  // Los parámetros de este nivel de la pantalla (Organización): el estado se
+  // calcula solo con ellos y el formulario los enseña arriba; el resto va en
+  // un desplegable. Sin esto, todos.
+  parameterIds?: string[];
+  secondaryParameterIds?: string[];
+  secondaryTitle?: string;
+  secondaryDescription?: string;
+  focusParameterId?: string;
 }
 
 const getConfigurationStateLabel = (
@@ -126,15 +134,28 @@ export const ControlConfigurationResolver = ({
   control,
   activeLevel,
   onConfigurationSaved,
+  parameterIds,
+  secondaryParameterIds,
+  secondaryTitle,
+  secondaryDescription,
+  focusParameterId,
 }: ControlConfigurationResolverProps) => {
+  // Con un parámetro pedido por la URL se abre directamente el formulario.
   const [
     isConfiguring,
     setIsConfiguring,
-  ] = useState(false);
+  ] = useState(!!focusParameterId);
 
   const configurationState =
     resolveControlConfigurationState(
-      control,
+      parameterIds
+        ? {
+            ...control,
+            parameters: control.parameters.filter(parameter =>
+              parameterIds.includes(parameter.id)
+            ),
+          }
+        : control,
       activeLevel
     );
 
@@ -145,6 +166,11 @@ export const ControlConfigurationResolver = ({
         onConfigurationSaved={
           onConfigurationSaved
         }
+        parameterIds={parameterIds}
+        secondaryParameterIds={secondaryParameterIds}
+        secondaryTitle={secondaryTitle}
+        secondaryDescription={secondaryDescription}
+        focusParameterId={focusParameterId}
       />
     );
   }

@@ -12,11 +12,13 @@
 // refuerzos R1 y R2 estarían todo el histórico tocando el suelo—. La línea se
 // parte y se dice cuántos días quedaron fuera.
 import React from 'react';
-import type { ENSControlTimelinePoint } from '../../core/timeline/control-timeline-points';
+import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
 
 interface ControlEvolutionChartProps {
   points: ENSControlTimelinePoint[];
   controlId: string;
+  // La serie aún se está calculando en el servidor (`meta.seriesPending`).
+  pending?: boolean;
 }
 
 const ALTO = 200;
@@ -142,7 +144,17 @@ const EtiquetaDeLectura = ({
 export const ControlEvolutionChart = ({
   points,
   controlId,
+  pending,
 }: ControlEvolutionChartProps) => {
+  // Sin la serie todavía: se está calculando, no es que no haya días medidos.
+  if (pending && !points.length) {
+    return (
+      <div style={{ padding: 14, color: '#69707D', background: '#FAFBFC', borderRadius: 6, fontSize: 13 }}>
+        Calculando la serie…
+      </div>
+    );
+  }
+
   // Los días con número. Se conserva el índice ORIGINAL para que el eje no se
   // comprima al saltarse los NO_APLICA: la distancia entre dos puntos tiene que
   // seguir siendo el tiempo que pasó entre ellos.

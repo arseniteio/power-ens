@@ -20,8 +20,8 @@
  * Se prueban las dos mitades: que el validador detecta el documento malo con su
  * camino, y que esa combinación de estados resuelve a ERROR y no a LOADING.
  */
-import { assertENSConfigurationVersion } from '../public/ens/configuration/services/configuration-structure-validator';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
+import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
 declare const process: { exit(code: number): void };
 

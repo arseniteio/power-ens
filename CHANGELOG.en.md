@@ -8,6 +8,145 @@ follow [semantic versioning](https://semver.org/).
 Each version's entry in the Spanish file, `CHANGELOG.md`, is the notes of its
 GitLab release.
 
+## [1.2.0] - 2026-10-18
+
+Evaluation on the server over the whole window, configuration by system, and
+screens that no longer disappear.
+
+### Added
+
+- Configuration by system (guide 09, «Configuration by system and templates»,
+  in `docs/deployment/`). The Configuration screen has two levels:
+  «Organización» (organization), with the common policy, and «Sistemas»
+  (systems), with what belongs to each agent in scope and to its platform.
+  Each parameter is an organization, per-system or per-platform parameter.
+  In a machine's row, a per-system or per-platform parameter takes the agent's
+  own value, otherwise its templates' value and otherwise the organization's;
+  the ones that describe other machines in a manager control are resolved by
+  union. Without per-system values, the verdicts are those of the organization
+  configuration.
+  - Each system's type (manager, Windows, Zimbra LDAP or Linux) is detected
+    from the inventory and the facts, shown with the detection evidence, and
+    can be corrected by hand.
+  - Platform templates «Linux Ubuntu», «Servidor LDAP Zimbra» (Zimbra LDAP
+    server), «Windows Server» and «Manager Wazuh» (Wazuh manager), and the
+    add-ons «Copias con PBS» (PBS backups) and «Copias Zimbra NE» (Zimbra NE
+    backups), with a per-system preview before saving.
+  - «Migrar a sistemas» (migrate to systems) copies to each agent the rows of
+    the organization tables that name it, without losing any row and without
+    leaving any machine without a value. It is optional and is confirmed by
+    typing `migrar`.
+  - Every version of the document is kept in the history before it is
+    replaced, whether the plugin, `inject-control.py` or `set-parameters.py`
+    writes it, including the migration.
+  - `config/set-parameters.py` declares a system's values (`agents` key) and
+    `config/validate-configuration.ts` validates them.
+- «Controles del catálogo sin añadir» (catalog controls not added), in
+  «Organización»: the controls that exist in the plugin and are not in the
+  document, with «Añadir con valores por defecto» (add with default values).
+  The controls list and the detail of such a control offer the same button.
+- The **Vista general** (overview) tab: every machine in scope and every
+  control at once. It includes a per-machine summary (statuses, requirements
+  not met, last data and its worst controls), the controls × machines matrix by
+  compliance or by collection freshness, the work queue grouped by who has to
+  act, and the 30-day trend with each control's status on each day.
+- **Configurar este control** (configure this control), in the control detail,
+  and a badge for each parameter cited in a non-conformity, with the value that
+  applies to the machine and its origin (own, from a template or from the
+  organization). They open Configuration on that control or parameter, with
+  «Volver al detalle de …» (back to the detail of …). Reports also show the
+  origin of the applied value.
+- The «ENSFácil» card on the OpenSearch Dashboards home page (`/app/home`),
+  when the dashboard includes the `home` plugin. The Wazuh home page offers no
+  extension point for other plugins' cards: there, ENSFácil is still only in
+  the menu.
+
+### Changed
+
+- **The evaluation runs on the plugin server with every fact of the 30-day
+  window**, with the permissions of the viewing user. The browser no longer
+  downloads facts: it receives the results (the controls list goes from about
+  170 MB to a few KB). 1.1.0 evaluated in the browser with the newest 10,000
+  facts (on the dashboard, of all controls together; in the list and the
+  detail, of each control), which in an active scope cover hours, not the whole
+  window. **When upgrading, some verdicts change**, because they are now those
+  of the whole window. In the lab, with the same facts, the 1.1.0 dashboard gave
+  CUMPLE to three evidences that are NO_CUMPLE over the 30 days and counted
+  fewer non-conformities than there are, because it left whole machines out.
+- The first load answers in parts. The controls list, the Vista general and
+  the dashboard show the controls already computed within a few seconds and
+  «Calculando…» (computing) on the rest, and complete without intervention;
+  while controls are missing, they show no overall figures. The daily evolution
+  is computed afterwards and, until it is ready, the chart reads «Calculando la
+  serie…» (computing the series). After that, the stored result is shown at
+  once and recomputed in the background when new facts arrive
+  («Actualizando…», updating). If a recomputation fails, the reason is shown
+  with «Reintentar» (retry) over the last correct result.
+- The controls list always shows all 23. The ones not measured on the selected
+  machine go last, in grey, with the reason and no number. A line names the
+  controls that do not apply at the level («Nivel BAJO: 4 controles no aplican
+  (…)»). With no machine selected, each control carries its machines bar
+  («1 cumple · 1 no cumple (de 2 máquinas)»).
+- Non-conformities read in parts. The headline is the failing evidence, its
+  status and the first sentence of its reason, without the bridge template and
+  without bold. Below come the rest of the reason, lists as lists, what follows
+  «Además» (also) apart, the requirement's other evidences with their status,
+  and the conforming ones folded. The reason text in Reports and in the PDF is
+  unchanged.
+- The control detail keeps the open control in the URL: switching tabs or
+  reloading the page opens it again.
+- op.acc.1: P-01 (identity source) changes from a menu to a list, because an
+  organization can have several identity sources; P-03 and P-04 come with the
+  system accounts of a Linux base and the forbidden generic accounts as their
+  initial value.
+
+### Fixed
+
+- The detail of a control not measured on the selected machine was empty and
+  read «Todo lo aplicable … conforme» (everything applicable … compliant). It
+  now states that the control is not measured on that machine, with the
+  reason.
+- When switching machine, the detail evaluated the new machine with the
+  previous machine's facts for a few seconds. It now shows the previous result,
+  labelled with its machine and time, until the new one arrives.
+- An error or a timeout replaced the whole page. The notice, with
+  «Reintentar», now appears above the last result.
+- «Activo:» (asset), in the detail, showed the manager's name with a machine
+  selected.
+- With the manager selected, the controls list hid the 14 controls measured
+  only on machines (and mp.info.6, on the machines outside its P-04).
+  Configuration did not show the catalog controls missing from the document.
+- While loading, the controls list showed a status on every row.
+- An address with a machine outside the scope set every control to «sin
+  datos» (no data). The selector now says so, with «Quitar la máquina y ver
+  todas» (remove the machine and see all).
+- The action proposed for a control missing from the active configuration
+  asked to fix the evidence producer. It now says how to add the control.
+- `config/deploy-plugin.sh` stopped the dashboard before checking that its user
+  could read the zip, and left it stopped if it could not (for example, with
+  the zip under `/home`). It now installs from a readable copy checked before
+  stopping and, if it cannot make one, exits with code 4 without touching the
+  service.
+
+### Upgrade notes
+
+- Nothing is migrated automatically: the 1.1.0 configuration is evaluated the
+  same way, with the organization values.
+- «Migrar a sistemas» is optional and reversible: the previous version of the
+  document stays in the history.
+- To go back to 1.1.0 after migrating, restore the version of the document
+  from before the migration: 1.1.0 does not see the rows that left the
+  organization (guide 09, section 12).
+- Each user's first load after the dashboard starts reads the whole window. In
+  the lab, the first controls appear within a few seconds and the complete
+  result in about 20 s; after that, the views are served at once.
+- The dashboard server now evaluates the controls, which uses its memory: in
+  the lab (6 machines), about 15 MB per user after the first load and about
+  50 MB while computing. It is bounded by 50,000 facts per read, 4 reads at a
+  time and a result memory of 64 to 256 MB depending on the scope. In a larger
+  deployment, give the dashboard more heap (`--max-old-space-size`, guide 04,
+  section 8.1).
+
 ## [1.1.0] - 2026-10-10
 
 Six new controls: the catalog goes from 17 to 23.

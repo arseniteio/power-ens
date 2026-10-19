@@ -1,34 +1,30 @@
-// Una fila del catálogo, con SU PROPIA consulta al índice.
+// Una fila del catálogo.
 //
-// POR QUÉ UNA CONSULTA POR CONTROL Y NO UNA PARA TODOS.
+// DESDE 1.2.0 LA FILA NO CONSULTA NADA. Hasta 1.1.0 cada fila pedía los
+// 10.000 hechos más recientes de su control y lo evaluaba en el navegador: 23
+// búsquedas a la vez, 170 MB de JSON en el laboratorio, y la pestaña colgada.
+// Ahora la lista pide UNA vez el resumen de todos los controles al servidor,
+// que evalúa cada control con TODOS sus hechos de la ventana (sin tope), y la
+// fila solo lo pinta. La fila y la ficha siguen juzgando el mismo conjunto: el
+// servidor usa la misma evaluación para las dos.
 //
-// El listado hacía UNA búsqueda de 10.000 hechos para los cinco controles y
-// evaluaba los cinco sobre ese mismo montón. Como los hechos vienen ordenados
-// por fecha descendente y op.acc.3 emite casi veinte mil en la ventana, los
-// 10.000 más recientes eran casi todos suyos: op.acc.2 se quedaba con las
-// migajas y el motor, viendo cuatro hechos, lo declaraba PARCIAL.
+// Y LA FILA NO DESAPARECE: un control que no se mide en la máquina elegida sale
+// al final, en gris, con el motivo y sin número; uno que no está en la
+// configuración activa lo dice y ofrece añadirlo (`controls-list-model.ts`).
 //
-// Y a diez centímetros, su ficha —que sí pide 10.000 para ese control solo—
-// decía 100 % CUMPLE. Dos pantallas del mismo producto dando veredictos
-// distintos del mismo control, sin que nada avisara de cuál creer.
-//
-// Un control con mucho volumen no puede robarle la medida a los demás. Cada
-// fila pide lo suyo, que es exactamente lo que hace la ficha, así que las dos
-// pantallas ven el mismo conjunto y no pueden discrepar.
-//
-// El coste son cinco búsquedas en vez de una. Es el precio de que el semáforo
-// diga la verdad, y un semáforo que miente no vale nada.
-import React, { useMemo } from 'react';
-import { EuiBadge, EuiFacetButton } from '@elastic/eui';
-import { useEsSearch } from '../../search/use-es-search';
-import { FACTS_READ_ERROR_TITLE, factsReadErrorText } from '../../platform/facts-read-error';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../core';
-import { ENSAgentScope } from '../core/scope/types';
-import { ENSLevel } from '../configuration/types';
+// El botón (`EuiFacetButton`) solo lleva id, título e insignias: su texto se
+// corta a una línea. El motivo y la barra de máquinas van en una segunda línea
+// de la fila, fuera del botón, y se parten con normalidad.
+import React from 'react';
+import { EuiBadge, EuiFacetButton, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiText } from '@elastic/eui';
+import { ENS_STATUS_COLORS } from '../status-colors';
+import { ENS_THEME } from '../theme-colors';
+import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
+import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
+import { controlRowWaitLabel } from './control-row-state';
+import type { ENSControlListEntry, ENSMachineTally } from './controls-list-model';
+import { describeTally } from './controls-list-model';
+import { AddControlWithDefaultsButton, NOT_IN_CONFIGURATION_TEXT } from './add-control-button';
 
 export interface ControlRowData {
   id: string;
@@ -39,137 +35,151 @@ export interface ControlRowData {
   pending: number;
 }
 
+// Lo que el servidor dice de un control (`include=summary`).
+export type ControlRowSummary = ENSControlSummaryEntry;
+
 interface ControlRowProps {
-  controlId: string;
-  title: string;
-  levels: string;
-  ensLevel: ENSLevel;
-  evaluationPeriod: string;
-  agentId?: string;
-  scopeAgents: ENSAgentScope[];
-  scopeFilter: unknown;
+  entry: ENSControlListEntry;
+  isLoading: boolean;
+  error?: Error;
   colorDelEstado: (estado: string) => string;
   badgeDelEstado: (estado: string) => string;
   onSelect: () => void;
+  onConfigurationChanged?: () => void;
 }
 
-export const ControlRow = ({
-  controlId,
-  title,
-  levels,
-  ensLevel,
-  evaluationPeriod,
-  agentId,
-  scopeAgents,
-  scopeFilter,
-  colorDelEstado,
-  badgeDelEstado,
-  onSelect,
-}: ControlRowProps) => {
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      buildENSEvaluationTimeRangeFilter(evaluationPeriod),
-      scopeFilter,
-      {
-        bool: {
-          should: [
-            { match_phrase: { 'data.ensfacil': controlId } },
-            { match_phrase: { 'data.control': controlId } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ],
-    // Los 10.000 MÁS RECIENTES, como el detalle del control: sin orden, el
-    // índice devuelve primero los más antiguos y la fila juzgaría el principio
-    // de la ventana en vez del estado actual.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-  });
+// La barra de máquinas de un control: un tramo por estado, del ancho de su
+// recuento. Solo con todas las máquinas a la vista.
+export const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
+  const tramos = [
+    { estado: 'CUMPLE', n: tally.cumple },
+    { estado: 'PARCIAL', n: tally.parcial },
+    { estado: 'NO_CUMPLE', n: tally.noCumple },
+    { estado: 'NO_EVALUABLE', n: tally.sinDatos },
+    { estado: 'NO_APLICA', n: tally.noAplica },
+  ].filter(tramo => tramo.n > 0);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+      <span style={{ display: 'inline-flex', width: 96, height: 8, borderRadius: 4, overflow: 'hidden', background: ENS_THEME.track }}>
+        {tramos.map(tramo => (
+          <span key={tramo.estado} style={{ width: `${(tramo.n / tally.total) * 100}%`, background: ENS_STATUS_COLORS[tramo.estado] }} />
+        ))}
+      </span>
+      <EuiText size='xs' color='subdued'>
+        <span>{`Máquinas: ${describeTally(tally)}`}</span>
+      </EuiText>
+    </div>
+  );
+};
 
-  const hits = esResults?.hits?.hits || [];
+export const ControlRow = ({ entry, isLoading, error, colorDelEstado, badgeDelEstado, onSelect, onConfigurationChanged }: ControlRowProps) => {
+  const { id: controlId, title, levels, summary } = entry;
+  const accion = !entry.configured ? (
+    <EuiFlexItem grow={false}>
+      <AddControlWithDefaultsButton controlId={controlId} onAdded={onConfigurationChanged} />
+    </EuiFlexItem>
+  ) : null;
+  const sinConfigurar = !entry.configured ? (
+    <EuiBadge color='warning' iconType='gear' style={{ marginLeft: 6 }}>
+      {NOT_IN_CONFIGURATION_TEXT}
+    </EuiBadge>
+  ) : null;
 
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
+  const fila = (contenido: React.ReactNode, segundaLinea?: React.ReactNode) => (
+    <div style={{ marginBottom: 8 }}>
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+        <EuiFlexItem>{contenido}</EuiFlexItem>
+        {accion}
+      </EuiFlexGroup>
+      {segundaLinea && <div style={{ padding: '2px 0 0 16px' }}>{segundaLinea}</div>}
+    </div>
   );
 
-  const resultado = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        controlId,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [controlId, ensLevel, normalizedEvents, agentId, scopeAgents],
-  );
-
-  // Sin resultado no es que el control incumpla: es que no está en el catálogo
-  // del motor. Ése es el único gris de esta pantalla.
-  const estado = resultado?.status || 'NO_EVALUABLE';
-
-  const noConformidades = (resultado?.requirements || []).filter(
-    requisito =>
-      requisito.applicable && requisito.status !== 'CUMPLE'
-  ).length;
-
-  const sinDemostrar = (resultado?.requirements || []).filter(
-    requisito =>
-      requisito.applicable &&
-      requisito.status !== 'CUMPLE' &&
-      (requisito as { evidenced?: boolean }).evidenced === false
-  ).length;
-
-  // Sin los hechos de ahora, ni veredicto ni recuento: los de antes no valen.
-  if (error) {
-    return (
-      <EuiFacetButton
-        isSelected={false}
-        onClick={onSelect}
-        style={{ borderLeft: '4px solid #BD271E', marginBottom: 8 }}
-      >
+  // NO SE MIDE EN ESTA MÁQUINA: al final, en gris, con el motivo. Sin número:
+  // no es un cumplimiento ni un incumplimiento.
+  if (entry.notMeasured) {
+    return fila(
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px dashed ${ENS_THEME.track}`, opacity: 0.7 }}>
         <strong>{controlId}</strong> — {title}
         <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
           {levels}
         </EuiBadge>
-        <EuiBadge color='danger' title={factsReadErrorText(error)} style={{ marginLeft: 6 }}>
-          {FACTS_READ_ERROR_TITLE}
+        <EuiBadge color='hollow' iconType='minusInCircle' style={{ marginLeft: 6 }} title={entry.notMeasured.text}>
+          No se mide en esta máquina
         </EuiBadge>
+        {sinConfigurar}
+      </EuiFacetButton>,
+      <EuiText size='xs' color='subdued'>
+        <p>{entry.notMeasured.text}</p>
+      </EuiText>
+    );
+  }
+
+  // Mientras llega el resumen de ESTA vista no se pinta ningún veredicto: el
+  // de la máquina anterior no es el de esta. Tampoco el de un control que aún
+  // se está calculando (primera carga por partes, `pending`).
+  const espera = error ? undefined : controlRowWaitLabel(isLoading, summary);
+  if (espera) {
+    return fila(
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px solid ${ENS_THEME.track}` }}>
+        <strong>{controlId}</strong> — {title}
+        <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
+          {levels}
+        </EuiBadge>
+        <span style={{ marginLeft: 8 }}>
+          <EuiLoadingSpinner size='s' />
+        </span>
+        <EuiBadge color='default' iconType='clock' style={{ marginLeft: 6 }}>
+          {espera}
+        </EuiBadge>
+        {sinConfigurar}
       </EuiFacetButton>
     );
   }
 
-  return (
+  // Sin los hechos de ahora, ni veredicto ni recuento: los de antes no valen.
+  if (error) {
+    return fila(
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px solid ${ENS_THEME.dangerText}` }}>
+        <strong>{controlId}</strong> — {title}
+        <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
+          {levels}
+        </EuiBadge>
+        <EuiBadge color='danger' title={evaluationErrorText(error)} style={{ marginLeft: 6 }}>
+          {EVALUATION_ERROR_TITLE}
+        </EuiBadge>
+        {sinConfigurar}
+      </EuiFacetButton>
+    );
+  }
+
+  // Sin resultado no es que el control incumpla: es que no está en el catálogo
+  // del motor. Ése es el único gris de esta pantalla.
+  const estado = summary?.status || 'NO_EVALUABLE';
+  const noConformidades = summary?.requirementsNotMet || 0;
+  const sinDemostrar = summary?.requirementsNotEvidenced || 0;
+
+  return fila(
     <EuiFacetButton
       quantity={noConformidades}
       isSelected={false}
       onClick={onSelect}
-      style={{
-        borderLeft: `4px solid ${colorDelEstado(estado)}`,
-        marginBottom: 8,
-      }}
+      style={{ borderLeft: `4px solid ${colorDelEstado(estado)}` }}
     >
       <strong>{controlId}</strong> — {title}
       <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
         {levels}
       </EuiBadge>
-      <EuiBadge
-        color={badgeDelEstado(estado)}
-        style={{ marginLeft: 6 }}
-      >
+      <EuiBadge color={badgeDelEstado(estado)} style={{ marginLeft: 6 }}>
         {estado}
       </EuiBadge>
       {sinDemostrar > 0 && (
-        <EuiBadge
-          color='default'
-          iconType='questionInCircle'
-          style={{ marginLeft: 6 }}
-        >
+        <EuiBadge color='default' iconType='questionInCircle' style={{ marginLeft: 6 }}>
           {sinDemostrar} no evidenciada{sinDemostrar === 1 ? '' : 's'}
         </EuiBadge>
       )}
-    </EuiFacetButton>
+      {sinConfigurar}
+    </EuiFacetButton>,
+    entry.machines ? <MachineTallyBar tally={entry.machines} /> : undefined
   );
 };

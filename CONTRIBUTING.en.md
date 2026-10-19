@@ -48,7 +48,7 @@ changes; if the reason needs explaining, it goes in the body.
   it: no import leaves the plugin, except to the OpenSearch Dashboards core and
   a closed list of packages.
 - **The engine decides the verdict.** Compliance is decided by the plugin's
-  deterministic engine (`public/ens/core/`): the same evidence and the same
+  deterministic engine (`common/ens/core/`): the same evidence and the same
   policy always give the same result. No model decides whether a control
   complies. The runbook collectors only emit facts, and
   `tests/check-consistency.py` checks that none of them emits a verdict.

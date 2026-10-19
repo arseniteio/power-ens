@@ -213,7 +213,7 @@ SIN_RUNBOOK = {
 
 
 def estados_del_catalogo():
-    """(control -> `status`, ficheros ilegibles) de `public/ens/catalog`.
+    """(control -> `status`, ficheros ilegibles) de `common/ens/catalog`.
 
     El `id` y el `status` del propio control son los únicos a dos espacios de
     sangría: los de requisitos van más adentro. Un fichero sin uno de los dos
@@ -223,7 +223,7 @@ def estados_del_catalogo():
     """
     estados = {}
     ilegibles = []
-    carpeta = os.path.join(PLUGIN, "public/ens/catalog")
+    carpeta = os.path.join(PLUGIN, "common/ens/catalog")
     for fichero in sorted(os.listdir(carpeta)):
         if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
             continue
@@ -386,7 +386,7 @@ def campo_lista(cuerpo, nombre):
 
 # ---------------------------------------------------------------------------
 
-catalogo = lee(os.path.join(PLUGIN, "public/ens/core/evidence/catalog.ts"))
+catalogo = lee(os.path.join(PLUGIN, "common/ens/core/evidence/catalog.ts"))
 
 print("=== 0. Cada runbook tiene un clon junto al plugin ===\n")
 
@@ -600,7 +600,7 @@ print("\n=== 7. Lo que el MOTOR lee del índice tiene regla en el manager ===\n"
 # un tipo a `DEFAULT_COLLECTOR_RUN_EVENT_TYPES` o lo declara por evidencia en
 # `collectorRunEventTypes`, esta comprobación lo exige sin tocar nada.
 judgment_ts = lee(
-    os.path.join(PLUGIN, "public/ens/core/evidence/judgment.ts")
+    os.path.join(PLUGIN, "common/ens/core/evidence/judgment.ts")
 )
 
 m = re.search(
@@ -625,7 +625,7 @@ if not tipos_motor:
     falla(
         "no se ha podido leer del fuente qué eventos lee el motor",
         "revisar DEFAULT_COLLECTOR_RUN_EVENT_TYPES en"
-        " public/ens/core/evidence/judgment.ts",
+        " common/ens/core/evidence/judgment.ts",
     )
 else:
     for control, (repos, xmls) in RUNBOOKS.items():
@@ -673,13 +673,13 @@ print("\n=== 8. Todo control declarado tiene su modelo de informe ===\n")
 
 
 def controles_declarados(carpeta):
-    """IDs de control de los ficheros por control de `public/ens/<carpeta>`.
+    """IDs de control de los ficheros por control de `<carpeta>`.
 
     El `id` del propio control es el único a dos espacios de sangría: los de
     requisitos y evidencias van más adentro.
     """
     ids = {}
-    ruta = os.path.join(PLUGIN, "public/ens", carpeta)
+    ruta = os.path.join(PLUGIN, carpeta)
     for fichero in sorted(os.listdir(ruta)):
         if not fichero.endswith(".ts") or fichero in ("index.ts", "types.ts"):
             continue
@@ -692,7 +692,9 @@ def controles_declarados(carpeta):
 
 
 declarados = {}
-for carpeta in ("catalog", "data"):
+# El catálogo está en `common/` (lo lee también el servidor); los datos de
+# los informes, en `public/`.
+for carpeta in ("common/ens/catalog", "public/ens/data"):
     # `setdefault` y no `update`: si el control está en las dos carpetas —lo
     # normal, son el doble catálogo—, el mensaje cita la primera, que es
     # siempre la misma. Un aviso que cambia de fichero según el orden del
@@ -711,7 +713,7 @@ con_modelo = set(re.findall(r"controlId: '([^']+)'", m.group(1))) if m else set(
 if not declarados:
     falla(
         "no se ha podido leer del fuente qué controles declara el producto",
-        "revisar los ficheros por control de public/ens/catalog y"
+        "revisar los ficheros por control de common/ens/catalog y"
         " public/ens/data",
     )
 elif not con_modelo:
@@ -786,7 +788,7 @@ def requisitos_sin_evidencia(control):
     """Requisitos que la policy del plugin declara SIN ninguna evidencia."""
     fn = control.replace(".", "-")
     ruta = os.path.join(
-        PLUGIN, "public/ens/core/policy-runtime/policies", fn + ".policy.ts"
+        PLUGIN, "common/ens/core/policy-runtime/policies", fn + ".policy.ts"
     )
     if not os.path.exists(ruta):
         return None
@@ -1039,7 +1041,7 @@ print()
 # NACE DE UN FALLO QUE COSTO CINCO EVIDENCIAS DE OCHO.
 #
 # P-01, P-02 y P-07 de op.acc.4 son `table` y declaraban sus columnas en
-# `public/ens/configuration/data/<control>-parameters.ts`, pero el BLOQUE
+# `common/ens/configuration/data/<control>-parameters.ts`, pero el BLOQUE
 # SEMILLA de `config/` no las llevaba. Como el motor lee la configuracion del
 # indice, y el indice se siembra del bloque, las columnas no existian donde se
 # juzga: EV-01, EV-02, EV-03, EV-07 y EV-08 salian NO_EVALUABLE con
@@ -1061,7 +1063,7 @@ import re as _re
 for _control in sorted(CON_BLOQUE):
     _slug = _control.replace(".", "-")
     _bloque = pathlib.Path(PLUGIN) / "config" / ("%s-control-block.json" % _slug)
-    _fuente = pathlib.Path(PLUGIN) / "public/ens/configuration/data" / ("%s-parameters.ts" % _slug)
+    _fuente = pathlib.Path(PLUGIN) / "common/ens/configuration/data" / ("%s-parameters.ts" % _slug)
 
     if not _bloque.exists():
         continue
@@ -1131,7 +1133,7 @@ print()
 print("=== 13. Ninguna evidencia acredita el id de un CONTROL ===")
 print()
 
-_cat = (pathlib.Path(PLUGIN) / "public/ens/core/evidence/catalog.ts").read_text(encoding="utf-8")
+_cat = (pathlib.Path(PLUGIN) / "common/ens/core/evidence/catalog.ts").read_text(encoding="utf-8")
 
 _huerfanos = []
 

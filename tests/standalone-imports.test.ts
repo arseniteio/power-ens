@@ -29,8 +29,10 @@ const resuelve = (r: string): boolean =>
 // Lo único que puede salir del plugin: el núcleo de OpenSearch Dashboards.
 const NUCLEO = /^(\.\.\/)+src\/(core|plugins\/(data|navigation))\//;
 // Cada paquete entero o una ruta dentro de él: `react` no deja pasar
-// `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`.
-const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n)|pdfmake|rxjs|lodash|moment|crypto|fs|path)(\/|$)/;
+// `react-redux`, ni `lodash` a `lodash-es`, ni `fs` a `fs-extra`. De
+// `@osd/ui-shared-deps`, solo `theme` (las variables del tema, que siguen el
+// modo oscuro; el dashboard las comparte con los plugins).
+const PERMITIDOS = /^(react|react-dom|react-router-dom|@elastic\/eui|@osd\/(config-schema|i18n|ui-shared-deps\/theme)|pdfmake|rxjs|lodash|moment|crypto|fs|path|zlib|https)(\/|$)/;
 
 for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(f, 'utf8');
@@ -60,6 +62,15 @@ for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(ra
         // Dentro del plugin tiene que existir: una ruta que no resuelve es la
         // huella de un import que apuntaba al árbol de Wazuh antes de mudarse.
         if (!resuelve(resuelto)) fallos.push(`${rel}: no resuelve dentro del plugin ${destino}`);
+        // El servidor solo lleva `server/` y `common/`: el empaquetado del
+        // plugin deja fuera todo `public/` (`**/public/**` en las plugin
+        // helpers de OSD). Un import de `public/` desde ahí compila en local y
+        // revienta al arrancar el dashboard con el zip.
+        const desde = path.relative(raiz, f).split(path.sep)[0];
+        const hacia = path.relative(raiz, resuelto).split(path.sep)[0];
+        if ((desde === 'server' || desde === 'common') && hacia === 'public') {
+          fallos.push(`${rel}: ${desde}/ no puede importar de public/ (${destino})`);
+        }
       } else {
         const desdeRaiz = path.relative(path.join(raiz, 'x', 'y'), resuelto);
         if (!NUCLEO.test(desdeRaiz.replace(/\\/g, '/') + '/')) fallos.push(`${rel}: sale del plugin hacia ${destino}`);

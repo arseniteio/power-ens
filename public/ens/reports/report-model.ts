@@ -1,6 +1,6 @@
 import type {
   ENSComplianceResult,
-} from '../core';
+} from '../../../common/ens/core';
 
 export type MPInfo6ReportFieldStatus =
   | 'CUMPLE'

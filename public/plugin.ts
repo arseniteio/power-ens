@@ -6,11 +6,12 @@ import {
   ENSFACIL_PLUGIN_ID,
 } from '../common/constants';
 import ensLogo from './assets/ens-logo.png';
+import { registerHomeCard } from './home-card';
 import { setServices } from './services';
 import type { EnsfacilSetupDeps, EnsfacilStartDeps } from './types';
 
 export class EnsfacilPlugin implements Plugin<{}, {}, EnsfacilSetupDeps, EnsfacilStartDeps> {
-  public setup(core: CoreSetup<EnsfacilStartDeps>): {} {
+  public setup(core: CoreSetup<EnsfacilStartDeps>, deps: EnsfacilSetupDeps): {} {
     core.application.register({
       id: ENSFACIL_PLUGIN_ID,
       title: ENSFACIL_APP_TITLE,
@@ -24,6 +25,8 @@ export class EnsfacilPlugin implements Plugin<{}, {}, EnsfacilSetupDeps, Ensfaci
         return renderApp(coreStart, depsStart, params);
       },
     });
+
+    registerHomeCard(deps?.home, ensLogo);
 
     return {};
   }

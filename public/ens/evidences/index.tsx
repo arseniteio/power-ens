@@ -1,7 +1,9 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useState } from 'react';
-import { useRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
+import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
+import React, { useMemo, useState } from 'react';
+import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
+import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import {
   EuiAccordion,
@@ -20,22 +22,14 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControls } from '../data';
-import { getActiveENSConfiguration } from '../configuration/services';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../core';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (el ciclo
 // transitivo del TDZ de `Settings` vive justo ahí).
 import type {
+  ENSComplianceResult,
   ENSGapCause,
   ENSObservationGroup,
-} from '../core/evaluation/types';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+} from '../../../common/ens/core/evaluation/types';
 import {
   compareENSIds,
   filterByENSPrefix,
@@ -510,11 +504,15 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
 );
 
 export const EvidencesENS = () => {
-  const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const { agentId, evidenceControl } = useRouterSearch();
+  const cambiaUrl = useSetRouterSearch();
 
   // Filtro por prefijo del identificador ENS. Vacío = sin filtro = se ve todo.
-  const [prefix, setPrefix] = useState<string>('');
+  // Solo empieza filtrado si se llega desde una evidencia pulsada en el Detalle
+  // del control (`evidenceControl=`, su propio parámetro): el `control=` que deja
+  // abierto el detalle NO filtra esta pantalla. El filtro se ve («Filtro: …» y
+  // «Quitar filtro») y, en cuanto se toca, deja de venir de la URL.
+  const [prefix, setPrefix] = useState<string>(() => evidenceControl || '');
 
   // Secciones que el operador ha abierto o cerrado a mano. Lo que no está aquí
   // usa el criterio por defecto (ver `isOpen`).
@@ -527,29 +525,11 @@ export const EvidencesENS = () => {
   // porque se cerró a mano tres búsquedas antes.
   const applyPrefix = (value: string) => {
     setPrefix(value);
+    if (evidenceControl) cambiaUrl({ evidenceControl: undefined });
     setOpenControlIds({});
   };
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey(current => current + 1);
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
   const scopeAgents = useActiveENSScopeAgents();
-
-  const scopeAgentQueryFilter = buildENSScopeAgentQueryFilter(
-    scopeAgents,
-    agentId,
-  );
 
   // La query trae eventos de todos los controles del scope activo.
   const allControlIds = useMemo(
@@ -567,45 +547,27 @@ export const EvidencesENS = () => {
     [scopeAgents.length],
   );
 
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      {
-        bool: {
-          should: allControlIds.flatMap(controlId => [
-            { match_phrase: { 'data.ensfacil': controlId } },
-            { match_phrase: { 'data.control': controlId } },
-            { match_phrase: { 'rule.groups': `ENS_${controlId}` } },
-          ]),
-          minimum_should_match: 1,
-        },
-      },
-    ],
-    // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
-    // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // Los resultados de TODOS los controles, evaluados en el servidor con todos
+  // los hechos de la ventana (hasta 1.1.0, aquí se bajaban los 10.000 más
+  // recientes y se evaluaba cada control en el navegador cada 15 s).
+  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta: ENSEvaluationMeta }>({
+    include: 'results',
+    agentId,
   });
+  const { error } = evaluacion;
 
-  const hits = esResults?.hits?.hits || [];
+  const resultados = useMemo(
+    () => new Map((evaluacion.data?.results || []).map(result => [result.control.id, result])),
+    [evaluacion.data],
+  );
 
   // Se evalúan SIEMPRE todos los controles, también los que el filtro deja
   // fuera. Es lo que permite decir «8 de 24 evidencias» y avisar de lo que se
   // está escondiendo: si solo se evaluara lo filtrado, el denominador sería el
   // propio filtro y la pantalla no podría contradecirse a sí misma.
   const groups: ControlEvidenceGroup[] = useMemo(() => {
-    const normalizedEvents = normalizeWazuhAlerts(hits);
-
     return ENSControls.map(control => {
-      const complianceResult = getENSComplianceResultByControl(
-        control.id,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      );
+      const complianceResult = resultados.get(control.id);
 
       const evidences = complianceResult?.evidences || [];
 
@@ -670,7 +632,7 @@ export const EvidencesENS = () => {
         notApplicable: countByStatus('NO_APLICA'),
       };
     }).sort((a, b) => compareENSIds(a.controlId, b.controlId));
-  }, [hits, ensLevel, agentId, scopeAgents]);
+  }, [resultados]);
 
   const filtered = useMemo(
     () => filterByENSPrefix(groups, prefix, group => group.filterableIds),
@@ -711,8 +673,8 @@ export const EvidencesENS = () => {
       [controlId]: nextIsOpen,
     }));
 
-  // Sin los hechos de ahora, ni estados ni recuentos: el refresco de 15 s
-  // vuelve a intentarlo.
+  // Sin la evaluación de ahora, ni estados ni recuentos: la comprobación
+  // periódica vuelve a intentarlo.
   if (error) {
     return (
       <EuiPanel paddingSize='l'>
@@ -720,7 +682,19 @@ export const EvidencesENS = () => {
           <h2>Repositorio de Evidencias ENS</h2>
         </EuiTitle>
         <EuiSpacer size='m' />
-        <FactsReadErrorCallOut error={error} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+      </EuiPanel>
+    );
+  }
+
+  // Mientras llega la evaluación de ESTA máquina no se pinta ningún estado.
+  if (!evaluacion.data) {
+    return (
+      <EuiPanel paddingSize='l'>
+        <EuiTitle size='s'>
+          <h2>Repositorio de Evidencias ENS</h2>
+        </EuiTitle>
+        <EvaluationLoading message='Evaluando las evidencias en el servidor con todos los hechos de la ventana.' />
       </EuiPanel>
     );
   }
@@ -730,6 +704,7 @@ export const EvidencesENS = () => {
       <EuiTitle size='s'>
         <h2>Repositorio de Evidencias ENS</h2>
       </EuiTitle>
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
 
       {/* Sin subtítulo: «evidencias resueltas por el motor desde eventos de
           Wazuh, agrupadas por control» es lo que ya dicen el título, los
@@ -819,7 +794,9 @@ export const EvidencesENS = () => {
 
         {filtered.isActive && (
           <EuiFlexItem grow={false}>
-            <EuiBadge color='accent'>Filtro: {filtered.query}</EuiBadge>
+            <EuiBadge color='accent'>
+              {`Filtro: ${filtered.query}${evidenceControl && prefix === evidenceControl ? ' (desde el Detalle del control)' : ''}`}
+            </EuiBadge>
           </EuiFlexItem>
         )}
 

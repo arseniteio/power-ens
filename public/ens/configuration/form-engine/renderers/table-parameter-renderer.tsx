@@ -20,7 +20,7 @@ import {
   resolveTableFieldModel,
   setTableCell,
   validateParameterValue,
-} from '../../services/parameter-value-validator';
+} from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
 // Renderer de parámetros `type: 'table'`.
 //

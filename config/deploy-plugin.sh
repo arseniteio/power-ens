@@ -24,8 +24,14 @@
 # Si algo falla con el dashboard ya parado, dice cómo volver a como estaba
 # (restaurar esa copia y arrancar) y sale con error. Códigos de salida:
 #   1 uso incorrecto · 2 el zip no es de ENSFácil · 3 no se pudo guardar la
-#   copia (no se ha tocado nada) · 5 falló la instalación · 6 el dashboard no
+#   copia (no se ha tocado nada) · 4 el usuario del dashboard no puede leer el
+#   zip (no se ha tocado nada) · 5 falló la instalación · 6 el dashboard no
 #   quedó activo al final · 7 falló otro paso con el dashboard parado.
+#
+# El instalador corre como el usuario wazuh-dashboard. El zip se copia antes
+# a una carpeta temporal que ese usuario puede leer, y se comprueba ANTES de
+# parar nada: un zip en una carpeta personal (0700) haría fallar la
+# instalación con el dashboard ya parado.
 #
 # POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
 #
@@ -124,6 +130,7 @@ vuelta_atras() {
 al_salir() {
   local rc=$?
   trap - EXIT
+  if [ -n "${ZIP_TEMPORAL_DIR:-}" ]; then rm -rf "$ZIP_TEMPORAL_DIR"; fi
   if [ "$PARADO" = 1 ] && [ "$rc" -ne 0 ]; then
     {
       echo
@@ -151,6 +158,16 @@ carpeta_de_copias() {
     chown root:root "$RESPALDOS" || return 1
   fi
 }
+
+# El zip que instala el usuario del dashboard: una copia legible para él.
+ZIP_TEMPORAL_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ensfacil-deploy.XXXXXX")"
+ZIP_INSTALAR="$ZIP_TEMPORAL_DIR/$PLUGIN_ID.zip"
+chmod 755 "$ZIP_TEMPORAL_DIR"
+if ! { cp "$ZIP" "$ZIP_INSTALAR" && chmod 644 "$ZIP_INSTALAR" && sudo -u wazuh-dashboard test -r "$ZIP_INSTALAR"; }; then
+  echo "el usuario wazuh-dashboard no puede leer la copia del zip en $ZIP_TEMPORAL_DIR: no se ha tocado nada." >&2
+  echo "Comprobar los permisos de ${TMPDIR:-/tmp} o indicar otra carpeta temporal con TMPDIR=<carpeta>." >&2
+  exit 4
+fi
 
 PASO="1/6 · guardando el plugin anterior ($PLUGIN_ID)"
 echo "== $PASO"
@@ -181,7 +198,7 @@ rm -rf "$OSD/plugins/.plugin.installing"
 
 PASO="4/6 · instalando"
 echo "== $PASO"
-if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP"; then
+if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP_INSTALAR"; then
   exit 5
 fi
 

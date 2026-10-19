@@ -1,5 +1,4 @@
-import { useActiveENSScopeAgents } from '../core/scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
   EuiBadge, EuiHealth, EuiBasicTable, EuiButton, EuiHorizontalRule,
@@ -7,28 +6,21 @@ import {
   EuiFilterGroup, EuiFilterButton, EuiStat,
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
-import { searchDataKey } from '../../search/search-decision';
-import { anotaConsulta, panoramaVigente } from './panorama-vigente';
-import type { ENSPanoramaMemoria } from './panorama-vigente';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { getActiveENSConfiguration } from '../configuration/services';
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  getENSComplianceState,
-  normalizeWazuhAlerts,
-} from '../core';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../core/scope';
+import { EvaluationStatusLine, EvaluationLoading } from '../../evaluation/evaluation-status';
+import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../common/ens/configuration/services';
+import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
+import { canExportReport, reportViewState } from './report-view-state';
+import { describeParameterForMachine } from '../controls/parameter-origins';
 // Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
 // entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
 // ciclo transitivo del TDZ de `Settings`).
 import type {
   ENSComplianceResult,
   ENSRequirementResult,
-} from '../core/evaluation/types';
+} from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
@@ -36,6 +28,7 @@ import {
   listENSControlsWithoutReportModel,
 } from './registry';
 import type { ENSReportModelDefinition } from './registry';
+import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import {
   buildENSReportEvidencePdfCell,
   buildENSReportRows,
@@ -48,10 +41,6 @@ import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
 import { ENSControls } from '../data';
 import {
-  buildENSAllControlsFactsFilter,
-  ENS_FACTS_QUERY_LIMIT,
-} from '../dashboard/all-controls-facts-filter';
-import {
   compareENSIds,
   filterByENSPrefix,
   listENSFamilies,
@@ -59,9 +48,6 @@ import {
 } from '../control-filter/prefix';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
-
-const getTs = (hit) =>
-  (hit && hit._source && (hit._source['@timestamp'] || (hit._source.data && hit._source.data.ts))) || '-';
 
 const fmt = (iso) => {
   if (!iso || iso === '-') return '-';
@@ -98,17 +84,19 @@ const ETIQUETA_DE_CAUSA: Record<string, string> = {
 // no hay ninguna rama condicional por encima de los hooks y, de paso, un control
 // sin modelo no lanza la consulta a OpenSearch que no va a poder usar.
 // El resultado de TODOS los controles para el informe que lo pide
-// (`usesAllControls`, op.mon.2). Lo calcula `<ControlReportWithPanorama>` con
-// SU propia consulta: el veredicto del control sigue saliendo de la consulta de
-// sus hechos, igual que en el detalle, y no del conjunto compartido.
+// (`usesAllControls`, op.mon.2). Lo pide `<ControlReportWithPanorama>` al
+// servidor aparte: el veredicto del control sigue saliendo de la evaluación de
+// ESE control, igual que en el detalle, y no del conjunto.
 interface ENSReportPanorama {
-  // `undefined` mientras la consulta está en curso o ha fallado: el informe
-  // enseña SIN_DATOS, nunca un panorama de otra consulta.
+  // `undefined` mientras la evaluación está en curso (el informe enseña que
+  // carga, nunca SIN_DATOS de relleno) o ha fallado (SIN_DATOS con su aviso).
+  // Nunca un panorama de otra máquina.
   results?: ENSComplianceResult[];
   loading: boolean;
-  // La consulta llegó al tope de hechos: los más antiguos quedan fuera.
-  truncated: boolean;
   error?: Error;
+  meta?: ENSEvaluationMeta;
+  refreshing?: boolean;
+  retry?: () => void;
 }
 
 const ControlReport = ({
@@ -121,7 +109,6 @@ const ControlReport = ({
   panorama?: ENSReportPanorama;
 }) => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
 
   const toggleRequirementDetail = (id: string) =>
@@ -131,70 +118,41 @@ const ControlReport = ({
         : [...current, id],
     );
 
-  useEffect(() => {
-    const i = window.setInterval(() => setRefreshKey(c => c + 1), 15000);
-    return () => window.clearInterval(i);
-  }, []);
-
   const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  const evaluationTimeFilter =
-    buildENSEvaluationTimeRangeFilter(evaluationPeriod);
-
-  const scopeAgents = useActiveENSScopeAgents();
-
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(scopeAgents, agentId);
-
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      { match_phrase: { 'data.ensfacil': controlId } },
-    ],
-    // Mismo tope y mismo orden que el panel y el detalle: los 10.000 hechos
-    // MÁS RECIENTES. Sin orden, el índice devuelve primero los más antiguos.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // El resultado del control lo calcula el servidor con TODOS sus hechos de la
+  // ventana (hasta 1.1.0, los 10.000 más recientes, evaluados en el navegador).
+  const evaluacion = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
+    include: 'control',
+    controlId,
+    agentId,
   });
-
-  const hits = useMemo(() => {
-    const raw = (esResults && esResults.hits && esResults.hits.hits) || [];
-    return [...raw].sort((a, b) => (new Date(getTs(b)).getTime() || 0) - (new Date(getTs(a)).getTime() || 0));
-  }, [esResults]);
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const complianceResult = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        controlId,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      // `controlId` en las dependencias, y no solo en las de `reportModel`:
-      // faltaba, y el selector de control renderizaba SIEMPRE el mismo
-      // `<ControlReport>` sin `key`, así que React reutilizaba la instancia al
-      // cambiar de control y el resultado del motor se quedaba congelado en el
-      // anterior mientras el modelo de informe sí cambiaba — un informe de
-      // op.acc.2 con los datos de op.acc.1.
-      controlId,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
-  );
+  const { error } = evaluacion;
+  const complianceResult = evaluacion.data?.result;
+  const ensLevel = evaluacion.data?.meta?.level || activeConfiguration.global.ensLevel;
+  // Un informe solo se pinta (y se exporta) con un resultado real de ESTA
+  // selección: mientras llega, ni NO_EVALUABLE ni N/A de relleno; y si llega
+  // sin resultado para esta máquina, se dice que no se mide aquí y por qué.
+  const maquina = agentId ? evaluacion.data?.meta?.scope?.find(agent => agent.id === agentId) : undefined;
+  const vista = reportViewState({
+    controlId,
+    agentId,
+    agentLabel: agentId ? (maquina?.name ? `${agentId} · ${maquina.name}` : agentId) : undefined,
+    error,
+    hasData: Boolean(evaluacion.data),
+    hasResult: Boolean(complianceResult),
+    usesPanorama: Boolean(panorama),
+    panoramaLoading: Boolean(panorama?.loading),
+    notMeasured: () => {
+      const catalogo = getENSCatalogControl(controlId);
+      return catalogo && agentId
+        ? describeNotMeasuredOnAgent(catalogo, agentId, maquina?.name, getActiveControlConfiguration(controlId, agentId))
+        : undefined;
+    },
+  });
+  const exportable = canExportReport(vista);
 
   const panoramaResults = panorama?.results;
 
@@ -333,10 +291,14 @@ const ControlReport = ({
     return String(value);
   };
 
+  // El valor es el que aplicó el motor a ESTA vista (la fila de la máquina,
+  // con su configuración resuelta); el origen lo dice el resolutor de
+  // Configuración: propio de la máquina, de una plantilla o de la organización.
   const parameterRows = parameterResults.map(parameter => ({
     parametro: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
     value: formatParameterValue(parameter.value),
+    origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
     required: parameter.required ? 'Sí' : 'No',
     requirements: parameter.requirements.join(', ') || '-',
     // Solo en los dos estados en los que el motor aplica de verdad el
@@ -507,6 +469,16 @@ const ControlReport = ({
     {
       field: 'value',
       name: 'Valor aplicado',
+      render: (value: string, item: { origin: string }) => (
+        <>
+          <EuiText size='xs'>{value}</EuiText>
+          {item.origin ? (
+            <EuiText size='xs' color='subdued'>
+              {item.origin}
+            </EuiText>
+          ) : null}
+        </>
+      ),
     },
     {
       field: 'required',
@@ -589,10 +561,9 @@ const ControlReport = ({
   ];
 
   const exportarPDF = () => {
-    // Un informe firmado con los hechos de la búsqueda anterior no se emite.
-    if (error) return;
-    // Ni uno que recopila todos los controles mientras su consulta no ha vuelto.
-    if (panorama?.loading) return;
+    // Un informe firmado sin el resultado de esta selección no se emite, ni
+    // uno que recopila todos los controles mientras su panorama no ha vuelto.
+    if (!exportable || !complianceResult) return;
     const now = new Date();
     const fechaEmision = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -777,7 +748,7 @@ const ControlReport = ({
               ],
               ...parameterRows.map(parameter => [
                 {
-                  text: `${parameter.parametro}: ${parameter.value}`,
+                  text: `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`,
                   style: 'td',
                 },
                 { text: parameter.required, style: 'td' },
@@ -824,13 +795,47 @@ const ControlReport = ({
     (pdfMake as any).createPdf(docDefinition).download(nombre);
   };
 
-  // Sin los hechos de ahora, ni informe ni PDF: el refresco de 15 s vuelve a
-  // intentarlo.
+  // Sin la evaluación de ahora, ni informe ni PDF: «Reintentar» la vuelve a pedir.
   if (error) {
     return (
       <>
-        <FactsReadErrorCallOut error={error} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
         <EuiSpacer size='m' />
+        <EuiButton iconType='download' size='s' fill isDisabled>
+          Exportar PDF
+        </EuiButton>
+      </>
+    );
+  }
+
+  if (vista.kind === 'not-measured') {
+    return (
+      <>
+        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+        <EuiCallOut size='s' color='primary' iconType='iInCircle' title={vista.title}>
+          <EuiText size='xs'>
+            <p>{vista.text}</p>
+            <p>Sin resultado en esta selección no hay informe que exportar.</p>
+          </EuiText>
+        </EuiCallOut>
+        <EuiSpacer size='m' />
+        <EuiButton iconType='download' size='s' fill isDisabled>
+          Exportar PDF
+        </EuiButton>
+      </>
+    );
+  }
+
+  if (vista.kind === 'loading' || vista.kind === 'panorama-loading') {
+    return (
+      <>
+        <EvaluationLoading
+          message={
+            vista.kind === 'loading'
+              ? 'Evaluando el control en el servidor con todos los hechos de la ventana…'
+              : 'Evaluando todos los controles para el panorama del informe (grado de implantación, controles no evaluables, art. 32)…'
+          }
+        />
         <EuiButton iconType='download' size='s' fill isDisabled>
           Exportar PDF
         </EuiButton>
@@ -845,25 +850,9 @@ const ControlReport = ({
       {/* Sin título: el del control ya está en la cabecera del acordeón que
           envuelve este informe. `definition.name` encabeza el PDF, que sí sale
           suelto del contexto de la pantalla. */}
-      {panorama?.truncated ? (
-        <>
-          <EuiCallOut
-            size='s'
-            color='warning'
-            iconType='alert'
-            title={`El resultado de todos los controles se ha calculado con los ${ENS_FACTS_QUERY_LIMIT.toLocaleString('es-ES')} hechos más recientes y la consulta ha llegado a ese tope`}
-          >
-            <EuiText size='xs'>
-              <p>
-                Los hechos más antiguos de la ventana quedan fuera: el grado de
-                implantación, los controles no evaluables y los datos del art.
-                32 pueden no coincidir con el detalle de cada control. Acorta el
-                periodo de evaluación o filtra por una máquina.
-              </p>
-            </EuiText>
-          </EuiCallOut>
-          <EuiSpacer size='s' />
-        </>
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+      {panorama?.meta ? (
+        <EvaluationStatusLine label='Panorama de todos los controles' meta={panorama.meta} refreshing={panorama.refreshing} onRetry={panorama.retry} />
       ) : null}
       {panorama?.error ? (
         <>
@@ -879,7 +868,13 @@ const ControlReport = ({
                 datos del art. 32 salen sin datos. El veredicto del control no
                 depende de esta consulta.
               </p>
+              <p>{String(panorama.error?.message || panorama.error)}</p>
             </EuiText>
+            {panorama.retry ? (
+              <EuiButtonEmpty size='xs' iconType='refresh' onClick={panorama.retry}>
+                Reintentar
+              </EuiButtonEmpty>
+            ) : null}
           </EuiCallOut>
           <EuiSpacer size='s' />
         </>
@@ -976,7 +971,7 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={Boolean(error) || Boolean(panorama?.loading)}>
+      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={!exportable}>
         Exportar PDF
       </EuiButton>
     </>
@@ -996,78 +991,21 @@ const ControlReportWithPanorama = ({
   definition: ENSReportModelDefinition;
 }) => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const i = window.setInterval(() => setRefreshKey(c => c + 1), 15000);
-    return () => window.clearInterval(i);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
-  // Anclado a la identidad del alcance, como en el panel: el resultado de
-  // todos los controles es caro y no se recalcula en cada render.
-  const scopeAgentsKey = getActiveENSScopeAgents()
-    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
-    .join(',');
-  const scopeAgents = useMemo(
-    () => getActiveENSScopeAgents(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scopeAgentsKey],
-  );
-
-  const consulta = {
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      buildENSScopeAgentQueryFilter(scopeAgents, agentId),
-      buildENSAllControlsFactsFilter(ENSControls.map(control => control.id)),
-    ],
-    size: ENS_FACTS_QUERY_LIMIT,
-    sorting: [{ timestamp: { order: 'desc' } }],
+  // El panorama (el resultado de todos los controles) lo calcula el servidor
+  // con todos los hechos de la ventana: ya no hay tope ni hechos recortados.
+  // El hook no devuelve nunca el de otra máquina como si fuera de esta: con
+  // otra clave, `data` vuelve a estar vacío hasta que llega el suyo (lo que
+  // antes resolvía `panorama-vigente.ts` para `useEsSearch`).
+  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta?: ENSEvaluationMeta }>({
+    include: 'results',
+    agentId,
+  });
+  const { error } = evaluacion;
+  const vigente = {
+    valor: evaluacion.data ? { results: evaluacion.data.results } : undefined,
+    cargando: !evaluacion.data && !error,
   };
-
-  const { esResults, isLoading, error } = useEsSearch({ ...consulta, refreshKey });
-
-  // La clave de la consulta: sus datos (rango, máquina, filtro, tope) sin el
-  // `refreshKey`, y el nivel con que se evalúa. Mientras no cambia, un refresco
-  // no es una consulta nueva.
-  const claveConsulta = `${ensLevel}|${searchDataKey(consulta)}`;
-
-  const hits = useMemo(
-    () => (esResults && esResults.hits && esResults.hits.hits) || [],
-    [esResults],
-  );
-
-  // Los hechos que hay ahora, ¿son de ESTA consulta? En el primer render tras
-  // cambiar la clave, `useEsSearch` aún dice `isLoading=false` con los hechos
-  // de la anterior: esos no valen (ver `panorama-vigente.ts`).
-  const memoria = useRef<ENSPanoramaMemoria<{ results: ENSComplianceResult[]; truncated: boolean }>>({});
-  const deEstaConsulta = anotaConsulta(memoria.current, claveConsulta, isLoading);
-
-  const respuesta = useMemo(
-    () =>
-      deEstaConsulta && !error
-        ? {
-            results: getENSComplianceState(
-              ensLevel,
-              normalizeWazuhAlerts(hits),
-              agentId,
-              scopeAgents,
-            ).results,
-            truncated: hits.length >= ENS_FACTS_QUERY_LIMIT,
-          }
-        : undefined,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deEstaConsulta, error, hits, claveConsulta],
-  );
-
-  // Un refresco de la MISMA clave conserva el último panorama (sin parpadeo,
-  // PDF activo); la primera carga y otra clave, SIN_DATOS y PDF desactivado.
-  const vigente = panoramaVigente(memoria.current, claveConsulta, error, respuesta);
 
   return (
     <ControlReport
@@ -1076,8 +1014,10 @@ const ControlReportWithPanorama = ({
       panorama={{
         results: vigente.valor?.results,
         loading: vigente.cargando,
-        truncated: Boolean(vigente.valor?.truncated),
         error,
+        meta: evaluacion.data?.meta,
+        refreshing: evaluacion.isRefreshing,
+        retry: evaluacion.retry,
       }}
     />
   );
@@ -1369,9 +1309,9 @@ export const InformesENS = () => {
                 paddingSize='m'
               >
                 {/* Montado SOLO cuando la sección está abierta. Cada
-                    `<ControlReport>` lanza su propia consulta a OpenSearch y la
-                    repite cada 15 s: cerrado no consulta. Y solo si el control
-                    TIENE modelo: sin modelo no hay informe de repuesto. */}
+                    `<ControlReport>` pide la evaluación de su control al
+                    servidor: cerrado no pide nada. Y solo si el control TIENE
+                    modelo: sin modelo no hay informe de repuesto. */}
                 {isOpen(entry.controlId) ? (
                   entry.reportModelDefinition ? (
                     entry.reportModelDefinition.usesAllControls ? (

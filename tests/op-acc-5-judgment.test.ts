@@ -13,18 +13,18 @@
  * Reglas de la casa: cada caso mueve UN eje respecto del anterior y lleva al
  * lado la reversión que demuestra que no pasaría siempre.
  */
-import { opAcc5CatalogDefinition } from '../public/ens/catalog/op-acc-5';
-import { opAcc5Configuration } from '../public/ens/configuration/data/op-acc-5-parameters';
+import { opAcc5CatalogDefinition } from '../common/ens/catalog/op-acc-5';
+import { opAcc5Configuration } from '../common/ens/configuration/data/op-acc-5-parameters';
 import type {
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { runPolicyRuntime } from '../public/ens/core/policy-runtime/policy-runtime';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { requirementVerdict } from '../public/ens/core/evaluation/utils/verdict';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { runPolicyRuntime } from '../common/ens/core/policy-runtime/policy-runtime';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { requirementVerdict } from '../common/ens/core/evaluation/utils/verdict';
 
 declare const process: { exit(code: number): void };
 

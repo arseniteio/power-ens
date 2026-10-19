@@ -204,7 +204,7 @@ mv dist/ensfacil-2.19.5.zip "dist/ensfacil-$V-osd-2.19.5.zip"
 ls dist/
 ```
 
-Resultado esperado: `ensfacil-1.1.0-osd-2.19.5.zip`, con la versión del
+Resultado esperado: `ensfacil-1.2.0-osd-2.19.5.zip`, con la versión del
 repositorio.
 
 Para obtener una carpeta como la de una release, con los dos scripts y sus
@@ -225,7 +225,7 @@ Desde la raíz del repositorio, con `ZIP` apuntando al zip compilado:
 
 ```bash
 ZIP=/opt/ensfacil/build/plugins/ensfacil/build/ensfacil-2.19.5.zip   # apartado 3
-# ZIP=dist/ensfacil-1.1.0-osd-2.19.5.zip                             # apartado 4
+# ZIP=dist/ensfacil-1.2.0-osd-2.19.5.zip                             # apartado 4
 
 unzip -t "$ZIP" | tail -1
 bash config/deploy-plugin.sh --solo-id "$ZIP"

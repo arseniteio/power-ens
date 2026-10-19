@@ -106,7 +106,7 @@ fi
 Resultado esperado: `dashboard: active` y `ensfacil` en la lista de plugins. Comprobar después como en el apartado 3.
 
 > [!important]
-> Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización.
+> Si la versión retirada había sembrado controles que la anterior no conoce, restaurar también la configuración ENS (apartado 7) con la copia hecha antes de la actualización. Para volver de la 1.2.0 a la 1.1.0 después de «Migrar a sistemas», restaurar la versión del documento anterior a la migración ([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
 ### 4.1 Si `deploy-plugin.sh` falla a medias
 
@@ -119,6 +119,7 @@ Si algo falla con el dashboard ya parado, el script imprime los comandos para vo
 | `1` | uso incorrecto: ningún zip, dos zips o una opción desconocida | sin tocar |
 | `2` | el zip no es de ENSFácil | sin tocar |
 | `3` | no se pudo guardar la copia del plugin anterior | sin tocar: el dashboard sigue en marcha |
+| `4` | el usuario `wazuh-dashboard` no puede leer la copia temporal del zip (el script la deja en `${TMPDIR:-/tmp}`) | sin tocar: el dashboard sigue en marcha; indicar otra carpeta con `TMPDIR=<carpeta>` |
 | `5` | falló la instalación del zip | dashboard parado y sin `ensfacil` |
 | `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: revisar `journalctl -u wazuh-dashboard` |
 | `7` | falló otro paso con el dashboard parado (retirar el plugin, subir el `build.number`, arrancar) o se interrumpió | el mensaje dice el paso |
@@ -185,7 +186,7 @@ Solo para un entorno que viene de la versión integrada ([guía de actualizació
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.1.0   # la versión de ENSFácil instalada
+V=1.2.0   # la versión de ENSFácil instalada
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
@@ -264,9 +265,82 @@ Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después 
 | `install-manager.sh`: «hay más de un bloque `<agent_config>`» | el `agent.conf` del grupo `ens` (o el de `ens-copias`, en mp.info.6) tiene dos bloques | fusionar todo en un solo `<agent_config>`, validar con `verify-agent-conf` y repetir |
 | `install-manager.sh` termina bien pero la regla no casa | una ejecución anterior falló tras copiar las reglas y la repetición no reinicia el manager | `sudo systemctl restart wazuh-manager` y comprobar con `wazuh-logtest` |
 | Evidencias de auditd sin medir en una máquina (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8, op.exp.10) | el `install.sh` escribió las reglas en `/etc/audit/rules.d/` pero no se cargaron | comprobar que auditd no está en modo inmutable (`sudo auditctl -s`, `enabled` distinto de `2`) y ejecutar `sudo augenrules --load` |
+| «Datos incompletos: N de M shards fallaron al leer …» (error 503) | algún shard del indexer no respondió; la evaluación no se hace con datos a medias ni se guarda | comprobar el estado del clúster (`_cluster/health`) y pulsar «Reintentar» cuando esté en `green` o `yellow` |
+| «Demasiados hechos para evaluar … de una vez (más de 50.000)» | un control tiene en una máquina más hechos en la ventana de los que el servidor del plugin lee de una vez | acortar el periodo de evaluación o el alcance; revisar si un recolector emite más de lo habitual |
+| «No se pudo actualizar la evaluación: …», con el resultado calculado antes | el recálculo en segundo plano falló; la pantalla muestra el último resultado correcto con su hora | pulsar «Reintentar»; el plugin también lo reintenta solo, con esperas crecientes de 30 s a 5 min. Si persiste, revisar el registro del dashboard (apartado 3) |
+| «Calculando la evaluación» o «Calculando la serie…» durante minutos | la primera carga de cada usuario lee la ventana entera (en el laboratorio, unos 20 s); con muchas máquinas o muchos hechos tarda más | esperar: el cálculo sigue aunque se cambie de pestaña, y la pantalla se completa sola. Si no termina, revisar el registro del dashboard (apartado 3) |
 | Un control muestra «Sin datos del recolector desde …» | el último latido del recolector de ese control en esa máquina tiene más de 24 h | comprobar el agente, el cron del recolector y la conectividad; el control vuelve a juzgarse en cuanto llega una pasada nueva |
 | Un control medido en el manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) sin datos en la fila del manager | falta el `install-manager.sh` del runbook o su cron (horario o cada 6 horas, según el control) todavía no se ha ejecutado | revisar `/etc/cron.d/ensfacil-op*` del manager y el `<localfile>` en su `ossec.conf`. En Docker, el apartado 9.3 |
 | Una regla de op.exp.1 aparece en eventos de op.exp.10 | reglas de op.exp.1 anteriores a la corrección, con el campo `ensfacil` sin anclar | actualizar el runbook de op.exp.1 y repetir su `install-manager.sh` |
+| El dashboard se reinicia solo y el registro dice `JavaScript heap out of memory` o `FATAL ERROR: … Allocation failed` | desde la 1.2.0 el servidor del dashboard evalúa los controles, y en un alcance grande el montón por defecto de Node se queda corto | darle más montón al dashboard (apartado 8.1) |
+
+### 8.1 Memoria del dashboard
+
+Desde la 1.2.0 el servidor del dashboard evalúa los controles. En el
+laboratorio (6 máquinas, unos 210.000 hechos en 30 días) eso añade unos 15 MB
+por usuario tras la primera carga y unos 50 MB mientras se calcula; el proceso
+del dashboard ocupa en total unos 470-550 MB. Lo acotan 50.000 hechos por
+lectura (unos 85 MB), 4 lecturas a la vez (unos 340 MB en el peor caso) y una
+memoria de resultados de 64 a 256 MB según el alcance (`server/README.md`,
+apartado «Memoria»).
+
+En un despliegue mayor que el laboratorio (decenas de máquinas o millones de
+hechos en la ventana), el montón de Node del dashboard debe ser de al menos
+2048 MB hasta unas 30 máquinas y de 4096 MB por encima, con al menos el doble
+de memoria libre en el servidor. El límite por defecto de Node depende de la
+memoria del servidor (en uno de 8 GB es de unos 2096 MB): solo se fija un valor
+si el actual es menor.
+
+1. Comprobar el fichero de opciones de Node del dashboard y el límite que Node
+   asigna por defecto en este servidor (en MB):
+
+   ```bash
+   sudo cat /etc/wazuh-dashboard/node.options
+   sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/node/bin/node -e 'console.log(Math.round(require("v8").getHeapStatistics().heap_size_limit / 1048576))'
+   ```
+
+   Resultado esperado: el contenido del fichero y un número. Si el fichero ya
+   lleva `--max-old-space-size` con un valor igual o mayor que el elegido, o el
+   número es mayor que el valor elegido, no cambiar nada: fijar un valor menor
+   reduce la memoria del dashboard.
+
+2. Si el fichero existe, sustituir cualquier `--max-old-space-size` anterior por
+   el valor elegido:
+
+   ```bash
+   sudo sed -i '/--max-old-space-size=/d' /etc/wazuh-dashboard/node.options
+   echo '--max-old-space-size=4096' | sudo tee -a /etc/wazuh-dashboard/node.options
+   ```
+
+   Si no existe, ponerla en el servicio:
+
+   ```bash
+   sudo systemctl edit wazuh-dashboard
+   ```
+
+   con este contenido:
+
+   ```ini
+   [Service]
+   Environment="NODE_OPTIONS=--max-old-space-size=4096"
+   ```
+
+3. Reiniciar el dashboard y comprobar que el proceso lleva la opción:
+
+   ```bash
+   sudo systemctl restart wazuh-dashboard
+   pid=$(systemctl show -p MainPID --value wazuh-dashboard)
+   sudo cat /proc/$pid/cmdline /proc/$pid/environ | tr '\0' '\n' | grep -o 'max-old-space-size=[0-9]*'
+   ```
+
+   Resultado esperado: `max-old-space-size=4096`.
+
+En Docker, la variable va en el servicio `wazuh.dashboard` del
+`docker-compose.yml` (`environment: - NODE_OPTIONS=--max-old-space-size=4096`),
+y se aplica con `docker compose up -d wazuh.dashboard`.
+
+Para revertir, quitar la línea (o el fichero de `systemctl edit`) y reiniciar el
+dashboard.
 
 ## 9. Docker
 

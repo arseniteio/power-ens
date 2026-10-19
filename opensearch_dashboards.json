@@ -1,9 +1,9 @@
 {
   "id": "ensfacil",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "opensearchDashboardsVersion": "2.19.5",
   "server": true,
   "ui": true,
   "requiredPlugins": ["data", "navigation"],
-  "optionalPlugins": ["securityDashboards"]
+  "optionalPlugins": ["securityDashboards", "home"]
 }

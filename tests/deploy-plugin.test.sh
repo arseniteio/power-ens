@@ -66,7 +66,11 @@ case "$1" in
   *) exit 0 ;;
 esac
 EOF
-  printf '#!/bin/sh\n[ "$1" = -u ] && shift 2\nexec "$@"\n' > "$E/bin/sudo"
+  if [ "${2:-}" = no-legible ]; then
+    printf '#!/bin/sh\n[ "$1" = -u ] && shift 2\n[ "$1" = test ] && exit 1\nexec "$@"\n' > "$E/bin/sudo"
+  else
+    printf '#!/bin/sh\n[ "$1" = -u ] && shift 2\nexec "$@"\n' > "$E/bin/sudo"
+  fi
   printf '#!/bin/sh\nexit 0\n' > "$E/bin/curl"
   [ "${2:-}" = cp-falla ] && printf '#!/bin/sh\ncase "$1" in */package.json) exit 1 ;; esac\nexec /bin/cp "$@"\n' > "$E/bin/cp"
   cat > "$E/osd/bin/opensearch-dashboards-plugin" <<'EOF'
@@ -85,7 +89,8 @@ EOF
 }
 despliega() {
   local E="$1"
-  (cd "$E" && PATH="$E/bin:$PATH" OSD="$E/osd" ENSFACIL_BACKUP_DIR="${COPIAS:-$E/copias}" FALSO="$E" \
+  mkdir -p "$E/tmp"
+  (cd "$E" && PATH="$E/bin:$PATH" OSD="$E/osd" ENSFACIL_BACKUP_DIR="${COPIAS:-$E/copias}" FALSO="$E" TMPDIR="$E/tmp" \
      bash "$RAIZ/config/deploy-plugin.sh" "$T/a.zip" > "$E/salida" 2>&1)
   echo $? > "$E/rc"
 }
@@ -105,7 +110,8 @@ caso "la copia va a ENSFACIL_BACKUP_DIR/ensfacil, no junto al zip" '[ "$(copias_
 caso "la subcarpeta de copias, que crea él, es 0700" '[ "$(modo "$E/copias/ensfacil")" = drwx------ ]'
 caso "la copia guarda el plugin anterior" 'tar -tzf "$(copias_de ensfacil)" | grep -q "^plugins/ensfacil/viejo.txt$"'
 caso "el plugin nuevo queda instalado, el viejo no" '[ -f "$E/osd/plugins/ensfacil/package.json" ] && [ ! -e "$E/osd/plugins/ensfacil/viejo.txt" ]'
-caso "el instalador recibe file:// con la ruta absoluta" 'grep -q "^plugin install file://$T/a.zip$" "$E/registro"'
+caso "el instalador recibe file:// con la copia legible, no el zip original" 'grep -q "^plugin install file://$E/tmp/ensfacil-deploy\.[A-Za-z0-9]*/ensfacil\.zip$" "$E/registro"'
+caso "la copia temporal del zip se borra al terminar" '[ -z "$(ls "$E/tmp")" ]'
 caso "build.number sube" 'python3 -c "import json,sys; sys.exit(json.load(open(\"$E/osd/package.json\"))[\"build\"][\"number\"] != \"101\")"'
 caso "el plugin de Wazuh no se toca" '[ -d "$E/osd/plugins/wazuh" ] && ! grep -q "remove wazuh" "$E/registro"'
 
@@ -162,5 +168,11 @@ caso "copia imposible: el dashboard no se para y el plugin sigue" '! grep -q "sy
 # Sin un ensfacil anterior no hay nada que guardar, y se instala igual.
 E="$T/nuevo"; entorno "$E" sin-plugin; despliega "$E"
 caso "sin plugin anterior: código 0 y sin copia" '[ "$(cat "$E/rc")" = 0 ] && [ -z "$(copias_de ensfacil)" ] && grep -q "nada que guardar" "$E/salida"'
+
+# Un zip que el usuario del dashboard no puede leer: se detecta ANTES de parar
+# el dashboard (código 4) y no se toca nada.
+E="$T/nolegible"; entorno "$E" no-legible; despliega "$E"
+caso "zip no legible para el dashboard: código 4 y sin parar nada" '[ "$(cat "$E/rc")" = 4 ] && ! grep -q "^systemctl" "$E/registro" 2>/dev/null && grep -q "no se ha tocado nada" "$E/salida" && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ]'
+caso "zip no legible: la copia temporal se borra" '[ -z "$(ls "$E/tmp")" ]'
 
 [ $fallos -eq 0 ] && echo "TODO OK" || { echo "$fallos FALLOS"; exit 1; }

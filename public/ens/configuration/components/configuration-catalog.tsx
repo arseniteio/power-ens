@@ -7,7 +7,7 @@ import {
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import { ControlCard } from './control-card';
 
 interface ConfigurationCatalogProps {

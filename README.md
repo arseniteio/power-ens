@@ -37,8 +37,11 @@ y los enlaces a cada runbook y a sus guías, en la
    después, los runbooks de su plataforma
    (Linux, Zimbra LDAP, Zimbra MTA o Windows), siguiendo la guía
    `01-installation` **de cada runbook**.
-3. **Configuración en el dashboard.** En ENSFácil > Configuración, los
-   parámetros de cada control, y en las máquinas o en el manager, los
+3. **Configuración en el dashboard.** En ENSFácil > Configuración, la
+   política común de cada control (pestaña «Organización») y lo propio de cada
+   máquina y de su plataforma, con plantillas (pestaña «Sistemas»; ver
+   [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md)),
+   y en las máquinas o en el manager, los
    [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
    siguiendo la guía `02-compliance` **de cada runbook** (no está en este
    repositorio: cada runbook tiene la suya, enlazada en la tabla).
@@ -184,11 +187,11 @@ la release en una carpeta:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.1.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.2.0-osd-2.19.5.zip
 ```
 
 Resultado esperado: `OK` en los tres ficheros y `dashboard: active` al final
-del despliegue. Sustituir `1.1.0` por la versión de la release.
+del despliegue. Sustituir `1.2.0` por la versión de la release.
 
 Estas órdenes corresponden a la instalación por paquetes: `deploy-plugin.sh`
 usa `systemctl`, `sudo -u wazuh-dashboard` y `https://localhost:443`. En
@@ -230,6 +233,7 @@ indexer, no en el plugin.
 | 6 | Instalar, actualizar o retirar ENSFácil con las imágenes oficiales de Wazuh en Docker | [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md) |
 | 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
+| 9 | Declarar la configuración de cada sistema, aplicar plantillas o migrar una configuración anterior | [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
@@ -249,6 +253,12 @@ Cada repositorio de control (runbook) incluye sus guías en su propio `docs/depl
 
 > [!important]
 > La política de cumplimiento se declara desde la pantalla de Configuración de ENSFácil. Los parámetros vacíos representan decisiones todavía no declaradas y no deben interpretarse como valores por defecto.
+
+### Dónde se abre ENSFácil
+
+ENSFácil está en el menú del dashboard, dentro de «Security operations». Desde la 1.2.0 también hay una tarjeta «ENSFácil» en la portada de OpenSearch Dashboards (`/app/home`), si el dashboard incluye el plugin `home`. La portada de Wazuh no ofrece ningún punto de extensión para tarjetas de otros plugins, y ENSFácil no modifica el plugin de Wazuh: en esa portada solo está en el menú.
+
+La pestaña **Vista general** muestra todas las máquinas del alcance y todos los controles a la vez: el resumen por máquina, la matriz controles × máquinas, la cola de trabajo y la tendencia de 30 días ([instalación desde cero, apartado 14.7](docs/deployment/01-installation-from-scratch.md#147-comprobar-la-vista-general-y-el-detalle-de-un-control)).
 
 ### El manager en el alcance
 
@@ -270,8 +280,12 @@ al alcance por sí solo, y únicamente porque hay controles que se miden en él:
 Los hechos del manager llegan con `agent.id=000`. En la vista de una máquina,
 los controles que solo se miden en el manager aparecen con el resultado de su
 fila, porque son controles de la organización y no de la máquina. En la vista
-del manager solo aparecen los nueve que se miden en él: op.cont.2, op.cont.3,
-op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1.
+del manager se miden los nueve que tienen fila en él: op.cont.2, op.cont.3,
+op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los demás
+siguen en la lista, al final y en gris, con «No se mide en esta máquina» y el
+motivo; su detalle lo explica en vez de quedarse vacío. La pestaña Vista
+general muestra todos los controles en todas las máquinas a la vez
+([instalación desde cero, apartado 14.7](docs/deployment/01-installation-from-scratch.md#147-comprobar-la-vista-general-y-el-detalle-de-un-control)).
 
 ### Nivel de la dimensión Trazabilidad
 
@@ -349,6 +363,15 @@ desde <fecha UTC>», y sus requisitos no cuentan como cumplidos. Lo que dijo la
 máquina hace días no prueba cómo está hoy. Los hechos antiguos siguen visibles
 en la trazabilidad.
 
+**Toda la ventana.** El servidor del plugin evalúa cada control con todos los
+hechos de la ventana de evaluación (30 días), con los permisos del usuario que
+mira, y el navegador recibe los resultados. Hasta la 1.1.0 se evaluaba en el
+navegador con los 10.000 hechos más recientes, que en un alcance con actividad
+cubrían horas. La primera carga de cada usuario lee la ventana entera y responde
+por partes («Calculando la evaluación»); después, el resultado se sirve al
+instante y se recalcula en segundo plano cuando llegan hechos nuevos. El detalle
+técnico está en [`server/README.md`](server/README.md).
+
 El agente observa y el motor juzga. Las evidencias del modelo actual declaran
 una primitiva de juicio y el parámetro contra el que se contrastan; el agente
 solo emite el hecho. Por eso un cambio en la pantalla modifica el veredicto sin
@@ -362,13 +385,15 @@ Este repositorio es el plugin `ensfacil` de OpenSearch Dashboards: se compila de
 
 ```
 public/            la app del navegador: pestañas, búsqueda, inventario de agentes
-public/ens/        módulo ENS (React + TypeScript)
+public/ens/        pantallas ENS (React + TypeScript): dashboard/ overview/
+                   controls/ reports/ evidences/ configuration/
+public/evaluation/ cliente de la evaluación: sondeo, recarga y carga por partes
+common/ens/        lo que comparten navegador y servidor
   catalog/         definición de controles y requisitos
-  configuration/   parámetros configurables
+  configuration/   parámetros configurables, plantillas y resolución por sistema
   core/            motor: evidencias, evaluación, consolidación
-  controls/ reports/ evidences/    las tres pestañas
-server/            rutas de configuración (/api/ensfacil/configuration)
-common/            constantes compartidas
+server/            rutas de configuración (/api/ensfacil/configuration) y de
+                   evaluación (/api/ensfacil/evaluation; ver server/README.md)
 agent/rules/       reglas Wazuh por control
 config/            bloques de configuración y herramientas del manager:
                    build-plugin.sh, deploy-plugin.sh, create-admin-role.sh,

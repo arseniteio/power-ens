@@ -272,6 +272,15 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Resultado esperado: `{"acknowledged":true}` y, en la segunda orden, `green open wazuh-ens-configuration 0` (con varios nodos, `green` con `1` réplica). Si sale `yellow`, esperar unos segundos y repetir la segunda orden hasta que salga `green`. En un entorno instalado desde cero con la 1.1.0 o posterior, este paso no es necesario.
 
+Desde la 1.2.0, la pantalla de Configuración tiene dos niveles, «Organización» y «Sistemas». Al actualizar desde la 1.1.0:
+
+- los controles que el documento todavía no tiene aparecen en «Organización», en «Controles del catálogo sin añadir», y se añaden con «Añadir con valores por defecto», con la misma semántica que `inject-control.py` para un control nuevo;
+- la pestaña «Sistemas» propone repartir a cada agente las filas de las tablas con columna de sistema que lo nombran («Migrar a sistemas»), sin borrar nada; antes de migrar, guardar una copia del documento (apartado 5).
+
+El procedimiento está en [Configuración por sistema y plantillas](09-configuration-by-system.md#8-migración-a-sistemas).
+
+Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian porque son los de la ventana completa: anotar antes el estado del panel permite explicar las diferencias. La primera carga de cada usuario responde por partes («Calculando la evaluación») hasta tener todos los controles. Para volver a la 1.1.0 después de «Migrar a sistemas», restaurar la versión del documento anterior a la migración ([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
+
 Revisar en Configuración > Configuración global los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
 ## 9. Agentes y comprobación final
@@ -367,7 +376,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 La reinstalación devuelve el `build.number` del dashboard a su valor de fábrica, que los navegadores pueden tener asociado a ficheros de la versión integrada. Por eso se recupera el `package.json` de antes y se vuelve a desplegar ENSFácil, que sube el número:
 
 ```bash
-V=1.1.0   # la versión de ENSFácil instalada en el apartado 10.1
+V=1.2.0   # la versión de ENSFácil instalada en el apartado 10.1
 R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
 sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"

@@ -12,9 +12,9 @@ import {
 import {
   buildClearedControlConfiguration,
   summarizeControlConfigurationReset,
-} from '../services/configuration-reset-service';
-import { updateActiveControlConfiguration } from '../services/configuration-state-service';
-import type { ENSControlConfiguration } from '../types';
+} from '../../../../common/ens/configuration/services/configuration-reset-service';
+import { updateActiveControlConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
+import type { ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 
 // Borrar la configuración declarada de un control.
 //

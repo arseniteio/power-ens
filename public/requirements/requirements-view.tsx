@@ -27,8 +27,8 @@ import { ensRequirementsFile } from '../ens-requirements';
 import {
   ENS_REQUIREMENT_COUNT_AGGS,
   countENSRequirements,
-} from '../ens/core/compliance-view/ens-requirement-index';
-import { getActiveENSScopeAgents } from '../ens/core/scope';
+} from '../../common/ens/core/compliance-view/ens-requirement-index';
+import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch } from '../routing/use-router-search';
 import { AlertsSearchFrame, useAlertsSearchBar } from '../search/alerts-search-bar';

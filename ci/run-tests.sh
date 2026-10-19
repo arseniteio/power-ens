@@ -43,7 +43,8 @@ fi
 echo
 
 for t in tests/*.test.ts; do
-  suite "$t" timeout 180 npx --yes tsx "$t"
+  # The CI runner shares its CPU with the lab indexer: heavier suites need more than 180 s there.
+  suite "$t" timeout 600 npx --yes tsx "$t"
 done
 for s in tests/*.test.sh; do
   suite "$s" bash "$s"

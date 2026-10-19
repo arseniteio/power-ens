@@ -10,7 +10,7 @@
  *
  *   npx --yes tsx tests/ens-requirement-index.test.ts
  */
-import { ENSCatalog } from '../public/ens/catalog';
+import { ENSCatalog } from '../common/ens/catalog';
 import { ensRequirementsFile } from '../public/ens-requirements';
 import {
   buildENSRequirementFilter,
@@ -18,7 +18,7 @@ import {
   countENSRequirements,
   ENS_REQUIREMENT_COUNT_AGGS,
   splitENSRequirementList,
-} from '../public/ens/core/compliance-view/ens-requirement-index';
+} from '../common/ens/core/compliance-view/ens-requirement-index';
 
 declare const process: { exit(code: number): void };
 

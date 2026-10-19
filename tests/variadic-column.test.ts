@@ -21,8 +21,8 @@
  * aplica donde no toca: una tabla normal TIENE que seguir rechazando la fila
  * con celdas de más.
  */
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
-import type { ENSControlParameter } from '../public/ens/configuration/types';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import type { ENSControlParameter } from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 

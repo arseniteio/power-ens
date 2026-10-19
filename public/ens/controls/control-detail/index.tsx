@@ -1,10 +1,12 @@
-import { useActiveENSScopeAgents } from '../../core/scope/use-active-scope-agents';
-import React, { useEffect, useMemo, useState } from 'react';
-import { useEsSearch } from '../../../search/use-es-search';
+import { useActiveENSScopeAgents } from '../../scope/use-active-scope-agents';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEnsEvaluation } from '../../../evaluation/use-evaluation';
+import { fetchTraceabilityPage } from '../../../evaluation/evaluation-client';
 import { FactsReadErrorCallOut } from '../../../platform/facts-read-error-callout';
 import {
   EuiBadge,
   EuiBasicTable,
+  EuiButton,
   EuiButtonIcon,
   EuiButtonEmpty,
   EuiCallOut,
@@ -12,6 +14,7 @@ import {
   EuiFlexItem,
   EuiPage,
   EuiPanel,
+  EuiProgress,
   EuiSpacer,
   EuiStat,
   EuiText,
@@ -21,7 +24,7 @@ import { ENSControl } from '../../types';
 // Del fichero de tipos, nunca del barrel `../../core`: `import type` se borra
 // entero al compilar, así que esto no añade ninguna arista al grafo de módulos
 // (el ciclo transitivo del TDZ de `Settings` vive justo ahí).
-import type { ENSObservationGroup } from '../../core/evaluation/types';
+import type { ENSObservationGroup } from '../../../../common/ens/core/evaluation/types';
 // Cuánto se enseña de la vista general y cómo se nombran las máquinas. Es
 // lógica pura y vive aparte para poder comprobarla sin `react` ni `@elastic/eui`.
 import {
@@ -30,14 +33,33 @@ import {
   etiquetaDeRequisitoQueCumple,
   resumirMotivos,
 } from './general-view';
-import { getActiveENSConfiguration } from '../../configuration/services';
+import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
+import { classifyNonConformity } from './nonconformity-class';
+import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-parser';
+import type { MotiveViewHandlers } from './motive-view';
+import { describeParameterForMachine } from '../parameter-origins';
+import { statusBadgeColor } from '../../status-colors';
 import type { MotivoLinea } from './motive-cell';
-import { buildENSControlComplianceTimeline } from '../../core/timeline/control-timeline';
-
-const EMPTY_HITS: any[] = [];
+import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
+import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
+import { traceabilityPageSource } from '../../../evaluation/traceability-paging';
+import { EvaluationLoading, EvaluationStatusLine } from '../../../evaluation/evaluation-status';
+import { useSetRouterSearch } from '../../../routing/use-router-search';
+import { detailConfigurationChanges } from '../../../routing/configuration-link';
+import { AddControlWithDefaultsButton } from '../add-control-button';
+import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
+import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
+import {
+  ENSRetainedEvaluation,
+  decideDetailView,
+  describeComputedAt,
+  isFromAnotherMachine,
+  nextRetained,
+} from './detail-view-state';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -45,27 +67,8 @@ interface ControlDetailENSProps {
   onBack: () => void;
 }
 
-import {
-  buildENSEvaluationTimeRangeFilter,
-  getENSComplianceResultByControl,
-  normalizeWazuhAlerts,
-} from '../../core';
-import {
-  buildENSScopeAgentQueryFilter,
-} from '../../core/scope';
-
-const getBadgeColor = (status: string) => {
-  if (status === 'CUMPLE') {
-    return 'success';
-  }
-  if (status === 'PARCIAL') {
-    return 'warning';
-  }
-  if (status === 'NO_CUMPLE') {
-    return 'danger';
-  }
-  return 'default';
-};
+// Un estado, un color (`status-colors.ts`).
+const getBadgeColor = (status: string) => statusBadgeColor(status);
 
 // Icono por estado de evidencia. La distinción que no se puede perder —medido y
 // no conforme (`cross`) frente a no demostrado (`clock`)— se lee del icono sin
@@ -97,154 +100,60 @@ export const ControlDetailENS = ({
    agentId,
    onBack,
  }: ControlDetailENSProps) => {
-  const [refreshKey, setRefreshKey] = useState(0);
   const [tracePageIndex, setTracePageIndex] = useState(0);
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey(current => current + 1);
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
   const scopeAgents = useActiveENSScopeAgents();
 
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(
-      scopeAgents,
-      agentId,
-    );
-
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      {
-        bool: {
-          should: [
-            { match_phrase: { 'data.ensfacil': control.id } },
-            { match_phrase: { 'data.control': control.id } },
-            { match_phrase: { 'data.control_id': control.id } },
-            { match_phrase: { 'data.ens': control.id } },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-    ],
-    // EL TOPE DECIDE EL VEREDICTO, así que no puede ser un número puesto de
-    // cualquier manera. Con `size: 1000` y 17.444 alertas de op.acc.3 en la
-    // ventana, el motor juzgaba el 6 % de los hechos —los más recientes— y lo
-    // presentaba como «cumplimiento de los últimos 30 días». Una acción de hace
-    // unas horas que quedaba fuera del corte hacía desaparecer una
-    // incompatibilidad real, y el control pasaba a 100 % él solo.
-    //
-    // Peor todavía: el Panel pedía 6000 y esta pantalla 1000, así que las dos
-    // juzgaban conjuntos distintos y podían dar números distintos del mismo
-    // control sin que nada lo dijera.
-    //
-    // 10.000 es el `index.max_result_window` por defecto de OpenSearch: pedir
-    // más exige `search_after`, que es otra conversación. Lo que NO puede pasar
-    // es que se recorte EN SILENCIO, y de eso se encarga `hechosRecortados`.
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // EL SERVIDOR EVALÚA EL CONTROL CON TODOS SUS HECHOS DE LA VENTANA. Hasta
+  // 1.1.0 esta pantalla bajaba los 10.000 más recientes y avisaba si quedaban
+  // fuera (op.acc.3 tenía 17.444 en 30 días): el porcentaje podía no cubrir la
+  // ventana que decía cubrir. Ya no hay corte, así que no hay aviso que dar. La
+  // serie de 30 días también viene calculada (los días pasados, una vez al día).
+  const evaluacion = useEnsEvaluation<ENSControlEvaluationResponse>({
+    include: 'control',
+    controlId: control.id,
+    agentId,
+    timelineDays: 30,
   });
+  const cambiaUrl = useSetRouterSearch();
 
-  const getHitTimestamp = (hit: any) =>
-    hit?.['@timestamp'] ||
-    hit?.data?.ts ||
-    hit?.fields?.['@timestamp']?.[0] ||
-    hit?.sort?.[0];
+  // QUÉ SE ENSEÑA (`detail-view-state.ts`): lo de esta petición; mientras
+  // llega, o si falla, lo último de ESTE control rotulado con SU máquina y su
+  // hora; nunca lo de otra máquina como si fuera de la elegida.
+  const peticion = { controlId: control.id, agentId };
+  const calculadoEl = (datos: ENSControlEvaluationResponse) => datos?.meta?.computedAt || datos?.meta?.evaluatedAt;
+  const retenido = useRef<ENSRetainedEvaluation<ENSControlEvaluationResponse> | undefined>(undefined);
+  const vista = decideDetailView(peticion, evaluacion, retenido.current, calculadoEl);
+  retenido.current = nextRetained(peticion, evaluacion, retenido.current, calculadoEl);
+  const datos = vista.kind === 'shown' ? vista.data : undefined;
+  // La máquina de lo que se ve (la elegida, o la del resultado retenido).
+  const agenteMostrado = vista.kind === 'shown' ? vista.agentId : agentId;
+  const error = vista.kind === 'error' ? vista.error : vista.kind === 'shown' ? vista.error : undefined;
 
-  const hits = esResults?.hits?.hits || EMPTY_HITS;
+  const ensLevel = datos?.meta?.level || getActiveENSConfiguration().global.ensLevel;
+  const complianceResult = datos?.result;
+  const traceabilityTotal = datos?.traceabilityTotal || 0;
 
-  const ensHits = useMemo(() => (hits as any[])
-    .map(hit => ({
-      ...(hit._source || {}),
-      fields: hit.fields,
-      sort: hit.sort,
-    }))
-    .sort((a, b) => {
-      const dateA = new Date(getHitTimestamp(a) || 0).getTime();
-      const dateB = new Date(getHitTimestamp(b) || 0).getTime();
-      return dateB - dateA;
-    }), [hits]);
-
-  // ¿Se ha quedado fuera algo? `hits.total` es lo que HAY; `hits.length` lo que
-  // se ha traído. Si no coinciden, el motor ha juzgado sobre una parte y el
-  // número de arriba no cubre la ventana entera. Callarlo sería presentar una
-  // medida parcial como completa, que es la misma mentira que un CUMPLE sin
-  // medir.
-  const totalEnIndice = (() => {
-    const total = (esResults?.hits as any)?.total;
-
-    if (typeof total === 'number') {
-      return total;
-    }
-
-    return typeof total?.value === 'number' ? total.value : hits.length;
-  })();
-
-  const hechosRecortados = Math.max(0, totalEnIndice - hits.length);
-
-  const normalizedEvents = useMemo(
-    () => normalizeWazuhAlerts(hits),
-    [hits],
-  );
-
-  const complianceResult = useMemo(
-    () =>
-      getENSComplianceResultByControl(
-        control.id,
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      control.id,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
-  );
-
-  // La serie diaria DE ESTE CONTROL. Se calcula con los mismos eventos y el
-  // mismo alcance que el resultado de arriba, así que su último punto es el
-  // mismo número: es lo que la hace comprobable de un vistazo.
+  // La serie diaria DE ESTE CONTROL: su último punto es el número de arriba.
   const controlTimeline = useMemo(
     () =>
-      buildENSControlComplianceTimeline(
-        control.id,
-        ensLevel,
-        normalizedEvents,
-        {
-          agentId,
-          scopeAgents,
-          days: 30,
-        }
-      ),
-    [
-      control.id,
-      ensLevel,
-      normalizedEvents,
-      agentId,
-      scopeAgents,
-    ],
+      (datos?.timeline || []).map(point => ({
+        ...point,
+        date: new Date(point.date),
+      })),
+    [datos],
   );
 
-  const latestEvaluationDate = ensHits[0]
-    ? new Date(getHitTimestamp(ensHits[0])).toLocaleDateString('es-ES')
+  // Otra máquina u otro control: la tabla vuelve a la primera página.
+  useEffect(() => {
+    setTracePageIndex(0);
+  }, [control.id, agentId]);
+
+  const newestFact = datos?.meta?.facts?.newest;
+  const latestEvaluationDate = newestFact
+    ? new Date(newestFact).toLocaleDateString('es-ES')
     : 'Sin datos';
 
   // Sobre cuántas máquinas se ha resumido la vista general. Solo existe
@@ -252,10 +161,14 @@ export const ControlDetailENS = ({
   // de la pantalla y no hay nada que contar.
   const totalMaquinas = (complianceResult?.consolidatedAgents || []).length;
 
-  const agenteNombre = agentId
-    ? ((ensHits.find(h => h?.agent?.name)?.agent?.name) ||
-       (ensHits.find(h => h?.data?.host)?.data?.host) ||
-       ('Agente ' + agentId))
+  // El nombre sale del inventario del alcance, nunca de los hechos: la vista de
+  // una máquina trae también los del manager, y el más reciente puede ser suyo.
+  const nombreDe = (id?: string) => (id ? scopeAgents.find(agent => agent.id === id)?.name : undefined);
+  const etiquetaDe = (id?: string) => (id ? `${id} · ${nombreDe(id) || 'sin nombre'}` : 'todas las máquinas');
+
+  const agenteNombre = agenteMostrado
+    ? (nombreDe(agenteMostrado) ||
+       ('Agente ' + agenteMostrado))
     // Decir cuántas máquinas hay detrás es lo que convierte «6 de ellas fallan»
     // en un dato: sin el total, un recuento no se puede leer.
     : totalMaquinas > 0
@@ -306,7 +219,7 @@ export const ControlDetailENS = ({
     (requisito: any) => requisito.status !== 'NO_APLICA'
   ).length;
 
-  const esVistaAgregada = !agentId && totalMaquinas > 1;
+  const esVistaAgregada = !agenteMostrado && totalMaquinas > 1;
 
   const requisitosDelDenominador = esVistaAgregada
     ? requisitosConsolidados
@@ -423,79 +336,41 @@ export const ControlDetailENS = ({
     noEvidenciadas.flatMap(item => item.agents.map(agent => agent.agentId)),
   ).size;
 
-  // QUÉ CLASE DE INCUMPLIMIENTO ES, DE QUIÉN ES EL ARREGLO Y DE QUÉ COLOR VA.
-  //
-  // Un solo sitio para las tres cosas, porque las tres tienen que decir lo
-  // mismo: la franja de la tarjeta, la insignia y la acción salen de aquí. La
-  // distinción medido / no evidenciado no se explica en prosa —restan igual—,
-  // se ve en el color y en la etiqueta, y la causa del no evidenciado va como
-  // etiqueta, no como frase.
-  const clasificar = (item: (typeof nonConformityItems)[number]) => {
-    // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
-    // vencida o ausente): no hay nada que corregir en la máquina.
-    if (item.origin === 'MEDIDA' && item.documental) {
-      return {
-        etiqueta: 'Declarado (documental)',
-        icono: 'document',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Renovar o completar la documentación',
-        responsable: 'Organización (contratos y proveedores)',
-      };
-    }
+  // Clase, responsable y color: `nonconformity-class.ts` (lo usa también la
+  // cola de trabajo de la Vista general).
+  const controlConfigurado = Boolean(getActiveControlConfiguration(control.id));
+  const clasificar = (item: (typeof nonConformityItems)[number]) =>
+    classifyNonConformity(item, { controlConfigured: controlConfigurado });
 
-    if (item.origin === 'MEDIDA') {
-      return {
-        etiqueta: 'Medido',
-        icono: 'inspect',
-        color: '#BD271E',
-        badgeColor: 'danger' as const,
-        accion: 'Corregir la máquina',
-        responsable: 'Sistema auditado',
-      };
-    }
+  // Las partes que publicaron las policies (`reasonParts`): la tarjeta y la
+  // tabla las usan en vez de partir el texto cuando el motivo es el suyo.
+  const partesConocidas: KnownReasonParts[] = (complianceResult?.policyRuntime?.decisions || [])
+    .filter(decision => decision.reasonParts && decision.reasonParts.length > 0)
+    .map(decision => ({ reason: decision.reason, parts: decision.reasonParts! }));
 
-    if (item.cause === 'CATALOG') {
-      return {
-        etiqueta: 'No evidenciado · catálogo',
-        icono: 'package',
-        color: '#98A2B3',
-        badgeColor: 'default' as const,
-        accion: 'Declarar la evidencia',
-        responsable: 'Producto ENSFácil',
-      };
-    }
-
-    if (item.cause === 'CONFIGURATION') {
-      return {
-        etiqueta: 'No evidenciado · sin configurar',
-        icono: 'gear',
-        color: '#F5A700',
-        badgeColor: 'warning' as const,
-        accion: 'Declarar la decisión',
-        responsable: 'Responsable ENS',
-      };
-    }
-
-    if (item.cause === 'COLLECTION') {
-      return {
-        etiqueta: 'No evidenciado · sin recogida',
-        icono: 'offline',
-        color: '#0077CC',
-        badgeColor: 'primary' as const,
-        accion: 'Restablecer la recogida',
-        responsable: 'Operación Wazuh',
-      };
-    }
-
-    return {
-      etiqueta: 'No evidenciado · evidencia insuficiente',
-      icono: 'alert',
-      color: '#F5A700',
-      badgeColor: 'warning' as const,
-      accion: 'Habilitar la prueba',
-      responsable: 'Productor de la evidencia',
-    };
+  // Lo que se puede pulsar en un motivo: un parámetro lleva a Configuración en
+  // ese parámetro (con la vuelta a este detalle); una evidencia, a Evidencias
+  // con este control; y de cada parámetro se dice el valor que aplica a esta
+  // máquina y de dónde sale.
+  const manejadores: MotiveViewHandlers = {
+    // Configuración, de la máquina ELEGIDA (no de la del resultado que se ve
+    // mientras carga la nueva): es a la que se vuelve.
+    onParameter: parameterId =>
+      cambiaUrl(
+        detailConfigurationChanges({
+          controlId: control.id,
+          agentId,
+          parameterId,
+          parameterIsAgentLevel: isAgentLevelParameter(control.id, parameterId),
+        })
+      ),
+    // Su propio parámetro: el `control=` del detalle no filtra Evidencias.
+    onEvidence: () => cambiaUrl({ tabView: 'evidences', evidenceControl: control.id }),
+    // El valor y su origen, de la máquina del resultado que se ve.
+    parameterInfo: parameterId => {
+      const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, agenteMostrado, parameterId);
+      return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
+    },
   };
 
   const buscarEvidencia = (evidenceId: string) =>
@@ -686,8 +561,7 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
-  const traceabilityItems = (complianceResult?.traceability || []).map(
-    (item, index) => ({
+  const toTraceItem = (item: ENSTraceabilityResult, index: number) => ({
       key: `${item.source}-${item.reference}-${index}`,
       source: item.source,
       reference: item.reference,
@@ -714,15 +588,58 @@ export const ControlDetailENS = ({
       timestamp: formatTraceabilityTimestamp(item.timestamp),
       auditAttributes: item.auditAttributes || {},
       auditorMeaning: item.description,
-    }),
-  );
+    });
+
+  // LA TABLA SE PAGINA EN EL SERVIDOR. La ficha trae las primeras entradas;
+  // más allá, cada página se pide aparte, con su estado de carga y su error
+  // (nunca una página vacía muda). El servidor guarda las primeras de cada
+  // control (`traceabilityAvailable`; op.acc.3 tiene decenas de miles): el
+  // total se dice siempre.
+  const iniciales = complianceResult?.traceability || [];
+  const pageFrom = tracePageIndex * tracePageSize;
+  const traceabilityAvailable = datos?.traceabilityAvailable ?? iniciales.length;
+  const [remotePage, setRemotePage] = useState<
+    { key: string; items?: ENSTraceabilityResult[]; error?: Error } | undefined
+  >();
+  const [reintentoTraza, setReintentoTraza] = useState(0);
+  // El reintento entra en la clave: al pulsar «Reintentar» el error anterior
+  // deja paso a «Cargando la página…». Las páginas son las de la máquina del
+  // resultado que se enseña.
+  const remoteKey = `${control.id}|${agenteMostrado || ''}|${pageFrom}|${tracePageSize}|${datos?.meta?.fingerprint || ''}|${reintentoTraza}`;
+  const necesitaRemota =
+    Boolean(complianceResult) &&
+    traceabilityPageSource({ initialCount: iniciales.length, available: traceabilityAvailable, pageFrom, pageSize: tracePageSize }) === 'remote';
+
+  useEffect(() => {
+    if (!necesitaRemota) return;
+    const controller = new AbortController();
+    // Solo se calla lo que cancela la pantalla al cambiar de página o salir:
+    // el tiempo agotado también aborta el controlador y debe verse.
+    let cancelada = false;
+    fetchTraceabilityPage({ controlId: control.id, agentId: agenteMostrado, from: pageFrom, size: tracePageSize }, controller)
+      .then(page => {
+        if (!cancelada) setRemotePage({ key: remoteKey, items: page.items || [] });
+      })
+      .catch(error => {
+        if (!cancelada) setRemotePage({ key: remoteKey, error });
+      });
+    return () => {
+      cancelada = true;
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteKey, necesitaRemota]);
+
+  const paginaRemota = remotePage?.key === remoteKey ? remotePage : undefined;
+  const trazaCargando = necesitaRemota && !paginaRemota;
+  const trazaError = necesitaRemota ? paginaRemota?.error : undefined;
+
+  const traceabilityPageItems = (necesitaRemota
+    ? paginaRemota?.items || []
+    : iniciales.slice(pageFrom, pageFrom + tracePageSize)
+  ).map((item, index) => toTraceItem(item, pageFrom + index));
 
   // --- Trazabilidad: vista compacta, paginada y con detalle expandible ---
-  const traceabilityPageItems = traceabilityItems.slice(
-    tracePageIndex * tracePageSize,
-    tracePageIndex * tracePageSize + tracePageSize,
-  );
-
   const toggleTraceDetail = (key: string) =>
     setExpandedTraceIds(current =>
       current.includes(key)
@@ -730,7 +647,7 @@ export const ControlDetailENS = ({
         : [...current, key],
     );
 
-  const renderTraceDetail = (item: (typeof traceabilityItems)[number]) => (
+  const renderTraceDetail = (item: (typeof traceabilityPageItems)[number]) => (
     <EuiText size='xs'>
       <p>
         <strong>Referencia:</strong> {item.reference}
@@ -792,7 +709,7 @@ export const ControlDetailENS = ({
 
   const traceExpandedRowMap = expandedTraceIds.reduce(
     (acc: Record<string, React.ReactNode>, key) => {
-      const item = traceabilityItems.find(trace => trace.key === key);
+      const item = traceabilityPageItems.find(trace => trace.key === key);
 
       if (item) {
         acc[key] = renderTraceDetail(item);
@@ -846,7 +763,7 @@ export const ControlDetailENS = ({
       align: 'right' as const,
       width: '40px',
       isExpander: true,
-      render: (item: (typeof traceabilityItems)[number]) => (
+      render: (item: (typeof traceabilityPageItems)[number]) => (
         <EuiButtonIcon
           onClick={() => toggleTraceDetail(item.key)}
           aria-label={
@@ -943,23 +860,198 @@ export const ControlDetailENS = ({
     },
   ].filter(item => item.valor > 0);
 
-  // Sin los hechos de ahora, ni veredicto ni cifras: el refresco de 15 s
-  // vuelve a intentarlo.
-  if (error) {
-    return (
-      <EuiPage paddingSize='m'>
-        <EuiPanel>
-          <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
-            Volver a controles
-          </EuiButtonEmpty>
-          <EuiSpacer size='s' />
+  const configurarControl = () =>
+    cambiaUrl(
+      detailConfigurationChanges({
+        controlId: control.id,
+        agentId,
+        hasAgentLevelParameters: (getActiveControlConfiguration(control.id)?.parameters || []).some(parameter =>
+          isAgentLevelParameter(control.id, parameter.id)
+        ),
+      })
+    );
+
+  // La cabecera de todos los estados: volver, la ruta y el título.
+  const cabecera = (
+    <>
+      <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
+        Volver a controles
+      </EuiButtonEmpty>
+      <EuiSpacer size='s' />
+      <EuiText size='s' color='subdued'>
+        ENS / {control.family} / {control.category} / {control.id}
+      </EuiText>
+      <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
           <EuiTitle size='m'>
             <h2>
               {control.id.toUpperCase()} - {control.title}
             </h2>
           </EuiTitle>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          {/* Abre Configuración en este control (en la página de la máquina
+              elegida si el control tiene parámetros por sistema o plataforma)
+              y deja en la URL la vuelta a este mismo detalle. */}
+          <EuiButton size='s' iconType='gear' onClick={configurarControl}>
+            Configurar este control
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </>
+  );
+
+  // Sin nada que enseñar y con error: el aviso con «Reintentar» (la
+  // comprobación periódica también vuelve a intentarlo).
+  if (vista.kind === 'error') {
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel>
+          {cabecera}
           <EuiSpacer size='m' />
-          <FactsReadErrorCallOut error={error} />
+          <FactsReadErrorCallOut error={vista.error as Error} onRetry={evaluacion.retry} />
+        </EuiPanel>
+      </EuiPage>
+    );
+  }
+
+  // Mientras llega la evaluación de ESTE control y ESTA máquina, sin nada
+  // anterior del control que enseñar: ningún veredicto.
+  if (vista.kind === 'loading') {
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel>
+          {cabecera}
+          <EvaluationLoading message={`Evaluando ${control.id} en ${etiquetaDe(agentId)} en el servidor con todos los hechos de la ventana.`} />
+        </EuiPanel>
+      </EuiPage>
+    );
+  }
+
+  // Lo que se ve no es de la petición de ahora: se dice de qué máquina y de
+  // qué hora es, y que llega lo nuevo (o que ha fallado).
+  const deOtraMaquina = isFromAnotherMachine(peticion, vista);
+  const horaMostrada = describeComputedAt(vista.computedAt);
+  const avisoDeVigencia = !vista.current ? (
+    <>
+      {vista.loading && <EuiProgress size='xs' color='accent' position='absolute' />}
+      {vista.error ? (
+        <>
+          <FactsReadErrorCallOut error={vista.error as Error} onRetry={evaluacion.retry} />
+          <EuiSpacer size='s' />
+          <EuiCallOut
+            size='s'
+            color='warning'
+            iconType='clock'
+            title={`Se muestra el último resultado de ${etiquetaDe(vista.agentId)}${horaMostrada ? `, calculado ${horaMostrada}` : ''}`}
+          >
+            {deOtraMaquina && (
+              <p>No es el de {etiquetaDe(agentId)}: el de esa máquina no se ha podido calcular.</p>
+            )}
+          </EuiCallOut>
+        </>
+      ) : (
+        <EuiCallOut
+          size='s'
+          color='primary'
+          iconType='clock'
+          title={
+            deOtraMaquina
+              ? `Cargando ${etiquetaDe(agentId)}… Mientras tanto se muestra el resultado de ${etiquetaDe(vista.agentId)}${horaMostrada ? ` (${horaMostrada})` : ''}.`
+              : `Actualizando… Se muestra el resultado${horaMostrada ? ` de ${horaMostrada}` : ''}.`
+          }
+        />
+      )}
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
+  // Un control del catálogo que no está en la configuración activa: no se
+  // puede demostrar nada, y la acción es darlo de alta (no «corregir lo que el
+  // productor declara»).
+  const avisoSinConfigurar = !getActiveControlConfiguration(control.id) ? (
+    <>
+      <EuiCallOut color='warning' iconType='gear' title={`${control.id} no está en la configuración activa`}>
+        <p>
+          El control existe en el catálogo de esta versión pero no se ha añadido a la configuración: sus requisitos
+          cuentan como no evidenciados hasta que se añade y se declaran sus parámetros obligatorios.
+        </p>
+        <AddControlWithDefaultsButton controlId={control.id} onAdded={() => evaluacion.retry()} />
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
+  // EL CONTROL NO SE MIDE EN ESTA MÁQUINA. El servidor no da resultado para
+  // ella: no es «sin datos» ni «todo conforme», y se dice por qué.
+  if (!complianceResult) {
+    const catalogo = getENSCatalogControl(control.id);
+    const motivo =
+      agenteMostrado && catalogo
+        ? describeNotMeasuredOnAgent(
+            catalogo,
+            agenteMostrado,
+            nombreDe(agenteMostrado),
+            getActiveControlConfiguration(control.id, agenteMostrado)
+          )
+        : undefined;
+    const parametroDeAlcance = motivo?.parameterId;
+
+    return (
+      <EuiPage paddingSize='m'>
+        <EuiPanel style={{ position: 'relative' }}>
+          {cabecera}
+          <EuiSpacer size='m' />
+          {avisoDeVigencia}
+          {avisoSinConfigurar}
+          <EuiCallOut
+            color='primary'
+            iconType='iInCircle'
+            title={
+              agenteMostrado
+                ? `${control.id} no se mide en ${etiquetaDe(agenteMostrado)}`
+                : `${control.id} no tiene resultado en ninguna máquina`
+            }
+          >
+            <p>
+              {motivo?.text ||
+                (agenteMostrado
+                  ? `El servidor no ha devuelto resultado de ${control.id} para esta máquina: no está entre las que lo miden.`
+                  : `Ninguna máquina del alcance ENS mide ${control.id} y no hay hechos con los que evaluarlo.`)}
+            </p>
+            <p>No es un incumplimiento ni un cumplimiento: en esta máquina no hay nada que juzgar.</p>
+            <EuiFlexGroup gutterSize='s' responsive={false} wrap>
+              {agenteMostrado && (
+                <EuiFlexItem grow={false}>
+                  <EuiButton size='s' iconType='list' onClick={() => cambiaUrl({ agentId: undefined })}>
+                    Ver todas las máquinas
+                  </EuiButton>
+                </EuiFlexItem>
+              )}
+              {parametroDeAlcance && (
+                <EuiFlexItem grow={false}>
+                  <EuiButtonEmpty
+                    size='s'
+                    iconType='gear'
+                    onClick={() =>
+                      cambiaUrl(
+                        detailConfigurationChanges({
+                          controlId: control.id,
+                          agentId,
+                          parameterId: parametroDeAlcance,
+                          parameterIsAgentLevel: isAgentLevelParameter(control.id, parametroDeAlcance),
+                        })
+                      )
+                    }
+                  >
+                    Configurar {parametroDeAlcance}
+                  </EuiButtonEmpty>
+                </EuiFlexItem>
+              )}
+            </EuiFlexGroup>
+          </EuiCallOut>
+          <EuiSpacer size='s' />
+          <EvaluationStatusLine meta={datos?.meta} refreshing={evaluacion.isRefreshing} />
         </EuiPanel>
       </EuiPage>
     );
@@ -969,24 +1061,15 @@ export const ControlDetailENS = ({
   // un cumplimiento combinado no es válido para auditoría.
   return (
     <EuiPage paddingSize='m'>
-      <EuiPanel>
-        <EuiButtonEmpty iconType='arrowLeft' onClick={onBack}>
-          Volver a controles
-        </EuiButtonEmpty>
+      <EuiPanel style={{ position: 'relative' }}>
+        {/* De lo general a lo concreto: marco (`family`) y luego grupo
+            (`category`), segun la convencion de catalog/. */}
+        {cabecera}
 
         <EuiSpacer size='s' />
 
-        <EuiText size='s' color='subdued'>
-          {/* De lo general a lo concreto: marco (`family`) y luego grupo
-              (`category`), segun la convencion de catalog/. */}
-          ENS / {control.family} / {control.category} / {control.id}
-        </EuiText>
-
-        <EuiTitle size='m'>
-          <h2>
-            {control.id.toUpperCase()} - {control.title}
-          </h2>
-        </EuiTitle>
+        {avisoDeVigencia}
+        {avisoSinConfigurar}
 
         <EuiText>
           <p>
@@ -1003,9 +1086,10 @@ export const ControlDetailENS = ({
               <strong>Activo:</strong> {agenteNombre} &nbsp; | &nbsp;
               <strong>Fuente:</strong> Wazuh / OpenSearch &nbsp; | &nbsp;
               <strong>Nivel ENS:</strong> {nivelesTexto} &nbsp; | &nbsp;
-              <strong>Última evaluación:</strong> {latestEvaluationDate}
+              <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
+          <EvaluationStatusLine meta={datos?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
         </EuiPanel>
 
         <EuiSpacer size='l' />
@@ -1341,38 +1425,6 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
-        {/* EL AVISO VA ANTES QUE EL NÚMERO, no en una nota al pie. Si el motor
-            no ha visto todos los hechos, el porcentaje de arriba no cubre la
-            ventana que dice cubrir, y eso hay que leerlo ANTES de creerse el
-            número — no después. */}
-        {hechosRecortados > 0 && (
-          <>
-            <EuiCallOut
-              title={`El veredicto se ha calculado sobre ${hits.length.toLocaleString('es-ES')} hechos de ${totalEnIndice.toLocaleString('es-ES')}`}
-              color='warning'
-              iconType='alert'
-            >
-              <p>
-                El motor solo puede traer del índice los{' '}
-                {hits.length.toLocaleString('es-ES')} más recientes, y en la
-                ventana evaluada hay {totalEnIndice.toLocaleString('es-ES')}.
-                <strong>
-                  {' '}Un hallazgo más antiguo que el corte no está contado
-                </strong>
-                , así que el porcentaje puede ser mejor que la realidad. No es
-                una medida completa de los últimos 30 días.
-              </p>
-              <p>
-                Se arregla reduciendo lo que emite el agente —un hecho por
-                observación distinta, no uno por repetición— o acortando el
-                periodo de evaluación en Configuración.
-              </p>
-            </EuiCallOut>
-
-            <EuiSpacer size='l' />
-          </>
-        )}
-
         <EuiPanel>
           <EuiTitle size='s'>
             <h3>Evolución del cumplimiento · {control.id}</h3>
@@ -1391,6 +1443,7 @@ export const ControlDetailENS = ({
           <ControlEvolutionChart
             points={controlTimeline}
             controlId={control.id}
+            pending={Boolean(datos?.meta?.seriesPending)}
           />
         </EuiPanel>
 
@@ -1400,7 +1453,7 @@ export const ControlDetailENS = ({
           <h3>Evidencias ENS del control</h3>
         </EuiTitle>
 
-        {!agentId && totalMaquinas > 1 && (
+        {!agenteMostrado && totalMaquinas > 1 && (
           <>
             <EuiSpacer size='xs' />
 
@@ -1474,6 +1527,9 @@ export const ControlDetailENS = ({
                         .filter(Boolean)
                         .map(texto => ({ texto }))}
                       titulo={`Motivo · ${item.id}`}
+                      evidenceId={item.id}
+                      conocidos={partesConocidas}
+                      handlers={manejadores}
                     />
                   );
                 }
@@ -1494,6 +1550,9 @@ export const ControlDetailENS = ({
                     }))}
                     ocultos={ocultos}
                     titulo={`Motivo · ${item.id}`}
+                    evidenceId={item.id}
+                    conocidos={partesConocidas}
+                    handlers={manejadores}
                   />
                 );
               },
@@ -1584,15 +1643,25 @@ export const ControlDetailENS = ({
 
             <EuiFlexItem grow={false}>
               <EuiText size='xs' color='subdued'>
-                {traceabilityItems.length} registro
-                {traceabilityItems.length === 1 ? '' : 's'}
+                {traceabilityTotal.toLocaleString('es-ES')} registro
+                {traceabilityTotal === 1 ? '' : 's'}
+                {traceabilityTotal > traceabilityAvailable
+                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} primeros; todos los hechos están en Eventos`
+                  : ''}
               </EuiText>
             </EuiFlexItem>
           </EuiFlexGroup>
 
           <EuiSpacer size='s' />
 
-          {traceabilityItems.length === 0 ? (
+          {trazaError ? (
+            <>
+              <FactsReadErrorCallOut error={trazaError} onRetry={() => setReintentoTraza(n => n + 1)} />
+              <EuiSpacer size='s' />
+            </>
+          ) : null}
+
+          {traceabilityTotal === 0 ? (
             <EuiText size='s' color='subdued'>
               <p>
                 No hay información de trazabilidad disponible para este control.
@@ -1601,6 +1670,8 @@ export const ControlDetailENS = ({
           ) : (
             <EuiBasicTable
               items={traceabilityPageItems}
+              loading={trazaCargando}
+              noItemsMessage={trazaCargando ? 'Cargando la página…' : trazaError ? 'No se pudo leer esta página.' : undefined}
               itemId='key'
               itemIdToExpandedRowMap={traceExpandedRowMap}
               isExpandable={true}
@@ -1609,7 +1680,7 @@ export const ControlDetailENS = ({
               pagination={{
                 pageIndex: tracePageIndex,
                 pageSize: tracePageSize,
-                totalItemCount: traceabilityItems.length,
+                totalItemCount: traceabilityAvailable,
                 pageSizeOptions: [5, 10, 25, 50],
               }}
               onChange={({ page }) => {
@@ -1639,9 +1710,15 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='s' />
 
+        {/* Solo con un resultado que aplica: sin él, o fuera del nivel, no
+            hay nada demostrado que afirmar. */}
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
-            <p>Todo lo aplicable en este control se ha demostrado conforme.</p>
+            <p>
+              {complianceResult.status === 'NO_APLICA'
+                ? `${control.id} no aplica en el nivel ${nivelesTexto}: no hay no conformidades que medir.`
+                : 'Todo lo aplicable en este control se ha demostrado conforme.'}
+            </p>
           </EuiText>
         )}
 
@@ -1747,6 +1824,8 @@ export const ControlDetailENS = ({
                         lineasMotivo={lineasMotivo}
                         evidenciasImplicadas={evidenciasImplicadas}
                         controlId={control.id}
+                        conocidos={partesConocidas}
+                        handlers={manejadores}
                       />
                     </EuiFlexItem>
                   );

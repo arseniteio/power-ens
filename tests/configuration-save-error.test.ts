@@ -9,7 +9,7 @@ import { setServices } from '../public/services';
 import {
   getENSConfiguration,
   saveENSConfiguration,
-} from '../public/ens/configuration/services/configuration-http-client';
+} from '../common/ens/configuration/services/configuration-http-client';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];

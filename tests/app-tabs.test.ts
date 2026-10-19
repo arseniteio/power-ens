@@ -11,7 +11,7 @@ comprueba(
   'las pestañas de hoy, en su orden e ids',
   JSON.stringify(ENS_TABS.map(t => [t.id, t.name])) ===
     JSON.stringify([
-      ['dashboard', 'Panel'], ['configuration', 'Configuración'], ['controls', 'Controles'],
+      ['dashboard', 'Panel'], ['overview', 'Vista general'], ['configuration', 'Configuración'], ['controls', 'Controles'],
       ['plugins', 'Detalle del control'], ['ens-informes', 'Informes'], ['evidences', 'Evidencias'], ['events', 'Eventos'],
     ]),
   ENS_TABS.map(t => t.id)

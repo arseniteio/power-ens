@@ -2,6 +2,7 @@
 // que en la versión integrada daba `kibana-services` de Wazuh.
 import type { CoreStart } from '../../../src/core/public';
 import type { EnsfacilStartDeps } from './types';
+import { setENSConfigurationHttp } from '../common/ens/configuration/services/configuration-http-client';
 
 let core: CoreStart | undefined;
 let plugins: EnsfacilStartDeps | undefined;
@@ -9,6 +10,7 @@ let plugins: EnsfacilStartDeps | undefined;
 export const setServices = (coreStart: CoreStart, deps: EnsfacilStartDeps): void => {
   core = coreStart;
   plugins = deps;
+  setENSConfigurationHttp(() => getHttp());
 };
 
 const disponible = <T>(valor: T | undefined, nombre: string): T => {

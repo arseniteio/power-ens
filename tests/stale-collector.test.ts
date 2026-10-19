@@ -28,21 +28,21 @@
  * Se prueba el MOTOR de verdad, con `kibana-services` sustituido por un módulo
  * vacío antes de cargarlo, igual que en `measurement-planes.test.ts`.
  */
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import { opExp1Configuration } from '../public/ens/configuration/data/op-exp-1-parameters';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { opExp1Configuration } from '../common/ens/configuration/data/op-exp-1-parameters';
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../public/ens/configuration/types';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/configuration/types';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 import {
   findStaleCollector,
   STALE_COLLECTOR_MAX_AGE_HOURS,
-} from '../public/ens/core/evidence/stale-collector';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
+} from '../common/ens/core/evidence/stale-collector';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -64,8 +64,8 @@ declare const require: (id: string) => any;
 const {
   getENSComplianceResultByControl,
   getENSComplianceState,
-} = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
-const { buildENSControlComplianceTimeline } = require('../public/ens/core/timeline/control-timeline') as typeof import('../public/ens/core/timeline/control-timeline');
+} = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
+const { buildENSControlComplianceTimeline } = require('../common/ens/core/timeline/control-timeline') as typeof import('../common/ens/core/timeline/control-timeline');
 
 const fallos: string[] = [];
 

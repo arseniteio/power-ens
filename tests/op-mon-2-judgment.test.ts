@@ -20,27 +20,27 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { opMon2PolicyDefinition } from '../public/ens/core/policy-runtime/policies/op-mon-2.policy';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { opMon2CatalogDefinition } from '../public/ens/catalog/op-mon-2';
-import { opMon2Configuration } from '../public/ens/configuration/data/op-mon-2-parameters';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
-import { getStateFactEventTypes, keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
-import { validateParameterValue } from '../public/ens/configuration/services/parameter-value-validator';
+import { opMon2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { opMon2CatalogDefinition } from '../common/ens/catalog/op-mon-2';
+import { opMon2Configuration } from '../common/ens/configuration/data/op-mon-2-parameters';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
+import { getStateFactEventTypes, keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
 import { getENSReportModelDefinition, getRegisteredENSReportControls } from '../public/ens/reports/registry';
-import { buildENSAllControlsFactsFilter, ENS_FACTS_QUERY_LIMIT } from '../public/ens/dashboard/all-controls-facts-filter';
-import { anotaConsulta, panoramaVigente } from '../public/ens/reports/panorama-vigente';
-import type { ENSPanoramaMemoria } from '../public/ens/reports/panorama-vigente';
-import type { ENSControlConfiguration, ENSLevel } from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import type { ENSComplianceResult } from '../public/ens/core/evaluation/types';
+import { buildENSAllControlsFactsFilter, ENS_FACTS_QUERY_LIMIT } from '../common/ens/dashboard/all-controls-facts-filter';
+import { evaluationKey, evaluationReducer, initialEvaluationState, visibleEvaluation } from '../public/evaluation/refresh-policy';
+import type { EvaluationViewState } from '../public/evaluation/refresh-policy';
+import type { ENSControlConfiguration, ENSLevel } from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import type { ENSComplianceResult } from '../common/ens/core/evaluation/types';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -983,65 +983,70 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
   const propio = informes.slice(informes.indexOf('const ControlReport = ('), informes.indexOf('const ControlReportWithPanorama = ('));
   const segunda = informes.slice(informes.indexOf('const ControlReportWithPanorama = ('), informes.indexOf('interface ControlReportEntry'));
   comprueba(
-    'el veredicto de op.mon.2 sale de SU consulta (match_phrase de su control), como el de todos, nunca del conjunto compartido',
-    /\{ match_phrase: \{ 'data\.ensfacil': controlId \} \}/.test(propio) && !/definition\.usesAllControls/.test(propio) && !/exists: \{ field: 'data\.ensfacil' \}/.test(informes),
+    'el veredicto de op.mon.2 sale de SU evaluación (la del control en el servidor), como el de todos, nunca del conjunto compartido',
+    /include: 'control',\s*controlId,/.test(propio) && !/definition\.usesAllControls/.test(propio) && !/exists: \{ field: 'data\.ensfacil' \}/.test(informes),
     propio.length
   );
   comprueba(
-    'el panorama sale de una SEGUNDA consulta, con el filtro y el tope del panel',
-    /useEsSearch\(/.test(segunda) && /buildENSAllControlsFactsFilter\(/.test(segunda) && /size: ENS_FACTS_QUERY_LIMIT/.test(segunda) && /buildENSAllControlsFactsFilter\(/.test(fuente('public/ens/dashboard/ens-dashboard-main.tsx'))
+    'el panorama sale de una SEGUNDA evaluación del servidor, la de todos los controles (la misma que usan el panel y Evidencias)',
+    /useEnsEvaluation</.test(segunda) && /include: 'results'/.test(segunda) && /include: 'dashboard'/.test(fuente('public/ens/dashboard/ens-dashboard-main.tsx'))
   );
   comprueba(
-    'solo el informe que lo pide monta esa segunda consulta; los demás, el componente de siempre',
-    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes)
+    'solo el informe que lo pide monta esa segunda evaluación; los demás, el componente de siempre',
+    /usesAllControls \? \(\s*<ControlReportWithPanorama/.test(informes) && /\) : \(\s*<ControlReport\s/.test(informes)
   );
   comprueba(
-    'la pantalla decide el panorama con `anotaConsulta` y `panoramaVigente`; sin panorama, PDF desactivado; con el tope alcanzado, un aviso',
-    /anotaConsulta\(memoria\.current, claveConsulta, isLoading\)/.test(segunda) &&
-      /deEstaConsulta && !error/.test(segunda) &&
-      /panoramaVigente\(memoria\.current, claveConsulta, error, respuesta\)/.test(segunda) &&
+    'sin panorama de esta máquina, PDF desactivado y la carga (no SIN_DATOS); el panorama solo es el de la evaluación vigente',
+    /valor: evaluacion\.data \? \{ results: evaluacion\.data\.results \} : undefined/.test(segunda) &&
       /loading: vigente\.cargando/.test(segunda) &&
-      /const claveConsulta = `\$\{ensLevel\}\|\$\{searchDataKey\(consulta\)\}`;/.test(segunda) &&
-      /if \(panorama\?\.loading\) return;/.test(informes) &&
-      /isDisabled=\{Boolean\(error\) \|\| Boolean\(panorama\?\.loading\)\}/.test(informes) &&
-      /hits\.length >= ENS_FACTS_QUERY_LIMIT/.test(segunda) &&
-      /panorama\?\.truncated \?/.test(informes)
+      /panoramaLoading: Boolean\(panorama\?\.loading\)/.test(informes) &&
+      /if \(!exportable \|\| !complianceResult\) return;/.test(informes) &&
+      /isDisabled=\{!exportable\}/.test(informes)
   );
 
-  // Render a render, como `useEsSearch`: conserva la respuesta anterior
-  // mientras busca, y en el primer render tras cambiar la clave aún dice
-  // `isLoading=false` con los hechos VIEJOS.
+  // Render a render, como el hook de la evaluación (`useEnsEvaluation`): una
+  // respuesta solo vale para la clave con que se pidió, y un refresco de la
+  // MISMA clave sigue enseñando lo que había (ver `refresh-policy.ts`).
   {
-    const memoria: ENSPanoramaMemoria<string> = {};
-    const render = (clave: string, isLoading: boolean, hechos: string, error?: Error) => {
-      const deEsta = anotaConsulta(memoria, clave, isLoading);
-
-      return panoramaVigente(memoria, clave, error, deEsta && !error ? `panorama de ${hechos}` : undefined);
+    let estado: EvaluationViewState<string> = initialEvaluationState<string>();
+    const A = evaluationKey({ include: 'results', agentId: 'A' });
+    const B = evaluationKey({ include: 'results', agentId: 'B' });
+    const ve = (clave: string) => {
+      const v = visibleEvaluation(estado, clave);
+      return { valor: v.data, cargando: !v.data && !v.error };
     };
     const pdfActivo = (v: { cargando: boolean }) => !v.cargando;
 
-    const montaje = render('A', true, '-');
+    estado = evaluationReducer(estado, { type: 'load', key: A });
+    const montaje = ve(A);
     comprueba('primera carga: SIN_DATOS y PDF desactivado', montaje.valor === undefined && !pdfActivo(montaje));
-    const llegaA = render('A', false, 'A');
+    estado = evaluationReducer(estado, { type: 'success', key: A, data: 'panorama de A' });
+    const llegaA = ve(A);
     comprueba('llega la respuesta de A: su panorama', llegaA.valor === 'panorama de A' && pdfActivo(llegaA), JSON.stringify(llegaA));
-    const refresco = render('A', true, 'A');
+    estado = evaluationReducer(estado, { type: 'refresh', key: A });
+    const refresco = ve(A);
     comprueba('refresco de la MISMA clave en curso: sigue el panorama de A y el PDF activo (sin parpadeo)', refresco.valor === 'panorama de A' && pdfActivo(refresco), JSON.stringify(refresco));
-    const refrescado = render('A', false, 'A2');
-    comprueba('y al volver, el nuevo de A', refrescado.valor === 'panorama de A2');
-    const cambio = render('B', false, 'A2');
+    estado = evaluationReducer(estado, { type: 'success', key: A, data: 'panorama de A2' });
+    comprueba('y al volver, el nuevo de A', ve(A).valor === 'panorama de A2');
+    const cambio = ve(B);
     comprueba(
-      'cambia la clave (otra máquina) y el primer render aún trae los hechos de A sin cargar: SIN_DATOS y PDF desactivado, nunca el panorama de A',
+      'cambia la clave (otra máquina) y aún no se ha pedido la suya: SIN_DATOS y PDF desactivado, nunca el panorama de A',
       cambio.valor === undefined && !pdfActivo(cambio),
       JSON.stringify(cambio)
     );
-    const enCursoB = render('B', true, 'A2');
+    estado = evaluationReducer(estado, { type: 'load', key: B });
+    const enCursoB = ve(B);
     comprueba('mientras B está en curso, igual: SIN_DATOS y PDF desactivado', enCursoB.valor === undefined && !pdfActivo(enCursoB), JSON.stringify(enCursoB));
-    const llegaB = render('B', false, 'B');
+    estado = evaluationReducer(estado, { type: 'success', key: A, data: 'tardía de A' });
+    comprueba('una respuesta tardía de A no se cuela en B', ve(B).valor === undefined);
+    estado = evaluationReducer(estado, { type: 'success', key: B, data: 'panorama de B' });
+    const llegaB = ve(B);
     comprueba('llega B: su panorama', llegaB.valor === 'panorama de B' && pdfActivo(llegaB));
-    const vuelta = render('A', false, 'B');
-    comprueba('volver a A con los hechos de B en pantalla tampoco enseña el viejo de A', vuelta.valor === undefined && !pdfActivo(vuelta), JSON.stringify(vuelta));
-    const fallo = render('A', false, 'B', new Error('índice caído'));
-    comprueba('con un fallo, sin panorama (el fallo se dice aparte)', fallo.valor === undefined);
+    const vuelta = ve(A);
+    comprueba('volver a A con lo de B en pantalla tampoco enseña el viejo de A', vuelta.valor === undefined && !pdfActivo(vuelta), JSON.stringify(vuelta));
+    estado = evaluationReducer(estado, { type: 'load', key: A });
+    estado = evaluationReducer(estado, { type: 'failure', key: A, error: new Error('índice caído') });
+    comprueba('con un fallo, sin panorama (el fallo se dice aparte)', ve(A).valor === undefined);
   }
 
   const filtro = JSON.stringify(buildENSAllControlsFactsFilter(['op.acc.1', 'op.mon.2']));

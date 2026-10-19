@@ -28,25 +28,25 @@
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { evaluateENSControl } from '../public/ens/core/evaluation/evaluation-engine';
-import { markPolicyRuntimeStale } from '../public/ens/core/evidence/stale-collector';
-import type { ENSStaleCollector } from '../public/ens/core/evidence/stale-collector';
-import { markPolicyRuntimeUnmatchedScope } from '../public/ens/core/scope/measurement-planes';
-import { parseRequirementAttestations } from '../public/ens/configuration/services/attestation-service';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
+import { markPolicyRuntimeStale } from '../common/ens/core/evidence/stale-collector';
+import type { ENSStaleCollector } from '../common/ens/core/evidence/stale-collector';
+import { markPolicyRuntimeUnmatchedScope } from '../common/ens/core/scope/measurement-planes';
+import { parseRequirementAttestations } from '../common/ens/configuration/services/attestation-service';
 import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
-import { opAcc1CatalogDefinition } from '../public/ens/catalog/op-acc-1';
-import { getEvidenceDefinitions } from '../public/ens/core/evidence/registry';
+import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
+import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 import type {
   ENSPolicyDecision,
   ENSPolicyRuntimeResult,
-} from '../public/ens/core/policy-runtime/types';
+} from '../common/ens/core/policy-runtime/types';
 import type {
   ENSControlConfiguration,
   ENSControlParameter,
-} from '../public/ens/configuration/types';
-import type { ENSComplianceStatus } from '../public/ens/core/evaluation/types';
-import type { ENSEvidenceResolved } from '../public/ens/core/evidence/types';
+} from '../common/ens/configuration/types';
+import type { ENSComplianceStatus } from '../common/ens/core/evaluation/types';
+import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;

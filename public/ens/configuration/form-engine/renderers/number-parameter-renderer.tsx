@@ -2,7 +2,7 @@ import React from 'react';
 import { EuiFieldNumber, EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
-import { validateParameterValue } from '../../services/parameter-value-validator';
+import { validateParameterValue } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
 // Un valor heredado en forma de cadena numérica ('24') se enseña en el campo en
 // vez de dejarlo en blanco. Si se dejara en blanco, el auditor abriría el

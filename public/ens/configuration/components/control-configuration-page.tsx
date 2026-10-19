@@ -10,10 +10,12 @@ import {
 import {
   ENSControlConfiguration,
   ENSLevel,
-} from '../types';
+} from '../../../../common/ens/configuration/types';
 import {
   ControlConfigurationResolver,
 } from './control-configuration-resolver';
+import { useRouterSearch } from '../../../routing/use-router-search';
+import { parseConfigurationBack } from '../../../routing/configuration-link';
 import {
   ControlConfigurationReset,
 } from './control-configuration-reset';
@@ -23,6 +25,11 @@ interface ControlConfigurationPageProps {
   activeLevel: ENSLevel;
   onBack: () => void;
   onConfigurationSaved: () => void;
+  parameterIds?: string[];
+  secondaryParameterIds?: string[];
+  secondaryTitle?: string;
+  secondaryDescription?: string;
+  focusParameterId?: string;
 }
 
 export const ControlConfigurationPage = ({
@@ -30,16 +37,30 @@ export const ControlConfigurationPage = ({
   activeLevel,
   onBack,
   onConfigurationSaved,
-}: ControlConfigurationPageProps) => (
+  parameterIds,
+  secondaryParameterIds,
+  secondaryTitle,
+  secondaryDescription,
+  focusParameterId,
+}: ControlConfigurationPageProps) => {
+  // Abierta desde el Detalle del control, la única vuelta es «Volver al detalle
+  // de …» (arriba, en la pestaña): dos botones de volver a sitios distintos
+  // confunden.
+  const vieneDelDetalle = Boolean(parseConfigurationBack(useRouterSearch()));
+  return (
   <EuiPanel paddingSize='l'>
-    <EuiButton
-      size='s'
-      onClick={onBack}
-    >
-      Volver a controles
-    </EuiButton>
+    {!vieneDelDetalle && (
+      <>
+        <EuiButton
+          size='s'
+          onClick={onBack}
+        >
+          Volver a controles
+        </EuiButton>
 
-    <EuiSpacer size='m' />
+        <EuiSpacer size='m' />
+      </>
+    )}
 
     <EuiTitle size='m'>
       <h2>
@@ -60,6 +81,11 @@ export const ControlConfigurationPage = ({
       onConfigurationSaved={
         onConfigurationSaved
       }
+      parameterIds={parameterIds}
+      secondaryParameterIds={secondaryParameterIds}
+      secondaryTitle={secondaryTitle}
+      secondaryDescription={secondaryDescription}
+      focusParameterId={focusParameterId}
     />
 
     <EuiSpacer size='l' />
@@ -74,4 +100,5 @@ export const ControlConfigurationPage = ({
       }
     />
   </EuiPanel>
-);
+  );
+};

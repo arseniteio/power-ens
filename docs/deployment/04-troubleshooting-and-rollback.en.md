@@ -106,7 +106,7 @@ fi
 Expected result: `dashboard: active` and `ensfacil` in the plugin list. Then check as in section 3.
 
 > [!important]
-> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update.
+> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.2.0 to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
 ### 4.1 If `deploy-plugin.sh` fails halfway
 
@@ -119,6 +119,7 @@ If something fails once the dashboard is stopped, the script prints the commands
 | `1` | wrong usage: no zip, two zips or an unknown option | untouched |
 | `2` | the zip is not ENSFácil | untouched |
 | `3` | the copy of the previous plugin could not be saved | untouched: the dashboard keeps running |
+| `4` | the `wazuh-dashboard` user cannot read the temporary copy of the zip (the script places it in `${TMPDIR:-/tmp}`) | untouched: the dashboard keeps running; set another folder with `TMPDIR=<folder>` |
 | `5` | installing the zip failed | dashboard stopped and without `ensfacil` |
 | `6` | the dashboard was not active at the end | new plugin installed and dashboard not active: check `journalctl -u wazuh-dashboard` |
 | `7` | another step failed with the dashboard stopped (removing the plugin, bumping `build.number`, starting) or it was interrupted | the message names the step |
@@ -185,7 +186,7 @@ Only for an environment that comes from the integrated version ([update guide, s
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.1.0   # the installed ENSFácil version
+V=1.2.0   # the installed ENSFácil version
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
@@ -264,9 +265,80 @@ Expected result: the response includes `"result":"updated"`. Then validate the r
 | `install-manager.sh`: «hay más de un bloque `<agent_config>`» | the `agent.conf` of the `ens` group (or the `ens-copias` one, for mp.info.6) has two blocks | merge everything into a single `<agent_config>`, validate with `verify-agent-conf` and retry |
 | `install-manager.sh` ends fine but the rule does not match | a previous run failed after copying the rules and the retry does not restart the manager | `sudo systemctl restart wazuh-manager` and check with `wazuh-logtest` |
 | auditd evidence not measured on a machine (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8, op.exp.10) | `install.sh` wrote the rules to `/etc/audit/rules.d/` but they were not loaded | check that auditd is not immutable (`sudo auditctl -s`, `enabled` other than `2`) and run `sudo augenrules --load` |
+| «Datos incompletos: N de M shards fallaron al leer …» (incomplete data; error 503) | some indexer shard did not answer; the evaluation is neither made with partial data nor stored | check the cluster status (`_cluster/health`) and click «Reintentar» once it is `green` or `yellow` |
+| «Demasiados hechos para evaluar … de una vez (más de 50.000)» (too many facts to evaluate at once) | a control has more facts in the window on one machine than the plugin server reads at once | shorten the evaluation period or the scope; check whether a collector emits more than usual |
+| «No se pudo actualizar la evaluación: …» (the evaluation could not be updated), with the result computed earlier | the background recomputation failed; the screen shows the last correct result with its time | click «Reintentar»; the plugin also retries on its own, with growing waits from 30 s to 5 min. If it persists, check the dashboard log (section 3) |
+| «Calculando la evaluación» or «Calculando la serie…» for minutes | each user's first load reads the whole window (about 20 s in the lab); with many machines or many facts it takes longer | wait: the computation continues even when switching tabs, and the screen completes on its own. If it does not finish, check the dashboard log (section 3) |
 | A control shows «Sin datos del recolector desde …» | the last heartbeat of that control's collector on that machine is older than 24 h | check the agent, the collector cron and connectivity; the control is judged again as soon as a new run arrives |
 | A control measured on the manager (op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1, op.cont.3) without data on the manager row | the runbook's `install-manager.sh` is missing or its cron (hourly or every 6 hours, depending on the control) has not run yet | check the manager's `/etc/cron.d/ensfacil-op*` and the `<localfile>` in its `ossec.conf`. In Docker, section 9.3 |
 | An op.exp.1 rule appears on op.exp.10 events | op.exp.1 rules older than the fix, with the `ensfacil` field not anchored | update the op.exp.1 runbook and run its `install-manager.sh` again |
+| The dashboard restarts on its own and the log says `JavaScript heap out of memory` or `FATAL ERROR: … Allocation failed` | since 1.2.0 the dashboard server evaluates the controls, and in a large scope Node's default heap is too small | give the dashboard more heap (section 8.1) |
+
+### 8.1 Dashboard memory
+
+Since 1.2.0 the dashboard server evaluates the controls. In the lab (6
+machines, about 210,000 facts in 30 days) that adds about 15 MB per user after
+the first load and about 50 MB while computing; the dashboard process uses
+about 470-550 MB in total. It is bounded by 50,000 facts per read (about
+85 MB), 4 reads at a time (about 340 MB in the worst case) and a result memory
+of 64 to 256 MB depending on the scope (`server/README.md`, «Memoria»).
+
+In a deployment larger than the lab (tens of machines or millions of facts in
+the window), the dashboard's Node heap must be at least 2048 MB up to about 30
+machines and 4096 MB above that, with at least twice that memory free on the
+server. Node's default limit depends on the server's memory (about 2096 MB on
+an 8 GB server): set a value only if the current one is lower.
+
+1. Check the dashboard's Node options file and the limit Node assigns by
+   default on this server (in MB):
+
+   ```bash
+   sudo cat /etc/wazuh-dashboard/node.options
+   sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/node/bin/node -e 'console.log(Math.round(require("v8").getHeapStatistics().heap_size_limit / 1048576))'
+   ```
+
+   Expected result: the file contents and a number. If the file already has
+   `--max-old-space-size` with a value equal to or greater than the chosen one,
+   or the number is greater than the chosen value, change nothing: a lower
+   value reduces the dashboard's memory.
+
+2. If the file exists, replace any previous `--max-old-space-size` with the
+   chosen value:
+
+   ```bash
+   sudo sed -i '/--max-old-space-size=/d' /etc/wazuh-dashboard/node.options
+   echo '--max-old-space-size=4096' | sudo tee -a /etc/wazuh-dashboard/node.options
+   ```
+
+   If it does not exist, set it on the service:
+
+   ```bash
+   sudo systemctl edit wazuh-dashboard
+   ```
+
+   with this content:
+
+   ```ini
+   [Service]
+   Environment="NODE_OPTIONS=--max-old-space-size=4096"
+   ```
+
+3. Restart the dashboard and check that the process carries the option:
+
+   ```bash
+   sudo systemctl restart wazuh-dashboard
+   pid=$(systemctl show -p MainPID --value wazuh-dashboard)
+   sudo cat /proc/$pid/cmdline /proc/$pid/environ | tr '\0' '\n' | grep -o 'max-old-space-size=[0-9]*'
+   ```
+
+   Expected result: `max-old-space-size=4096`.
+
+In Docker, the variable goes in the `wazuh.dashboard` service of
+`docker-compose.yml` (`environment: - NODE_OPTIONS=--max-old-space-size=4096`),
+and is applied with `docker compose up -d wazuh.dashboard`.
+
+To revert, remove the line (or the `systemctl edit` file) and restart the
+dashboard.
 
 ## 9. Docker
 

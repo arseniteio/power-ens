@@ -31,32 +31,32 @@
  * `main` de Wazuh: se sustituye por un módulo vacío antes de cargarlo, igual
  * que en `measurement-planes.test.ts`.
  */
-import { ENSCatalog } from '../public/ens/catalog';
-import { mpInfo6CatalogDefinition } from '../public/ens/catalog/mp-info-6';
-import { mpInfo6Configuration } from '../public/ens/configuration/data/mp-info-6-parameters';
-import { defaultENSConfigurationTemplate } from '../public/ens/configuration/data/default-configuration';
-import { ensConfigurationRepository } from '../public/ens/configuration/repository';
-import { assertENSConfigurationVersion } from '../public/ens/configuration/services/configuration-structure-validator';
-import { validateControlConfiguration } from '../public/ens/configuration/services/validation-engine';
-import { normalizeWazuhAlerts } from '../public/ens/core/data-source/data-source-engine';
-import { resolveEvidenceForControl } from '../public/ens/core/evidence/engine';
-import { keepLatestRunStateFacts } from '../public/ens/core/evidence/state-facts';
-import { applyPolicyDecisionsToEvidences } from '../public/ens/core/evaluation/policy-evidence-bridge';
-import { evaluateRequirement } from '../public/ens/core/evaluation/requirement/requirement-evaluator';
-import { buildPolicyContext } from '../public/ens/core/policy-runtime/policy-context-builder';
-import { runPolicyRuntime } from '../public/ens/core/policy-runtime/policy-runtime';
+import { ENSCatalog } from '../common/ens/catalog';
+import { mpInfo6CatalogDefinition } from '../common/ens/catalog/mp-info-6';
+import { mpInfo6Configuration } from '../common/ens/configuration/data/mp-info-6-parameters';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
+import { validateControlConfiguration } from '../common/ens/configuration/services/validation-engine';
+import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
+import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
+import { keepLatestRunStateFacts } from '../common/ens/core/evidence/state-facts';
+import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
+import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
+import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
+import { runPolicyRuntime } from '../common/ens/core/policy-runtime/policy-runtime';
 import {
   MP_INFO_6_REQUISITOS,
   mpInfo6PolicyDefinition,
-} from '../public/ens/core/policy-runtime/policies/mp-info-6.policy';
+} from '../common/ens/core/policy-runtime/policies/mp-info-6.policy';
 import { buildENSReportModel } from '../public/ens/reports/registry';
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSLevel,
-} from '../public/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
-import type { ENSAgentScope } from '../public/ens/core/scope/types';
+} from '../common/ens/configuration/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
+import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
 declare const require: (id: string) => any;
@@ -79,7 +79,7 @@ declare const __dirname: string;
 const {
   getENSComplianceResultByControl,
   getENSComplianceState,
-} = require('../public/ens/core/ens-engine') as typeof import('../public/ens/core/ens-engine');
+} = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
 // --- comprobador mínimo ----------------------------------------------------
 

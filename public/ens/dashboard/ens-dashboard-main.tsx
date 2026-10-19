@@ -1,21 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
-import { useEsSearch } from '../../search/use-es-search';
+import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { ENSControls } from '../data';
-import { buildENSAllControlsFactsFilter } from './all-controls-facts-filter';
-import {
-  buildENSDashboardModel,
-  buildENSEvaluationTimeRangeFilter,
-  buildENSComplianceTimeline,
-  getENSComplianceState,
-  normalizeWazuhAlerts,
-} from '../core';
-import { getActiveENSConfiguration } from '../configuration/services';
-import {
-  buildENSScopeAgentQueryFilter,
-  getActiveENSScopeAgents,
-} from '../core/scope';
+import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
+import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
+import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {
@@ -57,118 +47,80 @@ const requirementStatusPresentation = (
 
 export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey(current => current + 1);
-    }, 15000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const activeConfiguration = getActiveENSConfiguration();
-  const ensLevel = activeConfiguration.global.ensLevel;
-  const evaluationTimeFilter = buildENSEvaluationTimeRangeFilter(
-    activeConfiguration.global.evaluationPeriod,
-  );
-
-  // `getActiveENSScopeAgents()` CLONA: devuelve un array nuevo en cada llamada,
-  // así que usarlo directo como dependencia deja sin efecto todos los `useMemo`
-  // que cuelgan de él —el motor volvía a evaluarlo todo en cada render, no solo
-  // cuando cambiaba algo—. Se ancla a la identidad del alcance, que es lo que
-  // de verdad cambia.
-  const scopeAgentsKey = getActiveENSScopeAgents()
-    .map(agent => `${agent.id}:${agent.groups.join('|')}`)
-    .join(',');
-
-  const scopeAgents = useMemo(
-    () => getActiveENSScopeAgents(),
-    [scopeAgentsKey],
-  );
-
-  const scopeAgentQueryFilter =
-    buildENSScopeAgentQueryFilter(
-      scopeAgents,
-      agentId,
-    );
-
-  const ensControlIds = ENSControls.map(control => control.id);
-  const { esResults, error } = useEsSearch({
-    preAppliedFilters: [
-      evaluationTimeFilter,
-      scopeAgentQueryFilter,
-      buildENSAllControlsFactsFilter(ensControlIds),
-    ],
-    // MISMO TOPE QUE EL DETALLE. Con 6000 aqui y 1000 alli, las dos
-    // pantallas juzgaban conjuntos distintos del mismo control y podian dar
-    // numeros distintos sin que nada lo dijera. 10.000 es el
-    // `index.max_result_window` por defecto de OpenSearch.
-    //
-    // Y los MÁS RECIENTES: sin orden, el índice devuelve primero los más
-    // antiguos y el panel juzgaba el principio de la ventana (hechos de hace
-    // semanas, «sin datos del recolector» en máquinas que informan cada hora).
-    size: 10000,
-    sorting: [{ timestamp: { order: 'desc' } }],
-    refreshKey,
+  // El panel lo calcula el SERVIDOR, con todos los hechos de la ventana (sin el
+  // tope de 10.000, que dejaba fuera máquinas enteras): aquí llega el modelo
+  // ya hecho, unos KB. Hasta 1.1.0 el navegador bajaba 10.000 hechos cada 15 s
+  // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
+  // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
+  // pedir (ver `public/evaluation/use-evaluation.ts`).
+  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
+    include: 'dashboard',
+    agentId,
+    timelineDays: 7,
   });
+  const { error } = evaluacion;
+  const dashboardModel = evaluacion.data?.dashboard;
 
-  const hits = esResults?.hits?.hits || [];
+  if (!dashboardModel) {
+    // Sin el resultado de ESTA vista no se enseña nada: ni el de la máquina
+    // anterior ni ceros que parezcan un veredicto.
+    return error ? (
+      <div style={{ padding: 16 }}>
+        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+      </div>
+    ) : (
+      <EvaluationLoading message='Evaluando los controles ENS en el servidor con todos los hechos de la ventana.' />
+    );
+  }
 
-  const normalizedEvents = useMemo(() => normalizeWazuhAlerts(hits), [hits]);
-
-  const complianceState = useMemo(
-    () =>
-      getENSComplianceState(
-        ensLevel,
-        normalizedEvents,
-        agentId,
-        scopeAgents,
-      ),
-    [
-      normalizedEvents,
-      agentId,
-      ensLevel,
-      scopeAgents,
-    ],
-  );
-  // La serie diaria son SIETE pasadas completas del motor, así que se memoriza
-  // aparte del modelo del panel: el intervalo de refresco reconstruye el
-  // modelo cada 15 s y sin este `useMemo` reevaluaría los siete días cada vez.
-  const complianceTimeline = useMemo(
-    () =>
-      buildENSComplianceTimeline(
-        ensLevel,
-        normalizedEvents,
-        {
-          agentId,
-          scopeAgents,
-          days: 7,
-        },
-      ),
-    [
-      normalizedEvents,
-      agentId,
-      ensLevel,
-      scopeAgents,
-    ],
-  );
-
-  const dashboardModel = useMemo(
-    () =>
-      buildENSDashboardModel(
-        complianceState,
-        normalizedEvents,
-        complianceTimeline
-      ),
-    [
-      complianceState,
-      normalizedEvents,
-      complianceTimeline,
-    ],
-  );
+  // PRIMERA CARGA A MEDIAS. Las cifras del panel son de TODOS los controles:
+  // con alguno aún calculándose no se enseñan (serían de una parte, y
+  // parecerían de todo). Se enseña cuánto falta, los controles ya calculados
+  // con su estado y «Calculando…» en los demás; el navegador vuelve a pedir
+  // cada 2 s (15 s pasados 2 minutos).
+  const enCurso = evaluacion.data?.meta?.pending;
+  if (enCurso) {
+    const controles = evaluacion.data?.controls || [];
+    return (
+      <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
+        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+        <EuiCallOut size='s' color='primary' iconType='clock' title='Calculando la evaluación'>
+          <p>
+            {enCurso.total - enCurso.rows} de {enCurso.total} filas (control × máquina) listas. Las cifras del panel
+            aparecen cuando estén todos los controles; mientras, el estado de los ya calculados.
+          </p>
+        </EuiCallOut>
+        <EuiSpacer size='m' />
+        <EuiFlexGroup wrap gutterSize='s'>
+          {controles.map(control => {
+            const estado = requirementStatusPresentation(control.status);
+            return (
+              <EuiFlexItem grow={false} key={control.controlId}>
+                {control.pending ? (
+                  <EuiBadge color='default' iconType='clock'>
+                    {control.controlId} · Calculando…
+                  </EuiBadge>
+                ) : (
+                  <EuiBadge color={estado.color}>
+                    {control.controlId} · {estado.label}
+                    {control.score !== undefined ? ` · ${control.score}%` : ''}
+                  </EuiBadge>
+                )}
+              </EuiFlexItem>
+            );
+          })}
+        </EuiFlexGroup>
+      </div>
+    );
+  }
 
   const requirementsModel = dashboardModel.requirementsSummary;
+  // La serie se calcula después de responder (`meta.seriesPending`, la
+  // respuesta llega sin `timeline`): mientras, el gráfico lo dice, sin el punto
+  // suelto de ahora ni el texto de «todavía no hay eventos».
+  const seriePendiente = Boolean(evaluacion.data?.meta?.seriesPending) && !(evaluacion.data?.timeline || []).length;
+  const filasEvolucion: typeof dashboardModel.evolution.rows = seriePendiente ? [] : dashboardModel.evolution.rows;
 
   const Donut = ({
     center,
@@ -240,18 +192,9 @@ export const EnsDashboardMain = () => {
     textTransform: 'uppercase',
   };
 
-  // Sin los hechos de ahora no hay índice que enseñar: el refresco de 15 s
-  // vuelve a intentarlo.
-  if (error) {
-    return (
-      <div style={{ padding: 16 }}>
-        <FactsReadErrorCallOut error={error} />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
+      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         <div style={card}>
           <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>
@@ -673,25 +616,25 @@ export const EnsDashboardMain = () => {
                 );
               })}
 
-              {dashboardModel.evolution.rows.length > 0 && (
+              {filasEvolucion.length > 0 && (
                 <polygon
                   points={[
-                    ...dashboardModel.evolution.rows.map((row, index) => {
+                    ...filasEvolucion.map((row, index) => {
                       const x =
-                        dashboardModel.evolution.rows.length === 1
+                        filasEvolucion.length === 1
                           ? 300
-                          : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                          : (index * 600) / (filasEvolucion.length - 1);
                       const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                       return `${x},${y}`;
                     }),
                     `${
-                      dashboardModel.evolution.rows.length === 1
+                      filasEvolucion.length === 1
                         ? 300
-                        : ((dashboardModel.evolution.rows.length - 1) * 600) /
-                          (dashboardModel.evolution.rows.length - 1)
+                        : ((filasEvolucion.length - 1) * 600) /
+                          (filasEvolucion.length - 1)
                     },200`,
-                    `${dashboardModel.evolution.rows.length === 1 ? 300 : 0},200`,
+                    `${filasEvolucion.length === 1 ? 300 : 0},200`,
                   ].join(' ')}
                   fill='rgba(0, 107, 180, 0.16)'
                 />
@@ -703,12 +646,12 @@ export const EnsDashboardMain = () => {
                 strokeWidth='3'
                 strokeLinecap='round'
                 strokeLinejoin='round'
-                points={dashboardModel.evolution.rows
+                points={filasEvolucion
                   .map((row, index) => {
                     const x =
-                      dashboardModel.evolution.rows.length === 1
+                      filasEvolucion.length === 1
                         ? 300
-                        : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                        : (index * 600) / (filasEvolucion.length - 1);
                     const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                     return `${x},${y}`;
@@ -716,11 +659,11 @@ export const EnsDashboardMain = () => {
                   .join(' ')}
               />
 
-              {dashboardModel.evolution.rows.map((row, index) => {
+              {filasEvolucion.map((row, index) => {
                  const x =
-                   dashboardModel.evolution.rows.length === 1
+                   filasEvolucion.length === 1
                      ? 300
-                     : (index * 600) / (dashboardModel.evolution.rows.length - 1);
+                     : (index * 600) / (filasEvolucion.length - 1);
                  const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                  return (
@@ -774,6 +717,27 @@ export const EnsDashboardMain = () => {
        })}
             </svg>
 
+            {seriePendiente && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 78,
+                  right: 14,
+                  top: 8,
+                  height: 200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <EuiLoadingSpinner size='m' />
+                <EuiText size='s' color='subdued'>
+                  <span>Calculando la serie…</span>
+                </EuiText>
+              </div>
+            )}
+
             <div
               style={{
                 position: 'absolute',
@@ -800,7 +764,9 @@ export const EnsDashboardMain = () => {
               fontSize: 12,
             }}
           >
-            {dashboardModel.evolution.description}
+            {seriePendiente
+              ? 'Calculando en el servidor la serie diaria de los últimos 7 días; aparece en cuanto esté. Las cifras de arriba ya son las de ahora.'
+              : dashboardModel.evolution.description}
           </div>
         </div>
         <div style={card}>
@@ -903,7 +869,7 @@ export const EnsDashboardMain = () => {
         </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>
-        ⓘ El índice de cumplimiento se calcula con base en eventos ENS normalizados recibidos desde Wazuh/OpenSearch. La dashboard se actualiza automáticamente cada 15 segundos.
+        ⓘ El índice de cumplimiento lo calcula el servidor con todos los hechos ENS de la ventana de evaluación. Cada 5 minutos se comprueba si han llegado hechos nuevos y, solo entonces, se vuelve a calcular.
       </div>
     </div>
   );

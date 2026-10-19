@@ -24,15 +24,8 @@
         "op.acc.1.3",
         "op.acc.1.4"
       ],
-      "type": "select",
+      "type": "list",
       "example": "Active Directory",
-      "options": [
-        "Active Directory",
-        "LDAP",
-        "Local",
-        "Azure AD",
-        "Otro"
-      ],
       "required": true,
       "wazuhUsage": "Determina qué integración de Wazuh aporta los eventos de cuenta: el módulo de Active Directory, el colector de eventos de Windows, auditd en Linux o un conector cloud.",
       "ensfacilUsage": "Deja constancia en el informe del origen de las identidades auditadas. El agente no lee este valor: recoge siempre las cuentas de la máquina en la que está instalado, así que declararlo no cambia lo que se mide, sino lo que el informe puede afirmar sobre el alcance.",

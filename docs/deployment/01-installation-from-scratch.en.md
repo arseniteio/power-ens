@@ -409,7 +409,7 @@ There are two ways to get the plugin zip. Both end the same way, in section 13.4
 Download the four release files to `/opt/ensfacil/releases/<version>`, in the browser or from the server with a deploy token ([guide 07, sections 4 to 6](07-installing-from-a-release.en.md#4-prepare-the-folder-on-the-server)), and verify their integrity:
 
 ```bash
-V=1.1.0
+V=1.2.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -467,7 +467,7 @@ Expected result:
 | Check | Expected result |
 |---|---|
 | service | `active` |
-| plugins | `ensfacil@1.1.0` and `wazuh@4.14.7-01`, among others |
+| plugins | `ensfacil@1.2.0` (the installed version) and `wazuh@4.14.7-01`, among others |
 | `/api/ensfacil/configuration` | `401`: the plugin route exists and asks for a session. A `404` means the plugin did not load ([troubleshooting](04-troubleshooting-and-rollback.en.md)) |
 
 ### 13.5 Create the ensfacil_admin role
@@ -524,7 +524,8 @@ Expected result: `-> 200` or `-> 201` after each request and, at the end, `usuar
 Log in to Wazuh Dashboard and check that:
 
 - in the menu, under «Security operations», «ENSFácil» appears;
-- it opens on the Panel tab, with the tabs Panel, Configuración, Controles, Detalle del control, Informes, Evidencias and Eventos;
+- on the OpenSearch Dashboards home page (`/app/home`), the «ENSFácil» card opens the application; the Wazuh home page does not accept other plugins' cards, so there ENSFácil is only in the menu;
+- it opens on the Panel tab, with the tabs Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias and Eventos;
 - there is a «Máquina» selector to see all the machines in scope or a single one.
 
 On a new installation, continue with section 14: the ENS configuration is created by the first save.
@@ -628,14 +629,14 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `controles (23): …` and `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
+Expected result: `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, with per-system values, `VALORES POR SISTEMA VÁLIDOS.` ([Configuration by system and templates, section 11.2](09-configuration-by-system.en.md#112-validate-the-document)). If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
 
 > [!warning]
 > If the validation fails, restore the copy from section 14.2 before anyone opens the dashboard, and fix the reported parameter.
 
 ### 14.5 Declare the policy
 
-Parameter values are decisions of the person in charge and are declared in ENSFácil > Configuration. Configuration > Global configuration also holds the ENS level, the **Traceability level (T)**, used only by op.exp.8, and the **Availability level (D)**, used by op.cont.2 and op.cont.3. If T or D is not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+Parameter values are decisions of the person in charge and are declared in ENSFácil > Configuration, at two levels: on the «Organización» tab, each control's common policy; on the «Sistemas» tab, what belongs to each machine in scope and to its platform, with templates for Linux Ubuntu, Zimbra LDAP server, Windows Server and the manager. The complete procedure, with system type detection, templates, value inheritance and the migration of an earlier configuration, is in [Configuration by system and templates](09-configuration-by-system.en.md). Configuration > Global configuration also holds the ENS level, the **Traceability level (T)**, used only by op.exp.8, and the **Availability level (D)**, used by op.cont.2 and op.cont.3. If T or D is not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 To declare values from the server (reproducible environments, or when the policy is already decided in writing), use `config/set-parameters.py` with a JSON file:
 
@@ -659,6 +660,8 @@ sudo env $CERT python3 set-parameters.py /path/policy.json --apply    # write
 > [!note]
 > An empty parameter is the **absent** `value` key, never `null`. To empty a parameter, do it from the Configuration screen.
 
+A machine's own values are declared with the `agents` section of the same file: [Configuration by system and templates, section 11.1](09-configuration-by-system.en.md#111-declare-a-systems-values-with-set-parameterspy).
+
 After declaring values, repeat the validation of section 14.4.
 
 ### 14.6 Check the dashboard
@@ -668,5 +671,44 @@ Open ENSFácil and check that:
 - the 23 controls appear;
 - besides the machines in the `ens` group, the scope includes the manager (agent `000`), because nine controls are evaluated on it: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1. The eight other than op.cont.2 have a collector on the manager; op.cont.2 is evaluated from the tables of the Configuración screen;
 - after the first run of the manager collectors (hourly or every 6 hours, depending on the control), those controls show data on the manager row.
+
+The evaluation runs on the plugin server with every fact of the 30-day window. Each user's first load answers in parts: the notice «Calculando la evaluación» (computing the evaluation), with how many rows (control × machine) are ready, the status of the controls already computed and «Calculando…» on the rest.
+
+Expected result: the first controls appear within a few seconds and, once all are computed, the dashboard figures; the daily evolution reads «Calculando la serie…» until it is computed. In the lab, the complete result takes about 20 s; after that, the screens answer at once.
+
+### 14.7 Check the overview and the detail of a control
+
+Open the **Vista general** tab with «Todas las máquinas» in the selector. The screen makes one evaluation request for the whole scope and a separate one for the trend. On the first load, while controls are missing, it shows «Calculando la evaluación: X de N filas (control × máquina) listas» with the missing controls, «…» on their matrix rows, and leaves the per-machine figures and the work queue for the end; the trend reads «Calculando la serie de 30 días» until it is ready.
+
+| Section | What it shows | Expected result |
+|---|---|---|
+| Máquinas | One row per machine in scope (the manager last): measured controls by status, requirements not met and how many of them not demonstrated, last data received (the latest of the last fact and the last collector heartbeat) and its three worst controls. | A machine with no data for more than 24 h shows in red. Clicking its name selects it in the selector; clicking one of its worst controls opens that control's detail on that machine. |
+| Controles × máquinas | The 23 controls by the machines in scope. In «Cumplimiento», each cell is the control's percentage on that machine and, in red, the requirements not met; hatched, «not measured on this machine»; «en el manager», an organization control whose result is in column `000`. In «Frescura de la recogida», the last data of that control on that machine. | Clicking a cell opens the Control detail of that control on that machine. A control measured on a machine with nothing received in the window says «nunca», in red. The «Máquinas» column, next to the control, says how many machines comply, how many do not and how many have no data. With many machines the table scrolls horizontally and the control column stays fixed; each header shows the machine id and name. |
+| Cola de trabajo | The non-conformities of every control, grouped by who has to act: audited system, organization, ENS owner, Wazuh operation, evidence producer, ENSFácil product. With a machine selected, only its own. | Each row gives the control, the requirement and the first sentence of the failing evidence, without the «Resuelta por la política…» template. Clicking the control opens its detail. |
+| Tendencia de 30 días | The average compliance index of each day, with the first and last day, and below it the status of each control each day, with its legend. | Each day is evaluated with the facts known up to that day. A control whose status changed in the window shows in bold, with its first and last status. |
+
+Switch machine in the selector with the Vista general open.
+
+Expected result: the view is not reloaded and keeps the selected view («Cumplimiento» or «Frescura de la recogida»); the selected machine is highlighted and the work queue shows only its items. Only the trend is computed again, because it belongs to that machine.
+
+Then open **Detalle del control** and select the manager (`000`) in the selector.
+
+Expected result: the list shows the 23 controls. The 14 measured only on machines (mp.info.6, op.acc.1-6, op.exp.1-6 and op.exp.10) appear last, in grey, with «No se mide en esta máquina» and the reason, and without a score. At level BAJO, a line reads «Nivel BAJO: 4 controles no aplican (…)», with a link to Configuración. A catalog control that is not in the active configuration shows «No está en la configuración activa» and the «Añadir con valores por defecto» button.
+
+Open op.acc.1 with the manager selected.
+
+Expected result: the detail is neither empty nor says «Todo lo aplicable … conforme»; it shows «op.acc.1 no se mide en 000 · …», the reason and the buttons «Ver todas las máquinas» and, if the control declares the machines it is measured on (mp.info.6 P-04), «Configurar P-04».
+
+Switch to another machine with the detail open.
+
+Expected result: the tab is not remounted. While the new machine's result arrives, a progress bar and the notice «Cargando … Mientras tanto se muestra el resultado de …» state which machine and which time the visible result belongs to. If the evaluation fails, the error notice appears above the last result, with «Reintentar»; the page does not disappear. A machine in the address that is not in the ENS scope only shows the selector's notice, with «Quitar la máquina y ver todas».
+
+Review a non-conformity card.
+
+Expected result: the headline is the failing evidence, its status and the first sentence of its reason, in normal weight; a headline longer than 200 characters is cut at a space with «…» and continues below. Below it come the rest of the reason in normal text, lists as lists (only once, and after the sentence that introduces them), what follows «Además» set apart, the other evidences of the requirement with their status and the conforming ones folded. Each cited parameter is a badge with the value that applies to that machine and its origin (the machine's own, a template or the organization); clicking it opens Configuración on that parameter. Clicking an evidence opens Evidencias filtered by that control, with the filter visible and «Quitar filtro». The specific action appears under the non-conformity class. «Ver detalle» shows the full reason.
+
+Click **Configurar este control** in the detail header.
+
+Expected result: Configuración opens on that control (on the selected machine's page if the control has per-system or per-platform parameters) with «Volver al detalle de …» at the top, which returns to the same control and the same machine. The open detail is kept in the URL (`control=`): switching tabs and back, or reloading the page, opens it again.
 
 Agents are added afterwards, installing on each machine the runbooks that apply to it according to their own guide (`docs/deployment/01-installation.md` **of each runbook**, linked from the [runbook table](05-runbooks-and-registers.en.md#runbooks-per-control)); the machines whose backups are measured also go into the `ens-copias` group and into mp.info.6 P-04. The op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 and op.exp.10 runbooks write auditd rules that are loaded with `sudo augenrules --load` at the end.

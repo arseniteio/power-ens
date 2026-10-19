@@ -12,7 +12,7 @@ import {
   hasParameterColumns,
   hasParameterOptions,
   isPlainNumericParameter,
-} from '../../services/parameter-value-validator';
+} from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
 // `boolean`, `path` y `url` siguen cayendo en el renderer de texto: se editan
 // como cadena, que es lo que declaran. `list`, `select` y `table` necesitan

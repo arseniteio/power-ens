@@ -13,3 +13,10 @@ export const factsReadErrorCause = (error: unknown): string => {
 
 export const factsReadErrorText = (error: unknown): string =>
   `${FACTS_READ_ERROR_TITLE}: ${factsReadErrorCause(error)}. No se muestran resultados hasta que la búsqueda vuelva a funcionar: los que había eran de la búsqueda anterior.`;
+
+// Lo mismo para la evaluación del servidor (desde 1.2.0 las pantallas que
+// juzgan no buscan hechos: piden el resultado).
+export const EVALUATION_ERROR_TITLE = 'No se pudo evaluar';
+
+export const evaluationErrorText = (error: unknown): string =>
+  `${EVALUATION_ERROR_TITLE}: ${factsReadErrorCause(error)}. No se muestra ningún resultado hasta que la evaluación vuelva a funcionar: lo que había no vale como de ahora.`;

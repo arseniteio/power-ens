@@ -24,9 +24,9 @@ import {
   noCumple,
   peor,
   sinMedir,
-} from '../public/ens/core/policy-runtime/policies/policy-kit';
-import type { ENSPolicyContext } from '../public/ens/core/policy-runtime/types';
-import type { ENSNormalizedEvent } from '../public/ens/core/data-source/types';
+} from '../common/ens/core/policy-runtime/policies/policy-kit';
+import type { ENSPolicyContext } from '../common/ens/core/policy-runtime/types';
+import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 
