@@ -462,4 +462,36 @@ export const ensRequirementsFile = {
     'Resolución de las vulnerabilidades encontradas - Una vez finalizada una auditoría de seguridad, se analizarán los resultados y se solventarán las vulnerabilidades encontradas mediante los procedimientos definidos [op.exp.5].',
   'mp.s.2.r3.1':
     'Protección de proxies y cachés - Se prevendrán ataques de manipulación de programas o dispositivos que realizan una acción en representación de otros, conocidos en terminología inglesa como «proxies» y, sistemas especiales de almacenamiento de alta velocidad, conocidos en terminología inglesa como «cachés».',
+  'mp.s.3.1':
+    'Normativa de utilización de la navegación - Se establecerá una normativa de utilización, definiendo el uso que se autoriza y las limitaciones de uso personal. En particular, se concretará el uso permitido de conexiones cifradas.',
+  'mp.s.3.2':
+    'Concienciación regular sobre higiene en la navegación - Se llevarán a cabo regularmente actividades de concienciación sobre higiene en la navegación web, fomentando el uso seguro y alertando de usos incorrectos.',
+  'mp.s.3.3':
+    'Formación de los administradores en monitorización y respuesta - Se formará al personal encargado de la administración del sistema en monitorización del servicio y respuesta a incidentes.',
+  'mp.s.3.4':
+    'Protección de la resolución de nombres y de las conexiones - Se protegerá la información de resolución de direcciones web y de establecimiento de conexiones.',
+  'mp.s.3.5':
+    'Protección frente a problemas que llegan por la navegación - Se protegerá a la organización en general y al puesto de trabajo en particular frente a problemas que se materializan vía navegación web.',
+  'mp.s.3.6':
+    'Protección frente a código dañino y contenido activo - Se protegerá contra la actuación de programas dañinos tales como páginas activas, descargas de código ejecutable, etc., previniendo la exposición del sistema a vectores de ataque del tipo spyware, ransomware, etc.',
+  'mp.s.3.7':
+    'Política ejecutiva de control de cookies - Se establecerá una política ejecutiva de control de cookies, en particular, para evitar la contaminación entre uso personal y uso organizativo.',
+  'mp.s.3.r1.1':
+    'Registro del uso de la navegación con su retención - Se registrará el uso de la navegación web, estableciendo los elementos que se registran, el periodo de retención de estos registros y el uso que el organismo prevé hacer de ellos.',
+  'mp.s.3.r1.2':
+    'Inspección de canales cifrados con exclusiones declaradas - Se establecerá una función para la ruptura de canales cifrados a fin de inspeccionar su contenido, indicando qué se analiza, qué se registra, durante cuánto tiempo se retienen los registros y qué uso prevé hacer el organismo de estas inspecciones. Todo ello sin perjuicio de que se puedan autorizar accesos cifrados singulares a destinos de confianza.',
+  'mp.s.3.r1.3':
+    'Lista negra de destinos vetados - Se establecerá una lista negra de destinos vetados.',
+  'mp.s.3.r2.1':
+    'Lista blanca de destinos accesibles - Refuerzo R2 – Destinos autorizados: Se establecerá una lista blanca de destinos accesibles. Todo acceso fuera de los lugares señalados en la lista blanca estará vetado, salvo autorización singular expresa.',
+  'mp.s.4.1':
+    'Capacidad suficiente y con holgura para la carga prevista - Se planificará y dotará al sistema de capacidad suficiente para atender con holgura a la carga prevista.',
+  'mp.s.4.2':
+    'Tecnologías de prevención de ataques conocidos - Se desplegarán tecnologías para prevenir los ataques conocidos.',
+  'mp.s.4.r1.1':
+    'Detección y tratamiento de la denegación de servicio - Se establecerá un sistema de detección y tratamiento de ataques de denegación de servicio (DoS y DDoS).',
+  'mp.s.4.r1.2':
+    'Procedimientos de reacción con el proveedor de comunicaciones - Se establecerán procedimientos de reacción a los ataques, incluyendo la comunicación con el proveedor de comunicaciones.',
+  'mp.s.4.r2.1':
+    'Detección y bloqueo de ataques lanzados desde las propias instalaciones - Refuerzo R2 – Ataques propios: Se detectará y se evitará el lanzamiento de ataques desde las propias instalaciones perjudicando a terceros.',
 };

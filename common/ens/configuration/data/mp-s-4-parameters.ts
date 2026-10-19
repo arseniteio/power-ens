@@ -1,0 +1,271 @@
+import { ENSControlConfiguration } from '../types';
+
+export const mpS4Configuration: ENSControlConfiguration = {
+  controlId: 'mp.s.4',
+  controlName: 'Protección frente a la denegación de servicio',
+  family: 'Medidas de protección',
+  enabled: true,
+  applicableLevels: ['MEDIO', 'ALTO'],
+  parameters: [
+    {
+      id: 'P-01',
+      controlId: 'mp.s.4',
+      name: 'servicios_expuestos',
+      label: 'Servicios expuestos',
+      description:
+        'Servicios del sistema expuestos a redes públicas, susceptibles de sufrir denegación de servicio, con su criticidad y los objetivos de disponibilidad comprometidos.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.s.4.1', 'mp.s.4.2'],
+      type: 'table',
+      example: 'sede | sede.org.es | alta | 99,5 %',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'url_ip',
+          label: 'URL/IP',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'criticidad',
+          label: 'Criticidad',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'disponibilidad_comprometida',
+          label: 'Disponibilidad comprometida',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'Define el alcance.',
+      ensfacilUsage:
+        'ENSFácil monitoriza la disponibilidad y los tiempos de respuesta de estos servicios y les aplica las reglas de detección de saturación.',
+      evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'El control es NO EVALUABLE. No se sabe qué servicios proteger ni sobre cuáles medir el impacto.',
+    },
+    {
+      id: 'P-02',
+      controlId: 'mp.s.4',
+      name: 'carga_prevista',
+      label: 'Carga prevista',
+      description:
+        'Carga prevista por servicio y capacidad dotada, con el margen de holgura. mp.s.4.1 exige atender «con holgura» a la carga prevista, de modo que hay que haber dimensionado ambas cosas.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.s.4.1'],
+      type: 'table',
+      example: 'sede | 200 pet/s punta | / 800 pet/s | ×4',
+      columns: [
+        {
+          name: 'servicio',
+          label: 'Servicio',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'carga_prevista',
+          label: 'Carga prevista',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'capacidad',
+          label: 'Capacidad',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'holgura',
+          label: 'Holgura',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
+      ensfacilUsage:
+        'ENSFácil compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
+      evidenceIds: ['EV-01', 'EV-04', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'mp.s.4.1 NO EVALUABLE. No hay referencia de carga prevista ni de capacidad contra la que medir la holgura.',
+    },
+    {
+      id: 'P-03',
+      controlId: 'mp.s.4',
+      name: 'tecnologias_prevencion',
+      label: 'Tecnologias prevencion',
+      description:
+        'Tecnologías desplegadas para prevenir los ataques conocidos que exige mp.s.4.2: limitación de tasa, protección del proveedor, servicio de mitigación, balanceo, protección contra inundación de conexiones, filtrado de tráfico anómalo.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.s.4.2'],
+      type: 'table',
+      example: 'limitación de tasa en proxy; / protección DDoS del proveedor; / SYN cookies en servidores',
+      columns: [
+        {
+          name: 'tecnologia',
+          label: 'Tecnología',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'ubicacion',
+          label: 'Ubicación',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'alcance',
+          label: 'Alcance',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: true,
+      wazuhUsage:
+        'ENSFácil verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
+      ensfacilUsage:
+        'ENSFácil verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
+      evidenceIds: ['EV-02', 'EV-04', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'mp.s.4.2 NO ACREDITADO. No consta qué tecnologías previenen los ataques conocidos ni si operan.',
+    },
+    {
+      id: 'P-04',
+      controlId: 'mp.s.4',
+      name: 'umbrales_deteccion_dos',
+      label: 'Umbrales deteccion dos',
+      description:
+        'Umbrales a partir de los cuales se considera que puede haber un ataque de denegación de servicio: tasa de peticiones, conexiones concurrentes, tiempo de respuesta, tasa de error, ancho de banda consumido.',
+      levels: ['ALTO'],
+      requirements: ['mp.s.4.r1.1'],
+      type: 'table',
+      example: 'peticiones > 5× la media / en 1 min; tiempo de respuesta / > 3× la línea base',
+      columns: [
+        {
+          name: 'indicador',
+          label: 'Indicador',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'umbral',
+          label: 'Umbral',
+          type: 'string',
+          required: false,
+        },
+        {
+          name: 'ventana',
+          label: 'Ventana',
+          type: 'string',
+          required: false,
+        },
+      ],
+      required: false,
+      wazuhUsage:
+        'Configura las reglas de detección. Lo más robusto es definir los umbrales como múltiplo de la línea base observada y no como valor absoluto, porque la carga normal varía con el tiempo.',
+      ensfacilUsage:
+        'Configura las reglas de detección. Lo más robusto es definir los umbrales como múltiplo de la línea base observada y no como valor absoluto, porque la carga normal varía con el tiempo.',
+      evidenceIds: ['EV-03', 'EV-04', 'EV-07', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 NO EVALUABLE y es obligatorio en nivel ALTO. La saturación se detecta cuando el servicio ya ha caído.',
+    },
+    {
+      id: 'P-05',
+      controlId: 'mp.s.4',
+      name: 'procedimiento_reaccion',
+      label: 'Procedimiento reaccion',
+      description:
+        'Procedimiento de reacción a los ataques con las acciones previstas, los responsables y los plazos. mp.s.4.r1.2 lo exige en nivel ALTO.',
+      levels: ['ALTO'],
+      requirements: ['mp.s.4.r1.2'],
+      type: 'string',
+      example: '«PR-25 Reacción ante DoS»: / activar modo de protección, / bloqueo de rangos, escalado al / proveedor, comunicación pública',
+      required: false,
+      wazuhUsage:
+        'ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
+      ensfacilUsage:
+        'ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
+      evidenceIds: ['EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 parcialmente NO EVALUABLE. Puede haber detección sin respuesta pautada.',
+    },
+    {
+      id: 'P-06',
+      controlId: 'mp.s.4',
+      name: 'contacto_proveedor_comunicaciones',
+      label: 'Contacto proveedor comunicaciones',
+      description:
+        'Datos de contacto y vía de escalado al proveedor de comunicaciones para la mitigación, con el procedimiento y los plazos comprometidos. mp.s.4.r1.2 menciona expresamente la comunicación con el proveedor como parte del procedimiento de reacción.',
+      levels: ['ALTO'],
+      requirements: ['mp.s.4.r1.2'],
+      type: 'string',
+      example: 'NOC del proveedor 24×7, / teléfono y correo, contrato con / mitigación activable en 15 min',
+      required: false,
+      wazuhUsage:
+        'ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
+      ensfacilUsage:
+        'ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
+      evidenceIds: ['EV-05', 'EV-06'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R1 incompleto. La parte del procedimiento que depende del proveedor queda sin acreditar.',
+    },
+    {
+      id: 'P-07',
+      controlId: 'mp.s.4',
+      name: 'linea_base_trafico',
+      label: 'Linea base trafico',
+      description:
+        'Patrón de tráfico y de carga normal por servicio y franja horaria, que sirve de referencia para detectar desviaciones. Es la base de los umbrales relativos de P-04.',
+      levels: ['ALTO'],
+      requirements: ['mp.s.4.r1.1'],
+      type: 'string',
+      example: 'sede: 40 pet/s laborables / 8-20 h; 5 pet/s resto',
+      required: false,
+      wazuhUsage:
+        'ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
+      ensfacilUsage:
+        'ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
+      evidenceIds: ['EV-03', 'EV-04', 'EV-07', 'EV-10'],
+      ruleIds: [],
+      ifNotConfigured:
+        'La detección depende de umbrales absolutos, que producen falsos positivos en picos legítimos y pasan por alto ataques lentos.',
+    },
+    {
+      id: 'P-08',
+      controlId: 'mp.s.4',
+      name: 'deteccion_ataques_salientes',
+      label: 'Deteccion ataques salientes',
+      description:
+        'Indicadores para detectar el lanzamiento de ataques desde las propias instalaciones: volumen de tráfico saliente anómalo, conexiones masivas a un mismo destino externo, servicios propios usados como amplificadores. Corresponde a R2, no obligatorio en ningún nivel.',
+      levels: ['MEDIO', 'ALTO'],
+      requirements: ['mp.s.4.r2.1'],
+      type: 'list',
+      example: 'tráfico saliente > 10× media; / conexiones masivas a destino único; / DNS o NTP propios respondiendo / a consultas externas',
+      required: false,
+      wazuhUsage:
+        'Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.',
+      ensfacilUsage:
+        'Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.',
+      evidenceIds: ['EV-08', 'EV-09'],
+      ruleIds: [],
+      ifNotConfigured:
+        'R2 sin cubrir. Riesgo de que la organización figure como origen de un ataque a terceros sin saberlo.',
+    },
+  ],
+};

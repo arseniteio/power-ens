@@ -39,6 +39,14 @@ import {
 } from './mp-s-2.policy';
 
 import {
+  mpS3PolicyDefinition,
+} from './mp-s-3.policy';
+
+import {
+  mpS4PolicyDefinition,
+} from './mp-s-4.policy';
+
+import {
   mpSw2PolicyDefinition,
 } from './mp-sw-2.policy';
 
@@ -141,6 +149,8 @@ const policyDefinitions:
     mpInfo6PolicyDefinition,
     mpS1PolicyDefinition,
     mpS2PolicyDefinition,
+    mpS3PolicyDefinition,
+    mpS4PolicyDefinition,
     mpSw2PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,

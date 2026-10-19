@@ -11,6 +11,8 @@ import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
 import { buildMpInfo6ReportModel } from './report-model';
 import { buildMpS1ReportModel } from './mp-s-1-report-model';
 import { buildMpS2ReportModel } from './mp-s-2-report-model';
+import { buildMpS3ReportModel } from './mp-s-3-report-model';
+import { buildMpS4ReportModel } from './mp-s-4-report-model';
 import { buildMpSw2ReportModel } from './mp-sw-2-report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
@@ -121,6 +123,16 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'mp.s.2',
     name: 'mp.s.2 - Protección de servicios y aplicaciones web',
     build: buildMpS2ReportModel,
+  },
+  {
+    controlId: 'mp.s.3',
+    name: 'mp.s.3 - Protección de la navegación web',
+    build: buildMpS3ReportModel,
+  },
+  {
+    controlId: 'mp.s.4',
+    name: 'mp.s.4 - Protección frente a la denegación de servicio',
+    build: buildMpS4ReportModel,
   },
   {
     controlId: 'mp.sw.2',

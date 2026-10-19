@@ -9,6 +9,8 @@ import { mpEq4Configuration } from '../data/mp-eq-4-parameters';
 import { mpInfo6Configuration } from '../data/mp-info-6-parameters';
 import { mpS1Configuration } from '../data/mp-s-1-parameters';
 import { mpS2Configuration } from '../data/mp-s-2-parameters';
+import { mpS3Configuration } from '../data/mp-s-3-parameters';
+import { mpS4Configuration } from '../data/mp-s-4-parameters';
 import { mpSw2Configuration } from '../data/mp-sw-2-parameters';
 import { opAcc1Configuration } from '../data/op-acc-1-parameters';
 import { opAcc2Configuration } from '../data/op-acc-2-parameters';
@@ -43,6 +45,8 @@ export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   mpInfo6Configuration,
   mpS1Configuration,
   mpS2Configuration,
+  mpS3Configuration,
+  mpS4Configuration,
   mpSw2Configuration,
   opAcc1Configuration,
   opAcc2Configuration,
