@@ -1,6 +1,6 @@
 # Configuration by controls and templates
 
-This guide describes the Configuración screen of ENSFácil 1.3.0: its three tabs, the value applied to each agent, each control's templates, the assignment of templates to agents, list input and the «Expresión regular» mode, the conversion of a 1.2.0 configuration and the declaration of templates and settings from the server.
+Configuración screen of ENSFácil 1.3.0: tabs, value applied to each agent, templates, assignment, lists and «Expresión regular» mode, conversion from 1.2.0 and declaration from the server.
 
 ## 1. Objective
 
@@ -26,7 +26,7 @@ Declare each control once: the organisation's common settings, the templates tha
 | Agentes | The agents in scope with their detected type and completeness. In each agent, control by control: the template it uses and its own settings |
 | General | ENS level, Traceability level (T), Availability level (D), the rest of the global configuration and the ENS scope, read-only |
 
-Each parameter of each control belongs to one of three classes. The classification is unique and is used by the screen, the evaluation, the validators and `set-parameters.py`; it lives in `common/ens/configuration/agents/parameter-classes.ts`.
+Each parameter of each control belongs to one of three classes (`common/ens/configuration/agents/parameter-classes.ts`), the same for the screen, the evaluation, the validators and `set-parameters.py`.
 
 | Class | What it describes | Parameters (23 controls) | Where it is declared |
 |---|---|---|---|
@@ -50,7 +50,6 @@ Resolution rules:
 - Per-system parameters that describe **other** machines in a control measured on the manager resolve by **union**: on the manager row, the value is the common one plus each agent's rows (own setting or template), without repeats. They are op.exp.7 P-04 and P-07, op.cont.3 P-07, op.mon.1 P-01 and, on the manager row, op.exp.8 P-02 and op.mon.3 P-01, P-03 and P-07.
 - The declared scope of mp.info.6 (P-04) also resolves by union, on every row.
 - A value's comparison mode («Texto exacto» or «Expresión regular», section 5.5) travels with the value: the agent takes the mode of the level it takes the value from.
-- The resolution is the same in the browser and in the server evaluation.
 
 The screen shows the origin of each value of an agent: «ajuste propio de este agente», «heredado de la plantilla asignada «…»», «heredado de la plantilla de serie «…» de su tipo», «heredado del valor común del control» or, in a union, «este agente no aporta filas propias».
 
@@ -78,10 +77,10 @@ While the agents are being read, the column shows «Comprobando los agentes…»
 
    Expected result: the state moves to «Configurado».
 
-The button adds the control definition as is, the same as the seed block in `config/`, as `inject-control.py` does with a control that was not present. It does not change the other controls, the templates or the agents' settings. To merge an existing control with a new version of its block, `inject-control.py` is used ([updating an existing environment, section 8](02-updating-an-existing-environment.en.md#8-seed-and-validate-the-configuration)).
+The button adds the control definition from the seed block in `config/`, as `inject-control.py` does with a control that was not present, without changing other controls, templates or agents' settings. To merge an existing control with a new version of its block: `inject-control.py` ([updating an existing environment, section 8](02-updating-an-existing-environment.en.md#8-seed-and-validate-the-configuration)).
 
 > [!note]
-> While a required control has parameters without a value, its evidences stay `NO_EVALUABLE` with cause `CONFIGURATION`. Missing information is not compliance.
+> While a required control has parameters without a value, its evidences stay `NO_EVALUABLE` with cause `CONFIGURATION`.
 
 ### 5.2 Common settings
 
@@ -97,7 +96,7 @@ The button adds the control definition as is, the same as the seed block in `con
 
 A template is a named set of values for a control's per-system and per-platform parameters. It never sets a common parameter.
 
-- **Built-in** («De serie»): shipped with the plugin, one per system type in the controls where that type applies, and not editable. Their values come from a seed block example, from a runbook's `.env.example` or configuration template, or from a lab's real value without what belongs to another platform or to that installation. What cannot be grounded stays without a value and the template says so with «Sin valores de serie en este control: se aplican los ajustes comunes».
+- **Built-in** («De serie»): shipped with the plugin, one per system type in the controls where that type applies, not editable. If a value cannot be grounded, the template says so with «Sin valores de serie en este control: se aplican los ajustes comunes».
 - **Custom** («Propia»): created, duplicated, edited and deleted in the document (`configuration.templates`).
 
 | Built-in template | Type | Controls | What it sets |
@@ -260,7 +259,7 @@ To correct an agent's type:
 
 ### 6.2 An agent's template and own settings
 
-The agent page groups the per-system and per-platform parameters by control. Each control shows the template it uses, its own settings and, on each parameter, its class, whether it is required at the control's level and the origin of its value.
+The agent page groups the per-system and per-platform parameters by control, with the template, the own settings and, per parameter, its class, whether it is required and the origin of its value.
 
 To change a control's template:
 
@@ -328,7 +327,7 @@ The scope is changed with the [initial setup](https://gitlab.com/quersystem/ens-
 
 ## 8. Conversion of a 1.2.0 configuration
 
-In 1.2.0, templates were per platform and were applied to each agent for every control at once. 1.3.0 converts that document when it loads it, with no action and without changing any value:
+In 1.2.0 templates were per platform and were applied to each agent for every control. 1.3.0 converts the document when it loads it, without changing any value:
 
 - Each applied template becomes the assigned template, built-in and with the same id, in every control where it set values. «Copias con PBS» and «Copias Zimbra NE» move to mp.info.6.
 - If two applied templates set values in the same control and the second added parameters the first does not set, a custom template «<template> + <template> (de la 1.2.0)» is created with the values of both, the first one winning, and assigned.
@@ -352,7 +351,7 @@ While the conversion is not saved, Configuración shows «Configuración de la 1
 
 ## 9. Distribution of common rows by agents
 
-Before 1.2.0, what belonged to a machine was declared as a common value: tables with a column naming the system (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…). «Repartir por agentes» copies those rows to each agent as its own setting, without losing any and without leaving any agent without a value:
+Tables with a column naming the system (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…) declared as a common value before 1.2.0. «Repartir por agentes» copies those rows to each agent as its own setting, without losing any and without leaving any agent without a value:
 
 - Rows of tables with a system column that name an agent are **copied** to that agent. The agent is recognised by its id, its name, the `os.uname` hostname, the short part of both (before the first dot) and its other names (section 6.4), case-insensitive.
 - A copied row **leaves** the common value only if no agent in scope that evaluates the control is left without a value. Otherwise, the row also stays in the common value.
