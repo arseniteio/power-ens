@@ -38,7 +38,7 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ConfirmModal, errorMessage } from './confirm-modal';
 import { DetectedTypesCallout } from './detected-types-callout';
-import { agentStatusLabel, agentTypeLabel } from './labels';
+import { agentStatusLabel, agentTypeLabel, parameterLabel } from './labels';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { ENSAgentRow, agentRowLabel, buildAgentRows, useAgentsData } from './use-agents-data';
 
@@ -67,6 +67,7 @@ export const AgentsTab = ({
   const [notice, setNotice] = useState<Notice>();
 
   const rows = useMemo<ENSAgentRow[]>(() => buildAgentRows(configuration, data), [data, configuration]);
+  const agentLabels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
 
   const scopeIds = useMemo(() => data.scopeAgents.map(agent => normalizeAgentId(agent.id)), [data.scopeAgents]);
 
@@ -212,7 +213,7 @@ export const AgentsTab = ({
           <EuiText size='xs'>
             <p>
               {assigned ? `${assigned} control(es) con plantilla asignada` : 'Ninguna asignada'}
-              {type ? `; el resto, la de serie de ${ENS_SYSTEM_TYPE_LABELS[type]}` : '; el resto, valores comunes hasta guardar su tipo'}
+              {type ? `; el resto, la de serie de ${ENS_SYSTEM_TYPE_LABELS[type]}` : row.detection.type ? '; el resto, valores comunes hasta guardar su tipo' : '; el resto, valores comunes (sin tipo)'}
             </p>
           </EuiText>
         );
@@ -245,7 +246,7 @@ export const AgentsTab = ({
     },
   ];
 
-  const byAgent = Array.from(new Set(migration.moves.map(move => move.agentId))).sort();
+  const byAgent = Array.from(new Set<string>(migration.moves.map(move => move.agentId))).sort();
 
   return (
     <>
@@ -292,17 +293,12 @@ export const AgentsTab = ({
         <>
           <EuiCallOut color='primary' iconType='iInCircle' title='Hay filas del valor común que son de un agente concreto'>
             <p>{summarizeMigrationPlan(migration)}</p>
-            <p>
-              «Repartir por agentes» copia a cada agente, como ajuste propio, las filas que lo nombran (por su id, su
-              nombre, su hostname o sus otros nombres). Una fila sale del valor común solo si ningún agente del
-              alcance se queda sin valor; si no, se queda también en él. Las filas «*» se copian; las que no nombran a
-              ningún agente se quedan. La versión anterior queda en el historial.
-            </p>
+            <p>Copia a cada agente las filas que lo nombran; nada se borra.</p>
             <EuiAccordion id='ens-migration-moves' buttonContent='Ver qué se mueve y qué se copia'>
               <ul>
                 {migration.moves.map(move => (
                   <li key={`${move.agentId}-${move.controlId}-${move.parameterId}`}>
-                    {move.agentId}{move.agentName ? ` · ${move.agentName}` : ''}: {move.controlId} {move.parameterId}, {move.rows.length} fila(s) {move.mode === 'movida' ? 'salen del valor común' : 'se copian (se quedan también en el valor común)'}
+                    {agentLabels[move.agentId] || `${move.agentId}${move.agentName ? ` · ${move.agentName}` : ''}`}: {parameterLabel(configuration, `${move.controlId} ${move.parameterId}`)}, {move.rows.length} fila(s) {move.mode === 'movida' ? 'salen del valor común' : 'se copian (se quedan también en el valor común)'}
                   </li>
                 ))}
               </ul>
@@ -329,11 +325,11 @@ export const AgentsTab = ({
             <p>{summarizeMigrationPlan(migration)}</p>
             {byAgent.map(agentId => (
               <React.Fragment key={agentId}>
-                <h4>Agente {agentId}</h4>
+                <h4>Agente {agentLabels[agentId] || agentId}</h4>
                 <ul>
                   {migration.moves.filter(move => move.agentId === agentId).map(move => (
                     <li key={`${move.controlId}-${move.parameterId}`}>
-                      {move.controlId} {move.parameterId}: {move.rows.length} fila(s) {move.mode === 'movida' ? 'movidas' : 'copiadas'}
+                      {parameterLabel(configuration, `${move.controlId} ${move.parameterId}`)}: {move.rows.length} fila(s) {move.mode === 'movida' ? 'movidas' : 'copiadas'}
                     </li>
                   ))}
                 </ul>
@@ -341,13 +337,12 @@ export const AgentsTab = ({
             ))}
             <p>
               Parámetros que se quedarían sin valor en algún agente del alcance:{' '}
-              {migration.incomplete.length ? migration.incomplete.map(item => `${item.agentId} ${item.controlId} ${item.parameterId}`).join(', ') : 'ninguno'}.
+              {migration.incomplete.length ? migration.incomplete.map(item => `${agentLabels[item.agentId] || item.agentId}: ${parameterLabel(configuration, `${item.controlId} ${item.parameterId}`)}`).join(', ') : 'ninguno'}.
             </p>
             <p>
               <strong>Los veredictos de estos agentes pueden cambiar</strong>: cada uno pasa a evaluarse con sus filas.
             </p>
-            <p>Un plugin 1.1.0 no lee los ajustes propios: si se vuelve a la 1.1.0, deja de ver las filas que salen del valor común.</p>
-            <p>La versión anterior queda en el historial. Antes, guardar además una copia (guía 09, apartado 9.1).</p>
+            <p>La versión anterior queda en el historial.</p>
           </EuiText>
         </ConfirmModal>
       )}
@@ -355,13 +350,10 @@ export const AgentsTab = ({
       {migration.warnings.length > 0 && (
         <>
           <EuiCallOut color='warning' iconType='iInCircle' title={`${migration.warnings.length} fila(s) sin agente se quedan en el valor común`}>
-            <p>
-              Si una nombra a un agente del alcance con otro nombre, ese nombre se añade en la página del agente, en
-              «Otros nombres de este agente», y el reparto lo reconoce.
-            </p>
+            <p>Si una nombra a un agente con otro nombre, se añade en su página, en «Otros nombres de este agente».</p>
             <ul>
               {migration.warnings.map((warning, index) => (
-                <li key={`${index}-${warning.controlId}-${warning.parameterId}`}>{describeMigrationWarning(warning)}</li>
+                <li key={`${index}-${warning.controlId}-${warning.parameterId}`}>{describeMigrationWarning(warning, configuration)}</li>
               ))}
             </ul>
           </EuiCallOut>
@@ -375,7 +367,7 @@ export const AgentsTab = ({
             <ul>
               {errors.map((issue, index) => (
                 <li key={`${index}-${issue.agentId}`}>
-                  {issue.agentId}: {issue.message}
+                  {agentLabels[issue.agentId] || issue.agentId}: {issue.message}
                   {issue.kind === 'huerfano' && (
                     <EuiButtonEmpty size='xs' color='danger' onClick={() => askRemoval(issue.agentId, issue.controlId, issue.parameterId)}>
                       Quitar

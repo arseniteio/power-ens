@@ -29,8 +29,7 @@ export interface ENSAgentConfigurationIssue {
   parameterId?: string;
   // `error`: to be fixed. `warning`: unknown to this version, or converted on load; ignored.
   severity: 'error' | 'warning';
-  // `huerfano`: not applied, removable. `valor`: applied but invalid. `plantilla`: unknown assignment or 1.2.0
-  // templates. `desconocido`: a key from another version.
+  // Only `huerfano` (not applied) can be removed from the screen; `valor` is applied but invalid.
   kind: 'huerfano' | 'valor' | 'plantilla' | 'desconocido';
   message: string;
 }
@@ -60,7 +59,7 @@ export const describeAgentLevelValueIssue = (
   if (parameterClass !== 'system' && parameterClass !== 'platform') {
     return {
       kind: 'huerfano',
-      message: `${control.controlId} ${parameterId} es un ajuste común del control: no admite valor por agente ni por plantilla y este no se aplica`,
+      message: `${control.controlId} «${parameter.label}» es un ajuste común del control: no admite valor por agente ni por plantilla y este no se aplica`,
     };
   }
 
@@ -68,7 +67,7 @@ export const describeAgentLevelValueIssue = (
 
   return verdict.valid
     ? undefined
-    : { kind: 'valor', message: `${control.controlId} ${parameterId} (${parameter.label}) ${verdict.reason || 'tiene un valor inválido'}` };
+    : { kind: 'valor', message: `${control.controlId} «${parameter.label}» ${verdict.reason || 'tiene un valor inválido'}` };
 };
 
 export const validateAgentProfile = (

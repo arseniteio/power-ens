@@ -101,10 +101,14 @@ export interface ENSMigrationOptions {
 
 const WILDCARD = '*';
 
-export const describeMigrationWarning = (warning: ENSMigrationWarning): string =>
-  warning.reason === 'ambigua'
-    ? `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que casa con varios agentes (${(warning.candidates || []).join(', ')}); se queda en el valor común`
-    : `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que no es ningún agente conocido; se queda en el valor común. Si es otro nombre de un agente del alcance, se añade en su página, en «Otros nombres de este agente»`;
+// With the configuration, the parameter is named by its label, as the screen shows it.
+export const describeMigrationWarning = (warning: ENSMigrationWarning, configuration?: Pick<ENSConfigurationVersion, 'controls'>): string => {
+  const label = configuration?.controls.find(control => control.controlId === warning.controlId)?.parameters.find(parameter => parameter.id === warning.parameterId)?.label;
+  const where = `${warning.controlId} ${label ? `«${label}»` : warning.parameterId}`;
+  return warning.reason === 'ambigua'
+    ? `${where}: «${warning.row}» nombra a ${warning.key}, que casa con varios agentes (${(warning.candidates || []).join(', ')}); se queda en el valor común`
+    : `${where}: «${warning.row}» nombra a ${warning.key}, que no es ningún agente conocido; se queda en el valor común`;
+};
 
 export const summarizeMigrationPlan = (plan: Pick<ENSMigrationPlan, 'moves' | 'warnings'>): string => {
   const rows = plan.moves.reduce((total, move) => total + move.rows.length, 0);

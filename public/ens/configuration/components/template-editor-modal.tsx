@@ -141,7 +141,7 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
                     <EuiText size='s'><strong>{parameter.id} · {parameter.label}</strong></EuiText>
                   </EuiFlexItem>
                   <EuiFlexItem grow={false}>
-                    <EuiBadge color='hollow'>{getParameterClass(control.controlId, parameter.id) === 'system' ? 'propio de cada agente' : 'de la plataforma'}</EuiBadge>
+                    <EuiBadge color='hollow'>{getParameterClass(control.controlId, parameter.id) === 'system' ? 'cambia por agente' : 'de la plataforma'}</EuiBadge>
                   </EuiFlexItem>
                   {empty && (
                     <EuiFlexItem grow={false}>

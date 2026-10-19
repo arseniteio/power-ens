@@ -40,7 +40,7 @@ Los controles op.cont.2, op.exp.9, op.mon.2 y op.nub.1 solo tienen ajustes comun
 
 Cada parámetro por sistema o por plataforma toma en un agente su ajuste propio; si no lo tiene, el valor de la plantilla asignada en el control o, sin plantilla asignada, el de la plantilla de serie de su tipo; si la plantilla no lo fija, el valor común del control.
 
-La asignación «Sin plantilla (valores comunes)» deja el agente con el valor común. Esta explicación no se repite en la pantalla.
+La asignación «Sin plantilla (valores comunes)» deja el agente con el valor común.
 
 Reglas de la resolución:
 
@@ -154,7 +154,7 @@ La tabla «Asignación» lista los agentes del alcance y los perfiles guardados 
 |---|---|
 | Agente | Id y nombre; abre la página del agente en ese control |
 | Tipo | El tipo guardado o, si no lo está, «<tipo> (detectado, sin guardar)» |
-| Plantilla | La que se aplica: la asignada, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» o, con el tipo sin guardar, «Ninguna hasta guardar su tipo: valores comunes»; la propuesta por sus datos; y si el control no se evalúa en ese agente |
+| Plantilla | La que se aplica: la asignada, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» o, con el tipo sin guardar, «Ninguna hasta guardar su tipo: valores comunes» y, sin tipo detectado, «Ninguna: sin tipo, valores comunes»; la propuesta por sus datos; y si el control no se evalúa en ese agente |
 | Ajustes propios | Cuántos tiene, cuántos obligatorios quedan sin valor y si está fuera del alcance |
 
 Para asignar una plantilla a varios agentes:
@@ -325,7 +325,7 @@ La pestaña «Agentes» calcula el reparto al cargarse, sin escribir: si hay fil
 
 3. Pulsar «Repartir por agentes».
 
-   Resultado esperado: la ventana «Repartir por agentes» con, por agente, lo que se mueve y lo que se copia; «Parámetros que se quedarían sin valor en algún agente del alcance: ninguno»; y los avisos de veredictos, de la 1.1.0 y del historial.
+   Resultado esperado: la ventana «Repartir por agentes» con, por agente, lo que se mueve y lo que se copia; «Parámetros que se quedarían sin valor en algún agente del alcance: ninguno»; y los avisos de veredictos y del historial.
 
 4. Teclear `repartir` y pulsar «Repartir».
 

@@ -155,7 +155,7 @@ export const AgentParameterRow = ({
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiBadge color='hollow'>{parameterClass === 'system' ? 'propio de cada agente' : 'de la plataforma'}</EuiBadge>
+            <EuiBadge color='hollow'>{parameterClass === 'system' ? 'cambia por agente' : 'de la plataforma'}</EuiBadge>
           </EuiFlexItem>
           {parameter.required && applicable && (
             <EuiFlexItem grow={false}>

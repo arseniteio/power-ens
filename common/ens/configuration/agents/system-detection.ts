@@ -13,8 +13,7 @@
 //   4. os.platform de la familia Linux, u os.uname que empieza por «Linux»
 //                                             → Linux
 //   5. sin os                                  → sin detectar
-// The mp.info.6 backup facts propose a template in that control: data.origen = pbs proposes «Copias con PBS» and
-// data.origen = zimbra-ne, «Copias Zimbra NE».
+// mp.info.6 backup facts (data.origen = pbs or zimbra-ne) only propose a template there, never apply it.
 import {
   ENSAgentProfile,
   ENSSystemType,

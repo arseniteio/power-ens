@@ -56,7 +56,7 @@ console.log('1. Custom templates');
   check('a name is required', throws(() => actions.createControlTemplate(doc, { controlId: 'op.acc.1', name: '  ', values: {} }), /necesita un nombre/));
   check('names are unique within a control', throws(() => actions.createControlTemplate(created.configuration, { controlId: 'op.acc.1', name: 'servidores WEB', values: {} }), /Ya hay una plantilla/));
   check('the same name in another control is fine, with its own id', actions.createControlTemplate(created.configuration, { controlId: 'op.acc.2', name: 'Servidores web', values: {} }).template.id === 'custom-servidores-web-2');
-  check('an invalid value is refused with its reason', throws(() => actions.createControlTemplate(doc, { controlId: 'op.acc.1', name: 'X', values: { 'P-10': 'mil' } }), /P-10/));
+  check('an invalid value is refused with its reason', throws(() => actions.createControlTemplate(doc, { controlId: 'op.acc.1', name: 'X', values: { 'P-10': 'mil' } }), /«UID mínimo de cuenta de persona» se esperaba un número/));
   check('a common parameter is refused', throws(() => actions.createControlTemplate(doc, { controlId: 'op.acc.1', name: 'X', values: { 'P-04': ['admin'] } }), /ajuste común/));
   check('a control with only common settings has no templates', throws(() => actions.createControlTemplate(doc, { controlId: 'op.exp.9', name: 'X', values: {} }), /solo tiene ajustes comunes/));
 
@@ -161,6 +161,20 @@ console.log('4b. Actions on an unconverted 1.2.0 document find its merged templa
   check('delete it, reassigning its agent', actions.deleteControlTemplate(doc, merged, {}).agents!['101'].controls?.['op.acc.1']?.templateId === undefined);
   const twin: any = base({ templates: [{ id: 'custom-x', controlId: 'op.acc.1', name: 'X', values: {} }, { id: 'custom-x', controlId: 'op.acc.2', name: 'X', values: {} }] });
   check('a repeated id in another control survives a delete', JSON.stringify(actions.deleteControlTemplate(twin, 'custom-x').templates!.map((t: any) => t.controlId)) === '["op.acc.2"]');
+}
+
+console.log('4c. Per-agent gaps behind the control state');
+{
+  const doc = base({ controls: ['op.acc.1', 'op.exp.7', 'mp.info.6'].map(id => JSON.parse(JSON.stringify(blocks[id]))), agents: { '101': { detectedType: 'linux' }, '103': { detectedType: 'windows' } } });
+  const agents = [{ agentId: '101', type: 'linux' as const }, { agentId: '102' }, { agentId: '103', type: 'windows' as const }, { agentId: '000', type: 'manager' as const }];
+  const gaps = actions.getAgentGaps(doc, agents, () => 'MEDIO');
+  check('a required parameter with no value anywhere counts every agent that evaluates the control', gaps['op.acc.1']['P-07'] === 3, gaps);
+  check('the type built-in fills it for its agents only (Linux sets P-01, Windows does not)', gaps['op.acc.1']['P-01'] === 2, gaps);
+  check('agents that do not evaluate a control are not counted (Windows has no mp.info.6 collector, the manager no agent controls)', gaps['mp.info.6']['P-01'] === 2, gaps);
+  check('a manager-only control counts the manager row only', gaps['op.exp.7']['P-04'] === 1, gaps);
+  doc.controls[0].parameters.find((parameter: any) => parameter.id === 'P-01').value = 'Local';
+  check('a common value closes the gap for every agent', actions.getAgentGaps(doc, agents, () => 'MEDIO')['op.acc.1']['P-01'] === undefined);
+  check('no agents, no gaps', JSON.stringify(actions.getAgentGaps(doc, [], () => 'MEDIO')) === '{}');
 }
 
 console.log('5. Removals and missing controls');

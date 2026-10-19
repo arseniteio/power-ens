@@ -210,7 +210,7 @@ console.log('4. Meaning');
   } as any);
   const templateText = templateIssues.map(issue => issue.message).join(' || ');
   check('custom templates: reserved id, repeated id, common parameter, invalid value, unseeded control',
-    /es de una plantilla de serie/.test(templateText) && /está repetido/.test(templateText) && /P-04 es un ajuste común/.test(templateText) &&
+    /es de una plantilla de serie/.test(templateText) && /está repetido/.test(templateText) && /«Cuentas genéricas prohibidas» es un ajuste común/.test(templateText) &&
       templateIssues.some(issue => issue.parameterId === 'P-10') && /op\.exp\.9 no está en la configuración/.test(templateText),
     templateText);
   check('a repeated name in a control is a warning', templateIssues.some(issue => issue.severity === 'warning' && /otra plantilla llamada/.test(issue.message)), templateText);

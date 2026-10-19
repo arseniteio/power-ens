@@ -285,7 +285,7 @@ export const AgentConfigurationPage = ({
 
       {loading && (
         <EuiText size='s' color='subdued'>
-          <p><EuiLoadingSpinner size='s' /> Detectando el tipo de sistema (inventario y hechos)…</p>
+          <p><EuiLoadingSpinner size='s' /> Detectando el tipo de sistema…</p>
         </EuiText>
       )}
 
@@ -478,7 +478,7 @@ export const AgentConfigurationPage = ({
         const templateLabel = current.template
           ? `${current.template.name}${current.via === 'type' ? ' (de serie)' : ''}`
           : assigned === undefined && !typeLabel.stored
-          ? 'tipo sin guardar: valores comunes'
+          ? typeLabel.pending ? 'tipo sin guardar: valores comunes' : 'sin tipo: valores comunes'
           : 'sin plantilla';
 
         return (
@@ -502,7 +502,7 @@ export const AgentConfigurationPage = ({
                     <EuiSelect
                       compressed
                       options={[
-                        { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? ' (tipo sin guardar)' : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
+                        { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
                         ...templates.map(template => ({
                           value: template.id,
                           text: `${template.name}${template.builtin ? ' (de serie)' : ''}${proposals.includes(template.id) ? ' (propuesta por sus datos)' : ''}`,

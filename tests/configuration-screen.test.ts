@@ -316,10 +316,10 @@ const prepare = async (doc: any, agents = AGENTS) => {
     const editor = nodes.find(node => node.type === 'TemplateEditorModal');
     check('the editor says who uses the template', !!editor && /Asignada a 1 agente\(s\): 101/.test(page));
     const failure = await editor!.props.onSave({ name: 'Web', values: { 'P-10': 'mil' } });
-    check('an invalid value is refused with its reason and nothing is saved', /P-10/.test(failure || '') && saved.length === 0, failure);
+    check('an invalid value is refused with its reason and nothing is saved', /«UID mínimo de cuenta de persona»/.test(failure || '') && saved.length === 0, failure);
     await editor!.props.onSave({ name: 'Web servers', values: { 'P-10': 600, 'P-11': ['wheel'] } });
     page = await render(ConfigurationShell);
-    check('editing a template in use previews the agents it changes and saves nothing yet', saved.length === 0 && /Agente 101 · web01/.test(page) && /op\.acc\.1 «UID mínimo de cuenta de persona»/.test(page), page.slice(page.indexOf('Guardar «'), page.indexOf('Guardar «') + 500));
+    check('editing a template in use previews the agents it changes and saves nothing yet', saved.length === 0 && /cambia 1 agente/.test(page) && /Agente 101 · web01/.test(page) && /op\.acc\.1 «UID mínimo de cuenta de persona»/.test(page), page.slice(page.indexOf('Guardar «'), page.indexOf('Guardar «') + 500));
     await confirmModal()!.props.onConfirm();
     page = await render(ConfigurationShell);
     check('«Guardar plantilla» saves the edited values', saved.length === 1 && JSON.stringify(lastSaved().configuration.templates[0]) === JSON.stringify({ id: 'custom-web', controlId: 'op.acc.1', name: 'Web servers', values: { 'P-10': 600, 'P-11': ['wheel'] } }), lastSaved()?.configuration?.templates);
@@ -376,7 +376,9 @@ const prepare = async (doc: any, agents = AGENTS) => {
     await prepare(documentWith());
     page = await render(ConfigurationShell);
     page = await press(ConfigurationShell, /^Repartir por agentes$/);
-    check('the confirmation lists what moves, verdicts, 1.1.0 and history', !!confirmModal() && /Agente 101/.test(page) && /veredictos de estos agentes pueden cambiar/.test(page) && /1\.1\.0/.test(page) && /historial/.test(page));
+    const block = page.slice(page.indexOf('Hay filas del valor común'), page.indexOf('Repartir por agentes ]'));
+    check('the distribution block: one line, parameter and agent names, no codes', /Copia a cada agente las filas que lo nombran; nada se borra\./.test(block) && /101 · web01 ?: op\.acc\.1 «/.test(page) && !/P-07/.test(block), block.slice(0, 500));
+    check('the confirmation lists what moves by name, verdicts and history; no versions or guide sections', !!confirmModal() && /Agente 101 · web01/.test(page) && /veredictos de estos agentes pueden cambiar/.test(page) && /historial/.test(page) && !/1\.1\.0|guía/.test(page.slice(page.indexOf('Repartir por agentes'))), page.slice(page.indexOf('Repartir por agentes'), page.indexOf('Repartir por agentes') + 600));
     await confirmModal()!.props.onConfirm();
     check('without typing «repartir» nothing is saved', saved.length === 0);
     await typeWord(ConfigurationShell, 'repartir');
@@ -507,6 +509,9 @@ const prepare = async (doc: any, agents = AGENTS) => {
     search = '?tabView=configuration&configAgent=999';
     page = await render(ConfigurationShell);
     check('an unknown id: says so', /No hay ningún agente 999/.test(page));
+    const noTypeSelect = nodes.find(node => node.type === 'EuiSelect' && node.props.options?.some((option: any) => option.value === 'linux-ubuntu'));
+    check('an agent with no detected type has nothing to save: «sin tipo», not «sin guardar»', noTypeSelect?.props.options[0].text === 'La de serie de su tipo (sin tipo)' && /sin tipo: valores comunes/.test(page) && !/sin guardar/.test(page), noTypeSelect?.props.options[0]);
+    check('the per-agent class badge does not reuse «propio»', /cambia por agente/.test(page) && !/propio de cada agente/.test(page));
   }
 
   console.log('4. General');

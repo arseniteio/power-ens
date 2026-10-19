@@ -13,6 +13,8 @@ export interface ENSAgentTypeLabel {
   color: 'hollow' | 'accent' | 'warning';
   // The type the built-in template follows is stored in the profile.
   stored: boolean;
+  // A detected type waits to be stored; without one there is nothing to save.
+  pending: boolean;
 }
 
 export const agentTypeLabel = (
@@ -21,11 +23,11 @@ export const agentTypeLabel = (
   loading = false
 ): ENSAgentTypeLabel => {
   const manual = knownSystemType(profile?.typeOverride);
-  if (manual) return { text: `${ENS_SYSTEM_TYPE_LABELS[manual]} (corregido a mano)`, color: 'accent', stored: true };
+  if (manual) return { text: `${ENS_SYSTEM_TYPE_LABELS[manual]} (corregido a mano)`, color: 'accent', stored: true, pending: false };
   const stored = knownSystemType(profile?.detectedType);
-  if (stored) return { text: ENS_SYSTEM_TYPE_LABELS[stored], color: 'hollow', stored: true };
-  if (detection.type) return { text: `${ENS_SYSTEM_TYPE_LABELS[detection.type]} (detectado, sin guardar)`, color: 'warning', stored: false };
-  return { text: loading ? 'Detectando…' : 'Sin detectar', color: 'warning', stored: false };
+  if (stored) return { text: ENS_SYSTEM_TYPE_LABELS[stored], color: 'hollow', stored: true, pending: false };
+  if (detection.type) return { text: `${ENS_SYSTEM_TYPE_LABELS[detection.type]} (detectado, sin guardar)`, color: 'warning', stored: false, pending: true };
+  return { text: loading ? 'Detectando…' : 'Sin detectar', color: 'warning', stored: false, pending: false };
 };
 
 const MODES: Record<ENSConfigurationScopeMode, string> = {

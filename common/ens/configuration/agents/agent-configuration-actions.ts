@@ -598,7 +598,7 @@ export const describeAgentEntryRemoval = (
   if (!controlId) {
     if (profile.name) lines.push(`Nombre: ${profile.name}`);
     if (profile.aliases?.length) lines.push(`Otros nombres: ${profile.aliases.join(', ')}`);
-    if (profile.typeOverride) lines.push(`Tipo corregido a mano: ${profile.typeOverride}`);
+    if (profile.typeOverride) lines.push(`Tipo corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[profile.typeOverride as ENSSystemType] || profile.typeOverride}`);
   }
 
   Object.entries(controls)

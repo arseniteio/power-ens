@@ -50,8 +50,7 @@ const defaultCatalogLookup: CatalogLookup = controlId => getENSCatalogControl(co
 const hasOwn = (record: object | undefined, key: string): boolean =>
   !!record && Object.prototype.hasOwnProperty.call(record, key);
 
-// The 1.3.0 view of any document: 1.2.0 documents resolve exactly as they did, before and after being saved.
-// Not memoised: callers such as the migration to systems mutate their working copy between calls.
+// Not memoised: callers such as the distribution by agents mutate their working copy between calls.
 export const toTemplateModel = <T extends ENSResolvable>(configuration: T): T =>
   needsTemplateMigration(configuration) ? planTemplateMigration(configuration).configuration : configuration;
 
@@ -206,7 +205,6 @@ export interface ENSResolvedControlConfiguration {
   configuration: ENSControlConfiguration;
   origins: Record<string, ENSResolvedValueOrigin>;
 }
-
 
 const resolveInModel = (
   model: ENSResolvable,

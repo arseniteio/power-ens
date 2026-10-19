@@ -40,7 +40,7 @@ Controls op.cont.2, op.exp.9, op.mon.2 and op.nub.1 only have common settings: n
 
 On an agent, each per-system or per-platform parameter takes its own setting; without one, the value of the template assigned in the control or, with no template assigned, that of the built-in template of its type; if the template does not set it, the control's common value.
 
-The «Sin plantilla (valores comunes)» assignment leaves the agent on the common value. This explanation is not repeated on the screen.
+The «Sin plantilla (valores comunes)» assignment leaves the agent on the common value.
 
 Resolution rules:
 
@@ -154,7 +154,7 @@ The «Asignación» table lists the agents in scope and the stored profiles of a
 |---|---|
 | Agente | Id and name; opens the agent page on that control |
 | Tipo | The stored type or, if it is not stored, «<type> (detectado, sin guardar)» |
-| Plantilla | The one that applies: the assigned one, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» or, with the type not stored, «Ninguna hasta guardar su tipo: valores comunes»; the one its data proposes; and whether the control is not evaluated on that agent |
+| Plantilla | The one that applies: the assigned one, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» or, with the type not stored, «Ninguna hasta guardar su tipo: valores comunes» and, with no detected type, «Ninguna: sin tipo, valores comunes»; the one its data proposes; and whether the control is not evaluated on that agent |
 | Ajustes propios | How many it has, how many required ones lack a value and whether it is out of scope |
 
 To assign a template to several agents:
@@ -325,7 +325,7 @@ The «Agentes» tab computes the distribution when it loads, without writing: if
 
 3. Press «Repartir por agentes».
 
-   Expected result: the «Repartir por agentes» window with, per agent, what moves and what is copied; «Parámetros que se quedarían sin valor en algún agente del alcance: ninguno»; and the notices about verdicts, 1.1.0 and the history.
+   Expected result: the «Repartir por agentes» window with, per agent, what moves and what is copied; «Parámetros que se quedarían sin valor en algún agente del alcance: ninguno»; and the notices about verdicts and the history.
 
 4. Type `repartir` and press «Repartir».
 

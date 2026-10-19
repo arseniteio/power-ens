@@ -220,7 +220,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
 
       {pendingEdit && (
         <ChangePreviewModal
-          title={`Guardar «${pendingEdit.input.name}»: cambia ${plural(pendingEdit.previews.length, 'agente', 'agentes')}`}
+          title={`Guardar «${pendingEdit.input.name}»: cambia ${plural(pendingEdit.previews.filter(preview => preview.changes.length).length, 'agente', 'agentes')}`}
           confirmLabel='Guardar plantilla'
           intro='La plantilla está asignada a estos agentes; sus ajustes propios siguen ganando.'
           configuration={configuration}

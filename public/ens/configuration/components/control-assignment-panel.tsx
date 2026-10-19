@@ -53,7 +53,9 @@ const describeEffectiveTemplate = (configuration: ENSConfigurationVersion, row: 
   const effective = getEffectiveTemplate(configuration, row.id, controlId);
   if (effective.template) return `${effective.template.name}${effective.via === 'type' ? ' (de serie, por su tipo)' : ''}`;
   if (effective.assignedId === ENS_NO_TEMPLATE) return 'Sin plantilla (valores comunes)';
-  return agentTypeLabel(configuration.agents?.[row.id], row.detection).stored ? 'Ninguna: valores comunes' : 'Ninguna hasta guardar su tipo: valores comunes';
+  const type = agentTypeLabel(configuration.agents?.[row.id], row.detection);
+  if (type.stored) return 'Ninguna: valores comunes';
+  return type.pending ? 'Ninguna hasta guardar su tipo: valores comunes' : 'Ninguna: sin tipo, valores comunes';
 };
 
 export const ControlAssignmentPanel = ({
