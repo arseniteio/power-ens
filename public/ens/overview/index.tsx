@@ -1,9 +1,4 @@
-// VISTA GENERAL (1.2.0): lo que ninguna pantalla contestaba —«¿qué máquina
-// está peor?», «¿en cuántas falla este control?», «¿qué recolector ha dejado de
-// enviar?», «¿quién tiene trabajo pendiente?», «¿mejora o empeora?»—, con UNA
-// petición a la ruta de evaluación (`include=overview`) y otra para la
-// tendencia (`include=summary&timelineDays=30`). El modelo está en
-// `overview-model.ts`; aquí solo se pinta, con componentes de EUI.
+// Overview: one request to the evaluation route (`include=overview`) answers which machine is worst, where a control fails, which collector stopped sending and who has pending work.
 import React, { useMemo, useState } from 'react';
 import {
   EuiAccordion,
@@ -54,27 +49,21 @@ import {
   overviewMachines,
 } from './overview-model';
 
-// Los colores de estado de todas las pantallas (`status-colors.ts`) y los
-// neutros del tema (`theme-colors.ts`, siguen el modo oscuro); lo que no se
-// mide en una máquina no es gris de NO_APLICA: es un hueco rayado.
-const RAYADO = ENS_NO_RESULT_PATTERN;
+// A control not measured on a machine is a striped gap, not the NO_APLICA grey.
+const STRIPED = ENS_NO_RESULT_PATTERN;
 
-// La matriz: columnas de máquina con un ancho mínimo (con muchas máquinas, la
-// tabla se desplaza en horizontal en vez de estrecharlas hasta no leerse), la
-// columna «Control» fija a la izquierda y la de «Máquinas» a su lado.
 export const MATRIX_MACHINE_MIN_WIDTH = 64;
-const FIJA: React.CSSProperties = { position: 'sticky', left: 0, background: ENS_THEME.surface, zIndex: 1 };
+const STICKY_CELL: React.CSSProperties = { position: 'sticky', left: 0, background: ENS_THEME.surface, zIndex: 1 };
 
-// Lo que aún se está calculando (primera carga por partes): ni un resultado
-// ni «no se mide».
-const Calculando = () => (
+// Still computing (partial first load): neither a result nor 'not measured'.
+const Calculating = () => (
   <EuiBadge color='default' iconType='clock' title='Calculando: el servidor aún no tiene todas las filas de este control.'>
     …
   </EuiBadge>
 );
 
-const Celda = ({ cell }: { cell: MatrixCell }) => {
-  if (cell.kind === 'pending') return <Calculando />;
+const MatrixCellView = ({ cell }: { cell: MatrixCell }) => {
+  if (cell.kind === 'pending') return <Calculating />;
   if (cell.kind === 'manager') {
     return (
       <EuiText size='xs' color='subdued'>
@@ -83,7 +72,7 @@ const Celda = ({ cell }: { cell: MatrixCell }) => {
     );
   }
   if (cell.kind === 'not-measured') {
-    return <div title={cell.reason || 'No se mide en esta máquina.'} style={{ background: RAYADO, height: 22, borderRadius: 3 }} />;
+    return <div title={cell.reason || 'No se mide en esta máquina.'} style={{ background: STRIPED, height: 22, borderRadius: 3 }} />;
   }
   return (
     <span title={`${cell.status}${cell.notMet ? ` · ${cell.notMet} requisitos no cumplen` : ''}${cell.notEvidenced ? ` (${cell.notEvidenced} no evidenciados)` : ''}`}>
@@ -97,68 +86,61 @@ const Celda = ({ cell }: { cell: MatrixCell }) => {
 
 export const OverviewENS = () => {
   const { agentId } = useRouterSearch();
-  const cambiaUrl = useSetRouterSearch();
-  const [modo, setModo] = useState<'estado' | 'frescura'>('estado');
+  const updateUrl = useSetRouterSearch();
+  const [mode, setMode] = useState<'estado' | 'frescura'>('estado');
 
-  // UNA petición, siempre del conjunto: la máquina elegida se resalta y filtra
-  // la cola de trabajo, pero la matriz es de todas.
+  // One request, always for the whole set: the chosen machine is highlighted and filters the work queue, but the matrix covers all.
   const general = useEnsEvaluation<ENSOverviewEvaluationResponse>({ include: 'overview' });
-  // La tendencia aparte: sus días pasados se calculan una vez al día y tardan
-  // más la primera vez; el resto de la pantalla no espera por ella.
-  const tendencia = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, timelineControls: true, agentId });
+  // The trend is apart: its past days are computed once a day and take longer the first time; the rest does not wait for it.
+  const trend = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, timelineControls: true, agentId });
 
-  const datos = general.data;
-  const ahora = datos ? Date.parse(datos.meta.evaluatedAt) || Date.now() : Date.now();
-  const maquinas = useMemo(() => overviewMachines(datos?.meta.scope || []), [datos]);
-  const nombreDe = (id: string) => maquinas.find(m => m.agentId === id)?.agentName;
-  const controles = ENSControls.map(c => ({ id: c.id, title: c.title }));
+  const data = general.data;
+  const now = data ? Date.parse(data.meta.evaluatedAt) || Date.now() : Date.now();
+  const machines = useMemo(() => overviewMachines(data?.meta.scope || []), [data]);
+  const nameOf = (id: string) => machines.find(m => m.agentId === id)?.agentName;
+  const controls = ENSControls.map(c => ({ id: c.id, title: c.title }));
 
-  const matriz = useMemo(
+  const matrix = useMemo(
     () =>
-      datos
-        ? buildMatrix(controles, maquinas, datos.controls, datos.agents || [], {
+      data
+        ? buildMatrix(controls, machines, data.controls, data.agents || [], {
             isManagerOnly: id => {
               const catalogo = getENSCatalogControl(id);
               return Boolean(catalogo && isManagerOnlyControl(catalogo));
             },
-            notMeasuredReason: (id, agente) => {
+            notMeasuredReason: (id, agent) => {
               const catalogo = getENSCatalogControl(id);
               return catalogo
-                ? describeNotMeasuredOnAgent(catalogo, agente, nombreDe(agente), getActiveControlConfiguration(id, agente))?.text
+                ? describeNotMeasuredOnAgent(catalogo, agent, nameOf(agent), getActiveControlConfiguration(id, agent))?.text
                 : undefined;
             },
           })
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [datos, maquinas]
+    [data, machines]
   );
-  const porMaquina = useMemo(
-    () => (datos ? buildMachineSummaries(maquinas, datos.agents || [], datos.freshness, ahora) : []),
+  const byMachine = useMemo(
+    () => (data ? buildMachineSummaries(machines, data.agents || [], data.freshness, now) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [datos, maquinas]
+    [data, machines]
   );
-  const cola = useMemo(
+  const queue = useMemo(
     () =>
-      datos
-        ? buildWorkQueue(datos.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id)), id => nombreDe(id))
+      data
+        ? buildWorkQueue(data.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id)), id => nameOf(id))
         : [],
-    [datos, agentId]
+    [data, agentId]
   );
-  const serie = useMemo(() => buildTrend(tendencia.data?.timeline, controles.map(c => c.id)), [tendencia.data]);
-  // PRIMERA CARGA POR PARTES (`meta.pending`): la matriz enseña los controles
-  // ya calculados y «…» en los demás; las cifras por máquina y la cola, que
-  // son de todos los controles, esperan. El navegador vuelve a pedir cada 2 s (15 s pasados 2 minutos).
-  const enCurso = describeOverviewPending(datos?.meta.pending);
-  // La serie se calcula después de responder (`meta.seriesPending`): la
-  // tendencia lo dice en vez de quedarse vacía. Con filas aún pendientes
-  // (`meta.pending`) tampoco se pinta, venga o no una serie: su barra
-  // «Actual» saldría de una parte de los controles (como hace el Panel).
-  const seriePendiente =
-    Boolean(tendencia.data?.meta?.pending) ||
-    (Boolean(tendencia.data?.meta?.seriesPending) && !(tendencia.data?.timeline || []).length);
+  const series = useMemo(() => buildTrend(trend.data?.timeline, controls.map(c => c.id)), [trend.data]);
+  // Partial first load (`meta.pending`): the matrix shows computed controls and '…' for the rest; per-machine figures and the queue wait. Polls every 2 s (15 s after 2 minutes).
+  const inProgress = describeOverviewPending(data?.meta.pending);
+  // The series is computed after the response (`meta.seriesPending`): the trend says so instead of staying empty.
+  const pendingSeries =
+    Boolean(trend.data?.meta?.pending) ||
+    (Boolean(trend.data?.meta?.seriesPending) && !(trend.data?.timeline || []).length);
 
-  const abreDetalle = (controlId: string, agente?: string) =>
-    cambiaUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agente });
+  const openDetail = (controlId: string, agent?: string) =>
+    updateUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agent });
 
   return (
     <EuiPage paddingSize='m'>
@@ -176,29 +158,28 @@ export const OverviewENS = () => {
         <EuiSpacer size='s' />
         {general.error ? (
           <FactsReadErrorCallOut error={general.error} onRetry={general.retry} />
-        ) : !datos ? (
+        ) : !data ? (
           <EvaluationLoading message='Evaluando todos los controles en todas las máquinas del alcance.' />
         ) : (
           <>
-            <EvaluationStatusLine meta={datos.meta} refreshing={general.isRefreshing} onRetry={general.retry} />
-            {enCurso && (
+            <EvaluationStatusLine meta={data.meta} refreshing={general.isRefreshing} onRetry={general.retry} />
+            {inProgress && (
               <>
                 <EuiSpacer size='s' />
-                <EuiCallOut size='s' color='primary' iconType='clock' title={enCurso.title}>
-                  <p>{enCurso.text}</p>
+                <EuiCallOut size='s' color='primary' iconType='clock' title={inProgress.title}>
+                  <p>{inProgress.text}</p>
                 </EuiCallOut>
               </>
             )}
             <EuiSpacer size='m' />
 
-            {/* V3 · RESUMEN POR MÁQUINA */}
             <EuiTitle size='s'>
               <h3>Máquinas</h3>
             </EuiTitle>
             <EuiSpacer size='s' />
             <EuiBasicTable
               compressed
-              items={porMaquina.map(m => ({ ...m, id: m.agentId }))}
+              items={byMachine.map(m => ({ ...m, id: m.agentId }))}
               rowProps={(m: any) => ({ style: m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined })}
               columns={[
                 {
@@ -206,14 +187,14 @@ export const OverviewENS = () => {
                   name: 'Máquina',
                   render: (_: string, m: any) => (
                     <EuiHealth color={m.stale ? 'danger' : m.status === 'active' ? 'success' : 'subdued'}>
-                      <EuiLink onClick={() => cambiaUrl({ agentId: m.agentId })}>{machineLabel(m)}</EuiLink>
+                      <EuiLink onClick={() => updateUrl({ agentId: m.agentId })}>{machineLabel(m)}</EuiLink>
                     </EuiHealth>
                   ),
                 },
                 {
                   field: 'counts',
                   name: 'Controles medidos',
-                  render: (_: any, m: any) => enCurso ? <Calculando /> : (
+                  render: (_: any, m: any) => inProgress ? <Calculating /> : (
                     <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
                       {(['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE', 'CUMPLE', 'NO_APLICA'] as const)
                         .filter(e => m.counts[e] > 0)
@@ -229,17 +210,16 @@ export const OverviewENS = () => {
                 {
                   field: 'notMet',
                   name: 'Requisitos que no cumplen',
-                  render: (_: any, m: any) => (enCurso ? <Calculando /> : `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`),
+                  render: (_: any, m: any) => (inProgress ? <Calculating /> : `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`),
                 },
                 {
                   field: 'lastSeen',
                   name: 'Último dato',
-                  // La misma fecha con la que se decide el rojo: la más reciente
-                  // entre el último hecho y el último latido del recolector.
+                  // The same date that decides red: the later of the last fact and the last collector heartbeat.
                   render: (_: any, m: any) => (
                     <EuiText size='xs' color={m.stale ? 'danger' : 'default'}>
                       <span title={`Último hecho: ${m.newest || 'ninguno'} · último latido: ${m.lastHeartbeat || 'ninguno'}`}>
-                        {describeAge(m.lastSeen, ahora)}
+                        {describeAge(m.lastSeen, now)}
                       </span>
                     </EuiText>
                   ),
@@ -247,13 +227,13 @@ export const OverviewENS = () => {
                 {
                   field: 'worst',
                   name: 'Peores controles',
-                  render: (_: any, m: any) => enCurso ? <Calculando /> : (
+                  render: (_: any, m: any) => inProgress ? <Calculating /> : (
                     <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
                       {m.worst.map((w: any) => (
                         <EuiFlexItem grow={false} key={w.controlId}>
                           <EuiBadge
                             color={statusBadgeColor(w.status)}
-                            onClick={() => abreDetalle(w.controlId, m.agentId)}
+                            onClick={() => openDetail(w.controlId, m.agentId)}
                             onClickAriaLabel={`Abrir ${w.controlId} en ${m.agentId}`}
                           >
                             {`${w.controlId}${typeof w.score === 'number' ? ` ${w.score}%` : ''}`}
@@ -268,7 +248,6 @@ export const OverviewENS = () => {
 
             <EuiSpacer size='l' />
 
-            {/* V1 + V2 · CONTROL × MÁQUINA, por estado o por frescura */}
             <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false}>
               <EuiFlexItem grow={false}>
                 <EuiTitle size='s'>
@@ -283,14 +262,14 @@ export const OverviewENS = () => {
                     { id: 'estado', label: 'Cumplimiento' },
                     { id: 'frescura', label: 'Frescura de la recogida' },
                   ]}
-                  idSelected={modo}
-                  onChange={(id: string) => setModo(id as 'estado' | 'frescura')}
+                  idSelected={mode}
+                  onChange={(id: string) => setMode(id as 'estado' | 'frescura')}
                 />
               </EuiFlexItem>
             </EuiFlexGroup>
             <EuiText size='xs' color='subdued'>
               <p>
-                {modo === 'estado'
+                {mode === 'estado'
                   ? 'Cada celda: el resultado del control en esa máquina (número y requisitos que no cumplen, en rojo). Rayado: no se mide en esa máquina. «en el manager»: control de la organización, su resultado está en la columna 000.'
                   : `Cada celda: el último dato de ese control en esa máquina. En rojo, más de 24 h sin datos o ninguno en la ventana; esa máquina no puede demostrar nada de ese control.`}
               </p>
@@ -300,12 +279,12 @@ export const OverviewENS = () => {
               <EuiTable
                 compressed
                 tableLayout='auto'
-                style={{ minWidth: 120 + 200 + maquinas.length * MATRIX_MACHINE_MIN_WIDTH }}
+                style={{ minWidth: 120 + 200 + machines.length * MATRIX_MACHINE_MIN_WIDTH }}
               >
                 <EuiTableHeader>
-                  <EuiTableHeaderCell style={{ ...FIJA, minWidth: 120 }}>Control</EuiTableHeaderCell>
+                  <EuiTableHeaderCell style={{ ...STICKY_CELL, minWidth: 120 }}>Control</EuiTableHeaderCell>
                   <EuiTableHeaderCell style={{ minWidth: 200 }}>Máquinas</EuiTableHeaderCell>
-                  {maquinas.map(m => (
+                  {machines.map(m => (
                     <EuiTableHeaderCell key={m.agentId} align='center' style={{ minWidth: MATRIX_MACHINE_MIN_WIDTH }}>
                       <EuiToolTip content={machineLabel(m)}>
                         <span style={{ display: 'block', lineHeight: 1.2 }}>
@@ -330,41 +309,41 @@ export const OverviewENS = () => {
                   ))}
                 </EuiTableHeader>
                 <EuiTableBody>
-                  {matriz.map(fila => (
-                    <EuiTableRow key={fila.controlId}>
-                      <EuiTableRowCell style={FIJA}>
-                        <EuiLink onClick={() => abreDetalle(fila.controlId)} title={fila.title}>
-                          {fila.controlId}
+                  {matrix.map(row => (
+                    <EuiTableRow key={row.controlId}>
+                      <EuiTableRowCell style={STICKY_CELL}>
+                        <EuiLink onClick={() => openDetail(row.controlId)} title={row.title}>
+                          {row.controlId}
                         </EuiLink>
                       </EuiTableRowCell>
                       <EuiTableRowCell>
                         <EuiText size='xs' color='subdued'>
-                          {fila.pending ? 'Calculando…' : fila.tally ? describeTally(fila.tally) : 'ninguna lo mide'}
+                          {row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
                         </EuiText>
                       </EuiTableRowCell>
-                      {maquinas.map(m => {
-                        const celda = fila.cells[m.agentId];
-                        const medida = celda.kind === 'result';
-                        if (modo === 'frescura' && celda.kind === 'pending') {
+                      {machines.map(m => {
+                        const cell = row.cells[m.agentId];
+                        const measure = cell.kind === 'result';
+                        if (mode === 'frescura' && cell.kind === 'pending') {
                           return (
                             <EuiTableRowCell key={m.agentId} align='center'>
-                              <Calculando />
+                              <Calculating />
                             </EuiTableRowCell>
                           );
                         }
-                        if (modo === 'frescura') {
-                          const f = freshnessCell(datos.freshness, fila.controlId, m.agentId, medida, ahora);
+                        if (mode === 'frescura') {
+                          const f = freshnessCell(data.freshness, row.controlId, m.agentId, measure, now);
                           return (
                             <EuiTableRowCell key={m.agentId} align='center'>
                               {f.kind === 'not-expected' ? (
-                                <div style={{ background: RAYADO, height: 22, borderRadius: 3 }} title='No se espera nada de este control en esta máquina.' />
+                                <div style={{ background: STRIPED, height: 22, borderRadius: 3 }} title='No se espera nada de este control en esta máquina.' />
                               ) : (
                                 <EuiLink
                                   color={f.kind === 'fresh' ? 'secondary' : 'danger'}
-                                  onClick={() => abreDetalle(fila.controlId, m.agentId)}
+                                  onClick={() => openDetail(row.controlId, m.agentId)}
                                   title={f.kind === 'never' ? 'Ningún dato en la ventana' : `${f.count} hechos · último ${f.newest}`}
                                 >
-                                  <span style={{ fontSize: 12 }}>{f.kind === 'never' ? 'nunca' : describeAge(f.newest, ahora)}</span>
+                                  <span style={{ fontSize: 12 }}>{f.kind === 'never' ? 'nunca' : describeAge(f.newest, now)}</span>
                                 </EuiLink>
                               )}
                             </EuiTableRowCell>
@@ -376,12 +355,12 @@ export const OverviewENS = () => {
                             align='center'
                             style={m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined}
                           >
-                            {medida ? (
-                              <EuiLink onClick={() => abreDetalle(fila.controlId, m.agentId)}>
-                                <Celda cell={celda} />
+                            {measure ? (
+                              <EuiLink onClick={() => openDetail(row.controlId, m.agentId)}>
+                                <MatrixCellView cell={cell} />
                               </EuiLink>
                             ) : (
-                              <Celda cell={celda} />
+                              <MatrixCellView cell={cell} />
                             )}
                           </EuiTableRowCell>
                         );
@@ -394,9 +373,8 @@ export const OverviewENS = () => {
 
             <EuiSpacer size='l' />
 
-            {/* V5 · COLA DE TRABAJO */}
             <EuiTitle size='s'>
-              <h3>Cola de trabajo{agentId ? ` · ${agentId}${nombreDe(agentId) ? ` · ${nombreDe(agentId)}` : ''}` : ''}</h3>
+              <h3>Cola de trabajo{agentId ? ` · ${agentId}${nameOf(agentId) ? ` · ${nameOf(agentId)}` : ''}` : ''}</h3>
             </EuiTitle>
             <EuiText size='xs' color='subdued'>
               <p>
@@ -405,40 +383,40 @@ export const OverviewENS = () => {
               </p>
             </EuiText>
             <EuiSpacer size='s' />
-            {enCurso && (
+            {inProgress && (
               <EuiText size='s' color='subdued'>
-                <p>{`Incompleta: faltan ${enCurso.controls.join(', ')}. Se completa cuando estén calculados.`}</p>
+                <p>{`Incompleta: faltan ${inProgress.controls.join(', ')}. Se completa cuando estén calculados.`}</p>
               </EuiText>
             )}
-            {cola.length === 0 && !enCurso && (
+            {queue.length === 0 && !inProgress && (
               <EuiText size='s' color='subdued'>
                 <p>No hay no conformidades abiertas.</p>
               </EuiText>
             )}
-            {cola.map(grupo => (
+            {queue.map(group => (
               <EuiAccordion
-                key={grupo.owner}
-                id={`cola-${grupo.owner}`}
-                initialIsOpen={grupo.clase.orden <= 1}
+                key={group.owner}
+                id={`cola-${group.owner}`}
+                initialIsOpen={group.clase.orden <= 1}
                 buttonContent={
                   <span>
-                    <EuiBadge color={grupo.clase.badgeColor} iconType={grupo.clase.icono}>
-                      {grupo.clase.accion}
+                    <EuiBadge color={group.clase.badgeColor} iconType={group.clase.icono}>
+                      {group.clase.accion}
                     </EuiBadge>{' '}
-                    {`${grupo.owner} · ${grupo.items.length} no conformidad${grupo.items.length === 1 ? '' : 'es'} en ${grupo.controls} control${grupo.controls === 1 ? '' : 'es'}`}
+                    {`${group.owner} · ${group.items.length} no conformidad${group.items.length === 1 ? '' : 'es'} en ${group.controls} control${group.controls === 1 ? '' : 'es'}`}
                   </span>
                 }
                 paddingSize='s'
               >
                 <EuiBasicTable
                   compressed
-                  items={grupo.items.map((it, i) => ({ ...it, id: `${it.nc.controlId}-${it.nc.id}-${i}` }))}
+                  items={group.items.map((it, i) => ({ ...it, id: `${it.nc.controlId}-${it.nc.id}-${i}` }))}
                   columns={[
                     {
                       field: 'controlId',
                       name: 'Control',
                       width: '110px',
-                      render: (_: string, it: any) => <EuiLink onClick={() => abreDetalle(it.controlId, agentId)}>{it.controlId}</EuiLink>,
+                      render: (_: string, it: any) => <EuiLink onClick={() => openDetail(it.controlId, agentId)}>{it.controlId}</EuiLink>,
                     },
                     { field: 'nc', name: 'Requisito', width: '120px', render: (nc: any) => nc.requirementId },
                     {
@@ -463,18 +441,17 @@ export const OverviewENS = () => {
 
         <EuiSpacer size='l' />
 
-        {/* V6 · TENDENCIA */}
         <EuiTitle size='s'>
           <h3>Tendencia de 30 días{agentId ? ` · ${agentId}` : ''}</h3>
         </EuiTitle>
         <EuiSpacer size='s' />
-        {tendencia.error ? (
-          <FactsReadErrorCallOut error={tendencia.error} onRetry={tendencia.retry} />
-        ) : !tendencia.data ? (
+        {trend.error ? (
+          <FactsReadErrorCallOut error={trend.error} onRetry={trend.retry} />
+        ) : !trend.data ? (
           <EvaluationLoading message='Calculando el resultado de cada día de la ventana.' />
-        ) : seriePendiente ? (
+        ) : pendingSeries ? (
           <>
-            <EvaluationStatusLine meta={tendencia.data.meta} refreshing={tendencia.isRefreshing} onRetry={tendencia.retry} label='Tendencia' />
+            <EvaluationStatusLine meta={trend.data.meta} refreshing={trend.isRefreshing} onRetry={trend.retry} label='Tendencia' />
             <EvaluationLoading message='Calculando la serie de 30 días en el servidor: aparece en cuanto esté.' />
           </>
         ) : (
@@ -482,13 +459,13 @@ export const OverviewENS = () => {
             <EuiText size='xs' color='subdued'>
               <p>
                 Índice medio de cumplimiento cada día
-                {serie.delta !== undefined ? ` (${serie.delta >= 0 ? '+' : ''}${serie.delta} puntos en la ventana)` : ''}; debajo,
+                {series.delta !== undefined ? ` (${series.delta >= 0 ? '+' : ''}${series.delta} puntos en la ventana)` : ''}; debajo,
                 el estado de cada control cada día. Cada día se evalúa con los hechos conocidos hasta ese día.
               </p>
             </EuiText>
             <EuiSpacer size='s' />
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 64, paddingLeft: 92 }}>
-              {serie.points.map(p => (
+              {series.points.map(p => (
                 <EuiToolTip key={p.date} content={`${p.label}: ${typeof p.score === 'number' ? `${p.score}%` : 'sin datos'}`}>
                   <div
                     style={{
@@ -501,22 +478,21 @@ export const OverviewENS = () => {
                 </EuiToolTip>
               ))}
             </div>
-            {serie.points.length > 0 && (
+            {series.points.length > 0 && (
               <EuiText size='xs' color='subdued'>
                 <p style={{ paddingLeft: 92 }}>
-                  {`${serie.points[0].label} — ${serie.points[serie.points.length - 1].label} (hoy)`}
+                  {`${series.points[0].label} — ${series.points[series.points.length - 1].label} (hoy)`}
                 </p>
               </EuiText>
             )}
             <EuiSpacer size='s' />
-            {/* La leyenda: los mismos colores que la lista y la matriz. */}
             <EuiFlexGroup gutterSize='s' wrap responsive={false}>
-              {ENS_STATUS_ORDER.map(estado => (
-                <EuiFlexItem grow={false} key={estado}>
+              {ENS_STATUS_ORDER.map(status => (
+                <EuiFlexItem grow={false} key={status}>
                   <EuiText size='xs'>
                     <span>
-                      <span style={{ display: 'inline-block', width: 12, height: 10, background: ENS_STATUS_COLORS[estado], marginRight: 4 }} />
-                      {estado}
+                      <span style={{ display: 'inline-block', width: 12, height: 10, background: ENS_STATUS_COLORS[status], marginRight: 4 }} />
+                      {status}
                     </span>
                   </EuiText>
                 </EuiFlexItem>
@@ -524,30 +500,30 @@ export const OverviewENS = () => {
               <EuiFlexItem grow={false}>
                 <EuiText size='xs'>
                   <span>
-                    <span style={{ display: 'inline-block', width: 12, height: 10, background: RAYADO, marginRight: 4 }} />
+                    <span style={{ display: 'inline-block', width: 12, height: 10, background: STRIPED, marginRight: 4 }} />
                     sin resultado ese día
                   </span>
                 </EuiText>
               </EuiFlexItem>
             </EuiFlexGroup>
             <EuiSpacer size='s' />
-            {serie.hasControls && (
+            {series.hasControls && (
               <div style={{ overflowX: 'auto' }}>
-                {serie.rows.map(fila => (
-                  <div key={fila.controlId} style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
-                    <EuiLink onClick={() => abreDetalle(fila.controlId, agentId)} style={{ width: 90, fontSize: 12, fontWeight: fila.changed ? 700 : 400 }}>
-                      {fila.controlId}
+                {series.rows.map(row => (
+                  <div key={row.controlId} style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
+                    <EuiLink onClick={() => openDetail(row.controlId, agentId)} style={{ width: 90, fontSize: 12, fontWeight: row.changed ? 700 : 400 }}>
+                      {row.controlId}
                     </EuiLink>
-                    {fila.cells.map(c => (
+                    {row.cells.map(c => (
                       <span
                         key={c.date}
-                        title={`${fila.controlId} · ${c.label}: ${c.status || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
-                        style={{ width: 14, height: 12, background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : RAYADO, display: 'inline-block' }}
+                        title={`${row.controlId} · ${c.label}: ${c.status || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
+                        style={{ width: 14, height: 12, background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : STRIPED, display: 'inline-block' }}
                       />
                     ))}
-                    {fila.changed && (
+                    {row.changed && (
                       <EuiText size='xs' color='subdued'>
-                        <span style={{ marginLeft: 6 }}>{`${fila.first} → ${fila.last}`}</span>
+                        <span style={{ marginLeft: 6 }}>{`${row.first} → ${row.last}`}</span>
                       </EuiText>
                     )}
                   </div>
