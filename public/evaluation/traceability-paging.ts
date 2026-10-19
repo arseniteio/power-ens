@@ -1,9 +1,4 @@
-// De dónde sale una página de la tabla de trazabilidad de la ficha: de las
-// entradas que ya trajo la evaluación o del servidor. Sin React, para probarlo
-// (tests/evaluation-refresh.test.ts).
-//
-// Una página se pide al servidor solo si llega más allá de lo que ya está en
-// la respuesta; nunca más allá de lo que el servidor guarda (`available`).
+// Where a page of the traceability table comes from: the entries the evaluation already brought, or the server. No React. A page is requested only beyond what the response holds, and never beyond what the server keeps (`available`).
 export const traceabilityPageSource = (options: {
   initialCount: number;
   available: number;

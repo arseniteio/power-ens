@@ -1,14 +1,4 @@
-// El resultado de la evaluación del servidor para una pantalla. Es la envoltura
-// React del ciclo de `refresh-policy.ts` (`createEvaluationController`), que
-// es donde están las reglas y sus pruebas:
-//
-// - Mientras no llega el de ESTA clave (máquina, control, vista), `data` es
-//   `undefined` e `isLoading` verdadero: nunca se enseña el de la máquina o el
-//   control anterior como si fuera el actual.
-// - Cada 5 minutos, con la pestaña a la vista, la sonda; solo si cambió algo
-//   (o el resultado tiene más de 60 minutos) se vuelve a pedir. Si el servidor
-//   respondió con algo guardado mientras recalcula, a los 10 segundos.
-// - Un tiempo agotado o un fallo se dicen (`error`) y `retry` lo reintenta.
+// The server evaluation result for a screen: the React wrapper of the `refresh-policy.ts` cycle. While the result for THIS key (machine, control, view) has not arrived, `data` is `undefined` and `isLoading` is true: the previous machine's is never shown as current.
 import { useEffect, useRef, useState } from 'react';
 import { getCore } from '../services';
 import { ENSEvaluationParams, fetchEvaluation, fetchEvaluationProbe } from './evaluation-client';
@@ -22,75 +12,69 @@ import {
 
 const TICK_MS = 2 * 1000;
 
-const pestanaVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
+const visibleTab = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
-// Un aviso por mensaje y minuto, compartido por todas las pantallas.
-const avisos = new Map<string, number>();
-const avisa = (texto: string) => {
-  const ahora = Date.now();
-  if ((avisos.get(texto) || 0) > ahora - 60000) return;
-  avisos.set(texto, ahora);
+const notices = new Map<string, number>();
+const warns = (text: string) => {
+  const now = Date.now();
+  if ((notices.get(text) || 0) > now - 60000) return;
+  notices.set(text, now);
   try {
-    getCore().notifications.toasts.addDanger({ title: 'ENSFácil: no se pudo evaluar', text: texto });
+    getCore().notifications.toasts.addDanger({ title: 'ENSFácil: no se pudo evaluar', text: text });
   } catch {
-    // Sin núcleo (pruebas): basta con el error en pantalla.
   }
 };
 
 export const useEnsEvaluation = <T = any>(params: ENSEvaluationParams & { enabled?: boolean }) => {
-  const { enabled = true, ...pedido } = params;
-  const key = evaluationKey(pedido as Record<string, unknown>);
-  const [estado, setEstado] = useState<EvaluationViewState<T>>(initialEvaluationState<T>());
-  const pedidoActual = useRef(pedido);
-  pedidoActual.current = pedido;
+  const { enabled = true, ...requested } = params;
+  const key = evaluationKey(requested as Record<string, unknown>);
+  const [status, setStatus] = useState<EvaluationViewState<T>>(initialEvaluationState<T>());
+  const currentRequest = useRef(requested);
+  currentRequest.current = requested;
 
-  const controlador = useRef<ReturnType<typeof createEvaluationController<any>>>();
-  if (!controlador.current) {
-    controlador.current = createEvaluationController<any>({
-      fetch: (controller, opciones) => fetchEvaluation(pedidoActual.current, controller, opciones),
-      probe: controller => fetchEvaluationProbe(pedidoActual.current, controller),
+  const evalController = useRef<ReturnType<typeof createEvaluationController<any>>>();
+  if (!evalController.current) {
+    evalController.current = createEvaluationController<any>({
+      fetch: (controller, options) => fetchEvaluation(currentRequest.current, controller, options),
+      probe: controller => fetchEvaluationProbe(currentRequest.current, controller),
       now: () => Date.now(),
-      visible: pestanaVisible,
-      onChange: siguiente => {
-        if (siguiente.error && siguiente.key === evaluationKey(pedidoActual.current as Record<string, unknown>)) {
-          avisa(String((siguiente.error as any)?.message || siguiente.error));
+      visible: visibleTab,
+      onChange: following => {
+        if (following.error && following.key === evaluationKey(currentRequest.current as Record<string, unknown>)) {
+          warns(String((following.error as any)?.message || following.error));
         }
-        setEstado(siguiente);
+        setStatus(following);
       },
     });
   }
 
-  // La clave que pide la pantalla (una pantalla oculta no pide nada y suelta
-  // lo que estaba pidiendo, pero conserva lo que tenía: al volver, se refresca
-  // encima).
   useEffect(() => {
-    if (enabled) controlador.current!.setKey(key);
-    else controlador.current!.suspend();
+    if (enabled) evalController.current!.setKey(key);
+    else evalController.current!.suspend();
   }, [key, enabled]);
 
-  useEffect(() => () => controlador.current!.dispose(), []);
+  useEffect(() => () => evalController.current!.dispose(), []);
 
-  // La sonda y los reintentos de lo que se está recalculando.
   useEffect(() => {
     if (!enabled) return;
-    const vuelta = () => {
-      void controlador.current!.tick();
+    const returned = () => {
+      void evalController.current!.tick();
     };
-    const intervalo = window.setInterval(vuelta, TICK_MS);
-    const alVolver = () => {
-      if (pestanaVisible()) vuelta();
+    const interval = window.setInterval(returned, TICK_MS);
+    const onReturn = () => {
+      if (visibleTab()) returned();
     };
-    document.addEventListener('visibilitychange', alVolver);
+    document.addEventListener('visibilitychange', onReturn);
     return () => {
-      window.clearInterval(intervalo);
-      document.removeEventListener('visibilitychange', alVolver);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onReturn);
     };
   }, [enabled]);
 
-  const visible = visibleEvaluation(estado, key);
+  const visible = visibleEvaluation(status, key);
   return {
     ...visible,
     error: visible.error as Error | undefined,
-    retry: () => controlador.current!.retry(),
+    retry: () => evalController.current!.retry(),
   };
 };

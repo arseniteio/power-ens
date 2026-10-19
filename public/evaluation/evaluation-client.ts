@@ -1,14 +1,11 @@
-// Las peticiones a la evaluación del servidor (`/api/ensfacil/evaluation`).
-// El navegador ya no lee hechos para juzgar: recibe el resultado.
+// Requests to the server evaluation (`/api/ensfacil/evaluation`). The browser no longer reads facts to judge: it receives the result.
 import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
 import { withRequestTimeout } from '../../common/platform/request-timeout';
 import { getHttp } from '../services';
 import { RequestLimiter } from './refresh-policy';
 import type { ENSTraceabilityPageResponse } from '../../common/ens/evaluation/types';
 
-// Una evaluación en frío lee la ventana entera (en el laboratorio, ~20-30 s
-// para todo el alcance); el minuto de las búsquedas no basta. Si se agota, la
-// pantalla lo dice y ofrece «Reintentar».
+// A cold evaluation reads the whole window (about 20-30 s for the whole scope); the one-minute search timeout is not enough.
 export const EVALUATION_TIMEOUT_MS = 180 * 1000;
 
 export interface ENSEvaluationParams {
@@ -16,7 +13,6 @@ export interface ENSEvaluationParams {
   agentId?: string;
   controlId?: string;
   timelineDays?: number;
-  // Las cifras por control de cada día (solo la tendencia de la Vista general).
   timelineControls?: boolean;
 }
 
@@ -30,41 +26,41 @@ export const browserTimeZone = (): string | undefined => {
   }
 };
 
-const consulta = (params: Record<string, unknown>) =>
+const evaluationQuery = (params: Record<string, unknown>) =>
   Object.fromEntries(
     Object.entries({ ...params, timeZone: browserTimeZone() }).filter(([, value]) => value !== undefined && value !== '')
   );
 
-// El servidor explica en `body.message` por qué falla.
-const conMotivo = (error: any): Error => {
-  const motivo = error?.body?.message;
-  return typeof motivo === 'string' && motivo.trim() ? new Error(motivo.trim()) : error;
+// The server explains in `body.message` why it fails.
+const withMotive = (error: any): Error => {
+  const motive = error?.body?.message;
+  return typeof motive === 'string' && motive.trim() ? new Error(motive.trim()) : error;
 };
 
-const pide = async <T>(path: string, query: Record<string, unknown>, operacion: string, controller?: AbortController): Promise<T> => {
-  const respuesta: any = await limiter
+const asks = async <T>(path: string, query: Record<string, unknown>, operation: string, controller?: AbortController): Promise<T> => {
+  const response: any = await limiter
     .run(() =>
       withRequestTimeout(
-        signal => getHttp().get(path, { query: consulta(query), signal }),
-        operacion,
+        signal => getHttp().get(path, { query: evaluationQuery(query), signal }),
+        operation,
         controller,
         EVALUATION_TIMEOUT_MS
       )
     )
     .catch(error => {
-      throw conMotivo(error);
+      throw withMotive(error);
     });
-  if (!respuesta || respuesta.statusCode !== 200 || respuesta.error !== 0) {
-    throw new Error(`La evaluación ENS respondió algo inesperado (${operacion}).`);
+  if (!response || response.statusCode !== 200 || response.error !== 0) {
+    throw new Error(`La evaluación ENS respondió algo inesperado (${operation}).`);
   }
-  return respuesta.data as T;
+  return response.data as T;
 };
 
 export const fetchEvaluation = <T = any>(params: ENSEvaluationParams, controller?: AbortController, options: { retryRefresh?: boolean } = {}) =>
-  pide<T>(ENSFACIL_EVALUATION_PATH, { ...params, ...(options.retryRefresh ? { retryRefresh: '1' } : {}) }, 'evaluación ENS', controller);
+  asks<T>(ENSFACIL_EVALUATION_PATH, { ...params, ...(options.retryRefresh ? { retryRefresh: '1' } : {}) }, 'evaluación ENS', controller);
 
 export const fetchEvaluationProbe = (params: ENSEvaluationParams, controller?: AbortController) =>
-  pide<{ fingerprint: string; checkedAt: string; facts: { count: number; newest?: string } }>(
+  asks<{ fingerprint: string; checkedAt: string; facts: { count: number; newest?: string } }>(
     `${ENSFACIL_EVALUATION_PATH}/probe`,
     { agentId: params.agentId, controlId: params.controlId },
     'comprobación de hechos nuevos',
@@ -75,7 +71,7 @@ export const fetchTraceabilityPage = (
   params: { controlId: string; agentId?: string; from: number; size: number },
   controller?: AbortController
 ) =>
-  pide<ENSTraceabilityPageResponse>(
+  asks<ENSTraceabilityPageResponse>(
     `${ENSFACIL_EVALUATION_PATH}/traceability`,
     { ...params },
     'trazabilidad del control',
