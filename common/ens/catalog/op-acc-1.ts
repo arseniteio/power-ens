@@ -6,9 +6,13 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Control de acceso',
   dimension: 'Trazabilidad y Autenticidad',
+  // Annex II applies op.acc.1 by the levels of Traceability and Authenticity: the higher of the two rules.
+  levelDimension: ['T', 'A'],
   description:
     'Control ENS orientado a garantizar que cada entidad que accede al sistema dispone de un identificador único, que las cuentas se gestionan y deshabilitan conforme a la política, y que existe una lista actualizada de usuarios autorizados.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.2.1',
+  source: { template: 'ENSFacil_Plantilla_op.acc.1', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

@@ -16,6 +16,11 @@ import {
 } from './configuration-structure-validator';
 import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
 import {
+  ENS_DIMENSION_LEVEL_KEYS,
+  ENS_DIMENSIONS,
+  describeDimensionsAboveENSLevel,
+} from '../../core/control-level';
+import {
   ENSTemplateMigrationPlan,
   planTemplateMigration,
   summarizeTemplateMigration,
@@ -224,14 +229,19 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
-  // Traceability and Availability levels are optional: the merge above would resurrect them from the active
-  // configuration if the form removed them.
-  if (!globalConfiguration.traceabilityLevel) {
-    delete candidateConfiguration.global.traceabilityLevel;
-  }
+  // Dimension levels are optional: the merge above would resurrect them from the active configuration if the form removed them.
+  ENS_DIMENSIONS.forEach(dimension => {
+    const key = ENS_DIMENSION_LEVEL_KEYS[dimension];
 
-  if (!globalConfiguration.availabilityLevel) {
-    delete candidateConfiguration.global.availabilityLevel;
+    if (!globalConfiguration[key]) {
+      delete candidateConfiguration.global[key];
+    }
+  });
+
+  const incoherentLevels = describeDimensionsAboveENSLevel(candidateConfiguration.global);
+
+  if (incoherentLevels) {
+    throw new Error(incoherentLevels);
   }
 
   const serverState =

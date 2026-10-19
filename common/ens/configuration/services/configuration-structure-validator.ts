@@ -379,20 +379,18 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
-  if (
-    'traceabilityLevel' in value &&
-    !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
-  ) {
-    errors.push('configuration.global.traceabilityLevel is invalid.');
-  }
-
-  // The Availability level, same contract: absent or a level.
-  if (
-    'availabilityLevel' in value &&
-    !isAllowedString(value.availabilityLevel, ENS_LEVELS)
-  ) {
-    errors.push('configuration.global.availabilityLevel is invalid.');
+  // Dimension levels are optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
+  // `ensLevel` below a dimension is NOT a structural error: it would stop the whole environment loading, so the panel and the scripts reject it instead.
+  for (const key of [
+    'confidentialityLevel',
+    'integrityLevel',
+    'traceabilityLevel',
+    'authenticityLevel',
+    'availabilityLevel',
+  ]) {
+    if (key in value && !isAllowedString(value[key], ENS_LEVELS)) {
+      errors.push(`configuration.global.${key} is invalid.`);
+    }
   }
 
   if (

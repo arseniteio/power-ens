@@ -6,9 +6,13 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
+  // Annex II applies op.acc.5 by the levels of C, I, T and A, not the system category: the highest of them rules.
+  levelDimension: ['C', 'I', 'T', 'A'],
   description:
     'op.acc.5 regula la autenticación de usuarios que NO pertenecen a la organización: ciudadanos, empresas, terceros autorizados. Los refuerzos R1 a R4 son una elección declarada en P-01, no una acumulación: solo cuenta el elegido, y R1 no es admisible desde nivel MEDIO.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.2.5',
+  source: { template: 'ENSFacil_Plantilla_op.acc.5', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

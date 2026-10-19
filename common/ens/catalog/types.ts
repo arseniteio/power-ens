@@ -31,16 +31,26 @@ export interface ENSRequirementDecisionPolicy {
 export interface ENSRequirementDefinition {
   id: string;
   title: string;
+  // The BOE literal of the requirement (Annex II, RD 311/2022): provenance «Norma ENS».
   description: string;
   kind: ENSRequirementKind;
   applicability: ENSApplicabilityDefinition;
   evidenceIds: string[];
   parameterIds: string[];
   decisionPolicy?: ENSRequirementDecisionPolicy;
+  // Optional. How the requirement is read and measured (auditor's proposal or ENSFácil's criterion), kept apart from the literal: provenance «Criterio de aplicación».
+  interpretation?: string;
 }
 
-// Security dimension whose LEVEL governs a control, when not governed by the system category: 'T' Traceability (op.exp.8) and 'D' Availability (op.cont.2, op.cont.3, which apply only with D at ALTO).
-export type ENSLevelDimension = 'T' | 'D';
+// Security dimension whose LEVEL governs a control when Annex II applies it by dimension, not by system category: C Confidentiality, I Integrity, T Traceability, A Authenticity, D Availability.
+export type ENSLevelDimension = 'C' | 'I' | 'T' | 'A' | 'D';
+
+// Auditor's template a control was built from: file name without extension, template version and its date (ISO).
+export interface ENSControlSource {
+  template: string;
+  version: string;
+  date: string;
+}
 
 // Plane where a control is measured: on each scope machine (`agent`) or on the Wazuh manager (`manager`, agent 000, which belongs to no group). See `core/scope/measurement-planes.ts`.
 export type ENSMeasurementPlane = 'agent' | 'manager';
@@ -51,8 +61,12 @@ export interface ENSControlDefinition {
   family: string;
   category: string;
   dimension: string;
-  // Optional. If declared, the control is evaluated with that dimension's level from the global configuration (`traceabilityLevel` for 'T', `availabilityLevel` for 'D') and, if not declared there, with the global ENS level. `dimension` stays descriptive text: this is all the engine reads.
-  levelDimension?: ENSLevelDimension;
+  // Optional. Dimension(s) whose level governs the control (Annex II «nivel X»); with several, the highest of their levels rules. Each level comes from the global configuration (`confidentialityLevel`, `integrityLevel`, `traceabilityLevel`, `authenticityLevel`, `availabilityLevel`) and, with the key absent, is the ENS level. `dimension` stays descriptive text: this is all the engine reads. See `core/control-level.ts`.
+  levelDimension?: ENSLevelDimension | ENSLevelDimension[];
+  // Annex II section of the measure (e.g. '4.2.1'): orders the lists and heads the detail and the report.
+  annexSection: string;
+  // Template and version the control follows (traceability to the auditor's package).
+  source: ENSControlSource;
   // Optional. Planes where the control is measured; default `['agent']`. With `manager` the manager enters the scope and the control is evaluated on its row; without `agent` it is NOT evaluated on any other machine's row.
   measurementPlanes?: ENSMeasurementPlane[];
   // Optional. `id` of the control's configuration parameter declaring the machines it is measured on (e.g. 'P-04' of mp.info.6). If declared, the control is evaluated only on the rows of the machines listed there; with the parameter empty, on none.

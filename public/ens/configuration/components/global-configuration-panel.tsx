@@ -21,6 +21,15 @@ import {
 import {
   ENSGlobalConfiguration,
 } from '../../../../common/ens/configuration/types';
+import { ENSCatalog } from '../../../../common/ens/catalog';
+import type { ENSLevelDimension } from '../../../../common/ens/catalog/types';
+import {
+  ENS_DIMENSION_LEVEL_KEYS,
+  ENS_DIMENSION_NAMES,
+  ENS_DIMENSIONS,
+  describeDimensionsAboveENSLevel,
+  listControlDimensions,
+} from '../../../../common/ens/core/control-level';
 
 interface GlobalConfigurationPanelProps {
   configuration: ENSGlobalConfiguration;
@@ -42,8 +51,7 @@ const ensLevelOptions = [
   },
 ];
 
-// Traceability and Availability dimension level. The first option leaves the key ABSENT (never empty or `null`):
-// the control then uses the global ENS level.
+// Dimension level. The first option leaves the key ABSENT (never empty or `null`): the control then uses the global ENS level.
 const dimensionLevelOptions = [
   {
     value: '',
@@ -51,6 +59,15 @@ const dimensionLevelOptions = [
   },
   ...ensLevelOptions,
 ];
+
+// One short help line per dimension: which catalog controls follow it.
+export const describeDimensionUse = (dimension: ENSLevelDimension): string => {
+  const users = ENSCatalog.filter(control => listControlDimensions(control).includes(dimension)).map(control => control.id);
+
+  return users.length
+    ? `Lo usan ${users.join(', ')}. Sin declarar, se usa el nivel ENS.`
+    : 'Ningún control lo usa todavía. Sin declarar, se usa el nivel ENS.';
+};
 
 const evaluationPeriodOptions = [
   {
@@ -145,12 +162,11 @@ export const GlobalConfigurationPanel = ({
 
         // An optional field without a value is REMOVED: an absent key is what the validator accepts as "not
         // declared".
-        if (field === 'traceabilityLevel' && !value) {
-          delete nextConfiguration.traceabilityLevel;
-        }
-
-        if (field === 'availabilityLevel' && !value) {
-          delete nextConfiguration.availabilityLevel;
+        if (
+          !value &&
+          (Object.values(ENS_DIMENSION_LEVEL_KEYS) as string[]).includes(field)
+        ) {
+          delete nextConfiguration[field];
         }
 
         return nextConfiguration;
@@ -160,6 +176,8 @@ export const GlobalConfigurationPanel = ({
     setSaveError(undefined);
     setSaveSuccess(undefined);
   };
+
+  const levelsError = describeDimensionsAboveENSLevel(draftConfiguration);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -282,7 +300,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Nivel ENS'
-        helpText='Nivel aplicable al sistema evaluado.'
+        helpText='Categoría del sistema: el nivel más alto de sus dimensiones. La usan los controles que se aplican por categoría.'
         fullWidth
       >
         <EuiSelect
@@ -298,45 +316,40 @@ export const GlobalConfigurationPanel = ({
         />
       </EuiFormRow>
 
-      <EuiFormRow
-        label='Nivel de Trazabilidad (T)'
-        helpText='Solo para los controles que el ENS aplica por el nivel de la dimensión de Trazabilidad (op.exp.8). Si no se declara, se usa el nivel ENS.'
-        fullWidth
-      >
-        <EuiSelect
-          options={dimensionLevelOptions}
-          value={
-            draftConfiguration.traceabilityLevel || ''
-          }
-          onChange={event =>
-            updateField(
-              'traceabilityLevel',
-              event.target.value
-            )
-          }
-          fullWidth
-        />
-      </EuiFormRow>
+      {ENS_DIMENSIONS.map(dimension => {
+        const key = ENS_DIMENSION_LEVEL_KEYS[dimension];
 
-      <EuiFormRow
-        label='Nivel de Disponibilidad (D)'
-        helpText='Solo para los controles que el ENS aplica por el nivel de la dimensión de Disponibilidad (op.cont.2 y op.cont.3, que solo rigen con D en ALTO). Si no se declara, se usa el nivel ENS.'
-        fullWidth
-      >
-        <EuiSelect
-          options={dimensionLevelOptions}
-          value={
-            draftConfiguration.availabilityLevel || ''
-          }
-          onChange={event =>
-            updateField(
-              'availabilityLevel',
-              event.target.value
-            )
-          }
-          fullWidth
-        />
-      </EuiFormRow>
+        return (
+          <EuiFormRow
+            key={key}
+            label={`Nivel de ${ENS_DIMENSION_NAMES[dimension]} (${dimension})`}
+            helpText={describeDimensionUse(dimension)}
+            fullWidth
+          >
+            <EuiSelect
+              options={dimensionLevelOptions}
+              value={draftConfiguration[key] || ''}
+              onChange={event => updateField(key, event.target.value)}
+              fullWidth
+            />
+          </EuiFormRow>
+        );
+      })}
+
+      {levelsError && (
+        <>
+          <EuiCallOut
+            title='Niveles incoherentes'
+            color='danger'
+            iconType='alert'
+            size='s'
+          >
+            <p>{levelsError}</p>
+          </EuiCallOut>
+
+          <EuiSpacer size='m' />
+        </>
+      )}
 
       <EuiFormRow
         label='Versión ENS'
@@ -453,7 +466,8 @@ export const GlobalConfigurationPanel = ({
         isLoading={isSaving}
         disabled={
           isSaving ||
-          !hasChanges
+          !hasChanges ||
+          Boolean(levelsError)
         }
         onClick={handleSave}
       >

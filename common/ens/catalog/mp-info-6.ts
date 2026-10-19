@@ -6,11 +6,15 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
   family: 'Medidas de protección',
   category: 'Protección de la información',
   dimension: 'Disponibilidad',
+  // Annex II applies mp.info.6 by the Availability LEVEL, not the system category.
+  levelDimension: 'D',
   description:
     'Control ENS orientado a garantizar la existencia, conservación, protección y recuperación de copias de seguridad.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   // Backups are measured only on the machines the organisation declares in P-04: not every ENS scope machine makes or keeps backups.
   scopeParameter: 'P-04',
+  annexSection: '5.7.6',
+  source: { template: 'ENSFacil_Plantilla_mp.info.6', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

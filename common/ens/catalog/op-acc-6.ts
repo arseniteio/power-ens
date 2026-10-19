@@ -6,9 +6,13 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
+  // Annex II applies op.acc.6 by the levels of C, I, T and A, not the system category: the highest of them rules.
+  levelDimension: ['C', 'I', 'T', 'A'],
   description:
     'op.acc.6 exige un mecanismo de autenticación para el personal de la organización: UNO de cuatro refuerzos (contraseña solo desde zona controlada, contraseña con segundo factor, certificado o certificado en soporte físico), doble factor desde zona no controlada y acceso remoto autorizado, cifrado y auditado desde nivel BAJO, registro de accesos desde MEDIO, y reautenticación y suspensión por no uso en ALTO.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.2.6',
+  source: { template: 'ENSFacil_Plantilla_op.acc.6', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

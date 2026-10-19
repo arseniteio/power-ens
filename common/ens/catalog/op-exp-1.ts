@@ -9,6 +9,8 @@ export const opExp1CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.1 exige un inventario actualizado de todos los elementos del sistema, con su naturaleza y su responsable. El agente toma la foto técnica de cada activo (hardware, software, servicios, vecinos de red, conexión con el manager) y el motor la contrasta con lo que la organización declara: responsables, activos sin agente, plazos. Aplica por CATEGORÍA del sistema (BÁSICA, MEDIA y ALTA, que el producto selecciona con el nivel BAJO, MEDIO y ALTO) y solo puntúa el requisito base: ningún refuerzo es obligatorio.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.3.1',
+  source: { template: 'ENSFacil_Plantilla_op.exp.1', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

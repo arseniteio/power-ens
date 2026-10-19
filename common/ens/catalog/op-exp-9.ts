@@ -11,6 +11,8 @@ export const opExp9CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.9 no pide gestionar incidentes —eso es op.exp.7— sino dejar constancia registral de cómo se gestionaron, con una exigencia añadida de calado jurídico: que la evidencia sirva en sede jurisdiccional.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.3.9',
+  source: { template: 'ENSFacil_Plantilla_op.exp.9', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

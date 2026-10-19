@@ -13,6 +13,8 @@ export const opCont3CatalogDefinition: ENSControlDefinition = {
   description:
     'op.cont.3 pide probar el plan de continuidad con periodicidad y corregir lo que las pruebas revelen.',
   levels: ['ALTO'],
+  annexSection: '4.6.3',
+  source: { template: 'ENSFacil_Plantilla_op.cont.3', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // A requirement with two obligations: decided with EV-01, EV-02, EV-04 and EV-05. EV-03, EV-06, EV-07 and EV-08 feed EV-04 and the report, without verdict of their own.

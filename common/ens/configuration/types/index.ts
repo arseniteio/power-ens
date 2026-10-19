@@ -78,10 +78,12 @@ export interface ENSGlobalConfiguration {
   clientName: string;
   organization: string;
   ensLevel: ENSLevel;
-  // Traceability (T) dimension level. Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Read
-  // only by controls declaring `levelDimension: 'T'`.
+  // Dimension levels (C, I, T, A, D). Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Each is read
+  // only by controls whose `levelDimension` includes it; `ensLevel` (the category) may not be below any of them.
+  confidentialityLevel?: ENSLevel;
+  integrityLevel?: ENSLevel;
   traceabilityLevel?: ENSLevel;
-  // Availability (D) dimension level, same contract as T; read by controls declaring `levelDimension: 'D'`.
+  authenticityLevel?: ENSLevel;
   availabilityLevel?: ENSLevel;
   ensVersion: string;
   scope: string;
