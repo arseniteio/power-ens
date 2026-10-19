@@ -364,4 +364,28 @@ export const ensRequirementsFile = {
     'Servicios cloud de seguridad conformes con op.pl.5 (R1) - Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].',
   'op.nub.1.r2.1':
     'Configuración según la guía CCN-STIC específica (R2) - La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.',
+  'mp.eq.2.1':
+    'Bloqueo por inactividad con nueva autenticación - El puesto de trabajo se bloqueará al cabo de un tiempo prudencial de inactividad, requiriendo una nueva autenticación del usuario para reanudar la actividad en curso.',
+  'mp.eq.2.r1.1':
+    'Cancelación de las sesiones abiertas tras un tiempo superior - Pasado un cierto tiempo, superior al anterior, se cancelarán las sesiones abiertas desde dicho puesto de trabajo.',
+  'mp.eq.3.1':
+    'Inventario de portátiles con responsable y control de custodia - Se llevará un inventario de dispositivos portátiles junto con una identificación de la persona responsable de cada uno de ellos y un control regular de que está positivamente bajo su control.',
+  'mp.eq.3.2':
+    'Procedimiento de aviso de pérdidas o sustracciones - Se establecerá un procedimiento operativo de seguridad para informar al servicio de gestión de incidentes de pérdidas o sustracciones.',
+  'mp.eq.3.3':
+    'Acceso remoto limitado a lo imprescindible y autorizado - Cuando un dispositivo portátil se conecte remotamente a través de redes que no están bajo el estricto control de la organización, el ámbito de operación del servidor limitará la información y los servicios accesibles a los mínimos imprescindibles, requiriendo autorización previa de los responsables de la información y los servicios afectados. Este punto es de aplicación a conexiones a través de internet y otras redes que no sean de confianza.',
+  'mp.eq.3.4':
+    'Sin claves de acceso remoto prescindibles en el portátil - Se evitará, en la medida de lo posible, que el dispositivo portátil contenga claves de acceso remoto a la organización que no sean imprescindibles. Se considerarán claves de acceso remoto aquellas que sean capaces de habilitar un acceso a otros equipos de la organización u otras de naturaleza análoga.',
+  'mp.eq.3.r1.1':
+    'Cifrado del disco con información de nivel MEDIO o superior - Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.',
+  'mp.eq.3.r2.1':
+    'Uso fuera de las instalaciones solo en entornos protegidos - El uso de dispositivos portátiles fuera de las instalaciones de la organización se restringirá a entornos protegidos, donde el acceso sea controlado y a salvo de hurtos y miradas indiscretas.',
+  'mp.eq.4.1':
+    'Configuración segura y flujos de entrada y salida controlados - Los dispositivos presentes en el sistema deberán contar con una configuración de seguridad adecuada de manera que se garantice el control del flujo definido de entrada y salida de la información.',
+  'mp.eq.4.2':
+    'Borrado del almacenamiento de los dispositivos de red - Los dispositivos presentes en la red que dispongan de algún tipo de almacenamiento temporal o permanente de información proporcionarán la funcionalidad necesaria para eliminar información de soportes de información. (Ver [mp.si.5]).',
+  'mp.eq.4.r1.1':
+    'Productos o servicios conformes con op.pl.5 - Se usarán, cuando sea posible, productos o servicios que cumplan lo establecido en [op.pl.5].',
+  'mp.eq.4.r2.1':
+    'Control de los dispositivos conectados a la red - Refuerzo R2 – Control de dispositivos conectados a la red: Se dispondrá de soluciones que permitan visualizar los dispositivos presentes en la red, controlar su conexión/desconexión a la misma y verificar su configuración de seguridad.',
 };

@@ -4270,4 +4270,362 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Tiene cada servicio de terceros su expediente completo y vigente: conformidad, pentest, cifrado y jurisdicción? (declarado, acreditado documentalmente)',
   },
+  // mp.eq.2. Born DRAFT without a collector (wave A, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 111800-111899.
+  {
+    id: 'EV-01',
+    controlId: 'mp.eq.2',
+    title: 'Política de bloqueo por inactividad configurada',
+    description:
+      'Verificación en cada equipo de P-03 de que existe bloqueo automático por inactividad, que su temporizador no supera P-01 y que el desbloqueo exige credenciales. El requisito pide expresamente «nueva autenticación», de modo que un salvapantallas sin contraseña no lo satisface.',
+    requirements: ['mp.eq.2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: política de bloqueo por inactividad configurada?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.eq.2',
+    title: 'Política de cancelación de sesiones configurada (R1)',
+    description:
+      'Verificación de que existe límite de sesión inactiva que cancela las sesiones abiertas, que su valor es superior al de P-01 y que no excede P-02. La relación entre ambos tiempos es parte del requisito.',
+    requirements: ['mp.eq.2.r1.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: política de cancelación de sesiones configurada (r1)?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.eq.2',
+    title: 'Eventos de bloqueo y desbloqueo de estación',
+    description:
+      'Registro de los eventos de bloqueo y desbloqueo efectivos en cada puesto, lo que permite comprobar que la política no solo está configurada sino que opera. Una política correcta que nunca produce eventos de bloqueo en equipos con actividad es un indicio claro de que algo la está neutralizando.',
+    requirements: ['mp.eq.2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: eventos de bloqueo y desbloqueo de estación?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.eq.2',
+    title: 'Sesiones de larga duración sin bloqueo intermedio',
+    description:
+      'Detección de sesiones que se mantienen activas durante períodos prolongados sin ningún evento de bloqueo, pese a que el patrón de actividad sugiere que debió haber inactividad. Es la señal de que el control no está operando en la práctica.',
+    requirements: ['mp.eq.2.1', 'mp.eq.2.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: sesiones de larga duración sin bloqueo intermedio?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.eq.2',
+    title: 'Herramientas de inhibición del temporizador de inactividad',
+    description:
+      'Detección de procesos o ejecutables instalados que neutralizan el bloqueo por inactividad simulando actividad del usuario. Es el vector de elusión del control y no se detecta con ninguna comprobación de configuración.',
+    requirements: ['mp.eq.2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: herramientas de inhibición del temporizador de inactividad?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.eq.2',
+    title: 'Cobertura y excepciones del control',
+    description:
+      'Contraste entre los equipos de P-03 y los que efectivamente tienen la política verificada, con las excepciones autorizadas de P-04 identificadas por separado. Permite distinguir un hueco de cobertura de una excepción aceptada.',
+    requirements: ['mp.eq.2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cobertura y excepciones del control?',
+  },
+  // mp.eq.3. Born DRAFT without a collector (wave B, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 111900-111999.
+  {
+    id: 'EV-01',
+    controlId: 'mp.eq.3',
+    title: 'Inventario de dispositivos portátiles con su responsable',
+    description:
+      'Contraste entre el inventario declarado en P-01 y los equipos portátiles efectivamente detectados por Syscollector —identificables por chasis, presencia de batería y modelo—, verificando que cada uno tiene responsable asignado. mp.eq.3.1 exige inventario Y responsable.',
+    requirements: ['mp.eq.3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: inventario de dispositivos portátiles con su responsable?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.eq.3',
+    title: 'Señal de vida y control de custodia',
+    description:
+      'Última conexión de cada dispositivo portátil y tiempo transcurrido, como señal complementaria al control regular de custodia que exige mp.eq.3.1. Un dispositivo que no reporta durante semanas merece verificación activa de su paradero.',
+    requirements: ['mp.eq.3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: señal de vida y control de custodia?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.eq.3',
+    title: 'Claves de acceso remoto almacenadas en el dispositivo',
+    description:
+      'Detección de la presencia de claves de acceso remoto a la organización en los dispositivos portátiles: claves SSH privadas, perfiles de VPN con credenciales incrustadas, ficheros con secretos, almacenes de contraseñas. mp.eq.3.4 pide expresamente evitarlas.',
+    requirements: ['mp.eq.3.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: claves de acceso remoto almacenadas en el dispositivo?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.eq.3',
+    title: 'Estado del cifrado del disco (R1)',
+    description:
+      'Verificación de que el cifrado de disco está activo en los dispositivos a los que resulta exigible según P-06, con el mecanismo y el estado de protección de la clave de recuperación. R1 es obligatorio en categoría ALTA para los dispositivos que almacenen información de confidencialidad MEDIA o ALTA.',
+    requirements: ['mp.eq.3.r1.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: estado del cifrado del disco (r1)?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.eq.3',
+    title: 'Servicios accesibles en conexiones desde dispositivos portátiles',
+    description:
+      'Verificación de que las conexiones remotas desde dispositivos portátiles a través de redes no controladas solo alcanzan la información y servicios del perfil autorizado en P-04. mp.eq.3.3 exige limitarlos a los mínimos imprescindibles.',
+    requirements: ['mp.eq.3.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: servicios accesibles en conexiones desde dispositivos portátiles?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.eq.3',
+    title: 'Reacción ante pérdida o sustracción',
+    description:
+      'Verificación de que cada incidente de pérdida registrado fue seguido de las acciones de P-08 en plazo: revocación de certificados, deshabilitación de cuentas, cierre de sesiones, borrado o bloqueo remoto.',
+    requirements: ['mp.eq.3.2', 'mp.eq.3.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: reacción ante pérdida o sustracción?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.eq.3',
+    title: 'Patrones de uso en entornos no previstos',
+    description:
+      'Señal indirecta para R2: accesos desde geografías, rangos de direcciones o redes inusuales que sugieren uso del dispositivo fuera de los entornos protegidos previstos. No acredita R2 —que es normativo— pero aporta información útil al responsable.',
+    requirements: ['mp.eq.3.r2.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: patrones de uso en entornos no previstos?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.eq.3',
+    title: 'Configuración de seguridad específica de los portátiles',
+    description:
+      'Verificación de los ajustes que reducen el impacto de una pérdida más allá del cifrado: arranque seguro habilitado, contraseña de BIOS/UEFI, arranque desde medios externos deshabilitado, bloqueo de puerto de depuración. Complementa el requisito general de protección adecuada del enunciado.',
+    requirements: ['mp.eq.3.r1.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: configuración de seguridad específica de los portátiles?',
+  },
+  // mp.eq.4. Born DRAFT without a collector (wave C, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112000-112099.
+  {
+    id: 'EV-01',
+    controlId: 'mp.eq.4',
+    title: 'Descubrimiento de dispositivos presentes en la red',
+    description:
+      'Identificación de los dispositivos conectados a partir de las fuentes de P-03: concesiones DHCP, tablas de direcciones de la electrónica de red, autenticaciones 802.1X. Es la única vía de ver dispositivos que no admiten agente, y cubre de facto la primera parte del Refuerzo R2.',
+    requirements: ['mp.eq.4.1', 'mp.eq.4.r2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: descubrimiento de dispositivos presentes en la red?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.eq.4',
+    title: 'Dispositivos no inventariados conectados a la red',
+    description:
+      'Contraste entre los dispositivos descubiertos en EV-01 y el inventario declarado en P-01. Un dispositivo conectado que no consta en el inventario no tiene configuración de seguridad verificada ni flujo de información definido, lo que vulnera mp.eq.4.1 en términos materiales.',
+    requirements: ['mp.eq.4.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: dispositivos no inventariados conectados a la red?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.eq.4',
+    title: 'Flujos de información de los dispositivos frente a lo autorizado',
+    description:
+      'Verificación de que los flujos de entrada y salida observados para cada dispositivo se ajustan a lo definido en P-02. Es la vía realista de verificar mp.eq.4.1 cuando no hay agente: no se evalúa la configuración del dispositivo, se evalúa su comportamiento en la red.',
+    requirements: ['mp.eq.4.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: flujos de información de los dispositivos frente a lo autorizado?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.eq.4',
+    title: 'Registros propios del dispositivo por syslog o SNMP',
+    description:
+      'Ingesta de los eventos que el propio dispositivo genera cuando lo permite según P-04: accesos al panel de administración, cambios de configuración, trabajos procesados, errores. Es la única evidencia desde dentro del dispositivo que se puede obtener sin agente.',
+    requirements: ['mp.eq.4.1', 'mp.eq.4.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: registros propios del dispositivo por syslog o snmp?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.eq.4',
+    title: 'Accesos al panel de administración de los dispositivos',
+    description:
+      'Detección de accesos a las interfaces de administración de los dispositivos, con origen y resultado. Un panel de multifunción con credenciales por defecto accesible desde la red de usuarios es un hallazgo frecuente y de impacto real, porque desde ahí se accede a los documentos almacenados.',
+    requirements: ['mp.eq.4.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: accesos al panel de administración de los dispositivos?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.eq.4',
+    title: 'Conexión y desconexión de dispositivos a la red (R2)',
+    description:
+      'Registro de los eventos de conexión y desconexión y de los intentos bloqueados por el mecanismo de control de P-08: autenticaciones 802.1X, violaciones de port security, decisiones del NAC. Cubre la segunda parte de R2, no obligatorio pero es lo que permite reaccionar en el momento.',
+    requirements: ['mp.eq.4.r2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: conexión y desconexión de dispositivos a la red (r2)?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.eq.4',
+    title: 'Dispositivos de invitados y BYOD en segmento no previsto',
+    description:
+      'Verificación de que los dispositivos no corporativos están en el segmento que les corresponde según P-06 y no alcanzan recursos internos. El ámbito del control incluye expresamente los dispositivos de invitados y los personales de los empleados.',
+    requirements: ['mp.eq.4.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: dispositivos de invitados y byod en segmento no previsto?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.eq.4',
+    title: 'Ejecución del borrado del almacenamiento del dispositivo',
+    description:
+      'Cuando el dispositivo lo registre, constancia de la ejecución de la función de eliminación de información de su almacenamiento conforme a P-05. mp.eq.4.2 exige que el dispositivo proporcione esa funcionalidad; que se use es lo que da sentido al requisito.',
+    requirements: ['mp.eq.4.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ejecución del borrado del almacenamiento del dispositivo?',
+  },
 ];

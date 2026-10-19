@@ -3,6 +3,9 @@ export * from './support/measurement-plan';
 export * from './support/order';
 export * from './support/provenance';
 export * from './support/template-correspondence';
+export * from './mp-eq-2';
+export * from './mp-eq-3';
+export * from './mp-eq-4';
 export * from './mp-info-6';
 export * from './op-acc-1';
 export * from './op-acc-2';
@@ -29,6 +32,9 @@ export * from './op-nub-1';
 
 import { ENSControlDefinition } from './types';
 import { compareControlsByAnnex } from './support/order';
+import { mpEq2CatalogDefinition } from './mp-eq-2';
+import { mpEq3CatalogDefinition } from './mp-eq-3';
+import { mpEq4CatalogDefinition } from './mp-eq-4';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
 import { opAcc1CatalogDefinition } from './op-acc-1';
 import { opAcc2CatalogDefinition } from './op-acc-2';
@@ -54,6 +60,9 @@ import { opMon3CatalogDefinition } from './op-mon-3';
 import { opNub1CatalogDefinition } from './op-nub-1';
 
 export const ENSCatalog: ENSControlDefinition[] = [
+  mpEq2CatalogDefinition,
+  mpEq3CatalogDefinition,
+  mpEq4CatalogDefinition,
   mpInfo6CatalogDefinition,
   opAcc1CatalogDefinition,
   opAcc2CatalogDefinition,

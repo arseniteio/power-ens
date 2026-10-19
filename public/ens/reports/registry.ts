@@ -2,6 +2,9 @@
 import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
+import { buildMpEq2ReportModel } from './mp-eq-2-report-model';
+import { buildMpEq3ReportModel } from './mp-eq-3-report-model';
+import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
 import { buildMpInfo6ReportModel } from './report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
@@ -68,6 +71,21 @@ export interface ENSReportModelDefinition {
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
+  {
+    controlId: 'mp.eq.2',
+    name: 'mp.eq.2 - Bloqueo de puesto de trabajo',
+    build: buildMpEq2ReportModel,
+  },
+  {
+    controlId: 'mp.eq.3',
+    name: 'mp.eq.3 - Protección de dispositivos portátiles',
+    build: buildMpEq3ReportModel,
+  },
+  {
+    controlId: 'mp.eq.4',
+    name: 'mp.eq.4 - Otros dispositivos conectados a la red',
+    build: buildMpEq4ReportModel,
+  },
   {
     controlId: 'mp.info.6',
     name: 'mp.info.6 - Copias de seguridad',

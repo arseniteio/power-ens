@@ -3,6 +3,18 @@ import {
 } from '../types';
 
 import {
+  mpEq2PolicyDefinition,
+} from './mp-eq-2.policy';
+
+import {
+  mpEq3PolicyDefinition,
+} from './mp-eq-3.policy';
+
+import {
+  mpEq4PolicyDefinition,
+} from './mp-eq-4.policy';
+
+import {
   mpInfo6PolicyDefinition,
 } from './mp-info-6.policy';
 
@@ -96,6 +108,9 @@ import {
 
 const policyDefinitions:
   ENSPolicyDefinition[] = [
+    mpEq2PolicyDefinition,
+    mpEq3PolicyDefinition,
+    mpEq4PolicyDefinition,
     mpInfo6PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,
