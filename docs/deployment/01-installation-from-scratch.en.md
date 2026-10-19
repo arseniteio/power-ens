@@ -441,9 +441,9 @@ Expected result:
 
 ```text
 == dry-run mode: no change is sent
-== rol ensfacil_admin
+== role ensfacil_admin
 PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
-== asignación de ensfacil_admin
+== assignment of ensfacil_admin
 PUT _plugins/_security/api/rolesmapping/ensfacil_admin {"users":["<usuario>"]}
 ```
 

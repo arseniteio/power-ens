@@ -241,9 +241,9 @@ Expected result:
 
 ```text
 == dry-run mode: no change is sent
-== rol ensfacil_admin
+== role ensfacil_admin
 PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
-== asignación de ensfacil_admin
+== assignment of ensfacil_admin
 PUT _plugins/_security/api/rolesmapping/ensfacil_admin {"users":["<user>"]}
 ```
 
@@ -269,9 +269,8 @@ request and, at the end, `users with the role ensfacil_admin: <user>`.
 
 In a new installation, the `active` document of the `wazuh-ens-configuration`
 index does not exist until the first save. Until then, `inject-control.py`
-stops with the message "no existe el documento 'active'…; guarda la
-configuración una vez y vuelve a ejecutar" (the `active` document does not
-exist; save the configuration once and run again).
+stops with the message `ERROR: document 'active' does not exist in index
+'wazuh-ens-configuration'.`, which ends with "save the configuration once and run again."
 
 Log in to Wazuh Dashboard with a user with `ensfacil_admin` or `all_access`,
 open ENSFácil > Configuración and save the configuration once. Opening the
