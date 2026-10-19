@@ -1,19 +1,4 @@
-/**
- * op.exp.1 · Inventario de activos: el motor juzga el inventario que emite el
- * agente contra lo que declara la organización.
- *
- *     docker run --rm -v "$PWD":/w -w /w node:22-alpine \
- *       sh -c 'npm i -g tsx >/dev/null 2>&1; tsx tests/op-exp-1-judgment.test.ts'
- *
- * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
- *
- * Los hechos de las fixtures son LÍNEAS REALES del recolector, tomadas en
- * wazuh-real (Ubuntu 24.04) y en el servidor de directorio (Ubuntu 22.04 con
- * Zimbra), envueltas como las devuelve el índice. Lo único que se mueve en cada
- * caso es UN eje —un parámetro de la pantalla o el reloj—, y cada afirmación
- * lleva al lado su reversión: la prueba de aceptación del modelo nuevo es que
- * cambiar el parámetro cambia el veredicto sin tocar el agente.
- */
+/** op.exp.1: asset inventory; the engine judges the agent's inventory against the organization's declaration. */
 import { opExp1CatalogDefinition } from '../common/ens/catalog/op-exp-1';
 import type {
   ENSControlConfiguration,
@@ -33,31 +18,26 @@ import { buildOpExp1ReportModel } from '../public/ens/reports/op-exp-1-report-mo
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- hechos reales ---------------------------------------------------------
-
-// Rule ID de cada hecho según agent/rules/ensfacil_op_exp_1_json_rules.xml.
-const REGLA: Record<string, string> = {
+const RULE: Record<string, string> = {
   asset_system: '110201',
   software_inventory: '110202',
   network_inventory: '110203',
@@ -72,8 +52,6 @@ const REGLA: Record<string, string> = {
   collector_run: '110299',
 };
 
-// Pasada real de wazuh-real (agente 024), en régimen estable y con un registro
-// de revisiones de prueba.
 const WAZUH_REAL = [
   '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:16:13Z","host":"wazuh-real","event":"asset_system","evidence_id":"EV-01,EV-07","requisito":"op.exp.1.1","activo":"wazuh-real","fqdn":"wazuh-real","sistema_operativo":"Ubuntu","version_so":"24.04.4 LTS (Noble Numbat)","kernel":"6.8.0-111-generic","arquitectura":"x86_64","fabricante":"Hetzner","modelo":"vServer","num_serie":"156475036","virtualizacion":"kvm","cpu_modelo":"AMD EPYC-Rome Processor","cpus":2,"memoria_mb":3840}',
   '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:16:13Z","host":"wazuh-real","event":"software_inventory","evidence_id":"EV-02","requisito":"op.exp.1.1,op.exp.1.r4.1","activo":"wazuh-real","gestor":"dpkg","paquetes":570,"snaps":0,"huella":"a9248bce0c39db8bcf3d85b904587b0ec4b7bfd2d822772ed18f8f223f940236","linea_base":"no","altas":0,"bajas":0,"actualizaciones":0}',
@@ -84,8 +62,6 @@ const WAZUH_REAL = [
   '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:16:13Z","host":"wazuh-real","event":"collector_run","resultado":"completada","evidencias_cubiertas":"EV-05","fuentes_leidas":"EV-01,EV-07,EV-02,EV-03,EV-04,EV-05,EV-06","cambios_emitidos":0,"perfil":"linux","emisor":"recolector"}',
 ];
 
-// Pasada real del servidor de directorio (agente 028, Zimbra), SIN registro de
-// revisiones: es lo que emite hoy.
 const LDAP_REAL = [
   '{"ensfacil":"op.exp.1","ts":"2026-09-17T09:14:52Z","host":"ldapserver.qsprueba.com","event":"asset_system","evidence_id":"EV-01,EV-07","requisito":"op.exp.1.1","activo":"ldapserver","fqdn":"ldapserver.qsprueba.com","sistema_operativo":"Ubuntu","version_so":"22.04.5 LTS (Jammy Jellyfish)","kernel":"6.8.0-138-generic","arquitectura":"x86_64","fabricante":"innotek GmbH","modelo":"VirtualBox","num_serie":"0","virtualizacion":"oracle","cpu_modelo":"Intel(R) Core(TM) 5 120U","cpus":2,"memoria_mb":1920,"plano":"sistema"}',
   '{"ensfacil":"op.exp.1","ts":"2026-09-17T09:14:53Z","host":"ldapserver.qsprueba.com","event":"software_inventory","evidence_id":"EV-02","requisito":"op.exp.1.1,op.exp.1.r4.1","activo":"ldapserver","gestor":"dpkg","paquetes":1915,"snaps":11,"huella":"2de0f51fe32a8f74a30fe2c5599af6da5c1d9f5da1e94b67edc1f692e4106166","linea_base":"si","altas":0,"bajas":0,"actualizaciones":0,"plano":"sistema,directorio","paquetes_producto":155,"ficheros_fuera_de_gestor":3,"directorio_paquete":"zimbra-openldap-server","directorio_version":"2.5.17-1zimbra10.0b2.22.04"}',
@@ -98,29 +74,28 @@ const LDAP_REAL = [
   '{"ensfacil":"op.exp.1","ts":"2026-09-17T09:14:54Z","host":"ldapserver.qsprueba.com","event":"collector_run","resultado":"completada","evidencias_cubiertas":"EV-05","fuentes_leidas":"EV-01,EV-07,EV-02,EV-03,EV-04,EV-05","cambios_emitidos":0,"perfil":"ldap","planos_mirados":"sistema,directorio","emisor":"recolector"}',
 ];
 
-// El evento de degradación real de EV-06 cuando no hay registro de revisiones.
 const SIN_REVISION =
   '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:15:53Z","host":"wazuh-real","event":"evidence_state","evidence_id":"EV-06","requisito":"op.exp.1.1","estado":"NO_EVALUABLE","causa":"CONFIGURATION","motivo":"no consta ningun registro de revision del inventario en /etc/ensfacil/opexp1-revisiones.tsv"}';
 
-let contador = 0;
+let counter = 0;
 
-const indexa = (
+const indexes = (
   lineas: string[],
-  agente = { id: '024', name: 'wazuh-real' }
+  agent = { id: '024', name: 'wazuh-real' }
 ): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
     lineas.map(linea => {
       const data = JSON.parse(linea);
 
-      contador += 1;
+      counter += 1;
 
       return {
-        _id: `op-exp-1-${contador}`,
+        _id: `op-exp-1-${counter}`,
         _source: {
           '@timestamp': data.ts,
-          agent: agente,
+          agent: agent,
           rule: {
-            id: REGLA[data.event],
+            id: RULE[data.event],
             description: `op.exp.1 · ${data.event}`,
           },
           data,
@@ -129,14 +104,12 @@ const indexa = (
     })
   );
 
-const sinEvento = (lineas: string[], evento: string): string[] =>
-  lineas.filter(linea => JSON.parse(linea).event !== evento);
-
-// --- configuración ---------------------------------------------------------
+const withoutEvent = (lineas: string[], event: string): string[] =>
+  lineas.filter(linea => JSON.parse(linea).event !== event);
 
 type Valores = Record<string, ENSControlParameter['value'] | undefined>;
 
-const VALORES_CORRECTOS: Valores = {
+const CORRECT_VALUES: Valores = {
   'P-01': ['wazuh-real | Responsable de Sistemas | Resp. Sistemas | HW servidor'],
   'P-02': ['gw-proveedor | router | 172.31.1.1 | Proveedor de hosting'],
   'P-03': ['HW servidor', 'HW red', 'SW base', 'servicio'],
@@ -144,323 +117,307 @@ const VALORES_CORRECTOS: Valores = {
   'P-08': 24,
 };
 
-// Un parámetro sin configurar no lleva la clave `value`, nunca `null`: es como
-// lo guarda `wazuh-ens-configuration`.
-const configuracion = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (valores: Valores): ENSControlConfiguration => ({
   ...opExp1Configuration,
-  parameters: opExp1Configuration.parameters.map(parametro => {
-    const { value: _descartado, ...resto } = parametro as ENSControlParameter;
+  parameters: opExp1Configuration.parameters.map(parameter => {
+    const { value: _discarded, ...rest } = parameter as ENSControlParameter;
 
-    return valores[parametro.id] === undefined
-      ? (resto as ENSControlParameter)
-      : ({ ...resto, value: valores[parametro.id] } as ENSControlParameter);
+    return valores[parameter.id] === undefined
+      ? (rest as ENSControlParameter)
+      : ({ ...rest, value: valores[parameter.id] } as ENSControlParameter);
   }),
 });
 
-const con = (cambios: Valores): Valores => ({
-  ...VALORES_CORRECTOS,
-  ...cambios,
+const con = (changesList: Valores): Valores => ({
+  ...CORRECT_VALUES,
+  ...changesList,
 });
 
-const AHORA = new Date('2026-09-16T18:00:00Z');
+const NOW = new Date('2026-09-16T18:00:00Z');
 
-const resuelve = (
+const resolves = (
   lineas: string[],
   valores: Valores,
-  ahora: Date = AHORA,
-  agente = { id: '024', name: 'wazuh-real' }
+  now: Date = NOW,
+  agent = { id: '024', name: 'wazuh-real' }
 ): Map<string, ENSEvidenceResolved> =>
   new Map(
     resolveEvidenceForControl(
       'op.exp.1',
-      indexa(lineas, agente),
-      agente.id,
+      indexes(lineas, agent),
+      agent.id,
       'MEDIO',
-      configuracion(valores),
-      ahora
-    ).map(evidencia => [evidencia.id, evidencia])
+      configuration(valores),
+      now
+    ).map(evidence => [evidence.id, evidence])
   );
 
-const texto = (evidencia?: ENSEvidenceResolved): string =>
-  (evidencia?.observations || []).join(' | ');
+const text = (evidence?: ENSEvidenceResolved): string =>
+  (evidence?.observations || []).join(' | ');
 
-// --- 1. el eje del control -------------------------------------------------
-
-bloque('1. Solo puntúa op.exp.1.1, igual en las tres categorías');
+section('1. Only op.exp.1.1 scores, the same in the three categories');
 
 {
   const base = opExp1CatalogDefinition.requirements.find(
-    requisito => requisito.id === 'op.exp.1.1'
+    requirement => requirement.id === 'op.exp.1.1'
   );
 
-  comprueba(
-    'op.exp.1.1 aplica en BAJO, MEDIO y ALTO (BÁSICA, MEDIA y ALTA)',
+  check(
+    'op.exp.1.1 applies at BAJO, MEDIO and ALTO (BÁSICA, MEDIA and ALTA)',
     JSON.stringify(base?.applicability.levels) === '["BAJO","MEDIO","ALTO"]'
   );
 
-  const refuerzos = opExp1CatalogDefinition.requirements.filter(
-    requisito => requisito.kind === 'REFUERZO'
+  const reinforcements = opExp1CatalogDefinition.requirements.filter(
+    requirement => requirement.kind === 'REFUERZO'
   );
 
-  comprueba(
-    'los cuatro refuerzos existen y ninguno declara nivel',
-    refuerzos.length === 4 &&
-      refuerzos.every(requisito => requisito.applicability.levels.length === 0),
-    refuerzos.map(requisito => requisito.id).join(', ')
+  check(
+    'the four reinforcements exist and none declares a level',
+    reinforcements.length === 4 &&
+      reinforcements.every(requirement => requirement.applicability.levels.length === 0),
+    reinforcements.map(requirement => requirement.id).join(', ')
   );
 
-  for (const nivel of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
-    const resultados = evaluateRequirements(
+  for (const level of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
+    const results = evaluateRequirements(
       opExp1CatalogDefinition.requirements,
-      nivel,
+      level,
       [],
       false,
       [],
       'ACTIVE'
     );
 
-    const aplicables = resultados.filter(resultado => resultado.applicable);
+    const applicable = results.filter(result => result.applicable);
 
-    comprueba(
-      `${nivel} · el único requisito aplicable es op.exp.1.1`,
-      aplicables.length === 1 && aplicables[0].id === 'op.exp.1.1',
-      aplicables.map(resultado => resultado.id).join(', ')
+    check(
+      `${level} · the only applicable requirement is op.exp.1.1`,
+      applicable.length === 1 && applicable[0].id === 'op.exp.1.1',
+      applicable.map(result => result.id).join(', ')
     );
   }
 
-  comprueba(
-    'las siete evidencias declaran juicio (modelo nuevo entero)',
+  check(
+    'the seven evidences declare judgment (whole new model)',
     ENSEvidenceCatalog.filter(
-      evidencia => evidencia.controlId === 'op.exp.1' && evidencia.judgment
+      evidence => evidence.controlId === 'op.exp.1' && evidence.judgment
     ).length === 7
   );
 }
 
-// --- 2. la máquina real, bien declarada ------------------------------------
-
-bloque('2. wazuh-real con la organización declarada: las siete CUMPLEN');
+section('2. wazuh-real with the organization declared: the seven COMPLY');
 
 {
-  const evidencias = resuelve(WAZUH_REAL, VALORES_CORRECTOS);
+  const evidences = resolves(WAZUH_REAL, CORRECT_VALUES);
 
   for (const id of ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07']) {
-    comprueba(
+    check(
       `${id} · CUMPLE`,
-      evidencias.get(id)?.status === 'CUMPLE',
-      `${evidencias.get(id)?.status}: ${texto(evidencias.get(id))}`
+      evidences.get(id)?.status === 'CUMPLE',
+      `${evidences.get(id)?.status}: ${text(evidences.get(id))}`
     );
   }
 
-  comprueba(
-    'EV-07 lleva la regla 110201 y el evento que lo decide',
+  check(
+    'EV-07 carries rule 110201 and the event that decides it',
     Boolean(
-      evidencias.get('EV-07')?.relatedRules.includes('110201') &&
-        evidencias.get('EV-07')?.resolvedRuleId === '110201'
+      evidences.get('EV-07')?.relatedRules.includes('110201') &&
+        evidences.get('EV-07')?.resolvedRuleId === '110201'
     )
   );
 
-  const validacion = validateControlConfiguration(
-    configuracion(VALORES_CORRECTOS),
+  const validation = validateControlConfiguration(
+    configuration(CORRECT_VALUES),
     'MEDIO'
   );
 
-  const requisitos = evaluateRequirements(
+  const requirements = evaluateRequirements(
     opExp1CatalogDefinition.requirements,
     'MEDIO',
-    Array.from(evidencias.values()),
-    validacion.missingRequired.length + validacion.invalidRequired.length > 0,
+    Array.from(evidences.values()),
+    validation.missingRequired.length + validation.invalidRequired.length > 0,
     [],
     'ACTIVE'
   );
 
-  const control = evaluateControlStatus(requisitos);
+  const control = evaluateControlStatus(requirements);
 
-  comprueba(
-    'op.exp.1.1 CUMPLE y el control sale al 100 %',
-    requisitos.find(requisito => requisito.id === 'op.exp.1.1')?.status ===
+  check(
+    'op.exp.1.1 CUMPLE and the control comes out at 100 %',
+    requirements.find(requirement => requirement.id === 'op.exp.1.1')?.status ===
       'CUMPLE' && control.status === 'CUMPLE',
     `${control.status} ${control.score}`
   );
 }
 
-// --- 3. EV-07: la mitad organizativa ---------------------------------------
-
-bloque('3. EV-07 · un activo observado sin fila en P-01 no cumple');
+section('3. EV-07 · an observed asset without a row in P-01 does not comply');
 
 {
-  const sinFila = resuelve(
+  const withoutRow = resolves(
     WAZUH_REAL,
     con({ 'P-01': ['srv-otro | Responsable | Rol | HW servidor'] })
   ).get('EV-07');
 
-  comprueba(
-    'sin wazuh-real en P-01 · NO_CUMPLE (medido, no hueco)',
-    sinFila?.status === 'NO_CUMPLE',
-    String(sinFila?.status)
+  check(
+    'without wazuh-real in P-01 · NO_CUMPLE (measured, not a gap)',
+    withoutRow?.status === 'NO_CUMPLE',
+    String(withoutRow?.status)
   );
 
-  comprueba(
-    'el motivo nombra el activo',
-    texto(sinFila).includes("'wazuh-real'"),
-    texto(sinFila)
+  check(
+    'the motive names the asset',
+    text(withoutRow).includes("'wazuh-real'"),
+    text(withoutRow)
   );
 
-  comprueba(
-    'reversión · con la fila vuelve a CUMPLE',
-    resuelve(WAZUH_REAL, VALORES_CORRECTOS).get('EV-07')?.status === 'CUMPLE'
+  check(
+    'reversal · with the row it goes back to CUMPLE',
+    resolves(WAZUH_REAL, CORRECT_VALUES).get('EV-07')?.status === 'CUMPLE'
   );
 
-  comprueba(
-    'la comparación distingue mayúsculas (Wazuh-Real no autoriza wazuh-real)',
-    resuelve(
+  check(
+    'the comparison is case-sensitive (Wazuh-Real does not authorize wazuh-real)',
+    resolves(
       WAZUH_REAL,
       con({ 'P-01': ['Wazuh-Real | Responsable | Rol | HW servidor'] })
     ).get('EV-07')?.status === 'NO_CUMPLE'
   );
 
-  const sinP01 = resuelve(WAZUH_REAL, con({ 'P-01': undefined })).get('EV-07');
+  const withoutP01 = resolves(WAZUH_REAL, con({ 'P-01': undefined })).get('EV-07');
 
-  comprueba(
-    'P-01 sin configurar · NO_EVALUABLE con causa CONFIGURATION, nunca CUMPLE',
-    sinP01?.status === 'NO_EVALUABLE' && sinP01?.gapCause === 'CONFIGURATION',
-    `${sinP01?.status} ${sinP01?.gapCause}`
+  check(
+    'P-01 unconfigured · NO_EVALUABLE with cause CONFIGURATION, never CUMPLE',
+    withoutP01?.status === 'NO_EVALUABLE' && withoutP01?.gapCause === 'CONFIGURATION',
+    `${withoutP01?.status} ${withoutP01?.gapCause}`
   );
 
-  // El responsable no se observa: se exige declararlo. Una fila sin él deja
-  // P-01 inválido, y un obligatorio inválido bloquea el control entero.
-  const sinResponsable = validateControlConfiguration(
-    configuracion(con({ 'P-01': ['wazuh-real |  | Rol | HW servidor'] })),
+  const withoutOwner = validateControlConfiguration(
+    configuration(con({ 'P-01': ['wazuh-real |  | Rol | HW servidor'] })),
     'MEDIO'
   );
 
-  comprueba(
-    'una fila sin responsable deja P-01 inválido',
-    sinResponsable.invalidRequired.some(parametro => parametro.id === 'P-01'),
-    sinResponsable.issues.map(issue => issue.reason).join('; ')
+  check(
+    'a row without owner leaves P-01 invalid',
+    withoutOwner.invalidRequired.some(parameter => parameter.id === 'P-01'),
+    withoutOwner.issues.map(issue => issue.reason).join('; ')
   );
 
-  const sinNaturaleza = validateControlConfiguration(
-    configuracion(con({ 'P-01': ['wazuh-real | Responsable | Rol'] })),
+  const withoutNature = validateControlConfiguration(
+    configuration(con({ 'P-01': ['wazuh-real | Responsable | Rol'] })),
     'MEDIO'
   );
 
-  comprueba(
-    'una fila sin naturaleza deja P-01 inválido',
-    sinNaturaleza.invalidRequired.some(parametro => parametro.id === 'P-01')
+  check(
+    'a row without nature leaves P-01 invalid',
+    withoutNature.invalidRequired.some(parameter => parameter.id === 'P-01')
   );
 
-  comprueba(
-    'reversión · la fila completa es válida',
-    validateControlConfiguration(configuracion(VALORES_CORRECTOS), 'MEDIO')
+  check(
+    'reversal · the complete row is valid',
+    validateControlConfiguration(configuration(CORRECT_VALUES), 'MEDIO')
       .invalidRequired.length === 0
   );
 
-  const requisito = evaluateRequirements(
+  const requirement = evaluateRequirements(
     opExp1CatalogDefinition.requirements,
     'MEDIO',
-    Array.from(resuelve(WAZUH_REAL, VALORES_CORRECTOS).values()),
+    Array.from(resolves(WAZUH_REAL, CORRECT_VALUES).values()),
     true,
     [],
     'ACTIVE'
-  ).find(resultado => resultado.id === 'op.exp.1.1');
+  ).find(result => result.id === 'op.exp.1.1');
 
-  comprueba(
-    'con P-01 inválido op.exp.1.1 NO CUMPLE aunque las siete evidencias estén en verde',
-    requisito?.status === 'NO_CUMPLE',
-    String(requisito?.status)
+  check(
+    'with P-01 invalid op.exp.1.1 does NOT COMPLY even though the seven evidences are green',
+    requirement?.status === 'NO_CUMPLE',
+    String(requirement?.status)
   );
 }
 
-// --- 4. EV-05: hosts de red sin declarar -----------------------------------
-
-bloque('4. EV-05 · un host vecino sin declarar en P-02 no cumple');
+section('4. EV-05 · a neighbour host not declared in P-02 does not comply');
 
 {
-  const sinDeclarar = resuelve(
+  const undeclared2 = resolves(
     WAZUH_REAL,
     con({ 'P-02': ['impresora-01 | impresora | 10.0.0.9 | Oficina'] })
   ).get('EV-05');
 
-  comprueba(
-    'la pasarela 172.31.1.1 fuera de P-02 · NO_CUMPLE nombrando la IP',
-    sinDeclarar?.status === 'NO_CUMPLE' && texto(sinDeclarar).includes('172.31.1.1'),
-    texto(sinDeclarar)
+  check(
+    'the gateway 172.31.1.1 outside P-02 · NO_CUMPLE naming the IP',
+    undeclared2?.status === 'NO_CUMPLE' && text(undeclared2).includes('172.31.1.1'),
+    text(undeclared2)
   );
 
-  comprueba(
-    'reversión · declarada en P-02 vuelve a CUMPLE',
-    resuelve(WAZUH_REAL, VALORES_CORRECTOS).get('EV-05')?.status === 'CUMPLE'
+  check(
+    'reversal · declared in P-02 goes back to CUMPLE',
+    resolves(WAZUH_REAL, CORRECT_VALUES).get('EV-05')?.status === 'CUMPLE'
   );
 
-  const soloNombre = resuelve(
+  const onlyName = resolves(
     WAZUH_REAL,
     con({ 'P-02': ['sai-01 | SAI |  | Mantenimiento'] })
   ).get('EV-05');
 
-  comprueba(
-    'P-02 sin ninguna IP · NO_EVALUABLE por configuración (no hay contra qué comparar)',
-    soloNombre?.status === 'NO_EVALUABLE' && soloNombre?.gapCause === 'CONFIGURATION',
-    `${soloNombre?.status} ${soloNombre?.gapCause}`
+  check(
+    'P-02 without any IP · NO_EVALUABLE by configuration (nothing to compare against)',
+    onlyName?.status === 'NO_EVALUABLE' && onlyName?.gapCause === 'CONFIGURATION',
+    `${onlyName?.status} ${onlyName?.gapCause}`
   );
 
-  const silencio = resuelve(
-    sinEvento(WAZUH_REAL, 'network_host_observed'),
-    VALORES_CORRECTOS
+  const silence = resolves(
+    withoutEvent(WAZUH_REAL, 'network_host_observed'),
+    CORRECT_VALUES
   ).get('EV-05');
 
-  comprueba(
-    'sin vecinos y con el latido cubriendo EV-05 · CUMPLE (es un barrido)',
-    silencio?.status === 'CUMPLE',
-    texto(silencio)
+  check(
+    'without neighbours and with the heartbeat covering EV-05 · CUMPLE (it is a sweep)',
+    silence?.status === 'CUMPLE',
+    text(silence)
   );
 
-  const sinLatido = resuelve(
-    sinEvento(sinEvento(WAZUH_REAL, 'network_host_observed'), 'collector_run'),
-    VALORES_CORRECTOS
+  const withoutHeartbeat = resolves(
+    withoutEvent(withoutEvent(WAZUH_REAL, 'network_host_observed'), 'collector_run'),
+    CORRECT_VALUES
   ).get('EV-05');
 
-  comprueba(
-    'reversión · el mismo silencio sin latido · NO_EVALUABLE (COLLECTION)',
-    sinLatido?.status === 'NO_EVALUABLE' && sinLatido?.gapCause === 'COLLECTION',
-    `${sinLatido?.status} ${sinLatido?.gapCause}`
+  check(
+    'reversal · the same silence without a heartbeat · NO_EVALUABLE (COLLECTION)',
+    withoutHeartbeat?.status === 'NO_EVALUABLE' && withoutHeartbeat?.gapCause === 'COLLECTION',
+    `${withoutHeartbeat?.status} ${withoutHeartbeat?.gapCause}`
   );
 }
 
-// --- 5. EV-01 a EV-04: inventario al día -----------------------------------
-
-bloque('5. EV-01 a EV-04 · el inventario técnico caduca contra P-08');
+section('5. EV-01 to EV-04 · the technical inventory expires against P-08');
 
 {
-  const dentro = resuelve(WAZUH_REAL, VALORES_CORRECTOS, new Date('2026-09-17T15:00:00Z'));
-  const fuera = resuelve(WAZUH_REAL, VALORES_CORRECTOS, new Date('2026-09-17T18:00:00Z'));
-  const plazoMayor = resuelve(
+  const inside = resolves(WAZUH_REAL, CORRECT_VALUES, new Date('2026-09-17T15:00:00Z'));
+  const outside = resolves(WAZUH_REAL, CORRECT_VALUES, new Date('2026-09-17T18:00:00Z'));
+  const longerDeadline = resolves(
     WAZUH_REAL,
     con({ 'P-08': 48 }),
     new Date('2026-09-17T18:00:00Z')
   );
 
   for (const id of ['EV-01', 'EV-02', 'EV-03', 'EV-04']) {
-    comprueba(
-      `${id} · a las 23 h de la foto, con P-08 = 24 · CUMPLE`,
-      dentro.get(id)?.status === 'CUMPLE',
-      texto(dentro.get(id))
+    check(
+      `${id} · at 23 h from the snapshot, with P-08 = 24 · CUMPLE`,
+      inside.get(id)?.status === 'CUMPLE',
+      text(inside.get(id))
     );
 
-    comprueba(
-      `${id} · a las 26 h, con P-08 = 24 · NO_CUMPLE (el agente dejó de reportar)`,
-      fuera.get(id)?.status === 'NO_CUMPLE',
-      texto(fuera.get(id))
+    check(
+      `${id} · at 26 h, with P-08 = 24 · NO_CUMPLE (the agent stopped reporting)`,
+      outside.get(id)?.status === 'NO_CUMPLE',
+      text(outside.get(id))
     );
 
-    comprueba(
-      `${id} · reversión · el mismo reloj con P-08 = 48 · CUMPLE`,
-      plazoMayor.get(id)?.status === 'CUMPLE'
+    check(
+      `${id} · reversal · the same clock with P-08 = 48 · CUMPLE`,
+      longerDeadline.get(id)?.status === 'CUMPLE'
     );
   }
 
-  // Un agente que nunca ha conectado no trae keepalive: no puede pasar por
-  // conectado.
-  const sinKeepalive = WAZUH_REAL.map(linea => {
+  const withoutKeepalive = WAZUH_REAL.map(linea => {
     const data = JSON.parse(linea);
 
     if (data.event !== 'agent_status') {
@@ -473,148 +430,136 @@ bloque('5. EV-01 a EV-04 · el inventario técnico caduca contra P-08');
     return JSON.stringify(data);
   });
 
-  const ev04 = resuelve(sinKeepalive, VALORES_CORRECTOS).get('EV-04');
+  const ev04 = resolves(withoutKeepalive, CORRECT_VALUES).get('EV-04');
 
-  comprueba(
-    'EV-04 sin keepalive · NO_EVALUABLE (EVIDENCE), nunca CUMPLE',
+  check(
+    'EV-04 without keepalive · NO_EVALUABLE (EVIDENCE), never CUMPLE',
     ev04?.status === 'NO_EVALUABLE' && ev04?.gapCause === 'EVIDENCE',
     `${ev04?.status} ${ev04?.gapCause}`
   );
 
-  const sinP07 = resuelve(WAZUH_REAL, con({ 'P-08': undefined })).get('EV-01');
+  const withoutP07 = resolves(WAZUH_REAL, con({ 'P-08': undefined })).get('EV-01');
 
-  comprueba(
-    'P-08 sin configurar · EV-01 NO_EVALUABLE (CONFIGURATION)',
-    sinP07?.status === 'NO_EVALUABLE' && sinP07?.gapCause === 'CONFIGURATION'
+  check(
+    'P-08 unconfigured · EV-01 NO_EVALUABLE (CONFIGURATION)',
+    withoutP07?.status === 'NO_EVALUABLE' && withoutP07?.gapCause === 'CONFIGURATION'
   );
 }
 
-// --- 6. EV-06: revisión formal del inventario ------------------------------
-
-bloque('6. EV-06 · la revisión del inventario caduca contra P-04');
+section('6. EV-06 · the inventory review expires against P-04');
 
 {
-  comprueba(
-    'revisión del 10/09 evaluada el 16/09 con P-04 = 90 · CUMPLE',
-    resuelve(WAZUH_REAL, VALORES_CORRECTOS).get('EV-06')?.status === 'CUMPLE'
+  check(
+    'review of 10/09 evaluated on 16/09 with P-04 = 90 · CUMPLE',
+    resolves(WAZUH_REAL, CORRECT_VALUES).get('EV-06')?.status === 'CUMPLE'
   );
 
-  const vencida = resuelve(WAZUH_REAL, con({ 'P-04': 3 })).get('EV-06');
+  const expired = resolves(WAZUH_REAL, con({ 'P-04': 3 })).get('EV-06');
 
-  comprueba(
-    'reversión · el mismo registro con P-04 = 3 · NO_CUMPLE',
-    vencida?.status === 'NO_CUMPLE',
-    texto(vencida)
+  check(
+    'reversal · the same record with P-04 = 3 · NO_CUMPLE',
+    expired?.status === 'NO_CUMPLE',
+    text(expired)
   );
 
-  // Lo que emite de verdad wazuh-real hoy: no hay registro de revisiones. El
-  // `evidence_state` del agente NO decide la evidencia; decide la ausencia del
-  // hecho, y eso nunca es CUMPLE.
-  const sinRegistro = resuelve(
-    [...sinEvento(WAZUH_REAL, 'inventory_review'), SIN_REVISION],
-    VALORES_CORRECTOS
+  const withoutRecord = resolves(
+    [...withoutEvent(WAZUH_REAL, 'inventory_review'), SIN_REVISION],
+    CORRECT_VALUES
   ).get('EV-06');
 
-  comprueba(
-    'sin revisión anotada · NO_EVALUABLE, nunca CUMPLE por ausencia',
-    sinRegistro?.status === 'NO_EVALUABLE',
-    `${sinRegistro?.status}: ${texto(sinRegistro)}`
+  check(
+    'no review noted · NO_EVALUABLE, never CUMPLE by absence',
+    withoutRecord?.status === 'NO_EVALUABLE',
+    `${withoutRecord?.status}: ${text(withoutRecord)}`
   );
 
-  // Los cambios de composición se escuchan para la traza pero no deciden.
-  const conCambio = resuelve(
+  const withChange = resolves(
     [
       ...WAZUH_REAL,
       '{"ensfacil":"op.exp.1","ts":"2026-09-16T16:16:04Z","host":"wazuh-real","event":"asset_software_change","evidence_id":"EV-06","requisito":"op.exp.1.1","activo":"wazuh-real","cambio":"alta","gestor":"dpkg","paquete":"jq","version_anterior":"-","version_nueva":"1.7.1-3ubuntu0.24.04.2"}',
     ],
-    VALORES_CORRECTOS
+    CORRECT_VALUES
   ).get('EV-06');
 
-  comprueba(
-    'un cambio de software no altera el veredicto de la revisión',
-    conCambio?.status === 'CUMPLE',
-    String(conCambio?.status)
+  check(
+    'a software change does not alter the review\'s verdict',
+    withChange?.status === 'CUMPLE',
+    String(withChange?.status)
   );
 }
 
-// --- 7. el requisito sin la mitad organizativa -----------------------------
-
-bloque('7. op.exp.1.1 sin declarar nada: NO CUMPLE, y no por falta de agente');
+section('7. op.exp.1.1 declaring nothing: does NOT COMPLY, and not for lack of an agent');
 
 {
-  const vacia: Valores = {};
+  const empty: Valores = {};
 
-  const evidencias = Array.from(resuelve(WAZUH_REAL, vacia).values());
+  const evidences = Array.from(resolves(WAZUH_REAL, empty).values());
 
-  const validacion = validateControlConfiguration(configuracion(vacia), 'MEDIO');
+  const validation = validateControlConfiguration(configuration(empty), 'MEDIO');
 
-  const requisito = evaluateRequirements(
+  const requirement = evaluateRequirements(
     opExp1CatalogDefinition.requirements,
     'MEDIO',
-    evidencias,
-    validacion.missingRequired.length > 0,
+    evidences,
+    validation.missingRequired.length > 0,
     [],
     'ACTIVE'
-  ).find(resultado => resultado.id === 'op.exp.1.1');
+  ).find(result => result.id === 'op.exp.1.1');
 
-  comprueba(
+  check(
     'op.exp.1.1 NO_CUMPLE',
-    requisito?.status === 'NO_CUMPLE',
-    String(requisito?.status)
+    requirement?.status === 'NO_CUMPLE',
+    String(requirement?.status)
   );
 
-  comprueba(
-    'los obligatorios que faltan son P-01, P-02, P-03, P-04 y P-08 (P-05, P-06 y P-ATT no bloquean)',
-    validacion.missingRequired.map(parametro => parametro.id).sort().join(',') ===
+  check(
+    'the missing mandatory ones are P-01, P-02, P-03, P-04 and P-08 (P-05, P-06 and P-ATT do not block)',
+    validation.missingRequired.map(parameter => parameter.id).sort().join(',') ===
       'P-01,P-02,P-03,P-04,P-08',
-    validacion.missingRequired.map(parametro => parametro.id).join(',')
+    validation.missingRequired.map(parameter => parameter.id).join(',')
   );
 
-  comprueba(
-    'ninguna evidencia sale en verde sin parámetro',
-    evidencias.every(evidencia => evidencia.status !== 'CUMPLE'),
-    evidencias.map(evidencia => `${evidencia.id}=${evidencia.status}`).join(' ')
+  check(
+    'no evidence comes out green without a parameter',
+    evidences.every(evidence => evidence.status !== 'CUMPLE'),
+    evidences.map(evidence => `${evidence.id}=${evidence.status}`).join(' ')
   );
 }
 
-// --- 8. el informe enseña lo observado y lo declarado ----------------------
-
-bloque('8. El informe distingue lo observado de lo declarado');
+section('8. The report distinguishes what is observed from what is declared');
 
 {
-  const evidencias = Array.from(resuelve(WAZUH_REAL, VALORES_CORRECTOS).values());
+  const evidences = Array.from(resolves(WAZUH_REAL, CORRECT_VALUES).values());
 
-  // Solo lo que el modelo lee: el resultado real lo construye
-  // evaluation-engine.ts, que arrastra kibana-services.
-  const resultado = {
+  const result = {
     control: { id: 'op.exp.1' },
     status: 'CUMPLE',
     score: 100,
     level: 'MEDIO',
-    parameters: configuracion(VALORES_CORRECTOS).parameters.map(parametro => ({
-      id: parametro.id,
-      value: parametro.value,
+    parameters: configuration(CORRECT_VALUES).parameters.map(parameter => ({
+      id: parameter.id,
+      value: parameter.value,
     })),
-    evidences: evidencias.map(evidencia => ({
-      id: evidencia.id,
-      status: evidencia.status,
-      observations: evidencia.observations,
-      resolvedAttributes: evidencia.resolvedAttributes,
+    evidences: evidences.map(evidence => ({
+      id: evidence.id,
+      status: evidence.status,
+      observations: evidence.observations,
+      resolvedAttributes: evidence.resolvedAttributes,
     })),
   } as unknown as Parameters<typeof buildOpExp1ReportModel>[0];
 
-  const modelo = buildOpExp1ReportModel(resultado);
+  const model = buildOpExp1ReportModel(result);
   const campo = (id: string) =>
-    modelo.fields.find(item => item.id === `op.exp.1.${id}`);
+    model.fields.find(item => item.id === `op.exp.1.${id}`);
 
-  comprueba(
-    'once campos, los de la hoja «Informe ENSFácil»',
-    modelo.fields.length === 11,
-    String(modelo.fields.length)
+  check(
+    'eleven fields, those of the sheet «Informe ENSFácil»',
+    model.fields.length === 11,
+    String(model.fields.length)
   );
 
-  comprueba(
-    'el inventario consolidado enseña el activo y su hardware observados',
+  check(
+    'the consolidated inventory shows the observed asset and its hardware',
     Boolean(
       campo('campo2')?.value.includes('activo: wazuh-real') &&
         campo('campo2')?.value.includes('fabricante: Hetzner')
@@ -622,30 +567,28 @@ bloque('8. El informe distingue lo observado de lo declarado');
     campo('campo2')?.value
   );
 
-  comprueba(
-    'la cobertura enseña la fila declarada en P-01',
+  check(
+    'the coverage shows the row declared in P-01',
     Boolean(campo('campo3')?.value.includes('Responsable de Sistemas')),
     campo('campo3')?.value
   );
 
-  comprueba(
-    'la revisión periódica enseña la fecha observada',
+  check(
+    'the periodic review shows the observed date',
     Boolean(campo('campo10')?.value.includes('fecha: 2026-09-10')),
     campo('campo10')?.value
   );
 
-  comprueba(
-    'los activos críticos (R3) salen NO_APLICA',
+  check(
+    'critical assets (R3) come out NO_APLICA',
     campo('campo9')?.status === 'NO_APLICA'
   );
 }
 
-// --- 9. el servidor de directorio real -------------------------------------
-
-bloque('9. LDAP real: el plano directorio llega, y sin revisión no cumple');
+section('9. Real LDAP: the directory plane arrives, and without a review it does not comply');
 
 {
-  const agenteLdap = { id: '028', name: 'zimbraHldap' };
+  const ldapAgent = { id: '028', name: 'zimbraHldap' };
 
   const valoresLdap: Valores = {
     'P-01': ['ldapserver | Responsable del directorio | Resp. directorio | servicio de directorio'],
@@ -659,71 +602,69 @@ bloque('9. LDAP real: el plano directorio llega, y sin revisión no cumple');
     'P-08': 24,
   };
 
-  const ahora = new Date('2026-09-17T12:00:00Z');
-  const evidencias = resuelve(LDAP_REAL, valoresLdap, ahora, agenteLdap);
+  const now = new Date('2026-09-17T12:00:00Z');
+  const evidences = resolves(LDAP_REAL, valoresLdap, now, ldapAgent);
 
   for (const id of ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07']) {
-    comprueba(
-      `${id} · CUMPLE con los hechos reales del LDAP`,
-      evidencias.get(id)?.status === 'CUMPLE',
-      `${evidencias.get(id)?.status}: ${texto(evidencias.get(id))}`
+    check(
+      `${id} · CUMPLE with the real LDAP facts`,
+      evidences.get(id)?.status === 'CUMPLE',
+      `${evidences.get(id)?.status}: ${text(evidences.get(id))}`
     );
   }
 
-  comprueba(
-    'EV-03 decide sobre el hecho con el plano directorio (slapd de Zimbra, base en la raíz)',
-    evidencias.get('EV-03')?.resolvedAttributes?.directorio_paquete ===
+  check(
+    'EV-03 decides on the fact with the directory plane (Zimbra\'s slapd, base at the root)',
+    evidences.get('EV-03')?.resolvedAttributes?.directorio_paquete ===
       'zimbra-openldap-server' &&
-      evidencias.get('EV-03')?.resolvedAttributes?.directorio_sufijo ===
+      evidences.get('EV-03')?.resolvedAttributes?.directorio_sufijo ===
         '{2}mdb:(raiz)'
   );
 
-  comprueba(
-    'EV-06 sin registro de revisiones · NO_EVALUABLE, y op.exp.1.1 NO CUMPLE',
-    evidencias.get('EV-06')?.status === 'NO_EVALUABLE' &&
+  check(
+    'EV-06 without a review record · NO_EVALUABLE, and op.exp.1.1 does NOT COMPLY',
+    evidences.get('EV-06')?.status === 'NO_EVALUABLE' &&
       evaluateRequirements(
         opExp1CatalogDefinition.requirements,
         'MEDIO',
-        Array.from(evidencias.values()),
+        Array.from(evidences.values()),
         false,
         [],
         'ACTIVE'
-      ).find(resultado => resultado.id === 'op.exp.1.1')?.status === 'NO_CUMPLE'
+      ).find(result => result.id === 'op.exp.1.1')?.status === 'NO_CUMPLE'
   );
 
-  const agenteLdapConfigurado = evidencias.get('EV-07');
+  const configuredLdapAgent = evidences.get('EV-07');
 
-  comprueba(
-    'el activo es el hostname (ldapserver), no el nombre del agente (zimbraHldap)',
-    resuelve(
+  check(
+    'the asset is the hostname (ldapserver), not the agent name (zimbraHldap)',
+    resolves(
       LDAP_REAL,
       { ...valoresLdap, 'P-01': ['zimbraHldap | Responsable | Rol | servicio de directorio'] },
-      ahora,
-      agenteLdap
+      now,
+      ldapAgent
     ).get('EV-07')?.status === 'NO_CUMPLE' &&
-      agenteLdapConfigurado?.status === 'CUMPLE'
+      configuredLdapAgent?.status === 'CUMPLE'
   );
 
-  const sinIpv6 = resuelve(
+  const withoutIpv6 = resolves(
     LDAP_REAL,
     { ...valoresLdap, 'P-02': valoresLdap['P-02']!.slice(0, 2) as string[] },
-    ahora,
-    agenteLdap
+    now,
+    ldapAgent
   ).get('EV-05');
 
-  comprueba(
-    'reversión · sin la pasarela IPv6 en P-02, EV-05 NO_CUMPLE nombrándola',
-    sinIpv6?.status === 'NO_CUMPLE' && texto(sinIpv6).includes('fd17:625c:f037:2::2'),
-    texto(sinIpv6)
+  check(
+    'reversal · without the IPv6 gateway in P-02, EV-05 NO_CUMPLE naming it',
+    withoutIpv6?.status === 'NO_CUMPLE' && text(withoutIpv6).includes('fd17:625c:f037:2::2'),
+    text(withoutIpv6)
   );
 }
 
-// --- resultado -------------------------------------------------------------
-
 console.log(
-  fallos.length
-    ? `\n${fallos.length} check(s) FAIL`
+  failures.length
+    ? `\n${failures.length} check(s) FAIL`
     : '\nop.exp.1: all checks pass'
 );
 
-process.exit(fallos.length ? 1 : 0);
+process.exit(failures.length ? 1 : 0);
