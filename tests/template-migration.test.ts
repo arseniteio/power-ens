@@ -1,8 +1,4 @@
-/**
- * 1.2.0 -> 1.3.0: cross-control templates become per-control assignments, on load, written with the next save.
- *
- *   npx --yes tsx tests/template-migration.test.ts
- */
+/** 1.2.0 -> 1.3.0: cross-control templates become per-control assignments on load. */
 import { readFileSync, readdirSync } from 'fs';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import {
@@ -147,7 +143,6 @@ console.log('4. On load, written with the next save');
   check('any save writes the converted document', saved.length === 1 && Array.isArray(saved[0].configuration.templates) && !saved[0].configuration.agents['024'].templates && saved[0].configuration.global.ensLevel === 'ALTO');
   check('and the plan is no longer pending', service.getPendingTemplateMigration() === undefined);
 
-  // The server keeps the previous (1.2.0) version in the history.
   const docs = new Map<string, any>();
   const index = {
     indices: { exists: async () => ({ body: true }), create: async () => ({ body: {} }) },
