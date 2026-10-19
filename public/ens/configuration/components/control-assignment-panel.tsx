@@ -1,0 +1,260 @@
+import React, { useMemo, useState } from 'react';
+import {
+  EuiBadge,
+  EuiBasicTable,
+  EuiButton,
+  EuiButtonEmpty,
+  EuiCallOut,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiSelect,
+  EuiSpacer,
+  EuiText,
+  EuiTitle,
+} from '@elastic/eui';
+
+import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
+import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
+import { getControlTemplates } from '../../../../common/ens/configuration/templates';
+import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { getAgentMeasurementPlane, getControlMeasurementPlanes } from '../../../../common/ens/core/scope/measurement-planes';
+import {
+  getAgentSystemType,
+  getEffectiveTemplate,
+} from '../../../../common/ens/configuration/agents/configuration-resolver';
+import { proposedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
+import {
+  ENSAssignmentPreview,
+  describeTemplateChoice,
+  getAgentCompleteness,
+  previewControlAssignment,
+  setControlTemplateAssignment,
+} from '../../../../common/ens/configuration/agents/agent-configuration-actions';
+import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
+import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
+import { ChangePreviewModal } from './change-preview-modal';
+import { errorMessage } from './confirm-modal';
+import { DetectedTypesCallout } from './detected-types-callout';
+import { ENSAgentRow, agentRowLabel } from './use-agents-data';
+
+interface ControlAssignmentPanelProps {
+  configuration: ENSConfigurationVersion;
+  controlId: string;
+  rows: ENSAgentRow[];
+  loading: boolean;
+  activeLevel: ENSLevel;
+  onNavigate: (target: Partial<ENSConfigurationTarget>) => void;
+  onConfigurationSaved: () => void;
+}
+
+// Select value for «no assignment: the built-in of its type».
+const BY_TYPE = '__type';
+
+export const describeEffectiveTemplate = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  controlId: string
+): string => {
+  const effective = getEffectiveTemplate(configuration, agentId, controlId);
+  if (effective.template) return `${effective.template.name}${effective.via === 'type' ? ' (de serie, por su tipo)' : ''}`;
+  return effective.assignedId === ENS_NO_TEMPLATE ? 'Sin plantilla (valores comunes)' : 'Ninguna: valores comunes';
+};
+
+// «Asignación»: agent | type | template | own settings, with bulk assignment after a preview.
+export const ControlAssignmentPanel = ({
+  configuration,
+  controlId,
+  rows,
+  loading,
+  activeLevel,
+  onNavigate,
+  onConfigurationSaved,
+}: ControlAssignmentPanelProps) => {
+  const templates = getControlTemplates(configuration, controlId);
+  const planes = getControlMeasurementPlanes(getENSCatalogControl(controlId) || {});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [choice, setChoice] = useState<string>('');
+  const [preview, setPreview] = useState<{ previews: ENSAssignmentPreview[]; templateId?: string } | undefined>();
+  const [notice, setNotice] = useState<{ color: 'success' | 'danger'; text: string } | undefined>();
+  // EuiBasicTable selection is uncontrolled: remount to clear it after assigning.
+  const [tableKey, setTableKey] = useState(0);
+
+  const missing = useMemo(() => {
+    const byId = new Map<string, string[]>();
+    rows.forEach(row => byId.set(row.id, getAgentCompleteness(configuration, row.id, [{ controlId, level: activeLevel }]).missingRequired));
+    return byId;
+  }, [configuration, rows, controlId, activeLevel]);
+
+  const templateIdOf = (value: string): string | undefined => (value === BY_TYPE ? undefined : value);
+
+  const openPreview = () => {
+    if (!choice || !selectedIds.length) return;
+    try {
+      const templateId = templateIdOf(choice);
+      setPreview({ previews: previewControlAssignment(configuration, controlId, selectedIds, templateId).previews, templateId });
+    } catch (failure) {
+      setNotice({ color: 'danger', text: errorMessage(failure) });
+    }
+  };
+
+  const apply = async (): Promise<string | undefined> => {
+    if (!preview) return undefined;
+    const ids = preview.previews.map(item => item.agentId);
+    const label = describeTemplateChoice(configuration, controlId, preview.templateId);
+    try {
+      await saveFromLatestConfiguration(latest => ({
+        configuration: setControlTemplateAssignment(
+          latest,
+          controlId,
+          ids,
+          preview.templateId,
+          Object.fromEntries(rows.filter(row => ids.includes(row.id)).map(row => [row.id, row.agent]))
+        ),
+        reason: `${controlId}: plantilla ${label} para ${ids.join(', ')}.`,
+      }));
+      setNotice({ color: 'success', text: `${controlId}: plantilla ${label} para ${ids.join(', ')}.` });
+      setPreview(undefined);
+      setSelectedIds([]);
+      setTableKey(key => key + 1);
+      onConfigurationSaved();
+      return undefined;
+    } catch (failure) {
+      return errorMessage(failure);
+    }
+  };
+
+  const columns = [
+    {
+      field: 'id',
+      name: 'Agente',
+      render: (_id: string, row: ENSAgentRow) => (
+        <EuiButtonEmpty size='xs' flush='left' onClick={() => onNavigate({ view: 'agents', agentId: row.id, controlId })}>
+          {agentRowLabel(row)}
+        </EuiButtonEmpty>
+      ),
+    },
+    {
+      field: 'detection',
+      name: 'Tipo',
+      render: (_detection: unknown, row: ENSAgentRow) => {
+        const type = getAgentSystemType(configuration.agents?.[row.id]);
+        return type ? (
+          <EuiBadge color='hollow'>{ENS_SYSTEM_TYPE_LABELS[type]}</EuiBadge>
+        ) : (
+          <EuiText size='xs' color='subdued'>
+            <p>{row.detection.type ? `sin guardar (detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]})` : 'sin tipo'}</p>
+          </EuiText>
+        );
+      },
+    },
+    {
+      field: 'agent',
+      name: 'Plantilla',
+      render: (_agent: unknown, row: ENSAgentRow) => {
+        const proposals = proposedTemplates(controlId, row.detection).filter(id => getEffectiveTemplate(configuration, row.id, controlId).template?.id !== id);
+        const measured = planes.includes(getAgentMeasurementPlane(row.id));
+        return (
+          <div>
+            <EuiText size='xs'><p>{describeEffectiveTemplate(configuration, row.id, controlId)}</p></EuiText>
+            {proposals.length > 0 && (
+              <EuiText size='xs' color='subdued'>
+                <p>propuesta por sus hechos: {proposals.map(id => `«${templates.find(item => item.id === id)?.name || id}»`).join(', ')}</p>
+              </EuiText>
+            )}
+            {!measured && (
+              <EuiText size='xs' color='subdued'>
+                <p>{planes.includes('manager') ? 'se mide en el manager: sus filas se juntan en la del manager' : 'no se mide en el manager'}</p>
+              </EuiText>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      field: 'inScope',
+      name: 'Ajustes propios',
+      render: (_inScope: boolean, row: ENSAgentRow) => {
+        const own = Object.keys(configuration.agents?.[row.id]?.controls?.[controlId]?.parameters || {}).length;
+        const required = missing.get(row.id) || [];
+        return (
+          <EuiText size='xs'>
+            <p>
+              {own ? `${own} propio(s)` : 'ninguno'}
+              {required.length ? ` · ${required.length} obligatorio(s) sin valor` : ''}
+              {!row.inScope ? ' · fuera del alcance' : ''}
+            </p>
+          </EuiText>
+        );
+      },
+    },
+  ];
+
+  return (
+    <>
+      <EuiTitle size='s'>
+        <h3>Asignación</h3>
+      </EuiTitle>
+      <EuiText size='s' color='subdued'>
+        <p>
+          El valor de cada agente: su ajuste propio; si no, el de la plantilla asignada; sin plantilla asignada, el de
+          la plantilla de serie de su tipo; si no, el valor común del control.
+        </p>
+      </EuiText>
+      <EuiSpacer size='s' />
+
+      <DetectedTypesCallout configuration={configuration} rows={rows} loading={loading} onConfigurationSaved={onConfigurationSaved} />
+
+      {notice && (
+        <>
+          <EuiCallOut color={notice.color} iconType={notice.color === 'success' ? 'check' : 'alert'} size='s' title={notice.text} />
+          <EuiSpacer size='s' />
+        </>
+      )}
+
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
+          <EuiSelect
+            compressed
+            aria-label='Plantilla que se asigna'
+            options={[
+              { value: '', text: 'Elegir plantilla…' },
+              { value: BY_TYPE, text: 'La de serie de su tipo' },
+              ...templates.map(template => ({ value: template.id, text: `${template.name}${template.builtin ? ' (de serie)' : ''}` })),
+              { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
+            ]}
+            value={choice}
+            onChange={event => setChoice(event.target.value)}
+          />
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButton size='s' isDisabled={!choice || !selectedIds.length} onClick={openPreview}>
+            Asignar a {selectedIds.length} agente(s)…
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiSpacer size='s' />
+
+      <EuiBasicTable
+        key={tableKey}
+        items={rows}
+        itemId='id'
+        columns={columns as any}
+        loading={loading}
+        isSelectable
+        selection={{ onSelectionChange: (items: ENSAgentRow[]) => setSelectedIds(items.map(item => item.id)) }}
+        noItemsMessage='No hay agentes en el alcance.'
+      />
+
+      {preview && (
+        <ChangePreviewModal
+          title={`Asignar ${describeTemplateChoice(configuration, controlId, preview.templateId)} en ${controlId} a ${preview.previews.length} agente(s)`}
+          confirmLabel='Asignar'
+          intro='Los ajustes propios siguen ganando.'
+          previews={preview.previews}
+          onCancel={() => setPreview(undefined)}
+          onConfirm={apply}
+        />
+      )}
+    </>
+  );
+};

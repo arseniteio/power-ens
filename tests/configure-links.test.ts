@@ -128,15 +128,15 @@ doc.agents = {
 
   console.log('4. El valor para la máquina y su origen');
   const propio = describeParameterForMachine(doc, 'op.acc.1', '101', 'P-07');
-  comprueba('101, P-07 propio: su valor y «valor propio de esta máquina»', propio?.origin === 'valor propio de esta máquina' && /root \| srv-web01 \| admin/.test(propio.value), propio);
+  comprueba('101, P-07 propio: su valor y «valor propio de esta máquina»', propio?.origin === 'ajuste propio de esta máquina' && /root \| srv-web01 \| admin/.test(propio.value), propio);
   const plantilla = describeParameterForMachine(doc, 'op.acc.1', '101', 'P-01');
   comprueba('101, P-01 de la plantilla Linux Ubuntu', /^de la plantilla «/.test(plantilla?.origin || '') && plantilla?.value === 'Local', plantilla);
   const heredado = describeParameterForMachine(doc, 'op.acc.1', '102', 'P-07');
-  comprueba('102, P-07: heredado de la organización', heredado?.origin === 'heredado de la organización' && /ana \| srv-web01/.test(heredado.value), heredado);
+  comprueba('102, P-07: heredado de la organización', heredado?.origin === 'valor común del control' && /ana \| srv-web01/.test(heredado.value), heredado);
   const org = describeParameterForMachine(doc, 'op.acc.1', undefined, 'P-04');
-  comprueba('sin máquina, P-04: de la organización', org?.origin === 'de la organización' && org.value === '90', org);
+  comprueba('sin máquina, P-04: de la organización', org?.origin === 'valor común del control' && org.value === '90', org);
   const vacio = describeParameterForMachine(doc, 'op.acc.1', '102', 'P-01');
-  comprueba('sin valor en ninguna parte: «sin valor»', vacio?.empty && vacio.value === 'sin valor' && /^sin valor: ni propio/.test(vacio.origin), vacio);
+  comprueba('sin valor en ninguna parte: «sin valor»', vacio?.empty && vacio.value === 'sin valor' && /^sin valor: ni ajuste propio/.test(vacio.origin), vacio);
   comprueba('un control que no está en la configuración: nada', describeParameterForMachine(doc, 'op.mon.1', '101', 'P-01') === undefined);
   comprueba('listas largas, resumidas con su número de filas', /^3 filas: a; b; c$/.test(summarizeParameterValue(['a', 'b', 'c']).text));
   const informes = readFileSync(`${__dirname}/../public/ens/reports/index.tsx`, 'utf8');

@@ -1,23 +1,22 @@
-// Enlace que abre Configuración en un control, y opcionalmente en un agente y
-// un parámetro:
+// Link that opens Configuración on a tab, a control, an agent and a parameter:
 //
-//   ?tabView=configuration&configControl=op.acc.1                    → Organización, el control
-//   ?tabView=configuration&configControl=op.acc.1&configParam=P-04   → … y el parámetro
-//   ?tabView=configuration&configAgent=024                           → Sistemas, el agente
+//   ?tabView=configuration&configControl=op.acc.1                    → Controles, the control
+//   ?tabView=configuration&configControl=op.acc.1&configParam=P-04   → … and the parameter
+//   ?tabView=configuration&configAgent=024                           → Agentes, the agent
 //   ?tabView=configuration&configAgent=024&configControl=op.acc.1&configParam=P-07
-//                                                                    → … su control y su parámetro
-//   ?tabView=configuration&configView=sistemas                        → la lista de sistemas
+//                                                                    → … its control and parameter
+//   ?tabView=configuration&configView=agentes | general              → the Agentes list or General
 //
-// Lo usa el Detalle del control («Configurar este control») y la propia
-// pantalla al navegar, así que «atrás» en el navegador vuelve a donde se estaba.
-// Sin React, para poder probarlo.
+// `configView=sistemas` (1.2.0 links) still opens Agentes. Without React, to be tested.
 import { withRouterSearch } from './router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
 export const CONFIGURATION_TAB_ID = 'configuration';
 
+export type ENSConfigurationView = 'controls' | 'agents' | 'general';
+
 export interface ENSConfigurationTarget {
-  view: 'organisation' | 'systems';
+  view: ENSConfigurationView;
   controlId?: string;
   agentId?: string;
   parameterId?: string;
@@ -28,10 +27,15 @@ const clean = (value?: string): string | undefined => {
   return text ? text : undefined;
 };
 
+const viewOf = (agentId: string | undefined, configView: string | undefined): ENSConfigurationView => {
+  if (agentId || configView === 'agentes' || configView === 'sistemas') return 'agents';
+  return configView === 'general' ? 'general' : 'controls';
+};
+
 export const parseConfigurationTarget = (params: Record<string, string | undefined>): ENSConfigurationTarget => {
   const agentId = clean(params.configAgent);
   return {
-    view: agentId || clean(params.configView) === 'sistemas' ? 'systems' : 'organisation',
+    view: viewOf(agentId, clean(params.configView)),
     controlId: clean(params.configControl),
     agentId,
     parameterId: clean(params.configParam),
@@ -43,7 +47,7 @@ export const configurationSearchChanges = (
   target: Partial<ENSConfigurationTarget>
 ): Record<string, string | undefined> => ({
   tabView: CONFIGURATION_TAB_ID,
-  configView: target.view === 'systems' && !target.agentId ? 'sistemas' : undefined,
+  configView: target.view === 'general' ? 'general' : target.view === 'agents' && !target.agentId ? 'agentes' : undefined,
   configAgent: clean(target.agentId),
   configControl: clean(target.controlId),
   configParam: clean(target.parameterId),
@@ -57,7 +61,7 @@ export const buildConfigurationSearch = (
 ): string =>
   withRouterSearch(search, {
     control: undefined,
-    ...configurationSearchChanges({ ...target, view: target.agentId ? 'systems' : 'organisation' }),
+    ...configurationSearchChanges({ ...target, view: target.agentId ? 'agents' : 'controls' }),
   });
 
 // --- desde el Detalle del control, ida y vuelta -----------------------------
@@ -75,9 +79,7 @@ export interface ENSDetailConfigurationTarget {
   // La máquina elegida en el detalle, si la hay.
   agentId?: string;
   parameterId?: string;
-  // ¿Tiene el control parámetros que se declaran por sistema o plataforma? Con
-  // máquina elegida y alguno así, se abre la página de esa máquina; si no, la
-  // política de la organización (ahí están todos sus parámetros).
+  // With an agent chosen and per-system or per-platform parameters, the agent page opens; otherwise the control page.
   hasAgentLevelParameters?: boolean;
   // ¿Es `parameterId` de los que se declaran por sistema o plataforma?
   parameterIsAgentLevel?: boolean;
@@ -87,8 +89,8 @@ export const detailConfigurationTarget = (target: ENSDetailConfigurationTarget):
   const agentId = clean(target.agentId);
   const porMaquina = Boolean(agentId) && (target.parameterId ? Boolean(target.parameterIsAgentLevel) : Boolean(target.hasAgentLevelParameters));
   return porMaquina
-    ? { view: 'systems', agentId, controlId: target.controlId, parameterId: clean(target.parameterId) }
-    : { view: 'organisation', controlId: target.controlId, parameterId: clean(target.parameterId) };
+    ? { view: 'agents', agentId, controlId: target.controlId, parameterId: clean(target.parameterId) }
+    : { view: 'controls', controlId: target.controlId, parameterId: clean(target.parameterId) };
 };
 
 export const detailConfigurationChanges = (target: ENSDetailConfigurationTarget): Record<string, string | undefined> => ({
