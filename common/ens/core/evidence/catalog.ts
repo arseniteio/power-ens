@@ -1863,7 +1863,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.3',
     title: 'Verificación periódica de la configuración frente a la línea base',
     description:
-      'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2.',
+      'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2. Evidencia propia de ENSFácil: la plantilla del auditor no la incluye.',
     requirements: ['op.exp.3.r1.2'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -3117,9 +3117,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   {
     id: 'EV-01',
     controlId: 'op.exp.10',
-    title: 'Accesos al material criptográfico',
+    title: 'Accesos auditados al material criptográfico',
     description:
-      'Todo acceso (lectura, escritura, cambio de permisos, borrado) a los almacenes de claves vigilados por auditd, con la cuenta de la sesión que lo hizo —la persona aunque haya pasado por sudo— o, sin sesión, la cuenta del proceso, el proceso y el intervalo. Se contrasta la cuenta contra el personal autorizado de P-08. Es la aportación más directa a la custodia de las claves durante la explotación.',
+      'Todo acceso (lectura, escritura, cambio de permisos, borrado) a los almacenes de claves de P-02: lecturas auditadas con auditd (reglas -w <ruta> -p rwa); FIM solo detecta cambios de integridad y no registra lecturas. Con la cuenta de la sesión que lo hizo —la persona aunque haya pasado por sudo— o, sin sesión, la cuenta del proceso, el proceso y el intervalo. Se contrasta la cuenta contra el personal autorizado de P-08. Linux y servidor LDAP; Windows (SACL de lectura) queda pendiente.',
     requirements: ['op.exp.10.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'ACCESS_CONTROL',
