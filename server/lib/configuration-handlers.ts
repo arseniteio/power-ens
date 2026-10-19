@@ -36,18 +36,18 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
   // Who the user is and whether they can administer; null and the error response otherwise. Each rejected
   // attempt (403) is logged with the user and what they wanted to do: never the body or the session.
-  const administrator = async (context: any, response: any, actionName: string) => {
+  const administrator = async (context: any, response: any, logLabel: string) => {
     try {
-      const userName = await resolveCurrentUser(actual(context), securityEnabled);
-      if (!userName.administrator) {
-        logger.warn(`ENS config: refused ${actionName} for ${userName.username || 'an unnamed user'} (lacks ensfacil_admin and all_access)`);
+      const user = await resolveCurrentUser(actual(context), securityEnabled);
+      if (!user.administrator) {
+        logger.warn(`ENS config: refused ${logLabel} for ${user.username || 'an unnamed user'} (lacks ensfacil_admin and all_access)`);
         return { error: failure(response, 403, NO_ROLE) };
       }
-      if (!userName.username) return { error: failure(response, 401, 'No se pudo identificar al usuario.') };
-      return { usuario: userName };
+      if (!user.username) return { error: failure(response, 401, 'No se pudo identificar al usuario.') };
+      return { usuario: user };
     } catch (error: any) {
       const status = statusOf(error);
-      if (status === 403) logger.warn(`ENS config: refused ${actionName}; OpenSearch does not let the user be identified (403)`);
+      if (status === 403) logger.warn(`ENS config: refused ${logLabel}; OpenSearch does not let the user be identified (403)`);
       if (status === 401 || status === 403) return { error: failure(response, status, error?.message || 'No autorizado') };
       logger.error(`Could not check the ENS configuration user: ${error?.message || error}`);
       return { error: failure(response, 500, 'No se pudo comprobar el usuario; el detalle está en el log del dashboard.') };
@@ -91,7 +91,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, `configuration.controls no es válida: ${modeErrors.slice(0, 5).join(' ')}`);
     }
 
-    const access = await administrator(context, response, 'guardar la configuración');
+    const access = await administrator(context, response, 'save the configuration');
     if (access.error) return access.error;
     const username = access.usuario!.username;
 
@@ -153,7 +153,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
   };
 
   const history = async (context: any, _request: any, response: any) => {
-    const access = await administrator(context, response, 'ver el historial');
+    const access = await administrator(context, response, 'read the history');
     if (access.error) return access.error;
 
     try {

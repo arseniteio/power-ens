@@ -48,7 +48,7 @@ export const createEvaluationHandlers = (options: {
   const { logger } = options;
   const service = options.service || createEvaluationService(options);
 
-  const withErrors = async (request: any, response: any, actionName: string, taskItem: (signal: CancelSignal) => Promise<unknown>) => {
+  const withErrors = async (request: any, response: any, actionName: string, logLabel: string, taskItem: (signal: CancelSignal) => Promise<unknown>) => {
     const { signal, suelta: looseOne } = signalOf(request);
     try {
       return correct(response, await taskItem(signal));
@@ -57,10 +57,10 @@ export const createEvaluationHandlers = (options: {
       // Errors that have a reason for the viewer (bad request, permissions, incomplete data, too many facts,
       // cancelled) are returned with it.
       if ((status >= 400 && status < 500) || status === 503) {
-        if (status === 503) logger.warn(`ENSFácil: could not ${actionName}: ${error?.message}`);
+        if (status === 503) logger.warn(`ENSFácil: could not ${logLabel}: ${error?.message}`);
         return failure(response, status, error?.message || 'No autorizado');
       }
-      logger.error(`ENSFácil: could not ${actionName}: ${error?.message || error}`);
+      logger.error(`ENSFácil: could not ${logLabel}: ${error?.message || error}`);
       return failure(response, 500, `No se pudo ${actionName}; el detalle está en el log del dashboard.`);
     } finally {
       looseOne();
@@ -68,7 +68,7 @@ export const createEvaluationHandlers = (options: {
   };
 
   const evaluate = (context: any, request: any, response: any) =>
-    withErrors(request, response, 'evaluar los controles', async signal => {
+    withErrors(request, response, 'evaluar los controles', 'evaluate the controls', async signal => {
       const query = normalizeQuery(request?.query || {});
       // "Reintentar" after a failed refresh: tried at once, no waiting.
       const retryRefresh = request?.query?.retryRefresh === '1' || request?.query?.retryRefresh === 'true';
@@ -84,7 +84,7 @@ export const createEvaluationHandlers = (options: {
   // Probe: has anything changed since the last evaluation? A few hundred bytes; the browser requests the
   // evaluation again only if the fingerprint changes.
   const probe = (context: any, request: any, response: any) =>
-    withErrors(request, response, 'comprobar si hay hechos nuevos', async () => {
+    withErrors(request, response, 'comprobar si hay hechos nuevos', 'check for new facts', async () => {
       const query = normalizeQuery(request?.query || {});
       const ctx = await service.loadContext(clients(context), query);
       return {
@@ -96,7 +96,7 @@ export const createEvaluationHandlers = (options: {
     });
 
   const traceability = (context: any, request: any, response: any) =>
-    withErrors(request, response, 'leer la trazabilidad del control', async signal => {
+    withErrors(request, response, 'leer la trazabilidad del control', 'read the control traceability', async signal => {
       const q = request?.query || {};
       const query = normalizeQuery({ ...q, include: 'control', timelineDays: '0' });
       if (!query.controlId) throw new ENSBadRequestError('Falta el control.');
