@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.4 (Mantenimiento y actualizaciones de seguridad).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.4: translates the engine result into report fields. */
 export const buildOpExp4ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp4ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp4ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.4.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Vulnerabilidades abiertas por criticidad  ·  fuente: Vulnerability Detector (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.4.campo2',
     'Vulnerabilidades abiertas por criticidad',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cumplimiento de los plazos de remediación  ·  fuente: ENSFácil (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.4.campo3',
     'Cumplimiento de los plazos de remediación',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Evolución de la deuda de vulnerabilidades  ·  fuente: ENSFácil (EV-10)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.4.campo4',
     'Evolución de la deuda de vulnerabilidades',
     evidenceStatus('EV-10'),
@@ -141,8 +132,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Estado de parcheado del parque  ·  fuente: Syscollector (EV-03)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.4.campo5',
     'Estado de parcheado del parque',
     evidenceStatus('EV-03'),
@@ -151,8 +141,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Software fuera de soporte  ·  fuente: Syscollector + ENSFácil (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.4.campo6',
     'Software fuera de soporte',
     evidenceStatus('EV-05'),
@@ -161,8 +150,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Cobertura del seguimiento de anuncios de defectos  ·  fuente: ENSFácil (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.4.campo7',
     'Cobertura del seguimiento de anuncios de defectos',
     evidenceStatus('EV-06'),
@@ -171,8 +159,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Intervenciones de mantenimiento  ·  fuente: Syscollector + Log (EV-04, EV-07)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.4.campo8',
     'Intervenciones de mantenimiento',
     evidenceStatus('EV-04'),
@@ -181,8 +168,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Trazabilidad de paso por preproducción (R1)  ·  fuente: ENSFácil (EV-08)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.4.campo9',
     'Trazabilidad de paso por preproducción (R1)',
     evidenceStatus('EV-08'),
@@ -191,8 +177,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Puntos de reversión previos a cada cambio (R2)  ·  fuente: FIM + Log (EV-09)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.4.campo10',
     'Puntos de reversión previos a cada cambio (R2)',
     evidenceStatus('EV-09'),
@@ -201,8 +186,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Firmware de dispositivos hardware (R3)  ·  fuente: Syscollector + ENSFácil (EV-11)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.4.campo11',
     'Firmware de dispositivos hardware (R3)',
     evidenceStatus('EV-11'),
@@ -211,8 +195,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Estrategia de monitorización continua (R4)  ·  fuente: Vulnerability Detector (EV-01, EV-10)
-  const campo12 = field(
+  const field12 = field(
     'op.exp.4.campo12',
     'Estrategia de monitorización continua (R4)',
     evidenceStatus('EV-01'),
@@ -221,8 +204,7 @@ export const buildOpExp4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Puntuación de cumplimiento op.exp.4  ·  fuente: Motor ENSFácil
-  const campo13 = field(
+  const field13 = field(
     'op.exp.4.campo13',
     'Puntuación de cumplimiento op.exp.4',
     asStatus(result?.status),
@@ -245,19 +227,19 @@ export const buildOpExp4ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
-      campo13,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
+      field13,
     ],
   };
 };

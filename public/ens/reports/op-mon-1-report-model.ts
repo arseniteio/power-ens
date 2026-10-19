@@ -75,21 +75,7 @@ const field = (
 
 const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
 
-/**
- * Modelo de informe de op.mon.1 (Detección de intrusión).
- *
- * Sale de la hoja «Informe ENSFácil» de la plantilla, ajustado al juicio de la
- * policy (`policies/op-mon-1.policy.ts`):
- *
- *   - R2 es documental: su campo enseña si está ACREDITADO DOCUMENTALMENTE
- *     (P-05 o P-ATT), nunca como medido. Que cada alerta se tratara conforme a
- *     su procedimiento (EV-06) es un dato del informe que mide op.exp.7.
- *   - R3 no se exige en ninguna categoría: su campo sale NO_APLICA y enseña la
- *     cobertura DE HECHO que la policy ha medido (variable
- *     `cobertura_de_hecho_R3`), que acredita el enunciado general del bloque.
- *   - La vigencia del ruleset y las exclusiones (EV-08) son de R1: en BÁSICA no
- *     aplican.
- */
+/** Report model of op.mon.1: translates the engine result into report fields. */
 export const buildOpMon1ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpMon1ReportModel => {
@@ -113,8 +99,7 @@ export const buildOpMon1ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.mon.1.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -125,8 +110,7 @@ export const buildOpMon1ReportModel = (
       .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
   );
 
-  // Capacidad de detección desplegada  ·  fuente: Wazuh HIDS (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.mon.1.campo2',
     'Capacidad de detección desplegada',
     evidenceStatus('EV-01'),
@@ -135,8 +119,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cobertura de la detección  ·  fuente: Estado de agentes (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.mon.1.campo3',
     'Cobertura de la detección',
     evidenceStatus('EV-02'),
@@ -145,8 +128,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Detecciones del período  ·  fuente: Log + Correlación (EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.mon.1.campo4',
     'Detecciones del período',
     evidenceStatus('EV-03'),
@@ -155,8 +137,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Cobertura del análisis de riesgos  ·  fuente: ENSFácil (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.mon.1.campo5',
     'Cobertura del análisis de riesgos',
     evidenceStatus('EV-04'),
@@ -165,8 +146,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Detección en red  ·  fuente: Log Collection (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.mon.1.campo6',
     'Detección en red',
     evidenceStatus('EV-05'),
@@ -175,8 +155,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Vigencia del conjunto de reglas  ·  fuente: ENSFácil (EV-08)
-  const campo7 = field(
+  const field7 = field(
     'op.mon.1.campo7',
     'Vigencia del conjunto de reglas',
     evidenceStatus('EV-08'),
@@ -185,8 +164,7 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Exclusiones y afinación  ·  fuente: ENSFácil (EV-08)
-  const campo8 = field(
+  const field8 = field(
     'op.mon.1.campo8',
     'Exclusiones y afinación',
     evidenceStatus('EV-08'),
@@ -195,9 +173,8 @@ export const buildOpMon1ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Tratamiento de alertas conforme a procedimiento (R2)  ·  fuente: P-05 / P-ATT (+ EV-06, dato del informe)
   const r2 = requirements.get('op.mon.1.r2.1');
-  const campo9 = field(
+  const field9 = field(
     'op.mon.1.campo9',
     'Procedimientos de respuesta a las alertas (R2)',
     level === 'ALTO' ? asStatus(r2?.status) : 'NO_APLICA',
@@ -210,9 +187,8 @@ export const buildOpMon1ReportModel = (
     [...(r2?.observations || []), ...evidenceObservations('EV-06')],
   );
 
-  // Acciones predeterminadas ejecutadas (R3)  ·  fuente: Active Response (EV-07)
   const r3 = variables.get('cobertura_de_hecho_R3');
-  const campo10 = field(
+  const field10 = field(
     'op.mon.1.campo10',
     'Acciones predeterminadas ejecutadas (R3)',
     'NO_APLICA',
@@ -223,8 +199,7 @@ export const buildOpMon1ReportModel = (
     [...(r3 ? [r3.description] : []), ...evidenceObservations('EV-07')],
   );
 
-  // Puntuación de cumplimiento op.mon.1  ·  fuente: Motor ENSFácil
-  const campo11 = field(
+  const field11 = field(
     'op.mon.1.campo11',
     'Puntuación de cumplimiento op.mon.1',
     asStatus(result?.status),
@@ -254,17 +229,17 @@ export const buildOpMon1ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
     ],
   };
 };

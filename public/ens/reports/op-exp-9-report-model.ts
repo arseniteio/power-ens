@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.9 (Registro de la gestión de incidentes).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.9: translates the engine result into report fields. */
 export const buildOpExp9ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp9ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp9ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.9.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Expedientes de incidente del período  ·  fuente: ENSFácil (EV-09)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.9.campo2',
     'Expedientes de incidente del período',
     evidenceStatus('EV-09'),
@@ -121,8 +114,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Completitud de los reportes  ·  fuente: ENSFácil + ITSM (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.9.campo3',
     'Completitud de los reportes',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Actuaciones de emergencia registradas  ·  fuente: Active Response + Log (EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.9.campo4',
     'Actuaciones de emergencia registradas',
     evidenceStatus('EV-03'),
@@ -141,8 +132,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Modificaciones del sistema derivadas de incidentes  ·  fuente: FIM + Syscollector (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.9.campo5',
     'Modificaciones del sistema derivadas de incidentes',
     evidenceStatus('EV-04'),
@@ -151,8 +141,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Incidentes con relevancia jurídica  ·  fuente: ENSFácil (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.9.campo6',
     'Incidentes con relevancia jurídica',
     evidenceStatus('EV-05'),
@@ -161,8 +150,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Cadena de custodia de las evidencias  ·  fuente: ENSFácil + Indexer audit (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.9.campo7',
     'Cadena de custodia de las evidencias',
     evidenceStatus('EV-06'),
@@ -171,8 +159,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Protección de registros de períodos en investigación  ·  fuente: ENSFácil (EV-07)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.9.campo8',
     'Protección de registros de períodos en investigación',
     evidenceStatus('EV-07'),
@@ -181,8 +168,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Realimentación de eventos auditables  ·  fuente: ENSFácil + ITSM (EV-08)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.9.campo9',
     'Realimentación de eventos auditables',
     evidenceStatus('EV-08'),
@@ -191,8 +177,7 @@ export const buildOpExp9ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Puntuación de cumplimiento op.exp.9  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.exp.9.campo10',
     'Puntuación de cumplimiento op.exp.9',
     asStatus(result?.status),
@@ -215,16 +200,16 @@ export const buildOpExp9ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
     ],
   };
 };

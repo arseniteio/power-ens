@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.6 (Protección frente a código dañino).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.6: translates the engine result into report fields. */
 export const buildOpExp6ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp6ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp6ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.6.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cobertura del antimalware  ·  fuente: Syscollector + SCA (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.6.campo2',
     'Cobertura del antimalware',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Estado de actualización de firmas  ·  fuente: Log + SCA (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.6.campo3',
     'Estado de actualización de firmas',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Configuración y protección en tiempo real  ·  fuente: SCA (EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.6.campo4',
     'Configuración y protección en tiempo real',
     evidenceStatus('EV-03'),
@@ -141,8 +132,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Detecciones del período  ·  fuente: Log Collection (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.6.campo5',
     'Detecciones del período',
     evidenceStatus('EV-04'),
@@ -151,8 +141,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Análisis de ficheros externos y dispositivos extraíbles  ·  fuente: Log Collection (EV-12)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.6.campo6',
     'Análisis de ficheros externos y dispositivos extraíbles',
     evidenceStatus('EV-12'),
@@ -161,8 +150,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-12'),
   );
 
-  // Escaneo periódico completo (R1)  ·  fuente: Log + ENSFácil (EV-05)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.6.campo7',
     'Escaneo periódico completo (R1)',
     evidenceStatus('EV-05'),
@@ -171,8 +159,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Integridad de funciones críticas (R2)  ·  fuente: FIM + Rootcheck (EV-06)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.6.campo8',
     'Integridad de funciones críticas (R2)',
     evidenceStatus('EV-06'),
@@ -181,8 +168,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Lista blanca de aplicaciones (R3)  ·  fuente: Log + SCA (EV-07)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.6.campo9',
     'Lista blanca de aplicaciones (R3)',
     level === 'ALTO'
@@ -193,8 +179,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Capacidad EDR desplegada (R4)  ·  fuente: VirusTotal, YARA, Rootcheck, Active Response (EV-08 a EV-11)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.6.campo10',
     'Capacidad EDR desplegada (R4)',
     level === 'ALTO'
@@ -205,8 +190,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Actividad sospechosa no detectada por el antimalware  ·  fuente: Rootcheck + ATT&CK (EV-10)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.6.campo11',
     'Actividad sospechosa no detectada por el antimalware',
     evidenceStatus('EV-10'),
@@ -215,8 +199,7 @@ export const buildOpExp6ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento op.exp.6  ·  fuente: Motor ENSFácil
-  const campo12 = field(
+  const field12 = field(
     'op.exp.6.campo12',
     'Puntuación de cumplimiento op.exp.6',
     asStatus(result?.status),
@@ -239,18 +222,18 @@ export const buildOpExp6ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
     ],
   };
 };

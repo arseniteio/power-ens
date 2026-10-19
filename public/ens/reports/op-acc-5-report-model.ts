@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.acc.5 (Mecanismo de autenticación (usuarios externos)).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.acc.5: translates the engine result into report fields. */
 export const buildOpAcc5ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc5ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpAcc5ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.acc.5.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,30 +105,24 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Mecanismo de autenticación implementado  ·  fuente: Configuración (P-01)
-  //
-  // No estaba en el generado y es el campo que la plantilla pide destacar: el
-  // refuerzo declarado y si es admisible para el nivel. El estado sale de los
-  // requisitos de refuerzo que cuentan (los demás son NO_APLICA), así que un
-  // R1 en MEDIO o ALTO se ve aquí en rojo con su motivo.
-  const requisitosDeRefuerzo = (result?.requirements || []).filter(
+  const reinforcementRequirements = (result?.requirements || []).filter(
     requirement =>
       /^op\.acc\.5\.r[1-4]\./.test(requirement.id) &&
       requirement.status !== 'NO_APLICA'
   );
 
-  const estadoMecanismo: OpAcc5ReportFieldStatus = !requisitosDeRefuerzo.length
+  const mechanismStatus: OpAcc5ReportFieldStatus = !reinforcementRequirements.length
     ? 'SIN_DATOS'
-    : requisitosDeRefuerzo.some(requirement => requirement.status === 'NO_CUMPLE')
+    : reinforcementRequirements.some(requirement => requirement.status === 'NO_CUMPLE')
     ? 'NO_CUMPLE'
-    : requisitosDeRefuerzo.every(requirement => requirement.status === 'CUMPLE')
+    : reinforcementRequirements.every(requirement => requirement.status === 'CUMPLE')
     ? 'CUMPLE'
     : 'PARCIAL';
 
-  const campoMecanismo = field(
+  const mechanismField = field(
     'op.acc.5.mecanismo',
     'Mecanismo de autenticación implementado',
-    estadoMecanismo,
+    mechanismStatus,
     `P-01 = ${formatValue(parameterValue('P-01'))}${
       (level === 'MEDIO' || level === 'ALTO') &&
       String(parameterValue('P-01') || '').trim().toUpperCase().startsWith('R1')
@@ -142,13 +130,12 @@ export const buildOpAcc5ReportModel = (
         : ''
     }`,
     ['EV-07', 'EV-08'],
-    requisitosDeRefuerzo.flatMap(requirement =>
-      requirement.observations.slice(-1).map(texto => `${requirement.id}: ${texto}`)
+    reinforcementRequirements.flatMap(requirement =>
+      requirement.observations.slice(-1).map(text => `${requirement.id}: ${text}`)
     ),
   );
 
-  // Volumen de accesos externos en el período  ·  fuente: Log Collection (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.acc.5.campo2',
     'Volumen de accesos externos en el período',
     evidenceStatus('EV-01'),
@@ -157,8 +144,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cobertura temporal del registro de accesos  ·  fuente: Log Collection (EV-09)
-  const campo3 = field(
+  const field3 = field(
     'op.acc.5.campo3',
     'Cobertura temporal del registro de accesos',
     evidenceStatus('EV-09'),
@@ -167,8 +153,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Intentos fallidos y bloqueos aplicados  ·  fuente: Correlación (EV-02, EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.acc.5.campo4',
     'Intentos fallidos y bloqueos aplicados',
     evidenceStatus('EV-02'),
@@ -177,8 +162,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Antigüedad de credenciales frente a la política  ·  fuente: ENSFácil (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.acc.5.campo5',
     'Antigüedad de credenciales frente a la política',
     evidenceStatus('EV-04'),
@@ -187,8 +171,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Reacción ante compromiso y fin de relación  ·  fuente: Correlación (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.acc.5.campo6',
     'Reacción ante compromiso y fin de relación',
     evidenceStatus('EV-05'),
@@ -197,8 +180,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Segundo factor — verificación de aplicación  ·  fuente: Log Collection (EV-07)
-  const campo7 = field(
+  const field7 = field(
     'op.acc.5.campo7',
     'Segundo factor — verificación de aplicación',
     evidenceStatus('EV-07'),
@@ -207,8 +189,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Certificados — emisores y validación de revocación  ·  fuente: Log Collection (EV-08)
-  const campo8 = field(
+  const field8 = field(
     'op.acc.5.campo8',
     'Certificados — emisores y validación de revocación',
     evidenceStatus('EV-08'),
@@ -217,8 +198,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Información revelada en el proceso de autenticación  ·  fuente: Log Collection (EV-06)
-  const campo9 = field(
+  const field9 = field(
     'op.acc.5.campo9',
     'Información revelada en el proceso de autenticación',
     evidenceStatus('EV-06'),
@@ -227,7 +207,6 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Requisitos procedimentales — acreditación documental  ·  fuente: P-ATT
   const documentales = (result?.requirements || []).filter(requirement =>
     [
       'op.acc.5.1',
@@ -240,7 +219,7 @@ export const buildOpAcc5ReportModel = (
     ].includes(requirement.id) && requirement.status !== 'NO_APLICA'
   );
 
-  const campoDocumental = field(
+  const documentaryField = field(
     'op.acc.5.documental',
     'Requisitos procedimentales — acreditación documental',
     !documentales.length
@@ -257,8 +236,7 @@ export const buildOpAcc5ReportModel = (
     ),
   );
 
-  // Puntuación de cumplimiento op.acc.5  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.acc.5.campo10',
     'Puntuación de cumplimiento op.acc.5',
     asStatus(result?.status),
@@ -281,18 +259,18 @@ export const buildOpAcc5ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campoMecanismo,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campoDocumental,
-      campo10,
+      field1,
+      mechanismField,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      documentaryField,
+      field10,
     ],
   };
 };

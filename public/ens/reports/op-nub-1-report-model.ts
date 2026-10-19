@@ -73,9 +73,8 @@ const field = (
   producerGaps,
 });
 
-// El peor estado de varios campos (SIN_DATOS cuenta como sin medir). Sin
-// ninguno medido, el primero.
-const GRAVEDAD: Record<OpNub1ReportFieldStatus, number> = {
+// Worst state of several fields (SIN_DATOS counts as unmeasured); with none measured, the first.
+const SEVERITY_RANK: Record<OpNub1ReportFieldStatus, number> = {
   NO_APLICA: 0,
   CUMPLE: 1,
   SIN_DATOS: 2,
@@ -84,35 +83,18 @@ const GRAVEDAD: Record<OpNub1ReportFieldStatus, number> = {
   NO_CUMPLE: 4,
 };
 
-const peorEstado = (estados: OpNub1ReportFieldStatus[]): OpNub1ReportFieldStatus =>
-  estados.reduce<OpNub1ReportFieldStatus>(
-    (actual, estado) => (GRAVEDAD[estado] > GRAVEDAD[actual] ? estado : actual),
+const worstStatus = (statuses: OpNub1ReportFieldStatus[]): OpNub1ReportFieldStatus =>
+  statuses.reduce<OpNub1ReportFieldStatus>(
+    (current, status) => (SEVERITY_RANK[status] > SEVERITY_RANK[current] ? status : current),
     'NO_APLICA'
   );
 
 const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'];
 
-// Los dos bloques que la plantilla obliga a separar: «mezclarlos daría una
-// impresión falsa de cobertura».
-const DOCUMENTALES = ['op.nub.1.1', 'op.nub.1.r1.1', 'op.nub.1.r1.2'];
+// The template requires these two blocks kept apart: mixing them would give a false impression of coverage.
+const DOCUMENTARY = ['op.nub.1.1', 'op.nub.1.r1.1', 'op.nub.1.r1.2'];
 
-/**
- * Modelo de informe de op.nub.1 (Protección de servicios en la nube).
- *
- * Sale de la hoja «Informe ENSFácil» de la plantilla, ajustado al juicio de la
- * policy (`policies/op-nub-1.policy.ts`):
- *
- *   - El bloque DOCUMENTAL (expediente, vigencias, op.pl.5, prestador) se
- *     marca como documentación aportada, no verificada técnicamente: su CUMPLE
- *     es «acreditado documentalmente».
- *   - El bloque TÉCNICO (ingesta, operaciones administrativas, accesos y, en
- *     ALTA, la postura del proveedor) es lo medido en el manager de Wazuh.
- *   - Wazuh 4.14 no tiene «SCA cloud»: cifrado (EV-05) y región (EV-06) salen
- *     como datos del informe, con lo declarado; el shadow IT (EV-03) no se ve
- *     con ficheros locales. La configuración del inquilino (R2) son los
- *     hallazgos de postura del propio proveedor.
- *   - Un servicio sin integración en Wazuh es un hallazgo, no un incumplimiento.
- */
+/** Report model of op.nub.1: translates the engine result into report fields. */
 export const buildOpNub1ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpNub1ReportModel => {
@@ -164,8 +146,7 @@ export const buildOpNub1ReportModel = (
         : ''
     }`;
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.nub.1.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -179,8 +160,7 @@ export const buildOpNub1ReportModel = (
     ],
   );
 
-  // Inventario de servicios en la nube  ·  fuente: Configuración (P-02) + EV-03 (dato del informe)
-  const campo2 = field(
+  const field2 = field(
     'op.nub.1.campo2',
     'Inventario de servicios en la nube',
     'NO_APLICA',
@@ -191,8 +171,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Expediente documental por servicio  ·  fuente: ENSFácil (EV-09), documental
-  const campo3 = field(
+  const field3 = field(
     'op.nub.1.campo3',
     'Expediente documental por servicio',
     evidenceStatus('EV-09'),
@@ -201,14 +180,11 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Vigencia de certificaciones y conformidades  ·  fuente: ENSFácil (EV-08 y EV-09), documental
-  const campo4 = field(
+  const field4 = field(
     'op.nub.1.campo4',
     'Vigencia de certificaciones y conformidades',
-    // La peor de las certificaciones (EV-08, desde MEDIA) y de las
-    // conformidades de P-03: una conformidad vencida no puede salir en verde
-    // aquí porque las certificaciones estén en vigor.
-    peorEstado([
+    // Worst of the certifications and the P-03 conformities: an expired conformity cannot show green.
+    worstStatus([
       ...(level === 'BAJO' ? [] : [evidenceStatus('EV-08')]),
       asStatus(variables.get('vigencia_conformidades')?.value),
     ]),
@@ -217,8 +193,7 @@ export const buildOpNub1ReportModel = (
     [variableDescription('vigencias'), variableDescription('vigencia_conformidades'), ...evidenceObservations('EV-08')],
   );
 
-  // Configuración de seguridad del inquilino (R2)  ·  fuente: hallazgos de postura del proveedor (EV-02)
-  const campo5 = field(
+  const field5 = field(
     'op.nub.1.campo5',
     'Configuración de seguridad del inquilino (R2)',
     level === 'ALTO' ? evidenceStatus('EV-02') : 'NO_APLICA',
@@ -229,8 +204,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Trazabilidad del perímetro cloud  ·  fuente: módulos cloud de Wazuh (EV-01)
-  const campo6 = field(
+  const field6 = field(
     'op.nub.1.campo6',
     'Trazabilidad del perímetro cloud',
     evidenceStatus('EV-01'),
@@ -239,8 +213,7 @@ export const buildOpNub1ReportModel = (
     [variableDescription('servicios_sin_integracion'), ...evidenceObservations('EV-01')],
   );
 
-  // Operaciones administrativas en los servicios cloud  ·  fuente: módulos cloud (EV-04)
-  const campo7 = field(
+  const field7 = field(
     'op.nub.1.campo7',
     'Operaciones administrativas en los servicios cloud',
     evidenceStatus('EV-04'),
@@ -249,8 +222,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Cifrado y gestión de claves  ·  dato del informe (EV-05) + P-09 declarado
-  const campo8 = field(
+  const field8 = field(
     'op.nub.1.campo8',
     'Cifrado y gestión de claves',
     'NO_APLICA',
@@ -259,8 +231,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Región de los datos y jurisdicción  ·  dato del informe (EV-06) + P-08 declarado
-  const campo9 = field(
+  const field9 = field(
     'op.nub.1.campo9',
     'Región de los datos y jurisdicción',
     'NO_APLICA',
@@ -269,8 +240,7 @@ export const buildOpNub1ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Accesos a los servicios cloud  ·  fuente: módulos cloud (EV-07)
-  const campo10 = field(
+  const field10 = field(
     'op.nub.1.campo10',
     'Accesos a los servicios cloud',
     'NO_APLICA',
@@ -279,9 +249,8 @@ export const buildOpNub1ReportModel = (
     [variableDescription('accesos_cloud'), ...evidenceObservations('EV-07')],
   );
 
-  // Servicios de seguridad en la nube (R1.2)  ·  fuente: P-05, con su vigencia
   const r12 = requirements.get('op.nub.1.r1.2');
-  const campo11 = field(
+  const field11 = field(
     'op.nub.1.campo11',
     'Servicios de seguridad en la nube (R1.2)',
     level === 'BAJO' ? 'NO_APLICA' : asStatus(r12?.status),
@@ -298,14 +267,13 @@ export const buildOpNub1ReportModel = (
     r12?.observations || [],
   );
 
-  // Puntuación de cumplimiento op.nub.1  ·  fuente: Motor ENSFácil
   const documentales = (result?.requirements || []).filter(
-    requirement => DOCUMENTALES.includes(requirement.id) || requirement.attested,
+    requirement => DOCUMENTARY.includes(requirement.id) || requirement.attested,
   );
-  const tecnicos = (result?.requirements || []).filter(
+  const technical = (result?.requirements || []).filter(
     requirement => !documentales.includes(requirement),
   );
-  const campo12 = field(
+  const field12 = field(
     'op.nub.1.campo12',
     'Puntuación de cumplimiento op.nub.1',
     asStatus(result?.status),
@@ -315,7 +283,7 @@ export const buildOpNub1ReportModel = (
       `Bloque documental (se negocia con el proveedor): ${variableDescription('bloque_documental') || 'sin datos'}`,
       ...documentales.map(describeRequirement),
       `Bloque técnico (se configura): ${variableDescription('bloque_tecnico') || 'sin datos'}`,
-      ...tecnicos.map(describeRequirement),
+      ...technical.map(describeRequirement),
     ],
   );
 
@@ -333,18 +301,18 @@ export const buildOpNub1ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
     ],
   };
 };

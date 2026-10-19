@@ -83,10 +83,10 @@ comprueba('la fila de la lista: con un fallo, el aviso y no un veredicto', /if \
 const informes = fs.readFileSync(path.join(raiz, 'public/ens/reports/index.tsx'), 'utf8');
 // Qué enseña cada sección lo decide `reportViewState` (probado en
 // `tests/report-view-state.test.ts`); aquí, que la pantalla lo use así.
-comprueba('Informes: el PDF solo se exporta con el informe listo', /const exportarPDF = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(!exportable \|\| !complianceResult\) return;/.test(informes) && /const exportable = canExportReport\(vista\);/.test(informes));
-comprueba('Informes: el botón, desactivado salvo con el informe listo', /onClick=\{exportarPDF\} isDisabled=\{!exportable\}/.test(informes) && /fill isDisabled>/.test(informes));
-comprueba('Informes: sin resultado aún (o con el panorama en curso), la carga y el botón desactivado (nunca NO_EVALUABLE ni SIN_DATOS de relleno)', /if \(vista\.kind === 'loading' \|\| vista\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(informes));
-comprueba('Informes: llegada sin resultado para esta máquina, «no se mide» con su motivo y el botón desactivado', /if \(vista\.kind === 'not-measured'\) \{[\s\S]{0,600}\{vista\.text\}[\s\S]{0,300}fill isDisabled>/.test(informes) && /describeNotMeasuredOnAgent\(/.test(informes));
+comprueba('Informes: el PDF solo se exporta con el informe listo', /const exportPdf = \(\) => \{\s*(\/\/[^\n]*\n\s*)*if \(!exportable \|\| !complianceResult\) return;/.test(informes) && /const exportable = canExportReport\(view\);/.test(informes));
+comprueba('Informes: el botón, desactivado salvo con el informe listo', /onClick=\{exportPdf\} isDisabled=\{!exportable\}/.test(informes) && /fill isDisabled>/.test(informes));
+comprueba('Informes: sin resultado aún (o con el panorama en curso), la carga y el botón desactivado (nunca NO_EVALUABLE ni SIN_DATOS de relleno)', /if \(view\.kind === 'loading' \|\| view\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(informes));
+comprueba('Informes: llegada sin resultado para esta máquina, «no se mide» con su motivo y el botón desactivado', /if \(view\.kind === 'not-measured'\) \{[\s\S]{0,600}\{view\.text\}[\s\S]{0,300}fill isDisabled>/.test(informes) && /describeNotMeasuredOnAgent\(/.test(informes));
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
 process.exit(fallos.length ? 1 : 0);

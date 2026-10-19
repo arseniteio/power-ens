@@ -997,8 +997,8 @@ bloque('9. El informe: implantación y grises con el resultado de todos los cont
   );
   comprueba(
     'sin panorama de esta máquina, PDF desactivado y la carga (no SIN_DATOS); el panorama solo es el de la evaluación vigente',
-    /valor: evaluacion\.data \? \{ results: evaluacion\.data\.results \} : undefined/.test(segunda) &&
-      /loading: vigente\.cargando/.test(segunda) &&
+    /valor: evaluation\.data \? \{ results: evaluation\.data\.results \} : undefined/.test(segunda) &&
+      /loading: valid\.cargando/.test(segunda) &&
       /panoramaLoading: Boolean\(panorama\?\.loading\)/.test(informes) &&
       /if \(!exportable \|\| !complianceResult\) return;/.test(informes) &&
       /isDisabled=\{!exportable\}/.test(informes)

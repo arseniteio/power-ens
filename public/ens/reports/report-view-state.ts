@@ -1,17 +1,4 @@
-// Qué enseña la sección de informe de un control, sin React (lo prueba
-// `tests/report-view-state.test.ts`). Nunca un relleno que parezca medido:
-//
-//   - error          la evaluación falló: el motivo y «Reintentar»;
-//   - loading        aún no ha llegado la evaluación de ESTA selección;
-//   - not-measured   llegó, y el servidor no da resultado para esta máquina:
-//                    «este control no se mide en esta máquina» y por qué
-//                    (`describeNotMeasuredOnAgent`, la misma regla que la ficha
-//                    y la lista de controles);
-//   - panorama-loading  el informe recopila todos los controles (op.mon.2) y su
-//                    panorama aún no ha llegado: ni SIN_DATOS ni N/A de relleno;
-//   - ready          se pinta el informe (y se puede exportar).
-//
-// Un panorama que FALLÓ no bloquea el informe: sale SIN_DATOS con su aviso.
+// What a control's report section shows, without React (tests/report-view-state.test.ts). Never a filler that looks measured.
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
 
 export type ENSReportViewState =
@@ -30,7 +17,6 @@ export interface ENSReportViewInput {
   hasResult: boolean;
   usesPanorama: boolean;
   panoramaLoading: boolean;
-  // Solo se llama con una máquina elegida y sin resultado.
   notMeasured: () => ENSNotMeasuredReason | undefined;
 }
 
