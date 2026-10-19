@@ -80,10 +80,13 @@ The guides in `docs/deployment/` follow the same style:
 
 The tests need Python 3 and Node.js 18 or later; the script tests also need
 `bash`, `zip` and `unzip`. From the repository root, with the runbooks cloned
-next to the plugin:
+next to the plugin. The first command installs into `node_modules/` the
+`package.json` dependencies the engine imports (`re2js`):
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```

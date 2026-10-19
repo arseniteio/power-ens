@@ -1,6 +1,6 @@
 # Configuración por controles y plantillas
 
-Esta guía describe la pantalla de Configuración de ENSFácil 1.3.0: sus tres pestañas, el valor que se aplica a cada agente, las plantillas de cada control, la asignación de plantillas a los agentes, la conversión de una configuración de la 1.2.0 y la declaración de plantillas y ajustes desde el servidor.
+Esta guía describe la pantalla de Configuración de ENSFácil 1.3.0: sus tres pestañas, el valor que se aplica a cada agente, las plantillas de cada control, la asignación de plantillas a los agentes, la entrada de listas y el modo «Expresión regular», la conversión de una configuración de la 1.2.0 y la declaración de plantillas y ajustes desde el servidor.
 
 ## 1. Objetivo
 
@@ -49,6 +49,7 @@ Reglas de la resolución:
 - La plantilla de serie de un tipo se aplica solo a los agentes con el tipo **guardado** en su perfil (detectado o corregido a mano, apartado 6.1). Sin tipo guardado, el agente toma el valor común.
 - Los parámetros por sistema que describen **otras** máquinas en un control que se mide en el manager se resuelven por **unión**: en la fila del manager, el valor es el común más las filas de cada agente (ajuste propio o plantilla), sin repetir. Son op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01 y, en la fila del manager, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07.
 - El alcance declarado de mp.info.6 (P-04) también se resuelve por unión, en todas las filas.
+- El modo de comparación de un valor («Texto exacto» o «Expresión regular», apartado 5.5) va con el valor: el agente toma el modo del nivel del que toma el valor.
 - La resolución es la misma en el navegador y en la evaluación del servidor.
 
 La pantalla indica el origen de cada valor de un agente: «ajuste propio de este agente», «heredado de la plantilla asignada «…»», «heredado de la plantilla de serie «…» de su tipo», «heredado del valor común del control» o, en una unión, «este agente no aporta filas propias».
@@ -167,6 +168,56 @@ Para asignar una plantilla a varios agentes:
 
    Resultado esperado: la plantilla en la columna «Plantilla» de cada agente y las casillas vacías. Los ajustes propios se conservan.
 
+### 5.5 Listas y expresiones regulares
+
+En un campo de lista se escriben o se pegan varios elementos separados por comas, punto y coma o saltos de línea. Se descartan las entradas vacías y los duplicados. En op.acc.1 P-03 y P-04 el espacio también separa: `admin,test administrador` añade tres cuentas. En las demás listas el espacio forma parte del elemento: en op.acc.1 P-01, `Active Directory, Azure AD` añade dos fuentes. Los valores ya guardados no se vuelven a dividir.
+
+Los parámetros cuyo juicio compara una lista plana admiten dos modos, «Texto exacto» y «Expresión regular», en los ajustes comunes, en las plantillas y en los ajustes propios de un agente:
+
+| Control | Parámetros |
+|---|---|
+| op.acc.1 | P-03 Cuentas de servicio legítimas; P-04 Cuentas genéricas prohibidas |
+| op.acc.4 | P-05 Usuarios autorizados acceso remoto |
+| op.acc.6 | P-08 Puntos renovacion autenticacion; P-11 Exposiciones autenticacion admitidas |
+
+Para declarar una expresión regular:
+
+1. En «Ajustes comunes» (apartado 5.2), en «Crear plantilla» o «Editar» (apartado 5.3) o en «Dar ajuste propio» de un agente (apartado 6.2), elegir «Expresión regular» en «Modo de <parámetro>».
+
+   Resultado esperado: el campo propone una expresión que conserva los nombres actuales, con sus caracteres especiales escapados (`admin.*` y `guest` dan `^(?:admin\.\*|guest)$`), y aparece «Probar con un valor».
+
+2. Escribir el patrón, sin barras `/…/`.
+
+   Resultado esperado: un patrón inválido se marca en el campo con el motivo y no se guarda.
+
+3. Escribir un valor en «Probar con un valor».
+
+   Resultado esperado: «Coincide con la expresión.» o «No coincide con la expresión.», con la misma comparación que la evaluación.
+
+4. Guardar.
+
+   Resultado esperado: tras guardar los ajustes comunes, el resumen muestra «Expresión regular: <patrón>»; en una plantilla o en un agente, el valor se muestra igual.
+
+Ejemplos:
+
+```text
+^svc_.*$                        Cuentas que empiezan por svc_
+^(admin|test|administrador)$    Uno de esos tres nombres
+(?i)^admin$                     admin sin distinguir mayúsculas
+```
+
+Reglas:
+
+- Sintaxis RE2 (`re2js` 2.8.6), hasta 512 caracteres. No admite lookaround ni referencias a grupos anteriores. El motor es lineal: un patrón no puede bloquear la evaluación.
+- Se compara el valor completo y se distinguen mayúsculas y minúsculas; `(?i)` al principio deja de distinguirlas.
+- Una coincidencia no es cumplimiento por sí sola: en una lista prohibida (op.acc.1 P-04) señala una cuenta prohibida; en una lista autorizada (op.acc.4 P-05), una cuenta admitida.
+- Al cambiar de modo durante la edición se conservan los borradores de los dos modos. Se guarda solo el modo elegido y su valor.
+- El modo se guarda junto al valor de su nivel: `matchMode` junto a `value` en los ajustes comunes, y `matchModes.<parámetro>` en la plantilla y en el control del agente. Solo se guarda `regex`; sin la clave, el valor es texto exacto. El patrón es texto en `value`, así que el tipo del campo en el índice no cambia.
+- El modo va con el valor (apartado 4): una lista de una plantilla o de un ajuste propio se compara como texto exacto aunque el valor común sea una expresión regular, y al revés.
+- Un patrón inválido recibido de una configuración externa deja la evidencia en `NO_EVALUABLE` con el motivo; `validate-configuration.ts` lo lista (apartado 11.2).
+- Una configuración sin `matchMode` se compara como texto exacto, igual que en la 1.2.0.
+- `inject-control.py` conserva el valor y su modo. Borrar la configuración del control quita los dos.
+
 ## 6. Pestaña «Agentes»
 
 La pestaña lista los agentes del alcance con su tipo, las plantillas que usan y su completitud, y los perfiles guardados de agentes que ya no están en el alcance, con «fuera del alcance».
@@ -219,7 +270,7 @@ Para cambiar la plantilla de un control:
 
 Para declarar un ajuste propio:
 
-1. Pulsar «Dar ajuste propio» (o «Editar», si ya lo tiene), escribir el valor y pulsar «Guardar para este agente».
+1. Pulsar «Dar ajuste propio» (o «Editar», si ya lo tiene), escribir el valor y pulsar «Guardar para este agente». En los parámetros del apartado 5.5, elegir antes el modo en «Modo de <parámetro>».
 
    Resultado esperado: el origen pasa a «ajuste propio de este agente». Un valor inválido se rechaza con el motivo y no se guarda.
 
@@ -234,7 +285,7 @@ Para declarar un ajuste propio:
 Reglas del guardado:
 
 - Un valor vacío no se guarda como ajuste propio: el agente vuelve a heredar.
-- Un valor igual al que el agente ya heredaba no se guarda como propio: sigue a su origen cuando cambie.
+- Un valor igual al que el agente ya heredaba, en el mismo modo, no se guarda como propio: sigue a su origen cuando cambie.
 - Los guardados de una misma página se hacen en orden y sobre la versión más reciente del documento.
 
 Los parámetros que describen máquinas (op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07 en un control que se mide en el manager, y el alcance declarado de mp.info.6) se declaran en cada agente solo con sus filas: la página enseña aparte «Del valor común», de solo lectura, y el botón es «Declarar filas de este agente». En la página del manager se enseña además «Lo que se evalúa en esta fila», la unión completa.
@@ -257,7 +308,7 @@ Lo que esta versión no conoce (una clave guardada por una versión posterior) s
 
 ### 6.4 Otros nombres de un agente
 
-El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre de agente y su hostname. Si las tablas la nombran de otra forma, ese nombre se declara en su página.
+El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre de agente y el nombre del equipo. Si las tablas la nombran de otra forma, ese nombre se declara en su página.
 
 1. Escribir los nombres en «Otros nombres de este agente», separados por comas, y pulsar «Guardar otros nombres».
 
@@ -393,6 +444,7 @@ Reglas:
 - Vacío es sin valor: `null`, `""` y `[]` quitan el ajuste propio, que vuelve a heredar, y en los valores comunes quitan la clave `value`. En el documento nunca se escribe `null`.
 - Quitar se admite siempre, también un ajuste que no se aplica.
 - El valor de cada parámetro nombrado se sustituye entero.
+- Una expresión regular (apartado 5.5) se declara con un objeto, en los valores comunes y en un agente: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor quita también su modo. Se comprueban el modo, el parámetro y la longitud; la sintaxis RE2 la comprueba `validate-configuration.ts` (apartado 11.2).
 - La herramienta lee la clasificación de `common/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
 
 ```bash
@@ -410,33 +462,37 @@ Las plantillas propias se crean y se editan en la pantalla (apartado 5.3).
 
 ### 11.2 Validar el documento
 
-`config/validate-configuration.ts` comprueba también las plantillas propias y los ajustes de los agentes ([instalación desde cero, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero)):
+`config/validate-configuration.ts` comprueba también los valores comunes, las plantillas propias y los ajustes de los agentes ([instalación desde cero, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero)):
 
 ```bash
 cd /opt/ensfacil/repo
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, la línea `plantillas propias: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Sin ajustes de agentes, la línea es `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. Con un documento de la 1.2.0, la línea `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
+Resultado esperado: `Done` tras la instalación de las dependencias; después, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, la línea `plantillas propias: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Sin ajustes de agentes, la línea es `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. Con un documento de la 1.2.0, la línea `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
 
 | Mensaje | Significado | Actuación |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
+| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, un modo que no es `exact` ni `regex` en `matchModes`, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
+| `VALORES COMUNES INVÁLIDOS` | Un valor común que no es válido para su parámetro, por ejemplo una expresión regular escrita con `set-parameters.py` que no compila: el control queda «Inválido» | Corregir el valor en «Ajustes comunes» o con `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, o un parámetro común: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «la plantilla asignada «…» no existe» | Una asignación a una plantilla borrada o de otra versión: el agente toma la de serie de su tipo | Asignar otra plantilla (apartados 5.4 o 6.2) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con `plantilla <id>` | Una plantilla propia con un id reservado o repetido, de un control que no está o con un valor inválido | Corregir o borrar la plantilla (apartado 5.3) |
-| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos o plantillas de la 1.2.0 sin convertir | Ninguna: no cambian la salida |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «Expresión regular inválida» o «no admite expresiones regulares» | Un patrón que no compila o un modo «Expresión regular» en un parámetro que no lo admite: la evidencia queda en `NO_EVALUABLE` | Corregir el patrón o volver a «Texto exacto» (apartado 5.5) |
+| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos, plantillas de la 1.2.0 sin convertir o un modo de comparación sin valor en su nivel | Ninguna: no cambian la salida |
 
 ### 11.3 Sembrar controles
 
-`inject-control.py` conserva `configuration.agents` y `configuration.templates` en cada siembra, también con `--sustituir`. Si el bloque ya no declara un parámetro y un agente o una plantilla propia tenía valor para él, el plan muestra `AVISO: valores de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 6.3 o editando la plantilla. Al sembrar un control nuevo no se crean plantillas, asignaciones ni ajustes de agentes.
+`inject-control.py` conserva `configuration.agents` y `configuration.templates` en cada siembra, también con `--sustituir`, y en la fusión conserva el `matchMode` de cada valor común. Si el bloque ya no declara un parámetro y un agente o una plantilla propia tenía valor para él, el plan muestra `AVISO: valores de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 6.3 o editando la plantilla. Al sembrar un control nuevo no se crean plantillas, asignaciones ni ajustes de agentes.
 
 ## 12. Compatibilidad y vuelta atrás
 
 - Las plantillas propias van en la clave de primer nivel `configuration.templates`, y la asignación de cada agente en `configuration.agents.<id>.controls.<control>.templateId`, junto a sus ajustes propios en `parameters`. `controls[].parameters[].value` sigue siendo el valor común, que es lo que leen un plugin 1.1.0, el chatbot y los scripts.
 - Un plugin 1.2.0 carga un documento de la 1.3.0: su validador no comprueba claves desconocidas, ignora `templates` y avisa de `templateId` como clave que no conoce. Evalúa con los ajustes propios y con el valor común, sin las plantillas asignadas.
 - El servidor de la 1.3.0 rechaza con el error 400 un guardado cuyo `agents` o `templates` no tiene la forma correcta, y conserva los existentes cuando el cuerpo no trae la clave.
+- Un plugin 1.2.0 ignora `matchMode` y `matchModes` y compara un patrón como un nombre literal. Antes de volver a la 1.2.0 se pasan esos valores a «Texto exacto» o se restaura una versión del documento sin ellos.
 - **Cada versión del documento queda en el historial antes de sustituirse**, con independencia de quién escribe: el servidor la añade al historial si no es ya su última entrada, también en la conversión de la 1.2.0 y en el reparto por agentes; y `inject-control.py` y `set-parameters.py` guardan la versión que sustituyen antes de escribir, en el historial o, si el índice no lo admite, en un fichero local `active-antes-<fecha>.json`. Las dos indican dónde quedó con `Versión anterior guardada en: …`.
 - Para volver a la 1.2.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Para que la 1.2.0 evalúe con sus plantillas, se restaura la versión del documento anterior a la conversión. Para volver a la 1.1.0 después de «Repartir por agentes», se restaura la versión anterior al reparto.
 

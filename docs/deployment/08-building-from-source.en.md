@@ -266,8 +266,9 @@ In Docker, `deploy-plugin.sh` is not used: the built zip,
 
 ## 7. Run the tests
 
-The tests need Python 3 and Node.js 18 or later. The script tests also need
-`bash`, `zip` and `unzip`. `tests/check-consistency.py` compares the plugin
+The tests need Python 3, Node.js 18 or later and the `package.json`
+dependencies installed in `node_modules/` (the engine imports `re2js`). The
+script tests also need `bash`, `zip` and `unzip`. `tests/check-consistency.py` compares the plugin
 with the runbooks: it looks for them next to the plugin folder and recognizes
 them by their `origin` remote, whatever the folder name.
 
@@ -278,26 +279,30 @@ With the runbooks next to the plugin (as in the
 the README loop is enough, from the repository root:
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Expected result: `coherencia OK` at the end of the first command and no `FAIL`
-line.
+Expected result: `Done` at the end of the first command, `coherencia OK` at the
+end of the second and no `FAIL` line.
 
 Without Node.js on the machine, each TypeScript suite runs in Docker:
 
 ```bash
-docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx tests/plugin-manifest.test.ts
+docker run --rm -v "$PWD":/w -w /w node:22-alpine \
+  sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx tests/plugin-manifest.test.ts'
 ```
 
 Or all of them, with `ci/run-tests.sh` in the same image as CI. The folder that
-holds the plugin and the runbooks is mounted read-only:
+holds the plugin and the runbooks is mounted read-only, and the plugin folder
+writable for `node_modules/`:
 
 ```bash
-docker run --rm -v "$(dirname "$PWD")":/base:ro -w "/base/$(basename "$PWD")" node:22-bookworm \
-  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends zip > /dev/null && ci/run-tests.sh'
+docker run --rm -v "$(dirname "$PWD")":/base:ro -v "$PWD":"/base/$(basename "$PWD")" -w "/base/$(basename "$PWD")" node:22-bookworm \
+  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends zip > /dev/null && npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && ci/run-tests.sh'
 ```
 
 Expected result: `OK` for each suite and, at the end, `las <n> suites pasan`.
@@ -308,11 +313,12 @@ container, that part is skipped with a warning.
 
 ### 7.2 Like CI, in a clean folder
 
-CI clones the runbooks with `ci/clone-runbooks.sh` and runs the tests with
-`ci/run-tests.sh`:
+CI clones the runbooks with `ci/clone-runbooks.sh`, installs the dependencies
+and runs the tests with `ci/run-tests.sh`:
 
 ```bash
 ci/clone-runbooks.sh <folder that holds the plugin>
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 ci/run-tests.sh
 ```
 

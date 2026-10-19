@@ -401,10 +401,12 @@ config/            bloques de configuración y herramientas del manager:
 tests/             suites del motor y comprobación de coherencia
 ```
 
-Pruebas (Python 3 y Node.js 18 o superior; las de los scripts, `bash`, `zip` y `unzip`):
+Pruebas (Python 3 y Node.js 18 o superior; las de los scripts, `bash`, `zip` y `unzip`). La primera orden instala en `node_modules/` las dependencias de `package.json`, que el motor importa (`re2js`):
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```

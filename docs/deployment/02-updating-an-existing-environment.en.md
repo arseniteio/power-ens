@@ -254,10 +254,11 @@ Validate the whole document with the plugin validator:
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active -o /opt/ensfacil/artifacts/active-now.json
 cd /opt/ensfacil/repo
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `ESTRUCTURA VÁLIDA`. If the result is `ESTRUCTURA INVÁLIDA`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
+Expected result: `Done` after installing the dependencies and `ESTRUCTURA VÁLIDA`. If the result is `ESTRUCTURA INVÁLIDA`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
 
 If the environment comes from 1.0.0, adjust the replicas of the configuration index. Since 1.1.0 the plugin creates `wazuh-ens-configuration` with `auto_expand_replicas: 0-1`, but only when the index does not exist: one created by 1.0.0 keeps its replica and, on a single-node indexer, stays yellow because that replica cannot be assigned. The plugin does not change an index that already exists; it is done once, by hand, with the indexer admin certificate:
 

@@ -1,6 +1,6 @@
 # Configuration by controls and templates
 
-This guide describes the Configuración screen of ENSFácil 1.3.0: its three tabs, the value applied to each agent, each control's templates, the assignment of templates to agents, the conversion of a 1.2.0 configuration and the declaration of templates and settings from the server.
+This guide describes the Configuración screen of ENSFácil 1.3.0: its three tabs, the value applied to each agent, each control's templates, the assignment of templates to agents, list input and the «Expresión regular» mode, the conversion of a 1.2.0 configuration and the declaration of templates and settings from the server.
 
 ## 1. Objective
 
@@ -49,6 +49,7 @@ Resolution rules:
 - A type's built-in template only applies to agents with the type **stored** in their profile (detected or corrected by hand, section 6.1). With no stored type, the agent takes the common value.
 - Per-system parameters that describe **other** machines in a control measured on the manager resolve by **union**: on the manager row, the value is the common one plus each agent's rows (own setting or template), without repeats. They are op.exp.7 P-04 and P-07, op.cont.3 P-07, op.mon.1 P-01 and, on the manager row, op.exp.8 P-02 and op.mon.3 P-01, P-03 and P-07.
 - The declared scope of mp.info.6 (P-04) also resolves by union, on every row.
+- A value's comparison mode («Texto exacto» or «Expresión regular», section 5.5) travels with the value: the agent takes the mode of the level it takes the value from.
 - The resolution is the same in the browser and in the server evaluation.
 
 The screen shows the origin of each value of an agent: «ajuste propio de este agente», «heredado de la plantilla asignada «…»», «heredado de la plantilla de serie «…» de su tipo», «heredado del valor común del control» or, in a union, «este agente no aporta filas propias».
@@ -167,6 +168,56 @@ To assign a template to several agents:
 
    Expected result: the template in each agent's «Plantilla» column and the boxes cleared. Own settings are kept.
 
+### 5.5 Lists and regular expressions
+
+In a list field, several items are typed or pasted separated by commas, semicolons or line breaks. Empty entries and duplicates are dropped. In op.acc.1 P-03 and P-04 a space also separates: `admin,test administrador` adds three accounts. In the other lists the space is part of the item: in op.acc.1 P-01, `Active Directory, Azure AD` adds two sources. Values already stored are not split again.
+
+The parameters whose judgment compares a flat list accept two modes, «Texto exacto» and «Expresión regular», in the common settings, in templates and in an agent's own settings:
+
+| Control | Parameters |
+|---|---|
+| op.acc.1 | P-03 Cuentas de servicio legítimas; P-04 Cuentas genéricas prohibidas |
+| op.acc.4 | P-05 Usuarios autorizados acceso remoto |
+| op.acc.6 | P-08 Puntos renovacion autenticacion; P-11 Exposiciones autenticacion admitidas |
+
+To declare a regular expression:
+
+1. In «Ajustes comunes» (section 5.2), in «Crear plantilla» or «Editar» (section 5.3) or in an agent's «Dar ajuste propio» (section 6.2), choose «Expresión regular» in «Modo de <parameter>».
+
+   Expected result: the field proposes an expression that keeps the current names, with their special characters escaped (`admin.*` and `guest` give `^(?:admin\.\*|guest)$`), and «Probar con un valor» appears.
+
+2. Type the pattern, without `/…/` slashes.
+
+   Expected result: an invalid pattern is flagged on the field with its reason and is not saved.
+
+3. Type a value in «Probar con un valor».
+
+   Expected result: «Coincide con la expresión.» or «No coincide con la expresión.», with the same comparison as the evaluation.
+
+4. Save.
+
+   Expected result: after saving the common settings, the summary shows «Expresión regular: <pattern>»; in a template or an agent, the value is shown the same way.
+
+Examples:
+
+```text
+^svc_.*$                        Accounts starting with svc_
+^(admin|test|administrador)$    One of those three names
+(?i)^admin$                     admin, case-insensitive
+```
+
+Rules:
+
+- RE2 syntax (`re2js` 2.8.6), up to 512 characters. Lookaround and back-references are not supported. The engine is linear: a pattern cannot block the evaluation.
+- The whole value is compared and case matters; `(?i)` at the start makes it case-insensitive.
+- A match is not compliance by itself: in a forbidden list (op.acc.1 P-04) it flags a forbidden account; in an authorised list (op.acc.4 P-05), an allowed account.
+- Switching mode while editing keeps the drafts of both modes. Only the chosen mode and its value are saved.
+- The mode is stored next to the value of its level: `matchMode` next to `value` in the common settings, and `matchModes.<parameter>` in the template and in the agent's control. Only `regex` is stored; without the key, the value is exact text. The pattern is text in `value`, so the field type in the index does not change.
+- The mode travels with the value (section 4): a list from a template or an own setting is compared as exact text even when the common value is a regular expression, and the other way round.
+- An invalid pattern received from an external configuration leaves the evidence `NO_EVALUABLE` with the reason; `validate-configuration.ts` lists it (section 11.2).
+- A configuration without `matchMode` is compared as exact text, as in 1.2.0.
+- `inject-control.py` keeps the value and its mode. Clearing the control's configuration removes both.
+
 ## 6. «Agentes» tab
 
 The tab lists the agents in scope with their type, the templates they use and their completeness, and the stored profiles of agents no longer in scope, marked «fuera del alcance».
@@ -219,7 +270,7 @@ To change a control's template:
 
 To declare an own setting:
 
-1. Press «Dar ajuste propio» (or «Editar», if it already has one), type the value and press «Guardar para este agente».
+1. Press «Dar ajuste propio» (or «Editar», if it already has one), type the value and press «Guardar para este agente». For the parameters in section 5.5, choose the mode in «Modo de <parameter>» first.
 
    Expected result: the origin becomes «ajuste propio de este agente». An invalid value is rejected with its reason and not saved.
 
@@ -234,7 +285,7 @@ To declare an own setting:
 Save rules:
 
 - An empty value is not stored as an own setting: the agent inherits again.
-- A value equal to the one the agent already inherited is not stored as its own: it follows its origin when that changes.
+- A value equal to the one the agent already inherited, in the same mode, is not stored as its own: it follows its origin when that changes.
 - Saves on the same page run in order and on the latest version of the document.
 
 Parameters that describe machines (op.exp.7 P-04 and P-07, op.cont.3 P-07, op.mon.1 P-01, op.exp.8 P-02 and op.mon.3 P-01, P-03 and P-07 in a control measured on the manager, and the declared scope of mp.info.6) are declared on each agent with its own rows only: the page shows «Del valor común» apart, read-only, and the button is «Declarar filas de este agente». The manager page also shows «Lo que se evalúa en esta fila», the full union.
@@ -257,7 +308,7 @@ What this version does not know (a key stored by a later version) is listed in �
 
 ### 6.4 Other names of an agent
 
-The distribution by agents (section 9) recognises a machine by its id, its agent name and its hostname. If the tables name it differently, that name is declared on its page.
+The distribution by agents (section 9) recognises a machine by its id, its agent name and its computer name. If the tables name it differently, that name is declared on its page.
 
 1. Type the names in «Otros nombres de este agente», separated by commas, and press «Guardar otros nombres».
 
@@ -393,6 +444,7 @@ Rules:
 - Empty means no value: `null`, `""` and `[]` remove the own setting, which inherits again, and in the common values remove the `value` key. `null` is never written to the document.
 - Removing is always accepted, also for a setting that does not apply.
 - Each named parameter's value is replaced whole.
+- A regular expression (section 5.5) is declared with an object, in the common values and on an agent: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. A value without an object is exact text and removes any mode; emptying the value also removes its mode. The mode, the parameter and the length are checked; the RE2 syntax is checked by `validate-configuration.ts` (section 11.2).
 - The tool reads the classification from `common/ens/configuration/agents/parameter-classes.ts`: it runs from `config/` inside the complete plugin repository.
 
 ```bash
@@ -410,33 +462,37 @@ Custom templates are created and edited on the screen (section 5.3).
 
 ### 11.2 Validate the document
 
-`config/validate-configuration.ts` also checks custom templates and agent settings ([installation from scratch, section 14.4](01-installation-from-scratch.en.md#144-validate-the-whole-document)):
+`config/validate-configuration.ts` also checks common values, custom templates and agent settings ([installation from scratch, section 14.4](01-installation-from-scratch.en.md#144-validate-the-whole-document)):
 
 ```bash
 cd /opt/ensfacil/repo
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, the line `plantillas propias: …`, one line per agent with its type, its assigned templates and its own settings, and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Without agent settings, the line is `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. With a 1.2.0 document, the line `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
+Expected result: `Done` after installing the dependencies; then `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, the line `plantillas propias: …`, one line per agent with its type, its assigned templates and its own settings, and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Without agent settings, the line is `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. With a 1.2.0 document, the line `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
 
 | Message | Meaning | Action |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
+| `ESTRUCTURA INVÁLIDA` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
+| `VALORES COMUNES INVÁLIDOS` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, or a common parameter: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «la plantilla asignada «…» no existe» | An assignment to a deleted template or one from another version: the agent takes the built-in template of its type | Assign another template (sections 5.4 or 6.2) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with `plantilla <id>` | A custom template with a reserved or repeated id, of a control not present or with an invalid value | Fix or delete the template (section 5.3) |
-| `avisos (…)` | Keys from a later plugin version, repeated template names or unconverted 1.2.0 templates | None: they do not change the outcome |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «Expresión regular inválida» or «no admite expresiones regulares» | A pattern that does not compile or the «Expresión regular» mode on a parameter that does not accept it: the evidence is `NO_EVALUABLE` | Fix the pattern or go back to «Texto exacto» (section 5.5) |
+| `avisos (…)` | Keys from a later plugin version, repeated template names, unconverted 1.2.0 templates or a comparison mode without a value at its level | None: they do not change the outcome |
 
 ### 11.3 Seed controls
 
-`inject-control.py` keeps `configuration.agents` and `configuration.templates` on every seed, also with `--sustituir`. If the block no longer declares a parameter and an agent or a custom template had a value for it, the plan shows `AVISO: valores de parámetros retirados, quedan huérfanos: …`; those values do not apply and are removed as in section 6.3 or by editing the template. Seeding a new control creates no templates, assignments or agent settings.
+`inject-control.py` keeps `configuration.agents` and `configuration.templates` on every seed, also with `--sustituir`, and when merging keeps the `matchMode` of each common value. If the block no longer declares a parameter and an agent or a custom template had a value for it, the plan shows `AVISO: valores de parámetros retirados, quedan huérfanos: …`; those values do not apply and are removed as in section 6.3 or by editing the template. Seeding a new control creates no templates, assignments or agent settings.
 
 ## 12. Compatibility and rollback
 
 - Custom templates live in the top-level key `configuration.templates`, and each agent's assignment in `configuration.agents.<id>.controls.<control>.templateId`, next to its own settings in `parameters`. `controls[].parameters[].value` remains the common value, which is what a 1.1.0 plugin, the chatbot and the scripts read.
 - A 1.2.0 plugin loads a 1.3.0 document: its validator does not check unknown keys, ignores `templates` and warns about `templateId` as a key it does not know. It evaluates with the own settings and the common value, without the assigned templates.
 - The 1.3.0 server rejects with a 400 error a save whose `agents` or `templates` does not have the right shape, and keeps the existing ones when the body does not carry the key.
+- A 1.2.0 plugin ignores `matchMode` and `matchModes` and compares a pattern as a literal name. Before going back to 1.2.0, switch those values to «Texto exacto» or restore a version of the document without them.
 - **Every version of the document stays in the history before being replaced**, whoever writes: the server adds it to the history if it is not already its last entry, also on the 1.2.0 conversion and on the distribution by agents; and `inject-control.py` and `set-parameters.py` keep the version they replace before writing, in the history or, if the index does not allow it, in a local file `active-antes-<fecha>.json`. Both say where with `Versión anterior guardada en: …`.
 - Going back to 1.2.0 only requires deploying its zip ([installing from a release, section 15](07-installing-from-a-release.en.md#15-change-version-or-uninstall)). For 1.2.0 to evaluate with its templates, restore the version of the document from before the conversion. To go back to 1.1.0 after «Repartir por agentes», restore the version from before the distribution.
 

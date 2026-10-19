@@ -619,17 +619,18 @@ The operation merges the existing configuration and adds the required blocks wit
 
 ### 14.4 Validate the whole document
 
-A parameter with a value the plugin does not accept does not only degrade its control: it prevents the whole ENS environment from loading and the dashboard shows «No se pudo cargar el entorno ENS». After every seeding or parameter change, validate the complete document with the same validator the plugin uses (`config/validate-configuration.ts`). It needs Node.js 18 or later and Internet access so that `npx` can download `tsx`:
+A parameter with a value the plugin does not accept does not only degrade its control: it prevents the whole ENS environment from loading and the dashboard shows «No se pudo cargar el entorno ENS». After every seeding or parameter change, validate the complete document with the same validator the plugin uses (`config/validate-configuration.ts`). It needs Node.js 18 or later and Internet access so that `npx` can download `tsx` and `yarn` can install into `node_modules/` the plugin dependencies the validator imports (`re2js`):
 
 ```bash
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   "$IDX/wazuh-ens-configuration/_doc/active" -o /opt/ensfacil/artifacts/active-now.json
 
 cd /opt/ensfacil/repo
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` ([Configuration by controls and templates, section 11.2](09-configuration-by-system.en.md#112-validate-the-document)). If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
+Expected result: `Done` after the installation; then `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` ([Configuration by controls and templates, section 11.2](09-configuration-by-system.en.md#112-validate-the-document)). If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
 
 > [!warning]
 > If the validation fails, restore the copy from section 14.2 before anyone opens the dashboard, and fix the reported parameter.

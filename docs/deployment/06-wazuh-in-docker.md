@@ -400,12 +400,13 @@ Un parámetro con un valor que el plugin no acepta impide cargar el entorno ENS
 completo, y el panel muestra «No se pudo cargar el entorno ENS». Después de
 cada siembra o cambio de parámetros, validar el documento entero con el
 validador del plugin (`config/validate-configuration.ts`). El validador importa
-el motor del plugin: necesita el repositorio completo, no solo `config/`.
+el motor del plugin y sus dependencias: necesita el repositorio completo, no solo
+`config/`, y la orden instala antes las dependencias en `node_modules/`.
 
 ```bash
 ix wazuh-ens-configuration/_doc/active > <repo>/active.json
 docker run --rm -v <repo>:/w -w /w node:22-alpine \
-  sh -c 'npx --yes tsx config/validate-configuration.ts /w/active.json'
+  sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active.json'
 ```
 
 Resultado esperado: `controles (23): mp.info.6 op.acc.1 …`,
