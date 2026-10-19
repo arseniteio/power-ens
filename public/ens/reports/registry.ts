@@ -9,6 +9,8 @@ import { buildMpEq2ReportModel } from './mp-eq-2-report-model';
 import { buildMpEq3ReportModel } from './mp-eq-3-report-model';
 import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
 import { buildMpInfo6ReportModel } from './report-model';
+import { buildMpS1ReportModel } from './mp-s-1-report-model';
+import { buildMpS2ReportModel } from './mp-s-2-report-model';
 import { buildMpSw2ReportModel } from './mp-sw-2-report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
@@ -109,6 +111,16 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'mp.info.6',
     name: 'mp.info.6 - Copias de seguridad',
     build: buildMpInfo6ReportModel,
+  },
+  {
+    controlId: 'mp.s.1',
+    name: 'mp.s.1 - Protección del correo electrónico',
+    build: buildMpS1ReportModel,
+  },
+  {
+    controlId: 'mp.s.2',
+    name: 'mp.s.2 - Protección de servicios y aplicaciones web',
+    build: buildMpS2ReportModel,
   },
   {
     controlId: 'mp.sw.2',

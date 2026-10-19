@@ -430,4 +430,36 @@ export const ensRequirementsFile = {
     'Pruebas en un entorno aislado de preproducción - Las pruebas se realizarán en un entorno aislado (pre-producción).',
   'mp.sw.2.r2.1':
     'Auditoría del código fuente - Refuerzo R2 – Inspección de código fuente: Se realizará una auditoría de código fuente.',
+  'mp.s.1.1':
+    'Protección del cuerpo de los mensajes y de los anexos - La información distribuida por medio de correo electrónico se protegerá, tanto en el cuerpo de los mensajes como en los anexos.',
+  'mp.s.1.2':
+    'Protección del encaminamiento y del establecimiento de conexiones - Se protegerá la información de encaminamiento de mensajes y establecimiento de conexiones.',
+  'mp.s.1.3':
+    'Protección frente al correo no solicitado - Correo no solicitado, en su expresión inglesa «spam».',
+  'mp.s.1.4':
+    'Protección frente al código dañino - Código dañino, constituidos por virus, gusanos, troyanos, espías, u otros de naturaleza análoga.',
+  'mp.s.1.5':
+    'Protección frente al código móvil - Código móvil de tipo micro-aplicación, en su expresión inglesa «applet».',
+  'mp.s.1.6':
+    'Normas de uso: limitaciones a las comunicaciones privadas - Limitaciones al uso como soporte de comunicaciones privadas.',
+  'mp.s.1.7':
+    'Concienciación y formación sobre el uso del correo - Actividades de concienciación y formación relativas al uso del correo electrónico.',
+  'mp.s.2.1':
+    'Imposible acceder a la información obviando la autenticación - Cuando la información requiera control de acceso se garantizará la imposibilidad de acceder a la información obviando la autenticación, en particular, tomando medidas en los siguientes aspectos: a) Se evitará que el servidor ofrezca acceso a los documentos por vías alternativas al protocolo determinado. b) Se prevendrán ataques de manipulación del localizador uniforme de recursos (URL). c) Se prevendrán ataques de manipulación de fragmentos de información que se almacena en el disco duro del visitante de una página web a través de su navegador, a petición del servidor de la página, conocido en terminología inglesa como cookies. d) Se prevendrán ataques de inyección de código.',
+  'mp.s.2.2':
+    'Prevención del escalado de privilegios - Se prevendrán intentos de escalado de privilegios.',
+  'mp.s.2.3':
+    'Prevención del cross site scripting - Se prevendrán ataques de cross site scripting.',
+  'mp.s.2.r1.1':
+    'Auditorías de caja negra antes de producción - Se realizarán auditorías continuas de seguridad de «caja negra» sobre las aplicaciones web durante la fase de desarrollo y antes de la fase de producción.',
+  'mp.s.2.r1.2':
+    'Frecuencia de auditoría definida en el procedimiento - La frecuencia de estas auditorías de seguridad quedará definida en el procedimiento de auditoría.',
+  'mp.s.2.r2.1':
+    'Auditorías de caja blanca durante el desarrollo - Se realizarán auditorías de seguridad de «caja blanca» sobre las aplicaciones web durante la fase de desarrollo.',
+  'mp.s.2.r2.2':
+    'Metodologías y herramientas automáticas de detección - Se emplearán metodologías definidas y herramientas automáticas de detección de vulnerabilidades en la realización de las auditorías de seguridad sobre las aplicaciones web.',
+  'mp.s.2.r2.3':
+    'Resolución de las vulnerabilidades encontradas - Una vez finalizada una auditoría de seguridad, se analizarán los resultados y se solventarán las vulnerabilidades encontradas mediante los procedimientos definidos [op.exp.5].',
+  'mp.s.2.r3.1':
+    'Protección de proxies y cachés - Se prevendrán ataques de manipulación de programas o dispositivos que realizan una acción en representación de otros, conocidos en terminología inglesa como «proxies» y, sistemas especiales de almacenamiento de alta velocidad, conocidos en terminología inglesa como «cachés».',
 };

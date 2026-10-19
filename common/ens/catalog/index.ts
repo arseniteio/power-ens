@@ -10,6 +10,8 @@ export * from './mp-eq-2';
 export * from './mp-eq-3';
 export * from './mp-eq-4';
 export * from './mp-info-6';
+export * from './mp-s-1';
+export * from './mp-s-2';
 export * from './mp-sw-2';
 export * from './op-acc-1';
 export * from './op-acc-2';
@@ -43,6 +45,8 @@ import { mpEq2CatalogDefinition } from './mp-eq-2';
 import { mpEq3CatalogDefinition } from './mp-eq-3';
 import { mpEq4CatalogDefinition } from './mp-eq-4';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
+import { mpS1CatalogDefinition } from './mp-s-1';
+import { mpS2CatalogDefinition } from './mp-s-2';
 import { mpSw2CatalogDefinition } from './mp-sw-2';
 import { opAcc1CatalogDefinition } from './op-acc-1';
 import { opAcc2CatalogDefinition } from './op-acc-2';
@@ -75,6 +79,8 @@ export const ENSCatalog: ENSControlDefinition[] = [
   mpEq3CatalogDefinition,
   mpEq4CatalogDefinition,
   mpInfo6CatalogDefinition,
+  mpS1CatalogDefinition,
+  mpS2CatalogDefinition,
   mpSw2CatalogDefinition,
   opAcc1CatalogDefinition,
   opAcc2CatalogDefinition,

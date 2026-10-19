@@ -5260,4 +5260,376 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: seguimiento de hallazgos de auditoría de código (r2)?',
   },
+  // mp.s.1. Born DRAFT without a collector (wave A, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112500-112599.
+  {
+    id: 'EV-01',
+    controlId: 'mp.s.1',
+    title: 'Ingesta de los registros de la plataforma de correo',
+    description:
+      'Recolección de los eventos del servicio de correo y de su pasarela de seguridad declarados en P-01: mensajes entregados, filtrados, en cuarentena, con detección, y resultado de cada filtro. Es la base de todo el bloque de amenazas del control.',
+    requirements: ['mp.s.1.3', 'mp.s.1.4', 'mp.s.1.5'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ingesta de los registros de la plataforma de correo?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.s.1',
+    title: 'Eficacia del filtrado de correo no solicitado',
+    description:
+      'Volumen de mensajes clasificados como no solicitados, entregados, puestos en cuarentena y liberados, con la tasa de falsos positivos aparente. Acredita que el filtro de mp.s.1.3 no solo existe sino que opera y está razonablemente calibrado.',
+    requirements: ['mp.s.1.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: eficacia del filtrado de correo no solicitado?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.s.1',
+    title: 'Detecciones de código dañino en el correo',
+    description:
+      'Detecciones registradas en mensajes y anexos por tipo de amenaza, con el destinatario, el remitente y la acción aplicada. mp.s.1.4 enumera expresamente virus, gusanos, troyanos y espías, de modo que conviene desglosar por categoría.',
+    requirements: ['mp.s.1.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detecciones de código dañino en el correo?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.s.1',
+    title: 'Verificación del análisis de anexos sobre todo el correo',
+    description:
+      'Comprobación de que el análisis de código dañino se ejecuta sobre todos los mensajes con anexo y no se omite por tamaño, tipo de fichero, cifrado del anexo o remitente en lista de confianza. Las omisiones son el hueco por el que entra lo que entra.',
+    requirements: ['mp.s.1.4'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación del análisis de anexos sobre todo el correo?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.s.1',
+    title: 'Tratamiento del código móvil y del contenido activo',
+    description:
+      'Verificación de que el contenido activo en los mensajes se bloquea o neutraliza conforme a P-07: anexos con macros, scripts en cuerpos HTML, ejecutables, aplicaciones embebidas. Acredita mp.s.1.5.',
+    requirements: ['mp.s.1.5'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: tratamiento del código móvil y del contenido activo?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.s.1',
+    title: 'Cifrado en tránsito del correo',
+    description:
+      'Verificación de que el correo viaja cifrado conforme a P-03: versión de TLS negociada en los saltos SMTP entrantes y salientes, y porcentaje de correo que viaja en claro. Acredita la parte de tránsito de mp.s.1.1 y de mp.s.1.2.',
+    requirements: ['mp.s.1.1', 'mp.s.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cifrado en tránsito del correo?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.s.1',
+    title: 'Autenticación del dominio: SPF, DKIM y DMARC',
+    description:
+      'Verificación de la existencia y coherencia de los registros de P-02 y análisis de los informes agregados de DMARC. Protege la información de encaminamiento de mp.s.1.2 y previene la suplantación del dominio propio. NOTA: estos mecanismos no aparecen nombrados en el texto del ENS; son el medio estándar de cumplir el requisito, no una exigencia literal.',
+    requirements: ['mp.s.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: autenticación del dominio: spf, dkim y dmarc?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.s.1',
+    title: 'Suplantación del dominio propio y fraude por correo',
+    description:
+      'Detección de mensajes que suplantan el dominio o la identidad de personas de la organización: fallos de alineación DMARC, dominios similares al propio, remitente interno con origen externo. Es la amenaza de mayor impacto económico del correo y se apoya en mp.s.1.2.',
+    requirements: ['mp.s.1.2', 'mp.s.1.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: suplantación del dominio propio y fraude por correo?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'mp.s.1',
+    title: 'Integridad de la configuración del servicio de correo',
+    description:
+      'Vigilancia de los cambios en la configuración del MTA, de las reglas de la pasarela y de los registros DNS del dominio, para detectar degradaciones: desactivación de un filtro, relajación de TLS, alteración de SPF, incorporación de remitentes a lista de confianza.',
+    requirements: [],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: integridad de la configuración del servicio de correo?',
+  },
+  {
+    id: 'EV-10',
+    controlId: 'mp.s.1',
+    title: 'Resultados de las campañas de concienciación',
+    description:
+      'Si se realizan campañas de phishing simulado conforme a P-09: tasa de apertura, de clic y de notificación por parte de los usuarios. Es la única parte del bloque normativo que produce datos aprovechables, y da una métrica de eficacia de la concienciación de mp.s.1.7.',
+    requirements: ['mp.s.1.7'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: resultados de las campañas de concienciación?',
+  },
+  // mp.s.2. Born DRAFT without a collector (wave B, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112600-112699.
+  {
+    id: 'EV-01',
+    controlId: 'mp.s.2',
+    title: 'Ingesta de los registros de los servidores y aplicaciones web',
+    description:
+      'Recolección de los registros de acceso y de error de los servidores de P-02, y del WAF si existe. Es la fuente de detección de las seis amenazas que enumera el requisito base y la base de todo el control.',
+    requirements: ['mp.s.2.1', 'mp.s.2.2', 'mp.s.2.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ingesta de los registros de los servidores y aplicaciones web?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.s.2',
+    title: 'Acceso a información protegida obviando la autenticación',
+    description:
+      'Detección de accesos exitosos a las rutas de P-03 sin que conste autenticación previa en la misma sesión. Es el supuesto central que mp.s.2.1 pretende impedir y la comprobación más directa del requisito.',
+    requirements: ['mp.s.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: acceso a información protegida obviando la autenticación?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.s.2',
+    title: 'Vías alternativas de acceso a los documentos',
+    description:
+      'Verificación de que están cerradas las vías de P-04: listado de directorios desactivado, acceso directo a ficheros no permitido, métodos HTTP no previstos deshabilitados. Y detección de accesos exitosos por esas vías. Acredita mp.s.2.1 a).',
+    requirements: ['mp.s.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: vías alternativas de acceso a los documentos?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.s.2',
+    title: 'Ataques de manipulación de URL y recorrido de rutas',
+    description:
+      'Detección de intentos de manipulación del localizador de recursos: recorrido de directorios, codificaciones anómalas, inclusión de ficheros, acceso a rutas no publicadas. Acredita mp.s.2.1 b).',
+    requirements: ['mp.s.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ataques de manipulación de url y recorrido de rutas?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.s.2',
+    title: 'Protección de las cookies de sesión',
+    description:
+      'Verificación de los atributos de P-05 en las cookies emitidas y detección de uso anómalo: misma cookie de sesión desde orígenes distintos, reutilización tras cierre de sesión, ausencia de rotación tras autenticación. Acredita mp.s.2.1 c).',
+    requirements: ['mp.s.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: protección de las cookies de sesión?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.s.2',
+    title: 'Ataques de inyección de código',
+    description:
+      'Detección de intentos de inyección en sus variantes habituales: inyección SQL, de órdenes del sistema, de plantillas, de objetos serializados, inclusión de ficheros. Acredita mp.s.2.1 d), que es la amenaza con más impacto potencial del requisito.',
+    requirements: ['mp.s.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ataques de inyección de código?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.s.2',
+    title: 'Intentos de escalado de privilegios en la aplicación',
+    description:
+      'Detección de accesos a funcionalidad o datos de otro nivel de privilegio: acceso a rutas administrativas por cuentas sin ese perfil, manipulación de identificadores para acceder a recursos ajenos, cambios de rol no previstos. Acredita mp.s.2.2.',
+    requirements: ['mp.s.2.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: intentos de escalado de privilegios en la aplicación?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.s.2',
+    title: 'Ataques de cross site scripting',
+    description:
+      'Detección de intentos de inyección de scripts en los parámetros de las peticiones, tanto reflejados como almacenados, y de los indicios de su ejecución en el navegador del usuario. Acredita mp.s.2.3, que el ENS menciona como requisito independiente.',
+    requirements: ['mp.s.2.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ataques de cross site scripting?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'mp.s.2',
+    title: 'Distinción entre intento y ataque exitoso',
+    description:
+      'Correlación de cada detección de ataque web con la respuesta del servidor y con la actividad posterior, para distinguir el intento bloqueado del ataque que surtió efecto. Es la diferencia entre un informe que dice «nos atacan» y uno que dice «el ataque funcionó».',
+    requirements: ['mp.s.2.1', 'mp.s.2.2', 'mp.s.2.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: distinción entre intento y ataque exitoso?',
+  },
+  {
+    id: 'EV-10',
+    controlId: 'mp.s.2',
+    title: 'Vulnerabilidades del servidor y de la plataforma web',
+    description:
+      'Detección de vulnerabilidades conocidas en el servidor web, el motor de aplicaciones y sus componentes, y verificación de su configuración de seguridad. Complementa las auditorías de aplicación con la capa de plataforma, que las auditorías de código no cubren.',
+    requirements: ['mp.s.2.r2.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: vulnerabilidades del servidor y de la plataforma web?',
+  },
+  {
+    id: 'EV-11',
+    controlId: 'mp.s.2',
+    title: 'Registro y frecuencia de las auditorías de seguridad',
+    description:
+      'Constancia de las auditorías de P-08 con su modalidad, metodología y herramientas, y control de que se cumple la frecuencia del procedimiento de P-06. Incluye la verificación de admisibilidad de la modalidad para la categoría del sistema.',
+    requirements: ['mp.s.2.r1.1', 'mp.s.2.r1.2', 'mp.s.2.r2.1', 'mp.s.2.r2.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: registro y frecuencia de las auditorías de seguridad?',
+  },
+  {
+    id: 'EV-12',
+    controlId: 'mp.s.2',
+    title: 'Resolución efectiva de los hallazgos de auditoría (R2)',
+    description:
+      'Seguimiento del cierre de los hallazgos de P-09 y verificación de que los declarados resueltos ya no son detectables en producción. mp.s.2.r2.3 exige solventar las vulnerabilidades encontradas, no solo registrarlas.',
+    requirements: ['mp.s.2.r2.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: resolución efectiva de los hallazgos de auditoría (r2)?',
+  },
+  {
+    id: 'EV-13',
+    controlId: 'mp.s.2',
+    title: 'Protección de proxies y cachés (R3)',
+    description:
+      'Verificación de la configuración de los elementos de P-10 frente a sus ataques característicos: envenenamiento de caché, confusión en el tratamiento de peticiones, almacenamiento en caché de respuestas autenticadas. R3 es obligatorio en categoría ALTA.',
+    requirements: ['mp.s.2.r3.1'],
+    levels: ['ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: protección de proxies y cachés (r3)?',
+  },
 ];
