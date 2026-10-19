@@ -1,5 +1,4 @@
-// Panel lateral de un requisito de la pestaña Controles: su descripción y sus
-// hechos más recientes con los filtros de la vista (barra, fechas, alcance).
+// Side panel of a requirement in the Controles tab: its description and latest facts with the view filters (bar, dates, scope).
 import React from 'react';
 import {
   EuiBasicTable,
@@ -19,7 +18,7 @@ import { useSetRouterSearch } from '../routing/use-router-search';
 import { useEsSearch } from '../search/use-es-search';
 import { controlOf } from './requirements-model';
 
-interface FilaHecho {
+interface FactRow {
   id: string;
   timestamp?: string;
   agente?: string;
@@ -30,17 +29,17 @@ interface FilaHecho {
   reglaId?: string;
 }
 
-const texto = (valor: unknown): string | undefined =>
-  valor === undefined || valor === null || valor === '' ? undefined : String(valor);
+const text = (value: unknown): string | undefined =>
+  value === undefined || value === null || value === '' ? undefined : String(value);
 
-const fecha = (valor?: string): string => {
-  if (!valor) return '—';
-  const instante = new Date(valor);
-  return isNaN(instante.getTime()) ? valor : instante.toLocaleString('es-ES');
+const date = (value?: string): string => {
+  if (!value) return '—';
+  const instant = new Date(value);
+  return isNaN(instant.getTime()) ? value : instant.toLocaleString('es-ES');
 };
 
-const COLUMNAS = [
-  { field: 'timestamp', name: 'timestamp', width: '170px', render: (v?: string) => fecha(v) },
+const COLUMNS = [
+  { field: 'timestamp', name: 'timestamp', width: '170px', render: (v?: string) => date(v) },
   { field: 'agente', name: 'agent.name', render: (v?: string) => v || '—' },
   { field: 'evento', name: 'data.event', render: (v?: string) => v || '—' },
   { field: 'requisito', name: 'data.requisito', render: (v?: string) => v || '—' },
@@ -52,41 +51,38 @@ const COLUMNAS = [
 export const RequirementFlyout = ({
   requirementId,
   description,
-  filters: filtrosDeLaVista,
+  filters: viewFilters,
   refreshKey,
   onClose,
 }: {
   requirementId: string;
   description: string;
   filters: unknown[];
-  // El de la barra: «Actualizar» vuelve a buscar también con rango absoluto.
   refreshKey: number;
   onClose: () => void;
 }) => {
-  const cambia = useSetRouterSearch();
-  // Con tope: los más recientes primero (tests/query-order.test.ts).
+  const changes = useSetRouterSearch();
   const { esResults, isLoading, error } = useEsSearch({
-    preAppliedFilters: [...filtrosDeLaVista, buildENSRequirementQuery(requirementId)],
+    preAppliedFilters: [...viewFilters, buildENSRequirementQuery(requirementId)],
     size: 100,
     sorting: [{ timestamp: { order: 'desc' } }],
     refreshKey,
   });
 
-  // Si la búsqueda de los filtros de ahora falla, lo que queda en `esResults`
-  // es de la anterior: ni sus filas ni su recuento se enseñan como de ahora.
+  // If the search for the current filters fails, `esResults` holds the previous one: neither its rows nor its count are shown as current.
   const hits: any[] = error ? [] : esResults?.hits?.hits || [];
   const total = Number(esResults?.hits?.total?.value ?? esResults?.hits?.total ?? hits.length) || 0;
-  const filas: FilaHecho[] = hits.map((hit, i) => {
+  const rows: FactRow[] = hits.map((hit, i) => {
     const s = hit?._source || {};
     return {
       id: String(hit?._id ?? i),
-      timestamp: texto(s.timestamp),
-      agente: texto(s.agent?.name),
-      evento: texto(s.data?.event),
-      requisito: texto(s.data?.requisito),
-      evidencia: texto(s.data?.evidence_id),
-      regla: texto(s.rule?.description),
-      reglaId: texto(s.rule?.id),
+      timestamp: text(s.timestamp),
+      agente: text(s.agent?.name),
+      evento: text(s.data?.event),
+      requisito: text(s.data?.requisito),
+      evidencia: text(s.data?.evidence_id),
+      regla: text(s.rule?.description),
+      reglaId: text(s.rule?.id),
     };
   });
 
@@ -109,16 +105,16 @@ export const RequirementFlyout = ({
               ? 'Buscando los hechos del requisito…'
               : error
               ? 'No se pudieron leer los hechos del requisito con los filtros y las fechas de ahora; pulsa «Actualizar» en la barra para volver a intentarlo.'
-              : total > filas.length
-              ? `Los ${filas.length} hechos más recientes de ${total}, con los filtros y las fechas de la barra.`
+              : total > rows.length
+              ? `Los ${rows.length} hechos más recientes de ${total}, con los filtros y las fechas de la barra.`
               : `${total} ${total === 1 ? 'hecho' : 'hechos'}, con los filtros y las fechas de la barra.`}
           </p>
         </EuiText>
         <EuiSpacer size="s" />
         <EuiBasicTable
-          items={filas}
+          items={rows}
           itemId="id"
-          columns={COLUMNAS}
+          columns={COLUMNS}
           loading={isLoading}
           error={error ? String((error as any)?.message || error) : undefined}
           noItemsMessage="Ningún hecho de este requisito con los filtros y las fechas de la barra"
@@ -132,7 +128,7 @@ export const RequirementFlyout = ({
               fill
               iconType="arrowRight"
               iconSide="right"
-              onClick={() => cambia({ tabView: 'plugins', control: controlOf(requirementId) })}
+              onClick={() => changes({ tabView: 'plugins', control: controlOf(requirementId) })}
             >
               Ver el control
             </EuiButton>

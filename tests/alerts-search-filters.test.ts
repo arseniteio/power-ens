@@ -99,7 +99,7 @@ for (const fichero of recorre(raiz)) {
     comprueba(`${sitio}: ${m[1]} dentro de un useMemo`, !!tramo);
     if (tramo) {
       const deps = texto.slice(tramo[0], tramo[1] + 1).match(/\[([^\]]*)\]\s*,?\s*\)$/);
-      comprueba(`${sitio}: el useMemo depende del rango del estado`, !!deps && /\brango\b/.test(deps[1]), deps && deps[1]);
+      comprueba(`${sitio}: el useMemo depende del rango del estado`, !!deps && /\brange\b/.test(deps[1]), deps && deps[1]);
     }
   }
 }
@@ -124,7 +124,7 @@ comprueba('hay vistas con la barra', vistasConBarra > 0);
 // cambio. La barra cuenta las pasadas (`refreshKey`) y toda búsqueda de las
 // pantallas que cuelgan de ella (Controles con su panel, Eventos) lo lleva.
 const barraFuente = fs.readFileSync(path.join(raiz, 'search', 'alerts-search-bar.tsx'), 'utf8');
-comprueba('la barra devuelve su contador de pasadas como refreshKey', /\brefreshKey:\s*pasada\b/.test(barraFuente));
+comprueba('la barra devuelve su contador de pasadas como refreshKey', /\brefreshKey:\s*run\b/.test(barraFuente));
 let busquedasConBarra = 0;
 for (const fichero of ['events', 'requirements'].flatMap(d => recorre(path.join(raiz, d)))) {
   const texto = fs.readFileSync(fichero, 'utf8');

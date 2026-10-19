@@ -1,6 +1,4 @@
-// El cuerpo de cada consulta de las pantallas ENS contra los hechos. Mismo
-// contenido que la búsqueda de Wazuh que sustituye: los filtros de la
-// pantalla, el tope, el orden y las agregaciones.
+// The body of every ENS screen query against the facts. Same content as the Wazuh search it replaces: the screen filters, cap, order and aggregations.
 import { ENS_ALERTS_INDEX } from '../../common/constants';
 
 export interface ENSSearchParams {
@@ -11,20 +9,16 @@ export interface ENSSearchParams {
   sorting?: unknown[];
 }
 
-// Los filtros llegan como DSL suelto ({ range }, { bool }…) o como filtros de
-// la barra, con `meta` (y a veces `$state`): de estos cuenta su `query` o, si
-// no la traen ({ meta, range }, { meta, exists }…), lo que queda sin `meta` ni
-// `$state`, que OpenSearch no admite en la consulta. Se saltan los
-// desactivados y los negados van a must_not.
-const clausula = (filtro: any): { incluir?: unknown; excluir?: unknown } => {
-  if (!filtro) return {};
-  if (filtro.meta) {
-    if (filtro.meta.disabled) return {};
-    const { meta, $state, query, ...resto } = filtro;
-    const consulta = query ?? resto;
-    return meta.negate ? { excluir: consulta } : { incluir: consulta };
+// Filters arrive as loose DSL ({ range }, { bool }…) or as bar filters with `meta` (and sometimes `$state`): for these the `query` counts or, without it, what remains without `meta` and `$state`, which OpenSearch does not accept.
+const clause = (filter: any): { incluir?: unknown; excluir?: unknown } => {
+  if (!filter) return {};
+  if (filter.meta) {
+    if (filter.meta.disabled) return {};
+    const { meta, $state, query, ...rest } = filter;
+    const searchQuery = query ?? rest;
+    return meta.negate ? { excluir: searchQuery } : { incluir: searchQuery };
   }
-  return { incluir: filtro };
+  return { incluir: filter };
 };
 
 export const buildENSSearchRequest = ({
@@ -34,9 +28,9 @@ export const buildENSSearchRequest = ({
   from = 0,
   sorting = [],
 }: ENSSearchParams) => {
-  const clausulas = preAppliedFilters.map(clausula);
-  const filter = clausulas.map(c => c.incluir).filter(Boolean);
-  const mustNot = clausulas.map(c => c.excluir).filter(Boolean);
+  const clauses = preAppliedFilters.map(clause);
+  const filter = clauses.map(c => c.incluir).filter(Boolean);
+  const mustNot = clauses.map(c => c.excluir).filter(Boolean);
 
   return {
     index: ENS_ALERTS_INDEX,

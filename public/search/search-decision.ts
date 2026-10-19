@@ -1,44 +1,31 @@
-// Lo que decide `useEsSearch` en cada cambio de parámetros, sin React para
-// poder probarlo. Dos claves: la de los datos (filtros, agregaciones, tope,
-// orden) y el `refreshKey`, que solo pide «vuelve a mirar».
+// What `useEsSearch` decides on each parameter change, without React. Two keys: the data key (filters, aggregations, cap, order) and `refreshKey`, which only asks to look again.
 
 export type ENSSearchDecision = 'start' | 'skip' | 'abort-and-start';
 
-// - Nada en curso: se busca.
-// - En curso la misma búsqueda de datos (solo ha subido el `refreshKey`, o el
-//   mismo render repetido): se espera a esa respuesta, que sigue valiendo; ni
-//   se lanza otra ni se tira la que viene.
-// - En curso otra búsqueda de datos: ya no sirve; se cancela y se lanza la nueva.
-export const decideSearch = (enCurso: string | undefined, nueva: string): ENSSearchDecision => {
-  if (enCurso === undefined) return 'start';
-  return enCurso === nueva ? 'skip' : 'abort-and-start';
+export const decideSearch = (inProgress: string | undefined, newValue: string): ENSSearchDecision => {
+  if (inProgress === undefined) return 'start';
+  return inProgress === newValue ? 'skip' : 'abort-and-start';
 };
 
-// La clave de los datos: todo menos el `refreshKey`.
 export const searchDataKey = (params: Record<string, unknown>): string => {
-  const { refreshKey, ...datos } = params || {};
-  return JSON.stringify(datos);
+  const { refreshKey, ...data } = params || {};
+  return JSON.stringify(data);
 };
 
-// Una cancelación pedida por la propia pantalla no es un fallo: ni aviso ni
-// estado de error. Y solo es nuestra si la señal abortada es la NUESTRA: un
-// error que se llama AbortError con nuestra señal intacta lo ha cortado otro
-// (el servicio de búsqueda, un tiempo de espera), y eso la pantalla lo dice.
+// A cancellation requested by the screen is not a failure. It is ours only if the aborted signal is OURS: an error named AbortError with our signal intact was cut by someone else (the search service, a timeout).
 export const isOwnCancellation = (signal?: { aborted: boolean }): boolean => Boolean(signal?.aborted);
 
-// Avisos repetidos: 17 filas que fallan igual a la vez dan un solo aviso. El
-// registro es del módulo (compartido por todas las búsquedas) y recuerda cuándo
-// se dio cada mensaje.
+// Repeated notices: 17 rows failing the same way at once give a single notice. The registry belongs to the module (shared by all searches) and remembers when each message was given.
 export const ENS_SEARCH_TOAST_WINDOW_MS = 60 * 1000;
 
 export const shouldToast = (
-  registro: Map<string, number>,
-  mensaje: string,
-  ahora: number,
-  ventana: number = ENS_SEARCH_TOAST_WINDOW_MS
+  log: Map<string, number>,
+  message: string,
+  now: number,
+  timeWindow: number = ENS_SEARCH_TOAST_WINDOW_MS
 ): boolean => {
-  const anterior = registro.get(mensaje);
-  if (anterior !== undefined && ahora - anterior < ventana) return false;
-  registro.set(mensaje, ahora);
+  const previous = log.get(message);
+  if (previous !== undefined && now - previous < timeWindow) return false;
+  log.set(message, now);
   return true;
 };

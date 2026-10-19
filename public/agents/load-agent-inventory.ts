@@ -1,5 +1,4 @@
-// La carga del inventario de agentes desde el navegador, como el usuario que
-// mira. La consulta y su lectura están en `common/agents/agent-inventory.ts`.
+// Loads the agent inventory from the browser as the viewing user. The query and its reading are in `common/agents/agent-inventory.ts`.
 import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import {
   buildMonitoringInventoryRequest,
@@ -10,27 +9,27 @@ import { getCore, getData } from '../services';
 import { withRequestTimeout } from '../../common/platform/request-timeout';
 
 export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
-  const respuesta: any = await withRequestTimeout(
+  const response: any = await withRequestTimeout(
     signal => getData().search.search(
       { params: buildMonitoringInventoryRequest() },
       { abortSignal: signal }
     ).toPromise(),
     'inventario de agentes'
   );
-  const inventario = inventoryFromMonitoring(respuesta?.rawResponse?.aggregations);
+  const inventory = inventoryFromMonitoring(response?.rawResponse?.aggregations);
 
-  if (!inventario.agents.length) {
+  if (!inventory.agents.length) {
     throw new Error(
       'No hay inventario de agentes: la monitorización de agentes de Wazuh (wazuh-monitoring-*) no está activa o este usuario no puede leerla.'
     );
   }
 
-  if (inventario.stale) {
+  if (inventory.stale) {
     getCore().notifications.toasts.addWarning({
       title: 'ENSFácil: inventario de agentes antiguo',
-      text: staleInventoryMessage(inventario.newestTimestamp),
+      text: staleInventoryMessage(inventory.newestTimestamp),
     });
   }
 
-  return inventario.agents;
+  return inventory.agents;
 };

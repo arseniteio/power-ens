@@ -1,20 +1,15 @@
-// Un estado, un color, en todas las pantallas (la franja de la lista, la barra
-// de máquinas, la matriz, la tendencia y las insignias). Antes los dos grises
-// estaban cambiados entre la lista y la tendencia, y NO_APLICA era `default` en
-// el detalle y `hollow` en las tarjetas. Sin React.
+// One status, one colour on every screen (list stripe, machine bar, matrix, trend and badges).
 export const ENS_STATUS_COLORS: Record<string, string> = {
   CUMPLE: '#00A65A',
   PARCIAL: '#F5A700',
   NO_CUMPLE: '#BD271E',
-  // Sin demostrar: gris oscuro (importa).
+  // Unproven: dark grey (it matters).
   NO_EVALUABLE: '#98A2B3',
-  // Fuera del nivel: gris claro (no cuenta).
+  // Out of level: light grey (it does not count).
   NO_APLICA: '#D3DAE6',
 };
 
 export const ENS_STATUS_ORDER = ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'];
-
-// El rayado de «sin resultado» y los neutros, del tema: `theme-colors.ts`.
 
 export const statusColor = (status?: string): string => ENS_STATUS_COLORS[status || ''] || ENS_STATUS_COLORS.NO_EVALUABLE;
 

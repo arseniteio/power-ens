@@ -1,10 +1,4 @@
-// Pestaña Controles: la vista clásica de requisitos. A la izquierda, cada
-// control con la SUMA de los números de sus requisitos (pulsable para
-// filtrar), que no es su total de hechos: un hecho que cita varios requisitos
-// de un mismo control cuenta una vez por requisito. A la derecha, el
-// buscador, el interruptor de requisitos sin hechos y la cuadrícula de
-// requisitos con su número. Los hechos se cuentan con la barra de búsqueda y
-// las fechas del dashboard, dentro del alcance ENS.
+// Controles tab: the classic requirements view. Each control shows the SUM of its requirements' numbers (clickable to filter), which is not its total of facts.
 import React, { useMemo, useState } from 'react';
 import {
   EuiBadge,
@@ -37,30 +31,25 @@ import { useEsSearch } from '../search/use-es-search';
 import { ENSRequirementRow, buildRequirementsModel } from './requirements-model';
 import { RequirementFlyout } from './requirement-flyout';
 
-// «Copias de seguridad - Se realizan…»: en la tarjeta va el título; la
-// descripción entera, al pasar el ratón y en el panel del requisito.
-const tituloDe = (descripcion: string): string => descripcion.split(' - ')[0];
+const titleOf = (description: string): string => description.split(' - ')[0];
 
-const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
+const RequirementsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
   const { agentId } = useRouterSearch();
   const [search, setSearch] = useState('');
   const [hideEmpty, setHideEmpty] = useState(false);
   const [selected, setSelected] = useState<string | undefined>();
-  const [abierto, setAbierto] = useState<ENSRequirementRow | undefined>();
+  const [isOpen, setIsOpen] = useState<ENSRequirementRow | undefined>();
 
-  // Con una máquina elegida, solo sus hechos (también en el panel del requisito).
-  const fijos = buildRawFactsFilters(getActiveENSScopeAgents(), agentId);
-  const filtrosDeLaVista = [...fijos, ...barFilters];
-  // El `refreshKey` de la barra: «Actualizar» vuelve a contar aunque el rango
-  // sea absoluto y los filtros no cambien.
+  const fixed = buildRawFactsFilters(getActiveENSScopeAgents(), agentId);
+  const viewFilters = [...fixed, ...barFilters];
   const { esResults, isLoading, error } = useEsSearch({
-    preAppliedFilters: filtrosDeLaVista,
+    preAppliedFilters: viewFilters,
     preAppliedAggs: ENS_REQUIREMENT_COUNT_AGGS,
     size: 0,
     refreshKey,
   });
 
-  const modelo = useMemo(
+  const model = useMemo(
     () =>
       buildRequirementsModel(ensRequirementsFile, countENSRequirements(esResults?.aggregations), {
         search,
@@ -70,20 +59,17 @@ const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refresh
     [esResults, search, hideEmpty, selected]
   );
 
-  const panel = abierto && (
+  const panel = isOpen && (
     <RequirementFlyout
-      requirementId={abierto.id}
-      description={abierto.description}
-      filters={filtrosDeLaVista}
+      requirementId={isOpen.id}
+      description={isOpen.description}
+      filters={viewFilters}
       refreshKey={refreshKey}
-      onClose={() => setAbierto(undefined)}
+      onClose={() => setIsOpen(undefined)}
     />
   );
 
-  // Si el recuento de los filtros de ahora falla, lo que queda en `esResults`
-  // es de la búsqueda anterior (o nada, y todo saldría a cero): los números no
-  // se enseñan como si fueran de ahora. Vuelven con el primer recuento que
-  // salga bien.
+  // If the count for the current filters fails, `esResults` holds the previous search (or nothing, and all would read zero): the numbers are not shown as current.
   if (error) {
     return (
       <>
@@ -110,7 +96,7 @@ const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refresh
           </EuiTitle>
           <EuiSpacer size="s" />
           <EuiFacetGroup>
-            {modelo.controls.map(control => (
+            {model.controls.map(control => (
               <EuiFacetButton
                 key={control.id}
                 quantity={control.count}
@@ -144,31 +130,31 @@ const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refresh
           </EuiFlexGroup>
           <EuiSpacer size="m" />
 
-          {modelo.requirements.length === 0 ? (
+          {model.requirements.length === 0 ? (
             <EuiText size="s" color="subdued">
               <p>Ningún requisito con estos criterios.</p>
             </EuiText>
           ) : (
             <EuiFlexGrid columns={4} gutterSize="s">
-              {modelo.requirements.map(requisito => (
-                <EuiFlexItem key={requisito.id}>
-                  <EuiToolTip position="top" display="block" content={requisito.description}>
+              {model.requirements.map(requirement => (
+                <EuiFlexItem key={requirement.id}>
+                  <EuiToolTip position="top" display="block" content={requirement.description}>
                     <EuiPanel
                       paddingSize="s"
                       hasBorder
-                      onClick={() => setAbierto(requisito)}
-                      aria-label={`Requisito ${requisito.id}: ${requisito.count} hechos`}
+                      onClick={() => setIsOpen(requirement)}
+                      aria-label={`Requisito ${requirement.id}: ${requirement.count} hechos`}
                     >
                       <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
                         <EuiFlexItem>
                           <EuiText size="s">
                             <span>
-                              <strong>{requisito.id}</strong> - {tituloDe(requisito.description)}
+                              <strong>{requirement.id}</strong> - {titleOf(requirement.description)}
                             </span>
                           </EuiText>
                         </EuiFlexItem>
                         <EuiFlexItem grow={false}>
-                          <EuiBadge color={requisito.count ? 'primary' : 'hollow'}>{requisito.count}</EuiBadge>
+                          <EuiBadge color={requirement.count ? 'primary' : 'hollow'}>{requirement.count}</EuiBadge>
                         </EuiFlexItem>
                       </EuiFlexGroup>
                     </EuiPanel>
@@ -186,11 +172,11 @@ const Requisitos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refresh
 };
 
 export const RequirementsView = () => {
-  const barra = useAlertsSearchBar();
+  const bar = useAlertsSearchBar();
 
   return (
-    <AlertsSearchFrame barra={barra}>
-      <Requisitos barFilters={barra.filters} refreshKey={barra.refreshKey} />
+    <AlertsSearchFrame barra={bar}>
+      <RequirementsScreen barFilters={bar.filters} refreshKey={bar.refreshKey} />
     </AlertsSearchFrame>
   );
 };

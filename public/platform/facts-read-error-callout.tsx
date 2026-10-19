@@ -7,10 +7,7 @@ import {
   factsReadErrorText,
 } from './facts-read-error';
 
-// En lugar de los números: los de antes no valen como de ahora. Con
-// `onRetry` es un fallo de la evaluación del servidor (un tiempo agotado
-// incluido) y se ofrece «Reintentar»; sin él, de una búsqueda de hechos, que
-// vuelve sola con la siguiente que salga bien.
+// Replaces the numbers: the previous ones are not valid as current. With `onRetry` it is a server evaluation failure (timeouts included) and 'Reintentar' is offered; without it, a fact search failure, which recovers with the next successful one.
 export const FactsReadErrorCallOut = ({ error, onRetry }: { error: unknown; onRetry?: () => void }) =>
   onRetry ? (
     <EuiCallOut color="danger" iconType="alert" title={EVALUATION_ERROR_TITLE}>
