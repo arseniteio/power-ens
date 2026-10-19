@@ -1,6 +1,6 @@
 # Configuración por controles y plantillas
 
-Esta guía describe la pantalla de Configuración de ENSFácil 1.3.0: sus tres pestañas, el valor que se aplica a cada agente, las plantillas de cada control, la asignación de plantillas a los agentes, la entrada de listas y el modo «Expresión regular», la conversión de una configuración de la 1.2.0 y la declaración de plantillas y ajustes desde el servidor.
+Pantalla de Configuración de ENSFácil 1.3.0: pestañas, valor aplicado a cada agente, plantillas, asignación, listas y modo «Expresión regular», conversión desde la 1.2.0 y declaración desde el servidor.
 
 ## 1. Objetivo
 
@@ -26,7 +26,7 @@ Declarar cada control una sola vez: los ajustes comunes de la organización, las
 | Agentes | Los agentes del alcance con su tipo detectado y su completitud. En cada agente, control por control: la plantilla que usa y sus ajustes propios |
 | General | Nivel ENS, nivel de Trazabilidad (T), nivel de Disponibilidad (D), el resto de la configuración global y el alcance ENS en solo lectura |
 
-Cada parámetro de cada control pertenece a una de tres clases. La clasificación es única y la usan la pantalla, la evaluación, los validadores y `set-parameters.py`; está en `common/ens/configuration/agents/parameter-classes.ts`.
+Cada parámetro de cada control pertenece a una de tres clases (`common/ens/configuration/agents/parameter-classes.ts`), las mismas para la pantalla, la evaluación, los validadores y `set-parameters.py`.
 
 | Clase | Qué describe | Parámetros (23 controles) | Dónde se declara |
 |---|---|---|---|
@@ -50,7 +50,6 @@ Reglas de la resolución:
 - Los parámetros por sistema que describen **otras** máquinas en un control que se mide en el manager se resuelven por **unión**: en la fila del manager, el valor es el común más las filas de cada agente (ajuste propio o plantilla), sin repetir. Son op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01 y, en la fila del manager, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07.
 - El alcance declarado de mp.info.6 (P-04) también se resuelve por unión, en todas las filas.
 - El modo de comparación de un valor («Texto exacto» o «Expresión regular», apartado 5.5) va con el valor: el agente toma el modo del nivel del que toma el valor.
-- La resolución es la misma en el navegador y en la evaluación del servidor.
 
 La pantalla indica el origen de cada valor de un agente: «ajuste propio de este agente», «heredado de la plantilla asignada «…»», «heredado de la plantilla de serie «…» de su tipo», «heredado del valor común del control» o, en una unión, «este agente no aporta filas propias».
 
@@ -78,10 +77,10 @@ Mientras se leen los agentes, la columna muestra «Comprobando los agentes…».
 
    Resultado esperado: el estado pasa a «Configurado».
 
-El botón añade la definición del control tal cual, la misma que el bloque semilla de `config/`, igual que `inject-control.py` con un control que no estaba. No modifica los demás controles, las plantillas ni los ajustes de los agentes. Para fusionar un control que ya está con una versión nueva de su bloque se usa `inject-control.py` ([actualización de un entorno existente, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
+El botón añade la definición del control del bloque semilla de `config/`, como `inject-control.py` con un control ausente, sin modificar otros controles, plantillas ni ajustes de agentes. Para fusionar un control existente con una versión nueva de su bloque: `inject-control.py` ([actualización de un entorno existente, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
 
 > [!note]
-> Mientras un control obligatorio tenga parámetros sin valor, sus evidencias quedan en `NO_EVALUABLE` con causa `CONFIGURATION`. La ausencia de información no equivale a cumplimiento.
+> Mientras un control obligatorio tenga parámetros sin valor, sus evidencias quedan en `NO_EVALUABLE` con causa `CONFIGURATION`.
 
 ### 5.2 Ajustes comunes
 
@@ -97,7 +96,7 @@ El botón añade la definición del control tal cual, la misma que el bloque sem
 
 Una plantilla es un conjunto de valores con nombre para los parámetros por sistema y por plataforma de un control. Nunca fija un parámetro común.
 
-- **De serie**: van con el plugin, una por tipo de sistema en los controles en que aplica ese tipo, y no se editan. Sus valores salen de un ejemplo del bloque semilla, del `.env.example` o la plantilla de configuración de un runbook, o de un valor real de un laboratorio sin lo que es de otra plataforma o de esa instalación. Lo que no se puede fundamentar se queda sin valor y la plantilla lo indica con «Sin valores de serie en este control: se aplican los ajustes comunes».
+- **De serie**: incluidas en el plugin, una por tipo de sistema en los controles en que aplica ese tipo, no editables. Si un valor no se puede fundamentar, la plantilla lo indica con «Sin valores de serie en este control: se aplican los ajustes comunes».
 - **Propias**: se crean, se duplican, se editan y se borran en el documento (`configuration.templates`).
 
 | Plantilla de serie | Tipo | Controles | Qué fija |
@@ -260,7 +259,7 @@ Para corregir el tipo de un agente:
 
 ### 6.2 Plantilla y ajustes propios de un agente
 
-La página del agente agrupa por control los parámetros por sistema y por plataforma. Cada control muestra la plantilla que usa, sus ajustes propios y, en cada parámetro, su clase, si es obligatorio al nivel del control y el origen de su valor.
+La página del agente agrupa por control los parámetros por sistema y por plataforma, con la plantilla, los ajustes propios y, por parámetro, su clase, si es obligatorio y el origen del valor.
 
 Para cambiar la plantilla de un control:
 
@@ -328,7 +327,7 @@ El alcance se cambia con la [configuración inicial](https://gitlab.com/quersyst
 
 ## 8. Conversión de una configuración de la 1.2.0
 
-En la 1.2.0 las plantillas eran de plataforma y se aplicaban a cada agente para todos los controles a la vez. La 1.3.0 convierte ese documento al cargarlo, sin intervención y sin cambiar ningún valor:
+En la 1.2.0 las plantillas eran de plataforma y se aplicaban a cada agente para todos los controles. La 1.3.0 convierte el documento al cargarlo, sin cambiar ningún valor:
 
 - Cada plantilla aplicada pasa a ser la plantilla asignada, de serie y con el mismo id, en cada control en que fijaba valores. «Copias con PBS» y «Copias Zimbra NE» pasan a mp.info.6.
 - Si dos plantillas aplicadas fijaban valores en el mismo control y la segunda aportaba parámetros que la primera no fija, se crea una plantilla propia «<plantilla> + <plantilla> (de la 1.2.0)» con los valores de las dos, ganando la primera, y se asigna.
@@ -352,7 +351,7 @@ Mientras la conversión no está guardada, Configuración muestra «Configuraci�
 
 ## 9. Reparto por agentes de filas comunes
 
-Antes de la 1.2.0, lo que era de una máquina se declaraba como valor común: tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…). «Repartir por agentes» copia esas filas a cada agente como ajuste propio, sin perder ninguna y sin dejar a ningún agente sin valor:
+Tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…) declaradas como valor común antes de la 1.2.0. «Repartir por agentes» copia esas filas a cada agente como ajuste propio, sin perder ninguna ni dejar a ningún agente sin valor:
 
 - Las filas de las tablas con columna de sistema que nombran a un agente se **copian** a ese agente. El agente se reconoce por su id, su nombre, el hostname de `os.uname`, la parte corta de ambos (antes del primer punto) y sus otros nombres (apartado 6.4), sin distinguir mayúsculas.
 - Una fila copiada **sale** del valor común solo si con eso ningún agente del alcance que evalúa el control se queda sin valor. Si no, la fila se queda también en el valor común.

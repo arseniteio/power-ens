@@ -3,8 +3,7 @@
 
 [[_TOC_]]
 
-This is the internal guide for whoever works on this repository. Today the
-project is private; a community edition is planned.
+Internal guide of the repository (private; community edition planned).
 
 ## Workflow
 
@@ -71,6 +70,7 @@ The guides in `docs/deployment/` follow the same style:
   imperative («Check…», «Stop the procedure»), without *you* or *your*;
 - after each command, **Expected result:** (**Resultado esperado:**, in
   Spanish), also in tables;
+- direct: no paragraphs that justify, narrate or teach, no repetition between guides and no history; only steps, commands, paths, values, expected results and warnings that prevent data loss;
 - notices with `> [!note]`, `> [!important]` or `> [!warning]`;
 - every relative link and every anchor must exist. GitLab builds the anchor
   from the heading in lowercase, with spaces turned into `-` and punctuation
@@ -134,9 +134,7 @@ this project, under *Settings → CI/CD → Variables*:
 | `RUNBOOKS_DEPLOY_USER` | the token's username | masked, not protected |
 | `RUNBOOKS_DEPLOY_TOKEN` | the token | masked, not protected |
 
-They are not protected because working branches and MRs are not protected: a
-protected variable would not reach their pipelines. Without them,
-`ci/clone-runbooks.sh` stops and says how to create them.
+Not protected: working branches and MRs are not protected. Without the variables, `ci/clone-runbooks.sh` stops and says how to create them.
 
 The `release` job needs no other variable: it uses the job's own token.
 

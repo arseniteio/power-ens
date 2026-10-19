@@ -1,23 +1,16 @@
 # Runbooks and the organization's registers
 [Español](05-runbooks-and-registers.md)
 
-This guide states which runbook is installed on each system, where its three
-guides are, and which registers the organization must create so that the
-dashboard can evaluate the controls.
+Runbook of each system, its three guides and the registers the organization creates.
 
 > [!important]
-> When an installer or a runbook guide says `docs/deployment/02-compliance.md`
-> (or `01-installation.md`, `03-uninstall-and-troubleshooting.md`), it means
-> **that runbook's guide**, not this repository. The direct links are in the
-> table below.
+> `docs/deployment/01-installation.md`, `02-compliance.md` and `03-uninstall-and-troubleshooting.md`, when cited by an installer or a runbook, are **that runbook's guides**, not this repository's. Links in the table below.
 
 [[_TOC_]]
 
 ## Runbooks per control
 
-Each cell links the repository and its guides: **01** installation, **02**
-compliance (parameters, registers and how each evidence is judged), **03**
-uninstall and troubleshooting. "—" means that variant does not exist.
+Guides: **01** installation, **02** compliance (parameters, registers and how each evidence is judged), **03** uninstall and troubleshooting. "—": the variant does not exist.
 
 | Control | Linux | Zimbra (LDAP; MTA for mp.info.6) | Windows | On the manager (`install-manager.sh`) | On each agent |
 |---|---|---|---|---|---|
@@ -49,13 +42,13 @@ The op.cont.2 runbook (`linux/op.cont.2`) is documentation only: there is
 nothing to collect on any machine, and the plugin judges it from the screen
 tables and their validity (`tests/controls-without-runbook.json`).
 
-How to read the table:
+Rules:
 
 - **On the manager**, run the 22 `install-manager.sh` of the **Linux**
   runbooks, once per manager. The `install-manager.sh` of the `zimbra-ldap`
-  and `zimbra-mta` variants install exactly the same rules and the same
+  and `zimbra-mta` variants install the same rules and the same
   `<localfile>` (for op.exp.7 and op.exp.9 they only check or delegate to the
-  Linux one): there is no need to repeat them. Windows has no
+  Linux one): do not repeat them. Windows has no
   `install-manager.sh`.
 - **Eight runbooks have a collector on the manager**: op.exp.7, op.exp.8,
   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3. Their facts
@@ -74,15 +67,9 @@ How to read the table:
 
 ## Registers the organization creates
 
-No installer creates these files: they are the organization's registers, and
-their absence is a fact the dashboard must reflect. Common rules:
-**tab**-separated TSV, not spaces; owner `root`; mode `640`; ISO 8601 dates in
-UTC; and **only real facts**. An invented date produces false compliance,
-which is what the product prevents.
+No installer creates these files. Common rules: **tab**-separated TSV; owner `root`; mode `640`; ISO 8601 dates in UTC; **only real facts**.
 
-A **missing** register is not an **empty** one: missing gives `NO_EVALUABLE`
-with cause `CONFIGURATION` (it is not known where the organization records
-it); with only the header, the panel judges with zero rows.
+**Missing** register: `NO_EVALUABLE` with cause `CONFIGURATION`. Register with only the header: judged with zero rows.
 
 ### On the manager
 
@@ -98,8 +85,7 @@ it); with only the header, the panel judges with zero rows.
 
 ### On each machine (Linux runbooks)
 
-None ships a `.example`: the format and the command to create them are in the
-linked section.
+None ships a `.example`: format and creation command are in the linked section.
 
 | Control | Register | What goes in it | While missing | Guide |
 |---|---|---|---|---|

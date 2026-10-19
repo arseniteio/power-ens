@@ -5,7 +5,7 @@
 
 ## 1. Objetivo
 
-Esta guía describe las comprobaciones que deben realizarse cuando una instalación o actualización de ENSFácil falla y los procedimientos para volver al estado anterior de forma controlada.
+Comprobaciones ante un fallo de instalación o actualización de ENSFácil y procedimientos de vuelta atrás.
 
 > [!warning]
 > No debe continuarse con un despliegue si una validación previa ha fallado.
@@ -77,7 +77,7 @@ Resultado esperado:
 
 ## 4. Reinstalar la versión anterior de ENSFácil
 
-Volver a la versión anterior es desplegar de nuevo su release. `deploy-plugin.sh` sustituye solo `ensfacil` y sube el `build.number` para que los navegadores dejen de usar la versión retirada.
+Desplegar de nuevo la release anterior: `deploy-plugin.sh` sustituye solo `ensfacil` y sube el `build.number`.
 
 Se usa la carpeta de esa versión (`/opt/ensfacil/releases/<versión>`). Si ya no existe, descargar la release de nuevo ([Instalar desde una release, apartado 6.3](07-installing-from-a-release.md#63-descargar-los-cuatro-ficheros), con esa versión en `V`). Sustituir `X.Y.Z` por la versión de destino:
 
@@ -110,7 +110,7 @@ Resultado esperado: `dashboard: active` y `ensfacil` en la lista de plugins. Com
 
 ### 4.1 Si `deploy-plugin.sh` falla a medias
 
-Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`, o en `<carpeta>/ensfacil/` si se indica `ENSFACIL_BACKUP_DIR=<carpeta>`. Esa subcarpeta la crea el script (de root, permisos 0700) si no existe, y nunca cambia los permisos de una carpeta que ya existía. Cuando el despliegue termina bien se quedan las 3 últimas copias; un despliegue que falla no borra ninguna, así que la última copia buena sigue ahí aunque se repita. No las deja junto al zip: la compilación siguiente borra esa carpeta.
+Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`, o en `<carpeta>/ensfacil/` si se indica `ENSFACIL_BACKUP_DIR=<carpeta>`. El script crea esa subcarpeta (root, 0700) si no existe y no cambia los permisos de una carpeta existente. Tras un despliegue correcto se conservan las 3 últimas copias; un despliegue fallido no borra ninguna. Las copias no se guardan junto al zip: la compilación siguiente borra esa carpeta.
 
 Si algo falla con el dashboard ya parado, el script imprime los comandos para volver a como estaba (quitar el plugin a medias, restaurar esa copia, devolver el `package.json` si ya lo había cambiado y arrancar el dashboard) y sale con error. Ejecutar esos comandos en el orden en que aparecen y comprobar como en el apartado 3.
 
@@ -124,7 +124,7 @@ Si algo falla con el dashboard ya parado, el script imprime los comandos para vo
 | `6` | el dashboard no quedó activo al final | plugin nuevo instalado y dashboard no activo: revisar `journalctl -u wazuh-dashboard` |
 | `7` | falló otro paso con el dashboard parado (retirar el plugin, subir el `build.number`, arrancar) o se interrumpió | el mensaje dice el paso |
 
-Para volver atrás después de un despliegue que terminó bien, usar la release anterior o el zip anterior (arriba): `deploy-plugin.sh` sube además el `build.number`, y restaurar la copia a mano no.
+Tras un despliegue correcto, volver atrás con la release o el zip anterior (arriba), no restaurando la copia a mano: solo `deploy-plugin.sh` sube el `build.number`.
 
 ## 5. Retirar ENSFácil
 
@@ -150,7 +150,7 @@ Resultado esperado: `active`; `wazuh` en la lista, sin `ensfacil`; `404`.
 > [!warning]
 > Retirar siempre por el nombre exacto, `ensfacil`. Nunca con comodines como `wazuh*` o `*`: se llevarían por delante `wazuhCore` y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
 
-La configuración ENS se queda en el índice `wazuh-ens-configuration` y el rol `ensfacil_admin` se queda en el plugin de seguridad (no da ningún permiso). Al volver a instalar ENSFácil, todo sigue donde estaba.
+Se conservan el índice `wazuh-ens-configuration` y el rol `ensfacil_admin` (sin permisos propios).
 
 ### 5.1 Quitarlo del todo
 
@@ -177,11 +177,11 @@ máquina se quitan con la guía `03-uninstall-and-troubleshooting` de cada runbo
 
 ## 6. Volver a la versión integrada
 
-Solo para un entorno que viene de la versión integrada ([guía de actualización, apartado 10](02-updating-an-existing-environment.md#10-transición-desde-la-versión-integrada)). La versión integrada ya no se mantiene: `config/deploy-plugin.sh` no instala su zip (`wazuh-2.19.5.zip`), y la vuelta atrás usa lo que guardó el apartado 10.3 de esa guía.
+Solo para un entorno que viene de la versión integrada ([guía de actualización, apartado 10](02-updating-an-existing-environment.md#10-transición-desde-la-versión-integrada)). `config/deploy-plugin.sh` no instala el zip de la versión integrada (`wazuh-2.19.5.zip`): la vuelta atrás usa lo guardado en el apartado 10.3 de esa guía.
 
 **Antes de reinstalar el plugin oficial de Wazuh** (apartado 10.3 de esa guía), la versión integrada sigue instalada. Basta con retirar ENSFácil (apartado 5).
 
-**Después de reinstalar el plugin oficial de Wazuh**, se devuelve a su sitio el plugin integrado que el apartado 10.3 apartó en `$T/wazuh-integrado`, y se vuelve a desplegar ENSFácil, con la release instalada en el apartado 10.1 de esa guía, para que suba el `build.number` (los navegadores tienen asociados al número actual los ficheros del plugin oficial). Solo vale mientras el paquete `wazuh-dashboard` siga siendo el 4.14.7: el plugin integrado está hecho para esa versión, y con otra el dashboard no arranca.
+**Después de reinstalar el plugin oficial de Wazuh**, se devuelve a su sitio el plugin integrado que el apartado 10.3 apartó en `$T/wazuh-integrado`, y se vuelve a desplegar ENSFácil con la release del apartado 10.1 de esa guía, para subir el `build.number`. Solo vale con `wazuh-dashboard` 4.14.7: con otra versión el dashboard no arranca.
 
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
@@ -224,7 +224,7 @@ sudo mv "$T/desde-tgz/plugins/wazuh" "$T/wazuh-integrado"
 
 ## 7. Restaurar la configuración ENS
 
-La configuración ENS vive en el documento `active` del índice `wazuh-ens-configuration`. Las guías de instalación y actualización guardan una copia antes de cada cambio (`/opt/ensfacil/artifacts/active-<fecha>.json` o `$BACKUP/active.json`). Para restaurarla se reescribe el `_source` de esa copia, usando el certificado de administrador del indexer:
+Documento `active` del índice `wazuh-ens-configuration`. Copias previas a cada cambio: `/opt/ensfacil/artifacts/active-<fecha>.json` o `$BACKUP/active.json`. Reescribir el `_source` de la copia con el certificado de administrador del indexer:
 
 ```bash
 COPIA=/opt/ensfacil/artifacts/active-AAAAMMDD-HHMMSS.json
@@ -276,13 +276,10 @@ Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después 
 
 ### 8.1 Memoria del dashboard
 
-Desde la 1.2.0 el servidor del dashboard evalúa los controles. En el
-laboratorio (6 máquinas, unos 210.000 hechos en 30 días) eso añade unos 15 MB
-por usuario tras la primera carga y unos 50 MB mientras se calcula; el proceso
-del dashboard ocupa en total unos 470-550 MB. Lo acotan 50.000 hechos por
-lectura (unos 85 MB), 4 lecturas a la vez (unos 340 MB en el peor caso) y una
-memoria de resultados de 64 a 256 MB según el alcance (`server/README.md`,
-apartado «Memoria»).
+Desde la 1.2.0 el servidor del dashboard evalúa los controles. Referencia del
+laboratorio (6 máquinas, unos 210.000 hechos en 30 días): 470-550 MB en total.
+Límites: 50.000 hechos por lectura (unos 85 MB), 4 lecturas a la vez y memoria
+de resultados de 64 a 256 MB según el alcance (`server/README.md`, «Memoria»).
 
 En un despliegue mayor que el laboratorio (decenas de máquinas o millones de
 hechos en la ventana), el montón de Node del dashboard debe ser de al menos

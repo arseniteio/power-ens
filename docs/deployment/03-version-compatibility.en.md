@@ -5,12 +5,12 @@
 
 ## 1. Objective
 
-This guide states the version combinations validated for ENSFácil and the procedure to follow before using another Wazuh version.
+Validated ENSFácil version combinations and the procedure before using another Wazuh version.
 
-ENSFácil is a Wazuh Dashboard plugin of its own (`ensfacil`). It does not modify the Wazuh plugin: Wazuh can be updated on its own. But ENSFácil is built for an **exact** OpenSearch Dashboards version, the one Wazuh Dashboard ships.
+ENSFácil (`ensfacil`) is built for an **exact** OpenSearch Dashboards version, the one Wazuh Dashboard ships.
 
 > [!important]
-> Compatibility must never be assumed just because Wazuh installs or starts correctly. A version is compatible when ENSFácil has been built for it and validated.
+> A version is compatible only when ENSFácil has been built and validated for it.
 
 ## 2. Validated version
 
@@ -24,7 +24,7 @@ Any other combination is not validated.
 > [!note]
 > `1.2.0` is published for the same combination as `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). It is added to this table once it meets the criteria of section 6 in a real environment.
 
-The zip carries the OpenSearch Dashboards version in its name and in its manifest (`opensearchDashboardsVersion`). OpenSearch Dashboards only accepts a plugin built for its exact version:
+OpenSearch Dashboards only accepts a zip built for its exact version (`opensearchDashboardsVersion` in the manifest):
 
 - on installation, `opensearch-dashboards-plugin install` rejects it with `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
 - if it was already installed and the dashboard changes version, the dashboard **does not start**: `Failed to initialize plugins`.
@@ -117,7 +117,7 @@ A new version is only added to the table in section 2 once it has been shown tha
 
 ## 7. Non-validated versions
 
-A version that is not in the table in section 2 is not validated. It does not mean it is incompatible, but that there is no evidence yet to authorize the deployment.
+A version absent from the table in section 2 is not validated.
 
 > [!important]
 > With a non-validated version, stop the procedure and first run the evaluation in section 5.

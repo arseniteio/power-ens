@@ -5,12 +5,7 @@
 
 ## 1. Objetivo
 
-Esta guía describe el procedimiento para desplegar ENSFácil partiendo de una
-máquina limpia, sin depender de ningún servidor ENSFácil previamente preparado.
-
-El objetivo es que el entorno pueda reproducirse utilizando únicamente los
-repositorios autorizados de GitLab, la documentación del proyecto y los
-artefactos versionados necesarios para el despliegue.
+Despliegue de ENSFácil desde una máquina limpia, con solo los repositorios autorizados de GitLab y los artefactos versionados.
 
 ## 2. Punto de partida
 
@@ -21,37 +16,20 @@ Esta ruta parte de una instalación de Ubuntu Server que dispone únicamente de:
 - acceso a Internet cuando sea necesario;
 - acceso autorizado a los repositorios GitLab del proyecto.
 
-No se presupone que estén previamente instalados o preparados Wazuh, ENSFácil,
-el árbol de compilación de OpenSearch Dashboards, Node.js, Yarn, las reglas ENS,
-el grupo `ens` ni la configuración inicial de ENSFácil.
+No se presupone instalado nada: Wazuh, ENSFácil, el árbol de OpenSearch Dashboards, Node.js, Yarn, las reglas ENS, el grupo `ens` ni la configuración inicial.
 
 > [!important]
-> Esta guía corresponde a la instalación por paquetes de Wazuh, con el indexer
-> en la misma máquina (instalación todo en uno). Con las imágenes oficiales de
-> Wazuh en Docker, el procedimiento está en [Wazuh en Docker](06-wazuh-in-docker.md):
-> la instalación del plugin, el rol, la siembra y la validación se hacen allí
-> de otra forma, y la parte del manager se ejecuta sin `systemctl`, sin
-> `hostname`, sin cron y sin `git`.
+> Instalación por paquetes de Wazuh, con el indexer en la misma máquina (todo en uno). Con Wazuh en Docker: [Wazuh en Docker](06-wazuh-in-docker.md); el plugin, el rol, la siembra y la validación se hacen allí de otra forma y la parte del manager se ejecuta sin `systemctl`, `hostname`, cron ni `git`.
 >
-> Los enlaces a cada runbook y a sus guías (`01-installation`, `02-compliance`,
-> `03-uninstall-and-troubleshooting`), y los registros que crea la organización,
-> están en [Runbooks y registros de la organización](05-runbooks-and-registers.md).
+> Enlaces a cada runbook y a sus guías, y registros de la organización: [Runbooks y registros de la organización](05-runbooks-and-registers.md).
 
 ## 3. Resultado esperado
 
-Al finalizar esta guía deben quedar instalados y validados Wazuh y ENSFácil:
-las reglas del manager, el plugin `ensfacil` instalado en Wazuh
-Dashboard junto al plugin oficial de Wazuh (que no se modifica), el rol
-`ensfacil_admin` y la configuración inicial necesaria para que ENSFácil pueda
-funcionar.
+Wazuh y ENSFácil instalados y validados: reglas del manager, plugin `ensfacil` junto al plugin oficial de Wazuh (sin modificar), rol `ensfacil_admin` y configuración inicial.
 
 ## 4. Principio de reproducibilidad
 
-Una instalación se considera reproducible cuando puede completarse desde una
-máquina limpia utilizando únicamente GitLab y esta documentación.
-
-No debe ser necesario copiar manualmente ficheros desde otro servidor ENSFácil
-ni depender de una máquina previamente configurada.
+La instalación debe completarse desde una máquina limpia con solo GitLab y esta documentación, sin copiar ficheros de otro servidor ENSFácil.
 
 ## 5. Versiones y compatibilidad
 
@@ -71,11 +49,11 @@ La matriz de compatibilidad se mantiene en:
 [`docs/deployment/03-version-compatibility.md`](03-version-compatibility.md)
 
 > [!note]
-> Una nueva versión de Wazuh no debe considerarse compatible automáticamente. ENSFácil no modifica el plugin de Wazuh, pero se compila para una versión exacta de OpenSearch Dashboards: si la versión nueva de Wazuh Dashboard lleva otra, hay que recompilar el plugin y validarlo antes de actualizar.
+> Una versión nueva de Wazuh no es compatible por defecto: ENSFácil se compila para una versión exacta de OpenSearch Dashboards. Si la versión nueva de Wazuh Dashboard lleva otra, recompilar y validar antes de actualizar.
 
 ## 6. Flujo completo de instalación
 
-La instalación de ENSFácil se organiza en cinco bloques principales:
+Bloques de la instalación:
 
 ```mermaid
 flowchart LR
@@ -91,25 +69,12 @@ flowchart LR
 4. Instalar el plugin ENSFácil en Wazuh Dashboard, desde una release o compilado, y crear el rol `ensfacil_admin`.
 5. Validar que ENSFácil queda instalado y operativo.
 
-Los apartados siguientes desarrollan los comandos y comprobaciones necesarios para cada bloque.
-
 ## 7. Regla de validación
 
-Un paso no se considera terminado únicamente porque el comando haya finalizado sin errores.
-
-Cada fase debe incluir una comprobación objetiva que confirme que el resultado esperado existe y funciona.
+Terminar un comando sin errores no basta: cada fase incluye una comprobación objetiva del resultado.
 
 > [!important]
 > Si una validación falla, el despliegue debe detenerse en ese punto. No se continuará con las fases posteriores hasta identificar y resolver la causa.
-
-Siempre que corresponda, cada fase documentará:
-
-- prerrequisitos;
-- comandos que deben ejecutarse;
-- resultado esperado;
-- comprobación de validación;
-- acciones recomendadas si la validación falla;
-- procedimiento de vuelta atrás cuando exista riesgo de modificar un entorno operativo.
 
 ## 8. Preparar y validar la máquina base
 
@@ -128,13 +93,11 @@ La instalación inicial de esta guía se ha validado sobre el siguiente entorno 
 | Acceso | acceso administrativo mediante `sudo` |
 
 > [!note]
-> Estos valores describen el entorno de validación y no deben interpretarse como requisitos mínimos de ENSFácil.
-
-La topología de red del laboratorio tampoco es un requisito del producto. La máquina utilizada durante la validación dispone de una interfaz NAT y una interfaz de red de laboratorio.
+> Entorno de validación; ni sus valores ni su topología de red son requisitos mínimos de ENSFácil.
 
 ### 8.2 Comprobaciones previas
 
-Antes de comenzar el despliegue, comprobar el sistema operativo, arquitectura, recursos disponibles, conectividad y herramientas básicas:
+Comprobar sistema operativo, arquitectura, recursos, conectividad y herramientas básicas:
 
 ```bash
 cat /etc/os-release
@@ -150,15 +113,13 @@ command -v sudo apt git curl wget python3
 ```
 
 > [!warning]
-> La instalación no debe continuar si no existe acceso administrativo o si la máquina no dispone de la conectividad necesaria para obtener los repositorios y paquetes del despliegue.
+> No continuar sin acceso administrativo o sin la conectividad necesaria para obtener repositorios y paquetes.
 
 ## 9. Instalar y validar Wazuh 4.14.7
 
 ENSFácil necesita una instalación funcional y validada de Wazuh antes de instalar el plugin.
 
-Si Wazuh 4.14.7 todavía no está instalado, seguir primero la [Guía de instalación de Wazuh 4.14.7](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), completando los pasos 1 a 4.
-
-Después de completar los pasos 1 a 4 de la guía de Wazuh, volver a este procedimiento y comprobar que la plataforma central está instalada y operativa antes de continuar con ENSFácil.
+Si Wazuh 4.14.7 no está instalado, seguir antes la [Guía de instalación de Wazuh 4.14.7](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), pasos 1 a 4, y comprobar después que la plataforma está operativa.
 
 ### 9.1 Validar la instalación de Wazuh
 
@@ -176,14 +137,14 @@ sudo systemctl is-active wazuh-manager wazuh-indexer wazuh-dashboard filebeat
 
 Resultado esperado: `active` en los cuatro servicios.
 
-Para la combinación validada en esta guía, `wazuh-manager`, `wazuh-indexer` y `wazuh-dashboard` deben corresponder a Wazuh `4.14.7` (paquetes `4.14.7-1`). Además, los cuatro servicios anteriores deben estar en estado `active` y el acceso al Dashboard debe haber sido validado según el paso 4 de la guía de instalación de Wazuh.
+`wazuh-manager`, `wazuh-indexer` y `wazuh-dashboard` deben ser Wazuh `4.14.7` (paquetes `4.14.7-1`), con los cuatro servicios `active` y el acceso al Dashboard validado según el paso 4 de la guía de Wazuh.
 
 > [!warning]
 > Si alguna de estas comprobaciones falla, no continuar con la instalación de ENSFácil hasta resolver la causa.
 
 ## 10. Configurar el acceso autorizado a GitLab
 
-Antes de clonar ENSFácil y los runbooks, comprobar que el servidor dispone de acceso autorizado a los repositorios del proyecto en GitLab.
+Comprobar el acceso autorizado a los repositorios GitLab del proyecto antes de clonar.
 
 ### 10.1 Validar el acceso al repositorio principal
 
@@ -218,7 +179,7 @@ Resultado esperado: el remoto `git@gitlab.com:quersystem/plugin-wazuh-ens.git`, 
 
 ### 10.3 Clonar los runbooks ENS
 
-En el servidor Wazuh Manager, clonar los 22 runbooks Linux que se instalan y que usa ENSFácil bajo `/opt/ensfacil`. Esta ubicación mantiene los repositorios de controles junto al repositorio principal, que es donde los busca la comprobación de coherencia del proyecto (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
+En el servidor Wazuh Manager, clonar bajo `/opt/ensfacil` los 22 runbooks Linux que se instalan, junto al repositorio principal (`tests/check-consistency.py` los lee como directorios hermanos de `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -256,10 +217,10 @@ done < /opt/ensfacil/runbooks.txt
 git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
-El fichero `/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes. El runbook de op.cont.2 (`linux/op.cont.2`) es solo documentación y no se clona en el manager: no instala nada, porque el plugin juzga ese control con la pantalla de Configuración.
+`/opt/ensfacil/runbooks.txt` se reutiliza en los pasos siguientes. El runbook de op.cont.2 (`linux/op.cont.2`) es solo documentación y no se clona en el manager.
 
 > [!note]
-> Cada runbook se llama exactamente como su control, y el subgrupo dice la plataforma o el rol. Las variantes para el servidor de directorio LDAP de Zimbra (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) y para Windows (`quersystem/ens-controls-runbook/windows`) se llaman igual que las de Linux y se clonan en las máquinas correspondientes siguiendo su propia guía. En el manager basta con los runbooks Linux: las reglas son las mismas, byte a byte.
+> Cada runbook se llama como su control; el subgrupo indica la plataforma. Las variantes de Zimbra LDAP (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) y Windows (`quersystem/ens-controls-runbook/windows`) se clonan en sus máquinas según su propia guía. En el manager bastan los runbooks Linux.
 
 ### 10.4 Validar los runbooks clonados
 
@@ -276,9 +237,7 @@ Resultado esperado: los 22 repositorios con una URL bajo `git@gitlab.com:quersys
 ## 11. Crear y validar el grupo ENS
 
 > [!note]
-> Este apartado crea los grupos en el manager. Cómo se meten los agentes en
-> ellos, cómo se comprueba que les llega la configuración y el alcance ENS del
-> plugin están, una sola vez, en la [configuración inicial de ENSFácil](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
+> Este apartado crea los grupos en el manager. Agentes en los grupos, llegada de la configuración y alcance ENS: [configuración inicial de ENSFácil](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
 Antes de instalar las reglas de los controles, crear el grupo compartido `ens` en Wazuh Manager y el grupo `ens-copias`, el propio de mp.info.6, en el que solo van las máquinas cuyas copias se miden:
 
@@ -370,11 +329,11 @@ Resultado esperado: `active`, `CONFIG_MANAGER=OK` y `coherencia OK`. `check-cons
 
 ## 13. Instalar el plugin
 
-ENSFácil es un plugin propio de Wazuh Dashboard, con el identificador `ensfacil`. Se instala **junto** al plugin oficial de Wazuh, que no se modifica ni se retira.
+Plugin `ensfacil`, instalado **junto** al plugin oficial de Wazuh, que no se modifica ni se retira.
 
 ### 13.1 Elegir de dónde sale el zip
 
-Hay dos formas de conseguir el zip del plugin. Las dos terminan igual, en el apartado 13.4.
+Dos formas de conseguir el zip; ambas terminan en el apartado 13.4.
 
 | Opción | Cuándo | Guía |
 |---|---|---|
@@ -425,14 +384,14 @@ sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 sudo bash "$DEPLOY" "$ZIP"
 ```
 
-El script para el dashboard, retira la versión anterior de `ensfacil` si la hay, instala el zip, **sube el `build.number` del dashboard** y lo arranca. Solo toca `ensfacil`: el plugin de Wazuh (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) se queda como está.
+El script para el dashboard, retira la versión anterior de `ensfacil`, instala el zip, **sube el `build.number`** y arranca el dashboard. Solo toca `ensfacil`; el plugin de Wazuh (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) no cambia.
 
 Resultado esperado: al final del despliegue, `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y `wazuhCheckUpdates`.
 
 Si algo falla, el script indica cómo volver al estado anterior y sale con error. Los códigos de salida y las copias que guarda están en el [diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias).
 
 > [!important]
-> Sin subir el `build.number`, el navegador sigue usando los ficheros de la versión anterior aunque el plugin nuevo esté instalado: la URL de los bundles depende de ese número, no del plugin, y ni una recarga forzada la cambia. Por eso la instalación se hace con el script y no a mano. El script guarda una copia de `package.json` junto al original (`package.json.antes-<fecha>`).
+> Sin subir el `build.number`, el navegador sigue usando los ficheros de la versión anterior (ni una recarga forzada lo evita): instalar siempre con el script. El script guarda `package.json` como `package.json.antes-<fecha>`.
 
 Comprobar:
 
@@ -453,18 +412,16 @@ Resultado esperado:
 ### 13.5 Crear el rol ensfacil_admin
 
 > [!note]
-> Este paso solo es necesario si un usuario sin `all_access` debe guardar la
-> configuración o consultar su historial. El usuario `admin` de Wazuh tiene
-> `all_access` y puede guardar la configuración sin este rol.
+> Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial. El usuario `admin` de Wazuh tiene `all_access`.
 
-Guardar la configuración ENS y ver su historial solo lo pueden hacer los usuarios con el rol `ensfacil_admin` o `all_access` del plugin de seguridad. Los demás ven la configuración, pero al guardar reciben un error 403: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
+Sin `ensfacil_admin` ni `all_access`, guardar la configuración o ver su historial devuelve el error 403: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
 
-`config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña, y comprueba el certificado del indexer contra su CA: por defecto `/etc/wazuh-indexer/certs/root-ca.pem`, la de la instalación todo en uno; otra se indica con `OS_CA`. Por defecto se conecta a `https://127.0.0.1:9200`, el nombre para el que la instalación todo en uno de Wazuh emite el certificado del indexer: con `localhost`, la comprobación falla. En Docker, el procedimiento está en [Wazuh en Docker, apartado 5](06-wazuh-in-docker.md#5-crear-el-rol-ensfacil_admin).
+`config/create-admin-role.sh` crea el rol y, si se le pide, lo asigna. Usa el certificado de administrador del indexer, sin contraseña, y verifica el certificado del indexer contra su CA (por defecto `/etc/wazuh-indexer/certs/root-ca.pem`; otra con `OS_CA`). Conexión por defecto: `https://127.0.0.1:9200`; con `localhost` la verificación falla. En Docker: [Wazuh en Docker, apartado 5](06-wazuh-in-docker.md#5-crear-el-rol-ensfacil_admin).
 
-Con la opción A, la carpeta de la release trae también este script (`$R/create-admin-role.sh`), de la versión de la release y comprobado con `SHA256SUMS`. Se puede usar ese script en lugar del del repositorio: las opciones son las mismas.
+Con la opción A, la carpeta de la release trae `$R/create-admin-role.sh`, verificado con `SHA256SUMS` y con las mismas opciones.
 
 > [!note]
-> El rol no da ningún permiso por sí mismo: es una marca que ENSFácil busca entre los roles del usuario. Para ver los datos, cada usuario necesita además su rol habitual de Wazuh, con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+> El rol no concede permisos por sí mismo: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario del dashboard que administrará ENSFácil:
 
@@ -494,17 +451,17 @@ sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 
 Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, `users with the role ensfacil_admin: <usuario>`.
 
-- La ejecución es repetible: el rol se escribe igual y solo se añaden los usuarios que falten.
+- Repetible: solo se añaden los usuarios que falten.
 - Varios usuarios: `--mapear <usuario1> --mapear <usuario2>`.
 - Sin `--mapear`, el script solo crea el rol.
-- Si el usuario tenía una sesión abierta y sigue recibiendo el error 403, debe cerrar la sesión e iniciar otra.
+- Si un usuario con sesión abierta sigue recibiendo el error 403, cerrar la sesión e iniciar otra.
 
 ### 13.6 Comprobar ENSFácil en el navegador
 
 Entrar en Wazuh Dashboard y comprobar que:
 
 - en el menú, dentro de «Security operations», aparece «ENSFácil»;
-- en la portada de OpenSearch Dashboards (`/app/home`), la tarjeta «ENSFácil» abre la aplicación; la portada de Wazuh no admite tarjetas de otros plugins, así que en ella ENSFácil solo está en el menú;
+- en la portada de OpenSearch Dashboards (`/app/home`), la tarjeta «ENSFácil» abre la aplicación; en la portada de Wazuh, ENSFácil solo está en el menú;
 - se abre en la pestaña Panel, con las pestañas Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias y Eventos;
 - hay un selector «Máquina» para ver todas las máquinas del alcance o una sola.
 
@@ -512,7 +469,7 @@ En una instalación nueva, seguir con el apartado 14: la configuración ENS se c
 
 ## 14. Inicializar y sembrar la configuración ENS
 
-Las herramientas de `config/` se conectan al indexer con el **certificado de administrador del indexer**, que en la instalación todo en uno está en `/etc/wazuh-indexer/certs/`. No hace falta conocer ni escribir ninguna contraseña. Se ejecutan con `sudo` porque la clave del certificado solo es legible por `root`:
+Las herramientas de `config/` usan el **certificado de administrador del indexer** (`/etc/wazuh-indexer/certs/` en todo en uno), sin contraseña, y se ejecutan con `sudo` porque solo `root` lee la clave:
 
 ```bash
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
@@ -520,7 +477,7 @@ IDX=https://127.0.0.1:9200
 ```
 
 > [!note]
-> Si el indexer no está en la misma máquina, exportar `ENS_OS_URL` con su URL y usar el certificado de administrador de ese indexer. Las herramientas admiten también `OS_USER` y `OS_PASS`, pero no se recomienda: obliga a escribir la contraseña en la sesión. En Docker, los pasos de este apartado están en [Wazuh en Docker, apartados 6 a 10](06-wazuh-in-docker.md#6-primer-guardado-de-la-configuración).
+> Con el indexer en otra máquina, exportar `ENS_OS_URL` y usar el certificado de administrador de ese indexer. `OS_USER` y `OS_PASS` existen, pero no se recomiendan. En Docker: [Wazuh en Docker, apartados 6 a 10](06-wazuh-in-docker.md#6-primer-guardado-de-la-configuración).
 
 > [!note]
 > `inject-control.py` y `set-parameters.py` no verifican el certificado del indexer, por lo que admiten `127.0.0.1` o `localhost`. `create-admin-role.sh` sí lo verifica contra la CA (apartado 13.5) y necesita el nombre para el que está emitido el certificado.
@@ -532,7 +489,7 @@ En una instalación limpia, el índice `wazuh-ens-configuration` puede existir t
 Acceder desde Wazuh Dashboard a ENSFácil > Configuración y realizar un primer guardado de la configuración, con un usuario que tenga el rol `ensfacil_admin` o `all_access` (apartado 13.5). Con otro usuario, el guardado devuelve el error 403.
 
 > [!important]
-> Abrir únicamente la pantalla no es suficiente: el primer guardado crea el documento `active` que utilizarán el motor y las herramientas de configuración.
+> Abrir la pantalla no basta: el primer guardado crea el documento `active`.
 
 Después del guardado, comprobar desde el servidor que el documento existe:
 
@@ -592,14 +549,14 @@ done
 |---|---|
 | Salida de cada control | `== APPLIED ==` |
 
-La operación fusiona la configuración existente y añade los bloques necesarios sin eliminar los valores previamente configurados.
+La siembra fusiona: conserva los valores existentes.
 
 > [!note]
-> Las evidencias que dependen de parámetros obligatorios todavía sin valor quedan en `NO_EVALUABLE`, con causa `CONFIGURATION`, y los requisitos que sostienen no se acreditan hasta declarar esos parámetros. La ausencia de información no debe interpretarse como cumplimiento.
+> Las evidencias que dependen de parámetros obligatorios sin valor quedan en `NO_EVALUABLE`, con causa `CONFIGURATION`, y sus requisitos no se acreditan hasta declararlos.
 
 ### 14.4 Validar el documento entero
 
-Un parámetro con un valor que el plugin no acepta no degrada solo su control: impide cargar el entorno ENS completo y el panel muestra «No se pudo cargar el entorno ENS». Después de cada siembra o cambio de parámetros, validar el documento completo con el mismo validador que usa el plugin (`config/validate-configuration.ts`). Necesita Node.js 18 o superior y acceso a Internet para que `npx` descargue `tsx` y `yarn` instale en `node_modules/` las dependencias del plugin que importa el validador (`re2js`):
+Un valor que el plugin no acepta impide cargar el entorno ENS completo («No se pudo cargar el entorno ENS»). Tras cada siembra o cambio de parámetros, validar el documento completo con `config/validate-configuration.ts`. Requiere Node.js 18 o superior e Internet (`npx` descarga `tsx`; `yarn` instala `re2js`):
 
 ```bash
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
@@ -617,7 +574,7 @@ Resultado esperado: `Done` tras la instalación; después, `controls (23): …`,
 
 ### 14.5 Declarar la política
 
-Los valores de los parámetros son decisiones del responsable y se declaran en ENSFácil > Configuración: en la pestaña «Controles», los ajustes comunes de cada control, sus plantillas (de serie para Linux, Servidor LDAP, Windows y Manager Wazuh, y propias) y la plantilla asignada a cada agente; en la pestaña «Agentes», lo propio de cada máquina del alcance. El procedimiento completo, con la detección del tipo de sistema, las plantillas, el valor que se aplica a cada agente y la conversión de una configuración de la 1.2.0, está en [Configuración por controles y plantillas](09-configuration-by-system.md). En Configuración > General se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, y el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3. Si T o D no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+Los valores de los parámetros los decide el responsable y se declaran en ENSFácil > Configuración: en «Controles», los ajustes comunes de cada control, sus plantillas (de serie para Linux, Servidor LDAP, Windows y Manager Wazuh, y propias) y la plantilla asignada a cada agente; en «Agentes», lo propio de cada máquina del alcance. Procedimiento completo: [Configuración por controles y plantillas](09-configuration-by-system.md). En Configuración > General se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)** (solo op.exp.8) y el **Nivel de Disponibilidad (D)** (op.cont.2 y op.cont.3). Sin T o D, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin D, muestran «No aplica».
 
 Para declarar valores desde el servidor (entornos reproducibles, o cuando la política ya está decidida por escrito) se usa `config/set-parameters.py` con un fichero JSON:
 
@@ -653,13 +610,13 @@ Abrir ENSFácil y comprobar que:
 - el alcance incluye, además de las máquinas del grupo `ens`, el manager (agente `000`), porque en él se evalúan nueve controles: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 y op.nub.1. Los ocho distintos de op.cont.2 tienen recolector en el manager; op.cont.2 se evalúa con las tablas de la pantalla de Configuración;
 - tras la primera ejecución de los recolectores del manager (horaria o cada 6 horas, según el control), esos controles muestran datos en la fila del manager.
 
-La evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días. La primera carga de cada usuario responde por partes: el aviso «Calculando la evaluación», con cuántas filas (control × máquina) están listas, el estado de los controles ya calculados y «Calculando…» en los demás.
+La evaluación se hace en el servidor con todos los hechos de la ventana de 30 días. La primera carga de cada usuario responde por partes: «Calculando la evaluación», con las filas (control × máquina) listas.
 
-Resultado esperado: en unos segundos aparecen los primeros controles y, al completarse todos, las cifras del panel; la evolución diaria indica «Calculando la serie…» hasta que está calculada. En el laboratorio, el resultado completo tarda unos 20 s; después, las pantallas responden al instante.
+Resultado esperado: en unos segundos aparecen los primeros controles y, al completarse todos, las cifras del panel; la evolución diaria indica «Calculando la serie…» hasta que está calculada.
 
 ### 14.7 Comprobar la vista general y el detalle de un control
 
-Abrir la pestaña **Vista general** con «Todas las máquinas» en el selector. La pantalla hace una sola petición de evaluación para todo el alcance y otra, aparte, para la tendencia. En la primera carga, mientras faltan controles, muestra «Calculando la evaluación: X de N filas (control × máquina) listas» con los controles que faltan, «…» en sus filas de la matriz, y deja para el final las cifras por máquina y la cola de trabajo; la tendencia indica «Calculando la serie de 30 días» hasta tenerla.
+Abrir la pestaña **Vista general** con «Todas las máquinas» en el selector. En la primera carga muestra «Calculando la evaluación: X de N filas (control × máquina) listas», «…» en las filas pendientes de la matriz y, al final, las cifras por máquina y la cola de trabajo; la tendencia indica «Calculando la serie de 30 días» hasta tenerla.
 
 | Sección | Qué muestra | Resultado esperado |
 |---|---|---|

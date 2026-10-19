@@ -5,12 +5,12 @@
 
 ## 1. Objetivo
 
-Esta guía indica las combinaciones de versiones validadas para ENSFácil y el procedimiento previo al uso de otra versión de Wazuh.
+Combinaciones de versiones validadas de ENSFácil y procedimiento previo al uso de otra versión de Wazuh.
 
-ENSFácil es un plugin propio de Wazuh Dashboard (`ensfacil`). No modifica el plugin de Wazuh: Wazuh se puede actualizar por su cuenta. Pero ENSFácil se compila para una versión **exacta** de OpenSearch Dashboards, la que lleva Wazuh Dashboard.
+ENSFácil (`ensfacil`) se compila para una versión **exacta** de OpenSearch Dashboards, la que lleva Wazuh Dashboard.
 
 > [!important]
-> La compatibilidad nunca debe suponerse porque Wazuh se instale o arranque bien. Una versión es compatible cuando se ha compilado ENSFácil para ella y se ha validado.
+> Una versión es compatible solo cuando ENSFácil se ha compilado y validado para ella.
 
 ## 2. Versión validada
 
@@ -24,7 +24,7 @@ Cualquier otra combinación está sin validar.
 > [!note]
 > `1.2.0` se publica para la misma combinación que la `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). Se añade a esta tabla cuando cumple en un entorno real los criterios del apartado 6.
 
-El zip lleva la versión de OpenSearch Dashboards en el nombre y en su manifiesto (`opensearchDashboardsVersion`). OpenSearch Dashboards solo acepta un plugin compilado para su versión exacta:
+OpenSearch Dashboards solo acepta un zip compilado para su versión exacta (`opensearchDashboardsVersion` del manifiesto):
 
 - al instalarlo, `opensearch-dashboards-plugin install` lo rechaza con `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
 - si ya estaba instalado y el dashboard cambia de versión, el dashboard **no arranca**: `Failed to initialize plugins`.
@@ -116,7 +116,7 @@ Una versión nueva solo se añade a la tabla del apartado 2 cuando se ha demostr
 
 ## 7. Versiones no validadas
 
-Una versión que no está en la tabla del apartado 2 está sin validar. No quiere decir que sea incompatible, sino que todavía no hay pruebas para autorizar el despliegue.
+Una versión ausente de la tabla del apartado 2 está sin validar.
 
 > [!important]
 > Ante una versión sin validar, detener el procedimiento y hacer primero la evaluación del apartado 5.

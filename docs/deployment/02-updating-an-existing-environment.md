@@ -5,7 +5,7 @@
 
 ## 1. Objetivo
 
-Esta guía describe cómo actualizar ENSFácil cuando Wazuh y una versión anterior del plugin ya están instalados y funcionando, incluido el caso en que la nueva versión trae controles nuevos.
+Actualización de ENSFácil con Wazuh y una versión anterior del plugin ya instalados, incluida una versión con controles nuevos.
 
 Hay dos casos:
 
@@ -59,7 +59,7 @@ Resultado esperado: `active`, `ensfacil@<versión>` en la lista de plugins y nin
 
 ## 3. Actualizar los repositorios
 
-El repositorio hace falta aunque el plugin venga de una release: la siembra de la configuración (apartado 8) y la comprobación de coherencia usan sus herramientas.
+El repositorio es necesario también con una release: la siembra (apartado 8) y la comprobación de coherencia usan sus herramientas.
 
 ### 3.1 Con acceso a GitLab desde el servidor
 
@@ -163,7 +163,7 @@ Por defecto, el plugin nuevo es la release de la versión nueva (apartado 6.1). 
 
 Descargar la release nueva en su propia carpeta y comprobarla como en [Instalar desde una release, apartados 4 a 7](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor), con la versión nueva en `V`. Con el token guardado en el servidor, basta con el [apartado 6.3](07-installing-from-a-release.md#63-descargar-los-cuatro-ficheros) y la comprobación del [apartado 7](07-installing-from-a-release.md#7-comprobar-los-ficheros) de esa guía.
 
-Leer las notas de la release: indican si trae controles nuevos y con qué versiones es compatible.
+Leer las notas de la release: controles nuevos y versiones compatibles.
 
 Después, con `V` y `R` de esa guía:
 
@@ -218,9 +218,9 @@ sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 sudo bash "$DEPLOY" "$ZIP"
 ```
 
-`deploy-plugin.sh` sustituye únicamente el plugin `ensfacil` y sube el `build.number` del dashboard para que los navegadores descarguen la versión nueva sin necesidad de vaciar su caché. El plugin de Wazuh no se toca.
+`deploy-plugin.sh` sustituye solo `ensfacil` y sube el `build.number` del dashboard. El plugin de Wazuh no se toca.
 
-Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`. La subcarpeta `ensfacil` la crea el propio script (de root, permisos 0700) si no existe, y nunca cambia los permisos de una carpeta que ya existía. Cuando el despliegue termina bien se quedan las 3 últimas copias; un despliegue que falla no borra ninguna. Van ahí y no junto al zip porque la compilación siguiente borra `/opt/ensfacil/build/plugins/ensfacil` entero. Para usar otra carpeta: `sudo env ENSFACIL_BACKUP_DIR=<carpeta> bash "$DEPLOY" "$ZIP"`, que guarda en `<carpeta>/ensfacil/`. Si algo falla con el dashboard ya parado, el script imprime cómo volver al estado anterior y sale con error ([guía de diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias)).
+Antes de parar el dashboard, `deploy-plugin.sh` guarda el `ensfacil` instalado en `/var/backups/ensfacil/plugins-ensfacil-<fecha>.tgz`. El script crea la subcarpeta `ensfacil` (root, 0700) si no existe. Tras un despliegue correcto se conservan las 3 últimas copias; un despliegue fallido no borra ninguna. No se guardan junto al zip: la compilación siguiente borra `/opt/ensfacil/build/plugins/ensfacil`. Para usar otra carpeta: `sudo env ENSFACIL_BACKUP_DIR=<carpeta> bash "$DEPLOY" "$ZIP"`, que guarda en `<carpeta>/ensfacil/`. Si algo falla con el dashboard ya parado, el script imprime cómo volver al estado anterior y sale con error ([guía de diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias)).
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
@@ -260,7 +260,7 @@ npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-no
 
 Resultado esperado: `Done` tras la instalación de las dependencias y `VALID STRUCTURE`. Si el resultado es `INVALID STRUCTURE`, restaurar `$BACKUP/active.json` según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens). Las alternativas para validar fuera del servidor y la declaración de valores con `set-parameters.py` (que sustituye la lista entera de cada parámetro que nombra) están en la [guía de instalación, apartados 14.4 y 14.5](01-installation-from-scratch.md#144-validar-el-documento-entero).
 
-Si el entorno viene de la 1.0.0, ajustar las réplicas del índice de configuración. Desde la 1.1.0 el plugin crea `wazuh-ens-configuration` con `auto_expand_replicas: 0-1`, pero solo cuando el índice no existe: uno creado por la 1.0.0 conserva su réplica y, en un indexer de un solo nodo, se queda en amarillo porque esa réplica no se puede asignar. El plugin no cambia un índice que ya existe; se hace una vez, a mano, con el certificado de administrador del indexer:
+Si el entorno viene de la 1.0.0, ajustar las réplicas del índice de configuración. Desde la 1.1.0 el plugin crea `wazuh-ens-configuration` con `auto_expand_replicas: 0-1`, pero no cambia un índice existente: el creado por la 1.0.0 queda en amarillo en un indexer de un solo nodo. Ajustar una vez, con el certificado de administrador del indexer:
 
 ```bash
 C=/etc/wazuh-indexer/certs
@@ -279,7 +279,7 @@ Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles�
 - los controles que el documento todavía no tiene aparecen en «Controles» como «Sin añadir» y se añaden con «Añadir con valores por defecto», con la misma semántica que `inject-control.py` para un control nuevo;
 - desde la 1.1.0, la pestaña «Agentes» propone copiar a cada agente las filas de las tablas con columna de sistema que lo nombran («Repartir por agentes»), sin borrar nada ([Configuración por controles y plantillas, apartado 9](09-configuration-by-system.md#9-reparto-por-agentes-de-filas-comunes)); antes de repartir, guardar una copia del documento (apartado 5).
 
-Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian porque son los de la ventana completa: anotar antes el estado del panel permite explicar las diferencias. La primera carga de cada usuario responde por partes («Calculando la evaluación») hasta tener todos los controles. Para volver a una versión anterior después de la conversión o de «Repartir por agentes», restaurar la versión del documento anterior ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
+Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian: anotar antes el estado del panel. La primera carga de cada usuario responde por partes («Calculando la evaluación»). Para volver a una versión anterior después de la conversión o de «Repartir por agentes», restaurar la versión del documento anterior ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
 Revisar en Configuración > General los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
@@ -310,13 +310,11 @@ Si alguna validación falla, no continuar operando con la nueva versión y utili
 
 ## 10. Transición desde la versión integrada
 
-La versión integrada de ENSFácil iba dentro del plugin de Wazuh: se retiraba el plugin oficial `wazuh` y se instalaba uno modificado, con la app «ENS». Ahora ENSFácil es un plugin propio, `ensfacil`, y el plugin de Wazuh vuelve a ser el oficial.
+Solo para un entorno que todavía tiene instalada la versión integrada (plugin `wazuh` modificado, app «ENS»). No se necesita ningún fichero de la versión integrada.
 
-La versión integrada ya no se mantiene ni se distribuye: este apartado solo sirve para un entorno que todavía la tiene instalada. No se necesita ningún fichero de la versión integrada: se instala ENSFácil, se comparan las dos versiones y se reinstala el paquete oficial `wazuh-dashboard` 4.14.7.
+La configuración, las reglas del manager y los runbooks no cambian: ambas versiones usan el índice `wazuh-ens-configuration`.
 
-La configuración no se migra: las dos versiones usan el mismo índice, `wazuh-ens-configuration`, y el mismo formato. Las reglas del manager y los runbooks tampoco cambian.
-
-La transición tiene tres pasos: instalar ENSFácil junto a la versión integrada, comparar las dos y volver al plugin oficial de Wazuh.
+Pasos: instalar ENSFácil junto a la integrada (10.1), comparar (10.2) y reinstalar el paquete oficial `wazuh-dashboard` 4.14.7 (10.3).
 
 ### 10.1 Instalar ENSFácil junto a la versión integrada
 
@@ -335,7 +333,7 @@ Si algún valor no coincide, detener el procedimiento, anotar la pantalla, la m�
 
 ### 10.3 Volver al plugin oficial de Wazuh
 
-Cuando las dos versiones coincidan, se reinstala el paquete oficial `wazuh-dashboard` 4.14.7. Así vuelve el plugin oficial de Wazuh, desaparece la app «ENS» y queda solo «ENSFácil».
+Con las dos versiones coincidentes, reinstalar el paquete oficial `wazuh-dashboard` 4.14.7: desaparece la app «ENS» y queda «ENSFácil».
 
 > [!important]
 > Hacer este paso primero en un entorno de pruebas. Necesita el repositorio de paquetes de Wazuh (o el paquete `wazuh-dashboard` 4.14.7-1 descargado) y la carpeta de la release de ENSFácil que se instaló en el apartado 10.1 (`/opt/ensfacil/releases/<versión>`).
@@ -373,7 +371,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 
 `--force-confold` conserva la configuración del dashboard (`/etc/wazuh-dashboard`) sin preguntar. Resultado esperado: la reinstalación termina sin errores y existe de nuevo `/usr/share/wazuh-dashboard/plugins/wazuh`. Si falla, devolver el plugin integrado a su sitio (`sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh`) y arrancar el dashboard.
 
-La reinstalación devuelve el `build.number` del dashboard a su valor de fábrica, que los navegadores pueden tener asociado a ficheros de la versión integrada. Por eso se recupera el `package.json` de antes y se vuelve a desplegar ENSFácil, que sube el número:
+La reinstalación restablece el `build.number`. Recuperar el `package.json` anterior y volver a desplegar ENSFácil, que sube el número:
 
 ```bash
 V=1.2.0   # la versión de ENSFácil instalada en el apartado 10.1
@@ -394,9 +392,7 @@ Resultado esperado: `active`; en la lista, `wazuh@4.14.7-01` (el oficial) y `ens
 
 Comparar después los datos con los anotados al principio: la configuración
 (mismo `updatedAt`, mismos documentos) debe ser la misma, y los hechos, los
-mismos o más. En la validación de este procedimiento, la configuración, su
-historial, los hechos, el inventario de agentes y los índices de Wazuh
-resultaron idénticos antes y después.
+mismos o más.
 
 Los enlaces guardados a la app «ENS» (`/app/ens#…`) dejan de funcionar. La dirección nueva es `/app/ensfacil`.
 
