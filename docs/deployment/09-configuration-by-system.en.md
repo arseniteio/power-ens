@@ -340,7 +340,7 @@ From 1.4.0, the data several controls ask for is declared only once in Configura
 | Algoritmos y parámetros autorizados por el CCN (CCN-authorised algorithms) | op.exp.10 P-03 |
 | Plazos de retención (retention periods) | op.exp.8 P-07 (registros), op.exp.9 P-06 (evidencias), op.acc.1 P-06 (cuentas), op.acc.5 P-08 (accesos), mp.info.6 P-03 (copias) |
 | Zonas controladas y segmentos de red (controlled zones) | op.acc.6 P-02 |
-| Canales de acceso remoto autorizados (remote access channels) | op.acc.6 P-07 |
+| Canales de acceso remoto autorizados (remote access channels) | op.acc.6 P-07 (channel, encryption, authoriser and constant use) and op.acc.4 P-04 (channel, port and origin) |
 | Productos y servicios certificados (certified products and services) | op.nub.1 P-04 |
 | Registro de pruebas periódicas (periodic test register) | op.cont.3 P-04 |
 | Formación y concienciación del personal (staff training) | op.cont.2 P-05 |
@@ -352,19 +352,24 @@ From 1.4.0, the data several controls ask for is declared only once in Configura
 Rules:
 
 - An item with the «Uso» column is a register: each control reads only the rows of its use, with its columns and in its order. A row accepts several uses separated by commas (`root | configuracion, copias`).
-- In «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 and mp.info.6 P-03 take the days of the first row of their use.
+- In «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 and mp.info.6 P-03 read one value: each accepts a single row of its use (`cuentas`, `accesos` and `copias`). With two rows of the same use, the save is refused with «<control> <parameter>: lee un solo valor: dejar una sola fila con uso «<use>» en «Plazos de retención»».
+- In «Canales de acceso remoto autorizados» there is one row per channel: op.acc.6 P-07 reads channel, encryption, authoriser and constant use, and op.acc.4 P-04 reads channel, port and origin. Rows of the two parameters that name the same channel become one.
+- A row with several uses shares «Ámbito» and «Detalle» (or «Categoría»), which mean different things in each use: the item warns with «La fila de «<account>» tiene varios usos…». If they differ, write one row per use.
+- op.exp.9 P-01 stays in its control. If it says the register is ENSFácil's and the incident row of «Herramientas de gestión de cambios e incidentes» does not name it, or the other way round, the item warns about it.
 - In «Declaración de aplicabilidad», op.acc.5 P-DA is the `op.acc.5` row when its «Aplicable» is `no`: with reason, reference and link, op.acc.5 is excluded. If the row says `sí`, P-DA has no value.
 - Each item lists under «Parámetros relacionados que siguen en su control» the parameters the auditor's map relates to it that do not read it, with the reason.
 - Deleting a control's configuration (section 5.2) does not delete the organisation data it reads.
 
 Migration from 1.3.0. When the document loads, each item is built from the values of the parameters that read it:
 
-- If every one of those parameters keeps its value (those with the same value and, in registers, each control with its rows), the item moves to «Datos de la organización» without changing any value or any verdict. The move is saved with the next change or with «Guardar ahora».
-- If the values differ, or some parameters have a value and others do not, the item appears in «Valores distintos entre controles», at the top of the section, with each value, the parameters that keep it and the «Elegir este valor» button. Until a value is chosen, each control keeps its own.
+- If every parameter with a value keeps it (those with the same value and, in registers, each control with its rows), the item moves to «Datos de la organización». The move is saved with the next change or with «Guardar ahora».
+- A parameter without value does not have a different value: it takes the item's, and its control may change verdict. The notice says so with «Se ha completado <control> <parameter> con el valor de <control> <parameter>.», and so does the history entry. With no parameter completed, the notice says «Ningún control cambia de valor.».
+- If the values differ, the item appears in «Valores distintos entre controles», at the top of the section, with each value, the parameters that keep it and the «Elegir este valor» button. Until a value is chosen, each control keeps its own. A value some control does not accept cannot be chosen: it says «No se puede elegir tal cual: …» and is written with «Editar».
 - The migration is idempotent and the server evaluation applies it the same way when it reads the document.
-- A parameter without value that reads an item with a value takes that value, for example in a control seeded later. A parameter with a different value written outside 1.4.0 opens a conflict, which also offers the stored value.
+- After the migration the same rule applies: a parameter without value that reads an item with a value takes that value, for example in a control seeded later. A parameter with a different value written outside 1.4.0 opens a conflict, which also offers the stored value.
+- The server applies the same rule on every save, also those that come through the API.
 
-Outside General, Configuración shows the «Datos de la organización» notice with what is pending and the «Ver Datos de la organización» button.
+Outside General, Configuración shows the «Datos de la organización» notice with what is pending and the «Ver Datos de la organización» button. On an agent's page, a per-system or per-platform parameter that is organisation data says «El valor común es «<item>», de Datos de la organización.» with the link to the item; in items that several controls read with the same value, the agent's own setting is declared in each of them.
 
 1. Back up the `active` document as in [installation from scratch, section 14.2](01-installation-from-scratch.en.md#142-back-up-the-document-before-changing-it).
 
@@ -380,7 +385,7 @@ Outside General, Configuración shows the «Datos de la organización» notice w
 
 4. To change an item, press «Editar», write the value and press «Guardar».
 
-   Expected result: the value saved. If a control does not accept the value, «Hay valores que no se pueden guardar» with the control, the parameter and the reason, and nothing is saved.
+   Expected result: the value saved. If a control does not accept the value, «Hay valores que no se pueden guardar» with the control, the parameter and the reason, and nothing is saved. If another administrator saved the configuration after it was opened, «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.», the value written stays on screen and nothing is saved (section 12).
 
 5. Open a control that reads the item (Controles > control) and, in «Ajustes comunes», open its form.
 
@@ -388,7 +393,7 @@ Outside General, Configuración shows the «Datos de la organización» notice w
 
 6. Validate the whole document (section 11.2).
 
-   Expected result: `VALID STRUCTURE`, the `organisation data: …` line and, if any is left, `PENDING CHOICE «…»`.
+   Expected result: `VALID STRUCTURE`, the `organisation data: …` line and, if any is left, `PENDING CHOICE «…»`. No `INVALID ORGANISATION DATA`.
 
 ## 8. Conversion of a 1.2.0 configuration
 
@@ -541,6 +546,7 @@ Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE
 |---|---|---|
 | `INVALID STRUCTURE` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
 | `INVALID STRUCTURE` with `configuration.organizationData…` | An organisation item with a `null` value or an object: the plugin does not load the environment | Restore the backup and remove the item key or fix its value |
+| `INVALID ORGANISATION DATA` | An item with two rows of the same use for a parameter that reads one value | Keep one row of that use in Configuración > General or with `set-parameters.py` |
 | `INVALID COMMON VALUES` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, a common parameter or a comparison mode without its own setting: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
@@ -553,7 +559,7 @@ Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE
 
 `inject-control.py` keeps `configuration.agents` and `configuration.templates` on every seed, also with `--sustituir`, and when merging keeps the `matchMode` of each common value. If the block no longer declares a parameter and an agent or a custom template had a value for it, the plan shows `AVISO: valores de parámetros retirados, quedan huérfanos: …`; those values do not apply and are removed as in section 6.3 or by editing the template. Seeding a new control creates no templates, assignments or agent settings.
 
-`inject-control.py` also keeps `configuration.organizationData`. A parameter of the control without value that reads an organisation item with a value takes that value, also after `--sustituir`, and the plan says so with `<P-xx> takes «<item>» from Datos de la organización`. A parameter with a different value is left as it is: the plugin shows it as a conflict (section 7.1).
+`inject-control.py` also keeps `configuration.organizationData`. A parameter of the control without value that reads an organisation item takes the item's value or, if the item has no value yet, the one the other parameters that read it agree on, also after `--sustituir`. The plan says so with `<P-xx> takes «<item>» from <source>`, where the source is `Datos de la organización` or the parameters it comes from. A parameter with a different value is left as it is: the plugin shows it as a conflict (section 7.1). An `organizationData` with value `null` is warned about: the plugin does not load that document.
 
 ### 11.4 Declare organisation data with set-parameters.py
 
@@ -576,7 +582,7 @@ Rules:
 - The `P-xx` form still works: `{"op.acc.4": {"P-06": ["wheel"]}}` writes to «Grupos con privilegio administrativo» and, with it, to op.acc.1 P-11 and op.acc.2 P-12.
 - A parameter that reads part of a register changes only that part: `{"op.exp.3": {"P-03": ["bob"]}}` replaces the `configuracion` rows of «Personal autorizado» and leaves the rest.
 - If the item has no value yet and the parameter reads only part of it, only the parameter is written: the plugin moves it to the item on load or shows the conflict.
-- Refused, writing nothing: an id that does not exist, an item with `matchMode`, the same item declared twice (by its id and by a `P-xx`, or by two `P-xx`), a value the item cannot hold (a `|` inside an entry or more cells than columns) and a document with an invalid `organizationData`.
+- Refused, writing nothing: an id that does not exist, an item with `matchMode`, the same item declared twice (by its id and by a `P-xx`, or by two `P-xx`), a value the item cannot hold (a `|` inside an entry or more cells than columns), two rows of the same use for a parameter that reads one value (`lee un solo valor: dejar una sola fila con uso «…»`) and a document with an invalid or `null` `organizationData`.
 - The tool reads the items from `common/ens/configuration/organization/organization-data-items.ts`: it runs from `config/` inside the full plugin repository.
 
 ```bash
@@ -592,7 +598,8 @@ Expected result: without `--apply`, one `── organisation data «<item>» (<i
 - Custom templates live in the top-level key `configuration.templates`, and each agent's assignment in `configuration.agents.<id>.controls.<control>.templateId`, next to its own settings in `parameters`. `controls[].parameters[].value` remains the common value, which is what a 1.1.0 plugin, the chatbot and the scripts read.
 - A 1.2.0 plugin loads a 1.3.0 document: its validator does not check unknown keys, ignores `templates` and warns about `templateId` as a key it does not know. It evaluates with the own settings and the common value, without the assigned templates.
 - Organisation data (1.4.0) goes in the top-level key `configuration.organizationData.values`, one value per item (absent key: no value, never `null`), and is also written into the `value` of every parameter that reads it. A 1.3.0 plugin loads the document: its validator does not check unknown keys and evaluates with each parameter's `value`, which is the same value. If a 1.3.0 plugin changes one of those parameters, 1.4.0 shows it as a conflict when it loads.
-- The 1.4.0 server rejects with a 400 error a save with a `null` or object organisation item, and keeps `organizationData` when the body does not carry the key.
+- The 1.4.0 server rejects with a 400 error a save with a `null` or object organisation item, keeps `organizationData` when the body does not carry the key and writes each item into its parameters before saving.
+- From 1.4.0, a save from the screen carries the version of the document that was loaded. If another administrator, `set-parameters.py` or `inject-control.py` changed it afterwards, the server refuses it with a 409 error and «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.»; what was written stays on screen to copy it before reloading. A save through the API without a version is accepted, and the server still avoids overwriting a document that changes between its read and its write.
 - The 1.3.0 server rejects with a 400 error a save whose `agents` or `templates` does not have the right shape or with a `matchMode` other than `exact` or `regex` on a common value, and keeps the existing ones when the body does not carry the key.
 - A 1.2.0 plugin ignores `matchMode` and `matchModes` and compares a pattern as a literal name. Before going back to 1.2.0, switch those values to «Texto exacto» or restore a version of the document without them.
 - A comparison mode the installed version does not know stops the ENS environment from loading. Before going back from a later version that adds modes, switch those values to «Texto exacto» or «Expresión regular», or restore a version of the document without them.
