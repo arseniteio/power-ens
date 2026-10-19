@@ -1,46 +1,24 @@
-// op.exp.5 · Gestión de cambios
-//
-// Por qué este control tiene policy propia. Su pregunta central —«¿cada cambio
-// REAL tenía una petición aprobada cuya ventana lo cubre?»— cruza dos
-// poblaciones de hechos distintas por sistema y por intervalo de tiempo, y
-// ninguna de las siete primitivas compara así:
-//
-//   EV-02  cada cambio real (EV-01) contra las filas del registro de peticiones
-//          que lo cubren: mismo sistema, petición aprobada y ventana que lo
-//          contiene. Es un solape de intervalos, no una igualdad de clave.
-//   EV-03  la fila de cada petición autorizada, columna a columna, contra los
-//          campos mínimos de P-02 (y en ALTO, la valoración de impacto de R1).
-//   EV-04  la aprobación de un cambio de riesgo alto tiene que ser del RSI
-//          (P-04) y ANTERIOR a su implantación, que es el primer cambio real
-//          que la petición cubre.
-//   EV-06  el documento de P-06 que la petición declara tiene que modificarse
-//          DESPUÉS del cambio y dentro de su plazo.
-//   EV-07  un servicio caído que empieza en las horas siguientes a un cambio.
-//   EV-09  el punto de reversión tiene que ser ANTERIOR al cambio (la lógica de
-//          EV-09 de op.exp.4, aplicada a todos los cambios reales).
-//
-// La fuente de las peticiones NO es un ITSM: es el registro que la organización
-// mantiene en cada máquina (`/etc/ensfacil/change-register.tsv`) y que el
-// recolector lee y emite tal cual, fila a fila, con una cabecera que dice
-// cuántas filas tiene. El recolector no correlaciona nada: eso se hace aquí.
-//
-// Invariantes, las de `evidence/judgment.ts` y `op-exp-4.policy.ts`:
-//   - el agente emite instantes, no edades ni veredictos;
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo;
-//   - las preguntas de este control son aserciones NEGATIVAS sobre la
-//     población de cambios reales («ningún cambio sin petición», «ningún
-//     cambio sin punto de reversión»). Por eso, y SOLO con el latido
-//     confirmando que las cuatro fuentes de cambios se leyeron enteras (EV-01
-//     en `evidencias_cubiertas`), un periodo sin cambios es CUMPLE: es lo mismo
-//     que hace NINGUNO_FUERA_DE_LISTA. Sin ese latido, el silencio no acredita
-//     nada. Es una diferencia deliberada con EV-09 de op.exp.4, que sale
-//     NO_EVALUABLE sin cambios: allí el latido no declara esa evidencia.
-//   - la policy nunca inventa política: ninguna ventana, plazo ni cuenta tiene
-//     valor por defecto.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
+// op.exp.5 · Change management. Its central question, «did every REAL change have an approved
+// request whose window covers it?», crosses two populations of facts by system and time interval,
+// which no primitive compares: EV-02 each real change (EV-01) against the request-register rows
+// covering it (same system, approved, window containing it: an interval overlap); EV-03 each
+// authorized request row, column by column, against P-02's minimum fields (and at ALTO R1's impact
+// assessment); EV-04 the approval of a high-risk change must be the RSI's (P-04) and PRECEDE its
+// deployment, the first real change the request covers; EV-06 the P-06 document the request
+// declares must change AFTER the change and within its deadline; EV-07 a service down starting in
+// the hours after a change; EV-09 the reversion point must PRECEDE the change (op.exp.4's EV-09
+// logic over all real changes).
+// The requests are NOT from an ITSM: they are the register the organization keeps on each machine
+// (`/etc/ensfacil/change-register.tsv`), read and emitted row by row by the collector with a header
+// giving the row count. The collector correlates nothing; that is done here.
+// Invariants (as in `evidence/judgment.ts` and `op-exp-4.policy.ts`): the agent emits instants, not
+// ages or verdicts; no fact or parameter is NO_EVALUABLE; this control's questions are NEGATIVE
+// assertions over the real changes («no change without request»), so ONLY with the heartbeat
+// confirming the four change sources were read whole (EV-01 in `evidencias_cubiertas`) a period
+// without changes is CUMPLE, like NINGUNO_FUERA_DE_LISTA; without that heartbeat silence accredits
+// nothing (deliberately unlike op.exp.4's EV-09, whose heartbeat does not declare that evidence);
+// no default window, deadline or account.
+// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
@@ -61,27 +39,24 @@ import { parseReferenceList } from '../../evidence/judgment';
 const CONTROL = 'op.exp.5';
 const POLICY = 'policy.op.exp.5';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// Frescura de la lectura del registro de peticiones. El recolector la reemite
-// cada 20 h aunque no cambie y corre cada hora: 24 h + una pasada + margen. Es
-// tolerancia de OBSERVACIÓN, no política.
-const FRESCURA_HORAS = 26;
+// Freshness of the request-register read: the collector re-emits it every 20 h and runs hourly, so
+// 24 h + one run + margin. Observation tolerance, not policy.
+const FRESHNESS_HOURS = 26;
 
-// Mismo margen de reloj que `resolveCollectorCoverage`.
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// Same clock margin as `resolveCollectorCoverage`.
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// Latido que confirma la cobertura de una evidencia, igual que en las
-// primitivas.
-const LATIDO_HORAS = 24;
+// Heartbeat confirming an evidence's coverage, as in the primitives.
+const HEARTBEAT_HOURS = 24;
 
-// La ventana de observación de las ACCIONES (decisión del 17/09). Una petición
-// cuya ventana acabó antes no se puede contrastar con hechos que ya no están en
-// la ventana: juzgarla daría un NO_CUMPLE por falta de datos.
-const PERIODO_DIAS = 30;
+// Observation window of ACTIONS. A request whose window ended earlier cannot be contrasted with
+// facts no longer in the window: judging it would give NO_CUMPLE for lack of data.
+const PERIOD_DAYS = 30;
 
-// Columnas del registro de peticiones, en su orden. Es el contrato del TSV.
+// Columns of the request register, in order: the TSV contract.
 export const REQUEST_LOG_COLUMNS = [
   'peticion_id',
   'fecha_registro',
@@ -99,280 +74,272 @@ export const REQUEST_LOG_COLUMNS = [
   'referencia',
 ];
 
-// Estados en los que la petición ha pasado por la autorización. Solo una
-// petición aprobada autoriza un cambio; `revertida` fue aprobada e implantada.
-const AUTORIZADAS = ['aprobada', 'implantada', 'revertida'];
-const IMPLANTADAS = ['implantada', 'revertida'];
+// States in which the request went through authorization. Only an approved request authorizes a
+// change; `revertida` was approved and deployed.
+const AUTHORIZED_ROWS = ['aprobada', 'implantada', 'revertida'];
+const DEPLOYED_STATES = ['implantada', 'revertida'];
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
-// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy
-// (EV-05 salía «no ha llegado nada» cuando lo que faltaba era P-05).
-type Medida = {
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`). It reaches the evidence and
+// requirement through the decision; without it the card inherited the classic model's cause, which
+// does not see the facts the policy reads (EV-05 said «nothing arrived» when P-05 was missing).
+type Measurement = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
-// hechos lo dicen expresamente, y lo que el recolector declara llega con SU
-// causa (`degradacion`).
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough; missing parameter and missing facts say
+// so explicitly and the collector's declarations carry ITS cause (`degradacion`).
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
 
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements, same order as the engine (`resolveGapCause`):
+// COLLECTION only if all say so, CONFIGURATION if any does, otherwise EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-const GRAVEDAD: Record<Medida['estado'], number> = {
+const SEVERITY: Record<Measurement['estado'], number> = {
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Medida['estado'] =>
-  medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
+  measurements.reduce<Measurement['estado']>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-const esMedida = (x: unknown): x is Medida =>
-  typeof x === 'object' && x !== null && (x as Medida).estado !== undefined && (x as Medida).motivo !== undefined;
+const isMeasurement = (x: unknown): x is Measurement =>
+  typeof x === 'object' && x !== null && (x as Measurement).estado !== undefined && (x as Measurement).motivo !== undefined;
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=EV-01,EV-02` en uno por
-// evidencia. Aquí se juzga el HECHO, así que se cuenta una vez.
-const hechos = (context: ENSPolicyContext, tipo: string): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+// The normalizer splits an event with `evidence_id=EV-01,EV-02` into one per evidence; the FACT is
+// judged here, so it counts once.
+const facts = (context: ENSPolicyContext, type: string): ENSNormalizedEvent[] => {
+  const seen = new Set<string>();
 
   return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-const numero = (texto: string): number | undefined => {
-  const t = String(texto || '').trim().replace(',', '.');
+const parseNumber = (text: string): number | undefined => {
+  const t = String(text || '').trim().replace(',', '.');
 
   if (!/^-?\d+(\.\d+)?$/.test(t)) {
     return undefined;
   }
 
-  const valor = Number(t);
+  const value = Number(t);
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(text)) {
     return undefined;
   }
 
-  // Una fecha sin hora es UTC: el registro se escribe en UTC.
-  const valor = new Date(texto.length === 10 ? `${texto}T00:00:00Z` : texto).getTime();
+  // A date without time is UTC: the register is written in UTC.
+  const value = new Date(text.length === 10 ? `${text}T00:00:00Z` : text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-// El FIN de una ventana escrita solo con fecha es el final de ese día: «hasta el
-// 20» incluye el 20.
-const finDe = (texto: string): number | undefined => {
-  const t = instante(texto);
+// The END of a window written with a date only is the end of that day: «hasta el 20» includes the
+// 20th.
+const endOf = (text: string): number | undefined => {
+  const t = parseInstant(text);
 
-  return t !== undefined && texto.length === 10 ? t + DIA - 1 : t;
+  return t !== undefined && text.length === 10 ? t + DAY_MS - 1 : t;
 };
 
 const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
 
-const sinTildes = (texto: string): string =>
-  String(texto || '')
+const stripAccents = (text: string): string =>
+  String(text || '')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
 
-const vacia = (celda: string | undefined): boolean => {
-  const t = String(celda || '').trim();
+const empty = (cell: string | undefined): boolean => {
+  const t = String(cell || '').trim();
 
   return t === '' || t === '-';
 };
 
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
+const formatList = (items: string[], max = 5): string =>
+  items.length > max
+    ? `${items.slice(0, max).join('; ')} y ${items.length - max} más`
+    : items.join('; ');
 
-// La degradación más reciente que el recolector declaró para una evidencia,
-// con la causa que ÉL declara: es quien sabe si falta un registro que la
-// organización no mantiene (CONFIGURATION) o una fuente que no pudo leer
-// (COLLECTION). Sin causa declarada, COLLECTION.
-type Degradacion = { texto: string; causa: ENSGapCause };
+// The most recent degradation the collector declared for an evidence, with the cause IT declares
+// (it knows whether a record the organization does not keep is missing, CONFIGURATION, or a source
+// could not be read, COLLECTION); COLLECTION if none.
+type Degradation = { texto: string; causa: ENSGapCause };
 
-const CAUSAS_DECLARABLES: ENSGapCause[] = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'];
+const DECLARABLE_CAUSES: ENSGapCause[] = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'];
 
-const degradacion = (context: ENSPolicyContext, evidencia: string): Degradacion | undefined => {
+const degradation = (context: ENSPolicyContext, evidence: string): Degradation | undefined => {
   const d = context.events
     .filter(
       e =>
         e.controlId === CONTROL &&
         e.eventType === 'evidence_state' &&
-        e.evidenceId === evidencia
+        e.evidenceId === evidence
     )
-    .sort((a, b) => (instante(b.timestamp) || 0) - (instante(a.timestamp) || 0))[0];
+    .sort((a, b) => (parseInstant(b.timestamp) || 0) - (parseInstant(a.timestamp) || 0))[0];
 
   if (!d) {
     return undefined;
   }
 
-  const declarada = campo(d, 'causa').toUpperCase() as ENSGapCause;
-  const causa = CAUSAS_DECLARABLES.includes(declarada) ? declarada : 'COLLECTION';
+  const declared = factField(d, 'causa').toUpperCase() as ENSGapCause;
+  const cause = DECLARABLE_CAUSES.includes(declared) ? declared : 'COLLECTION';
 
-  return { texto: `${campo(d, 'motivo')} (${campo(d, 'causa') || 'COLLECTION'})`, causa };
+  return { texto: `${factField(d, 'motivo')} (${factField(d, 'causa') || 'COLLECTION'})`, causa: cause };
 };
 
-// Por qué la detección de cambios (EV-01) no está completa: lo que declaró el
-// recolector o, sin declaración, que no hay latido que la confirme (RECOGIDA).
-// Es la causa de todo silencio que se apoya en EV-01.
-const causaDeteccion = (context: ENSPolicyContext): ENSGapCause =>
-  degradacion(context, 'EV-01')?.causa || 'COLLECTION';
+// Why change detection (EV-01) is not complete: what the collector declared or, without
+// declaration, that no heartbeat confirms it (COLLECTION). It is the cause of every silence resting
+// on EV-01.
+const causeDetection = (context: ENSPolicyContext): ENSGapCause =>
+  degradation(context, 'EV-01')?.causa || 'COLLECTION';
 
-const latidoConfirma = (context: ENSPolicyContext, evidencia: string, ahora: number): boolean => {
-  const latido = hechos(context, 'collector_run')
-    .map(e => ({ e, t: instante(e.timestamp) }))
+const heartbeatConfirms = (context: ENSPolicyContext, evidence: string, now: number): boolean => {
+  const heartbeat = facts(context, 'collector_run')
+    .map(e => ({ e, t: parseInstant(e.timestamp) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } =>
-      x.t !== undefined && x.t <= ahora + TOLERANCIA_FUTURO && ahora - x.t <= LATIDO_HORAS * HORA
+      x.t !== undefined && x.t <= now + FUTURE_TOLERANCE_MS && now - x.t <= HEARTBEAT_HOURS * HOUR_MS
     )
     .sort((a, b) => b.t - a.t)[0];
 
   return Boolean(
-    latido &&
-      campo(latido.e, 'resultado') === 'completada' &&
-      campo(latido.e, 'evidencias_cubiertas').split(',').map(s => s.trim()).includes(evidencia)
+    heartbeat &&
+      factField(heartbeat.e, 'resultado') === 'completada' &&
+      factField(heartbeat.e, 'evidencias_cubiertas').split(',').map(s => s.trim()).includes(evidence)
   );
 };
 
-const nombreDelAgente = (context: ENSPolicyContext): string | undefined =>
+const agentName = (context: ENSPolicyContext): string | undefined =>
   context.events.find(e => e.controlId === CONTROL && e.agentName)?.agentName;
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (context: ENSPolicyContext, id: string): ENSControlParameter | undefined =>
+const findParameter = (context: ENSPolicyContext, id: string): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (context: ENSPolicyContext, id: string): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
+// Table rows split into their declared columns. Without columns the position is not guessed: the
+// parameter is treated as not configured.
+const tableParameterRows = (context: ENSPolicyContext, id: string): Record<string, string>[] | undefined => {
+  const p = findParameter(context, id);
+  const columns = p?.columns || [];
 
-  if (!p || !columnas.length) {
+  if (!p || !columns.length) {
     return undefined;
   }
 
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  const result = toParameterTableRows(p.value)
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = celdas[i] || '';
+      columns.forEach((column, i) => {
+        row[column.name] = cells[i] || '';
       });
 
-      return fila;
+      return row;
     });
 
-  return resultado.length ? resultado : undefined;
+  return result.length ? result : undefined;
 };
 
-const valores = (context: ENSPolicyContext, id: string): string[] =>
-  parseReferenceList(parametro(context, id)?.value);
+const values = (context: ENSPolicyContext, id: string): string[] =>
+  parseReferenceList(findParameter(context, id)?.value);
 
-const filaDelSistema = (
-  tabla: Record<string, string>[],
-  columna: string,
-  nombres: string[]
+const systemRow = (
+  table: Record<string, string>[],
+  column: string,
+  names: string[]
 ): Record<string, string> | undefined =>
-  tabla.find(f => nombres.some(n => n && f[columna].toLowerCase() === n.toLowerCase())) ||
-  tabla.find(f => f[columna] === '*');
+  table.find(f => names.some(n => n && f[column].toLowerCase() === n.toLowerCase())) ||
+  table.find(f => f[column] === '*');
 
-// --- el registro de peticiones de cambio -----------------------------------
 
-type Peticion = Record<string, string>;
+type Request = Record<string, string>;
 
-type Registro = {
+type LogRow = {
   cabecera: ENSNormalizedEvent;
   leido: string;
-  peticiones: Peticion[];
+  peticiones: Request[];
   ilegibles: number;
   host: string;
 };
 
-// P-01: dónde vive el registro. Sin integración con un ITSM, lo único que el
-// motor sabe contrastar es el registro TSV que lee el recolector: si P-01 dice
-// que las peticiones viven en otro sitio, el registro de la máquina no es la
-// fuente de verdad y juzgarlo sería juzgar una copia que nadie mantiene.
-const sistemaDeCambios = (context: ENSPolicyContext): Medida | undefined => {
-  const tabla = filas(context, 'P-01');
+// P-01: where the register lives. Without ITSM integration the engine can only contrast the TSV the
+// collector reads; if P-01 says requests live elsewhere the machine's register is not the source of
+// truth and judging it would judge a copy nobody maintains.
+const changeSystem = (context: ENSPolicyContext): Measurement | undefined => {
+  const table = tableParameterRows(context, 'P-01');
 
-  if (!tabla) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar: no se ha declarado dónde se registran las peticiones de cambio, así que no hay registro contra el que contrastar los cambios reales.`,
+  if (!table) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} está sin configurar: no se ha declarado dónde se registran las peticiones de cambio, así que no hay registro contra el que contrastar los cambios reales.`,
       'CONFIGURATION'
     );
   }
 
-  if (!tabla.some(f => sinTildes(f.herramienta) === 'registro_tsv')) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} declara que las peticiones viven en «${tabla.map(f => f.herramienta).join(', ')}», y no hay integración con ese sistema: el recolector solo lee el registro TSV de la máquina. El contraste no se puede hacer sin simular una integración que no existe.`,
+  if (!table.some(f => stripAccents(f.herramienta) === 'registro_tsv')) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} declara que las peticiones viven en «${table.map(f => f.herramienta).join(', ')}», y no hay integración con ese sistema: el recolector solo lee el registro TSV de la máquina. El contraste no se puede hacer sin simular una integración que no existe.`,
       'CONFIGURATION'
     );
   }
@@ -380,725 +347,720 @@ const sistemaDeCambios = (context: ENSPolicyContext): Medida | undefined => {
   return undefined;
 };
 
-const registro = (context: ENSPolicyContext, ahora: number): Registro | Medida => {
-  const deP01 = sistemaDeCambios(context);
+const record = (context: ENSPolicyContext, now: number): LogRow | Measurement => {
+  const ofP01 = changeSystem(context);
 
-  if (deP01) {
-    return deP01;
+  if (ofP01) {
+    return ofP01;
   }
 
-  const cabeceras = hechos(context, 'change_register_read')
-    .map(e => ({ e, t: instante(campo(e, 'leido')) }))
+  const headers = facts(context, 'change_register_read')
+    .map(e => ({ e, t: parseInstant(factField(e, 'leido')) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } =>
-      x.t !== undefined && x.t <= ahora + TOLERANCIA_FUTURO
+      x.t !== undefined && x.t <= now + FUTURE_TOLERANCE_MS
     )
     .sort((a, b) => b.t - a.t);
 
-  if (!cabeceras.length) {
-    const motivo = degradacion(context, 'EV-02');
+  if (!headers.length) {
+    const motive = degradation(context, 'EV-02');
 
-    return sinMedir(
-      motivo
-        ? `No se ha podido leer el registro de peticiones de cambio: ${motivo.texto}.`
+    return notMeasured(
+      motive
+        ? `No se ha podido leer el registro de peticiones de cambio: ${motive.texto}.`
         : 'No consta ninguna lectura del registro de peticiones de cambio de esta máquina: el recolector de op.exp.5 no está desplegado o no informa.',
-      motivo ? motivo.causa : 'COLLECTION'
+      motive ? motive.causa : 'COLLECTION'
     );
   }
 
-  const { e: cabecera, t } = cabeceras[0];
+  const { e: header, t } = headers[0];
 
-  if (ahora - t > FRESCURA_HORAS * HORA) {
-    return sinMedir(
-      `La lectura más reciente del registro de peticiones es de ${campo(cabecera, 'leido')}, hace más de ${FRESCURA_HORAS} h: no describe el registro de hoy.`,
+  if (now - t > FRESHNESS_HOURS * HOUR_MS) {
+    return notMeasured(
+      `La lectura más reciente del registro de peticiones es de ${factField(header, 'leido')}, hace más de ${FRESHNESS_HOURS} h: no describe el registro de hoy.`,
       'COLLECTION'
     );
   }
 
-  const firma = campo(cabecera, 'firma');
-  const porLinea = new Map<string, Peticion>();
+  const signature = factField(header, 'firma');
+  const byLine = new Map<string, Request>();
 
-  hechos(context, 'change_request_registered')
-    .filter(e => campo(e, 'registro_firma') === firma)
+  facts(context, 'change_request_registered')
+    .filter(e => factField(e, 'registro_firma') === signature)
     .forEach(e => {
-      const fila: Peticion = {};
+      const row: Request = {};
 
       REQUEST_LOG_COLUMNS.forEach(c => {
-        fila[c] = campo(e, c);
+        row[c] = factField(e, c);
       });
 
-      porLinea.set(campo(e, 'linea') || campo(e, 'peticion_id'), fila);
+      byLine.set(factField(e, 'linea') || factField(e, 'peticion_id'), row);
     });
 
-  const declaradas = numero(campo(cabecera, 'filas'));
+  const declared = parseNumber(factField(header, 'filas'));
 
-  if (declaradas === undefined || porLinea.size < declaradas) {
-    return sinMedir(
-      `La lectura del registro de ${campo(cabecera, 'leido')} declara ${campo(cabecera, 'filas') || '?'} peticiones y solo han llegado ${porLinea.size}: está incompleta y no se juzga sobre una parte.`,
+  if (declared === undefined || byLine.size < declared) {
+    return notMeasured(
+      `La lectura del registro de ${factField(header, 'leido')} declara ${factField(header, 'filas') || '?'} peticiones y solo han llegado ${byLine.size}: está incompleta y no se juzga sobre una parte.`,
       'COLLECTION'
     );
   }
 
   return {
-    cabecera,
-    leido: campo(cabecera, 'leido'),
-    peticiones: Array.from(porLinea.values()),
-    ilegibles: numero(campo(cabecera, 'filas_ilegibles')) || 0,
-    host: campo(cabecera, 'sistema_local'),
+    cabecera: header,
+    leido: factField(header, 'leido'),
+    peticiones: Array.from(byLine.values()),
+    ilegibles: parseNumber(factField(header, 'filas_ilegibles')) || 0,
+    host: factField(header, 'sistema_local'),
   };
 };
 
-// ¿Habla esta petición de esta máquina? `sistema` son nombres separados por
-// comas (el del agente o el del host) o «*».
-const esDeEstaMaquina = (p: Peticion, nombres: string[]): boolean =>
+// Does this request speak of this machine? `sistema` is comma-separated names (agent's or host's)
+// or «*».
+const isThisMachine = (p: Request, names: string[]): boolean =>
   p.sistema
     .split(/[,;]/)
     .map(s => s.trim().toLowerCase())
     .filter(Boolean)
-    .some(s => s === '*' || nombres.some(n => n && n.toLowerCase() === s));
+    .some(s => s === '*' || names.some(n => n && n.toLowerCase() === s));
 
-const nombresDe = (context: ENSPolicyContext, reg?: Registro): string[] =>
-  [nombreDelAgente(context) || '', reg?.host || ''].filter(Boolean);
+const namesOf = (context: ENSPolicyContext, reg?: LogRow): string[] =>
+  [agentName(context) || '', reg?.host || ''].filter(Boolean);
 
-// --- los cambios reales (EV-01) --------------------------------------------
 
-type Cambio = {
+type Change = {
   tipo: 'configuración' | 'software' | 'puerto' | 'hardware';
   desde: number;
   hasta: number;
-  // Un cambio EXACTO tiene instante (auditd, dpkg). Uno detectado entre dos
-  // pasadas (puertos, hardware) solo se sabe que ocurrió en ese intervalo.
+  // An EXACT change has an instant (auditd, dpkg). One detected between two runs (ports, hardware)
+  // is only known to have happened in that interval.
   exacto: boolean;
   texto: string;
 };
 
-// Una escritura de configuración hecha por el propio gestor de paquetes es
-// parte de la transacción de software, no un cambio aparte.
-const DEL_GESTOR_DE_PAQUETES = /(^|\/)(dpkg|apt|apt-get|unattended-upgr[a-z-]*|packagekitd)$/;
+// A configuration write made by the package manager itself is part of the software transaction, not
+// a separate change.
+const PACKAGE_MANAGER_PROCESS = /(^|\/)(dpkg|apt|apt-get|unattended-upgr[a-z-]*|packagekitd)$/;
 
-const cambiosReales = (context: ENSPolicyContext, ahora: number): { cambios: Cambio[]; plegados: number } => {
-  const cambios: Cambio[] = [];
-  let plegados = 0;
-  const valido = (t: number | undefined): t is number => t !== undefined && t <= ahora + TOLERANCIA_FUTURO;
+const realChanges = (context: ENSPolicyContext, now: number): { cambios: Change[]; plegados: number } => {
+  const changes: Change[] = [];
+  let folded = 0;
+  const valid = (t: number | undefined): t is number => t !== undefined && t <= now + FUTURE_TOLERANCE_MS;
 
-  hechos(context, 'config_file_modified').forEach(e => {
-    if (DEL_GESTOR_DE_PAQUETES.test(campo(e, 'proceso'))) {
-      plegados += 1;
+  facts(context, 'config_file_modified').forEach(e => {
+    if (PACKAGE_MANAGER_PROCESS.test(factField(e, 'proceso'))) {
+      folded += 1;
 
       return;
     }
 
-    const desde = instante(campo(e, 'primera'));
-    const hasta = instante(campo(e, 'ultima')) ?? desde;
+    const since = parseInstant(factField(e, 'primera'));
+    const until = parseInstant(factField(e, 'ultima')) ?? since;
 
-    if (!valido(desde) || !valido(hasta)) {
+    if (!valid(since) || !valid(until)) {
       return;
     }
 
-    cambios.push({
+    changes.push({
       tipo: 'configuración',
-      desde,
-      hasta,
+      desde: since,
+      hasta: until,
       exacto: true,
-      texto: `${campo(e, 'recurso')} (${campo(e, 'operacion')} por ${campo(e, 'actor') || '?'}, ${campo(e, 'primera')})`,
+      texto: `${factField(e, 'recurso')} (${factField(e, 'operacion')} por ${factField(e, 'actor') || '?'}, ${factField(e, 'primera')})`,
     });
   });
 
-  hechos(context, 'package_changed').forEach(e => {
-    const desde = instante(campo(e, 'inicio'));
-    const hasta = instante(campo(e, 'fin')) ?? desde;
+  facts(context, 'package_changed').forEach(e => {
+    const since = parseInstant(factField(e, 'inicio'));
+    const until = parseInstant(factField(e, 'fin')) ?? since;
 
-    if (!valido(desde) || !valido(hasta)) {
+    if (!valid(since) || !valid(until)) {
       return;
     }
 
-    cambios.push({
+    changes.push({
       tipo: 'software',
-      desde,
-      hasta,
+      desde: since,
+      hasta: until,
       exacto: true,
-      texto: `software ${campo(e, 'inicio')} por ${campo(e, 'actor') || '?'} (${campo(e, 'mecanismo') || '?'}: ${(campo(e, 'paquetes') || '').slice(0, 80)})`,
+      texto: `software ${factField(e, 'inicio')} por ${factField(e, 'actor') || '?'} (${factField(e, 'mecanismo') || '?'}: ${(factField(e, 'paquetes') || '').slice(0, 80)})`,
     });
   });
 
-  const entrePasadas = (tipo: 'puerto' | 'hardware', evento: string, describe: (e: ENSNormalizedEvent) => string) =>
-    hechos(context, evento).forEach(e => {
-      const hasta = instante(campo(e, 'detectado'));
-      const desde = instante(campo(e, 'desde')) ?? hasta;
+  const betweenRuns = (type: 'puerto' | 'hardware', event: string, describe: (e: ENSNormalizedEvent) => string) =>
+    facts(context, event).forEach(e => {
+      const until = parseInstant(factField(e, 'detectado'));
+      const since = parseInstant(factField(e, 'desde')) ?? until;
 
-      if (!valido(desde) || !valido(hasta)) {
+      if (!valid(since) || !valid(until)) {
         return;
       }
 
-      cambios.push({ tipo, desde, hasta, exacto: false, texto: describe(e) });
+      changes.push({ tipo: type, desde: since, hasta: until, exacto: false, texto: describe(e) });
     });
 
-  entrePasadas('puerto', 'listening_port_changed', e =>
-    `puerto ${campo(e, 'protocolo')}/${campo(e, 'puerto')} ${campo(e, 'cambio')} (${campo(e, 'proceso') || '?'}, entre ${campo(e, 'desde')} y ${campo(e, 'detectado')})`
+  betweenRuns('puerto', 'listening_port_changed', e =>
+    `puerto ${factField(e, 'protocolo')}/${factField(e, 'puerto')} ${factField(e, 'cambio')} (${factField(e, 'proceso') || '?'}, entre ${factField(e, 'desde')} y ${factField(e, 'detectado')})`
   );
-  entrePasadas('hardware', 'hardware_changed', e =>
-    `${campo(e, 'componente')} ${campo(e, 'cambio')}: ${campo(e, 'elemento')} (entre ${campo(e, 'desde')} y ${campo(e, 'detectado')})`
+  betweenRuns('hardware', 'hardware_changed', e =>
+    `${factField(e, 'componente')} ${factField(e, 'cambio')}: ${factField(e, 'elemento')} (entre ${factField(e, 'desde')} y ${factField(e, 'detectado')})`
   );
 
-  cambios.sort((a, b) => a.desde - b.desde);
+  changes.sort((a, b) => a.desde - b.desde);
 
-  return { cambios, plegados };
+  return { cambios: changes, plegados: folded };
 };
 
-// ¿Cubre esta petición este cambio? Aprobada, de esta máquina, con ventana
-// legible, y con el cambio DENTRO de la ventana si su instante es exacto o
-// SOLAPANDO con ella si solo se sabe el intervalo entre dos pasadas.
-const cubre = (p: Peticion, c: Cambio, nombres: string[]): boolean => {
-  if (!AUTORIZADAS.includes(sinTildes(p.estado)) || vacia(p.aprobado_por)) {
+// Does this request cover this change? Approved, of this machine, with readable window, and the
+// change INSIDE the window if its instant is exact or OVERLAPPING it if only the interval between
+// two runs is known.
+const covers = (p: Request, c: Change, names: string[]): boolean => {
+  if (!AUTHORIZED_ROWS.includes(stripAccents(p.estado)) || empty(p.aprobado_por)) {
     return false;
   }
 
-  if (!esDeEstaMaquina(p, nombres)) {
+  if (!isThisMachine(p, names)) {
     return false;
   }
 
-  const vi = instante(p.ventana_inicio);
-  const vf = finDe(p.ventana_fin);
+  const vi = parseInstant(p.ventana_inicio);
+  const vf = endOf(p.ventana_fin);
 
   if (vi === undefined || vf === undefined) {
     return false;
   }
 
-  // Un cambio PLANIFICADO se aprueba antes de hacerse. Una petición aprobada
-  // después del cambio es una ratificación a posteriori y no lo cubre: sin
-  // esto, anotar hoy una fila con la ventana de ayer taparía cualquier cambio.
-  const aprobada = instante(p.fecha_aprobacion);
+  // A PLANNED change is approved before being made. A request approved after the change is an
+  // after-the-fact ratification and does not cover it: otherwise writing today a row with
+  // yesterday's window would cover any change.
+  const approved = parseInstant(p.fecha_aprobacion);
 
-  if (aprobada === undefined || aprobada > c.hasta) {
+  if (approved === undefined || approved > c.hasta) {
     return false;
   }
 
   return c.exacto ? c.desde >= vi && c.hasta <= vf : c.desde <= vf && c.hasta >= vi;
 };
 
-// --- las evidencias --------------------------------------------------------
 
-const resumenCambios = (cambios: Cambio[]): string => {
-  const cuenta = (tipo: Cambio['tipo']) => cambios.filter(c => c.tipo === tipo).length;
+const summaryChanges = (changes: Change[]): string => {
+  const account = (type: Change['tipo']) => changes.filter(c => c.tipo === type).length;
 
-  return `${cambios.length} cambio(s) real(es): ${cuenta('configuración')} de configuración, ${cuenta('software')} de software, ${cuenta('puerto')} de puertos en escucha y ${cuenta('hardware')} de hardware`;
+  return `${changes.length} cambio(s) real(es): ${account('configuración')} de configuración, ${account('software')} de software, ${account('puerto')} de puertos en escucha y ${account('hardware')} de hardware`;
 };
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { cambios, plegados } = cambiosReales(context, ahora);
+const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { cambios: changes, plegados: folded } = realChanges(context, now);
 
-  if (!latidoConfirma(context, 'EV-01', ahora)) {
-    const motivo = degradacion(context, 'EV-01');
+  if (!heartbeatConfirms(context, 'EV-01', now)) {
+    const motive = degradation(context, 'EV-01');
 
-    return sinMedir(
-      `La detección de cambios no está completa${motivo ? `: ${motivo.texto}` : ': no consta un latido reciente del recolector que declare leídas las cuatro fuentes (auditd sobre todas las rutas de configuración, historial de apt y dpkg, puertos en escucha e inventario de hardware)'}. Se han observado ${resumenCambios(cambios)}, pero lo que no se vigila no aparece.`,
-      motivo ? motivo.causa : 'COLLECTION'
+    return notMeasured(
+      `La detección de cambios no está completa${motive ? `: ${motive.texto}` : ': no consta un latido reciente del recolector que declare leídas las cuatro fuentes (auditd sobre todas las rutas de configuración, historial de apt y dpkg, puertos en escucha e inventario de hardware)'}. Se han observado ${summaryChanges(changes)}, pero lo que no se vigila no aparece.`,
+      motive ? motive.causa : 'COLLECTION'
     );
   }
 
-  return cumple(
-    `Detección de cambios operativa en las cuatro fuentes. En la ventana: ${resumenCambios(cambios)}${plegados ? ` (y ${plegados} escritura(s) de configuración hechas por el gestor de paquetes, que cuentan dentro de su transacción)` : ''}.`
+  return compliant(
+    `Detección de cambios operativa en las cuatro fuentes. En la ventana: ${summaryChanges(changes)}${folded ? ` (y ${folded} escritura(s) de configuración hechas por el gestor de paquetes, que cuentan dentro de su transacción)` : ''}.`
   );
 };
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const reg = registro(context, ahora);
+const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
+  const reg = record(context, now);
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  const nombres = nombresDe(context, reg);
-  const { cambios } = cambiosReales(context, ahora);
-  const sinPeticion: string[] = [];
-  const trazados = new Map<string, number>();
+  const names = namesOf(context, reg);
+  const { cambios: changes } = realChanges(context, now);
+  const withoutRequest: string[] = [];
+  const traced = new Map<string, number>();
 
-  cambios.forEach(c => {
-    const p = reg.peticiones.find(pp => cubre(pp, c, nombres));
+  changes.forEach(c => {
+    const p = reg.peticiones.find(pp => covers(pp, c, names));
 
     if (!p) {
-      sinPeticion.push(c.texto);
+      withoutRequest.push(c.texto);
 
       return;
     }
 
-    trazados.set(p.peticion_id, (trazados.get(p.peticion_id) || 0) + 1);
+    traced.set(p.peticion_id, (traced.get(p.peticion_id) || 0) + 1);
   });
 
-  const trazas = Array.from(trazados.entries()).map(([id, n]) => `${id} (${n})`);
+  const traces = Array.from(traced.entries()).map(([id, n]) => `${id} (${n})`);
 
-  if (sinPeticion.length) {
-    return noCumple(
-      `${sinPeticion.length} de ${cambios.length} cambios reales no tienen ninguna petición aprobada en el registro (${reg.leido}) cuya ventana los cubra: ${lista(sinPeticion)}.${trazas.length ? ` Trazados: ${lista(trazas)}.` : ''} Fuente de las peticiones: registro TSV de la máquina, mantenido a mano.`
+  if (withoutRequest.length) {
+    return nonCompliant(
+      `${withoutRequest.length} de ${changes.length} cambios reales no tienen ninguna petición aprobada en el registro (${reg.leido}) cuya ventana los cubra: ${formatList(withoutRequest)}.${traces.length ? ` Trazados: ${formatList(traces)}.` : ''} Fuente de las peticiones: registro TSV de la máquina, mantenido a mano.`
     );
   }
 
-  if (!latidoConfirma(context, 'EV-01', ahora)) {
-    return sinMedir(
-      `Los ${cambios.length} cambios observados tienen petición aprobada, pero la detección de cambios no está completa (ver EV-01): un cambio que no se vigila no puede salir sin petición.`,
-      causaDeteccion(context)
+  if (!heartbeatConfirms(context, 'EV-01', now)) {
+    return notMeasured(
+      `Los ${changes.length} cambios observados tienen petición aprobada, pero la detección de cambios no está completa (ver EV-01): un cambio que no se vigila no puede salir sin petición.`,
+      causeDetection(context)
     );
   }
 
-  return cumple(
-    cambios.length
-      ? `Los ${cambios.length} cambios reales de la ventana tienen petición aprobada cuya ventana los cubre: ${lista(trazas)}. Fuente: registro TSV de la máquina (${reg.peticiones.length} peticiones, leído ${reg.leido}).`
+  return compliant(
+    changes.length
+      ? `Los ${changes.length} cambios reales de la ventana tienen petición aprobada cuya ventana los cubre: ${formatList(traces)}. Fuente: registro TSV de la máquina (${reg.peticiones.length} peticiones, leído ${reg.leido}).`
       : `Ningún cambio real en la ventana evaluada, con la detección de cambios confirmada por el latido. Registro de peticiones leído ${reg.leido} (${reg.peticiones.length} peticiones).`
   );
 };
 
-// Campos que P-02 exige, traducidos a columnas del registro.
-const camposExigidos = (context: ENSPolicyContext): { campos: string[]; desconocidos: string[] } => {
-  const campos: string[] = [];
-  const desconocidos: string[] = [];
+// Fields P-02 requires, translated to register columns.
+const requiredFields = (context: ENSPolicyContext): { campos: string[]; desconocidos: string[] } => {
+  const fields: string[] = [];
+  const unknown: string[] = [];
 
-  valores(context, 'P-02').forEach(v => {
-    const c = sinTildes(v).replace(/[\s-]+/g, '_');
+  values(context, 'P-02').forEach(v => {
+    const c = stripAccents(v).replace(/[\s-]+/g, '_');
 
     if (REQUEST_LOG_COLUMNS.includes(c)) {
-      campos.push(c);
+      fields.push(c);
     } else {
-      desconocidos.push(v);
+      unknown.push(v);
     }
   });
 
-  return { campos: Array.from(new Set(campos)), desconocidos };
+  return { campos: Array.from(new Set(fields)), desconocidos: unknown };
 };
 
-const ev03 = (context: ENSPolicyContext, ahora: number, nivel: ENSLevel): Medida => {
-  const { campos, desconocidos } = camposExigidos(context);
+const ev03 = (context: ENSPolicyContext, now: number, level: ENSLevel): Measurement => {
+  const { campos: fields, desconocidos: unknown } = requiredFields(context);
 
-  if (!campos.length && !desconocidos.length) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se ha decidido qué información mínima tiene que traer una petición.`, 'CONFIGURATION');
+  if (!fields.length && !unknown.length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} está sin configurar: no se ha decidido qué información mínima tiene que traer una petición.`, 'CONFIGURATION');
   }
 
-  if (desconocidos.length) {
-    return sinMedir(
-      `${etiqueta(context, 'P-02')} nombra campos que el registro no tiene (${desconocidos.join(', ')}). Los campos válidos son las columnas del registro: ${REQUEST_LOG_COLUMNS.join(', ')}.`,
+  if (unknown.length) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-02')} nombra campos que el registro no tiene (${unknown.join(', ')}). Los campos válidos son las columnas del registro: ${REQUEST_LOG_COLUMNS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
 
-  const reg = registro(context, ahora);
+  const reg = record(context, now);
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  // R1 (ALTO) exige además la valoración del impacto en la seguridad de TODO
-  // cambio documentado (op.exp.5.r1.3).
-  const exigidos = nivel === 'ALTO' ? Array.from(new Set([...campos, 'impacto_seguridad'])) : campos;
-  const prefijo = (filas(context, 'P-01') || []).find(f => sinTildes(f.herramienta) === 'registro_tsv')?.prefijo_referencia || '';
-  const nombres = nombresDe(context, reg);
+  // R1 (ALTO) also requires the security impact assessment of EVERY documented change
+  // (op.exp.5.r1.3).
+  const required = level === 'ALTO' ? Array.from(new Set([...fields, 'impacto_seguridad'])) : fields;
+  const prefix = (tableParameterRows(context, 'P-01') || []).find(f => stripAccents(f.herramienta) === 'registro_tsv')?.prefijo_referencia || '';
+  const names = namesOf(context, reg);
 
-  const autorizadas = reg.peticiones.filter(
-    p => AUTORIZADAS.includes(sinTildes(p.estado)) && esDeEstaMaquina(p, nombres)
+  const authorized = reg.peticiones.filter(
+    p => AUTHORIZED_ROWS.includes(stripAccents(p.estado)) && isThisMachine(p, names)
   );
 
-  const incompletas: string[] = [];
+  const incomplete: string[] = [];
 
-  autorizadas.forEach(p => {
-    const faltan = exigidos.filter(c => vacia(p[c]));
-    const malNumerada = prefijo && !p.peticion_id.startsWith(prefijo);
+  authorized.forEach(p => {
+    const missing = required.filter(c => empty(p[c]));
+    const badlyNumbered = prefix && !p.peticion_id.startsWith(prefix);
 
-    if (faltan.length || malNumerada) {
-      incompletas.push(
+    if (missing.length || badlyNumbered) {
+      incomplete.push(
         `${p.peticion_id || '(sin número)'}: ${[
-          faltan.length ? `sin ${faltan.join(', ')}` : '',
-          malNumerada ? `número fuera del formato «${prefijo}…» de P-01` : '',
+          missing.length ? `sin ${missing.join(', ')}` : '',
+          badlyNumbered ? `número fuera del formato «${prefix}…» de P-01` : '',
         ].filter(Boolean).join('; ')}`
       );
     }
   });
 
-  const r1 = nivel === 'ALTO' ? ' (en ALTO se exige además impacto_seguridad, por op.exp.5.r1.3)' : '';
+  const r1 = level === 'ALTO' ? ' (en ALTO se exige además impacto_seguridad, por op.exp.5.r1.3)' : '';
 
-  if (reg.ilegibles > 0 || incompletas.length) {
-    return noCumple(
+  if (reg.ilegibles > 0 || incomplete.length) {
+    return nonCompliant(
       `Peticiones autorizadas sin la información mínima de P-02${r1}: ${[
         reg.ilegibles ? `${reg.ilegibles} fila(s) del registro que no tienen las ${REQUEST_LOG_COLUMNS.length} columnas y no se pueden leer` : '',
-        incompletas.length ? lista(incompletas) : '',
+        incomplete.length ? formatList(incomplete) : '',
       ].filter(Boolean).join('; ')}.`
     );
   }
 
-  return cumple(
-    autorizadas.length
-      ? `Las ${autorizadas.length} peticiones autorizadas de esta máquina traen ${exigidos.join(', ')}${r1}.`
+  return compliant(
+    authorized.length
+      ? `Las ${authorized.length} peticiones autorizadas de esta máquina traen ${required.join(', ')}${r1}.`
       : `El registro (leído ${reg.leido}) no contiene ninguna petición autorizada para esta máquina: no hay ninguna con información insuficiente.`
   );
 };
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  if (!valores(context, 'P-03').length) {
-    return sinMedir(
-      `${etiqueta(context, 'P-03')} está sin configurar: no hay criterios escritos que digan cuándo un cambio es de riesgo alto, así que la columna «riesgo» del registro no se apoya en ningún análisis declarado.`,
+const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
+  if (!values(context, 'P-03').length) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-03')} está sin configurar: no hay criterios escritos que digan cuándo un cambio es de riesgo alto, así que la columna «riesgo» del registro no se apoya en ningún análisis declarado.`,
       'CONFIGURATION'
     );
   }
 
-  const rsi = (filas(context, 'P-04') || []).map(f => f.cuenta).filter(c => !vacia(c));
+  const rsi = (tableParameterRows(context, 'P-04') || []).map(f => f.cuenta).filter(c => !empty(c));
 
   if (!rsi.length) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: no se puede verificar que la aprobación de un cambio de riesgo alto venga del Responsable de la Seguridad.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-04')} está sin configurar: no se puede verificar que la aprobación de un cambio de riesgo alto venga del Responsable de la Seguridad.`, 'CONFIGURATION');
   }
 
-  const reg = registro(context, ahora);
+  const reg = record(context, now);
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  const nombres = nombresDe(context, reg);
-  const { cambios } = cambiosReales(context, ahora);
-  const desde = ahora - PERIODO_DIAS * DIA;
+  const names = namesOf(context, reg);
+  const { cambios: changes } = realChanges(context, now);
+  const since = now - PERIOD_DAYS * DAY_MS;
 
-  const altas = reg.peticiones.filter(p => sinTildes(p.riesgo) === 'alto' && esDeEstaMaquina(p, nombres));
-  const hallazgos: string[] = [];
-  const revisadas: string[] = [];
+  const high = reg.peticiones.filter(p => stripAccents(p.riesgo) === 'alto' && isThisMachine(p, names));
+  const findings: string[] = [];
+  const reviewed: string[] = [];
 
-  altas.forEach(p => {
-    const suyos = cambios.filter(c => cubre(p, c, nombres));
-    const implantada = IMPLANTADAS.includes(sinTildes(p.estado)) || suyos.length > 0;
-    const vf = finDe(p.ventana_fin);
+  high.forEach(p => {
+    const their = changes.filter(c => covers(p, c, names));
+    const deployed = DEPLOYED_STATES.includes(stripAccents(p.estado)) || their.length > 0;
+    const vf = endOf(p.ventana_fin);
 
-    if (!implantada || (vf !== undefined && vf < desde && !suyos.length)) {
+    if (!deployed || (vf !== undefined && vf < since && !their.length)) {
       return;
     }
 
-    // La implantación es el primer cambio REAL que la petición cubre; si no se
-    // ha observado ninguno, el inicio de la ventana declarada.
-    const implantacion = suyos.length ? suyos[0].desde : instante(p.ventana_inicio);
-    const aprobada = instante(p.fecha_aprobacion);
-    const problemas: string[] = [];
+    // Deployment is the first REAL change the request covers; if none was observed, the declared
+    // window start.
+    const deployment = their.length ? their[0].desde : parseInstant(p.ventana_inicio);
+    const approved = parseInstant(p.fecha_aprobacion);
+    const problems: string[] = [];
 
-    if (vacia(p.aprobado_por)) {
-      problemas.push('sin aprobador');
+    if (empty(p.aprobado_por)) {
+      problems.push('sin aprobador');
     } else if (!rsi.includes(p.aprobado_por)) {
-      problemas.push(`aprobada por «${p.aprobado_por}», que no es el RSI de P-04`);
+      problems.push(`aprobada por «${p.aprobado_por}», que no es el RSI de P-04`);
     }
 
-    if (aprobada === undefined) {
-      problemas.push('sin fecha de aprobación legible');
-    } else if (implantacion !== undefined && aprobada > implantacion) {
-      problemas.push(`aprobada el ${p.fecha_aprobacion}, DESPUÉS de su implantación (${iso(implantacion)}${suyos.length ? ', primer cambio real observado' : ', inicio de su ventana'})`);
+    if (approved === undefined) {
+      problems.push('sin fecha de aprobación legible');
+    } else if (deployment !== undefined && approved > deployment) {
+      problems.push(`aprobada el ${p.fecha_aprobacion}, DESPUÉS de su implantación (${iso(deployment)}${their.length ? ', primer cambio real observado' : ', inicio de su ventana'})`);
     }
 
-    if (problemas.length) {
-      hallazgos.push(`${p.peticion_id}: ${problemas.join('; ')}`);
+    if (problems.length) {
+      findings.push(`${p.peticion_id}: ${problems.join('; ')}`);
     } else {
-      revisadas.push(p.peticion_id);
+      reviewed.push(p.peticion_id);
     }
   });
 
-  if (hallazgos.length) {
-    return noCumple(`Cambios de riesgo alto sin aprobación previa y expresa del RSI: ${lista(hallazgos)}.`);
+  if (findings.length) {
+    return nonCompliant(`Cambios de riesgo alto sin aprobación previa y expresa del RSI: ${formatList(findings)}.`);
   }
 
-  const sinPeticion = cambios.filter(c => !reg.peticiones.some(p => cubre(p, c, nombres)));
+  const withoutRequest = changes.filter(c => !reg.peticiones.some(p => covers(p, c, names)));
 
-  if (sinPeticion.length) {
-    return sinMedir(
-      `${sinPeticion.length} cambio(s) real(es) no tienen petición (ver EV-02): su riesgo no se ha analizado y no se puede afirmar que ninguno fuera de riesgo alto.${revisadas.length ? ` Las de riesgo alto registradas (${revisadas.join(', ')}) tienen aprobación previa del RSI.` : ''}`
+  if (withoutRequest.length) {
+    return notMeasured(
+      `${withoutRequest.length} cambio(s) real(es) no tienen petición (ver EV-02): su riesgo no se ha analizado y no se puede afirmar que ninguno fuera de riesgo alto.${reviewed.length ? ` Las de riesgo alto registradas (${reviewed.join(', ')}) tienen aprobación previa del RSI.` : ''}`
     );
   }
 
-  if (!revisadas.length && !latidoConfirma(context, 'EV-01', ahora)) {
-    return sinMedir('No consta ningún cambio de riesgo alto implantado, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causaDeteccion(context));
+  if (!reviewed.length && !heartbeatConfirms(context, 'EV-01', now)) {
+    return notMeasured('No consta ningún cambio de riesgo alto implantado, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causeDetection(context));
   }
 
-  return cumple(
-    revisadas.length
-      ? `Los cambios de riesgo alto implantados (${revisadas.join(', ')}) fueron aprobados por el RSI antes de su implantación.`
-      : `Ningún cambio de riesgo alto implantado en los últimos ${PERIODO_DIAS} días: todos los cambios reales están cubiertos por peticiones de otro riesgo.`
+  return compliant(
+    reviewed.length
+      ? `Los cambios de riesgo alto implantados (${reviewed.join(', ')}) fueron aprobados por el RSI antes de su implantación.`
+      : `Ningún cambio de riesgo alto implantado en los últimos ${PERIOD_DAYS} días: todos los cambios reales están cubiertos por peticiones de otro riesgo.`
   );
 };
 
-const ev05 = (context: ENSPolicyContext): Medida => {
-  if (!filas(context, 'P-05')) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay ningún entorno de preproducción declarado para esta máquina.`, 'CONFIGURATION');
+const ev05 = (context: ENSPolicyContext): Measurement => {
+  if (!tableParameterRows(context, 'P-05')) {
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} está sin configurar: no hay ningún entorno de preproducción declarado para esta máquina.`, 'CONFIGURATION');
   }
 
-  return sinMedir(
+  return notMeasured(
     'P-05 declara la preproducción, pero demostrar que cada cambio pasó ANTES por ella exige cruzar los cambios reales de las dos máquinas, y el motor evalúa cada máquina por separado. La columna «preproduccion» del registro es una declaración de la organización, no una observación: no la sustituye. op.exp.5.3 queda sin demostrar hasta que la consolidación entre máquinas lo soporte.'
   );
 };
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const tabla = filas(context, 'P-06');
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const table = tableParameterRows(context, 'P-06');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no se ha declarado qué documentación de configuración hay que actualizar tras un cambio ni dónde vive.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-06')} está sin configurar: no se ha declarado qué documentación de configuración hay que actualizar tras un cambio ni dónde vive.`, 'CONFIGURATION');
   }
 
-  const reg = registro(context, ahora);
+  const reg = record(context, now);
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  const nombres = nombresDe(context, reg);
-  const desde = ahora - PERIODO_DIAS * DIA;
+  const names = namesOf(context, reg);
+  const since = now - PERIOD_DAYS * DAY_MS;
 
-  const modificaciones = new Map<string, number[]>();
+  const modifications = new Map<string, number[]>();
 
-  hechos(context, 'config_doc_modified').forEach(e => {
-    const t = instante(campo(e, 'modificado'));
-    const ruta = campo(e, 'ruta');
+  facts(context, 'config_doc_modified').forEach(e => {
+    const t = parseInstant(factField(e, 'modificado'));
+    const path = factField(e, 'ruta');
 
-    if (t === undefined || !ruta) {
+    if (t === undefined || !path) {
       return;
     }
 
-    modificaciones.set(ruta, [...(modificaciones.get(ruta) || []), t]);
+    modifications.set(path, [...(modifications.get(path) || []), t]);
   });
 
-  const exigibles = reg.peticiones.filter(p => {
-    const vi = instante(p.ventana_inicio);
+  const required = reg.peticiones.filter(p => {
+    const vi = parseInstant(p.ventana_inicio);
 
     return (
-      sinTildes(p.estado) === 'implantada' &&
-      esDeEstaMaquina(p, nombres) &&
-      !vacia(p.documentacion) &&
+      stripAccents(p.estado) === 'implantada' &&
+      isThisMachine(p, names) &&
+      !empty(p.documentacion) &&
       vi !== undefined &&
-      vi >= desde
+      vi >= since
     );
   });
 
-  const fuera: string[] = [];
-  const sinDecidir: string[] = [];
-  const pendientes: string[] = [];
-  const hechas: string[] = [];
+  const outside: string[] = [];
+  const withoutDecide: string[] = [];
+  const pending: string[] = [];
+  const done: string[] = [];
 
-  exigibles.forEach(p => {
-    const vi = instante(p.ventana_inicio) as number;
-    const vf = finDe(p.ventana_fin) ?? vi;
+  required.forEach(p => {
+    const vi = parseInstant(p.ventana_inicio) as number;
+    const vf = endOf(p.ventana_fin) ?? vi;
 
     p.documentacion
       .split(/[,;]/)
       .map(d => d.trim())
       .filter(Boolean)
-      .forEach(nombre => {
-        const fila = tabla.find(f => sinTildes(f.documento) === sinTildes(nombre));
+      .forEach(name => {
+        const row = table.find(f => stripAccents(f.documento) === stripAccents(name));
 
-        if (!fila) {
-          sinDecidir.push(`${p.peticion_id}: el documento «${nombre}» no figura en P-06`);
-
-          return;
-        }
-
-        const plazo = numero(fila.plazo_dias);
-
-        if (plazo === undefined || plazo < 0) {
-          sinDecidir.push(`${p.peticion_id}: P-06 no da un plazo en días legible para «${fila.documento}»`);
+        if (!row) {
+          withoutDecide.push(`${p.peticion_id}: el documento «${name}» no figura en P-06`);
 
           return;
         }
 
-        const vistas = modificaciones.get(fila.ubicacion);
+        const deadline = parseNumber(row.plazo_dias);
 
-        if (!vistas) {
-          sinDecidir.push(`${p.peticion_id}: «${fila.documento}» (${fila.ubicacion}) no lo vigila el recolector de esta máquina`);
+        if (deadline === undefined || deadline < 0) {
+          withoutDecide.push(`${p.peticion_id}: P-06 no da un plazo en días legible para «${row.documento}»`);
 
           return;
         }
 
-        const limite = vf + plazo * DIA;
+        const seen = modifications.get(row.ubicacion);
 
-        if (vistas.some(t => t >= vi && t <= limite)) {
-          hechas.push(`${p.peticion_id} → ${fila.documento}`);
-        } else if (ahora < limite) {
-          pendientes.push(`${p.peticion_id} → ${fila.documento} (plazo hasta ${iso(limite)})`);
+        if (!seen) {
+          withoutDecide.push(`${p.peticion_id}: «${row.documento}» (${row.ubicacion}) no lo vigila el recolector de esta máquina`);
+
+          return;
+        }
+
+        const limit = vf + deadline * DAY_MS;
+
+        if (seen.some(t => t >= vi && t <= limit)) {
+          done.push(`${p.peticion_id} → ${row.documento}`);
+        } else if (now < limit) {
+          pending.push(`${p.peticion_id} → ${row.documento} (plazo hasta ${iso(limit)})`);
         } else {
-          fuera.push(`${p.peticion_id}: «${fila.documento}» no se modificó entre ${p.ventana_inicio} y ${iso(limite)}`);
+          outside.push(`${p.peticion_id}: «${row.documento}» no se modificó entre ${p.ventana_inicio} y ${iso(limit)}`);
         }
       });
   });
 
-  if (fuera.length) {
-    return noCumple(`Cambios implantados sin actualizar su documentación de configuración en plazo: ${lista(fuera)}.`);
+  if (outside.length) {
+    return nonCompliant(`Cambios implantados sin actualizar su documentación de configuración en plazo: ${formatList(outside)}.`);
   }
 
-  if (sinDecidir.length) {
-    // Documento que P-06 no nombra, sin plazo legible, o que el recolector no
-    // tiene declarado para vigilar: todo se arregla configurando.
-    return sinMedir(`No se puede comprobar toda la documentación exigida: ${lista(sinDecidir)}.`, 'CONFIGURATION');
+  if (withoutDecide.length) {
+    // Document P-06 does not name, without readable deadline, or that the collector does not have
+    // declared to watch: all fixed by configuring.
+    return notMeasured(`No se puede comprobar toda la documentación exigida: ${formatList(withoutDecide)}.`, 'CONFIGURATION');
   }
 
-  return cumple(
-    exigibles.length
-      ? `Documentación actualizada tras el cambio: ${lista(hechas)}.${pendientes.length ? ` Dentro de plazo todavía: ${lista(pendientes)}.` : ''}`
-      : `Ninguna petición implantada en los últimos ${PERIODO_DIAS} días declara documentación de configuración que actualizar (columna «documentacion» del registro).`
+  return compliant(
+    required.length
+      ? `Documentación actualizada tras el cambio: ${formatList(done)}.${pending.length ? ` Dentro de plazo todavía: ${formatList(pending)}.` : ''}`
+      : `Ninguna petición implantada en los últimos ${PERIOD_DAYS} días declara documentación de configuración que actualizar (columna «documentacion» del registro).`
   );
 };
 
-const horasP09 = (context: ENSPolicyContext): number | undefined => {
-  const v = parametro(context, 'P-09')?.value;
-  const n = numero(Array.isArray(v) ? String(v[0] ?? '') : String(v ?? ''));
+const hoursP09 = (context: ENSPolicyContext): number | undefined => {
+  const v = findParameter(context, 'P-09')?.value;
+  const n = parseNumber(Array.isArray(v) ? String(v[0] ?? '') : String(v ?? ''));
 
   return n !== undefined && n > 0 ? n : undefined;
 };
 
-const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const horas = horasP09(context);
+const ev07 = (context: ENSPolicyContext, now: number): Measurement => {
+  const hours = hoursP09(context);
 
-  if (horas === undefined) {
-    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no se ha decidido durante cuántas horas tras un cambio un servicio caído se atribuye a ese cambio.`, 'CONFIGURATION');
+  if (hours === undefined) {
+    return notMeasured(`${parameterDisplayName(context, 'P-09')} está sin configurar: no se ha decidido durante cuántas horas tras un cambio un servicio caído se atribuye a ese cambio.`, 'CONFIGURATION');
   }
 
-  if (!latidoConfirma(context, 'EV-07', ahora)) {
-    const motivo = degradacion(context, 'EV-07');
+  if (!heartbeatConfirms(context, 'EV-07', now)) {
+    const motive = degradation(context, 'EV-07');
 
-    return sinMedir(
-      `No consta una lectura reciente del estado de los servicios${motivo ? `: ${motivo.texto}` : ''}: sin ella no se sabe si algún cambio dejó un servicio caído.`,
-      motivo ? motivo.causa : 'COLLECTION'
+    return notMeasured(
+      `No consta una lectura reciente del estado de los servicios${motive ? `: ${motive.texto}` : ''}: sin ella no se sabe si algún cambio dejó un servicio caído.`,
+      motive ? motive.causa : 'COLLECTION'
     );
   }
 
-  const { cambios } = cambiosReales(context, ahora);
-  const reg = registro(context, ahora);
-  const peticiones = esMedida(reg) ? [] : reg.peticiones;
-  const nombres = nombresDe(context, esMedida(reg) ? undefined : reg);
+  const { cambios: changes } = realChanges(context, now);
+  const reg = record(context, now);
+  const requests = isMeasurement(reg) ? [] : reg.peticiones;
+  const names = namesOf(context, isMeasurement(reg) ? undefined : reg);
 
-  // Los hechos de estado ya llegan cortados a la última pasada (ver
-  // `evidence/state-facts.ts`): son los servicios que siguen caídos AHORA.
-  const caidos = hechos(context, 'service_failed');
-  const adversos: string[] = [];
-  const revertidos: string[] = [];
-  const ajenos: string[] = [];
+  // State facts already arrive cut to the last run (see `evidence/state-facts.ts`): these are the
+  // services still down NOW.
+  const down = facts(context, 'service_failed');
+  const adverse: string[] = [];
+  const revertedList: string[] = [];
+  const foreign: string[] = [];
 
-  caidos.forEach(e => {
-    const inicio = instante(campo(e, 'desde'));
-    const unidad = campo(e, 'unidad');
+  down.forEach(e => {
+    const start = parseInstant(factField(e, 'desde'));
+    const unit = factField(e, 'unidad');
 
-    const causa = inicio === undefined
+    const cause = start === undefined
       ? undefined
-      : cambios.filter(c => c.hasta <= inicio && inicio - c.hasta <= horas * HORA).pop();
+      : changes.filter(c => c.hasta <= start && start - c.hasta <= hours * HOUR_MS).pop();
 
-    if (!causa) {
-      ajenos.push(unidad);
+    if (!cause) {
+      foreign.push(unit);
 
       return;
     }
 
-    const revertida = peticiones.find(p => sinTildes(p.estado) === 'revertida' && cubre(p, causa, nombres));
+    const revertedRequest = requests.find(p => stripAccents(p.estado) === 'revertida' && covers(p, cause, names));
 
-    if (revertida) {
-      revertidos.push(`${unidad} tras ${causa.texto}, revertido en ${revertida.peticion_id}`);
+    if (revertedRequest) {
+      revertedList.push(`${unit} tras ${cause.texto}, revertido en ${revertedRequest.peticion_id}`);
     } else {
-      adversos.push(`${unidad} caído desde ${campo(e, 'desde')}, ${((inicio as number - causa.hasta) / HORA).toFixed(1)} h después de ${causa.texto}`);
+      adverse.push(`${unit} caído desde ${factField(e, 'desde')}, ${((start as number - cause.hasta) / HOUR_MS).toFixed(1)} h después de ${cause.texto}`);
     }
   });
 
-  if (adversos.length) {
-    return noCumple(
-      `Efectos adversos sostenidos tras un cambio, sin reversión registrada: ${lista(adversos)}. Siguen caídos en la última pasada.`
+  if (adverse.length) {
+    return nonCompliant(
+      `Efectos adversos sostenidos tras un cambio, sin reversión registrada: ${formatList(adverse)}. Siguen caídos en la última pasada.`
     );
   }
 
-  if (!cambios.length && !latidoConfirma(context, 'EV-01', ahora)) {
-    return sinMedir('No consta ningún cambio real, pero la detección de cambios no está completa (ver EV-01).', causaDeteccion(context));
+  if (!changes.length && !heartbeatConfirms(context, 'EV-01', now)) {
+    return notMeasured('No consta ningún cambio real, pero la detección de cambios no está completa (ver EV-01).', causeDetection(context));
   }
 
-  return cumple(
-    `Ningún servicio sigue caído por un cambio de las ${horas} h previas (${cambios.length} cambios en la ventana).${revertidos.length ? ` Revertidos: ${lista(revertidos)}.` : ''}${ajenos.length ? ` Caídos sin cambio previo en ${horas} h (cuentan para EV-08, no aquí): ${lista(ajenos)}.` : ''}`
+  return compliant(
+    `Ningún servicio sigue caído por un cambio de las ${hours} h previas (${changes.length} cambios en la ventana).${revertedList.length ? ` Revertidos: ${formatList(revertedList)}.` : ''}${foreign.length ? ` Caídos sin cambio previo en ${hours} h (cuentan para EV-08, no aquí): ${formatList(foreign)}.` : ''}`
   );
 };
 
-const CANALES = ['cola_itsm', 'buzon', 'integracion_wazuh'];
+const CHANNELS = ['cola_itsm', 'buzon', 'integracion_wazuh'];
 
-const ev08 = (context: ENSPolicyContext): Medida => {
-  const tabla = filas(context, 'P-07');
+const ev08 = (context: ENSPolicyContext): Measurement => {
+  const table = tableParameterRows(context, 'P-07');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se ha declarado por qué canal se comunican los fallos al responsable de seguridad.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-07')} está sin configurar: no se ha declarado por qué canal se comunican los fallos al responsable de seguridad.`, 'CONFIGURATION');
   }
 
-  const caidos = hechos(context, 'service_failed').map(e => campo(e, 'unidad'));
-  const fallos = caidos.length ? `Fallos detectados ahora: ${lista(caidos)}.` : 'No hay ningún servicio caído en la última pasada.';
-  const canales = tabla.map(f => sinTildes(f.canal)).filter(c => CANALES.includes(c));
+  const down = facts(context, 'service_failed').map(e => factField(e, 'unidad'));
+  const failures = down.length ? `Fallos detectados ahora: ${formatList(down)}.` : 'No hay ningún servicio caído en la última pasada.';
+  const channels = table.map(f => stripAccents(f.canal)).filter(c => CHANNELS.includes(c));
 
-  return sinMedir(
-    `${fallos} La comunicación por ${canales.length ? canales.join(', ') : 'el canal declarado'} (${tabla.map(f => f.destino).filter(Boolean).join(', ') || 'sin destino'}) no deja ningún hecho observable en esta máquina: no hay integración que registre el envío, y un buzón o una cola humana no se ven desde Wazuh. op.exp.5.r1.2 se detecta a medias y no se demuestra.`
+  return notMeasured(
+    `${failures} La comunicación por ${channels.length ? channels.join(', ') : 'el canal declarado'} (${table.map(f => f.destino).filter(Boolean).join(', ') || 'sin destino'}) no deja ningún hecho observable en esta máquina: no hay integración que registre el envío, y un buzón o una cola humana no se ven desde Wazuh. op.exp.5.r1.2 se detecta a medias y no se demuestra.`
   );
 };
 
-const MECANISMOS_LOCALES = ['lvm', 'zfs', 'btrfs'];
+const LOCAL_MECHANISMS = ['lvm', 'zfs', 'btrfs'];
 
-// La lógica de EV-09 de op.exp.4, aplicada a todos los cambios EXACTOS (de
-// configuración y de software): un puerto o un disco que cambian entre dos
-// pasadas no tienen un «antes» preciso contra el que medir el punto de
-// reversión.
-const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const tabla = filas(context, 'P-08');
+// op.exp.4's EV-09 logic applied to all EXACT changes (configuration and software): a port or disk
+// changing between two runs has no precise «before» to measure the reversion point against.
+const ev09 = (context: ENSPolicyContext, now: number): Measurement => {
+  const table = tableParameterRows(context, 'P-08');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha previsto ningún mecanismo de reversión.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-08')} está sin configurar: no se ha previsto ningún mecanismo de reversión.`, 'CONFIGURATION');
   }
 
-  const reg = registro(context, ahora);
-  const fila = filaDelSistema(tabla, 'sistema', nombresDe(context, esMedida(reg) ? undefined : reg));
+  const reg = record(context, now);
+  const row = systemRow(table, 'sistema', namesOf(context, isMeasurement(reg) ? undefined : reg));
 
-  if (!fila) {
-    return sinMedir(`P-08 no tiene fila para ${nombreDelAgente(context) || 'esta máquina'} ni una fila «*».`, 'CONFIGURATION');
+  if (!row) {
+    return notMeasured(`P-08 no tiene fila para ${agentName(context) || 'esta máquina'} ni una fila «*».`, 'CONFIGURATION');
   }
 
-  const mecanismo = fila.mecanismo.toLowerCase();
+  const mechanism = row.mecanismo.toLowerCase();
 
-  if (!MECANISMOS_LOCALES.includes(mecanismo)) {
-    return sinMedir(
-      `El mecanismo declarado en P-08 («${fila.mecanismo}») no deja huella en la máquina: un snapshot de hipervisor o una copia externa no los observa este control, y no se simulan.`
+  if (!LOCAL_MECHANISMS.includes(mechanism)) {
+    return notMeasured(
+      `El mecanismo declarado en P-08 («${row.mecanismo}») no deja huella en la máquina: un snapshot de hipervisor o una copia externa no los observa este control, y no se simulan.`
     );
   }
 
-  const ventana = numero(fila.ventana_horas || '');
+  const window = parseNumber(row.ventana_horas || '');
 
-  if (ventana === undefined || ventana <= 0) {
-    return sinMedir(`La ventana previa de P-08 («${fila.ventana_horas}») no es un número de horas utilizable.`, 'CONFIGURATION');
+  if (window === undefined || window <= 0) {
+    return notMeasured(`La ventana previa de P-08 («${row.ventana_horas}») no es un número de horas utilizable.`, 'CONFIGURATION');
   }
 
-  const cambios = cambiosReales(context, ahora).cambios.filter(c => c.exacto);
+  const changes = realChanges(context, now).cambios.filter(c => c.exacto);
 
-  if (!cambios.length) {
-    return latidoConfirma(context, 'EV-01', ahora)
-      ? cumple('Ningún cambio de configuración ni de software en la ventana evaluada, con la detección de cambios confirmada: no había punto de reversión que exigir.')
-      : sinMedir('No consta ningún cambio, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causaDeteccion(context));
+  if (!changes.length) {
+    return heartbeatConfirms(context, 'EV-01', now)
+      ? compliant('Ningún cambio de configuración ni de software en la ventana evaluada, con la detección de cambios confirmada: no había punto de reversión que exigir.')
+      : notMeasured('No consta ningún cambio, pero la detección de cambios no está completa (ver EV-01): el silencio no acredita nada.', causeDetection(context));
   }
 
-  const puntos = hechos(context, 'reversion_point_created')
-    .filter(e => campo(e, 'mecanismo').toLowerCase() === mecanismo)
-    .map(e => instante(campo(e, 'creado')))
+  const points = facts(context, 'reversion_point_created')
+    .filter(e => factField(e, 'mecanismo').toLowerCase() === mechanism)
+    .map(e => parseInstant(factField(e, 'creado')))
     .filter((t): t is number => t !== undefined);
 
-  const degradado = degradacion(context, 'EV-09');
+  const degraded = degradation(context, 'EV-09');
 
-  if (!puntos.length && degradado) {
-    return sinMedir(
-      `El recolector no ha podido observar puntos de reversión: ${degradado.texto}. Hay ${cambios.length} cambio(s) sin punto de reversión demostrable.`,
-      degradado.causa
+  if (!points.length && degraded) {
+    return notMeasured(
+      `El recolector no ha podido observar puntos de reversión: ${degraded.texto}. Hay ${changes.length} cambio(s) sin punto de reversión demostrable.`,
+      degraded.causa
     );
   }
 
-  const sinPunto = cambios
-    .filter(c => !puntos.some(t => t <= c.desde && c.desde - t <= ventana * HORA))
+  const withoutPoint = changes
+    .filter(c => !points.some(t => t <= c.desde && c.desde - t <= window * HOUR_MS))
     .map(c => c.texto);
 
-  if (sinPunto.length) {
-    return noCumple(`Cambios sin punto de reversión ${fila.mecanismo} en las ${ventana} h previas: ${lista(sinPunto)}.`);
+  if (withoutPoint.length) {
+    return nonCompliant(`Cambios sin punto de reversión ${row.mecanismo} en las ${window} h previas: ${formatList(withoutPoint)}.`);
   }
 
-  return cumple(`Los ${cambios.length} cambios tenían un punto de reversión ${fila.mecanismo} en las ${ventana} h previas.`);
+  return compliant(`Los ${changes.length} cambios tenían un punto de reversión ${row.mecanismo} en las ${window} h previas.`);
 };
 
-// --- decisiones ------------------------------------------------------------
 
-type Requisito = {
+type Requirement = {
   evidencias: string[];
   parametros: string[];
   tipo: ENSPolicyDecision['trace']['ruleType'];
   niveles: ENSLevel[];
 };
 
-const REQUISITOS: Record<string, Requisito> = {
+const REQUIREMENTS: Record<string, Requirement> = {
   'op.exp.5.1': { evidencias: ['EV-01', 'EV-02'], parametros: ['P-01'], tipo: 'WHITELIST', niveles: ['MEDIO', 'ALTO'] },
   'op.exp.5.2': { evidencias: ['EV-03'], parametros: ['P-01', 'P-02'], tipo: 'CONDITIONAL_REQUIRED', niveles: ['MEDIO', 'ALTO'] },
   'op.exp.5.3': { evidencias: ['EV-05'], parametros: ['P-05'], tipo: 'COVERAGE_REQUIRED', niveles: ['MEDIO', 'ALTO'] },
@@ -1110,99 +1072,97 @@ const REQUISITOS: Record<string, Requisito> = {
 };
 
 const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: ENSPolicyDecision['trace']['ruleType'],
+  requirement: string,
+  status: Measurement['estado'],
+  evidences: string[],
+  parameters: string[],
+  type: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const nivel = context.level;
+  const now = (context.now || new Date()).getTime();
+  const level = context.level;
 
-  // Solo los requisitos que rigen en el nivel evaluado. En BAJO no rige
-  // ninguno —op.exp.5 no aplica a la categoría BÁSICA— y sin decisiones el
-  // motor los deja NO_APLICA. Además evita que el juicio de R1 (EV-03 con la
-  // valoración de impacto) pinte la evidencia en un nivel en el que R1 no
-  // rige: el puente lleva a la evidencia la peor decisión que la nombra.
-  const vigentes = Object.entries(REQUISITOS).filter(([, r]) => r.niveles.includes(nivel));
+  // Only requirements that govern at the evaluated level. At BAJO none does (op.exp.5 does not
+  // apply to the BÁSICA category) and without decisions the engine leaves them NO_APLICA. It also
+  // keeps R1's judgment (EV-03 with impact assessment) from painting the evidence at a level where
+  // R1 does not govern: the bridge carries to the evidence the worst decision naming it.
+  const current = Object.entries(REQUIREMENTS).filter(([, r]) => r.niveles.includes(level));
 
-  if (!vigentes.length) {
+  if (!current.length) {
     return { decisions: [], runtimeVariables: [] };
   }
 
-  const medidas: Record<string, Medida> = {
-    'EV-01': ev01(context, ahora),
-    'EV-02': ev02(context, ahora),
-    'EV-03': ev03(context, ahora, nivel),
-    'EV-04': ev04(context, ahora),
+  const measurements: Record<string, Measurement> = {
+    'EV-01': ev01(context, now),
+    'EV-02': ev02(context, now),
+    'EV-03': ev03(context, now, level),
+    'EV-04': ev04(context, now),
     'EV-05': ev05(context),
-    'EV-06': ev06(context, ahora),
-    'EV-07': ev07(context, ahora),
+    'EV-06': ev06(context, now),
+    'EV-07': ev07(context, now),
     'EV-08': ev08(context),
-    'EV-09': ev09(context, ahora),
+    'EV-09': ev09(context, now),
   };
 
   const decisions: ENSPolicyDecision[] = [];
 
-  vigentes.forEach(([requisito, { evidencias, parametros, tipo }]) => {
-    const propias = evidencias.map(id => ({ id, medida: medidas[id] }));
-    const estado = peor(propias.map(p => p.medida));
+  current.forEach(([requirement, { evidencias: evidences, parametros: parameters, tipo: type }]) => {
+    const own = evidences.map(id => ({ id, medida: measurements[id] }));
+    const status = worstStatus(own.map(p => p.medida));
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`
-    // (`find` devuelve la primera). Nombra solo las evidencias que la
-    // sostienen, para que el puente no pinte una evidencia sana con el color de
-    // otra.
-    const responsables = propias.filter(p => p.medida.estado === estado);
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads; `find` returns
+    // the first). It names only the evidences that support it so the bridge does not paint a
+    // healthy one with another's color.
+    const owners = own.filter(p => p.medida.estado === status);
 
     decisions.push(
       withReasonParts(decide(
-        requisito,
-        estado,
-        responsables.map(p => p.id),
-        parametros,
-        tipo,
-        requisito,
-        compositeReason(propias),
-        evidencias.map(id => `${id} CUMPLE`).join(' y '),
-        causaComun(responsables.map(p => p.medida))
-      ), reasonPartsOf(propias))
+        requirement,
+        status,
+        owners.map(p => p.id),
+        parameters,
+        type,
+        requirement,
+        compositeReason(own),
+        evidences.map(id => `${id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia, con SU estado, para que la tabla de evidencias diga
-    // lo que se midió de cada una y no el agregado.
-    propias.forEach(p =>
+    // And one per evidence, with ITS status, so the evidence table shows what was measured of each
+    // and not the aggregate.
+    own.forEach(p =>
       decisions.push(
         decide(
-          requisito,
+          requirement,
           p.medida.estado,
           [p.id],
-          parametros,
-          tipo,
-          `${requisito}/${p.id}`,
+          parameters,
+          type,
+          `${requirement}/${p.id}`,
           p.medida.motivo,
           `${p.id} CUMPLE`,
           p.medida.causa
@@ -1211,13 +1171,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     );
   });
 
-  const variables: ENSRuntimeVariable[] = Object.entries(medidas).map(([id, medida]) => ({
+  const variables: ENSRuntimeVariable[] = Object.entries(measurements).map(([id, measurement]) => ({
     name: `medida_${id.replace('-', '')}`,
-    value: medida.estado,
+    value: measurement.estado,
     parameterIds: [],
     evidenceIds: [id],
     eventIds: [],
-    description: medida.motivo,
+    description: measurement.motivo,
   }));
 
   return { decisions, runtimeVariables: variables };
