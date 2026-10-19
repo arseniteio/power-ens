@@ -1,24 +1,8 @@
-// op.acc.3 · Segregación de funciones y tareas
-//
-// EL ÚNICO CONTROL CON EVALUADOR PROPIO, y la razón es estructural, no de
-// gusto: la segregación es una propiedad del CONJUNTO de acciones de una
-// persona, no de ninguna acción suelta. «jgomez ejecutó git push» no incumple
-// nada; incumple si esa misma cuenta ejerce además una función incompatible
-// dentro de la ventana.
-//
-// Las siete primitivas de juicio del motor contrastan UN hecho contra UN
-// parámetro, y aquí hacen falta tres cosas a la vez:
-//
-//   1. clasificar cada acción observada en una función  → P-03
-//   2. agrupar por cuenta dentro de una ventana         → P-06
-//   3. cruzar contra los pares prohibidos               → P-02
-//
-// Un evaluador de policy recibe todos los parámetros y todos los eventos, que
-// es exactamente lo que esto necesita. Y la política sigue viviendo SOLO en la
-// pantalla: el agente emite acciones sin clasificar.
-//
-// Tipos desde el fichero, nunca desde un barrel de alto nivel: por ahí vuelve
-// el ciclo transitivo del TDZ de Settings.
+// op.acc.3 · Segregation of duties and tasks. The only control with its own evaluator: segregation
+// is a property of the SET of a person's actions (classify actions into functions P-03, group by
+// account in a window P-06, cross with forbidden pairs P-02), which the single-fact judgment
+// primitives cannot express.
+// Types come from the file, never from a high-level barrel (Settings TDZ cycle).
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -50,15 +34,13 @@ const listOf = (value: unknown): string[] => {
   ).filter(Boolean);
 };
 
-// Una fila `a | b | c` partida en celdas. Misma partición que usa el
-// formulario, para que lo que el auditor escribe y lo que el motor lee no
-// puedan divergir.
+// A `a | b | c` row split into cells; same split as the form so what the auditor writes and what
+// the engine reads cannot diverge.
 const cellsOf = (row: string): string[] =>
   row.split('|').map(cell => cell.trim()).filter(Boolean);
 
-// `ENSPolicyDecision` exige todos sus campos, y con razón: la traza es lo que
-// un auditor recorre. Este constructor los rellena para que ninguna decisión
-// de este fichero pueda salir a medias.
+// `ENSPolicyDecision` requires every field; this builder fills them so no decision leaves
+// half-built.
 const decide = (
   requirementId: string,
   status: ENSPolicyDecision['status'],
@@ -88,18 +70,15 @@ const decide = (
   reason,
 });
 
-const NO_MEDIDO = (
+const NOT_MEASURED = (
   requirementId: string,
   reason: string,
   parameterIds: string[] = []
 ): ENSPolicyDecision =>
   decide(requirementId, 'NO_EVALUABLE', reason, { parameterIds });
 
-// --- 1. clasificar una acción en funciones (P-03) --------------------------
-//
-// P-03 es `funcion | indicadores`: qué comandos, rutas o procesos identifican
-// una acción de esa función. Una acción puede casar con VARIAS funciones y eso
-// no es un error: `visudo` es configuración y también administración.
+// 1. Classify an action into functions (P-03): `function | indicators`; an action may match SEVERAL
+// functions (`visudo` is configuration and administration).
 const functionsOfAction = (
   action: string,
   path: string,
@@ -126,12 +105,8 @@ const functionsOfAction = (
   return Array.from(new Set(matched));
 };
 
-// --- 2. los pares prohibidos (P-02) ---------------------------------------
-//
-// `a | b` es un par incompatible. `a | *` significa que `a` no puede
-// coexistir con NINGUNA otra función, que es literalmente lo que dice
-// op.acc.3.r1.2 de la auditoría: es taxativo y no admite el matiz «siempre que
-// sea posible».
+// 2. Forbidden pairs (P-02): `a | b` is an incompatible pair; `a | *` means `a` cannot coexist with
+// ANY other function, as op.acc.3.r1.2 says (no «whenever possible» nuance).
 interface IncompatiblePair {
   left: string;
   right: string;
@@ -152,61 +127,42 @@ const pairsOf = (rows: string[]): IncompatiblePair[] =>
     return [{ left, right, wildcard: right === '*' }];
   });
 
-// QUÉ PAR GOBIERNA CADA REQUISITO.
-//
-// Hasta el 07/08/2026 esto no existía y era un defecto con consecuencias: se
-// calculaba UNA lista de infractores contra TODOS los pares de P-02 y se
-// aplicaba a los cuatro requisitos. Una cuenta que aunaba desarrollo y
-// operación —que incumple op.acc.3.1— teñía también op.acc.3.2, que habla de
-// quién autoriza y quién controla y no tiene nada que ver. Tres de cada cuatro
-// eran NO CONFORMIDADES FALSAS, y una no conformidad falsa miente igual que un
-// CUMPLE falso: manda a corregir algo que no está mal.
-//
-// El mapa sale del TEXTO del ENS, no de una decisión de producto:
-//
-//   op.acc.3.1     «las capacidades de desarrollo y operación no recaerán en la
-//                   misma persona»
-//   op.acc.3.2     «las personas que autorizan y controlan el uso serán
-//                   distintas»
-//   op.acc.3.r1.1  «la misma persona no aunará configuración y mantenimiento»
-//   op.acc.3.r1.2  «auditoría o supervisión con cualquier otra función»
-//
-// Y encaja con lo que la propia pantalla dice de P-02: «En MEDIO:
-// desarrollo↔operación, autorización↔control. En ALTO se añade:
-// configuración↔mantenimiento y auditoría↔cualquier otra».
-const PAR_DEL_REQUISITO: Record<string, [string, string]> = {
+// WHICH PAIR GOVERNS EACH REQUIREMENT. The map comes from the ENS text, not a product decision:
+// op.acc.3.1 development vs operation; op.acc.3.2 authorizing vs controlling; op.acc.3.r1.1
+// configuration vs maintenance; op.acc.3.r1.2 audit or supervision vs any other function.
+// One offender list against all P-02 pairs applied to the four requirements produced false
+// nonconformities.
+const REQUIREMENT_PAIR: Record<string, [string, string]> = {
   'op.acc.3.1': ['desarrollo', 'operacion'],
   'op.acc.3.2': ['autorizacion', 'control'],
   'op.acc.3.r1.1': ['configuracion', 'mantenimiento'],
   'op.acc.3.r1.2': ['auditoria', '*'],
 };
 
-// Los pares que el responsable declaró en P-02 y que gobiernan ESTE requisito.
-// La comparación es por conjunto: da igual el orden en que los escriba, y se
-// normalizan los acentos porque «operación» y «operacion» son la misma función
-// y nadie debería perder cumplimiento por una tilde.
-const sinTildes = (valor: string): string =>
-  valor
+// Pairs declared in P-02 that govern THIS requirement. Compared as a set (order irrelevant) with
+// accents normalized: «operación» and «operacion» are the same function.
+const stripAccents = (value: string): string =>
+  value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
 
-const paresDelRequisito = (
+const requirementPairs = (
   requirementId: string,
-  declarados: IncompatiblePair[]
+  declared: IncompatiblePair[]
 ): IncompatiblePair[] => {
-  const esperado = PAR_DEL_REQUISITO[requirementId];
+  const expected = REQUIREMENT_PAIR[requirementId];
 
-  if (!esperado) {
+  if (!expected) {
     return [];
   }
 
-  const [a, b] = esperado.map(sinTildes);
+  const [a, b] = expected.map(stripAccents);
 
-  return declarados.filter(pair => {
-    const left = sinTildes(pair.left);
-    const right = sinTildes(pair.right);
+  return declared.filter(pair => {
+    const left = stripAccents(pair.left);
+    const right = stripAccents(pair.right);
 
     return (left === a && right === b) || (left === b && right === a);
   });
@@ -227,7 +183,6 @@ const violatesPair = (
   return functions.includes(pair.right);
 };
 
-// --- el evaluador ----------------------------------------------------------
 
 const evaluate = (
   context: ENSPolicyContext
@@ -245,7 +200,6 @@ const evaluate = (
 
   const criticalTasks = listOf(getParameter(context, 'P-04')?.value);
 
-  // --- las acciones observadas, agrupadas por cuenta ---
   const actionEvents = context.events.filter(
     event => event.eventType === 'account_action'
   );
@@ -282,76 +236,52 @@ const evaluate = (
       'Cuentas con al menos una acción observada y clasificada en el periodo.',
   });
 
-  // ¿HA MIRADO ALGUIEN? El silencio solo acredita si consta que se barrió.
-  //
-  // ESTO CORRIGE UN CUMPLE FALSO. Hasta el 07/08/2026, cuando no se observaba
-  // ninguna acción esta policy respondía «no hay ninguna cuenta que aúne
-  // funciones» y daba CUMPLE — 100 puntos. Pero «no he visto a nadie aunar
-  // funciones» y «no he mirado» producen exactamente el mismo conjunto vacío, y
-  // la policy no los distinguía: una máquina SIN AGENTE puntuaba 100.
-  //
-  // Se vio en wazuh-fake, que está en el índice y no tiene recolector: op.acc.3
-  // le daba el 100 y ese 100 subía la media del control.
-  //
-  // El producto ya tiene el mecanismo —el latido `collector_run` con
-  // `evidencias_cubiertas`, que es lo que sostiene «silencio = cumplimiento»—
-  // pero vivía solo en el camino de las primitivas (`resolveCollectorCoverage`
-  // en evidence/judgment.ts) y esta policy no pasa por ahí. Se aplica aquí la
-  // misma regla: sin latido, NO_EVALUABLE.
-  const TIPOS_DE_HECHO = [
+  // HAS ANYONE LOOKED? Silence only accredits if a sweep is recorded. «Nobody seen combining
+  // functions» and «nobody looked» give the same empty set, so a machine WITHOUT AGENT scored 100.
+  // The `collector_run` heartbeat with `evidencias_cubiertas` already supports «silence =
+  // compliance» on the primitives path (`resolveCollectorCoverage` in evidence/judgment.ts), which
+  // this policy does not take: the same rule applies here, no heartbeat means NO_EVALUABLE.
+  const FACT_TYPES = [
     'account_action',
     'critical_task_run',
     'security_info_access',
   ];
 
-  const hayHechos = context.events.some(event =>
-    TIPOS_DE_HECHO.includes(event.eventType)
+  const hasFacts = context.events.some(event =>
+    FACT_TYPES.includes(event.eventType)
   );
 
-  const HORAS_DE_LATIDO = 24;
+  const HEARTBEAT_HOURS = 24;
 
-  const hayLatido = context.events.some(event => {
+  const hasHeartbeat = context.events.some(event => {
     if (event.eventType !== 'collector_run') {
       return false;
     }
 
-    const cuando = new Date(event.timestamp).getTime();
+    const when = new Date(event.timestamp).getTime();
 
-    if (!Number.isFinite(cuando)) {
+    if (!Number.isFinite(when)) {
       return false;
     }
 
-    // Un latido con fecha futura —reloj desviado— no acredita: valdría como
-    // latido perpetuo y volvería verde para siempre una máquina muerta.
-    const ahora = context.now ? context.now.getTime() : Date.now();
+    // A future-dated heartbeat (skewed clock) accredits nothing: it would be a perpetual heartbeat
+    // and keep a dead machine green.
+    const now = context.now ? context.now.getTime() : Date.now();
 
     return (
-      cuando <= ahora &&
-      ahora - cuando <= HORAS_DE_LATIDO * 3600 * 1000
+      when <= now &&
+      now - when <= HEARTBEAT_HOURS * 3600 * 1000
     );
   });
 
-  // --- la concurrencia en tareas críticas, ANTES del cruce ---
-  //
-  // Se calcula aquí y no donde se decide porque su veredicto NO es una decisión
-  // aparte: se FUNDE con el del cruce en op.acc.3.2. La razón es del motor —
-  // `requirement-evaluator` resuelve la decisión de un requisito con
-  // `policyDecisions.find(d => d.requirementId === requirement.id)`, y `find`
-  // devuelve la PRIMERA. Empujar dos decisiones para el mismo requisito no
-  // suma: la segunda no la lee nadie, en silencio.
-  //
-  // Y va a op.acc.3.2 —«las personas que autorizan y controlan el uso serán
-  // distintas»— porque eso es exactamente lo que mide P-04: control dual, dos
-  // personas para una tarea. op.acc.3.1 (desarrollo frente a operación) ya lo
-  // cubre el cruce de pares.
-  //
-  // Hasta el 06/08/2026 estas decisiones se emitían contra `'op.acc.3'`, que es
-  // el id del CONTROL y no el de ningún requisito. Ninguna casaba, así que el
-  // control existía para comprobar la segregación y la comprobación no llegaba
-  // a ninguna parte: P-04 y EV-03 no movían el resultado ni un punto. Un fallo
-  // así no da error —todo compila, todo despliega— y por eso hay una prueba
-  // que exige que todo `requirementId` que emita esta policy exista en el
-  // catálogo.
+  // Concurrency on critical tasks, BEFORE the pair crossing. Its verdict is not a separate
+  // decision: it is MERGED with the crossing in op.acc.3.2, because `requirement-evaluator`
+  // resolves a requirement with `policyDecisions.find(d => d.requirementId === requirement.id)` and
+  // `find` returns the FIRST; a second decision for the same requirement is silently ignored.
+  // It goes to op.acc.3.2 because that is what P-04 measures (dual control, two people for one
+  // task); op.acc.3.1 is covered by the pair crossing. Decisions must carry a requirement id, not
+  // the control id; a test requires every `requirementId` this policy emits to exist in the
+  // catalog.
   const taskEvents = context.events.filter(
     event => event.eventType === 'critical_task_run'
   );
@@ -394,17 +324,15 @@ const evaluate = (
 
       const observed = peopleByTask.get(task);
 
-      // UNA TAREA QUE NO SE HA EJECUTADO NO INCUMPLE. Exigir concurrencia a
-      // algo que nadie hizo sería acusar por una ausencia, y la ausencia aquí
-      // no es un hallazgo: es que no hubo despliegue esta semana.
+      // A TASK NOT EXECUTED DOES NOT FAIL: requiring concurrency of something nobody did would
+      // accuse by absence.
       if (!observed) {
         return;
       }
 
       if (observed.size < required) {
-        // CON NOMBRES. Un auditor que lee «1 de 2 personas» tiene que volver a
-        // los eventos crudos para saber a quién preguntar; con el nombre
-        // delante, la traza empieza donde se lee el hallazgo.
+        // WITH NAMES: an auditor reading «1 of 2 people» should not go back to raw events to know
+        // whom to ask.
         concurrencyBreaches.push(
           `${cells[0]} (${observed.size} de ${required} personas: ${Array.from(observed).join(', ')})`
         );
@@ -412,11 +340,9 @@ const evaluate = (
     });
   }
 
-  // --- op.acc.3.1 y op.acc.3.2 y el R1 ---
-  //
-  // Los cuatro requisitos se deciden con el mismo cruce; lo que cambia es qué
-  // par se mira. Sin P-02 o sin P-03 no hay cruce posible y se dice cuál falta:
-  // decir «no evaluable» sin nombrar el parámetro no es accionable.
+  // op.acc.3.1, op.acc.3.2 and R1 are decided with the same crossing; only the pair changes.
+  // Without P-02 or P-03 there is no crossing and the missing one is named: «not evaluable» without
+  // the parameter is not actionable.
   const cruceRequirements = [
     'op.acc.3.1',
     'op.acc.3.2',
@@ -431,76 +357,67 @@ const evaluate = (
     ].filter(Boolean).join(' y ');
 
     cruceRequirements.forEach(requirementId => {
-      // op.acc.3.2 mide DOS cosas —el cruce y la concurrencia de P-04—, así que
-      // si además falta P-04 hay que nombrarlo: un «no evaluable» que solo cita
-      // la mitad de lo que falta manda al operador a rellenar un parámetro y a
-      // volver a encontrarse el mismo gris.
+      // op.acc.3.2 measures TWO things (crossing and P-04 concurrency): if P-04 is also missing it
+      // must be named too.
       const alsoMissing =
         requirementId === 'op.acc.3.2' && !concurrencyMeasurable
           ? `${missing} y P-04 (tareas críticas y personas exigidas)`
           : missing;
 
       decisions.push(
-        NO_MEDIDO(
+        NOT_MEASURED(
           requirementId,
           `Falta declarar ${alsoMissing}. Sin esa traducción, una acción observada no se puede clasificar en una función y la segregación no se puede medir.`
         )
       );
     });
   } else {
-    // LOS INFRACTORES DE **ESTE** REQUISITO, no los de todos.
-    //
-    // Cada requisito se juzga contra el par que su propio texto nombra. Una
-    // cuenta que aúna desarrollo y operación incumple op.acc.3.1 y NO dice nada
-    // de op.acc.3.2, que habla de quién autoriza y quién controla.
-    const infractoresDe = (requirementId: string): string[] => {
-      const pares = paresDelRequisito(requirementId, incompatible);
-      const esAuditoria = requirementId === 'op.acc.3.r1.2';
-      const salida: string[] = [];
+    // THIS requirement's offenders, not everyone's: each requirement is judged against the pair its
+    // own text names.
+    const offendersOf = (requirementId: string): string[] => {
+      const pairs = requirementPairs(requirementId, incompatible);
+      const isAudit = requirementId === 'op.acc.3.r1.2';
+      const output: string[] = [];
 
       byAccount.forEach((functions, account) => {
-        const lista = Array.from(functions);
+        const list = Array.from(functions);
 
-        const rompePar = pares.some(pair => violatesPair(lista, pair));
+        const breaksPair = pairs.some(pair => violatesPair(list, pair));
 
-        // Una cuenta de auditoría con CUALQUIER otra función incumple
-        // op.acc.3.r1.2, que es taxativo. Se comprueba aparte del comodín
-        // porque no depende de que el auditor haya declarado `auditoría | *`,
-        // y SOLO cuenta para ese requisito: es lo que dice su enunciado.
-        const rompeAuditoria =
-          esAuditoria &&
+        // An audit account with ANY other function fails op.acc.3.r1.2 (categorical). Checked apart
+        // from the wildcard because it does not depend on `auditoría | *` being declared, and
+        // counts ONLY for that requirement.
+        const breaksAudit =
+          isAudit &&
           auditAccounts.includes(account.toLowerCase()) &&
-          lista.some(
+          list.some(
             fn =>
               fn !== 'auditoria' &&
               fn !== 'auditoría' &&
               fn !== 'supervision'
           );
 
-        if (rompePar || rompeAuditoria) {
-          salida.push(`${account} (${lista.join(' + ')})`);
+        if (breaksPair || breaksAudit) {
+          output.push(`${account} (${list.join(' + ')})`);
         }
       });
 
-      return salida;
+      return output;
     };
 
     cruceRequirements.forEach(requirementId => {
-      const offenders = infractoresDe(requirementId);
+      const offenders = offendersOf(requirementId);
 
-      // SI EL RESPONSABLE NO HA DECLARADO ESTE PAR, no hay contra qué medir. No
-      // es lo mismo que «no hay infractores»: es que nadie ha dicho que esas dos
-      // funciones sean incompatibles aquí, y el silencio no acredita.
-      // op.acc.3.r1.2 va aparte porque su comprobación taxativa no depende de
-      // P-02: le basta con P-05.
+      // IF THE PAIR WAS NOT DECLARED there is nothing to measure against: not the same as «no
+      // offenders». op.acc.3.r1.2 is apart: its categorical check needs only P-05.
       if (
         requirementId !== 'op.acc.3.r1.2' &&
-        !paresDelRequisito(requirementId, incompatible).length
+        !requirementPairs(requirementId, incompatible).length
       ) {
-        const [a, b] = PAR_DEL_REQUISITO[requirementId] || ['', ''];
+        const [a, b] = REQUIREMENT_PAIR[requirementId] || ['', ''];
 
         decisions.push(
-          NO_MEDIDO(
+          NOT_MEASURED(
             requirementId,
             `P-02 no declara el par «${a} | ${b}», que es el que este requisito exige. Sin esa decisión no hay contra qué contrastar las funciones observadas.`
           )
@@ -509,26 +426,18 @@ const evaluate = (
         return;
       }
 
-      // Solo op.acc.3.2 arrastra la concurrencia. Para los otros tres el cruce
-      // es toda la medida.
+      // Only op.acc.3.2 carries the concurrency; for the other three the crossing is the whole
+      // measurement.
       const carriesConcurrency = requirementId === 'op.acc.3.2';
 
-      // «Lo no demostrado no cumple» opera sobre el REQUISITO ENTERO. Si el
-      // cruce sale limpio pero P-04 está sin declarar, op.acc.3.2 NO puede
-      // salir verde: la mitad de lo que afirma —que quien autoriza y quien
-      // controla son personas distintas— no se ha llegado a mirar. Decir CUMPLE
-      // ahí sería el CUMPLE falso que este producto existe para no dar.
-      // SIN NINGÚN HECHO Y SIN LATIDO, no se puede decir que la máquina
-      // conforme: no consta que nadie haya mirado.
-      //
-      // «Ningún hecho» es ningún hecho DE NINGÚN TIPO, no solo ninguna acción
-      // clasificada: si llegó una tarea crítica o un acceso a la información de
-      // seguridad, el recolector corrió y su silencio sobre las acciones sí es
-      // una observación. Acotarlo a `byAccount` dejaba en gris a máquinas que
-      // sí habían reportado.
-      if (!hayHechos && !hayLatido) {
+      // «What is not proven does not comply» applies to the WHOLE REQUIREMENT: with a clean
+      // crossing but P-04 undeclared, op.acc.3.2 cannot be green. WITHOUT ANY FACT AND WITHOUT
+      // HEARTBEAT the machine cannot be declared compliant. «No fact» means no fact OF ANY TYPE: a
+      // critical task or a security-information access shows the collector ran, so its silence
+      // about actions is an observation (limiting it to `byAccount` left reporting machines grey).
+      if (!hasFacts && !hasHeartbeat) {
         decisions.push(
-          NO_MEDIDO(
+          NOT_MEASURED(
             requirementId,
             'No se ha observado ninguna acción y no consta ningún latido del recolector en las últimas 24 horas: no se puede distinguir «no hay nadie que aúne funciones» de «no se ha mirado», y el silencio sin barrido no acredita.'
           )
@@ -539,7 +448,7 @@ const evaluate = (
 
       if (carriesConcurrency && !concurrencyMeasurable) {
         decisions.push(
-          NO_MEDIDO(
+          NOT_MEASURED(
             requirementId,
             'Falta declarar P-04 (tareas críticas y personas exigidas). El cruce de funciones incompatibles sí se ha podido hacer, pero sin P-04 no se sabe cuántas personas exige cada tarea crítica y la mitad del requisito se queda sin medir.'
           )
@@ -640,9 +549,8 @@ export const opAcc3PolicyDefinition: ENSPolicyDefinition = {
       evidenceIds: ['EV-05'],
       ruleType: 'WHITELIST',
     },
-    // R2 y R3 no los exige el ENS en ninguna tabla de aplicabilidad: van sin
-    // niveles y el motor los evalúa NO_APLICA. Se declaran igualmente para que
-    // quien quiera implantarlos los tenga.
+    // The ENS does not require R2 and R3 in any applicability table: they go without levels and the
+    // engine evaluates them NO_APLICA; still declared for whoever implements them.
     {
       requirementId: 'op.acc.3.r2.1',
       levels: [],

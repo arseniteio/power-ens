@@ -1,22 +1,7 @@
 import { ENSPolicyDefinition } from '../types';
 
-// Evaluador desconectado a propósito (2026-07-30).
-//
-// `op-acc-1.evaluator.ts` sigue en el repo y no se borra: son 2.491 líneas que
-// implementan el modelo hacia el que el producto quiere migrar —el agente emite
-// hechos técnicos crudos y el motor juzga— y es el punto de partida de esa
-// migración cuando se aborde para los tres controles a la vez.
-//
-// Por qué se desconecta ahora: era el ÚNICO control con evaluador. mp.info.6 y
-// op.acc.2 consolidan desde `evidence_state`, y los agentes desplegados emiten
-// ese contrato. Con el evaluador activo, op.acc.1 no reconocía el vocabulario
-// de sus propios agentes y salía NO_EVALUABLE al 0 % mientras sus ocho
-// evidencias se mostraban correctamente: dos caminos de evaluación en el mismo
-// plugin dando respuestas distintas sobre los mismos datos.
-//
-// `policy-runtime.ts` usa el evaluador solo si la policy lo declara; sin esta
-// línea, op.acc.1 recorre el mismo camino que los otros dos. Migrar es
-// deseable; migrar un control de tres no lo es.
+// Evaluator deliberately disconnected: op.acc.1 evaluates from `evidence_state` like the other
+// controls. `op-acc-1.evaluator.ts` is kept as the starting point of the raw-facts migration.
 export const opAcc1PolicyDefinition: ENSPolicyDefinition = {
   id: 'policy.op.acc.1',
   controlId: 'op.acc.1',
