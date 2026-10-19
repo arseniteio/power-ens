@@ -203,7 +203,7 @@
         "op.acc.4.2"
       ],
       "type": "list",
-      "example": "Domain Admins | AD / wheel | servidores Linux",
+      "example": "wheel",
       "required": true,
       "wazuhUsage": "Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.",
       "ensfacilUsage": "El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.",

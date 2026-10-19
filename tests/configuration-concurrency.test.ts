@@ -193,6 +193,50 @@ const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.globa
   screen = await h.render(SaveWarningNotice, {});
   check('and shown: saved, but without its history entry', screen.includes('Guardado; no se pudo registrar el historial') && screen.includes('La configuración se ha guardado.'), screen);
 
+  let failNext = false;
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({ statusCode: 200, error: 0, data: { configuration: clone(defaultENSConfigurationTemplate), metadata: { seqNo: 5, primaryTerm: 1 } } }),
+    put: async () => (failNext ? Promise.reject({ body: { message: CONFLICT } }) : { statusCode: 200, error: 0, data: { configuration: clone(defaultENSConfigurationTemplate), metadata: { seqNo: 6, primaryTerm: 1 } } }),
+  }));
+  await service.hydrateENSConfiguration(true);
+  check('reloading clears the warning of an earlier save', service.getLastSaveWarning() === undefined);
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({}),
+    put: async () => ({ statusCode: 200, error: 0, data: { configuration: clone(defaultENSConfigurationTemplate), metadata: { seqNo: 6, primaryTerm: 1 }, warning: 'Guardado; no se pudo registrar el historial' } }),
+  }));
+  await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global });
+  failNext = true;
+  client.setENSConfigurationHttp(() => ({ get: async () => ({}), put: async () => Promise.reject({ body: { message: CONFLICT } }) }));
+  await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global }).catch(() => undefined);
+  check('and so does a later save that fails, so an old warning does not sit under a new error', service.getLastSaveWarning() === undefined);
+
+  console.log('4. A document without configuration');
+  const bare: any[] = [];
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({ statusCode: 200, error: 0, data: { configuration: null, metadata: { updatedBy: 'script', seqNo: 12, primaryTerm: 1 } } }),
+    put: async (_path: string, options: any) => {
+      const body = JSON.parse(options.body);
+      bare.push(body);
+      return { statusCode: 200, error: 0, data: { configuration: body.configuration, metadata: { seqNo: 13, primaryTerm: 1 } } };
+    },
+  }));
+  await service.hydrateENSConfiguration(true);
+  await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global, ensLevel: 'ALTO' });
+  check('an active document without configuration is saved over its version, not as «there was none»', JSON.stringify(bare[0].expectedVersion) === '{"seqNo":12,"primaryTerm":1}', bare[0].expectedVersion);
+
+  console.log('5. A save that does not answer');
+  client.setENSConfigurationHttp(() => ({ get: async () => ({}), put: (_path: string, _options: any) => new Promise(() => undefined) }));
+  client.setENSConfigurationSaveTimeout(50);
+  const hung = await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global }).then(() => 'saved', (error: Error) => error.message);
+  check('is cut with a clear message', hung === client.SAVE_TIMED_OUT, hung);
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({}),
+    put: async (_path: string, options: any) => ({ statusCode: 200, error: 0, data: { configuration: JSON.parse(options.body).configuration, metadata: { seqNo: 20, primaryTerm: 1 } } }),
+  }));
+  const after = await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global }).then(() => 'saved', (error: Error) => error.message);
+  check('and the saves queued after it still run', after === 'saved', after);
+  client.setENSConfigurationSaveTimeout(60000);
+
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })();

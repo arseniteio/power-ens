@@ -46,7 +46,8 @@ export interface ENSOrganizationCandidate {
   keeps: string[];
 }
 
-export type ENSOrganizationItemStatus = 'informative' | 'empty' | 'value' | 'conflict';
+// `incomplete`: the controls with a value agree, but the item or a parameter that reads it does not accept it.
+export type ENSOrganizationItemStatus = 'informative' | 'empty' | 'value' | 'conflict' | 'incomplete';
 
 export interface ENSOrganizationItemState {
   item: ENSOrganizationDataItem;
@@ -60,6 +61,10 @@ export interface ENSOrganizationItemState {
   unrepresentable: string[];
   // Why a value everyone agrees on is not moved or not completed: the item or a parameter would not accept it.
   reasons: string[];
+  // Parameters without value left so because they do not accept the item value.
+  blocked: string[];
+  // The sentence for the screen and the validator when there is something to say that is not a choice.
+  notice?: string;
 }
 
 const hasOwn = (record: object | undefined, key: string): boolean =>
@@ -153,7 +158,7 @@ export const describeOrganizationItem = (
   item: ENSOrganizationDataItem
 ): ENSOrganizationItemState => {
   const views = viewStates(configuration, item);
-  const base = { item, views, candidates: [] as ENSOrganizationCandidate[], unrepresentable: [] as string[], reasons: [] as string[] };
+  const base = { item, views, candidates: [] as ENSOrganizationCandidate[], unrepresentable: [] as string[], reasons: [] as string[], blocked: [] as string[] };
 
   if (!item.views.length) return { ...base, status: 'informative', stored: false };
 
@@ -163,23 +168,30 @@ export const describeOrganizationItem = (
   const representable = configured.filter(state => !unrepresentable.includes(state));
   const stored = storedOrganizationValue(configuration, item.id);
   // A parameter without value is completed only with a value valid for it, as the screen would require.
-  const refusedFills = (rows: ENSOrganizationRow[]): string[] =>
+  const refusedFills = (rows: ENSOrganizationRow[]): { key: string; reason: string }[] =>
     present
       .filter(state => !state.configured)
       .flatMap(state => {
         const next = projected(item, state, rows);
         const verdict = isEmptyParameterValue(next) ? { valid: true } : validateParameterValue(state.parameter!, next);
-        return verdict.valid ? [] : [`${state.key} no admite el valor común: ${verdict.reason}`];
+        return verdict.valid ? [] : [{ key: state.key, reason: `${state.key} no admite el valor común: ${verdict.reason}` }];
       });
 
   if (stored !== undefined) {
     const storedRows = organizationRows(item, stored);
     const diverging = configured.filter(state => !keepsValue(item, state, storedRows));
-    const refused = diverging.length ? [] : refusedFills(storedRows);
-    if (!diverging.length && !refused.length) return { ...base, status: 'value', value: stored, stored: true };
+    // The stored value stands; a parameter that does not accept it stays without value and the screen says so.
     if (!diverging.length) {
-      const keeps = present.filter(state => keepsValue(item, state, storedRows)).map(state => state.key);
-      return { ...base, status: 'conflict', stored: true, value: stored, reasons: refused, candidates: [{ value: stored, from: ORGANIZATION_SOURCE, keeps }] };
+      const refused = refusedFills(storedRows);
+      return {
+        ...base,
+        status: 'value',
+        value: stored,
+        stored: true,
+        reasons: refused.map(entry => entry.reason),
+        blocked: refused.map(entry => entry.key),
+        ...(refused.length ? { notice: `${refused.map(entry => entry.reason).join('; ')}: se queda sin valor hasta corregir «${item.label}».` } : {}),
+      };
     }
     // Changed outside this version (a 1.3.0 plugin, a manual edit): nothing is overwritten until someone chooses.
     const storedCandidate: ENSOrganizationCandidate = {
@@ -217,10 +229,15 @@ export const describeOrganizationItem = (
   const agreed = !unrepresentable.length && configured.every(state => keepsValue(item, state, full));
   const composed = organizationValueFromRows(item, full);
   const own = validateParameterValue(organizationDataParameter(item), composed);
-  // Agreed but not valid as a whole (op.acc.4 P-04 alone has no encryption or authoriser for op.acc.6): not moved.
-  const reasons = agreed ? [...(own.valid ? [] : [`«${item.label}» no admite el valor: ${own.reason}`]), ...refusedFills(full)] : [];
+  // Agreed but not valid for the item or a reader (op.acc.4 P-04 alone): not a choice, the item stays empty.
+  const reasons = !agreed ? [] : own.valid ? refusedFills(full).map(entry => entry.reason) : [own.reason || 'valor no válido'];
   if (agreed && !reasons.length) {
     return { ...base, status: 'value', value: composed, stored: false };
+  }
+  if (agreed) {
+    const owners = configured.map(state => state.view.controlId);
+    const who = owners.length === 1 ? `Solo ${owners[0]} tiene valor` : `${owners.join(' y ')} tienen el mismo valor`;
+    return { ...base, status: 'incomplete', stored: false, reasons, notice: `${who} y no vale para «${item.label}»: ${reasons.join('; ')}.` };
   }
 
   return {
@@ -250,7 +267,8 @@ export const describeOrganizationData = (configuration: ENSOrganizationDocument)
 const writeThrough = <T extends ENSOrganizationDocument>(
   configuration: T,
   item: ENSOrganizationDataItem,
-  value: ENSAgentParameterValue | undefined
+  value: ENSAgentParameterValue | undefined,
+  blocked: string[] = []
 ): { configuration: T; written: string[] } => {
   const written: string[] = [];
   const controls = configuration.controls.map(control => {
@@ -259,7 +277,7 @@ const writeThrough = <T extends ENSOrganizationDocument>(
     let changed = false;
     const parameters = control.parameters.map(parameter => {
       const view = views.find(candidate => candidate.parameterId === parameter.id);
-      if (!view) return parameter;
+      if (!view || blocked.includes(`${control.controlId} ${parameter.id}`)) return parameter;
       const next = organizationViewValue(item, view, parameter, value);
       if (sameParameterValue(parameter, next, parameter.value) && isEmptyParameterValue(next) === isEmptyParameterValue(parameter.value)) {
         return parameter;
@@ -297,12 +315,13 @@ export interface ENSOrganizationMigrationReport<T extends ENSOrganizationDocumen
   written: string[];
   filled: ENSOrganizationFill[];
   conflicts: string[];
+  incomplete: string[];
 }
 
 // Idempotent: a second pass changes nothing. Items in conflict keep each parameter as it is.
 export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(configuration: T): ENSOrganizationMigrationReport<T> => {
   if (!Array.isArray(configuration.controls)) {
-    return { configuration, changed: false, added: false, moved: [], written: [], filled: [], conflicts: [] };
+    return { configuration, changed: false, added: false, moved: [], written: [], filled: [], conflicts: [], incomplete: [] };
   }
 
   const added = !configuration.organizationData;
@@ -312,6 +331,7 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
   const written: string[] = [];
   const filled: ENSOrganizationFill[] = [];
   const conflicts: string[] = [];
+  const incomplete: string[] = [];
 
   ENS_ORGANIZATION_DATA_ITEMS.forEach(item => {
     const state = describeOrganizationItem(next, item);
@@ -319,12 +339,16 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
       conflicts.push(item.id);
       return;
     }
+    if (state.status === 'incomplete') {
+      incomplete.push(item.id);
+      return;
+    }
     if (state.status !== 'value') return;
     if (!state.stored) {
       values[item.id] = state.value!;
       moved.push(item.id);
     }
-    const result = writeThrough(next, item, state.value);
+    const result = writeThrough(next, item, state.value, state.blocked);
     next = result.configuration;
     written.push(...result.written);
     const from = state.stored ? [ORGANIZATION_SOURCE] : state.views.filter(view => view.configured).map(view => view.key);
@@ -332,7 +356,7 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
   });
 
   const changed = added || moved.length > 0 || written.length > 0;
-  return { configuration: changed ? withValues(next, values) : configuration, changed, added, moved, written, filled, conflicts };
+  return { configuration: changed ? withValues(next, values) : configuration, changed, added, moved, written, filled, conflicts, incomplete };
 };
 
 // Sets (or, with no value, removes) an item and writes it into every mapped parameter: resolves its conflict.
@@ -361,12 +385,13 @@ export const describeOrganizationFills = (filled: ENSOrganizationFill[]): string
   );
 
 export const summarizeOrganizationMigration = (
-  report: Pick<ENSOrganizationMigrationReport, 'moved' | 'written' | 'conflicts'>
+  report: Pick<ENSOrganizationMigrationReport, 'moved' | 'written' | 'conflicts'> & { incomplete?: string[] }
 ): string => {
   const parts = [
     report.moved.length ? `${report.moved.length} dato(s) unificado(s) con el valor que ya tenían sus controles` : '',
     report.written.length ? `${report.written.length} parámetro(s) toman el valor común` : '',
     report.conflicts.length ? `${report.conflicts.length} dato(s) con valores distintos entre controles, pendientes de elegir` : '',
+    report.incomplete?.length ? `${report.incomplete.length} dato(s) sin valor común: lo que tienen sus controles no vale para el dato` : '',
   ].filter(Boolean);
   return parts.length ? `Datos de la organización: ${parts.join('; ')}.` : 'Datos de la organización: sin cambios.';
 };

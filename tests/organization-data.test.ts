@@ -28,6 +28,8 @@ import { resolveControlConfigurationForAgent } from '../common/ens/configuration
 import { buildClearedControlConfiguration, summarizeControlConfigurationReset } from '../common/ens/configuration/services/configuration-reset-service';
 import { planMigrationToSystems } from '../common/ens/configuration/agents/migration';
 import { supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { organizationValueFromRows, organizationViewRows } from '../common/ens/configuration/organization/organization-data-views';
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
@@ -115,6 +117,46 @@ console.log('1. Model');
     parsed = String(error);
   }
   check('the items are strict JSON (the scripts parse them)', JSON.stringify(parsed) === JSON.stringify(ENS_ORGANIZATION_DATA_ITEMS), parsed);
+}
+
+console.log('1b. Examples');
+{
+  // Each mapped parameter's example, taken as its value, must be a valid cell for every column it reaches in the
+  // other parameters that read the item (cells it does not give are not judged: a register shares only some).
+  const problems: string[] = [];
+  const registry = (controlId: string, parameterId: string) =>
+    ENSConfigurationRegistry.find(control => control.controlId === controlId)!.parameters.find(parameter => parameter.id === parameterId)!;
+  ENS_ORGANIZATION_DATA_ITEMS.forEach(item => item.views.forEach(view => {
+    const parameter = registry(view.controlId, view.parameterId);
+    if (parameter.example === undefined) return;
+    // « / » separates the rows an example shows (op.acc.4 P-02).
+    const asValue = parameter.type === 'table' || parameter.type === 'list'
+      ? parameter.example.split(' / ')
+      : ['number', 'duration_days', 'duration_hours'].includes(parameter.type) && /^\d+$/.test(parameter.example) ? Number(parameter.example) : parameter.example;
+    const own = validateParameterValue(parameter, asValue as any);
+    if (!own.valid) problems.push(`${view.controlId} ${view.parameterId}: its own example is not valid (${own.reason})`);
+    const value = organizationValueFromRows(item, organizationViewRows(item, view, parameter, asValue as any));
+    item.views.filter(other => other !== view).forEach(other => {
+      const reader = registry(other.controlId, other.parameterId);
+      const read = organizationViewValue(item, other, reader, value);
+      if (read === undefined) return;
+      const columns = reader.columns || [];
+      if (!columns.length) {
+        const verdict = validateParameterValue(reader, read);
+        if (!verdict.valid) problems.push(`${view.controlId} ${view.parameterId} example → ${other.controlId} ${other.parameterId}: ${verdict.reason}`);
+        return;
+      }
+      (Array.isArray(read) ? read : [String(read)]).forEach(row => {
+        const cells = reader.type === 'list' ? [row] : row.split('|').map(cell => cell.trim());
+        cells.forEach((cell, index) => {
+          if (!cell || !columns[index]) return;
+          const verdict = validateParameterValue({ ...reader, type: 'list', columns: [columns[index]] }, [cell]);
+          if (!verdict.valid) problems.push(`${view.controlId} ${view.parameterId} example → ${other.controlId} ${other.parameterId} «${columns[index].label}»: ${verdict.reason}`);
+        });
+      });
+    });
+  }));
+  check('every mapped parameter\'s example is valid for every parameter that reads the same item', problems.length === 0, problems);
 }
 
 console.log('2. Shape');
@@ -238,17 +280,28 @@ console.log('4. Migration');
   set(fourAlone, 'op.acc.4', 'P-04', ['ssh | 22 | 10.0.0.0/8']);
   const fourState = describeOrganizationItem(fourAlone, getOrganizationDataItem('canales_acceso_remoto')!);
   const fourReport = normalizeOrganizationData(fourAlone);
-  check('op.acc.4 P-04 alone does not complete op.acc.6 P-07 with a value it does not accept', fourState.status === 'conflict' &&
+  check('op.acc.4 P-04 alone does not complete op.acc.6 P-07 with a value it does not accept', fourState.status === 'incomplete' &&
     !('value' in param(fourReport.configuration, 'op.acc.6', 'P-07')) && !fourReport.written.length && !fourReport.moved.includes('canales_acceso_remoto'), fourReport);
-  check('and says why', fourState.reasons.some(reason => reason.includes('Cifrado')) && fourState.reasons.some(reason => reason.startsWith('op.acc.6 P-07 no admite el valor común')), fourState.reasons);
+  check('it is not a choice between controls: the item stays empty, op.acc.4 keeps its value and a notice says why',
+    !fourReport.conflicts.length && JSON.stringify(fourReport.incomplete) === '["canales_acceso_remoto"]' && !('canales_acceso_remoto' in fourReport.configuration.organizationData!.values) &&
+    JSON.stringify(valueOf(fourReport.configuration, 'op.acc.4', 'P-04')) === '["ssh | 22 | 10.0.0.0/8"]' && !fourState.candidates.length &&
+    fourState.notice === 'Solo op.acc.4 tiene valor y no vale para «Canales de acceso remoto autorizados»: falta «Cifrado» en la fila 1; falta «Autoriza» en la fila 1; falta «Uso constante» en la fila 1.', fourState.notice);
   const wrongGroup = base();
   set(wrongGroup, 'op.acc.4', 'P-06', ['Domain Admins | AD']);
   const groupState = describeOrganizationItem(wrongGroup, getOrganizationDataItem('grupos_privilegiados')!);
-  check('a group name op.acc.1 P-11 does not accept is not copied into it', groupState.status === 'conflict' &&
+  check('a group name op.acc.1 P-11 does not accept is not copied into it', groupState.status === 'incomplete' && /^Solo op\.acc\.4 tiene valor y no vale para «Grupos con privilegio administrativo»: op\.acc\.1 P-11 no admite/.test(groupState.notice || '') &&
     groupState.reasons.some(reason => reason.startsWith('op.acc.1 P-11 no admite el valor común')) && !('value' in param(normalizeOrganizationData(wrongGroup).configuration, 'op.acc.1', 'P-11')), groupState.reasons);
   const storedChannels = setOrganizationValue(base(), 'canales_acceso_remoto', ['ssh | si | RSEG | si | 22 | 10.0.0.0/8']);
   set(storedChannels, 'op.acc.6', 'P-07', undefined);
   check('a valid stored value still completes an empty parameter', JSON.stringify(valueOf(normalizeOrganizationData(storedChannels).configuration, 'op.acc.6', 'P-07')) === '["ssh | si | RSEG | si"]');
+  const refusesStored = setOrganizationValue(base(), 'grupos_privilegiados', ['Domain Admins | AD']);
+  set(refusesStored, 'op.acc.1', 'P-11', undefined);
+  set(refusesStored, 'op.acc.2', 'P-12', undefined);
+  set(refusesStored, 'op.acc.4', 'P-06', undefined);
+  const refusedReport = normalizeOrganizationData(refusesStored);
+  const refusedState = describeOrganizationItem(refusesStored, getOrganizationDataItem('grupos_privilegiados')!);
+  check('from a stored value, only the parameters that accept it are completed, and the others are named',
+    refusedState.status === 'value' && JSON.stringify(refusedReport.written) === '["op.acc.4 P-06"]' && /^op\.acc\.1 P-11 no admite el valor común/.test(refusedState.notice || ''), [refusedReport.written, refusedState.notice]);
 
   const people = base();
   set(people, 'op.exp.3', 'P-03', ['dioni', 'root']);

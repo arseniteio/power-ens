@@ -94,7 +94,7 @@ const organizationStates = describeOrganizationData(model);
 const withValue = organizationStates.filter(state => state.status === 'value').map(state => state.item.id);
 
 if (organization.moved.length || organization.written.length) {
-  console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [] })} The plugin does it on load and writes it with the next save.`);
+  console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [], incomplete: [] })} The plugin does it on load and writes it with the next save.`);
   describeOrganizationFills(organization.filled).forEach(line => console.log(`  ${line}`));
 }
 console.log(`organisation data: ${withValue.length ? withValue.join(', ') : 'no item with value'}`);
@@ -104,8 +104,14 @@ organizationStates
     console.log(
       `  PENDING CHOICE «${state.item.label}» (${state.item.id}): ${state.candidates
         .map(candidate => `${candidate.from} keeps ${candidate.keeps.join(', ') || 'none'}`)
-        .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.`
+        .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.${state.reasons.length ? ` ${state.reasons.join('; ')}` : ''}`
     )
+  );
+// Not a choice: the item stays empty (or a parameter without value) because the value does not fit; the reason says why.
+organizationStates
+  .filter(state => state.notice)
+  .forEach(state =>
+    console.log(`  ${state.status === 'incomplete' ? 'NO COMMON VALUE' : 'NOT COMPLETED'} «${state.item.label}» (${state.item.id}): ${state.notice}`)
   );
 checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
 // A parameter that reads one value and finds several rows: which one applies would depend on their order.

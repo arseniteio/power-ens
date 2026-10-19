@@ -197,6 +197,25 @@ client.setENSConfigurationHttp(() => ({
   await h.click(/Ir a «Grupos con privilegio administrativo»/);
   check('and links to it', parseRouterSearch(h.search()).configItem === 'grupos_privilegiados');
 
+  console.log('8. One control with a value that does not fit');
+  h.reset();
+  const lone = clone(defaultENSConfigurationTemplate);
+  delete lone.organizationData;
+  param(lone, 'op.acc.4', 'P-04').value = ['ssh | 22 | 10.0.0.0/8'];
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({ statusCode: 200, error: 0, data: { configuration: clone(lone), metadata: null } }),
+    put: async (_path: string, options: any) => ({ statusCode: 200, error: 0, data: { configuration: JSON.parse(options.body).configuration, metadata: null } }),
+  }));
+  await service.hydrateENSConfiguration(true);
+  screen = await h.render(OrganizationDataPanel, props());
+  const notice = 'Solo op.acc.4 tiene valor y no vale para «Canales de acceso remoto autorizados»: falta «Cifrado» en la fila 1; falta «Autoriza» en la fila 1; falta «Uso constante» en la fila 1.';
+  check('it is told as a notice, not as a choice between controls', screen.includes('Datos sin valor común') && screen.includes(notice) &&
+    !/Valores distintos entre controles/.test(screen) && !h.findAll('EuiButton', /Elegir este valor/).length, screen.slice(0, 500));
+  check('the item says so and op.acc.4 keeps its value', screen.includes('Sin valor común: cada control sigue con el suyo.') &&
+    JSON.stringify(param(service.getActiveENSConfiguration(), 'op.acc.4', 'P-04').value) === '["ssh | 22 | 10.0.0.0/8"]');
+  screen = await h.render(OrganizationDataNotice, { configuration: service.getActiveENSConfiguration(), onOpen: () => undefined });
+  check('outside General too, without «Valores distintos»', screen.includes(notice) && !/Valores distintos/.test(screen), screen);
+
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })();

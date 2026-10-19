@@ -70,6 +70,7 @@ const saveWithVersion = async (
   configuration: ENSConfigurationVersion,
   reason: string
 ): Promise<ENSConfigurationServerState> => {
+  lastSaveWarning = undefined;
   const serverState = await saveENSConfiguration(configuration, reason, loadedVersion);
   loadedVersion = versionFrom(serverState.metadata);
   lastSaveWarning = serverState.warning;
@@ -92,7 +93,7 @@ const withPendingConversion = (reason: string): string => {
   const conversions = [
     pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '',
     pendingOrganizationMigration && (pendingOrganizationMigration.moved.length || pendingOrganizationMigration.written.length)
-      ? [summarizeOrganizationMigration({ ...pendingOrganizationMigration, conflicts: [] }), ...describeOrganizationFills(pendingOrganizationMigration.filled)].join(' ')
+      ? [summarizeOrganizationMigration({ ...pendingOrganizationMigration, conflicts: [], incomplete: [] }), ...describeOrganizationFills(pendingOrganizationMigration.filled)].join(' ')
       : '',
   ].filter(conversion => conversion && !reason.includes(conversion));
   return conversions.length ? `${reason} ${conversions.join(' ')}` : reason;
@@ -128,7 +129,9 @@ export const hydrateENSConfiguration = (
       const serverState =
         await getENSConfiguration();
 
-      loadedVersion = serverState.configuration === null ? null : versionFrom(serverState.metadata);
+      // null only when there is no document at all: one without `configuration` is saved over its version.
+      loadedVersion = serverState.metadata ? versionFrom(serverState.metadata) : null;
+      lastSaveWarning = undefined;
 
       if (serverState.configuration === null) {
         return ensConfigurationRepository.completeHydration(
@@ -146,7 +149,7 @@ export const hydrateENSConfiguration = (
 
       const organization = normalizeOrganizationData(migration.configuration);
       pendingOrganizationMigration =
-        organization.moved.length || organization.written.length || organization.conflicts.length
+        organization.moved.length || organization.written.length || organization.conflicts.length || organization.incomplete.length
           ? organization
           : undefined;
 

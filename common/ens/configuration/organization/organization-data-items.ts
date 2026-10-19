@@ -243,7 +243,7 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "grupos_privilegiados",
     "label": "Grupos con privilegio administrativo",
-    "description": "Grupos cuya pertenencia concede privilegios de administración (sudo, wheel, Domain Admins…). Un ajuste por agente o la plantilla de su tipo siguen aplicando encima.",
+    "description": "Grupos cuya pertenencia concede privilegios de administración, con su nombre en el sistema, sin espacios, comas ni «|» (sudo, wheel, admin). Un ajuste por agente o la plantilla de su tipo siguen aplicando encima.",
     "type": "list",
     "columns": [
       {"name": "grupo", "label": "Grupo", "type": "string", "required": true}

@@ -161,7 +161,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.2'],
       type: 'list',
-      example: 'Domain Admins | AD / wheel | servidores Linux',
+      example: 'wheel',
       required: true,
       wazuhUsage:
         'Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.',

@@ -85,6 +85,8 @@ const usedBy = (state: ENSOrganizationItemState): string =>
 const statusBadge = (state: ENSOrganizationItemState) =>
   state.status === 'conflict' ? (
     <EuiBadge color='warning'>Valores distintos</EuiBadge>
+  ) : state.status === 'incomplete' ? (
+    <EuiBadge color='accent'>Sin valor común</EuiBadge>
   ) : state.status === 'value' ? (
     <EuiBadge color='success'>Con valor</EuiBadge>
   ) : (
@@ -101,6 +103,8 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
   const editable = states.filter(state => state.status !== 'informative');
   const informative = states.filter(state => state.status === 'informative');
   const conflicts = states.filter(state => state.status === 'conflict');
+  // Not a choice between controls: told apart, each control keeps its value until the item has a valid one.
+  const incomplete = states.filter(state => state.status === 'incomplete');
   const pending = getPendingOrganizationMigration();
   const pendingSave = pending && (pending.moved.length > 0 || pending.written.length > 0);
 
@@ -137,7 +141,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
     setBusy(true);
     setError(undefined);
     try {
-      await saveFromLatestConfiguration(latest => ({ configuration: latest, reason: summarizeOrganizationMigration({ ...pending!, conflicts: [] }) }));
+      await saveFromLatestConfiguration(latest => ({ configuration: latest, reason: summarizeOrganizationMigration({ ...pending!, conflicts: [], incomplete: [] }) }));
       onConfigurationSaved();
     } catch (failure) {
       setError(errorMessage(failure));
@@ -225,7 +229,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
       {pendingSave && (
         <>
           <EuiCallOut color='primary' iconType='iInCircle' title='Valores de los controles pasados a Datos de la organización'>
-            <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [] })}</p>
+            <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [], incomplete: [] })}</p>
             {pending!.filled.length ? (
               <ul>
                 {describeOrganizationFills(pending!.filled).map(line => (
@@ -239,6 +243,20 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
             <EuiButton size='s' onClick={savePending} isLoading={busy} isDisabled={busy}>
               Guardar ahora
             </EuiButton>
+          </EuiCallOut>
+          <EuiSpacer size='m' />
+        </>
+      )}
+
+      {incomplete.length > 0 && (
+        <>
+          <EuiCallOut color='primary' iconType='iInCircle' title='Datos sin valor común'>
+            <ul>
+              {incomplete.map(state => (
+                <li key={state.item.id}>{state.notice}</li>
+              ))}
+            </ul>
+            <p>Cada control sigue con su valor. Escribir en «Editar» un valor que valga para todos los controles que leen el dato.</p>
           </EuiCallOut>
           <EuiSpacer size='m' />
         </>
@@ -319,7 +337,11 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <p>{state.item.description}</p>
               <p>{`Lo usan: ${usedBy(state)}.`}</p>
             </EuiText>
-            {[...organizationCrossChecks(configuration, state.item.id), ...organizationValueWarnings(state.item, editing === state.item.id ? draft : state.value)].map(warning => (
+            {[
+              ...(state.notice ? [state.notice] : []),
+              ...organizationCrossChecks(configuration, state.item.id),
+              ...organizationValueWarnings(state.item, editing === state.item.id ? draft : state.value),
+            ].map(warning => (
               <EuiText key={warning} size='xs' color='warning'>
                 <p>{warning}</p>
               </EuiText>
@@ -364,6 +386,10 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                 {state.status === 'conflict' && !state.stored ? (
                   <EuiText size='s' color='subdued'>
                     <p>Pendiente de elegir arriba, o de escribir aquí.</p>
+                  </EuiText>
+                ) : state.status === 'incomplete' ? (
+                  <EuiText size='s' color='subdued'>
+                    <p>Sin valor común: cada control sigue con el suyo.</p>
                   </EuiText>
                 ) : (
                   <ValueLines value={state.value} />
@@ -420,15 +446,18 @@ interface OrganizationDataNoticeProps {
 // Outside General: says there is something to save or to choose, and takes there.
 export const OrganizationDataNotice = ({ configuration, onOpen }: OrganizationDataNoticeProps) => {
   const pending = getPendingOrganizationMigration();
-  const conflicts = describeOrganizationData(configuration).filter(state => state.status === 'conflict');
+  const states = describeOrganizationData(configuration);
+  const conflicts = states.filter(state => state.status === 'conflict');
+  const incomplete = states.filter(state => state.status === 'incomplete');
   const pendingSave = pending && (pending.moved.length > 0 || pending.written.length > 0);
-  if (!pendingSave && !conflicts.length) return null;
+  if (!pendingSave && !conflicts.length && !incomplete.length) return null;
   return (
     <>
       <EuiCallOut color={conflicts.length ? 'warning' : 'primary'} iconType={conflicts.length ? 'alert' : 'iInCircle'} title='Datos de la organización'>
-        {pendingSave && <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [] })} Se guarda con el próximo cambio.</p>}
+        {pendingSave && <p>{summarizeOrganizationMigration({ ...pending!, conflicts: [], incomplete: [] })} Se guarda con el próximo cambio.</p>}
         {pendingSave && describeOrganizationFills(pending!.filled).map(line => <p key={line}>{line}</p>)}
         {conflicts.length > 0 && <p>{`Valores distintos entre controles: ${conflicts.map(state => `«${state.item.label}»`).join(', ')}. Cada control sigue con el suyo hasta elegir.`}</p>}
+        {incomplete.map(state => <p key={state.item.id}>{state.notice}</p>)}
         <EuiButton size='s' onClick={onOpen}>
           Ver Datos de la organización
         </EuiButton>

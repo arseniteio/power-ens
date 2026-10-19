@@ -1,4 +1,4 @@
-import { withRequestTimeout } from '../../../platform/request-timeout';
+import { ENSRequestTimeoutError, ENS_REQUEST_TIMEOUT_MS, withRequestTimeout } from '../../../platform/request-timeout';
 import { ENSFACIL_CONFIGURATION_PATH } from '../../../constants';
 
 import { ENSConfigurationVersion } from '../types';
@@ -10,7 +10,7 @@ const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 // `public/`: the browser registers it at startup (`public/services.ts`).
 export interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal }): Promise<T>;
-  put<T>(path: string, options?: { body?: string }): Promise<T>;
+  put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
 }
 
 let httpProvider: (() => ENSConfigurationHttp) | undefined;
@@ -120,6 +120,16 @@ export async function getENSConfiguration(): Promise<
   return getResponseData(response);
 }
 
+export const SAVE_TIMED_OUT =
+  'El guardado no ha respondido a tiempo y puede haberse aplicado o no. Recarga la página para ver la configuración actual.';
+
+let saveTimeoutMs = ENS_REQUEST_TIMEOUT_MS;
+
+// Tests only: a save that hangs is cut after this many milliseconds.
+export const setENSConfigurationSaveTimeout = (milliseconds: number): void => {
+  saveTimeoutMs = milliseconds;
+};
+
 export async function saveENSConfiguration(
   configuration: ENSConfigurationVersion,
   changeReason?: string,
@@ -137,12 +147,22 @@ export async function saveENSConfiguration(
   };
 
   const response =
-    await getHttp().put<ENSConfigurationApiResponse>(
-      ENS_CONFIGURATION_API_PATH,
-      {
-        body: JSON.stringify(requestBody),
-      },
+    await withRequestTimeout(
+      signal => getHttp().put<ENSConfigurationApiResponse>(
+        ENS_CONFIGURATION_API_PATH,
+        {
+          body: JSON.stringify(requestBody),
+          signal,
+        },
+      ),
+      'guardado de la configuración ENS',
+      undefined,
+      saveTimeoutMs,
     ).catch(error => {
+      // A save that does not answer must not hold every later save of the queue.
+      if (error instanceof ENSRequestTimeoutError) {
+        throw new Error(SAVE_TIMED_OUT);
+      }
       throw withServerReason(error);
     });
 

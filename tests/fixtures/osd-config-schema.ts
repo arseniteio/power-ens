@@ -21,8 +21,9 @@ export const schema = {
   maybe: (inner: Validator): Validator => ({
     validate: (value, context, namespace) => (value === undefined ? value : inner.validate(value, context, namespace)),
   }),
+  // As the real one: a missing value becomes null (so `nullable(maybe(x))` would turn an absent key into null).
   nullable: (inner: Validator): Validator => ({
-    validate: (value, context, namespace) => (value === null ? value : inner.validate(value, context, namespace)),
+    validate: (value, context, namespace) => (value === null || value === undefined ? null : inner.validate(value, context, namespace)),
   }),
   object: (props: Record<string, Validator>): Validator => ({
     validate: (value, context, namespace) => {
@@ -32,10 +33,13 @@ export const schema = {
       Object.keys(value).forEach(key => {
         if (!(key in props)) fail(namespace ? `${namespace}.${key}` : key, 'definition for this key is missing');
       });
-      Object.entries(props).forEach(([key, inner]) =>
-        inner.validate((value as Record<string, unknown>)[key], context, namespace ? `${namespace}.${key}` : key)
-      );
-      return value;
+      // The validated output, what the route hands to the handler: keys whose validated value is undefined are left out.
+      const output: Record<string, unknown> = {};
+      Object.entries(props).forEach(([key, inner]) => {
+        const validated = inner.validate((value as Record<string, unknown>)[key], context, namespace ? `${namespace}.${key}` : key);
+        if (validated !== undefined) output[key] = validated;
+      });
+      return output;
     },
   }),
 };
