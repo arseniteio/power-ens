@@ -233,7 +233,7 @@ Los hechos del manager llegan con `agent.id=000`. En la vista de una máquina, l
 
 ### Niveles de las dimensiones
 
-El Anexo II aplica algunos controles por el nivel de una dimensión de seguridad y no por la categoría del sistema. Configuración > General tiene un campo opcional por dimensión: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**. Un campo vacío equivale al nivel ENS; un control con varias dimensiones se evalúa con la más alta de ellas.
+El Anexo II aplica algunos controles por el nivel de una dimensión de seguridad y no por la categoría del sistema. Configuración > General tiene un campo opcional por dimensión: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**. Un campo vacío equivale al nivel ENS; un control con varias dimensiones se evalúa con la más alta de ellas. El detalle y el informe de esos controles muestran el nivel con el que se evalúan como «Nivel aplicable» con su dimensión, por ejemplo «Nivel aplicable: ALTO (Disponibilidad)»; los demás, «Nivel ENS».
 
 | Dimensiones | Controles |
 |---|---|
@@ -243,7 +243,7 @@ El Anexo II aplica algunos controles por el nivel de una dimensión de seguridad
 | D | mp.info.6, op.cont.2 y op.cont.3 (estos dos, solo con D en ALTO) |
 | ninguna | el resto, por la categoría (nivel ENS) |
 
-El nivel ENS es la categoría del sistema, el más alto de sus dimensiones: la pantalla no guarda una dimensión por encima de él y `config/validate-configuration.ts` lo señala. Sin ninguna dimensión declarada, los resultados son los mismos que con la 1.3.0.
+El nivel ENS es la categoría del sistema, el más alto de sus dimensiones: la pantalla no guarda una dimensión por encima de él y `config/validate-configuration.ts` lo señala. Sin ninguna dimensión declarada, los resultados son los mismos que con la 1.3.0; un documento que ya declaraba T o D puede cambiar de veredicto al actualizar ([guía de actualización, apartado 5.1](docs/deployment/02-updating-an-existing-environment.md#51-antes-de-actualizar-a-la-140)). Si una dimensión supera el nivel ENS, Controles y el panel muestran «Niveles incoherentes» con un enlace a General.
 
 ### Norma ENS y criterio de aplicación
 
@@ -254,11 +254,11 @@ Solo la «Ficha del Control» de las plantillas del auditor reproduce el BOE; pa
 | «Norma ENS» | texto literal del requisito (Anexo II del RD 311/2022) |
 | «Criterio de aplicación» | cómo lo lee y lo mide ENSFácil o la plantilla del auditor, sin valor normativo |
 
-El catálogo guarda el literal en `description` y la interpretación en `interpretation`. Cada control declara además su apartado del Anexo II (`annexSection`) y la plantilla de la que sale (`source`: v2.0 del 15/10/2026; op.acc.2 sigue en la v1.0 hasta recibir su v2.0). El encabezado del detalle y el del informe muestran los tres datos.
+El catálogo guarda el literal en `description` y la interpretación en `interpretation`. Cada control declara además su apartado del Anexo II (`annexSection`) y la plantilla de la que sale (`source`: v2.0 del 15/10/2026; op.acc.2 sigue en la v1.0, sin fecha, hasta recibir su v2.0). El encabezado del detalle y el del informe muestran los tres datos.
 
 ### mp.info.6 frente a la plantilla del auditor
 
-mp.info.6 no se construyó con la plantilla del auditor y conserva lo desplegado: sus parámetros P-01 a P-14, sus siete evidencias y los requisitos `mp.info.6.2.a` a `mp.info.6.2.d`, que son los que informan los recolectores del PBS y de Zimbra. El detalle del control y su informe muestran «Correspondencia con la plantilla del auditor»: qué parámetro y qué evidencia de ENSFácil cubren cada P-xx y EV-xx de la plantilla, con la cobertura (equivalente, parcial o no se mide todavía). Sin medir hoy: P-09 (registro de pruebas), EV-03 (cobertura frente al alcance), EV-07 (borrado masivo de copias) y EV-11 (cifrado del repositorio). La tabla está en `common/ens/catalog/template-correspondence.ts`.
+mp.info.6 no se construyó con la plantilla del auditor y conserva lo desplegado: sus parámetros P-01 a P-14, sus siete evidencias y los requisitos `mp.info.6.2.a` a `mp.info.6.2.d`, que son los que informan los recolectores del PBS y de Zimbra. El detalle del control y su informe muestran «Correspondencia con la plantilla del auditor»: qué parámetro y qué evidencia de ENSFácil cubren cada P-xx y EV-xx de la plantilla, con la cobertura (equivalente, parcial o no se mide todavía); el propio `mp.info.6.2` es parcial: b) se acredita con la retención y d) con los permisos, sin observar los accesos. Sin medir hoy: P-09 (registro de pruebas), EV-03 (cobertura frente al alcance), EV-07 (borrado masivo de copias) y EV-11 (cifrado del repositorio). La tabla está en `common/ens/catalog/template-correspondence.ts`.
 
 `mp.info.6.2` se mantiene partido en sus letras a) a d): cada letra es un requisito en el porcentaje del control (la base cuenta cinco requisitos, no dos). Los identificadores `.2.a` a `.2.d` no existen en el BOE; el texto de cada uno es el literal de su letra.
 

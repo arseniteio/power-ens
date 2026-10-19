@@ -155,6 +155,29 @@ Expected result: `plugins-antes.tgz` and `active.json` inside `$BACKUP`, and `en
 > [!important]
 > If the deployed plugin comes from a release, its zip is already in its version's folder (`/opt/ensfacil/releases/<version>`), which is kept. If it was built, `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil` before building: the previous zip is only kept if it is copied here. Keep the previous zip and `active.json` until every validation of the new version is complete.
 
+### 5.1 Before updating to 1.4.0
+
+From 1.4.0, a dimension level declared in Configuration > General governs every control Annex II ties to that dimension, not only op.exp.8 and op.cont.2 and op.cont.3:
+
+| Declared dimension | Controls it governs from 1.4.0 | In 1.3.0 |
+|---|---|---|
+| D (Availability) | mp.info.6, op.cont.2 and op.cont.3 | op.cont.2 and op.cont.3 |
+| T (Traceability) | op.acc.1 (with A), op.acc.2 to op.acc.6 (with C, I and A) and op.exp.8 | op.exp.8 |
+| C (Confidentiality), I (Integrity) and A (Authenticity) | op.acc.2 to op.acc.6; A also op.acc.1 | none |
+
+A control with several dimensions is evaluated with the highest; an undeclared dimension is the ENS level. A document that declares T or D may change verdicts on update: with the ENS level at MEDIO and D at ALTO, mp.info.6 is evaluated at ALTO and requires R2 (EV-06); with T at ALTO, op.acc.1 to op.acc.6 move to ALTO. With no dimension declared, the results do not change.
+
+A dimension above the ENS level is incoherent: the ENS level is the system category, the highest of its dimensions. 1.4.0 loads and evaluates such a document, but the General tab does not save until it is fixed, and Controles and the dashboard show «Niveles incoherentes» with a link to General.
+
+Check the backed-up document with the validator of the already updated repository (section 3):
+
+```bash
+cd /opt/ensfacil/repo
+npx --yes tsx config/validate-configuration.ts "$BACKUP/active.json"
+```
+
+Expected result: the `global level:` line with the ENS level and the five dimension levels. If a dimension exceeds the ENS level, the `INCOHERENT LEVELS` section appears and the command exits with code 1. Write down the declared levels and the dashboard state before deploying. After deploying, fix the incoherence in Configuration > General: raise the ENS level or lower the dimension.
+
 ## 6. Get the new plugin
 
 By default, the new plugin is the release of the new version (section 6.1). To build it, follow section 6.2. Both end with the `ZIP` and `DEPLOY` variables that section 7 uses.
@@ -281,7 +304,7 @@ From 1.3.0, the Configuration screen has three tabs, «Controles», «Agentes» 
 
 From 1.2.0, the evaluation runs on the plugin server with every fact of the 30-day window; 1.1.0 evaluated in the browser with the newest 10,000 facts. After the update, some verdicts change: record the dashboard status beforehand. Each user's first load answers in parts («Calculando la evaluación»). To go back to an earlier version after the conversion or after «Repartir por agentes», restore the earlier version of the document ([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
-In Configuration > General, review the optional dimension levels. From 1.4.0 there are five: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** and **Disponibilidad (D)**; they are used by op.acc.2 to op.acc.6 (C, I, T and A), op.acc.1 (T and A), op.exp.8 (T) and mp.info.6, op.cont.2 and op.cont.3 (D), and with several dimensions the highest rules. If they are not declared, the global ENS level applies and the results do not change from 1.3.0. Before declaring a dimension, check that it does not exceed the ENS level: the screen does not save it. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+In Configuration > General, review the optional dimension levels. From 1.4.0 there are five: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** and **Disponibilidad (D)**; they are used by op.acc.2 to op.acc.6 (C, I, T and A), op.acc.1 (T and A), op.exp.8 (T) and mp.info.6, op.cont.2 and op.cont.3 (D), and with several dimensions the highest rules. If they are not declared, the global ENS level applies and the results do not change from 1.3.0; a document that already declared T or D may change ([section 5.1](#51-before-updating-to-140)). Before declaring a dimension, check that it does not exceed the ENS level: the screen does not save it. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 From 1.4.0 the lists follow the Annex II order (op.acc, op.exp, op.nub, op.cont, op.mon and, last, mp.info.6), and the text of each requirement is the BOE literal labelled «Norma ENS»; the interpretation appears apart as «Criterio de aplicación».
 

@@ -8,6 +8,54 @@ follow [semantic versioning](https://semver.org/).
 Each version's entry in the Spanish file, `CHANGELOG.md`, is the notes of its
 GitLab release.
 
+## [1.4.0] - Unreleased
+
+Catalog corrections from the auditor's v2.0 templates: applicability by the
+five dimensions, BOE literal texts with their provenance and Annex II order.
+
+### Added
+
+- Confidentiality (C), Integrity (I) and Authenticity (A) levels in
+  Configuration > General, next to Traceability (T) and Availability (D), each
+  with the controls that use it. Absent key = ENS level, never `null`.
+- «Norma ENS» (BOE literal) and «Criterio de aplicación» (ENSFácil's or the
+  auditor's template interpretation) labels per row in each control's detail,
+  the Controls view and the report (screen and PDF). The catalog keeps the
+  interpretation apart (`interpretation`).
+- Annex II section, application axis and source template of each control in
+  the detail and report headers (`annexSection`, `source`). op.acc.2 stays on
+  the v1.0 template, undated.
+- mp.info.6: «Correspondencia con la plantilla del auditor» in the detail, the
+  report and the PDF, with the coverage of each template P-xx and EV-xx.
+  Deployed parameters, evidences and requirements do not change.
+- «Niveles incoherentes» notice in Controles and the dashboard, with a link to
+  General, when a dimension exceeds the ENS level; General does not save and
+  `config/validate-configuration.ts` exits with code 1.
+
+### Changed
+
+- Application axes of the auditor's index: mp.info.6 by D; op.acc.1 by T and
+  A; op.acc.2 to op.acc.6 by C, I, T and A; op.exp.8 by T; op.cont.2 and
+  op.cont.3 by D. With several dimensions the highest rules.
+- BOE literal requirement texts: 14 in the catalog (mp.info.6 and op.acc.1)
+  and 20 in the Controls view (mp.info.6, op.acc.1 and op.acc.2).
+  mp.info.6.2.a to .2.d carry the literal of their letter.
+- Control lists follow the Annex II order (op.acc, op.exp, op.nub, op.cont,
+  op.mon and, last, mp.info.6), including each agent's list in Configuration.
+- A control governed by a dimension shows «Nivel aplicable» with its
+  dimension, for example «Nivel aplicable: ALTO (Disponibilidad)».
+- op.exp.10 EV-01 «Accesos auditados al material criptográfico»: reads audited
+  with auditd; FIM only detects integrity changes. Windows is pending.
+- op.exp.3 EV-11 is declared ENSFácil's own evidence.
+
+### Updating from 1.3.0
+
+- With no dimension declared, the results do not change.
+- A document that declares T or D may change verdicts: D also governs
+  mp.info.6, and T also op.acc.1 to op.acc.6 when it is the highest of their
+  dimensions. Before updating, check the document with
+  `config/validate-configuration.ts` (guide 02, section 5.1).
+
 ## [1.3.0] - 2026-10-19
 
 Configuration by control templates, regular-expression matching and code in

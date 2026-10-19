@@ -234,7 +234,7 @@ Manager facts arrive with `agent.id=000`. In the view of a machine, the controls
 
 ### Dimension levels
 
-Annex II applies some controls by the level of a security dimension, not by the system category. Configuration > General has an optional field per dimension: **Confidencialidad (C)** (confidentiality), **Integridad (I)** (integrity), **Trazabilidad (T)** (traceability), **Autenticidad (A)** (authenticity) and **Disponibilidad (D)** (availability). An empty field equals the ENS level; a control with several dimensions is evaluated with the highest of them.
+Annex II applies some controls by the level of a security dimension, not by the system category. Configuration > General has an optional field per dimension: **Confidencialidad (C)** (confidentiality), **Integridad (I)** (integrity), **Trazabilidad (T)** (traceability), **Autenticidad (A)** (authenticity) and **Disponibilidad (D)** (availability). An empty field equals the ENS level; a control with several dimensions is evaluated with the highest of them. The detail and the report of those controls show the level they are evaluated with as «Nivel aplicable» with its dimension, for example «Nivel aplicable: ALTO (Disponibilidad)»; the others, «Nivel ENS».
 
 | Dimensions | Controls |
 |---|---|
@@ -244,7 +244,7 @@ Annex II applies some controls by the level of a security dimension, not by the 
 | D | mp.info.6, op.cont.2 and op.cont.3 (these two only with D at ALTO) |
 | none | the rest, by the category (ENS level) |
 
-The ENS level is the system category, the highest of its dimensions: the screen does not save a dimension above it and `config/validate-configuration.ts` reports it. With no dimension declared, the results are the same as with 1.3.0.
+The ENS level is the system category, the highest of its dimensions: the screen does not save a dimension above it and `config/validate-configuration.ts` reports it. With no dimension declared, the results are the same as with 1.3.0; a document that already declared T or D may change verdicts on update ([update guide, section 5.1](docs/deployment/02-updating-an-existing-environment.en.md#51-before-updating-to-140)). If a dimension exceeds the ENS level, Controles and the dashboard show «Niveles incoherentes» with a link to General.
 
 ### ENS norm and application criterion
 
@@ -255,11 +255,11 @@ Only the «Ficha del Control» sheet of the auditor's templates reproduces the B
 | «Norma ENS» | literal text of the requirement (Annex II of RD 311/2022) |
 | «Criterio de aplicación» | how ENSFácil or the auditor's template reads and measures it, with no normative value |
 
-The catalog keeps the literal in `description` and the interpretation in `interpretation`. Each control also declares its Annex II section (`annexSection`) and the template it comes from (`source`: v2.0 of 15/10/2026; op.acc.2 stays on v1.0 until its v2.0 arrives). The detail header and the report header show the three.
+The catalog keeps the literal in `description` and the interpretation in `interpretation`. Each control also declares its Annex II section (`annexSection`) and the template it comes from (`source`: v2.0 of 15/10/2026; op.acc.2 stays on v1.0, undated, until its v2.0 arrives). The detail header and the report header show the three.
 
 ### mp.info.6 and the auditor's template
 
-mp.info.6 was not built from the auditor's template and keeps what is deployed: parameters P-01 to P-14, its seven evidences and the requirements `mp.info.6.2.a` to `mp.info.6.2.d`, which the PBS and Zimbra collectors report. The control detail and its report show «Correspondencia con la plantilla del auditor»: which ENSFácil parameter and evidence cover each P-xx and EV-xx of the template, with the coverage (equivalent, partial or not measured yet). Not measured today: P-09 (test register), EV-03 (coverage against the scope), EV-07 (mass deletion of backups) and EV-11 (repository encryption). The table is in `common/ens/catalog/template-correspondence.ts`.
+mp.info.6 was not built from the auditor's template and keeps what is deployed: parameters P-01 to P-14, its seven evidences and the requirements `mp.info.6.2.a` to `mp.info.6.2.d`, which the PBS and Zimbra collectors report. The control detail and its report show «Correspondencia con la plantilla del auditor»: which ENSFácil parameter and evidence cover each P-xx and EV-xx of the template, with the coverage (equivalent, partial or not measured yet); `mp.info.6.2` itself is partial: b) is accredited by the retention and d) by the permissions, without observing the accesses. Not measured today: P-09 (test register), EV-03 (coverage against the scope), EV-07 (mass deletion of backups) and EV-11 (repository encryption). The table is in `common/ens/catalog/template-correspondence.ts`.
 
 `mp.info.6.2` stays split into its letters a) to d): each letter is one requirement in the control percentage (the base counts five requirements, not two). The ids `.2.a` to `.2.d` do not exist in the BOE; the text of each is the literal of its letter.
 
