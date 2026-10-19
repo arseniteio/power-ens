@@ -106,7 +106,7 @@ fi
 Expected result: `dashboard: active` and `ensfacil` in the plugin list. Then check as in section 3.
 
 > [!important]
-> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.2.0 to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
+> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.3.0 to 1.2.0 with its templates, or to 1.1.0 after «Repartir por agentes», restore the earlier version of the document ([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
 ### 4.1 If `deploy-plugin.sh` fails halfway
 

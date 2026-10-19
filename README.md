@@ -37,10 +37,10 @@ y los enlaces a cada runbook y a sus guías, en la
    después, los runbooks de su plataforma
    (Linux, Zimbra LDAP, Zimbra MTA o Windows), siguiendo la guía
    `01-installation` **de cada runbook**.
-3. **Configuración en el dashboard.** En ENSFácil > Configuración, la
-   política común de cada control (pestaña «Organización») y lo propio de cada
-   máquina y de su plataforma, con plantillas (pestaña «Sistemas»; ver
-   [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md)),
+3. **Configuración en el dashboard.** En ENSFácil > Configuración, los
+   ajustes comunes, las plantillas y la asignación de cada control (pestaña
+   «Controles») y lo propio de cada agente (pestaña «Agentes»; ver
+   [Configuración por controles y plantillas](docs/deployment/09-configuration-by-system.md)),
    y en las máquinas o en el manager, los
    [registros de la organización](docs/deployment/05-runbooks-and-registers.md#registros-que-crea-la-organización),
    siguiendo la guía `02-compliance` **de cada runbook** (no está en este
@@ -233,7 +233,7 @@ indexer, no en el plugin.
 | 6 | Instalar, actualizar o retirar ENSFácil con las imágenes oficiales de Wazuh en Docker | [Wazuh en Docker](docs/deployment/06-wazuh-in-docker.md) |
 | 7 | Instalar o actualizar el plugin desde una release | [Instalar desde una release](docs/deployment/07-installing-from-a-release.md) |
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
-| 9 | Declarar la configuración de cada sistema, aplicar plantillas o migrar una configuración anterior | [Configuración por sistema y plantillas](docs/deployment/09-configuration-by-system.md) |
+| 9 | Declarar los ajustes comunes, las plantillas y su asignación a los agentes, o convertir una configuración anterior | [Configuración por controles y plantillas](docs/deployment/09-configuration-by-system.md) |
 
 > [!note]
 > El despliegue desde cero debe poder completarse utilizando GitLab y esta documentación, sin copiar ficheros desde otro servidor ENSFácil.
@@ -290,14 +290,14 @@ general muestra todos los controles en todas las máquinas a la vez
 ### Nivel de la dimensión Trazabilidad
 
 op.exp.8 se aplica por el nivel de la dimensión de Trazabilidad (T), no por la
-categoría del sistema. En Configuración > Configuración global hay un campo
+categoría del sistema. En Configuración > General hay un campo
 opcional **Nivel de Trazabilidad (T)**: si se deja vacío, op.exp.8 se evalúa con
 el nivel ENS global, como los demás controles. Ningún otro control lo lee.
 
 ### Nivel de la dimensión Disponibilidad
 
 op.cont.2 y op.cont.3 se aplican por el nivel de la dimensión de Disponibilidad
-(D), y solo con D en ALTO. En Configuración > Configuración global hay un campo
+(D), y solo con D en ALTO. En Configuración > General hay un campo
 opcional **Nivel de Disponibilidad (D)**: si se deja vacío, los dos se evalúan
 con el nivel ENS global. Ningún otro control lo lee.
 

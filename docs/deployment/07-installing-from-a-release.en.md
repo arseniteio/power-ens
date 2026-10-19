@@ -433,10 +433,10 @@ Expected result: `OK` for the three files and, at the end, `dashboard: active`.
 Then check as in section 10: the plugin list must show the previous version.
 
 If the removed version had seeded controls that the previous one does not
-know, also restore the copy of the configuration. To go back from 1.2.0 to
-1.1.0 after «Migrar a sistemas», restore the version of the document from
-before the migration
-([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)). The full procedure is in
+know, also restore the copy of the configuration. To go back from 1.3.0 to
+1.2.0 with its templates, or to 1.1.0 after «Repartir por agentes», restore the
+earlier version of the document
+([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)). The full procedure is in
 [Troubleshooting and rollback, section 4](04-troubleshooting-and-rollback.en.md#4-reinstall-the-previous-ensfácil-version).
 In Docker:
 [Wazuh in Docker, section 12.2](06-wazuh-in-docker.en.md#122-go-back-to-the-previous-version).

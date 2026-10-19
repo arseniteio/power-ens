@@ -381,11 +381,12 @@ the block and lost). If the plan is correct, repeat the loop with
 Expected result: `== APLICADO ==` for each control.
 
 Seeding merges: it keeps the value of every parameter that already had one and
-adds the missing ones. It also keeps the per-system values (`configuration.agents`).
+adds the missing ones. It also keeps the agents' settings (`configuration.agents`) and
+the custom templates (`configuration.templates`).
 
-With ENSFácil 1.2.0 or later, a control the document does not have can also be
-added from ENSFácil > Configuración > Organización, with «Añadir con valores por
-defecto» ([Configuration by system and templates, section 9](09-configuration-by-system.en.md#9-catalog-controls-not-yet-added)).
+With ENSFácil 1.3.0 or later, a control the document does not have can also be
+added from ENSFácil > Configuración > Controles, with «Añadir con valores por
+defecto» ([Configuration by controls and templates, section 5.1](09-configuration-by-system.en.md#51-add-a-catalog-control)).
 
 > [!note]
 > Evidence that depends on mandatory parameters without a value stays
@@ -409,8 +410,8 @@ docker run --rm -v <repo>:/w -w /w node:22-alpine \
 ```
 
 Expected result: `controles (23): mp.info.6 op.acc.1 …`,
-`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, if there are
-per-system values, one line per agent and `VALORES POR SISTEMA VÁLIDOS.`
+`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, with agent
+settings, one line per agent; at the end, `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
 
 A `scope` without the `agentIds` and `groupIds` arrays is rejected
 (`configuration.scope.agentIds must be a string array`). The Configuración
@@ -456,10 +457,10 @@ Expected result: the changes per parameter and `DRY-RUN: nada escrito`; with
 
 The file format and its rules are in the
 [installation from scratch, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy).
-For the `agents` section (a machine's own values), mount the complete
+For the `agents` section (an agent's template and own settings), mount the complete
 repository, `-v <repo>:/repo:ro -w /repo/config`, instead of `<repo>/config`:
 the tool reads the parameter classification from `public/`
-([Configuration by system and templates, section 11.1](09-configuration-by-system.en.md#111-declare-a-systems-values-with-set-parameterspy)).
+([Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy)).
 After declaring values, repeat the backup (section 7) before and the
 validation (section 9) after.
 

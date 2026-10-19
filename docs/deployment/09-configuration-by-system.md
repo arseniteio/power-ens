@@ -1,266 +1,367 @@
-# Configuración por sistema y plantillas
+# Configuración por controles y plantillas
 
-Esta guía describe la configuración por sistema que incorpora ENSFácil 1.2.0: los dos niveles de la pantalla de Configuración, la detección del tipo de cada sistema, las plantillas, la herencia de valores, la migración de una configuración anterior y la declaración de valores por sistema desde el servidor.
+Esta guía describe la pantalla de Configuración de ENSFácil 1.3.0: sus tres pestañas, el valor que se aplica a cada agente, las plantillas de cada control, la asignación de plantillas a los agentes, la conversión de una configuración de la 1.2.0 y la declaración de plantillas y ajustes desde el servidor.
 
 ## 1. Objetivo
 
-Declarar la política común una sola vez, en el nivel de la organización, y declarar en cada sistema del alcance solo lo que es propio de esa máquina (sus cuentas, servicios, rutas, criticidad o responsable) o de su plataforma (Linux, servidor LDAP de Zimbra, Windows, manager de Wazuh).
+Declarar cada control una sola vez: los ajustes comunes de la organización, las plantillas que agrupan los valores de cada tipo de sistema y, en cada agente, solo lo que es propio de esa máquina.
 
 ## 2. Requisitos previos
 
 | Requisito | Comprobación |
 |---|---|
-| Plugin ENSFácil 1.2.0 o posterior desplegado | ENSFácil > Configuración muestra las pestañas «Organización» y «Sistemas» |
+| Plugin ENSFácil 1.3.0 o posterior desplegado | ENSFácil > Configuración muestra las pestañas «Controles», «Agentes» y «General» |
 | Usuario con el rol `ensfacil_admin` o `all_access` | Un guardado desde Configuración no devuelve el error 403 ([instalación desde cero, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)) |
 | Documento `active` creado y controles sembrados | [Instalación desde cero, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens) |
 | Copia del documento `active` antes de cada cambio desde el servidor | [Instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo) |
 
 > [!note]
-> El alcance ENS (qué agentes entran) no se edita en Configuración: se define en la [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup). La pestaña «Sistemas» lista los agentes de ese alcance.
+> El alcance ENS (qué agentes se evalúan) no se edita en Configuración: se define en la [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup). La pestaña «General» lo muestra en solo lectura y la pestaña «Agentes» lista sus agentes.
 
-## 3. Los dos niveles de Configuración
+## 3. Estructura de Configuración
 
-Cada parámetro de cada control pertenece a una de tres clases. La clasificación es única y la usan la pantalla, la evaluación, el validador y `set-parameters.py`; está en `common/ens/configuration/agents/parameter-classes.ts`.
+| Pestaña | Contenido |
+|---|---|
+| Controles | Los 23 controles del catálogo con su estado. En cada control: «Ajustes comunes», «Plantillas» y «Asignación» |
+| Agentes | Los agentes del alcance con su tipo detectado y su completitud. En cada agente, control por control: la plantilla que usa y sus ajustes propios |
+| General | Nivel ENS, nivel de Trazabilidad (T), nivel de Disponibilidad (D), el resto de la configuración global y el alcance ENS en solo lectura |
+
+Cada parámetro de cada control pertenece a una de tres clases. La clasificación es única y la usan la pantalla, la evaluación, los validadores y `set-parameters.py`; está en `common/ens/configuration/agents/parameter-classes.ts`.
 
 | Clase | Qué describe | Parámetros (23 controles) | Dónde se declara |
 |---|---|---|---|
-| Organización | Política común: periodicidades, umbrales, roles, registros, procedimientos, documentos, nube, plan de continuidad | 163 | Pestaña «Organización», en la ficha de cada control |
-| Por sistema | El estado de una máquina concreta: sus cuentas, servicios, rutas, ACL, claves, calendario de copia, criticidad o responsable | 41 | Pestaña «Sistemas», dentro de cada agente |
-| Por plataforma | Lo que depende del sistema operativo o del producto y es igual en todas las máquinas de esa plataforma | 35 | Pestaña «Sistemas», dentro de cada agente, normalmente con una plantilla |
+| Común (organización) | Periodicidades, umbrales, roles, registros, procedimientos, documentos, nube, plan de continuidad | 163 | «Ajustes comunes» del control |
+| Por sistema | El estado de una máquina concreta: cuentas, servicios, rutas, ACL, claves, calendario de copia, criticidad o responsable | 41 | Plantilla o ajuste propio del agente |
+| Por plataforma | Lo que depende del sistema operativo o del producto y es igual en todas las máquinas de esa plataforma | 35 | Plantilla o ajuste propio del agente |
 
-En la ficha de un control de la pestaña «Organización» se muestran arriba los parámetros de organización, y el estado del control («Configurado», «Configuración incompleta») se calcula solo con ellos. Los parámetros por sistema y por plataforma aparecen en el desplegable «Valores que heredan los sistemas»: su valor es el que hereda una máquina sin valor propio ni plantilla que lo fije.
+Los controles op.cont.2, op.exp.9, op.mon.2 y op.nub.1 solo tienen ajustes comunes: no tienen plantillas ni asignación.
 
-## 4. Cómo se resuelve un valor
+## 4. Valor que se aplica a un agente
 
-Para evaluar un control en la fila de una máquina, cada parámetro por sistema o por plataforma toma el primer valor disponible en este orden:
+Para evaluar un control en la fila de un agente, cada parámetro por sistema o por plataforma toma el primer valor disponible en este orden:
 
-1. el valor propio del agente;
-2. el de sus plantillas, en el orden en que están aplicadas (gana la primera que fija el parámetro);
-3. el de la organización.
+1. el ajuste propio del agente;
+2. el de la plantilla asignada al agente en ese control;
+3. sin plantilla asignada, el de la plantilla de serie de su tipo de sistema;
+4. el valor común del control.
 
-Los parámetros de organización salen siempre de la organización.
+La plantilla asignada y la de serie de su tipo son alternativas: la de serie de su tipo solo se aplica cuando el control no tiene plantilla asignada en ese agente. La asignación «Sin plantilla (valores comunes)» deja el agente con el valor común. Un parámetro que la plantilla aplicada no fija toma el valor común.
 
 Reglas de la resolución:
 
-- Se sustituye el parámetro **entero**: una tabla del agente reemplaza a la de la organización, sin mezclar filas. Es el mismo criterio que `set-parameters.py`.
-- Los parámetros por sistema que describen **otras** máquinas en un control que se mide en el manager se resuelven por **unión**: en la fila del manager, el valor es el de la organización más las filas de cada agente (valor propio o de plantilla), sin repetir. Son op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01 y, en la fila del manager, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07.
-- El alcance declarado de mp.info.6 (P-04) también se resuelve por unión, en todas las filas: el motor lo lee entero para saber en qué máquinas se mide el control.
-- Sin valores por sistema, la evaluación recibe exactamente la configuración de la organización, y los veredictos son los mismos que en la 1.1.0.
+- Los parámetros comunes salen siempre de los ajustes comunes del control.
+- Se sustituye el parámetro **entero**: una tabla del agente o de la plantilla reemplaza a la común, sin mezclar filas. Es el mismo criterio que `set-parameters.py`.
+- La plantilla de serie de un tipo se aplica solo a los agentes con el tipo **guardado** en su perfil (detectado o corregido a mano, apartado 6.1). Sin tipo guardado, el agente toma el valor común.
+- Los parámetros por sistema que describen **otras** máquinas en un control que se mide en el manager se resuelven por **unión**: en la fila del manager, el valor es el común más las filas de cada agente (ajuste propio o plantilla), sin repetir. Son op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01 y, en la fila del manager, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07.
+- El alcance declarado de mp.info.6 (P-04) también se resuelve por unión, en todas las filas.
+- La resolución es la misma en el navegador y en la evaluación del servidor.
 
-La pantalla indica el origen de cada valor de un sistema: «valor propio de este sistema», «heredado de la plantilla …», «heredado de la organización» o, en una unión, «este sistema no aporta filas propias».
+La pantalla indica el origen de cada valor de un agente: «ajuste propio de este agente», «heredado de la plantilla asignada «…»», «heredado de la plantilla de serie «…» de su tipo», «heredado del valor común del control» o, en una unión, «este agente no aporta filas propias».
 
-## 5. Detección del tipo de sistema
+## 5. Pestaña «Controles»
 
-La pestaña «Sistemas» detecta el tipo de cada agente con la primera regla que se cumple:
+La pestaña lista los 23 controles del catálogo con su estado y, por control, sus plantillas de serie, sus plantillas propias y el número de agentes con plantilla asignada.
+
+| Estado | Significado |
+|---|---|
+| Configurado | Todos los ajustes comunes obligatorios del nivel del control tienen valor |
+| Incompleto | Faltan ajustes comunes obligatorios; se listan debajo |
+| Inválido | Algún ajuste común tiene un valor inválido; se listan debajo |
+| Sin configurar | Ningún ajuste común tiene valor |
+| Sin añadir | El control existe en el catálogo pero no está en el documento; no se evalúa |
+
+El estado se calcula solo con los ajustes comunes. Los parámetros por sistema y por plataforma se completan con plantillas y ajustes propios, y su completitud se ve en «Asignación» y en la pestaña «Agentes».
+
+### 5.1 Añadir un control del catálogo
+
+1. Pulsar «Añadir con valores por defecto» en el control, o «Añadir los N que faltan con valores por defecto».
+
+   Resultado esperado: el control pasa a «Sin configurar» o «Incompleto», con sus parámetros sin valor salvo los `defaultValue` de su bloque, y se abre con «Abrir».
+
+2. Declarar sus ajustes comunes obligatorios (apartado 5.2).
+
+   Resultado esperado: el estado pasa a «Configurado».
+
+El botón añade la definición del control tal cual, la misma que el bloque semilla de `config/`, igual que `inject-control.py` con un control que no estaba. No modifica los demás controles, las plantillas ni los ajustes de los agentes. Para fusionar un control que ya está con una versión nueva de su bloque se usa `inject-control.py` ([actualización de un entorno existente, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
+
+> [!note]
+> Mientras un control obligatorio tenga parámetros sin valor, sus evidencias quedan en `NO_EVALUABLE` con causa `CONFIGURATION`. La ausencia de información no equivale a cumplimiento.
+
+### 5.2 Ajustes comunes
+
+1. Abrir el control con «Abrir».
+
+   Resultado esperado: la página del control con «Ajustes comunes», «Plantillas» y «Asignación».
+
+2. En «Ajustes comunes», pulsar «Configurar <control>» («Completar configuración», «Corregir configuración» o «Revisar configuración», según el estado), declarar los valores y guardar.
+
+   Resultado esperado: el estado del control se actualiza. El desplegable «Valor común de los parámetros por sistema y por plataforma» muestra el valor que toma un agente sin ajuste propio ni plantilla que fije el parámetro.
+
+### 5.3 Plantillas
+
+Una plantilla es un conjunto de valores con nombre para los parámetros por sistema y por plataforma de un control. Nunca fija un parámetro común.
+
+- **De serie**: van con el plugin, una por tipo de sistema en los controles en que aplica ese tipo, y no se editan. Sus valores salen de un ejemplo del bloque semilla, del `.env.example` o la plantilla de configuración de un runbook, o de un valor real de un laboratorio sin lo que es de otra plataforma o de esa instalación. Lo que no se puede fundamentar se queda sin valor y la plantilla lo indica con «Sin valores de serie en este control: se aplican los ajustes comunes».
+- **Propias**: se crean, se duplican, se editan y se borran en el documento (`configuration.templates`).
+
+| Plantilla de serie | Tipo | Controles | Qué fija |
+|---|---|---|---|
+| Linux | Linux | Los controles que se miden en las máquinas | op.acc.1 P-01 `Local`, P-03 cuentas de sistema de Ubuntu, P-10 `1000`, P-11; op.acc.2 P-02 rutas críticas, P-10 SUID de Ubuntu 22.04 y 24.04, P-11, P-12; op.acc.3 P-03; op.acc.4 P-06; op.acc.6 P-03, P-07, P-08, P-11; op.exp.2 P-03; op.exp.3 P-01, P-04; op.exp.4 P-03, P-05; op.exp.6 P-01, P-04, P-07; op.exp.8 P-01, P-03, P-08; op.exp.10 P-02, P-08 |
+| Servidor LDAP | Servidor LDAP | Los mismos que Linux | Lo de «Linux» más: op.acc.1 P-01 `LDAP` y las cuentas `zimbra` y `ldapcopy`; op.acc.2 P-02 con `/opt/zimbra/conf/localconfig.xml` y P-12 sin `adm`; op.acc.6 canal y exposición de slapd; op.exp.2 P-03 `admin` de Zimbra; op.exp.3 P-04 y op.exp.6 P-07 con las rutas de Zimbra; op.exp.4 P-03 con Zimbra; op.exp.8 P-01 y P-03 con slapd |
+| Windows | Windows | op.acc.1, op.acc.2, op.acc.3 y op.acc.4 (los únicos con recolector para Windows) | op.acc.1 P-11 y op.acc.4 P-06 `Administrators` |
+| Manager Wazuh | Manager Wazuh | Los controles que se miden en el manager | op.exp.8 P-01 y P-03 (auditd) y P-08 (`root`, `syslog`, `wazuh`, `wazuh-indexer`) |
+| Copias con PBS | Linux | mp.info.6 | P-06 `/backup`, P-07 `root`, P-10 `pbs`, P-11 clave de PBS, P-12 `root.pxar`, P-13 testigo de restauración |
+| Copias Zimbra NE | — | mp.info.6 | P-06 `/opt/zimbra/backup`, P-07 `zimbra`, P-10 `zimbra-ne` |
+
+«Copias con PBS» y «Copias Zimbra NE» son alternativas de mp.info.6: no se aplican por tipo y se asignan a cada agente. Los hechos de mp.info.6 con `data.origen = pbs` o `data.origen = zimbra-ne` las proponen en la asignación con «propuesta por sus hechos». Zimbra 10 Network con zmbackup no se combina con PBS.
+
+La tabla de «Plantillas» muestra, por plantilla, la insignia «De serie» o «Propia», su tipo, cuántos parámetros fija y a cuántos agentes está asignada.
+
+#### 5.3.1 Crear o duplicar una plantilla
+
+1. En «Plantillas», pulsar «Duplicar» en una plantilla, o «Crear plantilla».
+
+   Resultado esperado: con «Duplicar», una plantilla propia «<nombre> (copia)» con todos los valores de la original; con «Crear plantilla», la ventana «Crear plantilla · <control>».
+
+2. Escribir el nombre, la descripción y, si procede, el tipo de sistema; declarar los valores de los parámetros que fija la plantilla y pulsar «Guardar plantilla».
+
+   Resultado esperado: la plantilla aparece con la insignia «Propia». Un parámetro sin valor toma el valor común. Un valor inválido se rechaza con el motivo y no se guarda nada; un nombre repetido en el mismo control también se rechaza.
+
+El tipo de sistema de una plantilla propia es informativo: al asignarla a un agente de otro tipo, la vista previa lo avisa.
+
+#### 5.3.2 Editar una plantilla propia
+
+1. Pulsar «Editar» en la plantilla.
+
+   Resultado esperado: la ventana «Editar plantilla · <control>» con «Asignada a N agente(s): …» si está en uso.
+
+2. Cambiar los valores y pulsar «Guardar plantilla».
+
+   Resultado esperado: el cambio se aplica a todos los agentes que tienen la plantilla asignada, salvo en los parámetros con ajuste propio.
+
+Las plantillas de serie solo admiten «Ver» y «Duplicar».
+
+#### 5.3.3 Borrar una plantilla propia
+
+1. Pulsar «Borrar» en la plantilla.
+
+   Resultado esperado: la ventana «Borrar la plantilla «…»». Si está asignada, indica a qué agentes y pide «Reasignar sus agentes a»: «La de serie de su tipo», otra plantilla del control o «Sin plantilla (valores comunes)».
+
+2. Elegir la reasignación, teclear `borrar` si se pide y pulsar «Borrar».
+
+   Resultado esperado: la plantilla desaparece y sus agentes pasan a la plantilla elegida. Una plantilla en uso no se borra sin reasignar sus agentes.
+
+### 5.4 Asignación
+
+La tabla «Asignación» lista los agentes del alcance y los perfiles guardados de agentes fuera de él, con cuatro columnas:
+
+| Columna | Contenido |
+|---|---|
+| Agente | Id y nombre; abre la página del agente en ese control |
+| Tipo | El tipo guardado o, si no lo está, «sin guardar (detectado: …)» |
+| Plantilla | La que se aplica: la asignada, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)» o «Ninguna: valores comunes»; las propuestas por sus hechos; y si el control no se mide en ese agente |
+| Ajustes propios | Cuántos tiene, cuántos obligatorios quedan sin valor y si está fuera del alcance |
+
+Para asignar una plantilla a varios agentes:
+
+1. Marcar las casillas de los agentes, elegir en el desplegable «La de serie de su tipo», una plantilla o «Sin plantilla (valores comunes)», y pulsar «Asignar a N agente(s)…».
+
+   Resultado esperado: la ventana «Asignar … en <control> a N agente(s)» con, por agente, el cambio de plantilla («… → …»), los parámetros que cambian de valor, los ajustes propios que siguen ganando, los obligatorios que se quedan sin valor y, si la plantilla es de otro tipo, el aviso «Tipo distinto».
+
+2. Revisar cada agente y pulsar «Asignar»; si aparece «Tipo distinto» o «Se quedan sin valor parámetros obligatorios», teclear antes `aplicar`.
+
+   Resultado esperado: la plantilla en la columna «Plantilla» de cada agente y las casillas vacías. Los ajustes propios se conservan.
+
+## 6. Pestaña «Agentes»
+
+La pestaña lista los agentes del alcance con su tipo, las plantillas que usan y su completitud, y los perfiles guardados de agentes que ya no están en el alcance, con «fuera del alcance».
+
+### 6.1 Tipo de sistema
+
+El tipo de cada agente se detecta con la primera regla que se cumple:
 
 | Orden | Regla | Tipo | Evidencia que se muestra |
 |---|---|---|---|
-| 1 | El id del agente es `000` | Manager | «el id 000, que en Wazuh es siempre el manager» |
+| 1 | El id del agente es `000` | Manager Wazuh | «el id 000, que en Wazuh es siempre el manager» |
 | 2 | `os.platform` es `windows` en el inventario de agentes | Windows | «os.platform = windows en el inventario de agentes» |
-| 3 | Hay hechos de ENSFácil con `data.plano = directorio` en los últimos 30 días | LDAP (Zimbra) | «N hechos del recolector LDAP (data.plano = directorio) en 30 días» |
+| 3 | Hay hechos de ENSFácil con `data.plano = directorio` en los últimos 30 días | Servidor LDAP | «N hechos del recolector LDAP (data.plano = directorio) en 30 días» |
 | 4 | `os.platform` es de la familia Linux, o `os.uname` empieza por «Linux» | Linux | «os.platform = ubuntu en el inventario de agentes» |
 | 5 | `os.platform` trae un valor que no es de los anteriores | Sin detectar | «os.platform = …: no es un tipo previsto; se elige a mano» |
 | 6 | El inventario no trae el sistema operativo | Sin detectar | «el inventario no trae su sistema operativo …; se elige a mano» |
 
-Además, los hechos de mp.info.6 con `data.origen = pbs` proponen el añadido «Copias con PBS», y los que traen `data.origen = zimbra-ne`, el añadido «Copias Zimbra NE». Proponer una plantilla no la aplica.
+El tipo que decide la plantilla de serie es el **guardado** en el perfil del agente. Mientras el tipo detectado no está guardado, la pestaña muestra «N agente(s) con el tipo detectado sin guardar».
 
-El inventario sale de `wazuh-monitoring-*` y los hechos, de una única agregación sobre `wazuh-alerts-*` de los últimos 30 días, sin descargar documentos.
+1. Pulsar «Guardar los tipos detectados…».
 
-> [!note]
-> Un servidor LDAP de Zimbra recién instalado, sin hechos todavía, se detecta como Linux: en el inventario es un Ubuntu más. Se corrige a mano con el procedimiento siguiente.
+   Resultado esperado: la ventana «Guardar el tipo detectado de N agente(s)» con los parámetros que cambian en cada agente al pasar a la plantilla de serie de su tipo.
 
-### 5.1 Corregir el tipo a mano
+2. Pulsar «Guardar los tipos» (teclear antes `aplicar` si se pide).
 
-1. Abrir ENSFácil > Configuración > Sistemas y pulsar el agente.
+   Resultado esperado: el aviso desaparece y la columna «Plantillas» de la lista indica la plantilla de serie de cada tipo.
 
-   Resultado esperado: se abre la página del agente con el campo «Tipo de sistema» y, debajo, el texto «detectado por …».
+Para corregir el tipo de un agente:
 
-2. Elegir el tipo en «Tipo de sistema».
+1. Abrir el agente y elegir el tipo en «Tipo de sistema».
 
-   Resultado esperado: el texto pasa a «corregido a mano (detectado: …, por …)» y la lista de sistemas muestra el tipo nuevo.
+   Resultado esperado: si el cambio altera algún valor, la ventana «Cambiar el tipo de …» con lo que cambia; si no, se guarda directamente. El texto bajo el campo pasa a «corregido a mano (detectado: …, por …)».
 
-3. Para volver al tipo detectado, elegir «El detectado: …».
+2. Para volver al tipo detectado, elegir «El detectado: …».
 
    Resultado esperado: el texto vuelve a «detectado por …».
 
-El tipo corregido decide qué plantilla se propone y, en Windows, qué controles cuentan para la completitud. No cambia por sí solo ningún valor.
+> [!note]
+> Un servidor LDAP de Zimbra recién instalado, sin hechos todavía, se detecta como Linux: en el inventario es un Ubuntu más. Se corrige a mano con el procedimiento anterior.
 
-## 6. Plantillas
+### 6.2 Plantilla y ajustes propios de un agente
 
-Una plantilla fija parámetros por plataforma y, cuando hay un valor fundamentado, siembra parámetros por sistema. Nunca toca un parámetro de organización. Cada valor sale de un ejemplo del bloque semilla, del `.env.example` o la plantilla de configuración de un runbook, o de un valor real de un laboratorio sin lo que es de otra plataforma o de esa instalación. Lo que no se puede fundamentar se queda sin valor. Las plantillas van con el plugin: cambian con su versión y el documento guarda qué plantillas tiene cada agente, no una copia de sus valores.
+La página del agente agrupa por control los parámetros por sistema y por plataforma. Cada control muestra la plantilla que usa, sus ajustes propios y, en cada parámetro, su clase, si es obligatorio al nivel del control y el origen de su valor.
 
-| Plantilla | Tipo | Qué fija | Qué deja sin valor |
-|---|---|---|---|
-| Linux Ubuntu | plataforma | op.acc.1 P-01 `Local`, P-03 cuentas de sistema de Ubuntu, P-10 `1000`, P-11; op.acc.2 P-02 rutas críticas, P-10 SUID de Ubuntu 22.04 y 24.04, P-11, P-12; op.acc.3 P-03; op.acc.4 P-06; op.acc.6 P-03, P-07, P-08, P-11; op.exp.2 P-03; op.exp.3 P-01, P-04; op.exp.4 P-03, P-05; op.exp.6 P-01, P-04, P-07; op.exp.8 P-01, P-03, P-08; op.exp.10 P-02, P-08 | op.acc.4 P-04 (puerto y origen de SSH de cada organización), op.exp.2 P-01 (la primera columna nombra la máquina), op.exp.6 P-08 |
-| Servidor LDAP Zimbra | plataforma | Lo de «Linux Ubuntu» más: op.acc.1 P-01 `LDAP` y las cuentas `zimbra` y `ldapcopy`; op.acc.2 P-02 con `/opt/zimbra/conf/localconfig.xml` y P-12 sin `adm`; op.acc.6 canal y exposición de slapd; op.exp.2 P-03 `admin` de Zimbra; op.exp.3 P-04 y op.exp.6 P-07 con las rutas de Zimbra; op.exp.4 P-03 con Zimbra; op.exp.8 P-01 y P-03 con slapd | Las cuentas de Zimbra con sufijo aleatorio (`spam.*`, `ham.*`, `virus-quarantine.*`, `galsync.*`): son de cada instalación y se declaran como valor propio |
-| Windows Server | plataforma | op.acc.1 P-11 y op.acc.4 P-06 `Administrators` | op.acc.1 P-01 (aislado o en dominio), op.acc.1 P-10 y op.acc.2 P-07, P-10 y P-11 (son de Linux), op.acc.4 P-04 (el origen permitido). Solo op.acc.1, op.acc.2, op.acc.3 y op.acc.4 tienen recolector para Windows: el resto de controles no se mide en esta plataforma, lo que no equivale a un incumplimiento |
-| Manager Wazuh | plataforma | op.exp.8 P-01 y P-03 (auditd) y P-08 (`root`, `syslog`, `wazuh`, `wazuh-indexer`) | El resto de lo que se mide en el manager es política de organización |
-| Copias con PBS | añadido | mp.info.6 P-06 `/backup`, P-07 `root`, P-10 `pbs`, P-11 clave de PBS, P-12 `root.pxar`, P-13 testigo de restauración | — |
-| Copias Zimbra NE | añadido | mp.info.6 P-06 `/opt/zimbra/backup`, P-07 `zimbra`, P-10 `zimbra-ne` | mp.info.6 P-11, P-12 y P-13 (son de PBS) |
+Para cambiar la plantilla de un control:
 
-Reglas de aplicación:
+1. Elegir en «Plantilla» «La de serie de su tipo («…»)», una plantilla del control o «Sin plantilla (valores comunes)», y pulsar «Asignar…».
 
-- Una máquina tiene una sola plantilla de plataforma: aplicar otra sustituye a la anterior y conserva los añadidos.
-- «Copias con PBS» y «Copias Zimbra NE» no se combinan: el plugin rechaza la segunda con el motivo. Zimbra 10 Network con zmbackup no se mezcla con PBS.
-- Las plantillas de plataforma van antes que los añadidos; en la resolución gana la primera que fija cada parámetro.
+   Resultado esperado: si cambia algún valor, la ventana con el cambio de plantilla y los parámetros que cambian; tras confirmarlo, la plantilla en la cabecera del control.
 
-### 6.1 Aplicar una plantilla a uno o varios sistemas
+Para declarar un ajuste propio:
 
-Antes de guardar, el plugin enseña una vista previa por sistema: cuántos parámetros cambian de valor efectivo y cuáles, qué fija la plantilla, qué valores propios siguen ganando y, si la plantilla no es para el tipo del sistema o sustituye a otra plantilla de plataforma, el aviso. Con un aviso, la confirmación exige teclear `aplicar`.
+1. Pulsar «Dar ajuste propio» (o «Editar», si ya lo tiene), escribir el valor y pulsar «Guardar para este agente».
 
-1. Abrir ENSFácil > Configuración > Sistemas.
+   Resultado esperado: el origen pasa a «ajuste propio de este agente». Un valor inválido se rechaza con el motivo y no se guarda.
 
-   Resultado esperado: la tabla de sistemas con su tipo, sus plantillas y su completitud, y el desplegable de plantillas en «Elegir plantilla…».
+2. Para volver a heredar, pulsar «Quitar ajuste propio (vuelve a heredar)», o vaciar el campo y guardar.
 
-2. Marcar las casillas de los sistemas, elegir la plantilla en el desplegable de encima de la tabla y pulsar «Aplicar a N sistema(s) seleccionado(s)…».
+   Resultado esperado: el origen pasa a la plantilla o al valor común.
 
-   Resultado esperado: la ventana «Aplicar «…» a N sistema(s)» con un apartado por sistema. Un sistema que no admite la plantilla aparece con «No se aplica: …».
+3. Para quitar todos los ajustes propios de un control, pulsar «Quitar ajustes propios» y confirmar.
 
-3. Revisar cada sistema y pulsar «Aplicar la plantilla»; si aparece «Tipo distinto» o «Sustituye a la plantilla …», teclear antes `aplicar`.
+   Resultado esperado: la ventana lista cada ajuste que se quita; tras confirmar, el control conserva su plantilla y sus parámetros vuelven a heredar.
 
-   Resultado esperado: el aviso «… aplicada a …», la plantilla en la columna «Plantillas» de cada sistema y las casillas vacías.
+Reglas del guardado:
 
-4. Para un solo sistema, abrir el agente, elegir la plantilla en el desplegable de «Plantillas aplicadas» y pulsar «Aplicar…». La propuesta para su tipo lleva «(propuesta)» y se actualiza cuando termina la detección; una plantilla de plataforma que sustituiría a otra lleva «(sustituye a «…»)».
+- Un valor vacío no se guarda como ajuste propio: el agente vuelve a heredar.
+- Un valor igual al que el agente ya heredaba no se guarda como propio: sigue a su origen cuando cambie.
+- Los guardados de una misma página se hacen en orden y sobre la versión más reciente del documento.
 
-   Resultado esperado: la misma vista previa para ese sistema; tras confirmar, la plantilla en «Plantillas aplicadas» y los parámetros que fija con «heredado de la plantilla …».
-
-5. Para quitar una plantilla, pulsar la cruz de su etiqueta en «Plantillas aplicadas».
-
-   Resultado esperado: la ventana «Quitar «…» de 1 sistema(s)» con los parámetros cuyo valor efectivo cambia, lo que la plantilla fijaba y los valores propios, que no cambian. Si algún parámetro obligatorio se queda sin valor, la ventana lo indica en «Se quedan sin valor parámetros obligatorios: …» y la confirmación exige teclear `quitar`.
-
-6. Pulsar «Quitar la plantilla».
-
-   Resultado esperado: la etiqueta desaparece y esos parámetros vuelven a heredar de otra plantilla aplicada o de la organización, salvo los que tengan valor propio.
-
-## 7. Valores propios de un sistema
-
-Dentro de cada agente, los parámetros por sistema y por plataforma se agrupan por control. Cada uno muestra su clase («por sistema» o «por plataforma»), si es obligatorio al nivel del control y el origen de su valor.
-
-1. Abrir el agente y desplegar el control.
-
-   Resultado esperado: cada parámetro con su valor efectivo y su origen.
-
-2. Pulsar «Dar valor propio» (o «Editar», si ya lo tiene), escribir el valor y pulsar «Guardar para este sistema».
-
-   Resultado esperado: el origen pasa a «valor propio de este sistema». Un valor que no es válido para el parámetro se rechaza con el motivo y no se guarda.
-
-3. Para volver a heredar, pulsar «Quitar valor propio (vuelve a heredar)», o vaciar el campo y guardar.
-
-   Resultado esperado: el origen pasa a «heredado de la plantilla …» o a «heredado de la organización».
-
-Reglas del guardado, que el editor indica antes de guardar:
-
-- Un valor vacío no se guarda como valor propio: el sistema vuelve a heredar. Por eso un sistema no puede declarar «ninguna fila» para dejar de heredar una tabla de la organización; si una máquina no debe heredar una fila, la fila se quita de la organización y se declara en las máquinas a las que sí aplica.
-- Un valor igual al que el sistema ya heredaba no se guarda como propio: sigue a su origen cuando cambie.
-- Los guardados de una misma página se hacen en orden y sobre la versión más reciente del documento: dos cambios seguidos no se pisan.
-
-Los parámetros por sistema de un control que se mide en el manager (op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07) y el alcance declarado de mp.info.6 describen máquinas: en cada sistema se declaran solo sus filas. La página enseña aparte, de solo lectura, «De la organización» con las filas de la organización, y el botón es «Declarar filas de este sistema»: el editor parte de lo que ya aporta el sistema, no de las filas de la organización. En la página del manager se enseña además «Lo que se evalúa en esta fila», la unión completa.
+Los parámetros que describen máquinas (op.exp.7 P-04 y P-07, op.cont.3 P-07, op.mon.1 P-01, op.exp.8 P-02 y op.mon.3 P-01, P-03 y P-07 en un control que se mide en el manager, y el alcance declarado de mp.info.6) se declaran en cada agente solo con sus filas: la página enseña aparte «Del valor común», de solo lectura, y el botón es «Declarar filas de este agente». En la página del manager se enseña además «Lo que se evalúa en esta fila», la unión completa.
 
 Cada guardado escribe el documento entero; el servidor guarda la versión anterior en el historial y una entrada en `auditTrail`.
 
-### 7.1 Quitar valores que no se aplican
+### 6.3 Quitar ajustes que no se aplican
 
-Un perfil puede guardar valores que no se aplican: el de un parámetro que el control ya no declara (tras una siembra con `inject-control.py`), el de un control que no está en la configuración o el de un parámetro de organización. La página del agente los lista en «Valores de este sistema que no se aplican», y la pestaña «Sistemas» en «Valores por sistema que hay que corregir».
+Un perfil puede guardar ajustes que no se aplican: el de un parámetro que el control ya no declara, el de un control que no está en la configuración o el de un parámetro común. La página del agente los lista en «Ajustes de este agente que no se aplican», y la pestaña «Agentes» en «Ajustes de agentes que hay que corregir».
 
-1. Pulsar «Quitar» junto al valor.
+1. Pulsar «Quitar» junto al ajuste.
 
-   Resultado esperado: el valor desaparece de la lista y del documento; el resto del perfil se conserva.
+   Resultado esperado: el ajuste desaparece del documento; el resto del perfil se conserva.
 
-2. Para un control entero que no está en la configuración, o para un perfil entero guardado con un nombre en lugar de un id, pulsar «Quitar» junto a él.
+2. Para un control entero que no está en la configuración, o para un perfil guardado con un nombre en lugar de un id, pulsar «Quitar» junto a él.
 
-   Resultado esperado: la ventana «Quitar …» con cada dato que se borra (nombre, otros nombres, tipo corregido, plantillas y cada valor). Un perfil entero exige teclear `quitar`.
+   Resultado esperado: la ventana «Quitar …» con cada dato que se borra (nombre, otros nombres, tipo corregido, plantillas asignadas y cada ajuste). Un perfil entero exige teclear `quitar`.
 
-3. Pulsar «Quitar».
+Lo que esta versión no conoce (una clave guardada por una versión posterior) se lista como aviso y no se quita. Una asignación a una plantilla que ya no existe se indica como error y el agente toma la plantilla de serie de su tipo.
 
-   Resultado esperado: el perfil o el control desaparecen de la lista y del documento. La versión anterior queda en el historial (apartado 12).
+### 6.4 Otros nombres de un agente
 
-Lo que esta versión no conoce (una clave de un perfil guardada por una versión posterior) se ignora y se lista en «Claves que esta versión no conoce (se ignoran)»: no es un error y no se quita.
+El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre de agente y su hostname. Si las tablas la nombran de otra forma, ese nombre se declara en su página.
 
-### 7.2 Otros nombres de una máquina
+1. Escribir los nombres en «Otros nombres de este agente», separados por comas, y pulsar «Guardar otros nombres».
 
-La migración (apartado 8) reconoce a una máquina por su id, su nombre de agente y su hostname. Si las tablas la nombran de otra forma, ese nombre se declara en su página.
+   Resultado esperado: los nombres se quedan en el campo tras guardar, y la pestaña «Agentes» deja de avisar de las filas que los usan.
 
-1. Escribir los nombres en «Otros nombres de esta máquina», separados por comas, y pulsar «Guardar otros nombres».
+## 7. Pestaña «General»
 
-   Resultado esperado: los nombres se quedan en el campo tras guardar, y la pestaña «Sistemas» deja de avisar de las filas que los usan y las ofrece en «Migrar a sistemas».
+1. Abrir ENSFácil > Configuración > General.
 
-## 8. Migración a sistemas
+   Resultado esperado: el formulario «Configuración global de evaluación» con el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3, y el resto de la configuración global; debajo, «Alcance ENS» con el modo, los grupos y los agentes, en solo lectura.
 
-Antes de la 1.2.0, lo que era de una máquina se declaraba en la organización: tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…) y listas que mezclan máquinas. La migración copia esas filas a cada máquina sin perder ninguna y sin dejar a ninguna máquina sin valor:
+2. Cambiar los niveles y pulsar «Guardar configuración global».
 
-- Las filas de las tablas con columna de sistema que nombran a un agente se **copian** a ese agente. El agente se reconoce por su id, su nombre, el hostname de `os.uname`, la parte corta de ambos (antes del primer punto) y sus otros nombres (apartado 7.2), sin distinguir mayúsculas.
-- Una fila copiada **sale** de la organización solo si con eso ninguna máquina del alcance que evalúa el control se queda sin valor: si el parámetro es opcional, o si cada una de esas máquinas termina con valor propio, de plantilla o de la unión. Si no, la fila se queda también en la organización y las máquinas sin filas propias siguen heredando la tabla de hoy.
-- Las filas `*` se quedan en la organización y se copian también al agente que recibe filas propias, porque su valor propio sustituye al de la organización.
-- Las filas que no nombran a ningún agente, o que nombran a varios, se quedan en la organización y se listan como aviso.
-- Dos filas son la misma solo si son idénticas: las mayúsculas cuentan (`Ana` y `ana` son dos cuentas).
-- No se tocan las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), las tablas por sistema sin columna de sistema (rutas, ACL, matrices de privilegios) ni las listas que mezclan plataformas: se reparten en cada agente o con una plantilla.
-- Nada se borra: un parámetro de la organización que se queda sin filas pierde la clave `value` (nunca se escribe `null`), y la versión anterior del documento queda en el historial.
-- Es idempotente: sobre un documento ya migrado no cambia nada.
+   Resultado esperado: «Configuración guardada». Si T o D no se declaran, se usa el nivel ENS. op.cont.2 y op.cont.3 solo aplican con D en ALTO.
 
-La pestaña «Sistemas» calcula la migración al cargarse, sin escribir: si hay filas que copiar, muestra «Hay valores de organización que son de un sistema concreto», el resumen (cuántas filas salen de la organización y cuántas se copian), el detalle en «Ver qué se mueve y qué se copia» y el botón «Migrar a sistemas». Los avisos de filas sin agente se muestran siempre que existan.
+El alcance se cambia con la [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
-Si el alcance ENS no tiene ninguna máquina, la migración no se calcula ni se puede ejecutar: la pestaña muestra el aviso ««Migrar a sistemas» no está disponible: el alcance ENS no tiene ninguna máquina», con el botón desactivado. Sin máquinas en el alcance no se puede comprobar que ninguna se quede sin un parámetro obligatorio. El alcance se define en initial-setup.
+## 8. Conversión de una configuración de la 1.2.0
 
-### 8.1 Migrar
+En la 1.2.0 las plantillas eran de plataforma y se aplicaban a cada agente para todos los controles a la vez. La 1.3.0 convierte ese documento al cargarlo, sin intervención y sin cambiar ningún valor:
+
+- Cada plantilla aplicada pasa a ser la plantilla asignada, de serie y con el mismo id, en cada control en que fijaba valores. «Copias con PBS» y «Copias Zimbra NE» pasan a mp.info.6.
+- Si dos plantillas aplicadas fijaban valores en el mismo control y la segunda aportaba parámetros que la primera no fija, se crea una plantilla propia «<plantilla> + <plantilla> (de la 1.2.0)» con los valores de las dos, ganando la primera, y se asigna.
+- En los controles en que el agente no tenía plantilla y la plantilla de serie de su tipo guardado fijaría valores, se asigna «Sin plantilla (valores comunes)», para que siga con el valor común como en la 1.2.0.
+- Los ajustes propios, los otros nombres y el tipo se conservan tal cual. Una plantilla de la 1.2.0 que esta versión no conoce, y que tampoco se aplicaba, se descarta y se indica.
+- La conversión es idempotente y no se escribe al cargar. La evaluación del servidor aplica la misma conversión al leer el documento, de modo que los veredictos son los mismos antes y después de guardarla.
+
+Mientras la conversión no está guardada, Configuración muestra «Configuración de la 1.2.0 convertida a plantillas por control» con el resumen.
 
 1. Copiar el documento `active` según la [instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo).
 
    Resultado esperado: `COPIA_OK`.
 
-2. Abrir ENSFácil > Configuración > Sistemas, revisar «Ver qué se mueve y qué se copia» y los avisos.
+2. Pulsar «Guardar la conversión», o guardar cualquier otro cambio de Configuración.
 
-   Resultado esperado: cada línea indica agente, control, parámetro, número de filas y si salen de la organización o se copian; cada aviso indica la fila y el nombre que no casa.
+   Resultado esperado: el aviso desaparece y la versión de la 1.2.0 queda en el historial. Con «Guardar la conversión», la entrada de `auditTrail` es «Conversión de la configuración 1.2.0: …».
 
-3. Pulsar «Migrar a sistemas».
+3. Validar el documento entero (apartado 11.2).
 
-   Resultado esperado: la ventana «Migrar a sistemas» con, por sistema, lo que se mueve y lo que se copia; «Parámetros que se quedarían sin valor en alguna máquina del alcance: ninguno»; el aviso de que los veredictos de esas máquinas pueden cambiar; el de que un plugin 1.1.0 deja de ver las filas que salen de la organización; y el de que la versión anterior queda en el historial.
+   Resultado esperado: `ESTRUCTURA VÁLIDA` y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
 
-4. Teclear `migrar` y pulsar «Migrar».
+## 9. Reparto por agentes de filas comunes
 
-   Resultado esperado: el aviso «Migración a sistemas: … La versión anterior queda en el historial.» y la desaparición del bloque de migración. Los avisos de filas sin agente siguen visibles.
+Antes de la 1.2.0, lo que era de una máquina se declaraba como valor común: tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `servidor`, `perfil`, `ambito`…). «Repartir por agentes» copia esas filas a cada agente como ajuste propio, sin perder ninguna y sin dejar a ningún agente sin valor:
+
+- Las filas de las tablas con columna de sistema que nombran a un agente se **copian** a ese agente. El agente se reconoce por su id, su nombre, el hostname de `os.uname`, la parte corta de ambos (antes del primer punto) y sus otros nombres (apartado 6.4), sin distinguir mayúsculas.
+- Una fila copiada **sale** del valor común solo si con eso ningún agente del alcance que evalúa el control se queda sin valor. Si no, la fila se queda también en el valor común.
+- Las filas `*` se quedan en el valor común y se copian también al agente que recibe filas propias, porque su ajuste propio sustituye al valor común.
+- Las filas que no nombran a ningún agente, o que nombran a varios, se quedan en el valor común y se listan como aviso.
+- Dos filas son la misma solo si son idénticas: las mayúsculas cuentan (`Ana` y `ana` son dos cuentas).
+- No se tocan las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), las tablas por sistema sin columna de sistema (rutas, ACL, matrices de privilegios) ni las listas que mezclan plataformas.
+- Nada se borra: un parámetro común que se queda sin filas pierde la clave `value` (nunca se escribe `null`). Es idempotente.
+
+La pestaña «Agentes» calcula el reparto al cargarse, sin escribir: si hay filas que copiar, muestra «Hay filas del valor común que son de un agente concreto», el resumen, el detalle en «Ver qué se mueve y qué se copia» y el botón «Repartir por agentes». Si el alcance ENS no tiene ningún agente, el botón aparece desactivado con el aviso ««Repartir por agentes» no está disponible: el alcance ENS no tiene ningún agente».
+
+### 9.1 Repartir
+
+1. Copiar el documento `active` según la [instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo).
+
+   Resultado esperado: `COPIA_OK`.
+
+2. Abrir ENSFácil > Configuración > Agentes, revisar «Ver qué se mueve y qué se copia» y los avisos.
+
+   Resultado esperado: cada línea indica agente, control, parámetro, número de filas y si salen del valor común o se copian; cada aviso indica la fila y el nombre que no casa.
+
+3. Pulsar «Repartir por agentes».
+
+   Resultado esperado: la ventana «Repartir por agentes» con, por agente, lo que se mueve y lo que se copia; «Parámetros que se quedarían sin valor en algún agente del alcance: ninguno»; y los avisos de veredictos, de la 1.1.0 y del historial.
+
+4. Teclear `repartir` y pulsar «Repartir».
+
+   Resultado esperado: el aviso «Reparto por agentes: … La versión anterior queda en el historial.» y la desaparición del bloque de reparto.
 
 5. Validar el documento entero (apartado 11.2).
 
-   Resultado esperado: `ESTRUCTURA VÁLIDA` y `VALORES POR SISTEMA VÁLIDOS.`
+   Resultado esperado: `ESTRUCTURA VÁLIDA` y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
 
-6. Para una fila que nombra una máquina del alcance con otro nombre, declarar ese nombre en la máquina (apartado 7.2) y repetir los pasos 2 a 5.
+6. Para una fila que nombra un agente del alcance con otro nombre, declarar ese nombre en el agente (apartado 6.4) y repetir los pasos 2 a 5.
 
-   Resultado esperado: el aviso de esa fila desaparece y la fila aparece en «Ver qué se mueve y qué se copia» del paso 2.
+   Resultado esperado: el aviso de esa fila desaparece y la fila aparece en «Ver qué se mueve y qué se copia».
 
-## 9. Controles del catálogo sin añadir
-
-La pestaña «Organización» lista, en «Controles del catálogo sin añadir», los controles que existen en la versión del plugin pero no están en el documento. No se evalúan hasta que se añaden.
-
-1. Pulsar «Añadir con valores por defecto» en el control, o «Añadir los N con valores por defecto».
-
-   Resultado esperado: el control aparece en «Controles configurables» con sus parámetros sin valor (salvo los `defaultValue` de su bloque), y desaparece de la lista de controles sin añadir.
-
-2. Declarar sus parámetros obligatorios.
-
-   Resultado esperado: el estado del control pasa a «Configurado» cuando están todos.
-
-El botón añade la definición del control tal cual, la misma que el bloque semilla de `config/`, igual que `inject-control.py` con un control que no estaba. No modifica los demás controles ni los valores por sistema. Para fusionar un control que ya está con una versión nueva de su bloque se sigue usando `inject-control.py` ([actualización de un entorno existente, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
-
-> [!note]
-> Mientras un control obligatorio tenga parámetros sin valor, sus evidencias quedan en `NO_EVALUABLE` con causa `CONFIGURATION`. La ausencia de información no equivale a cumplimiento.
-
-## 10. Abrir un control desde la URL
-
-La pestaña Configuración se abre en un control, un agente o un parámetro con estos parámetros de la URL de ENSFácil. El Detalle del control los usa para enlazar con la configuración del control.
+## 10. Abrir Configuración desde la URL
 
 | URL (consulta) | Se abre |
 |---|---|
-| `?tabView=configuration&configControl=op.acc.1` | «Organización», ficha de op.acc.1 |
-| `?tabView=configuration&configControl=op.acc.1&configParam=P-04` | La misma ficha, con el formulario abierto en P-04 |
-| `?tabView=configuration&configView=sistemas` | «Sistemas», lista de sistemas |
-| `?tabView=configuration&configAgent=001` | «Sistemas», página del agente 001 |
+| `?tabView=configuration&configControl=op.acc.1` | «Controles», página de op.acc.1 |
+| `?tabView=configuration&configControl=op.acc.1&configParam=P-04` | La misma página, con los ajustes comunes abiertos en P-04 |
+| `?tabView=configuration&configView=agentes` | «Agentes», lista de agentes |
+| `?tabView=configuration&configView=general` | «General» |
+| `?tabView=configuration&configAgent=001` | «Agentes», página del agente 001 |
 | `?tabView=configuration&configAgent=001&configControl=op.acc.1&configParam=P-07` | La página del agente 001 con op.acc.1 desplegado y P-07 en edición |
 
-Desde el Detalle del control, «Configurar este control» y las insignias de parámetro de cada no conformidad añaden a la URL `control` (el control del detalle), `agentId` (la máquina elegida) y `configBack=plugins`. Con una máquina elegida y un parámetro por sistema o por plataforma, se abre la página de esa máquina en «Sistemas»; con un parámetro de organización, o sin máquina, la ficha del control en «Organización». Configuración muestra entonces «Volver al detalle de op.acc.1 (001)», que vuelve al mismo control y a la misma máquina; mientras está, es la única vuelta (no aparece «Volver a controles» ni «Volver a sistemas»).
+Un enlace de la 1.2.0 con `configView=sistemas` abre «Agentes».
+
+Desde el Detalle del control, «Configurar este control» y las insignias de parámetro de cada no conformidad añaden a la URL `control` (el control del detalle), `agentId` (la máquina elegida) y `configBack=plugins`. Con una máquina elegida y un parámetro por sistema o por plataforma, se abre la página de ese agente en «Agentes»; con un parámetro común, o sin máquina, la página del control en «Controles». Configuración muestra entonces «Volver al detalle de op.acc.1 (001)», que vuelve al mismo control y a la misma máquina; mientras está, es la única vuelta (no aparece «Volver a controles» ni «Volver a agentes»).
 
 Resultado esperado: tras guardar y pulsar «Volver al detalle de …», el Detalle del control muestra el mismo control y la misma máquina, y la URL ya no lleva ningún parámetro `config*`.
 
-Si el control no está en el documento, la pestaña «Organización» lo indica y lo resalta en «Controles del catálogo sin añadir»; si no es ningún control del catálogo, lo dice. Un agente que no está en el inventario ni en la configuración se abre con un aviso. Tras guardar el parámetro que pedía la URL, el editor se cierra y la URL deja de pedirlo. La navegación dentro de Configuración actualiza la URL, de modo que el botón «atrás» del navegador vuelve a la vista anterior; al cambiar de pestaña de ENSFácil, la URL deja de llevar el control y el agente de Configuración.
+Si el control no está en el documento, la pestaña «Controles» lo indica y lo resalta en la lista; si no es ningún control del catálogo, lo dice. Un agente que no está en el inventario ni en la configuración se abre con un aviso. La navegación dentro de Configuración actualiza la URL, de modo que el botón «atrás» del navegador vuelve a la vista anterior.
 
 ## 11. Desde el servidor
 
@@ -270,17 +371,19 @@ Las herramientas de `config/` se ejecutan con el certificado de administrador de
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
 ```
 
-### 11.1 Declarar valores de un sistema con set-parameters.py
+### 11.1 Declarar la plantilla y los ajustes de un agente con set-parameters.py
 
-`set-parameters.py` admite, además de los valores de organización, una sección `agents` con los valores propios de cada máquina por su id de Wazuh:
+`set-parameters.py` admite, además de los valores comunes, una sección `agents` con, por id de agente y por control, la plantilla asignada (`template`) y los ajustes propios:
 
 ```json
 {
   "op.acc.1": { "P-04": ["admin", "test"] },
   "agents": {
     "001": {
-      "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
-      "op.exp.4": { "P-04": null }
+      "op.acc.1": { "template": "linux-ubuntu", "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
+      "op.acc.2": { "template": "custom-servidores-web" },
+      "op.exp.2": { "template": "none" },
+      "op.exp.4": { "template": null, "P-04": null }
     }
   }
 }
@@ -288,57 +391,61 @@ CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs
 
 Reglas:
 
-- La clave es el id del agente; `7` se normaliza a `007`. Un nombre se rechaza con `"<nombre>" no es un id de agente; usar el id …` y, si el documento ya conoce ese nombre (por el nombre o los otros nombres de un perfil), con su id.
-- Solo admiten valor por agente los parámetros por sistema y por plataforma; uno de organización se rechaza.
-- Vacío es sin valor: `null`, `""` y `[]` quitan el valor propio del agente, que vuelve a heredar, y en la organización quitan la clave `value`. En el documento nunca se escribe `null`.
-- Quitar se admite siempre, también para un valor que no se aplica: un parámetro que el control ya no declara, uno de organización o un control que no está.
-- Como en la organización, el valor de cada parámetro nombrado se sustituye entero.
+- `template` es el id de una plantilla de serie del control (`linux-ubuntu`, `zimbra-ldap`, `windows-server`, `manager-wazuh`, `pbs-backup` o `zimbra-ne-backup`, las que tenga ese control) o de una plantilla propia del mismo control; `none` deja el agente sin plantilla (valores comunes); `null` quita la asignación y vuelve la plantilla de serie de su tipo. Sin la clave `template`, la asignación no cambia.
+- Un documento de la 1.2.0 no admite `template`: se guarda antes la conversión desde Configuración (apartado 8).
+- La clave del agente es su id; `7` se normaliza a `007`. Un nombre se rechaza y, si el documento ya lo conoce, se indica el id.
+- Solo admiten ajuste propio los parámetros por sistema y por plataforma; uno común se rechaza.
+- Vacío es sin valor: `null`, `""` y `[]` quitan el ajuste propio, que vuelve a heredar, y en los valores comunes quitan la clave `value`. En el documento nunca se escribe `null`.
+- Quitar se admite siempre, también un ajuste que no se aplica.
+- El valor de cada parámetro nombrado se sustituye entero.
 - La herramienta lee la clasificación de `common/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
 
 ```bash
 cd /opt/ensfacil/repo/config
-sudo env $CERT python3 set-parameters.py /ruta/sistemas.json            # plan
-sudo env $CERT python3 set-parameters.py /ruta/sistemas.json --apply    # escribe
+sudo env $CERT python3 set-parameters.py /ruta/agentes.json            # plan
+sudo env $CERT python3 set-parameters.py /ruta/agentes.json --apply    # escribe
 ```
 
-Resultado esperado: sin `--apply`, una línea por cambio bajo `── agente 001` y `DRY-RUN: nada escrito`; con `--apply`, `Versión anterior guardada en: historial de wazuh-ens-configuration (…)` y `<n> cambio(s) escritos en wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro de organización, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
+Resultado esperado: sin `--apply`, una línea por cambio bajo `── agente 001` (`op.acc.1 template (la de serie de su tipo)  ->  linux-ubuntu` para una asignación) y `DRY-RUN: nada escrito`; con `--apply`, `Versión anterior guardada en: historial de wazuh-ens-configuration (…)` y `<n> cambio(s) escritos en wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro común, una plantilla que el control no tiene, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
 
 > [!note]
 > En Docker ([Wazuh en Docker, apartado 10](06-wazuh-in-docker.md#10-declarar-la-política-niveles-t-y-d)), la sección `agents` necesita el repositorio completo montado: `-v <repo>:/repo:ro -w /repo/config` en lugar de `-v <repo>/config:/cfg:ro -w /cfg`.
 
+Las plantillas propias se crean y se editan en la pantalla (apartado 5.3).
+
 ### 11.2 Validar el documento
 
-`config/validate-configuration.ts` comprueba también los valores por sistema ([instalación desde cero, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero)):
+`config/validate-configuration.ts` comprueba también las plantillas propias y los ajustes de los agentes ([instalación desde cero, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero)):
 
 ```bash
 cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, una línea por agente con su tipo, sus plantillas y sus valores propios, y `VALORES POR SISTEMA VÁLIDOS.` Sin valores por sistema, la línea es `valores por sistema: ninguno (todo se evalúa con el valor de la organización)`.
+Resultado esperado: `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, la línea `plantillas propias: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Sin ajustes de agentes, la línea es `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. Con un documento de la 1.2.0, la línea `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
 
 | Mensaje | Significado | Actuación |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` | Un valor `null` o un objeto en un agente, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el agente indicado |
-| `VALORES POR SISTEMA INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, o un parámetro de organización: el valor se ignora | Quitarlo con «Quitar» (apartado 7.1) o con `set-parameters.py` y `null` |
-| `VALORES POR SISTEMA INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro: esa máquina se evalúa con una configuración inválida | Corregir el valor en la página del agente o con `set-parameters.py` |
-| `VALORES POR SISTEMA INVÁLIDOS` con una plantilla | Una plantilla que no existe en esta versión o dos que no se combinan | Quitar la plantilla en la página del agente |
-| `avisos (…): claves que esta versión no conoce y que ignora` | Claves de una versión posterior del plugin | Ninguna: no cambian la salida |
+| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, o un parámetro común: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «la plantilla asignada «…» no existe» | Una asignación a una plantilla borrada o de otra versión: el agente toma la de serie de su tipo | Asignar otra plantilla (apartados 5.4 o 6.2) |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con `plantilla <id>` | Una plantilla propia con un id reservado o repetido, de un control que no está o con un valor inválido | Corregir o borrar la plantilla (apartado 5.3) |
+| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos o plantillas de la 1.2.0 sin convertir | Ninguna: no cambian la salida |
 
 ### 11.3 Sembrar controles
 
-`inject-control.py` conserva `configuration.agents` en cada siembra, también con `--sustituir`. Si el bloque ya no declara un parámetro y algún agente tenía valor propio para él, el plan muestra, al fusionar y al sustituir, `AVISO: valores por agente de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 7.1. Al sembrar un control nuevo no se crean valores por sistema.
+`inject-control.py` conserva `configuration.agents` y `configuration.templates` en cada siembra, también con `--sustituir`. Si el bloque ya no declara un parámetro y un agente o una plantilla propia tenía valor para él, el plan muestra `AVISO: valores de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 6.3 o editando la plantilla. Al sembrar un control nuevo no se crean plantillas, asignaciones ni ajustes de agentes.
 
 ## 12. Compatibilidad y vuelta atrás
 
-- Los valores por sistema van en una clave nueva de primer nivel, `configuration.agents`. `controls[].parameters[].value` sigue siendo el valor de la organización, que es lo que leen un plugin 1.1.0 y los scripts.
-- Un plugin 1.1.0 carga un documento de la 1.2.0: su validador no comprueba claves desconocidas, ignora `agents` y evalúa con los valores de la organización. Un guardado desde un plugin 1.1.0 conserva `agents`, porque reenvía el documento entero.
-- Del mismo modo, la 1.2.0 ignora, con un aviso, las claves que una versión posterior guarde en un perfil: volver a la 1.2.0 desde una versión posterior no impide cargar el entorno.
-- El servidor de la 1.2.0 rechaza con el error 400 un guardado cuyo `agents` no tiene la forma correcta o guarda un perfil con una clave que no es un id, y conserva el `agents` existente cuando el cuerpo no trae la clave.
-- **Cada versión del documento queda en el historial antes de sustituirse**, con independencia de quién escribe: el servidor la añade al historial si no es ya su última entrada (por ejemplo, porque la escribió `inject-control.py` o `set-parameters.py`), también en la migración; y las dos herramientas guardan la versión que sustituyen antes de escribir, en el historial con el mismo formato que el plugin o, si el índice no lo admite, en un fichero local `active-antes-<fecha>.json` del directorio desde el que se ejecutan. Las dos indican dónde quedó con `Versión anterior guardada en: …`.
-- Para volver a la 1.1.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Tras la migración, las filas que salieron de la organización ya no están en ella y una 1.1.0 no las ve; las copiadas siguen.
+- Las plantillas propias van en la clave de primer nivel `configuration.templates`, y la asignación de cada agente en `configuration.agents.<id>.controls.<control>.templateId`, junto a sus ajustes propios en `parameters`. `controls[].parameters[].value` sigue siendo el valor común, que es lo que leen un plugin 1.1.0, el chatbot y los scripts.
+- Un plugin 1.2.0 carga un documento de la 1.3.0: su validador no comprueba claves desconocidas, ignora `templates` y avisa de `templateId` como clave que no conoce. Evalúa con los ajustes propios y con el valor común, sin las plantillas asignadas.
+- El servidor de la 1.3.0 rechaza con el error 400 un guardado cuyo `agents` o `templates` no tiene la forma correcta, y conserva los existentes cuando el cuerpo no trae la clave.
+- **Cada versión del documento queda en el historial antes de sustituirse**, con independencia de quién escribe: el servidor la añade al historial si no es ya su última entrada, también en la conversión de la 1.2.0 y en el reparto por agentes; y `inject-control.py` y `set-parameters.py` guardan la versión que sustituyen antes de escribir, en el historial o, si el índice no lo admite, en un fichero local `active-antes-<fecha>.json`. Las dos indican dónde quedó con `Versión anterior guardada en: …`.
+- Para volver a la 1.2.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Para que la 1.2.0 evalúe con sus plantillas, se restaura la versión del documento anterior a la conversión. Para volver a la 1.1.0 después de «Repartir por agentes», se restaura la versión anterior al reparto.
 
-Para recuperar en la 1.1.0 la configuración anterior a la migración, con la copia del apartado 8.1, paso 1, restaurarla según la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens). Sin esa copia, se usa la versión del historial:
+Para restaurar una versión anterior, con la copia del apartado 8 o 9.1, paso 1, se sigue la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens). Sin esa copia, se usa la versión del historial:
 
 1. Listar las últimas versiones del historial:
 
@@ -347,12 +454,12 @@ Para recuperar en la 1.1.0 la configuración anterior a la migración, con la co
    sudo curl -s $C "https://127.0.0.1:9200/wazuh-ens-configuration/_search?q=documentType:CONFIGURATION_HISTORY&sort=createdAt:desc&size=10&filter_path=hits.hits._id,hits.hits._source.createdAt,hits.hits._source.createdBy,hits.hits._source.configuration.changeReason&pretty"
    ```
 
-   Resultado esperado: las versiones de la más reciente a la más antigua, con su `_id`. La anterior a la migración es la que va justo después de la que tiene `changeReason` «Migración a sistemas: …».
+   Resultado esperado: las versiones de la más reciente a la más antigua, con su `_id`. La anterior a la conversión es la que va justo después del primer guardado desde la 1.3.0 («Conversión de la configuración 1.2.0: …» si se guardó con «Guardar la conversión»); la anterior al reparto, la que va justo después de «Reparto por agentes: …».
 
 2. Copiarla como documento activo, con el `_id` del paso 1:
 
    ```bash
-   ID=<_id de la versión anterior a la migración>
+   ID=<_id de la versión que se restaura>
    sudo curl -s $C "https://127.0.0.1:9200/wazuh-ens-configuration/_doc/$ID" -o /opt/ensfacil/artifacts/historial.json
    sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); s=d['_source']; s['documentType']='ACTIVE_CONFIGURATION'; json.dump({'_source': s, 'found': True}, open(sys.argv[2],'w'), ensure_ascii=False)" \
      /opt/ensfacil/artifacts/historial.json /opt/ensfacil/artifacts/active-desde-historial.json

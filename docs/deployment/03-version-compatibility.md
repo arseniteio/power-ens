@@ -101,7 +101,7 @@ En un entorno de pruebas:
 
    Resultado esperado: `coherencia OK` y ninguna línea `FAIL`.
 
-6. Recorrer las pantallas con datos reales: Panel, Vista general, Configuración (pestañas «Organización» y «Sistemas»; guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
+6. Recorrer las pantallas con datos reales: Panel, Vista general, Configuración (pestañas «Controles», «Agentes» y «General»; guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
 
 ## 6. Criterios para declarar una versión compatible
 

@@ -102,7 +102,7 @@ In a test environment:
 
    Expected result: `coherencia OK` and no `FAIL` line.
 
-6. Go through the screens with real data: Panel, Vista general, Configuración («Organización» and «Sistemas» tabs; save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
+6. Go through the screens with real data: Panel, Vista general, Configuración («Controles», «Agentes» and «General» tabs; save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
 
 ## 6. Criteria for declaring a version compatible
 

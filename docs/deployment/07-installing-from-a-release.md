@@ -436,10 +436,10 @@ Comprobar después como en el apartado 10: la lista de plugins debe indicar la
 versión anterior.
 
 Si la versión retirada había sembrado controles que la anterior no conoce,
-restaurar también la copia de la configuración. Para volver de la 1.2.0 a la
-1.1.0 después de «Migrar a sistemas», restaurar la versión del documento
-anterior a la migración
-([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)). El procedimiento completo está
+restaurar también la copia de la configuración. Para volver de la 1.3.0 a la
+1.2.0 con sus plantillas, o a la 1.1.0 después de «Repartir por agentes»,
+restaurar la versión del documento anterior
+([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)). El procedimiento completo está
 en el [diagnóstico y rollback, apartado 4](04-troubleshooting-and-rollback.md#4-reinstalar-la-versión-anterior-de-ensfácil).
 En Docker:
 [Wazuh en Docker, apartado 12.2](06-wazuh-in-docker.md#122-volver-a-la-versión-anterior).

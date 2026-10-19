@@ -381,11 +381,12 @@ correcto, repetir el bucle con `python3 inject-control.py "$c" --apply`.
 Resultado esperado: `== APLICADO ==` en cada control.
 
 La siembra fusiona: conserva el valor de cada parámetro que ya tenía uno y añade
-los que faltan. Conserva también los valores por sistema (`configuration.agents`).
+los que faltan. Conserva también los ajustes de los agentes (`configuration.agents`) y
+las plantillas propias (`configuration.templates`).
 
-Con ENSFácil 1.2.0 o posterior, un control que el documento no tiene se puede
-añadir también desde ENSFácil > Configuración > Organización, con «Añadir con
-valores por defecto» ([Configuración por sistema y plantillas, apartado 9](09-configuration-by-system.md#9-controles-del-catálogo-sin-añadir)).
+Con ENSFácil 1.3.0 o posterior, un control que el documento no tiene se puede
+añadir también desde ENSFácil > Configuración > Controles, con «Añadir con
+valores por defecto» ([Configuración por controles y plantillas, apartado 5.1](09-configuration-by-system.md#51-añadir-un-control-del-catálogo)).
 
 > [!note]
 > Las evidencias que dependen de parámetros obligatorios sin valor quedan en
@@ -408,8 +409,8 @@ docker run --rm -v <repo>:/w -w /w node:22-alpine \
 ```
 
 Resultado esperado: `controles (23): mp.info.6 op.acc.1 …`,
-`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` y, si hay valores por
-sistema, una línea por agente y `VALORES POR SISTEMA VÁLIDOS.`
+`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` y, con ajustes de
+agentes, una línea por agente; al final, `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
 
 Un `scope` sin las listas `agentIds` y `groupIds` se rechaza
 (`configuration.scope.agentIds must be a string array`). La pantalla de
@@ -456,10 +457,10 @@ Resultado esperado: los cambios por parámetro y `DRY-RUN: nada escrito`; con
 
 El formato del fichero y sus reglas están en la
 [instalación desde cero, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política).
-Para la sección `agents` (valores propios de una máquina), montar el repositorio
+Para la sección `agents` (plantilla y ajustes propios de un agente), montar el repositorio
 completo, `-v <repo>:/repo:ro -w /repo/config`, en lugar de `<repo>/config`: la
 herramienta lee la clasificación de los parámetros de `public/`
-([Configuración por sistema y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-valores-de-un-sistema-con-set-parameterspy)).
+([Configuración por controles y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-la-plantilla-y-los-ajustes-de-un-agente-con-set-parameterspy)).
 Después de declarar valores, repetir la copia (apartado 7) antes y la
 validación (apartado 9) después.
 

@@ -37,9 +37,9 @@ and the links to every runbook and its guides are in the
    runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
    following the `01-installation` guide **of each runbook**.
 3. **Configuration in the dashboard.** In ENSFácil > Configuration, each
-   control's common policy («Organización» tab) and what belongs to each
-   machine and its platform, with templates («Sistemas» tab; see
-   [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md)),
+   control's common settings, templates and assignment («Controles» tab) and
+   what belongs to each agent («Agentes» tab; see
+   [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md)),
    and on the machines or the manager, the
    [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
    following the `02-compliance` guide **of each runbook** (it is not in this
@@ -232,7 +232,7 @@ indexer, not in the plugin.
 | 6 | Install, update or remove ENSFácil with the official Wazuh Docker images | [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md) |
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
-| 9 | Declare each system's configuration, apply templates or migrate an earlier configuration | [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md) |
+| 9 | Declare common settings, templates and their assignment to agents, or convert an earlier configuration | [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md) |
 
 > [!note]
 > A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.
@@ -290,14 +290,14 @@ general tab shows every control on every machine at once
 ### Traceability dimension level
 
 op.exp.8 applies by the level of the Traceability (T) dimension, not by the
-system category. Configuration > Global configuration has an optional
+system category. Configuration > General has an optional
 **Traceability level (T)** field: if left empty, op.exp.8 is evaluated with the
 global ENS level, like every other control. No other control reads it.
 
 ### Availability dimension level
 
 op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension,
-and only with D at ALTO. Configuration > Global configuration has an optional
+and only with D at ALTO. Configuration > General has an optional
 **Availability level (D)** field: if left empty, both are evaluated with the
 global ENS level. No other control reads it.
 

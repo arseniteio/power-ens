@@ -272,16 +272,15 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Resultado esperado: `{"acknowledged":true}` y, en la segunda orden, `green open wazuh-ens-configuration 0` (con varios nodos, `green` con `1` réplica). Si sale `yellow`, esperar unos segundos y repetir la segunda orden hasta que salga `green`. En un entorno instalado desde cero con la 1.1.0 o posterior, este paso no es necesario.
 
-Desde la 1.2.0, la pantalla de Configuración tiene dos niveles, «Organización» y «Sistemas». Al actualizar desde la 1.1.0:
+Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles», «Agentes» y «General». Al actualizar:
 
-- los controles que el documento todavía no tiene aparecen en «Organización», en «Controles del catálogo sin añadir», y se añaden con «Añadir con valores por defecto», con la misma semántica que `inject-control.py` para un control nuevo;
-- la pestaña «Sistemas» propone repartir a cada agente las filas de las tablas con columna de sistema que lo nombran («Migrar a sistemas»), sin borrar nada; antes de migrar, guardar una copia del documento (apartado 5).
+- desde la 1.2.0, el documento se convierte al cargarlo: las plantillas aplicadas a cada agente pasan a ser la plantilla asignada en cada control, sin cambiar ningún valor, y la conversión se escribe con el próximo guardado o con «Guardar la conversión» ([Configuración por controles y plantillas, apartado 8](09-configuration-by-system.md#8-conversión-de-una-configuración-de-la-120)); antes, guardar una copia del documento (apartado 5);
+- los controles que el documento todavía no tiene aparecen en «Controles» como «Sin añadir» y se añaden con «Añadir con valores por defecto», con la misma semántica que `inject-control.py` para un control nuevo;
+- desde la 1.1.0, la pestaña «Agentes» propone copiar a cada agente las filas de las tablas con columna de sistema que lo nombran («Repartir por agentes»), sin borrar nada ([Configuración por controles y plantillas, apartado 9](09-configuration-by-system.md#9-reparto-por-agentes-de-filas-comunes)); antes de repartir, guardar una copia del documento (apartado 5).
 
-El procedimiento está en [Configuración por sistema y plantillas](09-configuration-by-system.md#8-migración-a-sistemas).
+Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian porque son los de la ventana completa: anotar antes el estado del panel permite explicar las diferencias. La primera carga de cada usuario responde por partes («Calculando la evaluación») hasta tener todos los controles. Para volver a una versión anterior después de la conversión o de «Repartir por agentes», restaurar la versión del documento anterior ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
-Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian porque son los de la ventana completa: anotar antes el estado del panel permite explicar las diferencias. La primera carga de cada usuario responde por partes («Calculando la evaluación») hasta tener todos los controles. Para volver a la 1.1.0 después de «Migrar a sistemas», restaurar la versión del documento anterior a la migración ([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
-
-Revisar en Configuración > Configuración global los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+Revisar en Configuración > General los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
 
 ## 9. Agentes y comprobación final
 

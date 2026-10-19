@@ -629,14 +629,14 @@ cd /opt/ensfacil/repo
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, with per-system values, `VALORES POR SISTEMA VÁLIDOS.` ([Configuration by system and templates, section 11.2](09-configuration-by-system.en.md#112-validate-the-document)). If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
+Expected result: `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` ([Configuration by controls and templates, section 11.2](09-configuration-by-system.en.md#112-validate-the-document)). If the manager has no Node.js with `npx` or no Internet access, copy `active-now.json` to the root of a clone of the plugin repository on another machine and run the same command there or, with Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. The validator imports the plugin engine: it needs the whole repository, not only `config/`.
 
 > [!warning]
 > If the validation fails, restore the copy from section 14.2 before anyone opens the dashboard, and fix the reported parameter.
 
 ### 14.5 Declare the policy
 
-Parameter values are decisions of the person in charge and are declared in ENSFácil > Configuration, at two levels: on the «Organización» tab, each control's common policy; on the «Sistemas» tab, what belongs to each machine in scope and to its platform, with templates for Linux Ubuntu, Zimbra LDAP server, Windows Server and the manager. The complete procedure, with system type detection, templates, value inheritance and the migration of an earlier configuration, is in [Configuration by system and templates](09-configuration-by-system.en.md). Configuration > Global configuration also holds the ENS level, the **Traceability level (T)**, used only by op.exp.8, and the **Availability level (D)**, used by op.cont.2 and op.cont.3. If T or D is not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+Parameter values are decisions of the person in charge and are declared in ENSFácil > Configuration: on the «Controles» tab, each control's common settings, its templates (built-in for Linux, Servidor LDAP, Windows and Manager Wazuh, and custom ones) and the template assigned to each agent; on the «Agentes» tab, what belongs to each machine in scope. The complete procedure, with system type detection, templates, the value applied to each agent and the conversion of a 1.2.0 configuration, is in [Configuration by controls and templates](09-configuration-by-system.en.md). Configuration > General also holds the ENS level, the **Traceability level (T)**, used only by op.exp.8, and the **Availability level (D)**, used by op.cont.2 and op.cont.3. If T or D is not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 To declare values from the server (reproducible environments, or when the policy is already decided in writing), use `config/set-parameters.py` with a JSON file:
 
@@ -660,7 +660,7 @@ sudo env $CERT python3 set-parameters.py /path/policy.json --apply    # write
 > [!note]
 > An empty parameter is the **absent** `value` key, never `null`. To empty a parameter, do it from the Configuration screen.
 
-A machine's own values are declared with the `agents` section of the same file: [Configuration by system and templates, section 11.1](09-configuration-by-system.en.md#111-declare-a-systems-values-with-set-parameterspy).
+An agent's template and own settings are declared with the `agents` section of the same file: [Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy).
 
 After declaring values, repeat the validation of section 14.4.
 
