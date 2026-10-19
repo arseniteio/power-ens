@@ -41,7 +41,7 @@
 // Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
 // ciclo del TDZ de Settings.
 // El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -1179,17 +1179,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     const responsables = propias.filter(p => p.medida.estado === estado);
 
     decisions.push(
-      conPartes(decide(
+      withReasonParts(decide(
         requisito,
         estado,
         responsables.map(p => p.id),
         parametros,
         tipo,
         requisito,
-        motivoCompuesto(propias),
+        compositeReason(propias),
         evidencias.map(id => `${id} CUMPLE`).join(' y '),
         causaComun(responsables.map(p => p.medida))
-      ), partesDe(propias))
+      ), reasonPartsOf(propias))
     );
 
     // Y una por evidencia, con SU estado, para que la tabla de evidencias diga

@@ -61,7 +61,7 @@
 //
 // Invariantes, las de `evidence/judgment.ts` y del kit:
 //   - el recolector emite instantes y recuentos, no edades: la antigüedad de
-//     un registro se mide en el instante de la observación (`momento`), y la
+//     un registro se mide en el instante de la observación (`eventTime`), y la
 //     de un documento contra `context.now`;
 //   - sin hecho o sin parámetro, NO_EVALUABLE con motivo y causa; nunca un
 //     CUMPLE por ausencia;
@@ -76,7 +76,7 @@
 // Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
 // ciclo del TDZ de Settings.
 // El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type { ENSReasonPart } from '../types';
 import type {
   ENSPolicyContext,
@@ -88,41 +88,41 @@ import type {
 import type { ENSNormalizedEvent } from '../../data-source/types';
 // Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
-  HORA,
-  DIA,
-  cumple,
-  noCumple,
-  sinMedir,
-  noAplica,
-  causaComun,
-  peor,
-  combina,
-  campo,
-  numero,
-  instante,
-  momento,
-  lista,
-  horas,
+  HOUR_MS,
+  DAY_MS,
+  compliant,
+  nonCompliant,
+  notMeasured,
+  notApplicable,
+  commonGapCause,
+  worstStatus,
+  combineMeasurements,
+  factField,
+  parseNumber,
+  parseInstant,
+  eventTime,
+  formatList,
+  formatHours,
   iso,
-  sinTildes,
-  vacio,
-  iguales,
-  parametro,
-  etiqueta,
-  filas,
-  escalar,
-  faltaParametro,
-  lectorDeHechos,
-  decisorDe,
+  stripAccents,
+  isEmptyField,
+  equalsIgnoreCase,
+  findParameter,
+  parameterDisplayName,
+  tableParameterRows,
+  positiveScalar,
+  missingParameter,
+  createFactReader,
+  decisionBuilderFor,
 } from './policy-kit';
-import type { ENSTipoDeRegla, Medida } from './policy-kit';
+import type { ENSDecisionRuleType, Measurement } from './policy-kit';
 
 const CONTROL = 'op.nub.1';
 const POLICY = 'policy.op.nub.1';
 
 // Los hechos de op.nub.1, con la frescura de los hechos de estado (26 h): el
 // recolector del manager pasa cada 6 h y reemite el estado entero.
-const { validos, estadoVigente, degradacion, sinHechos, conDegradacion } = lectorDeHechos(CONTROL, {
+const { validos, estadoVigente, degradacion, sinHechos, conDegradacion } = createFactReader(CONTROL, {
   recolector: 'el recolector de op.nub.1 del manager',
 });
 
@@ -132,12 +132,12 @@ const { validos, estadoVigente, degradacion, sinHechos, conDegradacion } = lecto
 // se apoya en ella. 13 h toleran dos pasadas de 6 h perdidas.
 const FRESCURA_INGESTA_HORAS = 13;
 
-const ingestaLector = lectorDeHechos(CONTROL, {
+const ingestaLector = createFactReader(CONTROL, {
   recolector: 'el recolector de op.nub.1 del manager',
   frescuraHoras: FRESCURA_INGESTA_HORAS,
 });
 
-const decide = decisorDe(POLICY);
+const decide = decisionBuilderFor(POLICY);
 
 // Un hecho del futuro no acredita nada; tampoco un documento fechado en el
 // futuro. Misma tolerancia de reloj que el kit.
@@ -162,23 +162,23 @@ const POSICIONES: Posicion[] = ['prestador', 'usuario', 'ambos', 'ninguno'];
 
 const posicionDe = (
   context: ENSPolicyContext
-): { posicion?: Posicion; medida?: Medida } => {
-  const valor = parametro(context, 'P-01')?.value;
+): { posicion?: Posicion; medida?: Measurement } => {
+  const valor = findParameter(context, 'P-01')?.value;
   const texto = valor === undefined || valor === null || Array.isArray(valor) ? '' : String(valor).trim();
 
   if (!texto) {
     return {
-      medida: faltaParametro(context, 'P-01', 'qué requisitos son exigibles: si el sistema presta servicios en la nube, si los utiliza de terceros, ambas cosas o ninguna'),
+      medida: missingParameter(context, 'P-01', 'qué requisitos son exigibles: si el sistema presta servicios en la nube, si los utiliza de terceros, ambas cosas o ninguna'),
     };
   }
 
-  const posicion = POSICIONES.find(p => p === sinTildes(texto));
+  const posicion = POSICIONES.find(p => p === stripAccents(texto));
 
   return posicion
     ? { posicion }
     : {
-        medida: sinMedir(
-          `${etiqueta(context, 'P-01')} dice «${texto}», que no es ninguna de sus opciones (${POSICIONES.join(', ')}): no se puede saber qué requisitos son exigibles.`,
+        medida: notMeasured(
+          `${parameterDisplayName(context, 'P-01')} dice «${texto}», que no es ninguna de sus opciones (${POSICIONES.join(', ')}): no se puede saber qué requisitos son exigibles.`,
           'CONFIGURATION'
         ),
       };
@@ -195,11 +195,11 @@ interface Inventario {
   utilizados: Record<string, string>[];
   prestados: Record<string, string>[];
   // Filas que no se pueden clasificar: se dicen, nombrando la fila.
-  errores: Medida[];
+  errores: Measurement[];
 }
 
 const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario | undefined => {
-  const todas = filas(context, 'P-02');
+  const todas = tableParameterRows(context, 'P-02');
 
   if (!todas) {
     return undefined;
@@ -208,7 +208,7 @@ const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario |
   const salida: Inventario = { utilizados: [], prestados: [], errores: [] };
 
   todas.forEach(fila => {
-    const uso = sinTildes(fila.uso || '');
+    const uso = stripAccents(fila.uso || '');
     const nombre = fila.servicio || '(sin nombre)';
 
     if (!uso) {
@@ -218,7 +218,7 @@ const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario |
         salida.prestados.push(fila);
       } else {
         salida.errores.push(
-          sinMedir(`P-02, servicio «${nombre}»: con P-01 = ambos hay que decir en la columna «uso» si se utiliza de un tercero o se presta.`, 'CONFIGURATION')
+          notMeasured(`P-02, servicio «${nombre}»: con P-01 = ambos hay que decir en la columna «uso» si se utiliza de un tercero o se presta.`, 'CONFIGURATION')
         );
       }
 
@@ -227,7 +227,7 @@ const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario |
 
     if (uso !== 'utilizado' && uso !== 'prestado') {
       salida.errores.push(
-        sinMedir(`P-02, servicio «${nombre}»: la columna «uso» dice «${fila.uso}», que no es «utilizado» ni «prestado».`, 'CONFIGURATION')
+        notMeasured(`P-02, servicio «${nombre}»: la columna «uso» dice «${fila.uso}», que no es «utilizado» ni «prestado».`, 'CONFIGURATION')
       );
 
       return;
@@ -235,7 +235,7 @@ const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario |
 
     if ((uso === 'prestado' && posicion === 'usuario') || (uso === 'utilizado' && posicion === 'prestador')) {
       salida.errores.push(
-        sinMedir(`P-02, servicio «${nombre}»: se declara ${uso} y P-01 dice «${posicion}». Corrige una de las dos.`, 'CONFIGURATION')
+        notMeasured(`P-02, servicio «${nombre}»: se declara ${uso} y P-01 dice «${posicion}». Corrige una de las dos.`, 'CONFIGURATION')
       );
 
       return;
@@ -248,7 +248,7 @@ const inventario = (context: ENSPolicyContext, posicion: Posicion): Inventario |
 };
 
 const deServicio = (tabla: Record<string, string>[] | undefined, servicio: string): Record<string, string>[] =>
-  (tabla || []).filter(f => iguales(f.servicio || '', servicio));
+  (tabla || []).filter(f => equalsIgnoreCase(f.servicio || '', servicio));
 
 // --- fechas de los documentos ----------------------------------------------
 
@@ -271,7 +271,7 @@ const fecha = (texto: string): number | undefined => {
 const dia10 = (t: number): string => iso(t).slice(0, 10);
 
 // Días que quedan hasta el final del día de vigencia (negativo si ya venció).
-const diasHasta = (fin: number, ahora: number): number => Math.floor((fin + DIA - ahora) / DIA);
+const diasHasta = (fin: number, ahora: number): number => Math.floor((fin + DAY_MS - ahora) / DAY_MS);
 
 // --- la categoría de una conformidad ENS ---------------------------------------
 
@@ -286,7 +286,7 @@ type Conformidad = { tipo: 'ens'; categoria: number } | { tipo: 'guia' } | { tip
 // MEDIA. Solo un texto sin «ENS» se lee como una guía CCN-STIC. Con dos
 // categorías en el texto, la más baja.
 const conformidadDe = (texto: string): Conformidad => {
-  const t = sinTildes(texto || '');
+  const t = stripAccents(texto || '');
 
   if (/\bens\b/.test(t)) {
     const categorias = (t.match(/\b(basica|media|alta)\b/g) || []).map(c => CATEGORIA[c]);
@@ -312,28 +312,28 @@ const conformidadDelServicio = (
   nivel: number,
   vigencias: string[],
   // Cada conformidad juzgada, para el campo de vigencias del informe.
-  registro: Medida[] = []
-): Medida => {
+  registro: Measurement[] = []
+): Measurement => {
   const suyas = deServicio(p03, nombre);
 
   if (!suyas.length) {
-    const falta = noCumple('sin conformidad con el ENS ni con una guía CCN-STIC en P-03');
+    const falta = nonCompliant('sin conformidad con el ENS ni con una guía CCN-STIC en P-03');
 
     registro.push({ ...falta, motivo: `«${nombre}»: ${falta.motivo}` });
 
     return falta;
   }
 
-  const juicios = suyas.map((fila): Medida => {
+  const juicios = suyas.map((fila): Measurement => {
     const fin = fecha(fila.vigencia);
     const tipo = conformidadDe(fila.conformidad);
 
     if (fin === undefined) {
-      return sinMedir(`P-03, fila de «${nombre}»: la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD`, 'CONFIGURATION');
+      return notMeasured(`P-03, fila de «${nombre}»: la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD`, 'CONFIGURATION');
     }
 
     if (tipo.tipo === 'desconocida' || tipo.tipo === 'ens-sin-categoria') {
-      return sinMedir(
+      return notMeasured(
         `P-03, fila de «${nombre}»: la conformidad «${fila.conformidad || ''}» no dice ${tipo.tipo === 'ens-sin-categoria' ? 'la categoría (ENS BÁSICA, ENS MEDIA o ENS ALTA)' : 'si es ENS <categoría> o una guía CCN-STIC'}`,
         'CONFIGURATION'
       );
@@ -344,17 +344,17 @@ const conformidadDelServicio = (
     vigencias.push(`${nombre}: conformidad ${fila.conformidad} hasta ${dia10(fin)} (${quedan >= 0 ? `quedan ${quedan} días` : `vencida hace ${-quedan} días`})`);
 
     if (quedan < 0) {
-      return noCumple(`conformidad ${fila.conformidad} vencida el ${dia10(fin)}`);
+      return nonCompliant(`conformidad ${fila.conformidad} vencida el ${dia10(fin)}`);
     }
 
     if (tipo.tipo === 'ens' && tipo.categoria < nivel) {
-      return noCumple(`conformidad ENS ${NOMBRE_CATEGORIA[tipo.categoria]}, inferior a la categoría ${NOMBRE_CATEGORIA[nivel]} del sistema`);
+      return nonCompliant(`conformidad ENS ${NOMBRE_CATEGORIA[tipo.categoria]}, inferior a la categoría ${NOMBRE_CATEGORIA[nivel]} del sistema`);
     }
 
-    return cumple(`conformidad ${fila.conformidad} hasta ${dia10(fin)}${fila.referencia ? ` (${fila.referencia})` : ''}`);
+    return compliant(`conformidad ${fila.conformidad} hasta ${dia10(fin)}${fila.referencia ? ` (${fila.referencia})` : ''}`);
   });
 
-  const medida = juicios.find(j => j.estado === 'CUMPLE') || combina(juicios);
+  const medida = juicios.find(j => j.estado === 'CUMPLE') || combineMeasurements(juicios);
 
   registro.push({ ...medida, motivo: `«${nombre}»: ${medida.motivo}` });
 
@@ -370,13 +370,13 @@ const prestador = (
   context: ENSPolicyContext,
   ahora: number,
   prestados: Record<string, string>[],
-  conformidades: Medida[] = []
+  conformidades: Measurement[] = []
 ): Expediente => {
-  const p03 = filas(context, 'P-03');
+  const p03 = tableParameterRows(context, 'P-03');
   const vigencias: string[] = [];
 
   if (!p03) {
-    const falta = faltaParametro(context, 'P-03', `la conformidad de los servicios prestados (${lista(prestados.map(s => s.servicio))}) con las medidas del modelo según las guías CCN-STIC`);
+    const falta = missingParameter(context, 'P-03', `la conformidad de los servicios prestados (${formatList(prestados.map(s => s.servicio))}) con las medidas del modelo según las guías CCN-STIC`);
 
     // Para el campo de vigencias del informe: hay servicios y no hay P-03, así
     // que las conformidades quedan sin evaluar, no fuera del alcance.
@@ -391,7 +391,7 @@ const prestador = (
 
     return { ...m, motivo: `«${servicio.servicio}»${servicio.modelo ? ` (${servicio.modelo})` : ''}: ${m.motivo}` };
   });
-  const medida = combina(porServicio);
+  const medida = combineMeasurements(porServicio);
 
   return {
     medida:
@@ -407,24 +407,24 @@ const prestador = (
 // Cada servicio de seguridad de P-05 con su verificación de op.pl.5 declarada,
 // su referencia y su vigencia. ENSFácil no tiene op.pl.5: se juzga la
 // declaración contra la fecha de la evaluación, como una certificación.
-const seguridad = (context: ENSPolicyContext, ahora: number, p05: Record<string, string>[]): Medida => {
-  const porServicio = p05.map((fila): Medida => {
+const seguridad = (context: ENSPolicyContext, ahora: number, p05: Record<string, string>[]): Measurement => {
+  const porServicio = p05.map((fila): Measurement => {
     const nombre = `«${fila.servicio}»${fila.tipo_de_seguridad ? ` (${fila.tipo_de_seguridad})` : ''}`;
-    const declara = sinTildes(fila.cumple_op_pl_5 || '');
+    const declara = stripAccents(fila.cumple_op_pl_5 || '');
 
     if (declara === 'no') {
-      return noCumple(`${nombre}: P-05 declara que no cumple op.pl.5`);
+      return nonCompliant(`${nombre}: P-05 declara que no cumple op.pl.5`);
     }
 
     if (declara !== 'si') {
-      return sinMedir(`P-05, fila de ${nombre}: falta si cumple op.pl.5 («sí» o «no»)`, 'CONFIGURATION');
+      return notMeasured(`P-05, fila de ${nombre}: falta si cumple op.pl.5 («sí» o «no»)`, 'CONFIGURATION');
     }
 
     const fin = fecha(fila.vigente_hasta);
 
-    if (vacio(fila.referencia || '') || fin === undefined) {
-      return sinMedir(
-        `P-05, fila de ${nombre}: ${vacio(fila.referencia || '') ? 'falta la referencia de la verificación de op.pl.5' : `la vigencia «${fila.vigente_hasta || ''}» no es una fecha AAAA-MM-DD`}`,
+    if (isEmptyField(fila.referencia || '') || fin === undefined) {
+      return notMeasured(
+        `P-05, fila de ${nombre}: ${isEmptyField(fila.referencia || '') ? 'falta la referencia de la verificación de op.pl.5' : `la vigencia «${fila.vigente_hasta || ''}» no es una fecha AAAA-MM-DD`}`,
         'CONFIGURATION'
       );
     }
@@ -432,11 +432,11 @@ const seguridad = (context: ENSPolicyContext, ahora: number, p05: Record<string,
     const quedan = diasHasta(fin, ahora);
 
     return quedan < 0
-      ? noCumple(`${nombre}: la verificación de op.pl.5 «${fila.referencia}» venció el ${dia10(fin)}`)
-      : cumple(`${nombre}: verificación de op.pl.5 «${fila.referencia}» hasta ${dia10(fin)} (quedan ${quedan} días)`);
+      ? nonCompliant(`${nombre}: la verificación de op.pl.5 «${fila.referencia}» venció el ${dia10(fin)}`)
+      : compliant(`${nombre}: verificación de op.pl.5 «${fila.referencia}» hasta ${dia10(fin)} (quedan ${quedan} días)`);
   });
 
-  const medida = combina(porServicio);
+  const medida = combineMeasurements(porServicio);
 
   return medida.estado === 'CUMPLE'
     ? { ...medida, motivo: `${ACREDITADO}: los ${p05.length} servicios en la nube de seguridad de P-05 tienen su verificación de op.pl.5 en vigor. ${medida.motivo}` }
@@ -449,23 +449,23 @@ const SIN_CIFRADO = /^(no|ninguno|ninguna|sin cifrar|sin cifrado|no cifrado|no s
 // --- EV-09 · el expediente documental de cada servicio utilizado -------------
 
 interface Expediente {
-  medida: Medida;
+  medida: Measurement;
   // Lo que viaja al informe: la vigencia de cada conformidad.
   vigencias: string[];
 }
 
-const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<string, string>[], conformidades: Medida[] = []): Expediente => {
-  const p03 = filas(context, 'P-03');
-  const p08 = filas(context, 'P-08');
-  const p09 = filas(context, 'P-09');
-  const p10 = filas(context, 'P-10');
-  const meses = escalar(context, 'P-12');
+const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<string, string>[], conformidades: Measurement[] = []): Expediente => {
+  const p03 = tableParameterRows(context, 'P-03');
+  const p08 = tableParameterRows(context, 'P-08');
+  const p09 = tableParameterRows(context, 'P-09');
+  const p10 = tableParameterRows(context, 'P-10');
+  const meses = positiveScalar(context, 'P-12');
   const nivel = DEL_NIVEL[context.level] ?? 0;
   const vigencias: string[] = [];
-  const globales: Medida[] = [];
+  const globales: Measurement[] = [];
 
   if (!p03) {
-    const falta = faltaParametro(context, 'P-03', 'la conformidad con el ENS de los servicios utilizados');
+    const falta = missingParameter(context, 'P-03', 'la conformidad con el ENS de los servicios utilizados');
 
     globales.push(falta);
     // Como en el prestador: sin P-03, las conformidades quedan sin evaluar.
@@ -475,22 +475,22 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
   }
 
   if (!p10) {
-    globales.push(faltaParametro(context, 'P-10', 'el pentest de los proveedores (op.nub.1.2 a)'));
+    globales.push(missingParameter(context, 'P-10', 'el pentest de los proveedores (op.nub.1.2 a)'));
   } else if (meses === undefined) {
-    globales.push(faltaParametro(context, 'P-12', 'la antigüedad de los informes de pentest de P-10'));
+    globales.push(missingParameter(context, 'P-12', 'la antigüedad de los informes de pentest de P-10'));
   }
 
   if (!p09) {
-    globales.push(faltaParametro(context, 'P-09', 'el cifrado y la gestión de claves (op.nub.1.2 c)'));
+    globales.push(missingParameter(context, 'P-09', 'el cifrado y la gestión de claves (op.nub.1.2 c)'));
   }
 
   if (!p08) {
-    globales.push(faltaParametro(context, 'P-08', 'la jurisdicción de los datos (op.nub.1.2 d)'));
+    globales.push(missingParameter(context, 'P-08', 'la jurisdicción de los datos (op.nub.1.2 d)'));
   }
 
   const porServicio = utilizados.map(servicio => {
     const nombre = servicio.servicio;
-    const partes: Medida[] = [];
+    const partes: Measurement[] = [];
 
     // Conformidad ENS o guía CCN-STIC, vigente y de categoría suficiente.
     if (p03) {
@@ -502,31 +502,31 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
       const suyos = deServicio(p10, nombre);
 
       if (!suyos.length) {
-        partes.push(noCumple('a) sin informe de pentest del proveedor en P-10'));
+        partes.push(nonCompliant('a) sin informe de pentest del proveedor en P-10'));
       } else {
-        const juicios = suyos.map((fila): Medida => {
+        const juicios = suyos.map((fila): Measurement => {
           const t = fecha(fila.fecha);
 
-          if (t === undefined || vacio(fila.ultimo_informe || '')) {
-            return sinMedir(
+          if (t === undefined || isEmptyField(fila.ultimo_informe || '')) {
+            return notMeasured(
               `P-10, fila de «${nombre}»: ${t === undefined ? `la fecha «${fila.fecha || ''}» no es una fecha AAAA-MM-DD` : 'falta el informe'}`,
               'CONFIGURATION'
             );
           }
 
           if (t > ahora + TOLERANCIA_FUTURO) {
-            return sinMedir(`P-10, fila de «${nombre}»: el informe está fechado en el futuro (${dia10(t)})`, 'CONFIGURATION');
+            return notMeasured(`P-10, fila de «${nombre}»: el informe está fechado en el futuro (${dia10(t)})`, 'CONFIGURATION');
           }
 
           const fecha0 = new Date(t);
-          const limite = Date.UTC(fecha0.getUTCFullYear(), fecha0.getUTCMonth() + meses, fecha0.getUTCDate()) + DIA;
+          const limite = Date.UTC(fecha0.getUTCFullYear(), fecha0.getUTCMonth() + meses, fecha0.getUTCDate()) + DAY_MS;
 
           return ahora > limite
-            ? noCumple(`a) el pentest «${fila.ultimo_informe}» es del ${dia10(t)}, más viejo que los ${meses} meses de P-12`)
-            : cumple(`a) pentest «${fila.ultimo_informe}» del ${dia10(t)}`);
+            ? nonCompliant(`a) el pentest «${fila.ultimo_informe}» es del ${dia10(t)}, más viejo que los ${meses} meses de P-12`)
+            : compliant(`a) pentest «${fila.ultimo_informe}» del ${dia10(t)}`);
         });
 
-        partes.push(juicios.find(j => j.estado === 'CUMPLE') || combina(juicios));
+        partes.push(juicios.find(j => j.estado === 'CUMPLE') || combineMeasurements(juicios));
       }
     }
 
@@ -535,14 +535,14 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
       const fila = deServicio(p09, nombre)[0];
 
       if (!fila) {
-        partes.push(noCumple('c) sin cifrado ni gestión de claves declarados en P-09'));
-      } else if (SIN_CIFRADO.test(sinTildes(fila.cifrado || '').trim())) {
+        partes.push(nonCompliant('c) sin cifrado ni gestión de claves declarados en P-09'));
+      } else if (SIN_CIFRADO.test(stripAccents(fila.cifrado || '').trim())) {
         // Declarar que no se cifra es declarar el incumplimiento de c).
-        partes.push(noCumple(`c) P-09 declara que los datos no se cifran («${fila.cifrado}»)`));
-      } else if (vacio(fila.cifrado || '') || vacio(fila.gestion_claves || '')) {
-        partes.push(sinMedir(`P-09, fila de «${nombre}»: falta ${vacio(fila.cifrado || '') ? 'el cifrado' : 'la gestión de claves'}`, 'CONFIGURATION'));
+        partes.push(nonCompliant(`c) P-09 declara que los datos no se cifran («${fila.cifrado}»)`));
+      } else if (isEmptyField(fila.cifrado || '') || isEmptyField(fila.gestion_claves || '')) {
+        partes.push(notMeasured(`P-09, fila de «${nombre}»: falta ${isEmptyField(fila.cifrado || '') ? 'el cifrado' : 'la gestión de claves'}`, 'CONFIGURATION'));
       } else {
-        partes.push(cumple(`c) ${fila.cifrado}, claves: ${fila.gestion_claves}`));
+        partes.push(compliant(`c) ${fila.cifrado}, claves: ${fila.gestion_claves}`));
       }
     }
 
@@ -551,16 +551,16 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
       const fila = deServicio(p08, nombre)[0];
       const faltan = fila
         ? [['region_datos', 'la región de los datos'], ['region_copias', 'la de las copias'], ['jurisdiccion', 'la jurisdicción']]
-            .filter(([c]) => vacio(fila[c] || ''))
+            .filter(([c]) => isEmptyField(fila[c] || ''))
             .map(([, texto]) => texto)
         : [];
 
       if (!fila) {
-        partes.push(noCumple('d) sin región de los datos ni jurisdicción declaradas en P-08'));
+        partes.push(nonCompliant('d) sin región de los datos ni jurisdicción declaradas en P-08'));
       } else if (faltan.length) {
-        partes.push(sinMedir(`P-08, fila de «${nombre}»: falta ${faltan.join(' y ')}`, 'CONFIGURATION'));
+        partes.push(notMeasured(`P-08, fila de «${nombre}»: falta ${faltan.join(' y ')}`, 'CONFIGURATION'));
       } else {
-        partes.push(cumple(`d) datos en ${fila.region_datos}, copias en ${fila.region_copias}, ${fila.jurisdiccion}`));
+        partes.push(compliant(`d) datos en ${fila.region_datos}, copias en ${fila.region_copias}, ${fila.jurisdiccion}`));
       }
     }
 
@@ -568,12 +568,12 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
       return undefined;
     }
 
-    const juntas = combina(partes);
+    const juntas = combineMeasurements(partes);
 
     return { ...juntas, motivo: `«${nombre}»: ${juntas.motivo}` };
-  }).filter((m): m is Medida => Boolean(m));
+  }).filter((m): m is Measurement => Boolean(m));
 
-  const medida = combina([...porServicio, ...globales]);
+  const medida = combineMeasurements([...porServicio, ...globales]);
 
   return {
     medida:
@@ -590,30 +590,30 @@ const ev09 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
 // --- EV-08 · la certificación de P-04 en vigor (R1) ----------------------------
 
 const ev08 = (context: ENSPolicyContext, ahora: number, utilizados: Record<string, string>[]): Expediente => {
-  const p04 = filas(context, 'P-04');
+  const p04 = tableParameterRows(context, 'P-04');
   const vigencias: string[] = [];
 
   if (!p04) {
     return {
-      medida: faltaParametro(context, 'P-04', `la certificación reconocida de los servicios utilizados (${lista(utilizados.map(s => s.servicio))})`),
+      medida: missingParameter(context, 'P-04', `la certificación reconocida de los servicios utilizados (${formatList(utilizados.map(s => s.servicio))})`),
       vigencias,
     };
   }
 
-  const porServicio = utilizados.map((servicio): Medida => {
+  const porServicio = utilizados.map((servicio): Measurement => {
     const nombre = servicio.servicio;
     const suyas = deServicio(p04, nombre);
 
     if (!suyas.length) {
-      return noCumple(`«${nombre}»: sin certificación reconocida en P-04`);
+      return nonCompliant(`«${nombre}»: sin certificación reconocida en P-04`);
     }
 
-    const juicios = suyas.map((fila): Medida => {
+    const juicios = suyas.map((fila): Measurement => {
       const fin = fecha(fila.vigencia);
 
-      if (fin === undefined || vacio(fila.metodologia || '') || vacio(fila.n_certificado || '')) {
-        return sinMedir(
-          `P-04, fila de «${nombre}»: ${fin === undefined ? `la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD` : `falta ${vacio(fila.metodologia || '') ? 'la metodología' : 'el número de certificado'}`}`,
+      if (fin === undefined || isEmptyField(fila.metodologia || '') || isEmptyField(fila.n_certificado || '')) {
+        return notMeasured(
+          `P-04, fila de «${nombre}»: ${fin === undefined ? `la vigencia «${fila.vigencia || ''}» no es una fecha AAAA-MM-DD` : `falta ${isEmptyField(fila.metodologia || '') ? 'la metodología' : 'el número de certificado'}`}`,
           'CONFIGURATION'
         );
       }
@@ -623,14 +623,14 @@ const ev08 = (context: ENSPolicyContext, ahora: number, utilizados: Record<strin
       vigencias.push(`${nombre}: certificación ${fila.metodologia} nº ${fila.n_certificado} hasta ${dia10(fin)} (${quedan >= 0 ? `quedan ${quedan} días` : `vencida hace ${-quedan} días`})`);
 
       return quedan < 0
-        ? noCumple(`«${nombre}»: la certificación ${fila.metodologia} nº ${fila.n_certificado} venció el ${dia10(fin)}`)
-        : cumple(`«${nombre}»: ${fila.metodologia} nº ${fila.n_certificado} hasta ${dia10(fin)} (quedan ${quedan} días)`);
+        ? nonCompliant(`«${nombre}»: la certificación ${fila.metodologia} nº ${fila.n_certificado} venció el ${dia10(fin)}`)
+        : compliant(`«${nombre}»: ${fila.metodologia} nº ${fila.n_certificado} hasta ${dia10(fin)} (quedan ${quedan} días)`);
     });
 
-    return juicios.find(j => j.estado === 'CUMPLE') || combina(juicios);
+    return juicios.find(j => j.estado === 'CUMPLE') || combineMeasurements(juicios);
   });
 
-  const medida = combina(porServicio);
+  const medida = combineMeasurements(porServicio);
 
   return {
     medida:
@@ -648,14 +648,14 @@ interface Integraciones {
   porModulo: Map<string, string[]>;
   // Servicios con «ninguno» (o sin fila): hallazgo del informe.
   sinIntegrar: string[];
-  errores: Medida[];
+  errores: Measurement[];
   // Todos los módulos que P-06 declara, también los de servicios prestados:
   // para no presentar como «no declarado» lo que sí lo está.
   enP06: string[];
 }
 
 const integraciones = (context: ENSPolicyContext, servicios: Record<string, string>[]): Integraciones | undefined => {
-  const p06 = filas(context, 'P-06');
+  const p06 = tableParameterRows(context, 'P-06');
 
   if (!p06) {
     return undefined;
@@ -670,12 +670,12 @@ const integraciones = (context: ENSPolicyContext, servicios: Record<string, stri
 
   // Solo los servicios que se juzgan (los UTILIZADOS de op.nub.1.2): la
   // integración de un servicio prestado no es de este requisito.
-  p06.filter(fila => servicios.some(s => iguales(s.servicio || '', fila.servicio || ''))).forEach(fila => {
+  p06.filter(fila => servicios.some(s => equalsIgnoreCase(s.servicio || '', fila.servicio || ''))).forEach(fila => {
     const modulo = (fila.modulo || '').trim().toLowerCase();
 
     if (!modulo) {
       salida.errores.push(
-        sinMedir(`P-06, servicio «${fila.servicio}»: falta el módulo de Wazuh (o «ninguno» si no se integra).`, 'CONFIGURATION')
+        notMeasured(`P-06, servicio «${fila.servicio}»: falta el módulo de Wazuh (o «ninguno» si no se integra).`, 'CONFIGURATION')
       );
 
       return;
@@ -689,7 +689,7 @@ const integraciones = (context: ENSPolicyContext, servicios: Record<string, stri
 
     if (!MODULOS.includes(modulo)) {
       salida.errores.push(
-        sinMedir(`P-06, servicio «${fila.servicio}»: «${fila.modulo}» no es un módulo cloud de Wazuh (${MODULOS.join(', ')}, o «ninguno»).`, 'CONFIGURATION')
+        notMeasured(`P-06, servicio «${fila.servicio}»: «${fila.modulo}» no es un módulo cloud de Wazuh (${MODULOS.join(', ')}, o «ninguno»).`, 'CONFIGURATION')
       );
 
       return;
@@ -705,15 +705,15 @@ const integraciones = (context: ENSPolicyContext, servicios: Record<string, stri
   return salida;
 };
 
-const nombreModulo = (modulo: string, servicios: string[]): string => `${lista(servicios.map(s => `«${s}»`))} (${modulo})`;
+const nombreModulo = (modulo: string, servicios: string[]): string => `${formatList(servicios.map(s => `«${s}»`))} (${modulo})`;
 
 // --- EV-01 · cada módulo declarado, configurado, vivo y sin errores ------------
 
 interface Ingesta {
-  medida: Medida;
+  medida: Measurement;
   // Módulo -> su medida, para EV-04 y EV-07 (una ingesta parada no permite
   // afirmar que no haya operaciones ni accesos).
-  porModulo: Map<string, Medida>;
+  porModulo: Map<string, Measurement>;
   // Módulo -> sus hechos de integración vigentes, para EV-04 (`fuentes_admin`).
   hechos: Map<string, ENSNormalizedEvent[]>;
 }
@@ -723,107 +723,107 @@ const ingestaDeModulo = (
   modulo: string,
   servicios: string[],
   vigentes: ENSNormalizedEvent[]
-): Medida => {
+): Measurement => {
   const quien = nombreModulo(modulo, servicios);
-  const suyos = vigentes.filter(e => iguales(campo(e, 'modulo'), modulo));
+  const suyos = vigentes.filter(e => equalsIgnoreCase(factField(e, 'modulo'), modulo));
 
   if (!suyos.length) {
-    return noCumple(
+    return nonCompliant(
       `${quien}: P-06 lo declara integrado y Wazuh no tiene el módulo ${modulo} configurado en el manager ni en ningún grupo, ni recibe sus registros de ningún agente.`
     );
   }
 
-  const donde = Array.from(new Set(suyos.flatMap(e => campo(e, 'donde').split(',').map(x => x.trim()).filter(x => !vacio(x))))).join(', ') || 'origen desconocido';
-  const partes: Medida[] = [];
+  const donde = Array.from(new Set(suyos.flatMap(e => factField(e, 'donde').split(',').map(x => x.trim()).filter(x => !isEmptyField(x))))).join(', ') || 'origen desconocido';
+  const partes: Measurement[] = [];
 
   // Habilitado: lo dice su configuración; el de un agente dedicado solo se ve
   // por sus alertas (habilitado=-), y entonces su ingesta lo demuestra.
-  if (suyos.every(e => campo(e, 'habilitado') === 'no')) {
-    partes.push(noCumple(`${quien}: el módulo está configurado en ${donde} pero deshabilitado.`));
+  if (suyos.every(e => factField(e, 'habilitado') === 'no')) {
+    partes.push(nonCompliant(`${quien}: el módulo está configurado en ${donde} pero deshabilitado.`));
   }
 
   // Errores del módulo en las últimas 24 h (en ossec.log del manager, o en el
   // del agente si lo reenvía; si no se ven, `-`).
-  const conErrores = suyos.filter(e => (numero(campo(e, 'errores_24h')) || 0) > 0);
-  const errores = conErrores.reduce((t, e) => t + (numero(campo(e, 'errores_24h')) || 0), 0);
-  const sinVista = suyos.every(e => numero(campo(e, 'errores_24h')) === undefined);
+  const conErrores = suyos.filter(e => (parseNumber(factField(e, 'errores_24h')) || 0) > 0);
+  const errores = conErrores.reduce((t, e) => t + (parseNumber(factField(e, 'errores_24h')) || 0), 0);
+  const sinVista = suyos.every(e => parseNumber(factField(e, 'errores_24h')) === undefined);
 
   if (errores > 0) {
-    const ultimo = conErrores.map(e => campo(e, 'ultimo_error')).find(t => !vacio(t));
+    const ultimo = conErrores.map(e => factField(e, 'ultimo_error')).find(t => !isEmptyField(t));
 
-    partes.push(noCumple(`${quien}: el módulo registra ${errores} errores en 24 h${ultimo ? ` (el último: «${ultimo}»)` : ''}: hay registros que no entran.`));
+    partes.push(nonCompliant(`${quien}: el módulo registra ${errores} errores en 24 h${ultimo ? ` (el último: «${ultimo}»)` : ''}: hay registros que no entran.`));
   }
 
   // Registros recientes, medidos en el instante de la observación.
-  const plazo = escalar(context, 'P-13');
+  const plazo = positiveScalar(context, 'P-13');
   const conAlerta = suyos
-    .map(e => ({ e, t: instante(campo(e, 'ultima_alerta')) }))
+    .map(e => ({ e, t: parseInstant(factField(e, 'ultima_alerta')) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } => x.t !== undefined)
     .sort((a, b) => b.t - a.t)[0];
-  const n24 = suyos.reduce((t, e) => t + (numero(campo(e, 'alertas_24h')) || 0), 0);
+  const n24 = suyos.reduce((t, e) => t + (parseNumber(factField(e, 'alertas_24h')) || 0), 0);
 
   if (plazo === undefined) {
-    partes.push(faltaParametro(context, 'P-13', `si la ingesta de ${quien} está parada${conAlerta ? ` (última alerta ${iso(conAlerta.t)})` : ''}`));
+    partes.push(missingParameter(context, 'P-13', `si la ingesta de ${quien} está parada${conAlerta ? ` (última alerta ${iso(conAlerta.t)})` : ''}`));
   } else if (conAlerta) {
-    const edad = momento(conAlerta.e) - conAlerta.t;
+    const edad = eventTime(conAlerta.e) - conAlerta.t;
 
     partes.push(
-      edad > plazo * HORA
-        ? noCumple(`${quien}: su última alerta es del ${iso(conAlerta.t)}, ${horas(edad)} h antes de la observación (P-13 = ${plazo} h): la ingesta está parada.`)
-        : cumple(
+      edad > plazo * HOUR_MS
+        ? nonCompliant(`${quien}: su última alerta es del ${iso(conAlerta.t)}, ${formatHours(edad)} h antes de la observación (P-13 = ${plazo} h): la ingesta está parada.`)
+        : compliant(
             `${quien}: configurado en ${donde}, última alerta ${iso(conAlerta.t)}, ${n24} en 24 h${sinVista ? ' (sus errores no se ven desde el manager: el módulo corre en un agente que no reenvía su ossec.log)' : ', sin errores'}.`
           )
     );
   } else {
-    const desdes = suyos.map(e => instante(campo(e, 'observado_desde'))).filter((t): t is number => t !== undefined);
+    const desdes = suyos.map(e => parseInstant(factField(e, 'observado_desde'))).filter((t): t is number => t !== undefined);
     const desde = desdes.length ? Math.min(...desdes) : undefined;
-    const observado = Math.max(...suyos.map(momento));
+    const observado = Math.max(...suyos.map(eventTime));
 
     partes.push(
-      desde !== undefined && observado - desde > plazo * HORA
-        ? noCumple(`${quien}: configurado en ${donde} y sin ningún registro desde que se observa (${iso(desde)}), más que P-13 (${plazo} h).`)
-        : sinMedir(
+      desde !== undefined && observado - desde > plazo * HOUR_MS
+        ? nonCompliant(`${quien}: configurado en ${donde} y sin ningún registro desde que se observa (${iso(desde)}), más que P-13 (${plazo} h).`)
+        : notMeasured(
             `${quien}: configurado en ${donde}, sin registros todavía y observado desde ${desde !== undefined ? iso(desde) : 'un instante desconocido'}, menos que P-13 (${plazo} h): no se puede afirmar ni negar que la ingesta funcione.`
           )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[]): Ingesta => {
-  const porModulo = new Map<string, Medida>();
+  const porModulo = new Map<string, Measurement>();
   const hechos = new Map<string, ENSNormalizedEvent[]>();
   const integ = integraciones(context, servicios);
 
   if (!integ) {
     return {
-      medida: faltaParametro(context, 'P-06', 'qué servicios de P-02 se integran en Wazuh y con qué módulo (o «ninguno»)'),
+      medida: missingParameter(context, 'P-06', 'qué servicios de P-02 se integran en Wazuh y con qué módulo (o «ninguno»)'),
       porModulo,
       hechos,
     };
   }
 
   const { vigentes, ultimo } = ingestaLector.estadoVigente(context, 'cloud_integration_observed', ahora);
-  const observados = vigentes.filter(e => !vacio(campo(e, 'modulo')) && campo(e, 'modulo') !== 'ninguno');
+  const observados = vigentes.filter(e => !isEmptyField(factField(e, 'modulo')) && factField(e, 'modulo') !== 'ninguno');
   const declarados = Array.from(integ.porModulo.keys());
   const sinIntegrar = integ.sinIntegrar.length
-    ? ` Sin integración en Wazuh (hallazgo del informe, sin veredicto: el ENS no exige integrarlos): ${lista(integ.sinIntegrar.map(s => `«${s}»`))}.`
+    ? ` Sin integración en Wazuh (hallazgo del informe, sin veredicto: el ENS no exige integrarlos): ${formatList(integ.sinIntegrar.map(s => `«${s}»`))}.`
     : '';
-  const ajenos = observados.filter(e => !integ.enP06.includes(campo(e, 'modulo').toLowerCase()));
+  const ajenos = observados.filter(e => !integ.enP06.includes(factField(e, 'modulo').toLowerCase()));
   const noDeclarados = ajenos.length
-    ? ` Wazuh ingiere además ${lista(Array.from(new Set(ajenos.map(e => campo(e, 'modulo')))))}, que P-06 no declara.`
+    ? ` Wazuh ingiere además ${formatList(Array.from(new Set(ajenos.map(e => factField(e, 'modulo')))))}, que P-06 no declara.`
     : '';
-  const secretos = observados.filter(e => campo(e, 'secreto_en_linea') === 'si');
+  const secretos = observados.filter(e => factField(e, 'secreto_en_linea') === 'si');
   const aviso = secretos.length
-    ? ` Aviso: ${lista(secretos.map(e => `${campo(e, 'modulo')} en ${campo(e, 'donde')}`))} lleva la credencial del proveedor escrita en la configuración del manager o de un grupo; tiene que vivir solo en el agente dedicado.`
+    ? ` Aviso: ${formatList(secretos.map(e => `${factField(e, 'modulo')} en ${factField(e, 'donde')}`))} lleva la credencial del proveedor escrita en la configuración del manager o de un grupo; tiene que vivir solo en el agente dedicado.`
     : '';
 
   if (!declarados.length) {
     return {
-      medida: combina([
+      medida: combineMeasurements([
         ...integ.errores,
-        noAplica(`P-06 no declara ningún servicio integrado en Wazuh: la parte técnica de op.nub.1.2 no aplica.${sinIntegrar}${noDeclarados}`),
+        notApplicable(`P-06 no declara ningún servicio integrado en Wazuh: la parte técnica de op.nub.1.2 no aplica.${sinIntegrar}${noDeclarados}`),
       ]),
       porModulo,
       hechos,
@@ -835,19 +835,19 @@ const ev01 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
 
     declarados.forEach(m => porModulo.set(m, falta));
 
-    return { medida: combina([...integ.errores, { ...falta, motivo: `${falta.motivo}${sinIntegrar}` }]), porModulo, hechos };
+    return { medida: combineMeasurements([...integ.errores, { ...falta, motivo: `${falta.motivo}${sinIntegrar}` }]), porModulo, hechos };
   }
 
   const medidas = declarados.map(modulo => {
     const medida = ingestaDeModulo(context, modulo, integ.porModulo.get(modulo) || [], vigentes);
 
     porModulo.set(modulo, medida);
-    hechos.set(modulo, vigentes.filter(e => iguales(campo(e, 'modulo'), modulo)));
+    hechos.set(modulo, vigentes.filter(e => equalsIgnoreCase(factField(e, 'modulo'), modulo)));
 
     return medida;
   });
 
-  const juntas = combina([...medidas, ...integ.errores]);
+  const juntas = combineMeasurements([...medidas, ...integ.errores]);
 
   return {
     medida: ingestaLector.conDegradacion(context, ahora, 'EV-01', 'cloud_integration_observed', {
@@ -886,27 +886,27 @@ const queActivar = (modulo: string): string =>
 
 // Sin operaciones de personas y con la ingesta viva: solo es una medida si el
 // módulo trae un registro de administración leído en 30 días.
-const sinOperaciones = (quien: string, modulo: string, hechos: ENSNormalizedEvent[], deServicios: number): Medida => {
-  const declaradas = hechos.map(e => campo(e, 'fuentes_admin'));
+const sinOperaciones = (quien: string, modulo: string, hechos: ENSNormalizedEvent[], deServicios: number): Measurement => {
+  const declaradas = hechos.map(e => factField(e, 'fuentes_admin'));
   const fuentes = Array.from(
-    new Set(declaradas.flatMap(v => v.split('|').map(x => x.trim().toLowerCase())).filter(x => !vacio(x)))
+    new Set(declaradas.flatMap(v => v.split('|').map(x => x.trim().toLowerCase())).filter(x => !isEmptyField(x)))
   );
   const ninguna = `${quien}: ninguna operación de administración de una persona en la ventana`;
 
   if (fuentes.length) {
-    return cumple(
-      `${ninguna}, y el recolector lee su registro de administración (${lista(fuentes.map(f => FUENTES_ADMIN[f] || f))}, con eventos en los últimos 30 días)${deServicios ? `; ${deServicios} de servicios del proveedor` : ''}.`
+    return compliant(
+      `${ninguna}, y el recolector lee su registro de administración (${formatList(fuentes.map(f => FUENTES_ADMIN[f] || f))}, con eventos en los últimos 30 días)${deServicios ? `; ${deServicios} de servicios del proveedor` : ''}.`
     );
   }
 
   if (!declaradas.length || declaradas.some(v => v === '')) {
-    return sinMedir(
+    return notMeasured(
       `${ninguna}, pero el inventario de integraciones no dice qué registros de administración lee el recolector (falta fuentes_admin: es de una versión anterior), así que la ausencia no demuestra nada. Actualiza el recolector de op.nub.1 en el manager.`,
       'COLLECTION'
     );
   }
 
-  return sinMedir(
+  return notMeasured(
     `${ninguna}, pero el recolector no ha leído en los últimos 30 días ningún registro de operaciones de administración de este módulo (fuentes_admin = -), así que la ausencia no demuestra nada. ${queActivar(modulo)}`
   );
 };
@@ -916,45 +916,45 @@ const porModuloIntegrado = (
   context: ENSPolicyContext,
   servicios: Record<string, string>[],
   ingesta: Ingesta,
-  juzga: (modulo: string, servicios: string[], ingestaDelModulo: Medida | undefined) => Medida
-): Medida => {
+  juzga: (modulo: string, servicios: string[], ingestaDelModulo: Measurement | undefined) => Measurement
+): Measurement => {
   const integ = integraciones(context, servicios);
 
   if (!integ) {
-    return faltaParametro(context, 'P-06', 'qué servicios se integran en Wazuh');
+    return missingParameter(context, 'P-06', 'qué servicios se integran en Wazuh');
   }
 
   const modulos = Array.from(integ.porModulo.keys());
 
   if (!modulos.length) {
-    return noAplica('P-06 no declara ningún servicio integrado en Wazuh: no hay registros del proveedor que juzgar (hallazgo del informe, sin veredicto).');
+    return notApplicable('P-06 no declara ningún servicio integrado en Wazuh: no hay registros del proveedor que juzgar (hallazgo del informe, sin veredicto).');
   }
 
-  return combina(
+  return combineMeasurements(
     modulos.map(modulo => juzga(modulo, integ.porModulo.get(modulo) || [], ingesta.porModulo.get(modulo)))
   );
 };
 
-const viva = (ingestaDelModulo: Medida | undefined): boolean => ingestaDelModulo?.estado === 'CUMPLE';
+const viva = (ingestaDelModulo: Measurement | undefined): boolean => ingestaDelModulo?.estado === 'CUMPLE';
 
 // Sin ingesta demostrada, la ausencia de registros no prueba nada. Si lo que
 // falta es el propio recolector, el hueco es de RECOGIDA.
-const noViva = (quien: string, ingestaDelModulo: Medida | undefined, extra = ''): Medida =>
-  sinMedir(
+const noViva = (quien: string, ingestaDelModulo: Measurement | undefined, extra = ''): Measurement =>
+  notMeasured(
     `${quien}: su ingesta no está demostrada (ver EV-01), así que la ausencia de registros no prueba nada.${extra}`,
     ingestaDelModulo?.estado === 'NO_EVALUABLE' && ingestaDelModulo.causa === 'COLLECTION' ? 'COLLECTION' : 'EVIDENCE'
   );
 
-const ev04 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[], ingesta: Ingesta): Medida => {
+const ev04 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[], ingesta: Ingesta): Measurement => {
   const operaciones = validos(context, 'cloud_admin_operation_observed', ahora);
-  const p11 = filas(context, 'P-11');
+  const p11 = tableParameterRows(context, 'P-11');
 
   const medida = porModuloIntegrado(context, servicios, ingesta, (modulo, suyos, ingestaDelModulo) => {
     const quien = nombreModulo(modulo, suyos);
-    const deModulo = operaciones.filter(e => iguales(campo(e, 'modulo'), modulo));
+    const deModulo = operaciones.filter(e => equalsIgnoreCase(factField(e, 'modulo'), modulo));
     // Las acciones de los propios servicios del proveedor (AWSService, una
     // identidad administrada de Azure) no se contrastan con P-11.
-    const humanas = deModulo.filter(e => campo(e, 'tipo_actor') !== 'servicio');
+    const humanas = deModulo.filter(e => factField(e, 'tipo_actor') !== 'servicio');
 
     if (!humanas.length) {
       return viva(ingestaDelModulo)
@@ -966,85 +966,85 @@ const ev04 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
     const actores = new Map<string, { veces: number; operaciones: Set<string>; ultima: number; cuentas: Set<string> }>();
 
     humanas.forEach(e => {
-      const actor = campo(e, 'actor');
+      const actor = factField(e, 'actor');
       const a = actores.get(actor.toLowerCase()) || { veces: 0, operaciones: new Set<string>(), ultima: 0, cuentas: new Set<string>() };
 
-      a.veces += numero(campo(e, 'veces')) || 1;
-      campo(e, 'operaciones').split(',').map(x => x.trim()).filter(x => !vacio(x)).forEach(o => a.operaciones.add(o));
-      a.ultima = Math.max(a.ultima, instante(campo(e, 'ultima')) || momento(e));
-      if (!vacio(campo(e, 'cuenta'))) {
-        a.cuentas.add(campo(e, 'cuenta'));
+      a.veces += parseNumber(factField(e, 'veces')) || 1;
+      factField(e, 'operaciones').split(',').map(x => x.trim()).filter(x => !isEmptyField(x)).forEach(o => a.operaciones.add(o));
+      a.ultima = Math.max(a.ultima, parseInstant(factField(e, 'ultima')) || eventTime(e));
+      if (!isEmptyField(factField(e, 'cuenta'))) {
+        a.cuentas.add(factField(e, 'cuenta'));
       }
       actores.set(actor.toLowerCase(), a);
     });
 
     const describe = (actor: string) => {
       const a = actores.get(actor)!;
-      const original = humanas.find(e => campo(e, 'actor').toLowerCase() === actor);
+      const original = humanas.find(e => factField(e, 'actor').toLowerCase() === actor);
 
-      return `${original ? campo(original, 'actor') : actor} (${a.veces} operaciones: ${lista(Array.from(a.operaciones), 4)}; la última el ${iso(a.ultima)})`;
+      return `${original ? factField(original, 'actor') : actor} (${a.veces} operaciones: ${formatList(Array.from(a.operaciones), 4)}; la última el ${iso(a.ultima)})`;
     };
 
     if (!p11) {
-      return faltaParametro(context, 'P-11', `si los ${actores.size} actores con operaciones de administración en ${quien} están autorizados (${lista(Array.from(actores.keys()).map(describe))})`);
+      return missingParameter(context, 'P-11', `si los ${actores.size} actores con operaciones de administración en ${quien} están autorizados (${formatList(Array.from(actores.keys()).map(describe))})`);
     }
 
     const autorizadas = p11
-      .filter(f => suyos.some(s => iguales(f.servicio || '', s)))
+      .filter(f => suyos.some(s => equalsIgnoreCase(f.servicio || '', s)))
       .map(f => (f.identidad || '').trim().toLowerCase())
       .filter(Boolean);
     const fuera = Array.from(actores.keys()).filter(a => !autorizadas.includes(a));
 
     return fuera.length
-      ? noCumple(`${quien}: operaciones de administración de actores que P-11 no autoriza para el servicio: ${lista(fuera.map(describe))}.`)
-      : cumple(`${quien}: las operaciones de administración de la ventana son de actores autorizados en P-11: ${lista(Array.from(actores.keys()).map(describe))}.`);
+      ? nonCompliant(`${quien}: operaciones de administración de actores que P-11 no autoriza para el servicio: ${formatList(fuera.map(describe))}.`)
+      : compliant(`${quien}: las operaciones de administración de la ventana son de actores autorizados en P-11: ${formatList(Array.from(actores.keys()).map(describe))}.`);
   });
 
   // Lo que el recolector no pudo emitir (demasiados actores en una pasada) se
   // suma a lo medido, sin taparlo.
   const deg = degradacion(context, 'EV-04', ahora);
 
-  return deg && medida.estado !== 'NO_APLICA' ? combina([medida, deg]) : medida;
+  return deg && medida.estado !== 'NO_APLICA' ? combineMeasurements([medida, deg]) : medida;
 };
 
 // --- EV-07 · los accesos interactivos, con segundo factor ---------------------
 
-const ev07 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[], ingesta: Ingesta): Medida => {
+const ev07 = (context: ENSPolicyContext, ahora: number, servicios: Record<string, string>[], ingesta: Ingesta): Measurement => {
   const accesos = validos(context, 'cloud_authentication_observed', ahora);
 
   const medida = porModuloIntegrado(context, servicios, ingesta, (modulo, suyos, ingestaDelModulo) => {
     const quien = nombreModulo(modulo, suyos);
-    const deModulo = accesos.filter(e => iguales(campo(e, 'modulo'), modulo));
-    const exitos = deModulo.filter(e => campo(e, 'resultado') === 'exito');
-    const fallos = deModulo.filter(e => campo(e, 'resultado') === 'fallo');
-    const veces = (es: ENSNormalizedEvent[]) => es.reduce((t, e) => t + (numero(campo(e, 'veces')) || 1), 0);
+    const deModulo = accesos.filter(e => equalsIgnoreCase(factField(e, 'modulo'), modulo));
+    const exitos = deModulo.filter(e => factField(e, 'resultado') === 'exito');
+    const fallos = deModulo.filter(e => factField(e, 'resultado') === 'fallo');
+    const veces = (es: ENSNormalizedEvent[]) => es.reduce((t, e) => t + (parseNumber(factField(e, 'veces')) || 1), 0);
     const intentos = fallos.length
-      ? ` Intentos fallidos en la ventana: ${veces(fallos)} de ${new Set(fallos.map(e => campo(e, 'usuario').toLowerCase())).size} usuario(s).`
+      ? ` Intentos fallidos en la ventana: ${veces(fallos)} de ${new Set(fallos.map(e => factField(e, 'usuario').toLowerCase())).size} usuario(s).`
       : '';
     const describe = (e: ENSNormalizedEvent) =>
-      `${campo(e, 'usuario')}${vacio(campo(e, 'cuenta')) ? '' : ` en ${campo(e, 'cuenta')}`} (${campo(e, 'veces') || '1'} veces, la última el ${campo(e, 'ultima')}${vacio(campo(e, 'origenes')) ? '' : `, desde ${campo(e, 'origenes')}`})`;
+      `${factField(e, 'usuario')}${isEmptyField(factField(e, 'cuenta')) ? '' : ` en ${factField(e, 'cuenta')}`} (${factField(e, 'veces') || '1'} veces, la última el ${factField(e, 'ultima')}${isEmptyField(factField(e, 'origenes')) ? '' : `, desde ${factField(e, 'origenes')}`})`;
 
-    const sinFactor = exitos.filter(e => campo(e, 'segundo_factor') === 'no');
-    const sinDato = exitos.filter(e => campo(e, 'segundo_factor') !== 'no' && campo(e, 'segundo_factor') !== 'si');
+    const sinFactor = exitos.filter(e => factField(e, 'segundo_factor') === 'no');
+    const sinDato = exitos.filter(e => factField(e, 'segundo_factor') !== 'no' && factField(e, 'segundo_factor') !== 'si');
 
     if (sinFactor.length) {
-      return noCumple(
-        `${quien}: accesos interactivos con éxito SIN segundo factor, y un servicio en la nube es acceso desde una zona no controlada (op.acc.6): ${lista(sinFactor.map(describe))}.${intentos}`
+      return nonCompliant(
+        `${quien}: accesos interactivos con éxito SIN segundo factor, y un servicio en la nube es acceso desde una zona no controlada (op.acc.6): ${formatList(sinFactor.map(describe))}.${intentos}`
       );
     }
 
     if (sinDato.length) {
-      return sinMedir(
-        `${quien}: el registro del proveedor no dice si estos accesos usaron segundo factor (accesos federados o sin el dato): ${lista(sinDato.map(describe))}. No se puede afirmar que todos lo usaran.${intentos}`
+      return notMeasured(
+        `${quien}: el registro del proveedor no dice si estos accesos usaron segundo factor (accesos federados o sin el dato): ${formatList(sinDato.map(describe))}. No se puede afirmar que todos lo usaran.${intentos}`
       );
     }
 
     if (exitos.length) {
-      return cumple(`${quien}: los ${veces(exitos)} accesos interactivos con éxito de la ventana usaron segundo factor (${new Set(exitos.map(e => campo(e, 'usuario').toLowerCase())).size} usuario(s)).${intentos}`);
+      return compliant(`${quien}: los ${veces(exitos)} accesos interactivos con éxito de la ventana usaron segundo factor (${new Set(exitos.map(e => factField(e, 'usuario').toLowerCase())).size} usuario(s)).${intentos}`);
     }
 
     return viva(ingestaDelModulo)
-      ? sinMedir(
+      ? notMeasured(
           `${quien}: no consta ningún acceso interactivo con éxito en la ventana, así que no hay nada que demuestre el segundo factor (la integración puede no traer los inicios de sesión).${intentos}`
         )
       : noViva(quien, ingestaDelModulo, intentos);
@@ -1052,31 +1052,31 @@ const ev07 = (context: ENSPolicyContext, ahora: number, servicios: Record<string
 
   const deg = degradacion(context, 'EV-07', ahora);
 
-  return deg && medida.estado !== 'NO_APLICA' ? combina([medida, deg]) : medida;
+  return deg && medida.estado !== 'NO_APLICA' ? combineMeasurements([medida, deg]) : medida;
 };
 
 // EV-07 no decide op.nub.1.2: el criterio del segundo factor es el de
 // op.acc.6.r8.1 (acceso desde zona no controlada), y aquí no se ven sus
 // matices (las ubicaciones de confianza de Azure darían rojos falsos). Lo
 // medido se INFORMA, cruzado con op.acc.6, sin veredicto (ronda 1).
-const accesosInformados = (medida: Medida): Medida =>
-  noAplica(
+const accesosInformados = (medida: Measurement): Measurement =>
+  notApplicable(
     `Hallazgo del informe, sin veredicto: el criterio del segundo factor en el acceso desde una zona no controlada es el de op.acc.6.r8.1, que lo juzga. Lo observado: ${medida.estado === 'NO_CUMPLE' ? 'HAY ACCESOS SIN SEGUNDO FACTOR. ' : ''}${medida.motivo}`
   );
 
 // --- EV-02 · los hallazgos de postura del proveedor (R2) -----------------------
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const p07 = filas(context, 'P-07');
+const ev02 = (context: ENSPolicyContext, ahora: number): Measurement => {
+  const p07 = tableParameterRows(context, 'P-07');
 
   if (!p07) {
-    return faltaParametro(context, 'P-07', 'qué guía CCN-STIC y qué estándar de postura aplican a cada servicio');
+    return missingParameter(context, 'P-07', 'qué guía CCN-STIC y qué estándar de postura aplican a cada servicio');
   }
 
-  const p06 = filas(context, 'P-06');
+  const p06 = tableParameterRows(context, 'P-06');
 
   if (!p06) {
-    return faltaParametro(context, 'P-06', 'qué módulo de Wazuh trae los hallazgos de postura de cada servicio de P-07');
+    return missingParameter(context, 'P-06', 'qué módulo de Wazuh trae los hallazgos de postura de cada servicio de P-07');
   }
 
   const { vigentes, ultimo } = estadoVigente(context, 'cloud_posture_finding_observed', ahora);
@@ -1085,63 +1085,63 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
     return sinHechos(context, 'EV-02', ahora, ultimo, 'resumen de hallazgos de postura del manager');
   }
 
-  const hallazgos = vigentes.filter(e => !vacio(campo(e, 'fuente')) && campo(e, 'fuente') !== 'ninguna');
+  const hallazgos = vigentes.filter(e => !isEmptyField(factField(e, 'fuente')) && factField(e, 'fuente') !== 'ninguna');
 
-  const medidas = p07.map((fila): Medida => {
+  const medidas = p07.map((fila): Measurement => {
     const nombre = fila.servicio;
     const integracion = deServicio(p06, nombre)
       .map(f => (f.modulo || '').trim().toLowerCase())
       .find(m => MODULOS.includes(m));
 
     if (!integracion) {
-      return sinMedir(
+      return notMeasured(
         `«${nombre}»: no tiene integración en Wazuh (P-06), y sin los hallazgos de postura del propio proveedor R2 no es automatizable (Wazuh 4.14 no tiene SCA para inquilinos cloud).`
       );
     }
 
     const estandar = (fila.estandar || '').trim();
     const suyos = hallazgos.filter(
-      e => iguales(campo(e, 'modulo'), integracion) && (!estandar || sinTildes(campo(e, 'estandar')).includes(sinTildes(estandar)))
+      e => equalsIgnoreCase(factField(e, 'modulo'), integracion) && (!estandar || stripAccents(factField(e, 'estandar')).includes(stripAccents(estandar)))
     );
 
     if (!suyos.length) {
-      return sinMedir(
+      return notMeasured(
         `«${nombre}» (${integracion}): Wazuh no recibe hallazgos de postura del proveedor${estandar ? ` del estándar «${estandar}»` : ''} (Security Hub, Defender, Security Command Center): R2 no es automatizable para este servicio.`
       );
     }
 
-    const evaluados = suyos.reduce((t, e) => t + (numero(campo(e, 'controles_evaluados')) || 0), 0);
-    const fallidos = suyos.reduce((t, e) => t + (numero(campo(e, 'controles_fallidos')) || 0), 0);
-    const criticos = suyos.reduce((t, e) => t + (numero(campo(e, 'fallidos_criticos')) || 0), 0);
-    const estandares = Array.from(new Set(suyos.map(e => `${campo(e, 'fuente')}: ${campo(e, 'estandar')}`))).join('; ');
+    const evaluados = suyos.reduce((t, e) => t + (parseNumber(factField(e, 'controles_evaluados')) || 0), 0);
+    const fallidos = suyos.reduce((t, e) => t + (parseNumber(factField(e, 'controles_fallidos')) || 0), 0);
+    const criticos = suyos.reduce((t, e) => t + (parseNumber(factField(e, 'fallidos_criticos')) || 0), 0);
+    const estandares = Array.from(new Set(suyos.map(e => `${factField(e, 'fuente')}: ${factField(e, 'estandar')}`))).join('; ');
 
     if (fallidos > 0) {
-      const cuales = suyos.flatMap(e => campo(e, 'fallidos').split(',').map(x => x.trim()).filter(x => !vacio(x)));
+      const cuales = suyos.flatMap(e => factField(e, 'fallidos').split(',').map(x => x.trim()).filter(x => !isEmptyField(x)));
       // Sin el total de evaluados (un recuento «-») no se escribe «N de 0».
-      const sinTotal = suyos.some(e => numero(campo(e, 'controles_evaluados')) === undefined) || evaluados < fallidos;
+      const sinTotal = suyos.some(e => parseNumber(factField(e, 'controles_evaluados')) === undefined) || evaluados < fallidos;
       const cuantos = sinTotal ? `${fallidos} controles fallidos (sin total de evaluados)` : `${fallidos} de ${evaluados} controles fallidos`;
 
-      return noCumple(
-        `«${nombre}» (${estandares}): ${cuantos}${criticos ? `, ${criticos} críticos o altos` : ''}: ${lista(cuales, 8)}. La configuración no sigue ${fila.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
+      return nonCompliant(
+        `«${nombre}» (${estandares}): ${cuantos}${criticos ? `, ${criticos} críticos o altos` : ''}: ${formatList(cuales, 8)}. La configuración no sigue ${fila.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
       );
     }
 
     // Un recuento ilegible («-») no es un cero: sin él no se puede afirmar
     // que los controles pasen. Un fallo medido en otro estándar sí manda.
-    const ilegibles = suyos.filter(e => numero(campo(e, 'controles_evaluados')) === undefined || numero(campo(e, 'controles_fallidos')) === undefined);
+    const ilegibles = suyos.filter(e => parseNumber(factField(e, 'controles_evaluados')) === undefined || parseNumber(factField(e, 'controles_fallidos')) === undefined);
 
     if (ilegibles.length) {
-      return sinMedir(
-        `«${nombre}»: el recolector no pudo contar los controles de ${lista(ilegibles.map(e => `${campo(e, 'fuente')}: ${campo(e, 'estandar')}`))} (recuento «-»): no se puede afirmar que pasen.`
+      return notMeasured(
+        `«${nombre}»: el recolector no pudo contar los controles de ${formatList(ilegibles.map(e => `${factField(e, 'fuente')}: ${factField(e, 'estandar')}`))} (recuento «-»): no se puede afirmar que pasen.`
       );
     }
 
     return evaluados > 0
-      ? cumple(`«${nombre}» (${estandares}): los ${evaluados} controles evaluados pasan (${fila.guia_ccn_stic || 'guía CCN-STIC sin declarar'}).`)
-      : sinMedir(`«${nombre}» (${estandares}): el proveedor no ha evaluado ningún control.`);
+      ? compliant(`«${nombre}» (${estandares}): los ${evaluados} controles evaluados pasan (${fila.guia_ccn_stic || 'guía CCN-STIC sin declarar'}).`)
+      : notMeasured(`«${nombre}» (${estandares}): el proveedor no ha evaluado ningún control.`);
   });
 
-  return conDegradacion(context, ahora, 'EV-02', 'cloud_posture_finding_observed', combina(medidas));
+  return conDegradacion(context, ahora, 'EV-02', 'cloud_posture_finding_observed', combineMeasurements(medidas));
 };
 
 // --- datos del informe ---------------------------------------------------------
@@ -1150,10 +1150,10 @@ const DATO_EV03 =
   'Dato del informe, sin veredicto: detectar servicios en la nube en uso que no figuran en P-02 (shadow IT) exige el DNS o el proxy de los equipos, y con los ficheros locales del manager no se ven. EV-01 dice, eso sí, qué módulos cloud ingiere Wazuh que P-06 no declara.';
 
 const datoDeclarado = (context: ENSPolicyContext, id: string, que: string, columnas: string[]): string => {
-  const tabla = filas(context, id);
+  const tabla = tableParameterRows(context, id);
 
   return tabla
-    ? ` Declarado en ${id}: ${lista(tabla.map(f => `${f.servicio}: ${columnas.map(c => f[c]).filter(x => !vacio(x || '')).join(', ') || '-'}`))}.`
+    ? ` Declarado en ${id}: ${formatList(tabla.map(f => `${f.servicio}: ${columnas.map(c => f[c]).filter(x => !isEmptyField(x || '')).join(', ') || '-'}`))}.`
     : ` ${id} sin declarar: ${que} no consta.`;
 };
 
@@ -1178,12 +1178,12 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     );
   const parametrosDe = (requisito: string): string[] =>
     context.control.requirements.find(r => r.id === requisito)?.parameterIds || [];
-  const tipoDe = (requisito: string): ENSTipoDeRegla =>
+  const tipoDe = (requisito: string): ENSDecisionRuleType =>
     opNub1PolicyDefinition.requirements.find(r => r.requirementId === requisito)?.ruleType || 'CONDITIONAL_REQUIRED';
 
   const requisitoDecisions: ENSPolicyDecision[] = [];
   const evidenciaDecisions: ENSPolicyDecision[] = [];
-  const medidas: Record<string, Medida> = {};
+  const medidas: Record<string, Measurement> = {};
 
   // `documental`: la decisión sale de las tablas de la pantalla, no de los
   // hechos, y sobrevive a un recolector parado (ver `ENSPolicyDecision`).
@@ -1192,7 +1192,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   const decideRequisito = (
     requisito: string,
-    medida: Medida,
+    medida: Measurement,
     evidencias: string[],
     esperado: string,
     acreditado = false,
@@ -1201,13 +1201,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     partes?: ENSReasonPart[]
   ) => {
     const decision = decide(requisito, medida.estado, evidencias, parametrosDe(requisito), tipoDe(requisito), requisito, medida.motivo, esperado, medida.causa, acreditado);
-    requisitoDecisions.push(marca(partes ? conPartes(decision, partes) : decision, documental));
+    requisitoDecisions.push(marca(partes ? withReasonParts(decision, partes) : decision, documental));
   };
 
   const decideEvidencia = (
     requisito: string,
     evidencia: string,
-    medida: Medida,
+    medida: Measurement,
     esperado = `${evidencia} CUMPLE`,
     documental = EVIDENCIAS_DOCUMENTALES.includes(evidencia)
   ) => {
@@ -1237,7 +1237,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       });
 
     ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev =>
-      decideEvidencia('op.nub.1.2', ev, noAplica(ev === 'EV-03' ? DATO_EV03 : ev === 'EV-05' ? DATO_EV05 : ev === 'EV-06' ? DATO_EV06 : DATO_EV07), 'dato del informe')
+      decideEvidencia('op.nub.1.2', ev, notApplicable(ev === 'EV-03' ? DATO_EV03 : ev === 'EV-05' ? DATO_EV05 : ev === 'EV-06' ? DATO_EV06 : DATO_EV07), 'dato del informe')
     );
 
     return {
@@ -1257,21 +1257,21 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   if (posicion === 'ninguno') {
     // Una fila sin `uso` también contradice: es un servicio en la nube del
     // inventario, y con «ninguno» no debería haber ninguno.
-    const enP02 = (filas(context, 'P-02') || []).filter(f => {
-      const uso = sinTildes(f.uso || '').trim();
+    const enP02 = (tableParameterRows(context, 'P-02') || []).filter(f => {
+      const uso = stripAccents(f.uso || '').trim();
 
       return !uso || ['utilizado', 'prestado'].includes(uso);
     });
     const ingiriendo = ingestaLector
       .estadoVigente(context, 'cloud_integration_observed', ahora)
-      .vigentes.filter(e => !vacio(campo(e, 'modulo')) && campo(e, 'modulo') !== 'ninguno' && (numero(campo(e, 'alertas_24h')) || 0) > 0);
+      .vigentes.filter(e => !isEmptyField(factField(e, 'modulo')) && factField(e, 'modulo') !== 'ninguno' && (parseNumber(factField(e, 'alertas_24h')) || 0) > 0);
     const contradicciones = [
-      ...(enP02.length ? [`P-02 declara ${enP02.length} servicio(s) en uso: ${lista(enP02.map(f => `${f.servicio} (${f.uso || 'sin uso declarado'})`))}`] : []),
-      ...(ingiriendo.length ? [`Wazuh está ingiriendo registros de ${lista(ingiriendo.map(e => `${campo(e, 'modulo')} (${campo(e, 'alertas_24h')} en 24 h)`))}`] : []),
+      ...(enP02.length ? [`P-02 declara ${enP02.length} servicio(s) en uso: ${formatList(enP02.map(f => `${f.servicio} (${f.uso || 'sin uso declarado'})`))}`] : []),
+      ...(ingiriendo.length ? [`Wazuh está ingiriendo registros de ${formatList(ingiriendo.map(e => `${factField(e, 'modulo')} (${factField(e, 'alertas_24h')} en 24 h)`))}`] : []),
     ];
     const medida = contradicciones.length
-      ? sinMedir(`P-01 declara «ninguno» (ni presta ni utiliza servicios en la nube), y lo contradice: ${contradicciones.join('; ')}. Corrige P-01 o la contradicción.`, 'CONFIGURATION')
-      : noAplica(NINGUNO);
+      ? notMeasured(`P-01 declara «ninguno» (ni presta ni utiliza servicios en la nube), y lo contradice: ${contradicciones.join('; ')}. Corrige P-01 o la contradicción.`, 'CONFIGURATION')
+      : notApplicable(NINGUNO);
     // Una contradicción vista en los hechos no es solo de la pantalla.
     const documental = !ingiriendo.length;
 
@@ -1282,7 +1282,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         r.evidenceIds.forEach(ev => decideEvidencia(r.id, ev, medida, `${ev} CUMPLE`, documental));
       });
 
-    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev => decideEvidencia('op.nub.1.2', ev, noAplica(NINGUNO), 'dato del informe'));
+    ['EV-03', 'EV-05', 'EV-06', 'EV-07'].forEach(ev => decideEvidencia('op.nub.1.2', ev, notApplicable(NINGUNO), 'dato del informe'));
 
     return {
       decisions: [...requisitoDecisions, ...evidenciaDecisions],
@@ -1295,28 +1295,28 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   }
 
   const inv = inventario(context, posicion);
-  const sinInventario = faltaParametro(context, 'P-02', 'qué servicios en la nube están en el alcance');
+  const sinInventario = missingParameter(context, 'P-02', 'qué servicios en la nube están en el alcance');
   // La parte técnica de op.nub.1.2 es de los servicios UTILIZADOS.
   const utilizados = inv?.utilizados || [];
   const vigencias: string[] = [];
   // Las conformidades de P-03 juzgadas (de lo utilizado y de lo prestado): el
   // informe las pinta con las certificaciones, para que una vencida no salga
   // en verde en el campo de vigencias.
-  const conformidades: Medida[] = [];
+  const conformidades: Measurement[] = [];
 
   // --- op.nub.1.1 · prestador: la conformidad de lo prestado, con su vigencia --
   if (aplica('op.nub.1.1')) {
     if (!presta(posicion)) {
-      decideRequisito('op.nub.1.1', noAplica(`P-01 = ${posicion}: el sistema no presta servicios en la nube al sector público.`), [], 'prestador');
+      decideRequisito('op.nub.1.1', notApplicable(`P-01 = ${posicion}: el sistema no presta servicios en la nube al sector público.`), [], 'prestador');
     } else {
-      let medida: Medida;
+      let medida: Measurement;
 
       if (!inv) {
         medida = sinInventario;
       } else if (!inv.prestados.length) {
-        medida = combina([
+        medida = combineMeasurements([
           ...inv.errores,
-          sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio prestado (columna «uso»), y P-01 = ${posicion}.`, 'CONFIGURATION'),
+          notMeasured(`${parameterDisplayName(context, 'P-02')} no declara ningún servicio prestado (columna «uso»), y P-01 = ${posicion}.`, 'CONFIGURATION'),
         ]);
       } else {
         const e = prestador(context, ahora, inv.prestados, conformidades);
@@ -1337,25 +1337,25 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   // --- op.nub.1.2 · usuario: expediente + medida técnica --------------------
   let ingesta: Ingesta | undefined;
-  let accesos: Medida | undefined;
+  let accesos: Measurement | undefined;
 
   if (aplica('op.nub.1.2')) {
     if (!usa(posicion)) {
-      const fuera = noAplica(`P-01 = ${posicion}: el sistema no utiliza servicios en la nube de terceros.`);
+      const fuera = notApplicable(`P-01 = ${posicion}: el sistema no utiliza servicios en la nube de terceros.`);
 
       decideRequisito('op.nub.1.2', fuera, ['EV-01', 'EV-04', 'EV-09'], 'usuario');
       ['EV-01', 'EV-04', 'EV-07', 'EV-09'].forEach(ev => decideEvidencia('op.nub.1.2', ev, fuera));
     } else {
-      const expediente: Medida = !inv
+      const expediente: Measurement = !inv
         ? sinInventario
         : !utilizados.length
-        ? combina([...inv.errores, sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio utilizado de un tercero, y P-01 = ${posicion}.`, 'CONFIGURATION')])
+        ? combineMeasurements([...inv.errores, notMeasured(`${parameterDisplayName(context, 'P-02')} no declara ningún servicio utilizado de un tercero, y P-01 = ${posicion}.`, 'CONFIGURATION')])
         : (() => {
             const e = ev09(context, ahora, utilizados, conformidades);
 
             vigencias.push(...e.vigencias);
 
-            return inv.errores.length ? combina([e.medida, ...inv.errores]) : e.medida;
+            return inv.errores.length ? combineMeasurements([e.medida, ...inv.errores]) : e.medida;
           })();
 
       // Lo mismo con los servicios utilizados.
@@ -1364,7 +1364,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       }
 
       ingesta = ev01(context, ahora, utilizados);
-      const tecnicas: { id: string; medida: Medida }[] = [
+      const tecnicas: { id: string; medida: Measurement }[] = [
         { id: 'EV-01', medida: ingesta.medida },
         { id: 'EV-04', medida: ev04(context, ahora, utilizados, ingesta) },
       ];
@@ -1374,7 +1374,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       accesos = ev07(context, ahora, utilizados, ingesta);
       decideEvidencia('op.nub.1.2', 'EV-07', accesosInformados(accesos), 'hallazgo del informe');
       const enContra = propias.filter(p => p.medida.estado === 'NO_CUMPLE');
-      const resumen = motivoCompuesto(propias);
+      const resumen = compositeReason(propias);
 
       // La medida manda: un NO_CUMPLE (técnico o del expediente) decide. Si
       // no, el expediente completo y vigente acredita el requisito aunque la
@@ -1386,17 +1386,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       if (enContra.length) {
         decideRequisito(
           'op.nub.1.2',
-          noCumple(resumen),
+          nonCompliant(resumen),
           enContra.map(p => p.id),
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           false,
           enContra.every(p => p.id === 'EV-09'),
-          partesDe(propias)
+          reasonPartsOf(propias)
         );
       } else if (expediente.estado === 'CUMPLE') {
         decideRequisito(
           'op.nub.1.2',
-          cumple(`${ACREDITADO}: el expediente de los servicios utilizados está completo y vigente, y ninguna medida técnica está en contra. ${resumen}`),
+          compliant(`${ACREDITADO}: el expediente de los servicios utilizados está completo y vigente, y ninguna medida técnica está en contra. ${resumen}`),
           ['EV-09'],
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           true,
@@ -1407,12 +1407,12 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
         decideRequisito(
           'op.nub.1.2',
-          { estado: 'NO_EVALUABLE', motivo: resumen, causa: causaComun([expediente]) },
+          { estado: 'NO_EVALUABLE', motivo: resumen, causa: commonGapCause([expediente]) },
           sinMedirAun.length ? sinMedirAun.map(p => p.id) : ['EV-09'],
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           false,
           true,
-          partesDe(propias)
+          reasonPartsOf(propias)
         );
       }
 
@@ -1420,25 +1420,25 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     }
 
     // Datos del informe, sin veredicto.
-    decideEvidencia('op.nub.1.2', 'EV-03', noAplica(DATO_EV03), 'dato del informe');
-    decideEvidencia('op.nub.1.2', 'EV-05', noAplica(`${DATO_EV05}${datoDeclarado(context, 'P-09', 'el cifrado', ['cifrado', 'gestion_claves'])}`), 'dato del informe');
-    decideEvidencia('op.nub.1.2', 'EV-06', noAplica(`${DATO_EV06}${datoDeclarado(context, 'P-08', 'la región', ['region_datos', 'region_copias', 'jurisdiccion'])}`), 'dato del informe');
+    decideEvidencia('op.nub.1.2', 'EV-03', notApplicable(DATO_EV03), 'dato del informe');
+    decideEvidencia('op.nub.1.2', 'EV-05', notApplicable(`${DATO_EV05}${datoDeclarado(context, 'P-09', 'el cifrado', ['cifrado', 'gestion_claves'])}`), 'dato del informe');
+    decideEvidencia('op.nub.1.2', 'EV-06', notApplicable(`${DATO_EV06}${datoDeclarado(context, 'P-08', 'la región', ['region_datos', 'region_copias', 'jurisdiccion'])}`), 'dato del informe');
   }
 
   // --- op.nub.1.r1.1 · certificación en vigor ------------------------------
   if (aplica('op.nub.1.r1.1')) {
     if (!usa(posicion)) {
-      const fuera = noAplica(`P-01 = ${posicion}: R1 es para los servicios en la nube de terceros que se utilizan.`);
+      const fuera = notApplicable(`P-01 = ${posicion}: R1 es para los servicios en la nube de terceros que se utilizan.`);
 
       decideRequisito('op.nub.1.r1.1', fuera, ['EV-08'], 'usuario');
       decideEvidencia('op.nub.1.r1.1', 'EV-08', fuera);
     } else {
-      let medida: Medida;
+      let medida: Measurement;
 
       if (!inv) {
         medida = sinInventario;
       } else if (!utilizados.length) {
-        medida = sinMedir(`${etiqueta(context, 'P-02')} no declara ningún servicio utilizado de un tercero.`, 'CONFIGURATION');
+        medida = notMeasured(`${parameterDisplayName(context, 'P-02')} no declara ningún servicio utilizado de un tercero.`, 'CONFIGURATION');
       } else {
         const e = ev08(context, ahora, utilizados);
 
@@ -1453,29 +1453,29 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
   // --- op.nub.1.r1.2 · servicios de seguridad y op.pl.5 ----------------------
   if (aplica('op.nub.1.r1.2')) {
-    const p05 = filas(context, 'P-05');
+    const p05 = tableParameterRows(context, 'P-05');
 
     if (!usa(posicion)) {
-      decideRequisito('op.nub.1.r1.2', noAplica(`P-01 = ${posicion}: R1.2 es para los servicios en la nube de terceros que se utilizan.`), [], 'usuario');
+      decideRequisito('op.nub.1.r1.2', notApplicable(`P-01 = ${posicion}: R1.2 es para los servicios en la nube de terceros que se utilizan.`), [], 'usuario');
     } else if (!p05) {
       // Vacío no es «ninguno»: lo no declarado no se puede sacar del
       // denominador. «ninguno» es una declaración y se escribe.
       decideRequisito(
         'op.nub.1.r1.2',
-        sinMedir(
-          `${etiqueta(context, 'P-05')} está sin configurar: no consta si alguno de los servicios en la nube es de seguridad (un SIEM gestionado, un WAF, copias gestionadas). Si no se usa ninguno, declara una sola fila «ninguno».`,
+        notMeasured(
+          `${parameterDisplayName(context, 'P-05')} está sin configurar: no consta si alguno de los servicios en la nube es de seguridad (un SIEM gestionado, un WAF, copias gestionadas). Si no se usa ninguno, declara una sola fila «ninguno».`,
           'CONFIGURATION'
         ),
         [],
         'servicios de seguridad en P-05, o «ninguno»'
       );
-    } else if (p05.some(f => sinTildes(f.servicio || '') === 'ninguno')) {
+    } else if (p05.some(f => stripAccents(f.servicio || '') === 'ninguno')) {
       decideRequisito(
         'op.nub.1.r1.2',
         p05.length === 1
-          ? noAplica(`${etiqueta(context, 'P-05')} declara que no se utiliza ningún servicio en la nube de seguridad («ninguno»): R1.2 no aplica.`)
-          : sinMedir(
-              `${etiqueta(context, 'P-05')} mezcla «ninguno» con ${p05.length - 1} servicio(s) (${lista(p05.filter(f => sinTildes(f.servicio || '') !== 'ninguno').map(f => f.servicio))}): o una sola fila «ninguno», o los servicios de seguridad.`,
+          ? notApplicable(`${parameterDisplayName(context, 'P-05')} declara que no se utiliza ningún servicio en la nube de seguridad («ninguno»): R1.2 no aplica.`)
+          : notMeasured(
+              `${parameterDisplayName(context, 'P-05')} mezcla «ninguno» con ${p05.length - 1} servicio(s) (${formatList(p05.filter(f => stripAccents(f.servicio || '') !== 'ninguno').map(f => f.servicio))}): o una sola fila «ninguno», o los servicios de seguridad.`,
               'CONFIGURATION'
             ),
         [],
@@ -1500,7 +1500,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const estadoDe = (ids: string[]) => {
     const suyas = ids.filter(id => medidas[id]).map(id => medidas[id]);
 
-    return suyas.length ? peor(suyas) : 'NO_APLICA';
+    return suyas.length ? worstStatus(suyas) : 'NO_APLICA';
   };
   const describeBloque = (ids: string[]) =>
     ids
@@ -1543,7 +1543,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
     {
       name: 'vigencia_conformidades',
-      value: conformidades.length ? peor(conformidades) : 'NO_APLICA',
+      value: conformidades.length ? worstStatus(conformidades) : 'NO_APLICA',
       parameterIds: ['P-03'],
       evidenceIds: ['EV-09'],
       eventIds: [],

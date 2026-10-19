@@ -56,7 +56,7 @@
 // Disponibilidad (`levelDimension: 'D'`, `core/control-level.ts`): con D por
 // debajo de ALTO el motor lo da todo por NO_APLICA.
 // El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDefinition,
@@ -66,33 +66,33 @@ import type {
 import type { ENSNormalizedEvent } from '../../data-source/types';
 // Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
-  HORA,
-  DIA,
-  MISMA_PASADA,
-  cumple,
-  noCumple,
-  sinMedir,
-  causaComun,
-  peor,
-  combina,
-  campo,
-  numero,
-  instante,
-  momento,
-  lista,
+  HOUR_MS,
+  DAY_MS,
+  SAME_RUN_WINDOW_MS,
+  compliant,
+  nonCompliant,
+  notMeasured,
+  commonGapCause,
+  worstStatus,
+  combineMeasurements,
+  factField,
+  parseNumber,
+  parseInstant,
+  eventTime,
+  formatList,
   iso,
-  sinTildes,
-  vacio,
-  iguales,
-  parametro,
-  etiqueta,
-  filas,
-  escalar,
-  faltaParametro,
-  lectorDeHechos,
-  decisorDe,
+  stripAccents,
+  isEmptyField,
+  equalsIgnoreCase,
+  findParameter,
+  parameterDisplayName,
+  tableParameterRows,
+  positiveScalar,
+  missingParameter,
+  createFactReader,
+  decisionBuilderFor,
 } from './policy-kit';
-import type { ENSTipoDeRegla, Medida } from './policy-kit';
+import type { ENSDecisionRuleType, Measurement } from './policy-kit';
 
 const CONTROL = 'op.cont.3';
 const POLICY = 'policy.op.cont.3';
@@ -100,11 +100,11 @@ const REQUISITO = 'op.cont.3.1';
 
 // Los hechos de op.cont.3: todos de estado, reemitidos enteros cada 6 h. La
 // frescura por defecto (26 h) tolera tres pasadas perdidas.
-const { validos, estadoVigente, sinHechos } = lectorDeHechos(CONTROL, {
+const { validos, estadoVigente, sinHechos } = createFactReader(CONTROL, {
   recolector: 'el recolector de op.cont.3 del manager',
 });
 
-const decide = decisorDe(POLICY);
+const decide = decisionBuilderFor(POLICY);
 
 // Deben coincidir con la primera opción de P-04 y P-05.
 const REGISTRO_PRUEBAS = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
@@ -127,8 +127,8 @@ const PERIODICIDADES: Record<string, number> = {
   bienal: 24,
 };
 
-const esMedida = (x: unknown): x is Medida =>
-  typeof x === 'object' && x !== null && typeof (x as Medida).estado === 'string';
+const esMedida = (x: unknown): x is Measurement =>
+  typeof x === 'object' && x !== null && typeof (x as Measurement).estado === 'string';
 
 // --- fechas -------------------------------------------------------------------
 
@@ -173,15 +173,15 @@ const vencimiento = (texto: string): number | undefined => {
     return undefined;
   }
 
-  const t = instante(texto);
+  const t = parseInstant(texto);
 
-  return t === undefined ? undefined : t + DIA;
+  return t === undefined ? undefined : t + DAY_MS;
 };
 
-const normaliza = (texto: string): string => sinTildes(texto).replace(/\s+/g, ' ').trim();
+const normaliza = (texto: string): string => stripAccents(texto).replace(/\s+/g, ' ').trim();
 
 const listaDe = (texto: string): string[] =>
-  vacio(texto) ? [] : texto.split(',').map(x => x.trim()).filter(Boolean);
+  isEmptyField(texto) ? [] : texto.split(',').map(x => x.trim()).filter(Boolean);
 
 // --- los registros --------------------------------------------------------------
 
@@ -208,7 +208,7 @@ const leeRegistro = (
   tipoFila: string,
   nombre: string,
   ruta: string
-): Registro | Medida => {
+): Registro | Measurement => {
   const { vigentes, ultimo } = estadoVigente(context, tipoLectura, ahora);
   const leido = vigentes[vigentes.length - 1];
 
@@ -216,50 +216,50 @@ const leeRegistro = (
     return sinHechos(context, evidencia, ahora, ultimo, `lectura del registro de ${nombre}`);
   }
 
-  const fichero = campo(leido, 'fichero') || ruta;
+  const fichero = factField(leido, 'fichero') || ruta;
 
-  if (campo(leido, 'presente') !== 'si') {
-    return sinMedir(
+  if (factField(leido, 'presente') !== 'si') {
+    return notMeasured(
       `No existe el registro de ${nombre} ${fichero} en el manager: un registro ausente no es un registro vacío, y sin él no hay contra qué juzgar. Créalo con la cabecera documentada (la plantilla está junto a él, en .example).`,
       'CONFIGURATION'
     );
   }
 
-  if (campo(leido, 'legible') !== 'si') {
-    return sinMedir(`El registro de ${nombre} ${fichero} existe pero el recolector no lo pudo leer.`, 'COLLECTION');
+  if (factField(leido, 'legible') !== 'si') {
+    return notMeasured(`El registro de ${nombre} ${fichero} existe pero el recolector no lo pudo leer.`, 'COLLECTION');
   }
 
-  if (campo(leido, 'cabecera') !== 'ok') {
-    return sinMedir(
+  if (factField(leido, 'cabecera') !== 'ok') {
+    return notMeasured(
       `La primera línea del registro de ${nombre} ${fichero} no es la cabecera documentada: no se interpreta un registro cuyas columnas no se conocen. Corrígela con la de la plantilla.`,
       'CONFIGURATION'
     );
   }
 
-  const t = momento(leido);
+  const t = eventTime(leido);
 
   return {
     t,
     fichero,
-    filas: validos(context, tipoFila, ahora).filter(e => momento(e) >= t - MISMA_PASADA && momento(e) <= t + HORA),
-    declaradas: numero(campo(leido, 'filas')),
-    invalidas: numero(campo(leido, 'filas_invalidas')),
-    lineas: listaDe(campo(leido, 'lineas_invalidas')),
+    filas: validos(context, tipoFila, ahora).filter(e => eventTime(e) >= t - SAME_RUN_WINDOW_MS && eventTime(e) <= t + HOUR_MS),
+    declaradas: parseNumber(factField(leido, 'filas')),
+    invalidas: parseNumber(factField(leido, 'filas_invalidas')),
+    lineas: listaDe(factField(leido, 'lineas_invalidas')),
   };
 };
 
 // Las filas que el recolector descartó por no seguir el formato: con ellas el
 // registro no se puede dar por completo. Se nombran por línea y columna.
-const filasDescartadas = (reg: Registro, nombre: string): Medida | undefined =>
+const filasDescartadas = (reg: Registro, nombre: string): Measurement | undefined =>
   reg.invalidas === undefined
-    ? sinMedir(
+    ? notMeasured(
         `La lectura del registro de ${nombre} ${reg.fichero} no dice cuántas filas descartó el recolector por no seguir el formato (filas_invalidas): no se puede comprobar que no haya ninguna, y una fila descartada puede ser justo la que falta.`,
         'COLLECTION'
       )
     : reg.invalidas
-    ? sinMedir(
+    ? notMeasured(
         `El registro de ${nombre} ${reg.fichero} tiene ${reg.invalidas} fila(s) descartadas por no seguir el formato (${
-          reg.lineas.length ? `línea:columna ${lista(reg.lineas, 10)}` : 'ver los avisos del recolector'
+          reg.lineas.length ? `línea:columna ${formatList(reg.lineas, 10)}` : 'ver los avisos del recolector'
         }): una fila ilegible puede ser justo la que falta, así que no se puede dar el registro por bueno. Corrígelas.`,
         'CONFIGURATION'
       )
@@ -272,7 +272,7 @@ const filasDescartadas = (reg: Registro, nombre: string): Medida | undefined =>
 const unaPorClave = (filasLeidas: ENSNormalizedEvent[], clave: (e: ENSNormalizedEvent) => string): ENSNormalizedEvent[] => {
   const ultima = new Map<string, ENSNormalizedEvent>();
 
-  [...filasLeidas].sort((a, b) => momento(a) - momento(b)).forEach(e => ultima.set(clave(e), e));
+  [...filasLeidas].sort((a, b) => eventTime(a) - eventTime(b)).forEach(e => ultima.set(clave(e), e));
 
   return Array.from(ultima.values());
 };
@@ -280,14 +280,14 @@ const unaPorClave = (filasLeidas: ENSNormalizedEvent[], clave: (e: ENSNormalized
 // Las filas que la lectura anunció y no han llegado (una línea perdida por
 // logcollector, una alerta que el indexer rechazó): sin ellas el registro no
 // está entero.
-const filasPerdidas = (reg: Registro, recibidas: number, nombre: string): Medida | undefined =>
+const filasPerdidas = (reg: Registro, recibidas: number, nombre: string): Measurement | undefined =>
   reg.declaradas === undefined
-    ? sinMedir(
+    ? notMeasured(
         `La lectura del registro de ${nombre} ${reg.fichero} no dice cuántas filas válidas leyó el recolector (filas): no se puede comprobar que hayan llegado todas, y una fila perdida puede ser justo la que falta.`,
         'COLLECTION'
       )
     : recibidas < reg.declaradas
-    ? sinMedir(
+    ? notMeasured(
         `El recolector leyó ${reg.declaradas} fila(s) válidas en el registro de ${nombre} ${reg.fichero} y solo han llegado ${recibidas}: faltan ${reg.declaradas - recibidas}, y una fila perdida puede ser justo la que falta.`,
         'COLLECTION'
       )
@@ -298,9 +298,9 @@ const filasPerdidas = (reg: Registro, recibidas: number, nombre: string): Medida
 // filas: la que falta puede ser la que lo desmiente. Pasa a NO_EVALUABLE con la
 // causa del hueco. Lo que se apoya en algo PRESENTE (una deficiencia abierta
 // fuera de plazo, una discrepancia medida) sigue mandando.
-const porAusencia = (medida: Medida, incompleto: Medida | undefined): Medida =>
+const porAusencia = (medida: Measurement, incompleto: Measurement | undefined): Measurement =>
   medida.estado === 'NO_CUMPLE' && incompleto
-    ? sinMedir(`${medida.motivo} No se puede afirmar: ${incompleto.motivo.charAt(0).toLowerCase()}${incompleto.motivo.slice(1)}`, incompleto.causa)
+    ? notMeasured(`${medida.motivo} No se puede afirmar: ${incompleto.motivo.charAt(0).toLowerCase()}${incompleto.motivo.slice(1)}`, incompleto.causa)
     : medida;
 
 // P-04 o P-05: dónde se registra. Solo se sabe leer el registro propio.
@@ -310,17 +310,17 @@ const declaraRegistro = (
   opcion: string,
   que: string,
   ruta: string
-): Medida | undefined => {
-  const valor = parametro(context, id)?.value;
+): Measurement | undefined => {
+  const valor = findParameter(context, id)?.value;
   const texto = valor === undefined || valor === null || Array.isArray(valor) ? '' : String(valor).trim();
 
   if (!texto) {
-    return faltaParametro(context, id, `dónde se registran ${que}`);
+    return missingParameter(context, id, `dónde se registran ${que}`);
   }
 
   if (texto !== opcion) {
-    return sinMedir(
-      `${etiqueta(context, id)} declara «${texto}» como registro de ${que}. ENSFácil solo lee su registro TSV del manager (${ruta}); la integración con esa herramienta no existe, así que no se puede demostrar.`,
+    return notMeasured(
+      `${parameterDisplayName(context, id)} declara «${texto}» como registro de ${que}. ENSFácil solo lee su registro TSV del manager (${ruta}); la integración con esa herramienta no existe, así que no se puede demostrar.`,
       'CONFIGURATION'
     );
   }
@@ -351,7 +351,7 @@ interface Prueba {
   desconexion?: number;
 }
 
-const describe = (p: Prueba): string => `${p.tipo} del ${iso(p.inicio)}${vacio(p.escenario) ? '' : ` («${p.escenario}»)`}`;
+const describe = (p: Prueba): string => `${p.tipo} del ${iso(p.inicio)}${isEmptyField(p.escenario) ? '' : ` («${p.escenario}»)`}`;
 
 // Las filas del registro de pruebas, una por `inicio`. El recolector ya validó
 // el formato: una fila que aun así no se entiende es un fallo de RECOGIDA, y se
@@ -360,19 +360,19 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; inicioI
   const pruebas: Prueba[] = [];
   const malas: string[] = [];
   const inicioIlegibles: number[] = [];
-  const unicas = unaPorClave(reg.filas, e => String(instante(campo(e, 'inicio')) ?? campo(e, 'inicio')));
+  const unicas = unaPorClave(reg.filas, e => String(parseInstant(factField(e, 'inicio')) ?? factField(e, 'inicio')));
 
   unicas.forEach(e => {
-    const inicio = instante(campo(e, 'inicio'));
-    const fin = instante(campo(e, 'fin'));
-    const tipo = campo(e, 'tipo');
-    const linea = campo(e, 'linea') || '?';
-    const texto = campo(e, 'deficiencias');
+    const inicio = parseInstant(factField(e, 'inicio'));
+    const fin = parseInstant(factField(e, 'fin'));
+    const tipo = factField(e, 'tipo');
+    const linea = factField(e, 'linea') || '?';
+    const texto = factField(e, 'deficiencias');
     const mal = [
-      inicio === undefined ? `inicio «${campo(e, 'inicio')}»` : '',
-      fin === undefined || (inicio !== undefined && fin < inicio) ? `fin «${campo(e, 'fin')}»` : '',
+      inicio === undefined ? `inicio «${factField(e, 'inicio')}»` : '',
+      fin === undefined || (inicio !== undefined && fin < inicio) ? `fin «${factField(e, 'fin')}»` : '',
       !TIPOS.includes(tipo) ? `tipo «${tipo}»` : '',
-      !RESULTADOS.includes(campo(e, 'resultado')) ? `resultado «${campo(e, 'resultado')}»` : '',
+      !RESULTADOS.includes(factField(e, 'resultado')) ? `resultado «${factField(e, 'resultado')}»` : '',
       !/^\d+$/.test(texto) ? `deficiencias «${texto}»` : '',
     ].filter(Boolean);
 
@@ -392,25 +392,25 @@ const pruebasDe = (reg: Registro): { pruebas: Prueba[]; malas: string[]; inicioI
       inicio,
       fin,
       tipo,
-      escenario: campo(e, 'escenario'),
-      sistemas: listaDe(campo(e, 'sistemas')),
-      resultado: campo(e, 'resultado'),
+      escenario: factField(e, 'escenario'),
+      sistemas: listaDe(factField(e, 'sistemas')),
+      resultado: factField(e, 'resultado'),
       deficiencias: Number(texto),
-      referencia: campo(e, 'referencia'),
-      medicion: campo(e, 'medicion'),
-      medidoHasta: instante(campo(e, 'medido_hasta')),
-      diasSinAlertas: listaDe(campo(e, 'dias_sin_alertas')),
-      candidatos: /^\d+$/.test(campo(e, 'candidatos')) ? Number(campo(e, 'candidatos')) : undefined,
-      desconexion: /^\d+$/.test(campo(e, 'agents_disconnection_time')) ? Number(campo(e, 'agents_disconnection_time')) * 1000 : undefined,
+      referencia: factField(e, 'referencia'),
+      medicion: factField(e, 'medicion'),
+      medidoHasta: parseInstant(factField(e, 'medido_hasta')),
+      diasSinAlertas: listaDe(factField(e, 'dias_sin_alertas')),
+      candidatos: /^\d+$/.test(factField(e, 'candidatos')) ? Number(factField(e, 'candidatos')) : undefined,
+      desconexion: /^\d+$/.test(factField(e, 'agents_disconnection_time')) ? Number(factField(e, 'agents_disconnection_time')) * 1000 : undefined,
     });
   });
 
   return { pruebas: pruebas.sort((a, b) => a.inicio - b.inicio), malas, inicioIlegibles, recibidas: unicas.length };
 };
 
-const filasIlegibles = (malas: string[], nombre: string): Medida | undefined =>
+const filasIlegibles = (malas: string[], nombre: string): Measurement | undefined =>
   malas.length
-    ? sinMedir(`El recolector ha emitido ${malas.length} fila(s) del registro de ${nombre} que no se pueden interpretar: ${lista(malas)}.`, 'COLLECTION')
+    ? notMeasured(`El recolector ha emitido ${malas.length} fila(s) del registro de ${nombre} que no se pueden interpretar: ${formatList(malas)}.`, 'COLLECTION')
     : undefined;
 
 // Lo común a las evidencias del registro de pruebas: P-04, el registro y sus
@@ -421,10 +421,10 @@ interface BasePruebas {
   // Hechas en el instante de la lectura (la ventana ya terminó).
   hechas: Prueba[];
   // Lo que no impide juzgar pero impide dar el registro por bueno.
-  reparos: Medida[];
+  reparos: Measurement[];
   // Lo mismo, en una medida: si existe, los hallazgos por ausencia no se
   // afirman (`porAusencia`).
-  incompleto?: Medida;
+  incompleto?: Measurement;
   // El inicio de las filas que llegaron y no se pueden interpretar, y si
   // faltan filas que el recolector leyó: una deficiencia que apunta a una de
   // ellas no tiene su prueba por un fallo de RECOGIDA, no de configuración.
@@ -432,7 +432,7 @@ interface BasePruebas {
   faltanFilas: boolean;
 }
 
-const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string): BasePruebas | Medida => {
+const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string): BasePruebas | Measurement => {
   const p04 = declaraRegistro(context, 'P-04', REGISTRO_PRUEBAS, 'las pruebas', '/etc/ensfacil/continuity-test-register.tsv');
 
   if (p04) {
@@ -456,7 +456,7 @@ const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string
   const { pruebas, malas, inicioIlegibles, recibidas } = pruebasDe(reg);
   const perdidas = filasPerdidas(reg, recibidas, 'pruebas');
   const reparos = [filasDescartadas(reg, 'pruebas'), perdidas, filasIlegibles(malas, 'pruebas')].filter(
-    (m): m is Medida => Boolean(m)
+    (m): m is Measurement => Boolean(m)
   );
 
   return {
@@ -464,7 +464,7 @@ const basePruebas = (context: ENSPolicyContext, ahora: number, evidencia: string
     pruebas,
     hechas: pruebas.filter(p => p.fin <= reg.t),
     reparos,
-    ...(reparos.length ? { incompleto: combina(reparos) } : {}),
+    ...(reparos.length ? { incompleto: combineMeasurements(reparos) } : {}),
     inicioIlegibles,
     faltanFilas: Boolean(perdidas),
   };
@@ -475,23 +475,23 @@ const pendientes = (b: BasePruebas): string => {
   const despues = b.pruebas.filter(p => p.fin > b.reg.t);
 
   return despues.length
-    ? ` No cuentan todavía, porque su ventana no había terminado al leer el registro: ${lista(despues.map(describe))}.`
+    ? ` No cuentan todavía, porque su ventana no había terminado al leer el registro: ${formatList(despues.map(describe))}.`
     : '';
 };
 
 // --- P-01, P-02, P-03 y P-07 ----------------------------------------------------
 
-type Meses = { meses: number } | Medida;
+type Meses = { meses: number } | Measurement;
 
 const periodicidadP01 = (context: ENSPolicyContext, para: string): Meses => {
-  const n = escalar(context, 'P-01');
+  const n = positiveScalar(context, 'P-01');
 
   if (n === undefined) {
-    return faltaParametro(context, 'P-01', para);
+    return missingParameter(context, 'P-01', para);
   }
 
   if (!Number.isInteger(n)) {
-    return sinMedir(`${etiqueta(context, 'P-01')} vale ${n}: tiene que ser un número entero de meses.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-01')} vale ${n}: tiene que ser un número entero de meses.`, 'CONFIGURATION');
   }
 
   return { meses: n };
@@ -505,11 +505,11 @@ interface TipoPrevisto {
 // P-02, con gramática estricta: el tipo, del vocabulario; la periodicidad,
 // vacía (vale P-01), un número de meses o su nombre. Cualquier otra cosa se
 // rechaza nombrando la fila, en vez de adivinarse.
-const tiposP02 = (context: ENSPolicyContext, para: string): { tipos: TipoPrevisto[]; reparo?: Medida } | Medida => {
-  const declaradas = filas(context, 'P-02');
+const tiposP02 = (context: ENSPolicyContext, para: string): { tipos: TipoPrevisto[]; reparo?: Measurement } | Measurement => {
+  const declaradas = tableParameterRows(context, 'P-02');
 
   if (!declaradas) {
-    return faltaParametro(context, 'P-02', para);
+    return missingParameter(context, 'P-02', para);
   }
 
   const tipos: TipoPrevisto[] = [];
@@ -525,7 +525,7 @@ const tiposP02 = (context: ENSPolicyContext, para: string): { tipos: TipoPrevist
       return;
     }
 
-    if (vacio(texto)) {
+    if (isEmptyField(texto)) {
       tipos.push({ tipo });
 
       return;
@@ -546,7 +546,7 @@ const tiposP02 = (context: ENSPolicyContext, para: string): { tipos: TipoPrevist
   return {
     tipos,
     ...(mal.length
-      ? { reparo: sinMedir(`${etiqueta(context, 'P-02')} tiene filas que no se pueden leer: ${lista(mal)}.`, 'CONFIGURATION') }
+      ? { reparo: notMeasured(`${parameterDisplayName(context, 'P-02')} tiene filas que no se pueden leer: ${formatList(mal)}.`, 'CONFIGURATION') }
       : {}),
   };
 };
@@ -559,19 +559,19 @@ interface Rto {
 
 // P-07: el RTO en horas (decimales con coma o punto) y la tolerancia en
 // minutos (vacía, 0). `*` es el de los sistemas sin fila propia.
-const rtosP07 = (context: ENSPolicyContext): { rtos: Rto[]; reparo?: Medida } | Medida => {
-  const declaradas = filas(context, 'P-07');
+const rtosP07 = (context: ENSPolicyContext): { rtos: Rto[]; reparo?: Measurement } | Measurement => {
+  const declaradas = tableParameterRows(context, 'P-07');
 
   if (!declaradas) {
-    return faltaParametro(context, 'P-07', 'la indisponibilidad medida de cada sistema en las pruebas (su RTO)');
+    return missingParameter(context, 'P-07', 'la indisponibilidad medida de cada sistema en las pruebas (su RTO)');
   }
 
   const rtos: Rto[] = [];
   const mal: string[] = [];
 
   declaradas.forEach(f => {
-    const rto = numero(f.rto_horas || '');
-    const tol = vacio((f.tolerancia_minutos || '').trim()) ? 0 : /^\d+$/.test(f.tolerancia_minutos.trim()) ? Number(f.tolerancia_minutos.trim()) : undefined;
+    const rto = parseNumber(f.rto_horas || '');
+    const tol = isEmptyField((f.tolerancia_minutos || '').trim()) ? 0 : /^\d+$/.test(f.tolerancia_minutos.trim()) ? Number(f.tolerancia_minutos.trim()) : undefined;
 
     if (!f.sistema || rto === undefined || rto <= 0 || tol === undefined) {
       mal.push(`fila «${f.sistema || '(sin sistema)'}»: RTO «${f.rto_horas || ''}», tolerancia «${f.tolerancia_minutos || ''}»`);
@@ -581,7 +581,7 @@ const rtosP07 = (context: ENSPolicyContext): { rtos: Rto[]; reparo?: Medida } | 
 
     rtos.push({
       sistema: f.sistema.trim(),
-      limite: rto * HORA + tol * 60000,
+      limite: rto * HOUR_MS + tol * 60000,
       texto: `RTO ${String(rto).replace('.', ',')} h${tol ? ` + ${tol} min` : ''}`,
     });
   });
@@ -589,33 +589,33 @@ const rtosP07 = (context: ENSPolicyContext): { rtos: Rto[]; reparo?: Medida } | 
   return {
     rtos,
     ...(mal.length
-      ? { reparo: sinMedir(`${etiqueta(context, 'P-07')} tiene filas que no se pueden leer (RTO en horas mayor que 0, tolerancia en minutos enteros): ${lista(mal)}.`, 'CONFIGURATION') }
+      ? { reparo: notMeasured(`${parameterDisplayName(context, 'P-07')} tiene filas que no se pueden leer (RTO en horas mayor que 0, tolerancia en minutos enteros): ${formatList(mal)}.`, 'CONFIGURATION') }
       : {}),
   };
 };
 
 // --- EV-01 · el histórico de pruebas -------------------------------------------
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
+const ev01 = (context: ENSPolicyContext, ahora: number): Measurement => {
   const b = basePruebas(context, ahora, 'EV-01');
 
   if (esMedida(b)) {
     return b;
   }
 
-  const partes: Medida[] = [...b.reparos];
+  const partes: Measurement[] = [...b.reparos];
 
   if (!b.hechas.length) {
     partes.push(
       porAusencia(
-        noCumple(
+        nonCompliant(
           `El registro de pruebas ${b.reg.fichero} está leído (${iso(b.reg.t)}) y no consta ninguna prueba realizada del plan de continuidad: el control queda sin cumplimiento acreditable.${pendientes(b)}`
         ),
         b.incompleto
       )
     );
 
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
   const porTipo = TIPOS.map(t => `${b.hechas.filter(p => p.tipo === t).length} ${t}`).join(', ');
@@ -632,8 +632,8 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 
     if (!previstos.tipos.some(t => EJERCITAN.includes(t.tipo))) {
       partes.push(
-        noCumple(
-          `${etiqueta(context, 'P-02')} solo prevé ${previstos.tipos.map(t => t.tipo).join(', ') || 'nada legible'}: ninguna modalidad (parcial o simulacro) ejercita los medios alternativos, y una revisión de escritorio no demuestra que funcionen.`
+        nonCompliant(
+          `${parameterDisplayName(context, 'P-02')} solo prevé ${previstos.tipos.map(t => t.tipo).join(', ') || 'nada legible'}: ninguna modalidad (parcial o simulacro) ejercita los medios alternativos, y una revisión de escritorio no demuestra que funcionen.`
         )
       );
     }
@@ -643,7 +643,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (!reales.length) {
     partes.push(
       porAusencia(
-        noCumple(
+        nonCompliant(
           `Las ${b.hechas.length} pruebas registradas son solo revisiones documentales o de escritorio (${porTipo}): ninguna ejercita realmente los medios alternativos (parcial o simulacro).`
         ),
         b.incompleto
@@ -651,13 +651,13 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
     );
   } else {
     partes.push(
-      cumple(
+      compliant(
         `${b.hechas.length} prueba(s) registrada(s) (${porTipo}); la última, ${describe(ultima)}, resultado declarado ${ultima.resultado || '-'}. La última que ejercita los medios alternativos: ${describe(reales[reales.length - 1])}.${pendientes(b)}`
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- EV-02 · la periodicidad ------------------------------------------------------
@@ -665,27 +665,27 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
 const ultimaDe = (pruebas: Prueba[], filtro: (p: Prueba) => boolean): Prueba | undefined =>
   pruebas.filter(filtro).slice(-1)[0];
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
+const ev02 = (context: ENSPolicyContext, ahora: number): Measurement => {
   const b = basePruebas(context, ahora, 'EV-02');
 
   if (esMedida(b)) {
     return b;
   }
 
-  const partes: Medida[] = [...b.reparos];
+  const partes: Measurement[] = [...b.reparos];
   const p01 = periodicidadP01(context, 'cada cuánto hay que probar el plan');
   const t = b.reg.t;
 
   if (esMedida(p01)) {
     partes.push(p01);
 
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
   if (!b.hechas.length) {
-    partes.push(porAusencia(noCumple(`No consta ninguna prueba realizada en el registro: la periodicidad de ${p01.meses} meses (P-01) no se cumple.`), b.incompleto));
+    partes.push(porAusencia(nonCompliant(`No consta ninguna prueba realizada en el registro: la periodicidad de ${p01.meses} meses (P-01) no se cumple.`), b.incompleto));
 
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
   const fuera: string[] = [];
@@ -726,10 +726,10 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
     );
   }
 
-  const escenarios = filas(context, 'P-03');
+  const escenarios = tableParameterRows(context, 'P-03');
 
   if (!escenarios) {
-    partes.push(faltaParametro(context, 'P-03', 'qué escenarios de interrupción hay que probar'));
+    partes.push(missingParameter(context, 'P-03', 'qué escenarios de interrupción hay que probar'));
   } else {
     escenarios.forEach(f =>
       mira(`escenario «${f.escenario}»`, ultimaDe(b.hechas, p => normaliza(p.escenario) === normaliza(f.escenario)), p01.meses, 'P-01')
@@ -739,18 +739,18 @@ const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
   if (fuera.length) {
     // «Nunca» y «vencido» son ausencias: una fila perdida puede ser la prueba
     // que falta.
-    partes.push(porAusencia(noCumple(`Pruebas fuera de periodicidad a ${fecha(t)}, cuando se leyó el registro: ${lista(fuera, 8)}.`), b.incompleto));
+    partes.push(porAusencia(nonCompliant(`Pruebas fuera de periodicidad a ${fecha(t)}, cuando se leyó el registro: ${formatList(fuera, 8)}.`), b.incompleto));
   } else {
     const proximo = Math.min(...vencimientos);
 
     partes.push(
-      cumple(
-        `A ${fecha(t)}, cuando se leyó el registro, todo está dentro de periodicidad: ${lista(bien, 8)}. El próximo vencimiento es el ${fecha(proximo)}.`
+      compliant(
+        `A ${fecha(t)}, cuando se leyó el registro, todo está dentro de periodicidad: ${formatList(bien, 8)}. El próximo vencimiento es el ${fecha(proximo)}.`
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- EV-03, EV-04 y EV-08 · lo medido en cada prueba ---------------------------
@@ -760,7 +760,7 @@ const idDeAgente = (texto: string): string | undefined =>
 
 // El ID del agente de un hecho, normalizado igual que el del registro: un
 // recolector que emita «24» en vez de «024» no deja al sistema sin agente.
-const idDelHecho = (e: ENSNormalizedEvent): string => idDeAgente(campo(e, 'agente_id')) || campo(e, 'agente_id');
+const idDelHecho = (e: ENSNormalizedEvent): string => idDeAgente(factField(e, 'agente_id')) || factField(e, 'agente_id');
 
 type Resolucion =
   | { tipo: 'unico'; hecho: ENSNormalizedEvent }
@@ -781,7 +781,7 @@ const resuelve = (sistema: string, deAgentes: ENSNormalizedEvent[]): Resolucion 
     }
   }
 
-  const porNombre = deAgentes.filter(e => iguales(campo(e, 'agente'), sistema));
+  const porNombre = deAgentes.filter(e => equalsIgnoreCase(factField(e, 'agente'), sistema));
   const ids = Array.from(new Set(porNombre.map(idDelHecho)));
 
   if (ids.length === 1) {
@@ -793,9 +793,9 @@ const resuelve = (sistema: string, deAgentes: ENSNormalizedEvent[]): Resolucion 
 
 const nombreDe = (sistema: string, e: ENSNormalizedEvent): string => {
   const id = idDelHecho(e);
-  const agente = campo(e, 'agente');
+  const agente = factField(e, 'agente');
 
-  return iguales(agente, sistema) ? `${sistema} (${id})` : `${sistema} (${agente}, ${id})`;
+  return equalsIgnoreCase(agente, sistema) ? `${sistema} (${id})` : `${sistema} (${agente}, ${id})`;
 };
 
 const CAIDAS = ['parada', 'desconexion'];
@@ -809,7 +809,7 @@ const cronologia = (texto: string): Item[] | undefined => {
 
   for (const parte of listaDe(texto)) {
     const m = /^([a-z]+)@(.+)$/.exec(parte);
-    const t = m ? instante(m[2]) : undefined;
+    const t = m ? parseInstant(m[2]) : undefined;
 
     if (!m || t === undefined || ![...CAIDAS, ...VUELTAS].includes(m[1])) {
       return undefined;
@@ -869,7 +869,7 @@ interface Sistema {
   // prueba está medido.
   noAgente?: boolean;
   // Sin medida concluyente: la causa y el motivo.
-  hueco?: Medida;
+  hueco?: Measurement;
   tramos: Tramo[];
   rto?: Rto;
   // true: la cota INFERIOR de una caída cerrada por un arranque supera el RTO;
@@ -888,7 +888,7 @@ interface Analisis {
   cambios: ENSNormalizedEvent[];
   // Lo que impide concluir sobre la prueba entera: la medición incompleta o
   // pendiente, o hechos de disponibilidad perdidos por el camino.
-  huecos: Medida[];
+  huecos: Measurement[];
 }
 
 // Lo medido de UNA prueba en la misma pasada que su fila: por su inicio Y su
@@ -896,14 +896,14 @@ interface Analisis {
 const delMismoPaso = (context: ENSPolicyContext, ahora: number, tipo: string, t: number, prueba: Prueba): ENSNormalizedEvent[] =>
   validos(context, tipo, ahora).filter(
     e =>
-      momento(e) >= t - MISMA_PASADA &&
-      momento(e) <= t + HORA &&
-      instante(campo(e, 'prueba_inicio')) === prueba.inicio &&
-      instante(campo(e, 'prueba_fin')) === prueba.fin
+      eventTime(e) >= t - SAME_RUN_WINDOW_MS &&
+      eventTime(e) <= t + HOUR_MS &&
+      parseInstant(factField(e, 'prueba_inicio')) === prueba.inicio &&
+      parseInstant(factField(e, 'prueba_fin')) === prueba.fin
   );
 
 const rtoDe = (rtos: Rto[], sistema: string, hecho: ENSNormalizedEvent): Rto | undefined =>
-  rtos.find(r => r.sistema !== '*' && (iguales(r.sistema, sistema) || (idDeAgente(r.sistema) && idDeAgente(r.sistema) === idDelHecho(hecho)) || iguales(r.sistema, campo(hecho, 'agente')))) ||
+  rtos.find(r => r.sistema !== '*' && (equalsIgnoreCase(r.sistema, sistema) || (idDeAgente(r.sistema) && idDeAgente(r.sistema) === idDelHecho(hecho)) || equalsIgnoreCase(r.sistema, factField(hecho, 'agente')))) ||
   rtos.find(r => r.sistema === '*');
 
 const MEDICION: Record<string, string> = {
@@ -915,7 +915,7 @@ const MEDICION: Record<string, string> = {
 
 // ¿Es de alguno de los sistemas de la prueba? Por ID o por nombre exacto.
 const deLaPrueba = (e: ENSNormalizedEvent, prueba: Prueba): boolean =>
-  prueba.sistemas.some(s => (idDeAgente(s) !== undefined && idDeAgente(s) === idDelHecho(e)) || iguales(s, campo(e, 'agente')));
+  prueba.sistemas.some(s => (idDeAgente(s) !== undefined && idDeAgente(s) === idDelHecho(e)) || equalsIgnoreCase(s, factField(e, 'agente')));
 
 // Los tramos de caída de una cronología, y las vueltas sin caída previa
 // observada (desde el inicio de la prueba).
@@ -963,10 +963,10 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
   // Solo un fallo EXPLÍCITO, y solo si es de la prueba: en su ventana, o de uno
   // de sus sistemas.
   const fallidas = restauraciones.filter(e => {
-    const cuando = instante(campo(e, 'instante')) ?? momento(e);
+    const cuando = parseInstant(factField(e, 'instante')) ?? eventTime(e);
 
     return (
-      (campo(e, 'resultado') === 'error' || campo(e, 'coincide') === 'no') &&
+      (factField(e, 'resultado') === 'error' || factField(e, 'coincide') === 'no') &&
       ((cuando >= prueba.inicio && cuando <= prueba.fin) || deLaPrueba(e, prueba))
     );
   });
@@ -974,22 +974,22 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
   const completa = prueba.medicion === 'completa';
   // Leídos todos los días de lo medido hasta ahora (completa o aún abierta).
   const todosLosDias = (completa || prueba.medicion === 'pendiente') && !prueba.diasSinAlertas.length;
-  const huecos: Medida[] = [];
+  const huecos: Measurement[] = [];
 
   if (prueba.medicion === 'pendiente') {
-    huecos.push(sinMedir(`La medición de la prueba ${describe(prueba)} sigue abierta hasta las 24 h siguientes a su fin (leída hasta ${iso(hasta)}): todavía no es concluyente.`));
+    huecos.push(notMeasured(`La medición de la prueba ${describe(prueba)} sigue abierta hasta las 24 h siguientes a su fin (leída hasta ${iso(hasta)}): todavía no es concluyente.`));
   } else if (completa && prueba.diasSinAlertas.length) {
     // Contradictoria: «completa», pero con días sin alertas leídas. Una caída
     // de esos días no se habría visto, así que no puede salir CUMPLE.
     huecos.push(
-      sinMedir(
+      notMeasured(
         `La medición de la prueba ${describe(prueba)} se declara completa, pero hay días sin alertas leídas (${prueba.diasSinAlertas.join(', ')}): una caída de esos días no se habría visto.`,
         'COLLECTION'
       )
     );
   } else if (!completa) {
     huecos.push(
-      sinMedir(
+      notMeasured(
         `La medición de la prueba ${describe(prueba)} está incompleta (${prueba.medicion || 'sin dato'}: ${MEDICION[prueba.medicion] || 'estado desconocido'}${
           prueba.diasSinAlertas.length ? `; días sin alertas: ${prueba.diasSinAlertas.join(', ')}` : ''
         }).`,
@@ -1003,10 +1003,10 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
   const perdidos = prueba.candidatos === undefined ? undefined : Math.max(0, prueba.candidatos - disponibilidad.length);
 
   if (perdidos === undefined) {
-    huecos.push(sinMedir(`La fila de la prueba ${describe(prueba)} no dice cuántos agentes candidatos midió el recolector (candidatos): no se distingue un hecho perdido de un sistema que no es agente.`, 'COLLECTION'));
+    huecos.push(notMeasured(`La fila de la prueba ${describe(prueba)} no dice cuántos agentes candidatos midió el recolector (candidatos): no se distingue un hecho perdido de un sistema que no es agente.`, 'COLLECTION'));
   } else if (perdidos > 0) {
     huecos.push(
-      sinMedir(
+      notMeasured(
         `De los ${prueba.candidatos} hechos de disponibilidad que el recolector emitió para la prueba ${describe(prueba)} solo han llegado ${disponibilidad.length}: faltan ${perdidos}.`,
         'COLLECTION'
       )
@@ -1020,7 +1020,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     if (r.tipo === 'ambiguo') {
       return {
         ...sinMedida,
-        hueco: sinMedir(`«${sistema}» casa con ${r.ids.length} agentes (${r.ids.join(', ')}): no se elige uno. Decláralo por su ID en el registro.`, 'CONFIGURATION'),
+        hueco: notMeasured(`«${sistema}» casa con ${r.ids.length} agentes (${r.ids.join(', ')}): no se elige uno. Decláralo por su ID en el registro.`, 'CONFIGURATION'),
         texto: `${sistema}: ambiguo`,
       };
     }
@@ -1029,19 +1029,19 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
       return {
         ...sinMedida,
         noAgente: true,
-        hueco: sinMedir(`«${sistema}» no es un agente de Wazuh en el manager: su disponibilidad durante la prueba no se puede medir.`),
+        hueco: notMeasured(`«${sistema}» no es un agente de Wazuh en el manager: su disponibilidad durante la prueba no se puede medir.`),
         texto: `${sistema}: no es un agente de Wazuh, sin medida`,
       };
     }
 
     const e = r.hecho;
     const nombre = nombreDe(sistema, e);
-    const items = cronologia(campo(e, 'eventos'));
-    const total = numero(campo(e, 'eventos_total'));
-    const propias = numero(campo(e, 'alertas_propias'));
+    const items = cronologia(factField(e, 'eventos'));
+    const total = parseNumber(factField(e, 'eventos_total'));
+    const propias = parseNumber(factField(e, 'alertas_propias'));
 
     if (!items) {
-      return { ...sinMedida, nombre, hueco: sinMedir(`${nombre}: el recolector emitió una cronología que no se puede leer («${campo(e, 'eventos')}»).`, 'COLLECTION'), texto: `${nombre}: cronología ilegible` };
+      return { ...sinMedida, nombre, hueco: notMeasured(`${nombre}: el recolector emitió una cronología que no se puede leer («${factField(e, 'eventos')}»).`, 'COLLECTION'), texto: `${nombre}: cronología ilegible` };
     }
 
     const { tramos: todos, huerfanas } = tramosDe(items, prueba, hasta);
@@ -1064,7 +1064,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     }
 
     if (!rto) {
-      return { ...base, hueco: sinMedir(`${etiqueta(context, 'P-07')} no declara el RTO de «${sistema}» ni uno general (*): no hay contra qué juzgar su indisponibilidad.`, 'CONFIGURATION') };
+      return { ...base, hueco: notMeasured(`${parameterDisplayName(context, 'P-07')} no declara el RTO de «${sistema}» ni uno general (*): no hay contra qué juzgar su indisponibilidad.`, 'CONFIGURATION') };
     }
 
     // NO_CUMPLE solo con la cota INFERIOR de una caída cerrada por un
@@ -1081,7 +1081,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     if (huerfanas.length) {
       return {
         ...base,
-        hueco: sinMedir(
+        hueco: notMeasured(
           `${nombre}: volvió (${huerfanas.map(x => `${x.tipo} ${iso(x.t)}`).join(', ')}) sin ninguna caída observada antes: no se sabe cuándo empezó a no estar disponible.`
         ),
       };
@@ -1090,7 +1090,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
     if (truncada) {
       return {
         ...base,
-        hueco: sinMedir(
+        hueco: notMeasured(
           sinTotal
             ? `${nombre}: la fila no dice cuántos eventos tiene su cronología (eventos_total): no se puede afirmar que llegó entera ni que no hubo una caída más larga.`
             : `${nombre}: la cronología llegó truncada (${items.length} de ${total} eventos): no se puede afirmar que no hubo una caída más larga.`,
@@ -1106,13 +1106,13 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
 
     if (!posibles.length) {
       if (propias === undefined) {
-        return { ...base, hueco: sinMedir(`${nombre}: el recolector no dice cuántas alertas propias envió en el rango (alertas_propias).`, 'COLLECTION') };
+        return { ...base, hueco: notMeasured(`${nombre}: el recolector no dice cuántas alertas propias envió en el rango (alertas_propias).`, 'COLLECTION') };
       }
 
       if (propias === 0) {
         return {
           ...base,
-          hueco: sinMedir(`${nombre}: sin caídas observadas, pero tampoco envió ninguna alerta propia en todo el rango medido: no se puede afirmar que estuviera en marcha.`),
+          hueco: notMeasured(`${nombre}: sin caídas observadas, pero tampoco envió ninguna alerta propia en todo el rango medido: no se puede afirmar que estuviera en marcha.`),
         };
       }
 
@@ -1127,8 +1127,8 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
       return {
         ...base,
         hueco: abierta
-          ? sinMedir(`${nombre}: no se observó su vuelta (ni un arranque ni ninguna alerta propia) hasta ${iso(hasta)}: no se puede afirmar ni negar que se restableciera dentro de su ${rto.texto}.`)
-          : sinMedir(
+          ? notMeasured(`${nombre}: no se observó su vuelta (ni un arranque ni ninguna alerta propia) hasta ${iso(hasta)}: no se puede afirmar ni negar que se restableciera dentro de su ${rto.texto}.`)
+          : notMeasured(
               `${nombre}: la fila de la prueba no trae agents_disconnection_time del manager, así que no se sabe cuánto antes de la desconexión (504) empezó la caída.`,
               'COLLECTION'
             ),
@@ -1143,7 +1143,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
 
     return {
       ...base,
-      hueco: sinMedir(`${nombre}: su caída más larga duró entre ${duracion(Math.max(...posibles.map(minimaDe)))} y ${duracion(peorCaso)}, y su ${rto.texto} cae dentro: no se puede afirmar ni negar.`),
+      hueco: notMeasured(`${nombre}: su caída más larga duró entre ${duracion(Math.max(...posibles.map(minimaDe)))} y ${duracion(peorCaso)}, y su ${rto.texto} cae dentro: no se puede afirmar ni negar.`),
     };
   });
 
@@ -1151,7 +1151,7 @@ const analiza = (context: ENSPolicyContext, ahora: number, t: number, prueba: Pr
 };
 
 const describeRestauracion = (e: ENSNormalizedEvent): string =>
-  `${campo(e, 'agente') || '-'} (${idDelHecho(e) || '-'}) ${campo(e, 'instante') || iso(momento(e))}: ${campo(e, 'resultado') || '-'}${campo(e, 'coincide') === 'no' ? ', el contenido no coincide' : ''}`;
+  `${factField(e, 'agente') || '-'} (${idDelHecho(e) || '-'}) ${factField(e, 'instante') || iso(eventTime(e))}: ${factField(e, 'resultado') || '-'}${factField(e, 'coincide') === 'no' ? ', el contenido no coincide' : ''}`;
 
 // Lo que la prueba reveló según la medida: un RTO superado o una restauración
 // fallida. EV-05 exige que conste como deficiencia.
@@ -1161,17 +1161,17 @@ const revelo = (a: Analisis): string[] => [
 ];
 
 // El juicio de UNA prueba: lo declarado frente a lo medido.
-const juzgaPrueba = (a: Analisis): Medida => {
+const juzgaPrueba = (a: Analisis): Measurement => {
   const p = a.prueba;
   const titulo = `Prueba ${describe(p)}, declarada ${p.resultado || '-'}`;
   const excedidos = a.sistemas.filter(s => s.excede === true);
   const satisfactoria = p.resultado === 'satisfactorio';
   const medido = a.sistemas.map(s => s.texto).join('; ');
-  const partes: Medida[] = [];
+  const partes: Measurement[] = [];
 
   if (satisfactoria && excedidos.length) {
     partes.push(
-      noCumple(
+      nonCompliant(
         `${titulo}, y la medida la desmiente: ${excedidos
           .map(s => {
             const x = s.culpable as Tramo;
@@ -1185,12 +1185,12 @@ const juzgaPrueba = (a: Analisis): Medida => {
   }
 
   if (satisfactoria && a.fallidas.length) {
-    partes.push(noCumple(`${titulo}, y en su ventana falló la restauración de copias: ${lista(a.fallidas.map(describeRestauracion))}.`));
+    partes.push(nonCompliant(`${titulo}, y en su ventana falló la restauración de copias: ${formatList(a.fallidas.map(describeRestauracion))}.`));
   }
 
   if (partes.length) {
     // Una discrepancia medida manda sobre lo que no se pudo medir.
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
   partes.push(...a.huecos);
@@ -1200,24 +1200,24 @@ const juzgaPrueba = (a: Analisis): Medida => {
   const medidos = a.sistemas.filter(s => s.medido);
   const noAgentes = a.sistemas.filter(s => s.noAgente);
 
-  a.sistemas.filter(s => s.hueco && !s.noAgente).forEach(s => partes.push(s.hueco as Medida));
+  a.sistemas.filter(s => s.hueco && !s.noAgente).forEach(s => partes.push(s.hueco as Measurement));
 
   if (!medidos.length && noAgentes.length) {
-    partes.push(sinMedir(`${titulo}: ninguno de sus sistemas (${lista(noAgentes.map(s => s.nombre))}) es un agente de Wazuh, así que su resultado no se puede contrastar con lo medido.`));
+    partes.push(notMeasured(`${titulo}: ninguno de sus sistemas (${formatList(noAgentes.map(s => s.nombre))}) es un agente de Wazuh, así que su resultado no se puede contrastar con lo medido.`));
   }
 
   if (partes.length) {
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
-  const aparte = noAgentes.length && medidos.length ? ` Sin medida, porque no son agentes de Wazuh: ${lista(noAgentes.map(s => s.nombre))}.` : '';
+  const aparte = noAgentes.length && medidos.length ? ` Sin medida, porque no son agentes de Wazuh: ${formatList(noAgentes.map(s => s.nombre))}.` : '';
 
-  return cumple(
+  return compliant(
     `${
       satisfactoria
         ? `${titulo}, y lo medido lo confirma: ${medido}.`
         : excedidos.length || a.fallidas.length
-        ? `${titulo}, y lo medido es coherente con lo declarado: ${medido}${a.fallidas.length ? `; restauraciones fallidas: ${lista(a.fallidas.map(describeRestauracion))}` : ''}. Lo que la prueba reveló se juzga en EV-05.`
+        ? `${titulo}, y lo medido es coherente con lo declarado: ${medido}${a.fallidas.length ? `; restauraciones fallidas: ${formatList(a.fallidas.map(describeRestauracion))}` : ''}. Lo que la prueba reveló se juzga en EV-05.`
         : `${titulo}; lo medido no muestra ningún objetivo incumplido: ${medido}.`
     }${aparte}`
   );
@@ -1242,12 +1242,12 @@ const delPeriodo = (b: BasePruebas, meses: number | undefined): Prueba[] => {
 };
 
 interface Medidas {
-  base: BasePruebas | Medida;
+  base: BasePruebas | Measurement;
   analisis: Analisis[];
   sinSistemas: Prueba[];
   rtos?: Rto[];
-  reparoRto?: Medida;
-  faltaRto?: Medida;
+  reparoRto?: Measurement;
+  faltaRto?: Measurement;
 }
 
 const medidas = (context: ENSPolicyContext, ahora: number, evidencia: string): Medidas => {
@@ -1257,7 +1257,7 @@ const medidas = (context: ENSPolicyContext, ahora: number, evidencia: string): M
     return { base, analisis: [], sinSistemas: [] };
   }
 
-  const p01 = escalar(context, 'P-01');
+  const p01 = positiveScalar(context, 'P-01');
   const juzgadas = delPeriodo(base, p01 !== undefined && Number.isInteger(p01) ? p01 : undefined);
   const p07 = rtosP07(context);
   const rtos = esMedida(p07) ? undefined : p07.rtos;
@@ -1272,12 +1272,12 @@ const medidas = (context: ENSPolicyContext, ahora: number, evidencia: string): M
   };
 };
 
-const ev04 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
+const ev04 = (context: ENSPolicyContext, ahora: number, m: Medidas): Measurement => {
   if (esMedida(m.base)) {
     return m.base;
   }
 
-  const partes: Medida[] = [...m.base.reparos];
+  const partes: Measurement[] = [...m.base.reparos];
 
   if (m.faltaRto) {
     partes.push(m.faltaRto);
@@ -1288,9 +1288,9 @@ const ev04 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
   }
 
   if (!m.analisis.length && !m.sinSistemas.length) {
-    partes.push(sinMedir('No consta ninguna prueba parcial ni simulacro realizado: no hay ningún resultado que contrastar con lo medido (lo juzga EV-01).'));
+    partes.push(notMeasured('No consta ninguna prueba parcial ni simulacro realizado: no hay ningún resultado que contrastar con lo medido (lo juzga EV-01).'));
 
-    return combina(partes);
+    return combineMeasurements(partes);
   }
 
   m.analisis.forEach(a => partes.push(juzgaPrueba(a)));
@@ -1298,10 +1298,10 @@ const ev04 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
   // Una prueba que ejercita los medios alternativos sin declarar sistemas no
   // se escapa del contraste: no se puede demostrar su resultado.
   m.sinSistemas.forEach(p =>
-    partes.push(sinMedir(`La prueba ${describe(p)}, declarada ${p.resultado || '-'}, no declara ningún sistema: su resultado no se puede contrastar con lo que pasó en los sistemas.`))
+    partes.push(notMeasured(`La prueba ${describe(p)}, declarada ${p.resultado || '-'}, no declara ningún sistema: su resultado no se puede contrastar con lo que pasó en los sistemas.`))
   );
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- EV-05 · las deficiencias y su corrección ------------------------------------
@@ -1327,40 +1327,40 @@ interface Deficiencia {
 const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[]; recibidas: number } => {
   const salida: Deficiencia[] = [];
   const malas: string[] = [];
-  const unicas = unaPorClave(reg.filas, e => campo(e, 'deficiencia_id'));
+  const unicas = unaPorClave(reg.filas, e => factField(e, 'deficiencia_id'));
 
   unicas.forEach(e => {
-    const prueba = instante(campo(e, 'prueba_inicio'));
-    const declarada = campo(e, 'situacion');
-    const vence = vencimiento(campo(e, 'plazo'));
-    const id = campo(e, 'deficiencia_id');
-    const cierre = vencimiento(campo(e, 'cierre'));
+    const prueba = parseInstant(factField(e, 'prueba_inicio'));
+    const declarada = factField(e, 'situacion');
+    const vence = vencimiento(factField(e, 'plazo'));
+    const id = factField(e, 'deficiencia_id');
+    const cierre = vencimiento(factField(e, 'cierre'));
 
     if (!id || prueba === undefined || !['abierta', 'cerrada'].includes(declarada) || vence === undefined) {
-      malas.push(`línea ${campo(e, 'linea') || '?'} (${id || 'sin id'})`);
+      malas.push(`línea ${factField(e, 'linea') || '?'} (${id || 'sin id'})`);
 
       return;
     }
 
     // `vencimiento` da el FINAL del día: el cierre ocurrió al empezar ese día.
-    const cerradaDeVerdad = declarada === 'cerrada' && cierre !== undefined && cierre - DIA <= reg.t;
+    const cerradaDeVerdad = declarada === 'cerrada' && cierre !== undefined && cierre - DAY_MS <= reg.t;
     const situacion = declarada === 'cerrada' && !cerradaDeVerdad ? 'abierta' : declarada;
 
     salida.push({
       id,
-      linea: campo(e, 'linea'),
+      linea: factField(e, 'linea'),
       prueba,
-      pruebaTexto: campo(e, 'prueba_inicio'),
+      pruebaTexto: factField(e, 'prueba_inicio'),
       situacion,
       nota:
         declarada !== situacion
-          ? ` (declarada cerrada ${cierre === undefined ? 'sin fecha de cierre' : `con cierre el ${campo(e, 'cierre')}, posterior a la lectura`}: se juzga abierta)`
+          ? ` (declarada cerrada ${cierre === undefined ? 'sin fecha de cierre' : `con cierre el ${factField(e, 'cierre')}, posterior a la lectura`}: se juzga abierta)`
           : '',
       vence,
-      plazo: campo(e, 'plazo'),
-      cierre: campo(e, 'cierre'),
-      versionPlan: campo(e, 'version_plan'),
-      responsable: campo(e, 'responsable'),
+      plazo: factField(e, 'plazo'),
+      cierre: factField(e, 'cierre'),
+      versionPlan: factField(e, 'version_plan'),
+      responsable: factField(e, 'responsable'),
     });
   });
 
@@ -1370,11 +1370,11 @@ const deficienciasDe = (reg: Registro): { lista: Deficiencia[]; malas: string[];
 interface BaseDeficiencias {
   reg: Registro;
   deficiencias: Deficiencia[];
-  reparos: Medida[];
-  incompleto?: Medida;
+  reparos: Measurement[];
+  incompleto?: Measurement;
 }
 
-const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: string): BaseDeficiencias | Medida => {
+const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: string): BaseDeficiencias | Measurement => {
   const p05 = declaraRegistro(context, 'P-05', REGISTRO_DEFICIENCIAS, 'las deficiencias', '/etc/ensfacil/continuity-deficiency-register.tsv');
 
   if (p05) {
@@ -1400,12 +1400,12 @@ const baseDeficiencias = (context: ENSPolicyContext, ahora: number, evidencia: s
     filasDescartadas(reg, 'deficiencias'),
     filasPerdidas(reg, recibidas, 'deficiencias'),
     filasIlegibles(malas, 'deficiencias'),
-  ].filter((m): m is Medida => Boolean(m));
+  ].filter((m): m is Measurement => Boolean(m));
 
-  return { reg, deficiencias, reparos, ...(reparos.length ? { incompleto: combina(reparos) } : {}) };
+  return { reg, deficiencias, reparos, ...(reparos.length ? { incompleto: combineMeasurements(reparos) } : {}) };
 };
 
-const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
+const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Measurement => {
   const d = baseDeficiencias(context, ahora, 'EV-05');
 
   if (esMedida(d)) {
@@ -1413,7 +1413,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
   }
 
   const t = d.reg.t;
-  const partes: Medida[] = [...d.reparos];
+  const partes: Measurement[] = [...d.reparos];
   const abiertas = d.deficiencias.filter(x => x.situacion === 'abierta');
   const cerradas = d.deficiencias.filter(x => x.situacion === 'cerrada');
 
@@ -1422,8 +1422,8 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
 
   if (vencidas.length) {
     partes.push(
-      noCumple(
-        `Deficiencias abiertas fuera de plazo a ${fecha(t)}: ${lista(vencidas.map(x => `${x.id} (prueba del ${fecha(x.prueba)}, plazo ${x.plazo}, ${x.responsable || 'sin responsable'})${x.nota}`))}. Probar sin corregir no cumple.`
+      nonCompliant(
+        `Deficiencias abiertas fuera de plazo a ${fecha(t)}: ${formatList(vencidas.map(x => `${x.id} (prueba del ${fecha(x.prueba)}, plazo ${x.plazo}, ${x.responsable || 'sin responsable'})${x.nota}`))}. Probar sin corregir no cumple.`
       )
     );
   }
@@ -1452,7 +1452,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
             p =>
               p.inicio > origen.inicio &&
               p.fin <= t &&
-              (vacio(origen.escenario) ? p.tipo === origen.tipo : normaliza(p.escenario) === normaliza(origen.escenario))
+              (isEmptyField(origen.escenario) ? p.tipo === origen.tipo : normaliza(p.escenario) === normaliza(origen.escenario))
           )
         : undefined;
     };
@@ -1460,8 +1460,8 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
 
     if (vivas.length) {
       partes.push(
-        noCumple(
-          `Deficiencias que siguen abiertas después de la prueba siguiente: ${lista(vivas.map(v => `${v.x.id} (de la prueba del ${fecha(v.x.prueba)}; la siguiente fue ${describe(v.siguiente as Prueba)})`))}. Es la señal de que el ciclo de mejora no se cierra.`
+        nonCompliant(
+          `Deficiencias que siguen abiertas después de la prueba siguiente: ${formatList(vivas.map(v => `${v.x.id} (de la prueba del ${fecha(v.x.prueba)}; la siguiente fue ${describe(v.siguiente as Prueba)})`))}. Es la señal de que el ciclo de mejora no se cierra.`
         )
       );
     }
@@ -1474,8 +1474,8 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
 
     if (enFilaIlegible.length) {
       partes.push(
-        sinMedir(
-          `Deficiencias cuya prueba está en una fila del registro de pruebas que no se puede interpretar: ${lista(enFilaIlegible.map(describeHuerfana))}. Sin su prueba no se sabe cuál es la siguiente.`,
+        notMeasured(
+          `Deficiencias cuya prueba está en una fila del registro de pruebas que no se puede interpretar: ${formatList(enFilaIlegible.map(describeHuerfana))}. Sin su prueba no se sabe cuál es la siguiente.`,
           'COLLECTION'
         )
       );
@@ -1496,12 +1496,12 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
 
       partes.push(
         porRecogida
-          ? sinMedir(
-              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba recibida: ${lista(sinPrueba.map(describeHuerfana))}. ${porRecogida}`,
+          ? notMeasured(
+              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba recibida: ${formatList(sinPrueba.map(describeHuerfana))}. ${porRecogida}`,
               'COLLECTION'
             )
-          : sinMedir(
-              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba del registro: ${lista(sinPrueba.map(describeHuerfana))}. Copia en prueba_inicio el inicio exacto de su prueba${
+          : notMeasured(
+              `Deficiencias cuyo prueba_inicio no es el inicio de ninguna prueba del registro: ${formatList(sinPrueba.map(describeHuerfana))}. Copia en prueba_inicio el inicio exacto de su prueba${
                 b.reg.invalidas ? ', o corrige su fila si es una de las descartadas del registro de pruebas' : ''
               }.`,
               'CONFIGURATION'
@@ -1509,7 +1509,7 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
       );
     }
 
-    const p01 = escalar(context, 'P-01');
+    const p01 = positiveScalar(context, 'P-01');
     const meses = p01 !== undefined && Number.isInteger(p01) ? p01 : undefined;
     const desde = meses !== undefined ? sumaMeses(t, -meses) : -Infinity;
     const sinSeguir = hechas
@@ -1522,8 +1522,8 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     if (sinSeguir.length) {
       partes.push(
         porAusencia(
-          noCumple(
-            `Pruebas${meses !== undefined ? ` del periodo de P-01 (${meses} meses)` : ''} que declaran más deficiencias de las que el registro sigue: ${lista(sinSeguir.map(v => `${describe(v.p)}: declara ${v.p.deficiencias}, en seguimiento ${v.seguidas}`))}. Una deficiencia localizada y no registrada no se corrige.`
+          nonCompliant(
+            `Pruebas${meses !== undefined ? ` del periodo de P-01 (${meses} meses)` : ''} que declaran más deficiencias de las que el registro sigue: ${formatList(sinSeguir.map(v => `${describe(v.p)}: declara ${v.p.deficiencias}, en seguimiento ${v.seguidas}`))}. Una deficiencia localizada y no registrada no se corrige.`
           ),
           d.incompleto
         )
@@ -1547,8 +1547,8 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     if (reveladas.length) {
       partes.push(
         porAusencia(
-          noCumple(
-            `Pruebas que revelaron algo que corregir y no tienen ninguna deficiencia, ni declarada ni en seguimiento: ${lista(reveladas.map(v => `${describe(v.p)} (${v.que.join('; ')})`))}. Localizar sin corregir no cumple.`
+          nonCompliant(
+            `Pruebas que revelaron algo que corregir y no tienen ninguna deficiencia, ni declarada ni en seguimiento: ${formatList(reveladas.map(v => `${describe(v.p)} (${v.que.join('; ')})`))}. Localizar sin corregir no cumple.`
           ),
           d.incompleto
         )
@@ -1564,15 +1564,15 @@ const ev05 = (context: ENSPolicyContext, ahora: number, m: Medidas): Medida => {
     });
 
     partes.push(
-      cumple(
+      compliant(
         d.deficiencias.length
-          ? `${d.deficiencias.length} deficiencia(s) en seguimiento a ${fecha(t)}: ${cerradas.length} cerrada(s)${tarde.length ? ` (${tarde.length} fuera de su plazo: ${lista(tarde.map(x => x.id))})` : ''} y ${abiertas.length} abierta(s) dentro de plazo${abiertas.length ? ` (${lista(abiertas.map(x => `${x.id} hasta ${x.plazo}`))})` : ''}.`
+          ? `${d.deficiencias.length} deficiencia(s) en seguimiento a ${fecha(t)}: ${cerradas.length} cerrada(s)${tarde.length ? ` (${tarde.length} fuera de su plazo: ${formatList(tarde.map(x => x.id))})` : ''} y ${abiertas.length} abierta(s) dentro de plazo${abiertas.length ? ` (${formatList(abiertas.map(x => `${x.id} hasta ${x.plazo}`))})` : ''}.`
           : `El registro de deficiencias está leído (${fecha(t)}) y vacío, y ninguna prueba del periodo declara deficiencias: no hay nada que corregir.`
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- los datos del informe ----------------------------------------------------------
@@ -1610,8 +1610,8 @@ const ev08Informe = (m: Medidas): string => {
   const sin = m.analisis.filter(a => !a.restauraciones.length);
 
   return informe(
-    `alimenta EV-04. ${con.length ? `Restauraciones de mp.info.6 en la ventana: ${con.map(a => `${describe(a.prueba)}: ${lista(a.restauraciones.map(describeRestauracion))}`).join(' | ')}.` : 'Ninguna prueba del periodo incluyó una restauración de copias de mp.info.6.'}${
-      con.length && sin.length ? ` Sin restauración: ${lista(sin.map(a => describe(a.prueba)))}.` : ''
+    `alimenta EV-04. ${con.length ? `Restauraciones de mp.info.6 en la ventana: ${con.map(a => `${describe(a.prueba)}: ${formatList(a.restauraciones.map(describeRestauracion))}`).join(' | ')}.` : 'Ninguna prueba del periodo incluyó una restauración de copias de mp.info.6.'}${
+      con.length && sin.length ? ` Sin restauración: ${formatList(sin.map(a => describe(a.prueba)))}.` : ''
     }`
   );
 };
@@ -1626,7 +1626,7 @@ const ev06Informe = (context: ENSPolicyContext, ahora: number, m: Medidas): stri
   if (!con.length) {
     return informe(
       m.analisis.length
-        ? `sin cambios de FIM en los sistemas de ${lista(m.analisis.map(a => describe(a.prueba)))} en las 24 h siguientes a su ventana.`
+        ? `sin cambios de FIM en los sistemas de ${formatList(m.analisis.map(a => describe(a.prueba)))} en las 24 h siguientes a su ventana.`
         : 'ninguna prueba parcial ni simulacro del periodo con sistemas.'
     );
   }
@@ -1640,7 +1640,7 @@ const ev06Informe = (context: ENSPolicyContext, ahora: number, m: Medidas): stri
       .map(
         a =>
           `${describe(a.prueba)}${registradas(a.prueba)}: ${a.cambios
-            .map(e => `${campo(e, 'agente')} (${idDelHecho(e)}) ${campo(e, 'cambios')} cambio(s) entre ${campo(e, 'primera')} y ${campo(e, 'ultima')}${vacio(campo(e, 'rutas')) ? '' : `, ${campo(e, 'rutas')}`}`)
+            .map(e => `${factField(e, 'agente')} (${idDelHecho(e)}) ${factField(e, 'cambios')} cambio(s) entre ${factField(e, 'primera')} y ${factField(e, 'ultima')}${isEmptyField(factField(e, 'rutas')) ? '' : `, ${factField(e, 'rutas')}`}`)
             .join('; ')}`
       )
       .join(' | ')}.`
@@ -1655,17 +1655,17 @@ const ev07Informe = (context: ENSPolicyContext, ahora: number): string => {
   }
 
   const cerradas = d.deficiencias.filter(x => x.situacion === 'cerrada');
-  const conVersion = cerradas.filter(x => !vacio(x.versionPlan));
-  const nominales = cerradas.filter(x => vacio(x.versionPlan));
+  const conVersion = cerradas.filter(x => !isEmptyField(x.versionPlan));
+  const nominales = cerradas.filter(x => isEmptyField(x.versionPlan));
 
   if (!cerradas.length) {
     return informe('ninguna deficiencia cerrada todavía.');
   }
 
   return informe(
-    `${conVersion.length ? `cerradas con el plan actualizado: ${lista(conVersion.map(x => `${x.id} → versión ${x.versionPlan}`))}.` : ''}${
+    `${conVersion.length ? `cerradas con el plan actualizado: ${formatList(conVersion.map(x => `${x.id} → versión ${x.versionPlan}`))}.` : ''}${
       nominales.length
-        ? ` Cerradas sin versión del plan, corrección posiblemente nominal: ${lista(nominales.map(x => x.id))}. No toda corrección cambia el plan; la versión vigente es la de op.cont.2.`
+        ? ` Cerradas sin versión del plan, corrección posiblemente nominal: ${formatList(nominales.map(x => x.id))}. No toda corrección cambia el plan; la versión vigente es la de op.cont.2.`
         : ''
     }`.trim()
   );
@@ -1673,7 +1673,7 @@ const ev07Informe = (context: ENSPolicyContext, ahora: number): string => {
 
 // --- decisiones -------------------------------------------------------------------
 
-const TIPO: ENSTipoDeRegla = 'MAX_AGE';
+const TIPO: ENSDecisionRuleType = 'MAX_AGE';
 const PARAMETROS = ['P-01', 'P-02', 'P-03', 'P-04', 'P-05', 'P-06', 'P-07'];
 const JUZGAN = ['EV-01', 'EV-02', 'EV-04', 'EV-05'];
 
@@ -1688,28 +1688,28 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   }
 
   const m = medidas(context, ahora, 'EV-04');
-  const propias: { id: string; medida: Medida }[] = [
+  const propias: { id: string; medida: Measurement }[] = [
     { id: 'EV-01', medida: ev01(context, ahora) },
     { id: 'EV-02', medida: ev02(context, ahora) },
     { id: 'EV-04', medida: ev04(context, ahora, m) },
     { id: 'EV-05', medida: ev05(context, ahora, m) },
   ];
-  const estado = peor(propias.map(p => p.medida));
+  const estado = worstStatus(propias.map(p => p.medida));
   const responsables = propias.filter(p => p.medida.estado === estado);
 
   // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
   const decisiones = [
-    conPartes(decide(
+    withReasonParts(decide(
       REQUISITO,
       estado,
       responsables.map(p => p.id),
       PARAMETROS,
       TIPO,
       REQUISITO,
-      motivoCompuesto(propias),
+      compositeReason(propias),
       JUZGAN.map(id => `${id} CUMPLE`).join(' y '),
-      causaComun(responsables.map(p => p.medida))
-    ), partesDe(propias)),
+      commonGapCause(responsables.map(p => p.medida))
+    ), reasonPartsOf(propias)),
     // Una por evidencia, con SU estado.
     ...propias.map(p =>
       decide(REQUISITO, p.medida.estado, [p.id], PARAMETROS, TIPO, `${REQUISITO}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)

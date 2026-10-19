@@ -36,7 +36,7 @@ const { NonConformityCard, readCardMotive, layoutGuiltyPart } = require('../publ
 const { parseMotive } = require('../common/ens/evaluation/motive-parser');
 const { MotiveCell } = require('../public/ens/controls/control-detail/motive-cell');
 const { classifyNonConformity } = require('../public/ens/controls/control-detail/nonconformity-class');
-const { motivoCompuesto, partesDe } = require('../common/ens/core/policy-runtime/policies/policy-kit');
+const { compositeReason, reasonPartsOf } = require('../common/ens/core/policy-runtime/policies/policy-kit');
 
 const PUENTE = 'Resuelta por la política del control (policy.op.exp.6), que mide esta evidencia junto a op.exp.6.1: ';
 const propias = [
@@ -44,7 +44,7 @@ const propias = [
   { id: 'EV-04', medida: { estado: 'CUMPLE', motivo: 'Los logs de detección se han leído en las últimas 24 h.' } },
   { id: 'EV-11', medida: { estado: 'NO_CUMPLE', motivo: 'La respuesta activa no tiene sus scripts. Faltan en /var/ossec/active-response/bin/: quarantine.sh; yara.sh; clamav.sh y 2 más. Además: El último despliegue es del 2026-10-15T13:00:58Z.' } },
 ];
-const motivo = motivoCompuesto(propias);
+const motivo = compositeReason(propias);
 const item = {
   id: 'NC-OP.EXP.6-001', requirement: 'op.exp.6.1', origin: 'MEDIDA', finding: motivo, impact: 'Impide el cumplimiento.', parameterIds: [],
   requiredAction: 'Corregir para alcanzar: EV-01 CUMPLE y EV-04 CUMPLE y EV-11 CUMPLE. Valor actual: NO_CUMPLE.',
@@ -98,7 +98,7 @@ const tarjeta = (props: any = {}) => () => React.createElement(NonConformityCard
 
   const larga = `La respuesta activa ${'no tiene sus scripts '.repeat(14)}en la máquina auditada.`;
   const propiasLargas = [{ id: 'EV-11', medida: { estado: 'NO_CUMPLE', motivo: `${larga} Detalle.` } }];
-  p = await h.render(tarjeta({ item: { ...item, finding: motivoCompuesto(propiasLargas) }, lineasMotivo: [{ texto: `${PUENTE}${motivoCompuesto(propiasLargas)}`, etiqueta: 'EV-11' }] }));
+  p = await h.render(tarjeta({ item: { ...item, finding: compositeReason(propiasLargas) }, lineasMotivo: [{ texto: `${PUENTE}${compositeReason(propiasLargas)}`, etiqueta: 'EV-11' }] }));
   const corto = h.nodes().find(n => n.type === 'p' && n.props?.title === larga);
   comprueba('un titular de más de 200 caracteres se corta con «…» y lo que no cabe abre la causa', Boolean(corto) && /…$/.test(corto!.texto) && corto!.texto.length <= 202 && p.includes(larga.slice(200).trimStart().slice(0, 30)), corto?.texto.length);
   comprueba('la acción concreta, a la vista bajo la clase', /Corregir EV-11 hasta que conforme\./.test(p));
@@ -107,7 +107,7 @@ const tarjeta = (props: any = {}) => () => React.createElement(NonConformityCard
   const celda = () => React.createElement(MotiveCell, { lineas: [{ texto: `${PUENTE}${motivo}` }], evidenceId: 'EV-04', titulo: 'Motivo · EV-04' });
   p = await h.render(celda);
   comprueba('la fila de EV-04 enseña SU parte: «EV-04 CUMPLE» y su frase', /\[ EV-04 CUMPLE \] Los logs de detección se han leído/.test(p) && !/Resuelta por la política/.test(p.split('Ver motivo')[0]), p.slice(0, 300));
-  comprueba('con publicado (reasonParts) igual', /\[ EV-04 CUMPLE \]/.test(await h.render(() => React.createElement(MotiveCell, { lineas: [{ texto: `${PUENTE}${motivo}` }], evidenceId: 'EV-04', conocidos: [{ reason: motivo, parts: partesDe(propias) }] }))));
+  comprueba('con publicado (reasonParts) igual', /\[ EV-04 CUMPLE \]/.test(await h.render(() => React.createElement(MotiveCell, { lineas: [{ texto: `${PUENTE}${motivo}` }], evidenceId: 'EV-04', conocidos: [{ reason: motivo, parts: reasonPartsOf(propias) }] }))));
 
   console.log('5. Nada se pierde');
   h.reset();
@@ -130,7 +130,7 @@ const tarjeta = (props: any = {}) => () => React.createElement(NonConformityCard
     const sinTitulo = (texto: string, titulo: string) => texto.replace(titulo, '');
     const conLista = (motivoEv: string) => {
       const propiasL = [{ id: 'EV-04', medida: { estado: 'NO_CUMPLE', motivo: motivoEv } }];
-      const m = motivoCompuesto(propiasL);
+      const m = compositeReason(propiasL);
       return tarjeta({ item: { ...item, finding: m, evidenceIds: ['EV-04'] }, evidenciasImplicadas: ['EV-04'], lineasMotivo: [{ texto: `${PUENTE}${m}`, etiqueta: 'EV-04' }] });
     };
     // (a) La lista en la primera frase (corta).
