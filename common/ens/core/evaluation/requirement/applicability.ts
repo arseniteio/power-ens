@@ -1,9 +1,5 @@
-// Aplica la Declaración de Aplicabilidad de un control a sus requisitos ya
-// evaluados. Ver `configuration/services/applicability-service.ts`.
-//
-// Va DESPUÉS de evaluar, a propósito: el límite que protege al auditor —una
-// declaración nunca tapa lo medido— solo se puede comprobar mirando lo que la
-// máquina ha demostrado, no lo que dice el documento.
+// Applies a control's Statement of Applicability to its already evaluated requirements. See `configuration/services/applicability-service.ts`.
+// It runs AFTER evaluation on purpose: the limit that protects the auditor (a declaration never covers what was measured) can only be checked against what the machine proved.
 import {
   describeDeclaration,
   isDeclarationSufficient,
@@ -19,9 +15,7 @@ export const applyApplicabilityDeclaration = (
     return requirements;
   }
 
-  // Medido o acreditado en ESTA máquina: el sujeto existe. Un NO_APLICA por
-  // nivel no cuenta —no dice nada del sujeto—, y un requisito sin demostrar
-  // tampoco: es exactamente lo que sale cuando no hay nada que medir.
+  // Measured or accredited on THIS machine: the subject exists. A level NO_APLICA does not count, nor does an unproven requirement (what comes out when there is nothing to measure).
   const contradicted = requirements.some(
     requirement =>
       requirement.status !== 'NO_APLICA' && requirement.evidenced === true

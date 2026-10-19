@@ -18,20 +18,12 @@ const createSummaryFromItems = (
   items: { status: string; score?: number }[]
 ): ENSComplianceSummary => {
   const totalControls = items.length;
-  const cumple = items.filter(item => item.status === 'CUMPLE').length;
-  const noCumple = items.filter(item => item.status === 'NO_CUMPLE').length;
-  const parcial = items.filter(item => item.status === 'PARCIAL').length;
-  const noEvaluable = items.filter(item => item.status === 'NO_EVALUABLE').length;
-  const noAplica = items.filter(item => item.status === 'NO_APLICA').length;
-  // El índice global se promedia sobre todo lo APLICABLE. Entre el 30/07 y el
-  // 04/08 se promediaba solo sobre lo medido, para que un control sin datos no
-  // bajara el índice por algo que nadie había demostrado. La decisión del
-  // responsable invierte esa premisa: lo no demostrado cuenta en contra, así que
-  // un control sin datos aporta su 0 y el índice baja — que es lo que hace que
-  // el número signifique algo cuando se le enseña a un auditor.
-  //
-  // Lo único que sigue fuera del promedio es NO_APLICA: un control que no rige
-  // en el nivel activo no puede restar. Es lo que permite el 100 % en BAJO.
+  const compliant = items.filter(item => item.status === 'CUMPLE').length;
+  const nonCompliant = items.filter(item => item.status === 'NO_CUMPLE').length;
+  const partial = items.filter(item => item.status === 'PARCIAL').length;
+  const notEvaluable = items.filter(item => item.status === 'NO_EVALUABLE').length;
+  const notApplicable = items.filter(item => item.status === 'NO_APLICA').length;
+  // The global index averages over everything APPLICABLE: what is not proven counts against, so a control without data contributes its 0 and the index drops. Only NO_APLICA stays out of the average (a control not governing at the active level cannot subtract; this allows 100 % at BAJO).
   const measuredItems = items.filter(item => item.status !== 'NO_APLICA');
 
   const scoreAverage = measuredItems.length
@@ -45,11 +37,11 @@ const createSummaryFromItems = (
 
   return {
     totalControls,
-    cumple,
-    noCumple,
-    parcial,
-    noEvaluable,
-    noAplica,
+    cumple: compliant,
+    noCumple: nonCompliant,
+    parcial: partial,
+    noEvaluable: notEvaluable,
+    noAplica: notApplicable,
     scoreAverage,
     measured: measuredItems.length,
   };

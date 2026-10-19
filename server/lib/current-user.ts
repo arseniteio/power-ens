@@ -1,7 +1,6 @@
-// Quién hace la petición y si puede administrar ENSFácil. Siempre se consulta
-// `authinfo` primero; solo si OpenSearch no tiene ese endpoint (no hay plugin de
-// seguridad) Y la configuración dice que no hay seguridad, no hay a quién
-// restringir. Cualquier otra duda cierra el acceso (nunca abre).
+// Who makes the request and whether they can administer ENSFácil. `authinfo` is always queried first; only if
+// OpenSearch has no such endpoint (no security plugin) AND the configuration says there is no security is there
+// nobody to restrict. Any other doubt closes access.
 import { ENSFACIL_ADMIN_ROLES } from '../../common/constants';
 
 export interface ENSCurrentUser {
@@ -18,7 +17,7 @@ export class CurrentUserError extends Error {
 
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 0;
 
-// OpenSearch sin plugin de seguridad responde 400/404 "no handler found for uri".
+// OpenSearch without the security plugin answers 400/404 "no handler found for uri".
 const isNoEndpoint = (error: any): boolean => {
   const status = statusOf(error);
   if (status !== 400 && status !== 404) return false;
@@ -46,5 +45,5 @@ export const resolveCurrentUser = async (client: any, securityEnabled: boolean):
   const roles: string[] = Array.isArray(body?.roles) ? body.roles.map(String) : [];
   const username = typeof body?.user_name === 'string' ? body.user_name.trim() : '';
 
-  return { username, roles, administrator: roles.some(rol => ENSFACIL_ADMIN_ROLES.includes(rol)) };
+  return { username, roles, administrator: roles.some(role => ENSFACIL_ADMIN_ROLES.includes(role)) };
 };

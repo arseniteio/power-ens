@@ -1,6 +1,4 @@
-// Parámetros de la URL de la app (`tabView`, `control`, `agentId`). Sustituye
-// al `useRouterSearch` de Wazuh con el mismo resultado: un objeto con los
-// parámetros de la consulta.
+// App URL parameters (`tabView`, `control`, `agentId`); replaces Wazuh's `useRouterSearch` with the same result.
 import { useCallback } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { parseRouterSearch, withRouterSearch } from './router-search';
@@ -14,8 +12,8 @@ export const useSetRouterSearch = () => {
   const location = useLocation();
 
   return useCallback(
-    (cambios: Record<string, string | undefined>) =>
-      history.push({ search: withRouterSearch(location.search, cambios) }),
+    (changes: Record<string, string | undefined>) =>
+      history.push({ search: withRouterSearch(location.search, changes) }),
     [history, location.search]
   );
 };

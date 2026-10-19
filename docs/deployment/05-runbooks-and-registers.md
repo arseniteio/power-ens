@@ -1,23 +1,16 @@
 # Runbooks y registros de la organización
 [English](05-runbooks-and-registers.en.md)
 
-Esta guía indica qué runbook se instala en cada sistema, dónde están sus tres
-guías y qué registros debe crear la organización para que el panel pueda
-evaluar los controles.
+Runbook de cada sistema, sus tres guías y registros que crea la organización.
 
 > [!important]
-> Cuando un instalador o una guía de runbook dice `docs/deployment/02-compliance.md`
-> (o `01-installation.md`, `03-uninstall-and-troubleshooting.md`), se refiere a
-> **la guía de ese runbook**, no a este repositorio. Los enlaces directos están
-> en la tabla de abajo.
+> `docs/deployment/01-installation.md`, `02-compliance.md` y `03-uninstall-and-troubleshooting.md`, citadas por un instalador o por un runbook, son **las guías de ese runbook**, no de este repositorio. Enlaces en la tabla siguiente.
 
 [[_TOC_]]
 
 ## Runbooks por control
 
-Cada celda enlaza el repositorio y sus guías: **01** instalación, **02**
-cumplimiento (parámetros, registros y cómo se juzga cada evidencia), **03**
-desinstalación y problemas. «—» significa que esa variante no existe.
+Guías: **01** instalación, **02** cumplimiento (parámetros, registros y juicio de cada evidencia), **03** desinstalación y problemas. «—»: la variante no existe.
 
 | Control | Linux | Zimbra (LDAP; MTA en mp.info.6) | Windows | En el manager (`install-manager.sh`) | En cada agente |
 |---|---|---|---|---|---|
@@ -49,13 +42,13 @@ El runbook de op.cont.2 (`linux/op.cont.2`) es solo documentación: no hay nada
 que recoger en ninguna máquina, y el plugin lo juzga con las tablas de la
 pantalla y su vigencia (`tests/controls-without-runbook.json`).
 
-Cómo leer la tabla:
+Reglas:
 
 - **En el manager** se ejecutan los 22 `install-manager.sh` de los runbooks
   **Linux**, una vez por manager. Los `install-manager.sh` de las variantes
-  `zimbra-ldap` y `zimbra-mta` instalan exactamente las mismas reglas y el
+  `zimbra-ldap` y `zimbra-mta` instalan las mismas reglas y el
   mismo `<localfile>` (en op.exp.7 y op.exp.9 solo comprueban o delegan en el
-  de Linux): no hace falta repetirlos. Windows no tiene `install-manager.sh`.
+  de Linux): no se repiten. Windows no tiene `install-manager.sh`.
 - **Ocho runbooks tienen recolector en el manager**: op.exp.7, op.exp.8,
   op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 y op.cont.3. Sus hechos
   llegan con `agent.id=000` y necesitan un planificador (cron) en el manager.
@@ -72,15 +65,9 @@ Cómo leer la tabla:
 
 ## Registros que crea la organización
 
-Ningún instalador crea estos ficheros: son registros de la organización, y su
-ausencia es un hecho que el panel debe reflejar. Reglas comunes: TSV separado
-por **tabulador**, no por espacios; propietario `root`; modo `640`; fechas
-ISO 8601 en UTC; y **solo hechos reales**. Una fecha inventada produce un
-cumplimiento falso, que es lo que el producto evita.
+Ningún instalador crea estos ficheros. Reglas comunes: TSV separado por **tabulador**; propietario `root`; modo `640`; fechas ISO 8601 en UTC; **solo hechos reales**.
 
-Un registro **ausente** no es un registro **vacío**: ausente sale
-`NO_EVALUABLE` con causa `CONFIGURATION` (no consta dónde registra la
-organización); con solo la cabecera, el panel juzga con cero filas.
+Registro **ausente**: `NO_EVALUABLE` con causa `CONFIGURATION`. Registro con solo la cabecera: se juzga con cero filas.
 
 ### En el manager
 
@@ -96,8 +83,7 @@ organización); con solo la cabecera, el panel juzga con cero filas.
 
 ### En cada máquina (runbooks Linux)
 
-Ninguno trae `.example`: el formato y el comando para crearlos están en la
-sección enlazada.
+Ninguno trae `.example`: formato y comando de creación, en la sección enlazada.
 
 | Control | Registro | Qué se anota | Mientras no existe | Guía |
 |---|---|---|---|---|

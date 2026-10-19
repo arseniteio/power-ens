@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.10 (Protección de claves criptográficas).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.10: translates the engine result into report fields. */
 export const buildOpExp10ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp10ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp10ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.10.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Inventario de material criptográfico  ·  fuente: Configuración + Syscollector (P-01, EV-07)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.10.campo2',
     'Inventario de material criptográfico',
     evidenceStatus('EV-07'),
@@ -121,8 +114,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Accesos al material criptográfico  ·  fuente: FIM whodata (EV-01)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.10.campo3',
     'Accesos al material criptográfico',
     evidenceStatus('EV-01'),
@@ -131,8 +123,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Indicios de copia o exfiltración de claves  ·  fuente: FIM + ENSFácil (EV-02)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.10.campo4',
     'Indicios de copia o exfiltración de claves',
     evidenceStatus('EV-02'),
@@ -141,8 +132,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Protección de los almacenes de claves  ·  fuente: FIM + SCA (EV-08)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.10.campo5',
     'Protección de los almacenes de claves',
     evidenceStatus('EV-08'),
@@ -151,8 +141,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Conformidad de algoritmos y parámetros (R1)  ·  fuente: SCA (EV-03)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.10.campo6',
     'Conformidad de algoritmos y parámetros (R1)',
     evidenceStatus('EV-03'),
@@ -161,8 +150,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Uso efectivo de protocolos y cifradores (R1)  ·  fuente: Log Collection (EV-04)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.10.campo7',
     'Uso efectivo de protocolos y cifradores (R1)',
     evidenceStatus('EV-04'),
@@ -171,8 +159,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Aislamiento de medios de generación y explotación  ·  fuente: Syscollector + SCA (EV-05)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.10.campo8',
     'Aislamiento de medios de generación y explotación',
     evidenceStatus('EV-05'),
@@ -181,8 +168,7 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Claves retiradas y su archivo  ·  fuente: FIM + ENSFácil (EV-06)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.10.campo9',
     'Claves retiradas y su archivo',
     evidenceStatus('EV-06'),
@@ -191,19 +177,14 @@ export const buildOpExp10ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Fases del ciclo de vida — acreditación documental  ·  fuente: Configuración ENSFácil (P-07)
-  //
-  // Generación y custodia son en parte verificables (EV-05, EV-01, EV-02,
-  // EV-08); transporte y destrucción no dejan rastro en ninguna máquina y solo
-  // se acreditan con el procedimiento declarado.
-  const procedimiento = parameterValue('P-07');
-  const campo11 = field(
+  const procedure = parameterValue('P-07');
+  const field11 = field(
     'op.exp.10.campo11',
     'Fases del ciclo de vida — acreditación documental',
-    procedimiento === undefined || procedimiento === null || String(procedimiento).trim() === ''
+    procedure === undefined || procedure === null || String(procedure).trim() === ''
       ? 'NO_EVALUABLE'
       : 'CUMPLE',
-    formatValue(procedimiento),
+    formatValue(procedure),
     [],
     [
       'Generación: verificable en parte (EV-05, sin generación en explotación).',
@@ -214,8 +195,7 @@ export const buildOpExp10ReportModel = (
     ],
   );
 
-  // Conformidad de cifradores con guía CCN-STIC (R2)  ·  fuente: Configuración ENSFácil (P-09)
-  const campo12 = field(
+  const field12 = field(
     'op.exp.10.campo12',
     'Conformidad de cifradores con guía CCN-STIC (R2)',
     'NO_APLICA',
@@ -224,8 +204,7 @@ export const buildOpExp10ReportModel = (
     ['R2 no es exigible en ninguna categoría: se recoge la declaración si existe, sin efecto en el cumplimiento.'],
   );
 
-  // Puntuación de cumplimiento op.exp.10  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.exp.10.campo10',
     'Puntuación de cumplimiento op.exp.10',
     asStatus(result?.status),
@@ -248,18 +227,18 @@ export const buildOpExp10ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo11,
-      campo12,
-      campo10,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field11,
+      field12,
+      field10,
     ],
   };
 };

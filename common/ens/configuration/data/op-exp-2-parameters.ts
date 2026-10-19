@@ -1,11 +1,8 @@
 import { ENSControlConfiguration } from '../types';
 
-// op.exp.2 nace en el modelo nuevo: cada parámetro que un juicio del catálogo
-// contrasta dice aquí CÓMO se escribe, porque la comparación es literal.
-//
-// `ruleIds` son las reglas cuyos hechos se juzgan contra el parámetro, y existen
-// en ensfacil_op_exp_2_json_rules.xml. P-07 y P-ATT no los tienen porque ningún
-// hecho se contrasta con ellos.
+// op.exp.2 · each parameter a judgment contrasts says here HOW it is written, because the comparison is literal.
+// `ruleIds` are the rules whose facts are judged against the parameter (they exist in
+// ensfacil_op_exp_2_json_rules.xml); P-07 and P-ATT have none because no fact is contrasted with them.
 export const opExp2Configuration: ENSControlConfiguration = {
   controlId: 'op.exp.2',
   controlName: 'Configuración de seguridad',
@@ -19,7 +16,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'politicas_sca_por_perfil',
       label: 'Políticas SCA por perfil',
       description:
-        'Línea base de configuración segura asignada a cada perfil de activo: la política SCA de Wazuh que tiene que evaluarse en sus máquinas. Una fila por perfil. El perfil es el nombre del agente de Wazuh salvo que la máquina declare otro en OPEXP2_PERFIL. En «Política SCA» se escriben los IDENTIFICADORES de política (cis_ubuntu24-04, no «CIS Ubuntu»), y si son varios, separados por coma, sin espacios y en orden alfabético: se compara literal con el conjunto de políticas que el agente ha evaluado de verdad.',
+        'Línea base de seguridad de cada perfil de activo: la política SCA de Wazuh que debe evaluarse en sus máquinas, una fila por perfil (el nombre del agente salvo OPEXP2_PERFIL). En «Política SCA» van los identificadores (cis_ubuntu24-04, no «CIS Ubuntu») separados por coma, sin espacios y en orden alfabético, comparados literalmente con las políticas evaluadas.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.1', 'op.exp.2.2', 'op.exp.2.3'],
       type: 'table',
@@ -32,10 +29,9 @@ export const opExp2Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
-          // `string` y no `multiselect` a propósito: con `multiselect` bastaría
-          // con que CADA política evaluada estuviera en la celda, y una celda
-          // con dos políticas daría por buena una máquina que solo evalúa una.
-          // Se compara el CONJUNTO entero.
+          // `string`, not `multiselect`, on purpose: with `multiselect` it would suffice that EACH evaluated
+          // policy is in the cell, and a cell with two policies would accept a machine evaluating only one. The
+          // whole SET is compared.
           name: 'politica_sca',
           label: 'Política SCA',
           type: 'string',
@@ -44,13 +40,13 @@ export const opExp2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'El recolector lee del ossec.log del agente qué políticas SCA ha evaluado de verdad en las últimas 36 horas y las emite como `sca_evaluation` (regla 110301).',
+        'El recolector lee del ossec.log del agente qué políticas SCA evaluó en las últimas 36 horas y las emite como `sca_evaluation` (regla 110301).',
       ensfacilUsage:
-        'EV-01 casa el conjunto de políticas evaluadas con la fila del perfil (CONFORME_A_TABLA). Un perfil sin fila no es un incumplimiento: es una decisión sin escribir, y sale NO_EVALUABLE.',
+        'EV-01 casa las políticas evaluadas con la fila del perfil (CONFORME_A_TABLA). Un perfil sin fila no incumple: es una decisión sin escribir y sale NO_EVALUABLE.',
       evidenceIds: ['EV-01'],
       ruleIds: ['110301'],
       ifNotConfigured:
-        'EV-01 NO EVALUABLE: no consta qué línea base toca a cada máquina, y op.exp.2.1, .2 y .3 no se pueden acreditar.',
+        'EV-01 NO EVALUABLE: no consta la línea base de cada máquina y op.exp.2.1, .2 y .3 no se acreditan.',
     },
     {
       id: 'P-02',
@@ -58,7 +54,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'servicios_justificados_por_perfil',
       label: 'Servicios justificados por perfil',
       description:
-        'Servicios y puertos justificados para cada perfil de activo: la traducción operativa de la regla de mínima funcionalidad. Una fila por perfil. En «Servicios» van los nombres de proceso tal como los emite el agente (sshd, slapd, systemd-resolve) y, para funciones del directorio, slapd:<backend>; en «Puertos», los números, y `efimero` para los sockets UDP del rango efímero. Los dos separados por coma. Una celda vacía no se contrasta.',
+        'Servicios y puertos justificados por perfil (mínima funcionalidad), una fila por perfil. «Servicios»: procesos como los emite el agente (sshd, slapd, systemd-resolve; en el directorio, slapd:<backend>); «Puertos»: números y `efimero` para sockets UDP del rango efímero, separados por coma; una celda vacía no se contrasta.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.2'],
       type: 'table',
@@ -85,13 +81,13 @@ export const opExp2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'El recolector emite cada socket en escucha y cada función expuesta del directorio como `service_exposed` (regla 110304), con su servicio, protocolo, puerto y si escucha solo en local o en red.',
+        'El recolector emite cada socket en escucha y cada función expuesta del directorio como `service_exposed` (regla 110304), con servicio, protocolo, puerto y si escucha en local o en red.',
       ensfacilUsage:
-        'EV-03 casa cada función expuesta con la fila de su perfil (CONFORME_A_TABLA): el servicio tiene que estar entre los justificados y el puerto también. Lo que sobra incumple op.exp.2.2.',
+        'EV-03 casa cada función expuesta con la fila de su perfil (CONFORME_A_TABLA): servicio y puerto deben estar justificados. Lo que sobra incumple op.exp.2.2.',
       evidenceIds: ['EV-03'],
       ruleIds: ['110304'],
       ifNotConfigured:
-        'op.exp.2.2 NO EVALUABLE. Wazuh ve los servicios activos pero no puede juzgar si están justificados.',
+        'op.exp.2.2 NO EVALUABLE: Wazuh ve los servicios activos pero no puede juzgar si están justificados.',
     },
     {
       id: 'P-03',
@@ -99,7 +95,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'cuentas_contrasenas_estandar',
       label: 'Cuentas y contraseñas estándar',
       description:
-        'Cuentas por defecto de los productos desplegados que deben haberse retirado: admin, root, sa, tomcat, cuentas de demostración. Una fila por cuenta, con el producto al que pertenece. La comparación con la cuenta observada no distingue mayúsculas: es una lista prohibida y equivocarse ahí solo produce un incumplimiento de más.',
+        'Cuentas por defecto de los productos desplegados que deben haberse retirado (admin, root, sa, tomcat, cuentas de demostración), una fila por cuenta con su producto. La comparación no distingue mayúsculas.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.1'],
       type: 'table',
@@ -120,7 +116,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'El recolector emite las cuentas que no están retiradas (shell interactiva, contraseña utilizable o claves ssh) como `login_account` (regla 110302) y cada autenticación con éxito como `account_authenticated` (regla 110303). No prueba contraseñas.',
+        'El recolector emite las cuentas no retiradas (shell interactiva, contraseña utilizable o claves ssh) como `login_account` (regla 110302) y cada autenticación correcta como `account_authenticated` (regla 110303). No prueba contraseñas.',
       ensfacilUsage:
         'EV-02 comprueba que ninguna de esas cuentas figura en P-03 (NINGUNO_EN_LISTA). Con el latido confirmado, no observar ninguna es cumplimiento.',
       evidenceIds: ['EV-02'],
@@ -134,7 +130,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'excepciones_autorizadas',
       label: 'Excepciones autorizadas',
       description:
-        'Desviaciones de la seguridad por defecto autorizadas formalmente. Una fila por desviación. En «Comprobación» va la desviación EXACTA que emite el agente, que incluye la máquina (srv-web-01:ssh_x11forwarding): así una excepción autorizada para un activo no excusa la misma desviación en otro. Si no hay ninguna excepción, se declara una fila «ninguno | ninguna | Sin excepciones autorizadas», que es una decisión y no un hueco. La vigencia se muestra pero el motor no la contrasta.',
+        'Desviaciones de la seguridad por defecto autorizadas formalmente, una fila por desviación. «Comprobación» es la desviación EXACTA que emite el agente, con la máquina (srv-web-01:ssh_x11forwarding); sin excepciones se declara «ninguno | ninguna | Sin excepciones autorizadas», y la vigencia se muestra pero no se contrasta.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.3'],
       type: 'table',
@@ -175,11 +171,11 @@ export const opExp2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'El recolector emite cada valor por defecto inseguro como `insecure_default` (regla 110305), con `desviacion` = <máquina>:<comprobación>.',
       ensfacilUsage:
-        'EV-04 comprueba que toda desviación observada figura en la columna Comprobación (NINGUNO_FUERA_DE_LISTA). Sin desviaciones y con el latido confirmado, cumple.',
+        'EV-04 comprueba que toda desviación observada figura en la columna Comprobación (NINGUNO_FUERA_DE_LISTA). Sin desviaciones y con latido confirmado, cumple.',
       evidenceIds: ['EV-04'],
       ruleIds: ['110305'],
       ifNotConfigured:
-        'EV-04 NO EVALUABLE: sin la decisión escrita de qué se autoriza, ni siquiera una máquina sin desviaciones se puede dar por conforme.',
+        'EV-04 NO EVALUABLE: sin la decisión escrita de qué se autoriza, ni una máquina sin desviaciones se da por conforme.',
     },
     {
       id: 'P-05',
@@ -187,7 +183,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'umbral_cumplimiento_sca',
       label: 'Umbral de cumplimiento SCA',
       description:
-        'Porcentaje mínimo de checks SCA superados, según la puntuación que calcula Wazuh para cada política. Ninguna puntuación observada en el periodo evaluado puede quedar por debajo.',
+        'Porcentaje mínimo de checks SCA superados, según la puntuación que calcula Wazuh por política. Ninguna puntuación observada en el periodo puede quedar por debajo.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.2', 'op.exp.2.3'],
       type: 'number',
@@ -196,9 +192,9 @@ export const opExp2Configuration: ENSControlConfiguration = {
       maxValue: 100,
       required: true,
       wazuhUsage:
-        'La puntuación SCA solo la guarda el manager. El recolector la lee de la API de Wazuh con un usuario de solo lectura declarado en su .env y la emite como `sca_score` (regla 110307).',
+        'Solo el manager guarda la puntuación SCA. El recolector la lee de la API de Wazuh con un usuario de solo lectura declarado en su .env y la emite como `sca_score` (regla 110307).',
       ensfacilUsage:
-        'EV-06 comprueba que ninguna puntuación de la serie queda por debajo del umbral (UMBRAL_MINIMO). Las excepciones de P-04 no se descuentan de la puntuación de Wazuh.',
+        'EV-06 comprueba que ninguna puntuación de la serie queda por debajo del umbral (UMBRAL_MINIMO). Las excepciones de P-04 no se descuentan de la puntuación.',
       evidenceIds: ['EV-06'],
       ruleIds: ['110307'],
       ifNotConfigured:
@@ -210,7 +206,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'inventario_virtualizacion',
       label: 'Inventario de virtualización',
       description:
-        'Máquinas virtuales y anfitriones de virtualización cuyo anfitrión se gestiona con el mismo rigor que una máquina física. Una fila por máquina: el hipervisor que la aloja, la máquina (nombre de su agente de Wazuh; para un anfitrión, el suyo propio) y cómo se gestiona ese anfitrión (el nombre de su agente de Wazuh o, en un proveedor cloud, la referencia de su acreditación). Declarar una fila ES afirmar que el anfitrión está gestionado: una VM cuyo anfitrión no lo está no se declara, y EV-05 incumple, que es lo que pide op.exp.2.4.',
+        'Máquinas virtuales y anfitriones gestionados con el mismo rigor que una física, una fila por máquina: hipervisor que la aloja, máquina (nombre de su agente) y gestión del anfitrión (nombre de su agente o, en cloud, referencia de su acreditación). Declarar la fila AFIRMA que el anfitrión está gestionado; una VM cuyo anfitrión no lo está no se declara y EV-05 incumple (op.exp.2.4).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.2.4'],
       type: 'table',
@@ -229,27 +225,25 @@ export const opExp2Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
-          // No se contrasta con ningún hecho: la VM no ve a su anfitrión. Es la
-          // prueba DECLARADA de que el anfitrión se gestiona, y viaja al informe
-          // para que el auditor la pueda comprobar.
+          // Contrasted with no fact (the VM does not see its host): it is the DECLARED proof that the host is
+          // managed, and goes to the report.
           name: 'agente',
           label: 'Gestión del anfitrión',
           type: 'string',
           required: true,
         },
       ],
-      // No obligatorio: su ausencia solo afecta a op.exp.2.4 (EV-05 sale
-      // NO_EVALUABLE y el requisito no evidenciado). Marcarlo obligatorio
-      // bloquearía también op.exp.2.1, .2 y .3, que no dependen de él.
+      // Not required: its absence only affects op.exp.2.4 (EV-05 NO_EVALUABLE); requiring it would also block
+      // op.exp.2.1, .2 and .3.
       required: false,
       wazuhUsage:
-        'El recolector emite `virtualization_role` (regla 110306) si la máquina es virtual o si aloja máquinas virtuales.',
+        'El recolector emite `virtualization_role` (regla 110306) si la máquina es virtual o aloja máquinas virtuales.',
       ensfacilUsage:
-        'EV-05 comprueba que toda VM o anfitrión observado consta en la columna Máquina (NINGUNO_FUERA_DE_LISTA). Si el anfitrión está gestionado lo afirma quien declara la fila; lo mide el agente del propio anfitrión, no el de la VM.',
+        'EV-05 comprueba que toda VM o anfitrión observado consta en la columna Máquina (NINGUNO_FUERA_DE_LISTA). Que el anfitrión esté gestionado lo afirma quien declara la fila; lo mide el agente del anfitrión, no el de la VM.',
       evidenceIds: ['EV-05'],
       ruleIds: ['110306'],
       ifNotConfigured:
-        'op.exp.2.4 NO EVALUABLE. No se puede verificar que las máquinas virtuales y sus anfitriones están gestionados.',
+        'op.exp.2.4 NO EVALUABLE: no se verifica que las máquinas virtuales y sus anfitriones estén gestionados.',
     },
     {
       id: 'P-07',
@@ -257,7 +251,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'momento_verificacion_pre_produccion',
       label: 'Verificación previa a producción',
       description:
-        'Si existe un punto de control formal antes de la entrada en operación de un activo. op.exp.2 exige que la configuración segura sea PREVIA a la operación. Es documental: ningún hecho que un agente observe después demuestra el orden, así que ningún juicio lo contrasta y no bloquea la evaluación del control.',
+        'Si existe un punto de control formal antes de poner un activo en operación. op.exp.2 exige configuración segura PREVIA a la operación. Es documental: ningún hecho posterior demuestra el orden, así que ningún juicio lo contrasta y no bloquea la evaluación.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'select',
@@ -265,13 +259,13 @@ export const opExp2Configuration: ENSControlConfiguration = {
       example: 'sí',
       required: false,
       wazuhUsage:
-        'No lo lee ningún agente.',
+        'Ningún agente lo lee.',
       ensfacilUsage:
         'Se muestra en el informe junto a EV-07. No cambia ningún veredicto.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'El informe no puede citar el procedimiento de puesta en producción.',
+        'El informe no cita el procedimiento de puesta en producción.',
     },
     {
       id: 'P-ATT',
@@ -279,7 +273,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. En op.exp.2 los cuatro requisitos tienen evidencia técnica, así que hoy no hay ninguno al que aplicarlo; se conserva para que el control tenga la misma forma que los demás.',
+        'Documentos que acreditan un requisito que ninguna medida técnica puede demostrar. En op.exp.2 los cuatro requisitos tienen evidencia técnica, así que no hay ninguno al que aplicarlo; se conserva para que el control tenga la misma forma que los demás.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -318,13 +312,13 @@ export const opExp2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No lo lee ningún agente.',
+        'Ningún agente lo lee.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado.',
+        'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Sin efecto en este control: ningún requisito de op.exp.2 es solo documental.',
+        'Sin efecto: ningún requisito de op.exp.2 es solo documental.',
     },
   ],
 };

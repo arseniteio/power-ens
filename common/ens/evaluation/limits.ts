@@ -1,13 +1,11 @@
-// Los límites de la evaluación en el servidor que también usa el navegador
-// (para no copiarlos a mano en cada pantalla).
+// Server evaluation limits the browser also uses (not copied by hand on each screen).
 export const ENS_EVALUATION_LIMITS = {
-  // Entradas de la trazabilidad de un control que se guardan y se pueden
-  // recorrer por páginas (las primeras; el total se dice siempre).
+  // Traceability entries of a control that are stored and can be paged through (the first ones; the total is always stated).
   traceabilityStored: 500,
-  // Las que trae la ficha del control con su evaluación.
+  // Those carried by the control card with its evaluation.
   traceabilityInitial: 100,
-  // Tamaño máximo de una página de trazabilidad.
+  // Maximum size of a traceability page.
   traceabilityPageMax: 500,
-  // Días máximos de una serie.
+  // Maximum days of a series.
   maxTimelineDays: 90,
 };

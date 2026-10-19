@@ -1,22 +1,6 @@
-// Serie diaria de cumplimiento, calculada por EL MOTOR.
-//
-// Hasta el 05/08 el gráfico dibujaba otra cosa: promediaba por SEMANA los
-// `score_snapshot` que emite el agente. Eran dos números distintos en la misma
-// pantalla —el agente puntúa sobre su propio denominador y no lee los
-// parámetros que el auditor declara— y nada avisaba de que el panel y la línea
-// no hablaban de lo mismo. Con op.acc.2 en 0 % arriba, la línea decía otra cosa.
-//
-// Aquí cada punto se calcula igual que el panel: mismo motor, mismos eventos,
-// mismos parámetros de la pantalla. Entre dos puntos solo cambia el INSTANTE al
-// que se evalúa, y por eso el último punto es literalmente el número del panel.
-//
-// El reparto por días, el acumulado y el origen de la serie están en
-// `timeline-cuts.ts`, que no importa el motor y por eso se puede probar.
-//
-// La regla de planos de medida (el manager en el alcance, cada fila con los
-// controles de su plano, los de solo manager con su resultado en la vista de
-// una máquina) la aplica el motor: cada punto pasa `scopeAgents` y `agentId`
-// tal cual, así que la serie no puede contradecir al panel en eso tampoco.
+// Daily compliance series, computed by THE ENGINE: each point is computed like the panel (same engine, events and screen parameters); between two points only the INSTANT evaluated changes, so the last point is literally the panel's number.
+// It replaced a chart that averaged the agent's `score_snapshot` per week, a different number on the same screen. Day split, accumulation and series origin are in `timeline-cuts.ts`.
+// The measurement-plane rule is applied by the engine: each point passes `scopeAgents` and `agentId` as they are, so the series cannot contradict the panel.
 import { ENSLevel } from '../../configuration/types';
 import { ENSNormalizedEvent } from '../data-source/types';
 import { getENSComplianceState } from '../ens-engine';
@@ -27,15 +11,13 @@ import {
 } from './timeline-cuts';
 
 export interface ENSComplianceTimelinePoint {
-  // El instante al que se evaluó este punto.
+  // The instant this point was evaluated at.
   date: Date;
   label: string;
   score: number;
-  // El último punto es el presente: mismos eventos y mismo instante que el
-  // panel, así que su número es el del panel.
+  // The last point is the present: same events and instant as the panel, so its number is the panel's.
   isCurrent: boolean;
-  // Cuántos eventos conocía el motor en ese corte. Es el diagnóstico que
-  // separa «bajó porque la máquina empeoró» de «bajó porque dejó de reportar».
+  // How many events the engine knew at that cut: the diagnostic separating a drop because the machine got worse and a drop because it stopped reporting.
   events: number;
 }
 

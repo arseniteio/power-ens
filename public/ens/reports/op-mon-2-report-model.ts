@@ -1,18 +1,15 @@
-// Del fichero de tipos, nunca del barrel `../core`: `import type` se borra al
-// compilar y no añade aristas al grafo de módulos (TDZ de Settings).
+// Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import {
   toParameterTableRows,
   toTableRowCells,
 } from '../../../common/ens/configuration/services/parameter-value-validator';
-// Las mismas gramáticas que la policy: P-01 y P-06 se leen igual en el juicio y
-// en el informe, o el informe presentaría contra un objetivo que la policy no
-// reconoce.
+// Same grammars as the policy: P-01 and P-06 read the same in the judgement and in the report.
 import {
-  parseDeclaracionAplicabilidad,
-  parseObjetivos,
+  parseStatementOfApplicability,
+  parseMetricTargets,
 } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
-import type { ObjetivoDeMetrica } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -91,152 +88,130 @@ const ALL_EVIDENCES = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV
 
 const CONTROL = 'op.mon.2';
 
-const cifra = (n: number): string => String(Math.round(n * 10) / 10);
+const figure = (n: number): string => String(Math.round(n * 10) / 10);
 
-const MARCOS: Record<string, string> = {
+const FRAMEWORKS: Record<string, string> = {
   org: 'Marco organizativo',
   op: 'Marco operacional',
   mp: 'Medidas de protección',
 };
 
-// Las filas de una tabla de la pantalla en sus columnas, por posición.
-const tabla = (
+const table = (
   result: ENSComplianceResult | undefined,
   id: string,
-  columnas: string[],
+  columns: string[],
 ): Record<string, string>[] => {
-  const valor = (result?.parameters || []).find(p => p.id === id)?.value;
+  const value = (result?.parameters || []).find(p => p.id === id)?.value;
 
-  if (valor === undefined) {
+  if (value === undefined) {
     return [];
   }
 
-  return toParameterTableRows(valor as Parameters<typeof toParameterTableRows>[0])
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  return toParameterTableRows(value as Parameters<typeof toParameterTableRows>[0])
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna] = (celdas[i] || '').trim();
+      columns.forEach((column, i) => {
+        row[column] = (cells[i] || '').trim();
       });
 
-      return fila;
+      return row;
     });
 };
 
-const desviacion = (valor: number, o: ObjetivoDeMetrica | undefined): string => {
+const deviation = (value: number, o: MetricTarget | undefined): string => {
   if (!o) {
     return 'sin objetivo en P-06';
   }
 
-  const objetivo = `objetivo ${o.sentido === 'minimo' ? '≥' : '≤'} ${cifra(o.objetivo)}${o.unidad ? ` ${o.unidad}` : ''}`;
-  const fuera = o.sentido === 'minimo' ? valor < o.umbral : valor > o.umbral;
-  const bajoObjetivo = o.sentido === 'minimo' ? valor < o.objetivo : valor > o.objetivo;
+  const target = `objetivo ${o.sentido === 'minimo' ? '≥' : '≤'} ${figure(o.objetivo)}${o.unidad ? ` ${o.unidad}` : ''}`;
+  const outside = o.sentido === 'minimo' ? value < o.umbral : value > o.umbral;
+  const belowTarget = o.sentido === 'minimo' ? value < o.objetivo : value > o.objetivo;
 
-  return fuera
-    ? `${objetivo}: DESVIACIÓN`
-    : bajoObjetivo
-    ? `${objetivo}: dentro de la tolerancia`
-    : `${objetivo}: alcanzado`;
+  return outside
+    ? `${target}: DESVIACIÓN`
+    : belowTarget
+    ? `${target}: dentro de la tolerancia`
+    : `${target}: alcanzado`;
 };
 
-interface Implantacion {
+interface Rollout {
   global?: number;
   medidas: number;
   evaluadas: number;
   lineas: string[];
 }
 
-// EV-01 · el grado de implantación de cada medida aplicable de P-01, con el
-// resultado que el motor da a cada control. Las medidas que ENSFácil no evalúa
-// se dicen y no entran en la cifra: no se inventa su puntuación.
-const implantacion = (
-  aplicables: string[],
+const rollout = (
+  applicable: string[],
   panorama: ENSComplianceResult[],
-): Implantacion => {
-  const porControl = new Map(
+): Rollout => {
+  const byControl = new Map(
     panorama
       .filter(r => r.control.id !== CONTROL)
       .map(r => [r.control.id, r]),
   );
-  const puntuadas: { medida: string; score: number }[] = [];
-  const lineas: string[] = [];
+  const scored: { medida: string; score: number }[] = [];
+  const lines: string[] = [];
 
-  aplicables.forEach(medida => {
-    const r = porControl.get(medida);
+  applicable.forEach(measure => {
+    const r = byControl.get(measure);
 
     if (!r) {
-      lineas.push(`${medida}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
+      lines.push(`${measure}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
     } else if (r.status === 'NO_APLICA') {
-      lineas.push(`${medida}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
+      lines.push(`${measure}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
     } else if (typeof r.score !== 'number') {
-      lineas.push(`${medida}: ${r.status}, sin puntuación`);
+      lines.push(`${measure}: ${r.status}, sin puntuación`);
     } else {
-      puntuadas.push({ medida, score: r.score });
-      lineas.push(`${medida}: ${cifra(r.score)} % (${r.status})`);
+      scored.push({ medida: measure, score: r.score });
+      lines.push(`${measure}: ${figure(r.score)} % (${r.status})`);
     }
   });
 
-  const porMarco = Object.entries(MARCOS)
-    .map(([prefijo, nombre]) => {
-      const suyas = puntuadas.filter(p => p.medida.split('.')[0] === prefijo);
+  const byFramework = Object.entries(FRAMEWORKS)
+    .map(([prefix, name]) => {
+      const own = scored.filter(p => p.medida.split('.')[0] === prefix);
 
-      return suyas.length
-        ? `${nombre}: ${cifra(suyas.reduce((a, p) => a + p.score, 0) / suyas.length)} % (${suyas.length} medidas)`
+      return own.length
+        ? `${name}: ${figure(own.reduce((a, p) => a + p.score, 0) / own.length)} % (${own.length} medidas)`
         : '';
     })
     .filter(Boolean);
 
   return {
-    global: puntuadas.length
-      ? puntuadas.reduce((a, p) => a + p.score, 0) / puntuadas.length
+    global: scored.length
+      ? scored.reduce((a, p) => a + p.score, 0) / scored.length
       : undefined,
-    medidas: aplicables.length,
-    evaluadas: puntuadas.length,
-    lineas: [...porMarco, ...lineas],
+    medidas: applicable.length,
+    evaluadas: scored.length,
+    lineas: [...byFramework, ...lines],
   };
 };
 
-// EV-05 · los controles con requisitos sin evaluar por falta de configuración,
-// con los parámetros que faltan.
-const grises = (panorama: ENSComplianceResult[]): string[] =>
+const greys = (panorama: ENSComplianceResult[]): string[] =>
   panorama
     .filter(r => r.control.id !== CONTROL)
     .map(r => {
-      const parametros = new Set<string>(r.missingParameters || []);
+      const parameters = new Set<string>(r.missingParameters || []);
 
       (r.nonConformities || [])
         .filter(nc => nc.origin === 'NO_EVIDENCIADA' && nc.cause === 'CONFIGURATION')
-        .forEach(nc => (nc.parameterIds || []).forEach(p => parametros.add(p)));
+        .forEach(nc => (nc.parameterIds || []).forEach(p => parameters.add(p)));
 
-      const sinParametro = (r.nonConformities || []).some(
+      const withoutParameter = (r.nonConformities || []).some(
         nc => nc.origin === 'NO_EVIDENCIADA' && nc.cause === 'CONFIGURATION' && !(nc.parameterIds || []).length,
       );
 
-      return parametros.size || sinParametro
-        ? `${r.control.id}: ${parametros.size ? Array.from(parametros).sort().join(', ') : 'configuración incompleta'}`
+      return parameters.size || withoutParameter
+        ? `${r.control.id}: ${parameters.size ? Array.from(parameters).sort().join(', ') : 'configuración incompleta'}`
         : '';
     })
     .filter(Boolean);
 
-/**
- * Modelo de informe de op.mon.2 (Sistema de métricas).
- *
- * Es el CUADRO DE MANDO de ENSFácil y la antesala del informe anual del art.
- * 32: no describe un estado del sistema, recopila el de todos los controles.
- * Por eso, además del resultado de op.mon.2, recibe el `panorama`: el resultado
- * de TODOS los controles, que la pantalla de Informes calcula con los hechos de
- * todos (la policy de un control no ve los demás).
- *
- *   - Grado de implantación (EV-01), controles no evaluables (EV-05) y datos
- *     del art. 32 (EV-07) son salida del motor: salen SIN VEREDICTO (NO_APLICA)
- *     y, sin panorama, SIN_DATOS (spec 2026-10-09 §2.6, pregunta 2).
- *   - La serie de ciclos, los indicadores de incidentes y los recursos llegan
- *     en las variables de la policy (`policies/op-mon-2.policy.ts`).
- *   - R2 es DATO DECLARADO y lo dice: acreditado documentalmente, no medido.
- *   - Cada cifra conserva su origen, porque el informe se reporta fuera.
- */
+/** Report model of op.mon.2: translates the engine result into report fields. */
 export const buildOpMon2ReportModel = (
   result: ENSComplianceResult | undefined,
   panorama?: ENSComplianceResult[],
@@ -253,10 +228,10 @@ export const buildOpMon2ReportModel = (
     (result?.policyRuntime?.runtimeVariables || []).map(variable => [variable.name, variable]),
   );
 
-  const lista = (nombre: string): string[] => {
-    const valor = variables.get(nombre)?.value;
+  const list = (name: string): string[] => {
+    const value = variables.get(name)?.value;
 
-    return Array.isArray(valor) ? valor.map(String) : [];
+    return Array.isArray(value) ? value.map(String) : [];
   };
 
   const evidenceStatus = (evidenceId: string): OpMon2ReportFieldStatus =>
@@ -266,28 +241,26 @@ export const buildOpMon2ReportModel = (
     evidences.get(evidenceId)?.observations || [];
 
   const level = (result?.level || '').toUpperCase();
-  const refuerzos = level === 'MEDIO' || level === 'ALTO';
+  const reinforcements = level === 'MEDIO' || level === 'ALTO';
 
-  // P-01 y P-06 con las gramáticas de la policy.
-  const declaracion = parseDeclaracionAplicabilidad(
-    tabla(result, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']),
+  const declaration = parseStatementOfApplicability(
+    table(result, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']),
   );
-  const { objetivos } = parseObjetivos(
-    tabla(result, 'P-06', ['metrica', 'objetivo', 'tolerancia']),
+  const { objetivos: targets } = parseMetricTargets(
+    table(result, 'P-06', ['metrica', 'objetivo', 'tolerancia']),
   );
 
-  const grado = panorama && declaracion.aplicables.length
-    ? implantacion(declaracion.aplicables, panorama)
+  const degree = panorama && declaration.aplicables.length
+    ? rollout(declaration.aplicables, panorama)
     : undefined;
-  const pendientes = panorama ? grises(panorama) : undefined;
-  const serie = lista('serie_ciclos_metricas');
-  const cobertura = variables.get('cobertura_monitorizacion');
-  const indicadoresPeriodo = lista('indicadores_incidentes_periodo');
-  const indicadoresAnual = lista('indicadores_incidentes_anual');
+  const pendingItems = panorama ? greys(panorama) : undefined;
+  const series = list('serie_ciclos_metricas');
+  const coverage = variables.get('cobertura_monitorizacion');
+  const periodIndicators = list('indicadores_incidentes_periodo');
+  const annualIndicators = list('indicadores_incidentes_anual');
   const r2 = requirements.get('op.mon.2.r2.1');
 
-  // Estado del control (semáforo ENS)
-  const campo1 = field(
+  const field1 = field(
     'op.mon.2.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -298,81 +271,75 @@ export const buildOpMon2ReportModel = (
       .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
   );
 
-  // Grado de implantación de las medidas  ·  fuente: Motor ENSFácil (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.mon.2.campo2',
     'Grado de implantación de las medidas',
-    grado ? 'NO_APLICA' : 'SIN_DATOS',
+    degree ? 'NO_APLICA' : 'SIN_DATOS',
     !panorama
       ? 'Sin el resultado de todos los controles: se calcula en la pantalla de Informes, con los hechos de todos.'
-      : !declaracion.aplicables.length
+      : !declaration.aplicables.length
       ? 'Sin Declaración de Aplicabilidad (P-01): el grado de implantación no tiene base.'
-      : grado && grado.global !== undefined
-      ? `${cifra(grado.global)} % global sobre ${grado.evaluadas} de ${grado.medidas} medidas aplicables de P-01 evaluadas por ENSFácil (${desviacion(grado.global, objetivos.get('implantacion_global'))}). Dato del informe, sin veredicto.`
-      : `Ninguna de las ${declaracion.aplicables.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
+      : degree && degree.global !== undefined
+      ? `${figure(degree.global)} % global sobre ${degree.evaluadas} de ${degree.medidas} medidas aplicables de P-01 evaluadas por ENSFácil (${deviation(degree.global, targets.get('implantacion_global'))}). Dato del informe, sin veredicto.`
+      : `Ninguna de las ${declaration.aplicables.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
     ['EV-01'],
-    [...(grado ? grado.lineas : []), ...evidenceObservations('EV-01')],
+    [...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
   );
 
-  // Evolución del grado de implantación  ·  fuente: registro de ciclos (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.mon.2.campo3',
     'Evolución del grado de implantación',
     evidenceStatus('EV-02'),
-    serie.length
-      ? `${serie.length} ciclo(s) en el registro de ciclos de métricas; el último: ${serie[0]}.`
+    series.length
+      ? `${series.length} ciclo(s) en el registro de ciclos de métricas; el último: ${series[0]}.`
       : 'Sin ciclos de métricas anotados en el registro de la organización.',
     ['EV-02'],
-    [...serie, ...evidenceObservations('EV-02')],
+    [...series, ...evidenceObservations('EV-02')],
   );
 
-  // Fiabilidad de la medición  ·  fuente: global.db y latidos (EV-04)
-  const campo4 = field(
+  const field4 = field(
     'op.mon.2.campo4',
     'Fiabilidad de la medición',
     evidenceStatus('EV-04'),
-    cobertura && typeof cobertura.value === 'number'
-      ? `Cobertura de la monitorización ${cifra(cobertura.value)} %: ${cobertura.description} (${desviacion(cobertura.value, objetivos.get('cobertura_monitorizacion'))}).`
+    coverage && typeof coverage.value === 'number'
+      ? `Cobertura de la monitorización ${figure(coverage.value)} %: ${coverage.description} (${deviation(coverage.value, targets.get('cobertura_monitorizacion'))}).`
       : 'Sin cobertura medida.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
 
-  // Controles no evaluables por falta de parámetros  ·  fuente: Motor ENSFácil (EV-05)
-  const campo5 = field(
+  const field5 = field(
     'op.mon.2.campo5',
     'Controles no evaluables por falta de parámetros',
-    pendientes ? 'NO_APLICA' : 'SIN_DATOS',
-    !pendientes
+    pendingItems ? 'NO_APLICA' : 'SIN_DATOS',
+    !pendingItems
       ? 'Sin el resultado de todos los controles: se calcula en la pantalla de Informes, con los hechos de todos.'
-      : `${pendientes.length} control(es) con requisitos sin evaluar por falta de configuración (${desviacion(pendientes.length, objetivos.get('controles_no_evaluables'))}). Dato del informe, sin veredicto: es la lista de acciones pendientes del cliente.`,
+      : `${pendingItems.length} control(es) con requisitos sin evaluar por falta de configuración (${deviation(pendingItems.length, targets.get('controles_no_evaluables'))}). Dato del informe, sin veredicto: es la lista de acciones pendientes del cliente.`,
     ['EV-05'],
-    [...(pendientes || []), ...evidenceObservations('EV-05')],
+    [...(pendingItems || []), ...evidenceObservations('EV-05')],
   );
 
-  // Métricas de gestión de incidentes (R1)  ·  fuente: registro de incidentes de op.exp.7 (EV-03)
-  const campo6 = field(
+  const field6 = field(
     'op.mon.2.campo6',
     'Métricas de gestión de incidentes (R1)',
-    refuerzos ? evidenceStatus('EV-03') : 'NO_APLICA',
-    !refuerzos
+    reinforcements ? evidenceStatus('EV-03') : 'NO_APLICA',
+    !reinforcements
       ? 'R1 solo se exige en categoría MEDIA y ALTA.'
-      : indicadoresPeriodo.length
-      ? `Indicadores del periodo de P-02, calculados con el registro de incidentes de op.exp.7: ${indicadoresPeriodo.join('; ')}.`
+      : periodIndicators.length
+      ? `Indicadores del periodo de P-02, calculados con el registro de incidentes de op.exp.7: ${periodIndicators.join('; ')}.`
       : 'Sin indicadores: el registro de incidentes no se ha podido leer o P-02 no está configurada.',
     ['EV-03'],
     [
-      ...(indicadoresAnual.length ? [`Últimos 365 días (art. 32): ${indicadoresAnual.join('; ')}`] : []),
+      ...(annualIndicators.length ? [`Últimos 365 días (art. 32): ${annualIndicators.join('; ')}`] : []),
       ...evidenceObservations('EV-03'),
     ],
   );
 
-  // Recursos consumidos por el sistema de seguridad (R2)  ·  fuente: registro de ciclos (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.mon.2.campo7',
     'Recursos consumidos por el sistema de seguridad (R2)',
-    refuerzos ? asStatus(r2?.status) : 'NO_APLICA',
-    !refuerzos
+    reinforcements ? asStatus(r2?.status) : 'NO_APLICA',
+    !reinforcements
       ? 'R2 solo se exige en categoría MEDIA y ALTA.'
       : r2?.attested
       ? 'DATO DECLARADO, acreditado documentalmente: horas y presupuesto del último ciclo, anotados y validados por la organización. ENSFácil lo registra, no lo verifica.'
@@ -381,8 +348,7 @@ export const buildOpMon2ReportModel = (
     [...(r2?.observations || []), ...evidenceObservations('EV-06')],
   );
 
-  // Datos para el informe anual del artículo 32  ·  fuente: Motor ENSFácil (EV-07)
-  const campo8 = field(
+  const field8 = field(
     'op.mon.2.campo8',
     'Datos para el informe anual del artículo 32',
     panorama ? 'NO_APLICA' : 'SIN_DATOS',
@@ -392,36 +358,34 @@ export const buildOpMon2ReportModel = (
     ['EV-07'],
     panorama
       ? [
-          grado && grado.global !== undefined
-            ? `Grado de implantación: ${cifra(grado.global)} % (motor de ENSFácil sobre P-01, ${grado.evaluadas} de ${grado.medidas} medidas evaluadas)`
+          degree && degree.global !== undefined
+            ? `Grado de implantación: ${figure(degree.global)} % (motor de ENSFácil sobre P-01, ${degree.evaluadas} de ${degree.medidas} medidas evaluadas)`
             : 'Grado de implantación: sin base (P-01)',
-          cobertura && typeof cobertura.value === 'number'
-            ? `Fiabilidad de la medición: ${cifra(cobertura.value)} % (global.db y latidos de los recolectores en el manager)`
+          coverage && typeof coverage.value === 'number'
+            ? `Fiabilidad de la medición: ${figure(coverage.value)} % (global.db y latidos de los recolectores en el manager)`
             : 'Fiabilidad de la medición: sin medir',
-          serie.length ? `Último ciclo de métricas: ${serie[0]} (registro de ciclos de la organización)` : 'Último ciclo de métricas: ninguno anotado',
-          pendientes ? `Controles no evaluables por falta de parámetros: ${pendientes.length} (motor de ENSFácil)` : '',
-          refuerzos && indicadoresAnual.length
-            ? `Incidentes de los últimos 365 días: ${indicadoresAnual.join('; ')} (registro de incidentes de op.exp.7)`
+          series.length ? `Último ciclo de métricas: ${series[0]} (registro de ciclos de la organización)` : 'Último ciclo de métricas: ninguno anotado',
+          pendingItems ? `Controles no evaluables por falta de parámetros: ${pendingItems.length} (motor de ENSFácil)` : '',
+          reinforcements && annualIndicators.length
+            ? `Incidentes de los últimos 365 días: ${annualIndicators.join('; ')} (registro de incidentes de op.exp.7)`
             : '',
-          refuerzos
+          reinforcements
             ? `Recursos consumidos: ${r2?.attested ? 'dato declarado del último ciclo, acreditado documentalmente' : 'sin acreditar'} (registro de ciclos de la organización)`
             : '',
         ]
       : [],
   );
 
-  // Validación del ciclo de métricas  ·  fuente: registro de ciclos (EV-02)
-  const campo9 = field(
+  const field9 = field(
     'op.mon.2.campo9',
     'Validación del ciclo de métricas',
     evidenceStatus('EV-02'),
-    serie.length ? `Último ciclo: ${serie[0]}.` : 'Sin ciclos anotados.',
+    series.length ? `Último ciclo: ${series[0]}.` : 'Sin ciclos anotados.',
     ['EV-02'],
     [variables.get('periodicidad_metricas')?.description || '', ...evidenceObservations('EV-02')],
   );
 
-  // Puntuación de cumplimiento op.mon.2  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.mon.2.campo10',
     'Puntuación de cumplimiento op.mon.2',
     asStatus(result?.status),
@@ -443,6 +407,6 @@ export const buildOpMon2ReportModel = (
     coverage: typeof result?.coverage === 'number' ? result.coverage : null,
     level: result?.level || '',
     evaluatedAt: result?.evaluatedAt,
-    fields: [campo1, campo2, campo3, campo4, campo5, campo6, campo7, campo8, campo9, campo10],
+    fields: [field1, field2, field3, field4, field5, field6, field7, field8, field9, field10],
   };
 };

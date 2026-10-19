@@ -6,8 +6,7 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Explotación',
   dimension: 'Todas',
-  // Se mide SOLO en el manager: el proceso de incidentes es de la organización,
-  // no de cada máquina. Su resultado es el de la fila del manager (000).
+  // Measured ONLY on the manager: the incident process belongs to the organisation, not each machine. Result is the manager row's (000).
   measurementPlanes: ['manager'],
   description:
     'op.exp.7 es el control donde Wazuh y el proceso del cliente tienen que encajar: Wazuh detecta y el proceso clasifica, escala, resuelve y notifica. Se mide en el manager, cruzando sus alertas con el registro de incidentes que mantiene la organización.',

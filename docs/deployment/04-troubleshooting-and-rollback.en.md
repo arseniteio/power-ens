@@ -5,7 +5,7 @@
 
 ## 1. Objective
 
-This guide describes the checks to run when an ENSFácil installation or update fails, and the procedures to go back to the previous state in a controlled way.
+Checks after a failed ENSFácil installation or update, and rollback procedures.
 
 > [!warning]
 > A deployment must not continue if a previous validation has failed.
@@ -34,11 +34,11 @@ Stop the procedure if any of these situations occurs:
 | `config/build-plugin.sh` does not end with the path of `ensfacil-2.19.5.zip`. |
 | `sha256sum -c SHA256SUMS` says `FAILED` for a release file. |
 | `unzip -t` reports errors, or `deploy-plugin.sh --solo-id` does not return `ensfacil`. |
-| `config/deploy-plugin.sh` says «el zip no es de ENSFácil» (the zip is not ENSFácil) or «el zip es del plugin de Wazuh» (the zip is the Wazuh plugin). |
+| `config/deploy-plugin.sh` says «the zip is not ENSFácil's» (the zip is not ENSFácil) or «the zip is the Wazuh plugin» (the zip is the Wazuh plugin). |
 | Wazuh Dashboard does not return to `active` after installing the plugin. |
 | `/api/ensfacil/configuration` returns `404`: the plugin did not load. |
 | an `install-manager.sh` does not confirm its rule with `wazuh-logtest` or the manager does not stay `active`. |
-| `config/validate-configuration.ts` reports `ESTRUCTURA INVÁLIDA`. |
+| `config/validate-configuration.ts` reports `INVALID STRUCTURE`. |
 | the dashboard shows «No se pudo cargar el entorno ENS». |
 
 > [!important]
@@ -77,7 +77,7 @@ Expected result:
 
 ## 4. Reinstall the previous ENSFácil version
 
-Going back to the previous version means deploying its release again. `deploy-plugin.sh` replaces only `ensfacil` and bumps `build.number` so browsers stop using the removed version.
+Deploy the previous release again: `deploy-plugin.sh` replaces only `ensfacil` and bumps `build.number`.
 
 Use the folder of that version (`/opt/ensfacil/releases/<version>`). If it no longer exists, download the release again ([Installing from a release, section 6.3](07-installing-from-a-release.en.md#63-download-the-four-files), with that version in `V`). Replace `X.Y.Z` with the target version:
 
@@ -106,11 +106,11 @@ fi
 Expected result: `dashboard: active` and `ensfacil` in the plugin list. Then check as in section 3.
 
 > [!important]
-> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.2.0 to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
+> If the removed version had seeded controls the previous one does not know, also restore the ENS configuration (section 7) with the copy made before the update. To go back from 1.3.0 to 1.2.0 with its templates, or to 1.1.0 after «Repartir por agentes», restore the earlier version of the document ([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
 ### 4.1 If `deploy-plugin.sh` fails halfway
 
-Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`, or in `<folder>/ensfacil/` if `ENSFACIL_BACKUP_DIR=<folder>` is set. The script creates that subfolder (owned by root, permissions 0700) if it does not exist, and never changes the permissions of a folder that already existed. When the deployment finishes well, the last 3 copies are kept; a failed deployment deletes none, so the last good copy is still there even if it is retried. It does not leave them next to the zip: the next build deletes that folder.
+Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`, or in `<folder>/ensfacil/` if `ENSFACIL_BACKUP_DIR=<folder>` is set. The script creates that subfolder (root, 0700) if it does not exist and does not change the permissions of an existing folder. After a successful deployment the last 3 copies are kept; a failed deployment deletes none. The copies are not stored next to the zip: the next build deletes that folder.
 
 If something fails once the dashboard is stopped, the script prints the commands to go back to how it was (remove the half-installed plugin, restore that copy, put back `package.json` if it had already changed it, and start the dashboard) and exits with an error. Run those commands in the order they are printed and check as in section 3.
 
@@ -124,7 +124,7 @@ If something fails once the dashboard is stopped, the script prints the commands
 | `6` | the dashboard was not active at the end | new plugin installed and dashboard not active: check `journalctl -u wazuh-dashboard` |
 | `7` | another step failed with the dashboard stopped (removing the plugin, bumping `build.number`, starting) or it was interrupted | the message names the step |
 
-To go back after a deployment that finished well, use the previous release or the previous zip (above): `deploy-plugin.sh` also bumps `build.number`, and restoring the copy by hand does not.
+After a successful deployment, go back with the previous release or zip (above), not by restoring the copy by hand: only `deploy-plugin.sh` bumps `build.number`.
 
 ## 5. Remove ENSFácil
 
@@ -150,7 +150,7 @@ Expected result: `active`; `wazuh` in the list, without `ensfacil`; `404`.
 > [!warning]
 > Always remove by the exact name, `ensfacil`. Never with wildcards such as `wazuh*` or `*`: they would also take `wazuhCore` and `wazuhCheckUpdates`, and the dashboard would not start again.
 
-The ENS configuration stays in the `wazuh-ens-configuration` index and the `ensfacil_admin` role stays in the security plugin (it grants no permission). When ENSFácil is installed again, everything is where it was.
+The `wazuh-ens-configuration` index and the `ensfacil_admin` role (no permissions of its own) are kept.
 
 ### 5.1 Remove it completely
 
@@ -177,11 +177,11 @@ with each runbook's `03-uninstall-and-troubleshooting` guide
 
 ## 6. Go back to the integrated version
 
-Only for an environment that comes from the integrated version ([update guide, section 10](02-updating-an-existing-environment.en.md#10-transition-from-the-integrated-version)). The integrated version is no longer maintained: `config/deploy-plugin.sh` does not install its zip (`wazuh-2.19.5.zip`), and going back uses what section 10.3 of that guide kept.
+Only for an environment that comes from the integrated version ([update guide, section 10](02-updating-an-existing-environment.en.md#10-transition-from-the-integrated-version)). `config/deploy-plugin.sh` does not install the integrated version's zip (`wazuh-2.19.5.zip`): going back uses what section 10.3 of that guide kept.
 
 **Before reinstalling the official Wazuh plugin** (section 10.3 of that guide), the integrated version is still installed. Removing ENSFácil is enough (section 5).
 
-**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again, with the release installed in section 10.1 of that guide, so that it bumps `build.number` (browsers have the official plugin's files linked to the current number). This is only valid while the `wazuh-dashboard` package is still 4.14.7: the integrated plugin is built for that version, and with another one the dashboard does not start.
+**After reinstalling the official Wazuh plugin**, the integrated plugin that section 10.3 moved to `$T/wazuh-integrado` is put back in place, and ENSFácil is deployed again with the release from section 10.1 of that guide, to bump `build.number`. Valid only with `wazuh-dashboard` 4.14.7: with another version the dashboard does not start.
 
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
@@ -224,7 +224,7 @@ sudo mv "$T/desde-tgz/plugins/wazuh" "$T/wazuh-integrado"
 
 ## 7. Restore the ENS configuration
 
-The ENS configuration lives in the `active` document of the `wazuh-ens-configuration` index. The installation and update guides keep a copy before every change (`/opt/ensfacil/artifacts/active-<date>.json` or `$BACKUP/active.json`). To restore it, the `_source` of that copy is written back, using the indexer administrator certificate:
+`active` document of the `wazuh-ens-configuration` index. Copies made before every change: `/opt/ensfacil/artifacts/active-<date>.json` or `$BACKUP/active.json`. Write the `_source` of the copy back with the indexer administrator certificate:
 
 ```bash
 COPIA=/opt/ensfacil/artifacts/active-AAAAMMDD-HHMMSS.json
@@ -252,11 +252,11 @@ Expected result: the response includes `"result":"updated"`. Then validate the r
 | «ENSFácil» does not appear in the menu and `/api/ensfacil/configuration` returns `404` | the plugin is not installed or did not load | check the plugin list and the log (section 3) and deploy again with `config/deploy-plugin.sh` |
 | The dashboard does not start after updating Wazuh: `Failed to initialize plugins` and `ensfacil` | the new dashboard ships another OpenSearch Dashboards version and the plugin is built for `2.19.5` | remove ENSFácil (section 5) and get the zip for that version ([version compatibility](03-version-compatibility.en.md)) |
 | The menu shows «ENS» and «ENSFácil» | the integrated version is still installed | normal during the transition; to keep only «ENSFácil», [update, section 10.3](02-updating-an-existing-environment.en.md#103-go-back-to-the-official-wazuh-plugin) |
-| `deploy-plugin.sh`: «el zip no es de ENSFácil» or «el zip es del plugin de Wazuh» | `deploy-plugin.sh` only installs `ensfacil`; the Wazuh plugin (also the integrated version's `wazuh-2.19.5.zip`) comes with the official `wazuh-dashboard` package | use the ENSFácil zip: the release's `ensfacil-<version>-osd-2.19.5.zip`, or `ensfacil-2.19.5.zip` when built |
+| `deploy-plugin.sh`: «the zip is not ENSFácil's» or «the zip is the Wazuh plugin» | `deploy-plugin.sh` only installs `ensfacil`; the Wazuh plugin (also the integrated version's `wazuh-2.19.5.zip`) comes with the official `wazuh-dashboard` package | use the ENSFácil zip: the release's `ensfacil-<version>-osd-2.19.5.zip`, or `ensfacil-2.19.5.zip` when built |
 | When downloading the release, `curl: (22) … error: 401` or `403` | the deploy token is mistyped, expired, revoked or lacks `read_package_registry` | check the token in GitLab ([Installing from a release, section 6](07-installing-from-a-release.en.md#6-download-from-the-server-with-a-deploy-token)) |
 | When downloading the release, `curl: (22) … error: 404` | that version is not published or is misspelled | check the version in *Deploy → Releases* |
 | `sha256sum -c SHA256SUMS` says `FAILED` | the download is incomplete or the file is not the release's | do not install; delete the folder and download again |
-| `build-plugin.sh`: «no es un árbol de OpenSearch Dashboards» or «el árbol es … ENSFácil 1.x se compila contra 2.19.5» | the build tree is not OpenSearch Dashboards `2.19.5` | prepare the tree as in [Building from source, section 3.2](08-building-from-source.en.md#32-prepare-the-opensearch-dashboards-2195-tree) |
+| `build-plugin.sh`: «not an OpenSearch Dashboards tree» or «the tree is … ENSFácil 1.x builds against 2.19.5» | the build tree is not OpenSearch Dashboards `2.19.5` | prepare the tree as in [Building from source, section 3.2](08-building-from-source.en.md#32-prepare-the-opensearch-dashboards-2195-tree) |
 | `build-plugin.sh` ends with `yarn: command not found`, or after building with `ENOENT: yarn install --production` | `yarn` is not in `root`'s `PATH` | build as in [Building from source, section 3.3](08-building-from-source.en.md#33-build-the-plugin), with `sudo env PATH=…` |
 | `yarn install` stops with `Your lockfile needs to be updated` | `package.json` and `yarn.lock` do not match: there are local changes in the repository | do not touch the dependencies on the server; leave the repository as it is in GitLab (`git status`) |
 | The build ends immediately with exit code 1 | the output is redirected as `root` to a `/tmp` file created by another user (`protected_regular`) | write the log to `/opt/ensfacil/artifacts` |
@@ -276,12 +276,10 @@ Expected result: the response includes `"result":"updated"`. Then validate the r
 
 ### 8.1 Dashboard memory
 
-Since 1.2.0 the dashboard server evaluates the controls. In the lab (6
-machines, about 210,000 facts in 30 days) that adds about 15 MB per user after
-the first load and about 50 MB while computing; the dashboard process uses
-about 470-550 MB in total. It is bounded by 50,000 facts per read (about
-85 MB), 4 reads at a time (about 340 MB in the worst case) and a result memory
-of 64 to 256 MB depending on the scope (`server/README.md`, «Memoria»).
+Since 1.2.0 the dashboard server evaluates the controls. Lab reference (6
+machines, about 210,000 facts in 30 days): 470-550 MB in total.
+Limits: 50,000 facts per read (about 85 MB), 4 reads at a time and result
+memory of 64 to 256 MB depending on the scope (`server/README.md`, «Memoria»).
 
 In a deployment larger than the lab (tens of machines or millions of facts in
 the window), the dashboard's Node heap must be at least 2048 MB up to about 30
@@ -387,7 +385,7 @@ In Docker, the indexer queries of section 8 are made with `ix`; for example,
 | `docker compose up -d` fails with "error while creating mount source path … root-ca-manager.pem", after `generate-indexer-certs.yml` reported `Permission denied` when copying `root-ca-manager.pem` and `root-ca-manager.key` | the `wazuh-docker` certificate generator, on macOS hosts, does not copy those two files. It is not related to ENSFácil | in `config/wazuh_indexer_ssl_certs/`, copy `root-ca.pem` to `root-ca-manager.pem` and `root-ca.key` to `root-ca-manager.key`, and repeat `docker compose up -d` |
 | From the host, curl or `create-admin-role.sh` with `https://127.0.0.1:9200` fail with "no alternative certificate subject name matches" | the indexer certificate is issued for `wazuh.indexer` | run from a container on the compose network ([Wazuh in Docker, sections 2.4 and 5](06-wazuh-in-docker.en.md#24-indexer-query-function)) |
 | `docker run --network <project>_default` fails with "network … not found" | the network name is not the compose one | check `docker network ls`; the network is `<compose folder>_default` |
-| `inject-control.py`: «no existe el documento 'active'…; guarda la configuración una vez y vuelve a ejecutar» (the `active` document does not exist) | the first save has not been done yet | save the configuration once from the screen ([Wazuh in Docker, section 6](06-wazuh-in-docker.en.md#6-first-save-of-the-configuration)) |
+| `inject-control.py`: `ERROR: document 'active' does not exist in index 'wazuh-ens-configuration'.` (followed by «save the configuration once and run again.») (the `active` document does not exist) | the first save has not been done yet | save the configuration once from the screen ([Wazuh in Docker, section 6](06-wazuh-in-docker.en.md#6-first-save-of-the-configuration)) |
 | The validation reports `configuration.scope.agentIds must be a string array` | a hand-written document without the `agentIds` and `groupIds` arrays in `scope` | add both arrays, even if empty, or save from the Configuración screen, which always writes them |
 | After `docker compose up -d`, "ENSFácil" does not appear in the menu, or `/api/ensfacil/configuration` returns `404` with a session open (without a session, the response is always `401`) | the service still uses the official image, or the plugin did not load | check the image with `docker compose ps` and the log (section 9.1) |
 | After a version change, the browser still shows the previous one | the image was built with an `ENSFACIL_VERSION` different from the zip version and repeats the `build.number` of another image | rebuild with the zip version and check the `build.number` ([Wazuh in Docker, section 3](06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)) |

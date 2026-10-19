@@ -3,8 +3,7 @@
 
 [[_TOC_]]
 
-Esta es la guía interna para quien trabaja en este repositorio. Hoy el proyecto
-es privado; está prevista una edición comunitaria.
+Guía interna del repositorio (privado; edición comunitaria prevista).
 
 ## Flujo de trabajo
 
@@ -71,6 +70,7 @@ Las guías de `docs/deployment/` siguen el mismo estilo:
   sujeto («Check…», «Stop the procedure»), sin *you* ni *your*;
 - después de cada orden, **Resultado esperado:** (*Expected result:*, en
   inglés), también en las tablas;
+- directo: sin párrafos que justifiquen, narren o enseñen, sin repeticiones entre guías ni historia; solo pasos, órdenes, rutas, valores, resultados esperados y avisos que evitan pérdida de datos;
 - los avisos, con `> [!note]`, `> [!important]` o `> [!warning]`;
 - cada enlace relativo y cada ancla tienen que existir. GitLab forma el ancla
   con el título en minúsculas, los espacios cambiados por `-` y sin signos de
@@ -80,15 +80,18 @@ Las guías de `docs/deployment/` siguen el mismo estilo:
 
 Las pruebas necesitan Python 3 y Node.js 18 o superior; las de los scripts,
 además, `bash`, `zip` y `unzip`. Desde la raíz del repositorio, con los runbooks
-clonados junto al plugin:
+clonados junto al plugin. La primera orden instala en `node_modules/` las
+dependencias de `package.json`, que el motor importa (`re2js`):
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Resultado esperado: `coherencia OK` y ninguna línea `FAIL`.
+Resultado esperado: `consistency OK` y ninguna línea `FAIL`.
 
 Sin Node.js, en Docker, o en una carpeta limpia como CI: ver
 [Compilar desde el código fuente, apartado 7](docs/deployment/08-building-from-source.md#7-pasar-las-pruebas).
@@ -131,9 +134,7 @@ este proyecto, en *Settings → CI/CD → Variables*:
 | `RUNBOOKS_DEPLOY_USER` | el usuario del token | enmascarada, sin proteger |
 | `RUNBOOKS_DEPLOY_TOKEN` | el token | enmascarada, sin proteger |
 
-Van sin proteger porque las ramas de trabajo y los MR no son protegidos: una
-variable protegida no llegaría a sus pipelines. Sin ellas, `ci/clone-runbooks.sh` se para
-y dice cómo crearlas.
+Sin proteger: las ramas de trabajo y los MR no son protegidos. Sin las variables, `ci/clone-runbooks.sh` se para y dice cómo crearlas.
 
 El trabajo `release` no necesita más variables: usa el token del propio trabajo.
 

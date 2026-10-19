@@ -4,10 +4,7 @@ import { EuiFieldNumber, EuiFormRow } from '@elastic/eui';
 import { ENSFormFieldProps } from '../types';
 import { validateParameterValue } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// Un valor heredado en forma de cadena numérica ('24') se enseña en el campo en
-// vez de dejarlo en blanco. Si se dejara en blanco, el auditor abriría el
-// formulario, vería un obligatorio vacío, guardaría, y el 24 que había en el
-// índice se perdería sin que nadie lo pidiera.
+// A legacy numeric string ('24') is shown in the field instead of blank, so saving does not lose it.
 const toFieldValue = (
   value: ENSFormFieldProps['value']
 ): number | '' => {

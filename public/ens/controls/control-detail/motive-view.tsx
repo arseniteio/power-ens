@@ -1,8 +1,4 @@
-// Un motivo partido (`motive-parser.ts`), pintado para leerlo: insignias de
-// evidencia y estado, el texto en peso normal, las listas como listas, las
-// fechas en es-ES (la ISO en el `title`), los parámetros como insignias que
-// llevan a Configuración y lo de «Además» aparte, en gris. Nada se recorta: lo
-// que no se ve de golpe se despliega.
+// A parsed motive (motive-parser.ts) rendered for reading: badges, lists, es-ES dates (ISO in `title`) and parameters linking to Configuración.
 import React, { useState } from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from '../../../../common/ens/evaluation/motive-parser';
@@ -12,7 +8,6 @@ import { ENS_THEME } from '../../theme-colors';
 
 export { statusBadgeColor };
 
-// Un parámetro citado: su valor para la máquina y de dónde sale, si se sabe.
 export interface MotiveParameterInfo {
   id: string;
   label?: string;
@@ -26,40 +21,40 @@ export interface MotiveViewHandlers {
   parameterInfo?: (parameterId: string) => MotiveParameterInfo | undefined;
 }
 
-const LISTA_VISIBLE = 5;
+const VISIBLE_LIST_SIZE = 5;
 
-const ConFechas = ({ texto }: { texto: string }) => (
+const WithDates = ({ texto: text }: { texto: string }) => (
   <>
-    {splitTimestamps(texto).map((trozo, i) =>
-      trozo.iso ? (
-        <span key={i} title={trozo.iso} style={{ borderBottom: `1px dotted ${ENS_THEME.mutedText}` }}>
-          {formatTimestamp(trozo.iso)}
+    {splitTimestamps(text).map((slice, i) =>
+      slice.iso ? (
+        <span key={i} title={slice.iso} style={{ borderBottom: `1px dotted ${ENS_THEME.mutedText}` }}>
+          {formatTimestamp(slice.iso)}
         </span>
       ) : (
-        <React.Fragment key={i}>{trozo.text}</React.Fragment>
+        <React.Fragment key={i}>{slice.text}</React.Fragment>
       )
     )}
   </>
 );
 
-const Lista = ({ list }: { list: MotiveList }) => {
-  const [abierta, setAbierta] = useState(false);
-  const visibles = abierta ? list.values : list.values.slice(0, LISTA_VISIBLE);
-  const ocultos = list.values.length - visibles.length;
+const ListView = ({ list }: { list: MotiveList }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const visibleItems = isOpen ? list.values : list.values.slice(0, VISIBLE_LIST_SIZE);
+  const hidden = list.values.length - visibleItems.length;
   return (
     <>
       <ul style={{ margin: '4px 0 4px 18px', listStyle: 'disc' }}>
-        {visibles.map((valor, i) => (
+        {visibleItems.map((value, i) => (
           <li key={i}>
             <code>
-              <ConFechas texto={valor} />
+              <WithDates texto={value} />
             </code>
           </li>
         ))}
       </ul>
-      {ocultos > 0 && (
-        <EuiButtonEmpty size='xs' flush='left' onClick={() => setAbierta(true)}>
-          {`y ${ocultos} más en la lista`}
+      {hidden > 0 && (
+        <EuiButtonEmpty size='xs' flush='left' onClick={() => setIsOpen(true)}>
+          {`y ${hidden} más en la lista`}
         </EuiButtonEmpty>
       )}
       {list.more !== undefined && (
@@ -71,38 +66,37 @@ const Lista = ({ list }: { list: MotiveList }) => {
   );
 };
 
-// El texto de una parte, con su lista (si la hay) como lista.
-export const MotiveText = ({ texto, list }: { texto: string; list?: MotiveList }) =>
+export const MotiveText = ({ texto: text, list }: { texto: string; list?: MotiveList }) =>
   list ? (
     <>
-      <ConFechas texto={texto.slice(0, list.start)} />
-      <Lista list={list} />
-      <ConFechas texto={texto.slice(list.end)} />
+      <WithDates texto={text.slice(0, list.start)} />
+      <ListView list={list} />
+      <WithDates texto={text.slice(list.end)} />
     </>
   ) : (
-    <ConFechas texto={texto} />
+    <WithDates texto={text} />
   );
 
 export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: string }[]; handlers: MotiveViewHandlers }) => (
   <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
-    {ids.map(parametro => {
-      const info = handlers.parameterInfo?.(parametro.id);
-      const texto = `${parametro.id}${parametro.label || info?.label ? ` · ${parametro.label || info?.label}` : ''}`;
-      const detalle = info?.value !== undefined ? `${info.value}${info.origin ? ` (${info.origin})` : ''}` : undefined;
+    {ids.map(parameter => {
+      const info = handlers.parameterInfo?.(parameter.id);
+      const text = `${parameter.id}${parameter.label || info?.label ? ` · ${parameter.label || info?.label}` : ''}`;
+      const detail = info?.value !== undefined ? `${info.value}${info.origin ? ` (${info.origin})` : ''}` : undefined;
       return (
-        <EuiFlexItem grow={false} key={parametro.id}>
+        <EuiFlexItem grow={false} key={parameter.id}>
           <EuiBadge
             color='hollow'
             iconType='gear'
-            title={detalle ? `Valor que aplica: ${detalle}` : `Configurar ${parametro.id}`}
-            onClick={handlers.onParameter ? () => handlers.onParameter!(parametro.id) : undefined}
-            onClickAriaLabel={`Configurar ${parametro.id}`}
+            title={detail ? `Valor que aplica: ${detail}` : `Configurar ${parameter.id}`}
+            onClick={handlers.onParameter ? () => handlers.onParameter!(parameter.id) : undefined}
+            onClickAriaLabel={`Configurar ${parameter.id}`}
           >
-            {texto}
+            {text}
           </EuiBadge>
-          {detalle && (
+          {detail && (
             <EuiText size='xs' color='subdued'>
-              <span>{`aplica: ${detalle}`}</span>
+              <span>{`aplica: ${detail}`}</span>
             </EuiText>
           )}
         </EuiFlexItem>
@@ -111,7 +105,6 @@ export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: 
   </EuiFlexGroup>
 );
 
-// Una parte: [EV-11] [NO_CUMPLE] texto; parámetros; «Además».
 export const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePart; handlers: MotiveViewHandlers; withSummary?: boolean }) => (
   <div style={{ marginBottom: 8 }}>
     <EuiText size='s'>
@@ -142,8 +135,6 @@ export const MotivePartView = ({ part, handlers, withSummary = true }: { part: M
   </div>
 );
 
-// Un motivo entero (el panel «Ver detalle» y la celda de la tabla): su rótulo
-// (evidencia o máquinas), la política que lo resolvió y cada parte.
 export const MotiveView = ({ parsed, label, handlers }: { parsed: ParsedMotive; label?: string; handlers: MotiveViewHandlers }) => (
   <div style={{ marginBottom: 12 }}>
     {(label || parsed.machines || parsed.policy) && (

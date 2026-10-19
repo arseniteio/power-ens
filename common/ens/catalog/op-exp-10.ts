@@ -21,9 +21,7 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      // Transporte y destrucción (fases 2 y 5) no dejan rastro en ninguna
-      // máquina: se documentan en P-07. El requisito tiene evidencia técnica
-      // (la custodia), así que una atestación no puede sustituirla.
+      // Transport and destruction (phases 2 and 5) leave no trace on any machine: documented in P-07. The requirement has technical evidence (custody), so an attestation cannot replace it.
       evidenceIds: ['EV-01', 'EV-02', 'EV-07', 'EV-08'],
       parameterIds: ['P-01', 'P-02', 'P-07', 'P-08', 'P-10'],
     },

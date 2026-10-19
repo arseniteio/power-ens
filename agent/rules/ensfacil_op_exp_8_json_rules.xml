@@ -1,33 +1,30 @@
-<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_8_json_rules.xml
-     Este fichero es idéntico, byte a byte, en tres sitios: la fuente canónica
-     del plugin y la carpeta manager/ de los runbooks op.exp.8 de Linux y de
-     LDAP. Si se modifica uno, hay que copiar los otros dos: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_8_json_rules.xml
+     Byte-identical in three places: the plugin source and manager/ of the Linux
+     and LDAP op.exp.8 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_exp_8,">
 
   <!-- ================================================================
-       op.exp.8 · Registro de la actividad
-       Rango reservado: 110900-110999
-       Base 110900 · hechos crudos 110901-110949 · evidence_state 110950
-       · diagnóstico del recolector 110997-110999
+       op.exp.8 · Activity logging
+       Reserved range: 110900-110999
+       Base 110900 · raw facts 110901-110949 · evidence_state 110950
+       · collector diagnostics 110997-110999
 
-       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       dashboard/ens/core/evidence/catalog.ts:
+       Evidence -> rule ID map (`relatedRules` in dashboard/ens/core/evidence/catalog.ts):
 
-         plano del servidor (agentes Linux y LDAP, y el propio manager)
-           EV-01 110901 y 110914 · EV-02 110902 · EV-03 110903
-           EV-06 110906 y 110907 · EV-08 110909
-         plano central (solo el manager, agent.id=000)
+         server plane (Linux and LDAP agents, and the manager itself)
+           EV-01 110901 and 110914 · EV-02 110902 · EV-03 110903
+           EV-06 110906 and 110907 · EV-08 110909
+         central plane (manager only, agent.id=000)
            EV-04 110915 · EV-05 110905 · EV-07 110908 · EV-10 110910
            EV-11 110911 · EV-12 110912 · EV-13 110913
 
-       EV-09 no tiene hecho: los snapshots del indexer solo se ven con una
-       credencial del indexer, que el recolector del manager no usa. Lo dice un
-       evidence_state NO_EVALUABLE (110950), igual que la retención ISM (EV-07)
-       y el audit log del indexer (EV-08 en el manager).
+       EV-09 has no fact: indexer snapshots are only visible with an indexer
+       credential, which the manager collector does not use. A NO_EVALUABLE
+       evidence_state (110950) says so, as for ISM retention (EV-07) and the indexer
+       audit log (EV-08 on the manager).
 
-       Ninguna regla lleva `estado` de cumplimiento, y añadir o mover una obliga
-       a tocar los tres ficheros y el catálogo a la vez.
+       No rule carries a compliance `estado`; adding or moving one requires touching
+       the three files and the catalog together.
        ================================================================ -->
 
   <rule id="110900" level="0">
@@ -36,146 +33,145 @@
     <description>op.exp.8 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== op.exp.8.1 · Registro de auditoría con los campos mínimos ===== -->
+  <!-- ===== op.exp.8.1 · Audit log with the minimum fields ===== -->
 
-  <!-- EV-01. Una fuente de registro de la máquina (auditd, journald, rsyslog;
-       en un servidor LDAP también slapd) y si está activa y se conserva. -->
+  <!-- EV-01. One log source of the machine (auditd, journald, rsyslog; on an LDAP
+       server also slapd) and whether it is active and kept. -->
   <rule id="110901" level="3">
     <if_sid>110900</if_sid>
     <field name="event">audit_log_status</field>
     <description>op.exp.8 · EV-01 · registro $(fuente) ($(plano)): activo=$(activo)</description>
   </rule>
 
-  <!-- EV-01. Por categoría de evento (configuración, cuentas, privilegios,
-       almacenes de claves, hora), lo que las reglas de auditd CARGADAS en el
-       kernel registran de verdad: qué rutas de la categoría vigilan en
-       escritura, o qué llamadas al sistema, y cuáles no. Es lo que se
-       contrasta con las categorías que P-01 declara auditables. -->
+  <!-- EV-01. Per event category (configuration, accounts, privileges, key stores,
+       time), what the auditd rules LOADED in the kernel really record: which paths of
+       the category they watch for writes, or which system calls, and which not. It is
+       compared with the categories P-01 declares auditable. -->
   <rule id="110914" level="3">
     <if_sid>110900</if_sid>
     <field name="event">audit_coverage</field>
     <description>op.exp.8 · EV-01 · auditd y la categoría $(categoria): sin vigilar $(sin_vigilar)</description>
   </rule>
 
-  <!-- EV-03. Una muestra de los registros de auditoría de una fuente, con
-       cuántos traen cada uno de los cinco campos de op.exp.8.1. -->
+  <!-- EV-03. A sample of the audit records of a source, with how many carry each of
+       the five fields of op.exp.8.1. -->
   <rule id="110903" level="3">
     <if_sid>110900</if_sid>
     <field name="event">audit_record_fields</field>
     <description>op.exp.8 · EV-03 · campos del registro $(fuente): ausentes=$(campos_ausentes)</description>
   </rule>
 
-  <!-- ===== op.exp.8.2 · Registros de actividad activos en los servidores ===== -->
+  <!-- ===== op.exp.8.2 · Active activity logs on the servers ===== -->
 
-  <!-- EV-02. El agente de Wazuh de la máquina: estado de la conexión y último
-       keepalive, en UTC. Se mide su antigüedad contra el reloj. -->
+  <!-- EV-02. The machine's Wazuh agent: connection state and last keepalive, in
+       UTC. Its age is measured against the clock. -->
   <rule id="110902" level="3">
     <if_sid>110900</if_sid>
     <field name="event">agent_status</field>
     <description>op.exp.8 · EV-02 · agente $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
   </rule>
 
-  <!-- EV-04. Plano central. El último keepalive de UN agente según la base
-       local de agentes del manager (global.db, leída en solo lectura) y su
-       estado de conexión, en cada pasada. La laguna la ve el motor en la serie
-       de pasadas: una en la que el keepalive quedaba más atrás que P-12.
-       No se mide por horas sin alertas: un servidor tranquilo pasa horas sin
-       alertas y eso no es una laguna. Por eso 110904 no existe. -->
+  <!-- EV-04. Central plane. The last keepalive of ONE agent according to the
+       manager's local agent database (global.db, read-only) and its connection state,
+       on each run. The engine sees the gap in the series of runs: one in which the
+       keepalive was older than P-12. Not measured by hours without alerts: a quiet
+       server goes hours without alerts and that is not a gap. Hence 110904 does not
+       exist. -->
   <rule id="110915" level="3">
     <if_sid>110900</if_sid>
     <field name="event">agent_keepalive_observed</field>
     <description>op.exp.8 · EV-04 · agente $(agente) $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
   </rule>
 
-  <!-- ===== op.exp.8.r1.1 · Revisión periódica de los registros ===== -->
+  <!-- ===== op.exp.8.r1.1 · Periodic log review ===== -->
 
-  <!-- EV-05. Plano central. La revisión más reciente anotada por la
-       organización en su registro de revisiones. -->
+  <!-- EV-05. Central plane. The most recent review recorded by the organization in
+       its review register. -->
   <rule id="110905" level="3">
     <if_sid>110900</if_sid>
     <field name="event">log_review_recorded</field>
     <description>op.exp.8 · EV-05 · revisiones de registros anotadas: $(revisiones), última $(ultima_revision)</description>
   </rule>
 
-  <!-- ===== op.exp.8.r2.1 · Referencia de tiempo ===== -->
+  <!-- ===== op.exp.8.r2.1 · Time reference ===== -->
 
-  <!-- EV-06. Estado de la sincronización del reloj: servicio, fuentes,
-       autenticación, desfase y si auditd registra los cambios de hora. -->
+  <!-- EV-06. Clock synchronization state: service, sources, authentication, offset
+       and whether auditd records clock changes. -->
   <rule id="110906" level="3">
     <if_sid>110900</if_sid>
     <field name="event">time_sync_status</field>
     <description>op.exp.8 · EV-06 · reloj $(servicio): sincronizado=$(sincronizado), autenticación=$(autenticacion)</description>
   </rule>
 
-  <!-- EV-06. Un cambio de la hora del sistema registrado por auditd, con la
-       cuenta de la sesión que lo hizo. Es una acción, no un estado. -->
+  <!-- EV-06. A system clock change recorded by auditd, with the account of the
+       session that made it. An action, not a state. -->
   <rule id="110907" level="5">
     <if_sid>110900</if_sid>
     <field name="event">clock_change_observed</field>
     <description>op.exp.8 · EV-06 · cambio de hora ($(syscall)) por $(actor) con $(proceso)</description>
   </rule>
 
-  <!-- ===== op.exp.8.r3.1 · Retención ===== -->
+  <!-- ===== op.exp.8.r3.1 · Retention ===== -->
 
-  <!-- EV-07. Plano central. Lo que el manager conserva en disco, por almacén:
-       el día más antiguo. La retención del indexer (ISM) no se ve sin
-       credenciales y la declara la 110950. -->
+  <!-- EV-07. Central plane. What the manager keeps on disk, per store: the oldest
+       day. Indexer (ISM) retention is not visible without credentials and is declared
+       by 110950. -->
   <rule id="110908" level="3">
     <if_sid>110900</if_sid>
     <field name="event">log_retention_observed</field>
     <description>op.exp.8 · EV-07 · $(almacen) conserva desde $(mas_antiguo)</description>
   </rule>
 
-  <!-- ===== op.exp.8.r4.1 · Acceso a los registros ===== -->
+  <!-- ===== op.exp.8.r4.1 · Log access ===== -->
 
-  <!-- EV-08. Quién puede leer un registro de la máquina: propietario, grupo,
-       modo, ACL y la lista de cuentas con lectura. -->
+  <!-- EV-08. Who can read a log of the machine: owner, group, mode, ACL and the list
+       of accounts with read access. -->
   <rule id="110909" level="3">
     <if_sid>110900</if_sid>
     <field name="event">log_access_permissions</field>
     <description>op.exp.8 · EV-08 · $(ruta) legible por $(cuentas)</description>
   </rule>
 
-  <!-- ===== op.exp.8.r5.1 · Análisis en busca de compromisos ===== -->
+  <!-- ===== op.exp.8.r5.1 · Analysis for compromise ===== -->
 
-  <!-- EV-10. Plano central. Un conjunto de reglas de análisis cargado por el
-       manager, con cuántas reglas y cuántas mapean técnicas MITRE ATT&CK. -->
+  <!-- EV-10. Central plane. An analysis rule set loaded by the manager, with how many
+       rules and how many map MITRE ATT&CK techniques. -->
   <rule id="110910" level="3">
     <if_sid>110900</if_sid>
     <field name="event">correlation_rules_inventory</field>
     <description>op.exp.8 · EV-10 · conjunto de reglas $(conjunto): $(reglas) reglas</description>
   </rule>
 
-  <!-- ===== op.exp.8.r5.2 · Recolección, correlación y respuesta ===== -->
+  <!-- ===== op.exp.8.r5.2 · Collection, correlation and response ===== -->
 
-  <!-- EV-11. Plano central. Una respuesta activa configurada en el manager. -->
+  <!-- EV-11. Central plane. An active response configured on the manager. -->
   <rule id="110911" level="3">
     <if_sid>110900</if_sid>
     <field name="event">active_response_configured</field>
     <description>op.exp.8 · EV-11 · respuesta automática configurada: $(comando) sobre $(reglas_id)</description>
   </rule>
 
-  <!-- EV-12. Plano central. Ejecuciones de una respuesta activa en un agente,
-       con la regla que la disparó (`-` si nadie la disparó con una alerta). -->
+  <!-- EV-12. Central plane. Executions of an active response on an agent, with the
+       rule that triggered it (`-` if no alert triggered it). -->
   <rule id="110912" level="5">
     <if_sid>110900</if_sid>
     <field name="event">active_response_executed</field>
     <description>op.exp.8 · EV-12 · respuesta automática $(programa) $(accion) en $(agente)</description>
   </rule>
 
-  <!-- EV-13. Plano central. Un servicio del sistema de registro y la huella de
-       su configuración. -->
+  <!-- EV-13. Central plane. A logging system service and the fingerprint of its
+       configuration. -->
   <rule id="110913" level="3">
     <if_sid>110900</if_sid>
     <field name="event">logging_service_status</field>
     <description>op.exp.8 · EV-13 · servicio $(servicio): activo=$(activo)</description>
   </rule>
 
-  <!-- ===== Degradación =====
+  <!-- ===== Degradation =====
 
-       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
-       mirar: la `causa` distingue «la fuente no se pudo leer» de «no hay contra
-       qué medir», y las dos se arreglan en sitios distintos. -->
+       The agent issues no verdicts, but it must be able to say it could not look:
+       `causa` separates «the source could not be read» from «nothing to measure
+       against»; the two are fixed in different places. -->
   <rule id="110950" level="5">
     <if_sid>110900</if_sid>
     <field name="event">evidence_state</field>
@@ -183,25 +179,25 @@
     <description>op.exp.8 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <!-- ===== El recolector ===== -->
+  <!-- ===== The collector ===== -->
 
-  <!-- 110997. El latido. No acredita ninguna evidencia: dice qué se barrió y
-       de qué tipo de servidor viene (linux, ldap o manager), que es lo que
-       separa en el motor el plano del servidor del plano central. -->
+  <!-- 110997. The heartbeat. Proves no evidence: says what was swept and which kind of
+       server it comes from (linux, ldap or manager), which is what separates the
+       server plane from the central plane in the engine. -->
   <rule id="110997" level="3">
     <if_sid>110900</if_sid>
     <field name="event">collector_run</field>
     <description>op.exp.8 · pasada del recolector ($(tipo_servidor)): $(resultado)</description>
   </rule>
 
-  <!-- 110998. Aviso operativo: .env ilegible, recolector sin root, candado. -->
+  <!-- 110998. Operational warning: unreadable .env, collector without root, lock. -->
   <rule id="110998" level="5">
     <if_sid>110900</if_sid>
     <field name="event">collector_warning</field>
     <description>op.exp.8 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
-  <!-- 110999. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <!-- 110999. The collector was stopped longer than its cron allows. -->
   <rule id="110999" level="7">
     <if_sid>110900</if_sid>
     <field name="event">collector_missing</field>

@@ -133,7 +133,7 @@ for (
 
   if (!controlId) {
     throw new Error(
-      `Política ${definition.id} sin controlId válido.`
+      `Policy ${definition.id} has no valid controlId.`
     );
   }
 
@@ -141,7 +141,7 @@ for (
     policyRegistry.has(controlId)
   ) {
     throw new Error(
-      `Política duplicada para el control ${controlId}.`
+      `Duplicate policy for control ${controlId}.`
     );
   }
 

@@ -1,31 +1,4 @@
-// Configuración por sistema (1.2.0): la capa `configuration.agents` del
-// documento `active` de wazuh-ens-configuration.
-//
-// Vive en `common/` porque la leen el navegador (pantalla y motor) y el
-// servidor (el guardado la conserva y la valida). Solo tipos y funciones puras.
-//
-// FORMA DEL DOCUMENTO. Solo se AÑADE una clave de primer nivel:
-//
-//   configuration.controls[].parameters[].value   ← sigue siendo el valor de la
-//                                                    ORGANIZACIÓN (el que leen
-//                                                    un plugin 1.1.0, el chatbot
-//                                                    y los scripts)
-//   configuration.agents = {                       ← NUEVO
-//     "<id del agente normalizado>": {
-//       name, aliases[],                  identidad cuando se guardó
-//       detectedType, detectedBy,         tipo detectado y de dónde salió
-//       typeOverride,                     tipo corregido a mano
-//       templates[],                      plantillas aplicadas, en orden
-//       controls: { "<control>": { parameters: { "<P-xx>": valor } } }
-//     }
-//   }
-//
-// Por qué una clave aparte y no dentro del parámetro: el validador estructural
-// solo admite escalares y listas de texto en `value` (un objeto tumbaría el
-// entorno ENS entero), e `inject-control.py` sustituye el objeto parámetro y
-// solo conserva `value`, así que cualquier dato por agente guardado dentro del
-// parámetro se perdería al resembrar. Una clave de primer nivel sobrevive a los
-// dos scripts, que escriben el `_source` entero tras editar solo `controls`.
+// Top-level keys, not inside parameters: inject-control.py keeps only `value` and the validator only scalars and lists.
 
 export type ENSSystemType = 'linux' | 'zimbra-ldap' | 'windows' | 'manager';
 
@@ -33,19 +6,37 @@ export const ENS_SYSTEM_TYPES: ENSSystemType[] = ['linux', 'zimbra-ldap', 'windo
 
 export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   linux: 'Linux',
-  'zimbra-ldap': 'LDAP (Zimbra)',
+  'zimbra-ldap': 'Servidor LDAP',
   windows: 'Windows',
-  manager: 'Manager',
+  manager: 'Manager Wazuh',
 };
 
-// El mismo contrato que `value`: un escalar o una lista de texto. Nunca `null`:
-// quitar el valor propio de un agente es BORRAR la clave.
+// Same contract as `value`: a scalar or a list of text. Never `null`: removing an agent's own value means DELETING the key.
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
+// How a list value is compared: absent means exact, the 1.1.0 and 1.2.0 behaviour.
+export type ENSMatchMode = 'exact' | 'regex';
+
+export const ENS_MATCH_MODES: ENSMatchMode[] = ['exact', 'regex'];
+
 export interface ENSAgentControlOverrides {
-  // Opcional: una versión posterior puede guardar otras claves en el control
-  // (`assigned`, por ejemplo) sin valores propios.
+  // Absent: the built-in template of the agent's type; ENS_NO_TEMPLATE: no template, common values.
+  templateId?: string;
   parameters?: Record<string, ENSAgentParameterValue>;
+  // Mode of an override in `parameters`; it never applies to a value from another level.
+  matchModes?: Record<string, ENSMatchMode>;
+}
+
+export const ENS_NO_TEMPLATE = 'none';
+
+export interface ENSCustomTemplate {
+  id: string;
+  controlId: string;
+  name: string;
+  description?: string;
+  systemType?: ENSSystemType;
+  values: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
 }
 
 export interface ENSAgentProfile {
@@ -54,14 +45,14 @@ export interface ENSAgentProfile {
   detectedType?: ENSSystemType;
   detectedBy?: string;
   typeOverride?: ENSSystemType;
+  // 1.2.0 cross-control templates, kept only until the 1.3.0 conversion runs.
   templates?: string[];
   controls?: Record<string, ENSAgentControlOverrides>;
 }
 
 export type ENSAgentsConfiguration = Record<string, ENSAgentProfile>;
 
-// El id de Wazuh normalizado: numérico y con tres cifras al menos (`24` y
-// `024` son el mismo agente), igual que el inventario de `wazuh-monitoring`.
+// Normalized Wazuh id: numeric with at least three digits (`24` and `024` are the same agent), as in the `wazuh-monitoring` inventory.
 export const normalizeAgentId = (value: unknown): string => {
   const text = String(value ?? '').trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
@@ -80,11 +71,21 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
   isStringArray(value);
 
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
-const CONTROL_KEYS = ['parameters'];
+const CONTROL_KEYS = ['templateId', 'parameters', 'matchModes'];
+export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values', 'matchModes'];
 
-// ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
-// se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
-// máquina y su valor no se aplicaría.
+export const isMatchMode = (value: unknown): value is ENSMatchMode => ENS_MATCH_MODES.includes(value as ENSMatchMode);
+
+// Fatal like an invalid `value`: a pattern read with the wrong mode would be judged as a literal name.
+const validateMatchModesShape = (value: unknown, path: string): string[] => {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return [`${path} must be an object keyed by parameter id.`];
+  return Object.entries(value)
+    .filter(([, mode]) => !isMatchMode(mode))
+    .map(([parameterId]) => `${path}.${parameterId} must be "exact" or "regex".`);
+};
+
+// Is `key` a normalized agent id (`000`, `024`, `1003`)? Profiles are stored by id: a name (`srv-web01`) never matches a machine's row and its value would not apply.
 export const isNormalisedAgentId = (key: string): boolean =>
   /^\d+$/.test(key) && normalizeAgentId(key) === key;
 
@@ -93,20 +94,10 @@ export const describeNonIdAgentKey = (key: string): string =>
     ? `«${key}» no es un id de agente normalizado; usar ${normalizeAgentId(key)}`
     : `«${key}» no es un id de agente; usar el id numérico del agente de Wazuh (p. ej. 001)`;
 
-/**
- * Comprueba la FORMA de `configuration.agents` que el motor necesita para no
- * romperse: la clave ausente es válida; presente, un mapa de perfiles cuyos
- * campos conocidos tienen su tipo y cuyos valores son un escalar o una lista de
- * texto (nunca `null` ni un objeto). Estos errores son los únicos FATALES: los
- * usa el validador estructural (hidratación) y el guardado del servidor.
- *
- * No son fatales, a propósito, y los da `checkAgentsConfigurationKeys`:
- *   - una clave de perfil que no es un id normalizado (error de significado);
- *   - una clave que esta versión no conoce, dentro de un perfil o de un control
- *     (aviso: una versión posterior puede añadir campos y volver a esta no
- *     puede tumbar el entorno);
- *   - un tipo de sistema que esta versión no conoce (aviso).
- */
+// Checks the SHAPE of `configuration.agents` the engine needs: an absent key is valid; when present, a map of profiles whose known fields have their type and whose values are a scalar or a list of text (never `null` or an object).
+// These are the only FATAL errors, used by the structural validator (hydration) and the server save.
+// Not fatal on purpose, given by `checkAgentsConfigurationKeys`: a profile key that is not a normalized id (a meaning error); a key this version does not know inside a profile or control (a warning, so a later version can add fields);
+// a system type this version does not know (a warning).
 export const validateAgentsConfigurationShape = (
   value: unknown,
   path: string = 'configuration.agents'
@@ -164,6 +155,12 @@ export const validateAgentsConfigurationShape = (
         return;
       }
 
+      if (control.templateId !== undefined && (typeof control.templateId !== 'string' || !control.templateId.trim())) {
+        errors.push(`${cat}.templateId must be a non-empty string (to go back to the built-in template of the type, remove the key).`);
+      }
+
+      errors.push(...validateMatchModesShape(control.matchModes, `${cat}.matchModes`));
+
       if (control.parameters === undefined) {
         return;
       }
@@ -186,10 +183,91 @@ export const validateAgentsConfigurationShape = (
   return errors;
 };
 
+// The common value's mode, checked on save: the hydration refuses an unknown one and the environment would not load.
+export const validateCommonMatchModesShape = (controls: unknown, path: string = 'configuration.controls'): string[] =>
+  Array.isArray(controls)
+    ? controls.flatMap((control, controlIndex) =>
+        isRecord(control) && Array.isArray(control.parameters)
+          ? control.parameters
+              .map((parameter, parameterIndex) => ({ parameter, parameterIndex }))
+              .filter(({ parameter }) => isRecord(parameter) && parameter.matchMode !== undefined && !isMatchMode(parameter.matchMode))
+              .map(({ parameterIndex }) => `${path}[${controlIndex}].parameters[${parameterIndex}].matchMode must be "exact" or "regex".`)
+          : []
+      )
+    : [];
+
+// Only what would stop the environment from loading; meaning is the agent validator's job.
+export const validateCustomTemplatesShape = (
+  value: unknown,
+  path: string = 'configuration.templates'
+): string[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    return [`${path} must be an array of templates.`];
+  }
+
+  const errors: string[] = [];
+
+  value.forEach((template, index) => {
+    const at = `${path}[${index}]`;
+
+    if (!isRecord(template)) {
+      errors.push(`${at} must be an object.`);
+      return;
+    }
+
+    (['id', 'controlId', 'name'] as const).forEach(key => {
+      if (typeof template[key] !== 'string' || !(template[key] as string).trim()) {
+        errors.push(`${at}.${key} must be a non-empty string.`);
+      }
+    });
+
+    (['description', 'systemType'] as const).forEach(key => {
+      if (template[key] !== undefined && typeof template[key] !== 'string') {
+        errors.push(`${at}.${key} must be a string.`);
+      }
+    });
+
+    errors.push(...validateMatchModesShape(template.matchModes, `${at}.matchModes`));
+
+    if (!isRecord(template.values)) {
+      errors.push(`${at}.values must be an object keyed by parameter id.`);
+      return;
+    }
+
+    Object.entries(template.values).forEach(([parameterId, parameterValue]) => {
+      if (!isAgentParameterValue(parameterValue)) {
+        errors.push(
+          `${at}.values.${parameterId} has an invalid value (a string, a number, a boolean or a string array; to clear it, remove the key, never null).`
+        );
+      }
+    });
+  });
+
+  return errors;
+};
+
+export const checkCustomTemplatesKeys = (
+  value: unknown,
+  path: string = 'configuration.templates'
+): string[] =>
+  Array.isArray(value)
+    ? value.flatMap((template, index) =>
+        isRecord(template)
+          ? Object.keys(template)
+              .filter(key => !ENS_CUSTOM_TEMPLATE_KEYS.includes(key))
+              .map(key => `${path}[${index}].${key}: esta versión no conoce la clave y la ignora.`)
+          : []
+      )
+    : [];
+
 export interface ENSAgentsKeyCheck {
-  // Perfiles guardados con una clave que no es un id: su valor no se aplica.
+  // Profiles stored with a key that is not an id: their value does not apply.
   errors: string[];
-  // Lo que esta versión no conoce y se ignora.
+  // What this version does not know and ignores.
   warnings: string[];
 }
 
@@ -240,8 +318,7 @@ export const checkAgentsConfigurationKeys = (
   return result;
 };
 
-// El tipo, si es de esta versión. Un tipo desconocido (de una versión
-// posterior) se trata como ausente.
+// The type, if from this version. An unknown type (from a later version) is treated as absent.
 export const knownSystemType = (value: unknown): ENSSystemType | undefined =>
   typeof value === 'string' && ENS_SYSTEM_TYPES.includes(value as ENSSystemType)
     ? (value as ENSSystemType)

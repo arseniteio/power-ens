@@ -45,11 +45,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      // La ficha pone EV-08 (VirusTotal) también en op.exp.6.3, pero su hoja de
-      // condiciones de incumplimiento solo juzga op.exp.6.3 con EV-12. VirusTotal
-      // es una capacidad EDR (R4): dentro de op.exp.6.3 solo podría hundirlo,
-      // porque no se observa desde el equipo, y una decisión de no usarlo en
-      // ALTA dejaría en rojo un requisito BASE.
+      // The sheet puts EV-08 (VirusTotal) in op.exp.6.3 too, but its failure-conditions sheet judges op.exp.6.3 only with EV-12. VirusTotal is an EDR capability (R4): in op.exp.6.3 it could only sink it, as it is not observed from the host.
       evidenceIds: ['EV-12'],
       parameterIds: ['P-05', 'P-10'],
     },

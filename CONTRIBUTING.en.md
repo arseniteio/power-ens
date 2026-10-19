@@ -3,8 +3,7 @@
 
 [[_TOC_]]
 
-This is the internal guide for whoever works on this repository. Today the
-project is private; a community edition is planned.
+Internal guide of the repository (private; community edition planned).
 
 ## Workflow
 
@@ -71,6 +70,7 @@ The guides in `docs/deployment/` follow the same style:
   imperative («Check…», «Stop the procedure»), without *you* or *your*;
 - after each command, **Expected result:** (**Resultado esperado:**, in
   Spanish), also in tables;
+- direct: no paragraphs that justify, narrate or teach, no repetition between guides and no history; only steps, commands, paths, values, expected results and warnings that prevent data loss;
 - notices with `> [!note]`, `> [!important]` or `> [!warning]`;
 - every relative link and every anchor must exist. GitLab builds the anchor
   from the heading in lowercase, with spaces turned into `-` and punctuation
@@ -80,15 +80,18 @@ The guides in `docs/deployment/` follow the same style:
 
 The tests need Python 3 and Node.js 18 or later; the script tests also need
 `bash`, `zip` and `unzip`. From the repository root, with the runbooks cloned
-next to the plugin:
+next to the plugin. The first command installs into `node_modules/` the
+`package.json` dependencies the engine imports (`re2js`):
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Expected result: `coherencia OK` and no `FAIL` line.
+Expected result: `consistency OK` and no `FAIL` line.
 
 Without Node.js, in Docker, or in a clean folder like CI: see
 [Building from source, section 7](docs/deployment/08-building-from-source.en.md#7-run-the-tests).
@@ -131,9 +134,7 @@ this project, under *Settings → CI/CD → Variables*:
 | `RUNBOOKS_DEPLOY_USER` | the token's username | masked, not protected |
 | `RUNBOOKS_DEPLOY_TOKEN` | the token | masked, not protected |
 
-They are not protected because working branches and MRs are not protected: a
-protected variable would not reach their pipelines. Without them,
-`ci/clone-runbooks.sh` stops and says how to create them.
+Not protected: working branches and MRs are not protected. Without the variables, `ci/clone-runbooks.sh` stops and says how to create them.
 
 The `release` job needs no other variable: it uses the job's own token.
 

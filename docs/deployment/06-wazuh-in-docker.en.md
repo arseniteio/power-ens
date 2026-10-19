@@ -5,11 +5,7 @@ Procedure to deploy ENSFácil when Wazuh runs on the official Docker images
 (`wazuh/wazuh-indexer`, `wazuh/wazuh-manager` and `wazuh/wazuh-dashboard`) with
 the official `docker compose` deployment of `wazuh-docker`.
 
-The plugin side (sections 3 to 12) is complete in this guide: dashboard image
-with ENSFácil, start-up, role, configuration, seeding, validation, update,
-rollback and removal. The manager side (section 13) describes the differences
-from the [installation from scratch](01-installation-from-scratch.en.md) when
-the manager runs in a container.
+Sections 3 to 12: dashboard image with ENSFácil, start-up, role, configuration, seeding, validation, update, rollback and removal. Section 13: differences from the [installation from scratch](01-installation-from-scratch.en.md) when the manager runs in a container.
 
 > [!note]
 > `deploy-plugin.sh` and the commands with `systemctl`, `dpkg-query` and
@@ -120,17 +116,9 @@ Expected result: a hash followed by `HEAD`, and the repository cloned in
 
 ### 2.4 Indexer query function
 
-The indexer certificate of the official deployment is issued for the name
-`wazuh.indexer`, which only resolves inside the compose network. From the
-host, with `https://127.0.0.1:9200` and the deployment CA, curl rejects the
-connection because the name does not match. For this reason the indexer
-queries run from a container attached to that network, with no change on the
-host.
+The indexer certificate is issued for `wazuh.indexer`, which only resolves inside the compose network: indexer queries are made from a container connected to that network.
 
-The `ix` function sends a request to the indexer with the admin certificate
-and verifies the indexer certificate against `root-ca.pem`. It takes the path
-and, optionally, further curl options. Define it in the shell session, with
-`<project>` and `<path>` replaced:
+The `ix` function sends a request to the indexer with the admin certificate and verifies the indexer certificate against `root-ca.pem`. It takes the path and, optionally, more curl options. Define it in the shell session, with `<proyecto>` and `<ruta>` replaced:
 
 ```bash
 ix() {
@@ -142,14 +130,11 @@ ix() {
 }
 ```
 
-The function is lost when the shell closes: define it again in a new session.
-Each call installs `curl` in a new container and takes a few seconds.
+The function is lost when the shell closes: define it again in each session. Each call installs `curl` in a new container (a few seconds).
 
 ## 3. Build the dashboard image with ENSFácil
 
-ENSFácil is a plugin of its own (`ensfacil`), installed next to the Wazuh
-plugin without modifying it. In Docker it is installed in a custom image based
-on the official `wazuh/wazuh-dashboard:4.14.7`.
+Custom image based on `wazuh/wazuh-dashboard:4.14.7`, with `ensfacil` installed next to the Wazuh plugin (not modified).
 
 Prepare the build folder with the release zip, renamed to
 `ensfacil-2.19.5.zip`:
@@ -190,18 +175,10 @@ docker run --rm --entrypoint python3 wazuh-dashboard-ensfacil:1.1.0 \
 Expected result: the build finishes without errors; the plugin list includes
 `ensfacil@1.1.0` next to `wazuh@4.14.7-01`; the `build.number` is `424801`.
 
-The dashboard `build.number` forms the bundle URL of every plugin. The image
-derives it from the ENSFácil version: the number of the official image
-(`414701` in `wazuh/wazuh-dashboard:4.14.7`) plus X·10000 + Y·100 + Z for
-version X.Y.Z. For 1.1.0 it is 414701 + 10000 + 100 + 0 = 424801. Each
-ENSFácil version therefore has its own number and its own URLs, and browsers
-download the new files when the version changes, including a return to an
-earlier one. Without `--build-arg ENSFACIL_VERSION`, the build fails.
+The image `build.number` is the official one (`414701` in `wazuh/wazuh-dashboard:4.14.7`) plus X·10000 + Y·100 + Z for ENSFácil version X.Y.Z. For 1.1.0: 414701 + 10000 + 100 + 0 = 424801. Without `--build-arg ENSFACIL_VERSION`, the build fails.
 
 > [!important]
-> The value of `ENSFACIL_VERSION` must be the version of the zip. With any
-> other value, two images with different ENSFácil versions can share a
-> `build.number`, and browsers would keep using the cached files.
+> `ENSFACIL_VERSION` must be the version of the zip: with any other value, two images with different versions can share `build.number` and browsers would use cached files.
 
 ## 4. Change the compose file and start
 
@@ -242,12 +219,7 @@ If any check fails, stop the procedure and follow
 
 ## 5. Create the `ensfacil_admin` role
 
-Saving the ENS configuration and viewing its history require the
-`ensfacil_admin` or `all_access` role. The Wazuh `admin` user has
-`all_access`: this step is only required if another user, without
-`all_access`, must save the configuration or view its history. The role grants
-no permission by itself; each user also needs their usual Wazuh role, with read
-access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+Required only if a user without `all_access` must save the configuration or view its history (the Wazuh `admin` user has `all_access`). The role grants no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 `create-admin-role.sh`, from the release folder, runs in a container attached
 to the compose network, with the admin certificate of the deployment. First in
@@ -268,10 +240,10 @@ user.
 Expected result:
 
 ```text
-== modo prueba: no se envía ningún cambio
-== rol ensfacil_admin
+== dry-run mode: no change is sent
+== role ensfacil_admin
 PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
-== asignación de ensfacil_admin
+== assignment of ensfacil_admin
 PUT _plugins/_security/api/rolesmapping/ensfacil_admin {"users":["<user>"]}
 ```
 
@@ -282,30 +254,23 @@ Then the real run: the same command ending in
 `bash /t/create-admin-role.sh --mapear <user>`, without `--dry-run`.
 
 Expected result: `-> 201` (or `-> 200` if the role already existed) after each
-request and, at the end, `usuarios con el rol ensfacil_admin: <user>`.
+request and, at the end, `users with the role ensfacil_admin: <user>`.
 
-- The run can be repeated: the role is written the same way and only the
-  missing users are added.
-- Several users: `--mapear <user1> --mapear <user2>`.
+- Repeatable: only the missing users are added.
+- Several users: `--mapear <usuario1> --mapear <usuario2>`.
 - Without `--mapear`, the script only creates the role.
-- If the user had a session open and still gets the 403 error, the user must
-  log out and log in again.
+- If a user with an open session still gets the 403 error, log out and log in again.
 
 > [!note]
-> Alternative from the host: a `127.0.0.1 wazuh.indexer` entry in `/etc/hosts`
-> allows `OS_URL=https://wazuh.indexer:9200` with port `9200` published by the
-> compose deployment. This procedure uses the container because it requires no
-> change on the host. In a multi-node cluster, the name is the one of the
-> indexer node in its certificate
-> (`openssl x509 -in <path>/config/wazuh_indexer_ssl_certs/wazuh.indexer.pem -noout -ext subjectAltName`).
+> Alternative from the host: a `127.0.0.1 wazuh.indexer` entry in `/etc/hosts` allows `OS_URL=https://wazuh.indexer:9200` with port `9200` published by the compose. In a multi-node cluster, the name is that of the indexer node in its certificate
+> (`openssl x509 -in <ruta>/config/wazuh_indexer_ssl_certs/wazuh.indexer.pem -noout -ext subjectAltName`).
 
 ## 6. First save of the configuration
 
 In a new installation, the `active` document of the `wazuh-ens-configuration`
 index does not exist until the first save. Until then, `inject-control.py`
-stops with the message "no existe el documento 'active'…; guarda la
-configuración una vez y vuelve a ejecutar" (the `active` document does not
-exist; save the configuration once and run again).
+stops with the message `ERROR: document 'active' does not exist in index
+'wazuh-ens-configuration'.`, which ends with "save the configuration once and run again."
 
 Log in to Wazuh Dashboard with a user with `ensfacil_admin` or `all_access`,
 open ENSFácil > Configuración and save the configuration once. Opening the
@@ -340,8 +305,7 @@ Expected result: `1`. Restoring this copy in Docker is described in section
 ## 8. Seed the controls
 
 > [!important]
-> Seed only once the ENSFácil image is deployed (section 4). The reason is in
-> [Installing from a release, section 11](07-installing-from-a-release.en.md#11-update-to-a-newer-release).
+> Seed only once the ENSFácil image is deployed (section 4).
 
 `inject-control.py` runs in a `python:3.12-slim` container attached to the
 compose network, with the `config/` folder of the repository mounted
@@ -374,48 +338,38 @@ done
 ```
 
 Review the plan of each control: new parameters, values that are kept and, if
-it appears, the line `YA NO EXISTEN en el bloque y se pierden` (no longer in
+it appears, the line `NO LONGER IN THE BLOCK and lost` (no longer in
 the block and lost). If the plan is correct, repeat the loop with
 `python3 inject-control.py "$c" --apply`.
 
-Expected result: `== APLICADO ==` for each control.
+Expected result: `== APPLIED ==` for each control.
 
 Seeding merges: it keeps the value of every parameter that already had one and
-adds the missing ones. It also keeps the per-system values (`configuration.agents`).
+adds the missing ones. It also keeps the agents' settings (`configuration.agents`) and
+the custom templates (`configuration.templates`).
 
-With ENSFácil 1.2.0 or later, a control the document does not have can also be
-added from ENSFácil > Configuración > Organización, with «Añadir con valores por
-defecto» ([Configuration by system and templates, section 9](09-configuration-by-system.en.md#9-catalog-controls-not-yet-added)).
+With ENSFácil 1.3.0 or later, a control the document does not have can also be
+added from ENSFácil > Configuración > Controles, with «Añadir con valores por
+defecto» ([Configuration by controls and templates, section 5.1](09-configuration-by-system.en.md#51-add-a-catalog-control)).
 
 > [!note]
-> Evidence that depends on mandatory parameters without a value stays
-> `NO_EVALUABLE`, with cause `CONFIGURATION`, and the requirements it supports
-> are not accredited until those parameters are declared. Missing information
-> is not interpreted as compliance.
+> Evidence that depends on mandatory parameters without a value stays `NO_EVALUABLE`, with cause `CONFIGURATION`, and its requirements are not credited until they are declared.
 
 ## 9. Validate the document
 
-A parameter with a value the plugin does not accept prevents the whole ENS
-environment from loading, and the dashboard shows "No se pudo cargar el
-entorno ENS" (the ENS environment could not be loaded). After each seeding or
-parameter change, validate the whole document with the plugin validator
-(`config/validate-configuration.ts`). The validator imports the plugin engine:
-it needs the whole repository, not only `config/`.
+A value the plugin does not accept prevents the whole ENS environment from loading («No se pudo cargar el entorno ENS»). After every seeding or parameter change, validate the whole document with `config/validate-configuration.ts`, which needs the full repository (it imports the plugin engine); the command first installs the dependencies in `node_modules/`.
 
 ```bash
 ix wazuh-ens-configuration/_doc/active > <repo>/active.json
 docker run --rm -v <repo>:/w -w /w node:22-alpine \
-  sh -c 'npx --yes tsx config/validate-configuration.ts /w/active.json'
+  sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active.json'
 ```
 
-Expected result: `controles (23): mp.info.6 op.acc.1 …`,
-`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, if there are
-per-system values, one line per agent and `VALORES POR SISTEMA VÁLIDOS.`
+Expected result: `controls (23): mp.info.6 op.acc.1 …`,
+`VALID STRUCTURE: the plugin will load this configuration.` and, with agent
+settings, one line per agent; at the end, `VALID AGENT AND TEMPLATE SETTINGS.`
 
-A `scope` without the `agentIds` and `groupIds` arrays is rejected
-(`configuration.scope.agentIds must be a string array`). The Configuración
-screen always writes them; the error only appears in a document written by
-hand.
+A `scope` without the `agentIds` and `groupIds` arrays is rejected (`configuration.scope.agentIds must be a string array`); this only happens in a hand-written document.
 
 > [!warning]
 > If the validation fails, restore the copy from section 7 (section 12.2)
@@ -425,8 +379,7 @@ hand.
 
 ## 10. Declare the policy: T and D levels
 
-Parameter values are decisions of the person in charge and are declared in
-ENSFácil > Configuración. The global configuration card also declares:
+Parameter values are declared in ENSFácil > Configuration. The global configuration card also declares:
 
 | Field | Controls | Not declared |
 |---|---|---|
@@ -451,15 +404,15 @@ docker run --rm --network <project>_default \
 
 Without `--apply` it prints the plan; with `--apply` it writes.
 
-Expected result: the changes per parameter and `DRY-RUN: nada escrito`; with
-`--apply`, `<n> cambio(s) escritos en wazuh-ens-configuration/active`.
+Expected result: the changes per parameter and `DRY-RUN: nothing written`; with
+`--apply`, `<n> change(s) written to wazuh-ens-configuration/active`.
 
 The file format and its rules are in the
 [installation from scratch, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy).
-For the `agents` section (a machine's own values), mount the complete
+For the `agents` section (an agent's template and own settings), mount the complete
 repository, `-v <repo>:/repo:ro -w /repo/config`, instead of `<repo>/config`:
 the tool reads the parameter classification from `public/`
-([Configuration by system and templates, section 11.1](09-configuration-by-system.en.md#111-declare-a-systems-values-with-set-parameterspy)).
+([Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy)).
 After declaring values, repeat the backup (section 7) before and the
 validation (section 9) after.
 
@@ -481,9 +434,7 @@ ENS scope are configured with the
 
 ## 12. Update, roll back and remove
 
-Each ENSFácil version is an image with its own tag. Installing, updating or
-removing the image does not modify the indices: the ENS configuration, its
-history and the runbook facts are kept.
+Each ENSFácil version is an image with its tag. Installing, updating or removing the image does not modify the indices: the ENS configuration, its history and the facts are kept.
 
 ### 12.1 Update to a new version
 
@@ -568,12 +519,7 @@ session, the response is `401` in both cases and is not a valid check. The
 
 The Wazuh plugin is the one of the official image and is not affected.
 
-The ENS configuration stays in the `wazuh-ens-configuration` index and the
-`ensfacil_admin` role in the security plugin. If ENSFácil will not be used
-again in this environment, they can be deleted. This deletes the ENS
-configuration and its history: before doing so, save a copy of the document
-(section 7). Do not run this step if another installation uses the same
-indexer.
+If ENSFácil will not be used again in this environment, delete the ENS configuration (`wazuh-ens-configuration` index) and the `ensfacil_admin` role. This deletes the configuration and its history: first, keep a copy of the document (section 7). Do not run this step if another installation uses the same indexer.
 
 ```bash
 ix _plugins/_security/api/rolesmapping/ensfacil_admin -X DELETE
@@ -589,12 +535,7 @@ retention of those indices.
 
 ## 13. Manager side
 
-The control rules and the manager collectors are installed with the
-`install-manager.sh` of the runbooks, in the manager container. This section
-describes the differences from the
-[installation from scratch, sections 10 to 12](01-installation-from-scratch.en.md#10-configure-authorized-access-to-gitlab).
-What is verified and what is pending is in section 1: inside the
-`docker compose` deployment, this section is not verified.
+Manager rules and collectors: `install-manager.sh` of the runbooks, in the manager container. Differences from the [installation from scratch, sections 10 to 12](01-installation-from-scratch.en.md#10-configure-authorized-access-to-gitlab). What is verified and what is pending is in section 1: inside the `docker compose` deployment, this section is unverified.
 
 ### 13.1 What the manager image lacks
 
@@ -620,9 +561,7 @@ Expected result: `SQLITE3=OK`.
 
 ### 13.2 Manager image with the tools
 
-Whatever is installed with `dnf` inside a container is lost when it is
-recreated. Pin the tools in a custom image, with the same version as the
-official one:
+Whatever is installed with `dnf` in a container is lost when it is recreated: pin the tools in a custom image, with the version of the official one:
 
 ```dockerfile
 FROM wazuh/wazuh-manager:4.14.7
@@ -675,11 +614,7 @@ After recreating the container, repeat the copy of the runbooks and the
 
 ### 13.4 The `<localfile>` entries in `wazuh_manager.conf`
 
-The official deployment mounts `config/wazuh_cluster/wazuh_manager.conf` on
-`/wazuh-config-mount/etc/ossec.conf`, and the image's start script copies it
-over `/var/ossec/etc/ossec.conf` on every start. The `<localfile>` entries that
-the `install-manager.sh` scripts add to `ossec.conf` disappear at the next
-container start, and those controls are left without data.
+The official deployment mounts `config/wazuh_cluster/wazuh_manager.conf` on `/wazuh-config-mount/etc/ossec.conf` and the image start-up copies it over `/var/ossec/etc/ossec.conf`: the `<localfile>` entries added by the `install-manager.sh` scripts disappear on the next start and those controls are left without data.
 
 Before running the installers, append this block to
 `<path>/config/wazuh_cluster/wazuh_manager.conf`, on the host:
@@ -782,12 +717,7 @@ done < /opt/ensfacil/runbooks.txt
 
 Expected result: no `ERROR` line.
 
-The `install-manager.sh` scripts read `SYSTEMCTL="${ENSFACIL_SYSTEMCTL:-systemctl}"`
-and only use it for `"$SYSTEMCTL" restart wazuh-manager`, also in their
-rollback. `wazuh-control restart wazuh-manager` ignores the second argument,
-restarts every daemon and returns an error if the configuration is invalid or a
-daemon does not start, so the installers' rollback keeps working. The scripts
-are not modified: the variable is enough.
+The `install-manager.sh` scripts read `SYSTEMCTL="${ENSFACIL_SYSTEMCTL:-systemctl}"` and only use it for `"$SYSTEMCTL" restart wazuh-manager`, also in their rollback. `wazuh-control restart wazuh-manager` ignores the second argument, restarts all daemons and returns an error if the configuration is invalid or a daemon does not start. The scripts are not modified: the variable is enough.
 
 ```bash
 while read -r r; do
@@ -819,10 +749,7 @@ fixed `hostname:` keeps that value stable.
 
 ### 13.7 Schedule the collectors from the host
 
-The image has no cron. The `install-manager.sh` scripts leave their files in
-the container's `/etc/cron.d/`, where they are not executed and have no
-effect. Schedule the collectors in the host cron, with the same frequencies as
-the runbooks:
+The image has no cron: the files the `install-manager.sh` scripts leave in the container's `/etc/cron.d/` do not run. Schedule the collectors in the host cron, with the runbooks' cadences:
 
 ```bash
 # /etc/cron.d/ensfacil-manager on the HOST (replace MGR and the name)
@@ -870,7 +797,7 @@ cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 
 Expected result: `wazuh-analysisd is running...`,
 `wazuh-logcollector is running...` and `wazuh-remoted is running...`;
-`CONFIG_MANAGER=OK`; `coherencia OK`. `check-consistency.py` runs on the host,
+`CONFIG_MANAGER=OK`; `consistency OK`. `check-consistency.py` runs on the host,
 with the repository in `/opt/ensfacil/repo` and the runbooks cloned next to it.
 
 The rule that each installer confirms with `wazuh-logtest` is in the table of

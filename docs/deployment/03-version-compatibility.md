@@ -5,12 +5,12 @@
 
 ## 1. Objetivo
 
-Esta guía indica las combinaciones de versiones validadas para ENSFácil y el procedimiento previo al uso de otra versión de Wazuh.
+Combinaciones de versiones validadas de ENSFácil y procedimiento previo al uso de otra versión de Wazuh.
 
-ENSFácil es un plugin propio de Wazuh Dashboard (`ensfacil`). No modifica el plugin de Wazuh: Wazuh se puede actualizar por su cuenta. Pero ENSFácil se compila para una versión **exacta** de OpenSearch Dashboards, la que lleva Wazuh Dashboard.
+ENSFácil (`ensfacil`) se compila para una versión **exacta** de OpenSearch Dashboards, la que lleva Wazuh Dashboard.
 
 > [!important]
-> La compatibilidad nunca debe suponerse porque Wazuh se instale o arranque bien. Una versión es compatible cuando se ha compilado ENSFácil para ella y se ha validado.
+> Una versión es compatible solo cuando ENSFácil se ha compilado y validado para ella.
 
 ## 2. Versión validada
 
@@ -22,15 +22,15 @@ ENSFácil es un plugin propio de Wazuh Dashboard (`ensfacil`). No modifica el pl
 Cualquier otra combinación está sin validar.
 
 > [!note]
-> `1.2.0` se publica para la misma combinación que la `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). Se añade a esta tabla cuando cumple en un entorno real los criterios del apartado 6.
+> `1.2.0` y `1.3.0` se publican para la misma combinación que la `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). Se añade a esta tabla cuando cumple en un entorno real los criterios del apartado 6.
 
-El zip lleva la versión de OpenSearch Dashboards en el nombre y en su manifiesto (`opensearchDashboardsVersion`). OpenSearch Dashboards solo acepta un plugin compilado para su versión exacta:
+OpenSearch Dashboards solo acepta un zip compilado para su versión exacta (`opensearchDashboardsVersion` del manifiesto):
 
 - al instalarlo, `opensearch-dashboards-plugin install` lo rechaza con `Plugin ensfacil [2.19.5] is incompatible with OpenSearch Dashboards […]`;
 - si ya estaba instalado y el dashboard cambia de versión, el dashboard **no arranca**: `Failed to initialize plugins`.
 
 > [!note]
-> En las releases, el zip se llama `ensfacil-<versión>-osd-<versión de OpenSearch Dashboards>.zip`, por ejemplo `ensfacil-1.2.0-osd-2.19.5.zip`: hay un zip por versión del dashboard. Cada release dice en su descripción con qué versión de Wazuh y de OpenSearch Dashboards es compatible ([Instalar desde una release](07-installing-from-a-release.md#21-compatibilidad)). Compilado desde el código fuente, el zip se llama `ensfacil-2.19.5.zip`.
+> En las releases, el zip se llama `ensfacil-<versión>-osd-<versión de OpenSearch Dashboards>.zip`, por ejemplo `ensfacil-1.3.0-osd-2.19.5.zip`: hay un zip por versión del dashboard. Cada release dice en su descripción con qué versión de Wazuh y de OpenSearch Dashboards es compatible ([Instalar desde una release](07-installing-from-a-release.md#21-compatibilidad)). Compilado desde el código fuente, el zip se llama `ensfacil-2.19.5.zip`.
 
 ## 3. Comprobar las versiones instaladas
 
@@ -42,7 +42,7 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Resultado esperado: los tres paquetes en `4.14.7-1`; `2.19.5`; en la lista de plugins, la versión instalada de ENSFácil (por ejemplo, `ensfacil@1.2.0`) y `wazuh@4.14.7-01`.
+Resultado esperado: los tres paquetes en `4.14.7-1`; `2.19.5`; en la lista de plugins, la versión instalada de ENSFácil (por ejemplo, `ensfacil@1.3.0`) y `wazuh@4.14.7-01`.
 
 ### 3.2 Docker
 
@@ -99,9 +99,9 @@ En un entorno de pruebas:
    for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
    ```
 
-   Resultado esperado: `coherencia OK` y ninguna línea `FAIL`.
+   Resultado esperado: `consistency OK` y ninguna línea `FAIL`.
 
-6. Recorrer las pantallas con datos reales: Panel, Vista general, Configuración (pestañas «Organización» y «Sistemas»; guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
+6. Recorrer las pantallas con datos reales: Panel, Vista general, Configuración (pestañas «Controles», «Agentes» y «General»; guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
 
 ## 6. Criterios para declarar una versión compatible
 
@@ -116,7 +116,7 @@ Una versión nueva solo se añade a la tabla del apartado 2 cuando se ha demostr
 
 ## 7. Versiones no validadas
 
-Una versión que no está en la tabla del apartado 2 está sin validar. No quiere decir que sea incompatible, sino que todavía no hay pruebas para autorizar el despliegue.
+Una versión ausente de la tabla del apartado 2 está sin validar.
 
 > [!important]
 > Ante una versión sin validar, detener el procedimiento y hacer primero la evaluación del apartado 5.

@@ -54,8 +54,7 @@ export const opExp4CatalogDefinition: ENSControlDefinition = {
       description:
         'Antes de poner en producción una nueva versión o una versión parcheada, se comprobará en un entorno de prueba controlado y consistente en configuración al entorno de producción, que la nueva instalación funciona correctamente y no disminuye la eficacia de las funciones necesarias para el trabajo diario.',
       kind: 'REFUERZO',
-      // Refuerzo ACUMULATIVO: la ficha lo exige en MEDIA «+ R1» y en ALTA
-      // «+ R1 + R2». El generador lo había dejado solo en ALTO.
+      // CUMULATIVE reinforcement: the sheet requires it at MEDIA "+ R1" and at ALTA "+ R1 + R2". The generator had left it at ALTO only.
       applicability: {
         levels: ['MEDIO', 'ALTO'],
         reason:

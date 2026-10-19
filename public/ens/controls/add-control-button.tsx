@@ -1,7 +1,4 @@
-// «Añadir con valores por defecto» desde la lista y el detalle: la misma
-// acción que «Controles del catálogo sin añadir» de Configuración (Task 3), un
-// control que existe en el catálogo pero no en la configuración activa. Se
-// guarda sobre el documento más reciente; guardar exige el rol de siempre.
+// Adds a catalogue control with default values, saving over the latest configuration document.
 import React, { useState } from 'react';
 import { EuiButton, EuiText } from '@elastic/eui';
 import { addMissingControls } from '../../../common/ens/configuration/agents/agent-configuration-actions';
@@ -21,9 +18,9 @@ export const addControlWithDefaults = (controlId: string) =>
   });
 
 export const AddControlWithDefaultsButton = ({ controlId, onAdded, size = 's' }: { controlId: string; onAdded?: () => void; size?: 's' | 'xs' }) => {
-  const [estado, setEstado] = useState<{ saving?: boolean; error?: string; done?: boolean }>({});
+  const [status, setStatus] = useState<{ saving?: boolean; error?: string; done?: boolean }>({});
 
-  if (estado.done) {
+  if (status.done) {
     return (
       <EuiText size='xs' color='secondary'>
         <p>{controlId} añadido a la configuración activa. Se evalúa en la próxima actualización.</p>
@@ -36,23 +33,23 @@ export const AddControlWithDefaultsButton = ({ controlId, onAdded, size = 's' }:
       <EuiButton
         size={size === 'xs' ? 's' : size}
         iconType='plusInCircle'
-        isLoading={estado.saving}
+        isLoading={status.saving}
         onClick={async () => {
-          setEstado({ saving: true });
+          setStatus({ saving: true });
           try {
             await addControlWithDefaults(controlId);
-            setEstado({ done: true });
+            setStatus({ done: true });
             onAdded?.();
           } catch (failure) {
-            setEstado({ error: String((failure as any)?.message || failure) });
+            setStatus({ error: String((failure as any)?.message || failure) });
           }
         }}
       >
         Añadir con valores por defecto
       </EuiButton>
-      {estado.error && (
+      {status.error && (
         <EuiText size='xs' color='danger'>
-          <p>No se pudo añadir: {estado.error}</p>
+          <p>No se pudo añadir: {status.error}</p>
         </EuiText>
       )}
     </>

@@ -1,46 +1,5 @@
-// op.exp.7 · Gestión de incidentes
-//
-// Por qué este control tiene policy propia. Las siete primitivas contrastan UN
-// campo de UN hecho contra UN parámetro, y ninguna de las preguntas de
-// op.exp.7 cabe ahí:
-//
-//   EV-02  cruzar DOS flujos de hechos: cada alerta Alta o Crítica (su
-//          severidad sale del nivel de regla con P-01) tiene que caer dentro de
-//          un incidente registrado de su sistema, con el plazo de P-02.
-//   EV-03  MTTD/MTTR: restar instantes entre fases del registro (y con la
-//          primera alerta) y comparar la MEDIA de cada severidad con su fila de
-//          P-05. Ninguna primitiva resta dos hechos ni busca la fila por otra
-//          columna.
-//   EV-04  escalado contra P-02 (destinatario y plazo) y, desde MEDIA,
-//          comunicación a los responsables de P-04 de cada sistema afectado.
-//   EV-05  los sellos de los registros de cada día de cada incidente.
-//   EV-06  contención de cada incidente alto o crítico: respuesta activa de P-09
-//          en un sistema afectado, dentro del incidente, o contención anotada.
-//   EV-07  72 horas del RGPD desde la apertura, solo en sistemas de P-07.
-//   EV-08  notificación al CCN-CERT de lo que P-01 declara notificable.
-//   EV-09  reconfiguración sobre los elementos de P-10.
-//   EV-10  listas CDB de P-11 cargadas, usadas y al día.
-//   EV-12  medidas de mejora en todo incidente cerrado.
-//
-// Invariantes, las mismas que `evidence/judgment.ts` y la policy de op.exp.4:
-//   - el recolector emite instantes, no edades: toda antigüedad se mide aquí
-//     contra `context.now`, así que el mismo hecho envejece solo;
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo; nunca un CUMPLE por
-//     ausencia salvo EV-02, y solo si el latido confirma que en ESA pasada se
-//     leyeron las alertas Y el registro;
-//   - «no hubo incidentes» no demuestra nada de lo que se hace ante un
-//     incidente: EV-03 a EV-08 y EV-12 quedan NO_EVALUABLE sin incidentes;
-//   - la policy nunca inventa política: ningún plazo, nivel ni destinatario
-//     tiene valor por defecto. Las 72 horas de EV-07 no son política del
-//     cliente: las fija el artículo 33 del RGPD, al que remite op.exp.7.2.
-//
-// El sujeto es el manager: los hechos llegan con agent.id 000 y dicen de qué
-// sistema hablan en `sistema` / `sistemas`.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+// op.exp.7 · Incident management.
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -59,452 +18,436 @@ import {
 const CONTROL = 'op.exp.7';
 const POLICY = 'policy.op.exp.7';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// El recolector del manager corre cada hora. 24 h + una pasada + margen: es
-// tolerancia de OBSERVACIÓN, no política.
-const FRESCURA_HORAS = 26;
+// The manager's collector runs hourly: 24 h + one run + margin. Observation tolerance, not policy.
+const FRESHNESS_HOURS = 26;
 
-// Mismo margen de reloj que `resolveCollectorCoverage`: un hecho del futuro no
-// acredita nada.
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// Same clock margin as `resolveCollectorCoverage`: a fact from the future proves nothing.
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// La ventana de las ACCIONES (decisión del 17/09): lo que se juzga es lo que ha
-// estado vivo en los últimos 30 días, la misma ventana con la que el motor lee
-// las alertas.
-const VENTANA_DIAS = 30;
+// Window of ACTIONS: what is judged is what has been alive in the last 30 days, the same window the
+// engine uses to read alerts.
+const WINDOW_DAYS = 30;
 
-// Artículo 33 del RGPD: notificación a la autoridad de control en 72 horas.
-const AEPD_HORAS = 72;
+// GDPR article 33: notification to the supervisory authority within 72 hours.
+const AEPD_HOURS = 72;
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
-// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy.
-type Medida = {
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`). It reaches the evidence and
+// requirement through the decision; without it the card inherited the classic model's cause, which
+// does not see the facts the policy reads.
+type Measurement = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta (o aún no hay incidente con el
-// que medir). Falta de parámetro (CONFIGURATION) y falta de pasada o de fuente
-// (COLLECTION) se dicen expresamente, y lo que el recolector declara llega con
-// SU causa (`degradacion`).
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough (or there is no incident yet to measure
+// with). Missing parameter (CONFIGURATION) and missing run or source (COLLECTION) say so
+// explicitly, and the collector's declarations carry ITS cause (`degradacion`).
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
 
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements, same order as the engine (`resolveGapCause`):
+// COLLECTION only if all say so, CONFIGURATION if any does, otherwise EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-const GRAVEDAD: Record<Medida['estado'], number> = {
+const SEVERITY: Record<Measurement['estado'], number> = {
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Medida['estado'] =>
-  medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
+  measurements.reduce<Measurement['estado']>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=EV-02,EV-03` en uno por
-// evidencia (`<id>#EV-02`, `<id>#EV-03`). Aquí se juzga el HECHO, así que se
-// cuenta una vez.
-const hechos = (
+// The normalizer splits an event with `evidence_id=EV-02,EV-03` into one per evidence
+// (`<id>#EV-02`, `<id>#EV-03`); the FACT is judged here, so it counts once.
+const facts = (
   context: ENSPolicyContext,
-  tipo: string
+  type: string
 ): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+  const seen = new Set<string>();
 
   return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-// Los números llegan como texto desde `alerts.json`.
-const numero = (texto: string): number | undefined => {
-  const limpio = (texto || '').replace(',', '.').trim();
+// Numbers arrive as text from `alerts.json`.
+const parseNumber = (text: string): number | undefined => {
+  const clean = (text || '').replace(',', '.').trim();
 
-  if (!/^-?\d+(\.\d+)?$/.test(limpio)) {
+  if (!/^-?\d+(\.\d+)?$/.test(clean)) {
     return undefined;
   }
 
-  const valor = Number(limpio);
+  const value = Number(clean);
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(text)) {
     return undefined;
   }
 
-  const valor = new Date(texto).getTime();
+  const value = new Date(text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const horas = (ms: number): string => (ms / HORA).toFixed(1);
+const formatHours = (ms: number): string => (ms / HOUR_MS).toFixed(1);
 
 const iso = (ms: number): string => new Date(ms).toISOString().replace('.000Z', 'Z');
 
-const sinTildes = (texto: string): string =>
-  texto
+const stripAccents = (text: string): string =>
+  text
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
 
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
+const formatList = (items: string[], max = 5): string =>
+  items.length > max
+    ? `${items.slice(0, max).join('; ')} y ${items.length - max} más`
+    : items.join('; ');
 
-// Destinatarios o responsables de una celda: «RSI + CISO», «J. Ruiz, M. Sanz».
-const nombres = (texto: string): string[] =>
-  texto
+// Recipients or owners of a cell: «RSI + CISO», «J. Ruiz, M. Sanz».
+const names = (text: string): string[] =>
+  text
     .split(/[+,;]/)
-    .map(n => sinTildes(n))
+    .map(n => stripAccents(n))
     .filter(n => n && n !== '-');
 
-const mismoSistema = (a: string, b: string): boolean =>
+const sameSystem = (a: string, b: string): boolean =>
   a.trim().toLowerCase() === b.trim().toLowerCase();
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (
+const findParameter = (
   context: ENSPolicyContext,
   id: string
 ): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (
+// Table rows split into their declared columns. Without columns the position is not guessed: the
+// parameter is treated as not configured.
+const tableParameterRows = (
   context: ENSPolicyContext,
   id: string
 ): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
+  const p = findParameter(context, id);
+  const columns = p?.columns || [];
 
-  if (!p || !columnas.length) {
+  if (!p || !columns.length) {
     return undefined;
   }
 
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  const result = toParameterTableRows(p.value)
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = celdas[i] || '';
+      columns.forEach((column, i) => {
+        row[column.name] = cells[i] || '';
       });
 
-      return fila;
+      return row;
     });
 
-  return resultado.length ? resultado : undefined;
+  return result.length ? result : undefined;
 };
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-// La fila de un sistema: la de su nombre o, si no tiene, la de «*».
-const filaDelSistema = (
-  tabla: Record<string, string>[],
-  columna: string,
-  sistema: string
+// A system's row: that of its name or, if none, that of «*».
+const systemRow = (
+  table: Record<string, string>[],
+  column: string,
+  system: string
 ): Record<string, string> | undefined =>
-  tabla.find(f => mismoSistema(f[columna] || '', sistema)) ||
-  tabla.find(f => (f[columna] || '').trim() === '*');
+  table.find(f => sameSystem(f[column] || '', system)) ||
+  table.find(f => (f[column] || '').trim() === '*');
 
-// --- severidades -----------------------------------------------------------
 
-const SEVERIDADES = ['baja', 'media', 'alta', 'critica'];
+const SEVERITIES = ['baja', 'media', 'alta', 'critica'];
 const RELEVANTES = ['alta', 'critica'];
 
-const NOMBRE: Record<string, string> = {
+const NAME: Record<string, string> = {
   critica: 'Crítica',
   alta: 'Alta',
   media: 'Media',
   baja: 'Baja',
 };
 
-const rango = (severidad: string): number => SEVERIDADES.indexOf(severidad);
+const range = (severity: string): number => SEVERITIES.indexOf(severity);
 
-type Clasificacion = {
-  // [nivel mínimo, severidad], de nivel más alto a más bajo.
+type Classification = {
+  // [minimum level, severity], from highest level to lowest.
   umbrales: [number, string][];
-  // Nivel desde el que una alerta es Alta o Crítica.
+  // Level from which an alert is High or Critical.
   relevanteDesde?: number;
   notificables: Set<string>;
 };
 
-const clasificacion = (context: ENSPolicyContext): Clasificacion | undefined => {
-  const tabla = filas(context, 'P-01');
+const classification = (context: ENSPolicyContext): Classification | undefined => {
+  const table = tableParameterRows(context, 'P-01');
 
-  if (!tabla) {
+  if (!table) {
     return undefined;
   }
 
-  const umbrales: [number, string][] = [];
-  const notificables = new Set<string>();
+  const thresholds: [number, string][] = [];
+  const notifiable = new Set<string>();
 
-  tabla.forEach(fila => {
-    const severidad = sinTildes(fila.severidad || '');
-    const minimo = numero(fila.nivel_minimo || '');
+  table.forEach(row => {
+    const severity = stripAccents(row.severidad || '');
+    const min = parseNumber(row.nivel_minimo || '');
 
-    if (!SEVERIDADES.includes(severidad)) {
+    if (!SEVERITIES.includes(severity)) {
       return;
     }
 
-    if (sinTildes(fila.notificable_ccn_cert || '') === 'si') {
-      notificables.add(severidad);
+    if (stripAccents(row.notificable_ccn_cert || '') === 'si') {
+      notifiable.add(severity);
     }
 
-    if (minimo !== undefined) {
-      umbrales.push([minimo, severidad]);
+    if (min !== undefined) {
+      thresholds.push([min, severity]);
     }
   });
 
-  if (!umbrales.length) {
+  if (!thresholds.length) {
     return undefined;
   }
 
-  umbrales.sort((a, b) => b[0] - a[0] || rango(b[1]) - rango(a[1]));
+  thresholds.sort((a, b) => b[0] - a[0] || range(b[1]) - range(a[1]));
 
-  const relevantes = umbrales.filter(([, s]) => RELEVANTES.includes(s)).map(([n]) => n);
+  const relevantes = thresholds.filter(([, s]) => RELEVANTES.includes(s)).map(([n]) => n);
 
   return {
-    umbrales,
+    umbrales: thresholds,
     relevanteDesde: relevantes.length ? Math.min(...relevantes) : undefined,
-    notificables,
+    notificables: notifiable,
   };
 };
 
-// La severidad más alta cuyo nivel mínimo alcanza la alerta.
-const severidadDeNivel = (nivel: number, c: Clasificacion): string | undefined => {
-  const alcanzadas = c.umbrales.filter(([minimo]) => nivel >= minimo).map(([, s]) => s);
+// The highest severity whose minimum level the alert reaches.
+const levelSeverity = (level: number, c: Classification): string | undefined => {
+  const reached = c.umbrales.filter(([min]) => level >= min).map(([, s]) => s);
 
-  return alcanzadas.length
-    ? alcanzadas.reduce((a, b) => (rango(b) > rango(a) ? b : a))
+  return reached.length
+    ? reached.reduce((a, b) => (range(b) > range(a) ? b : a))
     : undefined;
 };
 
-// P-02: severidad -> destinatarios y plazo en horas. Plazo vacío: sin plazo.
-type Escalado = { destinatario: string; plazo?: number };
+// P-02: severity -> recipients and deadline in hours. Empty deadline: no deadline.
+type Escalated = { destinatario: string; plazo?: number };
 
-const escalados = (context: ENSPolicyContext): Map<string, Escalado> | undefined => {
-  const tabla = filas(context, 'P-02');
+const escalatedByKey = (context: ENSPolicyContext): Map<string, Escalated> | undefined => {
+  const table = tableParameterRows(context, 'P-02');
 
-  if (!tabla) {
+  if (!table) {
     return undefined;
   }
 
-  const mapa = new Map<string, Escalado>();
+  const map = new Map<string, Escalated>();
 
-  tabla.forEach(fila => {
-    const severidad = sinTildes(fila.severidad || '');
+  table.forEach(row => {
+    const severity = stripAccents(row.severidad || '');
 
-    if (SEVERIDADES.includes(severidad)) {
-      mapa.set(severidad, {
-        destinatario: fila.destinatario || '',
-        plazo: numero(fila.plazo_horas || ''),
+    if (SEVERITIES.includes(severity)) {
+      map.set(severity, {
+        destinatario: row.destinatario || '',
+        plazo: parseNumber(row.plazo_horas || ''),
       });
     }
   });
 
-  return mapa.size ? mapa : undefined;
+  return map.size ? map : undefined;
 };
 
-// --- el latido -------------------------------------------------------------
 
-type Latido = { evento: ENSNormalizedEvent; t: number };
+type Heartbeat = { evento: ENSNormalizedEvent; t: number };
 
-const latidos = (context: ENSPolicyContext, ahora: number): Latido[] =>
-  hechos(context, 'collector_run')
-    .map(evento => ({ evento, t: instante(evento.timestamp) }))
-    .filter((x): x is Latido => x.t !== undefined && x.t <= ahora + TOLERANCIA_FUTURO)
+const heartbeats = (context: ENSPolicyContext, now: number): Heartbeat[] =>
+  facts(context, 'collector_run')
+    .map(event => ({ evento: event, t: parseInstant(event.timestamp) }))
+    .filter((x): x is Heartbeat => x.t !== undefined && x.t <= now + FUTURE_TOLERANCE_MS)
     .sort((a, b) => b.t - a.t);
 
-const ultimoLatido = (context: ENSPolicyContext, ahora: number): Latido | undefined => {
-  const ultimo = latidos(context, ahora)[0];
+const lastHeartbeat = (context: ENSPolicyContext, now: number): Heartbeat | undefined => {
+  const last = heartbeats(context, now)[0];
 
-  return ultimo && ahora - ultimo.t <= FRESCURA_HORAS * HORA ? ultimo : undefined;
+  return last && now - last.t <= FRESHNESS_HOURS * HOUR_MS ? last : undefined;
 };
 
-const enLista = (texto: string, valor: string): boolean =>
-  texto.split(',').map(s => s.trim()).includes(valor);
+const inList = (text: string, value: string): boolean =>
+  text.split(',').map(s => s.trim()).includes(value);
 
-// La degradación que el recolector declaró para una evidencia en la MISMA
-// pasada que el último latido (o después): una de hace días ya no dice nada.
-// Viaja con la causa que ÉL declara (sin causa declarada, COLLECTION): es
-// quien sabe si falta un registro que la organización no mantiene o una
-// fuente que no pudo leer.
-const degradacion = (
+// The degradation the collector declared for an evidence in the SAME run as the last heartbeat (or
+// later): one from days ago says nothing. It carries the cause IT declares (COLLECTION if none): it
+// knows whether a record the organization does not keep is missing or a source could not be read.
+const degradation = (
   context: ENSPolicyContext,
-  evidencia: string,
-  latido: Latido
+  evidence: string,
+  heartbeat: Heartbeat
 ): { motivo: string; causa: ENSGapCause } | undefined => {
-  const candidatas = context.events
+  const candidate = context.events
     .filter(
       e =>
         e.controlId === CONTROL &&
         e.eventType === 'evidence_state' &&
-        (e.evidenceId === evidencia || enLista(campo(e, 'evidence_id'), evidencia))
+        (e.evidenceId === evidence || inList(factField(e, 'evidence_id'), evidence))
     )
-    .map(e => ({ e, t: instante(e.timestamp) }))
-    .filter(x => x.t !== undefined && (x.t as number) >= latido.t - HORA && (x.t as number) <= latido.t + TOLERANCIA_FUTURO)
+    .map(e => ({ e, t: parseInstant(e.timestamp) }))
+    .filter(x => x.t !== undefined && (x.t as number) >= heartbeat.t - HOUR_MS && (x.t as number) <= heartbeat.t + FUTURE_TOLERANCE_MS)
     .sort((a, b) => (b.t as number) - (a.t as number));
 
-  if (!candidatas.length) {
+  if (!candidate.length) {
     return undefined;
   }
 
-  const declarada = campo(candidatas[0].e, 'causa').toUpperCase();
+  const declared = factField(candidate[0].e, 'causa').toUpperCase();
 
   return {
-    motivo: campo(candidatas[0].e, 'motivo'),
-    causa: ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
-      ? (declarada as ENSGapCause)
+    motivo: factField(candidate[0].e, 'motivo'),
+    causa: ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declared)
+      ? (declared as ENSGapCause)
       : 'COLLECTION',
   };
 };
 
-type Fuentes = { alertas?: boolean; registro?: boolean; ossecConf?: boolean };
+type Sources = { alertas?: boolean; registro?: boolean; ossecConf?: boolean };
 
-// ¿Se pudo leer lo que esta evidencia necesita en la última pasada? Si no, la
-// medida es NO_EVALUABLE con el motivo que dio el propio recolector.
-const fuentes = (
+// Could what this evidence needs be read in the last run? If not, the measurement is NO_EVALUABLE
+// with the reason the collector itself gave.
+const sources = (
   context: ENSPolicyContext,
-  ahora: number,
-  evidencia: string,
-  que: Fuentes
-): Latido | Medida => {
-  const latido = ultimoLatido(context, ahora);
+  now: number,
+  evidence: string,
+  subject: Sources
+): Heartbeat | Measurement => {
+  const heartbeat = lastHeartbeat(context, now);
 
-  if (!latido) {
-    return sinMedir(
+  if (!heartbeat) {
+    return notMeasured(
       'No hay ninguna pasada reciente del recolector del manager (ens_opexp7_collect.sh): sin ella no se sabe qué alertas, incidentes ni sellos hay hoy. Revisa su cron en el manager y que el alcance del plugin incluya el agente 000.',
       'COLLECTION'
     );
   }
 
-  const miradas = campo(latido.evento, 'evidencias_miradas');
-  const registro = campo(latido.evento, 'registro_incidentes');
-  const motivo = degradacion(context, evidencia, latido);
+  const inspected = factField(heartbeat.evento, 'evidencias_miradas');
+  const record = factField(heartbeat.evento, 'registro_incidentes');
+  const motive = degradation(context, evidence, heartbeat);
 
-  // Un registro de incidentes ausente es de CONFIGURACIÓN: la organización no
-  // lo mantiene. Uno que no se pudo leer, de RECOGIDA.
-  if (que.registro && !['presente', 'vacio'].includes(registro)) {
-    return motivo
-      ? sinMedir(motivo.motivo, motivo.causa)
-      : registro === 'ausente'
-      ? sinMedir(
+  // An absent incident record is CONFIGURATION: the organization does not keep it. One that could
+  // not be read is COLLECTION.
+  if (subject.registro && !['presente', 'vacio'].includes(record)) {
+    return motive
+      ? notMeasured(motive.motivo, motive.causa)
+      : record === 'ausente'
+      ? notMeasured(
           'No existe el registro de incidentes del manager (/etc/ensfacil/incident-register.tsv): la organización no ha empezado a registrar incidentes.',
           'CONFIGURATION'
         )
-      : sinMedir(`El registro de incidentes no se ha podido leer en la última pasada (${registro || 'sin dato'}).`, 'COLLECTION');
+      : notMeasured(`El registro de incidentes no se ha podido leer en la última pasada (${record || 'sin dato'}).`, 'COLLECTION');
   }
 
-  if (que.alertas && !enLista(miradas, 'EV-01')) {
-    return motivo
-      ? sinMedir(motivo.motivo, motivo.causa)
-      : sinMedir('La última pasada del recolector no pudo leer las alertas del manager.', 'COLLECTION');
+  if (subject.alertas && !inList(inspected, 'EV-01')) {
+    return motive
+      ? notMeasured(motive.motivo, motive.causa)
+      : notMeasured('La última pasada del recolector no pudo leer las alertas del manager.', 'COLLECTION');
   }
 
-  if (que.ossecConf && !enLista(miradas, 'EV-10')) {
-    return motivo
-      ? sinMedir(motivo.motivo, motivo.causa)
-      : sinMedir('La última pasada del recolector no pudo leer el ossec.conf del manager.', 'COLLECTION');
+  if (subject.ossecConf && !inList(inspected, 'EV-10')) {
+    return motive
+      ? notMeasured(motive.motivo, motive.causa)
+      : notMeasured('La última pasada del recolector no pudo leer el ossec.conf del manager.', 'COLLECTION');
   }
 
-  return latido;
+  return heartbeat;
 };
 
-const esMedida = (x: unknown): x is Medida =>
-  typeof x === 'object' && x !== null && (x as Medida).estado !== undefined;
+const isMeasurement = (x: unknown): x is Measurement =>
+  typeof x === 'object' && x !== null && (x as Measurement).estado !== undefined;
 
-// --- las respuestas activas ejecutadas ------------------------------------
 
-// Una ejecución de respuesta activa solo es RESPUESTA AUTOMÁTICA si la disparó
-// una alerta: `regla_disparadora` es la regla de esa alerta. Sin ella (`-`) es
-// un reinicio pedido a mano o desde la API —el `restart-wazuh.exe` de
-// WIN-OPACC-LAB del 24/09—, que no demuestra ni contención, ni reconfiguración,
-// ni que la respuesta automática opere. Se nombra en el motivo, pero no
-// acredita.
-const conOrigen = (e: ENSNormalizedEvent): boolean => {
-  const regla = campo(e, 'regla_disparadora');
+// An active-response execution is only an AUTOMATIC RESPONSE if an alert triggered it:
+// `regla_disparadora` is that alert's rule. Without it (`-`) it is a restart asked by hand or from
+// the API, which proves neither containment, nor reconfiguration, nor that automatic response
+// works. It is named in the reason but does not accredit.
+const withOrigin = (e: ENSNormalizedEvent): boolean => {
+  const rule = factField(e, 'regla_disparadora');
 
-  return regla !== '' && regla !== '-';
+  return rule !== '' && rule !== '-';
 };
 
-const notaSinOrigen = (context: ENSPolicyContext): string => {
-  const sin = hechos(context, 'active_response_executed').filter(e => !conOrigen(e));
+const noteWithoutOrigin = (context: ENSPolicyContext): string => {
+  const without = facts(context, 'active_response_executed').filter(e => !withOrigin(e));
 
-  return sin.length
-    ? ` Ejecuciones sin alerta que las dispare (no acreditan): ${lista(
-        sin.map(e => `${campo(e, 'programa') || campo(e, 'comando')} ${campo(e, 'accion')} en ${campo(e, 'sistema')} (${campo(e, 'instante')})`)
+  return without.length
+    ? ` Ejecuciones sin alerta que las dispare (no acreditan): ${formatList(
+        without.map(e => `${factField(e, 'programa') || factField(e, 'comando')} ${factField(e, 'accion')} en ${factField(e, 'sistema')} (${factField(e, 'instante')})`)
       )}.`
     : '';
 };
 
-// --- los incidentes --------------------------------------------------------
 
-type Notificacion = { fecha: number; escaladoA: string; notificadoA: string };
+type Notification = { fecha: number; escaladoA: string; notificadoA: string };
 
-type Incidente = {
+type Incident = {
   id: string;
   severidad: string;
   sistemas: string[];
@@ -512,130 +455,129 @@ type Incidente = {
   contencion?: number;
   cierre?: number;
   datosPersonales: 'si' | 'no' | '-';
-  notificaciones: Notificacion[];
+  notificaciones: Notification[];
   ccnCert?: number;
   mejoras: string[];
 };
 
-const incidentes = (context: ENSPolicyContext, ahora: number): Incidente[] => {
-  // Una fila por (incidente, fase, fecha): si el registro se reemitió varias
-  // veces en la ventana, cuenta la última copia.
-  const filasVistas = new Map<string, ENSNormalizedEvent>();
+const incidents = (context: ENSPolicyContext, now: number): Incident[] => {
+  // One row per (incident, phase, date): if the record was re-emitted several times in the window,
+  // the last copy counts.
+  const seenRows = new Map<string, ENSNormalizedEvent>();
 
-  hechos(context, 'incident_registered').forEach(e => {
-    const clave = [campo(e, 'incidente_id'), campo(e, 'fase'), campo(e, 'fecha')].join('|');
-    const previa = filasVistas.get(clave);
+  facts(context, 'incident_registered').forEach(e => {
+    const key = [factField(e, 'incidente_id'), factField(e, 'fase'), factField(e, 'fecha')].join('|');
+    const previous = seenRows.get(key);
 
-    if (!previa || (instante(e.timestamp) || 0) >= (instante(previa.timestamp) || 0)) {
-      filasVistas.set(clave, e);
+    if (!previous || (parseInstant(e.timestamp) || 0) >= (parseInstant(previous.timestamp) || 0)) {
+      seenRows.set(key, e);
     }
   });
 
-  const porId = new Map<string, Incidente>();
+  const byId = new Map<string, Incident>();
 
-  filasVistas.forEach(e => {
-    const id = campo(e, 'incidente_id');
-    const fecha = instante(campo(e, 'fecha'));
+  seenRows.forEach(e => {
+    const id = factField(e, 'incidente_id');
+    const date = parseInstant(factField(e, 'fecha'));
 
-    if (!id || fecha === undefined) {
+    if (!id || date === undefined) {
       return;
     }
 
-    const actual: Incidente = porId.get(id) || {
+    const actual: Incident = byId.get(id) || {
       id,
       severidad: '',
       sistemas: [],
-      apertura: fecha,
+      apertura: date,
       datosPersonales: '-',
       notificaciones: [],
       mejoras: [],
     };
 
-    // La severidad del incidente es la más alta registrada en cualquiera de
-    // sus fases, la misma regla que op.exp.9: un incidente que llegó a crítico
-    // no se juzga con el plazo de uno bajo porque se rebajara al cerrarlo.
-    const severidad = sinTildes(campo(e, 'severidad'));
+    // An incident's severity is the highest recorded in any of its phases (same rule as op.exp.9):
+    // one that reached critical is not judged with a low one's deadline because it was downgraded
+    // on closing.
+    const severity = stripAccents(factField(e, 'severidad'));
 
-    if (SEVERIDADES.includes(severidad) && rango(severidad) > rango(actual.severidad)) {
-      actual.severidad = severidad;
+    if (SEVERITIES.includes(severity) && range(severity) > range(actual.severidad)) {
+      actual.severidad = severity;
     }
 
-    campo(e, 'sistemas')
+    factField(e, 'sistemas')
       .split(',')
       .map(s => s.trim())
       .filter(s => s && s !== '-')
       .forEach(s => {
-        if (!actual.sistemas.some(x => mismoSistema(x, s))) {
+        if (!actual.sistemas.some(x => sameSystem(x, s))) {
           actual.sistemas.push(s);
         }
       });
 
-    actual.apertura = Math.min(actual.apertura, fecha);
+    actual.apertura = Math.min(actual.apertura, date);
 
-    const fase = campo(e, 'fase');
+    const phase = factField(e, 'fase');
 
-    if (fase === 'intermedio') {
-      actual.contencion = Math.min(actual.contencion ?? fecha, fecha);
+    if (phase === 'intermedio') {
+      actual.contencion = Math.min(actual.contencion ?? date, date);
     }
 
-    if (fase === 'final') {
-      actual.cierre = Math.max(actual.cierre ?? fecha, fecha);
+    if (phase === 'final') {
+      actual.cierre = Math.max(actual.cierre ?? date, date);
     }
 
-    const dp = campo(e, 'datos_personales');
+    const dp = factField(e, 'datos_personales');
 
     if (dp === 'si' || (dp === 'no' && actual.datosPersonales !== 'si')) {
       actual.datosPersonales = dp;
     }
 
-    porId.set(id, actual);
+    byId.set(id, actual);
   });
 
-  hechos(context, 'incident_notification_recorded').forEach(e => {
-    const incidente = porId.get(campo(e, 'incidente_id'));
-    const fecha = instante(campo(e, 'fecha'));
+  facts(context, 'incident_notification_recorded').forEach(e => {
+    const incident = byId.get(factField(e, 'incidente_id'));
+    const date = parseInstant(factField(e, 'fecha'));
 
-    if (incidente && fecha !== undefined) {
-      incidente.notificaciones.push({
-        fecha,
-        escaladoA: campo(e, 'escalado_a'),
-        notificadoA: campo(e, 'notificado_a'),
+    if (incident && date !== undefined) {
+      incident.notificaciones.push({
+        fecha: date,
+        escaladoA: factField(e, 'escalado_a'),
+        notificadoA: factField(e, 'notificado_a'),
       });
     }
   });
 
-  hechos(context, 'ccn_cert_notification_recorded').forEach(e => {
-    const incidente = porId.get(campo(e, 'incidente_id'));
-    const fecha = instante(campo(e, 'notificacion_ccn_cert'));
+  facts(context, 'ccn_cert_notification_recorded').forEach(e => {
+    const incident = byId.get(factField(e, 'incidente_id'));
+    const date = parseInstant(factField(e, 'notificacion_ccn_cert'));
 
-    if (incidente && fecha !== undefined) {
-      incidente.ccnCert = Math.min(incidente.ccnCert ?? fecha, fecha);
+    if (incident && date !== undefined) {
+      incident.ccnCert = Math.min(incident.ccnCert ?? date, date);
     }
   });
 
-  hechos(context, 'improvement_action_recorded').forEach(e => {
-    const incidente = porId.get(campo(e, 'incidente_id'));
-    const medidas = campo(e, 'medidas_mejora');
+  facts(context, 'improvement_action_recorded').forEach(e => {
+    const incident = byId.get(factField(e, 'incidente_id'));
+    const measurements = factField(e, 'medidas_mejora');
 
-    if (incidente && medidas && medidas !== '-') {
-      incidente.mejoras.push(medidas);
+    if (incident && measurements && measurements !== '-') {
+      incident.mejoras.push(measurements);
     }
   });
 
-  // Vivos en la ventana: abiertos, o cerrados en los últimos 30 días. Un
-  // incidente fechado en el futuro no acredita nada.
-  return Array.from(porId.values())
+  // Alive in the window: open, or closed in the last 30 days. An incident dated in the future
+  // accredits nothing.
+  return Array.from(byId.values())
     .filter(
       i =>
-        i.apertura <= ahora + TOLERANCIA_FUTURO &&
-        (i.cierre === undefined || i.cierre >= ahora - VENTANA_DIAS * DIA)
+        i.apertura <= now + FUTURE_TOLERANCE_MS &&
+        (i.cierre === undefined || i.cierre >= now - WINDOW_DAYS * DAY_MS)
     )
     .sort((a, b) => a.apertura - b.apertura);
 };
 
-// --- las alertas -----------------------------------------------------------
 
-type Alerta = {
+type Alert = {
   sistema: string;
   nivel: number;
   regla: string;
@@ -645,1072 +587,1069 @@ type Alerta = {
   descripcion: string;
 };
 
-const alertas = (context: ENSPolicyContext, ahora: number): Alerta[] =>
-  hechos(context, 'security_alert_observed')
+const alerts = (context: ENSPolicyContext, now: number): Alert[] =>
+  facts(context, 'security_alert_observed')
     .map(e => ({
-      sistema: campo(e, 'sistema'),
-      nivel: numero(campo(e, 'nivel')),
-      regla: campo(e, 'regla'),
-      alertas: numero(campo(e, 'alertas')) || 0,
-      primera: instante(campo(e, 'primera')),
-      ultima: instante(campo(e, 'ultima')),
-      descripcion: campo(e, 'descripcion'),
+      sistema: factField(e, 'sistema'),
+      nivel: parseNumber(factField(e, 'nivel')),
+      regla: factField(e, 'regla'),
+      alertas: parseNumber(factField(e, 'alertas')) || 0,
+      primera: parseInstant(factField(e, 'primera')),
+      ultima: parseInstant(factField(e, 'ultima')),
+      descripcion: factField(e, 'descripcion'),
     }))
     .filter(
-      (a): a is Alerta =>
+      (a): a is Alert =>
         a.nivel !== undefined &&
         a.primera !== undefined &&
         a.ultima !== undefined &&
-        a.ultima <= ahora + TOLERANCIA_FUTURO &&
-        a.ultima >= ahora - VENTANA_DIAS * DIA
+        a.ultima <= now + FUTURE_TOLERANCE_MS &&
+        a.ultima >= now - WINDOW_DAYS * DAY_MS
     );
 
-// ¿Cubre algún incidente de ese sistema el instante `t`? Un incidente cubre lo
-// que pasa mientras está abierto y lo que pasó hasta `plazo` horas antes de su
-// apertura: registrar dentro del plazo de escalado es convertir la alerta en
-// incidente; registrar más tarde, no.
-const cubierta = (
-  sistema: string,
+// Does any incident of that system cover instant `t`? An incident covers what happens while open
+// and what happened up to `plazo` hours before opening: registering within the escalation deadline
+// turns the alert into an incident; later, no.
+const covered = (
+  system: string,
   t: number,
-  plazoMs: number,
-  candidatos: Incidente[]
-): Incidente | undefined =>
-  candidatos.find(
+  deadlineMs: number,
+  candidate: Incident[]
+): Incident | undefined =>
+  candidate.find(
     i =>
-      i.sistemas.some(s => mismoSistema(s, sistema)) &&
-      i.apertura <= t + plazoMs &&
+      i.sistemas.some(s => sameSystem(s, system)) &&
+      i.apertura <= t + deadlineMs &&
       (i.cierre === undefined || t <= i.cierre)
   );
 
-// --- las evidencias --------------------------------------------------------
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-01', { alertas: true });
+const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-01', { alertas: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const c = clasificacion(context);
+  const c = classification(context);
 
   if (!c) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar o no declara ningún nivel mínimo: las alertas llegan sin severidad ENS.`,
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} está sin configurar o no declara ningún nivel mínimo: las alertas llegan sin severidad ENS.`,
       'CONFIGURATION'
     );
   }
 
-  // El recolector solo ve desde su nivel de observación. Lo que tiene que ver
-  // sin falta es el umbral de «relevante» (Alta o Crítica): por debajo de él,
-  // una severidad declarada pero no observada se dice, no se inventa.
-  const desde = numero(campo(latido.evento, 'nivel_observado_desde'));
-  const minimoDeclarado = Math.min(...c.umbrales.map(([n]) => n));
+  // The collector only sees from its observation level. What it must see without fail is the
+  // «relevant» threshold (High or Critical): below it a declared but unobserved severity is
+  // reported, not invented.
+  const since = parseNumber(factField(heartbeat.evento, 'nivel_observado_desde'));
+  const declaredMin = Math.min(...c.umbrales.map(([n]) => n));
 
-  if (desde !== undefined && c.relevanteDesde !== undefined && desde > c.relevanteDesde) {
-    return sinMedir(
-      `El recolector observa alertas desde nivel ${desde} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`,
+  if (since !== undefined && c.relevanteDesde !== undefined && since > c.relevanteDesde) {
+    return notMeasured(
+      `El recolector observa alertas desde nivel ${since} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`,
       'CONFIGURATION'
     );
   }
 
-  const noVistas =
-    desde !== undefined && desde > minimoDeclarado
-      ? ` Las severidades de P-01 por debajo de nivel ${desde} no se observan (OPEXP7_NIVEL_OBSERVADO).`
+  const notSeen =
+    since !== undefined && since > declaredMin
+      ? ` Las severidades de P-01 por debajo de nivel ${since} no se observan (OPEXP7_NIVEL_OBSERVADO).`
       : '';
 
-  // ¿Escribe alertas el manager? Lo leído en las pasadas del último día.
-  const leidas = latidos(context, ahora)
-    .filter(l => ahora - l.t <= DIA)
-    .reduce((total, l) => total + (numero(campo(l.evento, 'alertas_leidas')) || 0), 0);
+  // Does the manager write alerts? What was read in the last day's runs.
+  const read = heartbeats(context, now)
+    .filter(l => now - l.t <= DAY_MS)
+    .reduce((total, l) => total + (parseNumber(factField(l.evento, 'alertas_leidas')) || 0), 0);
 
-  if (leidas === 0) {
-    return sinMedir(
+  if (read === 0) {
+    return notMeasured(
       'Las pasadas del último día no han leído ninguna alerta en el manager: o no escribe alerts.json (jsonout_output) o el recolector no ve el fichero.',
       'COLLECTION'
     );
   }
 
-  const porSeveridad = new Map<string, { n: number; sistemas: Set<string> }>();
+  const bySeverity = new Map<string, { n: number; sistemas: Set<string> }>();
 
-  alertas(context, ahora).forEach(a => {
-    const severidad = severidadDeNivel(a.nivel, c) || 'sin severidad';
-    const actual = porSeveridad.get(severidad) || { n: 0, sistemas: new Set<string>() };
+  alerts(context, now).forEach(a => {
+    const severity = levelSeverity(a.nivel, c) || 'sin severidad';
+    const actual = bySeverity.get(severity) || { n: 0, sistemas: new Set<string>() };
 
     actual.n += a.alertas;
     actual.sistemas.add(a.sistema);
-    porSeveridad.set(severidad, actual);
+    bySeverity.set(severity, actual);
   });
 
-  const resumen = [...SEVERIDADES].reverse()
+  const summary = [...SEVERITIES].reverse()
     .concat('sin severidad')
-    .filter(s => porSeveridad.has(s))
+    .filter(s => bySeverity.has(s))
     .map(s => {
-      const x = porSeveridad.get(s)!;
+      const x = bySeverity.get(s)!;
 
-      return `${NOMBRE[s] || 'Sin severidad en P-01'} ${x.n} (${Array.from(x.sistemas).join(', ')})`;
+      return `${NAME[s] || 'Sin severidad en P-01'} ${x.n} (${Array.from(x.sistemas).join(', ')})`;
     });
 
-  return cumple(
-    `El SIEM detecta y clasifica: las pasadas del recolector del último día leyeron ${leidas} alertas del manager; en los últimos ${VENTANA_DIAS} días, por severidad de P-01: ${resumen.length ? resumen.join('; ') : `ninguna de nivel ${desde ?? minimoDeclarado} o superior`}.${noVistas}`
+  return compliant(
+    `El SIEM detecta y clasifica: las pasadas del recolector del último día leyeron ${read} alertas del manager; en los últimos ${WINDOW_DAYS} días, por severidad de P-01: ${summary.length ? summary.join('; ') : `ninguna de nivel ${since ?? declaredMin} o superior`}.${notSeen}`
   );
 };
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-02', { alertas: true, registro: true });
+const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-02', { alertas: true, registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const c = clasificacion(context);
+  const c = classification(context);
 
   if (!c || c.relevanteDesde === undefined) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} no declara desde qué nivel una alerta es Alta o Crítica: no hay alerta relevante que conciliar.`,
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} no declara desde qué nivel una alerta es Alta o Crítica: no hay alerta relevante que conciliar.`,
       'CONFIGURATION'
     );
   }
 
-  const p02 = escalados(context);
+  const p02 = escalatedByKey(context);
 
   if (!p02) {
-    return sinMedir(
-      `${etiqueta(context, 'P-02')} está sin configurar: sin plazo de escalado no se sabe cuándo una alerta se ha quedado sin incidente.`,
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-02')} está sin configurar: sin plazo de escalado no se sabe cuándo una alerta se ha quedado sin incidente.`,
       'CONFIGURATION'
     );
   }
 
-  const excluidas = new Map<string, string>();
+  const excluded = new Map<string, string>();
 
-  (filas(context, 'P-12') || []).forEach(f => {
+  (tableParameterRows(context, 'P-12') || []).forEach(f => {
     if (f.regla) {
-      excluidas.set(f.regla.trim(), f.motivo || '');
+      excluded.set(f.regla.trim(), f.motivo || '');
     }
   });
 
-  const registrados = incidentes(context, ahora);
-  const huerfanas: { texto: string; peso: number }[] = [];
-  const sinPlazo = new Set<string>();
-  const excluidasContadas = new Map<string, number>();
+  const recorded = incidents(context, now);
+  const orphan: { texto: string; peso: number }[] = [];
+  const withoutDeadline = new Set<string>();
+  const excludedCounted = new Map<string, number>();
   let relevantes = 0;
-  let pendientes = 0;
-  const cubridores = new Set<string>();
+  let pending = 0;
+  const coverers = new Set<string>();
 
-  alertas(context, ahora).forEach(a => {
-    const severidad = severidadDeNivel(a.nivel, c);
+  alerts(context, now).forEach(a => {
+    const severity = levelSeverity(a.nivel, c);
 
-    if (!severidad || !RELEVANTES.includes(severidad)) {
+    if (!severity || !RELEVANTES.includes(severity)) {
       return;
     }
 
-    if (excluidas.has(a.regla)) {
-      excluidasContadas.set(a.regla, (excluidasContadas.get(a.regla) || 0) + a.alertas);
+    if (excluded.has(a.regla)) {
+      excludedCounted.set(a.regla, (excludedCounted.get(a.regla) || 0) + a.alertas);
 
       return;
     }
 
     relevantes += a.alertas;
 
-    const plazo = p02.get(severidad)?.plazo;
+    const deadline = p02.get(severity)?.plazo;
 
-    if (plazo === undefined) {
-      sinPlazo.add(NOMBRE[severidad]);
-
-      return;
-    }
-
-    const plazoMs = plazo * HORA;
-    const alPrincipio = cubierta(a.sistema, a.primera, plazoMs, registrados);
-    const alFinal = cubierta(a.sistema, a.ultima, plazoMs, registrados);
-
-    if (alPrincipio && alFinal) {
-      cubridores.add(alPrincipio.id);
-      cubridores.add(alFinal.id);
+    if (deadline === undefined) {
+      withoutDeadline.add(NAME[severity]);
 
       return;
     }
 
-    if (ahora - a.primera <= plazoMs) {
-      pendientes += a.alertas;
+    const deadlineMs = deadline * HOUR_MS;
+    const atStart = covered(a.sistema, a.primera, deadlineMs, recorded);
+    const atFinal = covered(a.sistema, a.ultima, deadlineMs, recorded);
+
+    if (atStart && atFinal) {
+      coverers.add(atStart.id);
+      coverers.add(atFinal.id);
 
       return;
     }
 
-    huerfanas.push({
-      peso: rango(severidad) * 1e6 + a.alertas,
-      texto: `${a.sistema}: ${a.alertas} alerta(s) ${NOMBRE[severidad]} de la regla ${a.regla} (nivel ${a.nivel}, «${a.descripcion}») entre ${iso(a.primera)} y ${iso(a.ultima)}, sin incidente registrado en ${plazo} h`,
+    if (now - a.primera <= deadlineMs) {
+      pending += a.alertas;
+
+      return;
+    }
+
+    orphan.push({
+      peso: range(severity) * 1e6 + a.alertas,
+      texto: `${a.sistema}: ${a.alertas} alerta(s) ${NAME[severity]} de la regla ${a.regla} (nivel ${a.nivel}, «${a.descripcion}») entre ${iso(a.primera)} y ${iso(a.ultima)}, sin incidente registrado en ${deadline} h`,
     });
   });
 
-  const notaExcluidas = excluidasContadas.size
-    ? ` No se concilian, por decisión escrita en P-12: ${Array.from(excluidasContadas.entries())
-        .map(([regla, n]) => `${n} alerta(s) de la regla ${regla} (${excluidas.get(regla) || 'sin motivo'})`)
+  const excludedNote = excludedCounted.size
+    ? ` No se concilian, por decisión escrita en P-12: ${Array.from(excludedCounted.entries())
+        .map(([rule, n]) => `${n} alerta(s) de la regla ${rule} (${excluded.get(rule) || 'sin motivo'})`)
         .join('; ')}.`
     : '';
 
-  const herramienta = (filas(context, 'P-03') || [])[0]?.herramienta;
-  const notaP03 = herramienta ? ` Expedientes en: ${herramienta}.` : '';
-  const notaPendientes = pendientes
-    ? ` ${pendientes} alerta(s) relevantes todavía dentro de su plazo de escalado.`
+  const tool = (tableParameterRows(context, 'P-03') || [])[0]?.herramienta;
+  const noteP03 = tool ? ` Expedientes en: ${tool}.` : '';
+  const pendingNote = pending
+    ? ` ${pending} alerta(s) relevantes todavía dentro de su plazo de escalado.`
     : '';
 
-  if (huerfanas.length) {
-    huerfanas.sort((a, b) => b.peso - a.peso);
+  if (orphan.length) {
+    orphan.sort((a, b) => b.peso - a.peso);
 
-    return noCumple(
-      `Alertas de severidad Alta o Crítica que no se convirtieron en incidente registrado: ${lista(huerfanas.map(h => h.texto))}.${notaExcluidas}${notaPendientes}${notaP03}`
+    return nonCompliant(
+      `Alertas de severidad Alta o Crítica que no se convirtieron en incidente registrado: ${formatList(orphan.map(h => h.texto))}.${excludedNote}${pendingNote}${noteP03}`
     );
   }
 
-  if (sinPlazo.size) {
-    return sinMedir(
-      `P-02 no tiene plazo para la severidad ${Array.from(sinPlazo).join(', ')}: esas alertas no se pueden conciliar.${notaExcluidas}`,
+  if (withoutDeadline.size) {
+    return notMeasured(
+      `P-02 no tiene plazo para la severidad ${Array.from(withoutDeadline).join(', ')}: esas alertas no se pueden conciliar.${excludedNote}`,
       'CONFIGURATION'
     );
   }
 
-  if (!enLista(campo(latido.evento, 'evidencias_cubiertas'), 'EV-02')) {
-    return sinMedir('La última pasada no declara haber leído a la vez las alertas y el registro: el silencio no acredita nada.', 'COLLECTION');
+  if (!inList(factField(heartbeat.evento, 'evidencias_cubiertas'), 'EV-02')) {
+    return notMeasured('La última pasada no declara haber leído a la vez las alertas y el registro: el silencio no acredita nada.', 'COLLECTION');
   }
 
-  return cumple(
+  return compliant(
     relevantes
-      ? `Las ${relevantes} alertas de severidad Alta o Crítica de los últimos ${VENTANA_DIAS} días están dentro de un incidente registrado (${Array.from(cubridores).join(', ')}).${notaExcluidas}${notaPendientes}${notaP03}`
-      : `Ninguna alerta de severidad Alta o Crítica (nivel ${c.relevanteDesde} o superior según P-01) en los últimos ${VENTANA_DIAS} días que haya que convertir en incidente.${notaExcluidas}${notaPendientes}${notaP03}`
+      ? `Las ${relevantes} alertas de severidad Alta o Crítica de los últimos ${WINDOW_DAYS} días están dentro de un incidente registrado (${Array.from(coverers).join(', ')}).${excludedNote}${pendingNote}${noteP03}`
+      : `Ninguna alerta de severidad Alta o Crítica (nivel ${c.relevanteDesde} o superior según P-01) en los últimos ${WINDOW_DAYS} días que haya que convertir en incidente.${excludedNote}${pendingNote}${noteP03}`
   );
 };
 
-// La primera alerta relevante que cubre el incidente: el instante de detección.
-const deteccion = (
-  i: Incidente,
+// The first relevant alert covering the incident: the detection instant.
+const detection = (
+  i: Incident,
   context: ENSPolicyContext,
-  ahora: number
+  now: number
 ): number | undefined => {
-  const c = clasificacion(context);
-  const plazo = escalados(context)?.get(i.severidad)?.plazo;
+  const c = classification(context);
+  const deadline = escalatedByKey(context)?.get(i.severidad)?.plazo;
 
-  if (!c || plazo === undefined) {
+  if (!c || deadline === undefined) {
     return undefined;
   }
 
-  const candidatas = alertas(context, ahora).filter(a => {
-    const s = severidadDeNivel(a.nivel, c);
+  const candidate = alerts(context, now).filter(a => {
+    const s = levelSeverity(a.nivel, c);
 
     return (
       s &&
       RELEVANTES.includes(s) &&
-      i.sistemas.some(x => mismoSistema(x, a.sistema)) &&
+      i.sistemas.some(x => sameSystem(x, a.sistema)) &&
       a.primera <= i.apertura &&
-      a.primera >= i.apertura - plazo * HORA
+      a.primera >= i.apertura - deadline * HOUR_MS
     );
   });
 
-  return candidatas.length ? Math.min(...candidatas.map(a => a.primera)) : undefined;
+  return candidate.length ? Math.min(...candidate.map(a => a.primera)) : undefined;
 };
 
-const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-03', { registro: true });
+const ev03 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-03', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const tabla = filas(context, 'P-05');
+  const table = tableParameterRows(context, 'P-05');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay plazos contra los que medir la respuesta.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} está sin configurar: no hay plazos contra los que medir la respuesta.`, 'CONFIGURATION');
   }
 
-  const registrados = incidentes(context, ahora);
+  const recorded = incidents(context, now);
 
-  if (!registrados.length) {
-    return sinMedir(
-      `No hay incidentes registrados vivos en los últimos ${VENTANA_DIAS} días: no hay tiempos de respuesta que medir.`
+  if (!recorded.length) {
+    return notMeasured(
+      `No hay incidentes registrados vivos en los últimos ${WINDOW_DAYS} días: no hay tiempos de respuesta que medir.`
     );
   }
 
-  const plazos = new Map<string, { contencion?: number; resolucion?: number }>();
+  const deadlines = new Map<string, { contencion?: number; resolucion?: number }>();
 
-  tabla.forEach(f => {
-    const s = sinTildes(f.severidad || '');
+  table.forEach(f => {
+    const s = stripAccents(f.severidad || '');
 
-    if (SEVERIDADES.includes(s)) {
-      plazos.set(s, {
-        contencion: numero(f.contencion_horas || ''),
-        resolucion: numero(f.resolucion_horas || ''),
+    if (SEVERITIES.includes(s)) {
+      deadlines.set(s, {
+        contencion: parseNumber(f.contencion_horas || ''),
+        resolucion: parseNumber(f.resolucion_horas || ''),
       });
     }
   });
 
-  type Serie = { contencion: number[]; resolucion: number[]; deteccion: number[] };
-  const series = new Map<string, Serie>();
-  const sinFila = new Set<string>();
-  const excedidos: string[] = [];
-  const pendientes: string[] = [];
+  type Series = { contencion: number[]; resolucion: number[]; deteccion: number[] };
+  const series = new Map<string, Series>();
+  const withoutRow = new Set<string>();
+  const exceeded: string[] = [];
+  const pending: string[] = [];
 
-  registrados.forEach(i => {
-    const plazo = plazos.get(i.severidad);
+  recorded.forEach(i => {
+    const deadline = deadlines.get(i.severidad);
 
-    if (!plazo) {
-      sinFila.add(`${i.id} (${NOMBRE[i.severidad] || 'sin severidad'})`);
+    if (!deadline) {
+      withoutRow.add(`${i.id} (${NAME[i.severidad] || 'sin severidad'})`);
 
       return;
     }
 
-    const serie = series.get(i.severidad) || { contencion: [], resolucion: [], deteccion: [] };
+    const severitySeries = series.get(i.severidad) || { contencion: [], resolucion: [], deteccion: [] };
 
-    // Contención: hasta la fase intermedio; si se cerró sin ella, el cierre la
-    // implica. Abierto sin contener: lo que lleva, solo si ya supera el plazo.
-    const medir = (fin: number | undefined, limite: number | undefined, eje: 'contencion' | 'resolucion') => {
-      if (fin !== undefined) {
-        serie[eje].push(fin - i.apertura);
+    // Containment: up to the intermediate phase; if closed without it, closing implies it. Open
+    // without containment: its age, only if it already exceeds the deadline.
+    const measure = (end: number | undefined, limit: number | undefined, axis: 'contencion' | 'resolucion') => {
+      if (end !== undefined) {
+        severitySeries[axis].push(end - i.apertura);
 
-        if (limite !== undefined && fin - i.apertura > limite * HORA) {
-          excedidos.push(`${i.id} (${NOMBRE[i.severidad]}): ${eje === 'contencion' ? 'contención' : 'resolución'} en ${horas(fin - i.apertura)} h, plazo ${limite} h`);
+        if (limit !== undefined && end - i.apertura > limit * HOUR_MS) {
+          exceeded.push(`${i.id} (${NAME[i.severidad]}): ${axis === 'contencion' ? 'contención' : 'resolución'} en ${formatHours(end - i.apertura)} h, plazo ${limit} h`);
         }
 
         return;
       }
 
-      if (limite !== undefined && ahora - i.apertura > limite * HORA) {
-        serie[eje].push(ahora - i.apertura);
-        excedidos.push(`${i.id} (${NOMBRE[i.severidad]}): sin ${eje === 'contencion' ? 'contención' : 'resolución'} registrada tras ${horas(ahora - i.apertura)} h, plazo ${limite} h`);
+      if (limit !== undefined && now - i.apertura > limit * HOUR_MS) {
+        severitySeries[axis].push(now - i.apertura);
+        exceeded.push(`${i.id} (${NAME[i.severidad]}): sin ${axis === 'contencion' ? 'contención' : 'resolución'} registrada tras ${formatHours(now - i.apertura)} h, plazo ${limit} h`);
       } else {
-        pendientes.push(`${i.id} (${eje === 'contencion' ? 'contención' : 'resolución'})`);
+        pending.push(`${i.id} (${axis === 'contencion' ? 'contención' : 'resolución'})`);
       }
     };
 
-    medir(i.contencion ?? i.cierre, plazo.contencion, 'contencion');
-    medir(i.cierre, plazo.resolucion, 'resolucion');
+    measure(i.contencion ?? i.cierre, deadline.contencion, 'contencion');
+    measure(i.cierre, deadline.resolucion, 'resolucion');
 
-    const detectada = deteccion(i, context, ahora);
+    const detected = detection(i, context, now);
 
-    if (detectada !== undefined) {
-      serie.deteccion.push(i.apertura - detectada);
+    if (detected !== undefined) {
+      severitySeries.deteccion.push(i.apertura - detected);
     }
 
-    series.set(i.severidad, serie);
+    series.set(i.severidad, severitySeries);
   });
 
-  const media = (xs: number[]): number | undefined =>
+  const average = (xs: number[]): number | undefined =>
     xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined;
 
-  const fueraDeMedia: string[] = [];
-  const resumen: string[] = [];
+  const averageOutside: string[] = [];
+  const summary: string[] = [];
 
-  series.forEach((serie, severidad) => {
-    const plazo = plazos.get(severidad)!;
-    const mc = media(serie.contencion);
-    const mr = media(serie.resolucion);
-    const md = media(serie.deteccion);
+  series.forEach((severitySeries, severity) => {
+    const deadline = deadlines.get(severity)!;
+    const mc = average(severitySeries.contencion);
+    const mr = average(severitySeries.resolucion);
+    const md = average(severitySeries.deteccion);
 
-    resumen.push(
-      `${NOMBRE[severidad]}: MTTD ${md !== undefined ? `${horas(md)} h` : 'sin alerta de origen'}, contención media ${mc !== undefined ? `${horas(mc)} h` : '—'} (plazo ${plazo.contencion ?? 'sin declarar'}), resolución media ${mr !== undefined ? `${horas(mr)} h` : '—'} (plazo ${plazo.resolucion ?? 'sin declarar'})`
+    summary.push(
+      `${NAME[severity]}: MTTD ${md !== undefined ? `${formatHours(md)} h` : 'sin alerta de origen'}, contención media ${mc !== undefined ? `${formatHours(mc)} h` : '—'} (plazo ${deadline.contencion ?? 'sin declarar'}), resolución media ${mr !== undefined ? `${formatHours(mr)} h` : '—'} (plazo ${deadline.resolucion ?? 'sin declarar'})`
     );
 
-    if (mc !== undefined && plazo.contencion !== undefined && mc > plazo.contencion * HORA) {
-      fueraDeMedia.push(`contención media de ${NOMBRE[severidad]} ${horas(mc)} h > ${plazo.contencion} h`);
+    if (mc !== undefined && deadline.contencion !== undefined && mc > deadline.contencion * HOUR_MS) {
+      averageOutside.push(`contención media de ${NAME[severity]} ${formatHours(mc)} h > ${deadline.contencion} h`);
     }
 
-    if (mr !== undefined && plazo.resolucion !== undefined && mr > plazo.resolucion * HORA) {
-      fueraDeMedia.push(`resolución media de ${NOMBRE[severidad]} ${horas(mr)} h > ${plazo.resolucion} h`);
+    if (mr !== undefined && deadline.resolucion !== undefined && mr > deadline.resolucion * HOUR_MS) {
+      averageOutside.push(`resolución media de ${NAME[severity]} ${formatHours(mr)} h > ${deadline.resolucion} h`);
     }
   });
 
-  if (fueraDeMedia.length) {
-    return noCumple(
-      `Los tiempos de respuesta superan los plazos de P-05: ${lista(fueraDeMedia)}. Incidentes fuera de plazo: ${lista(excedidos)}. (${resumen.join(' | ')}.)`
+  if (averageOutside.length) {
+    return nonCompliant(
+      `Los tiempos de respuesta superan los plazos de P-05: ${formatList(averageOutside)}. Incidentes fuera de plazo: ${formatList(exceeded)}. (${summary.join(' | ')}.)`
     );
   }
 
-  if (sinFila.size) {
-    return sinMedir(`P-05 no tiene fila para la severidad de: ${lista(Array.from(sinFila))}.`, 'CONFIGURATION');
+  if (withoutRow.size) {
+    return notMeasured(`P-05 no tiene fila para la severidad de: ${formatList(Array.from(withoutRow))}.`, 'CONFIGURATION');
   }
 
-  const medidos = Array.from(series.values()).some(s => s.contencion.length || s.resolucion.length);
+  const measured = Array.from(series.values()).some(s => s.contencion.length || s.resolucion.length);
 
-  if (!medidos) {
-    return sinMedir(`Ningún incidente ha llegado todavía a contención o resolución, y ninguno ha superado su plazo: pendientes ${lista(pendientes)}.`);
+  if (!measured) {
+    return notMeasured(`Ningún incidente ha llegado todavía a contención o resolución, y ninguno ha superado su plazo: pendientes ${formatList(pending)}.`);
   }
 
-  return cumple(
-    `Tiempos medios dentro de P-05: ${resumen.join(' | ')}.${excedidos.length ? ` Incidentes sueltos fuera de plazo (la media sigue dentro): ${lista(excedidos)}.` : ''}${pendientes.length ? ` Pendientes: ${lista(pendientes)}.` : ''}`
+  return compliant(
+    `Tiempos medios dentro de P-05: ${summary.join(' | ')}.${exceeded.length ? ` Incidentes sueltos fuera de plazo (la media sigue dentro): ${formatList(exceeded)}.` : ''}${pending.length ? ` Pendientes: ${formatList(pending)}.` : ''}`
   );
 };
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-04', { registro: true });
+const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-04', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p02 = escalados(context);
+  const p02 = escalatedByKey(context);
 
   if (!p02) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no se sabe a quién había que escalar ni en qué plazo.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} está sin configurar: no se sabe a quién había que escalar ni en qué plazo.`, 'CONFIGURATION');
   }
 
-  const registrados = incidentes(context, ahora);
+  const recorded = incidents(context, now);
 
-  if (!registrados.length) {
-    return sinMedir(
-      `No hay incidentes registrados vivos en los últimos ${VENTANA_DIAS} días: no hay escalado que verificar.`
+  if (!recorded.length) {
+    return notMeasured(
+      `No hay incidentes registrados vivos en los últimos ${WINDOW_DAYS} días: no hay escalado que verificar.`
     );
   }
 
-  // Desde MEDIA, además, la comunicación a los responsables de P-04 (r2.3).
-  const conResponsables = context.level === 'MEDIO' || context.level === 'ALTO';
-  const p04 = filas(context, 'P-04');
-  const fallos: string[] = [];
-  const sinDecidir: string[] = [];
-  const pendientes: string[] = [];
-  let bien = 0;
+  // From MEDIA, also communication to the P-04 owners (r2.3).
+  const withOwners = context.level === 'MEDIO' || context.level === 'ALTO';
+  const p04 = tableParameterRows(context, 'P-04');
+  const failures: string[] = [];
+  const withoutDecide: string[] = [];
+  const pending: string[] = [];
+  let ok = 0;
 
-  registrados.forEach(i => {
-    const fila = p02.get(i.severidad);
-    let fallo = false;
+  recorded.forEach(i => {
+    const row = p02.get(i.severidad);
+    let failure = false;
 
-    if (!fila) {
-      sinDecidir.push(`${i.id}: P-02 no tiene fila para la severidad ${NOMBRE[i.severidad] || 'sin severidad'}`);
+    if (!row) {
+      withoutDecide.push(`${i.id}: P-02 no tiene fila para la severidad ${NAME[i.severidad] || 'sin severidad'}`);
 
       return;
     }
 
-    const exigidos = nombres(fila.destinatario);
-    const escaladas = i.notificaciones.filter(n => n.escaladoA && n.escaladoA !== '-');
-    const constan = new Set(escaladas.flatMap(n => nombres(n.escaladoA)));
-    const faltan = exigidos.filter(d => !constan.has(d));
-    const referencia = Math.min(i.apertura, deteccion(i, context, ahora) ?? i.apertura);
-    const plazoMs = fila.plazo !== undefined ? fila.plazo * HORA : undefined;
+    const required = names(row.destinatario);
+    const escalatedNotifications = i.notificaciones.filter(n => n.escaladoA && n.escaladoA !== '-');
+    const list = new Set(escalatedNotifications.flatMap(n => names(n.escaladoA)));
+    const missing = required.filter(d => !list.has(d));
+    const reference = Math.min(i.apertura, detection(i, context, now) ?? i.apertura);
+    const deadlineMs = row.plazo !== undefined ? row.plazo * HOUR_MS : undefined;
 
-    if (!escaladas.length) {
-      if (plazoMs !== undefined && ahora - referencia <= plazoMs && i.cierre === undefined) {
-        pendientes.push(i.id);
+    if (!escalatedNotifications.length) {
+      if (deadlineMs !== undefined && now - reference <= deadlineMs && i.cierre === undefined) {
+        pending.push(i.id);
 
         return;
       }
 
-      fallos.push(`${i.id} (${NOMBRE[i.severidad]}): no consta ningún escalado; correspondía a ${fila.destinatario}`);
+      failures.push(`${i.id} (${NAME[i.severidad]}): no consta ningún escalado; correspondía a ${row.destinatario}`);
 
       return;
     }
 
-    if (faltan.length) {
-      fallo = true;
-      fallos.push(`${i.id} (${NOMBRE[i.severidad]}): no consta escalado a ${faltan.join(', ')} (P-02 exige ${fila.destinatario})`);
+    if (missing.length) {
+      failure = true;
+      failures.push(`${i.id} (${NAME[i.severidad]}): no consta escalado a ${missing.join(', ')} (P-02 exige ${row.destinatario})`);
     }
 
-    const primero = Math.min(...escaladas.map(n => n.fecha));
+    const primero = Math.min(...escalatedNotifications.map(n => n.fecha));
 
-    if (plazoMs !== undefined && primero - referencia > plazoMs) {
-      fallo = true;
-      fallos.push(`${i.id}: escalado ${horas(primero - referencia)} h después de la detección, plazo ${fila.plazo} h`);
+    if (deadlineMs !== undefined && primero - reference > deadlineMs) {
+      failure = true;
+      failures.push(`${i.id}: escalado ${formatHours(primero - reference)} h después de la detección, plazo ${row.plazo} h`);
     }
 
-    if (conResponsables) {
+    if (withOwners) {
       if (!p04) {
-        sinDecidir.push(`${i.id}: ${etiqueta(context, 'P-04')} sin configurar`);
+        withoutDecide.push(`${i.id}: ${parameterDisplayName(context, 'P-04')} sin configurar`);
 
         return;
       }
 
-      const notificados = new Set(i.notificaciones.flatMap(n => nombres(n.notificadoA)));
+      const notified = new Set(i.notificaciones.flatMap(n => names(n.notificadoA)));
 
       i.sistemas.forEach(s => {
-        const r = filaDelSistema(p04, 'sistema', s);
+        const r = systemRow(p04, 'sistema', s);
 
         if (!r) {
-          sinDecidir.push(`${i.id}: P-04 no tiene fila para ${s} ni una fila «*»`);
+          withoutDecide.push(`${i.id}: P-04 no tiene fila para ${s} ni una fila «*»`);
 
           return;
         }
 
-        const debidos = [r.responsable_informacion, r.responsable_servicio]
+        const due = [r.responsable_informacion, r.responsable_servicio]
           .filter(Boolean)
-          .flatMap(nombres);
-        const sinInformar = debidos.filter(d => !notificados.has(d));
+          .flatMap(names);
+        const withoutReport = due.filter(d => !notified.has(d));
 
-        if (sinInformar.length) {
-          if (i.cierre === undefined && plazoMs !== undefined && ahora - referencia <= plazoMs) {
-            pendientes.push(`${i.id} (responsables de ${s})`);
+        if (withoutReport.length) {
+          if (i.cierre === undefined && deadlineMs !== undefined && now - reference <= deadlineMs) {
+            pending.push(`${i.id} (responsables de ${s})`);
           } else {
-            fallo = true;
-            fallos.push(`${i.id}: no consta comunicación a ${sinInformar.join(', ')} (responsables de ${s} en P-04)`);
+            failure = true;
+            failures.push(`${i.id}: no consta comunicación a ${withoutReport.join(', ')} (responsables de ${s} en P-04)`);
           }
         }
       });
     }
 
-    if (!fallo) {
-      bien += 1;
+    if (!failure) {
+      ok += 1;
     }
   });
 
-  if (fallos.length) {
-    return noCumple(`Escalado o comunicación incumplidos: ${lista(fallos)}.`);
+  if (failures.length) {
+    return nonCompliant(`Escalado o comunicación incumplidos: ${formatList(failures)}.`);
   }
 
-  // Lo que queda sin decidir es siempre una fila que P-02 o P-04 no tienen.
-  if (sinDecidir.length) {
-    return sinMedir(`No se puede juzgar todo: ${lista(sinDecidir)}.`, 'CONFIGURATION');
+  // What stays undecided is always a row P-02 or P-04 lacks.
+  if (withoutDecide.length) {
+    return notMeasured(`No se puede juzgar todo: ${formatList(withoutDecide)}.`, 'CONFIGURATION');
   }
 
-  if (!bien) {
-    return sinMedir(`Los incidentes están dentro de su plazo de escalado y aún no consta el escalado: ${lista(pendientes)}.`);
+  if (!ok) {
+    return notMeasured(`Los incidentes están dentro de su plazo de escalado y aún no consta el escalado: ${formatList(pending)}.`);
   }
 
-  return cumple(
-    `${bien} incidente(s) escalados a quien exige P-02 dentro de su plazo${conResponsables ? ', con comunicación a los responsables de P-04' : ''}.${pendientes.length ? ` En plazo todavía: ${lista(pendientes)}.` : ''}`
+  return compliant(
+    `${ok} incidente(s) escalados a quien exige P-02 dentro de su plazo${withOwners ? ', con comunicación a los responsables de P-04' : ''}.${pending.length ? ` En plazo todavía: ${formatList(pending)}.` : ''}`
   );
 };
 
-const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-05', { registro: true });
+const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-05', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p08 = filas(context, 'P-08');
+  const p08 = tableParameterRows(context, 'P-08');
 
   if (!p08) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no se ha decidido qué evidencias se preservan.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-08')} está sin configurar: no se ha decidido qué evidencias se preservan.`, 'CONFIGURATION');
   }
 
-  const registrados = incidentes(context, ahora);
+  const recorded = incidents(context, now);
 
-  if (!registrados.length) {
-    return sinMedir(
-      `No hay incidentes registrados vivos en los últimos ${VENTANA_DIAS} días: no hay registros que preservar.`
+  if (!recorded.length) {
+    return notMeasured(
+      `No hay incidentes registrados vivos en los últimos ${WINDOW_DAYS} días: no hay registros que preservar.`
     );
   }
 
-  // El último sello comprobado de cada día.
-  const dias = new Map<string, ENSNormalizedEvent>();
+  // The last verified seal of each day.
+  const days = new Map<string, ENSNormalizedEvent>();
 
-  hechos(context, 'alert_log_seal_checked')
-    .sort((a, b) => (instante(a.timestamp) || 0) - (instante(b.timestamp) || 0))
-    .forEach(e => dias.set(campo(e, 'dia'), e));
+  facts(context, 'alert_log_seal_checked')
+    .sort((a, b) => (parseInstant(a.timestamp) || 0) - (parseInstant(b.timestamp) || 0))
+    .forEach(e => days.set(factField(e, 'dia'), e));
 
-  const fallos: string[] = [];
-  const pendientes: string[] = [];
-  let comprobados = 0;
+  const failures: string[] = [];
+  const pending: string[] = [];
+  let verified = 0;
 
-  registrados.forEach(i => {
-    const suyos = Array.from(dias.values()).filter(e => enLista(campo(e, 'incidentes'), i.id));
+  recorded.forEach(i => {
+    const their = Array.from(days.values()).filter(e => inList(factField(e, 'incidentes'), i.id));
 
-    if (!suyos.length) {
-      pendientes.push(i.id);
+    if (!their.length) {
+      pending.push(i.id);
 
       return;
     }
 
-    suyos.forEach(e => {
-      const dia = campo(e, 'dia');
-      const sello = campo(e, 'sello_sha256');
-      const calculado = campo(e, 'calculado_sha256');
-      const cadena = campo(e, 'cadena_sha256');
-      const anterior = campo(e, 'anterior_sha256');
+    their.forEach(e => {
+      const day = factField(e, 'dia');
+      const seal = factField(e, 'sello_sha256');
+      const computed = factField(e, 'calculado_sha256');
+      const chain = factField(e, 'cadena_sha256');
+      const previous = factField(e, 'anterior_sha256');
 
-      comprobados += 1;
+      verified += 1;
 
-      if (campo(e, 'conservado') !== 'si') {
-        fallos.push(`${i.id}: el registro de alertas del ${dia} no se conserva (${campo(e, 'fichero')})`);
-      } else if (campo(e, 'sellado') !== 'si' || !sello || sello === '-') {
-        fallos.push(`${i.id}: el registro del ${dia} no tiene sello de integridad`);
-      } else if (sello !== calculado) {
-        fallos.push(`${i.id}: el registro del ${dia} NO coincide con su sello (sellado ${sello.slice(0, 12)}…, hoy ${calculado.slice(0, 12)}…): ha sido alterado`);
-      } else if (cadena && cadena !== '-' && anterior && anterior !== '-' && cadena !== anterior) {
-        fallos.push(`${i.id}: la cadena de sellos se rompe el ${dia} (el sello del día anterior ha cambiado)`);
+      if (factField(e, 'conservado') !== 'si') {
+        failures.push(`${i.id}: el registro de alertas del ${day} no se conserva (${factField(e, 'fichero')})`);
+      } else if (factField(e, 'sellado') !== 'si' || !seal || seal === '-') {
+        failures.push(`${i.id}: el registro del ${day} no tiene sello de integridad`);
+      } else if (seal !== computed) {
+        failures.push(`${i.id}: el registro del ${day} NO coincide con su sello (sellado ${seal.slice(0, 12)}…, hoy ${computed.slice(0, 12)}…): ha sido alterado`);
+      } else if (chain && chain !== '-' && previous && previous !== '-' && chain !== previous) {
+        failures.push(`${i.id}: la cadena de sellos se rompe el ${day} (el sello del día anterior ha cambiado)`);
       }
     });
   });
 
-  const otros = p08
+  const other = p08
     .map(f => f.tipo_evidencia)
     .filter(t => t && !/registro|log|alerta/i.test(t));
-  const notaOtros = otros.length
-    ? ` Sin verificación técnica (se acreditan fuera de ENSFácil): ${otros.join(', ')}.`
+  const noteOther = other.length
+    ? ` Sin verificación técnica (se acreditan fuera de ENSFácil): ${other.join(', ')}.`
     : '';
 
-  if (fallos.length) {
-    return noCumple(`Registros de incidentes sin proteger: ${lista(fallos)}.${notaOtros}`);
+  if (failures.length) {
+    return nonCompliant(`Registros de incidentes sin proteger: ${formatList(failures)}.${noteOther}`);
   }
 
-  if (!comprobados) {
-    return sinMedir(`Ningún día de los incidentes está sellado todavía (se sella al rotar, a medianoche): ${lista(pendientes)}.`);
+  if (!verified) {
+    return notMeasured(`Ningún día de los incidentes está sellado todavía (se sella al rotar, a medianoche): ${formatList(pending)}.`);
   }
 
-  return cumple(
-    `Los ${comprobados} registros diarios de alertas de los incidentes se conservan y coinciden con su sello SHA-256, con la cadena de sellos intacta.${pendientes.length ? ` Aún sin día sellado: ${lista(pendientes)}.` : ''}${notaOtros}`
+  return compliant(
+    `Los ${verified} registros diarios de alertas de los incidentes se conservan y coinciden con su sello SHA-256, con la cadena de sellos intacta.${pending.length ? ` Aún sin día sellado: ${formatList(pending)}.` : ''}${noteOther}`
   );
 };
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-06', { registro: true, alertas: true });
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-06', { registro: true, alertas: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const graves = incidentes(context, ahora).filter(i => RELEVANTES.includes(i.severidad));
+  const serious = incidents(context, now).filter(i => RELEVANTES.includes(i.severidad));
 
-  if (!graves.length) {
-    return sinMedir(
-      `No hay incidentes de severidad Alta o Crítica vivos en los últimos ${VENTANA_DIAS} días: no hay contención que exigir.`
+  if (!serious.length) {
+    return notMeasured(
+      `No hay incidentes de severidad Alta o Crítica vivos en los últimos ${WINDOW_DAYS} días: no hay contención que exigir.`
     );
   }
 
-  const autorizadas = new Set(
-    (filas(context, 'P-09') || []).map(f => (f.accion || '').trim().toLowerCase()).filter(Boolean)
+  const authorized = new Set(
+    (tableParameterRows(context, 'P-09') || []).map(f => (f.accion || '').trim().toLowerCase()).filter(Boolean)
   );
-  const p02 = escalados(context);
-  const plazosContencion = new Map<string, number>();
+  const p02 = escalatedByKey(context);
+  const deadlinesContainment = new Map<string, number>();
 
-  (filas(context, 'P-05') || []).forEach(f => {
-    const s = sinTildes(f.severidad || '');
-    const h = numero(f.contencion_horas || '');
+  (tableParameterRows(context, 'P-05') || []).forEach(f => {
+    const s = stripAccents(f.severidad || '');
+    const h = parseNumber(f.contencion_horas || '');
 
-    if (SEVERIDADES.includes(s) && h !== undefined) {
-      plazosContencion.set(s, h);
+    if (SEVERITIES.includes(s) && h !== undefined) {
+      deadlinesContainment.set(s, h);
     }
   });
 
-  const ejecuciones = hechos(context, 'active_response_executed').filter(conOrigen).map(e => ({
-    sistema: campo(e, 'sistema'),
-    comando: campo(e, 'comando').toLowerCase(),
-    accion: campo(e, 'accion'),
-    t: instante(campo(e, 'instante')),
+  const runs = facts(context, 'active_response_executed').filter(withOrigin).map(e => ({
+    sistema: factField(e, 'sistema'),
+    comando: factField(e, 'comando').toLowerCase(),
+    accion: factField(e, 'accion'),
+    t: parseInstant(factField(e, 'instante')),
   }));
 
-  const fallos: string[] = [];
-  const pendientes: string[] = [];
-  const contenidos: string[] = [];
+  const failures: string[] = [];
+  const pending: string[] = [];
+  const contents: string[] = [];
 
-  graves.forEach(i => {
-    const antes = (p02?.get(i.severidad)?.plazo || 0) * HORA;
-    const ar = ejecuciones.find(
+  serious.forEach(i => {
+    const before = (p02?.get(i.severidad)?.plazo || 0) * HOUR_MS;
+    const ar = runs.find(
       x =>
         x.t !== undefined &&
-        autorizadas.has(x.comando) &&
+        authorized.has(x.comando) &&
         x.accion !== 'delete' &&
-        i.sistemas.some(s => mismoSistema(s, x.sistema)) &&
-        x.t >= i.apertura - antes &&
-        x.t <= (i.cierre ?? ahora)
+        i.sistemas.some(s => sameSystem(s, x.sistema)) &&
+        x.t >= i.apertura - before &&
+        x.t <= (i.cierre ?? now)
     );
 
     if (ar) {
-      contenidos.push(`${i.id} por ${ar.comando} en ${ar.sistema}`);
+      contents.push(`${i.id} por ${ar.comando} en ${ar.sistema}`);
 
       return;
     }
 
     if (i.contencion !== undefined) {
-      contenidos.push(`${i.id} (contención registrada el ${iso(i.contencion)})`);
+      contents.push(`${i.id} (contención registrada el ${iso(i.contencion)})`);
 
       return;
     }
 
-    const limite = plazosContencion.get(i.severidad);
+    const limit = deadlinesContainment.get(i.severidad);
 
-    if (i.cierre === undefined && (limite === undefined || ahora - i.apertura <= limite * HORA)) {
-      pendientes.push(i.id);
+    if (i.cierre === undefined && (limit === undefined || now - i.apertura <= limit * HOUR_MS)) {
+      pending.push(i.id);
 
       return;
     }
 
-    fallos.push(
-      `${i.id} (${NOMBRE[i.severidad]}, ${i.sistemas.join(', ')}): ni respuesta activa de P-09 en sus sistemas ni contención registrada${i.cierre !== undefined ? ' antes del cierre' : ` en ${horas(ahora - i.apertura)} h`}`
+    failures.push(
+      `${i.id} (${NAME[i.severidad]}, ${i.sistemas.join(', ')}): ni respuesta activa de P-09 en sus sistemas ni contención registrada${i.cierre !== undefined ? ' antes del cierre' : ` en ${formatHours(now - i.apertura)} h`}`
     );
   });
 
-  const ajenas = ejecuciones.filter(x => x.comando && !autorizadas.has(x.comando));
-  const notaAjenas = ajenas.length
-    ? ` Respuestas activas de comandos que P-09 no declara (no cuentan como contención): ${Array.from(new Set(ajenas.map(x => `${x.comando} en ${x.sistema}`))).join(', ')}.`
+  const foreign = runs.filter(x => x.comando && !authorized.has(x.comando));
+  const foreignNote = foreign.length
+    ? ` Respuestas activas de comandos que P-09 no declara (no cuentan como contención): ${Array.from(new Set(foreign.map(x => `${x.comando} en ${x.sistema}`))).join(', ')}.`
     : '';
 
-  if (fallos.length) {
-    return noCumple(`Incidentes graves sin medidas urgentes de contención: ${lista(fallos)}.${notaAjenas}`);
+  if (failures.length) {
+    return nonCompliant(`Incidentes graves sin medidas urgentes de contención: ${formatList(failures)}.${foreignNote}`);
   }
 
-  if (!contenidos.length) {
-    return sinMedir(`Los incidentes graves están aún dentro de su plazo de contención: ${lista(pendientes)}.${notaAjenas}`);
+  if (!contents.length) {
+    return notMeasured(`Los incidentes graves están aún dentro de su plazo de contención: ${formatList(pending)}.${foreignNote}`);
   }
 
-  return cumple(
-    `Consta contención en los incidentes graves: ${lista(contenidos)}.${pendientes.length ? ` Aún en plazo: ${lista(pendientes)}.` : ''}${notaAjenas}`
+  return compliant(
+    `Consta contención en los incidentes graves: ${formatList(contents)}.${pending.length ? ` Aún en plazo: ${formatList(pending)}.` : ''}${foreignNote}`
   );
 };
 
-const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-07', { registro: true });
+const ev07 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-07', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p07 = filas(context, 'P-07');
+  const p07 = tableParameterRows(context, 'P-07');
 
   if (!p07) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no se sabe qué sistemas tratan datos personales.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-07')} está sin configurar: no se sabe qué sistemas tratan datos personales.`, 'CONFIGURATION');
   }
 
-  const afectados = incidentes(context, ahora).filter(
+  const affected = incidents(context, now).filter(
     i =>
       i.datosPersonales === 'si' ||
-      i.sistemas.some(s => filaDelSistema(p07, 'sistema', s))
+      i.sistemas.some(s => systemRow(p07, 'sistema', s))
   );
 
-  if (!afectados.length) {
-    return sinMedir(
-      `Ningún incidente vivo en los últimos ${VENTANA_DIAS} días afecta a un sistema de P-07: no hay régimen del RGPD que verificar.`
+  if (!affected.length) {
+    return notMeasured(
+      `Ningún incidente vivo en los últimos ${WINDOW_DAYS} días afecta a un sistema de P-07: no hay régimen del RGPD que verificar.`
     );
   }
 
-  const plazo = AEPD_HORAS * HORA;
-  const fallos: string[] = [];
-  const pendientes: string[] = [];
-  const bien: string[] = [];
+  const deadline = AEPD_HOURS * HOUR_MS;
+  const failures: string[] = [];
+  const pending: string[] = [];
+  const ok: string[] = [];
 
-  afectados.forEach(i => {
-    const vencido = i.cierre !== undefined || ahora - i.apertura > plazo;
+  affected.forEach(i => {
+    const expired = i.cierre !== undefined || now - i.apertura > deadline;
 
     if (i.datosPersonales === '-') {
-      if (vencido) {
-        fallos.push(`${i.id} (${i.sistemas.join(', ')}): sin valoración de afectación a datos personales`);
+      if (expired) {
+        failures.push(`${i.id} (${i.sistemas.join(', ')}): sin valoración de afectación a datos personales`);
       } else {
-        pendientes.push(i.id);
+        pending.push(i.id);
       }
 
       return;
     }
 
     if (i.datosPersonales === 'no') {
-      bien.push(`${i.id} valorado sin afectación`);
+      ok.push(`${i.id} valorado sin afectación`);
 
       return;
     }
 
     const aepd = i.notificaciones
-      .filter(n => nombres(n.notificadoA).some(x => x.includes('aepd')))
+      .filter(n => names(n.notificadoA).some(x => x.includes('aepd')))
       .map(n => n.fecha);
 
     if (aepd.length) {
-      const primera = Math.min(...aepd);
+      const first = Math.min(...aepd);
 
-      if (primera - i.apertura > plazo) {
-        fallos.push(`${i.id}: notificado a la AEPD ${horas(primera - i.apertura)} h después de la apertura (máximo ${AEPD_HORAS} h)`);
+      if (first - i.apertura > deadline) {
+        failures.push(`${i.id}: notificado a la AEPD ${formatHours(first - i.apertura)} h después de la apertura (máximo ${AEPD_HOURS} h)`);
       } else {
-        bien.push(`${i.id} notificado a la AEPD en ${horas(primera - i.apertura)} h`);
+        ok.push(`${i.id} notificado a la AEPD en ${formatHours(first - i.apertura)} h`);
       }
 
       return;
     }
 
-    if (vencido && ahora - i.apertura > plazo) {
-      fallos.push(`${i.id}: afecta a datos personales y no consta notificación a la AEPD en ${AEPD_HORAS} h`);
-    } else if (vencido) {
-      fallos.push(`${i.id}: afecta a datos personales, se cerró y no consta notificación a la AEPD`);
+    if (expired && now - i.apertura > deadline) {
+      failures.push(`${i.id}: afecta a datos personales y no consta notificación a la AEPD en ${AEPD_HOURS} h`);
+    } else if (expired) {
+      failures.push(`${i.id}: afecta a datos personales, se cerró y no consta notificación a la AEPD`);
     } else {
-      pendientes.push(i.id);
+      pending.push(i.id);
     }
   });
 
-  if (fallos.length) {
-    return noCumple(`Incidentes con datos personales fuera del régimen del RGPD: ${lista(fallos)}.`);
+  if (failures.length) {
+    return nonCompliant(`Incidentes con datos personales fuera del régimen del RGPD: ${formatList(failures)}.`);
   }
 
-  if (!bien.length) {
-    return sinMedir(`Incidentes con datos personales aún dentro de las ${AEPD_HORAS} h: ${lista(pendientes)}.`);
+  if (!ok.length) {
+    return notMeasured(`Incidentes con datos personales aún dentro de las ${AEPD_HOURS} h: ${formatList(pending)}.`);
   }
 
-  return cumple(`${lista(bien)}.${pendientes.length ? ` Aún dentro de las ${AEPD_HORAS} h: ${lista(pendientes)}.` : ''}`);
+  return compliant(`${formatList(ok)}.${pending.length ? ` Aún dentro de las ${AEPD_HOURS} h: ${formatList(pending)}.` : ''}`);
 };
 
-const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-08', { registro: true });
+const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-08', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p06 = filas(context, 'P-06');
+  const p06 = tableParameterRows(context, 'P-06');
 
   if (!p06) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no hay ventanilla única declarada.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-06')} está sin configurar: no hay ventanilla única declarada.`, 'CONFIGURATION');
   }
 
-  const c = clasificacion(context);
+  const c = classification(context);
 
   if (!c || !c.notificables.size) {
-    return sinMedir(`${etiqueta(context, 'P-01')} no marca ninguna severidad como notificable al CCN-CERT: no se sabe qué incidentes había que notificar.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-01')} no marca ninguna severidad como notificable al CCN-CERT: no se sabe qué incidentes había que notificar.`, 'CONFIGURATION');
   }
 
-  const notificables = incidentes(context, ahora).filter(i => c.notificables.has(i.severidad));
+  const notifiable = incidents(context, now).filter(i => c.notificables.has(i.severidad));
 
-  if (!notificables.length) {
-    return sinMedir(
-      `Ningún incidente vivo en los últimos ${VENTANA_DIAS} días es de una severidad notificable según P-01.`
+  if (!notifiable.length) {
+    return notMeasured(
+      `Ningún incidente vivo en los últimos ${WINDOW_DAYS} días es de una severidad notificable según P-01.`
     );
   }
 
-  const p02 = escalados(context);
-  const fallos: string[] = [];
-  const pendientes: string[] = [];
-  const bien: string[] = [];
+  const p02 = escalatedByKey(context);
+  const failures: string[] = [];
+  const pending: string[] = [];
+  const ok: string[] = [];
 
-  notificables.forEach(i => {
-    const plazo = p02?.get(i.severidad)?.plazo;
-    const plazoMs = plazo !== undefined ? plazo * HORA : undefined;
+  notifiable.forEach(i => {
+    const deadline = p02?.get(i.severidad)?.plazo;
+    const deadlineMs = deadline !== undefined ? deadline * HOUR_MS : undefined;
 
     if (i.ccnCert !== undefined) {
-      if (plazoMs !== undefined && i.ccnCert - i.apertura > plazoMs) {
-        fallos.push(`${i.id}: notificado al CCN-CERT ${horas(i.ccnCert - i.apertura)} h después de la apertura (plazo ${plazo} h)`);
+      if (deadlineMs !== undefined && i.ccnCert - i.apertura > deadlineMs) {
+        failures.push(`${i.id}: notificado al CCN-CERT ${formatHours(i.ccnCert - i.apertura)} h después de la apertura (plazo ${deadline} h)`);
       } else {
-        bien.push(`${i.id} (${iso(i.ccnCert)})`);
+        ok.push(`${i.id} (${iso(i.ccnCert)})`);
       }
 
       return;
     }
 
-    if (i.cierre !== undefined || (plazoMs !== undefined && ahora - i.apertura > plazoMs)) {
-      fallos.push(`${i.id} (${NOMBRE[i.severidad]}): notificable y sin notificación al CCN-CERT`);
+    if (i.cierre !== undefined || (deadlineMs !== undefined && now - i.apertura > deadlineMs)) {
+      failures.push(`${i.id} (${NAME[i.severidad]}): notificable y sin notificación al CCN-CERT`);
     } else {
-      pendientes.push(i.id);
+      pending.push(i.id);
     }
   });
 
-  if (fallos.length) {
-    return noCumple(`Incidentes notificables sin notificar al CCN-CERT por ${p06[0].plataforma}: ${lista(fallos)}.`);
+  if (failures.length) {
+    return nonCompliant(`Incidentes notificables sin notificar al CCN-CERT por ${p06[0].plataforma}: ${formatList(failures)}.`);
   }
 
-  if (!bien.length) {
-    return sinMedir(`Incidentes notificables aún en plazo: ${lista(pendientes)}.`);
+  if (!ok.length) {
+    return notMeasured(`Incidentes notificables aún en plazo: ${formatList(pending)}.`);
   }
 
-  return cumple(`Notificados al CCN-CERT por ${p06[0].plataforma}: ${lista(bien)}.${pendientes.length ? ` En plazo: ${lista(pendientes)}.` : ''}`);
+  return compliant(`Notificados al CCN-CERT por ${p06[0].plataforma}: ${formatList(ok)}.${pending.length ? ` En plazo: ${formatList(pending)}.` : ''}`);
 };
 
-const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-09', { alertas: true, ossecConf: true });
+const ev09 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-09', { alertas: true, ossecConf: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p10 = filas(context, 'P-10');
+  const p10 = tableParameterRows(context, 'P-10');
 
   if (!p10) {
-    return sinMedir(`${etiqueta(context, 'P-10')} está sin configurar: no hay elementos de reconfiguración dinámica declarados.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-10')} está sin configurar: no hay elementos de reconfiguración dinámica declarados.`, 'CONFIGURATION');
   }
 
-  const autorizadas = new Set(
-    (filas(context, 'P-09') || []).map(f => (f.accion || '').trim().toLowerCase()).filter(Boolean)
+  const authorized = new Set(
+    (tableParameterRows(context, 'P-09') || []).map(f => (f.accion || '').trim().toLowerCase()).filter(Boolean)
   );
 
-  if (!autorizadas.size) {
-    return sinMedir(`${etiqueta(context, 'P-09')} está sin configurar: no hay acciones de reconfiguración autorizadas.`, 'CONFIGURATION');
+  if (!authorized.size) {
+    return notMeasured(`${parameterDisplayName(context, 'P-09')} está sin configurar: no hay acciones de reconfiguración autorizadas.`, 'CONFIGURATION');
   }
 
-  const elementos = p10.map(f => f.elemento).filter(Boolean);
-  // Para saber si un sistema TIENE agente vale cualquier ejecución, también
-  // las que no disparó ninguna alerta: solo dicen que el agente está ahí.
-  const conAgente = new Set(
-    hechos(context, 'security_alert_observed')
-      .concat(hechos(context, 'active_response_executed'))
-      .map(e => campo(e, 'sistema').toLowerCase())
+  const items = p10.map(f => f.elemento).filter(Boolean);
+  // To know whether a system HAS an agent any execution counts, also those no alert triggered: they
+  // only say the agent is there.
+  const withAgent = new Set(
+    facts(context, 'security_alert_observed')
+      .concat(facts(context, 'active_response_executed'))
+      .map(e => factField(e, 'sistema').toLowerCase())
   );
-  const observables = elementos.filter(e => conAgente.has(e.toLowerCase()));
+  const observable = items.filter(e => withAgent.has(e.toLowerCase()));
 
-  const reconfiguraciones = hechos(context, 'active_response_executed').filter(
+  const reconfigurations = facts(context, 'active_response_executed').filter(
     e =>
-      conOrigen(e) &&
-      autorizadas.has(campo(e, 'comando').toLowerCase()) &&
-      campo(e, 'accion') !== 'delete' &&
-      elementos.some(x => mismoSistema(x, campo(e, 'sistema')))
+      withOrigin(e) &&
+      authorized.has(factField(e, 'comando').toLowerCase()) &&
+      factField(e, 'accion') !== 'delete' &&
+      items.some(x => sameSystem(x, factField(e, 'sistema')))
   );
 
-  // Un incidente grave en un elemento de P-10 sin reconfiguración durante él.
-  const graves = incidentes(context, ahora).filter(
-    i => RELEVANTES.includes(i.severidad) && i.sistemas.some(s => elementos.some(x => mismoSistema(x, s)))
+  // A serious incident on a P-10 element without reconfiguration during it.
+  const serious = incidents(context, now).filter(
+    i => RELEVANTES.includes(i.severidad) && i.sistemas.some(s => items.some(x => sameSystem(x, s)))
   );
-  const sinReaccion = graves.filter(
+  const withoutReaction = serious.filter(
     i =>
       i.cierre !== undefined &&
-      !reconfiguraciones.some(e => {
-        const t = instante(campo(e, 'instante'));
+      !reconfigurations.some(e => {
+        const t = parseInstant(factField(e, 'instante'));
 
-        return t !== undefined && t >= i.apertura && t <= (i.cierre as number) && i.sistemas.some(s => mismoSistema(s, campo(e, 'sistema')));
+        return t !== undefined && t >= i.apertura && t <= (i.cierre as number) && i.sistemas.some(s => sameSystem(s, factField(e, 'sistema')));
       })
   );
 
-  if (sinReaccion.length) {
-    return noCumple(
-      `Incidentes graves en elementos de P-10 cerrados sin ninguna reconfiguración: ${lista(sinReaccion.map(i => `${i.id} (${i.sistemas.join(', ')})`))}.`
+  if (withoutReaction.length) {
+    return nonCompliant(
+      `Incidentes graves en elementos de P-10 cerrados sin ninguna reconfiguración: ${formatList(withoutReaction.map(i => `${i.id} (${i.sistemas.join(', ')})`))}.`
     );
   }
 
-  if (reconfiguraciones.length) {
-    return cumple(
-      `Reconfiguración dinámica ejercitada: ${lista(reconfiguraciones.map(e => `${campo(e, 'comando')} en ${campo(e, 'sistema')} (${campo(e, 'instante')})`))}.`
+  if (reconfigurations.length) {
+    return compliant(
+      `Reconfiguración dinámica ejercitada: ${formatList(reconfigurations.map(e => `${factField(e, 'comando')} en ${factField(e, 'sistema')} (${factField(e, 'instante')})`))}.`
     );
   }
 
-  if (!observables.length) {
-    return sinMedir(
-      `Ningún elemento de P-10 (${elementos.join(', ')}) tiene agente de Wazuh en el alcance: sus cambios no se pueden observar.`,
+  if (!observable.length) {
+    return notMeasured(
+      `Ningún elemento de P-10 (${items.join(', ')}) tiene agente de Wazuh en el alcance: sus cambios no se pueden observar.`,
       'COLLECTION'
     );
   }
 
-  return sinMedir(
-    `No consta ninguna reconfiguración con una acción de P-09 sobre ${observables.join(', ')} en los últimos ${VENTANA_DIAS} días: la capacidad no se ha ejercitado y no se puede demostrar.${notaSinOrigen(context)}`
+  return notMeasured(
+    `No consta ninguna reconfiguración con una acción de P-09 sobre ${observable.join(', ')} en los últimos ${WINDOW_DAYS} días: la capacidad no se ha ejercitado y no se puede demostrar.${noteWithoutOrigin(context)}`
   );
 };
 
-const ev10 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-10', { ossecConf: true });
+const ev10 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-10', { ossecConf: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const p11 = (filas(context, 'P-11') || []).filter(f => f.lista_cdb);
+  const p11 = (tableParameterRows(context, 'P-11') || []).filter(f => f.lista_cdb);
 
   if (!p11.length) {
-    return sinMedir(`${etiqueta(context, 'P-11')} no declara ninguna lista CDB en la que se carguen los indicadores de los avisos.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-11')} no declara ninguna lista CDB en la que se carguen los indicadores de los avisos.`, 'CONFIGURATION');
   }
 
-  const ultimas = new Map<string, ENSNormalizedEvent>();
+  const last = new Map<string, ENSNormalizedEvent>();
 
-  hechos(context, 'threat_list_observed')
-    .sort((a, b) => (instante(a.timestamp) || 0) - (instante(b.timestamp) || 0))
-    .forEach(e => ultimas.set(campo(e, 'lista'), e));
+  facts(context, 'threat_list_observed')
+    .sort((a, b) => (parseInstant(a.timestamp) || 0) - (parseInstant(b.timestamp) || 0))
+    .forEach(e => last.set(factField(e, 'lista'), e));
 
-  const fallos: string[] = [];
-  const sinDecidir: string[] = [];
-  const bien: string[] = [];
+  const failures: string[] = [];
+  const withoutDecide: string[] = [];
+  const ok: string[] = [];
 
   p11.forEach(f => {
-    const nombre = f.lista_cdb.trim().replace(/^\/var\/ossec\//, '');
-    const e = ultimas.get(nombre);
-    const plazo = numero(f.plazo_dias || '');
+    const name = f.lista_cdb.trim().replace(/^\/var\/ossec\//, '');
+    const e = last.get(name);
+    const deadline = parseNumber(f.plazo_dias || '');
 
     if (!e) {
-      fallos.push(`${nombre} no está cargada en el ossec.conf del manager`);
+      failures.push(`${name} no está cargada en el ossec.conf del manager`);
 
       return;
     }
 
-    if (campo(e, 'existe') !== 'si') {
-      fallos.push(`${nombre} está declarada en el ossec.conf pero el fichero no existe`);
+    if (factField(e, 'existe') !== 'si') {
+      failures.push(`${name} está declarada en el ossec.conf pero el fichero no existe`);
 
       return;
     }
 
-    if ((numero(campo(e, 'reglas_que_la_usan')) || 0) === 0) {
-      fallos.push(`ninguna regla usa ${nombre}: sus indicadores no dan capacidad de detección`);
+    if ((parseNumber(factField(e, 'reglas_que_la_usan')) || 0) === 0) {
+      failures.push(`ninguna regla usa ${name}: sus indicadores no dan capacidad de detección`);
 
       return;
     }
 
-    const modificada = instante(campo(e, 'modificada'));
+    const modified = parseInstant(factField(e, 'modificada'));
 
-    if (plazo === undefined) {
-      sinDecidir.push(`${nombre}: P-11 no declara el plazo de incorporación`);
-
-      return;
-    }
-
-    if (modificada === undefined) {
-      sinDecidir.push(`${nombre}: sin fecha de modificación legible`);
+    if (deadline === undefined) {
+      withoutDecide.push(`${name}: P-11 no declara el plazo de incorporación`);
 
       return;
     }
 
-    if (ahora - modificada > plazo * DIA) {
-      fallos.push(`${nombre} lleva ${Math.floor((ahora - modificada) / DIA)} días sin actualizarse (plazo ${plazo})`);
+    if (modified === undefined) {
+      withoutDecide.push(`${name}: sin fecha de modificación legible`);
 
       return;
     }
 
-    bien.push(`${nombre} (${campo(e, 'entradas')} entradas, actualizada ${campo(e, 'modificada')}, ${campo(e, 'reglas_que_la_usan')} regla(s))`);
+    if (now - modified > deadline * DAY_MS) {
+      failures.push(`${name} lleva ${Math.floor((now - modified) / DAY_MS)} días sin actualizarse (plazo ${deadline})`);
+
+      return;
+    }
+
+    ok.push(`${name} (${factField(e, 'entradas')} entradas, actualizada ${factField(e, 'modificada')}, ${factField(e, 'reglas_que_la_usan')} regla(s))`);
   });
 
-  if (fallos.length) {
-    return noCumple(`Los avisos del CCN-CERT no se traducen en detección vigente: ${lista(fallos)}.`);
+  if (failures.length) {
+    return nonCompliant(`Los avisos del CCN-CERT no se traducen en detección vigente: ${formatList(failures)}.`);
   }
 
-  if (sinDecidir.length) {
-    return sinMedir(`No se puede juzgar todo: ${lista(sinDecidir)}.`);
+  if (withoutDecide.length) {
+    return notMeasured(`No se puede juzgar todo: ${formatList(withoutDecide)}.`);
   }
 
-  return cumple(`Listas de indicadores cargadas, usadas y al día: ${lista(bien)}.`);
+  return compliant(`Listas de indicadores cargadas, usadas y al día: ${formatList(ok)}.`);
 };
 
-const ev11 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-11', { alertas: true, ossecConf: true });
+const ev11 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-11', { alertas: true, ossecConf: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const configuradas = hechos(context, 'active_response_configured').filter(
-    e => campo(e, 'deshabilitada') !== 'si'
+  const configured = facts(context, 'active_response_configured').filter(
+    e => factField(e, 'deshabilitada') !== 'si'
   );
 
-  if (!configuradas.length) {
-    return noCumple('No hay ninguna respuesta activa habilitada en el ossec.conf del manager.');
+  if (!configured.length) {
+    return nonCompliant('No hay ninguna respuesta activa habilitada en el ossec.conf del manager.');
   }
 
-  const ejecutadas = hechos(context, 'active_response_executed').filter(conOrigen);
-  const texto = Array.from(new Set(configuradas.map(e => `${campo(e, 'comando')} (${campo(e, 'reglas')})`))).join(', ');
+  const executed = facts(context, 'active_response_executed').filter(withOrigin);
+  const text = Array.from(new Set(configured.map(e => `${factField(e, 'comando')} (${factField(e, 'reglas')})`))).join(', ');
 
-  if (!ejecutadas.length) {
-    return sinMedir(
-      `Respuesta automática configurada (${texto}) pero sin ninguna ejecución disparada por una alerta en los últimos ${VENTANA_DIAS} días: no hay prueba de que opere.${notaSinOrigen(context)}`
+  if (!executed.length) {
+    return notMeasured(
+      `Respuesta automática configurada (${text}) pero sin ninguna ejecución disparada por una alerta en los últimos ${WINDOW_DAYS} días: no hay prueba de que opere.${noteWithoutOrigin(context)}`
     );
   }
 
-  return cumple(
-    `Respuesta automática configurada (${texto}) y ejercitada ${ejecutadas.length} vez/veces a raíz de una alerta en los últimos ${VENTANA_DIAS} días: ${lista(
-      ejecutadas.map(e => `${campo(e, 'comando')} en ${campo(e, 'sistema')} por la regla ${campo(e, 'regla_disparadora')} (${campo(e, 'instante')})`)
-    )}.${notaSinOrigen(context)}`
+  return compliant(
+    `Respuesta automática configurada (${text}) y ejercitada ${executed.length} vez/veces a raíz de una alerta en los últimos ${WINDOW_DAYS} días: ${formatList(
+      executed.map(e => `${factField(e, 'comando')} en ${factField(e, 'sistema')} por la regla ${factField(e, 'regla_disparadora')} (${factField(e, 'instante')})`)
+    )}.${noteWithoutOrigin(context)}`
   );
 };
 
-const ev12 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latido = fuentes(context, ahora, 'EV-12', { registro: true });
+const ev12 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeat = sources(context, now, 'EV-12', { registro: true });
 
-  if (esMedida(latido)) {
-    return latido;
+  if (isMeasurement(heartbeat)) {
+    return heartbeat;
   }
 
-  const cerrados = incidentes(context, ahora).filter(i => i.cierre !== undefined);
+  const closed = incidents(context, now).filter(i => i.cierre !== undefined);
 
-  if (!cerrados.length) {
-    return sinMedir(
-      `Ningún incidente cerrado en los últimos ${VENTANA_DIAS} días: no hay bucle de mejora que verificar.`
+  if (!closed.length) {
+    return notMeasured(
+      `Ningún incidente cerrado en los últimos ${WINDOW_DAYS} días: no hay bucle de mejora que verificar.`
     );
   }
 
-  const sin = cerrados.filter(i => !i.mejoras.length);
+  const without = closed.filter(i => !i.mejoras.length);
 
-  if (sin.length) {
-    return noCumple(
-      `Incidentes cerrados sin ninguna medida de mejora registrada: ${lista(sin.map(i => i.id))}.`
+  if (without.length) {
+    return nonCompliant(
+      `Incidentes cerrados sin ninguna medida de mejora registrada: ${formatList(without.map(i => i.id))}.`
     );
   }
 
-  return cumple(`Los ${cerrados.length} incidentes cerrados tienen medidas de mejora registradas.`);
+  return compliant(`Los ${closed.length} incidentes cerrados tienen medidas de mejora registradas.`);
 };
 
-// --- decisiones ------------------------------------------------------------
 
-type Evidencias = Record<string, Medida>;
+type Evidences = Record<string, Measurement>;
 
-const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
+const REQUIREMENTS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
   'op.exp.7.1': { evidencias: ['EV-01', 'EV-02', 'EV-04'], parametros: ['P-01', 'P-02', 'P-03', 'P-12'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.7.2': { evidencias: ['EV-07'], parametros: ['P-07'], tipo: 'CONDITIONAL_REQUIRED' },
   'op.exp.7.r1.1': { evidencias: ['EV-08'], parametros: ['P-06', 'P-01', 'P-02'], tipo: 'COVERAGE_REQUIRED' },
@@ -1724,90 +1663,89 @@ const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; t
 };
 
 const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: ENSPolicyDecision['trace']['ruleType'],
+  requirement: string,
+  status: Measurement['estado'],
+  evidences: string[],
+  parameters: string[],
+  type: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
 export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
+  const now = (context.now || new Date()).getTime();
 
-  const medidas: Evidencias = {
-    'EV-01': ev01(context, ahora),
-    'EV-02': ev02(context, ahora),
-    'EV-03': ev03(context, ahora),
-    'EV-04': ev04(context, ahora),
-    'EV-05': ev05(context, ahora),
-    'EV-06': ev06(context, ahora),
-    'EV-07': ev07(context, ahora),
-    'EV-08': ev08(context, ahora),
-    'EV-09': ev09(context, ahora),
-    'EV-10': ev10(context, ahora),
-    'EV-11': ev11(context, ahora),
-    'EV-12': ev12(context, ahora),
+  const measurements: Evidences = {
+    'EV-01': ev01(context, now),
+    'EV-02': ev02(context, now),
+    'EV-03': ev03(context, now),
+    'EV-04': ev04(context, now),
+    'EV-05': ev05(context, now),
+    'EV-06': ev06(context, now),
+    'EV-07': ev07(context, now),
+    'EV-08': ev08(context, now),
+    'EV-09': ev09(context, now),
+    'EV-10': ev10(context, now),
+    'EV-11': ev11(context, now),
+    'EV-12': ev12(context, now),
   };
 
   const decisions: ENSPolicyDecision[] = [];
 
-  Object.entries(REQUISITOS).forEach(([requisito, { evidencias, parametros, tipo }]) => {
-    const propias = evidencias.map(id => ({ id, medida: medidas[id] }));
-    const estado = peor(propias.map(p => p.medida));
+  Object.entries(REQUIREMENTS).forEach(([requirement, { evidencias: evidences, parametros: parameters, tipo: type }]) => {
+    const own = evidences.map(id => ({ id, medida: measurements[id] }));
+    const status = worstStatus(own.map(p => p.medida));
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`
-    // (`find` devuelve la primera). Nombra solo las evidencias que la
-    // sostienen, para que el puente no pinte una evidencia sana con el color de
-    // otra.
-    const responsables = propias.filter(p => p.medida.estado === estado);
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads; `find` returns
+    // the first). It names only the evidences that support it so the bridge does not paint a
+    // healthy one with another's color.
+    const owners = own.filter(p => p.medida.estado === status);
 
     decisions.push(
-      conPartes(decide(
-        requisito,
-        estado,
-        responsables.map(p => p.id),
-        parametros,
-        tipo,
-        requisito,
-        motivoCompuesto(propias),
-        evidencias.map(id => `${id} CUMPLE`).join(' y '),
-        causaComun(responsables.map(p => p.medida))
-      ), partesDe(propias))
+      withReasonParts(decide(
+        requirement,
+        status,
+        owners.map(p => p.id),
+        parameters,
+        type,
+        requirement,
+        compositeReason(own),
+        evidences.map(id => `${id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia, con SU estado, para que la tabla de evidencias diga
-    // lo que se midió de cada una y no el agregado.
-    propias.forEach(p =>
+    // And one per evidence, with ITS status, so the evidence table shows what was measured of each
+    // and not the aggregate.
+    own.forEach(p =>
       decisions.push(
         decide(
-          requisito,
+          requirement,
           p.medida.estado,
           [p.id],
-          parametros,
-          tipo,
-          `${requisito}/${p.id}`,
+          parameters,
+          type,
+          `${requirement}/${p.id}`,
           p.medida.motivo,
           `${p.id} CUMPLE`,
           p.medida.causa
@@ -1816,13 +1754,13 @@ export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorRes
     );
   });
 
-  const variables: ENSRuntimeVariable[] = Object.entries(medidas).map(([id, medida]) => ({
+  const variables: ENSRuntimeVariable[] = Object.entries(measurements).map(([id, measurement]) => ({
     name: `medida_${id.replace('-', '')}`,
-    value: medida.estado,
+    value: measurement.estado,
     parameterIds: [],
     evidenceIds: [id],
     eventIds: [],
-    description: medida.motivo,
+    description: measurement.motivo,
   }));
 
   return { decisions, runtimeVariables: variables };
@@ -1849,7 +1787,7 @@ export const opExp7PolicyDefinition: ENSPolicyDefinition = {
       ruleType: 'CONDITIONAL_REQUIRED',
     },
     {
-      // Refuerzos acumulativos: MEDIA «+ R1 + R2», ALTA «+ R1 + R2 + R3».
+      // Cumulative reinforcements: MEDIA «+ R1 + R2», ALTA «+ R1 + R2 + R3».
       requirementId: 'op.exp.7.r1.1',
       levels: ['MEDIO', 'ALTO'],
       parameterIds: ['P-06', 'P-01', 'P-02'],
@@ -1898,8 +1836,8 @@ export const opExp7PolicyDefinition: ENSPolicyDefinition = {
       evidenceIds: ['EV-10'],
       ruleType: 'MAX_AGE',
     },
-    // R4 lo define el ENS pero no lo exige en ninguna categoría: sin niveles,
-    // el motor lo evalúa NO_APLICA.
+    // The ENS defines R4 but requires it in no category: without levels the engine evaluates it
+    // NO_APLICA.
     {
       requirementId: 'op.exp.7.r4.1',
       levels: [],

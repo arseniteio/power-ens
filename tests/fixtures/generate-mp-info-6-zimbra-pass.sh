@@ -1,76 +1,51 @@
 #!/usr/bin/env bash
 ###############################################################################
-# generate-mp-info-6-zimbra-pass.sh · regenera mp-info-6-zimbra-pass.ndjson
+# generate-mp-info-6-zimbra-pass.sh · regenerates mp-info-6-zimbra-pass.ndjson
 #
-#   bash tests/fixtures/generate-mp-info-6-zimbra-pass.sh [<repo del runbook>]
+#   bash tests/fixtures/generate-mp-info-6-zimbra-pass.sh [<runbook repo>]
 #
-# Una pasada normal del recolector REAL de mp.info.6 para Zimbra
-# (ens_mpinfo6zimbra_collect.sh) seguida de su prueba de restauración
-# (ens_mpinfo6zimbra_restore_test.sh), las dos en modo --prueba dentro de un
-# contenedor ubuntu:22.04 desechable -misma imagen base que usan las pruebas
-# del propio runbook, porque el recolector necesita el date/stat/find de GNU-.
+# A normal pass of the REAL mp.info.6 collector for Zimbra (ens_mpinfo6zimbra_collect.sh) followed by its restore test (ens_mpinfo6zimbra_restore_test.sh), both in --prueba mode inside a disposable ubuntu:22.04 container (the same base image as the runbook's own tests: the collector needs GNU date/stat/find).
 #
-# El nodo simulado tiene los DOS papeles (zimbra-store y zimbra-ldap
-# «instalados» como paquetes de mentira, para que el recolector los detecte
-# solo con eso, sin declarar MPINFO6ZIMBRA_ROL), edición Network
-# (tests/fixtures/zmcontrol-v-ne.txt) y las ocho sesiones de zmbackup
-# correctas de tests/fixtures/zmbackupquery-normal.txt, cada una con su
-# volcado LDAP dentro (tests/fixtures/ldap-volcado.ldif). Los binarios de
-# Zimbra son los falsos de tests/fakes/zimbra-bin/ del propio runbook; lo
-# demás -el usuario zimbra, `su`, `dpkg`, `slapd`- es real, igual que en la
-# sala limpia del runbook (tests/clean-room-agent.sh, que sigue esta misma
-# receta para el mismo escenario). La cuenta testigo
-# (testigo@ejemplo.invalido) es la del propio ldap-volcado.ldif: el mismo
-# correo sirve para la prueba de buzones (zmrestore) y la del directorio
-# (se busca por `mail=`). Se declara además una copia fuera de la máquina
-# activa (MPINFO6ZIMBRA_COPIA_REMOTA_*), la que acredita EV-06 en ALTO.
+# The simulated node has BOTH roles (zimbra-store and zimbra-ldap "installed" as fake packages), the Network edition and the eight correct zmbackup sessions of the runbook's tests/fixtures/zmbackupquery-normal.txt, each with its LDAP dump. Zimbra binaries are the fakes of the runbook's tests/fakes/zimbra-bin/; the rest (the zimbra user, `su`, `dpkg`, `slapd`) is real. A remote off-machine copy is declared too (MPINFO6ZIMBRA_COPIA_REMOTA_*), the one that accredits EV-06 at ALTO. The runbook is mounted read-only.
 #
-# El runbook se monta de solo lectura: no se toca.
-#
-# Lo que sale es el NDJSON tal cual lo escribe el recolector; el test
-# `mp-info-6-judgment.test.ts` lo juzga con la policy del plugin.
+# The output is the NDJSON exactly as the collector writes it; mp-info-6-judgment.test.ts judges it with the plugin policy.
 ###############################################################################
 set -euo pipefail
 
-AQUI="$(cd "$(dirname "$0")" && pwd)"
-# Sin argumento, el runbook es la carpeta hermana del plugin cuyo remoto
-# `origin` termina en zimbra/zimbra-mta/mp.info.6 (los repos se llaman como el control desde el
-# 01/10/2026, así que la carpeta no lo identifica); si no hay ninguna, la de
-# antes del renombrado, mp.info.6-zimbra.
-runbook_por_origen() {
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# Without an argument, the runbook is the plugin sibling folder whose `origin` ends in zimbra/zimbra-mta/mp.info.6; failing that, the former folder name.
+runbook_by_origin() {
   local d url
-  for d in "$AQUI"/../../../*/; do
+  for d in "$HERE"/../../../*/; do
     url="$(git -C "$d" remote get-url origin 2>/dev/null || true)"
     case "$url" in
       */"$1"|*/"$1".git|*:"$1"|*:"$1".git) echo "${d%/}"; return 0 ;;
     esac
   done
-  echo "$AQUI/../../../$2"
+  echo "$HERE/../../../$2"
 }
-RUNBOOK="${1:-$(runbook_por_origen zimbra/zimbra-mta/mp.info.6 mp.info.6-zimbra)}"
+RUNBOOK="${1:-$(runbook_by_origin zimbra/zimbra-mta/mp.info.6 mp.info.6-zimbra)}"
 RUNBOOK="$(cd "$RUNBOOK" && pwd)"
-SALIDA="$AQUI/mp-info-6-zimbra-pass.ndjson"
+OUTPUT="$HERE/mp-info-6-zimbra-pass.ndjson"
 
-# Las sesiones de la salida de zmbackupquery del runbook llevan fechas fijas.
-# Se desplazan días enteros para que la sesión más reciente sea de ayer (UTC):
-# así la pasada es coherente el día que se regenere, como la del PBS.
-DESPLAZADO="$(mktemp -d)"
-trap 'rm -rf "$DESPLAZADO"' EXIT
-python3 - "$RUNBOOK/tests/fixtures/zmbackupquery-normal.txt" "$DESPLAZADO/zmbackupquery.out" <<'PY'
+# The runbook's zmbackupquery sessions carry fixed dates: they are shifted by whole days so the most recent session is yesterday's (UTC), keeping the pass coherent whenever it is regenerated.
+SHIFTED="$(mktemp -d)"
+trap 'rm -rf "$SHIFTED"' EXIT
+python3 - "$RUNBOOK/tests/fixtures/zmbackupquery-normal.txt" "$SHIFTED/zmbackupquery.out" <<'PY'
 import re, sys
 from datetime import datetime, timedelta, timezone
-texto = open(sys.argv[1], encoding='utf-8').read()
-etiquetas = [datetime.strptime(d, '%Y%m%d') for d in re.findall(r'^Label:\s+\w+-(\d{8})\.', texto, re.M)]
-ayer = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
-dias = timedelta(days=(ayer - max(etiquetas)).days)
-def etiqueta(m):
-    return m.group(1) + (datetime.strptime(m.group(2), '%Y%m%d') + dias).strftime('%Y%m%d') + m.group(3)
-def fecha(m):
-    d = datetime.strptime(m.group(2), '%Y/%m/%d') + dias
+text = open(sys.argv[1], encoding='utf-8').read()
+labels = [datetime.strptime(d, '%Y%m%d') for d in re.findall(r'^Label:\s+\w+-(\d{8})\.', text, re.M)]
+yesterday = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+days = timedelta(days=(yesterday - max(labels)).days)
+def relabel(m):
+    return m.group(1) + (datetime.strptime(m.group(2), '%Y%m%d') + days).strftime('%Y%m%d') + m.group(3)
+def redate(m):
+    d = datetime.strptime(m.group(2), '%Y/%m/%d') + days
     return d.strftime('%a, ') + d.strftime('%Y/%m/%d')
-texto = re.sub(r'(\w+-)(\d{8})(\.)', etiqueta, texto)
-texto = re.sub(r'(\b[A-Z][a-z]{2}), (\d{4}/\d{2}/\d{2})', fecha, texto)
-open(sys.argv[2], 'w', encoding='utf-8').write(texto)
+text = re.sub(r'(\w+-)(\d{8})(\.)', relabel, text)
+text = re.sub(r'(\b[A-Z][a-z]{2}), (\d{4}/\d{2}/\d{2})', redate, text)
+open(sys.argv[2], 'w', encoding='utf-8').write(text)
 PY
 
 docker build -q -t ensfacil-mpinfo6zimbra-fixture:ubuntu22 - >/dev/null <<'DOCKERFILE'
@@ -82,11 +57,11 @@ RUN apt-get update -qq \
 DOCKERFILE
 
 docker run --rm -i --hostname zimbra-01 \
-  -v "$RUNBOOK:/runbook:ro" -v "$DESPLAZADO:/desplazado:ro" ensfacil-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$SALIDA" <<'DENTRO'
+  -v "$RUNBOOK:/runbook:ro" -v "$SHIFTED:/shifted:ro" ensfacil-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$OUTPUT" <<'INSIDE'
 set -eu
 pkill slapd 2>/dev/null || true
 
-# --- el Zimbra simulado: usuario, binarios falsos, sesiones, LDAP, cron -----
+# --- the simulated Zimbra: user, fake binaries, sessions, LDAP, cron -----
 useradd -r -m -d /opt/zimbra -s /bin/bash zimbra
 ZH=/opt/zimbra
 mkdir -p "$ZH/bin" "$ZH/backup/sessions" "$ZH/lib/ext/backup" "$ZH/data/ldap" \
@@ -94,10 +69,9 @@ mkdir -p "$ZH/bin" "$ZH/backup/sessions" "$ZH/lib/ext/backup" "$ZH/data/ldap" \
 cp /runbook/tests/fakes/zimbra-bin/* "$ZH/bin/"
 chmod 755 "$ZH"/bin/*
 E="$ZH/.escenario"
-# El zmmailbox falso, sin marca de "encontrado ninguno", cae a
-# $ESC/fixtures/zmmailbox-search-encontrado.txt por defecto.
+# The fake zmmailbox, without a "found none" mark, falls back to $ESC/fixtures/zmmailbox-search-encontrado.txt.
 cp -r /runbook/tests/fixtures "$E/fixtures"
-cp /desplazado/zmbackupquery.out "$E/zmbackupquery.out"
+cp /shifted/zmbackupquery.out "$E/zmbackupquery.out"
 cp /runbook/tests/fixtures/zmschedulebackup-default.txt "$E/zmschedulebackup.out"
 cp /runbook/tests/fixtures/zmcontrol-v-ne.txt "$E/zmcontrol-v.out"
 
@@ -108,8 +82,7 @@ for l in $(awk '/^Label:/ {print $2}' "$E/zmbackupquery.out" | sort -u); do
   cp /runbook/tests/fixtures/ldap-volcado.ldif "$ZH/backup/sessions/$l/LDAP/ldap.bak"
 done
 
-# El directorio real de slapd: sus esquemas y módulos son los que carga el
-# slapd TEMPORAL de la prueba de restauración del directorio.
+# slapd's real directory: its schemas and modules are the ones the TEMPORARY slapd of the directory restore test loads.
 ln -s /usr/sbin/slapadd "$ZH/common/sbin/slapadd"
 ln -s /usr/sbin/slapd "$ZH/common/libexec/slapd"
 ln -s /usr/bin/ldapsearch "$ZH/common/bin/ldapsearch"
@@ -119,21 +92,19 @@ chown -R zimbra:zimbra "$ZH"
 chmod 750 "$ZH/backup"
 crontab -u zimbra /runbook/tests/fixtures/crontab-zimbra-default.txt
 
-# zimbra-store (buzones) y zimbra-ldap (directorio): paquetes de mentira para
-# que el recolector detecte los DOS papeles sin declarar MPINFO6ZIMBRA_ROL.
+# zimbra-store (mailboxes) and zimbra-ldap (directory): fake packages so the collector detects BOTH roles without declaring MPINFO6ZIMBRA_ROL.
 for p in zimbra-store zimbra-ldap; do
   mkdir -p "/tmp/pkg/$p/DEBIAN"
-  printf 'Package: %s\nVersion: 10.1.0\nArchitecture: all\nMaintainer: ensfacil <ensfacil@ejemplo.invalido>\nDescription: paquete simulado para la fixture\n' "$p" \
+  printf 'Package: %s\nVersion: 10.1.0\nArchitecture: all\nMaintainer: ensfacil <ensfacil@ejemplo.invalido>\nDescription: simulated package for the fixture\n' "$p" \
     > "/tmp/pkg/$p/DEBIAN/control"
   dpkg-deb -b "/tmp/pkg/$p" "/tmp/$p.deb" >/dev/null
   dpkg -i "/tmp/$p.deb" >/dev/null
 done
 
-# La cuenta testigo: el zmprov falso solo marca su existencia en el
-# escenario, así que basta con crearla tal cual la usaría un administrador.
+# The witness account: the fake zmprov only marks its existence in the scenario, so creating it as an administrator would is enough.
 su - zimbra -c "$ZH/bin/zmprov ca testigo@ejemplo.invalido x displayName testigo" >/dev/null
 
-# Una copia fuera de la máquina, activa: la que acredita EV-06 en ALTO.
+# An active off-machine copy: the one that accredits EV-06 at ALTO.
 touch /var/log/copia-remota-zimbra.log
 
 cat > /work.env <<ENV
@@ -143,10 +114,10 @@ MPINFO6ZIMBRA_COPIA_REMOTA_DESTINO="rsync://copias.ejemplo.invalido/zimbra"
 MPINFO6ZIMBRA_COPIA_REMOTA_TESTIGO="/var/log/copia-remota-zimbra.log"
 ENV
 
-mkdir -p /work/pasada
-bash /runbook/scripts/ens_mpinfo6zimbra_collect.sh --prueba /work/pasada --env /work.env >&2
-bash /runbook/scripts/ens_mpinfo6zimbra_restore_test.sh --prueba /work/pasada --env /work.env >&2
-cat /work/pasada/log/mp_info_6.json
-DENTRO
+mkdir -p /work/pass
+bash /runbook/scripts/ens_mpinfo6zimbra_collect.sh --prueba /work/pass --env /work.env >&2
+bash /runbook/scripts/ens_mpinfo6zimbra_restore_test.sh --prueba /work/pass --env /work.env >&2
+cat /work/pass/log/mp_info_6.json
+INSIDE
 
-echo "$(wc -l < "$SALIDA") líneas en $SALIDA" >&2
+echo "$(wc -l < "$OUTPUT") lines in $OUTPUT" >&2

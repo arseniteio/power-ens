@@ -18,19 +18,20 @@ import {
 import {
   ENSControlConfiguration,
   ENSControlParameterValues,
+  ENSMatchMode,
 } from '../../../../common/ens/configuration/types';
+import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
   onConfigurationSaved: () => void;
-  // Qué parámetros se enseñan arriba (por defecto, todos) y cuáles en un
-  // desplegable aparte, con su título. Se guarda SIEMPRE el control entero:
-  // filtrar lo que se enseña no puede borrar lo que no se enseña.
+  // Parameters shown first (default, all) and those in a separate dropdown, with its title. The whole control is
+  // ALWAYS saved: filtering what is shown cannot delete what is not shown.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;
   secondaryDescription?: string;
-  // El parámetro que pide la URL: se abre su desplegable y se lleva a la vista.
+  // Parameter requested by the URL: its dropdown opens and it scrolls into view.
   focusParameterId?: string;
 }
 
@@ -63,14 +64,6 @@ export const ConfigurationSession = ({
   secondaryDescription,
   focusParameterId,
 }: ConfigurationSessionProps) => {
-  const mainParameters = parameterIds
-    ? control.parameters.filter(parameter => parameterIds.includes(parameter.id))
-    : control.parameters;
-
-  const secondaryParameters = secondaryParameterIds
-    ? control.parameters.filter(parameter => secondaryParameterIds.includes(parameter.id))
-    : [];
-
   useEffect(() => {
     if (!focusParameterId || typeof document === 'undefined') {
       return;
@@ -101,6 +94,27 @@ export const ConfigurationSession = ({
       initialValues
     );
 
+  const [matchModes, setMatchModes] =
+    useState<Record<string, ENSMatchMode>>({});
+
+  const draftControl: ENSControlConfiguration = {
+    ...control,
+    parameters: control.parameters.map(parameter =>
+      withMatchMode(parameter, matchModes[parameter.name] ?? parameter.matchMode)
+    ),
+  };
+
+  const mainParameters = parameterIds
+    ? draftControl.parameters.filter(parameter => parameterIds.includes(parameter.id))
+    : draftControl.parameters;
+
+  const secondaryParameters = secondaryParameterIds
+    ? draftControl.parameters.filter(parameter => secondaryParameterIds.includes(parameter.id))
+    : [];
+
+  const handleMatchModeChange = (parameterName: string, mode: ENSMatchMode) =>
+    setMatchModes(previous => ({ ...previous, [parameterName]: mode }));
+
   const [savedValues, setSavedValues] =
     useState<
       ENSControlParameterValues | undefined
@@ -112,9 +126,8 @@ export const ConfigurationSession = ({
   const [saveError, setSaveError] =
     useState<string | undefined>();
 
-  // Motivos por los que el guardado se ha rechazado sin llegar a salir de la
-  // pantalla. Van aparte de `saveError` (errores del servidor) porque el arreglo
-  // es distinto: aquí el auditor corrige un campo, allí reintenta.
+  // Reasons why the save was rejected before leaving the screen; apart from `saveError` (server errors) because
+  // the fix differs: here a field is corrected, there it is retried.
   const [valueIssues, setValueIssues] =
     useState<string[]>([]);
 
@@ -136,12 +149,9 @@ export const ConfigurationSession = ({
       return;
     }
 
-    // Un valor inválido se rechaza aquí, con el motivo. Guardarlo y dejar que el
-    // fallo reaparezca luego como un control degradado sin explicación es lo que
-    // había que dejar de hacer: la ausencia se arregla rellenando, esto se
-    // arregla corrigiendo, y el auditor tiene que poder distinguirlo.
+    // An invalid value is rejected here, with the reason: absence is fixed by filling, this by correcting.
     const issues = validateControlParameterValues(
-      control,
+      draftControl,
       values
     );
 
@@ -164,7 +174,7 @@ export const ConfigurationSession = ({
     try {
       const configuredControl =
         applyENSControlParameterValues(
-          control,
+          draftControl,
           values
         );
 
@@ -197,6 +207,12 @@ export const ConfigurationSession = ({
         }, {});
 
       setValues(persistedValues);
+      setMatchModes(
+        persistedControl.parameters.reduce<Record<string, ENSMatchMode>>((acc, parameter) => {
+          acc[parameter.name] = parameter.matchMode === 'regex' ? 'regex' : 'exact';
+          return acc;
+        }, {})
+      );
       setSavedValues(persistedValues);
       onConfigurationSaved();
     } catch (error) {
@@ -237,6 +253,7 @@ export const ConfigurationSession = ({
                   {parameter.id} ·{' '}
                   {parameter.label}:
                 </strong>{' '}
+                {(matchModes[parameter.name] ?? parameter.matchMode) === 'regex' && 'Expresión regular: '}
                 {String(
                   savedValues[
                     parameter.name
@@ -264,6 +281,7 @@ export const ConfigurationSession = ({
         parameters={mainParameters}
         values={values}
         onChange={handleParameterChange}
+        onMatchModeChange={handleMatchModeChange}
       />
 
       {secondaryParameters.length > 0 && (
@@ -289,6 +307,7 @@ export const ConfigurationSession = ({
               parameters={secondaryParameters}
               values={values}
               onChange={handleParameterChange}
+              onMatchModeChange={handleMatchModeChange}
             />
           </EuiAccordion>
         </>

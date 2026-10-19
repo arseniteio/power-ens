@@ -21,36 +21,45 @@ import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
   ENSLevel,
+  ENSMatchMode,
   ENSSystemType,
 } from '../../../../common/ens/configuration/types';
 import {
+  ENS_NO_TEMPLATE,
   ENS_SYSTEM_TYPES,
   ENS_SYSTEM_TYPE_LABELS,
 } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { parseConfigurationBack } from '../../../routing/configuration-link';
 import { useRouterSearch } from '../../../routing/use-router-search';
-import { ENS_CONFIGURATION_TEMPLATES, getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
+import { getControlTemplates, getTypeDefaultTemplate } from '../../../../common/ens/configuration/templates';
 import {
   ENS_MANAGER_AGENT,
   getAgentLevelValue,
+  getAgentSystemType,
+  getEffectiveTemplate,
   isUnionParameter,
   resolveControlConfigurationWithOrigins,
 } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import { getParameterClass } from '../../../../common/ens/configuration/agents/parameter-classes';
-import { effectiveSystemType, suggestedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
+import { effectiveSystemType, proposedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
 import {
-  ENSTemplatePreview,
-  applyTemplateToAgent,
+  ENSAgentChangePreview,
+  ENSAssignmentPreview,
+  clearAgentControlOverrides,
+  describeAgentEntryRemoval,
   describeAgentValueSave,
+  describeTemplateChoice,
   getAgentCompleteness,
-  previewTemplateApplication,
-  previewTemplateRemoval,
+  pendingDetectedTypes,
+  previewConfigurationChange,
+  previewControlAssignment,
   removeAgentEntry,
-  removeTemplateFromAgent,
+  saveDetectedTypes,
   setAgentAliases,
   setAgentParameterValue,
   setAgentTypeOverride,
+  setControlTemplateAssignment,
 } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { getAgentControls } from '../../../../common/ens/configuration/agents/agent-controls';
 import { validateAgentProfile } from '../../../../common/ens/configuration/agents/agent-configuration-validator';
@@ -58,15 +67,16 @@ import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 
 import { AgentParameterRow, valueRows } from './agent-parameter-row';
-import { errorMessage } from './confirm-modal';
-import { TemplatePreviewModal } from './template-preview-modal';
+import { ChangePreviewModal } from './change-preview-modal';
+import { ConfirmModal, errorMessage } from './confirm-modal';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
-import type { ENSSystemRow } from './systems-level';
+import { agentTypeLabel } from './labels';
+import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 
 interface AgentConfigurationPageProps {
   configuration: ENSConfigurationVersion;
-  row: ENSSystemRow;
-  // El agente existe (en el alcance, en el inventario o con perfil guardado).
+  row: ENSAgentRow;
+  // The agent exists (scope, inventory or a stored profile).
   known: boolean;
   loading: boolean;
   detectionErrors: string[];
@@ -76,19 +86,24 @@ interface AgentConfigurationPageProps {
   onConfigurationSaved: () => void;
 }
 
-// ¿Se declara en cada sistema solo su APORTACIÓN? Los parámetros por sistema
-// de un control que se mide en el manager describen otras máquinas y se
-// juntan en la fila del manager; el alcance declarado se junta siempre.
+// Parameters that describe machines are declared per agent as its contribution to a union.
 const isContribution = (controlId: string, parameterId: string): boolean => {
   const control = getENSCatalogControl(controlId);
   if (control?.scopeParameter === parameterId) return true;
   return getParameterClass(controlId, parameterId) === 'system' && (control?.measurementPlanes || []).includes('manager');
 };
 
-// Un sistema: su tipo (detectado y corregible), sus otros nombres, sus
-// plantillas y, agrupados por control, sus parámetros por sistema y por
-// plataforma con el origen de cada valor. Lo de organización se edita en
-// «Organización».
+const BY_TYPE = '__type';
+
+interface PendingChange {
+  title: string;
+  confirmLabel: string;
+  intro: string;
+  previews: (ENSAgentChangePreview & Partial<ENSAssignmentPreview>)[];
+  build: (latest: ENSConfigurationVersion) => ENSConfigurationVersion;
+  reason: string;
+}
+
 export const AgentConfigurationPage = ({
   configuration,
   row,
@@ -103,9 +118,7 @@ export const AgentConfigurationPage = ({
   const agentId = row.id;
   const profile = configuration.agents?.[agentId];
   const effective = effectiveSystemType(row.detection, profile);
-  const applied = profile?.templates || [];
-  const proposed = suggestedTemplates(effective.type, row.detection).filter(id => !applied.includes(id));
-  const available = ENS_CONFIGURATION_TEMPLATES.filter(template => !applied.includes(template.id));
+  const storedType = getAgentSystemType(profile);
   const controls = getAgentControls(configuration, agentId, effective.type, getActiveLevel);
   const completeness = getAgentCompleteness(
     configuration,
@@ -114,24 +127,19 @@ export const AgentConfigurationPage = ({
   );
   const issues = profile ? validateAgentProfile(agentId, profile, configuration) : [];
   const orphans = issues.filter(issue => issue.kind === 'huerfano');
-  const otherIssues = issues.filter(issue => issue.kind !== 'huerfano');
+  const otherIssues = issues.filter(issue => issue.kind !== 'huerfano' && issue.severity === 'error');
+  const typePending = !loading && pendingDetectedTypes(configuration, [{ agentId, agent: row.agent, detection: row.detection }]).length > 0;
+  const typeLabel = agentTypeLabel(profile, row.detection, loading);
 
-  // La plantilla elegida a mano; sin elegir, la propuesta para el tipo efectivo
-  // de AHORA (que cambia cuando llega la detección por hechos).
-  const [chosen, setChosen] = useState<string | undefined>();
-  const selected = chosen && available.some(template => template.id === chosen)
-    ? chosen
-    : proposed[0] || available[0]?.id || '';
-  const [preview, setPreview] = useState<ENSTemplatePreview[] | undefined>();
-  // Quitar una plantilla pasa por la misma vista previa que aplicarla.
-  const [removalPreview, setRemovalPreview] = useState<ENSTemplatePreview | undefined>();
-  // Quitar un control entero que no se aplica: primero, lo que se pierde.
+  const [choices, setChoices] = useState<Record<string, string>>({});
+  const [pending, setPending] = useState<PendingChange | undefined>();
+  const [clearing, setClearing] = useState<string | undefined>();
   const [entryRemoval, setEntryRemoval] = useState<ENSEntryRemoval | undefined>();
   const [aliasesText, setAliasesText] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
-  const label = `${agentId}${row.agent.name ? ` · ${row.agent.name}` : ''}`;
+  const label = agentRowLabel(row);
   const aliasesValue = aliasesText ?? (profile?.aliases || []).join(', ');
 
   const save = async (
@@ -153,40 +161,64 @@ export const AgentConfigurationPage = ({
     }
   };
 
-  const openPreview = () => {
-    if (!selected) return;
-    setPreview([previewTemplateApplication(configuration, agentId, selected, effective.type, row.agent, row.detection)]);
-  };
-
-  const applyPreview = async () => {
-    const id = selected;
-    const failure = await save(latest => {
-      const result = applyTemplateToAgent(latest, agentId, id, row.agent, row.detection);
-      if (result.error) throw new Error(result.error);
-      return result.configuration;
-    }, `Plantilla «${getConfigurationTemplate(id)?.label || id}» aplicada a ${label}.`);
-    if (!failure) {
-      setPreview(undefined);
-      setChosen(undefined);
+  // Saves directly when no effective value changes; otherwise asks after a preview.
+  const saveWithPreview = (change: Omit<PendingChange, 'previews'>, previews?: PendingChange['previews']) => {
+    const shown = previews || previewConfigurationChange(configuration, change.build(configuration), [agentId]);
+    if (shown.every(item => !item.changes.length)) {
+      save(change.build, change.reason);
+      return;
     }
+    setPending({ ...change, previews: shown });
+  };
+
+  const confirmPending = async () => {
+    if (!pending) return undefined;
+    const failure = await save(pending.build, pending.reason);
+    if (!failure) setPending(undefined);
     return failure;
   };
 
-  const confirmTemplateRemoval = async () => {
-    if (!removalPreview) return undefined;
-    const id = removalPreview.templateId;
-    const failure = await save(
-      latest => removeTemplateFromAgent(latest, agentId, id),
-      `Plantilla «${getConfigurationTemplate(id)?.label || id}» quitada de ${label}.`
-    );
-    if (!failure) setRemovalPreview(undefined);
-    return failure;
+  const changeType = (type: ENSSystemType | undefined) =>
+    saveWithPreview({
+      title: `Cambiar el tipo de ${label}`,
+      confirmLabel: 'Cambiar el tipo',
+      intro: 'Los controles sin plantilla asignada pasan a la plantilla de serie del tipo nuevo.',
+      build: latest => setAgentTypeOverride(latest, agentId, type, row.agent),
+      reason: type ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.` : `Tipo de ${label}: vuelve al detectado.`,
+    });
+
+  const saveDetected = () =>
+    saveWithPreview({
+      title: `Guardar el tipo detectado de ${label}`,
+      confirmLabel: 'Guardar el tipo',
+      intro: 'Los controles sin plantilla asignada pasan a la plantilla de serie de su tipo.',
+      build: latest => saveDetectedTypes(latest, [{ agentId, agent: row.agent, detection: row.detection }]),
+      reason: `Tipo detectado de ${label} guardado: ${row.detection.type ? ENS_SYSTEM_TYPE_LABELS[row.detection.type] : ''}.`,
+    });
+
+  const assign = (controlId: string, choice: string) => {
+    const templateId = choice === BY_TYPE ? undefined : choice;
+    try {
+      const { previews } = previewControlAssignment(configuration, controlId, [agentId], templateId);
+      saveWithPreview(
+        {
+          title: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}`,
+          confirmLabel: 'Asignar',
+          intro: 'Los ajustes propios siguen ganando.',
+          build: latest => setControlTemplateAssignment(latest, controlId, [agentId], templateId, { [agentId]: row.agent }),
+          reason: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}.`,
+        },
+        previews
+      );
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
   };
 
   const removeOrphan = (controlId?: string, parameterId?: string) =>
     save(
       latest => removeAgentEntry(latest, agentId, controlId, parameterId),
-      `Quitado de ${label} un valor que no se aplicaba (${controlId || ''}${parameterId ? ` ${parameterId}` : ''}).`
+      `Quitado de ${label} un ajuste que no se aplicaba (${controlId || ''}${parameterId ? ` ${parameterId}` : ''}).`
     );
 
   const confirmEntryRemoval = async () => {
@@ -196,13 +228,19 @@ export const AgentConfigurationPage = ({
     return failure;
   };
 
-  const saveParameter = async (controlId: string, parameterId: string, value: ENSAgentParameterValue | undefined) => {
-    const mode = describeAgentValueSave(configuration, agentId, controlId, parameterId, value);
+  const confirmClear = async () => {
+    if (!clearing) return undefined;
+    const controlId = clearing;
+    const failure = await save(latest => clearAgentControlOverrides(latest, agentId, controlId), `${controlId}: ${label} sin ajustes propios.`);
+    if (!failure) setClearing(undefined);
+    return failure;
+  };
+
+  const saveParameter = async (controlId: string, parameterId: string, value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => {
+    const mode = describeAgentValueSave(configuration, agentId, controlId, parameterId, value, matchMode);
     const failure = await save(
-      latest => setAgentParameterValue(latest, agentId, controlId, parameterId, value, row.agent, row.detection),
-      mode === 'propio'
-        ? `${controlId} ${parameterId}: valor propio de ${label}.`
-        : `${controlId} ${parameterId}: ${label} vuelve a heredar el valor.`
+      latest => setAgentParameterValue(latest, agentId, controlId, parameterId, value, row.agent, matchMode),
+      mode === 'propio' ? `${controlId} ${parameterId}: ajuste propio de ${label}.` : `${controlId} ${parameterId}: ${label} vuelve a heredar el valor.`
     );
     if (failure) throw new Error(failure);
   };
@@ -210,25 +248,26 @@ export const AgentConfigurationPage = ({
   const typeOptions = [
     {
       value: '',
-      text: row.detection.type
-        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]}`
+      text: storedType && !profile?.typeOverride
+        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}`
+        : row.detection.type
+        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]} (sin guardar)`
         : 'Sin detectar (elegir uno)',
     },
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
   ];
 
-  const vieneDelDetalle = Boolean(parseConfigurationBack(useRouterSearch()));
+  // From the control detail, its own «Volver al detalle» replaces this one only on the detail's agent.
+  const search = useRouterSearch();
+  const fromDetail = Boolean(parseConfigurationBack(search)) && search.agentId === agentId;
 
   return (
     <EuiPanel paddingSize='l'>
-      {/* Abierta desde el Detalle del control, la única vuelta es «Volver al
-          detalle de …», arriba. */}
-      {!vieneDelDetalle && (
+      {!fromDetail && (
         <>
-          <EuiButton size='s' onClick={() => onNavigate({ view: 'systems' })}>
-            Volver a sistemas
+          <EuiButton size='s' onClick={() => onNavigate({ view: 'agents' })}>
+            Volver a agentes
           </EuiButton>
-
           <EuiSpacer size='m' />
         </>
       )}
@@ -239,15 +278,15 @@ export const AgentConfigurationPage = ({
 
       <EuiText size='s' color='subdued'>
         <p>
-          {row.inScope ? 'En el alcance ENS.' : 'Fuera del alcance ENS: sus valores se conservan pero no se evalúan.'}
+          {row.inScope ? 'En el alcance ENS.' : 'Fuera del alcance ENS: sus ajustes se conservan pero no se evalúan.'}
           {row.agent.os?.name ? ` ${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}.` : ''}
-          {` ${completeness.withValue} de ${completeness.total} parámetros por sistema y por plataforma con valor, ${completeness.ownValues} propios.`}
+          {` ${completeness.withValue} de ${completeness.total} parámetros de este agente con valor; ${completeness.ownValues} ajustes propios.`}
         </p>
       </EuiText>
 
       {loading && (
         <EuiText size='s' color='subdued'>
-          <p><EuiLoadingSpinner size='s' /> Detectando el tipo de sistema (inventario y hechos)…</p>
+          <p><EuiLoadingSpinner size='s' /> Detectando el tipo de sistema…</p>
         </EuiText>
       )}
 
@@ -255,7 +294,7 @@ export const AgentConfigurationPage = ({
         <>
           <EuiSpacer size='s' />
           <EuiCallOut color='warning' iconType='alert' size='s' title={`No hay ningún agente ${agentId} en el inventario ni en la configuración`}>
-            <p>Lo que se guarde aquí crea un perfil para un id que no es ninguna máquina conocida.</p>
+            <p>Lo que se guarde aquí crea un perfil para un id que no es ningún agente conocido.</p>
           </EuiCallOut>
         </>
       )}
@@ -282,7 +321,7 @@ export const AgentConfigurationPage = ({
 
       {orphans.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Valores de este sistema que no se aplican'>
+          <EuiCallOut color='danger' iconType='alert' title='Ajustes de este agente que no se aplican'>
             <ul>
               {orphans.map((issue, index) => (
                 <li key={`${index}-${issue.controlId}-${issue.parameterId}`}>
@@ -309,7 +348,7 @@ export const AgentConfigurationPage = ({
 
       {otherIssues.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Valores de este sistema que hay que corregir'>
+          <EuiCallOut color='danger' iconType='alert' title='Ajustes de este agente que hay que corregir'>
             <ul>{otherIssues.map((issue, index) => <li key={`${index}-${issue.message}`}>{issue.message}</li>)}</ul>
           </EuiCallOut>
           <EuiSpacer size='m' />
@@ -318,26 +357,34 @@ export const AgentConfigurationPage = ({
 
       <EuiFlexGroup gutterSize='l' wrap>
         <EuiFlexItem style={{ minWidth: 280 }}>
-          <EuiFormRow label='Tipo de sistema' helpText={loading && !effective.manual ? 'detectando…' : effective.description}>
+          <EuiFormRow label='Tipo de sistema' helpText={loading && !effective.manual ? 'Detectando…' : effective.description}>
             <EuiSelect
               options={typeOptions}
               value={profile?.typeOverride || ''}
               disabled={saving}
-              onChange={event => {
-                const type = (event.target.value || undefined) as ENSSystemType | undefined;
-                save(
-                  latest => setAgentTypeOverride(latest, agentId, type, row.agent, row.detection),
-                  type
-                    ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.`
-                    : `Tipo de ${label}: vuelve al detectado.`
-                );
-              }}
+              onChange={event => changeType((event.target.value || undefined) as ENSSystemType | undefined)}
             />
           </EuiFormRow>
+          {typePending && (
+            <>
+              <EuiText size='xs' color='subdued'>
+                <p>
+                  {storedType
+                    ? `Guardado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}; detectado ahora: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type!]}.`
+                    : `${typeLabel.text}: la plantilla de serie de su tipo se aplica al guardar el tipo.`}
+                </p>
+              </EuiText>
+              <EuiButton size='s' isDisabled={saving} onClick={saveDetected}>
+                Guardar el tipo detectado ({ENS_SYSTEM_TYPE_LABELS[row.detection.type!]})…
+              </EuiButton>
+            </>
+          )}
+        </EuiFlexItem>
 
+        <EuiFlexItem style={{ minWidth: 320 }}>
           <EuiFormRow
-            label='Otros nombres de esta máquina'
-            helpText='Separados por comas. La migración a sistemas reconoce por ellos las filas que nombran a esta máquina (además del id, el nombre del agente y su hostname).'
+            label='Otros nombres de este agente'
+            helpText='Separados por comas; como el id, el nombre y el nombre del equipo, sirven para reconocer las filas que nombran a este agente.'
           >
             <EuiFieldText
               value={aliasesValue}
@@ -351,7 +398,7 @@ export const AgentConfigurationPage = ({
             onClick={async () => {
               const aliases = (aliasesText || '').split(',').map(alias => alias.trim()).filter(Boolean);
               const failure = await save(
-                latest => setAgentAliases(latest, agentId, aliases, row.agent, row.detection),
+                latest => setAgentAliases(latest, agentId, aliases, row.agent),
                 `Otros nombres de ${label}: ${aliases.join(', ') || 'ninguno'}.`
               );
               if (!failure) setAliasesText(undefined);
@@ -360,79 +407,18 @@ export const AgentConfigurationPage = ({
             Guardar otros nombres
           </EuiButton>
         </EuiFlexItem>
-
-        <EuiFlexItem style={{ minWidth: 320 }}>
-          <EuiFormRow label='Plantillas aplicadas (en orden: gana la primera que fija cada valor)'>
-            <div>
-              {applied.length ? (
-                applied.map(id => (
-                  <EuiBadge
-                    key={id}
-                    color='primary'
-                    iconType='cross'
-                    iconSide='right'
-                    iconOnClick={() => setRemovalPreview(previewTemplateRemoval(configuration, agentId, id))}
-                    iconOnClickAriaLabel='Quitar la plantilla'
-                  >
-                    {getConfigurationTemplate(id)?.label || id}
-                  </EuiBadge>
-                ))
-              ) : (
-                <EuiText size='s' color='subdued'><p>Ninguna.</p></EuiText>
-              )}
-            </div>
-          </EuiFormRow>
-          <EuiFlexGroup gutterSize='s' responsive={false}>
-            <EuiFlexItem>
-              <EuiSelect
-                compressed
-                aria-label='Plantilla'
-                options={available.map(template => {
-                  const replaces = template.kind === 'base'
-                    ? applied.map(id => getConfigurationTemplate(id)).find(other => other?.kind === 'base')
-                    : undefined;
-                  return {
-                    value: template.id,
-                    text: `${template.label}${proposed.includes(template.id) ? ' (propuesta)' : ''}${template.kind === 'addon' ? ' · añadido' : ''}${replaces ? ` (sustituye a «${replaces.label}»)` : ''}`,
-                  };
-                })}
-                value={selected}
-                onChange={event => setChosen(event.target.value)}
-              />
-            </EuiFlexItem>
-            <EuiFlexItem grow={false}>
-              <EuiButton size='s' isLoading={saving} isDisabled={saving || !selected} onClick={openPreview}>
-                Aplicar…
-              </EuiButton>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-          <EuiText size='xs' color='subdued'>
-            <p>
-              {getConfigurationTemplate(selected)?.description}
-              {getConfigurationTemplate(selected)?.onlyControls
-                ? ` Solo ${getConfigurationTemplate(selected)!.onlyControls!.join(', ')} tienen recolector en esta plataforma.`
-                : ''}
-            </p>
-          </EuiText>
-        </EuiFlexItem>
       </EuiFlexGroup>
 
-      {preview && (
-        <TemplatePreviewModal
-          label={getConfigurationTemplate(selected)?.label || selected}
-          previews={preview}
-          onCancel={() => setPreview(undefined)}
-          onConfirm={applyPreview}
-        />
-      )}
-
-      {removalPreview && (
-        <TemplatePreviewModal
-          mode='remove'
-          label={removalPreview.label}
-          previews={[removalPreview]}
-          onCancel={() => setRemovalPreview(undefined)}
-          onConfirm={confirmTemplateRemoval}
+      {pending && (
+        <ChangePreviewModal
+          title={pending.title}
+          confirmLabel={pending.confirmLabel}
+          intro={pending.intro}
+          configuration={configuration}
+          agentLabels={{ [agentId]: label }}
+          previews={pending.previews}
+          onCancel={() => setPending(undefined)}
+          onConfirm={confirmPending}
         />
       )}
 
@@ -445,23 +431,31 @@ export const AgentConfigurationPage = ({
         />
       )}
 
-      {row.detection.addons.length > 0 && (
-        <EuiText size='xs' color='subdued'>
-          <p>Añadidos propuestos: {row.detection.addons.map(addon => `${getConfigurationTemplate(addon.templateId)?.label} (${addon.evidence})`).join('; ')}.</p>
-        </EuiText>
+      {clearing && (
+        <ConfirmModal
+          title={`Quitar los ajustes propios de ${label} en ${clearing}`}
+          confirmLabel='Quitar'
+          danger
+          onCancel={() => setClearing(undefined)}
+          onConfirm={confirmClear}
+        >
+          <EuiText size='s'>
+            <p>Vuelven a heredar de su plantilla o del valor común:</p>
+            <ul>
+              {describeAgentEntryRemoval(configuration, agentId, clearing, undefined, { overridesOnly: true }).map(line => <li key={line}>{line}</li>)}
+            </ul>
+            <p>La versión anterior queda en el historial.</p>
+          </EuiText>
+        </ConfirmModal>
       )}
 
       <EuiSpacer size='l' />
 
       <EuiTitle size='s'>
-        <h3>Parámetros de este sistema, por control</h3>
+        <h3>Controles</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>
-          Cada valor dice de dónde sale: propio del sistema, heredado de una
-          plantilla o heredado de la organización. Al quitar un valor propio,
-          el sistema vuelve a heredar.
-        </p>
+        <p>Por control: su plantilla y sus ajustes propios, con el origen de cada valor.</p>
       </EuiText>
 
       <EuiSpacer size='m' />
@@ -469,13 +463,24 @@ export const AgentConfigurationPage = ({
       {controls.map(control => {
         const resolved = resolveControlConfigurationWithOrigins(configuration, control.controlId, agentId);
         if (!resolved) return null;
-        const organisation = configuration.controls.find(item => item.controlId === control.controlId);
+        const common = configuration.controls.find(item => item.controlId === control.controlId);
         const parameters = resolved.configuration.parameters.filter(parameter => {
           const parameterClass = getParameterClass(control.controlId, parameter.id);
           return parameterClass === 'system' || parameterClass === 'platform';
         });
-        const own = parameters.filter(parameter => resolved.origins[parameter.id]?.source === 'agent').length;
+        const own = Object.keys(profile?.controls?.[control.controlId]?.parameters || {}).length;
         const open = target.controlId === control.controlId;
+        const templates = getControlTemplates(configuration, control.controlId);
+        const current = getEffectiveTemplate(configuration, agentId, control.controlId);
+        const assigned = current.assignedId;
+        const value = choices[control.controlId] ?? (assigned === undefined ? BY_TYPE : assigned);
+        const typeDefault = getTypeDefaultTemplate(control.controlId, storedType);
+        const proposals = proposedTemplates(control.controlId, row.detection);
+        const templateLabel = current.template
+          ? `${current.template.name}${current.via === 'type' ? ' (de serie)' : ''}`
+          : assigned === undefined && !typeLabel.stored
+          ? typeLabel.pending ? 'tipo sin guardar: valores comunes' : 'sin tipo: valores comunes'
+          : 'sin plantilla';
 
         return (
           <React.Fragment key={control.controlId}>
@@ -485,22 +490,63 @@ export const AgentConfigurationPage = ({
               buttonContent={
                 <span>
                   <strong>{control.controlId}</strong> · {control.controlName}{' '}
+                  <EuiBadge color='hollow'>{templateLabel}</EuiBadge>
                   {own > 0 && <EuiBadge color='primary'>{own} propio(s)</EuiBadge>}
                   {!control.measured && <EuiBadge color='default'>{control.reason}</EuiBadge>}
                 </span>
               }
               paddingSize='m'
             >
+              <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
+                <EuiFlexItem grow={false}>
+                  <EuiFormRow label='Plantilla' display='rowCompressed'>
+                    <EuiSelect
+                      compressed
+                      options={[
+                        { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
+                        ...templates.map(template => ({
+                          value: template.id,
+                          text: `${template.name}${template.builtin ? ' (de serie)' : ''}${proposals.includes(template.id) ? ' (propuesta por sus datos)' : ''}`,
+                        })),
+                        { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
+                        ...(assigned && assigned !== ENS_NO_TEMPLATE && !templates.some(template => template.id === assigned)
+                          ? [{ value: assigned, text: `«${assigned}» (no existe)` }]
+                          : []),
+                      ]}
+                      value={value}
+                      disabled={saving}
+                      onChange={event => setChoices(previous => ({ ...previous, [control.controlId]: event.target.value }))}
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiButton
+                    size='s'
+                    isDisabled={saving || value === (assigned === undefined ? BY_TYPE : assigned)}
+                    onClick={() => assign(control.controlId, value)}
+                  >
+                    Asignar…
+                  </EuiButton>
+                </EuiFlexItem>
+                {own > 0 && (
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty size='s' color='danger' isDisabled={saving} onClick={() => setClearing(control.controlId)}>
+                      Quitar ajustes propios
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
+                )}
+              </EuiFlexGroup>
+              <EuiSpacer size='s' />
+
               {parameters.map(parameter => {
                 const contribution = isContribution(control.controlId, parameter.id);
-                // En una aportación se edita lo de ESTE sistema; lo de la
-                // organización se enseña aparte y no se copia al editar.
-                const agentLevel = contribution ? getAgentLevelValue(profile, control.controlId, parameter.id) : undefined;
+                // In a contribution the agent edits only its rows; the common rows are shown apart and never copied.
+                const agentLevel = contribution ? getAgentLevelValue(configuration, agentId, control.controlId, parameter.id) : undefined;
                 const shown = contribution ? { ...parameter, value: agentLevel?.value } : parameter;
                 const origin = contribution
                   ? agentLevel?.origin || { source: 'organisation' as const }
                   : resolved.origins[parameter.id] || { source: 'organisation' as const };
-                const orgValue = organisation?.parameters.find(item => item.id === parameter.id)?.value;
+                const commonValue = common?.parameters.find(item => item.id === parameter.id)?.value;
                 const union = isUnionParameter(control.controlId, parameter.id, agentId);
                 return (
                   <AgentParameterRow
@@ -510,20 +556,20 @@ export const AgentConfigurationPage = ({
                     parameterClass={getParameterClass(control.controlId, parameter.id) as 'system' | 'platform'}
                     origin={origin}
                     contributionOnly={contribution}
-                    organisationRows={contribution ? valueRows(parameter, orgValue) : undefined}
+                    organisationRows={contribution ? valueRows(parameter, commonValue) : undefined}
                     effectiveRows={union && (agentId === ENS_MANAGER_AGENT || control.controlId === 'mp.info.6') ? valueRows(parameter, parameter.value) : undefined}
                     note={
                       contribution
-                        ? 'Este parámetro describe máquinas: en la fila del manager (y, para el alcance de mp.info.6, en todas) se evalúan juntas las filas de la organización y las de cada sistema. Aquí se declaran solo las de este sistema.'
+                        ? 'Aquí, solo las filas de este agente; se evalúan junto con las comunes y las de los demás agentes.'
                         : undefined
                     }
                     applicable={parameter.levels.includes(control.level)}
                     focused={open && target.parameterId === parameter.id}
-                    describeSave={value => describeAgentValueSave(configuration, agentId, control.controlId, parameter.id, value)}
-                    onSave={value => saveParameter(control.controlId, parameter.id, value)}
+                    describeSave={(next, matchMode) => describeAgentValueSave(configuration, agentId, control.controlId, parameter.id, next, matchMode)}
+                    onSave={(next, matchMode) => saveParameter(control.controlId, parameter.id, next, matchMode)}
                     onDone={
                       open && target.parameterId === parameter.id
-                        ? () => onNavigate({ view: 'systems', agentId, controlId: control.controlId })
+                        ? () => onNavigate({ view: 'agents', agentId, controlId: control.controlId })
                         : undefined
                     }
                   />
@@ -536,12 +582,11 @@ export const AgentConfigurationPage = ({
       })}
 
       {target.controlId && !controls.some(control => control.controlId === target.controlId) && (
-        <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no tiene parámetros por sistema en esta configuración`}>
+        <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no tiene parámetros por agente en esta configuración`}>
           <p>
-            O el control no está añadido, o todos sus parámetros son de
-            organización.{' '}
-            <EuiButtonEmpty size='xs' onClick={() => onNavigate({ view: 'organisation', controlId: target.controlId, parameterId: target.parameterId })}>
-              Abrirlo en Organización
+            O el control no está añadido, o solo tiene ajustes comunes.{' '}
+            <EuiButtonEmpty size='xs' onClick={() => onNavigate({ view: 'controls', controlId: target.controlId, parameterId: target.parameterId })}>
+              Abrirlo en Controles
             </EuiButtonEmpty>
           </p>
         </EuiCallOut>

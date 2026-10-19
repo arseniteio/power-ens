@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.2 (Configuración de seguridad).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.2: translates the engine result into report fields. */
 export const buildOpExp2ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp2ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp2ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.2.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,12 +105,7 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cumplimiento de la línea base por activo  ·  fuente: SCA (EV-01, EV-06)
-  //
-  // EV-01 dice QUÉ política se evalúa (contra P-01) y EV-06 su PUNTUACIÓN
-  // (contra P-05). El detalle por check no lo recoge el agente: vive en el
-  // módulo SCA del manager.
-  const campo2 = field(
+  const field2 = field(
     'op.exp.2.campo2',
     'Cumplimiento de la línea base por activo',
     evidenceStatus('EV-01'),
@@ -125,8 +114,7 @@ export const buildOpExp2ReportModel = (
     [...evidenceObservations('EV-01'), ...evidenceObservations('EV-06')],
   );
 
-  // Checks fallidos agregados  ·  fuente: SCA (EV-01)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.2.campo3',
     'Checks fallidos agregados',
     evidenceStatus('EV-01'),
@@ -136,8 +124,7 @@ export const buildOpExp2ReportModel = (
     ['detalle por check SCA: lo guarda el manager y ningún agente lo emite'],
   );
 
-  // Cuentas y contraseñas estándar detectadas  ·  fuente: SCA + Log (EV-02)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.2.campo4',
     'Cuentas y contraseñas estándar detectadas',
     evidenceStatus('EV-02'),
@@ -146,8 +133,7 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Servicios y puertos no justificados  ·  fuente: Syscollector + ENSFácil (EV-03)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.2.campo5',
     'Servicios y puertos no justificados',
     evidenceStatus('EV-03'),
@@ -156,8 +142,7 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Configuración de seguridad por defecto  ·  fuente: SCA (EV-04)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.2.campo6',
     'Configuración de seguridad por defecto',
     evidenceStatus('EV-04'),
@@ -166,8 +151,7 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Cobertura de virtualización  ·  fuente: SCA + Syscollector (EV-05)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.2.campo7',
     'Cobertura de virtualización',
     evidenceStatus('EV-05'),
@@ -177,8 +161,7 @@ export const buildOpExp2ReportModel = (
     ['cobertura del anfitrión de cada VM: es una pregunta entre máquinas que el agente de la VM no puede contestar'],
   );
 
-  // Evolución del bastionado  ·  fuente: SCA + ENSFácil (EV-06)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.2.campo8',
     'Evolución del bastionado',
     evidenceStatus('EV-06'),
@@ -187,8 +170,7 @@ export const buildOpExp2ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Conformidad previa a la entrada en operación  ·  fuente: SCA + ENSFácil (EV-07)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.2.campo9',
     'Conformidad previa a la entrada en operación',
     evidenceStatus('EV-07'),
@@ -198,8 +180,7 @@ export const buildOpExp2ReportModel = (
     ['fecha de puesta en producción por activo: ningún agente la observa; se acredita con el procedimiento de P-07'],
   );
 
-  // Puntuación de cumplimiento op.exp.2  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.exp.2.campo10',
     'Puntuación de cumplimiento op.exp.2',
     asStatus(result?.status),
@@ -222,16 +203,16 @@ export const buildOpExp2ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
     ],
   };
 };

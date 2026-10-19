@@ -1,28 +1,4 @@
-// La celda de «Motivo»: una línea en la tabla, el texto entero en un panel.
-//
-// POR QUÉ. El motivo de una evidencia puede ser una línea o puede ser esto,
-// literal, de op.acc.4 en wazuh-real:
-//
-//   «Se ha observado que 'dioni' tiene acceso='ALL=(ALL) NOPASSWD:ALL' y la
-//   tabla del parámetro P-01 declara 'ALL=(ALL:ALL) ALL'; 'root' tiene… y 197
-//   desviación(es) más.»
-//
-// Antes eso se desplegaba DENTRO de la celda. Doscientas palabras metidas en
-// una columna estrecha salen apelmazadas, la fila crece hasta empujar al resto
-// fuera de pantalla y leerlo es peor que no verlo. Ahora la celda enseña la
-// primera línea y el resto se abre en un panel lateral, donde el texto tiene
-// ancho de sobra y se puede leer como lo que es: una frase.
-//
-// No se recorta el contenido, se aparta. Recortar sería esconder evidencia.
-//
-// Desde 1.2.0 la celda lee el motivo por partes (`motive-parser.ts`): enseña la
-// parte de ESTA evidencia (`EV-04 NO_CUMPLE · su primera frase`), no la
-// plantilla «Resuelta por la política…» ni el segmento de otra evidencia; el
-// panel lo pinta entero, partido (`motive-view.tsx`).
-//
-// Y la «Pregunta de auditoría» sale del cuerpo: es la misma frase en todas las
-// filas de la misma evidencia, así que repetida es ruido. Va al pie, en gris,
-// que es donde el auditor la busca.
+// The 'Motivo' cell: one line in the table, the full text in a panel.
 import React, { useState } from 'react';
 import {
   EuiBadge,
@@ -38,59 +14,52 @@ import { KnownReasonParts, parseMotive } from '../../../../common/ens/evaluation
 import { MotiveView, MotiveViewHandlers, statusBadgeColor } from './motive-view';
 import { ENS_THEME } from '../../theme-colors';
 
-const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
+const QUESTION_PREFIX = 'Pregunta de auditoría:';
 
-// Lo que cabe en dos líneas de la columna sin que la fila crezca.
-const LIMITE = 190;
+const TEXT_LIMIT = 190;
 
-export interface MotivoLinea {
+export interface MotiveLine {
   texto: string;
   etiqueta?: string;
 }
 
 interface MotiveCellProps {
-  lineas: MotivoLinea[];
+  lineas: MotiveLine[];
   ocultos?: number;
-  // Encabeza el panel. Sin él, el lector no sabe de qué evidencia es el
-  // motivo que está leyendo, que es justo lo que el panel viene a resolver.
   titulo?: string;
-  // La evidencia de la fila: de un motivo compuesto se enseña SU parte.
   evidenceId?: string;
   conocidos?: KnownReasonParts[];
   handlers?: MotiveViewHandlers;
 }
 
-// La línea de la celda: la parte de esta evidencia (o la primera), con su
-// estado delante. Sin prefijos de puente ni de máquinas (las máquinas van en la
-// etiqueta).
-export const cellLine = (texto: string, evidenceId?: string, conocidos: KnownReasonParts[] = []) => {
-  const motivo = parseMotive(texto, conocidos);
-  const parte =
-    (evidenceId && motivo.parts.find(p => p.evidenceId === evidenceId)) ||
-    motivo.parts.find(p => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
-    motivo.parts[0];
-  return { motivo, parte, compuesto: motivo.parts.length > 1 || Boolean(motivo.policy) };
+export const cellLine = (text: string, evidenceId?: string, known: KnownReasonParts[] = []) => {
+  const motive = parseMotive(text, known);
+  const part =
+    (evidenceId && motive.parts.find(p => p.evidenceId === evidenceId)) ||
+    motive.parts.find(p => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
+    motive.parts[0];
+  return { motivo: motive, parte: part, compuesto: motive.parts.length > 1 || Boolean(motive.policy) };
 };
 
 export const MotiveCell = ({
-  lineas,
-  ocultos = 0,
-  titulo = 'Motivo completo',
+  lineas: lines,
+  ocultos: hidden = 0,
+  titulo: title = 'Motivo completo',
   evidenceId,
-  conocidos = [],
+  conocidos: known = [],
   handlers = {},
 }: MotiveCellProps) => {
-  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
 
-  const pregunta = lineas.find(linea =>
-    linea.texto.startsWith(PREFIJO_PREGUNTA)
+  const question = lines.find(line =>
+    line.texto.startsWith(QUESTION_PREFIX)
   );
 
-  const cuerpo = lineas.filter(
-    linea => !linea.texto.startsWith(PREFIJO_PREGUNTA)
+  const body = lines.filter(
+    line => !line.texto.startsWith(QUESTION_PREFIX)
   );
 
-  if (!cuerpo.length && !pregunta) {
+  if (!body.length && !question) {
     return (
       <EuiText size='xs' color='subdued'>
         Sin motivo registrado
@@ -98,86 +67,85 @@ export const MotiveCell = ({
     );
   }
 
-  const primera = cuerpo[0];
-  const leida = primera ? cellLine(primera.texto, evidenceId, conocidos) : undefined;
-  const resumen = leida?.parte ? leida.parte.summary : primera?.texto || '';
-  const hayMas = cuerpo.length > 1 || Boolean(leida && (leida.compuesto || leida.parte?.detail || leida.parte?.secondary !== undefined)) || resumen.length > LIMITE;
+  const first = body[0];
+  const parsed = first ? cellLine(first.texto, evidenceId, known) : undefined;
+  const summary = parsed?.parte ? parsed.parte.summary : first?.texto || '';
+  const hasMore = body.length > 1 || Boolean(parsed && (parsed.compuesto || parsed.parte?.detail || parsed.parte?.secondary !== undefined)) || summary.length > TEXT_LIMIT;
 
   return (
     <>
       <EuiText size='xs'>
-        {primera && (
-          <p style={{ marginBottom: hayMas ? 2 : 6 }}>
-            {primera.etiqueta && (
+        {first && (
+          <p style={{ marginBottom: hasMore ? 2 : 6 }}>
+            {first.etiqueta && (
               <>
-                <EuiBadge color='hollow'>{primera.etiqueta}</EuiBadge>{' '}
+                <EuiBadge color='hollow'>{first.etiqueta}</EuiBadge>{' '}
               </>
             )}
-            {leida?.parte?.evidenceId && leida.compuesto && (
+            {parsed?.parte?.evidenceId && parsed.compuesto && (
               <>
-                <EuiBadge color={statusBadgeColor(leida.parte.status)}>{`${leida.parte.evidenceId} ${leida.parte.status}`}</EuiBadge>{' '}
+                <EuiBadge color={statusBadgeColor(parsed.parte.status)}>{`${parsed.parte.evidenceId} ${parsed.parte.status}`}</EuiBadge>{' '}
               </>
             )}
-            {resumen.length > LIMITE ? `${resumen.slice(0, LIMITE).trimEnd()}…` : resumen}
+            {summary.length > TEXT_LIMIT ? `${summary.slice(0, TEXT_LIMIT).trimEnd()}…` : summary}
           </p>
         )}
 
-        {hayMas && (
+        {hasMore && (
           <EuiButtonEmpty
             size='xs'
             flush='left'
             iconType='inspect'
-            onClick={() => setPanelAbierto(true)}
+            onClick={() => setPanelOpen(true)}
           >
-            {cuerpo.length > 1
-              ? `Ver motivo completo (${cuerpo.length} líneas)`
+            {body.length > 1
+              ? `Ver motivo completo (${body.length} líneas)`
               : 'Ver motivo completo'}
           </EuiButtonEmpty>
         )}
 
-        {/* Lo que no cabe se anuncia, nunca se calla: agregar no es esconder. */}
-        {ocultos > 0 && (
+        {hidden > 0 && (
           <p style={{ color: ENS_THEME.subduedText, marginBottom: 6 }}>
-            y {ocultos} motivo{ocultos === 1 ? '' : 's'} más · seleccione un
+            y {hidden} motivo{hidden === 1 ? '' : 's'} más · seleccione un
             agente para verlos todos
           </p>
         )}
 
-        {pregunta && (
+        {question && (
           <p style={{ color: ENS_THEME.mutedText, fontStyle: 'italic', marginBottom: 0 }}>
-            {pregunta.texto}
+            {question.texto}
           </p>
         )}
       </EuiText>
 
-      {panelAbierto && (
+      {panelOpen && (
         <EuiFlyout
-          onClose={() => setPanelAbierto(false)}
+          onClose={() => setPanelOpen(false)}
           size='m'
           ownFocus
           aria-labelledby='motivo-panel-titulo'
         >
           <EuiFlyoutHeader hasBorder>
             <EuiTitle size='s'>
-              <h2 id='motivo-panel-titulo'>{titulo}</h2>
+              <h2 id='motivo-panel-titulo'>{title}</h2>
             </EuiTitle>
           </EuiFlyoutHeader>
 
           <EuiFlyoutBody>
-            {cuerpo.map((linea, indice) => (
+            {body.map((line, index) => (
               <MotiveView
-                key={`${linea.texto}-${indice}`}
-                parsed={parseMotive(linea.texto, conocidos)}
-                label={linea.etiqueta}
+                key={`${line.texto}-${index}`}
+                parsed={parseMotive(line.texto, known)}
+                label={line.etiqueta}
                 handlers={handlers}
               />
             ))}
 
-            {pregunta && (
+            {question && (
               <>
                 <EuiSpacer size='m' />
                 <EuiText size='s' color='subdued'>
-                  <p style={{ fontStyle: 'italic' }}>{pregunta.texto}</p>
+                  <p style={{ fontStyle: 'italic' }}>{question.texto}</p>
                 </EuiText>
               </>
             )}

@@ -1,49 +1,5 @@
-// op.exp.8 · Registro de la actividad
-//
-// Por qué este control tiene policy propia. Dos razones, y la primera es la que
-// obliga:
-//
-//   1. DOS PLANOS. El registro de actividad se genera en cada SERVIDOR (su
-//      auditd, su reloj, quién puede leer sus registros) y se recoge, conserva,
-//      revisa, correlaciona y responde en el SISTEMA CENTRAL (el manager). Los
-//      hechos del sistema central llegan con agent.id=000 y el motor evalúa
-//      por agente, así que en la fila de un servidor corriente no hay forma de
-//      ver la revisión de los registros ni las reglas de correlación. Esta
-//      policy decide, fila a fila, con QUÉ evidencias se mide cada requisito:
-//      las del servidor en un agente, las del servidor y las centrales en el
-//      manager. Lo que es solo central (R1, R3, R5) no aplica en la fila de un
-//      servidor que no es el sistema central: se mide en la del manager, y la
-//      consolidación entre máquinas lo lleva al resultado del control.
-//
-//   2. JUICIOS QUE NO CABEN EN UNA PRIMITIVA: la referencia de tiempo tiene
-//      cuatro ejes (sincronización, desfase, autenticación, traza de los
-//      cambios); la ingesta cruza P-02 con lo recibido por agente contra un
-//      plazo; los permisos comparan una lista de cuentas por registro.
-//
-// El tipo de fila lo dice el latido: `collector_run` con `tipo_servidor` =
-// `manager` es la fila central; `linux` o `ldap`, un servidor.
-//
-// Lo que cabe en una primitiva se deja a la primitiva (EV-02, ANTIGUEDAD_MAXIMA
-// contra P-12) y aquí solo se LEE su resultado.
-//
-// Invariantes, las de `evidence/judgment.ts`:
-//   - el agente emite instantes, no edades: toda antigüedad se mide aquí contra
-//     `context.now`;
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo; nunca un CUMPLE por
-//     ausencia;
-//   - lo que el recolector declara que no pudo medir (evidence_state
-//     NO_EVALUABLE) sale NO_EVALUABLE con SU motivo;
-//   - la policy nunca inventa política: ningún plazo, umbral o lista tiene
-//     valor por defecto.
-//
-// El nivel con el que se evalúa (`context.level`) es el de la dimensión de
-// Trazabilidad, no la categoría del sistema: lo resuelve el motor
-// (`core/control-level.ts`) porque el catálogo declara `levelDimension: 'T'`.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+// op.exp.8 · Activity log.
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -62,318 +18,307 @@ import {
 const CONTROL = 'op.exp.8';
 const POLICY = 'policy.op.exp.8';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// Frescura de un hecho de estado. Los recolectores corren cada hora y reemiten
-// el estado entero en cada pasada: 26 h tolera un día de fallos sin convertir
-// una foto vieja en la situación de hoy. Es tolerancia de OBSERVACIÓN, no
-// política.
-const FRESCURA_HORAS = 26;
+// Freshness of a state fact: collectors run hourly and re-emit the whole state; 26 h tolerates a
+// day of failures. Observation tolerance, not policy.
+const FRESHNESS_HOURS = 26;
 
-// Un hecho del futuro no acredita nada (misma tolerancia de reloj que el latido).
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// A fact from the future proves nothing (same clock tolerance as the heartbeat).
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-type Plano = 'servidor' | 'central';
+type Plane = 'servidor' | 'central';
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
-// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy.
-type Medida = {
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`). It reaches the evidence and
+// requirement through the decision; without it the card inherited the classic model's cause, which
+// does not see the facts the policy reads.
+type Measurement = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL'>;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
-// hechos lo dicen expresamente (`faltaParametro`, `sinHechos`), y lo que el
-// recolector declara llega con SU causa (`degradacion`).
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough. Missing parameter and missing facts say
+// so explicitly (`missingParameter`, `sinHechos`) and the collector's declarations carry ITS cause
+// (`degradacion`).
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
-const noAplica = (motivo: string): Medida => ({ estado: 'NO_APLICA', motivo });
+const notApplicable = (motive: string): Measurement => ({ estado: 'NO_APLICA', motivo: motive });
 
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements, same order as the engine (`resolveGapCause`):
+// COLLECTION only if all say so, CONFIGURATION if any does, otherwise EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-const GRAVEDAD: Record<Medida['estado'], number> = {
+const SEVERITY: Record<Measurement['estado'], number> = {
   NO_APLICA: -1,
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Medida['estado'] =>
-  medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
+  measurements.reduce<Measurement['estado']>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-// Varios ejes de una evidencia en una medida: el estado del peor, y en el
-// motivo lo que lo explica (lo que falla o falta; si todo cumple, lo medido).
-const combina = (partes: Medida[]): Medida => {
-  const estado = peor(partes);
+// Several axes of one evidence into one measurement: worst status, with the reason that explains it
+// (what fails or is missing; if all comply, what was measured).
+const combineMeasurements = (pieces: Measurement[]): Measurement => {
+  const status = worstStatus(pieces);
 
-  if (estado === 'CUMPLE') {
-    return cumple(partes.map(p => p.motivo).join(' '));
+  if (status === 'CUMPLE') {
+    return compliant(pieces.map(p => p.motivo).join(' '));
   }
 
-  const responsables = partes.filter(p => p.estado === estado);
-  const ademas = partes
-    .filter(p => p.estado !== estado && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
+  const owners = pieces.filter(p => p.estado === status);
+  const also = pieces
+    .filter(p => p.estado !== status && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
     .map(p => p.motivo);
 
   return {
-    estado,
-    motivo: [...responsables.map(p => p.motivo), ...(ademas.length ? [`Además: ${ademas.join(' ')}`] : [])].join(' '),
-    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
+    estado: status,
+    motivo: [...owners.map(p => p.motivo), ...(also.length ? [`Además: ${also.join(' ')}`] : [])].join(' '),
+    ...(status === 'NO_EVALUABLE' ? { causa: commonGapCause(owners) } : {}),
   };
 };
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=A,B` en uno por evidencia
-// (`<id>#A`, `<id>#B`). Aquí se juzga el HECHO, así que se cuenta una vez.
-const hechos = (
+// The normalizer splits an event with `evidence_id=A,B` into one per evidence (`<id>#A`, `<id>#B`);
+// the FACT is judged here, so it counts once.
+const facts = (
   context: ENSPolicyContext,
-  tipo: string
+  type: string
 ): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+  const seen = new Set<string>();
 
   return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-const numero = (texto: string): number | undefined => {
-  const limpio = String(texto).trim().replace(',', '.');
+const parseNumber = (text: string): number | undefined => {
+  const clean = String(text).trim().replace(',', '.');
 
-  if (!/^[+-]?\d+(\.\d+)?$/.test(limpio)) {
+  if (!/^[+-]?\d+(\.\d+)?$/.test(clean)) {
     return undefined;
   }
 
-  const valor = Number(limpio);
+  const value = Number(clean);
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(text)) {
     return undefined;
   }
 
-  const valor = new Date(texto).getTime();
+  const value = new Date(text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const momento = (event: ENSNormalizedEvent): number => {
+const eventTime = (event: ENSNormalizedEvent): number => {
   const t = Date.parse(event.timestamp);
 
   return Number.isNaN(t) ? 0 : t;
 };
 
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
+const formatList = (items: string[], max = 5): string =>
+  items.length > max
+    ? `${items.slice(0, max).join('; ')} y ${items.length - max} más`
+    : items.join('; ');
 
-const horas = (ms: number): string => (ms / HORA).toFixed(1);
+const formatHours = (ms: number): string => (ms / HOUR_MS).toFixed(1);
 
-// Los hechos de estado de la ÚLTIMA pasada que los emitió (el motor ya ha
-// descartado los de pasadas anteriores, ver `state-facts.ts`), sin los del
-// futuro. Si la última es más vieja que FRESCURA_HORAS, no describen hoy.
-const estadoVigente = (
+// State facts of the LAST run that emitted them (the engine already dropped earlier runs, see
+// `state-facts.ts`), without future ones. If the last is older than FRESHNESS_HOURS they do not
+// describe today.
+const currentStatus = (
   context: ENSPolicyContext,
-  tipo: string,
-  ahora: number
+  type: string,
+  now: number
 ): { vigentes: ENSNormalizedEvent[]; ultimo?: number } => {
-  const validos = hechos(context, tipo).filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+  const valid = facts(context, type).filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
 
-  if (!validos.length) {
+  if (!valid.length) {
     return { vigentes: [] };
   }
 
-  const ultimo = Math.max(...validos.map(momento));
+  const last = Math.max(...valid.map(eventTime));
 
-  if (ahora - ultimo > FRESCURA_HORAS * HORA) {
-    return { vigentes: [], ultimo };
+  if (now - last > FRESHNESS_HOURS * HOUR_MS) {
+    return { vigentes: [], ultimo: last };
   }
 
-  // La última pasada: lo emitido en la hora anterior al último hecho.
+  // The last run: what was emitted in the hour before the last fact.
   return {
-    vigentes: validos.filter(e => ultimo - momento(e) < HORA),
-    ultimo,
+    vigentes: valid.filter(e => last - eventTime(e) < HOUR_MS),
+    ultimo: last,
   };
 };
 
-// Lo que el recolector declaró que no pudo medir de una evidencia, si es más
-// reciente que su último hecho, con la causa que ÉL declara: es quien sabe si
-// falta un registro que la organización no mantiene (CONFIGURATION) o una
-// fuente que no pudo leer (COLLECTION). Sin causa declarada, COLLECTION.
-const degradacion = (
+// What the collector declared it could not measure for an evidence, if newer than its last fact,
+// with the cause IT declares (it knows whether a record the organization does not keep is missing,
+// CONFIGURATION, or a source could not be read, COLLECTION); COLLECTION if none.
+const degradation = (
   context: ENSPolicyContext,
-  evidencia: string,
-  despuesDe = 0
-): Medida | undefined => {
-  const ultima = hechos(context, 'evidence_state')
+  evidence: string,
+  afterOf = 0
+): Measurement | undefined => {
+  const last = facts(context, 'evidence_state')
     .filter(
       e =>
-        campo(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidencia) &&
-        String(e.status || campo(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
-        momento(e) >= despuesDe
+        factField(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidence) &&
+        String(e.status || factField(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
+        eventTime(e) >= afterOf
     )
-    .sort((a, b) => momento(b) - momento(a))[0];
+    .sort((a, b) => eventTime(b) - eventTime(a))[0];
 
-  if (!ultima) {
+  if (!last) {
     return undefined;
   }
 
-  const declarada = campo(ultima, 'causa').toUpperCase();
-  const causa: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
-    ? (declarada as ENSGapCause)
+  const declared = factField(last, 'causa').toUpperCase();
+  const cause: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declared)
+    ? (declared as ENSGapCause)
     : 'COLLECTION';
 
-  return sinMedir(
-    `El recolector no ha podido medirlo${declarada ? ` (${declarada})` : ''}: ${campo(ultima, 'motivo') || 'sin motivo declarado'}.`,
-    causa
+  return notMeasured(
+    `El recolector no ha podido medirlo${declared ? ` (${declared})` : ''}: ${factField(last, 'motivo') || 'sin motivo declarado'}.`,
+    cause
   );
 };
 
-const sinHechos = (
+const withoutFacts = (
   context: ENSPolicyContext,
-  evidencia: string,
-  ultimo: number | undefined,
-  queFalta: string
-): Medida =>
-  degradacion(context, evidencia) ||
-  sinMedir(
-    ultimo
-      ? `El último ${queFalta} es de ${new Date(ultimo).toISOString()}, hace más de ${FRESCURA_HORAS} h: el recolector de op.exp.8 no está informando.`
-      : `No consta ningún ${queFalta}: el recolector de op.exp.8 no está desplegado en esta máquina o no informa.`,
+  evidence: string,
+  last: number | undefined,
+  whatIsMissing: string
+): Measurement =>
+  degradation(context, evidence) ||
+  notMeasured(
+    last
+      ? `El último ${whatIsMissing} es de ${new Date(last).toISOString()}, hace más de ${FRESHNESS_HOURS} h: el recolector de op.exp.8 no está informando.`
+      : `No consta ningún ${whatIsMissing}: el recolector de op.exp.8 no está desplegado en esta máquina o no informa.`,
     'COLLECTION'
   );
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (
+const findParameter = (
   context: ENSPolicyContext,
   id: string
 ): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (
+// Table rows split into their declared columns. Without columns the position is not guessed: the
+// parameter is treated as not configured.
+const tableParameterRows = (
   context: ENSPolicyContext,
   id: string
 ): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
+  const p = findParameter(context, id);
+  const columns = p?.columns || [];
 
-  if (!p || !columnas.length) {
+  if (!p || !columns.length) {
     return undefined;
   }
 
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  const result = toParameterTableRows(p.value)
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = (celdas[i] || '').trim();
+      columns.forEach((column, i) => {
+        row[column.name] = (cells[i] || '').trim();
       });
 
-      return fila;
+      return row;
     });
 
-  return resultado.length ? resultado : undefined;
+  return result.length ? result : undefined;
 };
 
-const escalar = (context: ENSPolicyContext, id: string): number | undefined => {
-  const valor = parametro(context, id)?.value;
+const positiveScalar = (context: ENSPolicyContext, id: string): number | undefined => {
+  const value = findParameter(context, id)?.value;
 
-  if (valor === undefined || valor === null || Array.isArray(valor)) {
+  if (value === undefined || value === null || Array.isArray(value)) {
     return undefined;
   }
 
-  return numero(String(valor));
+  return parseNumber(String(value));
 };
 
-const faltaParametro = (context: ENSPolicyContext, id: string, para: string): Medida =>
-  sinMedir(`${etiqueta(context, id)} está sin configurar: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
+const missingParameter = (context: ENSPolicyContext, id: string, purpose: string): Measurement =>
+  notMeasured(`${parameterDisplayName(context, id)} está sin configurar: no hay contra qué juzgar ${purpose}.`, 'CONFIGURATION');
 
-const iguales = (a: string, b: string): boolean =>
+const equalsIgnoreCase = (a: string, b: string): boolean =>
   a.trim().toLowerCase() === b.trim().toLowerCase();
 
-// --- el plano de la fila ---------------------------------------------------
 
-const planoDeLaFila = (context: ENSPolicyContext): Plano =>
-  hechos(context, 'collector_run').some(e => campo(e, 'tipo_servidor') === 'manager')
+const rowPlane = (context: ENSPolicyContext): Plane =>
+  facts(context, 'collector_run').some(e => factField(e, 'tipo_servidor') === 'manager')
     ? 'central'
     : 'servidor';
 
-// --- las evidencias --------------------------------------------------------
 
-// EV-01 · el registro de actividad está activo y se conserva.
-//
-// Plano sistema: auditd activo con reglas cargadas (sin reglas, auditd solo
-// registra lo que el propio sistema le manda y no es un registro de auditoría
-// de la actividad) y el registro del sistema conservado en disco (journald
-// persistente o rsyslog). Plano directorio (LDAP): slapd registra sus
-// operaciones solo con el nivel `stats` (256): sin él no queda quién hizo qué
-// en el directorio.
-const slapdRegistraOperaciones = (niveles: string): boolean =>
-  niveles
+// EV-01 · the activity log is active and kept. System plane: auditd active with rules loaded
+// (without rules auditd records only what the system sends it, not an audit log of activity) and
+// the system log kept on disk (persistent journald or rsyslog). Directory plane (LDAP): slapd logs
+// its operations only at `stats` level (256); without it nobody knows who did what in the
+// directory.
+const slapdRecordsOperations = (levels: string): boolean =>
+  levels
     .split(/[\s,]+/)
     .filter(Boolean)
     .some(n => {
@@ -383,102 +328,96 @@ const slapdRegistraOperaciones = (niveles: string): boolean =>
         return true;
       }
 
-      const num = /^0x[0-9a-f]+$/i.test(v) ? parseInt(v, 16) : numero(v);
+      const num = /^0x[0-9a-f]+$/i.test(v) ? parseInt(v, 16) : parseNumber(v);
 
       return num !== undefined && (num === -1 || (num & 256) !== 0);
     });
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'audit_log_status', ahora);
+const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'audit_log_status', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-01', ultimo, 'estado del registro de actividad de este servidor');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-01', last, 'estado del registro de actividad de este servidor');
   }
 
-  const partes: Medida[] = [];
-  const deFuente = (fuente: string) => vigentes.filter(e => campo(e, 'fuente') === fuente);
+  const pieces: Measurement[] = [];
+  const ofSource = (source: string) => current.filter(e => factField(e, 'fuente') === source);
 
-  const auditd = deFuente('auditd')[0];
+  const auditd = ofSource('auditd')[0];
 
   if (!auditd) {
-    partes.push(sinMedir('El recolector no ha informado del estado de auditd.'));
-  } else if (campo(auditd, 'activo') !== 'si') {
-    partes.push(
-      noCumple(
-        `auditd no está activo (${campo(auditd, 'activo') || 'desconocido'}): el servidor no genera registro de auditoría. ${campo(auditd, 'detalle')}`.trim()
+    pieces.push(notMeasured('El recolector no ha informado del estado de auditd.'));
+  } else if (factField(auditd, 'activo') !== 'si') {
+    pieces.push(
+      nonCompliant(
+        `auditd no está activo (${factField(auditd, 'activo') || 'desconocido'}): el servidor no genera registro de auditoría. ${factField(auditd, 'detalle')}`.trim()
       )
     );
-  } else if ((numero(campo(auditd, 'reglas_cargadas')) || 0) <= 0) {
-    partes.push(noCumple('auditd está activo pero sin ninguna regla cargada: no registra la actividad de los usuarios.'));
+  } else if ((parseNumber(factField(auditd, 'reglas_cargadas')) || 0) <= 0) {
+    pieces.push(nonCompliant('auditd está activo pero sin ninguna regla cargada: no registra la actividad de los usuarios.'));
   } else {
-    partes.push(cumple(`auditd activo con ${campo(auditd, 'reglas_cargadas')} reglas cargadas.`));
+    pieces.push(compliant(`auditd activo con ${factField(auditd, 'reglas_cargadas')} reglas cargadas.`));
   }
 
-  const journald = deFuente('journald')[0];
-  const rsyslog = deFuente('rsyslog')[0];
-  const journaldConserva =
-    journald && campo(journald, 'activo') === 'si' && campo(journald, 'almacenamiento') === 'persistente';
-  const rsyslogConserva = rsyslog && campo(rsyslog, 'activo') === 'si';
+  const journald = ofSource('journald')[0];
+  const rsyslog = ofSource('rsyslog')[0];
+  const journaldKeeps =
+    journald && factField(journald, 'activo') === 'si' && factField(journald, 'almacenamiento') === 'persistente';
+  const rsyslogKeeps = rsyslog && factField(rsyslog, 'activo') === 'si';
 
   if (!journald && !rsyslog) {
-    partes.push(sinMedir('El recolector no ha informado del registro del sistema (journald, rsyslog).'));
-  } else if (journaldConserva || rsyslogConserva) {
-    partes.push(
-      cumple(
-        `Registro del sistema conservado en disco (${[journaldConserva ? 'journald persistente' : '', rsyslogConserva ? 'rsyslog' : ''].filter(Boolean).join(' y ')}).`
+    pieces.push(notMeasured('El recolector no ha informado del registro del sistema (journald, rsyslog).'));
+  } else if (journaldKeeps || rsyslogKeeps) {
+    pieces.push(
+      compliant(
+        `Registro del sistema conservado en disco (${[journaldKeeps ? 'journald persistente' : '', rsyslogKeeps ? 'rsyslog' : ''].filter(Boolean).join(' y ')}).`
       )
     );
   } else {
-    partes.push(noCumple('El registro del sistema no se conserva en disco: journald no es persistente y rsyslog no está activo.'));
+    pieces.push(nonCompliant('El registro del sistema no se conserva en disco: journald no es persistente y rsyslog no está activo.'));
   }
 
-  deFuente('slapd').forEach(slapd => {
-    const niveles = campo(slapd, 'niveles_log');
+  ofSource('slapd').forEach(slapd => {
+    const levels = factField(slapd, 'niveles_log');
 
-    if (campo(slapd, 'activo') !== 'si') {
-      partes.push(noCumple(`slapd no está en ejecución (${campo(slapd, 'activo') || 'desconocido'}): el directorio no registra su actividad.`));
-    } else if (!slapdRegistraOperaciones(niveles)) {
-      partes.push(
-        noCumple(
-          `slapd no registra sus operaciones: olcLogLevel=${niveles || '(sin declarar)'} no incluye stats, así que no queda quién se autentica, qué consulta ni qué modifica en el directorio.`
+    if (factField(slapd, 'activo') !== 'si') {
+      pieces.push(nonCompliant(`slapd no está en ejecución (${factField(slapd, 'activo') || 'desconocido'}): el directorio no registra su actividad.`));
+    } else if (!slapdRecordsOperations(levels)) {
+      pieces.push(
+        nonCompliant(
+          `slapd no registra sus operaciones: olcLogLevel=${levels || '(sin declarar)'} no incluye stats, así que no queda quién se autentica, qué consulta ni qué modifica en el directorio.`
         )
       );
     } else {
-      partes.push(cumple(`slapd registra sus operaciones (olcLogLevel=${niveles}).`));
+      pieces.push(compliant(`slapd registra sus operaciones (olcLogLevel=${levels}).`));
     }
   });
 
-  const categorias = filas(context, 'P-01');
+  const categories = tableParameterRows(context, 'P-01');
 
-  if (!categorias) {
-    partes.push(faltaParametro(context, 'P-01', 'si el registro cubre los eventos de seguridad que la política exige'));
+  if (!categories) {
+    pieces.push(missingParameter(context, 'P-01', 'si el registro cubre los eventos de seguridad que la política exige'));
   } else {
-    partes.push(...coberturaDeP01(context, ahora, categorias, auditd));
+    pieces.push(...p01Coverage(context, now, categories, auditd));
   }
 
-  return combina(partes);
+  return combineMeasurements(pieces);
 };
 
-// --- EV-01 · lo que se declara auditable, contra lo que de verdad se audita --
-//
-// Que auditd esté activo con reglas no dice QUÉ registra. En un servidor real, con
-// 80 reglas cargadas, EV-01 salía CUMPLE mientras op.exp.5 demostraba que no
-// se vigilaban las rutas de configuración, op.exp.10 los almacenes de claves y
-// EV-06 los cambios de hora: un CUMPLE por mera presencia de auditd. Ahora
-// cada categoría que P-01 declara auditable se contrasta con lo que el
-// recolector observa en el kernel (`audit_coverage`: por categoría, qué rutas
-// de su lista vigila en escritura alguna regla cargada, o qué llamadas al
-// sistema), o con las fuentes de registro activas.
-//
-// La categoría es texto libre de la organización; se reconoce por palabras. Lo
-// que no se reconoce no se da por cubierto: queda sin medir con causa
-// CONFIGURATION, porque se arregla nombrándola en la pantalla de
-// Configuración.
-type Categoria = 'autenticacion' | 'configuracion' | 'hora' | 'claves' | 'cuentas' | 'privilegios' | 'directorio';
+// EV-01 · what is declared auditable against what is really audited. Auditd active with rules does
+// not say WHAT it records: on a real server with 80 rules EV-01 was CUMPLE while op.exp.5 showed
+// configuration paths unwatched, op.exp.10 the key stores and EV-06 time changes. Now each category
+// P-01 declares auditable is contrasted with what the collector observes in the kernel
+// (`audit_coverage`: per category, which paths of its list some loaded rule watches for writing, or
+// which system calls) or with the active log sources.
+// The category is free text of the organization, recognized by words. What is not recognized is not
+// taken as covered: it stays unmeasured with cause CONFIGURATION, fixed by naming it in the
+// Configuration screen.
+type Category = 'autenticacion' | 'configuracion' | 'hora' | 'claves' | 'cuentas' | 'privilegios' | 'directorio';
 
-// El orden importa: «cambios de hora» es hora antes que configuración, y
-// «cambios en las cuentas» es cuentas.
-const CATEGORIAS: { clave: Categoria; patron: RegExp; nombre: string }[] = [
+// Order matters: «cambios de hora» is time before configuration, and «cambios en las cuentas» is
+// accounts.
+const CATEGORIES: { clave: Category; patron: RegExp; nombre: string }[] = [
   { clave: 'directorio', patron: /ldap|directorio|slapd/, nombre: 'directorio LDAP' },
   { clave: 'hora', patron: /\bhora|reloj|tiempo|fecha/, nombre: 'cambios de hora' },
   { clave: 'claves', patron: /clave|criptogr|certificad|almacen/, nombre: 'almacenes de claves' },
@@ -488,36 +427,36 @@ const CATEGORIAS: { clave: Categoria; patron: RegExp; nombre: string }[] = [
   { clave: 'configuracion', patron: /configura|cambio/, nombre: 'cambios de configuración' },
 ];
 
-const sinTildes = (texto: string): string =>
-  texto
+const stripAccents = (text: string): string =>
+  text
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
-const reconoce = (categoria: string): Categoria | undefined =>
-  CATEGORIAS.find(c => c.patron.test(sinTildes(categoria)))?.clave;
+const recognizes = (category: string): Category | undefined =>
+  CATEGORIES.find(c => c.patron.test(stripAccents(category)))?.clave;
 
-const coberturaDeP01 = (
+const p01Coverage = (
   context: ENSPolicyContext,
-  ahora: number,
-  categorias: Record<string, string>[],
+  now: number,
+  categories: Record<string, string>[],
   auditd: ENSNormalizedEvent | undefined
-): Medida[] => {
-  const { vigentes: fuentes } = estadoVigente(context, 'audit_log_status', ahora);
-  const { vigentes: cobertura } = estadoVigente(context, 'audit_coverage', ahora);
-  const activa = (fuente: string) =>
-    fuentes.some(e => campo(e, 'fuente') === fuente && campo(e, 'activo') === 'si');
-  const vistas = new Set<Categoria>();
-  const partes: Medida[] = [];
+): Measurement[] => {
+  const { vigentes: sources } = currentStatus(context, 'audit_log_status', now);
+  const { vigentes: coverage } = currentStatus(context, 'audit_coverage', now);
+  const active = (source: string) =>
+    sources.some(e => factField(e, 'fuente') === source && factField(e, 'activo') === 'si');
+  const seen = new Set<Category>();
+  const pieces: Measurement[] = [];
 
-  categorias.forEach(fila => {
-    const declarada = fila.categoria_evento || '';
-    const clave = reconoce(declarada);
+  categories.forEach(row => {
+    const declared = row.categoria_evento || '';
+    const key = recognizes(declared);
 
-    if (!clave) {
-      partes.push(
-        sinMedir(
-          `P-01 declara auditable «${declarada}», y ENSFácil no sabe qué observar en la máquina para esa categoría: no se puede afirmar que se registre. Nómbrala con una de las reconocidas (${CATEGORIAS.map(c => c.nombre).join(', ')}).`,
+    if (!key) {
+      pieces.push(
+        notMeasured(
+          `P-01 declara auditable «${declared}», y ENSFácil no sabe qué observar en la máquina para esa categoría: no se puede afirmar que se registre. Nómbrala con una de las reconocidas (${CATEGORIES.map(c => c.nombre).join(', ')}).`,
           'CONFIGURATION'
         )
       );
@@ -525,62 +464,62 @@ const coberturaDeP01 = (
       return;
     }
 
-    if (vistas.has(clave)) {
+    if (seen.has(key)) {
       return;
     }
 
-    vistas.add(clave);
+    seen.add(key);
 
-    // La autenticación la registran PAM, sshd y sudo en el registro del
-    // sistema, y PAM además en auditd sin necesidad de reglas.
-    if (clave === 'autenticacion') {
-      const quien = [
-        auditd && campo(auditd, 'activo') === 'si' && campo(auditd, 'habilitado_kernel') !== '0' ? 'auditd (PAM)' : '',
-        activa('journald') ? 'journald' : '',
-        activa('rsyslog') ? 'rsyslog' : '',
+    // Authentication is logged by PAM, sshd and sudo in the system log, and PAM also in auditd
+    // without rules.
+    if (key === 'autenticacion') {
+      const who = [
+        auditd && factField(auditd, 'activo') === 'si' && factField(auditd, 'habilitado_kernel') !== '0' ? 'auditd (PAM)' : '',
+        active('journald') ? 'journald' : '',
+        active('rsyslog') ? 'rsyslog' : '',
       ].filter(Boolean);
 
-      partes.push(
-        quien.length
-          ? cumple(`«${declarada}»: la registran ${quien.join(', ')}.`)
-          : noCumple(`«${declarada}» está declarada auditable y ninguna fuente de la máquina la registra: ni auditd, ni journald, ni rsyslog están activos.`)
+      pieces.push(
+        who.length
+          ? compliant(`«${declared}»: la registran ${who.join(', ')}.`)
+          : nonCompliant(`«${declared}» está declarada auditable y ninguna fuente de la máquina la registra: ni auditd, ni journald, ni rsyslog están activos.`)
       );
 
       return;
     }
 
-    // El directorio solo existe en un servidor LDAP: lo juzga el hecho de
-    // slapd de arriba. En otro servidor no hay nada que registrar.
-    if (clave === 'directorio') {
-      if (!fuentes.some(e => campo(e, 'fuente') === 'slapd')) {
-        partes.push(noAplica(`«${declarada}» no aplica a este servidor: no tiene directorio (slapd).`));
+    // The directory exists only on an LDAP server: slapd's fact above judges it. On another server
+    // there is nothing to log.
+    if (key === 'directorio') {
+      if (!sources.some(e => factField(e, 'fuente') === 'slapd')) {
+        pieces.push(notApplicable(`«${declared}» no aplica a este servidor: no tiene directorio (slapd).`));
       }
 
       return;
     }
 
-    const hecho = cobertura.find(e => campo(e, 'categoria') === clave);
+    const fact = coverage.find(e => factField(e, 'categoria') === key);
 
-    // Sin el hecho nuevo, la hora aún se puede decidir con el de EV-06.
-    if (!hecho && clave === 'hora') {
-      const reloj = estadoVigente(context, 'time_sync_status', ahora).vigentes[0];
+    // Without the new fact, time can still be decided with EV-06's.
+    if (!fact && key === 'hora') {
+      const clock = currentStatus(context, 'time_sync_status', now).vigentes[0];
 
-      if (reloj) {
-        partes.push(
-          campo(reloj, 'vigilancia_cambio_hora') === 'si'
-            ? cumple(`«${declarada}»: auditd registra los cambios de la hora del sistema.`)
-            : noCumple(`«${declarada}» está declarada auditable y no se audita: ${sinTrazaDeHora(context, ahora)}`)
+      if (clock) {
+        pieces.push(
+          factField(clock, 'vigilancia_cambio_hora') === 'si'
+            ? compliant(`«${declared}»: auditd registra los cambios de la hora del sistema.`)
+            : nonCompliant(`«${declared}» está declarada auditable y no se audita: ${noHourTrace(context, now)}`)
         );
 
         return;
       }
     }
 
-    if (!hecho) {
-      partes.push(
-        degradacion(context, 'EV-01') ||
-          sinMedir(
-            `«${declarada}»: el recolector de op.exp.8 de este servidor no informa de qué vigila auditd (hecho audit_coverage), así que no se puede afirmar que esa categoría se registre. Actualiza el recolector.`,
+    if (!fact) {
+      pieces.push(
+        degradation(context, 'EV-01') ||
+          notMeasured(
+            `«${declared}»: el recolector de op.exp.8 de este servidor no informa de qué vigila auditd (hecho audit_coverage), así que no se puede afirmar que esa categoría se registre. Actualiza el recolector.`,
             'COLLECTION'
           )
       );
@@ -588,39 +527,39 @@ const coberturaDeP01 = (
       return;
     }
 
-    const objeto = campo(hecho, 'objeto') === 'syscalls' ? 'las llamadas al sistema' : 'la escritura en';
-    const sin = campo(hecho, 'sin_vigilar')
+    const object = factField(fact, 'objeto') === 'syscalls' ? 'las llamadas al sistema' : 'la escritura en';
+    const without = factField(fact, 'sin_vigilar')
       .split(',')
       .map(x => x.trim())
       .filter(x => x && x !== '-');
-    const si = campo(hecho, 'vigiladas')
+    const watched = factField(fact, 'vigiladas')
       .split(',')
       .map(x => x.trim())
       .filter(x => x && x !== '-');
-    const estadoAuditd = campo(hecho, 'auditd');
+    const auditdStatus = factField(fact, 'auditd');
 
-    if (sin.length) {
-      partes.push(
-        noCumple(
-          `«${declarada}» está declarada auditable y no se audita del todo: ${
-            estadoAuditd && estadoAuditd !== 'si' ? `auditd ${estadoAuditd === 'no_instalado' ? 'no está instalado' : `no está en marcha (${estadoAuditd})`}, así que nada registra ` : 'ninguna regla cargada en el kernel registra '
-          }${objeto} ${lista(sin, 8)}.`
+    if (without.length) {
+      pieces.push(
+        nonCompliant(
+          `«${declared}» está declarada auditable y no se audita del todo: ${
+            auditdStatus && auditdStatus !== 'si' ? `auditd ${auditdStatus === 'no_instalado' ? 'no está instalado' : `no está en marcha (${auditdStatus})`}, así que nada registra ` : 'ninguna regla cargada en el kernel registra '
+          }${object} ${formatList(without, 8)}.`
         )
       );
-    } else if (!si.length) {
-      partes.push(
-        sinMedir(`«${declarada}»: ninguna de las rutas que ENSFácil vigila para esa categoría existe en este servidor, así que no hay qué contrastar.`)
+    } else if (!watched.length) {
+      pieces.push(
+        notMeasured(`«${declared}»: ninguna de las rutas que ENSFácil vigila para esa categoría existe en este servidor, así que no hay qué contrastar.`)
       );
     } else {
-      partes.push(cumple(`«${declarada}»: auditd registra ${objeto} ${lista(si, 8)}.`));
+      pieces.push(compliant(`«${declared}»: auditd registra ${object} ${formatList(watched, 8)}.`));
     }
   });
 
-  return partes;
+  return pieces;
 };
 
-// EV-03 · los cinco campos de op.exp.8.1 en una muestra real.
-const CAMPOS: [string, string][] = [
+// EV-03 · the five fields of op.exp.8.1 in a real sample.
+const FIELDS: [string, string][] = [
   ['con_usuario', 'usuario o entidad'],
   ['con_fecha_hora', 'fecha y hora'],
   ['con_objeto', 'objeto'],
@@ -628,574 +567,565 @@ const CAMPOS: [string, string][] = [
   ['con_resultado', 'resultado'],
 ];
 
-const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'audit_record_fields', ahora);
+const ev03 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'audit_record_fields', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-03', ultimo, 'muestreo de los campos del registro de auditoría');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-03', last, 'muestreo de los campos del registro de auditoría');
   }
 
-  return combina(
-    vigentes.map(e => {
-      const fuente = `${campo(e, 'fuente')}${campo(e, 'plano') ? ` (${campo(e, 'plano')})` : ''}`;
-      const muestra = numero(campo(e, 'muestra')) || 0;
+  return combineMeasurements(
+    current.map(e => {
+      const source = `${factField(e, 'fuente')}${factField(e, 'plano') ? ` (${factField(e, 'plano')})` : ''}`;
+      const sample = parseNumber(factField(e, 'muestra')) || 0;
 
-      if (muestra <= 0) {
-        return sinMedir(`${fuente}: la muestra está vacía.`);
+      if (sample <= 0) {
+        return notMeasured(`${source}: la muestra está vacía.`);
       }
 
-      const ausentes = CAMPOS.filter(([c]) => (numero(campo(e, c)) || 0) <= 0).map(([, n]) => n);
+      const absent = FIELDS.filter(([c]) => (parseNumber(factField(e, c)) || 0) <= 0).map(([, n]) => n);
 
-      return ausentes.length
-        ? noCumple(`${fuente}: en los ${muestra} registros más recientes no aparece nunca ${ausentes.join(', ')}.`)
-        : cumple(`${fuente}: los cinco campos presentes en la muestra de ${muestra} registros.`);
+      return absent.length
+        ? nonCompliant(`${source}: en los ${sample} registros más recientes no aparece nunca ${absent.join(', ')}.`)
+        : compliant(`${source}: los cinco campos presentes en la muestra de ${sample} registros.`);
     })
   );
 };
 
-// EV-04 · cada servidor declarado mantiene su latido con el manager, sin
-// lagunas mayores que P-12, en TODAS las pasadas de la ventana.
-//
-// Se mide por el keepalive, no por las alertas (decisión del 27/09): un
-// servidor sano y tranquilo pasa horas sin generar una alerta, y contar esas
-// horas como laguna daba un NO_CUMPLE que no demostraba nada. El recolector del
-// manager lee en cada pasada, de la base local de agentes, el ÚLTIMO keepalive
-// de cada uno; como la base solo guarda el último, la laguna se ve en la serie
-// de pasadas: una pasada en la que el keepalive quedaba más atrás que P-12.
-//
-// Dos límites que se dicen en el motivo y no se esconden:
-//   - con pasadas horarias, una laguna se ve si dura más que P-12 más el
-//     intervalo entre pasadas; una más corta puede caer entre dos;
-//   - si faltan pasadas del propio recolector (dos seguidas separadas más que
-//     P-12, o la última más vieja que P-12), una laguna ahí no se habría
-//     visto: NO_EVALUABLE por COLLECTION, nunca CUMPLE. Una laguna SÍ
-//     observada manda sobre eso: es una medida.
-const HECHO_KEEPALIVE = 'agent_keepalive_observed';
+// EV-04 · each declared server keeps its heartbeat with the manager, with no gaps longer than P-12,
+// in ALL runs of the window.
+// Measured by keepalive, not alerts: a healthy, quiet server goes hours without an alert and
+// counting them as a gap gave a NO_CUMPLE that proved nothing. The manager's collector reads each
+// agent's LAST keepalive from the local agents database every run; since the database keeps only
+// the last, the gap shows in the series of runs: a run where the keepalive lagged more than P-12.
+// Two limits stated in the reason: with hourly runs a gap is seen if it lasts more than P-12 plus
+// the interval between runs, a shorter one may fall between two; if the collector's own runs are
+// missing (two consecutive more than P-12 apart, or the last older than P-12) a gap there would not
+// have been seen: NO_EVALUABLE by COLLECTION, never CUMPLE. An OBSERVED gap still wins: it is a
+// measurement.
+const KEEPALIVE_FACT = 'agent_keepalive_observed';
 
-// Hechos de una misma pasada: el recolector los emite en pocos segundos.
-const MISMA_PASADA = 5 * 60 * 1000;
+// Facts of one run are emitted within a few seconds.
+const SAME_RUN_WINDOW_MS = 5 * 60 * 1000;
 
-// Holgura del hueco entre pasadas: el cron no cae en el mismo segundo cada hora.
-const HOLGURA_PASADA = 15 * 60 * 1000;
+// Slack of the gap between runs: cron does not fire on the same second every hour.
+const RUN_SLACK = 15 * 60 * 1000;
 
 const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
 
-const pasadasDeKeepalive = (
-  validos: ENSNormalizedEvent[]
+const keepaliveRuns = (
+  valid: ENSNormalizedEvent[]
 ): { t: number; hechos: ENSNormalizedEvent[] }[] => {
-  const pasadas: { t: number; hechos: ENSNormalizedEvent[] }[] = [];
+  const runs: { t: number; hechos: ENSNormalizedEvent[] }[] = [];
 
-  [...validos]
-    .sort((a, b) => momento(a) - momento(b))
+  [...valid]
+    .sort((a, b) => eventTime(a) - eventTime(b))
     .forEach(e => {
-      const actual = pasadas[pasadas.length - 1];
+      const actual = runs[runs.length - 1];
 
-      if (actual && momento(e) - actual.t <= MISMA_PASADA) {
+      if (actual && eventTime(e) - actual.t <= SAME_RUN_WINDOW_MS) {
         actual.hechos.push(e);
 
         return;
       }
 
-      pasadas.push({ t: momento(e), hechos: [e] });
+      runs.push({ t: eventTime(e), hechos: [e] });
     });
 
-  return pasadas;
+  return runs;
 };
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const validos = hechos(context, HECHO_KEEPALIVE).filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
-  const ultimo = validos.length ? Math.max(...validos.map(momento)) : undefined;
+const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
+  const valid = facts(context, KEEPALIVE_FACT).filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
+  const last = valid.length ? Math.max(...valid.map(eventTime)) : undefined;
 
-  if (ultimo === undefined || ahora - ultimo > FRESCURA_HORAS * HORA) {
-    return sinHechos(context, 'EV-04', ultimo, 'último keepalive de los agentes leído en el manager');
+  if (last === undefined || now - last > FRESHNESS_HOURS * HOUR_MS) {
+    return withoutFacts(context, 'EV-04', last, 'último keepalive de los agentes leído en el manager');
   }
 
-  // Lo que el recolector declaró después de su último hecho (la base de
-  // agentes dejó de poder leerse, por ejemplo).
-  const deg = degradacion(context, 'EV-04', ultimo + 1);
+  // What the collector declared after its last fact (the agents database could no longer be read,
+  // for example).
+  const deg = degradation(context, 'EV-04', last + 1);
 
   if (deg) {
     return deg;
   }
 
-  const pasadas = pasadasDeKeepalive(validos);
-  const ultimaPasada = pasadas[pasadas.length - 1];
-  const servidores = filas(context, 'P-02');
-  const plazo = escalar(context, 'P-12');
+  const runs = keepaliveRuns(valid);
+  const lastRun = runs[runs.length - 1];
+  const servers = tableParameterRows(context, 'P-02');
+  const deadline = positiveScalar(context, 'P-12');
 
-  if (!servidores) {
-    return faltaParametro(context, 'P-02', `qué servidores tienen que estar entregando (el manager tiene hoy ${ultimaPasada.hechos.length} agentes registrados)`);
+  if (!servers) {
+    return missingParameter(context, 'P-02', `qué servidores tienen que estar entregando (el manager tiene hoy ${lastRun.hechos.length} agentes registrados)`);
   }
 
-  if (plazo === undefined || plazo <= 0) {
-    return faltaParametro(context, 'P-12', 'cuánto silencio de un servidor es una laguna');
+  if (deadline === undefined || deadline <= 0) {
+    return missingParameter(context, 'P-12', 'cuánto silencio de un servidor es una laguna');
   }
 
-  const desde = pasadas[0].t;
-  const plazoMs = plazo * HORA;
-  const fallos: string[] = [];
-  const bien: string[] = [];
+  const since = runs[0].t;
+  const deadlineMs = deadline * HOUR_MS;
+  const failures: string[] = [];
+  const ok: string[] = [];
 
-  servidores.forEach(fila => {
-    const nombre = fila.servidor;
-    const suyo = (e: ENSNormalizedEvent) =>
-      iguales(campo(e, 'agente'), nombre) || iguales(campo(e, 'agente_id'), nombre);
+  servers.forEach(row => {
+    const name = row.servidor;
+    const its = (e: ENSNormalizedEvent) =>
+      equalsIgnoreCase(factField(e, 'agente'), name) || equalsIgnoreCase(factField(e, 'agente_id'), name);
 
-    if (!pasadas.some(p => p.hechos.some(suyo))) {
-      fallos.push(`${nombre}: no figura en la base de agentes del manager en ninguna pasada desde ${iso(desde)}`);
+    if (!runs.some(p => p.hechos.some(its))) {
+      failures.push(`${name}: no figura en la base de agentes del manager en ninguna pasada desde ${iso(since)}`);
 
       return;
     }
 
-    // Por pasada, cuánto quedaba atrás su último keepalive.
-    const lagunas: { t: number; detalle: string; retraso: number }[] = [];
+    // Per run, how far back its last keepalive was.
+    const gaps: { t: number; detalle: string; retraso: number }[] = [];
 
-    pasadas.forEach(p => {
-      const hecho = p.hechos.find(suyo);
+    runs.forEach(p => {
+      const fact = p.hechos.find(its);
 
-      if (!hecho) {
-        lagunas.push({ t: p.t, retraso: Infinity, detalle: 'no figuraba en la base de agentes' });
+      if (!fact) {
+        gaps.push({ t: p.t, retraso: Infinity, detalle: 'no figuraba en la base de agentes' });
 
         return;
       }
 
-      const keepalive = instante(campo(hecho, 'ultimo_keepalive'));
-      const estado = campo(hecho, 'estado_conexion') || 'desconocido';
+      const keepalive = parseInstant(factField(fact, 'ultimo_keepalive'));
+      const status = factField(fact, 'estado_conexion') || 'desconocido';
 
       if (keepalive === undefined) {
-        lagunas.push({ t: p.t, retraso: Infinity, detalle: `sin keepalive (${estado})` });
-      } else if (p.t - keepalive > plazoMs) {
-        lagunas.push({
+        gaps.push({ t: p.t, retraso: Infinity, detalle: `sin keepalive (${status})` });
+      } else if (p.t - keepalive > deadlineMs) {
+        gaps.push({
           t: p.t,
           retraso: p.t - keepalive,
-          detalle: `último keepalive ${iso(keepalive)}, ${horas(p.t - keepalive)} h antes (${estado})`,
+          detalle: `último keepalive ${iso(keepalive)}, ${formatHours(p.t - keepalive)} h antes (${status})`,
         });
       }
     });
 
-    if (lagunas.length) {
-      const peorLaguna = [...lagunas].sort((a, b) => b.retraso - a.retraso)[0];
-      const ultimaLaguna = lagunas[lagunas.length - 1];
+    if (gaps.length) {
+      const worstGap = [...gaps].sort((a, b) => b.retraso - a.retraso)[0];
+      const lastGap = gaps[gaps.length - 1];
 
-      fallos.push(
-        `${nombre}: laguna en ${lagunas.length} de ${pasadas.length} pasadas desde ${iso(desde)} (plazo ${plazo} h); la peor, en la pasada de ${iso(peorLaguna.t)}: ${peorLaguna.detalle}${
-          ultimaLaguna !== peorLaguna ? `; la más reciente, ${iso(ultimaLaguna.t)}: ${ultimaLaguna.detalle}` : ''
+      failures.push(
+        `${name}: laguna en ${gaps.length} de ${runs.length} pasadas desde ${iso(since)} (plazo ${deadline} h); la peor, en la pasada de ${iso(worstGap.t)}: ${worstGap.detalle}${
+          lastGap !== worstGap ? `; la más reciente, ${iso(lastGap.t)}: ${lastGap.detalle}` : ''
         }`
       );
 
       return;
     }
 
-    const actual = ultimaPasada.hechos.find(suyo);
-    const keepalive = actual ? instante(campo(actual, 'ultimo_keepalive')) : undefined;
-    const eventos = actual ? campo(actual, 'eventos_24h') : '';
+    const actual = lastRun.hechos.find(its);
+    const keepalive = actual ? parseInstant(factField(actual, 'ultimo_keepalive')) : undefined;
+    const events = actual ? factField(actual, 'eventos_24h') : '';
 
-    bien.push(
-      `${nombre} (último keepalive ${keepalive !== undefined ? `${Math.max(0, Math.round((ultimaPasada.t - keepalive) / 60000))} min antes de la última pasada` : 'desconocido'}${
-        eventos ? `; ${eventos} eventos en 24 h, dato informativo` : ''
+    ok.push(
+      `${name} (último keepalive ${keepalive !== undefined ? `${Math.max(0, Math.round((lastRun.t - keepalive) / 60000))} min antes de la última pasada` : 'desconocido'}${
+        events ? `; ${events} eventos en 24 h, dato informativo` : ''
       })`
     );
   });
 
-  if (fallos.length) {
-    return noCumple(`Servidores de P-02 sin latido continuo con el manager: ${lista(fallos)}.`);
+  if (failures.length) {
+    return nonCompliant(`Servidores de P-02 sin latido continuo con el manager: ${formatList(failures)}.`);
   }
 
-  // Sin laguna observada: ¿se observó TODO el periodo?
-  const huecos: string[] = [];
+  // No observed gap: was the WHOLE period observed?
+  const blanks: string[] = [];
 
-  pasadas.forEach((p, i) => {
-    if (i > 0 && p.t - pasadas[i - 1].t > plazoMs + HOLGURA_PASADA) {
-      huecos.push(`entre ${iso(pasadas[i - 1].t)} y ${iso(p.t)} (${horas(p.t - pasadas[i - 1].t)} h)`);
+  runs.forEach((p, i) => {
+    if (i > 0 && p.t - runs[i - 1].t > deadlineMs + RUN_SLACK) {
+      blanks.push(`entre ${iso(runs[i - 1].t)} y ${iso(p.t)} (${formatHours(p.t - runs[i - 1].t)} h)`);
     }
   });
 
-  if (ahora - ultimaPasada.t > plazoMs + HOLGURA_PASADA) {
-    huecos.push(`desde ${iso(ultimaPasada.t)} hasta ahora (${horas(ahora - ultimaPasada.t)} h)`);
+  if (now - lastRun.t > deadlineMs + RUN_SLACK) {
+    blanks.push(`desde ${iso(lastRun.t)} hasta ahora (${formatHours(now - lastRun.t)} h)`);
   }
 
-  if (huecos.length) {
-    return sinMedir(
-      `Faltan pasadas del recolector del manager ${lista(huecos)}: más de P-12 (${plazo} h) sin mirar, así que una laguna de un servidor en ese intervalo no se habría visto. En las pasadas que sí hay, ningún servidor de P-02 superó el plazo.`,
+  if (blanks.length) {
+    return notMeasured(
+      `Faltan pasadas del recolector del manager ${formatList(blanks)}: más de P-12 (${deadline} h) sin mirar, así que una laguna de un servidor en ese intervalo no se habría visto. En las pasadas que sí hay, ningún servidor de P-02 superó el plazo.`,
       'COLLECTION'
     );
   }
 
-  return cumple(
-    `En las ${pasadas.length} pasadas del recolector del manager desde ${iso(desde)}, el último keepalive de los ${bien.length} servidores de P-02 nunca quedó más atrás de ${plazo} h: ${lista(bien)}.`
+  return compliant(
+    `En las ${runs.length} pasadas del recolector del manager desde ${iso(since)}, el último keepalive de los ${ok.length} servidores de P-02 nunca quedó más atrás de ${deadline} h: ${formatList(ok)}.`
   );
 };
 
-// EV-05 · la revisión más reciente, contra P-04.
-const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'log_review_recorded', ahora);
+// EV-05 · the most recent review, against P-04.
+const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'log_review_recorded', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-05', ultimo, 'estado del registro de revisiones');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-05', last, 'estado del registro de revisiones');
   }
 
-  const e = vigentes.sort((a, b) => momento(b) - momento(a))[0];
-  const deg = degradacion(context, 'EV-05', momento(e) + 1);
+  const e = current.sort((a, b) => eventTime(b) - eventTime(a))[0];
+  const deg = degradation(context, 'EV-05', eventTime(e) + 1);
 
   if (deg) {
     return deg;
   }
 
-  if ((numero(campo(e, 'revisiones')) || 0) === 0) {
-    return noCumple(`El registro de revisiones (${campo(e, 'registro')}) no tiene ninguna revisión anotada: no consta que los registros se revisen.`);
+  if ((parseNumber(factField(e, 'revisiones')) || 0) === 0) {
+    return nonCompliant(`El registro de revisiones (${factField(e, 'registro')}) no tiene ninguna revisión anotada: no consta que los registros se revisen.`);
   }
 
-  const plazo = escalar(context, 'P-04');
+  const deadline = positiveScalar(context, 'P-04');
 
-  if (plazo === undefined || plazo <= 0) {
-    return faltaParametro(context, 'P-04', `la periodicidad de las revisiones (la última anotada es del ${campo(e, 'ultima_revision')})`);
+  if (deadline === undefined || deadline <= 0) {
+    return missingParameter(context, 'P-04', `la periodicidad de las revisiones (la última anotada es del ${factField(e, 'ultima_revision')})`);
   }
 
-  const fecha = instante(campo(e, 'ultima_revision'));
+  const date = parseInstant(factField(e, 'ultima_revision'));
 
-  if (fecha === undefined) {
-    return sinMedir(`La revisión más reciente no tiene una fecha legible (${campo(e, 'ultima_revision')}).`);
+  if (date === undefined) {
+    return notMeasured(`La revisión más reciente no tiene una fecha legible (${factField(e, 'ultima_revision')}).`);
   }
 
-  const detalle = `revisión del ${campo(e, 'ultima_revision')} por ${campo(e, 'revisor')} (alcance: ${campo(e, 'alcance')}; hallazgos: ${campo(e, 'hallazgos')}; ${campo(e, 'referencia')})`;
+  const detail = `revisión del ${factField(e, 'ultima_revision')} por ${factField(e, 'revisor')} (alcance: ${factField(e, 'alcance')}; hallazgos: ${factField(e, 'hallazgos')}; ${factField(e, 'referencia')})`;
 
-  return ahora - fecha > plazo * DIA
-    ? noCumple(`La última ${detalle} tiene ${Math.floor((ahora - fecha) / DIA)} días, más que la periodicidad de ${plazo} días de P-04.`)
-    : cumple(`Última ${detalle}, dentro de la periodicidad de ${plazo} días. ${campo(e, 'revisiones')} revisiones anotadas.`);
+  return now - date > deadline * DAY_MS
+    ? nonCompliant(`La última ${detail} tiene ${Math.floor((now - date) / DAY_MS)} días, más que la periodicidad de ${deadline} días de P-04.`)
+    : compliant(`Última ${detail}, dentro de la periodicidad de ${deadline} días. ${factField(e, 'revisiones')} revisiones anotadas.`);
 };
 
-// Por qué no queda traza de los cambios de hora, y qué hay que hacer. Cargar
-// las reglas (`augenrules --load`) solo sirve si auditd está instalado y en
-// marcha: en un manager sin auditd, ese consejo mandaba a ejecutar una orden que
-// no existe. Lo dice el estado de auditd de la misma pasada (EV-01).
-const sinTrazaDeHora = (context: ENSPolicyContext, ahora: number): string => {
+// Why no trace of time changes remains, and what to do. Loading rules (`augenrules --load`) only
+// helps if auditd is installed and running: on a manager without auditd that advice told people to
+// run a command that does not exist. The same run's auditd state (EV-01) says it.
+const noHourTrace = (context: ENSPolicyContext, now: number): string => {
   const syscalls = '(adjtimex, settimeofday, clock_settime)';
-  const auditd = estadoVigente(context, 'audit_log_status', ahora).vigentes.find(
-    a => campo(a, 'fuente') === 'auditd'
+  const auditd = currentStatus(context, 'audit_log_status', now).vigentes.find(
+    a => factField(a, 'fuente') === 'auditd'
   );
-  const activo = auditd ? campo(auditd, 'activo') : '';
+  const active = auditd ? factField(auditd, 'activo') : '';
 
-  if (activo === 'no_instalado') {
+  if (active === 'no_instalado') {
     return `auditd no está instalado en este servidor: nada registra los cambios de la hora del sistema ${syscalls} y un cambio de hora no dejaría traza. Hay que instalar auditd y cargar las reglas del runbook.`;
   }
 
-  if (auditd && activo !== 'si') {
-    return `auditd no está en marcha (${activo || 'desconocido'}): nada registra los cambios de la hora del sistema ${syscalls} y un cambio de hora no dejaría traza. Hay que arrancar auditd y cargar las reglas del runbook (augenrules --load).`;
+  if (auditd && active !== 'si') {
+    return `auditd no está en marcha (${active || 'desconocido'}): nada registra los cambios de la hora del sistema ${syscalls} y un cambio de hora no dejaría traza. Hay que arrancar auditd y cargar las reglas del runbook (augenrules --load).`;
   }
 
   return `auditd no registra los cambios de la hora del sistema ${syscalls}: un cambio de hora no dejaría traza. Carga las reglas del runbook (augenrules --load).`;
 };
 
-// EV-06 · la referencia de tiempo: sincronización, fuente declarada, desfase,
-// autenticación y traza de los cambios de hora.
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'time_sync_status', ahora);
+// EV-06 · time reference: synchronization, declared source, skew, authentication and trace of time
+// changes.
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'time_sync_status', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-06', ultimo, 'estado de la sincronización del reloj');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-06', last, 'estado de la sincronización del reloj');
   }
 
-  const e = vigentes.sort((a, b) => momento(b) - momento(a))[0];
-  const servicio = campo(e, 'servicio');
-  const fuentes = campo(e, 'fuentes')
+  const e = current.sort((a, b) => eventTime(b) - eventTime(a))[0];
+  const service = factField(e, 'servicio');
+  const sources = factField(e, 'fuentes')
     .split(',')
     .map(f => f.trim())
     .filter(f => f && f !== '-');
-  const partes: Medida[] = [];
+  const pieces: Measurement[] = [];
 
-  if (servicio === 'ninguno' || campo(e, 'sincronizado') !== 'si') {
-    partes.push(noCumple(`El reloj no está sincronizado (servicio: ${servicio || 'desconocido'}): no hay referencia de tiempo fiable para el registro.`));
+  if (service === 'ninguno' || factField(e, 'sincronizado') !== 'si') {
+    pieces.push(nonCompliant(`El reloj no está sincronizado (servicio: ${service || 'desconocido'}): no hay referencia de tiempo fiable para el registro.`));
   } else {
-    partes.push(cumple(`Reloj sincronizado con ${servicio} (${fuentes.join(', ') || 'fuente no identificada'}).`));
+    pieces.push(compliant(`Reloj sincronizado con ${service} (${sources.join(', ') || 'fuente no identificada'}).`));
   }
 
-  const autenticacion = campo(e, 'autenticacion');
+  const authentication = factField(e, 'autenticacion');
 
-  if (fuentes.length && (autenticacion === 'ninguna' || !autenticacion)) {
-    partes.push(
-      noCumple(
-        `La sincronización con ${fuentes.join(', ')} no usa autenticación ni integridad${servicio === 'systemd-timesyncd' ? ' (systemd-timesyncd no las admite)' : ''}, que R2 exige al sincronizar con otros dispositivos.`
+  if (sources.length && (authentication === 'ninguna' || !authentication)) {
+    pieces.push(
+      nonCompliant(
+        `La sincronización con ${sources.join(', ')} no usa autenticación ni integridad${service === 'systemd-timesyncd' ? ' (systemd-timesyncd no las admite)' : ''}, que R2 exige al sincronizar con otros dispositivos.`
       )
     );
-  } else if (fuentes.length) {
-    partes.push(cumple(`Sincronización autenticada (${autenticacion}).`));
+  } else if (sources.length) {
+    pieces.push(compliant(`Sincronización autenticada (${authentication}).`));
   }
 
-  const declaradas = filas(context, 'P-05');
+  const declared = tableParameterRows(context, 'P-05');
 
-  if (!declaradas) {
-    partes.push(faltaParametro(context, 'P-05', 'si las fuentes de tiempo en uso son las previstas'));
+  if (!declared) {
+    pieces.push(missingParameter(context, 'P-05', 'si las fuentes de tiempo en uso son las previstas'));
   } else {
-    const ajenas = fuentes.filter(f => !declaradas.some(d => iguales(d.fuente_tiempo, f)));
+    const foreign = sources.filter(f => !declared.some(d => equalsIgnoreCase(d.fuente_tiempo, f)));
 
-    partes.push(
-      ajenas.length
-        ? noCumple(`Fuentes de tiempo en uso que P-05 no declara: ${ajenas.join(', ')}.`)
-        : cumple('Las fuentes en uso son las declaradas en P-05.')
+    pieces.push(
+      foreign.length
+        ? nonCompliant(`Fuentes de tiempo en uso que P-05 no declara: ${foreign.join(', ')}.`)
+        : compliant('Las fuentes en uso son las declaradas en P-05.')
     );
   }
 
-  const maximo = escalar(context, 'P-06');
-  const desfase = numero(campo(e, 'desfase_segundos'));
+  const max = positiveScalar(context, 'P-06');
+  const skew = parseNumber(factField(e, 'desfase_segundos'));
 
-  if (maximo === undefined || maximo < 0) {
-    partes.push(faltaParametro(context, 'P-06', `la desviación del reloj (medida: ${campo(e, 'desfase_segundos')} s)`));
-  } else if (desfase === undefined) {
-    partes.push(sinMedir(`El servicio de sincronización no ha informado del desfase (${campo(e, 'desfase_segundos') || 'vacío'}).`));
-  } else if (Math.abs(desfase) > maximo) {
-    partes.push(noCumple(`Desfase del reloj de ${desfase} s, mayor que los ${maximo} s de P-06.`));
+  if (max === undefined || max < 0) {
+    pieces.push(missingParameter(context, 'P-06', `la desviación del reloj (medida: ${factField(e, 'desfase_segundos')} s)`));
+  } else if (skew === undefined) {
+    pieces.push(notMeasured(`El servicio de sincronización no ha informado del desfase (${factField(e, 'desfase_segundos') || 'vacío'}).`));
+  } else if (Math.abs(skew) > max) {
+    pieces.push(nonCompliant(`Desfase del reloj de ${skew} s, mayor que los ${max} s de P-06.`));
   } else {
-    partes.push(cumple(`Desfase de ${desfase} s, dentro de los ${maximo} s de P-06.`));
+    pieces.push(compliant(`Desfase de ${skew} s, dentro de los ${max} s de P-06.`));
   }
 
-  // La traza de los cambios de hora: sin una regla que los registre, un cambio
-  // no deja rastro y no se puede afirmar que solo los haga la administración.
-  const cambios = hechos(context, 'clock_change_observed').map(
-    c => `${campo(c, 'actor')} con ${campo(c, 'proceso')} (${campo(c, 'syscall')}, ${campo(c, 'veces')} veces, la última el ${campo(c, 'ultima')})`
+  // Trace of time changes: without a rule recording them a change leaves no trace and it cannot be
+  // asserted that only administration makes them.
+  const changes = facts(context, 'clock_change_observed').map(
+    c => `${factField(c, 'actor')} con ${factField(c, 'proceso')} (${factField(c, 'syscall')}, ${factField(c, 'veces')} veces, la última el ${factField(c, 'ultima')})`
   );
 
-  if (campo(e, 'vigilancia_cambio_hora') !== 'si') {
-    partes.push(sinMedir(sinTrazaDeHora(context, ahora), 'CONFIGURATION'));
+  if (factField(e, 'vigilancia_cambio_hora') !== 'si') {
+    pieces.push(notMeasured(noHourTrace(context, now), 'CONFIGURATION'));
   } else {
-    partes.push(
-      cumple(
-        cambios.length
-          ? `Cambios de hora registrados en la ventana: ${lista(cambios)}.`
+    pieces.push(
+      compliant(
+        changes.length
+          ? `Cambios de hora registrados en la ventana: ${formatList(changes)}.`
           : 'Los cambios de hora quedan registrados por auditd; ninguno en la ventana.'
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(pieces);
 };
 
-// EV-07 · la retención: en disco se ve; la de los índices, no.
-const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes } = estadoVigente(context, 'log_retention_observed', ahora);
-  const alertas = vigentes.find(e => campo(e, 'almacen') === 'alertas_disco');
-  const p07 = filas(context, 'P-07');
-  const maximo = p07
-    ? Math.max(...p07.map(f => numero(f.dias_retencion) || 0))
+// EV-07 · retention: on disk it is visible; the indexes' is not.
+const ev07 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current } = currentStatus(context, 'log_retention_observed', now);
+  const alerts = current.find(e => factField(e, 'almacen') === 'alertas_disco');
+  const p07 = tableParameterRows(context, 'P-07');
+  const max = p07
+    ? Math.max(...p07.map(f => parseNumber(f.dias_retencion) || 0))
     : undefined;
 
-  const disco = alertas
-    ? ` En disco, el manager conserva alertas desde el ${campo(alertas, 'mas_antiguo')} (${campo(alertas, 'dias_conservados')} días)${maximo ? `; P-07 declara hasta ${maximo} días` : ''}.`
+  const disk = alerts
+    ? ` En disco, el manager conserva alertas desde el ${factField(alerts, 'mas_antiguo')} (${factField(alerts, 'dias_conservados')} días)${max ? `; P-07 declara hasta ${max} días` : ''}.`
     : '';
 
-  // Sin credenciales del indexer por decisión del responsable (26/09): lo
-  // que falta es una decisión de configuración, no un fallo de recogida.
+  // Without indexer credentials by the owner's decision: what is missing is a configuration
+  // decision, not a collection failure.
   const deg =
-    degradacion(context, 'EV-07') ||
-    sinMedir(
+    degradation(context, 'EV-07') ||
+    notMeasured(
       'La retención de los índices del Wazuh Indexer (políticas ISM) solo se ve consultando el indexer, y el recolector del manager no usa credenciales.',
       'CONFIGURATION'
     );
 
-  return sinMedir(
-    `${deg.motivo}${disco}${p07 ? '' : ` ${etiqueta(context, 'P-07')} está sin configurar.`}`,
+  return notMeasured(
+    `${deg.motivo}${disk}${p07 ? '' : ` ${parameterDisplayName(context, 'P-07')} está sin configurar.`}`,
     p07 ? deg.causa : 'CONFIGURATION'
   );
 };
 
-// EV-08 · quién puede leer los registros, contra P-08.
-const ev08 = (context: ENSPolicyContext, ahora: number, plano: Plano): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'log_access_permissions', ahora);
+// EV-08 · who can read the logs, against P-08.
+const ev08 = (context: ENSPolicyContext, now: number, plane: Plane): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'log_access_permissions', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-08', ultimo, 'estado del acceso a los registros');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-08', last, 'estado del acceso a los registros');
   }
 
-  const autorizadas = filas(context, 'P-08')?.map(f => f.cuenta).filter(Boolean);
-  const abiertos: string[] = [];
-  const ajenos: string[] = [];
+  const authorized = tableParameterRows(context, 'P-08')?.map(f => f.cuenta).filter(Boolean);
+  const open: string[] = [];
+  const foreign: string[] = [];
 
-  vigentes.forEach(e => {
-    const cuentas = campo(e, 'cuentas')
+  current.forEach(e => {
+    const accounts = factField(e, 'cuentas')
       .split(',')
       .map(c => c.trim())
       .filter(Boolean);
 
-    if (cuentas.includes('*')) {
-      abiertos.push(campo(e, 'ruta'));
+    if (accounts.includes('*')) {
+      open.push(factField(e, 'ruta'));
     }
 
-    // Comparación LITERAL: en Linux 'Admin' y 'admin' son dos cuentas.
-    const fuera = autorizadas
-      ? cuentas.filter(c => c !== '*' && !autorizadas.includes(c))
+    // LITERAL comparison: on Linux 'Admin' and 'admin' are two accounts.
+    const outside = authorized
+      ? accounts.filter(c => c !== '*' && !authorized.includes(c))
       : [];
 
-    if (fuera.length) {
-      ajenos.push(`${campo(e, 'ruta')} (${fuera.join(', ')})`);
+    if (outside.length) {
+      foreign.push(`${factField(e, 'ruta')} (${outside.join(', ')})`);
     }
   });
 
-  const partes: Medida[] = [];
+  const pieces: Measurement[] = [];
 
-  if (abiertos.length) {
-    partes.push(noCumple(`Registros legibles por cualquier cuenta de la máquina: ${lista(abiertos)}.`));
+  if (open.length) {
+    pieces.push(nonCompliant(`Registros legibles por cualquier cuenta de la máquina: ${formatList(open)}.`));
   }
 
-  if (!autorizadas) {
-    partes.push(faltaParametro(context, 'P-08', 'qué cuentas pueden leer los registros'));
-  } else if (ajenos.length) {
-    partes.push(noCumple(`Registros legibles por cuentas que P-08 no autoriza: ${lista(ajenos)}.`));
-  } else if (!abiertos.length) {
-    partes.push(cumple(`Los ${vigentes.length} registros observados solo los pueden leer cuentas autorizadas en P-08.`));
+  if (!authorized) {
+    pieces.push(missingParameter(context, 'P-08', 'qué cuentas pueden leer los registros'));
+  } else if (foreign.length) {
+    pieces.push(nonCompliant(`Registros legibles por cuentas que P-08 no autoriza: ${formatList(foreign)}.`));
+  } else if (!open.length) {
+    pieces.push(compliant(`Los ${current.length} registros observados solo los pueden leer cuentas autorizadas en P-08.`));
   }
 
-  if (plano === 'central') {
-    partes.push(
-      degradacion(context, 'EV-08') ||
-        sinMedir(
+  if (plane === 'central') {
+    pieces.push(
+      degradation(context, 'EV-08') ||
+        notMeasured(
           'Los accesos efectivos a los índices (audit log del plugin de seguridad del indexer) no se ven sin credenciales.',
           'CONFIGURATION'
         )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(pieces);
 };
 
-// EV-09 · las copias de los registros: sin credenciales del indexer no se ven.
-const ev09 = (context: ENSPolicyContext): Medida =>
-  degradacion(context, 'EV-09') ||
-  sinMedir(
+// EV-09 · log copies: not visible without indexer credentials.
+const ev09 = (context: ENSPolicyContext): Measurement =>
+  degradation(context, 'EV-09') ||
+  notMeasured(
     'Las copias de los registros (snapshots del Wazuh Indexer) solo se ven consultando el indexer, y el recolector del manager no usa credenciales.',
     'CONFIGURATION'
   );
 
-// EV-10 · los conjuntos de reglas declarados en P-10, cargados.
-const ev10 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'correlation_rules_inventory', ahora);
+// EV-10 · the rule sets declared in P-10, loaded.
+const ev10 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'correlation_rules_inventory', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-10', ultimo, 'inventario de reglas del manager');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-10', last, 'inventario de reglas del manager');
   }
 
-  const total = vigentes.reduce((t, e) => t + (numero(campo(e, 'reglas')) || 0), 0);
-  const resumen = vigentes
-    .map(e => `${campo(e, 'conjunto')}: ${campo(e, 'reglas')} reglas, ${campo(e, 'reglas_con_mitre')} con MITRE ATT&CK`)
+  const total = current.reduce((t, e) => t + (parseNumber(factField(e, 'reglas')) || 0), 0);
+  const summary = current
+    .map(e => `${factField(e, 'conjunto')}: ${factField(e, 'reglas')} reglas, ${factField(e, 'reglas_con_mitre')} con MITRE ATT&CK`)
     .join('; ');
 
   if (total === 0) {
-    return noCumple('El manager no carga ninguna regla de análisis: no hay herramienta que analice la actividad.');
+    return nonCompliant('El manager no carga ninguna regla de análisis: no hay herramienta que analice la actividad.');
   }
 
-  const declarados = filas(context, 'P-10');
+  const declared = tableParameterRows(context, 'P-10');
 
-  if (!declarados) {
-    return faltaParametro(context, 'P-10', `qué conjuntos de reglas tienen que estar desplegados (cargados hoy: ${resumen})`);
+  if (!declared) {
+    return missingParameter(context, 'P-10', `qué conjuntos de reglas tienen que estar desplegados (cargados hoy: ${summary})`);
   }
 
-  const faltan = declarados
+  const missing = declared
     .map(f => f.conjunto_reglas)
-    .filter(c => !vigentes.some(e => iguales(campo(e, 'conjunto'), c) && (numero(campo(e, 'reglas')) || 0) > 0));
+    .filter(c => !current.some(e => equalsIgnoreCase(factField(e, 'conjunto'), c) && (parseNumber(factField(e, 'reglas')) || 0) > 0));
 
-  return faltan.length
-    ? noCumple(`Conjuntos de reglas de P-10 que el manager no carga: ${faltan.join(', ')}. Cargados: ${resumen}.`)
-    : cumple(`Cargados todos los conjuntos de reglas de P-10 (${resumen}).`);
+  return missing.length
+    ? nonCompliant(`Conjuntos de reglas de P-10 que el manager no carga: ${missing.join(', ')}. Cargados: ${summary}.`)
+    : compliant(`Cargados todos los conjuntos de reglas de P-10 (${summary}).`);
 };
 
-// EV-11 · respuestas automáticas configuradas, y las de P-11.
-const SIN_REVERSION = ['', '-', 'no', 'ninguna', 'sin reversion', 'sin reversión'];
+// EV-11 · configured automatic responses, and P-11's.
+const NO_REVERSION = ['', '-', 'no', 'ninguna', 'sin reversion', 'sin reversión'];
 
-const ev11 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'active_response_configured', ahora);
+const ev11 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'active_response_configured', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-11', ultimo, 'inventario de respuestas activas del manager');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-11', last, 'inventario de respuestas activas del manager');
   }
 
-  const habilitadas = vigentes.filter(
-    e => campo(e, 'comando') !== '-' && campo(e, 'deshabilitada') !== 'si' && campo(e, 'comando_definido') === 'si'
+  const enabled = current.filter(
+    e => factField(e, 'comando') !== '-' && factField(e, 'deshabilitada') !== 'si' && factField(e, 'comando_definido') === 'si'
   );
 
-  if (!habilitadas.length) {
-    return noCumple('El manager no tiene ninguna respuesta automática configurada y habilitada: el sistema recolecta y correlaciona, pero no responde.');
+  if (!enabled.length) {
+    return nonCompliant('El manager no tiene ninguna respuesta automática configurada y habilitada: el sistema recolecta y correlaciona, pero no responde.');
   }
 
-  const resumen = habilitadas
-    .map(e => `${campo(e, 'comando')} sobre ${campo(e, 'reglas_id') !== '-' ? `reglas ${campo(e, 'reglas_id')}` : `grupos ${campo(e, 'grupos')}`}${campo(e, 'timeout') !== '-' ? `, reversión ${campo(e, 'timeout')} s` : ''}`)
+  const summary = enabled
+    .map(e => `${factField(e, 'comando')} sobre ${factField(e, 'reglas_id') !== '-' ? `reglas ${factField(e, 'reglas_id')}` : `grupos ${factField(e, 'grupos')}`}${factField(e, 'timeout') !== '-' ? `, reversión ${factField(e, 'timeout')} s` : ''}`)
     .join('; ');
 
-  const previstas = filas(context, 'P-11');
+  const expected = tableParameterRows(context, 'P-11');
 
-  if (!previstas) {
-    return faltaParametro(context, 'P-11', `qué respuestas automáticas están previstas (configuradas hoy: ${resumen})`);
+  if (!expected) {
+    return missingParameter(context, 'P-11', `qué respuestas automáticas están previstas (configuradas hoy: ${summary})`);
   }
 
-  const fallos: string[] = [];
+  const failures: string[] = [];
 
-  previstas.forEach(f => {
-    const suyas = habilitadas.filter(e => iguales(campo(e, 'comando'), f.accion));
+  expected.forEach(f => {
+    const their = enabled.filter(e => equalsIgnoreCase(factField(e, 'comando'), f.accion));
 
-    if (!suyas.length) {
-      fallos.push(`${f.accion}: prevista en P-11 y no configurada o deshabilitada`);
+    if (!their.length) {
+      failures.push(`${f.accion}: prevista en P-11 y no configurada o deshabilitada`);
     } else if (
-      !SIN_REVERSION.includes((f.reversion || '').trim().toLowerCase()) &&
-      suyas.every(e => campo(e, 'timeout') === '-')
+      !NO_REVERSION.includes((f.reversion || '').trim().toLowerCase()) &&
+      their.every(e => factField(e, 'timeout') === '-')
     ) {
-      fallos.push(`${f.accion}: P-11 declara reversión (${f.reversion}) y la respuesta configurada no tiene timeout`);
+      failures.push(`${f.accion}: P-11 declara reversión (${f.reversion}) y la respuesta configurada no tiene timeout`);
     }
   });
 
-  return fallos.length
-    ? noCumple(`Respuestas automáticas de P-11 que no están como se declaran: ${lista(fallos)}. Configuradas: ${resumen}.`)
-    : cumple(`Configuradas y habilitadas las respuestas de P-11 (${resumen}).`);
+  return failures.length
+    ? nonCompliant(`Respuestas automáticas de P-11 que no están como se declaran: ${formatList(failures)}. Configuradas: ${summary}.`)
+    : compliant(`Configuradas y habilitadas las respuestas de P-11 (${summary}).`);
 };
 
-// EV-12 · respuestas automáticas ejecutadas en la ventana.
-const ev12 = (context: ENSPolicyContext): Medida => {
-  const todas = hechos(context, 'active_response_executed');
-  const automaticas = todas.filter(e => campo(e, 'regla_origen') && campo(e, 'regla_origen') !== '-');
+// EV-12 · automatic responses executed in the window.
+const ev12 = (context: ENSPolicyContext): Measurement => {
+  const all = facts(context, 'active_response_executed');
+  const automatic = all.filter(e => factField(e, 'regla_origen') && factField(e, 'regla_origen') !== '-');
   const describe = (e: ENSNormalizedEvent) =>
-    `${campo(e, 'programa')} ${campo(e, 'accion')} en ${campo(e, 'agente')}${campo(e, 'regla_origen') !== '-' ? ` por la regla ${campo(e, 'regla_origen')}` : ''} (${campo(e, 'veces')} veces, la última el ${campo(e, 'ultima')})`;
+    `${factField(e, 'programa')} ${factField(e, 'accion')} en ${factField(e, 'agente')}${factField(e, 'regla_origen') !== '-' ? ` por la regla ${factField(e, 'regla_origen')}` : ''} (${factField(e, 'veces')} veces, la última el ${factField(e, 'ultima')})`;
 
-  if (automaticas.length) {
-    return cumple(`Respuestas automáticas ejecutadas en la ventana: ${lista(automaticas.map(describe))}.`);
+  if (automatic.length) {
+    return compliant(`Respuestas automáticas ejecutadas en la ventana: ${formatList(automatic.map(describe))}.`);
   }
 
-  return sinMedir(
-    `No consta en la ventana ninguna respuesta automática disparada por una alerta: la capacidad está configurada o no, pero no hay prueba de que opere.${todas.length ? ` Ejecuciones sin alerta que las dispare (no son respuesta automática): ${lista(todas.map(describe))}.` : ''}`
+  return notMeasured(
+    `No consta en la ventana ninguna respuesta automática disparada por una alerta: la capacidad está configurada o no, pero no hay prueba de que opere.${all.length ? ` Ejecuciones sin alerta que las dispare (no son respuesta automática): ${formatList(all.map(describe))}.` : ''}`
   );
 };
 
-// EV-13 · los servicios del sistema de registro.
-const ev13 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const { vigentes, ultimo } = estadoVigente(context, 'logging_service_status', ahora);
+// EV-13 · the logging system's services.
+const ev13 = (context: ENSPolicyContext, now: number): Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'logging_service_status', now);
 
-  if (!vigentes.length) {
-    return sinHechos(context, 'EV-13', ultimo, 'estado de los servicios de Wazuh');
+  if (!current.length) {
+    return withoutFacts(context, 'EV-13', last, 'estado de los servicios de Wazuh');
   }
 
-  const caidos = vigentes.filter(e => campo(e, 'activo') !== 'si');
+  const down = current.filter(e => factField(e, 'activo') !== 'si');
 
-  return caidos.length
-    ? noCumple(`Servicios del sistema de registro que no están activos: ${caidos.map(e => `${campo(e, 'servicio')} (${campo(e, 'activo')})`).join(', ')}.`)
-    : cumple(`Servicios del sistema de registro activos: ${vigentes.map(e => `${campo(e, 'servicio')} desde ${campo(e, 'activo_desde')}`).join(', ')}.`);
+  return down.length
+    ? nonCompliant(`Servicios del sistema de registro que no están activos: ${down.map(e => `${factField(e, 'servicio')} (${factField(e, 'activo')})`).join(', ')}.`)
+    : compliant(`Servicios del sistema de registro activos: ${current.map(e => `${factField(e, 'servicio')} desde ${factField(e, 'activo_desde')}`).join(', ')}.`);
 };
 
-// La medida de una evidencia juzgada por primitiva, tal como la dejó su
-// primitiva. Aquí no se re-juzga.
-const deLaPrimitiva = (context: ENSPolicyContext, id: string): Medida => {
-  const evidencia = context.evidences.find(e => e.id === id);
-  const estado = evidencia?.status;
-  const motivo =
-    evidencia?.observations?.filter(o => !o.startsWith('Pregunta de auditoría')).join(' ') || '';
+// Measurement of an evidence judged by a primitive, as its primitive left it; not re-judged here.
+const ofPrimitive = (context: ENSPolicyContext, id: string): Measurement => {
+  const evidence = context.evidences.find(e => e.id === id);
+  const status = evidence?.status;
+  const motive =
+    evidence?.observations?.filter(o => !o.startsWith('Pregunta de auditoría')).join(' ') || '';
 
-  if (estado === 'CUMPLE') return cumple(motivo);
-  if (estado === 'NO_CUMPLE' || estado === 'PARCIAL') return noCumple(motivo);
+  if (status === 'CUMPLE') return compliant(motive);
+  if (status === 'NO_CUMPLE' || status === 'PARCIAL') return nonCompliant(motive);
 
-  return sinMedir(motivo || `${id} no se ha podido medir.`, evidencia?.gapCause || 'COLLECTION');
+  return notMeasured(motive || `${id} no se ha podido medir.`, evidence?.gapCause || 'COLLECTION');
 };
 
-// --- decisiones ------------------------------------------------------------
 
-type Tipo = ENSPolicyDecision['trace']['ruleType'];
+type Type = ENSPolicyDecision['trace']['ruleType'];
 
-// Con qué evidencias se mide cada requisito en cada plano. Un requisito sin
-// evidencias en un plano NO APLICA en esa fila: se mide en la otra.
-const REQUISITOS: Record<string, { servidor: string[]; central: string[]; parametros: string[]; tipo: Tipo }> = {
+// Which evidences measure each requirement in each plane. A requirement without evidences in a
+// plane is NO_APLICA in that row: it is measured in the other.
+const REQUIREMENTS: Record<string, { servidor: string[]; central: string[]; parametros: string[]; tipo: Type }> = {
   'op.exp.8.1': { servidor: ['EV-01', 'EV-03'], central: ['EV-01', 'EV-03', 'EV-04', 'EV-13'], parametros: ['P-01', 'P-03'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.8.2': { servidor: ['EV-02'], central: ['EV-04', 'EV-13'], parametros: ['P-02', 'P-12'], tipo: 'MAX_AGE' },
   'op.exp.8.r1.1': { servidor: [], central: ['EV-05'], parametros: ['P-04'], tipo: 'MAX_AGE' },
@@ -1206,80 +1136,80 @@ const REQUISITOS: Record<string, { servidor: string[]; central: string[]; parame
   'op.exp.8.r5.2': { servidor: [], central: ['EV-11', 'EV-12'], parametros: ['P-11'], tipo: 'COVERAGE_REQUIRED' },
 };
 
-const PRIMITIVAS = ['EV-02'];
+const PRIMITIVES = ['EV-02'];
 
 const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: Tipo,
+  requirement: string,
+  status: Measurement['estado'],
+  evidences: string[],
+  parameters: string[],
+  type: Type,
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const plano = planoDeLaFila(context);
+  const now = (context.now || new Date()).getTime();
+  const plane = rowPlane(context);
 
-  const medir: Record<string, () => Medida> = {
-    'EV-01': () => ev01(context, ahora),
-    'EV-02': () => deLaPrimitiva(context, 'EV-02'),
-    'EV-03': () => ev03(context, ahora),
-    'EV-04': () => ev04(context, ahora),
-    'EV-05': () => ev05(context, ahora),
-    'EV-06': () => ev06(context, ahora),
-    'EV-07': () => ev07(context, ahora),
-    'EV-08': () => ev08(context, ahora, plano),
+  const measure: Record<string, () => Measurement> = {
+    'EV-01': () => ev01(context, now),
+    'EV-02': () => ofPrimitive(context, 'EV-02'),
+    'EV-03': () => ev03(context, now),
+    'EV-04': () => ev04(context, now),
+    'EV-05': () => ev05(context, now),
+    'EV-06': () => ev06(context, now),
+    'EV-07': () => ev07(context, now),
+    'EV-08': () => ev08(context, now, plane),
     'EV-09': () => ev09(context),
-    'EV-10': () => ev10(context, ahora),
-    'EV-11': () => ev11(context, ahora),
+    'EV-10': () => ev10(context, now),
+    'EV-11': () => ev11(context, now),
     'EV-12': () => ev12(context),
-    'EV-13': () => ev13(context, ahora),
+    'EV-13': () => ev13(context, now),
   };
 
-  const delPlano = new Set(Object.values(REQUISITOS).flatMap(r => r[plano]));
-  const medidas: Record<string, Medida> = {};
+  const ofPlane = new Set(Object.values(REQUIREMENTS).flatMap(r => r[plane]));
+  const measurements: Record<string, Measurement> = {};
 
-  delPlano.forEach(id => {
-    medidas[id] = medir[id]();
+  ofPlane.forEach(id => {
+    measurements[id] = measure[id]();
   });
 
-  const requisitoDecisions: ENSPolicyDecision[] = [];
-  const evidenciaDecisions: ENSPolicyDecision[] = [];
+  const requirementDecisions: ENSPolicyDecision[] = [];
+  const evidenceDecisions: ENSPolicyDecision[] = [];
 
-  Object.entries(REQUISITOS).forEach(([requisito, definicion]) => {
-    const evidencias = definicion[plano];
+  Object.entries(REQUIREMENTS).forEach(([requirement, definition]) => {
+    const evidences = definition[plane];
 
-    if (!evidencias.length) {
-      requisitoDecisions.push(
+    if (!evidences.length) {
+      requirementDecisions.push(
         decide(
-          requisito,
+          requirement,
           'NO_APLICA',
           [],
-          definicion.parametros,
-          definicion.tipo,
-          requisito,
+          definition.parametros,
+          definition.tipo,
+          requirement,
           'Este requisito se mide en el sistema central de registro (el manager de Wazuh, agente 000): esta máquina no conserva, revisa ni correlaciona el registro de las demás. Su resultado sale en la fila del manager y en el del control.',
           'se mide en el manager'
         )
@@ -1288,59 +1218,58 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       return;
     }
 
-    const propias = evidencias.map(id => ({ id, medida: medidas[id] }));
-    const estado = peor(propias.map(p => p.medida));
-    const responsables = propias.filter(p => p.medida.estado === estado);
+    const own = evidences.map(id => ({ id, medida: measurements[id] }));
+    const status = worstStatus(own.map(p => p.medida));
+    const owners = own.filter(p => p.medida.estado === status);
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
-    requisitoDecisions.push(
-      conPartes(decide(
-        requisito,
-        estado,
-        responsables.map(p => p.id),
-        definicion.parametros,
-        definicion.tipo,
-        requisito,
-        motivoCompuesto(propias),
-        evidencias.map(id => `${id} CUMPLE`).join(' y '),
-        causaComun(responsables.map(p => p.medida))
-      ), partesDe(propias))
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads).
+    requirementDecisions.push(
+      withReasonParts(decide(
+        requirement,
+        status,
+        owners.map(p => p.id),
+        definition.parametros,
+        definition.tipo,
+        requirement,
+        compositeReason(own),
+        evidences.map(id => `${id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia medida aquí, con SU estado. Las de primitiva ya
-    // tienen su veredicto y no se repiten.
-    propias
-      .filter(p => !PRIMITIVAS.includes(p.id))
+    // And one per evidence measured here, with ITS status. Primitive ones already have their
+    // verdict.
+    own
+      .filter(p => !PRIMITIVES.includes(p.id))
       .forEach(p =>
-        evidenciaDecisions.push(
-          decide(requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
+        evidenceDecisions.push(
+          decide(requirement, p.medida.estado, [p.id], definition.parametros, definition.tipo, `${requirement}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
         )
       );
   });
 
-  // Las evidencias del OTRO plano no se han medido en esta fila porque aquí no
-  // tienen sujeto: NO_APLICA con el motivo, para que la tabla no las pinte como
-  // «no ha llegado nada».
-  const otroPlano = context.control.requirements
+  // The OTHER plane's evidences were not measured in this row because they have no subject here:
+  // NO_APLICA with the reason, so the table does not paint them as «nothing arrived».
+  const otherPlane = context.control.requirements
     .flatMap(r => r.evidenceIds.map(id => ({ id, requisito: r.id })))
-    .filter(({ id }) => !delPlano.has(id));
-  const vistas = new Set<string>();
+    .filter(({ id }) => !ofPlane.has(id));
+  const seen = new Set<string>();
 
-  otroPlano.forEach(({ id, requisito }) => {
-    if (vistas.has(id)) {
+  otherPlane.forEach(({ id, requisito: requirement }) => {
+    if (seen.has(id)) {
       return;
     }
 
-    vistas.add(id);
-    evidenciaDecisions.push(
+    seen.add(id);
+    evidenceDecisions.push(
       decide(
-        requisito,
+        requirement,
         'NO_APLICA',
         [id],
         [],
-        REQUISITOS[requisito]?.tipo || 'COVERAGE_REQUIRED',
-        `${requisito}/${id}`,
-        plano === 'servidor'
+        REQUIREMENTS[requirement]?.tipo || 'COVERAGE_REQUIRED',
+        `${requirement}/${id}`,
+        plane === 'servidor'
           ? `${id} es del sistema central de registro y se mide en el manager (agente 000), no en esta máquina.`
           : `${id} es del agente de cada servidor; el manager no tiene agente propio que entregue su registro.`,
         'se mide en el otro plano'
@@ -1351,26 +1280,26 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const variables: ENSRuntimeVariable[] = [
     {
       name: 'plano_de_la_fila',
-      value: plano,
+      value: plane,
       parameterIds: [],
       evidenceIds: [],
       eventIds: [],
       description:
-        plano === 'central'
+        plane === 'central'
           ? 'Fila del sistema central de registro (manager): se miden las evidencias del servidor y las centrales.'
           : 'Fila de un servidor: se miden sus evidencias; las centrales se miden en el manager.',
     },
-    ...Object.entries(medidas).map(([id, medida]) => ({
+    ...Object.entries(measurements).map(([id, measurement]) => ({
       name: `medida_${id.replace('-', '')}`,
-      value: medida.estado,
+      value: measurement.estado,
       parameterIds: [],
       evidenceIds: [id],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
   ];
 
-  return { decisions: [...requisitoDecisions, ...evidenciaDecisions], runtimeVariables: variables };
+  return { decisions: [...requirementDecisions, ...evidenceDecisions], runtimeVariables: variables };
 };
 
 export const opExp8PolicyDefinition: ENSPolicyDefinition = {
@@ -1378,8 +1307,8 @@ export const opExp8PolicyDefinition: ENSPolicyDefinition = {
   controlId: CONTROL,
   version: '1.0.0',
   evaluator: evaluate,
-  // Refuerzos acumulativos POR NIVEL DE TRAZABILIDAD: base en los tres, R1-R4
-  // desde MEDIO, R5 solo en ALTO.
+  // Cumulative reinforcements BY TRACEABILITY LEVEL: base in all three, R1-R4 from MEDIO, R5 only
+  // in ALTO.
   requirements: [
     {
       requirementId: 'op.exp.8.1',

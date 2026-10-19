@@ -1,32 +1,4 @@
-// La evaluación en el servidor del plugin.
-//
-// El navegador no descarga hechos para juzgar: pide aquí el resultado. El
-// servidor lee los hechos de la ventana ENTERA, como el usuario que mira, de UN
-// control en UNA máquina a la vez, los juzga con el MISMO motor que usaba el
-// navegador (`common/ens/core`) y los suelta al terminar.
-//
-//   1. Contexto: quién mira, la configuración activa, el alcance (inventario de
-//      wazuh-monitoring) y una SONDA sin documentos: hechos por control y
-//      máquina (cuántos y el más reciente), los que no nombran control, la
-//      presencia de cada máquina y sus latidos (ver `queries.ts`).
-//   2. Cada fila (un control en una máquina que lo mide): si su huella es la
-//      misma y no tiene más de 60 minutos, la guardada; si cambió, la guardada
-//      se enseña al instante (marcada) y se recalcula detrás; si no hay
-//      ninguna, se calcula: latidos → poda de los hechos de estado → hechos de
-//      esa máquina página a página → motor (de uno en uno) → se sueltan.
-//      Hasta 4 lecturas a la vez; las filas baratas primero. La lista y el
-//      panel responden con lo que ya está (`meta.pending`) y el resto sigue
-//      detrás.
-//   3. La vista de conjunto de cada control se consolida con la consolidación
-//      del motor (`consolidateENSControlRows`); la de una máquina sale de sus
-//      filas. El estado del panel se arma con `assembleENSComplianceState`.
-//      Todo da lo mismo que el motor sobre todos los hechos a la vez.
-//   4. La serie diaria: cuando la fila ya está, en segundo plano y detrás de
-//      todo lo demás, se evalúa el final de cada día de la ventana y se guarda
-//      en la fila; hasta entonces las vistas que la piden dicen
-//      `meta.seriesPending`.
-//
-// La respuesta de cada vista está descrita en `server/README.md`.
+// Evaluation on the plugin server.
 import { createHash } from 'crypto';
 import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../src/core/server';
@@ -37,6 +9,7 @@ import { defaultENSConfigurationTemplate } from '../../../common/ens/configurati
 import { ensConfigurationRepository } from '../../../common/ens/configuration/repository';
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
+import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
@@ -109,11 +82,11 @@ export interface ENSEvaluationQuery {
   agentId?: string;
   controlId?: string;
   include: ENSEvaluationInclude;
-  // Días de la serie (0 o nada: sin serie). El panel pide 7 y el detalle 30.
+  // Series days (0 or none: no series). The panel asks 7, the detail 30.
   timelineDays?: number;
-  // Zona horaria de quien mira (IANA): decide qué es «un día» en la serie.
+  // Viewer's IANA time zone: decides what "a day" is in the series.
   timeZone: string;
-  // Las cifras por control de cada punto de la serie (`overview-fields.ts`).
+  // Per-control figures of each series point (`overview-fields.ts`).
   timelineControls?: boolean;
 }
 
@@ -122,7 +95,7 @@ export interface ENSEvaluationClients {
   asInternalUser: any;
 }
 
-// Una petición mal hecha: 400 con el motivo.
+// A malformed request: 400 with the reason.
 export class ENSBadRequestError extends Error {
   statusCode = 400;
   constructor(message: string) {
@@ -131,10 +104,10 @@ export class ENSBadRequestError extends Error {
   }
 }
 
-// El id de una máquina como lo escribe el inventario (`24` → `024`).
+// Machine id as the inventory writes it (`24` -> `024`).
 const normalizeAgentId = (value: string): string => {
-  const texto = value.trim();
-  return /^\d+$/.test(texto) ? texto.padStart(3, '0') : texto;
+  const text = value.trim();
+  return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
 const sha = (...parts: unknown[]): string =>
@@ -150,40 +123,40 @@ export const isValidTimeZone = (timeZone?: string): boolean => {
   }
 };
 
-// Los parámetros de la petición, comprobados. Lo que depende del alcance (que
-// la máquina esté en él) se comprueba con el contexto (`run`).
+// Checked request parameters. What depends on the scope (the machine being in it) is checked with the context
+// (`run`).
 export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQuery => {
-  const texto = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
-  const controlId = texto(query.controlId);
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const controlId = text(query.controlId);
   if (controlId && !ENSCatalog.some(control => control.id === controlId)) {
     throw new ENSBadRequestError(`El control «${controlId}» no está en el catálogo de ENSFácil.`);
   }
-  const agente = texto(query.agentId);
-  const agentId = agente ? normalizeAgentId(agente) : undefined;
-  if (agente && (!agentId || agentId.length > 64)) {
-    throw new ENSBadRequestError(`«${agente}» no es un identificador de máquina válido.`);
+  const agentName = text(query.agentId);
+  const agentId = agentName ? normalizeAgentId(agentName) : undefined;
+  if (agentName && (!agentId || agentId.length > 64)) {
+    throw new ENSBadRequestError(`«${agentName}» no es un identificador de máquina válido.`);
   }
-  const zona = texto(query.timeZone);
-  if (zona && !isValidTimeZone(zona)) {
-    throw new ENSBadRequestError(`«${zona}» no es una zona horaria IANA válida.`);
+  const zone = text(query.timeZone);
+  if (zone && !isValidTimeZone(zone)) {
+    throw new ENSBadRequestError(`«${zone}» no es una zona horaria IANA válida.`);
   }
-  const include = texto(query.include);
+  const include = text(query.include);
   if (include && !['summary', 'results', 'dashboard', 'control', 'overview'].includes(include)) {
     throw new ENSBadRequestError(`Vista desconocida: «${include}».`);
   }
   if (include === 'overview' && controlId) {
     throw new ENSBadRequestError('La Vista general es de todos los controles: sin «controlId».');
   }
-  const dias = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
-  if (!Number.isInteger(dias) || dias < 0 || dias > ENS_EVALUATION_LIMITS.maxTimelineDays) {
+  const days = query.timelineDays === undefined || query.timelineDays === '' ? 0 : Number(query.timelineDays);
+  if (!Number.isInteger(days) || days < 0 || days > ENS_EVALUATION_LIMITS.maxTimelineDays) {
     throw new ENSBadRequestError(`Los días de la serie van de 0 a ${ENS_EVALUATION_LIMITS.maxTimelineDays}.`);
   }
   return {
     agentId,
     controlId,
     include: (include as ENSEvaluationInclude) || (controlId ? 'control' : 'summary'),
-    timelineDays: dias,
-    timeZone: zona || 'UTC',
+    timelineDays: days,
+    timeZone: zone || 'UTC',
     ...overviewQueryFlags(query),
   };
 };
@@ -198,60 +171,56 @@ export interface ENSEvaluationContext {
   scopeKey: string;
   inventory: { stale: boolean; newestTimestamp?: string; agents: number };
   window: ENSEvaluationWindow;
-  // Los filtros del alcance ENTERO: el servidor evalúa siempre todas las
-  // máquinas; la vista de una sale de sus filas.
+  // Filters of the WHOLE scope: the server always evaluates all machines; a machine's view comes from its rows.
   filters: unknown[];
   probe: ENSProbeResult;
-  // Dónde se leen los hechos: los índices de la ventana (o el comodín).
+  // Where facts are read: the window's indices (or the wildcard).
   factsIndex: string;
-  // Los hechos de presencia de todas las máquinas (identidad y nombres).
+  // Presence facts of all machines (identity and names).
   presenceEvents: ENSNormalizedEvent[];
   presenceOf: Map<string, ENSNormalizedEvent>;
   heartbeatsOf: Map<string, ENSNormalizedEvent[]>;
   timeZone: string;
 }
 
-// Un punto de la serie de una fila a fecha de un corte.
+// A series point of a row at a cutoff date.
 interface CutPoint {
   status: string;
   score?: number;
 }
 
-// Los días de la serie que tiene calculados una fila: para una zona horaria y
-// un día de hoy (`key`), el punto de cada final de día (por su instante ISO).
+// Series days a row has computed: for a time zone and a today (`key`), the point of each day end (by ISO instant).
 interface StoredCuts {
   key: string;
-  // Con qué hechos de los días pasados se calcularon (`pastSignature`): los
-  // hechos nuevos son de hoy y no los cambian; un hecho tardío fechado en un
-  // día pasado, sí.
+  // With which past-day facts they were computed (`pastSignature`): new facts are today's and do not change
+  // them; a late fact dated on a past day does.
   pastKey: string;
-  // El instante de la petición con que se empezó: entre dos series del mismo
-  // día para la misma fila, manda la más reciente.
+  // Instant of the request that started it: between two series of the same day for the same row, the most recent
+  // wins.
   asOf: number;
   points: Record<string, CutPoint>;
-  // Todos los días calculados (se van guardando a medida que salen). Una
-  // serie a medias pasa de una versión de la fila a la siguiente (los hechos
-  // nuevos son de hoy) y se sigue llenando.
+  // All computed days (stored as they come out). A half-done series passes from one row version to the next and
+  // keeps filling.
   complete: boolean;
 }
 
-// Lo que se guarda de una fila (un control en una máquina). Sin hechos.
+// What is stored of a row (a control on a machine). No facts.
 interface StoredRow {
   result?: ENSComplianceResult;
-  // La trazabilidad guardada (las primeras entradas), comprimida: es casi
-  // todo el tamaño de una fila y solo la leen la ficha y sus páginas.
+  // Stored traceability (first entries), compressed: almost all of a row's size, read only by the detail and its
+  // pages.
   traceability: Buffer | null;
   traceabilityStored: number;
   traceabilityTotal: number;
   cuts?: StoredCuts;
   stats: ENSRowComputeStats;
-  // Con qué configuración y alcance se calculó: una entrada de otra
-  // configuración no se enseña ni mientras se recalcula.
+  // Configuration and scope it was computed with: an entry from another configuration is not shown, not even
+  // while recomputing.
   configurationKey: string;
   scopeKey: string;
-  // El último intento de refrescarla en segundo plano que falló.
+  // Last background refresh attempt that failed.
   refreshError?: { message: string; at: string };
-  // Ya la sustituyó otra versión (hechos nuevos).
+  // Already replaced by another version (new facts).
   superseded?: boolean;
 }
 
@@ -261,35 +230,33 @@ export interface ENSRowComputeStats {
   hits: number;
   pages: number;
   events: number;
-  // Esperando su turno (plaza de lectura y motor).
+  // Waiting for its turn (read and engine slot).
   queueMs: number;
-  // Leyendo: esperando al cliente del indexador (respuesta y análisis).
+  // Reading: waiting on the indexer client (response and parsing).
   fetchMs: number;
-  // Normalizando los hechos leídos.
+  // Normalising the facts read.
   normalizeMs: number;
-  // El motor, a fecha de ahora.
+  // The engine, as of now.
   evaluateMs: number;
-  // La serie (en segundo plano): leer, normalizar y evaluar cada día.
+  // The series (background): read, normalise and evaluate each day.
   seriesFetchMs?: number;
   seriesNormalizeMs?: number;
   cutsMs?: number;
   pruned: boolean;
 }
 
-const comprime = (lista: ENSTraceabilityResult[]): Buffer | null =>
-  lista.length ? deflateRawSync(Buffer.from(JSON.stringify(lista), 'utf8')) : null;
+const compresses = (list: ENSTraceabilityResult[]): Buffer | null =>
+  list.length ? deflateRawSync(Buffer.from(JSON.stringify(list), 'utf8')) : null;
 
-export const descomprime = (datos: Buffer | null): ENSTraceabilityResult[] =>
-  datos ? JSON.parse(inflateRawSync(datos).toString('utf8')) : [];
+export const decompressTraceability = (dataItems: Buffer | null): ENSTraceabilityResult[] =>
+  dataItems ? JSON.parse(inflateRawSync(dataItems).toString('utf8')) : [];
 
-// Lo que ocupa una fila guardada (para el tope de la memoria).
-// La serie se cuenta con su tamaño completo (90 días como mucho), aunque sus
-// puntos vayan llegando después de guardar la fila.
+// Size of a stored row (for the memory cap). The series counts at full size (90 days at most) even if its points
+// arrive after storing.
 export const storedRowBytes = (row: StoredRow): number =>
   JSON.stringify(row.result || null).length + (row.traceability?.length || 0) + ENS_EVALUATION_LIMITS.maxTimelineDays * 80 + 512;
 
-// El resultado tal cual, salvo la trazabilidad (la lista de hechos del
-// control, decenas de miles con op.acc.3).
+// The result as is, except traceability (the control's fact list, tens of thousands with op.acc.3).
 export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({
   ...result,
   traceability: [],
@@ -298,9 +265,8 @@ export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceR
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// La configuración activa se relee solo si cambia su sello: el documento lleva
-// el historial y pesa cientos de KB. El sello incluye `_seq_no` y
-// `_primary_term`: cambian con cualquier escritura, aunque no toque las fechas.
+// The active configuration is re-read only when its stamp changes: the document carries the history and weighs
+// hundreds of KB. The stamp includes `_seq_no` and `_primary_term`, which change on any write.
 const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
   const body = await searchComplete(
     client,
@@ -320,10 +286,9 @@ const readConfigurationStamp = async (client: any): Promise<string | undefined> 
   return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
 };
 
-// La vista de UNA máquina sale de las filas del conjunto: su fila si el
-// control se mide en ella; la del manager si es un control de organización;
-// nada si no se mide. `null` cuando no se puede decidir desde las filas (un
-// control de organización sin fila del manager): entonces se evalúa aparte.
+// A machine's view comes from the overview rows: its row if the control is measured there; the manager's row for
+// an organization control; nothing if not measured. `null` when it cannot be decided from the rows (organization
+// control without a manager row): then it is evaluated apart.
 export const deriveForAgent = (
   controlId: string,
   agentId: string,
@@ -334,7 +299,7 @@ export const deriveForAgent = (
   const control = ENSCatalog.find(entry => entry.id === controlId);
   if (!control) return null;
   if (isControlMeasuredOnAgent(control, agentId)) {
-    // Sin fila: la máquina no está en su alcance declarado (sin resultado).
+    // No row: the machine is not in its declared scope (no result).
     return { from: rowAgents.includes(agentId) ? 'row' : 'none' };
   }
   if (isManagerOnlyControl(control) && !isManagerAgentId(agentId)) {
@@ -347,28 +312,26 @@ export interface ENSEvaluationServiceOptions {
   logger: Logger;
   securityEnabled: boolean;
   clock?: () => Date;
-  // Lecturas pesadas (un control en una máquina) a la vez. El motor, de una
-  // en una siempre.
+  // Heavy reads (a control on a machine) at once. The engine always one at a time.
   maxConcurrentReads?: number;
-  // Hechos en memoria a la vez por lectura (~1,7 KB de memoria por hecho).
+  // Facts in memory at once per read (~1.7 KB each).
   maxFactsPerRead?: number;
-  // Tamaño de lo guardado de las filas.
+  // Size of the stored rows.
   maxStoredBytes?: number;
-  // Lo que espera la lista o el panel antes de responder con lo que ya está.
+  // What the list or panel waits before answering with what exists.
   firstResponseMs?: number;
 }
 
 export interface ENSRunOptions {
-  // Responder con lo guardado aunque ya no valga, y recalcular detrás.
+  // Answer with the stored data even if no longer valid, and recompute behind.
   allowStale?: boolean;
-  // Quien espera la respuesta (se cancela si se va).
+  // Whoever waits for the answer (cancelled if it leaves).
   signal?: Cancellable;
-  // «Reintentar»: refrescar ya lo que no se pudo refrescar, sin esperar.
+  // "Reintentar": refresh at once what could not be refreshed, no waiting.
   retryRefresh?: boolean;
 }
 
-// La vista de un control para la petición: su resultado, su trazabilidad y
-// sus filas (las del panel).
+// A control's view for the request: its result, traceability and rows (the panel's).
 export interface ENSViewPartition {
   controlId: string;
   result?: ENSComplianceResult;
@@ -376,25 +339,23 @@ export interface ENSViewPartition {
   traceabilityStored: number;
   traceabilityTotal: number;
   rows: { agentId: string; result: ENSComplianceResult }[];
-  // El punto de un día pasado, o `undefined` si aún no está calculado.
+  // The point of a past day, or `undefined` if not computed yet.
   pointAt: (cutoffIso: string, cutoff: Date) => CutPoint | null | undefined;
 }
 
-// La lista, la Vista general y el panel responden, como mucho a los 1,5 s de
-// empezar a leer (unos 2 s con el contexto), con las filas que ya están; las
-// demás siguen calculándose detrás (`meta.pending`).
+// The list, the overview and the panel answer at most 1.5 s after starting to read (about 2 s with the context),
+// with the rows that exist; the rest keep computing (`meta.pending`).
 export const FIRST_RESPONSE_MS = 1500;
-// Las vistas que responden por partes.
+// Views that answer in parts.
 const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'overview', 'dashboard'];
-// Un cálculo en frío que falló se dice en las peticiones siguientes durante
-// este tiempo (sin volver a lanzarlo en cada sondeo del navegador).
+// A failed cold computation is reported in following requests for this time, without relaunching it on every
+// browser poll.
 const COLD_FAILURE_MS = 30 * 1000;
 
-// Lo que tarda en reintentarse un refresco (o una serie) que falló: 30 s,
-// 1 min, 2, 4… hasta 5 min.
-const esperaTrasFallo = (fallos: number): number => Math.min(5 * 60 * 1000, 30 * 1000 * 2 ** Math.max(0, fallos - 1));
+// Retry delay of a failed refresh (or series): 30 s, 1 min, 2, 4... up to 5 min.
+const waitAfterFailureMs = (failures: number): number => Math.min(5 * 60 * 1000, 30 * 1000 * 2 ** Math.max(0, failures - 1));
 
-// Lo que se mide de cada control, acumulado (para `measure-evaluation.ts`).
+// What is measured per control, accumulated (for `measure-evaluation.ts`).
 export interface ENSControlMetrics {
   rows: number;
   hits: number;
@@ -409,7 +370,7 @@ export interface ENSControlMetrics {
   seriesEvaluateMs: number;
 }
 
-// Una fila por calcular: control, máquina de los hechos y máquina de la vista.
+// A row to compute: control, facts machine and view machine.
 interface RowSpec {
   controlId: string;
   factsAgent?: string;
@@ -425,17 +386,16 @@ export const createEvaluationService = ({
   maxStoredBytes = 64 * 1024 * 1024,
   firstResponseMs = FIRST_RESPONSE_MS,
 }: ENSEvaluationServiceOptions) => {
-  const reloj = () => clock().getTime();
-  const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, reloj, maxStoredBytes, storedRowBytes);
-  // Los días pasados de una serie no cambian en el día: hasta 26 h (la clave
-  // lleva el día y la zona; solo zonas IANA válidas llegan aquí).
-  const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, reloj);
-  const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, reloj);
-  const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, reloj);
-  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, reloj);
-  // Hasta 4 lecturas a la vez (el indexador va sobrado) y el motor de uno en
-  // uno (es CPU del proceso del dashboard). Lo que alguien espera pasa delante
-  // de lo que se hace en segundo plano (refrescos y series).
+  const clockValue = () => clock().getTime();
+  const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
+  // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
+  // IANA zones arrive here).
+  const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
+  const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
+  const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
+  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
+  // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What
+  // someone waits for goes ahead of background work (refreshes and series).
   const reads = new Semaphore(maxConcurrentReads);
   const cpu = new Semaphore(1);
   const refreshFailures = new Map<string, { failures: number; nextAt: number }>();
@@ -450,15 +410,16 @@ export const createEvaluationService = ({
     return m;
   };
 
-  // --- 1. contexto ---------------------------------------------------------
+  // --- 1. context ---
 
   const loadConfiguration = async (clients: ENSEvaluationClients) => {
     const stamp = (await readConfigurationStamp(clients.asInternalUser)) || 'default';
     const cached = configurations.get('active', stamp);
     if (cached) return cached;
     const stored = await readActiveENSConfiguration(clients.asInternalUser, logger);
+    // A 1.2.0 document is converted once per load, exactly as the browser does on hydration.
     const configuration = stored?.configuration
-      ? assertENSConfigurationVersion(stored.configuration)
+      ? toTemplateModel(assertENSConfigurationVersion(stored.configuration))
       : (defaultENSConfigurationTemplate as ENSConfigurationVersion);
     const entry = {
       configuration,
@@ -472,16 +433,15 @@ export const createEvaluationService = ({
   const loadContext = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery): Promise<ENSEvaluationContext> => {
     const now = clock();
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
-    // Lo que ve cada uno depende de sus permisos en el indexador: la memoria
-    // es por usuario y roles, nunca compartida.
+    // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
     const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients);
 
     let inventory = inventories.get(userKey, 'inventory');
     if (!inventory) {
       const body = await searchComplete(clients.asCurrentUser, buildMonitoringInventoryRequest(), 'el inventario de agentes');
-      const leido = inventoryFromMonitoring(body?.aggregations, now.getTime());
-      inventory = { agents: normalizeInventory(leido.agents), stale: leido.stale, newestTimestamp: leido.newestTimestamp };
+      const readValue2 = inventoryFromMonitoring(body?.aggregations, now.getTime());
+      inventory = { agents: normalizeInventory(readValue2.agents), stale: readValue2.stale, newestTimestamp: readValue2.newestTimestamp };
       inventories.set(userKey, 'inventory', inventory);
     }
     const scope = resolveENSScopeAgents(inventory.agents, configuration.scope);
@@ -492,14 +452,14 @@ export const createEvaluationService = ({
 
     const window = resolveEvaluationWindow(configuration.global.evaluationPeriod, now);
     const filters = buildViewFilters(window, scope);
-    // Los días pasados ENTEROS de la ventana: del primer día completo (fijo
-    // durante todo el día, aunque la ventana se desplace) al inicio de hoy.
-    const hoy = startOfDayIn(now, query.timeZone);
-    const primerDia = startOfDayIn(new Date(Date.parse(window.from) + 86400e3), query.timeZone);
+    // WHOLE past days of the window: from the first full day (fixed all day even if the window moves) to the
+    // start of today.
+    const today = startOfDayIn(now, query.timeZone);
+    const firstDay = startOfDayIn(new Date(Date.parse(window.from) + 86400e3), query.timeZone);
     const probe = readProbeResponse(
       await searchComplete(
         clients.asCurrentUser,
-        buildProbeRequest(filters, catalogControlIds(), query.timeZone, { from: primerDia.toISOString(), to: hoy.toISOString() }),
+        buildProbeRequest(filters, catalogControlIds(), query.timeZone, { from: firstDay.toISOString(), to: today.toISOString() }),
         'la sonda de hechos'
       )
     );
@@ -535,7 +495,7 @@ export const createEvaluationService = ({
     return { all: listENSControlRowAgents('', ctx.scope, ctx.presenceEvents), forControl: (controlId: string) => listENSControlRowAgents(controlId, ctx.scope, ctx.presenceEvents) };
   };
 
-  // La huella de una fila: lo que, si cambia, cambia su resultado.
+  // Row fingerprint: what, if it changes, changes its result.
   const rowFingerprint = (ctx: ENSEvaluationContext, controlId: string, agentId: string): string =>
     sha(
       ctx.configurationKey,
@@ -549,30 +509,29 @@ export const createEvaluationService = ({
       ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? (ctx.probe.heartbeats[agentId] || []).slice(-1)[0] || null : null
     );
 
-  // Los hechos de los días pasados enteros de una fila (en la zona de quien
-  // mira): si no cambian, sus puntos de esos días siguen valiendo.
+  // Facts of a row's whole past days (in the viewer's zone): if unchanged, its points of those days stay valid.
   const pastSignature = (ctx: ENSEvaluationContext, spec: RowSpec): string => {
-    const pasado = ctx.probe.past;
-    const hoy = startOfDayIn(ctx.now, ctx.timeZone).getTime();
+    const past = ctx.probe.past;
+    const today = startOfDayIn(ctx.now, ctx.timeZone).getTime();
     if (!spec.factsAgent) {
-      return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), pasado?.controls[spec.controlId]?.total ?? null, pasado?.orphans.total ?? null);
+      return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), past?.controls[spec.controlId]?.total ?? null, past?.orphans.total ?? null);
     }
-    const agente = spec.factsAgent;
+    const agentName = spec.factsAgent;
     return sha(
       ctx.timeZone,
       startOfDayIn(ctx.now, ctx.timeZone).toISOString(),
-      pasado?.controls[spec.controlId]?.agents[agente] ?? null,
-      pasado?.orphans.agents[agente] ?? null,
-      pasado?.cross[spec.controlId]?.agents[agente] ?? null,
-      ENS_CROSS_CONTROL_HEARTBEAT.includes(spec.controlId) ? (ctx.probe.heartbeats[agente] || []).filter(t => Date.parse(t) < hoy) : null
+      past?.controls[spec.controlId]?.agents[agentName] ?? null,
+      past?.orphans.agents[agentName] ?? null,
+      past?.cross[spec.controlId]?.agents[agentName] ?? null,
+      ENS_CROSS_CONTROL_HEARTBEAT.includes(spec.controlId) ? (ctx.probe.heartbeats[agentName] || []).filter(t => Date.parse(t) < today) : null
     );
   };
 
-  // La de un control sin filas (lo evalúa el motor sobre todos sus hechos).
+  // That of a control without rows (the engine evaluates it over all its facts).
   const fallbackFingerprint = (ctx: ENSEvaluationContext, controlId: string): string =>
     sha(ctx.configurationKey, ctx.scopeKey, controlId, ctx.probe.controls[controlId] || null, ctx.probe.orphans, ctx.presenceEvents.map(e => e.agentId));
 
-  // La huella de la vista: la que compara la sonda del navegador.
+  // View fingerprint: the one the browser probe compares.
   const viewFingerprint = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): string => {
     const { forControl } = identitiesOf(ctx);
     return sha(
@@ -580,37 +539,35 @@ export const createEvaluationService = ({
       ctx.scopeKey,
       query.agentId || '*',
       controlsOf(query).map(controlId => {
-        const filas = forControl(controlId).map(agent => rowFingerprint(ctx, controlId, agent.agentId));
-        return filas.length ? filas : fallbackFingerprint(ctx, controlId);
+        const rows = forControl(controlId).map(agent => rowFingerprint(ctx, controlId, agent.agentId));
+        return rows.length ? rows : fallbackFingerprint(ctx, controlId);
       })
     );
   };
 
-  // Cuánto cuesta calcular una fila (los hechos que dice la sonda): las
-  // baratas primero.
+  // Cost of computing a row (the facts the probe reports): cheap ones first.
   const weightOf = (ctx: ENSEvaluationContext, controlId: string, agentId?: string): number =>
     agentId ? ctx.probe.controls[controlId]?.agents[agentId]?.count || 0 : ctx.probe.controls[controlId]?.count || 0;
 
-  // Los días de la serie que calcula cada fila: los de la ventana de la
-  // configuración (30 en la de por defecto), en la zona de quien mira. Cubren
-  // cualquier serie que pidan las pantallas (el panel 7, la ficha 30).
+  // Series days each row computes: those of the configuration window (30 by default), in the viewer's zone. They
+  // cover any series the screens ask (panel 7, detail 30).
   const seriesOf = (ctx: ENSEvaluationContext) => {
-    // Un día más que la ventana: su primer día suele ser parcial y la serie
-    // de una vista empieza en el día de su primer hecho.
-    const dias = Math.min(
+    // One day more than the window: its first day is usually partial and a view's series starts on the day of
+    // its first fact.
+    const days = Math.min(
       ENS_EVALUATION_LIMITS.maxTimelineDays,
       Math.max(1, Math.ceil((Date.parse(ctx.window.to) - Date.parse(ctx.window.from)) / 86400e3) + 1)
     );
     const plan = planENSTimelineCuts(Date.parse(ctx.window.from), 1, {
       now: ctx.now,
-      days: dias,
+      days: days,
       timeZone: ctx.timeZone,
       maxEvaluatedEvents: Infinity,
     }).filter(cut => !cut.isCurrent);
-    return { key: sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), dias), plan };
+    return { key: sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), days), plan };
   };
 
-  // --- 2. una fila -------------------------------------------------------------
+  // --- 2. a row ---
 
   const readFacts = async (ctx: ENSEvaluationContext, client: any, query: unknown, stats: ENSFactsReadStats, what: string, signal?: Cancellable): Promise<any[]> => {
     const hits: any[] = [];
@@ -620,9 +577,8 @@ export const createEvaluationService = ({
     return hits;
   };
 
-  // La poda exacta de los hechos de estado de una máquina a fecha de unos
-  // instantes (ver `computeStateFactCutoffsByCollector`): ahora, para el
-  // resultado; ahora y el final de cada día, para la serie.
+  // Exact pruning of a machine's state facts as of some instants (see `computeStateFactCutoffsByCollector`):
+  // now, for the result; now and each day end, for the series.
   const pruningFor = async (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -633,38 +589,38 @@ export const createEvaluationService = ({
     signal: Cancellable
   ): Promise<unknown | undefined> => {
     if (!hasStateFacts(controlId)) return undefined;
-    const que = `${controlId} en ${agentId}`;
-    const runs = await readFacts(ctx, clients.asCurrentUser, buildCollectorRunsQuery(ctx.filters, controlId, agentId), stats, `los latidos de ${que}`, signal);
+    const subject = `${controlId} en ${agentId}`;
+    const runs = await readFacts(ctx, clients.asCurrentUser, buildCollectorRunsQuery(ctx.filters, controlId, agentId), stats, `los latidos de ${subject}`, signal);
     const t0 = Date.now();
-    const ultimos = readStateFactLastSeen(
+    const lastOnes = readStateFactLastSeen(
       controlId,
-      await searchComplete(clients.asCurrentUser, buildStateFactLastSeenRequest(ctx.filters, controlId, agentId, ctx.timeZone, ctx.factsIndex), `los últimos hechos de estado de ${que}`)
+      await searchComplete(clients.asCurrentUser, buildStateFactLastSeenRequest(ctx.filters, controlId, agentId, ctx.timeZone, ctx.factsIndex), `los últimos hechos de estado de ${subject}`)
     );
     stats.searchMs += Date.now() - t0;
-    return keepClauseFor(ctx, controlId, agentId, normalizeWazuhAlerts(runs), ultimos, instants);
+    return keepClauseFor(ctx, controlId, agentId, normalizeWazuhAlerts(runs), lastOnes, instants);
   };
 
-  // La cláusula de la poda exacta, con los latidos y el último hecho ya leídos.
+  // Exact pruning clause, with the heartbeats and last fact already read.
   const keepClauseFor = (
     ctx: ENSEvaluationContext,
     controlId: string,
     agentId: string,
     runs: ENSNormalizedEvent[],
-    ultimos: ENSStateFactLastSeen | undefined,
+    lastOnes: ENSStateFactLastSeen | undefined,
     instants: Date[]
   ): unknown | undefined => {
-    if (!ultimos || !ultimos.collectors.length) return undefined;
-    const cortes = computeStateFactCutoffsByCollector(controlId, runs, instants, ultimos.lastFactOf, ultimos.collectors);
-    const inicio = Date.parse(ctx.window.from);
-    const huecos = new Map([...cortes.entries()].map(([collector, porInstante]) => [collector, prunableRanges(inicio, instants.map(i => i.getTime()), porInstante)]));
-    return buildStateFactKeepClause(controlId, agentId, huecos);
+    if (!lastOnes || !lastOnes.collectors.length) return undefined;
+    const cuts = computeStateFactCutoffsByCollector(controlId, runs, instants, lastOnes.lastFactOf, lastOnes.collectors);
+    const start = Date.parse(ctx.window.from);
+    const gaps = new Map([...cuts.entries()].map(([collector, byInstant]) => [collector, prunableRanges(start, instants.map(i => i.getTime()), byInstant)]));
+    return buildStateFactKeepClause(controlId, agentId, gaps);
   };
 
-  // Los hechos normalizados de una fila, con los sintéticos que el motor
-  // leía de otros controles (presencia y latidos).
+  // Normalised facts of a row, with the synthetic ones the engine read from other controls (presence and
+  // heartbeats).
   const eventsOf = (ctx: ENSEvaluationContext, spec: RowSpec, hits: any[]): { events: ENSNormalizedEvent[]; synthetic: number } => {
     const { controlId, factsAgent } = spec;
-    const sinteticos = factsAgent
+    const synthetic = factsAgent
       ? [
           ...(ctx.presenceOf.has(factsAgent) ? [ctx.presenceOf.get(factsAgent)!] : []),
           ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? ctx.heartbeatsOf.get(factsAgent) || [] : []),
@@ -673,22 +629,20 @@ export const createEvaluationService = ({
           ...ctx.presenceEvents,
           ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? [...ctx.heartbeatsOf.values()].flat() : []),
         ];
-    return { events: [...normalizeWazuhAlerts(hits), ...sinteticos], synthetic: sinteticos.length };
+    return { events: [...normalizeWazuhAlerts(hits), ...synthetic], synthetic: synthetic.length };
   };
 
-  // El motor sobre unos hechos a fecha de un instante. Síncrono: la
-  // configuración activa del motor es la de esta petición mientras se evalúa
-  // (otra petición solo puede colarse en un `await`, y aquí no hay ninguno).
-  const evaluatorOf = (ctx: ENSEvaluationContext, spec: RowSpec) => (lista: ENSNormalizedEvent[], instante: Date) => {
+  // The engine over some facts as of an instant. Synchronous: the engine's active configuration is this
+  // request's while evaluating (another request can only slip in at an `await`, and there is none).
+  const evaluatorOf = (ctx: ENSEvaluationContext, spec: RowSpec) => (list: ENSNormalizedEvent[], instant: Date) => {
     ensConfigurationRepository.replaceActive(ctx.configuration);
     const level = ctx.configuration.global.ensLevel;
     return spec.factsAgent
-      ? evaluateENSControlRow(spec.controlId, level, lista, spec.viewAgent as string, ctx.scope, instante)
-      : evaluateENSControlPartition(spec.controlId, level, lista, undefined, ctx.scope, instante).result;
+      ? evaluateENSControlRow(spec.controlId, level, list, spec.viewAgent as string, ctx.scope, instant)
+      : evaluateENSControlPartition(spec.controlId, level, list, undefined, ctx.scope, instant).result;
   };
 
-  // Normaliza y evalúa los hechos de una fila a fecha de ahora: un turno del
-  // motor (de uno en uno). Suelta los hechos leídos.
+  // Normalises and evaluates a row's facts as of now: one engine turn (one at a time). Releases the facts read.
   const evaluateRow = (
     ctx: ENSEvaluationContext,
     spec: RowSpec,
@@ -696,39 +650,37 @@ export const createEvaluationService = ({
     read: { searchMs: number; hits: number; pages: number },
     o: { queueMs: number; pruned: boolean; background: boolean; previous?: StoredRow; signal: Cancellable }
   ): Promise<StoredRow> => {
-    const leido = Date.now();
+    const readValue2 = Date.now();
     return cpu.use(async () => {
-      const enMotor = Date.now();
+      const inEngine = Date.now();
       throwIfCancelled(o.signal);
       const { controlId, factsAgent } = spec;
       const { events, synthetic } = eventsOf(ctx, spec, hits);
       hits.length = 0;
-      const normalizado = Date.now();
+      const normalized = Date.now();
       const result = evaluatorOf(ctx, spec)(events, ctx.now);
       const traceability = result?.traceability || [];
-      const guardadas = traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
-      const serie = seriesOf(ctx);
-      // Los días pasados ya calculados hoy (en esta zona, con esta
-      // configuración, este alcance y los mismos hechos de días pasados)
-      // siguen valiendo: los hechos nuevos que obligan a recalcular la fila
-      // son de hoy. La serie pasa a la versión nueva aunque esté a medias: es
-      // el MISMO objeto, y quien la calcula lo sigue llenando.
+      const savedOnes = traceability.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
+      const series = seriesOf(ctx);
+      // Past days already computed today (same zone, configuration, scope and past-day facts) stay valid: the
+      // new facts forcing the row to recompute are today's. The series moves to the new version even half done:
+      // it is the SAME object and its computer keeps filling it.
       const pastKey = pastSignature(ctx, spec);
-      const previa = o.previous;
-      const pasados =
-        previa &&
-        previa.configurationKey === ctx.configurationKey &&
-        previa.scopeKey === ctx.scopeKey &&
-        previa.cuts?.key === serie.key &&
-        previa.cuts.pastKey === pastKey
-          ? previa.cuts
+      const previous2 = o.previous;
+      const pasts =
+        previous2 &&
+        previous2.configurationKey === ctx.configurationKey &&
+        previous2.scopeKey === ctx.scopeKey &&
+        previous2.cuts?.key === series.key &&
+        previous2.cuts.pastKey === pastKey
+          ? previous2.cuts
           : undefined;
       const row: StoredRow = {
         result: result && withoutTraceability(result),
-        traceability: comprime(guardadas),
-        traceabilityStored: guardadas.length,
+        traceability: compresses(savedOnes),
+        traceabilityStored: savedOnes.length,
         traceabilityTotal: traceability.length,
-        cuts: pasados,
+        cuts: pasts,
         configurationKey: ctx.configurationKey,
         scopeKey: ctx.scopeKey,
         stats: {
@@ -737,10 +689,10 @@ export const createEvaluationService = ({
           hits: read.hits,
           pages: read.pages,
           events: events.length - synthetic,
-          queueMs: o.queueMs + (enMotor - leido),
+          queueMs: o.queueMs + (inEngine - readValue2),
           fetchMs: read.searchMs,
-          normalizeMs: normalizado - enMotor,
-          evaluateMs: Date.now() - normalizado,
+          normalizeMs: normalized - inEngine,
+          evaluateMs: Date.now() - normalized,
           pruned: o.pruned,
         },
       };
@@ -751,16 +703,15 @@ export const createEvaluationService = ({
       m.fetchMs += row.stats.fetchMs;
       m.normalizeMs += row.stats.normalizeMs;
       m.evaluateMs += row.stats.evaluateMs;
-      // Cede el hilo antes de la fila siguiente.
+      // Yields the thread before the next row.
       await yieldToEventLoop();
       return row;
     }, { background: o.background });
   };
 
-  // UNA FILA LEÍDA SOLA: op.acc.3 (lee tipos de otros controles), un control
-  // sin filas (todo el alcance) y la vista de una máquina de un control de
-  // organización sin fila del manager. La plaza de lectura se conserva hasta
-  // que el motor termina: no hay más de `maxConcurrentReads` lecturas en memoria.
+  // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a
+  // machine's view of an organization control without a manager row. The read slot is kept until the engine
+  // finishes: no more than `maxConcurrentReads` reads in memory.
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -768,16 +719,16 @@ export const createEvaluationService = ({
     signal: Cancellable,
     options: { background: boolean; previous?: StoredRow }
   ): Promise<StoredRow> => {
-    const pedida = Date.now();
+    const requested = Date.now();
     return reads.use(async () => {
-      const enLectura = Date.now();
+      const reading = Date.now();
       throwIfCancelled(signal);
       const stats = newReadStats();
-      const que = `${spec.controlId}${spec.factsAgent ? ` en ${spec.factsAgent}` : ''}`;
+      const subject = `${spec.controlId}${spec.factsAgent ? ` en ${spec.factsAgent}` : ''}`;
       const pruning = spec.factsAgent ? await pruningFor(clients, ctx, spec.controlId, spec.factsAgent, [ctx.now], stats, signal) : undefined;
-      const hits = await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${que}`, signal);
+      const hits = await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${subject}`, signal);
       return evaluateRow(ctx, spec, hits, { searchMs: stats.searchMs, hits: stats.hits, pages: stats.pages }, {
-        queueMs: enLectura - pedida,
+        queueMs: reading - requested,
         pruned: Boolean(pruning),
         background: options.background,
         previous: options.previous,
@@ -786,51 +737,43 @@ export const createEvaluationService = ({
     }, { background: options.background });
   };
 
-  // --- 3. un flujo por máquina ---------------------------------------------------
-  //
-  // Las demás filas de una máquina se leen juntas: un flujo ordenado por
-  // control (o varios, por grupos de controles, si la máquina tiene muchos
-  // hechos) y, una vez por máquina, lo que el flujo no lleva (los hechos sin
-  // `data.ensfacil` o con un campo de control antiguo), sus latidos y el
-  // último hecho de estado de cada control (para la poda). Cada control se
-  // evalúa en cuanto termina su tramo, con sus hechos en el MISMO orden que
-  // leyéndolo solo (`mergeFactsInOrder`).
+  // --- 3. one stream per machine ---
+  // A machine's other rows are read together: a stream sorted by control (or several, by control groups, if the
+  // machine has many facts) and, once per machine, what the stream does not carry (facts without `data.ensfacil`
+  // or with an old control field), its heartbeats and the last state fact of each control (for pruning). Each
+  // control is evaluated as soon as its stretch ends, with its facts in the SAME order as reading it alone
+  // (`mergeFactsInOrder`).
 
-  // Los hechos que caben, más o menos, en un grupo de controles de una máquina.
+  // Facts that roughly fit in a control group of a machine.
   const CHUNK_FACTS = 20000;
-  // Las hojas de la poda de todo un flujo (la consulta entera, por debajo de
-  // las 1024 cláusulas de OpenSearch).
+  // Pruning leaves of a whole stream (the entire query, below OpenSearch's 1024 clauses).
   const STREAM_PRUNING_MAX_LEAVES = 600;
   const STATE_CONTROLS = catalogControlIds().filter(hasStateFacts);
 
   class StreamFallbackError extends Error {}
 
-  // Un 400 del indexador (la consulta: un mapeo o un orden que no admite) a
-  // la lectura por máquina: sus filas se leen una a una, con el orden de
-  // siempre. Nada más: un 401/403 (permisos) se dice tal cual, y un 429 o un
-  // 5xx (indexador saturado o caído) falla con su motivo y se reintenta con
-  // espera (no se multiplica en una lectura por fila). Los errores propios
-  // (datos incompletos, demasiados hechos, cancelada) no traen `meta`.
-  const rechazoDelIndexador = (error: any): boolean => Number(error?.meta?.statusCode) === 400;
+  // An indexer 400 (the query: a mapping or sort it does not support) on the per-machine read: its rows are read
+  // one by one, in the usual order. Nothing else: a 401/403 is reported as is, and a 429 or 5xx fails with its
+  // reason and is retried with a wait. Own errors (incomplete data, too many facts, cancelled) carry no `meta`.
+  const indexerRejection = (error: any): boolean => Number(error?.meta?.statusCode) === 400;
 
   interface AgentSide {
     runs: ENSNormalizedEvent[];
     lastSeen: Map<string, ENSStateFactLastSeen>;
     sideFor: (controlId: string) => any[];
   }
-  // Lo de aparte de cada máquina se comparte entre los grupos de controles y
-  // entre las peticiones que calculan a la vez con la misma ventana; se
-  // olvida a los 5 minutos de leerlo.
+  // The per-machine apart data is shared between control groups and between requests computing at once with the
+  // same window; forgotten 5 minutes after reading.
   const sides = new Map<string, Promise<AgentSide>>();
 
   const sideOf = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, agentId: string, signal: Cancellable): Promise<AgentSide> => {
-    const clave = [ctx.userKey, agentId, ctx.configurationKey, ctx.scopeKey, ctx.window.from, ctx.window.to, ctx.timeZone, ctx.factsIndex].join('|');
-    const guardado = sides.get(clave);
-    if (guardado) return guardado;
-    const promesa = (async () => {
+    const key = [ctx.userKey, agentId, ctx.configurationKey, ctx.scopeKey, ctx.window.from, ctx.window.to, ctx.timeZone, ctx.factsIndex].join('|');
+    const savedValue = sides.get(key);
+    if (savedValue) return savedValue;
+    const promise = (async () => {
       const stats = newReadStats();
       const t0 = Date.now();
-      const [runsHits, sideHits, ultimos] = await Promise.all([
+      const [runsHits, sideHits, lastOnes] = await Promise.all([
         readFacts(ctx, clients.asCurrentUser, buildAgentRunsQuery(ctx.filters, agentId), stats, `los latidos de ${agentId}`, signal),
         readFacts(ctx, clients.asCurrentUser, buildAgentSideQuery(ctx.filters, agentId), stats, `los hechos sin control de ${agentId}`, signal),
         searchComplete(
@@ -844,32 +787,32 @@ export const createEvaluationService = ({
       m.hits += stats.hits;
       m.fetchMs += Date.now() - t0;
       const runs = normalizeWazuhAlerts(runsHits);
-      const lastSeen = readAgentStateFactLastSeen(STATE_CONTROLS, ultimos);
+      const lastSeen = readAgentStateFactLastSeen(STATE_CONTROLS, lastOnes);
       return { runs, lastSeen, sideFor: (controlId: string) => sideHits.filter(hit => sideFactBelongsTo(hit, controlId)) };
     })();
-    // (Una primera carga lenta puede durar más de un minuto: se guarda 5.)
-    const olvida = () => {
+    // (A slow first load can last over a minute: kept 5.)
+    const forgets = () => {
       const t = setTimeout(() => {
-        if (sides.get(clave) === promesa) sides.delete(clave);
+        if (sides.get(key) === promise) sides.delete(key);
       }, 5 * 60 * 1000);
       (t as any).unref?.();
     };
-    promesa.then(olvida, () => sides.delete(clave));
-    sides.set(clave, promesa);
-    return promesa;
+    promise.then(forgets, () => sides.delete(key));
+    sides.set(key, promise);
+    return promise;
   };
 
-  const hojasDe = (q: any): number =>
+  const leavesOf = (q: any): number =>
     Array.isArray(q)
-      ? q.reduce((n, x) => n + hojasDe(x), 0)
+      ? q.reduce((n, x) => n + leavesOf(x), 0)
       : q && typeof q === 'object'
       ? q.bool
-        ? ['filter', 'must', 'should', 'must_not'].reduce((n, k) => n + (q.bool[k] ? hojasDe([].concat(q.bool[k])) : 0), 0)
+        ? ['filter', 'must', 'should', 'must_not'].reduce((n, k) => n + (q.bool[k] ? leavesOf([].concat(q.bool[k])) : 0), 0)
         : 1
       : 0;
 
-  // Lee un grupo de controles de una máquina y, tramo a tramo, calcula su
-  // resultado de ahora (`current`) o su serie (`series`).
+  // Reads a control group of a machine and, stretch by stretch, computes its current result (`current`) or its
+  // series (`series`).
   const runStreamChunk = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -878,89 +821,89 @@ export const createEvaluationService = ({
     mode: 'current' | 'series',
     job: Job
   ): Promise<void> => {
-    const pedida = Date.now();
-    const porControl = new Map(needs.map(need => [need.spec.controlId, need]));
-    const controles = [...porControl.keys()];
-    const serie = seriesOf(ctx);
-    const instantes = mode === 'series' ? [...serie.plan.map(cut => cut.cutoff), ctx.now] : [ctx.now];
+    const requested = Date.now();
+    const byControl = new Map(needs.map(need => [need.spec.controlId, need]));
+    const controlList = [...byControl.keys()];
+    const series = seriesOf(ctx);
+    const instants = mode === 'series' ? [...series.plan.map(cut => cut.cutoff), ctx.now] : [ctx.now];
     const signal = job.signal;
     return reads.use(async () => {
-      const queueMs = Date.now() - pedida;
+      const queueMs = Date.now() - requested;
       throwIfCancelled(signal);
-      const lado = await sideOf(clients, ctx, agentId, signal);
-      // La poda de cada control con hechos de estado, mientras quepa.
-      let hojas = 0;
-      const podas: unknown[] = [];
-      const podados = new Set<string>();
-      for (const controlId of controles) {
+      const side = await sideOf(clients, ctx, agentId, signal);
+      // Pruning of each control with state facts, while it fits.
+      let leaves = 0;
+      const prunings: unknown[] = [];
+      const pruned = new Set<string>();
+      for (const controlId of controlList) {
         if (!hasStateFacts(controlId)) continue;
-        const clausula = keepClauseFor(ctx, controlId, agentId, lado.runs, lado.lastSeen.get(controlId), instantes);
-        if (!clausula) continue;
-        const n = hojasDe(clausula);
-        if (hojas + n > STREAM_PRUNING_MAX_LEAVES) continue;
-        hojas += n;
-        podas.push(clausula);
-        podados.add(controlId);
+        const clause = keepClauseFor(ctx, controlId, agentId, side.runs, side.lastSeen.get(controlId), instants);
+        if (!clause) continue;
+        const n = leavesOf(clause);
+        if (leaves + n > STREAM_PRUNING_MAX_LEAVES) continue;
+        leaves += n;
+        prunings.push(clause);
+        pruned.add(controlId);
       }
       const stats = newReadStats();
-      const vistos = new Set<string>();
-      let tramo: { controlId: string; hits: any[]; desde: number; paginas: number } | undefined;
-      const cierra = async (controlId: string, hits: any[], searchMs: number, pages: number) => {
-        vistos.add(controlId);
-        const need = porControl.get(controlId);
+      const seenOnes = new Set<string>();
+      let span: { controlId: string; hits: any[]; desde: number; paginas: number } | undefined;
+      const closes = async (controlId: string, hits: any[], searchMs: number, pages: number) => {
+        seenOnes.add(controlId);
+        const need = byControl.get(controlId);
         if (!need) return;
-        const entrada = mergeFactsInOrder(hits, lado.sideFor(controlId));
+        const entry = mergeFactsInOrder(hits, side.sideFor(controlId));
         if (mode === 'current') {
-          const row = await evaluateRow(ctx, need.spec, entrada, { searchMs, hits: entrada.length, pages }, {
+          const row = await evaluateRow(ctx, need.spec, entry, { searchMs, hits: entry.length, pages }, {
             queueMs,
-            pruned: podados.has(controlId),
+            pruned: pruned.has(controlId),
             background: job.background,
             previous: rows.peek(need.key)?.value,
             signal,
           });
           job.resolveRow(need, row);
         } else {
-          await seriesForRow(ctx, need, entrada, searchMs);
+          await seriesForRow(ctx, need, entry, searchMs);
         }
       };
       try {
         await readAllFacts(
           clients.asCurrentUser,
-          buildAgentStreamQuery(ctx.filters, agentId, controles, podas),
+          buildAgentStreamQuery(ctx.filters, agentId, controlList, prunings),
           async page => {
             for (const hit of page) {
-              const valor = hit?._source?.data?.ensfacil;
-              // Un hecho con varios controles en `data.ensfacil`: el flujo no
-              // sabe repartirlo como la lectura por fila; se leen solas.
-              if (Array.isArray(valor)) throw new StreamFallbackError();
-              const controlId = String(valor);
-              if (!tramo || tramo.controlId !== controlId) {
-                if (tramo) {
-                  const anterior = tramo;
-                  tramo = undefined;
-                  await cierra(anterior.controlId, anterior.hits, stats.searchMs - anterior.desde, stats.pages - anterior.paginas + 1);
+              const value = hit?._source?.data?.ensfacil;
+              // A fact with several controls in `data.ensfacil`: the stream cannot distribute it like the
+              // per-row read; they are read alone.
+              if (Array.isArray(value)) throw new StreamFallbackError();
+              const controlId = String(value);
+              if (!span || span.controlId !== controlId) {
+                if (span) {
+                  const previous = span;
+                  span = undefined;
+                  await closes(previous.controlId, previous.hits, stats.searchMs - previous.desde, stats.pages - previous.paginas + 1);
                 }
-                tramo = { controlId, hits: [], desde: stats.searchMs, paginas: stats.pages };
+                span = { controlId, hits: [], desde: stats.searchMs, paginas: stats.pages };
               }
-              tramo.hits.push(hit);
-              if (tramo.hits.length > maxFactsPerRead) throw new ENSTooManyFactsError(`${controlId} en ${agentId}`, maxFactsPerRead);
+              span.hits.push(hit);
+              if (span.hits.length > maxFactsPerRead) throw new ENSTooManyFactsError(`${controlId} en ${agentId}`, maxFactsPerRead);
             }
           },
           stats,
           { what: `los hechos de ${agentId}`, signal, index: ctx.factsIndex, sort: STREAM_SORT, idIndex: 2, maxFacts: Number.MAX_SAFE_INTEGER }
         );
       } catch (error: any) {
-        if (!rechazoDelIndexador(error)) throw error;
-        logger.warn(`ENSFácil: el indexador rechazó la lectura de los hechos de ${agentId} (${error?.message}); se leen sus filas una a una.`);
+        if (!indexerRejection(error)) throw error;
+        logger.warn(`ENSFácil: the indexer rejected the facts read of ${agentId} (${error?.message}); its rows are read one by one.`);
         throw new StreamFallbackError(error?.message);
       }
-      if (tramo) await cierra(tramo.controlId, tramo.hits, stats.searchMs - tramo.desde, stats.pages - tramo.paginas + 1);
-      // Los controles sin ningún hecho propio en la ventana: con lo de aparte.
-      for (const controlId of controles) if (!vistos.has(controlId)) await cierra(controlId, [], 0, 0);
+      if (span) await closes(span.controlId, span.hits, stats.searchMs - span.desde, stats.pages - span.paginas + 1);
+      // Controls with no fact of their own in the window: with the apart data.
+      for (const controlId of controlList) if (!seenOnes.has(controlId)) await closes(controlId, [], 0, 0);
     }, { background: job.background });
   };
 
-  // --- 4. los trabajos: quién calcula qué, y quién lo espera -------------------
+  // --- 4. jobs: who computes what, and who waits for it ---
 
   interface RowNeed {
     key: string;
@@ -983,9 +926,9 @@ export const createEvaluationService = ({
     reject: (error: unknown) => void;
     job: Job;
   }
-  // Las filas que se están calculando (por fila y huella): quien llega se une.
+  // Rows being computed (by row and fingerprint): whoever arrives joins.
   const inflight = new Map<string, PendingRow>();
-  // Trabajos de primer plano en curso (la serie no empieza mientras haya).
+  // Foreground jobs in progress (the series does not start while any).
   let foregroundJobs = 0;
 
   const streamable = (need: RowNeed) =>
@@ -994,194 +937,187 @@ export const createEvaluationService = ({
     need.key.startsWith('r|') &&
     !(need.spec.controlId in ENS_CROSS_CONTROL_EVENT_TYPES);
 
-  // Agrupa las filas. Un control solo se puede enseñar cuando están TODAS sus
-  // filas (una por máquina): por eso se reparten en FRANJAS de controles, de
-  // los baratos a los caros según la sonda, y cada franja en un flujo por
-  // máquina (de hasta `CHUNK_FACTS` hechos en la máquina que más tenga). Las
-  // franjas se calculan en orden: los controles baratos están enseguida en
-  // todas las máquinas. Las filas que se leen solas, en su franja por peso.
+  // Groups the rows. A control can be shown only when ALL its rows (one per machine) exist, so controls are
+  // split into BANDS, cheap to expensive per the probe, and each band into a per-machine stream (up to
+  // `CHUNK_FACTS` facts on the busiest machine). Bands are computed in order, so cheap controls are on every
+  // machine soon. Rows read alone go in their weight band.
   const planGroups = (needs: RowNeed[]) => {
-    const grupos: { agentId?: string; needs: RowNeed[]; weight: number; band: number }[] = [];
-    const porControl = new Map<string, RowNeed[]>();
+    const groups: { agentId?: string; needs: RowNeed[]; weight: number; band: number }[] = [];
+    const byControl = new Map<string, RowNeed[]>();
     for (const need of needs) {
-      const lista = porControl.get(need.spec.controlId) || [];
-      lista.push(need);
-      porControl.set(need.spec.controlId, lista);
+      const list = byControl.get(need.spec.controlId) || [];
+      list.push(need);
+      byControl.set(need.spec.controlId, list);
     }
-    const controles = [...porControl.entries()]
-      .map(([controlId, lista]) => ({ controlId, lista, peso: lista.reduce((n, need) => n + need.weight, 0) }))
+    const controlList = [...byControl.entries()]
+      .map(([controlId, list]) => ({ controlId, lista: list, peso: list.reduce((n, need) => n + need.weight, 0) }))
       .sort((a, b) => a.peso - b.peso);
-    let franja = 0;
-    let porMaquina = new Map<string, number>();
-    const enFranja: RowNeed[][] = [[]];
-    for (const control of controles) {
-      const suma = new Map(porMaquina);
+    let stretchBand = 0;
+    let byMachine = new Map<string, number>();
+    const inBand: RowNeed[][] = [[]];
+    for (const control of controlList) {
+      const sum = new Map(byMachine);
       for (const need of control.lista) {
-        if (streamable(need)) suma.set(need.spec.factsAgent as string, (suma.get(need.spec.factsAgent as string) || 0) + need.weight);
+        if (streamable(need)) sum.set(need.spec.factsAgent as string, (sum.get(need.spec.factsAgent as string) || 0) + need.weight);
       }
-      const desborda = [...suma.values()].some(n => n > CHUNK_FACTS);
-      if (desborda && enFranja[franja].length) {
-        franja += 1;
-        enFranja[franja] = [];
-        porMaquina = new Map();
+      const overflows = [...sum.values()].some(n => n > CHUNK_FACTS);
+      if (overflows && inBand[stretchBand].length) {
+        stretchBand += 1;
+        inBand[stretchBand] = [];
+        byMachine = new Map();
         for (const need of control.lista) {
-          if (streamable(need)) porMaquina.set(need.spec.factsAgent as string, (porMaquina.get(need.spec.factsAgent as string) || 0) + need.weight);
+          if (streamable(need)) byMachine.set(need.spec.factsAgent as string, (byMachine.get(need.spec.factsAgent as string) || 0) + need.weight);
         }
       } else {
-        porMaquina = suma;
+        byMachine = sum;
       }
-      enFranja[franja].push(...control.lista);
+      inBand[stretchBand].push(...control.lista);
     }
-    enFranja.forEach((lista, band) => {
-      const deMaquina = new Map<string, RowNeed[]>();
-      for (const need of lista) {
+    inBand.forEach((list, band) => {
+      const ofMachine = new Map<string, RowNeed[]>();
+      for (const need of list) {
         if (streamable(need)) {
-          const agente = need.spec.factsAgent as string;
-          deMaquina.set(agente, [...(deMaquina.get(agente) || []), need]);
+          const agentName = need.spec.factsAgent as string;
+          ofMachine.set(agentName, [...(ofMachine.get(agentName) || []), need]);
         } else {
-          grupos.push({ needs: [need], weight: need.weight, band });
+          groups.push({ needs: [need], weight: need.weight, band });
         }
       }
-      for (const [agentId, propias] of deMaquina) {
-        grupos.push({ agentId, needs: propias, weight: propias.reduce((n, need) => n + need.weight, 0), band });
+      for (const [agentId, ownOnes] of ofMachine) {
+        groups.push({ agentId, needs: ownOnes, weight: ownOnes.reduce((n, need) => n + need.weight, 0), band });
       }
     });
-    return grupos.sort((a, b) => a.band - b.band || a.weight - b.weight);
+    return groups.sort((a, b) => a.band - b.band || a.weight - b.weight);
   };
 
-  // Calcula (o se une al cálculo de) unas filas. Devuelve la promesa de cada
-  // una. `pinned`: sigue aunque se vaya quien lo pidió (respuesta por partes y
-  // refrescos); si no, se cancela cuando no queda nadie esperando.
+  // Computes (or joins the computation of) some rows; returns each one's promise. `pinned`: continues if whoever
+  // asked leaves (partial answers and refreshes); otherwise it is cancelled when nobody waits.
   const ensureRows = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
     needs: RowNeed[],
     o: { background: boolean; pinned: boolean; signal?: Cancellable; onStored?: (need: RowNeed, row: StoredRow) => void; onFailed?: (need: RowNeed, error: unknown) => void }
   ): Map<string, Promise<StoredRow>> => {
-    const salida = new Map<string, Promise<StoredRow>>();
-    const nuevas: RowNeed[] = [];
-    const espera = (job: Job) => {
+    const output = new Map<string, Promise<StoredRow>>();
+    const newOnes: RowNeed[] = [];
+    const waitMs = (job: Job) => {
       if (o.pinned) {
         job.pinned = true;
         return;
       }
       job.waiters += 1;
-      let suelto = false;
-      const suelta = () => {
-        if (suelto) return;
-        suelto = true;
+      let loose = false;
+      const looseOne = () => {
+        if (loose) return;
+        loose = true;
         job.waiters -= 1;
         if (job.waiters <= 0 && !job.pinned) job.signal.cancel();
       };
-      o.signal?.onAbort(suelta);
+      o.signal?.onAbort(looseOne);
     };
-    const vistos = new Set<Job>();
+    const seenOnes = new Set<Job>();
     for (const need of needs) {
-      const enCurso = inflight.get(`${need.key}|${need.fingerprint}`);
-      if (enCurso && !enCurso.job.signal.aborted) {
-        if (!vistos.has(enCurso.job)) {
-          vistos.add(enCurso.job);
-          espera(enCurso.job);
+      const inProgress = inflight.get(`${need.key}|${need.fingerprint}`);
+      if (inProgress && !inProgress.job.signal.aborted) {
+        if (!seenOnes.has(inProgress.job)) {
+          seenOnes.add(inProgress.job);
+          waitMs(inProgress.job);
         }
-        salida.set(need.key, enCurso.promise);
+        output.set(need.key, inProgress.promise);
       } else {
-        nuevas.push(need);
+        newOnes.push(need);
       }
     }
-    for (const grupo of planGroups(nuevas)) {
-      const pendientes = new Map<string, PendingRow>();
+    for (const group of planGroups(newOnes)) {
+      const pendings = new Map<string, PendingRow>();
       const job: Job = {
         background: o.background,
         pinned: false,
         waiters: 0,
         signal: new CancelSignal(),
         resolveRow: (need, row) => {
-          const p = pendientes.get(need.key);
+          const p = pendings.get(need.key);
           if (!p) return;
-          pendientes.delete(need.key);
+          pendings.delete(need.key);
           inflight.delete(`${need.key}|${need.fingerprint}`);
           storeRow(clients, ctx, need, row);
           o.onStored?.(need, row);
           p.resolve(row);
         },
       };
-      const falla = (need: RowNeed, error: unknown) => {
-        const p = pendientes.get(need.key);
+      const fails = (need: RowNeed, error: unknown) => {
+        const p = pendings.get(need.key);
         if (!p) return;
-        pendientes.delete(need.key);
+        pendings.delete(need.key);
         inflight.delete(`${need.key}|${need.fingerprint}`);
         o.onFailed?.(need, error);
         p.reject(error);
       };
-      for (const need of grupo.needs) {
+      for (const need of group.needs) {
         let resolve!: (row: StoredRow) => void;
         let reject!: (error: unknown) => void;
-        const promise = new Promise<StoredRow>((ok, ko) => {
+        const promise = new Promise<StoredRow>((ok, fail) => {
           resolve = ok;
-          reject = ko;
+          reject = fail;
         });
-        // Nadie tiene por qué esperarla (un refresco): sin rechazo suelto.
+        // Nobody has to wait for it (a refresh): no loose rejection.
         promise.catch(() => undefined);
-        const pendiente = { promise, resolve, reject, job };
-        pendientes.set(need.key, pendiente);
-        inflight.set(`${need.key}|${need.fingerprint}`, pendiente);
-        salida.set(need.key, promise);
+        const pending = { promise, resolve, reject, job };
+        pendings.set(need.key, pending);
+        inflight.set(`${need.key}|${need.fingerprint}`, pending);
+        output.set(need.key, promise);
       }
-      espera(job);
+      waitMs(job);
       if (!o.background) foregroundJobs += 1;
-      const trabajo = async () => {
+      const jobItem = async () => {
         try {
-          if (grupo.agentId) {
-            await runStreamChunk(clients, ctx, grupo.agentId, grupo.needs, 'current', job);
+          if (group.agentId) {
+            await runStreamChunk(clients, ctx, group.agentId, group.needs, 'current', job);
           } else {
-            for (const need of grupo.needs) {
+            for (const need of group.needs) {
               const row = await computeRow(clients, ctx, need.spec, job.signal, { background: o.background, previous: rows.peek(need.key)?.value });
               job.resolveRow(need, row);
             }
           }
         } catch (error) {
           if (error instanceof StreamFallbackError) {
-            for (const need of grupo.needs.filter(n => pendientes.has(n.key))) {
+            for (const need of group.needs.filter(n => pendings.has(n.key))) {
               try {
                 job.resolveRow(need, await computeRow(clients, ctx, need.spec, job.signal, { background: o.background, previous: rows.peek(need.key)?.value }));
-              } catch (otro) {
-                falla(need, otro);
+              } catch (other) {
+                fails(need, other);
               }
             }
           } else {
-            for (const need of grupo.needs) falla(need, error);
+            for (const need of group.needs) fails(need, error);
           }
         } finally {
-          for (const need of grupo.needs) falla(need, new Error('La fila no se calculó.'));
+          for (const need of group.needs) fails(need, new Error('La fila no se calculó.'));
           if (!o.background) {
             foregroundJobs -= 1;
             if (!foregroundJobs) kickSeries();
           }
         }
       };
-      void trabajo();
+      void jobItem();
     }
-    return salida;
+    return output;
   };
 
-  // Guarda una fila recién calculada y pone su serie en la cola.
+  // Stores a freshly computed row and queues its series.
   const storeRow = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed, row: StoredRow) => {
     refreshFailures.delete(need.key);
     coldFailures.delete(need.key);
-    const anterior = rows.peek(need.key);
-    if (anterior && anterior.value !== row) anterior.value.superseded = true;
+    const previous = rows.peek(need.key);
+    if (previous && previous.value !== row) previous.value.superseded = true;
     rows.set(need.key, need.fingerprint, row);
     wantSeries(clients, ctx, need);
   };
 
-  // --- 5. la serie, en segundo plano -------------------------------------------
-  //
-  // Cuando no queda nada de primer plano en curso, de grupo en grupo (los
-  // baratos primero): se leen los hechos con la poda exacta para ahora y el
-  // final de cada día y se evalúa cada día (del más reciente al más antiguo,
-  // cada uno en su turno del motor, detrás de lo que alguien espere). Los
-  // puntos se guardan en la fila según salen; las vistas los reutilizan sin
-  // volver a leer.
+  // --- 5. the series, in the background ---
+  // When no foreground job is running, group by group (cheap first): facts are read with exact pruning for now
+  // and each day end and each day is evaluated (newest to oldest, each in its engine turn, behind whatever
+  // someone waits for). Points are stored in the row as they come out; views reuse them without reading again.
 
   interface SeriesWanted {
     clients: ENSEvaluationClients;
@@ -1194,35 +1130,33 @@ export const createEvaluationService = ({
   let seriesBusy = false;
   let seriesTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // La serie va con la fila guardada AHORA bajo esa clave (la versión que
-  // sea: un refresco por hechos nuevos no la cambia), mientras sea de la
-  // misma configuración y alcance que la petición que la pidió.
+  // The series goes with the row stored NOW under that key (whatever version: a refresh for new facts does not
+  // change it) while it has the same configuration and scope as the request that asked for it.
   const seriesTarget = (ctx: ENSEvaluationContext, need: RowNeed) => {
-    const fila = rows.peek(need.key)?.value;
-    return fila && fila.configurationKey === ctx.configurationKey && fila.scopeKey === ctx.scopeKey ? fila : undefined;
+    const row = rows.peek(need.key)?.value;
+    return row && row.configurationKey === ctx.configurationKey && row.scopeKey === ctx.scopeKey ? row : undefined;
   };
-  // ¿Tiene ya la fila su serie entera (de hoy, en esta zona, con estos
-  // hechos de días pasados)?
-  const seriesDone = (fila: StoredRow, serieKey: string, pastKey: string) =>
-    Boolean(fila.cuts && fila.cuts.key === serieKey && fila.cuts.pastKey === pastKey && fila.cuts.complete);
+  // Does the row already have its whole series (today's, in this zone, with these past-day facts)?
+  const seriesDone = (row: StoredRow, seriesKeyValue: string, pastKey: string) =>
+    Boolean(row.cuts && row.cuts.key === seriesKeyValue && row.cuts.pastKey === pastKey && row.cuts.complete);
 
   const wantSeries = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
-    const serieKey = seriesOf(ctx).key;
-    const fila = seriesTarget(ctx, need);
-    if (!fila || seriesDone(fila, serieKey, pastSignature(ctx, need.spec))) return;
-    const clave = `${need.key}|${serieKey}`;
-    // Una versión más nueva de la fila sustituye a la que esperaba.
-    const previo = seriesWanted.get(clave);
-    if (!previo || previo.need.fingerprint !== need.fingerprint) seriesWanted.set(clave, { clients, ctx, need, serieKey });
+    const seriesKeyValue = seriesOf(ctx).key;
+    const row = seriesTarget(ctx, need);
+    if (!row || seriesDone(row, seriesKeyValue, pastSignature(ctx, need.spec))) return;
+    const key = `${need.key}|${seriesKeyValue}`;
+    // A newer row version replaces the one it was waiting for.
+    const previous3 = seriesWanted.get(key);
+    if (!previous3 || previous3.need.fingerprint !== need.fingerprint) seriesWanted.set(key, { clients, ctx, need, serieKey: seriesKeyValue });
     kickSeries();
   };
 
-  // La serie empieza un poco después de que termine el primer plano: una
-  // petición que llega justo detrás (el panel tras la lista) va antes.
+  // The series starts a little after the foreground ends: a request arriving just behind (the panel after the
+  // list) goes first.
   const SERIES_IDLE_MS = 200;
   function kickSeries() {
     if (seriesBusy || seriesTimer) return;
-    if (foregroundJobs > 0) return; // vuelve a probar al terminar el primer plano
+    if (foregroundJobs > 0) return;  // retried when the foreground ends
     seriesTimer = setTimeout(() => {
       seriesTimer = undefined;
       void nextSeries();
@@ -1231,137 +1165,134 @@ export const createEvaluationService = ({
 
   const nextSeries = async () => {
     if (seriesBusy || foregroundJobs > 0) return;
-    const ahora = clock().getTime();
-    const listos = [...seriesWanted.entries()].filter(([clave, w]) => {
-      // La fila de esa clave, la versión que sea (un refresco no la saca de
-      // la cola); fuera solo si ya tiene su serie, o si la fila ya es de otra
-      // configuración, alcance o días pasados (la nueva la pedirá con lo suyo).
-      const fila = seriesTarget(w.ctx, w.need);
-      if (!fila || seriesDone(fila, w.serieKey, pastSignature(w.ctx, w.need.spec))) {
-        seriesWanted.delete(clave);
+    const now = clock().getTime();
+    const readyOnes = [...seriesWanted.entries()].filter(([key, w]) => {
+      // The row under that key, whatever version (a refresh does not take it out of the queue); out only if it
+      // already has its series, or the row is of another configuration, scope or past days (the new one will ask
+      // with its own).
+      const row = seriesTarget(w.ctx, w.need);
+      if (!row || seriesDone(row, w.serieKey, pastSignature(w.ctx, w.need.spec))) {
+        seriesWanted.delete(key);
         return false;
       }
-      const fallo = seriesFailures.get(w.need.key);
-      return !(fallo && fallo.nextAt > ahora);
+      const failure = seriesFailures.get(w.need.key);
+      return !(failure && failure.nextAt > now);
     });
-    if (!listos.length) {
-      // Las que esperan tras un fallo: se vuelve a mirar cuando toque.
+    if (!readyOnes.length) {
+      // Those waiting after a failure: looked at again when due.
       if (seriesWanted.size && !seriesTimer) {
-        const proxima = Math.min(...[...seriesWanted.values()].map(w => seriesFailures.get(w.need.key)?.nextAt || ahora));
+        const nextOne = Math.min(...[...seriesWanted.values()].map(w => seriesFailures.get(w.need.key)?.nextAt || now));
         seriesTimer = setTimeout(() => {
           seriesTimer = undefined;
           void nextSeries();
-        }, Math.max(1000, proxima - ahora));
+        }, Math.max(1000, nextOne - now));
         (seriesTimer as any).unref?.();
       }
       return;
     }
-    // El grupo más barato: las filas de flujo de una máquina (con el mismo
-    // contexto) o una fila suelta.
-    const [, primero] = listos.sort((a, b) => a[1].need.weight - b[1].need.weight)[0];
-    const grupo = streamable(primero.need)
-      ? listos.filter(([, w]) => w.ctx === primero.ctx && streamable(w.need) && w.need.spec.factsAgent === primero.need.spec.factsAgent)
-      : listos.filter(([, w]) => w === primero);
-    let peso = 0;
-    const elegidos = grupo.filter(([, w]) => {
-      if (peso && peso + w.need.weight > CHUNK_FACTS) return false;
-      peso += w.need.weight;
+    // The cheapest group: the stream rows of a machine (same context) or a single row.
+    const [, first2] = readyOnes.sort((a, b) => a[1].need.weight - b[1].need.weight)[0];
+    const group = streamable(first2.need)
+      ? readyOnes.filter(([, w]) => w.ctx === first2.ctx && streamable(w.need) && w.need.spec.factsAgent === first2.need.spec.factsAgent)
+      : readyOnes.filter(([, w]) => w === first2);
+    let weight = 0;
+    const chosen = group.filter(([, w]) => {
+      if (weight && weight + w.need.weight > CHUNK_FACTS) return false;
+      weight += w.need.weight;
       return true;
     });
-    for (const [clave] of elegidos) seriesWanted.delete(clave);
+    for (const [key] of chosen) seriesWanted.delete(key);
     seriesBusy = true;
     const job: Job = { background: true, pinned: true, waiters: 0, signal: new CancelSignal(), resolveRow: () => undefined };
     try {
-      if (streamable(primero.need)) {
+      if (streamable(first2.need)) {
         try {
-          await runStreamChunk(primero.clients, primero.ctx, primero.need.spec.factsAgent as string, elegidos.map(([, w]) => w.need), 'series', job);
+          await runStreamChunk(first2.clients, first2.ctx, first2.need.spec.factsAgent as string, chosen.map(([, w]) => w.need), 'series', job);
         } catch (error) {
           if (!(error instanceof StreamFallbackError)) throw error;
-          // Como la carga: las filas que el flujo no pudo, una a una.
-          for (const [, w] of elegidos) await computeSeriesSingle(w.clients, w.ctx, w.need);
+          // As in the load: rows the stream could not do, one by one.
+          for (const [, w] of chosen) await computeSeriesSingle(w.clients, w.ctx, w.need);
         }
       } else {
-        await computeSeriesSingle(primero.clients, primero.ctx, primero.need);
+        await computeSeriesSingle(first2.clients, first2.ctx, first2.need);
       }
-      for (const [, w] of elegidos) seriesFailures.delete(w.need.key);
+      for (const [, w] of chosen) seriesFailures.delete(w.need.key);
     } catch (error: any) {
-      for (const [clave, w] of elegidos) {
-        const previo = seriesFailures.get(w.need.key);
-        const failures = (previo?.failures || 0) + 1;
-        seriesFailures.set(w.need.key, { failures, nextAt: clock().getTime() + esperaTrasFallo(failures) });
-        seriesWanted.set(clave, w);
+      for (const [key, w] of chosen) {
+        const previous3 = seriesFailures.get(w.need.key);
+        const failures = (previous3?.failures || 0) + 1;
+        seriesFailures.set(w.need.key, { failures, nextAt: clock().getTime() + waitAfterFailureMs(failures) });
+        seriesWanted.set(key, w);
       }
-      logger.warn(`ENSFácil: no se pudo calcular la serie (${elegidos.length} filas): ${error?.message || error}`);
+      logger.warn(`ENSFácil: could not compute the series (${chosen.length} rows): ${error?.message || error}`);
     } finally {
       seriesBusy = false;
       kickSeries();
     }
   };
 
-  // La serie de una fila con sus hechos (ya leídos con la poda de la serie).
+  // A row's series with its facts (already read with the series pruning).
   const seriesForRow = async (ctx: ENSEvaluationContext, need: RowNeed, hits: any[], searchMs: number) => {
-    const serie = seriesOf(ctx);
+    const series = seriesOf(ctx);
     const pastKey = pastSignature(ctx, need.spec);
-    const fila = seriesTarget(ctx, need);
-    if (!fila || seriesDone(fila, serie.key, pastKey)) return;
-    // La serie a medias de una versión anterior (los mismos días pasados) se
-    // sigue llenando; si no hay, una nueva.
+    const row = seriesTarget(ctx, need);
+    if (!row || seriesDone(row, series.key, pastKey)) return;
+    // A half-done series from a previous version (same past days) keeps filling; if none, a new one.
     const cuts: StoredCuts =
-      fila.cuts && fila.cuts.key === serie.key && fila.cuts.pastKey === pastKey
-        ? fila.cuts
-        : { key: serie.key, pastKey, asOf: ctx.now.getTime(), points: {}, complete: false };
-    // La fila de esa clave sigue queriendo ESTA serie: la versión que sea, con
-    // la misma configuración y alcance, mientras no tenga otra del mismo día
-    // más reciente (calculada con hechos de días pasados más nuevos). Si una
-    // versión nueva de la fila no la trae, se le pone.
-    const sigue = (): boolean => {
+      row.cuts && row.cuts.key === series.key && row.cuts.pastKey === pastKey
+        ? row.cuts
+        : { key: series.key, pastKey, asOf: ctx.now.getTime(), points: {}, complete: false };
+    // The row under that key still wants THIS series: any version, same configuration and scope, while it has no
+    // newer one for the same day (computed with newer past-day facts). If a new row version lacks it, it is
+    // attached.
+    const follows = (): boolean => {
       const actual = seriesTarget(ctx, need);
       if (!actual) return false;
       if (actual.cuts === cuts) return true;
-      if (actual.cuts && actual.cuts.key === serie.key && (actual.cuts.asOf > cuts.asOf || actual.cuts.pastKey === pastKey)) return false;
+      if (actual.cuts && actual.cuts.key === series.key && (actual.cuts.asOf > cuts.asOf || actual.cuts.pastKey === pastKey)) return false;
       actual.cuts = cuts;
       return true;
     };
-    if (!sigue()) return;
+    if (!follows()) return;
     const { ascending, normalizeMs, n } = await cpu.use(async () => {
       const t0 = Date.now();
       const total = hits.length;
       const { events } = eventsOf(ctx, need.spec, hits);
       hits.length = 0;
-      const orden = events
+      const order = events
         .map(event => ({ event, time: Date.parse(event.timestamp) }))
         .filter(item => Number.isFinite(item.time) && item.time <= ctx.now.getTime())
         .sort((left, right) => left.time - right.time);
-      return { ascending: orden, normalizeMs: Date.now() - t0, n: total };
+      return { ascending: order, normalizeMs: Date.now() - t0, n: total };
     }, { background: true });
-    const hasta = (limite: number) => {
-      let lo = 0;
+    const until = (limitValue: number) => {
+      let it = 0;
       let hi = ascending.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (ascending[mid].time <= limite) lo = mid + 1;
+      while (it < hi) {
+        const mid = (it + hi) >> 1;
+        if (ascending[mid].time <= limitValue) it = mid + 1;
         else hi = mid;
       }
-      return lo;
+      return it;
     };
-    const evalua = evaluatorOf(ctx, need.spec);
+    const evaluates = evaluatorOf(ctx, need.spec);
     let evaluateMs = 0;
-    for (const cut of [...serie.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
+    for (const cut of [...series.plan].sort((a, b) => b.cutoff.getTime() - a.cutoff.getTime())) {
       const iso = cut.cutoff.toISOString();
-      // Ya calculado (una serie a medias que se retoma).
+      // Already computed (a half-done series being resumed).
       if (cuts.points[iso]) continue;
-      // Otra configuración, alcance o días pasados: la serie ya no vale.
-      if (!sigue()) return;
-      // Cada día, un turno del motor: lo que alguien espera pasa delante.
+      // Another configuration, scope or past days: the series is no longer valid.
+      if (!follows()) return;
+      // Each day takes an engine turn: what someone waits for goes ahead.
       await cpu.use(async () => {
         await yieldToEventLoop();
         const t0 = Date.now();
-        const enCorte = evalua(ascending.slice(0, hasta(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
-        cuts.points[iso] = { status: enCorte?.status || 'NO_EVALUABLE', score: enCorte?.score };
+        const atCut = evaluates(ascending.slice(0, until(cut.cutoff.getTime())).map(item => item.event), cut.cutoff);
+        cuts.points[iso] = { status: atCut?.status || 'NO_EVALUABLE', score: atCut?.score };
         evaluateMs += Date.now() - t0;
       }, { background: true });
     }
-    if (!sigue()) return;
+    if (!follows()) return;
     cuts.complete = true;
     const actual = seriesTarget(ctx, need);
     if (actual) {
@@ -1377,54 +1308,54 @@ export const createEvaluationService = ({
     m.seriesEvaluateMs += evaluateMs;
   };
 
-  // La serie de una fila leída sola.
+  // The series of a row read alone.
   const computeSeriesSingle = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
-    const serie = seriesOf(ctx);
-    const fila = seriesTarget(ctx, need);
-    if (!fila || seriesDone(fila, serie.key, pastSignature(ctx, need.spec))) return;
+    const series = seriesOf(ctx);
+    const row = seriesTarget(ctx, need);
+    if (!row || seriesDone(row, series.key, pastSignature(ctx, need.spec))) return;
     const stats = newReadStats();
-    const instantes = [...serie.plan.map(cut => cut.cutoff), ctx.now];
-    const que = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;
+    const instants = [...series.plan.map(cut => cut.cutoff), ctx.now];
+    const subject = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;
     const signal = new CancelSignal();
     const hits = await reads.use(async () => {
-      const pruning = need.spec.factsAgent ? await pruningFor(clients, ctx, need.spec.controlId, need.spec.factsAgent, instantes, stats, signal) : undefined;
-      return readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, need.spec.controlId, need.spec.factsAgent, pruning), stats, `la serie de ${que}`, signal);
+      const pruning = need.spec.factsAgent ? await pruningFor(clients, ctx, need.spec.controlId, need.spec.factsAgent, instants, stats, signal) : undefined;
+      return readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, need.spec.controlId, need.spec.factsAgent, pruning), stats, `la serie de ${subject}`, signal);
     }, { background: true });
     await seriesForRow(ctx, need, hits, stats.searchMs);
   };
 
-  // --- 6. una vista ---------------------------------------------------------
+  // --- 6. a view ---
 
   const timelinePlan = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): ENSTimelineCutPlan[] => {
     if (!query.timelineDays) return [];
-    const propios = (agentes: string[]) => ctx.probe.presence.filter(p => agentes.includes(p.agentId));
-    let primero: number | undefined;
-    let cuantos = 0;
+    const ownItems = (agentNames: string[]) => ctx.probe.presence.filter(p => agentNames.includes(p.agentId));
+    let first2: number | undefined;
+    let howMany = 0;
     if (query.controlId) {
-      const hechos = ctx.probe.controls[query.controlId];
+      const facts = ctx.probe.controls[query.controlId];
       if (query.agentId) {
-        // La serie de una máquina empieza con su primer hecho del control (o
-        // con el del manager, para un control de organización).
-        const delAgente = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => hechos?.agents[id]).filter(Boolean) as any[];
-        primero = delAgente.length ? Math.min(...delAgente.map(h => Date.parse(h.oldest || h.newest))) : undefined;
-        cuantos = delAgente.reduce((n, h) => n + h.count, 0);
+        // A machine's series starts at its first fact of the control (or the manager's, for an organization
+        // control).
+        const ofAgent = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => facts?.agents[id]).filter(Boolean) as any[];
+        first2 = ofAgent.length ? Math.min(...ofAgent.map(h => Date.parse(h.oldest || h.newest))) : undefined;
+        howMany = ofAgent.reduce((n, h) => n + h.count, 0);
       } else {
-        primero = hechos?.oldest ? Date.parse(hechos.oldest) : undefined;
-        cuantos = hechos?.count || 0;
+        first2 = facts?.oldest ? Date.parse(facts.oldest) : undefined;
+        howMany = facts?.count || 0;
       }
     } else if (query.agentId) {
-      const lista = propios([query.agentId, ENS_MANAGER_AGENT_ID]);
-      primero = lista.length ? Math.min(...lista.map(p => Date.parse(p.earliest))) : undefined;
-      cuantos = lista.reduce((n, p) => n + (p.count || 0), 0);
+      const list = ownItems([query.agentId, ENS_MANAGER_AGENT_ID]);
+      first2 = list.length ? Math.min(...list.map(p => Date.parse(p.earliest))) : undefined;
+      howMany = list.reduce((n, p) => n + (p.count || 0), 0);
     } else {
-      primero = ctx.probe.oldest ? Date.parse(ctx.probe.oldest) : undefined;
-      cuantos = ctx.probe.count;
+      first2 = ctx.probe.oldest ? Date.parse(ctx.probe.oldest) : undefined;
+      howMany = ctx.probe.count;
     }
-    return planENSTimelineCuts(primero, cuantos, {
+    return planENSTimelineCuts(first2, howMany, {
       now: ctx.now,
       days: query.timelineDays,
       timeZone: query.timeZone,
-      // Sin presupuesto: los días pasados se calculan una vez al día.
+      // No budget: past days are computed once a day.
       maxEvaluatedEvents: Infinity,
     });
   };
@@ -1436,21 +1367,21 @@ export const createEvaluationService = ({
     const base = viewFilters(ctx, query.agentId);
     const filters = query.controlId ? [...base, buildENSControlFactsFilter(query.controlId)] : base;
     const body = await searchComplete(clients.asCurrentUser, { ...buildDailyCountsRequest(filters, query.timeZone), index: ctx.factsIndex }, 'los hechos por día');
-    const dias = (body?.aggregations?.days?.buckets || []).map((b: any) => ({ at: Number(b.key), n: Number(b.doc_count || 0) }));
-    return cuts.map(cut => dias.filter((d: any) => d.at <= cut.cutoff.getTime()).reduce((s: number, d: any) => s + d.n, 0));
+    const days = (body?.aggregations?.days?.buckets || []).map((b: any) => ({ at: Number(b.key), n: Number(b.doc_count || 0) }));
+    return cuts.map(cut => days.filter((d: any) => d.at <= cut.cutoff.getTime()).reduce((s: number, d: any) => s + d.n, 0));
   };
 
   const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string) => {
-    const clave = `i|${ctx.userKey}|${query.agentId || '*'}`;
-    const guardado = impacts.get(clave, fingerprint);
-    if (guardado) return guardado;
-    // Los de la vista: la máquina y el manager, o todo el alcance.
+    const key = `i|${ctx.userKey}|${query.agentId || '*'}`;
+    const savedValue = impacts.get(key, fingerprint);
+    if (savedValue) return savedValue;
+    // The view's: the machine and the manager, or the whole scope.
     const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'los eventos operativos');
-    const modelo = buildImpactEventsModelFromCounts(
+    const model = buildImpactEventsModelFromCounts(
       Object.fromEntries((body?.aggregations?.types?.buckets || []).map((b: any) => [String(b.key), Number(b.doc_count || 0)]))
     );
-    impacts.set(clave, fingerprint, modelo);
-    return modelo;
+    impacts.set(key, fingerprint, model);
+    return model;
   };
 
   interface UsedRow {
@@ -1462,40 +1393,39 @@ export const createEvaluationService = ({
     computed: boolean;
   }
 
-  // Refresca detrás las filas guardadas que ya no valen (lo que se enseña es
-  // lo guardado). Un intento nuevo borra el error del anterior; si falla, se
-  // anota con su hora y el siguiente espera cada vez más.
+  // Refreshes behind the stored rows that are no longer valid (what is shown is the stored data). A new attempt
+  // clears the previous error; if it fails it is noted with its time and the next waits longer.
   const refreshStale = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, stale: RowNeed[], options: ENSRunOptions): number => {
-    const ahora = clock().getTime();
-    const toca = stale.filter(need => {
+    const now = clock().getTime();
+    const due = stale.filter(need => {
       if (inflight.has(`${need.key}|${need.fingerprint}`)) return false;
-      const fallo = refreshFailures.get(need.key);
-      return !(fallo && fallo.nextAt > ahora && !options.retryRefresh);
+      const failure = refreshFailures.get(need.key);
+      return !(failure && failure.nextAt > now && !options.retryRefresh);
     });
-    for (const need of toca) {
-      const entrada = rows.peek(need.key);
-      if (entrada) entrada.value.refreshError = undefined;
+    for (const need of due) {
+      const entry = rows.peek(need.key);
+      if (entry) entry.value.refreshError = undefined;
     }
-    if (toca.length) {
-      ensureRows(clients, ctx, toca, {
+    if (due.length) {
+      ensureRows(clients, ctx, due, {
         background: true,
         pinned: true,
         onFailed: (need, error: any) => {
           if (error?.statusCode === 499) return;
-          const previo = refreshFailures.get(need.key);
-          const failures = (previo?.failures || 0) + 1;
-          refreshFailures.set(need.key, { failures, nextAt: clock().getTime() + esperaTrasFallo(failures) });
+          const previous3 = refreshFailures.get(need.key);
+          const failures = (previous3?.failures || 0) + 1;
+          refreshFailures.set(need.key, { failures, nextAt: clock().getTime() + waitAfterFailureMs(failures) });
           const actual = rows.peek(need.key);
           if (actual) actual.value.refreshError = { message: String(error?.message || error), at: clock().toISOString() };
-          logger.warn(`ENSFácil: no se pudo refrescar ${need.key}: ${error?.message || error}`);
+          logger.warn(`ENSFácil: could not refresh ${need.key}: ${error?.message || error}`);
         },
       });
     }
-    // Los fallos de filas que ya no están guardadas no se conservan.
+    // Failures of rows no longer stored are not kept.
     if (refreshFailures.size > rows.size + 100) {
-      for (const clave of [...refreshFailures.keys()]) if (!rows.peek(clave)) refreshFailures.delete(clave);
+      for (const key of [...refreshFailures.keys()]) if (!rows.peek(key)) refreshFailures.delete(key);
     }
-    return toca.length;
+    return due.length;
   };
 
   const run = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery, options: ENSRunOptions = {}) => {
@@ -1506,37 +1436,36 @@ export const createEvaluationService = ({
     const pastCuts = plan.filter(cut => !cut.isCurrent);
     const cutsKey = sha(query.timeZone, pastCuts.map(cut => cut.cutoff.toISOString()));
     const tKey = ['t', ctx.userKey, query.agentId || '*', query.controlId || '*', query.timelineDays, query.timeZone, startOfDayIn(ctx.now, query.timeZone).toISOString()].join('|');
-    const serie = seriesOf(ctx);
+    const series = seriesOf(ctx);
     const progressive = PROGRESSIVE.includes(query.include);
     const level = ctx.configuration.global.ensLevel;
-    const { all: identidades, forControl } = identitiesOf(ctx);
-    const nombre = (agentId: string) => identidades.find(agent => agent.agentId === agentId)?.agentName;
-    const sinIdentidades = identidades.length === 0;
+    const { all: identities, forControl } = identitiesOf(ctx);
+    const name = (agentId: string) => identities.find(agent => agent.agentId === agentId)?.agentName;
+    const withoutIdentities = identities.length === 0;
 
-    // 1. Las filas de cada control.
-    const filasDe = new Map<string, { agentId: string; agentName?: string; need: RowNeed }[]>();
-    const sinFilas = new Map<string, RowNeed>();
+    // 1. The rows of each control.
+    const rowsOf = new Map<string, { agentId: string; agentName?: string; need: RowNeed }[]>();
+    const withoutRows = new Map<string, RowNeed>();
     const needs: RowNeed[] = [];
     for (const controlId of controls) {
-      const agentes = sinIdentidades ? [] : forControl(controlId);
-      // Sin filas, las máquinas declaradas fuera del alcance todavía dan la
-      // vista consolidada (sin leer nada); solo si tampoco las hay, el motor
-      // evalúa el control sobre todos sus hechos sin fila.
-      if (!agentes.length && !sinIdentidades) {
+      const agentNames = withoutIdentities ? [] : forControl(controlId);
+      // Without rows, machines declared out of scope still give the consolidated view (reading nothing); only if
+      // there are none does the engine evaluate the control over all its facts without a row.
+      if (!agentNames.length && !withoutIdentities) {
         ensConfigurationRepository.replaceActive(ctx.configuration);
         if (consolidateENSControlRows(controlId, level, [], ctx.presenceEvents, ctx.scope, ctx.now)) {
-          filasDe.set(controlId, []);
+          rowsOf.set(controlId, []);
           continue;
         }
       }
-      if (!agentes.length) {
+      if (!agentNames.length) {
         const need = { key: `f|${ctx.userKey}|${controlId}`, fingerprint: fallbackFingerprint(ctx, controlId), spec: { controlId }, weight: weightOf(ctx, controlId) };
         needs.push(need);
-        sinFilas.set(controlId, need);
-        filasDe.set(controlId, []);
+        withoutRows.set(controlId, need);
+        rowsOf.set(controlId, []);
         continue;
       }
-      const filas = agentes.map(agent => {
+      const rows = agentNames.map(agent => {
         const need: RowNeed = {
           key: `r|${ctx.userKey}|${controlId}|${agent.agentId}`,
           fingerprint: rowFingerprint(ctx, controlId, agent.agentId),
@@ -1546,49 +1475,47 @@ export const createEvaluationService = ({
         needs.push(need);
         return { agentId: agent.agentId, agentName: agent.agentName, need };
       });
-      filasDe.set(controlId, filas);
+      rowsOf.set(controlId, rows);
     }
 
-    // El tope de la memoria sigue al alcance: que quepan al menos 10 usuarios
-    // con todas sus filas (~60 KB cada una), entre `maxStoredBytes` y 4 veces
-    // eso.
+    // The memory cap follows the scope: room for at least 10 users with all their rows (~60 KB each), between
+    // `maxStoredBytes` and 4 times that.
     rows.setMaxBytes(Math.min(maxStoredBytes * 4, Math.max(maxStoredBytes, needs.length * 60 * 1024 * 10)));
 
-    // 2. Lo guardado (vigente o viejo) y lo que hay que calcular.
-    const listos = new Map<string, UsedRow>();
-    const viejos: RowNeed[] = [];
-    const frios: RowNeed[] = [];
+    // 2. What is stored (valid or old) and what must be computed.
+    const readyOnes = new Map<string, UsedRow>();
+    const old: RowNeed[] = [];
+    const cold: RowNeed[] = [];
     for (const need of needs) {
-      const entrada = rows.peek(need.key);
-      if (entrada && rows.isFresh(entrada, need.fingerprint)) {
-        listos.set(need.key, { key: need.key, need, row: entrada.value, storedAt: entrada.storedAt, stale: false, computed: false });
+      const entry = rows.peek(need.key);
+      if (entry && rows.isFresh(entry, need.fingerprint)) {
+        readyOnes.set(need.key, { key: need.key, need, row: entry.value, storedAt: entry.storedAt, stale: false, computed: false });
       } else if (
         options.allowStale &&
-        entrada &&
-        entrada.value.configurationKey === ctx.configurationKey &&
-        entrada.value.scopeKey === ctx.scopeKey
+        entry &&
+        entry.value.configurationKey === ctx.configurationKey &&
+        entry.value.scopeKey === ctx.scopeKey
       ) {
-        listos.set(need.key, { key: need.key, need, row: entrada.value, storedAt: entrada.storedAt, stale: true, computed: false });
-        viejos.push(need);
+        readyOnes.set(need.key, { key: need.key, need, row: entry.value, storedAt: entry.storedAt, stale: true, computed: false });
+        old.push(need);
       } else {
-        // Una fila que falló DESPUÉS de responder (la primera carga sigue
-        // detrás): el sondeo siguiente dice el error, una vez, en lugar de
-        // relanzar el cálculo sin que nadie se entere.
-        const fallo = coldFailures.get(need.key);
-        if (fallo) {
+        // A row that failed AFTER answering (the first load continues behind): the next poll reports the error
+        // once, instead of relaunching the computation unnoticed.
+        const failure = coldFailures.get(need.key);
+        if (failure) {
           coldFailures.delete(need.key);
-          if (!inflight.has(`${need.key}|${need.fingerprint}`) && !options.retryRefresh && clock().getTime() - fallo.at < COLD_FAILURE_MS) {
-            throw fallo.error;
+          if (!inflight.has(`${need.key}|${need.fingerprint}`) && !options.retryRefresh && clock().getTime() - failure.at < COLD_FAILURE_MS) {
+            throw failure.error;
           }
         }
-        frios.push(need);
+        cold.push(need);
       }
     }
-    const refreshingInBackground = refreshStale(clients, ctx, viejos, options);
+    const refreshingInBackground = refreshStale(clients, ctx, old, options);
 
-    // 3. En frío: la lista y el panel responden con lo que esté a los
-    // `firstResponseMs` y el resto sigue detrás; las demás vistas esperan.
-    const promesas = ensureRows(clients, ctx, frios, {
+    // 3. Cold: the list and the panel answer with what exists at `firstResponseMs` and the rest continues
+    // behind; other views wait.
+    const promises = ensureRows(clients, ctx, cold, {
       background: false,
       pinned: progressive,
       signal: options.signal,
@@ -1596,152 +1523,152 @@ export const createEvaluationService = ({
         if (error?.statusCode !== 499) coldFailures.set(need.key, { error, at: clock().getTime() });
       },
     });
-    const errores: unknown[] = [];
-    const seguimiento = frios.map(need =>
-      promesas.get(need.key)!.then(
+    const errorList: unknown[] = [];
+    const tracking = cold.map(need =>
+      promises.get(need.key)!.then(
         row => {
-          listos.set(need.key, { key: need.key, need, row, storedAt: clock().getTime(), stale: false, computed: true });
+          readyOnes.set(need.key, { key: need.key, need, row, storedAt: clock().getTime(), stale: false, computed: true });
         },
         error => {
-          errores.push(error);
+          errorList.push(error);
         }
       )
     );
-    if (seguimiento.length) {
+    if (tracking.length) {
       if (progressive) {
-        let temporizador: ReturnType<typeof setTimeout> | undefined;
+        let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
-          Promise.all(seguimiento),
+          Promise.all(tracking),
           new Promise<void>(resolve => {
-            temporizador = setTimeout(resolve, firstResponseMs);
+            timer = setTimeout(resolve, firstResponseMs);
           }),
         ]);
-        if (temporizador) clearTimeout(temporizador);
+        if (timer) clearTimeout(timer);
       } else {
-        await Promise.all(seguimiento);
+        await Promise.all(tracking);
       }
     }
-    if (errores.length) {
-      // Dicho ya a quien lo pidió: no se repite en la petición siguiente.
-      for (const need of frios) coldFailures.delete(need.key);
-      throw errores[0];
+    if (errorList.length) {
+      // Already reported to whoever asked: not repeated in the next request.
+      for (const need of cold) coldFailures.delete(need.key);
+      throw errorList[0];
     }
 
-    // 4. La vista de cada control con todas sus filas listas.
-    // Solo puntos de una serie de hoy, en esta zona y con los MISMOS hechos de
-    // días pasados que dice ahora la sonda (un hecho tardío la invalida).
-    const pasadoDe = new Map(needs.map(need => [need.key, pastSignature(ctx, need.spec)]));
-    const puntoDe = (row: StoredRow, iso: string, need: RowNeed): CutPoint | undefined =>
-      row.cuts && row.cuts.key === serie.key && row.cuts.pastKey === (pasadoDe.get(need.key) ?? pastSignature(ctx, need.spec))
+    // 4. The view of each control with all its rows ready.
+    // Only points of today's series, in this zone and with the SAME past-day facts the probe reports now (a late
+    // fact invalidates it).
+    const pastOf = new Map(needs.map(need => [need.key, pastSignature(ctx, need.spec)]));
+    const pointOf = (row: StoredRow, iso: string, need: RowNeed): CutPoint | undefined =>
+      row.cuts && row.cuts.key === series.key && row.cuts.pastKey === (pastOf.get(need.key) ?? pastSignature(ctx, need.spec))
         ? row.cuts.points[iso]
         : undefined;
     ensConfigurationRepository.replaceActive(ctx.configuration);
-    const conTrazas = query.include === 'control';
+    const withTraces = query.include === 'control';
     const views = new Map<string, ENSViewPartition>();
-    const pendientes: string[] = [];
-    const usados: UsedRow[] = [];
+    const pendings: string[] = [];
+    const used: UsedRow[] = [];
     for (const controlId of controls) {
-      const filas = filasDe.get(controlId) || [];
-      const fallbackNeed = sinFilas.get(controlId);
-      const propias = [...filas.map(f => f.need), ...(fallbackNeed ? [fallbackNeed] : [])];
-      if (propias.some(need => !listos.has(need.key))) {
-        pendientes.push(controlId);
+      const rowList = rowsOf.get(controlId) || [];
+      const fallbackNeed = withoutRows.get(controlId);
+      const ownOnes = [...rowList.map(f => f.need), ...(fallbackNeed ? [fallbackNeed] : [])];
+      if (ownOnes.some(need => !readyOnes.has(need.key))) {
+        pendings.push(controlId);
         continue;
       }
-      propias.forEach(need => usados.push(listos.get(need.key)!));
-      const filaDe = (need: RowNeed) => listos.get(need.key)!.row;
+      ownOnes.forEach(need => used.push(readyOnes.get(need.key)!));
+      const rowOf = (need: RowNeed) => readyOnes.get(need.key)!.row;
       let view: ENSViewPartition;
       if (!query.agentId) {
         if (fallbackNeed) {
-          const row = filaDe(fallbackNeed);
+          const row = rowOf(fallbackNeed);
           view = {
             controlId,
             result: row.result,
-            traceability: () => descomprime(row.traceability),
+            traceability: () => decompressTraceability(row.traceability),
             traceabilityStored: row.traceabilityStored,
             traceabilityTotal: row.traceabilityTotal,
             rows: [],
-            pointAt: iso => puntoDe(row, iso, fallbackNeed),
+            pointAt: iso => pointOf(row, iso, fallbackNeed),
           };
         } else {
-          // La trazabilidad del conjunto solo se descomprime para la ficha.
-          const conTraza = filas
-            .filter(f => filaDe(f.need).result)
+          // The set's traceability is decompressed only for the detail.
+          const withTrace = rowList
+            .filter(f => rowOf(f.need).result)
             .map(f => ({
               agentId: f.agentId,
               agentName: f.agentName,
-              result: { ...filaDe(f.need).result!, traceability: conTrazas ? descomprime(filaDe(f.need).traceability) : [] },
+              result: { ...rowOf(f.need).result!, traceability: withTraces ? decompressTraceability(rowOf(f.need).traceability) : [] },
             }));
-          const consolidado = consolidateENSControlRows(controlId, level, conTraza, ctx.presenceEvents, ctx.scope, ctx.now);
-          const traza = consolidado?.traceability || [];
-          const guardadas = conTrazas ? filas.reduce((n, f) => n + filaDe(f.need).traceabilityStored, 0) : 0;
-          const totales = filas.reduce((n, f) => n + filaDe(f.need).traceabilityTotal, 0);
-          const lista = traza.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
+          const consolidated = consolidateENSControlRows(controlId, level, withTrace, ctx.presenceEvents, ctx.scope, ctx.now);
+          const trace = consolidated?.traceability || [];
+          const savedOnes = withTraces ? rowList.reduce((n, f) => n + rowOf(f.need).traceabilityStored, 0) : 0;
+          const totals = rowList.reduce((n, f) => n + rowOf(f.need).traceabilityTotal, 0);
+          const list = trace.slice(0, ENS_EVALUATION_LIMITS.traceabilityStored);
           view = {
             controlId,
-            result: consolidado && withoutTraceability(consolidado),
-            traceability: () => lista,
-            traceabilityStored: lista.length,
-            traceabilityTotal: traza.length - guardadas + totales,
-            rows: conTraza.map(f => ({ agentId: f.agentId, result: withoutTraceability(f.result) })),
+            result: consolidated && withoutTraceability(consolidated),
+            traceability: () => list,
+            traceabilityStored: list.length,
+            traceabilityTotal: trace.length - savedOnes + totals,
+            rows: withTrace.map(f => ({ agentId: f.agentId, result: withoutTraceability(f.result) })),
             pointAt: (iso, cutoff) => {
-              const puntos = filas.map(f => puntoDe(filaDe(f.need), iso, f.need));
-              if (puntos.some(p => p === undefined)) return undefined;
+              const points = rowList.map(f => pointOf(rowOf(f.need), iso, f.need));
+              if (points.some(p => p === undefined)) return undefined;
               ensConfigurationRepository.replaceActive(ctx.configuration);
-              const enCorte = consolidateENSControlRows(
+              const atCut = consolidateENSControlRows(
                 controlId,
                 level,
-                filas.map((f, i) => ({ agentId: f.agentId, agentName: f.agentName, result: resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) })),
+                rowList.map((f, i) => ({ agentId: f.agentId, agentName: f.agentName, result: resultStatusStub(controlId, points[i]!.status, points[i]!.score) })),
                 ctx.presenceEvents,
                 ctx.scope,
                 cutoff
               );
-              return enCorte ? { status: enCorte.status, score: enCorte.score } : null;
+              return atCut ? { status: atCut.status, score: atCut.score } : null;
             },
           };
         }
       } else {
-        const decision = deriveForAgent(controlId, query.agentId, filas.map(f => f.agentId), ctx.scope);
-        let deFila: RowNeed | undefined =
+        const decision = deriveForAgent(controlId, query.agentId, rowList.map(f => f.agentId), ctx.scope);
+        let ofRow: RowNeed | undefined =
           decision?.from === 'row'
-            ? filas.find(f => f.agentId === query.agentId)!.need
+            ? rowList.find(f => f.agentId === query.agentId)!.need
             : decision?.from === 'manager'
-            ? filas.find(f => f.agentId === ENS_MANAGER_AGENT_ID)!.need
+            ? rowList.find(f => f.agentId === ENS_MANAGER_AGENT_ID)!.need
             : undefined;
-        let fila = deFila ? filaDe(deFila) : undefined;
+        let rowItem = ofRow ? rowOf(ofRow) : undefined;
         if (!decision) {
-          // Un control de organización sin fila del manager: se evalúa la
-          // vista con los hechos del manager, como el motor.
+          // An organization control without a manager row: the view is evaluated with the manager's facts, like
+          // the engine.
           const need: RowNeed = {
             key: `d|${ctx.userKey}|${controlId}|${query.agentId}`,
             fingerprint: rowFingerprint(ctx, controlId, ENS_MANAGER_AGENT_ID),
             spec: { controlId, factsAgent: ENS_MANAGER_AGENT_ID, viewAgent: query.agentId },
             weight: weightOf(ctx, controlId, ENS_MANAGER_AGENT_ID),
           };
-          deFila = need;
-          const entrada = rows.peek(need.key);
-          if (entrada && rows.isFresh(entrada, need.fingerprint)) {
-            fila = entrada.value;
-            usados.push({ key: need.key, need, row: entrada.value, storedAt: entrada.storedAt, stale: false, computed: false });
+          ofRow = need;
+          const entry = rows.peek(need.key);
+          if (entry && rows.isFresh(entry, need.fingerprint)) {
+            rowItem = entry.value;
+            used.push({ key: need.key, need, row: entry.value, storedAt: entry.storedAt, stale: false, computed: false });
           } else {
             const row = await ensureRows(clients, ctx, [need], { background: false, pinned: false, signal: options.signal }).get(need.key)!;
-            fila = row;
-            usados.push({ key: need.key, need, row, storedAt: clock().getTime(), stale: false, computed: true });
+            rowItem = row;
+            used.push({ key: need.key, need, row, storedAt: clock().getTime(), stale: false, computed: true });
           }
           ensConfigurationRepository.replaceActive(ctx.configuration);
         }
-        const propia = decision?.from === 'row' ? fila : undefined;
-        const f = fila;
-        const deF = deFila;
+        const own = decision?.from === 'row' ? rowItem : undefined;
+        const f = rowItem;
+        const ofF = ofRow;
         view = {
           controlId,
           result: f?.result,
-          traceability: () => (f ? descomprime(f.traceability) : []),
+          traceability: () => (f ? decompressTraceability(f.traceability) : []),
           traceabilityStored: f?.traceabilityStored || 0,
           traceabilityTotal: f?.traceabilityTotal || 0,
-          rows: propia?.result ? [{ agentId: query.agentId, result: propia.result }] : [],
-          // Sin fila (no se mide aquí) no hay punto: `null`.
-          pointAt: iso => (f && deF ? puntoDe(f, iso, deF) : null),
+          rows: own?.result ? [{ agentId: query.agentId, result: own.result }] : [],
+          // No row (not measured here), no point: `null`.
+          pointAt: iso => (f && ofF ? pointOf(f, iso, ofF) : null),
         };
       }
       views.set(controlId, view);
@@ -1754,67 +1681,63 @@ export const createEvaluationService = ({
       ? undefined
       : assembleENSComplianceState(parts, query.agentId, ctx.scope, ctx.presenceEvents);
 
-    // 5. La serie: días pasados (guardados o sacados de la serie de cada fila)
-    // + el presente. Nunca se espera: si falta algún día, la vista responde
-    // sin serie (`meta.seriesPending`) y la serie se calcula detrás.
+    // 5. The series: past days (stored or taken from each row's series) + the present. Never waits: if a day is
+    // missing the view answers without series (`meta.seriesPending`) and the series is computed behind.
     let timeline: any[] | undefined;
     let seriesPending = false;
-    // Se enseña la última serie buena mientras se calcula la nueva.
+    // The last good series is shown while the new one is computed.
     let seriesRefreshing = false;
     if (query.timelineDays) {
-      if (pendientes.length) {
-        // Con filas aún por calcular, ni la serie: el punto de hoy saldría de
-        // una parte de los controles y parecería el de todos.
+      if (pendings.length) {
+        // With rows still to compute, no series either: today's point would come from some controls and look
+        // like all of them.
         seriesPending = true;
       } else {
-        // Los días pasados de esta vista, guardados hasta el día siguiente
-        // mientras no cambie la configuración, el alcance ni los hechos de
-        // días pasados de sus filas (aunque alguna fila se esté refrescando:
-        // los hechos nuevos son de hoy).
-        const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey, needs.map(need => pasadoDe.get(need.key) ?? null));
-        let pasados = timelines.get(tKey, tFingerprint)?.pasados;
-        if (!pasados) {
-          const porControl = pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
-          if (porControl.some(puntos => puntos.some(p => p === undefined))) {
-            for (const u of usados) wantSeries(clients, ctx, u.need);
-            // La última serie buena de esta vista (mismo día, zona,
-            // configuración y alcance), marcada «actualizándose»: solo el
-            // punto de hoy es de ahora.
-            const anterior = timelines.peek(tKey)?.value;
-            if (anterior && anterior.configurationKey === ctx.configurationKey && anterior.scopeKey === ctx.scopeKey) {
-              pasados = anterior.pasados;
+        // Past days of this view, stored until the next day while the configuration, scope and past-day facts of
+        // its rows do not change (even if some row is refreshing: new facts are today's).
+        const tFingerprint = sha(ctx.configurationKey, ctx.scopeKey, cutsKey, needs.map(need => pastOf.get(need.key) ?? null));
+        let pasts = timelines.get(tKey, tFingerprint)?.pasados;
+        if (!pasts) {
+          const byControl = pastCuts.map(cut => controls.map(controlId => views.get(controlId)!.pointAt(cut.cutoff.toISOString(), cut.cutoff)));
+          if (byControl.some(points => points.some(p => p === undefined))) {
+            for (const u of used) wantSeries(clients, ctx, u.need);
+            // The last good series of this view (same day, zone, configuration and scope), marked as refreshing:
+            // only today's point is current.
+            const previous = timelines.peek(tKey)?.value;
+            if (previous && previous.configurationKey === ctx.configurationKey && previous.scopeKey === ctx.scopeKey) {
+              pasts = previous.pasados;
               seriesRefreshing = true;
             } else {
               seriesPending = true;
             }
           } else {
-            const eventos = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
-            pasados = pastCuts.map((cut, index) => {
-              const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: eventos[index] || 0 };
-              const puntos = porControl[index];
+            const events = pastCuts.length ? await dailyCounts(clients, ctx, query, pastCuts) : [];
+            pasts = pastCuts.map((cut, index) => {
+              const base = { date: cut.cutoff.toISOString(), label: cut.label, isCurrent: false, events: events[index] || 0 };
+              const points = byControl[index];
               if (query.controlId) {
-                return { ...base, score: puntos[0]?.score, status: puntos[0]?.status || 'NO_EVALUABLE' };
+                return { ...base, score: points[0]?.score, status: points[0]?.status || 'NO_EVALUABLE' };
               }
-              // El número del panel en ese día: el mismo resumen del motor, sobre
-              // los controles con resultado en la vista.
-              const resultados = controls
-                .map((controlId, i) => (puntos[i] ? resultStatusStub(controlId, puntos[i]!.status, puntos[i]!.score) : undefined))
+              // The panel number on that day: the engine's same summary over the controls with a result in the
+              // view.
+              const results = controls
+                .map((controlId, i) => (points[i] ? resultStatusStub(controlId, points[i]!.status, points[i]!.score) : undefined))
                 .filter((r): r is ENSComplianceResult => Boolean(r));
-              return { ...base, score: buildComplianceState(resultados).controlSummary.scoreAverage, controls: perControlOfPoint(controls, puntos) };
+              return { ...base, score: buildComplianceState(results).controlSummary.scoreAverage, controls: perControlOfPoint(controls, points) };
             });
-            timelines.set(tKey, tFingerprint, { pasados, configurationKey: ctx.configurationKey, scopeKey: ctx.scopeKey });
+            timelines.set(tKey, tFingerprint, { pasados: pasts, configurationKey: ctx.configurationKey, scopeKey: ctx.scopeKey });
           }
         }
-        if (pasados) {
-          const hoy = plan.find(cut => cut.isCurrent);
+        if (pasts) {
+          const today = plan.find(cut => cut.isCurrent);
           const actual = query.controlId ? views.get(query.controlId)?.result : undefined;
           timeline = [
-            ...pasados,
-            ...(hoy
+            ...pasts,
+            ...(today
               ? [
                   {
-                    date: hoy.cutoff.toISOString(),
-                    label: hoy.label,
+                    date: today.cutoff.toISOString(),
+                    label: today.label,
                     isCurrent: true,
                     events: factsOfView(ctx, query).count,
                     ...(query.controlId
@@ -1828,36 +1751,34 @@ export const createEvaluationService = ({
       }
     }
 
-    const refreshing = usados.some(u => u.stale);
+    const refreshing = used.some(u => u.stale);
     const fingerprint = viewFingerprint(ctx, query);
-    const impact = query.include === 'dashboard' && !pendientes.length ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
-    const calculadas = usados.filter(u => u.computed);
-    // El error de un refresco se dice mientras no haya otro intento en curso
-    // (un intento nuevo lo borra; si también falla, se anota con su hora).
-    const errores2 = usados
+    const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
+    const computed = used.filter(u => u.computed);
+    // A refresh error is reported while no other attempt is in progress (a new attempt clears it; if it also
+    // fails it is noted with its time).
+    const errorList2 = used
       .filter(u => u.stale && !inflight.has(`${u.need.key}|${u.need.fingerprint}`))
       .map(u => u.row.refreshError)
       .filter(Boolean) as { message: string; at: string }[];
-    const refreshError = errores2.sort((a, b) => b.at.localeCompare(a.at))[0];
-    const filasPendientes = needs.filter(need => !listos.has(need.key)).length;
+    const refreshError = errorList2.sort((a, b) => b.at.localeCompare(a.at))[0];
+    const pendingRows = needs.filter(need => !readyOnes.has(need.key)).length;
 
     const meta = {
-      // Con algo viejo a la vista, filas o serie pendientes, la huella no es
-      // la de los datos: la sonda siguiente la verá distinta y el navegador
-      // volverá a pedir.
-      fingerprint: refreshing || seriesPending || seriesRefreshing || pendientes.length ? `refreshing:${fingerprint}` : fingerprint,
-      refreshing: refreshing || seriesPending || seriesRefreshing || pendientes.length > 0,
-      // Filas que aún se están calculando (la lista, la Vista general y el
-      // panel responden sin esperarlas): cuántas y de qué controles.
-      pending: pendientes.length ? { rows: filasPendientes, controls: pendientes, total: needs.length } : undefined,
+      // With something old in view, or rows or series pending, the fingerprint is not that of the data: the next
+      // probe sees it different and the browser asks again.
+      fingerprint: refreshing || seriesPending || seriesRefreshing || pendings.length ? `refreshing:${fingerprint}` : fingerprint,
+      refreshing: refreshing || seriesPending || seriesRefreshing || pendings.length > 0,
+      // Rows still being computed (the list, the overview and the panel answer without waiting): how many and of
+      // which controls.
+      pending: pendings.length ? { rows: pendingRows, controls: pendings, total: needs.length } : undefined,
       seriesPending,
-      // El último refresco en segundo plano que falló (lo que se enseña es lo
-      // anterior a él).
+      // The last background refresh that failed (what is shown predates it).
       refreshError,
       // Current rows are still valid now (same fingerprint): only stale data shows its own, older time.
       computedAt: new Date(
-        (refreshing || seriesPending || seriesRefreshing || pendientes.length) && usados.length
-          ? Math.min(...usados.map(u => u.storedAt))
+        (refreshing || seriesPending || seriesRefreshing || pendings.length) && used.length
+          ? Math.min(...used.map(u => u.storedAt))
           : ctx.now.getTime()
       ).toISOString(),
       evaluatedAt: ctx.now.toISOString(),
@@ -1871,17 +1792,17 @@ export const createEvaluationService = ({
       inventory: ctx.inventory,
       stats: {
         totalMs: Date.now() - started,
-        computed: calculadas.length,
+        computed: computed.length,
         refreshingInBackground,
-        hits: calculadas.reduce((n, u) => n + u.row.stats.hits, 0),
-        rows: calculadas.map(u => u.row.stats),
+        hits: computed.reduce((n, u) => n + u.row.stats.hits, 0),
+        rows: computed.map(u => u.row.stats),
       },
     };
 
-    return { ctx, query, meta, state, views, timeline, impact, rowName: nombre };
+    return { ctx, query, meta, state, views, timeline, impact, rowName: name };
   };
 
-  // Lo que queda por hacer en segundo plano (para esperar a que termine).
+  // What remains to do in the background (to wait for it to finish).
   const backgroundWork = () => ({
     rows: inflight.size,
     series: seriesWanted.size + (seriesBusy ? 1 : 0),
@@ -1899,7 +1820,7 @@ export const createEvaluationService = ({
     viewFingerprint,
     rows,
     timelines,
-    // Las filas que se están calculando (las pruebas esperan a que acaben).
+    // Rows being computed (tests wait for them to finish).
     tasks: {
       get size() {
         return inflight.size;
@@ -1913,20 +1834,20 @@ export const createEvaluationService = ({
   };
 };
 
-// Cuántos hechos ve la vista y el más reciente: los de la máquina (y del
-// manager, que también lee) o los de todo el alcance; de un control, los suyos.
+// Facts the view sees and the latest: the machine's (and the manager's, which it also reads) or the whole
+// scope's; for a control, its own.
 const factsOfView = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): { count: number; newest?: string } => {
   if (query.controlId) {
-    const hechos = ctx.probe.controls[query.controlId];
+    const facts = ctx.probe.controls[query.controlId];
     if (query.agentId) {
-      const propios = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => hechos?.agents[id]).filter(Boolean) as any[];
-      return { count: propios.reduce((n, h) => n + h.count, 0), newest: propios.map(h => h.newest).filter(Boolean).sort().pop() };
+      const ownItems = [query.agentId, ENS_MANAGER_AGENT_ID].map(id => facts?.agents[id]).filter(Boolean) as any[];
+      return { count: ownItems.reduce((n, h) => n + h.count, 0), newest: ownItems.map(h => h.newest).filter(Boolean).sort().pop() };
     }
-    return { count: hechos?.count || 0, newest: hechos?.newest };
+    return { count: facts?.count || 0, newest: facts?.newest };
   }
   if (query.agentId) {
-    const propios = ctx.probe.presence.filter(p => p.agentId === query.agentId || p.agentId === ENS_MANAGER_AGENT_ID);
-    return { count: propios.reduce((n, p) => n + (p.count || 0), 0), newest: propios.map(p => p.newest).filter(Boolean).sort().pop() };
+    const ownItems = ctx.probe.presence.filter(p => p.agentId === query.agentId || p.agentId === ENS_MANAGER_AGENT_ID);
+    return { count: ownItems.reduce((n, p) => n + (p.count || 0), 0), newest: ownItems.map(p => p.newest).filter(Boolean).sort().pop() };
   }
   return { count: ctx.probe.count, newest: ctx.probe.newest };
 };

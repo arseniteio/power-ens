@@ -1,31 +1,4 @@
-/**
- * La marca `documental` en las policies de los controles nuevos.
- *
- *     npx --yes tsx tests/documentary-adoption.test.ts
- *
- * La regla (integración 10/10): lleva `documental` toda decisión que sale SOLO
- * de las tablas de la pantalla, sin hechos. Lo que sale de los hechos del
- * recolector —también de un registro TSV que el recolector lee— NO es
- * documental: con el recolector parado no demuestra nada.
- *
- * Un control por bloque, con lo que el motor hace en la fila de una máquina con
- * el recolector parado (`markEvidencesStale` + `markPolicyRuntimeStale`) o con
- * un hueco de configuración del alcance (`markEvidencesUnmatchedScope` +
- * `markPolicyRuntimeUnmatchedScope`), las dos marcas juntas, como
- * `ens-engine.ts`:
- *
- *   1. op.cont.2: todas sus decisiones son documentales. No tiene recolector,
- *      así que el motor nunca lo marca parado: por el motor de verdad, sin
- *      ningún hecho, un contrato vencido es NO_CUMPLE. Con el hueco de
- *      configuración del alcance (`configurationGap`) sigue NO_CUMPLE, y su no
- *      conformidad manda a renovar la documentación.
- *   2. op.mon.1: R2 (P-05) es documental. Su CUMPLE acreditado y su
- *      NO_EVALUABLE por CONFIGURATION sobreviven al recolector parado; una
- *      decisión técnica del mismo control pasa a RECOGIDA (la reversión).
- *   3. op.mon.2 y op.cont.3: ninguna decisión es documental, porque todas
- *      pasan por un registro que lee el recolector; con el recolector parado
- *      quedan sin medir por RECOGIDA.
- */
+/** The `documental` mark on the policies of the new controls. */
 import { opCont2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-cont-2.policy';
 import { opMon1PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-1.policy';
 import { opMon2PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-2.policy';
@@ -59,44 +32,37 @@ import type { ENSPolicyDefinition, ENSPolicyRuntimeResult } from '../common/ens/
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 
-// El motor de verdad arrastra `kibana-services`, que solo existe en el árbol
-// del plugin `main` de Wazuh: módulo vacío ANTES de cargarlo, como en
-// `measurement-planes.test.ts`.
 {
   const Module = require('module');
-  const cargar = Module._load;
+  const load = Module._load;
 
-  Module._load = function (peticion: string, ...resto: unknown[]) {
-    if (/kibana-services$/.test(peticion)) {
+  Module._load = function (request: string, ...rest: unknown[]) {
+    if (/kibana-services$/.test(request)) {
       return {};
     }
 
-    return cargar.call(this, peticion, ...resto);
+    return load.call(this, request, ...rest);
   };
 }
 
 const { getENSComplianceResultByControl } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
-
-const AHORA = new Date('2026-10-09T12:00:00Z');
+const NOW = new Date('2026-10-09T12:00:00Z');
 
 const PARADO: ENSStaleCollector = {
   since: '2026-10-07T10:00:00Z',
@@ -104,74 +70,64 @@ const PARADO: ENSStaleCollector = {
   reason: 'Sin datos del recolector desde el 2026-10-07 10:00 UTC.',
 };
 
-type Valores = Record<string, string[] | string | undefined>;
+type Values = Record<string, string[] | string | undefined>;
 
-const configuracion = (base: ENSControlConfiguration, valores: Valores): ENSControlConfiguration => ({
+const configuration = (base: ENSControlConfiguration, values: Values): ENSControlConfiguration => ({
   ...base,
   parameters: base.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    // Un parámetro vacío es la clave `value` AUSENTE, nunca `null`.
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-// El hueco de configuración del alcance (`configurationGap` en el motor).
-const SIN_ALCANCE = 'Ninguna de las máquinas declaradas coincide con un agente del alcance ENS.';
+const NO_SCOPE = 'Ninguna de las máquinas declaradas coincide con un agente del alcance ENS.';
 
-// El camino del motor para la fila de una máquina, sin hechos: tal cual, con
-// el recolector parado o con el hueco de configuración del alcance. Las dos
-// marcas, a las evidencias y a la policy, como `ens-engine.ts`.
-const evalua = (
+const evaluate = (
   control: ENSControlDefinition,
-  politica: ENSPolicyDefinition,
+  policy: ENSPolicyDefinition,
   cfg: ENSControlConfiguration,
-  nivel: ENSLevel,
-  marca?: 'parado' | 'sin-alcance'
+  level: ENSLevel,
+  mark?: 'parado' | 'sin-alcance'
 ) => {
-  const evidencias = resolveEvidenceForControl(control.id, [], '000', nivel, cfg, AHORA);
-  const contexto = buildPolicyContext(control, cfg, nivel, [], evidencias, AHORA);
-  const { decisions, runtimeVariables } = politica.evaluator!(contexto);
+  const evidences = resolveEvidenceForControl(control.id, [], '000', level, cfg, NOW);
+  const context = buildPolicyContext(control, cfg, level, [], evidences, NOW);
+  const { decisions, runtimeVariables } = policy.evaluator!(context);
   const original: ENSPolicyRuntimeResult = {
     controlId: control.id,
-    policyId: politica.id,
-    evaluatedAt: AHORA.toISOString(),
+    policyId: policy.id,
+    evaluatedAt: NOW.toISOString(),
     decisions,
     appliedParameters: [],
     runtimeVariables,
   };
   const runtime =
-    marca === 'parado'
+    mark === 'parado'
       ? markPolicyRuntimeStale(original, PARADO)!
-      : marca === 'sin-alcance'
-      ? markPolicyRuntimeUnmatchedScope(original, SIN_ALCANCE)!
+      : mark === 'sin-alcance'
+      ? markPolicyRuntimeUnmatchedScope(original, NO_SCOPE)!
       : original;
   const tablaBase =
-    marca === 'parado'
-      ? markEvidencesStale(evidencias, PARADO)
-      : marca === 'sin-alcance'
-      ? markEvidencesUnmatchedScope(evidencias, SIN_ALCANCE)
-      : evidencias;
-  // Con el hueco del alcance el motor no espera hechos (`expectsFacts`).
-  const esperaHechos = marca !== 'sin-alcance' && controlExpectsFacts(control.id);
-  const tabla = applyPolicyDecisionsToEvidences(tablaBase, runtime.decisions, control.requirements, esperaHechos);
-  const atestaciones = parseRequirementAttestations(cfg);
-  const requisito = (id: string) =>
-    evaluateRequirement(control.requirements.find(q => q.id === id)!, nivel, tabla, false, runtime.decisions, 'ACTIVE', atestaciones.get(id));
+    mark === 'parado'
+      ? markEvidencesStale(evidences, PARADO)
+      : mark === 'sin-alcance'
+      ? markEvidencesUnmatchedScope(evidences, NO_SCOPE)
+      : evidences;
+  const factsWait = mark !== 'sin-alcance' && controlExpectsFacts(control.id);
+  const tabla = applyPolicyDecisionsToEvidences(tablaBase, runtime.decisions, control.requirements, factsWait);
+  const attestations = parseRequirementAttestations(cfg);
+  const requirement = (id: string) =>
+    evaluateRequirement(control.requirements.find(q => q.id === id)!, level, tabla, false, runtime.decisions, 'ACTIVE', attestations.get(id));
   const decision = (id: string) => runtime.decisions.find(d => d.requirementId === id && d.trace.ruleId === id);
-  const motor = () => evaluateENSControl(control, cfg, nivel, tablaBase, runtime, [], esperaHechos);
+  const motor = () => evaluateENSControl(control, cfg, level, tablaBase, runtime, [], factsWait);
 
-  return { decisions: runtime.decisions, original: decisions, requisito, decision, motor };
+  return { decisions: runtime.decisions, original: decisions, requisito: requirement, decision, motor };
 };
 
-// --- 1. op.cont.2 ------------------------------------------------------------
-
-bloque('1. op.cont.2: todo documental; un contrato vencido sigue vencido (por el motor de verdad y con el hueco del alcance)');
+section('1. op.cont.2: all documentary; an expired contract stays expired (through the real engine and with the scope gap)');
 
 {
-  // Lo de op-cont-2-judgment, con el contrato del CPD alternativo vencido el
-  // 30/06/2026.
-  const VALORES: Valores = {
+  const VALUES: Values = {
     'P-01': ['Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad'],
     'P-02': ['sede electrónica | 4 h | 1 h | srv-web, srv-bd'],
     'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | activar el plan y convocar al comité de crisis'],
@@ -183,15 +139,13 @@ bloque('1. op.cont.2: todo documental; un contrato vencido sigue vencido (por el
     'P-06': ['Plan de Emergencia del edificio'],
     'P-08': '12',
   };
-  const cfg = configuracion(opCont2Configuration, VALORES);
-  const sano = evalua(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO');
-  const sinAlcance = evalua(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO', 'sin-alcance');
+  const cfg = configuration(opCont2Configuration, VALUES);
+  const healthy = evaluate(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO');
+  const withoutScope = evaluate(opCont2CatalogDefinition, opCont2PolicyDefinition, cfg, 'ALTO', 'sin-alcance');
 
-  comprueba('todas sus decisiones llevan `documental`', sano.original.length > 0 && sano.original.every(d => d.documental === true));
-  comprueba('el contrato vencido da NO_CUMPLE en op.cont.2.3', sano.requisito('op.cont.2.3').status === 'NO_CUMPLE', sano.requisito('op.cont.2.3').status);
+  check('all its decisions carry `documental`', healthy.original.length > 0 && healthy.original.every(d => d.documental === true));
+  check('the expired contract gives NO_CUMPLE on op.cont.2.3', healthy.requisito('op.cont.2.3').status === 'NO_CUMPLE', healthy.requisito('op.cont.2.3').status);
 
-  // El motor de verdad, en la fila del manager y sin ningún hecho: es el único
-  // camino de op.cont.2, que no tiene recolector y nunca se marca parado.
   ensConfigurationRepository.replaceActive({
     ...defaultENSConfigurationTemplate,
     global: {
@@ -204,124 +158,116 @@ bloque('1. op.cont.2: todo documental; un contrato vencido sigue vencido (por el
     controls: defaultENSConfigurationTemplate.controls.map(control => (control.controlId === 'op.cont.2' ? cfg : control)),
   });
   const MANAGER: ENSAgentScope = { id: '000', name: 'manager', groups: [], isManager: true };
-  const real = getENSComplianceResultByControl('op.cont.2', 'ALTO', [], '000', [MANAGER], AHORA);
-  const requisitoReal = (id: string) => real?.requirements.find(q => q.id === id);
-  const ncReal = real?.nonConformities.find(n => n.requirementId === 'op.cont.2.3');
+  const actual = getENSComplianceResultByControl('op.cont.2', 'ALTO', [], '000', [MANAGER], NOW);
+  const realRequirement = (id: string) => actual?.requirements.find(q => q.id === id);
+  const realNc = actual?.nonConformities.find(n => n.requirementId === 'op.cont.2.3');
 
-  comprueba(
-    'por el motor de verdad, sin hechos: op.cont.2.3 NO_CUMPLE documental y op.cont.2.1 CUMPLE acreditado',
-    requisitoReal('op.cont.2.3')?.status === 'NO_CUMPLE' &&
-      requisitoReal('op.cont.2.3')?.documental === true &&
-      requisitoReal('op.cont.2.1')?.status === 'CUMPLE' &&
-      requisitoReal('op.cont.2.1')?.attested === true,
-    `${requisitoReal('op.cont.2.3')?.status} ${requisitoReal('op.cont.2.1')?.status}`
+  check(
+    'through the real engine, without facts: op.cont.2.3 documentary NO_CUMPLE and op.cont.2.1 accredited CUMPLE',
+    realRequirement('op.cont.2.3')?.status === 'NO_CUMPLE' &&
+      realRequirement('op.cont.2.3')?.documental === true &&
+      realRequirement('op.cont.2.1')?.status === 'CUMPLE' &&
+      realRequirement('op.cont.2.1')?.attested === true,
+    `${realRequirement('op.cont.2.3')?.status} ${realRequirement('op.cont.2.1')?.status}`
   );
-  comprueba(
-    'y nunca dice «Sin datos del recolector»: op.cont.2 no espera hechos',
-    real !== undefined && !JSON.stringify(real).includes('Sin datos del recolector'),
-    real?.status
+  check(
+    'and it never says «Sin datos del recolector»: op.cont.2 does not wait for facts',
+    actual !== undefined && !JSON.stringify(actual).includes('Sin datos del recolector'),
+    actual?.status
   );
-  comprueba(
-    'su no conformidad es documental y manda a renovar la documentación',
-    ncReal?.documental === true && /^Renovar o completar la documentación/.test(ncReal?.requiredAction || ''),
-    `${ncReal?.documental} ${ncReal?.requiredAction}`
-  );
-
-  // El hueco de configuración del alcance (`configurationGap`): las dos marcas
-  // del motor, a la policy y a las evidencias.
-  comprueba(
-    'con el hueco del alcance, sigue NO_CUMPLE (y documental)',
-    sinAlcance.decision('op.cont.2.3')?.status === 'NO_CUMPLE' &&
-      sinAlcance.requisito('op.cont.2.3').status === 'NO_CUMPLE' &&
-      sinAlcance.requisito('op.cont.2.3').documental === true,
-    `${sinAlcance.decision('op.cont.2.3')?.status} ${sinAlcance.requisito('op.cont.2.3').status}`
-  );
-  comprueba(
-    'y el CUMPLE acreditado de los demás también sobrevive',
-    sinAlcance.requisito('op.cont.2.1').status === 'CUMPLE' && sinAlcance.requisito('op.cont.2.1').attested === true,
-    sinAlcance.requisito('op.cont.2.1').status
+  check(
+    'its nonconformity is documentary and sends to renew the documentation',
+    realNc?.documental === true && /^Renovar o completar la documentación/.test(realNc?.requiredAction || ''),
+    `${realNc?.documental} ${realNc?.requiredAction}`
   );
 
-  const nc = sinAlcance.motor().nonConformities.find(n => n.requirementId === 'op.cont.2.3');
+  check(
+    'with the scope gap, it stays NO_CUMPLE (and documentary)',
+    withoutScope.decision('op.cont.2.3')?.status === 'NO_CUMPLE' &&
+      withoutScope.requisito('op.cont.2.3').status === 'NO_CUMPLE' &&
+      withoutScope.requisito('op.cont.2.3').documental === true,
+    `${withoutScope.decision('op.cont.2.3')?.status} ${withoutScope.requisito('op.cont.2.3').status}`
+  );
+  check(
+    'and the accredited CUMPLE of the others survives too',
+    withoutScope.requisito('op.cont.2.1').status === 'CUMPLE' && withoutScope.requisito('op.cont.2.1').attested === true,
+    withoutScope.requisito('op.cont.2.1').status
+  );
 
-  comprueba(
-    'y su no conformidad sigue siendo documental',
+  const nc = withoutScope.motor().nonConformities.find(n => n.requirementId === 'op.cont.2.3');
+
+  check(
+    'and its nonconformity stays documentary',
     nc?.documental === true && /^Renovar o completar la documentación/.test(nc?.requiredAction || ''),
     `${nc?.documental} ${nc?.requiredAction}`
   );
 }
 
-// --- 2. op.mon.1 -------------------------------------------------------------
-
-bloque('2. op.mon.1: R2 (P-05) documental; lo técnico no');
+section('2. op.mon.1: R2 (P-05) documentary; the technical part is not');
 
 {
-  const COMPLETA: Valores = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad'] };
-  const A_MEDIAS: Valores = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] };
-  const completa = configuracion(opMon1Configuration, COMPLETA);
-  const aMedias = configuracion(opMon1Configuration, A_MEDIAS);
+  const COMPLETE: Values = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad'] };
+  const HALF_DONE: Values = { 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] };
+  const complete = configuration(opMon1Configuration, COMPLETE);
+  const halfDone = configuration(opMon1Configuration, HALF_DONE);
 
-  const sano = evalua(opMon1CatalogDefinition, opMon1PolicyDefinition, completa, 'ALTO');
+  const healthy = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, complete, 'ALTO');
 
-  comprueba(
-    'la decisión de R2 lleva `documental`',
-    sano.original.find(d => d.requirementId === 'op.mon.1.r2.1' && d.trace.ruleId === 'op.mon.1.r2.1')?.documental === true
+  check(
+    'R2\'s decision carries `documental`',
+    healthy.original.find(d => d.requirementId === 'op.mon.1.r2.1' && d.trace.ruleId === 'op.mon.1.r2.1')?.documental === true
   );
-  comprueba(
-    'las técnicas no (op.mon.1.1, op.mon.1.r1.1)',
-    sano.original.filter(d => ['op.mon.1.1', 'op.mon.1.r1.1'].includes(d.requirementId)).every(d => d.documental !== true)
+  check(
+    'the technical ones do not (op.mon.1.1, op.mon.1.r1.1)',
+    healthy.original.filter(d => ['op.mon.1.1', 'op.mon.1.r1.1'].includes(d.requirementId)).every(d => d.documental !== true)
   );
 
-  const parado = evalua(opMon1CatalogDefinition, opMon1PolicyDefinition, completa, 'ALTO', 'parado');
+  const parado = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, complete, 'ALTO', 'parado');
 
-  comprueba(
-    'con el recolector parado, R2 sigue CUMPLE acreditado documentalmente',
+  check(
+    'with the collector stopped, R2 stays documentarily accredited CUMPLE',
     parado.requisito('op.mon.1.r2.1').status === 'CUMPLE' && parado.requisito('op.mon.1.r2.1').attested === true,
     parado.requisito('op.mon.1.r2.1').status
   );
 
-  const paradoAMedias = evalua(opMon1CatalogDefinition, opMon1PolicyDefinition, aMedias, 'ALTO', 'parado');
+  const stoppedHalfway = evaluate(opMon1CatalogDefinition, opMon1PolicyDefinition, halfDone, 'ALTO', 'parado');
 
-  comprueba(
-    'con P-05 a medias y el recolector parado, R2 sigue sin medir por CONFIGURATION (no por RECOGIDA)',
-    paradoAMedias.decision('op.mon.1.r2.1')?.status === 'NO_EVALUABLE' && paradoAMedias.decision('op.mon.1.r2.1')?.cause === 'CONFIGURATION',
-    `${paradoAMedias.decision('op.mon.1.r2.1')?.status} ${paradoAMedias.decision('op.mon.1.r2.1')?.cause}`
+  check(
+    'with P-05 half done and the collector stopped, R2 stays unmeasured by CONFIGURATION (not by RECOGIDA)',
+    stoppedHalfway.decision('op.mon.1.r2.1')?.status === 'NO_EVALUABLE' && stoppedHalfway.decision('op.mon.1.r2.1')?.cause === 'CONFIGURATION',
+    `${stoppedHalfway.decision('op.mon.1.r2.1')?.status} ${stoppedHalfway.decision('op.mon.1.r2.1')?.cause}`
   );
-  comprueba(
-    'REVERSIÓN: la decisión técnica op.mon.1.1 pasa a RECOGIDA',
+  check(
+    'REVERSAL: the technical decision op.mon.1.1 becomes RECOGIDA',
     parado.decision('op.mon.1.1')?.status === 'NO_EVALUABLE' && parado.decision('op.mon.1.1')?.cause === 'COLLECTION',
     `${parado.decision('op.mon.1.1')?.status} ${parado.decision('op.mon.1.1')?.cause}`
   );
 }
 
-// --- 3. op.mon.2 y op.cont.3 -------------------------------------------------
-
-bloque('3. op.mon.2 y op.cont.3: todo pasa por un registro que lee el recolector');
+section('3. op.mon.2 and op.cont.3: everything goes through a record the collector reads');
 
 {
-  const casos: [string, ENSControlDefinition, ENSPolicyDefinition, ENSControlConfiguration][] = [
+  const cases: [string, ENSControlDefinition, ENSPolicyDefinition, ENSControlConfiguration][] = [
     ['op.mon.2', opMon2CatalogDefinition, opMon2PolicyDefinition, opMon2Configuration],
     ['op.cont.3', opCont3CatalogDefinition, opCont3PolicyDefinition, opCont3Configuration],
   ];
 
-  casos.forEach(([id, control, politica, cfg]) => {
-    const sano = evalua(control, politica, cfg, 'ALTO');
-    const parado = evalua(control, politica, cfg, 'ALTO', 'parado');
+  cases.forEach(([id, control, policy, cfg]) => {
+    const healthy = evaluate(control, policy, cfg, 'ALTO');
+    const parado = evaluate(control, policy, cfg, 'ALTO', 'parado');
 
-    comprueba(`${id} · emite decisiones y ninguna lleva \`documental\``, sano.original.length > 0 && sano.original.every(d => d.documental !== true));
-    comprueba(
-      `${id} · con el recolector parado, las que no son NO_APLICA quedan sin medir por RECOGIDA`,
+    check(`${id} · emits decisions and none carries \`documental\``, healthy.original.length > 0 && healthy.original.every(d => d.documental !== true));
+    check(
+      `${id} · with the collector stopped, those that are not NO_APLICA are left unmeasured by RECOGIDA`,
       parado.decisions.filter(d => d.status !== 'NO_APLICA').every(d => d.status === 'NO_EVALUABLE' && d.cause === 'COLLECTION'),
       parado.decisions.filter(d => d.status !== 'NO_APLICA').map(d => `${d.trace.ruleId}:${d.status}:${d.cause}`).join(', ')
     );
   });
 }
 
-// ---------------------------------------------------------------------------
-
-if (fallos.length) {
-  console.log(`\n${fallos.length} comprobación(es) fallan:\n  - ${fallos.join('\n  - ')}`);
+if (failures.length) {
+  console.log(`\n${failures.length} check(s) FAIL:\n  - ${failures.join('\n  - ')}`);
   process.exit(1);
 }
 
-console.log('\nTodas las comprobaciones pasan.');
+console.log('\nAll checks pass.');

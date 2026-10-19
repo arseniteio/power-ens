@@ -126,12 +126,8 @@ export const opAcc5CatalogDefinition: ENSControlDefinition = {
       description:
         'Se empleará una contraseña como mecanismo de autenticación.',
       kind: 'REFUERZO',
-      // En los TRES niveles a propósito, aunque R1 solo sea admisible en BAJO.
-      // Si se limitara a BAJO, un sistema MEDIO que declara R1 en P-01 vería
-      // este requisito NO_APLICA por nivel y el incumplimiento directo que exige
-      // el ENS no tendría dónde caer. Qué refuerzo cuenta lo decide la policy
-      // del control con P-01: fuera del elegido, NO_APLICA; elegido en MEDIO o
-      // ALTO, NO_CUMPLE.
+      // At the THREE levels on purpose, although R1 is admissible only at BAJO: otherwise a MEDIO system declaring R1 in P-01 would see this requirement NO_APLICA by level and the direct noncompliance ENS demands would have nowhere to land.
+      // Which reinforcement counts is decided by the control policy with P-01: outside the chosen one, NO_APLICA; chosen at MEDIO or ALTO, NO_CUMPLE.
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
         reason:

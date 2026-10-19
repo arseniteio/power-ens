@@ -1,46 +1,5 @@
-// op.exp.9 · Registro de la gestión de incidentes
-//
-// Por qué este control tiene policy propia. Las siete primitivas contrastan UN
-// hecho contra UN parámetro, agrupando por máquina. Aquí casi todo se agrupa
-// por otra clave que ningún control usaba: el EXPEDIENTE (`incidente_id`), y
-// casi todo cruza dos flujos de hechos distintos por esa clave:
-//
-//   EV-01  cada sistema afectado de cada incidente conserva sus alertas y los
-//          archivos diarios de la ventana verifican su suma encadenada.
-//   EV-02  cada incidente tiene las fases de reporte de P-02, con la
-//          excepción de la duración y del final de un incidente abierto.
-//   EV-03  toda respuesta activa observada en la ventana de un incidente
-//          consta como actuación de emergencia de ESE incidente.
-//   EV-04  todo objeto cambiado en un sistema afectado durante el incidente
-//          consta como modificación derivada de ESE incidente.
-//   EV-05  un incidente con relevancia jurídica tiene sellada cada evidencia
-//          de P-03 (condicionado por la marca del registro y por P-04).
-//   EV-06  cada evidencia sellada está en un destino de P-05, tiene cadena de
-//          custodia y su SHA-256 sigue coincidiendo (plazo más largo de P-06).
-//   EV-07  el periodo de un incidente abierto o con relevancia jurídica sigue
-//          en disco; la protección del indexer no se ve sin credenciales.
-//   EV-08  un incidente cerrado de una severidad de P-07 tiene su revisión de
-//          eventos auditables dentro del plazo (el reloj empieza en el CIERRE).
-//   EV-09  cada fila del expediente enlaza con él (referencia).
-//
-// Un registro VACÍO no es un registro AUSENTE. Ausente, no hay contra qué
-// juzgar. Vacío se juzga: cero incidentes frente a las alertas que el manager
-// vio (P-08, sin los grupos de P-09). Y lo que no exige nada —ningún incidente con relevancia jurídica,
-// ninguna revisión vencida— se dice con el registro leído como prueba, no se
-// da por bueno sin leerlo.
-//
-// Invariantes, las mismas que `evidence/judgment.ts`:
-//   - el recolector emite instantes y recuentos, no veredictos ni edades: los
-//     plazos se miden aquí contra `context.now`;
-//   - sin latido reciente, sin registro o sin parámetro, NO_EVALUABLE con
-//     motivo; nunca un CUMPLE por ausencia de datos;
-//   - la policy no inventa política: ningún plazo ni nivel tiene valor por
-//     defecto.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+// op.exp.9 · Incident management record.
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -59,215 +18,210 @@ import {
 const CONTROL = 'op.exp.9';
 const POLICY = 'policy.op.exp.9';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// El recolector del manager late cada hora y reemite ENTERO el estado de los
-// registros en cada pasada: 24 h + una pasada + margen. Es tolerancia de
-// OBSERVACIÓN, no política.
-const FRESCURA_HORAS = 26;
+// The manager's collector beats hourly and re-emits the WHOLE record state each run: 24 h + one run
+// + margin. Observation tolerance, not policy.
+const FRESHNESS_HOURS = 26;
 
-// Mismo margen de reloj que `resolveCollectorCoverage`.
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// Same clock margin as `resolveCollectorCoverage`.
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// Debe coincidir con la primera opción de P-01.
-const REGISTRO_ENSFACIL = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
+// Must match P-01's first option.
+const ENSFACIL_RECORD = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
 
-type Estado = Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
+type Status = Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
-// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy
-// (un registro de incidentes ausente salía «EVIDENCE», no CONFIGURATION).
-type Medida = {
-  estado: Estado;
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`). It reaches the evidence and
+// requirement through the decision; without it the card inherited the classic model's cause, which
+// does not see the facts the policy reads (an absent incident record came out «EVIDENCE», not
+// CONFIGURATION).
+type Measurement = {
+  estado: Status;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. La falta de parámetro
-// (CONFIGURATION), la de latido o de hechos (COLLECTION) y el registro que la
-// organización no mantiene (CONFIGURATION) lo dicen expresamente.
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough. Missing parameter (CONFIGURATION),
+// missing heartbeat or facts (COLLECTION) and a record the organization does not keep
+// (CONFIGURATION) say so explicitly.
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
 
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements, same order as the engine (`resolveGapCause`):
+// COLLECTION only if all say so, CONFIGURATION if any does, otherwise EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-const GRAVEDAD: Record<Estado, number> = {
+const SEVERITY: Record<Status, number> = {
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Estado =>
-  medidas.reduce<Estado>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Status =>
+  measurements.reduce<Status>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=EV-02,EV-09` en uno por
-// evidencia (`<id>#EV-02`, `<id>#EV-09`). Aquí se juzga el HECHO: una vez.
-const hechos = (
+// The normalizer splits an event with `evidence_id=EV-02,EV-09` into one per evidence
+// (`<id>#EV-02`, `<id>#EV-09`); the FACT is judged here: once.
+const facts = (
   context: ENSPolicyContext,
-  tipo: string
+  type: string
 ): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+  const seen = new Set<string>();
 
   return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-// `-` es el vacío del formato de los registros.
-const vacio = (texto: string): boolean => texto === '' || texto === '-';
+// `-` is the records format's empty.
+const isEmptyField = (text: string): boolean => text === '' || text === '-';
 
-const numero = (texto: string): number | undefined => {
-  if (!/^-?\d+(\.\d+)?$/.test(texto)) {
+const parseNumber = (text: string): number | undefined => {
+  if (!/^-?\d+(\.\d+)?$/.test(text)) {
     return undefined;
   }
 
-  const valor = Number(texto);
+  const value = Number(text);
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(text)) {
     return undefined;
   }
 
-  const valor = new Date(texto).getTime();
+  const value = new Date(text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
+const formatList = (items: string[], max = 5): string =>
+  items.length > max
+    ? `${items.slice(0, max).join('; ')} y ${items.length - max} más`
+    : items.join('; ');
 
-const listaDe = (texto: string): string[] =>
-  vacio(texto)
+const listOf = (text: string): string[] =>
+  isEmptyField(text)
     ? []
-    : texto
+    : text
         .split(',')
         .map(t => t.trim())
         .filter(t => t && t !== '-');
 
-// De menor a mayor: el orden decide la severidad de un incidente con varias
-// filas.
-const SEVERIDADES = ['baja', 'media', 'alta', 'critica'];
+// Lowest to highest: the order decides the severity of an incident with several rows.
+const SEVERITIES = ['baja', 'media', 'alta', 'critica'];
 
-const sinTildes = (texto: string): string =>
-  texto
+const stripAccents = (text: string): string =>
+  text
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
 
-const mismoSistema = (a: string, b: string): boolean =>
+const sameSystem = (a: string, b: string): boolean =>
   a.trim().toLowerCase() === b.trim().toLowerCase();
 
-const dias = (ms: number): string => (ms / DIA).toFixed(1);
+const wholeDays = (ms: number): string => (ms / DAY_MS).toFixed(1);
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (
+const findParameter = (
   context: ENSPolicyContext,
   id: string
 ): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (
+// Table rows split into their declared columns. Without columns the position is not guessed: the
+// parameter is treated as not configured.
+const tableParameterRows = (
   context: ENSPolicyContext,
   id: string
 ): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
+  const p = findParameter(context, id);
+  const columns = p?.columns || [];
 
-  if (!p || !columnas.length) {
+  if (!p || !columns.length) {
     return undefined;
   }
 
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  const result = toParameterTableRows(p.value)
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = celdas[i] || '';
+      columns.forEach((column, i) => {
+        row[column.name] = cells[i] || '';
       });
 
-      return fila;
+      return row;
     });
 
-  return resultado.length ? resultado : undefined;
+  return result.length ? result : undefined;
 };
 
-const elementos = (context: ENSPolicyContext, id: string): string[] => {
-  const valor = parametro(context, id)?.value;
+const items = (context: ENSPolicyContext, id: string): string[] => {
+  const value = findParameter(context, id)?.value;
 
-  if (Array.isArray(valor)) {
-    return valor.map(v => String(v).trim()).filter(Boolean);
+  if (Array.isArray(value)) {
+    return value.map(v => String(v).trim()).filter(Boolean);
   }
 
-  if (typeof valor === 'string') {
-    return valor
+  if (typeof value === 'string') {
+    return value
       .split(/[\n,]/)
       .map(v => v.trim())
       .filter(Boolean);
@@ -276,56 +230,55 @@ const elementos = (context: ENSPolicyContext, id: string): string[] => {
   return [];
 };
 
-const escalar = (context: ENSPolicyContext, id: string): string => {
-  const valor = parametro(context, id)?.value;
+const positiveScalar = (context: ENSPolicyContext, id: string): string => {
+  const value = findParameter(context, id)?.value;
 
-  return valor === undefined || valor === null || Array.isArray(valor)
+  return value === undefined || value === null || Array.isArray(value)
     ? ''
-    : String(valor).trim();
+    : String(value).trim();
 };
 
-// --- el latido y los registros ----------------------------------------------
 
-type Latido = { evento: ENSNormalizedEvent; cubiertas: string[] };
+type Heartbeat = { evento: ENSNormalizedEvent; cubiertas: string[] };
 
-const latido = (context: ENSPolicyContext, ahora: number): Latido | Medida => {
-  const candidatos = hechos(context, 'collector_run')
-    .map(e => ({ e, t: instante(e.timestamp) }))
+const heartbeat = (context: ENSPolicyContext, now: number): Heartbeat | Measurement => {
+  const candidate = facts(context, 'collector_run')
+    .map(e => ({ e, t: parseInstant(e.timestamp) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } =>
-      x.t !== undefined && x.t <= ahora + TOLERANCIA_FUTURO
+      x.t !== undefined && x.t <= now + FUTURE_TOLERANCE_MS
     )
     .sort((a, b) => b.t - a.t);
 
-  if (!candidatos.length) {
-    return sinMedir(
+  if (!candidate.length) {
+    return notMeasured(
       'No consta ninguna pasada del recolector del manager: op.exp.9 se mide en el manager (install-manager.sh del runbook) y sin él no hay registro leído ni alertas contrastadas.',
       'COLLECTION'
     );
   }
 
-  const { e, t } = candidatos[0];
+  const { e, t } = candidate[0];
 
-  if (ahora - t > FRESCURA_HORAS * HORA) {
-    return sinMedir(
-      `La última pasada del recolector del manager es de ${e.timestamp} (hace ${((ahora - t) / HORA).toFixed(1)} h, más de ${FRESCURA_HORAS} h): lo que dijo entonces de los registros no describe el estado de hoy.`,
+  if (now - t > FRESHNESS_HOURS * HOUR_MS) {
+    return notMeasured(
+      `La última pasada del recolector del manager es de ${e.timestamp} (hace ${((now - t) / HOUR_MS).toFixed(1)} h, más de ${FRESHNESS_HOURS} h): lo que dijo entonces de los registros no describe el estado de hoy.`,
       'COLLECTION'
     );
   }
 
-  if (campo(e, 'resultado') !== 'completada') {
-    return sinMedir(
-      `La última pasada del recolector del manager (${e.timestamp}) declara resultado='${campo(e, 'resultado') || 'sin dato'}': no terminó correctamente.`,
+  if (factField(e, 'resultado') !== 'completada') {
+    return notMeasured(
+      `La última pasada del recolector del manager (${e.timestamp}) declara resultado='${factField(e, 'resultado') || 'sin dato'}': no terminó correctamente.`,
       'COLLECTION'
     );
   }
 
-  return { evento: e, cubiertas: listaDe(campo(e, 'evidencias_cubiertas')) };
+  return { evento: e, cubiertas: listOf(factField(e, 'evidencias_cubiertas')) };
 };
 
-const esMedida = (x: unknown): x is Medida =>
-  typeof x === 'object' && x !== null && (x as Medida).estado !== undefined;
+const isMeasurement = (x: unknown): x is Measurement =>
+  typeof x === 'object' && x !== null && (x as Measurement).estado !== undefined;
 
-type Registro = {
+type LogRow = {
   presente: boolean;
   legible: boolean;
   formato: string;
@@ -334,55 +287,54 @@ type Registro = {
   fichero: string;
 };
 
-const registro = (context: ENSPolicyContext, nombre: string): Registro | undefined => {
-  const leido = hechos(context, 'register_read')
-    .filter(e => campo(e, 'registro') === nombre)
-    .sort((a, b) => (instante(b.timestamp) || 0) - (instante(a.timestamp) || 0))[0];
+const record = (context: ENSPolicyContext, name: string): LogRow | undefined => {
+  const read = facts(context, 'register_read')
+    .filter(e => factField(e, 'registro') === name)
+    .sort((a, b) => (parseInstant(b.timestamp) || 0) - (parseInstant(a.timestamp) || 0))[0];
 
-  if (!leido) {
+  if (!read) {
     return undefined;
   }
 
   return {
-    presente: campo(leido, 'presente') === 'si',
-    legible: campo(leido, 'legible') === 'si',
-    formato: campo(leido, 'formato'),
-    validas: numero(campo(leido, 'filas_validas')) || 0,
-    invalidas: numero(campo(leido, 'filas_invalidas')) || 0,
-    fichero: campo(leido, 'fichero'),
+    presente: factField(read, 'presente') === 'si',
+    legible: factField(read, 'legible') === 'si',
+    formato: factField(read, 'formato'),
+    validas: parseNumber(factField(read, 'filas_validas')) || 0,
+    invalidas: parseNumber(factField(read, 'filas_invalidas')) || 0,
+    fichero: factField(read, 'fichero'),
   };
 };
 
-// Un registro que no se pudo leer entero no se juzga sobre una parte; uno que no
-// existe no tiene contra qué juzgarse. Devuelve la medida si hay que parar.
-const registroUtilizable = (reg: Registro | undefined, nombre: string, fichero: string): Medida | undefined => {
+// A record that could not be read whole is not judged on a part; one that does not exist has
+// nothing to be judged against. Returns the measurement if it must stop.
+const usableRecord = (reg: LogRow | undefined, name: string, file: string): Measurement | undefined => {
   if (!reg) {
-    return sinMedir(`El recolector del manager no ha informado del registro de ${nombre} (${fichero}) en su última pasada.`, 'COLLECTION');
+    return notMeasured(`El recolector del manager no ha informado del registro de ${name} (${file}) en su última pasada.`, 'COLLECTION');
   }
 
   if (!reg.presente) {
-    return sinMedir(
-      `No existe el registro de ${nombre} ${reg.fichero || fichero} en el manager (causa CONFIGURATION): un registro ausente no es un registro vacío, y sin él no hay contra qué juzgar. Créalo con la cabecera documentada.`,
+    return notMeasured(
+      `No existe el registro de ${name} ${reg.fichero || file} en el manager (causa CONFIGURATION): un registro ausente no es un registro vacío, y sin él no hay contra qué juzgar. Créalo con la cabecera documentada.`,
       'CONFIGURATION'
     );
   }
 
   if (!reg.legible) {
-    return sinMedir(`El registro de ${nombre} ${reg.fichero || fichero} existe pero el recolector no lo pudo leer.`, 'COLLECTION');
+    return notMeasured(`El registro de ${name} ${reg.fichero || file} existe pero el recolector no lo pudo leer.`, 'COLLECTION');
   }
 
   if (reg.formato !== 'ok') {
-    return sinMedir(
-      `El registro de ${nombre} ${reg.fichero || fichero} no empieza por la cabecera documentada (formato=${reg.formato || 'sin dato'}): no se interpreta un registro cuyas columnas no se conocen.`
+    return notMeasured(
+      `El registro de ${name} ${reg.fichero || file} no empieza por la cabecera documentada (formato=${reg.formato || 'sin dato'}): no se interpreta un registro cuyas columnas no se conocen.`
     );
   }
 
   return undefined;
 };
 
-// --- los incidentes ---------------------------------------------------------
 
-type Fila = {
+type Row = {
   evento: ENSNormalizedEvent;
   fase: string;
   fecha?: number;
@@ -393,9 +345,9 @@ type Fila = {
   relevante: boolean;
 };
 
-type Incidente = {
+type Incident = {
   id: string;
-  filas: Fila[];
+  filas: Row[];
   inicio: number;
   fin?: number;
   abierto: boolean;
@@ -404,240 +356,234 @@ type Incidente = {
   relevante: boolean;
 };
 
-const incidentes = (context: ENSPolicyContext): Incidente[] => {
-  const porId = new Map<string, Fila[]>();
+const incidents = (context: ENSPolicyContext): Incident[] => {
+  const byId = new Map<string, Row[]>();
 
-  hechos(context, 'incident_report_registered').forEach(e => {
-    const id = campo(e, 'incidente_id');
+  facts(context, 'incident_report_registered').forEach(e => {
+    const id = factField(e, 'incidente_id');
 
-    if (vacio(id)) {
+    if (isEmptyField(id)) {
       return;
     }
 
-    const fila: Fila = {
+    const row: Row = {
       evento: e,
-      fase: campo(e, 'fase'),
-      fecha: instante(campo(e, 'fecha')),
-      fechaTexto: campo(e, 'fecha'),
-      severidad: sinTildes(campo(e, 'severidad')),
-      sistemas: listaDe(campo(e, 'sistemas')),
-      referencia: campo(e, 'referencia'),
-      relevante: campo(e, 'relevancia_juridica') === 'si',
+      fase: factField(e, 'fase'),
+      fecha: parseInstant(factField(e, 'fecha')),
+      fechaTexto: factField(e, 'fecha'),
+      severidad: stripAccents(factField(e, 'severidad')),
+      sistemas: listOf(factField(e, 'sistemas')),
+      referencia: factField(e, 'referencia'),
+      relevante: factField(e, 'relevancia_juridica') === 'si',
     };
 
-    porId.set(id, [...(porId.get(id) || []), fila]);
+    byId.set(id, [...(byId.get(id) || []), row]);
   });
 
-  return Array.from(porId.entries())
-    .map(([id, lasFilas]) => {
-      const fechas = lasFilas.map(f => f.fecha).filter((t): t is number => t !== undefined);
-      const iniciales = lasFilas.filter(f => f.fase === 'inicial' && f.fecha !== undefined).map(f => f.fecha as number);
-      const finales = lasFilas.filter(f => f.fase === 'final' && f.fecha !== undefined).map(f => f.fecha as number);
+  return Array.from(byId.entries())
+    .map(([id, rows]) => {
+      const dates = rows.map(f => f.fecha).filter((t): t is number => t !== undefined);
+      const initial = rows.filter(f => f.fase === 'inicial' && f.fecha !== undefined).map(f => f.fecha as number);
+      const final = rows.filter(f => f.fase === 'final' && f.fecha !== undefined).map(f => f.fecha as number);
 
-      // La severidad del incidente es la más alta registrada en cualquiera de
-      // sus fases, la misma regla que op.exp.7: un incidente que llegó a
-      // crítico no se juzga con el plazo de uno bajo porque se rebajara al
-      // cerrarlo.
-      const severidad = lasFilas
+      // An incident's severity is the highest recorded in any of its phases (same rule as
+      // op.exp.7): one that reached critical is not judged with a low one's deadline because it was
+      // downgraded on closing.
+      const severity = rows
         .map(f => f.severidad)
-        .filter(s => SEVERIDADES.includes(s))
-        .reduce((a, b) => (SEVERIDADES.indexOf(b) > SEVERIDADES.indexOf(a) ? b : a), '-');
+        .filter(s => SEVERITIES.includes(s))
+        .reduce((a, b) => (SEVERITIES.indexOf(b) > SEVERITIES.indexOf(a) ? b : a), '-');
 
       return {
         id,
-        filas: lasFilas,
-        inicio: iniciales.length ? Math.min(...iniciales) : Math.min(...fechas),
-        fin: finales.length ? Math.max(...finales) : undefined,
-        abierto: !finales.length,
-        severidad,
-        sistemas: Array.from(new Set(lasFilas.flatMap(f => f.sistemas))),
-        relevante: lasFilas.some(f => f.relevante),
+        filas: rows,
+        inicio: initial.length ? Math.min(...initial) : Math.min(...dates),
+        fin: final.length ? Math.max(...final) : undefined,
+        abierto: !final.length,
+        severidad: severity,
+        sistemas: Array.from(new Set(rows.flatMap(f => f.sistemas))),
+        relevante: rows.some(f => f.relevante),
       };
     })
     .filter(i => Number.isFinite(i.inicio))
     .sort((a, b) => a.inicio - b.inicio);
 };
 
-// --- el contexto común de cada evidencia ----------------------------------------
 
 type Base = {
   ahora: number;
   cubiertas: string[];
-  reg: Registro;
-  lista: Incidente[];
+  reg: LogRow;
+  lista: Incident[];
 };
 
-// Lo que toda evidencia necesita antes de juzgar nada: latido reciente, P-01
-// compatible, el registro de incidentes leído y la evidencia cubierta en la
-// última pasada. Si falta algo, esa es la medida.
+// What every evidence needs before judging anything: recent heartbeat, compatible P-01, the
+// incident record read and the evidence covered in the last run. If something is missing, that is
+// the measurement.
 const base = (
   context: ENSPolicyContext,
-  ahora: number,
-  evidencia: string,
-  exigeP01: boolean
-): Base | Medida => {
-  const vivo = latido(context, ahora);
+  now: number,
+  evidence: string,
+  requiresP01: boolean
+): Base | Measurement => {
+  const alive = heartbeat(context, now);
 
-  if (esMedida(vivo)) {
-    return vivo;
+  if (isMeasurement(alive)) {
+    return alive;
   }
 
-  const p01 = escalar(context, 'P-01');
+  const p01 = positiveScalar(context, 'P-01');
 
-  if (p01 && p01 !== REGISTRO_ENSFACIL) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} declara «${p01}» como sistema de registro. ENSFácil solo lee su registro TSV del manager (/etc/ensfacil/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`,
+  if (p01 && p01 !== ENSFACIL_RECORD) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} declara «${p01}» como sistema de registro. ENSFácil solo lee su registro TSV del manager (/etc/ensfacil/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`,
       'CONFIGURATION'
     );
   }
 
-  if (!p01 && exigeP01) {
-    return sinMedir(
-      `${etiqueta(context, 'P-01')} está sin configurar: no está declarado dónde se registran los incidentes.`,
+  if (!p01 && requiresP01) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-01')} está sin configurar: no está declarado dónde se registran los incidentes.`,
       'CONFIGURATION'
     );
   }
 
-  const reg = registro(context, 'incidentes');
-  const parada = registroUtilizable(reg, 'incidentes', '/etc/ensfacil/incident-register.tsv');
+  const reg = record(context, 'incidentes');
+  const stop = usableRecord(reg, 'incidentes', '/etc/ensfacil/incident-register.tsv');
 
-  if (parada) {
-    return parada;
+  if (stop) {
+    return stop;
   }
 
-  if (!vivo.cubiertas.includes(evidencia)) {
-    return sinMedir(
-      `La última pasada del recolector del manager (${vivo.evento.timestamp}) no declara haber leído las fuentes de ${evidencia}: ver sus avisos y degradaciones.`,
+  if (!alive.cubiertas.includes(evidence)) {
+    return notMeasured(
+      `La última pasada del recolector del manager (${alive.evento.timestamp}) no declara haber leído las fuentes de ${evidence}: ver sus avisos y degradaciones.`,
       'COLLECTION'
     );
   }
 
   return {
-    ahora,
-    cubiertas: vivo.cubiertas,
-    reg: reg as Registro,
-    lista: incidentes(context),
+    ahora: now,
+    cubiertas: alive.cubiertas,
+    reg: reg as LogRow,
+    lista: incidents(context),
   };
 };
 
-// Un registro con filas que no se pudieron interpretar no permite afirmar
-// nada de lo que falta: rebaja un CUMPLE a NO_EVALUABLE, nunca un NO_CUMPLE.
-const conFilasInvalidas = (medida: Medida, reg: Registro, nombre = 'incidentes'): Medida =>
-  medida.estado === 'CUMPLE' && reg.invalidas > 0
-    ? sinMedir(
-        `${medida.motivo} Pero ${reg.invalidas} fila(s) del registro de ${nombre} no se pudieron interpretar (ver los avisos del recolector): no se puede afirmar que no falte nada.`
+// A record with rows that could not be interpreted allows asserting nothing about what is missing:
+// it lowers a CUMPLE to NO_EVALUABLE, never a NO_CUMPLE.
+const withInvalidRows = (measurement: Measurement, reg: LogRow, name = 'incidentes'): Measurement =>
+  measurement.estado === 'CUMPLE' && reg.invalidas > 0
+    ? notMeasured(
+        `${measurement.motivo} Pero ${reg.invalidas} fila(s) del registro de ${name} no se pudieron interpretar (ver los avisos del recolector): no se puede afirmar que no falte nada.`
       )
-    : medida;
+    : measurement;
 
-// --- el registro vacío -------------------------------------------------------
 
-// Cero incidentes se juzga frente a las alertas ajenas a ENSFácil que el
-// manager generó en los últimos 30 días, por encima del nivel de P-08. Solo
-// EV-02 puede incumplir por esto: es la que pregunta si se registró lo que
-// había que registrar; a las demás, un registro vacío con alertas pendientes
-// no les deja ningún expediente que examinar.
-const contrasteRegistroVacio = (
+// Zero incidents is judged against the non-ENSFácil alerts the manager generated in the last 30
+// days above P-08's level. Only EV-02 can fail for this: it asks whether what had to be recorded
+// was; for the others an empty record with pending alerts leaves no file to examine.
+const emptyRecordCheck = (
   context: ENSPolicyContext,
-  paraEv02: boolean
-): Medida => {
-  const nivel = numero(escalar(context, 'P-08'));
+  forEv02: boolean
+): Measurement => {
+  const level = parseNumber(positiveScalar(context, 'P-08'));
 
-  if (nivel === undefined) {
-    return sinMedir(
-      `El registro de incidentes está vacío y ${etiqueta(context, 'P-08')} no está declarado: sin un nivel de alerta contra el que contrastarlo, cero incidentes no se puede juzgar.`,
+  if (level === undefined) {
+    return notMeasured(
+      `El registro de incidentes está vacío y ${parameterDisplayName(context, 'P-08')} no está declarado: sin un nivel de alerta contra el que contrastarlo, cero incidentes no se puede juzgar.`,
       'CONFIGURATION'
     );
   }
 
-  const volumen = hechos(context, 'alert_volume_observed').sort(
-    (a, b) => (instante(b.timestamp) || 0) - (instante(a.timestamp) || 0)
+  const volume = facts(context, 'alert_volume_observed').sort(
+    (a, b) => (parseInstant(b.timestamp) || 0) - (parseInstant(a.timestamp) || 0)
   )[0];
 
-  if (!volumen) {
-    return sinMedir(
+  if (!volume) {
+    return notMeasured(
       'El registro de incidentes está vacío y el recolector no ha informado del volumen de alertas del manager: no hay contraste.',
       'COLLECTION'
     );
   }
 
-  const detalle = numero(campo(volumen, 'nivel_detalle'));
+  const detail = parseNumber(factField(volume, 'nivel_detalle'));
 
-  if (detalle === undefined || nivel < detalle) {
-    return sinMedir(
-      `${etiqueta(context, 'P-08')} declara el nivel ${nivel}, y el recolector solo detalla por regla desde el nivel ${detalle ?? '?'}: no se puede contrastar por debajo.`
+  if (detail === undefined || level < detail) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-08')} declara el nivel ${level}, y el recolector solo detalla por regla desde el nivel ${detail ?? '?'}: no se puede contrastar por debajo.`
     );
   }
 
-  const reglas = hechos(context, 'alert_rule_volume_observed');
-  const declaradas = numero(campo(volumen, 'reglas'));
+  const rules = facts(context, 'alert_rule_volume_observed');
+  const declared = parseNumber(factField(volume, 'reglas'));
 
-  if (declaradas === undefined || reglas.length < declaradas) {
-    return sinMedir(
-      `El recolector declara ${campo(volumen, 'reglas') || '?'} reglas con alertas de nivel ${detalle} o superior y solo han llegado ${reglas.length}: el contraste no se hace sobre una parte.`,
+  if (declared === undefined || rules.length < declared) {
+    return notMeasured(
+      `El recolector declara ${factField(volume, 'reglas') || '?'} reglas con alertas de nivel ${detail} o superior y solo han llegado ${rules.length}: el contraste no se hace sobre una parte.`,
       'COLLECTION'
     );
   }
 
-  const excluidos = elementos(context, 'P-09');
-  const excluidas: string[] = [];
-  const encima: { regla: string; nivel: number; alertas: number; texto: string }[] = [];
+  const excludedItems = items(context, 'P-09');
+  const excludedList: string[] = [];
+  const above: { regla: string; nivel: number; alertas: number; texto: string }[] = [];
 
-  reglas.forEach(r => {
-    const n = numero(campo(r, 'nivel'));
-    const alertas = numero(campo(r, 'alertas')) || 0;
+  rules.forEach(r => {
+    const n = parseNumber(factField(r, 'nivel'));
+    const alerts = parseNumber(factField(r, 'alertas')) || 0;
 
-    if (n === undefined || n < nivel || !alertas) {
+    if (n === undefined || n < level || !alerts) {
       return;
     }
 
-    const grupos = listaDe(campo(r, 'grupos'));
-    const excluida = grupos.find(g => excluidos.includes(g));
+    const groups = listOf(factField(r, 'grupos'));
+    const excludedGroup = groups.find(g => excludedItems.includes(g));
 
-    if (excluida) {
-      excluidas.push(`${alertas} de la regla ${campo(r, 'regla')} (${excluida})`);
+    if (excludedGroup) {
+      excludedList.push(`${alerts} de la regla ${factField(r, 'regla')} (${excludedGroup})`);
 
       return;
     }
 
-    encima.push({
-      regla: campo(r, 'regla'),
+    above.push({
+      regla: factField(r, 'regla'),
       nivel: n,
-      alertas,
-      texto: `${alertas} × regla ${campo(r, 'regla')} nivel ${n} «${campo(r, 'descripcion')}» en ${campo(r, 'agentes')}`,
+      alertas: alerts,
+      texto: `${alerts} × regla ${factField(r, 'regla')} nivel ${n} «${factField(r, 'descripcion')}» en ${factField(r, 'agentes')}`,
     });
   });
 
-  const total = encima.reduce((t, e) => t + e.alertas, 0);
-  const ventana = `${campo(volumen, 'desde')} → ${campo(volumen, 'hasta')}`;
-  const fuera = excluidas.length ? ` Excluidas por P-09: ${lista(excluidas)}.` : '';
-  const sinArchivo = listaDe(campo(volumen, 'dias_sin_archivo'));
+  const total = above.reduce((t, e) => t + e.alertas, 0);
+  const window = `${factField(volume, 'desde')} → ${factField(volume, 'hasta')}`;
+  const outside = excludedList.length ? ` Excluidas por P-09: ${formatList(excludedList)}.` : '';
+  const withoutFile = listOf(factField(volume, 'dias_sin_archivo'));
 
   if (total > 0) {
-    encima.sort((a, b) => b.nivel - a.nivel || b.alertas - a.alertas);
+    above.sort((a, b) => b.nivel - a.nivel || b.alertas - a.alertas);
 
-    return paraEv02
-      ? noCumple(
-          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}, sin ningún expediente: ${lista(encima.map(e => e.texto))}.${fuera} Si no eran incidentes, lo decide y lo documenta op.exp.7 (o se excluye su grupo en P-09); si lo eran, su gestión no está registrada.`
+    return forEv02
+      ? nonCompliant(
+          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a ENSFácil de nivel ${level} o superior (P-08) entre ${window}, sin ningún expediente: ${formatList(above.map(e => e.texto))}.${outside} Si no eran incidentes, lo decide y lo documenta op.exp.7 (o se excluye su grupo en P-09); si lo eran, su gestión no está registrada.`
         )
-      : sinMedir(
-          `El registro de incidentes está vacío y hay ${total} alertas de nivel ${nivel} o superior sin expediente (lo señala EV-02): no hay ningún expediente que examinar.`
+      : notMeasured(
+          `El registro de incidentes está vacío y hay ${total} alertas de nivel ${level} o superior sin expediente (lo señala EV-02): no hay ningún expediente que examinar.`
         );
   }
 
-  if (sinArchivo.length) {
-    return sinMedir(
-      `El registro de incidentes está vacío, pero faltan los archivos de alertas de ${lista(sinArchivo)}: no se puede afirmar que en esos días no hubiera alertas de nivel ${nivel} o superior.${fuera}`
+  if (withoutFile.length) {
+    return notMeasured(
+      `El registro de incidentes está vacío, pero faltan los archivos de alertas de ${formatList(withoutFile)}: no se puede afirmar que en esos días no hubiera alertas de nivel ${level} o superior.${outside}`
     );
   }
 
-  return cumple(
-    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a ENSFácil de nivel ${nivel} o superior (P-08) entre ${ventana}: no consta nada que debiera tener expediente.${fuera}`
+  return compliant(
+    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a ENSFácil de nivel ${level} o superior (P-08) entre ${window}: no consta nada que debiera tener expediente.${outside}`
   );
 };
 
-// --- los hechos de ventana ---------------------------------------------------
 
-type Ventana = {
+type Window = {
   evento: ENSNormalizedEvent;
   conocido: boolean;
   alertas: number;
@@ -652,26 +598,26 @@ type Ventana = {
   hasta: string;
 };
 
-const ventanas = (context: ENSPolicyContext): Ventana[] =>
-  hechos(context, 'incident_source_events_available').map(e => ({
+const windows = (context: ENSPolicyContext): Window[] =>
+  facts(context, 'incident_source_events_available').map(e => ({
     evento: e,
-    conocido: campo(e, 'agente_conocido') === 'si',
-    alertas: numero(campo(e, 'alertas')) || 0,
-    sinArchivo: listaDe(campo(e, 'dias_sin_archivo')),
-    alterados: listaDe(campo(e, 'dias_alterados')),
-    sinSuma: listaDe(campo(e, 'dias_sin_suma')),
-    acciones: numero(campo(e, 'acciones')) || 0,
-    accionesEmitidas: numero(campo(e, 'acciones_emitidas')) || 0,
-    cambios: numero(campo(e, 'cambios')) || 0,
-    cambiosEmitidos: numero(campo(e, 'cambios_emitidos')) || 0,
-    desde: campo(e, 'desde'),
-    hasta: campo(e, 'hasta'),
+    conocido: factField(e, 'agente_conocido') === 'si',
+    alertas: parseNumber(factField(e, 'alertas')) || 0,
+    sinArchivo: listOf(factField(e, 'dias_sin_archivo')),
+    alterados: listOf(factField(e, 'dias_alterados')),
+    sinSuma: listOf(factField(e, 'dias_sin_suma')),
+    acciones: parseNumber(factField(e, 'acciones')) || 0,
+    accionesEmitidas: parseNumber(factField(e, 'acciones_emitidas')) || 0,
+    cambios: parseNumber(factField(e, 'cambios')) || 0,
+    cambiosEmitidos: parseNumber(factField(e, 'cambios_emitidos')) || 0,
+    desde: factField(e, 'desde'),
+    hasta: factField(e, 'hasta'),
   }));
 
-const ventanaDe = (todas: Ventana[], incidente: string, sistema: string): Ventana | undefined =>
-  todas.find(v => campo(v.evento, 'incidente_id') === incidente && mismoSistema(campo(v.evento, 'sistema'), sistema));
+const windowOf = (all: Window[], incident: string, system: string): Window | undefined =>
+  all.find(v => factField(v.evento, 'incidente_id') === incident && sameSystem(factField(v.evento, 'sistema'), system));
 
-type Actuacion = {
+type Action = {
   incidente: string;
   fecha?: number;
   sistema: string;
@@ -679,63 +625,62 @@ type Actuacion = {
   objeto: string;
 };
 
-const actuaciones = (context: ENSPolicyContext): Actuacion[] =>
-  hechos(context, 'incident_action_registered').map(e => ({
-    incidente: campo(e, 'incidente_id'),
-    fecha: instante(campo(e, 'fecha')),
-    sistema: campo(e, 'sistema'),
-    tipo: campo(e, 'tipo'),
-    objeto: campo(e, 'objeto'),
+const actions = (context: ENSPolicyContext): Action[] =>
+  facts(context, 'incident_action_registered').map(e => ({
+    incidente: factField(e, 'incidente_id'),
+    fecha: parseInstant(factField(e, 'fecha')),
+    sistema: factField(e, 'sistema'),
+    tipo: factField(e, 'tipo'),
+    objeto: factField(e, 'objeto'),
   }));
 
-const cubreSistema = (declarado: string, observado: string): boolean =>
-  declarado === '*' || mismoSistema(declarado, observado);
+const coversSystem = (declared: string, observed: string): boolean =>
+  declared === '*' || sameSystem(declared, observed);
 
-// --- las evidencias --------------------------------------------------------
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-01', true);
+const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-01', true);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const todas = ventanas(context);
-  const hallazgos: string[] = [];
-  const sinMedida: string[] = [];
-  const bien: string[] = [];
+  const all = windows(context);
+  const findings: string[] = [];
+  const withoutMeasurement: string[] = [];
+  const ok: string[] = [];
 
   b.lista.forEach(inc => {
     if (!inc.sistemas.length) {
-      sinMedida.push(`${inc.id}: el registro no declara ningún sistema afectado`);
+      withoutMeasurement.push(`${inc.id}: el registro no declara ningún sistema afectado`);
 
       return;
     }
 
-    inc.sistemas.forEach(sistema => {
-      const v = ventanaDe(todas, inc.id, sistema);
+    inc.sistemas.forEach(system => {
+      const v = windowOf(all, inc.id, system);
 
       if (!v) {
-        sinMedida.push(`${inc.id} en ${sistema}: el recolector no ha informado de su ventana`);
+        withoutMeasurement.push(`${inc.id} en ${system}: el recolector no ha informado de su ventana`);
 
         return;
       }
 
-      // Los archivos diarios son del manager, no del sistema: un día perdido
-      // se dice una vez por incidente aunque afecte a todos sus sistemas.
+      // The daily archives belong to the manager, not the system: a lost day is reported once per
+      // incident even if it affects all its systems.
       if (v.sinArchivo.length) {
-        hallazgos.push(`${inc.id}: faltan los archivos de alertas del manager de ${lista(v.sinArchivo)} (ventana ${v.desde} → ${v.hasta})`);
+        findings.push(`${inc.id}: faltan los archivos de alertas del manager de ${formatList(v.sinArchivo)} (ventana ${v.desde} → ${v.hasta})`);
       }
 
       if (v.alterados.length) {
-        hallazgos.push(`${inc.id}: el archivo de alertas de ${lista(v.alterados)} no coincide con la suma encadenada que Wazuh selló al rotarlo`);
+        findings.push(`${inc.id}: el archivo de alertas de ${formatList(v.alterados)} no coincide con la suma encadenada que Wazuh selló al rotarlo`);
       }
 
       if (v.sinArchivo.length || v.alterados.length) {
@@ -743,246 +688,245 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Medida => {
       }
 
       if (!v.conocido) {
-        sinMedida.push(`${inc.id}: «${sistema}» no es un agente de este manager, así que sus eventos no están en él`);
+        withoutMeasurement.push(`${inc.id}: «${system}» no es un agente de este manager, así que sus eventos no están en él`);
 
         return;
       }
 
       if (v.sinSuma.length) {
-        sinMedida.push(`${inc.id} en ${sistema}: los archivos de ${lista(v.sinSuma)} no tienen su suma de Wazuh y su integridad no se puede acreditar`);
+        withoutMeasurement.push(`${inc.id} en ${system}: los archivos de ${formatList(v.sinSuma)} no tienen su suma de Wazuh y su integridad no se puede acreditar`);
 
         return;
       }
 
       if (v.alertas === 0) {
-        sinMedida.push(`${inc.id} en ${sistema}: ninguna alerta de ese agente entre ${v.desde} y ${v.hasta}; el origen del incidente no es observable en Wazuh`);
+        withoutMeasurement.push(`${inc.id} en ${system}: ninguna alerta de ese agente entre ${v.desde} y ${v.hasta}; el origen del incidente no es observable en Wazuh`);
 
         return;
       }
 
-      bien.push(`${inc.id} en ${sistema}: ${v.alertas} alertas (${v.desde} → ${v.hasta})`);
+      ok.push(`${inc.id} en ${system}: ${v.alertas} alertas (${v.desde} → ${v.hasta})`);
     });
   });
 
-  if (hallazgos.length) {
-    return noCumple(`No se conservan los eventos que originaron los incidentes: ${lista(Array.from(new Set(hallazgos)))}.`);
+  if (findings.length) {
+    return nonCompliant(`No se conservan los eventos que originaron los incidentes: ${formatList(Array.from(new Set(findings)))}.`);
   }
 
-  if (sinMedida.length) {
-    return sinMedir(`No se puede acreditar la conservación de los eventos de origen: ${lista(sinMedida)}.${bien.length ? ` Sí consta: ${lista(bien)}.` : ''}`);
+  if (withoutMeasurement.length) {
+    return notMeasured(`No se puede acreditar la conservación de los eventos de origen: ${formatList(withoutMeasurement)}.${ok.length ? ` Sí consta: ${formatList(ok)}.` : ''}`);
   }
 
-  return conFilasInvalidas(
-    cumple(`Los eventos de origen de los ${b.lista.length} incidentes se conservan en el manager, con los archivos diarios de su ventana presentes y su suma encadenada verificada: ${lista(bien)}.`),
+  return withInvalidRows(
+    compliant(`Los eventos de origen de los ${b.lista.length} incidentes se conservan en el manager, con los archivos diarios de su ventana presentes y su suma encadenada verificada: ${formatList(ok)}.`),
     b.reg
   );
 };
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-02', true);
+const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-02', true);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
-  const p02 = filas(context, 'P-02');
+  const p02 = tableParameterRows(context, 'P-02');
 
   if (!p02) {
-    return sinMedir(`${etiqueta(context, 'P-02')} está sin configurar: no están declaradas las fases de reporte que se exigen.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} está sin configurar: no están declaradas las fases de reporte que se exigen.`, 'CONFIGURATION');
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, true),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, true),
       b.reg
     );
   }
 
-  const exigidas = p02
-    .map(f => ({ fase: sinTildes(f.fase), horas: numero((f.exigible_desde_horas || '').replace(',', '.')) }))
+  const required = p02
+    .map(f => ({ fase: stripAccents(f.fase), horas: parseNumber((f.exigible_desde_horas || '').replace(',', '.')) }))
     .filter(f => ['inicial', 'intermedio', 'final'].includes(f.fase));
 
-  if (!exigidas.length) {
-    return sinMedir(`${etiqueta(context, 'P-02')} no declara ninguna fase reconocible (inicial, intermedio, final).`, 'CONFIGURATION');
+  if (!required.length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} no declara ninguna fase reconocible (inicial, intermedio, final).`, 'CONFIGURATION');
   }
 
-  const hallazgos: string[] = [];
-  const bien: string[] = [];
+  const findings: string[] = [];
+  const ok: string[] = [];
 
   b.lista.forEach(inc => {
-    const duracion = (inc.fin ?? ahora) - inc.inicio;
-    const faltan: string[] = [];
+    const duration = (inc.fin ?? now) - inc.inicio;
+    const missing: string[] = [];
 
-    exigidas.forEach(({ fase, horas }) => {
-      if (fase === 'final' && inc.abierto) {
+    required.forEach(({ fase: phase, horas: hours }) => {
+      if (phase === 'final' && inc.abierto) {
         return;
       }
 
-      if (horas !== undefined && duracion <= horas * HORA) {
+      if (hours !== undefined && duration <= hours * HOUR_MS) {
         return;
       }
 
-      if (!inc.filas.some(f => f.fase === fase)) {
-        faltan.push(fase);
+      if (!inc.filas.some(f => f.fase === phase)) {
+        missing.push(phase);
       }
     });
 
-    const inicial = inc.filas.find(f => f.fase === 'inicial');
-    const incompleto: string[] = [];
+    const initial = inc.filas.find(f => f.fase === 'inicial');
+    const incomplete: string[] = [];
 
-    if (inicial && vacio(inicial.severidad)) {
-      incompleto.push('sin severidad');
+    if (initial && isEmptyField(initial.severidad)) {
+      incomplete.push('sin severidad');
     }
 
-    if (inicial && !inicial.sistemas.length) {
-      incompleto.push('sin sistemas afectados');
+    if (initial && !initial.sistemas.length) {
+      incomplete.push('sin sistemas afectados');
     }
 
-    if (faltan.length) {
-      hallazgos.push(
-        `${inc.id} (${inc.abierto ? 'abierto' : 'cerrado'}, ${dias(duracion)} días) sin reporte ${faltan.join(' ni ')}`
+    if (missing.length) {
+      findings.push(
+        `${inc.id} (${inc.abierto ? 'abierto' : 'cerrado'}, ${wholeDays(duration)} días) sin reporte ${missing.join(' ni ')}`
       );
     }
 
-    if (incompleto.length) {
-      hallazgos.push(`${inc.id}: el reporte inicial está ${incompleto.join(' y ')}`);
+    if (incomplete.length) {
+      findings.push(`${inc.id}: el reporte inicial está ${incomplete.join(' y ')}`);
     }
 
-    if (!faltan.length && !incompleto.length) {
-      bien.push(`${inc.id} (${inc.filas.map(f => f.fase).join(', ')})`);
+    if (!missing.length && !incomplete.length) {
+      ok.push(`${inc.id} (${inc.filas.map(f => f.fase).join(', ')})`);
     }
   });
 
-  if (hallazgos.length) {
-    return noCumple(`Incidentes sin los reportes que exige P-02: ${lista(hallazgos)}.`);
+  if (findings.length) {
+    return nonCompliant(`Incidentes sin los reportes que exige P-02: ${formatList(findings)}.`);
   }
 
-  return conFilasInvalidas(
-    cumple(`Los ${b.lista.length} incidentes registrados tienen las fases de reporte que exige P-02: ${lista(bien)}.`),
+  return withInvalidRows(
+    compliant(`Los ${b.lista.length} incidentes registrados tienen las fases de reporte que exige P-02: ${formatList(ok)}.`),
     b.reg
   );
 };
 
-// EV-03 y EV-04 son el mismo barrido sobre dos clases de hecho: lo que Wazuh
-// registró que se hizo en la ventana del incidente, contra lo que la
-// organización vinculó al expediente.
-const barrido = (
+// EV-03 and EV-04 are the same sweep over two classes of fact: what Wazuh recorded as done in the
+// incident's window, against what the organization linked to the file.
+const sweep = (
   context: ENSPolicyContext,
-  ahora: number,
-  evidencia: 'EV-03' | 'EV-04'
-): Medida => {
-  const b = base(context, ahora, evidencia, true);
+  now: number,
+  evidence: 'EV-03' | 'EV-04'
+): Measurement => {
+  const b = base(context, now, evidence, true);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const esEv03 = evidencia === 'EV-03';
-  const tipoHecho = esEv03 ? 'emergency_action_observed' : 'system_change_observed';
-  const tipoRegistrado = esEv03 ? 'emergencia' : 'modificacion';
-  const campoObjeto = esEv03 ? 'programa' : 'objeto';
-  const que = esEv03 ? 'respuesta activa' : 'cambio';
+  const isEv03 = evidence === 'EV-03';
+  const typeFact = isEv03 ? 'emergency_action_observed' : 'system_change_observed';
+  const recordedType = isEv03 ? 'emergencia' : 'modificacion';
+  const fieldObject = isEv03 ? 'programa' : 'objeto';
+  const subject = isEv03 ? 'respuesta activa' : 'cambio';
 
-  const regAct = registro(context, 'actuaciones');
-  const todas = ventanas(context);
-  const observados = hechos(context, tipoHecho);
-  const registradas = actuaciones(context).filter(a => a.tipo === tipoRegistrado);
+  const regAct = record(context, 'actuaciones');
+  const all = windows(context);
+  const observed = facts(context, typeFact);
+  const recorded = actions(context).filter(a => a.tipo === recordedType);
 
-  const hallazgos: string[] = [];
-  const sinMedida: string[] = [];
-  let vistos = 0;
+  const findings: string[] = [];
+  const withoutMeasurement: string[] = [];
+  let seen = 0;
 
   b.lista.forEach(inc => {
     if (!inc.sistemas.length) {
-      sinMedida.push(`${inc.id}: el registro no declara ningún sistema afectado que barrer`);
+      withoutMeasurement.push(`${inc.id}: el registro no declara ningún sistema afectado que barrer`);
     }
 
-    inc.sistemas.forEach(sistema => {
-      const v = ventanaDe(todas, inc.id, sistema);
+    inc.sistemas.forEach(system => {
+      const v = windowOf(all, inc.id, system);
 
       if (!v) {
-        sinMedida.push(`${inc.id} en ${sistema}: el recolector no ha informado de su ventana`);
+        withoutMeasurement.push(`${inc.id} en ${system}: el recolector no ha informado de su ventana`);
 
         return;
       }
 
       if (!v.conocido) {
-        sinMedida.push(`${inc.id}: «${sistema}» no es un agente de este manager y no se puede barrer`);
+        withoutMeasurement.push(`${inc.id}: «${system}» no es un agente de este manager y no se puede barrer`);
 
         return;
       }
 
-      const delSistema = observados.filter(
-        e => campo(e, 'incidente_id') === inc.id && mismoSistema(campo(e, 'sistema'), sistema)
+      const ofSystem = observed.filter(
+        e => factField(e, 'incidente_id') === inc.id && sameSystem(factField(e, 'sistema'), system)
       );
 
-      vistos += delSistema.length;
+      seen += ofSystem.length;
 
-      delSistema.forEach(e => {
-        const objeto = campo(e, campoObjeto);
+      ofSystem.forEach(e => {
+        const object = factField(e, fieldObject);
 
-        const consta = registradas.some(
+        const lists = recorded.some(
           a =>
             a.incidente === inc.id &&
-            cubreSistema(a.sistema, sistema) &&
-            (a.objeto === '*' || (esEv03 ? a.objeto === objeto : !vacio(a.objeto) && objeto.startsWith(a.objeto)))
+            coversSystem(a.sistema, system) &&
+            (a.objeto === '*' || (isEv03 ? a.objeto === object : !isEmptyField(a.objeto) && object.startsWith(a.objeto)))
         );
 
-        if (!consta) {
-          hallazgos.push(
-            `${inc.id} en ${sistema}: ${que} ${esEv03 ? '' : `de ${campo(e, 'origen')} `}«${objeto}» (${campo(e, 'veces') || '1'} vez/veces, ${campo(e, 'primera')}${campo(e, 'ultima') && campo(e, 'ultima') !== campo(e, 'primera') ? ` → ${campo(e, 'ultima')}` : ''})`
+        if (!lists) {
+          findings.push(
+            `${inc.id} en ${system}: ${subject} ${isEv03 ? '' : `de ${factField(e, 'origen')} `}«${object}» (${factField(e, 'veces') || '1'} vez/veces, ${factField(e, 'primera')}${factField(e, 'ultima') && factField(e, 'ultima') !== factField(e, 'primera') ? ` → ${factField(e, 'ultima')}` : ''})`
           );
         }
       });
 
-      const declarados = esEv03 ? v.acciones : v.cambios;
-      const emitidos = esEv03 ? v.accionesEmitidas : v.cambiosEmitidos;
+      const declared = isEv03 ? v.acciones : v.cambios;
+      const emitted = isEv03 ? v.accionesEmitidas : v.cambiosEmitidos;
 
-      if (emitidos < declarados || delSistema.length < emitidos) {
-        sinMedida.push(
-          `${inc.id} en ${sistema}: el barrido encontró ${declarados} objetos distintos y solo han llegado ${delSistema.length}`
+      if (emitted < declared || ofSystem.length < emitted) {
+        withoutMeasurement.push(
+          `${inc.id} en ${system}: el barrido encontró ${declared} objetos distintos y solo han llegado ${ofSystem.length}`
         );
       }
 
       if (v.sinArchivo.length || v.alterados.length) {
-        sinMedida.push(`${inc.id} en ${sistema}: faltan o están alterados los archivos de alertas de ${lista(v.sinArchivo.concat(v.alterados))}, así que el barrido no es completo`);
+        withoutMeasurement.push(`${inc.id} en ${system}: faltan o están alterados los archivos de alertas de ${formatList(v.sinArchivo.concat(v.alterados))}, así que el barrido no es completo`);
       }
     });
   });
 
-  if (hallazgos.length) {
-    const sinRegistro = regAct && !regAct.presente ? ' No existe /etc/ensfacil/incident-actions.tsv, así que ninguna consta.' : '';
+  if (findings.length) {
+    const withoutRecord = regAct && !regAct.presente ? ' No existe /etc/ensfacil/incident-actions.tsv, así que ninguna consta.' : '';
 
-    return noCumple(
-      `${esEv03 ? 'Actuaciones de emergencia' : 'Modificaciones del sistema'} observadas por Wazuh en la ventana de un incidente que no constan en su expediente (registro de actuaciones, tipo ${tipoRegistrado}): ${lista(hallazgos)}.${sinRegistro}`
+    return nonCompliant(
+      `${isEv03 ? 'Actuaciones de emergencia' : 'Modificaciones del sistema'} observadas por Wazuh en la ventana de un incidente que no constan en su expediente (registro de actuaciones, tipo ${recordedType}): ${formatList(findings)}.${withoutRecord}`
     );
   }
 
-  if (sinMedida.length) {
-    return sinMedir(`El barrido de las ventanas de incidente no es completo: ${lista(sinMedida)}.`);
+  if (withoutMeasurement.length) {
+    return notMeasured(`El barrido de las ventanas de incidente no es completo: ${formatList(withoutMeasurement)}.`);
   }
 
-  const manuales = registradas.filter(a => b.lista.some(i => i.id === a.incidente)).length;
+  const manual = recorded.filter(a => b.lista.some(i => i.id === a.incidente)).length;
 
-  const medida = cumple(
-    vistos
-      ? `Las ${vistos} ${esEv03 ? 'respuestas activas' : 'modificaciones'} observadas en las ventanas de los ${b.lista.length} incidentes constan en su expediente.`
-      : `Barridas las ventanas de los ${b.lista.length} incidentes en las alertas del manager: ninguna ${esEv03 ? 'respuesta activa' : 'modificación de ficheros, paquetes, configuración ni cuentas'} en los sistemas afectados.${manuales ? ` Constan ${manuales} ${tipoRegistrado === 'emergencia' ? 'actuaciones de emergencia' : 'modificaciones'} registradas a mano.` : ''}`
+  const measurement = compliant(
+    seen
+      ? `Las ${seen} ${isEv03 ? 'respuestas activas' : 'modificaciones'} observadas en las ventanas de los ${b.lista.length} incidentes constan en su expediente.`
+      : `Barridas las ventanas de los ${b.lista.length} incidentes en las alertas del manager: ninguna ${isEv03 ? 'respuesta activa' : 'modificación de ficheros, paquetes, configuración ni cuentas'} en los sistemas afectados.${manual ? ` Constan ${manual} ${recordedType === 'emergencia' ? 'actuaciones de emergencia' : 'modificaciones'} registradas a mano.` : ''}`
   );
 
-  return regAct && regAct.presente ? conFilasInvalidas(conFilasInvalidas(medida, b.reg), regAct, 'actuaciones') : conFilasInvalidas(medida, b.reg);
+  return regAct && regAct.presente ? withInvalidRows(withInvalidRows(measurement, b.reg), regAct, 'actuaciones') : withInvalidRows(measurement, b.reg);
 };
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 
-type Sellada = {
+type Sealed = {
   evento: ENSNormalizedEvent;
   incidente: string;
   fecha?: number;
@@ -992,43 +936,43 @@ type Sellada = {
   destino: string;
 };
 
-const selladas = (context: ENSPolicyContext): Sellada[] =>
-  hechos(context, 'evidence_export_sealed').map(e => ({
+const sealed = (context: ENSPolicyContext): Sealed[] =>
+  facts(context, 'evidence_export_sealed').map(e => ({
     evento: e,
-    incidente: campo(e, 'incidente_id'),
-    fecha: instante(campo(e, 'fecha')),
-    tipo: campo(e, 'tipo_evidencia'),
-    fichero: campo(e, 'fichero'),
-    sha256: campo(e, 'sha256'),
-    destino: campo(e, 'destino'),
+    incidente: factField(e, 'incidente_id'),
+    fecha: parseInstant(factField(e, 'fecha')),
+    tipo: factField(e, 'tipo_evidencia'),
+    fichero: factField(e, 'fichero'),
+    sha256: factField(e, 'sha256'),
+    destino: factField(e, 'destino'),
   }));
 
-const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-05', false);
+const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-05', false);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
-  const p03 = filas(context, 'P-03');
+  const p03 = tableParameterRows(context, 'P-03');
 
   if (!p03) {
-    return sinMedir(
-      `${etiqueta(context, 'P-03')} está sin configurar: la composición de la evidencia con valor jurisdiccional no está determinada, y el ENS exige hacerlo con asesoramiento legal especializado.`,
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-03')} está sin configurar: la composición de la evidencia con valor jurisdiccional no está determinada, y el ENS exige hacerlo con asesoramiento legal especializado.`,
       'CONFIGURATION'
     );
   }
 
-  if (!elementos(context, 'P-04').length) {
-    return sinMedir(
-      `${etiqueta(context, 'P-04')} está sin configurar: la marca de relevancia jurídica del registro no tiene criterios declarados contra los que haberse tomado.`,
+  if (!items(context, 'P-04').length) {
+    return notMeasured(
+      `${parameterDisplayName(context, 'P-04')} está sin configurar: la marca de relevancia jurídica del registro no tiene criterios declarados contra los que haberse tomado.`,
       'CONFIGURATION'
     );
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
@@ -1036,491 +980,489 @@ const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
   const relevantes = b.lista.filter(i => i.relevante);
 
   if (!relevantes.length) {
-    return conFilasInvalidas(
-      cumple(
+    return withInvalidRows(
+      compliant(
         `Ninguno de los ${b.lista.length} incidentes del registro está marcado con relevancia jurídica según los criterios de P-04: no hay evidencia jurisdiccional que exigir. La marca la pone la organización en el registro.`
       ),
       b.reg
     );
   }
 
-  const regCus = registro(context, 'custodia');
-  const parada = registroUtilizable(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
+  const regCus = record(context, 'custodia');
+  const stop = usableRecord(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
 
-  if (parada) {
-    return sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica. ${parada.motivo}`, parada.causa);
+  if (stop) {
+    return notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica. ${stop.motivo}`, stop.causa);
   }
 
-  const todas = selladas(context);
-  const faltan: string[] = [];
-  const bien: string[] = [];
+  const all = sealed(context);
+  const missing: string[] = [];
+  const ok: string[] = [];
 
   relevantes.forEach(inc => {
-    p03.forEach(fila => {
-      const tipo = fila.tipo_evidencia;
+    p03.forEach(row => {
+      const type = row.tipo_evidencia;
 
-      const hecha = todas.find(
+      const done = all.find(
         s =>
           s.incidente === inc.id &&
-          sinTildes(s.tipo) === sinTildes(tipo) &&
+          stripAccents(s.tipo) === stripAccents(type) &&
           HEX64.test(s.sha256) &&
-          (!fila.destino || s.destino === fila.destino)
+          (!row.destino || s.destino === row.destino)
       );
 
-      if (hecha) {
-        bien.push(`${inc.id}: ${tipo} (${hecha.sha256.slice(0, 12)}…)`);
+      if (done) {
+        ok.push(`${inc.id}: ${type} (${done.sha256.slice(0, 12)}…)`);
 
         return;
       }
 
-      const parecida = todas.find(s => s.incidente === inc.id && sinTildes(s.tipo) === sinTildes(tipo));
+      const similar = all.find(s => s.incidente === inc.id && stripAccents(s.tipo) === stripAccents(type));
 
-      faltan.push(
-        parecida
-          ? `${inc.id}: ${tipo} ${HEX64.test(parecida.sha256) ? `depositada en «${parecida.destino}» y P-03 exige «${fila.destino}»` : 'sin un SHA-256 válido'}`
-          : `${inc.id}: ${tipo} no se ha exportado ni sellado`
+      missing.push(
+        similar
+          ? `${inc.id}: ${type} ${HEX64.test(similar.sha256) ? `depositada en «${similar.destino}» y P-03 exige «${row.destino}»` : 'sin un SHA-256 válido'}`
+          : `${inc.id}: ${type} no se ha exportado ni sellado`
       );
     });
   });
 
-  if (faltan.length) {
-    return noCumple(`Incidentes con relevancia jurídica sin la evidencia sellada que determina P-03: ${lista(faltan)}.`);
+  if (missing.length) {
+    return nonCompliant(`Incidentes con relevancia jurídica sin la evidencia sellada que determina P-03: ${formatList(missing)}.`);
   }
 
-  return conFilasInvalidas(
-    conFilasInvalidas(
-      cumple(`Los ${relevantes.length} incidentes con relevancia jurídica tienen sellada cada evidencia de P-03: ${lista(bien)}.`),
+  return withInvalidRows(
+    withInvalidRows(
+      compliant(`Los ${relevantes.length} incidentes con relevancia jurídica tienen sellada cada evidencia de P-03: ${formatList(ok)}.`),
       b.reg
     ),
-    regCus as Registro,
+    regCus as LogRow,
     'custodia'
   );
 };
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-06', false);
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-06', false);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
-  if (!elementos(context, 'P-04').length) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin criterios de relevancia jurídica no hay régimen de custodia que exigir.`, 'CONFIGURATION');
+  if (!items(context, 'P-04').length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-04')} está sin configurar: sin criterios de relevancia jurídica no hay régimen de custodia que exigir.`, 'CONFIGURATION');
   }
 
-  const p05 = filas(context, 'P-05');
+  const p05 = tableParameterRows(context, 'P-05');
 
   if (!p05) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no hay repositorio de custodia declarado contra el que situar las evidencias.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} está sin configurar: no hay repositorio de custodia declarado contra el que situar las evidencias.`, 'CONFIGURATION');
   }
 
-  const p06 = filas(context, 'P-06');
-  const plazos = (p06 || [])
-    .map(f => numero((f.dias_retencion || '').replace(',', '.')))
+  const p06 = tableParameterRows(context, 'P-06');
+  const deadlines = (p06 || [])
+    .map(f => parseNumber((f.dias_retencion || '').replace(',', '.')))
     .filter((d): d is number => d !== undefined && d >= 0);
 
-  if (!plazos.length) {
-    return sinMedir(`${etiqueta(context, 'P-06')} no declara ningún plazo de retención en días: no se puede saber si una evidencia desaparecida se destruyó antes de tiempo.`, 'CONFIGURATION');
+  if (!deadlines.length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-06')} no declara ningún plazo de retención en días: no se puede saber si una evidencia desaparecida se destruyó antes de tiempo.`, 'CONFIGURATION');
   }
 
-  const retencion = Math.max(...plazos);
+  const retention = Math.max(...deadlines);
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const regCus = registro(context, 'custodia');
+  const regCus = record(context, 'custodia');
   const relevantes = b.lista.filter(i => i.relevante);
 
   if (!regCus) {
-    return sinMedir('El recolector del manager no ha informado del registro de custodia (/etc/ensfacil/evidence-custody.tsv) en su última pasada.', 'COLLECTION');
+    return notMeasured('El recolector del manager no ha informado del registro de custodia (/etc/ensfacil/evidence-custody.tsv) en su última pasada.', 'COLLECTION');
   }
 
   if (!regCus.presente) {
     return relevantes.length
-      ? sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/ensfacil/evidence-custody.tsv (causa CONFIGURATION).`, 'CONFIGURATION')
-      : conFilasInvalidas(cumple('Ningún incidente del registro está marcado con relevancia jurídica y no hay evidencias en custodia: no hay cadena de custodia que acreditar.'), b.reg);
+      ? notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/ensfacil/evidence-custody.tsv (causa CONFIGURATION).`, 'CONFIGURATION')
+      : withInvalidRows(compliant('Ningún incidente del registro está marcado con relevancia jurídica y no hay evidencias en custodia: no hay cadena de custodia que acreditar.'), b.reg);
   }
 
-  const paradaCus = registroUtilizable(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
+  const stopCus = usableRecord(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
 
-  if (paradaCus) {
-    return paradaCus;
+  if (stopCus) {
+    return stopCus;
   }
 
-  const todas = selladas(context);
+  const all = sealed(context);
 
-  if (!todas.length) {
+  if (!all.length) {
     return relevantes.length
-      ? sinMedir(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y ninguna evidencia en custodia (lo señala EV-05): no hay cadena de custodia que examinar.`)
-      : conFilasInvalidas(cumple('No hay evidencias en custodia ni incidentes con relevancia jurídica: no hay cadena de custodia que acreditar.'), b.reg);
+      ? notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y ninguna evidencia en custodia (lo señala EV-05): no hay cadena de custodia que examinar.`)
+      : withInvalidRows(compliant('No hay evidencias en custodia ni incidentes con relevancia jurídica: no hay cadena de custodia que acreditar.'), b.reg);
   }
 
-  const regLog = registro(context, 'custodia_accesos');
-  const paradaLog = registroUtilizable(regLog, 'cadena de custodia', '/etc/ensfacil/evidence-custody-log.tsv');
+  const regLog = record(context, 'custodia_accesos');
+  const stopLog = usableRecord(regLog, 'cadena de custodia', '/etc/ensfacil/evidence-custody-log.tsv');
 
-  if (paradaLog) {
-    return sinMedir(`Hay ${todas.length} evidencia(s) en custodia. ${paradaLog.motivo}`, paradaLog.causa);
+  if (stopLog) {
+    return notMeasured(`Hay ${all.length} evidencia(s) en custodia. ${stopLog.motivo}`, stopLog.causa);
   }
 
-  const destinos = p05.map(f => f.destino).filter(Boolean);
-  const accesos = hechos(context, 'custody_access_recorded');
-  const verificaciones = hechos(context, 'custody_integrity_checked');
+  const destinations = p05.map(f => f.destino).filter(Boolean);
+  const accesses = facts(context, 'custody_access_recorded');
+  const verifications = facts(context, 'custody_integrity_checked');
 
-  const hallazgos: string[] = [];
-  const sinMedida: string[] = [];
-  const bien: string[] = [];
+  const findings: string[] = [];
+  const withoutMeasurement: string[] = [];
+  const ok: string[] = [];
 
-  todas.forEach(s => {
-    const nombre = `${s.incidente}: ${s.fichero}`;
-    let mal = false;
+  all.forEach(s => {
+    const name = `${s.incidente}: ${s.fichero}`;
+    let badly = false;
 
-    if (!destinos.includes(s.destino)) {
-      hallazgos.push(`${nombre} está en «${s.destino}», que no es un repositorio de custodia de P-05`);
-      mal = true;
+    if (!destinations.includes(s.destino)) {
+      findings.push(`${name} está en «${s.destino}», que no es un repositorio de custodia de P-05`);
+      badly = true;
     }
 
-    if (!accesos.some(a => campo(a, 'fichero') === s.fichero)) {
-      hallazgos.push(`${nombre} no tiene ninguna anotación en el registro de cadena de custodia`);
-      mal = true;
+    if (!accesses.some(a => factField(a, 'fichero') === s.fichero)) {
+      findings.push(`${name} no tiene ninguna anotación en el registro de cadena de custodia`);
+      badly = true;
     }
 
-    const v = verificaciones.find(x => campo(x, 'fichero') === s.fichero && campo(x, 'incidente_id') === s.incidente);
+    const v = verifications.find(x => factField(x, 'fichero') === s.fichero && factField(x, 'incidente_id') === s.incidente);
 
     if (!v) {
-      sinMedida.push(`${nombre}: el recolector no ha informado de su verificación`);
+      withoutMeasurement.push(`${name}: el recolector no ha informado de su verificación`);
 
       return;
     }
 
-    if (campo(v, 'verificable') === 'si') {
-      if (campo(v, 'coincide') !== 'si') {
-        hallazgos.push(`${nombre}: el SHA-256 actual (${campo(v, 'sha256_actual').slice(0, 12)}…) no coincide con el sellado (${s.sha256.slice(0, 12)}…): la evidencia se ha alterado`);
+    if (factField(v, 'verificable') === 'si') {
+      if (factField(v, 'coincide') !== 'si') {
+        findings.push(`${name}: el SHA-256 actual (${factField(v, 'sha256_actual').slice(0, 12)}…) no coincide con el sellado (${s.sha256.slice(0, 12)}…): la evidencia se ha alterado`);
 
         return;
       }
 
-      if (!mal) {
-        bien.push(`${nombre} (SHA-256 verificado ${campo(v, 'verificado') || ''})`.trim());
+      if (!badly) {
+        ok.push(`${name} (SHA-256 verificado ${factField(v, 'verificado') || ''})`.trim());
       }
 
       return;
     }
 
-    if (campo(v, 'motivo') === 'ausente') {
-      if (s.fecha !== undefined && ahora - s.fecha < retencion * DIA) {
-        hallazgos.push(`${nombre} ya no existe en el manager y se recogió el ${campo(s.evento, 'fecha')}, dentro del plazo más largo de P-06 (${retencion} días): evidencia destruida antes de plazo`);
+    if (factField(v, 'motivo') === 'ausente') {
+      if (s.fecha !== undefined && now - s.fecha < retention * DAY_MS) {
+        findings.push(`${name} ya no existe en el manager y se recogió el ${factField(s.evento, 'fecha')}, dentro del plazo más largo de P-06 (${retention} días): evidencia destruida antes de plazo`);
       } else if (s.fecha === undefined) {
-        sinMedida.push(`${nombre} ya no existe y su fecha de recogida no se puede leer`);
+        withoutMeasurement.push(`${name} ya no existe y su fecha de recogida no se puede leer`);
       }
 
       return;
     }
 
-    sinMedida.push(`${nombre}: ${campo(v, 'motivo') === 'remoto' ? 'está fuera del manager y su integridad no se puede recalcular desde aquí' : 'el manager no la puede leer'}`);
+    withoutMeasurement.push(`${name}: ${factField(v, 'motivo') === 'remoto' ? 'está fuera del manager y su integridad no se puede recalcular desde aquí' : 'el manager no la puede leer'}`);
   });
 
-  if (hallazgos.length) {
-    return noCumple(`La cadena de custodia de las evidencias no es acreditable: ${lista(hallazgos)}.`);
+  if (findings.length) {
+    return nonCompliant(`La cadena de custodia de las evidencias no es acreditable: ${formatList(findings)}.`);
   }
 
-  if (sinMedida.length) {
-    return sinMedir(`No se puede acreditar la integridad de todo lo custodiado: ${lista(sinMedida)}.`);
+  if (withoutMeasurement.length) {
+    return notMeasured(`No se puede acreditar la integridad de todo lo custodiado: ${formatList(withoutMeasurement)}.`);
   }
 
-  return conFilasInvalidas(
-    cumple(
-      `Las ${todas.length} evidencias custodiadas están en un repositorio de P-05, tienen cadena de custodia anotada y su SHA-256 sigue coincidiendo: ${lista(bien)}. Que el registro recoja TODOS los accesos es una declaración de la organización: el manager no ve los accesos al repositorio.`
+  return withInvalidRows(
+    compliant(
+      `Las ${all.length} evidencias custodiadas están en un repositorio de P-05, tienen cadena de custodia anotada y su SHA-256 sigue coincidiendo: ${formatList(ok)}. Que el registro recoja TODOS los accesos es una declaración de la organización: el manager no ve los accesos al repositorio.`
     ),
     b.reg
   );
 };
 
-const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-07', false);
+const ev07 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-07', false);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const protegibles = b.lista.filter(i => i.abierto || i.relevante);
+  const protectable = b.lista.filter(i => i.abierto || i.relevante);
 
-  if (!protegibles.length) {
-    return conFilasInvalidas(
-      cumple(`Ninguno de los ${b.lista.length} incidentes está abierto ni marcado con relevancia jurídica: no hay periodo que proteger de la rotación.`),
+  if (!protectable.length) {
+    return withInvalidRows(
+      compliant(`Ninguno de los ${b.lista.length} incidentes está abierto ni marcado con relevancia jurídica: no hay periodo que proteger de la rotación.`),
       b.reg
     );
   }
 
-  const todas = ventanas(context);
-  const hallazgos: string[] = [];
+  const all = windows(context);
+  const findings: string[] = [];
   const presentes: string[] = [];
 
-  protegibles.forEach(inc => {
-    inc.sistemas.forEach(sistema => {
-      const v = ventanaDe(todas, inc.id, sistema);
+  protectable.forEach(inc => {
+    inc.sistemas.forEach(system => {
+      const v = windowOf(all, inc.id, system);
 
       if (!v) {
         return;
       }
 
       if (v.sinArchivo.length) {
-        hallazgos.push(`${inc.id} (${inc.abierto ? 'abierto' : 'relevancia jurídica'}): ya no están los registros de ${lista(v.sinArchivo)}`);
+        findings.push(`${inc.id} (${inc.abierto ? 'abierto' : 'relevancia jurídica'}): ya no están los registros de ${formatList(v.sinArchivo)}`);
       } else if (v.alterados.length) {
-        hallazgos.push(`${inc.id}: los registros de ${lista(v.alterados)} no coinciden con su suma de Wazuh`);
+        findings.push(`${inc.id}: los registros de ${formatList(v.alterados)} no coinciden con su suma de Wazuh`);
       } else {
-        presentes.push(`${inc.id} en ${sistema} (${v.desde} → ${v.hasta})`);
+        presentes.push(`${inc.id} en ${system} (${v.desde} → ${v.hasta})`);
       }
     });
   });
 
-  if (hallazgos.length) {
-    return noCumple(`Se han perdido o alterado registros del periodo de incidentes que había que proteger: ${lista(Array.from(new Set(hallazgos)))}.`);
+  if (findings.length) {
+    return nonCompliant(`Se han perdido o alterado registros del periodo de incidentes que había que proteger: ${formatList(Array.from(new Set(findings)))}.`);
   }
 
-  return sinMedir(
-    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protegibles.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${lista(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial, así que esa protección queda sin demostrar.`,
+  return notMeasured(
+    `Causa CONFIGURATION. Los archivos diarios de alertas del manager del periodo de ${protectable.length} incidente(s) abierto(s) o con relevancia jurídica siguen en disco con su suma verificada${presentes.length ? ` (${formatList(presentes)})` : ''}, pero lo que op.exp.9.2 pide es que los índices wazuh-alerts-* de ese periodo estén exentos de la política ISM de rotación, y eso solo se ve consultando el wazuh-indexer. El recolector del manager no usa ninguna credencial, así que esa protección queda sin demostrar.`,
     'CONFIGURATION'
   );
 };
 
-const ev08 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-08', false);
+const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-08', false);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
-  const p07 = filas(context, 'P-07');
+  const p07 = tableParameterRows(context, 'P-07');
 
   if (!p07) {
-    return sinMedir(`${etiqueta(context, 'P-07')} está sin configurar: no está decidido qué incidentes obligan a revisar los eventos auditables ni en qué plazo.`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-07')} está sin configurar: no está decidido qué incidentes obligan a revisar los eventos auditables ni en qué plazo.`, 'CONFIGURATION');
   }
 
-  const plazos = new Map<string, number>();
+  const deadlines = new Map<string, number>();
 
   p07.forEach(f => {
-    const d = numero((f.plazo_dias || '').replace(',', '.'));
+    const d = parseNumber((f.plazo_dias || '').replace(',', '.'));
 
     if (d !== undefined && d >= 0) {
-      plazos.set(sinTildes(f.severidad), d);
+      deadlines.set(stripAccents(f.severidad), d);
     }
   });
 
-  if (!plazos.size) {
-    return sinMedir(`${etiqueta(context, 'P-07')} no declara ningún plazo en días utilizable.`, 'CONFIGURATION');
+  if (!deadlines.size) {
+    return notMeasured(`${parameterDisplayName(context, 'P-07')} no declara ningún plazo en días utilizable.`, 'CONFIGURATION');
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const revisiones = actuaciones(context).filter(a => a.tipo === 'revision_eventos');
+  const reviews = actions(context).filter(a => a.tipo === 'revision_eventos');
 
-  const cambios = hechos(context, 'auditable_events_revised')
-    .map(e => ({ e, t: instante(campo(e, 'modificado')) }))
+  const changes = facts(context, 'auditable_events_revised')
+    .map(e => ({ e, t: parseInstant(factField(e, 'modificado')) }))
     .filter((x): x is { e: ENSNormalizedEvent; t: number } => x.t !== undefined);
 
-  const hallazgos: string[] = [];
-  const bien: string[] = [];
-  const pendientes: string[] = [];
+  const findings: string[] = [];
+  const ok: string[] = [];
+  const pending: string[] = [];
 
   b.lista.forEach(inc => {
-    const plazo = plazos.get(inc.severidad);
+    const deadline = deadlines.get(inc.severidad);
 
-    if (plazo === undefined || inc.abierto || inc.fin === undefined) {
+    if (deadline === undefined || inc.abierto || inc.fin === undefined) {
       return;
     }
 
-    const vence = inc.fin + plazo * DIA;
+    const expires = inc.fin + deadline * DAY_MS;
 
-    const registrada = revisiones.find(
-      r => r.incidente === inc.id && r.fecha !== undefined && r.fecha >= inc.inicio && r.fecha <= vence
+    const recorded = reviews.find(
+      r => r.incidente === inc.id && r.fecha !== undefined && r.fecha >= inc.inicio && r.fecha <= expires
     );
 
-    if (registrada) {
-      bien.push(`${inc.id}: revisión registrada el ${new Date(registrada.fecha as number).toISOString().slice(0, 10)}`);
+    if (recorded) {
+      ok.push(`${inc.id}: revisión registrada el ${new Date(recorded.fecha as number).toISOString().slice(0, 10)}`);
 
       return;
     }
 
-    const cambio = cambios
-      .filter(c => c.t >= inc.inicio && c.t <= vence)
+    const change = changes
+      .filter(c => c.t >= inc.inicio && c.t <= expires)
       .sort((a, b2) => a.t - b2.t)[0];
 
-    if (cambio) {
-      bien.push(`${inc.id}: ${campo(cambio.e, 'fichero')} modificado el ${campo(cambio.e, 'modificado')} (por correlación temporal con el incidente)`);
+    if (change) {
+      ok.push(`${inc.id}: ${factField(change.e, 'fichero')} modificado el ${factField(change.e, 'modificado')} (por correlación temporal con el incidente)`);
 
       return;
     }
 
-    if (ahora > vence) {
-      hallazgos.push(
-        `${inc.id} (severidad ${inc.severidad}, cerrado el ${new Date(inc.fin).toISOString().slice(0, 10)}): ni revisión registrada ni cambio de reglas, decodificadores, ossec.conf o agent.conf en los ${plazo} días de P-07`
+    if (now > expires) {
+      findings.push(
+        `${inc.id} (severidad ${inc.severidad}, cerrado el ${new Date(inc.fin).toISOString().slice(0, 10)}): ni revisión registrada ni cambio de reglas, decodificadores, ossec.conf o agent.conf en los ${deadline} días de P-07`
       );
     } else {
-      pendientes.push(`${inc.id} (vence el ${new Date(vence).toISOString().slice(0, 10)})`);
+      pending.push(`${inc.id} (vence el ${new Date(expires).toISOString().slice(0, 10)})`);
     }
   });
 
-  if (hallazgos.length) {
-    return noCumple(`El análisis de incidentes no ha llevado a revisar los eventos auditables dentro del plazo de P-07: ${lista(hallazgos)}.`);
+  if (findings.length) {
+    return nonCompliant(`El análisis de incidentes no ha llevado a revisar los eventos auditables dentro del plazo de P-07: ${formatList(findings)}.`);
   }
 
-  const texto = bien.length
-    ? `Revisión de eventos auditables acreditada: ${lista(bien)}.`
+  const text = ok.length
+    ? `Revisión de eventos auditables acreditada: ${formatList(ok)}.`
     : 'Ningún incidente cerrado de una severidad de P-07 tiene su revisión vencida.';
 
-  return conFilasInvalidas(
-    cumple(`${texto}${pendientes.length ? ` Dentro de plazo todavía: ${lista(pendientes)}.` : ''}`),
+  return withInvalidRows(
+    compliant(`${text}${pending.length ? ` Dentro de plazo todavía: ${formatList(pending)}.` : ''}`),
     b.reg
   );
 };
 
-const ev09 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const b = base(context, ahora, 'EV-09', false);
+const ev09 = (context: ENSPolicyContext, now: number): Measurement => {
+  const b = base(context, now, 'EV-09', false);
 
-  if (esMedida(b)) {
+  if (isMeasurement(b)) {
     return b;
   }
 
   if (!b.lista.length) {
-    return conFilasInvalidas(
-      b.reg.invalidas ? sinMedir('El registro de incidentes no tiene ninguna fila válida.') : contrasteRegistroVacio(context, false),
+    return withInvalidRows(
+      b.reg.invalidas ? notMeasured('El registro de incidentes no tiene ninguna fila válida.') : emptyRecordCheck(context, false),
       b.reg
     );
   }
 
-  const sinReferencia: string[] = [];
+  const withoutReference: string[] = [];
 
   b.lista.forEach(inc => {
-    const huerfanas = inc.filas.filter(f => vacio(f.referencia)).map(f => f.fase || '?');
+    const orphan = inc.filas.filter(f => isEmptyField(f.referencia)).map(f => f.fase || '?');
 
-    if (huerfanas.length) {
-      sinReferencia.push(`${inc.id} (${huerfanas.join(', ')})`);
+    if (orphan.length) {
+      withoutReference.push(`${inc.id} (${orphan.join(', ')})`);
     }
   });
 
-  if (sinReferencia.length) {
-    return noCumple(
-      `Filas del registro sin referencia al expediente, con lo que el expediente no se puede presentar entero: ${lista(sinReferencia)}.`
+  if (withoutReference.length) {
+    return nonCompliant(
+      `Filas del registro sin referencia al expediente, con lo que el expediente no se puede presentar entero: ${formatList(withoutReference)}.`
     );
   }
 
-  return conFilasInvalidas(
-    cumple(
+  return withInvalidRows(
+    compliant(
       `Los ${b.lista.length} expedientes enlazan cada una de sus filas; el informe los consolida por incidente con sus alertas, actuaciones, cambios y evidencias.`
     ),
     b.reg
   );
 };
 
-// --- decisiones ------------------------------------------------------------
 
-const REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
+const REQUIREMENTS: Record<string, { evidencias: string[]; parametros: string[]; tipo: ENSPolicyDecision['trace']['ruleType'] }> = {
   'op.exp.9.1': { evidencias: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'], parametros: ['P-01', 'P-02', 'P-08', 'P-09'], tipo: 'COVERAGE_REQUIRED' },
   'op.exp.9.2': { evidencias: ['EV-05', 'EV-06', 'EV-07', 'EV-09'], parametros: ['P-03', 'P-04', 'P-05', 'P-06'], tipo: 'CONDITIONAL_REQUIRED' },
   'op.exp.9.3': { evidencias: ['EV-08', 'EV-09'], parametros: ['P-07'], tipo: 'CONDITIONAL_REQUIRED' },
 };
 
 const decide = (
-  requisito: string,
-  estado: Estado,
-  evidencias: string[],
-  parametros: string[],
-  tipo: ENSPolicyDecision['trace']['ruleType'],
+  requirement: string,
+  status: Status,
+  evidences: string[],
+  parameters: string[],
+  type: ENSPolicyDecision['trace']['ruleType'],
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
-export const measureOpExp9Evidences = (context: ENSPolicyContext): Record<string, Medida> => {
-  const ahora = (context.now || new Date()).getTime();
+export const measureOpExp9Evidences = (context: ENSPolicyContext): Record<string, Measurement> => {
+  const now = (context.now || new Date()).getTime();
 
   return {
-    'EV-01': ev01(context, ahora),
-    'EV-02': ev02(context, ahora),
-    'EV-03': barrido(context, ahora, 'EV-03'),
-    'EV-04': barrido(context, ahora, 'EV-04'),
-    'EV-05': ev05(context, ahora),
-    'EV-06': ev06(context, ahora),
-    'EV-07': ev07(context, ahora),
-    'EV-08': ev08(context, ahora),
-    'EV-09': ev09(context, ahora),
+    'EV-01': ev01(context, now),
+    'EV-02': ev02(context, now),
+    'EV-03': sweep(context, now, 'EV-03'),
+    'EV-04': sweep(context, now, 'EV-04'),
+    'EV-05': ev05(context, now),
+    'EV-06': ev06(context, now),
+    'EV-07': ev07(context, now),
+    'EV-08': ev08(context, now),
+    'EV-09': ev09(context, now),
   };
 };
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const medidas = measureOpExp9Evidences(context);
+  const measurements = measureOpExp9Evidences(context);
   const decisions: ENSPolicyDecision[] = [];
 
-  Object.entries(REQUISITOS).forEach(([requisito, { evidencias, parametros, tipo }]) => {
-    const propias = evidencias.map(id => ({ id, medida: medidas[id] }));
-    const estado = peor(propias.map(p => p.medida));
+  Object.entries(REQUIREMENTS).forEach(([requirement, { evidencias: evidences, parametros: parameters, tipo: type }]) => {
+    const own = evidences.map(id => ({ id, medida: measurements[id] }));
+    const status = worstStatus(own.map(p => p.medida));
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`
-    // (`find` devuelve la primera). Nombra solo las evidencias que la
-    // sostienen, para que el puente no pinte una evidencia sana con el color de
-    // otra.
-    const responsables = propias.filter(p => p.medida.estado === estado);
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads; `find` returns
+    // the first). It names only the evidences that support it so the bridge does not paint a
+    // healthy one with another's color.
+    const owners = own.filter(p => p.medida.estado === status);
 
     decisions.push(
-      conPartes(decide(
-        requisito,
-        estado,
-        responsables.map(p => p.id),
-        parametros,
-        tipo,
-        requisito,
-        motivoCompuesto(propias),
-        evidencias.map(id => `${id} CUMPLE`).join(' y '),
-        causaComun(responsables.map(p => p.medida))
-      ), partesDe(propias))
+      withReasonParts(decide(
+        requirement,
+        status,
+        owners.map(p => p.id),
+        parameters,
+        type,
+        requirement,
+        compositeReason(own),
+        evidences.map(id => `${id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia, con SU estado, para que la tabla de evidencias diga
-    // lo que se midió de cada una y no el agregado.
-    propias.forEach(p =>
+    // And one per evidence, with ITS status, so the evidence table shows what was measured of each
+    // and not the aggregate.
+    own.forEach(p =>
       decisions.push(
         decide(
-          requisito,
+          requirement,
           p.medida.estado,
           [p.id],
-          parametros,
-          tipo,
-          `${requisito}/${p.id}`,
+          parameters,
+          type,
+          `${requirement}/${p.id}`,
           p.medida.motivo,
           `${p.id} CUMPLE`,
           p.medida.causa
@@ -1529,13 +1471,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     );
   });
 
-  const variables: ENSRuntimeVariable[] = Object.entries(medidas).map(([id, medida]) => ({
+  const variables: ENSRuntimeVariable[] = Object.entries(measurements).map(([id, measurement]) => ({
     name: `medida_${id.replace('-', '')}`,
-    value: medida.estado,
+    value: measurement.estado,
     parameterIds: [],
     evidenceIds: [id],
     eventIds: [],
-    description: medida.motivo,
+    description: measurement.motivo,
   }));
 
   return { decisions, runtimeVariables: variables };

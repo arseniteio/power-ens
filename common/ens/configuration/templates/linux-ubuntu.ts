@@ -1,9 +1,9 @@
-import type { ENSConfigurationTemplate } from './types';
+import type { ENSPlatformSource } from './types';
 
-// Servidor Linux estándar (Ubuntu). Se propone a los agentes con `os.platform`
-// de la familia Linux y sin hechos del recolector LDAP.
+// Standard Linux (Ubuntu) server. Proposed to agents with a Linux-family `os.platform` and no LDAP collector
+// facts.
 
-const CUENTAS_DE_SISTEMA_UBUNTU = [
+const UBUNTU_SYSTEM_ACCOUNTS = [
   '_apt', 'backup', 'bin', 'daemon', 'dhcpcd', 'fwupd-refresh', 'games', 'irc',
   'landscape', 'list', 'lp', 'mail', 'man', 'messagebus', 'news', 'nobody',
   'polkitd', 'pollinate', 'proxy', 'sshd', 'sync', 'sys', 'syslog',
@@ -11,9 +11,8 @@ const CUENTAS_DE_SISTEMA_UBUNTU = [
   'uucp', 'uuidd', 'wazuh', 'www-data', 'root',
 ];
 
-// Los binarios SUID observados en Ubuntu 22.04 y 24.04 con el agente de Wazuh y
-// los recolectores de ENSFácil instalados.
-const SUID_UBUNTU = [
+// SUID binaries observed on Ubuntu 22.04 and 24.04 with the Wazuh agent and the ENSFácil collectors installed.
+const UBUNTU_SUID = [
   '/usr/bin/at', '/usr/bin/chage', '/usr/bin/chfn', '/usr/bin/chsh',
   '/usr/bin/crontab', '/usr/bin/expiry', '/usr/bin/fusermount3',
   '/usr/bin/gpasswd', '/usr/bin/mount', '/usr/bin/newgrp', '/usr/bin/passwd',
@@ -26,32 +25,31 @@ const SUID_UBUNTU = [
   '/usr/lib/xorg/Xorg.wrap', '/usr/sbin/pppd',
 ];
 
-// `OPACC2_RUTAS_CRITICAS` de `op.acc.2-access-requirements/etc/opacc2.env.example`.
-export const RUTAS_CRITICAS_LINUX = [
+// `OPACC2_RUTAS_CRITICAS` from `op.acc.2-access-requirements/etc/opacc2.env.example`.
+export const LINUX_CRITICAL_PATHS = [
   '/etc/passwd', '/etc/shadow', '/etc/group', '/etc/gshadow', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/ssh/sshd_config', '/etc/crontab', '/etc/cron.d',
   '/etc/login.defs',
 ];
 
-export const RUTAS_CONFIGURACION_SEGURIDAD_LINUX = [
+export const LINUX_SECURITY_CONFIGURATION_PATHS = [
   '/etc/ssh', '/etc/pam.d', '/etc/security', '/etc/login.defs', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/audit', '/var/ossec/etc/ossec.conf',
   '/etc/sysctl.conf', '/etc/sysctl.d', '/etc/apparmor', '/etc/apparmor.d',
   '/etc/nftables.conf', '/etc/ufw', '/etc/iptables',
 ];
 
-export const EVENTOS_AUDITABLES_LINUX = [
+export const LINUX_AUDITABLE_EVENTS = [
   'autenticación | sshd, sudo, auditd | 3',
   'cambios de configuración | auditd | 5',
 ];
 
-export const CAMPOS_REGISTRO_AUDITD = 'auditd | auid | msg=audit(...) | exe, name | type | success, res';
+export const AUDITD_RECORD_FIELDS = 'auditd | auid | msg=audit(...) | exe, name | type | success, res';
 
-export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
+export const linuxUbuntuTemplate: ENSPlatformSource = {
   id: 'linux-ubuntu',
-  label: 'Linux Ubuntu',
-  description:
-    'Servidor Ubuntu (22.04 o 24.04) con el agente de Wazuh y los recolectores de ENSFácil: cuentas y grupos del sistema, rutas críticas, SUID, auditd, ClamAV y SSH. La lista de SUID es la de 22.04 y 24.04 juntas: en una 22.04 autoriza también binarios que solo trae la 24.04, y se ajusta con un valor propio si hace falta.',
+  label: 'Linux',
+  description: 'Ubuntu 22.04 y 24.04 con el agente de Wazuh y los recolectores de ENSFácil. La lista de SUID es la de 22.04 y 24.04 juntas.',
   kind: 'base',
   systemTypes: ['linux'],
   sources: [
@@ -62,13 +60,13 @@ export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
   values: {
     'op.acc.1': {
       'P-01': 'Local',
-      'P-03': CUENTAS_DE_SISTEMA_UBUNTU,
+      'P-03': UBUNTU_SYSTEM_ACCOUNTS,
       'P-10': 1000,
       'P-11': ['sudo', 'wheel', 'admin'],
     },
     'op.acc.2': {
-      'P-02': RUTAS_CRITICAS_LINUX,
-      'P-10': SUID_UBUNTU,
+      'P-02': LINUX_CRITICAL_PATHS,
+      'P-10': UBUNTU_SUID,
       'P-11': ['/tmp', '/var/tmp', '/dev/shm'],
       'P-12': ['sudo', 'wheel', 'admin', 'adm', 'root'],
     },
@@ -109,7 +107,7 @@ export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
         'libpam-pwquality', 'chrony', 'clamav', 'clamav-daemon',
         'clamav-freshclam', 'clamdscan',
       ],
-      'P-04': RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+      'P-04': LINUX_SECURITY_CONFIGURATION_PATHS,
     },
     'op.exp.4': {
       'P-03': [
@@ -125,8 +123,8 @@ export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
       'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin', '* | /etc', '* | /lib/modules'],
     },
     'op.exp.8': {
-      'P-01': EVENTOS_AUDITABLES_LINUX,
-      'P-03': [CAMPOS_REGISTRO_AUDITD],
+      'P-01': LINUX_AUDITABLE_EVENTS,
+      'P-03': [AUDITD_RECORD_FIELDS],
       'P-08': ['root | total | todos', 'syslog | escritura | registros del sistema'],
     },
     'op.exp.10': {

@@ -1,51 +1,13 @@
-<!-- FUENTE CANÓNICA de las reglas de op.acc.3.
-     La copia desplegable vive en
-     manager/ensfacil_op_acc_3_json_rules.xml del runbook linux/op.acc.3
-     Si se modifica una, hay que sincronizar la otra: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- op.acc.3 rules · Segregation of duties and tasks.
+     Reserved range 107000-107099. Deployable copy of plugin-wazuh-ens/agent/rules/ensfacil_op_acc_3_json_rules.xml: if one is modified the other and the catalog `relatedRules` must be synced; plugin-wazuh-ens/tests/check-consistency.py checks it.
+
+     They only collect FACTS, the heartbeat and the degradation: there is no CUMPLE or NO_CUMPLE rule because in this control the verdict is set by the plugin policy evaluator.
+
+       EV-01, EV-02, EV-04, EV-05, EV-06   107001   account_action
+       EV-03                               107002   critical_task_run
+       EV-07                               107003   security_info_access
+-->
 <group name="ensfacil,op_acc_3,score,">
-
-  <!-- ================================================================
-       op.acc.3 · Segregación de funciones y tareas
-       Rango reservado: 107000-107099
-       Base 107000 · hechos crudos 107001-107049
-       evidence_state 107050-107053
-
-       op.acc.3 NO RIGE EN NIVEL BAJO: el Anexo II lo declara `n.a.` ahí.
-       Rige desde MEDIO, y R1 solo en ALTO.
-
-       LA PARTICULARIDAD DE ESTE CONTROL, y por qué son tan pocas reglas:
-       aquí el hecho no es un veredicto NI UN ESTADO, es una ACCIÓN SUELTA.
-       «jgomez ejecutó git push» no incumple nada por sí mismo; incumple si esa
-       misma cuenta ejerce además una función incompatible dentro de la
-       ventana. Es decir: EL HECHO NO SIGNIFICA NADA SIN LOS DEMÁS HECHOS.
-
-       Eso descarta las siete primitivas de juicio del motor, que contrastan UN
-       hecho contra UN parámetro. La segregación necesita tres cosas a la vez
-       —clasificar cada acción en una función (P-03), agrupar por cuenta dentro
-       de una ventana (P-06) y cruzar contra los pares prohibidos (P-02)— y eso
-       vive en el evaluador de policy del control, que sí recibe todos los
-       parámetros y todos los eventos.
-
-       El agente, por tanto, emite acciones SIN CLASIFICAR. Clasificarlas aquí
-       obligaría a que el agente conociera P-03, y volveríamos a tener dos
-       almacenes de política que nadie sincroniza.
-
-       Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       dashboard/ens/core/evidence/catalog.ts:
-
-         EV-01   107001     desarrollo + operación en la misma cuenta
-         EV-02   107001     autorización + control en la misma cuenta
-         EV-03   107002     concurrencia en tareas críticas
-         EV-04   107001     configuración + mantenimiento (R1)
-         EV-05   107001     cuentas de auditoría con otras funciones (R1)
-         EV-06   107001     inventario de acciones por cuenta
-         EV-07   107003     acceso a la información de seguridad (R3)
-
-       Seis evidencias comparten la regla 107001, y es correcto: comparten el
-       HECHO. Lo que las distingue es la pregunta que el motor le hace, no el
-       dato. Un hecho crudo describe una observación, no un veredicto.
-       ================================================================ -->
 
   <rule id="107000" level="0">
     <decoded_as>json</decoded_as>
@@ -53,47 +15,32 @@
     <description>op.acc.3 · evento ENSFácil base</description>
   </rule>
 
-  <!-- 107001 · LA ACCIÓN SUELTA.
-       Nivel 3: no es un hallazgo, es materia prima. Ponerlo más alto llenaría
-       el índice de alertas por cada `systemctl restart` de una máquina sana. -->
+  <!-- Level 3: a single action is not a finding, it is raw material. Higher would fill the index with every `systemctl restart` of a healthy machine. -->
   <rule id="107001" level="3">
     <if_sid>107000</if_sid>
     <field name="event">account_action</field>
     <description>op.acc.3 · acción observada: $(usuario) → $(accion)</description>
   </rule>
 
-  <!-- 107002 · Ejecución de una tarea declarada crítica.
-       El enunciado general de op.acc.3 exige la concurrencia de dos o más
-       personas. El agente observa QUIÉN la ejecutó; cuántas personas distintas
-       hacen falta lo dice P-04 y lo cuenta el motor. -->
   <rule id="107002" level="5">
     <if_sid>107000</if_sid>
     <field name="event">critical_task_run</field>
     <description>op.acc.3 · tarea crítica ejecutada: $(tarea) por $(usuario)</description>
   </rule>
 
-  <!-- 107003 · Acceso a la información de seguridad del sistema (R3).
-       R3 no es obligatorio en ninguna tabla de aplicabilidad, así que su
-       requisito sale NO_APLICA y esto es informativo. Se recoge igualmente
-       porque un acceso no autorizado a la configuración de seguridad es un
-       hallazgo relevante aunque el ENS no lo exija. -->
   <rule id="107003" level="5">
     <if_sid>107000</if_sid>
     <field name="event">security_info_access</field>
     <description>op.acc.3 · acceso a información de seguridad: $(usuario) sobre $(recurso)</description>
   </rule>
 
-  <!-- El latido. Mismo papel que en los demás controles: sin señal de que la
-       pasada se completó, «no hay funciones incompatibles» es indistinguible
-       de «no miré las acciones». -->
+  <!-- The heartbeat: without a signal that the pass completed, "no incompatible functions" is indistinguishable from "did not look at the actions". -->
   <rule id="107010" level="3">
     <if_sid>107000</if_sid>
     <field name="event">collector_run</field>
     <description>op.acc.3 · pasada del recolector: $(resultado)</description>
   </rule>
 
-  <!-- La degradación. Igual que en op.acc.4: el agente no emite veredicto de
-       cumplimiento, pero sí tiene que poder decir que no pudo mirar. -->
   <rule id="107050" level="7">
     <if_sid>107000</if_sid>
     <field name="event">evidence_state</field>

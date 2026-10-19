@@ -48,53 +48,43 @@ const requirementStatusPresentation = (
 export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
 
-  // El panel lo calcula el SERVIDOR, con todos los hechos de la ventana (sin el
-  // tope de 10.000, que dejaba fuera máquinas enteras): aquí llega el modelo
-  // ya hecho, unos KB. Hasta 1.1.0 el navegador bajaba 10.000 hechos cada 15 s
-  // y evaluaba el motor y la serie de 7 días en cada vuelta. Ahora se
-  // comprueba cada 5 minutos si hay algo nuevo y solo entonces se vuelve a
-  // pedir (ver `public/evaluation/use-evaluation.ts`).
-  const evaluacion = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
+  // The panel is computed by the SERVER with all facts of the window; the browser receives the finished model.
+  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
   });
-  const { error } = evaluacion;
-  const dashboardModel = evaluacion.data?.dashboard;
+  const { error } = evaluation;
+  const dashboardModel = evaluation.data?.dashboard;
 
   if (!dashboardModel) {
-    // Sin el resultado de ESTA vista no se enseña nada: ni el de la máquina
-    // anterior ni ceros que parezcan un veredicto.
+    // Without the result of THIS view nothing is shown: neither the previous machine's nor zeros that look like a verdict.
     return error ? (
       <div style={{ padding: 16 }}>
-        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
       </div>
     ) : (
       <EvaluationLoading message='Evaluando los controles ENS en el servidor con todos los hechos de la ventana.' />
     );
   }
 
-  // PRIMERA CARGA A MEDIAS. Las cifras del panel son de TODOS los controles:
-  // con alguno aún calculándose no se enseñan (serían de una parte, y
-  // parecerían de todo). Se enseña cuánto falta, los controles ya calculados
-  // con su estado y «Calculando…» en los demás; el navegador vuelve a pedir
-  // cada 2 s (15 s pasados 2 minutos).
-  const enCurso = evaluacion.data?.meta?.pending;
-  if (enCurso) {
-    const controles = evaluacion.data?.controls || [];
+  // Partial first load: the panel figures cover ALL controls, so with some still computing they are not shown; the computed controls and 'Calculando…' are.
+  const inProgress = evaluation.data?.meta?.pending;
+  if (inProgress) {
+    const controls = evaluation.data?.controls || [];
     return (
       <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
-        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+        <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
         <EuiCallOut size='s' color='primary' iconType='clock' title='Calculando la evaluación'>
           <p>
-            {enCurso.total - enCurso.rows} de {enCurso.total} filas (control × máquina) listas. Las cifras del panel
+            {inProgress.total - inProgress.rows} de {inProgress.total} filas (control × máquina) listas. Las cifras del panel
             aparecen cuando estén todos los controles; mientras, el estado de los ya calculados.
           </p>
         </EuiCallOut>
         <EuiSpacer size='m' />
         <EuiFlexGroup wrap gutterSize='s'>
-          {controles.map(control => {
-            const estado = requirementStatusPresentation(control.status);
+          {controls.map(control => {
+            const status = requirementStatusPresentation(control.status);
             return (
               <EuiFlexItem grow={false} key={control.controlId}>
                 {control.pending ? (
@@ -102,8 +92,8 @@ export const EnsDashboardMain = () => {
                     {control.controlId} · Calculando…
                   </EuiBadge>
                 ) : (
-                  <EuiBadge color={estado.color}>
-                    {control.controlId} · {estado.label}
+                  <EuiBadge color={status.color}>
+                    {control.controlId} · {status.label}
                     {control.score !== undefined ? ` · ${control.score}%` : ''}
                   </EuiBadge>
                 )}
@@ -116,11 +106,9 @@ export const EnsDashboardMain = () => {
   }
 
   const requirementsModel = dashboardModel.requirementsSummary;
-  // La serie se calcula después de responder (`meta.seriesPending`, la
-  // respuesta llega sin `timeline`): mientras, el gráfico lo dice, sin el punto
-  // suelto de ahora ni el texto de «todavía no hay eventos».
-  const seriePendiente = Boolean(evaluacion.data?.meta?.seriesPending) && !(evaluacion.data?.timeline || []).length;
-  const filasEvolucion: typeof dashboardModel.evolution.rows = seriePendiente ? [] : dashboardModel.evolution.rows;
+  // The series is computed after the response (`meta.seriesPending`): the chart says so.
+  const pendingSeries = Boolean(evaluation.data?.meta?.seriesPending) && !(evaluation.data?.timeline || []).length;
+  const evolutionRows: typeof dashboardModel.evolution.rows = pendingSeries ? [] : dashboardModel.evolution.rows;
 
   const Donut = ({
     center,
@@ -194,16 +182,12 @@ export const EnsDashboardMain = () => {
 
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+      <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         <div style={card}>
           <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>
 
-            {/* Sin un solo control medido no hay indice que enseñar. Un 0 % en
-                rojo sobre controles que nadie ha podido medir es la misma
-                afirmacion falsa que el motor ya no fabrica: aqui se dice que no
-                se sabe, y cuando SI hay numero se dice sobre cuantos se ha
-                calculado. */}
+            {/* Without a single measured control there is no index to show: a red 0 % would be a false claim. */}
             <div
               style={{
                 fontSize: 58,
@@ -616,25 +600,25 @@ export const EnsDashboardMain = () => {
                 );
               })}
 
-              {filasEvolucion.length > 0 && (
+              {evolutionRows.length > 0 && (
                 <polygon
                   points={[
-                    ...filasEvolucion.map((row, index) => {
+                    ...evolutionRows.map((row, index) => {
                       const x =
-                        filasEvolucion.length === 1
+                        evolutionRows.length === 1
                           ? 300
-                          : (index * 600) / (filasEvolucion.length - 1);
+                          : (index * 600) / (evolutionRows.length - 1);
                       const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                       return `${x},${y}`;
                     }),
                     `${
-                      filasEvolucion.length === 1
+                      evolutionRows.length === 1
                         ? 300
-                        : ((filasEvolucion.length - 1) * 600) /
-                          (filasEvolucion.length - 1)
+                        : ((evolutionRows.length - 1) * 600) /
+                          (evolutionRows.length - 1)
                     },200`,
-                    `${filasEvolucion.length === 1 ? 300 : 0},200`,
+                    `${evolutionRows.length === 1 ? 300 : 0},200`,
                   ].join(' ')}
                   fill='rgba(0, 107, 180, 0.16)'
                 />
@@ -646,12 +630,12 @@ export const EnsDashboardMain = () => {
                 strokeWidth='3'
                 strokeLinecap='round'
                 strokeLinejoin='round'
-                points={filasEvolucion
+                points={evolutionRows
                   .map((row, index) => {
                     const x =
-                      filasEvolucion.length === 1
+                      evolutionRows.length === 1
                         ? 300
-                        : (index * 600) / (filasEvolucion.length - 1);
+                        : (index * 600) / (evolutionRows.length - 1);
                     const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                     return `${x},${y}`;
@@ -659,18 +643,16 @@ export const EnsDashboardMain = () => {
                   .join(' ')}
               />
 
-              {filasEvolucion.map((row, index) => {
+              {evolutionRows.map((row, index) => {
                  const x =
-                   filasEvolucion.length === 1
+                   evolutionRows.length === 1
                      ? 300
-                     : (index * 600) / (filasEvolucion.length - 1);
+                     : (index * 600) / (evolutionRows.length - 1);
                  const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
 
                  return (
                    <g key={`${row.label}-${index}`}>
-                   {/* El punto del presente va marcado: es el único que el
-                       auditor puede contrastar con el panel de arriba, y
-                       verlo señalado es lo que hace la línea comprobable. */}
+                   {/* The present point is marked: it is the only one the auditor can compare with the panel above. */}
                    <circle
                       cx={x}
                       cy={y}
@@ -717,7 +699,7 @@ export const EnsDashboardMain = () => {
        })}
             </svg>
 
-            {seriePendiente && (
+            {pendingSeries && (
               <div
                 style={{
                   position: 'absolute',
@@ -764,7 +746,7 @@ export const EnsDashboardMain = () => {
               fontSize: 12,
             }}
           >
-            {seriePendiente
+            {pendingSeries
               ? 'Calculando en el servidor la serie diaria de los últimos 7 días; aparece en cuanto esté. Las cifras de arriba ya son las de ahora.'
               : dashboardModel.evolution.description}
           </div>

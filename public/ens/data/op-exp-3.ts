@@ -1,8 +1,6 @@
 import { ENSControl } from '../types';
 
-// Catálogo heredado de op.exp.3. La fuente de verdad es `catalog/op-exp-3.ts`
-// y `core/evidence/catalog.ts`; este fichero repite lo mismo en la forma antigua
-// y tiene que decir lo mismo.
+// Legacy op.exp.3 catalogue. The source of truth is `catalog/op-exp-3.ts` and `core/evidence/catalog.ts`; this file must say the same.
 export const opExp3Control: ENSControl = {
   id: 'op.exp.3',
   title: 'Gestión de la configuración de seguridad',

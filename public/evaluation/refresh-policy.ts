@@ -1,42 +1,25 @@
-// Cuándo vuelve a pedir el navegador una evaluación, sin React para poder
-// probarlo (tests/evaluation-refresh.test.ts).
-//
-//   - Cada 5 minutos, y solo con la pestaña a la vista: primero la SONDA
-//     (unos cientos de bytes) y solo si la huella cambió, la evaluación.
-//   - Aunque la huella no cambie, si el resultado tiene más de 60 minutos se
-//     vuelve a pedir: el motor mide contra el reloj (un recolector sin latir 24 h
-//     deja de demostrar), y eso cambia sin que llegue ningún hecho. Es la misma
-//     vida que le da el servidor.
-//   - Si el servidor responde con algo guardado mientras recalcula
-//     (`meta.refreshing`), se vuelve a pedir a los 10 segundos.
-//   - En la primera carga el servidor responde con lo que ya está
-//     (`meta.pending`), y con la serie aún por calcular (`meta.seriesPending`):
-//     se vuelve a pedir cada 2 segundos (los 2 primeros minutos; después,
-//     cada 15) hasta que esté todo.
-//   - Como mucho 2 peticiones a la vez en toda la aplicación: la lista de
-//     controles ya no lanza una por fila, pero dos pestañas del plugin, o el
-//     panel y una sonda, no compiten por las conexiones del navegador.
+// When the browser requests an evaluation again, without React (tests/evaluation-refresh.test.ts).
+// - Every 5 minutes with the tab visible: first the probe (a few hundred bytes), and the evaluation only if the fingerprint changed.
+// - Whatever the fingerprint, a result older than 60 minutes is requested again: the engine measures against the clock.
+// - A stored result served while the server recalculates (`meta.refreshing`) is requested again after 10 s.
+// - First load (`meta.pending`, `meta.seriesPending`): every 2 s for 2 minutes, then every 15 s.
+// - At most 2 concurrent requests in the whole app.
 export const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
 export const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
 export const EVALUATION_PENDING_RETRY_MS = 2 * 1000;
-// Si a los 2 minutos sigue a medias, cada 15 s (cada petición cuesta la
-// sonda y el contexto en el servidor).
 export const EVALUATION_PENDING_FAST_FOR_MS = 2 * 60 * 1000;
 export const EVALUATION_PENDING_SLOW_RETRY_MS = 15 * 1000;
-// Tras un fallo (de la evaluación o de su refresco en segundo plano), el
-// siguiente intento automático espera cada vez el doble, hasta 5 minutos.
+// After a failure the next automatic attempt waits twice as long each time, up to 5 minutes.
 export const EVALUATION_BACKOFF_MAX_MS = 5 * 60 * 1000;
 
 export const backoffAfter = (failures: number): number =>
   Math.min(EVALUATION_BACKOFF_MAX_MS, EVALUATION_REFRESHING_RETRY_MS * 2 ** Math.max(0, failures - 1));
 export const EVALUATION_MAX_CONCURRENT = 2;
 
-// ¿Toca mirar si hay algo nuevo?
 export const shouldProbe = (lastCheckAt: number | undefined, now: number, visible: boolean): boolean =>
   visible && (lastCheckAt === undefined || now - lastCheckAt >= EVALUATION_REFRESH_INTERVAL_MS);
 
-// ¿Hay que volver a pedir la evaluación?
 export const shouldReload = (
   probeFingerprint: string | undefined,
   dataFingerprint: string | undefined,
@@ -46,16 +29,13 @@ export const shouldReload = (
   if (!dataFingerprint || !evaluatedAt) return true;
   if (dataFingerprint.startsWith('refreshing:')) return true;
   if (probeFingerprint && probeFingerprint !== dataFingerprint) return true;
-  const edad = now - Date.parse(evaluatedAt);
-  return !Number.isFinite(edad) || edad >= EVALUATION_MAX_AGE_MS;
+  const age = now - Date.parse(evaluatedAt);
+  return !Number.isFinite(age) || age >= EVALUATION_MAX_AGE_MS;
 };
 
-// La clave de lo que se pide: si cambia (otra máquina, otro control), lo que
-// había deja de ser de esta pantalla y no se enseña como actual.
 export const evaluationKey = (params: Record<string, unknown>): string =>
   JSON.stringify(Object.keys(params).sort().map(key => [key, params[key] ?? null]));
 
-// Una cola: como mucho `limit` tareas a la vez; el resto espera su turno.
 export class RequestLimiter {
   private active = 0;
   private readonly waiting: (() => void)[] = [];
@@ -79,17 +59,14 @@ export class RequestLimiter {
     try {
       return await task();
     } finally {
-      const siguiente = this.waiting.shift();
-      if (siguiente) siguiente();
+      const following = this.waiting.shift();
+      if (following) following();
       else this.active -= 1;
     }
   }
 }
 
-// LO QUE VE LA PANTALLA, render a render. Una respuesta solo vale para la
-// clave con que se pidió: si la pantalla ya pide otra (otra máquina, otro
-// control), lo que había deja de enseñarse y se espera la suya. Un refresco de
-// la MISMA clave sigue enseñando lo que había mientras llega lo nuevo.
+// What the screen sees, render by render. A response is only valid for the key it was requested with; a refresh of the SAME key keeps showing the previous result meanwhile.
 export interface EvaluationViewState<T> {
   key?: string;
   data?: T;
@@ -117,35 +94,27 @@ export const evaluationReducer = <T>(state: EvaluationViewState<T>, event: Evalu
     case 'success':
       return state.key === event.key ? { key: event.key, data: event.data, error: undefined, loading: false, refreshing: false } : state;
     case 'failure':
-      // Un fallo no deja a la vista lo de antes como si fuera de ahora.
       return state.key === event.key ? { key: event.key, data: undefined, error: event.error, loading: false, refreshing: false } : state;
     default:
       return state;
   }
 };
 
-// Lo que se enseña para la clave que pide ahora la pantalla.
 export const visibleEvaluation = <T>(state: EvaluationViewState<T>, key: string) => {
-  const vigente = state.key === key;
+  const valid = state.key === key;
   return {
-    data: vigente ? state.data : undefined,
-    error: vigente ? state.error : undefined,
-    isLoading: !vigente || state.loading,
-    isRefreshing: vigente && state.refreshing,
+    data: valid ? state.data : undefined,
+    error: valid ? state.error : undefined,
+    isLoading: !valid || state.loading,
+    isRefreshing: valid && state.refreshing,
   };
 };
 
-// EL CICLO DE UNA PANTALLA, sin React (lo envuelve `useEnsEvaluation` y lo
-// prueba `tests/evaluation-refresh.test.ts`). Las reglas:
-//
-//   - Una carga se identifica por su petición: lo que llega de una petición que
-//     ya no es la actual (otra máquina, otro control) se tira.
-//   - Una carga cancelada por la propia pantalla no es un error; un tiempo
-//     agotado SÍ lo es, y se dice (con «Reintentar»).
-//   - La sonda no interrumpe nunca una carga en curso, y su reloj vuelve a
-//     cero al cambiar de máquina o de control.
-//   - Volver a pedir la misma clave (otra vez visible la lista, por ejemplo)
-//     no borra lo que se ve: se refresca encima.
+// The cycle of one screen, without React (wrapped by `useEnsEvaluation`).
+// - A load is identified by its request: responses of a request that is no longer current are dropped.
+// - A load cancelled by the screen is not an error; a timeout is, and it is shown with 'Reintentar'.
+// - The probe never interrupts a load, and its clock resets when machine or control change.
+// - Requesting the same key again does not clear what is shown: it is refreshed on top.
 export interface EvaluationControllerDeps<T> {
   fetch: (controller: AbortController, options?: { retryRefresh?: boolean }) => Promise<T>;
   probe: (controller: AbortController) => Promise<{ fingerprint: string }>;
@@ -154,12 +123,11 @@ export interface EvaluationControllerDeps<T> {
   onChange: (state: EvaluationViewState<T>) => void;
 }
 
-interface Peticion {
+interface RefreshRequest {
   key: string;
   controller: AbortController;
   cancelled: boolean;
   startedAt: number;
-  // Era un «Reintentar» (se repite como tal si la pantalla la suelta).
   retryRefresh?: boolean;
 }
 
@@ -169,73 +137,64 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   let deps = initialDeps;
   let key: string | undefined;
   let state: EvaluationViewState<T> = initialEvaluationState<T>();
-  let actual: Peticion | undefined;
-  let sondeando: AbortController | undefined;
-  let ultimaComprobacion: number | undefined;
-  let ultimaCarga: number | undefined;
-  // Fallos seguidos: de la carga, o del refresco que el servidor no consigue
-  // (un error de refresco cuenta UNA vez: el mismo error repetido, no).
-  let fallos = 0;
-  // Desde cuándo está a medias lo que se ve (filas o serie pendientes).
-  let aMediasDesde: number | undefined;
-  let ultimoErrorDeRefresco: string | undefined;
-  // Una carga que se soltó al ocultarse la pantalla: al volver, se repite.
-  let suelta = false;
-  let sueltaConReintento = false;
+  let current: RefreshRequest | undefined;
+  let probing: AbortController | undefined;
+  let lastCheck: number | undefined;
+  let lastLoad: number | undefined;
+  let failureCount = 0;
+  let partialSince: number | undefined;
+  let lastRefreshError: string | undefined;
+  let released = false;
+  let releasedWithRetry = false;
 
-  const emite = (event: EvaluationEvent<T>) => {
+  const emits = (event: EvaluationEvent<T>) => {
     state = evaluationReducer(state, event);
     deps.onChange(state);
   };
 
-  const cancela = () => {
-    if (actual) {
-      actual.cancelled = true;
-      actual.controller.abort();
-      actual = undefined;
+  const cancel = () => {
+    if (current) {
+      current.cancelled = true;
+      current.controller.abort();
+      current = undefined;
     }
-    if (sondeando) {
-      sondeando.abort();
-      sondeando = undefined;
+    if (probing) {
+      probing.abort();
+      probing = undefined;
     }
   };
 
-  const carga = (modo: 'load' | 'refresh', opciones: { retryRefresh?: boolean } = {}) => {
+  const load = (mode: 'load' | 'refresh', options: { retryRefresh?: boolean } = {}) => {
     if (!key) return;
-    cancela();
-    const peticion: Peticion = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now(), retryRefresh: opciones.retryRefresh };
-    actual = peticion;
-    ultimaCarga = peticion.startedAt;
-    emite({ type: modo, key });
+    cancel();
+    const request: RefreshRequest = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now(), retryRefresh: options.retryRefresh };
+    current = request;
+    lastLoad = request.startedAt;
+    emits({ type: mode, key });
     deps
-      .fetch(peticion.controller, opciones)
+      .fetch(request.controller, options)
       .then(data => {
-        if (actual !== peticion) return;
-        actual = undefined;
-        ultimaComprobacion = deps.now();
-        // Lo guardado que el servidor no consigue refrescar cuenta como fallo
-        // (no se vuelve a pedir cada 10 s), pero solo un error NUEVO: el mismo,
-        // repetido mientras el servidor espera para reintentar, no alarga la
-        // espera; y la respuesta a «Reintentar» (lo guardado, actualizándose)
-        // tampoco es un fallo.
+        if (current !== request) return;
+        current = undefined;
+        lastCheck = deps.now();
+        // A stored result the server cannot refresh counts as a failure, but only a NEW error does: the same error repeated does not lengthen the wait.
         const error = (data as any)?.meta?.refreshError;
-        const pendiente = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending);
-        aMediasDesde = pendiente ? aMediasDesde ?? deps.now() : undefined;
+        const pending = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending);
+        partialSince = pending ? partialSince ?? deps.now() : undefined;
         if (!error) {
-          fallos = 0;
-          ultimoErrorDeRefresco = undefined;
-        } else if (`${error.at}|${error.message}` !== ultimoErrorDeRefresco) {
-          ultimoErrorDeRefresco = `${error.at}|${error.message}`;
-          if (!opciones.retryRefresh) fallos += 1;
+          failureCount = 0;
+          lastRefreshError = undefined;
+        } else if (`${error.at}|${error.message}` !== lastRefreshError) {
+          lastRefreshError = `${error.at}|${error.message}`;
+          if (!options.retryRefresh) failureCount += 1;
         }
-        emite({ type: 'success', key: peticion.key, data });
+        emits({ type: 'success', key: request.key, data });
       })
       .catch(error => {
-        // Solo se calla lo que la pantalla canceló ella misma.
-        if (peticion.cancelled || actual !== peticion) return;
-        actual = undefined;
-        fallos += 1;
-        emite({ type: 'failure', key: peticion.key, error });
+        if (request.cancelled || current !== request) return;
+        current = undefined;
+        failureCount += 1;
+        emits({ type: 'failure', key: request.key, error });
       });
   };
 
@@ -244,105 +203,89 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       return state;
     },
     get loading() {
-      return Boolean(actual);
+      return Boolean(current);
     },
     setDeps(next: EvaluationControllerDeps<T>) {
       deps = next;
     },
-    // La pantalla pide esta clave. Si ya es la que tiene, no hace nada.
     setKey(next: string) {
       if (next === key) {
-        if (suelta && !actual) {
-          suelta = false;
-          carga(state.key === key && state.data !== undefined ? 'refresh' : 'load', { retryRefresh: sueltaConReintento });
-          sueltaConReintento = false;
+        if (released && !current) {
+          released = false;
+          load(state.key === key && state.data !== undefined ? 'refresh' : 'load', { retryRefresh: releasedWithRetry });
+          releasedWithRetry = false;
         }
         return;
       }
-      suelta = false;
+      released = false;
       key = next;
-      ultimaComprobacion = undefined;
-      fallos = 0;
-      aMediasDesde = undefined;
-      carga('load');
+      lastCheck = undefined;
+      failureCount = 0;
+      partialSince = undefined;
+      load('load');
     },
-    // «Reintentar»: vuelve a pedir lo que ya se ve (o lo que falló), y pide al
-    // servidor que intente ya el refresco que no pudo hacer.
     retry() {
-      // Lo pide alguien: la espera tras los fallos vuelve a empezar.
-      fallos = 0;
-      carga(state.key === key && state.data !== undefined ? 'refresh' : 'load', { retryRefresh: true });
+      failureCount = 0;
+      load(state.key === key && state.data !== undefined ? 'refresh' : 'load', { retryRefresh: true });
     },
     get failures() {
-      return fallos;
+      return failureCount;
     },
-    // Cada pocos segundos y al volver a la pestaña.
     async tick(): Promise<'busy' | 'skip' | 'reload' | 'unchanged' | 'probe-failed'> {
-      if (!key || actual) return 'busy';
-      const ahora = deps.now();
-      const datos: any = state.key === key ? state.data : undefined;
-      // Tras un fallo, el siguiente intento automático espera (y el error
-      // sigue a la vista mientras tanto).
-      if (fallos > 0 && ahora - (ultimaCarga ?? 0) < backoffAfter(fallos)) return 'skip';
-      // La primera carga a medias (filas o serie aún calculándose).
-      // Cada 2 s los primeros 2 minutos; después, cada 15 s. Con la pestaña
-      // oculta, nada.
-      const aMedias = Boolean(datos?.meta?.pending?.rows > 0 || datos?.meta?.seriesPending);
-      const cada =
-        aMediasDesde !== undefined && ahora - aMediasDesde >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
-      if (aMedias) {
-        if (!deps.visible() || ahora - (ultimaCarga ?? 0) < cada) return 'skip';
-        carga('refresh');
+      if (!key || current) return 'busy';
+      const now = deps.now();
+      const data: any = state.key === key ? state.data : undefined;
+      if (failureCount > 0 && now - (lastLoad ?? 0) < backoffAfter(failureCount)) return 'skip';
+      // First partial load: every 2 s for 2 minutes, then every 15 s; nothing while the tab is hidden.
+      const partial = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending);
+      const each =
+        partialSince !== undefined && now - partialSince >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
+      if (partial) {
+        if (!deps.visible() || now - (lastLoad ?? 0) < each) return 'skip';
+        load('refresh');
         return 'reload';
       }
-      // Lo que el servidor está recalculando se vuelve a pedir enseguida.
-      if (datos?.meta?.refreshing && deps.visible() && ahora - (ultimaCarga ?? 0) >= EVALUATION_REFRESHING_RETRY_MS) {
-        carga('refresh');
+      if (data?.meta?.refreshing && deps.visible() && now - (lastLoad ?? 0) >= EVALUATION_REFRESHING_RETRY_MS) {
+        load('refresh');
         return 'reload';
       }
-      if (!shouldProbe(ultimaComprobacion, ahora, deps.visible())) return 'skip';
-      ultimaComprobacion = ahora;
-      const claveSonda = key;
+      if (!shouldProbe(lastCheck, now, deps.visible())) return 'skip';
+      lastCheck = now;
+      const probeKey = key;
       const controller = new AbortController();
-      sondeando = controller;
+      probing = controller;
       try {
-        const sonda = await deps.probe(controller);
-        if (key !== claveSonda || actual || sondeando !== controller) return 'busy';
-        const presente: any = state.key === key ? state.data : undefined;
-        if (shouldReload(sonda.fingerprint, presente?.meta?.fingerprint, presente?.meta?.evaluatedAt, deps.now())) {
-          // Un reintento automático tras un fallo deja el error a la vista
-          // mientras pide (no lo cambia por una rueda).
-          const conError = state.key === key && state.error !== undefined;
-          carga(presente || conError ? 'refresh' : 'load');
+        const probe = await deps.probe(controller);
+        if (key !== probeKey || current || probing !== controller) return 'busy';
+        const present: any = state.key === key ? state.data : undefined;
+        if (shouldReload(probe.fingerprint, present?.meta?.fingerprint, present?.meta?.evaluatedAt, deps.now())) {
+          const withError = state.key === key && state.error !== undefined;
+          load(present || withError ? 'refresh' : 'load');
           return 'reload';
         }
         return 'unchanged';
       } catch {
-        // Cancelada por la pantalla (cambio de clave, carga nueva): no cuenta
-        // como fallo. Un tiempo agotado también aborta, pero ese sí lo es.
-        if (key !== claveSonda || sondeando !== controller) return 'busy';
-        // La sonda falla en silencio: lo que se ve sigue siendo de esta clave y
-        // la siguiente vuelta lo vuelve a intentar.
+        // Cancelled by the screen: not a failure. A timeout also aborts, and that one is a failure.
+        if (key !== probeKey || probing !== controller) return 'busy';
+        // The probe fails silently: what is shown still belongs to this key and the next round tries again.
         return 'probe-failed';
       } finally {
-        if (sondeando === controller) sondeando = undefined;
+        if (probing === controller) probing = undefined;
       }
     },
-    // La pantalla se oculta: suelta la carga en curso (no ocupa una de las
-    // plazas del navegador) sin borrar lo que se ve; al volver, se repite.
+    // Hidden screen: releases the load in progress without clearing what is shown; it is repeated on return.
     suspend() {
-      if (actual) {
-        sueltaConReintento = Boolean(actual.retryRefresh);
-        cancela();
-        suelta = true;
-      } else if (sondeando) {
-        cancela();
-        // La sonda soltada no cuenta como comprobación: al volver, se sondea.
-        ultimaComprobacion = undefined;
+      if (current) {
+        releasedWithRetry = Boolean(current.retryRefresh);
+        cancel();
+        released = true;
+      } else if (probing) {
+        cancel();
+        lastCheck = undefined;
       }
     },
     dispose() {
-      cancela();
+      cancel();
       key = undefined;
     },
   };

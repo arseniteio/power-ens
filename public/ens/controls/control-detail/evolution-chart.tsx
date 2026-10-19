@@ -1,39 +1,25 @@
-// La línea de cumplimiento diario de UN control.
-//
-// El panel tiene la suya desde el 05/08, pero promedia TODOS los controles: en
-// la pantalla de detalle no dice nada sobre el que se está mirando. Esta mide
-// uno solo, así que su último punto es exactamente el porcentaje grande que se
-// lee arriba, y eso es lo que la hace comprobable: si no coinciden, uno de los
-// dos miente y se ve.
-//
-// LO QUE HACE DISTINTO AL DEL PANEL: un día en que el control salió NO_APLICA
-// no se dibuja. No es un cero. Pintarlo abajo diría que la máquina incumplía
-// justo cuando el control ni siquiera regía —en un cliente de nivel BAJO, los
-// refuerzos R1 y R2 estarían todo el histórico tocando el suelo—. La línea se
-// parte y se dice cuántos días quedaron fuera.
+// Daily compliance line of ONE control; its last point equals the large percentage shown above it.
 import React from 'react';
 import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
 
 interface ControlEvolutionChartProps {
   points: ENSControlTimelinePoint[];
   controlId: string;
-  // La serie aún se está calculando en el servidor (`meta.seriesPending`).
   pending?: boolean;
 }
 
-const ALTO = 200;
-const ANCHO = 600;
+const HEIGHT = 200;
+const WIDTH = 600;
 
-const coordenadaY = (score: number): number =>
-  ALTO - Math.max(0, Math.min(score, 100)) * 2;
+const yCoordinate = (score: number): number =>
+  HEIGHT - Math.max(0, Math.min(score, 100)) * 2;
 
-const coordenadaX = (
-  indice: number,
+const xCoordinate = (
+  index: number,
   total: number
-): number => (total === 1 ? ANCHO / 2 : (indice * ANCHO) / (total - 1));
+): number => (total === 1 ? WIDTH / 2 : (index * WIDTH) / (total - 1));
 
-// El color dice el estado sin tener que leer el número.
-const colorDe = (status: string): string => {
+const colorOf = (status: string): string => {
   if (status === 'CUMPLE') {
     return '#00A69B';
   }
@@ -49,14 +35,10 @@ const colorDe = (status: string): string => {
   return '#98A2B3';
 };
 
-// La leyenda y el pie, compartidos por las dos formas del gráfico —barras
-// cuando hay pocos días, línea cuando hay bastantes—. Va aparte para que no se
-// dupliquen: dos copias del mismo texto acaban divergiendo, y el que se queda
-// viejo es el que lee el auditor.
-const EtiquetaDeLectura = ({
-  puntos,
-  sinNumero,
-  serieCorta,
+const ReadingLabel = ({
+  puntos: dataPoints,
+  sinNumero: withoutNumber,
+  serieCorta: shortSeries,
 }: {
   puntos: { events: number; isCurrent: boolean }[];
   sinNumero: number;
@@ -64,9 +46,7 @@ const EtiquetaDeLectura = ({
 }) => {
   return (
     <>
-      {/* La leyenda existe porque el color de un punto es el estado DE ESE DÍA,
-          no el de hoy. Sin ella, un naranja en el histórico de un control que
-          hoy está en verde se lee como una contradicción. */}
+      {/* The colour of a point is that day's status, not today's. */}
       <div
         style={{
           display: 'flex',
@@ -92,7 +72,7 @@ const EtiquetaDeLectura = ({
                 width: 9,
                 height: 9,
                 borderRadius: '50%',
-                background: colorDe(item.estado),
+                background: colorOf(item.estado),
                 display: 'inline-block',
               }}
             />
@@ -114,10 +94,7 @@ const EtiquetaDeLectura = ({
         <span>· el color es el estado de ESE día, no el de hoy</span>
       </div>
 
-      {/* Solo se escribe lo que el gráfico no puede decir por sí mismo: que la
-          serie es demasiado corta, y que un hueco no es un cero. Explicar aquí
-          cómo funciona el motor sobraba. */}
-      {(serieCorta || sinNumero > 0) && (
+      {(shortSeries || withoutNumber > 0) && (
         <div
           style={{
             fontSize: 12,
@@ -125,13 +102,13 @@ const EtiquetaDeLectura = ({
             lineHeight: 1.5,
           }}
         >
-          {serieCorta ? (
-            <strong>{puntos.length} día(s) medido(s): aún no hay tendencia.</strong>
+          {shortSeries ? (
+            <strong>{dataPoints.length} día(s) medido(s): aún no hay tendencia.</strong>
           ) : null}
-          {serieCorta && sinNumero > 0 ? ' ' : null}
-          {sinNumero > 0 ? (
+          {shortSeries && withoutNumber > 0 ? ' ' : null}
+          {withoutNumber > 0 ? (
             <>
-              {sinNumero} día(s) sin dibujar: el control no aplicaba al nivel ENS
+              {withoutNumber} día(s) sin dibujar: el control no aplicaba al nivel ENS
               de esa fecha. No son un cero.
             </>
           ) : null}
@@ -146,7 +123,6 @@ export const ControlEvolutionChart = ({
   controlId,
   pending,
 }: ControlEvolutionChartProps) => {
-  // Sin la serie todavía: se está calculando, no es que no haya días medidos.
   if (pending && !points.length) {
     return (
       <div style={{ padding: 14, color: '#69707D', background: '#FAFBFC', borderRadius: 6, fontSize: 13 }}>
@@ -155,16 +131,14 @@ export const ControlEvolutionChart = ({
     );
   }
 
-  // Los días con número. Se conserva el índice ORIGINAL para que el eje no se
-  // comprima al saltarse los NO_APLICA: la distancia entre dos puntos tiene que
-  // seguir siendo el tiempo que pasó entre ellos.
-  const conNumero = points
-    .map((point, indice) => ({ point, indice }))
+  // The original index is kept so the axis does not compress over NO_APLICA days.
+  const withNumber = points
+    .map((point, index) => ({ point, indice: index }))
     .filter(item => typeof item.point.score === 'number');
 
-  const sinNumero = points.length - conNumero.length;
+  const withoutNumber = points.length - withNumber.length;
 
-  if (!conNumero.length) {
+  if (!withNumber.length) {
     return (
       <div
         style={{
@@ -182,60 +156,37 @@ export const ControlEvolutionChart = ({
     );
   }
 
-  // Los puntos se reparten por su POSICIÓN EN LA SERIE, no por su orden entre
-  // los que tienen número: así la distancia entre dos puntos sigue siendo el
-  // tiempo que pasó, y un hueco de tres días se ve como un hueco.
-  const puntos = conNumero.map(({ point, indice }) => ({
+  const dataPoints = withNumber.map(({ point, indice: index }) => ({
     ...point,
-    x: coordenadaX(indice, points.length),
-    y: coordenadaY(point.score as number),
+    x: xCoordinate(index, points.length),
+    y: yCoordinate(point.score as number),
   }));
 
-  // CON DOS PUNTOS UNA LÍNEA NO DICE NADA, y con uno menos. Es lo que hay al
-  // día siguiente de desplegar, y va a ser lo normal durante la primera semana
-  // de cualquier cliente. Se dibuja igual —el histórico empieza el día que
-  // empieza— pero se avisa, para que nadie lea una tendencia donde solo hay
-  // dos medidas.
-  const serieCorta = puntos.length < 4;
+  const shortSeries = dataPoints.length < 4;
 
-  // UNA CURVA, NO UNA POLILÍNEA QUEBRADA.
-  //
-  // Se traza con curvas de Bézier cuyos puntos de control están a media
-  // distancia horizontal entre dos días, lo que da una curva suave que NUNCA se
-  // sale del rango de los valores que une: un tramo entre 50 % y 75 % no puede
-  // dibujar un pico en 80 % que nadie midió. Con `curveMonotone` o similares
-  // habría que vigilarlo; con puntos de control horizontales es imposible por
-  // construcción, y en un gráfico de cumplimiento eso importa más que la
-  // elegancia de la curva.
-  const trazo = puntos.length
-    ? puntos
-        .map((punto, indice) => {
-          if (indice === 0) {
-            return `M ${punto.x},${punto.y}`;
+  // Smooth Bézier curve with control points at half the horizontal distance: it never leaves the range of the values it joins.
+  const stroke = dataPoints.length
+    ? dataPoints
+        .map((point, index) => {
+          if (index === 0) {
+            return `M ${point.x},${point.y}`;
           }
 
-          const previo = puntos[indice - 1];
-          const medio = (previo.x + punto.x) / 2;
+          const previous = dataPoints[index - 1];
+          const medium = (previous.x + point.x) / 2;
 
-          return `C ${medio},${previo.y} ${medio},${punto.y} ${punto.x},${punto.y}`;
+          return `C ${medium},${previous.y} ${medium},${point.y} ${point.x},${point.y}`;
         })
         .join(' ')
     : '';
 
-  // El relleno bajo la curva: el mismo trazo, cerrado contra el eje.
-  const relleno =
-    puntos.length > 1
-      ? `${trazo} L ${puntos[puntos.length - 1].x},${ALTO} L ${puntos[0].x},${ALTO} Z`
+  const fill =
+    dataPoints.length > 1
+      ? `${stroke} L ${dataPoints[dataPoints.length - 1].x},${HEIGHT} L ${dataPoints[0].x},${HEIGHT} Z`
       : '';
 
-  // CON POCOS DÍAS, BARRAS. Una línea necesita al menos tres o cuatro puntos
-  // para decir algo; con dos es una raya diagonal sobre una rejilla vacía, y con
-  // uno ni eso. Es lo normal la primera semana de cualquier despliegue, así que
-  // no es un caso raro que se pueda ignorar: es lo que ve todo cliente nuevo.
-  //
-  // Las barras no fingen una tendencia que no existe. Cada una es un día y se
-  // lee sola.
-  if (puntos.length <= 3) {
+  // Few days: bars; a line needs three or four points to say anything.
+  if (dataPoints.length <= 3) {
     return (
       <div>
         <div
@@ -249,9 +200,9 @@ export const ControlEvolutionChart = ({
             borderBottom: '1px solid #D3DAE6',
           }}
         >
-          {puntos.map((punto, indice) => (
+          {dataPoints.map((point, index) => (
             <div
-              key={`${punto.label}-${indice}`}
+              key={`${point.label}-${index}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -265,21 +216,21 @@ export const ControlEvolutionChart = ({
                 style={{
                   fontSize: 17,
                   fontWeight: 700,
-                  color: colorDe(punto.status),
+                  color: colorOf(point.status),
                   marginBottom: 6,
                 }}
               >
-                {punto.score}%
+                {point.score}%
               </div>
 
               <div
                 style={{
                   width: '100%',
-                  height: `${Math.max(2, (punto.score as number) * 1.35)}px`,
-                  background: colorDe(punto.status),
+                  height: `${Math.max(2, (point.score as number) * 1.35)}px`,
+                  background: colorOf(point.status),
                   borderRadius: '4px 4px 0 0',
-                  opacity: punto.isCurrent ? 1 : 0.55,
-                  border: punto.isCurrent
+                  opacity: point.isCurrent ? 1 : 0.55,
+                  border: point.isCurrent
                     ? '2px solid #1A1C21'
                     : '2px solid transparent',
                 }}
@@ -293,16 +244,16 @@ export const ControlEvolutionChart = ({
                   marginTop: 6,
                 }}
               >
-                {punto.label}
-                {punto.isCurrent ? ' · hoy' : ''}
+                {point.label}
+                {point.isCurrent ? ' · hoy' : ''}
               </div>
             </div>
           ))}
         </div>
 
-        <EtiquetaDeLectura
-          puntos={puntos}
-          sinNumero={sinNumero}
+        <ReadingLabel
+          puntos={dataPoints}
+          sinNumero={withoutNumber}
           serieCorta
         />
       </div>
@@ -312,8 +263,6 @@ export const ControlEvolutionChart = ({
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
-        {/* El eje, fuera del área de dibujo: así el área mide exactamente lo
-            que ocupa la curva y un punto al 50 % cae en el 50 % de verdad. */}
         <div
           style={{
             height: 190,
@@ -334,9 +283,6 @@ export const ControlEvolutionChart = ({
           <span>0%</span>
         </div>
 
-        {/* ESTE div ES el área del gráfico: 100 % de ancho y 190 px de alto. Los
-            puntos se posicionan dentro con `left`/`top` en porcentaje puro, que
-            es lo único que cuadra sin hacer cuentas con el padding. */}
         <div
           style={{
             position: 'relative',
@@ -346,23 +292,11 @@ export const ControlEvolutionChart = ({
           }}
         >
 
-        {/* EL SVG SOLO DIBUJA LA CURVA Y LA REJILLA.
-            
-            Con `preserveAspectRatio='none'` el viewBox de 600 se estira hasta
-            los ~1900 px del contenedor, y con él se estira TODO lo que haya
-            dentro: el texto salía deformado 3x a lo ancho y los puntos eran
-            elipses en vez de círculos. Un trazo y un relleno aguantan esa
-            deformación —de hecho la necesitan para llenar el ancho—; el texto y
-            los círculos no.
-            
-            Así que los puntos y las etiquetas se dibujan FUERA, en HTML
-            posicionado por porcentaje. Se ven nítidos, redondos y del tamaño
-            que se les pide, y siguen cuadrando con la curva porque usan la
-            misma coordenada. */}
+        {/* The SVG only draws curve and grid (preserveAspectRatio='none' stretches everything inside); points and text are HTML. */}
         <svg
           width='100%'
           height='190'
-          viewBox={`0 0 ${ANCHO} ${ALTO}`}
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio='none'
           style={{ display: 'block', overflow: 'visible' }}
         >
@@ -373,63 +307,58 @@ export const ControlEvolutionChart = ({
             </linearGradient>
           </defs>
 
-          {[0, 25, 50, 75, 100].map(valor => (
+          {[0, 25, 50, 75, 100].map(value => (
             <line
-              key={valor}
+              key={value}
               x1='0'
-              y1={coordenadaY(valor)}
-              x2={ANCHO}
-              y2={coordenadaY(valor)}
+              y1={yCoordinate(value)}
+              x2={WIDTH}
+              y2={yCoordinate(value)}
               stroke='#E3E8F0'
-              strokeDasharray={valor === 0 ? '0' : '4 6'}
+              strokeDasharray={value === 0 ? '0' : '4 6'}
               strokeWidth='1'
               vectorEffect='non-scaling-stroke'
             />
           ))}
 
-          {relleno && <path d={relleno} fill='url(#ens-evolucion)' />}
+          {fill && <path d={fill} fill='url(#ens-evolucion)' />}
 
           <path
-            d={trazo}
+            d={stroke}
             fill='none'
             stroke='#006BB4'
             strokeWidth='2'
             strokeLinecap='round'
             strokeLinejoin='round'
-            // Sin esto el trazo también se estiraría y saldría más grueso en
-            // horizontal que en vertical.
             vectorEffect='non-scaling-stroke'
           />
         </svg>
 
-        {/* Los puntos y sus etiquetas, en HTML: nítidos y sin deformar. */}
-        {puntos.map((punto, indice) => {
-          const izquierda = (punto.x / ANCHO) * 100;
-          const arriba = (punto.y / ALTO) * 100;
+        {dataPoints.map((point, index) => {
+          const left = (point.x / WIDTH) * 100;
+          const top = (point.y / HEIGHT) * 100;
 
-          // Las etiquetas de los extremos se anclan hacia dentro para que no se
-          // salgan del panel, que es lo que pasaba con el 75 % del primer y del
-          // último día.
-          const anclaje =
-            izquierda < 6
+          // End labels anchor inward so they do not leave the panel.
+          const anchor =
+            left < 6
               ? 'translate(0, -50%)'
-              : izquierda > 94
+              : left > 94
               ? 'translate(-100%, -50%)'
               : 'translate(-50%, -50%)';
 
           return (
-            <div key={`${punto.label}-${indice}`}>
+            <div key={`${point.label}-${index}`}>
               <div
                 style={{
                   position: 'absolute',
-                  left: `${izquierda}%`,
-                  top: `${arriba}%`,
+                  left: `${left}%`,
+                  top: `${top}%`,
                   transform: 'translate(-50%, -50%)',
-                  width: punto.isCurrent ? 13 : 9,
-                  height: punto.isCurrent ? 13 : 9,
+                  width: point.isCurrent ? 13 : 9,
+                  height: point.isCurrent ? 13 : 9,
                   borderRadius: '50%',
-                  background: colorDe(punto.status),
-                  border: punto.isCurrent
+                  background: colorOf(point.status),
+                  border: point.isCurrent
                     ? '2.5px solid #1A1C21'
                     : '2px solid #FFFFFF',
                   boxShadow: '0 0 0 1px rgba(0,0,0,0.06)',
@@ -437,37 +366,37 @@ export const ControlEvolutionChart = ({
                 }}
               />
 
-              {(puntos.length <= 10 ||
-                indice === 0 ||
-                indice === puntos.length - 1 ||
-                punto.isCurrent) && (
+              {(dataPoints.length <= 10 ||
+                index === 0 ||
+                index === dataPoints.length - 1 ||
+                point.isCurrent) && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: `${izquierda}%`,
-                    top: `${arriba}%`,
+                    left: `${left}%`,
+                    top: `${top}%`,
                     marginTop: -19,
-                    transform: anclaje,
+                    transform: anchor,
                     fontSize: 11,
                     fontWeight: 700,
-                    color: colorDe(punto.status),
+                    color: colorOf(point.status),
                     whiteSpace: 'nowrap',
                     zIndex: 2,
                   }}
                 >
-                  {punto.score}%
+                  {point.score}%
                 </div>
               )}
 
               <div
                 style={{
                   position: 'absolute',
-                  left: `${izquierda}%`,
+                  left: `${left}%`,
                   bottom: -20,
                   transform:
-                    izquierda < 6
+                    left < 6
                       ? 'translateX(0)'
-                      : izquierda > 94
+                      : left > 94
                       ? 'translateX(-100%)'
                       : 'translateX(-50%)',
                   fontSize: 10,
@@ -476,7 +405,7 @@ export const ControlEvolutionChart = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {punto.label}
+                {point.label}
               </div>
             </div>
           );
@@ -484,10 +413,10 @@ export const ControlEvolutionChart = ({
         </div>
       </div>
 
-      <EtiquetaDeLectura
-        puntos={puntos}
-        sinNumero={sinNumero}
-        serieCorta={serieCorta}
+      <ReadingLabel
+        puntos={dataPoints}
+        sinNumero={withoutNumber}
+        serieCorta={shortSeries}
       />
     </div>
   );

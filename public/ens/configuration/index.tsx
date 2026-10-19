@@ -28,7 +28,7 @@ import {
   retryENSConfigurationHydration,
 } from '../../../common/ens/configuration/services';
 
-// El formulario se descarga solo al entrar en Configuración.
+// The form is downloaded only on entering the Configuración screen.
 const ConfigurationShell = React.lazy(() =>
   import('./components/configuration-shell').then(m => ({ default: m.ConfigurationShell }))
 );
@@ -117,24 +117,9 @@ export const ENSConfigurationBootstrap = ({
       .catch(synchronizeHydrationStates);
   };
 
-  // EL ERROR VA PRIMERO, y esto no es una preferencia de estilo.
-  //
-  // El alcance se hidrata DESPUÉS de la configuración y solo si la
-  // configuración salió bien. Cuando falla la configuración, `hydrateENSRuntime`
-  // lanza antes de llegar al alcance, así que el alcance se queda para siempre
-  // en NOT_STARTED — que es exactamente uno de los estados que pintaban el
-  // spinner. Resultado: la pantalla se quedaba en «Cargando configuración y
-  // alcance ENS…» para siempre y el aviso que decía POR QUÉ no se pintaba
-  // nunca, porque su comprobación venía después.
-  //
-  // Pasó el 06/08/2026 en producción: el documento del índice traía columnas
-  // sin `required` booleano, el validador lo rechazaba con el camino exacto del
-  // campo malo —`controls[3].parameters[0].columns[1].required`— y ese mensaje,
-  // que resolvía el problema en un minuto, no llegó a la pantalla. Se
-  // diagnosticó reproduciendo el validador a mano contra el documento real.
-  //
-  // Un fallo que se presenta como una carga infinita es peor que un fallo: no
-  // se puede distinguir de «va lento» y no dice dónde mirar.
+  // ERROR FIRST. The scope hydrates after the configuration and only if it succeeded; when the configuration
+  // fails `hydrateENSRuntime` throws before the scope, which stays NOT_STARTED (one of the spinner states). The
+  // error notice must be checked before the spinner, or the screen loads forever without saying why.
   if (
     hydrationState.status === 'ERROR' ||
     scopeHydrationState.status === 'ERROR'

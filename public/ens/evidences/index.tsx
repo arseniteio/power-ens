@@ -22,9 +22,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControls } from '../data';
-// Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
-// entero al compilar y no añade ninguna arista al grafo de módulos (el ciclo
-// transitivo del TDZ de `Settings` vive justo ahí).
+// Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type {
   ENSComplianceResult,
   ENSGapCause,
@@ -36,89 +34,49 @@ import {
   listENSFamilies,
   resolveENSSectionOpenState,
 } from '../control-filter/prefix';
-// La misma celda plegable que la ficha del control, y por la misma razón: el
-// motivo de una evidencia puede ser una línea o doscientas palabras enumerando
-// desviaciones. Se pliega, no se recorta.
 import { MotiveCell } from '../controls/control-detail/motive-cell';
-import type { MotivoLinea } from '../controls/control-detail/motive-cell';
+import type { MotiveLine } from '../controls/control-detail/motive-cell';
 import {
-  etiquetaDeMaquinas,
-  resumirMotivos,
+  machinesLabel,
+  summarizeMotives,
 } from '../controls/control-detail/general-view';
 
-// Una fila de la tabla de evidencias. Sin la columna `control`: el control lo
-// dice la cabecera de la sección que la contiene, y repetirlo en cada fila
-// gastaba ancho sin decir nada nuevo.
+// A row of the evidences table. No `control` column: the section header says it.
 interface EvidenceRow {
   evidenceId: string;
   category: string;
   description: string;
 
-  // Listas, no cadenas ya unidas por comas: se pintan como badges, y un badge
-  // por requisito se cuenta de un vistazo donde «op.acc.1.2, op.acc.1.3,
-  // op.acc.1.4» hay que leerlo entero.
   requirements: string[];
   levels: string[];
   ruleIds: string[];
 
   status: string;
 
-  // DE QUIÉN ES EL HUECO cuando el estado es NO_EVALUABLE. Sin esto,
-  // «NO_EVALUABLE» dice que resta pero no a quién le toca arreglarlo, que es la
-  // otra mitad del veredicto: COLLECTION lo arregla quien opera Wazuh,
-  // CONFIGURATION quien configura ENSFácil, CATALOG el producto y EVIDENCE
-  // quien mantiene el productor de la evidencia.
-  //
-  // No sale de la evidencia: `ENSEvidenceResolved.gapCause` existe, pero el
-  // motor no lo copia a `ENSEvidenceResult`. Sale de la no conformidad que
-  // NOMBRA a esta evidencia en `evidenceIds`, que es el mismo dato y ya llega
-  // aquí. Lista, no valor único: si dos no conformidades la nombran con causas
-  // distintas se enseñan las dos, en vez de quedarse con la primera.
+  // Whose gap it is when the status is NO_EVALUABLE: COLLECTION is fixed by whoever operates Wazuh, CONFIGURATION by whoever configures ENSFácil, CATALOG by the product.
   gapCauses: ENSGapCause[];
 
   lastValidation: string;
   agent: string;
 
-  // El POR QUÉ de la evidencia, que hasta ahora se quedaba en el motor: qué
-  // cuenta concreta incumple, qué parámetro falta, por qué un gris es un gris
-  // justificado. `gapCauses` dice DE QUIÉN es el hueco; esto dice CUÁL es. Se
-  // enseña plegado porque puede ser una línea o doscientas palabras.
   observations: string[];
 
-  // Los mismos motivos sin aplanar, con las máquinas de cada uno. Solo los
-  // rellena la consolidación entre agentes; con un agente seleccionado va vacío
-  // y manda `observations`.
   observationGroups: ENSObservationGroup[];
 
-  // Se conserva para no perderla nunca: si el motivo no la trae (no debería,
-  // el motor la anexa siempre), se le añade al pie.
   auditQuestion: string;
 }
 
-// Las evidencias de UN control, con lo que hace falta para pintar su cabecera
-// sin abrirla.
 interface ControlEvidenceGroup {
   controlId: string;
   title: string;
 
-  // Identificadores por los que esta sección responde al filtro: el del control
-  // y los de sus requisitos, que viven en el mismo espacio jerárquico
-  // (`op.acc.1` y `op.acc.1.2`). Así «op.acc.1.2» encuentra el control que
-  // declara ese requisito en vez de no encontrar nada.
   filterableIds: string[];
 
   rows: EvidenceRow[];
 
-  // Si el motor ha llegado a pronunciarse. Un control sin resultado NO se
-  // esconde: sale con su cabecera y lo dice, porque desaparecer de la lista se
-  // lee igual que no tener nada que declarar.
   hasResult: boolean;
 
-  // Los recuentos viajan SEPARADOS y no se suman nunca en un solo número de
-  // "hallazgos". `failing` y `partial` son incumplimientos demostrados;
-  // `unmeasured` es lo que no se ha podido medir, que no es un incumplimiento.
-  // Es la misma distinción que la pestaña Controles hace entre el número en
-  // rojo y «sin medir», y fundirlas aquí la desharía.
+  // The counts travel SEPARATELY and are never summed: `failing` and `partial` are proven non-compliances, `unmeasured` is not.
   passing: number;
   failing: number;
   partial: number;
@@ -126,45 +84,37 @@ interface ControlEvidenceGroup {
   notApplicable: number;
 }
 
-// El color de una evidencia es su ESTADO, con el mismo criterio que la pestaña
-// Controles: si el mismo veredicto se pinta distinto en dos pantallas, el
-// auditor deja de fiarse de las dos.
-const colorDeEstado = (estado: string): string => {
-  if (estado === 'CUMPLE') {
+const statusColorOf = (status: string): string => {
+  if (status === 'CUMPLE') {
     return 'success';
   }
 
-  if (estado === 'PARCIAL') {
+  if (status === 'PARCIAL') {
     return 'warning';
   }
 
-  if (estado === 'NO_CUMPLE') {
+  if (status === 'NO_CUMPLE') {
     return 'danger';
   }
 
-  if (estado === 'NO_APLICA') {
+  if (status === 'NO_APLICA') {
     return 'hollow';
   }
 
   return 'default';
 };
 
-// NO_EVALUABLE lleva icono y NO_APLICA no, porque los dos son grises y no son
-// lo mismo: uno resta y el otro es la única salida del denominador. Con el
-// color solo, se confunden.
-const iconoDeEstado = (estado: string): string | undefined =>
-  estado === 'NO_EVALUABLE' ? 'questionInCircle' : undefined;
+// NO_EVALUABLE has an icon and NO_APLICA does not: both are grey but one subtracts and the other leaves the denominator.
+const statusIcon = (status: string): string | undefined =>
+  status === 'NO_EVALUABLE' ? 'questionInCircle' : undefined;
 
-const EstadoBadge = ({ estado }: { estado: string }) => (
-  <EuiBadge color={colorDeEstado(estado)} iconType={iconoDeEstado(estado)}>
-    {estado}
+const StatusBadge = ({ estado: status }: { estado: string }) => (
+  <EuiBadge color={statusColorOf(status)} iconType={statusIcon(status)}>
+    {status}
   </EuiBadge>
 );
 
-// La leyenda sustituye al párrafo que explicaba en prosa por qué un gris resta
-// igual que un rojo. Mismo dato, en badges: lo que importa es que se siga
-// VIENDO que NO_CUMPLE y NO_EVALUABLE puntúan igual y se arreglan al revés.
-const LEYENDA_ESTADOS: { estado: string; glosa: string }[] = [
+const STATUS_LEGEND: { estado: string; glosa: string }[] = [
   { estado: 'CUMPLE', glosa: 'demostrado' },
   { estado: 'NO_CUMPLE', glosa: 'medido · resta · se corrige la máquina' },
   { estado: 'PARCIAL', glosa: 'conforma en parte · resta' },
@@ -175,17 +125,17 @@ const LEYENDA_ESTADOS: { estado: string; glosa: string }[] = [
   { estado: 'NO_APLICA', glosa: 'fuera del nivel activo · no resta' },
 ];
 
-const LeyendaEstados = () => (
+const StatusLegend = () => (
   <EuiFlexGroup gutterSize='m' alignItems='center' wrap responsive={false}>
-    {LEYENDA_ESTADOS.map(({ estado, glosa }) => (
-      <EuiFlexItem grow={false} key={estado}>
+    {STATUS_LEGEND.map(({ estado: status, glosa: gloss }) => (
+      <EuiFlexItem grow={false} key={status}>
         <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
           <EuiFlexItem grow={false}>
-            <EstadoBadge estado={estado} />
+            <StatusBadge estado={status} />
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color='subdued'>
-              {glosa}
+              {gloss}
             </EuiText>
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -194,47 +144,42 @@ const LeyendaEstados = () => (
   </EuiFlexGroup>
 );
 
-// La causa del NO_EVALUABLE, con QUIÉN la arregla. El código va visible y la
-// glosa dice el destinatario, que es para lo que sirve la causa: COLLECTION no
-// es un hallazgo sobre la máquina auditada, es que la recogida no funciona.
-const CAUSAS: ENSGapCause[] = [
+const GAP_CAUSES: ENSGapCause[] = [
   'COLLECTION',
   'CONFIGURATION',
   'CATALOG',
   'EVIDENCE',
 ];
 
-const GLOSA_CAUSA: Record<ENSGapCause, string> = {
+const CAUSE_GLOSS: Record<ENSGapCause, string> = {
   COLLECTION: 'no llegó nada · agente o recolector',
   CONFIGURATION: 'falta parámetro · pestaña Configuración',
   CATALOG: 'no declarado · producto',
   EVIDENCE: 'llegó incompleta · productor de la evidencia',
 };
 
-const CausaBadge = ({ causa }: { causa: ENSGapCause }) => (
-  <EuiBadge color='hollow' title={GLOSA_CAUSA[causa]}>
-    {causa}
+const CauseBadge = ({ causa: cause }: { causa: ENSGapCause }) => (
+  <EuiBadge color='hollow' title={CAUSE_GLOSS[cause]}>
+    {cause}
   </EuiBadge>
 );
 
-// Solo se pinta si hay algún NO_EVALUABLE en pantalla: enseñar el vocabulario
-// de un estado que no sale es la clase de texto que sobra.
-const LeyendaCausas = () => (
+const CauseLegend = () => (
   <EuiFlexGroup gutterSize='m' alignItems='center' wrap responsive={false}>
     <EuiFlexItem grow={false}>
       <EuiText size='xs' color='subdued'>
         Causa del NO_EVALUABLE
       </EuiText>
     </EuiFlexItem>
-    {CAUSAS.map(causa => (
-      <EuiFlexItem grow={false} key={causa}>
+    {GAP_CAUSES.map(cause => (
+      <EuiFlexItem grow={false} key={cause}>
         <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
           <EuiFlexItem grow={false}>
-            <CausaBadge causa={causa} />
+            <CauseBadge causa={cause} />
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color='subdued'>
-              {GLOSA_CAUSA[causa]}
+              {CAUSE_GLOSS[cause]}
             </EuiText>
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -243,16 +188,15 @@ const LeyendaCausas = () => (
   </EuiFlexGroup>
 );
 
-// Una lista de identificadores como badges. Vacía se dice con un guion, no
-// desapareciendo: una celda en blanco se lee como un fallo de pintado.
-const ListaBadges = ({
-  valores,
+// An empty list is shown as a dash, not as a blank cell.
+const BadgeList = ({
+  valores: values,
   color = 'hollow',
 }: {
   valores: string[];
   color?: string;
 }) => {
-  if (!valores || valores.length === 0) {
+  if (!values || values.length === 0) {
     return (
       <EuiText size='xs' color='subdued'>
         —
@@ -262,101 +206,85 @@ const ListaBadges = ({
 
   return (
     <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
-      {valores.map(valor => (
-        <EuiFlexItem grow={false} key={valor}>
-          <EuiBadge color={color}>{valor}</EuiBadge>
+      {values.map(value => (
+        <EuiFlexItem grow={false} key={value}>
+          <EuiBadge color={color}>{value}</EuiBadge>
         </EuiFlexItem>
       ))}
     </EuiFlexGroup>
   );
 };
 
-// La marca de tiempo, a minutos y en UTC. El ISO entero ocupa una columna que
-// no cabe y los milisegundos no le dicen nada a nadie.
-const fechaCorta = (iso: string): string => {
+const shortDate = (iso: string): string => {
   if (!iso || iso === '-') {
     return '—';
   }
 
-  const fecha = new Date(iso);
+  const date = new Date(iso);
 
-  if (Number.isNaN(fecha.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     return iso;
   }
 
-  return `${fecha.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 };
 
-const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
+const QUESTION_PREFIX = 'Pregunta de auditoría:';
 
-// Las líneas del motivo, con la máquina delante cuando hay varias. Es lo mismo
-// que hace la ficha del control, y por eso usa sus funciones: dos formatos
-// distintos del mismo motivo en dos pantallas es la forma más barata de que
-// parezcan dos datos.
-const lineasDeMotivo = (
+// Motive lines, with the machine in front when there are several; they use the control detail functions so both screens format a motive the same way.
+const motiveLines = (
   row: EvidenceRow,
-  totalMaquinas: number,
-): { visibles: MotivoLinea[]; ocultos: number } => {
-  let lineas: MotivoLinea[];
-  let ocultos = 0;
+  totalMachines: number,
+): { visibles: MotiveLine[]; ocultos: number } => {
+  let lines: MotiveLine[];
+  let hidden = 0;
 
   if (row.observationGroups.length > 0) {
-    // Consolidando varios agentes: cada motivo dice en qué máquinas se observó.
-    //
-    // La pregunta de auditoría se saca ANTES del reparto. El motor la anexa al
-    // motivo de todas las máquinas, así que sale agrupada con la flota entera y
-    // `resumirMotivos` —que ordena por número de máquinas— la colocaba siempre
-    // la primera: se comía uno de los tres huecos visibles y empujaba un motivo
-    // de verdad al «y N más». Va al pie, que es donde `MotiveCell` la pone.
-    const pregunta = row.observationGroups.find(grupo =>
-      grupo.text.startsWith(PREFIJO_PREGUNTA),
+    // Consolidating agents: each motive says on which machines it was observed. The audit question is extracted BEFORE the split because the engine appends it to the motive of every machine.
+    const question = row.observationGroups.find(group =>
+      group.text.startsWith(QUESTION_PREFIX),
     );
 
-    const resumen = resumirMotivos(
+    const summary = summarizeMotives(
       row.observationGroups.filter(
-        grupo => !grupo.text.startsWith(PREFIJO_PREGUNTA),
+        group => !group.text.startsWith(QUESTION_PREFIX),
       ),
     );
 
-    ocultos = resumen.ocultos;
-    lineas = resumen.visibles.map(grupo => ({
-      texto: grupo.text,
-      etiqueta: etiquetaDeMaquinas(grupo.agents, totalMaquinas),
+    hidden = summary.ocultos;
+    lines = summary.visibles.map(group => ({
+      texto: group.text,
+      etiqueta: machinesLabel(group.agents, totalMachines),
     }));
 
-    if (pregunta) {
-      lineas.push({ texto: pregunta.text });
+    if (question) {
+      lines.push({ texto: question.text });
     }
   } else {
-    // Un solo agente: el motivo ya viene sin prefijo de máquina.
-    lineas = row.observations.map(texto => ({ texto }));
+    lines = row.observations.map(text => ({ texto: text }));
   }
 
-  // La pregunta de auditoría no se pierde nunca. El motor la anexa al motivo en
-  // todos los caminos, pero si algún día dejara de hacerlo, aquí se repone.
-  const traePregunta = lineas.some(linea =>
-    linea.texto.startsWith(PREFIJO_PREGUNTA),
+  // The audit question is never lost: if the motive lacks it, it is added.
+  const hasQuestion = lines.some(line =>
+    line.texto.startsWith(QUESTION_PREFIX),
   );
 
   return {
     visibles:
-      traePregunta || !row.auditQuestion
-        ? lineas
-        : [...lineas, { texto: `${PREFIJO_PREGUNTA} ${row.auditQuestion}` }],
-    ocultos,
+      hasQuestion || !row.auditQuestion
+        ? lines
+        : [...lines, { texto: `${QUESTION_PREFIX} ${row.auditQuestion}` }],
+    ocultos: hidden,
   };
 };
 
-// `totalMaquinas` entra por parámetro porque la etiqueta «(todas)» del motivo
-// depende de cuántas hay en el scope, y eso solo se sabe en tiempo de render.
-const buildColumns = (totalMaquinas: number) => [
+// `totalMachines` is a parameter because the '(todas)' label depends on the scope size, known only at render time.
+const buildColumns = (totalMachines: number) => [
   {
     field: 'evidenceId',
     name: 'ID',
     render: (value: string) => <EuiBadge color='primary'>{value}</EuiBadge>,
   },
-  // El veredicto, pegado al identificador: es lo que se viene a mirar, y al
-  // final de nueve columnas obligaba a barrer la fila entera para encontrarlo.
   {
     field: 'status',
     name: 'Estado',
@@ -368,27 +296,16 @@ const buildColumns = (totalMaquinas: number) => [
         responsive={false}
       >
         <EuiFlexItem grow={false}>
-          <EstadoBadge estado={value} />
+          <StatusBadge estado={value} />
         </EuiFlexItem>
-        {/* Debajo del veredicto y no en otra columna: la causa no se lee sin
-            él —solo significa algo sobre un NO_EVALUABLE— y separarlas obliga
-            a cruzar la fila para saber a quién le toca el arreglo. */}
-        {item.gapCauses.map(causa => (
-          <EuiFlexItem grow={false} key={causa}>
-            <CausaBadge causa={causa} />
+        {item.gapCauses.map(cause => (
+          <EuiFlexItem grow={false} key={cause}>
+            <CauseBadge causa={cause} />
           </EuiFlexItem>
         ))}
       </EuiFlexGroup>
     ),
   },
-  // DIEZ COLUMNAS NO CABÍAN. Con Nivel, Categoría, Última validación y Agente
-  // como columnas propias, la tabla se salía de la pantalla y la última —el
-  // Motivo, que es la que dice POR QUÉ la evidencia está como está— quedaba
-  // recortada a media palabra. Eran cuatro datos de ficha, no de comparación:
-  // nadie recorre la tabla en vertical buscando la categoría.
-  //
-  // Ahora acompañan a la descripción en una línea gris debajo, y «Agente»
-  // desaparece: en la vista consolidada valía «—» en todas las filas.
   {
     field: 'description',
     name: 'Descripción',
@@ -400,7 +317,7 @@ const buildColumns = (totalMaquinas: number) => [
             item.category,
             item.levels.join(' · '),
             item.agent && item.agent !== '—' ? item.agent : '',
-            fechaCorta(item.lastValidation),
+            shortDate(item.lastValidation),
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -411,29 +328,23 @@ const buildColumns = (totalMaquinas: number) => [
   {
     field: 'requirements',
     name: 'Requisitos ENS',
-    render: (value: string[]) => <ListaBadges valores={value} />,
+    render: (value: string[]) => <BadgeList valores={value} />,
   },
-  // Trazabilidad: de aquí sale el salto al evento crudo. Como badges siguen
-  // siendo los mismos ids, y se distinguen cuando son varios.
   {
     field: 'ruleIds',
     name: 'Rule ID',
-    render: (value: string[]) => <ListaBadges valores={value} />,
+    render: (value: string[]) => <BadgeList valores={value} />,
   },
-  // Sustituye a la columna «Pregunta auditoría», que era la misma frase en
-  // todas las filas de la misma evidencia. La pregunta no se ha ido: sale al
-  // pie de esta celda, en gris, que es donde el auditor la busca. Lo que se
-  // gana es el motivo, que antes no llegaba a esta pantalla.
   {
     field: 'observations',
     name: 'Motivo',
     render: (_value: string[], item: EvidenceRow) => {
-      const { visibles, ocultos } = lineasDeMotivo(item, totalMaquinas);
+      const { visibles: visibleItems, ocultos: hidden } = motiveLines(item, totalMachines);
 
       return (
           <MotiveCell
-            lineas={visibles}
-            ocultos={ocultos}
+            lineas={visibleItems}
+            ocultos={hidden}
             titulo={`Motivo · ${item.evidenceId}`}
           />
         );
@@ -441,28 +352,25 @@ const buildColumns = (totalMaquinas: number) => [
   },
 ];
 
-// Un recuento de la cabecera. Solo sale si es mayor que cero: un cero por cada
-// estado en cada control es ruido que tapa los que no lo son.
-const Recuento = ({
-  valor,
+const CountBadge = ({
+  valor: value,
   color,
-  etiqueta,
-  icono,
+  etiqueta: label,
+  icono: icon,
 }: {
   valor: number;
   color: string;
   etiqueta: string;
   icono?: string;
 }) =>
-  valor > 0 ? (
+  value > 0 ? (
     <EuiFlexItem grow={false}>
-      <EuiBadge color={color} iconType={icono}>
-        {valor} {etiqueta}
+      <EuiBadge color={color} iconType={icon}>
+        {value} {label}
       </EuiBadge>
     </EuiFlexItem>
   ) : null;
 
-// Cabecera plegable de un control: lo que se ve sin abrir la sección.
 const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
   <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
     <EuiFlexItem grow={false}>
@@ -475,19 +383,16 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
       <EuiBadge color='hollow'>{group.rows.length} ev.</EuiBadge>
     </EuiFlexItem>
 
-    <Recuento valor={group.passing} color='success' etiqueta='CUMPLE' />
-    <Recuento valor={group.failing} color='danger' etiqueta='NO_CUMPLE' />
-    <Recuento valor={group.partial} color='warning' etiqueta='PARCIAL' />
-    {/* El mismo nombre que la leyenda, no «sin medir»: dos palabras para el
-        mismo estado en la misma pantalla es como se pierde la confianza en
-        que sean el mismo dato. */}
-    <Recuento
+    <CountBadge valor={group.passing} color='success' etiqueta='CUMPLE' />
+    <CountBadge valor={group.failing} color='danger' etiqueta='NO_CUMPLE' />
+    <CountBadge valor={group.partial} color='warning' etiqueta='PARCIAL' />
+    <CountBadge
       valor={group.unmeasured}
       color='default'
       etiqueta='NO_EVALUABLE'
       icono='questionInCircle'
     />
-    <Recuento
+    <CountBadge
       valor={group.notApplicable}
       color='hollow'
       etiqueta='NO_APLICA'
@@ -505,33 +410,23 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
 
 export const EvidencesENS = () => {
   const { agentId, evidenceControl } = useRouterSearch();
-  const cambiaUrl = useSetRouterSearch();
+  const updateUrl = useSetRouterSearch();
 
-  // Filtro por prefijo del identificador ENS. Vacío = sin filtro = se ve todo.
-  // Solo empieza filtrado si se llega desde una evidencia pulsada en el Detalle
-  // del control (`evidenceControl=`, su propio parámetro): el `control=` que deja
-  // abierto el detalle NO filtra esta pantalla. El filtro se ve («Filtro: …» y
-  // «Quitar filtro») y, en cuanto se toca, deja de venir de la URL.
+  // Prefix filter on the ENS identifier; empty means no filter. It starts filtered only when arriving from an evidence pressed in the control detail (`evidenceControl=`, its own parameter): the `control=` left open by the detail does NOT filter.
   const [prefix, setPrefix] = useState<string>(() => evidenceControl || '');
 
-  // Secciones que el operador ha abierto o cerrado a mano. Lo que no está aquí
-  // usa el criterio por defecto (ver `isOpen`).
   const [openControlIds, setOpenControlIds] = useState<
     Record<string, boolean | undefined>
   >({});
 
-  // Cambiar el filtro devuelve las secciones a su estado por defecto: si no, al
-  // filtrar hasta un solo control seguiría cerrado el que se acaba de buscar
-  // porque se cerró a mano tres búsquedas antes.
   const applyPrefix = (value: string) => {
     setPrefix(value);
-    if (evidenceControl) cambiaUrl({ evidenceControl: undefined });
+    if (evidenceControl) updateUrl({ evidenceControl: undefined });
     setOpenControlIds({});
   };
 
   const scopeAgents = useActiveENSScopeAgents();
 
-  // La query trae eventos de todos los controles del scope activo.
   const allControlIds = useMemo(
     () => ENSControls.map(control => control.id),
     [],
@@ -547,51 +442,43 @@ export const EvidencesENS = () => {
     [scopeAgents.length],
   );
 
-  // Los resultados de TODOS los controles, evaluados en el servidor con todos
-  // los hechos de la ventana (hasta 1.1.0, aquí se bajaban los 10.000 más
-  // recientes y se evaluaba cada control en el navegador cada 15 s).
-  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta: ENSEvaluationMeta }>({
+  // Results of ALL controls, evaluated by the server with all facts of the window.
+  const evaluation = useEnsEvaluation<{ results: ENSComplianceResult[]; meta: ENSEvaluationMeta }>({
     include: 'results',
     agentId,
   });
-  const { error } = evaluacion;
+  const { error } = evaluation;
 
-  const resultados = useMemo(
-    () => new Map((evaluacion.data?.results || []).map(result => [result.control.id, result])),
-    [evaluacion.data],
+  const results = useMemo(
+    () => new Map((evaluation.data?.results || []).map(result => [result.control.id, result])),
+    [evaluation.data],
   );
 
-  // Se evalúan SIEMPRE todos los controles, también los que el filtro deja
-  // fuera. Es lo que permite decir «8 de 24 evidencias» y avisar de lo que se
-  // está escondiendo: si solo se evaluara lo filtrado, el denominador sería el
-  // propio filtro y la pantalla no podría contradecirse a sí misma.
+  // All controls are ALWAYS evaluated, including those the filter hides: it allows '8 de 24 evidencias' and the hidden count.
   const groups: ControlEvidenceGroup[] = useMemo(() => {
     return ENSControls.map(control => {
-      const complianceResult = resultados.get(control.id);
+      const complianceResult = results.get(control.id);
 
       const evidences = complianceResult?.evidences || [];
 
       const countByStatus = (status: string) =>
         evidences.filter(evidence => evidence.status === status).length;
 
-      // La causa del hueco, por evidencia. Cada no conformidad NO_EVIDENCIADA
-      // nombra en `evidenceIds` exactamente las evidencias por las que su
-      // requisito no se ha podido demostrar, así que atribuirles su `cause` es
-      // repetir lo que la propia tarjeta afirma, no deducirlo.
-      const causasPorEvidencia = new Map<string, ENSGapCause[]>();
+      // Gap cause per evidence: each NO_EVIDENCIADA non-conformity names in `evidenceIds` the evidences that block its requirement, so giving them its `cause` repeats what the card states.
+      const causesByEvidence = new Map<string, ENSGapCause[]>();
 
       (complianceResult?.nonConformities || []).forEach(nonConformity => {
-        const causa = nonConformity.cause;
+        const cause = nonConformity.cause;
 
-        if (nonConformity.origin !== 'NO_EVIDENCIADA' || !causa) {
+        if (nonConformity.origin !== 'NO_EVIDENCIADA' || !cause) {
           return;
         }
 
         (nonConformity.evidenceIds || []).forEach(evidenceId => {
-          const acumuladas = causasPorEvidencia.get(evidenceId) || [];
+          const accumulated = causesByEvidence.get(evidenceId) || [];
 
-          if (!acumuladas.includes(causa)) {
-            causasPorEvidencia.set(evidenceId, [...acumuladas, causa]);
+          if (!accumulated.includes(cause)) {
+            causesByEvidence.set(evidenceId, [...accumulated, cause]);
           }
         });
       });
@@ -611,12 +498,10 @@ export const EvidencesENS = () => {
           levels: evidence.levels || [],
           ruleIds: evidence.relatedRules || [],
           status: evidence.status,
-          // Solo sobre un NO_EVALUABLE: en cualquier otro estado no hay hueco
-          // del que hablar, y colgarle una causa al de al lado sería señalar a
-          // la evidencia equivocada.
+          // Only for NO_EVALUABLE: any other status has no gap.
           gapCauses:
             evidence.status === 'NO_EVALUABLE'
-              ? causasPorEvidencia.get(evidence.id) || []
+              ? causesByEvidence.get(evidence.id) || []
               : [],
           lastValidation: evidence.lastSeen || '-',
           agent: evidence.agentName || evidence.agentId || '—',
@@ -632,7 +517,7 @@ export const EvidencesENS = () => {
         notApplicable: countByStatus('NO_APLICA'),
       };
     }).sort((a, b) => compareENSIds(a.controlId, b.controlId));
-  }, [resultados]);
+  }, [results]);
 
   const filtered = useMemo(
     () => filterByENSPrefix(groups, prefix, group => group.filterableIds),
@@ -645,7 +530,7 @@ export const EvidencesENS = () => {
   const shownEvidences = countEvidences(filtered.matched);
   const totalEvidences = countEvidences(groups);
 
-  // Lo que el filtro esconde, contado por tipo y NUNCA sumado en uno solo.
+  // What the filter hides, counted by type and NEVER summed.
   const hiddenFailing = filtered.hidden.reduce(
     (total, group) => total + group.failing + group.partial,
     0,
@@ -656,9 +541,7 @@ export const EvidencesENS = () => {
     0,
   );
 
-  // El vocabulario de las causas solo se enseña si hay algún NO_EVALUABLE que
-  // lo use: una leyenda de códigos que no salen en la tabla es texto de más.
-  const hayNoEvaluables = groups.some(group => group.unmeasured > 0);
+  const hasNonEvaluable = groups.some(group => group.unmeasured > 0);
 
   const isOpen = (controlId: string): boolean =>
     resolveENSSectionOpenState(
@@ -673,8 +556,6 @@ export const EvidencesENS = () => {
       [controlId]: nextIsOpen,
     }));
 
-  // Sin la evaluación de ahora, ni estados ni recuentos: la comprobación
-  // periódica vuelve a intentarlo.
   if (error) {
     return (
       <EuiPanel paddingSize='l'>
@@ -682,13 +563,13 @@ export const EvidencesENS = () => {
           <h2>Repositorio de Evidencias ENS</h2>
         </EuiTitle>
         <EuiSpacer size='m' />
-        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
       </EuiPanel>
     );
   }
 
-  // Mientras llega la evaluación de ESTA máquina no se pinta ningún estado.
-  if (!evaluacion.data) {
+  // While the evaluation of THIS machine arrives no status is drawn.
+  if (!evaluation.data) {
     return (
       <EuiPanel paddingSize='l'>
         <EuiTitle size='s'>
@@ -704,16 +585,10 @@ export const EvidencesENS = () => {
       <EuiTitle size='s'>
         <h2>Repositorio de Evidencias ENS</h2>
       </EuiTitle>
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+      <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
 
-      {/* Sin subtítulo: «evidencias resueltas por el motor desde eventos de
-          Wazuh, agrupadas por control» es lo que ya dicen el título, los
-          acordeones y las columnas Rule ID y Última validación. */}
       <EuiSpacer size='s' />
 
-      {/* EL VOCABULARIO, PLEGADO. Ocupaba dos renglones de insignias encima de
-          todo, se leía una vez y estorbaba siempre. Sigue estando —un auditor
-          que no conoce el producto lo necesita— pero a un clic. */}
       <EuiAccordion
         id='leyenda-evidencias'
         buttonContent={
@@ -723,12 +598,12 @@ export const EvidencesENS = () => {
         }
         paddingSize='s'
       >
-        <LeyendaEstados />
+        <StatusLegend />
 
-        {hayNoEvaluables && (
+        {hasNonEvaluable && (
           <>
             <EuiSpacer size='xs' />
-            <LeyendaCausas />
+            <CauseLegend />
           </>
         )}
       </EuiAccordion>
@@ -744,8 +619,6 @@ export const EvidencesENS = () => {
             >
               Todos
             </EuiFilterButton>
-            {/* Atajos por familia, no por control: las familias crecen mucho
-                más despacio que los controles y la barra sigue cabiendo. */}
             {families.map(family => (
               <EuiFilterButton
                 key={family}
@@ -813,10 +686,6 @@ export const EvidencesENS = () => {
         )}
       </EuiFlexGroup>
 
-      {/* Un filtro que esconde un incumplimiento sin decirlo es como se pierde
-          una no conformidad: el panel se ve corto y se lee como «no hay nada».
-          Los dos recuentos van por separado y NUNCA sumados: restan igual, pero
-          uno se corrige en la máquina y el otro habilitando la prueba. */}
       {filtered.isActive && (hiddenFailing > 0 || hiddenUnmeasured > 0) && (
         <>
           <EuiSpacer size='s' />
@@ -832,12 +701,12 @@ export const EvidencesENS = () => {
               wrap
               responsive={false}
             >
-              <Recuento
+              <CountBadge
                 valor={hiddenFailing}
                 color='danger'
                 etiqueta='NO_CUMPLE o PARCIAL'
               />
-              <Recuento
+              <CountBadge
                 valor={hiddenUnmeasured}
                 color='default'
                 etiqueta='NO_EVALUABLE'
@@ -886,13 +755,6 @@ export const EvidencesENS = () => {
               {group.rows.length > 0 ? (
                 <EuiBasicTable items={group.rows} columns={columns} />
               ) : (
-                // Aquí decía «No es un incumplimiento: no ha llegado el dato»,
-                // y desde el 04/08 eso es FALSO: lo no demostrado no cumple, y
-                // la falta de dato cuenta en contra igual. Contradecía a la
-                // leyenda de esta misma pantalla —NO_EVALUABLE «resta igual»—
-                // justo en el sitio donde el auditor busca la excusa. El badge
-                // dice lo que se sabe; el porqué está en el motivo de cada
-                // evidencia, y aquí no hay ninguna.
                 <EuiBadge color='default' iconType='clock'>
                   Sin evidencias resueltas en el periodo
                 </EuiBadge>

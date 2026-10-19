@@ -1,18 +1,4 @@
-/**
- * Cómo se resuelve un valor: agente → plantillas del agente → organización.
- *
- *   npx --yes tsx tests/agent-configuration-resolution.test.ts
- *
- *   1. Un parámetro resuelto en cada nivel, con su origen; un parámetro de
- *      organización nunca sale de un agente; plantillas en orden.
- *   2. UNIÓN en los controles que se miden en el manager y hablan de otras
- *      máquinas (op.exp.7 P-04/P-07, op.cont.3 P-07, op.mon.1 P-01; op.exp.8
- *      P-02 en la fila del manager) y en el alcance declarado de mp.info.6.
- *   3. PARIDAD: sin la clave `agents` (o con perfiles sin valores), la
- *      configuración que recibe el motor es EL MISMO objeto que hoy para cada
- *      control y cada fila, y los veredictos del motor son idénticos.
- *   4. El motor evalúa la fila de cada agente con SU valor.
- */
+/** How a value is resolved: agent -> agent templates -> organization. */
 import { readFileSync, readdirSync } from 'fs';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
@@ -29,13 +15,12 @@ declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-// `kibana-services` de mentira, ANTES de cargar el motor.
 {
   const Module = require('module');
-  const cargar = Module._load;
-  Module._load = function (peticion: string, ...resto: unknown[]) {
-    if (/kibana-services$/.test(peticion)) return {};
-    return cargar.call(this, peticion, ...resto);
+  const load = Module._load;
+  Module._load = function (request: string, ...rest: unknown[]) {
+    if (/kibana-services$/.test(request)) return {};
+    return load.call(this, request, ...rest);
   };
 }
 
@@ -44,31 +29,30 @@ const { getENSComplianceState, getENSComplianceResultByControl } =
 const { getActiveControlConfiguration } =
   require('../common/ens/configuration/services/configuration-state-service') as typeof import('../common/ens/configuration/services/configuration-state-service');
 
-const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
-  if (!c) fallos.push(n);
+const failures: string[] = [];
+const check = (n: string, c: boolean, d: unknown = '') => {
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
+  if (!c) failures.push(n);
 };
 
-// El documento tal como queda en el índice: los 23 bloques semilla, con
-// valores de organización.
 const CONFIG = `${__dirname}/../config`;
-const bloques = readdirSync(CONFIG)
+const blocks = readdirSync(CONFIG)
   .filter(f => f.endsWith('-control-block.json'))
   .map(f => JSON.parse(readFileSync(`${CONFIG}/${f}`, 'utf8')));
-const conValores = (controlId: string, valores: Record<string, unknown>) => {
-  const b = JSON.parse(JSON.stringify(bloques.find(x => x.controlId === controlId)));
+const withValues = (controlId: string, values: Record<string, unknown>) => {
+  const b = JSON.parse(JSON.stringify(blocks.find(x => x.controlId === controlId)));
   b.parameters.forEach((p: any) => {
-    if (p.id in valores) p.value = valores[p.id];
+    if (p.id in values) p.value = values[p.id];
   });
   return b;
 };
 
 const base = (): ENSConfigurationVersion => ({
   ...defaultENSConfigurationTemplate,
-  controls: bloques.map(b => {
+  templates: undefined,
+  controls: blocks.map(b => {
     if (b.controlId === 'op.acc.1') {
-      return conValores('op.acc.1', {
+      return withValues('op.acc.1', {
         'P-01': 'Local',
         'P-04': ['admin', 'test'],
         'P-07': ['ana | srv-a | admin', 'luis | srv-b | admin'],
@@ -76,19 +60,19 @@ const base = (): ENSConfigurationVersion => ({
       });
     }
     if (b.controlId === 'op.exp.7') {
-      return conValores('op.exp.7', { 'P-04': ['srv-x | R. Info | R. Serv'], 'P-07': ['srv-x | nóminas'] });
+      return withValues('op.exp.7', { 'P-04': ['srv-x | R. Info | R. Serv'], 'P-07': ['srv-x | nóminas'] });
     }
     if (b.controlId === 'op.exp.8') {
-      return conValores('op.exp.8', { 'P-02': ['srv-x | Ubuntu 24.04 | web'], 'P-12': 24 });
+      return withValues('op.exp.8', { 'P-02': ['srv-x | Ubuntu 24.04 | web'], 'P-12': 24 });
     }
     if (b.controlId === 'mp.info.6') {
-      return conValores('mp.info.6', { 'P-01': 24, 'P-04': ['srv-a | ALTA'] });
+      return withValues('mp.info.6', { 'P-01': 24, 'P-04': ['srv-a | ALTA'] });
     }
     return JSON.parse(JSON.stringify(b));
   }),
 });
 
-console.log('1. Niveles');
+console.log('1. Levels');
 {
   const doc = {
     ...base(),
@@ -107,25 +91,25 @@ console.log('1. Niveles');
 
   const r = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '101')!;
   const v = (id: string) => r.configuration.parameters.find(p => p.id === id)?.value;
-  comprueba('valor del agente', JSON.stringify(v('P-07')) === '["ana | srv-a | admin"]' && r.origins['P-07'].source === 'agent', r.origins['P-07']);
-  comprueba('valor de su plantilla', JSON.stringify(v('P-11')) === '["sudo","wheel","admin"]' && r.origins['P-11'].source === 'template' && r.origins['P-11'].templateId === 'linux-ubuntu', r.origins['P-11']);
+  check('agent value', JSON.stringify(v('P-07')) === '["ana | srv-a | admin"]' && r.origins['P-07'].source === 'agent', r.origins['P-07']);
+  check('its template value', JSON.stringify(v('P-11')) === '["sudo","wheel","admin"]' && r.origins['P-11'].source === 'template' && r.origins['P-11'].templateId === 'linux-ubuntu', r.origins['P-11']);
   const r4 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '104')!;
-  comprueba('valor de la organización: el que hay en la organización llega a la fila', JSON.stringify(r4.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["sudo"]' && r4.origins['P-11'].source === 'organisation', r4.origins['P-11']);
+  check('organization value: the one in the organization reaches the row', JSON.stringify(r4.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["sudo"]' && r4.origins['P-11'].source === 'organisation', r4.origins['P-11']);
   const r5 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '105')!;
-  comprueba('valor propio y plantilla sobre el mismo parámetro: gana el propio', JSON.stringify(r5.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["wheel"]' && r5.origins['P-11'].source === 'agent', r5.origins['P-11']);
-  comprueba('y la plantilla sigue dando los demás', r5.origins['P-10'].source === 'template' && r5.configuration.parameters.find(p => p.id === 'P-10')?.value === 1000);
-  comprueba('un parámetro de organización no sale del agente', JSON.stringify(v('P-04')) === '["admin","test"]' && r.origins['P-04'].source === 'organisation');
+  check('own value and template on the same parameter: the own one wins', JSON.stringify(r5.configuration.parameters.find(p => p.id === 'P-11')?.value) === '["wheel"]' && r5.origins['P-11'].source === 'agent', r5.origins['P-11']);
+  check('and the template still provides the rest', r5.origins['P-10'].source === 'template' && r5.configuration.parameters.find(p => p.id === 'P-10')?.value === 1000);
+  check('an organization parameter does not come out of the agent', JSON.stringify(v('P-04')) === '["admin","test"]' && r.origins['P-04'].source === 'organisation');
   const r2 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '102')!;
-  comprueba('plantillas en orden: gana la primera que fija el parámetro', r2.configuration.parameters.find(p => p.id === 'P-01')?.value === 'LDAP' && r2.origins['P-01'].templateId === 'zimbra-ldap');
+  check('templates in order: the first one that sets the parameter wins', r2.configuration.parameters.find(p => p.id === 'P-01')?.value === 'LDAP' && r2.origins['P-01'].templateId === 'zimbra-ldap');
   const r3 = resolveControlConfigurationWithOrigins(doc, 'op.acc.1', '103')!;
-  comprueba('un agente sin perfil: la organización, el mismo objeto', r3.configuration === doc.controls.find(c => c.controlId === 'op.acc.1'));
+  check('an agent without a profile: the organization, the same object', r3.configuration === doc.controls.find(c => c.controlId === 'op.acc.1'));
   const d24 = { ...doc, agents: { '024': doc.agents!['101'] } } as ENSConfigurationVersion;
-  comprueba('el id se normaliza: la fila «24» es el agente 024', JSON.stringify(resolveControlConfigurationForAgent(d24, 'op.acc.1', '24')?.parameters.find(p => p.id === 'P-07')?.value) === '["ana | srv-a | admin"]');
-  comprueba('el original no se toca', JSON.stringify(doc.controls.find(c => c.controlId === 'op.acc.1')!.parameters.find(p => p.id === 'P-07')!.value) === '["ana | srv-a | admin","luis | srv-b | admin"]');
-  comprueba('control sin sembrar: undefined', resolveControlConfigurationWithOrigins({ ...doc, controls: [] }, 'op.acc.1', '101') === undefined);
+  check('the id is normalized: row «24» is agent 024', JSON.stringify(resolveControlConfigurationForAgent(d24, 'op.acc.1', '24')?.parameters.find(p => p.id === 'P-07')?.value) === '["ana | srv-a | admin"]');
+  check('the original is not touched', JSON.stringify(doc.controls.find(c => c.controlId === 'op.acc.1')!.parameters.find(p => p.id === 'P-07')!.value) === '["ana | srv-a | admin","luis | srv-b | admin"]');
+  check('control not seeded: undefined', resolveControlConfigurationWithOrigins({ ...doc, controls: [] }, 'op.acc.1', '101') === undefined);
 }
 
-console.log('2. Unión');
+console.log('2. Union');
 {
   const doc = {
     ...base(),
@@ -136,81 +120,80 @@ console.log('2. Unión');
     },
   } as ENSConfigurationVersion;
 
-  comprueba('op.exp.7 P-04, op.exp.7 P-07, op.cont.3 P-07, op.mon.1 P-01: unión en el manager',
+  check('op.exp.7 P-04, op.exp.7 P-07, op.cont.3 P-07, op.mon.1 P-01: union on the manager',
     ['op.exp.7|P-04', 'op.exp.7|P-07', 'op.cont.3|P-07', 'op.mon.1|P-01'].every(k => isUnionParameter(k.split('|')[0], k.split('|')[1], '000')));
-  comprueba('op.exp.8 P-02: unión en la fila del manager, herencia en la de un agente', isUnionParameter('op.exp.8', 'P-02', '000') && !isUnionParameter('op.exp.8', 'P-02', '101'));
-  comprueba('mp.info.6 P-04 (alcance declarado): unión en cualquier fila', isUnionParameter('mp.info.6', 'P-04', '101') && isUnionParameter('mp.info.6', 'P-04'));
-  comprueba('un parámetro de organización nunca', !isUnionParameter('op.exp.7', 'P-01', '000'));
+  check('op.exp.8 P-02: union on the manager row, inheritance on an agent\'s', isUnionParameter('op.exp.8', 'P-02', '000') && !isUnionParameter('op.exp.8', 'P-02', '101'));
+  check('mp.info.6 P-04 (declared scope): union on any row', isUnionParameter('mp.info.6', 'P-04', '101') && isUnionParameter('mp.info.6', 'P-04'));
+  check('an organization parameter never', !isUnionParameter('op.exp.7', 'P-01', '000'));
 
   const m = resolveControlConfigurationWithOrigins(doc, 'op.exp.7', '000')!;
   const p04 = m.configuration.parameters.find(p => p.id === 'P-04')!.value;
-  comprueba('fila del manager: organización + cada agente', JSON.stringify(p04) === JSON.stringify(['srv-x | R. Info | R. Serv', 'srv-a | A. Info | A. Serv', 'srv-b | B. Info | B. Serv']), p04);
-  comprueba('con quién aporta', JSON.stringify(m.origins['P-04']) === JSON.stringify({ source: 'union', contributors: ['101', '102'] }), m.origins['P-04']);
+  check('manager row: organization + each agent', JSON.stringify(p04) === JSON.stringify(['srv-x | R. Info | R. Serv', 'srv-a | A. Info | A. Serv', 'srv-b | B. Info | B. Serv']), p04);
+  check('with who contributes', JSON.stringify(m.origins['P-04']) === JSON.stringify({ source: 'union', contributors: ['101', '102'] }), m.origins['P-04']);
   const p07 = m.configuration.parameters.find(p => p.id === 'P-07')!.value;
-  comprueba('sin repetir filas', JSON.stringify(p07) === JSON.stringify(['srv-x | nóminas', 'srv-a | clientes']), p07);
-  const sinFila = resolveControlConfigurationForAgent(doc, 'op.exp.7');
-  comprueba('la vista de organización hace la misma unión', JSON.stringify(sinFila?.parameters.find(p => p.id === 'P-04')?.value) === JSON.stringify(p04));
+  check('without repeating rows', JSON.stringify(p07) === JSON.stringify(['srv-x | nóminas', 'srv-a | clientes']), p07);
+  const withoutRow = resolveControlConfigurationForAgent(doc, 'op.exp.7');
+  check('the organization view makes the same union', JSON.stringify(withoutRow?.parameters.find(p => p.id === 'P-04')?.value) === JSON.stringify(p04));
   const e8m = resolveControlConfigurationForAgent(doc, 'op.exp.8', '000')!.parameters.find(p => p.id === 'P-02')!.value;
-  comprueba('op.exp.8 P-02 en el manager: todos los servidores, también el suyo', JSON.stringify(e8m) === JSON.stringify(['srv-x | Ubuntu 24.04 | web', 'mgr | Ubuntu 22.04 | SIEM', 'srv-a | Ubuntu 22.04 | directorio']), e8m);
+  check('op.exp.8 P-02 on the manager: all servers, its own too', JSON.stringify(e8m) === JSON.stringify(['srv-x | Ubuntu 24.04 | web', 'mgr | Ubuntu 22.04 | SIEM', 'srv-a | Ubuntu 22.04 | directorio']), e8m);
   const e8a = resolveControlConfigurationForAgent(doc, 'op.exp.8', '101')!.parameters.find(p => p.id === 'P-02')!.value;
-  comprueba('op.exp.8 P-02 en la fila del agente: el suyo', JSON.stringify(e8a) === JSON.stringify(['srv-a | Ubuntu 22.04 | directorio']), e8a);
+  check('op.exp.8 P-02 on the agent row: its own', JSON.stringify(e8a) === JSON.stringify(['srv-a | Ubuntu 22.04 | directorio']), e8a);
   const mp = resolveControlConfigurationForAgent(doc, 'mp.info.6', '102')!.parameters.find(p => p.id === 'P-04')!.value;
-  comprueba('mp.info.6 P-04: el alcance declarado junta a todos', JSON.stringify(mp) === JSON.stringify(['srv-a | ALTA', 'srv-c | MEDIA']), mp);
-  const vacio = { ...base(), agents: { '101': {} } } as ENSConfigurationVersion;
-  const tabla = resolveControlConfigurationWithOrigins(vacio, 'op.exp.7', '000')!;
-  comprueba('sin aportes: el mismo objeto', tabla.configuration === vacio.controls.find(c => c.controlId === 'op.exp.7') && tabla.origins['P-04'].source === 'organisation');
+  check('mp.info.6 P-04: the declared scope gathers all', JSON.stringify(mp) === JSON.stringify(['srv-a | ALTA', 'srv-c | MEDIA']), mp);
+  const empty = { ...base(), agents: { '101': {} } } as ENSConfigurationVersion;
+  const tabla = resolveControlConfigurationWithOrigins(empty, 'op.exp.7', '000')!;
+  check('no contributions: the same object', tabla.configuration === empty.controls.find(c => c.controlId === 'op.exp.7') && tabla.origins['P-04'].source === 'organisation');
 }
 
-console.log('3. Paridad');
+console.log('3. Parity');
 {
   const doc = base();
-  const filas = [undefined, '000', '101', '102'];
-  const distintos: string[] = [];
-  const variantes: [string, ENSConfigurationVersion][] = [
+  const rows = [undefined, '000', '101', '102'];
+  const distinct: string[] = [];
+  const variants: [string, ENSConfigurationVersion][] = [
     ['sin agents', doc],
     ['agents vacío', { ...doc, agents: {} }],
     ['perfiles sin valores ni plantillas', { ...doc, agents: { '101': { name: 'srv-a', detectedType: 'linux', detectedBy: 'os.platform = ubuntu', aliases: ['srv-a.example.com'] }, '000': { typeOverride: 'manager' } } }],
   ];
-  variantes.forEach(([nombre, d]) => {
+  variants.forEach(([name, d]) => {
     d.controls.forEach(c => {
-      filas.forEach(f => {
-        if (resolveControlConfigurationForAgent(d, c.controlId, f) !== c) distintos.push(`${nombre}: ${c.controlId} ${f}`);
+      rows.forEach(f => {
+        if (resolveControlConfigurationForAgent(d, c.controlId, f) !== c) distinct.push(`${name}: ${c.controlId} ${f}`);
       });
     });
   });
-  comprueba('23 controles × 4 filas × 3 variantes: el motor recibe el MISMO objeto que hoy', distintos.length === 0, distintos.slice(0, 5));
+  check('23 controls x 4 rows x 3 variants: the engine receives the SAME object as today', distinct.length === 0, distinct.slice(0, 5));
 
-  // Y el motor de verdad: mismos hechos, mismo resultado entero.
-  const AHORA = new Date('2026-10-17T10:00:00Z');
-  const agentes: ENSAgentScope[] = [
+  const NOW = new Date('2026-10-17T10:00:00Z');
+  const agents: ENSAgentScope[] = [
     { id: '000', name: 'mgr', groups: [], isManager: true },
     { id: '101', name: 'srv-a', groups: ['ens'] },
     { id: '102', name: 'srv-b', groups: ['ens'] },
   ];
   const ev = (agentId: string, agentName: string, controlId: string, eventType: string, status: string, extra: any = {}): ENSNormalizedEvent => ({
     id: `${agentId}-${controlId}-${eventType}`, agentId, agentName, controlId, eventType, sourceType: 'WAZUH_ALERT', status,
-    timestamp: new Date(AHORA.getTime() - 3600_000).toISOString(), tool: 'ENSFácil', ruleId: '0', ...extra,
+    timestamp: new Date(NOW.getTime() - 3600_000).toISOString(), tool: 'ENSFácil', ruleId: '0', ...extra,
   } as any);
-  const hechos = [
+  const facts = [
     ev('101', 'srv-a', 'mp.info.6', 'backup_ok', 'CUMPLE'),
     ev('102', 'srv-b', 'mp.info.6', 'backup_ok', 'CUMPLE'),
     ev('101', 'srv-a', 'op.acc.1', 'identity_inventory', 'CUMPLE'),
     ev('000', 'mgr', 'op.exp.7', 'incident_register_read', 'CUMPLE'),
   ];
-  const sinInstante = (v: unknown) => JSON.stringify(v, (k, x) => (k === 'evaluatedAt' ? undefined : x));
-  const resultados = variantes.map(([, d]) => {
+  const withoutInstant = (v: unknown) => JSON.stringify(v, (k, x) => (k === 'evaluatedAt' ? undefined : x));
+  const results = variants.map(([, d]) => {
     ensConfigurationRepository.replaceActive(d);
-    return sinInstante(getENSComplianceState('MEDIO', hechos, undefined, agentes, AHORA));
+    return withoutInstant(getENSComplianceState('MEDIO', facts, undefined, agents, NOW));
   });
-  comprueba('getENSComplianceState idéntico con y sin agents', resultados[0] === resultados[1] && resultados[0] === resultados[2]);
-  const porFila = variantes.map(([, d]) => {
+  check('getENSComplianceState identical with and without agents', results[0] === results[1] && results[0] === results[2]);
+  const byRow = variants.map(([, d]) => {
     ensConfigurationRepository.replaceActive(d);
-    return sinInstante(['mp.info.6', 'op.acc.1', 'op.exp.7', 'op.exp.8'].map(c => getENSComplianceResultByControl(c, 'MEDIO', hechos, '101', agentes, AHORA)));
+    return withoutInstant(['mp.info.6', 'op.acc.1', 'op.exp.7', 'op.exp.8'].map(c => getENSComplianceResultByControl(c, 'MEDIO', facts, '101', agents, NOW)));
   });
-  comprueba('y el resultado por control en la vista de una máquina', porFila[0] === porFila[1] && porFila[0] === porFila[2]);
+  check('and the per-control result in a machine\'s view', byRow[0] === byRow[1] && byRow[0] === byRow[2]);
 }
 
-console.log('4. El motor usa el valor de la fila');
+console.log('4. The engine uses the row\'s value');
 {
   const doc = {
     ...base(),
@@ -220,49 +203,42 @@ console.log('4. El motor usa el valor de la fila');
     },
   } as ENSConfigurationVersion;
   ensConfigurationRepository.replaceActive(doc);
-  comprueba('getActiveControlConfiguration(control, agente) resuelve', JSON.stringify(getActiveControlConfiguration('op.acc.1', '101')?.parameters.find(p => p.id === 'P-07')?.value) === '["ana | srv-a | admin"]');
-  comprueba('y sin agente, la organización', getActiveControlConfiguration('op.acc.1') === doc.controls.find(c => c.controlId === 'op.acc.1'));
-  const agentes: ENSAgentScope[] = [{ id: '101', name: 'srv-a', groups: ['ens'] }, { id: '102', name: 'srv-b', groups: ['ens'] }];
-  const aplicado = (agentId: string, id: string) =>
-    getENSComplianceResultByControl('op.acc.1', 'MEDIO', [], agentId, agentes, new Date('2026-10-17T10:00:00Z'))
+  check('getActiveControlConfiguration(control, agent) resolves', JSON.stringify(getActiveControlConfiguration('op.acc.1', '101')?.parameters.find(p => p.id === 'P-07')?.value) === '["ana | srv-a | admin"]');
+  check('and without an agent, the organization', getActiveControlConfiguration('op.acc.1') === doc.controls.find(c => c.controlId === 'op.acc.1'));
+  const agents: ENSAgentScope[] = [{ id: '101', name: 'srv-a', groups: ['ens'] }, { id: '102', name: 'srv-b', groups: ['ens'] }];
+  const applied = (agentId: string, id: string) =>
+    getENSComplianceResultByControl('op.acc.1', 'MEDIO', [], agentId, agents, new Date('2026-10-17T10:00:00Z'))
       ?.policyRuntime?.appliedParameters.find(p => p.id === id)?.value;
-  comprueba('fila 101: P-07 del agente', JSON.stringify(aplicado('101', 'P-07')) === '["ana | srv-a | admin"]', aplicado('101', 'P-07'));
-  comprueba('fila 102: P-07 de la organización', JSON.stringify(aplicado('102', 'P-07')) === '["ana | srv-a | admin","luis | srv-b | admin"]', aplicado('102', 'P-07'));
-  comprueba('fila 102: P-01 de su plantilla LDAP', aplicado('102', 'P-01') === 'LDAP', aplicado('102', 'P-01'));
-  comprueba('fila 101: P-01 de la organización', aplicado('101', 'P-01') === 'Local', aplicado('101', 'P-01'));
+  check('row 101: the agent\'s P-07', JSON.stringify(applied('101', 'P-07')) === '["ana | srv-a | admin"]', applied('101', 'P-07'));
+  check('row 102: the organization\'s P-07', JSON.stringify(applied('102', 'P-07')) === '["ana | srv-a | admin","luis | srv-b | admin"]', applied('102', 'P-07'));
+  check('row 102: P-01 from its LDAP template', applied('102', 'P-01') === 'LDAP', applied('102', 'P-01'));
+  check('row 101: P-01 from the organization', applied('101', 'P-01') === 'Local', applied('101', 'P-01'));
 }
 
-// Sobre hechos REALES de 30 días, si se pasan (nunca se suben al repositorio):
-//   ENSFACIL_GOLDEN_FACTS=facts.jsonl ENSFACIL_GOLDEN_DOC=active.json \
-//   ENSFACIL_GOLDEN_INVENTORY=inventory.json [ENSFACIL_GOLDEN_AT=2026-10-17T16:11:25Z]
-// `facts.jsonl`, un hit de wazuh-alerts-* por línea; `inventory.json`, la
-// búsqueda del inventario de wazuh-monitoring-*. El estado ENTERO (23 controles,
-// todas las filas, veredictos, requisitos y evidencias) tiene que salir idéntico
-// sin agents y con perfiles sin valores.
 const GF = (process as any).env?.ENSFACIL_GOLDEN_FACTS;
 const GD = (process as any).env?.ENSFACIL_GOLDEN_DOC;
 const GI = (process as any).env?.ENSFACIL_GOLDEN_INVENTORY;
 if (GF && GD && GI) {
-  console.log('5. Hechos reales');
+  console.log('5. Real facts');
   const { readFileSync: leer } = require('fs');
   const { normalizeWazuhAlert } = require('../common/ens/core/data-source/data-source-engine');
   const { inventoryFromMonitoring } = require('../common/agents/agent-inventory');
   const { resolveENSScopeAgents } = require('../common/ens/core/scope/runtime');
-  const real = JSON.parse(leer(GD, 'utf8'));
-  const config = real._source ? real._source.configuration : real.configuration || real;
-  const instante = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());
-  const inv = inventoryFromMonitoring(JSON.parse(leer(GI, 'utf8')).aggregations, instante.getTime()).agents;
-  const alcance = resolveENSScopeAgents(inv, config.scope);
-  const hechos = String(leer(GF, 'utf8')).split('\n').filter(Boolean).map((l: string) => normalizeWazuhAlert(JSON.parse(l)));
+  const actual = JSON.parse(leer(GD, 'utf8'));
+  const config = actual._source ? actual._source.configuration : actual.configuration || actual;
+  const instant = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());
+  const inv = inventoryFromMonitoring(JSON.parse(leer(GI, 'utf8')).aggregations, instant.getTime()).agents;
+  const scope = resolveENSScopeAgents(inv, config.scope);
+  const facts = String(leer(GF, 'utf8')).split('\n').filter(Boolean).map((l: string) => normalizeWazuhAlert(JSON.parse(l)));
   const estado = (d: any) => {
     ensConfigurationRepository.replaceActive(d);
-    return JSON.stringify(getENSComplianceState(d.global.ensLevel, hechos, undefined, alcance, instante), (k, x) => (k === 'evaluatedAt' ? undefined : x));
+    return JSON.stringify(getENSComplianceState(d.global.ensLevel, facts, undefined, scope, instant), (k, x) => (k === 'evaluatedAt' ? undefined : x));
   };
-  const sin = estado(config);
-  const conPerfiles = estado({ ...config, agents: Object.fromEntries(alcance.map((a: any) => [a.id, { name: a.name, detectedType: 'linux', aliases: ['x.example.com'] }])) });
-  console.log(`    ${hechos.length} hechos, ${alcance.length} filas, estado de ${sin.length} bytes`);
-  comprueba('hechos reales: el estado entero es idéntico sin agents y con perfiles sin valores', sin === conPerfiles);
+  const withoutIt = estado(config);
+  const withProfiles = estado({ ...config, agents: Object.fromEntries(scope.map((a: any) => [a.id, { name: a.name, detectedType: 'linux', aliases: ['x.example.com'] }])) });
+  console.log(`    ${facts.length} facts, ${scope.length} rows, state of ${withoutIt.length} bytes`);
+  check('real facts: the whole state is identical without agents and with profiles without values', withoutIt === withProfiles);
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
-process.exit(fallos.length ? 1 : 0);
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
+process.exit(failures.length ? 1 : 0);

@@ -24,7 +24,7 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
       securityEnabled: Boolean(deps.securityDashboards),
     });
 
-    this.logger.debug('ENSFácil: servidor preparado');
+    this.logger.debug('ENSFácil: server ready');
 
     return {};
   }

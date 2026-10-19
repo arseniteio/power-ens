@@ -1,17 +1,14 @@
-<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_6_json_rules.xml
-     Esta es una copia desplegable para que el procedimiento funcione en un
-     servidor sin acceso al repo del plugin. El mismo fichero, byte a byte, va
-     en manager/ del runbook Linux y del runbook LDAP: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_6_json_rules.xml
+     Deployable copy, byte-identical in the Linux and LDAP runbooks (checked by
+     plugin-wazuh-ens/tests/check-consistency.py). -->
 <group name="ensfacil,op_acc_6,score,">
 
   <!-- ================================================================
-       op.acc.6 · Mecanismo de autenticación (usuarios de la organización)
-       Rango reservado: 110100-110199
-       Base 110100 · hechos crudos 110101-110149 · diagnóstico 110195-110199
+       op.acc.6 · Authentication mechanism (organization users)
+       Reserved range: 110100-110199
+       Base 110100 · raw facts 110101-110149 · diagnostics 110195-110199
 
-       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       dashboard/ens/core/evidence/catalog.ts:
+       Evidence -> rule ID map (`relatedRules` in dashboard/ens/core/evidence/catalog.ts):
 
          EV-01 110101 110102 110105   EV-02 110101 110108
          EV-03 110103 110104          EV-04 110102 110103
@@ -20,20 +17,16 @@
          EV-09 110109                 EV-10 110110
          EV-11 110111                 EV-12 110112
 
-       Un mismo hecho sirve a varias evidencias cuando describe la misma
-       observación (`evidence_id=EV-01,EV-02,EV-07`): el normalizador del
-       plugin lo reparte. Emitirlo dos veces permitiría que las copias de la
-       misma línea de log acabaran discrepando.
+       One fact serves several evidences when it describes the same observation
+       (`evidence_id=EV-01,EV-02,EV-07`); the plugin normalizer splits it.
 
-       Fuera del mapa: 110100 (base, nivel 0), 110195 (degradación: el agente
-       no pudo mirar), 110197 (aviso operativo), 110198 (falta una fuente o
-       una herramienta) y 110199 (el latido, que no acredita evidencia: las
-       habilita).
+       Outside the map: 110100 (base, level 0), 110195 (degradation: the agent
+       could not look), 110197 (operational warning), 110198 (missing source or
+       tool) and 110199 (heartbeat: proves no evidence, it enables them).
 
-       NINGUNA regla lleva `estado` de cumplimiento ni `cumple`/`no_cumple` en
-       su <group>: el agente observa y el motor juzga contra la pantalla de
-       Configuración. Los dos runbooks (Linux y LDAP) emiten con estos mismos
-       ID; lo que distingue la superficie es el campo `plano`.
+       No rule carries a compliance `estado` or `cumple`/`no_cumple` in its
+       <group>: the agent observes, the engine judges. Both runbooks (Linux and
+       LDAP) emit with these IDs; the `plano` field tells the surfaces apart.
        ================================================================ -->
 
   <rule id="110100" level="0">
@@ -42,13 +35,12 @@
     <description>op.acc.6 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== Accesos (R5, R8, R9) ===== -->
+  <!-- ===== Accesses (R5, R8, R9) ===== -->
 
-  <!-- 110101 · Autenticación CON ÉXITO en un camino de acceso (sshd, consola,
-       bind LDAP). Lleva el origen, el canal, los métodos encadenados y los
-       factores que el servidor llegó a verificar. EV-01 lo usa como registro
-       (op.acc.6.r5.1), EV-02 clasifica el origen contra P-02 (r1.1, r2.1,
-       r8.1) y EV-07 contrasta el canal contra P-07 (r9.2 a y d). -->
+  <!-- 110101 · SUCCESSFUL authentication on an access path (sshd, console, LDAP
+       bind): origin, channel, chained methods and verified factors. EV-01 uses it
+       as record (op.acc.6.r5.1), EV-02 classifies the origin against P-02
+       (r1.1, r2.1, r8.1), EV-07 checks the channel against P-07 (r9.2 a, d). -->
   <rule id="110101" level="3">
     <if_sid>110100</if_sid>
     <field name="event">authentication_success</field>
@@ -57,10 +49,9 @@
     <info type="text">requisito=op.acc.6.r5.1,op.acc.6.r1.1,op.acc.6.r2.1,op.acc.6.r8.1,op.acc.6.r9.2 evidencia=EV-01,EV-02,EV-07 juicio=motor parametro=P-02,P-07 formato=json_line</info>
   </rule>
 
-  <!-- 110102 · Autenticación FALLIDA, agregada por pasada (usuario, origen,
-       canal). `usuario_existe` distingue la cuenta que se puede bloquear de
-       la que no existe. EV-01 (registro) y EV-04 (patrón de ataque contra
-       P-05, correlacionado con 110103). -->
+  <!-- 110102 · FAILED authentication aggregated per run (user, origin, channel).
+       `usuario_existe` tells lockable accounts from nonexistent ones. EV-01
+       (record) and EV-04 (attack pattern against P-05, correlated with 110103). -->
   <rule id="110102" level="5">
     <if_sid>110100</if_sid>
     <field name="event">authentication_failure</field>
@@ -69,7 +60,7 @@
     <info type="text">requisito=op.acc.6.8,op.acc.6.r5.1 evidencia=EV-01,EV-04 juicio=motor parametro=P-05 formato=json_line</info>
   </rule>
 
-  <!-- 110103 · Bloqueo de cuenta observado (pam_faillock o directorio). -->
+  <!-- 110103 · Observed account lockout (pam_faillock or directory). -->
   <rule id="110103" level="7">
     <if_sid>110100</if_sid>
     <field name="event">account_locked</field>
@@ -78,9 +69,9 @@
     <info type="text">requisito=op.acc.6.8 evidencia=EV-03,EV-04 juicio=motor parametro=P-05 formato=json_line</info>
   </rule>
 
-  <!-- 110104 · Configuración del límite de intentos de un camino de
-       autenticación: si hay bloqueo, tras cuántos intentos y si se desbloquea
-       solo. El motor lo contrasta con P-05. -->
+  <!-- 110104 · Attempt-limit configuration of an authentication path: whether
+       there is lockout, after how many attempts, and whether it unlocks itself.
+       Checked against P-05. -->
   <rule id="110104" level="3">
     <if_sid>110100</if_sid>
     <field name="event">lockout_policy_checked</field>
@@ -89,10 +80,9 @@
     <info type="text">requisito=op.acc.6.8 evidencia=EV-03 juicio=motor parametro=P-05 formato=json_line</info>
   </rule>
 
-  <!-- 110105 · Hueco de REGISTRO en una fuente de autenticación: la fuente no
-       existe, no ha rendido nunca, o su configuración no registra éxitos o
-       fallos. Es un hallazgo de barrido, contrastado con P-03 (las fuentes que
-       la organización declara monitorizar). -->
+  <!-- 110105 · LOG gap in an authentication source: the source does not exist,
+       never yielded, or its configuration logs no successes or failures. Sweep
+       finding, checked against P-03 (sources the organization declares monitored). -->
   <rule id="110105" level="7">
     <if_sid>110100</if_sid>
     <field name="event">auth_logging_gap</field>
@@ -101,10 +91,10 @@
     <info type="text">requisito=op.acc.6.r5.1 evidencia=EV-01 juicio=motor parametro=P-03 formato=json_line</info>
   </rule>
 
-  <!-- ===== Ciclo de vida de la credencial (base) ===== -->
+  <!-- ===== Credential lifecycle (base) ===== -->
 
-  <!-- 110106 · Antigüedad de una credencial (`medida=antiguedad`) o caducidad
-       que el sistema impone (`medida=caducidad_configurada`), en días. -->
+  <!-- 110106 · Credential age (`medida=antiguedad`) or system-enforced expiry
+       (`medida=caducidad_configurada`), in days. -->
   <rule id="110106" level="3">
     <if_sid>110100</if_sid>
     <field name="event">credential_age_checked</field>
@@ -113,9 +103,8 @@
     <info type="text">requisito=op.acc.6.4 evidencia=EV-05 juicio=motor parametro=P-04 formato=json_line</info>
   </rule>
 
-  <!-- 110107 · Horas entre la notificación de un compromiso o de una baja y la
-       inhabilitación observada de la credencial (o las transcurridas si sigue
-       habilitada). -->
+  <!-- 110107 · Hours between a compromise or end-of-relationship notice and the
+       observed credential disablement (or elapsed hours if still enabled). -->
   <rule id="110107" level="5">
     <if_sid>110100</if_sid>
     <field name="event">credential_disable_checked</field>
@@ -124,12 +113,12 @@
     <info type="text">requisito=op.acc.6.5,op.acc.6.6 evidencia=EV-06 juicio=motor parametro=P-06 formato=json_line</info>
   </rule>
 
-  <!-- ===== Canales (R8 y R9) ===== -->
+  <!-- ===== Channels (R8 and R9) ===== -->
 
-  <!-- 110108 · Canal de acceso remoto en escucha: canal, direcciones, si
-       exige cifrado, si arranca siempre y cuántos factores exige como
-       mínimo. EV-08 lo casa con su fila de P-07 (r9.2 b y c) y EV-02 mira si
-       un canal de autenticación expuesto fuera de P-02 exige doble factor. -->
+  <!-- 110108 · Listening remote-access channel: channel, addresses, encryption
+       required, always started, minimum factors. EV-08 matches it to its P-07 row
+       (r9.2 b, c); EV-02 checks whether an authentication channel exposed outside
+       P-02 requires a second factor. -->
   <rule id="110108" level="3">
     <if_sid>110100</if_sid>
     <field name="event">remote_channel_listening</field>
@@ -138,11 +127,11 @@
     <info type="text">requisito=op.acc.6.r8.1,op.acc.6.r9.2 evidencia=EV-02,EV-08 juicio=motor parametro=P-02,P-07 formato=json_line</info>
   </rule>
 
-  <!-- ===== R6 y R7 ===== -->
+  <!-- ===== R6 and R7 ===== -->
 
-  <!-- 110109 · Punto de operación crítica donde el sistema NO exige renovar
-       la autenticación (sudo NOPASSWD, !authenticate, timestamp sin
-       caducidad). Hallazgo de barrido contra P-08. -->
+  <!-- 110109 · Critical-operation point where the system does NOT require
+       renewed authentication (sudo NOPASSWD, !authenticate, non-expiring
+       timestamp). Sweep finding against P-08. -->
   <rule id="110109" level="5">
     <if_sid>110100</if_sid>
     <field name="event">reauthentication_not_required</field>
@@ -151,9 +140,8 @@
     <info type="text">requisito=op.acc.6.r6.1 evidencia=EV-09 juicio=motor parametro=P-08 formato=json_line</info>
   </rule>
 
-  <!-- 110110 · Inactividad de una cuenta habilitada (`medida=inactividad`) o
-       suspensión automática configurada (`medida=suspension_configurada`),
-       en días. -->
+  <!-- 110110 · Inactivity of an enabled account (`medida=inactividad`) or
+       configured automatic suspension (`medida=suspension_configurada`), in days. -->
   <rule id="110110" level="3">
     <if_sid>110100</if_sid>
     <field name="event">account_inactivity_checked</field>
@@ -164,8 +152,8 @@
 
   <!-- ===== R1 ===== -->
 
-  <!-- 110111 · Política de calidad de contraseña que el sistema impone:
-       longitud mínima, clases de caracteres, historial y lista de bloqueo. -->
+  <!-- 110111 · System-enforced password quality policy: minimum length,
+       character classes, history and block list. -->
   <rule id="110111" level="3">
     <if_sid>110100</if_sid>
     <field name="event">password_policy_checked</field>
@@ -174,11 +162,11 @@
     <info type="text">requisito=op.acc.6.r1.2 evidencia=EV-11 juicio=motor parametro=P-10 formato=json_line</info>
   </rule>
 
-  <!-- ===== Información antes de autenticar ===== -->
+  <!-- ===== Information before authentication ===== -->
 
-  <!-- 110112 · Información que un servicio de autenticación expone antes de
-       validar credenciales (versión en la identificación del protocolo,
-       banner previo). Hallazgo de barrido contra P-11. -->
+  <!-- 110112 · Information an authentication service exposes before validating
+       credentials (protocol identification version, pre-login banner). Sweep
+       finding against P-11. -->
   <rule id="110112" level="3">
     <if_sid>110100</if_sid>
     <field name="event">auth_disclosure_observed</field>
@@ -187,11 +175,10 @@
     <info type="text">requisito=op.acc.6.7 evidencia=EV-12 juicio=motor parametro=P-11 formato=json_line</info>
   </rule>
 
-  <!-- ===== Diagnóstico del recolector ===== -->
+  <!-- ===== Collector diagnostics ===== -->
 
-  <!-- 110195 · El agente no emite veredictos, pero sí tiene que poder decir
-       que NO PUDO MIRAR: la `causa` distingue «la fuente no se pudo leer» de
-       «se leyó y no había nada», y se arreglan en sitios distintos. -->
+  <!-- 110195 · The agent issues no verdicts but must be able to say it COULD NOT
+       LOOK: `causa` distinguishes «source unreadable» from «read, nothing there». -->
   <rule id="110195" level="7">
     <if_sid>110100</if_sid>
     <field name="event">evidence_state</field>
@@ -214,9 +201,9 @@
     <group>ENS_op.acc.6,diagnostico,</group>
   </rule>
 
-  <!-- 110199 · El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
-       el silencio de las aserciones negativas no puede valer como
-       cumplimiento. Nivel 3 para que llegue al índice sin ruido. -->
+  <!-- 110199 · Heartbeat. Proves no evidence: it ENABLES them. Without it the
+       silence of negative assertions cannot count as compliance. Level 3 keeps
+       it in the index without noise. -->
   <rule id="110199" level="3">
     <if_sid>110100</if_sid>
     <field name="event">collector_run</field>

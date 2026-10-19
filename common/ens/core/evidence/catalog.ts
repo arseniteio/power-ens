@@ -1,109 +1,21 @@
 import { ENSEvidenceDefinition } from './types';
 
-// `relatedRules` es el eslabón «evidencia → rule ID» de la cadena de
-// trazabilidad. Contiene los identificadores numéricos REALES declarados en
-// agent/rules/ensfacil_<control>_*.xml, derivados del `evidencia=` de cada
-// `<info type="text">`. Antes había identificadores simbólicos
-// (`ENS-OPACC1-INVENTORY`) que no correspondían a ninguna regla: la UI los
-// mostraba al auditor como si fueran trazables y la cadena moría ahí.
+// `relatedRules` lists the REAL numeric rule IDs deployed in the runbook `manager/` copy (agent/rules/ensfacil_<control>_*.xml), taken from each `evidencia=`.
+// Excluded: `level="0"` rules, inert rules (106923), collector diagnostics (106830/106831), and the aggregate event types
+// (`control_state`, `score_snapshot`), which speak about a requirement or level, not about one evidence.
+// Generic `evidence_state` rules are not listed: engine.ts adds the event's own ruleId.
+// Rule IDs must exist in the DEPLOYED manager files and mean the same evidence there; `tests/check-consistency.py` checks it.
 //
-// Criterio de inclusión:
-//   - se incluyen las reglas que acreditan la evidencia y generan alerta;
-//   - se excluyen las reglas `level="0"` (106600/106800/106900), que nunca
-//     producen alerta y por tanto no llevan a ningún evento crudo;
-//   - se excluyen las reglas inertes para el plugin (106923), que re-etiquetan
-//     alertas syscheck sin campo `ensfacil` y nunca llegan aquí (ver el
-//     comentario en el propio XML);
-//   - se excluyen las reglas de diagnóstico operativo del recolector
-//     (106830 `collector_warning` y 106831 `collector_missing` de op.acc.1),
-//     que no llevan `requisito=` ni `evidencia=` porque no acreditan ninguna:
-//     son higiene del propio pipeline.
-//
-// Las reglas genéricas de `evidence_state` (106650 / 106850-106853 /
-// 106950-106953) no se listan: engine.ts añade el ruleId del evento que
-// resuelve la evidencia, así que aparecen solas cuando son el origen real del
-// estado.
-//
-// Tampoco se listan —y este es el caso que hay que argumentar, porque invita a
-// lo contrario— las reglas de los AGREGADOS, `control_state` y
-// `score_snapshot`:
-//
-//   op.acc.1   control_state 106860-106863 y 106869
-//              score_snapshot 106870-106872 y 106890
-//   op.acc.2   control_state 106960-106964  score_snapshot 106970-106974
-//
-// Un agregado afirma algo sobre un REQUISITO o sobre un NIVEL entero, no sobre
-// una evidencia. Acreditarlo en el `relatedRules` de una evidencia concreta
-// sería el fallo de 106824 en su versión simétrica: un identificador que existe,
-// está desplegado y lleva al auditor a un evento que habla de otra cosa. El
-// criterio de esta lista es el de arriba —reglas que acreditan ESTA evidencia—,
-// y ninguna de estas lo cumple.
-//
-// El 31/07 se completaron esas dos familias con su NO_EVALUABLE (106714,
-// 106723, 106869, 106890, 106964, 106973) y con el NO_APLICA de
-// `score_snapshot` de op.acc.2 (106974). Antes, un agregado con esos estados
-// solo casaba con la regla base del control, que es `level="0"`: no generaba
-// alerta y nunca llegaba al índice. Importa desde que un nivel sin ninguna no
-// conformidad demostrada y con huecos de medida se publica NO_EVALUABLE, que lo
-// convierte en un veredicto de primera clase.
-//
-// Lo que ese arreglo NO cambia, dicho aquí para que nadie lo busque en el
-// motor: `score_snapshot` está en GENERIC_EVENT_TYPES de engine.ts y jamás
-// resuelve una evidencia; su único consumidor es el gráfico de tendencia
-// (dashboard-adapter/presenters/evolution.presenter.ts), que descarta todo
-// snapshot sin `score` ni `compliance` numérico, y un NO_EVALUABLE no trae
-// ninguno de los dos. El arreglo compra la línea de alerta y la traza del
-// auditor, nada más.
-//
-// **DE QUÉ FICHERO SE SACAN, que es donde estuvo el fallo.** Del que está
-// DESPLEGADO: la copia `manager/` del runbook, que es lo que instala su
-// `install-manager.sh`. Acreditar una regla que el manager no tiene rompe la
-// cadena en el último escalón sin que nada avise, porque el identificador es
-// numérico, la regla existe en algún XML del repo y todo parece correcto.
-//
-// Pasó el 30/07 con op.acc.1: sus 52 reglas acreditadas se habían reconstruido
-// contra `agent/rules/ensfacil_op_acc_1_json_rules.xml`, que entonces contenía
-// los hechos crudos del recolector Python —hoy renombrado a
-// `ensfacil_op_acc_1_technical_fact_rules.xml` y NO desplegado—. 39 de las 52
-// eran inalcanzables. Y las 13 restantes tampoco eran de fiar: los dos juegos
-// numeran el mismo rango 106800-106899, así que 106824 (que allí es
-// `authentication_cursor_initialized`, EV-03) coincidía por número con el
-// 106824 desplegado, que es `authorized_list_check` NO_CUMPLE de EV-07. Existir
-// no basta: el id tiene que significar la misma evidencia en el manager.
-//
-// `tests/check-consistency.py` comprueba lo primero en cada ejecución.
-//
-// Tras reconstruir op.acc.1 contra lo desplegado, sus ocho evidencias conservan
-// al menos una regla que las acredita: no hizo falta dejar ninguna vacía. Si
-// alguna se hubiera quedado sin regla, iría vacía y documentada —como los diez
-// huecos que ya llevan `ruleIds: []` en `configuration/data/`—, porque un hueco
-// honesto vale más que un identificador que no lleva a ninguna parte.
-//
-// `expectedEventTypes` es el otro contrato con el agente: el motor solo resuelve
-// una evidencia con eventos cuyo `eventType` esté en esta lista. Se llena con
-// los nombres que emiten las reglas DESPLEGADAS del control, ni uno más. Un
-// nombre que no emite nadie no acredita nada, y uno que se emite y no está aquí
-// deja la evidencia sorda al hecho crudo. La comprobación 4 de
-// `tests/check-consistency.py` vigila el primer caso; el segundo, para
-// mp.info.6, lo vigila `tests/mp-info-6-judgment.test.ts` juzgando las pasadas
-// reales de sus dos recolectores (`tests/fixtures/`).
+// `expectedEventTypes` is the contract with the agent: only events whose `eventType` is listed resolve the evidence,
+// and only names emitted by the deployed rules belong there. Check 4 of `tests/check-consistency.py` guards it.
 export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
-  // mp.info.6 · Copias de seguridad. Reglas: banda 106600-106799, comunes a los
-  // dos orígenes de copia (el PBS de Proxmox y Zimbra). El recolector emite
-  // HECHOS con el contrato común (`origen`, `objeto` y los campos de cada
-  // hecho) y un `evidence_state` solo cuando no pudo mirar (NO_EVALUABLE con
-  // su causa); el veredicto lo pone la policy del control
-  // (`policies/mp-info-6.policy.ts`) contra los parámetros de la pantalla.
-  // Ninguna evidencia declara `judgment`: el juicio es copia a copia (por
-  // origen, objeto y `backup_id`) y el peor manda, que no cabe en una
-  // primitiva.
+  // mp.info.6, rules band 106600-106799, shared by both backup origins (Proxmox PBS and Zimbra). The collector emits FACTS
+  // with the common contract (`origen`, `objeto`) and an `evidence_state` only when it could not look; the verdict comes from
+  // `policies/mp-info-6.policy.ts`. No evidence declares `judgment`: judgment is per backup (origin, object, `backup_id`), worst wins.
   //
-  // Los hechos de ESTADO los reemite enteros el recolector en cada pasada; la
-  // prueba de restauración es una ACCIÓN y se juzga con la ventana. Su última
-  // pasada se delimita por `origen`: un servidor de buzones tiene dos
-  // recolectores (PBS y Zimbra) que pasan a minutos distintos. Y como el
-  // recolector solo declara huecos, un veredicto antiguo que siga en la
-  // ventana no resuelve ninguna evidencia (`agentDeclaresOnlyGaps`).
+  // State facts are reissued whole on every pass; the restore test is an ACTION judged by the window. The last pass is delimited
+  // by `origen` because the mailbox server has two collectors. Since the collector only declares gaps, an old verdict inside the
+  // window resolves nothing (`agentDeclaresOnlyGaps`).
   {
     id: 'EV-01',
     controlId: 'mp.info.6',
@@ -190,7 +102,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'RECOVERY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API'],
-    // Acción, no estado: cada prueba cuenta dentro de la ventana.
+    // Action, not state: each test counts inside the window.
     expectedEventTypes: ['evidence_state', 'restore_test'],
     agentDeclaresOnlyGaps: true,
     relatedRules: ['106606'],
@@ -221,8 +133,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     },
   },
   {
-    // El latido del recolector (106797): que ha pasado por la máquina, con qué
-    // resultado y qué evidencias declara haber cubierto.
+    // Collector heartbeat (106797): which evidences it declares covered.
     id: 'EV-07',
     controlId: 'mp.info.6',
     title: 'Latido del recolector de copias',
@@ -296,24 +207,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?',
 
-    // PRIMERA EVIDENCIA QUE DECIDE EL MOTOR. Hasta aquí, el veredicto de EV-03
-    // lo traía hecho el agente: leía su propia lista de cuentas genéricas de
-    // /etc/ensfacil/opacc1.env y emitía `generic_account_login` (NO_CUMPLE) o
-    // `auth_success` (CUMPLE). El nombre del evento YA ERA el juicio, y P-04 en
-    // la pantalla de Configuración solo servía para comprobar que estaba
-    // relleno: cambiar el valor no cambiaba ningún veredicto.
-    //
-    // Ahora el agente emite `account_authenticated` —qué cuenta se autenticó y
-    // desde dónde, sin calificarla— y esta declaración es todo lo que hace
-    // falta para que el motor la juzgue contra P-04. No hay código por control:
-    // `NINGUNO_EN_LISTA` es la misma primitiva que usarán las demás.
-    //
-    // `factEventTypes` incluye los dos nombres viejos a propósito. Un agente
-    // sin actualizar sigue emitiéndolos, y su campo `usuario` sigue siendo un
-    // hecho perfectamente utilizable: lo que se descarta del modelo viejo es el
-    // `estado`, que este camino no lee en ningún punto. Así la migración no
-    // deja ciega a EV-03 ni sobre los datos ya indexados, y esos datos pasan a
-    // juzgarse con el P-04 de HOY en vez de con el .env de aquel día.
+    // First evidence decided by the engine. The agent emits `account_authenticated` without qualifying it and the engine judges it against P-04.
+    // `factEventTypes` keeps the two old names on purpose: an outdated agent still emits them and their `usuario` field is a usable fact;
+    // only the old `estado` is discarded.
     judgment: {
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-04',
@@ -366,28 +262,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?',
 
-    // MIGRADA. Comparte el hecho crudo de EV-03 —`account_authenticated`, regla
-    // 106873— y no hace falta ninguno nuevo: `_opacc1_logins` extrae las
-    // `Accepted …` de sshd, que son exactamente los accesos INTERACTIVOS que
-    // esta evidencia pregunta por. Lo único que cambia respecto a EV-03 es
-    // contra qué lista se contrasta: P-03 (cuentas de servicio declaradas) en
-    // vez de P-04 (cuentas genéricas prohibidas). Dos preguntas de auditoría
-    // distintas sobre la misma observación, que es justo lo que este modelo
-    // permite y el clásico no.
-    //
-    // El hecho llega etiquetado `evidence_id=EV-03,EV-05`: el normalizador lo
-    // reparte en un evento por evidencia (`normalizeWazuhAlerts`), igual que
-    // 106609 de mp.info.6 lleva `evidencia=EV-03,EV-07` desde antes de que
-    // existiera este modelo.
-    //
-    // `factEventTypes` incluye los DOS nombres viejos, y aquí hay una regla que
-    // no es evidente: los nombres viejos solo se pueden readmitir cuando entre
-    // todos cubren la MISMA población que el hecho nuevo. Aquí sí —
-    // `service_account_interactive` eran los infractores e `interactive_login`
-    // el resto, así que su unión es el total de logins— y por eso los datos ya
-    // indexados se pueden volver a juzgar con el P-03 de hoy. Cuando el nombre
-    // viejo cubría solo a los infractores (es el caso de `unauthorized_user` en
-    // EV-07), readmitirlo fabricaría un CUMPLE sobre una muestra sesgada.
+    // Migrated. Shares the raw fact of EV-03; only the list it is checked against changes (P-03 instead of P-04).
+    // Old names may be readmitted only when together they cover the SAME population as the new fact. Here they do (offenders plus the rest);
+    // when the old name covered only offenders (`unauthorized_user` in EV-07) readmitting it would fabricate a CUMPLE over a biased sample.
     judgment: {
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-03',
@@ -436,32 +313,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?',
 
-    // MIGRADA, y es la que más devuelve al cliente: hasta hoy la «lista de
-    // usuarios autorizados» era un FICHERO en cada máquina
-    // (OPACC1_LISTA_AUTORIZADOS), y P-07 en la pantalla solo servía para
-    // comprobar que estaba relleno. Un cliente de nivel MEDIO o ALTO tenía que
-    // mantener a mano ese fichero en cada servidor, sincronizado con lo que el
-    // auditor ve en Wazuh. Ahora la lista vive SOLO en P-07 y el agente no
-    // lee ningún fichero de autorizados.
-    //
-    // Primera evidencia que apunta a un parámetro de tipo `table`, y por eso
-    // declara `parameterColumn`: P-07 es 'usuario | sistema | rol' y lo que se
-    // contrasta con una cuenta activa es el usuario. Sin esa declaración el
-    // motor no compara nada y lo dice (ver `resolveReferenceValues`).
-    //
-    // El hecho ya existía: `account_active` (regla 106811), que ev01_inventario
-    // emite por cada cuenta activa de /etc/passwd con el MISMO filtro que usaba
-    // ev07_lista_autorizados (uid ≥ P-10, shell distinto de nologin/false).
-    // Ahora sale etiquetado `evidence_id=EV-01,EV-07`.
-    //
-    // `factEventTypes` NO readmite los nombres viejos, y la razón es la que
-    // EV-05 explica en positivo: `unauthorized_user` solo se emitía para las
-    // cuentas que FALLABAN. Juzgar `TODOS_EN_LISTA` sobre esa muestra diría
-    // «todas las cuentas observadas están autorizadas» en cuanto la única
-    // observada resultara estar hoy en P-07 — un CUMPLE sobre una máquina con
-    // cuarenta cuentas que nadie miró. Y `authorized_list_check` es un recuento
-    // sin campo `usuario`: readmitirlo dejaría la evidencia en NO_EVALUABLE
-    // permanente por hechos ilegibles.
+    // Migrated: the authorized list lives only in P-07. First evidence pointing at a `table` parameter, hence `parameterColumn`
+    // (P-07 is 'usuario | sistema | rol' and the user is what is compared); without it the engine compares nothing and says so.
+    // The fact `account_active` (rule 106811) is shared with EV-01 (`evidence_id=EV-01,EV-07`).
+    // `factEventTypes` does NOT readmit the old names: `unauthorized_user` covered only failing accounts and `authorized_list_check` has no `usuario`.
     judgment: {
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-07',
@@ -508,10 +363,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'world_writable',
       'umask_check',
     ],
-    // 106905 es el par NO_CUMPLE de `sca_check` (106901 es el CUMPLE genérico,
-    // que no mira `estado`). Sin él, un SCA con fallos salía en Wazuh como
-    // nivel 3 diciendo CUMPLE: la trazabilidad llevaba al auditor a un evento
-    // que decía lo contrario de lo que había pasado.
+    // 106905 is the NO_CUMPLE pair of `sca_check`; 106901 is the generic CUMPLE and ignores `estado`.
     relatedRules: ['106901', '106902', '106903', '106904', '106905'],
     auditQuestion:
       '¿Los recursos del sistema tienen controles de acceso que impiden su uso no autorizado?',
@@ -591,8 +443,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'excessive_privilege',
       'group_membership',
     ],
-    // 106933 es el par NO_CUMPLE de `privilege_check` (106930 es el CUMPLE
-    // genérico). Mismo motivo que 106905 en EV-01.
+    // 106933 is the NO_CUMPLE pair of `privilege_check` (106930 is the generic CUMPLE).
     relatedRules: ['106930', '106931', '106932', '106933'],
     auditQuestion:
       '¿Cada usuario autorizado tiene privilegios mantenidos individualmente que restringen el tipo de acceso?',
@@ -634,11 +485,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'suid_sgid',
       'no_owner_file',
     ],
-    // 106924 es el par NO_CUMPLE de `rootcheck` (106925 es el CUMPLE
-    // genérico). Aquí muerde más que en EV-01: EV-07 es una evidencia de
-    // aserción negativa —cumple cuando no produce hechos—, así que un barrido
-    // que SÍ encontró algo presentado como barrido limpio es indistinguible
-    // del cumplimiento.
+    // 106924 is the NO_CUMPLE pair of `rootcheck` (106925 is the generic CUMPLE). It matters here because EV-07 is a negative assertion.
     relatedRules: ['106924', '106925', '106926', '106927'],
     auditQuestion:
       '¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?',
@@ -681,18 +528,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     title: 'Verificación de concurrencia en tareas críticas',
     description:
       'Comprobación de que las tareas declaradas como críticas en P-04 han sido ejecutadas o aprobadas por al menos el número de personas distintas exigido. Detecta tareas críticas realizadas unilateralmente.',
-    // `op.acc.3` A SECAS ES EL ID DEL CONTROL, no el de ningún requisito, y
-    // aquí producía una incoherencia que se veía en la misma pantalla: la tabla
-    // de evidencias enseñaba «op.acc.3» en la columna Requisito ENS y la no
-    // conformidad de dos bloques más abajo decía «op.acc.3.2». Un auditor que
-    // ve dos identificadores distintos para lo mismo deja de fiarse del informe
-    // entero, y con razón.
-    //
-    // Es el mismo error que tenía la policy —decidir contra el id del control—
-    // corregido el 06/08/2026. Aquí quedó sin corregir porque este catálogo es
-    // otro fichero. La concurrencia de tareas críticas la mide op.acc.3.2,
-    // «las personas que autorizan y controlan el uso serán distintas», que es
-    // literalmente el control dual que declara P-04.
+    // `op.acc.3` alone is the control id, not a requirement; the requirement is op.acc.3.2 (dual control declared in P-04).
     requirements: ['op.acc.3.2'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -781,11 +617,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'default_deny_violation'],
     relatedRules: ['107101'],
     judgment: {
-      // Cada desviación observada de la denegación por defecto se contrasta
-      // con las excepciones que el responsable haya declarado. Sin excepciones
-      // declaradas la lista está vacía y cualquier desviación incumple, que es
-      // lo que dice op.acc.4.1: todo acceso prohibido SALVO autorización
-      // expresa. La carga de declarar la excepción es del auditado.
+      // Each observed deviation from default-deny is checked against the declared exceptions; with none declared, any deviation fails.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-01',
       parameterColumn: 'recurso',
@@ -809,27 +641,16 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'privilege_grant'],
     relatedRules: ['107102'],
     judgment: {
-      // La primitiva del control: cada privilegio EFECTIVO observado tiene que
-      // casar, celda a celda, con la fila que le corresponde en la matriz que
-      // el responsable declaró. No basta con que el sujeto aparezca: el
-      // recurso y el tipo de acceso también tienen que coincidir, porque un
-      // 'rw' donde la matriz dice 'r' es exactamente el privilegio por encima
-      // del mínimo que op.acc.4.2 prohíbe.
+      // Each effective privilege must match, cell by cell, its row in the declared matrix (an 'rw' where the matrix says 'r' fails).
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-01',
       factEventTypes: ['privilege_grant'],
       factField: 'sujeto',
-      // `factKeyField` dice qué campo del HECHO identifica la fila;
-      // `tableKeyColumn`, qué columna de la TABLA. Hacen falta las dos y se
-      // llaman distinto a propósito: el hecho trae `sujeto` (lo que hay en la
-      // máquina) y la política declara `rol` (lo que decidió el responsable).
-      // Sin `tableKeyColumn` el índice de filas sale vacío y CONFORME_A_TABLA
-      // no casa NUNCA: la evidencia se quedaba en NO_EVALUABLE para siempre.
+      // `factKeyField` is the FACT field that identifies the row; `tableKeyColumn` is the TABLE column. Both are needed:
+      // without `tableKeyColumn` the row index is empty and CONFORME_A_TABLA never matches.
       factKeyField: 'sujeto',
       tableKeyColumn: 'rol',
-      // La fila la identifican sujeto Y recurso: `root` tiene una fila para
-      // `sudo` y otra para el cortafuegos, y con clave simple el motor juzgaba
-      // su sudo contra la fila del cortafuegos.
+      // The row is identified by subject AND resource (a simple key judged sudo against the firewall row).
       factKeyFields: ['sujeto', 'recurso'],
       tableKeyColumns: ['rol', 'recurso'],
       tableChecks: [
@@ -854,9 +675,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'privileged_group_member'],
     relatedRules: ['107103'],
     judgment: {
-      // Todo miembro observado de un grupo privilegiado tiene que constar en
-      // la matriz. La columna es `rol` y no `usuario` porque la matriz declara
-      // PERFILES, no personas: es el nivel al que el responsable decide.
+      // Every observed member of a privileged group must be in the matrix. The column is `rol` because the matrix declares profiles.
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-01',
       parameterColumn: 'rol',
@@ -880,14 +699,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'permission_change'],
     relatedRules: ['107104'],
     judgment: {
-      // Se contrasta el ACTOR —quien ejecuta el cambio—, no el sujeto sobre el
-      // que recae. Confundirlos daría por buena una escalada en la que la
-      // víctima está autorizada y quien la provoca no.
+      // The ACTOR is checked, not the subject of the change.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-02',
-      // P-02 es una tabla `cuenta | ambito`. Sin nombrar la columna se
-      // compararía la FILA ENTERA contra un nombre de cuenta y no encontraría
-      // a nadie: todo actor saldría fuera de la lista.
+      // P-02 is a `cuenta | ambito` table; the column must be named or the whole row is compared with an account name.
       parameterColumn: 'cuenta',
       factEventTypes: ['permission_change'],
       factField: 'actor',
@@ -909,11 +724,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'permission_review'],
     relatedRules: ['107105'],
     judgment: {
-      // La única evidencia EXISTENCIAL del control: le basta una revisión lo
-      // bastante reciente. Y por eso mismo nunca cumple por ausencia — si no
-      // consta ninguna, no se acredita. Es lo correcto: op.acc.4.4 exige que
-      // los permisos se revisen periódicamente, y no haber revisado nunca no
-      // puede salir en verde por falta de datos.
+      // The only EXISTENTIAL evidence of the control: a recent enough review suffices, and it never passes by absence.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-03',
       factEventTypes: ['permission_review'],
@@ -936,10 +747,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'remote_access'],
     relatedRules: ['107106'],
     judgment: {
-      // Ninguna cuenta puede acceder remotamente sin figurar entre las que
-      // tienen autorización expresa. `NINGUNO_FUERA_DE_LISTA` es la primitiva
-      // correcta y no `TODOS_EN_LISTA`: lo que se exige no es que todos los
-      // autorizados entren, sino que nadie más lo haga.
+      // `NINGUNO_FUERA_DE_LISTA`, not `TODOS_EN_LISTA`: what is required is that nobody else enters, not that every authorized account does.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-05',
       factEventTypes: ['remote_access'],
@@ -962,10 +770,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'sensitive_access'],
     relatedRules: ['107107'],
     judgment: {
-      // Lo que se juzga NO es si el permiso técnico existe —existe, por eso se
-      // pudo acceder— sino si el perfil de quien accede tiene justificación
-      // declarada para ese recurso. Es la diferencia entre poder y deber, que
-      // es literalmente lo que pide op.acc.4.3.
+      // What is judged is whether the profile has a declared justification for the resource, not whether the technical permission exists.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-07',
       factEventTypes: ['sensitive_access'],
@@ -993,9 +798,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'excessive_privilege'],
     relatedRules: ['107108'],
     judgment: {
-      // Un privilegio por encima del mínimo es un HECHO, no un veredicto: el
-      // responsable puede haberlo autorizado. Solo incumple si el sujeto no
-      // consta en la matriz.
+      // A privilege above the minimum is a FACT, not a verdict: it fails only if the subject is not in the matrix.
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-01',
       parameterColumn: 'rol',
@@ -1005,18 +808,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: cuentas con privilegios excesivos o innecesarios?',
   },
-  // op.acc.5 · Mecanismo de autenticación (usuarios externos).
-  //
-  // Nacido en el modelo nuevo, como op.acc.4: el agente emite hechos y cada
-  // evidencia se juzga aquí contra la pantalla. Lo que ninguna primitiva expresa
-  // —qué refuerzo cuenta según P-01, el incumplimiento directo de R1 en MEDIO y
-  // ALTO, la parte documental de .8 y la declaración P-09— lo decide la policy
-  // del control (`op-acc-5.policy.ts`), leyendo estos mismos veredictos.
-  //
-  // Dos evidencias usan P-02 como lista PROHIBIDA a propósito (EV-06 y EV-09):
-  // el hallazgo es un rechazo revelador o una laguna en un servicio, y lo que se
-  // afirma es «ningún servicio de acceso externo declarado lo presenta». Un
-  // servicio fuera de P-02 no está en el alcance, y sin P-02 no se juzga nada.
+  // op.acc.5. The agent emits facts and each evidence is judged here against the screen. What no primitive expresses
+  // (which reinforcement counts per P-01, R1 at MEDIO/ALTO, the documentary part of .8, P-09) is decided by `op-acc-5.policy.ts`.
+  // EV-06 and EV-09 use P-02 as a FORBIDDEN list on purpose: a service outside P-02 is out of scope.
   {
     id: 'EV-01',
     controlId: 'op.acc.5',
@@ -1031,10 +825,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'access_log_source', 'external_auth_success', 'external_auth_failure'],
     relatedRules: ['110002', '110011'],
     judgment: {
-      // Cada pasada declara cuántos días conserva en origen el registro de
-      // autenticación de cada servicio. Todos tienen que alcanzar P-08. Los
-      // éxitos y fallos (110001, 110002) son el registro mismo y viajan en la
-      // traza; lo que se juzga es su conservación.
+      // Each pass declares how many days each service keeps its authentication log; all must reach P-08. Successes and failures (110001, 110002) travel in the trace.
       primitive: 'UMBRAL_MINIMO',
       parameterId: 'P-08',
       factEventTypes: ['access_log_source'],
@@ -1057,12 +848,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'lockout_policy', 'failed_attempt_streak', 'password_policy'],
     relatedRules: ['110004', '110005', '110006'],
     judgment: {
-      // Un solo campo para dos hechos: el límite CONFIGURADO (`lockout_policy`)
-      // y la racha OBSERVADA (`failed_attempt_streak`). Ninguno puede superar
-      // P-03. Sin política declarada no hay hecho que acredite el límite, y las
-      // rachas solas no bastan: cero fallos no demuestran que haya límite. Un
-      // bloqueo desactivado llega SIN `intentos` —un 0 pasaría el umbral— y lo
-      // convierte en incumplimiento la policy.
+      // One field for two facts: the CONFIGURED limit (`lockout_policy`) and the OBSERVED streak (`failed_attempt_streak`); neither may exceed P-03.
+      // A disabled lockout arrives WITHOUT `intentos` (a 0 would pass the threshold) and the policy turns it into a failure.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-03',
       factEventTypes: ['lockout_policy', 'failed_attempt_streak'],
@@ -1085,9 +872,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'auth_failures_by_origin'],
     relatedRules: ['110003'],
     judgment: {
-      // Sin fallos no hay hechos y el umbral no cumple por ausencia. La policy
-      // de .8 sí acepta ese silencio, pero solo con el latido declarando EV-03
-      // cubierta: es la única lectura que hace de la cobertura.
+      // Without failures there are no facts and the threshold does not pass by absence; the .8 policy accepts that silence only with the heartbeat covering EV-03.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-03',
       factEventTypes: ['auth_failures_by_origin'],
@@ -1110,8 +895,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'credential_age'],
     relatedRules: ['110007'],
     judgment: {
-      // Una cuenta cuyo último cambio no consta llega sin `dias_desde_cambio` y
-      // deja la evidencia sin afirmar: no se sabe si su credencial está en plazo.
+      // An account whose last change is unknown arrives without `dias_desde_cambio` and the evidence stays unasserted.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-05',
       factEventTypes: ['credential_age'],
@@ -1134,9 +918,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'credential_disable_delay'],
     relatedRules: ['110008'],
     judgment: {
-      // Las pendientes se reemiten en cada pasada con las horas que llevan: una
-      // notificación sin inhabilitar incumple sola en cuanto pasa P-06, sin
-      // esperar a que alguien la cierre.
+      // Pending items are reissued every pass with their hours; an undisabled notification fails by itself once P-06 passes.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-06',
       factEventTypes: ['credential_disable_delay'],
@@ -1182,11 +964,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'external_auth_success'],
     relatedRules: ['110001'],
     judgment: {
-      // El agente CLASIFICA los factores observados en la clase ENS (R1..R4 o
-      // `ninguno`); qué clase se exige lo dice P-01. Toda autenticación con
-      // éxito tiene que ser de la clase declarada: una de clase inferior es un
-      // segundo factor que no se aplicó, y una superior es una P-01 que no
-      // describe lo que el servicio hace, que el auditor también tiene que ver.
+      // The agent CLASSIFIES the observed factors into the ENS class (R1..R4 or `ninguno`); P-01 says which class is required.
+      // Lower class is a missing factor; higher class means P-01 does not describe the service.
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-01',
       factEventTypes: ['external_auth_success'],
@@ -1209,9 +988,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'certificate_validation'],
     relatedRules: ['110010'],
     judgment: {
-      // Una AC sin fila en P-07 sale NO_EVALUABLE / CONFIGURATION, no
-      // NO_CUMPLE: el motor no distingue «no admitida» de «no declarada». El
-      // requisito queda igualmente sin cumplir.
+      // A CA without a P-07 row is NO_EVALUABLE / CONFIGURATION, not NO_CUMPLE (the engine cannot tell 'not admitted' and 'not declared' apart).
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-07',
       factEventTypes: ['certificate_validation'],
@@ -1263,10 +1040,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['auth_logging_gap'],
     relatedRules: ['110101', '110102', '110105'],
     judgment: {
-      // Un hueco de registro es un hallazgo de barrido. Solo incumple si la
-      // fuente que no registra está entre las que la organización declara
-      // monitorizar: un hueco en una fuente que no usa no le quita nada. Sin
-      // huecos y con la fuente mirada (latido), el silencio vale.
+      // A logging gap fails only if the unlogged source is among those declared monitored. With the source looked at (heartbeat) and no gaps, silence passes.
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-03',
       factEventTypes: ['auth_logging_gap'],
@@ -1286,9 +1060,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // SIN `judgment`, a propósito: la decide la policy de op.acc.6. Clasificar
-    // una dirección contra rangos CIDR y exigir factores según la zona no es
-    // ninguna de las siete primitivas (ver op-acc-6.policy.ts).
+    // No `judgment` on purpose: classifying an address against CIDR ranges and requiring factors per zone is decided by the op-acc-6 policy.
     expectedEventTypes: ['evidence_state', 'authentication_success', 'remote_channel_listening'],
     stateFactEventTypes: ['remote_channel_listening'],
     relatedRules: ['110101', '110108'],
@@ -1306,8 +1078,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // SIN `judgment`: op.acc.6.8 son tres condiciones a la vez (hay bloqueo,
-    // umbral dentro de P-05, sin desbloqueo automático) y las decide la policy.
+    // No `judgment`: op.acc.6.8 is three simultaneous conditions, decided by the policy.
     expectedEventTypes: ['evidence_state', 'lockout_policy_checked', 'account_locked'],
     stateFactEventTypes: ['lockout_policy_checked'],
     relatedRules: ['110103', '110104'],
@@ -1325,8 +1096,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // SIN `judgment`: correlaciona fallos y bloqueos por cuenta; la decide la
-    // policy junto con EV-03.
+    // No `judgment`: correlates failures and lockouts per account; decided by the policy together with EV-03.
     expectedEventTypes: ['evidence_state', 'authentication_failure', 'account_locked'],
     relatedRules: ['110102', '110103'],
     auditQuestion:
@@ -1347,10 +1117,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['credential_age_checked'],
     relatedRules: ['110106'],
     judgment: {
-      // Ningún valor puede superar P-04: ni la antigüedad de una credencial ni
-      // la caducidad que el sistema permite. Una política que no impone
-      // caducidad (99999) no garantiza el cambio periódico aunque hoy todas
-      // las credenciales sean recientes, y eso es lo que pide op.acc.6.4.
+      // No value may exceed P-04. A policy with no expiry (99999) does not guarantee periodic change.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-04',
       factEventTypes: ['credential_age_checked'],
@@ -1373,9 +1140,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'credential_disable_checked'],
     relatedRules: ['110107'],
     judgment: {
-      // Existencial no: TODA notificación tiene que haberse atendido en plazo.
-      // Sin notificaciones no hay nada que medir y queda NO_EVALUABLE, igual
-      // que las bajas de op.acc.1 EV-04.
+      // Not existential: EVERY notification must be attended in time. Without notifications it is NO_EVALUABLE.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-06',
       factEventTypes: ['credential_disable_checked'],
@@ -1398,10 +1163,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'authentication_success'],
     relatedRules: ['110101'],
     judgment: {
-      // Lo que se exige no es que se usen todos los canales autorizados, sino
-      // que nadie entre por otro. Con el log mirado y sin accesos, el silencio
-      // vale (latido). Solo llegan aquí los accesos REMOTOS: la consola no se
-      // etiqueta EV-07.
+      // What is required is that nobody enters through another channel. Only REMOTE accesses arrive here (the console is not tagged EV-07).
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-07',
       parameterColumn: 'canal',
@@ -1426,10 +1188,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['remote_channel_listening'],
     relatedRules: ['110108'],
     judgment: {
-      // Un canal sin fila no es un incumplimiento demostrado: es una decisión
-      // que nadie ha escrito, y sale sin demostrar. La columna `uso_constante`
-      // se contrasta con `habilitado_permanente`: un canal que arranca siempre
-      // solo casa con una fila de uso constante.
+      // A channel without a row is an undecided case, not a proven failure. `uso_constante` is checked against `habilitado_permanente`.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-07',
       factEventTypes: ['remote_channel_listening'],
@@ -1459,9 +1218,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['reauthentication_not_required'],
     relatedRules: ['110109'],
     judgment: {
-      // P-08 es la lista de puntos donde la sesión NO basta. Un hallazgo sobre
-      // un punto declarado incumple; sobre uno no declarado, no. Barrido: sin
-      // hallazgos y con la configuración leída, el silencio vale.
+      // P-08 lists the points where the session is NOT enough. A finding on a declared point fails; on an undeclared one it does not.
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-08',
       factEventTypes: ['reauthentication_not_required'],
@@ -1504,8 +1261,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // SIN `judgment`: P-10 son varios mínimos a la vez y solo rige con R1 o
-    // R2 (P-01). La decide la policy.
+    // No `judgment`: P-10 is several minimums at once and applies only with R1 or R2 (P-01); decided by the policy.
     expectedEventTypes: ['evidence_state', 'password_policy_checked'],
     stateFactEventTypes: ['password_policy_checked'],
     relatedRules: ['110111'],
@@ -1550,10 +1306,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['asset_system'],
     relatedRules: ['110201'],
     judgment: {
-      // «Inventario ACTUALIZADO» dicho con una primitiva: la foto más reciente
-      // del activo no puede ser más vieja que P-08. Se mide contra el reloj y
-      // sobre el instante de emisión del hecho (`ts`), así que un agente que
-      // deja de reportar ve caer esta evidencia sola, sin que nadie emita nada.
+      // 'Inventory UP TO DATE' as a primitive: the latest snapshot cannot be older than P-08, measured against the clock over the fact's emission instant (`ts`).
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-08',
       factEventTypes: ['asset_system'],
@@ -1577,9 +1330,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['software_inventory'],
     relatedRules: ['110202'],
     judgment: {
-      // Misma pregunta que EV-01 sobre otra fuente: si el gestor de paquetes
-      // deja de poder leerse, el resumen deja de emitirse y esta evidencia
-      // envejece aunque la foto del hardware siga al día.
+      // Same question as EV-01 on another source.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-08',
       factEventTypes: ['software_inventory'],
@@ -1626,10 +1377,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['agent_status'],
     relatedRules: ['110204'],
     judgment: {
-      // Se mide el keepalive que el agente registró con el manager, no el
-      // instante del hecho: un agente desconectado que sigue escribiendo su
-      // estado no puede pasar por conectado. Un agente que nunca conectó no
-      // trae keepalive y la evidencia queda NO_EVALUABLE, nunca en verde.
+      // The agent's keepalive registered with the manager is measured, not the fact instant; a never-connected agent has no keepalive and stays NO_EVALUABLE.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-08',
       factEventTypes: ['agent_status'],
@@ -1653,11 +1401,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['network_host_observed'],
     relatedRules: ['110205'],
     judgment: {
-      // Un barrido: no ver ningún vecino sin declarar es lo normal en una red
-      // bien inventariada, así que puede cumplir por silencio, pero solo con el
-      // latido confirmando que la tabla de vecinos se leyó (EV-05 en
-      // `evidencias_cubiertas`). El nombre del hecho no dice «no reconocido»:
-      // eso lo decide este juicio.
+      // A sweep: seeing no undeclared neighbour is normal, so it can pass by silence, but only if the heartbeat confirms the neighbour table was read (EV-05 in `evidencias_cubiertas`).
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-02',
       parameterColumn: 'ip',
@@ -1678,11 +1422,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // Los cuatro tipos de cambio se escuchan para la traza, pero no se juzgan:
-    // ningún parámetro declara qué cambio está autorizado, y juzgarlos uno a
-    // uno sería inventar la política. Lo que se juzga es que la organización
-    // REVISE el inventario dentro de P-04, que es el acto en el que esos
-    // cambios quedan reflejados.
+    // The four change types are listened to for the trace but not judged: no parameter declares which change is authorised.
+    // What is judged is that the organisation reviews the inventory within P-04.
     expectedEventTypes: [
       'evidence_state',
       'inventory_review',
@@ -1693,8 +1434,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     ],
     relatedRules: ['110210', '110206', '110207', '110208', '110209'],
     judgment: {
-      // Existencial: basta una revisión lo bastante reciente, y por eso nunca
-      // cumple por ausencia. Sin revisión anotada no se acredita.
+      // Existential: a recent enough review suffices; never passes by absence.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-04',
       factEventTypes: ['inventory_review'],
@@ -1718,16 +1458,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['asset_system'],
     relatedRules: ['110201'],
     judgment: {
-      // El MISMO hecho de EV-01 (evidence_id=EV-01,EV-07): una observación, dos
-      // preguntas. La población es la misma —el activo—, así que compartirlo
-      // no juzga sobre una muestra sesgada.
-      //
-      // TODOS_EN_LISTA y no NINGUNO_FUERA_DE_LISTA: el hecho ACREDITA que el
-      // activo existe; sin foto no se ha mirado nada y no puede cumplir.
-      //
-      // El responsable y la naturaleza no se comparan aquí porque no se
-      // observan: son columnas OBLIGATORIAS de P-01, y una fila sin ellas deja
-      // el parámetro inválido y el control sin poder cumplir.
+      // The SAME fact as EV-01: one observation, two questions. TODOS_EN_LISTA, because the fact ACCREDITS that the asset exists.
+      // Owner and nature are mandatory P-01 columns, so they are not compared here.
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-01',
       parameterColumn: 'activo',
@@ -1752,12 +1484,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['sca_evaluation'],
     relatedRules: ['110301'],
     judgment: {
-      // Lo que se juzga es QUÉ línea base se evalúa en la máquina, no su
-      // resultado: el resultado no está en el agente (vive en wazuh-db del
-      // manager y el motor no lo lee del índice) y es EV-06. El hecho trae el
-      // CONJUNTO de políticas que el agente ha evaluado de verdad según su
-      // ossec.log, y se compara literal con la celda de su perfil en P-01: una
-      // máquina que evalúa menos políticas de las asignadas no casa.
+      // What is judged is WHICH baseline is evaluated on the machine, not its result (that lives in the manager's wazuh-db and is EV-06).
+      // The fact carries the set of policies the agent really evaluated (ossec.log) and is compared literally with the P-01 cell.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-01',
       factEventTypes: ['sca_evaluation'],
@@ -1790,11 +1518,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['login_account'],
     relatedRules: ['110302', '110303'],
     judgment: {
-      // Dos poblaciones con el mismo campo: las cuentas que no están retiradas
-      // (shell, contraseña utilizable o claves) y las que se autentican. Qué
-      // nombres son «estándar» lo dice P-03, no el agente, y por eso el hecho
-      // no se llama `standard_account_*`: el nombre no puede traer el veredicto.
-      // Aserción negativa: sin ninguna cuenta y con el latido confirmado, cumple.
+      // Two populations with the same field: accounts not retired and accounts that authenticate. P-03 says which names are 'standard', so the fact name carries no verdict.
+      // Negative assertion: no account plus confirmed heartbeat passes.
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-03',
       parameterColumn: 'cuenta',
@@ -1819,10 +1544,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['service_exposed'],
     relatedRules: ['110304'],
     judgment: {
-      // Cada función expuesta se casa con la fila de SU perfil en P-02: el
-      // servicio y el puerto tienen que estar entre los justificados. Un perfil
-      // sin fila es mínima funcionalidad sin definir, y sale NO_EVALUABLE: es
-      // la nota A12 del auditor, sin P-02 op.exp.2.2 no es evaluable.
+      // Each exposed function is matched with the row of ITS profile in P-02. A profile without a row is NO_EVALUABLE.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-02',
       factEventTypes: ['service_exposed'],
@@ -1852,10 +1574,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['insecure_default'],
     relatedRules: ['110305'],
     judgment: {
-      // Barrido: cada valor por defecto inseguro es un hallazgo, y solo deja de
-      // incumplir si el responsable lo autorizó en P-04. Se compara
-      // `desviacion` (<máquina>:<comprobación>) y no la comprobación sola, para
-      // que una excepción de un activo no excuse la misma desviación en otro.
+      // A sweep: each insecure default is a finding unless authorised in P-04. `desviacion` (<machine>:<check>) is compared so that one asset's exception does not excuse another's.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-04',
       parameterColumn: 'comprobacion',
@@ -1880,11 +1599,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['virtualization_role'],
     relatedRules: ['110306'],
     judgment: {
-      // Toda VM o anfitrión observado tiene que constar en el inventario P-06.
-      // Una máquina física que no aloja nada no emite ningún hecho: con el
-      // latido confirmado es un barrido sin hallazgos. Si el anfitrión de una VM
-      // tiene agente es una pregunta ENTRE máquinas que un juicio por agente no
-      // puede contestar; la responde el agente del propio anfitrión.
+      // Every observed VM or host must be in the P-06 inventory. Whether a VM's host has an agent is a cross-machine question answered by the host's own agent.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-06',
       parameterColumn: 'maquina',
@@ -1908,12 +1623,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'sca_score'],
     relatedRules: ['110307'],
     judgment: {
-      // La serie de puntuaciones SCA de la ventana contra el umbral P-05:
-      // ninguna puede quedar por debajo. La pendiente de la serie no se juzga
-      // (no hay primitiva de tendencia); una degradación que cruza el umbral sí
-      // se ve, y una que no lo cruza no incumple. El hecho lo trae el agente de
-      // la API de Wazuh; sin acceso declarado no llega ninguno y sale
-      // NO_EVALUABLE, nunca CUMPLE.
+      // The SCA score series of the window against the P-05 threshold; the slope is not judged. The agent gets the fact from the Wazuh API; without declared access it is NO_EVALUABLE.
       primitive: 'UMBRAL_MINIMO',
       parameterId: 'P-05',
       factEventTypes: ['sca_score'],
@@ -1933,23 +1643,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'CONFIGURATION',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
-    // Sin juicio y sin regla a propósito. «Configurado ANTES de entrar en
-    // operación» es un orden entre la fecha de puesta en producción y la
-    // primera evaluación conforme, y ninguna de las dos la observa un agente
-    // después del hecho. No acredita ningún requisito (el enunciado del control
-    // no es un requisito del catálogo): se documenta en P-07 y en el informe.
+    // No judgment and no rule on purpose: 'configured BEFORE going into operation' is an order between two dates no agent observes. Documented in P-07 and the report.
     expectedEventTypes: ['evidence_state'],
     relatedRules: [],
     auditQuestion:
       '¿Se acredita: conformidad previa a la entrada en operación?',
   },
   {
-    // Sin hecho en la máquina. La serie de resultados SCA vive en la base de
-    // datos del manager y en el índice de estados SCA, no en el agente: el
-    // recolector lo declara con un evidence_state NO_EVALUABLE (regla 110450) y
-    // la evidencia se queda sin evidenciar hasta que exista una integración del
-    // lado del manager que emita la serie por agente. No se acredita con otra
-    // cosa: op.exp.3.1 y .2 remiten a op.exp.2 y lo que añaden es la CONTINUIDAD.
+    // No fact on the machine: the SCA series lives in the manager database. The collector declares NO_EVALUABLE (rule 110450).
     id: 'EV-01',
     controlId: 'op.exp.3',
     title: 'Mantenimiento en el tiempo de la línea base',
@@ -1979,12 +1680,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'config_file_modified'],
     relatedRules: ['110401'],
     judgment: {
-      // Se contrasta el ACTOR —la cuenta de la sesión, que sigue siendo la
-      // persona aunque haya pasado por sudo— contra quien está autorizado a
-      // editar. Es un barrido: no ver ninguna edición en una ventana es lo
-      // normal en una máquina sana, y cumple SOLO si el latido confirma que
-      // todas las rutas estaban vigiladas en el kernel. Por eso
-      // NINGUNO_FUERA_DE_LISTA y no TODOS_EN_LISTA.
+      // The ACTOR (session account, even through sudo) is checked against who may edit. A sweep: NINGUNO_FUERA_DE_LISTA, passing only if the heartbeat confirms all paths were watched.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-03',
       parameterColumn: 'cuenta',
@@ -2008,9 +1704,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'software_installed'],
     relatedRules: ['110402'],
     judgment: {
-      // Cada instalación es un HALLAZGO de un barrido del registro de paquetes:
-      // no ver ninguna es lo normal, y cumple si el recolector confirma que leyó
-      // el registro. Tolerancia cero: P-08 se declara pero no rebaja esto.
+      // Each installation is a FINDING of a package-registry sweep. Zero tolerance: P-08 is declared but does not relax this.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-01',
       parameterColumn: 'paquete',
@@ -2035,10 +1729,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['service_running'],
     relatedRules: ['110403'],
     judgment: {
-      // Los hechos ACREDITAN lo que corre en la máquina: sin ninguno no se ha
-      // mirado, así que la primitiva es de tabla y nunca cumple por ausencia.
-      // `factKeyField` dice qué campo del HECHO busca la fila y `tableKeyColumn`
-      // qué columna de la TABLA; hacen falta los dos.
+      // Facts ACCREDIT what runs on the machine: table primitive, never passes by absence. `factKeyField` is the FACT field, `tableKeyColumn` the TABLE column.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-02',
       factEventTypes: ['service_running'],
@@ -2053,11 +1744,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Todos los servicios en ejecución figuran en la lista de servicios autorizados del perfil de la máquina?',
   },
   {
-    // Sin hecho en la máquina: exige integración con el sistema de gestión de
-    // cambios (P-06). El contrato previsto para cuando exista: el hecho
-    // `config_file_modified` de EV-02 enriquecido con el cambio aprobado que lo
-    // cubre, juzgado contra los cambios aprobados. Hasta entonces el recolector
-    // lo declara NO_EVALUABLE y no se simula ninguna correlación.
+    // No fact on the machine: requires an integration with the change-management system (P-06). Until then the collector declares NO_EVALUABLE; no correlation is simulated.
     id: 'EV-05',
     controlId: 'op.exp.3',
     title: 'Cambios de configuración frente a su autorización previa',
@@ -2074,11 +1761,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Cada cambio de configuración detectado tiene una autorización previa aprobada?',
   },
   {
-    // Sin hecho en la máquina: la reacción a vulnerabilidades se mide sobre el
-    // detector de vulnerabilidades del manager, que es la evidencia de op.exp.4
-    // (tiempo de remediación). El motor resuelve las evidencias por control y no
-    // puede leer las de op.exp.4; duplicar aquí su medida daría dos números
-    // sobre el mismo hecho. Se declara la dependencia y queda sin evidenciar.
+    // No fact on the machine: vulnerability response is measured on the manager's detector (op.exp.4 evidence); duplicating it would give two numbers for one fact.
     id: 'EV-06',
     controlId: 'op.exp.3',
     title: 'Reacción de la configuración ante vulnerabilidades notificadas',
@@ -2095,8 +1778,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿El sistema reacciona a las vulnerabilidades notificadas (medido por op.exp.4)?',
   },
   {
-    // Sin hecho en la máquina: exige un registro de incidentes (op.exp.7) con
-    // el que correlacionar las ediciones de EV-02. No existe todavía.
+    // No fact on the machine: requires an incident register (op.exp.7) to correlate EV-02 edits against.
     id: 'EV-07',
     controlId: 'op.exp.3',
     title: 'Reacción de la configuración ante incidentes',
@@ -2126,9 +1808,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'config_admins_observed'],
     relatedRules: ['110404'],
     judgment: {
-      // Un recuento de una ventana PARCIAL saldría por debajo del real, y un
-      // número bajo contra un máximo es un CUMPLE falso: por eso el agente no
-      // emite el hecho hasta tener la ventana completa. Sin hecho, NO_EVALUABLE.
+      // A count over a PARTIAL window would be too low, and a low number against a maximum is a false CUMPLE, so the agent emits the fact only with the full window.
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-09',
       factEventTypes: ['config_admins_observed'],
@@ -2151,9 +1831,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'config_backup_observed'],
     relatedRules: ['110405'],
     judgment: {
-      // Existencial: le basta una copia lo bastante reciente, y por eso nunca
-      // cumple por ausencia. El hecho es el INSTANTE de la copia, no las horas
-      // que lleva: así la antigüedad crece sola si las copias se paran.
+      // Existential; never passes by absence. The fact is the copy INSTANT, so age grows on its own if copies stop.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-10',
       factEventTypes: ['config_backup_observed'],
@@ -2163,8 +1841,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Existe una copia de la configuración lo bastante reciente como para reconstruir el sistema?',
   },
   {
-    // Sin hecho en la máquina, por lo mismo que EV-01: las regresiones se
-    // calculan sobre la serie de resultados SCA del manager.
+    // No fact on the machine, same reason as EV-01.
     id: 'EV-10',
     controlId: 'op.exp.3',
     title: 'Regresiones del estado de seguridad de la configuración',
@@ -2181,9 +1858,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se han detectado regresiones de checks SCA de conforme a no conforme en el periodo?',
   },
   {
-    // Partida de EV-03: la plantilla trata la periodicidad de la verificación
-    // como una condición de incumplimiento propia (A11), y una evidencia tiene
-    // un solo juicio. EV-03 juzga lo introducido contra P-01; EV-11, el plazo.
+    // Split from EV-03: the template treats verification periodicity as its own failure condition (A11) and an evidence has a single judgment.
     id: 'EV-11',
     controlId: 'op.exp.3',
     title: 'Verificación periódica de la configuración frente a la línea base',
@@ -2197,8 +1872,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'baseline_verification_performed'],
     relatedRules: ['110406'],
     judgment: {
-      // Un acto de la organización: nunca cumple por ausencia. No haber
-      // verificado nunca no puede salir en verde por falta de datos.
+      // An organisational act: never passes by absence.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-05',
       factEventTypes: ['baseline_verification_performed'],
@@ -2207,19 +1881,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿La última verificación formal de la configuración es más reciente que la periodicidad declarada?',
   },
-  // --- op.exp.4 · Mantenimiento y actualizaciones de seguridad -------------
-  //
-  // Tres evidencias las juzga una primitiva (EV-04, EV-06, EV-11): un hecho
-  // contra un parámetro. Las demás las mide la policy del control
-  // (`policies/op-exp-4.policy.ts`), porque su juicio no cabe en ninguna de las
-  // siete: EV-02 encadena P-08 (CVSS → criticidad) con P-01 (criticidad →
-  // días) y mide contra el reloj; EV-05 compara fechas de fin de soporte con
-  // hoy; EV-07 sitúa cada cambio en ventanas horarias; EV-09 exige que el punto
-  // de reversión sea ANTERIOR al cambio. Sin `judgment`, la policy las resuelve
-  // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
-  //
-  // Reglas: todas de la banda 110500-110599, desplegadas por el runbook
-  // `linux/op.exp.4` (y su copia LDAP).
+  // op.exp.4. Three evidences are judged by a primitive (EV-04, EV-06, EV-11); the rest by `policies/op-exp-4.policy.ts`, resolved without `judgment`
+  // and carried to the table by `evaluation/policy-evidence-bridge.ts`. Rules band 110500-110599.
   {
     id: 'EV-01',
     controlId: 'op.exp.4',
@@ -2231,8 +1894,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // La cabecera de la instantánea del estado del Vulnerability Detector que el
-    // puente del manager entrega al agente. Continuo = una instantánea reciente.
+    // Header of the Vulnerability Detector state snapshot delivered by the manager bridge. Continuous = a recent snapshot.
     expectedEventTypes: ['evidence_state', 'vulnerability_inventory'],
     relatedRules: ['110501'],
     auditQuestion:
@@ -2249,10 +1911,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // `vulnerability_open` es la abierta MÁS ANTIGUA de cada puntuación CVSS,
-    // con el instante de su detección: la misma puntuación da la misma
-    // criticidad y el mismo plazo, así que juzgar la más antigua basta. El
-    // agente no resta fechas.
+    // `vulnerability_open` is the OLDEST open one per CVSS score, with its detection instant; the agent does not subtract dates.
     expectedEventTypes: ['evidence_state', 'vulnerability_open', 'vulnerability_resolved'],
     relatedRules: ['110502', '110503'],
     auditQuestion:
@@ -2288,14 +1947,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'package_changed'],
     relatedRules: ['110505'],
     judgment: {
-      // Se contrasta el ACTOR de cada transacción de software. Es un barrido de
-      // los logs de apt y dpkg: no encontrar ningún cambio en la ventana, con
-      // el latido declarando que los logs se leyeron, es el resultado normal
-      // de una máquina sin mantenimiento no autorizado.
+      // The ACTOR of each software transaction is checked. A sweep of the apt/dpkg logs; no change in the window with the heartbeat confirming the logs were read is the normal result.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-02',
-      // P-02 es `cuenta | ambito | tipo`: sin nombrar la columna se compararía
-      // la fila entera con un nombre de cuenta y todo actor saldría fuera.
+      // P-02 is `cuenta | ambito | tipo`; the column must be named.
       parameterColumn: 'cuenta',
       factEventTypes: ['package_changed'],
       factField: 'actor',
@@ -2333,8 +1988,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'vendor_observed'],
     relatedRules: ['110507'],
     judgment: {
-      // Cada fabricante presente en el inventario ACREDITA algo que existe en la
-      // máquina, así que no observar ninguno no es cumplir: es no haber mirado.
+      // Each manufacturer in the inventory ACCREDITS something that exists, so observing none is not compliance.
       primitive: 'TODOS_EN_LISTA',
       parameterId: 'P-03',
       parameterColumn: 'fabricante',
@@ -2355,7 +2009,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // El MISMO hecho de EV-04: la transacción trae su instante en hora local.
+    // The SAME fact as EV-04: the transaction carries its instant in local time.
     expectedEventTypes: ['evidence_state', 'package_changed'],
     relatedRules: ['110505'],
     auditQuestion:
@@ -2372,9 +2026,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Los cambios de software de producción y de su preproducción. La
-    // precedencia exige cruzar DOS máquinas y el motor evalúa cada una por
-    // separado: hoy la policy la declara sin demostrar, siempre.
+    // Production and pre-production software changes. Precedence needs TWO machines and the engine evaluates each separately, so the policy always declares it unproven.
     expectedEventTypes: ['evidence_state', 'package_changed'],
     relatedRules: ['110505'],
     auditQuestion:
@@ -2426,9 +2078,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'firmware_version'],
     relatedRules: ['110509'],
     judgment: {
-      // La versión observada tiene que ser la que la fila de su dispositivo
-      // declara. Registra VERSIÓN, no integridad: eso exige herramientas del
-      // fabricante.
+      // The observed version must match the one declared in the device row. It records VERSION, not integrity.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-09',
       factEventTypes: ['firmware_version'],
@@ -2442,24 +2092,9 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Coincide el firmware observado con la versión declarada para el dispositivo?',
   },
-  // --- op.exp.5 · Gestión de cambios ---------------------------------------
-  //
-  // Ninguna evidencia declara primitiva: todas las mide la policy del control
-  // (`policies/op-exp-5.policy.ts`), porque su pregunta cruza dos poblaciones
-  // de hechos —los cambios REALES de la máquina y las peticiones del registro
-  // que mantiene la organización— por sistema y por intervalo de tiempo, y
-  // ninguna de las siete compara así. Sin `judgment`, la policy las resuelve y
-  // el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
-  //
-  // Sin ITSM, el registro de peticiones es `/etc/ensfacil/change-register.tsv`
-  // en cada máquina: el recolector lo lee y lo emite tal cual (110605 cabecera
-  // y 110606 una fila por petición). Los cambios reales reutilizan el CÓDIGO de
-  // op.exp.3 (auditd por ruta) y de op.exp.4 (apt y dpkg con actor, puntos de
-  // reversión), reetiquetado op.exp.5: el motor filtra por control y no puede
-  // leer los hechos de otro.
-  //
-  // Reglas: todas de la banda 110600-110699, desplegadas por el runbook
-  // `linux/op.exp.5` (y su copia LDAP).
+  // op.exp.5. No evidence declares a primitive: the policy (`policies/op-exp-5.policy.ts`) crosses REAL machine changes with the organisation's change register
+  // by system and time interval. The register is `/etc/ensfacil/change-register.tsv` (110605 header, 110606 one row per request).
+  // Real changes reuse the op.exp.3 and op.exp.4 code relabelled op.exp.5, because the engine filters by control. Rules band 110600-110699.
   {
     id: 'EV-01',
     controlId: 'op.exp.5',
@@ -2525,11 +2160,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Los cambios de riesgo alto los aprobó el RSI antes de implantarlos?',
   },
   {
-    // Sin regla a propósito. Demostrar que un cambio pasó ANTES por la
-    // preproducción exige cruzar los cambios de dos máquinas, y el motor evalúa
-    // cada una por separado (el mismo límite que EV-08 de op.exp.4). La columna
-    // «preproduccion» del registro es una declaración, no una observación: no
-    // la sustituye. La policy la deja NO_EVALUABLE con su motivo.
+    // No rule on purpose. Proving a change went through pre-production needs the changes of two machines; the engine evaluates each separately. The register's
+    // 'preproduccion' column is a declaration, not an observation. The policy leaves it NO_EVALUABLE.
     id: 'EV-05',
     controlId: 'op.exp.5',
     title: 'Trazabilidad del paso por preproducción',
@@ -2573,10 +2205,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'service_failed', 'config_file_modified', 'package_changed', 'listening_port_changed', 'hardware_changed'],
-    // Hecho de ESTADO: el recolector reemite en cada pasada TODOS los servicios
-    // caídos, y ninguno si no hay. Se juzga la última pasada (ver
-    // `state-facts.ts`): un servicio que se recuperó deja de contar en cuanto
-    // la pasada siguiente lo ve en pie.
+    // STATE fact: the collector reissues ALL down services each pass; the last pass is judged (see `state-facts.ts`).
     stateFactEventTypes: ['service_failed'],
     relatedRules: ['110608', '110601', '110602', '110603', '110604'],
     auditQuestion:
@@ -2593,8 +2222,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // El hecho llega etiquetado EV-07, que es quien lo declara de estado; la
-    // policy lo lee para las dos.
+    // The fact arrives tagged EV-07, which declares it as state; the policy reads it for both.
     expectedEventTypes: ['evidence_state', 'service_failed'],
     relatedRules: ['110608'],
     auditQuestion:
@@ -2616,25 +2244,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Existía un punto de reversión antes de cada cambio?',
   },
-  // --- op.exp.6 · Protección frente a código dañino ------------------------
-  //
-  // Dos evidencias las juzga una primitiva (EV-01 y EV-03): un hecho de estado
-  // contra la fila de su tabla. Las demás las mide la policy del control
-  // (`policies/op-exp-6.policy.ts`), porque su juicio no cabe en ninguna de las
-  // siete: EV-02 exige firmas frescas en CADA plano con antimalware (la
-  // primitiva de plazo es existencial y un plano al día taparía al otro);
-  // EV-02, EV-04 y EV-05 leen además EV-01, porque sin antimalware no hay
-  // firmas, ni detecciones, ni escaneos, y eso es un incumplimiento medido, no
-  // un hueco; EV-06 comprueba que cada ruta de P-07 esté cubierta; EV-07
-  // combina el estado del mecanismo con las ejecuciones que dejó pasar; EV-08 a
-  // EV-11 contrastan cada capacidad EDR con su fila de P-09; EV-12 cruza las
-  // vías de P-05 y la política de P-10. Sin `judgment`, la policy las resuelve
-  // y el puente de `evaluation/policy-evidence-bridge.ts` lo lleva a la tabla.
-  //
-  // Reglas: todas de la banda 110700-110799, desplegadas por el runbook
-  // `linux/op.exp.6` (y su copia LDAP). Ninguna regla nativa de
-  // Wazuh (syscheck, rootcheck, VirusTotal, YARA): el motor solo lee alertas
-  // ENSFácil, así que lo que se acredita es el hecho que el recolector emite.
+  // op.exp.6. Two evidences are judged by a primitive (EV-01, EV-03); the rest by `policies/op-exp-6.policy.ts`. EV-02, EV-04, EV-05 also read EV-01
+  // (no antimalware means no signatures: a measured failure, not a gap). Rules band 110700-110799; no native Wazuh rule is used, only the facts the collector emits.
   {
     id: 'EV-01',
     controlId: 'op.exp.6',
@@ -2650,10 +2261,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['antimalware_status'],
     relatedRules: ['110701'],
     judgment: {
-      // Los hechos ACREDITAN lo que corre en cada plano: sin ninguno no se ha
-      // mirado, así que la primitiva es de tabla y nunca cumple por ausencia.
-      // Una máquina sin antimalware SÍ emite hecho (`producto_activo=ninguno`):
-      // la ausencia del producto es una observación, no un dato que falte.
+      // Facts ACCREDIT what runs on each plane: table primitive, never passes by absence. A machine without antimalware DOES emit a fact (`producto_activo=ninguno`).
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-02',
       factEventTypes: ['antimalware_status'],
@@ -2778,9 +2386,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Impide un mecanismo en modo aplicación la ejecución de lo que no está en la lista blanca?',
   },
   {
-    // Sin hecho en la máquina: la consulta a VirusTotal la hace el manager
-    // (integratord) y su resultado no vuelve al agente. El recolector lo dice
-    // con un evidence_state NO_EVALUABLE; la policy juzga solo la fila de P-09.
+    // No fact on the machine: the VirusTotal query is made by the manager. The collector declares NO_EVALUABLE; the policy judges only the P-09 row.
     id: 'EV-08',
     controlId: 'op.exp.6',
     title: 'Análisis reputacional de ficheros nuevos y modificados (R4)',
@@ -2863,14 +2469,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se analiza lo que entra por cada vía declarada, y se respeta la política de dispositivos extraíbles?',
   },
-  // op.exp.7 · Gestión de incidentes. El sujeto es el MANAGER: todos los hechos
-  // los emite su recolector (agent.id 000) leyendo ficheros locales sin
-  // credenciales, y el campo `sistema`/`sistemas` dice de qué máquina hablan.
-  // Ninguna evidencia lleva `judgment`: todas cruzan dos flujos de hechos o
-  // restan instantes, y las decide `policies/op-exp-7.policy.ts`.
-  //
-  // Reglas: banda 110800-110899, desplegadas por el runbook
-  // `linux/op.exp.7` (y su copia LDAP).
+  // op.exp.7. The subject is the MANAGER: its collector (agent.id 000) emits every fact from local files, and `sistema`/`sistemas` says which machine they refer to.
+  // No evidence has `judgment`; `policies/op-exp-7.policy.ts` decides. Rules band 110800-110899.
   {
     id: 'EV-01',
     controlId: 'op.exp.7',
@@ -2882,9 +2482,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // Las alertas del manager de nivel >= el de observación, agregadas por
-    // sistema, regla, nivel y hora. La severidad ENS la pone la policy con
-    // P-01; el recolector solo decide desde qué nivel mira.
+    // Manager alerts at or above the observation level, aggregated by system, rule, level and hour. The ENS severity comes from the policy with P-01.
     expectedEventTypes: ['evidence_state', 'security_alert_observed'],
     relatedRules: ['110801'],
     auditQuestion:
@@ -2901,12 +2499,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Cruce de dos flujos de hechos: cada alerta Alta o Crítica (P-01) de un
-    // sistema tiene que caer dentro de un incidente registrado de ese sistema,
-    // con el plazo de escalado de P-02. Lo juzga la policy.
+    // Crosses two fact flows: each High or Critical alert (P-01) must fall inside a registered incident of that system, within the P-02 escalation time.
     expectedEventTypes: ['evidence_state', 'security_alert_observed', 'incident_registered'],
     relatedRules: ['110801', '110802'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered'],
     auditQuestion:
       '¿Se convierte en incidente registrado toda alerta de severidad alta o crítica?',
@@ -2922,11 +2518,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // MTTD y MTTR: restas entre fases del registro (y con la primera alerta)
-    // comparadas con la fila de su severidad en P-05. Lo juzga la policy.
+    // MTTD and MTTR: differences between register phases against the row of their severity in P-05.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'security_alert_observed'],
     relatedRules: ['110801', '110802'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered'],
     auditQuestion:
       '¿Se contienen y resuelven los incidentes dentro de los plazos comprometidos para su severidad?',
@@ -2942,11 +2537,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Escalado contra P-02 (destinatario y plazo) y, desde MEDIA, comunicación
-    // a los responsables de P-04 de cada sistema afectado.
+    // Escalation against P-02 (recipient and time) and, from MEDIA, communication to the P-04 owners of each affected system.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'incident_notification_recorded'],
     relatedRules: ['110802', '110803'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'incident_notification_recorded'],
     auditQuestion:
       '¿Se escaló cada incidente a quien correspondía, en plazo, y se informó a los responsables de los sistemas afectados?',
@@ -2962,11 +2556,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // El registro de alertas de cada día que abarca un incidente: conservado,
-    // con su sello SHA-256 de rotación intacto y la cadena de sellos entera.
+    // Alert log of each day an incident spans: kept, with its rotation SHA-256 seal intact and the whole seal chain.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'alert_log_seal_checked'],
     relatedRules: ['110802', '110806'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'alert_log_seal_checked'],
     auditQuestion:
       '¿Se conservan íntegros los registros de alertas del periodo de cada incidente?',
@@ -2982,12 +2575,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Contención de cada incidente Alto o Crítico: una respuesta activa de P-09
-    // sobre un sistema afectado durante el incidente, o la fase «intermedio»
-    // (contención registrada a mano).
+    // Containment of each High or Critical incident: a P-09 active response on an affected system during the incident, or the manual 'intermedio' phase.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'active_response_executed', 'active_response_configured'],
     relatedRules: ['110802', '110807', '110808'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'active_response_configured'],
     auditQuestion:
       '¿Consta una medida urgente de contención en cada incidente de severidad alta o crítica?',
@@ -3003,11 +2594,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // Incidentes que tocan un sistema de P-07: valoración de datos personales
-    // y notificación a la AEPD en 72 horas cuando los afecta.
+    // Incidents touching a P-07 system: personal-data assessment and AEPD notification within 72 hours when affected.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'incident_notification_recorded'],
     relatedRules: ['110802', '110803'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'incident_notification_recorded'],
     auditQuestion:
       '¿Se valoró cada incidente en sistemas con datos personales y se notificó a la AEPD en 72 horas cuando procedía?',
@@ -3023,11 +2613,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Incidentes de severidad notificable según P-01: notificación al CCN-CERT
-    // registrada, dentro del plazo de P-02, por la ventanilla de P-06.
+    // Incidents of notifiable severity per P-01: CCN-CERT notification registered within the P-02 time, through the P-06 desk.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'ccn_cert_notification_recorded'],
     relatedRules: ['110802', '110804'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'ccn_cert_notification_recorded'],
     auditQuestion:
       '¿Consta notificado al CCN-CERT cada incidente que debía notificarse?',
@@ -3043,11 +2632,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'INTEGRITY',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
-    // Reconfiguración dinámica = respuesta activa de P-09 ejecutada sobre un
-    // elemento de P-10. Un elemento sin agente no deja nada que observar.
+    // Dynamic reconfiguration = a P-09 active response executed on a P-10 element. An element without agent leaves nothing to observe.
     expectedEventTypes: ['evidence_state', 'active_response_executed', 'active_response_configured'],
     relatedRules: ['110807', '110808'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['active_response_configured'],
     auditQuestion:
       '¿Se ha ejercitado la reconfiguración dinámica sobre los elementos declarados?',
@@ -3063,11 +2651,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
-    // Cada lista CDB de P-11: existe, está cargada, la usa alguna regla y no
-    // lleva más días sin actualizarse que el plazo declarado.
+    // Each P-11 CDB list: exists, is loaded, is used by some rule and is not staler than the declared period.
     expectedEventTypes: ['evidence_state', 'threat_list_observed'],
     relatedRules: ['110809'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['threat_list_observed'],
     auditQuestion:
       '¿Se incorporan los indicadores de los avisos del CCN-CERT a la capacidad de detección?',
@@ -3083,10 +2670,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // R4 no es exigible: respuesta automática configurada y ejercitada.
+    // R4 is not required: automatic response configured and exercised.
     expectedEventTypes: ['evidence_state', 'active_response_executed', 'active_response_configured'],
     relatedRules: ['110807', '110808'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['active_response_configured'],
     auditQuestion:
       '¿Hay respuesta automática configurada y se ha ejercitado?',
@@ -3102,31 +2689,20 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Todo incidente cerrado (fase final) tiene que tener medidas de mejora
-    // registradas.
+    // Every closed incident (final phase) must have improvement measures registered.
     expectedEventTypes: ['evidence_state', 'incident_registered', 'improvement_action_recorded'],
     relatedRules: ['110802', '110805'],
-    // Se reemiten ENTEROS en cada pasada del recolector del manager.
+    // Reissued whole on every manager pass.
     stateFactEventTypes: ['incident_registered', 'improvement_action_recorded'],
     auditQuestion:
       '¿Consta alguna medida de mejora en cada incidente cerrado?',
   },
-  // --- op.exp.8 · Registro de la actividad ----------------------------------
-  //
-  // Dos planos, separados por el latido (`tipo_servidor`): el del SERVIDOR
-  // (EV-01, EV-02, EV-03, EV-06, EV-08: cada agente Linux o LDAP y el propio
-  // manager) y el CENTRAL (EV-04, EV-05, EV-07, EV-09..EV-13: solo el manager,
-  // agent.id=000). Solo EV-02 se juzga con una primitiva; el resto lo mide la
-  // policy del control (`policies/op-exp-8.policy.ts`), que es quien sabe en
-  // qué fila se mide cada requisito, y el puente lo lleva a la tabla.
-  //
-  // Reglas: banda 110900-110999, desplegadas por el runbook
-  // `linux/op.exp.8` (y su copia LDAP).
+  // op.exp.8. Two planes, separated by the heartbeat (`tipo_servidor`): SERVER (EV-01, 02, 03, 06, 08: every Linux or LDAP agent and the manager)
+  // and CENTRAL (EV-04, 05, 07, 09..13: manager only, agent.id=000). Only EV-02 is judged by a primitive; the rest by `policies/op-exp-8.policy.ts`.
+  // Rules band 110900-110999.
   {
-    // Plano del servidor. Lo juzga la policy del control: auditd activo con
-    // reglas y registro del sistema persistente; en el directorio, slapd con
-    // `stats`; y cada categoría que P-01 declara auditable, contra lo que las
-    // reglas cargadas en el kernel registran de verdad (`audit_coverage`).
+    // Server plane. Judged by the policy: auditd active with rules and persistent system log; slapd with `stats` on the directory;
+    // each category P-01 declares auditable against what the kernel rules really log (`audit_coverage`).
     id: 'EV-01',
     controlId: 'op.exp.8',
     title: 'Generación y conservación del registro de auditoría',
@@ -3144,7 +2720,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Está activo en el servidor un registro de auditoría, se conserva el registro del sistema y se registran de verdad todas las categorías de eventos que P-01 declara auditables? En un servidor LDAP, ¿registra slapd sus operaciones?',
   },
   {
-    // Plano del servidor. Único juicio por primitiva de op.exp.8.
+    // Server plane. The only primitive judgment of op.exp.8.
     id: 'EV-02',
     controlId: 'op.exp.8',
     title: 'Cobertura de registro en los servidores',
@@ -3159,10 +2735,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     stateFactEventTypes: ['agent_status'],
     relatedRules: ['110902'],
     judgment: {
-      // Existencial y contra el reloj: el hecho es el INSTANTE del último
-      // keepalive (en UTC, convertido en el agente desde su hora local), así
-      // que la antigüedad crece sola si el agente deja de entregar. Sin hecho,
-      // NO_EVALUABLE: nunca cumple por ausencia.
+      // Existential and against the clock: the fact is the INSTANT of the last keepalive (UTC), so age grows on its own if the agent stops delivering. Never passes by absence.
       primitive: 'ANTIGUEDAD_MAXIMA',
       parameterId: 'P-12',
       factEventTypes: ['agent_status'],
@@ -3172,8 +2745,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿El agente del servidor ha entregado su registro al manager dentro del plazo de P-12?',
   },
   {
-    // Plano del servidor. La policy: un campo ausente en TODA la muestra de una
-    // fuente es un hallazgo.
+    // Server plane. A field absent from the WHOLE sample of a source is a finding.
     id: 'EV-03',
     controlId: 'op.exp.8',
     title: 'Suficiencia de los campos del registro de auditoría',
@@ -3191,14 +2763,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Los registros de auditoría del servidor traen los cinco campos de op.exp.8.1 (usuario, fecha y hora, objeto, tipo y resultado)?',
   },
   {
-    // Plano central (agent.id=000). La policy cruza P-02 con el último
-    // keepalive de cada agente en cada pasada del recolector del manager.
-    //
-    // NO es un hecho de estado aunque describa uno: la laguna se ve en la
-    // SERIE de pasadas de la ventana (una pasada en la que el keepalive quedaba
-    // más atrás que P-12), así que quedarse con la última borraría la laguna de
-    // anoche en cuanto el servidor vuelve. Por eso no declara
-    // `stateFactEventTypes`.
+    // Central plane. The policy crosses P-02 with each agent's last keepalive on every pass. NOT a state fact: the gap shows in the SERIES of passes,
+    // and keeping only the last would erase last night's gap, so it declares no `stateFactEventTypes`.
     id: 'EV-04',
     controlId: 'op.exp.8',
     title: 'Continuidad de la ingesta y detección de lagunas',
@@ -3215,7 +2781,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Todos los servidores declarados en P-02 mantienen su latido con el manager sin lagunas mayores que P-12 en ninguna pasada de la ventana?',
   },
   {
-    // Plano central. Registro TSV de la organización en el manager.
+    // Central plane. The organisation's TSV register on the manager.
     id: 'EV-05',
     controlId: 'op.exp.8',
     title: 'Registro de las revisiones periódicas de los registros (R1)',
@@ -3233,9 +2799,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿La revisión más reciente de los registros anotada por la organización es más reciente que la periodicidad de P-04?',
   },
   {
-    // Plano del servidor. Tres ejes (sincronización y fuente, desfase,
-    // autenticación) más la traza de los cambios de hora; los juzga la policy.
-    // clock_change_observed es una acción: no es hecho de estado.
+    // Server plane. Three axes (sync and source, offset, authentication) plus the trace of time changes. `clock_change_observed` is an action, not a state fact.
     id: 'EV-06',
     controlId: 'op.exp.8',
     title: 'Sincronización del reloj y protección de la referencia de tiempo (R2)',
@@ -3253,8 +2817,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿El reloj está sincronizado con una fuente declarada, con autenticación, dentro de la desviación de P-06, y quedan registrados los cambios de hora?',
   },
   {
-    // Plano central. La retención del indexer (ISM) no se ve sin credenciales:
-    // queda sin demostrar con causa CONFIGURATION.
+    // Central plane. The indexer retention (ISM) is not visible without credentials: unproven with cause CONFIGURATION.
     id: 'EV-07',
     controlId: 'op.exp.8',
     title: 'Retención efectiva de los registros frente a la declarada (R3)',
@@ -3272,9 +2835,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿La retención efectiva de los registros respeta la declarada en P-07?',
   },
   {
-    // Los dos planos: en cada servidor, quién puede leer sus registros; en el
-    // manager, además, los accesos al indexer, que sin credenciales quedan sin
-    // demostrar.
+    // Both planes: on each server, who can read its logs; on the manager, also indexer accesses, unproven without credentials.
     id: 'EV-08',
     controlId: 'op.exp.8',
     title: 'Control de acceso a los registros de actividad (R4)',
@@ -3292,9 +2853,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Solo las cuentas autorizadas en P-08 pueden leer los registros de actividad?',
   },
   {
-    // Sin hecho: los snapshots del indexer solo se ven con una credencial del
-    // indexer, que el recolector del manager no usa (decisión del 26/09). Lo
-    // dice un evidence_state NO_EVALUABLE (110950).
+    // No fact: indexer snapshots need an indexer credential the manager collector does not use. An evidence_state NO_EVALUABLE (110950) says so.
     id: 'EV-09',
     controlId: 'op.exp.8',
     title: 'Protección de las copias de seguridad de los registros (R4)',
@@ -3311,7 +2870,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Existen copias de los registros al día y con el acceso restringido al personal de P-08?',
   },
   {
-    // Plano central.
+    // Central plane.
     id: 'EV-10',
     controlId: 'op.exp.8',
     title: 'Análisis automático en busca de comprometimientos (R5)',
@@ -3329,7 +2888,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Están desplegados en el manager los conjuntos de reglas de análisis declarados en P-10?',
   },
   {
-    // Plano central.
+    // Central plane.
     id: 'EV-11',
     controlId: 'op.exp.8',
     title: 'Sistema automático de recolección, correlación y respuesta (R5)',
@@ -3347,7 +2906,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Hay respuestas automáticas configuradas y habilitadas en el manager, incluidas las de P-11?',
   },
   {
-    // Plano central. Acción, no estado.
+    // Central plane. Action, not state.
     id: 'EV-12',
     controlId: 'op.exp.8',
     title: 'Respuestas automáticas ejecutadas (R5)',
@@ -3364,7 +2923,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Consta en la ventana alguna respuesta automática ejecutada a raíz de una alerta?',
   },
   {
-    // Plano central.
+    // Central plane.
     id: 'EV-13',
     controlId: 'op.exp.8',
     title: 'Integridad del propio sistema de registro',
@@ -3392,15 +2951,11 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Por incidente y sistema afectado: alertas del agente en la ventana del
-    // incidente y archivos diarios de alertas presentes y con su suma encadenada
-    // de Wazuh verificada. Lo juzga la policy de op.exp.9 (correlación por
-    // `incidente_id`, que ninguna primitiva expresa).
+    // Per incident and affected system: agent alerts in the incident window and daily alert archives present with their Wazuh checksum chain verified.
+    // Judged by the op.exp.9 policy (correlation by `incidente_id`).
     expectedEventTypes: ['evidence_state', 'incident_source_events_available', 'incident_report_registered', 'register_read'],
     relatedRules: ['111002', '111001', '111010'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['incident_source_events_available', 'register_read'],
     auditQuestion:
       '¿Conserva el manager, íntegros, los eventos de cada sistema afectado en la ventana de cada incidente?',
@@ -3416,14 +2971,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Una fila del registro de incidentes por fase. Con el registro vacío, el
-    // contraste es el volumen de alertas del manager por regla y nivel (P-08,
-    // sin los grupos de P-09).
+    // One register row per phase. With an empty register, the contrast is the manager's alert volume by rule and level (P-08, without the P-09 groups).
     expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
     relatedRules: ['111001', '111010', '111011', '111012'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['incident_report_registered', 'register_read', 'alert_volume_observed', 'alert_rule_volume_observed'],
     auditQuestion:
       '¿Tiene cada incidente registrados los reportes inicial, intermedio y final que exige P-02?',
@@ -3439,13 +2990,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Lo que Wazuh registró (alertas active_response en la ventana del
-    // incidente) contra lo que la organización vinculó al expediente.
+    // What Wazuh recorded (active_response alerts in the incident window) against what the organisation linked to the file.
     expectedEventTypes: ['evidence_state', 'emergency_action_observed', 'incident_action_registered', 'incident_source_events_available', 'register_read'],
     relatedRules: ['111003', '111005', '111002'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['emergency_action_observed', 'incident_action_registered', 'register_read'],
     auditQuestion:
       '¿Consta en el expediente cada respuesta activa ejecutada en un sistema afectado durante el incidente?',
@@ -3461,13 +3009,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'INTEGRITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // FIM, paquetes, configuración (op.exp.3) y cuentas (op.acc.1) observados
-    // en las alertas del manager, contra las modificaciones derivadas registradas.
+    // FIM, packages, configuration (op.exp.3) and accounts (op.acc.1) observed in manager alerts, against the registered derived modifications.
     expectedEventTypes: ['evidence_state', 'system_change_observed', 'incident_action_registered', 'incident_source_events_available', 'register_read'],
     relatedRules: ['111004', '111005', '111002'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['system_change_observed', 'incident_action_registered', 'register_read'],
     auditQuestion:
       '¿Consta en el expediente cada modificación observada en un sistema afectado durante el incidente?',
@@ -3483,13 +3028,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Condicionada por la marca de relevancia jurídica del registro: sin
-    // incidentes marcados no hay exportación que exigir.
+    // Conditioned by the register's legal-relevance flag: with no flagged incidents there is no export to require.
     expectedEventTypes: ['evidence_state', 'evidence_export_sealed', 'incident_report_registered', 'register_read'],
     relatedRules: ['111006', '111001'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['evidence_export_sealed', 'register_read'],
     auditQuestion:
       '¿Tiene cada incidente con relevancia jurídica sellada la evidencia que determina P-03?',
@@ -3505,13 +3047,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'INTEGRITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // El SHA-256 se recalcula en el manager cuando la evidencia está en él;
-    // los accesos al repositorio los anota la organización.
+    // The SHA-256 is recomputed on the manager when the evidence is there; repository accesses are noted by the organisation.
     expectedEventTypes: ['evidence_state', 'custody_access_recorded', 'custody_integrity_checked', 'evidence_export_sealed', 'register_read'],
     relatedRules: ['111006', '111007', '111008'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['evidence_export_sealed', 'custody_integrity_checked', 'custody_access_recorded', 'register_read'],
     auditQuestion:
       '¿Está cada evidencia custodiada en un repositorio de P-05, con cadena de custodia y su SHA-256 intacto?',
@@ -3527,14 +3066,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // La parte del disco del manager se mide (archivos diarios y su suma); la
-    // exención de la política ISM del indexer NO se ve sin credenciales y queda
-    // sin demostrar con causa CONFIGURATION.
+    // The manager disk part is measured (daily archives and checksum); the indexer ISM exemption is not visible without credentials and stays unproven with cause CONFIGURATION.
     expectedEventTypes: ['evidence_state', 'incident_source_events_available', 'incident_report_registered', 'register_read'],
     relatedRules: ['111002', '111001'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['incident_source_events_available', 'register_read'],
     auditQuestion:
       '¿Se conservan, protegidos de la rotación, los registros del periodo de los incidentes abiertos o con relevancia jurídica?',
@@ -3550,14 +3085,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'MONITORING',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Cambios de reglas, decodificadores, ossec.conf y agent.conf del manager con
-    // su instante, y revisiones registradas por incidente. El plazo empieza en el
-    // cierre, cosa que ninguna primitiva expresa.
+    // Changes to rules, decoders, ossec.conf and agent.conf with their instant, and reviews registered per incident. The deadline starts at closure, which no primitive expresses.
     expectedEventTypes: ['evidence_state', 'auditable_events_revised', 'incident_action_registered', 'incident_report_registered', 'register_read'],
     relatedRules: ['111009', '111005', '111001'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['auditable_events_revised', 'incident_action_registered', 'register_read'],
     auditQuestion:
       '¿Se revisaron los eventos auditables tras cada incidente cerrado que lo exige P-07, dentro de su plazo?',
@@ -3573,34 +3104,16 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'TRACEABILITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Vista consolidada por incidente; lo que se mide es que el expediente se
-    // pueda reconstruir desde el registro.
+    // Consolidated view per incident; what is measured is that the file can be rebuilt from the register.
     expectedEventTypes: ['evidence_state', 'incident_report_registered', 'register_read'],
     relatedRules: ['111001'],
-    // Todo lo que alimenta esta evidencia lo reemite ENTERO el recolector del
-    // manager en cada pasada (el estado de los registros y de las ventanas de
-    // incidente): se juzga con la última pasada, no con la ventana de 30 días.
+    // Reissued whole on every manager pass: judged by the last pass, not the 30-day window.
     stateFactEventTypes: ['incident_report_registered', 'register_read'],
     auditQuestion:
       '¿Enlaza cada fila del registro con su expediente, de modo que el expediente se pueda presentar entero?',
   },
-  // --- op.exp.10 · Protección de claves criptográficas --------------------
-  //
-  // Dos evidencias las juzga una primitiva (EV-02 y EV-08): un hecho contra un
-  // parámetro. Las demás las mide la policy del control
-  // (`policies/op-exp-10.policy.ts`), porque su juicio no cabe en ninguna de las
-  // siete: EV-01 exige además que el latido confirme que TODOS los almacenes se
-  // vigilaban (un acceso autorizado observado no dice nada de los no
-  // vigilados); EV-03, EV-04 y EV-07 contrastan cada algoritmo con SU fila de uso
-  // en P-03 y su longitud mínima; EV-05 busca la fila de la máquina en P-05;
-  // EV-06 filtra P-01 por `estado` antes de contrastar, y EV-07 mide la
-  // caducidad contra el reloj.
-  //
-  // EV-02, EV-06 y EV-08 comparten UN hecho, `key_material_found` (regla
-  // 111102): la misma clave en disco, contrastada con tres políticas.
-  //
-  // Reglas: todas de la banda 111100-111199, desplegadas por el runbook
-  // `linux/op.exp.10` (y su copia LDAP).
+  // op.exp.10. Two evidences are judged by a primitive (EV-02, EV-08); the rest by `policies/op-exp-10.policy.ts`. EV-02, EV-06 and EV-08 share ONE fact,
+  // `key_material_found` (rule 111102). Rules band 111100-111199.
   {
     id: 'EV-01',
     controlId: 'op.exp.10',
@@ -3612,9 +3125,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // Sin `judgment` a propósito: la decide la policy. Un acceso autorizado
-    // observado solo acredita lo que se vigilaba, y la primitiva no mira la
-    // cobertura cuando hay hechos.
+    // No `judgment` on purpose: an authorised access observed only accredits what was watched, and the primitive ignores coverage when there are facts.
     expectedEventTypes: ['evidence_state', 'key_material_accessed'],
     relatedRules: ['111101'],
     auditQuestion:
@@ -3632,18 +3143,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'key_material_found'],
-    // El barrido se reemite ENTERO en cada pasada: una clave borrada deja de
-    // contar en cuanto la pasada siguiente no la ve.
+    // The sweep is reissued whole each pass: a deleted key stops counting as soon as the next pass does not see it.
     stateFactEventTypes: ['key_material_found'],
     relatedRules: ['111102'],
     judgment: {
-      // Cada clave encontrada es un HALLAZGO de un barrido: no encontrar
-      // ninguna fuera de los almacenes, con el latido confirmando que el
-      // barrido terminó, es el resultado normal de una máquina sana.
+      // Each key found is a FINDING of a sweep: finding none outside the stores, with the heartbeat confirming the sweep finished, is the normal result.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-02',
-      // P-02 es `ruta | modo_maximo | propietario`: sin la columna se compararía
-      // la fila entera con un directorio y toda clave saldría fuera.
+      // P-02 is `ruta | modo_maximo | propietario`; the column must be named.
       parameterColumn: 'ruta',
       factEventTypes: ['key_material_found'],
       factField: 'directorio',
@@ -3711,8 +3218,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'INTEGRITY',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // El MISMO hecho de EV-02: la población es la misma, todas las claves
-    // privadas presentes en disco.
+    // The SAME fact as EV-02: all private keys on disk.
     expectedEventTypes: ['evidence_state', 'key_material_found'],
     stateFactEventTypes: ['key_material_found'],
     relatedRules: ['111102'],
@@ -3747,14 +3253,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     category: 'ACCESS_CONTROL',
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
-    // El MISMO hecho de EV-02 y EV-06.
+    // The SAME fact as EV-02 and EV-06.
     expectedEventTypes: ['evidence_state', 'key_material_found'],
     stateFactEventTypes: ['key_material_found'],
     relatedRules: ['111102'],
     judgment: {
-      // La fila la busca el DIRECTORIO de la clave. La columna `octal` compara
-      // «no más permisivo»: una clave en 400 donde se admite 600 cumple. Una
-      // clave cuyo directorio no tiene fila no se puede juzgar: la dice EV-02.
+      // The row is looked up by the key's DIRECTORY. Column `octal` compares 'no more permissive'. A key whose directory has no row cannot be judged: EV-02 reports it.
       primitive: 'CONFORME_A_TABLA',
       parameterId: 'P-02',
       factEventTypes: ['key_material_found'],
@@ -3769,31 +3273,13 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Toda clave privada tiene un modo no más permisivo y el propietario que P-02 declara para su almacén?',
   },
-  // --- op.mon.1 · Detección de intrusión ------------------------------------
-  //
-  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
-  // credenciales: el motor de reglas, la base de agentes (global.db) y la base
-  // de cada agente en el manager (queue/db/NNN.db), alerts.json y los ficheros
-  // de reglas. Los hechos hablan de OTROS sistemas por su campo `agente`, así
-  // que no hay primitiva que los juzgue: lo hace la policy del control
-  // (`policies/op-mon-1.policy.ts`), cruzando cada fila de P-01 con su hecho
-  // por nombre o por ID, y el puente lo lleva a la tabla.
-  //
-  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
-  // causa), nunca veredictos. Pasa cada hora: el estado del motor de reglas
-  // (EV-01) en cada pasada, y todo lo demás —estados lentos y por agente— cada
-  // 6 h, reemitido entero. El contrato completo (campos, cadencias, partes de
-  // los ids) lo documenta el runbook, y `tests/op-mon-1-judgment.test.ts` lo
-  // ejercita.
-  //
-  // Reglas: banda 111200-111299, desplegadas por el runbook `linux/op.mon.1`.
+  // op.mon.1. Everything is measured on the MANAGER (agent.id=000) from local files without credentials. Facts speak about OTHER systems through `agente`,
+  // so no primitive judges them: `policies/op-mon-1.policy.ts` crosses each P-01 row with its fact by name or ID.
+  // The collector only declares gaps (`evidence_state` NO_EVALUABLE with cause). Hourly pass: engine state (EV-01) every pass, the rest every 6 h reissued whole.
+  // Contract in the runbook, exercised by `tests/op-mon-1-judgment.test.ts`. Rules band 111200-111299.
   {
-    // La serie del motor entre pasadas prueba que procesa; por eso
-    // `detection_engine_status` NO es hecho de estado (quedarse con la última
-    // pasada borraría la anterior, que es con la que se compara), y
-    // `ruleset_version_observed` tampoco: llega cada 6 h y la pasada horaria,
-    // que también cubre EV-01, lo descartaría. La policy toma la última de cada
-    // uno contra su frescura.
+    // The engine series between passes proves it processes, so `detection_engine_status` is NOT a state fact (the last pass would erase the one it is compared with);
+    // neither is `ruleset_version_observed` (every 6 h, the hourly pass would discard it). The policy takes the latest of each against its freshness.
     id: 'EV-01',
     controlId: 'op.mon.1',
     title: 'Capacidad de detección de intrusiones desplegada y operativa',
@@ -3811,11 +3297,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Está el motor de reglas del manager en marcha, procesando eventos y con reglas cargadas?',
   },
   {
-    // Por agente, cada 6 h. La policy cruza cada sistema de P-01 con su fila
-    // por ID o por nombre: agente conectado y pasadas de FIM y SCA dentro de
-    // P-10. Los agentes fuera de P-01 (de prueba, dados de baja) no cuentan.
-    // La base ilegible de un agente llega en su hecho (`lectura=error`); el
-    // evidence_state de la evidencia entera es solo para global.db.
+    // Per agent, every 6 h. Agents outside P-01 do not count. An unreadable agent database arrives in its fact (`lectura=error`);
+    // the evidence-level evidence_state is only for global.db.
     id: 'EV-02',
     controlId: 'op.mon.1',
     title: 'Cobertura efectiva de la detección',
@@ -3834,9 +3317,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene cada sistema de P-01 su agente conectado y ha completado pasadas de FIM y de SCA dentro de P-10?',
   },
   {
-    // Por agente, cada 6 h: el instante de la última alerta propia (sin las de
-    // ENSFácil) y el volumen de las últimas 24 h. «Sistema activo sin
-    // detecciones» decide (decisión del responsable del 09/10), con P-09.
+    // Per agent, every 6 h: last own alert (excluding ENSFácil) and volume of the last 24 h. 'Active system without detections' decides, with P-09.
     id: 'EV-03',
     controlId: 'op.mon.1',
     title: 'Detecciones de intrusión del período',
@@ -3855,8 +3336,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Ha producido cada sistema de P-01 conectado alguna detección en los últimos P-09 días?',
   },
   {
-    // Por conjunto de reglas, cada 6 h: los ids que pueden alertar, en rangos
-    // comprimidos y partidos en varias líneas si no caben en una.
+    // Per ruleset, every 6 h: the ids that can alert, as compressed ranges split into several lines if too long.
     id: 'EV-04',
     controlId: 'op.mon.1',
     title: 'Trazabilidad entre análisis de riesgos y capacidad de detección',
@@ -3875,7 +3355,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene cada situación de compromiso de P-04 al menos una regla de detección cargada en el manager?',
   },
   {
-    // Por producto, cada 6 h. Solo se juzga si P-02 exige detección en red.
+    // Per product, every 6 h. Judged only if P-02 requires network detection.
     id: 'EV-05',
     controlId: 'op.mon.1',
     title: 'Ingesta y correlación de eventos de detección en red',
@@ -3894,10 +3374,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'Si P-02 exige detección en red, ¿ingiere el manager los eventos de ese NIDS y ha recibido alertas suyas dentro de P-09?',
   },
   {
-    // Dato del informe, sin requisito que la juzgue (spec §1.3): «existirán
-    // procedimientos» es documental (P-05 o P-ATT) y la aplicación de un
-    // procedimiento a cada alerta ya la mide op.exp.7 (EV-02 y EV-06 de allí).
-    // La policy la devuelve NO_APLICA con ese motivo para que no salga en gris.
+    // Report datum with no requirement judging it: 'procedures will exist' is documentary (P-05 or P-ATT) and applying a procedure to each alert is measured by op.exp.7.
+    // The policy returns NO_APLICA with that motive so it does not show grey.
     id: 'EV-06',
     controlId: 'op.mon.1',
     title: 'Aplicación de los procedimientos de respuesta (R2)',
@@ -3915,9 +3393,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se trataron las alertas conforme al procedimiento de P-05? (dato del informe; lo mide op.exp.7)',
   },
   {
-    // R3 no se exige en ninguna categoría: se mide y se INFORMA, sin veredicto.
-    // `active_response_configured` es estado (cada 6 h); `active_response_executed`
-    // es una acción, agregada por agente, programa y regla en cada pasada.
+    // R3 is not required in any category: it is measured and REPORTED without verdict. `active_response_configured` is state (every 6 h); `active_response_executed` is an action.
     id: 'EV-07',
     controlId: 'op.mon.1',
     title: 'Acciones predeterminadas de respuesta ejecutadas (R3)',
@@ -3936,9 +3412,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué respuestas automáticas de P-07 están configuradas y cuáles se han ejecutado a raíz de una alerta? (se informa: R3 no es exigible)',
   },
   {
-    // Dos ejes (spec §1.3): la antigüedad del ruleset contra P-08, con
-    // `ruleset_version_observed` (el hecho es de EV-01: un nombre de evento no
-    // puede estar en dos evidencias), y los silenciamientos contra P-06.
+    // Two axes: ruleset age against P-08 using `ruleset_version_observed` (the fact belongs to EV-01: one event name cannot be in two evidences), and silencings against P-06.
     id: 'EV-08',
     controlId: 'op.mon.1',
     title: 'Vigencia del conjunto de reglas y gestión de exclusiones',
@@ -3956,25 +3430,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Es el ruleset más reciente que P-08 y figura en P-06, con motivo y aprobación, cada fichero excluido y cada regla silenciada?',
   },
-  // --- op.cont.2 · Plan de continuidad --------------------------------------
-  //
-  // Control de DOCUMENTO, sin runbook ni reglas: ninguna máquina emite hechos
-  // para él, así que ninguna evidencia escucha ningún evento ni tiene origen
-  // (`expectedEventTypes` y `sourceTypes` vacíos). Todas las resuelve la policy
-  // del control (`policies/op-cont-2.policy.ts`) con las tablas de la pantalla
-  // y su vigencia contra la fecha de la evaluación, y el puente las lleva a la
-  // tabla. Un control cuyas evidencias no escuchan nada no espera hechos: lo
-  // que no se puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA (ver
-  // `controlExpectsFacts` en `registry.ts`).
-  //
-  // Se rige por el nivel de Disponibilidad y solo en ALTO: con D en BAJO o
-  // MEDIO todas salen NO_APLICA por nivel.
-  //
-  // EV-01, EV-04 y EV-06 juzgan declaraciones: su CUMPLE dice que la
-  // declaración está completa y en vigor, no que se haya medido nada, y el
-  // requisito que se apoya en ellas sale «acreditado documentalmente». EV-02,
-  // EV-05, EV-07 y EV-08 no se pueden medir hoy y EV-03 es de R2, que no se
-  // exige: las cinco salen NO_APLICA como dato del informe, con su motivo.
+  // op.cont.2. DOCUMENT control with no runbook or rules: no machine emits facts, so no evidence listens to any event (`expectedEventTypes` and `sourceTypes` empty).
+  // The policy resolves all of them (`policies/op-cont-2.policy.ts`) from the screen tables and their validity. What cannot be accredited is CONFIGURATION, never COLLECTION (see `controlExpectsFacts` in `registry.ts`).
+  // Governed by the Availability level, only at ALTO; with D at BAJO or MEDIO all are NO_APLICA by level.
+  // EV-01, EV-04 and EV-06 judge declarations (CUMPLE means complete and in force, accredited documentarily). EV-02, 05, 07, 08 cannot be measured and EV-03 is R2: NO_APLICA as report data.
   {
     id: 'EV-01',
     controlId: 'op.cont.2',
@@ -4103,38 +3562,15 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Entraron en servicio los medios alternativos cuando hizo falta, y en cuánto tiempo?',
   },
-  // --- op.cont.3 · Pruebas periódicas -----------------------------------------
-  //
-  // Solo con la Disponibilidad en ALTO (`levelDimension: 'D'`): en MEDIA todo
-  // es NO_APLICA. Un requisito con dos obligaciones, probar con periodicidad y
-  // corregir lo que la prueba revela, que juzga la policy del control
-  // (`policies/op-cont-3.policy.ts`) con EV-01, EV-02, EV-04 y EV-05. EV-03,
-  // EV-06, EV-07 y EV-08 alimentan EV-04 y el informe: salen NO_APLICA como
-  // dato del informe, con lo medido en el motivo.
-  //
-  // Todo se mide en el MANAGER (agent.id=000), con ficheros locales y sin
-  // credenciales: los dos registros TSV de la organización
-  // (/etc/ensfacil/continuity-test-register.tsv y
-  // continuity-deficiency-register.tsv) y, para cada prueba registrada, las
-  // alertas de su ventana en alerts.json y sus archivos diarios: caídas y
-  // arranques de los agentes (503/504/506), restauraciones de mp.info.6
-  // (106606, sin tocar mp.info.6) y cambios de FIM posteriores. Los hechos
-  // hablan de OTROS sistemas por su campo `agente`, y la policy cruza los
-  // sistemas de cada prueba con ellos por ID o por nombre exacto.
-  //
-  // Todos los hechos son de ESTADO: el recolector pasa cada 6 h y reemite
-  // entero lo que dice de cada prueba registrada. Lo que vio en la ventana de
-  // una prueba de hace cinco meses tiene que seguir llegando: como acción
-  // saldría de la ventana de 30 días y la última prueba quedaría sin medida casi
-  // todo el año. El contrato completo lo documenta el runbook `linux/op.cont.3`,
-  // y `tests/op-cont-3-judgment.test.ts` lo ejercita.
-  //
-  // Reglas: banda 111700-111799, desplegadas por el runbook `linux/op.cont.3`.
+  // op.cont.3. Only with Availability at ALTO (`levelDimension: 'D'`); at MEDIA everything is NO_APLICA. The policy (`policies/op-cont-3.policy.ts`) judges EV-01, 02, 04, 05;
+  // EV-03, 06, 07, 08 feed EV-04 and the report as NO_APLICA report data.
+  // Measured on the MANAGER (agent.id=000) from local files: the two TSV registers (/etc/ensfacil/continuity-test-register.tsv and continuity-deficiency-register.tsv)
+  // and, per registered test, the alerts of its window (agent stops and starts 503/504/506, mp.info.6 restores 106606, later FIM changes).
+  // Facts speak about OTHER systems through `agente`; the policy crosses them by ID or exact name.
+  // All facts are STATE: the collector reissues whole what it saw for each registered test, because as actions they would leave the 30-day window and the last test would go unmeasured.
+  // Contract in the runbook, exercised by `tests/op-cont-3-judgment.test.ts`. Rules band 111700-111799.
   {
-    // El registro de pruebas leído en la última pasada (111701) y una fila por
-    // prueba (111702), con lo que se pudo medir de su ventana. Registro vacío
-    // no es registro ausente: vacío, no consta ninguna prueba (NO_CUMPLE);
-    // ausente, no hay contra qué juzgar (CONFIGURATION).
+    // Test register read in the last pass (111701) and one row per test (111702). Empty register is not absent register: empty means no test is recorded (NO_CUMPLE); absent means nothing to judge against (CONFIGURATION).
     id: 'EV-01',
     controlId: 'op.cont.3',
     title: 'Registro histórico de las pruebas realizadas',
@@ -4153,9 +3589,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Consta en el registro alguna prueba del plan de continuidad, y alguna que ejercite los medios alternativos?',
   },
   {
-    // Sin hecho propio: la policy calcula, sobre las filas de EV-01, la última
-    // prueba de todas, de cada tipo de P-02 y de cada escenario de P-03, en el
-    // instante en que se leyó el registro.
+    // No fact of its own: the policy computes, over EV-01 rows, the last test overall, per P-02 type and per P-03 scenario, at the instant the register was read.
     id: 'EV-02',
     controlId: 'op.cont.3',
     title: 'Control de la periodicidad de las pruebas',
@@ -4173,10 +3607,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se ha probado el plan, cada tipo de prueba de P-02 y cada escenario de P-03 dentro de su periodicidad?',
   },
   {
-    // Dato del informe, sin veredicto propio: alimenta EV-04. Por prueba
-    // parcial o simulacro con sistemas y por agente candidato, la cronología de
-    // paradas, desconexiones y arranques en la ventana REAL de la prueba (la
-    // que declara su fila del registro) y las 24 h siguientes.
+    // Report datum, no verdict: feeds EV-04. Per partial test or drill with systems and per candidate agent, the chronology of stops, disconnections and starts in the test's REAL window and the next 24 h.
     id: 'EV-03',
     controlId: 'op.cont.3',
     title: 'Medición objetiva de lo ocurrido durante la prueba',
@@ -4195,10 +3626,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué caídas y restablecimientos registró el manager en la ventana de cada prueba? (dato del informe; lo juzga EV-04)',
   },
   {
-    // Sin hecho propio: la policy cruza la cronología de EV-03 y las
-    // restauraciones de EV-08 de cada prueba del periodo con los RTO de P-07 y
-    // con el resultado que declara su fila. Discrepancia: declarada
-    // satisfactoria y medida fuera de objetivo.
+    // No fact of its own: the policy crosses EV-03 chronology and EV-08 restores of each test with the P-07 RTOs and the result its row declares. Discrepancy: declared satisfactory but measured out of target.
     id: 'EV-04',
     controlId: 'op.cont.3',
     title: 'Resultado de la prueba frente a los objetivos comprometidos',
@@ -4216,8 +3644,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Coincide el resultado declarado de cada prueba con lo medido en los sistemas frente a los RTO de P-07?',
   },
   {
-    // El registro de deficiencias leído en la última pasada (111703) y una fila
-    // por deficiencia (111704). La columna `estado` viaja como `situacion`.
+    // Deficiency register read in the last pass (111703) and one row per deficiency (111704). Column `estado` travels as `situacion`.
     id: 'EV-05',
     controlId: 'op.cont.3',
     title: 'Deficiencias detectadas y seguimiento de su corrección',
@@ -4236,8 +3663,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Está cada deficiencia de las pruebas registrada, dentro de su plazo y cerrada antes de la prueba siguiente?',
   },
   {
-    // Dato del informe, sin veredicto propio. Por prueba y agente, las
-    // alertas de FIM de las 24 h siguientes al fin de la ventana, agregadas.
+    // Report datum, no verdict. Per test and agent, the FIM alerts of the 24 h after the window ends, aggregated.
     id: 'EV-06',
     controlId: 'op.cont.3',
     title: 'Integridad y estado del sistema tras la prueba',
@@ -4256,11 +3682,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué cambió en los sistemas de cada prueba después de su ventana? (dato del informe)',
   },
   {
-    // Sin hecho propio. La versión del plan es un parámetro de OTRO control
-    // (op.cont.2 P-01) y esta policy no lo ve: se resuelve con la columna
-    // `version_plan` del registro de deficiencias. Una deficiencia cerrada sin
-    // versión es una corrección posiblemente nominal: se informa, porque no
-    // toda corrección exige cambiar el plan.
+    // No fact of its own. The plan version is a parameter of ANOTHER control (op.cont.2 P-01), so it is resolved with the `version_plan` column of the deficiency register.
+    // A deficiency closed without version is a possibly nominal correction: reported, because not every correction requires a plan change.
     id: 'EV-07',
     controlId: 'op.cont.3',
     title: 'Actualización del plan tras las pruebas',
@@ -4278,9 +3701,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué versión del plan recoge cada deficiencia cerrada? (dato del informe)',
   },
   {
-    // Dato del informe, sin veredicto propio: alimenta EV-04. Una restauración
-    // fallida en la ventana de una prueba declarada satisfactoria es una
-    // discrepancia.
+    // Report datum, no verdict: feeds EV-04. A failed restore in the window of a test declared satisfactory is a discrepancy.
     id: 'EV-08',
     controlId: 'op.cont.3',
     title: 'Restauración de copias de seguridad en las pruebas',
@@ -4298,28 +3719,13 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Qué restauraciones de copias se hicieron en cada prueba y con qué resultado? (dato del informe; lo juzga EV-04)',
   },
-  // --- op.mon.2 · Sistema de métricas ---------------------------------------
-  //
-  // Un METACONTROL: su materia prima es el resultado de los demás controles, y
-  // la policy de un control no ve los demás. Por eso EV-01 (grado de
-  // implantación), EV-05 (grises) y EV-07 (datos del art. 32) son salida del
-  // motor: las calcula el modelo de informe con el estado de todos los
-  // controles, sin veredicto, y la policy las devuelve NO_APLICA con el motivo
-  // «dato del informe» para que no salgan en gris.
-  //
-  // Lo que sí deja huella se mide en el MANAGER (agent.id=000), con ficheros
-  // locales y sin credenciales, cada 6 h y reemitido entero: el registro de
-  // ciclos de métricas (EV-02 y EV-06), el registro de incidentes de op.exp.7
-  // (EV-03, mismo fichero y mismo formato) y la base de agentes con los latidos
-  // de todos los recolectores leídos en alerts.json (EV-04). El recolector solo
-  // declara huecos (`evidence_state` NO_EVALUABLE con su causa), nunca
-  // veredictos; la policy (`policies/op-mon-2.policy.ts`) juzga.
-  //
-  // Reglas: banda 111300-111399, desplegadas por el runbook `linux/op.mon.2`.
+  // op.mon.2. A METACONTROL: its raw material is the result of the other controls, which a control's policy cannot see. EV-01, EV-05 and EV-07 are engine output
+  // computed by the report model, and the policy returns them NO_APLICA with motive 'dato del informe'.
+  // What leaves a trace is measured on the MANAGER from local files, every 6 h and reissued whole: metrics cycle register (EV-02, EV-06), op.exp.7 incident register (EV-03),
+  // agent database with the heartbeats of all collectors read from alerts.json (EV-04). The collector only declares gaps; `policies/op-mon-2.policy.ts` judges.
+  // Rules band 111300-111399.
   {
-    // Dato del informe, sin veredicto (spec §2.6, pregunta 2): el porcentaje de
-    // implantación de cada medida aplicable de P-01, con el resultado de todos
-    // los demás controles. Lo calcula el modelo de informe.
+    // Report datum, no verdict: implementation percentage of each applicable P-01 measure from the result of all other controls, computed by the report model.
     id: 'EV-01',
     controlId: 'op.mon.2',
     title: 'Grado de implantación de las medidas de seguridad',
@@ -4337,9 +3743,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué grado de implantación tiene cada medida aplicable de P-01? (dato del informe, sin veredicto)',
   },
   {
-    // Cada 6 h: la lectura del registro de ciclos (111301) y un hecho por ciclo
-    // de los últimos 400 días y siempre el último (111302). Vacío se juzga;
-    // ausente es CONFIGURATION.
+    // Every 6 h: the cycle register reading (111301) and one fact per cycle of the last 400 days plus always the last one (111302). Empty is judged; absent is CONFIGURATION.
     id: 'EV-02',
     controlId: 'op.mon.2',
     title: 'Serie histórica de los ciclos de métricas',
@@ -4358,9 +3762,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Está el último ciclo de métricas validado por un responsable de P-05 dentro de la periodicidad de P-02?',
   },
   {
-    // Cada 6 h: la lectura del registro de incidentes de op.exp.7 (111303) y
-    // una fila por fase de los incidentes vivos en los últimos 400 días
-    // (111304), con las 13 columnas del registro.
+    // Every 6 h: the op.exp.7 incident register reading (111303) and one row per phase of incidents alive in the last 400 days (111304), with the 13 register columns.
     id: 'EV-03',
     controlId: 'op.mon.2',
     title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
@@ -4379,9 +3781,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Permite el registro de incidentes calcular cada indicador de P-03 del periodo, y se consolida en un ciclo de métricas en plazo?',
   },
   {
-    // Cada 6 h, por agente: su estado en global.db (111305) y la última pasada
-    // de cada recolector de ENSFácil que ha informado desde él, leída de los
-    // collector_run de alerts.json y conservada entre pasadas (111306).
+    // Every 6 h, per agent: its state in global.db (111305) and the last pass of each ENSFácil collector that reported from it, read from alerts.json collector_run and kept between passes (111306).
     id: 'EV-04',
     controlId: 'op.mon.2',
     title: 'Fiabilidad de la medición',
@@ -4400,8 +3800,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Alcanza la cobertura de la monitorización del alcance ENS el objetivo de P-06?',
   },
   {
-    // Dato del informe, sin veredicto: los grises de cada control con el
-    // parámetro que falta. Lo calcula el modelo de informe.
+    // Report datum, no verdict: the greys of each control with the missing parameter.
     id: 'EV-05',
     controlId: 'op.mon.2',
     title: 'Controles no evaluables por falta de parámetros',
@@ -4419,8 +3818,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué controles no se pueden evaluar por falta de parámetros, y cuáles faltan? (dato del informe, sin veredicto)',
   },
   {
-    // Sin hecho propio: lee `metrics_cycle_recorded`, que es de EV-02 (un
-    // nombre de evento no puede estar en dos evidencias).
+    // No fact of its own: reads `metrics_cycle_recorded`, which belongs to EV-02 (an event name cannot be in two evidences).
     id: 'EV-06',
     controlId: 'op.mon.2',
     title: 'Recursos consumidos por el sistema de seguridad (R2)',
@@ -4438,8 +3836,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene el último ciclo de métricas en plazo sus horas y su presupuesto, validados por un responsable de P-05?',
   },
   {
-    // Dato del informe, sin veredicto: el informe del art. 32 ES el modelo de
-    // informe de op.mon.2, que combina EV-01 a EV-06 con la traza de cada cifra.
+    // Report datum, no verdict: the art. 32 report IS the op.mon.2 report model, which combines EV-01 to EV-06 with the trace of each figure.
     id: 'EV-07',
     controlId: 'op.mon.2',
     title: 'Datos consolidados para el informe anual del artículo 32',
@@ -4456,38 +3853,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Qué datos aporta ENSFácil al informe anual del artículo 32, y de dónde sale cada cifra? (dato del informe, sin veredicto)',
   },
-  // --- op.mon.3 · Vigilancia ------------------------------------------------
-  //
-  // DOS PLANOS. El del MANAGER (agent.id=000) mide con ficheros locales y sin
-  // credenciales la recolección central (wazuh-analysisd.state,
-  // wazuh-remoted.state, <remote>), la correlación (ficheros de reglas y
-  // alerts.json), la superficie de exposición (queue/db/NNN.db de cada agente,
-  // queue/vd/feed y los errores del conector del indexer en ossec.log), la
-  // alerta en tiempo real (<integration>, email_notification) y los registros
-  // de la organización (/etc/ensfacil). El de AGENTE lee los ficheros de
-  // estado de Wazuh de cada máquina (wazuh-logcollector.state,
-  // wazuh-agentd.state): el volumen y los descartes por fuente solo se ven en
-  // la máquina que la lee. El del manager lee también su propio
-  // logcollector.
-  //
-  // Los hechos hablan de fuentes y de activos que la pantalla declara (P-01,
-  // P-03, P-07…), así que no hay primitiva que los juzgue: lo hace la policy
-  // del control (`policies/op-mon-3.policy.ts`) y el puente lo lleva a la
-  // tabla. En la fila de un agente solo se juzgan sus fuentes de P-01; todo lo
-  // demás se mide en la del manager.
-  //
-  // Los recolectores solo declaran huecos (`evidence_state` NO_EVALUABLE con
-  // su causa), nunca veredictos. El del manager pasa cada hora (el estado de la
-  // recolección, EV-01) y cada 6 h reemite entero todo lo demás; el de agente
-  // muestrea cada hora en local y emite cada 6 h. El contrato completo lo
-  // documenta el runbook `linux/op.mon.3`, y `tests/op-mon-3-judgment.test.ts`
-  // lo ejercita.
-  //
-  // Reglas: banda 111400-111499.
+  // op.mon.3. TWO PLANES. The MANAGER plane measures from local files without credentials: central collection (wazuh-analysisd.state, wazuh-remoted.state, <remote>), correlation,
+  // exposure surface (queue/db/NNN.db, queue/vd/feed, indexer connector errors in ossec.log), real-time alerting and the organisation registers (/etc/ensfacil).
+  // The AGENT plane reads each machine's Wazuh state files (wazuh-logcollector.state, wazuh-agentd.state): volume and drops per source are only visible there.
+  // Facts speak about sources and assets declared on screen, so `policies/op-mon-3.policy.ts` judges. On an agent row only its P-01 sources are judged.
+  // Collectors only declare gaps. The manager's runs hourly (EV-01) and reissues the rest every 6 h; the agent's samples hourly and emits every 6 h.
+  // Contract in the runbook, exercised by `tests/op-mon-3-judgment.test.ts`. Rules band 111400-111499.
   {
-    // La serie de los contadores entre pasadas horarias prueba que recolecta y
-    // que no descarta: por eso `event_collection_status` NO es hecho de estado
-    // (la última pasada borraría la anterior, que es con la que se compara).
+    // The series of counters between hourly passes proves it collects and does not drop, so `event_collection_status` is NOT a state fact.
     id: 'EV-01',
     controlId: 'op.mon.3',
     title: 'Sistema automático de recolección de eventos de seguridad',
@@ -4505,10 +3878,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Está el sistema central de recolección en marcha, recibiendo eventos de sus fuentes y sin descartarlos?',
   },
   {
-    // Por fuente, cada 6 h, en los dos planos. Cada fila de P-01 se juzga en la
-    // fila de su máquina (agente + ubicación) o, si es syslog, en la del
-    // manager (IP del emisor). Una base de estado ilegible llega en el hecho
-    // (`lectura`), no como evidence_state de la evidencia entera.
+    // Per source, every 6 h, both planes. Each P-01 row is judged on its machine's row (agent + location) or, for syslog, on the manager's (sender IP).
+    // An unreadable state database arrives in the fact (`lectura`), not as the evidence-level evidence_state.
     id: 'EV-02',
     controlId: 'op.mon.3',
     title: 'Cobertura y continuidad de la recolección',
@@ -4545,9 +3916,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Carga el manager reglas que combinan eventos en cada conjunto que declara P-02?',
   },
   {
-    // R2 por CAPACIDAD (decisión del responsable 2 del 09/10): el recuento de
-    // vulnerabilidades por activo vive en el indexer y no se lee sin
-    // credenciales.
+    // R2 by CAPABILITY: the per-asset vulnerability count lives in the indexer and is not read without credentials.
     id: 'EV-04',
     controlId: 'op.mon.3',
     title: 'Superficie de exposición: vulnerabilidades y configuración (R2)',
@@ -4566,8 +3935,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene cada activo de P-03 su configuración (SCA) y su inventario analizados dentro de P-11, con el detector de vulnerabilidades al día y escribiendo sin errores?',
   },
   {
-    // Sin hecho ni veredicto: Wazuh no trae motor de líneas base. R3.1 se
-    // acredita con P-ATT; esta evidencia informa de la línea base de P-04.
+    // No fact and no verdict: Wazuh has no baseline engine. R3.1 is accredited with P-ATT; this evidence reports the P-04 baseline.
     id: 'EV-05',
     controlId: 'op.mon.3',
     title: 'Detección de comportamientos anómalos (R3.1)',
@@ -4603,7 +3971,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Ingiere el manager las alertas de la sonda de red que declara P-05, y son recientes?',
   },
   {
-    // Informativa: el requisito es disponer del SERVICIO, que es documental.
+    // Informative: the requirement is to have the SERVICE, which is documentary.
     id: 'EV-07',
     controlId: 'op.mon.3',
     title: 'Incorporación de indicadores de cibervigilancia (R4)',
@@ -4658,7 +4026,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Existe y está habilitado cada canal de P-08, avisa desde el nivel declarado y envía sin errores?',
   },
   {
-    // Sin hecho propio: los mismos hechos SCA de EV-04.
+    // No fact of its own: the same SCA facts as EV-04.
     id: 'EV-10',
     controlId: 'op.mon.3',
     title: 'Inspección: verificación de configuración (R6.1)',
@@ -4676,8 +4044,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se verifica la configuración de los activos de P-03 de forma continua o con la periodicidad de P-09?',
   },
   {
-    // Sin hecho propio: el detector de vulnerabilidades y el inventario de
-    // EV-04.
+    // No fact of its own: the vulnerability detector and the EV-04 inventory.
     id: 'EV-11',
     controlId: 'op.mon.3',
     title: 'Inspección: análisis de vulnerabilidades (R6.2)',
@@ -4695,8 +4062,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se analizan las vulnerabilidades de los activos de P-03 de forma continua o con la periodicidad de P-09?',
   },
   {
-    // El registro de actos de la organización: el recolector lo reemite entero
-    // en cada pasada sin juzgarlo. Registro vacío no es registro ausente.
+    // The organisation's act register: the collector reissues it whole each pass without judging it. Empty register is not absent register.
     id: 'EV-12',
     controlId: 'op.mon.3',
     title: 'Registro y seguimiento de las inspecciones de seguridad (R6)',
@@ -4715,9 +4081,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Consta en el registro cada inspección de R6 dentro de la periodicidad de P-09?',
   },
   {
-    // Informativa: el registro de incidentes (13 columnas, compartido con
-    // op.exp.7 y op.exp.9) no dice qué incidentes revelaron vulnerabilidades,
-    // así que no se puede exigir la inspección posterior de ninguno.
+    // Informative: the incident register (13 columns, shared with op.exp.7 and op.exp.9) does not say which incidents revealed vulnerabilities.
     id: 'EV-13',
     controlId: 'op.mon.3',
     title: 'Inspecciones desencadenadas por incidentes',
@@ -4735,39 +4099,14 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Qué incidentes del periodo tienen una inspección posterior registrada?',
   },
-  // --- op.nub.1 · Protección de servicios en la nube ------------------------
-  //
-  // Mayoritariamente contractual (spec 2026-10-09 §4). Dos planos que el
-  // informe no mezcla:
-  //
-  //   - DOCUMENTAL: EV-08 (certificación de P-04, R1) y EV-09 (expediente por
-  //     servicio: P-03, P-08, P-09 y P-10) son tablas de la pantalla con su
-  //     vigencia. No tienen hecho: las juzga la policy contra la fecha de la
-  //     evaluación, y su CUMPLE se lee «acreditado documentalmente».
-  //   - TÉCNICO: EV-01, EV-04 y EV-07 (y EV-02 en ALTA) los mide el recolector
-  //     del MANAGER (agent.id=000) con ficheros locales y sin credenciales:
-  //     la presencia de los módulos cloud de Wazuh en ossec.conf y en los
-  //     agent.conf de los grupos (nunca sus claves), sus alertas en
-  //     alerts.json y sus errores en ossec.log. La credencial del proveedor
-  //     vive en un agente dedicado del cliente. Los hechos hablan de módulos y
-  //     de servicios, no de esta máquina, así que no hay primitiva que los
-  //     juzgue: lo hace la policy (`policies/op-nub-1.policy.ts`), cruzando
-  //     cada fila de P-06 con su módulo, y el puente lo lleva a la tabla.
-  //
-  // EV-03 (shadow IT), EV-05 (cifrado) y EV-06 (región) son datos del informe,
-  // sin veredicto: la plantilla los promete con «SCA cloud» y tráfico de los
-  // equipos, y Wazuh 4.14 no tiene ninguna de las dos cosas con ficheros
-  // locales. Lo declarado de cifrado (P-09) y región (P-08) se juzga en EV-09.
-  //
-  // El recolector solo declara huecos (`evidence_state` NO_EVALUABLE con su
-  // causa), nunca veredictos. Pasa cada 6 h. El contrato completo lo documenta
-  // el runbook, y `tests/op-nub-1-judgment.test.ts` lo ejercita.
-  //
-  // Reglas: banda 111500-111599, desplegadas por el runbook `linux/op.nub.1`.
+  // op.nub.1. Mostly contractual. Two planes the report does not mix. DOCUMENTARY: EV-08 (P-04 certification, R1) and EV-09 (per-service file: P-03, P-08, P-09, P-10) are screen tables with validity,
+  // judged by the policy against the evaluation date; CUMPLE reads 'acreditado documentalmente'. TECHNICAL: EV-01, EV-04, EV-07 (and EV-02 at ALTA) are measured by the MANAGER collector from local files:
+  // presence of Wazuh cloud modules in ossec.conf and group agent.conf (never their keys), their alerts in alerts.json and errors in ossec.log.
+  // `policies/op-nub-1.policy.ts` crosses each P-06 row with its module.
+  // EV-03 (shadow IT), EV-05 (encryption) and EV-06 (region) are report data without verdict; what is declared (P-09, P-08) is judged in EV-09.
+  // The collector only declares gaps and runs every 6 h. Contract in the runbook, exercised by `tests/op-nub-1-judgment.test.ts`. Rules band 111500-111599.
   {
-    // Por módulo cloud, cada 6 h (o un hecho con modulo=ninguno). La policy
-    // cruza cada fila de P-06 con su módulo: configurado y habilitado, sin
-    // errores en 24 h y con registros más recientes que P-13.
+    // Per cloud module, every 6 h (or a fact with modulo=ninguno). The policy crosses each P-06 row with its module: configured and enabled, no errors in 24 h, logs newer than P-13.
     id: 'EV-01',
     controlId: 'op.nub.1',
     title: 'Ingesta de registros de los servicios en la nube',
@@ -4786,9 +4125,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Llegan a Wazuh, sin errores y dentro de P-13 horas, los registros de cada servicio que P-06 declara integrado?',
   },
   {
-    // Solo ALTA (R2). No es «SCA cloud», que Wazuh 4.14 no tiene: son los
-    // hallazgos de postura del propio proveedor que Wazuh ingiere, resumidos
-    // por módulo, fuente y estándar cada 6 h.
+    // ALTA only (R2). Not 'SCA cloud' (Wazuh 4.14 has none): the provider's own posture findings ingested by Wazuh, summarised per module, source and standard every 6 h.
     id: 'EV-02',
     controlId: 'op.nub.1',
     title: 'Configuración del inquilino según los hallazgos de postura del proveedor (R2)',
@@ -4807,7 +4144,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Pasan los controles de postura del proveedor en cada servicio de P-07, con el estándar que declara?',
   },
   {
-    // Dato del informe, sin requisito que la juzgue (spec §4.2, §7.3).
+    // Report datum, no requirement judging it.
     id: 'EV-03',
     controlId: 'op.nub.1',
     title: 'Detección de servicios cloud no inventariados (shadow IT)',
@@ -4825,8 +4162,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Hay servicios en la nube en uso fuera de P-02? (dato del informe: no medible con ficheros locales)',
   },
   {
-    // Una acción, agregada por pasada (módulo, cuenta, actor). Ventana de 30
-    // días. Cada actor humano, en P-11 para su servicio.
+    // An action, aggregated per pass (module, account, actor). 30-day window. Each human actor must be in P-11 for its service.
     id: 'EV-04',
     controlId: 'op.nub.1',
     title: 'Operaciones administrativas en los servicios cloud',
@@ -4844,8 +4180,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Ha ejecutado operaciones de administración en algún servicio integrado un actor que P-11 no autoriza?',
   },
   {
-    // Dato del informe: sin «SCA cloud» no hay medida del cifrado configurado;
-    // lo declarado en P-09 se juzga en EV-09.
+    // Report datum: without 'SCA cloud' there is no measure of configured encryption; what P-09 declares is judged in EV-09.
     id: 'EV-05',
     controlId: 'op.nub.1',
     title: 'Verificación del cifrado y del modelo de gestión de claves',
@@ -4863,7 +4198,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué cifrado y qué gestión de claves declara cada servicio en P-09? (dato del informe: no medible sin SCA cloud)',
   },
   {
-    // Dato del informe: ídem con la región (P-08).
+    // Report datum: same with the region (P-08).
     id: 'EV-06',
     controlId: 'op.nub.1',
     title: 'Verificación de la región de los datos',
@@ -4881,11 +4216,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Qué región de datos y de copias declara cada servicio en P-08? (dato del informe: no medible sin SCA cloud)',
   },
   {
-    // Una acción, agregada por pasada (módulo, cuenta, usuario, resultado,
-    // segundo factor). Ventana de 30 días. Hallazgo del informe, sin
-    // requisito que la juzgue: el criterio del segundo factor es el de
-    // op.acc.6.r8.1 (y las ubicaciones de confianza de Azure darían rojos
-    // falsos aquí). La policy la devuelve NO_APLICA con lo observado.
+    // An action, aggregated per pass (module, account, user, result, second factor). 30-day window. Report finding with no requirement judging it: the second-factor criterion is op.acc.6.r8.1
+    // (Azure trusted locations would give false reds here). The policy returns NO_APLICA with what was observed.
     id: 'EV-07',
     controlId: 'op.nub.1',
     title: 'Autenticaciones y accesos en los servicios cloud',
@@ -4903,8 +4235,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Se ha accedido con éxito a algún servicio integrado sin segundo factor? (hallazgo del informe; lo juzga op.acc.6.r8.1)',
   },
   {
-    // Documental (R1): P-04 por servicio utilizado, contra la fecha de la
-    // evaluación. Sin hecho.
+    // Documentary (R1): P-04 per service in use, against the evaluation date. No fact.
     id: 'EV-08',
     controlId: 'op.nub.1',
     title: 'Vigencia de las certificaciones de los proveedores (R1)',
@@ -4922,8 +4253,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene cada servicio de terceros una certificación reconocida en vigor? (declarado, acreditado documentalmente)',
   },
   {
-    // Documental: el expediente por servicio utilizado, contra la fecha de la
-    // evaluación. Sin hecho.
+    // Documentary: the per-service file, against the evaluation date. No fact.
     id: 'EV-09',
     controlId: 'op.nub.1',
     title: 'Expediente documental del servicio en la nube',

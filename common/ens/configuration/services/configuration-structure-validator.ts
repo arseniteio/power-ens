@@ -7,7 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
-import { validateAgentsConfigurationShape } from '../../../agent-configuration';
+import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -128,11 +128,9 @@ const validateRequiredStrings = (
   });
 };
 
-// `columns` solo se comprueba por su FORMA, igual que `options`. Que una celda
-// concreta signifique algo para su columna lo decide `parameter-value-validator`
-// y no aquí: este validador LANZA en la hidratación, y una tabla mal rellenada
-// por el auditor tiene que degradar su control, no tumbar la pantalla entera de
-// Configuración.
+// `columns` is checked for shape only; whether a cell is valid for its column is decided by
+// `parameter-value-validator`. This validator THROWS on hydration, and a badly filled table must degrade its
+// control, not the whole Configuration screen.
 const validateParameterColumns = (
   value: unknown,
   path: string,
@@ -217,10 +215,8 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
-  // `options` solo describe la forma del documento. Que el valor sea una de
-  // ellas lo decide `parameter-value-validator.ts`: aquí no, porque este
-  // validador LANZA en la hidratación y un valor mal escrito por el auditor
-  // tiene que degradar un control, no tumbar la pantalla de Configuración.
+  // `options` is checked for shape only; whether the value is one of them is decided by
+  // `parameter-value-validator.ts` (this validator throws on hydration).
   if (
     value.options !== undefined &&
     !isStringArray(value.options)
@@ -253,6 +249,10 @@ const validateParameter = (
 
   if (typeof value.required !== 'boolean') {
     errors.push(`${path}.required must be a boolean.`);
+  }
+
+  if (value.matchMode !== undefined && !isAllowedString(value.matchMode, ENS_MATCH_MODES)) {
+    errors.push(`${path}.matchMode is invalid.`);
   }
 
   if (
@@ -379,8 +379,7 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Opcional: la clave ausente es válida (se usa `ensLevel`). Presente, tiene
-  // que ser un nivel; `null` no lo es.
+  // Optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
   if (
     'traceabilityLevel' in value &&
     !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
@@ -388,7 +387,7 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.traceabilityLevel is invalid.');
   }
 
-  // El de Disponibilidad, con el mismo contrato: ausente o un nivel.
+  // The Availability level, same contract: absent or a level.
   if (
     'availabilityLevel' in value &&
     !isAllowedString(value.availabilityLevel, ENS_LEVELS)
@@ -519,12 +518,11 @@ export const validateENSConfigurationStructure = (
     });
   }
 
-  // La capa por sistema (1.2.0): opcional; presente, con su forma. Que sus
-  // controles y parámetros existan y que cada valor signifique algo para su
-  // columna no se juzga aquí (ver `agents/agent-configuration-validator.ts`):
-  // un valor mal escrito en un agente degrada la fila de esa máquina, no el
-  // entorno entero.
+  // Per-system layer (1.2.0): optional; if present, shape-checked. Existence of controls and parameters and
+  // value validity are judged in `agents/agent-configuration-validator.ts`: a bad value in an agent degrades
+  // that machine's row, not the whole environment.
   errors.push(...validateAgentsConfigurationShape(value.agents));
+  errors.push(...validateCustomTemplatesShape(value.templates));
 
   if (!Array.isArray(value.auditTrail)) {
     errors.push('configuration.auditTrail must be an array.');

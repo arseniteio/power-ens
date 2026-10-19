@@ -1,46 +1,50 @@
 #!/usr/bin/env bash
 ###############################################################################
-# run-tests.sh · las pruebas del README (sección «Desarrollo»), con veredicto
+# run-tests.sh · the README's tests ("Development" section), with a verdict
 #
 #   ci/run-tests.sh
 #
-# Corre lo mismo que el bucle del README: check-consistency.py, cada
-# tests/*.test.ts con `npx --yes tsx` y cada tests/*.test.sh. El bucle del
-# README solo imprime OK/FAIL y nunca falla; aquí se enseña además el final de
-# la salida de cada suite que falla, y se sale con error si falla alguna.
+# Runs what the README loop runs: check-consistency.py, each config/test_*.py,
+# each tests/*.test.ts with `npx --yes tsx` and each tests/*.test.sh. The
+# README loop only prints OK/FAIL and never fails; this one also shows the tail
+# of the output of each failing suite, and exits with an error if any fails.
 ###############################################################################
 set -uo pipefail
 
-RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$RAIZ" || exit 1
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
 
-SALIDA="$(mktemp)"
-trap 'rm -f "$SALIDA"' EXIT
+OUTPUT="$(mktemp)"
+trap 'rm -f "$OUTPUT"' EXIT
 total=0
-fallidas=()
+failed=()
 
 suite() {
-  local nombre="$1"
+  local name="$1"
   shift
   total=$((total + 1))
-  if "$@" >"$SALIDA" 2>&1; then
-    echo "OK   $nombre"
+  if "$@" >"$OUTPUT" 2>&1; then
+    echo "OK   $name"
   else
-    echo "FAIL $nombre"
-    tail -n 40 "$SALIDA" | sed 's/^/     | /'
-    fallidas+=("$nombre")
+    echo "FAIL $name"
+    tail -n 40 "$OUTPUT" | sed 's/^/     | /'
+    failed+=("$name")
   fi
 }
 
-# La comprobación de coherencia se enseña entera, como en el README.
+# The consistency check is shown whole, as in the README.
 total=$((total + 1))
 if python3 tests/check-consistency.py; then
   echo "OK   tests/check-consistency.py"
 else
   echo "FAIL tests/check-consistency.py"
-  fallidas+=("tests/check-consistency.py")
+  failed+=("tests/check-consistency.py")
 fi
 echo
+
+for p in config/test_*.py; do
+  suite "$p" python3 "$p"
+done
 
 for t in tests/*.test.ts; do
   # The CI runner shares its CPU with the lab indexer: heavier suites need more than 180 s there.
@@ -51,9 +55,9 @@ for s in tests/*.test.sh; do
 done
 
 echo
-if [ "${#fallidas[@]}" -gt 0 ]; then
-  echo "${#fallidas[@]} de $total suites FALLAN:"
-  printf '  %s\n' "${fallidas[@]}"
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "${#failed[@]} of $total suites FAIL:"
+  printf '  %s\n' "${failed[@]}"
   exit 1
 fi
-echo "las $total suites pasan"
+echo "ALL OK: all $total suites pass"

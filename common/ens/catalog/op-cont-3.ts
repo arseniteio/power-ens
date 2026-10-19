@@ -6,26 +6,16 @@ export const opCont3CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Continuidad del servicio',
   dimension: 'Disponibilidad (ÚNICA dimensión)',
-  // Se rige por el NIVEL de la Disponibilidad, no por la categoría del
-  // sistema: se evalúa con `availabilityLevel` de la configuración global y,
-  // si no está declarado, con el nivel ENS. Solo aplica con D en ALTO: un
-  // sistema de categoría MEDIA no tiene ninguna dimensión en ALTO, así que ahí
-  // es NO_APLICA por definición.
+  // Governed by the Availability LEVEL, not the system category: evaluated with `availabilityLevel` of the global configuration and, if not declared, the ENS level. Applies only with D at ALTO; a MEDIA-category system has no dimension at ALTO, so it is NO_APLICA by definition.
   levelDimension: 'D',
-  // Se mide SOLO en el manager: los registros de pruebas y de deficiencias
-  // viven en /etc/ensfacil/ del manager, y las caídas, los arranques y las
-  // restauraciones de cada prueba se ven en su alerts.json. Los hechos hablan
-  // de los demás sistemas por su campo `agente`. Su resultado es el de la fila
-  // del manager (000).
+  // Measured ONLY on the manager: the test and deficiency registers live in the manager's /etc/ensfacil/, and the stops, starts and restores of each test are seen in its alerts.json. Facts speak about other systems through `agente`. Result is the manager row's (000).
   measurementPlanes: ['manager'],
   description:
     'op.cont.3 pide probar el plan de continuidad con periodicidad y corregir lo que las pruebas revelen.',
   levels: ['ALTO'],
   status: 'ACTIVE',
   version: '1.0.0',
-  // Un requisito con dos obligaciones (spec 2026-10-09 §6.3): se decide con
-  // EV-01, EV-02, EV-04 y EV-05. EV-03, EV-06, EV-07 y EV-08 alimentan EV-04 y
-  // el informe, sin veredicto propio.
+  // A requirement with two obligations: decided with EV-01, EV-02, EV-04 and EV-05. EV-03, EV-06, EV-07 and EV-08 feed EV-04 and the report, without verdict of their own.
   requirements: [
     {
       id: 'op.cont.3.1',

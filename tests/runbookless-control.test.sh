@@ -1,87 +1,82 @@
 #!/usr/bin/env bash
-# Un control ACTIVE sin runbook hace fallar tests/check-consistency.py, salvo
-# que esté declarado con su motivo en tests/controls-without-runbook.json.
+# An ACTIVE control without a runbook makes tests/check-consistency.py fail unless declared with a reason in tests/controls-without-runbook.json.
 #   bash tests/runbookless-control.test.sh
 #
-# Se corre la comprobación DE VERDAD sobre una copia del plugin con un control
-# inventado (op.zzz.9, copia del catálogo de op.exp.10) en ACTIVE y sin runbook.
-# En la copia no hay runbooks al lado, así que el script falla además por
-# otras cosas (sin clon de ningún runbook): aquí solo se mira la comprobación 14.
+# Runs the REAL check on a plugin copy with an invented ACTIVE control without a runbook (op.zzz.9, a copy of op.exp.10's catalog); only check 14 is looked at.
 set -u
-RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
-T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-fallos=0
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+failures=0
 
-ok()    { echo "  ok   $1"; }
-falla() { echo "  FALLA $1"; fallos=$((fallos + 1)); }
+ok()   { echo "  ok   $1"; }
+fail() { echo "  FAIL $1"; failures=$((failures + 1)); }
 
-P="$T/plugin"
-mkdir -p "$P"
-cp -R "$RAIZ/tests" "$RAIZ/public" "$RAIZ/common" "$RAIZ/config" "$RAIZ/agent" "$P/"
+PLUGIN="$TMP/plugin"
+mkdir -p "$PLUGIN"
+cp -R "$ROOT/tests" "$ROOT/public" "$ROOT/common" "$ROOT/config" "$ROOT/agent" "$PLUGIN/"
 sed -e "s/^  id: 'op.exp.10',\$/  id: 'op.zzz.9',/" \
-  "$RAIZ/common/ens/catalog/op-exp-10.ts" > "$P/common/ens/catalog/op-zzz-9.ts"
+  "$ROOT/common/ens/catalog/op-exp-10.ts" > "$PLUGIN/common/ens/catalog/op-zzz-9.ts"
 
-grep -q "^  id: 'op.zzz.9',\$" "$P/common/ens/catalog/op-zzz-9.ts" \
-  && grep -q "^  status: 'ACTIVE',\$" "$P/common/ens/catalog/op-zzz-9.ts" \
-  || { echo "  FALLA fixture rota: op.zzz.9 no quedó ACTIVE en el catálogo copiado"; exit 1; }
+grep -q "^  id: 'op.zzz.9',\$" "$PLUGIN/common/ens/catalog/op-zzz-9.ts" \
+  && grep -q "^  status: 'ACTIVE',\$" "$PLUGIN/common/ens/catalog/op-zzz-9.ts" \
+  || { echo "  FAIL broken fixture: op.zzz.9 is not ACTIVE in the copied catalog"; exit 1; }
 
-# Declara (o no) op.zzz.9 en la lista, con el motivo que se le pase.
-declara() {
-  python3 - "$P/tests/controls-without-runbook.json" "$@" <<'PY'
+# Declares (or not) op.zzz.9 in the list, with the reason passed in.
+declare_control() {
+  python3 - "$PLUGIN/tests/controls-without-runbook.json" "$@" <<'PY'
 import json, sys
-ruta = sys.argv[1]
-lista = json.load(open(ruta, encoding="utf-8"))
-lista.pop("op.zzz.9", None)
+path = sys.argv[1]
+declared = json.load(open(path, encoding="utf-8"))
+declared.pop("op.zzz.9", None)
 if len(sys.argv) > 2:
-    lista["op.zzz.9"] = sys.argv[2]
-json.dump(lista, open(ruta, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    declared["op.zzz.9"] = sys.argv[2]
+json.dump(declared, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 PY
 }
 
-comprueba() { python3 "$P/tests/check-consistency.py" 2>&1 | sed -n '/=== 14\./,$p'; }
+run_check() { python3 "$PLUGIN/tests/check-consistency.py" 2>&1 | sed -n '/=== 14\./,$p'; }
 
-echo "1. ACTIVE, sin runbook y sin declarar: falla"
-declara
-salida="$(comprueba)"
-if printf '%s\n' "$salida" | grep -q '^FALLA  op.zzz.9: ACTIVE sin runbook y sin declarar$'; then
-  ok "la comprobación 14 lo señala"
+echo "1. ACTIVE, without runbook and undeclared: fails"
+declare_control
+output="$(run_check)"
+if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: ACTIVE without runbook and undeclared$'; then
+  ok "check 14 flags it"
 else
-  falla "la comprobación 14 no lo señala"; printf '%s\n' "$salida" | sed 's/^/       | /'
+  fail "check 14 does not flag it"; printf '%s\n' "$output" | sed 's/^/       | /'
 fi
 
-echo "2. La reversión: declarado con su motivo, no falla"
-declara "control documental de prueba: todo se declara en pantalla"
-salida="$(comprueba)"
-if printf '%s\n' "$salida" | grep -q '^FALLA  op.zzz.9'; then
-  falla "declarado, sigue fallando"; printf '%s\n' "$salida" | sed 's/^/       | /'
+echo "2. Reversal: declared with its reason, does not fail"
+declare_control "test documentary control: everything is declared on screen"
+output="$(run_check)"
+if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9'; then
+  fail "declared, it still fails"; printf '%s\n' "$output" | sed 's/^/       | /'
 else
-  ok "declarado, la comprobación 14 lo admite"
+  ok "declared, check 14 admits it"
 fi
-# Junto a los ACTIVE de verdad que se juzgan sin runbook (op.cont.2).
-if printf '%s\n' "$salida" | grep -qE 'sin runbook: (.*, )?op\.zzz\.9(,|$)'; then
-  ok "y lo nombra entre los que se juzgan sin runbook"
+if printf '%s\n' "$output" | grep -qE 'without runbook: (.*, )?op\.zzz\.9(,|$)'; then
+  ok "and names it among those judged without a runbook"
 else
-  falla "no lo nombra entre los que se juzgan sin runbook"; printf '%s\n' "$salida" | sed 's/^/       | /'
-fi
-
-echo "3. Declarado sin motivo: falla"
-declara "   "
-salida="$(comprueba)"
-if printf '%s\n' "$salida" | grep -q '^FALLA  op.zzz.9: declarado sin runbook pero sin motivo$'; then
-  ok "un motivo vacío no vale"
-else
-  falla "un motivo vacío pasa"; printf '%s\n' "$salida" | sed 's/^/       | /'
+  fail "does not name it among those judged without a runbook"; printf '%s\n' "$output" | sed 's/^/       | /'
 fi
 
-echo "4. Un fichero del catálogo sin \`status\`: falla, no se salta"
-declara
-sed -i.bak "/^  status: 'ACTIVE',\$/d" "$P/common/ens/catalog/op-zzz-9.ts" && rm -f "$P/common/ens/catalog/op-zzz-9.ts.bak"
-salida="$(comprueba)"
-if printf '%s\n' "$salida" | grep -q '^FALLA  catálogo ilegible: op-zzz-9.ts: sin `status` del control$'; then
-  ok "un catálogo sin estado se señala"
+echo "3. Declared without a reason: fails"
+declare_control "   "
+output="$(run_check)"
+if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: declared without runbook but without a reason$'; then
+  ok "an empty reason is not valid"
 else
-  falla "un catálogo sin estado pasa en silencio"; printf '%s\n' "$salida" | sed 's/^/       | /'
+  fail "an empty reason passes"; printf '%s\n' "$output" | sed 's/^/       | /'
+fi
+
+echo "4. A catalog file without \`status\`: fails, is not skipped"
+declare_control
+sed -i.bak "/^  status: 'ACTIVE',\$/d" "$PLUGIN/common/ens/catalog/op-zzz-9.ts" && rm -f "$PLUGIN/common/ens/catalog/op-zzz-9.ts.bak"
+output="$(run_check)"
+if printf '%s\n' "$output" | grep -q '^FAIL   unreadable catalog: op-zzz-9.ts: without `status` of the control$'; then
+  ok "a catalog without status is flagged"
+else
+  fail "a catalog without status passes silently"; printf '%s\n' "$output" | sed 's/^/       | /'
 fi
 
 echo
-[ "$fallos" -eq 0 ] && echo "Todas las comprobaciones pasan." || { echo "$fallos comprobación(es) fallan."; exit 1; }
+[ "$failures" -eq 0 ] && echo "ALL OK" || { echo "$failures check(s) FAIL"; exit 1; }

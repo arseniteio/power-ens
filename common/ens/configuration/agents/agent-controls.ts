@@ -1,12 +1,11 @@
-// Qué controles se miden en una máquina, para la pantalla de un sistema y su
-// completitud: los de su plano de medida (el manager, los de plano `manager`;
-// las demás, los de plano `agent`) y, si su plataforma solo tiene recolector
-// para algunos (Windows: op.acc.1-4), solo esos. Los demás se enseñan aparte
-// como «sin recolector en esta plataforma», que no es lo mismo que no cumplir.
+// Controls measured on a machine, for its system screen and completeness: those of its measurement plane
+// (`manager` plane for the manager, `agent` for the rest) and, if its platform has a collector for only some
+// (Windows: op.acc.1-4), only those. The others are shown apart as "sin recolector en esta plataforma", which is
+// not a failure.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
 import { getENSCatalogControl } from '../../catalog';
-import { getBaseTemplateForSystemType } from '../templates';
+import { getCollectedControls } from '../templates';
 import { isAgentLevelParameter } from './parameter-classes';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
@@ -15,7 +14,7 @@ export interface ENSAgentControl {
   controlName: string;
   level: ENSLevel;
   measured: boolean;
-  // Por qué no se mide en esta máquina, si no se mide.
+  // Why it is not measured on this machine, if it is not.
   reason?: string;
 }
 
@@ -27,7 +26,7 @@ export const getAgentControls = (
 ): ENSAgentControl[] => {
   const manager = normalizeAgentId(agentId) === ENS_MANAGER_AGENT_ID;
   const plane = manager ? 'manager' : 'agent';
-  const only = getBaseTemplateForSystemType(type)?.onlyControls;
+  const only = getCollectedControls(type);
 
   return configuration.controls
     .filter(control => control.parameters.some(parameter => isAgentLevelParameter(control.controlId, parameter.id)))
@@ -42,10 +41,10 @@ export const getAgentControls = (
         measured: onPlane && collected,
         reason: !onPlane
           ? manager
-            ? 'se mide en las máquinas, no en el manager'
-            : 'se mide en el manager: sus valores por sistema de esta máquina se juntan en la fila del manager'
+            ? 'se evalúa en los agentes, no en el manager'
+            : 'se evalúa en el manager, con las filas de todos'
           : !collected
-          ? 'sin recolector en esta plataforma: el motor lo sigue evaluando y, sin hechos, no lo da por demostrado'
+          ? 'sin recolector para su sistema'
           : undefined,
       };
     });

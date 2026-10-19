@@ -38,10 +38,7 @@ const cloneAgent = (agent: ENSAgentScope): ENSAgentScope => ({
   ...(agent.os ? { os: { ...agent.os } } : {}),
 });
 
-// Los agentes del alcance: los que resuelve el modo configurado (global, grupo
-// o agente) y, si algún control ACTIVE se mide en el manager, el manager, que
-// no está en ningún grupo y ningún modo trae por sí solo. El catálogo es un
-// parámetro para poder probarlo con controles en otro estado.
+// The scope agents: those resolved by the configured mode (global, group or agent) plus, if some ACTIVE control is measured on the manager, the manager (in no group, which no mode brings). The catalog is a parameter so it can be tested with controls in another state.
 export const resolveENSScopeAgents = (
   inventory: ENSAgentScope[],
   scope: ENSConfigurationScope,
@@ -80,7 +77,7 @@ const resolveHydrationError = (error: unknown): string => {
   return 'No se pudo resolver el alcance ENS.';
 };
 
-// Exportada para el servidor, que resuelve el alcance con el mismo código.
+// Exported for the server, which resolves the scope with the same code.
 export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
   agents
     .filter((agent) => typeof agent?.id === 'string' && agent.id.trim().length > 0)
@@ -92,12 +89,11 @@ export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
             .filter((group) => typeof group === 'string' && group.trim().length > 0)
             .map((group) => group.trim())
         : [],
-      // El estado (de wazuh-monitoring) solo si lo trae: lo pinta el selector.
+      // The status (from wazuh-monitoring) only if present: the selector paints it.
       ...(typeof agent.status === 'string' && agent.status.trim()
         ? { status: agent.status.trim() }
         : {}),
-      // El sistema operativo, si lo trae: lo usa Configuración para detectar
-      // el tipo de sistema.
+      // The operating system, if present: Configuration uses it to detect the system type.
       ...(agent.os && typeof agent.os === 'object' ? { os: { ...agent.os } } : {}),
     }));
 

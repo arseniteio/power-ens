@@ -1,29 +1,23 @@
-import type { ENSConfigurationTemplate } from './types';
+import type { ENSPlatformSource } from './types';
 import {
-  CAMPOS_REGISTRO_AUDITD,
-  EVENTOS_AUDITABLES_LINUX,
-  RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+  AUDITD_RECORD_FIELDS,
+  LINUX_AUDITABLE_EVENTS,
+  LINUX_SECURITY_CONFIGURATION_PATHS,
   linuxUbuntuTemplate,
 } from './linux-ubuntu';
 
-// Servidor LDAP de Zimbra: un Ubuntu con el directorio de Zimbra. Es la
-// plantilla de Linux con lo que cambia en el directorio, así que se aplica SOLA
-// (no hace falta aplicar también «Linux Ubuntu»). Se propone a los agentes que
-// emiten hechos del recolector LDAP (`data.plano = directorio`).
-//
-// Los ajustes propios del recolector LDAP (SSF mínimo, hashes fuertes, socket
-// `ldapi`) no son parámetros del plugin: viven en el `.env` de la máquina.
-// Las cuentas de Zimbra con sufijo aleatorio (`spam.*`, `ham.*`,
-// `virus-quarantine.*`, `galsync.*`) son de cada instalación: se declaran como
-// valor propio del agente.
+// Zimbra LDAP server: an Ubuntu with the Zimbra directory. The Linux template plus the directory differences,
+// applied ALONE. Proposed to agents emitting LDAP collector facts (`data.plano = directorio`).
+// LDAP collector settings (minimum SSF, strong hashes, `ldapi` socket) live in the machine `.env`, not in plugin
+// parameters. Zimbra accounts with random suffixes (`spam.*`, `ham.*`, `virus-quarantine.*`, `galsync.*`) are
+// per installation: declared as the agent's own value.
 
 const linux = linuxUbuntuTemplate.values;
 
-export const zimbraLdapTemplate: ENSConfigurationTemplate = {
+export const zimbraLdapTemplate: ENSPlatformSource = {
   id: 'zimbra-ldap',
-  label: 'Servidor LDAP Zimbra',
-  description:
-    'Servidor de directorio de Zimbra sobre Ubuntu: lo de «Linux Ubuntu» más la fuente de identidad LDAP, las cuentas zimbra y ldapcopy, las rutas de Zimbra, slapd en los registros y el canal LDAP.',
+  label: 'Servidor LDAP',
+  description: 'Servidor de directorio de Zimbra sobre Ubuntu: los valores de «Linux» más los del directorio.',
   kind: 'base',
   systemTypes: ['zimbra-ldap'],
   sources: [
@@ -68,7 +62,7 @@ export const zimbraLdapTemplate: ENSConfigurationTemplate = {
     'op.exp.3': {
       ...linux['op.exp.3'],
       'P-04': [
-        ...RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+        ...LINUX_SECURITY_CONFIGURATION_PATHS,
         '/opt/zimbra/data/ldap/config',
         '/opt/zimbra/conf/localconfig.xml',
       ],
@@ -90,9 +84,9 @@ export const zimbraLdapTemplate: ENSConfigurationTemplate = {
     },
     'op.exp.8': {
       ...linux['op.exp.8'],
-      'P-01': [...EVENTOS_AUDITABLES_LINUX, 'directorio LDAP | slapd | 3'],
+      'P-01': [...LINUX_AUDITABLE_EVENTS, 'directorio LDAP | slapd | 3'],
       'P-03': [
-        CAMPOS_REGISTRO_AUDITD,
+        AUDITD_RECORD_FIELDS,
         'slapd | BIND dn | cabecera syslog | base, dn | op | RESULT err',
       ],
     },

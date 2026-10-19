@@ -1,10 +1,6 @@
-// Las consultas del servidor contra los hechos. Puras: las prueba
-// `tests/evaluation-queries.test.ts` sin índice.
-//
-// Los filtros son LOS MISMOS que usaba el navegador (ventana de la
-// configuración, alcance de la vista y hechos ENS), con la ventana en
-// instantes absolutos: así una lectura paginada ve siempre el mismo conjunto
-// aunque lleguen hechos nuevos mientras se lee.
+// Server queries against the facts. Pure: tested by `tests/evaluation-queries.test.ts` without an index.
+// The filters are THE SAME as the browser used (configuration window, view scope, ENS facts), with the window in
+// absolute instants so a paged read always sees the same set even if new facts arrive.
 import { ENS_ALERTS_INDEX } from '../../../common/constants';
 import { ENSCatalog } from '../../../common/ens/catalog';
 import {
@@ -24,8 +20,7 @@ import {
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
 import { ENS_CROSS_CONTROL_EVENT_TYPES, ENS_CROSS_CONTROL_HEARTBEAT } from '../../../common/ens/core/control-partition';
 
-// Lo único que lee el motor de cada hecho (`normalizeWazuhAlert`). Sin `raw`:
-// el documento entero no lo lee nadie.
+// The only fields the engine reads of each fact (`normalizeWazuhAlert`); no `raw`.
 export const ENGINE_SOURCE_FIELDS = [
   'data',
   'agent.id',
@@ -40,10 +35,8 @@ export const ENGINE_SOURCE_FIELDS = [
   'id',
 ];
 
-// El orden de lectura: del más reciente al más antiguo (como los recibía el
-// navegador), y un desempate determinista con campos `keyword` que llevan
-// todas las alertas de Wazuh (`id` es único por manager). Nunca `_id`: ordenar
-// por `_id` carga su fielddata para todos los documentos de cada shard.
+// Read order: newest first, with a deterministic tiebreaker on `keyword` fields every Wazuh alert has (`id` is
+// unique per manager). Never `_id`: sorting by it loads its fielddata for every document of each shard.
 export const FACTS_SORT = [
   { '@timestamp': { order: 'desc' } },
   { id: { order: 'asc', missing: '_last', unmapped_type: 'keyword' } },
@@ -56,27 +49,27 @@ export interface ENSEvaluationWindow {
   to: string;
 }
 
-const UNIDADES: Record<string, number> = { m: 60e3, h: 3600e3, d: 86400e3 };
+const UNITS: Record<string, number> = { m: 60e3, h: 3600e3, d: 86400e3 };
 
-// `now-30d` → instante. Lo que no se entienda, como la ventana por defecto.
-const instante = (expresion: string, now: number): number => {
-  if (expresion === 'now') return now;
-  const m = /^now-(\d+)([mhd])$/.exec(expresion);
-  return m ? now - Number(m[1]) * UNIDADES[m[2]] : now - 30 * UNIDADES.d;
+// `now-30d` -> instant. Anything not understood is treated as the default window.
+const instant = (expression: string, now: number): number => {
+  if (expression === 'now') return now;
+  const m = /^now-(\d+)([mhd])$/.exec(expression);
+  return m ? now - Number(m[1]) * UNITS[m[2]] : now - 30 * UNITS.d;
 };
 
 export const resolveEvaluationWindow = (evaluationPeriod: string, now: Date): ENSEvaluationWindow => {
-  const rango = resolveENSEvaluationTimeRange(evaluationPeriod);
+  const range = resolveENSEvaluationTimeRange(evaluationPeriod);
   return {
-    from: new Date(instante(rango.from, now.getTime())).toISOString(),
-    to: new Date(instante(rango.to, now.getTime())).toISOString(),
+    from: new Date(instant(range.from, now.getTime())).toISOString(),
+    to: new Date(instant(range.to, now.getTime())).toISOString(),
   };
 };
 
 export const catalogControlIds = (): string[] => ENSCatalog.map(control => control.id);
 
-// Los filtros de una vista: ventana, alcance (la máquina y, si está, el
-// manager) y hechos ENS. Es exactamente el conjunto que juzgaba el panel.
+// Filters of a view: window, scope (the machine and, if present, the manager) and ENS facts; exactly the set the
+// panel judged.
 export const buildViewFilters = (
   window: ENSEvaluationWindow,
   scopeAgents: ENSAgentScope[],
@@ -87,24 +80,20 @@ export const buildViewFilters = (
   buildENSAllControlsFactsFilter(catalogControlIds()),
 ];
 
-// LA SONDA. Una sola consulta sin documentos: cuántos hechos hay y el más
-// reciente, en total, por control y máquina (lo que decide qué filas hay que
-// recalcular), los que no nombran ningún control, los de los tipos que op.acc.3
-// lee de otros controles; de cada máquina, su primer hecho de la ventana (la
-// presencia) y el nombre del último; y el último latido de cada día de cada
-// máquina, de cualquier control (ver `control-partition.ts`).
-// `past`: los días pasados ENTEROS de la ventana (desde el primer día
-// completo hasta el inicio de hoy, en la zona de quien mira). Cuántos hechos
-// hay ahí, por control y máquina, sin control y de los tipos cruzados: si no
-// cambia, los puntos ya calculados de esos días siguen valiendo aunque lleguen
-// hechos nuevos (que son de hoy).
+// THE PROBE. One query without documents: how many facts and the latest, in total, per control and machine
+// (which rows to recompute), those naming no control, those of the types op.acc.3 reads from other controls; per
+// machine, its first fact in the window (presence) and the name of the last; and the last heartbeat of each day
+// of each machine, any control (see `control-partition.ts`).
+// `past`: WHOLE past days of the window (first full day to the start of today, in the viewer's zone): counts per
+// control and machine, without control and of crossed types. If unchanged, the points already computed for those
+// days stay valid even when new facts (today's) arrive.
 export const buildProbeRequest = (filters: unknown[], controlIds: string[], timeZone?: string, past?: { from: string; to: string }) => {
-  const pasado = past ? { past: { filter: { range: { '@timestamp': { gte: past.from, lt: past.to } } } } } : {};
-  const porMaquina = (aggs?: Record<string, unknown>) => ({
+  const pastDay = past ? { past: { filter: { range: { '@timestamp': { gte: past.from, lt: past.to } } } } } : {};
+  const byMachine = (aggs?: Record<string, unknown>) => ({
     terms: { field: 'agent.id', size: 10000 },
-    aggs: { newest: { max: { field: '@timestamp' } }, ...pasado, ...(aggs || {}) },
+    aggs: { newest: { max: { field: '@timestamp' } }, ...pastDay, ...(aggs || {}) },
   });
-  const cruzados = Object.entries(ENS_CROSS_CONTROL_EVENT_TYPES).filter(([id]) => controlIds.includes(id));
+  const crossed = Object.entries(ENS_CROSS_CONTROL_EVENT_TYPES).filter(([id]) => controlIds.includes(id));
   return {
     index: ENS_ALERTS_INDEX,
     body: {
@@ -114,8 +103,8 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
       aggs: {
         newest: { max: { field: '@timestamp' } },
         oldest: { min: { field: '@timestamp' } },
-        // Los índices con hechos de la ventana: las lecturas los nombran en
-        // lugar del comodín (cada índice de más es coste en cada llamada).
+        // Indices with facts in the window: reads name them instead of the wildcard (each extra index costs on
+        // every call).
         indices: { terms: { field: '_index', size: 500 } },
         controls: {
           filters: {
@@ -124,20 +113,20 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
           aggs: {
             newest: { max: { field: '@timestamp' } },
             oldest: { min: { field: '@timestamp' } },
-            ...pasado,
-            agents: porMaquina({ oldest: { min: { field: '@timestamp' } } }),
+            ...pastDay,
+            agents: byMachine({ oldest: { min: { field: '@timestamp' } } }),
           },
         },
         orphans: {
           filter: buildENSFactsWithoutControlFilter(),
-          aggs: { newest: { max: { field: '@timestamp' } }, ...pasado, agents: porMaquina() },
+          aggs: { newest: { max: { field: '@timestamp' } }, ...pastDay, agents: byMachine() },
         },
         ...Object.fromEntries(
-          cruzados.map(([id, tipos]) => [
+          crossed.map(([id, types]) => [
             `cross:${id}`,
             {
-              filter: { bool: { filter: [{ terms: { 'data.event': tipos } }], must_not: [buildENSControlFactsFilter(id)] } },
-              aggs: { agents: porMaquina() },
+              filter: { bool: { filter: [{ terms: { 'data.event': types } }], must_not: [buildENSControlFactsFilter(id)] } },
+              aggs: { agents: byMachine() },
             },
           ])
         ),
@@ -183,7 +172,7 @@ export interface ENSFactsCount {
   oldest?: string;
 }
 
-// Los hechos de los días pasados enteros de la ventana (ver `buildProbeRequest`).
+// Facts of the whole past days of the window (see `buildProbeRequest`).
 export interface ENSPastFactsCount {
   total: number;
   agents: Record<string, number>;
@@ -193,26 +182,25 @@ export interface ENSProbeResult extends ENSFactsCount {
   controls: Record<string, ENSFactsCount & { agents: Record<string, ENSFactsCount> }>;
   orphans: ENSFactsCount & { agents: Record<string, ENSFactsCount> };
   cross: Record<string, Record<string, ENSFactsCount>>;
-  // Por máquina, el último latido de cada día (de cualquier control).
+  // Per machine, the last heartbeat of each day (any control).
   heartbeats: Record<string, string[]>;
-  // Cada máquina: su primer hecho de la ventana (la presencia), el último y
-  // cuántos tiene.
+  // Each machine: its first fact in the window (presence), the last, and how many it has.
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
-  // Los índices con hechos de la ventana (sin lista fiable, `undefined`).
+  // Indices with facts in the window (`undefined` without a reliable list).
   indices?: string[];
-  // Aparte (no entra en la huella de las filas): los hechos de los días
-  // pasados enteros, por control, sin control y de los tipos cruzados.
+  // Apart (not part of the row fingerprint): facts of whole past days, per control, without control and of
+  // crossed types.
   past?: { controls: Record<string, ENSPastFactsCount>; orphans: ENSPastFactsCount; cross: Record<string, ENSPastFactsCount> };
 }
 
-const fecha = (agg: any): string | undefined =>
+const date = (agg: any): string | undefined =>
   agg && typeof agg.value === 'number' ? new Date(agg.value).toISOString() : undefined;
 
-const porMaquinaDe = (agg: any): Record<string, ENSFactsCount> =>
+const byMachineOf = (agg: any): Record<string, ENSFactsCount> =>
   Object.fromEntries(
     (agg?.buckets || []).map((b: any) => [
       String(b.key),
-      { count: Number(b.doc_count || 0), newest: fecha(b.newest), oldest: fecha(b.oldest) },
+      { count: Number(b.doc_count || 0), newest: date(b.newest), oldest: date(b.oldest) },
     ])
   );
 
@@ -222,51 +210,51 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
   const indices = aggs.indices && !(Number(aggs.indices.sum_other_doc_count) > 0)
     ? (aggs.indices.buckets || []).map((b: any) => String(b.key))
     : undefined;
-  const pasadoDe = (agg: any): ENSPastFactsCount => ({
+  const pastOf = (agg: any): ENSPastFactsCount => ({
     total: Number(agg?.past?.doc_count || 0),
     agents: Object.fromEntries((agg?.agents?.buckets || []).map((b: any) => [String(b.key), Number(b.past?.doc_count || 0)])),
   });
-  const conPasado = Boolean(aggs.orphans?.past);
+  const withPast = Boolean(aggs.orphans?.past);
   return {
     indices,
-    past: conPasado
+    past: withPast
       ? {
-          controls: Object.fromEntries(Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [id, pasadoDe(b)])),
-          orphans: pasadoDe(aggs.orphans),
+          controls: Object.fromEntries(Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [id, pastOf(b)])),
+          orphans: pastOf(aggs.orphans),
           cross: Object.fromEntries(
             Object.entries(aggs)
-              .filter(([nombre]) => nombre.startsWith('cross:'))
-              .map(([nombre, agg]: [string, any]) => [nombre.slice('cross:'.length), pasadoDe(agg)])
+              .filter(([name]) => name.startsWith('cross:'))
+              .map(([name, agg]: [string, any]) => [name.slice('cross:'.length), pastOf(agg)])
           ),
         }
       : undefined,
     count: typeof total === 'number' ? total : Number(total?.value || 0),
-    newest: fecha(aggs.newest),
-    oldest: fecha(aggs.oldest),
+    newest: date(aggs.newest),
+    oldest: date(aggs.oldest),
     controls: Object.fromEntries(
       Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [
         id,
-        { count: Number(b?.doc_count || 0), newest: fecha(b?.newest), oldest: fecha(b?.oldest), agents: porMaquinaDe(b?.agents) },
+        { count: Number(b?.doc_count || 0), newest: date(b?.newest), oldest: date(b?.oldest), agents: byMachineOf(b?.agents) },
       ])
     ),
-    orphans: { count: Number(aggs.orphans?.doc_count || 0), newest: fecha(aggs.orphans?.newest), agents: porMaquinaDe(aggs.orphans?.agents) },
+    orphans: { count: Number(aggs.orphans?.doc_count || 0), newest: date(aggs.orphans?.newest), agents: byMachineOf(aggs.orphans?.agents) },
     cross: Object.fromEntries(
       Object.entries(aggs)
-        .filter(([nombre]) => nombre.startsWith('cross:'))
-        .map(([nombre, agg]: [string, any]) => [nombre.slice('cross:'.length), porMaquinaDe(agg?.agents)])
+        .filter(([name]) => name.startsWith('cross:'))
+        .map(([name, agg]: [string, any]) => [name.slice('cross:'.length), byMachineOf(agg?.agents)])
     ),
     heartbeats: Object.fromEntries(
       (aggs.heartbeats?.agents?.buckets || []).map((b: any) => [
         String(b.key),
-        (b.days?.buckets || []).map((d: any) => fecha(d.last)).filter(Boolean),
+        (b.days?.buckets || []).map((d: any) => date(d.last)).filter(Boolean),
       ])
     ),
     presence: (aggs.agents?.buckets || [])
       .map((b: any) => ({
         agentId: String(b.key),
         agentName: b.last?.hits?.hits?.[0]?._source?.agent?.name,
-        earliest: fecha(b.first),
-        newest: fecha(b.latest),
+        earliest: date(b.first),
+        newest: date(b.latest),
         count: Number(b.doc_count || 0),
       }))
       .filter((p: any) => p.earliest)
@@ -274,23 +262,21 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
   };
 };
 
-// Cuántas hojas puede ocupar la poda. OpenSearch cuenta TODAS las hojas de
-// la consulta contra `indices.query.bool.max_clause_count` (1024 por defecto),
-// y los filtros de la vista ya ocupan unas 80: lo que no cabe, se lee.
+// How many leaves pruning may use. OpenSearch counts ALL leaves of the query against
+// `indices.query.bool.max_clause_count` (1024 by default) and the view filters already take about 80: what does
+// not fit is read.
 export const PRUNING_MAX_LEAVES = 400;
 
-// Los hechos de un control en UNA máquina: los suyos, los que no nombran
-// ningún control y, si el control los lee, los de los tipos que lee de otros
-// controles. Con la poda de sus hechos de estado. `agentId` vacío: los del
-// control en todo el alcance de `viewFilters` (solo para evaluar un control
-// que ninguna máquina mide, como el motor).
+// Facts of a control on ONE machine: its own, those naming no control and, if the control reads them, those of
+// types read from other controls; with its state facts pruned. Empty `agentId`: the control's facts across the
+// whole `viewFilters` scope (only to evaluate a control no machine measures, like the engine).
 export const buildFactsQuery = (
   viewFilters: unknown[],
   controlId: string,
   agentId: string | undefined,
   pruning?: unknown
 ) => {
-  const tiposAjenos = ENS_CROSS_CONTROL_EVENT_TYPES[controlId] || [];
+  const foreignTypes = ENS_CROSS_CONTROL_EVENT_TYPES[controlId] || [];
   return {
     bool: {
       filter: [
@@ -301,7 +287,7 @@ export const buildFactsQuery = (
             should: [
               buildENSControlFactsFilter(controlId),
               buildENSFactsWithoutControlFilter(),
-              ...(tiposAjenos.length ? [{ terms: { 'data.event': tiposAjenos } }] : []),
+              ...(foreignTypes.length ? [{ terms: { 'data.event': foreignTypes } }] : []),
             ],
             minimum_should_match: 1,
           },
@@ -312,8 +298,7 @@ export const buildFactsQuery = (
   };
 };
 
-// Los latidos de un control en una máquina: con ellos se calcula la poda antes
-// de leer el resto.
+// Heartbeats of a control on a machine: used to compute the pruning before reading the rest.
 export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: string, agentId: string) => ({
   bool: {
     filter: [
@@ -325,9 +310,8 @@ export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: strin
   },
 });
 
-// Los eventos operativos del panel (copias, restauraciones…): cuántos hechos
-// hay de cada tipo en la vista. Se agrupa por `data.event` y el tipo se compara
-// en minúsculas, como el presentador.
+// Operational events of the panel (backups, restores...): facts per type in the view. Grouped by `data.event`;
+// the type is compared in lowercase, like the presenter.
 export const buildImpactEventsRequest = (filters: unknown[]) => ({
   index: ENS_ALERTS_INDEX,
   body: {
@@ -337,8 +321,8 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
         filter: filters,
         must_not: [
           ...['data.demo', 'data.synthetic', 'data.is_synthetic', 'data.isSynthetic'].map(field => ({
-            // En Wazuh, `data.*` se mapea `keyword` (comprobado en el laboratorio):
-            // se comparan cadenas, como hace `normalizeBoolean`.
+            // In Wazuh `data.*` is mapped `keyword` (checked in the lab): strings are compared, like
+            // `normalizeBoolean`.
             terms: { [field]: ['true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES'] },
           })),
           { exists: { field: 'data.test_id' } },
@@ -350,8 +334,7 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
   },
 });
 
-// Cuántos hechos hay hasta el final de cada día (para el número de eventos de
-// cada punto de la serie).
+// Facts up to the end of each day (for the event count of each series point).
 export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) => ({
   index: ENS_ALERTS_INDEX,
   body: {
@@ -370,49 +353,47 @@ export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) =
   },
 });
 
-// --- poda exacta para el instante actual y los días de la serie ------------
+// --- exact pruning for the current instant and the series days ---
 
-const SIN_VALOR = '__none__';
-const CAMPOS_EVIDENCIA_ALTERNATIVOS = ['data.evidenceId', 'data.ev_id', 'data.evidencias'];
+const NO_VALUE = '__none__';
+const ALTERNATIVE_EVIDENCE_FIELDS = ['data.evidenceId', 'data.ev_id', 'data.evidencias'];
 
-// El último hecho de estado de cada recolector, tipo y evidencia, día a día:
-// con él se calcula el corte EXACTO del motor (`computeStateFactCutoffsByCollector`).
-// Solo hechos que el normalizador atribuye igual: `data.ensfacil` del control,
-// `data.event` del tipo, la máquina en `agent.id`.
-// Las agregaciones del último hecho de estado de UN control (dentro de una
-// consulta ya acotada a sus hechos de estado en una máquina).
+// The last state fact of each collector, type and evidence, day by day: the engine's EXACT cutoff is computed
+// from it (`computeStateFactCutoffsByCollector`). Only facts the normalizer attributes the same way:
+// `data.ensfacil` of the control, `data.event` of the type, the machine in `agent.id`.
+// Aggregations of the last state fact of ONE control (inside a query already bounded to its state facts on a
+// machine).
 const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
-  const campo = getStateFactCollectorField(controlId);
-  const porDia = {
+  const fieldName = getStateFactCollectorField(controlId);
+  const byDay = {
     days: {
       date_histogram: { field: '@timestamp', calendar_interval: 'day', time_zone: timeZone, min_doc_count: 1 },
       aggs: { last: { max: { field: '@timestamp' } } },
     },
   };
-  const porTipo = {
+  const byTypeMap = {
     types: {
       terms: { field: 'data.event', size: 200 },
-      aggs: { ids: { terms: { field: 'data.evidence_id', size: 200, missing: SIN_VALOR }, aggs: porDia } },
+      aggs: { ids: { terms: { field: 'data.evidence_id', size: 200, missing: NO_VALUE }, aggs: byDay } },
     },
   };
   return {
-    alt: { filter: { bool: { should: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
-    // Un campo con varios valores en un mismo hecho (una lista) no se
-    // atribuye bien a un solo cubo: se compara cuántos valores hay con
-    // cuántos hechos lo llevan.
+    alt: { filter: { bool: { should: ALTERNATIVE_EVIDENCE_FIELDS.map(field => ({ exists: { field } })), minimum_should_match: 1 } } },
+    // A field with several values in one fact (a list) cannot be attributed to a single bucket: the number of
+    // values is compared with the number of facts carrying it.
     ...Object.fromEntries(
-      ['data.event', 'data.evidence_id', ...(campo ? [`data.${campo}`] : [])].flatMap((field, i) => [
+      ['data.event', 'data.evidence_id', ...(fieldName ? [`data.${fieldName}`] : [])].flatMap((field, i) => [
         [`values_${i}`, { value_count: { field } }],
         [`docs_${i}`, { filter: { exists: { field } } }],
       ])
     ),
-    collectors: campo
-      ? { terms: { field: `data.${campo}`, size: 200, missing: SIN_VALOR }, aggs: porTipo }
-      : { filters: { filters: { [SIN_VALOR]: { match_all: {} } } }, aggs: porTipo },
+    collectors: fieldName
+      ? { terms: { field: `data.${fieldName}`, size: 200, missing: NO_VALUE }, aggs: byTypeMap }
+      : { filters: { filters: { [NO_VALUE]: { match_all: {} } } }, aggs: byTypeMap },
   };
 };
 
-const hechosDeEstadoDe = (controlId: string) => [
+const stateFactsOf = (controlId: string) => [
   { term: { 'data.ensfacil': controlId } },
   { terms: { 'data.event': [...getStateFactEventTypes(controlId)] } },
 ];
@@ -427,13 +408,13 @@ export const buildStateFactLastSeenRequest = (
   index,
   body: {
     size: 0,
-    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, ...hechosDeEstadoDe(controlId)] } },
+    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, ...stateFactsOf(controlId)] } },
     aggs: stateFactLastSeenAggs(controlId, timeZone),
   },
 });
 
-// Lo mismo para TODOS los controles con hechos de estado de una máquina, en
-// una sola consulta (una agregación por control, con su propio filtro).
+// The same for ALL controls with state facts of a machine, in one query (one aggregation per control, with its
+// own filter).
 export const buildAgentStateFactLastSeenRequest = (
   viewFilters: unknown[],
   controlIds: string[],
@@ -448,7 +429,7 @@ export const buildAgentStateFactLastSeenRequest = (
     aggs: Object.fromEntries(
       controlIds.map((controlId, i) => [
         `c${i}`,
-        { filter: { bool: { filter: hechosDeEstadoDe(controlId) } }, aggs: stateFactLastSeenAggs(controlId, timeZone) },
+        { filter: { bool: { filter: stateFactsOf(controlId) } }, aggs: stateFactLastSeenAggs(controlId, timeZone) },
       ])
     ),
   },
@@ -458,128 +439,126 @@ export const readAgentStateFactLastSeen = (controlIds: string[], body: any): Map
   new Map(controlIds.map((controlId, i) => [controlId, readStateFactLastSeen(controlId, { aggregations: body?.aggregations?.[`c${i}`] })]));
 
 export interface ENSStateFactLastSeen {
-  // Recolectores con hechos de estado (`''` sin campo de recolector).
+  // Collectors with state facts (`''` without a collector field).
   collectors: string[];
   lastFactOf: (collector: string, evidenceId: string, at: number) => number | undefined;
 }
 
 export const readStateFactLastSeen = (controlId: string, body: any): ENSStateFactLastSeen => {
   const aggs = body?.aggregations || {};
-  // Sin poder atribuir cada hecho a su recolector, tipo y evidencia no se poda
-  // nada (sin último hecho, ningún recolector tiene corte):
-  //   - hechos que declaran la evidencia en otro campo;
-  //   - algún campo con varios valores en el mismo hecho;
-  //   - cubos que no cupieron en la respuesta (`sum_other_doc_count`).
-  const multivalor = Object.keys(aggs)
+  // If each fact cannot be attributed to its collector, type and evidence, nothing is pruned (without a last
+  // fact, no collector has a cutoff):
+  //   - facts declaring the evidence in another field;
+  //   - a field with several values in the same fact;
+  //   - buckets that did not fit in the response (`sum_other_doc_count`).
+  const multiValue = Object.keys(aggs)
     .filter(k => k.startsWith('values_'))
     .some(k => Number(aggs[k]?.value) > Number(aggs[`docs_${k.slice(7)}`]?.doc_count));
-  const recortado = (nodo: any): boolean =>
-    Boolean(nodo) &&
-    typeof nodo === 'object' &&
-    (Number(nodo.sum_other_doc_count) > 0 || Object.values(nodo).some(v => (Array.isArray(v) ? v.some(recortado) : recortado(v))));
-  const atribuible = !(Number(aggs.alt?.doc_count) > 0) && !multivalor && !recortado(aggs.collectors);
-  const maximos = new Map<string, number[]>();
-  const cubos = Array.isArray(aggs.collectors?.buckets)
+  const trimmedValue = (node: any): boolean =>
+    Boolean(node) &&
+    typeof node === 'object' &&
+    (Number(node.sum_other_doc_count) > 0 || Object.values(node).some(v => (Array.isArray(v) ? v.some(trimmedValue) : trimmedValue(v))));
+  const attributable = !(Number(aggs.alt?.doc_count) > 0) && !multiValue && !trimmedValue(aggs.collectors);
+  const maxima = new Map<string, number[]>();
+  const buckets = Array.isArray(aggs.collectors?.buckets)
     ? aggs.collectors.buckets
     : Object.entries(aggs.collectors?.buckets || {}).map(([key, b]: [string, any]) => ({ key, ...b }));
   const collectors: string[] = [];
-  for (const c of cubos) {
-    const collector = String(c.key) === SIN_VALOR ? '' : String(c.key).trim();
+  for (const c of buckets) {
+    const collector = String(c.key) === NO_VALUE ? '' : String(c.key).trim();
     collectors.push(collector);
     for (const t of c.types?.buckets || []) {
       for (const id of t.ids?.buckets || []) {
-        const clave = `${collector}|${t.key}|${String(id.key) === SIN_VALOR ? '' : id.key}`;
-        const dias = (id.days?.buckets || []).map((d: any) => Number(d.last?.value)).filter(Number.isFinite);
-        maximos.set(clave, [...(maximos.get(clave) || []), ...dias].sort((a, b) => a - b));
+        const key = `${collector}|${t.key}|${String(id.key) === NO_VALUE ? '' : id.key}`;
+        const days = (id.days?.buckets || []).map((d: any) => Number(d.last?.value)).filter(Number.isFinite);
+        maxima.set(key, [...(maxima.get(key) || []), ...days].sort((a, b) => a - b));
       }
     }
   }
-  const tiposDe = (evidenceId: string) =>
-    [...getStateFactEventTypes(controlId)].filter(tipo => getStateFactOwnerEvidenceIds(controlId, tipo).includes(evidenceId));
+  const typesOf = (evidenceId: string) =>
+    [...getStateFactEventTypes(controlId)].filter(type => getStateFactOwnerEvidenceIds(controlId, type).includes(evidenceId));
   return {
     collectors: [...new Set(collectors)],
     lastFactOf: (collector, evidenceId, at) => {
-      if (!atribuible) return undefined;
-      let ultimo: number | undefined;
-      for (const tipo of tiposDe(evidenceId)) {
+      if (!attributable) return undefined;
+      let last2: number | undefined;
+      for (const type of typesOf(evidenceId)) {
         for (const id of [evidenceId, '']) {
-          for (const m of maximos.get(`${collector}|${tipo}|${id}`) || []) {
-            if (m <= at && (ultimo === undefined || m > ultimo)) ultimo = m;
+          for (const m of maxima.get(`${collector}|${type}|${id}`) || []) {
+            if (m <= at && (last2 === undefined || m > last2)) last2 = m;
           }
         }
       }
-      return ultimo;
+      return last2;
     },
   };
 };
 
-// Los rangos de fecha que NO hace falta leer de un recolector: lo que queda
-// fuera de la unión de (corte, instante] de todos los instantes. Sin corte en
-// un instante, todo lo anterior a él se lee.
+// Date ranges that need NOT be read for a collector: what lies outside the union of (cutoff, instant] over all
+// instants. Without a cutoff at an instant, everything before it is read.
 export const prunableRanges = (
   windowStart: number,
   instants: number[],
   cutoffs: (number | undefined)[]
 ): { from: number; to: number }[] => {
-  const dentro = instants
+  const inside = instants
     .map((hi, i) => ({ lo: cutoffs[i] === undefined ? windowStart - 1 : (cutoffs[i] as number), hi }))
     .filter(r => r.hi > r.lo)
     .sort((a, b) => a.lo - b.lo);
-  const unidos: { lo: number; hi: number }[] = [];
-  for (const r of dentro) {
-    const ultimo = unidos[unidos.length - 1];
-    if (ultimo && r.lo <= ultimo.hi) ultimo.hi = Math.max(ultimo.hi, r.hi);
-    else unidos.push({ ...r });
+  const joined: { lo: number; hi: number }[] = [];
+  for (const r of inside) {
+    const last2 = joined[joined.length - 1];
+    if (last2 && r.lo <= last2.hi) last2.hi = Math.max(last2.hi, r.hi);
+    else joined.push({ ...r });
   }
-  // Huecos: [inicio, lo1], (hi1, lo2], … Los extremos son instantes en ms;
-  // un hecho con fecha igual al corte se descarta (el motor conserva > corte).
-  const huecos: { from: number; to: number }[] = [];
-  let desde = windowStart;
-  for (const u of unidos) {
-    if (u.lo >= desde) huecos.push({ from: desde, to: u.lo });
-    desde = u.hi + 1;
+  // Gaps: [start, lo1], (hi1, lo2], ... Bounds are instants in ms; a fact dated exactly at the cutoff is
+  // discarded (the engine keeps > cutoff).
+  const gaps: { from: number; to: number }[] = [];
+  let since = windowStart;
+  for (const u of joined) {
+    if (u.lo >= since) gaps.push({ from: since, to: u.lo });
+    since = u.hi + 1;
   }
-  return huecos;
+  return gaps;
 };
 
-// La cláusula que deja fuera esos rangos, tipo a tipo (con sus evidencias
-// dueñas) y recolector a recolector. Ante cualquier duda el hecho se lee.
+// The clause excluding those ranges, type by type (with their owning evidences) and collector by collector. When
+// in doubt the fact is read.
 export const buildStateFactKeepClause = (
   controlId: string,
   agentId: string,
   gapsByCollector: Map<string, { from: number; to: number }[]>
 ): unknown | undefined => {
-  const campo = getStateFactCollectorField(controlId);
-  const todas = getEvidenceDefinitions(controlId).map(definition => definition.id);
+  const fieldName = getStateFactCollectorField(controlId);
+  const allOnes = getEvidenceDefinitions(controlId).map(definition => definition.id);
   if (!getStateFactEventTypes(controlId).size) return undefined;
-  const porTipo = [...getStateFactEventTypes(controlId)].map(tipo => {
-    const duenas = getStateFactOwnerEvidenceIds(controlId, tipo);
-    const ajenas = todas.filter(id => !duenas.includes(id));
+  const byTypeMap = [...getStateFactEventTypes(controlId)].map(type => {
+    const owners = getStateFactOwnerEvidenceIds(controlId, type);
+    const foreignOnes = allOnes.filter(id => !owners.includes(id));
     return {
       bool: {
-        filter: [{ term: { 'data.event': tipo } }],
-        should: [{ bool: { must_not: { exists: { field: 'data.evidence_id' } } } }, { terms: { 'data.evidence_id': duenas } }],
+        filter: [{ term: { 'data.event': type } }],
+        should: [{ bool: { must_not: { exists: { field: 'data.evidence_id' } } } }, { terms: { 'data.evidence_id': owners } }],
         minimum_should_match: 1,
-        ...(ajenas.length ? { must_not: [{ terms: { 'data.evidence_id': ajenas } }] } : {}),
+        ...(foreignOnes.length ? { must_not: [{ terms: { 'data.evidence_id': foreignOnes } }] } : {}),
       },
     };
   });
-  // Recolector a recolector mientras quepan sus rangos; los que no caben se
-  // leen enteros.
-  let hojas = porTipo.length * 4 + 8;
-  const caben = [...gapsByCollector.entries()]
+  // Collector by collector while their ranges fit; those that do not are read whole.
+  let leaves = byTypeMap.length * 4 + 8;
+  const fit = [...gapsByCollector.entries()]
     .filter(([, gaps]) => gaps.length)
     .filter(([, gaps]) => {
-      if (hojas + gaps.length + 1 > PRUNING_MAX_LEAVES) return false;
-      hojas += gaps.length + 1;
+      if (leaves + gaps.length + 1 > PRUNING_MAX_LEAVES) return false;
+      leaves += gaps.length + 1;
       return true;
     });
-  const should = caben
+  const should = fit
     .map(([collector, gaps]) => ({
       bool: {
         filter: [
-          ...(campo
-            ? [collector ? { term: { [`data.${campo}`]: collector } } : { bool: { must_not: { exists: { field: `data.${campo}` } } } }]
+          ...(fieldName
+            ? [collector ? { term: { [`data.${fieldName}`]: collector } } : { bool: { must_not: { exists: { field: `data.${fieldName}` } } } }]
             : []),
           { bool: { should: gaps.map(g => ({ range: { '@timestamp': { gte: new Date(g.from).toISOString(), lte: new Date(g.to).toISOString() } } })), minimum_should_match: 1 } },
         ],
@@ -591,34 +570,29 @@ export const buildStateFactKeepClause = (
       filter: [
         { term: { 'data.ensfacil': controlId } },
         { term: { 'agent.id': agentId } },
-        { bool: { should: porTipo, minimum_should_match: 1 } },
+        { bool: { should: byTypeMap, minimum_should_match: 1 } },
         { bool: { should, minimum_should_match: 1 } },
       ],
-      must_not: CAMPOS_EVIDENCIA_ALTERNATIVOS.map(field => ({ exists: { field } })),
+      must_not: ALTERNATIVE_EVIDENCE_FIELDS.map(field => ({ exists: { field } })),
     },
   };
 };
 
 
-// --- un flujo por máquina ------------------------------------------------------
-//
-// En el indexador real cuesta cada LLAMADA (0,16-0,34 s, con o sin hechos),
-// no los bytes. En lugar de una lectura por control y máquina, se lee una vez
-// por máquina (o por grupos de controles de la máquina), ordenado por control:
-// cada control se evalúa en cuanto termina su tramo. Lo que el tramo no trae
-// se lee aparte, una vez por máquina: los hechos sin `data.ensfacil` o con un
-// campo de control antiguo (los que no nombran control van a todas las filas;
-// los antiguos, a la de su control) y los latidos (para la poda).
+// --- one stream per machine ---
+// On the real indexer each CALL costs (0.16-0.34 s), not the bytes. Instead of one read per control and machine,
+// it reads once per machine (or per group of its controls), sorted by control: each control is evaluated as soon
+// as its stretch ends. What the stretch does not carry is read apart, once per machine: facts without
+// `data.ensfacil` or with an old control field (those naming no control go to every row; old ones to their
+// control's) and heartbeats (for pruning).
 
 export const ENS_LEGACY_CONTROL_FIELDS = ['data.ens', 'data.control_id', 'data.control'];
 
-// El orden del flujo: por control y, dentro de cada control, el de siempre
-// (así cada fila recibe sus hechos en el mismo orden que leyéndola sola).
-// `unmapped_type`: la plantilla de Wazuh mapea `data.*` de forma dinámica, y un
-// índice diario sin ningún hecho de ENSFácil (un día sin recolectores, los
-// anteriores a instalarlo) no mapea `data.ensfacil`; sin él, OpenSearch
-// rechaza la búsqueda entera con un 400 («No mapping found … in order to sort
-// on»), también con el comodín.
+// Stream order: by control and, inside each control, the usual order (each row receives its facts in the same
+// order as reading it alone).
+// `unmapped_type`: the Wazuh template maps `data.*` dynamically, and a daily index without any ENSFácil fact
+// (days without collectors, before installation) does not map `data.ensfacil`; without it OpenSearch rejects the
+// whole search with a 400 ("No mapping found ... in order to sort on"), wildcard included.
 export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }, ...FACTS_SORT];
 
 export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, controlIds: string[], prunings: unknown[]) => ({
@@ -628,7 +602,7 @@ export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, c
   },
 });
 
-// Lo que el flujo no lleva: sin `data.ensfacil`, o con un campo de control antiguo.
+// What the stream does not carry: no `data.ensfacil`, or an old control field.
 export const buildAgentSideQuery = (viewFilters: unknown[], agentId: string) => ({
   bool: {
     filter: [
@@ -647,29 +621,28 @@ export const buildAgentSideQuery = (viewFilters: unknown[], agentId: string) => 
   },
 });
 
-// Los latidos de una máquina, de todos sus controles.
+// Heartbeats of a machine, from all its controls.
 export const buildAgentRunsQuery = (viewFilters: unknown[], agentId: string) => ({
   bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, { term: { 'data.event': 'collector_run' } }] },
 });
 
-const valoresDeCampo = (data: any, field: string): unknown[] => {
+const fieldValues = (data: any, field: string): unknown[] => {
   const v = data?.[field.slice('data.'.length)];
   if (v === undefined || v === null) return [];
   return (Array.isArray(v) ? v : [v]).filter(x => x !== undefined && x !== null);
 };
 
-// ¿Va este hecho (leído aparte) a la fila de este control? Lo mismo que
-// decide el filtro de una lectura por fila: lo nombra en cualquiera de los
-// cuatro campos, o no nombra ninguno.
+// Does this fact (read apart) go to this control's row? Same as the filter of a per-row read: it names it in any
+// of the four fields, or names none.
 export const sideFactBelongsTo = (hit: any, controlId: string): boolean => {
   const data = hit?._source?.data;
-  const valores = ENS_CONTROL_ID_FIELDS.map(field => valoresDeCampo(data, field));
-  if (valores.every(lista => lista.length === 0)) return true;
-  return valores.some(lista => lista.some(valor => String(valor) === controlId));
+  const values = ENS_CONTROL_ID_FIELDS.map(field => fieldValues(data, field));
+  if (values.every(list => list.length === 0)) return true;
+  return values.some(list => list.some(value => String(value) === controlId));
 };
 
-// Compara dos cadenas por punto de código (el orden de los `keyword`).
-const porCodigo = (a: string, b: string): number => {
+// Compares two strings by code point (the `keyword` order).
+const byCode = (a: string, b: string): number => {
   if (a === b) return 0;
   const x = [...a];
   const y = [...b];
@@ -680,8 +653,7 @@ const porCodigo = (a: string, b: string): number => {
   return x.length - y.length;
 };
 
-// El orden de `FACTS_SORT` entre dos hechos, con sus valores de orden (los
-// cuatro últimos: el flujo lleva delante el control).
+// `FACTS_SORT` order between two facts, with their sort values (the last four: the stream puts the control first).
 export const compareFactsOrder = (a: any, b: any): number => {
   const x = (a?.sort || []).slice(-4);
   const y = (b?.sort || []).slice(-4);
@@ -693,45 +665,45 @@ export const compareFactsOrder = (a: any, b: any): number => {
     return tb - ta;
   }
   for (let i = 1; i < 4; i++) {
-    const va = x[i] === null || x[i] === undefined ? null : String(x[i]);
+    const goes = x[i] === null || x[i] === undefined ? null : String(x[i]);
     const vb = y[i] === null || y[i] === undefined ? null : String(y[i]);
-    if (va === vb) continue;
-    if (va === null) return 1;
+    if (goes === vb) continue;
+    if (goes === null) return 1;
     if (vb === null) return -1;
-    return porCodigo(va, vb);
+    return byCode(goes, vb);
   }
   return 0;
 };
 
-// Mezcla dos listas ya ordenadas por `FACTS_SORT`.
+// Merges two lists already sorted by `FACTS_SORT`.
 export const mergeFactsInOrder = (a: any[], b: any[]): any[] => {
   if (!b.length) return a;
   if (!a.length) return b;
-  const salida: any[] = [];
+  const output: any[] = [];
   let i = 0;
   let j = 0;
-  while (i < a.length && j < b.length) salida.push(compareFactsOrder(a[i], b[j]) <= 0 ? a[i++] : b[j++]);
-  while (i < a.length) salida.push(a[i++]);
-  while (j < b.length) salida.push(b[j++]);
-  return salida;
+  while (i < a.length && j < b.length) output.push(compareFactsOrder(a[i], b[j]) <= 0 ? a[i++] : b[j++]);
+  while (i < a.length) output.push(a[i++]);
+  while (j < b.length) output.push(b[j++]);
+  return output;
 };
 
-// Los índices que leer: los que tienen hechos de la ventana según la sonda
-// (y, si siguen el nombre diario de Wazuh, los de cada día de la ventana, por
-// si se crea uno después de la sonda). Sin lista fiable, el comodín.
-const DIARIO = /^(.*-)(\d{4})\.(\d{2})\.(\d{2})$/;
+// Indices to read: those with facts in the window according to the probe (and, if they follow Wazuh's daily
+// name, those of each day of the window, in case one is created after the probe). Without a reliable list, the
+// wildcard.
+const DAILY = /^(.*-)(\d{4})\.(\d{2})\.(\d{2})$/;
 export const factsIndexFor = (indices: string[] | undefined, window: { from: string; to: string }): string => {
   if (!indices || !indices.length) return ENS_ALERTS_INDEX;
-  const nombres = new Set(indices);
-  const prefijos = new Set(indices.map(i => DIARIO.exec(i)?.[1]).filter(Boolean) as string[]);
-  if (prefijos.size === 1 && indices.every(i => DIARIO.test(i))) {
-    const prefijo = [...prefijos][0];
+  const names = new Set(indices);
+  const prefixes = new Set(indices.map(i => DAILY.exec(i)?.[1]).filter(Boolean) as string[]);
+  if (prefixes.size === 1 && indices.every(i => DAILY.test(i))) {
+    const prefix = [...prefixes][0];
     for (let t = Date.parse(window.from.slice(0, 10)); t <= Date.parse(window.to); t += 86400e3) {
       const d = new Date(t);
-      nombres.add(`${prefijo}${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`);
+      names.add(`${prefix}${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`);
     }
   }
-  const lista = [...nombres].sort().join(',');
-  // Una URL demasiado larga: el comodín.
-  return lista.length > 3000 ? ENS_ALERTS_INDEX : lista;
+  const list = [...names].sort().join(',');
+  // URL too long: the wildcard.
+  return list.length > 3000 ? ENS_ALERTS_INDEX : list;
 };

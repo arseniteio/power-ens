@@ -1,31 +1,4 @@
-/**
- * Decisiones DOCUMENTALES de la policy: `documental` en `ENSPolicyDecision`.
- *
- *     npx --yes tsx tests/documentary-decision.test.ts
- *
- * POR QUÉ EXISTE. Un recolector parado (`markPolicyRuntimeStale`) o un alcance
- * sin máquinas (`markPolicyRuntimeUnmatchedScope`) dejaban en NO_EVALUABLE
- * TODAS las decisiones de la policy, también las que salen de la pantalla (una
- * certificación vencida sigue vencida aunque el recolector no lata). En un
- * requisito sin evidencias técnicas, ese NO_EVALUABLE dejaba pasar a P-ATT: un
- * NO_CUMPLE declarado salía CUMPLE. Un verde falso y escondido.
- *
- * Lo que se prueba, con su reversión al lado:
- *
- *   1. con el recolector parado, una decisión `documental` se conserva en
- *      cualquier estado; una técnica pasa a NO_EVALUABLE (COLLECTION); el
- *      NO_APLICA se conserva como siempre;
- *   2. lo mismo con el alcance sin máquinas (CONFIGURATION);
- *   3. recolector parado + NO_CUMPLE documental + P-ATT → NO_CUMPLE, nunca
- *      CUMPLE; sin la marca, el mismo caso salía CUMPLE (el agujero);
- *   4. un NO_CUMPLE documental no se lee «Medido» ni manda a corregir la
- *      máquina: la etiqueta, la no conformidad y su acción lo dicen.
- *   5. la ficha del control no lo cuenta bajo «Corregir el sistema»: tiene su
- *      propio bloque, «renovar o completar la documentación».
- *
- * Es del motor, no de un control: se usa op.acc.1.5 (sin evidencias técnicas,
- * acreditable con P-ATT) con decisiones fabricadas.
- */
+/** DOCUMENTARY policy decisions: `documental` in `ENSPolicyDecision`. */
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
@@ -51,46 +24,40 @@ import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
-
-// op.acc.1.5 no declara ninguna evidencia: es donde P-ATT puede entrar.
 const REQ = 'op.acc.1.5';
-// op.acc.1.2 se demuestra con evidencias técnicas.
-const TECNICO = 'op.acc.1.2';
+const TECHNICAL = 'op.acc.1.2';
 
-const requisito = (id: string) => opAcc1CatalogDefinition.requirements.find(r => r.id === id)!;
+const requirement = (id: string) => opAcc1CatalogDefinition.requirements.find(r => r.id === id)!;
 
 const decision = (
-  requisitoId: string,
+  requirementId: string,
   status: ENSComplianceStatus,
   extra: Partial<ENSPolicyDecision> = {}
 ): ENSPolicyDecision => ({
   policyId: 'prueba',
-  requirementId: requisitoId,
+  requirementId: requirementId,
   status,
   parameterIds: [],
   evidenceIds: [],
   eventIds: [],
   runtimeVariables: [],
   trace: {
-    ruleId: requisitoId,
+    ruleId: requirementId,
     ruleType: 'MAX_AGE',
     expression: 'prueba',
     expected: 'certificación en vigor',
@@ -101,11 +68,11 @@ const decision = (
   ...extra,
 });
 
-const runtime = (decisiones: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
+const runtime = (decisions: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
   controlId: 'op.acc.1',
   policyId: 'prueba',
   evaluatedAt: '2026-10-09T12:00:00Z',
-  decisions: decisiones,
+  decisions: decisions,
   appliedParameters: [],
   runtimeVariables: [],
 });
@@ -116,7 +83,7 @@ const PARADO: ENSStaleCollector = {
   reason: 'Sin datos del recolector desde el 2026-10-07 10:00 UTC.',
 };
 
-const configuracion = (filas: string[]): ENSControlConfiguration =>
+const configuration = (rows: string[]): ENSControlConfiguration =>
   ({
     controlId: 'op.acc.1',
     controlName: 'Identificación',
@@ -140,151 +107,139 @@ const configuracion = (filas: string[]): ENSControlConfiguration =>
         evidenceIds: [],
         ruleIds: [],
         ifNotConfigured: '',
-        value: filas,
+        value: rows,
       } as unknown as ENSControlParameter,
     ],
   }) as ENSControlConfiguration;
 
-const ATESTACION = parseRequirementAttestations(
-  configuracion([`${REQ} | Política de identificación v3 | https://intranet/pol-id-v3.pdf | 2026-05-12 | RSI`])
+const ATTESTATION = parseRequirementAttestations(
+  configuration([`${REQ} | Política de identificación v3 | https://intranet/pol-id-v3.pdf | 2026-05-12 | RSI`])
 ).get(REQ);
 
-const juzga = (decisiones: ENSPolicyDecision[], id = REQ, evidencias: ENSEvidenceResolved[] = []) =>
-  evaluateRequirement(requisito(id), 'ALTO', evidencias, false, decisiones, 'ACTIVE', id === REQ ? ATESTACION : undefined);
+const judges = (decisions: ENSPolicyDecision[], id = REQ, evidences: ENSEvidenceResolved[] = []) =>
+  evaluateRequirement(requirement(id), 'ALTO', evidences, false, decisions, 'ACTIVE', id === REQ ? ATTESTATION : undefined);
 
-// --- 1. recolector parado ---------------------------------------------------
-
-bloque('1. Recolector parado: lo documental se conserva en cualquier estado; lo técnico no');
+section('1. Collector stopped: documentary is kept in any state; technical is not');
 
 {
-  const documentales = (['NO_CUMPLE', 'CUMPLE', 'NO_EVALUABLE'] as ENSComplianceStatus[]).map(status =>
+  const documentary = (['NO_CUMPLE', 'CUMPLE', 'NO_EVALUABLE'] as ENSComplianceStatus[]).map(status =>
     decision(REQ, status, { documental: true, cause: status === 'NO_EVALUABLE' ? 'CONFIGURATION' : undefined, attested: status === 'CUMPLE' || undefined })
   );
-  const tecnica = decision(TECNICO, 'CUMPLE');
-  const fuera = decision('op.acc.1.r1.1', 'NO_APLICA');
-  const marcadas = markPolicyRuntimeStale(runtime([...documentales, tecnica, fuera]), PARADO)!.decisions;
+  const technical = decision(TECHNICAL, 'CUMPLE');
+  const outside = decision('op.acc.1.r1.1', 'NO_APLICA');
+  const marked = markPolicyRuntimeStale(runtime([...documentary, technical, outside]), PARADO)!.decisions;
 
-  comprueba(
-    'las tres documentales salen intactas (estado, motivo, causa)',
-    marcadas.slice(0, 3).every((d, i) => d.status === documentales[i].status && d.reason === documentales[i].reason && d.cause === documentales[i].cause),
-    marcadas.slice(0, 3).map(d => `${d.status}/${d.cause}`).join(', ')
+  check(
+    'the three documentary ones come out intact (state, motive, cause)',
+    marked.slice(0, 3).every((d, i) => d.status === documentary[i].status && d.reason === documentary[i].reason && d.cause === documentary[i].cause),
+    marked.slice(0, 3).map(d => `${d.status}/${d.cause}`).join(', ')
   );
-  comprueba(
-    'la técnica pasa a NO_EVALUABLE por RECOGIDA con el motivo del recolector',
-    marcadas[3].status === 'NO_EVALUABLE' && marcadas[3].cause === 'COLLECTION' && /Sin datos del recolector/.test(marcadas[3].reason),
-    `${marcadas[3].status} ${marcadas[3].cause}`
+  check(
+    'the technical one becomes NO_EVALUABLE by RECOGIDA with the collector\'s motive',
+    marked[3].status === 'NO_EVALUABLE' && marked[3].cause === 'COLLECTION' && /Sin datos del recolector/.test(marked[3].reason),
+    `${marked[3].status} ${marked[3].cause}`
   );
-  comprueba('el NO_APLICA se conserva', marcadas[4].status === 'NO_APLICA');
-  comprueba(
-    'y un requisito técnico con el recolector parado no cumple: no demostrado',
-    juzga([marcadas[3]], TECNICO).status === 'NO_CUMPLE' && juzga([marcadas[3]], TECNICO).evidenced === false
+  check('NO_APLICA is kept', marked[4].status === 'NO_APLICA');
+  check(
+    'and a technical requirement with the collector stopped does not comply: not proven',
+    judges([marked[3]], TECHNICAL).status === 'NO_CUMPLE' && judges([marked[3]], TECHNICAL).evidenced === false
   );
 }
 
-// --- 2. alcance sin máquinas --------------------------------------------------
-
-bloque('2. Alcance sin máquinas: la misma regla, con causa CONFIGURATION para lo técnico');
+section('2. Scope without machines: the same rule, with cause CONFIGURATION for the technical one');
 
 {
-  const marcadas = markPolicyRuntimeUnmatchedScope(
-    runtime([decision(REQ, 'NO_CUMPLE', { documental: true }), decision(TECNICO, 'CUMPLE')]),
+  const marked = markPolicyRuntimeUnmatchedScope(
+    runtime([decision(REQ, 'NO_CUMPLE', { documental: true }), decision(TECHNICAL, 'CUMPLE')]),
     'P-04 no declara ninguna máquina'
   )!.decisions;
 
-  comprueba('la documental sale intacta', marcadas[0].status === 'NO_CUMPLE' && marcadas[0].documental === true);
-  comprueba('la técnica, NO_EVALUABLE por CONFIGURATION', marcadas[1].status === 'NO_EVALUABLE' && marcadas[1].cause === 'CONFIGURATION');
+  check('the documentary one comes out intact', marked[0].status === 'NO_CUMPLE' && marked[0].documental === true);
+  check('the technical one, NO_EVALUABLE by CONFIGURATION', marked[1].status === 'NO_EVALUABLE' && marked[1].cause === 'CONFIGURATION');
 }
 
-// --- 3. el agujero de P-ATT -------------------------------------------------------
-
-bloque('3. Recolector parado + NO_CUMPLE documental + P-ATT: nunca CUMPLE');
+section('3. Collector stopped + documentary NO_CUMPLE + P-ATT: never CUMPLE');
 
 {
-  const vencida = decision(REQ, 'NO_CUMPLE', { documental: true });
-  const conMarca = juzga(markPolicyRuntimeStale(runtime([vencida]), PARADO)!.decisions);
+  const expired = decision(REQ, 'NO_CUMPLE', { documental: true });
+  const withMark = judges(markPolicyRuntimeStale(runtime([expired]), PARADO)!.decisions);
 
-  comprueba(
-    'con la marca: NO_CUMPLE medido desde la declaración, sin acreditar',
-    conMarca.status === 'NO_CUMPLE' && conMarca.evidenced === true && !conMarca.attested && conMarca.documental === true,
-    `${conMarca.status} evidenced=${conMarca.evidenced} attested=${conMarca.attested}`
+  check(
+    'with the mark: measured NO_CUMPLE from the declaration, not accredited',
+    withMark.status === 'NO_CUMPLE' && withMark.evidenced === true && !withMark.attested && withMark.documental === true,
+    `${withMark.status} evidenced=${withMark.evidenced} attested=${withMark.attested}`
   );
 
-  const { documental: _sin, ...sinMarca } = vencida;
-  const agujero = juzga(markPolicyRuntimeStale(runtime([sinMarca]), PARADO)!.decisions);
-  comprueba(
-    'REVERSIÓN (el agujero que cierra): sin la marca, el recolector parado lo deja NO_EVALUABLE y P-ATT lo daba por CUMPLE',
-    agujero.status === 'CUMPLE' && agujero.attested === true,
-    `${agujero.status} attested=${agujero.attested}`
+  const { documental: _without, ...withoutMark } = expired;
+  const hole = judges(markPolicyRuntimeStale(runtime([withoutMark]), PARADO)!.decisions);
+  check(
+    'REVERSAL (the hole it closes): without the mark, the stopped collector leaves it NO_EVALUABLE and P-ATT took it as CUMPLE',
+    hole.status === 'CUMPLE' && hole.attested === true,
+    `${hole.status} attested=${hole.attested}`
   );
-  comprueba('y sin recolector parado, el NO_CUMPLE documental sigue mandando sobre P-ATT', juzga([vencida]).status === 'NO_CUMPLE');
+  check('and without a stopped collector, the documentary NO_CUMPLE still prevails over P-ATT', judges([expired]).status === 'NO_CUMPLE');
 }
 
-// --- 4. cómo se dice ------------------------------------------------------------------
-
-bloque('4. Un NO_CUMPLE documental no es «Medido» ni «corregir la máquina»');
+section('4. A documentary NO_CUMPLE is neither «Medido» nor «corregir la máquina»');
 
 {
-  const vencida = juzga([decision(REQ, 'NO_CUMPLE', { documental: true })]);
-  const medida = juzga([decision(REQ, 'NO_CUMPLE')]);
+  const expired = judges([decision(REQ, 'NO_CUMPLE', { documental: true })]);
+  const measure = judges([decision(REQ, 'NO_CUMPLE')]);
 
-  comprueba('la etiqueta del informe dice «Declarado (documental)»', ensRequirementProofLabel(vencida) === 'Declarado (documental)', ensRequirementProofLabel(vencida));
-  comprueba('REVERSIÓN: sin la marca, «Medido»', ensRequirementProofLabel(medida) === 'Medido');
-  comprueba('un CUMPLE acreditado sigue diciendo «Acreditado documentalmente»', ensRequirementProofLabel(juzga([decision(REQ, 'CUMPLE', { documental: true, attested: true })])) === 'Acreditado documentalmente');
+  check('the report label says «Declarado (documental)»', ensRequirementProofLabel(expired) === 'Declarado (documental)', ensRequirementProofLabel(expired));
+  check('REVERSAL: without the mark, «Medido»', ensRequirementProofLabel(measure) === 'Medido');
+  check('an accredited CUMPLE still says «Acreditado documentalmente»', ensRequirementProofLabel(judges([decision(REQ, 'CUMPLE', { documental: true, attested: true })])) === 'Acreditado documentalmente');
 
-  const evidencias = getEvidenceDefinitions('op.acc.1').map(e => ({ ...e, status: 'CUMPLE', observations: [] }) as ENSEvidenceResolved);
-  const control = (marca: boolean) =>
+  const evidences = getEvidenceDefinitions('op.acc.1').map(e => ({ ...e, status: 'CUMPLE', observations: [] }) as ENSEvidenceResolved);
+  const control = (mark: boolean) =>
     evaluateENSControl(
       opAcc1CatalogDefinition,
-      configuracion([]),
+      configuration([]),
       'ALTO',
-      evidencias,
-      runtime([decision(REQ, 'NO_CUMPLE', marca ? { documental: true } : {})]),
+      evidences,
+      runtime([decision(REQ, 'NO_CUMPLE', mark ? { documental: true } : {})]),
       []
     ).nonConformities.find(nc => nc.requirementId === REQ);
 
   const documental = control(true);
-  comprueba(
-    'la no conformidad es demostrada (cuenta igual) pero documental, y manda a renovar la documentación',
+  check(
+    'the nonconformity is proven (counts the same) but documentary, and sends to renew the documentation',
     documental?.origin === 'MEDIDA' && documental?.documental === true && /^Renovar o completar la documentación/.test(documental?.requiredAction || ''),
     `${documental?.origin} ${documental?.documental} ${documental?.requiredAction}`
   );
-  const tecnica = control(false);
-  comprueba('REVERSIÓN: sin la marca, «Corregir para alcanzar»', tecnica?.documental !== true && /^Corregir para alcanzar/.test(tecnica?.requiredAction || ''), tecnica?.requiredAction);
+  const technical = control(false);
+  check('REVERSAL: without the mark, «Corregir para alcanzar»', technical?.documental !== true && /^Corregir para alcanzar/.test(technical?.requiredAction || ''), technical?.requiredAction);
 }
 
-bloque('5. La ficha del control no cuenta lo documental bajo «Corregir el sistema»');
+section('5. The control sheet does not count documentary items under «Corregir el sistema»');
 
 {
-  // La pantalla es React sin entorno de pruebas: se comprueba su fuente, como
-  // `facts-read-error.test.ts`.
-  const fuente = readFileSync(join(__dirname, '..', 'public/ens/controls/control-detail/index.tsx'), 'utf8');
+  const source = readFileSync(join(__dirname, '..', 'public/ens/controls/control-detail/index.tsx'), 'utf8');
 
-  comprueba(
-    'separa las documentales de las medidas técnicas',
-    /const documentales = medidas\.filter\(item => item\.documental\)/.test(fuente) &&
-      /const medidasTecnicas = medidas\.filter\(item => !item\.documental\)/.test(fuente)
+  check(
+    'separates the documentary ones from the technical measures',
+    /const documentary = measures\.filter\(item => item\.documental\)/.test(source) &&
+      /const technicalMeasures = measures\.filter\(item => !item\.documental\)/.test(source)
   );
-  comprueba(
-    '«Corregir N» y «medidas · corregir el sistema» cuentan solo las técnicas',
-    /`Corregir \$\{medidasTecnicas\.length\}`/.test(fuente) &&
-      /etiqueta: 'medidas · corregir el sistema',\s*valor: medidasTecnicas\.length/.test(fuente) &&
-      !/`Corregir \$\{medidas\.length\}`/.test(fuente)
+  check(
+    '«Corregir N» and «medidas · corregir el sistema» count only the technical ones',
+    /`Corregir \$\{technicalMeasures\.length\}`/.test(source) &&
+      /etiqueta: 'medidas · corregir el sistema',\s*valor: technicalMeasures\.length/.test(source) &&
+      !/`Corregir \$\{medidas\.length\}`/.test(source)
   );
-  comprueba(
-    'el bloque «Corregir el sistema auditado» lista solo las técnicas, y las documentales tienen el suyo',
-    /pie: 'Corregir el sistema auditado\.',\s*items: medidasTecnicas,/.test(fuente) &&
-      /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentales,/.test(fuente)
+  check(
+    'the «Corregir el sistema auditado» block lists only the technical ones, and the documentary ones have their own',
+    /pie: 'Corregir el sistema auditado\.',\s*items: technicalMeasures,/.test(source) &&
+      /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentary,/.test(source)
   );
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

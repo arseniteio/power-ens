@@ -5,8 +5,7 @@
 
 ## 1. Objetivo
 
-Esta guía instala o actualiza el plugin ENSFácil con los ficheros de una release
-de GitLab, sin compilar y sin el código fuente.
+Instala o actualiza ENSFácil con los ficheros de una release de GitLab, sin compilar.
 
 Es la forma recomendada. Para compilar el zip, véase
 [Compilar desde el código fuente](08-building-from-source.md).
@@ -18,9 +17,7 @@ Es la forma recomendada. Para compilar el zip, véase
 > en [Wazuh en Docker](06-wazuh-in-docker.md).
 
 > [!note]
-> La release instala el plugin, que evalúa los hechos. Los hechos los recogen
-> las reglas del manager y los runbooks de cada máquina, que se instalan por
-> separado (apartado 14).
+> La release instala solo el plugin. Las reglas del manager y los runbooks de cada máquina se instalan por separado (apartado 14).
 
 ## 2. Qué es una release
 
@@ -40,9 +37,7 @@ rápidas de instalación, un enlace a esta guía y el SHA-256 del zip.
 
 ### 2.1 Compatibilidad
 
-Cada zip sirve para una sola versión de OpenSearch Dashboards, la que figura en
-el nombre (`-osd-2.19.5`). OpenSearch Dashboards solo acepta un plugin
-compilado para su versión exacta.
+Cada zip sirve para una sola versión de OpenSearch Dashboards, la del nombre (`-osd-2.19.5`).
 
 | ENSFácil | Wazuh | OpenSearch Dashboards | Fichero |
 |---|---|---|---|
@@ -68,8 +63,7 @@ comprobación previa a la instalación está en
 
 ## 3. Dónde están las releases
 
-El proyecto es privado: todo lo siguiente requiere una cuenta de GitLab con
-acceso a `quersystem/plugin-wazuh-ens`.
+Requiere una cuenta de GitLab con acceso a `quersystem/plugin-wazuh-ens`.
 
 | Ubicación | Uso |
 |---|---|
@@ -85,8 +79,7 @@ acceso a `quersystem/plugin-wazuh-ens`.
 
 ## 4. Preparar la carpeta en el servidor
 
-Cada versión se guarda en su propia carpeta. Se conserva la carpeta de la
-versión anterior: es necesaria para la vuelta atrás.
+Cada versión en su carpeta. Conservar la de la versión anterior (vuelta atrás).
 
 ```bash
 V=1.2.0
@@ -115,9 +108,7 @@ Continuar en el apartado 7.
 
 ## 6. Descargar desde el servidor con un token de despliegue
 
-Si el servidor tiene acceso a `gitlab.com`, puede descargar la release
-directamente. Para ello necesita un token de despliegue del proyecto que solo
-lea paquetes.
+Con acceso a `gitlab.com`, el servidor descarga la release con un token de despliegue del proyecto que solo lee paquetes.
 
 ### 6.1 Crear el token
 
@@ -135,16 +126,11 @@ una sola vez: debe guardarse en ese momento. Si el campo de usuario se deja
 vacío, GitLab asigna uno con la forma `gitlab+deploy-token-<n>`.
 
 > [!warning]
-> El token da acceso a todas las versiones publicadas. No debe escribirse en la
-> línea de órdenes (`curl -u usuario:token …`) ni en una asignación (`T=…`):
-> quedaría en el historial del shell y en la lista de procesos. Para retirarlo,
-> se revoca en la misma pantalla de GitLab.
+> El token da acceso a todas las versiones. No escribirlo en la línea de órdenes (`curl -u usuario:token …`) ni en una asignación (`T=…`): queda en el historial y en la lista de procesos. Revocarlo en la misma pantalla de GitLab.
 
 ### 6.2 Guardar el token solo para root
 
-Para las actualizaciones siguientes, el token se guarda en un fichero de
-configuración de curl que solo lee `root`: `/etc/ensfacil/gitlab-descarga.curlrc`
-(permisos `0600`, de `root:root`).
+Para actualizaciones posteriores, guardar el token en un fichero de configuración de curl legible solo por `root`: `/etc/ensfacil/gitlab-descarga.curlrc` (`0600`, `root:root`).
 
 ```bash
 read -r -p "Usuario del token: " U
@@ -158,8 +144,7 @@ sudo chmod 0600 /etc/ensfacil/gitlab-descarga.curlrc
 sudo stat -c '%a %U:%G' /etc/ensfacil/gitlab-descarga.curlrc
 ```
 
-`read` y `printf` son órdenes internas de bash: el token no pasa por la línea de
-órdenes de ningún proceso ni queda en el historial.
+`read` y `printf` son órdenes internas de bash: el token no queda en el historial ni en la lista de procesos.
 
 Resultado esperado: `600 root:root`. El fichero tiene una sola línea,
 `user = "<usuario>:<token>"`.
@@ -186,8 +171,7 @@ Resultado esperado: los cuatro ficheros en la carpeta y ninguna línea `ERROR`.
 
 ### 6.4 Sin guardar el token
 
-Para una descarga puntual, curl puede leer el token de su entrada estándar. Así
-no queda en ningún fichero:
+Descarga puntual: curl lee el token de la entrada estándar y no queda en ningún fichero:
 
 ```bash
 read -r -p "Usuario del token: " U
@@ -234,10 +218,7 @@ sudo -u wazuh-dashboard test -r "ensfacil-$V-osd-2.19.5.zip" && echo "ZIP_ACCESI
 sudo bash deploy-plugin.sh "ensfacil-$V-osd-2.19.5.zip"
 ```
 
-El script guarda el `ensfacil` instalado, si existe, en
-`/var/backups/ensfacil/`. Después detiene el dashboard, retira la versión
-anterior de `ensfacil`, instala el zip, sube el `build.number` del dashboard y
-lo arranca. Solo modifica `ensfacil`: el plugin de Wazuh no cambia.
+El script guarda el `ensfacil` instalado en `/var/backups/ensfacil/`, detiene el dashboard, sustituye `ensfacil`, sube el `build.number` y arranca el dashboard. El plugin de Wazuh no cambia.
 
 Resultado esperado: `ZIP_ACCESIBLE=OK` y, al final del despliegue,
 `dashboard: active` y, en `plugins:`, `ensfacil` junto a `wazuh`, `wazuhCore` y
@@ -248,31 +229,17 @@ de error. Los códigos y las copias están en el
 [diagnóstico, apartado 4.1](04-troubleshooting-and-rollback.md#41-si-deploy-pluginsh-falla-a-medias).
 
 > [!note]
-> Con Wazuh Dashboard en Docker, `deploy-plugin.sh` no se usa: presupone
-> systemd y una instalación por paquetes. El zip de la release se instala en
-> una imagen propia:
-> [Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil).
+> En Docker no se usa `deploy-plugin.sh` (presupone systemd y paquetes): [Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil).
 
-En una instalación nueva, continuar con la configuración ENS (el rol del
-apartado 9 es opcional): el primer guardado y la siembra de los controles
-([guía de instalación, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)).
-La siembra usa las herramientas de `config/` del repositorio, que la release no
-incluye. El acceso a GitLab y la clonación del repositorio se describen en la
-[guía de instalación, apartados 10.1 y 10.2](01-installation-from-scratch.md#101-validar-el-acceso-al-repositorio-principal).
+En una instalación nueva, continuar con la configuración ENS (el rol del apartado 9 es opcional): primer guardado y siembra de los controles ([guía de instalación, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)).
+La siembra usa las herramientas de `config/` del repositorio, que la release no incluye. Acceso a GitLab y clonación: [guía de instalación, apartados 10.1 y 10.2](01-installation-from-scratch.md#101-validar-el-acceso-al-repositorio-principal).
 
 ## 9. Crear el rol ensfacil_admin
 
 > [!note]
-> Este paso solo es necesario si un usuario sin `all_access` debe guardar la
-> configuración o consultar su historial. El usuario `admin` de Wazuh tiene
-> `all_access` y puede guardar la configuración sin este rol.
+> Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial. El usuario `admin` de Wazuh tiene `all_access`.
 
-Solo los usuarios con el rol `ensfacil_admin` o `all_access` pueden guardar la
-configuración ENS y consultar su historial. Los demás la ven, pero al guardar
-reciben un error 403.
-
-El rol no concede permisos por sí mismo. Cada usuario necesita además su rol
-habitual de Wazuh, con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+Sin `ensfacil_admin` ni `all_access`, guardar devuelve un error 403. El rol no concede otros permisos: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 Primero en modo prueba, que no envía ningún cambio. Sustituir `<usuario>` por
 el usuario del dashboard que administrará ENSFácil:
@@ -282,7 +249,7 @@ cd "$R"
 sudo bash create-admin-role.sh --dry-run --mapear <usuario>
 ```
 
-Resultado esperado: la línea `== modo prueba: no se envía ningún cambio` y las
+Resultado esperado: la línea `== dry-run mode: no change is sent` y las
 peticiones que se enviarían (`PUT …/roles/ensfacil_admin` y, si el usuario no
 tiene el rol, `PUT` o `PATCH …/rolesmapping/ensfacil_admin`).
 
@@ -293,7 +260,7 @@ sudo bash create-admin-role.sh --mapear <usuario>
 ```
 
 Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final,
-`usuarios con el rol ensfacil_admin: <usuario>`.
+`users with the role ensfacil_admin: <usuario>`.
 
 | Opción | Efecto |
 |---|---|
@@ -301,18 +268,12 @@ Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final,
 | `--mapear <usuario>` | asigna el rol a ese usuario; se puede repetir para varios |
 | sin `--mapear` | solo crea el rol |
 
-El script usa el certificado de administrador del indexer, sin contraseña, y
-comprueba el certificado del indexer contra su CA. Por defecto se conecta a
-`https://127.0.0.1:9200`, el nombre para el que la instalación todo en uno de
-Wazuh emite el certificado del indexer. Para otro indexer, se usan las
-variables `OS_URL`, `OS_CERT`, `OS_KEY` y `OS_CA`. El detalle está en la
-[guía de instalación, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin).
+El script usa el certificado de administrador del indexer, sin contraseña, y lo verifica contra su CA. Conexión por defecto: `https://127.0.0.1:9200`. Otro indexer: variables `OS_URL`, `OS_CERT`, `OS_KEY` y `OS_CA` ([guía de instalación, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)).
 En Docker, el certificado está emitido para `wazuh.indexer` y el script se
 ejecuta desde un contenedor:
 [Wazuh en Docker, apartado 5](06-wazuh-in-docker.md#5-crear-el-rol-ensfacil_admin).
 
-La ejecución es repetible: el rol se escribe igual y solo se añaden los
-usuarios que falten. En una actualización no es necesaria: el rol se conserva.
+Repetible: solo se añaden los usuarios que falten. En una actualización no es necesario: el rol se conserva.
 
 ## 10. Comprobar que funciona
 
@@ -342,10 +303,7 @@ Docker, las comprobaciones equivalentes están en
 
 ### 10.1 Que los datos siguen ahí
 
-Instalar, actualizar o retirar el plugin no modifica los índices: la
-configuración ENS, su historial y los hechos de los runbooks se conservan. Para
-comprobarlo, con el certificado de administración del indexer de la instalación
-todo en uno:
+Instalar, actualizar o retirar el plugin no modifica los índices. Comprobación, con el certificado de administración del indexer de la instalación todo en uno:
 
 ```bash
 C=/etc/wazuh-indexer/certs
@@ -355,11 +313,7 @@ ix 'wazuh-ens-configuration/_count'
 ix 'wazuh-alerts-*/_count?q=_exists_:data.ensfacil'
 ```
 
-Resultado esperado: `"found":true` con el `updatedAt` del último guardado de la
-configuración, el número de documentos de configuración y el número de hechos
-de ENSFácil. Los tres valores se anotan antes de cambiar de versión. Después, la
-configuración debe ser la misma (mismo `updatedAt`, mismos documentos) y los
-hechos, los mismos o más, porque los runbooks siguen enviando.
+Resultado esperado: `"found":true` con el `updatedAt` del último guardado, el número de documentos de configuración y el número de hechos de ENSFácil. Anotar los tres valores antes de cambiar de versión; después, la configuración debe ser la misma (mismo `updatedAt`, mismos documentos) y los hechos, los mismos o más.
 
 En Docker, las mismas tres consultas se hacen con la función `ix` de
 [Wazuh en Docker, apartado 2.4](06-wazuh-in-docker.md#24-función-de-consulta-del-indexer).
@@ -396,26 +350,15 @@ En Docker, las mismas tres consultas se hacen con la función `ix` de
    ([guía de instalación, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política)).
 
 > [!important]
-> El orden es obligatorio: primero el plugin nuevo y después la siembra. El
-> plugin instalado valida el documento de configuración con sus propias
-> reglas: una siembra anterior al despliegue puede impedir que el panel cargue.
+> El orden es obligatorio: primero el plugin nuevo y después la siembra. Una siembra anterior al despliegue puede impedir que el panel cargue.
 
-Se conserva la carpeta de la versión anterior hasta validar la nueva. El
-procedimiento completo, con las reglas del manager y los agentes, está en la
-[guía de actualización](02-updating-an-existing-environment.md). En Docker, la
-actualización está en
-[Wazuh en Docker, apartado 12.1](06-wazuh-in-docker.md#121-actualizar-a-una-versión-nueva).
+Conservar la carpeta de la versión anterior hasta validar la nueva. Procedimiento completo, con reglas del manager y agentes: [guía de actualización](02-updating-an-existing-environment.md). En Docker: [Wazuh en Docker, apartado 12.1](06-wazuh-in-docker.md#121-actualizar-a-una-versión-nueva).
 
 ## 12. Venir de la versión integrada
 
-Si el entorno todavía tiene la versión integrada (el plugin de Wazuh
-modificado, con la aplicación «ENS» en el menú), seguir la
-[transición desde la versión integrada](02-updating-an-existing-environment.md#10-transición-desde-la-versión-integrada).
-Se usan el zip de la release y el `deploy-plugin.sh` de su carpeta. La
-configuración no se migra: las dos versiones usan el mismo índice.
+Con la versión integrada instalada (plugin de Wazuh modificado, app «ENS»), seguir la [transición desde la versión integrada](02-updating-an-existing-environment.md#10-transición-desde-la-versión-integrada). Se usan el zip de la release y el `deploy-plugin.sh` de su carpeta.
 
-Con Wazuh en Docker, ENSFácil se instala sobre la imagen oficial, que contiene
-el plugin de Wazuh sin modificar:
+Con Wazuh en Docker, ENSFácil se instala sobre la imagen oficial:
 [Wazuh en Docker, apartado 3](06-wazuh-in-docker.md#3-construir-la-imagen-del-dashboard-con-ensfácil).
 
 ## 13. Volver a una versión anterior
@@ -436,19 +379,17 @@ Comprobar después como en el apartado 10: la lista de plugins debe indicar la
 versión anterior.
 
 Si la versión retirada había sembrado controles que la anterior no conoce,
-restaurar también la copia de la configuración. Para volver de la 1.2.0 a la
-1.1.0 después de «Migrar a sistemas», restaurar la versión del documento
-anterior a la migración
-([Configuración por sistema y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)). El procedimiento completo está
+restaurar también la copia de la configuración. Para volver de la 1.3.0 a la
+1.2.0 con sus plantillas, o a la 1.1.0 después de «Repartir por agentes»,
+restaurar la versión del documento anterior
+([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)). El procedimiento completo está
 en el [diagnóstico y rollback, apartado 4](04-troubleshooting-and-rollback.md#4-reinstalar-la-versión-anterior-de-ensfácil).
 En Docker:
 [Wazuh en Docker, apartado 12.2](06-wazuh-in-docker.md#122-volver-a-la-versión-anterior).
 
 ## 14. Lo que la release no instala
 
-El plugin evalúa los hechos frente a la política declarada en la pantalla de
-Configuración; no recoge datos. Los hechos los producen las reglas del manager
-y los runbooks de cada máquina, que se instalan por separado:
+Los hechos los producen las reglas del manager y los runbooks de cada máquina, que se instalan por separado:
 
 - las reglas en el manager, con el `install-manager.sh` de cada runbook
   ([guía de instalación, apartados 10 a 12](01-installation-from-scratch.md#10-configurar-el-acceso-autorizado-a-gitlab);
@@ -457,8 +398,6 @@ y los runbooks de cada máquina, que se instalan por separado:
   runbook ([runbooks y registros](05-runbooks-and-registers.md#runbooks-por-control));
 - la configuración ENS, con las herramientas de `config/` del repositorio
   ([guía de instalación, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)).
-
-Sin las reglas y los runbooks, el panel no tiene hechos que evaluar.
 
 ## 15. Cambiar de versión o desinstalar
 

@@ -9,56 +9,51 @@ import { TabErrorBoundary } from './tab-error-boundary';
 import { isAgentInScope } from './agent-in-scope';
 import { useActiveENSScopeAgents } from '../ens/scope/use-active-scope-agents';
 
-// Con una máquina de la URL fuera del alcance no se pinta la pestaña: el
-// selector ya lo dice (y ofrece quitarla), y cada pantalla pediría al servidor
-// una evaluación que responde 400, con su aviso y su notificación.
-const SoloEnElAlcance = ({ children }: { children: React.ReactNode }) => {
+// A URL machine outside the scope renders no tab: the selector says so, and each screen would otherwise request an evaluation that answers 400.
+const OnlyInScope = ({ children }: { children: React.ReactNode }) => {
   const { agentId } = useRouterSearch();
-  const alcance = useActiveENSScopeAgents();
-  return agentId && !isAgentInScope(agentId, alcance) ? null : (children as any);
+  const scope = useActiveENSScopeAgents();
+  return agentId && !isAgentInScope(agentId, scope) ? null : (children as any);
 };
 
-// Las vistas de cada pestaña.
-const VISTAS: Record<string, React.ComponentType> = {
+const VIEWS: Record<string, React.ComponentType> = {
   dashboard: React.lazy(() => import('../ens/dashboard/ens-dashboard-main').then(m => ({ default: m.EnsDashboardMain }))),
   overview: React.lazy(() => import('../ens/overview').then(m => ({ default: m.OverviewENS }))),
   configuration: ConfigurationENS,
   controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
   events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),
   plugins: React.lazy(() => import('../ens/controls').then(m => ({ default: m.ControlsENS }))),
-  'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.InformesENS }))),
+  'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.ReportsENS }))),
   evidences: React.lazy(() => import('../ens/evidences').then(m => ({ default: m.EvidencesENS }))),
 };
 
-// Una pestaña sin vista todavía no pinta nada. Fuera del componente: un
-// componente nuevo en cada render se desmontaría y montaría cada vez.
-const Vacia = () => null;
+// Outside the component: a component created on every render would remount each time.
+const EmptyView = () => null;
 
 export const EnsApp = () => {
   const { tabView, agentId, control } = useRouterSearch();
-  // Cambiar de máquina o de control no desmonta la pestaña (ver
-  // `tab-error-boundary.tsx`): solo borra un error de pintado anterior.
-  const reintento = `${agentId || ''}|${control || ''}`;
-  const cambia = useSetRouterSearch();
-  const pestana = resolveTab(tabView);
-  const Vista = VISTAS[pestana.id] || Vacia;
+  // Changing machine or control does not unmount the tab (see tab-error-boundary.tsx): it only clears a previous render error.
+  const retry = `${agentId || ''}|${control || ''}`;
+  const changes = useSetRouterSearch();
+  const tab = resolveTab(tabView);
+  const ActiveView = VIEWS[tab.id] || EmptyView;
 
-  const contenido = pestana.withBootstrap ? (
+  const content = tab.withBootstrap ? (
     <ENSConfigurationBootstrap>
       <EuiFlexGroup justifyContent="flexEnd">
         <EuiFlexItem grow={false} style={{ minWidth: 320 }}>
           <MachineSelector />
         </EuiFlexItem>
       </EuiFlexGroup>
-      <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
-        <SoloEnElAlcance>
-          <Vista />
-        </SoloEnElAlcance>
+      <TabErrorBoundary key={tab.id} tabName={tab.name} resetKey={retry}>
+        <OnlyInScope>
+          <ActiveView />
+        </OnlyInScope>
       </TabErrorBoundary>
     </ENSConfigurationBootstrap>
   ) : (
-    <TabErrorBoundary key={pestana.id} tabName={pestana.name} resetKey={reintento}>
-      <Vista />
+    <TabErrorBoundary key={tab.id} tabName={tab.name} resetKey={retry}>
+      <ActiveView />
     </TabErrorBoundary>
   );
 
@@ -67,10 +62,9 @@ export const EnsApp = () => {
       <EuiPageBody>
         <EuiTabs>
           {ENS_TABS.map(t => (
-            <EuiTab key={t.id} isSelected={t.id === pestana.id} onClick={() =>
-                // Los parámetros de Configuración (y su vuelta al detalle) son
-                // de esa pantalla: se limpian al cambiar de pestaña.
-                cambia({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
+            <EuiTab key={t.id} isSelected={t.id === tab.id} onClick={() =>
+                // Configuration parameters (and their return to the detail) belong to that screen: cleared on tab change.
+                changes({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
               }>
               {t.name}
             </EuiTab>
@@ -78,7 +72,7 @@ export const EnsApp = () => {
         </EuiTabs>
         <EuiSpacer size="m" />
         <React.Suspense fallback={<LoadingSpinner message="Cargando pantalla ENS..." />}>
-          {contenido}
+          {content}
         </React.Suspense>
       </EuiPageBody>
     </EuiPage>

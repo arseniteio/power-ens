@@ -307,8 +307,7 @@ export const opCont2Control: ENSControl = {
         'Ningún requisito se puede acreditar (causa CONFIGURATION): no hay contra qué medir la vigencia del plan. Bloquea el control: es obligatorio.',
     },
   ],
-  // Sin runbook ni reglas: ninguna máquina emite hechos de op.cont.2. Todo lo
-  // decide la policy con las tablas de la pantalla.
+  // No runbook or rules: no machine emits op.cont.2 facts. The policy decides everything from the screen tables.
   events: [],
   presentationRules: {
     auditorSees: [

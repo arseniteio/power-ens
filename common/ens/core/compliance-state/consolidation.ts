@@ -43,29 +43,16 @@ const uniqueByKey = <T>(items: T[], keyOf: (item: T) => string): T[] => {
 const getAgentLabel = (entry: Pick<ENSAgentResultEntry, 'agentId' | 'agentName'>): string =>
   entry.agentName ? `${entry.agentName} (${entry.agentId})` : entry.agentId;
 
-// --- agregación entre agentes ----------------------------------------------
-//
-// La vista general responde a «qué pasa con el control», no a «qué pasa en cada
-// máquina»: para eso está la vista de un agente. Con siete agentes reales, la
-// consolidación anterior repetía el mismo motivo siete veces en una celda y
-// multiplicaba por siete cada tarjeta —45 tarjetas para 8 requisitos—, y con
-// cincuenta máquinas la pantalla no se puede leer.
-//
-// El criterio, en las tres funciones de abajo: agrupar por CONTENIDO y anotar
-// EN CUÁNTAS MÁQUINAS ocurre. Lo que difiere entre máquinas sigue saliendo
-// aparte —agregar no es esconder: si seis fallan por una razón y una por otra,
-// se ven las dos—. Aquí no se recorta nada: el motor publica todos los grupos y
-// cada pantalla decide cuántos enseña.
+// Aggregation across agents. The overview answers "what happens with the control", not "what happens on each machine". Group by CONTENT and note HOW MANY MACHINES it occurs on;
+// what differs between machines still comes out apart. Nothing is trimmed here: the engine publishes every group and each screen decides how many to show.
 
 const toAgentRef = (entry: ENSAgentResultEntry): ENSAgentRef => ({
   agentId: entry.agentId,
   agentName: entry.agentName,
 });
 
-// Cuántas máquinas se nombran en el texto plano antes de contarlas. Es solo
-// para el consumidor que no sabe leer `agents` (los modelos de informe); el que
-// sí sabe recibe la lista entera.
-const MAX_AGENTES_NOMBRADOS = 4;
+// How many machines are named in the plain text before counting them; only for consumers that cannot read `agents` (the report models).
+const MAX_NAMED_AGENTS = 4;
 
 const describeAgents = (agents: ENSAgentRef[]): string => {
   const labels = agents.map(getAgentLabel);
@@ -74,7 +61,7 @@ const describeAgents = (agents: ENSAgentRef[]): string => {
     return labels[0];
   }
 
-  const named = labels.slice(0, MAX_AGENTES_NOMBRADOS);
+  const named = labels.slice(0, MAX_NAMED_AGENTS);
   const rest = labels.length - named.length;
 
   return (
@@ -83,8 +70,7 @@ const describeAgents = (agents: ENSAgentRef[]): string => {
   );
 };
 
-// Agrupa textos idénticos y anota dónde se han visto. El orden es el de primera
-// aparición: dos consolidaciones de los mismos datos tienen que salir iguales.
+// Groups identical texts and notes where they were seen. Order of first appearance, so two consolidations of the same data are equal.
 const groupObservations = (
   items: Array<{ entry: ENSAgentResultEntry; text: string }>
 ): ENSObservationGroup[] => {
@@ -107,8 +93,7 @@ const groupObservations = (
   return Array.from(groups.values());
 };
 
-// El mismo grupo, aplanado. Con una sola máquina el prefijo es exactamente el
-// de siempre, `[nombre (id)]`, para no romper a quien ya lo leía así.
+// The same group flattened. With a single machine the prefix is the usual `[name (id)]`.
 const formatObservationGroup = (group: ENSObservationGroup): string =>
   group.agents.length === 0
     ? group.text
@@ -119,9 +104,7 @@ interface ENSCardGroup<T> {
   agents: ENSAgentRef[];
 }
 
-// Mismo criterio para las tarjetas (NC y PM): dos tarjetas con el mismo
-// contenido son una tarjeta vista en dos máquinas. En cuanto el contenido
-// difiere —otra cuenta, otro motivo del recolector— vuelven a ser dos.
+// Same criterion for the cards (NC and PM): two cards with the same content are one card seen on two machines.
 const groupCards = <T>(
   items: Array<{ entry: ENSAgentResultEntry; card: T }>,
   keyOf: (card: T) => string
@@ -146,19 +129,10 @@ const groupCards = <T>(
   return Array.from(groups.values());
 };
 
-// El identificador de una tarjeta consolidada:
-//
-//   - se RENUMERA, porque el número de `NC-001` es el índice dentro de UN
-//     agente: el `NC-001` de una máquina y el de otra no son el mismo
-//     requisito, y conservarlos hacía que `025:NC-001` y `024:NC-001`
-//     parecieran hermanos sin serlo;
-//   - conserva el prefijo `<agente>:` SOLO cuando la tarjeta es de una sola
-//     máquina, que es cuando nombrarla es cierto. Una tarjeta compartida por
-//     seis no puede llevar el nombre de una;
-//   - respeta los identificadores simbólicos como `NC-CFG`, donde el nombre
-//     significa algo y el número no aportaría nada. No pueden chocar entre sí:
-//     la configuración es la misma para todos los agentes del control, así que
-//     `NC-CFG` produce un solo grupo.
+// Identifier of a consolidated card:
+// - RENUMBERED, because the `NC-001` number is the index inside ONE agent;
+// - keeps the `<agent>:` prefix ONLY when the card belongs to a single machine;
+// - respects symbolic identifiers such as `NC-CFG` (configuration is the same for every agent of the control, so it yields one group).
 const consolidatedCardId = (
   localId: string,
   index: number,
@@ -183,12 +157,8 @@ const getEarliestIsoDate = (values: Array<string | undefined>): string | undefin
   return definedValues.sort((left, right) => left.localeCompare(right))[0];
 };
 
-// Consolida VEREDICTOS entre agentes. Desde el 04/08, los estados de control y
-// de requisito que le llegan ya no incluyen NO_EVALUABLE —lo no demostrado sale
-// NO_CUMPLE—, así que sus ramas de NO_EVALUABLE solo las ejercitan las
-// EVIDENCIAS, que conservan ese estado como observación en crudo: ahí «una
-// máquina lo demostró y de otra no sabemos nada» sigue siendo, correctamente,
-// «no lo sabemos», y el veredicto ya lo ha aplicado el requisito.
+// Consolidates VERDICTS across agents. Control and requirement states arriving here no longer include NO_EVALUABLE (what is not proven is NO_CUMPLE), so its branches are exercised only by EVIDENCES,
+// which keep it as a raw observation.
 export const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComplianceStatus => {
   const applicableStatuses = statuses.filter((status) => status !== 'NO_APLICA');
 
@@ -204,15 +174,8 @@ export const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComp
     return 'PARCIAL';
   }
 
-  // Aquí había un `hasCompliant && hasNotEvaluable -> PARCIAL`: un agente que
-  // cumple y otro del que no se ha podido medir nada daban "PARCIAL" para el
-  // conjunto. Eso es el mismo hueco de medida fabricando una afirmación, una
-  // capa más arriba: nadie ha demostrado que el conjunto conforme a medias, lo
-  // que hay es una parte sin medir. Sin esa regla, el caso cae solo en el
-  // NO_EVALUABLE del final, que es lo correcto.
-  //
-  // Las dos ramas de arriba (NO_CUMPLE y PARCIAL) van antes a propósito: un
-  // incumplimiento demostrado en CUALQUIER agente sigue mandando sobre el hueco.
+  // No `hasCompliant && hasNotEvaluable -> PARCIAL` rule: a gap of measure must not fabricate an assertion one layer up. The case falls to the final NO_EVALUABLE.
+  // The two branches above (NO_CUMPLE and PARCIAL) come first on purpose: a proven failure on ANY agent rules over the gap.
   if (applicableStatuses.every((status) => status === 'NO_EVALUABLE')) {
     return 'NO_EVALUABLE';
   }
@@ -240,12 +203,8 @@ const averageApplicableResultValue = (
   );
 };
 
-// El porcentaje consolidado se promedia sobre los agentes que traen número.
-// Desde el 04/08 eso son TODOS los que tienen algún requisito aplicable —el que
-// no ha reportado nada trae un 0, y ese 0 es ahora una afirmación deliberada:
-// «de esta máquina no se ha demostrado nada»—. La guarda se queda porque el
-// caso NO_APLICA sigue existiendo: un control entero fuera del nivel activo no
-// tiene número y no puede arrastrar el promedio a la baja.
+// The consolidated percentage averages the agents that carry a number: all those with some applicable requirement (an agent that reported nothing carries a deliberate 0).
+// The guard stays because NO_APLICA still exists: a whole control outside the active level has no number and must not drag the average down.
 const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
   const scored = entries.filter(
     (entry) => typeof entry.result.score === 'number'
@@ -260,10 +219,7 @@ const averageScore = (entries: ENSAgentResultEntry[]): number | undefined => {
   );
 };
 
-// Una máquina «tiene resultados» si el motor ha llegado a MEDIR algo en ella, no
-// si tiene veredicto: desde el 04/08 todas tienen veredicto, incluida la que no
-// ha reportado nada en su vida. Sin este cambio, `agentsWithoutResults` sería
-// siempre 0 y la pantalla perdería justo el contador que delata al agente caído.
+// A machine "has results" if the engine MEASURED something on it, not if it has a verdict (all have one). Otherwise `agentsWithoutResults` would always be 0 and the fallen-agent counter would be lost.
 export const agentHasEvaluatedResults = (agent: ENSAgentComplianceState): boolean =>
   agent.results.some((result) => result.measuredRequirements > 0);
 
@@ -282,9 +238,7 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
         }))
     );
 
-    // Sin la marca documental de la primera máquina: se recalcula abajo con
-    // todas. Heredarla publicaba «acreditado» en un requisito que otra máquina
-    // tumba con una medida.
+    // Without the first machine's documentary mark: recalculated below with all of them. Inheriting it would publish "accredited" on a requirement another machine fails with a measure.
     const template = { ...requirementEntries[0].requirement };
     delete template.attested;
     delete template.documental;
@@ -293,53 +247,37 @@ const consolidateRequirements = (entries: ENSAgentResultEntry[]): ENSRequirement
       requirementEntries.flatMap(({ requirement }) => requirement.evidenceIds || [])
     );
 
-    // Mismo criterio que en las evidencias: el motivo que sale igual en las
-    // siete máquinas se escribe una vez, diciendo que son siete.
+    // Same criterion as the evidences: a motive equal on seven machines is written once, saying seven.
     const observationGroups = groupObservations(
       requirementEntries.flatMap(({ entry, requirement }) =>
         requirement.observations.map((text) => ({ entry, text }))
       )
     );
 
-    const statusConsolidado = consolidateENSStatuses(
+    const consolidatedStatus = consolidateENSStatuses(
       requirementEntries.map(({ requirement }) => requirement.status)
     );
 
-    // ACREDITADO DOCUMENTALMENTE si el conjunto cumple y alguna máquina lo
-    // acredita con un documento. Basta una: presentar como medido un
-    // cumplimiento que en parte descansa en un documento es esconder de qué
-    // tipo es. Y nunca en un requisito que no cumple.
+    // ACCREDITED DOCUMENTARILY if the set complies and some machine accredits with a document. One suffices; never on a requirement that does not comply.
     const attested =
-      statusConsolidado === 'CUMPLE' &&
+      consolidatedStatus === 'CUMPLE' &&
       requirementEntries.some(({ requirement }) => requirement.attested === true);
 
-    // DOCUMENTAL solo si lo es en todas las máquinas que lo deciden: una que
-    // lo incumple midiendo hace que el conjunto sea una medida.
-    const decisivas = requirementEntries.filter(
-      ({ requirement }) => requirement.status === statusConsolidado
+    // DOCUMENTARY only if it is on every machine that decides it: one that fails it by measuring makes the set a measure.
+    const decisive = requirementEntries.filter(
+      ({ requirement }) => requirement.status === consolidatedStatus
     );
     const documental =
-      decisivas.length > 0 &&
-      decisivas.every(({ requirement }) => requirement.documental === true);
+      decisive.length > 0 &&
+      decisive.every(({ requirement }) => requirement.documental === true);
 
     return {
       ...template,
-      status: statusConsolidado,
-      // EL SCORE TIENE QUE SEGUIR AL ESTADO CONSOLIDADO, y hasta el 07/08/2026
-      // no lo hacía: `template` es el requisito de la PRIMERA máquina y arrastra
-      // su `score`. Un requisito que sale NO_CUMPLE porque falla en la segunda
-      // seguía aportando los 100 de la primera al índice de requisitos.
-      //
-      // Hoy ese índice no se pinta en ninguna pantalla —el número grande sale de
-      // `controlSummary`, que recalcula desde los veredictos— así que no ha
-      // mentido a ningún auditor. Es una bomba armada, no un incendio: el día
-      // que alguien pinte ese campo, miente. Se desarma donde toca, que es aquí,
-      // y no quitando el campo del tipo: `tests/measurement-gap.test.ts` lo
-      // comprueba a propósito por agente, y ahí el score SÍ es correcto.
-      score: scoreByStatus(statusConsolidado),
-      // Demostrado solo si lo está en TODAS: basta una máquina sin prueba para
-      // que el requisito del conjunto no esté demostrado. Es lo que impide que
-      // una máquina sana tape a la que no reporta.
+      status: consolidatedStatus,
+      // THE SCORE MUST FOLLOW THE CONSOLIDATED STATE: `template` is the first machine's requirement and drags its `score`. The field is not painted on any screen today;
+      // `tests/measurement-gap.test.ts` checks it per agent on purpose, where the score IS correct.
+      score: scoreByStatus(consolidatedStatus),
+      // Proven only if proven on ALL: one machine without proof makes the set unproven, so a healthy machine cannot cover one that does not report.
       evidenced: requirementEntries.every(
         ({ requirement }) => requirement.evidenced !== false
       ),
@@ -370,9 +308,7 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
 
     const template = evidenceEntries[0].evidence;
 
-    // El motivo de la evidencia, agrupado por texto. Con siete agentes, «sin
-    // datos del recolector en la ventana» pasa de ocupar siete líneas casi
-    // iguales a una sola que dice en cuántas máquinas ocurre.
+    // The evidence motive grouped by text: seven near-identical lines become one saying on how many machines it occurs.
     const observationGroups = groupObservations(
       evidenceEntries.flatMap(({ entry, evidence }) =>
         (evidence.observations || []).map((text) => ({ entry, text }))
@@ -391,21 +327,12 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
       relatedRules: uniqueValues(evidenceEntries.flatMap(({ evidence }) => evidence.relatedRules)),
       lastSeen: getLatestIsoDate(evidenceEntries.map(({ evidence }) => evidence.lastSeen)),
 
-      // Con el mismo prefijo de agente que los requisitos: consolidando varios
-      // agentes, «se ha observado 'admin'» sin decir en qué máquina no sirve de
-      // nada para ir a corregirlo. Y sin esto, el motivo del agente que
-      // determina el estado consolidado se perdería en cuanto hubiera más de
-      // uno (`...template` solo conserva el del primero).
-      //
-      // Un motivo visto en una sola máquina se sigue escribiendo igual que
-      // siempre; el que se repite en varias las nombra a todas en un prefijo,
-      // en vez de repetir el texto entero una vez por máquina.
+      // Same agent prefix as the requirements: a motive without its machine is useless to fix, and without this the motive of the agent that determines the consolidated state would be lost with more than one agent.
+      // A motive seen on one machine is written as always; a repeated one names all machines in a prefix.
       observations: observationGroups.map(formatObservationGroup),
       observationGroups,
 
-      // El resultado raíz representa varios agentes.
-      // El detalle individual se conserva en state.agents
-      // y en traceability.
+      // The root result represents several agents. Individual detail is kept in state.agents and traceability.
       agentId: undefined,
       agentName: undefined,
       resolvedEventId: undefined,
@@ -433,8 +360,7 @@ const consolidatePolicyDecisions = (
 
     const status = consolidateENSStatuses(decisionEntries.map((item) => item.decision.status));
 
-    // El motivo consolidado es otro texto: las partes de la primera máquina no
-    // lo describen (`withReplacedReason`).
+    // The consolidated motive is another text: the first machine's parts do not describe it (`withReplacedReason`).
     return withReplacedReason(template, {
       status,
       parameterIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.parameterIds)),
@@ -564,11 +490,7 @@ const consolidatePolicyRuntime = (
   };
 };
 
-// Dos tarjetas son la misma si dicen exactamente lo mismo: mismo requisito,
-// mismo origen y causa, mismo motivo, misma acción y mismas evidencias y
-// parámetros implicados. `finding` incluye el motivo que resolvió la policy («se
-// ha observado 'admin'») y el que declaró el recolector, así que dos máquinas
-// que fallan por razones distintas siguen dando dos tarjetas.
+// Two cards are the same if they say exactly the same: requirement, origin and cause, motive, action, evidences and parameters. Two machines failing for different reasons still give two cards.
 const nonConformityKey = (nonConformity: ENSNonConformity): string =>
   [
     nonConformity.origin,
@@ -591,11 +513,7 @@ const consolidateNonConformities = (entries: ENSAgentResultEntry[]): ENSNonConfo
     ),
     nonConformityKey
   ).map(({ template, agents }, index) => {
-    // Una tarjeta de causa CATALOG no es de ninguna máquina: «op.acc.1.5 no
-    // declara evidencia en el catálogo» es cierto para las siete por igual y no
-    // cambia por mirar otra. Atribuirla a los agentes la convertía en cinco
-    // hallazgos idénticos y, encima, señalaba al sitio equivocado: no hay nada
-    // que arreglar en la máquina, el arreglo lo tiene el producto.
+    // A CATALOG-cause card belongs to no machine: attributing it to agents turned it into identical findings and pointed at the wrong place; the fix belongs to the product.
     const cardAgents = template.cause === 'CATALOG' ? [] : agents;
 
     return {
@@ -626,10 +544,7 @@ const consolidateTraceability = (entries: ENSAgentResultEntry[]): ENSTraceabilit
       ].join('|')
   );
 
-// Las observaciones del control entero. La mayoría («Configuración mínima
-// disponible para evaluar el control.») son idénticas en todas las máquinas
-// porque salen de la misma configuración: repetirlas una vez por agente era
-// ruido puro.
+// Observations of the whole control. Most are identical on every machine because they come from the same configuration; repeating them per agent was noise.
 const consolidateObservations = (entries: ENSAgentResultEntry[]): string[] =>
   groupObservations(
     entries.flatMap((entry) =>
@@ -647,17 +562,14 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
     },
     policyRuntime: consolidatePolicyRuntime(entries),
 
-    // Sobre cuántas máquinas se ha resumido esto. Sin este dato, la pantalla no
-    // puede distinguir «falta en 6» de «falta en todas».
+    // How many machines this summarises, so the screen can tell "missing on 6" and "missing on all" apart.
     consolidatedAgents: uniqueByKey(entries.map(toAgentRef), (agent) => agent.agentId),
 
     status: consolidateENSStatuses(entries.map((entry) => entry.result.status)),
     score: averageScore(entries),
     coverage: averageApplicableResultValue(entries, (result) => result.coverage),
 
-    // Se SUMAN, no se promedian: el conjunto tiene tantos requisitos aplicables
-    // como la suma de los de cada agente, y la lista de los que faltan por medir
-    // se nombra con el agente delante para que se pueda ir a corregir.
+    // SUMMED, not averaged: the set has as many applicable requirements as the sum over agents, and the list of those missing a measure is named with the agent first.
     applicableRequirements: entries.reduce(
       (sum, entry) => sum + entry.result.applicableRequirements,
       0

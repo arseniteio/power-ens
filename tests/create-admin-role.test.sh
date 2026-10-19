@@ -1,130 +1,128 @@
 #!/usr/bin/env bash
-# create-admin-role.sh crea el rol ensfacil_admin y lo asigna sin quitar a nadie.
+# create-admin-role.sh creates the ensfacil_admin role and assigns it without removing anyone.
 #   bash tests/create-admin-role.test.sh
 #
-# El indexer es un curl falso: apunta cada petición (método, ruta y cuerpo) y
-# contesta al mapeo lo que diga FALSO_MAPEO / FALSO_MAPEO_CODIGO.
+# The indexer is a fake curl: it logs each request (method, path and body) and answers the mapping with FAKE_MAPPING / FAKE_MAPPING_CODE.
 set -u
-RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-fallos=0
+failures=0
 
-ROL_PUT='PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
-MAPEO='_plugins/_security/api/rolesmapping/ensfacil_admin'
+ROLE_PUT='PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
+MAPPING='_plugins/_security/api/rolesmapping/ensfacil_admin'
 
-cat > "$T/curl" <<'FALSO'
+cat > "$T/curl" <<'FAKE'
 #!/usr/bin/env bash
-metodo=GET; url=; datos=
-printf '%s\n' "$*" >> "$REGISTRO.args"
+method=GET; url=; data=
+printf '%s\n' "$*" >> "$REQLOG.args"
 while [ $# -gt 0 ]; do
   case "$1" in
-    -X) metodo="$2"; shift 2 ;;
-    --data-binary|--data|-d) datos="$2"; shift 2 ;;
+    -X) method="$2"; shift 2 ;;
+    --data-binary|--data|-d) data="$2"; shift 2 ;;
     https://*|http://*) url="$1"; shift ;;
     *) shift ;;
   esac
 done
-ruta="${url#*://}"; ruta="${ruta#*/}"
-printf '%s %s %s\n' "$metodo" "$ruta" "$datos" >> "$REGISTRO"
-case "$metodo $ruta" in
-  "GET _plugins/_security/api/rolesmapping/ensfacil_admin") printf '%s\n%s' "$FALSO_MAPEO" "$FALSO_MAPEO_CODIGO" ;;
-  "PUT _plugins/_security/api/roles/ensfacil_admin") printf '{"status":"OK"}\n%s' "${FALSO_ROL_CODIGO:-200}" ;;
+path="${url#*://}"; path="${path#*/}"
+printf '%s %s %s\n' "$method" "$path" "$data" >> "$REQLOG"
+case "$method $path" in
+  "GET _plugins/_security/api/rolesmapping/ensfacil_admin") printf '%s\n%s' "$FAKE_MAPPING" "$FAKE_MAPPING_CODE" ;;
+  "PUT _plugins/_security/api/roles/ensfacil_admin") printf '{"status":"OK"}\n%s' "${FAKE_ROLE_CODE:-200}" ;;
   *) printf '{"status":"OK"}\n200' ;;
 esac
-FALSO
+FAKE
 chmod +x "$T/curl"
 : > "$T/admin.pem"; : > "$T/admin-key.pem"; : > "$T/root-ca.pem"
 
-CON_ANA='{"ensfacil_admin":{"hosts":[],"users":["ana"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
-CON_RSIS='{"ensfacil_admin":{"hosts":[],"users":["ana","rsis"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
-NO_EXISTE='{"status":"NOT_FOUND","message":"Resource '"'"'ensfacil_admin'"'"' not found."}'
+WITH_ANA='{"ensfacil_admin":{"hosts":[],"users":["ana"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
+WITH_RSIS='{"ensfacil_admin":{"hosts":[],"users":["ana","rsis"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
+NOT_FOUND='{"status":"NOT_FOUND","message":"Resource '"'"'ensfacil_admin'"'"' not found."}'
 
-# corre MAPEO CODIGO args... -> deja la salida en $T/salida, el código en $rc y
-# lo que llegó al indexer en $T/registro
-corre() {
-  local mapeo="$1" codigo="$2"; shift 2
-  : > "$T/registro"; : > "$T/registro.args"
-  REGISTRO="$T/registro" FALSO_MAPEO="$mapeo" FALSO_MAPEO_CODIGO="$codigo" \
+# run MAPPING CODE args... -> leaves the output in $T/output, the code in $rc and what reached the indexer in $T/log
+run() {
+  local mapping="$1" code="$2"; shift 2
+  : > "$T/log"; : > "$T/log.args"
+  REQLOG="$T/log" FAKE_MAPPING="$mapping" FAKE_MAPPING_CODE="$code" \
     CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/root-ca.pem" \
-    bash "$RAIZ/config/create-admin-role.sh" "$@" > "$T/salida" 2>&1
+    bash "$ROOT/config/create-admin-role.sh" "$@" > "$T/output" 2>&1
   rc=$?
 }
-# las peticiones que cambian algo, tal como las imprime el script
-impresas() { grep -E '^(PUT|PATCH|POST|DELETE) ' "$T/salida"; }
-# las que llegaron al indexer y cambian algo
-enviadas() { grep -E '^(PUT|PATCH|POST|DELETE) ' "$T/registro"; }
-compara() {  # descripción, esperado, obtenido
+# the requests that change something, as the script prints them
+printed() { grep -E '^(PUT|PATCH|POST|DELETE) ' "$T/output"; }
+# those that reached the indexer and change something
+sent() { grep -E '^(PUT|PATCH|POST|DELETE) ' "$T/log"; }
+compare() {  # description, expected, obtained
   if [ "$2" = "$3" ]; then echo "  ok   $1"
-  else echo "  FALLA $1"; echo "        esperado: $2"; echo "        obtenido: $3"; fallos=$((fallos+1)); fi
+  else echo "  FAIL $1"; echo "        expected: $2"; echo "        obtained: $3"; failures=$((failures+1)); fi
 }
 
-echo "· --dry-run --mapear rsis, el mapeo existe con ana"
-corre "$CON_ANA" 200 --dry-run --mapear rsis
-compara "sale bien" 0 "$rc"
-compara "imprime el PUT del rol y el PATCH que añade rsis" \
-  "$ROL_PUT"$'\n'"PATCH $MAPEO [{\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"rsis\"}]" "$(impresas)"
-compara "no envía ningún cambio" "" "$(enviadas)"
+echo "· --dry-run --mapear rsis, the mapping exists with ana"
+run "$WITH_ANA" 200 --dry-run --mapear rsis
+compare "exits well" 0 "$rc"
+compare "prints the role PUT and the PATCH that adds rsis" \
+  "$ROLE_PUT"$'\n'"PATCH $MAPPING [{\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"rsis\"}]" "$(printed)"
+compare "sends no change" "" "$(sent)"
 
-echo "· --dry-run sin --mapear"
-corre "$CON_ANA" 200 --dry-run
-compara "sale bien" 0 "$rc"
-compara "imprime solo el PUT del rol" "$ROL_PUT" "$(impresas)"
-compara "no habla con el indexer" "" "$(cat "$T/registro")"
+echo "· --dry-run without --mapear"
+run "$WITH_ANA" 200 --dry-run
+compare "exits well" 0 "$rc"
+compare "prints only the role PUT" "$ROLE_PUT" "$(printed)"
+compare "does not talk to the indexer" "" "$(cat "$T/log")"
 
-echo "· --dry-run --mapear rsis, el mapeo no existe"
-corre "$NO_EXISTE" 404 --dry-run --mapear rsis
-compara "sale bien" 0 "$rc"
-compara "crea el mapeo con rsis" \
-  "$ROL_PUT"$'\n'"PUT $MAPEO {\"users\":[\"rsis\"]}" "$(impresas)"
+echo "· --dry-run --mapear rsis, the mapping does not exist"
+run "$NOT_FOUND" 404 --dry-run --mapear rsis
+compare "exits well" 0 "$rc"
+compare "creates the mapping with rsis" \
+  "$ROLE_PUT"$'\n'"PUT $MAPPING {\"users\":[\"rsis\"]}" "$(printed)"
 
-echo "· --dry-run --mapear rsis, rsis ya tiene el rol"
-corre "$CON_RSIS" 200 --dry-run --mapear rsis
-compara "no lo vuelve a añadir" "$ROL_PUT" "$(impresas)"
-compara "lo dice" 1 "$(grep -c 'rsis' "$T/salida")"
+echo "· --dry-run --mapear rsis, rsis already has the role"
+run "$WITH_RSIS" 200 --dry-run --mapear rsis
+compare "does not add it again" "$ROLE_PUT" "$(printed)"
+compare "says so" 1 "$(grep -c 'rsis' "$T/output")"
 
-echo "· de verdad, --mapear rsis --mapear ana --mapear rsis, el mapeo existe con ana"
-corre "$CON_ANA" 200 --mapear rsis --mapear ana --mapear rsis
-compara "sale bien" 0 "$rc"
-compara "envía el PUT del rol y un PATCH que solo añade rsis, una vez" \
-  "$ROL_PUT"$'\n'"PATCH $MAPEO [{\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"rsis\"}]" "$(enviadas)"
-compara "nunca quita ni sustituye usuarios" 0 "$(grep -cE '"op":"(remove|replace)"' "$T/registro")"
-compara "con el certificado" 4 "$(grep -c -- "--cert $T/admin.pem --key $T/admin-key.pem" "$T/registro.args")"
-compara "sin usuario ni contraseña en la línea de órdenes" 0 "$(grep -cE -- '(^| )(-u|--user) ' "$T/registro.args")"
-compara "comprueba el certificado del indexer con su CA" 4 "$(grep -c -- "--cacert $T/root-ca.pem" "$T/registro.args")"
-compara "nunca sin comprobarlo (-k / --insecure)" 0 "$(grep -cE -- '(^| )(-k|--insecure)( |$)' "$T/registro.args")"
+echo "· for real, --mapear rsis --mapear ana --mapear rsis, the mapping exists with ana"
+run "$WITH_ANA" 200 --mapear rsis --mapear ana --mapear rsis
+compare "exits well" 0 "$rc"
+compare "sends the role PUT and a PATCH that only adds rsis, once" \
+  "$ROLE_PUT"$'\n'"PATCH $MAPPING [{\"op\":\"add\",\"path\":\"/users/-\",\"value\":\"rsis\"}]" "$(sent)"
+compare "never removes or replaces users" 0 "$(grep -cE '"op":"(remove|replace)"' "$T/log")"
+compare "with the certificate" 4 "$(grep -c -- "--cert $T/admin.pem --key $T/admin-key.pem" "$T/log.args")"
+compare "without user or password on the command line" 0 "$(grep -cE -- '(^| )(-u|--user) ' "$T/log.args")"
+compare "verifies the indexer certificate with its CA" 4 "$(grep -c -- "--cacert $T/root-ca.pem" "$T/log.args")"
+compare "never without verifying it (-k / --insecure)" 0 "$(grep -cE -- '(^| )(-k|--insecure)( |$)' "$T/log.args")"
 
-echo "· de verdad, sin --mapear"
-corre "$CON_ANA" 200
-compara "sale bien" 0 "$rc"
-compara "envía solo el PUT del rol" "$ROL_PUT" "$(enviadas)"
-compara "dice quién tiene el rol" 1 "$(grep -c 'ana' "$T/salida")"
+echo "· for real, without --mapear"
+run "$WITH_ANA" 200
+compare "exits well" 0 "$rc"
+compare "sends only the role PUT" "$ROLE_PUT" "$(sent)"
+compare "says who has the role" 1 "$(grep -c 'ana' "$T/output")"
 
-echo "· el indexer rechaza el rol"
-FALSO_ROL_CODIGO=403; export FALSO_ROL_CODIGO
-corre "$CON_ANA" 200 --mapear rsis
-unset FALSO_ROL_CODIGO
-compara "sale con error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-compara "no toca el mapeo" "$ROL_PUT" "$(enviadas)"
+echo "· the indexer rejects the role"
+FAKE_ROLE_CODE=403; export FAKE_ROLE_CODE
+run "$WITH_ANA" 200 --mapear rsis
+unset FAKE_ROLE_CODE
+compare "exits with an error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+compare "does not touch the mapping" "$ROLE_PUT" "$(sent)"
 
-echo "· errores de uso"
-corre "$CON_ANA" 200 --mapear
-compara "--mapear sin usuario es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-compara "y no envía nada" "" "$(cat "$T/registro")"
-corre "$CON_ANA" 200 --otra
-compara "una opción desconocida es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-: > "$T/registro"
-REGISTRO="$T/registro" CURL="$T/curl" OS_CERT="$T/no-existe.pem" OS_KEY="$T/admin-key.pem" \
-  bash "$RAIZ/config/create-admin-role.sh" > "$T/salida" 2>&1; rc=$?
-compara "sin certificado legible es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-compara "y no envía nada" "" "$(cat "$T/registro")"
-: > "$T/registro"
-REGISTRO="$T/registro" CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/no-existe-ca.pem" \
-  bash "$RAIZ/config/create-admin-role.sh" > "$T/salida" 2>&1; rc=$?
-compara "sin CA legible es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-compara "que lo dice" 1 "$(grep -c 'CA del indexer' "$T/salida")"
-compara "y no envía nada" "" "$(cat "$T/registro")"
-echo "· por defecto"
-compara "la CA del indexer de Wazuh" 1 "$(grep -c 'OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"' "$RAIZ/config/create-admin-role.sh")"
-compara "y 127.0.0.1, el nombre de su certificado" 1 "$(grep -c 'ENS_OS_URL:-https://127.0.0.1:9200' "$RAIZ/config/create-admin-role.sh")"
+echo "· usage errors"
+run "$WITH_ANA" 200 --mapear
+compare "--mapear without a user is an error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+compare "and sends nothing" "" "$(cat "$T/log")"
+run "$WITH_ANA" 200 --other
+compare "an unknown option is an error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+: > "$T/log"
+REQLOG="$T/log" CURL="$T/curl" OS_CERT="$T/missing.pem" OS_KEY="$T/admin-key.pem" \
+  bash "$ROOT/config/create-admin-role.sh" > "$T/output" 2>&1; rc=$?
+compare "without a readable certificate is an error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+compare "and sends nothing" "" "$(cat "$T/log")"
+: > "$T/log"
+REQLOG="$T/log" CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/missing-ca.pem" \
+  bash "$ROOT/config/create-admin-role.sh" > "$T/output" 2>&1; rc=$?
+compare "without a readable CA is an error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+compare "that says so" 1 "$(grep -c 'indexer CA' "$T/output")"
+compare "and sends nothing" "" "$(cat "$T/log")"
+echo "· defaults"
+compare "the Wazuh indexer CA" 1 "$(grep -c 'OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"' "$ROOT/config/create-admin-role.sh")"
+compare "and 127.0.0.1, its certificate name" 1 "$(grep -c 'ENS_OS_URL:-https://127.0.0.1:9200' "$ROOT/config/create-admin-role.sh")"
 
-[ $fallos -eq 0 ] && echo "TODO OK" || { echo "$fallos FALLOS"; exit 1; }
+[ $failures -eq 0 ] && echo "ALL OK" || { echo "$failures FAILURES"; exit 1; }

@@ -1,23 +1,17 @@
-// La forma de las respuestas de `/api/ensfacil/evaluation` que leen las
-// pantallas (la describe también `server/README.md`).
+// Shape of the `/api/ensfacil/evaluation` responses the screens read (also described in `server/README.md`).
 import type { ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
 
 export interface ENSEvaluationMeta {
-  // Huella de los datos de la vista (la que compara la sonda).
+  // Fingerprint of the view data (the one the probe compares).
   fingerprint: string;
-  // Se enseña algo guardado mientras se recalcula detrás, o aún faltan filas
-  // (`pending`) o la serie diaria (`seriesPending`).
+  // Something stored is shown while it is recomputed behind, or rows (`pending`) or the daily series (`seriesPending`) are still missing.
   refreshing: boolean;
-  // La primera carga responde con lo que ya está: cuántas filas faltan, de
-  // cuáles controles y cuántas son en total. El navegador vuelve a pedir
-  // cada 2 s mientras lo haya.
+  // The first load answers with what exists: how many rows are missing, of which controls and how many in total. The browser asks again every 2 s while there are any.
   pending?: { rows: number; controls: string[]; total: number };
-  // La serie diaria aún se está calculando (en segundo plano): la vista va
-  // sin `timeline` y el navegador vuelve a pedir.
+  // The daily series is still being computed (in the background): the view goes without `timeline` and the browser asks again.
   seriesPending?: boolean;
-  // El último refresco en segundo plano que falló: lo que se enseña es lo
-  // anterior a él.
+  // The last background refresh that failed: what is shown predates it.
   refreshError?: { message: string; at: string };
   // When the shown result was last confirmed current; while refreshing, the time of the oldest stale part.
   computedAt: string;
@@ -36,12 +30,11 @@ export interface ENSEvaluationTimelinePoint {
   date: string;
   label: string;
   isCurrent: boolean;
-  // Hechos (documentos) conocidos hasta ese día.
+  // Facts (documents) known up to that day.
   events: number;
   score?: number;
   status?: string;
-  // Sin control (lista, panel, vista general): el estado de cada control ese
-  // día en la vista (la tendencia por control de la Vista general).
+  // Without control (list, panel, overview): each control's state that day in the view (the overview's per-control trend).
   controls?: Record<string, { status?: string; score?: number }>;
 }
 
@@ -50,7 +43,7 @@ export interface ENSControlSummaryEntry {
   status: string;
   score?: number;
   evaluated: boolean;
-  // Aún se está calculando (primera carga): ni estado ni número.
+  // Still being computed (first load): neither state nor number.
   pending?: boolean;
   requirementsNotMet: number;
   requirementsNotEvidenced: number;
@@ -60,14 +53,13 @@ export interface ENSControlEvaluationResponse {
   meta: ENSEvaluationMeta;
   result?: ENSComplianceResult;
   traceabilityTotal: number;
-  // Cuántas entradas se pueden recorrer por páginas (las primeras guardadas).
+  // How many entries can be paged through (the first stored ones).
   traceabilityAvailable: number;
   agents: { agentId: string; agentName?: string; status: string; score?: number }[];
   timeline?: ENSEvaluationTimelinePoint[];
 }
 
-// Una máquina del alcance y lo que dice cada control en SU fila. Un control que
-// no se mide en ella no aparece (ni como NO_APLICA): no tiene fila.
+// A scope machine and what each control says on ITS row. A control not measured there does not appear (not even as NO_APLICA): it has no row.
 export interface ENSAgentControlsRow {
   agentId: string;
   agentName?: string;
@@ -80,16 +72,14 @@ export interface ENSSummaryEvaluationResponse {
   controlSummary: ENSComplianceSummary;
   controls: ENSControlSummaryEntry[];
   agents?: ENSAgentControlsRow[];
-  // Con `timelineDays`.
+  // With `timelineDays`.
   timeline?: ENSEvaluationTimelinePoint[];
 }
 
-// Frescura de la recogida, de la sonda (sin leer ningún hecho más): el último
-// hecho y cuántos hay de cada control en cada máquina, y de cada máquina, el
-// primero, el último y su último latido de recolector.
+// Collection freshness, from the probe (no further fact read): each control's last fact and count on each machine, and per machine its first, last and last collector heartbeat.
 export interface ENSFreshnessAgent {
   agentId: string;
-  // Los nombres están una vez, en `meta.scope`.
+  // Names appear once, in `meta.scope`.
   count: number;
   earliest?: string;
   newest?: string;
@@ -109,10 +99,7 @@ export interface ENSFreshness {
   cells: ENSFreshnessCell[];
 }
 
-// Una no conformidad de la vista de conjunto, para la cola de trabajo: lo que
-// pinta la cola y nada más. El titular es la primera frase de la evidencia
-// culpable (`motive-parser.ts`), calculado en el servidor; el motivo entero está
-// a un clic, en el detalle. Las máquinas, por id (los nombres, en `meta.scope`).
+// A set-view nonconformity for the work queue: what the queue paints and nothing else. The headline is the first sentence of the culprit evidence (`motive-parser.ts`), computed on the server; the whole motive is one click away. Machines by id (names in `meta.scope`).
 export type ENSOverviewNonConformity = Pick<ENSNonConformity, 'id' | 'requirementId' | 'origin' | 'cause' | 'documental' | 'evidenceIds'> & {
   controlId: string;
   agentIds: string[];
@@ -121,7 +108,7 @@ export type ENSOverviewNonConformity = Pick<ENSNonConformity, 'id' | 'requiremen
   titleStatus?: string;
 };
 
-// `include=overview`: la Vista general en una sola petición.
+// `include=overview`: the overview in a single request.
 export interface ENSOverviewEvaluationResponse extends ENSSummaryEvaluationResponse {
   freshness: ENSFreshness;
   nonConformities: ENSOverviewNonConformity[];

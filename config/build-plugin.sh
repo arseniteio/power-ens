@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 ###############################################################################
-# build-plugin.sh · compila ENSFácil como plugin independiente
+# build-plugin.sh · builds ENSFácil as a standalone plugin
 #
-#   sudo bash config/build-plugin.sh [<árbol de OpenSearch Dashboards>]
+#   sudo bash config/build-plugin.sh [<OpenSearch Dashboards tree>]
 #
-# El árbol por defecto es el de las guías (/opt/ensfacil/build), un código
-# fuente de OpenSearch Dashboards 2.19.5 preparado con `yarn osd bootstrap`.
-# Copia el plugin a <árbol>/plugins/ensfacil (solo lo que se distribuye) y
-# compila allí; NO toca plugins/main ni ningún otro plugin del árbol.
-#
-# Con el yarn.lock del repositorio, las dependencias salen siempre las mismas
-# (--frozen-lockfile: si no cuadra con package.json, se para).
+# Default tree: the guides' (/opt/ensfacil/build), an OpenSearch Dashboards 2.19.5 source prepared with
+# `yarn osd bootstrap`. Copies the plugin (only what is distributed) to <tree>/plugins/ensfacil and builds
+# there; it does NOT touch plugins/main or any other plugin of the tree. With the repository yarn.lock the
+# dependencies are always the same (--frozen-lockfile: stops if it does not match package.json).
 ###############################################################################
 set -euo pipefail
 
@@ -19,33 +16,32 @@ OSD_SRC="${1:-/opt/ensfacil/build}"
 DEST="$OSD_SRC/plugins/ensfacil"
 
 if [ ! -f "$OSD_SRC/package.json" ] || [ ! -d "$OSD_SRC/scripts" ]; then
-  echo "no es un árbol de OpenSearch Dashboards: $OSD_SRC" >&2
+  echo "not an OpenSearch Dashboards tree: $OSD_SRC" >&2
   exit 2
 fi
 
-# `rm -rf "$DEST"` borra el destino entero: si el repositorio ES el destino, o
-# uno está dentro del otro, se llevaría el código por delante (o copiaría el
-# plugin dentro de sí mismo). Se comparan las rutas reales, con los enlaces
-# resueltos; `os.path.realpath` vale aunque el destino no exista todavía.
-ruta_real() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
-REPO_REAL="$(ruta_real "$REPO")"
-DEST_REAL="$(ruta_real "$DEST")"
+# `rm -rf "$DEST"` deletes the whole destination: if the repository IS the destination, or one is
+# inside the other, it would delete the code (or copy the plugin into itself). Real paths are compared,
+# links resolved; `os.path.realpath` works even if the destination does not exist yet.
+real_path() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
+REPO_REAL="$(real_path "$REPO")"
+DEST_REAL="$(real_path "$DEST")"
 case "$DEST_REAL/" in
   "$REPO_REAL/"*)
-    echo "el destino ($DEST_REAL) es el repositorio o está dentro de él ($REPO_REAL): no se compila ahí" >&2
+    echo "the destination ($DEST_REAL) is the repository or inside it ($REPO_REAL): not building there" >&2
     exit 4
     ;;
 esac
 case "$REPO_REAL/" in
   "$DEST_REAL/"*)
-    echo "el repositorio ($REPO_REAL) está dentro del destino ($DEST_REAL), que se borra entero: no se compila ahí" >&2
+    echo "the repository ($REPO_REAL) is inside the destination ($DEST_REAL), which is deleted whole: not building there" >&2
     exit 4
     ;;
 esac
 
 VERSION_OSD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$OSD_SRC/package.json")"
 if [ "$VERSION_OSD" != "2.19.5" ]; then
-  echo "el árbol es $VERSION_OSD; ENSFácil 1.x se compila contra 2.19.5" >&2
+  echo "the tree is $VERSION_OSD; ENSFácil 1.x builds against 2.19.5" >&2
   exit 3
 fi
 
@@ -57,7 +53,7 @@ if [ -f "$REPO/yarn.lock" ]; then
   cp -a "$REPO/yarn.lock" "$DEST/"
 fi
 
-# node 18.19.0 del propio dashboard; yarn, el del PATH (o el de nvm de root).
+# node 18.19.0 from the dashboard itself; yarn from the PATH (or root's nvm).
 export PATH="/usr/share/wazuh-dashboard/node/bin:/root/.nvm/versions/node/v16.20.0/bin:$PATH"
 export YARN_IGNORE_ENGINES=1
 

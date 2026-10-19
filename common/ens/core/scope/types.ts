@@ -2,14 +2,11 @@ export interface ENSAgentScope {
   id: string;
   name?: string;
   groups: string[];
-  // El manager de Wazuh (000). No entra por grupo sino por el plano de medida
-  // de los controles: ver `measurement-planes.ts`.
+  // The Wazuh manager (000). It enters by the controls' measurement plane, not by group: see `measurement-planes.ts`.
   isManager?: boolean;
-  // Estado del agente según wazuh-monitoring; solo lo usa el selector.
+  // Agent status per wazuh-monitoring; only the selector uses it.
   status?: string;
-  // Sistema operativo según wazuh-monitoring (`os.platform`, `os.name`,
-  // `os.version`, `os.uname`). Lo usa Configuración para detectar el tipo de
-  // sistema; el motor no lo lee.
+  // Operating system per wazuh-monitoring (`os.platform`, `os.name`, `os.version`, `os.uname`). Configuration uses it to detect the system type; the engine does not read it.
   os?: ENSAgentOS;
 }
 

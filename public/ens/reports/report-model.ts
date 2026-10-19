@@ -53,8 +53,7 @@ const asStatus = (
     : 'SIN_DATOS';
 };
 
-// Una lista de la policy (una entrada por copia) se lee mejor separada por
-// punto y coma: cada entrada ya lleva comas dentro.
+// A policy list (one entry per copy) is joined with semicolons: each entry already contains commas.
 const formatValue = (
   value: unknown,
 ): string => {
@@ -83,8 +82,6 @@ const formatValue = (
   return String(value);
 };
 
-// Una antigüedad medida, con un decimal, como la escribe la policy; un plazo
-// de la configuración, tal cual.
 const formatAge = (
   value: unknown,
 ): string =>
@@ -117,16 +114,7 @@ const field = (
   producerGaps: [],
 });
 
-/**
- * Modelo de informe de mp.info.6 (Copias de seguridad).
- *
- * El recolector emite hechos y la policy del control los juzga copia a copia
- * (`core/policy-runtime/policies/mp-info-6.policy.ts`). Lo que se enseña aquí
- * es lo que la policy midió: los valores de cada copia que deja en sus
- * variables de ejecución y el motivo de cada evidencia (`medida_EV0x`). El
- * estado de cada campo es el de su evidencia en la tabla, así que el informe y
- * la pantalla dicen lo mismo.
- */
+/** Report model of mp.info.6: the collector emits facts and the policy judges them copy by copy. */
 export const buildMpInfo6ReportModel = (
   result: ENSComplianceResult | undefined,
 ): MPInfo6ReportModel => {
@@ -190,7 +178,6 @@ export const buildMpInfo6ReportModel = (
         variable.name === name
     )?.value;
 
-  // El motivo con el que la policy midió la evidencia.
   const reason = (
     evidenceId: string,
   ): string =>

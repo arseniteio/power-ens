@@ -1,12 +1,10 @@
-// Identidad del plugin y nombres que comparten el navegador y el servidor.
+// Plugin identity and names shared by browser and server.
 
 export const ENSFACIL_PLUGIN_ID = 'ensfacil';
 export const ENSFACIL_APP_TITLE = 'ENSFácil';
 export const ENSFACIL_APP_ORDER = 401;
 
-// La sección «Security operations» del menú de Wazuh: mismo id, etiqueta y
-// orden, para salir junto a sus módulos. Es un identificador, no código de
-// Wazuh; sin Wazuh instalado, la sección se crea igual.
+// The "Security operations" section of the Wazuh menu: same id, label and order, to appear beside its modules. An identifier, not Wazuh code; the section is created even without Wazuh installed.
 export const ENSFACIL_APP_CATEGORY = {
   id: 'wz-category-security-operations',
   label: 'Security operations',
@@ -16,14 +14,12 @@ export const ENSFACIL_APP_CATEGORY = {
 
 export const ENSFACIL_API_BASE = '/api/ensfacil';
 export const ENSFACIL_CONFIGURATION_PATH = `${ENSFACIL_API_BASE}/configuration`;
-// La evaluación la hace el servidor del plugin (desde 1.2.0): el navegador no
-// descarga hechos para juzgar, recibe el resultado. Ver `server/README.md`.
+// The plugin server does the evaluation (since 1.2.0): the browser receives the result and downloads no facts. See `server/README.md`.
 export const ENSFACIL_EVALUATION_PATH = `${ENSFACIL_API_BASE}/evaluation`;
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
 export const ENS_CONFIGURATION_INDEX = 'wazuh-ens-configuration';
 
-// Quién puede guardar la configuración y ver su historial (decisión del
-// 07/10/2026): el rol propio o el superusuario del plugin de seguridad.
+// Who can save the configuration and see its history: the plugin's own role or the security plugin's superuser.
 export const ENSFACIL_ADMIN_ROLES = ['ensfacil_admin', 'all_access'];

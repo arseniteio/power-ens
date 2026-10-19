@@ -10,12 +10,7 @@ type ImpactMetadata = {
   severity: ImpactEventSeverity;
 };
 
-// Aquí había un mapa de alias (`backup_success` → `backup_ok`,
-// `restore_success` → `restore_ok`) que traducía a mano nombres que ninguna
-// regla emite. Se retira junto con esos nombres del catálogo: eran sinónimos
-// inventados de `backup_ok` y `restore_ok`, que sí tienen regla, emisor, cron y
-// NDJSON en producción. Un alias en el presentador tapa el desajuste en la
-// pantalla y lo deja intacto en el motor, que es donde se decide el semáforo.
+// An alias map (`backup_success` -> `backup_ok`, `restore_success` -> `restore_ok`) used to translate by hand names no rule emits. Removed with those catalog names: an alias in the presenter hides the mismatch on screen and leaves it intact in the engine, where the traffic light is decided.
 const metadata: Record<string, ImpactMetadata> = {
   backup_ok: {
     label: 'Copias realizadas correctamente',
@@ -152,10 +147,7 @@ const operationalEventType = (
     : undefined;
 };
 
-// Los eventos operativos se cuentan una vez por hecho (sin repetir el que el
-// normalizador reparte por evidencia). Se acumulan aparte para que el servidor,
-// que lee los hechos control a control, cuente lo mismo que una pasada sobre
-// todos: `add` con los de cada control y `build` al final.
+// Operational events are counted once per fact (not repeating what the normalizer splits per evidence). Accumulated apart so the server, which reads facts control by control, counts the same as a pass over all: `add` with each control's and `build` at the end.
 export const createImpactEventsAccumulator = () => {
   const uniqueEvents =
     new Map<string, string>();
@@ -185,8 +177,7 @@ export const createImpactEventsAccumulator = () => {
     });
   };
 
-  // Los pares clave → tipo ya contados, para guardarlos por control y volver a
-  // sumarlos sin los eventos.
+  // Key -> type pairs already counted, to store per control and add again without the events.
   const entries = (): [string, string][] => Array.from(uniqueEvents.entries());
 
   const addEntries = (pairs: [string, string][] = []): void => {
@@ -212,9 +203,7 @@ export const createImpactEventsAccumulator = () => {
   return { add, addEntries, entries, build };
 };
 
-// El modelo a partir de cuántos hechos hay de cada tipo. El servidor lo cuenta
-// con una agregación por `data.event` (en minúsculas y sin espacios, como
-// `operationalEventType`): los tipos que no son eventos operativos se ignoran.
+// The model from how many facts of each type exist. The server counts with a `data.event` aggregation (lowercase without spaces, as `operationalEventType`); types that are not operational events are ignored.
 export const buildImpactEventsModelFromCounts = (
   counts: Record<string, number>
 ): ImpactEventsModel => {
@@ -248,7 +237,7 @@ export const buildImpactEventsModelFromCounts = (
   };
 };
 
-// Los tipos que cuentan como evento operativo.
+// The types that count as an operational event.
 export const IMPACT_EVENT_TYPES = (): string[] => Object.keys(metadata);
 
 export const buildImpactEventsModel = (

@@ -14,7 +14,7 @@
       "controlId": "op.acc.4",
       "name": "matriz_privilegios_autorizados",
       "label": "Matriz privilegios autorizados",
-      "description": "Matriz que declara, para cada rol o perfil de la organización, a qué recursos puede acceder y con qué tipo de acceso. Es la referencia autorizada contra la que se contrasta el privilegio que de verdad existe en la máquina, y por eso es el parámetro central del control: sin ella no hay nada con lo que comparar lo observado.",
+      "description": "Matriz que declara, para cada rol o perfil, a qué recursos puede acceder y con qué tipo de acceso. Es la referencia autorizada contra la que se contrasta el privilegio observado.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -28,8 +28,8 @@
       "type": "table",
       "example": "ops | /srv/app | rw / dev | /srv/app | r",
       "required": true,
-      "wazuhUsage": "Es el núcleo del control. Todo privilegio observado que no encuentre en esta tabla una fila que lo ampare se presenta como acceso sin autorización expresa.",
-      "ensfacilUsage": "El agente emite un hecho por cada privilegio efectivo que encuentra (concesiones de sudo, pertenencia a grupos privilegiados, ACL del directorio) y el motor busca en esta tabla la fila cuyo rol coincida, comprobando además que el recurso y el tipo de acceso están contemplados. Un privilegio observado que no encuentre fila que lo ampare se presenta como acceso sin autorización expresa.",
+      "wazuhUsage": "Es el núcleo del control. Todo privilegio observado sin fila que lo ampare se presenta como acceso sin autorización expresa.",
+      "ensfacilUsage": "El agente emite un hecho por cada privilegio efectivo (sudo, grupos privilegiados, ACL del directorio) y el motor busca la fila de su rol, comprobando recurso y tipo de acceso.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -40,7 +40,7 @@
       "ruleIds": [
         "ENS-OPACC4-MATRIZ-PRIVILEGIOS-AUTORIZADOS"
       ],
-      "ifNotConfigured": "Los requisitos op.acc.4.1, op.acc.4.2 y op.acc.4.3 quedan NO EVALUABLES. El agente sigue recogiendo y mostrando los privilegios que existen, pero sin referencia autorizada no se puede juzgar si alguno de ellos es excesivo o carece de autorización, de modo que ninguna de esas tres exigencias llega a acreditarse.",
+      "ifNotConfigured": "op.acc.4.1, op.acc.4.2 y op.acc.4.3 quedan NO EVALUABLES: sin referencia autorizada no se puede juzgar si un privilegio es excesivo.",
       "columns": [
         {
           "name": "rol",
@@ -67,7 +67,7 @@
       "controlId": "op.acc.4",
       "name": "personal_con_capacidad_autorizar",
       "label": "Personal con capacidad autorizar",
-      "description": "Relación de cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, indicando sobre qué ámbito de recursos alcanza esa competencia. Recoge quién está facultado para decidir sobre los permisos de los demás, que es lo que el ENS exige acotar de forma expresa.",
+      "description": "Cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, con el ámbito de recursos al que alcanza.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -79,8 +79,8 @@
       "type": "table",
       "example": "rsec | global / admin_bd | bases de datos",
       "required": true,
-      "wazuhUsage": "Los cambios de permisos y de pertenencia a grupos ejecutados por una cuenta que no figure en esta lista se presentan como autorización otorgada por quien no era competente.",
-      "ensfacilUsage": "El agente registra cada cambio de permisos junto con el actor que lo ejecutó, tomado de la traza de auditoría del sistema. El motor comprueba que ese actor figure en esta lista. El campo que se contrasta es siempre quien realiza el cambio, nunca la cuenta sobre la que recae, porque de otro modo una escalada de privilegios pasaría por buena si la víctima estuviera autorizada.",
+      "wazuhUsage": "Los cambios de permisos y de pertenencia a grupos hechos por una cuenta ausente de esta lista se presentan como autorización otorgada por quien no era competente.",
+      "ensfacilUsage": "El motor comprueba que el actor de cada cambio de permisos, tomado de la traza de auditoría, figure en la lista. Se contrasta siempre quien hace el cambio, nunca la cuenta afectada.",
       "evidenceIds": [
         "EV-03",
         "EV-04",
@@ -89,7 +89,7 @@
       "ruleIds": [
         "ENS-OPACC4-PERSONAL-CON-CAPACIDAD-AUTORIZAR"
       ],
-      "ifNotConfigured": "El requisito op.acc.4.4 no se puede verificar. Los cambios de permisos se siguen registrando con nombre y fecha, y quedan disponibles para el auditor, pero no hay forma de juzgar si quien los hizo tenía competencia para hacerlo.",
+      "ifNotConfigured": "op.acc.4.4 no se puede verificar: los cambios se registran, pero no se juzga si quien los hizo era competente.",
       "columns": [
         {
           "name": "cuenta",
@@ -110,7 +110,7 @@
       "controlId": "op.acc.4",
       "name": "periodicidad_revision_permisos_dias",
       "label": "Periodicidad revision permisos dias",
-      "description": "Cada cuánto tiempo, en días, deben revisarse los permisos de acceso concedidos. El ENS exige en op.acc.4.4 que esa revisión sea periódica, pero deja la periodicidad concreta a la normativa interna de cada organización, de modo que aquí se declara el plazo que esa organización se ha fijado.",
+      "description": "Cada cuántos días deben revisarse los permisos de acceso concedidos. El ENS exige revisión periódica (op.acc.4.4) y deja el plazo a la normativa de cada organización.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -122,8 +122,8 @@
       "type": "duration_days",
       "example": "90 (trimestral) / o 180 (semestral) / o 365 (anual)",
       "required": true,
-      "wazuhUsage": "ENSFácil registra la fecha de la última revisión que conste y avisa cuando se supera el plazo declarado sin que se haya anotado una nueva.",
-      "ensfacilUsage": "El agente lee la fecha de la última revisión anotada en el registro de la máquina y el motor comprueba que no haya transcurrido más tiempo del declarado aquí. Si el plazo se supera sin que conste una revisión nueva, la evidencia deja de acreditar. Una fecha posterior al reloj del sistema se descarta, y el motivo del veredicto deja constancia de que se descartó.",
+      "wazuhUsage": "ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
+      "ensfacilUsage": "El agente lee la fecha de la última revisión anotada en el registro de la máquina y el motor comprueba que no supere el plazo; si lo supera, la evidencia deja de acreditar. Una fecha posterior al reloj del sistema se descarta y el motivo lo indica.",
       "evidenceIds": [
         "EV-03",
         "EV-04",
@@ -132,14 +132,14 @@
       "ruleIds": [
         "ENS-OPACC4-PERIODICIDAD-REVISION-PERMISOS-DIAS"
       ],
-      "ifNotConfigured": "No se puede verificar la revisión periódica que exige op.acc.4.4. Aunque la organización haya revisado los permisos y lo haya anotado, sin un plazo declarado no hay criterio con el que decidir si esa revisión sigue vigente o ha caducado."
+      "ifNotConfigured": "No se puede verificar la revisión periódica de op.acc.4.4: sin plazo no se decide si la revisión sigue vigente."
     },
     {
       "id": "P-04",
       "controlId": "op.acc.4",
       "name": "canales_acceso_remoto_permitidos",
       "label": "Canales acceso remoto permitidos",
-      "description": "Canales, protocolos y orígenes autorizados para el acceso remoto al sistema: la VPN corporativa, un bastión SSH, el escritorio remoto con segundo factor, los rangos de direcciones desde los que se admite la conexión. Es la política de acceso remoto escrita en términos técnicos.",
+      "description": "Canales, protocolos y orígenes autorizados para el acceso remoto: VPN corporativa, bastión SSH, escritorio remoto con segundo factor, rangos de direcciones admitidos.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -151,22 +151,22 @@
       "type": "list",
       "example": "VPN | 1194 | cualquiera / SSH bastión | 22 | 10.0.0.0/8",
       "required": true,
-      "wazuhUsage": "Los canales, puertos y orígenes de cada conexión remota quedan recogidos en la evidencia y visibles en la traza, aunque hoy el veredicto se decida por la cuenta y no por el canal.",
-      "ensfacilUsage": "El agente emite cada conexión remota con su canal, su puerto y su origen, de modo que todo eso queda visible en la traza que recorre el auditor. Conviene advertir que hoy el veredicto de la evidencia de acceso remoto se decide por la cuenta que se conecta, contrastada contra P-05, y no por el canal: este parámetro se declara porque es la política exigible y porque acompaña al informe, pero todavía no lo contrasta ninguna comprobación automática.",
+      "wazuhUsage": "Canal, puerto y origen de cada conexión remota quedan en la evidencia y en la traza.",
+      "ensfacilUsage": "Acompaña al informe como política exigible. Hoy el veredicto del acceso remoto se decide por la cuenta (contra P-05), no por el canal: ninguna comprobación automática lo contrasta todavía.",
       "evidenceIds": [
         "EV-06"
       ],
       "ruleIds": [
         "ENS-OPACC4-CANALES-ACCESO-REMOTO-PERMITIDOS"
       ],
-      "ifNotConfigured": "No queda declarada por qué vías está permitido entrar de forma remota. El requisito op.acc.4.5 se sigue evaluando a partir de las cuentas autorizadas en P-05, pero el informe pierde la política de canales que el ENS pide establecer, y el auditor no encuentra escrito qué vías eran las admitidas."
+      "ifNotConfigured": "op.acc.4.5 se evalúa por las cuentas de P-05, pero el informe no recoge la política de canales."
     },
     {
       "id": "P-05",
       "controlId": "op.acc.4",
       "name": "usuarios_autorizados_acceso_remoto",
       "label": "Usuarios autorizados acceso remoto",
-      "description": "Cuentas que tienen autorización expresa para acceder al sistema de forma remota, una por línea. El ENS exige en op.acc.4.5 que esa autorización sea expresa y nominal, de modo que aquí se enumeran las personas o identidades habilitadas, y no los grupos a los que pertenecen. Debe escribirse solo el identificador de la cuenta, sin añadir el canal ni ninguna otra anotación en la misma línea: el motor compara el contenido de cada línea con el nombre de usuario del acceso observado, así que una línea con texto adicional no llegaría a coincidir con la cuenta y el resultado se leería como si no hubiera hallazgos.",
+      "description": "Cuentas con autorización expresa y nominal para el acceso remoto (op.acc.4.5), una por línea; personas o identidades, no grupos. Solo el identificador de la cuenta, sin canal ni anotaciones: una línea con texto adicional no coincidiría y parecería que no hay hallazgos.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -178,22 +178,22 @@
       "type": "list",
       "example": "jgomez",
       "required": true,
-      "wazuhUsage": "Todo acceso remoto de una cuenta que no figure en esta lista se presenta como acceso remoto sin autorización expresa.",
-      "ensfacilUsage": "El agente emite cada acceso remoto con la cuenta que lo realizó, tanto los de ssh como, en un servidor de directorio, los binds LDAP que terminaron correctamente. El motor comprueba que esa cuenta figure en esta lista, y presenta como acceso remoto sin autorización expresa cualquiera que no aparezca.",
+      "wazuhUsage": "Todo acceso remoto de una cuenta ausente de esta lista se presenta como acceso remoto sin autorización expresa.",
+      "ensfacilUsage": "El agente emite cada acceso remoto con su cuenta (ssh y, en un servidor de directorio, binds LDAP correctos) y el motor comprueba que figure en la lista.",
       "evidenceIds": [
         "EV-06"
       ],
       "ruleIds": [
         "ENS-OPACC4-USUARIOS-AUTORIZADOS-ACCESO-REMOTO"
       ],
-      "ifNotConfigured": "El requisito op.acc.4.5 queda sin verificar. Los accesos remotos se siguen registrando con su cuenta, su origen y su canal, pero no se puede distinguir un acceso legítimo de uno que nadie autorizó."
+      "ifNotConfigured": "op.acc.4.5 queda sin verificar: se registran los accesos remotos, pero no se distingue uno legítimo de uno no autorizado."
     },
     {
       "id": "P-06",
       "controlId": "op.acc.4",
       "name": "grupos_privilegiados",
       "label": "Grupos privilegiados",
-      "description": "Grupos del sistema o del directorio cuya pertenencia otorga privilegios elevados: los administradores del dominio, wheel, sudo, y en general cualquiera equivalente a root. Recoge la política de la organización sobre qué pertenencias se consideran privilegiadas, y su vigilancia es la vía más directa para comprobar el mínimo privilegio.",
+      "description": "Grupos del sistema o del directorio cuya pertenencia otorga privilegios elevados: administradores de dominio, wheel, sudo y equivalentes a root.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -205,8 +205,8 @@
       "type": "list",
       "example": "Domain Admins | AD / wheel | servidores Linux",
       "required": true,
-      "wazuhUsage": "Las pertenencias a estos grupos se recogen en cada pasada, incluida la pertenencia primaria, y se contrastan contra la matriz P-01.",
-      "ensfacilUsage": "El agente emite un hecho por cada miembro que encuentra en los grupos privilegiados que observa en la máquina, incluyendo la pertenencia primaria, que no figura en el fichero de grupos y suele ser la más grave. Conviene advertir que hoy esos miembros se contrastan contra la matriz P-01 y no contra esta lista: el parámetro se declara porque es la política escrita y porque acompaña al informe, pero todavía no lo contrasta ninguna comprobación automática.",
+      "wazuhUsage": "Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.",
+      "ensfacilUsage": "El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.",
       "evidenceIds": [
         "EV-02",
         "EV-03",
@@ -215,14 +215,14 @@
       "ruleIds": [
         "ENS-OPACC4-GRUPOS-PRIVILEGIADOS"
       ],
-      "ifNotConfigured": "No queda declarado qué pertenencias considera privilegiadas la organización. Las altas y bajas en los grupos que el agente observa se siguen recogiendo y contrastando contra P-01, pero el informe pierde el criterio escrito con el que se decidió que esos grupos eran los sensibles."
+      "ifNotConfigured": "El informe pierde el criterio escrito de qué grupos son sensibles; el agente sigue recogiendo y contrastando con P-01."
     },
     {
       "id": "P-07",
       "controlId": "op.acc.4",
       "name": "recursos_sensibles_necesidad_conocer",
       "label": "Recursos sensibles necesidad conocer",
-      "description": "Recursos que contienen información sujeta al principio de necesidad de conocer, indicando para cada uno qué perfiles tienen justificación de acceso. Son los directorios, ficheros o atributos del directorio cuyo contenido no debe estar al alcance de todo el que técnicamente pueda abrirlos, que es precisamente lo que exige op.acc.4.3.",
+      "description": "Recursos con información sujeta a necesidad de conocer (directorios, ficheros o atributos del directorio) y perfiles con justificación de acceso a cada uno (op.acc.4.3).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -234,15 +234,15 @@
       "type": "table",
       "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh,direccion",
       "required": true,
-      "wazuhUsage": "ENSFácil registra los accesos a estos recursos y señala aquellos en los que el perfil de quien accede no tiene justificación declarada, aunque técnicamente tuviera permiso.",
-      "ensfacilUsage": "El agente registra quién accede a estos recursos y con qué perfil, y el motor busca la fila cuyo recurso coincida para comprobar que ese perfil está entre los justificados. Lo que se juzga no es si el permiso técnico existe, porque existe por definición si el acceso llegó a producirse, sino si quien accedió tenía motivo declarado para hacerlo. Cada recurso que se declare aquí debe estar además vigilado en las reglas de auditoría del agente: son las dos mitades de la misma comprobación, y un recurso declarado que nadie vigila es un hueco silencioso.",
+      "wazuhUsage": "ENSFácil registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
+      "ensfacilUsage": "El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.",
       "evidenceIds": [
         "EV-07"
       ],
       "ruleIds": [
         "ENS-OPACC4-RECURSOS-SENSIBLES-NECESIDAD-CONOCER"
       ],
-      "ifNotConfigured": "El requisito op.acc.4.3 queda NO EVALUABLE. Sin saber qué recursos exigen justificación ni qué perfiles la tienen, no se puede distinguir un acceso técnicamente posible de un acceso realmente justificado, que es la distinción que este requisito pide demostrar.",
+      "ifNotConfigured": "op.acc.4.3 queda NO EVALUABLE: no se distingue un acceso técnicamente posible de uno justificado.",
       "columns": [
         {
           "name": "recurso",

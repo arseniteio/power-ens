@@ -6,25 +6,15 @@ export const opMon3CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Monitorización del sistema',
   dimension: 'Todas',
-  // Se mide en los DOS planos. El manager (000) mide la recolección central,
-  // la correlación, la superficie de exposición, los canales de alerta y los
-  // registros; cada agente, el volumen y los descartes de sus propias fuentes
-  // (wazuh-logcollector.state, wazuh-agentd.state), que solo se ven en la
-  // máquina que las lee. La policy sabe en qué fila está por el `agent.id` de
-  // sus hechos: en la de un agente solo juzga las fuentes de P-01 de esa
-  // máquina, y lo demás sale NO_APLICA («se mide en el manager»).
+  // Measured on BOTH planes. The manager (000) measures central collection, correlation, exposure surface, alert channels and registers; each agent, the volume and drops of its own sources (wazuh-logcollector.state, wazuh-agentd.state), visible only on the machine that reads them.
+  // The policy knows its row by the `agent.id` of its facts: on an agent's row it judges only that machine's P-01 sources, and the rest comes out NO_APLICA ("se mide en el manager").
   measurementPlanes: ['agent', 'manager'],
   description:
     'op.mon.3 es el control que mejor define la razón de ser de ENSFácil en categorías BÁSICA y MEDIA, y el que exige más honestidad en categoría ALTA.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   status: 'ACTIVE',
   version: '1.0.0',
-  // Las evidencias de cada requisito son las del diseño (spec 2026-10-09
-  // §3.3). R3.1 y R4 son documentales (sin evidencia técnica: los acredita
-  // P-ATT) y sus evidencias EV-05 y EV-07 se informan sin veredicto, como
-  // EV-13 (el registro de incidentes no dice qué incidentes revelaron
-  // vulnerabilidades). EV-10 y EV-11 reutilizan los hechos de EV-04. R7 se
-  // define y no se exige en ninguna categoría.
+  // The evidences of each requirement are the design's. R3.1 and R4 are documentary (no technical evidence: accredited by P-ATT) and their evidences EV-05 and EV-07 are reported without verdict, as is EV-13 (the incident register does not say which incidents revealed vulnerabilities). EV-10 and EV-11 reuse EV-04's facts. R7 is defined and required in no category.
   requirements: [
     {
       id: 'op.mon.3.1',
@@ -77,8 +67,7 @@ export const opMon3CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible solo en categoría ALTA. En BÁSICA y MEDIA no aplica.',
       },
-      // Documental: Wazuh no trae motor de líneas base. Lo acredita P-ATT; la
-      // línea base de P-04 se informa en EV-05.
+      // Documentary: Wazuh has no baseline engine. Accredited by P-ATT; the P-04 baseline is reported in EV-05.
       evidenceIds: [],
       parameterIds: ['P-04'],
     },
@@ -107,8 +96,7 @@ export const opMon3CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible solo en categoría ALTA. En BÁSICA y MEDIA no aplica.',
       },
-      // Documental: el observatorio es un servicio externo. Lo acredita P-ATT;
-      // las listas de indicadores cargadas se informan en EV-07.
+      // Documentary: the observatory is an external service. Accredited by P-ATT; the loaded indicator lists are reported in EV-07.
       evidenceIds: [],
       parameterIds: ['P-06'],
     },

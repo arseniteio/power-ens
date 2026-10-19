@@ -1,40 +1,4 @@
-/**
- * La serie diaria del gráfico de evolución.
- *
- *     ~/.bun/bin/bun run tests/daily-evolution.test.ts
- *
- * Mismo montaje que sus hermanas (`evidence-judgment`, `measurement-gap`,
- * `aggregated-overview`): TypeScript suelto con su propio comprobador, sin
- * `package.json` ni `tsconfig`. Hace falta un runtime que ejecute TypeScript
- * resolviendo imports sin extensión (`bun`, probado con 1.3.14).
- *
- * POR QUÉ EXISTE ESTE FICHERO. Hasta el 05/08 el gráfico promediaba por SEMANA
- * los `score_snapshot` del agente, que son OTRO número: el agente puntúa sobre
- * su propio denominador y no lee los parámetros que el auditor declara en la
- * pantalla. El panel y la línea podían decir cosas distintas sin que nada lo
- * avisara, y con op.acc.2 en 0 % lo decían. Ahora la serie la calcula el mismo
- * motor que el panel, un punto por día, y lo único que cambia entre dos puntos
- * es el instante al que se evalúa.
- *
- * Se prueban las dos mitades por separado, porque solo una de ellas se puede
- * importar aquí:
- *
- *   - EL REPARTO POR DÍAS (`timeline-cuts.ts`), que es donde está la lógica que
- *     puede equivocarse. No importa el motor, y por eso se puede probar fuera
- *     del árbol del plugin de Wazuh.
- *   - QUE EL INSTANTE LLEGA DE VERDAD hasta donde se mide la antigüedad
- *     (`runPolicyRuntime`). Sin esto los cortes serían correctos y todos los
- *     puntos se juzgarían igual contra hoy, que es el defecto silencioso que
- *     esta serie viene a evitar.
- *
- * `compliance-timeline.ts` —la composición de las dos— no se puede importar:
- * arrastra el motor, y el motor arrastra `kibana-services`, que solo existe en
- * el árbol del plugin `main`. Es de tres líneas y no tiene lógica propia.
- *
- * Reglas de estas pruebas, las mismas de sus hermanas: cada caso mueve UN SOLO
- * eje respecto del anterior, y toda afirmación de «esto pasa» lleva al lado la
- * REVERSIÓN que demuestra que no pasaría siempre.
- */
+/** Daily series of the evolution chart. */
 import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
 import { mpInfo6CatalogDefinition } from '../common/ens/catalog/mp-info-6';
 import { mpInfo6Configuration } from '../common/ens/configuration/data/mp-info-6-parameters';
@@ -46,48 +10,40 @@ import {
   startOfDay,
 } from '../common/ens/core/timeline/timeline-cuts';
 
-// El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
-
-// Las fechas se construyen en HORA LOCAL a propósito: el corte de un día es el
-// final del día del operador, no el de UTC. Con `Z` la prueba pasaría o fallaría
-// según el huso de la máquina que la ejecuta.
-const enDia = (
-  dia: number,
+const onDay = (
+  day: number,
   hora: number = 9
 ): string =>
-  new Date(2026, 7, dia, hora, 0, 0).toISOString();
+  new Date(2026, 7, day, hora, 0, 0).toISOString();
 
-let contador = 0;
+let counter = 0;
 
-const evento = (
+const event = (
   timestamp: string,
   extra: Partial<ENSNormalizedEvent> = {}
 ): ENSNormalizedEvent => ({
-  id: `evt-${(contador += 1)}`,
+  id: `evt-${(counter += 1)}`,
   controlId: 'op.acc.1',
   eventType: 'account_active',
   sourceType: 'WAZUH_ALERT',
@@ -95,53 +51,48 @@ const evento = (
   ...extra,
 });
 
-// 5 de agosto de 2026, mediodía.
-const AHORA = new Date(2026, 7, 5, 12, 0, 0);
+const NOW = new Date(2026, 7, 5, 12, 0, 0);
 
-// --- 1. el reparto por días ------------------------------------------------
-
-bloque('1. Un punto por día, y el último es el presente');
+section('1. One point per day, and the last is the present');
 
 {
   const cortes = buildENSTimelineCuts(
     [
-      evento(enDia(3)),
-      evento(enDia(4)),
-      evento(enDia(5)),
+      event(onDay(3)),
+      event(onDay(4)),
+      event(onDay(5)),
     ],
-    { now: AHORA, days: 7 }
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'tres días con eventos producen tres puntos',
+  check(
+    'three days with events produce three points',
     cortes.length === 3,
     `${cortes.length}`
   );
 
-  comprueba(
-    'las etiquetas son dd/mm, no la semana',
-    cortes.map(corte => corte.label).join(' ') ===
+  check(
+    'labels are dd/mm, not the week',
+    cortes.map(cut => cut.label).join(' ') ===
       '03/08 04/08 05/08',
-    cortes.map(corte => corte.label).join(' ')
+    cortes.map(cut => cut.label).join(' ')
   );
 
-  comprueba(
-    'solo el último punto es el presente',
-    cortes.filter(corte => corte.isCurrent).length === 1 &&
+  check(
+    'only the last point is the present',
+    cortes.filter(cut => cut.isCurrent).length === 1 &&
       cortes[2].isCurrent,
-    cortes.map(corte => String(corte.isCurrent)).join(',')
+    cortes.map(cut => String(cut.isCurrent)).join(',')
   );
 
-  // Lo que hace que el último punto SEA el número del panel: mismo instante y
-  // mismos eventos que la evaluación de arriba, sin recortar nada.
-  comprueba(
-    'el punto del presente se evalúa AHORA, no al final del día',
-    cortes[2].cutoff.getTime() === AHORA.getTime(),
+  check(
+    'the present point is evaluated NOW, not at the end of the day',
+    cortes[2].cutoff.getTime() === NOW.getTime(),
     cortes[2].cutoff.toISOString()
   );
 
-  comprueba(
-    'y los puntos pasados, al final de SU día',
+  check(
+    'and past points, at the end of THEIR day',
     cortes[0].cutoff.getHours() === 23 &&
       cortes[0].cutoff.getMinutes() === 59 &&
       cortes[0].cutoff.getDate() === 3,
@@ -149,214 +100,188 @@ bloque('1. Un punto por día, y el último es el presente');
   );
 }
 
-bloque('2. Los eventos de un punto son ACUMULADOS, no los del día suelto');
+section('2. The events of a point are CUMULATIVE, not those of the single day');
 
 {
   const cortes = buildENSTimelineCuts(
     [
-      evento(enDia(3)),
-      evento(enDia(4)),
-      evento(enDia(5)),
+      event(onDay(3)),
+      event(onDay(4)),
+      event(onDay(5)),
     ],
-    { now: AHORA, days: 7 }
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'el primer día conoce 1 evento, el segundo 2 y el tercero 3',
-    cortes.map(corte => corte.events.length).join(',') === '1,2,3',
-    cortes.map(corte => corte.events.length).join(',')
+  check(
+    'the first day knows 1 event, the second 2 and the third 3',
+    cortes.map(cut => cut.events.length).join(',') === '1,2,3',
+    cortes.map(cut => cut.events.length).join(',')
   );
 
-  // La reversión: si fueran los eventos DEL día, cada punto tendría 1. Un
-  // recuento acumulado creciente es lo que distingue las dos lecturas.
-  comprueba(
-    'lo que descarta la lectura «solo los del día»: no es 1,1,1',
-    cortes.map(corte => corte.events.length).join(',') !== '1,1,1'
+  check(
+    'which rules out the «only those of the day» reading: it is not 1,1,1',
+    cortes.map(cut => cut.events.length).join(',') !== '1,1,1'
   );
 
-  comprueba(
-    'y la evidencia del día 3 sigue estando en el punto del día 5',
+  check(
+    'and day 3\'s evidence is still there at day 5\'s point',
     cortes[2].events.some(
-      item => item.timestamp === enDia(3)
+      item => item.timestamp === onDay(3)
     )
   );
 }
 
-bloque('3. Un día sin eventos propios SÍ tiene punto, si ya hubo alguno antes');
+section('3. A day without own events DOES have a point, if there was one before');
 
 {
-  // El agente reporta el 3 y el 5, y calla el 4.
   const cortes = buildENSTimelineCuts(
-    [evento(enDia(3)), evento(enDia(5))],
-    { now: AHORA, days: 7 }
+    [event(onDay(3)), event(onDay(5))],
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'el día mudo no se salta: son tres puntos, no dos',
+  check(
+    'the silent day is not skipped: three points, not two',
     cortes.length === 3,
     `${cortes.length}`
   );
 
-  // Y es lo correcto: el motor juzgará ese día con la evidencia de anteayer, y
-  // si la ventana del recolector ya venció, la puntuación baja. Ese bajón es
-  // información real —«dejó de reportar»—, no un hueco del gráfico.
-  comprueba(
-    'y arrastra lo último que se sabía: 1 evento',
+  check(
+    'and it carries the last known: 1 event',
     cortes[1].events.length === 1,
     `${cortes[1].events.length}`
   );
 }
 
-bloque('4. Antes del primer evento NO hay punto');
+section('4. Before the first event there is NO point');
 
 {
-  // Con cero eventos el motor devuelve los tres controles NO_EVALUABLE, que es
-  // un 0 % legítimo como veredicto y una mentira como histórico: dibujaría a la
-  // máquina incumpliendo antes de que nadie la mirase.
   const cortes = buildENSTimelineCuts(
-    [evento(enDia(4)), evento(enDia(5))],
-    { now: AHORA, days: 7 }
+    [event(onDay(4)), event(onDay(5))],
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'una ventana de 7 días con evidencia de 2 produce 2 puntos, no 7',
+  check(
+    'a 7-day window with evidence from 2 produces 2 points, not 7',
     cortes.length === 2,
     `${cortes.length}`
   );
 
-  comprueba(
-    'la serie empieza el día del primer evento',
+  check(
+    'the series starts on the day of the first event',
     cortes[0].label === '04/08',
     cortes[0].label
   );
 
-  // La reversión: con evidencia más antigua, la ventana SÍ se llena hasta su
-  // tope. Sin esto, la prueba de arriba pasaría igual con un recorte ciego.
-  const largos = buildENSTimelineCuts(
+  const long2 = buildENSTimelineCuts(
     [
-      evento(enDia(1)),
-      evento(enDia(2)),
-      evento(enDia(3)),
-      evento(enDia(4)),
-      evento(enDia(5)),
+      event(onDay(1)),
+      event(onDay(2)),
+      event(onDay(3)),
+      event(onDay(4)),
+      event(onDay(5)),
     ],
-    { now: AHORA, days: 7 }
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'y con evidencia desde el día 1, la serie llega hasta el día 1',
-    largos.length === 5 && largos[0].label === '01/08',
-    `${largos.length} puntos, empieza ${largos[0].label}`
+  check(
+    'and with evidence from day 1, the series reaches day 1',
+    long2.length === 5 && long2[0].label === '01/08',
+    `${long2.length} puntos, empieza ${long2[0].label}`
   );
 
-  // El tope de días recorta por el otro lado, que es lo que acota el coste:
-  // cada punto es una pasada completa del motor.
-  const recortados = buildENSTimelineCuts(
+  const trimmed = buildENSTimelineCuts(
     [
-      evento(enDia(1)),
-      evento(enDia(2)),
-      evento(enDia(3)),
-      evento(enDia(4)),
-      evento(enDia(5)),
+      event(onDay(1)),
+      event(onDay(2)),
+      event(onDay(3)),
+      event(onDay(4)),
+      event(onDay(5)),
     ],
-    { now: AHORA, days: 3 }
+    { now: NOW, days: 3 }
   );
 
-  comprueba(
-    'con days=3 la serie se recorta a los 3 últimos días',
-    recortados.length === 3 && recortados[0].label === '03/08',
-    `${recortados.length} puntos, empieza ${recortados[0].label}`
+  check(
+    'with days=3 the series is trimmed to the last 3 days',
+    trimmed.length === 3 && trimmed[0].label === '03/08',
+    `${trimmed.length} puntos, empieza ${trimmed[0].label}`
   );
 }
 
-bloque('5. Sin eventos no hay serie, y el reloj desviado no la alarga');
+section('5. No events, no series, and a skewed clock does not lengthen it');
 
 {
-  comprueba(
-    'sin ningún evento, la serie está vacía (la tarjeta cae al valor de ahora)',
-    buildENSTimelineCuts([], { now: AHORA }).length === 0
+  check(
+    'with no event, the series is empty (the card falls back to the current value)',
+    buildENSTimelineCuts([], { now: NOW }).length === 0
   );
 
-  // Un agente con el reloj adelantado no puede crear días futuros en el eje.
-  const conFuturo = buildENSTimelineCuts(
-    [evento(enDia(5)), evento(enDia(9))],
-    { now: AHORA, days: 7 }
+  const withFuture = buildENSTimelineCuts(
+    [event(onDay(5)), event(onDay(9))],
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'un evento con fecha futura no añade puntos por delante de hoy',
-    conFuturo.length === 1 &&
-      startOfDay(conFuturo[0].day).getDate() === 5,
-    `${conFuturo.length} puntos`
+  check(
+    'an event with a future date adds no points ahead of today',
+    withFuture.length === 1 &&
+      startOfDay(withFuture[0].day).getDate() === 5,
+    `${withFuture.length} puntos`
   );
 
-  // Pero SÍ entra en el punto del presente: ahí el conjunto de eventos tiene
-  // que ser exactamente el del panel, o los dos números dejarían de ser
-  // comparables — que es el defecto que toda esta serie viene a corregir.
-  comprueba(
-    'y aun así el punto del presente ve los mismos eventos que el panel',
-    conFuturo[0].events.length === 2,
-    `${conFuturo[0].events.length}`
+  check(
+    'and even so the present point sees the same events as the panel',
+    withFuture[0].events.length === 2,
+    `${withFuture[0].events.length}`
   );
 
-  // La reversión: si solo hubiera eventos futuros, no habría nada que fechar.
-  comprueba(
-    'con SOLO eventos futuros no hay serie',
-    buildENSTimelineCuts([evento(enDia(9))], { now: AHORA }).length === 0
+  check(
+    'with ONLY future events there is no series',
+    buildENSTimelineCuts([event(onDay(9))], { now: NOW }).length === 0
   );
 }
 
-// --- 2. que el instante llega hasta donde se mide la antigüedad -------------
-
-bloque('6. Cada punto mide la antigüedad contra SU día, no contra hoy');
+section('6. Each point measures age against ITS day, not against today');
 
 {
-  // La copia se hizo el día 3 a las 9:00, y no ha vuelto a salir bien. El
-  // recolector de mp.info.6 lo informa en cada pasada: en la del día 3 a las
-  // 9:05 y en la de hoy a las 11:00, las dos con la misma última copia
-  // correcta. Evaluada al final del día 3 solo existe la primera.
-  const copia = enDia(3);
-  const pasada = (timestamp: string): ENSNormalizedEvent =>
-    evento(timestamp, {
+  const copy = onDay(3);
+  const pass = (timestamp: string): ENSNormalizedEvent =>
+    event(timestamp, {
       controlId: 'mp.info.6',
       eventType: 'backup_run',
       evidenceId: 'EV-02',
       attributes: {
         origen: 'pbs',
         objeto: 'fichero',
-        ultima_correcta: copia,
+        ultima_correcta: copy,
         ultima_fallida: '-',
         resultado_ultima: 'ok',
       },
     });
 
-  const hechos = [
-    pasada(new Date(2026, 7, 3, 9, 5, 0).toISOString()),
-    pasada(new Date(2026, 7, 5, 11, 0, 0).toISOString()),
+  const facts = [
+    pass(new Date(2026, 7, 3, 9, 5, 0).toISOString()),
+    pass(new Date(2026, 7, 5, 11, 0, 0).toISOString()),
   ];
 
-  const configuracion = {
+  const configuration = {
     ...mpInfo6Configuration,
-    parameters: mpInfo6Configuration.parameters.map(parametro =>
-      parametro.id === 'P-01'
-        ? { ...parametro, value: '24' }
-        : parametro.id === 'P-04'
-        ? { ...parametro, value: 'srv-01' }
-        : parametro
+    parameters: mpInfo6Configuration.parameters.map(parameter =>
+      parameter.id === 'P-01'
+        ? { ...parameter, value: '24' }
+        : parameter.id === 'P-04'
+        ? { ...parameter, value: 'srv-01' }
+        : parameter
     ),
   };
 
-  // La medida de EV-02 (antigüedad de la última copia correcta) que deja la
-  // policy de mp.info.6 en sus variables de ejecución.
-  const medidaEn = (instante?: Date) => {
+  const measuredOn = (instant?: Date) => {
     const runtime = runPolicyRuntime(
       buildPolicyContext(
         mpInfo6CatalogDefinition,
-        configuracion,
+        configuration,
         'BAJO',
-        hechos,
+        facts,
         [],
-        instante
+        instant
       )
     );
 
@@ -370,183 +295,147 @@ bloque('6. Cada punto mide la antigüedad contra SU día, no contra hoy');
     };
   };
 
-  // Evaluada al final del día 3, la copia de esa mañana tiene ~15 h.
-  const finDelDia3 = new Date(2026, 7, 3, 23, 59, 59, 999);
+  const endOfDay3 = new Date(2026, 7, 3, 23, 59, 59, 999);
 
-  const enSuDia = medidaEn(finDelDia3);
+  const onItsDay = measuredOn(endOfDay3);
 
-  comprueba(
-    'evaluada en su propio día, la copia tiene menos de 24 h',
-    enSuDia.estado === 'CUMPLE' && /hace 15\.0 h/.test(enSuDia.motivo),
-    `${enSuDia.estado} ${enSuDia.motivo}`
+  check(
+    'evaluated on its own day, the copy is under 24 h old',
+    onItsDay.estado === 'CUMPLE' && /hace 15\.0 h/.test(onItsDay.motivo),
+    `${onItsDay.estado} ${onItsDay.motivo}`
   );
 
-  // La reversión, que es todo el defecto en una línea: la MISMA copia medida
-  // contra hoy tiene dos días. Si el instante no viajara hasta aquí, el punto
-  // del día 3 se juzgaría con este número y la línea bajaría hacia el pasado
-  // por el mero hecho de que el pasado es viejo.
-  const hoy = medidaEn(AHORA);
+  const hoy = measuredOn(NOW);
 
-  comprueba(
-    'y la misma copia medida contra hoy pasa de 24 h',
+  check(
+    'and the same copy measured against today exceeds 24 h',
     hoy.estado === 'NO_CUMPLE' && /hace 51\.0 h/.test(hoy.motivo),
     `${hoy.estado} ${hoy.motivo}`
   );
 
-  comprueba(
-    'que son medidas distintas: el instante llega de verdad al runtime',
-    enSuDia.estado !== hoy.estado,
-    `${enSuDia.estado} vs ${hoy.estado}`
+  check(
+    'which are different measurements: the instant really reaches the runtime',
+    onItsDay.estado !== hoy.estado,
+    `${onItsDay.estado} vs ${hoy.estado}`
   );
 
-  // Y sin instante se comporta como siempre: contra el reloj real. Es lo que
-  // garantiza que el panel no ha cambiado de comportamiento: hoy los dos
-  // hechos son más viejos que la frescura de un estado, y la copia no puede
-  // salir en verde.
-  const porDefecto = medidaEn(undefined);
+  const byDefault = measuredOn(undefined);
 
-  comprueba(
-    'sin instante, sigue midiendo contra el reloj real (el panel no cambia)',
-    porDefecto.estado !== undefined && porDefecto.estado !== 'CUMPLE',
-    `${porDefecto.estado} ${porDefecto.motivo}`
+  check(
+    'without an instant, it still measures against the real clock (the panel does not change)',
+    byDefault.estado !== undefined && byDefault.estado !== 'CUMPLE',
+    `${byDefault.estado} ${byDefault.motivo}`
   );
 }
 
-bloque('7. La serie no depende de los score_snapshot del agente');
+section('7. The series does not depend on the agent\'s score_snapshot');
 
 {
-  // El defecto original: el gráfico leía `score_snapshot`, que es el número que
-  // el agente se pone a sí mismo. Los cortes de ahora no lo miran para nada.
   const cortes = buildENSTimelineCuts(
     [
-      evento(enDia(3), {
+      event(onDay(3), {
         eventType: 'score_snapshot',
         score: 100,
       }),
-      evento(enDia(4)),
-      evento(enDia(5)),
+      event(onDay(4)),
+      event(onDay(5)),
     ],
-    { now: AHORA, days: 7 }
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'un score_snapshot es un evento más: no crea ni suprime puntos',
+  check(
+    'a score_snapshot is just one more event: it neither creates nor suppresses points',
     cortes.length === 3,
     `${cortes.length}`
   );
 
-  // La reversión frente al comportamiento viejo: antes, un conjunto SIN ningún
-  // score_snapshot no producía serie ninguna y la tarjeta caía al valor actual.
-  const sinSnapshots = buildENSTimelineCuts(
-    [evento(enDia(3)), evento(enDia(4)), evento(enDia(5))],
-    { now: AHORA, days: 7 }
+  const withoutSnapshots = buildENSTimelineCuts(
+    [event(onDay(3)), event(onDay(4)), event(onDay(5))],
+    { now: NOW, days: 7 }
   );
 
-  comprueba(
-    'y sin ningún score_snapshot la serie existe igual',
-    sinSnapshots.length === 3,
-    `${sinSnapshots.length}`
+  check(
+    'and without any score_snapshot the series exists all the same',
+    withoutSnapshots.length === 3,
+    `${withoutSnapshots.length}`
   );
 }
 
-bloque('8. El catálogo que el gráfico ya no consulta');
+section('8. The catalog the chart no longer queries');
 
 {
-  // op.acc.1 se usa arriba solo como control de que el catálogo carga; si esta
-  // importación se rompiera, los bloques 1-5 seguirían pasando y la prueba
-  // estaría comprobando menos de lo que dice.
-  comprueba(
-    'el catálogo de op.acc.1 carga (control positivo de las importaciones)',
+  check(
+    'the op.acc.1 catalog loads (positive control of the imports)',
     opAcc1CatalogDefinition.id === 'op.acc.1',
     opAcc1CatalogDefinition.id
   );
 }
 
-// --- 9. el presupuesto: la serie no puede colgar la pestaña ---------------
-//
-// NACE DE UN FALLO QUE DEJÓ EL DASHBOARD SIN CARGAR EN PRODUCCIÓN.
-//
-// Cada punto es una pasada completa del motor sobre el prefijo de ese día. Con
-// 97.905 eventos y 30 días —wazuh-real, 06/08/2026— son metro y medio de millón
-// de evaluaciones en el hilo del navegador: la pestaña se queda en «Cargando
-// configuración y alcance ENS…» y no vuelve.
-//
-// Lo que se recorta es el NÚMERO DE PUNTOS, nunca los eventos de un punto: un
-// punto calculado sobre la mitad de los hechos seria un numero falso, y el
-// valor de esta serie es que cada punto se calcula igual que el panel.
-
-bloque('9. Con mucho volumen, menos puntos — pero nunca menos eventos');
+section('9. With high volume, fewer points — but never fewer events');
 
 {
-  // 40.000 eventos repartidos por una ventana de 30 dias.
-  const muchos: ENSNormalizedEvent[] = [];
-  for (let dia = 29; dia >= 0; dia -= 1) {
-    const cuando = new Date(AHORA);
-    cuando.setDate(cuando.getDate() - dia);
-    cuando.setHours(9, 0, 0, 0);
+  const many: ENSNormalizedEvent[] = [];
+  for (let day = 29; day >= 0; day -= 1) {
+    const when = new Date(NOW);
+    when.setDate(when.getDate() - day);
+    when.setHours(9, 0, 0, 0);
     for (let i = 0; i < 1333; i += 1) {
-      muchos.push(evento(cuando.toISOString()));
+      many.push(event(when.toISOString()));
     }
   }
 
-  const serie = buildENSTimelineCuts(muchos, { now: AHORA, days: 30 });
+  const series = buildENSTimelineCuts(many, { now: NOW, days: 30 });
 
-  const evaluados = serie.reduce(
-    (total, corte) => total + corte.events.length,
+  const evaluated = series.reduce(
+    (total, cut) => total + cut.events.length,
     0
   );
 
-  comprueba(
-    'la serie se mantiene dentro del presupuesto de evaluaciones',
-    evaluados <= 500000,
-    `${evaluados} eventos evaluados en total`
+  check(
+    'the series stays within the evaluation budget',
+    evaluated <= 500000,
+    `${evaluated} eventos evaluados en total`
   );
 
-  comprueba(
-    'y por tanto tiene menos de 30 puntos',
-    serie.length < 30 && serie.length >= 2,
-    `${serie.length} puntos`
+  check(
+    'and therefore has fewer than 30 points',
+    series.length < 30 && series.length >= 2,
+    `${series.length} puntos`
   );
 
-  // Lo que NO puede pasar nunca, y es la mitad importante de esta prueba.
-  comprueba(
-    'el punto del presente sigue estando, con el paso que sea',
-    serie.filter(corte => corte.isCurrent).length === 1,
-    `${serie.filter(corte => corte.isCurrent).length} puntos marcados como presente`
+  check(
+    'the present point is still there, whatever the step',
+    series.filter(cut => cut.isCurrent).length === 1,
+    `${series.filter(cut => cut.isCurrent).length} puntos marcados como presente`
   );
 
-  comprueba(
-    'y es el ÚLTIMO, con TODOS los eventos: es el número del panel',
-    serie[serie.length - 1].isCurrent &&
-      serie[serie.length - 1].events.length === muchos.length,
-    `${serie[serie.length - 1].events.length} de ${muchos.length}`
+  check(
+    'and it is the LAST, with ALL events: it is the panel\'s number',
+    series[series.length - 1].isCurrent &&
+      series[series.length - 1].events.length === many.length,
+    `${series[series.length - 1].events.length} de ${many.length}`
   );
 
-  // La reversión: con poco volumen el paso sigue siendo diario. Sin esto, un
-  // presupuesto demasiado agresivo degradaría todas las gráficas y la prueba
-  // de arriba pasaría igual.
-  const pocos = [
-    evento(new Date(2026, 7, 1, 9).toISOString()),
-    evento(new Date(2026, 7, 3, 9).toISOString()),
+  const few = [
+    event(new Date(2026, 7, 1, 9).toISOString()),
+    event(new Date(2026, 7, 3, 9).toISOString()),
   ];
 
-  const serieCorta = buildENSTimelineCuts(pocos, { now: AHORA, days: 30 });
+  const shortSeries = buildENSTimelineCuts(few, { now: NOW, days: 30 });
 
-  comprueba(
-    'con poco volumen el paso sigue siendo DIARIO',
-    serieCorta.length >= 5,
-    `${serieCorta.length} puntos`
+  check(
+    'with low volume the step is still DAILY',
+    shortSeries.length >= 5,
+    `${shortSeries.length} puntos`
   );
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -15,10 +15,34 @@ import {
   assertENSConfigurationVersion,
 } from './configuration-structure-validator';
 import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
+import {
+  ENSTemplateMigrationPlan,
+  planTemplateMigration,
+  summarizeTemplateMigration,
+} from '../agents/template-migration';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
   | null = null;
+
+// The 1.2.0 -> 1.3.0 conversion done on load: held in memory and written by the next save of any kind.
+let pendingTemplateMigration: ENSTemplateMigrationPlan | undefined;
+
+export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefined =>
+  pendingTemplateMigration;
+
+const commitPersisted = (
+  configuration: ENSConfigurationVersion
+): ENSConfigurationVersion => {
+  pendingTemplateMigration = undefined;
+  return ensConfigurationRepository.commitPersisted(configuration);
+};
+
+// The save that first writes the conversion also says so in the history and the audit trail.
+const withPendingConversion = (reason: string): string => {
+  const conversion = pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '';
+  return conversion && !reason.includes(conversion) ? `${reason} ${conversion}` : reason;
+};
 
 export const getENSConfigurationHydrationState =
   (): ENSConfigurationHydrationState =>
@@ -61,8 +85,11 @@ export const hydrateENSConfiguration = (
           serverState.configuration
         );
 
+      const migration = planTemplateMigration(configuration);
+      pendingTemplateMigration = migration.changed ? migration : undefined;
+
       return ensConfigurationRepository.completeHydration(
-        configuration
+        migration.configuration
       );
     } catch (error) {
       ensConfigurationRepository.failHydration(
@@ -97,11 +124,7 @@ export const getConfiguredControlById = (
     control => control.controlId === controlId
   );
 
-// La configuración con la que se evalúa un control: la de la fila de
-// `agentId` (valor del agente → sus plantillas → organización) o, sin agente,
-// la vista de organización. Es el ÚNICO punto por el que la configuración entra
-// en el motor; ver `agents/configuration-resolver.ts`. Sin `configuration.agents`
-// devuelve el mismo objeto que `getConfiguredControlById`.
+// The single entry point of the configuration into the engine; see `agents/configuration-resolver.ts`.
 export const getActiveControlConfiguration = (
   controlId: string,
   agentId?: string
@@ -150,7 +173,7 @@ export const updateActiveControlConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      changeReason
+      withPendingConversion(changeReason)
     );
 
   if (serverState.configuration === null) {
@@ -177,7 +200,7 @@ export const updateActiveControlConfiguration = async (
     );
   }
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
@@ -201,9 +224,8 @@ export const updateActiveGlobalConfiguration = async (
       },
     };
 
-  // Los niveles de Trazabilidad y de Disponibilidad son opcionales: si el
-  // formulario los quita, la mezcla de arriba los resucitaría desde la
-  // configuración activa.
+  // Traceability and Availability levels are optional: the merge above would resurrect them from the active
+  // configuration if the form removed them.
   if (!globalConfiguration.traceabilityLevel) {
     delete candidateConfiguration.global.traceabilityLevel;
   }
@@ -215,7 +237,7 @@ export const updateActiveGlobalConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      'Configuración global ENS actualizada.'
+      withPendingConversion('Configuración global ENS actualizada.')
     );
 
   if (serverState.configuration === null) {
@@ -229,15 +251,13 @@ export const updateActiveGlobalConfiguration = async (
       serverState.configuration
     );
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
 
-// Guarda un documento entero ya preparado (lo usan las acciones de la
-// configuración por sistema: valores de agente, plantillas, tipo, migración y
-// controles añadidos). El servidor deja la versión anterior en el historial y
-// una entrada con `changeReason` en `auditTrail`.
+// Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous
+// version in the history and an entry with `changeReason` in `auditTrail`.
 export const saveActiveENSConfiguration = async (
   candidateConfiguration: ENSConfigurationVersion,
   changeReason: string
@@ -245,7 +265,7 @@ export const saveActiveENSConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      changeReason
+      withPendingConversion(changeReason)
     );
 
   if (serverState.configuration === null) {
@@ -259,15 +279,12 @@ export const saveActiveENSConfiguration = async (
       serverState.configuration
     );
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
 
-// Los guardados de la configuración por sistema, EN FILA y sobre el documento
-// más reciente: cada acción construye su documento a partir del activo en el
-// momento de ejecutarse, no del que había al pintar la pantalla. Dos guardados
-// seguidos (un valor y otro, o un valor y una plantilla) ya no se pisan.
+// Per-system saves run in a queue against the latest document, so consecutive saves do not overwrite each other.
 let agentSaveQueue: Promise<unknown> = Promise.resolve();
 
 export const saveFromLatestConfiguration = (

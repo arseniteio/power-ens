@@ -1,34 +1,4 @@
-// op.acc.6 · Mecanismo de autenticación (usuarios de la organización)
-//
-// SEGUNDO CONTROL CON EVALUADOR PROPIO, después de op.acc.3, y por razones del
-// mismo tipo: preguntas que ninguna de las siete primitivas puede hacer. Lo que
-// sí cabe en una primitiva (6.4, 6.5, 6.6, 6.7, r5.1, r6.1, r7.1, r9.2) NO pasa
-// por aquí: lo decide su `judgment` en el catálogo de evidencias, y una
-// evidencia la decide un solo camino.
-//
-// Lo que decide este fichero, y por qué:
-//
-//   1. QUÉ REFUERZO DE MECANISMO RIGE (P-01). El ENS exige «[R1 o R2 o R3 o
-//      R4]»: una ELECCIÓN, no un acumulado. Los requisitos de los refuerzos no
-//      elegidos salen del denominador como NO_APLICA. Sin P-01 no se sabe cuál
-//      rige y ninguno se puede dar por demostrado.
-//
-//   2. ZONAS Y FACTORES (r1.1, r2.1, r8.1, sobre EV-02). Hay que clasificar el
-//      origen de cada acceso, y las direcciones de cada canal en escucha, contra
-//      rangos CIDR de P-02, y exigir dos factores según la zona. Ninguna
-//      primitiva compara por red.
-//
-//   3. LÍMITE DE INTENTOS (6.8, sobre EV-03 y EV-04). Son tres condiciones a la
-//      vez —hay bloqueo, el umbral no supera P-05, la cuenta no se desbloquea
-//      sola— más la correlación de fallos con bloqueos por cuenta.
-//
-//   4. CALIDAD DE CONTRASEÑA (r1.2, sobre EV-11). P-10 declara varios mínimos a
-//      la vez y solo rige con R1 o R2.
-//
-// El agente emite hechos sin clasificar; la política vive SOLO en la pantalla.
-//
-// Tipos desde el fichero, nunca desde un barrel de alto nivel: por ahí vuelve
-// el ciclo transitivo del TDZ de Settings.
+// op.acc.6 · Authentication mechanism (organization users).
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -52,7 +22,6 @@ import {
 const CONTROL_ID = 'op.acc.6';
 const POLICY_ID = 'policy.op.acc.6';
 
-// --- construcción de decisiones ---------------------------------------------
 
 const decide = (
   requirementId: string,
@@ -85,14 +54,13 @@ const decide = (
   reason,
 });
 
-// Enumera sin inundar: el auditor lee cinco casos y cuántos más hay.
-const enumera = (items: string[]): string => {
-  const unicos = Array.from(new Set(items));
-  const vistos = unicos.slice(0, 5).join('; ');
-  return unicos.length > 5 ? `${vistos}; y ${unicos.length - 5} más` : vistos;
+// Enumerates without flooding: the auditor reads five cases and how many more there are.
+const enumerates = (items: string[]): string => {
+  const unique = Array.from(new Set(items));
+  const seen = unique.slice(0, 5).join('; ');
+  return unique.length > 5 ? `${seen}; y ${unique.length - 5} más` : seen;
 };
 
-// --- lectura de parámetros y hechos ------------------------------------------
 
 const getParameter = (context: ENSPolicyContext, parameterId: string) =>
   context.configuration?.parameters.find(
@@ -116,9 +84,8 @@ const numberOf = (
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-// Los hechos de ESTE control, del tipo pedido y de la evidencia pedida. El
-// normalizador reparte un hecho compartido en una copia por evidencia; filtrar
-// por evidencia es lo que evita contarlo dos veces.
+// Facts of THIS control, of the requested type and evidence. The normalizer splits a shared fact
+// into one copy per evidence; filtering by evidence avoids counting it twice.
 const factsOf = (
   context: ENSPolicyContext,
   eventType: string,
@@ -136,8 +103,8 @@ const factsOf = (
 const where = (event: ENSNormalizedEvent): string =>
   event.agentName || event.agentId || text(event, 'host') || 'agente';
 
-// El hecho más reciente por clave: una configuración observada cada hora no
-// suma, la última pasada es la que dice cómo está.
+// The latest fact per key: a configuration observed hourly does not add up, the last run says how
+// it is.
 const latestBy = (
   events: ENSNormalizedEvent[],
   key: (event: ENSNormalizedEvent) => string
@@ -152,10 +119,8 @@ const latestBy = (
   return Array.from(seen.values());
 };
 
-// --- direcciones y redes -----------------------------------------------------
-//
-// Sin dependencias: IPv4 e IPv6 como arrays de bytes. El `%zona` de una
-// dirección de enlace local no forma parte de la dirección.
+// Addresses and networks. No dependencies: IPv4 and IPv6 as byte arrays; the `%zone` of a
+// link-local address is not part of the address.
 
 type Address = { family: 4 | 6; bytes: number[] };
 
@@ -231,8 +196,8 @@ const parseAddress = (raw: string): Address | undefined => {
   return { family: 6, bytes };
 };
 
-// Una zona de P-02: un rango CIDR, una dirección suelta o `local` (la consola
-// física). Lo que va detrás del primer espacio es comentario.
+// A P-02 zone: a CIDR range, a single address or `local` (the physical console). What follows the
+// first space is a comment.
 type Zone =
   | { kind: 'local'; label: string }
   | { kind: 'net'; label: string; address: Address; prefix: number };
@@ -285,8 +250,8 @@ type Classification = 'controlada' | 'no_controlada' | 'ilegible';
 
 const classify = (origin: string, zones: Zone[]): Classification => {
   if (origin.toLowerCase() === 'local') {
-    // La consola solo es zona controlada si alguien lo ha DECIDIDO: la consola
-    // de una máquina virtual puede abrirse desde cualquier sitio.
+    // The console is a controlled zone only if someone DECIDED so: a virtual machine's console can
+    // be opened from anywhere.
     return zones.some(zone => zone.kind === 'local')
       ? 'controlada'
       : 'no_controlada';
@@ -300,14 +265,13 @@ const classify = (origin: string, zones: Zone[]): Classification => {
     : 'no_controlada';
 };
 
-// --- 1. el refuerzo elegido ---------------------------------------------------
 
 type Mechanism = 'R1' | 'R2' | 'R3' | 'R4';
 
 const MECHANISM_REQUIREMENTS: Record<string, Mechanism[]> = {
   'op.acc.6.r1.1': ['R1'],
-  // La complejidad rige también con R2: «contraseña + otro factor» sigue
-  // siendo una contraseña. Lo dice la propia plantilla en P-10.
+  // Complexity also governs with R2: «password + another factor» is still a password (the template
+  // says so in P-10).
   'op.acc.6.r1.2': ['R1', 'R2'],
   'op.acc.6.r2.1': ['R2'],
   'op.acc.6.r3.1': ['R3'],
@@ -338,7 +302,6 @@ const resolveMechanism = (
   return match ? (`R${match[1]}` as Mechanism) : undefined;
 };
 
-// --- 2. zonas y factores ------------------------------------------------------
 
 const COVERAGE_EV02: ENSEvidenceDefinition = {
   id: 'EV-02',
@@ -357,9 +320,9 @@ const COVERAGE_EV02: ENSEvidenceDefinition = {
 
 interface ZoneCheck {
   requirementId: string;
-  // ¿Este acceso tiene que haber verificado dos factores?
+  // Must this access have verified two factors?
   accessNeedsTwo: (zone: Classification, event: ENSNormalizedEvent) => boolean;
-  // ¿Este canal, en esta dirección, tiene que exigir dos factores?
+  // Must this channel, at this address, require two factors?
   channelNeedsTwo: (zone: Classification, event: ENSNormalizedEvent) => boolean;
   needsZones: boolean;
   expected: string;
@@ -424,7 +387,7 @@ const judgeZones = (
     return decide(
       check.requirementId,
       'NO_EVALUABLE',
-      `P-02 contiene elementos que no son un rango, una dirección ni «local»: ${enumera(invalidZones)}. Clasificar contra una zona mal escrita daría por no controlada una red que sí lo es, o al revés.`,
+      `P-02 contiene elementos que no son un rango, una dirección ni «local»: ${enumerates(invalidZones)}. Clasificar contra una zona mal escrita daría por no controlada una red que sí lo es, o al revés.`,
       ruleType,
       { ...base, expected: check.expected, actual: 'P-02 ilegible' }
     );
@@ -503,7 +466,7 @@ const judgeZones = (
 
       if (minimum < 2) {
         offenders.push(
-          `el canal ${text(event, 'canal')} de ${where(event)} escucha en ${enumera(exposed)}${check.needsZones ? ', fuera de P-02,' : ''} y admite ${minimum} factor`
+          `el canal ${text(event, 'canal')} de ${where(event)} escucha en ${enumerates(exposed)}${check.needsZones ? ', fuera de P-02,' : ''} y admite ${minimum} factor`
         );
         eventIds.push(event.id);
       }
@@ -513,7 +476,7 @@ const judgeZones = (
     return decide(
       check.requirementId,
       'NO_CUMPLE',
-      `No se exige doble factor donde ${check.requirementId} lo pide: ${enumera(offenders)}.`,
+      `No se exige doble factor donde ${check.requirementId} lo pide: ${enumerates(offenders)}.`,
       ruleType,
       {
         ...base,
@@ -528,15 +491,15 @@ const judgeZones = (
     return decide(
       check.requirementId,
       'NO_EVALUABLE',
-      `No se ha podido decidir: ${enumera(undecidable)}.`,
+      `No se ha podido decidir: ${enumerates(undecidable)}.`,
       ruleType,
       { ...base, expected: check.expected, actual: 'hechos incompletos' }
     );
   }
 
-  // Sin incumplimientos: vale si se ha visto la configuración de los canales
-  // (lo que el sistema EXIGE, que acota también a los accesos no vistos), o si
-  // consta que el recolector miró y no hay canal ni acceso que juzgar.
+  // Without failures: valid if the channels' configuration was seen (what the system REQUIRES,
+  // which also bounds unseen accesses), or if the collector is recorded as having looked and there
+  // is no channel or access to judge.
   if (channels.length) {
     return decide(
       check.requirementId,
@@ -578,7 +541,6 @@ const judgeZones = (
   );
 };
 
-// --- 3. límite de intentos ----------------------------------------------------
 
 const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
   const requirementId = 'op.acc.6.8';
@@ -626,18 +588,18 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
     const route = `${text(event, 'ruta')} en ${where(event)}`;
     const lock = text(event, 'bloqueo');
 
-    // `no_aplica`: el camino no autentica con algo que se pueda adivinar (una
-    // clave pública). `en_uso=no`: el camino existe pero está deshabilitado
-    // (PasswordAuthentication no), así que nadie puede intentar nada por él.
+    // `no_aplica`: the path does not authenticate with something guessable (a public key).
+    // `en_uso=no`: the path exists but is disabled (PasswordAuthentication no), so nobody can try
+    // anything through it.
     if (lock === 'no_aplica' || text(event, 'en_uso') === 'no') {
       return;
     }
 
     judged += 1;
 
-    // `desconocido`: el agente no pudo leer la política de ese camino (la del
-    // directorio sin permiso de lectura). No es un camino sin bloqueo, es uno
-    // sin medir, y tapa el CUMPLE sin acusar.
+    // `desconocido`: the agent could not read that path's policy (directory without read
+    // permission). Not a path without lockout but an unmeasured one: it blocks CUMPLE without
+    // accusing.
     if (lock === 'desconocido' || !lock) {
       undecidable.push(`${route}: no se ha podido leer su política de bloqueo${text(event, 'detalle') ? ` (${text(event, 'detalle')})` : ''}`);
       return;
@@ -668,9 +630,9 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
     }
   });
 
-  // Fallos por cuenta EXISTENTE en una pasada, sin bloqueo registrado de esa
-  // cuenta en la ventana. Una pasada es una hora: acumular toda la ventana
-  // contaría como ataque los despistes de un mes.
+  // Failures per EXISTING account in one run, without a recorded lockout of that account in the
+  // window. A run is an hour: accumulating the whole window would count a month's slips as an
+  // attack.
   const locks = factsOf(context, 'account_locked', 'EV-04');
   const locked = new Set(
     locks.map(event => `${where(event)}|${text(event, 'usuario')}`)
@@ -697,7 +659,7 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
     return decide(
       requirementId,
       'NO_CUMPLE',
-      `El número de intentos no está limitado con bloqueo efectivo: ${enumera(offenders)}.`,
+      `El número de intentos no está limitado con bloqueo efectivo: ${enumerates(offenders)}.`,
       ruleType,
       {
         ...base,
@@ -712,7 +674,7 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
     return decide(
       requirementId,
       'NO_EVALUABLE',
-      `No se ha podido decidir: ${enumera(undecidable)}.`,
+      `No se ha podido decidir: ${enumerates(undecidable)}.`,
       ruleType,
       { ...base, expected, actual: 'hechos incompletos' }
     );
@@ -737,7 +699,6 @@ const judgeAttempts = (context: ENSPolicyContext): ENSPolicyDecision => {
   );
 };
 
-// --- 4. calidad de contraseña ---------------------------------------------------
 
 const PASSWORD_CRITERIA = [
   'longitud_minima',
@@ -784,7 +745,7 @@ const judgePasswordQuality = (
     return decide(
       requirementId,
       'NO_EVALUABLE',
-      `P-10 contiene filas que no se pueden interpretar: ${enumera(invalid)}.`,
+      `P-10 contiene filas que no se pueden interpretar: ${enumerates(invalid)}.`,
       ruleType,
       { ...base, expected, actual: 'P-10 ilegible' }
     );
@@ -828,7 +789,7 @@ const judgePasswordQuality = (
     return decide(
       requirementId,
       'NO_CUMPLE',
-      `La política de contraseñas no alcanza los mínimos declarados: ${enumera(offenders)}.`,
+      `La política de contraseñas no alcanza los mínimos declarados: ${enumerates(offenders)}.`,
       ruleType,
       { ...base, eventIds, expected, actual: `${offenders.length} medida(s) por debajo` }
     );
@@ -838,7 +799,7 @@ const judgePasswordQuality = (
     return decide(
       requirementId,
       'NO_EVALUABLE',
-      `No se ha podido decidir: ${enumera(undecidable)}.`,
+      `No se ha podido decidir: ${enumerates(undecidable)}.`,
       ruleType,
       { ...base, expected, actual: 'hechos incompletos' }
     );
@@ -853,14 +814,13 @@ const judgePasswordQuality = (
   );
 };
 
-// --- el evaluador ---------------------------------------------------------------
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const decisions: ENSPolicyDecision[] = [];
 
-  // EL ORDEN IMPORTA para la capa de evidencias: una evidencia compartida
-  // hereda la PEOR decisión y, a igualdad, la primera. r8.1 va antes que r1.1 y
-  // r2.1 para que un NO_APLICA de estos no tape en EV-02 el veredicto de R8.
+  // ORDER MATTERS for the evidence layer: a shared evidence inherits the WORST decision and, on a
+  // tie, the first. r8.1 goes before r1.1 and r2.1 so a NO_APLICA of these does not hide R8's
+  // verdict in EV-02.
   decisions.push(judgeZones(context, ZONE_CHECKS['op.acc.6.r8.1']));
   decisions.push(judgeAttempts(context));
 
@@ -895,9 +855,9 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       return;
     }
 
-    // Rige. Los que tienen evidencia técnica los juzga este evaluador; los de
-    // R3 y R4 no tienen ninguna y se acreditan con P-ATT, así que no se emite
-    // decisión y el motor aplica la atestación o los da por no demostrados.
+    // Governs. Those with technical evidence are judged by this evaluator; R3 and R4 have none and
+    // are accredited with P-ATT, so no decision is emitted and the engine applies the attestation
+    // or leaves them unproven.
     if (requirementId === 'op.acc.6.r1.1' || requirementId === 'op.acc.6.r2.1') {
       decisions.push(judgeZones(context, ZONE_CHECKS[requirementId]));
     } else if (requirementId === 'op.acc.6.r1.2') {

@@ -1,233 +1,209 @@
 #!/usr/bin/env bash
 ###############################################################################
-# deploy-plugin.sh · instala ENSFácil Y hace que el navegador lo vea
+# deploy-plugin.sh · installs ENSFácil AND makes the browser see it
 #
-#   sudo bash deploy-plugin.sh /ruta/al/ensfacil-X.Y.Z-osd-2.19.5.zip
+#   sudo bash deploy-plugin.sh /path/to/ensfacil-X.Y.Z-osd-2.19.5.zip
 #
-# El zip es el de la release (ensfacil-X.Y.Z-osd-2.19.5.zip) o el que deja
-# build-plugin.sh al compilar (ensfacil-2.19.5.zip): el contenido es el mismo.
+# The zip is the release one (ensfacil-X.Y.Z-osd-2.19.5.zip) or the one build-plugin.sh leaves
+# (ensfacil-2.19.5.zip): same content. It only installs the `ensfacil` plugin and only removes that one:
+# a zip of any other plugin (the Wazuh one, `wazuh`, included) is rejected without touching anything.
+# `bash deploy-plugin.sh --solo-id <zip>` prints the zip id and exits without touching anything. Exactly
+# one zip: with more or fewer, it does nothing.
 #
-# Solo instala el plugin `ensfacil`, y solo retira ese: un zip de cualquier
-# otro plugin (también el de Wazuh, `wazuh`) se rechaza sin tocar nada.
-# `bash deploy-plugin.sh --solo-id <zip>` imprime el id del zip y sale sin
-# tocar nada. Exactamente un zip: con más o con menos, no hace nada.
+# Before stopping the dashboard it saves the plugin it will replace in
+# ${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil, as plugins-<id>-<date>.tgz. That subfolder is OURS: it is
+# created (root, 0700) if missing, and permissions of a folder it did not create are never changed
+# (ENSFACIL_BACKUP_DIR may be /tmp or a folder others read). Not next to the zip: the next build deletes
+# that folder. Only when the deployment ends well are the last 3 copies kept, so a deployment failing
+# repeatedly does not push out the last good copy.
 #
-# Antes de parar el dashboard guarda el plugin que va a sustituir en
-# ${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil, como plugins-<id>-<fecha>.tgz.
-# Esa subcarpeta es SUYA: la crea (de root, 0700) si no existe, y nunca cambia
-# los permisos de una carpeta que no ha creado (ENSFACIL_BACKUP_DIR puede ser
-# /tmp o una carpeta que otros leen). No junto al zip: la compilación
-# siguiente borra esa carpeta entera. Solo cuando el despliegue termina bien
-# se quedan las 3 últimas copias: un despliegue que falla una y otra vez no
-# empuja fuera la última copia buena.
+# If something fails with the dashboard already stopped, it says how to go back (restore that copy and
+# start) and exits with error. Exit codes:
+#   1 wrong usage · 2 the zip is not ENSFácil's · 3 the copy could not be saved (nothing touched) ·
+#   4 the dashboard user cannot read the zip (nothing touched) · 5 installation failed · 6 the dashboard
+#   was not active at the end · 7 another step failed with the dashboard stopped.
 #
-# Si algo falla con el dashboard ya parado, dice cómo volver a como estaba
-# (restaurar esa copia y arrancar) y sale con error. Códigos de salida:
-#   1 uso incorrecto · 2 el zip no es de ENSFácil · 3 no se pudo guardar la
-#   copia (no se ha tocado nada) · 4 el usuario del dashboard no puede leer el
-#   zip (no se ha tocado nada) · 5 falló la instalación · 6 el dashboard no
-#   quedó activo al final · 7 falló otro paso con el dashboard parado.
+# The installer runs as the wazuh-dashboard user. The zip is first copied to a temporary folder that user
+# can read, and checked BEFORE stopping anything: a zip in a personal folder (0700) would make the
+# installation fail with the dashboard already stopped.
 #
-# El instalador corre como el usuario wazuh-dashboard. El zip se copia antes
-# a una carpeta temporal que ese usuario puede leer, y se comprueba ANTES de
-# parar nada: un zip en una carpeta personal (0700) haría fallar la
-# instalación con el dashboard ya parado.
-#
-# POR QUÉ EXISTE, Y POR QUÉ EL ÚLTIMO PASO NO ES OPCIONAL.
-#
-# Instalar el plugin NO basta para que nadie vea el cambio. OpenSearch
-# Dashboards sirve los bundles en
-#
-#     /{buildHash}/bundles/plugin/ensfacil/ensfacil.chunk.N.js
-#
-# y ese `buildHash` sale del `build.number` del package.json DEL DASHBOARD, no
-# del plugin (`src/optimize/optimize_mixin.js`: `buildHash:
-# env.packageInfo.buildNum.toString()`). Reinstalar el plugin cambia el fichero
-# en disco y NO cambia la URL. Como esos bundles se sirven pensados para ser
-# inmutables por buildHash, el navegador tiene el viejo cacheado y no lo vuelve
-# a pedir: ni con Ctrl+Shift+R, porque para el navegador esa URL ya está
-# resuelta y no ha caducado.
-#
-# Por eso una recarga forzada del navegador no basta para ver la versión
-# nueva: lo que hay que cambiar no es la página cargada, sino la URL de los
-# bundles.
-#
-# Subir el `build.number` cambia la URL de TODOS los bundles y obliga al
-# navegador a pedirlos de nuevo. Cuesta una primera carga más lenta, una vez.
+# WHY THE LAST STEP IS NOT OPTIONAL. Installing the plugin does not make anyone see the change.
+# OpenSearch Dashboards serves bundles at /{buildHash}/bundles/plugin/ensfacil/ensfacil.chunk.N.js and the
+# `buildHash` comes from the `build.number` of the DASHBOARD's package.json, not the plugin's
+# (`src/optimize/optimize_mixin.js`). Reinstalling changes the file on disk and NOT the URL; bundles are
+# served as immutable per buildHash, so the browser keeps the old one cached, even with Ctrl+Shift+R.
+# Raising `build.number` changes the URL of ALL bundles and forces a fresh request (one slower first load).
 ###############################################################################
 set -euo pipefail
 
-uso() {
-  echo "uso: sudo bash deploy-plugin.sh /ruta/al/plugin.zip" >&2
-  echo "     bash deploy-plugin.sh --solo-id /ruta/al/plugin.zip" >&2
+usage() {
+  echo "usage: sudo bash deploy-plugin.sh /path/to/plugin.zip" >&2
+  echo "       bash deploy-plugin.sh --solo-id /path/to/plugin.zip" >&2
   exit 1
 }
 
-SOLO_ID=0
+ID_ONLY=0
 if [ "${1:-}" = "--solo-id" ]; then
-  SOLO_ID=1
+  ID_ONLY=1
   shift
 fi
 
-# Un solo zip, y que sea un fichero: un segundo argumento (un comodín que
-# casa con dos zips, una opción mal escrita) no se ignora en silencio.
-[ $# -eq 1 ] || uso
-case "$1" in -*) uso ;; esac
-[ -f "$1" ] || { echo "no existe el zip: $1" >&2; uso; }
+# A single zip, and a file: a second argument (a wildcard matching two zips, a mistyped option) is not silently
+# ignored.
+[ $# -eq 1 ] || usage
+case "$1" in -*) usage ;; esac
+[ -f "$1" ] || { echo "the zip does not exist: $1" >&2; usage; }
 
-# Ruta absoluta: `file://` con una ruta relativa no es la que se cree, y el
-# instalador corre como otro usuario.
+# Absolute path: `file://` with a relative path is not what it seems, and the installer runs as another user.
 ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
-# El plugin que se retira es el que trae el zip, y solo puede ser `ensfacil`.
-# Nunca un comodín, y nunca el de Wazuh: ese lo instala su paquete oficial.
-# awk lee el listado entero (sin `exit`): si cortara la tubería, unzip moriría
-# por SIGPIPE en un zip con node_modules y, con pipefail, el script saldría con
-# 141 sin decir nada.
+# The plugin removed is the one in the zip, and can only be `ensfacil`. Never a wildcard, never the Wazuh one
+# (its official package installs it). awk reads the whole listing (no `exit`): cutting the pipe would kill
+# unzip by SIGPIPE on a zip with node_modules and, with pipefail, the script would exit 141 silently.
 PLUGIN_ID="$(unzip -Z1 "$ZIP" 2>/dev/null | awk -F/ '$1=="opensearch-dashboards" && $2!="" && id=="" {id=$2} END {print id}')"
 case "$PLUGIN_ID" in
   ensfacil) ;;
   wazuh)
-    echo "el zip es del plugin de Wazuh (id: 'wazuh'): deploy-plugin.sh solo instala ENSFácil (id: 'ensfacil')." >&2
-    echo "El plugin de Wazuh se instala con el paquete oficial wazuh-dashboard; para ENSFácil, usar el zip de la release, ensfacil-X.Y.Z-osd-2.19.5.zip." >&2
+    echo "the zip is the Wazuh plugin (id: 'wazuh'): deploy-plugin.sh only installs ENSFácil (id: 'ensfacil')." >&2
+    echo "The Wazuh plugin is installed with the official wazuh-dashboard package; for ENSFácil, use the release zip, ensfacil-X.Y.Z-osd-2.19.5.zip." >&2
     exit 2
     ;;
   *)
-    echo "el zip no es de ENSFácil (id: '${PLUGIN_ID:-ninguno}'): deploy-plugin.sh solo instala el plugin 'ensfacil'." >&2
+    echo "the zip is not ENSFácil's (id: '${PLUGIN_ID:-none}'): deploy-plugin.sh only installs the 'ensfacil' plugin." >&2
     exit 2
     ;;
 esac
 
-if [ "$SOLO_ID" = 1 ]; then
+if [ "$ID_ONLY" = 1 ]; then
   echo "$PLUGIN_ID"
   exit 0
 fi
 
-RESPALDOS="${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil"
-RESPALDO=""
-PAQUETE_ANTES=""
-ESTADO=""
-PASO=""
-PARADO=0
+BACKUPS="${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil"
+BACKUP=""
+PACKAGE_BEFORE=""
+STATE=""
+STEP=""
+STOPPED=0
 
-# Con el dashboard parado, cualquier salida con error (también un paso que
-# falla por `set -e`, o un Ctrl+C) dice cómo volver a como estaba.
-vuelta_atras() {
-  echo "Para volver a como estaba:"
-  if [ -n "$RESPALDO" ]; then
+# With the dashboard stopped, any exit with error (also a step failing through `set -e`, or Ctrl+C)
+# says how to go back.
+roll_back() {
+  echo "To go back to how it was:"
+  if [ -n "$BACKUP" ]; then
     echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
-    echo "  sudo tar -xzf $RESPALDO -C $OSD"
+    echo "  sudo tar -xzf $BACKUP -C $OSD"
   else
-    echo "  (no había un $PLUGIN_ID anterior: arranca sin él)"
+    echo "  (there was no previous $PLUGIN_ID: start without it)"
     echo "  sudo rm -rf $OSD/plugins/$PLUGIN_ID $OSD/plugins/.plugin.installing"
   fi
-  if [ -n "$PAQUETE_ANTES" ]; then
-    echo "  sudo cp -a $PAQUETE_ANTES $OSD/package.json"
+  if [ -n "$PACKAGE_BEFORE" ]; then
+    echo "  sudo cp -a $PACKAGE_BEFORE $OSD/package.json"
   fi
   echo "  sudo systemctl start wazuh-dashboard"
 }
-al_salir() {
+on_exit() {
   local rc=$?
   trap - EXIT
-  if [ -n "${ZIP_TEMPORAL_DIR:-}" ]; then rm -rf "$ZIP_TEMPORAL_DIR"; fi
-  if [ "$PARADO" = 1 ] && [ "$rc" -ne 0 ]; then
+  if [ -n "${TEMP_ZIP_DIR:-}" ]; then rm -rf "$TEMP_ZIP_DIR"; fi
+  if [ "$STOPPED" = 1 ] && [ "$rc" -ne 0 ]; then
     {
       echo
       case "$rc" in
-        5) echo "LA INSTALACIÓN HA FALLADO: el dashboard está parado y sin el plugin $PLUGIN_ID." ;;
-        6) echo "EL DASHBOARD NO ESTÁ ACTIVO (${ESTADO:-?}): mira 'journalctl -u wazuh-dashboard'." ;;
-        *) echo "HA FALLADO EL PASO «${PASO}» (código $rc): el dashboard puede haberse quedado parado o a medias."
+        5) echo "THE INSTALLATION FAILED: the dashboard is stopped and without the $PLUGIN_ID plugin." ;;
+        6) echo "THE DASHBOARD IS NOT ACTIVE (${STATE:-?}): check 'journalctl -u wazuh-dashboard'." ;;
+        *) echo "STEP «${STEP}» FAILED (code $rc): the dashboard may have been left stopped or half-done."
            rc=7 ;;
       esac
-      vuelta_atras
+      roll_back
     } >&2
   fi
   exit "$rc"
 }
-trap al_salir EXIT
+trap on_exit EXIT
 trap 'exit 130' INT TERM
 
-# La carpeta de copias, solo si no existe: entonces es nuestra y nace de root
-# y 0700. Si ya existe, se usa como está; nunca un chmod/chown de lo ajeno.
-carpeta_de_copias() {
-  [ -d "$RESPALDOS" ] && return 0
-  mkdir -p "$(dirname "$RESPALDOS")" || return 1
-  (umask 077 && mkdir "$RESPALDOS") || return 1
+# The backup folder, only if missing: then it is ours and born root, 0700. If it exists it is used as is;
+# never a chmod/chown of something else's.
+backup_folder() {
+  [ -d "$BACKUPS" ] && return 0
+  mkdir -p "$(dirname "$BACKUPS")" || return 1
+  (umask 077 && mkdir "$BACKUPS") || return 1
   if [ "$(id -u)" -eq 0 ]; then
-    chown root:root "$RESPALDOS" || return 1
+    chown root:root "$BACKUPS" || return 1
   fi
 }
 
-# El zip que instala el usuario del dashboard: una copia legible para él.
-ZIP_TEMPORAL_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ensfacil-deploy.XXXXXX")"
-ZIP_INSTALAR="$ZIP_TEMPORAL_DIR/$PLUGIN_ID.zip"
-chmod 755 "$ZIP_TEMPORAL_DIR"
-if ! { cp "$ZIP" "$ZIP_INSTALAR" && chmod 644 "$ZIP_INSTALAR" && sudo -u wazuh-dashboard test -r "$ZIP_INSTALAR"; }; then
-  echo "el usuario wazuh-dashboard no puede leer la copia del zip en $ZIP_TEMPORAL_DIR: no se ha tocado nada." >&2
-  echo "Comprobar los permisos de ${TMPDIR:-/tmp} o indicar otra carpeta temporal con TMPDIR=<carpeta>." >&2
+# The zip the dashboard user installs: a copy readable by it.
+TEMP_ZIP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ensfacil-deploy.XXXXXX")"
+ZIP_TO_INSTALL="$TEMP_ZIP_DIR/$PLUGIN_ID.zip"
+chmod 755 "$TEMP_ZIP_DIR"
+if ! { cp "$ZIP" "$ZIP_TO_INSTALL" && chmod 644 "$ZIP_TO_INSTALL" && sudo -u wazuh-dashboard test -r "$ZIP_TO_INSTALL"; }; then
+  echo "the wazuh-dashboard user cannot read the zip copy in $TEMP_ZIP_DIR: nothing was touched." >&2
+  echo "Check the permissions of ${TMPDIR:-/tmp} or give another temporary folder with TMPDIR=<folder>." >&2
   exit 4
 fi
 
-PASO="1/6 · guardando el plugin anterior ($PLUGIN_ID)"
-echo "== $PASO"
+STEP="1/6 · saving the previous plugin ($PLUGIN_ID)"
+echo "== $STEP"
 if [ -d "$OSD/plugins/$PLUGIN_ID" ]; then
-  RESPALDO="$RESPALDOS/plugins-$PLUGIN_ID-$(date +%Y%m%d_%H%M%S).tgz"
-  if ! { carpeta_de_copias && tar -czf "$RESPALDO" -C "$OSD" "plugins/$PLUGIN_ID"; }; then
-    echo "no se pudo guardar el plugin anterior en $RESPALDOS: no se ha tocado nada." >&2
-    rm -f "$RESPALDO" 2>/dev/null || true
+  BACKUP="$BACKUPS/plugins-$PLUGIN_ID-$(date +%Y%m%d_%H%M%S).tgz"
+  if ! { backup_folder && tar -czf "$BACKUP" -C "$OSD" "plugins/$PLUGIN_ID"; }; then
+    echo "could not save the previous plugin in $BACKUPS: nothing was touched." >&2
+    rm -f "$BACKUP" 2>/dev/null || true
     exit 3
   fi
-  echo "   guardado en $RESPALDO"
+  echo "   saved in $BACKUP"
 else
-  echo "   no hay un $PLUGIN_ID instalado: nada que guardar"
+  echo "   no $PLUGIN_ID installed: nothing to save"
 fi
 
-PASO="2/6 · parando el dashboard"
-echo "== $PASO"
-PARADO=1
+STEP="2/6 · stopping the dashboard"
+echo "== $STEP"
+STOPPED=1
 systemctl stop wazuh-dashboard
 
-PASO="3/6 · retirando el plugin anterior ($PLUGIN_ID)"
-echo "== $PASO"
-# RUTAS EXACTAS. Nunca un comodín `wazuh*`: se llevaría por delante `wazuhCore`
-# y `wazuhCheckUpdates`, y el dashboard no vuelve a arrancar.
+STEP="3/6 · removing the previous plugin ($PLUGIN_ID)"
+echo "== $STEP"
+# EXACT PATHS. Never a `wazuh*` wildcard: it would take `wazuhCore` and `wazuhCheckUpdates` with it and the
+# dashboard would not start again.
 sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" remove "$PLUGIN_ID" 2>/dev/null || true
 rm -rf "$OSD/plugins/$PLUGIN_ID"
 rm -rf "$OSD/plugins/.plugin.installing"
 
-PASO="4/6 · instalando"
-echo "== $PASO"
-if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP_INSTALAR"; then
+STEP="4/6 · installing"
+echo "== $STEP"
+if ! sudo -u wazuh-dashboard "$OSD/bin/opensearch-dashboards-plugin" install "file://$ZIP_TO_INSTALL"; then
   exit 5
 fi
 
-PASO="5/6 · invalidando la caché del navegador (subir build.number)"
-echo "== $PASO"
-# La vuelta atrás solo nombra la copia de package.json si esa copia existe.
-COPIA_PAQUETE="$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
-cp "$OSD/package.json" "$COPIA_PAQUETE"
-PAQUETE_ANTES="$COPIA_PAQUETE"
+STEP="5/6 · invalidating the browser cache (raising build.number)"
+echo "== $STEP"
+# The rollback only names the package.json copy if that copy exists.
+PACKAGE_COPY="$OSD/package.json.antes-$(date +%Y%m%d_%H%M%S)"
+cp "$OSD/package.json" "$PACKAGE_COPY"
+PACKAGE_BEFORE="$PACKAGE_COPY"
 python3 - "$OSD/package.json" <<'PY'
 import io, json, sys
 
-ruta = sys.argv[1]
+path = sys.argv[1]
 
-with io.open(ruta, encoding='utf-8') as f:
-    paquete = json.load(f)
+with io.open(path, encoding='utf-8') as f:
+    package = json.load(f)
 
-antes = paquete['build']['number']
-paquete['build']['number'] = str(int(antes) + 1)
+before = package['build']['number']
+package['build']['number'] = str(int(before) + 1)
 
-with io.open(ruta, 'w', encoding='utf-8') as f:
-    json.dump(paquete, f, indent=2, ensure_ascii=False)
+with io.open(path, 'w', encoding='utf-8') as f:
+    json.dump(package, f, indent=2, ensure_ascii=False)
     f.write('\n')
 
-print("   build.number: %s -> %s" % (antes, paquete['build']['number']))
+print("   build.number: %s -> %s" % (before, package['build']['number']))
 PY
 
-PASO="6/6 · arrancando"
-echo "== $PASO"
+STEP="6/6 · starting"
+echo "== $STEP"
 systemctl start wazuh-dashboard
 
 for _ in $(seq 1 24); do
@@ -237,19 +213,19 @@ for _ in $(seq 1 24); do
   sleep 5
 done
 
-ESTADO="$(systemctl is-active wazuh-dashboard || true)"
+STATE="$(systemctl is-active wazuh-dashboard || true)"
 echo
-echo "dashboard: $ESTADO"
+echo "dashboard: $STATE"
 echo "plugins:   $(ls -1 "$OSD/plugins" | tr '\n' ' ')"
 echo
-if [ "$ESTADO" != "active" ]; then
+if [ "$STATE" != "active" ]; then
   exit 6
 fi
 
-# Desplegado y activo: ahora sí, solo las 3 últimas copias de este plugin. El
-# nombre lleva la fecha, así que el orden alfabético es el cronológico.
-if [ -n "$RESPALDO" ]; then
-  find "$RESPALDOS" -maxdepth 1 -name "plugins-$PLUGIN_ID-*.tgz" -print \
-    | sort -r | tail -n +4 | while IFS= read -r viejo; do rm -f "$viejo"; done
+# Deployed and active: only now keep the last 3 copies of this plugin. The name carries the date, so
+# alphabetical order is chronological.
+if [ -n "$BACKUP" ]; then
+  find "$BACKUPS" -maxdepth 1 -name "plugins-$PLUGIN_ID-*.tgz" -print \
+    | sort -r | tail -n +4 | while IFS= read -r old; do rm -f "$old"; done
 fi
-echo "La URL de los bundles ha cambiado: el navegador los pedirá de nuevo solo."
+echo "The bundle URL has changed: the browser will request them again by itself."

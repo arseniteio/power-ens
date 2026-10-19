@@ -42,9 +42,8 @@ const ensLevelOptions = [
   },
 ];
 
-// Nivel de la dimensión de Trazabilidad y de Disponibilidad. La primera opción
-// deja la clave AUSENTE (nunca vacía ni `null`): el control que se rige por esa
-// dimensión usa entonces el nivel ENS global.
+// Traceability and Availability dimension level. The first option leaves the key ABSENT (never empty or `null`):
+// the control then uses the global ENS level.
 const dimensionLevelOptions = [
   {
     value: '',
@@ -144,8 +143,8 @@ export const GlobalConfigurationPanel = ({
           [field]: value,
         } as ENSGlobalConfiguration;
 
-        // Un campo opcional sin valor se QUITA: la clave ausente es lo que el
-        // validador acepta como «no declarado».
+        // An optional field without a value is REMOVED: an absent key is what the validator accepts as "not
+        // declared".
         if (field === 'traceabilityLevel' && !value) {
           delete nextConfiguration.traceabilityLevel;
         }
@@ -357,8 +356,8 @@ export const GlobalConfigurationPanel = ({
       </EuiFormRow>
 
       <EuiFormRow
-        label='Alcance'
-        helpText='Sistemas, servicios o activos incluidos en la evaluación.'
+        label='Descripción del alcance (informes)'
+        helpText='Texto que describe en los informes los sistemas, servicios o activos evaluados.'
         fullWidth
       >
         <EuiFieldText

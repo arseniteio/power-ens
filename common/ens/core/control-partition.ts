@@ -1,41 +1,10 @@
-// El motor, control a control: lo que usa el servidor para evaluar la ventana
-// entera sin tener todos los hechos a la vez.
-//
-// POR QUÉ ASÍ. Un control se juzga con sus hechos. El servidor lee los de un
-// control, lo evalúa con el motor de siempre, se queda con el resultado y
-// suelta los hechos antes de leer los del siguiente. El estado del panel se
-// arma después con esos resultados, igual que lo arma `getENSComplianceState`
-// sobre todos los hechos: mismas filas por máquina, misma consolidación, mismo
-// orden del catálogo. La prueba (`tests/control-partition.test.ts` y la
-// comprobación sobre los datos del laboratorio) es que los dos caminos dan el
-// mismo estado.
-//
-// LO QUE UN CONTROL LEE DE OTROS CONTROLES (y que el servidor, que lee los
-// hechos de un control y de una máquina a la vez, tiene que darle aparte).
-// Se buscó en el motor y en las 23 policies todo `context.events` sin filtro
-// de control; quedan tres lecturas, y las tres se cubren sin cargar hechos de
-// otros controles:
-//
-//   1. op.mon.3 sabe en qué fila está por el `agent.id` de los hechos que
-//      recibe, de CUALQUIER control (ver su policy). Una máquina sin hechos de
-//      op.mon.3 pero con hechos de otros dejaría de «existir». Va un hecho de
-//      PRESENCIA por máquina, con el instante de su primer hecho en la ventana
-//      y un control que no es ninguno del catálogo, así que el resto del motor
-//      lo ignora (no resuelve evidencias, no cuenta como hecho del control, no
-//      entra en la trazabilidad).
-//   2. op.acc.3 da por «mirado» un periodo sin acciones si hay un
-//      `collector_run` de la máquina en las últimas 24 h, de CUALQUIER control
-//      (`op-acc-3.policy.ts`, `hayLatido`). Van LATIDOS sintéticos con el mismo
-//      control ajeno: el último de cada día de la máquina, sacados de una
-//      agregación. Para «hay un latido en las 24 h antes del corte» basta el
-//      último de cada día (ver `buildENSHeartbeatEvents`).
-//   3. op.acc.3 lee también `account_action`, `critical_task_run` y
-//      `security_info_access` de cualquier control: esos tipos se leen de la
-//      máquina con los hechos del control (`ENS_CROSS_CONTROL_EVENT_TYPES`).
-//
-// Los hechos que no nombran ningún control los aceptan las evidencias y algunas
-// policies como propios de cualquier control: el servidor los lee con los de
-// cada máquina.
+// The engine control by control: what the server uses to evaluate the whole window without holding all facts at once. The server reads one control's facts, evaluates it with the usual engine, keeps the result and drops the facts before the next one.
+// The panel state is built afterwards exactly as `getENSComplianceState` does over all facts (same rows, consolidation and catalog order); `tests/control-partition.test.ts` proves both paths give the same state.
+// WHAT A CONTROL READS FROM OTHER CONTROLS (the server must supply it apart). Three unfiltered `context.events` reads remain across the engine and policies:
+// 1. op.mon.3 knows its row from the `agent.id` of the facts it receives, of ANY control. A PRESENCE fact per machine is sent, with the instant of its first fact in the window and a control outside the catalog, so the rest of the engine ignores it.
+// 2. op.acc.3 treats a period without actions as "looked at" if a `collector_run` of the machine exists in the last 24 h, of ANY control (`op-acc-3.policy.ts`). Synthetic HEARTBEATS go with the foreign control: the last of each day (see `buildENSHeartbeatEvents`).
+// 3. op.acc.3 also reads `account_action`, `critical_task_run` and `security_info_access` of any control: read from the machine with the control's facts (`ENS_CROSS_CONTROL_EVENT_TYPES`).
+// Facts naming no control are accepted by evidences and some policies as their own: the server reads them with each machine's.
 import { ENSCatalog } from '../catalog';
 import type { ENSLevel } from '../configuration/types';
 import { buildComplianceState } from './compliance-state';
@@ -57,13 +26,13 @@ import type { ENSAgentScope } from './scope/types';
 export const ENS_PRESENCE_CONTROL_ID = '__ensfacil_presence__';
 export const ENS_PRESENCE_EVENT_TYPE = 'agent_presence';
 
-// Lecturas de otros controles que el motor hace por control (ver la cabecera).
+// Reads of other controls the engine does per control (see the header).
 export const ENS_CROSS_CONTROL_EVENT_TYPES: Record<string, string[]> = {
   'op.acc.3': ['account_action', 'critical_task_run', 'security_info_access'],
 };
 export const ENS_CROSS_CONTROL_HEARTBEAT: string[] = ['op.acc.3'];
 
-// Los latidos de una máquina, de cualquier control: el último de cada día.
+// A machine's heartbeats, of any control: the last of each day.
 export const buildENSHeartbeatEvents = (
   heartbeats: { agentId: string; times: string[] }[]
 ): ENSNormalizedEvent[] =>
@@ -87,7 +56,7 @@ export const buildENSHeartbeatEvents = (
 export interface ENSAgentPresence {
   agentId: string;
   agentName?: string;
-  // El primer hecho de la máquina en la ventana (de cualquier control).
+  // The machine's first fact in the window (any control).
   earliest: string;
 }
 
@@ -105,8 +74,7 @@ export const buildENSPresenceEvents = (
       eventType: ENS_PRESENCE_EVENT_TYPE,
       sourceType: 'WAZUH_ALERT' as const,
       source: 'ensfacil-presence',
-      // El instante exacto: a fecha de cualquier corte, la máquina «existe»
-      // si ya tenía algún hecho.
+      // The exact instant: as of any cut, the machine "exists" if it already had some fact.
       timestamp: new Date(entry.earliest).toISOString(),
       attributes: {},
       isSynthetic: false,
@@ -119,15 +87,13 @@ export interface ENSControlPartitionRow {
 
 export interface ENSControlPartition {
   controlId: string;
-  // El resultado de la vista: el del conjunto, sin máquina, o el de la máquina
-  // seleccionada (con el del manager para los controles de organización).
+  // The view's result: the set's, without machine, or the selected machine's (with the manager's for organisation controls).
   result?: ENSComplianceResult;
-  // Las filas de las máquinas que miden el control: las del panel.
+  // Rows of the machines that measure the control: the panel's.
   rows: ENSControlPartitionRow[];
 }
 
-// Evalúa UN control con sus hechos (y los de presencia) para la vista de una
-// máquina o del conjunto.
+// Evaluates ONE control with its facts (and presence facts) for a machine or set view.
 export const evaluateENSControlPartition = (
   controlId: string,
   level: ENSLevel,
@@ -137,8 +103,7 @@ export const evaluateENSControlPartition = (
   now: Date
 ): ENSControlPartition => {
   if (agentId === undefined) {
-    // Sin ninguna máquina conocida, el panel evalúa el catálogo sobre todos
-    // los hechos sin fila (rama final de `getENSComplianceState`).
+    // With no known machine, the panel evaluates the catalog over all facts without a row (final branch of `getENSComplianceState`).
     if (!getAgentIdentities(events, undefined, scopeAgents).length) {
       return {
         controlId,
@@ -162,9 +127,7 @@ export const evaluateENSControlPartition = (
 
   const control = ENSCatalog.find(entry => entry.id === controlId);
   const result = getENSComplianceResultByControl(controlId, level, events, agentId, scopeAgents, now);
-  // La fila de la máquina solo lleva los controles que se miden en ella; los
-  // de organización salen en la vista con el resultado del manager, pero no
-  // son de su fila (`withOrganizationControls`).
+  // The machine row carries only the controls measured on it; organisation controls show in the view with the manager's result but are not on its row (`withOrganizationControls`).
   const measured = Boolean(result && control && isControlMeasuredOnAgent(control, agentId));
 
   return { controlId, result, rows: measured && result ? [{ agentId, result }] : [] };
@@ -175,11 +138,7 @@ const byCatalog = (left: { controlId: string }, right: { controlId: string }) =>
   (catalogOrder.get(left.controlId) ?? Number.MAX_SAFE_INTEGER) -
   (catalogOrder.get(right.controlId) ?? Number.MAX_SAFE_INTEGER);
 
-// El estado del panel a partir de los controles evaluados por separado. Es el
-// mismo que `getENSComplianceState` sobre todos los hechos: las máquinas son
-// las del alcance (con el nombre del hecho más reciente si el inventario no lo
-// trae: `nameEvents`), cada una con los controles de su fila, y los
-// resultados en el orden del catálogo.
+// Panel state from the separately evaluated controls; same as `getENSComplianceState` over all facts: machines are the scope's (named by the latest fact if the inventory lacks it: `nameEvents`), each with its row's controls, results in catalog order.
 export const assembleENSComplianceState = (
   partitions: ENSControlPartition[],
   agentId: string | undefined,
@@ -210,18 +169,10 @@ export const assembleENSComplianceState = (
   );
 };
 
-// --- control a control Y máquina a máquina ----------------------------------
-//
-// Lo que usa el servidor para no tener nunca los hechos de todas las máquinas
-// a la vez: las filas que mide un control (`listENSControlRowAgents`), cada
-// una evaluada con los hechos de SU máquina (`evaluateENSControlRow`), y la
-// vista de conjunto consolidada con la consolidación del motor
-// (`consolidateENSControlRows`). Es lo que hace `getENSControlEvaluation` con
-// todos los hechos a la vez (lo prueban `tests/control-partition.test.ts` y
-// `tests/evaluation-server.test.ts`).
+// Control by control AND machine by machine. What the server uses to never hold all machines' facts: the rows a control measures (`listENSControlRowAgents`), each evaluated with ITS machine's facts (`evaluateENSControlRow`),
+// and the set view consolidated with the engine's consolidation (`consolidateENSControlRows`). Proven by `tests/control-partition.test.ts` and `tests/evaluation-server.test.ts`.
 
-// Las máquinas del alcance en cuya fila se evalúa el control (su plano y, si
-// lo declara, su alcance), en el orden del motor.
+// Scope machines on whose row the control is evaluated (its plane and, if declared, its scope), in engine order.
 export const listENSControlRowAgents = (
   controlId: string,
   scopeAgents: ENSAgentScope[] | undefined,
@@ -233,7 +184,7 @@ export const listENSControlRowAgents = (
   );
 };
 
-// La fila de UNA máquina con los hechos de esa máquina.
+// The row of ONE machine with that machine's facts.
 export const evaluateENSControlRow = (
   controlId: string,
   level: ENSLevel,
@@ -244,10 +195,7 @@ export const evaluateENSControlRow = (
 ): ENSComplianceResult | undefined =>
   getENSComplianceResultByControl(controlId, level, agentEvents, agentId, scopeAgents, now);
 
-// La vista de conjunto a partir de las filas: las máquinas que lo miden y las
-// declaradas que no están en el alcance (sin hechos). `undefined` si no hay
-// ninguna fila: entonces el motor evalúa el control sin fila sobre todos sus
-// hechos (`getENSControlEvaluation`), y el servidor hace lo mismo.
+// The set view from the rows: the machines that measure it and the declared ones outside the scope (no facts). `undefined` if there is no row: the engine then evaluates the control without row over all its facts, and so does the server.
 export const consolidateENSControlRows = (
   controlId: string,
   level: ENSLevel,
@@ -274,8 +222,7 @@ export const consolidateENSControlRows = (
   return agents.length ? consolidateAgentComplianceResultByControl(agents, controlId) : undefined;
 };
 
-// Un resultado reducido a lo que la consolidación usa para el estado y el
-// número (para los días pasados de la serie, donde no hace falta el detalle).
+// A result reduced to what consolidation uses for state and number (for past days of the series, where detail is not needed).
 export const resultStatusStub = (
   controlId: string,
   status: string,

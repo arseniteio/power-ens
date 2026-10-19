@@ -1,11 +1,7 @@
-// La barra de búsqueda y las fechas del propio dashboard sobre el patrón
-// `wazuh-alerts-*`, los filtros que de ella salen para `useEsSearch` y el
-// marco que la pinta con sus avisos. La usan las pestañas Controles y Eventos.
+// The dashboard search bar and dates over the `wazuh-alerts-*` pattern, the filters it yields for `useEsSearch`, and the frame that draws it with its notices. Used by the Controles and Eventos tabs.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EuiButton, EuiCallOut, EuiSpacer } from '@elastic/eui';
-// Del plugin data, solo tipos: lo de ejecución sale de su contrato de
-// arranque (`getData()`). Un import de valor de `src/plugins/data/public`
-// mete una copia entera del plugin data en el nuestro.
+// Types only from the data plugin: runtime pieces come from its start contract (`getData()`); a value import of `src/plugins/data/public` would bundle a whole copy of the plugin.
 import type { Filter, IndexPattern, Query, TimeRange } from '../../../../src/plugins/data/public';
 import { ENSFACIL_PLUGIN_ID, ENS_ALERTS_INDEX } from '../../common/constants';
 import { LoadingSpinner } from '../platform/loading-spinner';
@@ -15,90 +11,69 @@ import { buildAlertsSearchFilters } from './alerts-search-filters';
 
 export interface AlertsSearchBar {
   searchBar: React.ReactNode;
-  // Para `useEsSearch`: la consulta, los filtros y las fechas de la barra.
   filters: unknown[];
-  // Para el `refreshKey` de `useEsSearch`: sube con «Actualizar» y con el
-  // refresco automático. Con un rango absoluto los filtros recalculados
-  // tienen el mismo JSON y, sin él, no se volvería a buscar.
+  // For the `refreshKey` of `useEsSearch`: it rises on 'Actualizar' and on auto-refresh. With an absolute range the recomputed filters have the same JSON, so without it no new search would run.
   refreshKey: number;
-  // Ya se sabe si el patrón está, no está o no se pudo leer.
   ready: boolean;
-  // Se pudo leer la lista de patrones y no está.
   missingIndexPattern: boolean;
-  // No se pudo leer (permisos, red): la causa. No es «no existe».
   patternError?: string;
-  // Por qué no se ha aplicado la consulta de la barra (DQL mal escrita, PPL,
-  // SQL): mientras dure, se busca sin ella, con los filtros y las fechas.
   queryError?: string;
-  // Vuelve a buscar el patrón (tras un `patternError`).
   retry: () => void;
 }
 
 export const useAlertsSearchBar = (): AlertsSearchBar => {
   const data = getData();
-  const [busqueda, setBusqueda] = useState<IndexPatternLookup<IndexPattern> | undefined>();
-  const [intento, setIntento] = useState(0);
-  // Con `useDefaultBehaviors` la barra guarda la consulta, los filtros y las
-  // fechas en los servicios del dashboard: de ahí se leen y se escuchan.
+  const [search, setSearch] = useState<IndexPatternLookup<IndexPattern> | undefined>();
+  const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState<Query>(() => data.query.queryString.getQuery());
-  const [filtros, setFiltros] = useState<Filter[]>(() => data.query.filterManager.getFilters());
-  const [rango, setRango] = useState<TimeRange>(() => data.query.timefilter.timefilter.getTime());
-  // «Actualizar» sin cambios y el refresco automático: vuelven a resolver un
-  // rango relativo contra la hora de ahora y, con ello, a buscar.
-  const [pasada, setPasada] = useState(0);
-  const indexPattern = busqueda?.indexPattern;
+  const [filterList, setFilters] = useState<Filter[]>(() => data.query.filterManager.getFilters());
+  const [range, setRange] = useState<TimeRange>(() => data.query.timefilter.timefilter.getTime());
+  const [run, setRun] = useState(0);
+  const indexPattern = search?.indexPattern;
 
   useEffect(() => {
-    let vigente = true;
-    setBusqueda(undefined);
-    findIndexPatternByTitle(data.indexPatterns, ENS_ALERTS_INDEX).then(resultado => {
-      if (vigente) setBusqueda(resultado);
+    let valid = true;
+    setSearch(undefined);
+    findIndexPatternByTitle(data.indexPatterns, ENS_ALERTS_INDEX).then(result => {
+      if (valid) setSearch(result);
     });
     return () => {
-      vigente = false;
+      valid = false;
     };
-  }, [data, intento]);
+  }, [data, attempt]);
 
   useEffect(() => {
     const { filterManager, queryString } = data.query;
     const { timefilter } = data.query.timefilter;
-    const suscripciones = [
-      filterManager.getUpdates$().subscribe(() => setFiltros(filterManager.getFilters())),
+    const subscriptions = [
+      filterManager.getUpdates$().subscribe(() => setFilters(filterManager.getFilters())),
       queryString.getUpdates$().subscribe((q: Query) => setQuery(q)),
-      timefilter.getTimeUpdate$().subscribe(() => setRango(timefilter.getTime())),
-      timefilter.getAutoRefreshFetch$().subscribe(() => setPasada(n => n + 1)),
+      timefilter.getTimeUpdate$().subscribe(() => setRange(timefilter.getTime())),
+      timefilter.getAutoRefreshFetch$().subscribe(() => setRun(n => n + 1)),
     ];
-    return () => suscripciones.forEach(s => s.unsubscribe());
+    return () => subscriptions.forEach(s => s.unsubscribe());
   }, [data]);
 
-  // Memorizado sobre lo guardado en el estado, nunca recalculado en cada
-  // render: con un rango relativo el filtro de fechas lleva la hora de ahora,
-  // y un filtro nuevo en cada render haría que cada búsqueda provocara otra.
-  // `getOpenSearchQuery` lee la consulta, los filtros y las fechas de los
-  // mismos servicios que este estado escucha: `query`, `filtros` y `rango`
-  // están en las dependencias para recalcular cuando cambian.
+  // Memoised on the stored state, never recomputed per render: with a relative range the date filter carries the current time, and a new filter per render would make every search trigger another.
   const { filters, queryError } = useMemo(
     () =>
       buildAlertsSearchFilters(
-        { indexPattern, filters: filtros, timeRange: rango },
+        { indexPattern, filters: filterList, timeRange: range },
         {
-          buildQuery: (patron: IndexPattern) => data.query.getOpenSearchQuery(patron),
-          buildTimeFilter: (patron: IndexPattern, intervalo: TimeRange) =>
-            data.query.timefilter.timefilter.createFilter(patron, intervalo),
+          buildQuery: (pattern: IndexPattern) => data.query.getOpenSearchQuery(pattern),
+          buildTimeFilter: (pattern: IndexPattern, interval: TimeRange) =>
+            data.query.timefilter.timefilter.createFilter(pattern, interval),
         }
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, indexPattern, query, filtros, rango, pasada]
+    [data, indexPattern, query, filterList, range, run]
   );
 
-  // Las props de la barra, estables entre renders.
-  const patrones = useMemo(() => (indexPattern ? [indexPattern] : []), [indexPattern]);
-  const alEnviar = useCallback((_cambio: unknown, esCambio?: boolean) => {
-    // La barra avisa con `true` de cada cambio, que ya llega por los
-    // servicios, y con `false` de «Actualizar» sin cambios.
-    if (esCambio === false) setPasada(n => n + 1);
+  const patterns = useMemo(() => (indexPattern ? [indexPattern] : []), [indexPattern]);
+  const onSubmit = useCallback((_change: unknown, isChange?: boolean) => {
+    if (isChange === false) setRun(n => n + 1);
   }, []);
-  const retry = useCallback(() => setIntento(n => n + 1), []);
+  const retry = useCallback(() => setAttempt(n => n + 1), []);
 
   const { TopNavMenu } = getNavigation().ui;
   const searchBar = indexPattern ? (
@@ -106,48 +81,45 @@ export const useAlertsSearchBar = (): AlertsSearchBar => {
       appName={ENSFACIL_PLUGIN_ID}
       showSearchBar
       useDefaultBehaviors
-      indexPatterns={patrones}
-      onQuerySubmit={alEnviar}
+      indexPatterns={patterns}
+      onQuerySubmit={onSubmit}
     />
   ) : null;
 
   return {
     searchBar,
     filters,
-    refreshKey: pasada,
-    ready: busqueda !== undefined,
-    missingIndexPattern: busqueda !== undefined && !busqueda.indexPattern && !busqueda.error,
-    patternError: busqueda?.error,
+    refreshKey: run,
+    ready: search !== undefined,
+    missingIndexPattern: search !== undefined && !search.indexPattern && !search.error,
+    patternError: search?.error,
     queryError,
     retry,
   };
 };
 
-// La barra con sus avisos y, debajo, la vista. La vista (`children`) solo se
-// monta con el patrón encontrado: así su primera búsqueda ya lleva las fechas
-// de la barra y no recorre todo el índice. Los avisos duran lo que dura la
-// causa, no un toast que se va.
-export const AlertsSearchFrame = ({ barra, children }: { barra: AlertsSearchBar; children: React.ReactNode }) => {
-  if (!barra.ready) {
+// The bar with its notices and, below, the view. The view (`children`) mounts only with the pattern found, so its first search already carries the bar dates. The notices last as long as their cause.
+export const AlertsSearchFrame = ({ barra: bar, children }: { barra: AlertsSearchBar; children: React.ReactNode }) => {
+  if (!bar.ready) {
     return <LoadingSpinner message={`Buscando el patrón de índice ${ENS_ALERTS_INDEX}…`} />;
   }
 
-  if (barra.patternError) {
+  if (bar.patternError) {
     return (
       <EuiCallOut
         color="danger"
         iconType="alert"
         title={`No se pudo leer el patrón de índice ${ENS_ALERTS_INDEX}: esta vista no puede buscar`}
       >
-        <p>{barra.patternError}</p>
-        <EuiButton size="s" color="danger" onClick={barra.retry}>
+        <p>{bar.patternError}</p>
+        <EuiButton size="s" color="danger" onClick={bar.retry}>
           Reintentar
         </EuiButton>
       </EuiCallOut>
     );
   }
 
-  if (barra.missingIndexPattern) {
+  if (bar.missingIndexPattern) {
     return (
       <EuiCallOut
         color="warning"
@@ -159,16 +131,16 @@ export const AlertsSearchFrame = ({ barra, children }: { barra: AlertsSearchBar;
 
   return (
     <>
-      {barra.searchBar}
+      {bar.searchBar}
       <EuiSpacer size="m" />
-      {barra.queryError && (
+      {bar.queryError && (
         <>
           <EuiCallOut
             color="warning"
             iconType="alert"
             title="No se ha aplicado la consulta de la barra: se busca solo con sus filtros y sus fechas"
           >
-            <p>{barra.queryError}</p>
+            <p>{bar.queryError}</p>
           </EuiCallOut>
           <EuiSpacer size="m" />
         </>

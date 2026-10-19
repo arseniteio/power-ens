@@ -1,19 +1,4 @@
-/**
- * Pruebas de las primitivas de juicio del motor (T1.2).
- *
- *     ~/.bun/bin/bun run tests/evidence-judgment.test.ts
- *
- * Este repo no compila por sí solo (no hay package.json ni tsconfig), así que la
- * prueba no depende de ninguna infraestructura: es TypeScript suelto con su
- * propio comprobador, al modo de `config/test_inject_control.py`. Hace falta un
- * runtime que ejecute TypeScript resolviendo imports sin extensión, que es como
- * importa el resto del plugin: `bun` lo hace (probado con 1.3.14).
- *
- * Lo que se prueba es el principio rector: la ausencia de un dato no puede
- * producir una afirmación, ni en verde ni en rojo. Los cuatro casos de cada
- * primitiva son hecho+parámetro, hecho sin parámetro, parámetro sin hecho y
- * ninguno de los dos.
- */
+/** Tests of the engine's judgment primitives. */
 import {
   ENSControlConfiguration,
   ENSControlParameter,
@@ -40,42 +25,36 @@ import {
   ENSEvidenceResolved,
 } from '../common/ens/core/evidence/types';
 
-// El repo no tiene @types/node y no va a tenerlos: se declara lo único que se
-// usa del runtime para que el fichero siga comprobando tipos por sí solo.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void =>
-  console.log(`\n${titulo}`);
+const section = (title: string): void =>
+  console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
+let eventCounter = 0;
 
-let contadorEventos = 0;
-
-const evento = (
+const event = (
   eventType: string,
   attributes: Record<string, unknown>,
   extra: Partial<ENSNormalizedEvent> = {}
 ): ENSNormalizedEvent => ({
-  id: `evt-${(contadorEventos += 1)}`,
+  id: `evt-${(eventCounter += 1)}`,
   controlId: 'op.acc.1',
   eventType,
   sourceType: 'WAZUH_ALERT',
@@ -85,28 +64,28 @@ const evento = (
   ...extra,
 });
 
-const JUICIO_NINGUNO: ENSEvidenceJudgment = {
+const JUDGMENT_NONE: ENSEvidenceJudgment = {
   primitive: 'NINGUNO_EN_LISTA',
   parameterId: 'P-04',
   factEventTypes: ['generic_account_login'],
   factField: 'usuario',
 };
 
-const JUICIO_TODOS: ENSEvidenceJudgment = {
+const JUDGMENT_ALL: ENSEvidenceJudgment = {
   primitive: 'TODOS_EN_LISTA',
   parameterId: 'P-04',
   factEventTypes: ['auth_success'],
   factField: 'usuario',
 };
 
-const JUICIO_UMBRAL: ENSEvidenceJudgment = {
+const JUDGMENT_THRESHOLD: ENSEvidenceJudgment = {
   primitive: 'UMBRAL_MAXIMO',
   parameterId: 'P-05',
   factEventTypes: ['account_offboarding'],
   factField: 'dias_desde_baja',
 };
 
-const definicion = (
+const catalogDefinition = (
   judgment: ENSEvidenceJudgment,
   extra: Partial<ENSEvidenceDefinition> = {}
 ): ENSEvidenceDefinition => ({
@@ -144,10 +123,10 @@ const base = (
   qualityRequirements: definition.qualityRequirements,
 });
 
-const configuracion = (
+const configuration = (
   parameterId: string,
   value: ENSControlParameter['value'],
-  nombre: string = 'cuentas_genericas_prohibidas'
+  name: string = 'cuentas_genericas_prohibidas'
 ): ENSControlConfiguration => ({
   controlId: 'op.acc.1',
   controlName: 'Identificación',
@@ -158,8 +137,8 @@ const configuracion = (
     {
       id: parameterId,
       controlId: 'op.acc.1',
-      name: nombre,
-      label: nombre,
+      name: name,
+      label: name,
       description: '',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.1.1'],
@@ -175,15 +154,12 @@ const configuracion = (
   ],
 });
 
-// Constructor libre de parámetros, para las primitivas nuevas: hacen falta
-// tablas con columnas, duraciones en horas y en días, y dos parámetros en la
-// misma configuración (umbral y margen).
-const parametro = (
+const parameter = (
   overrides: Partial<ENSControlParameter> & {
     id: string;
   }
 ): ENSControlParameter => {
-  const fusionado = {
+  const merged = {
     controlId: 'op.acc.1',
     label: '',
     description: '',
@@ -201,541 +177,523 @@ const parametro = (
   };
 
   return {
-    ...fusionado,
-    name: fusionado.name || fusionado.id,
+    ...merged,
+    name: merged.name || merged.id,
   };
 };
 
 const config = (
-  ...parametros: ENSControlParameter[]
+  ...parameters: ENSControlParameter[]
 ): ENSControlConfiguration => ({
   controlId: 'op.acc.1',
   controlName: 'Identificación',
   family: 'op',
   enabled: true,
   applicableLevels: ['BAJO', 'MEDIO', 'ALTO'],
-  parameters: parametros,
+  parameters: parameters,
 });
 
-const juzga = (
+const judges = (
   judgment: ENSEvidenceJudgment,
-  eventos: ENSNormalizedEvent[],
+  events: ENSNormalizedEvent[],
   config?: ENSControlConfiguration,
   extra: Partial<ENSEvidenceDefinition> = {},
-  ahora?: Date
+  now?: Date
 ): ENSEvidenceResolved => {
-  const definition = definicion(judgment, extra);
+  const definition = catalogDefinition(judgment, extra);
 
   return judgeEvidence(
     definition,
     judgment,
     base(definition),
-    eventos,
+    events,
     config,
-    ahora
+    now
   );
 };
 
-const motivos = (
-  resultado: ENSEvidenceResolved
-): string => resultado.observations.join(' | ');
+const motives = (
+  result: ENSEvidenceResolved
+): string => result.observations.join(' | ');
 
-// --- NINGUNO_EN_LISTA ------------------------------------------------------
-
-bloque('NINGUNO_EN_LISTA');
+section('NINGUNO_EN_LISTA');
 
 {
-  const incumple = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: 'admin' })],
-    configuracion('P-04', ['admin', 'guest'])
+  const breaches = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: 'admin' })],
+    configuration('P-04', ['admin', 'guest'])
   );
 
-  comprueba(
-    'hecho en la lista · NO_CUMPLE',
-    incumple.status === 'NO_CUMPLE',
-    incumple.status
+  check(
+    'fact in the list · NO_CUMPLE',
+    breaches.status === 'NO_CUMPLE',
+    breaches.status
   );
 
-  comprueba(
-    'hecho en la lista · el motivo nombra la cuenta concreta',
-    motivos(incumple).includes("'admin'"),
-    motivos(incumple)
+  check(
+    'fact in the list · the motive names the specific account',
+    motives(breaches).includes("'admin'"),
+    motives(breaches)
   );
 
-  comprueba(
-    'hecho en la lista · la trazabilidad apunta al evento del hecho',
-    incumple.resolvedEventType === 'generic_account_login' &&
-      Boolean(incumple.resolvedEventId),
-    String(incumple.resolvedEventId)
+  check(
+    'fact in the list · traceability points to the fact\'s event',
+    breaches.resolvedEventType === 'generic_account_login' &&
+      Boolean(breaches.resolvedEventId),
+    String(breaches.resolvedEventId)
   );
 
-  const cumple = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: 'jgomez' })],
-    configuracion('P-04', ['admin', 'guest'])
+  const complies = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: 'jgomez' })],
+    configuration('P-04', ['admin', 'guest'])
   );
 
-  comprueba(
-    'hecho fuera de la lista · CUMPLE',
-    cumple.status === 'CUMPLE',
-    cumple.status
+  check(
+    'fact outside the list · CUMPLE',
+    complies.status === 'CUMPLE',
+    complies.status
   );
 
-  const sinParametro = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: 'admin' })],
+  const withoutParameter = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: 'admin' })],
     undefined
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE, nunca veredicto',
-    sinParametro.status === 'NO_EVALUABLE',
-    sinParametro.status
+  check(
+    'fact without parameter · NO_EVALUABLE, never a verdict',
+    withoutParameter.status === 'NO_EVALUABLE',
+    withoutParameter.status
   );
 
-  comprueba(
-    'hecho sin parámetro · el motivo dice que falta el parámetro',
-    motivos(sinParametro).includes('P-04'),
-    motivos(sinParametro)
+  check(
+    'fact without parameter · the motive says the parameter is missing',
+    motives(withoutParameter).includes('P-04'),
+    motives(withoutParameter)
   );
 
-  const parametroVacio = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: 'admin' })],
-    configuracion('P-04', [])
+  const emptyParameter = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: 'admin' })],
+    configuration('P-04', [])
   );
 
-  comprueba(
-    'hecho con parámetro vacío · NO_EVALUABLE',
-    parametroVacio.status === 'NO_EVALUABLE',
-    parametroVacio.status
+  check(
+    'fact with empty parameter · NO_EVALUABLE',
+    emptyParameter.status === 'NO_EVALUABLE',
+    emptyParameter.status
   );
 
-  const sinHecho = juzga(
-    JUICIO_NINGUNO,
+  const withoutFact = judges(
+    JUDGMENT_NONE,
     [],
-    configuracion('P-04', ['admin', 'guest'])
+    configuration('P-04', ['admin', 'guest'])
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE, NO el falso verde',
-    sinHecho.status === 'NO_EVALUABLE',
-    sinHecho.status
+  check(
+    'parameter without fact · NO_EVALUABLE, NOT the false green',
+    withoutFact.status === 'NO_EVALUABLE',
+    withoutFact.status
   );
 
-  comprueba(
-    'parámetro sin hecho · el motivo explica por qué no se afirma',
-    motivos(sinHecho).includes('ningún hecho observado'),
-    motivos(sinHecho)
+  check(
+    'parameter without fact · the motive explains why nothing is asserted',
+    motives(withoutFact).includes('ningún hecho observado'),
+    motives(withoutFact)
   );
 
-  const ninguno = juzga(JUICIO_NINGUNO, [], undefined);
+  const none = judges(JUDGMENT_NONE, [], undefined);
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    ninguno.status === 'NO_EVALUABLE',
-    ninguno.status
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    none.status === 'NO_EVALUABLE',
+    none.status
   );
 
-  comprueba(
-    'ni hecho ni parámetro · el motivo nombra las dos ausencias',
-    motivos(ninguno).includes('ningún hecho observado') &&
-      motivos(ninguno).includes('P-04'),
-    motivos(ninguno)
+  check(
+    'neither fact nor parameter · the motive names both absences',
+    motives(none).includes('ningún hecho observado') &&
+      motives(none).includes('P-04'),
+    motives(none)
   );
 }
 
-// --- TODOS_EN_LISTA --------------------------------------------------------
-
-bloque('TODOS_EN_LISTA');
+section('TODOS_EN_LISTA');
 
 {
-  const incumple = juzga(
-    JUICIO_TODOS,
+  const breaches = judges(
+    JUDGMENT_ALL,
     [
-      evento('auth_success', { usuario: 'jgomez' }),
-      evento('auth_success', { usuario: 'intruso' }),
+      event('auth_success', { usuario: 'jgomez' }),
+      event('auth_success', { usuario: 'intruso' }),
     ],
-    configuracion('P-04', ['jgomez', 'mlopez'])
+    configuration('P-04', ['jgomez', 'mlopez'])
   );
 
-  comprueba(
-    'hecho fuera de la lista · NO_CUMPLE',
-    incumple.status === 'NO_CUMPLE',
-    incumple.status
+  check(
+    'fact outside the list · NO_CUMPLE',
+    breaches.status === 'NO_CUMPLE',
+    breaches.status
   );
 
-  comprueba(
-    'hecho fuera de la lista · el motivo nombra al que incumple y no al que cumple',
-    motivos(incumple).includes("'intruso'") &&
-      !motivos(incumple).includes("'jgomez'"),
-    motivos(incumple)
+  check(
+    'fact outside the list · the motive names the one that breaches and not the one that complies',
+    motives(breaches).includes("'intruso'") &&
+      !motives(breaches).includes("'jgomez'"),
+    motives(breaches)
   );
 
-  const cumple = juzga(
-    JUICIO_TODOS,
+  const complies = judges(
+    JUDGMENT_ALL,
     [
-      evento('auth_success', { usuario: 'jgomez' }),
-      evento('auth_success', { usuario: 'mlopez' }),
+      event('auth_success', { usuario: 'jgomez' }),
+      event('auth_success', { usuario: 'mlopez' }),
     ],
-    configuracion('P-04', ['jgomez', 'mlopez'])
+    configuration('P-04', ['jgomez', 'mlopez'])
   );
 
-  comprueba(
-    'todos en la lista · CUMPLE',
-    cumple.status === 'CUMPLE',
-    cumple.status
+  check(
+    'all in the list · CUMPLE',
+    complies.status === 'CUMPLE',
+    complies.status
   );
 
-  const sinParametro = juzga(
-    JUICIO_TODOS,
-    [evento('auth_success', { usuario: 'jgomez' })],
+  const withoutParameter = judges(
+    JUDGMENT_ALL,
+    [event('auth_success', { usuario: 'jgomez' })],
     undefined
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE',
-    sinParametro.status === 'NO_EVALUABLE',
-    sinParametro.status
+  check(
+    'fact without parameter · NO_EVALUABLE',
+    withoutParameter.status === 'NO_EVALUABLE',
+    withoutParameter.status
   );
 
-  const sinHecho = juzga(
-    JUICIO_TODOS,
+  const withoutFact = judges(
+    JUDGMENT_ALL,
     [],
-    configuracion('P-04', ['jgomez'])
+    configuration('P-04', ['jgomez'])
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE',
-    sinHecho.status === 'NO_EVALUABLE',
-    sinHecho.status
+  check(
+    'parameter without fact · NO_EVALUABLE',
+    withoutFact.status === 'NO_EVALUABLE',
+    withoutFact.status
   );
 
-  const ninguno = juzga(JUICIO_TODOS, [], undefined);
+  const none = judges(JUDGMENT_ALL, [], undefined);
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    ninguno.status === 'NO_EVALUABLE',
-    ninguno.status
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    none.status === 'NO_EVALUABLE',
+    none.status
   );
 }
 
-// --- UMBRAL_MAXIMO ---------------------------------------------------------
-
-bloque('UMBRAL_MAXIMO');
+section('UMBRAL_MAXIMO');
 
 {
-  const incumple = juzga(
-    JUICIO_UMBRAL,
+  const breaches = judges(
+    JUDGMENT_THRESHOLD,
     [
-      evento('account_offboarding', { dias_desde_baja: 1 }),
-      evento('account_offboarding', { dias_desde_baja: 30 }),
+      event('account_offboarding', { dias_desde_baja: 1 }),
+      event('account_offboarding', { dias_desde_baja: 30 }),
     ],
-    configuracion('P-05', 7, 'plazo_max_deshabilitar_dias')
+    configuration('P-05', 7, 'plazo_max_deshabilitar_dias')
   );
 
-  comprueba(
-    'valor por encima del umbral · NO_CUMPLE',
-    incumple.status === 'NO_CUMPLE',
-    incumple.status
+  check(
+    'value above the threshold · NO_CUMPLE',
+    breaches.status === 'NO_CUMPLE',
+    breaches.status
   );
 
-  comprueba(
-    'valor por encima del umbral · el motivo nombra el valor concreto',
-    motivos(incumple).includes("'30'"),
-    motivos(incumple)
+  check(
+    'value above the threshold · the motive names the specific value',
+    motives(breaches).includes("'30'"),
+    motives(breaches)
   );
 
-  const cumple = juzga(
-    JUICIO_UMBRAL,
-    [evento('account_offboarding', { dias_desde_baja: 7 })],
-    configuracion('P-05', 7, 'plazo_max_deshabilitar_dias')
+  const complies = judges(
+    JUDGMENT_THRESHOLD,
+    [event('account_offboarding', { dias_desde_baja: 7 })],
+    configuration('P-05', 7, 'plazo_max_deshabilitar_dias')
   );
 
-  comprueba(
-    'valor igual al umbral · CUMPLE (no lo supera)',
-    cumple.status === 'CUMPLE',
-    cumple.status
+  check(
+    'value equal to the threshold · CUMPLE (does not exceed it)',
+    complies.status === 'CUMPLE',
+    complies.status
   );
 
-  const sinParametro = juzga(
-    JUICIO_UMBRAL,
-    [evento('account_offboarding', { dias_desde_baja: 30 })],
+  const withoutParameter = judges(
+    JUDGMENT_THRESHOLD,
+    [event('account_offboarding', { dias_desde_baja: 30 })],
     undefined
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE, ni siquiera con un valor enorme',
-    sinParametro.status === 'NO_EVALUABLE',
-    sinParametro.status
+  check(
+    'fact without parameter · NO_EVALUABLE, even with a huge value',
+    withoutParameter.status === 'NO_EVALUABLE',
+    withoutParameter.status
   );
 
-  const parametroNoNumerico = juzga(
-    JUICIO_UMBRAL,
-    [evento('account_offboarding', { dias_desde_baja: 30 })],
-    configuracion('P-05', 'abc', 'plazo_max_deshabilitar_dias')
+  const nonNumericParameter = judges(
+    JUDGMENT_THRESHOLD,
+    [event('account_offboarding', { dias_desde_baja: 30 })],
+    configuration('P-05', 'abc', 'plazo_max_deshabilitar_dias')
   );
 
-  comprueba(
-    'parámetro no numérico · NO_EVALUABLE con motivo',
-    parametroNoNumerico.status === 'NO_EVALUABLE' &&
-      motivos(parametroNoNumerico).includes('P-05'),
-    motivos(parametroNoNumerico)
+  check(
+    'non-numeric parameter · NO_EVALUABLE with motive',
+    nonNumericParameter.status === 'NO_EVALUABLE' &&
+      motives(nonNumericParameter).includes('P-05'),
+    motives(nonNumericParameter)
   );
 
-  const sinHecho = juzga(
-    JUICIO_UMBRAL,
+  const withoutFact = judges(
+    JUDGMENT_THRESHOLD,
     [],
-    configuracion('P-05', 7, 'plazo_max_deshabilitar_dias')
+    configuration('P-05', 7, 'plazo_max_deshabilitar_dias')
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE',
-    sinHecho.status === 'NO_EVALUABLE',
-    sinHecho.status
+  check(
+    'parameter without fact · NO_EVALUABLE',
+    withoutFact.status === 'NO_EVALUABLE',
+    withoutFact.status
   );
 
-  const ninguno = juzga(JUICIO_UMBRAL, [], undefined);
+  const none = judges(JUDGMENT_THRESHOLD, [], undefined);
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    ninguno.status === 'NO_EVALUABLE',
-    ninguno.status
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    none.status === 'NO_EVALUABLE',
+    none.status
   );
 
-  const valorIlegible = juzga(
-    JUICIO_UMBRAL,
-    [evento('account_offboarding', { dias_desde_baja: 'muchos' })],
-    configuracion('P-05', 7, 'plazo_max_deshabilitar_dias')
+  const unreadableValue = judges(
+    JUDGMENT_THRESHOLD,
+    [event('account_offboarding', { dias_desde_baja: 'muchos' })],
+    configuration('P-05', 7, 'plazo_max_deshabilitar_dias')
   );
 
-  comprueba(
-    'valor observado no numérico · NO_EVALUABLE, no CUMPLE',
-    valorIlegible.status === 'NO_EVALUABLE',
-    valorIlegible.status
+  check(
+    'non-numeric observed value · NO_EVALUABLE, not CUMPLE',
+    unreadableValue.status === 'NO_EVALUABLE',
+    unreadableValue.status
   );
 }
 
-// --- comparación de listas -------------------------------------------------
-
-bloque('Comparación de listas');
+section('List comparison');
 
 {
-  const mayusculas = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: '  ADMIN ' })],
-    configuracion('P-04', ['admin'])
+  const upperCase = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: '  ADMIN ' })],
+    configuration('P-04', ['admin'])
   );
 
-  comprueba(
-    'insensible a mayúsculas y con espacios recortados',
-    mayusculas.status === 'NO_CUMPLE',
-    mayusculas.status
+  check(
+    'case-insensitive and with trimmed spaces',
+    upperCase.status === 'NO_CUMPLE',
+    upperCase.status
   );
 
-  const cadenaLegacy = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { usuario: 'test' })],
-    configuracion('P-04', 'admin, guest\ntest')
+  const legacyString = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { usuario: 'test' })],
+    configuration('P-04', 'admin, guest\ntest')
   );
 
-  comprueba(
-    'parámetro guardado como cadena · se parte por comas y saltos de línea',
-    cadenaLegacy.status === 'NO_CUMPLE',
-    cadenaLegacy.status
+  check(
+    'parameter stored as a string · split by commas and line breaks',
+    legacyString.status === 'NO_CUMPLE',
+    legacyString.status
   );
 
-  comprueba(
-    "parseReferenceList · NUNCA parte por '|' (separa campos de un elemento)",
+  check(
+    "parseReferenceList · NEVER splits on '|' (it separates the fields of an element)",
     parseReferenceList('srv-dc01 | Windows').length === 1 &&
       parseReferenceList('srv-dc01 | Windows')[0] ===
         'srv-dc01 | Windows',
     JSON.stringify(parseReferenceList('srv-dc01 | Windows'))
   );
 
-  const listaEnElHecho = juzga(
-    JUICIO_NINGUNO,
+  const listInFact = judges(
+    JUDGMENT_NONE,
     [
-      evento('generic_account_login', {
+      event('generic_account_login', {
         usuario: ['jgomez', 'guest'],
       }),
     ],
-    configuracion('P-04', ['admin', 'guest'])
+    configuration('P-04', ['admin', 'guest'])
   );
 
-  comprueba(
-    'un campo con varios valores cuenta como varios hechos',
-    listaEnElHecho.status === 'NO_CUMPLE' &&
-      motivos(listaEnElHecho).includes("'guest'"),
-    motivos(listaEnElHecho)
+  check(
+    'a field with several values counts as several facts',
+    listInFact.status === 'NO_CUMPLE' &&
+      motives(listInFact).includes("'guest'"),
+    motives(listInFact)
   );
 }
 
-// --- hechos ilegibles ------------------------------------------------------
-
-bloque('Hechos ilegibles');
+section('Unreadable facts');
 
 {
-  const sinCampo = juzga(
-    JUICIO_NINGUNO,
-    [evento('generic_account_login', { otro_campo: 'x' })],
-    configuracion('P-04', ['admin'])
+  const withoutField = judges(
+    JUDGMENT_NONE,
+    [event('generic_account_login', { otro_campo: 'x' })],
+    configuration('P-04', ['admin'])
   );
 
-  comprueba(
-    'evento de hecho sin el campo · NO_EVALUABLE, no CUMPLE',
-    sinCampo.status === 'NO_EVALUABLE',
-    sinCampo.status
+  check(
+    'fact event without the field · NO_EVALUABLE, not CUMPLE',
+    withoutField.status === 'NO_EVALUABLE',
+    withoutField.status
   );
 
-  const mezcla = juzga(
-    JUICIO_NINGUNO,
+  const mix = judges(
+    JUDGMENT_NONE,
     [
-      evento('generic_account_login', { usuario: 'jgomez' }),
-      evento('generic_account_login', { otro_campo: 'x' }),
+      event('generic_account_login', { usuario: 'jgomez' }),
+      event('generic_account_login', { otro_campo: 'x' }),
     ],
-    configuracion('P-04', ['admin'])
+    configuration('P-04', ['admin'])
   );
 
-  comprueba(
-    'hecho legible sin incumplir + hecho ilegible · NO_EVALUABLE, lo observado está incompleto',
-    mezcla.status === 'NO_EVALUABLE',
-    mezcla.status
+  check(
+    'readable non-breaching fact + unreadable fact · NO_EVALUABLE, what was observed is incomplete',
+    mix.status === 'NO_EVALUABLE',
+    mix.status
   );
 
-  const sintetico = juzga(
-    JUICIO_NINGUNO,
+  const synthetic = judges(
+    JUDGMENT_NONE,
     [
-      evento(
+      event(
         'generic_account_login',
         { usuario: 'admin' },
         { isSynthetic: true }
       ),
     ],
-    configuracion('P-04', ['admin']),
+    configuration('P-04', ['admin']),
     { qualityRequirements: { rejectSynthetic: true } }
   );
 
-  comprueba(
-    'evento sintético con rejectSynthetic · no produce NO_CUMPLE',
-    sintetico.status === 'NO_EVALUABLE',
-    sintetico.status
+  check(
+    'synthetic event with rejectSynthetic · produces no NO_CUMPLE',
+    synthetic.status === 'NO_EVALUABLE',
+    synthetic.status
   );
 }
 
-// --- cobertura del recolector (T1.3) ---------------------------------------
-//
-// Aquí se decide si el producto miente: sin resolver la cobertura, «cero
-// hechos» es indistinguible de «agente apagado».
-
-bloque('Cobertura del recolector (T1.3)');
+section('Collector coverage (T1.3)');
 
 {
-  const AHORA = new Date(
+  const NOW = new Date(
     '2026-07-30T12:00:00Z'
   );
 
-  // Latido tal como lo emite ens_opacc1_collect.sh: `resultado` y la lista
-  // blanca `evidencias_cubiertas`.
-  const latido = (
+  const heartbeat = (
     attributes: Record<string, unknown>,
     timestamp: string = '2026-07-30T11:30:00Z'
   ): ENSNormalizedEvent =>
-    evento(
+    event(
       'collector_run',
       attributes,
       { timestamp }
     );
 
-  const latidoSano = () =>
-    latido({
+  const healthyHeartbeat = () =>
+    heartbeat({
       resultado: 'completada',
       evidencias_cubiertas:
         'EV-XX,EV-05,EV-06',
     });
 
-  const cobertura = (
-    eventos: ENSNormalizedEvent[]
+  const coverage = (
+    events: ENSNormalizedEvent[]
   ) =>
     resolveCollectorCoverage(
-      definicion(JUICIO_NINGUNO),
-      JUICIO_NINGUNO,
-      eventos,
-      AHORA
+      catalogDefinition(JUDGMENT_NONE),
+      JUDGMENT_NONE,
+      events,
+      NOW
     );
 
-  comprueba(
-    'sin ningún collector_run · DESCONOCIDA',
-    cobertura([]).coverage === 'DESCONOCIDA',
-    cobertura([]).coverage
+  check(
+    'without any collector_run · DESCONOCIDA',
+    coverage([]).coverage === 'DESCONOCIDA',
+    coverage([]).coverage
   );
 
-  comprueba(
-    'latido correcto que declara la evidencia · CONFIRMADA',
-    cobertura([latidoSano()]).coverage ===
+  check(
+    'correct heartbeat declaring the evidence · CONFIRMADA',
+    coverage([healthyHeartbeat()]).coverage ===
       'CONFIRMADA',
-    cobertura([latidoSano()]).reason
+    coverage([healthyHeartbeat()]).reason
   );
 
-  const conFallo = cobertura([
-    latido({
+  const withFailure = coverage([
+    heartbeat({
       resultado: 'sin_evidencias',
       evidencias_cubiertas: 'EV-XX',
     }),
   ]);
 
-  comprueba(
-    'latido que declara fallo · AUSENTE',
-    conFallo.coverage === 'AUSENTE',
-    conFallo.reason
+  check(
+    'heartbeat declaring failure · AUSENTE',
+    withFailure.coverage === 'AUSENTE',
+    withFailure.reason
   );
 
-  const noCubierta = cobertura([
-    latido({
+  const notCovered = coverage([
+    heartbeat({
       resultado: 'completada',
       evidencias_cubiertas: 'EV-05,EV-06',
     }),
   ]);
 
-  comprueba(
-    'latido correcto que NO declara esta evidencia · AUSENTE',
-    noCubierta.coverage === 'AUSENTE',
-    noCubierta.reason
+  check(
+    'correct heartbeat that does NOT declare this evidence · AUSENTE',
+    notCovered.coverage === 'AUSENTE',
+    notCovered.reason
   );
 
-  comprueba(
-    'latido correcto que no declara esta evidencia · el motivo lo explica',
-    noCubierta.reason.includes('EV-XX'),
-    noCubierta.reason
+  check(
+    'correct heartbeat that does not declare this evidence · the motive explains it',
+    notCovered.reason.includes('EV-XX'),
+    notCovered.reason
   );
 
-  const sinCampoCobertura = cobertura([
-    latido({ resultado: 'completada' }),
+  const withoutCoverageField = coverage([
+    heartbeat({ resultado: 'completada' }),
   ]);
 
-  comprueba(
-    'latido de un agente anterior al contrato (sin evidencias_cubiertas) · DESCONOCIDA',
-    sinCampoCobertura.coverage ===
+  check(
+    'heartbeat from an agent predating the contract (without evidencias_cubiertas) · DESCONOCIDA',
+    withoutCoverageField.coverage ===
       'DESCONOCIDA',
-    sinCampoCobertura.reason
+    withoutCoverageField.reason
   );
 
-  const sinResultado = cobertura([
-    latido({
+  const withoutResult = coverage([
+    heartbeat({
       evidencias_cubiertas: 'EV-XX',
     }),
   ]);
 
-  comprueba(
-    'latido que no declara resultado · DESCONOCIDA, CONFIRMADA hay que ganársela',
-    sinResultado.coverage === 'DESCONOCIDA',
-    sinResultado.reason
+  check(
+    'heartbeat that declares no result · DESCONOCIDA, CONFIRMADA has to be earned',
+    withoutResult.coverage === 'DESCONOCIDA',
+    withoutResult.reason
   );
 
-  // --- las dos cotas de la ventana ---
-  const demasiadoViejo = cobertura([
-    latido(
+  const tooOld = coverage([
+    heartbeat(
       {
         resultado: 'completada',
         evidencias_cubiertas: 'EV-XX',
@@ -744,19 +702,15 @@ bloque('Cobertura del recolector (T1.3)');
     ),
   ]);
 
-  comprueba(
-    'cota inferior · un latido de hace dos días no cubre la ventana',
-    demasiadoViejo.coverage ===
+  check(
+    'lower bound · a two-day-old heartbeat does not cover the window',
+    tooOld.coverage ===
       'DESCONOCIDA',
-    demasiadoViejo.reason
+    tooOld.reason
   );
 
-  // El fallo real que ya apareció en revisión de este producto: sin cota
-  // superior, un ts absurdo en el futuro valdría como latido perpetuo y
-  // dejaría en verde para siempre cualquier aserción negativa aunque el
-  // agente llevara meses apagado.
-  const enElFuturo = cobertura([
-    latido(
+  const inFuture = coverage([
+    heartbeat(
       {
         resultado: 'completada',
         evidencias_cubiertas: 'EV-XX',
@@ -765,22 +719,20 @@ bloque('Cobertura del recolector (T1.3)');
     ),
   ]);
 
-  comprueba(
-    'cota superior · un latido fechado en 2099 NO vale como latido perpetuo',
-    enElFuturo.coverage === 'DESCONOCIDA',
-    `${enElFuturo.coverage} — ${enElFuturo.reason}`
+  check(
+    'upper bound · a heartbeat dated 2099 is NOT valid as a perpetual heartbeat',
+    inFuture.coverage === 'DESCONOCIDA',
+    `${inFuture.coverage} — ${inFuture.reason}`
   );
 
-  comprueba(
-    'cota superior · el motivo nombra la fecha futura, no calla el descarte',
-    enElFuturo.reason.includes('2099'),
-    enElFuturo.reason
+  check(
+    'upper bound · the motive names the future date, it does not silently discard',
+    inFuture.reason.includes('2099'),
+    inFuture.reason
   );
 
-  // Tolerancia de reloj: unos minutos de desfase entre máquinas son normales
-  // y no pueden tumbar la cobertura.
-  const desfaseLeve = cobertura([
-    latido(
+  const slightSkew = coverage([
+    heartbeat(
       {
         resultado: 'completada',
         evidencias_cubiertas: 'EV-XX',
@@ -789,61 +741,60 @@ bloque('Cobertura del recolector (T1.3)');
     ),
   ]);
 
-  comprueba(
-    'cota superior · dos minutos de desfase de reloj siguen siendo cobertura',
-    desfaseLeve.coverage === 'CONFIRMADA',
-    desfaseLeve.reason
+  check(
+    'upper bound · two minutes of clock skew are still coverage',
+    slightSkew.coverage === 'CONFIRMADA',
+    slightSkew.reason
   );
 
-  // --- el efecto sobre el veredicto ---
-  const verde = juzga(
-    JUICIO_NINGUNO,
-    [latidoSano()],
-    configuracion('P-04', ['admin']),
+  const green = judges(
+    JUDGMENT_NONE,
+    [healthyHeartbeat()],
+    configuration('P-04', ['admin']),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'NINGUNO_EN_LISTA · cobertura CONFIRMADA y cero hechos · CUMPLE',
-    verde.status === 'CUMPLE',
-    `${verde.status} — ${motivos(verde)}`
+  check(
+    'NINGUNO_EN_LISTA · coverage CONFIRMADA and zero facts · CUMPLE',
+    green.status === 'CUMPLE',
+    `${green.status} — ${motives(green)}`
   );
 
-  comprueba(
-    'CUMPLE por ausencia · el motivo dice sobre qué latido se sostiene',
-    motivos(verde).includes(
+  check(
+    'CUMPLE by absence · the motive says which heartbeat it rests on',
+    motives(green).includes(
       'Cobertura del recolector: CONFIRMADA'
     ),
-    motivos(verde)
+    motives(green)
   );
 
-  const gris = juzga(
-    JUICIO_NINGUNO,
+  const gris = judges(
+    JUDGMENT_NONE,
     [],
-    configuracion('P-04', ['admin']),
+    configuration('P-04', ['admin']),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'NINGUNO_EN_LISTA · sin latido y cero hechos · sigue NO_EVALUABLE',
+  check(
+    'NINGUNO_EN_LISTA · no heartbeat and zero facts · still NO_EVALUABLE',
     gris.status === 'NO_EVALUABLE',
     gris.status
   );
 
-  comprueba(
-    'el motivo de «parámetro sin hechos» declara la cobertura del recolector',
-    motivos(gris).includes(
+  check(
+    'the «parámetro sin hechos» motive declares the collector\'s coverage',
+    motives(gris).includes(
       'Cobertura del recolector: DESCONOCIDA'
     ),
-    motivos(gris)
+    motives(gris)
   );
 
-  const grisFuturo = juzga(
-    JUICIO_NINGUNO,
+  const greyFuture = judges(
+    JUDGMENT_NONE,
     [
-      latido(
+      heartbeat(
         {
           resultado: 'completada',
           evidencias_cubiertas: 'EV-XX',
@@ -851,99 +802,92 @@ bloque('Cobertura del recolector (T1.3)');
         '2099-01-01T00:00:00Z'
       ),
     ],
-    configuracion('P-04', ['admin']),
+    configuration('P-04', ['admin']),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'un latido del futuro NO convierte la ausencia de hechos en CUMPLE',
-    grisFuturo.status === 'NO_EVALUABLE',
-    `${grisFuturo.status} — ${motivos(grisFuturo)}`
+  check(
+    'a heartbeat from the future does NOT turn the absence of facts into CUMPLE',
+    greyFuture.status === 'NO_EVALUABLE',
+    `${greyFuture.status} — ${motives(greyFuture)}`
   );
 
-  // Solo la aserción negativa se cumple por ausencia. Una afirmación positiva
-  // sobre un sistema del que no se ha observado nada no se acredita ni con la
-  // cobertura confirmada: cero copias observadas no es «las copias se hacen».
-  const todosSinHechos = juzga(
-    JUICIO_TODOS,
-    [latidoSano()],
-    configuracion('P-04', ['jgomez']),
+  const allWithoutFacts = judges(
+    JUDGMENT_ALL,
+    [healthyHeartbeat()],
+    configuration('P-04', ['jgomez']),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'TODOS_EN_LISTA · cobertura CONFIRMADA y cero hechos · NO_EVALUABLE, no CUMPLE',
-    todosSinHechos.status === 'NO_EVALUABLE',
-    `${todosSinHechos.status} — ${motivos(todosSinHechos)}`
+  check(
+    'TODOS_EN_LISTA · coverage CONFIRMADA and zero facts · NO_EVALUABLE, not CUMPLE',
+    allWithoutFacts.status === 'NO_EVALUABLE',
+    `${allWithoutFacts.status} — ${motives(allWithoutFacts)}`
   );
 
-  const umbralSinHechos = juzga(
-    JUICIO_UMBRAL,
-    [latidoSano()],
-    configuracion(
+  const thresholdWithoutFacts = judges(
+    JUDGMENT_THRESHOLD,
+    [healthyHeartbeat()],
+    configuration(
       'P-05',
       7,
       'plazo_max_deshabilitar_dias'
     ),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'UMBRAL_MAXIMO · cobertura CONFIRMADA y cero hechos · NO_EVALUABLE, no CUMPLE',
-    umbralSinHechos.status === 'NO_EVALUABLE',
-    `${umbralSinHechos.status} — ${motivos(umbralSinHechos)}`
+  check(
+    'UMBRAL_MAXIMO · coverage CONFIRMADA and zero facts · NO_EVALUABLE, not CUMPLE',
+    thresholdWithoutFacts.status === 'NO_EVALUABLE',
+    `${thresholdWithoutFacts.status} — ${motives(thresholdWithoutFacts)}`
   );
 
-  // Con cobertura confirmada pero eventos de hecho ilegibles, lo observado no
-  // está vacío: está incompleto. No cabe CUMPLE.
-  const cubiertaConIlegible = juzga(
-    JUICIO_NINGUNO,
+  const coveredWithUnreadable = judges(
+    JUDGMENT_NONE,
     [
-      latidoSano(),
-      evento('generic_account_login', {
+      healthyHeartbeat(),
+      event('generic_account_login', {
         otro_campo: 'x',
       }),
     ],
-    configuracion('P-04', ['admin']),
+    configuration('P-04', ['admin']),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'cobertura CONFIRMADA + hechos ilegibles · NO_EVALUABLE, lo observado está incompleto',
-    cubiertaConIlegible.status ===
+  check(
+    'coverage CONFIRMADA + unreadable facts · NO_EVALUABLE, what was observed is incomplete',
+    coveredWithUnreadable.status ===
       'NO_EVALUABLE',
-    `${cubiertaConIlegible.status} — ${motivos(cubiertaConIlegible)}`
+    `${coveredWithUnreadable.status} — ${motives(coveredWithUnreadable)}`
   );
 }
 
-// --- integración con resolveEvidenceForControl -----------------------------
-
-bloque('Integración con el motor');
+section('Integration with the engine');
 
 {
-  const definiciones = getEvidenceDefinitions('op.acc.1');
+  const definitions = getEvidenceDefinitions('op.acc.1');
 
-  const ev03 = definiciones.find(
-    candidato => candidato.id === 'EV-03'
+  const ev03 = definitions.find(
+    candidate => candidate.id === 'EV-03'
   );
 
   if (!ev03) {
-    comprueba('EV-03 de op.acc.1 existe en el catálogo', false);
+    check('op.acc.1 EV-03 exists in the catalog', false);
   } else {
-    comprueba(
-      'EV-03 de op.acc.1 declara judgment en el catálogo (T1.3)',
+    check(
+      'op.acc.1 EV-03 declares judgment in the catalog (T1.3)',
       ev03.judgment?.primitive ===
         'NINGUNO_EN_LISTA' &&
         ev03.judgment?.parameterId === 'P-04',
       JSON.stringify(ev03.judgment)
     );
 
-    comprueba(
-      'EV-03 apunta al hecho crudo que emite el agente',
+    check(
+      'EV-03 points to the raw fact the agent emits',
       Boolean(
         ev03.judgment?.factEventTypes.includes(
           'account_authenticated'
@@ -953,10 +897,8 @@ bloque('Integración con el motor');
       JSON.stringify(ev03.judgment)
     );
 
-    // El evidence_state del agente sigue llegando desde despliegues a medias:
-    // tiene que quedar claro que ya no manda.
-    const eventos: ENSNormalizedEvent[] = [
-      evento(
+    const events: ENSNormalizedEvent[] = [
+      event(
         'evidence_state',
         {},
         {
@@ -965,58 +907,55 @@ bloque('Integración con el motor');
           timestamp: '2026-07-30T11:00:00Z',
         }
       ),
-      evento('account_authenticated', {
+      event('account_authenticated', {
         usuario: 'admin',
       }),
     ];
 
-    const juzgado = resolveEvidenceForControl(
+    const judged = resolveEvidenceForControl(
       'op.acc.1',
-      eventos,
+      events,
       undefined,
       'ALTO',
-      configuracion('P-04', ['admin', 'guest'])
-    ).find(evidencia => evidencia.id === 'EV-03');
+      configuration('P-04', ['admin', 'guest'])
+    ).find(evidence => evidence.id === 'EV-03');
 
-    comprueba(
-      'el evidence_state CUMPLE del agente ya no manda sobre EV-03',
-      juzgado?.status === 'NO_CUMPLE',
-      String(juzgado?.status)
+    check(
+      'the agent\'s evidence_state CUMPLE no longer overrides EV-03',
+      judged?.status === 'NO_CUMPLE',
+      String(judged?.status)
     );
 
-    comprueba(
-      'el motivo nombra la cuenta concreta del hecho crudo',
-      Boolean(juzgado && motivos(juzgado).includes("'admin'")),
-      juzgado ? motivos(juzgado) : ''
+    check(
+      'the motive names the specific account of the raw fact',
+      Boolean(judged && motives(judged).includes("'admin'")),
+      judged ? motives(judged) : ''
     );
 
-    comprueba(
-      'la trazabilidad apunta al evento del hecho crudo, no al evidence_state',
-      juzgado?.resolvedEventType ===
+    check(
+      'traceability points to the raw fact\'s event, not to the evidence_state',
+      judged?.resolvedEventType ===
         'account_authenticated',
-      String(juzgado?.resolvedEventType)
+      String(judged?.resolvedEventType)
     );
 
-    const sinConfiguracion = resolveEvidenceForControl(
+    const withoutConfiguration = resolveEvidenceForControl(
       'op.acc.1',
-      eventos,
+      events,
       undefined,
       'ALTO'
-    ).find(evidencia => evidencia.id === 'EV-03');
+    ).find(evidence => evidence.id === 'EV-03');
 
-    comprueba(
-      'sin configuración · NO_EVALUABLE, ni siquiera con el evidence_state CUMPLE delante',
-      sinConfiguracion?.status === 'NO_EVALUABLE',
-      String(sinConfiguracion?.status)
+    check(
+      'without configuration · NO_EVALUABLE, even with the evidence_state CUMPLE in front',
+      withoutConfiguration?.status === 'NO_EVALUABLE',
+      String(withoutConfiguration?.status)
     );
 
-    // Migración: un agente sin actualizar sigue emitiendo los nombres viejos, y
-    // su `usuario` sigue siendo un hecho utilizable. Lo que se descarta es su
-    // `estado`, no el dato.
-    const legado = resolveEvidenceForControl(
+    const legacy = resolveEvidenceForControl(
       'op.acc.1',
       [
-        evento(
+        event(
           'auth_success',
           { usuario: 'guest' },
           { status: 'CUMPLE' }
@@ -1024,49 +963,41 @@ bloque('Integración con el motor');
       ],
       undefined,
       'ALTO',
-      configuracion('P-04', ['admin', 'guest'])
-    ).find(evidencia => evidencia.id === 'EV-03');
+      configuration('P-04', ['admin', 'guest'])
+    ).find(evidence => evidence.id === 'EV-03');
 
-    comprueba(
-      "un 'auth_success' de agente viejo se re-juzga con el P-04 de hoy (decía CUMPLE)",
-      legado?.status === 'NO_CUMPLE',
-      String(legado?.status)
+    check(
+      "an old agent's 'auth_success' is re-judged with today's P-04 (it said CUMPLE)",
+      legacy?.status === 'NO_CUMPLE',
+      String(legacy?.status)
     );
   }
 }
 
-// --- prueba de aceptación de la fase ---------------------------------------
-//
-// «Cambiar P-04 en la pantalla de Configuración cambia el veredicto de EV-03
-// SIN TOCAR EL AGENTE.» Los eventos son literalmente el mismo objeto en las dos
-// evaluaciones: lo único distinto es el valor del parámetro.
-
-bloque('Aceptación · P-04 manda sobre EV-03 sin tocar el agente');
+section('Acceptance · P-04 prevails over EV-03 without touching the agent');
 
 {
-  // Lo que emite hoy fake/ens_opacc1_fake.sh en los escenarios cumple, mixto y
-  // no_evaluable, tal cual.
-  const HECHO_DEL_AGENTE: ENSNormalizedEvent[] = [
-    evento('account_authenticated', {
+  const AGENT_FACT: ENSNormalizedEvent[] = [
+    event('account_authenticated', {
       usuario: 'jgomez',
       origen: '10.0.0.12',
     }),
   ];
 
-  const veredicto = (
+  const verdict = (
     p04: string[]
   ): ENSEvidenceResolved | undefined =>
     resolveEvidenceForControl(
       'op.acc.1',
-      HECHO_DEL_AGENTE,
+      AGENT_FACT,
       undefined,
       'ALTO',
-      configuracion('P-04', p04)
+      configuration('P-04', p04)
     ).find(
-      evidencia => evidencia.id === 'EV-03'
+      evidence => evidence.id === 'EV-03'
     );
 
-  const conPorDefecto = veredicto([
+  const withDefault = verdict([
     'admin',
     'administrador',
     'guest',
@@ -1075,57 +1006,54 @@ bloque('Aceptación · P-04 manda sobre EV-03 sin tocar el agente');
     'usuario1',
   ]);
 
-  const conJgomezProhibido = veredicto([
+  const withJgomezForbidden = verdict([
     'admin',
     'jgomez',
   ]);
 
-  comprueba(
-    'P-04 por defecto · jgomez no está en la lista · CUMPLE',
-    conPorDefecto?.status === 'CUMPLE',
-    `${conPorDefecto?.status} — ${conPorDefecto ? motivos(conPorDefecto) : ''}`
+  check(
+    'default P-04 · jgomez is not in the list · CUMPLE',
+    withDefault?.status === 'CUMPLE',
+    `${withDefault?.status} — ${withDefault ? motives(withDefault) : ''}`
   );
 
-  comprueba(
-    'se añade jgomez a P-04 · MISMO evento del agente · pasa a NO_CUMPLE',
-    conJgomezProhibido?.status === 'NO_CUMPLE',
-    `${conJgomezProhibido?.status} — ${conJgomezProhibido ? motivos(conJgomezProhibido) : ''}`
+  check(
+    'jgomez added to P-04 · SAME agent event · becomes NO_CUMPLE',
+    withJgomezForbidden?.status === 'NO_CUMPLE',
+    `${withJgomezForbidden?.status} — ${withJgomezForbidden ? motives(withJgomezForbidden) : ''}`
   );
 
-  comprueba(
-    'el motivo del NO_CUMPLE nombra la cuenta, no dice «algo falló»',
+  check(
+    'the NO_CUMPLE motive names the account, it does not say «algo falló»',
     Boolean(
-      conJgomezProhibido &&
-        motivos(
-          conJgomezProhibido
+      withJgomezForbidden &&
+        motives(
+          withJgomezForbidden
         ).includes("'jgomez'")
     ),
-    conJgomezProhibido
-      ? motivos(conJgomezProhibido)
+    withJgomezForbidden
+      ? motives(withJgomezForbidden)
       : ''
   );
 
-  // Y se quita otra vez: el veredicto vuelve. Verificación por reversión sobre
-  // el propio parámetro.
-  comprueba(
-    'se quita jgomez de P-04 · el veredicto vuelve a CUMPLE',
-    veredicto(['admin', 'guest'])?.status ===
+  check(
+    'jgomez removed from P-04 · the verdict goes back to CUMPLE',
+    verdict(['admin', 'guest'])?.status ===
       'CUMPLE',
-    String(veredicto(['admin', 'guest'])?.status)
+    String(verdict(['admin', 'guest'])?.status)
   );
 
-  // El escenario `incumple` del simulador, con el mismo P-04 por defecto.
-  const escenarioIncumple = resolveEvidenceForControl(
+  const breachScenario = resolveEvidenceForControl(
     'op.acc.1',
     [
-      evento('account_authenticated', {
+      event('account_authenticated', {
         usuario: 'admin',
         origen: '10.0.0.55',
       }),
     ],
     undefined,
     'ALTO',
-    configuracion('P-04', [
+    configuration('P-04', [
       'admin',
       'administrador',
       'guest',
@@ -1133,54 +1061,45 @@ bloque('Aceptación · P-04 manda sobre EV-03 sin tocar el agente');
       'temp',
       'usuario1',
     ])
-  ).find(evidencia => evidencia.id === 'EV-03');
+  ).find(evidence => evidence.id === 'EV-03');
 
-  comprueba(
-    'escenario `incumple` del simulador · NO_CUMPLE con el P-04 por defecto',
-    escenarioIncumple?.status === 'NO_CUMPLE',
-    String(escenarioIncumple?.status)
+  check(
+    'simulator scenario `incumple` · NO_CUMPLE with the default P-04',
+    breachScenario?.status === 'NO_CUMPLE',
+    String(breachScenario?.status)
   );
 }
 
-// --- NINGUNO_FUERA_DE_LISTA ------------------------------------------------
-//
-// Comparte la comparación EXACTA con TODOS_EN_LISTA. Lo único que cambia es qué
-// pasa con el conjunto vacío, y eso es lo que hay que demostrar: si las dos se
-// comportaran igual también sin hechos, una de las dos sobraría.
-
-bloque('NINGUNO_FUERA_DE_LISTA');
+section('NINGUNO_FUERA_DE_LISTA');
 
 {
-  const AHORA = new Date('2026-08-05T12:00:00Z');
+  const NOW = new Date('2026-08-05T12:00:00Z');
 
-  const JUICIO_BARRIDO: ENSEvidenceJudgment = {
+  const JUDGMENT_SWEEP: ENSEvidenceJudgment = {
     primitive: 'NINGUNO_FUERA_DE_LISTA',
     parameterId: 'P-10',
     factEventTypes: ['suid_sgid'],
     factField: 'ruta',
   };
 
-  // La misma lista y los mismos hechos para las dos primitivas: lo único que se
-  // mueve entre las dos columnas de esta comparación es el nombre de la
-  // primitiva.
-  const JUICIO_ACREDITA: ENSEvidenceJudgment = {
-    ...JUICIO_BARRIDO,
+  const JUDGMENT_ACCREDITS: ENSEvidenceJudgment = {
+    ...JUDGMENT_SWEEP,
     primitive: 'TODOS_EN_LISTA',
   };
 
   const BASE_SUID = config(
-    parametro({
+    parameter({
       id: 'P-10',
       name: 'suid_autorizados',
       value: ['/usr/bin/sudo', '/usr/bin/passwd'],
     })
   );
 
-  const hallazgo = (ruta: string) => [
-    evento('suid_sgid', { ruta }),
+  const finding = (ruta: string) => [
+    event('suid_sgid', { ruta }),
   ];
 
-  const latidoBarrido = evento(
+  const sweepHeartbeat = event(
     'collector_run',
     {
       resultado: 'completada',
@@ -1189,222 +1108,207 @@ bloque('NINGUNO_FUERA_DE_LISTA');
     { timestamp: '2026-08-05T11:30:00Z' }
   );
 
-  const dentro = juzga(
-    JUICIO_BARRIDO,
-    hallazgo('/usr/bin/sudo'),
+  const inside = judges(
+    JUDGMENT_SWEEP,
+    finding('/usr/bin/sudo'),
     BASE_SUID
   );
 
-  comprueba(
-    'hallazgo en la línea base · CUMPLE',
-    dentro.status === 'CUMPLE',
-    `${dentro.status} — ${motivos(dentro)}`
+  check(
+    'finding in the baseline · CUMPLE',
+    inside.status === 'CUMPLE',
+    `${inside.status} — ${motives(inside)}`
   );
 
-  const fuera = juzga(
-    JUICIO_BARRIDO,
-    hallazgo('/tmp/puerta-trasera'),
+  const outside = judges(
+    JUDGMENT_SWEEP,
+    finding('/tmp/puerta-trasera'),
     BASE_SUID
   );
 
-  comprueba(
-    'hallazgo fuera de la línea base · NO_CUMPLE',
-    fuera.status === 'NO_CUMPLE',
-    fuera.status
+  check(
+    'finding outside the baseline · NO_CUMPLE',
+    outside.status === 'NO_CUMPLE',
+    outside.status
   );
 
-  comprueba(
-    'el motivo nombra el binario concreto, no dice «hay hallazgos»',
-    motivos(fuera).includes(
+  check(
+    'the motive names the specific binary, it does not say «hay hallazgos»',
+    motives(outside).includes(
       "'/tmp/puerta-trasera'"
     ),
-    motivos(fuera)
+    motives(outside)
   );
 
-  // --- el eje que separa las dos primitivas ---
-  //
-  // Con hechos, las dos tienen que coincidir SIEMPRE; sin hechos, tienen que
-  // discrepar. Cualquier otra cosa significa que una de las dos no hace lo que
-  // dice su nombre.
-  comprueba(
-    'con hechos · NINGUNO_FUERA_DE_LISTA y TODOS_EN_LISTA coinciden (cumpliendo)',
-    juzga(
-      JUICIO_ACREDITA,
-      hallazgo('/usr/bin/sudo'),
+  check(
+    'with facts · NINGUNO_FUERA_DE_LISTA and TODOS_EN_LISTA agree (complying)',
+    judges(
+      JUDGMENT_ACCREDITS,
+      finding('/usr/bin/sudo'),
       BASE_SUID
-    ).status === dentro.status,
-    dentro.status
+    ).status === inside.status,
+    inside.status
   );
 
-  comprueba(
-    'con hechos · NINGUNO_FUERA_DE_LISTA y TODOS_EN_LISTA coinciden (incumpliendo)',
-    juzga(
-      JUICIO_ACREDITA,
-      hallazgo('/tmp/puerta-trasera'),
+  check(
+    'with facts · NINGUNO_FUERA_DE_LISTA and TODOS_EN_LISTA agree (breaching)',
+    judges(
+      JUDGMENT_ACCREDITS,
+      finding('/tmp/puerta-trasera'),
       BASE_SUID
-    ).status === fuera.status,
-    fuera.status
+    ).status === outside.status,
+    outside.status
   );
 
-  const barridoLimpio = juzga(
-    JUICIO_BARRIDO,
-    [latidoBarrido],
+  const cleanSweep = judges(
+    JUDGMENT_SWEEP,
+    [sweepHeartbeat],
     BASE_SUID,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'barrido sin hallazgos y cobertura CONFIRMADA · CUMPLE',
-    barridoLimpio.status === 'CUMPLE',
-    `${barridoLimpio.status} — ${motivos(barridoLimpio)}`
+  check(
+    'sweep without findings and coverage CONFIRMADA · CUMPLE',
+    cleanSweep.status === 'CUMPLE',
+    `${cleanSweep.status} — ${motives(cleanSweep)}`
   );
 
-  comprueba(
-    'el motivo del barrido limpio dice que se barrió, no que se «miró la lista»',
-    motivos(barridoLimpio).includes(
+  check(
+    'the clean-sweep motive says it was swept, not that the list was «looked at»',
+    motives(cleanSweep).includes(
       'el recolector barrió'
     ),
-    motivos(barridoLimpio)
+    motives(cleanSweep)
   );
 
-  const acreditaSinHechos = juzga(
-    JUICIO_ACREDITA,
-    [latidoBarrido],
+  const accreditsWithoutFacts = judges(
+    JUDGMENT_ACCREDITS,
+    [sweepHeartbeat],
     BASE_SUID,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'MISMO caso con TODOS_EN_LISTA · NO_EVALUABLE (ahí sí discrepan)',
-    acreditaSinHechos.status === 'NO_EVALUABLE',
-    `${acreditaSinHechos.status} — ${motivos(acreditaSinHechos)}`
+  check(
+    'SAME case with TODOS_EN_LISTA · NO_EVALUABLE (there they do differ)',
+    accreditsWithoutFacts.status === 'NO_EVALUABLE',
+    `${accreditsWithoutFacts.status} — ${motives(accreditsWithoutFacts)}`
   );
 
-  // Sin latido, ni siquiera el barrido cumple: cero hallazgos y agente apagado
-  // son indistinguibles.
-  const barridoSinLatido = juzga(
-    JUICIO_BARRIDO,
+  const sweepWithoutHeartbeat = judges(
+    JUDGMENT_SWEEP,
     [],
     BASE_SUID,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'barrido sin hallazgos y SIN latido · NO_EVALUABLE, no el falso verde',
-    barridoSinLatido.status === 'NO_EVALUABLE',
-    barridoSinLatido.status
+  check(
+    'sweep without findings and WITHOUT heartbeat · NO_EVALUABLE, not the false green',
+    sweepWithoutHeartbeat.status === 'NO_EVALUABLE',
+    sweepWithoutHeartbeat.status
   );
 
-  const barridoSinParametro = juzga(
-    JUICIO_BARRIDO,
-    hallazgo('/usr/bin/sudo'),
+  const sweepWithoutParameter = judges(
+    JUDGMENT_SWEEP,
+    finding('/usr/bin/sudo'),
     undefined
   );
 
-  comprueba(
-    'hallazgo sin parámetro · NO_EVALUABLE',
-    barridoSinParametro.status ===
+  check(
+    'finding without parameter · NO_EVALUABLE',
+    sweepWithoutParameter.status ===
       'NO_EVALUABLE',
-    barridoSinParametro.status
+    sweepWithoutParameter.status
   );
 
-  const barridoNiNi = juzga(
-    JUICIO_BARRIDO,
+  const sweepNeither = judges(
+    JUDGMENT_SWEEP,
     [],
     undefined
   );
 
-  comprueba(
-    'ni hallazgo ni parámetro · NO_EVALUABLE',
-    barridoNiNi.status === 'NO_EVALUABLE',
-    barridoNiNi.status
+  check(
+    'neither finding nor parameter · NO_EVALUABLE',
+    sweepNeither.status === 'NO_EVALUABLE',
+    sweepNeither.status
   );
 }
 
-// --- mayúsculas: en qué dirección se equivoca el motor ----------------------
-
-bloque(
-  'Mayúsculas · lista prohibida frente a lista autorizada'
+section(
+  'Case · forbidden list versus authorized list'
 );
 
 {
-  const JUICIO_AUTORIZADOS: ENSEvidenceJudgment = {
+  const JUDGMENT_AUTHORIZED: ENSEvidenceJudgment = {
     primitive: 'TODOS_EN_LISTA',
     parameterId: 'P-07',
     factEventTypes: ['account_active'],
     factField: 'usuario',
   };
 
-  const LISTA = config(
-    parametro({
+  const LIST = config(
+    parameter({
       id: 'P-07',
       name: 'lista_usuarios_autorizados',
       value: ['jgomez'],
     })
   );
 
-  const exacto = juzga(
-    JUICIO_AUTORIZADOS,
-    [evento('account_active', { usuario: 'jgomez' })],
-    LISTA
+  const exact = judges(
+    JUDGMENT_AUTHORIZED,
+    [event('account_active', { usuario: 'jgomez' })],
+    LIST
   );
 
-  comprueba(
-    'lista autorizada · el nombre exacto CUMPLE',
-    exacto.status === 'CUMPLE',
-    exacto.status
+  check(
+    'authorized list · the exact name CUMPLE',
+    exact.status === 'CUMPLE',
+    exact.status
   );
 
-  // Control negativo por reversión sobre UN solo eje: la misma lista, el mismo
-  // parámetro, el mismo tipo de evento; solo cambia la caja del nombre.
-  const otraCaja = juzga(
-    JUICIO_AUTORIZADOS,
-    [evento('account_active', { usuario: 'Jgomez' })],
-    LISTA
+  const otherCase = judges(
+    JUDGMENT_AUTHORIZED,
+    [event('account_active', { usuario: 'Jgomez' })],
+    LIST
   );
 
-  comprueba(
-    "lista autorizada · 'Jgomez' NO pasa por el 'jgomez' autorizado",
-    otraCaja.status === 'NO_CUMPLE',
-    `${otraCaja.status} — ${motivos(otraCaja)}`
+  check(
+    "authorized list · 'Jgomez' does NOT pass for the authorized 'jgomez'",
+    otherCase.status === 'NO_CUMPLE',
+    `${otherCase.status} — ${motives(otherCase)}`
   );
 
-  // Y en la dirección contraria la regla es la opuesta, a propósito: en una
-  // lista PROHIBIDA equivocarse produce un NO_CUMPLE de más, nunca un verde.
-  const prohibidaOtraCaja = juzga(
-    JUICIO_NINGUNO,
+  const forbiddenOtherCase = judges(
+    JUDGMENT_NONE,
     [
-      evento('generic_account_login', {
+      event('generic_account_login', {
         usuario: 'Admin',
       }),
     ],
-    configuracion('P-04', ['admin'])
+    configuration('P-04', ['admin'])
   );
 
-  comprueba(
-    "lista prohibida · 'Admin' SÍ cuenta como la cuenta prohibida 'admin'",
-    prohibidaOtraCaja.status === 'NO_CUMPLE',
-    prohibidaOtraCaja.status
+  check(
+    "forbidden list · 'Admin' DOES count as the forbidden account 'admin'",
+    forbiddenOtherCase.status === 'NO_CUMPLE',
+    forbiddenOtherCase.status
   );
 }
 
-// --- UMBRAL_MINIMO ---------------------------------------------------------
-
-bloque('UMBRAL_MINIMO');
+section('UMBRAL_MINIMO');
 
 {
-  const JUICIO_MINIMO: ENSEvidenceJudgment = {
+  const JUDGMENT_MINIMUM: ENSEvidenceJudgment = {
     primitive: 'UMBRAL_MINIMO',
     parameterId: 'P-06',
     factEventTypes: ['account_deleted'],
     factField: 'dias_retenida',
   };
 
-  const RETENCION = config(
-    parametro({
+  const RETENTION = config(
+    parameter({
       id: 'P-06',
       name: 'periodo_retencion_cuentas_dias',
       type: 'duration_days',
@@ -1412,86 +1316,83 @@ bloque('UMBRAL_MINIMO');
     })
   );
 
-  const pronto = juzga(
-    JUICIO_MINIMO,
+  const pronto = judges(
+    JUDGMENT_MINIMUM,
     [
-      evento('account_deleted', {
+      event('account_deleted', {
         dias_retenida: 200,
       }),
     ],
-    RETENCION
+    RETENTION
   );
 
-  comprueba(
-    'valor por debajo del mínimo · NO_CUMPLE',
+  check(
+    'value below the minimum · NO_CUMPLE',
     pronto.status === 'NO_CUMPLE',
     pronto.status
   );
 
-  comprueba(
-    'el motivo nombra el valor concreto y dice que no llega al mínimo',
-    motivos(pronto).includes("'200'") &&
-      motivos(pronto).includes('no llega al mínimo'),
-    motivos(pronto)
+  check(
+    'the motive names the specific value and says it does not reach the minimum',
+    motives(pronto).includes("'200'") &&
+      motives(pronto).includes('no llega al mínimo'),
+    motives(pronto)
   );
 
-  comprueba(
-    'valor igual al mínimo · CUMPLE (no queda por debajo)',
-    juzga(
-      JUICIO_MINIMO,
+  check(
+    'value equal to the minimum · CUMPLE (not below)',
+    judges(
+      JUDGMENT_MINIMUM,
       [
-        evento('account_deleted', {
+        event('account_deleted', {
           dias_retenida: 365,
         }),
       ],
-      RETENCION
+      RETENTION
     ).status === 'CUMPLE',
     ''
   );
 
-  comprueba(
-    'valor por encima del mínimo · CUMPLE',
-    juzga(
-      JUICIO_MINIMO,
+  check(
+    'value above the minimum · CUMPLE',
+    judges(
+      JUDGMENT_MINIMUM,
       [
-        evento('account_deleted', {
+        event('account_deleted', {
           dias_retenida: 400,
         }),
       ],
-      RETENCION
+      RETENTION
     ).status === 'CUMPLE',
     ''
   );
 
-  // Control negativo de un solo eje: MISMO hecho, MISMO parámetro; lo único que
-  // cambia es la primitiva, y el veredicto tiene que invertirse. Si no lo
-  // hiciera, UMBRAL_MINIMO sería UMBRAL_MAXIMO con otro nombre.
-  const mismoHechoComoMaximo = juzga(
+  const sameFactAsMaximum = judges(
     {
-      ...JUICIO_MINIMO,
+      ...JUDGMENT_MINIMUM,
       primitive: 'UMBRAL_MAXIMO',
     },
     [
-      evento('account_deleted', {
+      event('account_deleted', {
         dias_retenida: 200,
       }),
     ],
-    RETENCION
+    RETENTION
   );
 
-  comprueba(
-    'el MISMO 200 contra el MISMO 365 · UMBRAL_MAXIMO dice CUMPLE y UMBRAL_MINIMO NO_CUMPLE',
-    mismoHechoComoMaximo.status === 'CUMPLE' &&
+  check(
+    'the SAME 200 against the SAME 365 · UMBRAL_MAXIMO says CUMPLE and UMBRAL_MINIMO NO_CUMPLE',
+    sameFactAsMaximum.status === 'CUMPLE' &&
       pronto.status === 'NO_CUMPLE',
-    `${mismoHechoComoMaximo.status} / ${pronto.status}`
+    `${sameFactAsMaximum.status} / ${pronto.status}`
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE',
-    juzga(
-      JUICIO_MINIMO,
+  check(
+    'fact without parameter · NO_EVALUABLE',
+    judges(
+      JUDGMENT_MINIMUM,
       [
-        evento('account_deleted', {
+        event('account_deleted', {
           dias_retenida: 1,
         }),
       ],
@@ -1500,51 +1401,49 @@ bloque('UMBRAL_MINIMO');
     ''
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE, no CUMPLE',
-    juzga(JUICIO_MINIMO, [], RETENCION).status ===
+  check(
+    'parameter without fact · NO_EVALUABLE, not CUMPLE',
+    judges(JUDGMENT_MINIMUM, [], RETENTION).status ===
       'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    juzga(JUICIO_MINIMO, [], undefined).status ===
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    judges(JUDGMENT_MINIMUM, [], undefined).status ===
       'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'valor observado no numérico · NO_EVALUABLE, no CUMPLE',
-    juzga(
-      JUICIO_MINIMO,
+  check(
+    'non-numeric observed value · NO_EVALUABLE, not CUMPLE',
+    judges(
+      JUDGMENT_MINIMUM,
       [
-        evento('account_deleted', {
+        event('account_deleted', {
           dias_retenida: 'muchos',
         }),
       ],
-      RETENCION
+      RETENTION
     ).status === 'NO_EVALUABLE',
     ''
   );
 }
 
-// --- ANTIGUEDAD_MAXIMA -----------------------------------------------------
-
-bloque('ANTIGUEDAD_MAXIMA');
+section('ANTIGUEDAD_MAXIMA');
 
 {
-  const AHORA = new Date('2026-08-05T12:00:00Z');
+  const NOW = new Date('2026-08-05T12:00:00Z');
 
-  const JUICIO_EDAD: ENSEvidenceJudgment = {
+  const JUDGMENT_AGE: ENSEvidenceJudgment = {
     primitive: 'ANTIGUEDAD_MAXIMA',
     parameterId: 'P-01',
     factEventTypes: ['backup_ok'],
     factField: 'fin_copia',
   };
 
-  const FRECUENCIA = config(
-    parametro({
+  const FREQUENCY = config(
+    parameter({
       id: 'P-01',
       name: 'frecuencia_backup_horas',
       type: 'duration_hours',
@@ -1552,102 +1451,94 @@ bloque('ANTIGUEDAD_MAXIMA');
     })
   );
 
-  const copia = (fin: string) => [
-    evento('backup_ok', { fin_copia: fin }),
+  const copy = (end: string) => [
+    event('backup_ok', { fin_copia: end }),
   ];
 
-  const reciente = juzga(
-    JUICIO_EDAD,
-    copia('2026-08-05T04:00:00Z'),
-    FRECUENCIA,
+  const recent = judges(
+    JUDGMENT_AGE,
+    copy('2026-08-05T04:00:00Z'),
+    FREQUENCY,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'copia de hace 8 h con plazo de 24 h · CUMPLE',
-    reciente.status === 'CUMPLE',
-    `${reciente.status} — ${motivos(reciente)}`
+  check(
+    'copy from 8 h ago with a 24 h deadline · CUMPLE',
+    recent.status === 'CUMPLE',
+    `${recent.status} — ${motives(recent)}`
   );
 
-  const vieja = juzga(
-    JUICIO_EDAD,
-    copia('2026-08-03T04:00:00Z'),
-    FRECUENCIA,
+  const old2 = judges(
+    JUDGMENT_AGE,
+    copy('2026-08-03T04:00:00Z'),
+    FREQUENCY,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'copia de hace 56 h con plazo de 24 h · NO_CUMPLE',
-    vieja.status === 'NO_CUMPLE',
-    `${vieja.status} — ${motivos(vieja)}`
+  check(
+    'copy from 56 h ago with a 24 h deadline · NO_CUMPLE',
+    old2.status === 'NO_CUMPLE',
+    `${old2.status} — ${motives(old2)}`
   );
 
-  comprueba(
-    'el motivo dice la antigüedad medida y el plazo',
-    motivos(vieja).includes('56.0 h') &&
-      motivos(vieja).includes('24 h'),
-    motivos(vieja)
+  check(
+    'the motive states the measured age and the deadline',
+    motives(old2).includes('56.0 h') &&
+      motives(old2).includes('24 h'),
+    motives(old2)
   );
 
-  // ÉSTE es el motivo de que la primitiva exista en vez de un UMBRAL_MAXIMO
-  // sobre un `horas_desde_la_copia` que traiga el agente: se mide contra el
-  // reloj. El hecho no se toca; se adelanta el reloj tres días y el veredicto
-  // se cae solo. Un delta precalculado seguiría diciendo lo mismo para siempre.
-  const mismaCopiaTresDiasDespues = juzga(
-    JUICIO_EDAD,
-    copia('2026-08-05T04:00:00Z'),
-    FRECUENCIA,
+  const sameCopyThreeDaysLater = judges(
+    JUDGMENT_AGE,
+    copy('2026-08-05T04:00:00Z'),
+    FREQUENCY,
     {},
     new Date('2026-08-08T12:00:00Z')
   );
 
-  comprueba(
-    'el MISMO hecho, tres días después · pasa de CUMPLE a NO_CUMPLE sin tocar el agente',
-    reciente.status === 'CUMPLE' &&
-      mismaCopiaTresDiasDespues.status ===
+  check(
+    'the SAME fact, three days later · goes from CUMPLE to NO_CUMPLE without touching the agent',
+    recent.status === 'CUMPLE' &&
+      sameCopyThreeDaysLater.status ===
         'NO_CUMPLE',
-    `${reciente.status} -> ${mismaCopiaTresDiasDespues.status}`
+    `${recent.status} -> ${sameCopyThreeDaysLater.status}`
   );
 
-  // Existencial: le basta UN hecho reciente. A una primitiva universal la copia
-  // vieja le habría producido un incumplimiento.
-  const viejaYReciente = juzga(
-    JUICIO_EDAD,
+  const oldAndRecent = judges(
+    JUDGMENT_AGE,
     [
-      ...copia('2026-08-03T04:00:00Z'),
-      ...copia('2026-08-05T04:00:00Z'),
+      ...copy('2026-08-03T04:00:00Z'),
+      ...copy('2026-08-05T04:00:00Z'),
     ],
-    FRECUENCIA,
+    FREQUENCY,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'una copia vieja Y una reciente · CUMPLE (es existencial: le basta una)',
-    viejaYReciente.status === 'CUMPLE',
-    `${viejaYReciente.status} — ${motivos(viejaYReciente)}`
+  check(
+    'an old copy AND a recent one · CUMPLE (it is existential: one is enough)',
+    oldAndRecent.status === 'CUMPLE',
+    `${oldAndRecent.status} — ${motives(oldAndRecent)}`
   );
 
-  comprueba(
-    'el veredicto se sostiene sobre la reciente, no sobre la vieja',
-    motivos(viejaYReciente).includes(
+  check(
+    'the verdict rests on the recent one, not on the old one',
+    motives(oldAndRecent).includes(
       '2026-08-05T04:00:00Z'
     ) &&
-      !motivos(viejaYReciente).includes(
+      !motives(oldAndRecent).includes(
         '2026-08-03T04:00:00Z'
       ),
-    motivos(viejaYReciente)
+    motives(oldAndRecent)
   );
 
-  // La unidad sale del TIPO del parámetro. El mismo número, con el mismo hecho:
-  // 24 días admiten lo que 24 horas no.
-  const enDias = juzga(
-    JUICIO_EDAD,
-    copia('2026-08-03T04:00:00Z'),
+  const inDays = judges(
+    JUDGMENT_AGE,
+    copy('2026-08-03T04:00:00Z'),
     config(
-      parametro({
+      parameter({
         id: 'P-01',
         name: 'frecuencia_backup_horas',
         type: 'duration_days',
@@ -1655,22 +1546,21 @@ bloque('ANTIGUEDAD_MAXIMA');
       })
     ),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'el MISMO 24 como duration_days admite lo que como duration_hours no',
-    enDias.status === 'CUMPLE' &&
-      vieja.status === 'NO_CUMPLE',
-    `${enDias.status} / ${vieja.status}`
+  check(
+    'the SAME 24 as duration_days admits what it does not as duration_hours',
+    inDays.status === 'CUMPLE' &&
+      old2.status === 'NO_CUMPLE',
+    `${inDays.status} / ${old2.status}`
   );
 
-  // Guarda: un parámetro que no expresa duración no se interpreta a ojo.
-  const sinUnidad = juzga(
-    JUICIO_EDAD,
-    copia('2026-08-05T04:00:00Z'),
+  const withoutUnit = judges(
+    JUDGMENT_AGE,
+    copy('2026-08-05T04:00:00Z'),
     config(
-      parametro({
+      parameter({
         id: 'P-01',
         name: 'frecuencia_backup_horas',
         type: 'number',
@@ -1678,62 +1568,60 @@ bloque('ANTIGUEDAD_MAXIMA');
       })
     ),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'parámetro sin unidad de tiempo · NO_EVALUABLE con motivo, no se adivinan las horas',
-    sinUnidad.status === 'NO_EVALUABLE' &&
-      motivos(sinUnidad).includes('plazo'),
-    `${sinUnidad.status} — ${motivos(sinUnidad)}`
+  check(
+    'parameter without time unit · NO_EVALUABLE with motive, hours are not guessed',
+    withoutUnit.status === 'NO_EVALUABLE' &&
+      motives(withoutUnit).includes('plazo'),
+    `${withoutUnit.status} — ${motives(withoutUnit)}`
   );
 
-  // Guarda de la cota superior, la misma que la del latido: sin ella un hecho
-  // fechado en 2099 dejaría la evidencia en verde para siempre.
-  const delFuturo = juzga(
-    JUICIO_EDAD,
-    copia('2099-01-01T00:00:00Z'),
-    FRECUENCIA,
+  const fromFuture = judges(
+    JUDGMENT_AGE,
+    copy('2099-01-01T00:00:00Z'),
+    FREQUENCY,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'copia fechada en 2099 · NO_EVALUABLE, jamás CUMPLE',
-    delFuturo.status === 'NO_EVALUABLE',
-    `${delFuturo.status} — ${motivos(delFuturo)}`
+  check(
+    'copy dated 2099 · NO_EVALUABLE, never CUMPLE',
+    fromFuture.status === 'NO_EVALUABLE',
+    `${fromFuture.status} — ${motives(fromFuture)}`
   );
 
-  comprueba(
-    'marca de tiempo ilegible · NO_EVALUABLE, no CUMPLE',
-    juzga(
-      JUICIO_EDAD,
-      copia('anteayer por la tarde'),
-      FRECUENCIA,
+  check(
+    'unreadable timestamp · NO_EVALUABLE, not CUMPLE',
+    judges(
+      JUDGMENT_AGE,
+      copy('anteayer por la tarde'),
+      FREQUENCY,
       {},
-      AHORA
+      NOW
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE',
-    juzga(
-      JUICIO_EDAD,
-      copia('2026-08-05T04:00:00Z'),
+  check(
+    'fact without parameter · NO_EVALUABLE',
+    judges(
+      JUDGMENT_AGE,
+      copy('2026-08-05T04:00:00Z'),
       undefined,
       {},
-      AHORA
+      NOW
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE aunque la cobertura esté confirmada',
-    juzga(
-      JUICIO_EDAD,
+  check(
+    'parameter without fact · NO_EVALUABLE even if coverage is confirmed',
+    judges(
+      JUDGMENT_AGE,
       [
-        evento(
+        event(
           'collector_run',
           {
             resultado: 'completada',
@@ -1742,60 +1630,59 @@ bloque('ANTIGUEDAD_MAXIMA');
           { timestamp: '2026-08-05T11:30:00Z' }
         ),
       ],
-      FRECUENCIA,
+      FREQUENCY,
       {},
-      AHORA
+      NOW
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    juzga(
-      JUICIO_EDAD,
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    judges(
+      JUDGMENT_AGE,
       [],
       undefined,
       {},
-      AHORA
+      NOW
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  // --- el margen de tolerancia (P-02 sobre P-01) ---
-  const JUICIO_CON_MARGEN: ENSEvidenceJudgment = {
-    ...JUICIO_EDAD,
+  const JUDGMENT_WITH_MARGIN: ENSEvidenceJudgment = {
+    ...JUDGMENT_AGE,
     toleranceParameterId: 'P-02',
   };
 
-  const COPIA_DE_26H = copia(
+  const COPY_FROM_26H = copy(
     '2026-08-04T10:00:00Z'
   );
 
-  const sinMargen = juzga(
-    JUICIO_CON_MARGEN,
-    COPIA_DE_26H,
-    FRECUENCIA,
+  const withoutMargin = judges(
+    JUDGMENT_WITH_MARGIN,
+    COPY_FROM_26H,
+    FREQUENCY,
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'margen declarado pero no configurado · se aplica SIN margen (extremo estricto)',
-    sinMargen.status === 'NO_CUMPLE',
-    `${sinMargen.status} — ${motivos(sinMargen)}`
+  check(
+    'margin declared but not configured · applied WITHOUT margin (strict bound)',
+    withoutMargin.status === 'NO_CUMPLE',
+    `${withoutMargin.status} — ${motives(withoutMargin)}`
   );
 
-  const conMargen = juzga(
-    JUICIO_CON_MARGEN,
-    COPIA_DE_26H,
+  const withMargin = judges(
+    JUDGMENT_WITH_MARGIN,
+    COPY_FROM_26H,
     config(
-      parametro({
+      parameter({
         id: 'P-01',
         name: 'frecuencia_backup_horas',
         type: 'duration_hours',
         value: 24,
       }),
-      parametro({
+      parameter({
         id: 'P-02',
         name: 'margen_tolerancia_horas',
         type: 'duration_hours',
@@ -1804,32 +1691,32 @@ bloque('ANTIGUEDAD_MAXIMA');
       })
     ),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'el MISMO hecho con P-02 = 4 h · pasa a CUMPLE (el margen se suma)',
-    conMargen.status === 'CUMPLE',
-    `${conMargen.status} — ${motivos(conMargen)}`
+  check(
+    'the SAME fact with P-02 = 4 h · becomes CUMPLE (the margin is added)',
+    withMargin.status === 'CUMPLE',
+    `${withMargin.status} — ${motives(withMargin)}`
   );
 
-  comprueba(
-    'el motivo nombra el margen que se ha aplicado',
-    motivos(conMargen).includes('P-02'),
-    motivos(conMargen)
+  check(
+    'the motive names the margin that was applied',
+    motives(withMargin).includes('P-02'),
+    motives(withMargin)
   );
 
-  const margenIlegible = juzga(
-    JUICIO_CON_MARGEN,
-    COPIA_DE_26H,
+  const unreadableMargin = judges(
+    JUDGMENT_WITH_MARGIN,
+    COPY_FROM_26H,
     config(
-      parametro({
+      parameter({
         id: 'P-01',
         name: 'frecuencia_backup_horas',
         type: 'duration_hours',
         value: 24,
       }),
-      parametro({
+      parameter({
         id: 'P-02',
         name: 'margen_tolerancia_horas',
         type: 'duration_hours',
@@ -1838,59 +1725,51 @@ bloque('ANTIGUEDAD_MAXIMA');
       })
     ),
     {},
-    AHORA
+    NOW
   );
 
-  comprueba(
-    'margen configurado pero ilegible · NO_EVALUABLE, no se da por ausente',
-    margenIlegible.status === 'NO_EVALUABLE',
-    `${margenIlegible.status} — ${motivos(margenIlegible)}`
+  check(
+    'margin configured but unreadable · NO_EVALUABLE, not taken as absent',
+    unreadableMargin.status === 'NO_EVALUABLE',
+    `${unreadableMargin.status} — ${motives(unreadableMargin)}`
   );
 
-  // Guarda de catálogo: un margen sobre una primitiva que no compara números no
-  // se ignora en silencio.
-  const margenDondeNoPinta = juzga(
+  const marginWhereIrrelevant = judges(
     {
-      ...JUICIO_NINGUNO,
+      ...JUDGMENT_NONE,
       toleranceParameterId: 'P-02',
     },
     [
-      evento('generic_account_login', {
+      event('generic_account_login', {
         usuario: 'jgomez',
       }),
     ],
-    configuracion('P-04', ['admin'])
+    configuration('P-04', ['admin'])
   );
 
-  comprueba(
-    'margen declarado sobre una primitiva de lista · NO_EVALUABLE con motivo',
-    margenDondeNoPinta.status ===
+  check(
+    'margin declared on a list primitive · NO_EVALUABLE with motive',
+    marginWhereIrrelevant.status ===
       'NO_EVALUABLE' &&
-      motivos(margenDondeNoPinta).includes(
+      motives(marginWhereIrrelevant).includes(
         'margen'
       ),
-    `${margenDondeNoPinta.status} — ${motivos(margenDondeNoPinta)}`
+    `${marginWhereIrrelevant.status} — ${motives(marginWhereIrrelevant)}`
   );
 }
 
-// --- La columna del parámetro (el aviso de `parseReferenceList`) ------------
-//
-// P-07 de op.acc.1 es una TABLA `usuario | sistema | rol`. Hasta ahora
-// `parseReferenceList` devolvía la fila entera, y no chocaba solo porque la
-// única evidencia migrada apunta a un `list`.
-
-bloque(
-  'La columna del parámetro · tablas comparadas contra un valor suelto'
+section(
+  'The parameter\'s column · tables compared against a single value'
 );
 
 {
-  const P07 = (valor: string[]) =>
+  const P07 = (value: string[]) =>
     config(
-      parametro({
+      parameter({
         id: 'P-07',
         name: 'lista_usuarios_autorizados',
         type: 'table',
-        value: valor,
+        value: value,
         columns: [
           {
             name: 'usuario',
@@ -1914,18 +1793,18 @@ bloque(
       })
     );
 
-  const FILAS = [
+  const ROWS = [
     'jgomez | srv01 | ops',
     'mlopez | srv02 | auditor',
   ];
 
-  const CUENTA_ACTIVA = [
-    evento('account_active', {
+  const ACTIVE_ACCOUNT = [
+    event('account_active', {
       usuario: 'jgomez',
     }),
   ];
 
-  const JUICIO_P07: ENSEvidenceJudgment = {
+  const JUDGMENT_P07: ENSEvidenceJudgment = {
     primitive: 'TODOS_EN_LISTA',
     parameterId: 'P-07',
     factEventTypes: ['account_active'],
@@ -1933,121 +1812,111 @@ bloque(
     parameterColumn: 'usuario',
   };
 
-  // La trampa, demostrada sobre la función misma: lo que devolvía antes NO es
-  // el nombre de la cuenta.
-  comprueba(
-    'la trampa · parseReferenceList sobre una fila devuelve la fila entera',
-    parseReferenceList(FILAS)[0] ===
+  check(
+    'the trap · parseReferenceList on a row returns the whole row',
+    parseReferenceList(ROWS)[0] ===
       'jgomez | srv01 | ops',
-    JSON.stringify(parseReferenceList(FILAS))
+    JSON.stringify(parseReferenceList(ROWS))
   );
 
-  const proyectada = juzga(
-    JUICIO_P07,
-    CUENTA_ACTIVA,
-    P07(FILAS)
+  const projected = judges(
+    JUDGMENT_P07,
+    ACTIVE_ACCOUNT,
+    P07(ROWS)
   );
 
-  comprueba(
-    "declarando la columna 'usuario' · la cuenta autorizada CUMPLE",
-    proyectada.status === 'CUMPLE',
-    `${proyectada.status} — ${motivos(proyectada)}`
+  check(
+    "declaring the column 'usuario' · the authorized account CUMPLE",
+    projected.status === 'CUMPLE',
+    `${projected.status} — ${motives(projected)}`
   );
 
-  // Control negativo por reversión, sobre UN solo eje: los mismos hechos, la
-  // misma tabla, la misma primitiva; solo se quita `parameterColumn`. El texto
-  // buscado ('parameterColumn') no aparece en ningún motivo del camino normal.
-  const sinDeclararColumna = juzga(
-    { ...JUICIO_P07, parameterColumn: undefined },
-    CUENTA_ACTIVA,
-    P07(FILAS)
+  const columnUndeclared = judges(
+    { ...JUDGMENT_P07, parameterColumn: undefined },
+    ACTIVE_ACCOUNT,
+    P07(ROWS)
   );
 
-  comprueba(
-    'sin declarar la columna · NO_EVALUABLE, y NUNCA un veredicto sobre la fila entera',
-    sinDeclararColumna.status ===
+  check(
+    'without declaring the column · NO_EVALUABLE, and NEVER a verdict on the whole row',
+    columnUndeclared.status ===
       'NO_EVALUABLE',
-    `${sinDeclararColumna.status} — ${motivos(sinDeclararColumna)}`
+    `${columnUndeclared.status} — ${motives(columnUndeclared)}`
   );
 
-  comprueba(
-    'sin declarar la columna · el motivo dice exactamente qué falta',
-    motivos(sinDeclararColumna).includes(
+  check(
+    'without declaring the column · the motive says exactly what is missing',
+    motives(columnUndeclared).includes(
       'parameterColumn'
     ),
-    motivos(sinDeclararColumna)
+    motives(columnUndeclared)
   );
 
-  comprueba(
-    'y ese texto NO sale por el camino normal (control negativo del propio motivo)',
-    !motivos(proyectada).includes(
+  check(
+    'and that text does NOT come out through the normal path (negative control of the motive itself)',
+    !motives(projected).includes(
       'parameterColumn'
     ),
-    motivos(proyectada)
+    motives(projected)
   );
 
-  // La mutación se aplica donde creo: si se proyectara «cualquier celda» en vez
-  // de la declarada, esto también casaría. Declarando la columna 'rol', el
-  // usuario 'jgomez' no está en ella y el veredicto se invierte.
-  const columnaEquivocada = juzga(
-    { ...JUICIO_P07, parameterColumn: 'rol' },
-    CUENTA_ACTIVA,
-    P07(FILAS)
+  const wrongColumn = judges(
+    { ...JUDGMENT_P07, parameterColumn: 'rol' },
+    ACTIVE_ACCOUNT,
+    P07(ROWS)
   );
 
-  comprueba(
-    "proyectando la columna 'rol' · 'jgomez' no figura en ella · NO_CUMPLE",
-    columnaEquivocada.status === 'NO_CUMPLE',
-    `${columnaEquivocada.status} — ${motivos(columnaEquivocada)}`
+  check(
+    "projecting the column 'rol' · 'jgomez' is not in it · NO_CUMPLE",
+    wrongColumn.status === 'NO_CUMPLE',
+    `${wrongColumn.status} — ${motives(wrongColumn)}`
   );
 
-  const columnaInexistente = juzga(
-    { ...JUICIO_P07, parameterColumn: 'usuarios' },
-    CUENTA_ACTIVA,
-    P07(FILAS)
+  const missingColumn = judges(
+    { ...JUDGMENT_P07, parameterColumn: 'usuarios' },
+    ACTIVE_ACCOUNT,
+    P07(ROWS)
   );
 
-  comprueba(
-    'columna declarada que la tabla no tiene · NO_EVALUABLE con motivo',
-    columnaInexistente.status ===
+  check(
+    'declared column that the table lacks · NO_EVALUABLE with motive',
+    missingColumn.status ===
       'NO_EVALUABLE' &&
-      motivos(columnaInexistente).includes(
+      motives(missingColumn).includes(
         "'usuarios'"
       ),
-    `${columnaInexistente.status} — ${motivos(columnaInexistente)}`
+    `${missingColumn.status} — ${motives(missingColumn)}`
   );
 
-  const tablaSinColumnas = juzga(
-    JUICIO_P07,
-    CUENTA_ACTIVA,
+  const tableWithoutColumns = judges(
+    JUDGMENT_P07,
+    ACTIVE_ACCOUNT,
     config(
-      parametro({
+      parameter({
         id: 'P-07',
         name: 'lista_usuarios_autorizados',
         type: 'table',
-        value: FILAS,
+        value: ROWS,
       })
     )
   );
 
-  comprueba(
-    'bloque sembrado antes de que existieran las columnas · NO_EVALUABLE, no se adivina la posición',
-    tablaSinColumnas.status === 'NO_EVALUABLE',
-    `${tablaSinColumnas.status} — ${motivos(tablaSinColumnas)}`
+  check(
+    'block seeded before the columns existed · NO_EVALUABLE, the position is not guessed',
+    tableWithoutColumns.status === 'NO_EVALUABLE',
+    `${tableWithoutColumns.status} — ${motives(tableWithoutColumns)}`
   );
 
-  // Una lista de UNA columna sigue leyéndose plana: es la tolerancia de los
-  // valores heredados, y es por donde entra P-04 de la evidencia ya migrada.
-  const listaDeUnaColumna = juzga(
+  const singleColumnList = judges(
     {
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-10',
       factEventTypes: ['suid_sgid'],
       factField: 'ruta',
     },
-    [evento('suid_sgid', { ruta: '/usr/bin/sudo' })],
+    [event('suid_sgid', { ruta: '/usr/bin/sudo' })],
     config(
-      parametro({
+      parameter({
         id: 'P-10',
         name: 'suid_autorizados',
         value: ['/usr/bin/sudo'],
@@ -2063,17 +1932,14 @@ bloque(
     )
   );
 
-  comprueba(
-    'lista de UNA columna · se sigue leyendo plana, sin declarar nada',
-    listaDeUnaColumna.status === 'CUMPLE',
-    `${listaDeUnaColumna.status} — ${motivos(listaDeUnaColumna)}`
+  check(
+    'list of ONE column · still read flat, declaring nothing',
+    singleColumnList.status === 'CUMPLE',
+    `${singleColumnList.status} — ${motives(singleColumnList)}`
   );
 
-  // Filas guardadas como cadena (bloque sembrado a mano): se parten por saltos
-  // de línea y NUNCA por comas, que dentro de una celda multiselect significan
-  // otra cosa.
-  comprueba(
-    'parseReferenceRows · parte por saltos de línea y no por comas',
+  check(
+    'parseReferenceRows · splits on line breaks and not on commas',
     parseReferenceRows(
       'ops | /srv/datos | lectura,escritura\nauditor | /srv/datos | lectura'
     ).length === 2,
@@ -2084,8 +1950,8 @@ bloque(
     )
   );
 
-  comprueba(
-    'splitRowCells · reparte la fila entre las columnas declaradas',
+  check(
+    'splitRowCells · distributes the row among the declared columns',
     splitRowCells('jgomez | srv01 | ops', [
       {
         name: 'usuario',
@@ -2109,8 +1975,8 @@ bloque(
     ''
   );
 
-  comprueba(
-    'splitRowCells · una fila corta deja vacías las columnas que no trae',
+  check(
+    'splitRowCells · a short row leaves empty the columns it lacks',
     splitRowCells('jgomez', [
       {
         name: 'usuario',
@@ -2129,18 +1995,12 @@ bloque(
   );
 }
 
-// --- CONFORME_A_TABLA ------------------------------------------------------
-//
-// La ACL declarada de op.acc.2 (P-08): `recurso | modo | propietario:grupo |
-// ACL`. Es la primitiva de op.acc.2.2 — «los derechos de acceso siguen la
-// decisión del responsable del recurso».
-
-bloque('CONFORME_A_TABLA');
+section('CONFORME_A_TABLA');
 
 {
-  const AHORA = new Date('2026-08-05T12:00:00Z');
+  const NOW = new Date('2026-08-05T12:00:00Z');
 
-  const COLUMNAS_P08 = [
+  const P08_COLUMNS = [
     {
       name: 'recurso',
       label: 'Recurso',
@@ -2167,18 +2027,18 @@ bloque('CONFORME_A_TABLA');
     },
   ];
 
-  const P08 = (filas: string[]) =>
+  const P08 = (rows: string[]) =>
     config(
-      parametro({
+      parameter({
         id: 'P-08',
         name: 'acl_declarada',
         type: 'table',
-        value: filas,
-        columns: COLUMNAS_P08,
+        value: rows,
+        columns: P08_COLUMNS,
       })
     );
 
-  const JUICIO_ACL: ENSEvidenceJudgment = {
+  const JUDGMENT_ACL: ENSEvidenceJudgment = {
     primitive: 'CONFORME_A_TABLA',
     parameterId: 'P-08',
     factEventTypes: ['resource_permissions'],
@@ -2195,107 +2055,104 @@ bloque('CONFORME_A_TABLA');
     ],
   };
 
-  const medida = (
+  const measure = (
     attrs: Record<string, unknown>
-  ) => [evento('resource_permissions', attrs)];
+  ) => [event('resource_permissions', attrs)];
 
-  const FILA_COMPLETA = [
+  const FULL_ROW = [
     '/srv/datos | 750 | root:ops | user:auditor:r-x',
   ];
 
-  const conforme = juzga(
-    JUICIO_ACL,
-    medida({
+  const compliant2 = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/datos',
       modo: '750',
       propietario_grupo: 'root:ops',
       acl: 'user:auditor:r-x',
     }),
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'los tres ejes casan con su fila · CUMPLE',
-    conforme.status === 'CUMPLE',
-    `${conforme.status} — ${motivos(conforme)}`
+  check(
+    'the three axes match their row · CUMPLE',
+    compliant2.status === 'CUMPLE',
+    `${compliant2.status} — ${motives(compliant2)}`
   );
 
-  const masPermisivo = juzga(
-    JUICIO_ACL,
-    medida({
+  const morePermissive = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/datos',
       modo: '777',
       propietario_grupo: 'root:ops',
       acl: 'user:auditor:r-x',
     }),
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'modo más permisivo que el declarado · NO_CUMPLE',
-    masPermisivo.status === 'NO_CUMPLE',
-    masPermisivo.status
+  check(
+    'more permissive mode than declared · NO_CUMPLE',
+    morePermissive.status === 'NO_CUMPLE',
+    morePermissive.status
   );
 
-  comprueba(
-    'el motivo nombra el recurso, el eje y los dos valores',
-    motivos(masPermisivo).includes('/srv/datos') &&
-      motivos(masPermisivo).includes("modo='777'") &&
-      motivos(masPermisivo).includes("'750'"),
-    motivos(masPermisivo)
+  check(
+    'the motive names the resource, the axis and both values',
+    motives(morePermissive).includes('/srv/datos') &&
+      motives(morePermissive).includes("modo='777'") &&
+      motives(morePermissive).includes("'750'"),
+    motives(morePermissive)
   );
 
-  comprueba(
-    'modo MÁS restrictivo que el declarado · CUMPLE (no crea riesgo)',
-    juzga(
-      JUICIO_ACL,
-      medida({
+  check(
+    'MORE restrictive mode than declared · CUMPLE (creates no risk)',
+    judges(
+      JUDGMENT_ACL,
+      measure({
         recurso: '/srv/datos',
         modo: '700',
         propietario_grupo: 'root:ops',
         acl: 'user:auditor:r-x',
       }),
-      P08(FILA_COMPLETA)
+      P08(FULL_ROW)
     ).status === 'CUMPLE',
     ''
   );
 
-  comprueba(
-    "el cero inicial no cambia el modo · '0750' casa con '750'",
-    juzga(
-      JUICIO_ACL,
-      medida({
+  check(
+    "the leading zero does not change the mode · '0750' matches '750'",
+    judges(
+      JUDGMENT_ACL,
+      measure({
         recurso: '/srv/datos',
         modo: '0750',
         propietario_grupo: 'root:ops',
         acl: 'user:auditor:r-x',
       }),
-      P08(FILA_COMPLETA)
+      P08(FULL_ROW)
     ).status === 'CUMPLE',
     ''
   );
 
-  comprueba(
-    'propietario distinto del declarado · NO_CUMPLE',
-    juzga(
-      JUICIO_ACL,
-      medida({
+  check(
+    'owner different from declared · NO_CUMPLE',
+    judges(
+      JUDGMENT_ACL,
+      measure({
         recurso: '/srv/datos',
         modo: '750',
         propietario_grupo: 'root:root',
         acl: 'user:auditor:r-x',
       }),
-      P08(FILA_COMPLETA)
+      P08(FULL_ROW)
     ).status === 'NO_CUMPLE',
     ''
   );
 
-  // Control negativo por reversión sobre UN eje: el MISMO hecho que acaba de
-  // dar NO_CUMPLE por el propietario, contra la MISMA fila con esa celda
-  // vacía. La política no declara ese eje, así que no se juzga.
-  const conCeldaVacia = juzga(
-    JUICIO_ACL,
-    medida({
+  const withEmptyCell = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/datos',
       modo: '750',
       propietario_grupo: 'root:root',
@@ -2306,147 +2163,136 @@ bloque('CONFORME_A_TABLA');
     ])
   );
 
-  comprueba(
-    'celda vacía · ese eje NO se juzga, y el mismo hecho pasa a CUMPLE',
-    conCeldaVacia.status === 'CUMPLE',
-    `${conCeldaVacia.status} — ${motivos(conCeldaVacia)}`
+  check(
+    'empty cell · that axis is NOT judged, and the same fact becomes CUMPLE',
+    withEmptyCell.status === 'CUMPLE',
+    `${withEmptyCell.status} — ${motives(withEmptyCell)}`
   );
 
-  // Guarda: una fila que no declara NINGUNO de los ejes contrastados no
-  // acredita nada. El recurso está en la política y la política no dice nada
-  // de él.
-  const filaMuda = juzga(
-    { ...JUICIO_ACL, tableChecks: [
+  const silentRow = judges(
+    { ...JUDGMENT_ACL, tableChecks: [
       {
         column: 'propietario_grupo',
         factField: 'propietario_grupo',
       },
     ] },
-    medida({
+    measure({
       recurso: '/srv/datos',
       propietario_grupo: 'root:ops',
     }),
     P08(['/srv/datos | 750 |  | '])
   );
 
-  comprueba(
-    'fila sin ningún eje contrastado declarado · NO_EVALUABLE, no CUMPLE',
-    filaMuda.status === 'NO_EVALUABLE',
-    `${filaMuda.status} — ${motivos(filaMuda)}`
+  check(
+    'row with no declared contrasted axis · NO_EVALUABLE, not CUMPLE',
+    silentRow.status === 'NO_EVALUABLE',
+    `${silentRow.status} — ${motives(silentRow)}`
   );
 
-  // Guarda: recurso observado que la política no declara. NUNCA NO_CUMPLE: el
-  // motor no puede afirmar que un modo esté mal si nadie dijo cuál debía ser.
-  const sinFila = juzga(
-    JUICIO_ACL,
-    medida({
+  const withoutRow = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/secreto',
       modo: '777',
       propietario_grupo: 'root:root',
       acl: '-',
     }),
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'recurso sin fila en la política · NO_EVALUABLE, jamás NO_CUMPLE medido',
-    sinFila.status === 'NO_EVALUABLE',
-    `${sinFila.status} — ${motivos(sinFila)}`
+  check(
+    'resource without a row in the policy · NO_EVALUABLE, never a measured NO_CUMPLE',
+    withoutRow.status === 'NO_EVALUABLE',
+    `${withoutRow.status} — ${motives(withoutRow)}`
   );
 
-  comprueba(
-    'recurso sin fila · la causa es CONFIGURATION (falta la decisión, no la medida)',
-    sinFila.gapCause === 'CONFIGURATION',
-    String(sinFila.gapCause)
+  check(
+    'resource without a row · the cause is CONFIGURATION (the decision is missing, not the measure)',
+    withoutRow.gapCause === 'CONFIGURATION',
+    String(withoutRow.gapCause)
   );
 
-  // Guarda: la política declara un eje y el hecho no lo trae.
-  const ejeNoObservado = juzga(
-    JUICIO_ACL,
-    medida({
+  const unobservedAxis = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/datos',
       modo: '750',
       propietario_grupo: 'root:ops',
     }),
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'la política declara la ACL y el hecho no la trae · NO_EVALUABLE, no CUMPLE',
-    ejeNoObservado.status === 'NO_EVALUABLE',
-    `${ejeNoObservado.status} — ${motivos(ejeNoObservado)}`
+  check(
+    'the policy declares the ACL and the fact does not bring it · NO_EVALUABLE, not CUMPLE',
+    unobservedAxis.status === 'NO_EVALUABLE',
+    `${unobservedAxis.status} — ${motives(unobservedAxis)}`
   );
 
-  // Una desviación demostrada manda sobre un recurso sin fila: el hallazgo es
-  // un hecho, la fila que falta es un hueco.
-  const mezcla = juzga(
-    JUICIO_ACL,
+  const mix = judges(
+    JUDGMENT_ACL,
     [
-      ...medida({
+      ...measure({
         recurso: '/srv/datos',
         modo: '777',
         propietario_grupo: 'root:ops',
         acl: 'user:auditor:r-x',
       }),
-      ...medida({
+      ...measure({
         recurso: '/srv/secreto',
         modo: '700',
         propietario_grupo: 'root:root',
         acl: '-',
       }),
     ],
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'desviación demostrada + recurso sin fila · NO_CUMPLE (el hallazgo manda)',
-    mezcla.status === 'NO_CUMPLE',
-    `${mezcla.status} — ${motivos(mezcla)}`
+  check(
+    'proven deviation + resource without a row · NO_CUMPLE (the finding prevails)',
+    mix.status === 'NO_CUMPLE',
+    `${mix.status} — ${motives(mix)}`
   );
 
-  const modoIlegible = juzga(
-    JUICIO_ACL,
-    medida({
+  const unreadableMode = judges(
+    JUDGMENT_ACL,
+    measure({
       recurso: '/srv/datos',
       modo: 'rwxr-x---',
       propietario_grupo: 'root:ops',
       acl: 'user:auditor:r-x',
     }),
-    P08(FILA_COMPLETA)
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'modo observado que no es octal · NO_EVALUABLE, no CUMPLE ni NO_CUMPLE',
-    modoIlegible.status === 'NO_EVALUABLE',
-    `${modoIlegible.status} — ${motivos(modoIlegible)}`
+  check(
+    'observed mode that is not octal · NO_EVALUABLE, neither CUMPLE nor NO_CUMPLE',
+    unreadableMode.status === 'NO_EVALUABLE',
+    `${unreadableMode.status} — ${motives(unreadableMode)}`
   );
 
-  // Control negativo de la causa: MISMA primitiva y MISMA tabla que el recurso
-  // sin fila, y la causa tiene que ser la otra. Aquí la política está completa y
-  // lo que no se puede leer es el dato, así que la acción es sobre el agente.
-  comprueba(
-    'modo ilegible · la causa es EVIDENCE, no CONFIGURATION (la política sí está)',
-    modoIlegible.gapCause === 'EVIDENCE',
-    String(modoIlegible.gapCause)
+  check(
+    'unreadable mode · the cause is EVIDENCE, not CONFIGURATION (the policy is there)',
+    unreadableMode.gapCause === 'EVIDENCE',
+    String(unreadableMode.gapCause)
   );
 
-  const sinClave = juzga(
-    JUICIO_ACL,
-    medida({ modo: '750' }),
-    P08(FILA_COMPLETA)
+  const withoutKey = judges(
+    JUDGMENT_ACL,
+    measure({ modo: '750' }),
+    P08(FULL_ROW)
   );
 
-  comprueba(
-    'hecho sin el campo que identifica su fila · NO_EVALUABLE',
-    sinClave.status === 'NO_EVALUABLE',
-    `${sinClave.status} — ${motivos(sinClave)}`
+  check(
+    'fact without the field that identifies its row · NO_EVALUABLE',
+    withoutKey.status === 'NO_EVALUABLE',
+    `${withoutKey.status} — ${motives(withoutKey)}`
   );
 
-  comprueba(
-    'hecho sin parámetro · NO_EVALUABLE',
-    juzga(
-      JUICIO_ACL,
-      medida({
+  check(
+    'fact without parameter · NO_EVALUABLE',
+    judges(
+      JUDGMENT_ACL,
+      measure({
         recurso: '/srv/datos',
         modo: '777',
       }),
@@ -2455,32 +2301,32 @@ bloque('CONFORME_A_TABLA');
     ''
   );
 
-  comprueba(
-    'tabla sin columnas declaradas · NO_EVALUABLE con motivo',
-    juzga(
-      JUICIO_ACL,
-      medida({
+  check(
+    'table without declared columns · NO_EVALUABLE with motive',
+    judges(
+      JUDGMENT_ACL,
+      measure({
         recurso: '/srv/datos',
         modo: '750',
       }),
       config(
-        parametro({
+        parameter({
           id: 'P-08',
           name: 'acl_declarada',
           type: 'table',
-          value: FILA_COMPLETA,
+          value: FULL_ROW,
         })
       )
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'parámetro sin hecho · NO_EVALUABLE aunque la cobertura esté confirmada',
-    juzga(
-      JUICIO_ACL,
+  check(
+    'parameter without fact · NO_EVALUABLE even if coverage is confirmed',
+    judges(
+      JUDGMENT_ACL,
       [
-        evento(
+        event(
           'collector_run',
           {
             resultado: 'completada',
@@ -2489,26 +2335,22 @@ bloque('CONFORME_A_TABLA');
           { timestamp: '2026-08-05T11:30:00Z' }
         ),
       ],
-      P08(FILA_COMPLETA),
+      P08(FULL_ROW),
       {},
-      AHORA
+      NOW
     ).status === 'NO_EVALUABLE',
     ''
   );
 
-  comprueba(
-    'ni hecho ni parámetro · NO_EVALUABLE',
-    juzga(JUICIO_ACL, [], undefined).status ===
+  check(
+    'neither fact nor parameter · NO_EVALUABLE',
+    judges(JUDGMENT_ACL, [], undefined).status ===
       'NO_EVALUABLE',
     ''
   );
 
-  // --- celda multiselect (P-06 de op.acc.2) ---
-  //
-  // La celda lleva comas dentro. Si las filas se partieran por comas —que es lo
-  // que hace `parseReferenceList`—, esta tabla se rompería en pedazos.
   const P06 = config(
-    parametro({
+    parameter({
       id: 'P-06',
       name: 'tipos_acceso_permitidos_por_perfil',
       type: 'table',
@@ -2544,7 +2386,7 @@ bloque('CONFORME_A_TABLA');
     })
   );
 
-  const JUICIO_TIPOS: ENSEvidenceJudgment = {
+  const JUDGMENT_TYPES: ENSEvidenceJudgment = {
     primitive: 'CONFORME_A_TABLA',
     parameterId: 'P-06',
     factEventTypes: ['object_access'],
@@ -2559,12 +2401,12 @@ bloque('CONFORME_A_TABLA');
     ],
   };
 
-  comprueba(
-    "multiselect · 'escritura' está entre los permitidos · CUMPLE",
-    juzga(
-      JUICIO_TIPOS,
+  check(
+    "multiselect · 'escritura' is among the allowed ones · CUMPLE",
+    judges(
+      JUDGMENT_TYPES,
       [
-        evento('object_access', {
+        event('object_access', {
           perfil: 'ops',
           acceso: 'escritura',
         }),
@@ -2574,10 +2416,10 @@ bloque('CONFORME_A_TABLA');
     ''
   );
 
-  const tipoNoPermitido = juzga(
-    JUICIO_TIPOS,
+  const disallowedType = judges(
+    JUDGMENT_TYPES,
     [
-      evento('object_access', {
+      event('object_access', {
         perfil: 'ops',
         acceso: 'ejecucion',
       }),
@@ -2585,47 +2427,32 @@ bloque('CONFORME_A_TABLA');
     P06
   );
 
-  comprueba(
-    "multiselect · 'ejecucion' no está entre los permitidos · NO_CUMPLE",
-    tipoNoPermitido.status === 'NO_CUMPLE',
-    `${tipoNoPermitido.status} — ${motivos(tipoNoPermitido)}`
+  check(
+    "multiselect · 'ejecucion' is not among the allowed ones · NO_CUMPLE",
+    disallowedType.status === 'NO_CUMPLE',
+    `${disallowedType.status} — ${motives(disallowedType)}`
   );
 }
 
-// --- op.acc.1 / EV-05: dos evidencias sobre el MISMO hecho -------------------
-//
-// EV-05 se migró sin inventar ningún hecho: comparte el `account_authenticated`
-// de EV-03 y solo cambia la lista contra la que se contrasta (P-03 en vez de
-// P-04). Lo que hay que demostrar no es que la primitiva funcione —eso ya está
-// probado arriba— sino que UNA sola alerta produce DOS veredictos
-// independientes, que es lo que el modelo clásico no podía hacer sin emitir el
-// hecho dos veces.
-//
-// La prueba entra por la ALERTA CRUDA, no por eventos normalizados a mano: el
-// reparto de un `evidence_id` con varias evidencias lo hace
-// `normalizeWazuhAlerts`, y si ese reparto se rompiera, una prueba escrita
-// sobre eventos ya normalizados seguiría en verde mientras en producción EV-05
-// no vería un solo hecho.
-
-bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
+section('op.acc.1 / EV-05 · two evidences on the same fact');
 
 {
-  const definiciones = getEvidenceDefinitions('op.acc.1');
+  const definitions = getEvidenceDefinitions('op.acc.1');
 
-  const ev05 = definiciones.find(
-    candidato => candidato.id === 'EV-05'
+  const ev05 = definitions.find(
+    candidate => candidate.id === 'EV-05'
   );
 
-  comprueba(
-    'EV-05 declara NINGUNO_EN_LISTA contra P-03',
+  check(
+    'EV-05 declares NINGUNO_EN_LISTA against P-03',
     ev05?.judgment?.primitive ===
       'NINGUNO_EN_LISTA' &&
       ev05?.judgment?.parameterId === 'P-03',
     JSON.stringify(ev05?.judgment)
   );
 
-  comprueba(
-    'EV-05 lee el mismo hecho crudo que EV-03',
+  check(
+    'EV-05 reads the same raw fact as EV-03',
     Boolean(
       ev05?.judgment?.factEventTypes.includes(
         'account_authenticated'
@@ -2634,10 +2461,8 @@ bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
     JSON.stringify(ev05?.judgment)
   );
 
-  // La alerta tal como la deja Wazuh a partir de la línea que emite
-  // ev03_autenticaciones (lib/opacc1-lib.sh) desde el 04/08.
-  const alertaCruda = (
-    usuario: string
+  const rawAlert = (
+    user: string
   ): unknown => ({
     _id: 'alerta-compartida',
     _source: {
@@ -2653,43 +2478,38 @@ bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
         event: 'account_authenticated',
         evidence_id: 'EV-03,EV-05',
         requisito: 'op.acc.1.1,op.acc.1.2',
-        usuario,
+        usuario: user,
         origen: '10.0.0.12',
       },
     },
   });
 
-  const repartida = normalizeWazuhAlerts([
-    alertaCruda('svc_backup'),
+  const distributed = normalizeWazuhAlerts([
+    rawAlert('svc_backup'),
   ]);
 
-  comprueba(
-    'la alerta con dos evidencias se reparte en dos eventos normalizados',
-    repartida.length === 2 &&
-      repartida.some(
+  check(
+    'the alert with two evidences splits into two normalized events',
+    distributed.length === 2 &&
+      distributed.some(
         item => item.evidenceId === 'EV-03'
       ) &&
-      repartida.some(
+      distributed.some(
         item => item.evidenceId === 'EV-05'
       ),
-    repartida
+    distributed
       .map(item => String(item.evidenceId))
       .join(', ')
   );
 
-  // svc_backup NO está en P-04 (genéricas prohibidas) y SÍ en P-03 (cuentas de
-  // servicio): el mismo hecho tiene que salir verde en una evidencia y rojo en
-  // la otra. Si el motor confundiera los parámetros, o si las dos evidencias
-  // compartieran veredicto, este caso lo cazaría; con un usuario que estuviera
-  // en las dos listas, o en ninguna, la prueba pasaría sin demostrar nada.
-  const dosListas = config(
-    parametro({
+  const twoLists = config(
+    parameter({
       id: 'P-03',
       name: 'cuentas_servicio_definidas',
       type: 'list',
       value: ['svc_backup', 'svc_web'],
     }),
-    parametro({
+    parameter({
       id: 'P-04',
       name: 'cuentas_genericas_prohibidas',
       type: 'list',
@@ -2697,82 +2517,76 @@ bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
     })
   );
 
-  const resueltas = resolveEvidenceForControl(
+  const resolved = resolveEvidenceForControl(
     'op.acc.1',
-    repartida,
+    distributed,
     undefined,
     'ALTO',
-    dosListas
+    twoLists
   );
 
-  const ev03Resuelta = resueltas.find(
-    evidencia => evidencia.id === 'EV-03'
+  const ev03Resolved = resolved.find(
+    evidence => evidence.id === 'EV-03'
   );
 
-  const ev05Resuelta = resueltas.find(
-    evidencia => evidencia.id === 'EV-05'
+  const ev05Resolved = resolved.find(
+    evidence => evidence.id === 'EV-05'
   );
 
-  comprueba(
-    'svc_backup no está en P-04 · EV-03 CUMPLE',
-    ev03Resuelta?.status === 'CUMPLE',
-    `${ev03Resuelta?.status} — ${ev03Resuelta ? motivos(ev03Resuelta) : ''}`
+  check(
+    'svc_backup is not in P-04 · EV-03 CUMPLE',
+    ev03Resolved?.status === 'CUMPLE',
+    `${ev03Resolved?.status} — ${ev03Resolved ? motives(ev03Resolved) : ''}`
   );
 
-  comprueba(
-    'el MISMO hecho está en P-03 · EV-05 NO_CUMPLE',
-    ev05Resuelta?.status === 'NO_CUMPLE',
-    `${ev05Resuelta?.status} — ${ev05Resuelta ? motivos(ev05Resuelta) : ''}`
+  check(
+    'the SAME fact is in P-03 · EV-05 NO_CUMPLE',
+    ev05Resolved?.status === 'NO_CUMPLE',
+    `${ev05Resolved?.status} — ${ev05Resolved ? motives(ev05Resolved) : ''}`
   );
 
-  comprueba(
-    'el motivo de EV-05 nombra la cuenta de servicio, no dice «algo falló»',
+  check(
+    'EV-05\'s motive names the service account, it does not say «algo falló»',
     Boolean(
-      ev05Resuelta &&
-        motivos(ev05Resuelta).includes(
+      ev05Resolved &&
+        motives(ev05Resolved).includes(
           "'svc_backup'"
         )
     ),
-    ev05Resuelta ? motivos(ev05Resuelta) : ''
+    ev05Resolved ? motives(ev05Resolved) : ''
   );
 
-  // Reversión sobre el parámetro: se saca svc_backup de P-03 y EV-05 vuelve,
-  // con el mismo evento. Es la prueba de aceptación de la migración aplicada a
-  // esta evidencia.
-  const sinSvcEnP03 = resolveEvidenceForControl(
+  const withoutSvcInP03 = resolveEvidenceForControl(
     'op.acc.1',
-    repartida,
+    distributed,
     undefined,
     'ALTO',
     config(
-      parametro({
+      parameter({
         id: 'P-03',
         name: 'cuentas_servicio_definidas',
         type: 'list',
         value: ['svc_web'],
       }),
-      parametro({
+      parameter({
         id: 'P-04',
         name: 'cuentas_genericas_prohibidas',
         type: 'list',
         value: ['admin', 'guest'],
       })
     )
-  ).find(evidencia => evidencia.id === 'EV-05');
+  ).find(evidence => evidence.id === 'EV-05');
 
-  comprueba(
-    'se quita svc_backup de P-03 · MISMO evento · EV-05 vuelve a CUMPLE',
-    sinSvcEnP03?.status === 'CUMPLE',
-    `${sinSvcEnP03?.status} — ${sinSvcEnP03 ? motivos(sinSvcEnP03) : ''}`
+  check(
+    'svc_backup removed from P-03 · SAME event · EV-05 goes back to CUMPLE',
+    withoutSvcInP03?.status === 'CUMPLE',
+    `${withoutSvcInP03?.status} — ${withoutSvcInP03 ? motives(withoutSvcInP03) : ''}`
   );
 
-  // El nombre viejo se readmite porque `service_account_interactive` e
-  // `interactive_login` cubrían entre los dos TODOS los logins. Lo que se
-  // descarta del evento viejo es su `estado`, no su `usuario`.
-  const legadoEv05 = resolveEvidenceForControl(
+  const legacyEv05 = resolveEvidenceForControl(
     'op.acc.1',
     [
-      evento(
+      event(
         'interactive_login',
         { usuario: 'svc_backup' },
         {
@@ -2783,33 +2597,27 @@ bloque('op.acc.1 / EV-05 · dos evidencias sobre el mismo hecho');
     ],
     undefined,
     'ALTO',
-    dosListas
-  ).find(evidencia => evidencia.id === 'EV-05');
+    twoLists
+  ).find(evidence => evidence.id === 'EV-05');
 
-  comprueba(
-    "un 'interactive_login' de agente viejo se re-juzga con el P-03 de hoy (decía CUMPLE)",
-    legadoEv05?.status === 'NO_CUMPLE',
-    String(legadoEv05?.status)
+  check(
+    "an old agent's 'interactive_login' is re-judged with today's P-03 (it said CUMPLE)",
+    legacyEv05?.status === 'NO_CUMPLE',
+    String(legacyEv05?.status)
   );
 }
 
-// --- op.acc.1 / EV-07: la primera evidencia contra una TABLA -----------------
-//
-// La lista de usuarios autorizados era un fichero en cada máquina. Ahora es la
-// columna 'usuario' de P-07, y el hecho es el `account_active` que EV-01 ya
-// emitía por cada cuenta de /etc/passwd.
-
-bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
+section('op.acc.1 / EV-07 · TODOS_EN_LISTA against the P-07 table');
 
 {
-  const definiciones = getEvidenceDefinitions('op.acc.1');
+  const definitions = getEvidenceDefinitions('op.acc.1');
 
-  const ev07 = definiciones.find(
-    candidato => candidato.id === 'EV-07'
+  const ev07 = definitions.find(
+    candidate => candidate.id === 'EV-07'
   );
 
-  comprueba(
-    'EV-07 declara TODOS_EN_LISTA contra la columna usuario de P-07',
+  check(
+    'EV-07 declares TODOS_EN_LISTA against P-07\'s usuario column',
     ev07?.judgment?.primitive ===
       'TODOS_EN_LISTA' &&
       ev07?.judgment?.parameterId === 'P-07' &&
@@ -2817,11 +2625,11 @@ bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
     JSON.stringify(ev07?.judgment)
   );
 
-  const listaAutorizados = (
-    filas: string[]
+  const authorizedList = (
+    rows: string[]
   ): ENSControlConfiguration =>
     config(
-      parametro({
+      parameter({
         id: 'P-07',
         name: 'lista_usuarios_autorizados',
         type: 'table',
@@ -2830,88 +2638,79 @@ bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
           { name: 'sistema', type: 'text' },
           { name: 'rol', type: 'text' },
         ],
-        value: filas,
+        value: rows,
       })
     );
 
-  const cuentasActivas = (
-    ...usuarios: string[]
+  const activeAccounts = (
+    ...users: string[]
   ): ENSNormalizedEvent[] =>
-    usuarios.map(usuario =>
-      evento(
+    users.map(user =>
+      event(
         'account_active',
-        { usuario, uid: 1001, tipo: 'persona' },
+        { usuario: user, uid: 1001, tipo: 'persona' },
         { evidenceId: 'EV-07', status: 'CUMPLE' }
       )
     );
 
-  const conforme = resolveEvidenceForControl(
+  const compliant2 = resolveEvidenceForControl(
     'op.acc.1',
-    cuentasActivas('jgomez', 'mlopez'),
+    activeAccounts('jgomez', 'mlopez'),
     undefined,
     'ALTO',
-    listaAutorizados([
+    authorizedList([
       'jgomez | srv01 | ops',
       'mlopez | srv01 | dev',
     ])
-  ).find(evidencia => evidencia.id === 'EV-07');
+  ).find(evidence => evidence.id === 'EV-07');
 
-  comprueba(
-    'las dos cuentas activas figuran en la columna usuario · CUMPLE',
-    conforme?.status === 'CUMPLE',
-    `${conforme?.status} — ${conforme ? motivos(conforme) : ''}`
+  check(
+    'both active accounts are in the usuario column · CUMPLE',
+    compliant2?.status === 'CUMPLE',
+    `${compliant2?.status} — ${compliant2 ? motives(compliant2) : ''}`
   );
 
-  const intrusa = resolveEvidenceForControl(
+  const intruder = resolveEvidenceForControl(
     'op.acc.1',
-    cuentasActivas('jgomez', 'exempleado'),
+    activeAccounts('jgomez', 'exempleado'),
     undefined,
     'ALTO',
-    listaAutorizados([
+    authorizedList([
       'jgomez | srv01 | ops',
       'mlopez | srv01 | dev',
     ])
-  ).find(evidencia => evidencia.id === 'EV-07');
+  ).find(evidence => evidence.id === 'EV-07');
 
-  comprueba(
-    'una cuenta activa que no figura en la tabla · NO_CUMPLE',
-    intrusa?.status === 'NO_CUMPLE',
-    `${intrusa?.status} — ${intrusa ? motivos(intrusa) : ''}`
+  check(
+    'an active account that is not in the table · NO_CUMPLE',
+    intruder?.status === 'NO_CUMPLE',
+    `${intruder?.status} — ${intruder ? motives(intruder) : ''}`
   );
 
-  comprueba(
-    'el motivo nombra la cuenta no autorizada',
+  check(
+    'the motive names the unauthorized account',
     Boolean(
-      intrusa &&
-        motivos(intrusa).includes("'exempleado'")
+      intruder &&
+        motives(intruder).includes("'exempleado'")
     ),
-    intrusa ? motivos(intrusa) : ''
+    intruder ? motives(intruder) : ''
   );
 
-  // Con `parameterColumn` mal declarada la fila entera se compararía contra
-  // 'jgomez' y no casaría jamás: TODA la plantilla saldría no autorizada. Es el
-  // fallo que `parameterColumn` existe para impedir, y esta prueba comprueba que
-  // la proyección de la columna se aplica de verdad — sin ella, el caso
-  // «conforme» de arriba habría salido NO_CUMPLE.
-  comprueba(
-    'la comparación proyecta la columna, no la fila entera',
+  check(
+    'the comparison projects the column, not the whole row',
     Boolean(
-      conforme?.status === 'CUMPLE' &&
-        motivos(conforme).includes(
+      compliant2?.status === 'CUMPLE' &&
+        motives(compliant2).includes(
           "la columna 'usuario'"
         )
     ),
-    conforme ? motivos(conforme) : ''
+    compliant2 ? motives(compliant2) : ''
   );
 
-  // TODOS_EN_LISTA nunca cumple por ausencia, ni con la cobertura confirmada:
-  // «todas las cuentas activas están autorizadas» sobre cero cuentas
-  // observadas es cierto en lógica y falso en una auditoría. /etc/passwd
-  // siempre rinde cuentas: cero hechos aquí significa que no se leyó.
-  const sinCuentas = resolveEvidenceForControl(
+  const withoutAccounts = resolveEvidenceForControl(
     'op.acc.1',
     [
-      evento(
+      event(
         'collector_run',
         {
           resultado: 'completada',
@@ -2923,24 +2722,20 @@ bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
     ],
     undefined,
     'ALTO',
-    listaAutorizados(['jgomez | srv01 | ops']),
+    authorizedList(['jgomez | srv01 | ops']),
     new Date('2026-07-30T10:00:00Z')
-  ).find(evidencia => evidencia.id === 'EV-07');
+  ).find(evidence => evidence.id === 'EV-07');
 
-  comprueba(
-    'cero cuentas observadas con cobertura confirmada · NO_EVALUABLE, no CUMPLE',
-    sinCuentas?.status === 'NO_EVALUABLE',
-    `${sinCuentas?.status} — ${sinCuentas ? motivos(sinCuentas) : ''}`
+  check(
+    'zero observed accounts with confirmed coverage · NO_EVALUABLE, not CUMPLE',
+    withoutAccounts?.status === 'NO_EVALUABLE',
+    `${withoutAccounts?.status} — ${withoutAccounts ? motives(withoutAccounts) : ''}`
   );
 
-  // La trampa de esta migración: `unauthorized_user` solo se emitía para las
-  // cuentas que FALLABAN. Si el catálogo lo readmitiera como hecho, una máquina
-  // con cuarenta cuentas sin mirar saldría CUMPLE en cuanto su única infractora
-  // histórica estuviera hoy en P-07.
-  const soloInfractorLegado = resolveEvidenceForControl(
+  const onlyLegacyOffender = resolveEvidenceForControl(
     'op.acc.1',
     [
-      evento(
+      event(
         'unauthorized_user',
         { usuario: 'jgomez' },
         {
@@ -2951,37 +2746,27 @@ bloque('op.acc.1 / EV-07 · TODOS_EN_LISTA contra la tabla P-07');
     ],
     undefined,
     'ALTO',
-    listaAutorizados(['jgomez | srv01 | ops'])
-  ).find(evidencia => evidencia.id === 'EV-07');
+    authorizedList(['jgomez | srv01 | ops'])
+  ).find(evidence => evidence.id === 'EV-07');
 
-  comprueba(
-    "un 'unauthorized_user' suelto NO acredita a EV-07 (muestra sesgada)",
-    soloInfractorLegado?.status !== 'CUMPLE',
-    String(soloInfractorLegado?.status)
+  check(
+    "a loose 'unauthorized_user' does NOT accredit EV-07 (biased sample)",
+    onlyLegacyOffender?.status !== 'CUMPLE',
+    String(onlyLegacyOffender?.status)
   );
 }
 
-// --- estado de la migración ------------------------------------------------
-
-bloque('Estado de la migración');
+section('Migration status');
 
 {
-  const declaradas = ENSEvidenceCatalog.filter(
+  const declaredOnes = ENSEvidenceCatalog.filter(
     definition => definition.judgment !== undefined
   ).map(
     definition =>
       `${definition.controlId}/${definition.id}`
   );
 
-  // La migración es evidencia a evidencia. Esta prueba es el marcador: cuando
-  // se migre la siguiente, hay que actualizarla a conciencia, no de pasada.
-  //
-  // op.acc.4 no aparece aquí por migración sino por NACIMIENTO: entró el 06/08
-  // con sus ocho evidencias ya en el modelo nuevo, sin pasar nunca por el
-  // clásico. Es la diferencia entre migrar un control y empezarlo bien, y por
-  // eso su agente no tiene ni score.py ni watchdog: no hay veredicto que
-  // calcular en la máquina.
-  const MIGRADAS = [
+  const MIGRATED = [
     'op.acc.1/EV-03',
     'op.acc.1/EV-05',
     'op.acc.1/EV-07',
@@ -2993,8 +2778,6 @@ bloque('Estado de la migración');
     'op.acc.4/EV-06',
     'op.acc.4/EV-07',
     'op.acc.4/EV-08',
-    // op.exp.1 también nace entero en el modelo nuevo: sus siete evidencias
-    // juzgan hechos crudos de su recolector contra P-01, P-02, P-04 y P-07.
     'op.exp.1/EV-01',
     'op.exp.1/EV-02',
     'op.exp.1/EV-03',
@@ -3002,16 +2785,12 @@ bloque('Estado de la migración');
     'op.exp.1/EV-05',
     'op.exp.1/EV-06',
     'op.exp.1/EV-07',
-    // op.exp.2 también nace en el modelo nuevo. EV-07 no está: no tiene hecho
-    // que observar (ver su entrada en el catálogo).
     'op.exp.2/EV-01',
     'op.exp.2/EV-02',
     'op.exp.2/EV-03',
     'op.exp.2/EV-04',
     'op.exp.2/EV-05',
     'op.exp.2/EV-06',
-    // op.acc.6 nace también en el modelo nuevo. EV-02, EV-03, EV-04 y EV-11 no
-    // llevan `judgment` porque las decide su evaluador de policy.
     'op.acc.6/EV-01',
     'op.acc.6/EV-05',
     'op.acc.6/EV-06',
@@ -3020,8 +2799,6 @@ bloque('Estado de la migración');
     'op.acc.6/EV-09',
     'op.acc.6/EV-10',
     'op.acc.6/EV-12',
-    // op.acc.5 nace igual que op.acc.4: sus nueve evidencias ya en el modelo
-    // nuevo desde el primer día.
     'op.acc.5/EV-01',
     'op.acc.5/EV-02',
     'op.acc.5/EV-03',
@@ -3031,47 +2808,32 @@ bloque('Estado de la migración');
     'op.acc.5/EV-07',
     'op.acc.5/EV-08',
     'op.acc.5/EV-09',
-    // op.exp.3 también nace en el modelo nuevo: sus seis evidencias con hecho
-    // en la máquina declaran `judgment`. Las otras cinco no tienen fuente en el
-    // agente y no se juzgan (ver tests/op-exp-3-judgment.test.ts).
     'op.exp.3/EV-02',
     'op.exp.3/EV-03',
     'op.exp.3/EV-04',
     'op.exp.3/EV-08',
     'op.exp.3/EV-09',
     'op.exp.3/EV-11',
-    // op.exp.4 también nace en el modelo nuevo. Solo tres de sus evidencias
-    // declaran primitiva; las demás las mide su policy, que no cabe en
-    // ninguna de las siete (ver `policies/op-exp-4.policy.ts`).
     'op.exp.4/EV-04',
     'op.exp.4/EV-06',
     'op.exp.4/EV-11',
-    // op.exp.6 también nace en el modelo nuevo. Solo EV-01 y EV-03 declaran
-    // primitiva; las demás las mide su policy (ver `policies/op-exp-6.policy.ts`).
     'op.exp.6/EV-01',
     'op.exp.6/EV-03',
-    // op.exp.8 nace en el modelo nuevo. Solo EV-02 declara primitiva; las
-    // demás las mide su policy, que separa el plano del servidor del central
-    // (ver `policies/op-exp-8.policy.ts`).
     'op.exp.8/EV-02',
-    // op.exp.10: dos de sus ocho evidencias caben en una primitiva; las demás
-    // las mide su policy (ver `policies/op-exp-10.policy.ts`).
     'op.exp.10/EV-02',
     'op.exp.10/EV-08',
   ];
 
-  comprueba(
-    `las migradas son exactamente ${MIGRADAS.join(', ')}`,
-    declaradas.length === MIGRADAS.length &&
-      MIGRADAS.every(esperada =>
-        declaradas.includes(esperada)
+  check(
+    `the migrated ones are exactly ${MIGRATED.join(', ')}`,
+    declaredOnes.length === MIGRATED.length &&
+      MIGRATED.every(expected =>
+        declaredOnes.includes(expected)
       ),
-    declaradas.join(', ') || '(ninguna)'
+    declaredOnes.join(', ') || '(ninguna)'
   );
 
-  // Una evidencia migrada no puede seguir escuchando su propio `evidence_state`
-  // como hecho: sería el segundo camino de evaluación sobre los mismos datos.
-  const conEstadoEntreLosHechos = ENSEvidenceCatalog.filter(
+  const withStateAmongFacts = ENSEvidenceCatalog.filter(
     definition =>
       definition.judgment?.factEventTypes.includes(
         'evidence_state'
@@ -3081,16 +2843,13 @@ bloque('Estado de la migración');
       `${definition.controlId}/${definition.id}`
   );
 
-  comprueba(
-    'ninguna evidencia migrada lee `evidence_state` como hecho',
-    conEstadoEntreLosHechos.length === 0,
-    conEstadoEntreLosHechos.join(', ')
+  check(
+    'no migrated evidence reads `evidence_state` as a fact',
+    withStateAmongFacts.length === 0,
+    withStateAmongFacts.join(', ')
   );
 
-  // Toda evidencia que apunte a un parámetro de varias columnas tiene que
-  // declarar cuál compara. Sin esto el motor devuelve NO_EVALUABLE con motivo,
-  // pero el fallo se descubre en producción en vez de aquí.
-  const tablasSinColumna = ENSEvidenceCatalog.filter(
+  const tablesWithoutColumn = ENSEvidenceCatalog.filter(
     definition =>
       definition.judgment &&
       definition.judgment.primitive !==
@@ -3103,34 +2862,20 @@ bloque('Estado de la migración');
       `${definition.controlId}/${definition.id}`
   );
 
-  comprueba(
-    'ninguna evidencia compara P-07 sin declarar su columna',
-    tablasSinColumna.length === 0,
-    tablasSinColumna.join(', ')
+  check(
+    'no evidence compares P-07 without declaring its column',
+    tablesWithoutColumn.length === 0,
+    tablesWithoutColumn.join(', ')
   );
 }
 
-// --- el motivo llega al auditor (T1.5) -------------------------------------
-//
-// `ENSEvidenceResult` no tenía campo `observations`, así que el motivo de la
-// evidencia se descartaba al pasar de la resolución a la evaluación, y los dos
-// modelos de informe (que ya lo leían) recibían siempre `[]`. Es preexistente y
-// afecta a los tres controles.
-//
-// La construcción del resultado en `evaluation-engine.ts` no se puede ejercitar
-// desde aquí (arrastra `kibana-services`, que vive en el árbol del plugin
-// `main`); esa mitad la sostiene el comprobador de tipos: `observations` es
-// OBLIGATORIO en `ENSEvidenceResult`, así que cualquier sitio que construya uno
-// sin él no compila. Lo que sí se ejercita aquí son los dos tramos siguientes:
-// la consolidación entre agentes y el modelo de informe.
-
-bloque('El motivo llega al auditor (T1.5)');
+section('The motive reaches the auditor (T1.5)');
 
 {
-  const MOTIVO =
+  const MOTIVE =
     "Se ha observado 'admin', que figura en la lista del parámetro P-04 (cuentas_genericas_prohibidas).";
 
-  const evidenciaDeResultado = (
+  const resultEvidence = (
     id: string,
     observations: string[]
   ) => ({
@@ -3151,7 +2896,7 @@ bloque('El motivo llega al auditor (T1.5)');
     auditQuestion: '¿Pregunta?',
   });
 
-  const resultado = (
+  const result = (
     observations: string[]
   ) =>
     ({
@@ -3166,10 +2911,6 @@ bloque('El motivo llega al auditor (T1.5)');
       status: 'NO_CUMPLE',
       score: 0,
       coverage: 0,
-      // Un incumplimiento demostrado: un requisito aplicable, medido, que no
-      // conforma. Los tres campos son parte del contrato de
-      // `ENSComplianceResult` desde que el motor separa lo medido de lo que no
-      // se ha podido medir, y la consolidación los suma entre agentes.
       applicableRequirements: 1,
       measuredRequirements: 1,
       unmeasuredRequirements: [],
@@ -3177,7 +2918,7 @@ bloque('El motivo llega al auditor (T1.5)');
       requirements: [],
       parameters: [],
       evidences: [
-        evidenciaDeResultado(
+        resultEvidence(
           'EV-03',
           observations
         ),
@@ -3191,70 +2932,64 @@ bloque('El motivo llega al auditor (T1.5)');
       traceability: [],
     }) as any;
 
-  // --- tramo 1: informe
-  const informe = buildOpAcc1ReportModel(
-    resultado([MOTIVO])
+  const report = buildOpAcc1ReportModel(
+    result([MOTIVE])
   );
 
-  const campoEv03 = informe.fields.find(
+  const fieldEv03 = report.fields.find(
     campo =>
       campo.evidenceIds.length === 1 &&
       campo.evidenceIds[0] === 'EV-03'
   );
 
-  comprueba(
-    'el informe de op.acc.1 tiene un campo alimentado por EV-03',
-    Boolean(campoEv03),
-    informe.fields
+  check(
+    'op.acc.1\'s report has a field fed by EV-03',
+    Boolean(fieldEv03),
+    report.fields
       .map(campo => campo.id)
       .join(', ')
   );
 
-  comprueba(
-    'el motivo de EV-03 llega al informe y nombra la cuenta concreta',
+  check(
+    'EV-03\'s motive reaches the report and names the specific account',
     Boolean(
-      campoEv03?.details.some(detalle =>
-        detalle.includes("'admin'")
+      fieldEv03?.details.some(detail =>
+        detail.includes("'admin'")
       )
     ),
-    JSON.stringify(campoEv03?.details)
+    JSON.stringify(fieldEv03?.details)
   );
 
-  // Verificación por reversión sobre el propio dato: sin motivo en la
-  // evidencia, ese detalle NO aparece. El texto buscado es exclusivo del
-  // motivo — una prueba que buscara «EV-03» pasaría con y sin la propagación,
-  // porque «EV-03» sale igual en el resto del campo.
-  const informeSinMotivo = buildOpAcc1ReportModel(
-    resultado([])
+  const reportWithoutMotive = buildOpAcc1ReportModel(
+    result([])
   );
 
-  const campoSinMotivo =
-    informeSinMotivo.fields.find(
-      campo => campo.id === campoEv03?.id
+  const fieldWithoutMotive =
+    reportWithoutMotive.fields.find(
+      campo => campo.id === fieldEv03?.id
     );
 
-  comprueba(
-    'sin motivo en la evidencia, el informe no se inventa ninguno',
-    !campoSinMotivo?.details.some(detalle =>
-      detalle.includes("'admin'")
+  check(
+    'without a motive in the evidence, the report invents none',
+    !fieldWithoutMotive?.details.some(detail =>
+      detail.includes("'admin'")
     ),
-    JSON.stringify(campoSinMotivo?.details)
+    JSON.stringify(fieldWithoutMotive?.details)
   );
 
-  // --- tramo 2: consolidación entre agentes
-  const consolidado =
+  const consolidated =
     consolidateAgentComplianceResults([
       {
         agentId: '001',
         agentName: 'srv-dc01',
-        results: [resultado([MOTIVO])],
+        results: [result([MOTIVE])],
         summary: [],
       },
       {
         agentId: '002',
         agentName: 'srv-web01',
         results: [
-          resultado([
+          result([
             "Se ha observado 'guest', que figura en la lista del parámetro P-04 (cuentas_genericas_prohibidas).",
           ]),
         ],
@@ -3262,48 +2997,46 @@ bloque('El motivo llega al auditor (T1.5)');
       },
     ] as any);
 
-  const ev03Consolidada = consolidado[0]?.evidences.find(
-    evidencia => evidencia.id === 'EV-03'
+  const ev03Consolidated = consolidated[0]?.evidences.find(
+    evidence => evidence.id === 'EV-03'
   );
 
-  comprueba(
-    'consolidando dos agentes, el motivo de LOS DOS sobrevive',
+  check(
+    'consolidating two agents, the motive of BOTH survives',
     Boolean(
-      ev03Consolidada?.observations.some(o =>
+      ev03Consolidated?.observations.some(o =>
         o.includes("'admin'")
       ) &&
-        ev03Consolidada?.observations.some(o =>
+        ev03Consolidated?.observations.some(o =>
           o.includes("'guest'")
         )
     ),
     JSON.stringify(
-      ev03Consolidada?.observations
+      ev03Consolidated?.observations
     )
   );
 
-  comprueba(
-    'cada motivo consolidado dice de qué máquina viene',
+  check(
+    'each consolidated motive says which machine it comes from',
     Boolean(
-      ev03Consolidada?.observations.every(o =>
+      ev03Consolidated?.observations.every(o =>
         o.startsWith('[srv-')
       )
     ),
     JSON.stringify(
-      ev03Consolidada?.observations
+      ev03Consolidated?.observations
     )
   );
 }
 
-// --- salida ----------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
+if (failures.length) {
   console.log(
-    `${fallos.length} prueba(s) fallidas: ${fallos.join(', ')}`
+    `${failures.length} failed test(s): ${failures.join(', ')}`
   );
 
   process.exit(1);
 }
 
-console.log('todas las pruebas pasan');
+console.log('all tests pass');

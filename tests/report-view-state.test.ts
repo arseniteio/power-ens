@@ -1,47 +1,36 @@
-/**
- * Lo que enseña la sección de informe de un control (U-N2, U-N3).
- *
- *   npx --yes tsx tests/report-view-state.test.ts
- *
- * Nunca una rueda sin fin ni un relleno que parezca medido: con la
- * evaluación llegada y sin resultado para la máquina elegida, «este control no
- * se mide en esta máquina» y el motivo (`describeNotMeasuredOnAgent`, la misma
- * regla que la ficha y la lista); con el panorama de op.mon.2 en curso, que
- * carga (no SIN_DATOS). Solo se exporta un informe listo.
- */
+/** What a control's report section shows: never an endless spinner or a filler that looks measured. */
 import { canExportReport, reportViewState } from '../public/ens/reports/report-view-state';
 import { describeNotMeasuredOnAgent } from '../common/ens/core/scope/measurement-planes';
 import { getENSCatalogControl } from '../common/ens/catalog';
 
 declare const process: { exit(code: number): void };
-const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const failures: string[] = [];
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
 const base = { controlId: 'op.exp.3', hasData: true, hasResult: true, usesPanorama: false, panoramaLoading: false, notMeasured: () => undefined };
 
-const cargando = reportViewState({ ...base, hasData: false, hasResult: false });
-comprueba('sin la evaluación de esta selección: cargando, sin PDF', cargando.kind === 'loading' && !canExportReport(cargando));
-const error = reportViewState({ ...base, error: new Error('caído'), hasData: false, hasResult: false });
-comprueba('con error: el error (antes que nada), sin PDF', error.kind === 'error' && !canExportReport(error));
+const loading = reportViewState({ ...base, hasData: false, hasResult: false });
+check('without this selection\'s evaluation: loading, no PDF', loading.kind === 'loading' && !canExportReport(loading));
+const error = reportViewState({ ...base, error: new Error('down'), hasData: false, hasResult: false });
+check('with an error: the error (before anything), no PDF', error.kind === 'error' && !canExportReport(error));
 
-// U-N2: la evaluación llegó, sin resultado para la máquina elegida.
 const opExp3 = getENSCatalogControl('op.exp.3')!;
-let preguntado = 0;
-const enManager = reportViewState({
+let asked = 0;
+const onManager = reportViewState({
   ...base,
   agentId: '000',
   agentLabel: '000 · wazuh4',
   hasResult: false,
-  notMeasured: () => { preguntado += 1; return describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined); },
+  notMeasured: () => { asked += 1; return describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined); },
 });
-comprueba('U-N2: control de agente en el manager: «no se mide en esta máquina», no una rueda',
-  enManager.kind === 'not-measured' && /no se mide en esta máquina/.test(enManager.title) && enManager.reason?.cause === 'PLANE' && preguntado === 1, enManager);
-comprueba('U-N2: con el motivo de la regla común', enManager.kind === 'not-measured' && enManager.text === describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined)!.text);
-comprueba('U-N2: sin PDF', !canExportReport(enManager));
+check('U-N2: agent control on the manager: «no se mide en esta máquina», not a spinner',
+  onManager.kind === 'not-measured' && /no se mide en esta máquina/.test(onManager.title) && onManager.reason?.cause === 'PLANE' && asked === 1, onManager);
+check('U-N2: with the common rule\'s motive', onManager.kind === 'not-measured' && onManager.text === describeNotMeasuredOnAgent(opExp3, '000', 'wazuh4', undefined)!.text);
+check('U-N2: sin PDF', !canExportReport(onManager));
 
 const mpInfo6 = getENSCatalogControl('mp.info.6')!;
 const p04 = { controlId: 'mp.info.6', parameters: [{ id: 'P-04', value: ['srv-web01 | MEDIA'] }] } as any;
-const fueraDeP04 = reportViewState({
+const outsideP04 = reportViewState({
   ...base,
   controlId: 'mp.info.6',
   agentId: '028',
@@ -49,20 +38,19 @@ const fueraDeP04 = reportViewState({
   hasResult: false,
   notMeasured: () => describeNotMeasuredOnAgent(mpInfo6, '028', 'zimbraHldap', p04),
 });
-comprueba('U-N2: máquina fuera del alcance declarado (P-04): DECLARED_SCOPE y lo que declara',
-  fueraDeP04.kind === 'not-measured' && fueraDeP04.reason?.cause === 'DECLARED_SCOPE' && /P-04/.test(fueraDeP04.text), fueraDeP04);
-const sinMotivo = reportViewState({ ...base, agentId: '024', hasResult: false });
-comprueba('U-N2: sin motivo conocido, lo dice igual (nunca rueda)', sinMotivo.kind === 'not-measured' && /024/.test(sinMotivo.text));
-const ninguna = reportViewState({ ...base, hasResult: false });
-comprueba('U-N2: sin máquina elegida y sin resultado: «en ninguna máquina»', ninguna.kind === 'not-measured' && /ninguna máquina/.test(ninguna.title));
+check('U-N2: machine outside the declared scope (P-04): DECLARED_SCOPE and what it declares',
+  outsideP04.kind === 'not-measured' && outsideP04.reason?.cause === 'DECLARED_SCOPE' && /P-04/.test(outsideP04.text), outsideP04);
+const withoutMotive = reportViewState({ ...base, agentId: '024', hasResult: false });
+check('U-N2: without a known motive, it says so all the same (never a spinner)', withoutMotive.kind === 'not-measured' && /024/.test(withoutMotive.text));
+const noneAtAll = reportViewState({ ...base, hasResult: false });
+check('U-N2: no machine chosen and no result: «en ninguna máquina»', noneAtAll.kind === 'not-measured' && /ninguna máquina/.test(noneAtAll.title));
 
-// U-N3: el panorama de op.mon.2 en curso.
-const panoramaEnCurso = reportViewState({ ...base, controlId: 'op.mon.2', usesPanorama: true, panoramaLoading: true });
-comprueba('U-N3: panorama en curso: carga, no SIN_DATOS, sin PDF', panoramaEnCurso.kind === 'panorama-loading' && !canExportReport(panoramaEnCurso));
-const panoramaListo = reportViewState({ ...base, controlId: 'op.mon.2', usesPanorama: true, panoramaLoading: false });
-comprueba('U-N3: panorama llegado (o fallido, con su aviso): informe y PDF', panoramaListo.kind === 'ready' && canExportReport(panoramaListo));
-const listo = reportViewState(base);
-comprueba('resultado de esta selección: informe y PDF', listo.kind === 'ready' && canExportReport(listo));
+const overviewInProgress = reportViewState({ ...base, controlId: 'op.mon.2', usesPanorama: true, panoramaLoading: true });
+check('U-N3: overview in progress: loading, not SIN_DATOS, no PDF', overviewInProgress.kind === 'panorama-loading' && !canExportReport(overviewInProgress));
+const overviewReady = reportViewState({ ...base, controlId: 'op.mon.2', usesPanorama: true, panoramaLoading: false });
+check('U-N3: overview arrived (or failed, with its notice): report and PDF', overviewReady.kind === 'ready' && canExportReport(overviewReady));
+const ready = reportViewState(base);
+check('this selection\'s result: report and PDF', ready.kind === 'ready' && canExportReport(ready));
 
-fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
-process.exit(fallos.length ? 1 : 0);
+failures.length ? console.log(`\n${failures.length} FAILURES`) : console.log('\nAll checks pass.');
+process.exit(failures.length ? 1 : 0);

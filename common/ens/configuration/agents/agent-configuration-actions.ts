@@ -1,20 +1,34 @@
-// Lo que la pantalla hace con el documento, como funciones PURAS: reciben el
-// documento y devuelven otro (nunca lo modifican). El guardado lo hace
-// `configuration-state-service`; así cada acción se prueba sin servidor.
+// Pure: each action returns a new document, so it is tested without a server and saved through the queue.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
   ENSConfigurationVersion,
   ENSControlConfiguration,
+  ENSCustomTemplate,
   ENSLevel,
+  ENSMatchMode,
   ENSSystemType,
 } from '../types';
-import { normalizeAgentId } from '../../../agent-configuration';
+import { ENS_CUSTOM_TEMPLATE_KEYS, ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
 import { isEmptyParameterValue } from '../services/parameter-value-validator';
-import { getConfigurationTemplate } from '../templates';
-import { ENSConfigurationRegistry } from '../registry';
-import { getAgentTemplateValue, resolveControlConfigurationWithOrigins } from './configuration-resolver';
+import { ENSConfigurationRegistry, getENSControlConfiguration } from '../registry';
+import {
+  findControlTemplate,
+  getControlTemplates,
+  getCustomTemplates,
+  hasTemplateParameters,
+  isReservedTemplateId,
+} from '../templates';
+import {
+  getAgentSystemType,
+  getEffectiveTemplate,
+  getInheritedSetting,
+  resolveControlConfigurationWithOrigins,
+  toTemplateModel,
+} from './configuration-resolver';
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
+import { getAgentControls } from './agent-controls';
+import { describeAgentLevelValueIssue } from './agent-configuration-validator';
 import type { ENSDetectableAgent, ENSSystemDetection } from './system-detection';
 import { cloneDocument, mergeAliases, profileIdentity } from './profile-identity';
 
@@ -23,33 +37,57 @@ const clone = cloneDocument;
 const sameValue = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-const identity = profileIdentity;
+const sameMode = (left: ENSMatchMode | undefined, right: ENSMatchMode | undefined): boolean =>
+  (left === 'regex') === (right === 'regex');
 
+// Only `regex` is stored: absent means exact.
+const setMode = (modes: Record<string, ENSMatchMode>, parameterId: string, mode: ENSMatchMode | undefined) => {
+  if (mode === 'regex') modes[parameterId] = 'regex';
+  else delete modes[parameterId];
+};
+
+type ENSControlEntry = {
+  templateId?: string;
+  parameters?: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
+};
+
+// The stored type changes only through its own actions: it decides which built-in template applies.
 const withProfile = (
   configuration: ENSConfigurationVersion,
   agentId: string,
   update: (profile: ENSAgentProfile) => ENSAgentProfile,
-  agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
+  agent?: ENSDetectableAgent
 ): ENSConfigurationVersion => {
   const id = normalizeAgentId(agentId);
-  const next = clone(configuration);
+  const next = clone(toTemplateModel(configuration));
   const agents = next.agents || {};
   const current = agents[id] || {};
-  // La identidad se refresca con lo que se sabe hoy; lo demás se conserva.
-  const updated = update({ ...current, ...identity(agent, detection), aliases: mergeAliases(current.aliases, identity(agent).aliases) });
+  const known = profileIdentity(agent);
+  const updated = update({ ...current, ...(known.name ? { name: known.name } : {}), aliases: mergeAliases(current.aliases, known.aliases) });
   if (!updated.aliases?.length) delete updated.aliases;
+  if (updated.controls && !Object.keys(updated.controls).length) delete updated.controls;
   agents[id] = updated;
   next.agents = agents;
   return next;
 };
 
-/**
- * Valor propio de un agente para un parámetro. `undefined` lo QUITA (la clave
- * desaparece; nunca `null`). Un valor igual al que heredaría (de su plantilla o
- * de la organización) tampoco se guarda: así lo que es propio de la máquina se
- * ve, y lo heredado sigue a su origen cuando cambie.
- */
+const withControlEntry = (
+  profile: ENSAgentProfile,
+  controlId: string,
+  update: (entry: ENSControlEntry) => ENSControlEntry
+): ENSAgentProfile => {
+  const controls = { ...(profile.controls || {}) };
+  const entry = update({ ...(controls[controlId] || {}) });
+  if (entry.parameters && !Object.keys(entry.parameters).length) delete entry.parameters;
+  if (entry.matchModes && !Object.keys(entry.matchModes).length) delete entry.matchModes;
+  if (entry.templateId === undefined) delete entry.templateId;
+  if (Object.keys(entry).length) controls[controlId] = entry;
+  else delete controls[controlId];
+  return { ...profile, controls };
+};
+
+// A value equal to the inherited one, in the same mode, is not stored, so it keeps following its source.
 export const setAgentParameterValue = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -57,114 +95,323 @@ export const setAgentParameterValue = (
   parameterId: string,
   value: ENSAgentParameterValue | undefined,
   agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
+  matchMode?: ENSMatchMode
 ): ENSConfigurationVersion => {
   if (!isAgentLevelParameter(controlId, parameterId)) {
-    throw new Error(`${controlId} ${parameterId} es un parámetro de organización: no admite valor por agente.`);
+    throw new Error(`${controlId} ${parameterId} es un ajuste común del control: no admite valor por agente.`);
   }
 
-  const id = normalizeAgentId(agentId);
-  const profile = configuration.agents?.[id];
-  const inherited =
-    getAgentTemplateValue(profile, controlId, parameterId)?.value ??
-    configuration.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId)?.value;
-  const remove = value === undefined || isEmptyParameterValue(value) || sameValue(value, inherited);
+  const inherited = getInheritedSetting(configuration, agentId, controlId, parameterId);
+  const remove =
+    value === undefined || isEmptyParameterValue(value) || (sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode));
 
   return withProfile(
     configuration,
-    id,
-    current => {
-      const controls = { ...(current.controls || {}) };
-      const parameters = { ...(controls[controlId]?.parameters || {}) };
-
-      if (remove) {
-        delete parameters[parameterId];
-      } else {
-        parameters[parameterId] = value as ENSAgentParameterValue;
-      }
-
-      // Lo que una versión posterior guarde junto a `parameters` se conserva.
-      const { parameters: _previous, ...rest } = (controls[controlId] || {}) as Record<string, unknown>;
-      if (Object.keys(parameters).length) {
-        controls[controlId] = { ...rest, parameters } as typeof controls[string];
-      } else if (Object.keys(rest).length) {
-        controls[controlId] = rest as unknown as typeof controls[string];
-      } else {
-        delete controls[controlId];
-      }
-
-      const next = { ...current, controls };
-      if (!Object.keys(controls).length) delete next.controls;
-      return next;
-    },
-    agent,
-    detection
+    agentId,
+    current =>
+      withControlEntry(current, controlId, entry => {
+        const parameters = { ...(entry.parameters || {}) };
+        const matchModes = { ...(entry.matchModes || {}) };
+        if (remove) {
+          delete parameters[parameterId];
+          delete matchModes[parameterId];
+        } else {
+          parameters[parameterId] = value as ENSAgentParameterValue;
+          setMode(matchModes, parameterId, matchMode);
+        }
+        return { ...entry, parameters, matchModes };
+      }),
+    agent
   );
 };
 
-/**
- * Aplica una plantilla a una máquina. Una plantilla de plataforma SUSTITUYE a
- * la que tuviera (una máquina es de una plataforma); un añadido se suma, salvo
- * que sea incompatible con otro (PBS y Zimbra NE): entonces se devuelve el
- * motivo y el documento no cambia.
- */
-export const applyTemplateToAgent = (
+export const clearAgentControlOverrides = (
   configuration: ENSConfigurationVersion,
   agentId: string,
-  templateId: string,
-  agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
-): { configuration: ENSConfigurationVersion; error?: string } => {
-  const template = getConfigurationTemplate(templateId);
+  controlId: string
+): ENSConfigurationVersion =>
+  withProfile(configuration, agentId, current => withControlEntry(current, controlId, entry => ({ ...entry, parameters: {}, matchModes: {} })));
 
-  if (!template) {
-    return { configuration, error: `la plantilla ${templateId} no existe en esta versión del plugin` };
+export const setControlTemplateAssignment = (
+  configuration: ENSConfigurationVersion,
+  controlId: string,
+  agentIds: string[],
+  templateId: string | undefined,
+  agents: Record<string, ENSDetectableAgent | undefined> = {}
+): ENSConfigurationVersion => {
+  if (templateId !== undefined && templateId !== ENS_NO_TEMPLATE && !findControlTemplate(toTemplateModel(configuration), controlId, templateId)) {
+    throw new Error(`La plantilla «${templateId}» no existe en ${controlId}.`);
   }
 
-  const applied = configuration.agents?.[normalizeAgentId(agentId)]?.templates || [];
-  const kept = template.kind === 'base'
-    ? applied.filter(id => getConfigurationTemplate(id)?.kind !== 'base')
-    : applied.filter(id => id !== templateId);
-  const clash = kept.find(
-    id => template.incompatibleWith?.includes(id) || getConfigurationTemplate(id)?.incompatibleWith?.includes(templateId)
+  return agentIds.reduce(
+    (current, agentId) =>
+      withProfile(
+        current,
+        agentId,
+        profile => withControlEntry(profile, controlId, entry => ({ ...entry, templateId })),
+        agents[normalizeAgentId(agentId)]
+      ),
+    configuration
   );
+};
 
-  if (clash) {
-    return {
-      configuration,
-      error: `${template.label} no se combina con ${getConfigurationTemplate(clash)?.label || clash}`,
-    };
-  }
+// --- previews -----------------------------------------------------------------
 
-  // La plataforma primero y los añadidos después: con el orden de aplicación
-  // gana la primera plantilla que fija cada parámetro.
-  const templates = template.kind === 'base' ? [templateId, ...kept] : [...kept, templateId];
+export interface ENSAgentChangePreview {
+  agentId: string;
+  // Parameters whose effective value changes on this agent's row.
+  changes: string[];
+  // Required parameters that had a value and lose it.
+  leftEmpty: string[];
+}
+
+// Effective values that change between two documents for each agent, over the controls of both.
+export const previewConfigurationChange = (
+  before: ENSConfigurationVersion,
+  after: ENSConfigurationVersion,
+  agentIds: string[],
+  controlIds?: string[]
+): ENSAgentChangePreview[] =>
+  agentIds.map(agentId => {
+    const result: ENSAgentChangePreview = { agentId: normalizeAgentId(agentId), changes: [], leftEmpty: [] };
+    after.controls
+      .filter(control => !controlIds || controlIds.includes(control.controlId))
+      .forEach(control => {
+        const left = resolveControlConfigurationWithOrigins(before, control.controlId, agentId);
+        const right = resolveControlConfigurationWithOrigins(after, control.controlId, agentId);
+        control.parameters.forEach(parameter => {
+          if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
+          const before = left?.configuration.parameters.find(item => item.id === parameter.id);
+          const after = right?.configuration.parameters.find(item => item.id === parameter.id);
+          const was = before?.value;
+          const is = after?.value;
+          if (sameValue(was, is) && sameMode(before?.matchMode, after?.matchMode)) return;
+          result.changes.push(`${control.controlId} ${parameter.id}`);
+          if (parameter.required && !isEmptyParameterValue(was) && isEmptyParameterValue(is)) {
+            result.leftEmpty.push(`${control.controlId} ${parameter.id}`);
+          }
+        });
+      });
+    return result;
+  });
+
+export const describeTemplateChoice = (
+  configuration: Pick<ENSConfigurationVersion, 'templates'>,
+  controlId: string,
+  templateId: string | undefined
+): string => {
+  if (templateId === undefined) return 'la de serie de su tipo';
+  if (templateId === ENS_NO_TEMPLATE) return 'sin plantilla (valores comunes)';
+  return `«${findControlTemplate(configuration, controlId, templateId)?.name || templateId}»`;
+};
+
+export interface ENSAssignmentPreview extends ENSAgentChangePreview {
+  from: string;
+  to: string;
+  // Overrides that keep winning over the template.
+  ownWins: string[];
+  // The template is meant for another system type.
+  mismatch?: string;
+}
+
+export const previewControlAssignment = (
+  configuration: ENSConfigurationVersion,
+  controlId: string,
+  agentIds: string[],
+  templateId: string | undefined
+): { configuration: ENSConfigurationVersion; previews: ENSAssignmentPreview[] } => {
+  const next = setControlTemplateAssignment(configuration, controlId, agentIds, templateId);
+  const target = findControlTemplate(next, controlId, templateId);
+  const changes = previewConfigurationChange(configuration, next, agentIds, [controlId]);
 
   return {
-    configuration: withProfile(configuration, agentId, current => ({ ...current, templates }), agent, detection),
+    configuration: next,
+    previews: changes.map(change => {
+      const profile = toTemplateModel(configuration).agents?.[change.agentId];
+      const current = getEffectiveTemplate(configuration, change.agentId, controlId);
+      const after = getEffectiveTemplate(next, change.agentId, controlId);
+      const type = getAgentSystemType(profile);
+      const describe = (effective: typeof current) =>
+        effective.template
+          ? `«${effective.template.name}»${effective.via === 'type' ? ' (de serie, por su tipo)' : ''}`
+          : 'sin plantilla (valores comunes)';
+      return {
+        ...change,
+        from: describe(current),
+        to: describe(after),
+        ownWins: Object.keys(profile?.controls?.[controlId]?.parameters || {})
+          .filter(parameterId => target && Object.prototype.hasOwnProperty.call(target.values, parameterId))
+          .map(parameterId => `${controlId} ${parameterId}`),
+        ...(target?.systemType && type && target.systemType !== type
+          ? { mismatch: `«${target.name}» es para ${ENS_SYSTEM_TYPE_LABELS[target.systemType]} y el agente es ${ENS_SYSTEM_TYPE_LABELS[type]}` }
+          : {}),
+      };
+    }),
   };
 };
 
-export const removeTemplateFromAgent = (
-  configuration: ENSConfigurationVersion,
-  agentId: string,
-  templateId: string
-): ENSConfigurationVersion =>
-  withProfile(configuration, agentId, current => {
-    const templates = (current.templates || []).filter(id => id !== templateId);
-    const next = { ...current, templates };
-    if (!templates.length) delete next.templates;
-    return next;
+// --- custom templates -------------------------------------------------------
+
+const slug = (text: string): string =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'plantilla';
+
+export const newTemplateId = (configuration: Pick<ENSConfigurationVersion, 'templates'>, name: string): string => {
+  const taken = new Set(getCustomTemplates(configuration).map(template => template.id));
+  const base = `custom-${slug(name)}`;
+  let id = base;
+  for (let n = 2; taken.has(id) || isReservedTemplateId(id); n += 1) id = `${base}-${n}`;
+  return id;
+};
+
+export interface ENSTemplateInput {
+  controlId: string;
+  name: string;
+  description?: string;
+  systemType?: ENSSystemType;
+  values: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
+}
+
+const controlFor = (configuration: ENSConfigurationVersion, controlId: string): ENSControlConfiguration | undefined =>
+  configuration.controls.find(control => control.controlId === controlId) || getENSControlConfiguration(controlId);
+
+// Throws with the reason; empty values are dropped (an unset parameter inherits the common value).
+const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplateInput, id: string): ENSCustomTemplate => {
+  const name = String(input.name || '').trim();
+  if (!name) throw new Error('La plantilla necesita un nombre.');
+  if (!hasTemplateParameters(input.controlId)) throw new Error(`${input.controlId} solo tiene ajustes comunes: no admite plantillas.`);
+  const control = controlFor(configuration, input.controlId);
+  if (!control) throw new Error(`${input.controlId} no es un control de esta versión.`);
+  const duplicated = getControlTemplates(configuration, input.controlId).some(
+    template => template.id !== id && template.name.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (duplicated) throw new Error(`Ya hay una plantilla «${name}» en ${input.controlId}.`);
+
+  const values: Record<string, ENSAgentParameterValue> = {};
+  const matchModes: Record<string, ENSMatchMode> = {};
+  Object.entries(input.values || {}).forEach(([parameterId, value]) => {
+    if (value === undefined || isEmptyParameterValue(value)) return;
+    const matchMode = input.matchModes?.[parameterId];
+    const issue = describeAgentLevelValueIssue(control, parameterId, value, matchMode);
+    if (issue) throw new Error(`${issue.message.replace(/\.$/, '')}.`);
+    values[parameterId] = value;
+    setMode(matchModes, parameterId, matchMode);
   });
 
-// Corrige el tipo a mano (`undefined` vuelve al detectado). Guarda también lo
-// detectado, para que se vea qué se corrigió.
+  return {
+    id,
+    controlId: input.controlId,
+    name,
+    ...(input.description && input.description.trim() ? { description: input.description.trim() } : {}),
+    ...(input.systemType ? { systemType: input.systemType } : {}),
+    values,
+    ...(Object.keys(matchModes).length ? { matchModes } : {}),
+  };
+};
+
+export const createControlTemplate = (
+  configuration: ENSConfigurationVersion,
+  input: ENSTemplateInput
+): { configuration: ENSConfigurationVersion; template: ENSCustomTemplate } => {
+  const next = clone(toTemplateModel(configuration));
+  const template = cleanTemplate(next, input, newTemplateId(next, input.name));
+  next.templates = [...(next.templates || []), template];
+  return { configuration: next, template };
+};
+
+export const duplicateControlTemplate = (
+  configuration: ENSConfigurationVersion,
+  controlId: string,
+  sourceId: string,
+  name?: string
+): { configuration: ENSConfigurationVersion; template: ENSCustomTemplate } => {
+  const model = toTemplateModel(configuration);
+  const source = findControlTemplate(model, controlId, sourceId);
+  if (!source) throw new Error(`La plantilla «${sourceId}» no existe en ${controlId}.`);
+  const taken = new Set(getControlTemplates(model, controlId).map(template => template.name.trim().toLowerCase()));
+  let candidate = name?.trim() || `${source.name} (copia)`;
+  for (let n = 2; !name && taken.has(candidate.toLowerCase()); n += 1) candidate = `${source.name} (copia ${n})`;
+  return createControlTemplate(model, {
+    controlId,
+    name: candidate,
+    description: source.description,
+    systemType: source.systemType,
+    values: clone(source.values),
+    matchModes: clone(source.matchModes || {}),
+  });
+};
+
+export const updateControlTemplate = (
+  configuration: ENSConfigurationVersion,
+  templateId: string,
+  patch: Partial<Omit<ENSTemplateInput, 'controlId'>>
+): ENSConfigurationVersion => {
+  const next = clone(toTemplateModel(configuration));
+  const index = (next.templates || []).findIndex(template => template.id === templateId);
+  if (index < 0) {
+    throw new Error(isReservedTemplateId(templateId) ? 'Las plantillas de serie no se editan: se duplican.' : `La plantilla «${templateId}» no existe.`);
+  }
+  const current = next.templates![index];
+  const merged: ENSTemplateInput = {
+    controlId: current.controlId,
+    name: patch.name ?? current.name,
+    description: 'description' in patch ? patch.description : current.description,
+    systemType: 'systemType' in patch ? patch.systemType : current.systemType,
+    values: patch.values ?? current.values,
+    matchModes: 'matchModes' in patch ? patch.matchModes : current.matchModes,
+  };
+  const unknown = Object.fromEntries(Object.entries(current).filter(([key]) => !ENS_CUSTOM_TEMPLATE_KEYS.includes(key)));
+  next.templates![index] = { ...unknown, ...cleanTemplate(next, merged, templateId) };
+  return next;
+};
+
+export const getTemplateUsage = (
+  configuration: Pick<ENSConfigurationVersion, 'agents' | 'templates' | 'controls'>,
+  controlId: string,
+  templateId: string
+): string[] =>
+  Object.entries(toTemplateModel(configuration).agents || {})
+    .filter(([, profile]) => profile?.controls?.[controlId]?.templateId === templateId)
+    .map(([agentId]) => agentId)
+    .sort();
+
+// In use, refused unless `reassign` says where its agents go (`{}`: the built-in of their type).
+export const deleteControlTemplate = (
+  configuration: ENSConfigurationVersion,
+  templateId: string,
+  reassign?: { templateId?: string }
+): ENSConfigurationVersion => {
+  const model = toTemplateModel(configuration);
+  const template = getCustomTemplates(model).find(item => item.id === templateId);
+  if (!template) {
+    throw new Error(isReservedTemplateId(templateId) ? 'Las plantillas de serie no se borran.' : `La plantilla «${templateId}» no existe.`);
+  }
+  if (reassign?.templateId === templateId) throw new Error('No se puede reasignar a la plantilla que se borra.');
+  const users = getTemplateUsage(model, template.controlId, templateId);
+  if (users.length && !reassign) {
+    throw new Error(`«${template.name}» está asignada a ${users.length} agente(s) (${users.join(', ')}): hay que reasignarlos antes de borrarla.`);
+  }
+  const reassigned = users.length
+    ? setControlTemplateAssignment(model, template.controlId, users, reassign!.templateId)
+    : clone(model);
+  reassigned.templates = (reassigned.templates || []).filter(item => item.id !== templateId || item.controlId !== template.controlId);
+  return reassigned;
+};
+
+// --- system type ------------------------------------------------------------
+
+// Manual type (`undefined` goes back to the detected one).
 export const setAgentTypeOverride = (
   configuration: ENSConfigurationVersion,
   agentId: string,
   type: ENSSystemType | undefined,
-  agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
+  agent?: ENSDetectableAgent
 ): ENSConfigurationVersion =>
   withProfile(
     configuration,
@@ -175,28 +422,72 @@ export const setAgentTypeOverride = (
       else delete next.typeOverride;
       return next;
     },
-    agent,
-    detection
+    agent
   );
 
-// --- controles del catálogo que no están en el documento --------------------
+export interface ENSDetectedTypeEntry {
+  agentId: string;
+  agent?: ENSDetectableAgent;
+  detection: ENSSystemDetection;
+}
 
-// Los controles del catálogo que el documento no tiene (los que
-// `inject-control.py` todavía no ha sembrado).
+// Detected types that are not stored yet (or changed): the built-in template of a type applies only once stored.
+export const pendingDetectedTypes = (
+  configuration: Pick<ENSConfigurationVersion, 'agents' | 'templates' | 'controls'>,
+  entries: ENSDetectedTypeEntry[]
+): ENSDetectedTypeEntry[] => {
+  const agents = toTemplateModel(configuration).agents || {};
+  return entries.filter(entry => {
+    const profile = agents[normalizeAgentId(entry.agentId)];
+    return entry.detection.type && !knownSystemType(profile?.typeOverride) && profile?.detectedType !== entry.detection.type;
+  });
+};
+
+export const saveDetectedTypes = (
+  configuration: ENSConfigurationVersion,
+  entries: ENSDetectedTypeEntry[]
+): ENSConfigurationVersion =>
+  entries
+    .filter(entry => entry.detection.type)
+    .reduce(
+      (current, entry) =>
+        withProfile(
+          current,
+          entry.agentId,
+          profile => ({ ...profile, detectedType: entry.detection.type, detectedBy: entry.detection.evidence }),
+          entry.agent
+        ),
+      configuration
+    );
+
+export const setAgentAliases = (
+  configuration: ENSConfigurationVersion,
+  agentId: string,
+  aliases: string[],
+  agent?: ENSDetectableAgent
+): ENSConfigurationVersion =>
+  withProfile(
+    configuration,
+    agentId,
+    current => {
+      const clean = mergeAliases(aliases);
+      const next = { ...current };
+      if (clean) next.aliases = clean;
+      else delete next.aliases;
+      return next;
+    },
+    agent
+  );
+
+// --- catalog controls missing from the document -----------------------------
+
 export const getMissingCatalogControls = (
   configuration: Pick<ENSConfigurationVersion, 'controls'>,
   registry: ENSControlConfiguration[] = ENSConfigurationRegistry
 ): ENSControlConfiguration[] =>
   registry.filter(control => !configuration.controls.some(item => item.controlId === control.controlId));
 
-/**
- * Añade controles que faltan con sus valores por defecto: la definición del
- * control tal cual (la misma que el bloque semilla de `config/`) y ningún
- * valor, salvo los `defaultValue` que declare. Es lo que hace
- * `inject-control.py` con un control que no estaba («Alta»): no toca los demás
- * controles, ni `agents`, ni crea asignaciones. Un control que ya está no se
- * toca: para fusionar uno existente, `inject-control.py`.
- */
+// Same as `inject-control.py` for a new control: the seed block, no values but its declared defaults.
 export const addMissingControls = (
   configuration: ENSConfigurationVersion,
   controlIds: string[],
@@ -223,7 +514,7 @@ export const addMissingControls = (
   return { configuration: next, added: missing.map(control => control.controlId) };
 };
 
-// --- completitud de un agente -----------------------------------------------
+// --- completeness -------------------------------------------------------------
 
 export interface ENSAgentCompleteness {
   withValue: number;
@@ -232,11 +523,7 @@ export interface ENSAgentCompleteness {
   missingRequired: string[];
 }
 
-/**
- * Cuántos parámetros por sistema y por plataforma tienen valor efectivo para
- * esta máquina (propio, de plantilla o de organización) entre los controles que
- * se le aplican, al nivel de cada control; y qué obligatorios faltan.
- */
+// Per-system and per-platform parameters with an effective value on this agent, at each control's level.
 export const getAgentCompleteness = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -260,14 +547,30 @@ export const getAgentCompleteness = (
   return result;
 };
 
-// --- remedios ---------------------------------------------------------------
+// Per control and parameter, how many agents lack a required value: a control is not complete while one does.
+export const getAgentGaps = (
+  configuration: ENSConfigurationVersion,
+  agents: { agentId: string; type?: ENSSystemType }[],
+  getLevel: (controlId: string) => ENSLevel
+): Record<string, Record<string, number>> => {
+  const gaps: Record<string, Record<string, number>> = {};
+  agents.forEach(({ agentId, type }) => {
+    getAgentControls(configuration, agentId, type, getLevel)
+      .filter(control => control.measured)
+      .forEach(control => {
+        getAgentCompleteness(configuration, agentId, [{ controlId: control.controlId, level: control.level }]).missingRequired.forEach(key => {
+          const parameterId = key.split(' ')[1];
+          gaps[control.controlId] = gaps[control.controlId] || {};
+          gaps[control.controlId][parameterId] = (gaps[control.controlId][parameterId] || 0) + 1;
+        });
+      });
+  });
+  return gaps;
+};
 
-/**
- * Quita lo que un perfil guarda y no se aplica: un perfil entero (por ejemplo,
- * uno guardado con un nombre en lugar de un id), los valores de un control o
- * el valor de un parámetro. `agentKey` es la clave TAL CUAL está en el
- * documento, sin normalizar: es la que hay que borrar.
- */
+// --- removals -----------------------------------------------------------------
+
+// `agentKey` is the key as stored, not normalised: a profile saved under a name must be removable.
 export const removeAgentEntry = (
   configuration: ENSConfigurationVersion,
   agentKey: string,
@@ -297,203 +600,15 @@ export const removeAgentEntry = (
       delete entry.parameters[parameterId];
       if (!Object.keys(entry.parameters).length) delete entry.parameters;
     }
+    if (entry?.matchModes) {
+      delete entry.matchModes[parameterId];
+      if (!Object.keys(entry.matchModes).length) delete entry.matchModes;
+    }
     if (entry && !Object.keys(entry).length) delete controls[controlId];
   }
 
   if (!Object.keys(controls).length) delete profile.controls;
   return next;
-};
-
-// Otros nombres por los que se conoce a la máquina en las tablas de la
-// configuración: los usa la migración para reconocerla.
-export const setAgentAliases = (
-  configuration: ENSConfigurationVersion,
-  agentId: string,
-  aliases: string[],
-  agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
-): ENSConfigurationVersion =>
-  withProfile(
-    configuration,
-    agentId,
-    current => {
-      const clean = mergeAliases(aliases);
-      const next = { ...current };
-      if (clean) next.aliases = clean;
-      else delete next.aliases;
-      return next;
-    },
-    agent,
-    detection
-  );
-
-// --- vista previa de una plantilla ------------------------------------------
-
-export interface ENSTemplatePreview {
-  agentId: string;
-  templateId: string;
-  label: string;
-  // Lo que la plantilla fija en controles que están en la configuración.
-  sets: string[];
-  // De esos, los que el sistema tiene como valor propio: el suyo sigue ganando.
-  ownWins: string[];
-  // Parámetros cuyo valor efectivo cambia en este sistema al aplicarla.
-  changes: string[];
-  // La plantilla de plataforma a la que sustituye, si la hay.
-  replaces?: string;
-  // La plantilla no es para el tipo de este sistema.
-  mismatch?: string;
-  // No se puede aplicar (incompatible): el motivo.
-  error?: string;
-  // Solo al QUITAR la plantilla: los obligatorios que se quedan sin valor en
-  // este sistema (tenían valor y dejan de tenerlo).
-  leftEmpty?: string[];
-  configuration: ENSConfigurationVersion;
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  linux: 'Linux',
-  'zimbra-ldap': 'LDAP (Zimbra)',
-  windows: 'Windows',
-  manager: 'Manager',
-};
-
-// Los parámetros por sistema y por plataforma cuyo valor efectivo en la fila
-// de `agentId` cambia de un documento a otro y, de ellos, los obligatorios que
-// tenían valor y se quedan sin él.
-const effectiveChanges = (
-  before: ENSConfigurationVersion,
-  after: ENSConfigurationVersion,
-  agentId: string
-): { changes: string[]; leftEmpty: string[] } => {
-  const changes: string[] = [];
-  const leftEmpty: string[] = [];
-  before.controls.forEach(control => {
-    const left = resolveControlConfigurationWithOrigins(before, control.controlId, agentId);
-    const right = resolveControlConfigurationWithOrigins(after, control.controlId, agentId);
-    control.parameters.forEach(parameter => {
-      if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
-      const was = left?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-      const is = right?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-      if (sameValue(was, is)) return;
-      changes.push(`${control.controlId} ${parameter.id}`);
-      if (parameter.required && !isEmptyParameterValue(was) && isEmptyParameterValue(is)) {
-        leftEmpty.push(`${control.controlId} ${parameter.id}`);
-      }
-    });
-  });
-  return { changes, leftEmpty };
-};
-
-/**
- * Qué haría aplicar `templateId` a una máquina, sin guardar nada: qué fija, qué
- * valores propios siguen ganando, qué cambia de verdad y, si la plantilla no es
- * para su tipo o sustituye a otra de plataforma, el aviso. La pantalla lo
- * enseña y solo guarda tras confirmarlo.
- */
-export const previewTemplateApplication = (
-  configuration: ENSConfigurationVersion,
-  agentId: string,
-  templateId: string,
-  effectiveType: ENSSystemType | undefined,
-  agent?: ENSDetectableAgent,
-  detection?: ENSSystemDetection
-): ENSTemplatePreview => {
-  const id = normalizeAgentId(agentId);
-  const template = getConfigurationTemplate(templateId);
-  const base: ENSTemplatePreview = {
-    agentId: id,
-    templateId,
-    label: template?.label || templateId,
-    sets: [],
-    ownWins: [],
-    changes: [],
-    configuration,
-  };
-
-  const result = applyTemplateToAgent(configuration, id, templateId, agent, detection);
-
-  if (!template || result.error) {
-    return { ...base, error: result.error || `la plantilla ${templateId} no existe` };
-  }
-
-  const profile = configuration.agents?.[id];
-  const seeded = (controlId: string) => configuration.controls.some(control => control.controlId === controlId);
-
-  Object.entries(template.values).forEach(([controlId, values]) => {
-    if (!seeded(controlId)) return;
-    Object.keys(values).forEach(parameterId => {
-      base.sets.push(`${controlId} ${parameterId}`);
-      const own = profile?.controls?.[controlId]?.parameters;
-      if (own && Object.prototype.hasOwnProperty.call(own, parameterId)) {
-        base.ownWins.push(`${controlId} ${parameterId}`);
-      }
-    });
-  });
-
-  base.changes.push(...effectiveChanges(configuration, result.configuration, id).changes);
-
-  const replaced =
-    template.kind === 'base'
-      ? (profile?.templates || []).find(other => other !== templateId && getConfigurationTemplate(other)?.kind === 'base')
-      : undefined;
-
-  if (replaced) {
-    base.replaces = getConfigurationTemplate(replaced)?.label || replaced;
-  }
-
-  if (!effectiveType) {
-    base.mismatch = `el tipo de este sistema no está detectado; «${template.label}» es para ${template.systemTypes.map(type => TYPE_LABELS[type] || type).join(' o ')}`;
-  } else if (!template.systemTypes.includes(effectiveType)) {
-    base.mismatch = `«${template.label}» es para ${template.systemTypes.map(type => TYPE_LABELS[type] || type).join(' o ')} y este sistema es ${TYPE_LABELS[effectiveType] || effectiveType}`;
-  }
-
-  return { ...base, configuration: result.configuration };
-};
-
-/**
- * Qué haría QUITAR `templateId` de una máquina, sin guardar nada: lo que la
- * plantilla fijaba, qué valores efectivos cambian (pasan a heredar de la
- * siguiente plantilla o de la organización) y qué obligatorios se quedan sin
- * valor. La pantalla lo enseña igual que al aplicar y solo guarda tras
- * confirmarlo.
- */
-export const previewTemplateRemoval = (
-  configuration: ENSConfigurationVersion,
-  agentId: string,
-  templateId: string
-): ENSTemplatePreview => {
-  const id = normalizeAgentId(agentId);
-  const template = getConfigurationTemplate(templateId);
-  const profile = configuration.agents?.[id];
-  const base: ENSTemplatePreview = {
-    agentId: id,
-    templateId,
-    label: template?.label || templateId,
-    sets: [],
-    ownWins: [],
-    changes: [],
-    leftEmpty: [],
-    configuration,
-  };
-
-  if (!(profile?.templates || []).includes(templateId)) {
-    return { ...base, error: `la plantilla ${templateId} no está aplicada a ${id}` };
-  }
-
-  const seeded = (controlId: string) => configuration.controls.some(control => control.controlId === controlId);
-  Object.entries(template?.values || {}).forEach(([controlId, values]) => {
-    if (!seeded(controlId)) return;
-    Object.keys(values).forEach(parameterId => {
-      base.sets.push(`${controlId} ${parameterId}`);
-      const own = profile?.controls?.[controlId]?.parameters;
-      if (own && Object.prototype.hasOwnProperty.call(own, parameterId)) base.ownWins.push(`${controlId} ${parameterId}`);
-    });
-  });
-
-  const next = removeTemplateFromAgent(configuration, id, templateId);
-  const { changes, leftEmpty } = effectiveChanges(configuration, next, id);
-  return { ...base, changes, leftEmpty, configuration: next };
 };
 
 const describeValue = (value: unknown): string => {
@@ -502,17 +617,13 @@ const describeValue = (value: unknown): string => {
   return value === undefined || value === null || value === '' ? '(vacío)' : String(value);
 };
 
-/**
- * Lo que se pierde al quitar una entrada de un perfil (el perfil entero, un
- * control o un parámetro): una línea por dato guardado. La pantalla lo enseña
- * antes de quitar un perfil o un control enteros, que pueden llevar muchos
- * valores y solo se recuperan desde el historial.
- */
+// One line per stored datum lost by `removeAgentEntry`, shown before removing a whole profile or control.
 export const describeAgentEntryRemoval = (
   configuration: ENSConfigurationVersion,
   agentKey: string,
   controlId?: string,
-  parameterId?: string
+  parameterId?: string,
+  options: { overridesOnly?: boolean } = {}
 ): string[] => {
   const profile: any = configuration.agents?.[agentKey];
   if (!profile) return [];
@@ -522,38 +633,39 @@ export const describeAgentEntryRemoval = (
   if (!controlId) {
     if (profile.name) lines.push(`Nombre: ${profile.name}`);
     if (profile.aliases?.length) lines.push(`Otros nombres: ${profile.aliases.join(', ')}`);
-    if (profile.typeOverride) lines.push(`Tipo corregido a mano: ${profile.typeOverride}`);
-    if (profile.templates?.length) {
-      lines.push(`Plantillas: ${profile.templates.map((id: string) => getConfigurationTemplate(id)?.label || id).join(', ')}`);
-    }
+    if (profile.typeOverride) lines.push(`Tipo corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[profile.typeOverride as ENSSystemType] || profile.typeOverride}`);
   }
 
   Object.entries(controls)
     .filter(([id]) => !controlId || id === controlId)
     .forEach(([id, entry]) => {
       const parameters: Record<string, unknown> = entry?.parameters || {};
+      if (!parameterId && !options.overridesOnly && typeof entry?.templateId === 'string') {
+        lines.push(`${id}: plantilla ${describeTemplateChoice(configuration, id, entry.templateId)}`);
+      }
       Object.entries(parameters)
         .filter(([parameter]) => !parameterId || parameter === parameterId)
-        .forEach(([parameter, value]) => lines.push(`${id} ${parameter}: ${describeValue(value)}`));
-      if (!parameterId && !Object.keys(parameters).length) lines.push(`${id}: sin valores`);
+        .forEach(([parameter, value]) => {
+          const name = configuration.controls.find(control => control.controlId === id)?.parameters.find(item => item.id === parameter)?.label;
+          const regex = entry?.matchModes?.[parameter] === 'regex' ? 'expresión regular ' : '';
+          lines.push(`${id} ${name ? `«${name}»` : parameter}: ${regex}${describeValue(value)}`);
+        });
+      if (!parameterId && !options.overridesOnly && !Object.keys(parameters).length && typeof entry?.templateId !== 'string') lines.push(`${id}: sin valores`);
     });
 
   return lines;
 };
 
-// Qué pasa al guardar `value` como valor de un sistema: se quita (vacío), no se
-// guarda (igual al que hereda) o pasa a ser propio. La pantalla lo dice antes.
+// What saving `value` as an override does: removes it (empty), nothing (same as inherited) or stores it.
 export const describeAgentValueSave = (
   configuration: ENSConfigurationVersion,
   agentId: string,
   controlId: string,
   parameterId: string,
-  value: ENSAgentParameterValue | undefined
+  value: ENSAgentParameterValue | undefined,
+  matchMode?: ENSMatchMode
 ): 'quitar' | 'igual' | 'propio' => {
   if (value === undefined || isEmptyParameterValue(value)) return 'quitar';
-  const profile = configuration.agents?.[normalizeAgentId(agentId)];
-  const inherited =
-    getAgentTemplateValue(profile, controlId, parameterId)?.value ??
-    configuration.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId)?.value;
-  return sameValue(value, inherited) ? 'igual' : 'propio';
+  const inherited = getInheritedSetting(configuration, agentId, controlId, parameterId);
+  return sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode) ? 'igual' : 'propio';
 };

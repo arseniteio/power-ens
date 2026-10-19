@@ -23,30 +23,10 @@ Four steps, in this order. Each one is detailed in the
 and the links to every runbook and its guides are in the
 [runbooks and registers table](docs/deployment/05-runbooks-and-registers.en.md).
 
-1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of
-   each of the 22 Linux runbooks, which installs rules and `<localfile>`
-   entries. Those of op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2,
-   op.mon.3, op.nub.1 and op.cont.3 also install a collector on the manager
-   itself; the op.cont.2 runbook is documentation only. Finally, the ENSFácil
-   plugin is installed in the dashboard from its release, next to the Wazuh
-   plugin and without modifying it. For the official Wazuh Docker images, the
-   procedure is in [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md).
-2. **Machines.** On each agent, first the
-   [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup)
-   (enrolment on the manager, `ens` group and the plugin's ENS scope), once; then the
-   runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows),
-   following the `01-installation` guide **of each runbook**.
-3. **Configuration in the dashboard.** In ENSFácil > Configuration, each
-   control's common policy («Organización» tab) and what belongs to each
-   machine and its platform, with templates («Sistemas» tab; see
-   [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md)),
-   and on the machines or the manager, the
-   [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates),
-   following the `02-compliance` guide **of each runbook** (it is not in this
-   repository: each runbook has its own, linked from the table).
-4. **Measure.** After the collectors' first pass (hourly; those of op.mon.2 and
-   op.cont.3, every 6 h), the panel judges each control; whatever cannot be
-   demonstrated shows `NO_EVALUABLE` with its cause and says where to fix it.
+1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of each of the 22 Linux runbooks (rules and `<localfile>` entries). Those of op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 also install a collector on the manager; op.cont.2 is documentation only. Finally, the ENSFácil plugin in the dashboard, from its release. For Wazuh in Docker: [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md).
+2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrolment on the manager, `ens` group and the plugin's ENS scope), once; then the runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of each runbook**.
+3. **Configuration in the dashboard.** In ENSFácil > Configuration: each control's common settings, templates and assignment («Controles» tab) and what belongs to each agent («Agentes» tab; [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md)). On the machines or the manager, the [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates), following the `02-compliance` guide **of each runbook** (linked from the table).
+4. **Measure.** After the collectors' first pass (hourly; op.mon.2 and op.cont.3, every 6 h), the panel judges each control; whatever cannot be demonstrated shows `NO_EVALUABLE` with its cause and where to fix it.
 
 ## Controls
 
@@ -80,11 +60,7 @@ defines but does not require in any category, which comes out `NO_APLICA`.
 | `op.mon.3` | Monitoring | LOW+ | R1–R2 (MEDIUM+), R3–R6 (HIGH); R7 not required | machines and manager |
 | `op.nub.1` | Protection of cloud services | LOW+ | R1 (MEDIUM+), R2 (HIGH) | manager |
 
-Each control has its own deployment repository (runbook) in GitLab, with one
-variant per machine type. The repository is named exactly as the control and
-the subgroup gives the platform or role: `linux/op.acc.1`,
-`zimbra/zimbra-ldap/op.acc.1` and `windows/op.acc.1` are three runbooks of the
-same control.
+Each control has a runbook in GitLab, with one variant per machine type. The repository is named as the control and the subgroup gives the platform or role: `linux/op.acc.1`, `zimbra/zimbra-ldap/op.acc.1` and `windows/op.acc.1`.
 
 | GitLab group | Controls |
 |---|---|
@@ -93,16 +69,10 @@ same control.
 | `quersystem/ens-controls-runbook/zimbra/zimbra-mta` | mp.info.6 (`zmbackup` backups of Zimbra 10 Network Edition) |
 | `quersystem/ens-controls-runbook/windows` | op.acc.1 to op.acc.4 |
 
-What each runbook installs on the manager and on each agent, and the registers
-it asks of the organization, are in
-[Runbooks and the organization's registers](docs/deployment/05-runbooks-and-registers.en.md#runbooks-per-control).
+Content of each runbook and registers it asks of the organization: [Runbooks and the organization's registers](docs/deployment/05-runbooks-and-registers.en.md#runbooks-per-control).
 
 > [!important]
-> The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3,
-> op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 and op.exp.10) leave them in
-> `/etc/audit/rules.d/` but do not load them. Load them with
-> `sudo augenrules --load` at the end; without that step, the evidence that
-> depends on auditd is not measured.
+> The `install.sh` scripts that write auditd rules (op.acc.2, op.acc.3, op.acc.4, op.exp.3, op.exp.4, op.exp.5, op.exp.8 and op.exp.10) do not load them: run `sudo augenrules --load` at the end; without it, the evidence that depends on auditd is not measured.
 
 ---
 
@@ -125,9 +95,7 @@ it asks of the organization, are in
 ### Requirements
 
 - **Wazuh 4.14.7** installed and validated (manager, indexer and dashboard)
-  before installing ENSFácil. ENSFácil is its own plugin (`ensfacil`) that is
-  installed next to the Wazuh plugin without modifying it; this version is
-  built for the Wazuh 4.14.7 dashboard (OpenSearch Dashboards 2.19.5). See the
+  before installing ENSFácil. Plugin `ensfacil`, built for the Wazuh 4.14.7 dashboard (OpenSearch Dashboards 2.19.5). See the
   [version compatibility](docs/deployment/03-version-compatibility.en.md).
 - **Agent inventory:** Wazuh agent monitoring enabled (the
   `wazuh-monitoring-*` index), readable by the users of ENSFácil.
@@ -153,8 +121,6 @@ it asks of the organization, are in
 - **On every measured machine:** a Wazuh agent in the control's group and the
   runbook for its platform. Each runbook's requirements (`cron`, `auditd`,
   specific packages) are in its own README.
-- The detail of what each step needs is in the
-  [installation from scratch guide](docs/deployment/01-installation-from-scratch.md).
 
 ### Not tested
 
@@ -172,8 +138,6 @@ it asks of the organization, are in
 
 ## Installation
 
-This `README.md` is the entry point of ENSFácil. The installation path depends on the environment.
-
 ### The plugin: two paths
 
 | Path | When | Guide |
@@ -186,23 +150,17 @@ one folder:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.2.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.3.0-osd-2.19.5.zip
 ```
 
 Expected result: `OK` for the three files and `dashboard: active` at the end
-of the deployment. Replace `1.2.0` with the release's version.
+of the deployment. Replace `1.3.0` with the release's version.
 
-These commands apply to the package installation: `deploy-plugin.sh` uses
-`systemctl`, `sudo -u wazuh-dashboard` and `https://localhost:443`. In Docker,
-the release zip is installed in a custom dashboard image
-([Wazuh in Docker, section 3](docs/deployment/06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)).
+Commands of the package installation (`deploy-plugin.sh` uses `systemctl`, `sudo -u wazuh-dashboard` and `https://localhost:443`). In Docker, the release zip is installed in a custom dashboard image ([Wazuh in Docker, section 3](docs/deployment/06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)).
 
-The `ensfacil_admin` role is only required if a user without `all_access` must
-save the configuration; the Wazuh `admin` user has `all_access`
-([guide 07, section 9](docs/deployment/07-installing-from-a-release.en.md#9-create-the-ensfacil_admin-role)).
+The `ensfacil_admin` role is only required if a user without `all_access` must save the configuration ([guide 07, section 9](docs/deployment/07-installing-from-a-release.en.md#9-create-the-ensfacil_admin-role)).
 
-The plugin is only one part: the manager rules, the runbooks on each machine
-and the configuration are installed separately ([how ENSFácil is deployed](#how-ensfácil-is-deployed)).
+The manager rules, the runbooks on each machine and the configuration are installed separately ([how ENSFácil is deployed](#how-ensfácil-is-deployed)).
 
 ### Where the releases are
 
@@ -215,10 +173,7 @@ and the configuration are installed separately ([how ENSFácil is deployed](#how
 
 The project is private: a GitLab account with access is required.
 
-To change version (from the integrated version, to a newer release or back to
-the previous one) or to uninstall ENSFácil: [guide 07, section 15](docs/deployment/07-installing-from-a-release.en.md#15-change-version-or-uninstall).
-No data is lost: the configuration, its history and the facts live in the
-indexer, not in the plugin.
+Change version (from the integrated version, to a newer release or back to the previous one) or uninstall: [guide 07, section 15](docs/deployment/07-installing-from-a-release.en.md#15-change-version-or-uninstall). Data is kept: the configuration, its history and the facts live in the indexer.
 
 ### Guide by task
 
@@ -232,30 +187,25 @@ indexer, not in the plugin.
 | 6 | Install, update or remove ENSFácil with the official Wazuh Docker images | [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md) |
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
-| 9 | Declare each system's configuration, apply templates or migrate an earlier configuration | [Configuration by system and templates](docs/deployment/09-configuration-by-system.en.md) |
-
-> [!note]
-> A deployment from scratch must be possible using only GitLab and this documentation, without copying files from another ENSFácil server.
+| 9 | Declare common settings, templates and their assignment to agents, or convert an earlier configuration | [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md) |
 
 > [!important]
-> When adding controls, first deploy the plugin version that contains them,
-> then seed their configuration. The reason is in
-> [Installing from a release, section 11](docs/deployment/07-installing-from-a-release.en.md#11-update-to-a-newer-release).
+> When adding controls, first deploy the plugin version that contains them, then seed their configuration ([Installing from a release, section 11](docs/deployment/07-installing-from-a-release.en.md#11-update-to-a-newer-release)).
 
 ---
 
 ## Operation after deployment
 
-Once ENSFácil is installed following the guides above, the runbooks of the controls that apply to each system are deployed on it.
+After installing ENSFácil, deploy on each system the runbooks of the controls that apply to it.
 
-Each control repository (runbook) includes its guides in its own `docs/deployment/`: installation in `01-installation.md`, what must be declared for the control and how each piece of evidence is checked in `02-compliance.md`, and uninstallation and troubleshooting in `03-uninstall-and-troubleshooting.md`. Those guides live on GitLab, in each runbook, not in this repository: the direct links are in the [runbook table](docs/deployment/05-runbooks-and-registers.en.md#runbooks-per-control).
+Guides of each runbook, in its own `docs/deployment/` (GitLab, not this repository): `01-installation.md` installation; `02-compliance.md` what is declared for the control and how each piece of evidence is checked; `03-uninstall-and-troubleshooting.md` uninstallation and troubleshooting. Links in the [runbook table](docs/deployment/05-runbooks-and-registers.en.md#runbooks-per-control).
 
 > [!important]
-> The compliance policy is declared on the ENSFácil Configuration screen. Empty parameters are decisions not yet declared and must not be read as default values.
+> The compliance policy is declared on the Configuration screen. An empty parameter is an undeclared decision, not a default value.
 
 ### Where ENSFácil opens
 
-ENSFácil is in the dashboard menu, under «Security operations». From 1.2.0 there is also an «ENSFácil» card on the OpenSearch Dashboards home page (`/app/home`), when the dashboard includes the `home` plugin. The Wazuh home page offers no extension point for other plugins' cards, and ENSFácil does not modify the Wazuh plugin: on that page it is only in the menu.
+Dashboard menu, «Security operations». From 1.2.0, also an «ENSFácil» card on the OpenSearch Dashboards home page (`/app/home`) when the dashboard includes the `home` plugin; on the Wazuh home page it is only in the menu.
 
 The **Vista general** (overview) tab shows every machine in scope and every control at once: the per-machine summary, the controls × machines matrix, the work queue and the 30-day trend ([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
 
@@ -277,29 +227,15 @@ measured on it:
 | `op.mon.3` | machines and manager | evaluated (central collection, correlation, exposure surface and the rest) | its log sources are evaluated |
 | the rest | machines only | not evaluated | evaluated |
 
-Manager facts arrive with `agent.id=000`. In the view of a machine, the
-controls measured only on the manager appear with the result of its row,
-because they are controls of the organization, not of the machine. In the
-manager view the nine with a row on it are measured: op.cont.2, op.cont.3,
-op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1. The
-rest stay in the list, last and in grey, with «No se mide en esta máquina» and
-the reason; their detail explains it instead of staying empty. The Vista
-general tab shows every control on every machine at once
-([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
+Manager facts arrive with `agent.id=000`. In the view of a machine, the controls measured only on the manager show the result of its row (they are controls of the organization). In the manager view the nine with a row on it are measured: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1; the rest appear last, in grey, with «No se mide en esta máquina» and the reason. The Vista general tab shows every control on every machine ([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
 
 ### Traceability dimension level
 
-op.exp.8 applies by the level of the Traceability (T) dimension, not by the
-system category. Configuration > Global configuration has an optional
-**Traceability level (T)** field: if left empty, op.exp.8 is evaluated with the
-global ENS level, like every other control. No other control reads it.
+op.exp.8 applies by the level of the Traceability (T) dimension, not by the system category. Optional **Traceability level (T)** field in Configuration > General: if empty, op.exp.8 is evaluated with the global ENS level. No other control reads it.
 
 ### Availability dimension level
 
-op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension,
-and only with D at ALTO. Configuration > Global configuration has an optional
-**Availability level (D)** field: if left empty, both are evaluated with the
-global ENS level. No other control reads it.
+op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension, and only with D at ALTO. Optional **Availability level (D)** field in Configuration > General: if empty, both are evaluated with the global ENS level. No other control reads it.
 
 ---
 
@@ -325,7 +261,7 @@ Consistency check between the plugin and the runbooks:
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
 
-Expected result: `coherencia OK`.
+Expected result: `consistency OK`.
 
 It verifies that every rule referenced by the plugin is in the `manager/`
 folder of some runbook cloned next to the repository, that the rule copies do
@@ -350,32 +286,13 @@ proves compliance. The cause tells who has to fix it:
 | `COLLECTION` | the agent does not report, in the Wazuh deployment |
 | `EVIDENCE` | the data arrives incomplete, in the collector |
 
-When the collector itself declares why it could not measure (the `causa`
-field of its fact), that cause reaches the evidence and the requirement
-unchanged: a register the organization does not keep comes out as
-`CONFIGURATION`, not as a collection failure.
+If the collector declares why it could not measure (the `causa` field of its fact), that cause reaches the evidence and the requirement unchanged: a register the organization does not keep comes out as `CONFIGURATION`, not as a collection failure.
 
-**Data not renewed.** State is judged with the last run of each collector. If
-the last heartbeat of a control on a machine is older than 24 hours, that
-control is not judged with that data: its evidence comes out `NO_EVALUABLE`
-with cause `COLLECTION` and the reason «Sin datos del recolector desde <UTC
-date>», and its requirements do not count as compliant. What the machine said
-days ago does not prove how it is today. Old facts remain visible in the
-traceability view.
+**Data not renewed.** State is judged with the last run of each collector. If the last heartbeat of a control on a machine is older than 24 hours, its evidence comes out `NO_EVALUABLE` with cause `COLLECTION` and the reason «Sin datos del recolector desde <UTC date>», and its requirements do not count as compliant. Old facts remain visible in the traceability view.
 
-**The whole window.** The plugin server evaluates each control with every fact
-of the evaluation window (30 days), with the permissions of the viewing user,
-and the browser receives the results. Up to 1.1.0 the browser evaluated with
-the newest 10,000 facts, which in an active scope covered hours. Each user's
-first load reads the whole window and answers in parts («Calculando la
-evaluación»); after that, the result is served at once and recomputed in the
-background when new facts arrive. The technical detail is in
-[`server/README.md`](server/README.md).
+**The whole window.** The plugin server evaluates each control with every fact of the evaluation window (30 days), with the permissions of the viewing user. Each user's first load reads the whole window and answers in parts («Calculando la evaluación»); after that, the result is served at once and recomputed in the background when new facts arrive. Technical detail: [`server/README.md`](server/README.md).
 
-The agent observes and the engine judges. Evidence in the current model
-declares a judgment primitive and the parameter it is checked against; the
-agent only emits the fact. That is why a change on screen changes the verdict
-without running anything again on the server.
+The agent observes and the engine judges: evidence declares a judgment primitive and the parameter it is checked against, and the agent only emits the fact. A change on screen changes the verdict without running anything again on the server.
 
 ---
 
@@ -401,10 +318,12 @@ config/            configuration blocks and manager tools:
 tests/             engine suites and consistency check
 ```
 
-Tests (Python 3 and Node.js 18 or later; the script tests also need `bash`, `zip` and `unzip`):
+Tests (Python 3 and Node.js 18 or later; the script tests also need `bash`, `zip` and `unzip`). The first command installs into `node_modules/` the `package.json` dependencies the engine imports (`re2js`):
 
 ```bash
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 python3 tests/check-consistency.py
+for p in config/test_*.py; do python3 "$p" >/dev/null 2>&1 && echo "OK   $p" || echo "FAIL $p"; done
 for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && echo "OK   $t" || echo "FAIL $t"; done
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```

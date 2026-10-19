@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.acc.6 (Mecanismo de autenticación (usuarios de la organización)).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.acc.6: translates the engine result into report fields. */
 export const buildOpAcc6ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc6ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpAcc6ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.acc.6.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Accesos por zona de origen  ·  fuente: Log Collection (EV-01, EV-02)
-  const campo2 = field(
+  const field2 = field(
     'op.acc.6.campo2',
     'Accesos por zona de origen',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Accesos sin doble factor desde zona no controlada  ·  fuente: Correlación (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.acc.6.campo3',
     'Accesos sin doble factor desde zona no controlada',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Acceso remoto — conformidad con R9  ·  fuente: Log Collection (EV-07, EV-08)
-  const campo4 = field(
+  const field4 = field(
     'op.acc.6.campo4',
     'Acceso remoto — conformidad con R9',
     evidenceStatus('EV-07'),
@@ -141,8 +132,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Intentos fallidos y bloqueos  ·  fuente: Correlación (EV-03, EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.acc.6.campo5',
     'Intentos fallidos y bloqueos',
     evidenceStatus('EV-03'),
@@ -151,8 +141,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Antigüedad y robustez de las credenciales  ·  fuente: Log + SCA (EV-05, EV-11)
-  const campo6 = field(
+  const field6 = field(
     'op.acc.6.campo6',
     'Antigüedad y robustez de las credenciales',
     evidenceStatus('EV-05'),
@@ -161,8 +150,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Reacción ante compromiso y bajas de personal  ·  fuente: Correlación (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.acc.6.campo7',
     'Reacción ante compromiso y bajas de personal',
     evidenceStatus('EV-06'),
@@ -171,8 +159,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Registro de accesos — cobertura (R5)  ·  fuente: Log Collection (EV-01)
-  const campo8 = field(
+  const field8 = field(
     'op.acc.6.campo8',
     'Registro de accesos — cobertura (R5)',
     evidenceStatus('EV-01'),
@@ -181,8 +168,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Renovación de autenticación en puntos críticos (R6)  ·  fuente: Correlación (EV-09)
-  const campo9 = field(
+  const field9 = field(
     'op.acc.6.campo9',
     'Renovación de autenticación en puntos críticos (R6)',
     level === 'ALTO'
@@ -193,8 +179,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Credenciales sin utilización prolongada (R7)  ·  fuente: ENSFácil (EV-10)
-  const campo10 = field(
+  const field10 = field(
     'op.acc.6.campo10',
     'Credenciales sin utilización prolongada (R7)',
     level === 'ALTO'
@@ -205,8 +190,7 @@ export const buildOpAcc6ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento op.acc.6  ·  fuente: Motor ENSFácil
-  const campo11 = field(
+  const field11 = field(
     'op.acc.6.campo11',
     'Puntuación de cumplimiento op.acc.6',
     asStatus(result?.status),
@@ -229,17 +213,17 @@ export const buildOpAcc6ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
     ],
   };
 };

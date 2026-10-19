@@ -5,7 +5,7 @@
 
 ## 1. Objective
 
-This guide describes how to update ENSFácil when Wazuh and a previous version of the plugin are already installed and working, including the case where the new version brings new controls.
+Update of ENSFácil with Wazuh and a previous plugin version already installed, including a version with new controls.
 
 There are two cases:
 
@@ -59,7 +59,7 @@ Expected result: `active`, `ensfacil@<version>` in the plugin list and no local 
 
 ## 3. Update the repositories
 
-The repository is needed even when the plugin comes from a release: the configuration seeding (section 8) and the consistency check use its tools.
+The repository is also needed with a release: the seeding (section 8) and the consistency check use its tools.
 
 ### 3.1 With GitLab access from the server
 
@@ -124,7 +124,7 @@ sudo systemctl is-active wazuh-manager
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 ```
 
-Expected result: `active` and `coherencia OK`. The rules each installer confirms are listed in the [installation guide, section 12.1](01-installation-from-scratch.en.md#121-validate-the-rule-installation).
+Expected result: `active` and `consistency OK`. The rules each installer confirms are listed in the [installation guide, section 12.1](01-installation-from-scratch.en.md#121-validate-the-rule-installation).
 
 > [!warning]
 > If the `agent.conf` of the `ens` group (or the `ens-copias` one) has more than one `<agent_config>` block, the installers refuse to modify it: merge the blocks into one and validate it with `verify-agent-conf` before retrying. If an installer failed after copying its rules, the retry does not restart the manager: restart it by hand and check the rule with `wazuh-logtest`.
@@ -163,7 +163,7 @@ By default, the new plugin is the release of the new version (section 6.1). To b
 
 Download the new release into its own folder and verify it as in [Installing from a release, sections 4 to 7](07-installing-from-a-release.en.md#4-prepare-the-folder-on-the-server), with the new version in `V`. With the token stored on the server, [section 6.3](07-installing-from-a-release.en.md#63-download-the-four-files) and the check of [section 7](07-installing-from-a-release.en.md#7-verify-the-files) of that guide are enough.
 
-Read the release notes: they state whether it brings new controls and which versions it is compatible with.
+Read the release notes: new controls and compatible versions.
 
 Then, with `V` and `R` from that guide:
 
@@ -218,9 +218,9 @@ sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 sudo bash "$DEPLOY" "$ZIP"
 ```
 
-`deploy-plugin.sh` replaces only the `ensfacil` plugin and bumps the dashboard `build.number` so browsers download the new version without having to clear their cache. The Wazuh plugin is not touched.
+`deploy-plugin.sh` replaces only `ensfacil` and bumps the dashboard `build.number`. The Wazuh plugin is not touched.
 
-Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`. The script creates the `ensfacil` subfolder itself (owned by root, permissions 0700) if it does not exist, and never changes the permissions of a folder that already existed. When the deployment finishes well, the last 3 copies are kept; a failed deployment deletes none. They go there and not next to the zip because the next build deletes `/opt/ensfacil/build/plugins/ensfacil` entirely. To use another folder: `sudo env ENSFACIL_BACKUP_DIR=<folder> bash "$DEPLOY" "$ZIP"`, which saves in `<folder>/ensfacil/`. If something fails once the dashboard is stopped, the script prints how to return to the previous state and exits with an error ([troubleshooting guide, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway)).
+Before stopping the dashboard, `deploy-plugin.sh` saves the installed `ensfacil` in `/var/backups/ensfacil/plugins-ensfacil-<date>.tgz`. The script creates the `ensfacil` subfolder (root, 0700) if it does not exist. After a successful deployment the last 3 copies are kept; a failed deployment deletes none. They are not stored next to the zip: the next build deletes `/opt/ensfacil/build/plugins/ensfacil`. To use another folder: `sudo env ENSFACIL_BACKUP_DIR=<folder> bash "$DEPLOY" "$ZIP"`, which saves in `<folder>/ensfacil/`. If something fails once the dashboard is stopped, the script prints how to return to the previous state and exits with an error ([troubleshooting guide, section 4.1](04-troubleshooting-and-rollback.en.md#41-if-deploy-pluginsh-fails-halfway)).
 
 ```bash
 sudo systemctl is-active wazuh-dashboard
@@ -242,7 +242,7 @@ CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" || break; done
 ```
 
-Review the plan (especially any `YA NO EXISTEN en el bloque y se pierden` line) and apply it:
+Review the plan (especially any `NO LONGER IN THE BLOCK and lost` line) and apply it:
 
 ```bash
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" --apply || break; done
@@ -254,12 +254,13 @@ Validate the whole document with the plugin validator:
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active -o /opt/ensfacil/artifacts/active-now.json
 cd /opt/ensfacil/repo
+npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `ESTRUCTURA VÁLIDA`. If the result is `ESTRUCTURA INVÁLIDA`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
+Expected result: `Done` after installing the dependencies and `VALID STRUCTURE`. If the result is `INVALID STRUCTURE`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
 
-If the environment comes from 1.0.0, adjust the replicas of the configuration index. Since 1.1.0 the plugin creates `wazuh-ens-configuration` with `auto_expand_replicas: 0-1`, but only when the index does not exist: one created by 1.0.0 keeps its replica and, on a single-node indexer, stays yellow because that replica cannot be assigned. The plugin does not change an index that already exists; it is done once, by hand, with the indexer admin certificate:
+If the environment comes from 1.0.0, adjust the replicas of the configuration index. Since 1.1.0 the plugin creates `wazuh-ens-configuration` with `auto_expand_replicas: 0-1`, but does not change an existing index: the one created by 1.0.0 stays yellow on a single-node indexer. Adjust once, with the indexer admin certificate:
 
 ```bash
 C=/etc/wazuh-indexer/certs
@@ -272,16 +273,15 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Expected result: `{"acknowledged":true}` and, from the second command, `green open wazuh-ens-configuration 0` (with several nodes, `green` with `1` replica). If it says `yellow`, wait a few seconds and repeat the second command until it says `green`. In an environment installed from scratch with 1.1.0 or later, this step is not required.
 
-From 1.2.0, the Configuration screen has two levels, «Organización» and «Sistemas». When updating from 1.1.0:
+From 1.3.0, the Configuration screen has three tabs, «Controles», «Agentes» and «General». When updating:
 
-- the controls the document does not have yet appear on «Organización», under «Controles del catálogo sin añadir», and are added with «Añadir con valores por defecto», with the same semantics as `inject-control.py` for a new control;
-- the «Sistemas» tab proposes to move to each agent the rows of tables with a system column that name it («Migrar a sistemas»), without deleting anything; before migrating, back up the document (section 5).
+- from 1.2.0, the document is converted when it loads: the templates applied to each agent become the template assigned in each control, without changing any value, and the conversion is written with the next save or with «Guardar la conversión» ([Configuration by controls and templates, section 8](09-configuration-by-system.en.md#8-conversion-of-a-120-configuration)); before that, back up the document (section 5);
+- the controls the document does not have yet appear on «Controles» as «Sin añadir» and are added with «Añadir con valores por defecto», with the same semantics as `inject-control.py` for a new control;
+- from 1.1.0, the «Agentes» tab proposes to copy to each agent the rows of tables with a system column that name it («Repartir por agentes»), without deleting anything ([Configuration by controls and templates, section 9](09-configuration-by-system.en.md#9-distribution-of-common-rows-by-agents)); before distributing, back up the document (section 5).
 
-The procedure is in [Configuration by system and templates](09-configuration-by-system.en.md#8-migration-to-systems).
+From 1.2.0, the evaluation runs on the plugin server with every fact of the 30-day window; 1.1.0 evaluated in the browser with the newest 10,000 facts. After the update, some verdicts change: record the dashboard status beforehand. Each user's first load answers in parts («Calculando la evaluación»). To go back to an earlier version after the conversion or after «Repartir por agentes», restore the earlier version of the document ([Configuration by controls and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
 
-From 1.2.0, the evaluation runs on the plugin server with every fact of the 30-day window; 1.1.0 evaluated in the browser with the newest 10,000 facts. After the update, some verdicts change because they are those of the whole window: recording the dashboard status beforehand makes the differences explainable. Each user's first load answers in parts («Calculando la evaluación») until every control is computed. To go back to 1.1.0 after «Migrar a sistemas», restore the version of the document from before the migration ([Configuration by system and templates, section 12](09-configuration-by-system.en.md#12-compatibility-and-rollback)).
-
-In Configuration > Global configuration, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, added in 1.1.0 and used by op.cont.2 and op.cont.3. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+In Configuration > General, review the optional fields **Traceability level (T)**, used by op.exp.8, and **Availability level (D)**, added in 1.1.0 and used by op.cont.2 and op.cont.3. If they are not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
 
 ## 9. Agents and final check
 
@@ -298,7 +298,7 @@ cd /opt/ensfacil/repo
 python3 tests/check-consistency.py | tail -1
 ```
 
-Expected result: `coherencia OK`.
+Expected result: `consistency OK`.
 
 Finally open ENSFácil in Wazuh Dashboard and confirm that:
 
@@ -310,13 +310,11 @@ If any validation fails, do not keep operating the new version and use the [trou
 
 ## 10. Transition from the integrated version
 
-The integrated version of ENSFácil lived inside the Wazuh plugin: the official `wazuh` plugin was removed and a modified one, with the «ENS» app, was installed. ENSFácil is now a plugin of its own, `ensfacil`, and the Wazuh plugin is the official one again.
+Only for an environment that still has the integrated version installed (modified `wazuh` plugin, «ENS» app). No file of the integrated version is needed.
 
-The integrated version is no longer maintained or distributed: this section only applies to an environment that still has it installed. No file of the integrated version is needed: ENSFácil is installed, the two versions are compared and the official `wazuh-dashboard` 4.14.7 package is reinstalled.
+The configuration, the manager rules and the runbooks do not change: both versions use the `wazuh-ens-configuration` index.
 
-The configuration is not migrated: both versions use the same index, `wazuh-ens-configuration`, and the same format. The manager rules and the runbooks do not change either.
-
-The transition has three steps: install ENSFácil next to the integrated version, compare the two, and go back to the official Wazuh plugin.
+Steps: install ENSFácil next to the integrated version (10.1), compare (10.2) and reinstall the official `wazuh-dashboard` 4.14.7 package (10.3).
 
 ### 10.1 Install ENSFácil next to the integrated version
 
@@ -335,7 +333,7 @@ If any value does not match, stop the procedure, record the screen, the machine 
 
 ### 10.3 Go back to the official Wazuh plugin
 
-When both versions match, the official `wazuh-dashboard` 4.14.7 package is reinstalled. This brings back the official Wazuh plugin, removes the «ENS» app and leaves only «ENSFácil».
+With both versions matching, reinstall the official `wazuh-dashboard` 4.14.7 package: the «ENS» app disappears and «ENSFácil» remains.
 
 > [!important]
 > Do this step in a test environment first. It needs the Wazuh package repository (or the downloaded `wazuh-dashboard` 4.14.7-1 package) and the folder of the ENSFácil release installed in section 10.1 (`/opt/ensfacil/releases/<version>`).
@@ -372,7 +370,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 
 `--force-confold` keeps the dashboard configuration (`/etc/wazuh-dashboard`) without asking. Expected result: the reinstallation ends without errors and `/usr/share/wazuh-dashboard/plugins/wazuh` exists again. If it fails, put the integrated plugin back (`sudo mv "$T/wazuh-integrado" /usr/share/wazuh-dashboard/plugins/wazuh`) and start the dashboard.
 
-The reinstallation resets the dashboard `build.number` to its factory value, which browsers may have linked to files of the integrated version. That is why the previous `package.json` is restored and ENSFácil is deployed again, which bumps the number:
+The reinstallation resets `build.number`. Restore the previous `package.json` and deploy ENSFácil again, which bumps the number:
 
 ```bash
 V=1.2.0   # the ENSFácil version installed in section 10.1
@@ -393,9 +391,7 @@ Expected result: `active`; in the list, `wazuh@4.14.7-01` (the official one) and
 
 Then compare the data with the values recorded at the start: the
 configuration (same `updatedAt`, same documents) must be the same, and the
-facts the same or more. In the validation of this procedure, the
-configuration, its history, the facts, the agent inventory and the Wazuh
-indices were identical before and after.
+facts the same or more.
 
 Saved links to the «ENS» app (`/app/ens#…`) stop working. The new address is `/app/ensfacil`.
 

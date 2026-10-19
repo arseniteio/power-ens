@@ -5,10 +5,8 @@ import { ENSConfigurationVersion } from '../types';
 
 const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 
-// El cliente HTTP del núcleo del dashboard. Este fichero vive en `common/`
-// (lo comparten el navegador y el servidor, que evalúa con el mismo motor), y
-// `common/` no puede importar nada de `public/`: el navegador lo registra al
-// arrancar (`public/services.ts`). En el servidor nadie lo llama.
+// HTTP client of the dashboard core. Lives in `common/` (shared with the server), which cannot import from
+// `public/`: the browser registers it at startup (`public/services.ts`).
 export interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal }): Promise<T>;
   put<T>(path: string, options?: { body?: string }): Promise<T>;
@@ -82,10 +80,8 @@ const getResponseData = (
   return response.data;
 };
 
-// El servidor explica en `body.message` por qué rechaza una petición (sin el
-// rol, un 403 con «Hace falta el rol ensfacil_admin…»). El cliente HTTP del
-// núcleo solo pone en el error el texto del estado («Forbidden»), y eso es lo
-// que salía en pantalla.
+// The server explains in `body.message` why it rejects a request; the core HTTP client only reports the status
+// text.
 const withServerReason = (error: any): Error => {
   const reason = error?.body?.message;
 

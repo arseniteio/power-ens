@@ -1,14 +1,10 @@
-"""La versión anterior del documento `active`, guardada ANTES de escribir.
+"""Saves the previous version of the `active` document BEFORE writing.
 
-Lo usan `inject-control.py` y `set-parameters.py`. El plugin guarda cada
-versión en el historial de `wazuh-ens-configuration` (documentos
-`CONFIGURATION_HISTORY`); estas herramientas escriben `_doc/active` directamente
-y, sin esto, la versión que sustituyen no quedaba en ninguna parte.
-
-Primero se intenta el historial, con el mismo formato que el plugin y las
-mismas credenciales. Si el índice no lo admite, se escribe una copia local con
-fecha y hora (con la forma de `GET _doc/active`, la que restaura la guía de
-diagnóstico y rollback, apartado 7). Devuelve dónde quedó, para imprimirlo.
+Used by `inject-control.py` and `set-parameters.py`, which write `_doc/active` directly: without this
+the version they replace would be kept nowhere. The history is tried first, with the plugin's format
+and the same credentials (`CONFIGURATION_HISTORY` documents of `wazuh-ens-configuration`). If the index
+does not accept it, a local copy with date and time is written (shaped like `GET _doc/active`, what the
+diagnosis and rollback guide, section 7, restores). Returns where it ended up, to print it.
 """
 import datetime
 import json
@@ -16,25 +12,25 @@ import os
 import secrets
 
 
-def _iso(instante):
-    return instante.strftime("%Y-%m-%dT%H:%M:%S.") + "%03dZ" % (instante.microsecond // 1000)
+def _iso(instant):
+    return instant.strftime("%Y-%m-%dT%H:%M:%S.") + "%03dZ" % (instant.microsecond // 1000)
 
 
-def guarda_version_anterior(req, index, source, autor, directorio=None):
-    ahora = datetime.datetime.now(datetime.timezone.utc)
-    ms = int(ahora.timestamp() * 1000)
-    hid = "history-%d-%s" % (ms, secrets.token_hex(6))
-    documento = {
+def save_previous_version(req, index, source, author, directory=None):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ms = int(now.timestamp() * 1000)
+    history_id = "history-%d-%s" % (ms, secrets.token_hex(6))
+    document = {
         "documentType": "CONFIGURATION_HISTORY",
         "configuration": source.get("configuration", source),
-        "createdAt": _iso(ahora),
-        "createdBy": autor,
+        "createdAt": _iso(now),
+        "createdBy": author,
     }
     try:
-        req("PUT", "/%s/_doc/%s?op_type=create" % (index, hid), documento)
-        return "historial de %s (%s)" % (index, hid)
-    except Exception as error:  # el índice no lo admite: copia local
-        ruta = os.path.join(directorio or os.getcwd(), "active-antes-%s.json" % ahora.strftime("%Y%m%d-%H%M%S"))
-        with open(ruta, "w", encoding="utf-8") as f:
+        req("PUT", "/%s/_doc/%s?op_type=create" % (index, history_id), document)
+        return "history of %s (%s)" % (index, history_id)
+    except Exception as error:  # the index does not accept it: local copy
+        path = os.path.join(directory or os.getcwd(), "active-antes-%s.json" % now.strftime("%Y%m%d-%H%M%S"))
+        with open(path, "w", encoding="utf-8") as f:
             json.dump({"_source": source}, f, ensure_ascii=False, indent=1)
-        return "fichero local %s (el historial no admitió la copia: %s)" % (ruta, error)
+        return "local file %s (the history did not accept the copy: %s)" % (path, error)

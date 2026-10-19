@@ -1,5 +1,4 @@
-// Servicios del núcleo del dashboard, guardados al arrancar el plugin. Es lo
-// que en la versión integrada daba `kibana-services` de Wazuh.
+// Dashboard core services, kept at plugin start. This is what Wazuh's `kibana-services` gave the integrated version.
 import type { CoreStart } from '../../../src/core/public';
 import type { EnsfacilStartDeps } from './types';
 import { setENSConfigurationHttp } from '../common/ens/configuration/services/configuration-http-client';
@@ -13,15 +12,15 @@ export const setServices = (coreStart: CoreStart, deps: EnsfacilStartDeps): void
   setENSConfigurationHttp(() => getHttp());
 };
 
-const disponible = <T>(valor: T | undefined, nombre: string): T => {
-  if (!valor) {
-    throw new Error(`ENSFácil: ${nombre} todavía no está disponible`);
+const available = <T>(value: T | undefined, name: string): T => {
+  if (!value) {
+    throw new Error(`ENSFácil: ${name} todavía no está disponible`);
   }
 
-  return valor;
+  return value;
 };
 
-export const getCore = (): CoreStart => disponible(core, 'el núcleo del dashboard');
+export const getCore = (): CoreStart => available(core, 'el núcleo del dashboard');
 export const getHttp = () => getCore().http;
-export const getData = () => disponible(plugins, 'los plugins del dashboard').data;
-export const getNavigation = () => disponible(plugins, 'los plugins del dashboard').navigation;
+export const getData = () => available(plugins, 'los plugins del dashboard').data;
+export const getNavigation = () => available(plugins, 'los plugins del dashboard').navigation;

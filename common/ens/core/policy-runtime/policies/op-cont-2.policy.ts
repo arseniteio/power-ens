@@ -1,54 +1,5 @@
-// op.cont.2 · Plan de continuidad
-//
-// Por qué este control tiene policy propia. Es un control de DOCUMENTO: el plan
-// se audita leyéndolo, y ninguna máquina emite nada que lo demuestre (no tiene
-// runbook ni reglas: `tests/controls-without-runbook.json`). Lo que ENSFácil
-// puede hacer, y hace aquí, es vigilar las VIGENCIAS de lo que la organización
-// declara en la pantalla (spec 2026-10-09 §5): el plan dentro de su periodicidad
-// de revisión, los contratos de los medios alternativos sin vencer y la
-// formación de cada persona del plan en vigor, todo contra la fecha de la
-// evaluación (`context.now`). Ninguna primitiva compara una fecha declarada con
-// otra declarada, ni cruza dos tablas de la pantalla.
-//
-// Un requisito que cumple sale ACREDITADO DOCUMENTALMENTE (`attested`): es una
-// declaración en vigor, no una medida, y la pantalla y el informe lo dicen así
-// (decisión 1 del responsable, 09/10). No hay P-ATT a propósito: una atestación
-// no caduca, y un plan de 2019 con su enlace acreditaría hoy.
-//
-// Qué decide cada requisito. Los cinco son contenidos del plan («dicho plan
-// contemplará…»), así que todos exigen EV-01, el plan vigente:
-//
-//   op.cont.2.1  EV-01 y P-03: cada función con su responsable y sus actividades.
-//   op.cont.2.2  EV-01 y P-02: cada servicio esencial con su RTO y su RPO, como
-//                duraciones legibles (30 min, 4 h, 2 d).
-//   op.cont.2.3  EV-01 y EV-04: cada medio alternativo de P-04 con su contrato,
-//                en vigor.
-//   op.cont.2.4  EV-01 y EV-06: cada responsable y suplente de P-03 con formación
-//                vigente en P-05.
-//   op.cont.2.5  EV-01 y P-06: al menos un plan de la organización con el que se
-//                integra.
-//   R1 y R2      definidos, no exigidos: sin niveles.
-//
-// EV-02, EV-05, EV-07 y EV-08 no se pueden medir hoy, y EV-03 es de R2: salen
-// NO_APLICA con el motivo «dato del informe» para que no se pinten en gris.
-//
-// Se rige por el nivel de Disponibilidad (`levelDimension: 'D'`): con D en BAJO
-// o MEDIO, `context.level` no es ALTO, ningún requisito aplica y no se emite
-// ninguna decisión.
-//
-// Invariantes:
-//   - sin la tabla, o con una fila a medias o una fecha ilegible, NO_EVALUABLE
-//     con causa CONFIGURATION y la fila nombrada; nunca un CUMPLE por ausencia;
-//   - una declaración que dice que algo falta o venció (un medio sin contrato,
-//     una formación vencida, una persona sin formación) es NO_CUMPLE: es la
-//     organización la que lo declara;
-//   - la policy no inventa política: la periodicidad es P-08, y ninguna fecha
-//     ni plazo tiene valor por defecto.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+// op.cont.2 · Continuity plan.
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -57,143 +8,132 @@ import type {
   ENSRuntimeVariable,
 } from '../types';
 import { toParameterListItems } from '../../../configuration/services/parameter-value-validator';
-// Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
-  DIA,
-  cumple,
-  noCumple,
-  sinMedir,
-  causaComun,
-  peor,
-  combina,
-  numero,
-  lista,
-  dias,
-  sinTildes,
-  vacio,
-  parametro,
-  etiqueta,
-  filas,
-  faltaParametro,
-  decisorDe,
+  DAY_MS,
+  compliant,
+  nonCompliant,
+  notMeasured,
+  commonGapCause,
+  worstStatus,
+  combineMeasurements,
+  parseNumber,
+  formatList,
+  wholeDays,
+  stripAccents,
+  isEmptyField,
+  findParameter,
+  parameterDisplayName,
+  tableParameterRows,
+  missingParameter,
+  decisionBuilderFor,
 } from './policy-kit';
-import type { ENSTipoDeRegla, Medida } from './policy-kit';
+import type { ENSDecisionRuleType, Measurement } from './policy-kit';
 
 const CONTROL = 'op.cont.2';
 const POLICY = 'policy.op.cont.2';
 
-const decide = decisorDe(POLICY);
+const decide = decisionBuilderFor(POLICY);
 
-// --- fechas declaradas -----------------------------------------------------
-//
-// Una fecha de la pantalla es AAAA-MM-DD y existe de verdad: la misma gramática
-// que la columna `date` del validador. Cualquier otra cosa es una declaración
-// ilegible, y se dice con su fila.
+// Declared dates: a screen date is YYYY-MM-DD and really exists (same grammar as the validator's
+// `date` column); anything else is an unreadable declaration, reported with its row.
 
-const FECHA = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// El instante de las 00:00 UTC de esa fecha, o nada si no es una fecha real.
-const fecha = (texto: string): number | undefined => {
-  const partes = String(texto).trim().match(FECHA);
+// Instant of 00:00 UTC of that date, or nothing if it is not a real date.
+const date = (text: string): number | undefined => {
+  const pieces = String(text).trim().match(DATE);
 
-  if (!partes) {
+  if (!pieces) {
     return undefined;
   }
 
-  const [anio, mes, dia] = [Number(partes[1]), Number(partes[2]), Number(partes[3])];
-  const t = Date.UTC(anio, mes - 1, dia);
+  const [year, month, day] = [Number(pieces[1]), Number(pieces[2]), Number(pieces[3])];
+  const t = Date.UTC(year, month - 1, day);
   const d = new Date(t);
 
-  return d.getUTCFullYear() === anio && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia ? t : undefined;
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day ? t : undefined;
 };
 
-// La fecha N meses después, en el calendario: el 31/01 + 1 mes es el 28/02 (o
-// 29), no el 03/03.
-const masMeses = (t: number, meses: number): number => {
+// The date N months later on the calendar: 31/01 + 1 month is 28/02 (or 29), not 03/03.
+const mostMonths = (t: number, months: number): number => {
   const d = new Date(t);
-  const destino = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + meses, 1));
-  const ultimoDia = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  const destination = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1));
+  const lastDay = new Date(Date.UTC(destination.getUTCFullYear(), destination.getUTCMonth() + 1, 0)).getUTCDate();
 
-  return Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth(), Math.min(d.getUTCDate(), ultimoDia));
+  return Date.UTC(destination.getUTCFullYear(), destination.getUTCMonth(), Math.min(d.getUTCDate(), lastDay));
 };
 
-const dia = (t: number): string => new Date(t).toISOString().slice(0, 10);
+const day = (t: number): string => new Date(t).toISOString().slice(0, 10);
 
-// Una fecha «hasta» vale todo ese día: vence al empezar el siguiente.
-const vencida = (hasta: number, ahora: number): boolean => ahora >= hasta + DIA;
+// An «until» date is valid the whole day: it expires when the next begins.
+const isExpired = (until: number, now: number): boolean => now >= until + DAY_MS;
 
-// Días que quedan hasta el final del día «hasta», o que han pasado desde que
-// venció.
-const diasHasta = (hasta: number, ahora: number): number => dias(hasta + DIA - ahora);
-const diasDesde = (hasta: number, ahora: number): number => dias(ahora - (hasta + DIA));
+// Days left until the end of the «until» day, or elapsed since it expired.
+const daysUntil = (until: number, now: number): number => wholeDays(until + DAY_MS - now);
+const daysSince = (until: number, now: number): number => wholeDays(now - (until + DAY_MS));
 
-// --- duraciones de P-02 ------------------------------------------------------
-//
-// Un número y su unidad: «30 min», «4 h», «2 d», «1,5 horas». Nada más: un RTO
-// «cuanto antes» o «4» no es un objetivo que se pueda contrastar con nada.
-const DURACION = /^\d+([.,]\d+)?\s*(min|mins|minuto|minutos|h|hora|horas|d|dia|dias)$/;
+// P-02 durations: a number and its unit («30 min», «4 h», «2 d», «1,5 horas»), nothing else; an RTO
+// «cuanto antes» or «4» cannot be checked.
+const DURATION = /^\d+([.,]\d+)?\s*(min|mins|minuto|minutos|h|hora|horas|d|dia|dias)$/;
 
-const esDuracion = (texto: string): boolean => DURACION.test(sinTildes(String(texto).trim()));
+const isDuration = (text: string): boolean => DURATION.test(stripAccents(String(text).trim()));
 
-// --- personas ----------------------------------------------------------------
-//
-// P-03 y P-05 nombran a las mismas personas a mano: se comparan sin mayúsculas,
-// sin tildes y sin espacios de más, y nunca por parecido.
-const persona = (texto: string): string => sinTildes(String(texto)).replace(/\s+/g, ' ').trim();
+// People: P-03 and P-05 name the same people by hand, compared without case, accents or extra
+// spaces, never by similarity.
+const person = (text: string): string => stripAccents(String(text)).replace(/\s+/g, ' ').trim();
 
-const fila = (n: number): string => `fila ${n + 1}`;
+const row = (n: number): string => `fila ${n + 1}`;
 
-// --- EV-01 · el plan y su vigencia -------------------------------------------
 
-// Lo que sabe el informe del plan, además de la medida.
-type Plan = { medida: Medida; vence?: number };
+// What the report knows about the plan, besides the measurement.
+type Plan = { medida: Measurement; vence?: number };
 
-const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
-  const planes = filas(context, 'P-01');
+const ev01 = (context: ENSPolicyContext, now: number): Plan => {
+  const plans = tableParameterRows(context, 'P-01');
 
-  if (!planes) {
-    return { medida: faltaParametro(context, 'P-01', 'qué plan de continuidad está aprobado') };
+  if (!plans) {
+    return { medida: missingParameter(context, 'P-01', 'qué plan de continuidad está aprobado') };
   }
 
-  const valor = parametro(context, 'P-08')?.value;
-  const meses = valor === undefined || valor === null || Array.isArray(valor) ? undefined : numero(String(valor));
+  const value = findParameter(context, 'P-08')?.value;
+  const months = value === undefined || value === null || Array.isArray(value) ? undefined : parseNumber(String(value));
 
-  if (meses === undefined || meses <= 0) {
-    return { medida: faltaParametro(context, 'P-08', 'la vigencia del plan (cada cuántos meses se revisa)') };
+  if (months === undefined || months <= 0) {
+    return { medida: missingParameter(context, 'P-08', 'la vigencia del plan (cada cuántos meses se revisa)') };
   }
 
-  if (!Number.isInteger(meses)) {
+  if (!Number.isInteger(months)) {
     return {
-      medida: sinMedir(`${etiqueta(context, 'P-08')} vale ${valor}: tiene que ser un número entero de meses.`, 'CONFIGURATION'),
+      medida: notMeasured(`${parameterDisplayName(context, 'P-08')} vale ${value}: tiene que ser un número entero de meses.`, 'CONFIGURATION'),
     };
   }
 
-  const incompletas: string[] = [];
-  const ilegibles: string[] = [];
-  const leidas: { referencia: string; version: string; aprobado: number; por: string }[] = [];
+  const incomplete: string[] = [];
+  const unreadable: string[] = [];
+  const read: { referencia: string; version: string; aprobado: number; por: string }[] = [];
 
-  planes.forEach((p, i) => {
-    if (vacio(p.referencia) || vacio(p.version) || vacio(p.fecha_de_aprobacion)) {
-      incompletas.push(`${fila(i)} (${p.referencia || 'sin referencia'})`);
+  plans.forEach((p, i) => {
+    if (isEmptyField(p.referencia) || isEmptyField(p.version) || isEmptyField(p.fecha_de_aprobacion)) {
+      incomplete.push(`${row(i)} (${p.referencia || 'sin referencia'})`);
       return;
     }
 
-    const aprobado = fecha(p.fecha_de_aprobacion);
+    const approvedAt = date(p.fecha_de_aprobacion);
 
-    if (aprobado === undefined) {
-      ilegibles.push(`${fila(i)} (${p.referencia}): «${p.fecha_de_aprobacion}»`);
+    if (approvedAt === undefined) {
+      unreadable.push(`${row(i)} (${p.referencia}): «${p.fecha_de_aprobacion}»`);
       return;
     }
 
-    leidas.push({ referencia: p.referencia, version: p.version, aprobado, por: p.aprobado_por || '' });
+    read.push({ referencia: p.referencia, version: p.version, aprobado: approvedAt, por: p.aprobado_por || '' });
   });
 
-  if (incompletas.length || ilegibles.length) {
+  if (incomplete.length || unreadable.length) {
     return {
-      medida: sinMedir(
+      medida: notMeasured(
         [
-          incompletas.length ? `P-01 tiene filas sin referencia, versión o fecha de aprobación: ${lista(incompletas)}.` : '',
-          ilegibles.length ? `P-01 tiene fechas de aprobación que no son una fecha AAAA-MM-DD: ${lista(ilegibles)}.` : '',
+          incomplete.length ? `P-01 tiene filas sin referencia, versión o fecha de aprobación: ${formatList(incomplete)}.` : '',
+          unreadable.length ? `P-01 tiene fechas de aprobación que no son una fecha AAAA-MM-DD: ${formatList(unreadable)}.` : '',
           'Sin la fecha de aprobación de cada versión no se puede medir la vigencia del plan.',
         ]
           .filter(Boolean)
@@ -203,98 +143,95 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
     };
   }
 
-  // Cuenta la última versión aprobada a la fecha de la evaluación. Una
-  // aprobación posterior no existía todavía (la serie diaria evalúa días
-  // pasados con la configuración de hoy).
-  const aprobadas = leidas.filter(p => p.aprobado <= ahora).sort((a, b) => b.aprobado - a.aprobado);
+  // The last approved version at the evaluation date counts; a later approval did not exist yet
+  // (the daily series evaluates past days with today's configuration).
+  const approvedRows = read.filter(p => p.aprobado <= now).sort((a, b) => b.aprobado - a.aprobado);
 
-  if (!aprobadas.length) {
+  if (!approvedRows.length) {
     return {
-      medida: sinMedir(
-        `Ninguna versión de P-01 estaba aprobada el ${dia(ahora)}: la primera es de ${dia(Math.min(...leidas.map(p => p.aprobado)))}.`,
+      medida: notMeasured(
+        `Ninguna versión de P-01 estaba aprobada el ${day(now)}: la primera es de ${day(Math.min(...read.map(p => p.aprobado)))}.`,
         'CONFIGURATION'
       ),
     };
   }
 
-  const ultimo = aprobadas[0];
-  const vence = masMeses(ultimo.aprobado, meses);
-  const quien = ultimo.por ? ` por ${ultimo.por}` : '';
-  const plan = `«${ultimo.referencia}» ${ultimo.version}, aprobado el ${dia(ultimo.aprobado)}${quien}`;
+  const last = approvedRows[0];
+  const expires = mostMonths(last.aprobado, months);
+  const who = last.por ? ` por ${last.por}` : '';
+  const plan = `«${last.referencia}» ${last.version}, aprobado el ${day(last.aprobado)}${who}`;
 
-  if (vencida(vence, ahora)) {
+  if (isExpired(expires, now)) {
     return {
-      medida: noCumple(
-        `El plan ${plan}, tenía que revisarse cada ${meses} meses (P-08): venció el ${dia(vence)}, hace ${diasDesde(vence, ahora)} días. Un plan sin revisar no acredita sus contenidos.`
+      medida: nonCompliant(
+        `El plan ${plan}, tenía que revisarse cada ${months} meses (P-08): venció el ${day(expires)}, hace ${daysSince(expires, now)} días. Un plan sin revisar no acredita sus contenidos.`
       ),
-      vence,
+      vence: expires,
     };
   }
 
   return {
-    medida: cumple(`Plan ${plan}: vigente hasta el ${dia(vence)} (quedan ${diasHasta(vence, ahora)} días) con una revisión cada ${meses} meses.`),
-    vence,
+    medida: compliant(`Plan ${plan}: vigente hasta el ${day(expires)} (quedan ${daysUntil(expires, now)} días) con una revisión cada ${months} meses.`),
+    vence: expires,
   };
 };
 
-// --- op.cont.2.1 · funciones del plan (P-03) ---------------------------------
 
-const funciones = (context: ENSPolicyContext): Medida => {
-  const filasP03 = filas(context, 'P-03');
+const functions = (context: ENSPolicyContext): Measurement => {
+  const rowsP03 = tableParameterRows(context, 'P-03');
 
-  if (!filasP03) {
-    return faltaParametro(context, 'P-03', 'qué funciones, responsables y actividades identifica el plan');
+  if (!rowsP03) {
+    return missingParameter(context, 'P-03', 'qué funciones, responsables y actividades identifica el plan');
   }
 
-  const incompletas = filasP03
+  const incomplete = rowsP03
     .map((f, i) => ({ f, i }))
-    .filter(({ f }) => vacio(f.funcion) || vacio(f.responsable) || vacio(f.actividades));
+    .filter(({ f }) => isEmptyField(f.funcion) || isEmptyField(f.responsable) || isEmptyField(f.actividades));
 
-  if (incompletas.length) {
-    return sinMedir(
-      `P-03 tiene funciones sin responsable o sin actividades: ${lista(incompletas.map(({ f, i }) => `${fila(i)} (${f.funcion || 'sin función'})`))}. op.cont.2.1 pide identificar las tres cosas.`,
+  if (incomplete.length) {
+    return notMeasured(
+      `P-03 tiene funciones sin responsable o sin actividades: ${formatList(incomplete.map(({ f, i }) => `${row(i)} (${f.funcion || 'sin función'})`))}. op.cont.2.1 pide identificar las tres cosas.`,
       'CONFIGURATION'
     );
   }
 
-  return cumple(
-    `P-03 identifica ${filasP03.length} función(es), cada una con su responsable y sus actividades: ${lista(
-      filasP03.map(f => `${f.funcion} → ${f.responsable}${vacio(f.suplente) ? '' : ` (suplente ${f.suplente})`}`)
+  return compliant(
+    `P-03 identifica ${rowsP03.length} función(es), cada una con su responsable y sus actividades: ${formatList(
+      rowsP03.map(f => `${f.funcion} → ${f.responsable}${isEmptyField(f.suplente) ? '' : ` (suplente ${f.suplente})`}`)
     )}.`
   );
 };
 
-// --- op.cont.2.2 · servicios esenciales y objetivos (P-02) ---------------------
 
-const servicios = (context: ENSPolicyContext): Medida => {
-  const filasP02 = filas(context, 'P-02');
+const services = (context: ENSPolicyContext): Measurement => {
+  const rowsP02 = tableParameterRows(context, 'P-02');
 
-  if (!filasP02) {
-    return faltaParametro(context, 'P-02', 'qué servicios esenciales tiene que garantizar la previsión ni con qué objetivos de recuperación');
+  if (!rowsP02) {
+    return missingParameter(context, 'P-02', 'qué servicios esenciales tiene que garantizar la previsión ni con qué objetivos de recuperación');
   }
 
-  const incompletas: string[] = [];
-  const ilegibles: string[] = [];
+  const incomplete: string[] = [];
+  const unreadable: string[] = [];
 
-  filasP02.forEach((f, i) => {
-    if (vacio(f.servicio) || vacio(f.rto) || vacio(f.rpo)) {
-      incompletas.push(`${fila(i)} (${f.servicio || 'sin servicio'})`);
+  rowsP02.forEach((f, i) => {
+    if (isEmptyField(f.servicio) || isEmptyField(f.rto) || isEmptyField(f.rpo)) {
+      incomplete.push(`${row(i)} (${f.servicio || 'sin servicio'})`);
       return;
     }
 
-    const malas = [!esDuracion(f.rto) ? `RTO «${f.rto}»` : '', !esDuracion(f.rpo) ? `RPO «${f.rpo}»` : ''].filter(Boolean);
+    const bad = [!isDuration(f.rto) ? `RTO «${f.rto}»` : '', !isDuration(f.rpo) ? `RPO «${f.rpo}»` : ''].filter(Boolean);
 
-    if (malas.length) {
-      ilegibles.push(`${fila(i)} (${f.servicio}): ${malas.join(', ')}`);
+    if (bad.length) {
+      unreadable.push(`${row(i)} (${f.servicio}): ${bad.join(', ')}`);
     }
   });
 
-  if (incompletas.length || ilegibles.length) {
-    return sinMedir(
+  if (incomplete.length || unreadable.length) {
+    return notMeasured(
       [
-        incompletas.length ? `P-02 tiene servicios esenciales sin RTO o sin RPO: ${lista(incompletas)}.` : '',
-        ilegibles.length
-          ? `P-02 tiene objetivos de recuperación que no son una duración (un número y su unidad: 30 min, 4 h, 2 d): ${lista(ilegibles)}.`
+        incomplete.length ? `P-02 tiene servicios esenciales sin RTO o sin RPO: ${formatList(incomplete)}.` : '',
+        unreadable.length
+          ? `P-02 tiene objetivos de recuperación que no son una duración (un número y su unidad: 30 min, 4 h, 2 d): ${formatList(unreadable)}.`
           : '',
       ]
         .filter(Boolean)
@@ -303,252 +240,245 @@ const servicios = (context: ENSPolicyContext): Medida => {
     );
   }
 
-  return cumple(
-    `P-02 declara ${filasP02.length} servicio(s) esencial(es) con sus objetivos de recuperación: ${lista(
-      filasP02.map(f => `${f.servicio} (RTO ${f.rto}, RPO ${f.rpo})`)
+  return compliant(
+    `P-02 declara ${rowsP02.length} servicio(s) esencial(es) con sus objetivos de recuperación: ${formatList(
+      rowsP02.map(f => `${f.servicio} (RTO ${f.rto}, RPO ${f.rpo})`)
     )}.`
   );
 };
 
-// --- EV-04 · contratos de los medios alternativos (P-04) ---------------------
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const medios = filas(context, 'P-04');
+const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
+  const average = tableParameterRows(context, 'P-04');
 
-  if (!medios) {
-    return faltaParametro(context, 'P-04', 'qué medios alternativos hay ni con qué contrato');
+  if (!average) {
+    return missingParameter(context, 'P-04', 'qué medios alternativos hay ni con qué contrato');
   }
 
-  const sinContrato: string[] = [];
-  const vencidos: string[] = [];
-  // Filas que no permiten afirmar nada: sin nombre, o con contrato y sin una
-  // fecha de vigencia legible.
-  const ilegibles: string[] = [];
-  const enVigor: string[] = [];
+  const withoutContract: string[] = [];
+  const expiredList: string[] = [];
+  // Rows that allow no claim: without name, or with contract and no readable validity date.
+  const unreadable: string[] = [];
+  const inForce: string[] = [];
 
-  medios.forEach((m, i) => {
-    const nombre = m.medio;
+  average.forEach((m, i) => {
+    const name = m.medio;
 
-    if (vacio(m.medio)) {
-      ilegibles.push(`${fila(i)}: sin nombre del medio`);
+    if (isEmptyField(m.medio)) {
+      unreadable.push(`${row(i)}: sin nombre del medio`);
       return;
     }
 
-    if (vacio(m.contrato)) {
-      sinContrato.push(nombre);
+    if (isEmptyField(m.contrato)) {
+      withoutContract.push(name);
       return;
     }
 
-    if (vacio(m.vigencia)) {
-      ilegibles.push(`${nombre} (${m.contrato}): sin fecha de vigencia`);
+    if (isEmptyField(m.vigencia)) {
+      unreadable.push(`${name} (${m.contrato}): sin fecha de vigencia`);
       return;
     }
 
-    const hasta = fecha(m.vigencia);
+    const until = date(m.vigencia);
 
-    if (hasta === undefined) {
-      ilegibles.push(`${nombre} (${m.contrato}): vigencia «${m.vigencia}», que no es una fecha AAAA-MM-DD`);
+    if (until === undefined) {
+      unreadable.push(`${name} (${m.contrato}): vigencia «${m.vigencia}», que no es una fecha AAAA-MM-DD`);
       return;
     }
 
-    if (vencida(hasta, ahora)) {
-      vencidos.push(`${nombre} (${m.contrato}) venció el ${dia(hasta)}, hace ${diasDesde(hasta, ahora)} días`);
+    if (isExpired(until, now)) {
+      expiredList.push(`${name} (${m.contrato}) venció el ${day(until)}, hace ${daysSince(until, now)} días`);
       return;
     }
 
-    enVigor.push(`${nombre} → ${m.contrato}${m.proveedor ? ` con ${m.proveedor}` : ''}, hasta el ${dia(hasta)} (quedan ${diasHasta(hasta, ahora)} días)`);
+    inForce.push(`${name} → ${m.contrato}${m.proveedor ? ` con ${m.proveedor}` : ''}, hasta el ${day(until)} (quedan ${daysUntil(until, now)} días)`);
   });
 
-  const partes: Medida[] = [];
+  const pieces: Measurement[] = [];
 
-  if (sinContrato.length) {
-    partes.push(noCumple(`Medios alternativos sin acuerdo ni contrato: ${lista(sinContrato)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
+  if (withoutContract.length) {
+    pieces.push(nonCompliant(`Medios alternativos sin acuerdo ni contrato: ${formatList(withoutContract)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
   }
 
-  if (vencidos.length) {
-    partes.push(noCumple(`Contratos de medios alternativos vencidos: ${lista(vencidos)}.`));
+  if (expiredList.length) {
+    pieces.push(nonCompliant(`Contratos de medios alternativos vencidos: ${formatList(expiredList)}.`));
   }
 
-  if (ilegibles.length) {
-    partes.push(sinMedir(`P-04 no permite afirmar que estén en vigor: ${lista(ilegibles)}.`, 'CONFIGURATION'));
+  if (unreadable.length) {
+    pieces.push(notMeasured(`P-04 no permite afirmar que estén en vigor: ${formatList(unreadable)}.`, 'CONFIGURATION'));
   }
 
-  if (enVigor.length) {
-    partes.push(cumple(`Medios alternativos con contrato en vigor: ${lista(enVigor)}.`));
+  if (inForce.length) {
+    pieces.push(compliant(`Medios alternativos con contrato en vigor: ${formatList(inForce)}.`));
   }
 
-  return combina(partes);
+  return combineMeasurements(pieces);
 };
 
-// --- EV-06 · formación de las personas del plan (P-03 contra P-05) -----------
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const filasP03 = filas(context, 'P-03');
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const rowsP03 = tableParameterRows(context, 'P-03');
 
-  if (!filasP03) {
-    return faltaParametro(context, 'P-03', 'quién tiene función en el plan y, por tanto, quién tiene que estar formado');
+  if (!rowsP03) {
+    return missingParameter(context, 'P-03', 'quién tiene función en el plan y, por tanto, quién tiene que estar formado');
   }
 
-  // Cada persona una vez, con el nombre como se escribió la primera vez.
-  const personas = new Map<string, string>();
+  // Each person once, with the name as first written.
+  const people = new Map<string, string>();
 
-  filasP03.forEach(f =>
-    [f.responsable, f.suplente].forEach(nombre => {
-      if (!vacio(nombre) && !personas.has(persona(nombre))) {
-        personas.set(persona(nombre), nombre);
+  rowsP03.forEach(f =>
+    [f.responsable, f.suplente].forEach(name => {
+      if (!isEmptyField(name) && !people.has(person(name))) {
+        people.set(person(name), name);
       }
     })
   );
 
-  if (!personas.size) {
-    return sinMedir('P-03 no nombra a ninguna persona (responsable o suplente): no se sabe quién tiene que estar formado.', 'CONFIGURATION');
+  if (!people.size) {
+    return notMeasured('P-03 no nombra a ninguna persona (responsable o suplente): no se sabe quién tiene que estar formado.', 'CONFIGURATION');
   }
 
-  const formacion = filas(context, 'P-05');
+  const training = tableParameterRows(context, 'P-05');
 
-  if (!formacion) {
-    return faltaParametro(context, 'P-05', 'qué formación ha recibido cada persona del plan');
+  if (!training) {
+    return missingParameter(context, 'P-05', 'qué formación ha recibido cada persona del plan');
   }
 
-  // Las filas que no se pueden leer se guardan con su persona: una fila ilegible
-  // puede ser justo la formación vigente de alguien, y entonces esa persona no
-  // está «sin formación», está sin demostrar. Las que no nombran a nadie van
-  // aparte.
-  const sinLeerPorPersona = new Map<string, string[]>();
-  const sinLeerSinPersona: string[] = [];
-  const porPersona = new Map<string, { formacion: string; desde?: number; hasta: number }[]>();
+  // Unreadable rows are kept with their person: an unreadable row may be exactly someone's current
+  // training, so that person is not «untrained» but unproven. Rows naming nobody go apart.
+  const withoutReadByPerson = new Map<string, string[]>();
+  const withoutReadWithoutPerson: string[] = [];
+  const byPerson = new Map<string, { formacion: string; desde?: number; hasta: number }[]>();
 
-  formacion.forEach((f, i) => {
-    const sinLeer = (motivo: string): void => {
-      if (vacio(f.persona)) {
-        sinLeerSinPersona.push(`${fila(i)}: ${motivo}`);
+  training.forEach((f, i) => {
+    const withoutRead = (motive: string): void => {
+      if (isEmptyField(f.persona)) {
+        withoutReadWithoutPerson.push(`${row(i)}: ${motive}`);
         return;
       }
 
-      const clave = persona(f.persona);
+      const key = person(f.persona);
 
-      sinLeerPorPersona.set(clave, [...(sinLeerPorPersona.get(clave) || []), `${fila(i)} (${f.persona}): ${motivo}`]);
+      withoutReadByPerson.set(key, [...(withoutReadByPerson.get(key) || []), `${row(i)} (${f.persona}): ${motive}`]);
     };
 
-    if (vacio(f.persona) || vacio(f.formacion) || vacio(f.vigencia)) {
-      sinLeer('sin persona, formación o vigencia');
+    if (isEmptyField(f.persona) || isEmptyField(f.formacion) || isEmptyField(f.vigencia)) {
+      withoutRead('sin persona, formación o vigencia');
       return;
     }
 
-    const hasta = fecha(f.vigencia);
-    const desde = vacio(f.fecha) ? undefined : fecha(f.fecha);
+    const until = date(f.vigencia);
+    const since = isEmptyField(f.fecha) ? undefined : date(f.fecha);
 
-    if (hasta === undefined || (!vacio(f.fecha) && desde === undefined)) {
-      sinLeer(`${hasta === undefined ? `vigencia «${f.vigencia}»` : `fecha «${f.fecha}»`}, que no es una fecha AAAA-MM-DD`);
+    if (until === undefined || (!isEmptyField(f.fecha) && since === undefined)) {
+      withoutRead(`${until === undefined ? `vigencia «${f.vigencia}»` : `fecha «${f.fecha}»`}, que no es una fecha AAAA-MM-DD`);
       return;
     }
 
-    const clave = persona(f.persona);
+    const key = person(f.persona);
 
-    porPersona.set(clave, [...(porPersona.get(clave) || []), { formacion: f.formacion, desde, hasta }]);
+    byPerson.set(key, [...(byPerson.get(key) || []), { formacion: f.formacion, desde: since, hasta: until }]);
   });
 
-  const sinFormacion: string[] = [];
-  const caducadas: string[] = [];
-  const formadas: string[] = [];
-  // Personas sin formación vigente legible y con alguna fila ilegible: no
-  // demostrado, nunca NO_CUMPLE.
-  const sinDemostrar: string[] = [];
+  const withoutTraining: string[] = [];
+  const lapsedList: string[] = [];
+  const formed: string[] = [];
+  // People without readable current training and with some unreadable row: unproven, never
+  // NO_CUMPLE.
+  const withoutProve: string[] = [];
 
-  personas.forEach((nombre, clave) => {
-    const suyas = porPersona.get(clave) || [];
-    const sinLeer = sinLeerPorPersona.get(clave) || [];
+  people.forEach((name, key) => {
+    const their = byPerson.get(key) || [];
+    const withoutRead = withoutReadByPerson.get(key) || [];
 
-    // Vale la formación ya recibida y todavía vigente a la fecha de la evaluación.
-    const vigente = suyas
-      .filter(s => (s.desde === undefined || s.desde <= ahora) && !vencida(s.hasta, ahora))
+    // Training already received and still valid at the evaluation date counts.
+    const current = their
+      .filter(s => (s.desde === undefined || s.desde <= now) && !isExpired(s.hasta, now))
       .sort((a, b) => b.hasta - a.hasta)[0];
 
-    if (vigente) {
-      formadas.push(`${nombre} (${vigente.formacion}, hasta el ${dia(vigente.hasta)})`);
+    if (current) {
+      formed.push(`${name} (${current.formacion}, hasta el ${day(current.hasta)})`);
       return;
     }
 
-    if (sinLeer.length) {
-      sinDemostrar.push(...sinLeer);
+    if (withoutRead.length) {
+      withoutProve.push(...withoutRead);
       return;
     }
 
-    if (!suyas.length) {
-      sinFormacion.push(nombre);
+    if (!their.length) {
+      withoutTraining.push(name);
       return;
     }
 
-    const ultima = [...suyas].sort((a, b) => b.hasta - a.hasta)[0];
+    const last = [...their].sort((a, b) => b.hasta - a.hasta)[0];
 
-    caducadas.push(
-      ultima.desde !== undefined && ultima.desde > ahora
-        ? `${nombre} (${ultima.formacion}, recibida el ${dia(ultima.desde)}, después de la fecha de la evaluación)`
-        : `${nombre} (${ultima.formacion}, venció el ${dia(ultima.hasta)}, hace ${diasDesde(ultima.hasta, ahora)} días)`
+    lapsedList.push(
+      last.desde !== undefined && last.desde > now
+        ? `${name} (${last.formacion}, recibida el ${day(last.desde)}, después de la fecha de la evaluación)`
+        : `${name} (${last.formacion}, venció el ${day(last.hasta)}, hace ${daysSince(last.hasta, now)} días)`
     );
   });
 
-  const partes: Medida[] = [];
+  const pieces: Measurement[] = [];
 
-  if (sinFormacion.length) {
-    partes.push(noCumple(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${lista(sinFormacion)}.`));
+  if (withoutTraining.length) {
+    pieces.push(nonCompliant(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${formatList(withoutTraining)}.`));
   }
 
-  if (caducadas.length) {
-    partes.push(noCumple(`Personas del plan sin formación vigente: ${lista(caducadas)}.`));
+  if (lapsedList.length) {
+    pieces.push(nonCompliant(`Personas del plan sin formación vigente: ${formatList(lapsedList)}.`));
   }
 
-  if (sinDemostrar.length) {
-    partes.push(
-      sinMedir(`Personas del plan cuya formación vigente no se puede leer en P-05: ${lista(sinDemostrar)}.`, 'CONFIGURATION')
+  if (withoutProve.length) {
+    pieces.push(
+      notMeasured(`Personas del plan cuya formación vigente no se puede leer en P-05: ${formatList(withoutProve)}.`, 'CONFIGURATION')
     );
   }
 
-  // Y las demás filas ilegibles (de quien ya está formado, de quien no está en
-  // P-03 o sin persona) también se dicen: la pantalla rechaza la tabla igual.
-  const otras = [
-    ...sinLeerSinPersona,
-    ...Array.from(sinLeerPorPersona.values())
-      .reduce<string[]>((todas, filasDe) => todas.concat(filasDe), [])
-      .filter(descripcion => !sinDemostrar.includes(descripcion)),
+  // Other unreadable rows (of someone already trained, not in P-03, or without person) are also
+  // reported: the screen rejects the table anyway.
+  const other = [
+    ...withoutReadWithoutPerson,
+    ...Array.from(withoutReadByPerson.values())
+      .reduce<string[]>((all, rowsOf) => all.concat(rowsOf), [])
+      .filter(description => !withoutProve.includes(description)),
   ];
 
-  if (otras.length) {
-    partes.push(sinMedir(`P-05 tiene filas que no se pueden leer: ${lista(otras)}.`, 'CONFIGURATION'));
+  if (other.length) {
+    pieces.push(notMeasured(`P-05 tiene filas que no se pueden leer: ${formatList(other)}.`, 'CONFIGURATION'));
   }
 
-  if (formadas.length) {
-    const fuera = Array.from(porPersona.keys()).filter(clave => !personas.has(clave));
+  if (formed.length) {
+    const outside = Array.from(byPerson.keys()).filter(key => !people.has(key));
 
-    partes.push(
-      cumple(
-        `Las ${formadas.length} persona(s) del plan con formación vigente: ${lista(formadas)}.${
-          fuera.length ? ` P-05 registra además a ${fuera.length} persona(s) sin función en P-03, que no cuentan.` : ''
+    pieces.push(
+      compliant(
+        `Las ${formed.length} persona(s) del plan con formación vigente: ${formatList(formed)}.${
+          outside.length ? ` P-05 registra además a ${outside.length} persona(s) sin función en P-03, que no cuentan.` : ''
         }`
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(pieces);
 };
 
-// --- op.cont.2.5 · integración con los demás planes (P-06) -------------------
 
-const integracion = (context: ENSPolicyContext): Medida => {
-  const planes = toParameterListItems(parametro(context, 'P-06')?.value);
+const integration = (context: ENSPolicyContext): Measurement => {
+  const plans = toParameterListItems(findParameter(context, 'P-06')?.value);
 
-  if (!planes.length) {
-    return faltaParametro(context, 'P-06', 'con qué planes de la organización se integra el de continuidad');
+  if (!plans.length) {
+    return missingParameter(context, 'P-06', 'con qué planes de la organización se integra el de continuidad');
   }
 
-  return cumple(
-    `P-06 declara ${planes.length} plan(es) de la organización con los que se integra: ${lista(planes)}. Que la integración sea «armónica» es revisión documental.`
+  return compliant(
+    `P-06 declara ${plans.length} plan(es) de la organización con los que se integra: ${formatList(plans)}. Que la integración sea «armónica» es revisión documental.`
   );
 };
 
-// --- datos del informe --------------------------------------------------------
 
-const DATO_DEL_INFORME: Record<string, { requisito: string; parametros: string[]; motivo: string }> = {
+const REPORT_DATA: Record<string, { requisito: string; parametros: string[]; motivo: string }> = {
   'EV-02': {
     requisito: 'op.cont.2.2',
     parametros: ['P-02'],
@@ -581,33 +511,31 @@ const DATO_DEL_INFORME: Record<string, { requisito: string; parametros: string[]
   },
 };
 
-// --- decisiones ------------------------------------------------------------
 
-// Una declaración no es una medida: el motivo de cada evidencia juzgada lo dice,
-// porque el puente lo lleva a la tabla de evidencias. Lo que no se ha podido
-// juzgar ya dice qué falta.
-const comoDeclaracion = (medida: Medida): string =>
-  medida.estado === 'CUMPLE' || medida.estado === 'NO_CUMPLE'
-    ? `Declaración de la pantalla, no medida: ${medida.motivo}`
-    : medida.motivo;
+// A declaration is not a measurement: each judged evidence's reason says so, since the bridge
+// carries it to the evidence table. What could not be judged already says what is missing.
+const asStatement = (measurement: Measurement): string =>
+  measurement.estado === 'CUMPLE' || measurement.estado === 'NO_CUMPLE'
+    ? `Declaración de la pantalla, no medida: ${measurement.motivo}`
+    : measurement.motivo;
 
-type Definicion = {
+type Definition = {
   requisito: string;
   evidencias: string[];
   parametros: string[];
-  tipo: ENSTipoDeRegla;
-  // La declaración propia del requisito que no es una evidencia (P-03, P-02, P-06).
-  propia?: { etiqueta: string; medir: (context: ENSPolicyContext) => Medida };
+  tipo: ENSDecisionRuleType;
+  // The requirement's own declaration that is not an evidence (P-03, P-02, P-06).
+  propia?: { etiqueta: string; medir: (context: ENSPolicyContext) => Measurement };
   esperado: string;
 };
 
-const REQUISITOS: Definicion[] = [
+const REQUIREMENTS: Definition[] = [
   {
     requisito: 'op.cont.2.1',
     evidencias: ['EV-01'],
     parametros: ['P-01', 'P-08', 'P-03'],
     tipo: 'COVERAGE_REQUIRED',
-    propia: { etiqueta: 'P-03', medir: funciones },
+    propia: { etiqueta: 'P-03', medir: functions },
     esperado: 'plan vigente (P-01 con P-08) y cada función de P-03 con responsable y actividades',
   },
   {
@@ -615,7 +543,7 @@ const REQUISITOS: Definicion[] = [
     evidencias: ['EV-01'],
     parametros: ['P-01', 'P-08', 'P-02'],
     tipo: 'COVERAGE_REQUIRED',
-    propia: { etiqueta: 'P-02', medir: servicios },
+    propia: { etiqueta: 'P-02', medir: services },
     esperado: 'plan vigente (P-01 con P-08) y cada servicio esencial de P-02 con RTO y RPO',
   },
   {
@@ -637,118 +565,117 @@ const REQUISITOS: Definicion[] = [
     evidencias: ['EV-01'],
     parametros: ['P-01', 'P-08', 'P-06'],
     tipo: 'COVERAGE_REQUIRED',
-    propia: { etiqueta: 'P-06', medir: integracion },
+    propia: { etiqueta: 'P-06', medir: integration },
     esperado: 'plan vigente (P-01 con P-08) y P-06 con algún plan de la organización',
   },
 ];
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const aplica = (requisito: string): boolean =>
+  const now = (context.now || new Date()).getTime();
+  const applies = (requirement: string): boolean =>
     Boolean(
       context.control.requirements
-        .find(r => r.id === requisito)
+        .find(r => r.id === requirement)
         ?.applicability.levels.includes(context.level)
     );
 
-  const aplicables = REQUISITOS.filter(r => aplica(r.requisito));
+  const applicable = REQUIREMENTS.filter(r => applies(r.requisito));
 
-  // Con D en BAJO o MEDIO no aplica nada: ni decisiones ni variables. Las
-  // evidencias ya salen NO_APLICA por su nivel.
-  if (!aplicables.length) {
+  // With D at BAJO or MEDIO nothing applies: no decisions or variables; the evidences are already
+  // NO_APLICA by level.
+  if (!applicable.length) {
     return { decisions: [], runtimeVariables: [] };
   }
 
-  const plan = ev01(context, ahora);
-  const evidencias: Record<string, Medida> = {
+  const plan = ev01(context, now);
+  const evidences: Record<string, Measurement> = {
     'EV-01': plan.medida,
-    'EV-04': ev04(context, ahora),
-    'EV-06': ev06(context, ahora),
+    'EV-04': ev04(context, now),
+    'EV-06': ev06(context, now),
   };
-  // La declaración propia de cada requisito que la tiene, para el informe.
-  const propias: { requisito: string; parametro: string; medida: Medida }[] = [];
+  // Each requirement's own declaration, for the report.
+  const own: { requisito: string; parametro: string; medida: Measurement }[] = [];
 
-  const requisitoDecisions: ENSPolicyDecision[] = [];
-  const evidenciaDecisions: ENSPolicyDecision[] = [];
+  const requirementDecisions: ENSPolicyDecision[] = [];
+  const evidenceDecisions: ENSPolicyDecision[] = [];
 
-  aplicables.forEach(definicion => {
-    const partes = [
-      ...definicion.evidencias.map(id => ({ id, medida: evidencias[id] })),
-      ...(definicion.propia ? [{ id: definicion.propia.etiqueta, medida: definicion.propia.medir(context) }] : []),
+  applicable.forEach(definition => {
+    const pieces = [
+      ...definition.evidencias.map(id => ({ id, medida: evidences[id] })),
+      ...(definition.propia ? [{ id: definition.propia.etiqueta, medida: definition.propia.medir(context) }] : []),
     ];
 
-    if (definicion.propia) {
-      propias.push({ requisito: definicion.requisito, parametro: definicion.propia.etiqueta, medida: partes[partes.length - 1].medida });
+    if (definition.propia) {
+      own.push({ requisito: definition.requisito, parametro: definition.propia.etiqueta, medida: pieces[pieces.length - 1].medida });
     }
 
-    const estado = peor(partes.map(p => p.medida));
-    const responsables = partes.filter(p => p.medida.estado === estado);
+    const status = worstStatus(pieces.map(p => p.medida));
+    const owners = pieces.filter(p => p.medida.estado === status);
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
-    // Si cumple, cumple ACREDITADO DOCUMENTALMENTE: todo lo que la sostiene son
-    // declaraciones en vigor.
-    requisitoDecisions.push(
-      conPartes(decide(
-        definicion.requisito,
-        estado,
-        responsables.map(p => p.id).filter(id => id.startsWith('EV-')),
-        definicion.parametros,
-        definicion.tipo,
-        definicion.requisito,
-        motivoCompuesto(partes),
-        definicion.esperado,
-        causaComun(responsables.map(p => p.medida)),
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads); if it complies,
+    // it complies ACCREDITED DOCUMENTARILY since everything behind it is a declaration in force.
+    requirementDecisions.push(
+      withReasonParts(decide(
+        definition.requisito,
+        status,
+        owners.map(p => p.id).filter(id => id.startsWith('EV-')),
+        definition.parametros,
+        definition.tipo,
+        definition.requisito,
+        compositeReason(pieces),
+        definition.esperado,
+        commonGapCause(owners.map(p => p.medida)),
         true
-      ), partesDe(partes))
+      ), reasonPartsOf(pieces))
     );
 
-    // Y una por evidencia, con SU estado y dicho como lo que es.
-    definicion.evidencias.forEach(id => {
-      const medida = evidencias[id];
+    // And one per evidence, with ITS status, said as what it is.
+    definition.evidencias.forEach(id => {
+      const measurement = evidences[id];
 
-      evidenciaDecisions.push(
+      evidenceDecisions.push(
         decide(
-          definicion.requisito,
-          medida.estado,
+          definition.requisito,
+          measurement.estado,
           [id],
-          definicion.parametros,
-          definicion.tipo,
-          `${definicion.requisito}/${id}`,
-          comoDeclaracion(medida),
+          definition.parametros,
+          definition.tipo,
+          `${definition.requisito}/${id}`,
+          asStatement(measurement),
           `${id} CUMPLE`,
-          medida.causa
+          measurement.causa
         )
       );
     });
   });
 
-  // Los datos del informe, sin veredicto.
-  Object.entries(DATO_DEL_INFORME).forEach(([id, dato]) =>
-    evidenciaDecisions.push(
-      decide(dato.requisito, 'NO_APLICA', [id], dato.parametros, 'COVERAGE_REQUIRED', `${dato.requisito}/${id}`, dato.motivo, 'dato del informe')
+  // Report data, without verdict.
+  Object.entries(REPORT_DATA).forEach(([id, data]) =>
+    evidenceDecisions.push(
+      decide(data.requisito, 'NO_APLICA', [id], data.parametros, 'COVERAGE_REQUIRED', `${data.requisito}/${id}`, data.motivo, 'dato del informe')
     )
   );
 
   const variables: ENSRuntimeVariable[] = [
-    ...Object.entries(evidencias).map(([id, medida]) => ({
+    ...Object.entries(evidences).map(([id, measurement]) => ({
       name: `medida_${id.replace('-', '')}`,
-      value: medida.estado,
+      value: measurement.estado,
       parameterIds: id === 'EV-01' ? ['P-01', 'P-08'] : id === 'EV-04' ? ['P-04'] : ['P-03', 'P-05'],
       evidenceIds: [id],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
-    ...propias.map(({ requisito, parametro: id, medida }) => ({
-      name: `declaracion_${requisito.replace(/\./g, '_')}`,
-      value: medida.estado,
+    ...own.map(({ requisito: requirement, parametro: id, medida: measurement }) => ({
+      name: `declaracion_${requirement.replace(/\./g, '_')}`,
+      value: measurement.estado,
       parameterIds: [id],
       evidenceIds: [],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
     {
       name: 'plan_vigente_hasta',
-      value: plan.vence === undefined ? undefined : dia(plan.vence),
+      value: plan.vence === undefined ? undefined : day(plan.vence),
       parameterIds: ['P-01', 'P-08'],
       evidenceIds: ['EV-01'],
       eventIds: [],
@@ -759,12 +686,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
   ];
 
-  // Todas DOCUMENTALES: salen de las tablas de la pantalla y su vigencia, no de
-  // los hechos de ninguna máquina. Un alcance sin máquinas (o un recolector
-  // parado, si algún día lo hubiera) no las borra: un plan vencido sigue
-  // vencido (ver `documental` en `ENSPolicyDecision`).
+  // All DOCUMENTARY: they come from screen tables and their validity, not machine facts. A scope
+  // without machines (or a stopped collector) does not erase them: an expired plan stays expired
+  // (see `documental` in `ENSPolicyDecision`).
   return {
-    decisions: [...requisitoDecisions, ...evidenciaDecisions].map(decision => ({ ...decision, documental: true })),
+    decisions: [...requirementDecisions, ...evidenceDecisions].map(decision => ({ ...decision, documental: true })),
     runtimeVariables: variables,
   };
 };
@@ -774,8 +700,7 @@ export const opCont2PolicyDefinition: ENSPolicyDefinition = {
   controlId: CONTROL,
   version: '1.0.0',
   evaluator: evaluate,
-  // Por el nivel de Disponibilidad: los cinco requisitos base solo en ALTO; R1
-  // y R2 en ninguno.
+  // By Availability level: the five base requirements only in ALTO; R1 and R2 in none.
   requirements: [
     {
       requirementId: 'op.cont.2.1',

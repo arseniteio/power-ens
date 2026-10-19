@@ -1,24 +1,23 @@
-// Lectura y escritura de los parámetros de la URL de la app, sin React: lo
-// prueban las pruebas sin dashboard y lo usan los hooks de `use-router-search`.
+// Reading and writing the app URL parameters, without React.
 
 export const parseRouterSearch = (search: string): Record<string, string> => {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-  const resultado: Record<string, string> = {};
-  params.forEach((valor, clave) => {
-    resultado[clave] = valor;
+  const result: Record<string, string> = {};
+  params.forEach((value, key) => {
+    result[key] = value;
   });
-  return resultado;
+  return result;
 };
 
 export const withRouterSearch = (
   search: string,
-  cambios: Record<string, string | undefined>
+  changes: Record<string, string | undefined>
 ): string => {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-  for (const [clave, valor] of Object.entries(cambios)) {
-    if (valor === undefined || valor === '') params.delete(clave);
-    else params.set(clave, valor);
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === undefined || value === '') params.delete(key);
+    else params.set(key, value);
   }
-  const texto = params.toString();
-  return texto ? `?${texto}` : '';
+  const text = params.toString();
+  return text ? `?${text}` : '';
 };

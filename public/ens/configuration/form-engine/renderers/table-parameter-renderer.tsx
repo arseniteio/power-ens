@@ -22,68 +22,47 @@ import {
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// Renderer de parámetros `type: 'table'`.
-//
-// Por qué existe: hay política de cumplimiento que no cabe en un escalar ni en
-// una lista de valores sueltos. Los derechos de acceso por recurso
-// (`opacc2-acl.tsv`: ruta, modo, propietario, ACL), los privilegios por usuario
-// (`opacc2-privilegios.tsv`) y los tipos de acceso por perfil
-// (`opacc2-accesos.tsv`) son TABLAS, y hasta ahora vivían como ficheros que el
-// operador escribía a mano en la máquina, por SSH. El auditor no las veía en
-// ningún sitio: la pantalla enseñaba una ruta a un fichero, o nada.
-//
-// Por qué editor y no subir un fichero: un fichero subido crea un segundo
-// original —el Excel del cliente— que se desincroniza de lo declarado en la
-// pantalla en cuanto alguien edita uno de los dos, y entonces hay dos políticas
-// y ninguna manda. Editar aquí deja una sola.
-//
-// Lo que se ve y lo que se guarda lo decide `resolveTableFieldModel`
-// (services/parameter-value-validator), no este fichero: el formulario tiene que
-// entender las filas EXACTAMENTE igual que el validador —dónde acaba una celda,
-// qué es una fila en blanco, qué se hace con una fila heredada que trae campos
-// de más—, o habría tablas que la pantalla acepta y el motor rechaza. Aquí solo
-// queda el EUI.
-//
-// SIN VALORES DE FÁBRICA. Una tabla sin configurar se pinta con CERO filas y lo
-// dice con todas las letras. No se siembra una fila de ejemplo: una fila
-// prerrellenada se lee como una decisión tomada, y la política de acceso de un
-// cliente no la decide el que escribió la ficha del parámetro.
+// Renderer of `type: 'table'` parameters: grids of policy rows (`opacc2-acl.tsv`, `opacc2-privilegios.tsv`,
+// `opacc2-accesos.tsv`) edited in the screen instead of uploading a file, so there is a single original.
+// What is shown and stored is decided by `resolveTableFieldModel` (services/parameter-value-validator); only the
+// EUI is here.
+// No factory values: an unset table shows ZERO rows and says so; a prefilled row would read as a decision taken.
 
-const CELDA_MINIMA = 140;
+const MIN_CELL = 140;
 
-const columnaObligatoria = (
-  celda: ENSTableCellModel
-): boolean => celda.column.required;
+const requiredColumn = (
+  cell: ENSTableCellModel
+): boolean => cell.column.required;
 
-// El campo que le toca a cada tipo de columna. `select` y `multiselect` ofrecen
-// solo lo declarado; el resto es texto, con su validación propia.
-const CeldaEditable = ({
-  celda,
-  invalida,
+// Field for each column type: `select` and `multiselect` offer only what is declared; the rest is text with its
+// own validation.
+const EditableCell = ({
+  celda: cell,
+  invalida: invalidOne,
   onCellChange,
 }: {
   celda: ENSTableCellModel;
   invalida: boolean;
-  onCellChange: (valor: string) => void;
+  onCellChange: (value: string) => void;
 }) => {
-  if (celda.column.type === 'select') {
+  if (cell.column.type === 'select') {
     return (
       <EuiSelect
         fullWidth
         compressed
-        isInvalid={invalida}
-        aria-label={celda.column.label}
+        isInvalid={invalidOne}
+        aria-label={cell.column.label}
         options={[
           {
             value: '',
             text: 'Sin seleccionar',
           },
-          ...celda.options.map(option => ({
+          ...cell.options.map(option => ({
             value: option.value,
             text: option.label,
           })),
         ]}
-        value={celda.value}
+        value={cell.value}
         onChange={event =>
           onCellChange(event.target.value)
         }
@@ -91,8 +70,8 @@ const CeldaEditable = ({
     );
   }
 
-  if (celda.column.type === 'multiselect') {
-    const declaradas = celda.options.map(
+  if (cell.column.type === 'multiselect') {
+    const declared = cell.options.map(
       option => ({ label: option.value })
     );
 
@@ -100,39 +79,38 @@ const CeldaEditable = ({
       <EuiComboBox
         fullWidth
         compressed
-        isInvalid={invalida}
-        aria-label={celda.column.label}
-        placeholder={celda.placeholder}
-        // Sin opciones declaradas el auditor escribe libremente; con opciones,
-        // solo se ofrecen esas. Nunca se ofrece lo que el validador rechaza.
-        noSuggestions={declaradas.length === 0}
-        options={declaradas}
-        selectedOptions={celda.items.map(
+        isInvalid={invalidOne}
+        aria-label={cell.column.label}
+        placeholder={cell.placeholder}
+        // Without declared options the auditor writes freely; with options, only those are offered.
+        noSuggestions={declared.length === 0}
+        options={declared}
+        selectedOptions={cell.items.map(
           item => ({ label: item })
         )}
         onCreateOption={
-          declaradas.length === 0
-            ? valorEscrito => {
+          declared.length === 0
+            ? typedValue => {
                 const item = String(
-                  valorEscrito
+                  typedValue
                 ).trim();
 
                 if (
                   !item ||
-                  celda.items.includes(item)
+                  cell.items.includes(item)
                 ) {
                   return;
                 }
 
                 onCellChange(
-                  [...celda.items, item].join(',')
+                  [...cell.items, item].join(',')
                 );
               }
             : undefined
         }
-        onChange={seleccionadas =>
+        onChange={selectedOnes =>
           onCellChange(
-            seleccionadas
+            selectedOnes
               .map(option =>
                 String(option.label).trim()
               )
@@ -147,10 +125,10 @@ const CeldaEditable = ({
     <EuiFieldText
       fullWidth
       compressed
-      isInvalid={invalida}
-      aria-label={celda.column.label}
-      placeholder={celda.placeholder}
-      value={celda.value}
+      isInvalid={invalidOne}
+      aria-label={cell.column.label}
+      placeholder={cell.placeholder}
+      value={cell.value}
       onChange={event =>
         onCellChange(event.target.value)
       }
@@ -174,18 +152,18 @@ export const TableParameterRenderer = ({
   );
 
   const publish = (
-    siguiente: string[] | undefined
-  ) => onChange(parameter.name, siguiente);
+    nextItem: string[] | undefined
+  ) => onChange(parameter.name, nextItem);
 
-  const columnasObligatorias = model.columns
-    .filter(columna => columna.required)
-    .map(columna => columna.label)
+  const requiredColumns = model.columns
+    .filter(column => column.required)
+    .map(column => column.label)
     .join(', ');
 
-  const ayuda = [
+  const help = [
     parameter.description,
-    columnasObligatorias
-      ? `Columnas obligatorias: ${columnasObligatorias}.`
+    requiredColumns
+      ? `Columnas obligatorias: ${requiredColumns}.`
       : '',
     'Una fila por entrada. Las columnas que no se declaren se dejan vacías.',
   ]
@@ -195,7 +173,7 @@ export const TableParameterRenderer = ({
   return (
     <EuiFormRow
       label={`${parameter.id} · ${parameter.label}`}
-      helpText={ayuda}
+      helpText={help}
       isInvalid={!verdict.valid}
       error={
         verdict.reason
@@ -210,18 +188,18 @@ export const TableParameterRenderer = ({
           responsive={false}
           alignItems="center"
         >
-          {model.columns.map(columna => (
+          {model.columns.map(column => (
             <EuiFlexItem
-              key={columna.name}
+              key={column.name}
               style={{
-                minWidth: CELDA_MINIMA,
+                minWidth: MIN_CELL,
               }}
             >
               <EuiText size="xs">
                 <strong>
-                  {columna.required
-                    ? `${columna.label} *`
-                    : columna.label}
+                  {column.required
+                    ? `${column.label} *`
+                    : column.label}
                 </strong>
               </EuiText>
             </EuiFlexItem>
@@ -243,44 +221,44 @@ export const TableParameterRenderer = ({
           </EuiText>
         )}
 
-        {model.rows.map((fila, indiceFila) => (
+        {model.rows.map((row, rowIndex) => (
           <React.Fragment
-            key={`fila-${indiceFila}`}
+            key={`fila-${rowIndex}`}
           >
             <EuiFlexGroup
               gutterSize="s"
               responsive={false}
               alignItems="flexStart"
             >
-              {fila.cells.map(
-                (celda, indiceCelda) => (
+              {row.cells.map(
+                (cell, cellIndex) => (
                   <EuiFlexItem
-                    key={celda.column.name}
+                    key={cell.column.name}
                     style={{
-                      minWidth: CELDA_MINIMA,
+                      minWidth: MIN_CELL,
                     }}
                   >
-                    <CeldaEditable
-                      celda={celda}
+                    <EditableCell
+                      celda={cell}
                       invalida={
-                        !!celda.reason ||
-                        (fila.overflow > 0 &&
-                          indiceCelda ===
-                            fila.cells.length -
+                        !!cell.reason ||
+                        (row.overflow > 0 &&
+                          cellIndex ===
+                            row.cells.length -
                               1) ||
-                        (columnaObligatoria(
-                          celda
+                        (requiredColumn(
+                          cell
                         ) &&
-                          !celda.value)
+                          !cell.value)
                       }
-                      onCellChange={valor =>
+                      onCellChange={newCellValue =>
                         publish(
                           setTableCell(
                             value,
                             parameter,
-                            indiceFila,
-                            indiceCelda,
-                            valor
+                            rowIndex,
+                            cellIndex,
+                            newCellValue
                           )
                         )
                       }
@@ -295,13 +273,13 @@ export const TableParameterRenderer = ({
                 <EuiButtonIcon
                   iconType="trash"
                   color="danger"
-                  aria-label={`Quitar la fila ${indiceFila +
+                  aria-label={`Quitar la fila ${rowIndex +
                     1}`}
                   onClick={() =>
                     publish(
                       removeTableRow(
                         value,
-                        indiceFila
+                        rowIndex
                       )
                     )
                   }

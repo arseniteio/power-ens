@@ -1,12 +1,9 @@
-// ¿Está en el alcance ENS la máquina de la URL? Con un `agentId` que no está
-// (un enlace viejo, una máquina sacada del grupo), el servidor responde 400 y
-// todas las pantallas quedaban en «sin datos» con el selector en blanco. Sin
-// React, para probarlo.
+// Is the machine in the URL in the ENS scope? An `agentId` outside it (stale link) made the server answer 400 and every screen showed 'sin datos'. No React.
 
-// Como el servidor: `24` es `024`.
+// As the server does: `24` is `024`.
 export const normalizeAgentIdForScope = (value: string): string => {
-  const texto = String(value || '').trim();
-  return /^\d+$/.test(texto) ? texto.padStart(3, '0') : texto;
+  const text = String(value || '').trim();
+  return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
 export const isAgentInScope = (agentId: string | undefined, scope: { id: string }[]): boolean =>
