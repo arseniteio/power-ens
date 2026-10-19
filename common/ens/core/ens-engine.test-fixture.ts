@@ -47,8 +47,8 @@ const events: ENSNormalizedEvent[] = [
   },
 ];
 
-export const testMpInfo6ComplianceResultMedio = () =>
+export const testMpInfo6ComplianceResultMedium = () =>
   getENSComplianceResultByControl('mp.info.6', 'MEDIO', events, '010');
 
-export const testMpInfo6ComplianceResultAlto = () =>
+export const testMpInfo6ComplianceResultHigh = () =>
   getENSComplianceResultByControl('mp.info.6', 'ALTO', events, '010');

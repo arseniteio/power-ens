@@ -1,8 +1,8 @@
 import type { ENSPlatformSource } from './types';
 import {
-  CAMPOS_REGISTRO_AUDITD,
-  EVENTOS_AUDITABLES_LINUX,
-  RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+  AUDITD_RECORD_FIELDS,
+  LINUX_AUDITABLE_EVENTS,
+  LINUX_SECURITY_CONFIGURATION_PATHS,
   linuxUbuntuTemplate,
 } from './linux-ubuntu';
 
@@ -67,7 +67,7 @@ export const zimbraLdapTemplate: ENSPlatformSource = {
     'op.exp.3': {
       ...linux['op.exp.3'],
       'P-04': [
-        ...RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+        ...LINUX_SECURITY_CONFIGURATION_PATHS,
         '/opt/zimbra/data/ldap/config',
         '/opt/zimbra/conf/localconfig.xml',
       ],
@@ -89,9 +89,9 @@ export const zimbraLdapTemplate: ENSPlatformSource = {
     },
     'op.exp.8': {
       ...linux['op.exp.8'],
-      'P-01': [...EVENTOS_AUDITABLES_LINUX, 'directorio LDAP | slapd | 3'],
+      'P-01': [...LINUX_AUDITABLE_EVENTS, 'directorio LDAP | slapd | 3'],
       'P-03': [
-        CAMPOS_REGISTRO_AUDITD,
+        AUDITD_RECORD_FIELDS,
         'slapd | BIND dn | cabecera syslog | base, dn | op | RESULT err',
       ],
     },

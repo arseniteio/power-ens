@@ -451,7 +451,7 @@ const designados = (context: ENSPolicyContext, ambito: Ambito): string =>
 // Un identificador de medida del ENS: org.1, op.acc.1, mp.info.6.
 const MEDIDA_ENS = /^(org\.\d+|(op|mp)\.[a-z]+\.\d+)$/;
 
-export const parseDeclaracionAplicabilidad = (
+export const parseStatementOfApplicability = (
   declaradas: Record<string, string>[]
 ): { aplicables: string[]; noAplicables: string[]; problemas: string[] } => {
   const aplicables: string[] = [];
@@ -487,7 +487,7 @@ const declaracion = (context: ENSPolicyContext): Measurement | undefined => {
     return missingParameter(context, 'P-01', 'el grado de implantación (no hay relación de medidas aplicables contra la que calcularlo)');
   }
 
-  const { aplicables, problemas } = parseDeclaracionAplicabilidad(declaradas);
+  const { aplicables, problemas } = parseStatementOfApplicability(declaradas);
 
   if (problemas.length) {
     return notMeasured(`${parameterDisplayName(context, 'P-01')} tiene filas que no se pueden interpretar: ${formatList(problemas)}.`, 'CONFIGURATION');
@@ -512,7 +512,7 @@ const METRICAS: Record<string, { sentido: Sentido; unidad: string; porcentaje?: 
   tiempo_medio_resolucion: { sentido: 'maximo', unidad: 'h' },
 };
 
-export interface ObjetivoDeMetrica {
+export interface MetricTarget {
   metrica: string;
   objetivo: number;
   tolerancia: number;
@@ -524,10 +524,10 @@ export interface ObjetivoDeMetrica {
 
 // Las filas de P-06 con su gramática: métrica del vocabulario, objetivo
 // numérico (con su unidad opcional) y tolerancia numérica o vacía.
-export const parseObjetivos = (
+export const parseMetricTargets = (
   declaradas: Record<string, string>[]
-): { objetivos: Map<string, ObjetivoDeMetrica>; problemas: string[] } => {
-  const objetivos = new Map<string, ObjetivoDeMetrica>();
+): { objetivos: Map<string, MetricTarget>; problemas: string[] } => {
+  const objetivos = new Map<string, MetricTarget>();
   const problemas: string[] = [];
 
   const cantidad = (texto: string): number | undefined =>
@@ -586,14 +586,14 @@ export const parseObjetivos = (
   return { objetivos, problemas };
 };
 
-const objetivoDe = (context: ENSPolicyContext, metrica: string, para: string): ObjetivoDeMetrica | Measurement => {
+const objetivoDe = (context: ENSPolicyContext, metrica: string, para: string): MetricTarget | Measurement => {
   const declaradas = tableParameterRows(context, 'P-06');
 
   if (!declaradas) {
     return missingParameter(context, 'P-06', para);
   }
 
-  const { objetivos, problemas } = parseObjetivos(declaradas);
+  const { objetivos, problemas } = parseMetricTargets(declaradas);
 
   if (problemas.length) {
     return notMeasured(`${parameterDisplayName(context, 'P-06')} tiene filas que no se pueden interpretar: ${formatList(problemas)}.`, 'CONFIGURATION');
@@ -604,7 +604,7 @@ const objetivoDe = (context: ENSPolicyContext, metrica: string, para: string): O
   return objetivo || notMeasured(`${parameterDisplayName(context, 'P-06')} no declara el objetivo de ${metrica}: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
 };
 
-const describeObjetivo = (o: ObjetivoDeMetrica): string =>
+const describeObjetivo = (o: MetricTarget): string =>
   `${o.sentido === 'minimo' ? '≥' : '≤'} ${cifra(o.objetivo)}${o.unidad ? ` ${o.unidad}` : ''}${o.tolerancia ? `, tolerancia ${cifra(o.tolerancia)}` : ''}`;
 
 // --- EV-02 · el último ciclo validado, dentro del plazo ----------------------------
@@ -946,7 +946,7 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
 
 // --- EV-03 · los indicadores de la gestión de incidentes ------------------------------
 
-export const INDICADORES = [
+export const INCIDENT_INDICATORS = [
   'incidentes_por_tipo',
   'incidentes_por_severidad',
   'tiempo_medio_contencion',
@@ -1125,11 +1125,11 @@ const indicadores = (context: ENSPolicyContext): string[] | Measurement => {
     return missingParameter(context, 'P-03', 'qué indicadores de la gestión de incidentes se consolidan');
   }
 
-  const malos = elementos.filter(x => !INDICADORES.includes(plegado(x)));
+  const malos = elementos.filter(x => !INCIDENT_INDICATORS.includes(plegado(x)));
 
   if (malos.length) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-03')} tiene indicadores que ENSFácil no sabe calcular con el registro de incidentes: ${formatList(malos.map(x => `«${x}»`))}. Los que sabe: ${INDICADORES.join(', ')}.`,
+      `${parameterDisplayName(context, 'P-03')} tiene indicadores que ENSFácil no sabe calcular con el registro de incidentes: ${formatList(malos.map(x => `«${x}»`))}. Los que sabe: ${INCIDENT_INDICATORS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
@@ -1402,7 +1402,7 @@ const indicadoresDelInforme = (context: ENSPolicyContext, ahora: number, diasVen
 
   return [
     `Ventana: ${fecha(desde)} a ${fecha(reg.t)}, ${vivos.length} incidente(s)`,
-    ...INDICADORES.map(x => `${x}: ${vivos.length ? valorDeIndicador(x, vivos) : 'cero'}`),
+    ...INCIDENT_INDICATORS.map(x => `${x}: ${vivos.length ? valorDeIndicador(x, vivos) : 'cero'}`),
   ];
 };
 

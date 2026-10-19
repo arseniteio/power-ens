@@ -48,7 +48,7 @@ type Refuerzo = 'R1' | 'R2' | 'R3' | 'R4';
 
 // Los requisitos de cada refuerzo. Es el texto del ENS, no una decisión de
 // producto: cada bloque «REFUERZO Rn» de la plantilla.
-export const OP_ACC_5_REQUISITOS_POR_REFUERZO: Record<Refuerzo, string[]> = {
+export const OP_ACC_5_REQUIREMENTS_BY_REINFORCEMENT: Record<Refuerzo, string[]> = {
   R1: ['op.acc.5.r1.1', 'op.acc.5.r1.2'],
   R2: ['op.acc.5.r2.1'],
   R3: ['op.acc.5.r3.1', 'op.acc.5.r3.2', 'op.acc.5.r3.3'],
@@ -66,7 +66,7 @@ const NOMBRE_REFUERZO: Record<Refuerzo, string> = {
 
 // «R2», « r2 », «R2 (contraseña+OTP)»: lo que importa es la clave. Cualquier
 // otra cosa no es una elección y no se adivina.
-export const leerRefuerzoElegido = (value: unknown): Refuerzo | undefined => {
+export const parseChosenReinforcement = (value: unknown): Refuerzo | undefined => {
   if (typeof value !== 'string') {
     return undefined;
   }
@@ -470,7 +470,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     parameter => parameter.id === 'P-01'
   )?.value;
 
-  const elegido = leerRefuerzoElegido(valorP01);
+  const elegido = parseChosenReinforcement(valorP01);
 
   const validacion = context.configuration
     ? validateControlConfiguration(context.configuration, context.level)
@@ -514,7 +514,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const noElegidas: ENSPolicyDecision[] = [];
 
   REFUERZOS.forEach(refuerzo => {
-    OP_ACC_5_REQUISITOS_POR_REFUERZO[refuerzo].forEach(requirementId => {
+    OP_ACC_5_REQUIREMENTS_BY_REINFORCEMENT[refuerzo].forEach(requirementId => {
       if (!aplica(requirementId)) {
         return;
       }

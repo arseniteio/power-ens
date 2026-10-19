@@ -46,7 +46,7 @@ import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/r
 import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
 import { runPolicyRuntime } from '../common/ens/core/policy-runtime/policy-runtime';
 import {
-  MP_INFO_6_REQUISITOS,
+  MP_INFO_6_REQUIREMENTS,
   mpInfo6PolicyDefinition,
 } from '../common/ens/core/policy-runtime/policies/mp-info-6.policy';
 import { buildENSReportModel } from '../public/ens/reports/registry';
@@ -1128,7 +1128,7 @@ bloque('21. La tabla de requisitos de la policy es la del catálogo');
 {
   const ordena = (ids: string[]) => [...ids].sort().join(',');
   const catalogo = Object.fromEntries(mpInfo6CatalogDefinition.requirements.map(q => [q.id, ordena(q.evidenceIds)]));
-  const policy = Object.fromEntries(Object.entries(MP_INFO_6_REQUISITOS).map(([id, q]) => [id, ordena(q.evidencias)]));
+  const policy = Object.fromEntries(Object.entries(MP_INFO_6_REQUIREMENTS).map(([id, q]) => [id, ordena(q.evidencias)]));
   const definicion = Object.fromEntries(mpInfo6PolicyDefinition.requirements.map(q => [q.requirementId, ordena(q.evidenceIds)]));
 
   comprueba('mismos requisitos y mismas evidencias que el catálogo', JSON.stringify(policy) === JSON.stringify(catalogo), `${JSON.stringify(policy)} ≠ ${JSON.stringify(catalogo)}`);

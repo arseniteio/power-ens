@@ -82,7 +82,7 @@ const LATIDO_HORAS = 24;
 const PERIODO_DIAS = 30;
 
 // Columnas del registro de peticiones, en su orden. Es el contrato del TSV.
-export const COLUMNAS_REGISTRO = [
+export const REQUEST_LOG_COLUMNS = [
   'peticion_id',
   'fecha_registro',
   'sistema',
@@ -422,7 +422,7 @@ const registro = (context: ENSPolicyContext, ahora: number): Registro | Medida =
     .forEach(e => {
       const fila: Peticion = {};
 
-      COLUMNAS_REGISTRO.forEach(c => {
+      REQUEST_LOG_COLUMNS.forEach(c => {
         fila[c] = campo(e, c);
       });
 
@@ -654,7 +654,7 @@ const camposExigidos = (context: ENSPolicyContext): { campos: string[]; desconoc
   valores(context, 'P-02').forEach(v => {
     const c = sinTildes(v).replace(/[\s-]+/g, '_');
 
-    if (COLUMNAS_REGISTRO.includes(c)) {
+    if (REQUEST_LOG_COLUMNS.includes(c)) {
       campos.push(c);
     } else {
       desconocidos.push(v);
@@ -673,7 +673,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number, nivel: ENSLevel): Medida
 
   if (desconocidos.length) {
     return sinMedir(
-      `${etiqueta(context, 'P-02')} nombra campos que el registro no tiene (${desconocidos.join(', ')}). Los campos válidos son las columnas del registro: ${COLUMNAS_REGISTRO.join(', ')}.`,
+      `${etiqueta(context, 'P-02')} nombra campos que el registro no tiene (${desconocidos.join(', ')}). Los campos válidos son las columnas del registro: ${REQUEST_LOG_COLUMNS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
@@ -715,7 +715,7 @@ const ev03 = (context: ENSPolicyContext, ahora: number, nivel: ENSLevel): Medida
   if (reg.ilegibles > 0 || incompletas.length) {
     return noCumple(
       `Peticiones autorizadas sin la información mínima de P-02${r1}: ${[
-        reg.ilegibles ? `${reg.ilegibles} fila(s) del registro que no tienen las ${COLUMNAS_REGISTRO.length} columnas y no se pueden leer` : '',
+        reg.ilegibles ? `${reg.ilegibles} fila(s) del registro que no tienen las ${REQUEST_LOG_COLUMNS.length} columnas y no se pueden leer` : '',
         incompletas.length ? lista(incompletas) : '',
       ].filter(Boolean).join('; ')}.`
     );
