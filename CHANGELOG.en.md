@@ -8,6 +8,60 @@ follow [semantic versioning](https://semver.org/).
 Each version's entry in the Spanish file, `CHANGELOG.md`, is the notes of its
 GitLab release.
 
+## [1.3.0] - 2026-10-19
+
+Configuration by control templates, regular-expression matching and code in
+English.
+
+### Added
+
+- Configuration in three tabs (guide 09): «Controles», with the common
+  settings, the templates and the assignment per agent; «Agentes», with each
+  agent's detected type and, per control, its template and its own settings
+  with the origin of each value; and «General», with the ENS level, the T and
+  D levels and the read-only scope.
+- Templates per control: one built-in per system type (Linux, LDAP server,
+  Windows, Wazuh manager) and custom ones, which are created, duplicated,
+  edited and deleted. Editing or deleting a template in use shows the
+  affected agents and asks for confirmation. Assignment accepts several agents
+  at once.
+- Value applied to an agent: its own setting; otherwise the template assigned
+  in that control; otherwise the built-in template of its type; otherwise the
+  control's common value.
+- «Texto exacto» or «Expresión regular» matching (RE2 syntax, up to 512
+  characters, full match) on op.acc.1 P-03 and P-04, op.acc.4 P-05 and
+  op.acc.6 P-08 and P-11, in the common settings, the templates and each
+  agent's settings, with «Probar con un valor».
+- Lists accept several items separated by commas, semicolons or line breaks;
+  empty and repeated entries are removed.
+- The `re2js` 2.8.6 dependency.
+
+### Changed
+
+- A 1.2.0 configuration is converted on save: applied templates become
+  assignments per control. No value is lost and the previous version stays in
+  the history.
+- The controls list marks a control as incomplete when a required value is
+  missing for any agent.
+- The control detail header: the identifier in a badge and the title on its
+  own line.
+- Configuration texts use parameter and agent names, without internal codes;
+  parameter descriptions are shorter.
+- The global configuration field «Alcance» is now «Descripción del alcance
+  (informes)».
+- Code, comments, log messages, `config/` scripts and tests in English. The
+  user interface stays in Spanish.
+- More direct documentation, in Spanish and English.
+
+### Upgrade notes
+
+- The tests and `config/validate-configuration.ts` first need
+  `npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive`
+  (guides 01 and 08).
+- Going back to 1.2.0 after saving with 1.3.0: restore from the history the
+  version before the conversion (guide 09, section 12). 1.2.0 compares a
+  regular expression as a literal name.
+
 ## [1.2.0] - 2026-10-18
 
 Evaluation on the server over the whole window, configuration by system, and
