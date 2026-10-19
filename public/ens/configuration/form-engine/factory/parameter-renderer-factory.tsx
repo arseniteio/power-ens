@@ -16,33 +16,14 @@ import {
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import { supportsParameterPattern } from '../../../../../common/ens/configuration/services/parameter-input';
 
-// `boolean`, `path` y `url` siguen cayendo en el renderer de texto: se editan
-// como cadena, que es lo que declaran. `list`, `select` y `table` necesitan
-// tratamiento propio porque el campo de texto no sabe representar su valor: la
-// lista se guardaba como cadena y se perdía, el select admitía cualquier cosa, y
-// una tabla escrita a mano en un campo de texto no tiene columnas que validar.
-//
-// Un `table` SIN columnas declaradas cae en el renderer de lista, por el mismo
-// motivo que un `select` sin `options` cae en el de texto: en
-// `wazuh-ens-configuration` puede quedar un bloque sembrado antes de que
-// existieran, y una rejilla sin columnas no dejaría editar nada. Su validación
-// se degrada a la de lista (ver `validarTabla`), así que formulario y motor
-// siguen de acuerdo. Se cierra volviendo a sembrar el bloque con
-// `inject-control.py`, que conserva los valores ya configurados.
-//
-// Un `select` SIN opciones declaradas se queda en el renderer de texto, y es
-// deliberado: en `wazuh-ens-configuration` puede haber todavía un bloque sembrado
-// antes de que existieran las `options`, y un desplegable vacío no dejaría editar
-// nada. Su validación sigue siendo "no está vacío" (ver `validarSeleccion`), así
-// que formulario y motor siguen de acuerdo. La regla es la misma en los dos
-// sentidos: nunca ofrecer un campo que acepte lo que el motor rechaza, ni
-// rechazar lo que el campo deja escribir.
-//
-// El campo numérico se reserva a los parámetros cuyo valor legítimo es SOLO un
-// número. mp.info.6 P-05 está declarado `duration_days` pero admite el contrato
-// por criticidad ('ALTA=30; MEDIA=90') que implementa su policy: en un
-// EuiFieldNumber ese valor no se puede teclear y el que ya hubiera en el índice
-// se enseñaría en blanco. Va al renderer de texto, con su validación propia.
+// `boolean`, `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
+// their own renderer.
+// A `table` without declared columns falls to the list renderer, and a `select` without options to the text
+// renderer (blocks seeded earlier); their validation degrades the same way (`validateTable`,
+// `validateSelection`), so form and engine agree: never offer a field that accepts what the engine rejects, nor
+// reject what the field lets you write. Reseed with `inject-control.py`, which keeps configured values.
+// The numeric field is only for parameters whose value is just a number: mp.info.6 P-05 is `duration_days` but
+// accepts 'ALTA=30; MEDIA=90', so it uses the text renderer.
 export const ParameterRendererFactory = ({
   parameter,
   value,

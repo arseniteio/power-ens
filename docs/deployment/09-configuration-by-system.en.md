@@ -348,7 +348,7 @@ While the conversion is not saved, Configuración shows «Configuración de la 1
 
 3. Validate the whole document (section 11.2).
 
-   Expected result: `ESTRUCTURA VÁLIDA` and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
+   Expected result: `VALID STRUCTURE` and `VALID AGENT AND TEMPLATE SETTINGS.`
 
 ## 9. Distribution of common rows by agents
 
@@ -384,7 +384,7 @@ The «Agentes» tab computes the distribution when it loads, without writing: if
 
 5. Validate the whole document (section 11.2).
 
-   Expected result: `ESTRUCTURA VÁLIDA` and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
+   Expected result: `VALID STRUCTURE` and `VALID AGENT AND TEMPLATE SETTINGS.`
 
 6. For a row that names an agent in scope by another name, declare that name on the agent (section 6.4) and repeat steps 2 to 5.
 
@@ -453,7 +453,7 @@ sudo env $CERT python3 set-parameters.py /path/agents.json            # plan
 sudo env $CERT python3 set-parameters.py /path/agents.json --apply    # write
 ```
 
-Expected result: without `--apply`, one line per change under `── agente 001` (`op.acc.1 template (la de serie de su tipo)  ->  linux-ubuntu` for an assignment) and `DRY-RUN: nada escrito`; with `--apply`, `Versión anterior guardada en: historial de wazuh-ens-configuration (…)` and `<n> cambio(s) escritos en wazuh-ens-configuration/active`. For a control not seeded, a parameter that does not exist, a common parameter, a template the control does not have, a name instead of an id or a value with an impossible shape, the tool shows `ERROR:` and writes nothing.
+Expected result: without `--apply`, one line per change under `── agent 001` (`op.acc.1 template (the built-in of its type)  ->  linux-ubuntu` for an assignment) and `DRY-RUN: nothing written`; with `--apply`, `Previous version saved in: history of wazuh-ens-configuration (…)` and `<n> change(s) written to wazuh-ens-configuration/active`. For a control not seeded, a parameter that does not exist, a common parameter, a template the control does not have, a name instead of an id or a value with an impossible shape, the tool shows `ERROR:` and writes nothing.
 
 > [!note]
 > In Docker ([Wazuh in Docker, section 10](06-wazuh-in-docker.en.md#10-declare-the-policy-t-and-d-levels)), the `agents` section needs the complete repository mounted: `-v <repo>:/repo:ro -w /repo/config` instead of `-v <repo>/config:/cfg:ro -w /cfg`.
@@ -470,18 +470,18 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `Done` after installing the dependencies; then `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, the line `plantillas propias: …`, one line per agent with its type, its assigned templates and its own settings, and `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Without agent settings, the line is `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. With a 1.2.0 document, the line `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
+Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE: the plugin will load this configuration.`, the line `custom templates: …`, one line per agent with its type, its assigned templates and its own settings, and `VALID AGENT AND TEMPLATE SETTINGS.` Without agent settings, the line is `agents with settings: none (everything is evaluated with each control's common value)`. With a 1.2.0 document, the line `1.2.0 document: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
 
 | Message | Meaning | Action |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
-| `VALORES COMUNES INVÁLIDOS` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, a common parameter or a comparison mode without its own setting: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «la plantilla asignada «…» no existe» | An assignment to a deleted template or one from another version: the agent takes the built-in template of its type | Assign another template (sections 5.4 or 6.2) |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with `plantilla <id>` | A custom template with a reserved or repeated id, of a control not present or with an invalid value | Fix or delete the template (section 5.3) |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «Expresión regular inválida» or «no admite expresiones regulares» | A pattern that does not compile or the «Expresión regular» mode on a parameter that does not accept it: the evidence is `NO_EVALUABLE` | Fix the pattern or go back to «Texto exacto» (section 5.5) |
-| `avisos (…)` | Keys from a later plugin version, repeated template names, unconverted 1.2.0 templates or a comparison mode without a value in a template | None: they do not change the outcome |
+| `INVALID STRUCTURE` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
+| `INVALID COMMON VALUES` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, a common parameter or a comparison mode without its own setting: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` with «la plantilla asignada «…» no existe» | An assignment to a deleted template or one from another version: the agent takes the built-in template of its type | Assign another template (sections 5.4 or 6.2) |
+| `INVALID AGENT OR TEMPLATE SETTINGS` with `plantilla <id>` | A custom template with a reserved or repeated id, of a control not present or with an invalid value | Fix or delete the template (section 5.3) |
+| `INVALID AGENT OR TEMPLATE SETTINGS` with «Expresión regular inválida» or «no admite expresiones regulares» | A pattern that does not compile or the «Expresión regular» mode on a parameter that does not accept it: the evidence is `NO_EVALUABLE` | Fix the pattern or go back to «Texto exacto» (section 5.5) |
+| `warnings (…)` | Keys from a later plugin version, repeated template names, unconverted 1.2.0 templates or a comparison mode without a value in a template | None: they do not change the outcome |
 
 ### 11.3 Seed controls
 

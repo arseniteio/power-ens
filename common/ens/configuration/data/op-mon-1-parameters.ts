@@ -1,33 +1,13 @@
 import { ENSControlConfiguration } from '../types';
 
-// Parámetros de op.mon.1. Se rige por la categoría del sistema.
-//
-// Seis parámetros de la plantilla estaban mal tipados y se corrigen aquí,
-// porque un parámetro tiene UN tipo y el motor compara contra ese tipo:
-//
-//   P-01  «Lista» con tres columnas (sistema | SO | criticidad): es una tabla.
-//   P-02  «Booleano + solución»: un booleano no lleva el producto ni la
-//         justificación que la propia plantilla pide si P-02 = no. Tabla
-//         necesaria | producto | justificación.
-//   P-03  «Inventario» no es un tipo del motor: tabla.
-//   P-04  «Lista» con tres columnas, y la cabecera partida en dos líneas: tabla
-//         situación | activo afectado | reglas.
-//   P-05  la cabecera partida en dos líneas dejaba fuera «responsable».
-//   P-06  «Lista» con tres columnas (regla | motivo | aprobó): tabla.
-//   P-07  la cabecera partida dejaba fuera «reversión», y «acción» salía como
-//         `acci_n`. Calcada de P-11 de op.exp.8.
-//
-// Y tres no están en la plantilla (spec 2026-10-09 §1.2): P-08 (antigüedad
-// máxima del ruleset), P-09 (días sin detección) y P-10 (horas sin pasada de
-// FIM o SCA). Ninguno tiene valor por defecto: sin él, su evidencia sale
-// NO_EVALUABLE con causa CONFIGURATION.
-//
-// P-06 se juzga en R1 (EV-08, spec §1.3), no en el requisito base: sus niveles
-// son los de R1.
-//
-// `required` solo en P-01, el que sostiene el control («GRIS: no evaluable por
-// ausencia de P-01», dice la ficha). Los demás, si faltan, los nombra el juicio
-// de su propia evidencia con causa CONFIGURATION.
+// op.mon.1 parameters. Governed by the system category.
+// Six template parameters were mistyped and are tables: P-01 (sistema | SO | criticidad), P-02 (necesaria |
+// producto | justificación), P-03, P-04 (situación | activo afectado | reglas), P-05 (with "responsable") and
+// P-06 (regla | motivo | aprobó); P-07 is modelled on P-11 of op.exp.8. P-08 (max ruleset age), P-09 (days
+// without detection) and P-10 (hours without a FIM or SCA pass) are new and have no default value: without it
+// their evidence is NO_EVALUABLE with cause CONFIGURATION.
+// P-06 is judged in R1 (EV-08), so its levels are R1's. `required` only on P-01, which holds the control; for
+// the rest, the judgment of their own evidence names what is missing.
 export const opMon1Configuration: ENSControlConfiguration = {
   controlId: 'op.mon.1',
   controlName: 'Detección de intrusión',
@@ -41,7 +21,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'alcance_deteccion_host',
       label: 'Alcance de la detección en host',
       description:
-        'Sistemas que deben estar bajo detección de intrusiones basada en host, uno por fila. La columna sistema es el NOMBRE o el ID DEL AGENTE tal como lo ve Wazuh (el manager figura como el agente 000). Solo los sistemas reales: un agente de prueba o dado de baja que se declare aquí cuenta como un sistema sin cobertura.',
+        'Sistemas que deben estar bajo detección de intrusiones en host, uno por fila; la columna sistema es el NOMBRE o ID DEL AGENTE en Wazuh (el manager es el 000). Solo sistemas reales: un agente de prueba o dado de baja cuenta como sistema sin cobertura.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'table',
@@ -68,13 +48,13 @@ export const opMon1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Reglas 111203 (detection_coverage_observed) y 111204 (detection_activity_observed): cada 6 h el recolector del manager lee, por agente, su estado en global.db, sus pasadas de FIM, SCA e inventario y su última alerta en alerts.json.',
+        'Reglas 111203 (detection_coverage_observed) y 111204 (detection_activity_observed): cada 6 h el recolector del manager lee por agente su estado en global.db, sus pasadas de FIM, SCA e inventario y su última alerta en alerts.json.',
       ensfacilUsage:
-        'EV-02 y EV-03 cruzan cada sistema con su agente por ID o por nombre exacto: sin agente, desconectado, sin pasada de FIM o SCA en P-10 horas o sin detecciones en P-09 días es un punto ciego del control. Los agentes registrados que no figuran aquí no cuentan.',
+        'EV-02 y EV-03 cruzan cada sistema con su agente por ID o nombre exacto: sin agente, desconectado, sin pasada de FIM o SCA en P-10 horas o sin detecciones en P-09 días es un punto ciego. Los agentes registrados ausentes de la tabla no cuentan.',
       evidenceIds: ['EV-02', 'EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede determinar si la cobertura de detección es suficiente: op.mon.1.1 queda sin evaluar. Bloquea el control: es obligatorio.',
+        'op.mon.1.1 queda sin evaluar: no se determina si la cobertura es suficiente. Bloquea el control, que es obligatorio.',
     },
     {
       id: 'P-02',
@@ -82,7 +62,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'necesidad_deteccion_red',
       label: 'Necesidad de detección en red',
       description:
-        'Si el análisis de riesgos exige detección de intrusiones en red (NIDS) además de la detección en host. Wazuh es HIDS: si hace falta inspección de tráfico, se necesita un componente adicional (Suricata, Snort, Zeek) cuyos eventos Wazuh ingiere. Con «sí», una fila por producto; con «no», la referencia del análisis de riesgos que lo justifica.',
+        'Si el análisis de riesgos exige detección de intrusiones en red (NIDS) además de en host: Wazuh es HIDS, así que hace falta un componente adicional (Suricata, Snort, Zeek) cuyos eventos ingiere. Con «sí», una fila por producto; con «no», la referencia del análisis de riesgos que lo justifica.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'table',
@@ -110,13 +90,13 @@ export const opMon1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 111206 (network_detection_observed): cada 6 h el recolector del manager informa de los NIDS cuyos eventos llegan (syslog remoto en ossec.conf o un fichero de alertas en agent.conf) y de su última alerta.',
+        'Regla 111206 (network_detection_observed): cada 6 h el recolector del manager informa de los NIDS cuyos eventos llegan (syslog remoto en ossec.conf o fichero de alertas en agent.conf) y de su última alerta.',
       ensfacilUsage:
-        'Con «sí», EV-05 exige que el manager ingiera eventos de cada producto declarado y que su última alerta sea más reciente que P-09. Con «no», EV-05 no aplica, siempre que conste la referencia al análisis de riesgos; sin ella queda sin evaluar (causa CONFIGURATION), porque un auditor la pedirá.',
+        'Con «sí», EV-05 exige que el manager ingiera eventos de cada producto y que su última alerta sea más reciente que P-09. Con «no», no aplica si consta la referencia al análisis de riesgos; sin ella queda sin evaluar (causa CONFIGURATION).',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'EV-05 queda sin evaluar (causa CONFIGURATION) y con ella op.mon.1.1: no consta si la detección en red hace falta.',
+        'EV-05 y op.mon.1.1 quedan sin evaluar (causa CONFIGURATION): no consta si la detección en red hace falta.',
     },
     {
       id: 'P-03',
@@ -124,7 +104,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'conjuntos_reglas_activos',
       label: 'Conjuntos de reglas activos',
       description:
-        'Conjuntos de reglas de detección que tienen que estar cargados en el manager. R1 exige que la detección sea «basada en reglas», y el inventario de reglas activas es su evidencia directa. El conjunto se nombra como lo informa ENSFácil: wazuh para el ruleset oficial y, para las reglas propias de etc/rules, el prefijo de sus ficheros (local, ensfacil…).',
+        'Conjuntos de reglas de detección que deben estar cargados en el manager: R1 exige detección «basada en reglas» y su inventario es la evidencia. Se nombran como los informa ENSFácil: wazuh para el ruleset oficial y, para etc/rules, el prefijo de sus ficheros (local, ensfacil…).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'table',
@@ -153,11 +133,11 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): cada 6 h el recolector del manager informa, por conjunto, de las reglas cargadas que pueden alertar.',
       ensfacilUsage:
-        'ENSFácil lo juzga en R1 como medida propia, con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla; el número de reglas declarado es informativo, y sin P-03 R1 queda sin evaluar, pero no la fila de EV-01.',
+        'R1 se juzga con el inventario de EV-04: cada conjunto de P-03 debe estar cargado con al menos una regla. El número de reglas declarado es informativo.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'R1 queda sin evaluar (causa CONFIGURATION): no se puede acreditar qué detección basada en reglas se exige.',
+        'R1 queda sin evaluar (causa CONFIGURATION): no se acredita qué detección basada en reglas se exige.',
     },
     {
       id: 'P-04',
@@ -165,7 +145,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'situaciones_compromiso_analisis_riesgos',
       label: 'Situaciones de compromiso del análisis de riesgos',
       description:
-        'Situaciones de compromiso de la seguridad identificadas en el análisis de riesgos, que el enunciado general del bloque op.mon señala como el criterio que determina qué se monitoriza, con las reglas que las detectan: solo ids sueltos o rangos (5710, 5712, 80700-80799). Una situación sin reglas se declara con «ninguna» y es un punto ciego; cualquier otro texto en esa columna (una fecha, una referencia) deja la situación sin evaluar.',
+        'Situaciones de compromiso del análisis de riesgos, criterio que el enunciado de op.mon da para decidir qué se monitoriza, con las reglas que las detectan: solo ids sueltos o rangos (5710, 5712, 80700-80799). Una situación sin reglas se declara con «ninguna» y es un punto ciego; cualquier otro texto en esa columna (una fecha, una referencia) la deja sin evaluar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'table',
@@ -194,11 +174,11 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): los ids de las reglas cargadas que pueden alertar, por conjunto y en rangos comprimidos.',
       ensfacilUsage:
-        'ENSFácil exige en EV-04 que cada situación tenga al menos una de sus reglas cargada en el manager; una situación sin reglas, o con reglas que el manager no carga, es un punto ciego del control: un hallazgo defendible, pero un hallazgo.',
+        'EV-04 exige que cada situación tenga al menos una regla cargada en el manager. Una situación sin reglas, o con reglas no cargadas, es un punto ciego: un hallazgo.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la trazabilidad entre el análisis de riesgos y la detección: EV-04 queda sin evaluar (causa CONFIGURATION) y con ella op.mon.1.1.',
+        'No se verifica la trazabilidad entre análisis de riesgos y detección: EV-04 y op.mon.1.1 quedan sin evaluar (causa CONFIGURATION).',
     },
     {
       id: 'P-05',
@@ -206,7 +186,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'procedimientos_respuesta_alertas',
       label: 'Procedimientos de respuesta a las alertas',
       description:
-        'Procedimientos documentados de respuesta a las alertas generadas por el sistema de detección, por tipo de alerta, con su responsable. R2 los exige en categoría ALTA y es un requisito documental, no tecnológico.',
+        'Procedimientos documentados de respuesta a las alertas del sistema de detección, por tipo de alerta, con su responsable. R2 los exige en categoría ALTA; es un requisito documental, no tecnológico.',
       levels: ['ALTO'],
       requirements: ['op.mon.1.r2.1'],
       type: 'table',
@@ -233,13 +213,13 @@ export const opMon1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No lo usa ningún recolector: es una declaración de la organización.',
+        'Ningún recolector lo usa: es una declaración de la organización.',
       ensfacilUsage:
-        'Acredita R2 documentalmente («acreditado documentalmente», nunca «medido») si cada fila nombra su procedimiento y su responsable. Si no se declara, R2 puede acreditarse con P-ATT. La aplicación del procedimiento a cada alerta la mide op.exp.7.',
+        'Acredita R2 documentalmente (nunca «medido») si cada fila nombra procedimiento y responsable. Si no se declara, R2 puede acreditarse con P-ATT. La aplicación a cada alerta la mide op.exp.7.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'R2 queda sin acreditar en categoría ALTA, salvo que se declare en P-ATT: las alertas se generan pero no consta respuesta pautada.',
+        'R2 queda sin acreditar en categoría ALTA, salvo que se declare en P-ATT: las alertas no tienen respuesta pautada.',
     },
     {
       id: 'P-06',
@@ -247,7 +227,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'umbrales_falsos_positivos',
       label: 'Exclusiones y falsos positivos autorizados',
       description:
-        'Reglas silenciadas y ficheros de reglas excluidos en el entorno del cliente, con su justificación y quién lo aprobó. La columna regla es el id de la regla reescrita a nivel 0 o el nombre del fichero excluido en ossec.conf. Un sistema de detección con exceso de ruido deja de ser operativo; uno con exclusiones sin constancia se degrada sin que nadie lo advierta.',
+        'Reglas silenciadas y ficheros de reglas excluidos en el entorno del cliente, con justificación y aprobador; la columna regla es el id reescrito a nivel 0 o el fichero excluido en ossec.conf. Con exceso de ruido la detección deja de ser operativa y con exclusiones sin constancia se degrada sin avisar.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'table',
@@ -276,7 +256,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111209 (rule_silenced): cada 6 h el recolector del manager barre los rule_exclude de ossec.conf y las reglas reescritas a nivel 0 en etc/rules.',
       ensfacilUsage:
-        'EV-08, en R1: todo silenciamiento observado tiene que figurar aquí con motivo y aprobación. Uno que no figure, o que figure sin motivo o sin quién lo aprobó, es un incumplimiento de R1.',
+        'EV-08 (R1): todo silenciamiento observado debe figurar aquí con motivo y aprobación. Uno ausente, o sin motivo o sin aprobador, incumple R1.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -288,7 +268,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'acciones_respuesta_automatica',
       label: 'Acciones de respuesta automática',
       description:
-        'Acciones de respuesta automática previstas y su alcance. Corresponde a R3, que no es obligatorio en ninguna categoría, pero su contenido coincide con el enunciado general del bloque op.mon (finalizar procesos, inhabilitar servicios, desconectar usuarios, bloquear cuentas). La columna acción es el nombre del comando de Active Response.',
+        'Acciones de respuesta automática previstas y su alcance (finalizar procesos, inhabilitar servicios, desconectar usuarios, bloquear cuentas); la columna acción es el comando de Active Response. Corresponde a R3, no obligatorio en ninguna categoría.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r3.1'],
       type: 'table',
@@ -303,7 +283,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Reglas 111207 (active_response_configured) y 111208 (active_response_executed): respuestas configuradas en ossec.conf y ejecutadas en la ventana.',
       ensfacilUsage:
-        'EV-07 se INFORMA, sin veredicto: qué acciones de P-07 están configuradas y habilitadas y cuáles se han ejecutado a raíz de una alerta. Acredita la cobertura de hecho de R3 y del enunciado general del bloque.',
+        'EV-07 se INFORMA, sin veredicto: qué acciones de P-07 están configuradas y habilitadas y cuáles se ejecutaron a raíz de una alerta.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -315,7 +295,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_ruleset_dias',
       label: 'Antigüedad máxima del ruleset (días)',
       description:
-        'Antigüedad máxima admitida del conjunto de reglas de detección que carga el manager, en días, contada desde la fecha del fichero de reglas más reciente del ruleset. Las reglas de detección envejecen igual que las firmas de un antivirus.',
+        'Antigüedad máxima, en días, del conjunto de reglas de detección que carga el manager, desde la fecha del fichero de reglas más reciente del ruleset. Las reglas envejecen como las firmas de un antivirus.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'duration_days',
@@ -324,7 +304,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111202 (ruleset_version_observed): cada 6 h el recolector del manager informa de la versión de Wazuh y de la fecha del fichero más reciente del ruleset.',
       ensfacilUsage:
-        'EV-08, en R1: un ruleset más viejo que P-08 es un incumplimiento de R1.',
+        'EV-08 (R1): un ruleset más viejo que P-08 incumple R1.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -336,20 +316,20 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'dias_maximos_sin_deteccion',
       label: 'Días máximos sin detección',
       description:
-        'Días que un sistema de P-01 conectado puede pasar sin producir ninguna detección antes de considerarse que la detección no funciona en él (reglas que no se aplican o ingesta que no llega). En Linux, PAM, dpkg y syscheck generan alertas a diario: 7 días es razonable. Vale también para la detección en red cuando P-02 la exige.',
+        'Días que un sistema de P-01 conectado puede pasar sin ninguna detección antes de considerar que la detección no funciona en él; en Linux, PAM, dpkg y syscheck alertan a diario y 7 días es razonable. Vale también para la detección en red cuando P-02 la exige.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'duration_days',
       example: '7',
       required: false,
       wazuhUsage:
-        'Reglas 111204 (detection_activity_observed) y 111206 (network_detection_observed): el instante de la última alerta propia de cada agente (sin las de ENSFácil) y de cada NIDS.',
+        'Reglas 111204 (detection_activity_observed) y 111206 (network_detection_observed): instante de la última alerta propia de cada agente (sin las de ENSFácil) y de cada NIDS.',
       ensfacilUsage:
-        'EV-03: un sistema de P-01 conectado que lleva más de P-09 días sin detecciones incumple op.mon.1.1. EV-05: igual para un NIDS que P-02 exige.',
+        'EV-03: un sistema de P-01 conectado con más de P-09 días sin detecciones incumple op.mon.1.1. EV-05: igual para un NIDS exigido por P-02.',
       evidenceIds: ['EV-03', 'EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'op.mon.1.1 queda sin evaluar (causa CONFIGURATION): no se puede decidir si un sistema activo sin detecciones es un fallo de la detección.',
+        'op.mon.1.1 queda sin evaluar (causa CONFIGURATION): no se decide si un sistema activo sin detecciones es un fallo.',
     },
     {
       id: 'P-10',
@@ -357,20 +337,20 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_analisis_horas',
       label: 'Antigüedad máxima del análisis (horas)',
       description:
-        'Horas que puede pasar un sistema de P-01 sin completar una pasada de FIM y de SCA antes de considerar que su módulo de análisis está deshabilitado. Se mide en el instante en que ENSFácil lee la base del agente, no al evaluar. Las pasadas de FIM y SCA son cada 12 h por defecto: el valor tiene que ser mayor que su frecuencia configurada (p. ej., 26 h para 12 h).',
+        'Horas que un sistema de P-01 puede pasar sin completar una pasada de FIM y de SCA antes de considerar su análisis deshabilitado, medidas cuando ENSFácil lee la base del agente. FIM y SCA pasan cada 12 h por defecto: el valor debe superar esa frecuencia (p. ej., 26 h).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'duration_hours',
       example: '26',
       required: false,
       wazuhUsage:
-        'Regla 111203 (detection_coverage_observed): el fin de la última pasada de FIM y de SCA de cada agente, leído de su base en el manager.',
+        'Regla 111203 (detection_coverage_observed): fin de la última pasada de FIM y de SCA de cada agente, leído de su base en el manager.',
       ensfacilUsage:
-        'EV-02: un sistema de P-01 sin pasada de FIM o de SCA en P-10 horas tiene el análisis deshabilitado e incumple op.mon.1.1.',
+        'EV-02: un sistema de P-01 sin pasada de FIM o SCA en P-10 horas tiene el análisis deshabilitado e incumple op.mon.1.1.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
       ifNotConfigured:
-        'op.mon.1.1 queda sin evaluar (causa CONFIGURATION): no se puede afirmar que el análisis de los sistemas siga activo.',
+        'op.mon.1.1 queda sin evaluar (causa CONFIGURATION): no se afirma que el análisis siga activo.',
     },
     {
       id: 'P-ATT',
@@ -378,7 +358,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía alternativa para acreditar los procedimientos de respuesta a las alertas (R2) cuando no se declaran en P-05.',
+        'Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, una fila por requisito con nombre del documento y enlace. Aquí es la vía alternativa para los procedimientos de respuesta a las alertas (R2) cuando no se declaran en P-05.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -392,13 +372,13 @@ export const opMon1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No lo usa ningún recolector: es una declaración de la organización.',
+        'Ningún recolector lo usa: es una declaración de la organización.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. En ENSFácil el resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+        'Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple.',
     },
   ],
 };

@@ -1,35 +1,14 @@
 import { ENSControlConfiguration } from '../types';
 
-// Parámetros de op.mon.3. Se rige por la categoría del sistema.
-//
-// Casi todos los parámetros de la plantilla eran tablas sin columnas que se
-// puedan cruzar con un hecho («Lista», «Inventario», «Producto + ubicación»,
-// cabeceras partidas). Se fijan aquí con las columnas que la policy lee
-// (spec 2026-10-09 §3.2):
-//
-//   P-01  gana `metodo` (agente | syslog), `sistema` y `ubicacion`, que son lo
-//         que permite cruzar cada fuente con su hecho, y la columna OPCIONAL
-//         `max_horas_sin_eventos`: celda vacía = la continuidad de esa fuente
-//         no se juzga, solo su presencia y sus descartes.
-//   P-03  `politicas_sca` es opcional: con valor, cada política tiene que
-//         estar evaluada en el activo; vacía, basta cualquiera.
-//   P-05  gana `max_dias_sin_alertas`, opcional como en P-01.
-//   P-07  gana `reglas`: la regla de umbral (frequency) que vigila cada fila.
-//   P-08  gana `nivel_minimo`: desde qué nivel de alerta tiene que avisar el
-//         canal.
-//   P-09  `periodicidad` en días o «continua».
-//   P-10  deja de ser una tabla de inspecciones: las inspecciones son actos
-//         fechados y viven en el registro del manager
-//         (/etc/ensfacil/security-inspection-register.tsv), que el recolector
-//         solo lee. Aquí queda dónde está y quién lo mantiene.
-//
-// Uno no está en la plantilla: P-11 (horas sin SCA ni inventario, el mismo
-// sentido que P-10 de op.mon.1). Ninguno tiene valor por defecto: sin él, su
-// evidencia sale NO_EVALUABLE con causa CONFIGURATION.
-//
-// `required` solo en P-01, el que sostiene el control («GRIS: no evaluable por
-// ausencia de P-01», dice la plantilla). Los demás, si faltan, los nombra el
-// juicio de su propia evidencia con causa CONFIGURATION.
+// op.mon.3 parameters. Governed by the system category.
+// Most template parameters were tables without columns that can be crossed with a fact; they are fixed with the
+// columns the policy reads: P-01 gains `metodo` (agente | syslog), `sistema`, `ubicacion` and the OPTIONAL
+// `max_horas_sin_eventos` (empty: only presence and discards are judged); P-03 `politicas_sca` (optional); P-05
+// `max_dias_sin_alertas`; P-07 `reglas`; P-08 `nivel_minimo`; P-09 `periodicidad` in days or "continua"; P-10
+// only says where the manager's inspection register is and who maintains it. P-11 is new. No parameter has a
+// default value: without it its evidence is NO_EVALUABLE with cause CONFIGURATION.
+// `required` only on P-01, which holds the control; for the rest, the judgment of their own evidence names what
+// is missing.
 export const opMon3Configuration: ENSControlConfiguration = {
   controlId: 'op.mon.3',
   controlName: 'Vigilancia',
@@ -43,7 +22,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'fuentes_eventos_seguridad',
       label: 'Fuentes de eventos de seguridad',
       description:
-        'Fuentes de eventos de seguridad que alimentan la recolección, una por fila. Con método «agente», sistema es el NOMBRE o el ID del agente que la lee (el manager es el 000) y ubicación es la ruta o el nombre exacto del localfile tal como lo declara Wazuh (/var/log/auth.log, journald; admite * y ?). Con método «syslog», sistema es la IP desde la que el emisor envía al manager, tal como figura en el campo location de sus alertas, y ubicación se deja vacía. La columna max_horas_sin_eventos es opcional: con valor, más horas sin un evento nuevo de esa fuente es una laguna de la vigilancia; vacía, solo se juzgan su presencia y sus descartes, y una fuente que se lee sin haber dado nunca un evento queda sin evaluar hasta que se declare.',
+        'Fuentes de eventos de seguridad de la recolección, una por fila. Con método «agente», sistema es el NOMBRE o ID del agente (el manager es el 000) y ubicación es el localfile exacto (/var/log/auth.log, journald; admite * y ?); con «syslog», sistema es la IP emisora como figura en el campo location de sus alertas y ubicación va vacía. max_horas_sin_eventos es opcional: con valor, más horas sin evento nuevo es una laguna; vacía, solo se juzgan presencia y descartes, y una fuente leída que nunca dio un evento queda sin evaluar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.3.1'],
       type: 'table',
@@ -89,13 +68,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Reglas 111402 (log_source_observed), 111403 (agent_forwarding_observed) y 111404 (syslog_source_observed): cada 6 h el recolector de cada agente, y el del manager para sí mismo, lee de wazuh-logcollector.state los eventos, bytes y descartes de cada localfile y de wazuh-agentd.state su conexión; el del manager resume por emisor las alertas de las fuentes syslog que recibe.',
+        'Reglas 111402 (log_source_observed), 111403 (agent_forwarding_observed) y 111404 (syslog_source_observed): cada 6 h el recolector de cada agente, y el del manager para sí, lee de wazuh-logcollector.state eventos, bytes y descartes de cada localfile y de wazuh-agentd.state su conexión; el del manager resume por emisor las alertas de las fuentes syslog.',
       ensfacilUsage:
-        'EV-02 cruza cada fuente con su hecho: una fuente que el logcollector no lee, que descarta eventos o que lleva más de max_horas_sin_eventos sin uno nuevo es un punto ciego de la vigilancia. Cada fuente de agente se juzga en la fila de su máquina; en la del manager, además, que ese agente exista en el manager y esté conectado. Las fuentes syslog se juzgan en la fila del manager.',
+        'EV-02 cruza cada fuente con su hecho: una que el logcollector no lee, que descarta eventos o supera max_horas_sin_eventos es un punto ciego. Cada fuente de agente se juzga en la fila de su máquina (y en la del manager, que el agente exista y esté conectado); las syslog, en la del manager.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
       ifNotConfigured:
-        'No hay fuentes declaradas contra las que verificar la recolección: op.mon.3.1 queda sin evaluar. Bloquea el control: es obligatorio.',
+        'No hay fuentes contra las que verificar la recolección: op.mon.3.1 queda sin evaluar. Bloquea el control, que es obligatorio.',
     },
     {
       id: 'P-02',
@@ -103,7 +82,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'reglas_correlacion',
       label: 'Conjuntos de reglas de correlación',
       description:
-        'Conjuntos de reglas de correlación que tienen que estar desplegados. R1 exige que el sistema de recolección permita la correlación de los eventos: recolectar sin correlacionar no basta desde categoría MEDIA. El conjunto se nombra como lo agrupa ENSFácil: «wazuh» para el ruleset oficial (ruleset/rules) y, para las reglas propias (etc/rules), el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
+        'Conjuntos de reglas de correlación que deben estar desplegados: R1 exige que la recolección permita correlacionar, y desde MEDIA no basta recolectar. Se nombran como los agrupa ENSFácil: «wazuh» para ruleset/rules y, para etc/rules, el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.3.r1.1'],
       type: 'table',
@@ -130,13 +109,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 111405 (correlation_rules_inventory): cada 6 h el recolector del manager analiza los ficheros de reglas cargados y cuenta, por conjunto, las reglas que correlacionan (frequency y timeframe, o if_matched_sid / if_matched_group) y sus técnicas MITRE ATT&CK. La regla 111406 resume las alertas de correlación del periodo.',
+        'Regla 111405 (correlation_rules_inventory): cada 6 h el recolector del manager cuenta por conjunto las reglas que correlacionan (frequency y timeframe, o if_matched_sid / if_matched_group) y sus técnicas MITRE ATT&CK. La 111406 resume las alertas de correlación del periodo.',
       ensfacilUsage:
         'EV-03 exige que cada conjunto de P-02 esté cargado con al menos una regla de correlación que pueda alertar. Las detecciones por correlación del periodo se informan.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'R1 queda sin evaluar (causa CONFIGURATION): se ve qué correlaciona el manager, pero no qué conjuntos tiene que tener desplegados.',
+        'R1 queda sin evaluar (causa CONFIGURATION): se ve qué correlaciona el manager, pero no qué conjuntos debe tener.',
     },
     {
       id: 'P-03',
@@ -144,7 +123,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'alcance_superficie_exposicion',
       label: 'Alcance de la superficie de exposición',
       description:
-        'Activos sobre los que tiene que determinarse la superficie de exposición (vulnerabilidades y deficiencias de configuración), como exige R2, incluidos los expuestos a redes no controladas. activo es el NOMBRE o el ID de su agente (el manager es el 000). politicas_sca es opcional: los identificadores de las políticas SCA que tienen que evaluarse en el activo (cis_ubuntu24-04), separados por comas; vacía, basta cualquier política.',
+        'Activos cuya superficie de exposición (vulnerabilidades y deficiencias de configuración) debe determinarse (R2), incluidos los expuestos a redes no controladas. activo es el NOMBRE o ID de su agente (el manager es el 000). politicas_sca es opcional: identificadores de las políticas SCA a evaluar (cis_ubuntu24-04), separados por comas; vacía, basta cualquier política.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.3.r2.1', 'op.mon.3.r6.1', 'op.mon.3.r6.2'],
       type: 'table',
@@ -171,13 +150,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Reglas 111407 (config_assessment_observed) y 111408 (package_inventory_observed): cada 6 h el recolector del manager lee, de la base de cada agente en el manager (queue/db/NNN.db), el fin de su última pasada SCA por política y la fecha de su inventario de paquetes, del que se alimenta el detector de vulnerabilidades.',
+        'Reglas 111407 (config_assessment_observed) y 111408 (package_inventory_observed): cada 6 h el recolector del manager lee de la base de cada agente (queue/db/NNN.db) el fin de su última pasada SCA por política y la fecha de su inventario de paquetes, del que se alimenta el detector de vulnerabilidades.',
       ensfacilUsage:
-        'EV-04 (y EV-10, EV-11 en ALTA) exige que cada activo tenga SCA e inventario dentro de P-11 horas. El recuento de vulnerabilidades por activo vive en el indexer y no se mide sin credenciales: se informa como «sin medir».',
+        'EV-04 (y EV-10, EV-11 en ALTA) exige SCA e inventario de cada activo dentro de P-11 horas. El recuento de vulnerabilidades vive en el indexer y no se mide sin credenciales: se informa «sin medir».',
       evidenceIds: ['EV-04', 'EV-10', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
-        'R2 queda sin evaluar (causa CONFIGURATION): no consta sobre qué activos debe determinarse la superficie de exposición.',
+        'R2 queda sin evaluar (causa CONFIGURATION): no consta sobre qué activos determinar la superficie de exposición.',
     },
     {
       id: 'P-04',
@@ -185,7 +164,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'linea_base_comportamiento',
       label: 'Línea base de comportamiento',
       description:
-        'Patrones de comportamiento normal del sistema contra los que detectar anomalías: horarios habituales de acceso, volúmenes de tráfico, procesos esperados, destinos de conexión habituales. Wazuh no trae motor de líneas base: la detección de anomalías son reglas que alguien escribe sobre estos indicadores, y su validación requiere conocimiento del negocio.',
+        'Patrones de comportamiento normal para detectar anomalías: horarios de acceso, volúmenes de tráfico, procesos esperados, destinos de conexión habituales. Wazuh no trae motor de líneas base: la detección de anomalías son reglas escritas sobre estos indicadores y su validación requiere conocimiento del negocio.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r3.1'],
       type: 'table',
@@ -212,13 +191,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Sin hecho propio: la anomalía no es medible desde fuera de quien la define.',
+        'Sin hecho propio: la anomalía no se mide desde fuera de quien la define.',
       ensfacilUsage:
-        'Se muestra al auditor en EV-05 y en el informe. R3.1 es documental: se acredita con P-ATT (la línea base validada y el procedimiento de detección).',
+        'Se muestra al auditor en EV-05 y en el informe. R3.1 es documental y se acredita con P-ATT (línea base validada y procedimiento de detección).',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'El informe no puede decir contra qué normalidad se detectan las anomalías; R3.1 sigue dependiendo de P-ATT.',
+        'El informe no indica contra qué normalidad se detectan anomalías; R3.1 sigue dependiendo de P-ATT.',
     },
     {
       id: 'P-05',
@@ -226,7 +205,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'sonda_deteccion_red',
       label: 'Sonda de detección en red',
       description:
-        'Solución de detección de anomalías en el tráfico de red que exige R3.2 (APT por anomalías significativas en el tráfico). Wazuh NO genera esta detección: la ingiere y la correlaciona. Es un componente externo obligatorio en categoría ALTA. Una fila por producto (Suricata, Snort, Zeek); max_dias_sin_alertas es opcional: con valor, más días sin una alerta de la sonda es una ingesta parada.',
+        'Solución de detección de anomalías en el tráfico de red que exige R3.2 (APT), obligatoria en categoría ALTA: Wazuh no la genera, la ingiere y correlaciona. Una fila por producto (Suricata, Snort, Zeek); max_dias_sin_alertas es opcional y, con valor, más días sin alerta de la sonda es ingesta parada.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r3.2'],
       type: 'table',
@@ -259,7 +238,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'Si el manager no ingiere ninguna detección en red, R3.2 no se cumple igualmente; si la ingiere, queda sin evaluar (causa CONFIGURATION) hasta que se declare la sonda.',
+        'Si el manager no ingiere detección en red, R3.2 no se cumple; si la ingiere, queda sin evaluar (causa CONFIGURATION) hasta declarar la sonda.',
     },
     {
       id: 'P-06',
@@ -267,7 +246,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'servicio_observatorio_digital',
       label: 'Servicio de observatorio digital',
       description:
-        'Servicio de cibervigilancia u observatorio digital para la detección y seguimiento de anomalías en contenidos digitales que pudieran representar indicadores de amenaza (dominios similares, credenciales filtradas, menciones). Es OSINT y vigilancia de marca, ajeno al perímetro de un SIEM. Obligatorio en categoría ALTA.',
+        'Servicio de cibervigilancia u observatorio digital que detecta y sigue anomalías en contenidos digitales indicativas de amenaza (dominios similares, credenciales filtradas, menciones). Es OSINT y vigilancia de marca, ajeno al perímetro de un SIEM. Obligatorio en categoría ALTA.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r4.1'],
       type: 'table',
@@ -296,11 +275,11 @@ export const opMon3Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111411 (ioc_list_observed): cada 6 h el recolector del manager informa de las listas CDB cargadas, sus entradas, su fecha y las reglas que las usan, que es donde acaban los indicadores del servicio.',
       ensfacilUsage:
-        'Se muestra en EV-07 y en el apartado de componentes externos del informe. R4 es documental: el servicio se acredita con P-ATT (el contrato o el servicio vigente).',
+        'Se muestra en EV-07 y en el apartado de componentes externos del informe. R4 es documental: se acredita con P-ATT (contrato o servicio vigente).',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'El informe declara R4 sin servicio de cibervigilancia; el requisito sigue dependiendo de P-ATT.',
+        'El informe declara R4 sin servicio de cibervigilancia; sigue dependiendo de P-ATT.',
     },
     {
       id: 'P-07',
@@ -308,7 +287,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'umbrales_mineria_datos',
       label: 'Umbrales de minería de datos',
       description:
-        'Límites de volumen y frecuencia de consultas a partir de los cuales se considera que puede haber un intento de minería de datos, por sistema y perfil de usuario. R5 exige limitar las consultas monitorizando volumen y frecuencia. La columna reglas lleva los ids (o rangos) de las reglas de umbral (frequency y timeframe) que vigilan cada fila: 100510, 100500-100509. Una fila sin regla es una consulta que nadie vigila.',
+        'Límites de volumen y frecuencia de consultas desde los que puede haber minería de datos, por sistema y perfil de usuario (R5). La columna reglas lleva los ids o rangos de las reglas de umbral (frequency y timeframe) de cada fila (100510, 100500-100509); una fila sin regla es una consulta que nadie vigila.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r5.1'],
       type: 'table',
@@ -347,13 +326,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 111412 (query_volume_rules_observed): cada 6 h el recolector del manager informa de los ids de las reglas de umbral cargadas (con frequency y que pueden alertar). La regla 111406 resume sus alertas.',
+        'Regla 111412 (query_volume_rules_observed): cada 6 h el recolector del manager informa de los ids de las reglas de umbral cargadas (con frequency y que pueden alertar). La 111406 resume sus alertas.',
       ensfacilUsage:
         'EV-08 exige que cada fila tenga al menos una de sus reglas cargada como regla de umbral. Las superaciones del periodo se informan.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'R5.1 queda sin evaluar (causa CONFIGURATION): no consta qué consultas deben vigilarse ni con qué umbral.',
+        'R5.1 queda sin evaluar (causa CONFIGURATION): no consta qué consultas vigilar ni con qué umbral.',
     },
     {
       id: 'P-08',
@@ -361,7 +340,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'destinatarios_alerta_tiempo_real',
       label: 'Destinatarios de la alerta en tiempo real',
       description:
-        'Administradores de seguridad que deben recibir alerta en tiempo real de comportamientos sospechosos y el canal por el que la reciben: «correo» (email_notification de Wazuh) o el nombre de la integración tal como figura en ossec.conf (slack, pagerduty, custom-teams…). nivel_minimo es opcional: el nivel de alerta desde el que el canal tiene que avisar (1-16). Un resumen periódico no satisface el requisito.',
+        'Administradores de seguridad que deben recibir alerta en tiempo real de comportamientos sospechosos y canal: «correo» (email_notification de Wazuh) o el nombre de la integración en ossec.conf (slack, pagerduty, custom-teams…). nivel_minimo es opcional: nivel de alerta (1-16) desde el que el canal debe avisar. Un resumen periódico no satisface el requisito.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r5.2'],
       type: 'table',
@@ -396,11 +375,11 @@ export const opMon3Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Regla 111413 (notification_channel_configured): cada 6 h el recolector del manager informa del correo (email_notification, email_alert_level, número de destinatarios) y de cada <integration> de ossec.conf (nombre, nivel, grupos y errores en integrations.log), nunca de su hook_url ni de su api_key.',
       ensfacilUsage:
-        'EV-09 exige que cada canal declarado exista, esté habilitado, avise desde el nivel declarado y no registre errores de envío en 24 h. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.',
+        'EV-09 exige que cada canal exista, esté habilitado, avise desde el nivel declarado y no registre errores de envío en 24 h. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
-        'R5.2 queda sin evaluar (causa CONFIGURATION): no consta a quién ni por dónde tiene que llegar la alerta.',
+        'R5.2 queda sin evaluar (causa CONFIGURATION): no consta a quién ni por dónde debe llegar la alerta.',
     },
     {
       id: 'P-09',
@@ -408,7 +387,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'plan_inspecciones_seguridad',
       label: 'Plan de inspecciones de seguridad',
       description:
-        'Periodicidad y ejecutor de las tres inspecciones que exige R6: verificación de configuración, análisis de vulnerabilidades y pruebas de penetración. periodicidad es un número de días (365 para anual) o «continua». Las dos primeras pueden ser continuas (SCA y detector de vulnerabilidades), lo que supera la exigencia de periodicidad; una prueba de penetración no lo es.',
+        'Periodicidad y ejecutor de las tres inspecciones de R6: verificación de configuración, análisis de vulnerabilidades y pruebas de penetración. periodicidad es un número de días (365 para anual) o «continua». Las dos primeras pueden ser continuas (SCA y detector de vulnerabilidades), lo que supera la exigencia de periodicidad; una prueba de penetración no.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
       type: 'table',
@@ -438,11 +417,11 @@ export const opMon3Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'La verificación de configuración y el análisis de vulnerabilidades continuos se miden con los hechos de EV-04 (111407, 111408 y 111409); las inspecciones puntuales, con las filas del registro de inspecciones (111414).',
       ensfacilUsage:
-        'Una inspección continua se acredita con SCA (EV-10) o con el detector de vulnerabilidades (EV-11); una periódica, con su última fila del registro dentro de la periodicidad (EV-12), o con la medida continua si la hay.',
+        'Una inspección continua se acredita con SCA (EV-10) o con el detector de vulnerabilidades (EV-11); una periódica, con su última fila del registro dentro de la periodicidad (EV-12) o con la medida continua si la hay.',
       evidenceIds: ['EV-10', 'EV-11', 'EV-12'],
       ruleIds: [],
       ifNotConfigured:
-        'R6 queda sin evaluar (causa CONFIGURATION): no consta con qué periodicidad deben hacerse las inspecciones.',
+        'R6 queda sin evaluar (causa CONFIGURATION): no consta la periodicidad de las inspecciones.',
     },
     {
       id: 'P-10',
@@ -450,7 +429,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'registro_inspecciones_realizadas',
       label: 'Registro de inspecciones realizadas',
       description:
-        'Dónde se registran las inspecciones efectivamente realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las hechas tras incidentes, y quién mantiene el registro. ENSFácil lee el registro del manager /etc/ensfacil/security-inspection-register.tsv, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
+        'Dónde se registran las inspecciones realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las posteriores a incidentes, y quién mantiene el registro. ENSFácil lee /etc/ensfacil/security-inspection-register.tsv en el manager, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
       type: 'table',
@@ -477,13 +456,13 @@ export const opMon3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Regla 111414 (security_inspection_recorded): cada 6 h el recolector del manager reemite el registro de inspecciones entero, fila a fila, sin juzgarlo.',
+        'Regla 111414 (security_inspection_recorded): cada 6 h el recolector del manager reemite el registro entero, fila a fila, sin juzgarlo.',
       ensfacilUsage:
-        'Se muestra al auditor. No se compara: lo que se juzga es el registro del manager (EV-12).',
+        'Se muestra al auditor. No se compara: se juzga el registro del manager (EV-12).',
       evidenceIds: ['EV-12'],
       ruleIds: [],
       ifNotConfigured:
-        'El auditor no sabe dónde está el expediente de cada inspección; el registro del manager se sigue leyendo igual.',
+        'El auditor no sabe dónde está el expediente de cada inspección; el registro del manager se lee igual.',
     },
     {
       id: 'P-11',
@@ -491,7 +470,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_analisis_horas',
       label: 'Antigüedad máxima del análisis (horas)',
       description:
-        'Horas que puede pasar un activo de P-03 sin una pasada completa de SCA o sin inventario de paquetes (del que se alimenta el detector de vulnerabilidades) antes de considerar que su superficie de exposición ya no se determina. Vale también para la fuente del detector de vulnerabilidades (el feed): más vieja que P-11, el detector no se actualiza. SCA pasa cada 12 h e inventario cada hora por defecto: el valor tiene que superar su frecuencia configurada (p. ej., 26 h para 12 h).',
+        'Horas que un activo de P-03 puede pasar sin pasada completa de SCA o sin inventario de paquetes (que alimenta el detector de vulnerabilidades) antes de considerar que su superficie de exposición ya no se determina; vale también para el feed del detector. SCA pasa cada 12 h e inventario cada hora por defecto: el valor debe superar su frecuencia (p. ej., 26 h para 12 h).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.3.r2.1', 'op.mon.3.r6.1', 'op.mon.3.r6.2'],
       type: 'duration_hours',
@@ -504,7 +483,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-04', 'EV-10', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
-        'R2 queda sin evaluar (causa CONFIGURATION): no hay contra qué medir que la determinación de la superficie de exposición siga activa.',
+        'R2 queda sin evaluar (causa CONFIGURATION): no hay contra qué medir que la determinación de la superficie siga activa.',
     },
     {
       id: 'P-ATT',
@@ -512,7 +491,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la detección de comportamientos anómalos (R3.1: la línea base validada y su procedimiento) y el observatorio digital (R4: el contrato o el servicio de cibervigilancia).',
+        'Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, una fila por requisito con nombre del documento y enlace. Aquí acredita la detección de comportamientos anómalos (R3.1: línea base validada y procedimiento) y el observatorio digital (R4: contrato o servicio).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -528,11 +507,11 @@ export const opMon3Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Sin hecho propio: un documento no deja rastro en Wazuh.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica (R3.1 y R4), así que una atestación nunca puede tapar una medida que ha fallado. En pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Solo se aplica a requisitos sin evidencia técnica (R3.1 y R4), por lo que nunca tapa una medida fallida. Se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Los requisitos puramente documentales del control (R3.1 y R4) se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
+        'Los requisitos documentales (R3.1 y R4) quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple.',
     },
   ],
 };

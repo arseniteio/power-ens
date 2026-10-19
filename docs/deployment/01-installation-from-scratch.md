@@ -477,7 +477,7 @@ El resultado siguiente corresponde a un rol que todavía no está asignado a nin
 Resultado esperado:
 
 ```text
-== modo prueba: no se envía ningún cambio
+== dry-run mode: no change is sent
 == rol ensfacil_admin
 PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
 == asignación de ensfacil_admin
@@ -492,7 +492,7 @@ Después, la ejecución real:
 sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 ```
 
-Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, `usuarios con el rol ensfacil_admin: <usuario>`.
+Resultado esperado: `-> 200` o `-> 201` después de cada petición y, al final, `users with the role ensfacil_admin: <usuario>`.
 
 - La ejecución es repetible: el rol se escribe igual y solo se añaden los usuarios que falten.
 - Varios usuarios: `--mapear <usuario1> --mapear <usuario2>`.
@@ -579,7 +579,7 @@ for c in $CONTROLS; do
 done
 ```
 
-Revisar el plan de cada control (parámetros nuevos, valores que se conservan y, si aparece, la línea `YA NO EXISTEN en el bloque y se pierden`). Si es correcto, aplicarlo:
+Revisar el plan de cada control (parámetros nuevos, valores que se conservan y, si aparece, la línea `NO LONGER IN THE BLOCK and lost`). Si es correcto, aplicarlo:
 
 ```bash
 for c in $CONTROLS; do
@@ -590,7 +590,7 @@ done
 
 | Comprobación | Resultado esperado |
 |---|---|
-| Salida de cada control | `== APLICADO ==` |
+| Salida de cada control | `== APPLIED ==` |
 
 La operación fusiona la configuración existente y añade los bloques necesarios sin eliminar los valores previamente configurados.
 
@@ -610,7 +610,7 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `Done` tras la instalación; después, `controles (23): …`, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` ([Configuración por controles y plantillas, apartado 11.2](09-configuration-by-system.md#112-validar-el-documento)). Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a la raíz de un clon del repositorio del plugin en otro equipo y ejecutar allí el mismo comando o, con Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. El validador importa el motor del plugin: necesita el repositorio completo, no solo `config/`.
+Resultado esperado: `Done` tras la instalación; después, `controls (23): …`, `VALID STRUCTURE: the plugin will load this configuration.` y `VALID AGENT AND TEMPLATE SETTINGS.` ([Configuración por controles y plantillas, apartado 11.2](09-configuration-by-system.md#112-validar-el-documento)). Si el manager no tiene Node.js con `npx` o no tiene salida a Internet, copiar el fichero `active-now.json` a la raíz de un clon del repositorio del plugin en otro equipo y ejecutar allí el mismo comando o, con Docker, `docker run --rm -v <repo>:/w -w /w node:22-alpine sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active-now.json'`. El validador importa el motor del plugin: necesita el repositorio completo, no solo `config/`.
 
 > [!warning]
 > Si la validación falla, restaurar la copia del apartado 14.2 antes de que nadie abra el panel, y corregir el parámetro indicado.

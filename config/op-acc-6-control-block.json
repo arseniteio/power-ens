@@ -14,7 +14,7 @@
       "controlId": "op.acc.6",
       "name": "refuerzo_autenticacion_elegido",
       "label": "Refuerzo autenticacion elegido",
-      "description": "Mecanismo de autenticación implementado para el personal de la organización: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige UNO de los cuatro en todos los niveles, así que solo rigen los requisitos del refuerzo elegido; los otros tres no cuentan. La complejidad de contraseña (op.acc.6.r1.2) rige con R1 y con R2.",
+      "description": "Mecanismo de autenticación del personal: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige uno en todos los niveles y solo rigen los requisitos del elegido; la complejidad de contraseña (op.acc.6.r1.2) rige con R1 y R2.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -39,7 +39,7 @@
       ],
       "required": true,
       "wazuhUsage": "No cambia lo que observa el agente: decide qué requisitos de refuerzo se evalúan.",
-      "ensfacilUsage": "Los requisitos de los refuerzos no elegidos salen del denominador como NO_APLICA. Con R1, el acceso con contraseña desde una red fuera de P-02 incumple op.acc.6.r1.1; con R2, todo acceso tiene que haber verificado dos factores.",
+      "ensfacilUsage": "Los requisitos de los refuerzos no elegidos salen del denominador como NO_APLICA. Con R1, el acceso con contraseña desde fuera de P-02 incumple op.acc.6.r1.1; con R2, todo acceso debe haber verificado dos factores.",
       "evidenceIds": [
         "EV-02",
         "EV-11"
@@ -52,7 +52,7 @@
       "controlId": "op.acc.6",
       "name": "definicion_zonas_controladas",
       "label": "Definicion zonas controladas",
-      "description": "Redes que son zona controlada según el ENS: no de acceso público y con autenticación física previa del usuario ante el equipo. Un elemento por línea: un rango CIDR (10.0.0.0/8, 192.168.10.0/24, fd00::/8), una dirección suelta, o la palabra local para la consola física de la máquina. Se puede añadir un comentario detrás del rango, separado por un espacio. Todo lo que no figure aquí es zona no controlada y exige doble factor (R8).",
+      "description": "Redes que son zona controlada según el ENS (no públicas y con autenticación física previa), una por línea: rango CIDR (10.0.0.0/8, fd00::/8), dirección suelta o `local` para la consola física, con comentario opcional tras un espacio. Todo lo demás es zona no controlada y exige doble factor (R8).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -66,20 +66,20 @@
       "type": "list",
       "example": "192.168.10.0/24 red de la sede",
       "required": true,
-      "wazuhUsage": "El agente emite la dirección de origen de cada acceso y las direcciones en las que escucha cada canal de autenticación, sin clasificarlas.",
-      "ensfacilUsage": "Es el parámetro más crítico del control. ENSFácil clasifica cada acceso por su origen y cada canal por las direcciones en que escucha: un acceso desde fuera de estos rangos con un solo factor, o un canal expuesto fuera de ellos que admite un solo factor, incumple R8.",
+      "wazuhUsage": "El agente emite la dirección de origen de cada acceso y las direcciones en que escucha cada canal de autenticación, sin clasificarlas.",
+      "ensfacilUsage": "Es el parámetro más crítico. Un acceso desde fuera de estos rangos con un solo factor, o un canal expuesto fuera de ellos que admite un solo factor, incumple R8.",
       "evidenceIds": [
         "EV-02"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "R8 no se puede evaluar, y R8 es obligatorio desde nivel BAJO: queda sin demostrar y cuenta en contra."
+      "ifNotConfigured": "R8, obligatorio desde nivel BAJO, no se puede evaluar: queda sin demostrar y cuenta en contra."
     },
     {
       "id": "P-03",
       "controlId": "op.acc.6",
       "name": "fuente_directorio_corporativo",
       "label": "Fuente directorio corporativo",
-      "description": "Fuentes de identidad cuyos accesos tienen que quedar registrados: local (cuentas del sistema, log de autenticación), ldap (binds del directorio), active_directory o azure_ad. Una por línea. Debe ser coherente con el parámetro equivalente de op.acc.1.",
+      "description": "Fuentes de identidad cuyos accesos deben quedar registrados: local (log de autenticación), ldap (binds del directorio), active_directory o azure_ad. Una por línea; coherente con el parámetro equivalente de op.acc.1.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -104,13 +104,13 @@
         }
       ],
       "required": true,
-      "wazuhUsage": "El agente emite un hueco de registro cuando una fuente no existe, no ha registrado nunca nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).",
+      "wazuhUsage": "El agente emite un hueco de registro cuando una fuente no existe, nunca ha registrado nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).",
       "ensfacilUsage": "Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.",
       "evidenceIds": [
         "EV-01"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "No se sabe qué fuentes tienen que registrar los accesos: op.acc.6.r5.1 queda sin demostrar."
+      "ifNotConfigured": "No se sabe qué fuentes deben registrar los accesos: op.acc.6.r5.1 queda sin demostrar."
     },
     {
       "id": "P-04",
@@ -130,7 +130,7 @@
       "example": "180",
       "minValue": 1,
       "required": true,
-      "wazuhUsage": "El agente emite, por credencial, su antigüedad en días (contraseña desde /etc/shadow; clave ssh desde la fecha de su fichero) y la caducidad que el sistema impone (99999 si ninguna).",
+      "wazuhUsage": "El agente emite la antigüedad en días de cada credencial (contraseña desde /etc/shadow; clave ssh desde la fecha de su fichero) y la caducidad que impone el sistema (99999 si ninguna).",
       "ensfacilUsage": "Una credencial más antigua que este plazo, o una caducidad configurada mayor, incumple op.acc.6.4.",
       "evidenceIds": [
         "EV-05"
@@ -143,7 +143,7 @@
       "controlId": "op.acc.6",
       "name": "max_intentos_fallidos",
       "label": "Max intentos fallidos",
-      "description": "Número máximo de intentos fallidos antes del bloqueo de la cuenta. El ENS exige que el número sea limitado y que reactivar la cuenta requiera una intervención específica (op.acc.6.8).",
+      "description": "Máximo de intentos fallidos antes del bloqueo de la cuenta. El ENS exige que sea limitado y que reactivar la cuenta requiera intervención específica (op.acc.6.8).",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -156,8 +156,8 @@
       "example": "5",
       "minValue": 1,
       "required": true,
-      "wazuhUsage": "El agente emite la configuración de bloqueo de cada camino de autenticación con contraseña (pam_faillock, pam_tally2, ppolicy) y los fallos y bloqueos que registra el log.",
-      "ensfacilUsage": "Incumple op.acc.6.8 un camino en uso sin bloqueo, con un umbral mayor que este valor o con desbloqueo automático, y una cuenta existente con más fallos que este valor en una pasada sin bloqueo registrado.",
+      "wazuhUsage": "El agente emite la configuración de bloqueo de cada camino de autenticación con contraseña (pam_faillock, pam_tally2, ppolicy) y los fallos y bloqueos del log.",
+      "ensfacilUsage": "Incumple op.acc.6.8 un camino en uso sin bloqueo, con umbral mayor que este valor o con desbloqueo automático, y una cuenta con más fallos que este valor en una pasada sin bloqueo registrado.",
       "evidenceIds": [
         "EV-03",
         "EV-04"
@@ -170,7 +170,7 @@
       "controlId": "op.acc.6",
       "name": "plazo_max_inhabilitar_credencial_horas",
       "label": "Plazo max inhabilitar credencial horas",
-      "description": "Tiempo máximo admitido entre que consta o se sospecha el compromiso de una credencial (o el usuario termina su relación con el sistema) y su inhabilitación efectiva.",
+      "description": "Tiempo máximo entre que consta o se sospecha el compromiso de una credencial (o el usuario termina su relación con el sistema) y su inhabilitación efectiva.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -184,7 +184,7 @@
       "example": "24",
       "minValue": 1,
       "required": true,
-      "wazuhUsage": "La organización anota cada notificación de compromiso o baja en el registro del agente; el agente emite las horas hasta que observa la cuenta inhabilitada, o las que lleva habilitada.",
+      "wazuhUsage": "La organización anota cada compromiso o baja en el registro del agente; el agente emite las horas hasta que observa la cuenta inhabilitada, o las que lleva habilitada.",
       "ensfacilUsage": "Una inhabilitación que tarda más que este plazo, o una cuenta que lo supera sin inhabilitar, incumple op.acc.6.5 y op.acc.6.6.",
       "evidenceIds": [
         "EV-06"
@@ -197,7 +197,7 @@
       "controlId": "op.acc.6",
       "name": "canales_acceso_remoto",
       "label": "Canales acceso remoto",
-      "description": "Canales de acceso remoto autorizados, uno por fila: canal (ssh, ldap, ldaps, rdp, vnc, tailscale, openvpn…, como lo nombra el agente), si su tráfico va cifrado (si/no), quién lo autoriza y si su uso es constante (si: puede estar habilitado siempre; no: debe estar inhabilitado y habilitarse solo cuando haga falta). R9 es obligatorio en los tres niveles.",
+      "description": "Canales de acceso remoto autorizados, uno por fila: canal (ssh, ldap, ldaps, rdp, vnc, tailscale, openvpn…, como lo nombra el agente), si el tráfico va cifrado (si/no), quién lo autoriza y si su uso es constante (si: puede estar siempre habilitado; no: debe estar inhabilitado y habilitarse solo si hace falta). R9 es obligatorio en los tres niveles.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -244,20 +244,20 @@
       ],
       "required": true,
       "wazuhUsage": "El agente emite cada canal en escucha (con su cifrado observado y si arranca siempre) y cada acceso con su canal.",
-      "ensfacilUsage": "Incumple op.acc.6.r9.2 un acceso por un canal que no figura aquí, un canal en escucha cuyo cifrado no coincide con su fila, o uno que arranca siempre y su fila dice uso no constante. Un canal en escucha sin fila no está decidido y tampoco se da por bueno.",
+      "ensfacilUsage": "Incumple op.acc.6.r9.2 un acceso por un canal ausente de la tabla, un canal en escucha con cifrado distinto del de su fila, o uno que arranca siempre cuando su fila dice uso no constante. Un canal en escucha sin fila no se da por bueno.",
       "evidenceIds": [
         "EV-07",
         "EV-08"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "R9 no se puede evaluar, y es obligatorio desde nivel BAJO: op.acc.6.r9.2 queda sin demostrar."
+      "ifNotConfigured": "R9, obligatorio desde nivel BAJO, no se puede evaluar: op.acc.6.r9.2 queda sin demostrar."
     },
     {
       "id": "P-08",
       "controlId": "op.acc.6",
       "name": "puntos_renovacion_autenticacion",
       "label": "Puntos renovacion autenticacion",
-      "description": "Puntos del sistema en los que se exige renovar la autenticación sin que baste la sesión establecida, uno por línea, con el nombre que usa el agente: sudo (elevación general, sudo ALL), su, o sudo:/ruta/del/comando para un comando concreto que la organización considere crítico. Un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.",
+      "description": "Puntos donde se exige renovar la autenticación aunque haya sesión, uno por línea con el nombre del agente: sudo (elevación general), su, o sudo:/ruta/del/comando para un comando crítico; un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.",
       "levels": [
         "ALTO"
       ],
@@ -267,20 +267,20 @@
       "type": "list",
       "example": "sudo",
       "required": true,
-      "wazuhUsage": "El agente emite cada configuración que permite ejecutar un punto sin volver a autenticarse (sudo NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust).",
-      "ensfacilUsage": "Un punto declarado aquí que se puede ejecutar sin reautenticación incumple op.acc.6.r6.1.",
+      "wazuhUsage": "El agente emite cada configuración que permite ejecutar un punto sin reautenticar (sudo NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust).",
+      "ensfacilUsage": "Un punto declarado aquí que se ejecuta sin reautenticación incumple op.acc.6.r6.1.",
       "evidenceIds": [
         "EV-09"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "R6 queda sin demostrar, y en nivel ALTO es obligatorio."
+      "ifNotConfigured": "R6 queda sin demostrar; en nivel ALTO es obligatorio."
     },
     {
       "id": "P-09",
       "controlId": "op.acc.6",
       "name": "periodo_no_utilizacion_dias",
       "label": "Periodo no utilizacion dias",
-      "description": "Días de inactividad tras los cuales una credencial debe estar suspendida. El ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.",
+      "description": "Días de inactividad tras los cuales una credencial debe estar suspendida; el ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.",
       "levels": [
         "ALTO"
       ],
@@ -291,20 +291,20 @@
       "example": "45",
       "minValue": 1,
       "required": true,
-      "wazuhUsage": "El agente emite, por cada cuenta habilitada, los días desde su último acceso (lastlog, wtmp y los accesos que él mismo anota del log de autenticación).",
+      "wazuhUsage": "El agente emite, por cuenta habilitada, los días desde su último acceso (lastlog, wtmp y accesos que anota del log de autenticación).",
       "ensfacilUsage": "Una cuenta habilitada con más días de inactividad que este valor incumple op.acc.6.r7.1.",
       "evidenceIds": [
         "EV-10"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "R7 queda sin demostrar, y en nivel ALTO es obligatorio."
+      "ifNotConfigured": "R7 queda sin demostrar; en nivel ALTO es obligatorio."
     },
     {
       "id": "P-10",
       "controlId": "op.acc.6",
       "name": "politica_complejidad_contrasenas",
       "label": "Politica complejidad contrasenas",
-      "description": "Mínimos de robustez de las contraseñas cuando P-01 es R1 o R2, uno por fila: criterio y valor mínimo. Criterios: longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores que no se pueden repetir) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.",
+      "description": "Mínimos de robustez de contraseña cuando P-01 es R1 o R2, uno por fila (criterio y valor mínimo): longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores no repetibles) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -336,7 +336,7 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "El agente emite lo que la pila password de PAM impone (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.",
+      "wazuhUsage": "El agente emite lo que impone la pila password de PAM (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.",
       "ensfacilUsage": "Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.",
       "evidenceIds": [
         "EV-11"
@@ -349,7 +349,7 @@
       "controlId": "op.acc.6",
       "name": "exposiciones_autenticacion_admitidas",
       "label": "Exposiciones autenticacion admitidas",
-      "description": "Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea, con el nombre que usa el agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.",
+      "description": "Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea con el nombre del agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -374,7 +374,7 @@
       "controlId": "op.acc.6",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. Se rellena una fila por requisito, con el nombre del documento y un enlace que permita consultarlo. En este control es la vía para acreditar la aceptación previa de la política (op.acc.6.1), el acuse de recibo de las credenciales (op.acc.6.2), la entrega bajo control exclusivo (op.acc.6.3), la información de derechos tras el acceso (op.acc.6.9), el aviso del último acceso (op.acc.6.r5.2), la aplicación de la ITS de interconexión (op.acc.6.r9.1) y los certificados de R3 y R4: nada de eso deja rastro en un log.",
+      "description": "Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, una fila por requisito con nombre del documento y enlace. Aquí acredita aceptación previa de la política (.1), acuse de credenciales (.2), entrega bajo control exclusivo (.3), información de derechos (.9), aviso del último acceso (r5.2), ITS de interconexión (r9.1) y certificados de R3 y R4.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -416,11 +416,11 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
-      "ensfacilUsage": "ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».",
+      "wazuhUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "ensfacilUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
       "evidenceIds": [],
       "ruleIds": [],
-      "ifNotConfigured": "Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple."
+      "ifNotConfigured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
     }
   ]
 }

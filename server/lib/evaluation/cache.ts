@@ -1,13 +1,10 @@
-// Memoria del servidor para las evaluaciones.
-//
-// Una entrada vale mientras su huella (configuración, alcance y los hechos de
-// esa fila: cuántos hay y el más reciente) sea la misma. La sonda lo comprueba
-// en cada petición, así que un dato nuevo caduca solo su control en su
-// máquina. Además, una vida máxima de 60 minutos para lo que cambia solo con
-// el reloj (un recolector que deja de latir deja de demostrar a las 24 h).
-//
-// Lo que ya no vale todavía se puede ENSEÑAR mientras se recalcula (`peek`):
-// el servidor responde con ello al instante, marcado, y recalcula detrás.
+// Server memory for evaluations.
+// An entry is valid while its fingerprint (configuration, scope, and the facts of that row: count and latest) is
+// the same. The probe checks it on every request, so new data expires only its control on its machine. Maximum
+// life 60 minutes for what changes with the clock alone (a collector that stops beating stops proving after 24
+// h).
+// What is no longer valid can still be SHOWN while recomputing (`peek`): the server answers at once with it,
+// marked, and recomputes behind.
 export const EVALUATION_TTL_MS = 60 * 60 * 1000;
 
 export interface CacheEntry<T> {
@@ -21,8 +18,8 @@ export class EvaluationCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();
   private totalBytes = 0;
 
-  // `maxBytes` y `sizeOf`: además del número de entradas, un tope de tamaño
-  // (lo que ocupa cada valor en JSON, medido una vez al guardarlo).
+  // `maxBytes` and `sizeOf`: besides the entry count, a size cap (JSON size of each value, measured once on
+  // store).
   constructor(
     private readonly maxEntries: number,
     private readonly ttlMs: number = EVALUATION_TTL_MS,
@@ -39,36 +36,36 @@ export class EvaluationCache<T> {
     return this.maxBytes;
   }
 
-  // Ajusta el tope de tamaño (el servicio lo deriva del alcance). Lo que ya no
-  // cabe se va al guardar lo siguiente.
+  // Adjusts the size cap (the service derives it from the scope). What no longer fits is evicted on the next
+  // store.
   setMaxBytes(maxBytes: number): void {
     this.maxBytes = maxBytes;
   }
 
   private remove(key: string): void {
-    const entrada = this.entries.get(key);
-    if (!entrada) return;
-    this.totalBytes -= entrada.bytes;
+    const entry = this.entries.get(key);
+    if (!entry) return;
+    this.totalBytes -= entry.bytes;
     this.entries.delete(key);
   }
 
-  // El valor si la huella coincide y no ha caducado; si no, nada.
+  // The value if the fingerprint matches and it has not expired; otherwise nothing.
   get(key: string, fingerprint: string): T | undefined {
-    const entrada = this.peek(key);
-    if (!entrada || entrada.fingerprint !== fingerprint || this.clock() - entrada.storedAt > this.ttlMs) {
+    const entry = this.peek(key);
+    if (!entry || entry.fingerprint !== fingerprint || this.clock() - entry.storedAt > this.ttlMs) {
       return undefined;
     }
-    return entrada.value;
+    return entry.value;
   }
 
-  // La entrada tal cual, valga o no (para enseñarla mientras se recalcula).
+  // The entry as is, valid or not (to show while recomputing).
   peek(key: string): CacheEntry<T> | undefined {
-    const entrada = this.entries.get(key);
-    if (!entrada) return undefined;
-    // Lo usado pasa al final: se descarta primero lo que lleva más sin usarse.
+    const entry = this.entries.get(key);
+    if (!entry) return undefined;
+    // Used entries move to the end: the least recently used is evicted first.
     this.entries.delete(key);
-    this.entries.set(key, entrada);
-    return entrada;
+    this.entries.set(key, entry);
+    return entry;
   }
 
   isFresh(entry: CacheEntry<T> | undefined, fingerprint: string): boolean {
@@ -81,9 +78,9 @@ export class EvaluationCache<T> {
     this.entries.set(key, { value, fingerprint, storedAt: this.clock(), bytes });
     this.totalBytes += bytes;
     while (this.entries.size > this.maxEntries || (this.totalBytes > this.maxBytes && this.entries.size > 1)) {
-      const primera = this.entries.keys().next().value;
-      if (primera === undefined || primera === key) break;
-      this.remove(primera);
+      const first = this.entries.keys().next().value;
+      if (first === undefined || first === key) break;
+      this.remove(first);
     }
   }
 
@@ -102,7 +99,7 @@ export interface Cancellable {
   onAbort(listener: () => void): void;
 }
 
-// Una señal que se cancela a mano.
+// A signal cancelled by hand.
 export class CancelSignal implements Cancellable {
   private cancelled = false;
   private readonly listeners: (() => void)[] = [];
@@ -123,11 +120,9 @@ export class CancelSignal implements Cancellable {
   }
 }
 
-// El mismo cálculo (un control en una máquina, con la misma huella) lo
-// comparten todas las peticiones que lo necesitan a la vez: el panel y la
-// lista de controles abiertos juntos no leen dos veces lo mismo. Si todas las
-// que esperan se van (el navegador cierra la petición), el cálculo se cancela;
-// el que se lanza para refrescar en segundo plano no se cancela.
+// The same computation (one control on one machine, same fingerprint) is shared by all requests needing it at
+// once. If all waiters leave (the browser closes the request), it is cancelled; the one launched to refresh in
+// the background is not.
 export class SharedTasks<T> {
   private readonly running = new Map<string, { promise: Promise<T>; waiters: number; signal: CancelSignal; pinned: boolean }>();
 
@@ -135,48 +130,47 @@ export class SharedTasks<T> {
     return this.running.size;
   }
 
-  // En curso y sin cancelar (uno cancelado ya no sirve a nadie).
+  // In progress and not cancelled (a cancelled one serves nobody).
   has(key: string): boolean {
-    const entrada = this.running.get(key);
-    return Boolean(entrada && !entrada.signal.aborted);
+    const entry = this.running.get(key);
+    return Boolean(entry && !entry.signal.aborted);
   }
 
   run(key: string, task: (signal: Cancellable) => Promise<T>, waiter?: Cancellable): Promise<T> {
-    let entrada = this.running.get(key);
-    // Un cálculo ya cancelado no se comparte: quien llega ahora empieza otro
-    // (el `finally` del cancelado no borra al nuevo).
-    if (entrada && entrada.signal.aborted) entrada = undefined;
-    if (!entrada) {
+    let entry = this.running.get(key);
+    // A cancelled computation is not shared: whoever arrives now starts another (the cancelled one's `finally`
+    // does not delete the new one).
+    if (entry && entry.signal.aborted) entry = undefined;
+    if (!entry) {
       const signal = new CancelSignal();
       const promise = Promise.resolve()
         .then(() => task(signal))
         .finally(() => {
           if (this.running.get(key)?.promise === promise) this.running.delete(key);
         });
-      entrada = { promise, waiters: 0, signal, pinned: false };
-      this.running.set(key, entrada);
+      entry = { promise, waiters: 0, signal, pinned: false };
+      this.running.set(key, entry);
     }
-    const actual = entrada;
+    const actual = entry;
     if (!waiter) {
       actual.pinned = true;
       return actual.promise;
     }
     actual.waiters += 1;
-    let suelto = false;
-    const suelta = () => {
-      if (suelto) return;
-      suelto = true;
+    let loose = false;
+    const looseOne = () => {
+      if (loose) return;
+      loose = true;
       actual.waiters -= 1;
       if (actual.waiters <= 0 && !actual.pinned) actual.signal.cancel();
     };
-    waiter.onAbort(suelta);
-    return actual.promise.finally(suelta);
+    waiter.onAbort(looseOne);
+    return actual.promise.finally(looseOne);
   }
 }
 
-// Cuántas lecturas pesadas (un control en una máquina) corren a la vez en el
-// servidor del dashboard. Lo que sale de la memoria no pasa por aquí. Lo que
-// alguien espera ahora pasa delante de lo que se refresca en segundo plano.
+// How many heavy reads (one control on one machine) run at once on the dashboard server. Memory hits do not pass
+// through here. What someone waits for now goes ahead of background refreshes.
 export class Semaphore {
   private active = 0;
   private readonly waiting: { resolve: () => void; background: boolean }[] = [];
@@ -193,14 +187,14 @@ export class Semaphore {
 
   async use<T>(task: () => Promise<T>, options: { background?: boolean } = {}): Promise<T> {
     if (this.active >= this.limit) {
-      // Quien termina le pasa su plaza directamente (ver `finally`).
+      // Whoever finishes hands its slot over directly (see `finally`).
       await new Promise<void>(resolve => {
-        const entrada = { resolve, background: Boolean(options.background) };
-        if (entrada.background) this.waiting.push(entrada);
+        const entry = { resolve, background: Boolean(options.background) };
+        if (entry.background) this.waiting.push(entry);
         else {
-          const primeraDeFondo = this.waiting.findIndex(w => w.background);
-          if (primeraDeFondo < 0) this.waiting.push(entrada);
-          else this.waiting.splice(primeraDeFondo, 0, entrada);
+          const firstBackground = this.waiting.findIndex(w => w.background);
+          if (firstBackground < 0) this.waiting.push(entry);
+          else this.waiting.splice(firstBackground, 0, entry);
         }
       });
     } else {
@@ -209,8 +203,8 @@ export class Semaphore {
     try {
       return await task();
     } finally {
-      const siguiente = this.waiting.shift();
-      if (siguiente) siguiente.resolve();
+      const nextItem = this.waiting.shift();
+      if (nextItem) nextItem.resolve();
       else this.active -= 1;
     }
   }

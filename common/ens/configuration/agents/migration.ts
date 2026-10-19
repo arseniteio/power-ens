@@ -1,34 +1,15 @@
-// MIGRACIÓN A SISTEMAS, sin pérdida y sin huecos ocultos.
-//
-// Lo que había queda como valor de la organización. Las filas de las tablas
-// con columna de sistema (ver `ENS_SYSTEM_KEY_COLUMNS`) que casan con un agente
-// —por su id, su nombre, su hostname o un alias guardado— se COPIAN a ese
-// agente; las que no casan (o casan con más de uno) se quedan en la
-// organización y se avisan. Las filas `*` valen para todas las máquinas: se
-// quedan en la organización y se copian también al agente que recibe filas
-// propias, porque su valor propio sustituye al de la organización entero.
-//
-// Las filas copiadas se QUITAN de la organización solo si con eso ninguna
-// máquina se queda sin valor: si el parámetro es opcional, o si cada máquina
-// del alcance que evalúa el control termina con valor sin contar el de la
-// organización (propio, de plantilla o de la unión). Si no, la organización se
-// queda como estaba y las máquinas sin filas propias siguen heredando la tabla
-// de hoy. Así la migración no crea un «faltan P-xx» nuevo en ninguna máquina;
-// `incomplete` lo comprueba sobre el resultado y tiene que salir vacío.
-//
-// Dos filas son la misma solo si son idénticas (con los espacios alrededor de
-// `|` recortados): las mayúsculas cuentan.
-//
-// Es una función PURA: devuelve el documento migrado y el plan. La pantalla la
-// ejecuta al cargar para enseñar el plan (en seco) y la escribe solo con
-// «Repartir por agentes», tras confirmarlo; el servidor guarda el documento
-// anterior en el historial. Es idempotente: sobre un documento ya migrado no
-// cambia nada.
-//
-// Las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01) no se
-// tocan: el motor las lee enteras para saber en qué máquinas se mide el
-// control. Tampoco las listas que mezclan plataformas: repartirlas es una
-// decisión del responsable, que la toma en cada agente o con una plantilla.
+// MIGRATION TO SYSTEMS, lossless.
+// Rows of tables with a system column (`ENS_SYSTEM_KEY_COLUMNS`) that match one agent (by id, name, hostname or
+// stored alias) are COPIED to it; rows matching none or several stay in the organization and are reported. `*`
+// rows stay in the organization and are also copied to any agent that receives own rows (its own value replaces
+// the organization's whole).
+// Copied rows are REMOVED from the organization only if no machine is left without a value (optional parameter,
+// or every in-scope machine ends with its own, template or union value); otherwise the organization stays as it
+// was. `incomplete` checks the result and must be empty.
+// Two rows are the same only if identical (spaces around `|` trimmed, case counts).
+// Pure: returns the migrated document and the plan. The screen runs it on load (dry) and writes it only on
+// "Repartir por agentes" after confirmation; the server keeps the previous document in the history. Idempotent.
+// Scope lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01) and lists mixing platforms are not touched.
 import type {
   ENSAgentProfile,
   ENSConfigurationVersion,
@@ -57,8 +38,8 @@ export interface ENSMigrationMove {
   controlId: string;
   parameterId: string;
   rows: string[];
-  // `movida`: la fila sale de la organización. `copiada`: se queda también en
-  // la organización, porque quitarla dejaría sin valor a alguna máquina.
+  // `movida`: the row leaves the organization. `copiada`: it also stays there, since removing it would leave
+  // some machine without a value.
   mode: 'movida' | 'copiada';
 }
 
@@ -67,8 +48,7 @@ export interface ENSMigrationWarning {
   parameterId: string;
   row: string;
   key: string;
-  // `sin-agente`: lo que nombra la fila no es ningún agente conocido.
-  // `ambigua`: nombra a más de uno (dos máquinas con el mismo nombre corto).
+  // `sin-agente`: the row names no known agent. `ambigua`: it names more than one.
   reason: 'sin-agente' | 'ambigua';
   candidates?: string[];
 }
@@ -83,19 +63,17 @@ export interface ENSMigrationPlan {
   configuration: ENSConfigurationVersion;
   moves: ENSMigrationMove[];
   warnings: ENSMigrationWarning[];
-  // Parámetros obligatorios con valor antes y sin valor después, por máquina
-  // del alcance. Por construcción, vacío; si no, la migración no se ofrece.
+  // Required parameters with a value before and none after, per in-scope machine. Empty by construction;
+  // otherwise the migration is not offered.
   incomplete: ENSMigrationIncomplete[];
   changed: boolean;
-  // El alcance no tiene ninguna máquina: no se migra nada. Sin máquinas no se
-  // puede comprobar que ninguna se quede sin un obligatorio, y la migración
-  // podría sacar filas obligatorias de la organización.
+  // Empty scope: nothing is migrated, since no machine can be checked.
   emptyScope?: boolean;
 }
 
 export interface ENSMigrationOptions {
-  // Las máquinas del alcance (las que se evalúan). Sin ellas, todas las del
-  // inventario. Si no queda ninguna, la migración no hace nada (`emptyScope`).
+  // In-scope (evaluated) machines; without scope, the whole inventory. If none, the migration does nothing
+  // (`emptyScope`).
   scopeAgentIds?: string[];
 }
 
@@ -121,7 +99,7 @@ export const summarizeMigrationPlan = (plan: Pick<ENSMigrationPlan, 'moves' | 'w
     : `Nada que repartir; ${plan.warnings.length} fila(s) sin agente se quedan en el valor común.`;
 };
 
-// ¿Evalúa esta máquina este control? Por su plano de medida.
+// Whether this machine evaluates this control, by its measurement plane.
 const evaluates = (agentId: string, controlId: string): boolean => {
   const planes = getControlMeasurementPlanes(getENSCatalogControl(controlId) || {});
   return planes.includes(normalizeAgentId(agentId) === ENS_MANAGER_AGENT_ID ? 'manager' : 'agent');
@@ -155,8 +133,7 @@ export const planMigrationToSystems = (
   const moves: ENSMigrationMove[] = [];
   const warnings: ENSMigrationWarning[] = [];
 
-  // Quién es quién: los agentes del inventario y los perfiles ya guardados
-  // (un agente dado de baja sigue reconociéndose por sus alias).
+  // Who is who: inventory agents and stored profiles (a removed agent is still recognised by its aliases).
   const known = new Map<string, ENSDetectableAgent>();
   inventory.forEach(agent => known.set(normalizeAgentId(agent.id), { ...agent, id: normalizeAgentId(agent.id) }));
   Object.entries(agents).forEach(([id, profile]) => {
@@ -188,8 +165,7 @@ export const planMigrationToSystems = (
         return;
       }
 
-      // Un bloque sembrado antes de declarar columnas no dice qué celda es la
-      // máquina: no se reparte.
+      // A block seeded before declaring columns does not say which cell is the machine: not distributed.
       const index = getParameterColumns(parameter).findIndex(column => column.name === keyColumn);
 
       if (index < 0) {
@@ -232,8 +208,7 @@ export const planMigrationToSystems = (
         }
       });
 
-      // Solo cuenta lo que el agente todavía no tiene: una fila ya copiada en
-      // una pasada anterior no se vuelve a mover (idempotencia).
+      // Only what the agent does not have yet counts: an already copied row is not moved again (idempotence).
       Array.from(byAgent.keys()).forEach(agentId => {
         const already = agents[agentId]?.controls?.[control.controlId]?.parameters?.[parameter.id];
         const have = new Set(already === undefined ? [] : toParameterTableRows(already).map(rowKey));
@@ -268,8 +243,8 @@ export const planMigrationToSystems = (
         parameters[parameter.id] = merged;
       });
 
-      // ¿Se pueden quitar de la organización? Se prueba quitándolas y viendo si
-      // alguna máquina del alcance que evalúa el control se queda sin valor.
+      // Can they be removed from the organization? Tested by removing them and checking whether an in-scope
+      // machine loses a value.
       const original = parameter.value;
       if (stay.length) parameter.value = stay;
       else delete parameter.value;
@@ -301,8 +276,7 @@ export const planMigrationToSystems = (
     delete migrated.agents;
   }
 
-  // La comprobación final, sobre el resultado: ningún obligatorio que tenía
-  // valor en una máquina del alcance puede quedarse sin él.
+  // Final check on the result: no required parameter that had a value on an in-scope machine may lose it.
   const incomplete: ENSMigrationIncomplete[] = [];
   if (moves.length) {
     const touched = Array.from(new Set(moves.map(move => `${move.controlId}|${move.parameterId}`)));

@@ -13,7 +13,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'matriz_privilegios_autorizados',
       label: 'Matriz privilegios autorizados',
       description:
-        'Matriz que define, para cada perfil o rol, qué recursos puede acceder y con qué tipo de acceso. Es la referencia contra la que se contrasta la configuración real del sistema.',
+        'Matriz que declara, para cada rol o perfil, a qué recursos puede acceder y con qué tipo de acceso. Es la referencia autorizada contra la que se contrasta el privilegio observado.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.1', 'op.acc.4.2', 'op.acc.4.3'],
       type: 'table',
@@ -28,34 +28,30 @@ export const opAcc4Configuration: ENSControlConfiguration = {
         {
           name: 'recurso',
           label: 'Recurso',
-          // NO es una ruta: el agente emite `sudo` como recurso —el subsistema
-          // que concede el privilegio—, y `path` exige ruta absoluta. Con `path`
-          // las filas salían INVÁLIDAS y el control entero con ellas.
+          // NOT a path: the agent emits `sudo` as the resource (the subsystem granting the privilege) and `path`
+          // requires an absolute path.
           type: 'string',
           required: false,
         },
         {
           name: 'acceso',
           label: 'Acceso',
-          // Varios privilegios por sujeto, separados por coma. Un mismo rol los
-          // recibe de sitios distintos —`/etc/sudoers` y un drop-in de
-          // `sudoers.d`— y con comparación exacta solo podía declararse uno:
-          // el otro salía como privilegio no autorizado sin serlo. `multiselect`
-          // compara por pertenencia, así que la celda enumera lo AUTORIZADO y
-          // cualquier privilegio que no esté en ella sigue siendo un hallazgo.
+          // Several privileges per subject, comma-separated: one role gets them from different places
+          // (`/etc/sudoers` and a `sudoers.d` drop-in). `multiselect` compares by membership, so the cell lists
+          // what is AUTHORISED and any other privilege is a finding.
           type: 'multiselect',
           required: false,
         },
       ],
       required: true,
       wazuhUsage:
-        'Núcleo del control. Cualquier privilegio no contemplado → alerta de acceso sin autorización expresa.',
+        'Es el núcleo del control. Todo privilegio observado sin fila que lo ampare se presenta como acceso sin autorización expresa.',
       ensfacilUsage:
-        'ENSFácil compara los privilegios reales detectados por SCA contra esta matriz.',
+        'El agente emite un hecho por cada privilegio efectivo (sudo, grupos privilegiados, ACL del directorio) y el motor busca la fila de su rol, comprobando recurso y tipo de acceso.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'op.acc.4.1, .2 y .3 NO EVALUABLES. Sin referencia autorizada no se puede juzgar si un privilegio es excesivo.',
+        'op.acc.4.1, op.acc.4.2 y op.acc.4.3 quedan NO EVALUABLES: sin referencia autorizada no se puede juzgar si un privilegio es excesivo.',
     },
     {
       id: 'P-02',
@@ -63,7 +59,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'personal_con_capacidad_autorizar',
       label: 'Personal con capacidad autorizar',
       description:
-        'Lista de cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, y sobre qué ámbito de recursos.',
+        'Cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, con el ámbito de recursos al que alcanza.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.4'],
       type: 'table',
@@ -84,13 +80,13 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'CDB list en Wazuh. Cualquier evento de cambio de permisos o membresía de grupo ejecutado por una cuenta fuera de esta lista → alerta de autorización no competente.',
+        'Los cambios de permisos y de pertenencia a grupos hechos por una cuenta ausente de esta lista se presentan como autorización otorgada por quien no era competente.',
       ensfacilUsage:
-        'CDB list en Wazuh. Cualquier evento de cambio de permisos o membresía de grupo ejecutado por una cuenta fuera de esta lista → alerta de autorización no competente.',
+        'El motor comprueba que el actor de cada cambio de permisos, tomado de la traza de auditoría, figure en la lista. Se contrasta siempre quien hace el cambio, nunca la cuenta afectada.',
       evidenceIds: ['EV-03', 'EV-04', 'EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar op.acc.4.4. Cualquier cambio de permisos se registra sin poder juzgar su legitimidad.',
+        'op.acc.4.4 no se puede verificar: los cambios se registran, pero no se juzga si quien los hizo era competente.',
     },
     {
       id: 'P-03',
@@ -98,20 +94,20 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'periodicidad_revision_permisos_dias',
       label: 'Periodicidad revision permisos dias',
       description:
-        'Cada cuánto deben revisarse los permisos de acceso. El ENS exige revisión periódica (op.acc.4.4) pero deja la periodicidad concreta a la normativa interna de la organización.',
+        'Cada cuántos días deben revisarse los permisos de acceso concedidos. El ENS exige revisión periódica (op.acc.4.4) y deja el plazo a la normativa de cada organización.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.4'],
       type: 'duration_days',
       example: '90 (trimestral) / o 180 (semestral) / o 365 (anual)',
       required: true,
       wazuhUsage:
-        'ENSFácil registra la fecha de la última revisión declarada o detectada y alerta cuando se supera el plazo P-03 sin que conste una nueva revisión.',
+        'ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.',
       ensfacilUsage:
-        'ENSFácil registra la fecha de la última revisión declarada o detectada y alerta cuando se supera el plazo P-03 sin que conste una nueva revisión.',
+        'El agente lee la fecha de la última revisión anotada en el registro de la máquina y el motor comprueba que no supere el plazo; si lo supera, la evidencia deja de acreditar. Una fecha posterior al reloj del sistema se descarta y el motivo lo indica.',
       evidenceIds: ['EV-03', 'EV-04', 'EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar el cumplimiento de la revisión periódica exigida por op.acc.4.4.',
+        'No se puede verificar la revisión periódica de op.acc.4.4: sin plazo no se decide si la revisión sigue vigente.',
     },
     {
       id: 'P-04',
@@ -119,20 +115,20 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'canales_acceso_remoto_permitidos',
       label: 'Canales acceso remoto permitidos',
       description:
-        'Canales, protocolos y orígenes autorizados para el acceso remoto al sistema: VPN corporativa, bastión SSH, escritorio remoto con doble factor, rangos de IP permitidos.',
+        'Canales, protocolos y orígenes autorizados para el acceso remoto: VPN corporativa, bastión SSH, escritorio remoto con segundo factor, rangos de direcciones admitidos.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.5'],
       type: 'list',
       example: 'VPN | 1194 | cualquiera / SSH bastión | 22 | 10.0.0.0/8',
       required: true,
       wazuhUsage:
-        'ENSFácil genera reglas Wazuh que alertan ante conexiones remotas por canales, puertos u orígenes no incluidos en P-04. Es la traducción técnica de la política de acceso remoto.',
+        'Canal, puerto y origen de cada conexión remota quedan en la evidencia y en la traza.',
       ensfacilUsage:
-        'ENSFácil genera reglas Wazuh que alertan ante conexiones remotas por canales, puertos u orígenes no incluidos en P-04. Es la traducción técnica de la política de acceso remoto.',
+        'Acompaña al informe como política exigible. Hoy el veredicto del acceso remoto se decide por la cuenta (contra P-05), no por el canal: ninguna comprobación automática lo contrasta todavía.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'op.acc.4.5 NO EVALUABLE. No se puede distinguir un acceso remoto legítimo de uno no autorizado.',
+        'op.acc.4.5 se evalúa por las cuentas de P-05, pero el informe no recoge la política de canales.',
     },
     {
       id: 'P-05',
@@ -140,20 +136,20 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'usuarios_autorizados_acceso_remoto',
       label: 'Usuarios autorizados acceso remoto',
       description:
-        'Cuentas que tienen autorización expresa para acceder remotamente al sistema. El ENS exige autorización expresa para el acceso remoto (op.acc.4.5). Un nombre por línea. NO uses «|»: EV-06 contrasta esta lista contra el campo `usuario` del hecho, y el motor la parte por saltos de línea y comas, nunca por barra — «jgomez | VPN» no casaría con «jgomez» y el silencio resultante se leería como cumplimiento',
+        'Cuentas con autorización expresa y nominal para el acceso remoto (op.acc.4.5), una por línea; personas o identidades, no grupos. Solo el identificador de la cuenta, sin canal ni anotaciones: una línea con texto adicional no coincidiría y parecería que no hay hallazgos.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.5'],
       type: 'list',
       example: 'jgomez',
       required: true,
       wazuhUsage:
-        'CDB list en Wazuh. Cualquier acceso remoto de una cuenta no incluida genera alerta de acceso remoto sin autorización expresa.',
+        'Todo acceso remoto de una cuenta ausente de esta lista se presenta como acceso remoto sin autorización expresa.',
       ensfacilUsage:
-        'CDB list en Wazuh. Cualquier acceso remoto de una cuenta no incluida genera alerta de acceso remoto sin autorización expresa.',
+        'El agente emite cada acceso remoto con su cuenta (ssh y, en un servidor de directorio, binds LDAP correctos) y el motor comprueba que figure en la lista.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede verificar la autorización expresa individual para acceso remoto.',
+        'op.acc.4.5 queda sin verificar: se registran los accesos remotos, pero no se distingue uno legítimo de uno no autorizado.',
     },
     {
       id: 'P-06',
@@ -161,20 +157,20 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'grupos_privilegiados',
       label: 'Grupos privilegiados',
       description:
-        'Grupos del sistema o del directorio cuya pertenencia otorga privilegios elevados (Administrators, Domain Admins, wheel, sudo, root-equivalentes). Su vigilancia es la vía más directa para verificar el mínimo privilegio.',
+        'Grupos del sistema o del directorio cuya pertenencia otorga privilegios elevados: administradores de dominio, wheel, sudo y equivalentes a root.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.2'],
       type: 'list',
       example: 'Domain Admins | AD / wheel | servidores Linux',
       required: true,
       wazuhUsage:
-        'Wazuh monitoriza altas y bajas en estos grupos (EventID 4728/4732/4756 en Windows, cambios en /etc/group en Linux). Toda alta debe corresponder a la matriz P-01.',
+        'Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.',
       ensfacilUsage:
-        'Wazuh monitoriza altas y bajas en estos grupos (EventID 4728/4732/4756 en Windows, cambios en /etc/group en Linux). Toda alta debe corresponder a la matriz P-01.',
+        'El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'No se detectan escaladas de privilegio por adición a grupos privilegiados.',
+        'El informe pierde el criterio escrito de qué grupos son sensibles; el agente sigue recogiendo y contrastando con P-01.',
     },
     {
       id: 'P-07',
@@ -182,7 +178,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       name: 'recursos_sensibles_necesidad_conocer',
       label: 'Recursos sensibles necesidad conocer',
       description:
-        'Recursos que contienen información sujeta al principio de necesidad de conocer, con indicación de qué perfiles tienen justificación de acceso (op.acc.4.3).',
+        'Recursos con información sujeta a necesidad de conocer (directorios, ficheros o atributos del directorio) y perfiles con justificación de acceso a cada uno (op.acc.4.3).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.3'],
       type: 'table',
@@ -195,18 +191,9 @@ export const opAcc4Configuration: ENSControlConfiguration = {
           required: true,
         },
         {
-          // VARIOS perfiles por recurso, separados por coma. La columna se llama
-          // `perfiles` en plural desde el principio y su ejemplo ya enseñaba
-          // `rrhh+dir`, pero el tipo era `identifier` —que prohíbe espacios Y
-          // comas— así que un recurso al que acceden dos perfiles legítimos no
-          // se podía declarar: había que elegir uno y el otro salía como
-          // desviación. Es lo que le pasó a /etc/shadow, donde el administrador
-          // y root tienen los dos necesidad de conocer.
-          //
-          // `multiselect` sin `options` acepta cualquier valor y parte la celda
-          // por comas, que es justo lo que el motor hace al contrastar
-          // (`splitCellOptions`): lo observado tiene que estar ENTRE los
-          // declarados, no ser igual a la celda entera.
+          // SEVERAL profiles per resource, comma-separated (e.g. /etc/shadow, where the administrator and root
+          // both need to know). `multiselect` without `options` accepts any value and splits the cell by commas,
+          // as the engine does (`splitCellOptions`): what is observed must be AMONG the declared ones.
           name: 'perfiles',
           label: 'Perfiles',
           type: 'multiselect',
@@ -215,13 +202,13 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.',
+        'ENSFácil registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.',
       ensfacilUsage:
-        'ENSFácil monitoriza accesos a estos recursos y alerta cuando accede un perfil sin justificación declarada, aunque técnicamente tenga permiso.',
+        'El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
       ifNotConfigured:
-        'op.acc.4.3 NO EVALUABLE. No se puede distinguir acceso técnicamente posible de acceso justificado.',
+        'op.acc.4.3 queda NO EVALUABLE: no se distingue un acceso técnicamente posible de uno justificado.',
     },
   ],
 };

@@ -1,33 +1,12 @@
 import { ENSControlConfiguration } from '../types';
 
-// Parámetros de op.cont.2. Se rige por el nivel de Disponibilidad y solo en
-// ALTO: todos son de ALTO, y con D en BAJO o MEDIO no se piden.
-//
-// Es un control de documento sin runbook: lo que decide son estas tablas, que
-// la policy juzga contra la fecha de la evaluación (`context.now`) y da por
-// buenas como ACREDITADAS DOCUMENTALMENTE, nunca como medidas. Por eso las
-// fechas son columnas `date` (AAAA-MM-DD), las mismas que entiende el
-// validador: una fecha que la pantalla rechaza no puede acreditar nada.
-//
-// Lo que se corrige de la plantilla:
-//
-//   P-01  «Referencia documental» en texto libre: la fecha de aprobación iba
-//         dentro del texto. Tabla referencia | versión | fecha de aprobación |
-//         aprobado por | responsable, para poder medir su antigüedad contra
-//         P-08.
-//   P-02  `sistemas que lo soportan` es una lista separada por comas: texto,
-//         no identificador (con «srv-web, srv-bd» la tabla salía inválida).
-//   P-04  el ejemplo estaba desalineado y sin vigencia.
-//   P-05  el ejemplo daba la fecha como «02/2026» y no traía vigencia.
-//   P-07  «Lista de rutas y componentes» mezcla rutas con la versión del
-//         firmware: lista, no ruta.
-//
-// No hay P-ATT a propósito: una atestación no caduca, y un plan de 2019 con su
-// enlace acreditaría hoy. La vigencia la vigila la policy con estas tablas.
-//
-// `required` solo en P-01 y P-08: sin el plan y su periodicidad de revisión no
-// se puede acreditar ninguno de los cinco requisitos. Los demás, si faltan, los
-// nombra la decisión de su requisito con causa CONFIGURATION.
+// op.cont.2 parameters. Governed by the Availability level and only at ALTO.
+// A document control without a runbook: the policy judges these tables against the evaluation date
+// (`context.now`) and accepts them as DOCUMENTARILY ACCREDITED, never as measured. Dates are `date` columns
+// (YYYY-MM-DD) the validator understands.
+// No P-ATT on purpose: an attestation does not expire, and a 2019 plan with a link would accredit today.
+// `required` only on P-01 and P-08: without the plan and its review periodicity no requirement can be
+// accredited; for the rest, the requirement's own decision names what is missing (cause CONFIGURATION).
 export const opCont2Configuration: ENSControlConfiguration = {
   controlId: 'op.cont.2',
   controlName: 'Plan de continuidad',
@@ -41,7 +20,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'plan_continuidad_referencia',
       label: 'Plan de continuidad aprobado',
       description:
-        'El plan de continuidad aprobado: su referencia, su versión, la fecha en que se aprobó, quién lo aprobó y su responsable. Es el documento cuya existencia y vigencia sostienen los cinco requisitos. Si se conservan varias versiones, cuenta la aprobada más recientemente.',
+        'Plan de continuidad aprobado: referencia, versión, fecha de aprobación, quién lo aprobó y su responsable. Si hay varias versiones cuenta la aprobada más recientemente.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'],
       type: 'table',
@@ -80,13 +59,13 @@ export const opCont2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Ninguno: op.cont.2 no tiene recolector ni reglas. El plan se audita leyéndolo; ENSFácil solo vigila su existencia y su vigencia.',
+        'Ninguno: op.cont.2 no tiene recolector ni reglas. El plan se audita leyéndolo; ENSFácil solo vigila su existencia y vigencia.',
       ensfacilUsage:
-        'EV-01: el plan aprobado más recientemente no puede tener más antigüedad que la periodicidad de revisión de P-08, contada en la fecha de la evaluación. Un plan vencido deja sin acreditar los cinco requisitos, porque cada uno es un contenido del plan.',
+        'EV-01: el plan aprobado más recientemente no puede superar la periodicidad de revisión de P-08 en la fecha de evaluación. Un plan vencido deja sin acreditar los cinco requisitos.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
       ifNotConfigured:
-        'Ningún requisito se puede acreditar (causa CONFIGURATION): sin plan registrado no hay nada que acreditar ni contra qué contrastar. Bloquea el control: es obligatorio.',
+        'Ningún requisito se acredita (causa CONFIGURATION): sin plan registrado no hay nada que contrastar. Bloquea el control, que es obligatorio.',
     },
     {
       id: 'P-02',
@@ -94,7 +73,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'servicios_esenciales',
       label: 'Servicios esenciales y objetivos de recuperación',
       description:
-        'Servicios esenciales de la organización cuya prestación deben garantizar los medios alternativos, con sus objetivos de recuperación del análisis de impacto: RTO (tiempo máximo hasta restablecer el servicio) y RPO (pérdida de datos máxima admitida), escritos como un número y su unidad: 30 min, 4 h, 2 d.',
+        'Servicios esenciales cuya prestación deben garantizar los medios alternativos, con los objetivos del análisis de impacto: RTO (tiempo máximo hasta restablecer el servicio) y RPO (pérdida máxima de datos), como número y unidad: 30 min, 4 h, 2 d.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.2'],
       type: 'table',
@@ -127,13 +106,13 @@ export const opCont2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Ninguno en esta versión: las interrupciones reales (EV-02) y la disponibilidad frente al RTO (EV-07) no se miden todavía, y el informe lo dice.',
+        'Ninguno en esta versión: las interrupciones reales (EV-02) y la disponibilidad frente al RTO (EV-07) no se miden todavía, y el informe lo indica.',
       ensfacilUsage:
-        'op.cont.2.2: con el plan vigente, cada servicio esencial tiene que declarar su RTO y su RPO con una duración legible. Una fila sin ellos, o con un valor que no es una duración, deja el requisito sin acreditar y se nombra.',
+        'op.cont.2.2: con el plan vigente, cada servicio esencial declara RTO y RPO con una duración legible. Una fila sin ellos, o con un valor que no es una duración, deja el requisito sin acreditar y se nombra.',
       evidenceIds: ['EV-02', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
-        'op.cont.2.2 queda sin acreditar (causa CONFIGURATION): no consta la previsión para los servicios esenciales ni sus objetivos de recuperación.',
+        'op.cont.2.2 queda sin acreditar (causa CONFIGURATION): no constan los servicios esenciales ni sus objetivos de recuperación.',
     },
     {
       id: 'P-03',
@@ -141,7 +120,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'funciones_responsabilidades_plan',
       label: 'Funciones y responsabilidades del plan',
       description:
-        'Funciones del plan con la persona responsable, su suplente y las actividades que tiene que realizar. op.cont.2.1 lo exige de forma expresa como primer contenido del plan. Los nombres de responsable y suplente son los que se usan en P-05: se comparan sin distinguir mayúsculas ni tildes.',
+        'Funciones del plan con su responsable, su suplente y las actividades a realizar (op.cont.2.1). Responsable y suplente se escriben como en P-05; se comparan sin distinguir mayúsculas ni tildes.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.1', 'op.cont.2.4'],
       type: 'table',
@@ -174,13 +153,13 @@ export const opCont2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Ninguno: no hay directorio corporativo integrado, así que la situación real de cada persona en la organización (EV-05) no se contrasta; queda como dato del informe.',
+        'Ninguno: sin directorio corporativo integrado, la situación real de cada persona (EV-05) no se contrasta y queda como dato del informe.',
       ensfacilUsage:
-        'op.cont.2.1: con el plan vigente, cada función con su responsable y sus actividades. op.cont.2.4: cada responsable y cada suplente de P-03 tiene que tener formación vigente en P-05.',
+        'op.cont.2.1: con el plan vigente, cada función con su responsable y actividades. op.cont.2.4: cada responsable y suplente de P-03 debe tener formación vigente en P-05.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'op.cont.2.1 y op.cont.2.4 quedan sin acreditar (causa CONFIGURATION): no constan las funciones del plan ni, por tanto, quién tiene que estar formado.',
+        'op.cont.2.1 y op.cont.2.4 quedan sin acreditar (causa CONFIGURATION): no constan las funciones ni quién debe estar formado.',
     },
     {
       id: 'P-04',
@@ -188,7 +167,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'medios_alternativos_contratados',
       label: 'Medios alternativos y sus contratos',
       description:
-        'Medios alternativos previstos en el plan, cada uno con su proveedor, la referencia del acuerdo o contrato que lo materializa, la fecha hasta la que está en vigor y el tiempo de activación comprometido. op.cont.2.3 es taxativo: TODOS los medios alternativos tienen que estar materializados en un acuerdo o contrato. Un medio sin contrato se declara con la columna del contrato vacía.',
+        'Medios alternativos del plan, cada uno con proveedor, referencia del acuerdo o contrato, fecha de fin de vigencia y tiempo de activación comprometido. op.cont.2.3 exige que TODOS estén materializados en un contrato; un medio sin contrato se declara con la columna del contrato vacía.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.3'],
       type: 'table',
@@ -227,13 +206,13 @@ export const opCont2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Ninguno: la entrada en servicio de los medios alternativos (EV-08) no se puede distinguir de forma genérica del arranque de una máquina; queda como dato del informe.',
+        'Ninguno: la entrada en servicio de los medios alternativos (EV-08) no se distingue de forma genérica del arranque de una máquina y queda como dato del informe.',
       ensfacilUsage:
-        'EV-04, en op.cont.2.3: cada medio con su contrato y en vigor en la fecha de la evaluación. Un medio sin contrato o con el contrato vencido es un incumplimiento directo; uno con contrato y sin fecha de vigencia queda sin acreditar.',
+        'EV-04 (op.cont.2.3): cada medio con contrato y en vigor en la fecha de evaluación. Sin contrato o con contrato vencido incumple; con contrato y sin fecha de vigencia queda sin acreditar.',
       evidenceIds: ['EV-04', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'op.cont.2.3 queda sin acreditar (causa CONFIGURATION): no consta qué medios alternativos hay ni con qué contrato.',
+        'op.cont.2.3 queda sin acreditar (causa CONFIGURATION): no constan los medios alternativos ni su contrato.',
     },
     {
       id: 'P-05',
@@ -241,7 +220,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'formacion_personal_plan',
       label: 'Formación del personal del plan',
       description:
-        'Formación específica recibida por las personas con función en el plan (P-03) sobre su papel en él: la persona, la formación, la fecha en que la recibió y la fecha hasta la que se considera vigente. op.cont.2.4 lo exige expresamente. Enlaza con mp.per.4: conviene llevar un único registro.',
+        'Formación específica de las personas con función en el plan (P-03): persona, formación, fecha de recepción y fecha hasta la que es vigente (op.cont.2.4). Enlaza con mp.per.4: conviene un único registro.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.4'],
       type: 'table',
@@ -276,11 +255,11 @@ export const opCont2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Ninguno: es un registro de la organización que se declara en la pantalla.',
       ensfacilUsage:
-        'EV-06, en op.cont.2.4: cada responsable y cada suplente de P-03 tiene que tener aquí una fila con la formación vigente en la fecha de la evaluación. Sin fila, o con la formación vencida, es un incumplimiento.',
+        'EV-06 (op.cont.2.4): cada responsable y suplente de P-03 debe tener aquí una fila con formación vigente en la fecha de evaluación. Sin fila o con la formación vencida incumple.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'op.cont.2.4 queda sin acreditar (causa CONFIGURATION). Es un hallazgo frecuente: el plan existe pero nadie ha sido formado en él.',
+        'op.cont.2.4 queda sin acreditar (causa CONFIGURATION). Hallazgo frecuente: el plan existe pero nadie ha sido formado.',
     },
     {
       id: 'P-06',
@@ -288,7 +267,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'integracion_planes_organizacion',
       label: 'Planes de la organización con los que se integra',
       description:
-        'Planes de continuidad de la organización en materias ajenas a la seguridad con los que el plan de continuidad del sistema es parte integral y armónica, según op.cont.2.5. Uno por línea.',
+        'Planes de continuidad de la organización, ajenos a la seguridad, con los que el plan del sistema forma parte integral y armónica (op.cont.2.5). Uno por línea.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.5'],
       type: 'list',
@@ -297,11 +276,11 @@ export const opCont2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Ninguno: referencia documental que ENSFácil recoge en el informe.',
       ensfacilUsage:
-        'op.cont.2.5: con el plan vigente, al menos un plan de la organización con el que se integra. Que la integración sea de verdad «armónica» es revisión documental y requiere criterio humano.',
+        'op.cont.2.5: con el plan vigente, al menos un plan de la organización con el que se integra. Que la integración sea armónica es revisión documental con criterio humano.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'op.cont.2.5 queda sin acreditar (causa CONFIGURATION): no consta con qué otros planes de la organización se integra el de continuidad.',
+        'op.cont.2.5 queda sin acreditar (causa CONFIGURATION): no consta con qué otros planes se integra.',
     },
     {
       id: 'P-07',
@@ -309,20 +288,20 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'rutas_integridad_post_caida',
       label: 'Componentes que se comprueban tras una caída (R2)',
       description:
-        'Componentes cuya integridad debe comprobarse tras una caída o discontinuidad del sistema: ficheros del sistema operativo, firmware y ficheros de configuración. Corresponde al Refuerzo R2, que el ENS no exige en ningún nivel.',
+        'Componentes cuya integridad debe comprobarse tras una caída del sistema: ficheros del sistema operativo, firmware y ficheros de configuración. Corresponde al refuerzo R2, que el ENS no exige en ningún nivel.',
       levels: ['ALTO'],
       requirements: ['op.cont.2.r2.1'],
       type: 'list',
       example: '/boot, /etc, /sbin, versión de BIOS/UEFI',
       required: false,
       wazuhUsage:
-        'FIM con scan_on_start y verificación de hash compara al arrancar el agente el estado con la línea base. Lo mide op.exp.6 (su EV-06, comprobación de integridad en el arranque).',
+        'FIM con scan_on_start y verificación de hash compara al arrancar el agente el estado con la línea base. Lo mide op.exp.6 (EV-06).',
       ensfacilUsage:
-        'Solo informe: R2 no se exige, y la comprobación de integridad tras el arranque ya la juzga op.exp.6.',
+        'Solo informe: R2 no se exige y la integridad tras el arranque ya la juzga op.exp.6.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'Ninguna consecuencia en el cumplimiento: R2 no se exige. El informe no puede decir qué componentes se comprueban tras una caída.',
+        'Sin consecuencia en el cumplimiento. El informe no indica qué componentes se comprueban tras una caída.',
     },
     {
       id: 'P-08',
@@ -330,7 +309,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       name: 'periodicidad_revision_plan_meses',
       label: 'Periodicidad de revisión del plan (meses)',
       description:
-        'Cada cuántos meses se revisa y aprueba de nuevo el plan de continuidad. El ENS no fija la periodicidad en op.cont.2, pero un plan desactualizado no cumple su función y suele ser hallazgo de auditoría: 12 (anual) o 24 (bienal) son los valores habituales.',
+        'Cada cuántos meses se revisa y aprueba de nuevo el plan de continuidad. El ENS no fija la periodicidad en op.cont.2, pero un plan desactualizado no cumple su función: son habituales 12 (anual) o 24 (bienal).',
       levels: ['ALTO'],
       requirements: ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'],
       type: 'number',
@@ -340,11 +319,11 @@ export const opCont2Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Ninguno: op.cont.2 no tiene recolector ni reglas.',
       ensfacilUsage:
-        'EV-01: un plan cuya última aprobación (P-01) tiene más de P-08 meses en la fecha de la evaluación está vencido, y con él los cinco requisitos.',
+        'EV-01: un plan cuya última aprobación (P-01) tiene más de P-08 meses en la fecha de evaluación está vencido, y con él los cinco requisitos.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
       ifNotConfigured:
-        'Ningún requisito se puede acreditar (causa CONFIGURATION): no hay contra qué medir la vigencia del plan. Bloquea el control: es obligatorio.',
+        'Ningún requisito se acredita (causa CONFIGURATION): no hay contra qué medir la vigencia del plan. Bloquea el control, que es obligatorio.',
     },
   ],
 };

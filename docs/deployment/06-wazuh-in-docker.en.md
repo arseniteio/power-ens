@@ -268,7 +268,7 @@ user.
 Expected result:
 
 ```text
-== modo prueba: no se envía ningún cambio
+== dry-run mode: no change is sent
 == rol ensfacil_admin
 PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}
 == asignación de ensfacil_admin
@@ -282,7 +282,7 @@ Then the real run: the same command ending in
 `bash /t/create-admin-role.sh --mapear <user>`, without `--dry-run`.
 
 Expected result: `-> 201` (or `-> 200` if the role already existed) after each
-request and, at the end, `usuarios con el rol ensfacil_admin: <user>`.
+request and, at the end, `users with the role ensfacil_admin: <user>`.
 
 - The run can be repeated: the role is written the same way and only the
   missing users are added.
@@ -374,11 +374,11 @@ done
 ```
 
 Review the plan of each control: new parameters, values that are kept and, if
-it appears, the line `YA NO EXISTEN en el bloque y se pierden` (no longer in
+it appears, the line `NO LONGER IN THE BLOCK and lost` (no longer in
 the block and lost). If the plan is correct, repeat the loop with
 `python3 inject-control.py "$c" --apply`.
 
-Expected result: `== APLICADO ==` for each control.
+Expected result: `== APPLIED ==` for each control.
 
 Seeding merges: it keeps the value of every parameter that already had one and
 adds the missing ones. It also keeps the agents' settings (`configuration.agents`) and
@@ -410,9 +410,9 @@ docker run --rm -v <repo>:/w -w /w node:22-alpine \
   sh -c 'npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive && npx --yes tsx config/validate-configuration.ts /w/active.json'
 ```
 
-Expected result: `controles (23): mp.info.6 op.acc.1 …`,
-`ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.` and, with agent
-settings, one line per agent; at the end, `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
+Expected result: `controls (23): mp.info.6 op.acc.1 …`,
+`VALID STRUCTURE: the plugin will load this configuration.` and, with agent
+settings, one line per agent; at the end, `VALID AGENT AND TEMPLATE SETTINGS.`
 
 A `scope` without the `agentIds` and `groupIds` arrays is rejected
 (`configuration.scope.agentIds must be a string array`). The Configuración
@@ -453,8 +453,8 @@ docker run --rm --network <project>_default \
 
 Without `--apply` it prints the plan; with `--apply` it writes.
 
-Expected result: the changes per parameter and `DRY-RUN: nada escrito`; with
-`--apply`, `<n> cambio(s) escritos en wazuh-ens-configuration/active`.
+Expected result: the changes per parameter and `DRY-RUN: nothing written`; with
+`--apply`, `<n> change(s) written to wazuh-ens-configuration/active`.
 
 The file format and its rules are in the
 [installation from scratch, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy).

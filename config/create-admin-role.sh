@@ -1,37 +1,33 @@
 #!/usr/bin/env bash
 ###############################################################################
-# create-admin-role.sh · crea el rol ensfacil_admin y, si se pide, lo asigna
+# create-admin-role.sh · creates the ensfacil_admin role and, if asked, assigns it
 #
-#   sudo bash config/create-admin-role.sh [--dry-run] [--mapear <usuario>]...
+#   sudo bash config/create-admin-role.sh [--dry-run] [--mapear <user>]...
 #
-# Quien tiene el rol ensfacil_admin (o all_access) puede guardar la
-# configuración ENS y ver su historial; los demás la ven, pero al guardar
-# reciben un 403. El rol no da ningún permiso: es una marca que el plugin busca
-# entre los roles del usuario.
+# Whoever has the ensfacil_admin role (or all_access) can save the ENS configuration and see its
+# history; the others see it but get a 403 on save. The role grants no permission: it is a mark the
+# plugin looks for among the user's roles.
 #
-# Habla con el indexer con su certificado de administración, sin contraseña,
-# y comprueba el certificado del indexer contra su CA (nunca `-k`: este script
-# escribe en la seguridad del cluster, y sin comprobar a quién se le habla
-# cualquiera en medio recibiría el certificado de administración):
-#   OS_CERT   por defecto /etc/wazuh-indexer/certs/admin.pem
-#   OS_KEY    por defecto /etc/wazuh-indexer/certs/admin-key.pem
-#   OS_CA     por defecto /etc/wazuh-indexer/certs/root-ca.pem
-#   OS_URL    por defecto https://127.0.0.1:9200 (vale también ENS_OS_URL)
-# La URL tiene que llevar el nombre para el que está hecho el certificado del
-# indexer: el de una instalación por defecto de Wazuh es para 127.0.0.1, no
-# para localhost (con localhost, curl se niega: «no alternative certificate
-# subject name matches»).
+# Talks to the indexer with its administration certificate, no password, and verifies the indexer
+# certificate against its CA (never `-k`: this script writes to cluster security, and without
+# verifying who it talks to anyone in the middle would receive the administration certificate):
+#   OS_CERT   default /etc/wazuh-indexer/certs/admin.pem
+#   OS_KEY    default /etc/wazuh-indexer/certs/admin-key.pem
+#   OS_CA     default /etc/wazuh-indexer/certs/root-ca.pem
+#   OS_URL    default https://127.0.0.1:9200 (ENS_OS_URL also works)
+# The URL must carry the name the indexer certificate was made for: a default Wazuh install's is for
+# 127.0.0.1, not localhost (with localhost curl refuses: «no alternative certificate subject name matches»).
 #
-# Se puede repetir: el rol se reescribe igual y el mapeo solo AÑADE los
-# usuarios que falten; nunca quita a nadie. --dry-run enseña las peticiones que
-# cambiarían algo y no las envía (sí lee el mapeo, para saber qué falta).
+# Repeatable: the role is rewritten the same and the mapping only ADDS missing users; it never removes
+# anyone. --dry-run shows the requests that would change something and does not send them (it does read
+# the mapping, to know what is missing).
 ###############################################################################
 set -euo pipefail
 
-ROL=ensfacil_admin
-CUERPO_ROL='{"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
-RUTA_ROL="_plugins/_security/api/roles/$ROL"
-RUTA_MAPEO="_plugins/_security/api/rolesmapping/$ROL"
+ROLE=ensfacil_admin
+ROLE_BODY='{"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
+ROLE_PATH="_plugins/_security/api/roles/$ROLE"
+MAPPING_PATH="_plugins/_security/api/rolesmapping/$ROLE"
 
 CURL="${CURL:-curl}"
 OS_CERT="${OS_CERT:-/etc/wazuh-indexer/certs/admin.pem}"
@@ -40,167 +36,167 @@ OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"
 OS_URL="${OS_URL:-${ENS_OS_URL:-https://127.0.0.1:9200}}"
 OS_URL="${OS_URL%/}"
 
-uso() {
-  echo "uso: sudo bash create-admin-role.sh [--dry-run] [--mapear <usuario>]..." >&2
+usage() {
+  echo "usage: sudo bash create-admin-role.sh [--dry-run] [--mapear <user>]..." >&2
 }
 
-PRUEBA=0
-USUARIOS=()
+DRY_RUN=0
+USERS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run)
-      PRUEBA=1
+      DRY_RUN=1
       shift
       ;;
     --mapear)
       if [ -z "${2:-}" ] || [ "${2#-}" != "$2" ]; then
-        echo "--mapear necesita un nombre de usuario" >&2
-        uso
+        echo "--mapear needs a user name" >&2
+        usage
         exit 1
       fi
-      USUARIOS+=("$2")
+      USERS+=("$2")
       shift 2
       ;;
     -h|--help)
-      uso
+      usage
       exit 0
       ;;
     *)
-      echo "opción desconocida: $1" >&2
-      uso
+      echo "unknown option: $1" >&2
+      usage
       exit 1
       ;;
   esac
 done
 
-# Hace falta el certificado para cualquier petición, también para leer el mapeo
-# en modo prueba. Sin --mapear, el modo prueba no habla con el indexer.
-if [ "$PRUEBA" = 0 ] || [ "${#USUARIOS[@]}" -gt 0 ]; then
+# The certificate is needed for any request, also to read the mapping in dry-run mode. Without --mapear,
+# dry-run does not talk to the indexer.
+if [ "$DRY_RUN" = 0 ] || [ "${#USERS[@]}" -gt 0 ]; then
   if [ ! -r "$OS_CERT" ] || [ ! -r "$OS_KEY" ]; then
-    echo "no se puede leer el certificado de administración ($OS_CERT, $OS_KEY)." >&2
-    echo "Ejecutar con sudo, o indicar OS_CERT y OS_KEY." >&2
+    echo "cannot read the administration certificate ($OS_CERT, $OS_KEY)." >&2
+    echo "Run with sudo, or set OS_CERT and OS_KEY." >&2
     exit 2
   fi
   if [ ! -r "$OS_CA" ]; then
-    echo "no se puede leer la CA del indexer ($OS_CA): sin ella no se comprueba a quién se habla." >&2
-    echo "Ejecutar con sudo, o indicar OS_CA." >&2
+    echo "cannot read the indexer CA ($OS_CA): without it, who is being talked to is not verified." >&2
+    echo "Run with sudo, or set OS_CA." >&2
     exit 2
   fi
 fi
 
-# peticion MÉTODO RUTA [CUERPO]: deja el cuerpo de la respuesta en RESPUESTA y
-# el código HTTP en CODIGO. Nunca usuario ni contraseña: solo el certificado.
-RESPUESTA=
-CODIGO=
-peticion() {
-  local metodo="$1" ruta="$2" cuerpo="${3:-}" salida
-  local args=(-sS --cacert "$OS_CA" --cert "$OS_CERT" --key "$OS_KEY" -X "$metodo" -w '\n%{http_code}')
-  if [ -n "$cuerpo" ]; then
-    args+=(-H 'Content-Type: application/json' --data-binary "$cuerpo")
+# request METHOD PATH [BODY]: leaves the response body in RESPONSE and the HTTP code in CODE.
+# Never user or password: only the certificate.
+RESPONSE=
+CODE=
+request_to_indexer() {
+  local method="$1" path="$2" body="${3:-}" output
+  local args=(-sS --cacert "$OS_CA" --cert "$OS_CERT" --key "$OS_KEY" -X "$method" -w '\n%{http_code}')
+  if [ -n "$body" ]; then
+    args+=(-H 'Content-Type: application/json' --data-binary "$body")
   fi
-  if ! salida="$("$CURL" "${args[@]}" "$OS_URL/$ruta")"; then
-    echo "no se pudo hablar con el indexer en $OS_URL" >&2
+  if ! output="$("$CURL" "${args[@]}" "$OS_URL/$path")"; then
+    echo "could not talk to the indexer at $OS_URL" >&2
     exit 1
   fi
-  CODIGO="${salida##*$'\n'}"
-  RESPUESTA="${salida%$'\n'*}"
+  CODE="${output##*$'\n'}"
+  RESPONSE="${output%$'\n'*}"
 }
 
-# cambio MÉTODO RUTA CUERPO: lo imprime y, salvo en modo prueba, lo envía.
-cambio() {
+# change METHOD PATH BODY: prints it and, except in dry-run mode, sends it.
+change_request() {
   echo "$1 $2 $3"
-  if [ "$PRUEBA" = 1 ]; then
+  if [ "$DRY_RUN" = 1 ]; then
     return 0
   fi
-  peticion "$1" "$2" "$3"
-  case "$CODIGO" in
-    2??) echo "   -> $CODIGO" ;;
+  request_to_indexer "$1" "$2" "$3"
+  case "$CODE" in
+    2??) echo "   -> $CODE" ;;
     *)
-      echo "   -> $CODIGO $RESPUESTA" >&2
-      echo "el indexer ha rechazado la petición; no se sigue." >&2
+      echo "   -> $CODE $RESPONSE" >&2
+      echo "the indexer rejected the request; stopping." >&2
       exit 1
       ;;
   esac
 }
 
-if [ "$PRUEBA" = 1 ]; then
-  echo "== modo prueba: no se envía ningún cambio"
+if [ "$DRY_RUN" = 1 ]; then
+  echo "== dry-run mode: no change is sent"
 fi
 
-echo "== rol $ROL"
-cambio PUT "$RUTA_ROL" "$CUERPO_ROL"
+echo "== role $ROLE"
+change_request PUT "$ROLE_PATH" "$ROLE_BODY"
 
-if [ "${#USUARIOS[@]}" -gt 0 ]; then
-  echo "== asignación de $ROL"
-  peticion GET "$RUTA_MAPEO"
-  case "$CODIGO" in
-    200) EXISTE=1 ;;
-    404) EXISTE=0 ;;
+if [ "${#USERS[@]}" -gt 0 ]; then
+  echo "== assignment of $ROLE"
+  request_to_indexer GET "$MAPPING_PATH"
+  case "$CODE" in
+    200) EXISTS=1 ;;
+    404) EXISTS=0 ;;
     *)
-      echo "no se pudo leer el mapeo de $ROL: $CODIGO $RESPUESTA" >&2
+      echo "could not read the mapping of $ROLE: $CODE $RESPONSE" >&2
       exit 1
       ;;
   esac
 
-  # Qué falta: los usuarios pedidos que no están ya, sin repetir. Si el mapeo no
-  # existe se crea con ellos (no hay nadie a quien quitar); si existe, se añaden
-  # con PATCH `add` al final de `users`, que no toca a los que ya estaban.
-  PLAN="$(RESPUESTA="$RESPUESTA" python3 -c '
+  # What is missing: the requested users not already there, without repeats. If the mapping does not exist
+  # it is created with them (nobody to remove); if it exists, they are added with PATCH `add` at the end of
+  # `users`, which does not touch those already there.
+  PLAN="$(RESPONSE="$RESPONSE" python3 -c '
 import json, os, sys
 
-rol, existe, pedidos = sys.argv[1], sys.argv[2] == "1", sys.argv[3:]
-actuales = []
-if existe:
-    datos = json.loads(os.environ.get("RESPUESTA") or "{}")
-    actuales = list((datos.get(rol) or {}).get("users") or [])
+role, exists, requested = sys.argv[1], sys.argv[2] == "1", sys.argv[3:]
+current = []
+if exists:
+    data = json.loads(os.environ.get("RESPONSE") or "{}")
+    current = list((data.get(role) or {}).get("users") or [])
 
-nuevos, ya = [], []
-for usuario in pedidos:
-    if usuario in actuales:
-        if usuario not in ya:
-            ya.append(usuario)
-    elif usuario not in nuevos:
-        nuevos.append(usuario)
+new, already = [], []
+for user in requested:
+    if user in current:
+        if user not in already:
+            already.append(user)
+    elif user not in new:
+        new.append(user)
 
-compacto = dict(ensure_ascii=False, separators=(",", ":"))
-if not nuevos:
-    print("NADA")
+compact = dict(ensure_ascii=False, separators=(",", ":"))
+if not new:
+    print("NOTHING")
     print("")
-elif existe:
+elif exists:
     print("PATCH")
-    print(json.dumps([{"op": "add", "path": "/users/-", "value": u} for u in nuevos], **compacto))
+    print(json.dumps([{"op": "add", "path": "/users/-", "value": u} for u in new], **compact))
 else:
     print("PUT")
-    print(json.dumps({"users": nuevos}, **compacto))
-print(", ".join(ya))
-' "$ROL" "$EXISTE" "${USUARIOS[@]}")"
+    print(json.dumps({"users": new}, **compact))
+print(", ".join(already))
+' "$ROLE" "$EXISTS" "${USERS[@]}")"
 
-  METODO="$(printf '%s\n' "$PLAN" | sed -n 1p)"
-  CUERPO="$(printf '%s\n' "$PLAN" | sed -n 2p)"
-  YA="$(printf '%s\n' "$PLAN" | sed -n 3p)"
+  METHOD="$(printf '%s\n' "$PLAN" | sed -n 1p)"
+  BODY="$(printf '%s\n' "$PLAN" | sed -n 2p)"
+  ALREADY="$(printf '%s\n' "$PLAN" | sed -n 3p)"
 
-  if [ -n "$YA" ]; then
-    echo "ya tienen el rol: $YA"
+  if [ -n "$ALREADY" ]; then
+    echo "already have the role: $ALREADY"
   fi
-  if [ "$METODO" != NADA ]; then
-    cambio "$METODO" "$RUTA_MAPEO" "$CUERPO"
+  if [ "$METHOD" != NOTHING ]; then
+    change_request "$METHOD" "$MAPPING_PATH" "$BODY"
   fi
 fi
 
-if [ "$PRUEBA" = 1 ]; then
+if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 
-# Cómo queda.
-peticion GET "$RUTA_MAPEO"
-if [ "$CODIGO" = 200 ]; then
-  ACTUALES="$(RESPUESTA="$RESPUESTA" python3 -c '
+# How it ends up.
+request_to_indexer GET "$MAPPING_PATH"
+if [ "$CODE" = 200 ]; then
+  CURRENT_USERS="$(RESPONSE="$RESPONSE" python3 -c '
 import json, os, sys
-datos = json.loads(os.environ.get("RESPUESTA") or "{}")
-print(", ".join((datos.get(sys.argv[1]) or {}).get("users") or []))
-' "$ROL")"
-  echo "usuarios con el rol $ROL: ${ACTUALES:-ninguno}"
+data = json.loads(os.environ.get("RESPONSE") or "{}")
+print(", ".join((data.get(sys.argv[1]) or {}).get("users") or []))
+' "$ROLE")"
+  echo "users with the role $ROLE: ${CURRENT_USERS:-none}"
 else
-  echo "el rol $ROL no está asignado a nadie todavía (asignarlo con --mapear <usuario>)"
+  echo "the role $ROLE is not assigned to anyone yet (assign it with --mapear <user>)"
 fi
-echo "Los usuarios con $ROL o all_access pueden guardar la configuración ENS."
+echo "Users with $ROLE or all_access can save the ENS configuration."

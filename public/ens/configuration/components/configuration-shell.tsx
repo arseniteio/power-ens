@@ -49,7 +49,7 @@ export const ConfigurationShell = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
   // Opened from the control detail: the way back keeps its control and machine, still in the URL.
-  const vuelta = parseConfigurationBack(search);
+  const turn = parseConfigurationBack(search);
   const setSearch = useSetRouterSearch();
 
   const [
@@ -105,10 +105,10 @@ export const ConfigurationShell = () => {
   return (
     <EuiPage paddingSize='m'>
       <EuiPanel paddingSize='l'>
-        {vuelta && (
+        {turn && (
           <>
-            <EuiButtonEmpty iconType='arrowLeft' flush='left' onClick={() => setSearch(configurationBackChanges(vuelta))}>
-              {`Volver al detalle de ${vuelta.controlId}${search.agentId ? ` (${search.agentId})` : ''}`}
+            <EuiButtonEmpty iconType='arrowLeft' flush='left' onClick={() => setSearch(configurationBackChanges(turn))}>
+              {`Volver al detalle de ${turn.controlId}${search.agentId ? ` (${search.agentId})` : ''}`}
             </EuiButtonEmpty>
             <EuiSpacer size='s' />
           </>

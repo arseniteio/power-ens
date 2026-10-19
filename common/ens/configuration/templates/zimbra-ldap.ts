@@ -6,16 +6,11 @@ import {
   linuxUbuntuTemplate,
 } from './linux-ubuntu';
 
-// Servidor LDAP de Zimbra: un Ubuntu con el directorio de Zimbra. Es la
-// plantilla de Linux con lo que cambia en el directorio, así que se aplica SOLA
-// (no hace falta aplicar también «Linux Ubuntu»). Se propone a los agentes que
-// emiten hechos del recolector LDAP (`data.plano = directorio`).
-//
-// Los ajustes propios del recolector LDAP (SSF mínimo, hashes fuertes, socket
-// `ldapi`) no son parámetros del plugin: viven en el `.env` de la máquina.
-// Las cuentas de Zimbra con sufijo aleatorio (`spam.*`, `ham.*`,
-// `virus-quarantine.*`, `galsync.*`) son de cada instalación: se declaran como
-// valor propio del agente.
+// Zimbra LDAP server: an Ubuntu with the Zimbra directory. The Linux template plus the directory differences,
+// applied ALONE. Proposed to agents emitting LDAP collector facts (`data.plano = directorio`).
+// LDAP collector settings (minimum SSF, strong hashes, `ldapi` socket) live in the machine `.env`, not in plugin
+// parameters. Zimbra accounts with random suffixes (`spam.*`, `ham.*`, `virus-quarantine.*`, `galsync.*`) are
+// per installation: declared as the agent's own value.
 
 const linux = linuxUbuntuTemplate.values;
 

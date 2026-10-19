@@ -1,18 +1,12 @@
-// Detección del tipo de sistema de cada agente. Pura: recibe lo que el
-// inventario (`wazuh-monitoring`) y los hechos (una agregación de 30 días) dicen
-// de la máquina y devuelve el tipo con su EVIDENCIA, para que la pantalla diga
-// «detectado por …» y el responsable pueda corregirlo.
-//
-// Orden (la primera regla que acierta da el tipo):
-//   1. id 000                                 → Manager
-//   2. os.platform = windows                  → Windows
-//   3. hechos con data.plano = directorio     → LDAP (Zimbra)
-//      (un servidor LDAP es un Ubuntu más en el inventario: solo lo delatan
-//      los hechos de su recolector; recién instalado y sin hechos, sale Linux
-//      y se corrige a mano)
-//   4. os.platform de la familia Linux, u os.uname que empieza por «Linux»
-//                                             → Linux
-//   5. sin os                                  → sin detectar
+// System type detection per agent. Pure: takes what the inventory (`wazuh-monitoring`) and the facts (30-day
+// aggregation) say and returns the type with its EVIDENCE.
+// Order (first matching rule wins):
+//   1. id 000 -> Manager
+//   2. os.platform = windows -> Windows
+//   3. facts with data.plano = directorio -> LDAP (Zimbra); only its collector's facts reveal it, so a fresh
+// install without facts is Linux until corrected by hand
+//   4. Linux-family os.platform, or os.uname starting with "Linux" -> Linux
+//   5. no os -> undetected
 // mp.info.6 backup facts (data.origen = pbs or zimbra-ne) only propose a template there, never apply it.
 import {
   ENSAgentProfile,
@@ -42,9 +36,9 @@ export interface ENSDetectionFacts {
 export interface ENSSystemDetection {
   type?: ENSSystemType;
   source: 'id' | 'inventario' | 'hechos' | 'ninguna';
-  // «detectado por …», en una frase.
+  // "detectado por ..." in one sentence.
   evidence: string;
-  // Añadidos que proponen los hechos, con su evidencia.
+  // Additions proposed by the facts, with their evidence.
   addons: { templateId: string; evidence: string }[];
 }
 
@@ -54,9 +48,9 @@ const LINUX_PLATFORMS = [
   'arch', 'linux',
 ];
 
-const miles = (n: number): string => n.toLocaleString('es-ES');
+const thousands = (n: number): string => n.toLocaleString('es-ES');
 
-// `data.plano` puede venir compuesto (`sistema,directorio`, `sistema+directorio`).
+// `data.plano` may be composite (`sistema,directorio`, `sistema+directorio`).
 const factsWithPlane = (planes: Record<string, number> | undefined, plane: string): number =>
   Object.entries(planes || {})
     .filter(([value]) => value.toLowerCase().split(/[,+\s]+/).includes(plane))
@@ -70,11 +64,11 @@ export const detectAgentSystem = (
   const origins = facts?.backupOrigins || {};
 
   if (origins.pbs) {
-    addons.push({ templateId: 'pbs-backup', evidence: `${miles(origins.pbs)} datos de copias con PBS en 30 días` });
+    addons.push({ templateId: 'pbs-backup', evidence: `${thousands(origins.pbs)} datos de copias con PBS en 30 días` });
   }
 
   if (origins['zimbra-ne']) {
-    addons.push({ templateId: 'zimbra-ne-backup', evidence: `${miles(origins['zimbra-ne'])} datos de copias con Zimbra NE en 30 días` });
+    addons.push({ templateId: 'zimbra-ne-backup', evidence: `${thousands(origins['zimbra-ne'])} datos de copias con Zimbra NE en 30 días` });
   }
 
   if (normalizeAgentId(agent.id) === ENS_MANAGER_ID) {
@@ -94,7 +88,7 @@ export const detectAgentSystem = (
     return {
       type: 'zimbra-ldap',
       source: 'hechos',
-      evidence: `${miles(directory)} datos del directorio LDAP en 30 días`,
+      evidence: `${thousands(directory)} datos del directorio LDAP en 30 días`,
       addons,
     };
   }
@@ -122,7 +116,7 @@ export const detectAgentSystem = (
 export interface ENSEffectiveSystemType {
   type?: ENSSystemType;
   manual: boolean;
-  // «detectado por …» o «corregido a mano (detectado: …)».
+  // "detectado por ..." or "corregido a mano (detectado: ...)".
   description: string;
 }
 
@@ -130,7 +124,7 @@ export const effectiveSystemType = (
   detection: ENSSystemDetection,
   profile?: ENSAgentProfile
 ): ENSEffectiveSystemType => {
-  // Sin datos vivos, el tipo detectado que se guardó la última vez.
+  // Without live data, the type detected last time it was stored.
   const detectedType = detection.type || knownSystemType(profile?.detectedType);
   const detectedBy = detection.type ? detection.evidence : profile?.detectedBy || detection.evidence;
   const override = knownSystemType(profile?.typeOverride);
@@ -154,17 +148,14 @@ export const effectiveSystemType = (
 export const proposedTemplates = (controlId: string, detection: ENSSystemDetection): string[] =>
   detection.addons.map(addon => addon.templateId).filter(id => Boolean(getBuiltinTemplate(controlId, id)));
 
-// El nombre de la máquina en `os.uname` («Linux |host.dominio |…»).
+// Machine name in `os.uname` ("Linux |host.domain |...").
 export const hostnameFromUname = (uname?: string): string | undefined => {
   const parts = String(uname || '').split('|').map(part => part.trim());
   return /^linux$/i.test(parts[0] || '') && parts[1] ? parts[1] : undefined;
 };
 
-// Los nombres por los que se conoce a una máquina en las tablas de la
-// configuración: el id, el nombre del agente, el hostname de `os.uname`, la
-// parte corta de los dos (antes del primer punto) y los alias guardados en su
-// perfil. En minúsculas y sin repetir. La misma máquina aparece hoy con su
-// nombre de agente, su hostname completo y su hostname corto.
+// Names a machine is known by in the configuration tables: id, agent name, `os.uname` hostname, the short part
+// of both (before the first dot) and stored profile aliases. Lowercase, deduplicated.
 export const agentAliases = (
   agent: ENSDetectableAgent,
   profile?: ENSAgentProfile

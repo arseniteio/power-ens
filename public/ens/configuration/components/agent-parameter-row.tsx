@@ -25,25 +25,25 @@ import { errorMessage } from './confirm-modal';
 
 interface AgentParameterRowProps {
   agentId: string;
-  // `value` es lo que se enseña y se edita: el valor efectivo o, en un
-  // parámetro de contribución, solo lo que aporta este sistema.
+  // `value` is what is shown and edited: the effective value or, in a contribution parameter, only what this
+  // system adds.
   parameter: ENSControlParameter;
   parameterClass: 'system' | 'platform';
   origin: ENSResolvedValueOrigin;
-  // Parámetro que describe otras máquinas en un control del manager (o el
-  // alcance declarado): aquí se declara solo la aportación de este sistema.
+  // Parameter describing other machines in a manager control (or the declared scope): only this system's
+  // contribution is declared here.
   contributionOnly?: boolean;
-  // Las filas de la organización, aparte y de solo lectura.
+  // The organization rows, apart and read-only.
   organisationRows?: string[];
-  // Lo que se evalúa de verdad (la unión en la fila del manager), de solo lectura.
+  // What is really evaluated (the union on the manager row), read-only.
   effectiveRows?: string[];
   note?: string;
   applicable: boolean;
   focused: boolean;
-  // Qué pasará al guardar este valor (vacío, igual al heredado o propio).
+  // What saving this value will do (empty, same as inherited, or own).
   describeSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => 'quitar' | 'igual' | 'propio';
   onSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => Promise<void>;
-  // Tras guardar el parámetro que pidió la URL, para que no vuelva a abrirse.
+  // After saving the parameter requested by the URL, so it does not open again.
   onDone?: () => void;
 }
 
@@ -100,7 +100,7 @@ export const AgentParameterRow = ({
   onSave,
   onDone,
 }: AgentParameterRowProps) => {
-  // Solo al montar: el parámetro que pide la URL se abre una vez.
+  // On mount only: the parameter requested by the URL opens once.
   const [editing, setEditing] = useState(focused);
   const [draft, setDraft] = useState<ENSControlParameter['value']>(parameter.value);
   const [draftMode, setDraftMode] = useState<ENSMatchMode>(parameter.matchMode === 'regex' ? 'regex' : 'exact');
@@ -126,7 +126,7 @@ export const AgentParameterRow = ({
     if (focused) anchor.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  // Cuando el valor cambia (tras guardar), el borrador vuelve a él.
+  // When the value changes (after saving), the draft returns to it.
   useEffect(() => {
     if (!editing) resetDraft();
   }, [valueKey]);

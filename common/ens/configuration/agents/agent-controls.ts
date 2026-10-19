@@ -1,8 +1,7 @@
-// Qué controles se miden en una máquina, para la pantalla de un sistema y su
-// completitud: los de su plano de medida (el manager, los de plano `manager`;
-// las demás, los de plano `agent`) y, si su plataforma solo tiene recolector
-// para algunos (Windows: op.acc.1-4), solo esos. Los demás se enseñan aparte
-// como «sin recolector en esta plataforma», que no es lo mismo que no cumplir.
+// Controls measured on a machine, for its system screen and completeness: those of its measurement plane
+// (`manager` plane for the manager, `agent` for the rest) and, if its platform has a collector for only some
+// (Windows: op.acc.1-4), only those. The others are shown apart as "sin recolector en esta plataforma", which is
+// not a failure.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
 import { getENSCatalogControl } from '../../catalog';
@@ -15,7 +14,7 @@ export interface ENSAgentControl {
   controlName: string;
   level: ENSLevel;
   measured: boolean;
-  // Por qué no se mide en esta máquina, si no se mide.
+  // Why it is not measured on this machine, if it is not.
   reason?: string;
 }
 

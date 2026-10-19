@@ -242,7 +242,7 @@ CONTROLS="mp.info.6 op.acc.1 op.acc.2 op.acc.3 op.acc.4 op.acc.5 op.acc.6 op.exp
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" || break; done
 ```
 
-Review the plan (especially any `YA NO EXISTEN en el bloque y se pierden` line) and apply it:
+Review the plan (especially any `NO LONGER IN THE BLOCK and lost` line) and apply it:
 
 ```bash
 for c in $CONTROLS; do echo "===== $c ====="; sudo env $CERT python3 inject-control.py "$c" --apply || break; done
@@ -258,7 +258,7 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `Done` after installing the dependencies and `ESTRUCTURA VÁLIDA`. If the result is `ESTRUCTURA INVÁLIDA`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
+Expected result: `Done` after installing the dependencies and `VALID STRUCTURE`. If the result is `INVALID STRUCTURE`, restore `$BACKUP/active.json` as described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration). The alternatives for validating off the server and declaring values with `set-parameters.py` (which replaces the whole list of every parameter it names) are in the [installation guide, sections 14.4 and 14.5](01-installation-from-scratch.en.md#144-validate-the-whole-document).
 
 If the environment comes from 1.0.0, adjust the replicas of the configuration index. Since 1.1.0 the plugin creates `wazuh-ens-configuration` with `auto_expand_replicas: 0-1`, but only when the index does not exist: one created by 1.0.0 keeps its replica and, on a single-node indexer, stays yellow because that replica cannot be assigned. The plugin does not change an index that already exists; it is done once, by hand, with the indexer admin certificate:
 

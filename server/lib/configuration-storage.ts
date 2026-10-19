@@ -36,9 +36,8 @@ export async function ensureENSConfigurationIndex(client: any, logger: Logger): 
     await client.indices.create({
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        // `auto_expand_replicas` y no una réplica fija: en un indexer de un solo
-        // nodo la réplica no se puede asignar nunca y el índice se queda en
-        // amarillo para siempre; con más de un nodo, se crea la réplica.
+        // `auto_expand_replicas` instead of a fixed replica: on a single-node indexer a replica can never be
+        // assigned and the index stays yellow; with more nodes, the replica is created.
         settings: { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } },
         mappings: {
           properties: {
@@ -75,7 +74,7 @@ export async function readActiveENSConfiguration(
     },
   });
 
-  // Con un shard fallido no se cae a la plantilla por defecto en silencio.
+  // With a failed shard it does not silently fall back to the default template.
   assertCompleteResponse(result.body, 'la configuración ENS');
   const hit = result.body?.hits?.hits?.[0];
 
@@ -102,11 +101,9 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
-// `previous`: el documento que se sustituye, cuando no está ya como la última
-// versión del historial (lo escribió una herramienta de `config/` sin pasar por
-// el plugin, o es anterior a que existiera el historial). Se guarda en el mismo
-// bulk, un milisegundo antes, para que la versión anterior a CUALQUIER guardado
-// —también la migración a sistemas— quede siempre en el historial.
+// `previous`: the document being replaced, when it is not already the last history version (written by a
+// `config/` tool bypassing the plugin, or older than the history). Stored in the same bulk, one millisecond
+// earlier, so the version before ANY save (including the systems migration) is always in the history.
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,

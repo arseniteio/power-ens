@@ -1,4 +1,5 @@
-// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict JSON.
+// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict
+// JSON.
 export type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
 export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
@@ -28,12 +29,9 @@ export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterCl
   "op.nub.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation", "P-12": "organisation", "P-13": "organisation"}
 };
 
-// La columna que NOMBRA LA MÁQUINA en las tablas «por sistema». La migración
-// a sistemas reparte por ella las filas que hoy viven en la organización; una
-// tabla por sistema que no está aquí (rutas, ACL, matrices de privilegios) no
-// tiene una columna que diga de qué máquina es cada fila y no se reparte.
-// Las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01) tampoco:
-// el motor las lee enteras para decidir en qué máquinas se mide el control.
+// Column that NAMES THE MACHINE in per-system tables; the migration distributes rows by it. Per-system tables
+// absent here (paths, ACL, privilege matrices) have no such column and are not distributed, nor are the scope
+// lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), which the engine reads whole.
 export const ENS_SYSTEM_KEY_COLUMNS: Record<string, Record<string, string>> = {
   'op.acc.1': { 'P-07': 'sistema' },
   'op.acc.5': { 'P-02': 'host' },
@@ -56,7 +54,7 @@ export const getParameterClass = (
   parameterId: string
 ): ENSParameterClass | undefined => ENS_PARAMETER_CLASSES[controlId]?.[parameterId];
 
-// ¿Puede tener valor propio en un agente o venir de una plantilla?
+// Can it have its own value on an agent or come from a template?
 export const isAgentLevelParameter = (controlId: string, parameterId: string): boolean => {
   const parameterClass = getParameterClass(controlId, parameterId);
   return parameterClass === 'system' || parameterClass === 'platform';

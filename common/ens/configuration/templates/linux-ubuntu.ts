@@ -1,9 +1,9 @@
 import type { ENSPlatformSource } from './types';
 
-// Servidor Linux estándar (Ubuntu). Se propone a los agentes con `os.platform`
-// de la familia Linux y sin hechos del recolector LDAP.
+// Standard Linux (Ubuntu) server. Proposed to agents with a Linux-family `os.platform` and no LDAP collector
+// facts.
 
-const CUENTAS_DE_SISTEMA_UBUNTU = [
+const UBUNTU_SYSTEM_ACCOUNTS = [
   '_apt', 'backup', 'bin', 'daemon', 'dhcpcd', 'fwupd-refresh', 'games', 'irc',
   'landscape', 'list', 'lp', 'mail', 'man', 'messagebus', 'news', 'nobody',
   'polkitd', 'pollinate', 'proxy', 'sshd', 'sync', 'sys', 'syslog',
@@ -11,9 +11,8 @@ const CUENTAS_DE_SISTEMA_UBUNTU = [
   'uucp', 'uuidd', 'wazuh', 'www-data', 'root',
 ];
 
-// Los binarios SUID observados en Ubuntu 22.04 y 24.04 con el agente de Wazuh y
-// los recolectores de ENSFácil instalados.
-const SUID_UBUNTU = [
+// SUID binaries observed on Ubuntu 22.04 and 24.04 with the Wazuh agent and the ENSFácil collectors installed.
+const UBUNTU_SUID = [
   '/usr/bin/at', '/usr/bin/chage', '/usr/bin/chfn', '/usr/bin/chsh',
   '/usr/bin/crontab', '/usr/bin/expiry', '/usr/bin/fusermount3',
   '/usr/bin/gpasswd', '/usr/bin/mount', '/usr/bin/newgrp', '/usr/bin/passwd',
@@ -26,7 +25,7 @@ const SUID_UBUNTU = [
   '/usr/lib/xorg/Xorg.wrap', '/usr/sbin/pppd',
 ];
 
-// `OPACC2_RUTAS_CRITICAS` de `op.acc.2-access-requirements/etc/opacc2.env.example`.
+// `OPACC2_RUTAS_CRITICAS` from `op.acc.2-access-requirements/etc/opacc2.env.example`.
 export const LINUX_CRITICAL_PATHS = [
   '/etc/passwd', '/etc/shadow', '/etc/group', '/etc/gshadow', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/ssh/sshd_config', '/etc/crontab', '/etc/cron.d',
@@ -61,13 +60,13 @@ export const linuxUbuntuTemplate: ENSPlatformSource = {
   values: {
     'op.acc.1': {
       'P-01': 'Local',
-      'P-03': CUENTAS_DE_SISTEMA_UBUNTU,
+      'P-03': UBUNTU_SYSTEM_ACCOUNTS,
       'P-10': 1000,
       'P-11': ['sudo', 'wheel', 'admin'],
     },
     'op.acc.2': {
       'P-02': LINUX_CRITICAL_PATHS,
-      'P-10': SUID_UBUNTU,
+      'P-10': UBUNTU_SUID,
       'P-11': ['/tmp', '/var/tmp', '/dev/shm'],
       'P-12': ['sudo', 'wheel', 'admin', 'adm', 'root'],
     },

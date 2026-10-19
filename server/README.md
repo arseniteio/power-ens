@@ -95,7 +95,7 @@ npx --yes tsx server/scripts/measure-evaluation.ts \
   --tz Europe/Madrid --control op.acc.1 --agent 000
 ```
 
-Resultado esperado: una línea por petición (`summary (primera respuesta)`, `summary completo`, `dashboard 7 días`, …) con `ms`, `llamadas`, `leído`, `filas calculadas` y la serie; el desglose por control; «por control: leído / en la ventana» y una última línea con la memoria y los totales.
+Resultado esperado: una línea por petición (`summary (first response)`, `summary complete`, `dashboard 7 days`, …) con `ms`, `calls`, `read`, `rows computed` y la serie; el desglose por control; «per control: read / in the window» y una última línea con la memoria y los totales.
 
 Las mismas opciones por entorno: `ENSFACIL_INDEXER_URL`, `ENSFACIL_INDEXER_CA`, `ENSFACIL_INDEXER_CERT`, `ENSFACIL_INDEXER_KEY`, `ENSFACIL_TZ`, `ENSFACIL_CONTROL`, `ENSFACIL_AGENT`, `ENSFACIL_WAIT`, `ENSFACIL_TIMEOUT`. `--insecure` (o `ENSFACIL_INDEXER_INSECURE=1`) no comprueba el certificado del indexador. En un servidor sin Node, con el contenedor oficial de Node y el plugin y los certificados montados de solo lectura:
 

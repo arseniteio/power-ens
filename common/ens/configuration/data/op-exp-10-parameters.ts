@@ -1,30 +1,11 @@
 import { ENSControlConfiguration } from '../types';
 
-// op.exp.10 · la política que decide el control. El agente emite hechos sobre el
-// material criptográfico de la máquina (claves en disco, certificados,
-// algoritmos que acepta sshd, accesos y ejecuciones que registra auditd) y el
-// veredicto sale de contrastarlos con lo que aquí se decide.
-//
-// Cambios frente a la plantilla del auditor, y por qué:
-//
-//   - P-01 lleva la columna `estado` (activa | retirada) y `huella`. Sin
-//     `estado` no hay dónde leer «claves declaradas como retiradas», que es
-//     exactamente lo que EV-06 y el campo «Claves retiradas y su archivo» del
-//     informe contrastan: op.exp.10.3 quedaba bloqueado por la propia plantilla.
-//     La huella identifica la clave aunque la hayan movido o renombrado.
-//   - P-02 pasa de lista a tabla `ruta | modo_maximo | propietario`. La ficha
-//     pide vigilar que los permisos «son restrictivos» (600 o 400), y un modo
-//     escrito en la prosa no lo puede aplicar el motor: tiene que ser política
-//     declarada. Una celda vacía = ese eje no se declara para ese almacén.
-//   - P-06 tenía un formato propio («Destino + aislamiento») que no es ni
-//     tabla ni lista. Es una tabla `destino | soporte | aislamiento`.
-//   - P-10 es nuevo: la antelación con la que un certificado se da por
-//     «próximo a caducar». La ficha pinta ese estado en ÁMBAR y ningún
-//     parámetro decía cuántos días son; sin él, el ámbar no es objetivo. No
-//     convierte nada en incumplimiento: un certificado vigente sigue
-//     cumpliendo, y el motivo lo avisa.
-//   - Las columnas que el generador cortó (P-01 `ubicacion` y `responsable`,
-//     P-09 `conformidad`) vuelven, y ninguna se llama `longitud_m_n_`.
+// op.exp.10 · the policy that decides the control. The agent emits facts about the machine's cryptographic
+// material and the verdict comes from contrasting them with what is decided here.
+// P-01 has `estado` (activa | retirada) and `huella`: without `estado` there is no place to read the declared
+// retired keys that EV-06 contrasts. P-02 is a table `ruta | modo_maximo | propietario` (an empty cell leaves
+// that axis undeclared). P-06 is a table `destino | soporte | aislamiento`. P-10 is new: the notice days for
+// "close to expiry" (the AMBER of the sheet); it turns nothing into a breach.
 const USOS_ALGORITMO = [
   'protocolo',
   'cifrado',
@@ -48,7 +29,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'inventario_claves_criptograficas',
       label: 'Inventario de claves criptográficas',
       description:
-        'Relación de claves y material criptográfico del sistema con su finalidad, tipo de soporte (HSM, fichero, almacén del sistema operativo, tarjeta), ubicación, responsable de su custodia y ESTADO: activa o retirada. La huella es la de la parte pública de la clave: SHA256:… de `ssh-keygen -l -f` para una clave SSH, y sha256:<hex> de `openssl pkey -in <clave> -pubout -outform DER | sha256sum` para una PEM. Una clave retirada se reconoce por su huella o, si no se declara, por su ubicación exacta.',
+        'Claves y material criptográfico del sistema con finalidad, soporte (HSM, fichero, almacén del SO, tarjeta), ubicación, responsable de custodia y ESTADO: activa o retirada. La huella es la de la parte pública: SHA256:… de `ssh-keygen -l -f` para SSH y sha256:<hex> de `openssl pkey -in <clave> -pubout -outform DER | sha256sum` para PEM. Una clave retirada se reconoce por su huella o, sin ella, por su ubicación exacta.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.1', 'op.exp.10.3'],
       type: 'table',
@@ -100,13 +81,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Define qué debe vigilar ENSFácil. Las claves en HSM quedan fuera del alcance de Wazuh, pero las que residen en disco son monitorizables. Es imprescindible saber cuáles son de cada tipo.',
+        'Define qué debe vigilar ENSFácil. Las claves en HSM quedan fuera del alcance de Wazuh; las de disco son monitorizables.',
       ensfacilUsage:
-        'Sin inventario op.exp.10.1 y op.exp.10.3 no se pueden demostrar. Las filas en estado «retirada» se contrastan con las claves privadas que el agente encuentra en disco (EV-06): si una clave retirada sigue presente, por huella o por ubicación, op.exp.10.3 no se cumple.',
+        'Sin inventario, op.exp.10.1 y op.exp.10.3 no se demuestran. Las filas «retirada» se contrastan con las claves privadas halladas en disco (EV-06): si una retirada sigue presente, por huella o ubicación, op.exp.10.3 no se cumple.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'op.exp.10.1 y op.exp.10.3 NO EVALUABLES. Sin inventario de claves no hay nada que vigilar ni contra qué contrastar.',
+        'op.exp.10.1 y op.exp.10.3 NO EVALUABLES: sin inventario no hay nada que vigilar ni contrastar.',
     },
     {
       id: 'P-02',
@@ -114,7 +95,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'rutas_almacenes_claves',
       label: 'Almacenes de claves',
       description:
-        'Directorios que contienen material criptográfico autorizado (claves privadas, almacenes de certificados, ficheros con secretos) y la protección que se exige a lo que contienen. `ruta` es el DIRECTORIO donde vive la clave, sin barra final (/etc/ssh, /etc/ssl/private, /var/ossec/etc): una clave cuyo directorio no figura aquí está fuera de un almacén declarado. `modo_maximo` es el modo más permisivo admitido para las claves de ese almacén (600, 640, 400): un modo más restrictivo cumple. `propietario` es la cuenta dueña esperada. Una celda vacía deja ese eje sin declarar.',
+        'Directorios con material criptográfico autorizado (claves privadas, almacenes de certificados, ficheros con secretos) y protección exigida. `ruta` es el DIRECTORIO de la clave, sin barra final (/etc/ssh, /etc/ssl/private, /var/ossec/etc); una clave fuera de estos directorios está fuera de un almacén declarado. `modo_maximo` es el modo más permisivo admitido (600, 640, 400); uno más restrictivo cumple. `propietario` es la cuenta dueña esperada. Una celda vacía deja ese eje sin declarar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.1'],
       type: 'table',
@@ -143,11 +124,11 @@ export const opExp10Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Las mismas rutas se vigilan en lectura con auditd (fichero de reglas del runbook) para EV-01. Una ruta de P-02 que auditd no vigila es un hueco que el recolector declara.',
       ensfacilUsage:
-        'EV-02 contrasta el directorio de cada clave privada encontrada en disco con la columna `ruta`: una clave fuera de los almacenes declarados es un indicio de copia. EV-08 contrasta su modo y su propietario con `modo_maximo` y `propietario` de su fila.',
+        'EV-02 contrasta el directorio de cada clave privada hallada en disco con `ruta`: una clave fuera de los almacenes es indicio de copia. EV-08 contrasta su modo y propietario con los de su fila.',
       evidenceIds: ['EV-02', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede distinguir una clave en su almacén de una copiada fuera, ni juzgar si está protegida. EV-02 y EV-08 NO EVALUABLES.',
+        'No se distingue una clave en su almacén de una copiada fuera ni se juzga su protección: EV-02 y EV-08 NO EVALUABLES.',
     },
     {
       id: 'P-03',
@@ -155,7 +136,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'algoritmos_parametros_autorizados',
       label: 'Algoritmos y parámetros autorizados',
       description:
-        'Algoritmos y longitudes mínimas autorizados por el CCN (guía CCN-STIC-807), una fila por algoritmo y uso. El algoritmo se escribe como FAMILIA normalizada, la misma que emite el agente: AES-GCM, AES-CTR, CHACHA20-POLY1305, HMAC-SHA2-256, ECDH-P256, X25519, DH, RSA, ECDSA-P256, ED25519, SHA-256, TLS1.2, TLS1.3, SSHA-512… (la tabla completa está en la guía de cumplimiento del runbook). La longitud mínima en bits se compara con la longitud observada; vacía = no se exige longitud. Todo lo observado que no tenga fila para su uso es un algoritmo NO autorizado.',
+        'Algoritmos y longitudes mínimas autorizados por el CCN (CCN-STIC-807), una fila por algoritmo y uso, escritos como FAMILIA normalizada del agente (AES-GCM, CHACHA20-POLY1305, HMAC-SHA2-256, X25519, RSA, ECDSA-P256, ED25519, SHA-256, TLS1.2, TLS1.3…; tabla completa en la guía del runbook). La longitud mínima en bits se compara con la observada (vacía: no se exige) y todo lo observado sin fila para su uso es un algoritmo NO autorizado.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.10.r1.1'],
       type: 'table',
@@ -182,17 +163,17 @@ export const opExp10Configuration: ENSControlConfiguration = {
         },
       ],
       minValue: 0,
-      // Opcional a propósito: solo lo exige R1 (MEDIO y ALTO), y un obligatorio
-      // de un refuerzo no puede bloquear los requisitos base.
+      // Optional on purpose: only R1 (MEDIO and ALTO) requires it, and a reinforcement's required parameter must
+      // not block the base requirements.
       required: false,
       wazuhUsage:
-        'Es el parámetro que permite cubrir R1 con solidez. Algoritmo sin fila para su uso o longitud por debajo del mínimo → hallazgo.',
+        'Permite cubrir R1 con solidez. Algoritmo sin fila para su uso o longitud por debajo del mínimo: hallazgo.',
       ensfacilUsage:
-        'Se contrastan con esta tabla los algoritmos que ACEPTAN los servicios (EV-03), los que se NEGOCIAN de verdad (EV-04) y la clave y la firma de cada certificado (EV-07).',
+        'Se contrastan con esta tabla los algoritmos que ACEPTAN los servicios (EV-03), los que se NEGOCIAN (EV-04) y la clave y firma de cada certificado (EV-07).',
       evidenceIds: ['EV-03', 'EV-04', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
-        'op.exp.10.r1.1 NO EVALUABLE, siendo obligatorio desde categoría MEDIA. Es el refuerzo que Wazuh mejor podría cubrir.',
+        'op.exp.10.r1.1 NO EVALUABLE, obligatorio desde categoría MEDIA.',
     },
     {
       id: 'P-04',
@@ -200,7 +181,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'servicios_criptograficos',
       label: 'Servicios criptográficos',
       description:
-        'Servicios que emplean criptografía y cuya configuración debe verificarse. `servicio` es el nombre con el que lo emite el agente (sshd, slapd). `sistema` es el nombre del agente de Wazuh, o * para todos. El puerto es informativo.',
+        'Servicios que emplean criptografía y cuya configuración debe verificarse. `servicio` es el nombre que emite el agente (sshd, slapd). `sistema` es el nombre del agente de Wazuh o * para todos. El puerto es informativo.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.10.r1.1'],
       type: 'table',
@@ -227,13 +208,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Define el alcance de la verificación de R1. Servicio no declarado queda sin exigir.',
+        'Define el alcance de la verificación de R1. Un servicio no declarado queda sin exigir.',
       ensfacilUsage:
-        'Todo servicio declarado para una máquina tiene que haberse observado en ella: uno declarado y no observado deja R1 sin demostrar. Los servicios observados se juzgan todos contra P-03, estén o no declarados.',
+        'Todo servicio declarado para una máquina debe haberse observado en ella; si no, R1 queda sin demostrar. Los servicios observados se juzgan todos contra P-03, estén o no declarados.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
       ifNotConfigured:
-        'La verificación de R1 queda incompleta: sin alcance declarado no se puede afirmar que todos los servicios criptográficos se hayan verificado. op.exp.10.r1.1 NO EVALUABLE.',
+        'La verificación de R1 queda incompleta: sin alcance no se afirma que todos los servicios criptográficos se verificaron. op.exp.10.r1.1 NO EVALUABLE.',
     },
     {
       id: 'P-05',
@@ -241,7 +222,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'separacion_generacion_explotacion',
       label: 'Separación entre generación y explotación',
       description:
-        'Medios de generación de claves y medios de explotación. `medio` es el nombre del agente de Wazuh (o el de un HSM o equipo sin agente); `funcion` dice si es de generación o de explotación; `aislamiento` describe cómo están separados (red aislada, DMZ, fuera de línea).',
+        'Medios de generación de claves y medios de explotación. `medio` es el nombre del agente de Wazuh (o de un HSM o equipo sin agente); `funcion` indica generación o explotación; `aislamiento` describe la separación (red aislada, DMZ, fuera de línea).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.2', 'op.exp.10.3'],
       type: 'table',
@@ -269,13 +250,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que no se ejecutan herramientas de generación de claves en los sistemas declarados como de explotación.',
+        'ENSFácil verifica que no se ejecutan herramientas de generación de claves en los sistemas declarados de explotación.',
       ensfacilUsage:
-        'EV-05: una generación de claves observada en una máquina declarada «explotacion» incumple op.exp.10.2. Una máquina sin fila no tiene función declarada y no se puede juzgar. El aislamiento de red entre los medios se declara aquí y no se mide.',
+        'EV-05: una generación de claves observada en una máquina declarada «explotacion» incumple op.exp.10.2; una máquina sin fila no se juzga. El aislamiento de red se declara aquí y no se mide.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
-        'op.exp.10.2 NO EVALUABLE. No se puede acreditar el aislamiento que el requisito exige expresamente.',
+        'op.exp.10.2 NO EVALUABLE: no se acredita el aislamiento que exige el requisito.',
     },
     {
       id: 'P-06',
@@ -283,7 +264,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'archivo_claves_retiradas',
       label: 'Archivo de claves retiradas',
       description:
-        'Dónde y en qué soporte se archivan las claves retiradas de explotación activa, y cómo está aislado de los medios de explotación. Una fila por destino.',
+        'Dónde y en qué soporte se archivan las claves retiradas de explotación y cómo está aislado de los medios de explotación. Una fila por destino.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.3'],
       type: 'table',
@@ -310,13 +291,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que las claves retiradas no permanecen accesibles en los sistemas de explotación, contrastando el inventario P-01 con la presencia real de material criptográfico en disco.',
+        'ENSFácil verifica que las claves retiradas no siguen accesibles en los sistemas de explotación, contrastando el inventario de P-01 con el material criptográfico presente en disco.',
       ensfacilUsage:
-        'Sin destino de archivo declarado op.exp.10.3 no se puede demostrar. Un destino que sea una máquina declarada «explotacion» en P-05 incumple op.exp.10.3 por sí mismo.',
+        'Sin destino de archivo, op.exp.10.3 no se demuestra. Un destino que sea una máquina declarada «explotacion» en P-05 incumple op.exp.10.3.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
-        'op.exp.10.3 NO EVALUABLE. Riesgo de que claves retiradas sigan accesibles en producción.',
+        'op.exp.10.3 NO EVALUABLE: riesgo de que claves retiradas sigan accesibles en producción.',
     },
     {
       id: 'P-07',
@@ -324,20 +305,20 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'procedimiento_ciclo_vida_claves',
       label: 'Procedimiento de ciclo de vida de las claves',
       description:
-        'Procedimiento documentado que cubre las cinco fases del ciclo de vida que enumera op.exp.10.1: generación, transporte al punto de explotación, custodia durante la explotación, archivo posterior a la retirada y destrucción final. Referencia y fases cubiertas.',
+        'Procedimiento documentado de las cinco fases del ciclo de vida de op.exp.10.1: generación, transporte al punto de explotación, custodia durante la explotación, archivo tras la retirada y destrucción final. Referencia y fases cubiertas.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.1'],
       type: 'string',
       example: '«PR-20 Gestión de claves criptográficas v2», con las 5 fases documentadas',
       required: true,
       wazuhUsage:
-        'Referencia documental que ENSFácil recoge en el informe indicando qué fases están cubiertas y qué fases son verificables automáticamente. Las fases de transporte y destrucción son casi siempre documentales.',
+        'Referencia documental que ENSFácil recoge en el informe con las fases cubiertas y las verificables automáticamente. Transporte y destrucción son casi siempre documentales.',
       ensfacilUsage:
-        'La ficha lo pide junto a P-01 para poder evaluar op.exp.10.1: sin procedimiento declarado, op.exp.10.1 no se puede demostrar aunque la custodia medida esté bien.',
+        'La ficha lo pide junto a P-01: sin procedimiento, op.exp.10.1 no se demuestra aunque la custodia medida esté bien.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'op.exp.10.1 NO EVALUABLE. Las fases no monitorizables quedan sin soporte documental.',
+        'op.exp.10.1 NO EVALUABLE: las fases no monitorizables quedan sin soporte documental.',
     },
     {
       id: 'P-08',
@@ -345,7 +326,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'personal_autorizado_claves',
       label: 'Personal autorizado a las claves',
       description:
-        'Cuentas autorizadas a acceder al material criptográfico. La comparación es por CUENTA, literal y distinguiendo mayúsculas. Incluye las cuentas de servicio que leen sus propias claves (root para sshd, wazuh para client.keys): un acceso sin sesión se atribuye a la cuenta del proceso.',
+        'Cuentas autorizadas a acceder al material criptográfico, comparadas por CUENTA de forma literal y sensible a mayúsculas. Incluye las de servicio que leen sus claves (root para sshd, wazuh para client.keys), porque un acceso sin sesión se atribuye a la cuenta del proceso.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.1'],
       type: 'table',
@@ -372,13 +353,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Todo acceso a los almacenes vigilados por una cuenta fuera de esta lista es un hallazgo. Es la comprobación que produce hallazgos con más frecuencia en este control.',
+        'Todo acceso a los almacenes vigilados por una cuenta ajena a esta lista es hallazgo. Es la comprobación que más hallazgos produce en este control.',
       ensfacilUsage:
-        'EV-01 contrasta el actor de cada acceso registrado por auditd con la columna `cuenta`. Las columnas `claves` y `operacion` documentan el alcance de cada autorización y no se juzgan por clave.',
+        'EV-01 contrasta el actor de cada acceso registrado por auditd con la columna `cuenta`. `claves` y `operacion` documentan el alcance de cada autorización y no se juzgan por clave.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
       ifNotConfigured:
-        'No se puede distinguir un acceso legítimo de uno indebido. EV-01 NO EVALUABLE.',
+        'No se distingue un acceso legítimo de uno indebido: EV-01 NO EVALUABLE.',
     },
     {
       id: 'P-09',
@@ -386,7 +367,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'cifradores_ccn_stic',
       label: 'Cifradores conformes a CCN-STIC',
       description:
-        'Cifradores empleados y su conformidad con los requisitos de la guía CCN-STIC aplicable. Corresponde al Refuerzo R2, no obligatorio en ninguna categoría pero relevante en entornos que manejan información clasificada o especialmente sensible.',
+        'Cifradores empleados y su conformidad con la guía CCN-STIC aplicable. Corresponde al refuerzo R2, no obligatorio en ninguna categoría pero relevante con información clasificada o especialmente sensible.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.r2.1'],
       type: 'table',
@@ -413,13 +394,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil recoge la declaración de conformidad en el informe. La verificación de conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto, no observable desde Wazuh.',
+        'ENSFácil recoge la declaración de conformidad en el informe. La conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto: Wazuh no la observa.',
       ensfacilUsage:
         'Solo informativo: R2 no es exigible en ninguna categoría.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'R2 sin acreditar. No supone incumplimiento al no ser exigible en ninguna categoría.',
+        'R2 sin acreditar. No supone incumplimiento: no es exigible en ninguna categoría.',
     },
     {
       id: 'P-10',
@@ -427,7 +408,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'antelacion_caducidad_certificados',
       label: 'Antelación de caducidad de certificados',
       description:
-        'Días antes de su caducidad a partir de los cuales un certificado se considera próximo a caducar. Es el ÁMBAR de la ficha del control: no convierte un certificado vigente en incumplimiento, lo avisa en el motivo para que la retirada se prepare a tiempo.',
+        'Días antes de su caducidad desde los que un certificado se considera próximo a caducar. Es el ÁMBAR de la ficha: no convierte un certificado vigente en incumplimiento, lo avisa en el motivo para preparar la retirada.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.10.1'],
       type: 'duration_days',
@@ -437,7 +418,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'EV-07 inventaría la fecha de caducidad de cada certificado en disco.',
       ensfacilUsage:
-        'Un certificado caducado incumple op.exp.10.1 siempre. Uno vigente que caduca dentro de este plazo se señala como próximo a caducar en el motivo de EV-07.',
+        'Un certificado caducado incumple op.exp.10.1. Uno vigente que caduca dentro de este plazo se señala como próximo a caducar en el motivo de EV-07.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -449,7 +430,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       name: 'atestaciones_documentales',
       label: 'Atestaciones documentales',
       description:
-        'Documentos con los que se acredita un requisito que ninguna medida técnica puede demostrar. En op.exp.10 el único requisito sin evidencia técnica es R2 (op.exp.10.r2.1), que no es exigible en ninguna categoría. Las fases del ciclo de vida que ocurren fuera de los sistemas vigilados (generación en HSM, transporte, destrucción) se documentan en P-07: op.exp.10.1 tiene evidencia técnica y una atestación nunca puede sustituirla.',
+        'Documentos que acreditan un requisito que ninguna medida técnica puede demostrar. En op.exp.10 es solo R2 (op.exp.10.r2.1), no exigible; las fases del ciclo de vida fuera de los sistemas vigilados se documentan en P-07 y nunca sustituyen la evidencia técnica de op.exp.10.1.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: [],
       type: 'table',
@@ -488,13 +469,13 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado.',
+        'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
       ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Solo se aplica a requisitos sin evidencia técnica. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
-        'Sin efecto sobre el cumplimiento: el único requisito documental de op.exp.10 (R2) no es exigible en ninguna categoría.',
+        'Sin efecto sobre el cumplimiento: el único requisito documental de op.exp.10 (R2) no es exigible.',
     },
   ],
 };
