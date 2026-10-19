@@ -8,9 +8,7 @@ export interface ENSComplianceSummary {
   noEvaluable: number;
   noAplica: number;
 
-  // Promedio SOBRE LO APLICABLE (todo lo que no es NO_APLICA). `measured` dice
-  // sobre cuántos elementos se ha calculado: con `measured` a 0 no hay nada
-  // aplicable y la pantalla no puede pintar un porcentaje.
+  // Average OVER THE APPLICABLE (everything but NO_APLICA). `measured` says over how many elements it was computed: with `measured` at 0 nothing applies and the screen cannot paint a percentage.
   scoreAverage: number;
   measured: number;
 }

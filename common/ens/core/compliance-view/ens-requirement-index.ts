@@ -1,26 +1,10 @@
-// Recuentos y filtro por requisito para la vista clásica de cumplimiento de
-// Wazuh (`section=ens`, la misma pantalla que PCI DSS o GDPR).
-//
-// POR QUÉ NO BASTA UN CAMPO.
-//
-// Esa vista cuenta los hechos de cada requisito con una agregación `terms` y,
-// al pulsar uno, filtra los eventos con un `match_phrase` sobre el mismo campo.
-// Hasta el 07/10/2026 el campo era `data.control`, que solo envían los hechos
-// de puntuación antiguos de op.acc.1 y op.acc.2: quince controles salían con
-// todos sus requisitos a 0 y el filtro no encontraba nada.
-//
-// Un hecho dice a qué requisitos sirve de una de tres maneras, y se mira la
-// primera que traiga:
-//
-//   1. `data.requisito`, una LISTA separada por comas
-//      («op.exp.7.1,op.exp.7.2,op.exp.7.r1.1»): cuenta para cada uno.
-//   2. `data.evidence_id` (también lista: «EV-03,EV-05»), en los hechos del
-//      modelo nuevo que no llevan requisito (casi todo mp.info.6): cuenta para
-//      cada requisito que el catálogo asocia a esas evidencias de su control.
-//   3. `data.control`, en los hechos antiguos que no traen ninguna de las dos.
-//
-// Cada hecho cuenta por UNA sola de las tres, así que no hay dobles, y el
-// filtro de un requisito encuentra exactamente los hechos que cuenta.
+// Counts and per-requirement filter for Wazuh's classic compliance view (`section=ens`, the same screen as PCI DSS or GDPR). The view counts each requirement's facts with a `terms` aggregation and, on click, filters events with a `match_phrase` on the same field.
+// A single field is not enough: `data.control` is sent only by the old scoring facts of op.acc.1 and op.acc.2, so fifteen controls showed every requirement at 0.
+// A fact names its requirements in one of three ways, the first present being used:
+// 1. `data.requisito`, a comma-separated LIST: counts for each.
+// 2. `data.evidence_id` (also a list), in new-model facts without requirement: counts for each requirement the catalog associates with those evidences of its control.
+// 3. `data.control`, in old facts carrying neither.
+// Each fact counts by ONE of the three, so there are no doubles and a requirement's filter finds exactly the facts it counts.
 
 import { ENSCatalog } from '../../catalog';
 
@@ -29,34 +13,34 @@ export interface ENSRequirementCount {
   doc_count: number;
 }
 
-const CAMPO_LISTA = 'data.requisito';
-const CAMPO_EVIDENCIA = 'data.evidence_id';
-const CAMPO_CONTROL_HECHO = 'data.ensfacil';
-const CAMPO_ANTIGUO = 'data.control';
+const LIST_FIELD = 'data.requisito';
+const EVIDENCE_FIELD = 'data.evidence_id';
+const FACT_CONTROL_FIELD = 'data.ensfacil';
+const LEGACY_FIELD = 'data.control';
 
-// Combinaciones distintas, no hechos: decenas o cientos hoy.
-const MAX_LISTAS = 5000;
-const MAX_CONTROLES = 100;
-const MAX_EVIDENCIAS = 500;
+// Distinct combinations, not facts: tens or hundreds today.
+const MAX_LISTS = 5000;
+const MAX_CONTROLS = 100;
+const MAX_EVIDENCES = 500;
 
-const sinCampo = (campo: string) => ({ exists: { field: campo } });
+const withoutField = (fieldName: string) => ({ exists: { field: fieldName } });
 
 export const ENS_REQUIREMENT_COUNT_AGGS = {
   ens_requisito: {
-    terms: { field: CAMPO_LISTA, size: MAX_LISTAS },
+    terms: { field: LIST_FIELD, size: MAX_LISTS },
   },
   ens_evidencia: {
     filter: {
       bool: {
-        must: [sinCampo(CAMPO_EVIDENCIA)],
-        must_not: [sinCampo(CAMPO_LISTA)],
+        must: [withoutField(EVIDENCE_FIELD)],
+        must_not: [withoutField(LIST_FIELD)],
       },
     },
     aggs: {
       control: {
-        terms: { field: CAMPO_CONTROL_HECHO, size: MAX_CONTROLES },
+        terms: { field: FACT_CONTROL_FIELD, size: MAX_CONTROLS },
         aggs: {
-          evidencia: { terms: { field: CAMPO_EVIDENCIA, size: MAX_EVIDENCIAS } },
+          evidencia: { terms: { field: EVIDENCE_FIELD, size: MAX_EVIDENCES } },
         },
       },
     },
@@ -64,130 +48,126 @@ export const ENS_REQUIREMENT_COUNT_AGGS = {
   ens_control: {
     filter: {
       bool: {
-        must_not: [sinCampo(CAMPO_LISTA), sinCampo(CAMPO_EVIDENCIA)],
+        must_not: [withoutField(LIST_FIELD), withoutField(EVIDENCE_FIELD)],
       },
     },
     aggs: {
-      control: { terms: { field: CAMPO_ANTIGUO, size: MAX_LISTAS } },
+      control: { terms: { field: LEGACY_FIELD, size: MAX_LISTS } },
     },
   },
 };
 
-export const splitENSRequirementList = (valor: unknown): string[] =>
+export const splitENSRequirementList = (value: unknown): string[] =>
   Array.from(
     new Set(
-      String(valor ?? '')
+      String(value ?? '')
         .split(',')
-        .map(parte => parte.trim())
+        .map(part => part.trim())
         .filter(Boolean)
     )
   );
 
-// Del catálogo: requisitos de cada evidencia de cada control, y al revés.
-const requisitosPorEvidencia = new Map<string, Map<string, string[]>>();
-const evidenciasPorRequisito = new Map<string, { control: string; evidencias: string[] }>();
+// From the catalog: requirements of each evidence of each control, and the reverse.
+const requirementsByEvidence = new Map<string, Map<string, string[]>>();
+const evidencesByRequirement = new Map<string, { control: string; evidences: string[] }>();
 
 for (const control of ENSCatalog) {
-  const porEvidencia = new Map<string, string[]>();
+  const byEvidence = new Map<string, string[]>();
 
-  for (const requisito of control.requirements) {
-    const evidencias = (requisito as { evidenceIds?: string[] }).evidenceIds || [];
+  for (const requirement of control.requirements) {
+    const evidences = (requirement as { evidenceIds?: string[] }).evidenceIds || [];
 
-    evidenciasPorRequisito.set(requisito.id, { control: control.id, evidencias });
+    evidencesByRequirement.set(requirement.id, { control: control.id, evidences });
 
-    for (const evidencia of evidencias) {
-      porEvidencia.set(evidencia, [...(porEvidencia.get(evidencia) || []), requisito.id]);
+    for (const evidence of evidences) {
+      byEvidence.set(evidence, [...(byEvidence.get(evidence) || []), requirement.id]);
     }
   }
 
-  requisitosPorEvidencia.set(control.id, porEvidencia);
+  requirementsByEvidence.set(control.id, byEvidence);
 }
 
-const suma = (totales: Map<string, number>, clave: string, n: unknown): void => {
-  totales.set(clave, (totales.get(clave) || 0) + (Number(n) || 0));
+const sum = (totals: Map<string, number>, matchedKey: string, n: unknown): void => {
+  totals.set(matchedKey, (totals.get(matchedKey) || 0) + (Number(n) || 0));
 };
 
 export const countENSRequirements = (
   aggregations: any
 ): ENSRequirementCount[] => {
-  const totales = new Map<string, number>();
+  const totals = new Map<string, number>();
 
-  for (const cubo of aggregations?.ens_requisito?.buckets || []) {
-    for (const requisito of splitENSRequirementList(cubo.key)) {
-      suma(totales, requisito, cubo.doc_count);
+  for (const bucket of aggregations?.ens_requisito?.buckets || []) {
+    for (const requirement of splitENSRequirementList(bucket.key)) {
+      sum(totals, requirement, bucket.doc_count);
     }
   }
 
-  for (const cuboControl of aggregations?.ens_evidencia?.control?.buckets || []) {
-    const porEvidencia = requisitosPorEvidencia.get(String(cuboControl.key ?? '').trim());
+  for (const controlBucket of aggregations?.ens_evidencia?.control?.buckets || []) {
+    const byEvidence = requirementsByEvidence.get(String(controlBucket.key ?? '').trim());
 
-    if (!porEvidencia) {
+    if (!byEvidence) {
       continue;
     }
 
-    for (const cubo of cuboControl.evidencia?.buckets || []) {
-      // Un hecho de «EV-01,EV-02» cuenta UNA vez para cada requisito al que
-      // sirva cualquiera de las dos, aunque le sirvan ambas.
-      const requisitos = new Set<string>();
+    for (const bucket of controlBucket.evidencia?.buckets || []) {
+      // A fact of "EV-01,EV-02" counts ONCE for each requirement either serves.
+      const requirements = new Set<string>();
 
-      for (const evidencia of splitENSRequirementList(cubo.key)) {
-        (porEvidencia.get(evidencia) || []).forEach(id => requisitos.add(id));
+      for (const evidence of splitENSRequirementList(bucket.key)) {
+        (byEvidence.get(evidence) || []).forEach(id => requirements.add(id));
       }
 
-      requisitos.forEach(id => suma(totales, id, cubo.doc_count));
+      requirements.forEach(id => sum(totals, id, bucket.doc_count));
     }
   }
 
-  for (const cubo of aggregations?.ens_control?.control?.buckets || []) {
-    const control = String(cubo.key ?? '').trim();
+  for (const bucket of aggregations?.ens_control?.control?.buckets || []) {
+    const control = String(bucket.key ?? '').trim();
 
     if (control) {
-      suma(totales, control, cubo.doc_count);
+      sum(totals, control, bucket.doc_count);
     }
   }
 
-  return Array.from(totales, ([key, doc_count]) => ({ key, doc_count }));
+  return Array.from(totals, ([key, doc_count]) => ({ key, doc_count }));
 };
 
-// La expresión regular de OpenSearch va anclada al valor entero y trata como
-// operadores, además de los habituales, `@ & < > ~ #`.
-const escapaRegexp = (texto: string): string =>
-  texto.replace(/[.?+*|{}[\]()"\\#@&<>~^$]/g, '\\$&');
+// The OpenSearch regular expression is anchored to the whole value and treats `@ & < > ~ #` as operators besides the usual ones.
+const escapeRegexp = (text: string): string =>
+  text.replace(/[.?+*|{}[\]()"\\#@&<>~^$]/g, '\\$&');
 
-// Un elemento de una lista separada por comas, con espacios alrededor o no.
-const enLista = (alternativas: string[]): string =>
-  `(.*,)? *(${alternativas.map(escapaRegexp).join('|')}) *(,.*)?`;
+// An element of a comma-separated list, with or without surrounding spaces.
+const inList = (alternatives: string[]): string =>
+  `(.*,)? *(${alternatives.map(escapeRegexp).join('|')}) *(,.*)?`;
 
 export const buildENSRequirementQuery = (requirementId: string) => {
   const id = String(requirementId ?? '').trim();
-  const delCatalogo = evidenciasPorRequisito.get(id);
-  const should: unknown[] = [{ regexp: { [CAMPO_LISTA]: enLista([id]) } }];
+  const fromCatalog = evidencesByRequirement.get(id);
+  const should: unknown[] = [{ regexp: { [LIST_FIELD]: inList([id]) } }];
 
-  if (delCatalogo && delCatalogo.evidencias.length) {
+  if (fromCatalog && fromCatalog.evidences.length) {
     should.push({
       bool: {
         must: [
-          { term: { [CAMPO_CONTROL_HECHO]: delCatalogo.control } },
-          { regexp: { [CAMPO_EVIDENCIA]: enLista(delCatalogo.evidencias) } },
+          { term: { [FACT_CONTROL_FIELD]: fromCatalog.control } },
+          { regexp: { [EVIDENCE_FIELD]: inList(fromCatalog.evidences) } },
         ],
-        must_not: [sinCampo(CAMPO_LISTA)],
+        must_not: [withoutField(LIST_FIELD)],
       },
     });
   }
 
   should.push({
     bool: {
-      must: [{ match_phrase: { [CAMPO_ANTIGUO]: id } }],
-      must_not: [sinCampo(CAMPO_LISTA), sinCampo(CAMPO_EVIDENCIA)],
+      must: [{ match_phrase: { [LEGACY_FIELD]: id } }],
+      must_not: [withoutField(LIST_FIELD), withoutField(EVIDENCE_FIELD)],
     },
   });
 
   return { bool: { should, minimum_should_match: 1 } };
 };
 
-// Filtro de la barra de búsqueda para un requisito: `custom`, porque no es un
-// campo igual a un valor. `meta` lleva lo que cada pantalla necesite (patrón
-// de índice, quién lo controla).
+// Search-bar filter for a requirement: `custom`, because it is not a field equal to a value. `meta` carries what each screen needs (index pattern, who controls it).
 export const buildENSRequirementFilter = (
   requirementId: string,
   meta: Record<string, unknown> = {}
