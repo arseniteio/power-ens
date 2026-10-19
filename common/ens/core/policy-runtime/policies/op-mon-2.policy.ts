@@ -368,10 +368,10 @@ type Scope = 'metricas' | 'recursos';
 
 const validators = (context: ENSPolicyContext, scope: Scope): Set<string> | Measurement => {
   const declared = tableParameterRows(context, 'P-05');
-  const that = scope === 'metricas' ? 'los ciclos de métricas' : 'los datos de recursos';
+  const subject = scope === 'metricas' ? 'los ciclos de métricas' : 'los datos de recursos';
 
   if (!declared) {
-    return missingParameter(context, 'P-05', `quién tiene que validar ${that}`);
+    return missingParameter(context, 'P-05', `quién tiene que validar ${subject}`);
   }
 
   const bad = declared.filter(f => !['', 'metricas', 'recursos', 'ambos'].includes(folded(f.ambito || '')));
@@ -391,7 +391,7 @@ const validators = (context: ENSPolicyContext, scope: Scope): Set<string> | Meas
   });
 
   if (!names.size) {
-    return notMeasured(`${parameterDisplayName(context, 'P-05')} no designa a nadie para validar ${that} (ámbito ${scope} o ambos).`, 'CONFIGURATION');
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} no designa a nadie para validar ${subject} (ámbito ${scope} o ambos).`, 'CONFIGURATION');
   }
 
   return names;
@@ -606,17 +606,17 @@ const judgesCycles = (reg: LogRow, per: Periodicity, who: Set<string>, whoText: 
 };
 
 const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const soa = statement(context);
 
   if (soa) {
-    partes.push(soa);
+    pieces.push(soa);
   }
 
   const reg = READS_CYCLES(context, now, 'EV-02');
 
   if (isMeasurement(reg)) {
-    return combineMeasurements([...partes, reg]);
+    return combineMeasurements([...pieces, reg]);
   }
 
   const { ciclos: cycles, nota: note } = cyclesOf(reg);
@@ -624,7 +624,7 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
   if (!cycles.length) {
     // Record present with no cycle: a measured fact, with no deadline that applies.
     return combineMeasurements([
-      ...partes,
+      ...pieces,
       nonCompliant(
         `El registro de ciclos de métricas existe pero no tiene ningún ciclo anotado: los datos del grado de implantación no se consolidan con ninguna periodicidad y no hay serie histórica.${note}${discardedNote(reg, 'registro de ciclos')}`
       ),
@@ -635,18 +635,18 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const who = validators(context, 'metricas');
 
   if (isMeasurement(per)) {
-    partes.push(per);
+    pieces.push(per);
   }
 
   if (isMeasurement(who)) {
-    partes.push(who);
+    pieces.push(who);
   }
 
   if (!isMeasurement(per) && !isMeasurement(who)) {
-    partes.push(judgesCycles(reg, per, who, designated(context, 'metricas')));
+    pieces.push(judgesCycles(reg, per, who, designated(context, 'metricas')));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev02 = (context: ENSPolicyContext, now: number): Measurement =>
@@ -1121,30 +1121,30 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
     return reg;
   }
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const declared = indicators(context);
   const per = periodicity(context);
 
   if (isMeasurement(declared)) {
-    partes.push(declared);
+    pieces.push(declared);
   }
 
   if (isMeasurement(per)) {
-    partes.push(per);
+    pieces.push(per);
   }
 
   if (isMeasurement(declared) || isMeasurement(per)) {
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
-  partes.push(cycleWithinDeadline(context, now, per));
+  pieces.push(cycleWithinDeadline(context, now, per));
 
   const since = reg.t - per.dias * DAY_MS;
   const ofPeriod = aliveIn(incidentsOf(reg), since, reg.t);
   const window = `el periodo ${per.nombre} hasta la lectura (desde ${date(since)})`;
 
   if (reg.descartadas > 0) {
-    partes.push(
+    pieces.push(
       notMeasured(
         `${reg.descartadas} fila(s) del registro de incidentes se descartaron por no tener el formato exigido (ver los avisos del recolector): no se puede afirmar que los indicadores estén completos.`
       )
@@ -1152,13 +1152,13 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
   }
 
   if (!ofPeriod.length) {
-    partes.push(
+    pieces.push(
       compliant(
         `Ningún incidente registrado en ${window}: los indicadores de P-03 (${declared.join(', ')}) valen cero. Con el registro presente, cero incidentes es un dato.`
       )
     );
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   const missing: string[] = [];
@@ -1173,7 +1173,7 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
     }
   });
 
-  partes.push(
+  pieces.push(
     missing.length
       ? nonCompliant(
           `Faltan datos en el registro de incidentes para calcular los indicadores de P-03 de ${window} (${ofPeriod.length} incidente(s)): ${missing.join(' | ')}. Sin ellos no se puede evaluar el comportamiento de la gestión de incidentes.`
@@ -1183,7 +1183,7 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
         )
   );
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev03 = (context: ENSPolicyContext, now: number): Measurement =>
@@ -1216,7 +1216,7 @@ const entries = (context: ENSPolicyContext): Measurement | undefined => {
 };
 
 const ev06Facts = (context: ENSPolicyContext, now: number): Measurement => {
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const reg = READS_CYCLES(context, now, 'EV-06');
 
   if (isMeasurement(reg)) {
@@ -1229,34 +1229,34 @@ const ev06Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const withoutEntries = entries(context);
 
   if (withoutEntries) {
-    partes.push(withoutEntries);
+    pieces.push(withoutEntries);
   }
 
   if (!last) {
-    return combineMeasurements([...partes, nonCompliant(`El registro de ciclos de métricas no tiene ningún ciclo anotado: no hay datos de horas ni de presupuesto.${notes}`)]);
+    return combineMeasurements([...pieces, nonCompliant(`El registro de ciclos de métricas no tiene ningún ciclo anotado: no hay datos de horas ni de presupuesto.${notes}`)]);
   }
 
   const per = periodicity(context);
   const who = validators(context, 'recursos');
 
   if (isMeasurement(per)) {
-    partes.push(per);
+    pieces.push(per);
   }
 
   if (isMeasurement(who)) {
-    partes.push(who);
+    pieces.push(who);
   }
 
   if (isMeasurement(per) || isMeasurement(who)) {
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   const age = reg.t - last.fecha;
 
   if (age > per.plazoDias * DAY_MS) {
-    partes.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, es de hace ${wholeDays(age)} días: fuera del plazo (${describeDeadline(per)} días). Los datos de recursos no están al día.${notes}`));
+    pieces.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, es de hace ${wholeDays(age)} días: fuera del plazo (${describeDeadline(per)} días). Los datos de recursos no están al día.${notes}`));
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   const missing = [
@@ -1266,22 +1266,22 @@ const ev06Facts = (context: ENSPolicyContext, now: number): Measurement => {
   ].filter(Boolean);
 
   if (missing.length) {
-    partes.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, no anota ${missing.join(', ')}: R2 pide los recursos consumidos en horas y presupuesto.${notes}`));
+    pieces.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, no anota ${missing.join(', ')}: R2 pide los recursos consumidos en horas y presupuesto.${notes}`));
   } else if (isEmptyField(last.validadoPor) || !who.has(folded(last.validadoPor))) {
-    partes.push(
+    pieces.push(
       nonCompliant(
         `Los recursos del último ciclo, ${describeCycle(last)}, no están validados por un responsable de recursos de P-05 (${designated(context, 'recursos')}).${notes}`
       )
     );
   } else {
-    partes.push(
+    pieces.push(
       compliant(
         `Ciclo ${last.periodo}, consolidado el ${date(last.fecha)}: ${figure(last.horasInternas as number)} h internas, ${figure(last.horasExternas as number)} h externas y ${figure(last.presupuesto as number)} € de presupuesto ejecutado, validado por ${last.validadoPor} (P-05). DATO DECLARADO: ENSFácil lo registra y lo presenta, pero no lo verifica.${notes}`
       )
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 // What the collector declares after the last read is combined with what was measured: EV-06's

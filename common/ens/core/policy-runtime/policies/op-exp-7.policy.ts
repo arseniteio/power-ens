@@ -396,7 +396,7 @@ const sources = (
   context: ENSPolicyContext,
   now: number,
   evidence: string,
-  that: Sources
+  subject: Sources
 ): Heartbeat | Measurement => {
   const heartbeat = lastHeartbeat(context, now);
 
@@ -413,7 +413,7 @@ const sources = (
 
   // An absent incident record is CONFIGURATION: the organization does not keep it. One that could
   // not be read is COLLECTION.
-  if (that.registro && !['presente', 'vacio'].includes(record)) {
+  if (subject.registro && !['presente', 'vacio'].includes(record)) {
     return motive
       ? notMeasured(motive.motivo, motive.causa)
       : record === 'ausente'
@@ -424,13 +424,13 @@ const sources = (
       : notMeasured(`El registro de incidentes no se ha podido leer en la última pasada (${record || 'sin dato'}).`, 'COLLECTION');
   }
 
-  if (that.alertas && !inList(inspected, 'EV-01')) {
+  if (subject.alertas && !inList(inspected, 'EV-01')) {
     return motive
       ? notMeasured(motive.motivo, motive.causa)
       : notMeasured('La última pasada del recolector no pudo leer las alertas del manager.', 'COLLECTION');
   }
 
-  if (that.ossecConf && !inList(inspected, 'EV-10')) {
+  if (subject.ossecConf && !inList(inspected, 'EV-10')) {
     return motive
       ? notMeasured(motive.motivo, motive.causa)
       : notMeasured('La última pasada del recolector no pudo leer el ossec.conf del manager.', 'COLLECTION');

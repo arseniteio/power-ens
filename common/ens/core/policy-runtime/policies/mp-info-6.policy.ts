@@ -99,15 +99,15 @@ const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
 
 // Several measurements into one: worst status, with the reason that explains it (what fails or is
 // missing; if all comply, what was measured).
-const combineMeasurements = (partes: Measurement[]): Measurement => {
-  const status = worstStatus(partes);
+const combineMeasurements = (pieces: Measurement[]): Measurement => {
+  const status = worstStatus(pieces);
 
   if (status === 'CUMPLE') {
-    return compliant(partes.map(p => p.motivo).join(' '));
+    return compliant(pieces.map(p => p.motivo).join(' '));
   }
 
-  const owners = partes.filter(p => p.estado === status);
-  const also = partes
+  const owners = pieces.filter(p => p.estado === status);
+  const also = pieces
     .filter(p => p.estado !== status && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
     .map(p => p.motivo);
 
@@ -526,10 +526,10 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement =>
         const failed = factField(e, 'ultima_fallida');
         const withError = factField(e, 'resultado_ultima') === 'error';
         const onFailure = !isEmptyField(failed) ? ` el ${failed}` : '';
-        const partes: Measurement[] = [];
+        const pieces: Measurement[] = [];
 
         if (isEmptyField(correct)) {
-          partes.push(
+          pieces.push(
             nonCompliant(
               `${name}: no consta ninguna copia terminada correctamente${withError ? `; la última terminó con error${onFailure}` : ''}.`
             )
@@ -538,17 +538,17 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement =>
           const tc = parseInstant(correct);
 
           if (tc === undefined) {
-            partes.push(notMeasured(`${name}: la fecha de la última copia correcta no se puede leer (${correct}).`));
+            pieces.push(notMeasured(`${name}: la fecha de la última copia correcta no se puede leer (${correct}).`));
           } else {
             const tf = parseInstant(failed);
 
             if (withError || (tf !== undefined && tf > tc)) {
-              partes.push(nonCompliant(`${name}: la última ejecución de la copia terminó con error${onFailure}; la última correcta es del ${correct}.`));
+              pieces.push(nonCompliant(`${name}: la última ejecución de la copia terminó con error${onFailure}; la última correcta es del ${correct}.`));
             } else {
               const type = factField(e, 'tipo');
               const destination = factField(e, 'destino');
 
-              partes.push(
+              pieces.push(
                 compliant(
                   `${name}: última copia correcta el ${correct}${type || destination ? ` (${[type, destination ? `destino ${destination}` : ''].filter(Boolean).join(', ')})` : ''}.`
                 )
@@ -563,14 +563,14 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement =>
         const omitted = omittedMounts(factField(e, 'montajes_omitidos'));
 
         if (omitted.length) {
-          partes.push(
+          pieces.push(
             nonCompliant(
               `${name}: deja fuera de la copia ${formatList(omitted)}: están en otro disco montado aparte y no se incluyeron en la copia.`
             )
           );
         }
 
-        const measurement = combineMeasurements(partes);
+        const measurement = combineMeasurements(pieces);
         const accepted = omittedMounts(factField(e, 'montajes_omitidos_aceptados'));
 
         return accepted.length
@@ -618,19 +618,19 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
   return byBackup(context, 'EV-02', ['backup_run', 'backup_schedule'], now, 'estado de las copias', (name, backups) => {
     const runs = backups.filter(e => e.eventType === 'backup_run');
     const plans = backups.filter(e => e.eventType === 'backup_schedule');
-    const partes: Measurement[] = [];
+    const pieces: Measurement[] = [];
 
     // Without the backup state, what is missing is a fact the collector did not deliver:
     // COLLECTION, like the degradation that usually accompanies it.
     if (!runs.length) {
-      partes.push(notMeasured(`${name}: consta su planificación pero no el estado de la última copia.`, 'COLLECTION'));
+      pieces.push(notMeasured(`${name}: consta su planificación pero no el estado de la última copia.`, 'COLLECTION'));
     }
 
     runs.forEach(e => {
       const correct = factField(e, 'ultima_correcta');
 
       if (isEmptyField(correct)) {
-        partes.push(nonCompliant(`${name}: no consta ninguna copia correcta, así que ninguna está dentro de ${deadlineText}.`));
+        pieces.push(nonCompliant(`${name}: no consta ninguna copia correcta, así que ninguna está dentro de ${deadlineText}.`));
 
         return;
       }
@@ -638,14 +638,14 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
       const tc = parseInstant(correct);
 
       if (tc === undefined || tc > now + FUTURE_TOLERANCE_MS) {
-        partes.push(notMeasured(`${name}: la fecha de la última copia correcta no es válida (${correct}).`));
+        pieces.push(notMeasured(`${name}: la fecha de la última copia correcta no es válida (${correct}).`));
 
         return;
       }
 
       const age = now - tc;
 
-      partes.push(
+      pieces.push(
         age > deadline * HOUR_MS
           ? nonCompliant(`${name}: la última copia correcta es del ${correct}, hace ${formatHours(age)} h, más que ${deadlineText}.`)
           : compliant(`${name}: última copia correcta hace ${formatHours(age)} h, dentro de ${deadlineText}.`)
@@ -660,7 +660,7 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
     if (!withPlan.length && withoutPlan.length) {
       const source = factField(withoutPlan[0], 'fuente');
 
-      partes.push(nonCompliant(`${name}: no hay ninguna copia planificada${source ? ` (según ${source})` : ''}.`));
+      pieces.push(nonCompliant(`${name}: no hay ninguna copia planificada${source ? ` (según ${source})` : ''}.`));
     }
 
     // The schedule: the backup's most frequent one (weekly full plus daily incremental schedule one
@@ -674,14 +674,14 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
       const { e, cada: each } = intervals[0];
       const asWhat = `${factField(e, 'planificacion') || 'sin describir'}, ${factField(e, 'fuente') || 'fuente sin declarar'}`;
 
-      partes.push(
+      pieces.push(
         each > frequency
           ? nonCompliant(`${name}: está planificada cada ${each} h (${asWhat}), más espaciada que las ${frequency} h de P-01.`)
           : compliant(`${name}: planificada cada ${each} h (${asWhat}).`)
       );
     }
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   });
 };
 
@@ -747,23 +747,23 @@ const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
           .split(',')
           .map(c => c.trim())
           .filter(c => c && c !== '-');
-        const partes: Measurement[] = [];
+        const pieces: Measurement[] = [];
 
         if (accounts.includes('*') || (permissions !== undefined && (permissions & 0o004) !== 0)) {
-          partes.push(nonCompliant(`${name}: el repositorio ${path}${mode ? ` (modo ${mode})` : ''} lo puede leer cualquier cuenta de la máquina.`));
+          pieces.push(nonCompliant(`${name}: el repositorio ${path}${mode ? ` (modo ${mode})` : ''} lo puede leer cualquier cuenta de la máquina.`));
         }
 
         // LITERAL comparison: on Linux 'Backup' and 'backup' are two accounts.
         const foreign = accounts.filter(c => c !== '*' && !authorized.includes(c));
 
         if (foreign.length) {
-          partes.push(nonCompliant(`${name}: el repositorio ${path} lo pueden leer cuentas que P-07 no autoriza: ${foreign.join(', ')}.`));
+          pieces.push(nonCompliant(`${name}: el repositorio ${path} lo pueden leer cuentas que P-07 no autoriza: ${foreign.join(', ')}.`));
         }
 
         if (declared === '') {
-          partes.push(notMeasured(`${name}: el recolector no ha informado de qué cuentas pueden leer ${path}.`));
-        } else if (!partes.length) {
-          partes.push(
+          pieces.push(notMeasured(`${name}: el recolector no ha informado de qué cuentas pueden leer ${path}.`));
+        } else if (!pieces.length) {
+          pieces.push(
             compliant(
               accounts.length
                 ? `${name}: ${path} solo lo pueden leer cuentas autorizadas en P-07 (${accounts.join(', ')}).`
@@ -782,20 +782,20 @@ const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
           // since a reader decrypts every backup and the file's group is usually a service's, not a
           // P-07 account.
           if (permissionsKey === undefined) {
-            partes.push(notMeasured(`${name}: no se ha podido leer el modo de la clave de cifrado ${key} (${modeKey || 'vacío'}).`));
+            pieces.push(notMeasured(`${name}: no se ha podido leer el modo de la clave de cifrado ${key} (${modeKey || 'vacío'}).`));
           } else if ((permissionsKey & 0o044) !== 0) {
             const who =
               (permissionsKey & 0o004) !== 0
                 ? 'la puede leer cualquier cuenta de la máquina'
                 : 'la puede leer su grupo';
 
-            partes.push(nonCompliant(`${name}: la clave de cifrado ${key} tiene modo ${modeKey}: ${who}; tiene que ser 0600 o 0400, solo su dueño.`));
+            pieces.push(nonCompliant(`${name}: la clave de cifrado ${key} tiene modo ${modeKey}: ${who}; tiene que ser 0600 o 0400, solo su dueño.`));
           } else {
-            partes.push(compliant(`${name}: la clave de cifrado ${key} (modo ${modeKey}) solo la puede leer su dueño.`));
+            pieces.push(compliant(`${name}: la clave de cifrado ${key} (modo ${modeKey}) solo la puede leer su dueño.`));
           }
         }
 
-        return combineMeasurements(partes);
+        return combineMeasurements(pieces);
       })
     )
   );
@@ -924,22 +924,22 @@ const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
         : `${name}: prueba del ${iso(when)}${backup}${witness ? ` sobre el testigo ${witness}` : ''}`;
       const detailExtra = !isDeclared && detail ? ` (${detail})` : '';
       const correct = factField(e, 'resultado') === 'ok' && factField(e, 'coincide') === 'si';
-      const partes: Measurement[] = [];
+      const pieces: Measurement[] = [];
 
       if (factField(e, 'resultado') !== 'ok') {
-        partes.push(nonCompliant(`${test}: la restauración falló${detailExtra}.`));
+        pieces.push(nonCompliant(`${test}: la restauración falló${detailExtra}.`));
       } else if (factField(e, 'coincide') !== 'si') {
-        partes.push(nonCompliant(`${test}: se restauró pero el contenido no coincide con el esperado${detailExtra}.`));
+        pieces.push(nonCompliant(`${test}: se restauró pero el contenido no coincide con el esperado${detailExtra}.`));
       } else if (now - when > deadline * DAY_MS) {
-        partes.push(nonCompliant(`${test}: correcta, pero tiene ${wholeDays(now - when)} días, más que los ${deadline} de P-05.`));
+        pieces.push(nonCompliant(`${test}: correcta, pero tiene ${wholeDays(now - when)} días, más que los ${deadline} de P-05.`));
       } else {
-        partes.push(compliant(`${test}: restauración correcta y contenido verificado, dentro de los ${deadline} días de P-05.`));
+        pieces.push(compliant(`${test}: restauración correcta y contenido verificado, dentro de los ${deadline} días de P-05.`));
       }
 
       if (factField(e, 'limpieza') === 'error') {
         const restored = RESTORED[factField(e, 'objeto')] || 'lo restaurado';
 
-        partes.push(
+        pieces.push(
           notMeasured(
             `${name}: ${correct ? 'restauración correcta pero' : 'además,'} ${restored} no se pudo borrar${witness ? ` (testigo ${witness})` : ''}: la prueba ha dejado rastro en producción y el recolector no la repetirá hasta que se limpie.`,
             'EVIDENCE'
@@ -947,7 +947,7 @@ const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
         );
       }
 
-      return combineMeasurements(partes);
+      return combineMeasurements(pieces);
     })
   );
 };

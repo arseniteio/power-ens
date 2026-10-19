@@ -61,13 +61,13 @@ const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 // Instant of 00:00 UTC of that date, or nothing if it is not a real date.
 const date = (text: string): number | undefined => {
-  const partes = String(text).trim().match(DATE);
+  const pieces = String(text).trim().match(DATE);
 
-  if (!partes) {
+  if (!pieces) {
     return undefined;
   }
 
-  const [year, month, day] = [Number(partes[1]), Number(partes[2]), Number(partes[3])];
+  const [year, month, day] = [Number(pieces[1]), Number(pieces[2]), Number(pieces[3])];
   const t = Date.UTC(year, month - 1, day);
   const d = new Date(t);
 
@@ -279,7 +279,7 @@ const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
   const expiredList: string[] = [];
   // Rows that allow no claim: without name, or with contract and no readable validity date.
   const unreadable: string[] = [];
-  const inVigor: string[] = [];
+  const inForce: string[] = [];
 
   average.forEach((m, i) => {
     const name = m.medio;
@@ -311,28 +311,28 @@ const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
       return;
     }
 
-    inVigor.push(`${name} → ${m.contrato}${m.proveedor ? ` con ${m.proveedor}` : ''}, hasta el ${day(until)} (quedan ${daysUntil(until, now)} días)`);
+    inForce.push(`${name} → ${m.contrato}${m.proveedor ? ` con ${m.proveedor}` : ''}, hasta el ${day(until)} (quedan ${daysUntil(until, now)} días)`);
   });
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (withoutContract.length) {
-    partes.push(nonCompliant(`Medios alternativos sin acuerdo ni contrato: ${formatList(withoutContract)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
+    pieces.push(nonCompliant(`Medios alternativos sin acuerdo ni contrato: ${formatList(withoutContract)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
   }
 
   if (expiredList.length) {
-    partes.push(nonCompliant(`Contratos de medios alternativos vencidos: ${formatList(expiredList)}.`));
+    pieces.push(nonCompliant(`Contratos de medios alternativos vencidos: ${formatList(expiredList)}.`));
   }
 
   if (unreadable.length) {
-    partes.push(notMeasured(`P-04 no permite afirmar que estén en vigor: ${formatList(unreadable)}.`, 'CONFIGURATION'));
+    pieces.push(notMeasured(`P-04 no permite afirmar que estén en vigor: ${formatList(unreadable)}.`, 'CONFIGURATION'));
   }
 
-  if (inVigor.length) {
-    partes.push(compliant(`Medios alternativos con contrato en vigor: ${formatList(inVigor)}.`));
+  if (inForce.length) {
+    pieces.push(compliant(`Medios alternativos con contrato en vigor: ${formatList(inForce)}.`));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 
@@ -440,18 +440,18 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   });
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (withoutTraining.length) {
-    partes.push(nonCompliant(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${formatList(withoutTraining)}.`));
+    pieces.push(nonCompliant(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${formatList(withoutTraining)}.`));
   }
 
   if (lapsedList.length) {
-    partes.push(nonCompliant(`Personas del plan sin formación vigente: ${formatList(lapsedList)}.`));
+    pieces.push(nonCompliant(`Personas del plan sin formación vigente: ${formatList(lapsedList)}.`));
   }
 
   if (withoutProve.length) {
-    partes.push(
+    pieces.push(
       notMeasured(`Personas del plan cuya formación vigente no se puede leer en P-05: ${formatList(withoutProve)}.`, 'CONFIGURATION')
     );
   }
@@ -466,13 +466,13 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
   ];
 
   if (other.length) {
-    partes.push(notMeasured(`P-05 tiene filas que no se pueden leer: ${formatList(other)}.`, 'CONFIGURATION'));
+    pieces.push(notMeasured(`P-05 tiene filas que no se pueden leer: ${formatList(other)}.`, 'CONFIGURATION'));
   }
 
   if (formed.length) {
     const outside = Array.from(byPerson.keys()).filter(key => !people.has(key));
 
-    partes.push(
+    pieces.push(
       compliant(
         `Las ${formed.length} persona(s) del plan con formación vigente: ${formatList(formed)}.${
           outside.length ? ` P-05 registra además a ${outside.length} persona(s) sin función en P-03, que no cuentan.` : ''
@@ -481,7 +481,7 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 
@@ -620,17 +620,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const evidenceDecisions: ENSPolicyDecision[] = [];
 
   applicable.forEach(definition => {
-    const partes = [
+    const pieces = [
       ...definition.evidencias.map(id => ({ id, medida: evidences[id] })),
       ...(definition.propia ? [{ id: definition.propia.etiqueta, medida: definition.propia.medir(context) }] : []),
     ];
 
     if (definition.propia) {
-      own.push({ requisito: definition.requisito, parametro: definition.propia.etiqueta, medida: partes[partes.length - 1].medida });
+      own.push({ requisito: definition.requisito, parametro: definition.propia.etiqueta, medida: pieces[pieces.length - 1].medida });
     }
 
-    const status = worstStatus(partes.map(p => p.medida));
-    const owners = partes.filter(p => p.medida.estado === status);
+    const status = worstStatus(pieces.map(p => p.medida));
+    const owners = pieces.filter(p => p.medida.estado === status);
 
     // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads); if it complies,
     // it complies ACCREDITED DOCUMENTARILY since everything behind it is a declaration in force.
@@ -642,11 +642,11 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
         definition.parametros,
         definition.tipo,
         definition.requisito,
-        compositeReason(partes),
+        compositeReason(pieces),
         definition.esperado,
         commonGapCause(owners.map(p => p.medida)),
         true
-      ), reasonPartsOf(partes))
+      ), reasonPartsOf(pieces))
     );
 
     // And one per evidence, with ITS status, said as what it is.

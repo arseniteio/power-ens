@@ -514,7 +514,7 @@ const ev03Plane = (
   }
 
   const pending = parseNumber(factField(photo, 'seguridad_pendientes')) || 0;
-  const that =
+  const subject =
     factField(photo, 'ambito_pendientes') === 'parches_zimbra'
       ? 'parche(s) de Zimbra'
       : 'actualización(es) de seguridad';
@@ -525,7 +525,7 @@ const ev03Plane = (
 
     if (since !== undefined && now - since > deadline) {
       findings.push(
-        `${pending} ${that} pendiente(s) desde ${factField(photo, 'seguridad_pendiente_desde')} (${wholeDays(now - since)} días), más que el plazo más largo de P-01 (${p01.masLargo} días)`
+        `${pending} ${subject} pendiente(s) desde ${factField(photo, 'seguridad_pendiente_desde')} (${wholeDays(now - since)} días), más que el plazo más largo de P-01 (${p01.masLargo} días)`
       );
     } else if (
       factField(photo, 'desde_linea_base') === 'si' &&
@@ -533,7 +533,7 @@ const ev03Plane = (
       now - base <= deadline
     ) {
       bounds.push(
-        `${pending} ${that} ya estaban pendientes cuando el recolector empezó a observar (${factField(photo, 'linea_base')}): su antigüedad real no se conoce hasta que la observación cubra ${p01.masLargo} días`
+        `${pending} ${subject} ya estaban pendientes cuando el recolector empezó a observar (${factField(photo, 'linea_base')}): su antigüedad real no se conoce hasta que la observación cubra ${p01.masLargo} días`
       );
     }
   }
@@ -936,10 +936,10 @@ const ev10 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  const [ago2, ago1, rightNow] = series as { t: number; abiertas: number }[];
-  const text = `${ago2.abiertas} → ${ago1.abiertas} → ${rightNow.abiertas} CVE abiertas en las tres últimas semanas`;
+  const [twoWeeksAgo, weekAgo, thisWeek] = series as { t: number; abiertas: number }[];
+  const text = `${twoWeeksAgo.abiertas} → ${weekAgo.abiertas} → ${thisWeek.abiertas} CVE abiertas en las tres últimas semanas`;
 
-  if (ago2.abiertas < ago1.abiertas && ago1.abiertas < rightNow.abiertas) {
+  if (twoWeeksAgo.abiertas < weekAgo.abiertas && weekAgo.abiertas < thisWeek.abiertas) {
     return nonCompliant(`La deuda de vulnerabilidades crece de forma sostenida: ${text}.`);
   }
 

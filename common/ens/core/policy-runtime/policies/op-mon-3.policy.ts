@@ -315,11 +315,11 @@ const ev01 = (ctxM: ENSPolicyContext, now: number): Measurement => {
   const actual = series[series.length - 1];
   const previous = [...series].reverse().find(e => eventTime(e) < last - SAME_RUN_WINDOW_MS);
   const between = previous ? `entre ${iso(eventTime(previous))} y ${iso(last)}` : '';
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   const active = factField(actual, 'activo');
 
-  partes.push(
+  pieces.push(
     active === 'si'
       ? compliant('wazuh-manager activo.')
       : nonCompliant(`wazuh-manager no está activo (${active || 'desconocido'}): no hay sistema central de recolección en marcha.`)
@@ -327,7 +327,7 @@ const ev01 = (ctxM: ENSPolicyContext, now: number): Measurement => {
 
   const connections = factField(actual, 'conexiones');
 
-  partes.push(
+  pieces.push(
     isEmptyField(connections)
       ? nonCompliant('El manager no declara ninguna conexión de recepción en <remote> (ni «secure» para los agentes ni «syslog»): no recibe eventos de ninguna otra fuente.')
       : compliant(
@@ -382,7 +382,7 @@ const ev01 = (ctxM: ENSPolicyContext, now: number): Measurement => {
     );
   };
 
-  partes.push(processes());
+  pieces.push(processes());
 
   // That it does not lose: the analysis engine's discards (its full queue) between the two runs.
   // After a restart the counter counts from the restart.
@@ -400,7 +400,7 @@ const ev01 = (ctxM: ENSPolicyContext, now: number): Measurement => {
     const when =
       before === undefined ? 'desde que arrancó el motor' : restart ? `desde que se reinició (${between})` : between;
 
-    partes.push(
+    pieces.push(
       fresh > 0
         ? nonCompliant(
             `El motor de análisis ha descartado ${fresh} eventos ${when}: su cola se llena y la recolección pierde eventos.`
@@ -409,7 +409,7 @@ const ev01 = (ctxM: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  const measurement = combineMeasurements(partes);
+  const measurement = combineMeasurements(pieces);
   const deg = degradation(ctxM, 'EV-01', now, last + 1);
 
   return deg ? combineMeasurements([measurement, deg]) : measurement;
@@ -700,24 +700,24 @@ const ev02 = (context: ENSPolicyContext, now: number, machines: Map<string, stri
     }
   });
 
-  const here = Array.from(machines.entries()).map(([id, name]) => describeMachine(id, name)).join(', ');
+  const machineList = Array.from(machines.entries()).map(([id, name]) => describeMachine(id, name)).join(', ');
   const note = hereOutside.length
     ? ` Se juzgan en la fila de su máquina${hasManager ? ' (aquí, solo que su agente exista y esté conectado)' : ''}: ${formatList(hereOutside)}.`
     : '';
 
   if (!measurements.length && !configuration.length) {
-    return notApplicable(`Ninguna fuente de P-01 es de esta máquina (${here}): no es una fuente declarada de la vigilancia.${note}`);
+    return notApplicable(`Ninguna fuente de P-01 es de esta máquina (${machineList}): no es una fuente declarada de la vigilancia.${note}`);
   }
 
   const failures = measurements.filter(m => m.estado === 'NO_CUMPLE');
   const blanks = measurements.filter(m => m.estado === 'NO_EVALUABLE');
   const ok = measurements.filter(m => m.estado === 'CUMPLE');
-  const partes: Measurement[] = [...configuration, ...blanks];
+  const pieces: Measurement[] = [...configuration, ...blanks];
 
   if (failures.length) {
-    partes.push(nonCompliant(`Fuentes de P-01 sin recolección efectiva: ${formatList(failures.map(m => m.motivo), 6)}${note}`));
+    pieces.push(nonCompliant(`Fuentes de P-01 sin recolección efectiva: ${formatList(failures.map(m => m.motivo), 6)}${note}`));
   } else if (ok.length) {
-    partes.push(compliant(`Recolección efectiva de las fuentes de P-01: ${formatList(ok.map(m => m.motivo), 6)}${note}`));
+    pieces.push(compliant(`Recolección efectiva de las fuentes de P-01: ${formatList(ok.map(m => m.motivo), 6)}${note}`));
   }
 
   // What a collector declared it could not read after its last good run is combined with what was
@@ -726,7 +726,7 @@ const ev02 = (context: ENSPolicyContext, now: number, machines: Map<string, stri
     .map(([id, type]) => withDegradation(ofMachine(context, id), now, 'EV-02', type, compliant('')))
     .filter((m, i, all) => m.estado !== 'CUMPLE' && all.findIndex(x => x.motivo === m.motivo) === i);
 
-  return combineMeasurements([...partes, ...degraded]);
+  return combineMeasurements([...pieces, ...degraded]);
 };
 
 
@@ -769,20 +769,20 @@ const ev03 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
   const summary = current
     .map(e => `${factField(e, 'conjunto')}: ${factField(e, 'reglas') || '?'} reglas, ${correlate(e)} de correlación, ${factField(e, 'tecnicas_correlacion') || '0'} técnicas MITRE`)
     .join('; ');
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (total === 0) {
-    partes.push(nonCompliant(`El manager no carga ninguna regla que correlacione eventos (frequency o if_matched_*) y pueda alertar: recolecta, pero no correlaciona (${summary}).`));
+    pieces.push(nonCompliant(`El manager no carga ninguna regla que correlacione eventos (frequency o if_matched_*) y pueda alertar: recolecta, pero no correlaciona (${summary}).`));
   }
 
   const declared = tableParameterRows(context, 'P-02');
 
   if (!declared) {
-    partes.push(missingParameter(context, 'P-02', `qué conjuntos de reglas de correlación tienen que estar desplegados (cargados hoy: ${summary})`));
+    pieces.push(missingParameter(context, 'P-02', `qué conjuntos de reglas de correlación tienen que estar desplegados (cargados hoy: ${summary})`));
   } else {
     declared.forEach((f, i) => {
       if (!(f.conjunto || '').trim() || f.conjunto.trim() === '-') {
-        partes.push(notMeasured(`P-02, fila ${i + 1}: falta el conjunto de reglas.`, 'CONFIGURATION'));
+        pieces.push(notMeasured(`P-02, fila ${i + 1}: falta el conjunto de reglas.`, 'CONFIGURATION'));
       }
     });
 
@@ -792,13 +792,13 @@ const ev03 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
       .filter(name => !current.some(e => equalsIgnoreCase(factField(e, 'conjunto'), name) && correlate(e) > 0));
 
     if (missing.length) {
-      partes.push(nonCompliant(`Conjuntos de P-02 que el manager no carga, o que no tienen ninguna regla de correlación: ${missing.join(', ')}. Cargados: ${summary}.`));
+      pieces.push(nonCompliant(`Conjuntos de P-02 que el manager no carga, o que no tienen ninguna regla de correlación: ${missing.join(', ')}. Cargados: ${summary}.`));
     } else if (total > 0) {
-      partes.push(compliant(`Cargados con reglas de correlación todos los conjuntos de P-02 (${summary}). ${correlationAlerts(ctxM, now)}`));
+      pieces.push(compliant(`Cargados con reglas de correlación todos los conjuntos de P-02 (${summary}). ${correlationAlerts(ctxM, now)}`));
     }
   }
 
-  return withDegradation(ctxM, now, 'EV-03', 'correlation_rules_inventory', combineMeasurements(partes));
+  return withDegradation(ctxM, now, 'EV-03', 'correlation_rules_inventory', combineMeasurements(pieces));
 };
 
 
@@ -828,19 +828,19 @@ const surface = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number)
       return nonCompliant(`El detector de vulnerabilidades no está habilitado en ossec.conf (${enabled || 'desconocido'}): no se determinan las vulnerabilidades.`);
     }
 
-    const partes: Measurement[] = [];
+    const pieces: Measurement[] = [];
     const feed = parseInstant(factField(vd, 'feed_actualizado'));
 
     if (feed === undefined) {
-      partes.push(nonCompliant('El detector de vulnerabilidades no tiene fuente (queue/vd/feed): no hay contra qué comparar el inventario.'));
+      pieces.push(nonCompliant('El detector de vulnerabilidades no tiene fuente (queue/vd/feed): no hay contra qué comparar el inventario.'));
     } else if (deadline === undefined) {
-      partes.push(missingParameter(context, 'P-11', `la vigencia de la fuente del detector de vulnerabilidades (del ${iso(feed)})`));
+      pieces.push(missingParameter(context, 'P-11', `la vigencia de la fuente del detector de vulnerabilidades (del ${iso(feed)})`));
     } else if (eventTime(vd) - feed > deadline * HOUR_MS) {
-      partes.push(
+      pieces.push(
         nonCompliant(`La fuente del detector de vulnerabilidades es del ${iso(feed)}: ${formatHours(eventTime(vd) - feed)} h al leerla, más que las ${deadline} de P-11. El detector no se actualiza.`)
       );
     } else {
-      partes.push(compliant(`Detector de vulnerabilidades habilitado, con su fuente del ${iso(feed)}${!isEmptyField(factField(vd, 'intervalo_feed')) ? ` (actualización cada ${factField(vd, 'intervalo_feed')})` : ''}.`));
+      pieces.push(compliant(`Detector de vulnerabilidades habilitado, con su fuente del ${iso(feed)}${!isEmptyField(factField(vd, 'intervalo_feed')) ? ` (actualización cada ${factField(vd, 'intervalo_feed')})` : ''}.`));
     }
 
     // Indexer connector errors. ossec.log rotates at midnight, so the collector also reads the
@@ -853,26 +853,26 @@ const surface = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number)
     const sample = factField(vd, 'muestra_error') || 'sin muestra';
 
     if (lastError !== undefined && eventTime(vd) - lastError <= 24 * HOUR_MS) {
-      partes.push(
+      pieces.push(
         nonCompliant(
           `El detector no consigue escribir su resultado en el indexer: el último error del conector es del ${iso(lastError)}, ${formatHours(eventTime(vd) - lastError)} h antes de la lectura (${errors ?? '?'} en la ventana leída; ${sample}). Un detector que no escribe no determina nada.`
         )
       );
     } else if (errors === undefined) {
-      partes.push(
+      pieces.push(
         notMeasured(
           'El recolector no ha podido contar los errores del conector del indexer (ossec.log ausente, vacío o solo en JSON): no se sabe si el detector consigue escribir su resultado.',
           'COLLECTION'
         )
       );
     } else if (errors > 0) {
-      partes.push(
+      pieces.push(
         nonCompliant(
           `El detector no consigue escribir su resultado en el indexer: ${errors} errores del conector en las 24 h anteriores a la lectura (${sample}). Un detector que no escribe no determina nada.`
         )
       );
     } else if (since === undefined || since > eventTime(vd) - 23 * HOUR_MS) {
-      partes.push(
+      pieces.push(
         notMeasured(
           since === undefined
             ? 'El recolector no dice desde cuándo ha leído ossec.log (errores_desde): un recuento de 0 errores sin su ventana no demuestra que el detector escriba.'
@@ -881,14 +881,14 @@ const surface = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number)
         )
       );
     } else {
-      partes.push(
+      pieces.push(
         compliant(
           `Sin errores del conector del indexer al escribir las vulnerabilidades desde ${iso(since)}${lastError !== undefined ? ` (el último, del ${iso(lastError)})` : ''}.`
         )
       );
     }
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   })();
 
   const activeRows = tableParameterRows(context, 'P-03');
@@ -1037,19 +1037,19 @@ const surface = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number)
     );
   });
 
-  const resume = (measurements: Measurement[], that: string): Measurement => {
+  const resume = (measurements: Measurement[], subject: string): Measurement => {
     const failures = measurements.filter(m => m.estado === 'NO_CUMPLE');
     const blanks = measurements.filter(m => m.estado === 'NO_EVALUABLE');
     const ok = measurements.filter(m => m.estado === 'CUMPLE');
-    const partes: Measurement[] = [...configuration, ...blanks];
+    const pieces: Measurement[] = [...configuration, ...blanks];
 
     if (failures.length) {
-      partes.push(nonCompliant(`Activos de P-03 sin ${that} vigente: ${formatList(failures.map(m => m.motivo))}`));
+      pieces.push(nonCompliant(`Activos de P-03 sin ${subject} vigente: ${formatList(failures.map(m => m.motivo))}`));
     } else if (ok.length) {
-      partes.push(compliant(`${that[0].toUpperCase()}${that.slice(1)} vigente en los activos de P-03: ${formatList(ok.map(m => m.motivo))}.`));
+      pieces.push(compliant(`${subject[0].toUpperCase()}${subject.slice(1)} vigente en los activos de P-03: ${formatList(ok.map(m => m.motivo))}.`));
     }
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   };
 
   return {
@@ -1095,7 +1095,7 @@ const ev06 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     );
   }
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const failures: string[] = [];
   const ok: string[] = [];
 
@@ -1104,13 +1104,13 @@ const ev06 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     const max = (f.max_dias_sin_alertas || '').trim();
 
     if (!product || product === '-') {
-      partes.push(notMeasured(`P-05, fila ${i + 1}: falta el producto de la sonda de red.`, 'CONFIGURATION'));
+      pieces.push(notMeasured(`P-05, fila ${i + 1}: falta el producto de la sonda de red.`, 'CONFIGURATION'));
 
       return;
     }
 
     if (max && max !== '-' && !POSITIVE_INTEGER.test(max)) {
-      partes.push(notMeasured(`P-05, sonda «${product}»: max_dias_sin_alertas dice «${max}», que no es un número entero de días.`, 'CONFIGURATION'));
+      pieces.push(notMeasured(`P-05, sonda «${product}»: max_dias_sin_alertas dice «${max}», que no es un número entero de días.`, 'CONFIGURATION'));
 
       return;
     }
@@ -1145,12 +1145,12 @@ const ev06 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
   });
 
   if (failures.length) {
-    partes.push(nonCompliant(`Detección en red de P-05 que no está operativa: ${formatList(failures)}.`));
+    pieces.push(nonCompliant(`Detección en red de P-05 que no está operativa: ${formatList(failures)}.`));
   } else if (ok.length) {
-    partes.push(compliant(`El manager ingiere la detección en red de P-05: ${formatList(ok)}.`));
+    pieces.push(compliant(`El manager ingiere la detección en red de P-05: ${formatList(ok)}.`));
   }
 
-  return withDegradation(ctxM, now, 'EV-06', 'network_detection_observed', combineMeasurements(partes));
+  return withDegradation(ctxM, now, 'EV-06', 'network_detection_observed', combineMeasurements(pieces));
 };
 
 
@@ -1163,18 +1163,18 @@ const ev08 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
 
   const loaded: Range[] = [];
   const presentes = new Set<number>();
-  let partesTotales = 1;
+  let totalParts = 1;
 
   current.forEach(e => {
     if (!isEmptyField(factField(e, 'ids'))) {
       loaded.push(...ranges(factField(e, 'ids')));
     }
 
-    partesTotales = Math.max(partesTotales, parseNumber(factField(e, 'partes')) || 1);
+    totalParts = Math.max(totalParts, parseNumber(factField(e, 'partes')) || 1);
     presentes.add(parseNumber(factField(e, 'parte')) || 1);
   });
 
-  const incomplete = presentes.size < partesTotales;
+  const incomplete = presentes.size < totalParts;
   const total = parseNumber(factField(current[0], 'reglas_umbral'));
   const thresholds = tableParameterRows(context, 'P-07');
 
@@ -1188,7 +1188,7 @@ const ev08 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     );
   }
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const withoutRule: string[] = [];
   const withoutLoad: string[] = [];
   const ok: string[] = [];
@@ -1204,7 +1204,7 @@ const ev08 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     }
 
     if (!RULES_IN_CELL.test(text)) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `P-07, «${name}»: la columna reglas dice «${text}», que no es una lista de ids o rangos de reglas (100510, 100500-100509). Si nadie la vigila, escribe «ninguna».`,
           'CONFIGURATION'
@@ -1220,9 +1220,9 @@ const ev08 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     if (covered.length) {
       ok.push(`«${name}» → ${covered.map(describeRange).join(', ')}. ${correlationAlerts(ctxM, now, covered)}`);
     } else if (incomplete) {
-      partes.push(
+      pieces.push(
         notMeasured(
-          `«${name}»: ninguna de sus reglas (${declared.map(describeRange).join(', ')}) aparece en lo recibido, pero faltan partes del inventario (${presentes.size} de ${partesTotales}): no se puede afirmar que no estén cargadas.`,
+          `«${name}»: ninguna de sus reglas (${declared.map(describeRange).join(', ')}) aparece en lo recibido, pero faltan partes del inventario (${presentes.size} de ${totalParts}): no se puede afirmar que no estén cargadas.`,
           'COLLECTION'
         )
       );
@@ -1232,18 +1232,18 @@ const ev08 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
   });
 
   if (withoutRule.length) {
-    partes.push(nonCompliant(`Consultas de P-07 que ninguna regla vigila: ${formatList(withoutRule)}.`));
+    pieces.push(nonCompliant(`Consultas de P-07 que ninguna regla vigila: ${formatList(withoutRule)}.`));
   }
 
   if (withoutLoad.length) {
-    partes.push(nonCompliant(`Consultas de P-07 cuyas reglas no están cargadas como reglas de umbral (frequency) o no pueden alertar: ${formatList(withoutLoad)}.`));
+    pieces.push(nonCompliant(`Consultas de P-07 cuyas reglas no están cargadas como reglas de umbral (frequency) o no pueden alertar: ${formatList(withoutLoad)}.`));
   }
 
   if (!withoutRule.length && !withoutLoad.length && ok.length) {
-    partes.push(compliant(`Cada consulta de P-07 la vigila una regla de umbral cargada: ${formatList(ok)}`));
+    pieces.push(compliant(`Cada consulta de P-07 la vigila una regla de umbral cargada: ${formatList(ok)}`));
   }
 
-  return withDegradation(ctxM, now, 'EV-08', 'query_volume_rules_observed', combineMeasurements(partes));
+  return withDegradation(ctxM, now, 'EV-08', 'query_volume_rules_observed', combineMeasurements(pieces));
 };
 
 
@@ -1259,16 +1259,16 @@ const ev09 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     .map(e => `${factField(e, 'canal')} ${factField(e, 'habilitado') === 'si' ? `desde nivel ${factField(e, 'nivel_minimo') || '-'}` : 'deshabilitado'}`)
     .join(', ');
   const recipients = tableParameterRows(context, 'P-08');
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (!enabled.length) {
-    partes.push(nonCompliant(`El manager no tiene ningún canal de notificación habilitado (${summary}): las detecciones no llegan a nadie en tiempo real.`));
+    pieces.push(nonCompliant(`El manager no tiene ningún canal de notificación habilitado (${summary}): las detecciones no llegan a nadie en tiempo real.`));
   }
 
   if (!recipients) {
-    partes.push(missingParameter(context, 'P-08', `a quién y por qué canal tiene que llegar la alerta en tiempo real (canales: ${summary})`));
+    pieces.push(missingParameter(context, 'P-08', `a quién y por qué canal tiene que llegar la alerta en tiempo real (canales: ${summary})`));
 
-    return withDegradation(ctxM, now, 'EV-09', 'notification_channel_configured', combineMeasurements(partes));
+    return withDegradation(ctxM, now, 'EV-09', 'notification_channel_configured', combineMeasurements(pieces));
   }
 
   const failures: string[] = [];
@@ -1280,13 +1280,13 @@ const ev09 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     const who = f.destinatario || channel;
 
     if (!channel) {
-      partes.push(notMeasured(`P-08, «${who}»: falta el canal («correo» o el nombre de la integración).`, 'CONFIGURATION'));
+      pieces.push(notMeasured(`P-08, «${who}»: falta el canal («correo» o el nombre de la integración).`, 'CONFIGURATION'));
 
       return;
     }
 
     if (level && level !== '-' && (!POSITIVE_INTEGER.test(level) || Number(level) < 1 || Number(level) > 16)) {
-      partes.push(notMeasured(`P-08, «${who}»: nivel_minimo dice «${level}», que no es un nivel de alerta de Wazuh (1-16).`, 'CONFIGURATION'));
+      pieces.push(notMeasured(`P-08, «${who}»: nivel_minimo dice «${level}», que no es un nivel de alerta de Wazuh (1-16).`, 'CONFIGURATION'));
 
       return;
     }
@@ -1314,7 +1314,7 @@ const ev09 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
     }
 
     if (equalsIgnoreCase(channel, 'correo') && parseNumber(factField(e, 'destinatarios')) === undefined) {
-      partes.push(
+      pieces.push(
         notMeasured(`${who} por correo: el recolector no informa de cuántos destinatarios tiene el correo, así que no se sabe si la alerta llega a alguien.`, 'COLLECTION')
       );
 
@@ -1339,12 +1339,12 @@ const ev09 = (context: ENSPolicyContext, ctxM: ENSPolicyContext, now: number): M
   });
 
   if (failures.length) {
-    partes.push(nonCompliant(`Alertas en tiempo real de P-08 que no llegan: ${formatList(failures)}.`));
+    pieces.push(nonCompliant(`Alertas en tiempo real de P-08 que no llegan: ${formatList(failures)}.`));
   } else if (ok.length) {
-    partes.push(compliant(`Canales de P-08 configurados, habilitados y sin errores: ${formatList(ok)}. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.`));
+    pieces.push(compliant(`Canales de P-08 configurados, habilitados y sin errores: ${formatList(ok)}. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.`));
   }
 
-  return withDegradation(ctxM, now, 'EV-09', 'notification_channel_configured', combineMeasurements(partes));
+  return withDegradation(ctxM, now, 'EV-09', 'notification_channel_configured', combineMeasurements(pieces));
 };
 
 
@@ -1407,10 +1407,10 @@ const recordOf = (ctxM: ENSPolicyContext, now: number, type: TypeInspection, day
 
   const rowsRecord = current.filter(e => factField(e, 'tipo') !== 'ninguna');
   const defective = rowsRecord.filter(e => !isEmptyField(factField(e, 'formato')) && factField(e, 'formato') !== 'ok');
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (defective.length) {
-    partes.push(
+    pieces.push(
       notMeasured(
         `Filas del registro de inspecciones con formato inválido, que no cuentan: ${formatList(defective.map(e => `línea ${factField(e, 'fila')}: ${factField(e, 'formato')}`))}.`,
         'CONFIGURATION'
@@ -1425,7 +1425,7 @@ const recordOf = (ctxM: ENSPolicyContext, now: number, type: TypeInspection, day
   });
 
   if (future.length) {
-    partes.push(
+    pieces.push(
       notMeasured(
         `Inspecciones con fecha futura en el registro, que es de actos realizados: ${formatList(future.map(e => `línea ${factField(e, 'fila')} (${factField(e, 'fecha')})`))}.`,
         'CONFIGURATION'
@@ -1439,20 +1439,20 @@ const recordOf = (ctxM: ENSPolicyContext, now: number, type: TypeInspection, day
     .filter((x): x is { e: ENSNormalizedEvent; t: number } => x.t !== undefined && x.t <= eventTime(x.e) + SAME_RUN_WINDOW_MS);
 
   if (!done.length) {
-    partes.push(nonCompliant(`No consta ninguna ${INSPECTION_NAME[type]} en el registro de inspecciones (periodicidad de P-09: ${daysPlan} días).`));
+    pieces.push(nonCompliant(`No consta ninguna ${INSPECTION_NAME[type]} en el registro de inspecciones (periodicidad de P-09: ${daysPlan} días).`));
   } else {
     const lastDone = done.reduce((a, b) => (b.t > a.t ? b : a));
     const age = eventTime(lastDone.e) - lastDone.t;
-    const that = `la última ${INSPECTION_NAME[type]} es del ${iso(lastDone.t)} (${factField(lastDone.e, 'ejecutor') || 'ejecutor sin declarar'}, ${factField(lastDone.e, 'alcance') || 'alcance sin declarar'}; hallazgos: ${factField(lastDone.e, 'hallazgos') || '-'}, ${factField(lastDone.e, 'estado_remediacion') || '-'})`;
+    const subject = `la última ${INSPECTION_NAME[type]} es del ${iso(lastDone.t)} (${factField(lastDone.e, 'ejecutor') || 'ejecutor sin declarar'}, ${factField(lastDone.e, 'alcance') || 'alcance sin declarar'}; hallazgos: ${factField(lastDone.e, 'hallazgos') || '-'}, ${factField(lastDone.e, 'estado_remediacion') || '-'})`;
 
-    partes.push(
+    pieces.push(
       age > daysPlan * DAY_MS
-        ? nonCompliant(`Vencida: ${that}, hace ${wholeDays(age)} días al leer el registro, más que los ${daysPlan} de P-09.`)
-        : compliant(`Dentro de la periodicidad de P-09 (${daysPlan} días): ${that}.`)
+        ? nonCompliant(`Vencida: ${subject}, hace ${wholeDays(age)} días al leer el registro, más que los ${daysPlan} de P-09.`)
+        : compliant(`Dentro de la periodicidad de P-09 (${daysPlan} días): ${subject}.`)
     );
   }
 
-  return withDegradation(ctxM, now, 'EV-12', 'security_inspection_recorded', combineMeasurements(partes));
+  return withDegradation(ctxM, now, 'EV-12', 'security_inspection_recorded', combineMeasurements(pieces));
 };
 
 // An R6 inspection. Returns the requirement's measurement and that of each evidence supporting it
@@ -1570,11 +1570,11 @@ const DATA_EV13 =
   'Dato del informe, sin veredicto: el registro de incidentes (13 columnas, compartido con op.exp.7 y op.exp.9) no dice qué incidentes revelaron vulnerabilidades nuevas o subestimadas, que son los que R6 obliga a inspeccionar.';
 
 
-const documental = (context: ENSPolicyContext, parameter: string, that: string, columns: (f: Record<string, string>) => string): Measurement => {
+const documental = (context: ENSPolicyContext, parameter: string, subject: string, columns: (f: Record<string, string>) => string): Measurement => {
   const declared = tableParameterRows(context, parameter);
 
   return notMeasured(
-    `${that} no se puede medir: se acredita documentalmente con P-ATT.${declared ? ` ${parameterDisplayName(context, parameter)} declara: ${formatList(declared.map(columns))}.` : ` ${parameterDisplayName(context, parameter)} está sin declarar.`}`,
+    `${subject} no se puede medir: se acredita documentalmente con P-ATT.${declared ? ` ${parameterDisplayName(context, parameter)} declara: ${formatList(declared.map(columns))}.` : ` ${parameterDisplayName(context, parameter)} está sin declarar.`}`,
     'CONFIGURATION'
   );
 };

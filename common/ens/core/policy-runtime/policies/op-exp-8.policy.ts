@@ -108,15 +108,15 @@ const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
 
 // Several axes of one evidence into one measurement: worst status, with the reason that explains it
 // (what fails or is missing; if all comply, what was measured).
-const combineMeasurements = (partes: Measurement[]): Measurement => {
-  const status = worstStatus(partes);
+const combineMeasurements = (pieces: Measurement[]): Measurement => {
+  const status = worstStatus(pieces);
 
   if (status === 'CUMPLE') {
-    return compliant(partes.map(p => p.motivo).join(' '));
+    return compliant(pieces.map(p => p.motivo).join(' '));
   }
 
-  const owners = partes.filter(p => p.estado === status);
-  const also = partes
+  const owners = pieces.filter(p => p.estado === status);
+  const also = pieces
     .filter(p => p.estado !== status && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
     .map(p => p.motivo);
 
@@ -363,23 +363,23 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
     return withoutFacts(context, 'EV-01', last, 'estado del registro de actividad de este servidor');
   }
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
   const ofSource = (source: string) => current.filter(e => factField(e, 'fuente') === source);
 
   const auditd = ofSource('auditd')[0];
 
   if (!auditd) {
-    partes.push(notMeasured('El recolector no ha informado del estado de auditd.'));
+    pieces.push(notMeasured('El recolector no ha informado del estado de auditd.'));
   } else if (factField(auditd, 'activo') !== 'si') {
-    partes.push(
+    pieces.push(
       nonCompliant(
         `auditd no está activo (${factField(auditd, 'activo') || 'desconocido'}): el servidor no genera registro de auditoría. ${factField(auditd, 'detalle')}`.trim()
       )
     );
   } else if ((parseNumber(factField(auditd, 'reglas_cargadas')) || 0) <= 0) {
-    partes.push(nonCompliant('auditd está activo pero sin ninguna regla cargada: no registra la actividad de los usuarios.'));
+    pieces.push(nonCompliant('auditd está activo pero sin ninguna regla cargada: no registra la actividad de los usuarios.'));
   } else {
-    partes.push(compliant(`auditd activo con ${factField(auditd, 'reglas_cargadas')} reglas cargadas.`));
+    pieces.push(compliant(`auditd activo con ${factField(auditd, 'reglas_cargadas')} reglas cargadas.`));
   }
 
   const journald = ofSource('journald')[0];
@@ -389,42 +389,42 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
   const rsyslogKeeps = rsyslog && factField(rsyslog, 'activo') === 'si';
 
   if (!journald && !rsyslog) {
-    partes.push(notMeasured('El recolector no ha informado del registro del sistema (journald, rsyslog).'));
+    pieces.push(notMeasured('El recolector no ha informado del registro del sistema (journald, rsyslog).'));
   } else if (journaldKeeps || rsyslogKeeps) {
-    partes.push(
+    pieces.push(
       compliant(
         `Registro del sistema conservado en disco (${[journaldKeeps ? 'journald persistente' : '', rsyslogKeeps ? 'rsyslog' : ''].filter(Boolean).join(' y ')}).`
       )
     );
   } else {
-    partes.push(nonCompliant('El registro del sistema no se conserva en disco: journald no es persistente y rsyslog no está activo.'));
+    pieces.push(nonCompliant('El registro del sistema no se conserva en disco: journald no es persistente y rsyslog no está activo.'));
   }
 
   ofSource('slapd').forEach(slapd => {
     const levels = factField(slapd, 'niveles_log');
 
     if (factField(slapd, 'activo') !== 'si') {
-      partes.push(nonCompliant(`slapd no está en ejecución (${factField(slapd, 'activo') || 'desconocido'}): el directorio no registra su actividad.`));
+      pieces.push(nonCompliant(`slapd no está en ejecución (${factField(slapd, 'activo') || 'desconocido'}): el directorio no registra su actividad.`));
     } else if (!slapdRecordsOperations(levels)) {
-      partes.push(
+      pieces.push(
         nonCompliant(
           `slapd no registra sus operaciones: olcLogLevel=${levels || '(sin declarar)'} no incluye stats, así que no queda quién se autentica, qué consulta ni qué modifica en el directorio.`
         )
       );
     } else {
-      partes.push(compliant(`slapd registra sus operaciones (olcLogLevel=${levels}).`));
+      pieces.push(compliant(`slapd registra sus operaciones (olcLogLevel=${levels}).`));
     }
   });
 
   const categories = tableParameterRows(context, 'P-01');
 
   if (!categories) {
-    partes.push(missingParameter(context, 'P-01', 'si el registro cubre los eventos de seguridad que la política exige'));
+    pieces.push(missingParameter(context, 'P-01', 'si el registro cubre los eventos de seguridad que la política exige'));
   } else {
-    partes.push(...p01Coverage(context, now, categories, auditd));
+    pieces.push(...p01Coverage(context, now, categories, auditd));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 // EV-01 · what is declared auditable against what is really audited. Auditd active with rules does
@@ -470,14 +470,14 @@ const p01Coverage = (
   const active = (source: string) =>
     sources.some(e => factField(e, 'fuente') === source && factField(e, 'activo') === 'si');
   const seen = new Set<Category>();
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   categories.forEach(row => {
     const declared = row.categoria_evento || '';
     const key = recognizes(declared);
 
     if (!key) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `P-01 declara auditable «${declared}», y ENSFácil no sabe qué observar en la máquina para esa categoría: no se puede afirmar que se registre. Nómbrala con una de las reconocidas (${CATEGORIES.map(c => c.nombre).join(', ')}).`,
           'CONFIGURATION'
@@ -502,7 +502,7 @@ const p01Coverage = (
         active('rsyslog') ? 'rsyslog' : '',
       ].filter(Boolean);
 
-      partes.push(
+      pieces.push(
         who.length
           ? compliant(`«${declared}»: la registran ${who.join(', ')}.`)
           : nonCompliant(`«${declared}» está declarada auditable y ninguna fuente de la máquina la registra: ni auditd, ni journald, ni rsyslog están activos.`)
@@ -515,7 +515,7 @@ const p01Coverage = (
     // there is nothing to log.
     if (key === 'directorio') {
       if (!sources.some(e => factField(e, 'fuente') === 'slapd')) {
-        partes.push(notApplicable(`«${declared}» no aplica a este servidor: no tiene directorio (slapd).`));
+        pieces.push(notApplicable(`«${declared}» no aplica a este servidor: no tiene directorio (slapd).`));
       }
 
       return;
@@ -528,7 +528,7 @@ const p01Coverage = (
       const clock = currentStatus(context, 'time_sync_status', now).vigentes[0];
 
       if (clock) {
-        partes.push(
+        pieces.push(
           factField(clock, 'vigilancia_cambio_hora') === 'si'
             ? compliant(`«${declared}»: auditd registra los cambios de la hora del sistema.`)
             : nonCompliant(`«${declared}» está declarada auditable y no se audita: ${noHourTrace(context, now)}`)
@@ -539,7 +539,7 @@ const p01Coverage = (
     }
 
     if (!fact) {
-      partes.push(
+      pieces.push(
         degradation(context, 'EV-01') ||
           notMeasured(
             `«${declared}»: el recolector de op.exp.8 de este servidor no informa de qué vigila auditd (hecho audit_coverage), así que no se puede afirmar que esa categoría se registre. Actualiza el recolector.`,
@@ -555,30 +555,30 @@ const p01Coverage = (
       .split(',')
       .map(x => x.trim())
       .filter(x => x && x !== '-');
-    const yes = factField(fact, 'vigiladas')
+    const watched = factField(fact, 'vigiladas')
       .split(',')
       .map(x => x.trim())
       .filter(x => x && x !== '-');
     const auditdStatus = factField(fact, 'auditd');
 
     if (without.length) {
-      partes.push(
+      pieces.push(
         nonCompliant(
           `«${declared}» está declarada auditable y no se audita del todo: ${
             auditdStatus && auditdStatus !== 'si' ? `auditd ${auditdStatus === 'no_instalado' ? 'no está instalado' : `no está en marcha (${auditdStatus})`}, así que nada registra ` : 'ninguna regla cargada en el kernel registra '
           }${object} ${formatList(without, 8)}.`
         )
       );
-    } else if (!yes.length) {
-      partes.push(
+    } else if (!watched.length) {
+      pieces.push(
         notMeasured(`«${declared}»: ninguna de las rutas que ENSFácil vigila para esa categoría existe en este servidor, así que no hay qué contrastar.`)
       );
     } else {
-      partes.push(compliant(`«${declared}»: auditd registra ${object} ${formatList(yes, 8)}.`));
+      pieces.push(compliant(`«${declared}»: auditd registra ${object} ${formatList(watched, 8)}.`));
     }
   });
 
-  return partes;
+  return pieces;
 };
 
 // EV-03 · the five fields of op.exp.8.1 in a real sample.
@@ -856,34 +856,34 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
     .split(',')
     .map(f => f.trim())
     .filter(f => f && f !== '-');
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (service === 'ninguno' || factField(e, 'sincronizado') !== 'si') {
-    partes.push(nonCompliant(`El reloj no está sincronizado (servicio: ${service || 'desconocido'}): no hay referencia de tiempo fiable para el registro.`));
+    pieces.push(nonCompliant(`El reloj no está sincronizado (servicio: ${service || 'desconocido'}): no hay referencia de tiempo fiable para el registro.`));
   } else {
-    partes.push(compliant(`Reloj sincronizado con ${service} (${sources.join(', ') || 'fuente no identificada'}).`));
+    pieces.push(compliant(`Reloj sincronizado con ${service} (${sources.join(', ') || 'fuente no identificada'}).`));
   }
 
   const authentication = factField(e, 'autenticacion');
 
   if (sources.length && (authentication === 'ninguna' || !authentication)) {
-    partes.push(
+    pieces.push(
       nonCompliant(
         `La sincronización con ${sources.join(', ')} no usa autenticación ni integridad${service === 'systemd-timesyncd' ? ' (systemd-timesyncd no las admite)' : ''}, que R2 exige al sincronizar con otros dispositivos.`
       )
     );
   } else if (sources.length) {
-    partes.push(compliant(`Sincronización autenticada (${authentication}).`));
+    pieces.push(compliant(`Sincronización autenticada (${authentication}).`));
   }
 
   const declared = tableParameterRows(context, 'P-05');
 
   if (!declared) {
-    partes.push(missingParameter(context, 'P-05', 'si las fuentes de tiempo en uso son las previstas'));
+    pieces.push(missingParameter(context, 'P-05', 'si las fuentes de tiempo en uso son las previstas'));
   } else {
     const foreign = sources.filter(f => !declared.some(d => equalsIgnoreCase(d.fuente_tiempo, f)));
 
-    partes.push(
+    pieces.push(
       foreign.length
         ? nonCompliant(`Fuentes de tiempo en uso que P-05 no declara: ${foreign.join(', ')}.`)
         : compliant('Las fuentes en uso son las declaradas en P-05.')
@@ -894,13 +894,13 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
   const skew = parseNumber(factField(e, 'desfase_segundos'));
 
   if (max === undefined || max < 0) {
-    partes.push(missingParameter(context, 'P-06', `la desviación del reloj (medida: ${factField(e, 'desfase_segundos')} s)`));
+    pieces.push(missingParameter(context, 'P-06', `la desviación del reloj (medida: ${factField(e, 'desfase_segundos')} s)`));
   } else if (skew === undefined) {
-    partes.push(notMeasured(`El servicio de sincronización no ha informado del desfase (${factField(e, 'desfase_segundos') || 'vacío'}).`));
+    pieces.push(notMeasured(`El servicio de sincronización no ha informado del desfase (${factField(e, 'desfase_segundos') || 'vacío'}).`));
   } else if (Math.abs(skew) > max) {
-    partes.push(nonCompliant(`Desfase del reloj de ${skew} s, mayor que los ${max} s de P-06.`));
+    pieces.push(nonCompliant(`Desfase del reloj de ${skew} s, mayor que los ${max} s de P-06.`));
   } else {
-    partes.push(compliant(`Desfase de ${skew} s, dentro de los ${max} s de P-06.`));
+    pieces.push(compliant(`Desfase de ${skew} s, dentro de los ${max} s de P-06.`));
   }
 
   // Trace of time changes: without a rule recording them a change leaves no trace and it cannot be
@@ -910,9 +910,9 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
   );
 
   if (factField(e, 'vigilancia_cambio_hora') !== 'si') {
-    partes.push(notMeasured(noHourTrace(context, now), 'CONFIGURATION'));
+    pieces.push(notMeasured(noHourTrace(context, now), 'CONFIGURATION'));
   } else {
-    partes.push(
+    pieces.push(
       compliant(
         changes.length
           ? `Cambios de hora registrados en la ventana: ${formatList(changes)}.`
@@ -921,7 +921,7 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 // EV-07 · retention: on disk it is visible; the indexes' is not.
@@ -984,22 +984,22 @@ const ev08 = (context: ENSPolicyContext, now: number, plane: Plane): Measurement
     }
   });
 
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   if (open.length) {
-    partes.push(nonCompliant(`Registros legibles por cualquier cuenta de la máquina: ${formatList(open)}.`));
+    pieces.push(nonCompliant(`Registros legibles por cualquier cuenta de la máquina: ${formatList(open)}.`));
   }
 
   if (!authorized) {
-    partes.push(missingParameter(context, 'P-08', 'qué cuentas pueden leer los registros'));
+    pieces.push(missingParameter(context, 'P-08', 'qué cuentas pueden leer los registros'));
   } else if (foreign.length) {
-    partes.push(nonCompliant(`Registros legibles por cuentas que P-08 no autoriza: ${formatList(foreign)}.`));
+    pieces.push(nonCompliant(`Registros legibles por cuentas que P-08 no autoriza: ${formatList(foreign)}.`));
   } else if (!open.length) {
-    partes.push(compliant(`Los ${current.length} registros observados solo los pueden leer cuentas autorizadas en P-08.`));
+    pieces.push(compliant(`Los ${current.length} registros observados solo los pueden leer cuentas autorizadas en P-08.`));
   }
 
   if (plane === 'central') {
-    partes.push(
+    pieces.push(
       degradation(context, 'EV-08') ||
         notMeasured(
           'Los accesos efectivos a los índices (audit log del plugin de seguridad del indexer) no se ven sin credenciales.',
@@ -1008,7 +1008,7 @@ const ev08 = (context: ENSPolicyContext, now: number, plane: Plane): Measurement
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 // EV-09 · log copies: not visible without indexer credentials.

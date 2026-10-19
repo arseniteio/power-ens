@@ -92,19 +92,19 @@ export const worstStatus = (measurements: Measurement[]): Measurement['estado'] 
 
 // Several axes of one evidence into one measurement: worst status, with the reason that explains it
 // (what fails or is missing; if all comply, what was measured).
-export const combineMeasurements = (partes: Measurement[]): Measurement => {
-  if (!partes.length) {
+export const combineMeasurements = (pieces: Measurement[]): Measurement => {
+  if (!pieces.length) {
     return notMeasured('No hay ninguna medida que juzgar.');
   }
 
-  const status = worstStatus(partes);
+  const status = worstStatus(pieces);
 
   if (status === 'CUMPLE' || status === 'NO_APLICA') {
-    return { estado: status, motivo: partes.map(p => p.motivo).join(' ') };
+    return { estado: status, motivo: pieces.map(p => p.motivo).join(' ') };
   }
 
-  const owners = partes.filter(p => p.estado === status);
-  const also = partes
+  const owners = pieces.filter(p => p.estado === status);
+  const also = pieces
     .filter(p => p.estado !== status && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
     .map(p => p.motivo);
 
@@ -140,9 +140,9 @@ export const reasonPartsOf = (own: { id: string; medida: Measurement }[]): ENSRe
   });
 
 // The decision with its parts.
-export const withReasonParts = (decision: ENSPolicyDecision, partes: ENSReasonPart[]): ENSPolicyDecision => ({
+export const withReasonParts = (decision: ENSPolicyDecision, pieces: ENSReasonPart[]): ENSPolicyDecision => ({
   ...decision,
-  reasonParts: partes,
+  reasonParts: pieces,
 });
 
 

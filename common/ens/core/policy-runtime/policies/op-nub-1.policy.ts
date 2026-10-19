@@ -442,11 +442,11 @@ const ev09 = (context: ENSPolicyContext, now: number, used: Record<string, strin
 
   const byService = used.map(service => {
     const name = service.servicio;
-    const partes: Measurement[] = [];
+    const pieces: Measurement[] = [];
 
     // ENS conformity or CCN-STIC guide, valid and of sufficient category.
     if (p03) {
-      partes.push(serviceConformity(p03, name, now, level, validities, conformities));
+      pieces.push(serviceConformity(p03, name, now, level, validities, conformities));
     }
 
     // a) Provider pentest, no older than P-12 months.
@@ -454,7 +454,7 @@ const ev09 = (context: ENSPolicyContext, now: number, used: Record<string, strin
       const their = ofService(p10, name);
 
       if (!their.length) {
-        partes.push(nonCompliant('a) sin informe de pentest del proveedor en P-10'));
+        pieces.push(nonCompliant('a) sin informe de pentest del proveedor en P-10'));
       } else {
         const judgments = their.map((row): Measurement => {
           const t = date(row.fecha);
@@ -478,7 +478,7 @@ const ev09 = (context: ENSPolicyContext, now: number, used: Record<string, strin
             : compliant(`a) pentest «${row.ultimo_informe}» del ${day10(t)}`);
         });
 
-        partes.push(judgments.find(j => j.estado === 'CUMPLE') || combineMeasurements(judgments));
+        pieces.push(judgments.find(j => j.estado === 'CUMPLE') || combineMeasurements(judgments));
       }
     }
 
@@ -487,14 +487,14 @@ const ev09 = (context: ENSPolicyContext, now: number, used: Record<string, strin
       const row = ofService(p09, name)[0];
 
       if (!row) {
-        partes.push(nonCompliant('c) sin cifrado ni gestión de claves declarados en P-09'));
+        pieces.push(nonCompliant('c) sin cifrado ni gestión de claves declarados en P-09'));
       } else if (NO_ENCRYPTION.test(stripAccents(row.cifrado || '').trim())) {
         // Declaring no encryption is declaring failure of c).
-        partes.push(nonCompliant(`c) P-09 declara que los datos no se cifran («${row.cifrado}»)`));
+        pieces.push(nonCompliant(`c) P-09 declara que los datos no se cifran («${row.cifrado}»)`));
       } else if (isEmptyField(row.cifrado || '') || isEmptyField(row.gestion_claves || '')) {
-        partes.push(notMeasured(`P-09, fila de «${name}»: falta ${isEmptyField(row.cifrado || '') ? 'el cifrado' : 'la gestión de claves'}`, 'CONFIGURATION'));
+        pieces.push(notMeasured(`P-09, fila de «${name}»: falta ${isEmptyField(row.cifrado || '') ? 'el cifrado' : 'la gestión de claves'}`, 'CONFIGURATION'));
       } else {
-        partes.push(compliant(`c) ${row.cifrado}, claves: ${row.gestion_claves}`));
+        pieces.push(compliant(`c) ${row.cifrado}, claves: ${row.gestion_claves}`));
       }
     }
 
@@ -508,19 +508,19 @@ const ev09 = (context: ENSPolicyContext, now: number, used: Record<string, strin
         : [];
 
       if (!row) {
-        partes.push(nonCompliant('d) sin región de los datos ni jurisdicción declaradas en P-08'));
+        pieces.push(nonCompliant('d) sin región de los datos ni jurisdicción declaradas en P-08'));
       } else if (missing.length) {
-        partes.push(notMeasured(`P-08, fila de «${name}»: falta ${missing.join(' y ')}`, 'CONFIGURATION'));
+        pieces.push(notMeasured(`P-08, fila de «${name}»: falta ${missing.join(' y ')}`, 'CONFIGURATION'));
       } else {
-        partes.push(compliant(`d) datos en ${row.region_datos}, copias en ${row.region_copias}, ${row.jurisdiccion}`));
+        pieces.push(compliant(`d) datos en ${row.region_datos}, copias en ${row.region_copias}, ${row.jurisdiccion}`));
       }
     }
 
-    if (!partes.length) {
+    if (!pieces.length) {
       return undefined;
     }
 
-    const joined = combineMeasurements(partes);
+    const joined = combineMeasurements(pieces);
 
     return { ...joined, motivo: `«${name}»: ${joined.motivo}` };
   }).filter((m): m is Measurement => Boolean(m));
@@ -683,12 +683,12 @@ const moduleIngestionOf = (
   }
 
   const where = Array.from(new Set(their.flatMap(e => factField(e, 'donde').split(',').map(x => x.trim()).filter(x => !isEmptyField(x))))).join(', ') || 'origen desconocido';
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   // Enabled: its configuration says so; a dedicated agent's is only seen through its alerts
   // (habilitado=-), and then its ingestion proves it.
   if (their.every(e => factField(e, 'habilitado') === 'no')) {
-    partes.push(nonCompliant(`${who}: el módulo está configurado en ${where} pero deshabilitado.`));
+    pieces.push(nonCompliant(`${who}: el módulo está configurado en ${where} pero deshabilitado.`));
   }
 
   // Module errors in the last 24 h (in the manager's ossec.log, or the agent's if it forwards; `-`
@@ -700,7 +700,7 @@ const moduleIngestionOf = (
   if (errors > 0) {
     const last = withErrors.map(e => factField(e, 'ultimo_error')).find(t => !isEmptyField(t));
 
-    partes.push(nonCompliant(`${who}: el módulo registra ${errors} errores en 24 h${last ? ` (el último: «${last}»)` : ''}: hay registros que no entran.`));
+    pieces.push(nonCompliant(`${who}: el módulo registra ${errors} errores en 24 h${last ? ` (el último: «${last}»)` : ''}: hay registros que no entran.`));
   }
 
   // Recent records, measured at the observation instant.
@@ -712,11 +712,11 @@ const moduleIngestionOf = (
   const n24 = their.reduce((t, e) => t + (parseNumber(factField(e, 'alertas_24h')) || 0), 0);
 
   if (deadline === undefined) {
-    partes.push(missingParameter(context, 'P-13', `si la ingesta de ${who} está parada${withAlert ? ` (última alerta ${iso(withAlert.t)})` : ''}`));
+    pieces.push(missingParameter(context, 'P-13', `si la ingesta de ${who} está parada${withAlert ? ` (última alerta ${iso(withAlert.t)})` : ''}`));
   } else if (withAlert) {
     const age = eventTime(withAlert.e) - withAlert.t;
 
-    partes.push(
+    pieces.push(
       age > deadline * HOUR_MS
         ? nonCompliant(`${who}: su última alerta es del ${iso(withAlert.t)}, ${formatHours(age)} h antes de la observación (P-13 = ${deadline} h): la ingesta está parada.`)
         : compliant(
@@ -728,7 +728,7 @@ const moduleIngestionOf = (
     const since = starts.length ? Math.min(...starts) : undefined;
     const observed = Math.max(...their.map(eventTime));
 
-    partes.push(
+    pieces.push(
       since !== undefined && observed - since > deadline * HOUR_MS
         ? nonCompliant(`${who}: configurado en ${where} y sin ningún registro desde que se observa (${iso(since)}), más que P-13 (${deadline} h).`)
         : notMeasured(
@@ -737,7 +737,7 @@ const moduleIngestionOf = (
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev01 = (context: ENSPolicyContext, now: number, services: Record<string, string>[]): Ingestion => {
@@ -838,23 +838,23 @@ const withoutOperations = (who: string, module: string, facts: ENSNormalizedEven
   const sources = Array.from(
     new Set(declared.flatMap(v => v.split('|').map(x => x.trim().toLowerCase())).filter(x => !isEmptyField(x)))
   );
-  const no = `${who}: ninguna operación de administración de una persona en la ventana`;
+  const noOperationsReason = `${who}: ninguna operación de administración de una persona en la ventana`;
 
   if (sources.length) {
     return compliant(
-      `${no}, y el recolector lee su registro de administración (${formatList(sources.map(f => ADMIN_SOURCES[f] || f))}, con eventos en los últimos 30 días)${ofServices ? `; ${ofServices} de servicios del proveedor` : ''}.`
+      `${noOperationsReason}, y el recolector lee su registro de administración (${formatList(sources.map(f => ADMIN_SOURCES[f] || f))}, con eventos en los últimos 30 días)${ofServices ? `; ${ofServices} de servicios del proveedor` : ''}.`
     );
   }
 
   if (!declared.length || declared.some(v => v === '')) {
     return notMeasured(
-      `${no}, pero el inventario de integraciones no dice qué registros de administración lee el recolector (falta fuentes_admin: es de una versión anterior), así que la ausencia no demuestra nada. Actualiza el recolector de op.nub.1 en el manager.`,
+      `${noOperationsReason}, pero el inventario de integraciones no dice qué registros de administración lee el recolector (falta fuentes_admin: es de una versión anterior), así que la ausencia no demuestra nada. Actualiza el recolector de op.nub.1 en el manager.`,
       'COLLECTION'
     );
   }
 
   return notMeasured(
-    `${no}, pero el recolector no ha leído en los últimos 30 días ningún registro de operaciones de administración de este módulo (fuentes_admin = -), así que la ausencia no demuestra nada. ${toEnable(module)}`
+    `${noOperationsReason}, pero el recolector no ha leído en los últimos 30 días ningún registro de operaciones de administración de este módulo (fuentes_admin = -), así que la ausencia no demuestra nada. ${toEnable(module)}`
   );
 };
 
@@ -1060,13 +1060,13 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
     const standards = Array.from(new Set(their.map(e => `${factField(e, 'fuente')}: ${factField(e, 'estandar')}`))).join('; ');
 
     if (failed > 0) {
-      const which = their.flatMap(e => factField(e, 'fallidos').split(',').map(x => x.trim()).filter(x => !isEmptyField(x)));
+      const failedList = their.flatMap(e => factField(e, 'fallidos').split(',').map(x => x.trim()).filter(x => !isEmptyField(x)));
       // Without the total evaluated (a «-» count) «N of 0» is not written.
       const withoutTotal = their.some(e => parseNumber(factField(e, 'controles_evaluados')) === undefined) || evaluated < failed;
       const count = withoutTotal ? `${failed} controles fallidos (sin total de evaluados)` : `${failed} de ${evaluated} controles fallidos`;
 
       return nonCompliant(
-        `«${name}» (${standards}): ${count}${critical ? `, ${critical} críticos o altos` : ''}: ${formatList(which, 8)}. La configuración no sigue ${row.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
+        `«${name}» (${standards}): ${count}${critical ? `, ${critical} críticos o altos` : ''}: ${formatList(failedList, 8)}. La configuración no sigue ${row.guia_ccn_stic || 'la guía CCN-STIC aplicable'}.`
       );
     }
 
@@ -1092,12 +1092,12 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
 const DATA_EV03 =
   'Dato del informe, sin veredicto: detectar servicios en la nube en uso que no figuran en P-02 (shadow IT) exige el DNS o el proxy de los equipos, y con los ficheros locales del manager no se ven. EV-01 dice, eso sí, qué módulos cloud ingiere Wazuh que P-06 no declara.';
 
-const declaredData = (context: ENSPolicyContext, id: string, that: string, columns: string[]): string => {
+const declaredData = (context: ENSPolicyContext, id: string, subject: string, columns: string[]): string => {
   const table = tableParameterRows(context, id);
 
   return table
     ? ` Declarado en ${id}: ${formatList(table.map(f => `${f.servicio}: ${columns.map(c => f[c]).filter(x => !isEmptyField(x || '')).join(', ') || '-'}`))}.`
-    : ` ${id} sin declarar: ${that} no consta.`;
+    : ` ${id} sin declarar: ${subject} no consta.`;
 };
 
 const DATA_EV05 =
@@ -1140,10 +1140,10 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     accredited = false,
     documental = DOCUMENTARY_REQUIREMENTS.includes(requirement),
     // When the reason is the evidences' composite, its parts.
-    partes?: ENSReasonPart[]
+    pieces?: ENSReasonPart[]
   ) => {
     const decision = decide(requirement, measurement.estado, evidences, parametersOf(requirement), typeOf(requirement), requirement, measurement.motivo, expected, measurement.causa, accredited);
-    requirementDecisions.push(mark(partes ? withReasonParts(decision, partes) : decision, documental));
+    requirementDecisions.push(mark(pieces ? withReasonParts(decision, pieces) : decision, documental));
   };
 
   const decideEvidence = (
@@ -1312,7 +1312,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       // EV-07: report finding, without verdict (see `reportedAccesses`).
       accesses = ev07(context, now, used, ingestion);
       decideEvidence('op.nub.1.2', 'EV-07', reportedAccesses(accesses), 'hallazgo del informe');
-      const inAgainst = own.filter(p => p.medida.estado === 'NO_CUMPLE');
+      const failingOwn = own.filter(p => p.medida.estado === 'NO_CUMPLE');
       const summary = compositeReason(own);
 
       // The measurement wins: a NO_CUMPLE (technical or from the file) decides. Otherwise the
@@ -1321,14 +1321,14 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       // only from EV-09, the accredited CUMPLE (the technical part can only overturn it) and the
       // unmeasured one, always the file's. With a technical measurement against it is not: that
       // decision comes from facts.
-      if (inAgainst.length) {
+      if (failingOwn.length) {
         decideRequirement(
           'op.nub.1.2',
           nonCompliant(summary),
-          inAgainst.map(p => p.id),
+          failingOwn.map(p => p.id),
           'EV-09 CUMPLE y ninguna medida técnica en contra',
           false,
-          inAgainst.every(p => p.id === 'EV-09'),
+          failingOwn.every(p => p.id === 'EV-09'),
           reasonPartsOf(own)
         );
       } else if (file.estado === 'CUMPLE') {

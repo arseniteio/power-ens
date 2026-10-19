@@ -239,14 +239,14 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
 
   const actual = series[series.length - 1];
   const previous = [...series].reverse().find(e => eventTime(e) < last - SAME_RUN_WINDOW_MS);
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   const active = factField(actual, 'activo');
 
   if (active !== 'si') {
-    partes.push(nonCompliant(`wazuh-manager no está activo (${active || 'desconocido'}): no hay motor de detección en marcha.`));
+    pieces.push(nonCompliant(`wazuh-manager no está activo (${active || 'desconocido'}): no hay motor de detección en marcha.`));
   } else {
-    partes.push(compliant('wazuh-manager activo.'));
+    pieces.push(compliant('wazuh-manager activo.'));
   }
 
   // That it processes: the analysis engine's counters between two runs.
@@ -260,9 +260,9 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
     // read), the other proof that it processes is that it writes alerts. `alertas_nuevas` does not
     // count ENSFácil's: collectors' own facts do not prove the engine detects anything.
     if (fresh !== undefined && fresh > 0) {
-      partes.push(compliant(`El motor escribe alertas: ${fresh} alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil (sin contadores del motor: ${factField(actual, 'fuente_contadores') || '-'}).`));
+      pieces.push(compliant(`El motor escribe alertas: ${fresh} alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil (sin contadores del motor: ${factField(actual, 'fuente_contadores') || '-'}).`));
     } else {
-      partes.push(
+      pieces.push(
         degradation(context, 'EV-01', now, last + 1) ||
           notMeasured(
             `El recolector no ha podido leer los contadores del motor de análisis (${factField(actual, 'fuente_contadores') || 'sin fuente'})${fresh === 0 ? ' y no hay alertas de detección nuevas desde la pasada anterior' : ''}: no se puede afirmar que el motor procese eventos.`,
@@ -271,22 +271,22 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
       );
     }
   } else if (previous === undefined || before === undefined) {
-    partes.push(
+    pieces.push(
       processed > 0
         ? compliant(`El motor ha procesado ${processed} eventos (${volume}); una sola pasada, sin serie todavía.`)
         : notMeasured('El motor no ha procesado ningún evento y no hay una pasada anterior con la que comparar.')
     );
   } else if (processed > before) {
-    partes.push(compliant(`El motor procesa: ${processed - before} eventos entre ${iso(eventTime(previous))} y ${iso(last)} (${volume}).`));
+    pieces.push(compliant(`El motor procesa: ${processed - before} eventos entre ${iso(eventTime(previous))} y ${iso(last)} (${volume}).`));
   } else if (processed < before) {
     // Counters return to zero when the service restarts.
-    partes.push(
+    pieces.push(
       processed > 0
         ? compliant(`El motor se reinició entre ${iso(eventTime(previous))} y ${iso(last)} y ha procesado ${processed} eventos desde entonces.`)
         : notMeasured(`El motor se reinició entre ${iso(eventTime(previous))} y ${iso(last)} y todavía no ha procesado ningún evento.`)
     );
   } else {
-    partes.push(
+    pieces.push(
       nonCompliant(`El motor de análisis no ha procesado ningún evento entre ${iso(eventTime(previous))} y ${iso(last)} (contador parado en ${processed}): está en marcha, pero no analiza.`)
     );
   }
@@ -296,11 +296,11 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
   const ruleset = current[current.length - 1];
 
   if (!ruleset) {
-    partes.push(withoutFacts(context, 'EV-01', now, lastRuleset, 'inventario del ruleset del manager'));
+    pieces.push(withoutFacts(context, 'EV-01', now, lastRuleset, 'inventario del ruleset del manager'));
   } else {
     const rules = parseNumber(factField(ruleset, 'reglas')) || 0;
 
-    partes.push(
+    pieces.push(
       rules > 0
         ? compliant(
             `Ruleset de Wazuh ${factField(ruleset, 'version_wazuh') || '(versión desconocida)'} con ${rules} reglas cargadas en ${factField(ruleset, 'ficheros')} ficheros, ${factField(ruleset, 'reglas_mitre') || '0'} con técnica MITRE ATT&CK.`
@@ -309,7 +309,7 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 // R1 adds that the rule sets P-03 declares are loaded.
@@ -359,7 +359,7 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const failures: string[] = [];
   const connected: string[] = [];
   const ok: string[] = [];
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   systems.forEach(row => {
     const r = resolves(row.sistema, current);
@@ -371,7 +371,7 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
     }
 
     if (r.tipo === 'ambiguo') {
-      partes.push(ambiguous(row.sistema, r.ids));
+      pieces.push(ambiguous(row.sistema, r.ids));
 
       return;
     }
@@ -389,7 +389,7 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
     connected.push(name);
 
     if (factField(e, 'lectura') === 'error') {
-      partes.push(
+      pieces.push(
         notMeasured(
           `${name}: el recolector no ha podido leer su base en el manager (queue/db/${factId(e)}.db), así que no se sabe si sus pasadas de FIM y SCA siguen.`,
           'COLLECTION'
@@ -431,11 +431,11 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const outside = p01Outside(systems, current);
 
   if (failures.length) {
-    partes.push(nonCompliant(`Sistemas de P-01 sin cobertura de detección efectiva: ${formatList(failures)}.${outside}`));
+    pieces.push(nonCompliant(`Sistemas de P-01 sin cobertura de detección efectiva: ${formatList(failures)}.${outside}`));
   }
 
   if (deadline === undefined) {
-    partes.push(
+    pieces.push(
       missingParameter(
         context,
         'P-10',
@@ -443,10 +443,10 @@ const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
       )
     );
   } else if (!failures.length && ok.length) {
-    partes.push(compliant(`Los ${ok.length} sistemas de P-01 tienen el agente conectado y pasadas de FIM y SCA en las últimas ${deadline} h: ${formatList(ok)}.${outside}`));
+    pieces.push(compliant(`Los ${ok.length} sistemas de P-01 tienen el agente conectado y pasadas de FIM y SCA en las últimas ${deadline} h: ${formatList(ok)}.${outside}`));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev02 = (context: ENSPolicyContext, now: number): Measurement =>
@@ -475,15 +475,15 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const coverage = currentStatus(context, 'detection_coverage_observed', now).vigentes;
   const failures: string[] = [];
   const ok: string[] = [];
-  const aside: string[] = [];
-  const partes: Measurement[] = [];
+  const notConnected: string[] = [];
+  const pieces: Measurement[] = [];
 
   systems.forEach(row => {
     const rc = resolves(row.sistema, coverage);
     const ra = resolves(row.sistema, current);
 
     if (rc.tipo === 'ambiguo' || ra.tipo === 'ambiguo') {
-      partes.push(ambiguous(row.sistema, rc.tipo === 'ambiguo' ? rc.ids : (ra as { ids: string[] }).ids));
+      pieces.push(ambiguous(row.sistema, rc.tipo === 'ambiguo' ? rc.ids : (ra as { ids: string[] }).ids));
 
       return;
     }
@@ -491,19 +491,19 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
     // Only the activity of a connected system is judged: a disconnected one or one without agent is
     // judged by EV-02 and not counted twice here.
     if (rc.tipo === 'unico' && factField(rc.hecho, 'estado_conexion') !== 'active') {
-      aside.push(`${nameOf(row.sistema, rc.hecho)}, ${factField(rc.hecho, 'estado_conexion') || 'estado desconocido'}`);
+      notConnected.push(`${nameOf(row.sistema, rc.hecho)}, ${factField(rc.hecho, 'estado_conexion') || 'estado desconocido'}`);
 
       return;
     }
 
     if (rc.tipo === 'ninguno' && ra.tipo === 'ninguno') {
-      aside.push(`${row.sistema}, sin agente`);
+      notConnected.push(`${row.sistema}, sin agente`);
 
       return;
     }
 
     if (ra.tipo === 'ninguno') {
-      partes.push(notMeasured(`${row.sistema}: el recolector del manager no informa de su actividad de detección.`, 'COLLECTION'));
+      pieces.push(notMeasured(`${row.sistema}: el recolector del manager no informa de su actividad de detección.`, 'COLLECTION'));
 
       return;
     }
@@ -524,7 +524,7 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
     } else if (since !== undefined && now - since > deadline * DAY_MS) {
       failures.push(`${name}: ninguna detección desde que el manager lo observa (${iso(since)})`);
     } else {
-      partes.push(
+      pieces.push(
         notMeasured(
           `${name}: sin detecciones observadas, y se observa desde ${since !== undefined ? iso(since) : 'un instante desconocido'}, menos que P-09 (${deadline} días): todavía no se puede afirmar ni negar que la detección funcione en él.`
         )
@@ -532,21 +532,21 @@ const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
     }
   });
 
-  const notJudged = aside.length ? ` No se juzgan aquí, porque no están conectados (los juzga EV-02): ${formatList(aside)}.` : '';
+  const notJudged = notConnected.length ? ` No se juzgan aquí, porque no están conectados (los juzga EV-02): ${formatList(notConnected)}.` : '';
 
   if (failures.length) {
-    partes.push(
+    pieces.push(
       nonCompliant(
         `Sistemas de P-01 conectados sin detecciones en más de P-09 (${deadline} días): ${formatList(failures)}. Un sistema activo que no produce detecciones indica reglas que no se aplican o una ingesta que no llega.${notJudged}`
       )
     );
   } else if (ok.length) {
-    partes.push(compliant(`Los sistemas de P-01 conectados producen detecciones dentro de P-09 (${deadline} días): ${formatList(ok)}.${notJudged}`));
-  } else if (!partes.length) {
-    partes.push(notMeasured(`Ningún sistema de P-01 está conectado: no hay actividad que juzgar.${notJudged}`));
+    pieces.push(compliant(`Los sistemas de P-01 conectados producen detecciones dentro de P-09 (${deadline} días): ${formatList(ok)}.${notJudged}`));
+  } else if (!pieces.length) {
+    pieces.push(notMeasured(`Ningún sistema de P-01 está conectado: no hay actividad que juzgar.${notJudged}`));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev03 = (context: ENSPolicyContext, now: number): Measurement =>
@@ -585,7 +585,7 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
   const blind: string[] = [];
   const withoutLoad: string[] = [];
   const ok: string[] = [];
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   situations.forEach(row => {
     const text = (row.regla_que_la_detecta || '').trim();
@@ -597,7 +597,7 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
     }
 
     if (!P04_RULES.test(text)) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `P-04, situación «${row.situacion}»: la columna de reglas dice «${text}», que no es una lista de ids o rangos de reglas (5710, 5712, 80700-80799). Si la situación no tiene regla, escribe «ninguna»: es un punto ciego declarado.`,
           'CONFIGURATION'
@@ -616,7 +616,7 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
     });
 
     if (reversed.length) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `P-04, situación «${row.situacion}»: «${reversed.join(', ')}» no es un rango de reglas, porque el primer id es mayor que el último (¿una fecha o una referencia?). Escribe los rangos de menor a mayor (80700-80799), o «ninguna» si la situación no tiene regla.`,
           'CONFIGURATION'
@@ -635,7 +635,7 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
     });
 
     if (widths.length) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `P-04, situación «${row.situacion}»: «${widths.join(', ')}» abarca más de ${MAX_WIDTH_P04 + 1} ids, más que cualquier banda de reglas real (¿una referencia o un CVE?). Si de verdad son reglas, parte el rango en tramos más pequeños.`,
           'CONFIGURATION'
@@ -655,7 +655,7 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
         `«${row.situacion}» → ${covered.map(r => `${describeRange(r)} (${inWhich(r)})`).join(', ')}${outside.length ? `; declaradas y no cargadas: ${outside.map(describeRange).join(', ')}` : ''}`
       );
     } else if (incompleteSets.length) {
-      partes.push(
+      pieces.push(
         notMeasured(
           `«${row.situacion}»: ninguna de sus reglas (${declared.map(describeRange).join(', ')}) aparece en lo recibido, pero faltan partes del inventario de ${incompleteSets.map(c => `${c.conjunto} (${c.presentes.size} de ${c.partes})`).join(', ')}: no se puede afirmar que no estén cargadas.`,
           'COLLECTION'
@@ -667,18 +667,18 @@ const ev04Facts = (context: ENSPolicyContext, now: number): Measurement => {
   });
 
   if (blind.length) {
-    partes.push(nonCompliant(`Situaciones de compromiso de P-04 sin ninguna regla de detección asociada, puntos ciegos declarados: ${formatList(blind)}.`));
+    pieces.push(nonCompliant(`Situaciones de compromiso de P-04 sin ninguna regla de detección asociada, puntos ciegos declarados: ${formatList(blind)}.`));
   }
 
   if (withoutLoad.length) {
-    partes.push(nonCompliant(`Situaciones de P-04 cuyas reglas no están cargadas en el manager (o son de nivel 0 y no alertan): ${formatList(withoutLoad)}.`));
+    pieces.push(nonCompliant(`Situaciones de P-04 cuyas reglas no están cargadas en el manager (o son de nivel 0 y no alertan): ${formatList(withoutLoad)}.`));
   }
 
   if (!blind.length && !withoutLoad.length && ok.length) {
-    partes.push(compliant(`Las ${situations.length} situaciones de compromiso de P-04 tienen regla de detección cargada: ${formatList(ok)}.`));
+    pieces.push(compliant(`Las ${situations.length} situaciones de compromiso de P-04 tienen regla de detección cargada: ${formatList(ok)}.`));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 const ev04 = (context: ENSPolicyContext, now: number): Measurement =>
@@ -819,31 +819,31 @@ const NOT_REQUIRED_R3 =
 
 
 const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
-  const partes: Measurement[] = [];
+  const pieces: Measurement[] = [];
 
   // Axis 1: ruleset age against P-08.
   const { vigentes: versions, ultimo: lastVersion } = currentStatus(context, 'ruleset_version_observed', now);
   const ruleset = versions[versions.length - 1];
 
   if (!ruleset) {
-    partes.push(degradation(context, 'EV-08', now) || withoutFacts(context, 'EV-01', now, lastVersion, 'inventario del ruleset del manager'));
+    pieces.push(degradation(context, 'EV-08', now) || withoutFacts(context, 'EV-01', now, lastVersion, 'inventario del ruleset del manager'));
   } else {
     const max = positiveScalar(context, 'P-08');
     const date = parseInstant(factField(ruleset, 'fecha_ruleset'));
-    const that = `ruleset de Wazuh ${factField(ruleset, 'version_wazuh') || '(versión desconocida)'}`;
+    const subject = `ruleset de Wazuh ${factField(ruleset, 'version_wazuh') || '(versión desconocida)'}`;
 
     if (date === undefined) {
-      partes.push(notMeasured(`El recolector no ha podido fechar el ${that} (fecha_ruleset=${factField(ruleset, 'fecha_ruleset') || 'vacía'}).`));
+      pieces.push(notMeasured(`El recolector no ha podido fechar el ${subject} (fecha_ruleset=${factField(ruleset, 'fecha_ruleset') || 'vacía'}).`));
     } else if (max === undefined) {
-      partes.push(missingParameter(context, 'P-08', `la vigencia del ${that}, del ${iso(date)} (${wholeDays(now - date)} días)`));
+      pieces.push(missingParameter(context, 'P-08', `la vigencia del ${subject}, del ${iso(date)} (${wholeDays(now - date)} días)`));
     } else if (now - date > max * DAY_MS) {
-      partes.push(
+      pieces.push(
         nonCompliant(
-          `El ${that} es del ${iso(date)} (${factField(ruleset, 'fichero_mas_reciente') || 'fichero más reciente'}): ${wholeDays(now - date)} días, más que los ${max} de P-08. Las reglas de detección envejecen como las firmas de un antivirus.`
+          `El ${subject} es del ${iso(date)} (${factField(ruleset, 'fichero_mas_reciente') || 'fichero más reciente'}): ${wholeDays(now - date)} días, más que los ${max} de P-08. Las reglas de detección envejecen como las firmas de un antivirus.`
         )
       );
     } else {
-      partes.push(compliant(`El ${that} es del ${iso(date)}: ${wholeDays(now - date)} días, dentro de los ${max} de P-08.`));
+      pieces.push(compliant(`El ${subject} es del ${iso(date)}: ${wholeDays(now - date)} días, dentro de los ${max} de P-08.`));
     }
   }
 
@@ -851,9 +851,9 @@ const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
   const { vigentes: sweep, ultimo: lastSweep } = currentStatus(context, 'rule_silenced', now);
 
   if (!sweep.length || lastSweep === undefined) {
-    partes.push(withoutFacts(context, 'EV-08', now, lastSweep, 'barrido de exclusiones y reglas silenciadas'));
+    pieces.push(withoutFacts(context, 'EV-08', now, lastSweep, 'barrido de exclusiones y reglas silenciadas'));
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   // What could not be swept after the last good run is added to what it measured, without hiding
@@ -861,7 +861,7 @@ const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
   const deg = degradation(context, 'EV-08', now, lastSweep + 1);
 
   if (deg) {
-    partes.push(deg);
+    pieces.push(deg);
   }
 
   const silenced = sweep.filter(e => factField(e, 'tipo') !== 'ninguno' && !isEmptyField(factField(e, 'objeto')));
@@ -869,17 +869,17 @@ const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
     `${factField(e, 'objeto')} (${factField(e, 'tipo') === 'fichero_excluido' ? 'fichero excluido' : 'regla a nivel 0'} en ${factField(e, 'fichero') || '-'})`;
 
   if (!silenced.length) {
-    partes.push(compliant('El manager no tiene ningún fichero de reglas excluido ni ninguna regla reescrita a nivel 0.'));
+    pieces.push(compliant('El manager no tiene ningún fichero de reglas excluido ni ninguna regla reescrita a nivel 0.'));
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   const authorized = tableParameterRows(context, 'P-06');
 
   if (!authorized) {
-    partes.push(missingParameter(context, 'P-06', `si los ${silenced.length} silenciamientos del manager están justificados (${formatList(silenced.map(describe))})`));
+    pieces.push(missingParameter(context, 'P-06', `si los ${silenced.length} silenciamientos del manager están justificados (${formatList(silenced.map(describe))})`));
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
   const outside: string[] = [];
@@ -900,18 +900,18 @@ const ev08 = (context: ENSPolicyContext, now: number): Measurement => {
   });
 
   if (outside.length) {
-    partes.push(nonCompliant(`Silenciamientos que P-06 no declara: ${formatList(outside)}. Una exclusión sin constancia degrada la detección sin que nadie lo advierta.`));
+    pieces.push(nonCompliant(`Silenciamientos que P-06 no declara: ${formatList(outside)}. Una exclusión sin constancia degrada la detección sin que nadie lo advierta.`));
   }
 
   if (withoutJustify.length) {
-    partes.push(nonCompliant(`Silenciamientos de P-06 sin justificación o sin aprobación: ${formatList(withoutJustify)}.`));
+    pieces.push(nonCompliant(`Silenciamientos de P-06 sin justificación o sin aprobación: ${formatList(withoutJustify)}.`));
   }
 
   if (!outside.length && !withoutJustify.length) {
-    partes.push(compliant(`Los ${silenced.length} silenciamientos del manager están en P-06 con motivo y aprobación: ${formatList(ok)}.`));
+    pieces.push(compliant(`Los ${silenced.length} silenciamientos del manager están en P-06 con motivo y aprobación: ${formatList(ok)}.`));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
 

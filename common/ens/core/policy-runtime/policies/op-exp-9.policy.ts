@@ -853,7 +853,7 @@ const sweep = (
   const typeFact = isEv03 ? 'emergency_action_observed' : 'system_change_observed';
   const recordedType = isEv03 ? 'emergencia' : 'modificacion';
   const fieldObject = isEv03 ? 'programa' : 'objeto';
-  const that = isEv03 ? 'respuesta activa' : 'cambio';
+  const subject = isEv03 ? 'respuesta activa' : 'cambio';
 
   const regAct = record(context, 'actuaciones');
   const all = windows(context);
@@ -902,7 +902,7 @@ const sweep = (
 
         if (!lists) {
           findings.push(
-            `${inc.id} en ${system}: ${that} ${isEv03 ? '' : `de ${factField(e, 'origen')} `}«${object}» (${factField(e, 'veces') || '1'} vez/veces, ${factField(e, 'primera')}${factField(e, 'ultima') && factField(e, 'ultima') !== factField(e, 'primera') ? ` → ${factField(e, 'ultima')}` : ''})`
+            `${inc.id} en ${system}: ${subject} ${isEv03 ? '' : `de ${factField(e, 'origen')} `}«${object}» (${factField(e, 'veces') || '1'} vez/veces, ${factField(e, 'primera')}${factField(e, 'ultima') && factField(e, 'ultima') !== factField(e, 'primera') ? ` → ${factField(e, 'ultima')}` : ''})`
           );
         }
       });
