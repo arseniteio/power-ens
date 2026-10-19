@@ -327,6 +327,28 @@ def main():
                   r.returncode == 0 and org_param("op.acc.4", "P-06")["value"] == ["sudo", "wheel", "admin"]
                   and state["doc"]["configuration"]["organizationData"]["values"] == {"grupos_privilegiados": ["sudo", "wheel", "admin"]},
                   r.stdout + r.stderr)
+        # Only config/ copied somewhere else (Docker with config/ mounted): no items to read.
+        alone = os.path.join(tmp, "solo-config")
+        os.makedirs(alone, exist_ok=True)
+        for name in ("set-parameters.py", "ensfacil_history.py", "ensfacil_organization.py"):
+            with open(os.path.join(HERE, name), encoding="utf-8") as src, open(os.path.join(alone, name), "w", encoding="utf-8") as dst:
+                dst.write(src.read())
+        state["doc"] = json.loads(json.dumps(org_doc))
+        state["doc"]["configuration"]["organizationData"] = {"values": {"grupos_privilegiados": ["sudo"]}}
+        values_path = os.path.join(tmp, "solo.json")
+        with open(values_path, "w", encoding="utf-8") as f:
+            json.dump({"op.acc.4": {"P-06": ["wheel"]}}, f)
+        r = subprocess.run([sys.executable, os.path.join(alone, "set-parameters.py"), values_path, "--apply"], capture_output=True, text=True,
+                           env=dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x"))
+        check("organisation · without the repo, the parameter alone is written and the tool warns",
+              r.returncode == 0 and "WARNING: cannot read the organisation data items" in r.stdout and org_param("op.acc.4", "P-06")["value"] == ["wheel"]
+              and org_param("op.acc.1", "P-11")["value"] == ["sudo"], r.stdout + r.stderr)
+        with open(values_path, "w", encoding="utf-8") as f:
+            json.dump({"organization": {"grupos_privilegiados": ["x"]}}, f)
+        r = subprocess.run([sys.executable, os.path.join(alone, "set-parameters.py"), values_path], capture_output=True, text=True,
+                           env=dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x"))
+        check("organisation · without the repo, the organization section is refused", r.returncode == 1 and "organization-data-items.ts" in r.stderr, r.stderr)
+
         state["doc"] = json.loads(json.dumps(org_doc))
         state["doc"]["configuration"]["organizationData"] = {"values": {"retencion": None}}
         r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")

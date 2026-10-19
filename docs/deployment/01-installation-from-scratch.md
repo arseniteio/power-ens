@@ -600,6 +600,8 @@ sudo env $CERT python3 set-parameters.py /ruta/politica.json --apply    # escrib
 
 La plantilla y los ajustes propios de un agente se declaran con la sección `agents` del mismo fichero: [Configuración por controles y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-la-plantilla-y-los-ajustes-de-un-agente-con-set-parameterspy).
 
+Los datos que piden varios controles (personal autorizado, entorno de preproducción, algoritmos autorizados por el CCN, grupos con privilegio administrativo, Declaración de aplicabilidad…) se declaran una sola vez en Configuración > General > «Datos de la organización», y desde el servidor con la sección `organization` del mismo fichero: [Configuración por controles y plantillas, apartado 7.1](09-configuration-by-system.md#71-datos-de-la-organización) y [apartado 11.4](09-configuration-by-system.md#114-declarar-datos-de-la-organización-con-set-parameterspy). En «Ajustes comunes» de cada control, esos parámetros aparecen en solo lectura.
+
 Después de declarar valores, repetir la validación del apartado 14.4.
 
 ### 14.6 Comprobar el panel

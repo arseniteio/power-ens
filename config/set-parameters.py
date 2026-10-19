@@ -386,6 +386,9 @@ partial_only = set()
 if per_item and items is None:
     errors.append("cannot find common/ens/configuration/organization/organization-data-items.ts: "
                   "organisation data is declared from the config/ directory of the plugin repo")
+elif items is None and config.get("organizationData") is not None and wanted:
+    print("WARNING: cannot read the organisation data items (run from the config/ directory of the full plugin repo): "
+          "a parameter that is organisation data is written as a parameter only, and the plugin shows it as a conflict.")
 errors += organization.validate_shape(config.get("organizationData"))
 
 
