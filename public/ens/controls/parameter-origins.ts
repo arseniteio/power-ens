@@ -64,7 +64,7 @@ export const describeParameterForMachine = (
   return {
     id: parameterId,
     label: parametro.label || parametro.name,
-    value: text,
+    value: parametro.matchMode === 'regex' && !empty ? `Expresión regular: ${text}` : text,
     empty,
     origin: conValorPropio.length
       ? `varía por máquina: ${conValorPropio.join(', ')} con ajuste propio o plantilla; aquí, el valor común`

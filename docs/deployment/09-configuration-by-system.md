@@ -196,7 +196,7 @@ Para declarar una expresión regular:
 
 4. Guardar.
 
-   Resultado esperado: tras guardar los ajustes comunes, el resumen muestra «Expresión regular: <patrón>»; en una plantilla o en un agente, el valor se muestra igual.
+   Resultado esperado: tras guardar los ajustes comunes, el resumen muestra «Expresión regular: <patrón>»; una plantilla, la página del agente, el detalle del control y los informes muestran el valor igual.
 
 Ejemplos:
 

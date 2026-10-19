@@ -25,6 +25,7 @@ import {
 import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
 import { supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
 import { MAX_PARAMETER_PATTERN_LENGTH } from '../common/ens/configuration/services/parameter-pattern';
+import { describeParameterForMachine } from '../public/ens/controls/parameter-origins';
 import { validateENSConfigurationStructure as validate120 } from './fixtures/configuration-structure-validator-1.2.0';
 import { checkAgentsConfigurationKeys as checkKeys120 } from './fixtures/agent-configuration-1.2.0';
 
@@ -111,6 +112,8 @@ console.log('2. Resolution: the mode of the level the value comes from');
   check('a common parameter keeps its mode on every agent', ['101', '102', '103', '104', '105'].every(agent => resolved(doc, agent, 'P-04').matchMode === 'regex'));
   check('the engine entry point gives the same', resolveControlConfigurationForAgent(doc, 'op.acc.1', '102')!.parameters.find(p => p.id === 'P-03')!.matchMode === 'regex' &&
     !('matchMode' in resolveControlConfigurationForAgent(doc, 'op.acc.1', '105')!.parameters.find(p => p.id === 'P-03')!));
+  check('the control detail and the reports say which value is a pattern', describeParameterForMachine(doc, 'op.acc.1', '102', 'P-03')?.value === 'Expresión regular: ^svc_.*$' &&
+    describeParameterForMachine(doc, 'op.acc.1', '105', 'P-03')?.value === '1 fila: maria', [describeParameterForMachine(doc, 'op.acc.1', '102', 'P-03'), describeParameterForMachine(doc, 'op.acc.1', '105', 'P-03')]);
   const inherited = getInheritedSetting(doc, '103', 'op.acc.1', 'P-03');
   check('what 103 inherits without its override: the template pattern with its mode', inherited.value === '^svc_.*$' && inherited.matchMode === 'regex', inherited);
 }

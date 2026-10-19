@@ -196,7 +196,7 @@ To declare a regular expression:
 
 4. Save.
 
-   Expected result: after saving the common settings, the summary shows «Expresión regular: <pattern>»; in a template or an agent, the value is shown the same way.
+   Expected result: after saving the common settings, the summary shows «Expresión regular: <pattern>»; a template, the agent page, the control detail and the reports show the value the same way.
 
 Examples:
 
