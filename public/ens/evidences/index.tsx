@@ -40,10 +40,10 @@ import {
 // motivo de una evidencia puede ser una línea o doscientas palabras enumerando
 // desviaciones. Se pliega, no se recorta.
 import { MotiveCell } from '../controls/control-detail/motive-cell';
-import type { MotivoLinea } from '../controls/control-detail/motive-cell';
+import type { MotiveLine } from '../controls/control-detail/motive-cell';
 import {
-  etiquetaDeMaquinas,
-  resumirMotivos,
+  machinesLabel,
+  summarizeMotives,
 } from '../controls/control-detail/general-view';
 
 // Una fila de la tabla de evidencias. Sin la columna `control`: el control lo
@@ -296,8 +296,8 @@ const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
 const lineasDeMotivo = (
   row: EvidenceRow,
   totalMaquinas: number,
-): { visibles: MotivoLinea[]; ocultos: number } => {
-  let lineas: MotivoLinea[];
+): { visibles: MotiveLine[]; ocultos: number } => {
+  let lineas: MotiveLine[];
   let ocultos = 0;
 
   if (row.observationGroups.length > 0) {
@@ -305,14 +305,14 @@ const lineasDeMotivo = (
     //
     // La pregunta de auditoría se saca ANTES del reparto. El motor la anexa al
     // motivo de todas las máquinas, así que sale agrupada con la flota entera y
-    // `resumirMotivos` —que ordena por número de máquinas— la colocaba siempre
+    // `summarizeMotives` —que ordena por número de máquinas— la colocaba siempre
     // la primera: se comía uno de los tres huecos visibles y empujaba un motivo
     // de verdad al «y N más». Va al pie, que es donde `MotiveCell` la pone.
     const pregunta = row.observationGroups.find(grupo =>
       grupo.text.startsWith(PREFIJO_PREGUNTA),
     );
 
-    const resumen = resumirMotivos(
+    const resumen = summarizeMotives(
       row.observationGroups.filter(
         grupo => !grupo.text.startsWith(PREFIJO_PREGUNTA),
       ),
@@ -321,7 +321,7 @@ const lineasDeMotivo = (
     ocultos = resumen.ocultos;
     lineas = resumen.visibles.map(grupo => ({
       texto: grupo.text,
-      etiqueta: etiquetaDeMaquinas(grupo.agents, totalMaquinas),
+      etiqueta: machinesLabel(grupo.agents, totalMaquinas),
     }));
 
     if (pregunta) {

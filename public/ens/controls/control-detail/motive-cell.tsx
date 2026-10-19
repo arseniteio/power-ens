@@ -43,13 +43,13 @@ const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
 // Lo que cabe en dos líneas de la columna sin que la fila crezca.
 const LIMITE = 190;
 
-export interface MotivoLinea {
+export interface MotiveLine {
   texto: string;
   etiqueta?: string;
 }
 
 interface MotiveCellProps {
-  lineas: MotivoLinea[];
+  lineas: MotiveLine[];
   ocultos?: number;
   // Encabeza el panel. Sin él, el lector no sabe de qué evidencia es el
   // motivo que está leyendo, que es justo lo que el panel viene a resolver.

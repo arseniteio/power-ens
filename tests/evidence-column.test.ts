@@ -30,7 +30,7 @@ import {
   ensReportStatusBadgeColor,
   ensReportStatusPdfColor,
   ENS_REPORT_EVIDENCE_FIELD,
-  ENS_REPORT_SIN_EVIDENCIA,
+  ENS_REPORT_NO_EVIDENCE,
 } from '../public/ens/reports/report-rows';
 import type { ENSReportRow } from '../public/ens/reports/report-rows';
 import type { ENSReportModel } from '../public/ens/reports/registry';
@@ -538,7 +538,7 @@ bloque('4 · las guardas: nada de huecos mudos ni de rojos inventados');
 
   comprueba(
     'guarda · un campo sin evidencias lo DICE, no deja el hueco mudo',
-    sinEvidencias.evidencia === ENS_REPORT_SIN_EVIDENCIA,
+    sinEvidencias.evidencia === ENS_REPORT_NO_EVIDENCE,
     sinEvidencias.evidencia
   );
 

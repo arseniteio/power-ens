@@ -84,7 +84,7 @@ export interface ENSReportPdfCell {
 // Lo que dice la columna cuando el campo no declara ninguna evidencia. Decirlo
 // es mejor que el hueco mudo que había: el auditor distingue «este campo no se
 // apoya en ninguna evidencia» de «la insignia no ha cargado».
-export const ENS_REPORT_SIN_EVIDENCIA = 'Evidencia no disponible';
+export const ENS_REPORT_NO_EVIDENCE = 'Evidencia no disponible';
 
 // La clave por la que la columna «Evidencia» de la pantalla lee la fila. Vive
 // aquí, y no como literal suelto en la tabla, porque ese literal suelto es
@@ -149,7 +149,7 @@ const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
   evidencia:
     (field.evidenceIds || []).length > 0
       ? field.evidenceIds.join(', ')
-      : ENS_REPORT_SIN_EVIDENCIA,
+      : ENS_REPORT_NO_EVIDENCE,
 
   datosPendientes:
     (field.producerGaps || []).length > 0

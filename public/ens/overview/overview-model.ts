@@ -19,7 +19,7 @@ import type {
   ENSOverviewNonConformity,
 } from '../../../common/ens/evaluation/types';
 import { ENSMachineTally, tallyMachines } from '../controls/controls-list-model';
-import { classifyNonConformity, ClaseNoConformidad } from '../controls/control-detail/nonconformity-class';
+import { classifyNonConformity, NonConformityClass } from '../controls/control-detail/nonconformity-class';
 
 export const HOUR = 60 * 60 * 1000;
 export const STALE_AFTER_MS = STALE_COLLECTOR_MAX_AGE_HOURS * HOUR;
@@ -231,7 +231,7 @@ export interface WorkItem {
 
 export interface WorkGroup {
   owner: string;
-  clase: ClaseNoConformidad;
+  clase: NonConformityClass;
   items: WorkItem[];
   controls: number;
 }

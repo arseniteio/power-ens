@@ -5,7 +5,7 @@
 // la Vista general salen de aquí. La distinción medido / no evidenciado no se
 // explica en prosa —restan igual—, se ve en el color y en la etiqueta, y la
 // causa del no evidenciado va como etiqueta, no como frase. Sin React.
-export interface ClaseNoConformidad {
+export interface NonConformityClass {
   color: string;
   badgeColor: 'danger' | 'default' | 'warning' | 'primary';
   icono: string;
@@ -22,7 +22,7 @@ export const classifyNonConformity = (
   // primero es añadirlo, sea cual sea la causa del hueco (salvo el catálogo,
   // que es del producto): la misma regla que el motor en el hallazgo.
   options: { controlConfigured?: boolean } = {}
-): ClaseNoConformidad => {
+): NonConformityClass => {
   if (options.controlConfigured === false && item.origin !== 'MEDIDA' && item.cause !== 'CATALOG') {
     return { etiqueta: 'No evidenciado · control sin añadir', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Añadir el control a la configuración', responsable: 'Responsable ENS', orden: 3 };
   }

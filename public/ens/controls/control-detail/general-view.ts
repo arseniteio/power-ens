@@ -22,18 +22,18 @@ import type {
 // Motivos distintos que se enseñan en una celda antes de contar el resto. Tres
 // caben sin que la fila crezca; el cuarto ya obliga a hacer scroll para leer la
 // tabla, que es justo lo que se está arreglando.
-export const MAX_MOTIVOS_VISIBLES = 3;
+export const MAX_VISIBLE_MOTIVES = 3;
 
 // Máquinas que se nombran antes de contarlas. A partir de la quinta, el nombre
 // informa menos que el número.
-export const MAX_MAQUINAS_NOMBRADAS = 4;
+export const MAX_NAMED_MACHINES = 4;
 
-export const nombreDeMaquina = (agent: ENSAgentRef): string =>
+export const machineDisplayName = (agent: ENSAgentRef): string =>
   agent.agentName ? `${agent.agentName} (${agent.agentId})` : agent.agentId;
 
-export const listarMaquinas = (agents: ENSAgentRef[]): string => {
-  const nombres = agents.map(nombreDeMaquina);
-  const visibles = nombres.slice(0, MAX_MAQUINAS_NOMBRADAS);
+export const listMachines = (agents: ENSAgentRef[]): string => {
+  const nombres = agents.map(machineDisplayName);
+  const visibles = nombres.slice(0, MAX_NAMED_MACHINES);
   const resto = nombres.length - visibles.length;
 
   return visibles.join(', ') + (resto > 0 ? ` y ${resto} más` : '');
@@ -42,7 +42,7 @@ export const listarMaquinas = (agents: ENSAgentRef[]): string => {
 // «6 máquinas» y «las 7 (todas)» son dos cosas distintas para un auditor: la
 // primera dice que hay una que se comporta de otra manera y hay que ir a
 // buscarla. Sin el total no se puede distinguir una de otra.
-export const describirAlcance = (
+export const describeScope = (
   agents: ENSAgentRef[],
   totalMaquinas: number,
 ): string | undefined => {
@@ -51,13 +51,13 @@ export const describirAlcance = (
   }
 
   if (agents.length === 1) {
-    return nombreDeMaquina(agents[0]);
+    return machineDisplayName(agents[0]);
   }
 
   return `${agents.length} máquinas${etiquetaTodas(
     agents,
     totalMaquinas,
-  )}: ${listarMaquinas(agents)}`;
+  )}: ${listMachines(agents)}`;
 };
 
 const etiquetaTodas = (
@@ -69,26 +69,26 @@ const etiquetaTodas = (
 // Lo que va delante del motivo en la tabla de evidencias: con una sola máquina
 // se la nombra —perder el nombre obligaría a seleccionar el agente para saber
 // dónde ir a mirar—; con varias, se cuentan.
-export const etiquetaDeMaquinas = (
+export const machinesLabel = (
   agents: ENSAgentRef[],
   totalMaquinas: number,
 ): string =>
   agents.length === 1
-    ? nombreDeMaquina(agents[0])
+    ? machineDisplayName(agents[0])
     : `${agents.length} máquinas${etiquetaTodas(agents, totalMaquinas)}`;
 
 // De más extendido a más raro. Con el corte en tres, esto garantiza que el
 // motivo que afecta a media flota se ve siempre; los minoritarios que no quepan
 // se cuentan en el «y N más». El orden de los empatados no se toca: `sort` es
 // estable, así que dos motivos con las mismas máquinas salen como llegaron.
-export const ordenarMotivos = (
+export const sortMotives = (
   grupos: ENSObservationGroup[],
 ): ENSObservationGroup[] =>
   [...grupos].sort(
     (izquierda, derecha) => derecha.agents.length - izquierda.agents.length,
   );
 
-export interface ResumenDeMotivos {
+export interface MotiveSummary {
   visibles: ENSObservationGroup[];
 
   // Cuántos motivos DISTINTOS quedan fuera. Nunca cuántas máquinas: el auditor
@@ -96,11 +96,11 @@ export interface ResumenDeMotivos {
   ocultos: number;
 }
 
-export const resumirMotivos = (
+export const summarizeMotives = (
   grupos: ENSObservationGroup[],
-): ResumenDeMotivos => {
-  const ordenados = ordenarMotivos(grupos);
-  const visibles = ordenados.slice(0, MAX_MOTIVOS_VISIBLES);
+): MotiveSummary => {
+  const ordenados = sortMotives(grupos);
+  const visibles = ordenados.slice(0, MAX_VISIBLE_MOTIVES);
 
   return {
     visibles,
@@ -112,6 +112,6 @@ export const resumirMotivos = (
 // detalle. Un cumplimiento DOCUMENTAL —`P-ATT` o una declaración que la policy
 // acredita con su vigencia— se dice como tal: el auditor tiene que separar de
 // un vistazo lo que se midió de lo que se declaró.
-export const etiquetaDeRequisitoQueCumple = (requisito: {
+export const compliantRequirementLabel = (requisito: {
   attested?: boolean;
 }): string => (requisito.attested ? 'acreditado documentalmente' : 'cumple');

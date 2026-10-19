@@ -1099,7 +1099,7 @@ const ControlSinModeloDeInforme = ({
 );
 
 // Componente público: filtro por prefijo + un informe plegable por control.
-export const InformesENS = () => {
+export const ReportsENS = () => {
   const [prefix, setPrefix] = React.useState<string>('');
 
   const [openControlIds, setOpenControlIds] = React.useState<
