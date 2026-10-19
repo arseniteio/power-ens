@@ -280,7 +280,7 @@ export interface ENSRowComputeStats {
 const comprime = (lista: ENSTraceabilityResult[]): Buffer | null =>
   lista.length ? deflateRawSync(Buffer.from(JSON.stringify(lista), 'utf8')) : null;
 
-export const descomprime = (datos: Buffer | null): ENSTraceabilityResult[] =>
+export const decompressTraceability = (datos: Buffer | null): ENSTraceabilityResult[] =>
   datos ? JSON.parse(inflateRawSync(datos).toString('utf8')) : [];
 
 // Lo que ocupa una fila guardada (para el tope de la memoria).
@@ -1659,7 +1659,7 @@ export const createEvaluationService = ({
           view = {
             controlId,
             result: row.result,
-            traceability: () => descomprime(row.traceability),
+            traceability: () => decompressTraceability(row.traceability),
             traceabilityStored: row.traceabilityStored,
             traceabilityTotal: row.traceabilityTotal,
             rows: [],
@@ -1672,7 +1672,7 @@ export const createEvaluationService = ({
             .map(f => ({
               agentId: f.agentId,
               agentName: f.agentName,
-              result: { ...filaDe(f.need).result!, traceability: conTrazas ? descomprime(filaDe(f.need).traceability) : [] },
+              result: { ...filaDe(f.need).result!, traceability: conTrazas ? decompressTraceability(filaDe(f.need).traceability) : [] },
             }));
           const consolidado = consolidateENSControlRows(controlId, level, conTraza, ctx.presenceEvents, ctx.scope, ctx.now);
           const traza = consolidado?.traceability || [];
@@ -1738,7 +1738,7 @@ export const createEvaluationService = ({
         view = {
           controlId,
           result: f?.result,
-          traceability: () => (f ? descomprime(f.traceability) : []),
+          traceability: () => (f ? decompressTraceability(f.traceability) : []),
           traceabilityStored: f?.traceabilityStored || 0,
           traceabilityTotal: f?.traceabilityTotal || 0,
           rows: propia?.result ? [{ agentId: query.agentId, result: propia.result }] : [],
