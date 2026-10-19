@@ -124,23 +124,23 @@ const part = (text: string, head?: { evidenceId: string; status: string }, secon
     text: text,
     summary,
     detail,
-    ...(secondary !== undefined ? { secondary: secondary } : {}),
+    ...(secondary !== undefined ? { secondary } : {}),
     ...(list ? { list } : {}),
     ...notes,
   };
 };
 
 // "Además:" at the start, or after a space and something before (from position 1, or the leading space would be lost).
-const splitAlso = (text: string): { principal: string; secundario?: string } => {
-  if (text.startsWith(ALSO)) return { principal: '', secundario: text.slice(ALSO.length) };
+const splitAlso = (text: string): { principal: string; secondary?: string } => {
+  if (text.startsWith(ALSO)) return { principal: '', secondary: text.slice(ALSO.length) };
   const i = text.indexOf(` ${ALSO}`, 1);
-  return i < 0 ? { principal: text } : { principal: text.slice(0, i), secundario: text.slice(i + 1 + ALSO.length) };
+  return i < 0 ? { principal: text } : { principal: text.slice(0, i), secondary: text.slice(i + 1 + ALSO.length) };
 };
 
 const splitSegment = (segment: string): MotivePart => {
   const m = HEAD.exec(segment);
   const body = m ? segment.slice(m[0].length) : segment;
-  const { principal, secundario: secondary } = splitAlso(body);
+  const { principal, secondary } = splitAlso(body);
   return part(principal, m ? { evidenceId: m[1], status: m[2] } : undefined, secondary);
 };
 

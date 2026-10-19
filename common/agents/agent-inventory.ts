@@ -34,24 +34,24 @@ export const buildMonitoringInventoryRequest = () => ({
   },
 });
 
-const agentId = (valor: unknown): string => {
-  const text = String(valor ?? '').trim();
+const agentId = (value: unknown): string => {
+  const text = String(value ?? '').trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
 // The agent's operating system, to detect its type in Configuration (Windows, Linux). Only the text fields used; a never-connected agent has no `os`.
-const systemOf = (valor: any): ENSAgentScope['os'] => {
-  if (!valor || typeof valor !== 'object') return undefined;
+const systemOf = (value: any): ENSAgentScope['os'] => {
+  if (!value || typeof value !== 'object') return undefined;
   const os: NonNullable<ENSAgentScope['os']> = {};
-  (['platform', 'name', 'version', 'uname'] as const).forEach(campo => {
-    if (typeof valor[campo] === 'string' && valor[campo].trim()) os[campo] = valor[campo].trim();
+  (['platform', 'name', 'version', 'uname'] as const).forEach(field => {
+    if (typeof value[field] === 'string' && value[field].trim()) os[field] = value[field].trim();
   });
   return Object.keys(os).length ? os : undefined;
 };
 
-const groupsOf = (valor: unknown): string[] => {
-  if (Array.isArray(valor)) return valor.map(g => String(g).trim()).filter(Boolean);
-  if (typeof valor === 'string') return valor.split(',').map(g => g.trim()).filter(Boolean);
+const groupsOf = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.map(g => String(g).trim()).filter(Boolean);
+  if (typeof value === 'string') return value.split(',').map(g => g.trim()).filter(Boolean);
   return [];
 };
 
@@ -61,7 +61,7 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
   let managerName: string | undefined;
   let managerTimestamp = -Infinity;
   // One agent per normalized id: if two buckets give the same (`24` and `024`), the one with the most recent datum stays; without a date, it counts as the oldest.
-  const byId = new Map<string, { agente: ENSAgentScope; instante: number }>();
+  const byId = new Map<string, { agent: ENSAgentScope; timestamp: number }>();
 
   for (const bucket of aggregations?.agentes?.buckets || []) {
     const doc = bucket?.ultimo?.hits?.hits?.[0]?._source;
@@ -78,11 +78,11 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
 
     const order = Number.isNaN(timestamp) ? -Infinity : timestamp;
     const previous = byId.get(id);
-    if (previous && previous.instante >= order) continue;
+    if (previous && previous.timestamp >= order) continue;
 
     byId.set(id, {
-      instante: order,
-      agente: {
+      timestamp: order,
+      agent: {
         id,
         name: doc?.name ? String(doc.name) : undefined,
         groups: groupsOf(doc?.group),
@@ -97,8 +97,8 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     mostRecent === undefined || timestamp === -Infinity || mostRecent - timestamp <= ENS_INVENTORY_MAX_AGE_MS;
 
   const agents = [...byId.values()]
-    .filter(v => current(v.instante))
-    .map(v => v.agente)
+    .filter(v => current(v.timestamp))
+    .map(v => v.agent)
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const stale = mostRecent === undefined || now - mostRecent > ENS_INVENTORY_MAX_AGE_MS;
