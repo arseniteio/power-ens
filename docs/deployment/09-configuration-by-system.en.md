@@ -184,11 +184,11 @@ To declare a regular expression:
 
 1. In «Ajustes comunes» (section 5.2), in «Crear plantilla» or «Editar» (section 5.3) or in an agent's «Dar ajuste propio» (section 6.2), choose «Expresión regular» in «Modo de <parameter>».
 
-   Expected result: the field proposes an expression that keeps the current names, with their special characters escaped (`admin.*` and `guest` give `^(?:admin\.\*|guest)$`), and «Probar con un valor» appears.
+   Expected result: the field proposes an expression that matches the same names as «Texto exacto», with their special characters escaped, and «Probar con un valor» appears. In op.acc.1 P-03 and P-04 and in op.acc.6 P-08, where «Texto exacto» ignores case, the proposal starts with `(?i)`: `admin.*` and `guest` give `(?i)^(?:admin\.\*|guest)$`, which still flags `Admin` and `ADMIN`. In op.acc.4 P-05 and op.acc.6 P-11 they give `^(?:admin\.\*|guest)$`.
 
 2. Type the pattern, without `/…/` slashes.
 
-   Expected result: an invalid pattern is flagged on the field with its reason and is not saved.
+   Expected result: an invalid pattern is flagged on the field with its reason and position (for example, «Falta el corchete de cierre ] (posición 1).») and is not saved.
 
 3. Type a value in «Probar con un valor».
 
@@ -208,7 +208,7 @@ Examples:
 
 Rules:
 
-- RE2 syntax (`re2js` 2.8.6), up to 512 characters. Lookaround and back-references are not supported. The engine is linear: a pattern cannot block the evaluation.
+- RE2 syntax (`re2js` 2.8.6), up to 512 characters, without leading or trailing spaces. Lookaround and back-references are not supported. The engine is linear: a pattern cannot block the evaluation.
 - The whole value is compared and case matters; `(?i)` at the start makes it case-insensitive.
 - A match is not compliance by itself: in a forbidden list (op.acc.1 P-04) it flags a forbidden account; in an authorised list (op.acc.4 P-05), an allowed account.
 - Switching mode while editing keeps the drafts of both modes. Only the chosen mode and its value are saved.
@@ -444,7 +444,7 @@ Rules:
 - Empty means no value: `null`, `""` and `[]` remove the own setting, which inherits again, and in the common values remove the `value` key. `null` is never written to the document.
 - Removing is always accepted, also for a setting that does not apply.
 - Each named parameter's value is replaced whole.
-- A regular expression (section 5.5) is declared with an object, in the common values and on an agent: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. A value without an object is exact text and removes any mode; emptying the value also removes its mode. The mode, the parameter and the length are checked; the RE2 syntax is checked by `validate-configuration.ts` (section 11.2).
+- A regular expression (section 5.5) is declared with an object, in the common values and on an agent: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. A value without an object is exact text and removes any mode; emptying the value also removes its mode. The mode, the parameter, the length and the absence of leading or trailing spaces are checked; the RE2 syntax is checked by `validate-configuration.ts` (section 11.2).
 - The tool reads the classification from `common/ens/configuration/agents/parameter-classes.ts`: it runs from `config/` inside the complete plugin repository.
 
 ```bash
@@ -491,8 +491,9 @@ Expected result: `Done` after installing the dependencies; then `ESTRUCTURA VÁL
 
 - Custom templates live in the top-level key `configuration.templates`, and each agent's assignment in `configuration.agents.<id>.controls.<control>.templateId`, next to its own settings in `parameters`. `controls[].parameters[].value` remains the common value, which is what a 1.1.0 plugin, the chatbot and the scripts read.
 - A 1.2.0 plugin loads a 1.3.0 document: its validator does not check unknown keys, ignores `templates` and warns about `templateId` as a key it does not know. It evaluates with the own settings and the common value, without the assigned templates.
-- The 1.3.0 server rejects with a 400 error a save whose `agents` or `templates` does not have the right shape, and keeps the existing ones when the body does not carry the key.
+- The 1.3.0 server rejects with a 400 error a save whose `agents` or `templates` does not have the right shape or with a `matchMode` other than `exact` or `regex` on a common value, and keeps the existing ones when the body does not carry the key.
 - A 1.2.0 plugin ignores `matchMode` and `matchModes` and compares a pattern as a literal name. Before going back to 1.2.0, switch those values to «Texto exacto» or restore a version of the document without them.
+- A comparison mode the installed version does not know stops the ENS environment from loading. Before going back from a later version that adds modes, switch those values to «Texto exacto» or «Expresión regular», or restore a version of the document without them.
 - **Every version of the document stays in the history before being replaced**, whoever writes: the server adds it to the history if it is not already its last entry, also on the 1.2.0 conversion and on the distribution by agents; and `inject-control.py` and `set-parameters.py` keep the version they replace before writing, in the history or, if the index does not allow it, in a local file `active-antes-<fecha>.json`. Both say where with `Versión anterior guardada en: …`.
 - Going back to 1.2.0 only requires deploying its zip ([installing from a release, section 15](07-installing-from-a-release.en.md#15-change-version-or-uninstall)). For 1.2.0 to evaluate with its templates, restore the version of the document from before the conversion. To go back to 1.1.0 after «Repartir por agentes», restore the version from before the distribution.
 

@@ -184,11 +184,11 @@ Para declarar una expresión regular:
 
 1. En «Ajustes comunes» (apartado 5.2), en «Crear plantilla» o «Editar» (apartado 5.3) o en «Dar ajuste propio» de un agente (apartado 6.2), elegir «Expresión regular» en «Modo de <parámetro>».
 
-   Resultado esperado: el campo propone una expresión que conserva los nombres actuales, con sus caracteres especiales escapados (`admin.*` y `guest` dan `^(?:admin\.\*|guest)$`), y aparece «Probar con un valor».
+   Resultado esperado: el campo propone una expresión que coincide con los mismos nombres que «Texto exacto», con sus caracteres especiales escapados, y aparece «Probar con un valor». En op.acc.1 P-03 y P-04 y en op.acc.6 P-08, donde «Texto exacto» no distingue mayúsculas, la propuesta empieza por `(?i)`: `admin.*` y `guest` dan `(?i)^(?:admin\.\*|guest)$`, que sigue señalando `Admin` y `ADMIN`. En op.acc.4 P-05 y op.acc.6 P-11 dan `^(?:admin\.\*|guest)$`.
 
 2. Escribir el patrón, sin barras `/…/`.
 
-   Resultado esperado: un patrón inválido se marca en el campo con el motivo y no se guarda.
+   Resultado esperado: un patrón inválido se marca en el campo con el motivo y la posición (por ejemplo, «Falta el corchete de cierre ] (posición 1).») y no se guarda.
 
 3. Escribir un valor en «Probar con un valor».
 
@@ -208,7 +208,7 @@ Ejemplos:
 
 Reglas:
 
-- Sintaxis RE2 (`re2js` 2.8.6), hasta 512 caracteres. No admite lookaround ni referencias a grupos anteriores. El motor es lineal: un patrón no puede bloquear la evaluación.
+- Sintaxis RE2 (`re2js` 2.8.6), hasta 512 caracteres, sin espacios al principio ni al final. No admite lookaround ni referencias a grupos anteriores. El motor es lineal: un patrón no puede bloquear la evaluación.
 - Se compara el valor completo y se distinguen mayúsculas y minúsculas; `(?i)` al principio deja de distinguirlas.
 - Una coincidencia no es cumplimiento por sí sola: en una lista prohibida (op.acc.1 P-04) señala una cuenta prohibida; en una lista autorizada (op.acc.4 P-05), una cuenta admitida.
 - Al cambiar de modo durante la edición se conservan los borradores de los dos modos. Se guarda solo el modo elegido y su valor.
@@ -444,7 +444,7 @@ Reglas:
 - Vacío es sin valor: `null`, `""` y `[]` quitan el ajuste propio, que vuelve a heredar, y en los valores comunes quitan la clave `value`. En el documento nunca se escribe `null`.
 - Quitar se admite siempre, también un ajuste que no se aplica.
 - El valor de cada parámetro nombrado se sustituye entero.
-- Una expresión regular (apartado 5.5) se declara con un objeto, en los valores comunes y en un agente: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor quita también su modo. Se comprueban el modo, el parámetro y la longitud; la sintaxis RE2 la comprueba `validate-configuration.ts` (apartado 11.2).
+- Una expresión regular (apartado 5.5) se declara con un objeto, en los valores comunes y en un agente: `"P-04": { "value": "^(admin|guest)$", "matchMode": "regex" }`. Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor quita también su modo. Se comprueban el modo, el parámetro, la longitud y que no empiece ni termine con espacios; la sintaxis RE2 la comprueba `validate-configuration.ts` (apartado 11.2).
 - La herramienta lee la clasificación de `common/ens/configuration/agents/parameter-classes.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
 
 ```bash
@@ -491,8 +491,9 @@ Resultado esperado: `Done` tras la instalación de las dependencias; después, `
 
 - Las plantillas propias van en la clave de primer nivel `configuration.templates`, y la asignación de cada agente en `configuration.agents.<id>.controls.<control>.templateId`, junto a sus ajustes propios en `parameters`. `controls[].parameters[].value` sigue siendo el valor común, que es lo que leen un plugin 1.1.0, el chatbot y los scripts.
 - Un plugin 1.2.0 carga un documento de la 1.3.0: su validador no comprueba claves desconocidas, ignora `templates` y avisa de `templateId` como clave que no conoce. Evalúa con los ajustes propios y con el valor común, sin las plantillas asignadas.
-- El servidor de la 1.3.0 rechaza con el error 400 un guardado cuyo `agents` o `templates` no tiene la forma correcta, y conserva los existentes cuando el cuerpo no trae la clave.
+- El servidor de la 1.3.0 rechaza con el error 400 un guardado cuyo `agents` o `templates` no tiene la forma correcta o con un `matchMode` que no es `exact` ni `regex` en un valor común, y conserva los existentes cuando el cuerpo no trae la clave.
 - Un plugin 1.2.0 ignora `matchMode` y `matchModes` y compara un patrón como un nombre literal. Antes de volver a la 1.2.0 se pasan esos valores a «Texto exacto» o se restaura una versión del documento sin ellos.
+- Un modo de comparación que la versión instalada no conoce impide cargar el entorno ENS. Antes de volver de una versión posterior que añada modos, se pasan esos valores a «Texto exacto» o «Expresión regular», o se restaura una versión del documento sin ellos.
 - **Cada versión del documento queda en el historial antes de sustituirse**, con independencia de quién escribe: el servidor la añade al historial si no es ya su última entrada, también en la conversión de la 1.2.0 y en el reparto por agentes; y `inject-control.py` y `set-parameters.py` guardan la versión que sustituyen antes de escribir, en el historial o, si el índice no lo admite, en un fichero local `active-antes-<fecha>.json`. Las dos indican dónde quedó con `Versión anterior guardada en: …`.
 - Para volver a la 1.2.0 basta con desplegar su zip ([instalar desde una release, apartado 15](07-installing-from-a-release.md#15-cambiar-de-versión-o-desinstalar)). Para que la 1.2.0 evalúe con sus plantillas, se restaura la versión del documento anterior a la conversión. Para volver a la 1.1.0 después de «Repartir por agentes», se restaura la versión anterior al reparto.
 
