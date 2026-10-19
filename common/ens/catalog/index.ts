@@ -1,4 +1,5 @@
 export * from './types';
+export * from './support/measurement-plan';
 export * from './support/order';
 export * from './support/provenance';
 export * from './support/template-correspondence';

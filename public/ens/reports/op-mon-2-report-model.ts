@@ -10,6 +10,7 @@ import {
   parseMetricTargets,
 } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -161,6 +162,9 @@ const rollout = (
 
     if (!r) {
       lines.push(`${measure}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
+    } else if (isPendingMeasurement(getENSCatalogControl(measure))) {
+      // In the catalog without collector yet: its NO_APLICA is not a level decision, so P-01 is not to be reviewed.
+      lines.push(`${measure}: sin medición todavía, documental hasta que su recolector emita (no cuenta en la cifra)`);
     } else if (r.status === 'NO_APLICA') {
       lines.push(`${measure}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
     } else if (typeof r.score !== 'number') {

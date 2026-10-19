@@ -1,7 +1,7 @@
 // All catalogue controls always appear; those not measured on the chosen machine go last, greyed, with the reason and no number.
 import type { ENSControlSummaryEntry, ENSAgentControlsRow } from '../../../common/ens/evaluation/types';
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
-import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { describePendingMeasurement, getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
 import { describeLevelSource } from '../../../common/ens/core/control-level';
 
 export interface ENSListControl {
@@ -25,6 +25,8 @@ export interface ENSControlListEntry {
   levels: string;
   measured: boolean;
   notMeasured?: ENSNotMeasuredReason;
+  // A catalog control without collector yet (`DRAFT`): no verdict on any machine, it keeps its Annex II place.
+  pendingMeasurement?: string;
   configured: boolean;
   appliesAtLevel: boolean;
   summary?: ENSControlSummaryEntry;
@@ -68,17 +70,22 @@ export const describeTally = (tally: ENSMachineTally): string =>
 
 export const buildControlListEntries = (controls: ENSListControl[], options: ENSControlListOptions): ENSControlListEntry[] => {
   const entries = controls.map(control => {
-    const notMeasured = options.agentId ? options.notMeasured(control.id) : undefined;
+    const catalogControl = getENSCatalogControl(control.id);
+    const pendingMeasurement =
+      catalogControl && isPendingMeasurement(catalogControl) ? describePendingMeasurement(catalogControl) : undefined;
+    // Measured nowhere yet: that comes before the plane or the declared scope of a machine.
+    const notMeasured = options.agentId && !pendingMeasurement ? options.notMeasured(control.id) : undefined;
     return {
       id: control.id,
       title: control.title,
       levels: control.activeLevels.join(', '),
       measured: !notMeasured,
       ...(notMeasured ? { notMeasured } : {}),
+      ...(pendingMeasurement ? { pendingMeasurement } : {}),
       configured: options.isConfigured(control.id),
       appliesAtLevel: control.activeLevels.includes(options.levelOf(control.id)),
-      summary: notMeasured ? undefined : options.summaries.get(control.id),
-      ...(!options.agentId && options.agentRows ? { machines: tallyMachines(control.id, options.agentRows) } : {}),
+      summary: notMeasured || pendingMeasurement ? undefined : options.summaries.get(control.id),
+      ...(!options.agentId && options.agentRows && !pendingMeasurement ? { machines: tallyMachines(control.id, options.agentRows) } : {}),
     };
   });
   return [...entries.filter(entry => entry.measured), ...entries.filter(entry => !entry.measured)];

@@ -32,6 +32,11 @@ import type { ENSOverviewEvaluationResponse, ENSSummaryEvaluationResponse } from
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent, isManagerOnlyControl } from '../../../common/ens/core/scope/measurement-planes';
+import {
+  ENS_PENDING_MEASUREMENT_LABEL,
+  describePendingMeasurement,
+  isPendingMeasurement,
+} from '../../../common/ens/catalog/support/measurement-plan';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';
 import { describeTally } from '../controls/controls-list-model';
 import { ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
@@ -107,6 +112,10 @@ export const OverviewENS = () => {
             isManagerOnly: id => {
               const catalog = getENSCatalogControl(id);
               return Boolean(catalog && isManagerOnlyControl(catalog));
+            },
+            pendingMeasurement: id => {
+              const catalog = getENSCatalogControl(id);
+              return catalog && isPendingMeasurement(catalog) ? describePendingMeasurement(catalog) : undefined;
             },
             notMeasuredReason: (id, agent) => {
               const catalog = getENSCatalogControl(id);
@@ -318,7 +327,9 @@ export const OverviewENS = () => {
                       </EuiTableRowCell>
                       <EuiTableRowCell>
                         <EuiText size='xs' color='subdued'>
-                          {row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
+                          {row.pendingMeasurement ? (
+                            <span title={row.pendingMeasurement}>{ENS_PENDING_MEASUREMENT_LABEL}</span>
+                          ) : row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
                         </EuiText>
                       </EuiTableRowCell>
                       {machines.map(m => {
