@@ -1,10 +1,4 @@
-// QUÉ CLASE DE INCUMPLIMIENTO ES, DE QUIÉN ES EL ARREGLO Y DE QUÉ COLOR VA.
-//
-// Un solo sitio para las tres cosas, porque las tres tienen que decir lo
-// mismo: la franja de la tarjeta, la insignia, la acción y la cola de trabajo de
-// la Vista general salen de aquí. La distinción medido / no evidenciado no se
-// explica en prosa —restan igual—, se ve en el color y en la etiqueta, y la
-// causa del no evidenciado va como etiqueta, no como frase. Sin React.
+// Class of non-compliance, who fixes it and its colour, in one place: card stripe, badge, action and the overview work queue must agree.
 export interface NonConformityClass {
   color: string;
   badgeColor: 'danger' | 'default' | 'warning' | 'primary';
@@ -12,22 +6,18 @@ export interface NonConformityClass {
   etiqueta: string;
   accion: string;
   responsable: string;
-  // Orden de la cola de trabajo: primero lo que hay que corregir.
   orden: number;
 }
 
 export const classifyNonConformity = (
   item: { origin?: string; cause?: string; documental?: boolean },
-  // ¿Está el control en la configuración activa? Si no, lo que hay que hacer
-  // primero es añadirlo, sea cual sea la causa del hueco (salvo el catálogo,
-  // que es del producto): la misma regla que el motor en el hallazgo.
+  // Control not in the active configuration: adding it comes first whatever the gap cause (except catalogue, which belongs to the product).
   options: { controlConfigured?: boolean } = {}
 ): NonConformityClass => {
   if (options.controlConfigured === false && item.origin !== 'MEDIDA' && item.cause !== 'CATALOG') {
     return { etiqueta: 'No evidenciado · control sin añadir', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Añadir el control a la configuración', responsable: 'Responsable ENS', orden: 3 };
   }
-  // Demostrado, pero sobre una DECLARACIÓN (un contrato o una certificación
-  // vencida o ausente): no hay nada que corregir en la máquina.
+  // Proven on a declaration (missing or expired contract or certification): nothing to fix on the machine.
   if (item.origin === 'MEDIDA' && item.documental) {
     return { etiqueta: 'Declarado (documental)', icono: 'document', color: '#BD271E', badgeColor: 'danger', accion: 'Renovar o completar la documentación', responsable: 'Organización (contratos y proveedores)', orden: 2 };
   }

@@ -1,21 +1,7 @@
-// QUÉ ENSEÑA EL DETALLE DEL CONTROL EN CADA MOMENTO. Sin React, para probarlo
-// (`tests/control-detail-states.test.ts`).
-//
-// El detalle «desaparecía» por tres caminos (diagnóstico de 17/10): el control
-// no se mide en la máquina elegida y la página se quedaba vacía diciendo «todo
-// conforme»; al cambiar de máquina se juzgaba la nueva con los datos de la
-// anterior; y un error sustituía la página entera. Las reglas, en orden:
-//
-//   1. Lo que llega para la petición de AHORA (control y máquina) es lo que se
-//      enseña. Si llega sin resultado y hay máquina elegida, el control no se
-//      mide en ella: estado propio («no se mide en esta máquina»), nunca un
-//      veredicto.
-//   2. Mientras llega lo de ahora, o si ha fallado, se sigue enseñando el
-//      ÚLTIMO resultado del MISMO control, rotulado con SU máquina y su hora:
-//      nunca como si fuera el de la máquina nueva.
-//   3. Sin nada que enseñar: carga, o el error como aviso con «Reintentar».
-//
-// Otro control nunca hereda nada: su cabecera es otra.
+// What the control detail shows at each moment, without React. Rules, in order:
+// 1. The result for the current request (control and machine) is shown; no result with a chosen machine means the control is not measured there, never a verdict.
+// 2. While loading or after a failure the last result of the SAME control is shown, labelled with its machine and time.
+// 3. With nothing to show: loading, or the error with 'Reintentar'. Another control never inherits anything.
 
 export interface ENSDetailRequest {
   controlId: string;
@@ -24,7 +10,6 @@ export interface ENSDetailRequest {
 
 export interface ENSRetainedEvaluation<T> extends ENSDetailRequest {
   data: T;
-  // Cuándo se calculó (de `meta.computedAt`), para rotularlo.
   computedAt?: string;
 }
 
@@ -40,18 +25,14 @@ export type ENSDetailView<T> =
   | {
       kind: 'shown';
       data: T;
-      // El resultado es el de la petición de ahora.
       current: boolean;
-      // De qué máquina es lo que se enseña (la de la petición si `current`).
       agentId?: string;
       computedAt?: string;
-      // Llega otra cosa (otra máquina) o se está reintentando.
       loading: boolean;
-      // Lo de ahora falló: se enseña lo último que hubo, con el aviso.
       error?: unknown;
     };
 
-const mismaMaquina = (a?: string, b?: string) => (a || '') === (b || '');
+const sameMachine = (a?: string, b?: string) => (a || '') === (b || '');
 
 export const decideDetailView = <T>(
   request: ENSDetailRequest,
@@ -89,7 +70,6 @@ export const decideDetailView = <T>(
   return { kind: 'loading' };
 };
 
-// Lo que se guarda para la regla 2: solo un resultado de la petición de ahora.
 export const nextRetained = <T>(
   request: ENSDetailRequest,
   evaluation: ENSEvaluationSnapshot<T>,
@@ -100,17 +80,15 @@ export const nextRetained = <T>(
     ? { controlId: request.controlId, agentId: request.agentId, data: evaluation.data, computedAt: computedAtOf(evaluation.data) }
     : previous;
 
-// ¿Es lo que se enseña de otra máquina que la elegida?
 export const isFromAnotherMachine = (request: ENSDetailRequest, view: ENSDetailView<unknown>): boolean =>
-  view.kind === 'shown' && !view.current && !mismaMaquina(view.agentId, request.agentId);
+  view.kind === 'shown' && !view.current && !sameMachine(view.agentId, request.agentId);
 
-// «las 14:05» o «el 17/10 a las 14:05» (si no es de hoy).
 export const describeComputedAt = (iso: string | undefined, now: Date = new Date()): string | undefined => {
   if (!iso) return undefined;
-  const fecha = new Date(iso);
-  if (Number.isNaN(fecha.getTime())) return undefined;
-  const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  return fecha.toDateString() === now.toDateString()
-    ? `las ${hora}`
-    : `el ${fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })} a las ${hora}`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const hour = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return date.toDateString() === now.toDateString()
+    ? `las ${hour}`
+    : `el ${date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })} a las ${hour}`;
 };

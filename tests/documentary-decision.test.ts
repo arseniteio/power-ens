@@ -261,18 +261,18 @@ bloque('5. La ficha del control no cuenta lo documental bajo «Corregir el siste
 
   comprueba(
     'separa las documentales de las medidas técnicas',
-    /const documentales = medidas\.filter\(item => item\.documental\)/.test(fuente) &&
-      /const medidasTecnicas = medidas\.filter\(item => !item\.documental\)/.test(fuente)
+    /const documentales = measures\.filter\(item => item\.documental\)/.test(fuente) &&
+      /const technicalMeasures = measures\.filter\(item => !item\.documental\)/.test(fuente)
   );
   comprueba(
     '«Corregir N» y «medidas · corregir el sistema» cuentan solo las técnicas',
-    /`Corregir \$\{medidasTecnicas\.length\}`/.test(fuente) &&
-      /etiqueta: 'medidas · corregir el sistema',\s*valor: medidasTecnicas\.length/.test(fuente) &&
+    /`Corregir \$\{technicalMeasures\.length\}`/.test(fuente) &&
+      /etiqueta: 'medidas · corregir el sistema',\s*valor: technicalMeasures\.length/.test(fuente) &&
       !/`Corregir \$\{medidas\.length\}`/.test(fuente)
   );
   comprueba(
     'el bloque «Corregir el sistema auditado» lista solo las técnicas, y las documentales tienen el suyo',
-    /pie: 'Corregir el sistema auditado\.',\s*items: medidasTecnicas,/.test(fuente) &&
+    /pie: 'Corregir el sistema auditado\.',\s*items: technicalMeasures,/.test(fuente) &&
       /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentales,/.test(fuente)
   );
 }
