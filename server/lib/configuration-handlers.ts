@@ -9,6 +9,7 @@ import { resolveCurrentUser } from './current-user';
 import {
   checkAgentsConfigurationKeys,
   validateAgentsConfigurationShape,
+  validateCommonMatchModesShape,
   validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
 
@@ -85,6 +86,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
     const templateErrors = validateCustomTemplatesShape(cuerpo.configuration.templates);
     if (templateErrors.length) {
       return fallo(response, 400, `configuration.templates no es válida: ${templateErrors.slice(0, 5).join(' ')}`);
+    }
+
+    const modeErrors = validateCommonMatchModesShape(cuerpo.configuration.controls);
+    if (modeErrors.length) {
+      return fallo(response, 400, `configuration.controls no es válida: ${modeErrors.slice(0, 5).join(' ')}`);
     }
 
     const acceso = await administrador(context, response, 'guardar la configuración');

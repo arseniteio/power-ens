@@ -139,8 +139,8 @@ find(tree, 'EuiSelect').props.onChange({ target: { value: 'regex' } });
 assert.equal(parameter.matchMode, 'regex');
 assert.equal(
   value,
-  '^(?:admin\\.\\*|guest)$',
-  'switching escapes metacharacters'
+  '(?i)^(?:admin\\.\\*|guest)$',
+  'switching escapes metacharacters and, on a forbidden list, ignores case like «Texto exacto»'
 );
 tree = renderPattern();
 let fields = nodes(tree).filter((n) => n.type === 'EuiFieldText');

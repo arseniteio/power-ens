@@ -275,7 +275,11 @@ const ControlReport = ({
     traza: trazaDeEvidencias(requirement.evidenceIds || []),
   }));
 
-  const formatParameterValue = (value) => {
+  const formatParameterValue = (value, matchMode?: string) => {
+    if (matchMode === 'regex' && typeof value === 'string' && value) {
+      return `Expresión regular: ${value}`;
+    }
+
     if (Array.isArray(value)) {
       return value.length > 0 ? value.join(', ') : '—';
     }
@@ -297,7 +301,7 @@ const ControlReport = ({
   const parameterRows = parameterResults.map(parameter => ({
     parametro: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
-    value: formatParameterValue(parameter.value),
+    value: formatParameterValue(parameter.value, describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.matchMode),
     origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
     required: parameter.required ? 'Sí' : 'No',
     requirements: parameter.requirements.join(', ') || '-',

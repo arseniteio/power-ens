@@ -2,7 +2,7 @@
 // configuration resolver. Without a machine, the common view. Without React (`tests/configure-links.test.ts`).
 import { resolveControlConfigurationWithOrigins } from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSResolvedValueOrigin } from '../../../common/ens/configuration/agents/configuration-resolver';
-import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
+import type { ENSConfigurationVersion, ENSMatchMode } from '../../../common/ens/configuration/types';
 
 export interface ENSParameterForMachine {
   id: string;
@@ -11,6 +11,7 @@ export interface ENSParameterForMachine {
   empty: boolean;
   origin: string;
   source?: ENSResolvedValueOrigin['source'];
+  matchMode?: ENSMatchMode;
 }
 
 const MAX = 140;
@@ -70,5 +71,6 @@ export const describeParameterForMachine = (
       ? `varía por máquina: ${conValorPropio.join(', ')} con ajuste propio o plantilla; aquí, el valor común`
       : describeValueOrigin(origin, empty),
     source: origin?.source,
+    ...(parametro.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}),
   };
 };

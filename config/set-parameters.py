@@ -99,9 +99,10 @@ organización que en un agente:
     }
 
 Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor
-quita también su modo. Se comprueban el modo, el parámetro y la longitud (512
-caracteres como mucho); la sintaxis RE2 la comprueba
-`npx --yes tsx config/validate-configuration.ts` sobre el documento escrito.
+quita también su modo. Se comprueban el modo, el parámetro, la longitud (512
+caracteres como mucho) y que no empiece ni termine con espacios; la sintaxis RE2
+la comprueba `npx --yes tsx config/validate-configuration.ts` sobre el documento
+escrito.
 
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
 `wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
@@ -289,6 +290,8 @@ def entry_problem(control_id, pid, entry):
                 "%s %s" % (c, ", ".join(ps)) for c, ps in PATTERN_PARAMETERS.items())
         if not isinstance(value, str):
             return "en modo regex el valor es una expresión regular (texto)"
+        if value != value.strip():
+            return "la expresión regular no puede empezar ni terminar con espacios"
         if len(value) > MAX_PATTERN_LENGTH:
             return "la expresión regular admite hasta %d caracteres" % MAX_PATTERN_LENGTH
     return None

@@ -250,6 +250,7 @@ def main():
             ("a pattern over 512 characters", {"op.acc.1": {"P-04": {"value": "a" * 513, "matchMode": "regex"}}}, "hasta 512 caracteres"),
             ("an unknown mode", {"op.acc.1": {"P-04": {"value": "^a$", "matchMode": "glob"}}}, 'matchMode es "exact" o "regex"'),
             ("a mode without value", {"op.acc.1": {"P-04": {"matchMode": "regex"}}}, '{"value": …, "matchMode"'),
+            ("a pattern with surrounding spaces", {"op.acc.1": {"P-04": {"value": " ^a$", "matchMode": "regex"}}}, "no puede empezar ni terminar con espacios"),
         ]:
             reinicia(agentes)
             version = estado["version"]

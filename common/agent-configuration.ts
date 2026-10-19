@@ -197,6 +197,19 @@ export const validateAgentsConfigurationShape = (
   return errors;
 };
 
+// The common value's mode, checked on save: the hydration refuses an unknown one and the environment would not load.
+export const validateCommonMatchModesShape = (controls: unknown, path: string = 'configuration.controls'): string[] =>
+  Array.isArray(controls)
+    ? controls.flatMap((control, controlIndex) =>
+        isRecord(control) && Array.isArray(control.parameters)
+          ? control.parameters
+              .map((parameter, parameterIndex) => ({ parameter, parameterIndex }))
+              .filter(({ parameter }) => isRecord(parameter) && parameter.matchMode !== undefined && !isMatchMode(parameter.matchMode))
+              .map(({ parameterIndex }) => `${path}[${controlIndex}].parameters[${parameterIndex}].matchMode must be "exact" or "regex".`)
+          : []
+      )
+    : [];
+
 // Only what would stop the environment from loading; meaning is the agent validator's job.
 export const validateCustomTemplatesShape = (
   value: unknown,

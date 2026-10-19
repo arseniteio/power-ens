@@ -23,8 +23,13 @@ import {
   validateCustomTemplatesShape,
 } from '../common/agent-configuration';
 import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
-import { supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
-import { MAX_PARAMETER_PATTERN_LENGTH } from '../common/ens/configuration/services/parameter-pattern';
+import { ignoresCaseInExactMode, splitsParameterOnSpaces, supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
+import { compileParameterPattern, MAX_PARAMETER_PATTERN_LENGTH, patternFromItems, withMatchMode } from '../common/ens/configuration/services/parameter-pattern';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
+import { judgeEvidence } from '../common/ens/core/evidence/judgment';
+import { validateCommonMatchModesShape } from '../common/agent-configuration';
+import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 import { describeParameterForMachine } from '../public/ens/controls/parameter-origins';
 import { validateENSConfigurationStructure as validate120 } from './fixtures/configuration-structure-validator-1.2.0';
 import { checkAgentsConfigurationKeys as checkKeys120 } from './fixtures/agent-configuration-1.2.0';
@@ -229,8 +234,51 @@ console.log('8. validate-configuration.ts');
   check('and an invalid override pattern too', /agente 104: op\.acc\.1 «Cuentas de servicio legítimas» Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
 }
 
-if (failures.length) {
-  console.log(`\n${failures.length} FAILURES`);
-  process.exit(1);
+console.log('9. Review fixes');
+(async () => {
+  const doc = documentWith();
+  const parameterOf = (controlId: string, parameterId: string) => doc.controls.find((c: any) => c.controlId === controlId).parameters.find((p: any) => p.id === parameterId);
+  const caseFree = [['op.acc.1', 'P-03'], ['op.acc.1', 'P-04'], ['op.acc.6', 'P-08']];
+  const caseStrict = [['op.acc.4', 'P-05'], ['op.acc.6', 'P-11']];
+  check('the proposal ignores case exactly where «Texto exacto» does', caseFree.every(([c, p]) => ignoresCaseInExactMode(parameterOf(c, p))) && caseStrict.every(([c, p]) => !ignoresCaseInExactMode(parameterOf(c, p))));
+  const proposal = patternFromItems(['admin', ' guest '], true);
+  check('the proposal trims the names and starts with (?i)', proposal === '(?i)^(?:admin|guest)$', proposal);
+  const ev03 = ENSEvidenceCatalog.find(e => e.controlId === 'op.acc.1' && e.id === 'EV-03')!;
+  const judge = (value: unknown, matchMode: 'exact' | 'regex' | undefined, user: string) => {
+    const control = { ...doc.controls[0], parameters: doc.controls[0].parameters.map((p: any) => (p.id === 'P-04' ? withMatchMode({ ...p, value }, matchMode) : p)) };
+    const { judgment: _judgment, ...base } = ev03;
+    return judgeEvidence(ev03, ev03.judgment!, base as any, [{ id: `e-${user}`, controlId: 'op.acc.1', eventType: 'account_authenticated', sourceType: 'WAZUH_ALERT', timestamp: '2026-10-19T10:00:00Z', attributes: { usuario: user } } as any], control, new Date('2026-10-19T10:01:00Z')).status;
+  };
+  const switched = patternFromItems(['admin', 'guest'], ignoresCaseInExactMode(parameterOf('op.acc.1', 'P-04')));
+  check('switching P-04 to regex keeps Admin and ADMIN detected, as in exact mode', ['admin', 'Admin', 'ADMIN', 'guest'].every(user =>
+    judge(['admin', 'guest'], undefined, user) === 'NO_CUMPLE' && judge(switched, 'regex', user) === 'NO_CUMPLE'), switched);
+  check('and a name outside the list still complies', judge(switched, 'regex', 'maria') === 'CUMPLE');
+  const spaced = validateParameterValue({ ...parameterOf('op.acc.1', 'P-04'), matchMode: 'regex' }, ' ^svc_.*$');
+  check('a pattern with surrounding spaces is refused, in Spanish', !spaced.valid && /no puede empezar ni terminar con espacios/.test(spaced.reason || ''), spaced);
+  const broken = validateParameterValue({ ...parameterOf('op.acc.1', 'P-04'), matchMode: 'regex' }, '^svc_(a');
+  check('RE2 errors are shown in Spanish with the position', broken.reason === 'Expresión regular inválida: Falta el paréntesis de cierre ) (posición 6).', broken.reason);
+  const messages = ['[', 'a)', '*a', 'a**', 'a{1001}', '(?=a)a', '(a)\\1', 'a\\', '[z-a]'].map(pattern => {
+    try { compileParameterPattern(pattern); return 'compiled'; } catch (error) { return (error as Error).message; }
+  });
+  check('no RE2 message reaches the screen in English', messages.every(message => !/error parsing|missing|invalid|unexpected|compiled/.test(message) && /posición \d+/.test(message)), messages);
+  check('spaces split only op.acc.1 P-03 and P-04', splitsParameterOnSpaces({ controlId: 'op.acc.1', id: 'P-04' }) && !splitsParameterOnSpaces({ controlId: 'op.exp.2', id: 'P-03' }));
+  check('the common-mode check of the save API', validateCommonMatchModesShape([{ parameters: [{ matchMode: 'regex' }, { matchMode: 'exact' }, {}] }]).length === 0 &&
+    validateCommonMatchModesShape([{ parameters: [{}, { matchMode: 'glob' }] }])[0] === 'configuration.controls[0].parameters[1].matchMode must be "exact" or "regex".');
+  const handlers = createConfigurationHandlers({ logger: { info() {}, warn() {}, error() {}, debug() {} } as any, securityEnabled: true });
+  const glob = copy(doc);
+  glob.controls[0].parameters.find((p: any) => p.id === 'P-04').matchMode = 'glob';
+  const refused: any = await handlers.save({ core: { opensearch: { client: {} } } } as any, { body: { configuration: glob } } as any,
+    { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) } as any);
+  check('the save API refuses an unknown common mode with a 400, before writing', refused.status === 400 && /matchMode must be "exact" or "regex"/.test(refused.body.message), refused);
+  const reports = readFileSync(`${__dirname}/../public/ens/reports/index.tsx`, 'utf8');
+  check('the report table and PDF label a regex value', /formatParameterValue\(parameter\.value, describeParameterForMachine\(activeConfiguration, controlId, agentId, parameter\.id\)\?\.matchMode\)/.test(reports) &&
+    /`Expresión regular: \$\{value\}`/.test(reports) && describeParameterForMachine(doc, 'op.acc.1', '102', 'P-03')?.matchMode === 'regex' && !('matchMode' in describeParameterForMachine(doc, 'op.acc.1', '105', 'P-03')!));
+})().then(() => finish(), error => { console.error(error); process.exit(1); });
+
+function finish() {
+  if (failures.length) {
+    console.log(`\n${failures.length} FAILURES`);
+    process.exit(1);
+  }
+  console.log('\nAll checks pass.');
 }
-console.log('\nAll checks pass.');
