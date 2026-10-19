@@ -28,7 +28,7 @@ import { useRouterSearch } from '../routing/use-router-search';
 import { AlertsSearchFrame, useAlertsSearchBar } from '../search/alerts-search-bar';
 import { buildRawFactsFilters } from '../search/raw-facts-filters';
 import { useEsSearch } from '../search/use-es-search';
-import { ENSRequirementRow, buildRequirementsModel } from './requirements-model';
+import { ENSRequirementRow, buildRequirementsModel, requirementTextsOf } from './requirements-model';
 import { RequirementFlyout } from './requirement-flyout';
 
 const titleOf = (description: string): string => description.split(' - ')[0];
@@ -138,7 +138,11 @@ const RequirementsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[];
             <EuiFlexGrid columns={4} gutterSize="s">
               {model.requirements.map(requirement => (
                 <EuiFlexItem key={requirement.id}>
-                  <EuiToolTip position="top" display="block" content={requirement.description}>
+                  <EuiToolTip
+                    position="top"
+                    display="block"
+                    content={requirementTextsOf(requirement.id, requirement.description).map(text => `${text.label}: ${text.text}`).join('\n\n')}
+                  >
                     <EuiPanel
                       paddingSize="s"
                       hasBorder
@@ -151,6 +155,9 @@ const RequirementsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[];
                             <span>
                               <strong>{requirement.id}</strong> - {titleOf(requirement.description)}
                             </span>
+                          </EuiText>
+                          <EuiText size="xs" color="subdued">
+                            {requirementTextsOf(requirement.id, requirement.description).map(text => text.label).join(' · ')}
                           </EuiText>
                         </EuiFlexItem>
                         <EuiFlexItem grow={false}>

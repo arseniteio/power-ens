@@ -48,6 +48,9 @@ import { detailConfigurationChanges } from '../../../routing/configuration-link'
 import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
+import { describeControlAxis } from '../../../../common/ens/core/control-level';
+import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
   ENSRetainedEvaluation,
@@ -185,7 +188,8 @@ export const ControlDetailENS = ({
     ? consolidatedRequirements
     : applicableRequirements;
 
-  const levelsText = String(ensLevel);
+  // The level this control is evaluated with: the global one or that of its dimensions.
+  const levelsText = String(complianceResult?.level || ensLevel);
 
   const evidenceStatusItems = (complianceResult?.evidences || []).map(evidence => ({
     id: evidence.id,
@@ -717,6 +721,8 @@ export const ControlDetailENS = ({
       })
     );
 
+  const headerCatalog = getENSCatalogControl(control.id);
+
   const header = (
     <div className='ensfacil-control-header' style={{ padding: '4px 8px 12px' }}>
       <EuiButtonEmpty iconType='arrowLeft' size='s' flush='left' onClick={onBack}>
@@ -739,6 +745,13 @@ export const ControlDetailENS = ({
           <EuiTitle size='l'>
             <h2>{control.title}</h2>
           </EuiTitle>
+          {headerCatalog && (
+            <EuiText size='xs' color='subdued'>
+              {[describeAnnexSection(headerCatalog), describeControlAxis(headerCatalog), describeControlSource(headerCatalog)]
+                .filter(Boolean)
+                .join(' · ')}
+            </EuiText>
+          )}
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
           <EuiButton iconType='gear' onClick={configureControl}>
@@ -1229,6 +1242,13 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
+        <EuiPanel>
+          <RequirementTextsPanel controlId={control.id} />
+          <TemplateCorrespondencePanel controlId={control.id} />
+        </EuiPanel>
+
+        <EuiSpacer size='l' />
+
         <EuiTitle size='s'>
           <h3>Evidencias ENS del control</h3>
         </EuiTitle>
@@ -1258,6 +1278,11 @@ export const ControlDetailENS = ({
             {
               field: 'title',
               name: 'Descripción',
+              render: (title: string) => (
+                <EuiText size='s'>
+                  {title} <ProvenanceLabel provenance='CRITERIO_APLICACION' />
+                </EuiText>
+              ),
             },
             {
               field: 'status',

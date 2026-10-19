@@ -37,9 +37,17 @@ import {
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
+import { ProvenancedText, TemplateCorrespondencePanel } from '../controls/control-detail/requirement-texts';
+import {
+  REPORT_CRITERION_NOTE,
+  buildTemplateCorrespondencePdf,
+  describeReportControlLine,
+  pdfProvenanceRuns,
+  reportRequirementTexts,
+} from './report-provenance';
 import { ENSControls } from '../data';
 import {
-  compareENSIds,
+  compareENSControlsInAnnexOrder,
   filterByENSPrefix,
   listENSFamilies,
   resolveENSSectionOpenState,
@@ -229,6 +237,7 @@ const ControlReport = ({
     observationList: requirement.observations || [],
     observations: (requirement.observations || []).join(' · '),
     traza: evidenceTrace(requirement.evidenceIds || []),
+    texts: reportRequirementTexts(controlId, requirement.id),
   }));
 
   const formatParameterValue = (value, matchMode?: string) => {
@@ -282,9 +291,10 @@ const ControlReport = ({
       ? '#f5a700'
       : PDF_SECONDARY_COLOR;
 
-  const hasDetail = (item: { observations: string; traza: string[] }) =>
+  const hasDetail = (item: { observations: string; traza: string[]; texts?: unknown[] }) =>
     (item.observations || '').length > OBSERVATION_PREVIEW_LENGTH ||
-    item.traza.length > 0;
+    item.traza.length > 0 ||
+    (item.texts || []).length > 0;
 
   const requirementColumns = [
     {
@@ -365,6 +375,10 @@ const ControlReport = ({
       if (row && hasDetail(row)) {
         acc[id] = (
           <EuiText size='xs'>
+            {row.texts.map(text => (
+              <ProvenancedText key={text.provenance} provenance={text.provenance} text={text.text} />
+            ))}
+
             {row.observationList.length > 0 ? (
               <>
                 <strong>Observaciones</strong>
@@ -509,7 +523,7 @@ const ControlReport = ({
       content: [
         { text: 'INFORME DE CUMPLIMIENTO ENS', style: 'h1' },
         { text: definition.name, style: 'h2' },
-        { text: 'RD 311/2022', style: 'sub' },
+        { text: ['RD 311/2022', describeReportControlLine(controlId)].filter(Boolean).join(' · '), style: 'sub' },
         { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#cccccc' }], margin: [0, 4, 0, 12] },
 
         {
@@ -569,6 +583,7 @@ const ControlReport = ({
         },
 
         { text: 'Campos del informe', style: 'h3' },
+        { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
           table: {
             headerRows: 1,
@@ -619,12 +634,12 @@ const ControlReport = ({
                 { text: requirement.id, style: 'td' },
                 {
                   text: [
-                    requirement.title,
-                    ...requirement.traza,
-                    requirement.observations || undefined,
-                  ]
-                    .filter(Boolean)
-                    .join('\n'),
+                    { text: requirement.title, bold: true },
+                    ...pdfProvenanceRuns(requirement.texts),
+                    ...[...requirement.traza, requirement.observations || undefined]
+                      .filter(Boolean)
+                      .map(line => ({ text: `\n${line}` })),
+                  ],
                   style: 'td',
                 },
                 { text: requirement.level, style: 'td' },
@@ -649,6 +664,7 @@ const ControlReport = ({
         },
 
         { text: 'Parámetros', style: 'h3' },
+        { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
           table: {
             headerRows: 1,
@@ -690,6 +706,8 @@ const ControlReport = ({
           },
           layout: 'lightHorizontalLines',
         },
+
+        ...buildTemplateCorrespondencePdf(controlId),
       ],
       styles: {
         h1: { fontSize: 16, bold: true, color: '#1a1c21' },
@@ -838,6 +856,10 @@ const ControlReport = ({
         <h3>Campos del informe</h3>
       </EuiTitle>
 
+      <EuiText size='xs' color='subdued'>
+        <p>{REPORT_CRITERION_NOTE}</p>
+      </EuiText>
+
       <EuiSpacer size='s' />
 
       <EuiBasicTable items={rows} columns={columns} tableLayout='fixed' />
@@ -872,6 +894,10 @@ const ControlReport = ({
         compressed={true}
         columns={parameterColumns}
       />
+
+      <EuiSpacer size='l' />
+
+      <TemplateCorrespondencePanel controlId={controlId} />
 
       <EuiSpacer size='l' />
 
@@ -938,6 +964,14 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
         <strong>{entry.controlId}</strong> — {entry.title}
       </EuiText>
     </EuiFlexItem>
+
+    {describeReportControlLine(entry.controlId) && (
+      <EuiFlexItem grow={false}>
+        <EuiText size='xs' color='subdued'>
+          {describeReportControlLine(entry.controlId)}
+        </EuiText>
+      </EuiFlexItem>
+    )}
 
     <EuiFlexItem grow={false}>
       <EuiBadge color='hollow'>{entry.levels}</EuiBadge>
@@ -1006,7 +1040,7 @@ export const ReportsENS = () => {
           ...control.requirements.map(requirement => requirement.id),
         ],
         reportModelDefinition: getENSReportModelDefinition(control.id),
-      })).sort((a, b) => compareENSIds(a.controlId, b.controlId)),
+      })).sort((a, b) => compareENSControlsInAnnexOrder(a.controlId, b.controlId)),
     [],
   );
 

@@ -16,7 +16,8 @@ import {
 import { buildENSRequirementQuery } from '../../common/ens/core/compliance-view/ens-requirement-index';
 import { useSetRouterSearch } from '../routing/use-router-search';
 import { useEsSearch } from '../search/use-es-search';
-import { controlOf } from './requirements-model';
+import { controlOf, requirementTextsOf } from './requirements-model';
+import { ProvenancedText } from '../ens/controls/control-detail/requirement-texts';
 
 interface FactRow {
   id: string;
@@ -93,9 +94,16 @@ export const RequirementFlyout = ({
           <h2 id="ens-requisito-titulo">Requisito {requirementId}</h2>
         </EuiTitle>
         <EuiSpacer size="s" />
-        <EuiText size="s">
-          <p>{description}</p>
-        </EuiText>
+        {description.includes(' - ') && (
+          <EuiText size="s">
+            <p>
+              <strong>{description.split(' - ')[0]}</strong>
+            </p>
+          </EuiText>
+        )}
+        {requirementTextsOf(requirementId, description).map(text => (
+          <ProvenancedText key={text.provenance} provenance={text.provenance} text={text.text} />
+        ))}
       </EuiFlyoutHeader>
 
       <EuiFlyoutBody>
