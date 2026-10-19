@@ -43,7 +43,7 @@ export const getAgentControls = (
         reason: !onPlane
           ? manager
             ? 'se mide en las máquinas, no en el manager'
-            : 'se mide en el manager: sus valores por sistema de esta máquina se juntan en la fila del manager'
+            : 'se mide en el manager: las filas de este agente se juntan en la fila del manager'
           : !collected
           ? 'sin recolector en esta plataforma: el motor lo sigue evaluando y, sin hechos, no lo da por demostrado'
           : undefined,

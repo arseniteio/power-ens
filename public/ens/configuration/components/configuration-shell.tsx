@@ -5,7 +5,9 @@ import React, {
 } from 'react';
 import {
   EuiBadge,
+  EuiButton,
   EuiButtonEmpty,
+  EuiCallOut,
   EuiHorizontalRule,
   EuiPage,
   EuiPanel,
@@ -18,7 +20,10 @@ import {
 
 import {
   getActiveENSConfiguration,
+  getPendingTemplateMigration,
+  saveFromLatestConfiguration,
 } from '../../../../common/ens/configuration/services';
+import { summarizeTemplateMigration } from '../../../../common/ens/configuration/agents/template-migration';
 import { ENSLevel } from '../../../../common/ens/configuration/types';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../../common/ens/core/control-level';
@@ -34,16 +39,13 @@ import {
   parseConfigurationTarget,
 } from '../../../routing/configuration-link';
 
-import { OrganisationLevel } from './organisation-level';
-import { SystemsLevel } from './systems-level';
+import { errorMessage } from './confirm-modal';
+import { ControlsTab } from './controls-tab';
+import { AgentsTab } from './agents-tab';
+import { GeneralTab } from './general-tab';
 
-// CONFIGURACIÓN, en dos niveles:
-//   «Organización» — la política común de cada control (los parámetros de
-//                    organización) y el nivel global;
-//   «Sistemas»     — los agentes del alcance con su tipo detectado y, dentro
-//                    de cada uno, sus parámetros por sistema y por plataforma.
-// Lo que se ve lo decide la URL (`configControl`, `configAgent`, `configParam`,
-// `configView`): así el Detalle del control enlaza aquí y «atrás» funciona.
+// Configuración in three tabs: «Controles», «Agentes» and «General». The URL decides what is shown
+// (`configControl`, `configAgent`, `configParam`, `configView`), so the control detail links here and «back» works.
 export const ConfigurationShell = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
@@ -87,6 +89,19 @@ export const ConfigurationShell = () => {
       [activeConfiguration]
     );
 
+  const pendingMigration = getPendingTemplateMigration();
+  const [migrationError, setMigrationError] = useState<string | undefined>();
+
+  const saveMigration = async () => {
+    setMigrationError(undefined);
+    try {
+      await saveFromLatestConfiguration(latest => ({ configuration: latest, reason: summarizeTemplateMigration(pendingMigration!) }));
+      handleConfigurationSaved();
+    } catch (failure) {
+      setMigrationError(errorMessage(failure));
+    }
+  };
+
   const navigate = useCallback(
     (next: Partial<ENSConfigurationTarget>) => setSearch(configurationSearchChanges(next)),
     [setSearch]
@@ -109,10 +124,8 @@ export const ConfigurationShell = () => {
 
         <EuiText color='subdued'>
           <p>
-            La política común de la organización y, para cada sistema del
-            alcance, sus valores propios. Un valor se resuelve así: el del
-            agente; si no tiene, el de sus plantillas; si tampoco, el de la
-            organización.
+            El valor que se aplica a un agente: su ajuste propio; si no, el de la plantilla asignada en el control;
+            sin plantilla asignada, el de la plantilla de serie de su tipo; si no, el valor común del control.
           </p>
         </EuiText>
 
@@ -125,39 +138,54 @@ export const ConfigurationShell = () => {
 
         <EuiSpacer size='m' />
 
+        {pendingMigration && (
+          <>
+            <EuiCallOut color='primary' iconType='iInCircle' title='Configuración de la 1.2.0 convertida a plantillas por control'>
+              <p>{summarizeTemplateMigration(pendingMigration)}</p>
+              <p>Los valores de cada agente no cambian. Se guarda con el próximo cambio; la versión anterior queda en el historial.</p>
+              {migrationError && <p>{migrationError}</p>}
+              <EuiButton size='s' onClick={saveMigration}>
+                Guardar la conversión
+              </EuiButton>
+            </EuiCallOut>
+            <EuiSpacer size='m' />
+          </>
+        )}
+
         <EuiTabs>
-          <EuiTab
-            isSelected={target.view === 'organisation'}
-            onClick={() => navigate({ view: 'organisation' })}
-          >
-            Organización
+          <EuiTab isSelected={target.view === 'controls'} onClick={() => navigate({ view: 'controls' })}>
+            Controles
           </EuiTab>
-          <EuiTab
-            isSelected={target.view === 'systems'}
-            onClick={() => navigate({ view: 'systems' })}
-          >
-            Sistemas
+          <EuiTab isSelected={target.view === 'agents'} onClick={() => navigate({ view: 'agents' })}>
+            Agentes
+          </EuiTab>
+          <EuiTab isSelected={target.view === 'general'} onClick={() => navigate({ view: 'general' })}>
+            General
           </EuiTab>
         </EuiTabs>
 
         <EuiHorizontalRule />
 
-        {target.view === 'organisation' ? (
-          <OrganisationLevel
+        {target.view === 'controls' && (
+          <ControlsTab
             configuration={activeConfiguration}
             target={target}
             getActiveLevel={getControlActiveLevel}
             onNavigate={navigate}
             onConfigurationSaved={handleConfigurationSaved}
           />
-        ) : (
-          <SystemsLevel
+        )}
+        {target.view === 'agents' && (
+          <AgentsTab
             configuration={activeConfiguration}
             target={target}
             getActiveLevel={getControlActiveLevel}
             onNavigate={navigate}
             onConfigurationSaved={handleConfigurationSaved}
           />
+        )}
+        {target.view === 'general' && (
+          <GeneralTab configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
         )}
       </EuiPanel>
     </EuiPage>

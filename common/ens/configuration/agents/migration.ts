@@ -103,8 +103,8 @@ const WILDCARD = '*';
 
 export const describeMigrationWarning = (warning: ENSMigrationWarning): string =>
   warning.reason === 'ambigua'
-    ? `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que casa con varios agentes (${(warning.candidates || []).join(', ')}); se queda en la organización`
-    : `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que no es ningún agente conocido; se queda en la organización. Si es otro nombre de una máquina del alcance, se añade en su página, en «Otros nombres de esta máquina»`;
+    ? `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que casa con varios agentes (${(warning.candidates || []).join(', ')}); se queda en el valor común`
+    : `${warning.controlId} ${warning.parameterId}: «${warning.row}» nombra a ${warning.key}, que no es ningún agente conocido; se queda en el valor común. Si es otro nombre de un agente del alcance, se añade en su página, en «Otros nombres de este agente»`;
 
 export const summarizeMigrationPlan = (plan: Pick<ENSMigrationPlan, 'moves' | 'warnings'>): string => {
   const rows = plan.moves.reduce((total, move) => total + move.rows.length, 0);
@@ -113,8 +113,8 @@ export const summarizeMigrationPlan = (plan: Pick<ENSMigrationPlan, 'moves' | 'w
   const parameters = new Set(plan.moves.map(move => `${move.controlId} ${move.parameterId}`)).size;
 
   return rows
-    ? `Migración a sistemas: ${rows} fila(s) de ${parameters} parámetro(s) a ${agents} agente(s) (${moved} salen de la organización, ${rows - moved} se copian y se quedan también en ella); ${plan.warnings.length} fila(s) sin agente se quedan en la organización.`
-    : `Nada que migrar; ${plan.warnings.length} fila(s) sin agente se quedan en la organización.`;
+    ? `Reparto por agentes: ${rows} fila(s) de ${parameters} parámetro(s) a ${agents} agente(s) (${moved} salen del valor común, ${rows - moved} se copian y se quedan también en él); ${plan.warnings.length} fila(s) sin agente se quedan en el valor común.`
+    : `Nada que repartir; ${plan.warnings.length} fila(s) sin agente se quedan en el valor común.`;
 };
 
 // ¿Evalúa esta máquina este control? Por su plano de medida.

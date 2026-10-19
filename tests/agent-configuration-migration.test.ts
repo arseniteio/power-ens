@@ -107,7 +107,7 @@ console.log('1. Reparto');
   comprueba('el manager por su nombre', JSON.stringify(propio(m, '000', 'op.exp.8', 'P-02')) === JSON.stringify(['mgr-01 | Ubuntu 22.04 | SIEM']));
   comprueba('lo que no casa se queda en la organización', JSON.stringify(valor(m, 'op.acc.1', 'P-07')) === JSON.stringify(['eva | srv-sin-agente | Administradora']));
   comprueba('y se avisa', plan.warnings.some(w => w.key === 'srv-sin-agente' && w.reason === 'sin-agente'), plan.warnings);
-  comprueba('el aviso se lee', /srv-sin-agente.*no es ningún agente conocido; se queda en la organización/.test(describeMigrationWarning(plan.warnings[0])), describeMigrationWarning(plan.warnings[0]));
+  comprueba('el aviso se lee', /srv-sin-agente.*no es ningún agente conocido; se queda en el valor común/.test(describeMigrationWarning(plan.warnings[0])), describeMigrationWarning(plan.warnings[0]));
   comprueba('una tabla sin filas propias no se toca (op.exp.2 P-04)', JSON.stringify(valor(m, 'op.exp.2', 'P-04')) === JSON.stringify(valor(doc, 'op.exp.2', 'P-04')));
   comprueba('la fila * se queda en la organización…', JSON.stringify(valor(m, 'op.exp.4', 'P-04')) === JSON.stringify(['* | * 06:00-08:00']));
   comprueba('… y las listas de alcance no se tocan (mp.info.6 P-04)', JSON.stringify(valor(m, 'mp.info.6', 'P-04')) === JSON.stringify(['web01 | MEDIA']));

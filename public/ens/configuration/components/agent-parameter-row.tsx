@@ -20,7 +20,6 @@ import {
   validateParameterValue,
 } from '../../../../common/ens/configuration/services/parameter-value-validator';
 import type { ENSResolvedValueOrigin } from '../../../../common/ens/configuration/agents/configuration-resolver';
-import { getConfigurationTemplate } from '../../../../common/ens/configuration/templates';
 import { errorMessage } from './confirm-modal';
 
 interface AgentParameterRowProps {
@@ -47,13 +46,16 @@ interface AgentParameterRowProps {
   onDone?: () => void;
 }
 
-// De dónde sale el valor, dicho explícitamente.
+// Where the value comes from, said explicitly: the level of the resolution chain.
 export const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): string => {
-  if (origin.source === 'agent') return 'valor propio de este sistema';
-  if (origin.source === 'template') return `heredado de la plantilla «${getConfigurationTemplate(origin.templateId || '')?.label || origin.templateId}»`;
-  if (contributionOnly) return 'este sistema no aporta filas propias';
-  if (origin.source === 'union') return `unión de la organización y de los sistemas ${(origin.contributors || []).join(', ')}`;
-  return hasValue ? 'heredado de la organización' : 'sin valor: ni propio, ni de plantilla, ni de la organización';
+  if (origin.source === 'agent') return 'ajuste propio de este agente';
+  if (origin.source === 'template') {
+    const name = origin.templateName || origin.templateId;
+    return origin.via === 'type' ? `heredado de la plantilla de serie «${name}» de su tipo` : `heredado de la plantilla asignada «${name}»`;
+  }
+  if (contributionOnly) return 'este agente no aporta filas propias';
+  if (origin.source === 'union') return `unión del valor común y de los agentes ${(origin.contributors || []).join(', ')}`;
+  return hasValue ? 'heredado del valor común del control' : 'sin valor: ni ajuste propio, ni plantilla, ni valor común';
 };
 
 export const valueRows = (parameter: Pick<ENSControlParameter, 'type'>, value: ENSControlParameter['value']): string[] => {
@@ -74,8 +76,8 @@ const Rows = ({ rows }: { rows: string[] }) =>
   );
 
 const HINTS: Record<'quitar' | 'igual', string> = {
-  quitar: 'Vacío: al guardar, este sistema se queda sin valor propio y vuelve a heredar (de su plantilla o de la organización).',
-  igual: 'Igual al que ya hereda: al guardar no se guarda como propio, y seguirá a su origen cuando cambie.',
+  quitar: 'Vacío: al guardar, este agente se queda sin ajuste propio y vuelve a heredar.',
+  igual: 'Igual al que ya hereda: no se guarda como propio y seguirá a su origen cuando cambie.',
 };
 
 export const AgentParameterRow = ({
@@ -179,14 +181,14 @@ export const AgentParameterRow = ({
 
         {!editing && (
           <EuiText size='xs'>
-            {contributionOnly && <p><strong>De este sistema:</strong></p>}
+            {contributionOnly && <p><strong>De este agente:</strong></p>}
             <Rows rows={rows} />
           </EuiText>
         )}
 
         {contributionOnly && organisationRows && organisationRows.length > 0 && (
           <EuiText size='xs' color='subdued'>
-            <p><strong>De la organización</strong> (solo lectura; se editan en «Organización»):</p>
+            <p><strong>Del valor común</strong> (solo lectura; se edita en «Controles»):</p>
             <Rows rows={organisationRows} />
           </EuiText>
         )}
@@ -234,7 +236,7 @@ export const AgentParameterRow = ({
             <>
               <EuiFlexItem grow={false}>
                 <EuiButton size='s' fill isLoading={saving} onClick={() => save(draft as ENSAgentParameterValue | undefined)}>
-                  Guardar para este sistema
+                  Guardar para este agente
                 </EuiButton>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
@@ -246,14 +248,14 @@ export const AgentParameterRow = ({
           ) : (
             <EuiFlexItem grow={false}>
               <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { setDraft(parameter.value); setSaved(undefined); setEditing(true); }}>
-                {own ? 'Editar' : contributionOnly ? 'Declarar filas de este sistema' : 'Dar valor propio'}
+                {own ? 'Editar' : contributionOnly ? 'Declarar filas de este agente' : 'Dar ajuste propio'}
               </EuiButtonEmpty>
             </EuiFlexItem>
           )}
           {own && !editing && (
             <EuiFlexItem grow={false}>
               <EuiButtonEmpty size='s' color='danger' isLoading={saving} onClick={() => save(undefined)}>
-                Quitar valor propio (vuelve a heredar)
+                Quitar ajuste propio (vuelve a heredar)
               </EuiButtonEmpty>
             </EuiFlexItem>
           )}
