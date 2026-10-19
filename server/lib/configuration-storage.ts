@@ -127,9 +127,7 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
-// `previous`: the replaced document when it is not already the last history version; stored one millisecond earlier.
-// `expected`: the version read before saving ('absent': there was none), so a newer document is never overwritten;
-// the active document goes first and the history only once it is written.
+// Writes the active document only over `expected` ('absent': none yet), then the history (`previous` 1 ms earlier).
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,

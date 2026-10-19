@@ -287,9 +287,7 @@ def find_parameter(config, control_id, parameter_id):
 
 
 def adopted_value(config, item):
-    """What the plugin moves to an item without a stored value: the values of the parameters that have one, when
-    every one of them keeps its value. None when there is none or they differ (the plugin shows the conflict).
-    Returns (value, [views that supplied it])."""
+    """(value, sources) the plugin moves to an item without stored value; (None, []) if none or they differ."""
     configured = []
     for view in item.get("views", []):
         parameter = find_parameter(config, view["controlId"], view["parameterId"])

@@ -203,8 +203,7 @@ const sameColumns = (left: ENSOrganizationRow, right: ENSOrganizationRow): boole
   return a.length === b.length && a.every((column, index) => column === b[index]);
 };
 
-// Adds a row: with `key`, into the row with the same key (the existing cells win); otherwise into an identical
-// row (the multiselect cells are joined) or as a new row.
+// With `key`, into the row with that key (existing cells win); else into an identical row, joining multiselects.
 export const mergeOrganizationRow = (
   item: ENSOrganizationDataItem,
   rows: ENSOrganizationRow[],
