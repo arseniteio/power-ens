@@ -1,10 +1,5 @@
-// Inventario de agentes desde `wazuh-monitoring-*`, que el propio Wazuh
-// rellena cada 15 minutos con cada agente. Sustituye a la API de Wazuh: el
-// plugin no necesita sus credenciales. Se lee como el usuario que mira.
-//
-// Aquí está la parte pura (la consulta y cómo se lee su respuesta), en
-// `common/` porque el servidor resuelve el alcance con el mismo código que el
-// navegador. La carga desde el navegador está en `public/agents/load-agent-inventory.ts`.
+// Agent inventory from `wazuh-monitoring-*`, which Wazuh itself fills every 15 minutes; it replaces the Wazuh API so the plugin needs no credentials. Read as the viewing user.
+// The pure part (the query and how its response is read) is in `common/` because the server resolves the scope with the same code as the browser. The browser load is in `public/agents/load-agent-inventory.ts`.
 import { ENS_MONITORING_INDEX } from '../constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
@@ -39,15 +34,13 @@ export const buildMonitoringInventoryRequest = () => ({
   },
 });
 
-const idDeAgente = (valor: unknown): string => {
-  const texto = String(valor ?? '').trim();
-  return /^\d+$/.test(texto) ? texto.padStart(3, '0') : texto;
+const agentId = (valor: unknown): string => {
+  const text = String(valor ?? '').trim();
+  return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
-// El sistema operativo del agente, para detectar su tipo en Configuración
-// (Windows, Linux). Solo los campos de texto que se usan; un agente que nunca
-// se ha conectado no trae `os`.
-const sistemaDe = (valor: any): ENSAgentScope['os'] => {
+// The agent's operating system, to detect its type in Configuration (Windows, Linux). Only the text fields used; a never-connected agent has no `os`.
+const systemOf = (valor: any): ENSAgentScope['os'] => {
   if (!valor || typeof valor !== 'object') return undefined;
   const os: NonNullable<ENSAgentScope['os']> = {};
   (['platform', 'name', 'version', 'uname'] as const).forEach(campo => {
@@ -56,75 +49,65 @@ const sistemaDe = (valor: any): ENSAgentScope['os'] => {
   return Object.keys(os).length ? os : undefined;
 };
 
-const gruposDe = (valor: unknown): string[] => {
+const groupsOf = (valor: unknown): string[] => {
   if (Array.isArray(valor)) return valor.map(g => String(g).trim()).filter(Boolean);
   if (typeof valor === 'string') return valor.split(',').map(g => g.trim()).filter(Boolean);
   return [];
 };
 
 export const inventoryFromMonitoring = (aggregations: any, now: number = Date.now()): ENSAgentInventory => {
-  let masReciente: number | undefined;
-  // El manager (000) no se escribe en wazuh-monitoring: su nombre sale del
-  // campo `manager` del documento más reciente que lo trae. Un agente que
-  // nunca se ha conectado no lo trae (comprobado en wazuh4 el 08/10/2026) y la
-  // pasada escribe todos con el mismo instante: el primero no puede decidir.
-  let nombreDelManager: string | undefined;
-  let instanteDelManager = -Infinity;
-  // Un agente por id normalizado: si dos cubos dan el mismo (`24` y `024`),
-  // queda el del dato más reciente; sin fecha, cuenta como el más antiguo.
-  const porId = new Map<string, { agente: ENSAgentScope; instante: number }>();
+  let mostRecent: number | undefined;
+  // The manager (000) is not written to wazuh-monitoring: its name comes from the `manager` field of the most recent document carrying it. A never-connected agent lacks it, and the pass writes all with the same instant, so the first cannot decide.
+  let managerName: string | undefined;
+  let managerTimestamp = -Infinity;
+  // One agent per normalized id: if two buckets give the same (`24` and `024`), the one with the most recent datum stays; without a date, it counts as the oldest.
+  const byId = new Map<string, { agente: ENSAgentScope; instante: number }>();
 
-  for (const cubo of aggregations?.agentes?.buckets || []) {
-    const doc = cubo?.ultimo?.hits?.hits?.[0]?._source;
-    const id = idDeAgente(doc?.id ?? cubo?.key);
+  for (const bucket of aggregations?.agentes?.buckets || []) {
+    const doc = bucket?.ultimo?.hits?.hits?.[0]?._source;
+    const id = agentId(doc?.id ?? bucket?.key);
     if (!id) continue;
 
-    const instante = Date.parse(String(doc?.timestamp ?? ''));
-    if (!Number.isNaN(instante) && (masReciente === undefined || instante > masReciente)) masReciente = instante;
+    const timestamp = Date.parse(String(doc?.timestamp ?? ''));
+    if (!Number.isNaN(timestamp) && (mostRecent === undefined || timestamp > mostRecent)) mostRecent = timestamp;
     const manager = typeof doc?.manager === 'string' ? doc.manager.trim() : '';
-    if (manager && !Number.isNaN(instante) && instante > instanteDelManager) {
-      instanteDelManager = instante;
-      nombreDelManager = manager;
+    if (manager && !Number.isNaN(timestamp) && timestamp > managerTimestamp) {
+      managerTimestamp = timestamp;
+      managerName = manager;
     }
 
-    const orden = Number.isNaN(instante) ? -Infinity : instante;
-    const previo = porId.get(id);
-    if (previo && previo.instante >= orden) continue;
+    const order = Number.isNaN(timestamp) ? -Infinity : timestamp;
+    const previous = byId.get(id);
+    if (previous && previous.instante >= order) continue;
 
-    porId.set(id, {
-      instante: orden,
+    byId.set(id, {
+      instante: order,
       agente: {
         id,
         name: doc?.name ? String(doc.name) : undefined,
-        groups: gruposDe(doc?.group),
+        groups: groupsOf(doc?.group),
         ...(doc?.status ? { status: String(doc.status) } : {}),
-        ...(sistemaDe(doc?.os) ? { os: sistemaDe(doc?.os) } : {}),
+        ...(systemOf(doc?.os) ? { os: systemOf(doc?.os) } : {}),
       },
     });
   }
 
-  // Un agente dado de baja deja de aparecer en wazuh-monitoring (uno
-  // desconectado sigue apareciendo, con su estado): queda fuera el que no
-  // tiene dato en la última hora del inventario, contada desde su dato más
-  // reciente y no desde el reloj, para que un inventario parado no se vacíe.
-  // Sin fecha no se sabe: se queda.
-  const vigente = (instante: number) =>
-    masReciente === undefined || instante === -Infinity || masReciente - instante <= ENS_INVENTORY_MAX_AGE_MS;
+  // A decommissioned agent stops appearing in wazuh-monitoring (a disconnected one keeps appearing, with its status): one with no datum in the last hour of the inventory is dropped, counted from its most recent datum and not the clock, so a stalled inventory does not empty. Without a date it stays.
+  const current = (timestamp: number) =>
+    mostRecent === undefined || timestamp === -Infinity || mostRecent - timestamp <= ENS_INVENTORY_MAX_AGE_MS;
 
-  const agents = [...porId.values()]
-    .filter(v => vigente(v.instante))
+  const agents = [...byId.values()]
+    .filter(v => current(v.instante))
     .map(v => v.agente)
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const stale = masReciente === undefined || now - masReciente > ENS_INVENTORY_MAX_AGE_MS;
+  const stale = mostRecent === undefined || now - mostRecent > ENS_INVENTORY_MAX_AGE_MS;
 
-  // Si hay inventario y no trae un 000, se añade el manager: es quien escribe
-  // ese inventario, así que con el inventario al día está activo; antiguo, no
-  // se sabe y no se le pone estado.
+  // If there is an inventory without a 000, the manager is added: it writes that inventory, so with an up-to-date inventory it is active; if old, unknown and no status is set.
   if (agents.length && !agents.some(a => a.id === ENS_MANAGER_AGENT_ID)) {
     agents.unshift({
       id: ENS_MANAGER_AGENT_ID,
-      name: nombreDelManager,
+      name: managerName,
       groups: [],
       ...(stale ? {} : { status: 'active' }),
     });
@@ -132,7 +115,7 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
 
   return {
     agents,
-    newestTimestamp: masReciente === undefined ? undefined : new Date(masReciente).toISOString(),
+    newestTimestamp: mostRecent === undefined ? undefined : new Date(mostRecent).toISOString(),
     stale,
   };
 };

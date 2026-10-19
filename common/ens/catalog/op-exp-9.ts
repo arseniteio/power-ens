@@ -6,9 +6,7 @@ export const opExp9CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Explotación',
   dimension: 'Todas',
-  // Se mide SOLO en el manager: el registro de los incidentes es de la
-  // organización, no de cada máquina. Su resultado es el de la fila del
-  // manager (000).
+  // Measured ONLY on the manager: the incident register belongs to the organisation, not each machine. Result is the manager row's (000).
   measurementPlanes: ['manager'],
   description:
     'op.exp.9 no pide gestionar incidentes —eso es op.exp.7— sino dejar constancia registral de cómo se gestionaron, con una exigencia añadida de calado jurídico: que la evidencia sirva en sede jurisdiccional.',

@@ -6,21 +6,14 @@ export const opMon1CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Monitorización del sistema',
   dimension: 'Todas',
-  // Se mide SOLO en el manager: el motor de reglas, la base de agentes y las
-  // alertas están en el sistema central, y los hechos hablan de los demás
-  // sistemas por su campo `agente`. Su resultado es el de la fila del manager
-  // (000).
+  // Measured ONLY on the manager: the rule engine, the agent base and the alerts are in the central system, and facts speak about other systems through `agente`. Result is the manager row's (000).
   measurementPlanes: ['manager'],
   description:
     'op.mon.1 es uno de los controles que Wazuh cubre por naturaleza: es un HIDS con motor de reglas, de modo que el requisito base y R1 quedan satisfechos con el propio despliegue.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   status: 'ACTIVE',
   version: '1.0.0',
-  // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §1.3),
-  // no las que la plantilla asocia: op.mon.1.1 se decide con EV-01 a EV-05 y R1
-  // con EV-01 y EV-08. R2 es documental (sin evidencia técnica: lo acredita
-  // P-05 o P-ATT), y EV-06 queda como dato del informe, sin requisito que la
-  // juzgue. R3 no se exige en ninguna categoría.
+  // The evidences of each requirement are the design's, not the template's: op.mon.1.1 is decided with EV-01 to EV-05 and R1 with EV-01 and EV-08. R2 is documentary (no technical evidence: accredited by P-05 or P-ATT) and EV-06 stays as report data with no requirement judging it. R3 is required in no category.
   requirements: [
     {
       id: 'op.mon.1.1',
@@ -59,8 +52,7 @@ export const opMon1CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible solo en categoría ALTA. En BÁSICA y MEDIA no aplica.',
       },
-      // Documental: lo acredita la tabla de procedimientos de P-05 (la policy
-      // marca la decisión `attested`) o, si no, una atestación de P-ATT.
+      // Documentary: accredited by the P-05 procedures table (the policy marks the decision `attested`) or, failing that, a P-ATT attestation.
       evidenceIds: [],
       parameterIds: ['P-05'],
     },

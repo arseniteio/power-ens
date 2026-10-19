@@ -11,8 +11,7 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   manager: 'Manager Wazuh',
 };
 
-// El mismo contrato que `value`: un escalar o una lista de texto. Nunca `null`:
-// quitar el valor propio de un agente es BORRAR la clave.
+// Same contract as `value`: a scalar or a list of text. Never `null`: removing an agent's own value means DELETING the key.
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
 // How a list value is compared: absent means exact, the 1.1.0 and 1.2.0 behaviour.
@@ -53,8 +52,7 @@ export interface ENSAgentProfile {
 
 export type ENSAgentsConfiguration = Record<string, ENSAgentProfile>;
 
-// El id de Wazuh normalizado: numérico y con tres cifras al menos (`24` y
-// `024` son el mismo agente), igual que el inventario de `wazuh-monitoring`.
+// Normalized Wazuh id: numeric with at least three digits (`24` and `024` are the same agent), as in the `wazuh-monitoring` inventory.
 export const normalizeAgentId = (value: unknown): string => {
   const text = String(value ?? '').trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
@@ -87,9 +85,7 @@ const validateMatchModesShape = (value: unknown, path: string): string[] => {
     .map(([parameterId]) => `${path}.${parameterId} must be "exact" or "regex".`);
 };
 
-// ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
-// se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
-// máquina y su valor no se aplicaría.
+// Is `key` a normalized agent id (`000`, `024`, `1003`)? Profiles are stored by id: a name (`srv-web01`) never matches a machine's row and its value would not apply.
 export const isNormalisedAgentId = (key: string): boolean =>
   /^\d+$/.test(key) && normalizeAgentId(key) === key;
 
@@ -98,20 +94,10 @@ export const describeNonIdAgentKey = (key: string): string =>
     ? `«${key}» no es un id de agente normalizado; usar ${normalizeAgentId(key)}`
     : `«${key}» no es un id de agente; usar el id numérico del agente de Wazuh (p. ej. 001)`;
 
-/**
- * Comprueba la FORMA de `configuration.agents` que el motor necesita para no
- * romperse: la clave ausente es válida; presente, un mapa de perfiles cuyos
- * campos conocidos tienen su tipo y cuyos valores son un escalar o una lista de
- * texto (nunca `null` ni un objeto). Estos errores son los únicos FATALES: los
- * usa el validador estructural (hidratación) y el guardado del servidor.
- *
- * No son fatales, a propósito, y los da `checkAgentsConfigurationKeys`:
- *   - una clave de perfil que no es un id normalizado (error de significado);
- *   - una clave que esta versión no conoce, dentro de un perfil o de un control
- *     (aviso: una versión posterior puede añadir campos y volver a esta no
- *     puede tumbar el entorno);
- *   - un tipo de sistema que esta versión no conoce (aviso).
- */
+// Checks the SHAPE of `configuration.agents` the engine needs: an absent key is valid; when present, a map of profiles whose known fields have their type and whose values are a scalar or a list of text (never `null` or an object).
+// These are the only FATAL errors, used by the structural validator (hydration) and the server save.
+// Not fatal on purpose, given by `checkAgentsConfigurationKeys`: a profile key that is not a normalized id (a meaning error); a key this version does not know inside a profile or control (a warning, so a later version can add fields);
+// a system type this version does not know (a warning).
 export const validateAgentsConfigurationShape = (
   value: unknown,
   path: string = 'configuration.agents'
@@ -266,9 +252,9 @@ export const checkCustomTemplatesKeys = (
     : [];
 
 export interface ENSAgentsKeyCheck {
-  // Perfiles guardados con una clave que no es un id: su valor no se aplica.
+  // Profiles stored with a key that is not an id: their value does not apply.
   errors: string[];
-  // Lo que esta versión no conoce y se ignora.
+  // What this version does not know and ignores.
   warnings: string[];
 }
 
@@ -319,8 +305,7 @@ export const checkAgentsConfigurationKeys = (
   return result;
 };
 
-// El tipo, si es de esta versión. Un tipo desconocido (de una versión
-// posterior) se trata como ausente.
+// The type, if from this version. An unknown type (from a later version) is treated as absent.
 export const knownSystemType = (value: unknown): ENSSystemType | undefined =>
   typeof value === 'string' && ENS_SYSTEM_TYPES.includes(value as ENSSystemType)
     ? (value as ENSSystemType)
