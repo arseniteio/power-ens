@@ -3,8 +3,7 @@
 
 [[_TOC_]]
 
-Esta es la guía interna para quien trabaja en este repositorio. Hoy el proyecto
-es privado; está prevista una edición comunitaria.
+Guía interna del repositorio (privado; edición comunitaria prevista).
 
 ## Flujo de trabajo
 
@@ -71,6 +70,7 @@ Las guías de `docs/deployment/` siguen el mismo estilo:
   sujeto («Check…», «Stop the procedure»), sin *you* ni *your*;
 - después de cada orden, **Resultado esperado:** (*Expected result:*, en
   inglés), también en las tablas;
+- directo: sin párrafos que justifiquen, narren o enseñen, sin repeticiones entre guías ni historia; solo pasos, órdenes, rutas, valores, resultados esperados y avisos que evitan pérdida de datos;
 - los avisos, con `> [!note]`, `> [!important]` o `> [!warning]`;
 - cada enlace relativo y cada ancla tienen que existir. GitLab forma el ancla
   con el título en minúsculas, los espacios cambiados por `-` y sin signos de
@@ -134,9 +134,7 @@ este proyecto, en *Settings → CI/CD → Variables*:
 | `RUNBOOKS_DEPLOY_USER` | el usuario del token | enmascarada, sin proteger |
 | `RUNBOOKS_DEPLOY_TOKEN` | el token | enmascarada, sin proteger |
 
-Van sin proteger porque las ramas de trabajo y los MR no son protegidos: una
-variable protegida no llegaría a sus pipelines. Sin ellas, `ci/clone-runbooks.sh` se para
-y dice cómo crearlas.
+Sin proteger: las ramas de trabajo y los MR no son protegidos. Sin las variables, `ci/clone-runbooks.sh` se para y dice cómo crearlas.
 
 El trabajo `release` no necesita más variables: usa el token del propio trabajo.
 
