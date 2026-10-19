@@ -72,9 +72,9 @@ for (const p of evaluan) {
   const texto = fs.readFileSync(path.join(raiz, p), 'utf8');
   // El detalle lo lee a través de `decideDetailView` (que conserva el último
   // resultado del control mientras tanto, rotulado con su máquina).
-  comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = (?:evaluacion|evaluation);/.test(texto) || /error=\{summary\.error\}/.test(texto) || /decideDetailView\((?:peticion|request), (?:evaluacion|evaluation),/.test(texto) || /error=\{(general|tendencia|trend)\.error\}/.test(texto));
+  comprueba(`${p}: lee el error de la evaluación`, /const \{ error \} = evaluation;/.test(texto) || /error=\{summary\.error\}/.test(texto) || /decideDetailView\(request, evaluation,/.test(texto) || /error=\{(general|trend)\.error\}/.test(texto));
   // Y lo enseña CON «Reintentar» (un tiempo agotado incluido).
-  comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|summary\.error|(?:vista|view)\.error as Error|general\.error|tendencia|trend\.error)\} onRetry=\{((?:evaluacion|evaluation)|summary|general|tendencia|trend)\.retry\} \/>/.test(texto));
+  comprueba(`${p}: lo enseña con «Reintentar»`, /<FactsReadErrorCallOut error=\{(error|summary\.error|view\.error as Error|general\.error|trend\.error)\} onRetry=\{(evaluation|summary|general|trend)\.retry\} \/>/.test(texto));
   // Y mientras no hay resultado de ESTA selección, la carga, no un veredicto.
   comprueba(`${p}: con carga mientras no hay resultado`, /<EvaluationLoading\s/.test(texto) || /isLoading=\{summary\.isLoading\}/.test(texto));
 }
