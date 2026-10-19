@@ -1,5 +1,4 @@
-// Shared data asked once in Configuración > General; each mapped control parameter is a view of its item.
-// set-parameters.py and inject-control.py parse the array below as JSON, so it stays strict JSON.
+// Shared data asked once in General; the scripts parse the array below as JSON, so it stays strict JSON.
 import type { ENSParameterColumn } from '../types';
 
 export interface ENSOrganizationDataView {
@@ -26,6 +25,8 @@ export interface ENSOrganizationDataItem {
   options?: string[];
   // Columns that identify a row when two views fill different cells of it.
   key?: string[];
+  // Columns whose meaning depends on the use: a row with several uses and one of them filled is warned about.
+  perUseColumns?: string[];
   views: ENSOrganizationDataView[];
   // Parameters the auditor's map relates to the item that stay in their control, with the reason.
   unmapped: ENSOrganizationDataUnmapped[];
@@ -36,8 +37,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "personal_autorizado",
     "label": "Personal autorizado",
-    "description": "Cuentas autorizadas y para qué, escritas como las emite el agente. Cada control lee solo las filas de su uso. «Ámbito» y «Detalle» son, según el uso: mantenimiento, ámbito y tipo; registros, alcance y permiso; claves, claves y operación; autorizaciones, ámbito; cloud, servicio.",
+    "description": "Cuentas autorizadas y para qué, escritas como las emite el agente: sin espacios, comas ni «|» (en cloud, el ARN o la cuenta principal). Cada control lee solo las filas de su uso. «Ámbito» y «Detalle» son, según el uso: mantenimiento, ámbito y tipo; registros, alcance y permiso; claves, claves y operación; autorizaciones, ámbito; cloud, servicio. Una fila con varios usos comparte ámbito y detalle: si difieren, una fila por uso.",
     "type": "table",
+    "perUseColumns": ["ambito", "detalle"],
     "columns": [
       {"name": "cuenta", "label": "Cuenta", "type": "string", "required": true},
       {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["configuracion", "mantenimiento", "registros", "claves", "copias", "autorizaciones", "cloud"]},
@@ -94,8 +96,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "herramientas_gestion",
     "label": "Herramientas de gestión de cambios e incidentes",
-    "description": "Dónde se registran los cambios y los incidentes. Cada control lee las filas de su uso. «Detalle» es el prefijo de referencia en cambios y el responsable en incidentes.",
+    "description": "Dónde se registran los cambios y los incidentes. Cada control lee las filas de su uso. En cambios, la herramienta es registro_tsv, jira, glpi, servicenow u otro. «Detalle» es el prefijo de referencia en cambios y el responsable en incidentes.",
     "type": "table",
+    "perUseColumns": ["detalle"],
     "columns": [
       {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["cambios", "incidentes"]},
       {"name": "herramienta", "label": "Herramienta", "type": "string", "required": true},
@@ -143,8 +146,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "retencion",
     "label": "Plazos de retención",
-    "description": "Días de conservación de registros, evidencias, cuentas deshabilitadas, registro de accesos y copias. Cada control lee las filas de su uso; los de un solo valor toman la primera.",
+    "description": "Días de conservación de registros, evidencias, cuentas deshabilitadas, registro de accesos y copias. Cada control lee las filas de su uso; cuentas, accesos y copias admiten una sola fila cada uno.",
     "type": "table",
+    "perUseColumns": ["categoria"],
     "columns": [
       {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["registros", "evidencias", "cuentas", "accesos", "copias"]},
       {"name": "categoria", "label": "Categoría", "type": "string", "required": false},
@@ -172,20 +176,22 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "canales_acceso_remoto",
     "label": "Canales de acceso remoto autorizados",
-    "description": "Canales de acceso remoto, si van cifrados, quién los autoriza y si su uso es constante.",
+    "description": "Canales de acceso remoto, una fila por canal: si va cifrado, quién lo autoriza, si su uso es constante, y su puerto y origen permitidos.",
     "type": "table",
+    "key": ["canal"],
     "columns": [
       {"name": "canal", "label": "Canal", "type": "identifier", "required": true},
       {"name": "cifrado", "label": "Cifrado", "type": "select", "required": true, "options": ["si", "no"]},
       {"name": "autoriza", "label": "Autoriza", "type": "string", "required": true},
-      {"name": "uso_constante", "label": "Uso constante", "type": "select", "required": true, "options": ["si", "no"]}
+      {"name": "uso_constante", "label": "Uso constante", "type": "select", "required": true, "options": ["si", "no"]},
+      {"name": "puerto", "label": "Puerto", "type": "string", "required": false},
+      {"name": "origen", "label": "Origen permitido", "type": "string", "required": false}
     ],
     "views": [
-      {"controlId": "op.acc.6", "parameterId": "P-07"}
+      {"controlId": "op.acc.6", "parameterId": "P-07", "columns": ["canal", "cifrado", "autoriza", "uso_constante"]},
+      {"controlId": "op.acc.4", "parameterId": "P-04", "columns": ["canal", "puerto", "origen"]}
     ],
-    "unmapped": [
-      {"controlId": "op.acc.4", "parameterId": "P-04", "reason": "Cada entrada lleva canal, puerto y origen: otro formato."}
-    ]
+    "unmapped": []
   },
   {
     "id": "productos_certificados",

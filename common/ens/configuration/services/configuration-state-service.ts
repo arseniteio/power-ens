@@ -8,6 +8,9 @@ import {
   ensConfigurationRepository,
 } from '../repository';
 import {
+  ENSConfigurationExpectedVersion,
+  ENSConfigurationMetadata,
+  ENSConfigurationServerState,
   getENSConfiguration,
   saveENSConfiguration,
 } from './configuration-http-client';
@@ -22,6 +25,7 @@ import {
 } from '../agents/template-migration';
 import {
   ENSOrganizationMigrationReport,
+  describeOrganizationFills,
   keepOrganizationParameters,
   normalizeOrganizationData,
   summarizeOrganizationMigration,
@@ -37,9 +41,25 @@ let pendingTemplateMigration: ENSTemplateMigrationPlan | undefined;
 export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefined =>
   pendingTemplateMigration;
 
-// The organisation data migration done on load, same rule: in memory until the next save. Only set when it moves,
-// writes or finds a conflict; adding the empty block needs no notice.
+// The organisation data migration done on load, kept until the next save; unset when there is nothing to tell.
 let pendingOrganizationMigration: ENSOrganizationMigrationReport | undefined;
+
+// Index version of the loaded document: a save made over a newer one is refused (409) instead of undoing it.
+let loadedVersion: ENSConfigurationExpectedVersion | undefined;
+
+const versionFrom = (metadata: ENSConfigurationMetadata | null | undefined): ENSConfigurationExpectedVersion | undefined =>
+  metadata && Number.isInteger(metadata.seqNo) && Number.isInteger(metadata.primaryTerm)
+    ? { seqNo: metadata.seqNo as number, primaryTerm: metadata.primaryTerm as number }
+    : undefined;
+
+const saveWithVersion = async (
+  configuration: ENSConfigurationVersion,
+  reason: string
+): Promise<ENSConfigurationServerState> => {
+  const serverState = await saveENSConfiguration(configuration, reason, loadedVersion);
+  loadedVersion = versionFrom(serverState.metadata);
+  return serverState;
+};
 
 export const getPendingOrganizationMigration = (): ENSOrganizationMigrationReport | undefined =>
   pendingOrganizationMigration;
@@ -57,7 +77,7 @@ const withPendingConversion = (reason: string): string => {
   const conversions = [
     pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '',
     pendingOrganizationMigration && (pendingOrganizationMigration.moved.length || pendingOrganizationMigration.written.length)
-      ? summarizeOrganizationMigration({ ...pendingOrganizationMigration, conflicts: [] })
+      ? [summarizeOrganizationMigration({ ...pendingOrganizationMigration, conflicts: [] }), ...describeOrganizationFills(pendingOrganizationMigration.filled)].join(' ')
       : '',
   ].filter(conversion => conversion && !reason.includes(conversion));
   return conversions.length ? `${reason} ${conversions.join(' ')}` : reason;
@@ -92,6 +112,8 @@ export const hydrateENSConfiguration = (
     try {
       const serverState =
         await getENSConfiguration();
+
+      loadedVersion = versionFrom(serverState.metadata);
 
       if (serverState.configuration === null) {
         return ensConfigurationRepository.completeHydration(
@@ -196,7 +218,7 @@ export const updateActiveControlConfiguration = async (
     `Configuración actualizada para ${controlConfiguration.controlId}.`;
 
   const serverState =
-    await saveENSConfiguration(
+    await saveWithVersion(
       candidateConfiguration,
       withPendingConversion(changeReason)
     );
@@ -260,7 +282,7 @@ export const updateActiveGlobalConfiguration = async (
   }
 
   const serverState =
-    await saveENSConfiguration(
+    await saveWithVersion(
       candidateConfiguration,
       withPendingConversion('Configuración global ENS actualizada.')
     );
@@ -288,7 +310,7 @@ export const saveActiveENSConfiguration = async (
   changeReason: string
 ): Promise<ENSConfigurationVersion> => {
   const serverState =
-    await saveENSConfiguration(
+    await saveWithVersion(
       candidateConfiguration,
       withPendingConversion(changeReason)
     );

@@ -1,8 +1,11 @@
 import type { Logger } from '../../../../src/core/server';
 import {
+  ENSConfigurationConflictError,
+  ENSConfigurationDocumentVersion,
   ENSConfigurationStoredDocument,
+  parseConfigurationVersion,
   persistENSConfiguration,
-  readActiveENSConfiguration,
+  readActiveENSConfigurationWithVersion,
   readENSConfigurationHistory,
 } from './configuration-storage';
 import { resolveCurrentUser } from './current-user';
@@ -13,6 +16,7 @@ import {
   validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
+import { normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
 
 interface Options {
   logger: Logger;
@@ -22,8 +26,11 @@ interface Options {
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
-const metadata = (doc?: ENSConfigurationStoredDocument) =>
-  doc ? { createdAt: doc.createdAt, createdBy: doc.createdBy, updatedAt: doc.updatedAt, updatedBy: doc.updatedBy } : null;
+// `seqNo` and `primaryTerm` travel back with the next save, which is refused if the document changed meanwhile.
+const metadata = (doc?: ENSConfigurationStoredDocument, version?: ENSConfigurationDocumentVersion) =>
+  doc
+    ? { createdAt: doc.createdAt, createdBy: doc.createdBy, updatedAt: doc.updatedAt, updatedBy: doc.updatedBy, ...(version || {}) }
+    : null;
 
 const correct = (response: any, data: unknown) => response.ok({ body: { statusCode: 200, error: 0, data } });
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
@@ -57,8 +64,8 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
   const getActive = async (context: any, _request: any, response: any) => {
     try {
-      const doc = await readActiveENSConfiguration(internal(context), logger);
-      return correct(response, { configuration: doc?.configuration ?? null, metadata: metadata(doc) });
+      const { document: doc, version } = await readActiveENSConfigurationWithVersion(internal(context), logger);
+      return correct(response, { configuration: doc?.configuration ?? null, metadata: metadata(doc, version) });
     } catch (error: any) {
       logger.error(`Could not read the active ENS configuration: ${error?.message || error}`);
       return failure(response, 500, 'No se pudo leer la configuración ENS; el detalle está en el log del dashboard.');
@@ -102,7 +109,12 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
     const username = access.usuario!.username;
 
     try {
-      const previous = await readActiveENSConfiguration(internal(context), logger);
+      const { document: previous, version } = await readActiveENSConfigurationWithVersion(internal(context), logger);
+      const expected = parseConfigurationVersion(bodyText.expectedVersion);
+      if (expected && (!previous || (version && (expected.seqNo !== version.seqNo || expected.primaryTerm !== version.primaryTerm)))) {
+        logger.warn(`ENS config: refused a stale save by ${username}`);
+        return failure(response, 409, new ENSConfigurationConflictError().message);
+      }
       const previous2: any = previous?.configuration || {};
       const trail = Array.isArray(previous2.auditTrail) ? previous2.auditTrail : [];
       const now = new Date().toISOString();
@@ -133,7 +145,8 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { organizationData: previous2.organizationData }
           : {};
 
-      const configurationValue = {
+      // Every save writes each organisation item into its parameters, whoever sends it (a client, a script via the API).
+      const configurationValue = normalizeOrganizationData({
         ...bodyText.configuration,
         ...keepsAgents,
         ...keptTemplates,
@@ -147,7 +160,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ...trail,
           { action: initial ? 'CREATED' : 'UPDATED', user: username, date: now, summary: reason },
         ],
-      };
+      }).configuration;
 
       // The previous version goes to the history unless it is already its last entry.
       const last = previous ? (await readENSConfigurationHistory(internal(context), logger, 1))[0] : undefined;
@@ -156,11 +169,22 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { configuration: previous.configuration, author: text(previous2.updatedBy) || previous.updatedBy }
           : undefined;
 
-      const savedValue = await persistENSConfiguration(internal(context), logger, configurationValue, username, previousOutsideHistory);
+      const savedValue = await persistENSConfiguration(
+        internal(context),
+        logger,
+        configurationValue,
+        username,
+        previousOutsideHistory,
+        previous ? version : 'absent'
+      );
       logger.info(`ENS configuration saved by ${username}`);
 
-      return correct(response, { configuration: savedValue.configuration, metadata: metadata(savedValue) });
+      return correct(response, { configuration: savedValue.configuration, metadata: metadata(savedValue, savedValue.version) });
     } catch (error: any) {
+      if (error instanceof ENSConfigurationConflictError) {
+        logger.warn(`ENS config: refused a stale save by ${username} (the document changed while saving)`);
+        return failure(response, 409, error.message);
+      }
       logger.error(`Could not save the ENS configuration: ${error?.message || error}`);
       return failure(response, 500, 'No se pudo guardar la configuración ENS; el detalle está en el log del dashboard.');
     }

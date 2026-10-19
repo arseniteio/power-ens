@@ -29,11 +29,11 @@ export const checkOrganizationDataKeys = (
   if (!isRecord(value)) return [];
   const warnings = Object.keys(value)
     .filter(key => key !== 'values')
-    .map(key => `${path}.${key}: esta versión no conoce la clave y la conserva sin usarla.`);
+    .map(key => `${path}.${key}: unknown to this version, kept and not used.`);
   if (isRecord(value.values)) {
     Object.keys(value.values)
       .filter(itemId => !EDITABLE_ITEMS.includes(itemId))
-      .forEach(itemId => warnings.push(`${path}.values.${itemId}: esta versión no conoce el dato y lo conserva sin usarlo.`));
+      .forEach(itemId => warnings.push(`${path}.values.${itemId}: item unknown to this version, kept and not used.`));
   }
   return warnings;
 };

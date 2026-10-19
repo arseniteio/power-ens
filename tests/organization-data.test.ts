@@ -6,6 +6,10 @@ import {
   ENS_ORGANIZATION_DATA_ITEMS,
   ORGANIZATION_SOURCE,
   checkOrganizationDataKeys,
+  describeOrganizationFills,
+  organizationCrossChecks,
+  organizationValueWarnings,
+  validateOrganizationValue,
   describeOrganizationData,
   describeOrganizationItem,
   findOrganizationDataLink,
@@ -22,6 +26,7 @@ import { validateENSConfigurationStructure as validate130 } from './fixtures/con
 import { resolveControlConfigurationForAgent } from '../common/ens/configuration/agents/configuration-resolver';
 import { buildClearedControlConfiguration, summarizeControlConfigurationReset } from '../common/ens/configuration/services/configuration-reset-service';
 import { planMigrationToSystems } from '../common/ens/configuration/agents/migration';
+import { supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 
 declare const process: { exit(code: number): void; env: Record<string, string | undefined> };
@@ -204,8 +209,27 @@ console.log('4. Migration');
 
   const half = base();
   set(half, 'op.exp.4', 'P-07', ['* | lvm | snapshot | 24']);
-  const halfState = describeOrganizationItem(normalizeOrganizationData(half).configuration, getOrganizationDataItem('mecanismo_reversion')!);
-  check('one configured and one empty is a conflict too (op.exp.5 would change)', halfState.status === 'conflict' && halfState.candidates.length === 1 && JSON.stringify(halfState.candidates[0].keeps) === '["op.exp.4 P-07"]', halfState);
+  const halfReport = normalizeOrganizationData(half);
+  check('one with value and one empty is not a conflict: the empty one takes the value', halfReport.moved.includes('mecanismo_reversion') && !halfReport.conflicts.length &&
+    JSON.stringify(valueOf(halfReport.configuration, 'op.exp.5', 'P-08')) === '["* | lvm | snapshot | 24"]', halfReport);
+  check('and the migration says which parameter was completed and from where', JSON.stringify(halfReport.filled) === '[{"parameter":"op.exp.5 P-08","from":["op.exp.4 P-07"]}]' &&
+    halfReport.written.includes('op.exp.5 P-08') && describeOrganizationFills(halfReport.filled)[0] === 'Se ha completado op.exp.5 P-08 con el valor de op.exp.4 P-07.', halfReport.filled);
+  check('the summary counts it', /1 parámetro\(s\) toman el valor común/.test(summarizeOrganizationMigration(halfReport)));
+
+  const channels = base();
+  set(channels, 'op.acc.6', 'P-07', ['ssh | si | RSEG | si', 'vpn | si | RSEG | no']);
+  set(channels, 'op.acc.4', 'P-04', ['ssh | 22 | cualquier origen', 'vpn | 1194 | 10.0.0.0/8']);
+  const coherent = normalizeOrganizationData(channels);
+  check('remote channels: op.acc.4 P-04 and op.acc.6 P-07 naming the same channels become one row per channel',
+    JSON.stringify(coherent.configuration.organizationData!.values.canales_acceso_remoto) === '["ssh | si | RSEG | si | 22 | cualquier origen","vpn | si | RSEG | no | 1194 | 10.0.0.0/8"]' &&
+    controlsJson(coherent.configuration) === controlsJson(channels), coherent.configuration.organizationData);
+  set(channels, 'op.acc.4', 'P-04', ['RDP | 3389 | cualquiera']);
+  const differentChannels = describeOrganizationItem(channels, getOrganizationDataItem('canales_acceso_remoto')!);
+  check('remote channels: two different lists are a conflict', differentChannels.status === 'conflict' && differentChannels.candidates.length === 2, differentChannels.candidates);
+  const keepSix = differentChannels.candidates.find(candidate => candidate.from === 'op.acc.6 P-07')!;
+  check('remote channels: keeping op.acc.6 gives op.acc.4 its channels', JSON.stringify(valueOf(setOrganizationValue(channels, 'canales_acceso_remoto', keepSix.value), 'op.acc.4', 'P-04')) === '["ssh","vpn"]');
+  const keepFour = differentChannels.candidates.find(candidate => candidate.from === 'op.acc.4 P-04')!;
+  check('remote channels: keeping op.acc.4 is refused until op.acc.6 gets its columns', validateOrganizationValue(channels, getOrganizationDataItem('canales_acceso_remoto')!, keepFour.value).some(issue => issue.source === 'op.acc.6 P-07'));
 
   const people = base();
   set(people, 'op.exp.3', 'P-03', ['dioni', 'root']);
@@ -254,6 +278,29 @@ console.log('4. Migration');
   check('«a | b» and «a | b | » are the same row; order does not matter', rowCells(['a | b | ']) && sameParameterValue({ type: 'list' }, ['x', 'y'], ['y', 'x']));
 }
 
+console.log('4b. Validation and warnings');
+{
+  const doc = normalizeOrganizationData(base()).configuration;
+  const retention = getOrganizationDataItem('retencion')!;
+  const twice = validateOrganizationValue(doc, retention, ['accesos | VPN | 365', 'accesos | web | 90', 'cuentas |  | 365']);
+  check('a one-value parameter with two rows of its use is refused, naming the item and the use',
+    twice.length === 1 && twice[0].source === 'op.acc.5 P-08' && twice[0].reason === 'lee un solo valor: dejar una sola fila con uso «accesos» en «Plazos de retención»', twice);
+  check('one row per use is fine, also with several uses in a row', validateOrganizationValue(doc, retention, ['cuentas, accesos |  | 365', 'copias |  | 30']).length === 0);
+  check('the screen refuses a value a control does not accept', validateOrganizationValue(doc, getOrganizationDataItem('grupos_privilegiados')!, ['Domain Admins']).some(issue => issue.source === 'op.acc.1 P-11'));
+  const people = getOrganizationDataItem('personal_autorizado')!;
+  check('a row with several uses that shares «Ámbito» or «Detalle» is warned about',
+    organizationValueWarnings(people, ['ana | mantenimiento, registros | servidores | lectura'])[0]?.startsWith('La fila de «ana» tiene varios usos (mantenimiento, registros) y comparte Ámbito y Detalle'));
+  check('without them, no warning', organizationValueWarnings(people, ['root | configuracion, copias', 'ana | mantenimiento | srv']).length === 0);
+  const tools = base();
+  set(tools, 'op.exp.9', 'P-01', 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)');
+  set(tools, 'op.exp.7', 'P-03', ['GLPI | https://glpi | RSEG']);
+  check('op.exp.9 P-01 and the incident tool of the item that disagree are warned about', /op\.exp\.9 P-01 dice «Registro ENSFácil/.test(organizationCrossChecks(tools, 'herramientas_gestion')[0] || ''));
+  set(tools, 'op.exp.7', 'P-03', ['Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv']);
+  check('and agreeing ones are not', organizationCrossChecks(tools, 'herramientas_gestion').length === 0);
+  check('no mapped parameter accepts a regular expression (a value is never read as a pattern)', ENS_ORGANIZATION_DATA_ITEMS.every(item => item.views.every(view =>
+    !supportsParameterPattern(ENSConfigurationRegistry.find(control => control.controlId === view.controlId)!.parameters.find(parameter => parameter.id === view.parameterId)!))));
+}
+
 console.log('5. Compatibility');
 {
   const doc = base();
@@ -288,25 +335,46 @@ console.log('6. Verdict parity');
   }));
   const events = normalizeWazuhAlerts(alerts);
   const scope = [{ id: '000', name: 'manager' }, { id: '024', name: 'wazuh-real' }, { id: '028', name: 'zimbraHldap' }];
-  const verdicts = (doc: any) => {
+  // Per control, so a completed parameter only explains a change in its own control.
+  const verdicts = (doc: any): Record<string, string> => {
     ensConfigurationRepository.replaceActive(doc);
     const state = engine.getENSComplianceState(doc.global.ensLevel, events, undefined, scope, clock);
     const summary = (result: any) => [
-      result.control.id,
       result.status,
       result.score,
       (result.requirements || []).map((requirement: any) => [requirement.requirementId || requirement.id, requirement.status]),
       (result.missingParameters || []).map((parameter: any) => parameter.id || parameter),
       (result.nonConformities || []).length,
     ];
-    return JSON.stringify([state.results.map(summary), state.agents.map((agent: any) => [agent.agentId, agent.results.map(summary)])]);
+    const byControl: Record<string, any[]> = {};
+    state.results.forEach((result: any) => (byControl[result.control.id] = [summary(result)]));
+    state.agents.forEach((agent: any) => agent.results.forEach((result: any) => (byControl[result.control.id] = [...(byControl[result.control.id] || []), agent.agentId, summary(result)])));
+    return Object.fromEntries(Object.entries(byControl).map(([controlId, entries]) => [controlId, JSON.stringify(entries)]));
   };
+  const changedControls = (before: Record<string, string>, after: Record<string, string>) =>
+    Object.keys({ ...before, ...after }).filter(controlId => before[controlId] !== after[controlId]);
+  const changedParameters = (before: any, after: any) =>
+    before.controls.flatMap((control: any) => control.parameters
+      .filter((parameter: any) => JSON.stringify(parameter.value) !== JSON.stringify(param(after, control.controlId, parameter.id).value))
+      .map((parameter: any) => `${control.controlId} ${parameter.id}`));
   const parity = (name: string, source: any) => {
     const original = verdicts(clone(source));
     const migrated = normalizeOrganizationData(clone(source));
-    check(`${name}: no parameter changes`, controlsJson(migrated.configuration) === controlsJson(source));
-    check(`${name}: same verdicts before and after the migration is saved`, verdicts(clone(migrated.configuration)) === original);
+    const filledControls = new Set(migrated.filled.map(fill => fill.parameter.split(' ')[0]));
+    check(`${name}: only the completed parameters change (${migrated.written.join(', ') || 'none'})`,
+      JSON.stringify(changedParameters(source, migrated.configuration)) === JSON.stringify(migrated.written), changedParameters(source, migrated.configuration));
+    const differing = changedControls(original, verdicts(clone(migrated.configuration)));
+    check(`${name}: same verdicts in every control without a completed parameter`, differing.every(controlId => filledControls.has(controlId)), differing);
     return migrated;
+  };
+  // Choosing the value of op.acc.6 P-07 for the remote channels gives op.acc.4 P-04, which no evidence judges, its channel names.
+  const channelChoice = (name: string, migrated: any) => {
+    const state = describeOrganizationItem(migrated.configuration, getOrganizationDataItem('canales_acceso_remoto')!);
+    const keepSix = state.candidates.find(candidate => candidate.from === 'op.acc.6 P-07');
+    if (state.status !== 'conflict' || !keepSix) return;
+    const before = verdicts(clone(migrated.configuration));
+    const chosen = setOrganizationValue(clone(migrated.configuration), 'canales_acceso_remoto', keepSix.value);
+    check(`${name}: choosing the op.acc.6 channels changes no verdict`, changedControls(before, verdicts(chosen)).length === 0, changedControls(before, verdicts(chosen)));
   };
   const synthetic = base();
   set(synthetic, 'op.acc.1', 'P-11', ['sudo']);
@@ -315,7 +383,37 @@ console.log('6. Verdict parity');
   set(synthetic, 'mp.info.6', 'P-07', ['root']);
   set(synthetic, 'mp.info.6', 'P-03', 30);
   parity('synthetic document', synthetic);
-  check('the comparison sees a configuration change (not vacuous)', verdicts(set(clone(synthetic), 'op.acc.1', 'P-06', undefined)) !== verdicts(clone(synthetic)));
+  check('the comparison sees a configuration change (not vacuous)', changedControls(verdicts(set(clone(synthetic), 'op.acc.1', 'P-06', undefined)), verdicts(clone(synthetic))).includes('op.acc.1'));
+
+  // The shapes of the lab copy with example names (the lab document itself names real hosts and accounts).
+  const labShaped = base();
+  [
+    ['op.exp.3', 'P-03', ['admin1', 'svc-ldap.adm', 'root', 'cn=config']],
+    ['op.exp.4', 'P-02', ['unattended-upgrades | host-a | parcheado automático del SO', 'admin1 | host-a | administrador del sistema']],
+    ['op.exp.4', 'P-06', ['srv-a | pre-a | informe de consistencia']],
+    ['op.acc.4', 'P-02', ['admin1 | global', 'root | global']],
+    ['op.exp.8', 'P-08', ['root | total | todos', 'syslog | escritura | registros del sistema']],
+    ['op.exp.8', 'P-07', ['autenticación | 365', 'cambios de configuración | 365']],
+    ['op.exp.10', 'P-08', ['root | claves de host SSH | total', 'wazuh | client.keys | lectura']],
+    ['op.exp.10', 'P-03', ['protocolo | TLS1.2', 'cifrado | AES-GCM | 128']],
+    ['mp.info.6', 'P-07', ['root']],
+    ['mp.info.6', 'P-03', 30],
+    ['op.acc.1', 'P-06', 365],
+    ['op.acc.1', 'P-11', ['sudo', 'wheel', 'admin']],
+    ['op.acc.2', 'P-12', ['sudo', 'wheel', 'admin']],
+    ['op.acc.4', 'P-06', ['root', 'sudo', 'adm', 'Administrators']],
+    ['op.acc.6', 'P-02', ['127.0.0.0/8 la propia máquina', '10.0.0.0/24 red interna']],
+    ['op.acc.6', 'P-07', ['ssh | si | Responsable de Seguridad | si', 'vpn | si | Responsable de Seguridad | si']],
+    ['op.acc.4', 'P-04', ['SSH publickey | 22 | cualquier origen', 'WinRM | 5985 | 10.0.0.20']],
+    ['op.exp.5', 'P-01', ['registro_tsv | /etc/ensfacil/change-register.tsv']],
+    ['op.exp.7', 'P-03', ['Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv']],
+    ['op.exp.9', 'P-01', 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)'],
+    ['op.exp.9', 'P-06', ['disciplinaria | 1095', 'contractual | 1825']],
+  ].forEach(([controlId, parameterId, value]) => set(labShaped, controlId as string, parameterId as string, value));
+  const shaped = parity('lab-shaped document', labShaped);
+  check('lab-shaped document: conflicts only where values differ, the empty pre-production parameter completed',
+    JSON.stringify(shaped.conflicts) === '["canales_acceso_remoto","grupos_privilegiados"]' && JSON.stringify(shaped.written) === '["op.exp.5 P-05"]', [shaped.conflicts, shaped.written]);
+  channelChoice('lab-shaped document', shaped);
 
   const path = process.env.ENSFACIL_LAB_DOC;
   if (path && existsSync(path)) {
@@ -323,7 +421,8 @@ console.log('6. Verdict parity');
     const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
     const migrated = parity('lab copy', lab);
     const states = describeOrganizationData(migrated.configuration);
-    console.log(`    lab copy: moved ${migrated.moved.join(', ') || 'none'}; conflicts ${migrated.conflicts.join(', ') || 'none'}`);
+    console.log(`    lab copy: moved ${migrated.moved.join(', ') || 'none'}; completed ${migrated.written.join(', ') || 'none'}; conflicts ${migrated.conflicts.join(', ') || 'none'}`);
+    channelChoice('lab copy', migrated);
     check('lab copy: the migrated document is valid', validateENSConfigurationStructure(clone(migrated.configuration)).valid);
     check('lab copy: every view of a moved item reproduces its parameter', states.filter(state => state.status === 'value').every(state =>
       state.views.filter(view => view.parameter).every(view => sameParameterValue(view.parameter!, organizationViewValue(state.item, view.view, view.parameter!, state.value), view.value))));
@@ -371,6 +470,10 @@ console.log('7. Server');
   delete withoutKey.organizationData;
   await handlers.save(context as any, { body: { configuration: withoutKey } } as any, responses as any);
   check('a body without the block keeps the stored one', JSON.stringify(docs.get('active').configuration.organizationData) === JSON.stringify(chosen.organizationData));
+  const partial = clone(chosen);
+  delete param(partial, 'op.acc.2', 'P-12').value;
+  await handlers.save(context as any, { body: { configuration: partial } } as any, responses as any);
+  check('the server writes the organisation value into a parameter sent without it', JSON.stringify(valueOf(docs.get('active').configuration, 'op.acc.2', 'P-12')) === '["sudo"]');
   const bad: any = await handlers.save(context as any, { body: { configuration: { ...chosen, organizationData: { values: { retencion: null } } } } } as any, responses as any);
   check('the server refuses a null item value, saying where', bad.status === 400 && /organizationData\.values\.retencion/.test(bad.body.message), bad);
 

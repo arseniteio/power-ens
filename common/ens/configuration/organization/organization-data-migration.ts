@@ -1,6 +1,4 @@
-// State of each organisation item in a document, the automatic migration and the actions that change an item.
-// The migration moves an item only when every mapped parameter keeps its value, so no verdict changes; otherwise
-// the item is a conflict until someone chooses.
+// Item states, the automatic migration (values that differ are a conflict, never overwritten) and item actions.
 import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
@@ -64,7 +62,7 @@ export interface ENSOrganizationItemState {
 const hasOwn = (record: object | undefined, key: string): boolean =>
   !!record && Object.prototype.hasOwnProperty.call(record, key);
 
-export const storedOrganizationValue = (
+const storedOrganizationValue = (
   configuration: Pick<ENSConfigurationVersion, 'organizationData'>,
   itemId: string
 ): ENSAgentParameterValue | undefined => {
@@ -197,8 +195,9 @@ export const describeOrganizationItem = (
 
   if (!configured.length) return { ...base, status: 'empty', stored: false };
 
+  // A parameter without value is not a different value: it takes the item's, and the migration says so.
   const full = configured.reduce((rows, state) => mergeAll(item, rows, inverse(item, state)), [] as ENSOrganizationRow[]);
-  if (!unrepresentable.length && present.every(state => keepsValue(item, state, full))) {
+  if (!unrepresentable.length && configured.every(state => keepsValue(item, state, full))) {
     return { ...base, status: 'value', value: organizationValueFromRows(item, full), stored: false };
   }
 
@@ -259,6 +258,13 @@ const withValues = <T extends ENSOrganizationDocument>(configuration: T, values:
   organizationData: { ...(configuration.organizationData || {}), values } as ENSOrganizationData,
 });
 
+// A parameter without value that took an item's value, and where the value came from.
+export interface ENSOrganizationFill {
+  parameter: string;
+  // View keys, or ORGANIZATION_SOURCE for the stored value.
+  from: string[];
+}
+
 export interface ENSOrganizationMigrationReport<T extends ENSOrganizationDocument = ENSConfigurationVersion> {
   configuration: T;
   // Something to save: the block was added, an item moved or a parameter took the organisation value.
@@ -266,13 +272,14 @@ export interface ENSOrganizationMigrationReport<T extends ENSOrganizationDocumen
   added: boolean;
   moved: string[];
   written: string[];
+  filled: ENSOrganizationFill[];
   conflicts: string[];
 }
 
 // Idempotent: a second pass changes nothing. Items in conflict keep each parameter as it is.
 export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(configuration: T): ENSOrganizationMigrationReport<T> => {
   if (!Array.isArray(configuration.controls)) {
-    return { configuration, changed: false, added: false, moved: [], written: [], conflicts: [] };
+    return { configuration, changed: false, added: false, moved: [], written: [], filled: [], conflicts: [] };
   }
 
   const added = !configuration.organizationData;
@@ -280,6 +287,7 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
   let next = withValues(configuration, values);
   const moved: string[] = [];
   const written: string[] = [];
+  const filled: ENSOrganizationFill[] = [];
   const conflicts: string[] = [];
 
   ENS_ORGANIZATION_DATA_ITEMS.forEach(item => {
@@ -296,10 +304,12 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
     const result = writeThrough(next, item, state.value);
     next = result.configuration;
     written.push(...result.written);
+    const from = state.stored ? [ORGANIZATION_SOURCE] : state.views.filter(view => view.configured).map(view => view.key);
+    result.written.forEach(parameter => filled.push({ parameter, from }));
   });
 
   const changed = added || moved.length > 0 || written.length > 0;
-  return { configuration: changed ? withValues(next, values) : configuration, changed, added, moved, written, conflicts };
+  return { configuration: changed ? withValues(next, values) : configuration, changed, added, moved, written, filled, conflicts };
 };
 
 // Sets (or, with no value, removes) an item and writes it into every mapped parameter: resolves its conflict.
@@ -318,6 +328,15 @@ export const setOrganizationValue = <T extends ENSOrganizationDocument>(
   return writeThrough(withValues(configuration, values), item, values[itemId]).configuration;
 };
 
+// «Se ha completado op.acc.4 P-06 con el valor de op.acc.1 P-11.», one per filled parameter.
+export const describeOrganizationFills = (filled: ENSOrganizationFill[]): string[] =>
+  filled.map(
+    fill =>
+      `Se ha completado ${fill.parameter} con el valor de ${fill.from
+        .map(source => (source === ORGANIZATION_SOURCE ? 'Datos de la organización' : source))
+        .join(' y ')}.`
+  );
+
 export const summarizeOrganizationMigration = (
   report: Pick<ENSOrganizationMigrationReport, 'moved' | 'written' | 'conflicts'>
 ): string => {
@@ -329,8 +348,7 @@ export const summarizeOrganizationMigration = (
   return parts.length ? `Datos de la organización: ${parts.join('; ')}.` : 'Datos de la organización: sin cambios.';
 };
 
-// A control saved from its form keeps the organisation values it had: they are edited only in General, and a form
-// opened before a change there must not bring the old value back.
+// A control form keeps the stored organisation values: a form opened before a change in General cannot undo it.
 export const keepOrganizationParameters = (
   next: ENSControlConfiguration,
   current: ENSControlConfiguration | undefined

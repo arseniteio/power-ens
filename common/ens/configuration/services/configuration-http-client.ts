@@ -32,6 +32,14 @@ export interface ENSConfigurationMetadata {
   createdBy?: string;
   updatedAt?: string;
   updatedBy?: string;
+  // Index version of the document; sent back on save so a newer one is not overwritten.
+  seqNo?: number;
+  primaryTerm?: number;
+}
+
+export interface ENSConfigurationExpectedVersion {
+  seqNo: number;
+  primaryTerm: number;
 }
 
 export interface ENSConfigurationServerState {
@@ -48,6 +56,7 @@ interface ENSConfigurationApiResponse {
 interface ENSConfigurationSaveRequest {
   configuration: ENSConfigurationVersion;
   changeReason?: string;
+  expectedVersion?: ENSConfigurationExpectedVersion;
 }
 
 const withoutDerivedParameterStatuses = (
@@ -110,6 +119,7 @@ export async function getENSConfiguration(): Promise<
 export async function saveENSConfiguration(
   configuration: ENSConfigurationVersion,
   changeReason?: string,
+  expectedVersion?: ENSConfigurationExpectedVersion,
 ): Promise<ENSConfigurationServerState> {
   const normalizedChangeReason = changeReason?.trim();
 
@@ -119,6 +129,7 @@ export async function saveENSConfiguration(
     ...(normalizedChangeReason
       ? { changeReason: normalizedChangeReason }
       : {}),
+    ...(expectedVersion ? { expectedVersion } : {}),
   };
 
   const response =

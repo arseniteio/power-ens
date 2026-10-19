@@ -1,5 +1,4 @@
-// Rows of an organisation item and the value each mapped parameter reads from them (and back).
-// config/ensfacil_organization.py implements the same rules; tests/organization-data-scripts.test.ts compares them.
+// Item rows and what each mapped parameter reads from them; config/ensfacil_organization.py mirrors these rules.
 import type { ENSAgentParameterValue, ENSControlParameter } from '../types';
 import {
   isEmptyParameterValue,
@@ -26,7 +25,7 @@ const splitOptions = (value: unknown): string[] =>
     .map(option => option.trim())
     .filter(Boolean);
 
-export const organizationColumnNames = (item: ENSOrganizationDataItem): string[] =>
+const organizationColumnNames = (item: ENSOrganizationDataItem): string[] =>
   item.type === 'table'
     ? (item.columns || []).map(column => column.name)
     : [item.columns?.[0]?.name || SCALAR_CELL];
@@ -35,7 +34,7 @@ const isMultiselect = (item: ENSOrganizationDataItem, column: string): boolean =
   (item.columns || []).some(candidate => candidate.name === column && candidate.type === 'multiselect');
 
 // A row without the empty cells at its end, so «a | b» and «a | b | » are the same row.
-export const serializeCells = (cells: string[]): string => {
+const serializeCells = (cells: string[]): string => {
   const trimmed = cells.map(value => cell(value).replace(/[|\n\r]/g, ' ').trim());
   while (trimmed.length && !trimmed[trimmed.length - 1]) trimmed.pop();
   return trimmed.join(' | ');
@@ -91,7 +90,7 @@ export const organizationValueFromRows = (
   return scalar ? scalar : undefined;
 };
 
-export const matchesView = (
+const matchesView = (
   item: ENSOrganizationDataItem,
   row: ENSOrganizationRow,
   view: Pick<ENSOrganizationDataView, 'where'>
@@ -128,6 +127,19 @@ export const projectOrganizationRows = (
   // A projection can repeat a row (one account with two scopes); the identity keeps the value as written.
   if (!isIdentityView(view)) entries = Array.from(new Set(entries));
   return entries.length ? entries : undefined;
+};
+
+// Rows of its use beyond the first, for a parameter that reads one value: the order would decide its threshold.
+export const singleValueExtraRows = (
+  item: ENSOrganizationDataItem,
+  view: ENSOrganizationDataView,
+  parameter: ParameterShape,
+  value: ENSAgentParameterValue | undefined
+): number => {
+  if (shapeOf(parameter) !== 'scalar') return 0;
+  const columns = view.columns || organizationColumnNames(item);
+  const rows = organizationRows(item, value).filter(row => matchesView(item, row, view) && columns.some(column => cell(row[column])));
+  return Math.max(0, rows.length - 1);
 };
 
 export const organizationViewValue = (
