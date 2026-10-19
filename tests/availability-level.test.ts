@@ -1,32 +1,4 @@
-/**
- * El nivel de la dimensión de Disponibilidad (op.cont.2 y op.cont.3).
- *
- *     npx --yes tsx tests/availability-level.test.ts
- *
- * Calcada de `traceability-level.test.ts`. El Anexo II aplica op.cont.2 y
- * op.cont.3 por el NIVEL de la Disponibilidad, no por la categoría del sistema:
- * solo rigen con D en ALTO. La configuración global admite un
- * `availabilityLevel` opcional y el catálogo de esos controles declara
- * `levelDimension: 'D'`. Sin esto, un sistema de categoría ALTA con D en MEDIO
- * exigiría op.cont.2 por error.
- *
- * Qué se prueba:
- *   1. La resolución: con D, el control de D usa D; sin D, el global; T y D no
- *      se mezclan.
- *   2. El motor: sin D, nada cambia; con D distinto del global, solo cambia el
- *      control que se rige por D (se compara el resultado entero, control a
- *      control), y lo exigible sigue a D.
- *   3. El validador acepta la clave ausente y un nivel; rechaza `null` y basura.
- *   4. Guardar la configuración global sin D QUITA la clave, no la resucita.
- *
- * Mientras op.cont.2 y op.cont.3 no estén en el catálogo, el motor se prueba con
- * un SUPLENTE: op.acc.3 (rige en MEDIO y ALTO) declarado `levelDimension: 'D'`
- * solo durante esta prueba, y restaurado al final. Los controles que de verdad
- * declaren D entran también en la comparación.
- *
- * El motor arrastra `kibana-services`, que solo existe en el árbol del plugin
- * `main` de Wazuh; aquí se sustituye por un módulo vacío antes de cargarlo.
- */
+/** Level of the Availability dimension (op.cont.2 and op.cont.3). */
 import { ENSCatalog } from '../common/ens/catalog';
 import type { ENSControlDefinition } from '../common/ens/catalog/types';
 import { resolveControlLevel } from '../common/ens/core/control-level';
@@ -41,17 +13,16 @@ import type {
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 
-// `kibana-services` de mentira, ANTES de cargar el motor.
 {
   const Module = require('module');
-  const cargar = Module._load;
+  const load = Module._load;
 
-  Module._load = function (peticion: string, ...resto: unknown[]) {
-    if (/kibana-services$/.test(peticion)) {
+  Module._load = function (request: string, ...rest: unknown[]) {
+    if (/kibana-services$/.test(request)) {
       return {};
     }
 
-    return cargar.call(this, peticion, ...resto);
+    return load.call(this, request, ...rest);
   };
 }
 
@@ -59,24 +30,24 @@ const { getENSComplianceResults } = require('../common/ens/core/ens-engine') as 
 const { setServices } = require('../public/services') as typeof import('../public/services');
 const { updateActiveGlobalConfiguration } = require('../common/ens/configuration/services/configuration-state-service') as typeof import('../common/ens/configuration/services/configuration-state-service');
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const AHORA = new Date('2026-10-09T12:00:00Z');
+const NOW = new Date('2026-10-09T12:00:00Z');
 
-const configuracion = (
+const configuration = (
   global: Record<string, unknown>
 ): ENSConfigurationVersion => ({
   ...defaultENSConfigurationTemplate,
@@ -89,175 +60,167 @@ const configuracion = (
   } as ENSConfigurationVersion['global'],
 });
 
-const evalua = (global: Record<string, unknown>, nivel: ENSLevel) => {
-  ensConfigurationRepository.replaceActive(configuracion(global));
+const evaluate = (global: Record<string, unknown>, level: ENSLevel) => {
+  ensConfigurationRepository.replaceActive(configuration(global));
 
-  return getENSComplianceResults(nivel, [], undefined, undefined, AHORA);
+  return getENSComplianceResults(level, [], undefined, undefined, NOW);
 };
 
-// El resultado entero, sin el instante de cálculo (`evaluatedAt`).
-const huella = (valor: unknown): string =>
+const fingerprint = (valor: unknown): string =>
   JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
-const porControl = (resultados: ReturnType<typeof evalua>) =>
-  new Map(resultados.map(r => [r.control.id, r]));
+const byControl = (results: ReturnType<typeof evaluate>) =>
+  new Map(results.map(r => [r.control.id, r]));
 
-// ---------------------------------------------------------------------------
+section('1. Level resolution per control');
 
-bloque('1. La resolución del nivel por control');
-
-comprueba(
-  'sin nivel D, un control de D usa el global',
+check(
+  'without a D level, a D control uses the global one',
   resolveControlLevel({ levelDimension: 'D' }, 'ALTO', { ensLevel: 'ALTO' }) === 'ALTO'
 );
-comprueba(
-  'con nivel D, un control de D usa D',
+check(
+  'with a D level, a D control uses D',
   resolveControlLevel({ levelDimension: 'D' }, 'ALTO', { ensLevel: 'ALTO', availabilityLevel: 'MEDIO' }) === 'MEDIO'
 );
-comprueba(
-  'un control sin dimensión ignora D',
+check(
+  'a control without a dimension ignores D',
   resolveControlLevel({}, 'MEDIO', { ensLevel: 'MEDIO', availabilityLevel: 'ALTO' }) === 'MEDIO'
 );
-comprueba(
-  'un control de T ignora D',
+check(
+  'a T control ignores D',
   resolveControlLevel({ levelDimension: 'T' }, 'MEDIO', { ensLevel: 'MEDIO', availabilityLevel: 'ALTO' }) === 'MEDIO'
 );
-comprueba(
-  'y un control de D ignora T',
+check(
+  'and a D control ignores T',
   resolveControlLevel({ levelDimension: 'D' }, 'MEDIO', { ensLevel: 'MEDIO', traceabilityLevel: 'ALTO' }) === 'MEDIO'
 );
 
-const declaranD = ENSCatalog.filter(c => c.levelDimension === 'D');
+const declareD = ENSCatalog.filter(c => c.levelDimension === 'D');
 
-comprueba(
-  'solo op.cont.2 y op.cont.3 pueden declarar que se rigen por la Disponibilidad',
-  declaranD.every(c => ['op.cont.2', 'op.cont.3'].includes(c.id)),
-  declaranD.map(c => c.id).join(', ')
+check(
+  'only op.cont.2 and op.cont.3 can declare that they follow Availability',
+  declareD.every(c => ['op.cont.2', 'op.cont.3'].includes(c.id)),
+  declareD.map(c => c.id).join(', ')
 );
 
-bloque('2. El motor: sin D nada cambia; con D solo cambian los controles de D');
+section('2. The engine: without D nothing changes; with D only D controls change');
 
-const SUPLENTE = 'op.acc.3';
-const suplente = ENSCatalog.find(c => c.id === SUPLENTE) as ENSControlDefinition;
-const dimensionOriginal = suplente.levelDimension;
+const FALLBACK = 'op.acc.3';
+const fallback = ENSCatalog.find(c => c.id === FALLBACK) as ENSControlDefinition;
+const dimensionOriginal = fallback.levelDimension;
 
-comprueba(
-  `el suplente ${SUPLENTE} rige solo en MEDIO y ALTO, como un control de D rige solo en ALTO`,
-  suplente.levels.join(',') === 'MEDIO,ALTO',
-  suplente.levels.join(',')
+check(
+  `the fallback ${FALLBACK} applies only in MEDIO and ALTO, as a D control applies only in ALTO`,
+  fallback.levels.join(',') === 'MEDIO,ALTO',
+  fallback.levels.join(',')
 );
 
 try {
-  suplente.levelDimension = 'D';
+  fallback.levelDimension = 'D';
 
-  const deD = new Set([SUPLENTE, ...declaranD.map(c => c.id)]);
+  const deD = new Set([FALLBACK, ...declareD.map(c => c.id)]);
 
   for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
-    const base = evalua({ ensLevel: global }, global);
-    const igual = evalua({ ensLevel: global, availabilityLevel: global }, global);
+    const base = evaluate({ ensLevel: global }, global);
+    const same = evaluate({ ensLevel: global, availabilityLevel: global }, global);
 
-    comprueba(
-      `${global} · D igual al global da el mismo resultado en todos los controles`,
-      huella(base) === huella(igual)
+    check(
+      `${global} · D equal to the global gives the same result in all controls`,
+      fingerprint(base) === fingerprint(same)
     );
 
     for (const d of (['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]).filter(l => l !== global)) {
-      const antes = porControl(base);
-      const despues = porControl(evalua({ ensLevel: global, availabilityLevel: d }, global));
+      const antes = byControl(base);
+      const after = byControl(evaluate({ ensLevel: global, availabilityLevel: d }, global));
 
-      comprueba(
-        `${global} con D=${d} · el control de D se evalúa con ${d}`,
-        Array.from(deD).every(id => despues.get(id)?.level === d),
-        Array.from(deD).map(id => `${id}=${despues.get(id)?.level}`).join(' ')
+      check(
+        `${global} with D=${d} · the D control is evaluated with ${d}`,
+        Array.from(deD).every(id => after.get(id)?.level === d),
+        Array.from(deD).map(id => `${id}=${after.get(id)?.level}`).join(' ')
       );
 
-      const cambiados = Array.from(antes.keys()).filter(
-        id => !deD.has(id) && huella(antes.get(id)) !== huella(despues.get(id))
+      const changed = Array.from(antes.keys()).filter(
+        id => !deD.has(id) && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
       );
 
-      comprueba(
-        `${global} con D=${d} · ningún otro control cambia (op.exp.8 incluido)`,
-        cambiados.length === 0,
-        cambiados.join(', ')
+      check(
+        `${global} with D=${d} · no other control changes (op.exp.8 included)`,
+        changed.length === 0,
+        changed.join(', ')
       );
     }
   }
 
-  // Lo que el cambio de nivel mueve de verdad: lo exigible. Es el caso que
-  // obliga a tener la dimensión: categoría ALTA con D por debajo de ALTO.
-  const estado = (global: Record<string, unknown>, nivel: ENSLevel) =>
-    porControl(evalua(global, nivel)).get(SUPLENTE)?.status;
+  const estado = (global: Record<string, unknown>, level: ENSLevel) =>
+    byControl(evaluate(global, level)).get(FALLBACK)?.status;
 
-  comprueba(
-    'categoría ALTA con D BAJA · el control de D NO_APLICA',
+  check(
+    'category ALTA with D BAJA · the D control NO_APLICA',
     estado({ ensLevel: 'ALTO', availabilityLevel: 'BAJO' }, 'ALTO') === 'NO_APLICA',
     estado({ ensLevel: 'ALTO', availabilityLevel: 'BAJO' }, 'ALTO')
   );
-  comprueba(
-    'la reversión · categoría ALTA sin D se exige (el comportamiento de antes)',
+  check(
+    'reversal · category ALTA without D is required (the previous behaviour)',
     estado({ ensLevel: 'ALTO' }, 'ALTO') !== 'NO_APLICA',
     estado({ ensLevel: 'ALTO' }, 'ALTO')
   );
-  comprueba(
-    'categoría BÁSICA con D ALTA · el control de D se exige',
+  check(
+    'category BÁSICA with D ALTA · the D control is required',
     estado({ ensLevel: 'BAJO', availabilityLevel: 'ALTO' }, 'BAJO') !== 'NO_APLICA',
     estado({ ensLevel: 'BAJO', availabilityLevel: 'ALTO' }, 'BAJO')
   );
-  comprueba(
-    'y declarar T no lo mueve: categoría ALTA con T BAJA sigue exigiéndose',
+  check(
+    'and declaring T does not move it: category ALTA with T BAJA is still required',
     estado({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO') !== 'NO_APLICA',
     estado({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO')
   );
 } finally {
   if (dimensionOriginal === undefined) {
-    delete suplente.levelDimension;
+    delete fallback.levelDimension;
   } else {
-    suplente.levelDimension = dimensionOriginal;
+    fallback.levelDimension = dimensionOriginal;
   }
 }
 
-comprueba(
-  'el suplente queda como estaba',
-  suplente.levelDimension === dimensionOriginal,
-  String(suplente.levelDimension)
+check(
+  'the fallback stays as it was',
+  fallback.levelDimension === dimensionOriginal,
+  String(fallback.levelDimension)
 );
 
-bloque('3. El validador de la configuración global');
+section('3. The global configuration validator');
 
-const valida = (global: Record<string, unknown>) =>
-  validateENSConfigurationStructure(configuracion(global));
+const valid = (global: Record<string, unknown>) =>
+  validateENSConfigurationStructure(configuration(global));
 
-const sinD = configuracion({});
+const sinD = configuration({});
 delete (sinD.global as { availabilityLevel?: unknown }).availabilityLevel;
 
-comprueba('la clave ausente es válida', validateENSConfigurationStructure(sinD).valid, validateENSConfigurationStructure(sinD).errors.join('; '));
-comprueba('un nivel es válido', valida({ availabilityLevel: 'ALTO' }).valid);
-comprueba('con T y D a la vez, válido', valida({ traceabilityLevel: 'MEDIO', availabilityLevel: 'ALTO' }).valid);
-comprueba('null NO es válido', !valida({ availabilityLevel: null }).valid);
-comprueba('una cadena vacía NO es válida', !valida({ availabilityLevel: '' }).valid);
-comprueba(
-  'un valor fuera de BAJO/MEDIO/ALTO NO es válido, y el error lo nombra',
-  valida({ availabilityLevel: 'ALTA' }).errors.includes('configuration.global.availabilityLevel is invalid.'),
-  valida({ availabilityLevel: 'ALTA' }).errors.join('; ')
+check('the missing key is valid', validateENSConfigurationStructure(sinD).valid, validateENSConfigurationStructure(sinD).errors.join('; '));
+check('a level is valid', valid({ availabilityLevel: 'ALTO' }).valid);
+check('with T and D at once, valid', valid({ traceabilityLevel: 'MEDIO', availabilityLevel: 'ALTO' }).valid);
+check('null is NOT valid', !valid({ availabilityLevel: null }).valid);
+check('an empty string is NOT valid', !valid({ availabilityLevel: '' }).valid);
+check(
+  'a value outside BAJO/MEDIO/ALTO is NOT valid, and the error names it',
+  valid({ availabilityLevel: 'ALTA' }).errors.includes('configuration.global.availabilityLevel is invalid.'),
+  valid({ availabilityLevel: 'ALTA' }).errors.join('; ')
 );
 
-// ---------------------------------------------------------------------------
-
 (async () => {
-  bloque('4. Guardar la configuración global sin D quita la clave');
+  section('4. Saving the global configuration without D removes the key');
 
-  // El servidor de mentira devuelve lo que recibe, como el de verdad.
-  const enviados: any[] = [];
+  const sent: any[] = [];
 
   setServices(
     {
       http: {
-        put: async (_ruta: string, opciones: { body: string }) => {
-          const cuerpo = JSON.parse(opciones.body);
+        put: async (_ruta: string, options: { body: string }) => {
+          const body = JSON.parse(options.body);
 
-          enviados.push(cuerpo.configuration);
+          sent.push(body.configuration);
 
-          return { statusCode: 200, error: 0, data: { configuration: cuerpo.configuration, metadata: null } };
+          return { statusCode: 200, error: 0, data: { configuration: body.configuration, metadata: null } };
         },
       },
     } as any,
@@ -265,46 +228,43 @@ comprueba(
   );
 
   ensConfigurationRepository.replaceActive(
-    configuracion({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO', availabilityLevel: 'MEDIO' })
+    configuration({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO', availabilityLevel: 'MEDIO' })
   );
 
-  // Lo que manda el panel cuando se elige «El mismo que el nivel ENS»: la
-  // clave ausente.
-  const delPanel = { ...configuracion({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO' }).global };
+  const delPanel = { ...configuration({ ensLevel: 'ALTO', traceabilityLevel: 'MEDIO' }).global };
   delete (delPanel as { availabilityLevel?: unknown }).availabilityLevel;
 
   await updateActiveGlobalConfiguration(delPanel);
 
-  comprueba(
-    'la configuración enviada NO lleva availabilityLevel (no se resucita de la activa)',
-    enviados.length === 1 && !('availabilityLevel' in enviados[0].global),
-    JSON.stringify(enviados[0]?.global)
+  check(
+    'the sent configuration does NOT carry availabilityLevel (it is not revived from the active one)',
+    sent.length === 1 && !('availabilityLevel' in sent[0].global),
+    JSON.stringify(sent[0]?.global)
   );
-  comprueba(
-    'y conserva el nivel de Trazabilidad declarado',
-    enviados[0]?.global?.traceabilityLevel === 'MEDIO',
-    enviados[0]?.global?.traceabilityLevel
+  check(
+    'and keeps the declared Traceability level',
+    sent[0]?.global?.traceabilityLevel === 'MEDIO',
+    sent[0]?.global?.traceabilityLevel
   );
 
-  // La reversión: declarado, viaja.
   await updateActiveGlobalConfiguration({ ...delPanel, availabilityLevel: 'BAJO' });
 
-  comprueba(
-    'la reversión · declarado, se guarda',
-    enviados[1]?.global?.availabilityLevel === 'BAJO',
-    JSON.stringify(enviados[1]?.global)
+  check(
+    'reversal · declared, it is saved',
+    sent[1]?.global?.availabilityLevel === 'BAJO',
+    JSON.stringify(sent[1]?.global)
   );
 
   ensConfigurationRepository.reset();
 
-  if (fallos.length) {
-    console.log(`\n${fallos.length} comprobación(es) fallan:`);
-    fallos.forEach(f => console.log(`  - ${f}`));
+  if (failures.length) {
+    console.log(`\n${failures.length} check(s) FAIL:`);
+    failures.forEach(f => console.log(`  - ${f}`));
     process.exit(1);
   }
 
-  console.log('\nTodo correcto.');
+  console.log('\nALL OK');
 })().catch(error => {
-  console.log(`  FALLA excepción: ${error && error.stack ? error.stack : error}`);
+  console.log(`  FAIL exception: ${error && error.stack ? error.stack : error}`);
   process.exit(1);
 });

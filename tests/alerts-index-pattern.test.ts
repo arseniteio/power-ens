@@ -1,92 +1,82 @@
-/**
- * La búsqueda del patrón de índice de la barra: por su título exacto, con la
- * lista de patrones recién leída (un patrón creado con la página abierta se
- * encuentra sin recargar), y sin confundir «no existe» con «no se pudo leer».
- *
- *   npx --yes tsx tests/alerts-index-pattern.test.ts
- */
+/** Index pattern lookup for the search bar: exact title, freshly read pattern list, "does not exist" vs "could not be read". */
 import { findIndexPatternByTitle } from '../public/search/alerts-index-pattern';
 
 declare const process: { exit(code: number): void };
-const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const failures: string[] = [];
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
 const patron = { id: 'wazuh-alerts-*', title: 'wazuh-alerts-*', timeFieldName: 'timestamp' };
 
-// El servicio `data.indexPatterns` del dashboard, de mentira: `getIdsWithTitle`
-// solo vuelve a leer los patrones cuando se le pide (`refresh`); si no, sirve
-// la lista que guardó la primera vez.
-const servicio = (opciones: { lista?: () => { id: string; title: string }[]; get?: (id: string) => unknown } = {}) => {
-  const llamadas: { refresh?: boolean; get: string[] } = { get: [] };
+const service = (options: { lista?: () => { id: string; title: string }[]; get?: (id: string) => unknown } = {}) => {
+  const calls: { refresh?: boolean; get: string[] } = { get: [] };
   let cache: { id: string; title: string }[] | undefined;
   return {
-    llamadas,
+    llamadas: calls,
     getIdsWithTitle: async (refresh?: boolean) => {
-      llamadas.refresh = refresh;
-      if (!cache || refresh) cache = (opciones.lista || (() => [{ id: patron.id, title: patron.title }]))();
+      calls.refresh = refresh;
+      if (!cache || refresh) cache = (options.lista || (() => [{ id: patron.id, title: patron.title }]))();
       return cache;
     },
     get: async (id: string) => {
-      llamadas.get.push(id);
-      return (opciones.get || (() => patron))(id) as typeof patron;
+      calls.get.push(id);
+      return (options.get || (() => patron))(id) as typeof patron;
     },
   };
 };
 
 (async () => {
-  const s = servicio();
-  const hallado = await findIndexPatternByTitle(s, 'wazuh-alerts-*');
-  comprueba('lo encuentra por su título', hallado.indexPattern === patron && !hallado.error, hallado);
-  comprueba('carga el patrón por su id', s.llamadas.get.join() === 'wazuh-alerts-*', s.llamadas.get);
-  comprueba('pide la lista recién leída, no la de la caché', s.llamadas.refresh === true, s.llamadas.refresh);
+  const s = service();
+  const found = await findIndexPatternByTitle(s, 'wazuh-alerts-*');
+  check('finds it by its title', found.indexPattern === patron && !found.error, found);
+  check('loads the pattern by its id', s.llamadas.get.join() === 'wazuh-alerts-*', s.llamadas.get);
+  check('asks for the freshly read list, not the cached one', s.llamadas.refresh === true, s.llamadas.refresh);
 
-  // La caché se llenó sin el patrón; el usuario lo crea y vuelve a la pestaña.
-  let creado = false;
-  const tarde = servicio({ lista: () => (creado ? [{ id: 'nuevo', title: 'wazuh-alerts-*' }] : [{ id: 'otro', title: 'otro-*' }]) });
-  await tarde.getIdsWithTitle();
-  creado = true;
-  const despues = await findIndexPatternByTitle(tarde, 'wazuh-alerts-*');
-  comprueba('un patrón creado después de llenarse la caché se encuentra', despues.indexPattern === patron, despues);
+  let created = false;
+  const late = service({ lista: () => (created ? [{ id: 'nuevo', title: 'wazuh-alerts-*' }] : [{ id: 'otro', title: 'otro-*' }]) });
+  await late.getIdsWithTitle();
+  created = true;
+  const after = await findIndexPatternByTitle(late, 'wazuh-alerts-*');
+  check('a pattern created after the cache was filled is found', after.indexPattern === patron, after);
 
-  const parecido = await findIndexPatternByTitle(
-    servicio({ lista: () => [{ id: 'a', title: 'wazuh-alerts-4.x-*' }, { id: 'b', title: 'wazuh-alerts' }] }),
+  const similar = await findIndexPatternByTitle(
+    service({ lista: () => [{ id: 'a', title: 'wazuh-alerts-4.x-*' }, { id: 'b', title: 'wazuh-alerts' }] }),
     'wazuh-alerts-*'
   );
-  comprueba('título parecido no vale: no existe', !parecido.indexPattern && !parecido.error, parecido);
+  check('a similar title does not count: it does not exist', !similar.indexPattern && !similar.error, similar);
 
-  const ninguno = await findIndexPatternByTitle(servicio({ lista: () => [] }), 'wazuh-alerts-*');
-  comprueba('sin patrones: no existe, sin error', !ninguno.indexPattern && ninguno.error === undefined, ninguno);
+  const none = await findIndexPatternByTitle(service({ lista: () => [] }), 'wazuh-alerts-*');
+  check('no patterns: does not exist, no error', !none.indexPattern && none.error === undefined, none);
 
-  const sinPermiso = await findIndexPatternByTitle(
-    servicio({
+  const withoutPermission = await findIndexPatternByTitle(
+    service({
       lista: () => {
         throw new Error('Forbidden');
       },
     }),
     'wazuh-alerts-*'
   );
-  comprueba('la lista no se puede leer: error con su causa, no «no existe»', sinPermiso.error === 'Forbidden' && !sinPermiso.indexPattern, sinPermiso);
+  check('the list cannot be read: error with its cause, not «does not exist»', withoutPermission.error === 'Forbidden' && !withoutPermission.indexPattern, withoutPermission);
 
-  const rotoAlCargar = await findIndexPatternByTitle(
-    servicio({
+  const brokenOnLoad = await findIndexPatternByTitle(
+    service({
       get: () => {
         throw new Error('Network error');
       },
     }),
     'wazuh-alerts-*'
   );
-  comprueba('el patrón no se puede cargar: error con su causa', rotoAlCargar.error === 'Network error' && !rotoAlCargar.indexPattern, rotoAlCargar);
+  check('the pattern cannot be loaded: error with its cause', brokenOnLoad.error === 'Network error' && !brokenOnLoad.indexPattern, brokenOnLoad);
 
-  const rarisimo = await findIndexPatternByTitle(
-    servicio({
+  const veryOdd = await findIndexPatternByTitle(
+    service({
       lista: () => {
         throw 'sin mensaje';
       },
     }),
     'wazuh-alerts-*'
   );
-  comprueba('un fallo sin mensaje también se cuenta', rarisimo.error === 'sin mensaje', rarisimo);
+  check('a failure without a message is also counted', veryOdd.error === 'sin mensaje', veryOdd);
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
-  process.exit(fallos.length ? 1 : 0);
+  console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+  process.exit(failures.length ? 1 : 0);
 })();
