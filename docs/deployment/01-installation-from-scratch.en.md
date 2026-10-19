@@ -5,12 +5,7 @@
 
 ## 1. Objective
 
-This guide describes the procedure for deploying ENSFácil starting from a
-clean machine, without depending on any previously prepared ENSFácil server.
-
-The goal is for the environment to be reproducible using only the project's
-authorized GitLab repositories, the project documentation, and the versioned
-artifacts required for the deployment.
+Deployment of ENSFácil from a clean machine, using only the authorized GitLab repositories and the versioned artifacts.
 
 ## 2. Starting point
 
@@ -21,37 +16,20 @@ This path starts from an Ubuntu Server installation that has only:
 - Internet access when needed;
 - authorized access to the project's GitLab repositories.
 
-It is not assumed that Wazuh, ENSFácil, the OpenSearch Dashboards build tree,
-Node.js, Yarn, the ENS rules, the `ens` group, or ENSFácil's initial
-configuration are already installed or prepared.
+Nothing is assumed to be installed: Wazuh, ENSFácil, the OpenSearch Dashboards build tree, Node.js, Yarn, the ENS rules, the `ens` group or the initial configuration.
 
 > [!important]
-> This guide applies to the package installation of Wazuh, with the indexer on
-> the same machine (all-in-one installation). For the official Wazuh Docker
-> images, the procedure is in [Wazuh in Docker](06-wazuh-in-docker.en.md): the
-> plugin installation, the role, the seeding and the validation are done there
-> differently, and the manager side runs without `systemctl`, `hostname`, cron
-> or `git`.
+> Package installation of Wazuh, with the indexer on the same machine (all-in-one). For Wazuh in Docker: [Wazuh in Docker](06-wazuh-in-docker.en.md); the plugin installation, the role, the seeding and the validation are done differently there, and the manager side runs without `systemctl`, `hostname`, cron or `git`.
 >
-> The links to every runbook and its guides (`01-installation`, `02-compliance`,
-> `03-uninstall-and-troubleshooting`), and the registers the organization
-> creates, are in [Runbooks and the organization's registers](05-runbooks-and-registers.en.md).
+> Links to every runbook and its guides, and the registers the organization creates: [Runbooks and the organization's registers](05-runbooks-and-registers.en.md).
 
 ## 3. Expected outcome
 
-By the end of this guide, Wazuh and ENSFácil must be installed and validated:
-the manager rules, the `ensfacil` plugin installed in Wazuh
-Dashboard next to the official Wazuh plugin (which is not modified), the
-`ensfacil_admin` role and the initial configuration required for ENSFácil to
-function.
+Wazuh and ENSFácil installed and validated: manager rules, the `ensfacil` plugin next to the official Wazuh plugin (not modified), the `ensfacil_admin` role and the initial configuration.
 
 ## 4. Reproducibility principle
 
-An installation is considered reproducible when it can be completed from a
-clean machine using only GitLab and this documentation.
-
-It must not be necessary to manually copy files from another ENSFácil server
-or depend on a previously configured machine.
+The installation must be completable from a clean machine using only GitLab and this documentation, without copying files from another ENSFácil server.
 
 ## 5. Versions and compatibility
 
@@ -72,11 +50,11 @@ The compatibility matrix is maintained in:
 [`docs/deployment/03-version-compatibility.en.md`](03-version-compatibility.en.md)
 
 > [!note]
-> A new Wazuh version must not be considered compatible automatically. ENSFácil does not modify the Wazuh plugin, but it is built for an exact OpenSearch Dashboards version: if the new Wazuh Dashboard version ships another one, the plugin must be rebuilt and validated before upgrading.
+> A new Wazuh version is not compatible by default: ENSFácil is built for an exact OpenSearch Dashboards version. If the new Wazuh Dashboard version ships another one, rebuild and validate before updating.
 
 ## 6. Complete installation flow
 
-The installation of ENSFácil is organized into five main blocks:
+Installation blocks:
 
 ```mermaid
 flowchart LR
@@ -92,29 +70,12 @@ flowchart LR
 4. Install the ENSFácil plugin in Wazuh Dashboard, from a release or built, and create the `ensfacil_admin` role.
 5. Validate that ENSFácil is installed and operational.
 
-The following sections develop the commands and checks required for each
-block.
-
 ## 7. Validation rule
 
-A step is not considered complete simply because the command finished
-without errors.
-
-Each phase must include an objective check that confirms the expected
-result exists and works.
+A command finishing without errors is not enough: each phase includes an objective check of the result.
 
 > [!important]
 > If a validation fails, the deployment must stop at that point. Later phases will not proceed until the cause has been identified and resolved.
-
-Whenever applicable, each phase will document:
-
-- prerequisites;
-- commands that must be run;
-- expected result;
-- validation check;
-- recommended actions if the validation fails;
-- rollback procedure when there is a risk of modifying an operational
-  environment.
 
 ## 8. Prepare and validate the base machine
 
@@ -134,16 +95,11 @@ environment:
 | Access | administrative access via `sudo` |
 
 > [!note]
-> These values describe the validation environment and must not be interpreted as ENSFácil's minimum requirements.
-
-The lab's network topology is likewise not a product requirement. The
-machine used during validation has a NAT interface and a lab network
-interface.
+> Validation environment; neither its values nor its network topology are ENSFácil minimum requirements.
 
 ### 8.2 Preliminary checks
 
-Before starting the deployment, check the operating system, architecture,
-available resources, connectivity, and basic tools:
+Check the operating system, architecture, resources, connectivity and basic tools:
 
 ```bash
 cat /etc/os-release
@@ -159,18 +115,14 @@ command -v sudo apt git curl wget python3
 ```
 
 > [!warning]
-> The installation must not continue if administrative access does not exist or if the machine does not have the connectivity needed to obtain the deployment's repositories and packages.
+> Do not continue without administrative access or without the connectivity needed to obtain repositories and packages.
 
 ## 9. Install and validate Wazuh 4.14.7
 
 ENSFácil requires a functional, validated installation of Wazuh before
 installing the plugin.
 
-If Wazuh 4.14.7 is not yet installed, first follow the [Wazuh 4.14.7 installation guide](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), completing steps 1 through 4.
-
-After completing steps 1 through 4 of the Wazuh guide, return to this
-procedure and check that the core platform is installed and operational
-before continuing with ENSFácil.
+If Wazuh 4.14.7 is not installed, first follow the [Wazuh 4.14.7 installation guide](https://gitlab.com/quersystem/wazuh-4-installation-and-sizing-guide), steps 1 through 4, and then check that the platform is operational.
 
 ### 9.1 Validate the Wazuh installation
 
@@ -188,19 +140,14 @@ sudo systemctl is-active wazuh-manager wazuh-indexer wazuh-dashboard filebeat
 
 Expected result: `active` for the four services.
 
-For the combination validated in this guide, `wazuh-manager`,
-`wazuh-indexer`, and `wazuh-dashboard` must correspond to Wazuh `4.14.7`
-(packages `4.14.7-1`). In addition, the four services above must be in
-`active` state, and access to the Dashboard must have been validated per
-step 4 of the Wazuh installation guide.
+`wazuh-manager`, `wazuh-indexer` and `wazuh-dashboard` must be Wazuh `4.14.7` (packages `4.14.7-1`), with the four services `active` and Dashboard access validated per step 4 of the Wazuh guide.
 
 > [!warning]
 > If any of these checks fails, do not continue with the ENSFácil installation until the cause is resolved.
 
 ## 10. Configure authorized access to GitLab
 
-Before cloning ENSFácil and the runbooks, check that the server has
-authorized access to the project's repositories on GitLab.
+Check the authorized access to the project's GitLab repositories before cloning.
 
 ### 10.1 Validate access to the main repository
 
@@ -238,7 +185,7 @@ Expected result: the remote `git@gitlab.com:quersystem/plugin-wazuh-ens.git`, th
 
 ### 10.3 Clone the ENS runbooks
 
-On the Wazuh Manager server, clone the 22 Linux runbooks that get installed and that ENSFácil uses under `/opt/ensfacil`. This location keeps the control repositories next to the main repository, which is where the project consistency check looks for them (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
+On the Wazuh Manager server, clone under `/opt/ensfacil` the 22 Linux runbooks that get installed, next to the main repository (`tests/check-consistency.py` reads them as sibling directories of `/opt/ensfacil/repo`):
 
 ```bash
 cat > /opt/ensfacil/runbooks.txt <<'EOF'
@@ -276,10 +223,10 @@ done < /opt/ensfacil/runbooks.txt
 git clone git@gitlab.com:quersystem/ens-controls-runbook/zimbra/zimbra-mta/mp.info.6.git zimbra-mta/mp.info.6
 ```
 
-The file `/opt/ensfacil/runbooks.txt` is reused in the following steps. The op.cont.2 runbook (`linux/op.cont.2`) is documentation only and is not cloned on the manager: it installs nothing, because the plugin judges that control from the Configuración screen.
+`/opt/ensfacil/runbooks.txt` is reused in the following steps. The op.cont.2 runbook (`linux/op.cont.2`) is documentation only and is not cloned on the manager.
 
 > [!note]
-> Each runbook is named exactly as its control, and the subgroup gives the platform or role. The variants for the Zimbra LDAP directory server (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) and for Windows (`quersystem/ens-controls-runbook/windows`) have the same names as the Linux ones and are cloned on the corresponding machines following their own guide. On the manager the Linux runbooks are enough: the rules are the same, byte for byte.
+> Each runbook is named as its control; the subgroup gives the platform. The Zimbra LDAP (`quersystem/ens-controls-runbook/zimbra/zimbra-ldap`) and Windows (`quersystem/ens-controls-runbook/windows`) variants are cloned on their machines following their own guide. On the manager the Linux runbooks are enough.
 
 ### 10.4 Validate the cloned runbooks
 
@@ -296,9 +243,7 @@ Expected result: the 22 repositories with a URL under `git@gitlab.com:quersystem
 ## 11. Create and validate the ENS group
 
 > [!note]
-> This section creates the groups on the manager. How agents are added to them,
-> how to check that the configuration reaches them and the plugin's ENS scope
-> are explained once, in the [ENSFácil initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
+> This section creates the groups on the manager. Agents in the groups, arrival of the configuration and ENS scope: [ENSFácil initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
 Before installing the control rules, create the shared `ens` group on Wazuh Manager and the `ens-copias` group, mp.info.6's own, which only holds the machines whose backups are measured:
 
@@ -390,11 +335,11 @@ Expected result: `active`, `CONFIG_MANAGER=OK` and `coherencia OK`. `check-consi
 
 ## 13. Install the plugin
 
-ENSFácil is a Wazuh Dashboard plugin of its own, with the id `ensfacil`. It is installed **next to** the official Wazuh plugin, which is neither modified nor removed.
+Plugin `ensfacil`, installed **next to** the official Wazuh plugin, which is neither modified nor removed.
 
 ### 13.1 Choose where the zip comes from
 
-There are two ways to get the plugin zip. Both end the same way, in section 13.4.
+Two ways to get the zip; both end in section 13.4.
 
 | Option | When | Guide |
 |---|---|---|
@@ -445,7 +390,7 @@ sudo -u wazuh-dashboard test -r "$ZIP" && echo "ZIP_ACCESIBLE=OK"
 sudo bash "$DEPLOY" "$ZIP"
 ```
 
-The script stops the dashboard, removes the previous `ensfacil` version if there is one, installs the zip, **bumps the dashboard `build.number`** and starts it. It only touches `ensfacil`: the Wazuh plugin (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) stays as it is.
+The script stops the dashboard, removes the previous `ensfacil` version if there is one, installs the zip, **bumps `build.number`** and starts the dashboard. It only touches `ensfacil`; the Wazuh plugin (`wazuh`, `wazuhCore`, `wazuhCheckUpdates`) does not change.
 
 Expected result: at the end of the deployment, `dashboard: active` and, under `plugins:`, `ensfacil` next to `wazuh`, `wazuhCore` and `wazuhCheckUpdates`.
 
@@ -473,18 +418,16 @@ Expected result:
 ### 13.5 Create the ensfacil_admin role
 
 > [!note]
-> This step is only required if a user without `all_access` must save the
-> configuration or view its history. The Wazuh `admin` user has `all_access`
-> and can save the configuration without this role.
+> Required only if a user without `all_access` must save the configuration or view its history. The Wazuh `admin` user has `all_access`.
 
-Only users with the security plugin role `ensfacil_admin` or `all_access` can save the ENS configuration and see its history. The others see the configuration, but get a 403 error when they save: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.» ("The ensfacil_admin or all_access role is needed to change the ENS configuration or see its history.").
+Without `ensfacil_admin` or `all_access`, saving the configuration or viewing its history returns a 403 error: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.».
 
-`config/create-admin-role.sh` creates the role and, if asked, assigns it. It uses the indexer administrator certificate, with no password, and verifies the indexer's certificate against its CA: by default `/etc/wazuh-indexer/certs/root-ca.pem`, the all-in-one one; another one is set with `OS_CA`. By default it connects to `https://127.0.0.1:9200`, the name for which the Wazuh all-in-one installation issues the indexer certificate: with `localhost`, the verification fails. In Docker, the procedure is in [Wazuh in Docker, section 5](06-wazuh-in-docker.en.md#5-create-the-ensfacil_admin-role).
+`config/create-admin-role.sh` creates the role and, if asked, assigns it. It uses the indexer administrator certificate, with no password, and verifies the indexer certificate against its CA (by default `/etc/wazuh-indexer/certs/root-ca.pem`; another one with `OS_CA`). Default connection: `https://127.0.0.1:9200`; with `localhost` the verification fails. In Docker: [Wazuh in Docker, section 5](06-wazuh-in-docker.en.md#5-create-the-ensfacil_admin-role).
 
-With option A, the release folder also carries this script (`$R/create-admin-role.sh`), from the release's version and verified with `SHA256SUMS`. That script can be used instead of the repository's: the options are the same.
+With option A, the release folder carries `$R/create-admin-role.sh`, verified with `SHA256SUMS` and with the same options.
 
 > [!note]
-> The role grants no permission by itself: it is a mark that ENSFácil looks for among the user's roles. To see the data, each user also needs their usual Wazuh role, with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+> The role grants no permission by itself: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 First in test mode, which changes nothing. Replace `<usuario>` with the dashboard user who will administer ENSFácil:
 
@@ -514,17 +457,17 @@ sudo bash /opt/ensfacil/repo/config/create-admin-role.sh --mapear <usuario>
 
 Expected result: `-> 200` or `-> 201` after each request and, at the end, `users with the role ensfacil_admin: <usuario>`.
 
-- The run can be repeated: the role is written the same way and only the missing users are added.
+- Repeatable: only the missing users are added.
 - Several users: `--mapear <usuario1> --mapear <usuario2>`.
 - Without `--mapear`, the script only creates the role.
-- If the user had a session open and still gets the 403 error, the user must log out and log in again.
+- If a user with an open session still gets the 403 error, log out and log in again.
 
 ### 13.6 Check ENSFácil in the browser
 
 Log in to Wazuh Dashboard and check that:
 
 - in the menu, under «Security operations», «ENSFácil» appears;
-- on the OpenSearch Dashboards home page (`/app/home`), the «ENSFácil» card opens the application; the Wazuh home page does not accept other plugins' cards, so there ENSFácil is only in the menu;
+- on the OpenSearch Dashboards home page (`/app/home`), the «ENSFácil» card opens the application; on the Wazuh home page, ENSFácil is only in the menu;
 - it opens on the Panel tab, with the tabs Panel, Vista general, Configuración, Controles, Detalle del control, Informes, Evidencias and Eventos;
 - there is a «Máquina» selector to see all the machines in scope or a single one.
 
@@ -532,7 +475,7 @@ On a new installation, continue with section 14: the ENS configuration is create
 
 ## 14. Initialize and seed the ENS configuration
 
-The tools in `config/` connect to the indexer with the **indexer administrator certificate**, which in the all-in-one installation is in `/etc/wazuh-indexer/certs/`. No password needs to be known or typed. They run with `sudo` because the certificate key is readable only by `root`:
+The tools in `config/` use the **indexer administrator certificate** (`/etc/wazuh-indexer/certs/` in the all-in-one installation), with no password, and run with `sudo` because only `root` reads the key:
 
 ```bash
 CERT="OS_CERT=/etc/wazuh-indexer/certs/admin.pem OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
@@ -540,7 +483,7 @@ IDX=https://127.0.0.1:9200
 ```
 
 > [!note]
-> If the indexer is not on the same machine, export `ENS_OS_URL` with its URL and use that indexer's administrator certificate. The tools also accept `OS_USER` and `OS_PASS`, but this is not recommended: it forces the password to be typed in the session. In Docker, the steps of this section are in [Wazuh in Docker, sections 6 to 10](06-wazuh-in-docker.en.md#6-first-save-of-the-configuration).
+> With the indexer on another machine, export `ENS_OS_URL` and use that indexer's administrator certificate. `OS_USER` and `OS_PASS` exist but are not recommended. In Docker: [Wazuh in Docker, sections 6 to 10](06-wazuh-in-docker.en.md#6-first-save-of-the-configuration).
 
 > [!note]
 > `inject-control.py` and `set-parameters.py` do not verify the indexer certificate, so they accept `127.0.0.1` or `localhost`. `create-admin-role.sh` does verify it against the CA (section 13.5) and needs the name the certificate is issued for.
@@ -552,7 +495,7 @@ On a clean installation, the `wazuh-ens-configuration` index may exist without t
 In Wazuh Dashboard, go to ENSFácil > Configuración and save the configuration once, with a user who has the `ensfacil_admin` or `all_access` role (section 13.5). With another user, the save returns the 403 error.
 
 > [!important]
-> Just opening the screen is not enough: the first save creates the `active` document that the engine and the configuration tools will use.
+> Opening the screen is not enough: the first save creates the `active` document.
 
 After saving, check from the server that the document exists:
 
@@ -612,14 +555,14 @@ done
 |---|---|
 | Output of each control | `== APPLIED ==` |
 
-The operation merges the existing configuration and adds the required blocks without removing previously configured values.
+The seeding merges: existing values are kept.
 
 > [!note]
-> Evidence that depends on required parameters without a value stays `NO_EVALUABLE`, with cause `CONFIGURATION`, and the requirements it supports are not credited until those parameters are declared. Missing information must not be read as compliance.
+> Evidence that depends on required parameters without a value stays `NO_EVALUABLE`, with cause `CONFIGURATION`, and its requirements are not credited until they are declared.
 
 ### 14.4 Validate the whole document
 
-A parameter with a value the plugin does not accept does not only degrade its control: it prevents the whole ENS environment from loading and the dashboard shows «No se pudo cargar el entorno ENS». After every seeding or parameter change, validate the complete document with the same validator the plugin uses (`config/validate-configuration.ts`). It needs Node.js 18 or later and Internet access so that `npx` can download `tsx` and `yarn` can install into `node_modules/` the plugin dependencies the validator imports (`re2js`):
+A value the plugin does not accept prevents the whole ENS environment from loading («No se pudo cargar el entorno ENS»). After every seeding or parameter change, validate the whole document with `config/validate-configuration.ts`. It needs Node.js 18 or later and Internet (`npx` downloads `tsx`; `yarn` installs `re2js`):
 
 ```bash
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
@@ -637,7 +580,7 @@ Expected result: `Done` after the installation; then `controls (23): …`, `VALI
 
 ### 14.5 Declare the policy
 
-Parameter values are decisions of the person in charge and are declared in ENSFácil > Configuration: on the «Controles» tab, each control's common settings, its templates (built-in for Linux, Servidor LDAP, Windows and Manager Wazuh, and custom ones) and the template assigned to each agent; on the «Agentes» tab, what belongs to each machine in scope. The complete procedure, with system type detection, templates, the value applied to each agent and the conversion of a 1.2.0 configuration, is in [Configuration by controls and templates](09-configuration-by-system.en.md). Configuration > General also holds the ENS level, the **Traceability level (T)**, used only by op.exp.8, and the **Availability level (D)**, used by op.cont.2 and op.cont.3. If T or D is not declared, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica» (not applicable).
+Parameter values are decided by the person in charge and declared in ENSFácil > Configuration: on the «Controles» tab, each control's common settings, its templates (built-in for Linux, Servidor LDAP, Windows and Manager Wazuh, and custom ones) and the template assigned to each agent; on the «Agentes» tab, what belongs to each machine in scope. Complete procedure: [Configuration by controls and templates](09-configuration-by-system.en.md). Configuration > General also holds the ENS level, the **Traceability level (T)** (op.exp.8 only) and the **Availability level (D)** (op.cont.2 and op.cont.3). Without T or D, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica».
 
 To declare values from the server (reproducible environments, or when the policy is already decided in writing), use `config/set-parameters.py` with a JSON file:
 
@@ -673,13 +616,13 @@ Open ENSFácil and check that:
 - besides the machines in the `ens` group, the scope includes the manager (agent `000`), because nine controls are evaluated on it: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1. The eight other than op.cont.2 have a collector on the manager; op.cont.2 is evaluated from the tables of the Configuración screen;
 - after the first run of the manager collectors (hourly or every 6 hours, depending on the control), those controls show data on the manager row.
 
-The evaluation runs on the plugin server with every fact of the 30-day window. Each user's first load answers in parts: the notice «Calculando la evaluación» (computing the evaluation), with how many rows (control × machine) are ready, the status of the controls already computed and «Calculando…» on the rest.
+The evaluation runs on the server with every fact of the 30-day window. Each user's first load answers in parts: «Calculando la evaluación», with the rows (control × machine) ready.
 
-Expected result: the first controls appear within a few seconds and, once all are computed, the dashboard figures; the daily evolution reads «Calculando la serie…» until it is computed. In the lab, the complete result takes about 20 s; after that, the screens answer at once.
+Expected result: the first controls appear within a few seconds and, once all are computed, the dashboard figures; the daily evolution reads «Calculando la serie…» until it is computed.
 
 ### 14.7 Check the overview and the detail of a control
 
-Open the **Vista general** tab with «Todas las máquinas» in the selector. The screen makes one evaluation request for the whole scope and a separate one for the trend. On the first load, while controls are missing, it shows «Calculando la evaluación: X de N filas (control × máquina) listas» with the missing controls, «…» on their matrix rows, and leaves the per-machine figures and the work queue for the end; the trend reads «Calculando la serie de 30 días» until it is ready.
+Open the **Vista general** tab with «Todas las máquinas» in the selector. On the first load it shows «Calculando la evaluación: X de N filas (control × máquina) listas», «…» on the pending matrix rows and, at the end, the per-machine figures and the work queue; the trend reads «Calculando la serie de 30 días» until it is ready.
 
 | Section | What it shows | Expected result |
 |---|---|---|
