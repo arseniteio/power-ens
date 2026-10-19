@@ -69,6 +69,6 @@ export const describeParameterForMachine = (
       ? `varía por máquina: ${withOwnValue.join(', ')} con ajuste propio o plantilla; aquí, el valor común`
       : describeValueOrigin(origin, empty),
     source: origin?.source,
-    ...(parametro.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}),
+    ...(parameter.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}),
   };
 };
