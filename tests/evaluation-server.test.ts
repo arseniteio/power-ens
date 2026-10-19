@@ -145,6 +145,7 @@ const referencia = () => {
   // 4. Memoria y sonda.
   const otra = await servicio.run(clientes, { include: 'summary', timeZone: 'UTC' });
   comprueba('segunda vez, nada se recalcula', otra.meta.stats.computed === 0);
+  comprueba('current result: computedAt is the confirmation time, not the oldest row', !otra.meta.refreshing && otra.meta.computedAt === otra.meta.evaluatedAt, [otra.meta.computedAt, otra.meta.evaluatedAt]);
   const h = createEvaluationHandlers({ logger, securityEnabled: true, service: servicio });
   const ctx = { core: { opensearch: { client: clientes } } };
   const resp = { ok: (r: any) => r.body, customError: (r: any) => ({ error: r }) };

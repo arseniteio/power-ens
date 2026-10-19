@@ -65,8 +65,9 @@ export const EvaluationStatusLine = ({
   return (
     <EuiText size="xs" color="subdued">
       <p>
-        {label ? `${label}: ` : ''}Resultado calculado el {hora(meta.computedAt) || hora(meta.evaluatedAt) || '—'} con todos los hechos de la
-        ventana.{' '}
+        {label ? `${label}: ` : ''}
+        {actualizando ? 'Resultado calculado el' : 'Resultado al día, comprobado el'} {hora(meta.computedAt) || hora(meta.evaluatedAt) || '—'} con
+        todos los hechos de la ventana.{' '}
         {actualizando ? (
           <EuiBadge color="warning" iconType="clock">
             {meta.pending
