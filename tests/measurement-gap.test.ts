@@ -81,7 +81,7 @@ const comprueba = (
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -1260,7 +1260,7 @@ bloque('9 · el agente que deja de reportar, de punta a punta');
 console.log(
   fallos.length
     ? `\n${fallos.length} comprobaciones FALLAN:\n  ${fallos.join('\n  ')}`
-    : '\nTodas las comprobaciones pasan.'
+    : '\nAll checks pass.'
 );
 
 process.exit(fallos.length ? 1 : 0);

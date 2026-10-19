@@ -32,7 +32,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -183,5 +183,5 @@ bloque('filtro: los mismos hechos que el recuento');
   comprueba('el filtro se lee en la barra', f.meta.alias === 'ENS op.exp.1.1');
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

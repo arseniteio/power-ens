@@ -3,7 +3,7 @@ import { buildMonitoringInventoryRequest, ENS_INVENTORY_MAX_AGE_MS, inventoryFro
 
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
-const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
 const bucket = (key: string, source: any) => ({ key, ultimo: { hits: { hits: [{ _source: source }] } } });
 const now = Date.parse('2026-10-07T12:30:00Z');
@@ -89,5 +89,5 @@ check('lee wazuh-monitoring-*', q.index === 'wazuh-monitoring-*');
 check('asks for the manager field', q.body.aggs.agentes.aggs.ultimo.top_hits._source.includes('manager'));
 check('the last document of each agent', q.body.aggs.agentes.aggs.ultimo.top_hits.size === 1 && q.body.aggs.agentes.aggs.ultimo.top_hits.sort[0].timestamp.order === 'desc');
 
-console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

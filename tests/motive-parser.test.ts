@@ -34,7 +34,7 @@ declare const process: { exit(code: number): void };
 declare const __dirname: string;
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -219,5 +219,5 @@ console.log('5. Lo que usa la tarjeta');
   comprueba('las fechas, en trozos que unidos son el texto', trozos.map(t => t.text).join('') === 'desde 2026-10-17T11:47:14.756Z (plazo 3 h); último 2026-10-15T13:00:58Z.' && trozos.filter(t => t.iso).length === 2);
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

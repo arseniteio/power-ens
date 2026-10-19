@@ -23,7 +23,7 @@ declare const __dirname: string;
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -220,7 +220,7 @@ const respuesta: any = {
     comprueba('completa: sin el aviso, con la cola y los recuentos', !/Calculando la evaluación/.test(p) && h.findAll('EuiAccordion').length === 4 && h.findAll('EuiBadge').some(b => /^\d+ CUMPLE$/.test(b.texto)));
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

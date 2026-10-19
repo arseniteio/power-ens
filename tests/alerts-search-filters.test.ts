@@ -5,7 +5,7 @@ import { buildAlertsSearchFilters } from '../public/search/alerts-search-filters
 
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
-const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
 const patron = { title: 'wazuh-alerts-*', timeFieldName: 'timestamp' };
 const barFilter = { meta: { key: 'agent.id' }, query: { match_phrase: { 'agent.id': '001' } } };
@@ -120,5 +120,5 @@ for (const file of ['events', 'requirements'].flatMap(d => walk(path.join(root, 
 }
 check('some searches hang from the bar', searchesWithBar >= 3, searchesWithBar);
 
-console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

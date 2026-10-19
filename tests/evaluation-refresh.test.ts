@@ -35,7 +35,7 @@ declare const process: { exit(code: number): void };
 declare const require: any;
 declare const __dirname: string;
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -560,6 +560,6 @@ const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
     comprueba('R4: el de primer plano adelanta a los de fondo en cola', orden.join() === 'ocupa,primer-plano,fondo-1,fondo-2', orden);
   }
 
-  fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+  fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
   process.exit(fallos.length ? 1 : 0);
 })();

@@ -44,7 +44,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -795,6 +795,6 @@ bloque('10. La causa de lo que no se puede medir llega a la evidencia y al requi
   );
 }
 
-console.log(`\n${fallos.length ? `${fallos.length} comprobación(es) fallan:\n  - ${fallos.join('\n  - ')}` : 'todas las comprobaciones pasan'}`);
+console.log(`\n${fallos.length ? `${fallos.length} check(s) FAIL:\n  - ${fallos.join('\n  - ')}` : 'all checks pass'}`);
 
 process.exit(fallos.length ? 1 : 0);

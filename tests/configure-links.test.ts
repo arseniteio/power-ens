@@ -23,7 +23,7 @@ declare const __dirname: string;
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -164,7 +164,7 @@ doc.agents = {
   ev2 = await h.click(/Quitar filtro/);
   comprueba('«Quitar filtro» lo quita y deja de venir de la URL', h.find('EuiFieldSearch')?.props.value === '' && !parseRouterSearch(h.search()).evidenceControl, h.search());
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

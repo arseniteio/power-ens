@@ -49,7 +49,7 @@ for (const fichero of ficheros) {
     const sitio = path.relative(path.join(__dirname, '..'), fichero);
     if (conTope && !recientes) {
       fallos++;
-      console.log(`  FALLA ${sitio}: consulta con tope sin pedir los más recientes`);
+      console.log(`  FAIL ${sitio}: consulta con tope sin pedir los más recientes`);
     } else {
       console.log(`  ok   ${sitio}${conTope ? ': con tope, los más recientes' : ': sin tope'}`);
     }
@@ -57,7 +57,7 @@ for (const fichero of ficheros) {
 }
 
 if (llamadas === 0) {
-  console.log('  FALLA no se ha encontrado ninguna consulta useEsSearch');
+  console.log('  FAIL no se ha encontrado ninguna consulta useEsSearch');
   fallos++;
 }
 console.log(fallos ? `\n${fallos} consulta(s) sin orden.` : '\nTodas las consultas con tope piden los más recientes.');

@@ -53,7 +53,7 @@ const comprueba = (
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -638,9 +638,9 @@ bloque('10. El despliegue de las secciones');
 console.log('');
 
 if (fallos.length > 0) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
+  console.log(`${fallos.length} check(s) FAIL:`);
   fallos.forEach(fallo => console.log(`  · ${fallo}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

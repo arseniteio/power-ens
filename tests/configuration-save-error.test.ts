@@ -13,7 +13,7 @@ import {
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const MOTIVO = 'Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.';
 
@@ -44,6 +44,6 @@ const mensajeDe = (p: Promise<unknown>) => p.then(() => 'SIN ERROR', (e: any) =>
   const guardado = await saveENSConfiguration(configuracion).catch((e: any) => e);
   comprueba('guardar con rol: sigue devolviendo lo que dice el servidor', guardado === estado, guardado?.message);
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })();

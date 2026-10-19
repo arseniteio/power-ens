@@ -31,7 +31,7 @@ const { getActiveControlConfiguration } =
 
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
   if (!c) failures.push(n);
 };
 
@@ -240,5 +240,5 @@ if (GF && GD && GI) {
   check('real facts: the whole state is identical without agents and with profiles without values', sin === withProfiles);
 }
 
-console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

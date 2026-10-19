@@ -51,7 +51,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);

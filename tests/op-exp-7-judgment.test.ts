@@ -47,7 +47,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -676,8 +676,8 @@ bloque('13. Solo cuentan los hechos de op.exp.7');
 console.log('');
 
 if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) FALLAN`);
+  console.log(`${fallos.length} check(s) FAIL`);
   process.exit(1);
 }
 
-console.log('todas las comprobaciones pasan');
+console.log('all checks pass');

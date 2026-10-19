@@ -29,7 +29,7 @@ declare const require: (id: string) => any;
 }
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
   if (!c) failures.push(n);
 };
 
@@ -196,5 +196,5 @@ if (LAB && MON) {
   check('real: no row is lost', lost.length === 0, lost);
 }
 
-console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

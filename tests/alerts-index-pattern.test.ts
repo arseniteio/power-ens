@@ -3,7 +3,7 @@ import { findIndexPatternByTitle } from '../public/search/alerts-index-pattern';
 
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
-const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
 const patron = { id: 'wazuh-alerts-*', title: 'wazuh-alerts-*', timeFieldName: 'timestamp' };
 
@@ -77,6 +77,6 @@ const service = (options: { lista?: () => { id: string; title: string }[]; get?:
   );
   check('a failure without a message is also counted', veryOdd.error === 'sin mensaje', veryOdd);
 
-  console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })();

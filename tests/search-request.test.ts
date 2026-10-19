@@ -5,7 +5,7 @@ import { buildENSSearchRequest } from '../public/search/search-request';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 // Lo que pide hoy una fila de Controles (control-row.tsx).
 const ventana = { range: { '@timestamp': { gte: '2026-09-07T00:00:00Z', lte: '2026-10-07T00:00:00Z' } } };
@@ -46,5 +46,5 @@ comprueba('negado con query: a must_not, sin meta', JSON.stringify((rn.body as a
 const rangoNegado = { meta: { negate: true }, range: { timestamp: { lt: 'a' } } };
 comprueba('negado sin query: lo que queda, a must_not', JSON.stringify((buildENSSearchRequest({ preAppliedFilters: [rangoNegado] }).body as any).query.bool.must_not) === JSON.stringify([{ range: { timestamp: { lt: 'a' } } }]));
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

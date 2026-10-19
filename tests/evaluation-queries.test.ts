@@ -30,7 +30,7 @@ import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
 
 const AHORA = new Date('2026-10-17T12:00:00Z');
 
@@ -176,6 +176,6 @@ const ids = (eventos: any[]) => eventos.map(e => e.id).sort().join();
     comprueba('y la consulta entera queda por debajo de 1024 cláusulas', hojas(consulta) < 1024, hojas(consulta));
   }
 
-  fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+  fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
   process.exit(fallos.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

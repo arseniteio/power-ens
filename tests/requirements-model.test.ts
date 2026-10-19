@@ -5,7 +5,7 @@ import { buildRequirementsModel } from '../public/requirements/requirements-mode
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const desc = {
   'mp.info.6.1': 'Copias de seguridad - …',
@@ -30,5 +30,5 @@ comprueba('ocultar sin hechos', sinVacios.requirements.every(r => r.count > 0) &
 const uno = buildRequirementsModel(desc, cuentas, { search: '', hideEmpty: false, selected: 'op.acc.1' });
 comprueba('control seleccionado: solo sus requisitos', uno.requirements.map(r => r.id).join() === 'op.acc.1.1');
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

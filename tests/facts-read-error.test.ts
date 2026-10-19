@@ -11,7 +11,7 @@ import { FACTS_READ_ERROR_TITLE, factsReadErrorCause, factsReadErrorText } from 
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 comprueba('la causa: el mensaje del fallo', factsReadErrorCause(new Error('Request Timeout')) === 'Request Timeout');
 comprueba('un texto suelto también vale', factsReadErrorCause('403 Forbidden') === '403 Forbidden');
@@ -88,5 +88,5 @@ comprueba('Informes: el botón, desactivado salvo con el informe listo', /onClic
 comprueba('Informes: sin resultado aún (o con el panorama en curso), la carga y el botón desactivado (nunca NO_EVALUABLE ni SIN_DATOS de relleno)', /if \(view\.kind === 'loading' \|\| view\.kind === 'panorama-loading'\) \{[\s\S]{0,400}<EvaluationLoading[\s\S]{0,500}fill isDisabled>/.test(informes));
 comprueba('Informes: llegada sin resultado para esta máquina, «no se mide» con su motivo y el botón desactivado', /if \(view\.kind === 'not-measured'\) \{[\s\S]{0,600}\{view\.text\}[\s\S]{0,300}fill isDisabled>/.test(informes) && /describeNotMeasuredOnAgent\(/.test(informes));
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

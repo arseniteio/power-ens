@@ -49,7 +49,7 @@ const comprueba = (
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -722,8 +722,8 @@ bloque('9. LDAP real: el plano directorio llega, y sin revisión no cumple');
 
 console.log(
   fallos.length
-    ? `\n${fallos.length} comprobación(es) FALLAN`
-    : '\nop.exp.1: todas las comprobaciones pasan'
+    ? `\n${fallos.length} check(s) FAIL`
+    : '\nop.exp.1: all checks pass'
 );
 
 process.exit(fallos.length ? 1 : 0);

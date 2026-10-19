@@ -7,7 +7,7 @@ declare const __dirname: string;
 
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
   if (!c) failures.push(n);
 };
 
@@ -134,7 +134,7 @@ const detail = (agentId?: string) => clave({ include: 'control', controlId: 'op.
   p = await h.rerender();
   check('another machine: it renders again without clicking anything', /pintada/.test(p) && !/No se pudo mostrar/.test(p), p);
 
-  console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

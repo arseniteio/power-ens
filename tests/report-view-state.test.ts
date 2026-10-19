@@ -15,7 +15,7 @@ import { getENSCatalogControl } from '../common/ens/catalog';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const base = { controlId: 'op.exp.3', hasData: true, hasResult: true, usesPanorama: false, panoramaLoading: false, notMeasured: () => undefined };
 
@@ -64,5 +64,5 @@ comprueba('U-N3: panorama llegado (o fallido, con su aviso): informe y PDF', pan
 const listo = reportViewState(base);
 comprueba('resultado de esta selección: informe y PDF', listo.kind === 'ready' && canExportReport(listo));
 
-fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
 process.exit(fallos.length ? 1 : 0);

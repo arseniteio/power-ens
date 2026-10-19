@@ -21,7 +21,7 @@ declare const __dirname: string;
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -174,7 +174,7 @@ const listaDe = (agentId?: string, nombre?: string, extra: any = {}) =>
     comprueba('…y el hallazgo lo dice', noCatalogo.every((n: any) => /^op\.mon\.1 no está en la configuración activa/.test(n.finding)));
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

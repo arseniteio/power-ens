@@ -26,7 +26,7 @@ declare const __dirname: string;
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 500)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -175,7 +175,7 @@ const tarjeta = (props: any = {}) => () => React.createElement(NonConformityCard
     comprueba('…sino de `euiThemeVars` (`@osd/ui-shared-deps/theme`, que sigue el modo oscuro)', /import \{ euiThemeVars \} from '@osd\/ui-shared-deps\/theme';/.test(tema) && !/#[0-9A-Fa-f]{3,8}\b/.test(tema));
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

@@ -58,7 +58,7 @@ const comprueba = (
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -429,9 +429,9 @@ bloque('9. Los ejemplos son valores válidos y el bloque semilla dice lo mismo')
 console.log('');
 
 if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
+  console.log(`${fallos.length} check(s) FAIL:`);
   fallos.forEach(fallo => console.log(`  - ${fallo}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

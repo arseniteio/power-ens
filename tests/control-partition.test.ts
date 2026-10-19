@@ -28,7 +28,7 @@ import type { ENSAgentScope } from '../common/ens/core/scope/types';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
 
 // JSON estable y sin los instantes de cálculo (`evaluatedAt`).
 const canon = (v: any): any => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object'
@@ -111,5 +111,5 @@ const ref024 = getENSComplianceState(nivel, todos, '024', alcance, AHORA);
 comprueba('la presencia no entra en la trazabilidad (ni en ningún resultado)', JSON.stringify(ref024).length > 0 &&
   !JSON.stringify(assembleENSComplianceState(controles.map(c => evaluateENSControlPartition(c, nivel, [...deControl(c), ...presencia], '024', alcance, AHORA)), '024', alcance)).includes('agent_presence'));
 
-fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
 process.exit(fallos.length ? 1 : 0);

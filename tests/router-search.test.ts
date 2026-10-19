@@ -8,7 +8,7 @@ import { parseRouterSearch, withRouterSearch } from '../public/routing/router-se
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 comprueba('lee control y agentId', JSON.stringify(parseRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024')) === '{"tabView":"plugins","control":"op.acc.1","agentId":"024"}');
 comprueba('sin ?', parseRouterSearch('control=mp.info.6').control === 'mp.info.6');
@@ -28,5 +28,5 @@ comprueba('volver del detalle: fuera el control, el resto se queda', withRouterS
   comprueba('«Volver» quita el control de la URL', /updateUrl\(\{ control: undefined \}\)/.test(volver) && !/setSelectedControl/.test(controles), volver);
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

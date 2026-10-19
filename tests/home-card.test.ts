@@ -11,7 +11,7 @@ declare const process: { exit(code: number): void };
 
 const fallos: string[] = [];
 const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  console.log(`  ${condicion ? 'ok  ' : 'FALLA'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  ${condicion ? 'ok  ' : 'FAIL'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
   if (!condicion) fallos.push(nombre);
 };
 
@@ -38,5 +38,5 @@ comprueba('buildHomeCard es puro', JSON.stringify(buildHomeCard('x')) === JSON.s
 const plugin = fs.readFileSync(path.join(__dirname, '..', 'public', 'plugin.ts'), 'utf8');
 comprueba('plugin.ts registra la tarjeta con el logo', /registerHomeCard\(deps\?\.home, ensLogo\)/.test(plugin));
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

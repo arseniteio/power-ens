@@ -30,7 +30,7 @@ import { inventoryFromMonitoring } from '../common/agents/agent-inventory';
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`);
   if (!c) fallos.push(n);
 };
 const canon = (v: any): any => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object'
@@ -233,6 +233,6 @@ const aplicado = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) 
   comprueba('igual que el motor con el documento guardado', igual(despues.filas, filasDe(refGuardada.conjunto)) &&
     igual(despues.conjunto.results.map(sinTraza), refGuardada.conjunto.results.map(sinTraza)));
 
-  fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+  fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
   process.exit(fallos.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

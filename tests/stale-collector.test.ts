@@ -77,7 +77,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -441,7 +441,7 @@ bloque('5. La serie diaria mide el umbral contra el `now` de cada punto');
 
 // -----------------------------------------------------------------------------
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS: ${fallos.join('; ')}` : '\nTodo OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES: ${fallos.join('; ')}` : '\nALL OK');
 
 if (fallos.length) {
   process.exit(1);

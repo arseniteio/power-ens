@@ -12,7 +12,7 @@ declare const process: { exit(code: number): void };
 const raiz = path.join(__dirname, '..');
 const fallos: string[] = [];
 const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  console.log(`  ${condicion ? 'ok  ' : 'FALLA'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  ${condicion ? 'ok  ' : 'FAIL'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
   if (!condicion) fallos.push(nombre);
 };
 const lee = (f: string) => JSON.parse(fs.readFileSync(path.join(raiz, f), 'utf8'));
@@ -48,5 +48,5 @@ for (const f of ['dashboard/ens', 'dashboard/app-router.tsx', 'dashboard/ens-req
   comprueba(`ya no existe ${f}`, !fs.existsSync(path.join(raiz, f)));
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

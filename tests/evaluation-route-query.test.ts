@@ -36,7 +36,7 @@ declare const process: { exit(code: number): void };
 declare const __dirname: string;
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
   if (!c) fallos.push(n);
 };
 const raiz = path.join(__dirname, '..');
@@ -176,7 +176,7 @@ setServices({ http: { get: async (p: string, o: any) => { pedidas.push({ path: p
   const conControl = await h.evaluate(contexto, { query: ruta.validate(deUrl(comoUrl({ include: 'overview', controlId: 'op.exp.3' }))), events: {} }, respuesta);
   comprueba('include=overview con controlId: 400 con el motivo', conControl.status === 400 && /Vista general/.test(conControl.message || ''), conControl);
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

@@ -81,6 +81,6 @@ for (const f of ['public', 'server', 'common'].flatMap(d => recorre(path.join(ra
   }
 }
 
-fallos.forEach(f => console.log(`  FALLA ${f}`));
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : 'TODO OK');
+fallos.forEach(f => console.log(`  FAIL ${f}`));
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : 'ALL OK');
 process.exit(fallos.length ? 1 : 0);

@@ -58,7 +58,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -242,9 +242,9 @@ comprueba('un valor fuera de BAJO/MEDIO/ALTO NO es válido', !valida({ traceabil
 ensConfigurationRepository.reset();
 
 if (fallos.length) {
-  console.log(`\n${fallos.length} comprobación(es) fallan:`);
+  console.log(`\n${fallos.length} check(s) FAIL:`);
   fallos.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('\nTodo correcto.');
+console.log('\nALL OK');

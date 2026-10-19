@@ -8,7 +8,7 @@ import { createConfigurationHandlers } from '../server/lib/configuration-handler
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`);
   if (!c) failures.push(n);
 };
 
@@ -101,6 +101,6 @@ const save = (ix: any, configuration: any) => h.save(context(ix) as any, { body:
   r = await save(ix, { ...migrated, changeReason: 'otro guardado' });
   check('if it is already the latest version in the history, it is not repeated', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === history.length + 1);
 
-  console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })();

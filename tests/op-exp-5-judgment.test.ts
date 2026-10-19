@@ -53,7 +53,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -568,9 +568,9 @@ bloque('10. La causa de lo que no se ha podido medir llega a la evidencia');
 console.log('');
 
 if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
+  console.log(`${fallos.length} check(s) FAIL:`);
   fallos.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -24,7 +24,7 @@ import { defaultENSConfigurationTemplate } from '../common/ens/configuration/dat
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
   if (!c) fallos.push(n);
 };
 const canon = (v: any): any => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object'
@@ -178,7 +178,7 @@ const pide = async (servicio: any, clientes: any, q: any) => {
     comprueba(`${estado}: falla con su estado y su motivo (no se reintenta fila a fila)`, Number(f4?.meta?.statusCode ?? f4?.statusCode) === estado && new RegExp(`estado ${estado}`).test(f4?.message || ''), f4?.message);
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

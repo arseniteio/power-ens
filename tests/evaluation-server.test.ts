@@ -26,7 +26,7 @@ import { FACTS_PAGE_SIZE } from '../server/lib/evaluation/facts-reader';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 300)}` : ''}`); if (!c) fallos.push(n); };
 const canon = (v: any): any => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object'
   ? Object.fromEntries(Object.keys(v).sort().filter(k => k !== 'evaluatedAt').map(k => [k, canon(v[k])])) : v;
 const igual = (a: unknown, b: unknown) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
@@ -207,6 +207,6 @@ const referencia = () => {
   const modelo = (buildEvaluationResponse(conSerie) as any).dashboard;
   comprueba('el panel recibe el modelo hecho (con su serie)', modelo && modelo.evolution.rows.length === esperada.length);
 
-  fallos.length ? console.log(`\n${fallos.length} FALLOS`) : console.log('\nTodas las comprobaciones pasan.');
+  fallos.length ? console.log(`\n${fallos.length} FAILURES`) : console.log('\nAll checks pass.');
   process.exit(fallos.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

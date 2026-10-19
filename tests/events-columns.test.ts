@@ -16,7 +16,7 @@ import { readFileSync } from 'fs';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 comprueba(
   'las columnas de hoy, en su orden',
@@ -71,5 +71,5 @@ for (const tamano of [25, 50, 100]) {
 comprueba('mismos filtros: la página elegida', pageIndexFor({ key: 'A', index: 4 }, 'A') === 4);
 comprueba('otros filtros: la primera', pageIndexFor({ key: 'A', index: 4 }, 'B') === 0);
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

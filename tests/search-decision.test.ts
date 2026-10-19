@@ -8,7 +8,7 @@ import { decideSearch, ENS_SEARCH_TOAST_WINDOW_MS, isOwnCancellation, searchData
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const filtros = [{ match_phrase: { 'agent.id': '024' } }];
 const a = searchDataKey({ preAppliedFilters: filtros, size: 0, refreshKey: 1 });
@@ -39,5 +39,5 @@ comprueba('sin señal: es un fallo', !isOwnCancellation(undefined));
   comprueba('pasado el minuto: se vuelve a avisar', shouldToast(registro, 'Request Timeout', t0 + ENS_SEARCH_TOAST_WINDOW_MS));
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

@@ -9,7 +9,7 @@ import { createConfigurationHandlers } from '../server/lib/configuration-handler
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 // Índice en memoria con la forma del cliente de OpenSearch.
 const indice = () => {
@@ -131,6 +131,6 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   r = await h.getActive(contexto(roto, usuario({ user_name: 'a', roles: [] })) as any, {} as any, respuestas as any);
   comprueba('GET con fallo: 500 genérico', r.status === 500 && !/10\.0\.0\.5/.test(JSON.stringify(r.body)), r);
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })();

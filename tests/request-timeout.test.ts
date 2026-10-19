@@ -21,7 +21,7 @@ async function main() {
   await assert.rejects(withRequestTimeout(signal => new Promise((_, reject) => {
     signal.addEventListener('abort', () => reject(new Error('AbortError')));
   }), 'configuración', new AbortController(), 5), ENSRequestTimeoutError);
-  console.log('TODO OK: respuestas, fallos y consultas bloqueadas');
+  console.log('ALL OK: respuestas, fallos y consultas bloqueadas');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -89,7 +89,7 @@ const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): v
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -320,8 +320,8 @@ bloque('3. op.mon.2 y op.cont.3: todo pasa por un registro que lee el recolector
 // ---------------------------------------------------------------------------
 
 if (fallos.length) {
-  console.log(`\n${fallos.length} comprobación(es) fallan:\n  - ${fallos.join('\n  - ')}`);
+  console.log(`\n${fallos.length} check(s) FAIL:\n  - ${fallos.join('\n  - ')}`);
   process.exit(1);
 }
 
-console.log('\nTodas las comprobaciones pasan.');
+console.log('\nAll checks pass.');

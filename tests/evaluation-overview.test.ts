@@ -25,7 +25,7 @@ import { defaultENSConfigurationTemplate } from '../common/ens/configuration/dat
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -185,7 +185,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     comprueba('sondeando, acaba completa e igual que la de antes', !ultima.meta.pending && JSON.stringify(ultima.controls) === JSON.stringify(general.controls) && JSON.stringify(ultima.agents) === JSON.stringify(general.agents) && JSON.stringify(ultima.nonConformities) === JSON.stringify(general.nonConformities));
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

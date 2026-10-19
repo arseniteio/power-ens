@@ -13,7 +13,7 @@ import {
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`);
   if (!c) failures.push(n);
 };
 
@@ -98,6 +98,6 @@ const WINDOWS = { platform: 'windows', name: 'Microsoft Windows Server 2022 Stan
       ['101', 'dirhost', 'dir01.example.com', 'dir01', 'directorio-principal'].every(x => a.includes(x)), a);
   }
 
-  console.log(failures.length ? `\n${failures.length} FALLOS` : '\nTODO OK');
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })();

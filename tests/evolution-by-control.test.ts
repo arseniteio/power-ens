@@ -37,7 +37,7 @@ const comprueba = (
     return;
   }
 
-  console.log(`  FALLA ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
   fallos.push(nombre);
 };
 
@@ -197,9 +197,9 @@ bloque('3. Si el motor no devuelve nada, el punto no se inventa');
 console.log('');
 
 if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
+  console.log(`${fallos.length} check(s) FAIL:`);
   fallos.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -22,7 +22,7 @@ declare const __dirname: string;
 
 const fallos: string[] = [];
 const comprueba = (n: string, c: boolean, d: unknown = '') => {
-  console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
+  console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
   if (!c) fallos.push(n);
 };
 
@@ -221,7 +221,7 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     comprueba('«Volver a controles» quita el control de la URL y vuelve a la lista', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 23, h.search());
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
   process.exit(fallos.length ? 1 : 0);
 })().catch(error => {
   console.error(error);

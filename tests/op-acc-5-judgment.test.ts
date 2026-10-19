@@ -44,7 +44,7 @@ const comprueba = (
   }
 
   fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
 };
 
 const bloque = (titulo: string): void => console.log(`\n${titulo}`);
@@ -622,8 +622,8 @@ bloque('7. Sin ningún servicio de acceso externo (wazuh-real y el LDAP hoy)');
 
 console.log(
   fallos.length
-    ? `\n${fallos.length} comprobación(es) FALLAN`
-    : '\ntodas las comprobaciones pasan'
+    ? `\n${fallos.length} check(s) FAIL`
+    : '\nall checks pass'
 );
 
 process.exit(fallos.length ? 1 : 0);

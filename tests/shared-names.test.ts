@@ -18,7 +18,7 @@ import {
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const raiz = path.join(__dirname, '..');
 const lee = (f: string) => fs.readFileSync(path.join(raiz, f), 'utf8');
@@ -46,5 +46,5 @@ comprueba('create-admin-role.sh crea un rol', Boolean(rol), rol);
 comprueba('y es uno de ENSFACIL_ADMIN_ROLES', !!rol && ENSFACIL_ADMIN_ROLES.includes(rol), { rol, ENSFACIL_ADMIN_ROLES });
 comprueba('con all_access', ENSFACIL_ADMIN_ROLES.includes('all_access'));
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
 process.exit(fallos.length ? 1 : 0);

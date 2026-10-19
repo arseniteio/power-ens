@@ -42,7 +42,7 @@ const comprueba = (
     return;
   }
 
-  console.log(`  FALLA ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
+  console.log(`  FAIL ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
   fallos.push(nombre);
 };
 
@@ -349,9 +349,9 @@ bloque('6. Lo nombrado manda sobre un HUECO heredado, nunca sobre un incumplimie
 console.log('');
 
 if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
+  console.log(`${fallos.length} check(s) FAIL:`);
   fallos.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

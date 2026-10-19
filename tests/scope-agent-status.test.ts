@@ -11,7 +11,7 @@ import type { ENSConfigurationScope } from '../common/ens/configuration/types';
 
 declare const process: { exit(code: number): void };
 const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FALLA'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
 
 const INVENTARIO: ENSAgentScope[] = [
   { id: '024', name: 'real', groups: ['ens'], status: 'active' },
@@ -36,6 +36,6 @@ hydrateENSScope(global, async () => INVENTARIO)
   })
   .catch(error => comprueba('la hidratación no falla', false, String(error)))
   .then(() => {
-    console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
+    console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
     process.exit(fallos.length ? 1 : 0);
   });
