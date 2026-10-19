@@ -1,40 +1,30 @@
 #!/usr/bin/env bash
 ###############################################################################
-# generate-mp-info-6-pbs-pass.sh · regenera mp-info-6-pbs-pass.ndjson
+# generate-mp-info-6-pbs-pass.sh · regenerates mp-info-6-pbs-pass.ndjson
 #
-#   bash tests/fixtures/generate-mp-info-6-pbs-pass.sh [<repo del runbook>]
+#   bash tests/fixtures/generate-mp-info-6-pbs-pass.sh [<runbook repo>]
 #
-# Una pasada normal del recolector REAL de mp.info.6 para Proxmox Backup Server
-# (ens_mpinfo6_collect.sh) seguida de su prueba de restauración
-# (ens_mpinfo6_restore_test.sh), las dos en modo --prueba dentro de un
-# contenedor debian:12 desechable. El PBS es falso: un proxmox-backup-client y
-# un openssl de mentira que devuelven dos backup-id con copias de hace 10 y
-# 12 h, la más antigua de hace 40 y 35 días, y restauran el testigo intacto.
-# El runbook se monta de solo lectura: no se toca.
+# A normal pass of the REAL mp.info.6 collector for Proxmox Backup Server (ens_mpinfo6_collect.sh) followed by its restore test (ens_mpinfo6_restore_test.sh), both in --prueba mode inside a disposable debian:12 container. The PBS is fake: a stub proxmox-backup-client and openssl that return two backup-ids with copies from 10 and 12 h ago, the oldest from 40 and 35 days ago, and restore the witness intact. The runbook is mounted read-only.
 #
-# Lo que sale es el NDJSON tal cual lo escribe el recolector; el test
-# `mp-info-6-judgment.test.ts` lo juzga con la policy del plugin.
+# The output is the NDJSON exactly as the collector writes it; mp-info-6-judgment.test.ts judges it with the plugin policy.
 ###############################################################################
 set -euo pipefail
 
-AQUI="$(cd "$(dirname "$0")" && pwd)"
-# Sin argumento, el runbook es la carpeta hermana del plugin cuyo remoto
-# `origin` termina en linux/mp.info.6 (los repos se llaman como el control desde el
-# 01/10/2026, así que la carpeta no lo identifica); si no hay ninguna, la de
-# antes del renombrado, mp.info.6-proxmox-backup-runbook.
-runbook_por_origen() {
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# Without an argument, the runbook is the plugin sibling folder whose `origin` ends in linux/mp.info.6; failing that, the former folder name.
+runbook_by_origin() {
   local d url
-  for d in "$AQUI"/../../../*/; do
+  for d in "$HERE"/../../../*/; do
     url="$(git -C "$d" remote get-url origin 2>/dev/null || true)"
     case "$url" in
       */"$1"|*/"$1".git|*:"$1"|*:"$1".git) echo "${d%/}"; return 0 ;;
     esac
   done
-  echo "$AQUI/../../../$2"
+  echo "$HERE/../../../$2"
 }
-RUNBOOK="${1:-$(runbook_por_origen linux/mp.info.6 mp.info.6-proxmox-backup-runbook)}"
+RUNBOOK="${1:-$(runbook_by_origin linux/mp.info.6 mp.info.6-proxmox-backup-runbook)}"
 RUNBOOK="$(cd "$RUNBOOK" && pwd)"
-SALIDA="$AQUI/mp-info-6-pbs-pass.ndjson"
+OUTPUT="$HERE/mp-info-6-pbs-pass.ndjson"
 
 docker build -q -t ensfacil-mpinfo6-fixture:debian12 - >/dev/null <<'DOCKERFILE'
 FROM debian:12
@@ -43,9 +33,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends jq acl procps \
 DOCKERFILE
 
 docker run --rm -i --hostname srv-pbs01 --add-host pbs.ejemplo.invalido:192.0.2.10 \
-  -v "$RUNBOOK:/runbook:ro" ensfacil-mpinfo6-fixture:debian12 bash -s > "$SALIDA" <<'DENTRO'
+  -v "$RUNBOOK:/runbook:ro" ensfacil-mpinfo6-fixture:debian12 bash -s > "$OUTPUT" <<'INSIDE'
 set -eu
-B=/work/bin; P=/work/pasada; mkdir -p "$B" "$P"
+B=/work/bin; P=/work/pass; mkdir -p "$B" "$P"
 NOW="$(date -u +%s)"
 FP="ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89"
 TESTIGO="$(printf 'testigo de mp.info.6\n')"
@@ -55,10 +45,10 @@ cat > "$B/proxmox-backup-client" <<'FAKE'
 case "${1:-}" in
   snapshot) cat /work/snapshots.json ;;
   restore)
-    shift; destino="$3"; shift 3; patron=""
-    while [ $# -gt 0 ]; do case "$1" in --pattern) patron="$2"; shift ;; esac; shift; done
-    rel="${patron#/}"; mkdir -p "$destino/$(dirname "$rel")"
-    printf '%s' "$(printf 'testigo de mp.info.6\n')" > "$destino/$rel" ;;
+    shift; dest="$3"; shift 3; pattern=""
+    while [ $# -gt 0 ]; do case "$1" in --pattern) pattern="$2"; shift ;; esac; shift; done
+    rel="${pattern#/}"; mkdir -p "$dest/$(dirname "$rel")"
+    printf '%s' "$(printf 'testigo de mp.info.6\n')" > "$dest/$rel" ;;
   *) exit 2 ;;
 esac
 FAKE
@@ -113,6 +103,6 @@ export PATH="$B:$PATH" MPINFO6_SCHEDULE_FILES=/etc/cron.d/ensfacil-mpinfo6
 bash /runbook/scripts/ens_mpinfo6_restore_test.sh --prueba "$P" >&2
 bash /runbook/scripts/ens_mpinfo6_collect.sh --prueba "$P" >&2
 cat "$P/log/mp_info_6.json"
-DENTRO
+INSIDE
 
-echo "$(wc -l < "$SALIDA") líneas en $SALIDA" >&2
+echo "$(wc -l < "$OUTPUT") lines in $OUTPUT" >&2
