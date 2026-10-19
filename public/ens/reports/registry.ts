@@ -2,6 +2,8 @@
 import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
+import { buildMpCom1ReportModel } from './mp-com-1-report-model';
+import { buildMpCom3ReportModel } from './mp-com-3-report-model';
 import { buildMpEq2ReportModel } from './mp-eq-2-report-model';
 import { buildMpEq3ReportModel } from './mp-eq-3-report-model';
 import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
@@ -71,6 +73,16 @@ export interface ENSReportModelDefinition {
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
+  {
+    controlId: 'mp.com.1',
+    name: 'mp.com.1 - Perímetro seguro',
+    build: buildMpCom1ReportModel,
+  },
+  {
+    controlId: 'mp.com.3',
+    name: 'mp.com.3 - Protección de la integridad y de la autenticidad',
+    build: buildMpCom3ReportModel,
+  },
   {
     controlId: 'mp.eq.2',
     name: 'mp.eq.2 - Bloqueo de puesto de trabajo',

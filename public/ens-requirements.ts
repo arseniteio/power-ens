@@ -388,4 +388,24 @@ export const ensRequirementsFile = {
     'Productos o servicios conformes con op.pl.5 - Se usarán, cuando sea posible, productos o servicios que cumplan lo establecido en [op.pl.5].',
   'mp.eq.4.r2.1':
     'Control de los dispositivos conectados a la red - Refuerzo R2 – Control de dispositivos conectados a la red: Se dispondrá de soluciones que permitan visualizar los dispositivos presentes en la red, controlar su conexión/desconexión a la misma y verificar su configuración de seguridad.',
+  'mp.com.1.1':
+    'Perímetro que separa la red interna y por el que pasa todo el tráfico - Se dispondrá de un sistema de protección perimetral que separe la red interna del exterior. Todo el tráfico deberá atravesar dicho sistema.',
+  'mp.com.1.2':
+    'Flujos a través del perímetro autorizados previamente - Todos los flujos de información a través del perímetro deben estar autorizados previamente.',
+  'mp.com.3.1':
+    'Autenticidad del otro extremo antes de intercambiar información - En comunicaciones con puntos exteriores al dominio propio de seguridad, se asegurará la autenticidad del otro extremo del canal de comunicación antes de intercambiar información. (Ver [op.acc.5]).',
+  'mp.com.3.2':
+    'Prevención de ataques activos con activación del tratamiento del incidente - Se prevendrán ataques activos garantizando que al ser detectados se activarán los procedimientos previstos de tratamiento del incidente. Se considerarán ataques activos: a) La alteración de la información en tránsito. b) La inyección de información espuria. c) El secuestro de la sesión por una tercera parte.',
+  'mp.com.3.3':
+    'Mecanismos de identificación y autenticación admitidos - Se aceptará cualquier mecanismo de identificación y autenticación de los previstos en el ordenamiento jurídico y en la normativa de aplicación.',
+  'mp.com.3.r1.1':
+    'Redes privadas virtuales cifradas fuera del dominio propio - Se emplearán redes privadas virtuales cifradas cuando la comunicación discurra por redes fuera del propio dominio de seguridad.',
+  'mp.com.3.r2.1':
+    'Algoritmos y parámetros autorizados por el CCN - Se emplearán algoritmos y parámetros autorizados por el CCN.',
+  'mp.com.3.r3.1':
+    'Dispositivos hardware para la red privada virtual - Se recomienda emplear dispositivos hardware en el establecimiento y utilización de la red privada virtual.',
+  'mp.com.3.r4.1':
+    'Productos certificados conforme a op.pl.5 - Se emplearán productos certificados conforme a lo establecido en [op.pl.5].',
+  'mp.com.3.r5.1':
+    'Cifradores conformes con la guía CCN-STIC - Refuerzo R5 – Cifradores: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.',
 };

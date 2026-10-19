@@ -1,3 +1,5 @@
+export * from './mp-com-1.policy';
+export * from './mp-com-3.policy';
 export * from './mp-eq-2.policy';
 export * from './mp-eq-3.policy';
 export * from './mp-eq-4.policy';

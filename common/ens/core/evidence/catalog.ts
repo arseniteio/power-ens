@@ -4628,4 +4628,312 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: ejecución del borrado del almacenamiento del dispositivo?',
   },
+  // mp.com.1. Born DRAFT without a collector (wave C, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112100-112199.
+  {
+    id: 'EV-01',
+    controlId: 'mp.com.1',
+    title: 'Ingesta de los registros del sistema de protección perimetral',
+    description:
+      'Recolección de los registros de los elementos de P-01: conexiones aceptadas y denegadas, con origen, destino, protocolo, puerto y regla aplicada. Es la base de todo el control: sin registros del perímetro no hay forma de acreditar qué flujos pasan.',
+    requirements: ['mp.com.1.1', 'mp.com.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: ingesta de los registros del sistema de protección perimetral?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.com.1',
+    title: 'Flujos observados frente a flujos autorizados',
+    description:
+      'Contraste entre los flujos que efectivamente atraviesan el perímetro y el registro de flujos autorizados de P-02. Un flujo que pasa sin autorización previa registrada incumple mp.com.1.2 de forma directa, con independencia de que la regla del cortafuegos exista.',
+    requirements: ['mp.com.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: flujos observados frente a flujos autorizados?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.com.1',
+    title: 'Interfaces de red no previstas en los sistemas',
+    description:
+      'Detección de adaptadores de red adicionales, interfaces virtuales, conexiones inalámbricas activas o módems en los sistemas del alcance, que constituyan una vía por la que el tráfico no atraviese el perímetro. Es la verificación directa del «todo el tráfico» de mp.com.1.1.',
+    requirements: ['mp.com.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: interfaces de red no previstas en los sistemas?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.com.1',
+    title: 'Rutas y salidas alternativas a redes externas',
+    description:
+      'Identificación de rutas por defecto hacia destinos distintos del perímetro previsto y de conexiones salientes que no aparecen en los registros del perímetro, lo que evidencia una vía de elusión.',
+    requirements: ['mp.com.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: rutas y salidas alternativas a redes externas?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.com.1',
+    title: 'Túneles y canales de evasión del perímetro',
+    description:
+      'Detección de túneles salientes, clientes VPN no corporativos, software de acceso remoto inverso y servicios de tunelización que permiten eludir el perímetro desde dentro, lo que vulnera mp.com.1.1 aunque el cortafuegos esté perfectamente configurado.',
+    requirements: ['mp.com.1.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: túneles y canales de evasión del perímetro?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.com.1',
+    title: 'Reglas del perímetro sin uso y reglas permisivas',
+    description:
+      'Identificación de flujos autorizados en P-02 sin tráfico observado en el período —candidatos a retirada— y de patrones de regla excesivamente permisiva según P-05. Da soporte a la revisión periódica de P-04.',
+    requirements: ['mp.com.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: reglas del perímetro sin uso y reglas permisivas?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.com.1',
+    title: 'Servicios de administración expuestos al exterior',
+    description:
+      'Detección de tráfico entrante desde redes externas hacia puertos de administración —SSH, RDP, paneles web, bases de datos—, que evidencia una exposición perimetral que rara vez está autorizada de forma consciente.',
+    requirements: ['mp.com.1.1', 'mp.com.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: servicios de administración expuestos al exterior?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.com.1',
+    title: 'Continuidad del registro del perímetro',
+    description:
+      'Verificación de que los registros de todos los elementos de P-01 llegan de forma continua, sin lagunas. Un período sin registros del perímetro es un período sin acreditación posible de qué flujos pasaron, y es además el escenario en que un cambio de reglas pasa inadvertido.',
+    requirements: ['mp.com.1.1', 'mp.com.1.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: continuidad del registro del perímetro?',
+  },
+  // mp.com.3. Born DRAFT without a collector (wave B, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112200-112299.
+  {
+    id: 'EV-01',
+    controlId: 'mp.com.3',
+    title: 'Autenticación del extremo remoto previa al intercambio',
+    description:
+      'Verificación en los logs de cada canal de P-01 de que la autenticación mutua del otro extremo se completa ANTES de intercambiar información. mp.com.3.1 es expreso en el orden: autenticar y después intercambiar.',
+    requirements: ['mp.com.3.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: autenticación del extremo remoto previa al intercambio?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.com.3',
+    title: 'Algoritmos y parámetros configurados (R2)',
+    description:
+      'Verificación de que los algoritmos, suites de cifrado, longitudes de clave y versiones de protocolo configurados en cada extremo figuran entre los autorizados por el CCN según P-02. Es el refuerzo con mejor cobertura automática del control.',
+    requirements: ['mp.com.3.1', 'mp.com.3.r2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: algoritmos y parámetros configurados (r2)?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.com.3',
+    title: 'Algoritmos efectivamente negociados en las comunicaciones',
+    description:
+      'Protocolo y suite realmente negociados en cada conexión, frente a los configurados como mínimo admisible. Un extremo puede declarar TLS 1.2 como mínimo y seguir aceptando conexiones inferiores por un error de configuración o por una excepción heredada.',
+    requirements: ['mp.com.3.r2.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: algoritmos efectivamente negociados en las comunicaciones?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.com.3',
+    title: 'Detección de alteración de información en tránsito',
+    description:
+      'Identificación del primero de los tres ataques activos de mp.com.3.2: fallos de verificación de integridad, errores de MAC o de firma en los canales, discrepancias de suma de comprobación en transferencias, renegociaciones anómalas.',
+    requirements: ['mp.com.3.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de alteración de información en tránsito?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.com.3',
+    title: 'Detección de inyección de información espuria',
+    description:
+      'Identificación del segundo ataque activo: recepción de información no originada por el extremo legítimo, mensajes con estructura o firma inválida, peticiones con origen suplantado, respuestas DNS o ARP incoherentes en los canales.',
+    requirements: ['mp.com.3.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de inyección de información espuria?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.com.3',
+    title: 'Detección de secuestro de sesión por tercera parte',
+    description:
+      'Identificación del tercer ataque activo: uso simultáneo o sucesivo de un mismo identificador de sesión desde orígenes distintos, cambio abrupto de dirección o de agente de usuario dentro de una sesión, reutilización de token tras su cierre.',
+    requirements: ['mp.com.3.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de secuestro de sesión por tercera parte?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.com.3',
+    title: 'Activación del procedimiento de incidente ante ataque activo',
+    description:
+      'Verificación de que cada detección de ataque activo de EV-04 a EV-06 fue seguida de la apertura del incidente conforme a P-04. mp.com.3.2 no se satisface con detectar: exige garantizar que la detección activa los procedimientos previstos de tratamiento del incidente.',
+    requirements: ['mp.com.3.2'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: activación del procedimiento de incidente ante ataque activo?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.com.3',
+    title: 'Cifrado efectivo de los canales fuera del dominio (R1)',
+    description:
+      'Verificación de que los canales de P-01 que discurren por redes ajenas al dominio de seguridad van por VPN cifrada conforme a P-06, y de que el túnel está efectivamente establecido y en uso cuando hay tráfico.',
+    requirements: ['mp.com.3.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: cifrado efectivo de los canales fuera del dominio (r1)?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'mp.com.3',
+    title: 'Mecanismos de identificación aceptados y rechazados',
+    description:
+      'Verificación de que el servicio no rechaza mecanismos de identificación y autenticación previstos en el ordenamiento jurídico según P-05. mp.com.3.3 es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido.',
+    requirements: ['mp.com.3.3'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: mecanismos de identificación aceptados y rechazados?',
+  },
+  {
+    id: 'EV-10',
+    controlId: 'mp.com.3',
+    title: 'Integridad de la configuración de los canales protegidos',
+    description:
+      'Vigilancia de los ficheros de configuración de los extremos de comunicación y de los túneles, para detectar cambios que degraden la protección: relajación de algoritmos, desactivación de verificación de certificado del par, ampliación de suites admitidas.',
+    requirements: ['mp.com.3.1', 'mp.com.3.r2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'INTEGRITY',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: integridad de la configuración de los canales protegidos?',
+  },
+  {
+    id: 'EV-11',
+    controlId: 'mp.com.3',
+    title: 'Vigencia de las certificaciones de producto (R4)',
+    description:
+      'Seguimiento de la vigencia de las certificaciones conforme a op.pl.5 declaradas en P-08, con alerta anticipada de vencimiento. No es verificación del documento: es control de su validez temporal.',
+    requirements: ['mp.com.3.r4.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: vigencia de las certificaciones de producto (r4)?',
+  },
 ];

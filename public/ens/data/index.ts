@@ -1,3 +1,5 @@
+import { mpCom1Control } from './mp-com-1';
+import { mpCom3Control } from './mp-com-3';
 import { mpEq2Control } from './mp-eq-2';
 import { mpEq3Control } from './mp-eq-3';
 import { mpEq4Control } from './mp-eq-4';
@@ -25,6 +27,6 @@ import { opMon2Control } from './op-mon-2';
 import { opMon3Control } from './op-mon-3';
 import { opNub1Control } from './op-nub-1';
 
-const ENSControls = [mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control];
+const ENSControls = [mpCom1Control, mpCom3Control, mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control];
 
-export { mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control, ENSControls };
+export { mpCom1Control, mpCom3Control, mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control, ENSControls };
