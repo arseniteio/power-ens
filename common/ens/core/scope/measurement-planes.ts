@@ -3,8 +3,7 @@ import type {
   ENSMeasurementPlane,
 } from '../../catalog/types';
 import type { ENSControlConfiguration } from '../../configuration/types';
-// Del fichero, no del barrel `configuration/services`: ese re-exporta el
-// cliente HTTP, que arrastra `kibana-services` al grafo del motor.
+// From the file, not the `configuration/services` barrel (it drags `kibana-services` into the engine graph).
 import {
   toParameterListItems,
   toTableRowCells,
@@ -14,26 +13,14 @@ import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
 import { withReplacedReason } from '../policy-runtime/reason-parts';
 import { ENSAgentScope } from './types';
 
-// Planos de medida: dónde se mide cada control.
-//
-// El alcance ENS se resuelve por el grupo `ens`, y el manager de Wazuh (agente
-// 000) no puede estar en un grupo. Hasta que existieron op.exp.7, op.exp.8 y
-// op.exp.9 daba igual: ningún control se medía allí. Ahora hay controles que se
-// miden SOLO en el manager (op.exp.7, op.exp.9) y uno en los dos planos
-// (op.exp.8), así que el manager entra en el alcance cuando algún control
-// ACTIVE lo pide, y cada fila evalúa solo los controles de su plano:
-//
-//   - fila del manager: los controles con plano `manager`;
-//   - fila de cualquier otra máquina: los controles con plano `agent`.
-//
-// Un control que no se mide en una fila NO produce resultado en ella (ni un
-// NO_APLICA inventado): la consolidación ya salta las filas sin resultado.
+// Measurement planes: where each control is measured. The ENS scope is resolved by the `ens` group, and the Wazuh manager (agent 000) cannot be in a group. Some controls are measured ONLY on the manager (op.exp.7, op.exp.9) and one on both planes (op.exp.8),
+// so the manager enters the scope when an ACTIVE control asks, and each row evaluates only the controls of its plane: the manager row those with plane `manager`, any other machine those with plane `agent`.
+// A control not measured on a row produces no result there (no invented NO_APLICA): consolidation already skips rows without result.
 
-// El id del manager en Wazuh. Es fijo: el manager es siempre el agente 000.
+// The manager's id in Wazuh: fixed, always agent 000.
 export const ENS_MANAGER_AGENT_ID = '000';
 
-// Nombre del manager cuando el inventario de agentes no lo trae. El que traigan
-// sus propios eventos no lo sustituye: la identidad sale del alcance.
+// Manager name when the agent inventory lacks it. The name its own events carry does not replace it: identity comes from the scope.
 export const ENS_MANAGER_FALLBACK_NAME = 'Manager de Wazuh';
 
 const DEFAULT_MEASUREMENT_PLANES: ENSMeasurementPlane[] = ['agent'];
@@ -60,28 +47,20 @@ export const isControlMeasuredOnPlane = (
   plane: ENSMeasurementPlane
 ): boolean => getControlMeasurementPlanes(control).includes(plane);
 
-// ¿Se evalúa este control en la fila de esta máquina?
+// Is this control evaluated on this machine's row?
 export const isControlMeasuredOnAgent = (
   control: ENSMeasuredControl,
   agentId: string
 ): boolean =>
   isControlMeasuredOnPlane(control, getAgentMeasurementPlane(agentId));
 
-// --- alcance declarado -----------------------------------------------------
-//
-// Además del plano, un control puede medirse solo en las máquinas que la
-// organización nombra en un parámetro de su configuración (`scopeParameter`
-// del catálogo; P-04 en mp.info.6). Es la misma regla que la del plano: en la
-// fila de una máquina no declarada el control no produce resultado —no suma ni
-// resta—, y en la de una declarada que no ha enviado nada sale «sin datos»,
-// que es lo que el motor ya produce para cualquier control sin hechos.
+// Declared scope. A control may be measured only on the machines the organisation names in a configuration parameter (`scopeParameter` of the catalog; P-04 in mp.info.6). Same rule as the plane:
+// on an undeclared machine's row the control produces no result (neither adds nor subtracts), and on a declared one that sent nothing it comes out "sin datos".
 
 type ENSScopedControl = Pick<ENSControlDefinition, 'scopeParameter'>;
 
-// Los nombres de las máquinas declaradas, en minúsculas. Cada entrada es una
-// máquina y, tras una barra vertical, lo que el parámetro añada (la
-// criticidad en P-04: `srv-bd01 | ALTA`); solo cuenta el nombre. `undefined`
-// si el control no declara parámetro de alcance: se mide en todas.
+// Lowercase names of the declared machines. Each entry is a machine and, after a vertical bar, whatever the parameter adds (criticality in P-04: `srv-bd01 | ALTA`); only the name counts.
+// `undefined` if the control declares no scope parameter: measured everywhere.
 export const getDeclaredScopeAgentNames = (
   control: ENSScopedControl,
   configuration: ENSControlConfiguration | undefined
@@ -94,7 +73,7 @@ export const getDeclaredScopeAgentNames = (
     parameter => parameter.id === control.scopeParameter
   )?.value;
 
-  // Un número o un booleano sueltos no nombran ninguna máquina.
+  // A bare number or boolean names no machine.
   if (!Array.isArray(value) && typeof value !== 'string') {
     return [];
   }
@@ -108,9 +87,7 @@ export const getDeclaredScopeAgentNames = (
   );
 };
 
-// ¿Es esta máquina una de las declaradas? El nombre es el del agente de
-// Wazuh, sin distinguir mayúsculas: es como lo escribe el responsable en la
-// pantalla.
+// Is this machine one of the declared? The Wazuh agent name, case-insensitive, as the owner writes it on screen.
 export const isAgentNameDeclared = (
   agentName: string | undefined,
   declared: string[]
@@ -120,8 +97,7 @@ export const isAgentNameDeclared = (
   return name !== '' && declared.includes(name);
 };
 
-// ¿Figura esta máquina en el alcance declarado del control? Un control sin
-// parámetro de alcance está en todas; con el parámetro vacío, en ninguna.
+// Is this machine in the control's declared scope? A control without scope parameter is on all; with an empty parameter, on none.
 export const isControlInDeclaredScope = (
   control: ENSScopedControl,
   agentName: string | undefined,
@@ -132,11 +108,8 @@ export const isControlInDeclaredScope = (
   return declared === undefined || isAgentNameDeclared(agentName, declared);
 };
 
-// Sin fila, un control cuyo alcance declarado no nombra a NINGUNA máquina
-// conocida (vacío, o con nombres que no coinciden con ningún agente, una
-// errata) no tiene de quién esperar hechos: lo que no se ha podido medir es de
-// CONFIGURACIÓN, no de recogida. Estas dos marcan el resultado así, igual que
-// `stale-collector.ts` marca el de un recolector parado.
+// Without a row, a control whose declared scope names NO known machine (empty, or names matching no agent) has nobody to expect facts from: what could not be measured is CONFIGURATION, not collection.
+// These two mark the result like that, as `stale-collector.ts` marks a stopped collector's.
 export const describeUnmatchedDeclaredScope = (
   parameterId: string,
   declared: string[]
@@ -145,8 +118,7 @@ export const describeUnmatchedDeclaredScope = (
     ? `Ninguna de las máquinas que declara ${parameterId} (${declared.join(', ')}) coincide con un agente del alcance ENS: ninguna máquina declarada envía datos. Revisa los nombres en la pantalla de Configuración.`
     : `${parameterId} no declara ninguna máquina: el control solo se mide en las máquinas declaradas, y sin ninguna no hay qué medir.`;
 
-// Una máquina declarada que no es ninguna del alcance ENS: cuenta como una
-// máquina declarada sin datos, y el motivo dice por qué puede pasar.
+// A declared machine outside the ENS scope: counts as a declared machine without data, and the motive says why this can happen.
 export const describeOutOfScopeDeclaredMachine = (
   parameterId: string,
   name: string
@@ -187,8 +159,7 @@ export const markEvidencesUnmatchedScope = (
     };
   });
 
-// Las decisiones `documental` salen de la configuración, no de las máquinas
-// declaradas: se conservan, como el NO_APLICA (ver `markPolicyRuntimeStale`).
+// `documental` decisions come from the configuration, not the declared machines: kept, like NO_APLICA (see `markPolicyRuntimeStale`).
 export const markPolicyRuntimeUnmatchedScope = (
   policyRuntime: ENSPolicyRuntimeResult | undefined,
   reason: string
@@ -206,17 +177,14 @@ export const markPolicyRuntimeUnmatchedScope = (
     ),
   };
 
-// Un control SOLO de manager es de la organización, no de una máquina: en la
-// vista de un agente se muestra con el resultado de la fila del manager.
+// A manager-ONLY control belongs to the organisation, not a machine: in an agent's view it shows with the manager row's result.
 export const isManagerOnlyControl = (
   control: ENSMeasuredControl
 ): boolean =>
   isControlMeasuredOnPlane(control, 'manager') &&
   !isControlMeasuredOnPlane(control, 'agent');
 
-// El manager entra en el alcance si algún control ACTIVE se mide en su plano.
-// Un control DRAFT no cuenta: no entra en el índice y no puede arrastrar al
-// manager con él.
+// The manager enters the scope if some ACTIVE control is measured on its plane. A DRAFT control does not count.
 export const isManagerPlaneActive = (
   catalog: Array<Pick<ENSControlDefinition, 'status' | 'measurementPlanes'>>
 ): boolean =>
@@ -226,11 +194,8 @@ export const isManagerPlaneActive = (
       isControlMeasuredOnPlane(control, 'manager')
   );
 
-// Aplica el plano del manager a los agentes ya resueltos por el modo de alcance
-// (global, grupo o agente). El manager no está en ningún grupo, así que ningún
-// modo lo trae por sí solo; y si alguno lo trae (el modo global con un
-// inventario que lo incluye, o un 000 escrito a mano), sin plano `manager`
-// activo se quita: su fila no tendría ningún control que evaluar.
+// Applies the manager plane to the agents already resolved by the scope mode (global, group or agent). The manager is in no group, so no mode brings it; and if one does (global mode with an inventory that includes it, or a hand-written 000),
+// without an active `manager` plane it is removed: its row would have no control to evaluate.
 export const applyManagerPlaneToScope = (
   resolvedAgents: ENSAgentScope[],
   inventory: ENSAgentScope[],
@@ -255,32 +220,21 @@ export const applyManagerPlaneToScope = (
   return [...agents, manager];
 };
 
-// --- «no se mide en esta máquina» -----------------------------------------
-//
-// Con una máquina elegida, un control puede no tener resultado en ella por dos
-// razones, y la pantalla tiene que decir cuál en vez de quedarse en blanco (o,
-// peor, afirmar que todo es conforme):
-//
-//   - PLANE           el control no se mide en el plano de esa máquina: los de
-//                     plano `agent` en el manager (000);
-//   - DECLARED_SCOPE  el control declara las máquinas en que se mide (P-04 de
-//                     mp.info.6) y esta no figura.
-//
-// Un control solo de manager en la vista de otra máquina SÍ tiene resultado
-// (el de la fila del manager): aquí no devuelve nada. Es la misma regla que
-// aplica el servidor al derivar la vista de una máquina (`deriveForAgent`).
+// "Not measured on this machine". With a chosen machine, a control may have no result on it for two reasons, and the screen must say which:
+// - PLANE           the control is not measured on that machine's plane: `agent`-plane controls on the manager (000);
+// - DECLARED_SCOPE  the control declares the machines it is measured on (P-04 of mp.info.6) and this one is not listed.
+// A manager-only control in another machine's view DOES have a result (the manager row's): here it returns nothing. Same rule as the server's `deriveForAgent`.
 export type ENSNotMeasuredCause = 'PLANE' | 'DECLARED_SCOPE';
 
 export interface ENSNotMeasuredReason {
   cause: ENSNotMeasuredCause;
   text: string;
-  // Solo con DECLARED_SCOPE: el parámetro que declara las máquinas y las que
-  // nombra (en minúsculas, como las compara el motor).
+  // Only with DECLARED_SCOPE: the parameter declaring the machines and the ones it names (lowercase, as the engine compares them).
   parameterId?: string;
   declared?: string[];
 }
 
-const etiquetaDeMaquina = (agentId: string, agentName?: string): string =>
+const machineLabel = (agentId: string, agentName?: string): string =>
   agentName ? `${agentId} · ${agentName}` : agentId;
 
 export const describeNotMeasuredOnAgent = (
@@ -298,12 +252,11 @@ export const describeNotMeasuredOnAgent = (
       cause: 'PLANE',
       text: isManagerAgentId(agentId)
         ? `${control.id} se mide en cada máquina del alcance ENS, no en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}): el manager no tiene fila para este control.`
-        : `${control.id} se mide solo en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}), no en ${etiquetaDeMaquina(agentId, agentName)}.`,
+        : `${control.id} se mide solo en el manager de Wazuh (${ENS_MANAGER_AGENT_ID}), no en ${machineLabel(agentId, agentName)}.`,
     };
   }
 
-  // Un control con alcance declarado que no está en la configuración: no es
-  // que su parámetro no nombre la máquina, es que no hay parámetro.
+  // A control with declared scope that is not in the configuration: not that its parameter fails to name the machine, there is no parameter.
   if (control.scopeParameter && !configuration) {
     return {
       cause: 'DECLARED_SCOPE',
@@ -326,7 +279,7 @@ export const describeNotMeasuredOnAgent = (
     parameterId,
     declared,
     text: declared.length
-      ? `${control.id} solo se mide en las máquinas que declara ${parameterId} (${declared.join(', ')}); ${etiquetaDeMaquina(agentId, agentName)} no está entre ellas.`
-      : `${control.id} solo se mide en las máquinas que declara ${parameterId}, y ${parameterId} no declara ninguna: ${etiquetaDeMaquina(agentId, agentName)} no está entre ellas.`,
+      ? `${control.id} solo se mide en las máquinas que declara ${parameterId} (${declared.join(', ')}); ${machineLabel(agentId, agentName)} no está entre ellas.`
+      : `${control.id} solo se mide en las máquinas que declara ${parameterId}, y ${parameterId} no declara ninguna: ${machineLabel(agentId, agentName)} no está entre ellas.`,
   };
 };

@@ -2,8 +2,7 @@ export interface ComplianceCardModel {
   title: string;
   score: number;
 
-  // Sobre cuántos controles se ha calculado `score`. Con 0 no hay índice que
-  // enseñar: la tarjeta tiene que decir "sin medir", no "0 %".
+  // Over how many controls `score` was computed. With 0 there is no index to show: the card must say "sin medir", not "0 %".
   measured: number;
 
   total: number;
