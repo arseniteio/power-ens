@@ -99,7 +99,7 @@ En un entorno de pruebas:
    for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
    ```
 
-   Resultado esperado: `coherencia OK` y ninguna línea `FAIL`.
+   Resultado esperado: `consistency OK` y ninguna línea `FAIL`.
 
 6. Recorrer las pantallas con datos reales: Panel, Vista general, Configuración (pestañas «Controles», «Agentes» y «General»; guardar con y sin el rol `ensfacil_admin`), Controles, Detalle del control, Informes (un PDF), Evidencias y Eventos.
 

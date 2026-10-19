@@ -314,7 +314,7 @@ sudo /var/ossec/bin/wazuh-analysisd -t && echo "CONFIG_MANAGER=OK"
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 ```
 
-Resultado esperado: `active`, `CONFIG_MANAGER=OK` y `coherencia OK`. `check-consistency.py` compara las reglas que acredita el plugin con las de los runbooks clonados en `/opt/ensfacil`, no con las del manager.
+Resultado esperado: `active`, `CONFIG_MANAGER=OK` y `consistency OK`. `check-consistency.py` compara las reglas que acredita el plugin con las de los runbooks clonados en `/opt/ensfacil`, no con las del manager.
 
 > [!warning]
 > Si cualquiera de los instaladores falla, no confirma su regla esperada o el Manager no queda activo, detener el despliegue antes de continuar.

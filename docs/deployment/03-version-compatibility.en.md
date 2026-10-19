@@ -100,7 +100,7 @@ In a test environment:
    for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
    ```
 
-   Expected result: `coherencia OK` and no `FAIL` line.
+   Expected result: `consistency OK` and no `FAIL` line.
 
 6. Go through the screens with real data: Panel, Vista general, Configuración («Controles», «Agentes» and «General» tabs; save with and without the `ensfacil_admin` role), Controles, Detalle del control, Informes (one PDF), Evidencias and Eventos.
 

@@ -54,12 +54,12 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   r = await h.save(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, responses as any);
   check('without the administration role: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
   check('and nothing is saved', ix.docs.size === 0);
-  check('the attempt stays in the log with the user', notices.length === 1 && /ana/.test(notices[0]) && /guardar/.test(notices[0]), notices);
-  check('without the request body', !/MEDIO|ensLevel|configuration/.test(notices[0]), notices[0]);
+  check('the attempt stays in the log with the user', notices.length === 1 && /ana/.test(notices[0]) && /save/.test(notices[0]), notices);
+  check('without the request body', !/MEDIO|ensLevel|"configuration"/.test(notices[0]), notices[0]);
 
   r = await h.history(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, responses as any);
   check('history without role: 403', r.status === 403);
-  check('also in the log', notices.length === 2 && /ana/.test(notices[1]) && /historial/.test(notices[1]), notices);
+  check('also in the log', notices.length === 2 && /ana/.test(notices[1]) && /history/.test(notices[1]), notices);
   notices.length = 0;
 
   r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, responses as any);

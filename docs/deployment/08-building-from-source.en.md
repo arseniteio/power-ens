@@ -256,7 +256,7 @@ for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && e
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Expected result: `Done` at the end of the first command, `coherencia OK` at the
+Expected result: `Done` at the end of the first command, `consistency OK` at the
 end of the second and no `FAIL` line.
 
 Without Node.js on the machine, each TypeScript suite runs in Docker:

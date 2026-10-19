@@ -261,7 +261,7 @@ Consistency check between the plugin and the runbooks:
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
 
-Expected result: `coherencia OK`.
+Expected result: `consistency OK`.
 
 It verifies that every rule referenced by the plugin is in the `manager/`
 folder of some runbook cloned next to the repository, that the rule copies do

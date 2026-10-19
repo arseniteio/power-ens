@@ -260,7 +260,7 @@ Comprobación de coherencia entre el plugin y los runbooks:
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py
 ```
 
-Resultado esperado: `coherencia OK`.
+Resultado esperado: `consistency OK`.
 
 Verifica que toda regla acreditada por el plugin está en el `manager/` de
 algún runbook clonado junto al repositorio, que las copias de las reglas no

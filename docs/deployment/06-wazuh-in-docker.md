@@ -798,7 +798,7 @@ cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 
 Resultado esperado: `wazuh-analysisd is running...`,
 `wazuh-logcollector is running...` y `wazuh-remoted is running...`;
-`CONFIG_MANAGER=OK`; `coherencia OK`. `check-consistency.py` se ejecuta en el
+`CONFIG_MANAGER=OK`; `consistency OK`. `check-consistency.py` se ejecuta en el
 host, con el repositorio en `/opt/ensfacil/repo` y los runbooks clonados junto
 a él.
 

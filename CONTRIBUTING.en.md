@@ -91,7 +91,7 @@ for t in tests/*.test.ts; do timeout 180 npx --yes tsx "$t" >/dev/null 2>&1 && e
 for s in tests/*.test.sh; do bash "$s" >/dev/null 2>&1 && echo "OK   $s" || echo "FAIL $s"; done
 ```
 
-Expected result: `coherencia OK` and no `FAIL` line.
+Expected result: `consistency OK` and no `FAIL` line.
 
 Without Node.js, in Docker, or in a clean folder like CI: see
 [Building from source, section 7](docs/deployment/08-building-from-source.en.md#7-run-the-tests).

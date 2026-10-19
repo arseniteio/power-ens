@@ -124,7 +124,7 @@ sudo systemctl is-active wazuh-manager
 cd /opt/ensfacil/repo && python3 tests/check-consistency.py | tail -1
 ```
 
-Expected result: `active` and `coherencia OK`. The rules each installer confirms are listed in the [installation guide, section 12.1](01-installation-from-scratch.en.md#121-validate-the-rule-installation).
+Expected result: `active` and `consistency OK`. The rules each installer confirms are listed in the [installation guide, section 12.1](01-installation-from-scratch.en.md#121-validate-the-rule-installation).
 
 > [!warning]
 > If the `agent.conf` of the `ens` group (or the `ens-copias` one) has more than one `<agent_config>` block, the installers refuse to modify it: merge the blocks into one and validate it with `verify-agent-conf` before retrying. If an installer failed after copying its rules, the retry does not restart the manager: restart it by hand and check the rule with `wazuh-logtest`.
@@ -298,7 +298,7 @@ cd /opt/ensfacil/repo
 python3 tests/check-consistency.py | tail -1
 ```
 
-Expected result: `coherencia OK`.
+Expected result: `consistency OK`.
 
 Finally open ENSFácil in Wazuh Dashboard and confirm that:
 
